@@ -21,7 +21,7 @@ pub use {
     combo_box::*,
     frame::Frame,
     modal::{Modal, ModalResponse},
-    panel::{CentralPanel, Panel},
+    panel::{CentralPanel, Panel, PanelSide, VerticalSide, HorizontalSide},
     popup::*,
     resize::Resize,
     scene::Scene,

@@ -64,32 +64,32 @@ pub enum HorizontalSide {
     Bottom,
 }
 
-/// [`Horizontal`](Side::Horizontal) or [`Vertical`](Side::Vertical)
+/// [`Horizontal`](PanelSide::Horizontal) or [`Vertical`](PanelSide::Vertical)
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Side {
+pub enum PanelSide {
     Vertical(VerticalSide),
     Horizontal(HorizontalSide),
 }
 
-impl Side {
+impl PanelSide {
     fn opposite(self) -> Self {
-        let opposite_vertical = |side: VerticalSide| -> Side {
+        let opposite_vertical = |side: VerticalSide| -> PanelSide {
             match side {
-                VerticalSide::Left => Side::Vertical(VerticalSide::Right),
-                VerticalSide::Right => Side::Vertical(VerticalSide::Left),
+                VerticalSide::Left => PanelSide::Vertical(VerticalSide::Right),
+                VerticalSide::Right => PanelSide::Vertical(VerticalSide::Left),
             }
         };
 
-        let opposite_horizontal = |side: HorizontalSide| -> Side {
+        let opposite_horizontal = |side: HorizontalSide| -> PanelSide {
             match side {
-                HorizontalSide::Top => Side::Horizontal(HorizontalSide::Bottom),
-                HorizontalSide::Bottom => Side::Horizontal(HorizontalSide::Top),
+                HorizontalSide::Top => PanelSide::Horizontal(HorizontalSide::Bottom),
+                HorizontalSide::Bottom => PanelSide::Horizontal(HorizontalSide::Top),
             }
         };
 
         match self {
-            Side::Vertical(side) => opposite_vertical(side),
-            Side::Horizontal(side) => opposite_horizontal(side),
+            PanelSide::Vertical(side) => opposite_vertical(side),
+            PanelSide::Horizontal(side) => opposite_horizontal(side),
         }
     }
 
@@ -105,8 +105,8 @@ impl Side {
         };
 
         match self {
-            Side::Vertical(side) => set_rect_size_vertical(side),
-            Side::Horizontal(side) => set_rect_size_horizontal(side),
+            PanelSide::Vertical(side) => set_rect_size_vertical(side),
+            PanelSide::Horizontal(side) => set_rect_size_horizontal(side),
         }
     }
 
@@ -126,8 +126,8 @@ impl Side {
         };
 
         match self {
-            Side::Vertical(side) => side_axe_vertical(side, rect),
-            Side::Horizontal(side) => side_axe_horizontal(side, rect),
+            PanelSide::Vertical(side) => side_axe_vertical(side, rect),
+            PanelSide::Horizontal(side) => side_axe_horizontal(side, rect),
         }
     }
 
@@ -147,8 +147,8 @@ impl Side {
         };
 
         match self {
-            Side::Vertical(side) => sign_vertical(side),
-            Side::Horizontal(side) => sign_horizontal(side),
+            PanelSide::Vertical(side) => sign_vertical(side),
+            PanelSide::Horizontal(side) => sign_horizontal(side),
         }
     }
 }
@@ -185,15 +185,15 @@ impl<'a> PanelSizer<'a> {
     fn get_size_from_state_or_default(panel: &Panel, ui: &mut Ui, frame: Frame) -> f32 {
         if let Some(state) = PanelState::load(ui.ctx(), panel.id) {
             match panel.side {
-                Side::Vertical(_) => state.rect.width(),
-                Side::Horizontal(_) => state.rect.height(),
+                PanelSide::Vertical(_) => state.rect.width(),
+                PanelSide::Horizontal(_) => state.rect.height(),
             }
         } else {
             match panel.side {
-                Side::Vertical(_) => panel.default_size.unwrap_or_else(|| {
+                PanelSide::Vertical(_) => panel.default_size.unwrap_or_else(|| {
                     ui.style().spacing.interact_size.x + frame.inner_margin.sum().x
                 }),
-                Side::Horizontal(_) => panel.default_size.unwrap_or_else(|| {
+                PanelSide::Horizontal(_) => panel.default_size.unwrap_or_else(|| {
                     ui.style().spacing.interact_size.y + frame.inner_margin.sum().y
                 }),
             }
@@ -207,10 +207,10 @@ impl<'a> PanelSizer<'a> {
         let mut panel_rect = available_rect;
 
         match side {
-            Side::Vertical(_) => {
+            PanelSide::Vertical(_) => {
                 size = clamp_to_range(size, size_range).at_most(available_rect.width());
             }
-            Side::Horizontal(_) => {
+            PanelSide::Horizontal(_) => {
                 size = clamp_to_range(size, size_range).at_most(available_rect.height());
             }
         }
@@ -226,12 +226,12 @@ impl<'a> PanelSizer<'a> {
             let pointer = pointer.unwrap();
 
             match side {
-                Side::Vertical(_) => {
+                PanelSide::Vertical(_) => {
                     self.size = (pointer.x - side.side_axe(self.panel_rect)).abs();
                     self.size =
                         clamp_to_range(self.size, size_range).at_most(self.available_rect.width());
                 }
-                Side::Horizontal(_) => {
+                PanelSide::Horizontal(_) => {
                     self.size = (pointer.y - side.side_axe(self.panel_rect)).abs();
                     self.size =
                         clamp_to_range(self.size, size_range).at_most(self.available_rect.height());
@@ -266,7 +266,7 @@ impl<'a> PanelSizer<'a> {
 /// ```
 #[must_use = "You should call .show()"]
 pub struct Panel {
-    side: Side,
+    side: PanelSide,
     id: Id,
     frame: Option<Frame>,
     resizable: bool,
@@ -286,42 +286,42 @@ impl Panel {
     ///
     /// The id should be globally unique, e.g. `Id::new("my_left_panel")`.
     pub fn left(id: impl Into<Id>) -> Self {
-        Self::new(Side::Vertical(VerticalSide::Left), id)
+        Self::new(PanelSide::Vertical(VerticalSide::Left), id)
     }
 
     /// Create a right panel.
     ///
     /// The id should be globally unique, e.g. `Id::new("my_right_panel")`.
     pub fn right(id: impl Into<Id>) -> Self {
-        Self::new(Side::Vertical(VerticalSide::Right), id)
+        Self::new(PanelSide::Vertical(VerticalSide::Right), id)
     }
 
     /// Create a top panel.
     ///
     /// The id should be globally unique, e.g. `Id::new("my_top_panel")`.
     pub fn top(id: impl Into<Id>) -> Self {
-        Self::new(Side::Horizontal(HorizontalSide::Top), id)
+        Self::new(PanelSide::Horizontal(HorizontalSide::Top), id)
     }
 
     /// Create a bottom panel.
     ///
     /// The id should be globally unique, e.g. `Id::new("my_bottom_panel")`.
     pub fn bottom(id: impl Into<Id>) -> Self {
-        Self::new(Side::Horizontal(HorizontalSide::Bottom), id)
+        Self::new(PanelSide::Horizontal(HorizontalSide::Bottom), id)
     }
 
     /// Create a panel.
     ///
     /// The id should be globally unique, e.g. `Id::new("my_panel")`.
-    pub fn new(side: Side, id: impl Into<Id>) -> Self {
+    pub fn new(side: PanelSide, id: impl Into<Id>) -> Self {
         let default_size: Option<f32> = match side {
-            Side::Vertical(_) => Some(200.0),
-            Side::Horizontal(_) => None,
+            PanelSide::Vertical(_) => Some(200.0),
+            PanelSide::Horizontal(_) => None,
         };
 
         let size_range: Rangef = match side {
-            Side::Vertical(_) => Rangef::new(96.0, f32::INFINITY),
-            Side::Horizontal(_) => Rangef::new(20.0, f32::INFINITY),
+            PanelSide::Vertical(_) => Rangef::new(96.0, f32::INFINITY),
+            PanelSide::Horizontal(_) => Rangef::new(20.0, f32::INFINITY),
         };
 
         Self {
@@ -567,11 +567,11 @@ impl Panel {
         panel_sizer.panel_rect = panel_sizer.panel_rect.round_ui();
 
         let get_ui_kind = || match side {
-            Side::Vertical(v_side) => match v_side {
+            PanelSide::Vertical(v_side) => match v_side {
                 VerticalSide::Left => UiKind::LeftPanel,
                 VerticalSide::Right => UiKind::RightPanel,
             },
-            Side::Horizontal(h_side) => match h_side {
+            PanelSide::Horizontal(h_side) => match h_side {
                 HorizontalSide::Top => UiKind::TopPanel,
                 HorizontalSide::Bottom => UiKind::BottomPanel,
             },
@@ -589,13 +589,13 @@ impl Panel {
 
         let inner_response = panel_sizer.frame.show(&mut panel_ui, |ui| {
             match side {
-                Side::Vertical(_) => {
+                PanelSide::Vertical(_) => {
                     ui.set_min_height(ui.max_rect().height()); // Make sure the frame fills the full height
                     ui.set_min_width(
                         (size_range.min - panel_sizer.frame.inner_margin.sum().x).at_least(0.0),
                     );
                 }
-                Side::Horizontal(_) => {
+                PanelSide::Horizontal(_) => {
                     ui.set_min_width(ui.max_rect().width()); // Make the frame fill full width
                     ui.set_min_height(
                         (size_range.min - panel_sizer.frame.inner_margin.sum().y).at_least(0.0),
@@ -611,11 +611,11 @@ impl Panel {
         {
             let mut cursor = ui.cursor();
             match side {
-                Side::Vertical(v_side) => match v_side {
+                PanelSide::Vertical(v_side) => match v_side {
                     VerticalSide::Left => cursor.min.x = rect.max.x,
                     VerticalSide::Right => cursor.max.x = rect.min.x,
                 },
-                Side::Horizontal(h_side) => match h_side {
+                PanelSide::Horizontal(h_side) => match h_side {
                     HorizontalSide::Top => cursor.min.y = rect.max.y,
                     HorizontalSide::Bottom => cursor.max.y = rect.min.y,
                 },
@@ -655,11 +655,11 @@ impl Panel {
             let resize_axe = side.opposite().side_axe(rect);
             let resize_axe = resize_axe + 0.5 * side.sign() * stroke.width;
             match side {
-                Side::Vertical(_) => {
+                PanelSide::Vertical(_) => {
                     ui.painter()
                         .vline(resize_axe, panel_sizer.panel_rect.y_range(), stroke);
                 }
-                Side::Horizontal(_) => {
+                PanelSide::Horizontal(_) => {
                     ui.painter()
                         .hline(panel_sizer.panel_rect.x_range(), resize_axe, stroke);
                 }
@@ -690,7 +690,7 @@ impl Panel {
         let rect = inner_response.response.rect;
 
         match side {
-            Side::Vertical(v_side) => match v_side {
+            PanelSide::Vertical(v_side) => match v_side {
                 VerticalSide::Left => ctx.pass_state_mut(|state| {
                     state.allocate_left_panel(Rect::from_min_max(available_rect.min, rect.max));
                 }),
@@ -698,7 +698,7 @@ impl Panel {
                     state.allocate_right_panel(Rect::from_min_max(rect.min, available_rect.max));
                 }),
             },
-            Side::Horizontal(h_side) => match h_side {
+            PanelSide::Horizontal(h_side) => match h_side {
                 HorizontalSide::Top => {
                     ctx.pass_state_mut(|state| {
                         state.allocate_top_panel(Rect::from_min_max(available_rect.min, rect.max));
@@ -734,7 +734,7 @@ impl Panel {
 
     fn resize_panel(&self, panel_sizer: &mut PanelSizer<'_>, ui: &mut Ui) -> (bool, bool) {
         let (resize_x, resize_y, amount): (Rangef, Rangef, Vec2) = match self.side {
-            Side::Vertical(_) => {
+            PanelSide::Vertical(_) => {
                 let resize_x = self.side.opposite().side_axe(panel_sizer.panel_rect);
                 let resize_y = panel_sizer.panel_rect.y_range();
                 (
@@ -743,7 +743,7 @@ impl Panel {
                     vec2(ui.style().interaction.resize_grab_radius_side, 0.0),
                 )
             }
-            Side::Horizontal(_) => {
+            PanelSide::Horizontal(_) => {
                 let resize_x = panel_sizer.panel_rect.x_range();
                 let resize_y = self.side.opposite().side_axe(panel_sizer.panel_rect);
                 (
@@ -764,27 +764,27 @@ impl Panel {
     fn get_cursor_icon(&self, panel_sizer: &PanelSizer<'_>) -> CursorIcon {
         if panel_sizer.size <= self.size_range.min {
             match self.side {
-                Side::Vertical(v_side) => match v_side {
+                PanelSide::Vertical(v_side) => match v_side {
                     VerticalSide::Left => CursorIcon::ResizeEast,
                     VerticalSide::Right => CursorIcon::ResizeWest,
                 },
-                Side::Horizontal(h_side) => match h_side {
+                PanelSide::Horizontal(h_side) => match h_side {
                     HorizontalSide::Top => CursorIcon::ResizeSouth,
                     HorizontalSide::Bottom => CursorIcon::ResizeNorth,
                 },
             }
         } else if panel_sizer.size < self.size_range.max {
             match self.side {
-                Side::Vertical(_) => CursorIcon::ResizeHorizontal,
-                Side::Horizontal(_) => CursorIcon::ResizeVertical,
+                PanelSide::Vertical(_) => CursorIcon::ResizeHorizontal,
+                PanelSide::Horizontal(_) => CursorIcon::ResizeVertical,
             }
         } else {
             match self.side {
-                Side::Vertical(v_side) => match v_side {
+                PanelSide::Vertical(v_side) => match v_side {
                     VerticalSide::Left => CursorIcon::ResizeWest,
                     VerticalSide::Right => CursorIcon::ResizeEast,
                 },
-                Side::Horizontal(h_side) => match h_side {
+                PanelSide::Horizontal(h_side) => match h_side {
                     HorizontalSide::Top => CursorIcon::ResizeNorth,
                     HorizontalSide::Bottom => CursorIcon::ResizeSouth,
                 },
@@ -848,13 +848,13 @@ impl Panel {
 
     fn get_animated_size(ctx: &Context, panel: &Panel) -> f32 {
         let get_rect_state_size = |state: PanelState| match panel.side {
-            Side::Vertical(_) => state.rect.width(),
-            Side::Horizontal(_) => state.rect.height(),
+            PanelSide::Vertical(_) => state.rect.width(),
+            PanelSide::Horizontal(_) => state.rect.height(),
         };
 
         let get_spacing_size = || match panel.side {
-            Side::Vertical(_) => ctx.style().spacing.interact_size.x,
-            Side::Horizontal(_) => ctx.style().spacing.interact_size.y,
+            PanelSide::Vertical(_) => ctx.style().spacing.interact_size.x,
+            PanelSide::Horizontal(_) => ctx.style().spacing.interact_size.y,
         };
 
         PanelState::load(ctx, panel.id)
