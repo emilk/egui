@@ -299,8 +299,8 @@ impl<'open, 'collapsed> Window<'open, 'collapsed> {
         self
     }
 
-    #[inline]
     /// Set initial collapsed state of the window
+    #[inline]
     pub fn default_collapsed(mut self, default_collapsed: bool) -> Self {
         self.default_collapsed = default_collapsed;
         self
@@ -486,8 +486,11 @@ impl Window<'_, '_> {
         let area_id = area.id;
         let area_layer_id = area.layer();
         let resize_id = area_id.with("resize");
-        let mut collapsing =
-            CollapsingState::load_with_default_collapsed(ctx, area_id.with("collapsing"), default_collapsed);
+        let mut collapsing = CollapsingState::load_with_default_collapsed(
+            ctx,
+            area_id.with("collapsing"),
+            default_collapsed,
+        );
 
         let is_collapsed = with_title_bar && !collapsing.is_open();
         let possible = PossibleInteractions::new(&area, &resize, is_collapsed);
@@ -1327,7 +1330,7 @@ impl TitleBar {
             collapsing.toggle(ui);
 
             if let Some(collapsed) = collapsed.as_mut() {
-                **collapsed = collapsing.is_collapsed()
+                **collapsed = collapsing.is_collapsed();
             }
         }
     }
