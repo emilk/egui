@@ -33,7 +33,7 @@ use super::{area, resize, Area, Frame, Resize, ScrollArea};
 /// Note that this is NOT a native OS window.
 /// To create a new native OS window, use [`crate::Context::show_viewport_deferred`].
 #[must_use = "You should call .show()"]
-pub struct Window<'open> {
+pub struct Window<'open, 'collapsed> {
     title: WidgetText,
     open: Option<&'open mut bool>,
     area: Area,
@@ -41,12 +41,13 @@ pub struct Window<'open> {
     resize: Resize,
     scroll: ScrollArea,
     collapsible: bool,
-    default_open: bool,
     with_title_bar: bool,
     fade_out: bool,
+    default_collapsed: bool,
+    collapsed: Option<&'collapsed mut bool>,
 }
 
-impl<'open> Window<'open> {
+impl<'open, 'collapsed> Window<'open, 'collapsed> {
     /// The window title is used as a unique [`Id`] and must be unique, and should not change.
     /// This is true even if you disable the title bar with `.title_bar(false)`.
     /// If you need a changing title, you must call `window.id(…)` with a fixed id.
@@ -64,9 +65,10 @@ impl<'open> Window<'open> {
                 .default_size([340.0, 420.0]), // Default inner size of a window
             scroll: ScrollArea::neither().auto_shrink(false),
             collapsible: true,
-            default_open: true,
             with_title_bar: true,
             fade_out: true,
+            default_collapsed: false,
+            collapsed: None,
         }
     }
 
@@ -85,6 +87,18 @@ impl<'open> Window<'open> {
     #[inline]
     pub fn open(mut self, open: &'open mut bool) -> Self {
         self.open = Some(open);
+        self
+    }
+
+    /// Call this to have control over the window's collapsed state
+    ///
+    /// * If `*collapsed == false`, the window will not be collapsed
+    /// * If `*open == true`, the window will be collapsed
+    /// * If the collapse button is pressed, `*collapsed` will be set to represent the new collapsed state
+    /// * If the window is double clicked, `*collapsed` will be set to represent the new collapsed state
+    #[inline]
+    pub fn collapsed(mut self, collapsed: &'collapsed mut bool) -> Self {
+        self.collapsed = Some(collapsed);
         self
     }
 
@@ -278,9 +292,17 @@ impl<'open> Window<'open> {
     }
 
     /// Set initial collapsed state of the window
+    #[deprecated = "Use `default_collapsed` to set default collapsed state instead. This function might change meaning in future, but for now does the same thing as it used to"]
     #[inline]
     pub fn default_open(mut self, default_open: bool) -> Self {
-        self.default_open = default_open;
+        self.default_collapsed = !default_open;
+        self
+    }
+
+    #[inline]
+    /// Set initial collapsed state of the window
+    pub fn default_collapsed(mut self, default_collapsed: bool) -> Self {
+        self.default_collapsed = default_collapsed;
         self
     }
 
@@ -415,7 +437,7 @@ impl<'open> Window<'open> {
     }
 }
 
-impl Window<'_> {
+impl Window<'_, '_> {
     /// Returns `None` if the window is not open (if [`Window::open`] was called with `&mut false`).
     /// Returns `Some(InnerResponse { inner: None })` if the window is collapsed.
     #[inline]
@@ -440,9 +462,10 @@ impl Window<'_> {
             resize,
             scroll,
             collapsible,
-            default_open,
             with_title_bar,
             fade_out,
+            collapsed,
+            default_collapsed,
         } = self;
 
         let header_color =
@@ -464,7 +487,7 @@ impl Window<'_> {
         let area_layer_id = area.layer();
         let resize_id = area_id.with("resize");
         let mut collapsing =
-            CollapsingState::load_with_default_open(ctx, area_id.with("collapsing"), default_open);
+            CollapsingState::load_with_default_collapsed(ctx, area_id.with("collapsing"), default_collapsed);
 
         let is_collapsed = with_title_bar && !collapsing.is_open();
         let possible = PossibleInteractions::new(&area, &resize, is_collapsed);
@@ -638,6 +661,7 @@ impl Window<'_> {
                         open,
                         &mut collapsing,
                         collapsible,
+                        collapsed,
                     );
                 }
 
@@ -1213,6 +1237,7 @@ impl TitleBar {
         open: Option<&mut bool>,
         collapsing: &mut CollapsingState,
         collapsible: bool,
+        mut collapsed: Option<&mut bool>,
     ) {
         let window_frame = self.window_frame;
         let title_inner_rect = self.inner_rect;
@@ -1233,7 +1258,19 @@ impl TitleBar {
             let button_rect = button_rect.round_to_pixels(ui.pixels_per_point());
 
             ui.allocate_new_ui(UiBuilder::new().max_rect(button_rect), |ui| {
-                collapsing.show_default_button_with_size(ui, button_size);
+                if let Some(collapsed) = collapsed.as_ref() {
+                    if **collapsed != collapsing.is_collapsed() {
+                        collapsing.set_collapsed(**collapsed);
+                    }
+                }
+
+                let collapse_response = collapsing.show_default_button_with_size(ui, button_size);
+
+                if let Some(collapsed) = collapsed.as_mut() {
+                    if collapse_response.clicked() {
+                        **collapsed = collapsing.is_collapsed();
+                    }
+                }
             });
         }
 
@@ -1288,6 +1325,10 @@ impl TitleBar {
             && collapsible
         {
             collapsing.toggle(ui);
+
+            if let Some(collapsed) = collapsed.as_mut() {
+                **collapsed = collapsing.is_collapsed()
+            }
         }
     }
 

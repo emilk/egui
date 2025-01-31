@@ -58,12 +58,24 @@ impl CollapsingState {
         })
     }
 
+    pub fn load_with_default_collapsed(ctx: &Context, id: Id, default_collapsed: bool) -> Self {
+        Self::load_with_default_open(ctx, id, !default_collapsed)
+    }
+
     pub fn is_open(&self) -> bool {
         self.state.open
     }
 
     pub fn set_open(&mut self, open: bool) {
         self.state.open = open;
+    }
+
+    pub fn is_collapsed(&self) -> bool {
+        !self.state.open
+    }
+
+    pub fn set_collapsed(&mut self, collapsed: bool) {
+        self.state.open = !collapsed;
     }
 
     pub fn toggle(&mut self, ui: &Ui) {
