@@ -781,7 +781,7 @@ fn fill_closed_path(
     };
 
     let n = path.len() as u32;
-    if feathering > 0.0 {
+    if 0.0 < feathering {
         if cw_signed_area(path) < 0.0 {
             // Wrong winding order - fix:
             path.reverse();
@@ -855,7 +855,7 @@ fn fill_closed_path_with_uv(
     }
 
     let n = path.len() as u32;
-    if feathering > 0.0 {
+    if 0.0 < feathering {
         if cw_signed_area(path) < 0.0 {
             // Wrong winding order - fix:
             path.reverse();
@@ -962,7 +962,7 @@ fn stroke_path(
         ColorMode::UV(fun) => fun(uv_bbox, pos),
     };
 
-    if feathering > 0.0 {
+    if 0.0 < feathering {
         let color_middle = &stroke.color;
         let color_outer = Color32::TRANSPARENT;
 
