@@ -963,7 +963,7 @@ fn stroke_path(
     };
 
     if feathering > 0.0 {
-        let color_inner = &stroke.color;
+        let color_middle = &stroke.color;
         let color_outer = Color32::TRANSPARENT;
 
         let thin_line = stroke.width <= feathering;
@@ -972,9 +972,9 @@ fn stroke_path(
             let opacity = stroke.width / feathering;
 
             /*
-            We paint the line using three edges: outer, inner, outer.
+            We paint the line using three edges: outer, middle, outer.
 
-            .       o   i   o      outer, inner, outer
+            .       o   m   o      outer, middle, outer
             .       |---|          feathering (pixel width)
             */
 
@@ -994,7 +994,7 @@ fn stroke_path(
                 let p = p1.pos;
                 let n = p1.normal;
                 out.colored_vertex(p + n * feathering, color_outer);
-                out.colored_vertex(p, mul_color(get_color(color_inner, p), opacity));
+                out.colored_vertex(p, mul_color(get_color(color_middle, p), opacity));
                 out.colored_vertex(p - n * feathering, color_outer);
 
                 if connect_with_previous {
@@ -1035,11 +1035,11 @@ fn stroke_path(
                         out.colored_vertex(p + n * outer_rad, color_outer);
                         out.colored_vertex(
                             p + n * inner_rad,
-                            get_color(color_inner, p + n * inner_rad),
+                            get_color(color_middle, p + n * inner_rad),
                         );
                         out.colored_vertex(
                             p - n * inner_rad,
-                            get_color(color_inner, p - n * inner_rad),
+                            get_color(color_middle, p - n * inner_rad),
                         );
                         out.colored_vertex(p - n * outer_rad, color_outer);
 
@@ -1081,11 +1081,11 @@ fn stroke_path(
                         out.colored_vertex(p + n * outer_rad + back_extrude, color_outer);
                         out.colored_vertex(
                             p + n * inner_rad,
-                            get_color(color_inner, p + n * inner_rad),
+                            get_color(color_middle, p + n * inner_rad),
                         );
                         out.colored_vertex(
                             p - n * inner_rad,
-                            get_color(color_inner, p - n * inner_rad),
+                            get_color(color_middle, p - n * inner_rad),
                         );
                         out.colored_vertex(p - n * outer_rad + back_extrude, color_outer);
 
@@ -1101,11 +1101,11 @@ fn stroke_path(
                         out.colored_vertex(p + n * outer_rad, color_outer);
                         out.colored_vertex(
                             p + n * inner_rad,
-                            get_color(color_inner, p + n * inner_rad),
+                            get_color(color_middle, p + n * inner_rad),
                         );
                         out.colored_vertex(
                             p - n * inner_rad,
-                            get_color(color_inner, p - n * inner_rad),
+                            get_color(color_middle, p - n * inner_rad),
                         );
                         out.colored_vertex(p - n * outer_rad, color_outer);
 
@@ -1130,11 +1130,11 @@ fn stroke_path(
                         out.colored_vertex(p + n * outer_rad + back_extrude, color_outer);
                         out.colored_vertex(
                             p + n * inner_rad,
-                            get_color(color_inner, p + n * inner_rad),
+                            get_color(color_middle, p + n * inner_rad),
                         );
                         out.colored_vertex(
                             p - n * inner_rad,
-                            get_color(color_inner, p - n * inner_rad),
+                            get_color(color_middle, p - n * inner_rad),
                         );
                         out.colored_vertex(p - n * outer_rad + back_extrude, color_outer);
 
