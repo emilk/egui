@@ -100,10 +100,10 @@ impl std::ops::Add for Rounding {
     #[inline]
     fn add(self, rhs: Self) -> Self {
         Self {
-            nw: self.nw + rhs.nw,
-            ne: self.ne + rhs.ne,
-            sw: self.sw + rhs.sw,
-            se: self.se + rhs.se,
+            nw: self.nw.saturating_add(rhs.nw),
+            ne: self.ne.saturating_add(rhs.ne),
+            sw: self.sw.saturating_add(rhs.sw),
+            se: self.se.saturating_add(rhs.se),
         }
     }
 }
@@ -112,10 +112,10 @@ impl std::ops::AddAssign for Rounding {
     #[inline]
     fn add_assign(&mut self, rhs: Self) {
         *self = Self {
-            nw: self.nw + rhs.nw,
-            ne: self.ne + rhs.ne,
-            sw: self.sw + rhs.sw,
-            se: self.se + rhs.se,
+            nw: self.nw.saturating_add(rhs.nw),
+            ne: self.ne.saturating_add(rhs.ne),
+            sw: self.sw.saturating_add(rhs.sw),
+            se: self.se.saturating_add(rhs.se),
         };
     }
 }
