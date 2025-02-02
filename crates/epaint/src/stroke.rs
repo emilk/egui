@@ -119,7 +119,13 @@ impl PathStroke {
         }
     }
 
+    #[inline]
+    pub fn with_kind(self, kind: StrokeKind) -> Self {
+        Self { kind, ..self }
+    }
+
     /// Set the stroke to be painted right on the edge of the shape, half inside and half outside.
+    #[inline]
     pub fn middle(self) -> Self {
         Self {
             kind: StrokeKind::Middle,
@@ -128,6 +134,7 @@ impl PathStroke {
     }
 
     /// Set the stroke to be painted entirely outside of the shape
+    #[inline]
     pub fn outside(self) -> Self {
         Self {
             kind: StrokeKind::Outside,
@@ -136,6 +143,7 @@ impl PathStroke {
     }
 
     /// Set the stroke to be painted entirely inside of the shape
+    #[inline]
     pub fn inside(self) -> Self {
         Self {
             kind: StrokeKind::Inside,
