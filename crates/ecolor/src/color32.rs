@@ -69,6 +69,8 @@ impl Color32 {
     pub const BLUE: Self = Self::from_rgb(0, 0, 255);
     pub const LIGHT_BLUE: Self = Self::from_rgb(0xAD, 0xD8, 0xE6);
 
+    pub const PURPLE: Self = Self::from_rgb(0x80, 0, 0x80);
+
     pub const GOLD: Self = Self::from_rgb(255, 215, 0);
 
     pub const DEBUG_COLOR: Self = Self::from_rgba_premultiplied(0, 200, 0, 128);
