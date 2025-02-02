@@ -1,0 +1,235 @@
+use egui::{
+    emath::{GuiRounding, TSTransform},
+    epaint::{self, RectShape},
+    Pos2, Rect, StrokeKind, Vec2,
+};
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct TessellationTest {
+    shape: RectShape,
+
+    magnification_pixel_size: f32,
+    tessellation_options: epaint::TessellationOptions,
+}
+
+impl Default for TessellationTest {
+    fn default() -> Self {
+        let fill = egui::Color32::from_rgb(0, 181, 255);
+        let shape = RectShape::new(
+            Rect::from_center_size(Pos2::ZERO, Vec2::new(20.0, 16.0)),
+            2.0,
+            fill,
+            (0.5, egui::Color32::WHITE),
+            StrokeKind::Inside,
+        );
+        Self {
+            shape,
+            magnification_pixel_size: 12.0,
+            tessellation_options: Default::default(),
+        }
+    }
+}
+
+impl crate::Demo for TessellationTest {
+    fn name(&self) -> &'static str {
+        "Tessellation Test"
+    }
+
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+        egui::Window::new(self.name())
+            .resizable(false)
+            .open(open)
+            .show(ctx, |ui| {
+                use crate::View as _;
+                self.ui(ui);
+            });
+    }
+}
+
+impl crate::View for TessellationTest {
+    fn ui(&mut self, ui: &mut egui::Ui) {
+        ui.add(crate::egui_github_link_file!());
+        egui::reset_button(ui, self, "Reset");
+
+        ui.group(|ui| {
+            rect_shape_ui(ui, &mut self.shape);
+        });
+
+        ui.group(|ui| {
+            ui.label("Real size");
+            egui::Frame::dark_canvas(ui.style()).show(ui, |ui| {
+                let pixels_per_point = ui.pixels_per_point();
+                let pixel_size = 1.0 / pixels_per_point;
+
+                let (_, canvas) = ui.allocate_space(Vec2::splat(128.0));
+                let mut shape = self.shape.clone();
+                shape.rect = Rect::from_center_size(canvas.center(), shape.rect.size())
+                    .round_to_pixel_center(pixels_per_point)
+                    .translate(Vec2::new(pixel_size / 3.0, pixel_size / 5.0)); // Intentionally offset to test the effect of rounding
+                ui.painter().add(shape);
+            });
+        });
+
+        ui.group(|ui| {
+            ui.heading("Zoomed in");
+            let magnification_pixel_size = &mut self.magnification_pixel_size;
+            let tessellation_options = &mut self.tessellation_options;
+
+            egui::Grid::new("TessellationOptions")
+                .num_columns(2)
+                .spacing([12.0, 8.0])
+                .striped(true)
+                .show(ui, |ui| {
+                    ui.label("Magnification");
+                    ui.add(
+                        egui::DragValue::new(magnification_pixel_size)
+                            .speed(0.5)
+                            .range(0.0..=64.0),
+                    );
+                    ui.end_row();
+
+                    ui.label("Feathering width");
+                    ui.horizontal(|ui| {
+                        ui.checkbox(&mut tessellation_options.feathering, "");
+                        ui.add_enabled(
+                            tessellation_options.feathering,
+                            egui::DragValue::new(
+                                &mut tessellation_options.feathering_size_in_pixels,
+                            )
+                            .speed(0.1)
+                            .range(0.0..=4.0)
+                            .suffix(" px"),
+                        );
+                    });
+                    ui.end_row();
+                });
+
+            let magnification_pixel_size = *magnification_pixel_size;
+
+            egui::Frame::dark_canvas(ui.style()).show(ui, |ui| {
+                let (_, canvas) = ui.allocate_space(
+                    magnification_pixel_size
+                        * (self.shape.visual_bounding_rect().size() + Vec2::splat(3.0)),
+                );
+                let mut shape = self.shape.clone();
+                shape.rect = shape.rect.translate(Vec2::new(1.0 / 3.0, 1.0 / 5.0)); // Intentionally offset to test the effect of rounding
+
+                let mut mesh = epaint::Mesh::default();
+                let mut tessellator = epaint::Tessellator::new(
+                    1.0,
+                    *tessellation_options,
+                    ui.fonts(|f| f.font_image_size()),
+                    vec![],
+                );
+                tessellator.tessellate_rect(&shape, &mut mesh);
+
+                // Scale and position the mesh:
+                mesh.transform(
+                    TSTransform::from_translation(canvas.center().to_vec2())
+                        * TSTransform::from_scaling(magnification_pixel_size),
+                );
+                ui.painter().add(epaint::Shape::mesh(mesh));
+
+                // Draw a pixel grid:
+                let grid_stroke = epaint::Stroke::new(
+                    1.0 / ui.pixels_per_point(),
+                    egui::Color32::GRAY.gamma_multiply(0.3),
+                );
+                for xi in 0.. {
+                    let x = xi as f32 * magnification_pixel_size;
+                    if x > canvas.width() / 2.0 {
+                        break;
+                    }
+                    ui.painter()
+                        .vline(canvas.center().x + x, canvas.y_range(), grid_stroke);
+                    if xi != 0 {
+                        ui.painter()
+                            .vline(canvas.center().x - x, canvas.y_range(), grid_stroke);
+                    }
+                }
+                for yi in 0.. {
+                    let y = yi as f32 * magnification_pixel_size;
+                    if y > canvas.height() / 2.0 {
+                        break;
+                    }
+                    ui.painter()
+                        .hline(canvas.x_range(), canvas.center().y + y, grid_stroke);
+                    if yi != 0 {
+                        ui.painter()
+                            .hline(canvas.x_range(), canvas.center().y - y, grid_stroke);
+                    }
+                }
+            });
+        });
+    }
+}
+
+fn rect_shape_ui(ui: &mut egui::Ui, shape: &mut RectShape) {
+    let RectShape {
+        rect,
+        rounding,
+        fill,
+        stroke,
+        stroke_kind,
+        blur_width,
+        round_to_pixels,
+        brush: _,
+    } = shape;
+
+    let round_to_pixels = round_to_pixels.get_or_insert(true);
+
+    egui::Grid::new("RectShape")
+        .num_columns(2)
+        .spacing([12.0, 8.0])
+        .striped(true)
+        .show(ui, |ui| {
+            ui.label("Size");
+            ui.horizontal(|ui| {
+                let mut size = rect.size();
+                ui.add(
+                    egui::DragValue::new(&mut size.x)
+                        .speed(0.5)
+                        .range(0.0..=64.0),
+                );
+                ui.add(
+                    egui::DragValue::new(&mut size.y)
+                        .speed(0.5)
+                        .range(0.0..=64.0),
+                );
+                *rect = Rect::from_center_size(Pos2::ZERO, size);
+            });
+            ui.end_row();
+
+            ui.label("Rounding");
+            ui.add(rounding);
+            ui.end_row();
+
+            ui.label("Fill");
+            ui.color_edit_button_srgba(fill);
+            ui.end_row();
+
+            ui.label("Stroke");
+            ui.add(stroke);
+            ui.end_row();
+
+            ui.label("Stroke kind");
+            ui.horizontal(|ui| {
+                ui.selectable_value(stroke_kind, StrokeKind::Inside, "Inside");
+                ui.selectable_value(stroke_kind, StrokeKind::Middle, "Middle");
+                ui.selectable_value(stroke_kind, StrokeKind::Outside, "Outside");
+            });
+            ui.end_row();
+
+            ui.label("Blur width");
+            ui.add(
+                egui::DragValue::new(blur_width)
+                    .speed(0.5)
+                    .range(0.0..=20.0),
+            );
+            ui.end_row();
+
+            ui.label("Round to pixels");
+            ui.checkbox(round_to_pixels, "");
+            ui.end_row();
+        });
+}
