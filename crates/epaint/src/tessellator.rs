@@ -968,6 +968,9 @@ fn stroke_path(
 
         let thin_line = stroke.width <= feathering;
         if thin_line {
+            // Fade out thin lines rather than making them thinner
+            let opacity = stroke.width / feathering;
+
             /*
             We paint the line using three edges: outer, inner, outer.
 
@@ -975,11 +978,9 @@ fn stroke_path(
             .       |---|          feathering (pixel width)
             */
 
-            // Fade out as it gets thinner:
-            if let ColorMode::Solid(col) = color_inner {
-                let color_inner = mul_color(*col, stroke.width / feathering);
-                if color_inner == Color32::TRANSPARENT {
-                    return;
+            if let ColorMode::Solid(color) = stroke.color {
+                if mul_color(color, opacity) == Color32::TRANSPARENT {
+                    return; // Early out for _very_ thin lines
                 }
             }
 
@@ -993,10 +994,7 @@ fn stroke_path(
                 let p = p1.pos;
                 let n = p1.normal;
                 out.colored_vertex(p + n * feathering, color_outer);
-                out.colored_vertex(
-                    p,
-                    mul_color(get_color(color_inner, p), stroke.width / feathering),
-                );
+                out.colored_vertex(p, mul_color(get_color(color_inner, p), opacity));
                 out.colored_vertex(p - n * feathering, color_outer);
 
                 if connect_with_previous {
@@ -1182,27 +1180,21 @@ fn stroke_path(
         let thin_line = stroke.width <= feathering;
         if thin_line {
             // Fade out thin lines rather than making them thinner
+            let opacity = stroke.width / feathering;
             let radius = feathering / 2.0;
             if let ColorMode::Solid(color) = stroke.color {
-                let color = mul_color(color, stroke.width / feathering);
-                if color == Color32::TRANSPARENT {
-                    return;
+                if mul_color(color, opacity) == Color32::TRANSPARENT {
+                    return; // Early out for _very_ thin lines
                 }
             }
             for p in path {
                 out.colored_vertex(
                     p.pos + radius * p.normal,
-                    mul_color(
-                        get_color(&stroke.color, p.pos + radius * p.normal),
-                        stroke.width / feathering,
-                    ),
+                    mul_color(get_color(&stroke.color, p.pos + radius * p.normal), opacity),
                 );
                 out.colored_vertex(
                     p.pos - radius * p.normal,
-                    mul_color(
-                        get_color(&stroke.color, p.pos - radius * p.normal),
-                        stroke.width / feathering,
-                    ),
+                    mul_color(get_color(&stroke.color, p.pos - radius * p.normal), opacity),
                 );
             }
         } else {
