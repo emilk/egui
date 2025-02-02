@@ -1,7 +1,7 @@
 use egui::{
     emath::{GuiRounding, TSTransform},
     epaint::{self, RectShape},
-    Pos2, Rect, StrokeKind, Vec2,
+    vec2, Pos2, Rect, Sense, StrokeKind, Vec2,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -51,22 +51,28 @@ impl crate::View for TessellationTest {
         ui.add(crate::egui_github_link_file!());
         egui::reset_button(ui, self, "Reset");
 
-        ui.group(|ui| {
-            rect_shape_ui(ui, &mut self.shape);
-        });
+        ui.horizontal(|ui| {
+            ui.group(|ui| {
+                rect_shape_ui(ui, &mut self.shape);
+            });
 
-        ui.group(|ui| {
-            ui.label("Real size");
-            egui::Frame::dark_canvas(ui.style()).show(ui, |ui| {
-                let pixels_per_point = ui.pixels_per_point();
-                let pixel_size = 1.0 / pixels_per_point;
+            ui.group(|ui| {
+                ui.vertical(|ui| {
+                    ui.heading("Real size");
+                    egui::Frame::dark_canvas(ui.style()).show(ui, |ui| {
+                        let (resp, painter) =
+                            ui.allocate_painter(Vec2::splat(128.0), Sense::hover());
+                        let canvas = resp.rect;
 
-                let (_, canvas) = ui.allocate_space(Vec2::splat(128.0));
-                let mut shape = self.shape.clone();
-                shape.rect = Rect::from_center_size(canvas.center(), shape.rect.size())
-                    .round_to_pixel_center(pixels_per_point)
-                    .translate(Vec2::new(pixel_size / 3.0, pixel_size / 5.0)); // Intentionally offset to test the effect of rounding
-                ui.painter().add(shape);
+                        let pixels_per_point = ui.pixels_per_point();
+                        let pixel_size = 1.0 / pixels_per_point;
+                        let mut shape = self.shape.clone();
+                        shape.rect = Rect::from_center_size(canvas.center(), shape.rect.size())
+                            .round_to_pixel_center(pixels_per_point)
+                            .translate(Vec2::new(pixel_size / 3.0, pixel_size / 5.0)); // Intentionally offset to test the effect of rounding
+                        painter.add(shape);
+                    });
+                });
             });
         });
 
@@ -107,10 +113,12 @@ impl crate::View for TessellationTest {
             let magnification_pixel_size = *magnification_pixel_size;
 
             egui::Frame::dark_canvas(ui.style()).show(ui, |ui| {
-                let (_, canvas) = ui.allocate_space(
-                    magnification_pixel_size
-                        * (self.shape.visual_bounding_rect().size() + Vec2::splat(3.0)),
+                let (resp, painter) = ui.allocate_painter(
+                    magnification_pixel_size * (self.shape.rect.size() + Vec2::splat(8.0)),
+                    Sense::hover(),
                 );
+                let canvas = resp.rect;
+
                 let mut shape = self.shape.clone();
                 shape.rect = shape.rect.translate(Vec2::new(1.0 / 3.0, 1.0 / 5.0)); // Intentionally offset to test the effect of rounding
 
@@ -128,35 +136,28 @@ impl crate::View for TessellationTest {
                     TSTransform::from_translation(canvas.center().to_vec2())
                         * TSTransform::from_scaling(magnification_pixel_size),
                 );
-                ui.painter().add(epaint::Shape::mesh(mesh));
+                painter.add(epaint::Shape::mesh(mesh));
 
-                // Draw a pixel grid:
-                let grid_stroke = epaint::Stroke::new(
-                    1.0 / ui.pixels_per_point(),
-                    egui::Color32::GRAY.gamma_multiply(0.3),
-                );
-                for xi in 0.. {
-                    let x = xi as f32 * magnification_pixel_size;
-                    if x > canvas.width() / 2.0 {
-                        break;
-                    }
-                    ui.painter()
-                        .vline(canvas.center().x + x, canvas.y_range(), grid_stroke);
-                    if xi != 0 {
-                        ui.painter()
-                            .vline(canvas.center().x - x, canvas.y_range(), grid_stroke);
-                    }
-                }
+                // Draw pixel centers:
+                let pixel_radius = 0.75;
+                let pixel_color = egui::Color32::GRAY;
                 for yi in 0.. {
-                    let y = yi as f32 * magnification_pixel_size;
+                    let y = (yi as f32 + 0.5) * magnification_pixel_size;
                     if y > canvas.height() / 2.0 {
                         break;
                     }
-                    ui.painter()
-                        .hline(canvas.x_range(), canvas.center().y + y, grid_stroke);
-                    if yi != 0 {
-                        ui.painter()
-                            .hline(canvas.x_range(), canvas.center().y - y, grid_stroke);
+                    for xi in 0.. {
+                        let x = (xi as f32 + 0.5) * magnification_pixel_size;
+                        if x > canvas.width() / 2.0 {
+                            break;
+                        }
+                        for offset in [vec2(x, y), vec2(x, -y), vec2(-x, y), vec2(-x, -y)] {
+                            painter.circle_filled(
+                                canvas.center() + offset,
+                                pixel_radius,
+                                pixel_color,
+                            );
+                        }
                     }
                 }
             });
@@ -188,12 +189,12 @@ fn rect_shape_ui(ui: &mut egui::Ui, shape: &mut RectShape) {
                 let mut size = rect.size();
                 ui.add(
                     egui::DragValue::new(&mut size.x)
-                        .speed(0.5)
+                        .speed(0.2)
                         .range(0.0..=64.0),
                 );
                 ui.add(
                     egui::DragValue::new(&mut size.y)
-                        .speed(0.5)
+                        .speed(0.2)
                         .range(0.0..=64.0),
                 );
                 *rect = Rect::from_center_size(Pos2::ZERO, size);
