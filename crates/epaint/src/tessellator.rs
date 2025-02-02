@@ -1010,9 +1010,9 @@ fn stroke_path(
             // thick anti-aliased line
 
             /*
-            We paint the line using four edges: outer, inner, inner, outer
+            We paint the line using four edges: outer, middle, middle, outer
 
-            .       o   i     p    i   o   outer, inner, point, inner, outer
+            .       o   m     p    m   o   outer, middle, point, middle, outer
             .       |---|                  feathering (pixel width)
             .         |--------------|     width
             .       |---------|            outer_rad
