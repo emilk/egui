@@ -124,9 +124,9 @@ impl View for MiscDemoWindow {
                     )
                     .changed()
                 {
-                    self.checklist
-                        .iter_mut()
-                        .for_each(|checked| *checked = all_checked);
+                    for check in &mut self.checklist {
+                        *check = all_checked;
+                    }
                 }
                 for (i, checked) in self.checklist.iter_mut().enumerate() {
                     ui.checkbox(checked, format!("Item {}", i + 1));

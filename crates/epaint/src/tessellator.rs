@@ -946,8 +946,9 @@ fn stroke_path(
 
     // Translate the points along their normals if the stroke is outside or inside
     if stroke.kind != StrokeKind::Middle {
-        path.iter_mut()
-            .for_each(|p| translate_stroke_point(p, stroke));
+        for p in path.iter_mut() {
+            translate_stroke_point(p, stroke);
+        }
     }
 
     // Expand the bounding box to include the thickness of the path
