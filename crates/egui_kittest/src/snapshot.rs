@@ -177,7 +177,7 @@ fn should_update_snapshots() -> bool {
 /// The snapshot files will be saved under [`SnapshotOptions::output_path`].
 /// The snapshot will be saved under `{output_path}/{name}.png`.
 /// The new image from the most recent test run will be saved under `{output_path}/{name}.new.png`.
-/// If new image didn't match the snapshot, a diff image will be saved under `{output_path}/{name}.diff.png`.
+/// If the new image didn't match the snapshot, a diff image will be saved under `{output_path}/{name}.diff.png`.
 ///
 /// If the env-var `UPDATE_SNAPSHOTS` is set, then the old image will backed up under `{output_path}/{name}.old.png`.
 /// and then new image will be written to `{output_path}/{name}.png`
@@ -296,7 +296,7 @@ pub fn try_image_snapshot_options(
 /// The snapshot files will be saved under [`SnapshotOptions::output_path`].
 /// The snapshot will be saved under `{output_path}/{name}.png`.
 /// The new image from the most recent test run will be saved under `{output_path}/{name}.new.png`.
-/// If new image didn't match the snapshot, a diff image will be saved under `{output_path}/{name}.diff.png`.
+/// If the new image didn't match the snapshot, a diff image will be saved under `{output_path}/{name}.diff.png`.
 ///
 /// # Errors
 /// Returns a [`SnapshotError`] if the image does not match the snapshot or if there was an error
@@ -316,7 +316,7 @@ pub fn try_image_snapshot(current: &image::RgbaImage, name: &str) -> Result<(), 
 /// The snapshot files will be saved under [`SnapshotOptions::output_path`].
 /// The snapshot will be saved under `{output_path}/{name}.png`.
 /// The new image from the most recent test run will be saved under `{output_path}/{name}.new.png`.
-/// If new image didn't match the snapshot, a diff image will be saved under `{output_path}/{name}.diff.png`.
+/// If the new image didn't match the snapshot, a diff image will be saved under `{output_path}/{name}.diff.png`.
 ///
 /// # Panics
 /// Panics if the image does not match the snapshot or if there was an error reading or writing the
@@ -334,7 +334,7 @@ pub fn image_snapshot_options(current: &image::RgbaImage, name: &str, options: &
 /// Image snapshot test.
 /// The snapshot will be saved under `tests/snapshots/{name}.png`.
 /// The new image from the last test run will be saved under `tests/snapshots/{name}.new.png`.
-/// If new image didn't match the snapshot, a diff image will be saved under `tests/snapshots/{name}.diff.png`.
+/// If the new image didn't match the snapshot, a diff image will be saved under `tests/snapshots/{name}.diff.png`.
 ///
 /// # Panics
 /// Panics if the image does not match the snapshot or if there was an error reading or writing the
@@ -351,7 +351,7 @@ pub fn image_snapshot(current: &image::RgbaImage, name: &str) {
 
 #[cfg(feature = "wgpu")]
 impl<State> Harness<'_, State> {
-    /// Render a image using the setup [`crate::TestRenderer`] and compare it to the snapshot
+    /// Render an image using the setup [`crate::TestRenderer`] and compare it to the snapshot
     /// with custom options.
     ///
     /// If you want to change the default options for your whole project, you could create an
@@ -364,7 +364,7 @@ impl<State> Harness<'_, State> {
     /// The snapshot files will be saved under [`SnapshotOptions::output_path`].
     /// The snapshot will be saved under `{output_path}/{name}.png`.
     /// The new image from the most recent test run will be saved under `{output_path}/{name}.new.png`.
-    /// If new image didn't match the snapshot, a diff image will be saved under `{output_path}/{name}.diff.png`.
+    /// If the new image didn't match the snapshot, a diff image will be saved under `{output_path}/{name}.diff.png`.
     ///
     /// # Errors
     /// Returns a [`SnapshotError`] if the image does not match the snapshot, if there was an
@@ -380,10 +380,10 @@ impl<State> Harness<'_, State> {
         try_image_snapshot_options(&image, name, options)
     }
 
-    /// Render a image using the setup [`crate::TestRenderer`] and compare it to the snapshot.
+    /// Render an image using the setup [`crate::TestRenderer`] and compare it to the snapshot.
     /// The snapshot will be saved under `tests/snapshots/{name}.png`.
     /// The new image from the last test run will be saved under `tests/snapshots/{name}.new.png`.
-    /// If new image didn't match the snapshot, a diff image will be saved under `tests/snapshots/{name}.diff.png`.
+    /// If the new image didn't match the snapshot, a diff image will be saved under `tests/snapshots/{name}.diff.png`.
     ///
     /// # Errors
     /// Returns a [`SnapshotError`] if the image does not match the snapshot, if there was an
@@ -395,7 +395,7 @@ impl<State> Harness<'_, State> {
         try_image_snapshot(&image, name)
     }
 
-    /// Render a image using the setup [`crate::TestRenderer`] and compare it to the snapshot
+    /// Render an image using the setup [`crate::TestRenderer`] and compare it to the snapshot
     /// with custom options.
     ///
     /// If you want to change the default options for your whole project, you could create an
@@ -408,7 +408,7 @@ impl<State> Harness<'_, State> {
     /// The snapshot files will be saved under [`SnapshotOptions::output_path`].
     /// The snapshot will be saved under `{output_path}/{name}.png`.
     /// The new image from the most recent test run will be saved under `{output_path}/{name}.new.png`.
-    /// If new image didn't match the snapshot, a diff image will be saved under `{output_path}/{name}.diff.png`.
+    /// If the new image didn't match the snapshot, a diff image will be saved under `{output_path}/{name}.diff.png`.
     ///
     /// # Panics
     /// Panics if the image does not match the snapshot, if there was an error reading or writing the
@@ -423,10 +423,10 @@ impl<State> Harness<'_, State> {
         }
     }
 
-    /// Render a image using the setup [`crate::TestRenderer`] and compare it to the snapshot.
+    /// Render an image using the setup [`crate::TestRenderer`] and compare it to the snapshot.
     /// The snapshot will be saved under `tests/snapshots/{name}.png`.
     /// The new image from the last test run will be saved under `tests/snapshots/{name}.new.png`.
-    /// If new image didn't match the snapshot, a diff image will be saved under `tests/snapshots/{name}.diff.png`.
+    /// If the new image didn't match the snapshot, a diff image will be saved under `tests/snapshots/{name}.diff.png`.
     ///
     /// # Panics
     /// Panics if the image does not match the snapshot, if there was an error reading or writing the
