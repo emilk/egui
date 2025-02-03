@@ -1843,7 +1843,6 @@ impl Tessellator {
             }
         }
 
-        // if rounding != Roundingf::ZERO && !stroke.is_empty() // TODO(emilk): optimize for stroke-less/non-rounded rectangles?
         {
             // Modify `rect` so that it represents the OUTER border
             // We do this because `path::rounded_rectangle` uses the
@@ -1874,16 +1873,22 @@ impl Tessellator {
             let min_inside_rounding = 0.1; // Large enough to avoid numerical issues
             let min_outside_rounding = stroke.width + min_inside_rounding;
 
+            let extra_rounding_tweak = 0.4; // Otherwise is doesn't _feels_  enough.
+
             if 0.0 < original_rounding.nw {
+                rounding.nw += extra_rounding_tweak;
                 rounding.nw = rounding.nw.at_least(min_outside_rounding);
             }
             if 0.0 < original_rounding.ne {
+                rounding.ne += extra_rounding_tweak;
                 rounding.ne = rounding.ne.at_least(min_outside_rounding);
             }
             if 0.0 < original_rounding.sw {
+                rounding.sw += extra_rounding_tweak;
                 rounding.sw = rounding.sw.at_least(min_outside_rounding);
             }
             if 0.0 < original_rounding.se {
+                rounding.se += extra_rounding_tweak;
                 rounding.se = rounding.se.at_least(min_outside_rounding);
             }
         }
