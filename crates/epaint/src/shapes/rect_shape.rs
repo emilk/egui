@@ -8,11 +8,16 @@ use crate::*;
 pub struct RectShape {
     pub rect: Rect,
 
-    /// How rounded the corners are. Use `Rounding::ZERO` for no rounding.
+    /// How rounded the corners of the rectangle are.
     ///
-    /// The rounding is of [`Self::rect`],
-    /// so if there is a stroke with [`Self::stroke_kind`] of [`StrokeKind::Outside`],
-    /// the stroke will have an even greater rounding.
+    /// Use `Rounding::ZERO` for for sharp corners.
+    ///
+    /// This is the corner radii of the rectangle.
+    /// If there is a stroke, then the stroke will have an inner and outer corner radius,
+    /// and those will depend on [`StrokeKind`] and the stroke width.
+    ///
+    /// For [`StrokeKind::Inside`], the outside of the stroke coincides with the rectangle,
+    /// so the rounding will in this case specify the outer corner radius.
     pub rounding: Rounding,
 
     /// How to fill the rectangle.
@@ -42,9 +47,6 @@ pub struct RectShape {
     /// This can be used to produce shadows and glow effects.
     ///
     /// The blur is currently implemented using a simple linear blur in sRGBA gamma space.
-    ///
-    /// Blur is incompatible with [`Self::stroke`].
-    /// Either set a stroke, or a blur, but never both.
     pub blur_width: f32,
 
     /// Controls texturing, if any.

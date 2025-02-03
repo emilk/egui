@@ -1800,30 +1800,7 @@ impl Tessellator {
             }
         }
 
-        let old_feathering = self.feathering;
-
-        if self.feathering < blur_width {
-            // We accomplish the blur by using a larger-than-normal feathering.
-            // Feathering is usually used to make the edges of a shape softer for anti-aliasing.
-
-            // The tessellator can't handle blurring/feathering larger than the smallest side of the rect.
-            // Thats because the tessellator approximate very thin rectangles as line segments,
-            // and these line segments don't have rounded corners.
-            // When the feathering is small (the size of a pixel), this is usually fine,
-            // but here we have a huge feathering to simulate blur,
-            // so we need to avoid this optimization in the tessellator,
-            // which is also why we add this rather big epsilon:
-            let eps = 0.1;
-            blur_width = blur_width
-                .at_most(rect.size().min_elem() - eps)
-                .at_least(0.0);
-
-            rounding += Roundingf::from(0.5 * blur_width);
-
-            self.feathering = self.feathering.max(blur_width);
-        }
-
-        // Important: round to pixels BEFORE applying stroke_kind
+        // Important: round to pixels BEFORE modifying/applying stroke_kind
         if round_to_pixels {
             // The rounding is aware of the stroke kind.
             // It is designed to be clever in trying to divine the intentions of the user.
@@ -1868,47 +1845,66 @@ impl Tessellator {
             }
         }
 
-        if 1.0 < stroke.width {
-            // Modify `rect` so that it represents the filled region, with the stroke on the outside.
-            // This is required for thick strokes to look correct, when extruded inwards.
-            // Important: do this AFTER rounding to pixels
+        // if rounding != Roundingf::ZERO && !stroke.is_empty() // TODO(emilk): optimize for stroke-less/non-rounded rectangles?
+        {
+            // Modify `rect` so that it represents the OUTER border
+            // We do this because `path::rounded_rectangle` uses the
+            // corner radius to pick the fidelity/resolution of the corner.
 
-            let old_rounding = rounding;
+            let original_rounding = rounding;
 
             match stroke_kind {
-                StrokeKind::Inside => {
-                    // Shrink the stroke so it fits inside the rect:
-                    stroke.width = stroke.width.at_most(rect.size().min_elem() / 2.0);
-
-                    rect = rect.shrink(stroke.width);
-                    rounding -= stroke.width;
-                }
+                StrokeKind::Inside => {}
                 StrokeKind::Middle => {
-                    rect = rect.shrink(stroke.width / 2.0);
-                    rounding -= stroke.width / 2.0;
+                    rect = rect.expand(stroke.width / 2.0);
+                    rounding += stroke.width / 2.0;
                 }
-                StrokeKind::Outside => {}
-            }
-
-            if true {
-                // Make sure we don't loose the last piece of rounding.
-                // This is very important for when the stroke is wider than the rounding.
-                // It's also a bit of a hack.
-                if 1.0 <= old_rounding.nw {
-                    rounding.nw = rounding.nw.at_least(1.0);
-                }
-                if 1.0 <= old_rounding.ne {
-                    rounding.ne = rounding.ne.at_least(1.0);
-                }
-                if 1.0 <= old_rounding.sw {
-                    rounding.sw = rounding.sw.at_least(1.0);
-                }
-                if 1.0 <= old_rounding.se {
-                    rounding.se = rounding.se.at_least(1.0);
+                StrokeKind::Outside => {
+                    rect = rect.expand(stroke.width);
+                    rounding += stroke.width;
                 }
             }
 
-            stroke_kind = StrokeKind::Outside;
+            stroke_kind = StrokeKind::Inside;
+
+            // A small rounding is incompatible with a wide stroke,
+            // because the small bend will be extruded inwards and cross itself.
+            // There are two ways to solve this (wile maintaining constant stroke width):
+            // either we increase the rounding, or we set it to zero.
+            // We choose the former: if the user asks for _any_ rounding, they should get it.
+
+            let min_inside_rounding = 0.1; // Large enough to avoid numerical issues
+            let min_outside_rounding = stroke.width + min_inside_rounding;
+
+            if 0.0 < original_rounding.nw {
+                rounding.nw = rounding.nw.at_least(min_outside_rounding);
+            }
+            if 0.0 < original_rounding.ne {
+                rounding.ne = rounding.ne.at_least(min_outside_rounding);
+            }
+            if 0.0 < original_rounding.sw {
+                rounding.sw = rounding.sw.at_least(min_outside_rounding);
+            }
+            if 0.0 < original_rounding.se {
+                rounding.se = rounding.se.at_least(min_outside_rounding);
+            }
+        }
+
+        let old_feathering = self.feathering;
+
+        if self.feathering < blur_width {
+            // We accomplish the blur by using a larger-than-normal feathering.
+            // Feathering is usually used to make the edges of a shape softer for anti-aliasing.
+
+            // The tessellator can't handle blurring/feathering larger than the smallest side of the rect.
+            let eps = 0.1; // avoid numerical problems
+            blur_width = blur_width
+                .at_most(rect.size().min_elem() - eps - 2.0 * stroke.width)
+                .at_least(0.0);
+
+            rounding += Roundingf::from(0.5 * blur_width);
+
+            self.feathering = self.feathering.max(blur_width);
         }
 
         let path = &mut self.scratchpad_path;

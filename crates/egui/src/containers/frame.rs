@@ -115,7 +115,10 @@ pub struct Frame {
     #[doc(alias = "border")]
     pub stroke: Stroke,
 
-    /// The rounding of the corners of [`Self::stroke`] and [`Self::fill`].
+    /// The rounding of the _outer_ corner of the [`Self::stroke`]
+    /// (or, if there is no stroke, the outer corner of [`Self::fill`]).
+    ///
+    /// In other words, this is the corner radius of the _widget rect_.
     pub rounding: Rounding,
 
     /// Margin outside the painted frame.
@@ -266,7 +269,10 @@ impl Frame {
         self
     }
 
-    /// The rounding of the corners of [`Self::stroke`] and [`Self::fill`].
+    /// The rounding of the _outer_ corner of the [`Self::stroke`]
+    /// (or, if there is no stroke, the outer corner of [`Self::fill`]).
+    ///
+    /// In other words, this is the corner radius of the _widget rect_.
     #[inline]
     pub fn rounding(mut self, rounding: impl Into<Rounding>) -> Self {
         self.rounding = rounding.into();
@@ -420,15 +426,14 @@ impl Frame {
             shadow,
         } = *self;
 
-        let fill_rect = self.fill_rect(content_rect);
         let widget_rect = self.widget_rect(content_rect);
 
         let frame_shape = Shape::Rect(epaint::RectShape::new(
-            fill_rect,
+            widget_rect,
             rounding,
             fill,
             stroke,
-            epaint::StrokeKind::Outside,
+            epaint::StrokeKind::Inside,
         ));
 
         if shadow == Default::default() {

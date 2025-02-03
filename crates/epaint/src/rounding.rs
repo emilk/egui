@@ -1,5 +1,9 @@
 /// How rounded the corners of things should be.
 ///
+/// This specific the _corner radius_ of the underlying geometric shape (e.g. rectangle).
+/// If there is a stroke, then the stroke will have an inner and outer corner radius
+/// which will depends on its width and [`crate::StrokeKind`].
+///
 /// The rounding uses `u8` to save space,
 /// so the amount of rounding is limited to integers in the range `[0, 255]`.
 ///
