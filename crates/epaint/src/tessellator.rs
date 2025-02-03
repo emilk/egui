@@ -343,7 +343,7 @@ impl Path {
         use precomputed_vertices::{CIRCLE_128, CIRCLE_16, CIRCLE_32, CIRCLE_64, CIRCLE_8};
 
         // These cutoffs are based on a high-dpi display. TODO(emilk): use pixels_per_point here?
-        // Similar cutoffs as in add_circle_quadrant
+        // same cutoffs as in add_circle_quadrant
 
         if radius <= 2.0 {
             self.0.extend(CIRCLE_8.iter().map(|&n| PathPoint {
@@ -605,21 +605,19 @@ pub mod path {
         use super::precomputed_vertices::{CIRCLE_128, CIRCLE_16, CIRCLE_32, CIRCLE_64, CIRCLE_8};
 
         // These cutoffs are based on a high-dpi display. TODO(emilk): use pixels_per_point here?
-        // Similar cutoffs as in `add_circle`,
-        // but slightly higher to avoid artifacts
-        // when extruding small circle radii with a large stroke width.
+        // same cutoffs as in add_circle
 
         if radius <= 0.0 {
             path.push(center);
-        } else if radius <= 1.0 {
+        } else if radius <= 2.0 {
             let offset = quadrant as usize * 2;
             let quadrant_vertices = &CIRCLE_8[offset..=offset + 2];
             path.extend(quadrant_vertices.iter().map(|&n| center + radius * n));
-        } else if radius <= 3.0 {
+        } else if radius <= 5.0 {
             let offset = quadrant as usize * 4;
             let quadrant_vertices = &CIRCLE_16[offset..=offset + 4];
             path.extend(quadrant_vertices.iter().map(|&n| center + radius * n));
-        } else if radius < 15.0 {
+        } else if radius < 18.0 {
             let offset = quadrant as usize * 8;
             let quadrant_vertices = &CIRCLE_32[offset..=offset + 8];
             path.extend(quadrant_vertices.iter().map(|&n| center + radius * n));
