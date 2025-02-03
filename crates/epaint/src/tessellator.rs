@@ -1744,7 +1744,7 @@ impl Tessellator {
             mut rounding,
             mut fill,
             mut stroke,
-            stroke_kind,
+            mut stroke_kind,
             round_to_pixels,
             mut blur_width,
             brush: _, // brush is extracted on its own, because it is not Copy
@@ -1869,8 +1869,9 @@ impl Tessellator {
             }
         }
 
-        {
+        if true {
             // Modify `rect` so that it represents the filled region, with the stroke on the outside.
+            // This is required for thick strokes to look correct, when extruded inwards.
             // Important: do this AFTER rounding to pixels
 
             let old_rounding = rounding;
@@ -1889,21 +1890,25 @@ impl Tessellator {
                 StrokeKind::Outside => {}
             }
 
-            // Make sure we don't loose the last piece of rounding.
-            // This is very important for when the stroke is wider than the rounding.
-            // It's also a bit of a hack.
-            if 0 < old_rounding.nw {
-                rounding.nw = rounding.nw.at_least(1);
+            if true {
+                // Make sure we don't loose the last piece of rounding.
+                // This is very important for when the stroke is wider than the rounding.
+                // It's also a bit of a hack.
+                if 0 < old_rounding.nw {
+                    rounding.nw = rounding.nw.at_least(1);
+                }
+                if 0 < old_rounding.ne {
+                    rounding.ne = rounding.ne.at_least(1);
+                }
+                if 0 < old_rounding.sw {
+                    rounding.sw = rounding.sw.at_least(1);
+                }
+                if 0 < old_rounding.se {
+                    rounding.se = rounding.se.at_least(1);
+                }
             }
-            if 0 < old_rounding.ne {
-                rounding.ne = rounding.ne.at_least(1);
-            }
-            if 0 < old_rounding.sw {
-                rounding.sw = rounding.sw.at_least(1);
-            }
-            if 0 < old_rounding.se {
-                rounding.se = rounding.se.at_least(1);
-            }
+
+            stroke_kind = StrokeKind::Outside;
         }
 
         let path = &mut self.scratchpad_path;
@@ -1913,21 +1918,28 @@ impl Tessellator {
 
         let path_stroke = PathStroke::from(stroke).with_kind(stroke_kind);
 
-        // TODO: handle negative rects somewhere
-
         if let Some(brush) = brush {
             // Textured fill
-            let crate::Brush {
-                fill_texture_id,
-                uv,
-            } = **brush;
-            let uv_from_pos = |p: Pos2| {
-                pos2(
-                    remap(p.x, rect.x_range(), uv.x_range()),
-                    remap(p.y, rect.y_range(), uv.y_range()),
-                )
+
+            let fill_rect = match stroke_kind {
+                StrokeKind::Inside => rect.shrink(stroke.width),
+                StrokeKind::Middle => rect.shrink(stroke.width / 2.0),
+                StrokeKind::Outside => rect,
             };
-            path.fill_with_uv(self.feathering, fill, fill_texture_id, uv_from_pos, out);
+
+            if fill_rect.is_positive() {
+                let crate::Brush {
+                    fill_texture_id,
+                    uv,
+                } = **brush;
+                let uv_from_pos = |p: Pos2| {
+                    pos2(
+                        remap(p.x, rect.x_range(), uv.x_range()),
+                        remap(p.y, rect.y_range(), uv.y_range()),
+                    )
+                };
+                path.fill_with_uv(self.feathering, fill, fill_texture_id, uv_from_pos, out);
+            }
 
             if !stroke.is_empty() {
                 path.stroke_closed(self.feathering, &path_stroke, out);
