@@ -19,6 +19,8 @@ use crate::{
 
 use super::{TextEditOutput, TextEditState};
 
+type LayouterFn<'t> = &'t mut dyn FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<Galley>;
+
 /// A text region that the user can edit the contents of.
 ///
 /// See also [`Ui::text_edit_singleline`] and [`Ui::text_edit_multiline`].
@@ -71,7 +73,7 @@ pub struct TextEdit<'t> {
     id_salt: Option<Id>,
     font_selection: FontSelection,
     text_color: Option<Color32>,
-    layouter: Option<&'t mut dyn FnMut(&Ui, &str, f32) -> Arc<Galley>>,
+    layouter: Option<LayouterFn<'t>>,
     password: bool,
     frame: bool,
     margin: Margin,
@@ -261,8 +263,8 @@ impl<'t> TextEdit<'t> {
     /// # egui::__run_test_ui(|ui| {
     /// # let mut my_code = String::new();
     /// # fn my_memoized_highlighter(s: &str) -> egui::text::LayoutJob { Default::default() }
-    /// let mut layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
-    ///     let mut layout_job: egui::text::LayoutJob = my_memoized_highlighter(string);
+    /// let mut layouter = |ui: &egui::Ui, buf: &dyn egui::TextBuffer, wrap_width: f32| {
+    ///     let mut layout_job: egui::text::LayoutJob = my_memoized_highlighter(buf.as_str());
     ///     layout_job.wrap.max_width = wrap_width;
     ///     ui.fonts(|f| f.layout_job(layout_job))
     /// };
@@ -270,7 +272,10 @@ impl<'t> TextEdit<'t> {
     /// # });
     /// ```
     #[inline]
-    pub fn layouter(mut self, layouter: &'t mut dyn FnMut(&Ui, &str, f32) -> Arc<Galley>) -> Self {
+    pub fn layouter(
+        mut self,
+        layouter: &'t mut dyn FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<Galley>,
+    ) -> Self {
         self.layouter = Some(layouter);
 
         self
@@ -510,8 +515,8 @@ impl TextEdit<'_> {
         };
 
         let font_id_clone = font_id.clone();
-        let mut default_layouter = move |ui: &Ui, text: &str, wrap_width: f32| {
-            let text = mask_if_password(password, text);
+        let mut default_layouter = move |ui: &Ui, text: &dyn TextBuffer, wrap_width: f32| {
+            let text = mask_if_password(password, text.as_str());
             let layout_job = if multiline {
                 LayoutJob::simple(text, font_id_clone.clone(), text_color, wrap_width)
             } else {
@@ -522,7 +527,7 @@ impl TextEdit<'_> {
 
         let layouter = layouter.unwrap_or(&mut default_layouter);
 
-        let mut galley = layouter(ui, text.as_str(), wrap_width);
+        let mut galley = layouter(ui, text, wrap_width);
 
         let desired_inner_width = if clip_text {
             wrap_width // visual clipping with scroll in singleline input.
@@ -879,7 +884,7 @@ fn events(
     state: &mut TextEditState,
     text: &mut dyn TextBuffer,
     galley: &mut Arc<Galley>,
-    layouter: &mut dyn FnMut(&Ui, &str, f32) -> Arc<Galley>,
+    layouter: &mut dyn FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<Galley>,
     id: Id,
     wrap_width: f32,
     multiline: bool,
@@ -1094,7 +1099,7 @@ fn events(
             any_change = true;
 
             // Layout again to avoid frame delay, and to keep `text` and `galley` in sync.
-            *galley = layouter(ui, text.as_str(), wrap_width);
+            *galley = layouter(ui, text, wrap_width);
 
             // Set cursor_range using new galley:
             cursor_range = new_ccursor_range;
