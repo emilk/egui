@@ -112,6 +112,19 @@ impl std::ops::Add for Rounding {
     }
 }
 
+impl std::ops::Add<u8> for Rounding {
+    type Output = Self;
+    #[inline]
+    fn add(self, rhs: u8) -> Self {
+        Self {
+            nw: self.nw.saturating_add(rhs),
+            ne: self.ne.saturating_add(rhs),
+            sw: self.sw.saturating_add(rhs),
+            se: self.se.saturating_add(rhs),
+        }
+    }
+}
+
 impl std::ops::AddAssign for Rounding {
     #[inline]
     fn add_assign(&mut self, rhs: Self) {
@@ -145,6 +158,19 @@ impl std::ops::Sub for Rounding {
             ne: self.ne.saturating_sub(rhs.ne),
             sw: self.sw.saturating_sub(rhs.sw),
             se: self.se.saturating_sub(rhs.se),
+        }
+    }
+}
+
+impl std::ops::Sub<u8> for Rounding {
+    type Output = Self;
+    #[inline]
+    fn sub(self, rhs: u8) -> Self {
+        Self {
+            nw: self.nw.saturating_sub(rhs),
+            ne: self.ne.saturating_sub(rhs),
+            sw: self.sw.saturating_sub(rhs),
+            se: self.se.saturating_sub(rhs),
         }
     }
 }

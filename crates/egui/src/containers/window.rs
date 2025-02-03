@@ -611,7 +611,8 @@ impl Window<'_> {
                         title_bar.inner_rect.round_to_pixels(ctx.pixels_per_point());
 
                     if on_top && area_content_ui.visuals().window_highlight_topmost {
-                        let mut round = window_frame.rounding;
+                        let mut round =
+                            window_frame.rounding - window_frame.stroke.width.round() as u8;
 
                         if !is_collapsed {
                             round.se = 0;
