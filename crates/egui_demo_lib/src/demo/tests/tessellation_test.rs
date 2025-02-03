@@ -70,6 +70,16 @@ impl TessellationTest {
                 "Blurred",
                 RectShape::filled(sized([20.0, 16.0]), 2.0, baby_blue).with_blur_width(50.0),
             ),
+            (
+                "Thick stroke, minimal rounding",
+                RectShape::new(
+                    sized([20.0, 16.0]),
+                    1.0,
+                    baby_blue,
+                    (3.0, Color32::WHITE),
+                    StrokeKind::Inside,
+                ),
+            ),
         ];
 
         for (_name, shape) in &mut shapes {

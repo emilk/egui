@@ -1869,12 +1869,13 @@ impl Tessellator {
             }
         }
 
-        if true {
+        if 1.0 < stroke.width {
             // Modify `rect` so that it represents the filled region, with the stroke on the outside.
             // This is required for thick strokes to look correct, when extruded inwards.
             // Important: do this AFTER rounding to pixels
 
             let old_rounding = rounding;
+
             match stroke_kind {
                 StrokeKind::Inside => {
                     // Shrink the stroke so it fits inside the rect:
