@@ -1762,6 +1762,45 @@ impl Tessellator {
         rect.min = rect.min.at_least(pos2(-1e7, -1e7));
         rect.max = rect.max.at_most(pos2(1e7, 1e7));
 
+        if !stroke.is_empty() {
+            let rect_with_stroke = match stroke_kind {
+                StrokeKind::Inside => rect,
+                StrokeKind::Middle => rect.expand(stroke.width / 2.0),
+                StrokeKind::Outside => rect.expand(stroke.width),
+            };
+
+            if rect_with_stroke.size().min_elem() <= 2.0 * stroke.width + 0.5 * self.feathering {
+                // The stroke covers the fill.
+                // Change this to be a fill-only shape, using the stroke color as the new fill color.
+                rect = rect_with_stroke;
+
+                // We blend so that if the stroke is semi-transparent,
+                // the fill still shines through.
+                fill = fill.blend(stroke.color);
+
+                stroke = Stroke::NONE;
+            }
+        }
+
+        if stroke.is_empty() {
+            // Approximate thin rectangles with line segments.
+            // This is important so that thin rectangles look good.
+            if rect.width() <= 2.0 * self.feathering {
+                return self.tessellate_line_segment(
+                    [rect.center_top(), rect.center_bottom()],
+                    (rect.width(), fill),
+                    out,
+                );
+            }
+            if rect.height() <= 2.0 * self.feathering {
+                return self.tessellate_line_segment(
+                    [rect.left_center(), rect.right_center()],
+                    (rect.height(), fill),
+                    out,
+                );
+            }
+        }
+
         let old_feathering = self.feathering;
 
         if self.feathering < blur_width {
@@ -1851,59 +1890,35 @@ impl Tessellator {
             stroke_kind = StrokeKind::Outside;
         }
 
-        if rect.width() < 0.5 * self.feathering {
-            // Very thin - approximate by a vertical line-segment:
-            // There is room for improvement here, but it is not critical.
-            let line = [rect.center_top(), rect.center_bottom()];
-            if 0.0 < rect.width() && fill != Color32::TRANSPARENT {
-                self.tessellate_line_segment(line, Stroke::new(rect.width(), fill), out);
-            }
+        let path = &mut self.scratchpad_path;
+        path.clear();
+        path::rounded_rectangle(&mut self.scratchpad_points, rect, rounding);
+        path.add_line_loop(&self.scratchpad_points);
+
+        let path_stroke = PathStroke::from(stroke).with_kind(stroke_kind);
+
+        // TODO: handle negative rects somewhere
+
+        if let Some(brush) = brush {
+            // Textured fill
+            let crate::Brush {
+                fill_texture_id,
+                uv,
+            } = **brush;
+            let uv_from_pos = |p: Pos2| {
+                pos2(
+                    remap(p.x, rect.x_range(), uv.x_range()),
+                    remap(p.y, rect.y_range(), uv.y_range()),
+                )
+            };
+            path.fill_with_uv(self.feathering, fill, fill_texture_id, uv_from_pos, out);
+
             if !stroke.is_empty() {
-                self.tessellate_line_segment(line, stroke, out); // back…
-                self.tessellate_line_segment(line, stroke, out); // …and forth
-            }
-        } else if rect.height() < 0.5 * self.feathering {
-            // Very thin - approximate by a horizontal line-segment:
-            // There is room for improvement here, but it is not critical.
-            let line = [rect.left_center(), rect.right_center()];
-            if 0.0 < rect.height() && fill != Color32::TRANSPARENT {
-                self.tessellate_line_segment(line, Stroke::new(rect.height(), fill), out);
-            }
-            if !stroke.is_empty() {
-                self.tessellate_line_segment(line, stroke, out); // back…
-                self.tessellate_line_segment(line, stroke, out); // …and forth
+                path.stroke_closed(self.feathering, &path_stroke, out);
             }
         } else {
-            let path = &mut self.scratchpad_path;
-            path.clear();
-            path::rounded_rectangle(&mut self.scratchpad_points, rect, rounding);
-            path.add_line_loop(&self.scratchpad_points);
-
-            let path_stroke = PathStroke::from(stroke).with_kind(stroke_kind);
-
-            // TODO: handle negative rects somewhere
-
-            if let Some(brush) = brush {
-                // Textured fill
-                let crate::Brush {
-                    fill_texture_id,
-                    uv,
-                } = **brush;
-                let uv_from_pos = |p: Pos2| {
-                    pos2(
-                        remap(p.x, rect.x_range(), uv.x_range()),
-                        remap(p.y, rect.y_range(), uv.y_range()),
-                    )
-                };
-                path.fill_with_uv(self.feathering, fill, fill_texture_id, uv_from_pos, out);
-
-                if !stroke.is_empty() {
-                    path.stroke_closed(self.feathering, &path_stroke, out);
-                }
-            } else {
-                // Stroke and maybe fill
-                path.fill_and_stroke(self.feathering, fill, &path_stroke, out);
-            }
+            // Stroke and maybe fill
+            path.fill_and_stroke(self.feathering, fill, &path_stroke, out);
         }
 
         self.feathering = old_feathering; // restore
