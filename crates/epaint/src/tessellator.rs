@@ -1744,7 +1744,7 @@ impl Tessellator {
             mut rounding,
             mut fill,
             mut stroke,
-            mut stroke_kind,
+            stroke_kind,
             round_to_pixels,
             mut blur_width,
             brush: _, // brush is extracted on its own, because it is not Copy
@@ -1872,6 +1872,8 @@ impl Tessellator {
         {
             // Modify `rect` so that it represents the filled region, with the stroke on the outside.
             // Important: do this AFTER rounding to pixels
+
+            let old_rounding = rounding;
             match stroke_kind {
                 StrokeKind::Inside => {
                     // Shrink the stroke so it fits inside the rect:
@@ -1887,7 +1889,21 @@ impl Tessellator {
                 StrokeKind::Outside => {}
             }
 
-            stroke_kind = StrokeKind::Outside;
+            // Make sure we don't loose the last piece of rounding.
+            // This is very important for when the stroke is wider than the rounding.
+            // It's also a bit of a hack.
+            if 0 < old_rounding.nw {
+                rounding.nw = rounding.nw.at_least(1);
+            }
+            if 0 < old_rounding.ne {
+                rounding.ne = rounding.ne.at_least(1);
+            }
+            if 0 < old_rounding.sw {
+                rounding.sw = rounding.sw.at_least(1);
+            }
+            if 0 < old_rounding.se {
+                rounding.se = rounding.se.at_least(1);
+            }
         }
 
         let path = &mut self.scratchpad_path;
