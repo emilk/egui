@@ -451,8 +451,9 @@ impl Shape {
             }
             Self::Rect(rect_shape) => {
                 rect_shape.rect = transform * rect_shape.rect;
-                rect_shape.stroke.width *= transform.scaling;
                 rect_shape.rounding *= transform.scaling;
+                rect_shape.stroke.width *= transform.scaling;
+                rect_shape.blur_width *= transform.scaling;
             }
             Self::Text(text_shape) => {
                 text_shape.pos = transform * text_shape.pos;
@@ -472,17 +473,17 @@ impl Shape {
             Self::Mesh(mesh) => {
                 Arc::make_mut(mesh).transform(transform);
             }
-            Self::QuadraticBezier(bezier_shape) => {
-                bezier_shape.points[0] = transform * bezier_shape.points[0];
-                bezier_shape.points[1] = transform * bezier_shape.points[1];
-                bezier_shape.points[2] = transform * bezier_shape.points[2];
-                bezier_shape.stroke.width *= transform.scaling;
-            }
-            Self::CubicBezier(cubic_curve) => {
-                for p in &mut cubic_curve.points {
+            Self::QuadraticBezier(bezier) => {
+                for p in &mut bezier.points {
                     *p = transform * *p;
                 }
-                cubic_curve.stroke.width *= transform.scaling;
+                bezier.stroke.width *= transform.scaling;
+            }
+            Self::CubicBezier(bezier) => {
+                for p in &mut bezier.points {
+                    *p = transform * *p;
+                }
+                bezier.stroke.width *= transform.scaling;
             }
             Self::Callback(shape) => {
                 shape.rect = transform * shape.rect;
