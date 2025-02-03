@@ -1,7 +1,7 @@
 use egui::{
     emath::{GuiRounding, TSTransform},
     epaint::{self, RectShape},
-    vec2, Pos2, Rect, Sense, StrokeKind, Vec2,
+    vec2, Color32, Pos2, Rect, Sense, StrokeKind, Vec2,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -14,19 +14,69 @@ pub struct TessellationTest {
 
 impl Default for TessellationTest {
     fn default() -> Self {
-        let fill = egui::Color32::from_rgb(0, 181, 255);
-        let shape = RectShape::new(
-            Rect::from_center_size(Pos2::ZERO, Vec2::new(20.0, 16.0)),
-            2.0,
-            fill,
-            (0.5, egui::Color32::WHITE),
-            StrokeKind::Inside,
-        );
+        let shape = Self::fn_interesting_shapes()[0].1.clone();
         Self {
             shape,
             magnification_pixel_size: 12.0,
             tessellation_options: Default::default(),
         }
+    }
+}
+
+impl TessellationTest {
+    fn fn_interesting_shapes() -> Vec<(&'static str, RectShape)> {
+        fn sized(size: impl Into<Vec2>) -> Rect {
+            Rect::from_center_size(Pos2::ZERO, size.into())
+        }
+
+        let baby_blue = Color32::from_rgb(0, 181, 255);
+
+        let mut shapes = vec![
+            (
+                "Normal",
+                RectShape::new(
+                    sized([20.0, 16.0]),
+                    2.0,
+                    baby_blue,
+                    (1.0, Color32::WHITE),
+                    StrokeKind::Inside,
+                ),
+            ),
+            (
+                "Minimal rounding",
+                RectShape::new(
+                    sized([20.0, 16.0]),
+                    1.0,
+                    baby_blue,
+                    (1.0, Color32::WHITE),
+                    StrokeKind::Inside,
+                ),
+            ),
+            (
+                "Thin filled",
+                RectShape::filled(sized([20.0, 0.5]), 2.0, baby_blue),
+            ),
+            (
+                "Thin stroked",
+                RectShape::new(
+                    sized([20.0, 0.5]),
+                    2.0,
+                    baby_blue,
+                    (0.5, Color32::WHITE),
+                    StrokeKind::Inside,
+                ),
+            ),
+            (
+                "Blurred",
+                RectShape::filled(sized([20.0, 16.0]), 2.0, baby_blue).with_blur_width(50.0),
+            ),
+        ];
+
+        for (_name, shape) in &mut shapes {
+            shape.round_to_pixels = Some(true);
+        }
+
+        shapes
     }
 }
 
@@ -53,7 +103,9 @@ impl crate::View for TessellationTest {
 
         ui.horizontal(|ui| {
             ui.group(|ui| {
-                rect_shape_ui(ui, &mut self.shape);
+                ui.vertical(|ui| {
+                    rect_shape_ui(ui, &mut self.shape);
+                });
             });
 
             ui.group(|ui| {
@@ -140,7 +192,7 @@ impl crate::View for TessellationTest {
 
                 // Draw pixel centers:
                 let pixel_radius = 0.75;
-                let pixel_color = egui::Color32::GRAY;
+                let pixel_color = Color32::GRAY;
                 for yi in 0.. {
                     let y = (yi as f32 + 0.5) * magnification_pixel_size;
                     if y > canvas.height() / 2.0 {
@@ -166,6 +218,16 @@ impl crate::View for TessellationTest {
 }
 
 fn rect_shape_ui(ui: &mut egui::Ui, shape: &mut RectShape) {
+    egui::ComboBox::from_id_salt("prefabs")
+        .selected_text("Prefabs")
+        .show_ui(ui, |ui| {
+            for (name, prefab) in TessellationTest::fn_interesting_shapes() {
+                ui.selectable_value(shape, prefab, name);
+            }
+        });
+
+    ui.add_space(4.0);
+
     let RectShape {
         rect,
         rounding,
