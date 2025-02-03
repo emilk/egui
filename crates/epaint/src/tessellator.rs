@@ -343,7 +343,7 @@ impl Path {
         use precomputed_vertices::{CIRCLE_128, CIRCLE_16, CIRCLE_32, CIRCLE_64, CIRCLE_8};
 
         // These cutoffs are based on a high-dpi display. TODO(emilk): use pixels_per_point here?
-        // same cutoffs as in add_circle_quadrant
+        // Similar cutoffs as in add_circle_quadrant
 
         if radius <= 2.0 {
             self.0.extend(CIRCLE_8.iter().map(|&n| PathPoint {
@@ -607,19 +607,21 @@ pub mod path {
         use super::precomputed_vertices::{CIRCLE_128, CIRCLE_16, CIRCLE_32, CIRCLE_64, CIRCLE_8};
 
         // These cutoffs are based on a high-dpi display. TODO(emilk): use pixels_per_point here?
-        // same cutoffs as in add_circle
+        // Similar cutoffs as in `add_circle`,
+        // but slightly higher to avoid artifacts
+        // when extruding small circle radii with a large stroke width.
 
         if radius <= 0.0 {
             path.push(center);
-        } else if radius <= 2.0 {
+        } else if radius <= 1.0 {
             let offset = quadrant as usize * 2;
             let quadrant_vertices = &CIRCLE_8[offset..=offset + 2];
             path.extend(quadrant_vertices.iter().map(|&n| center + radius * n));
-        } else if radius <= 5.0 {
+        } else if radius <= 3.0 {
             let offset = quadrant as usize * 4;
             let quadrant_vertices = &CIRCLE_16[offset..=offset + 4];
             path.extend(quadrant_vertices.iter().map(|&n| center + radius * n));
-        } else if radius < 18.0 {
+        } else if radius < 15.0 {
             let offset = quadrant as usize * 8;
             let quadrant_vertices = &CIRCLE_32[offset..=offset + 8];
             path.extend(quadrant_vertices.iter().map(|&n| center + radius * n));
@@ -1737,6 +1739,39 @@ impl Tessellator {
         } = *rect_shape;
 
         let round_to_pixels = round_to_pixels.unwrap_or(self.options.round_rects_to_pixels);
+        let pixel_size = 1.0 / self.pixels_per_point;
+
+        if stroke.width == 0.0 {
+            stroke.color = Color32::TRANSPARENT;
+        }
+
+        // It is common to (sometimes accidentally) create an infinitely sized rectangle.
+        // Make sure we can handle that:
+        rect.min = rect.min.at_least(pos2(-1e7, -1e7));
+        rect.max = rect.max.at_most(pos2(1e7, 1e7));
+
+        let old_feathering = self.feathering;
+
+        if self.feathering < blur_width {
+            // We accomplish the blur by using a larger-than-normal feathering.
+            // Feathering is usually used to make the edges of a shape softer for anti-aliasing.
+
+            // The tessellator can't handle blurring/feathering larger than the smallest side of the rect.
+            // Thats because the tessellator approximate very thin rectangles as line segments,
+            // and these line segments don't have rounded corners.
+            // When the feathering is small (the size of a pixel), this is usually fine,
+            // but here we have a huge feathering to simulate blur,
+            // so we need to avoid this optimization in the tessellator,
+            // which is also why we add this rather big epsilon:
+            let eps = 0.1;
+            blur_width = blur_width
+                .at_most(rect.size().min_elem() - eps)
+                .at_least(0.0);
+
+            rounding += Rounding::from(0.5 * blur_width);
+
+            self.feathering = self.feathering.max(blur_width);
+        }
 
         // Important: round to pixels BEFORE applying stroke_kind
         if round_to_pixels {
@@ -1781,49 +1816,25 @@ impl Tessellator {
             }
         }
 
-        // Modify `rect` so that it represents the filled region, with the stroke on the outside.
-        // Important: do this AFTER rounding to pixels
-        match stroke_kind {
-            StrokeKind::Inside => {
-                // Shrink the stroke so it fits inside the rect:
-                stroke.width = stroke.width.at_most(rect.size().min_elem() / 2.0);
+        {
+            // Modify `rect` so that it represents the filled region, with the stroke on the outside.
+            // Important: do this AFTER rounding to pixels
+            match stroke_kind {
+                StrokeKind::Inside => {
+                    // Shrink the stroke so it fits inside the rect:
+                    stroke.width = stroke.width.at_most(rect.size().min_elem() / 2.0);
 
-                rect = rect.shrink(stroke.width);
+                    rect = rect.shrink(stroke.width);
+                    rounding -= stroke.width.round() as u8;
+                }
+                StrokeKind::Middle => {
+                    rect = rect.shrink(stroke.width / 2.0);
+                    rounding -= (stroke.width / 2.0).round() as u8;
+                }
+                StrokeKind::Outside => {}
             }
-            StrokeKind::Middle => {
-                rect = rect.shrink(stroke.width / 2.0);
-            }
-            StrokeKind::Outside => {
-                // Already good
-            }
-        }
 
-        // It is common to (sometimes accidentally) create an infinitely sized rectangle.
-        // Make sure we can handle that:
-        rect.min = rect.min.at_least(pos2(-1e7, -1e7));
-        rect.max = rect.max.at_most(pos2(1e7, 1e7));
-
-        let old_feathering = self.feathering;
-
-        if self.feathering < blur_width {
-            // We accomplish the blur by using a larger-than-normal feathering.
-            // Feathering is usually used to make the edges of a shape softer for anti-aliasing.
-
-            // The tessellator can't handle blurring/feathering larger than the smallest side of the rect.
-            // Thats because the tessellator approximate very thin rectangles as line segments,
-            // and these line segments don't have rounded corners.
-            // When the feathering is small (the size of a pixel), this is usually fine,
-            // but here we have a huge feathering to simulate blur,
-            // so we need to avoid this optimization in the tessellator,
-            // which is also why we add this rather big epsilon:
-            let eps = 0.1;
-            blur_width = blur_width
-                .at_most(rect.size().min_elem() - eps)
-                .at_least(0.0);
-
-            rounding += Rounding::from(0.5 * blur_width);
-
-            self.feathering = self.feathering.max(blur_width);
+            stroke_kind = StrokeKind::Outside;
         }
 
         if rect.width() < 0.5 * self.feathering {

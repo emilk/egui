@@ -9,6 +9,10 @@ pub struct RectShape {
     pub rect: Rect,
 
     /// How rounded the corners are. Use `Rounding::ZERO` for no rounding.
+    ///
+    /// The rounding is of [`Self::rect`],
+    /// so if there is a stroke with [`Self::stroke_kind`] of [`StrokeKind::Outside`],
+    /// the stroke will have an even greater rounding.
     pub rounding: Rounding,
 
     /// How to fill the rectangle.
