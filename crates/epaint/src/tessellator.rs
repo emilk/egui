@@ -10,7 +10,7 @@ use emath::{pos2, remap, vec2, GuiRounding as _, NumExt, Pos2, Rect, Rot2, Vec2}
 use crate::{
     color::ColorMode, emath, stroke::PathStroke, texture_atlas::PreparedDisc, CircleShape,
     ClippedPrimitive, ClippedShape, Color32, CubicBezierShape, EllipseShape, Mesh, PathShape,
-    Primitive, QuadraticBezierShape, RectShape, Rounding, Shape, Stroke, StrokeKind, TextShape,
+    Primitive, QuadraticBezierShape, RectShape, Roundingf, Shape, Stroke, StrokeKind, TextShape,
     TextureId, Vertex, WHITE_UV,
 };
 
@@ -534,11 +534,11 @@ impl Path {
 
 pub mod path {
     //! Helpers for constructing paths
-    use crate::Rounding;
+    use crate::Roundingf;
     use emath::{pos2, Pos2, Rect};
 
     /// overwrites existing points
-    pub fn rounded_rectangle(path: &mut Vec<Pos2>, rect: Rect, rounding: Rounding) {
+    pub fn rounded_rectangle(path: &mut Vec<Pos2>, rect: Rect, rounding: Roundingf) {
         path.clear();
 
         let min = rect.min;
@@ -546,7 +546,7 @@ pub mod path {
 
         let r = clamp_rounding(rounding, rect);
 
-        if r == Rounding::ZERO {
+        if r == Roundingf::ZERO {
             path.reserve(4);
             path.push(pos2(min.x, min.y)); // left top
             path.push(pos2(max.x, min.y)); // right top
@@ -556,8 +556,6 @@ pub mod path {
             // We need to avoid duplicated vertices, because that leads to visual artifacts later.
             // Duplicated vertices can happen when one side is all rounding, with no straight edge between.
             let eps = f32::EPSILON * rect.size().max_elem();
-
-            let r = crate::Roundingf::from(r);
 
             add_circle_quadrant(path, pos2(max.x - r.se, max.y - r.se), r.se, 0.0); // south east
 
@@ -637,11 +635,11 @@ pub mod path {
     }
 
     // Ensures the radius of each corner is within a valid range
-    fn clamp_rounding(rounding: Rounding, rect: Rect) -> Rounding {
+    fn clamp_rounding(rounding: Roundingf, rect: Rect) -> Roundingf {
         let half_width = rect.width() * 0.5;
         let half_height = rect.height() * 0.5;
         let max_cr = half_width.min(half_height);
-        rounding.at_most(max_cr.floor() as _).at_least(0)
+        rounding.at_most(max_cr).at_least(0.0)
     }
 }
 
@@ -1741,7 +1739,7 @@ impl Tessellator {
         let brush = rect_shape.brush.as_ref();
         let RectShape {
             mut rect,
-            mut rounding,
+            rounding,
             mut fill,
             mut stroke,
             mut stroke_kind,
@@ -1750,6 +1748,7 @@ impl Tessellator {
             brush: _, // brush is extracted on its own, because it is not Copy
         } = *rect_shape;
 
+        let mut rounding = Roundingf::from(rounding);
         let round_to_pixels = round_to_pixels.unwrap_or(self.options.round_rects_to_pixels);
         let pixel_size = 1.0 / self.pixels_per_point;
 
@@ -1819,7 +1818,7 @@ impl Tessellator {
                 .at_most(rect.size().min_elem() - eps)
                 .at_least(0.0);
 
-            rounding += Rounding::from(0.5 * blur_width);
+            rounding += Roundingf::from(0.5 * blur_width);
 
             self.feathering = self.feathering.max(blur_width);
         }
@@ -1882,11 +1881,11 @@ impl Tessellator {
                     stroke.width = stroke.width.at_most(rect.size().min_elem() / 2.0);
 
                     rect = rect.shrink(stroke.width);
-                    rounding -= stroke.width.round() as u8;
+                    rounding -= stroke.width;
                 }
                 StrokeKind::Middle => {
                     rect = rect.shrink(stroke.width / 2.0);
-                    rounding -= (stroke.width / 2.0).round() as u8;
+                    rounding -= stroke.width / 2.0;
                 }
                 StrokeKind::Outside => {}
             }
@@ -1895,17 +1894,17 @@ impl Tessellator {
                 // Make sure we don't loose the last piece of rounding.
                 // This is very important for when the stroke is wider than the rounding.
                 // It's also a bit of a hack.
-                if 0 < old_rounding.nw {
-                    rounding.nw = rounding.nw.at_least(1);
+                if 1.0 <= old_rounding.nw {
+                    rounding.nw = rounding.nw.at_least(1.0);
                 }
-                if 0 < old_rounding.ne {
-                    rounding.ne = rounding.ne.at_least(1);
+                if 1.0 <= old_rounding.ne {
+                    rounding.ne = rounding.ne.at_least(1.0);
                 }
-                if 0 < old_rounding.sw {
-                    rounding.sw = rounding.sw.at_least(1);
+                if 1.0 <= old_rounding.sw {
+                    rounding.sw = rounding.sw.at_least(1.0);
                 }
-                if 0 < old_rounding.se {
-                    rounding.se = rounding.se.at_least(1);
+                if 1.0 <= old_rounding.se {
+                    rounding.se = rounding.se.at_least(1.0);
                 }
             }
 
