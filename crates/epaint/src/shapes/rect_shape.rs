@@ -42,6 +42,9 @@ pub struct RectShape {
     /// This can be used to produce shadows and glow effects.
     ///
     /// The blur is currently implemented using a simple linear blur in sRGBA gamma space.
+    ///
+    /// Blur is incompatible with [`Self::stroke`].
+    /// Either set a stroke, or a blur, but never both.
     pub blur_width: f32,
 
     /// Controls texturing, if any.
