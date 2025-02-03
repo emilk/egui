@@ -232,6 +232,23 @@ impl Color32 {
         ])
     }
 
+    /// Multiply with 0.5 to make color half as opaque, perceptually.
+    ///
+    /// Fast multiplication in gamma-space.
+    ///
+    /// This is perceptually even, and faster that [`Self::linear_multiply`].
+    #[inline]
+    pub fn gamma_multiply_u8(self, factor: u8) -> Self {
+        let Self([r, g, b, a]) = self;
+        let factor = factor as u32;
+        Self([
+            ((r as u32 * factor + 127) / 255) as u8,
+            ((g as u32 * factor + 127) / 255) as u8,
+            ((b as u32 * factor + 127) / 255) as u8,
+            ((a as u32 * factor + 127) / 255) as u8,
+        ])
+    }
+
     /// Multiply with 0.5 to make color half as opaque in linear space.
     ///
     /// This is using linear space, which is not perceptually even.
@@ -270,6 +287,11 @@ impl Color32 {
             fast_round(lerp((self[3] as f32)..=(other[3] as f32), t)),
         )
     }
+
+    /// Blend two colors, so that `self` is behind the argument.
+    pub fn blend(self, on_top: Self) -> Self {
+        self.gamma_multiply_u8(255 - on_top.a()) + on_top
+    }
 }
 
 impl std::ops::Mul for Color32 {
@@ -283,6 +305,20 @@ impl std::ops::Mul for Color32 {
             fast_round(self[1] as f32 * other[1] as f32 / 255.0),
             fast_round(self[2] as f32 * other[2] as f32 / 255.0),
             fast_round(self[3] as f32 * other[3] as f32 / 255.0),
+        ])
+    }
+}
+
+impl std::ops::Add for Color32 {
+    type Output = Self;
+
+    #[inline]
+    fn add(self, other: Self) -> Self {
+        Self([
+            self[0].saturating_add(other[0]),
+            self[1].saturating_add(other[1]),
+            self[2].saturating_add(other[2]),
+            self[3].saturating_add(other[3]),
         ])
     }
 }
