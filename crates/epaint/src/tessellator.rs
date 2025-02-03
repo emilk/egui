@@ -973,7 +973,7 @@ fn stroke_and_fill_path(
 
     let idx = out.vertices.len() as u32;
 
-    // Translate the points along their normals if the stroke is outside or inside
+    // Move the points so that they line on the _center_ of the _stroke_.
     match stroke.kind {
         StrokeKind::Inside => {
             for point in &mut *path {
@@ -1008,7 +1008,19 @@ fn stroke_and_fill_path(
 
         let thin_line = stroke.width <= feathering;
         if thin_line {
-            // Fade out thin lines rather than making them thinner
+            // If the stroke is painted smaller than the pixel width (=feathering width),
+            // then we risk severe aliasing.
+            // Instead, we paint the stroke as a triangular ridge, two feather-widths wide,
+            // and lessen the opacity of the middle part instead of making it thinner.
+            if color_fill != Color32::TRANSPARENT && stroke.width < feathering {
+                // If this is filled shape, then we need to also compensate so that the
+                // filled area remains the same as it would have been without the
+                // artificially wide line.
+                for point in &mut *path {
+                    point.pos += 0.5 * (feathering - stroke.width) * point.normal;
+                }
+            }
+
             let opacity = stroke.width / feathering;
 
             /*
@@ -1730,9 +1742,9 @@ impl Tessellator {
         let RectShape {
             mut rect,
             mut rounding,
-            fill,
+            mut fill,
             mut stroke,
-            stroke_kind,
+            mut stroke_kind,
             round_to_pixels,
             mut blur_width,
             brush: _, // brush is extracted on its own, because it is not Copy
@@ -1795,7 +1807,9 @@ impl Tessellator {
                     // On this path we optimize for crisp and symmetric strokes.
                     // We put odd-width strokes in the center of pixels.
                     // To understand why, see `fn round_line_segment`.
-                    if stroke.width <= self.feathering
+                    if stroke.width <= 0.0 {
+                        rect = rect.round_to_pixels(self.pixels_per_point);
+                    } else if stroke.width <= pixel_size
                         || is_nearest_integer_odd(self.pixels_per_point * stroke.width)
                     {
                         rect = rect.round_to_pixel_center(self.pixels_per_point);
@@ -1865,8 +1879,7 @@ impl Tessellator {
             path::rounded_rectangle(&mut self.scratchpad_points, rect, rounding);
             path.add_line_loop(&self.scratchpad_points);
 
-            let paint_stroke = stroke.width > 0.0;
-            let path_stroke = PathStroke::from(stroke).outside();
+            let path_stroke = PathStroke::from(stroke).with_kind(stroke_kind);
 
             // TODO: handle negative rects somewhere
 
@@ -1884,7 +1897,7 @@ impl Tessellator {
                 };
                 path.fill_with_uv(self.feathering, fill, fill_texture_id, uv_from_pos, out);
 
-                if paint_stroke {
+                if !stroke.is_empty() {
                     path.stroke_closed(self.feathering, &path_stroke, out);
                 }
             } else {
