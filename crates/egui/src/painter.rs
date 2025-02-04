@@ -472,7 +472,7 @@ impl Painter {
     /// # egui::__run_test_ui(|ui| {
     /// # let rect = egui::Rect::from_min_size(Default::default(), egui::Vec2::splat(100.0));
     /// egui::Image::new(egui::include_image!("../assets/ferris.png"))
-    ///     .corner_radius(5.0)
+    ///     .corner_radius(5)
     ///     .tint(egui::Color32::LIGHT_BLUE)
     ///     .paint_at(ui, rect);
     /// # });
