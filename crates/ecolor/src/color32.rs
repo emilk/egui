@@ -232,7 +232,7 @@ impl Color32 {
         ])
     }
 
-    /// Multiply with 0.5 to make color half as opaque, perceptually.
+    /// Multiply with 127 to make color half as opaque, perceptually.
     ///
     /// Fast multiplication in gamma-space.
     ///
