@@ -48,6 +48,7 @@ impl Default for WidgetGallery {
 }
 
 impl WidgetGallery {
+    #[allow(unused_mut)] // if not chrono
     #[inline]
     pub fn with_date_button(mut self, _with_date_button: bool) -> Self {
         #[cfg(feature = "chrono")]
