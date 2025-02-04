@@ -93,6 +93,19 @@ impl TessellationTest {
                 )
                 .with_blur_width(5.0),
             ),
+            (
+                "Additive rectangle",
+                RectShape::new(
+                    sized([24.0, 12.0]),
+                    0.0,
+                    egui::Color32::LIGHT_RED.additive().linear_multiply(0.025),
+                    (
+                        1.0,
+                        egui::Color32::LIGHT_BLUE.additive().linear_multiply(0.1),
+                    ),
+                    StrokeKind::Outside,
+                ),
+            ),
         ];
 
         for (_name, shape) in &mut shapes {
