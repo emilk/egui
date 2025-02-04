@@ -166,6 +166,9 @@ impl Frame {
         shadow: Shadow::NONE,
     };
 
+    /// No colors, no margins, no border.
+    ///
+    /// Same as [`Frame::NONE`].
     pub const fn new() -> Self {
         Self::NONE
     }
