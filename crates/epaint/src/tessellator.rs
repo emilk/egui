@@ -1885,19 +1885,27 @@ impl Tessellator {
 
             let extra_cr_tweak = 0.4; // Otherwise is doesn't _feels_  enough.
 
-            if 0.0 < original_cr.nw {
+            if original_cr.nw == 0.0 {
+                corner_radius.nw = 0.0;
+            } else {
                 corner_radius.nw += extra_cr_tweak;
                 corner_radius.nw = corner_radius.nw.at_least(min_outside_cr);
             }
-            if 0.0 < original_cr.ne {
+            if original_cr.ne == 0.0 {
+                corner_radius.ne = 0.0;
+            } else {
                 corner_radius.ne += extra_cr_tweak;
                 corner_radius.ne = corner_radius.ne.at_least(min_outside_cr);
             }
-            if 0.0 < original_cr.sw {
+            if original_cr.sw == 0.0 {
+                corner_radius.sw = 0.0;
+            } else {
                 corner_radius.sw += extra_cr_tweak;
                 corner_radius.sw = corner_radius.sw.at_least(min_outside_cr);
             }
-            if 0.0 < original_cr.se {
+            if original_cr.se == 0.0 {
+                corner_radius.se = 0.0;
+            } else {
                 corner_radius.se += extra_cr_tweak;
                 corner_radius.se = corner_radius.se.at_least(min_outside_cr);
             }
