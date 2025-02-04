@@ -1002,7 +1002,11 @@ fn stroke_and_fill_path(
         let color_outer = Color32::TRANSPARENT;
         let color_middle = &stroke.color;
 
-        let thin_line = stroke.width <= feathering;
+        // We add a bit of an epsilon here, because when we round to pixels,
+        // we can get rounding errors (unless pixels_per_point is an integer).
+        // And it's better to err on the side of the nicer rendering with line caps
+        // (the thin-line optimization has no line caps).
+        let thin_line = stroke.width <= 0.9 * feathering;
         if thin_line {
             // If the stroke is painted smaller than the pixel width (=feathering width),
             // then we risk severe aliasing.
@@ -1016,6 +1020,8 @@ fn stroke_and_fill_path(
                     point.pos += 0.5 * (feathering - stroke.width) * point.normal;
                 }
             }
+
+            // TODO(emilk): add line caps (if this is an open line).
 
             let opacity = stroke.width / feathering;
 
