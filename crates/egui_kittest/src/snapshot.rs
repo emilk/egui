@@ -503,12 +503,13 @@ impl<State> Harness<'_, State> {
 /// // Call add for each snapshot in your test
 /// results.add(harness.try_snapshot("my_test"));
 ///
-/// // At the end of the test, fail if there are any errors
-/// results.unwrap();
+/// // If there are any errors, SnapshotResults will panic once dropped.
 /// ```
 ///
 /// # Panics
 /// Panics if there are any errors when dropped (this way it is impossible to forget to call `unwrap`).
+/// If you don't want to panic, you can use [`SnapshotResults::into_result`] or [`SnapshotResults::into_inner`].
+/// If you want to panic early, you can use [`SnapshotResults::unwrap`].
 #[derive(Debug, Default)]
 pub struct SnapshotResults {
     errors: Vec<SnapshotError>,
