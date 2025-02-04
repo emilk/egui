@@ -10,14 +10,14 @@ use crate::Margin;
 /// For storage, use [`crate::Margin`] instead.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct Marginf {
+pub struct MarginF32 {
     pub left: f32,
     pub right: f32,
     pub top: f32,
     pub bottom: f32,
 }
 
-impl From<Margin> for Marginf {
+impl From<Margin> for MarginF32 {
     #[inline]
     fn from(margin: Margin) -> Self {
         Self {
@@ -29,9 +29,9 @@ impl From<Margin> for Marginf {
     }
 }
 
-impl From<Marginf> for Margin {
+impl From<MarginF32> for Margin {
     #[inline]
-    fn from(marginf: Marginf) -> Self {
+    fn from(marginf: MarginF32) -> Self {
         Self {
             left: marginf.left as _,
             right: marginf.right as _,
@@ -41,7 +41,7 @@ impl From<Marginf> for Margin {
     }
 }
 
-impl Marginf {
+impl MarginF32 {
     pub const ZERO: Self = Self {
         left: 0.0,
         right: 0.0,
@@ -108,22 +108,22 @@ impl Marginf {
     }
 }
 
-impl From<f32> for Marginf {
+impl From<f32> for MarginF32 {
     #[inline]
     fn from(v: f32) -> Self {
         Self::same(v)
     }
 }
 
-impl From<Vec2> for Marginf {
+impl From<Vec2> for MarginF32 {
     #[inline]
     fn from(v: Vec2) -> Self {
         Self::symmetric(v.x, v.y)
     }
 }
 
-/// `Marginf + Marginf`
-impl std::ops::Add for Marginf {
+/// `MarginF32 + MarginF32`
+impl std::ops::Add for MarginF32 {
     type Output = Self;
 
     #[inline]
@@ -137,8 +137,8 @@ impl std::ops::Add for Marginf {
     }
 }
 
-/// `Marginf + f32`
-impl std::ops::Add<f32> for Marginf {
+/// `MarginF32 + f32`
+impl std::ops::Add<f32> for MarginF32 {
     type Output = Self;
 
     #[inline]
@@ -153,7 +153,7 @@ impl std::ops::Add<f32> for Marginf {
 }
 
 /// `Margind += f32`
-impl std::ops::AddAssign<f32> for Marginf {
+impl std::ops::AddAssign<f32> for MarginF32 {
     #[inline]
     fn add_assign(&mut self, v: f32) {
         self.left += v;
@@ -163,8 +163,8 @@ impl std::ops::AddAssign<f32> for Marginf {
     }
 }
 
-/// `Marginf * f32`
-impl std::ops::Mul<f32> for Marginf {
+/// `MarginF32 * f32`
+impl std::ops::Mul<f32> for MarginF32 {
     type Output = Self;
 
     #[inline]
@@ -178,8 +178,8 @@ impl std::ops::Mul<f32> for Marginf {
     }
 }
 
-/// `Marginf *= f32`
-impl std::ops::MulAssign<f32> for Marginf {
+/// `MarginF32 *= f32`
+impl std::ops::MulAssign<f32> for MarginF32 {
     #[inline]
     fn mul_assign(&mut self, v: f32) {
         self.left *= v;
@@ -189,8 +189,8 @@ impl std::ops::MulAssign<f32> for Marginf {
     }
 }
 
-/// `Marginf / f32`
-impl std::ops::Div<f32> for Marginf {
+/// `MarginF32 / f32`
+impl std::ops::Div<f32> for MarginF32 {
     type Output = Self;
 
     #[inline]
@@ -204,8 +204,8 @@ impl std::ops::Div<f32> for Marginf {
     }
 }
 
-/// `Marginf /= f32`
-impl std::ops::DivAssign<f32> for Marginf {
+/// `MarginF32 /= f32`
+impl std::ops::DivAssign<f32> for MarginF32 {
     #[inline]
     fn div_assign(&mut self, v: f32) {
         self.left /= v;
@@ -215,8 +215,8 @@ impl std::ops::DivAssign<f32> for Marginf {
     }
 }
 
-/// `Marginf - Marginf`
-impl std::ops::Sub for Marginf {
+/// `MarginF32 - MarginF32`
+impl std::ops::Sub for MarginF32 {
     type Output = Self;
 
     #[inline]
@@ -230,8 +230,8 @@ impl std::ops::Sub for Marginf {
     }
 }
 
-/// `Marginf - f32`
-impl std::ops::Sub<f32> for Marginf {
+/// `MarginF32 - f32`
+impl std::ops::Sub<f32> for MarginF32 {
     type Output = Self;
 
     #[inline]
@@ -245,8 +245,8 @@ impl std::ops::Sub<f32> for Marginf {
     }
 }
 
-/// `Marginf -= f32`
-impl std::ops::SubAssign<f32> for Marginf {
+/// `MarginF32 -= f32`
+impl std::ops::SubAssign<f32> for MarginF32 {
     #[inline]
     fn sub_assign(&mut self, v: f32) {
         self.left -= v;
@@ -256,12 +256,12 @@ impl std::ops::SubAssign<f32> for Marginf {
     }
 }
 
-/// `Rect + Marginf`
-impl std::ops::Add<Marginf> for Rect {
+/// `Rect + MarginF32`
+impl std::ops::Add<MarginF32> for Rect {
     type Output = Self;
 
     #[inline]
-    fn add(self, margin: Marginf) -> Self {
+    fn add(self, margin: MarginF32) -> Self {
         Self::from_min_max(
             self.min - margin.left_top(),
             self.max + margin.right_bottom(),
@@ -269,20 +269,20 @@ impl std::ops::Add<Marginf> for Rect {
     }
 }
 
-/// `Rect += Marginf`
-impl std::ops::AddAssign<Marginf> for Rect {
+/// `Rect += MarginF32`
+impl std::ops::AddAssign<MarginF32> for Rect {
     #[inline]
-    fn add_assign(&mut self, margin: Marginf) {
+    fn add_assign(&mut self, margin: MarginF32) {
         *self = *self + margin;
     }
 }
 
-/// `Rect - Marginf`
-impl std::ops::Sub<Marginf> for Rect {
+/// `Rect - MarginF32`
+impl std::ops::Sub<MarginF32> for Rect {
     type Output = Self;
 
     #[inline]
-    fn sub(self, margin: Marginf) -> Self {
+    fn sub(self, margin: MarginF32) -> Self {
         Self::from_min_max(
             self.min + margin.left_top(),
             self.max - margin.right_bottom(),
@@ -290,10 +290,10 @@ impl std::ops::Sub<Marginf> for Rect {
     }
 }
 
-/// `Rect -= Marginf`
-impl std::ops::SubAssign<Marginf> for Rect {
+/// `Rect -= MarginF32`
+impl std::ops::SubAssign<MarginF32> for Rect {
     #[inline]
-    fn sub_assign(&mut self, margin: Marginf) {
+    fn sub_assign(&mut self, margin: MarginF32) {
         *self = *self - margin;
     }
 }
