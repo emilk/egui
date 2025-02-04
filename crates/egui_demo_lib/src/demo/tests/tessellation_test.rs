@@ -10,6 +10,7 @@ pub struct TessellationTest {
 
     magnification_pixel_size: f32,
     tessellation_options: epaint::TessellationOptions,
+    paint_edges: bool,
 }
 
 impl Default for TessellationTest {
@@ -19,6 +20,7 @@ impl Default for TessellationTest {
             shape,
             magnification_pixel_size: 12.0,
             tessellation_options: Default::default(),
+            paint_edges: false,
         }
     }
 }
@@ -170,6 +172,10 @@ impl crate::View for TessellationTest {
                         );
                     });
                     ui.end_row();
+
+                    ui.label("Paint edges");
+                    ui.checkbox(&mut self.paint_edges, "");
+                    ui.end_row();
                 });
 
             let magnification_pixel_size = *magnification_pixel_size;
@@ -198,7 +204,21 @@ impl crate::View for TessellationTest {
                     TSTransform::from_translation(canvas.center().to_vec2())
                         * TSTransform::from_scaling(magnification_pixel_size),
                 );
-                painter.add(epaint::Shape::mesh(mesh));
+                let mesh = std::sync::Arc::new(mesh);
+                painter.add(epaint::Shape::mesh(mesh.clone()));
+
+                if self.paint_edges {
+                    let stroke = epaint::Stroke::new(0.5, Color32::MAGENTA);
+                    for triangle in mesh.triangles() {
+                        let a = mesh.vertices[triangle[0] as usize];
+                        let b = mesh.vertices[triangle[1] as usize];
+                        let c = mesh.vertices[triangle[2] as usize];
+
+                        painter.line_segment([a.pos, b.pos], stroke);
+                        painter.line_segment([b.pos, c.pos], stroke);
+                        painter.line_segment([c.pos, a.pos], stroke);
+                    }
+                }
 
                 // Draw pixel centers:
                 let pixel_radius = 0.75;
