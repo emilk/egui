@@ -97,7 +97,7 @@ impl ProgressBar {
 
     #[inline]
     #[deprecated = "Renamed to `corner_radius`"]
-    pub fn rounding(mut self, corner_radius: impl Into<CornerRadius>) -> Self {
+    pub fn rounding(self, corner_radius: impl Into<CornerRadius>) -> Self {
         self.corner_radius(corner_radius)
     }
 }
@@ -140,12 +140,12 @@ impl Widget for ProgressBar {
 
             let visuals = ui.style().visuals.clone();
             let has_custom_cr = corner_radius.is_some();
-            let corner_radius = outer_rect.height() / 2.0;
-            let corner_radius = corner_radius.unwrap_or_else(|| corner_radius.into());
+            let half_height = outer_rect.height() / 2.0;
+            let corner_radius = corner_radius.unwrap_or_else(|| half_height.into());
             ui.painter()
                 .rect_filled(outer_rect, corner_radius, visuals.extreme_bg_color);
             let min_width =
-                2.0 * f32::max(corner_radius.sw as _, corner_radius.nw as _).at_most(corner_radius);
+                2.0 * f32::max(corner_radius.sw as _, corner_radius.nw as _).at_most(half_height);
             let filled_width = (outer_rect.width() * progress).at_least(min_width);
             let inner_rect =
                 Rect::from_min_size(outer_rect.min, vec2(filled_width, outer_rect.height()));
@@ -171,14 +171,14 @@ impl Widget for ProgressBar {
                 let time = ui.input(|i| i.time);
                 let start_angle = time * std::f64::consts::TAU;
                 let end_angle = start_angle + 240f64.to_radians() * time.sin();
-                let circle_radius = corner_radius - 2.0;
+                let circle_radius = half_height - 2.0;
                 let points: Vec<Pos2> = (0..n_points)
                     .map(|i| {
                         let angle = lerp(start_angle..=end_angle, i as f64 / n_points as f64);
                         let (sin, cos) = angle.sin_cos();
                         inner_rect.right_center()
                             + circle_radius * vec2(cos as f32, sin as f32)
-                            + vec2(-corner_radius, 0.0)
+                            + vec2(-half_height, 0.0)
                     })
                     .collect();
                 ui.painter()

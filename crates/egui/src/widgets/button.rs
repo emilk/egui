@@ -154,15 +154,14 @@ impl<'a> Button<'a> {
     /// Set the rounding of the button.
     #[inline]
     pub fn corner_radius(mut self, corner_radius: impl Into<CornerRadius>) -> Self {
-        self.corner_radius = corner_radius.into();
+        self.corner_radius = Some(corner_radius.into());
         self
     }
 
     #[inline]
     #[deprecated = "Renamed to `corner_radius`"]
-    pub fn rounding(mut self, corner_radius: impl Into<CornerRadius>) -> Self {
-        self.corner_radius = Some(corner_radius.into());
-        self
+    pub fn rounding(self, corner_radius: impl Into<CornerRadius>) -> Self {
+        self.corner_radius(corner_radius)
     }
 
     /// If true, the tint of the image is multiplied by the widget text color.

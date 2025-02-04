@@ -288,9 +288,8 @@ impl Frame {
     /// In other words, this is the corner radius of the _widget rect_.
     #[inline]
     #[deprecated = "Renamed to `corner_radius`"]
-    pub fn rounding(mut self, corner_radius: impl Into<CornerRadius>) -> Self {
-        self.corner_radius = corner_radius.into();
-        self
+    pub fn rounding(self, corner_radius: impl Into<CornerRadius>) -> Self {
+        self.corner_radius(corner_radius)
     }
 
     /// Margin outside the painted frame.
