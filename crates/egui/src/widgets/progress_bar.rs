@@ -1,5 +1,5 @@
 use crate::{
-    lerp, vec2, Color32, NumExt, Pos2, Rect, Response, Rgba, Rounding, Sense, Shape, Stroke,
+    lerp, vec2, Color32, CornerRadius, NumExt, Pos2, Rect, Response, Rgba, Sense, Shape, Stroke,
     TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
 };
 
@@ -19,7 +19,7 @@ pub struct ProgressBar {
     text: Option<ProgressBarText>,
     fill: Option<Color32>,
     animate: bool,
-    rounding: Option<Rounding>,
+    corner_radius: Option<CornerRadius>,
 }
 
 impl ProgressBar {
@@ -32,7 +32,7 @@ impl ProgressBar {
             text: None,
             fill: None,
             animate: false,
-            rounding: None,
+            corner_radius: None,
         }
     }
 
@@ -75,7 +75,7 @@ impl ProgressBar {
     /// Note that this will cause the UI to be redrawn.
     /// Defaults to `false`.
     ///
-    /// If [`Self::rounding`] and [`Self::animate`] are used simultaneously, the animation is not
+    /// If [`Self::corner_radius`] and [`Self::animate`] are used simultaneously, the animation is not
     /// rendered, since it requires a perfect circle to render correctly. However, the UI is still
     /// redrawn.
     #[inline]
@@ -86,13 +86,19 @@ impl ProgressBar {
 
     /// Set the rounding of the progress bar.
     ///
-    /// If [`Self::rounding`] and [`Self::animate`] are used simultaneously, the animation is not
+    /// If [`Self::corner_radius`] and [`Self::animate`] are used simultaneously, the animation is not
     /// rendered, since it requires a perfect circle to render correctly. However, the UI is still
     /// redrawn.
     #[inline]
-    pub fn rounding(mut self, rounding: impl Into<Rounding>) -> Self {
-        self.rounding = Some(rounding.into());
+    pub fn corner_radius(mut self, corner_radius: impl Into<CornerRadius>) -> Self {
+        self.corner_radius = Some(corner_radius.into());
         self
+    }
+
+    #[inline]
+    #[deprecated = "Renamed to `corner_radius`"]
+    pub fn rounding(self, corner_radius: impl Into<CornerRadius>) -> Self {
+        self.corner_radius(corner_radius)
     }
 }
 
@@ -105,7 +111,7 @@ impl Widget for ProgressBar {
             text,
             fill,
             animate,
-            rounding,
+            corner_radius,
         } = self;
 
         let animate = animate && progress < 1.0;
@@ -133,13 +139,13 @@ impl Widget for ProgressBar {
             }
 
             let visuals = ui.style().visuals.clone();
-            let is_custom_rounding = rounding.is_some();
-            let corner_radius = outer_rect.height() / 2.0;
-            let rounding = rounding.unwrap_or_else(|| corner_radius.into());
+            let has_custom_cr = corner_radius.is_some();
+            let half_height = outer_rect.height() / 2.0;
+            let corner_radius = corner_radius.unwrap_or_else(|| half_height.into());
             ui.painter()
-                .rect_filled(outer_rect, rounding, visuals.extreme_bg_color);
+                .rect_filled(outer_rect, corner_radius, visuals.extreme_bg_color);
             let min_width =
-                2.0 * f32::max(rounding.sw as _, rounding.nw as _).at_most(corner_radius);
+                2.0 * f32::max(corner_radius.sw as _, corner_radius.nw as _).at_most(half_height);
             let filled_width = (outer_rect.width() * progress).at_least(min_width);
             let inner_rect =
                 Rect::from_min_size(outer_rect.min, vec2(filled_width, outer_rect.height()));
@@ -154,25 +160,25 @@ impl Widget for ProgressBar {
 
             ui.painter().rect_filled(
                 inner_rect,
-                rounding,
+                corner_radius,
                 Color32::from(
                     Rgba::from(fill.unwrap_or(visuals.selection.bg_fill)) * color_factor as f32,
                 ),
             );
 
-            if animate && !is_custom_rounding {
+            if animate && !has_custom_cr {
                 let n_points = 20;
                 let time = ui.input(|i| i.time);
                 let start_angle = time * std::f64::consts::TAU;
                 let end_angle = start_angle + 240f64.to_radians() * time.sin();
-                let circle_radius = corner_radius - 2.0;
+                let circle_radius = half_height - 2.0;
                 let points: Vec<Pos2> = (0..n_points)
                     .map(|i| {
                         let angle = lerp(start_angle..=end_angle, i as f64 / n_points as f64);
                         let (sin, cos) = angle.sin_cos();
                         inner_rect.right_center()
                             + circle_radius * vec2(cos as f32, sin as f32)
-                            + vec2(-corner_radius, 0.0)
+                            + vec2(-half_height, 0.0)
                     })
                     .collect();
                 ui.painter()

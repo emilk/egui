@@ -7,7 +7,7 @@ use emath::{pos2, Align2, Pos2, Rangef, Rect, TSTransform, Vec2};
 use crate::{
     stroke::PathStroke,
     text::{FontId, Fonts, Galley},
-    Color32, Mesh, Rounding, Stroke, StrokeKind, TextureId,
+    Color32, CornerRadius, Mesh, Stroke, StrokeKind, TextureId,
 };
 
 use super::{
@@ -279,21 +279,21 @@ impl Shape {
     #[inline]
     pub fn rect_filled(
         rect: Rect,
-        rounding: impl Into<Rounding>,
+        corner_radius: impl Into<CornerRadius>,
         fill_color: impl Into<Color32>,
     ) -> Self {
-        Self::Rect(RectShape::filled(rect, rounding, fill_color))
+        Self::Rect(RectShape::filled(rect, corner_radius, fill_color))
     }
 
     /// See also [`Self::rect_filled`].
     #[inline]
     pub fn rect_stroke(
         rect: Rect,
-        rounding: impl Into<Rounding>,
+        corner_radius: impl Into<CornerRadius>,
         stroke: impl Into<Stroke>,
         stroke_kind: StrokeKind,
     ) -> Self {
-        Self::Rect(RectShape::stroke(rect, rounding, stroke, stroke_kind))
+        Self::Rect(RectShape::stroke(rect, corner_radius, stroke, stroke_kind))
     }
 
     #[allow(clippy::needless_pass_by_value)]
@@ -451,7 +451,7 @@ impl Shape {
             }
             Self::Rect(rect_shape) => {
                 rect_shape.rect = transform * rect_shape.rect;
-                rect_shape.rounding *= transform.scaling;
+                rect_shape.corner_radius *= transform.scaling;
                 rect_shape.stroke.width *= transform.scaling;
                 rect_shape.blur_width *= transform.scaling;
             }

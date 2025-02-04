@@ -760,10 +760,10 @@ impl Slider<'_> {
 
             let rail_radius = (spacing.slider_rail_height / 2.0).at_least(0.0);
             let rail_rect = self.rail_rect(rect, rail_radius);
-            let rounding = widget_visuals.inactive.rounding;
+            let corner_radius = widget_visuals.inactive.corner_radius;
 
             ui.painter()
-                .rect_filled(rail_rect, rounding, widget_visuals.inactive.bg_fill);
+                .rect_filled(rail_rect, corner_radius, widget_visuals.inactive.bg_fill);
 
             let position_1d = self.position_from_value(value, position_range);
             let center = self.marker_center(position_1d, &rail_rect);
@@ -780,16 +780,16 @@ impl Slider<'_> {
                 // The trailing rect has to be drawn differently depending on the orientation.
                 match self.orientation {
                     SliderOrientation::Horizontal => {
-                        trailing_rail_rect.max.x = center.x + rounding.nw as f32;
+                        trailing_rail_rect.max.x = center.x + corner_radius.nw as f32;
                     }
                     SliderOrientation::Vertical => {
-                        trailing_rail_rect.min.y = center.y - rounding.se as f32;
+                        trailing_rail_rect.min.y = center.y - corner_radius.se as f32;
                     }
                 };
 
                 ui.painter().rect_filled(
                     trailing_rail_rect,
-                    rounding,
+                    corner_radius,
                     ui.visuals().selection.bg_fill,
                 );
             }
@@ -817,7 +817,7 @@ impl Slider<'_> {
                     let rect = Rect::from_center_size(center, 2.0 * v);
                     ui.painter().rect(
                         rect,
-                        visuals.rounding,
+                        visuals.corner_radius,
                         visuals.bg_fill,
                         visuals.fg_stroke,
                         epaint::StrokeKind::Inside,

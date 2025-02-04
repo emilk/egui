@@ -72,7 +72,7 @@ impl FrameHistory {
         let mut shapes = Vec::with_capacity(3 + 2 * history.len());
         shapes.push(Shape::Rect(epaint::RectShape::new(
             rect,
-            style.rounding,
+            style.corner_radius,
             ui.visuals().extreme_bg_color,
             ui.style().noninteractive().bg_stroke,
             egui::StrokeKind::Inside,

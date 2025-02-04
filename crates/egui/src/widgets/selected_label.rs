@@ -71,7 +71,7 @@ impl Widget for SelectableLabel {
 
                 ui.painter().rect(
                     rect,
-                    visuals.rounding,
+                    visuals.corner_radius,
                     visuals.weak_bg_fill,
                     visuals.bg_stroke,
                     epaint::StrokeKind::Inside,
