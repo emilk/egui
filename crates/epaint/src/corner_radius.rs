@@ -7,7 +7,7 @@
 /// The rounding uses `u8` to save space,
 /// so the amount of rounding is limited to integers in the range `[0, 255]`.
 ///
-/// For calculations, you may want to use [`crate::Roundingf`] instead, which uses `f32`.
+/// For calculations, you may want to use [`crate::CornerRadiusF32`] instead, which uses `f32`.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct CornerRadius {

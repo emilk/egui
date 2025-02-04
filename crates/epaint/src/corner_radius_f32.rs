@@ -2,7 +2,7 @@ use crate::CornerRadius;
 
 /// How rounded the corners of things should be, in `f32`.
 ///
-/// This is used for calculations, but storage is usually done with the more compact [`Rounding`].
+/// This is used for calculations, but storage is usually done with the more compact [`CornerRadius`].
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct CornerRadiusF32 {

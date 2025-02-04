@@ -239,7 +239,7 @@ impl<'a> Image<'a> {
 
     /// Round the corners of the image.
     ///
-    /// The default is no rounding ([`Rounding::ZERO`]).
+    /// The default is no rounding ([`CornerRadius::ZERO`]).
     ///
     /// Due to limitations in the current implementation,
     /// this will turn off any rotation of the image.
@@ -254,7 +254,7 @@ impl<'a> Image<'a> {
 
     /// Round the corners of the image.
     ///
-    /// The default is no rounding ([`Rounding::ZERO`]).
+    /// The default is no rounding ([`CornerRadius::ZERO`]).
     ///
     /// Due to limitations in the current implementation,
     /// this will turn off any rotation of the image.
@@ -790,7 +790,7 @@ pub struct ImageOptions {
 
     /// Round the corners of the image.
     ///
-    /// The default is no rounding ([`Rounding::ZERO`]).
+    /// The default is no rounding ([`CornerRadius::ZERO`]).
     ///
     /// Due to limitations in the current implementation,
     /// this will turn off any rotation of the image.
