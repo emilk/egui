@@ -15,7 +15,7 @@ pub struct TessellationTest {
 
 impl Default for TessellationTest {
     fn default() -> Self {
-        let shape = Self::fn_interesting_shapes()[0].1.clone();
+        let shape = Self::interesting_shapes()[0].1.clone();
         Self {
             shape,
             magnification_pixel_size: 12.0,
@@ -26,7 +26,7 @@ impl Default for TessellationTest {
 }
 
 impl TessellationTest {
-    fn fn_interesting_shapes() -> Vec<(&'static str, RectShape)> {
+    fn interesting_shapes() -> Vec<(&'static str, RectShape)> {
         fn sized(size: impl Into<Vec2>) -> Rect {
             Rect::from_center_size(Pos2::ZERO, size.into())
         }
@@ -81,6 +81,17 @@ impl TessellationTest {
                     (3.0, Color32::WHITE),
                     StrokeKind::Inside,
                 ),
+            ),
+            (
+                "Blurred stroke",
+                RectShape::new(
+                    sized([20.0, 16.0]),
+                    0.0,
+                    baby_blue,
+                    (5.0, Color32::WHITE),
+                    StrokeKind::Inside,
+                )
+                .with_blur_width(5.0),
             ),
         ];
 
@@ -251,7 +262,7 @@ fn rect_shape_ui(ui: &mut egui::Ui, shape: &mut RectShape) {
     egui::ComboBox::from_id_salt("prefabs")
         .selected_text("Prefabs")
         .show_ui(ui, |ui| {
-            for (name, prefab) in TessellationTest::fn_interesting_shapes() {
+            for (name, prefab) in TessellationTest::interesting_shapes() {
                 ui.selectable_value(shape, prefab, name);
             }
         });
