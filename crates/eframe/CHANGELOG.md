@@ -7,6 +7,14 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.31.0 - 2025-02-04
+* Web: Fix incorrect scale when moving to screen with new DPI [#5631](https://github.com/emilk/egui/pull/5631) by [@emilk](https://github.com/emilk)
+* Re-enable IME support on Linux [#5198](https://github.com/emilk/egui/pull/5198) by [@YgorSouza](https://github.com/YgorSouza)
+* Serialize window maximized state in `WindowSettings` [#5554](https://github.com/emilk/egui/pull/5554) by [@landaire](https://github.com/landaire)
+* Save state on suspend on Android and iOS [#5601](https://github.com/emilk/egui/pull/5601) by [@Pandicon](https://github.com/Pandicon)
+* Eframe web: forward cmd-S/O to egui app (stop default browser action) [#5655](https://github.com/emilk/egui/pull/5655) by [@emilk](https://github.com/emilk)
+
+
 ## 0.30.0 - 2024-12-16 - Android support
 NOTE: you now need to enable the `wayland` or `x11` features to get Linux support, including getting it to work on most CI systems.
 

@@ -46,7 +46,7 @@ We don't update the MSRV in a patch release, unless we really, really need to.
 
 ## Preparation
 * [ ] run `scripts/generate_example_screenshots.sh` if needed
-* [ ] write a short release note that fits in a tweet
+* [ ] write a short release note that fits in a bluesky post
 * [ ] record gif for `CHANGELOG.md` release note (and later bluesky post)
 * [ ] update changelogs using `scripts/generate_changelog.py --version 0.x.0 --write`
 * [ ] bump version numbers in workspace `Cargo.toml`
@@ -55,9 +55,9 @@ We don't update the MSRV in a patch release, unless we really, really need to.
 I usually do this all on the `master` branch, but doing it in a release branch is also fine, as long as you remember to merge it into `master` later.
 
 * [ ] Run `typos`
-* [ ] `git commit -m 'Release 0.x.0 - summary'`
+* [ ] `git commit -m 'Release 0.x.0 - <release title>'`
 * [ ] `cargo publish` (see below)
-* [ ] `git tag -a 0.x.0 -m 'Release 0.x.0 - summary'`
+* [ ] `git tag -a 0.x.0 -m 'Release 0.x.0 - <release title>'`
 * [ ] `git pull --tags ; git tag -d latest && git tag -a latest -m 'Latest release' && git push --tags origin latest --force ; git push --tags`
 * [ ] merge release PR or push to `master`
 * [ ] check that CI is green
