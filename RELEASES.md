@@ -36,14 +36,9 @@ We don't update the MSRV in a patch release, unless we really, really need to.
 
 ## Release testing
 * [ ] `cargo r -p egui_demo_app` and click around for while
-* [ ] `./scripts/build_demo_web.sh --release -g`
-  - check frame-rate and wasm size
-  - test on mobile
-  - test on chromium
-  - check the in-browser profiler
-* [ ] check the color test
 * [ ] update `eframe_template` and test
 * [ ] update `egui_plot` and test
+* [ ] update `egui_table` and test
 * [ ] update `egui_tiles` and test
 * [ ] test with Rerun
 * [ ] `./scripts/check.sh`
@@ -98,3 +93,5 @@ I usually do this all on the `master` branch, but doing it in a release branch i
 * [ ] publish new `egui_plot`
 * [ ] publish new `egui_table`
 * [ ] publish new `egui_tiles`
+* [ ] make a PR to `egui_commonmark`
+* [ ] make a PR to `rerun`
