@@ -1760,6 +1760,7 @@ impl Tessellator {
         rect.max = rect.max.at_most(pos2(1e7, 1e7));
 
         if !stroke.is_empty() {
+            // Check if the stroke covers the whole rectangle
             let rect_with_stroke = match stroke_kind {
                 StrokeKind::Inside => rect,
                 StrokeKind::Middle => rect.expand(stroke.width / 2.0),
