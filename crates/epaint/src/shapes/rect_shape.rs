@@ -8,7 +8,16 @@ use crate::*;
 pub struct RectShape {
     pub rect: Rect,
 
-    /// How rounded the corners are. Use `Rounding::ZERO` for no rounding.
+    /// How rounded the corners of the rectangle are.
+    ///
+    /// Use `Rounding::ZERO` for for sharp corners.
+    ///
+    /// This is the corner radii of the rectangle.
+    /// If there is a stroke, then the stroke will have an inner and outer corner radius,
+    /// and those will depend on [`StrokeKind`] and the stroke width.
+    ///
+    /// For [`StrokeKind::Inside`], the outside of the stroke coincides with the rectangle,
+    /// so the rounding will in this case specify the outer corner radius.
     pub rounding: Rounding,
 
     /// How to fill the rectangle.
