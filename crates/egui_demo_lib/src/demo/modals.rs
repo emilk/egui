@@ -245,8 +245,6 @@ mod tests {
         harness.get_by_label("Yes Please").click();
         harness.run_ok();
         results.add(harness.try_snapshot("modals_3"));
-
-        results.unwrap();
     }
 
     // This tests whether the backdrop actually prevents interaction with lower layers.

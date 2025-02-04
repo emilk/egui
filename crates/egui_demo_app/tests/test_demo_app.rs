@@ -71,6 +71,4 @@ fn test_demo_app() {
 
         results.add(harness.try_snapshot(&anchor.to_string()));
     }
-
-    results.unwrap();
 }

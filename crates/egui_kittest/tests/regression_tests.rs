@@ -87,6 +87,4 @@ fn test_combobox() {
 
     // Popup should be closed now
     assert!(harness.query_by_label("Item 2").is_none());
-
-    results.unwrap();
 }

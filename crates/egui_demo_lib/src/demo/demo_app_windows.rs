@@ -407,7 +407,5 @@ mod tests {
 
             results.add(harness.try_snapshot_options(&format!("demos/{name}"), &options));
         }
-
-        results.unwrap();
     }
 }
