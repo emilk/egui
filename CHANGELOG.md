@@ -22,13 +22,13 @@ Changes since the last release can be found at <https://github.com/emilk/egui/co
 This release adds the `Scene` container to egui. It is a pannable, zoomable canvas that can contain `Widget`s and child `Ui`s.
 This will make it easier to e.g. implement a graph editor.
 
-![image](https://github.com/user-attachments/assets/b37d56ef-f6ef-46be-bb99-6eb25b6efca9)
+![scene](https://github.com/user-attachments/assets/7dc5e395-a3cb-4bf3-83a3-51a76a48c409)
 
 #### Clearer, pixel perfect rendering
 The tessellator has been updated for improved rendering quality and better performance. It will produce fewer vertices
 and shapes will have less overdraw. We've also defined what `CornerRadius` (previously `Rounding`) means.
 
-We've also added a tessellator test to the [demo app](https://www.egui.rs/), where you can play around with different 
+We've also added a tessellator test to the [demo app](https://www.egui.rs/), where you can play around with different
 values to see what's produced:
 
 
@@ -38,7 +38,7 @@ https://github.com/user-attachments/assets/adf55e3b-fb48-4df0-aaa2-150ee3163684
 Check the [PR](https://github.com/emilk/egui/pull/5669) for more details.
 
 #### `CornerRadius`, `Margin`, `Shadow` size reduction
-In order to pave the path for more complex and customizable styling solutions, we've reduced the size of 
+In order to pave the path for more complex and customizable styling solutions, we've reduced the size of
 `CornerRadius`, `Margin` and `Shadow` values to `i8` and `u8`.
 
 
