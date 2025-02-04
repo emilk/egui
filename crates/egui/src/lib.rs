@@ -510,6 +510,9 @@ pub use self::{
     widgets::*,
 };
 
+#[deprecated = "Renamed to CornerRadius"]
+pub type Rounding = CornerRadius;
+
 // ----------------------------------------------------------------------------
 
 /// Helper function that adds a label when compiling with debug assertions enabled.

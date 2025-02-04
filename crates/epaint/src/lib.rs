@@ -69,6 +69,9 @@ pub use self::{
     viewport::ViewportInPixels,
 };
 
+#[deprecated = "Renamed to CornerRadius"]
+pub type Rounding = CornerRadius;
+
 #[allow(deprecated)]
 pub use tessellator::tessellate_shapes;
 
