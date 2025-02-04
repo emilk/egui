@@ -1774,7 +1774,7 @@ impl Tessellator {
 
                 // We blend so that if the stroke is semi-transparent,
                 // the fill still shines through.
-                fill = fill.blend(stroke.color);
+                fill = stroke.color;
 
                 stroke = Stroke::NONE;
             }
