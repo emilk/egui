@@ -1643,6 +1643,9 @@ impl Tessellator {
         }
 
         if self.options.round_line_segments_to_pixels {
+            let feathering = self.feathering;
+            let pixels_per_point = self.pixels_per_point;
+
             let [a, b] = &mut points;
             if a.x == b.x {
                 // Vertical line
@@ -1651,8 +1654,17 @@ impl Tessellator {
                 a.x = x;
                 b.x = x;
 
-                a.y = a.y.round_to_pixel_center(self.pixels_per_point);
-                b.y = b.y.round_to_pixel_center(self.pixels_per_point);
+                // Often the ends of the line are exactly on a pixel boundary,
+                // but we extend line segments with a cap that is a pixel wide…
+                // Solution: first shrink the pixel by half a pixel (on each end),
+                // then round to pixel center!
+                if a.y < b.y {
+                    a.y = (a.y + 0.5 * feathering).round_to_pixel_center(pixels_per_point);
+                    b.y = (b.y - 0.5 * feathering).round_to_pixel_center(pixels_per_point);
+                } else {
+                    a.y = (a.y - 0.5 * feathering).round_to_pixel_center(pixels_per_point);
+                    b.y = (b.y + 0.5 * feathering).round_to_pixel_center(pixels_per_point);
+                }
             }
             if a.y == b.y {
                 // Horizontal line
@@ -1661,8 +1673,14 @@ impl Tessellator {
                 a.y = y;
                 b.y = y;
 
-                a.x = a.x.round_to_pixel_center(self.pixels_per_point);
-                b.x = b.x.round_to_pixel_center(self.pixels_per_point);
+                // See earlier comment for vertical lines
+                if a.x < b.x {
+                    a.x = (a.x + 0.5 * feathering).round_to_pixel_center(pixels_per_point);
+                    b.x = (b.x - 0.5 * feathering).round_to_pixel_center(pixels_per_point);
+                } else {
+                    a.x = (a.x - 0.5 * feathering).round_to_pixel_center(pixels_per_point);
+                    b.x = (b.x + 0.5 * feathering).round_to_pixel_center(pixels_per_point);
+                }
             }
         }
 
