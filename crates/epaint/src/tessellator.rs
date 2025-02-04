@@ -1277,6 +1277,9 @@ fn stroke_and_fill_path(
         }
 
         if color_fill != Color32::TRANSPARENT {
+            // We Need to create new vertices, because the ones we used for the stroke
+            // has the wrong color.
+
             // Shrink to ignore the stroke…
             for point in &mut *path {
                 point.pos -= 0.5 * stroke.width * point.normal;
