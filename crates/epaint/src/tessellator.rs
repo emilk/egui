@@ -1026,12 +1026,6 @@ fn stroke_and_fill_path(
             .       |---|          feathering (pixel width)
             */
 
-            if let ColorMode::Solid(color) = stroke.color {
-                if mul_color(color, opacity) == Color32::TRANSPARENT {
-                    return; // Early out for _very_ thin lines
-                }
-            }
-
             out.reserve_triangles(4 * n as usize);
             out.reserve_vertices(3 * n as usize);
 
@@ -1247,11 +1241,6 @@ fn stroke_and_fill_path(
             // Fade out thin lines rather than making them thinner
             let opacity = stroke.width / feathering;
             let radius = feathering / 2.0;
-            if let ColorMode::Solid(color) = stroke.color {
-                if mul_color(color, opacity) == Color32::TRANSPARENT {
-                    return; // Early out for _very_ thin lines
-                }
-            }
             for p in path.iter_mut() {
                 out.colored_vertex(
                     p.pos + radius * p.normal,
