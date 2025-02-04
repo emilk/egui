@@ -1121,6 +1121,11 @@ impl WidgetVisuals {
     pub fn text_color(&self) -> Color32 {
         self.fg_stroke.color
     }
+
+    #[deprecated = "Renamed to corner_radius"]
+    pub fn rounding(&self) -> CornerRadius {
+        self.corner_radius
+    }
 }
 
 /// Options for help debug egui by adding extra visualization
