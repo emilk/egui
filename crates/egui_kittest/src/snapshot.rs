@@ -562,6 +562,7 @@ impl SnapshotResults {
 
     /// Panics if there are any errors, displaying each.
     #[allow(clippy::unused_self)]
+    #[track_caller]
     pub fn unwrap(self) {
         // Panic is handled in drop
     }
@@ -574,11 +575,15 @@ impl From<SnapshotResults> for Vec<SnapshotError> {
 }
 
 impl Drop for SnapshotResults {
+    #[track_caller]
     fn drop(&mut self) {
         // Don't panic if we are already panicking (the test probably failed for another reason)
         if std::thread::panicking() {
             return;
         }
-        assert!(!self.has_errors(), "{}", self);
+        #[allow(clippy::manual_assert)]
+        if self.has_errors() {
+            panic!("{}", self);
+        }
     }
 }
