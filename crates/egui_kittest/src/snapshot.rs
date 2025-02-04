@@ -195,7 +195,12 @@ pub fn try_image_snapshot_options(
         output_path,
     } = options;
 
-    std::fs::create_dir_all(output_path).ok();
+    let parent_path = if let Some(parent) = PathBuf::from(name).parent() {
+        output_path.join(parent)
+    } else {
+        output_path.clone()
+    };
+    std::fs::create_dir_all(parent_path).ok();
 
     // The one that is checked in to git
     let snapshot_path = output_path.join(format!("{name}.png"));
