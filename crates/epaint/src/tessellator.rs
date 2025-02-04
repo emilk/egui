@@ -1844,6 +1844,23 @@ impl Tessellator {
             }
         }
 
+        let old_feathering = self.feathering;
+
+        if self.feathering < blur_width {
+            // We accomplish the blur by using a larger-than-normal feathering.
+            // Feathering is usually used to make the edges of a shape softer for anti-aliasing.
+
+            // The tessellator can't handle blurring/feathering larger than the smallest side of the rect.
+            let eps = 0.1; // avoid numerical problems
+            blur_width = blur_width
+                .at_most(rect.size().min_elem() - eps - 2.0 * stroke.width)
+                .at_least(0.0);
+
+            rounding += 0.5 * blur_width;
+
+            self.feathering = self.feathering.max(blur_width);
+        }
+
         {
             // Modify `rect` so that it represents the OUTER border
             // We do this because `path::rounded_rectangle` uses the
@@ -1892,23 +1909,6 @@ impl Tessellator {
                 rounding.se += extra_rounding_tweak;
                 rounding.se = rounding.se.at_least(min_outside_rounding);
             }
-        }
-
-        let old_feathering = self.feathering;
-
-        if self.feathering < blur_width {
-            // We accomplish the blur by using a larger-than-normal feathering.
-            // Feathering is usually used to make the edges of a shape softer for anti-aliasing.
-
-            // The tessellator can't handle blurring/feathering larger than the smallest side of the rect.
-            let eps = 0.1; // avoid numerical problems
-            blur_width = blur_width
-                .at_most(rect.size().min_elem() - eps - 2.0 * stroke.width)
-                .at_least(0.0);
-
-            rounding += Roundingf::from(0.5 * blur_width);
-
-            self.feathering = self.feathering.max(blur_width);
         }
 
         let path = &mut self.scratchpad_path;
