@@ -178,7 +178,7 @@ impl crate::View for TessellationTest {
                     ui.add(
                         egui::DragValue::new(magnification_pixel_size)
                             .speed(0.5)
-                            .range(0.0..=64.0),
+                            .range(1.0..=32.0),
                     );
                     ui.end_row();
 
@@ -244,25 +244,27 @@ impl crate::View for TessellationTest {
                     }
                 }
 
-                // Draw pixel centers:
-                let pixel_radius = 0.75;
-                let pixel_color = Color32::GRAY;
-                for yi in 0.. {
-                    let y = (yi as f32 + 0.5) * magnification_pixel_size;
-                    if y > canvas.height() / 2.0 {
-                        break;
-                    }
-                    for xi in 0.. {
-                        let x = (xi as f32 + 0.5) * magnification_pixel_size;
-                        if x > canvas.width() / 2.0 {
+                if 3.0 < magnification_pixel_size {
+                    // Draw pixel centers:
+                    let pixel_radius = 0.75;
+                    let pixel_color = Color32::GRAY;
+                    for yi in 0.. {
+                        let y = (yi as f32 + 0.5) * magnification_pixel_size;
+                        if y > canvas.height() / 2.0 {
                             break;
                         }
-                        for offset in [vec2(x, y), vec2(x, -y), vec2(-x, y), vec2(-x, -y)] {
-                            painter.circle_filled(
-                                canvas.center() + offset,
-                                pixel_radius,
-                                pixel_color,
-                            );
+                        for xi in 0.. {
+                            let x = (xi as f32 + 0.5) * magnification_pixel_size;
+                            if x > canvas.width() / 2.0 {
+                                break;
+                            }
+                            for offset in [vec2(x, y), vec2(x, -y), vec2(-x, y), vec2(-x, -y)] {
+                                painter.circle_filled(
+                                    canvas.center() + offset,
+                                    pixel_radius,
+                                    pixel_color,
+                                );
+                            }
                         }
                     }
                 }
