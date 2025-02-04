@@ -1135,6 +1135,10 @@ fn stroke_and_fill_path(
 
                     // (in the future it would be great with an option to add a circular end instead)
 
+                    // TODO(emilk): we should probably shrink before adding the line caps,
+                    // so that we don't add to the area of the line.
+                    // TODO(emilk): make line caps optional.
+
                     out.reserve_triangles(6 * n as usize + 4);
                     out.reserve_vertices(4 * n as usize);
 
