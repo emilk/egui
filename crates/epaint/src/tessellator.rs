@@ -969,7 +969,7 @@ fn stroke_and_fill_path(
 
     let idx = out.vertices.len() as u32;
 
-    // Move the points so that they line on the _center_ of the _stroke_.
+    // Move the points so that the stroke is on middle of the path.
     match stroke.kind {
         StrokeKind::Inside => {
             for point in &mut *path {
