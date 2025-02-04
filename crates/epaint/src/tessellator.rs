@@ -1644,6 +1644,9 @@ impl Tessellator {
                 round_line_segment(&mut x, &stroke, self.pixels_per_point);
                 a.x = x;
                 b.x = x;
+
+                a.y = a.y.round_to_pixel_center(self.pixels_per_point);
+                b.y = b.y.round_to_pixel_center(self.pixels_per_point);
             }
             if a.y == b.y {
                 // Horizontal line
@@ -1651,6 +1654,9 @@ impl Tessellator {
                 round_line_segment(&mut y, &stroke, self.pixels_per_point);
                 a.y = y;
                 b.y = y;
+
+                a.x = a.x.round_to_pixel_center(self.pixels_per_point);
+                b.x = b.x.round_to_pixel_center(self.pixels_per_point);
             }
         }
 
