@@ -1002,7 +1002,11 @@ fn stroke_and_fill_path(
         let color_outer = Color32::TRANSPARENT;
         let color_middle = &stroke.color;
 
-        let thin_line = stroke.width <= feathering;
+        // We add a bit of an epsilon here, because when we round to pixels,
+        // we can get rounding errors (unless pixels_per_point is an integer).
+        // And it's better to err on the side of the nicer rendering with line caps
+        // (the thin-line optimization has no line caps).
+        let thin_line = stroke.width <= 0.9 * feathering;
         if thin_line {
             // If the stroke is painted smaller than the pixel width (=feathering width),
             // then we risk severe aliasing.
@@ -1016,6 +1020,8 @@ fn stroke_and_fill_path(
                     point.pos += 0.5 * (feathering - stroke.width) * point.normal;
                 }
             }
+
+            // TODO(emilk): add line caps (if this is an open line).
 
             let opacity = stroke.width / feathering;
 
@@ -1128,6 +1134,10 @@ fn stroke_and_fill_path(
                     //   |    |       |    |
 
                     // (in the future it would be great with an option to add a circular end instead)
+
+                    // TODO(emilk): we should probably shrink before adding the line caps,
+                    // so that we don't add to the area of the line.
+                    // TODO(emilk): make line caps optional.
 
                     out.reserve_triangles(6 * n as usize + 4);
                     out.reserve_vertices(4 * n as usize);
@@ -1637,6 +1647,11 @@ impl Tessellator {
         }
 
         if self.options.round_line_segments_to_pixels {
+            let feathering = self.feathering;
+            let pixels_per_point = self.pixels_per_point;
+
+            let quarter_pixel = 0.25 * feathering; // Used to avoid fence post problem.
+
             let [a, b] = &mut points;
             if a.x == b.x {
                 // Vertical line
@@ -1644,6 +1659,20 @@ impl Tessellator {
                 round_line_segment(&mut x, &stroke, self.pixels_per_point);
                 a.x = x;
                 b.x = x;
+
+                // Often the ends of the line are exactly on a pixel boundary,
+                // but we extend line segments with a cap that is a pixel wide…
+                // Solution: first shrink the line segment (on each end),
+                // then round to pixel center!
+                // We shrink by half-a-pixel n total (a quarter on each end),
+                // so that on average we avoid the fence-post-problem after rounding.
+                if a.y < b.y {
+                    a.y = (a.y + quarter_pixel).round_to_pixel_center(pixels_per_point);
+                    b.y = (b.y - quarter_pixel).round_to_pixel_center(pixels_per_point);
+                } else {
+                    a.y = (a.y - quarter_pixel).round_to_pixel_center(pixels_per_point);
+                    b.y = (b.y + quarter_pixel).round_to_pixel_center(pixels_per_point);
+                }
             }
             if a.y == b.y {
                 // Horizontal line
@@ -1651,6 +1680,15 @@ impl Tessellator {
                 round_line_segment(&mut y, &stroke, self.pixels_per_point);
                 a.y = y;
                 b.y = y;
+
+                // See earlier comment for vertical lines
+                if a.x < b.x {
+                    a.x = (a.x + quarter_pixel).round_to_pixel_center(pixels_per_point);
+                    b.x = (b.x - quarter_pixel).round_to_pixel_center(pixels_per_point);
+                } else {
+                    a.x = (a.x - quarter_pixel).round_to_pixel_center(pixels_per_point);
+                    b.x = (b.x + quarter_pixel).round_to_pixel_center(pixels_per_point);
+                }
             }
         }
 
