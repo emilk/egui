@@ -688,10 +688,11 @@ fn mul_color_gamma(left: Color32, right: Color32) -> Color32 {
 mod tests {
     use crate::ColorTest;
     use egui_kittest::kittest::Queryable as _;
+    use egui_kittest::SnapshotResults;
 
     #[test]
     pub fn rendering_test() {
-        let mut errors = vec![];
+        let mut results = SnapshotResults::new();
         for dpi in [1.0, 1.25, 1.5, 1.75, 1.6666667, 2.0] {
             let mut color_test = ColorTest::default();
             let mut harness = egui_kittest::Harness::builder()
@@ -708,12 +709,7 @@ mod tests {
 
             harness.fit_contents();
 
-            let result = harness.try_snapshot(&format!("rendering_test/dpi_{dpi:.2}"));
-            if let Err(err) = result {
-                errors.push(err);
-            }
+            results.add(harness.try_snapshot(&format!("rendering_test/dpi_{dpi:.2}")));
         }
-
-        assert!(errors.is_empty(), "Errors: {errors:#?}");
     }
 }

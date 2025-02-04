@@ -9,7 +9,7 @@ env:
 
 jobs:
   fmt-crank-check-test:
-    name: Format + check + test
+    name: Format + check
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -223,7 +223,7 @@ jobs:
 
   tests:
     name: Run tests
-    # We run the tests on macOS because it will run with a actual GPU
+    # We run the tests on macOS because it will run with an actual GPU
     runs-on: macos-latest
 
     steps:
