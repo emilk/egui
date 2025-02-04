@@ -607,8 +607,6 @@ impl Window<'_> {
                     title_bar.inner_rect = outer_rect.shrink(window_frame.stroke.width);
                     title_bar.inner_rect.max.y =
                         title_bar.inner_rect.min.y + title_bar_height_with_margin;
-                    title_bar.inner_rect =
-                        title_bar.inner_rect.round_to_pixels(ctx.pixels_per_point());
 
                     if on_top && area_content_ui.visuals().window_highlight_topmost {
                         let mut round =
@@ -1211,7 +1209,7 @@ impl TitleBar {
                 .center();
             let button_size = Vec2::splat(ui.spacing().icon_width);
             let button_rect = Rect::from_center_size(button_center, button_size);
-            let button_rect = button_rect.round_to_pixels(ui.pixels_per_point());
+            let button_rect = button_rect.round_ui();
 
             ui.allocate_new_ui(UiBuilder::new().max_rect(button_rect), |ui| {
                 collapsing.show_default_button_with_size(ui, button_size);
