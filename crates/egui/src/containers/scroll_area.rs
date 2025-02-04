@@ -1240,7 +1240,7 @@ impl Prepared {
                 // Background:
                 ui.painter().add(epaint::Shape::rect_filled(
                     outer_scroll_bar_rect,
-                    visuals.rounding,
+                    visuals.corner_radius,
                     ui.visuals()
                         .extreme_bg_color
                         .gamma_multiply(background_opacity),
@@ -1249,7 +1249,7 @@ impl Prepared {
                 // Handle:
                 ui.painter().add(epaint::Shape::rect_filled(
                     handle_rect,
-                    visuals.rounding,
+                    visuals.corner_radius,
                     handle_color.gamma_multiply(handle_opacity),
                 ));
             }

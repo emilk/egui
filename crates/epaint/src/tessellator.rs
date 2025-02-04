@@ -9,8 +9,8 @@ use emath::{pos2, remap, vec2, GuiRounding as _, NumExt, Pos2, Rect, Rot2, Vec2}
 
 use crate::{
     color::ColorMode, emath, stroke::PathStroke, texture_atlas::PreparedDisc, CircleShape,
-    ClippedPrimitive, ClippedShape, Color32, CubicBezierShape, EllipseShape, Mesh, PathShape,
-    Primitive, QuadraticBezierShape, RectShape, Roundingf, Shape, Stroke, StrokeKind, TextShape,
+    ClippedPrimitive, ClippedShape, Color32, CornerRadiusF32, CubicBezierShape, EllipseShape, Mesh,
+    PathShape, Primitive, QuadraticBezierShape, RectShape, Shape, Stroke, StrokeKind, TextShape,
     TextureId, Vertex, WHITE_UV,
 };
 
@@ -534,19 +534,19 @@ impl Path {
 
 pub mod path {
     //! Helpers for constructing paths
-    use crate::Roundingf;
+    use crate::CornerRadiusF32;
     use emath::{pos2, Pos2, Rect};
 
     /// overwrites existing points
-    pub fn rounded_rectangle(path: &mut Vec<Pos2>, rect: Rect, rounding: Roundingf) {
+    pub fn rounded_rectangle(path: &mut Vec<Pos2>, rect: Rect, cr: CornerRadiusF32) {
         path.clear();
 
         let min = rect.min;
         let max = rect.max;
 
-        let r = clamp_rounding(rounding, rect);
+        let cr = clamp_corner_radius(cr, rect);
 
-        if r == Roundingf::ZERO {
+        if cr == CornerRadiusF32::ZERO {
             path.reserve(4);
             path.push(pos2(min.x, min.y)); // left top
             path.push(pos2(max.x, min.y)); // right top
@@ -557,27 +557,27 @@ pub mod path {
             // Duplicated vertices can happen when one side is all rounding, with no straight edge between.
             let eps = f32::EPSILON * rect.size().max_elem();
 
-            add_circle_quadrant(path, pos2(max.x - r.se, max.y - r.se), r.se, 0.0); // south east
+            add_circle_quadrant(path, pos2(max.x - cr.se, max.y - cr.se), cr.se, 0.0); // south east
 
-            if rect.width() <= r.se + r.sw + eps {
+            if rect.width() <= cr.se + cr.sw + eps {
                 path.pop(); // avoid duplicated vertex
             }
 
-            add_circle_quadrant(path, pos2(min.x + r.sw, max.y - r.sw), r.sw, 1.0); // south west
+            add_circle_quadrant(path, pos2(min.x + cr.sw, max.y - cr.sw), cr.sw, 1.0); // south west
 
-            if rect.height() <= r.sw + r.nw + eps {
+            if rect.height() <= cr.sw + cr.nw + eps {
                 path.pop(); // avoid duplicated vertex
             }
 
-            add_circle_quadrant(path, pos2(min.x + r.nw, min.y + r.nw), r.nw, 2.0); // north west
+            add_circle_quadrant(path, pos2(min.x + cr.nw, min.y + cr.nw), cr.nw, 2.0); // north west
 
-            if rect.width() <= r.nw + r.ne + eps {
+            if rect.width() <= cr.nw + cr.ne + eps {
                 path.pop(); // avoid duplicated vertex
             }
 
-            add_circle_quadrant(path, pos2(max.x - r.ne, min.y + r.ne), r.ne, 3.0); // north east
+            add_circle_quadrant(path, pos2(max.x - cr.ne, min.y + cr.ne), cr.ne, 3.0); // north east
 
-            if rect.height() <= r.ne + r.se + eps {
+            if rect.height() <= cr.ne + cr.se + eps {
                 path.pop(); // avoid duplicated vertex
             }
         }
@@ -633,11 +633,11 @@ pub mod path {
     }
 
     // Ensures the radius of each corner is within a valid range
-    fn clamp_rounding(rounding: Roundingf, rect: Rect) -> Roundingf {
+    fn clamp_corner_radius(cr: CornerRadiusF32, rect: Rect) -> CornerRadiusF32 {
         let half_width = rect.width() * 0.5;
         let half_height = rect.height() * 0.5;
         let max_cr = half_width.min(half_height);
-        rounding.at_most(max_cr).at_least(0.0)
+        cr.at_most(max_cr).at_least(0.0)
     }
 }
 
@@ -1729,7 +1729,7 @@ impl Tessellator {
         let brush = rect_shape.brush.as_ref();
         let RectShape {
             mut rect,
-            rounding,
+            corner_radius,
             mut fill,
             mut stroke,
             mut stroke_kind,
@@ -1738,7 +1738,7 @@ impl Tessellator {
             brush: _, // brush is extracted on its own, because it is not Copy
         } = *rect_shape;
 
-        let mut rounding = Roundingf::from(rounding);
+        let mut corner_radius = CornerRadiusF32::from(corner_radius);
         let round_to_pixels = round_to_pixels.unwrap_or(self.options.round_rects_to_pixels);
         let pixel_size = 1.0 / self.pixels_per_point;
 
@@ -1848,7 +1848,7 @@ impl Tessellator {
                 .at_most(rect.size().min_elem() - eps - 2.0 * stroke.width)
                 .at_least(0.0);
 
-            rounding += 0.5 * blur_width;
+            corner_radius += 0.5 * blur_width;
 
             self.feathering = self.feathering.max(blur_width);
         }
@@ -1858,54 +1858,54 @@ impl Tessellator {
             // We do this because `path::rounded_rectangle` uses the
             // corner radius to pick the fidelity/resolution of the corner.
 
-            let original_rounding = rounding;
+            let original_cr = corner_radius;
 
             match stroke_kind {
                 StrokeKind::Inside => {}
                 StrokeKind::Middle => {
                     rect = rect.expand(stroke.width / 2.0);
-                    rounding += stroke.width / 2.0;
+                    corner_radius += stroke.width / 2.0;
                 }
                 StrokeKind::Outside => {
                     rect = rect.expand(stroke.width);
-                    rounding += stroke.width;
+                    corner_radius += stroke.width;
                 }
             }
 
             stroke_kind = StrokeKind::Inside;
 
-            // A small rounding is incompatible with a wide stroke,
+            // A small corner_radius is incompatible with a wide stroke,
             // because the small bend will be extruded inwards and cross itself.
             // There are two ways to solve this (wile maintaining constant stroke width):
-            // either we increase the rounding, or we set it to zero.
-            // We choose the former: if the user asks for _any_ rounding, they should get it.
+            // either we increase the corner_radius, or we set it to zero.
+            // We choose the former: if the user asks for _any_ corner_radius, they should get it.
 
-            let min_inside_rounding = 0.1; // Large enough to avoid numerical issues
-            let min_outside_rounding = stroke.width + min_inside_rounding;
+            let min_inside_cr = 0.1; // Large enough to avoid numerical issues
+            let min_outside_cr = stroke.width + min_inside_cr;
 
-            let extra_rounding_tweak = 0.4; // Otherwise is doesn't _feels_  enough.
+            let extra_cr_tweak = 0.4; // Otherwise is doesn't _feels_  enough.
 
-            if 0.0 < original_rounding.nw {
-                rounding.nw += extra_rounding_tweak;
-                rounding.nw = rounding.nw.at_least(min_outside_rounding);
+            if 0.0 < original_cr.nw {
+                corner_radius.nw += extra_cr_tweak;
+                corner_radius.nw = corner_radius.nw.at_least(min_outside_cr);
             }
-            if 0.0 < original_rounding.ne {
-                rounding.ne += extra_rounding_tweak;
-                rounding.ne = rounding.ne.at_least(min_outside_rounding);
+            if 0.0 < original_cr.ne {
+                corner_radius.ne += extra_cr_tweak;
+                corner_radius.ne = corner_radius.ne.at_least(min_outside_cr);
             }
-            if 0.0 < original_rounding.sw {
-                rounding.sw += extra_rounding_tweak;
-                rounding.sw = rounding.sw.at_least(min_outside_rounding);
+            if 0.0 < original_cr.sw {
+                corner_radius.sw += extra_cr_tweak;
+                corner_radius.sw = corner_radius.sw.at_least(min_outside_cr);
             }
-            if 0.0 < original_rounding.se {
-                rounding.se += extra_rounding_tweak;
-                rounding.se = rounding.se.at_least(min_outside_rounding);
+            if 0.0 < original_cr.se {
+                corner_radius.se += extra_cr_tweak;
+                corner_radius.se = corner_radius.se.at_least(min_outside_cr);
             }
         }
 
         let path = &mut self.scratchpad_path;
         path.clear();
-        path::rounded_rectangle(&mut self.scratchpad_points, rect, rounding);
+        path::rounded_rectangle(&mut self.scratchpad_points, rect, corner_radius);
         path.add_line_loop(&self.scratchpad_points);
 
         let path_stroke = PathStroke::from(stroke).with_kind(stroke_kind);

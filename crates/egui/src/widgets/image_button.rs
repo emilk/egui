@@ -1,5 +1,5 @@
 use crate::{
-    widgets, Color32, Image, Rect, Response, Rounding, Sense, Ui, Vec2, Widget, WidgetInfo,
+    widgets, Color32, CornerRadius, Image, Rect, Response, Sense, Ui, Vec2, Widget, WidgetInfo,
     WidgetType,
 };
 
@@ -62,12 +62,23 @@ impl<'a> ImageButton<'a> {
     }
 
     /// Set rounding for the `ImageButton`.
+    ///
     /// If the underlying image already has rounding, this
     /// will override that value.
     #[inline]
-    pub fn rounding(mut self, rounding: impl Into<Rounding>) -> Self {
-        self.image = self.image.rounding(rounding.into());
+    pub fn corner_radius(mut self, corner_radius: impl Into<CornerRadius>) -> Self {
+        self.image = self.image.corner_radius(corner_radius.into());
         self
+    }
+
+    /// Set rounding for the `ImageButton`.
+    ///
+    /// If the underlying image already has rounding, this
+    /// will override that value.
+    #[inline]
+    #[deprecated = "Renamed to `corner_radius`"]
+    pub fn rounding(self, corner_radius: impl Into<CornerRadius>) -> Self {
+        self.corner_radius(corner_radius)
     }
 }
 
@@ -100,7 +111,7 @@ impl Widget for ImageButton<'_> {
                 let selection = ui.visuals().selection;
                 (
                     Vec2::ZERO,
-                    self.image.image_options().rounding,
+                    self.image.image_options().corner_radius,
                     selection.bg_fill,
                     selection.stroke,
                 )
@@ -109,7 +120,7 @@ impl Widget for ImageButton<'_> {
                 let expansion = Vec2::splat(visuals.expansion);
                 (
                     expansion,
-                    self.image.image_options().rounding,
+                    self.image.image_options().corner_radius,
                     visuals.weak_bg_fill,
                     visuals.bg_stroke,
                 )

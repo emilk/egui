@@ -271,7 +271,7 @@ fn rect_shape_ui(ui: &mut egui::Ui, shape: &mut RectShape) {
 
     let RectShape {
         rect,
-        rounding,
+        corner_radius,
         fill,
         stroke,
         stroke_kind,
@@ -304,8 +304,8 @@ fn rect_shape_ui(ui: &mut egui::Ui, shape: &mut RectShape) {
             });
             ui.end_row();
 
-            ui.label("Rounding");
-            ui.add(rounding);
+            ui.label("Corner radius");
+            ui.add(corner_radius);
             ui.end_row();
 
             ui.label("Fill");

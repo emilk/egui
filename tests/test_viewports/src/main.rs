@@ -478,7 +478,13 @@ fn drop_target<R>(
 
     ui.painter().set(
         background_id,
-        egui::epaint::RectShape::new(rect, style.rounding, fill, stroke, egui::StrokeKind::Inside),
+        egui::epaint::RectShape::new(
+            rect,
+            style.corner_radius,
+            fill,
+            stroke,
+            egui::StrokeKind::Inside,
+        ),
     );
 
     egui::InnerResponse::new(ret, response)
