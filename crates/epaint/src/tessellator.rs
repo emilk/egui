@@ -1646,6 +1646,8 @@ impl Tessellator {
             let feathering = self.feathering;
             let pixels_per_point = self.pixels_per_point;
 
+            let quarter_pixel = 0.25 * feathering; // Used to avoid fence post problem.
+
             let [a, b] = &mut points;
             if a.x == b.x {
                 // Vertical line
@@ -1656,14 +1658,16 @@ impl Tessellator {
 
                 // Often the ends of the line are exactly on a pixel boundary,
                 // but we extend line segments with a cap that is a pixel wide…
-                // Solution: first shrink the pixel by half a pixel (on each end),
+                // Solution: first shrink the line segment (on each end),
                 // then round to pixel center!
+                // We shrink by half-a-pixel n total (a quarter on each end),
+                // so that on average we avoid the fence-post-problem after rounding.
                 if a.y < b.y {
-                    a.y = (a.y + 0.5 * feathering).round_to_pixel_center(pixels_per_point);
-                    b.y = (b.y - 0.5 * feathering).round_to_pixel_center(pixels_per_point);
+                    a.y = (a.y + quarter_pixel).round_to_pixel_center(pixels_per_point);
+                    b.y = (b.y - quarter_pixel).round_to_pixel_center(pixels_per_point);
                 } else {
-                    a.y = (a.y - 0.5 * feathering).round_to_pixel_center(pixels_per_point);
-                    b.y = (b.y + 0.5 * feathering).round_to_pixel_center(pixels_per_point);
+                    a.y = (a.y - quarter_pixel).round_to_pixel_center(pixels_per_point);
+                    b.y = (b.y + quarter_pixel).round_to_pixel_center(pixels_per_point);
                 }
             }
             if a.y == b.y {
@@ -1675,11 +1679,11 @@ impl Tessellator {
 
                 // See earlier comment for vertical lines
                 if a.x < b.x {
-                    a.x = (a.x + 0.5 * feathering).round_to_pixel_center(pixels_per_point);
-                    b.x = (b.x - 0.5 * feathering).round_to_pixel_center(pixels_per_point);
+                    a.x = (a.x + quarter_pixel).round_to_pixel_center(pixels_per_point);
+                    b.x = (b.x - quarter_pixel).round_to_pixel_center(pixels_per_point);
                 } else {
-                    a.x = (a.x - 0.5 * feathering).round_to_pixel_center(pixels_per_point);
-                    b.x = (b.x + 0.5 * feathering).round_to_pixel_center(pixels_per_point);
+                    a.x = (a.x - quarter_pixel).round_to_pixel_center(pixels_per_point);
+                    b.x = (b.x + quarter_pixel).round_to_pixel_center(pixels_per_point);
                 }
             }
         }
