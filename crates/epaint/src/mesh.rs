@@ -98,6 +98,13 @@ impl Mesh {
         self.indices.is_empty() && self.vertices.is_empty()
     }
 
+    /// Iterate over the triangles of this mesh, returning vertex indices.
+    pub fn triangles(&self) -> impl Iterator<Item = [u32; 3]> + '_ {
+        self.indices
+            .chunks_exact(3)
+            .map(|chunk| [chunk[0], chunk[1], chunk[2]])
+    }
+
     /// Calculate a bounding rectangle.
     pub fn calc_bounds(&self) -> Rect {
         let mut bounds = Rect::NOTHING;

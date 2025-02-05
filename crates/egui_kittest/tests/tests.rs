@@ -1,4 +1,4 @@
-use egui_kittest::Harness;
+use egui_kittest::{Harness, SnapshotResults};
 
 #[test]
 fn test_shrink() {
@@ -10,6 +10,8 @@ fn test_shrink() {
 
     harness.fit_contents();
 
+    let mut results = SnapshotResults::new();
+
     #[cfg(all(feature = "snapshot", feature = "wgpu"))]
-    harness.snapshot("test_shrink");
+    results.add(harness.try_snapshot("test_shrink"));
 }

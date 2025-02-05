@@ -77,8 +77,8 @@ impl Default for DemoGroups {
                 Box::<super::modals::Modals>::default(),
                 Box::<super::multi_touch::MultiTouch>::default(),
                 Box::<super::painting::Painting>::default(),
-                Box::<super::pan_zoom::PanZoom>::default(),
                 Box::<super::panels::Panels>::default(),
+                Box::<super::scene::SceneDemo>::default(),
                 Box::<super::screenshot::Screenshot>::default(),
                 Box::<super::scrolling::Scrolling>::default(),
                 Box::<super::sliders::Sliders>::default(),
@@ -100,6 +100,7 @@ impl Default for DemoGroups {
                 Box::<super::tests::InputTest>::default(),
                 Box::<super::tests::LayoutTest>::default(),
                 Box::<super::tests::ManualLayoutTest>::default(),
+                Box::<super::tests::TessellationTest>::default(),
                 Box::<super::tests::WindowResizeTest>::default(),
             ]),
         }
@@ -365,13 +366,13 @@ mod tests {
     use crate::{demo::demo_app_windows::DemoGroups, Demo};
     use egui::Vec2;
     use egui_kittest::kittest::Queryable;
-    use egui_kittest::{Harness, SnapshotOptions};
+    use egui_kittest::{Harness, SnapshotOptions, SnapshotResults};
 
     #[test]
     fn demos_should_match_snapshot() {
         let demos = DemoGroups::default().demos;
 
-        let mut errors = Vec::new();
+        let mut results = SnapshotResults::new();
 
         for mut demo in demos.demos {
             // Widget Gallery needs to be customized (to set a specific date) and has its own test
@@ -405,12 +406,7 @@ mod tests {
                 options.threshold = 2.1;
             }
 
-            let result = harness.try_snapshot_options(&format!("demos/{name}"), &options);
-            if let Err(err) = result {
-                errors.push(err.to_string());
-            }
+            results.add(harness.try_snapshot_options(&format!("demos/{name}"), &options));
         }
-
-        assert!(errors.is_empty(), "Errors: {errors:#?}");
     }
 }

@@ -1,4 +1,4 @@
-# egui_kittest 
+# egui_kittest
 
 Ui testing library for egui, based on [kittest](https://github.com/rerun-io/kittest) (an [AccessKit](https://github.com/AccessKit/accesskit) based testing library).
 
@@ -14,16 +14,16 @@ fn main() {
     };
 
     let mut harness = Harness::new_ui(app);
-    
+
     let checkbox = harness.get_by_label("Check me!");
     assert_eq!(checkbox.toggled(), Some(Toggled::False));
     checkbox.click();
-    
+
     harness.run();
 
     let checkbox = harness.get_by_label("Check me!");
     assert_eq!(checkbox.toggled(), Some(Toggled::True));
-    
+
     // Shrink the window size to the smallest size possible
     harness.fit_contents();
 
@@ -38,9 +38,10 @@ There is a snapshot testing feature. To create snapshot tests, enable the `snaps
 Once enabled, you can call `Harness::snapshot` to render the ui and save the image to the `tests/snapshots` directory.
 
 To update the snapshots, run your tests with `UPDATE_SNAPSHOTS=true`, so e.g. `UPDATE_SNAPSHOTS=true cargo test`.
-Running with `UPDATE_SNAPSHOTS=true` will still cause the tests to fail, but on the next run, the tests should pass.
+Running with `UPDATE_SNAPSHOTS=true` will cause the tests to succeed.
+This is so that you can set `UPDATE_SNAPSHOTS=true` and update _all_ tests, without `cargo test` failing on the first failing crate.
 
-If you want to have multiple snapshots in the same test, it makes sense to collect the results in a `Vec` 
+If you want to have multiple snapshots in the same test, it makes sense to collect the results in a `Vec`
 ([look here](https://github.com/emilk/egui/blob/70a01138b77f9c5724a35a6ef750b9ae1ab9f2dc/crates/egui_demo_lib/src/demo/demo_app_windows.rs#L388-L427) for an example).
 This way they can all be updated at the same time.
 
