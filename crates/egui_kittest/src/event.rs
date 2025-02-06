@@ -9,7 +9,17 @@ pub(crate) struct EventState {
 }
 
 impl EventState {
-    pub fn kittest_event_to_egui(&mut self, event: kittest::Event) -> Option<egui::Event> {
+    /// Map the kittest events to egui events, add them to the input and update the modifiers.
+    pub fn update(&mut self, events: Vec<kittest::Event>, input: &mut egui::RawInput) {
+        for event in events {
+            if let Some(event) = self.kittest_event_to_egui(event) {
+                input.events.push(event);
+            }
+        }
+        input.modifiers = self.modifiers;
+    }
+
+    fn kittest_event_to_egui(&mut self, event: kittest::Event) -> Option<egui::Event> {
         match event {
             kittest::Event::ActionRequest(e) => Some(Event::AccessKitActionRequest(e)),
             kittest::Event::Simulated(e) => match e {
@@ -58,7 +68,7 @@ impl EventState {
     }
 }
 
-pub fn kittest_key_to_egui(value: kittest::Key) -> Option<egui::Key> {
+fn kittest_key_to_egui(value: kittest::Key) -> Option<egui::Key> {
     use egui::Key as EKey;
     use kittest::Key;
     match value {
@@ -170,7 +180,7 @@ pub fn kittest_key_to_egui(value: kittest::Key) -> Option<egui::Key> {
     }
 }
 
-pub fn pointer_button_to_egui(value: MouseButton) -> Option<egui::PointerButton> {
+fn pointer_button_to_egui(value: MouseButton) -> Option<egui::PointerButton> {
     match value {
         MouseButton::Left => Some(egui::PointerButton::Primary),
         MouseButton::Right => Some(egui::PointerButton::Secondary),

@@ -227,11 +227,8 @@ impl<'a, State> Harness<'a, State> {
     }
 
     fn _step(&mut self, sizing_pass: bool) {
-        for event in self.kittest.take_events() {
-            if let Some(event) = self.event_state.kittest_event_to_egui(event) {
-                self.input.events.push(event);
-            }
-        }
+        self.event_state
+            .update(self.kittest.take_events(), &mut self.input);
 
         self.input.predicted_dt = self.step_dt;
 
