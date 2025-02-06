@@ -11,6 +11,7 @@ mod snapshot;
 #[cfg(feature = "snapshot")]
 pub use snapshot::*;
 use std::fmt::{Debug, Display, Formatter};
+use std::mem;
 use std::time::Duration;
 
 mod app_kind;
@@ -373,12 +374,32 @@ impl<'a, State> Harness<'a, State> {
     /// Press a key.
     /// This will create a key down event and a key up event.
     pub fn press_key(&mut self, key: egui::Key) {
-        self.press_key_modifiers(Modifiers::default(), key);
+        self.input.events.push(egui::Event::Key {
+            key,
+            pressed: true,
+            modifiers: self.input.modifiers,
+            repeat: false,
+            physical_key: None,
+        });
+        self.input.events.push(egui::Event::Key {
+            key,
+            pressed: false,
+            modifiers: self.input.modifiers,
+            repeat: false,
+            physical_key: None,
+        });
     }
 
     /// Press a key with modifiers.
-    /// This will create a key down event and a key up event.
+    /// This will create a key down event, a key up event and update the modifiers.
+    ///
+    /// NOTE: In contrast to the event fns on [`Node`], this will call [`Harness::step`], in
+    /// order to properly update modifiers.
     pub fn press_key_modifiers(&mut self, modifiers: Modifiers, key: egui::Key) {
+        // Combine the modifiers with the current modifiers
+        let modifiers = modifiers | self.input.modifiers;
+        let previous_modifiers = mem::replace(&mut self.input.modifiers, modifiers);
+
         self.input.events.push(egui::Event::Key {
             key,
             pressed: true,
@@ -386,6 +407,7 @@ impl<'a, State> Harness<'a, State> {
             repeat: false,
             physical_key: None,
         });
+        self.step();
         self.input.events.push(egui::Event::Key {
             key,
             pressed: false,
@@ -393,6 +415,8 @@ impl<'a, State> Harness<'a, State> {
             repeat: false,
             physical_key: None,
         });
+
+        self.input.modifiers = previous_modifiers;
     }
 
     /// Render the last output to an image.
