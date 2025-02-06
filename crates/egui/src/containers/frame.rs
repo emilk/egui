@@ -4,7 +4,7 @@ use crate::{
     epaint, layers::ShapeIdx, InnerResponse, Response, Sense, Style, Ui, UiBuilder, UiKind,
     UiStackInfo,
 };
-use epaint::{Color32, Margin, Marginf, Rect, Rounding, Shadow, Shape, Stroke};
+use epaint::{Color32, CornerRadius, Margin, Marginf, Rect, Shadow, Shape, Stroke};
 
 /// A frame around some content, including margin, colors, etc.
 ///
@@ -115,8 +115,11 @@ pub struct Frame {
     #[doc(alias = "border")]
     pub stroke: Stroke,
 
-    /// The rounding of the corners of [`Self::stroke`] and [`Self::fill`].
-    pub rounding: Rounding,
+    /// The rounding of the _outer_ corner of the [`Self::stroke`]
+    /// (or, if there is no stroke, the outer corner of [`Self::fill`]).
+    ///
+    /// In other words, this is the corner radius of the _widget rect_.
+    pub corner_radius: CornerRadius,
 
     /// Margin outside the painted frame.
     ///
@@ -158,11 +161,14 @@ impl Frame {
         inner_margin: Margin::ZERO,
         stroke: Stroke::NONE,
         fill: Color32::TRANSPARENT,
-        rounding: Rounding::ZERO,
+        corner_radius: CornerRadius::ZERO,
         outer_margin: Margin::ZERO,
         shadow: Shadow::NONE,
     };
 
+    /// No colors, no margins, no border.
+    ///
+    /// Same as [`Frame::NONE`].
     pub const fn new() -> Self {
         Self::NONE
     }
@@ -176,7 +182,7 @@ impl Frame {
     pub fn group(style: &Style) -> Self {
         Self::new()
             .inner_margin(6)
-            .rounding(style.visuals.widgets.noninteractive.rounding)
+            .corner_radius(style.visuals.widgets.noninteractive.corner_radius)
             .stroke(style.visuals.widgets.noninteractive.bg_stroke)
     }
 
@@ -193,7 +199,7 @@ impl Frame {
     pub fn window(style: &Style) -> Self {
         Self::new()
             .inner_margin(style.spacing.window_margin)
-            .rounding(style.visuals.window_rounding)
+            .corner_radius(style.visuals.window_corner_radius)
             .shadow(style.visuals.window_shadow)
             .fill(style.visuals.window_fill())
             .stroke(style.visuals.window_stroke())
@@ -202,7 +208,7 @@ impl Frame {
     pub fn menu(style: &Style) -> Self {
         Self::new()
             .inner_margin(style.spacing.menu_margin)
-            .rounding(style.visuals.menu_rounding)
+            .corner_radius(style.visuals.menu_corner_radius)
             .shadow(style.visuals.popup_shadow)
             .fill(style.visuals.window_fill())
             .stroke(style.visuals.window_stroke())
@@ -211,7 +217,7 @@ impl Frame {
     pub fn popup(style: &Style) -> Self {
         Self::new()
             .inner_margin(style.spacing.menu_margin)
-            .rounding(style.visuals.menu_rounding)
+            .corner_radius(style.visuals.menu_corner_radius)
             .shadow(style.visuals.popup_shadow)
             .fill(style.visuals.window_fill())
             .stroke(style.visuals.window_stroke())
@@ -224,7 +230,7 @@ impl Frame {
     pub fn canvas(style: &Style) -> Self {
         Self::new()
             .inner_margin(2)
-            .rounding(style.visuals.widgets.noninteractive.rounding)
+            .corner_radius(style.visuals.widgets.noninteractive.corner_radius)
             .fill(style.visuals.extreme_bg_color)
             .stroke(style.visuals.window_stroke())
     }
@@ -266,11 +272,24 @@ impl Frame {
         self
     }
 
-    /// The rounding of the corners of [`Self::stroke`] and [`Self::fill`].
+    /// The rounding of the _outer_ corner of the [`Self::stroke`]
+    /// (or, if there is no stroke, the outer corner of [`Self::fill`]).
+    ///
+    /// In other words, this is the corner radius of the _widget rect_.
     #[inline]
-    pub fn rounding(mut self, rounding: impl Into<Rounding>) -> Self {
-        self.rounding = rounding.into();
+    pub fn corner_radius(mut self, corner_radius: impl Into<CornerRadius>) -> Self {
+        self.corner_radius = corner_radius.into();
         self
+    }
+
+    /// The rounding of the _outer_ corner of the [`Self::stroke`]
+    /// (or, if there is no stroke, the outer corner of [`Self::fill`]).
+    ///
+    /// In other words, this is the corner radius of the _widget rect_.
+    #[inline]
+    #[deprecated = "Renamed to `corner_radius`"]
+    pub fn rounding(self, corner_radius: impl Into<CornerRadius>) -> Self {
+        self.corner_radius(corner_radius)
     }
 
     /// Margin outside the painted frame.
@@ -415,26 +434,25 @@ impl Frame {
             inner_margin: _,
             fill,
             stroke,
-            rounding,
+            corner_radius,
             outer_margin: _,
             shadow,
         } = *self;
 
-        let fill_rect = self.fill_rect(content_rect);
         let widget_rect = self.widget_rect(content_rect);
 
         let frame_shape = Shape::Rect(epaint::RectShape::new(
-            fill_rect,
-            rounding,
+            widget_rect,
+            corner_radius,
             fill,
             stroke,
-            epaint::StrokeKind::Outside,
+            epaint::StrokeKind::Inside,
         ));
 
         if shadow == Default::default() {
             frame_shape
         } else {
-            let shadow = shadow.as_shape(widget_rect, rounding);
+            let shadow = shadow.as_shape(widget_rect, corner_radius);
             Shape::Vec(vec![Shape::from(shadow), frame_shape])
         }
     }

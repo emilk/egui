@@ -464,8 +464,8 @@ pub use epaint::{
     mutex,
     text::{FontData, FontDefinitions, FontFamily, FontId, FontTweak},
     textures::{TextureFilter, TextureOptions, TextureWrapMode, TexturesDelta},
-    ClippedPrimitive, ColorImage, FontImage, ImageData, Margin, Mesh, PaintCallback,
-    PaintCallbackInfo, Rounding, Shadow, Shape, Stroke, StrokeKind, TextureHandle, TextureId,
+    ClippedPrimitive, ColorImage, CornerRadius, FontImage, ImageData, Margin, Mesh, PaintCallback,
+    PaintCallbackInfo, Shadow, Shape, Stroke, StrokeKind, TextureHandle, TextureId,
 };
 
 pub mod text {
@@ -510,6 +510,9 @@ pub use self::{
     widgets::*,
 };
 
+#[deprecated = "Renamed to CornerRadius"]
+pub type Rounding = CornerRadius;
+
 // ----------------------------------------------------------------------------
 
 /// Helper function that adds a label when compiling with debug assertions enabled.
@@ -538,7 +541,7 @@ pub fn warn_if_debug_build(ui: &mut crate::Ui) {
 /// ui.add(
 ///     egui::Image::new(egui::include_image!("../assets/ferris.png"))
 ///         .max_width(200.0)
-///         .rounding(10.0),
+///         .corner_radius(10),
 /// );
 ///
 /// let image_source: egui::ImageSource = egui::include_image!("../assets/ferris.png");

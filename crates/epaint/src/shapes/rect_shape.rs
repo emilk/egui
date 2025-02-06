@@ -8,8 +8,17 @@ use crate::*;
 pub struct RectShape {
     pub rect: Rect,
 
-    /// How rounded the corners are. Use `Rounding::ZERO` for no rounding.
-    pub rounding: Rounding,
+    /// How rounded the corners of the rectangle are.
+    ///
+    /// Use [`CornerRadius::ZERO`] for for sharp corners.
+    ///
+    /// This is the corner radii of the rectangle.
+    /// If there is a stroke, then the stroke will have an inner and outer corner radius,
+    /// and those will depend on [`StrokeKind`] and the stroke width.
+    ///
+    /// For [`StrokeKind::Inside`], the outside of the stroke coincides with the rectangle,
+    /// so the rounding will in this case specify the outer corner radius.
+    pub corner_radius: CornerRadius,
 
     /// How to fill the rectangle.
     pub fill: Color32,
@@ -21,13 +30,13 @@ pub struct RectShape {
     pub stroke: Stroke,
 
     /// Is the stroke on the inside, outside, or centered on the rectangle?
+    ///
+    /// If you want to perfectly tile rectangles, use [`StrokeKind::Inside`].
     pub stroke_kind: StrokeKind,
 
     /// Snap the rectangle to pixels?
     ///
     /// Rounding produces sharper rectangles.
-    /// It is the outside of the fill (=inside of the stroke)
-    /// that will be rounded to the physical pixel grid.
     ///
     /// If `None`, [`crate::TessellationOptions::round_rects_to_pixels`] will be used.
     pub round_to_pixels: Option<bool>,
@@ -64,14 +73,14 @@ impl RectShape {
     #[inline]
     pub fn new(
         rect: Rect,
-        rounding: impl Into<Rounding>,
+        corner_radius: impl Into<CornerRadius>,
         fill_color: impl Into<Color32>,
         stroke: impl Into<Stroke>,
         stroke_kind: StrokeKind,
     ) -> Self {
         Self {
             rect,
-            rounding: rounding.into(),
+            corner_radius: corner_radius.into(),
             fill: fill_color.into(),
             stroke: stroke.into(),
             stroke_kind,
@@ -84,12 +93,12 @@ impl RectShape {
     #[inline]
     pub fn filled(
         rect: Rect,
-        rounding: impl Into<Rounding>,
+        corner_radius: impl Into<CornerRadius>,
         fill_color: impl Into<Color32>,
     ) -> Self {
         Self::new(
             rect,
-            rounding,
+            corner_radius,
             fill_color,
             Stroke::NONE,
             StrokeKind::Outside, // doesn't matter
@@ -99,12 +108,12 @@ impl RectShape {
     #[inline]
     pub fn stroke(
         rect: Rect,
-        rounding: impl Into<Rounding>,
+        corner_radius: impl Into<CornerRadius>,
         stroke: impl Into<Stroke>,
         stroke_kind: StrokeKind,
     ) -> Self {
         let fill = Color32::TRANSPARENT;
-        Self::new(rect, rounding, fill, stroke, stroke_kind)
+        Self::new(rect, corner_radius, fill, stroke, stroke_kind)
     }
 
     /// Set if the stroke is on the inside, outside, or centered on the rectangle.
@@ -117,8 +126,6 @@ impl RectShape {
     /// Snap the rectangle to pixels?
     ///
     /// Rounding produces sharper rectangles.
-    /// It is the outside of the fill (=inside of the stroke)
-    /// that will be rounded to the physical pixel grid.
     ///
     /// If `None`, [`crate::TessellationOptions::round_rects_to_pixels`] will be used.
     #[inline]

@@ -47,7 +47,7 @@ impl eframe::App for FractalClockApp {
             .frame(
                 egui::Frame::dark_canvas(&ctx.style())
                     .stroke(egui::Stroke::NONE)
-                    .rounding(0),
+                    .corner_radius(0),
             )
             .show(ctx, |ui| {
                 self.fractal_clock

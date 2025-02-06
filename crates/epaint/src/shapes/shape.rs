@@ -7,7 +7,7 @@ use emath::{pos2, Align2, Pos2, Rangef, Rect, TSTransform, Vec2};
 use crate::{
     stroke::PathStroke,
     text::{FontId, Fonts, Galley},
-    Color32, Mesh, Rounding, Stroke, StrokeKind, TextureId,
+    Color32, CornerRadius, Mesh, Stroke, StrokeKind, TextureId,
 };
 
 use super::{
@@ -279,21 +279,21 @@ impl Shape {
     #[inline]
     pub fn rect_filled(
         rect: Rect,
-        rounding: impl Into<Rounding>,
+        corner_radius: impl Into<CornerRadius>,
         fill_color: impl Into<Color32>,
     ) -> Self {
-        Self::Rect(RectShape::filled(rect, rounding, fill_color))
+        Self::Rect(RectShape::filled(rect, corner_radius, fill_color))
     }
 
     /// See also [`Self::rect_filled`].
     #[inline]
     pub fn rect_stroke(
         rect: Rect,
-        rounding: impl Into<Rounding>,
+        corner_radius: impl Into<CornerRadius>,
         stroke: impl Into<Stroke>,
         stroke_kind: StrokeKind,
     ) -> Self {
-        Self::Rect(RectShape::stroke(rect, rounding, stroke, stroke_kind))
+        Self::Rect(RectShape::stroke(rect, corner_radius, stroke, stroke_kind))
     }
 
     #[allow(clippy::needless_pass_by_value)]
@@ -451,8 +451,9 @@ impl Shape {
             }
             Self::Rect(rect_shape) => {
                 rect_shape.rect = transform * rect_shape.rect;
+                rect_shape.corner_radius *= transform.scaling;
                 rect_shape.stroke.width *= transform.scaling;
-                rect_shape.rounding *= transform.scaling;
+                rect_shape.blur_width *= transform.scaling;
             }
             Self::Text(text_shape) => {
                 text_shape.pos = transform * text_shape.pos;
@@ -472,17 +473,17 @@ impl Shape {
             Self::Mesh(mesh) => {
                 Arc::make_mut(mesh).transform(transform);
             }
-            Self::QuadraticBezier(bezier_shape) => {
-                bezier_shape.points[0] = transform * bezier_shape.points[0];
-                bezier_shape.points[1] = transform * bezier_shape.points[1];
-                bezier_shape.points[2] = transform * bezier_shape.points[2];
-                bezier_shape.stroke.width *= transform.scaling;
-            }
-            Self::CubicBezier(cubic_curve) => {
-                for p in &mut cubic_curve.points {
+            Self::QuadraticBezier(bezier) => {
+                for p in &mut bezier.points {
                     *p = transform * *p;
                 }
-                cubic_curve.stroke.width *= transform.scaling;
+                bezier.stroke.width *= transform.scaling;
+            }
+            Self::CubicBezier(bezier) => {
+                for p in &mut bezier.points {
+                    *p = transform * *p;
+                }
+                bezier.stroke.width *= transform.scaling;
             }
             Self::Callback(shape) => {
                 shape.rect = transform * shape.rect;
@@ -502,7 +503,7 @@ fn points_from_line(
     shapes: &mut Vec<Shape>,
 ) {
     let mut position_on_segment = 0.0;
-    path.windows(2).for_each(|window| {
+    for window in path.windows(2) {
         let (start, end) = (window[0], window[1]);
         let vector = end - start;
         let segment_length = vector.length();
@@ -512,7 +513,7 @@ fn points_from_line(
             position_on_segment += spacing;
         }
         position_on_segment -= segment_length;
-    });
+    }
 }
 
 /// Creates dashes from a line.
@@ -529,7 +530,7 @@ fn dashes_from_line(
     let mut drawing_dash = false;
     let mut step = 0;
     let steps = dash_lengths.len();
-    path.windows(2).for_each(|window| {
+    for window in path.windows(2) {
         let (start, end) = (window[0], window[1]);
         let vector = end - start;
         let segment_length = vector.length();
@@ -560,5 +561,5 @@ fn dashes_from_line(
         }
 
         position_on_segment -= segment_length;
-    });
+    }
 }

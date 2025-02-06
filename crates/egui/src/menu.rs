@@ -580,7 +580,7 @@ impl SubMenuButton {
             if ui.visuals().button_frame {
                 ui.painter().rect_filled(
                     rect.expand(visuals.expansion),
-                    visuals.rounding,
+                    visuals.corner_radius,
                     visuals.weak_bg_fill,
                 );
             }

@@ -5,6 +5,27 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.31.0 - 2025-02-04
+### ⭐ Added
+* Improve tessellation quality [#5669](https://github.com/emilk/egui/pull/5669) by [@emilk](https://github.com/emilk)
+* Add `epaint::Brush` for controlling `RectShape` texturing [#5565](https://github.com/emilk/egui/pull/5565) by [@emilk](https://github.com/emilk)
+* Add `RectShape::stroke_kind ` to control if stroke is inside/outside/centered [#5647](https://github.com/emilk/egui/pull/5647) by [@emilk](https://github.com/emilk)
+
+### 🔧 Changed
+* Rename `Rounding` to `CornerRadius` [#5673](https://github.com/emilk/egui/pull/5673) by [@emilk](https://github.com/emilk)
+* Make all lines and rectangles crisp [#5518](https://github.com/emilk/egui/pull/5518) by [@emilk](https://github.com/emilk)
+* Better rounding of rectangles with thin outlines [#5571](https://github.com/emilk/egui/pull/5571) by [@emilk](https://github.com/emilk)
+* Require a `StrokeKind` when painting rectangles with strokes [#5648](https://github.com/emilk/egui/pull/5648) by [@emilk](https://github.com/emilk)
+
+### 🔥 Removed
+* Remove `StrokeKind::default` [#5658](https://github.com/emilk/egui/pull/5658) by [@emilk](https://github.com/emilk)
+
+### 🚀 Performance
+* Use `u8` in `Rounding`, and introduce `Roundingf` [#5563](https://github.com/emilk/egui/pull/5563) by [@emilk](https://github.com/emilk)
+* Store `Margin` using `i8` to reduce its size [#5567](https://github.com/emilk/egui/pull/5567) by [@emilk](https://github.com/emilk)
+* Shrink size of `Shadow` by using `i8/u8` instead of `f32` [#5568](https://github.com/emilk/egui/pull/5568) by [@emilk](https://github.com/emilk)
+
+
 ## 0.30.0 - 2024-12-16
 * Expand max font atlas size from 8k to 16k [#5257](https://github.com/emilk/egui/pull/5257) by [@rustbasic](https://github.com/rustbasic)
 * Put font data into `Arc` to reduce memory consumption [#5276](https://github.com/emilk/egui/pull/5276) by [@StarStarJ](https://github.com/StarStarJ)

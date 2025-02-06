@@ -1,5 +1,5 @@
 use crate::{
-    widgets, Align, Color32, Image, NumExt, Rect, Response, Rounding, Sense, Stroke, TextStyle,
+    widgets, Align, Color32, CornerRadius, Image, NumExt, Rect, Response, Sense, Stroke, TextStyle,
     TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
 };
 
@@ -35,7 +35,7 @@ pub struct Button<'a> {
     small: bool,
     frame: Option<bool>,
     min_size: Vec2,
-    rounding: Option<Rounding>,
+    corner_radius: Option<CornerRadius>,
     selected: bool,
     image_tint_follows_text_color: bool,
 }
@@ -69,7 +69,7 @@ impl<'a> Button<'a> {
             small: false,
             frame: None,
             min_size: Vec2::ZERO,
-            rounding: None,
+            corner_radius: None,
             selected: false,
             image_tint_follows_text_color: false,
         }
@@ -153,9 +153,15 @@ impl<'a> Button<'a> {
 
     /// Set the rounding of the button.
     #[inline]
-    pub fn rounding(mut self, rounding: impl Into<Rounding>) -> Self {
-        self.rounding = Some(rounding.into());
+    pub fn corner_radius(mut self, corner_radius: impl Into<CornerRadius>) -> Self {
+        self.corner_radius = Some(corner_radius.into());
         self
+    }
+
+    #[inline]
+    #[deprecated = "Renamed to `corner_radius`"]
+    pub fn rounding(self, corner_radius: impl Into<CornerRadius>) -> Self {
+        self.corner_radius(corner_radius)
     }
 
     /// If true, the tint of the image is multiplied by the widget text color.
@@ -202,7 +208,7 @@ impl Widget for Button<'_> {
             small,
             frame,
             min_size,
-            rounding,
+            corner_radius,
             selected,
             image_tint_follows_text_color,
         } = self;
@@ -292,11 +298,11 @@ impl Widget for Button<'_> {
         if ui.is_rect_visible(rect) {
             let visuals = ui.style().interact(&response);
 
-            let (frame_expansion, frame_rounding, frame_fill, frame_stroke) = if selected {
+            let (frame_expansion, frame_cr, frame_fill, frame_stroke) = if selected {
                 let selection = ui.visuals().selection;
                 (
                     Vec2::ZERO,
-                    Rounding::ZERO,
+                    CornerRadius::ZERO,
                     selection.bg_fill,
                     selection.stroke,
                 )
@@ -304,19 +310,19 @@ impl Widget for Button<'_> {
                 let expansion = Vec2::splat(visuals.expansion);
                 (
                     expansion,
-                    visuals.rounding,
+                    visuals.corner_radius,
                     visuals.weak_bg_fill,
                     visuals.bg_stroke,
                 )
             } else {
                 Default::default()
             };
-            let frame_rounding = rounding.unwrap_or(frame_rounding);
+            let frame_cr = corner_radius.unwrap_or(frame_cr);
             let frame_fill = fill.unwrap_or(frame_fill);
             let frame_stroke = stroke.unwrap_or(frame_stroke);
             ui.painter().rect(
                 rect.expand2(frame_expansion),
-                frame_rounding,
+                frame_cr,
                 frame_fill,
                 frame_stroke,
                 epaint::StrokeKind::Inside,

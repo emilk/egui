@@ -5,6 +5,8 @@ Summarizes recent PRs based on their GitHub labels.
 
 The result can be copy-pasted into CHANGELOG.md,
 though it often needs some manual editing too.
+
+Setup:  pip install GitPython requests tqdm
 """
 
 import argparse

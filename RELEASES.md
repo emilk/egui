@@ -36,14 +36,9 @@ We don't update the MSRV in a patch release, unless we really, really need to.
 
 ## Release testing
 * [ ] `cargo r -p egui_demo_app` and click around for while
-* [ ] `./scripts/build_demo_web.sh --release -g`
-  - check frame-rate and wasm size
-  - test on mobile
-  - test on chromium
-  - check the in-browser profiler
-* [ ] check the color test
 * [ ] update `eframe_template` and test
 * [ ] update `egui_plot` and test
+* [ ] update `egui_table` and test
 * [ ] update `egui_tiles` and test
 * [ ] test with Rerun
 * [ ] `./scripts/check.sh`
@@ -51,7 +46,7 @@ We don't update the MSRV in a patch release, unless we really, really need to.
 
 ## Preparation
 * [ ] run `scripts/generate_example_screenshots.sh` if needed
-* [ ] write a short release note that fits in a tweet
+* [ ] write a short release note that fits in a bluesky post
 * [ ] record gif for `CHANGELOG.md` release note (and later bluesky post)
 * [ ] update changelogs using `scripts/generate_changelog.py --version 0.x.0 --write`
 * [ ] bump version numbers in workspace `Cargo.toml`
@@ -60,9 +55,9 @@ We don't update the MSRV in a patch release, unless we really, really need to.
 I usually do this all on the `master` branch, but doing it in a release branch is also fine, as long as you remember to merge it into `master` later.
 
 * [ ] Run `typos`
-* [ ] `git commit -m 'Release 0.x.0 - summary'`
+* [ ] `git commit -m 'Release 0.x.0 - <release title>'`
 * [ ] `cargo publish` (see below)
-* [ ] `git tag -a 0.x.0 -m 'Release 0.x.0 - summary'`
+* [ ] `git tag -a 0.x.0 -m 'Release 0.x.0 - <release title>'`
 * [ ] `git pull --tags ; git tag -d latest && git tag -a latest -m 'Latest release' && git push --tags origin latest --force ; git push --tags`
 * [ ] merge release PR or push to `master`
 * [ ] check that CI is green
@@ -98,3 +93,5 @@ I usually do this all on the `master` branch, but doing it in a release branch i
 * [ ] publish new `egui_plot`
 * [ ] publish new `egui_table`
 * [ ] publish new `egui_tiles`
+* [ ] make a PR to `egui_commonmark`
+* [ ] make a PR to `rerun`

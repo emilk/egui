@@ -100,10 +100,10 @@ fn color_button(ui: &mut Ui, color: Color32, open: bool) -> Response {
         let stroke_width = 1.0;
         show_color_at(ui.painter(), color, rect.shrink(stroke_width));
 
-        let rounding = visuals.rounding.at_most(2); // Can't do more rounding because the background grid doesn't do any rounding
+        let corner_radius = visuals.corner_radius.at_most(2); // Can't do more rounding because the background grid doesn't do any rounding
         ui.painter().rect_stroke(
             rect,
-            rounding,
+            corner_radius,
             (stroke_width, visuals.bg_fill), // Using fill for stroke is intentional, because default style has no border
             StrokeKind::Inside,
         );

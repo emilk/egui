@@ -1,11 +1,11 @@
-use crate::Rounding;
+use crate::CornerRadius;
 
 /// How rounded the corners of things should be, in `f32`.
 ///
-/// This is used for calculations, but storage is usually done with the more compact [`Rounding`].
+/// This is used for calculations, but storage is usually done with the more compact [`CornerRadius`].
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct Roundingf {
+pub struct CornerRadiusF32 {
     /// Radius of the rounding of the North-West (left top) corner.
     pub nw: f32,
 
@@ -19,38 +19,38 @@ pub struct Roundingf {
     pub se: f32,
 }
 
-impl From<Rounding> for Roundingf {
+impl From<CornerRadius> for CornerRadiusF32 {
     #[inline]
-    fn from(rounding: Rounding) -> Self {
+    fn from(cr: CornerRadius) -> Self {
         Self {
-            nw: rounding.nw as f32,
-            ne: rounding.ne as f32,
-            sw: rounding.sw as f32,
-            se: rounding.se as f32,
+            nw: cr.nw as f32,
+            ne: cr.ne as f32,
+            sw: cr.sw as f32,
+            se: cr.se as f32,
         }
     }
 }
 
-impl From<Roundingf> for Rounding {
+impl From<CornerRadiusF32> for CornerRadius {
     #[inline]
-    fn from(rounding: Roundingf) -> Self {
+    fn from(cr: CornerRadiusF32) -> Self {
         Self {
-            nw: rounding.nw.round() as u8,
-            ne: rounding.ne.round() as u8,
-            sw: rounding.sw.round() as u8,
-            se: rounding.se.round() as u8,
+            nw: cr.nw.round() as u8,
+            ne: cr.ne.round() as u8,
+            sw: cr.sw.round() as u8,
+            se: cr.se.round() as u8,
         }
     }
 }
 
-impl Default for Roundingf {
+impl Default for CornerRadiusF32 {
     #[inline]
     fn default() -> Self {
         Self::ZERO
     }
 }
 
-impl From<f32> for Roundingf {
+impl From<f32> for CornerRadiusF32 {
     #[inline]
     fn from(radius: f32) -> Self {
         Self {
@@ -62,7 +62,7 @@ impl From<f32> for Roundingf {
     }
 }
 
-impl Roundingf {
+impl CornerRadiusF32 {
     /// No rounding on any corner.
     pub const ZERO: Self = Self {
         nw: 0.0,
@@ -111,7 +111,7 @@ impl Roundingf {
     }
 }
 
-impl std::ops::Add for Roundingf {
+impl std::ops::Add for CornerRadiusF32 {
     type Output = Self;
     #[inline]
     fn add(self, rhs: Self) -> Self {
@@ -124,7 +124,7 @@ impl std::ops::Add for Roundingf {
     }
 }
 
-impl std::ops::AddAssign for Roundingf {
+impl std::ops::AddAssign for CornerRadiusF32 {
     #[inline]
     fn add_assign(&mut self, rhs: Self) {
         *self = Self {
@@ -136,7 +136,7 @@ impl std::ops::AddAssign for Roundingf {
     }
 }
 
-impl std::ops::AddAssign<f32> for Roundingf {
+impl std::ops::AddAssign<f32> for CornerRadiusF32 {
     #[inline]
     fn add_assign(&mut self, rhs: f32) {
         *self = Self {
@@ -148,7 +148,7 @@ impl std::ops::AddAssign<f32> for Roundingf {
     }
 }
 
-impl std::ops::Sub for Roundingf {
+impl std::ops::Sub for CornerRadiusF32 {
     type Output = Self;
     #[inline]
     fn sub(self, rhs: Self) -> Self {
@@ -161,7 +161,7 @@ impl std::ops::Sub for Roundingf {
     }
 }
 
-impl std::ops::SubAssign for Roundingf {
+impl std::ops::SubAssign for CornerRadiusF32 {
     #[inline]
     fn sub_assign(&mut self, rhs: Self) {
         *self = Self {
@@ -173,7 +173,7 @@ impl std::ops::SubAssign for Roundingf {
     }
 }
 
-impl std::ops::SubAssign<f32> for Roundingf {
+impl std::ops::SubAssign<f32> for CornerRadiusF32 {
     #[inline]
     fn sub_assign(&mut self, rhs: f32) {
         *self = Self {
@@ -185,7 +185,7 @@ impl std::ops::SubAssign<f32> for Roundingf {
     }
 }
 
-impl std::ops::Div<f32> for Roundingf {
+impl std::ops::Div<f32> for CornerRadiusF32 {
     type Output = Self;
     #[inline]
     fn div(self, rhs: f32) -> Self {
@@ -198,7 +198,7 @@ impl std::ops::Div<f32> for Roundingf {
     }
 }
 
-impl std::ops::DivAssign<f32> for Roundingf {
+impl std::ops::DivAssign<f32> for CornerRadiusF32 {
     #[inline]
     fn div_assign(&mut self, rhs: f32) {
         *self = Self {
@@ -210,7 +210,7 @@ impl std::ops::DivAssign<f32> for Roundingf {
     }
 }
 
-impl std::ops::Mul<f32> for Roundingf {
+impl std::ops::Mul<f32> for CornerRadiusF32 {
     type Output = Self;
     #[inline]
     fn mul(self, rhs: f32) -> Self {
@@ -223,7 +223,7 @@ impl std::ops::Mul<f32> for Roundingf {
     }
 }
 
-impl std::ops::MulAssign<f32> for Roundingf {
+impl std::ops::MulAssign<f32> for CornerRadiusF32 {
     #[inline]
     fn mul_assign(&mut self, rhs: f32) {
         *self = Self {

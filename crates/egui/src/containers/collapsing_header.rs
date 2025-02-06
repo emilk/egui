@@ -573,7 +573,7 @@ impl CollapsingHeader {
             if ui.visuals().collapsing_header_frame || show_background {
                 ui.painter().add(epaint::RectShape::new(
                     header_response.rect.expand(visuals.expansion),
-                    visuals.rounding,
+                    visuals.corner_radius,
                     visuals.weak_bg_fill,
                     visuals.bg_stroke,
                     StrokeKind::Inside,
@@ -586,7 +586,7 @@ impl CollapsingHeader {
 
                 ui.painter().rect(
                     rect,
-                    visuals.rounding,
+                    visuals.corner_radius,
                     visuals.bg_fill,
                     visuals.bg_stroke,
                     StrokeKind::Inside,

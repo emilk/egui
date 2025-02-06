@@ -442,7 +442,7 @@ impl TextEdit<'_> {
                 if output.response.has_focus() {
                     epaint::RectShape::new(
                         frame_rect,
-                        visuals.rounding,
+                        visuals.corner_radius,
                         background_color,
                         ui.visuals().selection.stroke,
                         StrokeKind::Inside,
@@ -450,7 +450,7 @@ impl TextEdit<'_> {
                 } else {
                     epaint::RectShape::new(
                         frame_rect,
-                        visuals.rounding,
+                        visuals.corner_radius,
                         background_color,
                         visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
                         StrokeKind::Inside,
@@ -460,7 +460,7 @@ impl TextEdit<'_> {
                 let visuals = &ui.style().visuals.widgets.inactive;
                 epaint::RectShape::stroke(
                     frame_rect,
-                    visuals.rounding,
+                    visuals.corner_radius,
                     visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
                     StrokeKind::Inside,
                 )
