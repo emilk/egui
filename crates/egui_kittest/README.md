@@ -1,5 +1,10 @@
 # egui_kittest
 
+[![Latest version](https://img.shields.io/crates/v/egui_kittest.svg)](https://crates.io/crates/egui_kittest)
+[![Documentation](https://docs.rs/egui_kittest/badge.svg)](https://docs.rs/egui_kittest)
+![MIT](https://img.shields.io/badge/license-MIT-blue.svg)
+![Apache](https://img.shields.io/badge/license-Apache-blue.svg)
+
 Ui testing library for egui, based on [kittest](https://github.com/rerun-io/kittest) (an [AccessKit](https://github.com/AccessKit/accesskit) based testing library).
 
 ## Example usage
