@@ -1,6 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 #![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 use eframe::egui;
 
 fn main() -> eframe::Result {
@@ -21,7 +23,70 @@ fn main() -> eframe::Result {
 #[derive(Default)]
 struct MyApp {
     dropped_files: Vec<egui::DroppedFile>,
+    picker: Picker,
     picked_path: Option<String>,
+}
+
+#[derive(Default)]
+enum PickerState {
+    #[default]
+    Pending,
+    // use a boolean to indicate of picking has completed
+    Picking(Arc<Mutex<(bool, Option<PathBuf>)>>),
+}
+
+#[derive(Default)]
+struct Picker {
+    state: PickerState,
+}
+
+impl Picker {
+    pub fn is_picking(&self) -> bool {
+        matches!(self.state, PickerState::Picking(_))
+    }
+
+    pub fn pick(&mut self) {
+        let picker = Arc::new(Mutex::new((false, None)));
+        self.state = PickerState::Picking(picker.clone());
+        std::thread::spawn(move || {
+            let mut guard = picker.lock().unwrap();
+            *guard = (true, rfd::FileDialog::new()
+                .set_directory("/")
+                .pick_file()
+                .map(std::path::PathBuf::from));
+        });
+    }
+
+    /// when picked, returns true, and the result of the pick, which may be None
+    /// otherwise returns false
+    pub fn picked(&mut self) -> (bool, Option<PathBuf>) {
+
+        let mut was_picked = false;
+
+        let return_value = match &mut self.state {
+            PickerState::Picking(arc) => {
+                if let Ok(mut guard) = arc.try_lock() {
+                    match &mut *guard {
+                        (true, picked) => {
+                            was_picked = true;
+                            let result = picked.take();
+                            (true, result)
+                        },
+                        (false, _) => (false, None),
+                    }
+                } else {
+                    (false, None)
+                }
+            }
+            _ => (false, None),
+        };
+
+        if was_picked {
+            self.state = PickerState::Pending;
+        }
+
+        return_value
+    }
 }
 
 impl eframe::App for MyApp {
@@ -29,10 +94,14 @@ impl eframe::App for MyApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.label("Drag-and-drop files onto the window!");
 
-            if ui.button("Open file…").clicked() {
-                if let Some(path) = rfd::FileDialog::new().pick_file() {
-                    self.picked_path = Some(path.display().to_string());
-                }
+            let picking = self.picker.is_picking();
+
+            if ui.add_enabled(!picking, egui::Button::new("Open file…")).clicked() {
+                self.picker.pick();
+            }
+
+            if let (true, Some(picked_path)) = self.picker.picked() {
+                self.picked_path = Some(picked_path.display().to_string());
             }
 
             if let Some(picked_path) = &self.picked_path {
