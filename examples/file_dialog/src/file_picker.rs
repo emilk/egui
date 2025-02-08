@@ -20,6 +20,13 @@ enum PickerState {
     Picking(Arc<Mutex<(bool, Option<PathBuf>)>>),
 }
 
+#[derive(Clone, PartialEq)]
+pub enum PickError {
+    NotPicking,
+    InProgress,
+    Cancelled,
+}
+
 impl Picker {
     pub fn is_picking(&self) -> bool {
         matches!(self.state, PickerState::Picking(_))
@@ -45,34 +52,35 @@ impl Picker {
             .unwrap();
     }
 
-    /// when picked, returns a tuple of true, and the result of the pick, which may be None
-    /// otherwise returns (false, None)
+    /// when picked, returns the picked path, or an error indicating the reason
     ///
     /// this method is designed to be very fast while the picker is not picking (pending)
-    pub fn picked(&mut self) -> (bool, Option<PathBuf>) {
+    pub fn picked(&mut self) -> Result<PathBuf, PickError> {
         let mut was_picked = false;
 
-        let return_value = match &mut self.state {
+        let result = match &mut self.state {
             PickerState::Picking(arc) => {
                 if let Some(mut guard) = arc.try_lock() {
                     match &mut *guard {
                         (true, picked) => {
                             was_picked = true;
-                            let result = picked.take();
-                            (true, result)
+                            match picked.take() {
+                                Some(picked_path) => Ok(picked_path),
+                                None => Err(PickError::Cancelled),
+                            }
                         }
                         // arc not locked, but not picked yet either
-                        (false, _) => (false, None),
+                        (false, _) => Err(PickError::InProgress),
                     }
                 } else {
                     // not picked yet, arc locked by thread
-                    (false, None)
+                    Err(PickError::InProgress)
                 }
             }
             PickerState::Pending =>
             // not picked
             {
-                (false, None)
+                Err(PickError::NotPicking)
             }
         };
 
@@ -81,6 +89,6 @@ impl Picker {
             self.state = PickerState::Pending;
         }
 
-        return_value
+        result
     }
 }

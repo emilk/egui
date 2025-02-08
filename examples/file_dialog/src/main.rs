@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 #![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
-use crate::file_picker::Picker;
+use crate::file_picker::{PickError, Picker};
 use eframe::egui;
 
 mod file_picker;
@@ -42,8 +42,16 @@ impl eframe::App for MyApp {
                 self.picker.pick_file();
             }
 
-            if let (true, Some(picked_path)) = self.picker.picked() {
-                self.picked_path = Some(picked_path.display().to_string());
+            match self.picker.picked() {
+                Ok(picked_path) => {
+                    self.picked_path = Some(picked_path.display().to_string());
+                }
+                Err(reason) => {
+                    if reason == PickError::Cancelled {
+                        // clear the previously picked file if the dialog was cancelled
+                        self.picked_path = None
+                    }
+                }
             }
 
             if let Some(picked_path) = &self.picked_path {
