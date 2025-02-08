@@ -1,10 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 #![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
+use crate::file_picker::Picker;
+use eframe::egui;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use eframe::egui;
-use crate::file_picker::Picker;
 
 mod file_picker;
 
@@ -37,7 +37,10 @@ impl eframe::App for MyApp {
 
             let picking_file = self.picker.is_picking();
 
-            if ui.add_enabled(!picking_file, egui::Button::new("Open file…")).clicked() {
+            if ui
+                .add_enabled(!picking_file, egui::Button::new("Open file…"))
+                .clicked()
+            {
                 self.picker.pick_file();
             }
 

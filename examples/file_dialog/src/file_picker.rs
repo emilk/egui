@@ -32,9 +32,12 @@ impl Picker {
         self.state = PickerState::Picking(picker.clone());
         std::thread::spawn(move || {
             let mut guard = picker.lock().unwrap();
-            *guard = (true, rfd::FileDialog::new()
-                .pick_file()
-                .map(std::path::PathBuf::from));
+            *guard = (
+                true,
+                rfd::FileDialog::new()
+                    .pick_file()
+                    .map(std::path::PathBuf::from),
+            );
         });
     }
 
@@ -43,7 +46,6 @@ impl Picker {
     ///
     /// this method is designed to be very fast while the picker is not picking (pending)
     pub fn picked(&mut self) -> (bool, Option<PathBuf>) {
-
         let mut was_picked = false;
 
         let return_value = match &mut self.state {
@@ -54,7 +56,7 @@ impl Picker {
                             was_picked = true;
                             let result = picked.take();
                             (true, result)
-                        },
+                        }
                         (false, _) => (false, None),
                     }
                 } else {
