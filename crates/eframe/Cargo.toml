@@ -177,12 +177,14 @@ wgpu = { workspace = true, optional = true, features = [
 # mac:
 [target.'cfg(any(target_os = "macos"))'.dependencies]
 objc2 = "0.5.1"
-objc2-foundation = { version = "0.2.0", features = [
+objc2-foundation = { version = "0.2.0", default-features = false, features = [
+  "std",
   "block2",
   "NSData",
   "NSString",
 ] }
-objc2-app-kit = { version = "0.2.0", features = [
+objc2-app-kit = { version = "0.2.0", default-features = false, features = [
+  "std",
   "NSApplication",
   "NSImage",
   "NSMenu",
@@ -209,6 +211,7 @@ percent-encoding = "2.1"
 wasm-bindgen.workspace = true
 wasm-bindgen-futures.workspace = true
 web-sys = { workspace = true, features = [
+  "AddEventListenerOptions",
   "BinaryType",
   "Blob",
   "BlobPropertyBag",
