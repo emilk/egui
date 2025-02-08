@@ -3,8 +3,6 @@
 
 use crate::file_picker::Picker;
 use eframe::egui;
-use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
 
 mod file_picker;
 

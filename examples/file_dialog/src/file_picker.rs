@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 
 /// A file picker
 /// * prevents multiple concurrent pick operations
-/// * provides an API convinient for UI usage (see `is_picking` and `picked`)
+/// * provides an API convenient for UI usage (see `is_picking` and `picked`)
 ///
 /// Currently only picks files, but the API could be expanded.
 #[derive(Default)]
@@ -30,19 +30,22 @@ impl Picker {
         // and lock it.
         let picker = Arc::new(Mutex::new((false, None)));
         self.state = PickerState::Picking(picker.clone());
-        std::thread::spawn(move || {
-            let mut guard = picker.lock().unwrap();
-            *guard = (
-                true,
-                rfd::FileDialog::new()
-                    .pick_file()
-                    .map(std::path::PathBuf::from),
-            );
-        });
+        std::thread::Builder::new()
+            .name("picker".to_owned())
+            .spawn(move || {
+                let mut guard = picker.lock().unwrap();
+                *guard = (
+                    true,
+                    rfd::FileDialog::new()
+                        .pick_file()
+                        .map(std::path::PathBuf::from),
+                );
+            })
+            .unwrap();
     }
 
-    /// when picked, returns true, and the result of the pick, which may be None
-    /// otherwise returns false
+    /// when picked, returns a tuple of true, and the result of the pick, which may be None
+    /// otherwise returns (false, None)
     ///
     /// this method is designed to be very fast while the picker is not picking (pending)
     pub fn picked(&mut self) -> (bool, Option<PathBuf>) {
@@ -57,13 +60,19 @@ impl Picker {
                             let result = picked.take();
                             (true, result)
                         }
+                        // arc not locked, but not picked yet either
                         (false, _) => (false, None),
                     }
                 } else {
+                    // not picked yet, arc locked by thread
                     (false, None)
                 }
             }
-            _ => (false, None),
+            PickerState::Pending =>
+            // not picked
+            {
+                (false, None)
+            }
         };
 
         if was_picked {
