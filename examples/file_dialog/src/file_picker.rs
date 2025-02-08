@@ -1,5 +1,6 @@
+use eframe::egui::mutex::Mutex;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 /// A file picker
 /// * prevents multiple concurrent pick operations
@@ -33,7 +34,7 @@ impl Picker {
         std::thread::Builder::new()
             .name("picker".to_owned())
             .spawn(move || {
-                let mut guard = picker.lock().unwrap();
+                let mut guard = picker.lock();
                 *guard = (
                     true,
                     rfd::FileDialog::new()
@@ -53,7 +54,7 @@ impl Picker {
 
         let return_value = match &mut self.state {
             PickerState::Picking(arc) => {
-                if let Ok(mut guard) = arc.try_lock() {
+                if let Some(mut guard) = arc.try_lock() {
                     match &mut *guard {
                         (true, picked) => {
                             was_picked = true;
