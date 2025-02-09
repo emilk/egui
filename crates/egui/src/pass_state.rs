@@ -202,7 +202,6 @@ pub struct PassState {
 
     /// Starts off as the `screen_rect`, shrinks as panels are added.
     /// The [`crate::CentralPanel`] does not change this.
-    /// This is the area available to Window's.
     pub available_rect: Rect,
 
     /// Starts off as the `screen_rect`, shrinks as panels are added.
