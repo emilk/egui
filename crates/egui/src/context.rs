@@ -2549,10 +2549,7 @@ impl Context {
         self.input(|i| i.screen_rect()).round_ui()
     }
 
-    /// How much space is still available after panels has been added.
-    ///
-    /// This is the "background" area, what egui doesn't cover with panels (but may cover with windows).
-    /// This is also the area to which windows are constrained.
+    /// How much space is still available after panels have been added.
     pub fn available_rect(&self) -> Rect {
         self.pass_state(|s| s.available_rect()).round_ui()
     }

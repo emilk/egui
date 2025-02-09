@@ -303,8 +303,6 @@ impl PassState {
     }
 
     /// How much space is still available after panels has been added.
-    /// This is the "background" area, what egui doesn't cover with panels (but may cover with windows).
-    /// This is also the area to which windows are constrained.
     pub(crate) fn available_rect(&self) -> Rect {
         debug_assert!(
             self.available_rect.is_finite(),
