@@ -9,7 +9,7 @@ pub(crate) struct EventState {
 
 impl EventState {
     /// Map the kittest events to egui events, add them to the input and update the modifiers.
-    /// This function accesses `egui::RawInput::modifiers`, make sure it is not reset after each
+    /// This function accesses `egui::RawInput::modifiers`. Make sure it is not reset after each
     /// frame (Since we use [`egui::RawInput::take`], this should be fine).
     pub fn update(&mut self, events: Vec<kittest::Event>, input: &mut egui::RawInput) {
         for event in events {

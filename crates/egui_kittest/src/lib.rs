@@ -391,14 +391,14 @@ impl<'a, State> Harness<'a, State> {
     }
 
     /// Press a key with modifiers.
-    /// This will create a key down event, a key up event and update the modifiers.
+    /// This will create a key-down event, a key-up event, and update the modifiers.
     ///
     /// NOTE: In contrast to the event fns on [`Node`], this will call [`Harness::step`], in
     /// order to properly update modifiers.
     pub fn press_key_modifiers(&mut self, modifiers: Modifiers, key: egui::Key) {
         // Combine the modifiers with the current modifiers
-        let modifiers = modifiers | self.input.modifiers;
-        let previous_modifiers = mem::replace(&mut self.input.modifiers, modifiers);
+        let previous_modifiers = self.input.modifiers;
+        self.input.modifiers |= modifiers;
 
         self.input.events.push(egui::Event::Key {
             key,
