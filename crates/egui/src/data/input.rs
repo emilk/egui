@@ -943,6 +943,13 @@ impl std::ops::BitOr for Modifiers {
     }
 }
 
+impl std::ops::BitOrAssign for Modifiers {
+    #[inline]
+    fn bitor_assign(&mut self, rhs: Self) {
+        *self = *self | rhs;
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// Names of different modifier keys.
