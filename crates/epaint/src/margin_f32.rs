@@ -17,6 +17,9 @@ pub struct MarginF32 {
     pub bottom: f32,
 }
 
+#[deprecated = "Renamed to MarginF32"]
+pub type Marginf = MarginF32;
+
 impl From<Margin> for MarginF32 {
     #[inline]
     fn from(margin: Margin) -> Self {
