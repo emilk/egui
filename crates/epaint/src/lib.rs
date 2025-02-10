@@ -52,7 +52,7 @@ pub use self::{
     corner_radius_f32::CornerRadiusF32,
     image::{ColorImage, FontImage, ImageData, ImageDelta},
     margin::Margin,
-    margin_f32::{MarginF32, Marginf},
+    margin_f32::*,
     mesh::{Mesh, Mesh16, Vertex},
     shadow::Shadow,
     shapes::{
