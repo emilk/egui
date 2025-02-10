@@ -227,11 +227,8 @@ impl<'a, State> Harness<'a, State> {
     }
 
     fn _step(&mut self, sizing_pass: bool) {
-        for event in self.kittest.take_events() {
-            if let Some(event) = self.event_state.kittest_event_to_egui(event) {
-                self.input.events.push(event);
-            }
-        }
+        self.event_state
+            .update(self.kittest.take_events(), &mut self.input);
 
         self.input.predicted_dt = self.step_dt;
 
@@ -376,12 +373,32 @@ impl<'a, State> Harness<'a, State> {
     /// Press a key.
     /// This will create a key down event and a key up event.
     pub fn press_key(&mut self, key: egui::Key) {
-        self.press_key_modifiers(Modifiers::default(), key);
+        self.input.events.push(egui::Event::Key {
+            key,
+            pressed: true,
+            modifiers: self.input.modifiers,
+            repeat: false,
+            physical_key: None,
+        });
+        self.input.events.push(egui::Event::Key {
+            key,
+            pressed: false,
+            modifiers: self.input.modifiers,
+            repeat: false,
+            physical_key: None,
+        });
     }
 
     /// Press a key with modifiers.
-    /// This will create a key down event and a key up event.
+    /// This will create a key-down event, a key-up event, and update the modifiers.
+    ///
+    /// NOTE: In contrast to the event fns on [`Node`], this will call [`Harness::step`], in
+    /// order to properly update modifiers.
     pub fn press_key_modifiers(&mut self, modifiers: Modifiers, key: egui::Key) {
+        // Combine the modifiers with the current modifiers
+        let previous_modifiers = self.input.modifiers;
+        self.input.modifiers |= modifiers;
+
         self.input.events.push(egui::Event::Key {
             key,
             pressed: true,
@@ -389,6 +406,7 @@ impl<'a, State> Harness<'a, State> {
             repeat: false,
             physical_key: None,
         });
+        self.step();
         self.input.events.push(egui::Event::Key {
             key,
             pressed: false,
@@ -396,6 +414,8 @@ impl<'a, State> Harness<'a, State> {
             repeat: false,
             physical_key: None,
         });
+
+        self.input.modifiers = previous_modifiers;
     }
 
     /// Render the last output to an image.
