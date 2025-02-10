@@ -11,7 +11,6 @@ mod snapshot;
 #[cfg(feature = "snapshot")]
 pub use snapshot::*;
 use std::fmt::{Debug, Display, Formatter};
-use std::mem;
 use std::time::Duration;
 
 mod app_kind;
