@@ -1,5 +1,3 @@
-use web_sys::EventTarget;
-
 use crate::web::string_from_js_value;
 
 use super::{
