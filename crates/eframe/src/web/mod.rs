@@ -64,7 +64,7 @@ pub(crate) fn string_from_js_value(value: &JsValue) -> String {
 /// - `<a>`/`<area>` with an `href` attribute
 /// - `<input>`/`<select>`/`<textarea>`/`<button>` which aren't `disabled`
 /// - any other element with a `tabindex` attribute
-pub(crate) fn focused_element(root: &Node) -> Option<web_sys::Element> {
+pub(crate) fn focused_element(root: Node) -> Option<web_sys::Element> {
     if let Some(document) = root.dyn_ref::<Document>() {
         document.active_element()
     } else if let Some(shadow) = root.dyn_ref::<web_sys::ShadowRoot>() {
@@ -79,7 +79,7 @@ pub(crate) fn has_focus<T: JsCast>(element: &T) -> bool {
         let element = element.dyn_ref::<web_sys::Element>()?;
         let root = element.get_root_node();
 
-        let focused_element = focused_element(root)?;
+        let focused_element = focused_element(&root)?;
         Some(element == &focused_element)
     }
     try_has_focus(element).unwrap_or(false)
