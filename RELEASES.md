@@ -45,6 +45,7 @@ We don't update the MSRV in a patch release, unless we really, really need to.
 * [ ] check that CI is green
 
 ## Preparation
+* [ ] make sure there are no important unmerged PRs
 * [ ] run `scripts/generate_example_screenshots.sh` if needed
 * [ ] write a short release note that fits in a bluesky post
 * [ ] record gif for `CHANGELOG.md` release note (and later bluesky post)

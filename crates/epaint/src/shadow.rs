@@ -1,4 +1,4 @@
-use crate::{Color32, CornerRadius, Marginf, Rect, RectShape, Vec2};
+use crate::{Color32, CornerRadius, MarginF32, Rect, RectShape, Vec2};
 
 /// The color and fuzziness of a fuzzy shape.
 ///
@@ -64,7 +64,7 @@ impl Shadow {
     }
 
     /// How much larger than the parent rect are we in each direction?
-    pub fn margin(&self) -> Marginf {
+    pub fn margin(&self) -> MarginF32 {
         let Self {
             offset,
             blur,
@@ -74,7 +74,7 @@ impl Shadow {
         let spread = spread as f32;
         let blur = blur as f32;
         let [offset_x, offset_y] = offset;
-        Marginf {
+        MarginF32 {
             left: spread + 0.5 * blur - offset_x as f32,
             right: spread + 0.5 * blur + offset_x as f32,
             top: spread + 0.5 * blur - offset_y as f32,
