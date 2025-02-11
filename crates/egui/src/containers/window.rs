@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use emath::GuiRounding as _;
-use epaint::{RectShape, Roundingf};
+use epaint::{CornerRadiusF32, RectShape};
 
 use crate::collapsing_header::CollapsingState;
 use crate::*;
@@ -485,8 +485,8 @@ impl Window<'_> {
                 .at_least(style.spacing.interact_size.y);
             let title_bar_inner_height = title_bar_inner_height + window_frame.inner_margin.sum().y;
             let half_height = (title_bar_inner_height / 2.0).round() as _;
-            window_frame.rounding.ne = window_frame.rounding.ne.clamp(0, half_height);
-            window_frame.rounding.nw = window_frame.rounding.nw.clamp(0, half_height);
+            window_frame.corner_radius.ne = window_frame.corner_radius.ne.clamp(0, half_height);
+            window_frame.corner_radius.nw = window_frame.corner_radius.nw.clamp(0, half_height);
 
             let title_content_spacing = if is_collapsed {
                 0.0
@@ -607,11 +607,10 @@ impl Window<'_> {
                     title_bar.inner_rect = outer_rect.shrink(window_frame.stroke.width);
                     title_bar.inner_rect.max.y =
                         title_bar.inner_rect.min.y + title_bar_height_with_margin;
-                    title_bar.inner_rect =
-                        title_bar.inner_rect.round_to_pixels(ctx.pixels_per_point());
 
                     if on_top && area_content_ui.visuals().window_highlight_topmost {
-                        let mut round = window_frame.rounding;
+                        let mut round =
+                            window_frame.corner_radius - window_frame.stroke.width.round() as u8;
 
                         if !is_collapsed {
                             round.se = 0;
@@ -666,28 +665,28 @@ fn paint_resize_corner(
     window_frame: &Frame,
     i: ResizeInteraction,
 ) {
-    let rounding = window_frame.rounding;
+    let cr = window_frame.corner_radius;
 
     let (corner, radius, corner_response) = if possible.resize_right && possible.resize_bottom {
-        (Align2::RIGHT_BOTTOM, rounding.se, i.right & i.bottom)
+        (Align2::RIGHT_BOTTOM, cr.se, i.right & i.bottom)
     } else if possible.resize_left && possible.resize_bottom {
-        (Align2::LEFT_BOTTOM, rounding.sw, i.left & i.bottom)
+        (Align2::LEFT_BOTTOM, cr.sw, i.left & i.bottom)
     } else if possible.resize_left && possible.resize_top {
-        (Align2::LEFT_TOP, rounding.nw, i.left & i.top)
+        (Align2::LEFT_TOP, cr.nw, i.left & i.top)
     } else if possible.resize_right && possible.resize_top {
-        (Align2::RIGHT_TOP, rounding.ne, i.right & i.top)
+        (Align2::RIGHT_TOP, cr.ne, i.right & i.top)
     } else {
         // We're not in two directions, but it is still nice to tell the user
         // we're resizable by painting the resize corner in the expected place
         // (i.e. for windows only resizable in one direction):
         if possible.resize_right || possible.resize_bottom {
-            (Align2::RIGHT_BOTTOM, rounding.se, i.right & i.bottom)
+            (Align2::RIGHT_BOTTOM, cr.se, i.right & i.bottom)
         } else if possible.resize_left || possible.resize_bottom {
-            (Align2::LEFT_BOTTOM, rounding.sw, i.left & i.bottom)
+            (Align2::LEFT_BOTTOM, cr.sw, i.left & i.bottom)
         } else if possible.resize_left || possible.resize_top {
-            (Align2::LEFT_TOP, rounding.nw, i.left & i.top)
+            (Align2::LEFT_TOP, cr.nw, i.left & i.top)
         } else if possible.resize_right || possible.resize_top {
-            (Align2::RIGHT_TOP, rounding.ne, i.right & i.top)
+            (Align2::RIGHT_TOP, cr.ne, i.right & i.top)
         } else {
             return;
         }
@@ -1053,7 +1052,7 @@ fn paint_frame_interaction(ui: &Ui, rect: Rect, interaction: ResizeInteraction) 
         bottom = interaction.bottom.hover;
     }
 
-    let rounding = Roundingf::from(ui.visuals().window_rounding);
+    let cr = CornerRadiusF32::from(ui.visuals().window_corner_radius);
 
     // Put the rect in the center of the fixed window stroke:
     let rect = rect.shrink(interaction.window_frame.stroke.width / 2.0);
@@ -1071,56 +1070,36 @@ fn paint_frame_interaction(ui: &Ui, rect: Rect, interaction: ResizeInteraction) 
     let mut points = Vec::new();
 
     if right && !bottom && !top {
-        points.push(pos2(max.x, min.y + rounding.ne));
-        points.push(pos2(max.x, max.y - rounding.se));
+        points.push(pos2(max.x, min.y + cr.ne));
+        points.push(pos2(max.x, max.y - cr.se));
     }
     if right && bottom {
-        points.push(pos2(max.x, min.y + rounding.ne));
-        points.push(pos2(max.x, max.y - rounding.se));
-        add_circle_quadrant(
-            &mut points,
-            pos2(max.x - rounding.se, max.y - rounding.se),
-            rounding.se,
-            0.0,
-        );
+        points.push(pos2(max.x, min.y + cr.ne));
+        points.push(pos2(max.x, max.y - cr.se));
+        add_circle_quadrant(&mut points, pos2(max.x - cr.se, max.y - cr.se), cr.se, 0.0);
     }
     if bottom {
-        points.push(pos2(max.x - rounding.se, max.y));
-        points.push(pos2(min.x + rounding.sw, max.y));
+        points.push(pos2(max.x - cr.se, max.y));
+        points.push(pos2(min.x + cr.sw, max.y));
     }
     if left && bottom {
-        add_circle_quadrant(
-            &mut points,
-            pos2(min.x + rounding.sw, max.y - rounding.sw),
-            rounding.sw,
-            1.0,
-        );
+        add_circle_quadrant(&mut points, pos2(min.x + cr.sw, max.y - cr.sw), cr.sw, 1.0);
     }
     if left {
-        points.push(pos2(min.x, max.y - rounding.sw));
-        points.push(pos2(min.x, min.y + rounding.nw));
+        points.push(pos2(min.x, max.y - cr.sw));
+        points.push(pos2(min.x, min.y + cr.nw));
     }
     if left && top {
-        add_circle_quadrant(
-            &mut points,
-            pos2(min.x + rounding.nw, min.y + rounding.nw),
-            rounding.nw,
-            2.0,
-        );
+        add_circle_quadrant(&mut points, pos2(min.x + cr.nw, min.y + cr.nw), cr.nw, 2.0);
     }
     if top {
-        points.push(pos2(min.x + rounding.nw, min.y));
-        points.push(pos2(max.x - rounding.ne, min.y));
+        points.push(pos2(min.x + cr.nw, min.y));
+        points.push(pos2(max.x - cr.ne, min.y));
     }
     if right && top {
-        add_circle_quadrant(
-            &mut points,
-            pos2(max.x - rounding.ne, min.y + rounding.ne),
-            rounding.ne,
-            3.0,
-        );
-        points.push(pos2(max.x, min.y + rounding.ne));
-        points.push(pos2(max.x, max.y - rounding.se));
+        add_circle_quadrant(&mut points, pos2(max.x - cr.ne, min.y + cr.ne), cr.ne, 3.0);
+        points.push(pos2(max.x, min.y + cr.ne));
+        points.push(pos2(max.x, max.y - cr.se));
     }
 
     ui.painter().add(Shape::line(points, stroke));
@@ -1230,7 +1209,7 @@ impl TitleBar {
                 .center();
             let button_size = Vec2::splat(ui.spacing().icon_width);
             let button_rect = Rect::from_center_size(button_center, button_size);
-            let button_rect = button_rect.round_to_pixels(ui.pixels_per_point());
+            let button_rect = button_rect.round_ui();
 
             ui.allocate_new_ui(UiBuilder::new().max_rect(button_rect), |ui| {
                 collapsing.show_default_button_with_size(ui, button_size);

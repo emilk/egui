@@ -5,7 +5,7 @@ use crate::{
     Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2, WidgetInfo, WidgetText, WidgetType,
 };
 use emath::GuiRounding as _;
-use epaint::Shape;
+use epaint::{Shape, StrokeKind};
 
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -573,9 +573,10 @@ impl CollapsingHeader {
             if ui.visuals().collapsing_header_frame || show_background {
                 ui.painter().add(epaint::RectShape::new(
                     header_response.rect.expand(visuals.expansion),
-                    visuals.rounding,
+                    visuals.corner_radius,
                     visuals.weak_bg_fill,
                     visuals.bg_stroke,
+                    StrokeKind::Inside,
                 ));
             }
 
@@ -583,8 +584,13 @@ impl CollapsingHeader {
             {
                 let rect = rect.expand(visuals.expansion);
 
-                ui.painter()
-                    .rect(rect, visuals.rounding, visuals.bg_fill, visuals.bg_stroke);
+                ui.painter().rect(
+                    rect,
+                    visuals.corner_radius,
+                    visuals.bg_fill,
+                    visuals.bg_stroke,
+                    StrokeKind::Inside,
+                );
             }
 
             {

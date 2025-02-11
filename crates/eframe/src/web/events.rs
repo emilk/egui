@@ -219,9 +219,16 @@ fn should_prevent_default_for_key(
     // * cmd-shift-C (debug tools)
     // * cmd/ctrl-c/v/x (lest we prevent copy/paste/cut events)
 
-    // Prevent ctrl-P from opening the print dialog. Users may want to use it for a command palette.
-    if egui_key == egui::Key::P && (modifiers.ctrl || modifiers.command || modifiers.mac_cmd) {
-        return true;
+    // Prevent cmd/ctrl plus these keys from triggering the default browser action:
+    let keys = [
+        egui::Key::O, // open
+        egui::Key::P, // print (cmd-P is common for command palette)
+        egui::Key::S, // save
+    ];
+    for key in keys {
+        if egui_key == key && (modifiers.ctrl || modifiers.command || modifiers.mac_cmd) {
+            return true;
+        }
     }
 
     if egui_key == egui::Key::Space && !runner.text_agent.has_focus() {

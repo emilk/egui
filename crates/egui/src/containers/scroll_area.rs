@@ -161,6 +161,9 @@ impl ScrollBarVisibility {
 /// ```
 ///
 /// You can scroll to an element using [`crate::Response::scroll_to_me`], [`Ui::scroll_to_cursor`] and [`Ui::scroll_to_rect`].
+///
+/// ## See also
+/// If you want to allow zooming, use [`crate::Scene`].
 #[derive(Clone, Debug)]
 #[must_use = "You should call .show()"]
 pub struct ScrollArea {
@@ -1237,7 +1240,7 @@ impl Prepared {
                 // Background:
                 ui.painter().add(epaint::Shape::rect_filled(
                     outer_scroll_bar_rect,
-                    visuals.rounding,
+                    visuals.corner_radius,
                     ui.visuals()
                         .extreme_bg_color
                         .gamma_multiply(background_opacity),
@@ -1246,7 +1249,7 @@ impl Prepared {
                 // Handle:
                 ui.painter().add(epaint::Shape::rect_filled(
                     handle_rect,
-                    visuals.rounding,
+                    visuals.corner_radius,
                     handle_color.gamma_multiply(handle_opacity),
                 ));
             }

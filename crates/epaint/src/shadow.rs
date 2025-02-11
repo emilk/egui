@@ -1,4 +1,4 @@
-use crate::{Color32, Marginf, Rect, RectShape, Rounding, Vec2};
+use crate::{Color32, CornerRadius, Marginf, Rect, RectShape, Vec2};
 
 /// The color and fuzziness of a fuzzy shape.
 ///
@@ -44,7 +44,7 @@ impl Shadow {
     };
 
     /// The argument is the rectangle of the shadow caster.
-    pub fn as_shape(&self, rect: Rect, rounding: impl Into<Rounding>) -> RectShape {
+    pub fn as_shape(&self, rect: Rect, corner_radius: impl Into<CornerRadius>) -> RectShape {
         // tessellator.clip_rect = clip_rect; // TODO(emilk): culling
 
         let Self {
@@ -58,9 +58,9 @@ impl Shadow {
         let rect = rect
             .translate(Vec2::new(offset_x as _, offset_y as _))
             .expand(spread as _);
-        let rounding = rounding.into() + Rounding::from(spread);
+        let corner_radius = corner_radius.into() + CornerRadius::from(spread);
 
-        RectShape::filled(rect, rounding, color).with_blur_width(blur as _)
+        RectShape::filled(rect, corner_radius, color).with_blur_width(blur as _)
     }
 
     /// How much larger than the parent rect are we in each direction?

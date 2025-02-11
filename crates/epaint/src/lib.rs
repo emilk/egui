@@ -25,13 +25,13 @@
 
 mod brush;
 pub mod color;
+mod corner_radius;
+mod corner_radius_f32;
 pub mod image;
 mod margin;
 mod marginf;
 mod mesh;
 pub mod mutex;
-mod rounding;
-mod roundingf;
 mod shadow;
 pub mod shape_transform;
 mod shapes;
@@ -48,12 +48,12 @@ mod viewport;
 pub use self::{
     brush::Brush,
     color::ColorMode,
+    corner_radius::CornerRadius,
+    corner_radius_f32::CornerRadiusF32,
     image::{ColorImage, FontImage, ImageData, ImageDelta},
     margin::Margin,
     marginf::Marginf,
     mesh::{Mesh, Mesh16, Vertex},
-    rounding::Rounding,
-    roundingf::Roundingf,
     shadow::Shadow,
     shapes::{
         CircleShape, CubicBezierShape, EllipseShape, PaintCallback, PaintCallbackInfo, PathShape,
@@ -68,6 +68,9 @@ pub use self::{
     textures::TextureManager,
     viewport::ViewportInPixels,
 };
+
+#[deprecated = "Renamed to CornerRadius"]
+pub type Rounding = CornerRadius;
 
 #[allow(deprecated)]
 pub use tessellator::tessellate_shapes;

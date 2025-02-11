@@ -10,6 +10,7 @@ pub mod modal;
 pub mod panel;
 pub mod popup;
 pub(crate) mod resize;
+mod scene;
 pub mod scroll_area;
 mod sides;
 pub(crate) mod window;
@@ -23,6 +24,7 @@ pub use {
     panel::{CentralPanel, SidePanel, TopBottomPanel},
     popup::*,
     resize::Resize,
+    scene::Scene,
     scroll_area::ScrollArea,
     sides::Sides,
     window::Window,

@@ -11,7 +11,7 @@ use epaint::{
     tessellator,
     text::{FontInsert, FontPriority, Fonts},
     util::OrderedFloat,
-    vec2, ClippedPrimitive, ClippedShape, Color32, ImageData, ImageDelta, Pos2, Rect,
+    vec2, ClippedPrimitive, ClippedShape, Color32, ImageData, ImageDelta, Pos2, Rect, StrokeKind,
     TessellationOptions, TextureAtlas, TextureId, Vec2,
 };
 
@@ -1087,7 +1087,7 @@ impl Context {
             let text = format!("🔥 {text}");
             let color = self.style().visuals.error_fg_color;
             let painter = self.debug_painter();
-            painter.rect_stroke(widget_rect, 0.0, (1.0, color));
+            painter.rect_stroke(widget_rect, 0.0, (1.0, color), StrokeKind::Outside);
 
             let below = widget_rect.bottom() + 32.0 < screen_rect.bottom();
 
@@ -3505,7 +3505,6 @@ impl Context {
 
     /// The loaders of bytes, images, and textures.
     pub fn loaders(&self) -> Arc<Loaders> {
-        profiling::function_scope!();
         self.read(|this| this.loaders.clone())
     }
 }

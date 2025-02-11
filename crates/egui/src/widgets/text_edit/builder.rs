@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
-use emath::Rect;
-use epaint::text::{cursor::CCursor, Galley, LayoutJob};
+use emath::{Rect, TSTransform};
+use epaint::{
+    text::{cursor::CCursor, Galley, LayoutJob},
+    StrokeKind,
+};
 
 use crate::{
     epaint,
@@ -439,24 +442,27 @@ impl TextEdit<'_> {
                 if output.response.has_focus() {
                     epaint::RectShape::new(
                         frame_rect,
-                        visuals.rounding,
+                        visuals.corner_radius,
                         background_color,
                         ui.visuals().selection.stroke,
+                        StrokeKind::Inside,
                     )
                 } else {
                     epaint::RectShape::new(
                         frame_rect,
-                        visuals.rounding,
+                        visuals.corner_radius,
                         background_color,
                         visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
+                        StrokeKind::Inside,
                     )
                 }
             } else {
                 let visuals = &ui.style().visuals.widgets.inactive;
                 epaint::RectShape::stroke(
                     frame_rect,
-                    visuals.rounding,
+                    visuals.corner_radius,
                     visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
+                    StrokeKind::Inside,
                 )
             };
 
@@ -587,8 +593,8 @@ impl TextEdit<'_> {
                     && ui.input(|i| i.pointer.is_moving())
                 {
                     // text cursor preview:
-                    let cursor_rect =
-                        cursor_rect(rect.min, &galley, &cursor_at_pointer, row_height);
+                    let cursor_rect = TSTransform::from_translation(rect.min.to_vec2())
+                        * cursor_rect(&galley, &cursor_at_pointer, row_height);
                     text_selection::visuals::paint_cursor_end(&painter, ui.visuals(), cursor_rect);
                 }
 
@@ -738,7 +744,8 @@ impl TextEdit<'_> {
             if has_focus {
                 if let Some(cursor_range) = state.cursor.range(&galley) {
                     let primary_cursor_rect =
-                        cursor_rect(galley_pos, &galley, &cursor_range.primary, row_height);
+                        cursor_rect(&galley, &cursor_range.primary, row_height)
+                            .translate(galley_pos.to_vec2());
 
                     if response.changed() || selection_changed {
                         // Scroll to keep primary cursor in view:
@@ -837,7 +844,7 @@ impl TextEdit<'_> {
                 id,
                 cursor_range,
                 role,
-                galley_pos,
+                TSTransform::from_translation(galley_pos.to_vec2()),
                 &galley,
             );
         }

@@ -355,6 +355,13 @@ impl WinitApp for WgpuWinitApp<'_> {
         )
     }
 
+    fn save(&mut self) {
+        log::debug!("WinitApp::save called");
+        if let Some(running) = self.running.as_mut() {
+            running.save();
+        }
+    }
+
     fn save_and_destroy(&mut self) {
         if let Some(mut running) = self.running.take() {
             running.save_and_destroy();
@@ -415,7 +422,7 @@ impl WinitApp for WgpuWinitApp<'_> {
     fn suspended(&mut self, _: &ActiveEventLoop) -> crate::Result<EventResult> {
         #[cfg(target_os = "android")]
         self.drop_window()?;
-        Ok(EventResult::Wait)
+        Ok(EventResult::Save)
     }
 
     fn device_event(
@@ -488,13 +495,23 @@ impl WinitApp for WgpuWinitApp<'_> {
 }
 
 impl WgpuWinitRunning<'_> {
+    /// Saves the application state
+    fn save(&mut self) {
+        let shared = self.shared.borrow();
+        // This is done because of the "save on suspend" logic on Android. Once the application is suspended, there is no window associated to it.
+        let window = if let Some(Viewport { window, .. }) = shared.viewports.get(&ViewportId::ROOT)
+        {
+            window.as_deref()
+        } else {
+            None
+        };
+        self.integration.save(self.app.as_mut(), window);
+    }
+
     fn save_and_destroy(&mut self) {
         profiling::function_scope!();
 
-        let mut shared = self.shared.borrow_mut();
-        if let Some(Viewport { window, .. }) = shared.viewports.get(&ViewportId::ROOT) {
-            self.integration.save(self.app.as_mut(), window.as_deref());
-        }
+        self.save();
 
         #[cfg(feature = "glow")]
         self.app.on_exit(None);
@@ -502,6 +519,7 @@ impl WgpuWinitRunning<'_> {
         #[cfg(not(feature = "glow"))]
         self.app.on_exit();
 
+        let mut shared = self.shared.borrow_mut();
         shared.painter.destroy();
     }
 
