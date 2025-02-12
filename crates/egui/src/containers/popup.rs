@@ -77,7 +77,6 @@ impl From<bool> for SetOpen {
 enum OpenKind<'a> {
     Open,
     Closed,
-    // TODO: Do we need this? Without we could get rid of the lifetime
     Bool(&'a mut bool, PopupCloseBehavior),
     Memory {
         set: SetOpen,
@@ -105,7 +104,6 @@ pub enum PopupKind {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Position {
-    // TODO: Should we also support Center?
     Left,
     Right,
     Top,

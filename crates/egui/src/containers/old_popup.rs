@@ -80,16 +80,6 @@ pub fn show_tooltip_for<R>(
         .show(ctx, add_contents)
         .unwrap() // TODO
         .inner
-    // let is_touch_screen = ctx.input(|i| i.any_touches());
-    // let allow_placing_below = !is_touch_screen; // There is a finger below. TODO: Needed?
-    // show_tooltip_at_dyn(
-    //     ctx,
-    //     parent_layer,
-    //     widget_id,
-    //     allow_placing_below,
-    //     widget_rect,
-    //     Box::new(add_contents),
-    // )
 }
 
 /// Show a tooltip at the given position.
