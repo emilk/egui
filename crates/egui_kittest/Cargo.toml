@@ -18,8 +18,12 @@ include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--generate-link-to-definition"]
+
 [features]
-# Adds a wgpu-based test renderer.
+## Adds a wgpu-based test renderer.
 wgpu = [
     "dep:egui-wgpu",
     "dep:pollster",
@@ -28,11 +32,14 @@ wgpu = [
     "eframe?/wgpu",
 ]
 
-# Adds a dify-based image snapshot utility.
+## Adds a dify-based image snapshot utility.
 snapshot = ["dep:dify", "dep:image", "image/png"]
 
-# Allows testing eframe::App
+## Allows testing eframe::App
 eframe = ["dep:eframe", "eframe/accesskit"]
+
+# This is just so it compiles with `--all-features` on Linux
+x11 = ["eframe?/x11"]
 
 
 [dependencies]
@@ -50,7 +57,7 @@ wgpu = { workspace = true, features = ["metal", "dx12"], optional = true }
 # snapshot dependencies
 dify = { workspace = true, optional = true }
 
-## Enable this when generating docs.
+# Enable this when generating docs.
 document-features = { workspace = true, optional = true }
 
 [dev-dependencies]
