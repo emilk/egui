@@ -94,7 +94,7 @@ pub enum PopupKind {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-enum Position {
+pub enum Position {
     // TODO: Should we also support Center?
     Left,
     Right,
@@ -102,7 +102,24 @@ enum Position {
     Bottom,
 }
 
-/// Similar to [`Align2`] but for aligning something to the outside of something.
+/// Similar to [`Align2`] but for aligning something to the outside of some rect.
+/// ```text
+///              ┌───────────┐  ┌────────┐  ┌─────────┐              
+///              │ TOP_START │  │  TOP   │  │ TOP_END │              
+///              └───────────┘  └────────┘  └─────────┘               
+/// ┌──────────┐ ┌────────────────────────────────────┐ ┌───────────┐
+/// │LEFT_START│ │                                    │ │RIGHT_START│
+/// └──────────┘ │                                    │ └───────────┘
+/// ┌──────────┐ │                                    │ ┌───────────┐
+/// │   LEFT   │ │             some_rect              │ │   RIGHT   │
+/// └──────────┘ │                                    │ └───────────┘
+/// ┌──────────┐ │                                    │ ┌───────────┐
+/// │ LEFT_END │ │                                    │ │ RIGHT_END │
+/// └──────────┘ └────────────────────────────────────┘ └───────────┘
+///              ┌────────────┐  ┌──────┐  ┌──────────┐              
+///              │BOTTOM_START│  │BOTTOM│  │BOTTOM_END│              
+///              └────────────┘  └──────┘  └──────────┘              
+/// ```
 // TODO: Find a better name for Position and PositionAlign
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PositionAlign(pub Position, pub Align);
@@ -201,7 +218,7 @@ impl PositionAlign {
     }
 
     /// Look for the [`PositionAlign`] that fits best in the available space.
-    /// Starts with `self` and `self.mirrored()`, then tries all other positions.
+    /// Starts with `self` and `self.alternatives()`, then tries all other positions.
     fn find_unblocked_align(
         &self,
         available_space: Rect,
