@@ -41,7 +41,7 @@ pub(crate) type ActiveWebPainter = web_painter_wgpu::WebPainterWgpu;
 pub use backend::*;
 
 use wasm_bindgen::prelude::*;
-use web_sys::MediaQueryList;
+use web_sys::{Document, MediaQueryList, Node};
 
 use input::{
     button_from_mouse_event, modifiers_from_kb_event, modifiers_from_mouse_event,
@@ -64,18 +64,22 @@ pub(crate) fn string_from_js_value(value: &JsValue) -> String {
 /// - `<a>`/`<area>` with an `href` attribute
 /// - `<input>`/`<select>`/`<textarea>`/`<button>` which aren't `disabled`
 /// - any other element with a `tabindex` attribute
-pub(crate) fn focused_element() -> Option<web_sys::Element> {
-    web_sys::window()?
-        .document()?
-        .active_element()?
-        .dyn_into()
-        .ok()
+pub(crate) fn focused_element(root: &Node) -> Option<web_sys::Element> {
+    if let Some(document) = root.dyn_ref::<Document>() {
+        document.active_element()
+    } else if let Some(shadow) = root.dyn_ref::<web_sys::ShadowRoot>() {
+        shadow.active_element()
+    } else {
+        None
+    }
 }
 
 pub(crate) fn has_focus<T: JsCast>(element: &T) -> bool {
     fn try_has_focus<T: JsCast>(element: &T) -> Option<bool> {
         let element = element.dyn_ref::<web_sys::Element>()?;
-        let focused_element = focused_element()?;
+        let root = element.get_root_node();
+
+        let focused_element = focused_element(&root)?;
         Some(element == &focused_element)
     }
     try_has_focus(element).unwrap_or(false)
