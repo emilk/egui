@@ -3,8 +3,8 @@
 
 use crate::containers::tooltip::Tooltip;
 use crate::{
-    AboveOrBelow, Align, Context, Id, LayerId, Layout, Popup, PopupAnchor, PopupCloseBehavior,
-    Pos2, PositionAlign, Rect, Response, Ui, Widget, WidgetText,
+    Align, Context, Id, LayerId, Layout, Popup, PopupAnchor, PopupCloseBehavior, Pos2,
+    PositionAlign, Rect, Response, Ui, Widget, WidgetText,
 };
 // ----------------------------------------------------------------------------
 
@@ -140,6 +140,13 @@ pub fn show_tooltip_text(
 #[deprecated = "Use `Tooltip::was_tooltip_open_last_frame` instead"]
 pub fn was_tooltip_open_last_frame(ctx: &Context, widget_id: Id) -> bool {
     Tooltip::was_tooltip_open_last_frame(ctx, widget_id)
+}
+
+/// Indicate whether a popup will be shown above or below the box.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum AboveOrBelow {
+    Above,
+    Below,
 }
 
 /// Helper for [`popup_above_or_below_widget`].

@@ -1,4 +1,4 @@
-use egui::Popup;
+use egui::{ComboBox, Popup};
 
 #[derive(Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -40,6 +40,12 @@ impl crate::View for ContextMenus {
 
             let response = ui.button("New context menu");
             Popup::context_menu(&response).show(ui.ctx(), Self::nested_menus);
+
+            ComboBox::new("Hi", "Hi").show_ui(ui, |ui| {
+                ui.selectable_label(false, "I have some long text that should be wrapped");
+                ui.selectable_label(false, "Short");
+                ui.selectable_label(false, "Medium length");
+            });
         });
 
         ui.vertical_centered(|ui| {

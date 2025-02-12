@@ -3,6 +3,7 @@ use crate::{
     UiKind,
 };
 use emath::{vec2, Align, Align2, Pos2, Rect, Vec2};
+use std::iter::once;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PopupAnchor {
@@ -133,6 +134,12 @@ pub enum Position {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PositionAlign(pub Position, pub Align);
 
+impl Default for PositionAlign {
+    fn default() -> Self {
+        Self::BOTTOM_START
+    }
+}
+
 impl PositionAlign {
     pub const TOP_START: Self = Self(Position::Top, Align::Min);
     pub const TOP: Self = Self(Position::Top, Align::Center);
@@ -228,8 +235,8 @@ impl PositionAlign {
 
     /// Look for the [`PositionAlign`] that fits best in the available space.
     /// Starts with `self` and `self.alternatives()`, then tries all other positions.
-    fn find_unblocked_align(
-        &self,
+    pub fn find_best_align(
+        mut values_to_try: impl Iterator<Item = Self>,
         available_space: Rect,
         widget_rect: Rect,
         gap: f32,
@@ -242,20 +249,22 @@ impl PositionAlign {
             area - available_space.intersect(rect).area()
         };
 
-        if blocked_area(*self) == 0.0 {
-            return *self;
+        let first = values_to_try.next().unwrap_or_default();
+
+        if blocked_area(first) == 0.0 {
+            return first;
         }
 
-        let mut best_area = blocked_area(*self);
-        let mut best = *self;
+        let mut best_area = blocked_area(first);
+        let mut best = first;
 
-        for align in self.alternatives().iter().chain(Self::ALL.iter()) {
-            let blocked = blocked_area(*align);
+        for align in values_to_try {
+            let blocked = blocked_area(align);
             if blocked == 0.0 {
-                return *align;
+                return align;
             }
             if blocked < best_area {
-                best = *align;
+                best = align;
                 best_area = blocked;
             }
         }
@@ -268,6 +277,7 @@ pub struct Popup<'a> {
     id: Id,
     pub anchor: PopupAnchor,
     position_align: PositionAlign,
+    alternative_aligns: Option<&'a [PositionAlign]>,
     /// If multiple popups are shown with the same widget id, they will be laid out so they don't overlap.
     widget_id: Option<Id>,
     layer_id: LayerId,
@@ -287,6 +297,7 @@ impl<'a> Popup<'a> {
         Self {
             id,
             position_align: PositionAlign::BOTTOM_START,
+            alternative_aligns: None,
             anchor: anchor.into(),
             widget_id: None,
             open_kind: OpenKind::Open,
@@ -304,8 +315,19 @@ impl<'a> Popup<'a> {
         self
     }
 
+    /// Set the position and alignment of the popup relative to the anchor.
+    /// This is the default position, and will be used if it fits.
+    /// See [`Self::position_alternatives`] for more on this.
     pub fn position(mut self, position_align: PositionAlign) -> Self {
         self.position_align = position_align;
+        self
+    }
+
+    /// Set alternative positions to try if the default one doesn't fit. Set to an empty slice to
+    /// always use the position you set with [`Self::position`].
+    /// By default, this will try the mirrored position and alignment, and then every other position
+    pub fn position_alternatives(mut self, alternatives: &'a [PositionAlign]) -> Self {
+        self.alternative_aligns = Some(alternatives);
         self
     }
 
@@ -323,6 +345,7 @@ impl<'a> Popup<'a> {
             kind: PopupKind::Popup,
             layer_id: response.layer_id,
             position_align: PositionAlign::BOTTOM_START,
+            alternative_aligns: None,
             gap: 0.0,
             widget_clicked_elsewhere: response.clicked_elsewhere(),
             width: Some(widget_rect.width()),
@@ -432,6 +455,36 @@ impl<'a> Popup<'a> {
         }
     }
 
+    pub fn get_best_align(&self, ctx: &Context) -> PositionAlign {
+        let expected_tooltip_size = AreaState::load(ctx, self.id)
+            .and_then(|area| area.size)
+            .unwrap_or(vec2(self.width.unwrap_or(0.0), 0.0));
+
+        let Some(anchor_rect) = self.anchor.rect(ctx) else {
+            return self.position_align;
+        };
+
+        PositionAlign::find_best_align(
+            #[allow(clippy::iter_on_empty_collections)]
+            once(self.position_align).chain(
+                self.alternative_aligns
+                    // Need the empty slice so the iters have the same type so we can unwrap_or
+                    .map(|a| a.iter().copied().chain([].iter().copied()))
+                    .unwrap_or(
+                        self.position_align
+                            .alternatives()
+                            .iter()
+                            .copied()
+                            .chain(PositionAlign::ALL.iter().copied()),
+                    ),
+            ),
+            ctx.screen_rect(),
+            anchor_rect,
+            self.gap,
+            expected_tooltip_size,
+        )
+    }
+
     /// Returns `None` if the popup is not open or anchor is `PopupAnchor::Pointer` and there is
     /// no pointer.
     pub fn show<R>(
@@ -439,6 +492,8 @@ impl<'a> Popup<'a> {
         ctx: &Context,
         content: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
+        let best_align = self.get_best_align(ctx);
+
         let Popup {
             id,
             anchor,
@@ -446,7 +501,8 @@ impl<'a> Popup<'a> {
             open_kind,
             kind,
             layer_id,
-            position_align,
+            position_align: _,
+            alternative_aligns: _,
             gap,
             widget_clicked_elsewhere,
             width,
@@ -490,17 +546,6 @@ impl<'a> Popup<'a> {
         }
 
         let anchor_rect = anchor.rect(ctx)?;
-
-        let expected_tooltip_size = AreaState::load(ctx, id)
-            .and_then(|area| area.size)
-            .unwrap_or(vec2(width.unwrap_or(0.0), 0.0));
-
-        let best_align = position_align.find_unblocked_align(
-            ctx.screen_rect(),
-            anchor_rect,
-            gap,
-            expected_tooltip_size,
-        );
 
         let (pivot, anchor) = best_align.pivot_anchor(anchor_rect, gap);
 
