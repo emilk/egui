@@ -52,6 +52,8 @@ fn custom_window_frame(ctx: &egui::Context, title: &str, add_contents: impl FnOn
         .outer_margin(1); // so the stroke is within the bounds
 
     CentralPanel::default().frame(panel_frame).show(ctx, |ui| {
+        handle_resize(ui);
+
         let app_rect = ui.max_rect();
 
         let title_bar_height = 32.0;
@@ -72,6 +74,48 @@ fn custom_window_frame(ctx: &egui::Context, title: &str, add_contents: impl FnOn
         let mut content_ui = ui.new_child(UiBuilder::new().max_rect(content_rect));
         add_contents(&mut content_ui);
     });
+}
+
+fn handle_resize(ui: &mut egui::Ui) -> bool {
+    let Some(pos) = ui.input(|i| i.pointer.interact_pos()) else {
+        return false;
+    };
+
+    let screen_rect = ui.ctx().screen_rect();
+
+    // Since this is the outermost layer of the viewport hence we cannot use extend on
+    // screen_rect to check if pointer is at an interaction position.
+    const SNAP_DIST: f32 = 5.0;
+
+    let east_snap = (screen_rect.right() - pos.x).abs() <= SNAP_DIST;
+    let west_snap = !east_snap && (screen_rect.left() - pos.x).abs() <= SNAP_DIST;
+    let south_snap = (screen_rect.bottom() - pos.y).abs() <= SNAP_DIST;
+    let north_snap = !south_snap && (screen_rect.top() - pos.y).abs() <= SNAP_DIST;
+
+    let possible_resize_direction = match (north_snap, east_snap, west_snap, south_snap) {
+        (true, true, false, false) => Some(egui::ResizeDirection::NorthEast),
+        (false, true, false, true) => Some(egui::ResizeDirection::SouthEast),
+        (true, false, true, false) => Some(egui::ResizeDirection::NorthWest),
+        (false, false, true, true) => Some(egui::ResizeDirection::SouthWest),
+        (true, false, false, false) => Some(egui::ResizeDirection::North),
+        (false, true, false, false) => Some(egui::ResizeDirection::East),
+        (false, false, true, false) => Some(egui::ResizeDirection::West),
+        (false, false, false, true) => Some(egui::ResizeDirection::South),
+        _ => None,
+    };
+
+    let Some(resize_direction) = possible_resize_direction else {
+        return false;
+    };
+
+    ui.output_mut(|o| o.cursor_icon = resize_direction.into());
+    if ui.input(|i| i.pointer.primary_pressed()) {
+        ui.ctx()
+            .send_viewport_cmd(ViewportCommand::BeginResize(resize_direction));
+        true
+    } else {
+        false
+    }
 }
 
 fn title_bar_ui(ui: &mut egui::Ui, title_bar_rect: eframe::epaint::Rect, title: &str) {
