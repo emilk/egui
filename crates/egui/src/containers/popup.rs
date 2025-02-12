@@ -1,18 +1,10 @@
 use crate::{
-    Area, AreaState, Context, Frame, Id, InnerResponse, Key, LayerId, Order, PointerButton,
-    Response, Sense, Ui, UiKind,
+    Area, AreaState, Context, Frame, Id, InnerResponse, Key, LayerId, Order, Response, Sense, Ui,
+    UiKind,
 };
 use emath::{vec2, Align, Align2, Pos2, Rect, Vec2};
-use std::iter::once;
 
-/// Indicate whether a popup will be shown above or below the box.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum AboveOrBelow {
-    Above,
-    Below,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PopupAnchor {
     Rect(Rect),
     Pointer,
@@ -34,15 +26,9 @@ impl From<Pos2> for PopupAnchor {
 impl PopupAnchor {
     pub fn rect(self, ctx: &Context) -> Option<Rect> {
         match self {
-            PopupAnchor::Rect(rect) => Some(rect),
-            PopupAnchor::Pointer => {
-                if let Some(pos) = ctx.pointer_hover_pos() {
-                    Some(Rect::from_pos(pos))
-                } else {
-                    None
-                }
-            }
-            PopupAnchor::Position(pos) => Some(Rect::from_pos(pos)),
+            Self::Rect(rect) => Some(rect),
+            Self::Pointer => ctx.pointer_hover_pos().map(Rect::from_pos),
+            Self::Position(pos) => Some(Rect::from_pos(pos)),
         }
     }
 }
@@ -64,13 +50,36 @@ pub enum PopupCloseBehavior {
     IgnoreClicks,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SetOpen {
+    DoNothing,
+    Bool(bool),
+    Toggle,
+}
+
+impl From<Option<bool>> for SetOpen {
+    fn from(opt: Option<bool>) -> Self {
+        match opt {
+            Some(true) => Self::Bool(true),
+            Some(false) => Self::Bool(false),
+            None => Self::DoNothing,
+        }
+    }
+}
+
+impl From<bool> for SetOpen {
+    fn from(b: bool) -> Self {
+        Self::Bool(b)
+    }
+}
+
 enum OpenKind<'a> {
     Open,
     Closed,
     // TODO: Do we need this? Without we could get rid of the lifetime
     Bool(&'a mut bool, PopupCloseBehavior),
     Memory {
-        set: Option<bool>,
+        set: SetOpen,
         close_behavior: PopupCloseBehavior,
     },
 }
@@ -86,14 +95,14 @@ impl<'a> OpenKind<'a> {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PopupKind {
     Popup,
     Tooltip,
     Menu,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Position {
     // TODO: Should we also support Center?
     Left,
@@ -121,7 +130,7 @@ pub enum Position {
 ///              └────────────┘  └──────┘  └──────────┘              
 /// ```
 // TODO: Find a better name for Position and PositionAlign
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PositionAlign(pub Position, pub Align);
 
 impl PositionAlign {
@@ -323,7 +332,11 @@ impl<'a> Popup<'a> {
 
     pub fn menu(response: &Response) -> Self {
         Self::from_response(response).open_memory(
-            response.clicked().then_some(true),
+            if response.clicked() {
+                SetOpen::Toggle
+            } else {
+                SetOpen::DoNothing
+            },
             PopupCloseBehavior::CloseOnClick,
         )
     }
@@ -348,11 +361,11 @@ impl<'a> Popup<'a> {
 
     pub fn open_memory(
         mut self,
-        set_state: Option<bool>,
+        set_state: impl Into<SetOpen>,
         close_behavior: PopupCloseBehavior,
     ) -> Self {
         self.open_kind = OpenKind::Memory {
-            set: set_state,
+            set: set_state.into(),
             close_behavior,
         };
         self
@@ -415,7 +428,7 @@ impl<'a> Popup<'a> {
             OpenKind::Open => true,
             OpenKind::Closed => false,
             OpenKind::Bool(open, _) => **open,
-            OpenKind::Memory { set, .. } => set.unwrap_or(false), // TODO
+            OpenKind::Memory { set, .. } => false, // TODO
         }
     }
 
@@ -440,12 +453,18 @@ impl<'a> Popup<'a> {
             sense,
         } = self;
 
-        if let OpenKind::Memory { set: Some(set), .. } = open_kind {
-            ctx.memory_mut(|mem| {
-                if set {
-                    mem.open_popup(id);
-                } else {
-                    mem.close_popup();
+        if let OpenKind::Memory { set, .. } = open_kind {
+            ctx.memory_mut(|mem| match set {
+                SetOpen::DoNothing => {}
+                SetOpen::Bool(open) => {
+                    if open {
+                        mem.open_popup(id);
+                    } else {
+                        mem.close_popup();
+                    }
+                }
+                SetOpen::Toggle => {
+                    mem.toggle_popup(id);
                 }
             });
         }

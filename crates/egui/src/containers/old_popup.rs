@@ -1,12 +1,10 @@
 //! Show popup windows, tooltips, context menus etc.
-
-use pass_state::PerWidgetTooltipState;
+#![allow(deprecated)]
 
 use crate::containers::tooltip::Tooltip;
 use crate::{
-    pass_state, vec2, AboveOrBelow, Align, Align2, Area, AreaState, Context, Frame, Id,
-    InnerResponse, Key, LayerId, Layout, Order, Popup, PopupAnchor, PopupCloseBehavior, Pos2,
-    PositionAlign, Rect, Response, Sense, Ui, UiKind, Vec2, Widget, WidgetText,
+    AboveOrBelow, Align, Context, Id, LayerId, Layout, Popup, PopupAnchor, PopupCloseBehavior,
+    Pos2, PositionAlign, Rect, Response, Ui, Widget, WidgetText,
 };
 // ----------------------------------------------------------------------------
 
@@ -216,63 +214,4 @@ pub fn popup_above_or_below_widget<R>(
             .inner
         })?;
     Some(response.inner)
-
-    // if !parent_ui.memory(|mem| mem.is_popup_open(popup_id)) {
-    //     return None;
-    // }
-    //
-    // let (mut pos, pivot) = match above_or_below {
-    //     AboveOrBelow::Above => (widget_response.rect.left_top(), Align2::LEFT_BOTTOM),
-    //     AboveOrBelow::Below => (widget_response.rect.left_bottom(), Align2::LEFT_TOP),
-    // };
-    //
-    // if let Some(to_global) = parent_ui
-    //     .ctx()
-    //     .layer_transform_to_global(parent_ui.layer_id())
-    // {
-    //     pos = to_global * pos;
-    // }
-    //
-    // let frame = Frame::popup(parent_ui.style());
-    // let frame_margin = frame.total_margin();
-    // let inner_width = (widget_response.rect.width() - frame_margin.sum().x).max(0.0);
-    //
-    // parent_ui.ctx().pass_state_mut(|fs| {
-    //     fs.layers
-    //         .entry(parent_ui.layer_id())
-    //         .or_default()
-    //         .open_popups
-    //         .insert(popup_id)
-    // });
-    //
-    // let response = Area::new(popup_id)
-    //     .kind(UiKind::Popup)
-    //     .order(Order::Foreground)
-    //     .fixed_pos(pos)
-    //     .default_width(inner_width)
-    //     .pivot(pivot)
-    //     .show(parent_ui.ctx(), |ui| {
-    //         frame
-    //             .show(ui, |ui| {
-    //                 ui.with_layout(Layout::top_down_justified(Align::LEFT), |ui| {
-    //                     ui.set_min_width(inner_width);
-    //                     add_contents(ui)
-    //                 })
-    //                 .inner
-    //             })
-    //             .inner
-    //     });
-    //
-    // let should_close = match close_behavior {
-    //     PopupCloseBehavior::CloseOnClick => widget_response.clicked_elsewhere(),
-    //     PopupCloseBehavior::CloseOnClickOutside => {
-    //         widget_response.clicked_elsewhere() && response.response.clicked_elsewhere()
-    //     }
-    //     PopupCloseBehavior::IgnoreClicks => false,
-    // };
-    //
-    // if parent_ui.input(|i| i.key_pressed(Key::Escape)) || should_close {
-    //     parent_ui.memory_mut(|mem| mem.close_popup());
-    // }
-    // Some(response.inner)
 }
