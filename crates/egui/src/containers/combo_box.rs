@@ -408,7 +408,7 @@ fn combo_box_dyn<'c, R>(
 
     let height = height.unwrap_or_else(|| ui.spacing().combo_height);
 
-    let inner = crate::popup::popup_above_or_below_widget(
+    let inner = crate::old_popup::popup_above_or_below_widget(
         ui,
         popup_id,
         &button_response,

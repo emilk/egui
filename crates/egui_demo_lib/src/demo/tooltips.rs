@@ -83,6 +83,9 @@ impl Tooltips {
                 ui.label("You can select this text.");
             });
 
+        ui.label("This tooltip shows at the mouse cursor.")
+            .on_hover_text_at_pointer("Move me around!!");
+
         ui.separator(); // ---------------------------------------------------------
 
         let tooltip_ui = |ui: &mut egui::Ui| {

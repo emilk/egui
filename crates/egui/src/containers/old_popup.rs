@@ -1,0 +1,273 @@
+//! Show popup windows, tooltips, context menus etc.
+
+use pass_state::PerWidgetTooltipState;
+
+use crate::containers::tooltip::Tooltip;
+use crate::{
+    pass_state, vec2, AboveOrBelow, Align, Align2, Area, AreaState, Context, Frame, Id,
+    InnerResponse, Key, LayerId, Layout, Order, Popup, PopupAnchor, PopupCloseBehavior, Pos2,
+    PositionAlign, Rect, Response, Sense, Ui, UiKind, Vec2, Widget, WidgetText,
+};
+// ----------------------------------------------------------------------------
+
+/// Show a tooltip at the current pointer position (if any).
+///
+/// Most of the time it is easier to use [`Response::on_hover_ui`].
+///
+/// See also [`show_tooltip_text`].
+///
+/// Returns `None` if the tooltip could not be placed.
+///
+/// ```
+/// # egui::__run_test_ui(|ui| {
+/// if ui.ui_contains_pointer() {
+///     egui::show_tooltip(ui.ctx(), ui.layer_id(), egui::Id::new("my_tooltip"), |ui| {
+///         ui.label("Helpful text");
+///     });
+/// }
+/// # });
+/// ```
+#[deprecated = "Use `egui::Tooltip` instead"]
+pub fn show_tooltip<R>(
+    ctx: &Context,
+    parent_layer: LayerId,
+    widget_id: Id,
+    add_contents: impl FnOnce(&mut Ui) -> R,
+) -> Option<R> {
+    show_tooltip_at_pointer(ctx, parent_layer, widget_id, add_contents)
+}
+
+/// Show a tooltip at the current pointer position (if any).
+///
+/// Most of the time it is easier to use [`Response::on_hover_ui`].
+///
+/// See also [`show_tooltip_text`].
+///
+/// Returns `None` if the tooltip could not be placed.
+///
+/// ```
+/// # egui::__run_test_ui(|ui| {
+/// if ui.ui_contains_pointer() {
+///     egui::show_tooltip_at_pointer(ui.ctx(), ui.layer_id(), egui::Id::new("my_tooltip"), |ui| {
+///         ui.label("Helpful text");
+///     });
+/// }
+/// # });
+/// ```
+#[deprecated = "Use `egui::Tooltip` instead"]
+pub fn show_tooltip_at_pointer<R>(
+    ctx: &Context,
+    parent_layer: LayerId,
+    widget_id: Id,
+    add_contents: impl FnOnce(&mut Ui) -> R,
+) -> Option<R> {
+    Tooltip::new(widget_id, PopupAnchor::Pointer, parent_layer)
+        .gap(12.0) // TODO: Set this gap by default for PopupAnchor::Pointer?
+        .show(ctx, add_contents)
+        .map(|response| response.inner)
+}
+
+/// Show a tooltip under the given area.
+///
+/// If the tooltip does not fit under the area, it tries to place it above it instead.
+pub fn show_tooltip_for<R>(
+    ctx: &Context,
+    parent_layer: LayerId,
+    widget_id: Id,
+    widget_rect: &Rect,
+    add_contents: impl FnOnce(&mut Ui) -> R,
+) -> R {
+    Tooltip::new(widget_id, *widget_rect, parent_layer)
+        .show(ctx, add_contents)
+        .unwrap() // TODO
+        .inner
+    // let is_touch_screen = ctx.input(|i| i.any_touches());
+    // let allow_placing_below = !is_touch_screen; // There is a finger below. TODO: Needed?
+    // show_tooltip_at_dyn(
+    //     ctx,
+    //     parent_layer,
+    //     widget_id,
+    //     allow_placing_below,
+    //     widget_rect,
+    //     Box::new(add_contents),
+    // )
+}
+
+/// Show a tooltip at the given position.
+///
+/// Returns `None` if the tooltip could not be placed.
+pub fn show_tooltip_at<R>(
+    ctx: &Context,
+    parent_layer: LayerId,
+    widget_id: Id,
+    suggested_position: Pos2,
+    add_contents: impl FnOnce(&mut Ui) -> R,
+) -> R {
+    Tooltip::new(widget_id, suggested_position, parent_layer)
+        .show(ctx, add_contents)
+        .unwrap() // TODO
+        .inner
+}
+
+/// Show some text at the current pointer position (if any).
+///
+/// Most of the time it is easier to use [`Response::on_hover_text`].
+///
+/// See also [`show_tooltip`].
+///
+/// Returns `None` if the tooltip could not be placed.
+///
+/// ```
+/// # egui::__run_test_ui(|ui| {
+/// if ui.ui_contains_pointer() {
+///     egui::show_tooltip_text(ui.ctx(), ui.layer_id(), egui::Id::new("my_tooltip"), "Helpful text");
+/// }
+/// # });
+/// ```
+pub fn show_tooltip_text(
+    ctx: &Context,
+    parent_layer: LayerId,
+    widget_id: Id,
+    text: impl Into<WidgetText>,
+) -> Option<()> {
+    show_tooltip(ctx, parent_layer, widget_id, |ui| {
+        crate::widgets::Label::new(text).ui(ui);
+    })
+}
+
+/// Was this tooltip visible last frame?
+#[deprecated = "Use `Tooltip::was_tooltip_open_last_frame` instead"]
+pub fn was_tooltip_open_last_frame(ctx: &Context, widget_id: Id) -> bool {
+    Tooltip::was_tooltip_open_last_frame(ctx, widget_id)
+}
+
+/// Helper for [`popup_above_or_below_widget`].
+pub fn popup_below_widget<R>(
+    ui: &Ui,
+    popup_id: Id,
+    widget_response: &Response,
+    close_behavior: PopupCloseBehavior,
+    add_contents: impl FnOnce(&mut Ui) -> R,
+) -> Option<R> {
+    popup_above_or_below_widget(
+        ui,
+        popup_id,
+        widget_response,
+        AboveOrBelow::Below,
+        close_behavior,
+        add_contents,
+    )
+}
+
+/// Shows a popup above or below another widget.
+///
+/// Useful for drop-down menus (combo boxes) or suggestion menus under text fields.
+///
+/// The opened popup will have a minimum width matching its parent.
+///
+/// You must open the popup with [`crate::Memory::open_popup`] or  [`crate::Memory::toggle_popup`].
+///
+/// Returns `None` if the popup is not open.
+///
+/// ```
+/// # egui::__run_test_ui(|ui| {
+/// let response = ui.button("Open popup");
+/// let popup_id = ui.make_persistent_id("my_unique_id");
+/// if response.clicked() {
+///     ui.memory_mut(|mem| mem.toggle_popup(popup_id));
+/// }
+/// let below = egui::AboveOrBelow::Below;
+/// let close_on_click_outside = egui::old_popup::PopupCloseBehavior::CloseOnClickOutside;
+/// egui::old_popup::popup_above_or_below_widget(ui, popup_id, &response, below, close_on_click_outside, |ui| {
+///     ui.set_min_width(200.0); // if you want to control the size
+///     ui.label("Some more info, or things you can select:");
+///     ui.label("…");
+/// });
+/// # });
+/// ```
+pub fn popup_above_or_below_widget<R>(
+    parent_ui: &Ui,
+    popup_id: Id,
+    widget_response: &Response,
+    above_or_below: AboveOrBelow,
+    close_behavior: PopupCloseBehavior,
+    add_contents: impl FnOnce(&mut Ui) -> R,
+) -> Option<R> {
+    let response = Popup::from_response(widget_response)
+        .open_memory(None, close_behavior)
+        .id(popup_id)
+        .position(match above_or_below {
+            AboveOrBelow::Above => PositionAlign::TOP_START,
+            AboveOrBelow::Below => PositionAlign::BOTTOM_START,
+        })
+        // TODO: Should we expose this as an option? It should probably not be the default
+        .width(widget_response.rect.width())
+        .show(parent_ui.ctx(), |ui| {
+            // TODO: Should we have a layout option? Maybe also on Area? Maybe even expose UiBuilder on Area?
+            ui.with_layout(Layout::top_down_justified(Align::LEFT), |ui| {
+                ui.set_min_width(ui.available_width());
+                add_contents(ui)
+            })
+            .inner
+        })?;
+    Some(response.inner)
+
+    // if !parent_ui.memory(|mem| mem.is_popup_open(popup_id)) {
+    //     return None;
+    // }
+    //
+    // let (mut pos, pivot) = match above_or_below {
+    //     AboveOrBelow::Above => (widget_response.rect.left_top(), Align2::LEFT_BOTTOM),
+    //     AboveOrBelow::Below => (widget_response.rect.left_bottom(), Align2::LEFT_TOP),
+    // };
+    //
+    // if let Some(to_global) = parent_ui
+    //     .ctx()
+    //     .layer_transform_to_global(parent_ui.layer_id())
+    // {
+    //     pos = to_global * pos;
+    // }
+    //
+    // let frame = Frame::popup(parent_ui.style());
+    // let frame_margin = frame.total_margin();
+    // let inner_width = (widget_response.rect.width() - frame_margin.sum().x).max(0.0);
+    //
+    // parent_ui.ctx().pass_state_mut(|fs| {
+    //     fs.layers
+    //         .entry(parent_ui.layer_id())
+    //         .or_default()
+    //         .open_popups
+    //         .insert(popup_id)
+    // });
+    //
+    // let response = Area::new(popup_id)
+    //     .kind(UiKind::Popup)
+    //     .order(Order::Foreground)
+    //     .fixed_pos(pos)
+    //     .default_width(inner_width)
+    //     .pivot(pivot)
+    //     .show(parent_ui.ctx(), |ui| {
+    //         frame
+    //             .show(ui, |ui| {
+    //                 ui.with_layout(Layout::top_down_justified(Align::LEFT), |ui| {
+    //                     ui.set_min_width(inner_width);
+    //                     add_contents(ui)
+    //                 })
+    //                 .inner
+    //             })
+    //             .inner
+    //     });
+    //
+    // let should_close = match close_behavior {
+    //     PopupCloseBehavior::CloseOnClick => widget_response.clicked_elsewhere(),
+    //     PopupCloseBehavior::CloseOnClickOutside => {
+    //         widget_response.clicked_elsewhere() && response.response.clicked_elsewhere()
+    //     }
+    //     PopupCloseBehavior::IgnoreClicks => false,
+    // };
+    //
+    // if parent_ui.input(|i| i.key_pressed(Key::Escape)) || should_close {
+    //     parent_ui.memory_mut(|mem| mem.close_popup());
+    // }
+    // Some(response.inner)
+}
