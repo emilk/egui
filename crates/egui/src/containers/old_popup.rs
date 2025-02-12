@@ -70,6 +70,7 @@ pub fn show_tooltip_at_pointer<R>(
 /// Show a tooltip under the given area.
 ///
 /// If the tooltip does not fit under the area, it tries to place it above it instead.
+#[deprecated = "Use `egui::Tooltip` instead"]
 pub fn show_tooltip_for<R>(
     ctx: &Context,
     parent_layer: LayerId,
@@ -96,6 +97,7 @@ pub fn show_tooltip_for<R>(
 /// Show a tooltip at the given position.
 ///
 /// Returns `None` if the tooltip could not be placed.
+#[deprecated = "Use `egui::Tooltip` instead"]
 pub fn show_tooltip_at<R>(
     ctx: &Context,
     parent_layer: LayerId,
@@ -124,6 +126,7 @@ pub fn show_tooltip_at<R>(
 /// }
 /// # });
 /// ```
+#[deprecated = "Use `egui::Tooltip` instead"]
 pub fn show_tooltip_text(
     ctx: &Context,
     parent_layer: LayerId,
@@ -142,6 +145,7 @@ pub fn was_tooltip_open_last_frame(ctx: &Context, widget_id: Id) -> bool {
 }
 
 /// Helper for [`popup_above_or_below_widget`].
+#[deprecated = "Use `egui::Popup` instead"]
 pub fn popup_below_widget<R>(
     ui: &Ui,
     popup_id: Id,
@@ -185,6 +189,7 @@ pub fn popup_below_widget<R>(
 /// });
 /// # });
 /// ```
+#[deprecated = "Use `egui::Popup` instead"]
 pub fn popup_above_or_below_widget<R>(
     parent_ui: &Ui,
     popup_id: Id,
