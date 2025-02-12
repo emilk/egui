@@ -55,3 +55,48 @@ You should add the following to your `.gitignore`:
 **/tests/snapshots/**/*.diff.png
 **/tests/snapshots/**/*.new.png
 ```
+
+### Guidelines for writing snapshot tests
+
+* Whenever **possible** prefer regular Rust tests or `insta` snapshot tests over image comparison tests because…
+  * …they are slow to run
+  * …they are brittle since unrelated side effects (like a change in color) can cause the test to fail
+  * …images take up repo space
+* images should…
+  * …be checked in as LFS file
+  * …depict exactly what's tested and nothing else
+  * …have a low resolution to avoid growth in repo size
+  * …have a low comparison threshold to avoid the test passing despite unwanted differences
+
+### Why does CI / another computer produce a different image?
+
+First check whether the difference is due to a change in enabled rendering features, potentially due to difference in hardware (/software renderer) capabilitites.
+Generally you should carefully enforcing the same set of features for all test runs, but this may happen nonetheless|
+
+However, smaller discrepancies may be caused by a variety of implementation details depending on the concrete GPU/OS/rendering backend/graphics driver (even between different versions of the same driver).
+For instance:
+* multi-sample anti-aliasing
+  * sample placement and sample resolve steps are implementation defined
+  * alpha-to-coverage algorithm/pattern can wary wildly between implementations
+* texture filtering
+  * different implementations may apply different optimizations *even* for simple linear texture filtering
+* out of bounds texture access (via `textureLoad`)
+  * implementations are free to return indeterminate values instead of clamping
+* floating point evaluation, for details see [WGSL spec § 15.7. Floating Point Evaluation](https://www.w3.org/TR/WGSL/#floating-point-evaluation). Notably:
+  * rounding mode may be inconsistent
+  * floating point math "optimizations" may occur
+    * depending on output shading language, different arithmetic optimizations may be performed upon floating point operations even if they change the result
+  * floating point denormal flush
+    * even on modern implementations, denormal float values may be flushed to zero
+  * `NaN`/`Inf` handling
+    * whenever the result of a function should yield `NaN`/`Inf`, implementations may free to yield an indeterminate value instead
+  * builtin-function function precision & error handling (trigonometric functions and others)
+* [partial derivatives (dpdx/dpdx)](https://www.w3.org/TR/WGSL/#dpdx-builtin)
+  * implementations are free to use either `dpdxFine` or `dpdxCoarse`
+* [...]
+
+From this follow a few simple recommendations (these may or may not apply as they may impose unwanted restrictions on your rendering setup):
+* avoid enabling mult-sample anti-aliasing whenever it's not explicitly tested or needed
+* do not rely on NaN, Inf and denormal float values
+* consider dedicated test paths for texture sampling
+* prefer explicit partial derivative functions
