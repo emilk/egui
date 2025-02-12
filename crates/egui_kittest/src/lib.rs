@@ -219,17 +219,22 @@ impl<'a, State> Harness<'a, State> {
         self
     }
 
-    /// Run a frame.
-    /// This will call the app closure with the queued events and current context and
+    /// Run a frame for each queued event (or a single frame if there are no events).
+    /// This will call the app closure with each queued event and
     /// update the Harness.
     pub fn step(&mut self) {
-        self._step(false);
+        let events = self.kittest.take_events();
+        if events.is_empty() {
+            self._step(false);
+        }
+        for event in events {
+            self.event_state.update(event, &mut self.input);
+            self._step(false);
+        }
     }
 
+    /// Run a single step. This will not process any events.
     fn _step(&mut self, sizing_pass: bool) {
-        self.event_state
-            .update(self.kittest.take_events(), &mut self.input);
-
         self.input.predicted_dt = self.step_dt;
 
         let mut output = self.ctx.run(self.input.take(), |ctx| {
