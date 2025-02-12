@@ -105,7 +105,7 @@ impl<'a> Tooltip<'a> {
                 .get(&widget_id)
                 .copied()
                 .unwrap_or(PerWidgetTooltipState {
-                    bounding_rect: rect, // TODO: Set the appropriate bounding rect
+                    bounding_rect: rect,
                     tooltip_count: 0,
                 })
         });

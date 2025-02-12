@@ -119,19 +119,19 @@ impl PositionAlign {
     pub const LEFT_END: Self = Self(Position::Left, Align::Max);
 
     pub fn pivot_anchor(&self, rect: Rect, gap: f32) -> (Align2, Pos2) {
-        let (pivot, mut anchor) = match self {
-            &Self::TOP_START => (Align2::LEFT_BOTTOM, rect.left_top()),
-            &Self::TOP => (Align2::CENTER_BOTTOM, rect.center_top()),
-            &Self::TOP_END => (Align2::RIGHT_BOTTOM, rect.right_top()),
-            &Self::RIGHT_START => (Align2::LEFT_TOP, rect.right_top()),
-            &Self::RIGHT => (Align2::LEFT_CENTER, rect.right_center()),
-            &Self::RIGHT_END => (Align2::LEFT_BOTTOM, rect.right_bottom()),
-            &Self::BOTTOM_START => (Align2::LEFT_TOP, rect.left_bottom()),
-            &Self::BOTTOM => (Align2::CENTER_TOP, rect.center_bottom()),
-            &Self::BOTTOM_END => (Align2::RIGHT_TOP, rect.right_bottom()),
-            &Self::LEFT_START => (Align2::RIGHT_TOP, rect.left_top()),
-            &Self::LEFT => (Align2::RIGHT_CENTER, rect.left_center()),
-            &Self::LEFT_END => (Align2::RIGHT_BOTTOM, rect.left_bottom()),
+        let (pivot, mut anchor) = match *self {
+            Self::TOP_START => (Align2::LEFT_BOTTOM, rect.left_top()),
+            Self::TOP => (Align2::CENTER_BOTTOM, rect.center_top()),
+            Self::TOP_END => (Align2::RIGHT_BOTTOM, rect.right_top()),
+            Self::RIGHT_START => (Align2::LEFT_TOP, rect.right_top()),
+            Self::RIGHT => (Align2::LEFT_CENTER, rect.right_center()),
+            Self::RIGHT_END => (Align2::LEFT_BOTTOM, rect.right_bottom()),
+            Self::BOTTOM_START => (Align2::LEFT_TOP, rect.left_bottom()),
+            Self::BOTTOM => (Align2::CENTER_TOP, rect.center_bottom()),
+            Self::BOTTOM_END => (Align2::RIGHT_TOP, rect.right_bottom()),
+            Self::LEFT_START => (Align2::RIGHT_TOP, rect.left_top()),
+            Self::LEFT => (Align2::RIGHT_CENTER, rect.left_center()),
+            Self::LEFT_END => (Align2::RIGHT_BOTTOM, rect.left_bottom()),
         };
         match self.0 {
             Position::Top => anchor.y -= gap,
@@ -367,15 +367,11 @@ impl<'a> Popup<'a> {
             .fixed_pos(anchor)
             .sense(sense);
 
-        dbg!(area.id);
-
         if let Some(width) = width {
             area = area.default_width(width);
         }
 
-        let response = area
-            .sense(Sense::hover()) // don't click to bring to front // TODO
-            .show(ctx, |ui| Frame::popup(&ctx.style()).show(ui, content).inner);
+        let response = area.show(ctx, |ui| Frame::popup(&ctx.style()).show(ui, content).inner);
 
         let should_close = |close_behavior| {
             let should_close = match close_behavior {
@@ -390,8 +386,7 @@ impl<'a> Popup<'a> {
         };
 
         match open_kind {
-            OpenKind::Open => {}
-            OpenKind::Closed => {}
+            OpenKind::Open | OpenKind::Closed => {}
             OpenKind::Bool(open, close_behavior) => {
                 if should_close(close_behavior) {
                     *open = false;
