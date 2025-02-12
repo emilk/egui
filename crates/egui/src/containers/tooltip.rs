@@ -104,6 +104,7 @@ impl<'a> Tooltip<'a> {
                 .widget_tooltips
                 .get(&widget_id)
                 .copied()
+                // TODO: Should this be moved to popup?
                 .unwrap_or(PerWidgetTooltipState {
                     bounding_rect: rect,
                     tooltip_count: 0,
@@ -111,20 +112,6 @@ impl<'a> Tooltip<'a> {
         });
 
         let tooltip_area_id = Self::tooltip_id(widget_id, state.tooltip_count);
-        let expected_tooltip_size = AreaState::load(ctx, tooltip_area_id)
-            .and_then(|area| area.size)
-            .unwrap_or(vec2(64.0, 32.0));
-
-        let screen_rect = ctx.screen_rect();
-
-        // TODO: Search for best position in popup
-        let (pivot, anchor) = Self::find_tooltip_position(
-            screen_rect,
-            state.bounding_rect,
-            allow_placing_below,
-            expected_tooltip_size,
-        );
-
         popup = popup.anchor(state.bounding_rect).id(tooltip_area_id);
 
         let response = popup.show(ctx, |ui| {
@@ -183,60 +170,6 @@ impl<'a> Tooltip<'a> {
 
     pub fn tooltip_id(widget_id: Id, tooltip_count: usize) -> Id {
         widget_id.with(tooltip_count)
-    }
-
-    /// Returns `(PIVOT, POS)` to mean: put the `PIVOT` corner of the tooltip at `POS`.
-    ///
-    /// Note: the position might need to be constrained to the screen,
-    /// (e.g. moved sideways if shown under the widget)
-    /// but the `Area` will take care of that.
-    // TODO: Remove
-    fn find_tooltip_position(
-        screen_rect: Rect,
-        widget_rect: Rect,
-        allow_placing_below: bool,
-        tooltip_size: Vec2,
-    ) -> (Align2, Pos2) {
-        let spacing = 4.0;
-
-        // Does it fit below?
-        if allow_placing_below
-            && widget_rect.bottom() + spacing + tooltip_size.y <= screen_rect.bottom()
-        {
-            return (
-                Align2::LEFT_TOP,
-                widget_rect.left_bottom() + spacing * Vec2::DOWN,
-            );
-        }
-
-        // Does it fit above?
-        if screen_rect.top() + tooltip_size.y + spacing <= widget_rect.top() {
-            return (
-                Align2::LEFT_BOTTOM,
-                widget_rect.left_top() + spacing * Vec2::UP,
-            );
-        }
-
-        // Does it fit to the right?
-        if widget_rect.right() + spacing + tooltip_size.x <= screen_rect.right() {
-            return (
-                Align2::LEFT_TOP,
-                widget_rect.right_top() + spacing * Vec2::RIGHT,
-            );
-        }
-
-        // Does it fit to the left?
-        if screen_rect.left() + tooltip_size.x + spacing <= widget_rect.left() {
-            return (
-                Align2::RIGHT_TOP,
-                widget_rect.left_top() + spacing * Vec2::LEFT,
-            );
-        }
-
-        // It doesn't fit anywhere :(
-
-        // Just show it anyway:
-        (Align2::LEFT_TOP, screen_rect.left_top())
     }
 
     /// Should we show a tooltip for this response?
