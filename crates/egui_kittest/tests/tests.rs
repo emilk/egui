@@ -22,6 +22,7 @@ fn test_modifiers() {
     struct State {
         cmd_clicked: bool,
         cmd_z_pressed: bool,
+        cmd_y_pressed: bool,
     }
     let mut harness = Harness::new_ui_state(
         |ui, state| {
@@ -31,6 +32,9 @@ fn test_modifiers() {
             if ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::Z)) {
                 state.cmd_z_pressed = true;
             }
+            if ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::Y)) {
+                state.cmd_y_pressed = true;
+            }
         },
         State::default(),
     );
@@ -39,18 +43,17 @@ fn test_modifiers() {
     // This run isn't necessary, but allows us to test whether modifiers are remembered between frames
     harness.run();
     harness.get_by_label("Click me").click();
-    // TODO(lucasmerlin): Right now the key_up needs to happen on a separate frame or it won't register.
-    // This should be more intuitive
-    harness.run();
     harness.get_by_label("Click me").key_up(Key::Command);
-
     harness.run();
 
     harness.press_key_modifiers(Modifiers::COMMAND, egui::Key::Z);
-    // TODO(lucasmerlin): This should also work (Same problem as above)
-    // harness.node().key_combination(&[Key::Command, Key::Z]);
+    harness.run();
+
+    harness.node().key_combination(&[Key::Command, Key::Y]);
+    harness.run();
 
     let state = harness.state();
     assert!(state.cmd_clicked, "The button wasn't command-clicked");
     assert!(state.cmd_z_pressed, "Cmd+Z wasn't pressed");
+    assert!(state.cmd_y_pressed, "Cmd+Y wasn't pressed");
 }
