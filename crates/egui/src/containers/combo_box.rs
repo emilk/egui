@@ -3,8 +3,8 @@ use epaint::Shape;
 
 use crate::{
     epaint, style::WidgetVisuals, vec2, Align2, Context, Id, InnerResponse, Layout, NumExt,
-    Painter, Popup, PopupCloseBehavior, PositionAlign, Rect, Response, ScrollArea, Sense, Stroke,
-    TextStyle, TextWrapMode, Ui, UiBuilder, Vec2, WidgetInfo, WidgetText, WidgetType,
+    Painter, Popup, PopupCloseBehavior, Rect, Response, ScrollArea, Sense, Stroke, TextStyle,
+    TextWrapMode, Ui, UiBuilder, Vec2, WidgetInfo, WidgetText, WidgetType,
 };
 
 #[allow(unused_imports)] // Documentation

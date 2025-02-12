@@ -42,9 +42,9 @@ impl crate::View for ContextMenus {
             Popup::context_menu(&response).show(ui.ctx(), Self::nested_menus);
 
             ComboBox::new("Hi", "Hi").show_ui(ui, |ui| {
-                ui.selectable_label(false, "I have some long text that should be wrapped");
-                ui.selectable_label(false, "Short");
-                ui.selectable_label(false, "Medium length");
+                _ = ui.selectable_label(false, "I have some long text that should be wrapped");
+                _ = ui.selectable_label(false, "Short");
+                _ = ui.selectable_label(false, "Medium length");
             });
         });
 

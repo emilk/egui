@@ -52,7 +52,7 @@ pub enum PopupCloseBehavior {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum SetOpen {
+pub enum SetOpen {
     DoNothing,
     Bool(bool),
     Toggle,
@@ -279,7 +279,6 @@ pub struct Popup<'a> {
     position_align: PositionAlign,
     alternative_aligns: Option<&'a [PositionAlign]>,
     /// If multiple popups are shown with the same widget id, they will be laid out so they don't overlap.
-    widget_id: Option<Id>,
     layer_id: LayerId,
     open_kind: OpenKind<'a>,
     kind: PopupKind,
@@ -299,7 +298,6 @@ impl<'a> Popup<'a> {
             position_align: PositionAlign::BOTTOM_START,
             alternative_aligns: None,
             anchor: anchor.into(),
-            widget_id: None,
             open_kind: OpenKind::Open,
             kind: PopupKind::Popup,
             layer_id,
@@ -340,7 +338,6 @@ impl<'a> Popup<'a> {
         Self {
             id: response.id.with("popup"),
             anchor: PopupAnchor::Rect(widget_rect),
-            widget_id: Some(response.id),
             open_kind: OpenKind::Open,
             kind: PopupKind::Popup,
             layer_id: response.layer_id,
@@ -394,15 +391,18 @@ impl<'a> Popup<'a> {
         self
     }
 
+    pub fn open_bool(mut self, open: &'a mut bool, close_behavior: PopupCloseBehavior) -> Self {
+        self.open_kind = OpenKind::Bool(open, close_behavior);
+        self
+    }
+
     pub fn close_behavior(mut self, close_behavior: PopupCloseBehavior) -> Self {
         match &mut self.open_kind {
-            OpenKind::Bool(_, behavior) => {
-                *behavior = close_behavior;
-            }
             OpenKind::Memory {
                 close_behavior: behavior,
                 ..
-            } => {
+            }
+            | OpenKind::Bool(_, behavior) => {
                 *behavior = close_behavior;
             }
             _ => {}
@@ -446,12 +446,12 @@ impl<'a> Popup<'a> {
         self
     }
 
-    pub fn is_open(&self) -> bool {
+    pub fn is_open(&self, ctx: &Context) -> bool {
         match &self.open_kind {
             OpenKind::Open => true,
             OpenKind::Closed => false,
             OpenKind::Bool(open, _) => **open,
-            OpenKind::Memory { set, .. } => false, // TODO
+            OpenKind::Memory { .. } => ctx.memory(|mem| mem.is_popup_open(self.id)),
         }
     }
 
@@ -497,7 +497,6 @@ impl<'a> Popup<'a> {
         let Popup {
             id,
             anchor,
-            widget_id,
             open_kind,
             kind,
             layer_id,

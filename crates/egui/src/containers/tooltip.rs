@@ -1,6 +1,7 @@
 use crate::pass_state::PerWidgetTooltipState;
 use crate::{
     AreaState, Context, Id, InnerResponse, LayerId, Order, Popup, PopupAnchor, PopupKind, Response,
+    Sense,
 };
 use emath::Vec2;
 
@@ -8,7 +9,6 @@ pub struct Tooltip<'a> {
     popup: Popup<'a>,
     layer_id: LayerId,
     widget_id: Id,
-    allow_placing_below: bool,
 }
 
 impl<'a> Tooltip<'a> {
@@ -18,10 +18,10 @@ impl<'a> Tooltip<'a> {
             // TODO: Set width somehow (we're missing context here)
             popup: Popup::new(widget_id, anchor.into(), layer_id)
                 .kind(PopupKind::Tooltip)
-                .gap(4.0),
+                .gap(4.0)
+                .sense(Sense::hover()),
             layer_id,
             widget_id,
-            allow_placing_below: true,
         }
     }
 
@@ -30,15 +30,12 @@ impl<'a> Tooltip<'a> {
         let popup = Popup::from_response(response)
             .kind(PopupKind::Tooltip)
             .gap(4.0)
-            .width(response.ctx.style().spacing.tooltip_width);
-        // TODO: Do we still need allow_placing_below?
-        // it was only in show_tooltip_for and that is not used anywhere in egui or rerun
-        let allow_placing_below = true;
+            .width(response.ctx.style().spacing.tooltip_width)
+            .sense(Sense::hover());
         Self {
             popup,
             layer_id: response.layer_id,
             widget_id: response.id,
-            allow_placing_below,
         }
     }
 
@@ -84,10 +81,9 @@ impl<'a> Tooltip<'a> {
             mut popup,
             layer_id: parent_layer,
             widget_id,
-            allow_placing_below,
         } = self;
 
-        if !popup.is_open() {
+        if !popup.is_open(ctx) {
             return None;
         }
 
