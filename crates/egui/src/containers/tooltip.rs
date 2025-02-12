@@ -300,8 +300,6 @@ impl<'a> Tooltip<'a> {
                     .any(|w| w.enabled && w.sense.interactive())
             });
 
-            dbg!(tooltip_has_interactive_widget);
-
             if tooltip_has_interactive_widget {
                 // We keep the tooltip open if hovered,
                 // or if the pointer is on its way to it,
@@ -422,7 +420,6 @@ impl<'a> Tooltip<'a> {
     /// Was this tooltip visible last frame?
     pub fn was_tooltip_open_last_frame(ctx: &Context, widget_id: Id) -> bool {
         let primary_tooltip_area_id = Self::tooltip_id(widget_id, 0);
-        dbg!(primary_tooltip_area_id);
         ctx.memory(|mem| {
             mem.areas()
                 .visible_last_frame(&LayerId::new(Order::Tooltip, primary_tooltip_area_id))

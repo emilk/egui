@@ -564,6 +564,7 @@ impl Response {
     pub fn on_hover_ui_at_pointer(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
         Tooltip::for_enabled(&self)
             .at_pointer()
+            .gap(12.0)
             .show(&self.ctx, add_contents);
         self
     }

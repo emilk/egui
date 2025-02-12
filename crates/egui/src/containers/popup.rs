@@ -1,8 +1,9 @@
 use crate::{
-    Area, Context, Frame, Id, InnerResponse, Key, LayerId, Order, PointerButton, Response, Sense,
-    Ui, UiKind,
+    Area, AreaState, Context, Frame, Id, InnerResponse, Key, LayerId, Order, PointerButton,
+    Response, Sense, Ui, UiKind,
 };
-use emath::{Align, Align2, Pos2, Rect};
+use emath::{vec2, Align, Align2, Pos2, Rect, Vec2};
+use std::iter::once;
 
 /// Indicate whether a popup will be shown above or below the box.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -66,6 +67,7 @@ pub enum PopupCloseBehavior {
 enum OpenKind<'a> {
     Open,
     Closed,
+    // TODO: Do we need this? Without we could get rid of the lifetime
     Bool(&'a mut bool, PopupCloseBehavior),
     Memory {
         set: Option<bool>,
@@ -93,6 +95,7 @@ pub enum PopupKind {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Position {
+    // TODO: Should we also support Center?
     Left,
     Right,
     Top,
@@ -118,20 +121,54 @@ impl PositionAlign {
     pub const LEFT: Self = Self(Position::Left, Align::Center);
     pub const LEFT_END: Self = Self(Position::Left, Align::Max);
 
+    pub const ALL: [Self; 12] = [
+        Self::TOP_START,
+        Self::TOP_END,
+        Self::RIGHT_START,
+        Self::RIGHT_END,
+        Self::BOTTOM_END,
+        Self::BOTTOM_START,
+        Self::LEFT_END,
+        Self::LEFT_START,
+        // These come last on purpose, we want to prefer the corner ones
+        Self::TOP,
+        Self::RIGHT,
+        Self::BOTTOM,
+        Self::LEFT,
+    ];
+
+    pub fn align_rect(&self, rect: Rect, gap: f32, size: Vec2) -> Rect {
+        let (pivot, anchor) = self.pivot_anchor(rect, gap);
+        pivot.anchor_size(anchor, size)
+    }
+
     pub fn pivot_anchor(&self, rect: Rect, gap: f32) -> (Align2, Pos2) {
-        let (pivot, mut anchor) = match *self {
-            Self::TOP_START => (Align2::LEFT_BOTTOM, rect.left_top()),
-            Self::TOP => (Align2::CENTER_BOTTOM, rect.center_top()),
-            Self::TOP_END => (Align2::RIGHT_BOTTOM, rect.right_top()),
-            Self::RIGHT_START => (Align2::LEFT_TOP, rect.right_top()),
-            Self::RIGHT => (Align2::LEFT_CENTER, rect.right_center()),
-            Self::RIGHT_END => (Align2::LEFT_BOTTOM, rect.right_bottom()),
-            Self::BOTTOM_START => (Align2::LEFT_TOP, rect.left_bottom()),
-            Self::BOTTOM => (Align2::CENTER_TOP, rect.center_bottom()),
-            Self::BOTTOM_END => (Align2::RIGHT_TOP, rect.right_bottom()),
-            Self::LEFT_START => (Align2::RIGHT_TOP, rect.left_top()),
-            Self::LEFT => (Align2::RIGHT_CENTER, rect.left_center()),
-            Self::LEFT_END => (Align2::RIGHT_BOTTOM, rect.left_bottom()),
+        (self.pivot_align(), self.anchor(rect, gap))
+    }
+
+    pub fn pivot_align(&self) -> Align2 {
+        match *self {
+            Self::TOP => Align2::CENTER_BOTTOM,
+            Self::RIGHT => Align2::LEFT_CENTER,
+            Self::BOTTOM => Align2::CENTER_TOP,
+            Self::LEFT => Align2::RIGHT_CENTER,
+            Self::TOP_START | Self::RIGHT_END => Align2::LEFT_BOTTOM,
+            Self::TOP_END | Self::LEFT_END => Align2::RIGHT_BOTTOM,
+            Self::RIGHT_START | Self::BOTTOM_START => Align2::LEFT_TOP,
+            Self::LEFT_START | Self::BOTTOM_END => Align2::RIGHT_TOP,
+        }
+    }
+
+    pub fn anchor(&self, rect: Rect, gap: f32) -> Pos2 {
+        let mut anchor = match *self {
+            Self::TOP => rect.center_top(),
+            Self::RIGHT => rect.right_center(),
+            Self::BOTTOM => rect.center_bottom(),
+            Self::LEFT => rect.left_center(),
+            Self::TOP_START | Self::LEFT_START => rect.left_top(),
+            Self::TOP_END | Self::RIGHT_START => rect.right_top(),
+            Self::RIGHT_END | Self::BOTTOM_END => rect.right_bottom(),
+            Self::BOTTOM_START | Self::LEFT_END => rect.left_bottom(),
         };
         match self.0 {
             Position::Top => anchor.y -= gap,
@@ -139,7 +176,65 @@ impl PositionAlign {
             Position::Bottom => anchor.y += gap,
             Position::Left => anchor.x -= gap,
         }
-        (pivot, anchor)
+        anchor
+    }
+
+    fn alternatives(&self) -> [Self; 4] {
+        let Self(pos, align) = *self;
+        let mirrored_pos = match pos {
+            Position::Top => Position::Bottom,
+            Position::Right => Position::Left,
+            Position::Bottom => Position::Top,
+            Position::Left => Position::Right,
+        };
+        let mirrored_align = match align {
+            Align::Min => Align::Max,
+            Align::Center => Align::Center,
+            Align::Max => Align::Min,
+        };
+        [
+            Self(mirrored_pos, align),
+            Self(pos, mirrored_align),
+            Self(mirrored_pos, mirrored_align),
+            Self(pos, Align::Center),
+        ]
+    }
+
+    /// Look for the [`PositionAlign`] that fits best in the available space.
+    /// Starts with `self` and `self.mirrored()`, then tries all other positions.
+    fn find_unblocked_align(
+        &self,
+        available_space: Rect,
+        widget_rect: Rect,
+        gap: f32,
+        size: Vec2,
+    ) -> Self {
+        let area = size.x * size.y;
+
+        let blocked_area = |pos: Self| {
+            let rect = pos.align_rect(widget_rect, gap, size);
+            area - available_space.intersect(rect).area()
+        };
+
+        if blocked_area(*self) == 0.0 {
+            return *self;
+        }
+
+        let mut best_area = blocked_area(*self);
+        let mut best = *self;
+
+        for align in self.alternatives().iter().chain(Self::ALL.iter()) {
+            let blocked = blocked_area(*align);
+            if blocked == 0.0 {
+                return *align;
+            }
+            if blocked < best_area {
+                best = *align;
+                best_area = blocked;
+            }
+        }
+
+        best
     }
 }
 
@@ -217,10 +312,12 @@ impl<'a> Popup<'a> {
     }
 
     pub fn context_menu(response: &Response) -> Self {
-        Self::from_response(response).open_memory(
-            response.secondary_clicked().then_some(true),
-            PopupCloseBehavior::CloseOnClick,
-        )
+        Self::from_response(response)
+            .open_memory(
+                response.secondary_clicked().then_some(true),
+                PopupCloseBehavior::CloseOnClick,
+            )
+            .at_pointer()
     }
 
     pub fn open(mut self, open: bool) -> Self {
@@ -358,7 +455,18 @@ impl<'a> Popup<'a> {
 
         let anchor_rect = anchor.rect(ctx)?;
 
-        let (pivot, anchor) = position_align.pivot_anchor(anchor_rect, gap);
+        let expected_tooltip_size = AreaState::load(ctx, id)
+            .and_then(|area| area.size)
+            .unwrap_or(vec2(width.unwrap_or(0.0), 0.0));
+
+        let best_align = position_align.find_unblocked_align(
+            ctx.screen_rect(),
+            anchor_rect,
+            gap,
+            expected_tooltip_size,
+        );
+
+        let (pivot, anchor) = best_align.pivot_anchor(anchor_rect, gap);
 
         let mut area = Area::new(id)
             .order(order)

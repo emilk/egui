@@ -1,3 +1,5 @@
+use egui::Popup;
+
 #[derive(Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ContextMenus {}
@@ -32,6 +34,14 @@ impl crate::View for ContextMenus {
             }
         });
 
+        ui.horizontal(|ui| {
+            let response = ui.button("New menu");
+            Popup::menu(&response).show(ui.ctx(), Self::nested_menus);
+
+            let response = ui.button("New context menu");
+            Popup::context_menu(&response).show(ui.ctx(), Self::nested_menus);
+        });
+
         ui.vertical_centered(|ui| {
             ui.add(crate::egui_github_link_file!());
         });
@@ -51,6 +61,7 @@ impl ContextMenus {
                     ui.close_menu();
                 }
                 let _ = ui.button("Item");
+                ui.menu_button("Recursive", Self::nested_menus)
             });
             ui.menu_button("SubMenu", |ui| {
                 if ui.button("Open…").clicked() {
