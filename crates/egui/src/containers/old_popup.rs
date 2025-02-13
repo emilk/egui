@@ -3,8 +3,8 @@
 
 use crate::containers::tooltip::Tooltip;
 use crate::{
-    Align, Context, Id, LayerId, Layout, Popup, PopupAnchor, PopupCloseBehavior, Pos2,
-    PositionAlign, Rect, Response, Ui, Widget, WidgetText,
+    Align, Align4, Context, Id, LayerId, Layout, Popup, PopupAnchor, PopupCloseBehavior, Pos2,
+    Rect, Response, Ui, Widget, WidgetText,
 };
 // ----------------------------------------------------------------------------
 
@@ -197,8 +197,8 @@ pub fn popup_above_or_below_widget<R>(
         .open_memory(None, close_behavior)
         .id(popup_id)
         .position(match above_or_below {
-            AboveOrBelow::Above => PositionAlign::TOP_START,
-            AboveOrBelow::Below => PositionAlign::BOTTOM_START,
+            AboveOrBelow::Above => Align4::TOP_START,
+            AboveOrBelow::Below => Align4::BOTTOM_START,
         })
         // TODO: Should we expose this as an option? It should probably not be the default
         .width(widget_response.rect.width())

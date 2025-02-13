@@ -110,7 +110,7 @@ pub enum Position {
     Bottom,
 }
 
-/// Similar to [`Align2`] but for aligning something to the outside of some rect.
+/// Similar to [`Align2`] but also allows for aligning something outside a rect.
 /// ```text
 ///              ┌───────────┐  ┌────────┐  ┌─────────┐              
 ///              │ TOP_START │  │  TOP   │  │ TOP_END │              
@@ -130,29 +130,32 @@ pub enum Position {
 /// ```
 // TODO: Find a better name for Position and PositionAlign
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct PositionAlign(pub Position, pub Align);
+pub struct Align4 {
+    pub align: Align2,
+    pub focus: Align2,
+}
 
-impl Default for PositionAlign {
+impl Default for Align4 {
     fn default() -> Self {
         Self::BOTTOM_START
     }
 }
 
-impl PositionAlign {
-    pub const TOP_START: Self = Self(Position::Top, Align::Min);
-    pub const TOP: Self = Self(Position::Top, Align::Center);
-    pub const TOP_END: Self = Self(Position::Top, Align::Max);
-    pub const RIGHT_START: Self = Self(Position::Right, Align::Min);
-    pub const RIGHT: Self = Self(Position::Right, Align::Center);
-    pub const RIGHT_END: Self = Self(Position::Right, Align::Max);
-    pub const BOTTOM_START: Self = Self(Position::Bottom, Align::Min);
-    pub const BOTTOM: Self = Self(Position::Bottom, Align::Center);
-    pub const BOTTOM_END: Self = Self(Position::Bottom, Align::Max);
-    pub const LEFT_START: Self = Self(Position::Left, Align::Min);
-    pub const LEFT: Self = Self(Position::Left, Align::Center);
-    pub const LEFT_END: Self = Self(Position::Left, Align::Max);
+impl Align4 {
+    pub const TOP_START: Self = Self::new(Align2::LEFT_TOP, Align2::LEFT_BOTTOM);
+    pub const TOP: Self = Self::new(Align2::CENTER_TOP, Align2::CENTER_BOTTOM);
+    pub const TOP_END: Self = Self::new(Align2::RIGHT_TOP, Align2::RIGHT_BOTTOM);
+    pub const RIGHT_START: Self = Self::new(Align2::RIGHT_TOP, Align2::LEFT_TOP);
+    pub const RIGHT: Self = Self::new(Align2::RIGHT_CENTER, Align2::LEFT_CENTER);
+    pub const RIGHT_END: Self = Self::new(Align2::RIGHT_BOTTOM, Align2::LEFT_BOTTOM);
+    pub const BOTTOM_END: Self = Self::new(Align2::RIGHT_BOTTOM, Align2::RIGHT_TOP);
+    pub const BOTTOM: Self = Self::new(Align2::CENTER_BOTTOM, Align2::CENTER_TOP);
+    pub const BOTTOM_START: Self = Self::new(Align2::LEFT_BOTTOM, Align2::LEFT_TOP);
+    pub const LEFT_END: Self = Self::new(Align2::LEFT_BOTTOM, Align2::RIGHT_BOTTOM);
+    pub const LEFT: Self = Self::new(Align2::LEFT_CENTER, Align2::RIGHT_CENTER);
+    pub const LEFT_START: Self = Self::new(Align2::LEFT_TOP, Align2::RIGHT_TOP);
 
-    pub const ALL: [Self; 12] = [
+    pub const MENU_ALIGNS: [Self; 12] = [
         Self::TOP_START,
         Self::TOP_END,
         Self::RIGHT_START,
@@ -168,70 +171,72 @@ impl PositionAlign {
         Self::LEFT,
     ];
 
-    pub fn align_rect(&self, rect: Rect, gap: f32, size: Vec2) -> Rect {
+    pub const fn new(align: Align2, focus: Align2) -> Self {
+        Self { align, focus }
+    }
+
+    pub fn align(&self) -> Align2 {
+        self.align
+    }
+
+    pub fn focus(&self) -> Align2 {
+        self.focus
+    }
+
+    pub fn from_align2(align: Align2) -> Self {
+        Self {
+            align,
+            focus: align,
+        }
+    }
+
+    pub fn align_rect(&self, rect: &Rect, gap: f32, size: Vec2) -> Rect {
         let (pivot, anchor) = self.pivot_anchor(rect, gap);
         pivot.anchor_size(anchor, size)
     }
 
-    pub fn pivot_anchor(&self, rect: Rect, gap: f32) -> (Align2, Pos2) {
-        (self.pivot_align(), self.anchor(rect, gap))
+    /// Returns a [`Align2`] and a [`Pos2`] that you can e.g. use with [`Area::fixed_pos`]
+    /// and [`Area::pivot`] to align an [`Area`] to some rect.
+    pub fn pivot_anchor(&self, rect: &Rect, gap: f32) -> (Align2, Pos2) {
+        (self.focus(), self.anchor(rect, gap))
     }
 
-    pub fn pivot_align(&self) -> Align2 {
+    pub fn gap_factor(&self) -> Vec2 {
+        let Self { align, focus } = *self;
+
+        let mut x = -focus.x().to_sign();
+        let mut y = -focus.y().to_sign();
+
+        // Align the edges in these cases
         match *self {
-            Self::TOP => Align2::CENTER_BOTTOM,
-            Self::RIGHT => Align2::LEFT_CENTER,
-            Self::BOTTOM => Align2::CENTER_TOP,
-            Self::LEFT => Align2::RIGHT_CENTER,
-            Self::TOP_START | Self::RIGHT_END => Align2::LEFT_BOTTOM,
-            Self::TOP_END | Self::LEFT_END => Align2::RIGHT_BOTTOM,
-            Self::RIGHT_START | Self::BOTTOM_START => Align2::LEFT_TOP,
-            Self::LEFT_START | Self::BOTTOM_END => Align2::RIGHT_TOP,
+            Self::TOP_START | Self::TOP_END | Self::BOTTOM_START | Self::BOTTOM_END => {
+                x = 0.0;
+            }
+            Self::LEFT_START | Self::LEFT_END | Self::RIGHT_START | Self::RIGHT_END => {
+                y = 0.0;
+            }
+            _ => {}
         }
+
+        vec2(x, y)
     }
 
-    pub fn anchor(&self, rect: Rect, gap: f32) -> Pos2 {
-        let mut anchor = match *self {
-            Self::TOP => rect.center_top(),
-            Self::RIGHT => rect.right_center(),
-            Self::BOTTOM => rect.center_bottom(),
-            Self::LEFT => rect.left_center(),
-            Self::TOP_START | Self::LEFT_START => rect.left_top(),
-            Self::TOP_END | Self::RIGHT_START => rect.right_top(),
-            Self::RIGHT_END | Self::BOTTOM_END => rect.right_bottom(),
-            Self::BOTTOM_START | Self::LEFT_END => rect.left_bottom(),
-        };
-        match self.0 {
-            Position::Top => anchor.y -= gap,
-            Position::Right => anchor.x += gap,
-            Position::Bottom => anchor.y += gap,
-            Position::Left => anchor.x -= gap,
-        }
-        anchor
+    pub fn anchor(&self, rect: &Rect, gap: f32) -> Pos2 {
+        let pos = self.align.pos_in_rect(rect);
+
+        let offset = self.gap_factor() * gap;
+
+        pos + offset
     }
 
-    fn alternatives(&self) -> [Self; 4] {
-        let Self(pos, align) = *self;
-        let mirrored_pos = match pos {
-            Position::Top => Position::Bottom,
-            Position::Right => Position::Left,
-            Position::Bottom => Position::Top,
-            Position::Left => Position::Right,
-        };
-        let mirrored_align = match align {
-            Align::Min => Align::Max,
-            Align::Center => Align::Center,
-            Align::Max => Align::Min,
-        };
-        [
-            Self(mirrored_pos, align),
-            Self(pos, mirrored_align),
-            Self(mirrored_pos, mirrored_align),
-            Self(pos, Align::Center),
-        ]
+    fn alternatives(self) -> [Self; 3] {
+        let flip_x = Self::new(self.align.flip_x(), self.focus.flip_x());
+        let flip_y = Self::new(self.align.flip_y(), self.focus.flip_y());
+        let flip_xy = Self::new(self.align.flip(), self.focus.flip());
+        [flip_x, flip_y, flip_xy]
     }
 
-    /// Look for the [`PositionAlign`] that fits best in the available space.
+    /// Look for the [`Align4`] that fits best in the available space.
     /// Starts with `self` and `self.alternatives()`, then tries all other positions.
     pub fn find_best_align(
         mut values_to_try: impl Iterator<Item = Self>,
@@ -243,7 +248,7 @@ impl PositionAlign {
         let area = size.x * size.y;
 
         let blocked_area = |pos: Self| {
-            let rect = pos.align_rect(widget_rect, gap, size);
+            let rect = pos.align_rect(&widget_rect, gap, size);
             area - available_space.intersect(rect).area()
         };
 
@@ -274,8 +279,8 @@ impl PositionAlign {
 pub struct Popup<'a> {
     id: Id,
     pub anchor: PopupAnchor,
-    position_align: PositionAlign,
-    alternative_aligns: Option<&'a [PositionAlign]>,
+    position_align: Align4,
+    alternative_aligns: Option<&'a [Align4]>,
     /// If multiple popups are shown with the same widget id, they will be laid out so they don't overlap.
     layer_id: LayerId,
     open_kind: OpenKind<'a>,
@@ -293,7 +298,7 @@ impl<'a> Popup<'a> {
     pub fn new(id: Id, anchor: impl Into<PopupAnchor>, layer_id: LayerId) -> Self {
         Self {
             id,
-            position_align: PositionAlign::BOTTOM_START,
+            position_align: Align4::BOTTOM_START,
             alternative_aligns: None,
             anchor: anchor.into(),
             open_kind: OpenKind::Open,
@@ -314,7 +319,7 @@ impl<'a> Popup<'a> {
     /// Set the position and alignment of the popup relative to the anchor.
     /// This is the default position, and will be used if it fits.
     /// See [`Self::position_alternatives`] for more on this.
-    pub fn position(mut self, position_align: PositionAlign) -> Self {
+    pub fn position(mut self, position_align: Align4) -> Self {
         self.position_align = position_align;
         self
     }
@@ -322,7 +327,7 @@ impl<'a> Popup<'a> {
     /// Set alternative positions to try if the default one doesn't fit. Set to an empty slice to
     /// always use the position you set with [`Self::position`].
     /// By default, this will try the mirrored position and alignment, and then every other position
-    pub fn position_alternatives(mut self, alternatives: &'a [PositionAlign]) -> Self {
+    pub fn position_alternatives(mut self, alternatives: &'a [Align4]) -> Self {
         self.alternative_aligns = Some(alternatives);
         self
     }
@@ -339,7 +344,7 @@ impl<'a> Popup<'a> {
             open_kind: OpenKind::Open,
             kind: PopupKind::Popup,
             layer_id: response.layer_id,
-            position_align: PositionAlign::BOTTOM_START,
+            position_align: Align4::BOTTOM_START,
             alternative_aligns: None,
             gap: 0.0,
             widget_clicked_elsewhere: response.clicked_elsewhere(),
@@ -453,7 +458,7 @@ impl<'a> Popup<'a> {
         }
     }
 
-    pub fn get_best_align(&self, ctx: &Context) -> PositionAlign {
+    pub fn get_best_align(&self, ctx: &Context) -> Align4 {
         let expected_tooltip_size = AreaState::load(ctx, self.id)
             .and_then(|area| area.size)
             .unwrap_or(vec2(self.width.unwrap_or(0.0), 0.0));
@@ -462,7 +467,7 @@ impl<'a> Popup<'a> {
             return self.position_align;
         };
 
-        PositionAlign::find_best_align(
+        Align4::find_best_align(
             #[allow(clippy::iter_on_empty_collections)]
             once(self.position_align).chain(
                 self.alternative_aligns
@@ -473,7 +478,7 @@ impl<'a> Popup<'a> {
                             .alternatives()
                             .iter()
                             .copied()
-                            .chain(PositionAlign::ALL.iter().copied()),
+                            .chain(Align4::MENU_ALIGNS.iter().copied()),
                     ),
             ),
             ctx.screen_rect(),
@@ -544,7 +549,7 @@ impl<'a> Popup<'a> {
 
         let anchor_rect = anchor.rect(ctx)?;
 
-        let (pivot, anchor) = best_align.pivot_anchor(anchor_rect, gap);
+        let (pivot, anchor) = best_align.pivot_anchor(&anchor_rect, gap);
 
         let mut area = Area::new(id)
             .order(order)
