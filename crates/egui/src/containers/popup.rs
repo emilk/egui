@@ -1,6 +1,7 @@
+use crate::containers::menu::menu_style;
 use crate::{
     Area, AreaState, Context, Frame, Id, InnerResponse, Key, LayerId, Layout, Order, Response,
-    Sense, Ui, UiKind,
+    Sense, Style, Ui, UiKind,
 };
 use emath::{vec2, Align, Pos2, Rect, RectAlign, Vec2};
 use std::iter::once;
@@ -159,6 +160,7 @@ pub struct Popup<'a> {
     sense: Sense,
     layout: Layout,
     frame: Option<Frame>,
+    style: Option<fn(&mut Style)>,
 }
 
 impl<'a> Popup<'a> {
@@ -179,6 +181,7 @@ impl<'a> Popup<'a> {
             sense: Sense::click(),
             layout: Layout::default(),
             frame: None,
+            style: None,
         }
     }
 
@@ -235,6 +238,7 @@ impl<'a> Popup<'a> {
                 PopupCloseBehavior::CloseOnClick,
             )
             .layout(Layout::top_down_justified(Align::Min))
+            .style(menu_style)
     }
 
     /// Show a context menu when the widget was secondary clicked.
@@ -250,6 +254,7 @@ impl<'a> Popup<'a> {
             )
             .layout(Layout::top_down_justified(Align::Min))
             .at_pointer_fixed()
+            .style(menu_style)
     }
 
     /// Force the popup to be open or closed.
@@ -367,6 +372,11 @@ impl<'a> Popup<'a> {
         self
     }
 
+    pub fn style(mut self, style: fn(&mut Style)) -> Self {
+        self.style = Some(style);
+        self
+    }
+
     /// Get the [`Context`]
     pub fn ctx(&self) -> &Context {
         &self.ctx
@@ -469,6 +479,7 @@ impl<'a> Popup<'a> {
             sense,
             layout,
             frame,
+            style,
         } = self;
 
         let hover_pos = ctx.pointer_hover_pos();
@@ -531,7 +542,12 @@ impl<'a> Popup<'a> {
 
         let frame = frame.unwrap_or_else(|| Frame::popup(&ctx.style()));
 
-        let response = area.show(&ctx, |ui| frame.show(ui, content).inner);
+        let response = area.show(&ctx, |ui| {
+            if let Some(style) = style {
+                style(&mut ui.style_mut());
+            }
+            frame.show(ui, content).inner
+        });
 
         let should_close = |close_behavior| {
             let should_close = match close_behavior {

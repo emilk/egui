@@ -1200,12 +1200,18 @@ impl Context {
     pub fn read_response(&self, id: Id) -> Option<Response> {
         self.write(|ctx| {
             let viewport = ctx.viewport();
-            viewport
-                .this_pass
-                .widgets
-                .get(id)
-                .or_else(|| viewport.prev_pass.widgets.get(id))
-                .copied()
+            let rect = viewport.this_pass.widgets.get(id);
+            if let Some(rect) = rect {
+                if rect.rect != Rect::NOTHING {
+                    Some(*rect)
+                } else if let Some(prev_rect) = viewport.prev_pass.widgets.get(id) {
+                    Some(*prev_rect)
+                } else {
+                    Some(*rect)
+                }
+            } else {
+                None
+            }
         })
         .map(|widget_rect| self.get_response(widget_rect))
     }
