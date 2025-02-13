@@ -1,14 +1,4 @@
-use egui::{
-    Align, Align2, Align4, ComboBox, Direction, Frame, Id, Label, Layout, Popup,
-    PopupCloseBehavior, Rect, RichText, Sense, Tooltip, Ui, UiBuilder, Vec2, Widget,
-};
-
-#[derive(Clone, PartialEq, Debug)]
-enum Position {
-    Default,
-    Pointer,
-    PointerFixed,
-}
+use egui::{Align2, Align4, ComboBox, Frame, Id, Popup, PopupCloseBehavior, Tooltip, Ui};
 
 /// Showcase [`Popup`].
 #[derive(Clone, PartialEq)]
@@ -43,7 +33,7 @@ impl Default for PopupsDemo {
 
 impl crate::Demo for PopupsDemo {
     fn name(&self) -> &'static str {
-        "\u{20E3} Popups"
+        "\u{2755} Popups"
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
@@ -157,14 +147,14 @@ impl crate::View for PopupsDemo {
 
         self.apply_options(Popup::menu(&response).id(Id::new("menu")))
             .show(ui.ctx(), |ui| {
-                ui.button("Menu item 1");
-                ui.button("Menu item 2");
+                _ = ui.button("Menu item 1");
+                _ = ui.button("Menu item 2");
             });
 
         self.apply_options(Popup::context_menu(&response).id(Id::new("context_menu")))
             .show(ui.ctx(), |ui| {
-                ui.button("Context menu item 1");
-                ui.button("Context menu item 2");
+                _ = ui.button("Context menu item 1");
+                _ = ui.button("Context menu item 2");
             });
 
         if self.popup_open {

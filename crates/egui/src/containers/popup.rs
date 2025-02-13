@@ -2,7 +2,7 @@ use crate::{
     Area, AreaState, Context, Frame, Id, InnerResponse, Key, LayerId, Order, Response, Sense, Ui,
     UiKind,
 };
-use emath::{vec2, Align, Align2, Pos2, Rect, Vec2};
+use emath::{vec2, Align2, Pos2, Rect, Vec2};
 use std::iter::once;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -212,10 +212,8 @@ impl Align4 {
     }
 
     pub fn gap_factor(&self) -> Vec2 {
-        let Self { align, focus } = *self;
-
-        let mut x = -focus.x().to_sign();
-        let mut y = -focus.y().to_sign();
+        let mut x = -self.focus.x().to_sign();
+        let mut y = -self.focus.y().to_sign();
 
         // Align the edges in these cases
         match *self {
