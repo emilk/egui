@@ -5,8 +5,8 @@
 use emath::GuiRounding as _;
 
 use crate::{
-    emath, pos2, Align2, Context, Id, InnerResponse, LayerId, NumExt, Order, Pos2, Rect, Response,
-    Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetRect, WidgetWithState,
+    emath, pos2, Align2, Context, Id, InnerResponse, LayerId, Layout, NumExt, Order, Pos2, Rect,
+    Response, Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetRect, WidgetWithState,
 };
 
 /// State of an [`Area`] that is persisted between frames.
@@ -120,6 +120,7 @@ pub struct Area {
     anchor: Option<(Align2, Vec2)>,
     new_pos: Option<Pos2>,
     fade_in: bool,
+    layout: Layout,
 }
 
 impl WidgetWithState for Area {
@@ -145,6 +146,7 @@ impl Area {
             pivot: Align2::LEFT_TOP,
             anchor: None,
             fade_in: true,
+            layout: Layout::default(),
         }
     }
 
@@ -339,6 +341,13 @@ impl Area {
         self.fade_in = fade_in;
         self
     }
+
+    /// Set the layout for the child Ui.
+    #[inline]
+    pub fn layout(mut self, layout: Layout) -> Self {
+        self.layout = layout;
+        self
+    }
 }
 
 pub(crate) struct Prepared {
@@ -358,6 +367,7 @@ pub(crate) struct Prepared {
     sizing_pass: bool,
 
     fade_in: bool,
+    layout: Layout,
 }
 
 impl Area {
@@ -390,6 +400,7 @@ impl Area {
             constrain,
             constrain_rect,
             fade_in,
+            layout,
         } = self;
 
         let constrain_rect = constrain_rect.unwrap_or_else(|| ctx.screen_rect());
@@ -516,6 +527,7 @@ impl Area {
             constrain_rect,
             sizing_pass,
             fade_in,
+            layout,
         }
     }
 }
@@ -543,7 +555,8 @@ impl Prepared {
         let mut ui_builder = UiBuilder::new()
             .ui_stack_info(UiStackInfo::new(self.kind))
             .layer_id(self.layer_id)
-            .max_rect(max_rect);
+            .max_rect(max_rect)
+            .layout(self.layout);
 
         if !self.enabled {
             ui_builder = ui_builder.disabled();
