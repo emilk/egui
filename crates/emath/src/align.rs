@@ -366,14 +366,17 @@ impl Align4 {
         Self::LEFT,
     ];
 
+    /// Create a new [`Align4`] with the given alignments.
     pub const fn new(align: Align2, focus: Align2) -> Self {
         Self { align, focus }
     }
 
+    /// Align in the old rect.
     pub fn align(&self) -> Align2 {
         self.align
     }
 
+    /// Align in the new rect.
     pub fn focus(&self) -> Align2 {
         self.focus
     }
@@ -408,8 +411,8 @@ impl Align4 {
         pivot.anchor_size(anchor, size)
     }
 
-    /// Returns a [`Align2`] and a [`Pos2`] that you can e.g. use with [`Area::fixed_pos`]
-    /// and [`Area::pivot`] to align an [`Area`] to some rect.
+    /// Returns a [`Align2`] and a [`Pos2`] that you can e.g. use with `Area::fixed_pos`
+    /// and `Area::pivot` to align an `Area` to some rect.
     pub fn pivot_pos(&self, rect: &Rect, gap: f32) -> (Align2, Pos2) {
         (self.focus(), self.anchor(rect, gap))
     }

@@ -15,7 +15,7 @@ impl<'a> Tooltip<'a> {
     /// Show a tooltip that is always open
     pub fn new(widget_id: Id, anchor: impl Into<PopupAnchor>, layer_id: LayerId) -> Self {
         Self {
-            // TODO: Set width somehow (we're missing context here)
+            // TODO(lucasmerlin): Set width somehow (we're missing context here)
             popup: Popup::new(widget_id, anchor.into(), layer_id)
                 .kind(PopupKind::Tooltip)
                 .gap(4.0)
@@ -58,6 +58,7 @@ impl<'a> Tooltip<'a> {
     }
 
     /// Show the tooltip at the pointer position.
+    #[inline]
     pub fn at_pointer(mut self) -> Self {
         self.popup = self.popup.at_pointer();
         self
@@ -66,18 +67,21 @@ impl<'a> Tooltip<'a> {
     /// Set the gap between the tooltip and the anchor
     ///
     /// Default: 5.0
+    #[inline]
     pub fn gap(mut self, gap: f32) -> Self {
         self.popup = self.popup.gap(gap);
         self
     }
 
     /// Set the layout of the tooltip
+    #[inline]
     pub fn layout(mut self, layout: Layout) -> Self {
         self.popup = self.popup.layout(layout);
         self
     }
 
     /// Set the width of the tooltip
+    #[inline]
     pub fn width(mut self, width: f32) -> Self {
         self.popup = self.popup.width(width);
         self
@@ -112,7 +116,6 @@ impl<'a> Tooltip<'a> {
                 .widget_tooltips
                 .get(&widget_id)
                 .copied()
-                // TODO: Should this be moved to popup?
                 .unwrap_or(PerWidgetTooltipState {
                     bounding_rect: rect,
                     tooltip_count: 0,

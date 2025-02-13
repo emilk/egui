@@ -146,6 +146,7 @@ impl ComboBox {
     ///     .show_ui(ui, |_ui| {});
     /// # });
     /// ```
+    #[inline]
     pub fn icon(mut self, icon_fn: impl FnOnce(&Ui, Rect, &WidgetVisuals, bool) + 'static) -> Self {
         self.icon = Some(Box::new(icon_fn));
         self
