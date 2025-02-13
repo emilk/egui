@@ -61,7 +61,7 @@ pub fn show_tooltip_at_pointer<R>(
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
     Tooltip::new(widget_id, PopupAnchor::Pointer, parent_layer)
-        .gap(12.0) // TODO: Set this gap by default for PopupAnchor::Pointer?
+        .gap(12.0)
         .show(ctx, add_contents)
         .map(|response| response.inner)
 }
@@ -76,11 +76,10 @@ pub fn show_tooltip_for<R>(
     widget_id: Id,
     widget_rect: &Rect,
     add_contents: impl FnOnce(&mut Ui) -> R,
-) -> R {
+) -> Option<R> {
     Tooltip::new(widget_id, *widget_rect, parent_layer)
         .show(ctx, add_contents)
-        .unwrap() // TODO
-        .inner
+        .map(|response| response.inner)
 }
 
 /// Show a tooltip at the given position.
@@ -93,11 +92,10 @@ pub fn show_tooltip_at<R>(
     widget_id: Id,
     suggested_position: Pos2,
     add_contents: impl FnOnce(&mut Ui) -> R,
-) -> R {
+) -> Option<R> {
     Tooltip::new(widget_id, suggested_position, parent_layer)
         .show(ctx, add_contents)
-        .unwrap() // TODO
-        .inner
+        .map(|response| response.inner)
 }
 
 /// Show some text at the current pointer position (if any).

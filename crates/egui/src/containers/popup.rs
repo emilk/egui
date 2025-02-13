@@ -208,7 +208,6 @@ impl<'a> Popup<'a> {
             )
             .layout(Layout::top_down_justified(Align::Min))
             .at_pointer_fixed()
-            .gap(0.0)
     }
 
     pub fn open(mut self, open: bool) -> Self {
