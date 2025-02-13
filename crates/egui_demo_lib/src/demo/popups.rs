@@ -1,4 +1,7 @@
-use egui::{vec2, Align2, Align4, ComboBox, Frame, Id, Popup, PopupCloseBehavior, Tooltip, Ui};
+use egui::containers::menu::SubMenuButton;
+use egui::{
+    vec2, Align2, Align4, ComboBox, Frame, Id, Popup, PopupCloseBehavior, Pos2, Tooltip, Ui,
+};
 
 /// Showcase [`Popup`].
 #[derive(Clone, PartialEq)]
@@ -153,6 +156,8 @@ impl crate::View for PopupsDemo {
             .show(ui.ctx(), |ui| {
                 _ = ui.button("Menu item 1");
                 _ = ui.button("Menu item 2");
+
+                submenus(ui);
             });
 
         self.apply_options(Popup::context_menu(&response).id(Id::new("context_menu")))
@@ -178,4 +183,18 @@ impl crate::View for PopupsDemo {
             ui.add(crate::egui_github_link_file!());
         });
     }
+}
+
+fn submenus(ui: &mut Ui) {
+    SubMenuButton::new().ui(ui, |ui| {
+        _ = ui.button("Item 1");
+        _ = ui.button("Item 2");
+
+        submenus(ui);
+    });
+    SubMenuButton::new().ui(ui, |ui| {
+        submenus(ui);
+        _ = ui.button("Item 1");
+        _ = ui.button("Item 2");
+    });
 }
