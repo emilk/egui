@@ -2,11 +2,12 @@ use egui::{Align2, Align4, ComboBox, Frame, Id, Popup, PopupCloseBehavior, Toolt
 
 /// Showcase [`Popup`].
 #[derive(Clone, PartialEq)]
-// #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-// #[cfg_attr(feature = "serde", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct PopupsDemo {
     align4: Align4,
     gap: f32,
+    #[cfg_attr(feature = "serde", serde(skip))]
     close_behavior: PopupCloseBehavior,
     popup_open: bool,
 }

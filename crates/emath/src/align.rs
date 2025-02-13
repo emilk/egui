@@ -322,7 +322,8 @@ pub fn center_size_in_rect(size: Vec2, frame: Rect) -> Rect {
 ///              │BOTTOM_START│  │BOTTOM│  │BOTTOM_END│              
 ///              └────────────┘  └──────┘  └──────────┘              
 /// ```
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Align4 {
     pub align: Align2,
     pub focus: Align2,
