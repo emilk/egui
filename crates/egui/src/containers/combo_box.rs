@@ -1,10 +1,9 @@
-use emath::Align;
 use epaint::Shape;
 
 use crate::{
-    epaint, style::WidgetVisuals, vec2, Align2, Context, Id, InnerResponse, Layout, NumExt,
-    Painter, Popup, PopupCloseBehavior, Rect, Response, ScrollArea, Sense, Stroke, TextStyle,
-    TextWrapMode, Ui, UiBuilder, Vec2, WidgetInfo, WidgetText, WidgetType,
+    epaint, style::WidgetVisuals, vec2, Align2, Context, Id, InnerResponse, NumExt, Painter, Popup,
+    PopupCloseBehavior, Rect, Response, ScrollArea, Sense, Stroke, TextStyle, TextWrapMode, Ui,
+    UiBuilder, Vec2, WidgetInfo, WidgetText, WidgetType,
 };
 
 #[allow(unused_imports)] // Documentation
@@ -377,24 +376,20 @@ fn combo_box_dyn<'c, R>(
         .width(button_response.rect.width())
         .close_behavior(close_behavior)
         .show(ui.ctx(), |ui| {
-            // TODO: Should Popup have a layout option? Maybe also on Area? Maybe even expose UiBuilder on Area?
-            ui.with_layout(Layout::top_down_justified(Align::LEFT), |ui| {
-                ui.set_min_width(ui.available_width());
+            ui.set_min_width(ui.available_width());
 
-                ScrollArea::vertical()
-                    .max_height(height)
-                    .show(ui, |ui| {
-                        // Often the button is very narrow, which means this popup
-                        // is also very narrow. Having wrapping on would therefore
-                        // result in labels that wrap very early.
-                        // Instead, we turn it off by default so that the labels
-                        // expand the width of the menu.
-                        ui.style_mut().wrap_mode = Some(TextWrapMode::Extend);
-                        menu_contents(ui)
-                    })
-                    .inner
-            })
-            .inner
+            ScrollArea::vertical()
+                .max_height(height)
+                .show(ui, |ui| {
+                    // Often the button is very narrow, which means this popup
+                    // is also very narrow. Having wrapping on would therefore
+                    // result in labels that wrap very early.
+                    // Instead, we turn it off by default so that the labels
+                    // expand the width of the menu.
+                    ui.style_mut().wrap_mode = Some(TextWrapMode::Extend);
+                    menu_contents(ui)
+                })
+                .inner
         })
         .map(|r| r.inner);
 

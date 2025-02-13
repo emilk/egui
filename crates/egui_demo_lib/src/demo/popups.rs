@@ -1,4 +1,4 @@
-use egui::{Align2, Align4, ComboBox, Frame, Id, Popup, PopupCloseBehavior, Tooltip, Ui};
+use egui::{vec2, Align2, Align4, ComboBox, Frame, Id, Popup, PopupCloseBehavior, Tooltip, Ui};
 
 /// Showcase [`Popup`].
 #[derive(Clone, PartialEq)]
@@ -142,8 +142,11 @@ impl crate::View for PopupsDemo {
         ui.checkbox(&mut self.popup_open, "Show popup");
 
         let response = Frame::group(ui.style())
-            .inner_margin(50.0)
-            .show(ui, |ui| ui.button("Click, right-click and hover me!"))
+            .inner_margin(vec2(0.0, 25.0))
+            .show(ui, |ui| {
+                ui.vertical_centered(|ui| ui.button("Click, right-click and hover me!"))
+                    .inner
+            })
             .inner;
 
         self.apply_options(Popup::menu(&response).id(Id::new("menu")))
@@ -168,7 +171,7 @@ impl crate::View for PopupsDemo {
         let mut tooltip = Tooltip::for_enabled(&response);
         tooltip.popup = self.apply_options(tooltip.popup);
         tooltip.show(ui.ctx(), |ui| {
-            ui.label("Tooltips are popups too!");
+            ui.label("Tooltips are popups, too!");
         });
 
         ui.vertical_centered(|ui| {

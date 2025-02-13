@@ -195,21 +195,17 @@ pub fn popup_above_or_below_widget<R>(
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
     let response = Popup::from_response(widget_response)
+        .layout(Layout::top_down_justified(Align::LEFT))
         .open_memory(None, close_behavior)
         .id(popup_id)
         .position(match above_or_below {
             AboveOrBelow::Above => Align4::TOP_START,
             AboveOrBelow::Below => Align4::BOTTOM_START,
         })
-        // TODO: Should we expose this as an option? It should probably not be the default
         .width(widget_response.rect.width())
         .show(parent_ui.ctx(), |ui| {
-            // TODO: Should we have a layout option? Maybe also on Area? Maybe even expose UiBuilder on Area?
-            ui.with_layout(Layout::top_down_justified(Align::LEFT), |ui| {
-                ui.set_min_width(ui.available_width());
-                add_contents(ui)
-            })
-            .inner
+            ui.set_min_width(ui.available_width());
+            add_contents(ui)
         })?;
     Some(response.inner)
 }

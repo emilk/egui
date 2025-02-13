@@ -1,7 +1,7 @@
 use crate::pass_state::PerWidgetTooltipState;
 use crate::{
-    AreaState, Context, Id, InnerResponse, LayerId, Order, Popup, PopupAnchor, PopupKind, Response,
-    Sense,
+    AreaState, Context, Id, InnerResponse, LayerId, Layout, Order, Popup, PopupAnchor, PopupKind,
+    Response, Sense,
 };
 use emath::Vec2;
 
@@ -71,6 +71,18 @@ impl<'a> Tooltip<'a> {
         self
     }
 
+    /// Set the layout of the tooltip
+    pub fn layout(mut self, layout: Layout) -> Self {
+        self.popup = self.popup.layout(layout);
+        self
+    }
+
+    /// Set the width of the tooltip
+    pub fn width(mut self, width: f32) -> Self {
+        self.popup = self.popup.width(width);
+        self
+    }
+
     /// Show the tooltip
     pub fn show<R>(
         self,
@@ -111,7 +123,7 @@ impl<'a> Tooltip<'a> {
         popup = popup.anchor(state.bounding_rect).id(tooltip_area_id);
 
         let response = popup.show(ctx, |ui| {
-            // By default the text in tooltips aren't selectable.
+            // By default, the text in tooltips aren't selectable.
             // This means that most tooltips aren't interactable,
             // which also mean they won't stick around so you can click them.
             // Only tooltips that have actual interactive stuff (buttons, links, …)
@@ -180,7 +192,7 @@ impl<'a> Tooltip<'a> {
                 .is_some_and(|layer| !layer.open_popups.is_empty())
         });
         if any_open_popups {
-            // Hide tooltips if the user opens a popup (menu, combo-box, etc) in the same layer.
+            // Hide tooltips if the user opens a popup (menu, combo-box, etc.) in the same layer.
             return false;
         }
 

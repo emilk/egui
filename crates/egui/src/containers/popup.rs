@@ -1,8 +1,8 @@
 use crate::{
-    Area, AreaState, Context, Frame, Id, InnerResponse, Key, LayerId, Order, Response, Sense, Ui,
-    UiKind,
+    Area, AreaState, Context, Frame, Id, InnerResponse, Key, LayerId, Layout, Order, Response,
+    Sense, Ui, UiKind,
 };
-use emath::{vec2, Align4, Pos2, Rect};
+use emath::{vec2, Align, Align4, Pos2, Rect};
 use std::iter::once;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -123,6 +123,7 @@ pub struct Popup<'a> {
     /// Default width passed to the Area
     width: Option<f32>,
     sense: Sense,
+    layout: Layout,
 }
 
 impl<'a> Popup<'a> {
@@ -139,6 +140,7 @@ impl<'a> Popup<'a> {
             widget_clicked_elsewhere: false,
             width: None,
             sense: Sense::click(),
+            layout: Layout::default(),
         }
     }
 
@@ -181,18 +183,21 @@ impl<'a> Popup<'a> {
             widget_clicked_elsewhere: response.clicked_elsewhere(),
             width: Some(widget_rect.width()),
             sense: Sense::click(),
+            layout: Layout::default(),
         }
     }
 
     pub fn menu(response: &Response) -> Self {
-        Self::from_response(response).open_memory(
-            if response.clicked() {
-                SetOpen::Toggle
-            } else {
-                SetOpen::DoNothing
-            },
-            PopupCloseBehavior::CloseOnClick,
-        )
+        Self::from_response(response)
+            .open_memory(
+                if response.clicked() {
+                    SetOpen::Toggle
+                } else {
+                    SetOpen::DoNothing
+                },
+                PopupCloseBehavior::CloseOnClick,
+            )
+            .layout(Layout::top_down_justified(Align::Min))
     }
 
     pub fn context_menu(response: &Response) -> Self {
@@ -201,6 +206,7 @@ impl<'a> Popup<'a> {
                 response.secondary_clicked().then_some(true),
                 PopupCloseBehavior::CloseOnClick,
             )
+            .layout(Layout::top_down_justified(Align::Min))
             .at_pointer_fixed()
             .gap(0.0)
     }
@@ -277,6 +283,11 @@ impl<'a> Popup<'a> {
         self
     }
 
+    pub fn layout(mut self, layout: Layout) -> Self {
+        self.layout = layout;
+        self
+    }
+
     /// The width that will be passed to [`Area::default_width`].
     pub fn width(mut self, width: f32) -> Self {
         self.width = Some(width);
@@ -348,6 +359,7 @@ impl<'a> Popup<'a> {
             widget_clicked_elsewhere,
             width,
             sense,
+            layout,
         } = self;
 
         let hover_pos = ctx.pointer_hover_pos();
@@ -401,7 +413,8 @@ impl<'a> Popup<'a> {
             .kind(ui_kind)
             .pivot(pivot)
             .fixed_pos(anchor)
-            .sense(sense);
+            .sense(sense)
+            .layout(layout);
 
         if let Some(width) = width {
             area = area.default_width(width);
