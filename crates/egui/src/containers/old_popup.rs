@@ -19,6 +19,7 @@ use emath::align::Align4;
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
+/// # #[allow(deprecated)]
 /// if ui.ui_contains_pointer() {
 ///     egui::show_tooltip(ui.ctx(), ui.layer_id(), egui::Id::new("my_tooltip"), |ui| {
 ///         ui.label("Helpful text");
@@ -175,8 +176,9 @@ pub fn popup_below_widget<R>(
 ///     ui.memory_mut(|mem| mem.toggle_popup(popup_id));
 /// }
 /// let below = egui::AboveOrBelow::Below;
-/// let close_on_click_outside = egui::old_popup::PopupCloseBehavior::CloseOnClickOutside;
-/// egui::old_popup::popup_above_or_below_widget(ui, popup_id, &response, below, close_on_click_outside, |ui| {
+/// let close_on_click_outside = egui::PopupCloseBehavior::CloseOnClickOutside;
+/// # #[allow(deprecated)]
+/// egui::popup_above_or_below_widget(ui, popup_id, &response, below, close_on_click_outside, |ui| {
 ///     ui.set_min_width(200.0); // if you want to control the size
 ///     ui.label("Some more info, or things you can select:");
 ///     ui.label("…");
