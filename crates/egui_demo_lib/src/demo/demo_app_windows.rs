@@ -225,7 +225,7 @@ impl DemoWindows {
     }
 
     fn mobile_top_bar(&mut self, ctx: &Context) {
-        egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
+        egui::Panel::top("menu_bar").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 let font_size = 16.5;
 
@@ -253,10 +253,10 @@ impl DemoWindows {
     }
 
     fn desktop_ui(&mut self, ctx: &Context) {
-        egui::SidePanel::right("egui_demo_panel")
+        egui::Panel::right("egui_demo_panel")
             .resizable(false)
-            .default_width(160.0)
-            .min_width(160.0)
+            .default_size(160.0)
+            .min_size(160.0)
             .show(ctx, |ui| {
                 ui.add_space(4.0);
                 ui.vertical_centered(|ui| {
@@ -280,7 +280,7 @@ impl DemoWindows {
                 self.demo_list_ui(ui);
             });
 
-        egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
+        egui::Panel::top("menu_bar").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 file_menu_button(ui);
             });

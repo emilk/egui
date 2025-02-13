@@ -9,7 +9,7 @@ fn main() -> eframe::Result {
     let options = eframe::NativeOptions::default();
     eframe::run_simple_native("My egui App", options, move |ctx, _frame| {
         // A bottom panel to force the tooltips to consider if the fit below or under the widget:
-        egui::TopBottomPanel::bottom("bottom").show(ctx, |ui| {
+        egui::Panel::bottom("bottom").show(ctx, |ui| {
             ui.horizontal(|ui| {
                 ui.vertical(|ui| {
                     ui.label("Single tooltips:");
