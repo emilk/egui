@@ -7,12 +7,14 @@ pub mod collapsing_header;
 mod combo_box;
 pub mod frame;
 pub mod modal;
+pub mod old_popup;
 pub mod panel;
-pub mod popup;
+mod popup;
 pub(crate) mod resize;
 mod scene;
 pub mod scroll_area;
 mod sides;
+mod tooltip;
 pub(crate) mod window;
 
 pub use {
@@ -21,11 +23,13 @@ pub use {
     combo_box::*,
     frame::Frame,
     modal::{Modal, ModalResponse},
+    old_popup::*,
     panel::{CentralPanel, SidePanel, TopBottomPanel},
     popup::*,
     resize::Resize,
     scene::Scene,
     scroll_area::ScrollArea,
     sides::Sides,
+    tooltip::*,
     window::Window,
 };

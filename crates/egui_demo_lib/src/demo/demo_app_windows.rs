@@ -78,6 +78,7 @@ impl Default for DemoGroups {
                 Box::<super::multi_touch::MultiTouch>::default(),
                 Box::<super::painting::Painting>::default(),
                 Box::<super::panels::Panels>::default(),
+                Box::<super::popups::PopupsDemo>::default(),
                 Box::<super::scene::SceneDemo>::default(),
                 Box::<super::screenshot::Screenshot>::default(),
                 Box::<super::scrolling::Scrolling>::default(),
