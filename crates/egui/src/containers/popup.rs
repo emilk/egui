@@ -2,7 +2,7 @@ use crate::{
     Area, AreaState, Context, Frame, Id, InnerResponse, Key, LayerId, Order, Response, Sense, Ui,
     UiKind,
 };
-use emath::{vec2, Align2, Pos2, Rect, Vec2};
+use emath::{vec2, Align4, Pos2, Rect};
 use std::iter::once;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -105,183 +105,6 @@ pub enum PopupKind {
     Popup,
     Tooltip,
     Menu,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Position {
-    Left,
-    Right,
-    Top,
-    Bottom,
-}
-
-/// Similar to [`Align2`] but also allows for aligning something outside a rect.
-///
-/// The corner from [`Align4::focus`] on the new rect will be aligned to
-/// the corner from [`Align4::align`] on the original rect.
-///
-/// There are helper constants for the 12 common menu positions:
-/// ```text
-///              ┌───────────┐  ┌────────┐  ┌─────────┐              
-///              │ TOP_START │  │  TOP   │  │ TOP_END │              
-///              └───────────┘  └────────┘  └─────────┘               
-/// ┌──────────┐ ┌────────────────────────────────────┐ ┌───────────┐
-/// │LEFT_START│ │                                    │ │RIGHT_START│
-/// └──────────┘ │                                    │ └───────────┘
-/// ┌──────────┐ │                                    │ ┌───────────┐
-/// │   LEFT   │ │             some_rect              │ │   RIGHT   │
-/// └──────────┘ │                                    │ └───────────┘
-/// ┌──────────┐ │                                    │ ┌───────────┐
-/// │ LEFT_END │ │                                    │ │ RIGHT_END │
-/// └──────────┘ └────────────────────────────────────┘ └───────────┘
-///              ┌────────────┐  ┌──────┐  ┌──────────┐              
-///              │BOTTOM_START│  │BOTTOM│  │BOTTOM_END│              
-///              └────────────┘  └──────┘  └──────────┘              
-/// ```
-// TODO: Find a better name for Position and PositionAlign
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Align4 {
-    pub align: Align2,
-    pub focus: Align2,
-}
-
-impl Default for Align4 {
-    fn default() -> Self {
-        Self::BOTTOM_START
-    }
-}
-
-impl Align4 {
-    pub const TOP_START: Self = Self::new(Align2::LEFT_TOP, Align2::LEFT_BOTTOM);
-    pub const TOP: Self = Self::new(Align2::CENTER_TOP, Align2::CENTER_BOTTOM);
-    pub const TOP_END: Self = Self::new(Align2::RIGHT_TOP, Align2::RIGHT_BOTTOM);
-    pub const RIGHT_START: Self = Self::new(Align2::RIGHT_TOP, Align2::LEFT_TOP);
-    pub const RIGHT: Self = Self::new(Align2::RIGHT_CENTER, Align2::LEFT_CENTER);
-    pub const RIGHT_END: Self = Self::new(Align2::RIGHT_BOTTOM, Align2::LEFT_BOTTOM);
-    pub const BOTTOM_END: Self = Self::new(Align2::RIGHT_BOTTOM, Align2::RIGHT_TOP);
-    pub const BOTTOM: Self = Self::new(Align2::CENTER_BOTTOM, Align2::CENTER_TOP);
-    pub const BOTTOM_START: Self = Self::new(Align2::LEFT_BOTTOM, Align2::LEFT_TOP);
-    pub const LEFT_END: Self = Self::new(Align2::LEFT_BOTTOM, Align2::RIGHT_BOTTOM);
-    pub const LEFT: Self = Self::new(Align2::LEFT_CENTER, Align2::RIGHT_CENTER);
-    pub const LEFT_START: Self = Self::new(Align2::LEFT_TOP, Align2::RIGHT_TOP);
-
-    pub const MENU_ALIGNS: [Self; 12] = [
-        Self::TOP_START,
-        Self::TOP_END,
-        Self::RIGHT_START,
-        Self::RIGHT_END,
-        Self::BOTTOM_END,
-        Self::BOTTOM_START,
-        Self::LEFT_END,
-        Self::LEFT_START,
-        // These come last on purpose, we want to prefer the corner ones
-        Self::TOP,
-        Self::RIGHT,
-        Self::BOTTOM,
-        Self::LEFT,
-    ];
-
-    pub const fn new(align: Align2, focus: Align2) -> Self {
-        Self { align, focus }
-    }
-
-    pub fn align(&self) -> Align2 {
-        self.align
-    }
-
-    pub fn focus(&self) -> Align2 {
-        self.focus
-    }
-
-    pub fn from_align2(align: Align2) -> Self {
-        Self {
-            align,
-            focus: align,
-        }
-    }
-
-    pub fn align_rect(&self, rect: &Rect, gap: f32, size: Vec2) -> Rect {
-        let (pivot, anchor) = self.pivot_anchor(rect, gap);
-        pivot.anchor_size(anchor, size)
-    }
-
-    /// Returns a [`Align2`] and a [`Pos2`] that you can e.g. use with [`Area::fixed_pos`]
-    /// and [`Area::pivot`] to align an [`Area`] to some rect.
-    pub fn pivot_anchor(&self, rect: &Rect, gap: f32) -> (Align2, Pos2) {
-        (self.focus(), self.anchor(rect, gap))
-    }
-
-    pub fn gap_factor(&self) -> Vec2 {
-        let mut x = -self.focus.x().to_sign();
-        let mut y = -self.focus.y().to_sign();
-
-        // Align the edges in these cases
-        match *self {
-            Self::TOP_START | Self::TOP_END | Self::BOTTOM_START | Self::BOTTOM_END => {
-                x = 0.0;
-            }
-            Self::LEFT_START | Self::LEFT_END | Self::RIGHT_START | Self::RIGHT_END => {
-                y = 0.0;
-            }
-            _ => {}
-        }
-
-        vec2(x, y)
-    }
-
-    pub fn anchor(&self, rect: &Rect, gap: f32) -> Pos2 {
-        let pos = self.align.pos_in_rect(rect);
-
-        let offset = self.gap_factor() * gap;
-
-        pos + offset
-    }
-
-    fn alternatives(self) -> [Self; 3] {
-        let flip_x = Self::new(self.align.flip_x(), self.focus.flip_x());
-        let flip_y = Self::new(self.align.flip_y(), self.focus.flip_y());
-        let flip_xy = Self::new(self.align.flip(), self.focus.flip());
-        [flip_x, flip_y, flip_xy]
-    }
-
-    /// Look for the [`Align4`] that fits best in the available space.
-    /// Starts with `self` and `self.alternatives()`, then tries all other positions.
-    pub fn find_best_align(
-        mut values_to_try: impl Iterator<Item = Self>,
-        available_space: Rect,
-        widget_rect: Rect,
-        gap: f32,
-        size: Vec2,
-    ) -> Self {
-        let area = size.x * size.y;
-
-        let blocked_area = |pos: Self| {
-            let rect = pos.align_rect(&widget_rect, gap, size);
-            area - available_space.intersect(rect).area()
-        };
-
-        let first = values_to_try.next().unwrap_or_default();
-
-        if blocked_area(first) == 0.0 {
-            return first;
-        }
-
-        let mut best_area = blocked_area(first);
-        let mut best = first;
-
-        for align in values_to_try {
-            let blocked = blocked_area(align);
-            if blocked == 0.0 {
-                return align;
-            }
-            if blocked < best_area {
-                best = align;
-                best_area = blocked;
-            }
-        }
-
-        best
-    }
 }
 
 pub struct Popup<'a> {
@@ -571,7 +394,7 @@ impl<'a> Popup<'a> {
 
         let anchor_rect = anchor.rect(id, ctx)?;
 
-        let (pivot, anchor) = best_align.pivot_anchor(&anchor_rect, gap);
+        let (pivot, anchor) = best_align.pivot_pos(&anchor_rect, gap);
 
         let mut area = Area::new(id)
             .order(order)

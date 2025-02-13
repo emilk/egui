@@ -3,9 +3,10 @@
 
 use crate::containers::tooltip::Tooltip;
 use crate::{
-    Align, Align4, Context, Id, LayerId, Layout, Popup, PopupAnchor, PopupCloseBehavior, Pos2,
-    Rect, Response, Ui, Widget, WidgetText,
+    Align, Context, Id, LayerId, Layout, Popup, PopupAnchor, PopupCloseBehavior, Pos2, Rect,
+    Response, Ui, Widget, WidgetText,
 };
+use emath::align::Align4;
 // ----------------------------------------------------------------------------
 
 /// Show a tooltip at the current pointer position (if any).

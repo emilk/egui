@@ -42,7 +42,7 @@ mod vec2;
 mod vec2b;
 
 pub use self::{
-    align::{Align, Align2},
+    align::{Align, Align2, Align4},
     gui_rounding::{GuiRounding, GUI_ROUNDING},
     history::History,
     numeric::*,
