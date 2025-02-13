@@ -318,7 +318,7 @@ impl Default for Options {
         Self {
             dark_style: std::sync::Arc::new(Theme::Dark.default_style()),
             light_style: std::sync::Arc::new(Theme::Light.default_style()),
-            theme_preference: ThemePreference::System,
+            theme_preference: Default::default(),
             fallback_theme: Theme::Dark,
             system_theme: None,
             zoom_factor: 1.0,
