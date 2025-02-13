@@ -9,6 +9,8 @@ use std::iter::once;
 pub enum PopupAnchor {
     Rect(Rect),
     Pointer,
+    /// Show the popup at the mouse pointer and remember the position (like a context menu).
+    PointerFixed,
     Position(Pos2),
 }
 
@@ -25,17 +27,20 @@ impl From<Pos2> for PopupAnchor {
 }
 
 impl PopupAnchor {
-    pub fn rect(self, ctx: &Context) -> Option<Rect> {
+    pub fn rect(self, popup_id: Id, ctx: &Context) -> Option<Rect> {
         match self {
             Self::Rect(rect) => Some(rect),
             Self::Pointer => ctx.pointer_hover_pos().map(Rect::from_pos),
+            Self::PointerFixed => ctx
+                .memory(|mem| mem.popup_position(popup_id))
+                .map(Rect::from_pos),
             Self::Position(pos) => Some(Rect::from_pos(pos)),
         }
     }
 }
 
 /// Determines popup's close behavior
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum PopupCloseBehavior {
     /// Popup will be closed on click anywhere, inside or outside the popup.
     ///
@@ -111,6 +116,11 @@ pub enum Position {
 }
 
 /// Similar to [`Align2`] but also allows for aligning something outside a rect.
+///
+/// The corner from [`Align4::focus`] on the new rect will be aligned to
+/// the corner from [`Align4::align`] on the original rect.
+///
+/// There are helper constants for the 12 common menu positions:
 /// ```text
 ///              ┌───────────┐  ┌────────┐  ┌─────────┐              
 ///              │ TOP_START │  │  TOP   │  │ TOP_END │              
@@ -277,7 +287,7 @@ impl Align4 {
 }
 
 pub struct Popup<'a> {
-    id: Id,
+    pub id: Id,
     pub anchor: PopupAnchor,
     position_align: Align4,
     alternative_aligns: Option<&'a [Align4]>,
@@ -370,7 +380,8 @@ impl<'a> Popup<'a> {
                 response.secondary_clicked().then_some(true),
                 PopupCloseBehavior::CloseOnClick,
             )
-            .at_pointer()
+            .at_pointer_fixed()
+            .gap(0.0)
     }
 
     pub fn open(mut self, open: bool) -> Self {
@@ -413,8 +424,15 @@ impl<'a> Popup<'a> {
         self
     }
 
+    /// Show the popup at the current pointer position.
     pub fn at_pointer(mut self) -> Self {
         self.anchor = PopupAnchor::Pointer;
+        self
+    }
+
+    /// Remember the pointer position at the time of opening the popup, and show the popup there.
+    pub fn at_pointer_fixed(mut self) -> Self {
+        self.anchor = PopupAnchor::PointerFixed;
         self
     }
 
@@ -463,7 +481,7 @@ impl<'a> Popup<'a> {
             .and_then(|area| area.size)
             .unwrap_or(vec2(self.width.unwrap_or(0.0), 0.0));
 
-        let Some(anchor_rect) = self.anchor.rect(ctx) else {
+        let Some(anchor_rect) = self.anchor.rect(self.id, ctx) else {
             return self.position_align;
         };
 
@@ -511,12 +529,18 @@ impl<'a> Popup<'a> {
             sense,
         } = self;
 
+        let hover_pos = ctx.pointer_hover_pos();
         if let OpenKind::Memory { set, .. } = open_kind {
             ctx.memory_mut(|mem| match set {
                 SetOpen::DoNothing => {}
                 SetOpen::Bool(open) => {
                     if open {
-                        mem.open_popup(id);
+                        match self.anchor {
+                            PopupAnchor::PointerFixed => {
+                                mem.open_popup_at(id, hover_pos);
+                            }
+                            _ => mem.open_popup(id),
+                        }
                     } else {
                         mem.close_popup();
                     }
@@ -547,7 +571,7 @@ impl<'a> Popup<'a> {
             });
         }
 
-        let anchor_rect = anchor.rect(ctx)?;
+        let anchor_rect = anchor.rect(id, ctx)?;
 
         let (pivot, anchor) = best_align.pivot_anchor(&anchor_rect, gap);
 

@@ -6,7 +6,7 @@ use crate::{
 use emath::Vec2;
 
 pub struct Tooltip<'a> {
-    popup: Popup<'a>,
+    pub popup: Popup<'a>,
     layer_id: LayerId,
     widget_id: Id,
 }
@@ -87,7 +87,7 @@ impl<'a> Tooltip<'a> {
             return None;
         }
 
-        let rect = popup.anchor.rect(ctx)?;
+        let rect = popup.anchor.rect(popup.id, ctx)?;
 
         let mut state = ctx.pass_state_mut(|fs| {
             // Remember that this is the widget showing the tooltip:
