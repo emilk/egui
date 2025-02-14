@@ -70,13 +70,13 @@ You should add the following to your `.gitignore`:
 
 ### What do do when CI / another computer produces a different image?
 
-The default tolerance settings should be fine for almost all gui comparision tests.
+The default tolerance settings should be fine for almost all gui comparison tests.
 However, especially when you're using custom rendering, you may observe images difference with different setups leading to unexpected test failures.
 
 First check whether the difference is due to a change in enabled rendering features, potentially due to difference in hardware (/software renderer) capabilitites.
 Generally you should carefully enforcing the same set of features for all test runs, but this may happen nonetheless.
 
-Once you validated that the differences are miniscule and hard to avoid, you can try to _carefully_ adjust the comparision tolerance setting (`SnapshotOptions::treshold`, TODO([#5683](https://github.com/emilk/egui/issues/5683)): as well as number of pixels allowed to differ) for the specific test.
+Once you validated that the differences are miniscule and hard to avoid, you can try to _carefully_ adjust the comparison tolerance setting (`SnapshotOptions::threshold`, TODO([#5683](https://github.com/emilk/egui/issues/5683)): as well as number of pixels allowed to differ) for the specific test.
 
 ⚠️ **WARNING** ⚠️
 Picking too high tolerances may mean that you are missing actual test failures.
@@ -86,7 +86,7 @@ It is recommended to manually verify that the tests still break under the right 
 
 In order to avoid image differences, it can be useful to form an understanding of how they occur in the first place.
 
-Discrepencies can be caused by a variety of implementation details that depend on the concrete GPU, OS, rendering backend (Metal/Vulkan/DX12 etc.) or graphics driver (even between different versions of the same driver).
+Discrepancies can be caused by a variety of implementation details that depend on the concrete GPU, OS, rendering backend (Metal/Vulkan/DX12 etc.) or graphics driver (even between different versions of the same driver).
 
 Common issues include:
 * multi-sample anti-aliasing
