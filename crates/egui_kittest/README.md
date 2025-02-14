@@ -59,22 +59,36 @@ You should add the following to your `.gitignore`:
 ### Guidelines for writing snapshot tests
 
 * Whenever **possible** prefer regular Rust tests or `insta` snapshot tests over image comparison tests because…
-  * …they are slow to run
+  * …compared to regular Rust tests, they can be relatively slow to run
   * …they are brittle since unrelated side effects (like a change in color) can cause the test to fail
   * …images take up repo space
 * images should…
-  * …be checked in as LFS file
+  * …be checked in or otherwise be available (egui use [git LFS](https://git-lfs.com/) files for this purpose)
   * …depict exactly what's tested and nothing else
   * …have a low resolution to avoid growth in repo size
-  * …have a low comparison threshold to avoid the test passing despite unwanted differences
+  * …have a low comparison threshold to avoid the test passing despite unwanted differences (the default threshold should be fine for most usecases!)
 
-### Why does CI / another computer produce a different image?
+### What do do when CI / another computer produces a different image?
+
+The default tolerance settings should be fine for almost all gui comparision tests.
+However, especially when you're using custom rendering, you may observe images difference with different setups leading to unexpected test failures.
 
 First check whether the difference is due to a change in enabled rendering features, potentially due to difference in hardware (/software renderer) capabilitites.
-Generally you should carefully enforcing the same set of features for all test runs, but this may happen nonetheless|
+Generally you should carefully enforcing the same set of features for all test runs, but this may happen nonetheless.
 
-However, smaller discrepancies may be caused by a variety of implementation details depending on the concrete GPU/OS/rendering backend/graphics driver (even between different versions of the same driver).
-For instance:
+Once you validated that the differences are miniscule and hard to avoid, you can try to _carefully_ adjust the comparision tolerance setting (`SnapshotOptions::treshold`, TODO([#5683](https://github.com/emilk/egui/issues/5683)): as well as number of pixels allowed to differ) for the specific test.
+
+⚠️ **WARNING** ⚠️
+Picking too high tolerances may mean that you are missing actual test failures.
+It is recommended to manually verify that the tests still break under the right circumstances as expected after adjusting the tolerances.
+
+---
+
+In order to avoid image differences, it can be useful to form an understanding of how they occur in the first place.
+
+Discrepencies can be caused by a variety of implementation details that depend on the concrete GPU, OS, rendering backend (Metal/Vulkan/DX12 etc.) or graphics driver (even between different versions of the same driver).
+
+Common issues include:
 * multi-sample anti-aliasing
   * sample placement and sample resolve steps are implementation defined
   * alpha-to-coverage algorithm/pattern can wary wildly between implementations
