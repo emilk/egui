@@ -55,3 +55,62 @@ You should add the following to your `.gitignore`:
 **/tests/snapshots/**/*.diff.png
 **/tests/snapshots/**/*.new.png
 ```
+
+### Guidelines for writing snapshot tests
+
+* Whenever **possible** prefer regular Rust tests or `insta` snapshot tests over image comparison tests because…
+  * …compared to regular Rust tests, they can be relatively slow to run
+  * …they are brittle since unrelated side effects (like a change in color) can cause the test to fail
+  * …images take up repo space
+* images should…
+  * …be checked in or otherwise be available (egui use [git LFS](https://git-lfs.com/) files for this purpose)
+  * …depict exactly what's tested and nothing else
+  * …have a low resolution to avoid growth in repo size
+  * …have a low comparison threshold to avoid the test passing despite unwanted differences (the default threshold should be fine for most usecases!)
+
+### What do do when CI / another computer produces a different image?
+
+The default tolerance settings should be fine for almost all gui comparison tests.
+However, especially when you're using custom rendering, you may observe images difference with different setups leading to unexpected test failures.
+
+First check whether the difference is due to a change in enabled rendering features, potentially due to difference in hardware (/software renderer) capabilitites.
+Generally you should carefully enforcing the same set of features for all test runs, but this may happen nonetheless.
+
+Once you validated that the differences are miniscule and hard to avoid, you can try to _carefully_ adjust the comparison tolerance setting (`SnapshotOptions::threshold`, TODO([#5683](https://github.com/emilk/egui/issues/5683)): as well as number of pixels allowed to differ) for the specific test.
+
+⚠️ **WARNING** ⚠️
+Picking too high tolerances may mean that you are missing actual test failures.
+It is recommended to manually verify that the tests still break under the right circumstances as expected after adjusting the tolerances.
+
+---
+
+In order to avoid image differences, it can be useful to form an understanding of how they occur in the first place.
+
+Discrepancies can be caused by a variety of implementation details that depend on the concrete GPU, OS, rendering backend (Metal/Vulkan/DX12 etc.) or graphics driver (even between different versions of the same driver).
+
+Common issues include:
+* multi-sample anti-aliasing
+  * sample placement and sample resolve steps are implementation defined
+  * alpha-to-coverage algorithm/pattern can wary wildly between implementations
+* texture filtering
+  * different implementations may apply different optimizations *even* for simple linear texture filtering
+* out of bounds texture access (via `textureLoad`)
+  * implementations are free to return indeterminate values instead of clamping
+* floating point evaluation, for details see [WGSL spec § 15.7. Floating Point Evaluation](https://www.w3.org/TR/WGSL/#floating-point-evaluation). Notably:
+  * rounding mode may be inconsistent
+  * floating point math "optimizations" may occur
+    * depending on output shading language, different arithmetic optimizations may be performed upon floating point operations even if they change the result
+  * floating point denormal flush
+    * even on modern implementations, denormal float values may be flushed to zero
+  * `NaN`/`Inf` handling
+    * whenever the result of a function should yield `NaN`/`Inf`, implementations may free to yield an indeterminate value instead
+  * builtin-function function precision & error handling (trigonometric functions and others)
+* [partial derivatives (dpdx/dpdx)](https://www.w3.org/TR/WGSL/#dpdx-builtin)
+  * implementations are free to use either `dpdxFine` or `dpdxCoarse`
+* [...]
+
+From this follow a few simple recommendations (these may or may not apply as they may impose unwanted restrictions on your rendering setup):
+* avoid enabling mult-sample anti-aliasing whenever it's not explicitly tested or needed
+* do not rely on NaN, Inf and denormal float values
+* consider dedicated test paths for texture sampling
+* prefer explicit partial derivative functions
