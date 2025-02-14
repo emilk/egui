@@ -39,7 +39,7 @@ pub struct Column {
 
     resizable: Option<bool>,
 
-    /// If set, we should acurately measure the size of this column this frame
+    /// If set, we should accurately measure the size of this column this frame
     /// so that we can correctly auto-size it. This is done as a `sizing_pass`.
     auto_size_this_frame: bool,
 }
