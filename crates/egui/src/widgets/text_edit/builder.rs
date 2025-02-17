@@ -505,6 +505,7 @@ impl TextEdit<'_> {
             .unwrap_or_else(|| ui.visuals().widgets.inactive.text_color());
 
         let prev_text = text.as_str().to_owned();
+        let hint_text_str = hint_text.text().to_owned();
 
         let font_id = font_selection.resolve(ui.style());
         let row_height = ui.fonts(|f| f.row_height(&font_id));
@@ -807,6 +808,7 @@ impl TextEdit<'_> {
                     ui.is_enabled(),
                     mask_if_password(password, prev_text.as_str()),
                     mask_if_password(password, text.as_str()),
+                    hint_text_str.as_str(),
                 )
             });
         } else if selection_changed {
@@ -825,6 +827,7 @@ impl TextEdit<'_> {
                     ui.is_enabled(),
                     mask_if_password(password, prev_text.as_str()),
                     mask_if_password(password, text.as_str()),
+                    hint_text_str.as_str(),
                 )
             });
         }
