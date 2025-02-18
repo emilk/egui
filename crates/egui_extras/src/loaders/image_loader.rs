@@ -1,5 +1,6 @@
 use ahash::HashMap;
 use egui::{
+    decode_animated_image_uri,
     load::{BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
     mutex::Mutex,
     ColorImage,
@@ -57,6 +58,11 @@ impl ImageLoader for ImageCrateLoader {
         // 1. URI extension (only done for files)
         // 2. Mime from `BytesPoll::Ready`
         // 3. image::guess_format (used internally by image::load_from_memory)
+
+        // TODO(lucasmerlin): Egui currently changes all URIs for webp and gif files to include
+        // the frame index (#0), which breaks if the animated image loader is disabled.
+        // We work around this by removing the frame index from the URI here
+        let uri = decode_animated_image_uri(uri).map_or(uri, |(uri, _frame_index)| uri);
 
         // (1)
         if uri.starts_with("file://") && !is_supported_uri(uri) {
