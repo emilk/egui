@@ -39,7 +39,7 @@ impl Default for RectRelation {
         Self::BOTTOM_START
     }
 }
-// TODO: Move to own file
+
 impl RectRelation {
     /// Along the top edge, leftmost.
     pub const TOP_START: Self = Self {
