@@ -376,7 +376,7 @@ fn combo_box_dyn<'c, R>(
         .id(popup_id)
         .width(button_response.rect.width())
         .close_behavior(close_behavior)
-        .show(ui.ctx(), |ui| {
+        .show(|ui| {
             ui.set_min_width(ui.available_width());
 
             ScrollArea::vertical()

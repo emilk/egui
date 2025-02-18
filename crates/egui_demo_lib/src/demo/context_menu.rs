@@ -36,10 +36,10 @@ impl crate::View for ContextMenus {
 
         ui.horizontal(|ui| {
             let response = ui.button("New menu");
-            Popup::menu(&response).show(ui.ctx(), Self::nested_menus);
+            Popup::menu(&response).show(Self::nested_menus);
 
             let response = ui.button("New context menu");
-            Popup::context_menu(&response).show(ui.ctx(), Self::nested_menus);
+            Popup::context_menu(&response).show(Self::nested_menus);
 
             ComboBox::new("Hi", "Hi").show_ui(ui, |ui| {
                 _ = ui.selectable_label(false, "I have some long text that should be wrapped");

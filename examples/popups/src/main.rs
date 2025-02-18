@@ -45,7 +45,7 @@ impl eframe::App for MyApp {
 
             Popup::menu(&response)
                 .close_behavior(PopupCloseBehavior::IgnoreClicks)
-                .show(ctx, |ui| {
+                .show(|ui| {
                     ui.set_min_width(310.0);
                     ui.label("This popup will be open until you press the button again");
                     ui.checkbox(&mut self.checkbox, "Checkbox");

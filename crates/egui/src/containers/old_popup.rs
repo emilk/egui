@@ -187,7 +187,7 @@ pub fn popup_below_widget<R>(
 /// ```
 #[deprecated = "Use `egui::Popup` instead"]
 pub fn popup_above_or_below_widget<R>(
-    parent_ui: &Ui,
+    _parent_ui: &Ui,
     popup_id: Id,
     widget_response: &Response,
     above_or_below: AboveOrBelow,

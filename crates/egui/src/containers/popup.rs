@@ -391,11 +391,8 @@ impl<'a> Popup<'a> {
     pub fn get_popup_rect(&self) -> Option<Rect> {
         let size = self.get_expected_size();
         if let Some(size) = size {
-            if let Some(anchor) = self.get_anchor_rect() {
-                Some(self.get_best_align().align_rect(&anchor, size, self.gap))
-            } else {
-                None
-            }
+            self.get_anchor_rect()
+                .map(|anchor| self.get_best_align().align_rect(&anchor, size, self.gap))
         } else {
             None
         }

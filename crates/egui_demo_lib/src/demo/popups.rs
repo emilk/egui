@@ -150,27 +150,27 @@ impl crate::View for PopupsDemo {
             .inner;
 
         self.apply_options(Popup::menu(&response).id(Id::new("menu")))
-            .show(ui.ctx(), |ui| {
+            .show(|ui| {
                 _ = ui.button("Menu item 1");
                 _ = ui.button("Menu item 2");
             });
 
         self.apply_options(Popup::context_menu(&response).id(Id::new("context_menu")))
-            .show(ui.ctx(), |ui| {
+            .show(|ui| {
                 _ = ui.button("Context menu item 1");
                 _ = ui.button("Context menu item 2");
             });
 
         if self.popup_open {
             self.apply_options(Popup::from_response(&response).id(Id::new("popup")))
-                .show(ui.ctx(), |ui| {
+                .show(|ui| {
                     ui.label("Popup contents");
                 });
         }
 
         let mut tooltip = Tooltip::for_enabled(&response);
         tooltip.popup = self.apply_options(tooltip.popup);
-        tooltip.show(ui.ctx(), |ui| {
+        tooltip.show(|ui| {
             ui.label("Tooltips are popups, too!");
         });
 
