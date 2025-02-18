@@ -165,9 +165,9 @@ impl RectAlign {
         (self.child(), self.anchor(parent_rect, gap))
     }
 
-    /// Returns a normalized vector that can be used as an offset to create a gap between the rects
-    /// while keeping the edges aligned.
-    pub fn gap_factor(&self) -> Vec2 {
+    /// Returns a sign vector (-1, 0 or 1 in each direction) that can be used as an offset to the
+    /// child rect, creating a gap between the rects while keeping the edges aligned.
+    pub fn gap_vector(&self) -> Vec2 {
         let mut gap = -self.child.to_sign();
 
         // Align the edges in these cases
@@ -188,7 +188,7 @@ impl RectAlign {
     pub fn anchor(&self, parent_rect: &Rect, gap: f32) -> Pos2 {
         let pos = self.parent.pos_in_rect(parent_rect);
 
-        let offset = self.gap_factor() * gap;
+        let offset = self.gap_vector() * gap;
 
         pos + offset
     }
