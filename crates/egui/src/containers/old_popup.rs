@@ -6,7 +6,7 @@ use crate::{
     Align, Context, Id, LayerId, Layout, Popup, PopupAnchor, PopupCloseBehavior, Pos2, Rect,
     Response, Ui, Widget, WidgetText,
 };
-use emath::align::RectRelation;
+use emath::RectRelation;
 // ----------------------------------------------------------------------------
 
 /// Show a tooltip at the current pointer position (if any).

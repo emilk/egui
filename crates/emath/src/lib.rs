@@ -34,6 +34,7 @@ mod ordered_float;
 mod pos2;
 mod range;
 mod rect;
+mod rect_relation;
 mod rect_transform;
 mod rot2;
 pub mod smart_aim;
@@ -42,7 +43,7 @@ mod vec2;
 mod vec2b;
 
 pub use self::{
-    align::{Align, Align2, RectRelation},
+    align::{Align, Align2},
     gui_rounding::{GuiRounding, GUI_ROUNDING},
     history::History,
     numeric::*,
@@ -50,6 +51,7 @@ pub use self::{
     pos2::*,
     range::Rangef,
     rect::*,
+    rect_relation::RectRelation,
     rect_transform::*,
     rot2::*,
     ts_transform::*,
