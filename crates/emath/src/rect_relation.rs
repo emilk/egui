@@ -28,7 +28,9 @@ use crate::{Align2, Pos2, Rect, Vec2};
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct RectRelation {
+    /// The alignment in the parent (original) rect.
     pub parent: Align2,
+    /// The alignment in the child (new) rect.
     pub child: Align2,
 }
 
