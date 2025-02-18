@@ -2,8 +2,8 @@ use crate::{Align2, Pos2, Rect, Vec2};
 
 /// Position a child [`Rect`] relative to a parent [`Rect`].
 ///
-/// The corner from [`RectRelation::child`] on the new rect will be aligned to
-/// the corner from [`RectRelation::parent`] on the original rect.
+/// The corner from [`RectAlign::child`] on the new rect will be aligned to
+/// the corner from [`RectAlign::parent`] on the original rect.
 ///
 /// There are helper constants for the 12 common menu positions:
 /// ```text
@@ -27,20 +27,20 @@ use crate::{Align2, Pos2, Rect, Vec2};
 // reasonable.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct RectRelation {
+pub struct RectAlign {
     /// The alignment in the parent (original) rect.
     pub parent: Align2,
     /// The alignment in the child (new) rect.
     pub child: Align2,
 }
 
-impl Default for RectRelation {
+impl Default for RectAlign {
     fn default() -> Self {
         Self::BOTTOM_START
     }
 }
 
-impl RectRelation {
+impl RectAlign {
     /// Along the top edge, leftmost.
     pub const TOP_START: Self = Self {
         parent: Align2::LEFT_TOP,
@@ -102,7 +102,7 @@ impl RectRelation {
         child: Align2::RIGHT_TOP,
     };
 
-    /// The 12 most common menu positions as an array, for use with [`RectRelation::find_best_align`].
+    /// The 12 most common menu positions as an array, for use with [`RectAlign::find_best_align`].
     pub const MENU_ALIGNS: [Self; 12] = [
         Self::BOTTOM_START,
         Self::BOTTOM_END,
@@ -129,7 +129,7 @@ impl RectRelation {
         self.child
     }
 
-    /// Convert an [`Align2`] to an [`RectRelation`], positioning the child rect inside the parent.
+    /// Convert an [`Align2`] to an [`RectAlign`], positioning the child rect inside the parent.
     pub fn from_align2(align: Align2) -> Self {
         Self {
             parent: align,
@@ -217,17 +217,17 @@ impl RectRelation {
         }
     }
 
-    /// Returns the 3 alternative [`RectRelation`]s that are flipped in various ways, for use
-    /// with [`RectRelation::find_best_align`].
-    pub fn alternatives(self) -> [Self; 3] {
+    /// Returns the 3 alternative [`RectAlign`]s that are flipped in various ways, for use
+    /// with [`RectAlign::find_best_align`].
+    pub fn symmetries(self) -> [Self; 3] {
         [self.flip_x(), self.flip_y(), self.flip()]
     }
 
-    /// Look for the [`RectRelation`] that fits best in the available space.
+    /// Look for the [`RectAlign`] that fits best in the available space.
     ///
     /// See also:
-    /// - [`RectRelation::alternatives`] to calculate alternatives
-    /// - [`RectRelation::MENU_ALIGNS`] for the 12 common menu positions
+    /// - [`RectAlign::symmetries`] to calculate alternatives
+    /// - [`RectAlign::MENU_ALIGNS`] for the 12 common menu positions
     pub fn find_best_align(
         mut values_to_try: impl Iterator<Item = Self>,
         available_space: Rect,

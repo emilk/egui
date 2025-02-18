@@ -1,7 +1,7 @@
 use kittest::Queryable;
 
 #[test]
-fn interactive_tooltip_should_stay_open() {
+fn test_interactive_tooltip() {
     struct State {
         link_clicked: bool,
     }

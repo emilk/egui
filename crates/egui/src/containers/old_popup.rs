@@ -1,4 +1,4 @@
-//! Show popup windows, tooltips, context menus etc.
+//! Old and deprecated API for popups. Use [`egui::Popup`] instead.
 #![allow(deprecated)]
 
 use crate::containers::tooltip::Tooltip;
@@ -6,7 +6,7 @@ use crate::{
     Align, Context, Id, LayerId, Layout, Popup, PopupAnchor, PopupCloseBehavior, Pos2, Rect,
     Response, Ui, Widget, WidgetText,
 };
-use emath::RectRelation;
+use emath::RectAlign;
 // ----------------------------------------------------------------------------
 
 /// Show a tooltip at the current pointer position (if any).
@@ -61,9 +61,9 @@ pub fn show_tooltip_at_pointer<R>(
     widget_id: Id,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
-    Tooltip::new(widget_id, PopupAnchor::Pointer, parent_layer)
+    Tooltip::new(widget_id, ctx.clone(), PopupAnchor::Pointer, parent_layer)
         .gap(12.0)
-        .show(ctx, add_contents)
+        .show(add_contents)
         .map(|response| response.inner)
 }
 
@@ -78,8 +78,8 @@ pub fn show_tooltip_for<R>(
     widget_rect: &Rect,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
-    Tooltip::new(widget_id, *widget_rect, parent_layer)
-        .show(ctx, add_contents)
+    Tooltip::new(widget_id, ctx.clone(), *widget_rect, parent_layer)
+        .show(add_contents)
         .map(|response| response.inner)
 }
 
@@ -94,8 +94,8 @@ pub fn show_tooltip_at<R>(
     suggested_position: Pos2,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
-    Tooltip::new(widget_id, suggested_position, parent_layer)
-        .show(ctx, add_contents)
+    Tooltip::new(widget_id, ctx.clone(), suggested_position, parent_layer)
+        .show(add_contents)
         .map(|response| response.inner)
 }
 
@@ -198,12 +198,12 @@ pub fn popup_above_or_below_widget<R>(
         .layout(Layout::top_down_justified(Align::LEFT))
         .open_memory(None, close_behavior)
         .id(popup_id)
-        .position(match above_or_below {
-            AboveOrBelow::Above => RectRelation::TOP_START,
-            AboveOrBelow::Below => RectRelation::BOTTOM_START,
+        .align(match above_or_below {
+            AboveOrBelow::Above => RectAlign::TOP_START,
+            AboveOrBelow::Below => RectAlign::BOTTOM_START,
         })
         .width(widget_response.rect.width())
-        .show(parent_ui.ctx(), |ui| {
+        .show(|ui| {
             ui.set_min_width(ui.available_width());
             add_contents(ui)
         })?;

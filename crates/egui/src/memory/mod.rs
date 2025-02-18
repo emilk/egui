@@ -89,6 +89,10 @@ pub struct Memory {
 
     /// Which popup-window is open (if any)?
     /// Could be a combo box, color picker, menu, etc.
+    /// Optionally stores the position of the popup (usually this would be the position where
+    /// the user clicked).
+    /// If position is [`None`], the popup position will be calculated based on some configuration
+    /// (e.g. relative to some other widget).
     #[cfg_attr(feature = "persistence", serde(skip))]
     popup: Option<(Id, Option<Pos2>)>,
 

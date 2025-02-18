@@ -13,10 +13,15 @@ pub struct Tooltip<'a> {
 
 impl<'a> Tooltip<'a> {
     /// Show a tooltip that is always open
-    pub fn new(widget_id: Id, anchor: impl Into<PopupAnchor>, layer_id: LayerId) -> Self {
+    pub fn new(
+        widget_id: Id,
+        ctx: Context,
+        anchor: impl Into<PopupAnchor>,
+        layer_id: LayerId,
+    ) -> Self {
         Self {
             // TODO(lucasmerlin): Set width somehow (we're missing context here)
-            popup: Popup::new(widget_id, anchor.into(), layer_id)
+            popup: Popup::new(widget_id, ctx, anchor.into(), layer_id)
                 .kind(PopupKind::Tooltip)
                 .gap(4.0)
                 .sense(Sense::hover()),
@@ -25,7 +30,7 @@ impl<'a> Tooltip<'a> {
         }
     }
 
-    /// Show a tooltip for a widget. Always open.
+    /// Show a tooltip for a widget. Always open (as long as this function is called).
     pub fn for_widget(response: &Response) -> Self {
         let popup = Popup::from_response(response)
             .kind(PopupKind::Tooltip)
@@ -88,24 +93,20 @@ impl<'a> Tooltip<'a> {
     }
 
     /// Show the tooltip
-    pub fn show<R>(
-        self,
-        ctx: &Context,
-        content: impl FnOnce(&mut crate::Ui) -> R,
-    ) -> Option<InnerResponse<R>> {
+    pub fn show<R>(self, content: impl FnOnce(&mut crate::Ui) -> R) -> Option<InnerResponse<R>> {
         let Self {
             mut popup,
             layer_id: parent_layer,
             widget_id,
         } = self;
 
-        if !popup.is_open(ctx) {
+        if !popup.is_open() {
             return None;
         }
 
-        let rect = popup.anchor.rect(popup.id, ctx)?;
+        let rect = popup.get_anchor_rect()?;
 
-        let mut state = ctx.pass_state_mut(|fs| {
+        let mut state = popup.ctx().pass_state_mut(|fs| {
             // Remember that this is the widget showing the tooltip:
             fs.layers
                 .entry(parent_layer)
@@ -125,7 +126,7 @@ impl<'a> Tooltip<'a> {
         let tooltip_area_id = Self::tooltip_id(widget_id, state.tooltip_count);
         popup = popup.anchor(state.bounding_rect).id(tooltip_area_id);
 
-        let response = popup.show(ctx, |ui| {
+        let response = popup.show(|ui| {
             // By default, the text in tooltips aren't selectable.
             // This means that most tooltips aren't interactable,
             // which also mean they won't stick around so you can click them.
@@ -140,8 +141,11 @@ impl<'a> Tooltip<'a> {
         if let Some(response) = &response {
             state.tooltip_count += 1;
             state.bounding_rect = state.bounding_rect.union(response.response.rect);
-            ctx.pass_state_mut(|fs| fs.tooltips.widget_tooltips.insert(widget_id, state));
-            Self::remember_that_tooltip_was_shown(ctx);
+            response
+                .response
+                .ctx
+                .pass_state_mut(|fs| fs.tooltips.widget_tooltips.insert(widget_id, state));
+            Self::remember_that_tooltip_was_shown(&response.response.ctx);
         }
 
         response

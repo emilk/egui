@@ -550,13 +550,13 @@ impl Response {
     /// ```
     #[doc(alias = "tooltip")]
     pub fn on_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
-        Tooltip::for_enabled(&self).show(&self.ctx, add_contents);
+        Tooltip::for_enabled(&self).show(add_contents);
         self
     }
 
     /// Show this UI when hovering if the widget is disabled.
     pub fn on_disabled_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
-        Tooltip::for_disabled(&self).show(&self.ctx, add_contents);
+        Tooltip::for_disabled(&self).show(add_contents);
         self
     }
 
@@ -565,7 +565,7 @@ impl Response {
         Tooltip::for_enabled(&self)
             .at_pointer()
             .gap(12.0)
-            .show(&self.ctx, add_contents);
+            .show(add_contents);
         self
     }
 
@@ -575,7 +575,7 @@ impl Response {
     pub fn show_tooltip_ui(&self, add_contents: impl FnOnce(&mut Ui)) {
         Popup::from_response(self)
             .kind(PopupKind::Tooltip)
-            .show(&self.ctx, add_contents);
+            .show(add_contents);
     }
 
     /// Always show this tooltip, even if disabled and the user isn't hovering it.

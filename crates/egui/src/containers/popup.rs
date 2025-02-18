@@ -2,27 +2,37 @@ use crate::{
     Area, AreaState, Context, Frame, Id, InnerResponse, Key, LayerId, Layout, Order, Response,
     Sense, Ui, UiKind,
 };
-use emath::{vec2, Align, Pos2, Rect, RectRelation};
+use emath::{vec2, Align, Pos2, Rect, RectAlign, Vec2};
 use std::iter::once;
 
+/// What should we anchor the popup to?
+/// The final position for the popup will be calculated based on [`RectAlign`]
+/// and can be customized with [`Popup::align`] and [`Popup::align_alternatives`].
+/// [`PopupAnchor`] is the parent rect of [`RectAlign`].
+///
+/// For [`PopupAnchor::Pointer`], [`PopupAnchor::PointerFixed`] and [`PopupAnchor::Position`],
+/// the rect will be derived via [`Rect::from_pos`] (so a zero-sized rect at the given position).
+///
+/// The rect should be in global coordinates. `PopupAnchor::from(&response)` will automatically
+/// do this conversion.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PopupAnchor {
-    /// Show the popup at the given rect.
-    Rect(Rect),
+    /// Show the popup relative to some parent [`Rect`].
+    ParentRect(Rect),
 
-    /// Show the popup at the current mouse pointer position.
+    /// Show the popup relative to the mouse pointer.
     Pointer,
 
-    /// Show the popup at the mouse pointer and remember the position (like a context menu).
+    /// Remember the mouse position and show the popup relative to that (like a context menu).
     PointerFixed,
 
-    /// Show the popup at the given position.
+    /// Show the popup relative to a specific position.
     Position(Pos2),
 }
 
 impl From<Rect> for PopupAnchor {
     fn from(rect: Rect) -> Self {
-        Self::Rect(rect)
+        Self::ParentRect(rect)
     }
 }
 
@@ -38,15 +48,17 @@ impl From<&Response> for PopupAnchor {
         if let Some(to_global) = response.ctx.layer_transform_to_global(response.layer_id) {
             widget_rect = to_global * widget_rect;
         }
-        Self::Rect(widget_rect)
+        Self::ParentRect(widget_rect)
     }
 }
 
 impl PopupAnchor {
-    /// The rect the popup should be shown at.
+    /// Get the rect the popup should be shown relative to.
+    /// Returns `Rect::from_pos` for [`PopupAnchor::Pointer`], [`PopupAnchor::PointerFixed`]
+    /// and [`PopupAnchor::Position`] (so the rect will be zero-sized).
     pub fn rect(self, popup_id: Id, ctx: &Context) -> Option<Rect> {
         match self {
-            Self::Rect(rect) => Some(rect),
+            Self::ParentRect(rect) => Some(rect),
             Self::Pointer => ctx.pointer_hover_pos().map(Rect::from_pos),
             Self::PointerFixed => ctx
                 .memory(|mem| mem.popup_position(popup_id))
@@ -74,10 +86,7 @@ pub enum PopupCloseBehavior {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SetOpenState {
-    /// Do nothing
-    DoNothing,
-
+pub enum SetOpenCommand {
     /// Set the open state to the given value
     Bool(bool),
 
@@ -85,17 +94,7 @@ pub enum SetOpenState {
     Toggle,
 }
 
-impl From<Option<bool>> for SetOpenState {
-    fn from(opt: Option<bool>) -> Self {
-        match opt {
-            Some(true) => Self::Bool(true),
-            Some(false) => Self::Bool(false),
-            None => Self::DoNothing,
-        }
-    }
-}
-
-impl From<bool> for SetOpenState {
+impl From<bool> for SetOpenCommand {
     fn from(b: bool) -> Self {
         Self::Bool(b)
     }
@@ -114,7 +113,7 @@ enum OpenKind<'a> {
 
     /// Store the open state via [`crate::Memory`]
     Memory {
-        set: SetOpenState,
+        set: Option<SetOpenCommand>,
         close_behavior: PopupCloseBehavior,
     },
 }
@@ -131,6 +130,7 @@ impl<'a> OpenKind<'a> {
     }
 }
 
+/// Is the popup a popup, tooltip or menu?
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PopupKind {
     Popup,
@@ -139,12 +139,11 @@ pub enum PopupKind {
 }
 
 pub struct Popup<'a> {
-    pub id: Id,
-    pub anchor: PopupAnchor,
-    position_align: RectRelation,
-    alternative_aligns: Option<&'a [RectRelation]>,
-
-    /// If multiple popups are shown with the same widget id, they will be laid out so they don't overlap.
+    id: Id,
+    ctx: Context,
+    anchor: PopupAnchor,
+    rect_align: RectAlign,
+    alternative_aligns: Option<&'a [RectAlign]>,
     layer_id: LayerId,
     open_kind: OpenKind<'a>,
     kind: PopupKind,
@@ -164,14 +163,15 @@ pub struct Popup<'a> {
 
 impl<'a> Popup<'a> {
     /// Create a new popup
-    pub fn new(id: Id, anchor: impl Into<PopupAnchor>, layer_id: LayerId) -> Self {
+    pub fn new(id: Id, ctx: Context, anchor: impl Into<PopupAnchor>, layer_id: LayerId) -> Self {
         Self {
             id,
+            ctx,
             anchor: anchor.into(),
             open_kind: OpenKind::Open,
             kind: PopupKind::Popup,
             layer_id,
-            position_align: RectRelation::BOTTOM_START,
+            rect_align: RectAlign::BOTTOM_START,
             alternative_aligns: None,
             gap: 0.0,
             widget_clicked_elsewhere: false,
@@ -189,20 +189,20 @@ impl<'a> Popup<'a> {
         self
     }
 
-    /// Set the position and alignment of the popup relative to the anchor.
+    /// Set the [`RectAlign`] of the popup relative to the [`PopupAnchor`].
     /// This is the default position, and will be used if it fits.
-    /// See [`Self::position_alternatives`] for more on this.
+    /// See [`Self::align_alternatives`] for more on this.
     #[inline]
-    pub fn position(mut self, position_align: RectRelation) -> Self {
-        self.position_align = position_align;
+    pub fn align(mut self, position_align: RectAlign) -> Self {
+        self.rect_align = position_align;
         self
     }
 
     /// Set alternative positions to try if the default one doesn't fit. Set to an empty slice to
-    /// always use the position you set with [`Self::position`].
-    /// By default, this will try the mirrored position and alignment, and then every other position
+    /// always use the position you set with [`Self::align`].
+    /// By default, this will try [`RectAlign::symmetries`] and then [`RectAlign::MENU_ALIGNS`].
     #[inline]
-    pub fn position_alternatives(mut self, alternatives: &'a [RectRelation]) -> Self {
+    pub fn align_alternatives(mut self, alternatives: &'a [RectAlign]) -> Self {
         self.alternative_aligns = Some(alternatives);
         self
     }
@@ -212,7 +212,12 @@ impl<'a> Popup<'a> {
     ///
     /// See [`Self::menu`] and [`Self::context_menu`] for common use cases.
     pub fn from_response(response: &Response) -> Self {
-        let mut popup = Self::new(response.id.with("popup"), response, response.layer_id);
+        let mut popup = Self::new(
+            response.id.with("popup"),
+            response.ctx.clone(),
+            response,
+            response.layer_id,
+        );
         popup.widget_clicked_elsewhere = response.clicked_elsewhere();
         popup
     }
@@ -223,9 +228,9 @@ impl<'a> Popup<'a> {
         Self::from_response(response)
             .open_memory(
                 if response.clicked() {
-                    SetOpenState::Toggle
+                    Some(SetOpenCommand::Toggle)
                 } else {
-                    SetOpenState::DoNothing
+                    None
                 },
                 PopupCloseBehavior::CloseOnClick,
             )
@@ -238,7 +243,9 @@ impl<'a> Popup<'a> {
     pub fn context_menu(response: &Response) -> Self {
         Self::from_response(response)
             .open_memory(
-                response.secondary_clicked().then_some(true),
+                response
+                    .secondary_clicked()
+                    .then_some(SetOpenCommand::Bool(true)),
                 PopupCloseBehavior::CloseOnClick,
             )
             .layout(Layout::top_down_justified(Align::Min))
@@ -257,11 +264,11 @@ impl<'a> Popup<'a> {
     }
 
     /// Store the open state via [`crate::Memory`].
-    /// You can set the state via [`SetOpenState`].
+    /// You can set the state via the first [`SetOpenCommand`] param.
     #[inline]
     pub fn open_memory(
         mut self,
-        set_state: impl Into<SetOpenState>,
+        set_state: impl Into<Option<SetOpenCommand>>,
         close_behavior: PopupCloseBehavior,
     ) -> Self {
         self.open_kind = OpenKind::Memory {
@@ -279,6 +286,8 @@ impl<'a> Popup<'a> {
     }
 
     /// Set the close behavior of the popup.
+    ///
+    /// This will do nothing if [`Popup::open`] was called.
     #[inline]
     pub fn close_behavior(mut self, close_behavior: PopupCloseBehavior) -> Self {
         match &mut self.open_kind {
@@ -294,28 +303,29 @@ impl<'a> Popup<'a> {
         self
     }
 
-    /// Show the popup at the current pointer position.
+    /// Show the popup relative to the pointer.
     #[inline]
     pub fn at_pointer(mut self) -> Self {
         self.anchor = PopupAnchor::Pointer;
         self
     }
 
-    /// Remember the pointer position at the time of opening the popup, and show the popup there.
+    /// Remember the pointer position at the time of opening the popup, and show the popup
+    /// relative to that.
     #[inline]
     pub fn at_pointer_fixed(mut self) -> Self {
         self.anchor = PopupAnchor::PointerFixed;
         self
     }
 
-    /// Show the popup at the given position.
+    /// Show the popup relative to a specific position.
     #[inline]
     pub fn at_position(mut self, position: Pos2) -> Self {
         self.anchor = PopupAnchor::Position(position);
         self
     }
 
-    /// Show the popup relative to the given thing.
+    /// Show the popup relative to the given [`PopupAnchor`].
     #[inline]
     pub fn anchor(mut self, anchor: impl Into<PopupAnchor>) -> Self {
         self.anchor = anchor.into();
@@ -357,64 +367,104 @@ impl<'a> Popup<'a> {
         self
     }
 
+    /// Get the [`Context`]
+    pub fn ctx(&self) -> &Context {
+        &self.ctx
+    }
+
+    /// Return the [`PopupAnchor`] of the popup.
+    pub fn get_anchor(&self) -> PopupAnchor {
+        self.anchor
+    }
+
+    /// Return the anchor rect of the popup.
+    ///
+    /// Returns `None` if the anchor is [`PopupAnchor::Pointer`] and there is no pointer.
+    pub fn get_anchor_rect(&self) -> Option<Rect> {
+        self.anchor.rect(self.id, &self.ctx)
+    }
+
+    /// Get the expected rect the popup will be shown in.
+    ///
+    /// Returns `None` if the popup wasn't shown before or anchor is `PopupAnchor::Pointer` and
+    /// there is no pointer.
+    pub fn get_popup_rect(&self) -> Option<Rect> {
+        let size = self.get_expected_size();
+        if let Some(size) = size {
+            if let Some(anchor) = self.get_anchor_rect() {
+                Some(self.get_best_align().align_rect(&anchor, size, self.gap))
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
+    /// Get the id of the popup.
+    pub fn get_id(&self) -> Id {
+        self.id
+    }
+
     /// Is the popup open?
-    pub fn is_open(&self, ctx: &Context) -> bool {
+    pub fn is_open(&self) -> bool {
         match &self.open_kind {
             OpenKind::Open => true,
             OpenKind::Closed => false,
             OpenKind::Bool(open, _) => **open,
-            OpenKind::Memory { .. } => ctx.memory(|mem| mem.is_popup_open(self.id)),
+            OpenKind::Memory { .. } => self.ctx.memory(|mem| mem.is_popup_open(self.id)),
         }
     }
 
+    pub fn get_expected_size(&self) -> Option<Vec2> {
+        AreaState::load(&self.ctx, self.id).and_then(|area| area.size)
+    }
+
     /// Calculate the best alignment for the popup, based on the last size and screen rect.
-    pub fn get_best_align(&self, ctx: &Context) -> RectRelation {
-        let expected_tooltip_size = AreaState::load(ctx, self.id)
-            .and_then(|area| area.size)
+    pub fn get_best_align(&self) -> RectAlign {
+        let expected_popup_size = self
+            .get_expected_size()
             .unwrap_or(vec2(self.width.unwrap_or(0.0), 0.0));
 
-        let Some(anchor_rect) = self.anchor.rect(self.id, ctx) else {
-            return self.position_align;
+        let Some(anchor_rect) = self.anchor.rect(self.id, &self.ctx) else {
+            return self.rect_align;
         };
 
-        RectRelation::find_best_align(
+        RectAlign::find_best_align(
             #[allow(clippy::iter_on_empty_collections)]
-            once(self.position_align).chain(
+            once(self.rect_align).chain(
                 self.alternative_aligns
                     // Need the empty slice so the iters have the same type so we can unwrap_or
                     .map(|a| a.iter().copied().chain([].iter().copied()))
                     .unwrap_or(
-                        self.position_align
-                            .alternatives()
+                        self.rect_align
+                            .symmetries()
                             .iter()
                             .copied()
-                            .chain(RectRelation::MENU_ALIGNS.iter().copied()),
+                            .chain(RectAlign::MENU_ALIGNS.iter().copied()),
                     ),
             ),
-            ctx.screen_rect(),
+            self.ctx.screen_rect(),
             anchor_rect,
             self.gap,
-            expected_tooltip_size,
+            expected_popup_size,
         )
     }
 
     /// Show the popup.
     /// Returns `None` if the popup is not open or anchor is `PopupAnchor::Pointer` and there is
     /// no pointer.
-    pub fn show<R>(
-        self,
-        ctx: &Context,
-        content: impl FnOnce(&mut Ui) -> R,
-    ) -> Option<InnerResponse<R>> {
-        let best_align = self.get_best_align(ctx);
+    pub fn show<R>(self, content: impl FnOnce(&mut Ui) -> R) -> Option<InnerResponse<R>> {
+        let best_align = self.get_best_align();
 
         let Popup {
             id,
+            ctx,
             anchor,
             open_kind,
             kind,
             layer_id,
-            position_align: _,
+            rect_align: _,
             alternative_aligns: _,
             gap,
             widget_clicked_elsewhere,
@@ -427,8 +477,7 @@ impl<'a> Popup<'a> {
         let hover_pos = ctx.pointer_hover_pos();
         if let OpenKind::Memory { set, .. } = open_kind {
             ctx.memory_mut(|mem| match set {
-                SetOpenState::DoNothing => {}
-                SetOpenState::Bool(open) => {
+                Some(SetOpenCommand::Bool(open)) => {
                     if open {
                         match self.anchor {
                             PopupAnchor::PointerFixed => {
@@ -440,13 +489,14 @@ impl<'a> Popup<'a> {
                         mem.close_popup();
                     }
                 }
-                SetOpenState::Toggle => {
+                Some(SetOpenCommand::Toggle) => {
                     mem.toggle_popup(id);
                 }
+                None => {}
             });
         }
 
-        if !open_kind.is_open(id, ctx) {
+        if !open_kind.is_open(id, &ctx) {
             return None;
         }
 
@@ -466,7 +516,7 @@ impl<'a> Popup<'a> {
             });
         }
 
-        let anchor_rect = anchor.rect(id, ctx)?;
+        let anchor_rect = anchor.rect(id, &ctx)?;
 
         let (pivot, anchor) = best_align.pivot_pos(&anchor_rect, gap);
 
@@ -484,7 +534,7 @@ impl<'a> Popup<'a> {
 
         let frame = frame.unwrap_or_else(|| Frame::popup(&ctx.style()));
 
-        let response = area.show(ctx, |ui| frame.show(ui, content).inner);
+        let response = area.show(&ctx, |ui| frame.show(ui, content).inner);
 
         let should_close = |close_behavior| {
             let should_close = match close_behavior {
