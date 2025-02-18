@@ -73,7 +73,7 @@ impl WebRunner {
 
         {
             // First set up the app runner:
-            let text_agent = TextAgent::attach(self)?;
+            let text_agent = TextAgent::attach(self, canvas.get_root_node())?;
             let app_runner =
                 AppRunner::new(canvas.clone(), web_options, app_creator, text_agent).await?;
             self.app_runner.replace(Some(app_runner));
