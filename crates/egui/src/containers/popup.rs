@@ -2,7 +2,7 @@ use crate::{
     Area, AreaState, Context, Frame, Id, InnerResponse, Key, LayerId, Layout, Order, Response,
     Sense, Ui, UiKind,
 };
-use emath::{vec2, Align, Align4, Pos2, Rect};
+use emath::{vec2, Align, Pos2, Rect, RectRelation};
 use std::iter::once;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -141,8 +141,8 @@ pub enum PopupKind {
 pub struct Popup<'a> {
     pub id: Id,
     pub anchor: PopupAnchor,
-    position_align: Align4,
-    alternative_aligns: Option<&'a [Align4]>,
+    position_align: RectRelation,
+    alternative_aligns: Option<&'a [RectRelation]>,
 
     /// If multiple popups are shown with the same widget id, they will be laid out so they don't overlap.
     layer_id: LayerId,
@@ -171,7 +171,7 @@ impl<'a> Popup<'a> {
             open_kind: OpenKind::Open,
             kind: PopupKind::Popup,
             layer_id,
-            position_align: Align4::BOTTOM_START,
+            position_align: RectRelation::BOTTOM_START,
             alternative_aligns: None,
             gap: 0.0,
             widget_clicked_elsewhere: false,
@@ -193,7 +193,7 @@ impl<'a> Popup<'a> {
     /// This is the default position, and will be used if it fits.
     /// See [`Self::position_alternatives`] for more on this.
     #[inline]
-    pub fn position(mut self, position_align: Align4) -> Self {
+    pub fn position(mut self, position_align: RectRelation) -> Self {
         self.position_align = position_align;
         self
     }
@@ -202,7 +202,7 @@ impl<'a> Popup<'a> {
     /// always use the position you set with [`Self::position`].
     /// By default, this will try the mirrored position and alignment, and then every other position
     #[inline]
-    pub fn position_alternatives(mut self, alternatives: &'a [Align4]) -> Self {
+    pub fn position_alternatives(mut self, alternatives: &'a [RectRelation]) -> Self {
         self.alternative_aligns = Some(alternatives);
         self
     }
@@ -368,7 +368,7 @@ impl<'a> Popup<'a> {
     }
 
     /// Calculate the best alignment for the popup, based on the last size and screen rect.
-    pub fn get_best_align(&self, ctx: &Context) -> Align4 {
+    pub fn get_best_align(&self, ctx: &Context) -> RectRelation {
         let expected_tooltip_size = AreaState::load(ctx, self.id)
             .and_then(|area| area.size)
             .unwrap_or(vec2(self.width.unwrap_or(0.0), 0.0));
@@ -377,7 +377,7 @@ impl<'a> Popup<'a> {
             return self.position_align;
         };
 
-        Align4::find_best_align(
+        RectRelation::find_best_align(
             #[allow(clippy::iter_on_empty_collections)]
             once(self.position_align).chain(
                 self.alternative_aligns
@@ -388,7 +388,7 @@ impl<'a> Popup<'a> {
                             .alternatives()
                             .iter()
                             .copied()
-                            .chain(Align4::MENU_ALIGNS.iter().copied()),
+                            .chain(RectRelation::MENU_ALIGNS.iter().copied()),
                     ),
             ),
             ctx.screen_rect(),

@@ -299,10 +299,10 @@ pub fn center_size_in_rect(size: Vec2, frame: Rect) -> Rect {
     Align2::CENTER_CENTER.align_size_within_rect(size, frame)
 }
 
-/// Similar to [`Align2`] but also allows for aligning something outside a rect.
+/// Position a child [`Rect`] relative to a parent [`Rect`].
 ///
-/// The corner from [`Align4::focus`] on the new rect will be aligned to
-/// the corner from [`Align4::align`] on the original rect.
+/// The corner from [`RectRelation::child`] on the new rect will be aligned to
+/// the corner from [`RectRelation::parent`] on the original rect.
 ///
 /// There are helper constants for the 12 common menu positions:
 /// ```text
@@ -322,34 +322,84 @@ pub fn center_size_in_rect(size: Vec2, frame: Rect) -> Rect {
 ///              │BOTTOM_START│  │BOTTOM│  │BOTTOM_END│              
 ///              └────────────┘  └──────┘  └──────────┘              
 /// ```
+// There is no `new` function on purpose, since writing out `parent` and `child` is more
+// reasonable.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct Align4 {
-    pub align: Align2,
-    pub focus: Align2,
+pub struct RectRelation {
+    pub parent: Align2,
+    pub child: Align2,
 }
 
-impl Default for Align4 {
+impl Default for RectRelation {
     fn default() -> Self {
         Self::BOTTOM_START
     }
 }
+// TODO: Move to own file
+impl RectRelation {
+    /// Along the top edge, leftmost.
+    pub const TOP_START: Self = Self {
+        parent: Align2::LEFT_TOP,
+        child: Align2::LEFT_BOTTOM,
+    };
+    /// Along the top edge, centered.
+    pub const TOP: Self = Self {
+        parent: Align2::CENTER_TOP,
+        child: Align2::CENTER_BOTTOM,
+    };
+    /// Along the top edge, rightmost.
+    pub const TOP_END: Self = Self {
+        parent: Align2::RIGHT_TOP,
+        child: Align2::RIGHT_BOTTOM,
+    };
+    /// Along the right edge, topmost.
+    pub const RIGHT_START: Self = Self {
+        parent: Align2::RIGHT_TOP,
+        child: Align2::LEFT_TOP,
+    };
+    /// Along the right edge, centered.
+    pub const RIGHT: Self = Self {
+        parent: Align2::RIGHT_CENTER,
+        child: Align2::LEFT_CENTER,
+    };
+    /// Along the right edge, bottommost.
+    pub const RIGHT_END: Self = Self {
+        parent: Align2::RIGHT_BOTTOM,
+        child: Align2::LEFT_BOTTOM,
+    };
+    /// Along the bottom edge, rightmost.
+    pub const BOTTOM_END: Self = Self {
+        parent: Align2::RIGHT_BOTTOM,
+        child: Align2::RIGHT_TOP,
+    };
+    /// Along the bottom edge, centered.
+    pub const BOTTOM: Self = Self {
+        parent: Align2::CENTER_BOTTOM,
+        child: Align2::CENTER_TOP,
+    };
+    /// Along the bottom edge, leftmost.
+    pub const BOTTOM_START: Self = Self {
+        parent: Align2::LEFT_BOTTOM,
+        child: Align2::LEFT_TOP,
+    };
+    /// Along the left edge, bottommost.
+    pub const LEFT_END: Self = Self {
+        parent: Align2::LEFT_BOTTOM,
+        child: Align2::RIGHT_BOTTOM,
+    };
+    /// Along the left edge, centered.
+    pub const LEFT: Self = Self {
+        parent: Align2::LEFT_CENTER,
+        child: Align2::RIGHT_CENTER,
+    };
+    /// Along the left edge, topmost.
+    pub const LEFT_START: Self = Self {
+        parent: Align2::LEFT_TOP,
+        child: Align2::RIGHT_TOP,
+    };
 
-impl Align4 {
-    pub const TOP_START: Self = Self::new(Align2::LEFT_TOP, Align2::LEFT_BOTTOM);
-    pub const TOP: Self = Self::new(Align2::CENTER_TOP, Align2::CENTER_BOTTOM);
-    pub const TOP_END: Self = Self::new(Align2::RIGHT_TOP, Align2::RIGHT_BOTTOM);
-    pub const RIGHT_START: Self = Self::new(Align2::RIGHT_TOP, Align2::LEFT_TOP);
-    pub const RIGHT: Self = Self::new(Align2::RIGHT_CENTER, Align2::LEFT_CENTER);
-    pub const RIGHT_END: Self = Self::new(Align2::RIGHT_BOTTOM, Align2::LEFT_BOTTOM);
-    pub const BOTTOM_END: Self = Self::new(Align2::RIGHT_BOTTOM, Align2::RIGHT_TOP);
-    pub const BOTTOM: Self = Self::new(Align2::CENTER_BOTTOM, Align2::CENTER_TOP);
-    pub const BOTTOM_START: Self = Self::new(Align2::LEFT_BOTTOM, Align2::LEFT_TOP);
-    pub const LEFT_END: Self = Self::new(Align2::LEFT_BOTTOM, Align2::RIGHT_BOTTOM);
-    pub const LEFT: Self = Self::new(Align2::LEFT_CENTER, Align2::RIGHT_CENTER);
-    pub const LEFT_START: Self = Self::new(Align2::LEFT_TOP, Align2::RIGHT_TOP);
-
-    /// The 12 most common menu positions as an array, for use with [`Align4::find_best_align`].
+    /// The 12 most common menu positions as an array, for use with [`RectRelation::find_best_align`].
     pub const MENU_ALIGNS: [Self; 12] = [
         Self::BOTTOM_START,
         Self::BOTTOM_END,
@@ -366,61 +416,56 @@ impl Align4 {
         Self::LEFT,
     ];
 
-    /// Create a new [`Align4`] with the given alignments.
-    pub const fn new(align: Align2, focus: Align2) -> Self {
-        Self { align, focus }
+    /// Align in the parent rect.
+    pub fn parent(&self) -> Align2 {
+        self.parent
     }
 
-    /// Align in the old rect.
-    pub fn align(&self) -> Align2 {
-        self.align
+    /// Align in the child rect.
+    pub fn child(&self) -> Align2 {
+        self.child
     }
 
-    /// Align in the new rect.
-    pub fn focus(&self) -> Align2 {
-        self.focus
-    }
-
-    /// Convert an [`Align2`] to an [`Align4`], positioning the new rect inside the old one.
+    /// Convert an [`Align2`] to an [`RectRelation`], positioning the child rect inside the parent.
     pub fn from_align2(align: Align2) -> Self {
         Self {
-            align,
-            focus: align,
+            parent: align,
+            child: align,
         }
     }
 
-    /// The center of the new rect will be aligned to a corner of the old rect.
+    /// The center of the child rect will be aligned to a corner of the parent rect.
     pub fn over_corner(align: Align2) -> Self {
         Self {
-            align,
-            focus: Align2::CENTER_CENTER,
+            parent: align,
+            child: Align2::CENTER_CENTER,
         }
     }
 
-    /// Position the new rect outside the old rect.
+    /// Position the child rect outside the parent rect.
     pub fn outside(align: Align2) -> Self {
         Self {
-            align,
-            focus: align.flip(),
+            parent: align,
+            child: align.flip(),
         }
     }
 
-    /// Calculate the new rect based on a size and some optional gap.
-    pub fn align_rect(&self, rect: &Rect, size: Vec2, gap: f32) -> Rect {
-        let (pivot, anchor) = self.pivot_pos(rect, gap);
+    /// Calculate the child rect based on a size and some optional gap.
+    pub fn align_rect(&self, parent_rect: &Rect, size: Vec2, gap: f32) -> Rect {
+        let (pivot, anchor) = self.pivot_pos(parent_rect, gap);
         pivot.anchor_size(anchor, size)
     }
 
     /// Returns a [`Align2`] and a [`Pos2`] that you can e.g. use with `Area::fixed_pos`
     /// and `Area::pivot` to align an `Area` to some rect.
-    pub fn pivot_pos(&self, rect: &Rect, gap: f32) -> (Align2, Pos2) {
-        (self.focus(), self.anchor(rect, gap))
+    pub fn pivot_pos(&self, parent_rect: &Rect, gap: f32) -> (Align2, Pos2) {
+        (self.child(), self.anchor(parent_rect, gap))
     }
 
     /// Returns a normalized vector that can be used as an offset to create a gap between the rects
     /// while keeping the edges aligned.
     pub fn gap_factor(&self) -> Vec2 {
-        let mut gap = -self.focus.to_sign();
+        let mut gap = -self.child.to_sign();
 
         // Align the edges in these cases
         match *self {
@@ -436,40 +481,61 @@ impl Align4 {
         gap
     }
 
-    /// Calculator the anchor point for the new rect, based on the old rect and an optional gap.
-    pub fn anchor(&self, rect: &Rect, gap: f32) -> Pos2 {
-        let pos = self.align.pos_in_rect(rect);
+    /// Calculator the anchor point for the child rect, based on the parent rect and an optional gap.
+    pub fn anchor(&self, parent_rect: &Rect, gap: f32) -> Pos2 {
+        let pos = self.parent.pos_in_rect(parent_rect);
 
         let offset = self.gap_factor() * gap;
 
         pos + offset
     }
 
-    /// Returns the 3 alternative [`Align4`]s that are flipped in various ways, for use
-    /// with [`Align4::find_best_align`].
-    pub fn alternatives(self) -> [Self; 3] {
-        let flip_x = Self::new(self.align.flip_x(), self.focus.flip_x());
-        let flip_y = Self::new(self.align.flip_y(), self.focus.flip_y());
-        let flip_xy = Self::new(self.align.flip(), self.focus.flip());
-        [flip_x, flip_y, flip_xy]
+    /// Flip the alignment on the x-axis.
+    pub fn flip_x(self) -> Self {
+        Self {
+            parent: self.parent.flip_x(),
+            child: self.child.flip_x(),
+        }
     }
 
-    /// Look for the [`Align4`] that fits best in the available space.
+    /// Flip the alignment on the y-axis.
+    pub fn flip_y(self) -> Self {
+        Self {
+            parent: self.parent.flip_y(),
+            child: self.child.flip_y(),
+        }
+    }
+
+    /// Flip the alignment on both axes.
+    pub fn flip(self) -> Self {
+        Self {
+            parent: self.parent.flip(),
+            child: self.child.flip(),
+        }
+    }
+
+    /// Returns the 3 alternative [`RectRelation`]s that are flipped in various ways, for use
+    /// with [`RectRelation::find_best_align`].
+    pub fn alternatives(self) -> [Self; 3] {
+        [self.flip_x(), self.flip_y(), self.flip()]
+    }
+
+    /// Look for the [`RectRelation`] that fits best in the available space.
     ///
     /// See also:
-    /// - [`Align4::alternatives`] to calculate alternatives
-    /// - [`Align4::MENU_ALIGNS`] for the 12 common menu positions
+    /// - [`RectRelation::alternatives`] to calculate alternatives
+    /// - [`RectRelation::MENU_ALIGNS`] for the 12 common menu positions
     pub fn find_best_align(
         mut values_to_try: impl Iterator<Item = Self>,
         available_space: Rect,
-        widget_rect: Rect,
+        parent_rect: Rect,
         gap: f32,
         size: Vec2,
     ) -> Self {
         let area = size.x * size.y;
 
         let blocked_area = |pos: Self| {
-            let rect = pos.align_rect(&widget_rect, size, gap);
+            let rect = pos.align_rect(&parent_rect, size, gap);
             area - available_space.intersect(rect).area()
         };
 

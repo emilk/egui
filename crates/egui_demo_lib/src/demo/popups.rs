@@ -1,11 +1,13 @@
-use egui::{vec2, Align2, Align4, ComboBox, Frame, Id, Popup, PopupCloseBehavior, Tooltip, Ui};
+use egui::{
+    vec2, Align2, ComboBox, Frame, Id, Popup, PopupCloseBehavior, RectRelation, Tooltip, Ui,
+};
 
 /// Showcase [`Popup`].
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct PopupsDemo {
-    align4: Align4,
+    align4: RectRelation,
     gap: f32,
     #[cfg_attr(feature = "serde", serde(skip))]
     close_behavior: PopupCloseBehavior,
@@ -24,7 +26,7 @@ impl PopupsDemo {
 impl Default for PopupsDemo {
     fn default() -> Self {
         Self {
-            align4: Align4::default(),
+            align4: RectRelation::default(),
             gap: 4.0,
             close_behavior: PopupCloseBehavior::CloseOnClick,
             popup_open: false,
@@ -78,24 +80,24 @@ impl crate::View for PopupsDemo {
             };
 
             ui.label("Align4(");
-            align_combobox(ui, "align: ", &mut self.align4.align);
+            align_combobox(ui, "parent: ", &mut self.align4.parent);
             ui.label(", ");
-            align_combobox(ui, "focus: ", &mut self.align4.focus);
+            align_combobox(ui, "child: ", &mut self.align4.child);
             ui.label(") ");
 
             let presets = [
-                (Align4::TOP_START, "Top start"),
-                (Align4::TOP, "Top"),
-                (Align4::TOP_END, "Top end"),
-                (Align4::RIGHT_START, "Right start"),
-                (Align4::RIGHT, "Right Center"),
-                (Align4::RIGHT_END, "Right end"),
-                (Align4::BOTTOM_START, "Bottom start"),
-                (Align4::BOTTOM, "Bottom"),
-                (Align4::BOTTOM_END, "Bottom end"),
-                (Align4::LEFT_START, "Left start"),
-                (Align4::LEFT, "Left"),
-                (Align4::LEFT_END, "Left end"),
+                (RectRelation::TOP_START, "Top start"),
+                (RectRelation::TOP, "Top"),
+                (RectRelation::TOP_END, "Top end"),
+                (RectRelation::RIGHT_START, "Right start"),
+                (RectRelation::RIGHT, "Right Center"),
+                (RectRelation::RIGHT_END, "Right end"),
+                (RectRelation::BOTTOM_START, "Bottom start"),
+                (RectRelation::BOTTOM, "Bottom"),
+                (RectRelation::BOTTOM_END, "Bottom end"),
+                (RectRelation::LEFT_START, "Left start"),
+                (RectRelation::LEFT, "Left"),
+                (RectRelation::LEFT_END, "Left end"),
             ];
 
             ui.label(" Presets: ");

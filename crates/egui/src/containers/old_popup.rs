@@ -6,7 +6,7 @@ use crate::{
     Align, Context, Id, LayerId, Layout, Popup, PopupAnchor, PopupCloseBehavior, Pos2, Rect,
     Response, Ui, Widget, WidgetText,
 };
-use emath::align::Align4;
+use emath::align::RectRelation;
 // ----------------------------------------------------------------------------
 
 /// Show a tooltip at the current pointer position (if any).
@@ -199,8 +199,8 @@ pub fn popup_above_or_below_widget<R>(
         .open_memory(None, close_behavior)
         .id(popup_id)
         .position(match above_or_below {
-            AboveOrBelow::Above => Align4::TOP_START,
-            AboveOrBelow::Below => Align4::BOTTOM_START,
+            AboveOrBelow::Above => RectRelation::TOP_START,
+            AboveOrBelow::Below => RectRelation::BOTTOM_START,
         })
         .width(widget_response.rect.width())
         .show(parent_ui.ctx(), |ui| {

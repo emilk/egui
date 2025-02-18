@@ -455,6 +455,9 @@ fn paint_default_icon(painter: &Painter, rect: Rect, visuals: &WidgetVisuals) {
     );
 
     // Downward pointing triangle
+    // Previously, we would show an up arrow when we expected the popup to open upwards
+    // (due to lack of space below the button), but this could look weird in edge cases, so this
+    // feature was removed. (See https://github.com/emilk/egui/pull/5713#issuecomment-2654420245)
     painter.add(Shape::convex_polygon(
         vec![rect.left_top(), rect.right_top(), rect.center_bottom()],
         visuals.fg_stroke.color,
