@@ -1059,6 +1059,9 @@ impl Response {
             // Indeterminate state
             builder.set_toggled(Toggled::Mixed);
         }
+        if let Some(hint_text) = info.hint_text {
+            builder.set_placeholder(hint_text);
+        }
     }
 
     /// Associate a label with a control for accessibility.
