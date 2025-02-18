@@ -30,6 +30,7 @@ use crate::{Align2, Pos2, Rect, Vec2};
 pub struct RectAlign {
     /// The alignment in the parent (original) rect.
     pub parent: Align2,
+
     /// The alignment in the child (new) rect.
     pub child: Align2,
 }
@@ -46,56 +47,67 @@ impl RectAlign {
         parent: Align2::LEFT_TOP,
         child: Align2::LEFT_BOTTOM,
     };
+
     /// Along the top edge, centered.
     pub const TOP: Self = Self {
         parent: Align2::CENTER_TOP,
         child: Align2::CENTER_BOTTOM,
     };
+
     /// Along the top edge, rightmost.
     pub const TOP_END: Self = Self {
         parent: Align2::RIGHT_TOP,
         child: Align2::RIGHT_BOTTOM,
     };
+
     /// Along the right edge, topmost.
     pub const RIGHT_START: Self = Self {
         parent: Align2::RIGHT_TOP,
         child: Align2::LEFT_TOP,
     };
+
     /// Along the right edge, centered.
     pub const RIGHT: Self = Self {
         parent: Align2::RIGHT_CENTER,
         child: Align2::LEFT_CENTER,
     };
+
     /// Along the right edge, bottommost.
     pub const RIGHT_END: Self = Self {
         parent: Align2::RIGHT_BOTTOM,
         child: Align2::LEFT_BOTTOM,
     };
+
     /// Along the bottom edge, rightmost.
     pub const BOTTOM_END: Self = Self {
         parent: Align2::RIGHT_BOTTOM,
         child: Align2::RIGHT_TOP,
     };
+
     /// Along the bottom edge, centered.
     pub const BOTTOM: Self = Self {
         parent: Align2::CENTER_BOTTOM,
         child: Align2::CENTER_TOP,
     };
+
     /// Along the bottom edge, leftmost.
     pub const BOTTOM_START: Self = Self {
         parent: Align2::LEFT_BOTTOM,
         child: Align2::LEFT_TOP,
     };
+
     /// Along the left edge, bottommost.
     pub const LEFT_END: Self = Self {
         parent: Align2::LEFT_BOTTOM,
         child: Align2::RIGHT_BOTTOM,
     };
+
     /// Along the left edge, centered.
     pub const LEFT: Self = Self {
         parent: Align2::LEFT_CENTER,
         child: Align2::RIGHT_CENTER,
     };
+
     /// Along the left edge, topmost.
     pub const LEFT_START: Self = Self {
         parent: Align2::LEFT_TOP,
