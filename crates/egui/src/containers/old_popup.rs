@@ -1,4 +1,4 @@
-//! Old and deprecated API for popups. Use [`egui::Popup`] instead.
+//! Old and deprecated API for popups. Use [`Popup`] instead.
 #![allow(deprecated)]
 
 use crate::containers::tooltip::Tooltip;
