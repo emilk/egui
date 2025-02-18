@@ -1,7 +1,7 @@
 use epaint::Shape;
 
 use crate::{
-    epaint, style::WidgetVisuals, vec2, Align2, Context, Id, InnerResponse, NumExt, Painter,
+    epaint, style::WidgetVisuals, vec2, Align2, Context, Id, InnerResponse, NumExt, Painter, Popup,
     PopupCloseBehavior, Rect, Response, ScrollArea, Sense, Stroke, TextStyle, TextWrapMode, Ui,
     UiBuilder, Vec2, WidgetInfo, WidgetText, WidgetType,
 };
@@ -9,15 +9,8 @@ use crate::{
 #[allow(unused_imports)] // Documentation
 use crate::style::Spacing;
 
-/// Indicate whether a popup will be shown above or below the box.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum AboveOrBelow {
-    Above,
-    Below,
-}
-
 /// A function that paints the [`ComboBox`] icon
-pub type IconPainter = Box<dyn FnOnce(&Ui, Rect, &WidgetVisuals, bool, AboveOrBelow)>;
+pub type IconPainter = Box<dyn FnOnce(&Ui, Rect, &WidgetVisuals, bool)>;
 
 /// A drop-down selection menu with a descriptive label.
 ///
@@ -135,7 +128,6 @@ impl ComboBox {
     ///     rect: egui::Rect,
     ///     visuals: &egui::style::WidgetVisuals,
     ///     _is_open: bool,
-    ///     _above_or_below: egui::AboveOrBelow,
     /// ) {
     ///     let rect = egui::Rect::from_center_size(
     ///         rect.center(),
@@ -154,10 +146,8 @@ impl ComboBox {
     ///     .show_ui(ui, |_ui| {});
     /// # });
     /// ```
-    pub fn icon(
-        mut self,
-        icon_fn: impl FnOnce(&Ui, Rect, &WidgetVisuals, bool, AboveOrBelow) + 'static,
-    ) -> Self {
+    #[inline]
+    pub fn icon(mut self, icon_fn: impl FnOnce(&Ui, Rect, &WidgetVisuals, bool) + 'static) -> Self {
         self.icon = Some(Box::new(icon_fn));
         self
     }
@@ -322,22 +312,6 @@ fn combo_box_dyn<'c, R>(
 
     let is_popup_open = ui.memory(|m| m.is_popup_open(popup_id));
 
-    let popup_height = ui.memory(|m| {
-        m.areas()
-            .get(popup_id)
-            .and_then(|state| state.size)
-            .map_or(100.0, |size| size.y)
-    });
-
-    let above_or_below =
-        if ui.next_widget_position().y + ui.spacing().interact_size.y + popup_height
-            < ui.ctx().screen_rect().bottom()
-        {
-            AboveOrBelow::Below
-        } else {
-            AboveOrBelow::Above
-        };
-
     let wrap_mode = wrap_mode.unwrap_or_else(|| ui.wrap_mode());
 
     let close_behavior = close_behavior.unwrap_or(PopupCloseBehavior::CloseOnClick);
@@ -385,15 +359,9 @@ fn combo_box_dyn<'c, R>(
                     icon_rect.expand(visuals.expansion),
                     visuals,
                     is_popup_open,
-                    above_or_below,
                 );
             } else {
-                paint_default_icon(
-                    ui.painter(),
-                    icon_rect.expand(visuals.expansion),
-                    visuals,
-                    above_or_below,
-                );
+                paint_default_icon(ui.painter(), icon_rect.expand(visuals.expansion), visuals);
             }
 
             let text_rect = Align2::LEFT_CENTER.align_size_within_rect(galley.size(), rect);
@@ -402,19 +370,15 @@ fn combo_box_dyn<'c, R>(
         }
     });
 
-    if button_response.clicked() {
-        ui.memory_mut(|mem| mem.toggle_popup(popup_id));
-    }
-
     let height = height.unwrap_or_else(|| ui.spacing().combo_height);
 
-    let inner = crate::popup::popup_above_or_below_widget(
-        ui,
-        popup_id,
-        &button_response,
-        above_or_below,
-        close_behavior,
-        |ui| {
+    let inner = Popup::menu(&button_response)
+        .id(popup_id)
+        .width(button_response.rect.width())
+        .close_behavior(close_behavior)
+        .show(|ui| {
+            ui.set_min_width(ui.available_width());
+
             ScrollArea::vertical()
                 .max_height(height)
                 .show(ui, |ui| {
@@ -427,8 +391,8 @@ fn combo_box_dyn<'c, R>(
                     menu_contents(ui)
                 })
                 .inner
-        },
-    );
+        })
+        .map(|r| r.inner);
 
     InnerResponse {
         inner,
@@ -484,33 +448,19 @@ fn button_frame(
     response
 }
 
-fn paint_default_icon(
-    painter: &Painter,
-    rect: Rect,
-    visuals: &WidgetVisuals,
-    above_or_below: AboveOrBelow,
-) {
+fn paint_default_icon(painter: &Painter, rect: Rect, visuals: &WidgetVisuals) {
     let rect = Rect::from_center_size(
         rect.center(),
         vec2(rect.width() * 0.7, rect.height() * 0.45),
     );
 
-    match above_or_below {
-        AboveOrBelow::Above => {
-            // Upward pointing triangle
-            painter.add(Shape::convex_polygon(
-                vec![rect.left_bottom(), rect.right_bottom(), rect.center_top()],
-                visuals.fg_stroke.color,
-                Stroke::NONE,
-            ));
-        }
-        AboveOrBelow::Below => {
-            // Downward pointing triangle
-            painter.add(Shape::convex_polygon(
-                vec![rect.left_top(), rect.right_top(), rect.center_bottom()],
-                visuals.fg_stroke.color,
-                Stroke::NONE,
-            ));
-        }
-    }
+    // Downward pointing triangle
+    // Previously, we would show an up arrow when we expected the popup to open upwards
+    // (due to lack of space below the button), but this could look weird in edge cases, so this
+    // feature was removed. (See https://github.com/emilk/egui/pull/5713#issuecomment-2654420245)
+    painter.add(Shape::convex_polygon(
+        vec![rect.left_top(), rect.right_top(), rect.center_bottom()],
+        visuals.fg_stroke.color,
+        Stroke::NONE,
+    ));
 }
