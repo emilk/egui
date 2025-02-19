@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 #![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::thread;
@@ -29,9 +30,10 @@ fn main() -> eframe::Result {
 }
 
 struct ImageApp {
-    texture: Option<TextureHandle>,
+    /// URI and Handle - need URI in order to forget the texture
+    texture: Option<(String, TextureHandle)>,
     path: String,
-    worker: Option<thread::JoinHandle<Option<TextureHandle>>>,
+    worker: Option<thread::JoinHandle<Option<(String, TextureHandle)>>>,
 }
 
 impl Default for ImageApp {
@@ -46,8 +48,8 @@ impl Default for ImageApp {
 
 impl ImageApp {
     fn load_image(&mut self, ctx: &Context) {
-        self.texture = None;
-        
+        self.forget_existing_image(ctx);
+
         let ctx = ctx.clone();
         let path = PathBuf::from(self.path.as_str());
 
@@ -55,7 +57,7 @@ impl ImageApp {
             .name("load_image".to_string())
             .spawn(move || {
 
-                fn load_image_from_file_using_egui_extras(ctx: &Context, path: &Path) -> Option<TextureHandle> {
+                fn load_image_from_file_using_egui_extras(ctx: &Context, path: &Path) -> Option<(String, TextureHandle)> {
                     // Attempt to load the image
                     let absolute_path = path.canonicalize().ok()?;
                     println!("Loading image from {:?}", absolute_path);
@@ -77,7 +79,7 @@ impl ImageApp {
                         }
                     };
 
-                    Some(TextureHandle::new(ctx.tex_manager(), texture.id))
+                    Some((url.to_string(), TextureHandle::new(ctx.tex_manager(), texture.id)))
                 }
 
                 let result = load_image_from_file_using_egui_extras(&ctx.clone(), &path);
@@ -91,26 +93,38 @@ impl ImageApp {
     }
 
     fn generate_image(&mut self, ctx: &Context) {
-        self.texture = None;
+        self.forget_existing_image(ctx);
 
         let image_data: ImageData = ImageData::Color(Arc::new(ColorImage::new([100, 100], Color32::RED)));
 
+        let uri = "generated-image".to_string();
         let texture_handle = ctx.load_texture(
-            "generated-image",
+            uri.clone(),
             image_data,
             Default::default()
         );
 
-        self.texture = Some(texture_handle);
+        self.texture = Some((uri, texture_handle));
     }
+    
+    fn forget_existing_image(&mut self, ctx: &Context) {
+        if let Some((uri, exising_texture)) = self.texture.take() {
+            // this causes a panic "Tried freeing texture Managed(1) which is not allocated"
+            // ctx.forget_image(uri.as_str());
+            
+            // this causes a panic "Tried freeing texture Managed(1) which is not allocated"
+            // ctx.tex_manager().write().free(exising_texture.id());
+        }
+    }
+
 }
 
 impl eframe::App for ImageApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        
+
         if self.worker.is_some() && self.worker.as_ref().unwrap().is_finished() {
             let worker = self.worker.take().unwrap();
-            
+
             match worker.join() {
                 Ok(result) => {
                     self.texture = result;
@@ -119,13 +133,13 @@ impl eframe::App for ImageApp {
                     println!("Failed to load image")
                 }
             }
-            
+
         }
-        
+
         egui::CentralPanel::default().show(ctx, |ui| {
 
             ui.label("this example demonstrates how to render an image that is either loaded from the filesystem or generated programmatically");
-            
+
             ui.horizontal(|ui| {
                 ui.label("path");
                 ui.text_edit_singleline(&mut self.path);
@@ -144,7 +158,7 @@ impl eframe::App for ImageApp {
 
             egui::Frame::new().show(ui, |ui| {
                 match &self.texture {
-                    Some(texture_handle) => {
+                    Some((_uri, texture_handle)) => {
                         let image_source = ImageSource::Texture(SizedTexture::from_handle(&texture_handle));
                         let image = Image::new(image_source);
 
