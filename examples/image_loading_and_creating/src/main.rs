@@ -1,14 +1,17 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 #![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
+use eframe::egui;
+use eframe::egui::load::{SizedTexture, TexturePoll};
+use eframe::egui::{
+    Color32, ColorImage, Context, Image, ImageData, ImageSource, SizeHint, TextureHandle,
+    TextureOptions,
+};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::{mem, thread};
 use std::time::Duration;
-use eframe::egui;
-use eframe::egui::{Color32, ColorImage, Context, Image, ImageData, ImageSource, SizeHint, TextureHandle, TextureOptions};
-use eframe::egui::load::{SizedTexture, TexturePoll};
+use std::{mem, thread};
 use url::Url;
 
 fn main() -> eframe::Result {
@@ -56,17 +59,24 @@ impl ImageApp {
         let handle = std::thread::Builder::new()
             .name("load_image".to_string())
             .spawn(move || {
-
-                fn load_image_from_file_using_egui_extras(ctx: &Context, path: &Path) -> Option<(String, TextureHandle)> {
+                fn load_image_from_file_using_egui_extras(
+                    ctx: &Context,
+                    path: &Path,
+                ) -> Option<(String, TextureHandle)> {
                     // Attempt to load the image
                     let absolute_path = path.canonicalize().ok()?;
                     println!("Loading image from {:?}", absolute_path);
                     let url = Url::from_file_path(absolute_path).unwrap();
                     println!("uri: {}", url);
 
-
                     let texture = loop {
-                        let poll = ctx.try_load_texture(url.as_str(), TextureOptions::default(), SizeHint::default()).ok()?;
+                        let poll = ctx
+                            .try_load_texture(
+                                url.as_str(),
+                                TextureOptions::default(),
+                                SizeHint::default(),
+                            )
+                            .ok()?;
                         match poll {
                             TexturePoll::Pending { .. } => {
                                 println!("Waiting for image load");
@@ -80,7 +90,10 @@ impl ImageApp {
                     };
 
                     ctx.tex_manager().write().retain(texture.id);
-                    Some((url.to_string(), TextureHandle::new(ctx.tex_manager(), texture.id)))
+                    Some((
+                        url.to_string(),
+                        TextureHandle::new(ctx.tex_manager(), texture.id),
+                    ))
                 }
 
                 let result = load_image_from_file_using_egui_extras(&ctx.clone(), &path);
@@ -90,36 +103,31 @@ impl ImageApp {
                 result
             });
 
-            self.worker = Some(handle.unwrap())
+        self.worker = Some(handle.unwrap())
     }
 
     fn generate_image(&mut self, ctx: &Context) {
         self.forget_existing_image(ctx);
 
-        let image_data: ImageData = ImageData::Color(Arc::new(ColorImage::new([100, 100], Color32::RED)));
+        let image_data: ImageData =
+            ImageData::Color(Arc::new(ColorImage::new([100, 100], Color32::RED)));
 
         let uri = "generated-image".to_string();
-        let texture_handle = ctx.load_texture(
-            uri.clone(),
-            image_data,
-            Default::default()
-        );
+        let texture_handle = ctx.load_texture(uri.clone(), image_data, Default::default());
 
         self.texture = Some((uri, texture_handle));
     }
-    
+
     fn forget_existing_image(&mut self, ctx: &Context) {
         if let Some((uri, _existing_texture)) = self.texture.take() {
             // forget the image so that the image is loaded from disk again.
             ctx.forget_image(uri.as_str());
         }
     }
-
 }
 
 impl eframe::App for ImageApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-
         if self.worker.is_some() && self.worker.as_ref().unwrap().is_finished() {
             let worker = self.worker.take().unwrap();
 
@@ -131,7 +139,6 @@ impl eframe::App for ImageApp {
                     println!("Failed to load image")
                 }
             }
-
         }
 
         egui::CentralPanel::default().show(ctx, |ui| {
