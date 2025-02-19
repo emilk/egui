@@ -333,7 +333,7 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
                     .send_viewport_cmd(egui::ViewportCommand::InnerSize(size));
                 ui.ctx()
                     .send_viewport_cmd(egui::ViewportCommand::Fullscreen(false));
-                ui.close_menu();
+                ui.close();
             }
         });
     }

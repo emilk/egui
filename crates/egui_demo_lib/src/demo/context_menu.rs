@@ -59,25 +59,25 @@ impl ContextMenus {
         ui.set_max_width(200.0); // To make sure we wrap long text
 
         if ui.button("Open…").clicked() {
-            ui.close_menu();
+            ui.close();
         }
         ui.menu_button("SubMenu", |ui| {
             ui.menu_button("SubMenu", |ui| {
                 if ui.button("Open…").clicked() {
-                    ui.close_menu();
+                    ui.close();
                 }
                 let _ = ui.button("Item");
                 ui.menu_button("Recursive", Self::nested_menus)
             });
             ui.menu_button("SubMenu", |ui| {
                 if ui.button("Open…").clicked() {
-                    ui.close_menu();
+                    ui.close();
                 }
                 let _ = ui.button("Item");
             });
             let _ = ui.button("Item");
             if ui.button("Open…").clicked() {
-                ui.close_menu();
+                ui.close();
             }
         });
         ui.menu_button("SubMenu", |ui| {
@@ -86,7 +86,7 @@ impl ContextMenus {
             let _ = ui.button("Item3");
             let _ = ui.button("Item4");
             if ui.button("Open…").clicked() {
-                ui.close_menu();
+                ui.close();
             }
         });
         let _ = ui.button("Very long text for this item that should be wrapped");

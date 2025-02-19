@@ -384,12 +384,12 @@ impl WrapApp {
                 .clicked()
             {
                 ui.ctx().memory_mut(|mem| *mem = Default::default());
-                ui.close_menu();
+                ui.close();
             }
 
             if ui.button("Reset everything").clicked() {
                 *cmd = Command::ResetEverything;
-                ui.close_menu();
+                ui.close();
             }
         });
     }

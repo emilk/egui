@@ -920,13 +920,13 @@ impl Response {
     /// let response = ui.add(Label::new("Right-click me!").sense(Sense::click()));
     /// response.context_menu(|ui| {
     ///     if ui.button("Close the menu").clicked() {
-    ///         ui.close_menu();
+    ///         ui.close();
     ///     }
     /// });
     /// # });
     /// ```
     ///
-    /// See also: [`Ui::menu_button`] and [`Ui::close_menu`].
+    /// See also: [`Ui::menu_button`] and [`Ui::close`].
     pub fn context_menu(&self, add_contents: impl FnOnce(&mut Ui)) -> Option<InnerResponse<()>> {
         menu::context_menu(self, add_contents)
     }

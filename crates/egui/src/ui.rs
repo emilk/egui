@@ -2988,14 +2988,14 @@ impl Ui {
     /// ui.menu_button("My menu", |ui| {
     ///     ui.menu_button("My sub-menu", |ui| {
     ///         if ui.button("Close the menu").clicked() {
-    ///             ui.close_menu();
+    ///             ui.close();
     ///         }
     ///     });
     /// });
     /// # });
     /// ```
     ///
-    /// See also: [`Self::close_menu`] and [`Response::context_menu`].
+    /// See also: [`Self::close`] and [`Response::context_menu`].
     pub fn menu_button<R>(
         &mut self,
         title: impl Into<WidgetText>,
@@ -3019,7 +3019,7 @@ impl Ui {
     /// ui.menu_image_button(title, img, |ui| {
     ///     ui.menu_button("My sub-menu", |ui| {
     ///         if ui.button("Close the menu").clicked() {
-    ///             ui.close_menu();
+    ///             ui.close();
     ///         }
     ///     });
     /// });
@@ -3027,7 +3027,7 @@ impl Ui {
     /// ```
     ///
     ///
-    /// See also: [`Self::close_menu`] and [`Response::context_menu`].
+    /// See also: [`Self::close`] and [`Response::context_menu`].
     #[inline]
     pub fn menu_image_button<'a, R>(
         &mut self,
@@ -3053,14 +3053,14 @@ impl Ui {
     /// ui.menu_image_text_button(img, title, |ui| {
     ///     ui.menu_button("My sub-menu", |ui| {
     ///         if ui.button("Close the menu").clicked() {
-    ///             ui.close_menu();
+    ///             ui.close();
     ///         }
     ///     });
     /// });
     /// # });
     /// ```
     ///
-    /// See also: [`Self::close_menu`] and [`Response::context_menu`].
+    /// See also: [`Self::close`] and [`Response::context_menu`].
     #[inline]
     pub fn menu_image_text_button<'a, R>(
         &mut self,
