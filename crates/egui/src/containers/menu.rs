@@ -95,7 +95,7 @@ pub struct SubMenu;
 impl SubMenu {
     pub fn show<R>(
         self,
-        ui: &Ui,
+        ui: &mut Ui,
         response: &Response,
         content: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
@@ -152,12 +152,20 @@ impl SubMenu {
                 // the pointer is no longer moving towards the rect
                 ui.ctx().request_repaint();
             }
-            if is_open
+            let hovering_other_menu_entry = is_open
                 && !is_hovered
                 && !popup_response.response.contains_pointer()
                 && !is_moving_towards_rect
-                && is_hovering_menu
-            {
+                && is_hovering_menu;
+
+            let close_called = popup_response.response.should_close();
+
+            // Close the parent ui to e.g. close the popup from where the submenu was opened
+            if close_called {
+                ui.close();
+            }
+
+            if hovering_other_menu_entry || close_called {
                 set_open = Some(false);
             }
         }
