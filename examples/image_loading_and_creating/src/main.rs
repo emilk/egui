@@ -79,6 +79,7 @@ impl ImageApp {
                         }
                     };
 
+                    ctx.tex_manager().write().retain(texture.id);
                     Some((url.to_string(), TextureHandle::new(ctx.tex_manager(), texture.id)))
                 }
 
@@ -108,15 +109,9 @@ impl ImageApp {
     }
     
     fn forget_existing_image(&mut self, ctx: &Context) {
-        if let Some((uri, existing_texture)) = self.texture.take() {
-            // this causes a panic "Tried freeing texture Managed(1) which is not allocated"
-            //ctx.forget_image(uri.as_str());
-            
-            // this causes a panic "Tried freeing texture Managed(1) which is not allocated"
-            //ctx.tex_manager().write().free(exising_texture.id());
-            
-            // this causes a panic when the program exits "Tried freeing texture Managed(1) which is not allocated"
-            //mem::forget(existing_texture);
+        if let Some((uri, _existing_texture)) = self.texture.take() {
+            // forget the image so that the image is loaded from disk again.
+            ctx.forget_image(uri.as_str());
         }
     }
 
