@@ -138,7 +138,7 @@ impl UiBuilder {
 
     /// Make this [`Ui`] closable.
     /// Calling [`Ui::close`] in a child [`Ui`] will mark this [`Ui`] for closing.
-    /// After [`Ui::close`] was called, [`Ui::should_close`] and [`Response::should_close`] will
+    /// After [`Ui::close`] was called, [`Ui::should_close`] and [`crate::Response::should_close`] will
     /// return `true` (for this frame).
     ///
     /// This works by adding a [`ClosableTag`] to the [`UiStackInfo`].

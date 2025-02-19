@@ -3,7 +3,6 @@
 
 use emath::GuiRounding as _;
 use epaint::mutex::RwLock;
-use log::warn;
 use std::{any::Any, hash::Hash, sync::Arc};
 
 use crate::close_tag::ClosableTag;
@@ -1197,7 +1196,8 @@ impl Ui {
         if let Some(tag) = tag {
             tag.set_close();
         } else {
-            warn!("Tried to close a Ui that has no ClosableTag in its stack.");
+            #[cfg(feature = "log")]
+            log::warn!("Tried to close a Ui that has no ClosableTag in its stack.");
         }
     }
 
@@ -1219,7 +1219,8 @@ impl Ui {
         if let Some(tag) = tag {
             tag.set_close();
         } else {
-            warn!("Tried to close a Ui that has no ClosableTag in its stack.");
+            #[cfg(feature = "log")]
+            log::warn!("Tried to close a Ui that has no ClosableTag in its stack.");
         }
     }
 
