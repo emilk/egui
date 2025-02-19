@@ -764,62 +764,6 @@ impl Ui {
     pub fn is_rect_visible(&self, rect: Rect) -> bool {
         self.is_visible() && rect.intersects(self.clip_rect())
     }
-
-    /// Find and close the first closable parent.
-    /// Use [`UiBuilder::closable`] to make a [`Ui`] closable.
-    /// You can then use [`Ui::should_close`] to check if it should be closed.
-    ///
-    /// This is implemented for all egui containers, e.g. [`crate::Popup`], [`crate::Modal`],
-    /// [`crate::Area`], [`crate::Window`], [`crate::CollapsingHeader`], etc.
-    ///
-    /// What exactly happens when you close a container depends on the container implementation.
-    /// [`crate::Area`] e.g. will return true from it's [`Response::should_close`] method.
-    ///
-    /// If you want to close a specific kind of container, use [`Ui::close_kind`] instead.
-    pub fn close(&self) {
-        let tag = self.stack.iter().find_map(|stack| {
-            stack
-                .info
-                .tags
-                .get_downcast::<ClosableTag>(ClosableTag::NAME)
-        });
-        if let Some(tag) = tag {
-            tag.set_close();
-        } else {
-            warn!("Tried to close a Ui that has no ClosableTag in its stack.");
-        }
-    }
-
-    /// Find and close the first closable parent of a specific [`UiKind`].
-    /// This is useful if you want to e.g. close a [`crate::Window`]. Since it contains a
-    /// `Collapsible`, [`Ui::close`] would close the `Collapsible` instead.
-    /// You can close the [`crate::Window`] by calling `ui.close_kind(UiKind::Window)`.
-    pub fn close_kind(&self, ui_kind: UiKind) {
-        let tag = self
-            .stack
-            .iter()
-            .filter(|stack| stack.info.kind == Some(ui_kind))
-            .find_map(|stack| {
-                stack
-                    .info
-                    .tags
-                    .get_downcast::<ClosableTag>(ClosableTag::NAME)
-            });
-        if let Some(tag) = tag {
-            tag.set_close();
-        } else {
-            warn!("Tried to close a Ui that has no ClosableTag in its stack.");
-        }
-    }
-
-    /// Was [`Ui::close`] called on this [`Ui`] or any of its children?
-    pub fn should_close(&self) -> bool {
-        self.stack
-            .info
-            .tags
-            .get_downcast(ClosableTag::NAME)
-            .is_some_and(|tag: &ClosableTag| tag.should_close())
-    }
 }
 
 /// # Helpers for accessing the underlying [`Context`].
@@ -1230,6 +1174,65 @@ impl Ui {
     /// use [`Self::response`] instead.
     pub fn ui_contains_pointer(&self) -> bool {
         self.rect_contains_pointer(self.min_rect())
+    }
+
+    /// Find and close the first closable parent.
+    /// Use [`UiBuilder::closable`] to make a [`Ui`] closable.
+    /// You can then use [`Ui::should_close`] to check if it should be closed.
+    ///
+    /// This is implemented for all egui containers, e.g. [`crate::Popup`], [`crate::Modal`],
+    /// [`crate::Area`], [`crate::Window`], [`crate::CollapsingHeader`], etc.
+    ///
+    /// What exactly happens when you close a container depends on the container implementation.
+    /// [`crate::Area`] e.g. will return true from it's [`Response::should_close`] method.
+    ///
+    /// If you want to close a specific kind of container, use [`Ui::close_kind`] instead.
+    pub fn close(&self) {
+        let tag = self.stack.iter().find_map(|stack| {
+            stack
+                .info
+                .tags
+                .get_downcast::<ClosableTag>(ClosableTag::NAME)
+        });
+        if let Some(tag) = tag {
+            tag.set_close();
+        } else {
+            warn!("Tried to close a Ui that has no ClosableTag in its stack.");
+        }
+    }
+
+    /// Find and close the first closable parent of a specific [`UiKind`].
+    /// This is useful if you want to e.g. close a [`crate::Window`]. Since it contains a
+    /// `Collapsible`, [`Ui::close`] would close the `Collapsible` instead.
+    /// You can close the [`crate::Window`] by calling `ui.close_kind(UiKind::Window)`.
+    pub fn close_kind(&self, ui_kind: UiKind) {
+        let tag = self
+            .stack
+            .iter()
+            .filter(|stack| stack.info.kind == Some(ui_kind))
+            .find_map(|stack| {
+                stack
+                    .info
+                    .tags
+                    .get_downcast::<ClosableTag>(ClosableTag::NAME)
+            });
+        if let Some(tag) = tag {
+            tag.set_close();
+        } else {
+            warn!("Tried to close a Ui that has no ClosableTag in its stack.");
+        }
+    }
+
+    /// Was [`Ui::close`] called on this [`Ui`] or any of its children?
+    /// Only works if the [`Ui`] was created with [`UiBuilder::closable`].
+    ///
+    /// You can also check via this [`Ui`]'s [`Response::should_close`].
+    pub fn should_close(&self) -> bool {
+        self.stack
+            .info
+            .tags
+            .get_downcast(ClosableTag::NAME)
+            .is_some_and(|tag: &ClosableTag| tag.should_close())
     }
 }
 

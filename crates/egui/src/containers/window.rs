@@ -634,7 +634,7 @@ impl Window<'_> {
                     title_bar.ui(
                         &mut area_content_ui,
                         &content_response,
-                        // TODO: I feel stupid, is there some better way to pass the &mut open
+                        // TODO(lucas): I feel stupid, is there some better way to pass the &mut open
                         // without moving it?
                         match &mut open {
                             None => None,
