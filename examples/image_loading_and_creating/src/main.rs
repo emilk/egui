@@ -4,7 +4,7 @@
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::thread;
+use std::{mem, thread};
 use std::time::Duration;
 use eframe::egui;
 use eframe::egui::{Color32, ColorImage, Context, Image, ImageData, ImageSource, SizeHint, TextureHandle, TextureOptions};
@@ -108,12 +108,15 @@ impl ImageApp {
     }
     
     fn forget_existing_image(&mut self, ctx: &Context) {
-        if let Some((uri, exising_texture)) = self.texture.take() {
+        if let Some((uri, existing_texture)) = self.texture.take() {
             // this causes a panic "Tried freeing texture Managed(1) which is not allocated"
-            // ctx.forget_image(uri.as_str());
+            //ctx.forget_image(uri.as_str());
             
             // this causes a panic "Tried freeing texture Managed(1) which is not allocated"
-            // ctx.tex_manager().write().free(exising_texture.id());
+            //ctx.tex_manager().write().free(exising_texture.id());
+            
+            // this causes a panic when the program exits "Tried freeing texture Managed(1) which is not allocated"
+            //mem::forget(existing_texture);
         }
     }
 
