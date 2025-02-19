@@ -1,6 +1,6 @@
 use crate::{
     Button, Color32, Frame, Id, InnerResponse, Layout, PointerState, Popup, Response, Style, Ui,
-    UiKind, UiStack, Widget,
+    UiKind, UiStack, Widget, WidgetText,
 };
 use emath::{vec2, Align, RectAlign};
 use epaint::Stroke;
@@ -55,14 +55,26 @@ impl MenuState {
     }
 }
 
-pub struct Menu<'a> {
-    popup: Popup<'a>,
+/// A submenu button that shows a [`SubMenu`] if a [`Button`] is hovered.
+pub struct SubMenuButton<'a> {
+    pub button: Button<'a>,
+    pub sub_menu: SubMenu,
 }
 
-pub struct SubMenuButton {}
-impl SubMenuButton {
-    pub fn new() -> Self {
-        Self {}
+impl<'a> SubMenuButton<'a> {
+    pub fn new(text: impl Into<WidgetText>) -> Self {
+        Self {
+            button: Button::new(text).shortcut_text("⏵"), // TODO: Somehow set a color for the shortcut text
+            sub_menu: SubMenu,
+        }
+    }
+
+    pub fn button_mut(&mut self) -> &mut Button<'a> {
+        &mut self.button
+    }
+
+    pub fn sub_menu_mut(&mut self) -> &mut SubMenu {
+        &mut self.sub_menu
     }
 
     pub fn ui<R>(
@@ -70,11 +82,24 @@ impl SubMenuButton {
         ui: &mut Ui,
         content: impl FnOnce(&mut Ui) -> R,
     ) -> (Response, Option<InnerResponse<R>>) {
-        let frame = Frame::menu(ui.style());
+        let response = self.button.ui(ui);
 
-        let response = Button::new("Menu")
-            .shortcut_text("⏵") // TODO: Somehow set a color for the shortcut text
-            .ui(ui);
+        let popup_response = self.sub_menu.show(ui, &response, content);
+
+        (response, popup_response)
+    }
+}
+
+pub struct SubMenu;
+
+impl SubMenu {
+    pub fn show<R>(
+        self,
+        ui: &Ui,
+        response: &Response,
+        content: impl FnOnce(&mut Ui) -> R,
+    ) -> Option<InnerResponse<R>> {
+        let frame = Frame::menu(ui.style());
 
         let id = response.id.with("submenu");
 
@@ -143,6 +168,6 @@ impl SubMenuButton {
             });
         }
 
-        (response, popup_response)
+        popup_response
     }
 }

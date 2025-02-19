@@ -188,13 +188,13 @@ impl crate::View for PopupsDemo {
 }
 
 fn submenus(ui: &mut Ui) {
-    SubMenuButton::new().ui(ui, |ui| {
+    SubMenuButton::new("Hello World!").ui(ui, |ui| {
         _ = ui.button("Item 1");
         _ = ui.button("Item 2");
 
         submenus(ui);
     });
-    SubMenuButton::new().ui(ui, |ui| {
+    SubMenuButton::new("Hello Lucas!").ui(ui, |ui| {
         submenus(ui);
         _ = ui.button("Item 1");
         _ = ui.button("Item 2");
