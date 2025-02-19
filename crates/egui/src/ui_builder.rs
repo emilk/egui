@@ -1,9 +1,9 @@
 use std::{hash::Hash, sync::Arc};
 
-use crate::{Id, LayerId, Layout, Rect, Sense, Style, UiStackInfo};
-
+use crate::close_tag::ClosableTag;
 #[allow(unused_imports)] // Used for doclinks
 use crate::Ui;
+use crate::{Id, LayerId, Layout, Rect, Sense, Style, UiStackInfo};
 
 /// Build a [`Ui`] as the child of another [`Ui`].
 ///
@@ -133,6 +133,13 @@ impl UiBuilder {
     #[inline]
     pub fn sense(mut self, sense: Sense) -> Self {
         self.sense = Some(sense);
+        self
+    }
+
+    pub fn closable(mut self) -> Self {
+        self.ui_stack_info
+            .tags
+            .insert(ClosableTag::NAME, Some(Arc::new(ClosableTag::default())));
         self
     }
 }

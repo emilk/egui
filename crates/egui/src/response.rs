@@ -133,6 +133,9 @@ bitflags::bitflags! {
         /// Note that this can be `true` even if the user did not interact with the widget,
         /// for instance if an existing slider value was clamped to the given range.
         const CHANGED = 1<<11;
+
+        /// Should this container be closed?
+        const CLOSE = 1<<12;
     }
 }
 
@@ -526,6 +529,14 @@ impl Response {
     #[inline(always)]
     pub fn mark_changed(&mut self) {
         self.flags.set(Flags::CHANGED, true);
+    }
+
+    pub fn should_close(&self) -> bool {
+        self.flags.contains(Flags::CLOSE)
+    }
+
+    pub fn set_close(&mut self) {
+        self.flags.set(Flags::CLOSE, true);
     }
 
     /// Show this UI if the widget was hovered (i.e. a tooltip).

@@ -542,7 +542,9 @@ impl<'a> Popup<'a> {
                 PopupCloseBehavior::IgnoreClicks => false,
             };
 
-            should_close || ctx.input(|i| i.key_pressed(Key::Escape))
+            should_close
+                || ctx.input(|i| i.key_pressed(Key::Escape))
+                || response.response.should_close()
         };
 
         match open_kind {

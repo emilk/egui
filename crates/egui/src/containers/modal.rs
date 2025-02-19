@@ -150,7 +150,10 @@ impl<T> ModalResponse<T> {
         let escape_clicked =
             || ctx.input_mut(|i| i.consume_key(crate::Modifiers::NONE, crate::Key::Escape));
 
+        let ui_close_called = self.response.should_close();
+
         self.backdrop_response.clicked()
+            || ui_close_called
             || (self.is_top_modal && !self.any_popup_open && escape_clicked())
     }
 }

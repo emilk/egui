@@ -1,11 +1,14 @@
 #![warn(missing_docs)] // Let's keep `Ui` well-documented.
 #![allow(clippy::use_self)]
 
-use std::{any::Any, hash::Hash, sync::Arc};
-
 use emath::GuiRounding as _;
 use epaint::mutex::RwLock;
+use log::warn;
+use std::{any::Any, hash::Hash, sync::Arc};
 
+use crate::close_tag::ClosableTag;
+#[cfg(debug_assertions)]
+use crate::Stroke;
 use crate::{
     containers::{CollapsingHeader, CollapsingResponse, Frame},
     ecolor::Hsva,
@@ -26,11 +29,9 @@ use crate::{
     },
     Align, Color32, Context, CursorIcon, DragAndDrop, Id, InnerResponse, InputState, LayerId,
     Memory, Order, Painter, PlatformOutput, Pos2, Rangef, Rect, Response, Rgba, RichText, Sense,
-    Style, TextStyle, TextWrapMode, UiBuilder, UiStack, UiStackInfo, Vec2, WidgetRect, WidgetText,
+    Style, TextStyle, TextWrapMode, UiBuilder, UiKind, UiStack, UiStackInfo, Vec2, WidgetRect,
+    WidgetText,
 };
-
-#[cfg(debug_assertions)]
-use crate::Stroke;
 // ----------------------------------------------------------------------------
 
 /// This is what you use to place widgets.
@@ -763,6 +764,62 @@ impl Ui {
     pub fn is_rect_visible(&self, rect: Rect) -> bool {
         self.is_visible() && rect.intersects(self.clip_rect())
     }
+
+    /// Find and close the first closable parent.
+    /// Use [`UiBuilder::closable`] to make a [`Ui`] closable.
+    /// You can then use [`Ui::should_close`] to check if it should be closed.
+    ///
+    /// This is implemented for all egui containers, e.g. [`crate::Popup`], [`crate::Modal`],
+    /// [`crate::Area`], [`crate::Window`], [`crate::CollapsingHeader`], etc.
+    ///
+    /// What exactly happens when you close a container depends on the container implementation.
+    /// [`crate::Area`] e.g. will return true from it's [`Response::should_close`] method.
+    ///
+    /// If you want to close a specific kind of container, use [`Ui::close_kind`] instead.
+    pub fn close(&self) {
+        let tag = self.stack.iter().find_map(|stack| {
+            stack
+                .info
+                .tags
+                .get_downcast::<ClosableTag>(ClosableTag::NAME)
+        });
+        if let Some(tag) = tag {
+            tag.set_close();
+        } else {
+            warn!("Tried to close a Ui that has no ClosableTag in its stack.");
+        }
+    }
+
+    /// Find and close the first closable parent of a specific [`UiKind`].
+    /// This is useful if you want to e.g. close a [`crate::Window`]. Since it contains a
+    /// `Collapsible`, [`Ui::close`] would close the `Collapsible` instead.
+    /// You can close the [`crate::Window`] by calling `ui.close_kind(UiKind::Window)`.
+    pub fn close_kind(&self, ui_kind: UiKind) {
+        let tag = self
+            .stack
+            .iter()
+            .filter(|stack| stack.info.kind == Some(ui_kind))
+            .find_map(|stack| {
+                stack
+                    .info
+                    .tags
+                    .get_downcast::<ClosableTag>(ClosableTag::NAME)
+            });
+        if let Some(tag) = tag {
+            tag.set_close();
+        } else {
+            warn!("Tried to close a Ui that has no ClosableTag in its stack.");
+        }
+    }
+
+    /// Was [`Ui::close`] called on this [`Ui`] or any of its children?
+    pub fn should_close(&self) -> bool {
+        self.stack
+            .info
+            .tags
+            .get_downcast(ClosableTag::NAME)
+            .is_some_and(|tag: &ClosableTag| tag.should_close())
+    }
 }
 
 /// # Helpers for accessing the underlying [`Context`].
@@ -1095,7 +1152,8 @@ impl Ui {
         // This is the inverse of Context::read_response. We prefer a response
         // based on last frame's widget rect since the one from this frame is Rect::NOTHING until
         // Ui::interact_bg is called or the Ui is dropped.
-        self.ctx()
+        let mut response = self
+            .ctx()
             .viewport(|viewport| {
                 viewport
                     .prev_pass
@@ -1107,7 +1165,11 @@ impl Ui {
             .map(|widget_rect| self.ctx().get_response(widget_rect))
             .expect(
                 "Since we always call Context::create_widget in Ui::new, this should never be None",
-            )
+            );
+        if self.should_close() {
+            response.set_close();
+        }
+        response
     }
 
     /// Update the [`WidgetRect`] created in [`Ui::new`] or [`Ui::new_child`] with the current
@@ -1121,7 +1183,7 @@ impl Ui {
             fs.used_ids.remove(&self.unique_id);
         });
         // This will update the WidgetRect that was first created in `Ui::new`.
-        self.ctx().create_widget(
+        let mut response = self.ctx().create_widget(
             WidgetRect {
                 id: self.unique_id,
                 layer_id: self.layer_id(),
@@ -1131,7 +1193,11 @@ impl Ui {
                 enabled: self.enabled,
             },
             false,
-        )
+        );
+        if self.should_close() {
+            response.set_close();
+        }
+        response
     }
 
     /// Interact with the background of this [`Ui`],
@@ -2900,11 +2966,9 @@ impl Ui {
     /// Close the menu we are in (including submenus), if any.
     ///
     /// See also: [`Self::menu_button`] and [`Response::context_menu`].
-    pub fn close_menu(&mut self) {
-        if let Some(menu_state) = &mut self.menu_state {
-            menu_state.write().close();
-        }
-        self.menu_state = None;
+    #[deprecated = "Use `ui.close()` instead"]
+    pub fn close_menu(&self) {
+        self.close();
     }
 
     pub(crate) fn set_menu_state(&mut self, menu_state: Option<Arc<RwLock<MenuState>>>) {

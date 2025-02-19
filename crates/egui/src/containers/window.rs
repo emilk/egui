@@ -434,7 +434,7 @@ impl Window<'_> {
     ) -> Option<InnerResponse<Option<R>>> {
         let Window {
             title,
-            open,
+            mut open,
             area,
             frame,
             resize,
@@ -634,7 +634,12 @@ impl Window<'_> {
                     title_bar.ui(
                         &mut area_content_ui,
                         &content_response,
-                        open,
+                        // TODO: I feel stupid, is there some better way to pass the &mut open
+                        // without moving it?
+                        match &mut open {
+                            None => None,
+                            Some(open) => Some(open),
+                        },
                         &mut collapsing,
                         collapsible,
                     );
@@ -649,6 +654,12 @@ impl Window<'_> {
         };
 
         let full_response = area.end(ctx, area_content_ui);
+
+        if full_response.should_close() {
+            if let Some(open) = open {
+                *open = false;
+            }
+        }
 
         let inner_response = InnerResponse {
             inner: content_inner,
