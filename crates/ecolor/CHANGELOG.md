@@ -6,6 +6,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.31.0 - 2025-02-04
+* Add `Color32::CYAN` and `Color32::MAGENTA` [#5663](https://github.com/emilk/egui/pull/5663) by [@juancampa](https://github.com/juancampa)
+
+
 ## 0.30.0 - 2024-12-16
 * Use boxed slice for lookup table to avoid stack overflow [#5212](https://github.com/emilk/egui/pull/5212) by [@YgorSouza](https://github.com/YgorSouza)
 * Add `Color32::mul` [#5437](https://github.com/emilk/egui/pull/5437) by [@emilk](https://github.com/emilk)

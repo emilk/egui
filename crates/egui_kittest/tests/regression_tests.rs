@@ -1,6 +1,6 @@
 use egui::accesskit::Role;
 use egui::{Button, ComboBox, Image, Vec2, Widget};
-use egui_kittest::{kittest::Queryable, Harness};
+use egui_kittest::{kittest::Queryable, Harness, SnapshotResults};
 
 #[test]
 pub fn focus_should_skip_over_disabled_buttons() {
@@ -64,10 +64,10 @@ fn test_combobox() {
 
     harness.run();
 
-    let mut results = vec![];
+    let mut results = SnapshotResults::new();
 
     #[cfg(all(feature = "wgpu", feature = "snapshot"))]
-    results.push(harness.try_snapshot("combobox_closed"));
+    results.add(harness.try_snapshot("combobox_closed"));
 
     let combobox = harness.get_by_role_and_label(Role::ComboBox, "Select Something");
     combobox.click();
@@ -75,7 +75,7 @@ fn test_combobox() {
     harness.run();
 
     #[cfg(all(feature = "wgpu", feature = "snapshot"))]
-    results.push(harness.try_snapshot("combobox_opened"));
+    results.add(harness.try_snapshot("combobox_opened"));
 
     let item_2 = harness.get_by_role_and_label(Role::Button, "Item 2");
     // Node::click doesn't close the popup, so we use simulate_click
@@ -87,10 +87,4 @@ fn test_combobox() {
 
     // Popup should be closed now
     assert!(harness.query_by_label("Item 2").is_none());
-
-    for result in results {
-        if let Err(err) = result {
-            panic!("{}", err);
-        }
-    }
 }

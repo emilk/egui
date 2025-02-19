@@ -89,8 +89,12 @@ pub struct Memory {
 
     /// Which popup-window is open (if any)?
     /// Could be a combo box, color picker, menu, etc.
+    /// Optionally stores the position of the popup (usually this would be the position where
+    /// the user clicked).
+    /// If position is [`None`], the popup position will be calculated based on some configuration
+    /// (e.g. relative to some other widget).
     #[cfg_attr(feature = "persistence", serde(skip))]
-    popup: Option<Id>,
+    popup: Option<(Id, Option<Pos2>)>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     everything_is_visible: bool,
@@ -318,7 +322,7 @@ impl Default for Options {
         Self {
             dark_style: std::sync::Arc::new(Theme::Dark.default_style()),
             light_style: std::sync::Arc::new(Theme::Light.default_style()),
-            theme_preference: ThemePreference::System,
+            theme_preference: Default::default(),
             fallback_theme: Theme::Dark,
             system_theme: None,
             zoom_factor: 1.0,
@@ -1072,7 +1076,7 @@ impl Memory {
 impl Memory {
     /// Is the given popup open?
     pub fn is_popup_open(&self, popup_id: Id) -> bool {
-        self.popup == Some(popup_id) || self.everything_is_visible()
+        self.popup.is_some_and(|(id, _)| id == popup_id) || self.everything_is_visible()
     }
 
     /// Is any popup open?
@@ -1082,7 +1086,18 @@ impl Memory {
 
     /// Open the given popup and close all others.
     pub fn open_popup(&mut self, popup_id: Id) {
-        self.popup = Some(popup_id);
+        self.popup = Some((popup_id, None));
+    }
+
+    /// Open the popup and remember its position.
+    pub fn open_popup_at(&mut self, popup_id: Id, pos: impl Into<Option<Pos2>>) {
+        self.popup = Some((popup_id, pos.into()));
+    }
+
+    /// Get the position for this popup.
+    pub fn popup_position(&self, id: Id) -> Option<Pos2> {
+        self.popup
+            .and_then(|(popup_id, pos)| if popup_id == id { pos } else { None })
     }
 
     /// Close the open popup, if any.

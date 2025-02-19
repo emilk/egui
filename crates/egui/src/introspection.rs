@@ -160,7 +160,7 @@ impl Widget for &mut epaint::TessellationOptions {
                     .on_hover_text("Apply feathering to smooth out the edges of shapes. Turn off for small performance gain.");
 
                 if *feathering {
-                    ui.add(crate::DragValue::new(feathering_size_in_pixels).range(0.0..=10.0).speed(0.1).suffix(" px"));
+                    ui.add(crate::DragValue::new(feathering_size_in_pixels).range(0.0..=10.0).speed(0.025).suffix(" px"));
                 }
             });
 

@@ -2,6 +2,7 @@ use egui::accesskit::Role;
 use egui::Vec2;
 use egui_demo_app::{Anchor, WrapApp};
 use egui_kittest::kittest::Queryable;
+use egui_kittest::SnapshotResults;
 
 #[test]
 fn test_demo_app() {
@@ -27,7 +28,7 @@ fn test_demo_app() {
         "Expected to find the Custom3d app.",
     );
 
-    let mut results = vec![];
+    let mut results = SnapshotResults::new();
 
     for (name, anchor) in apps {
         harness.get_by_role_and_label(Role::Button, name).click();
@@ -68,12 +69,6 @@ fn test_demo_app() {
         // Can't use Harness::run because fractal clock keeps requesting repaints
         harness.run_steps(2);
 
-        if let Err(e) = harness.try_snapshot(&anchor.to_string()) {
-            results.push(e);
-        }
-    }
-
-    if let Some(error) = results.first() {
-        panic!("{error}");
+        results.add(harness.try_snapshot(&anchor.to_string()));
     }
 }

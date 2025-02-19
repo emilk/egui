@@ -11,7 +11,7 @@ use epaint::{
     tessellator,
     text::{FontInsert, FontPriority, Fonts},
     util::OrderedFloat,
-    vec2, ClippedPrimitive, ClippedShape, Color32, ImageData, ImageDelta, Pos2, Rect,
+    vec2, ClippedPrimitive, ClippedShape, Color32, ImageData, ImageDelta, Pos2, Rect, StrokeKind,
     TessellationOptions, TextureAtlas, TextureId, Vec2,
 };
 
@@ -1087,7 +1087,7 @@ impl Context {
             let text = format!("🔥 {text}");
             let color = self.style().visuals.error_fg_color;
             let painter = self.debug_painter();
-            painter.rect_stroke(widget_rect, 0.0, (1.0, color));
+            painter.rect_stroke(widget_rect, 0.0, (1.0, color), StrokeKind::Outside);
 
             let below = widget_rect.bottom() + 32.0 < screen_rect.bottom();
 
@@ -2549,10 +2549,7 @@ impl Context {
         self.input(|i| i.screen_rect()).round_ui()
     }
 
-    /// How much space is still available after panels has been added.
-    ///
-    /// This is the "background" area, what egui doesn't cover with panels (but may cover with windows).
-    /// This is also the area to which windows are constrained.
+    /// How much space is still available after panels have been added.
     pub fn available_rect(&self) -> Rect {
         self.pass_state(|s| s.available_rect()).round_ui()
     }
@@ -3505,7 +3502,6 @@ impl Context {
 
     /// The loaders of bytes, images, and textures.
     pub fn loaders(&self) -> Arc<Loaders> {
-        profiling::function_scope!();
         self.read(|this| this.loaders.clone())
     }
 }

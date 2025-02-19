@@ -1,5 +1,3 @@
-use web_sys::EventTarget;
-
 use crate::web::string_from_js_value;
 
 use super::{
@@ -9,6 +7,8 @@ use super::{
     theme_from_dark_mode, translate_key, AppRunner, Closure, JsCast, JsValue, WebRunner,
     DEBUG_RESIZE,
 };
+
+use web_sys::{Document, EventTarget, ShadowRoot};
 
 // TODO(emilk): there are more calls to `prevent_default` and `stop_propagation`
 // than what is probably needed.
@@ -219,9 +219,16 @@ fn should_prevent_default_for_key(
     // * cmd-shift-C (debug tools)
     // * cmd/ctrl-c/v/x (lest we prevent copy/paste/cut events)
 
-    // Prevent ctrl-P from opening the print dialog. Users may want to use it for a command palette.
-    if egui_key == egui::Key::P && (modifiers.ctrl || modifiers.command || modifiers.mac_cmd) {
-        return true;
+    // Prevent cmd/ctrl plus these keys from triggering the default browser action:
+    let keys = [
+        egui::Key::O, // open
+        egui::Key::P, // print (cmd-P is common for command palette)
+        egui::Key::S, // save
+    ];
+    for key in keys {
+        if egui_key == key && (modifiers.ctrl || modifiers.command || modifiers.mac_cmd) {
+            return true;
+        }
     }
 
     if egui_key == egui::Key::Space && !runner.text_agent.has_focus() {
@@ -563,10 +570,17 @@ fn install_pointerup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
 /// Returns true if the cursor is above the canvas, or if we're dragging something.
 /// Pass in the position in browser viewport coordinates (usually event.clientX/Y).
 fn is_interested_in_pointer_event(runner: &AppRunner, pos: egui::Pos2) -> bool {
-    let document = web_sys::window().unwrap().document().unwrap();
-    let is_hovering_canvas = document
-        .element_from_point(pos.x, pos.y)
-        .is_some_and(|element| element.eq(runner.canvas()));
+    let root_node = runner.canvas().get_root_node();
+
+    let element_at_point = if let Some(document) = root_node.dyn_ref::<Document>() {
+        document.element_from_point(pos.x, pos.y)
+    } else if let Some(shadow) = root_node.dyn_ref::<ShadowRoot>() {
+        shadow.element_from_point(pos.x, pos.y)
+    } else {
+        None
+    };
+
+    let is_hovering_canvas = element_at_point.is_some_and(|element| element.eq(runner.canvas()));
     let is_pointer_down = runner
         .egui_ctx()
         .input(|i| i.pointer.any_down() || i.any_touches());
@@ -890,7 +904,7 @@ impl ResizeObserverContext {
             let runner_ref = runner_ref.clone();
             move |entries: js_sys::Array| {
                 if DEBUG_RESIZE {
-                    // log::info!("ResizeObserverContext callback");
+                    log::info!("ResizeObserverContext callback");
                 }
                 // Only call the wrapped closure if the egui code has not panicked
                 if let Some(mut runner_lock) = runner_ref.try_lock() {
@@ -919,6 +933,8 @@ impl ResizeObserverContext {
                     if let Err(err) = runner_ref.request_animation_frame() {
                         log::error!("{}", super::string_from_js_value(&err));
                     };
+                } else {
+                    log::warn!("ResizeObserverContext callback: failed to lock runner");
                 }
             }
         }) as Box<dyn FnMut(js_sys::Array)>);

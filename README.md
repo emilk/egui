@@ -133,7 +133,7 @@ Still, egui can be used to create professional looking applications, like [the R
 * Label text selection
 * And more!
 
-Check out the [3rd party egui crates wiki](https://github.com/emilk/egui/wiki/3rd-party-egui-crates) for even more 
+Check out the [3rd party egui crates wiki](https://github.com/emilk/egui/wiki/3rd-party-egui-crates) for even more
 widgets and features, maintained by the community.
 
 <img src="media/widget_gallery_0.23.gif" width="50%">
@@ -153,7 +153,7 @@ Light Theme:
 * [`parking_lot`](https://crates.io/crates/parking_lot)
 
 Heavier dependencies are kept out of `egui`, even as opt-in.
-No code that isn't fully Wasm-friendly is part of `egui`.
+All code in `egui` is Wasm-friendly (even outside a browser).
 
 To load images into `egui` you can use the official [`egui_extras`](https://github.com/emilk/egui/tree/master/crates/egui_extras) crate.
 
@@ -191,7 +191,7 @@ These are the official egui integrations:
 
 ### 3rd party integrations
 
-Check the wiki to find [3rd party integrations](https://github.com/emilk/egui/wiki/3rd-party-integrations) 
+Check the wiki to find [3rd party integrations](https://github.com/emilk/egui/wiki/3rd-party-integrations)
 and [egui crates](https://github.com/emilk/egui/wiki/3rd-party-egui-crates).
 
 ### Writing your own egui integration

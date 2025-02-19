@@ -7,5 +7,15 @@ ime = "ime"       # Input Method Editor
 nknown = "nknown" # part of @55nknown username
 ro = "ro"         # read-only, also part of the username @Phen-Ro
 
+# I mistype these so often
+tesalator = "tessellator"
+teselator = "tessellator"
+tessalator = "tessellator"
+tesselator = "tessellator"
+tesalation = "tessellation"
+teselation = "tessellation"
+tessalation = "tessellation"
+tesselation = "tessellation"
+
 [files]
 extend-exclude = ["web_demo/egui_demo_app.js"] # auto-generated

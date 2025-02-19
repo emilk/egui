@@ -14,6 +14,88 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.31.0 - 2025-02-04 - Scene container, improved rendering quality
+
+### Highlights ✨
+
+#### Scene container
+This release adds the `Scene` container to egui. It is a pannable, zoomable canvas that can contain `Widget`s and child `Ui`s.
+This will make it easier to e.g. implement a graph editor.
+
+![scene](https://github.com/user-attachments/assets/7dc5e395-a3cb-4bf3-83a3-51a76a48c409)
+
+#### Clearer, pixel perfect rendering
+The tessellator has been updated for improved rendering quality and better performance. It will produce fewer vertices
+and shapes will have less overdraw. We've also defined what `CornerRadius` (previously `Rounding`) means.
+
+We've also added a tessellator test to the [demo app](https://www.egui.rs/), where you can play around with different
+values to see what's produced:
+
+
+https://github.com/user-attachments/assets/adf55e3b-fb48-4df0-aaa2-150ee3163684
+
+
+Check the [PR](https://github.com/emilk/egui/pull/5669) for more details.
+
+#### `CornerRadius`, `Margin`, `Shadow` size reduction
+In order to pave the path for more complex and customizable styling solutions, we've reduced the size of
+`CornerRadius`, `Margin` and `Shadow` values to `i8` and `u8`.
+
+
+
+### Migration guide
+- Add a `StrokeKind` to all your `Painter::rect` calls [#5648](https://github.com/emilk/egui/pull/5648)
+- `StrokeKind::default` was removed, since the 'normal' value depends on the context [#5658](https://github.com/emilk/egui/pull/5658)
+  - You probably want to use `StrokeKind::Inside` when drawing rectangles
+  - You probably want to use `StrokeKind::Middle` when drawing open paths
+- Rename `Rounding` to `CornerRadius` [#5673](https://github.com/emilk/egui/pull/5673)
+- `CornerRadius`, `Margin` and `Shadow` have been updated to use `i8` and `u8` [#5563](https://github.com/emilk/egui/pull/5563), [#5567](https://github.com/emilk/egui/pull/5567), [#5568](https://github.com/emilk/egui/pull/5568)
+  - Remove the .0 from your values
+  - Cast dynamic values with `as i8` / `as u8` or `as _` if you want Rust to infer the type
+    - Rust will do a 'saturating' cast, so if your `f32` value is bigger than `127` it will be clamped to `127`
+- `RectShape` parameters changed [#5565](https://github.com/emilk/egui/pull/5565)
+  - Prefer to use the builder methods to create it instead of initializing it directly
+- `Frame` now takes the `Stroke` width into account for its sizing, so check all views of your app to make sure they still look right.
+  Read the [PR](https://github.com/emilk/egui/pull/5575) for more info.
+
+### ⭐ Added
+* Add `egui::Scene` for panning/zooming a `Ui` [#5505](https://github.com/emilk/egui/pull/5505) by [@grtlr](https://github.com/grtlr)
+* Animated WebP support [#5470](https://github.com/emilk/egui/pull/5470) by [@Aely0](https://github.com/Aely0)
+* Improve tessellation quality [#5669](https://github.com/emilk/egui/pull/5669) by [@emilk](https://github.com/emilk)
+* Add `OutputCommand` for copying text and opening URL:s [#5532](https://github.com/emilk/egui/pull/5532) by [@emilk](https://github.com/emilk)
+* Add `Context::copy_image` [#5533](https://github.com/emilk/egui/pull/5533) by [@emilk](https://github.com/emilk)
+* Add `WidgetType::Image` and `Image::alt_text` [#5534](https://github.com/emilk/egui/pull/5534) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Add `epaint::Brush` for controlling `RectShape` texturing [#5565](https://github.com/emilk/egui/pull/5565) by [@emilk](https://github.com/emilk)
+* Implement `nohash_hasher::IsEnabled` for `Id` [#5628](https://github.com/emilk/egui/pull/5628) by [@emilk](https://github.com/emilk)
+* Add keys for `!`, `{`, `}` [#5548](https://github.com/emilk/egui/pull/5548) by [@Its-Just-Nans](https://github.com/Its-Just-Nans)
+* Add `RectShape::stroke_kind ` to control if stroke is inside/outside/centered [#5647](https://github.com/emilk/egui/pull/5647) by [@emilk](https://github.com/emilk)
+
+### 🔧 Changed
+* ⚠️ `Frame` now includes stroke width as part of padding [#5575](https://github.com/emilk/egui/pull/5575) by [@emilk](https://github.com/emilk)
+* Rename `Rounding` to `CornerRadius` [#5673](https://github.com/emilk/egui/pull/5673) by [@emilk](https://github.com/emilk)
+* Require a `StrokeKind` when painting rectangles with strokes [#5648](https://github.com/emilk/egui/pull/5648) by [@emilk](https://github.com/emilk)
+* Round widget coordinates to even multiple of 1/32 [#5517](https://github.com/emilk/egui/pull/5517) by [@emilk](https://github.com/emilk)
+* Make all lines and rectangles crisp [#5518](https://github.com/emilk/egui/pull/5518) by [@emilk](https://github.com/emilk)
+* Tweak window resize handles [#5524](https://github.com/emilk/egui/pull/5524) by [@emilk](https://github.com/emilk)
+
+### 🔥 Removed
+* Remove `egui::special_emojis::TWITTER` [#5622](https://github.com/emilk/egui/pull/5622) by [@emilk](https://github.com/emilk)
+* Remove `StrokeKind::default` [#5658](https://github.com/emilk/egui/pull/5658) by [@emilk](https://github.com/emilk)
+
+### 🐛 Fixed
+* Use correct minimum version of `profiling` crate [#5494](https://github.com/emilk/egui/pull/5494) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Fix interactive widgets sometimes being incorrectly marked as hovered [#5523](https://github.com/emilk/egui/pull/5523) by [@emilk](https://github.com/emilk)
+* Fix panic due to non-total ordering in `Area::compare_order()` [#5569](https://github.com/emilk/egui/pull/5569) by [@HactarCE](https://github.com/HactarCE)
+* Fix hovering through custom menu button [#5555](https://github.com/emilk/egui/pull/5555) by [@M4tthewDE](https://github.com/M4tthewDE)
+
+### 🚀 Performance
+* Use `u8` in `CornerRadius`, and introduce `CornerRadiusF32` [#5563](https://github.com/emilk/egui/pull/5563) by [@emilk](https://github.com/emilk)
+* Store `Margin` using `i8` to reduce its size [#5567](https://github.com/emilk/egui/pull/5567) by [@emilk](https://github.com/emilk)
+* Shrink size of `Shadow` by using `i8/u8` instead of `f32` [#5568](https://github.com/emilk/egui/pull/5568) by [@emilk](https://github.com/emilk)
+* Avoid allocations for loader cache lookup [#5584](https://github.com/emilk/egui/pull/5584) by [@mineichen](https://github.com/mineichen)
+* Use bitfield instead of bools in `Response` and `Sense` [#5556](https://github.com/emilk/egui/pull/5556) by [@polwel](https://github.com/polwel)
+
+
 ## 0.30.0 - 2024-12-16 - Modals and better layer support
 
 ### ✨ Highlights

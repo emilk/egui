@@ -165,7 +165,7 @@ mod tests {
     use egui::accesskit::Role;
     use egui::Key;
     use egui_kittest::kittest::Queryable;
-    use egui_kittest::Harness;
+    use egui_kittest::{Harness, SnapshotResults};
 
     #[test]
     fn clicking_escape_when_popup_open_should_not_close_modal() {
@@ -233,22 +233,18 @@ mod tests {
             initial_state,
         );
 
-        let mut results = Vec::new();
+        let mut results = SnapshotResults::new();
 
         harness.run();
-        results.push(harness.try_snapshot("modals_1"));
+        results.add(harness.try_snapshot("modals_1"));
 
         harness.get_by_label("Save").click();
         harness.run_ok();
-        results.push(harness.try_snapshot("modals_2"));
+        results.add(harness.try_snapshot("modals_2"));
 
         harness.get_by_label("Yes Please").click();
         harness.run_ok();
-        results.push(harness.try_snapshot("modals_3"));
-
-        for result in results {
-            result.unwrap();
-        }
+        results.add(harness.try_snapshot("modals_3"));
     }
 
     // This tests whether the backdrop actually prevents interaction with lower layers.

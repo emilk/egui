@@ -8,7 +8,7 @@ use epaint::{
 
 use crate::{
     load::{Bytes, SizeHint, SizedTexture, TextureLoadResult, TexturePoll},
-    pos2, Color32, Context, Id, Mesh, Painter, Rect, Response, Rounding, Sense, Shape, Spinner,
+    pos2, Color32, Context, CornerRadius, Id, Mesh, Painter, Rect, Response, Sense, Shape, Spinner,
     TextStyle, TextureOptions, Ui, Vec2, Widget, WidgetInfo, WidgetType,
 };
 
@@ -29,7 +29,7 @@ use crate::{
 /// # egui::__run_test_ui(|ui| {
 /// ui.add(
 ///     egui::Image::new(egui::include_image!("../../assets/ferris.png"))
-///         .rounding(5.0)
+///         .corner_radius(5)
 /// );
 /// # });
 /// ```
@@ -39,7 +39,7 @@ use crate::{
 /// # egui::__run_test_ui(|ui| {
 /// # let rect = egui::Rect::from_min_size(Default::default(), egui::Vec2::splat(100.0));
 /// egui::Image::new(egui::include_image!("../../assets/ferris.png"))
-///     .rounding(5.0)
+///     .corner_radius(5)
 ///     .tint(egui::Color32::LIGHT_BLUE)
 ///     .paint_at(ui, rect);
 /// # });
@@ -233,23 +233,35 @@ impl<'a> Image<'a> {
     #[inline]
     pub fn rotate(mut self, angle: f32, origin: Vec2) -> Self {
         self.image_options.rotation = Some((Rot2::from_angle(angle), origin));
-        self.image_options.rounding = Rounding::ZERO; // incompatible with rotation
+        self.image_options.corner_radius = CornerRadius::ZERO; // incompatible with rotation
         self
     }
 
     /// Round the corners of the image.
     ///
-    /// The default is no rounding ([`Rounding::ZERO`]).
+    /// The default is no rounding ([`CornerRadius::ZERO`]).
     ///
     /// Due to limitations in the current implementation,
     /// this will turn off any rotation of the image.
     #[inline]
-    pub fn rounding(mut self, rounding: impl Into<Rounding>) -> Self {
-        self.image_options.rounding = rounding.into();
-        if self.image_options.rounding != Rounding::ZERO {
+    pub fn corner_radius(mut self, corner_radius: impl Into<CornerRadius>) -> Self {
+        self.image_options.corner_radius = corner_radius.into();
+        if self.image_options.corner_radius != CornerRadius::ZERO {
             self.image_options.rotation = None; // incompatible with rounding
         }
         self
+    }
+
+    /// Round the corners of the image.
+    ///
+    /// The default is no rounding ([`CornerRadius::ZERO`]).
+    ///
+    /// Due to limitations in the current implementation,
+    /// this will turn off any rotation of the image.
+    #[inline]
+    #[deprecated = "Renamed to `corner_radius`"]
+    pub fn rounding(self, corner_radius: impl Into<CornerRadius>) -> Self {
+        self.corner_radius(corner_radius)
     }
 
     /// Show a spinner when the image is loading.
@@ -354,7 +366,7 @@ impl<'a> Image<'a> {
     /// # egui::__run_test_ui(|ui| {
     /// # let rect = egui::Rect::from_min_size(Default::default(), egui::Vec2::splat(100.0));
     /// egui::Image::new(egui::include_image!("../../assets/ferris.png"))
-    ///     .rounding(5.0)
+    ///     .corner_radius(5)
     ///     .tint(egui::Color32::LIGHT_BLUE)
     ///     .paint_at(ui, rect);
     /// # });
@@ -778,11 +790,11 @@ pub struct ImageOptions {
 
     /// Round the corners of the image.
     ///
-    /// The default is no rounding ([`Rounding::ZERO`]).
+    /// The default is no rounding ([`CornerRadius::ZERO`]).
     ///
     /// Due to limitations in the current implementation,
     /// this will turn off any rotation of the image.
-    pub rounding: Rounding,
+    pub corner_radius: CornerRadius,
 }
 
 impl Default for ImageOptions {
@@ -792,7 +804,7 @@ impl Default for ImageOptions {
             bg_fill: Default::default(),
             tint: Color32::WHITE,
             rotation: None,
-            rounding: Rounding::ZERO,
+            corner_radius: CornerRadius::ZERO,
         }
     }
 }
@@ -804,7 +816,11 @@ pub fn paint_texture_at(
     texture: &SizedTexture,
 ) {
     if options.bg_fill != Default::default() {
-        painter.add(RectShape::filled(rect, options.rounding, options.bg_fill));
+        painter.add(RectShape::filled(
+            rect,
+            options.corner_radius,
+            options.bg_fill,
+        ));
     }
 
     match options.rotation {
@@ -812,7 +828,7 @@ pub fn paint_texture_at(
             // TODO(emilk): implement this using `PathShape` (add texture support to it).
             // This will also give us anti-aliasing of rotated images.
             debug_assert!(
-                options.rounding == Rounding::ZERO,
+                options.corner_radius == CornerRadius::ZERO,
                 "Image had both rounding and rotation. Please pick only one"
             );
 
@@ -823,7 +839,7 @@ pub fn paint_texture_at(
         }
         None => {
             painter.add(
-                RectShape::filled(rect, options.rounding, options.tint)
+                RectShape::filled(rect, options.corner_radius, options.tint)
                     .with_texture(texture.id, options.uv),
             );
         }

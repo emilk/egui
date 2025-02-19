@@ -128,7 +128,7 @@ impl<'l> StripLayout<'l> {
         if flags.striped {
             self.ui.painter().rect_filled(
                 gapless_rect,
-                egui::Rounding::ZERO,
+                egui::CornerRadius::ZERO,
                 self.ui.visuals().faint_bg_color,
             );
         }
@@ -136,7 +136,7 @@ impl<'l> StripLayout<'l> {
         if flags.selected {
             self.ui.painter().rect_filled(
                 gapless_rect,
-                egui::Rounding::ZERO,
+                egui::CornerRadius::ZERO,
                 self.ui.visuals().selection.bg_fill,
             );
         }
@@ -144,7 +144,7 @@ impl<'l> StripLayout<'l> {
         if flags.hovered && !flags.selected && self.sense.interactive() {
             self.ui.painter().rect_filled(
                 gapless_rect,
-                egui::Rounding::ZERO,
+                egui::CornerRadius::ZERO,
                 self.ui.visuals().widgets.hovered.bg_fill,
             );
         }
