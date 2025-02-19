@@ -1,6 +1,6 @@
 use crate::{
-    Button, Color32, Frame, Id, InnerResponse, Layout, PointerState, Popup, Response, Style, Ui,
-    UiKind, UiStack, Widget, WidgetText,
+    Button, Color32, Context, Frame, Id, InnerResponse, Layout, PointerState, Popup, Response,
+    Style, Ui, UiKind, UiStack, Widget, WidgetText,
 };
 use emath::{vec2, Align, RectAlign};
 use epaint::Stroke;
@@ -39,17 +39,18 @@ pub struct MenuState {
 }
 
 impl MenuState {
+    pub const ID: &'static str = "menu_state";
     pub fn from_ui<R>(ui: &Ui, f: impl FnOnce(&mut Self, &UiStack) -> R) -> R {
         let stack = find_sub_menu_root(ui);
         ui.data_mut(|data| {
-            let state = data.get_temp_mut_or_default(stack.id);
+            let state = data.get_temp_mut_or_default(stack.id.with(Self::ID));
             f(state, stack)
         })
     }
 
-    pub fn from_id<R>(ui: &Ui, id: Id, f: impl FnOnce(&mut Self) -> R) -> R {
-        ui.data_mut(|data| {
-            let state = data.get_temp_mut_or_default(id);
+    pub fn from_id<R>(ctx: &Context, id: Id, f: impl FnOnce(&mut Self) -> R) -> R {
+        ctx.data_mut(|data| {
+            let state = data.get_temp_mut_or_default(id.with(Self::ID));
             f(state)
         })
     }
@@ -130,11 +131,16 @@ impl SubMenu {
         if !is_any_open && is_hovered {
             set_open = Some(true);
             is_open = true;
+            // Ensure that all other sub menus are closed when we open the menu
+            MenuState::from_id(ui.ctx(), id, |state| {
+                state.open_item = None;
+            });
         }
 
         let gap = frame.total_margin().sum().x / 2.0;
 
         let popup_response = Popup::from_response(&response)
+            .id(id)
             .open(is_open)
             .align(RectAlign::RIGHT_START)
             .layout(Layout::top_down_justified(Align::Min))
@@ -143,6 +149,17 @@ impl SubMenu {
             .show(content);
 
         if let Some(popup_response) = &popup_response {
+            let has_any_open = MenuState::from_id(ui.ctx(), id, |state| state.open_item.is_some());
+            // If no child sub menu is open means we must be the deepest child sub menu.
+            // If the user clicks and the cursor is not hovering over our menu rect, it's
+            // safe to assume they clicked outside the menu, so we close everything.
+            // If they were to hover some other parent submenu we wouldn't be open.
+            // Only edge case is the user hovering this submenu's button, so we also check
+            // if we clicked outside the parent menu (which we luckily have access to here).
+            let clicked_outside = !has_any_open
+                && popup_response.response.clicked_elsewhere()
+                && menu_root_response.clicked_elsewhere();
+
             let is_moving_towards_rect = ui.input(|i| {
                 i.pointer
                     .is_moving_towards_rect(&popup_response.response.rect)
@@ -161,17 +178,17 @@ impl SubMenu {
             let close_called = popup_response.response.should_close();
 
             // Close the parent ui to e.g. close the popup from where the submenu was opened
-            if close_called {
+            if close_called || clicked_outside {
                 ui.close();
             }
 
-            if hovering_other_menu_entry || close_called {
+            if hovering_other_menu_entry || close_called || clicked_outside {
                 set_open = Some(false);
             }
         }
 
         if let Some(set_open) = set_open {
-            MenuState::from_id(ui, menu_id, |state| {
+            MenuState::from_id(ui.ctx(), menu_id, |state| {
                 state.open_item = set_open.then_some(id);
             });
         }
