@@ -133,6 +133,9 @@ bitflags::bitflags! {
         /// Note that this can be `true` even if the user did not interact with the widget,
         /// for instance if an existing slider value was clamped to the given range.
         const CHANGED = 1<<11;
+
+        /// Should this container be closed?
+        const CLOSE = 1<<12;
     }
 }
 
@@ -528,6 +531,21 @@ impl Response {
         self.flags.set(Flags::CHANGED, true);
     }
 
+    /// Should the container be closed?
+    ///
+    /// Will e.g. be set by calling [`Ui::close`] in a child [`Ui`] or by calling
+    /// [`Self::set_close`].
+    pub fn should_close(&self) -> bool {
+        self.flags.contains(Flags::CLOSE)
+    }
+
+    /// Set the [`Flags::CLOSE`] flag.
+    ///
+    /// Can be used to e.g. signal that a container should be closed.
+    pub fn set_close(&mut self) {
+        self.flags.set(Flags::CLOSE, true);
+    }
+
     /// Show this UI if the widget was hovered (i.e. a tooltip).
     ///
     /// The text will not be visible if the widget is not enabled.
@@ -909,13 +927,13 @@ impl Response {
     /// let response = ui.add(Label::new("Right-click me!").sense(Sense::click()));
     /// response.context_menu(|ui| {
     ///     if ui.button("Close the menu").clicked() {
-    ///         ui.close_menu();
+    ///         ui.close();
     ///     }
     /// });
     /// # });
     /// ```
     ///
-    /// See also: [`Ui::menu_button`] and [`Ui::close_menu`].
+    /// See also: [`Ui::menu_button`] and [`Ui::close`].
     pub fn context_menu(&self, add_contents: impl FnOnce(&mut Ui)) -> Option<InnerResponse<()>> {
         menu::context_menu(self, add_contents)
     }

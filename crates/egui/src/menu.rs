@@ -364,7 +364,10 @@ impl MenuRoot {
             let menu_state = self.menu_state.read();
 
             let escape_pressed = button.ctx.input(|i| i.key_pressed(Key::Escape));
-            if menu_state.response.is_close() || escape_pressed {
+            if menu_state.response.is_close()
+                || escape_pressed
+                || inner_response.response.should_close()
+            {
                 return (MenuResponse::Close, Some(inner_response));
             }
         }
@@ -667,6 +670,9 @@ impl MenuState {
     ) -> Option<R> {
         let (sub_response, response) = self.submenu(id).map(|sub| {
             let inner_response = menu_popup(ctx, parent_layer, sub, id, add_contents);
+            if inner_response.response.should_close() {
+                sub.write().close();
+            }
             (sub.read().response, inner_response.inner)
         })?;
         self.cascade_close_response(sub_response);

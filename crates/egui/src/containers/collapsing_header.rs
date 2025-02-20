@@ -2,7 +2,8 @@ use std::hash::Hash;
 
 use crate::{
     emath, epaint, pos2, remap, remap_clamp, vec2, Context, Id, InnerResponse, NumExt, Rect,
-    Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2, WidgetInfo, WidgetText, WidgetType,
+    Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, UiBuilder, UiKind, UiStackInfo, Vec2,
+    WidgetInfo, WidgetText, WidgetType,
 };
 use emath::GuiRounding as _;
 use epaint::{Shape, StrokeKind};
@@ -203,11 +204,16 @@ impl CollapsingState {
         add_body: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
         let openness = self.openness(ui.ctx());
+
+        let builder = UiBuilder::new()
+            .ui_stack_info(UiStackInfo::new(UiKind::Collapsible))
+            .closable();
+
         if openness <= 0.0 {
             self.store(ui.ctx()); // we store any earlier toggling as promised in the docstring
             None
         } else if openness < 1.0 {
-            Some(ui.scope(|child_ui| {
+            Some(ui.scope_builder(builder, |child_ui| {
                 let max_height = if self.state.open && self.state.open_height.is_none() {
                     // First frame of expansion.
                     // We don't know full height yet, but we will next frame.
@@ -226,6 +232,9 @@ impl CollapsingState {
 
                 let mut min_rect = child_ui.min_rect();
                 self.state.open_height = Some(min_rect.height());
+                if child_ui.should_close() {
+                    self.state.open = false;
+                }
                 self.store(child_ui.ctx()); // remember the height
 
                 // Pretend children took up at most `max_height` space:
@@ -234,7 +243,10 @@ impl CollapsingState {
                 ret
             }))
         } else {
-            let ret_response = ui.scope(add_body);
+            let ret_response = ui.scope_builder(builder, add_body);
+            if ret_response.response.should_close() {
+                self.state.open = false;
+            }
             let full_size = ret_response.response.rect.size();
             self.state.open_height = Some(full_size.y);
             self.store(ui.ctx()); // remember the height

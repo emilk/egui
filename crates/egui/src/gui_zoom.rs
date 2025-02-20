@@ -88,7 +88,7 @@ pub fn zoom_menu_buttons(ui: &mut Ui) {
         .clicked()
     {
         zoom_in(ui.ctx());
-        ui.close_menu();
+        ui.close();
     }
 
     if ui
@@ -99,7 +99,7 @@ pub fn zoom_menu_buttons(ui: &mut Ui) {
         .clicked()
     {
         zoom_out(ui.ctx());
-        ui.close_menu();
+        ui.close();
     }
 
     if ui
@@ -110,6 +110,6 @@ pub fn zoom_menu_buttons(ui: &mut Ui) {
         .clicked()
     {
         ui.ctx().set_zoom_factor(1.0);
-        ui.close_menu();
+        ui.close();
     }
 }

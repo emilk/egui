@@ -556,7 +556,8 @@ impl Prepared {
             .ui_stack_info(UiStackInfo::new(self.kind))
             .layer_id(self.layer_id)
             .max_rect(max_rect)
-            .layout(self.layout);
+            .layout(self.layout)
+            .closable();
 
         if !self.enabled {
             ui_builder = ui_builder.disabled();
@@ -610,6 +611,12 @@ impl Prepared {
         let final_rect = state.rect();
         response.rect = final_rect;
         response.interact_rect = final_rect;
+
+        // TODO(lucasmerlin): Can the area response be based on Ui::response? Then this won't be needed
+        // Bubble up the close event
+        if content_ui.should_close() {
+            response.set_close();
+        }
 
         ctx.memory_mut(|m| m.areas_mut().set_state(layer_id, state));
 

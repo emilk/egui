@@ -153,6 +153,10 @@ impl crate::View for PopupsDemo {
             .show(|ui| {
                 _ = ui.button("Menu item 1");
                 _ = ui.button("Menu item 2");
+
+                if ui.button("I always close the menu").clicked() {
+                    ui.close();
+                }
             });
 
         self.apply_options(Popup::context_menu(&response).id(Id::new("context_menu")))
