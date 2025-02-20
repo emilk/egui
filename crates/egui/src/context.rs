@@ -26,7 +26,6 @@ use crate::{
     load,
     load::{Bytes, Loaders, SizedTexture},
     memory::{Options, Theme},
-    menu,
     os::OperatingSystem,
     output::FullOutput,
     pass_state::PassState,
@@ -2632,9 +2631,13 @@ impl Context {
     }
 
     /// Is an egui context menu open?
+    ///
+    /// This only works with the old, deprecated [`crate::menu`] API.
+    #[allow(deprecated)]
+    #[deprecated]
     pub fn is_context_menu_open(&self) -> bool {
         self.data(|d| {
-            d.get_temp::<crate::menu::BarState>(menu::CONTEXT_MENU_ID_STR.into())
+            d.get_temp::<crate::menu::BarState>(crate::menu::CONTEXT_MENU_ID_STR.into())
                 .is_some_and(|state| state.has_root())
         })
     }
@@ -3172,13 +3175,14 @@ impl Context {
             }
         });
 
+        #[allow(deprecated)]
         ui.horizontal(|ui| {
             ui.label(format!(
                 "{} menu bars",
-                self.data(|d| d.count::<menu::BarState>())
+                self.data(|d| d.count::<crate::menu::BarState>())
             ));
             if ui.button("Reset").clicked() {
-                self.data_mut(|d| d.remove_by_type::<menu::BarState>());
+                self.data_mut(|d| d.remove_by_type::<crate::menu::BarState>());
             }
         });
 

@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 //! Menu bar functionality (very basic so far).
 //!
 //! Usage:
@@ -146,7 +147,7 @@ pub fn menu_image_button<R>(
 /// Opens on hover.
 ///
 /// Returns `None` if the menu is not open.
-pub(crate) fn submenu_button<R>(
+pub fn submenu_button<R>(
     ui: &mut Ui,
     parent_state: Arc<RwLock<MenuState>>,
     title: impl Into<WidgetText>,
@@ -267,7 +268,7 @@ fn stationary_menu_button_impl<'c, R>(
 pub(crate) const CONTEXT_MENU_ID_STR: &str = "__egui::context_menu";
 
 /// Response to secondary clicks (right-clicks) by showing the given menu.
-pub(crate) fn context_menu(
+pub fn context_menu(
     response: &Response,
     add_contents: impl FnOnce(&mut Ui),
 ) -> Option<InnerResponse<()>> {
@@ -282,7 +283,7 @@ pub(crate) fn context_menu(
 }
 
 /// Returns `true` if the context menu is opened for this widget.
-pub(crate) fn context_menu_opened(response: &Response) -> bool {
+pub fn context_menu_opened(response: &Response) -> bool {
     let menu_id = Id::new(CONTEXT_MENU_ID_STR);
     let bar_state = BarState::load(&response.ctx, menu_id);
     bar_state.is_menu_open(response.id)

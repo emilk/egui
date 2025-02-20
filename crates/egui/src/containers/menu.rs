@@ -1,7 +1,6 @@
 use crate::{
-    Button, Color32, Context, Frame, Id, InnerResponse, Layout, PointerState, Popup,
-    PopupCloseBehavior, Response, RichText, Style, Ui, UiKind, UiStack, UiStackInfo, Widget,
-    WidgetText,
+    Button, Color32, Context, Frame, Id, InnerResponse, Layout, Popup, PopupCloseBehavior,
+    Response, Style, Ui, UiBuilder, UiKind, UiStack, UiStackInfo, Widget, WidgetText,
 };
 use emath::{vec2, Align, RectAlign, Vec2};
 use epaint::Stroke;
@@ -19,11 +18,11 @@ pub fn global_menu_state_id() -> Id {
     Id::new("global_menu_state")
 }
 
-pub fn find_sub_menu_root(ui: &Ui) -> &UiStack {
+/// Find the root [`UiStack`] of the menu.
+pub fn find_menu_root(ui: &Ui) -> &UiStack {
     ui.stack()
         .iter()
         .find(|stack| {
-            // TODO: Add a MenuContainer widget that allows one to create a submenu from anywhere using UiStack::tags
             stack.is_root_ui()
                 || [Some(UiKind::Popup), Some(UiKind::Menu)].contains(&stack.kind())
                 || stack.info.tags.contains(MenuConfig::MENU_CONFIG_TAG)
@@ -32,20 +31,85 @@ pub fn find_sub_menu_root(ui: &Ui) -> &UiStack {
         .unwrap()
 }
 
-pub struct GlobalMenuState {
-    popup_id: Option<Id>,
+/// Is this Ui part of a menu?
+///
+/// Returns `false` if this is a menu bar.
+/// Should be used to determine if we should show a menu button or submenu button.
+pub fn is_in_menu(ui: &Ui) -> bool {
+    for stack in ui.stack().iter() {
+        if let Some(config) = stack
+            .info
+            .tags
+            .get_downcast::<MenuConfig>(MenuConfig::MENU_CONFIG_TAG)
+        {
+            return !config.bar;
+        }
+        if [Some(UiKind::Popup), Some(UiKind::Menu)].contains(&stack.kind()) {
+            return true;
+        }
+    }
+    false
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct MenuConfig {
+    /// Is this a menu bar?
+    bar: bool,
+
+    /// If the user clicks, should we close the menu?
     pub close_behavior: PopupCloseBehavior,
+
+    /// Override the menu style.
+    ///
+    /// Default is [`menu_style`].
+    pub style: Option<fn(&mut Style)>,
+}
+
+impl Default for MenuConfig {
+    fn default() -> Self {
+        Self {
+            close_behavior: PopupCloseBehavior::CloseOnClickOutside,
+            bar: false,
+            style: Some(menu_style),
+        }
+    }
 }
 
 impl MenuConfig {
     pub const MENU_CONFIG_TAG: &'static str = "egui_menu_config";
 
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// If the user clicks, should we close the menu?
+    pub fn close_behavior(mut self, close_behavior: PopupCloseBehavior) -> Self {
+        self.close_behavior = close_behavior;
+        self
+    }
+
+    /// Override the menu style.
+    ///
+    /// Default is [`menu_style`].
+    pub fn style(mut self, style: impl Into<Option<fn(&mut Style)>>) -> Self {
+        self.style = style.into();
+        self
+    }
+
     fn from_stack(stack: &UiStack) -> Self {
         stack
+            .info
+            .tags
+            .get_downcast(Self::MENU_CONFIG_TAG)
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    /// Find the config for the current menu.
+    ///
+    /// Returns the default config if no config is found.
+    pub fn find(ui: &Ui) -> Self {
+        find_menu_root(ui)
             .info
             .tags
             .get_downcast(Self::MENU_CONFIG_TAG)
@@ -64,7 +128,7 @@ impl MenuState {
     pub const ID: &'static str = "menu_state";
     /// Find the root of the menu and get the state
     pub fn from_ui<R>(ui: &Ui, f: impl FnOnce(&mut Self, &UiStack) -> R) -> R {
-        let stack = find_sub_menu_root(ui);
+        let stack = find_menu_root(ui);
         Self::from_id(ui.ctx(), stack.id, |state| f(state, stack))
     }
 
@@ -72,7 +136,7 @@ impl MenuState {
     pub fn from_id<R>(ctx: &Context, id: Id, f: impl FnOnce(&mut Self) -> R) -> R {
         let pass_nr = ctx.cumulative_pass_nr();
         ctx.data_mut(|data| {
-            let state = data.get_temp_mut_or_insert_with(id.with(Self::ID), || MenuState {
+            let state = data.get_temp_mut_or_insert_with(id.with(Self::ID), || Self {
                 open_item: None,
                 last_visible_pass: pass_nr,
             });
@@ -91,6 +155,107 @@ impl MenuState {
     }
 }
 
+/// The menu bar goes well in a [`crate::TopBottomPanel::top`],
+/// but can also be placed in a [`crate::Window`].
+/// In the latter case you may want to wrap it in [`Frame`].
+#[derive(Clone, Debug)]
+pub struct Bar {
+    config: MenuConfig,
+    style: Option<fn(&mut Style)>,
+}
+
+impl Default for Bar {
+    fn default() -> Self {
+        Self {
+            config: MenuConfig::default(),
+            style: Some(menu_style),
+        }
+    }
+}
+
+impl Bar {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn style(mut self, style: impl Into<Option<fn(&mut Style)>>) -> Self {
+        self.style = style.into();
+        self
+    }
+
+    pub fn config(mut self, config: MenuConfig) -> Self {
+        self.config = config;
+        self
+    }
+
+    pub fn ui<R>(self, ui: &mut Ui, content: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
+        let Self { mut config, style } = self;
+        config.bar = true;
+        ui.scope_builder(
+            UiBuilder::new()
+                .layout(Layout::left_to_right(Align::Center))
+                .ui_stack_info(
+                    UiStackInfo::new(UiKind::Menu)
+                        .with_tag_value(MenuConfig::MENU_CONFIG_TAG, config),
+                ),
+            |ui| {
+                if let Some(style) = style {
+                    style(ui.style_mut());
+                }
+
+                // Take full width and fixed height:
+                let height = ui.spacing().interact_size.y;
+                ui.set_min_size(vec2(ui.available_width(), height));
+
+                content(ui)
+            },
+        )
+    }
+}
+
+/// A thin wrapper around a [`Button`] that shows a [`Popup::menu`] when clicked.
+///
+/// The only thing this does is search for the current menu config (if set via [`Bar`]).
+/// If your menu button is not in a [`Bar`] it's fine to use [`Ui::button`] and [`Popup::menu`]
+/// directly.
+pub struct MenuButton<'a> {
+    pub button: Button<'a>,
+    pub config: Option<MenuConfig>,
+}
+
+impl<'a> MenuButton<'a> {
+    pub fn new(text: impl Into<WidgetText>) -> Self {
+        Self::from_button(Button::new(text))
+    }
+
+    pub fn config(mut self, config: MenuConfig) -> Self {
+        self.config = Some(config);
+        self
+    }
+
+    pub fn from_button(button: Button<'a>) -> Self {
+        Self {
+            button,
+            config: None,
+        }
+    }
+
+    pub fn ui<R>(
+        self,
+        ui: &mut Ui,
+        content: impl FnOnce(&mut Ui) -> R,
+    ) -> (Response, Option<InnerResponse<R>>) {
+        let response = self.button.ui(ui);
+        let config = self.config.unwrap_or_else(|| MenuConfig::find(ui));
+        let inner = Popup::menu(&response)
+            .info(
+                UiStackInfo::new(UiKind::Menu).with_tag_value(MenuConfig::MENU_CONFIG_TAG, config),
+            )
+            .show(content);
+        (response, inner)
+    }
+}
+
 /// A submenu button that shows a [`SubMenu`] if a [`Button`] is hovered.
 pub struct SubMenuButton<'a> {
     pub button: Button<'a>,
@@ -98,9 +263,15 @@ pub struct SubMenuButton<'a> {
 }
 
 impl<'a> SubMenuButton<'a> {
+    pub const RIGHT_ARROW: &'static str = "▶";
+
     pub fn new(text: impl Into<WidgetText>) -> Self {
+        Self::from_button(Button::new(text).right_text("▶"))
+    }
+
+    pub fn from_button(button: Button<'a>) -> Self {
         Self {
-            button: Button::new(text).right_text(RichText::new("⏵")),
+            button,
             sub_menu: SubMenu::default(),
         }
     }
@@ -111,14 +282,6 @@ impl<'a> SubMenuButton<'a> {
     pub fn config(mut self, config: MenuConfig) -> Self {
         self.sub_menu.config = Some(config);
         self
-    }
-
-    pub fn button_mut(&mut self) -> &mut Button<'a> {
-        &mut self.button
-    }
-
-    pub fn sub_menu_mut(&mut self) -> &mut SubMenu {
-        &mut self.sub_menu
     }
 
     pub fn ui<R>(
@@ -167,7 +330,7 @@ impl SubMenu {
 
     pub fn show<R>(
         self,
-        ui: &mut Ui,
+        ui: &Ui,
         response: &Response,
         content: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
@@ -179,7 +342,8 @@ impl SubMenu {
             (state.open_item, stack.id, MenuConfig::from_stack(stack))
         });
 
-        let menu_config = self.config.unwrap_or_else(|| parent_config.clone());
+        let mut menu_config = self.config.unwrap_or_else(|| parent_config.clone());
+        menu_config.bar = false;
 
         let menu_root_response = ui
             .ctx()
@@ -226,7 +390,7 @@ impl SubMenu {
             .align(RectAlign::RIGHT_START)
             .layout(Layout::top_down_justified(Align::Min))
             .gap(gap)
-            .style(menu_style)
+            .style(menu_config.style)
             .frame(frame)
             .close_behavior(match menu_config.close_behavior {
                 // We ignore ClickOutside because it is handled by the menu (see below)

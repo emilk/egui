@@ -2,8 +2,8 @@ use std::{any::Any, sync::Arc};
 
 use crate::{
     emath::{Align, Pos2, Rect, Vec2},
-    menu, pass_state, Context, CursorIcon, Id, LayerId, PointerButton, Popup, PopupKind, Sense,
-    Tooltip, Ui, WidgetRect, WidgetText,
+    pass_state, Context, CursorIcon, Id, LayerId, PointerButton, Popup, PopupKind, Sense, Tooltip,
+    Ui, WidgetRect, WidgetText,
 };
 // ----------------------------------------------------------------------------
 
@@ -928,14 +928,14 @@ impl Response {
     ///
     /// See also: [`Ui::menu_button`] and [`Ui::close`].
     pub fn context_menu(&self, add_contents: impl FnOnce(&mut Ui)) -> Option<InnerResponse<()>> {
-        menu::context_menu(self, add_contents)
+        Popup::context_menu(self).show(add_contents)
     }
 
     /// Returns whether a context menu is currently open for this widget.
     ///
     /// See [`Self::context_menu`].
     pub fn context_menu_opened(&self) -> bool {
-        menu::context_menu_opened(self)
+        Popup::context_menu(self).is_open()
     }
 
     /// Draw a debug rectangle over the response displaying the response's id and whether it is

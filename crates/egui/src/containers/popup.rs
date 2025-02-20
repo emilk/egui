@@ -137,12 +137,22 @@ pub enum PopupKind {
     Menu,
 }
 
+impl PopupKind {
+    /// Returns the order to be used with this kind.
+    pub fn order(self) -> Order {
+        match self {
+            Self::Tooltip => Order::Tooltip,
+            Self::Menu | Self::Popup => Order::Foreground,
+        }
+    }
+}
+
 impl From<PopupKind> for UiKind {
     fn from(kind: PopupKind) -> Self {
         match kind {
-            PopupKind::Popup => UiKind::Popup,
-            PopupKind::Tooltip => UiKind::Tooltip,
-            PopupKind::Menu => UiKind::Menu,
+            PopupKind::Popup => Self::Popup,
+            PopupKind::Tooltip => Self::Tooltip,
+            PopupKind::Menu => Self::Menu,
         }
     }
 }
@@ -255,7 +265,7 @@ impl<'a> Popup<'a> {
             })
             .kind(PopupKind::Menu)
             .layout(Layout::top_down_justified(Align::Min))
-            .style(menu_style)
+            .style(Some(menu_style))
             .gap(0.0)
     }
 
@@ -263,17 +273,13 @@ impl<'a> Popup<'a> {
     /// Sets the layout to `Layout::top_down_justified(Align::Min)`.
     /// In contrast to [`Self::menu`], this will open at the pointer position.
     pub fn context_menu(response: &Response) -> Self {
-        Self::from_response(response)
+        Self::menu(response)
             .open_memory(
                 response
                     .secondary_clicked()
                     .then_some(SetOpenCommand::Bool(true)),
             )
-            .kind(PopupKind::Menu)
-            .layout(Layout::top_down_justified(Align::Min))
             .at_pointer_fixed()
-            .style(menu_style)
-            .gap(0.0)
     }
 
     /// Force the popup to be open or closed.
@@ -384,8 +390,8 @@ impl<'a> Popup<'a> {
         self
     }
 
-    pub fn style(mut self, style: fn(&mut Style)) -> Self {
-        self.style = Some(style);
+    pub fn style(mut self, style: Option<fn(&mut Style)>) -> Self {
+        self.style = style;
         self
     }
 
@@ -522,34 +528,31 @@ impl<'a> Popup<'a> {
             return None;
         }
 
-        let (ui_kind, order) = match kind {
-            PopupKind::Popup => (UiKind::Popup, Order::Foreground),
-            PopupKind::Tooltip => (UiKind::Tooltip, Order::Tooltip),
-            PopupKind::Menu => (UiKind::Menu, Order::Foreground),
-        };
-
-        ctx.pass_state_mut(|fs| {
-            fs.layers
-                .entry(layer_id)
-                .or_default()
-                .open_popups
-                .insert(id)
-        });
+        if kind != PopupKind::Tooltip {
+            ctx.pass_state_mut(|fs| {
+                fs.layers
+                    .entry(layer_id)
+                    .or_default()
+                    .open_popups
+                    .insert(id)
+            });
+        }
 
         let anchor_rect = anchor.rect(id, &ctx)?;
 
         let (pivot, anchor) = best_align.pivot_pos(&anchor_rect, gap);
 
         let mut area = Area::new(id)
-            .order(order)
-            .kind(ui_kind)
+            .order(kind.order())
             .pivot(pivot)
             .fixed_pos(anchor)
             .sense(sense)
             .layout(layout)
             .info(info.unwrap_or_else(|| {
-                UiStackInfo::new(ui_kind)
-                    .with_tag_value(MenuConfig::MENU_CONFIG_TAG, MenuConfig { close_behavior })
+                UiStackInfo::new(kind.into()).with_tag_value(
+                    MenuConfig::MENU_CONFIG_TAG,
+                    MenuConfig::new().close_behavior(close_behavior),
+                )
             }));
 
         if let Some(width) = width {
@@ -560,23 +563,26 @@ impl<'a> Popup<'a> {
 
         let mut response = area.show(&ctx, |ui| {
             if let Some(style) = style {
-                style(&mut ui.style_mut());
+                style(ui.style_mut());
             }
             frame.show(ui, content).inner
         });
 
-        // If a submenu is open, the close behavior is handled there
-        let is_any_submenu_open = !MenuState::is_deepest_sub_menu(&response.response.ctx, id);
-
         let closed_by_click = match close_behavior {
             PopupCloseBehavior::CloseOnClick => widget_clicked_elsewhere,
             PopupCloseBehavior::CloseOnClickOutside => {
-                widget_clicked_elsewhere && response.response.clicked_elsewhere()
+                // If a submenu is open, the ClickOutside behavior is handled there
+                let is_any_submenu_open =
+                    !MenuState::is_deepest_sub_menu(&response.response.ctx, id);
+
+                !is_any_submenu_open
+                    && widget_clicked_elsewhere
+                    && response.response.clicked_elsewhere()
             }
             PopupCloseBehavior::IgnoreClicks => false,
         };
 
-        let should_close = (closed_by_click && !is_any_submenu_open)
+        let should_close = closed_by_click
             || ctx.input(|i| i.key_pressed(Key::Escape))
             || response.response.should_close();
 
