@@ -422,6 +422,7 @@ pub mod layers;
 mod layout;
 pub mod load;
 mod memory;
+#[deprecated = "Use `egui::containers::menu` instead"]
 pub mod menu;
 pub mod os;
 mod painter;

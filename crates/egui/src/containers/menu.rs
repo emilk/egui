@@ -8,6 +8,7 @@ use epaint::Stroke;
 pub fn menu_style(style: &mut Style) {
     style.spacing.button_padding = vec2(2.0, 0.0);
     style.visuals.widgets.active.bg_stroke = Stroke::NONE;
+    style.visuals.widgets.open.bg_stroke = Stroke::NONE;
     style.visuals.widgets.hovered.bg_stroke = Stroke::NONE;
     style.visuals.widgets.inactive.weak_bg_fill = Color32::TRANSPARENT;
     style.visuals.widgets.inactive.bg_stroke = Stroke::NONE;
@@ -82,7 +83,16 @@ impl<'a> SubMenuButton<'a> {
         ui: &mut Ui,
         content: impl FnOnce(&mut Ui) -> R,
     ) -> (Response, Option<InnerResponse<R>>) {
+        let my_id = ui.next_auto_id();
+        let open = MenuState::from_ui(ui, |state, _| {
+            state.open_item == Some(SubMenu::id_from_widget_id(my_id))
+        });
+        let inactive = ui.style().visuals.widgets.inactive;
+        if open {
+            ui.style_mut().visuals.widgets.inactive = ui.style().visuals.widgets.open;
+        }
         let response = self.button.ui(ui);
+        ui.style_mut().visuals.widgets.inactive = inactive;
 
         let popup_response = self.sub_menu.show(ui, &response, content);
 
@@ -93,6 +103,10 @@ impl<'a> SubMenuButton<'a> {
 pub struct SubMenu;
 
 impl SubMenu {
+    pub fn id_from_widget_id(widget_id: Id) -> Id {
+        widget_id.with("submenu")
+    }
+
     pub fn show<R>(
         self,
         ui: &mut Ui,
@@ -101,7 +115,7 @@ impl SubMenu {
     ) -> Option<InnerResponse<R>> {
         let frame = Frame::menu(ui.style());
 
-        let id = response.id.with("submenu");
+        let id = Self::id_from_widget_id(response.id);
 
         let (open_item, menu_id) =
             MenuState::from_ui(ui, |state, stack| (state.open_item, stack.id));
@@ -127,7 +141,8 @@ impl SubMenu {
         let button_rect = response.rect.expand2(ui.style().spacing.item_spacing / 2.0);
         let is_hovered = hover_pos.is_some_and(|pos| button_rect.contains(pos));
 
-        if !is_any_open && is_hovered {
+        // The clicked handler is there for accessibility (keyboard navigation)
+        if (!is_any_open && is_hovered) || response.clicked() {
             set_open = Some(true);
             is_open = true;
             // Ensure that all other sub menus are closed when we open the menu
