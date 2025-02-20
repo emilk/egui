@@ -1,10 +1,9 @@
 use crate::{
     Button, Color32, Context, Frame, Id, InnerResponse, Layout, PointerState, Popup, Response,
-    Style, Ui, UiKind, UiStack, Widget, WidgetText,
+    RichText, Style, Ui, UiKind, UiStack, Widget, WidgetText,
 };
 use emath::{vec2, Align, RectAlign};
 use epaint::Stroke;
-use std::sync::Arc;
 
 pub fn menu_style(style: &mut Style) {
     style.spacing.button_padding = vec2(2.0, 0.0);
@@ -65,7 +64,7 @@ pub struct SubMenuButton<'a> {
 impl<'a> SubMenuButton<'a> {
     pub fn new(text: impl Into<WidgetText>) -> Self {
         Self {
-            button: Button::new(text).shortcut_text("⏵"), // TODO: Somehow set a color for the shortcut text
+            button: Button::new(text).right_text(RichText::new("⏵")),
             sub_menu: SubMenu,
         }
     }
