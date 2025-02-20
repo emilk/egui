@@ -546,8 +546,7 @@ impl ViewportBuilder {
     ///
     /// ## Platform-specific:
     ///
-    /// - **iOS:** Can only be called on the main thread. Sets the top left coordinates of the
-    ///   window in the screen space coordinate system.
+    /// - **iOS:** Sets the top left coordinates of the window in the screen space coordinate system.
     /// - **Web:** Sets the top-left coordinates relative to the viewport. Doesn't account for CSS
     ///   [`transform`].
     /// - **Android / Wayland:** Unsupported.
