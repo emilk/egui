@@ -282,11 +282,11 @@ pub struct SubMenuButton<'a> {
 }
 
 impl<'a> SubMenuButton<'a> {
-    /// The default right arrow symbol: `"▶"`
-    pub const RIGHT_ARROW: &'static str = "▶";
+    /// The default right arrow symbol: `"⏵"`
+    pub const RIGHT_ARROW: &'static str = "⏵";
 
     pub fn new(text: impl Into<WidgetText>) -> Self {
-        Self::from_button(Button::new(text).right_text("▶"))
+        Self::from_button(Button::new(text).right_text("⏵"))
     }
 
     /// Create a new submenu button from a [`Button`].
@@ -403,7 +403,7 @@ impl SubMenu {
             });
         }
 
-        let gap = frame.total_margin().sum().x / 2.0;
+        let gap = frame.total_margin().sum().x / 2.0 + 2.0;
 
         let mut response = response.clone();
         // Expand the button rect so that the button and the first item in the submenu are aligned
