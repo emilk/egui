@@ -6,6 +6,7 @@ use emath::{vec2, Align, RectAlign, Vec2};
 use epaint::Stroke;
 
 /// Apply a menu style to the [`Style`].
+///
 /// Mainly removes the background stroke and the inactive background fill.
 pub fn menu_style(style: &mut Style) {
     style.spacing.button_padding = vec2(2.0, 0.0);
@@ -25,8 +26,7 @@ pub fn find_menu_root(ui: &Ui) -> &UiStack {
                 || [Some(UiKind::Popup), Some(UiKind::Menu)].contains(&stack.kind())
                 || stack.info.tags.contains(MenuConfig::MENU_CONFIG_TAG)
         })
-        // It's fine to unwrap since we should always find the root
-        .unwrap()
+        .expect("We should always find the root")
 }
 
 /// Is this Ui part of a menu?
@@ -156,6 +156,8 @@ impl MenuState {
         Self::from_id(ctx, id, |state| state.open_item.is_none())
     }
 }
+
+/// Horizontal menu bar where you can add [`MenuButton`]s.
 
 /// The menu bar goes well in a [`crate::TopBottomPanel::top`],
 /// but can also be placed in a [`crate::Window`].
@@ -301,6 +303,7 @@ impl<'a> SubMenuButton<'a> {
     }
 
     /// Set the config for the submenu.
+    ///
     /// The close behavior will not affect the current button, but the buttons in the submenu.
     #[inline]
     pub fn config(mut self, config: MenuConfig) -> Self {
@@ -342,6 +345,7 @@ impl SubMenu {
     }
 
     /// Set the config for the submenu.
+    ///
     /// The close behavior will not affect the current button, but the buttons in the submenu.
     #[inline]
     pub fn config(mut self, config: MenuConfig) -> Self {
@@ -470,7 +474,7 @@ impl SubMenu {
                 ui.close();
             }
 
-            if hovering_other_menu_entry || ui.should_close() {
+            if hovering_other_menu_entry {
                 set_open = Some(false);
             }
 
