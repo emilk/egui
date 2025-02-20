@@ -5,6 +5,8 @@ use crate::{
 use emath::{vec2, Align, RectAlign, Vec2};
 use epaint::Stroke;
 
+/// Apply a menu style to the [`Style`].
+/// Mainly removes the background stroke and the inactive background fill.
 pub fn menu_style(style: &mut Style) {
     style.spacing.button_padding = vec2(2.0, 0.0);
     style.visuals.widgets.active.bg_stroke = Stroke::NONE;
@@ -12,10 +14,6 @@ pub fn menu_style(style: &mut Style) {
     style.visuals.widgets.hovered.bg_stroke = Stroke::NONE;
     style.visuals.widgets.inactive.weak_bg_fill = Color32::TRANSPARENT;
     style.visuals.widgets.inactive.bg_stroke = Stroke::NONE;
-}
-
-pub fn global_menu_state_id() -> Id {
-    Id::new("global_menu_state")
 }
 
 /// Find the root [`UiStack`] of the menu.
@@ -76,6 +74,7 @@ impl Default for MenuConfig {
 }
 
 impl MenuConfig {
+    /// The tag used to store the menu config in the [`UiStack`].
     pub const MENU_CONFIG_TAG: &'static str = "egui_menu_config";
 
     pub fn new() -> Self {
@@ -83,6 +82,7 @@ impl MenuConfig {
     }
 
     /// If the user clicks, should we close the menu?
+    #[inline]
     pub fn close_behavior(mut self, close_behavior: PopupCloseBehavior) -> Self {
         self.close_behavior = close_behavior;
         self
@@ -91,6 +91,7 @@ impl MenuConfig {
     /// Override the menu style.
     ///
     /// Default is [`menu_style`].
+    #[inline]
     pub fn style(mut self, style: impl Into<Option<fn(&mut Style)>>) -> Self {
         self.style = style.into();
         self
@@ -126,6 +127,7 @@ pub struct MenuState {
 
 impl MenuState {
     pub const ID: &'static str = "menu_state";
+
     /// Find the root of the menu and get the state
     pub fn from_ui<R>(ui: &Ui, f: impl FnOnce(&mut Self, &UiStack) -> R) -> R {
         let stack = find_menu_root(ui);
@@ -178,16 +180,27 @@ impl Bar {
         Self::default()
     }
 
+    /// Set the style for buttons in the menu bar.
+    ///
+    /// Doesn't affect the style of submenus, use [`MenuConfig::style`] for that.
+    /// Default is [`menu_style`].
+    #[inline]
     pub fn style(mut self, style: impl Into<Option<fn(&mut Style)>>) -> Self {
         self.style = style.into();
         self
     }
 
+    /// Set the config for submenus.
+    ///
+    /// Note: The config will only be passed when using [`MenuButton`], not via [`Popup::menu`].
+    #[inline]
     pub fn config(mut self, config: MenuConfig) -> Self {
         self.config = config;
         self
     }
 
+    /// Show the menu bar.
+    #[inline]
     pub fn ui<R>(self, ui: &mut Ui, content: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         let Self { mut config, style } = self;
         config.bar = true;
@@ -228,11 +241,15 @@ impl<'a> MenuButton<'a> {
         Self::from_button(Button::new(text))
     }
 
+    /// Set the config for the menu.
+    #[inline]
     pub fn config(mut self, config: MenuConfig) -> Self {
         self.config = Some(config);
         self
     }
 
+    /// Create a new menu button from a [`Button`].
+    #[inline]
     pub fn from_button(button: Button<'a>) -> Self {
         Self {
             button,
@@ -240,6 +257,7 @@ impl<'a> MenuButton<'a> {
         }
     }
 
+    /// Show the menu button.
     pub fn ui<R>(
         self,
         ui: &mut Ui,
@@ -248,6 +266,7 @@ impl<'a> MenuButton<'a> {
         let response = self.button.ui(ui);
         let config = self.config.unwrap_or_else(|| MenuConfig::find(ui));
         let inner = Popup::menu(&response)
+            .close_behavior(config.close_behavior)
             .info(
                 UiStackInfo::new(UiKind::Menu).with_tag_value(MenuConfig::MENU_CONFIG_TAG, config),
             )
@@ -263,12 +282,17 @@ pub struct SubMenuButton<'a> {
 }
 
 impl<'a> SubMenuButton<'a> {
+    /// The default right arrow symbol: `"▶"`
     pub const RIGHT_ARROW: &'static str = "▶";
 
     pub fn new(text: impl Into<WidgetText>) -> Self {
         Self::from_button(Button::new(text).right_text("▶"))
     }
 
+    /// Create a new submenu button from a [`Button`].
+    ///
+    /// Use [`Button::right_text`] and [`SubMenuButton::RIGHT_ARROW`] to add the default right
+    /// arrow symbol.
     pub fn from_button(button: Button<'a>) -> Self {
         Self {
             button,
@@ -284,6 +308,7 @@ impl<'a> SubMenuButton<'a> {
         self
     }
 
+    /// Show the submenu button.
     pub fn ui<R>(
         self,
         ui: &mut Ui,
@@ -324,10 +349,12 @@ impl SubMenu {
         self
     }
 
+    /// Get the id for the submenu from the widget/response id.
     pub fn id_from_widget_id(widget_id: Id) -> Id {
         widget_id.with("submenu")
     }
 
+    /// Show the submenu.
     pub fn show<R>(
         self,
         ui: &Ui,

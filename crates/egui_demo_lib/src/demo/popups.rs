@@ -1,6 +1,7 @@
 use crate::rust_view_ui;
-use egui::containers::menu::SubMenuButton;
-use egui::{vec2, Align2, ComboBox, Frame, Id, Popup, PopupCloseBehavior, RectAlign, Tooltip, Ui};
+use egui::{
+    include_image, Align2, ComboBox, Frame, Id, Popup, PopupCloseBehavior, RectAlign, Tooltip, Ui,
+};
 
 /// Showcase [`Popup`].
 #[derive(Clone, PartialEq)]
@@ -77,15 +78,19 @@ fn nested_menus(ui: &mut egui::Ui) {
             ui.close();
         }
     });
-    ui.menu_button("SubMenu", |ui| {
-        let _ = ui.button("Item1");
-        let _ = ui.button("Item2");
-        let _ = ui.button("Item3");
-        let _ = ui.button("Item4");
-        if ui.button("Open…").clicked() {
-            ui.close();
-        }
-    });
+    ui.menu_image_text_button(
+        include_image!("../../data/icon.png"),
+        "I have an icon!",
+        |ui| {
+            let _ = ui.button("Item1");
+            let _ = ui.button("Item2");
+            let _ = ui.button("Item3");
+            let _ = ui.button("Item4");
+            if ui.button("Open…").clicked() {
+                ui.close();
+            }
+        },
+    );
     let _ = ui.button("Very long text for this item that should be wrapped");
 }
 

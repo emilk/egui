@@ -390,6 +390,12 @@ impl<'a> Popup<'a> {
         self
     }
 
+    /// Set the style for the popup contents.
+    ///
+    /// Default:
+    /// - is [`menu_style`] for [`Self::menu`] and [`Self::context_menu`]
+    /// - is [`None`] otherwise
+    #[inline]
     pub fn style(mut self, style: Option<fn(&mut Style)>) -> Self {
         self.style = style;
         self
@@ -441,6 +447,7 @@ impl<'a> Popup<'a> {
         }
     }
 
+    /// Get the expected size of the popup.
     pub fn get_expected_size(&self) -> Option<Vec2> {
         AreaState::load(&self.ctx, self.id).and_then(|area| area.size)
     }

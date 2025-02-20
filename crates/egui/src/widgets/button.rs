@@ -191,6 +191,7 @@ impl<'a> Button<'a> {
     }
 
     /// Show some text on the right side of the button.
+    #[inline]
     pub fn right_text(mut self, right_text: impl Into<WidgetText>) -> Self {
         self.right_text = right_text.into();
         self
