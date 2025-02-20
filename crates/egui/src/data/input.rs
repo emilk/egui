@@ -226,7 +226,7 @@ pub struct ViewportInfo {
     /// This is the content rectangle plus decoration chrome.
     ///
     /// **`eframe` notes**:
-    /// 
+    ///
     /// On Android / Wayland, this will always be `None` since getting the
     /// position of the window is not possible.
     pub outer_rect: Option<Rect>,
