@@ -528,15 +528,13 @@ impl<'a> Popup<'a> {
             PopupKind::Menu => (UiKind::Menu, Order::Foreground),
         };
 
-        if kind == PopupKind::Popup {
-            ctx.pass_state_mut(|fs| {
-                fs.layers
-                    .entry(layer_id)
-                    .or_default()
-                    .open_popups
-                    .insert(id)
-            });
-        }
+        ctx.pass_state_mut(|fs| {
+            fs.layers
+                .entry(layer_id)
+                .or_default()
+                .open_popups
+                .insert(id)
+        });
 
         let anchor_rect = anchor.rect(id, &ctx)?;
 
