@@ -531,10 +531,17 @@ impl Response {
         self.flags.set(Flags::CHANGED, true);
     }
 
+    /// Should the container be closed?
+    ///
+    /// Will e.g. be set by calling [`Ui::close`] in a child [`Ui`] or by calling
+    /// [`Self::set_close`].
     pub fn should_close(&self) -> bool {
         self.flags.contains(Flags::CLOSE)
     }
 
+    /// Set the [`Flags::CLOSE`] flag.
+    ///
+    /// Can be used to e.g. signal that a container should be closed.
     pub fn set_close(&mut self) {
         self.flags.set(Flags::CLOSE, true);
     }

@@ -242,7 +242,10 @@ impl crate::View for PopupsDemo {
                                 }
                             });
                         rust_view_ui(ui, ";");
-                    });
+        if ui.button("I always close the menu").clicked() {
+                    ui.close();
+                }
+            });
 
                     ui.horizontal(|ui| {
                         rust_view_ui(ui, "let popup_open = ");

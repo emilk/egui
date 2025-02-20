@@ -1176,6 +1176,7 @@ impl Ui {
     }
 
     /// Find and close the first closable parent.
+    ///
     /// Use [`UiBuilder::closable`] to make a [`Ui`] closable.
     /// You can then use [`Ui::should_close`] to check if it should be closed.
     ///
@@ -1197,11 +1198,12 @@ impl Ui {
             tag.set_close();
         } else {
             #[cfg(feature = "log")]
-            log::warn!("Tried to close a Ui that has no ClosableTag in its stack.");
+            log::warn!("Called ui.close() on a Ui that has no closable parent.");
         }
     }
 
     /// Find and close the first closable parent of a specific [`UiKind`].
+    ///
     /// This is useful if you want to e.g. close a [`crate::Window`]. Since it contains a
     /// `Collapsible`, [`Ui::close`] would close the `Collapsible` instead.
     /// You can close the [`crate::Window`] by calling `ui.close_kind(UiKind::Window)`.
@@ -1220,7 +1222,7 @@ impl Ui {
             tag.set_close();
         } else {
             #[cfg(feature = "log")]
-            log::warn!("Tried to close a Ui that has no ClosableTag in its stack.");
+            log::warn!("Called ui.close_kind({ui_kind:?}) on ui with no such closable parent.");
         }
     }
 
@@ -2981,9 +2983,9 @@ impl Ui {
     /// Close the menu we are in (including submenus), if any.
     ///
     /// See also: [`Self::menu_button`] and [`Response::context_menu`].
-    #[deprecated = "Use `ui.close()` instead"]
+    #[deprecated = "Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead"]
     pub fn close_menu(&self) {
-        self.close();
+        self.close_kind(UiKind::Menu);
     }
 
     #[allow(deprecated)]

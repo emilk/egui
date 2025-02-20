@@ -634,12 +634,7 @@ impl Window<'_> {
                     title_bar.ui(
                         &mut area_content_ui,
                         &content_response,
-                        // TODO(lucas): I feel stupid, is there some better way to pass the &mut open
-                        // without moving it?
-                        match &mut open {
-                            None => None,
-                            Some(open) => Some(open),
-                        },
+                        open.as_deref_mut(),
                         &mut collapsing,
                         collapsible,
                     );
