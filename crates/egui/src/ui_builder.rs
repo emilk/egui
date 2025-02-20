@@ -125,6 +125,7 @@ impl UiBuilder {
     }
 
     /// Set if you want sense clicks and/or drags. Default is [`Sense::hover`].
+    ///
     /// The sense will be registered below the Senses of any widgets contained in this [`Ui`], so
     /// if the user clicks a button contained within this [`Ui`], that button will receive the click
     /// instead.
@@ -137,6 +138,7 @@ impl UiBuilder {
     }
 
     /// Make this [`Ui`] closable.
+    ///
     /// Calling [`Ui::close`] in a child [`Ui`] will mark this [`Ui`] for closing.
     /// After [`Ui::close`] was called, [`Ui::should_close`] and [`crate::Response::should_close`] will
     /// return `true` (for this frame).
