@@ -1,3 +1,4 @@
+use crate::rust_view_ui;
 use egui::containers::menu::SubMenuButton;
 use egui::{vec2, Align2, ComboBox, Frame, Id, Popup, PopupCloseBehavior, RectAlign, Tooltip, Ui};
 
@@ -51,122 +52,58 @@ impl crate::Demo for PopupsDemo {
     }
 }
 
+fn nested_menus(ui: &mut egui::Ui) {
+    ui.set_max_width(200.0); // To make sure we wrap long text
+
+    if ui.button("Open…").clicked() {
+        ui.close();
+    }
+    ui.menu_button("Popups can have submenus", |ui| {
+        ui.menu_button("SubMenu", |ui| {
+            if ui.button("Open…").clicked() {
+                ui.close();
+            }
+            let _ = ui.button("Item");
+            ui.menu_button("Recursive", nested_menus)
+        });
+        ui.menu_button("SubMenu", |ui| {
+            if ui.button("Open…").clicked() {
+                ui.close();
+            }
+            let _ = ui.button("Item");
+        });
+        let _ = ui.button("Item");
+        if ui.button("Open…").clicked() {
+            ui.close();
+        }
+    });
+    ui.menu_button("SubMenu", |ui| {
+        let _ = ui.button("Item1");
+        let _ = ui.button("Item2");
+        let _ = ui.button("Item3");
+        let _ = ui.button("Item4");
+        if ui.button("Open…").clicked() {
+            ui.close();
+        }
+    });
+    let _ = ui.button("Very long text for this item that should be wrapped");
+}
+
 impl crate::View for PopupsDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            ui.style_mut().spacing.item_spacing.x = 0.0;
-            let align_combobox = |ui: &mut Ui, label: &str, align: &mut Align2| {
-                let aligns = [
-                    (Align2::LEFT_TOP, "Left top"),
-                    (Align2::LEFT_CENTER, "Left center"),
-                    (Align2::LEFT_BOTTOM, "Left bottom"),
-                    (Align2::CENTER_TOP, "Center top"),
-                    (Align2::CENTER_CENTER, "Center center"),
-                    (Align2::CENTER_BOTTOM, "Center bottom"),
-                    (Align2::RIGHT_TOP, "Right top"),
-                    (Align2::RIGHT_CENTER, "Right center"),
-                    (Align2::RIGHT_BOTTOM, "Right bottom"),
-                ];
-
-                ui.label(label);
-                ComboBox::new(label, "")
-                    .selected_text(aligns.iter().find(|(a, _)| a == align).unwrap().1)
-                    .show_ui(ui, |ui| {
-                        for (align2, name) in &aligns {
-                            ui.selectable_value(align, *align2, *name);
-                        }
-                    });
-            };
-
-            ui.label("Align4(");
-            align_combobox(ui, "parent: ", &mut self.align4.parent);
-            ui.label(", ");
-            align_combobox(ui, "child: ", &mut self.align4.child);
-            ui.label(") ");
-
-            let presets = [
-                (RectAlign::TOP_START, "Top start"),
-                (RectAlign::TOP, "Top"),
-                (RectAlign::TOP_END, "Top end"),
-                (RectAlign::RIGHT_START, "Right start"),
-                (RectAlign::RIGHT, "Right Center"),
-                (RectAlign::RIGHT_END, "Right end"),
-                (RectAlign::BOTTOM_START, "Bottom start"),
-                (RectAlign::BOTTOM, "Bottom"),
-                (RectAlign::BOTTOM_END, "Bottom end"),
-                (RectAlign::LEFT_START, "Left start"),
-                (RectAlign::LEFT, "Left"),
-                (RectAlign::LEFT_END, "Left end"),
-            ];
-
-            ui.label(" Presets: ");
-
-            ComboBox::new("Preset", "")
-                .selected_text(
-                    presets
-                        .iter()
-                        .find(|(a, _)| a == &self.align4)
-                        .map_or("Select", |(_, name)| *name),
-                )
-                .show_ui(ui, |ui| {
-                    for (align4, name) in &presets {
-                        ui.selectable_value(&mut self.align4, *align4, *name);
-                    }
-                });
-        });
-        ui.horizontal(|ui| {
-            ui.label("Gap:");
-            ui.add(egui::DragValue::new(&mut self.gap));
-        });
-        ui.horizontal(|ui| {
-            ui.label("Close behavior:");
-            ui.selectable_value(
-                &mut self.close_behavior,
-                PopupCloseBehavior::CloseOnClick,
-                "Close on click",
-            )
-            .on_hover_text("Closes when the user clicks anywhere (inside or outside)");
-            ui.selectable_value(
-                &mut self.close_behavior,
-                PopupCloseBehavior::CloseOnClickOutside,
-                "Close on click outside",
-            )
-            .on_hover_text("Closes when the user clicks outside the popup");
-            ui.selectable_value(
-                &mut self.close_behavior,
-                PopupCloseBehavior::IgnoreClicks,
-                "Ignore clicks",
-            )
-            .on_hover_text("Close only when the button is clicked again");
-        });
-
-        ui.checkbox(&mut self.popup_open, "Show popup");
-
         let response = Frame::group(ui.style())
-            .inner_margin(vec2(0.0, 25.0))
             .show(ui, |ui| {
+                ui.set_width(ui.available_width());
                 ui.vertical_centered(|ui| ui.button("Click, right-click and hover me!"))
                     .inner
             })
             .inner;
 
         self.apply_options(Popup::menu(&response).id(Id::new("menu")))
-            .show(|ui| {
-                _ = ui.button("Menu item 1");
-                _ = ui.button("Menu item 2");
-
-                if ui.button("I always close the menu").clicked() {
-                    ui.close();
-                }
-
-                submenus(ui);
-            });
+            .show(nested_menus);
 
         self.apply_options(Popup::context_menu(&response).id(Id::new("context_menu")))
-            .show(|ui| {
-                _ = ui.button("Context menu item 1");
-                _ = ui.button("Context menu item 2");
-            });
+            .show(nested_menus);
 
         if self.popup_open {
             self.apply_options(Popup::from_response(&response).id(Id::new("popup")))
@@ -181,22 +118,144 @@ impl crate::View for PopupsDemo {
             ui.label("Tooltips are popups, too!");
         });
 
+        ui.vertical(|ui| {
+            ui.vertical(|ui| {
+                Frame::canvas(ui.style()).show(ui, |ui| {
+                    ui.style_mut().override_text_style = Some(egui::TextStyle::Monospace);
+                    ui.spacing_mut().item_spacing.x = 0.0;
+                    let align_combobox = |ui: &mut Ui, label: &str, align: &mut Align2| {
+                        let aligns = [
+                            (Align2::LEFT_TOP, "LEFT_TOP"),
+                            (Align2::LEFT_CENTER, "LEFT_CENTER"),
+                            (Align2::LEFT_BOTTOM, "LEFT_BOTTOM"),
+                            (Align2::CENTER_TOP, "CENTER_TOP"),
+                            (Align2::CENTER_CENTER, "CENTER_CENTER"),
+                            (Align2::CENTER_BOTTOM, "CENTER_BOTTOM"),
+                            (Align2::RIGHT_TOP, "RIGHT_TOP"),
+                            (Align2::RIGHT_CENTER, "RIGHT_CENTER"),
+                            (Align2::RIGHT_BOTTOM, "RIGHT_BOTTOM"),
+                        ];
+
+                        ComboBox::new(label, "")
+                            .selected_text(aligns.iter().find(|(a, _)| a == align).unwrap().1)
+                            .show_ui(ui, |ui| {
+                                for (align2, name) in &aligns {
+                                    ui.selectable_value(align, *align2, *name);
+                                }
+                            });
+                    };
+
+                    rust_view_ui(ui, "let align = RectAlign {");
+                    ui.horizontal(|ui| {
+                        rust_view_ui(ui, "    parent: Align2::");
+                        align_combobox(ui, "parent", &mut self.align4.parent);
+                        rust_view_ui(ui, ",");
+                    });
+                    ui.horizontal(|ui| {
+                        rust_view_ui(ui, "    child: Align2::");
+                        align_combobox(ui, "child", &mut self.align4.child);
+                        rust_view_ui(ui, ",");
+                    });
+                    rust_view_ui(ui, "};");
+
+                    ui.horizontal(|ui| {
+                        rust_view_ui(ui, "let align = RectAlign::");
+
+                        let presets = [
+                            (RectAlign::TOP_START, "TOP_START"),
+                            (RectAlign::TOP, "TOP"),
+                            (RectAlign::TOP_END, "TOP_END"),
+                            (RectAlign::RIGHT_START, "RIGHT_START"),
+                            (RectAlign::RIGHT, "RIGHT"),
+                            (RectAlign::RIGHT_END, "RIGHT_END"),
+                            (RectAlign::BOTTOM_START, "BOTTOM_START"),
+                            (RectAlign::BOTTOM, "BOTTOM"),
+                            (RectAlign::BOTTOM_END, "BOTTOM_END"),
+                            (RectAlign::LEFT_START, "LEFT_START"),
+                            (RectAlign::LEFT, "LEFT"),
+                            (RectAlign::LEFT_END, "LEFT_END"),
+                        ];
+
+                        ComboBox::new("Preset", "")
+                            .selected_text(
+                                presets
+                                    .iter()
+                                    .find(|(a, _)| a == &self.align4)
+                                    .map_or("<Select Preset>", |(_, name)| *name),
+                            )
+                            .show_ui(ui, |ui| {
+                                for (align4, name) in &presets {
+                                    ui.selectable_value(&mut self.align4, *align4, *name);
+                                }
+                            });
+                        rust_view_ui(ui, ";");
+                    });
+
+                    ui.horizontal(|ui| {
+                        rust_view_ui(ui, "let gap = ");
+                        ui.add(egui::DragValue::new(&mut self.gap));
+                        rust_view_ui(ui, ";");
+                    });
+
+                    rust_view_ui(ui, "let close_behavior");
+                    ui.horizontal(|ui| {
+                        rust_view_ui(ui, "    = PopupCloseBehavior::");
+                        let close_behaviors = [
+                            (
+                                PopupCloseBehavior::CloseOnClick,
+                                "CloseOnClick",
+                                "Closes when the user clicks anywhere (inside or outside)",
+                            ),
+                            (
+                                PopupCloseBehavior::CloseOnClickOutside,
+                                "CloseOnClickOutside",
+                                "Closes when the user clicks outside the popup",
+                            ),
+                            (
+                                PopupCloseBehavior::IgnoreClicks,
+                                "IgnoreClicks",
+                                "Close only when the button is clicked again",
+                            ),
+                        ];
+                        ComboBox::new("Close behavior", "")
+                            .selected_text(
+                                close_behaviors
+                                    .iter()
+                                    .find_map(|(behavior, text, _)| {
+                                        (behavior == &self.close_behavior).then_some(*text)
+                                    })
+                                    .unwrap(),
+                            )
+                            .show_ui(ui, |ui| {
+                                for (close_behavior, name, tooltip) in &close_behaviors {
+                                    ui.selectable_value(
+                                        &mut self.close_behavior,
+                                        *close_behavior,
+                                        *name,
+                                    )
+                                    .on_hover_text(*tooltip);
+                                }
+                            });
+                        rust_view_ui(ui, ";");
+                    });
+
+                    ui.horizontal(|ui| {
+                        rust_view_ui(ui, "let popup_open = ");
+                        ui.checkbox(&mut self.popup_open, "");
+                        rust_view_ui(ui, ";");
+                    });
+                    ui.monospace("");
+                    rust_view_ui(ui, "let response = ui.button(\"Click me!\");");
+                    rust_view_ui(ui, "Popup::menu(&response)");
+                    rust_view_ui(ui, "    .gap(gap).align(align)");
+                    rust_view_ui(ui, "    .close_behavior(close_behavior)");
+                    rust_view_ui(ui, "    .show(|ui| { /* menu contents */ });");
+                });
+            });
+        });
+
         ui.vertical_centered(|ui| {
             ui.add(crate::egui_github_link_file!());
         });
     }
-}
-
-fn submenus(ui: &mut Ui) {
-    SubMenuButton::new("Hello World!").ui(ui, |ui| {
-        _ = ui.button("Item 1");
-        _ = ui.button("Item 2");
-
-        submenus(ui);
-    });
-    SubMenuButton::new("Hello Lucas!").ui(ui, |ui| {
-        submenus(ui);
-        _ = ui.button("Item 1");
-        _ = ui.button("Item 2");
-    });
 }

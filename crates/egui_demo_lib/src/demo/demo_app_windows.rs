@@ -65,7 +65,6 @@ impl Default for DemoGroups {
                 Box::<super::paint_bezier::PaintBezier>::default(),
                 Box::<super::code_editor::CodeEditor>::default(),
                 Box::<super::code_example::CodeExample>::default(),
-                Box::<super::context_menu::ContextMenus>::default(),
                 Box::<super::dancing_strings::DancingStrings>::default(),
                 Box::<super::drag_and_drop::DragAndDropDemo>::default(),
                 Box::<super::extra_viewport::ExtraViewport>::default(),
