@@ -27,10 +27,10 @@ impl crate::View for ContextMenus {
             ui.button("Right-click for menu")
                 .context_menu(Self::nested_menus);
 
-            if ui.ctx().is_context_menu_open() {
-                ui.label("Context menu is open");
+            if ui.ctx().is_popup_open() {
+                ui.label("Context menu / popup is open");
             } else {
-                ui.label("Context menu is closed");
+                ui.label("Context menu / popup is closed");
             }
         });
 

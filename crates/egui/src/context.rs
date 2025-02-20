@@ -2634,11 +2634,22 @@ impl Context {
     ///
     /// This only works with the old, deprecated [`crate::menu`] API.
     #[allow(deprecated)]
-    #[deprecated]
+    #[deprecated = "Use `is_popup_open` instead"]
     pub fn is_context_menu_open(&self) -> bool {
         self.data(|d| {
             d.get_temp::<crate::menu::BarState>(crate::menu::CONTEXT_MENU_ID_STR.into())
                 .is_some_and(|state| state.has_root())
+        })
+    }
+
+    /// Is a popup or (context) menu open?
+    ///
+    /// Will return false for [`crate::Tooltip`]s (which are technically popups as well).
+    pub fn is_popup_open(&self) -> bool {
+        self.pass_state_mut(|fs| {
+            fs.layers
+                .values()
+                .any(|layer| !layer.open_popups.is_empty())
         })
     }
 }
