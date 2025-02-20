@@ -2,7 +2,7 @@ use crate::{
     Button, Color32, Context, Frame, Id, InnerResponse, Layout, PointerState, Popup, Response,
     RichText, Style, Ui, UiKind, UiStack, Widget, WidgetText,
 };
-use emath::{vec2, Align, RectAlign};
+use emath::{vec2, Align, RectAlign, Vec2};
 use epaint::Stroke;
 
 pub fn menu_style(style: &mut Style) {
@@ -66,7 +66,7 @@ impl<'a> SubMenuButton<'a> {
     pub fn new(text: impl Into<WidgetText>) -> Self {
         Self {
             button: Button::new(text).right_text(RichText::new("⏵")),
-            sub_menu: SubMenu,
+            sub_menu: SubMenu::default(),
         }
     }
 
@@ -100,9 +100,14 @@ impl<'a> SubMenuButton<'a> {
     }
 }
 
-pub struct SubMenu;
+#[derive(Clone, Debug, Default)]
+pub struct SubMenu {}
 
 impl SubMenu {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     pub fn id_from_widget_id(widget_id: Id) -> Id {
         widget_id.with("submenu")
     }
@@ -120,7 +125,7 @@ impl SubMenu {
         let (open_item, menu_id) =
             MenuState::from_ui(ui, |state, stack| (state.open_item, stack.id));
 
-        let mut menu_root_response = ui
+        let menu_root_response = ui
             .ctx()
             .read_response(menu_id)
             // Since we are a child of that ui, this should always exist
@@ -153,6 +158,12 @@ impl SubMenu {
 
         let gap = frame.total_margin().sum().x / 2.0;
 
+        let mut response = response.clone();
+        // Expand the button rect so that the button and the first item in the submenu are aligned
+        response.rect = response
+            .rect
+            .expand2(Vec2::new(0.0, frame.total_margin().sum().y / 2.0));
+
         let popup_response = Popup::from_response(&response)
             .id(id)
             .open(is_open)
@@ -160,6 +171,7 @@ impl SubMenu {
             .layout(Layout::top_down_justified(Align::Min))
             .gap(gap)
             .style(menu_style)
+            .frame(frame)
             .show(content);
 
         if let Some(popup_response) = &popup_response {

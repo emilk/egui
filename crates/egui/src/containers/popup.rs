@@ -239,6 +239,7 @@ impl<'a> Popup<'a> {
             )
             .layout(Layout::top_down_justified(Align::Min))
             .style(menu_style)
+            .gap(0.0)
     }
 
     /// Show a context menu when the widget was secondary clicked.
@@ -255,6 +256,7 @@ impl<'a> Popup<'a> {
             .layout(Layout::top_down_justified(Align::Min))
             .at_pointer_fixed()
             .style(menu_style)
+            .gap(0.0)
     }
 
     /// Force the popup to be open or closed.
@@ -341,6 +343,13 @@ impl<'a> Popup<'a> {
     #[inline]
     pub fn gap(mut self, gap: f32) -> Self {
         self.gap = gap;
+        self
+    }
+
+    /// Set the frame of the popup.
+    #[inline]
+    pub fn frame(mut self, frame: Frame) -> Self {
+        self.frame = Some(frame);
         self
     }
 
