@@ -1235,6 +1235,17 @@ impl Ui {
             .get_downcast(ClosableTag::NAME)
             .is_some_and(|tag: &ClosableTag| tag.should_close())
     }
+
+    /// Should this [`Ui`] or any of its parents close?
+    pub fn will_close(&self) -> bool {
+        self.stack.iter().any(|stack| {
+            stack
+                .info
+                .tags
+                .get_downcast::<ClosableTag>(ClosableTag::NAME)
+                .is_some_and(|tag| tag.should_close())
+        })
+    }
 }
 
 /// # Allocating space: where do I put my widgets?

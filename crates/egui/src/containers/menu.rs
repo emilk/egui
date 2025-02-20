@@ -1,6 +1,7 @@
 use crate::{
-    Button, Color32, Context, Frame, Id, InnerResponse, Layout, PointerState, Popup, Response,
-    RichText, Style, Ui, UiKind, UiStack, Widget, WidgetText,
+    Button, Color32, Context, Frame, Id, InnerResponse, Layout, PointerState, Popup,
+    PopupCloseBehavior, Response, RichText, Style, Ui, UiKind, UiStack, UiStackInfo, Widget,
+    WidgetText,
 };
 use emath::{vec2, Align, RectAlign, Vec2};
 use epaint::Stroke;
@@ -23,7 +24,9 @@ pub fn find_sub_menu_root(ui: &Ui) -> &UiStack {
         .iter()
         .find(|stack| {
             // TODO: Add a MenuContainer widget that allows one to create a submenu from anywhere using UiStack::tags
-            stack.is_root_ui() || [Some(UiKind::Popup), Some(UiKind::Menu)].contains(&stack.kind())
+            stack.is_root_ui()
+                || [Some(UiKind::Popup), Some(UiKind::Menu)].contains(&stack.kind())
+                || stack.info.tags.contains(MenuConfig::MENU_CONFIG_TAG)
         })
         // It's fine to unwrap since we should always find the root
         .unwrap()
@@ -33,6 +36,24 @@ pub struct GlobalMenuState {
     popup_id: Option<Id>,
 }
 
+#[derive(Clone, Debug, Default)]
+pub struct MenuConfig {
+    pub close_behavior: PopupCloseBehavior,
+}
+
+impl MenuConfig {
+    pub const MENU_CONFIG_TAG: &'static str = "egui_menu_config";
+
+    fn from_stack(stack: &UiStack) -> Self {
+        stack
+            .info
+            .tags
+            .get_downcast(Self::MENU_CONFIG_TAG)
+            .cloned()
+            .unwrap_or_default()
+    }
+}
+
 #[derive(Default, Clone)]
 pub struct MenuState {
     pub open_item: Option<Id>,
@@ -40,6 +61,7 @@ pub struct MenuState {
 
 impl MenuState {
     pub const ID: &'static str = "menu_state";
+    /// Find the root of the menu and get the state
     pub fn from_ui<R>(ui: &Ui, f: impl FnOnce(&mut Self, &UiStack) -> R) -> R {
         let stack = find_sub_menu_root(ui);
         ui.data_mut(|data| {
@@ -48,11 +70,17 @@ impl MenuState {
         })
     }
 
+    /// Get the state via the menus root [`Ui`] id
     pub fn from_id<R>(ctx: &Context, id: Id, f: impl FnOnce(&mut Self) -> R) -> R {
         ctx.data_mut(|data| {
             let state = data.get_temp_mut_or_default(id.with(Self::ID));
             f(state)
         })
+    }
+
+    /// Is the menu with this id the deepest sub menu? (-> no child sub menu is open)
+    pub fn is_deepest_sub_menu(ctx: &Context, id: Id) -> bool {
+        Self::from_id(ctx, id, |state| state.open_item.is_none())
     }
 }
 
@@ -68,6 +96,14 @@ impl<'a> SubMenuButton<'a> {
             button: Button::new(text).right_text(RichText::new("⏵")),
             sub_menu: SubMenu::default(),
         }
+    }
+
+    /// Set the config for the submenu.
+    /// The close behavior will not affect the current button, but the buttons in the submenu.
+    #[inline]
+    pub fn config(mut self, config: MenuConfig) -> Self {
+        self.sub_menu.config = Some(config);
+        self
     }
 
     pub fn button_mut(&mut self) -> &mut Button<'a> {
@@ -101,11 +137,21 @@ impl<'a> SubMenuButton<'a> {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct SubMenu {}
+pub struct SubMenu {
+    config: Option<MenuConfig>,
+}
 
 impl SubMenu {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Set the config for the submenu.
+    /// The close behavior will not affect the current button, but the buttons in the submenu.
+    #[inline]
+    pub fn config(mut self, config: MenuConfig) -> Self {
+        self.config = Some(config);
+        self
     }
 
     pub fn id_from_widget_id(widget_id: Id) -> Id {
@@ -122,8 +168,11 @@ impl SubMenu {
 
         let id = Self::id_from_widget_id(response.id);
 
-        let (open_item, menu_id) =
-            MenuState::from_ui(ui, |state, stack| (state.open_item, stack.id));
+        let (open_item, menu_id, parent_config) = MenuState::from_ui(ui, |state, stack| {
+            (state.open_item, stack.id, MenuConfig::from_stack(stack))
+        });
+
+        let menu_config = self.config.unwrap_or_else(|| parent_config.clone());
 
         let menu_root_response = ui
             .ctx()
@@ -172,19 +221,34 @@ impl SubMenu {
             .gap(gap)
             .style(menu_style)
             .frame(frame)
+            .close_behavior(match menu_config.close_behavior {
+                // We ignore ClickOutside because it is handled by the menu (see below)
+                PopupCloseBehavior::CloseOnClickOutside => PopupCloseBehavior::IgnoreClicks,
+                behavior => behavior,
+            })
+            .info(
+                UiStackInfo::new(UiKind::Menu)
+                    .with_tag_value(MenuConfig::MENU_CONFIG_TAG, menu_config),
+            )
             .show(content);
 
         if let Some(popup_response) = &popup_response {
-            let has_any_open = MenuState::from_id(ui.ctx(), id, |state| state.open_item.is_some());
-            // If no child sub menu is open means we must be the deepest child sub menu.
-            // If the user clicks and the cursor is not hovering over our menu rect, it's
-            // safe to assume they clicked outside the menu, so we close everything.
-            // If they were to hover some other parent submenu we wouldn't be open.
-            // Only edge case is the user hovering this submenu's button, so we also check
-            // if we clicked outside the parent menu (which we luckily have access to here).
-            let clicked_outside = !has_any_open
-                && popup_response.response.clicked_elsewhere()
-                && menu_root_response.clicked_elsewhere();
+            // The other close behaviors are handled by the popup
+            if parent_config.close_behavior == PopupCloseBehavior::CloseOnClickOutside {
+                let is_deepest_submenu = MenuState::is_deepest_sub_menu(ui.ctx(), id);
+                // If no child sub menu is open means we must be the deepest child sub menu.
+                // If the user clicks and the cursor is not hovering over our menu rect, it's
+                // safe to assume they clicked outside the menu, so we close everything.
+                // If they were to hover some other parent submenu we wouldn't be open.
+                // Only edge case is the user hovering this submenu's button, so we also check
+                // if we clicked outside the parent menu (which we luckily have access to here).
+                let clicked_outside = is_deepest_submenu
+                    && popup_response.response.clicked_elsewhere()
+                    && menu_root_response.clicked_elsewhere();
+                if clicked_outside {
+                    ui.close();
+                }
+            }
 
             let is_moving_towards_rect = ui.input(|i| {
                 i.pointer
@@ -204,12 +268,16 @@ impl SubMenu {
             let close_called = popup_response.response.should_close();
 
             // Close the parent ui to e.g. close the popup from where the submenu was opened
-            if close_called || clicked_outside {
+            if close_called {
                 ui.close();
             }
 
-            if hovering_other_menu_entry || close_called || clicked_outside {
+            if hovering_other_menu_entry || ui.should_close() {
                 set_open = Some(false);
+            }
+
+            if ui.will_close() {
+                ui.data_mut(|data| data.remove_by_type::<MenuState>());
             }
         }
 
