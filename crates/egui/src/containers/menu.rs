@@ -54,9 +54,10 @@ impl MenuConfig {
     }
 }
 
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct MenuState {
     pub open_item: Option<Id>,
+    last_visible_pass: u64,
 }
 
 impl MenuState {
@@ -64,16 +65,22 @@ impl MenuState {
     /// Find the root of the menu and get the state
     pub fn from_ui<R>(ui: &Ui, f: impl FnOnce(&mut Self, &UiStack) -> R) -> R {
         let stack = find_sub_menu_root(ui);
-        ui.data_mut(|data| {
-            let state = data.get_temp_mut_or_default(stack.id.with(Self::ID));
-            f(state, stack)
-        })
+        Self::from_id(ui.ctx(), stack.id, |state| f(state, stack))
     }
 
     /// Get the state via the menus root [`Ui`] id
     pub fn from_id<R>(ctx: &Context, id: Id, f: impl FnOnce(&mut Self) -> R) -> R {
+        let pass_nr = ctx.cumulative_pass_nr();
         ctx.data_mut(|data| {
-            let state = data.get_temp_mut_or_default(id.with(Self::ID));
+            let state = data.get_temp_mut_or_insert_with(id.with(Self::ID), || MenuState {
+                open_item: None,
+                last_visible_pass: pass_nr,
+            });
+            // If the menu was closed for at least a frame, reset the open item
+            if state.last_visible_pass < pass_nr - 1 {
+                state.open_item = None;
+            }
+            state.last_visible_pass = pass_nr;
             f(state)
         })
     }
