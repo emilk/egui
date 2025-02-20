@@ -544,7 +544,7 @@ impl ViewportBuilder {
     /// The initial "outer" position of the window,
     /// i.e. where the top-left corner of the frame/chrome should be.
     ///
-    /// ## Platform-specific:
+    /// **`eframe` notes**:
     ///
     /// - **iOS:** Sets the top left coordinates of the window in the screen space coordinate system.
     /// - **Web:** Sets the top-left coordinates relative to the viewport. Doesn't account for CSS
