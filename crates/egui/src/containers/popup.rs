@@ -578,18 +578,15 @@ impl<'a> Popup<'a> {
         let closed_by_click = match close_behavior {
             PopupCloseBehavior::CloseOnClick => widget_clicked_elsewhere,
             PopupCloseBehavior::CloseOnClickOutside => {
-                // If a submenu is open, the ClickOutside behavior is handled there
-                let is_any_submenu_open =
-                    !MenuState::is_deepest_sub_menu(&response.response.ctx, id);
-
-                !is_any_submenu_open
-                    && widget_clicked_elsewhere
-                    && response.response.clicked_elsewhere()
+                widget_clicked_elsewhere && response.response.clicked_elsewhere()
             }
             PopupCloseBehavior::IgnoreClicks => false,
         };
 
-        let should_close = closed_by_click
+        // If a submenu is open, the CloseBehavior is handled there
+        let is_any_submenu_open = !MenuState::is_deepest_sub_menu(&response.response.ctx, id);
+
+        let should_close = (!is_any_submenu_open && closed_by_click)
             || ctx.input(|i| i.key_pressed(Key::Escape))
             || response.response.should_close();
 

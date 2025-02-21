@@ -66,7 +66,7 @@ pub struct MenuConfig {
 impl Default for MenuConfig {
     fn default() -> Self {
         Self {
-            close_behavior: PopupCloseBehavior::CloseOnClickOutside,
+            close_behavior: PopupCloseBehavior::default(),
             bar: false,
             style: Some(menu_style),
         }
@@ -206,25 +206,30 @@ impl Bar {
     pub fn ui<R>(self, ui: &mut Ui, content: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         let Self { mut config, style } = self;
         config.bar = true;
-        ui.scope_builder(
-            UiBuilder::new()
-                .layout(Layout::left_to_right(Align::Center))
-                .ui_stack_info(
-                    UiStackInfo::new(UiKind::Menu)
-                        .with_tag_value(MenuConfig::MENU_CONFIG_TAG, config),
-                ),
-            |ui| {
-                if let Some(style) = style {
-                    style(ui.style_mut());
-                }
+        // TODO(lucasmerlin): It'd be nice if we had a ui.horizontal_builder or something
+        // So we don't need the nested scope here
+        ui.horizontal(|ui| {
+            ui.scope_builder(
+                UiBuilder::new()
+                    .layout(Layout::left_to_right(Align::Center))
+                    .ui_stack_info(
+                        UiStackInfo::new(UiKind::Menu)
+                            .with_tag_value(MenuConfig::MENU_CONFIG_TAG, config),
+                    ),
+                |ui| {
+                    if let Some(style) = style {
+                        style(ui.style_mut());
+                    }
 
-                // Take full width and fixed height:
-                let height = ui.spacing().interact_size.y;
-                ui.set_min_size(vec2(ui.available_width(), height));
+                    // Take full width and fixed height:
+                    let height = ui.spacing().interact_size.y;
+                    ui.set_min_size(vec2(ui.available_width(), height));
 
-                content(ui)
-            },
-        )
+                    content(ui)
+                },
+            )
+            .inner
+        })
     }
 }
 
@@ -266,9 +271,11 @@ impl<'a> MenuButton<'a> {
         content: impl FnOnce(&mut Ui) -> R,
     ) -> (Response, Option<InnerResponse<R>>) {
         let response = self.button.ui(ui);
-        let config = self.config.unwrap_or_else(|| MenuConfig::find(ui));
+        let mut config = self.config.unwrap_or_else(|| MenuConfig::find(ui));
+        config.bar = false;
         let inner = Popup::menu(&response)
             .close_behavior(config.close_behavior)
+            .style(config.style)
             .info(
                 UiStackInfo::new(UiKind::Menu).with_tag_value(MenuConfig::MENU_CONFIG_TAG, config),
             )
@@ -362,12 +369,12 @@ impl SubMenu {
     pub fn show<R>(
         self,
         ui: &Ui,
-        response: &Response,
+        button_response: &Response,
         content: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
         let frame = Frame::menu(ui.style());
 
-        let id = Self::id_from_widget_id(response.id);
+        let id = Self::id_from_widget_id(button_response.id);
 
         let (open_item, menu_id, parent_config) = MenuState::from_ui(ui, |state, stack| {
             (state.open_item, stack.id, MenuConfig::from_stack(stack))
@@ -394,11 +401,19 @@ impl SubMenu {
         let is_any_open = open_item.is_some();
         let mut is_open = open_item == Some(id);
         let mut set_open = None;
-        let button_rect = response.rect.expand2(ui.style().spacing.item_spacing / 2.0);
+
+        // We expand the button rect so there is no empty space where no menu is shown
+        // TODO(lucasmerlin): Instead, maybe make item_spacing.y 0.0?
+        let button_rect = button_response
+            .rect
+            .expand2(ui.style().spacing.item_spacing / 2.0);
+
+        // In theory some other widget could cover the button and this check would still pass
+        // But since we check if no other menu is open, nothing should be able to cover the button
         let is_hovered = hover_pos.is_some_and(|pos| button_rect.contains(pos));
 
         // The clicked handler is there for accessibility (keyboard navigation)
-        if (!is_any_open && is_hovered) || response.clicked() {
+        if (!is_any_open && is_hovered) || button_response.clicked() {
             set_open = Some(true);
             is_open = true;
             // Ensure that all other sub menus are closed when we open the menu
@@ -409,7 +424,7 @@ impl SubMenu {
 
         let gap = frame.total_margin().sum().x / 2.0 + 2.0;
 
-        let mut response = response.clone();
+        let mut response = button_response.clone();
         // Expand the button rect so that the button and the first item in the submenu are aligned
         response.rect = response
             .rect
@@ -423,33 +438,53 @@ impl SubMenu {
             .gap(gap)
             .style(menu_config.style)
             .frame(frame)
-            .close_behavior(match menu_config.close_behavior {
-                // We ignore ClickOutside because it is handled by the menu (see below)
-                PopupCloseBehavior::CloseOnClickOutside => PopupCloseBehavior::IgnoreClicks,
-                behavior => behavior,
-            })
+            // The close behavior is handled by the menu (see below)
+            .close_behavior(PopupCloseBehavior::IgnoreClicks)
             .info(
                 UiStackInfo::new(UiKind::Menu)
-                    .with_tag_value(MenuConfig::MENU_CONFIG_TAG, menu_config),
+                    .with_tag_value(MenuConfig::MENU_CONFIG_TAG, menu_config.clone()),
             )
-            .show(content);
+            .show(|ui| {
+                // Ensure our layer stays on top when the button is clicked
+                if button_response.clicked() || button_response.is_pointer_button_down_on() {
+                    ui.ctx().move_to_top(ui.layer_id());
+                }
+                content(ui)
+            });
 
         if let Some(popup_response) = &popup_response {
-            // The other close behaviors are handled by the popup
-            if parent_config.close_behavior == PopupCloseBehavior::CloseOnClickOutside {
-                let is_deepest_submenu = MenuState::is_deepest_sub_menu(ui.ctx(), id);
-                // If no child sub menu is open means we must be the deepest child sub menu.
-                // If the user clicks and the cursor is not hovering over our menu rect, it's
-                // safe to assume they clicked outside the menu, so we close everything.
-                // If they were to hover some other parent submenu we wouldn't be open.
-                // Only edge case is the user hovering this submenu's button, so we also check
-                // if we clicked outside the parent menu (which we luckily have access to here).
-                let clicked_outside = is_deepest_submenu
-                    && popup_response.response.clicked_elsewhere()
-                    && menu_root_response.clicked_elsewhere();
-                if clicked_outside {
-                    ui.close();
-                }
+            // If no child sub menu is open means we must be the deepest child sub menu.
+            let is_deepest_submenu = MenuState::is_deepest_sub_menu(ui.ctx(), id);
+
+            // If the user clicks and the cursor is not hovering over our menu rect, it's
+            // safe to assume they clicked outside the menu, so we close everything.
+            // If they were to hover some other parent submenu we wouldn't be open.
+            // Only edge case is the user hovering this submenu's button, so we also check
+            // if we clicked outside the parent menu (which we luckily have access to here).
+            let clicked_outside = is_deepest_submenu
+                && popup_response.response.clicked_elsewhere()
+                && menu_root_response.clicked_elsewhere();
+
+            // We never automatically close when a submenu button is clicked, (so menus work
+            // on touch devices)
+            // Luckily we will always be the deepest submenu when a submenu button is clicked,
+            // so the following check is enough.
+            let submenu_button_clicked = button_response.clicked();
+
+            let clicked_inside = is_deepest_submenu
+                && !submenu_button_clicked
+                && response.ctx.input(|i| i.pointer.any_click())
+                && hover_pos.is_some_and(|pos| popup_response.response.interact_rect.contains(pos));
+
+            let click_close = match menu_config.close_behavior {
+                PopupCloseBehavior::CloseOnClick => clicked_outside || clicked_inside,
+                PopupCloseBehavior::CloseOnClickOutside => clicked_outside,
+                PopupCloseBehavior::IgnoreClicks => false,
+            };
+
+            if click_close {
+                set_open = Some(false);
+                ui.close();
             }
 
             let is_moving_towards_rect = ui.input(|i| {

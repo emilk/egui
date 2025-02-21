@@ -1,4 +1,5 @@
 use crate::rust_view_ui;
+use egui::containers::menu::{MenuConfig, SubMenuButton};
 use egui::{
     include_image, Align2, ComboBox, Frame, Id, Popup, PopupCloseBehavior, RectAlign, Tooltip, Ui,
 };
@@ -13,6 +14,7 @@ pub struct PopupsDemo {
     #[cfg_attr(feature = "serde", serde(skip))]
     close_behavior: PopupCloseBehavior,
     popup_open: bool,
+    checked: bool,
 }
 
 impl PopupsDemo {
@@ -31,6 +33,7 @@ impl Default for PopupsDemo {
             gap: 4.0,
             close_behavior: PopupCloseBehavior::CloseOnClick,
             popup_open: false,
+            checked: false,
         }
     }
 }
@@ -53,7 +56,7 @@ impl crate::Demo for PopupsDemo {
     }
 }
 
-fn nested_menus(ui: &mut egui::Ui) {
+fn nested_menus(ui: &mut egui::Ui, checked: &mut bool) {
     ui.set_max_width(200.0); // To make sure we wrap long text
 
     if ui.button("Open…").clicked() {
@@ -65,7 +68,7 @@ fn nested_menus(ui: &mut egui::Ui) {
                 ui.close();
             }
             let _ = ui.button("Item");
-            ui.menu_button("Recursive", nested_menus)
+            ui.menu_button("Recursive", |ui| nested_menus(ui, checked));
         });
         ui.menu_button("SubMenu", |ui| {
             if ui.button("Open…").clicked() {
@@ -92,6 +95,14 @@ fn nested_menus(ui: &mut egui::Ui) {
         },
     );
     let _ = ui.button("Very long text for this item that should be wrapped");
+    SubMenuButton::new("Always CloseOnClickOutside")
+        .config(MenuConfig::new().close_behavior(PopupCloseBehavior::CloseOnClickOutside))
+        .ui(ui, |ui| {
+            ui.checkbox(checked, "Checkbox");
+            if ui.button("Open…").clicked() {
+                ui.close();
+            }
+        });
 }
 
 impl crate::View for PopupsDemo {
@@ -105,10 +116,10 @@ impl crate::View for PopupsDemo {
             .inner;
 
         self.apply_options(Popup::menu(&response).id(Id::new("menu")))
-            .show(nested_menus);
+            .show(|ui| nested_menus(ui, &mut self.checked));
 
         self.apply_options(Popup::context_menu(&response).id(Id::new("context_menu")))
-            .show(nested_menus);
+            .show(|ui| nested_menus(ui, &mut self.checked));
 
         if self.popup_open {
             self.apply_options(Popup::from_response(&response).id(Id::new("popup")))
