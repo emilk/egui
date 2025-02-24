@@ -13,6 +13,7 @@ enum DemoType {
 pub struct TableDemo {
     demo: DemoType,
     striped: bool,
+    overline: bool,
     resizable: bool,
     clickable: bool,
     num_rows: usize,
@@ -28,6 +29,7 @@ impl Default for TableDemo {
         Self {
             demo: DemoType::Manual,
             striped: true,
+            overline: true,
             resizable: true,
             clickable: true,
             num_rows: 10_000,
@@ -65,6 +67,7 @@ impl crate::View for TableDemo {
         ui.vertical(|ui| {
             ui.horizontal(|ui| {
                 ui.checkbox(&mut self.striped, "Striped");
+                ui.checkbox(&mut self.overline, "Overline some rows");
                 ui.checkbox(&mut self.resizable, "Resizable columns");
                 ui.checkbox(&mut self.clickable, "Clickable rows");
             });
@@ -212,6 +215,7 @@ impl TableDemo {
                         let row_height = if is_thick { 30.0 } else { 18.0 };
                         body.row(row_height, |mut row| {
                             row.set_selected(self.selection.contains(&row_index));
+                            row.set_overline(self.overline && row_index % 7 == 3);
 
                             row.col(|ui| {
                                 ui.label(row_index.to_string());
@@ -247,6 +251,7 @@ impl TableDemo {
                         };
 
                         row.set_selected(self.selection.contains(&row_index));
+                        row.set_overline(self.overline && row_index % 7 == 3);
 
                         row.col(|ui| {
                             ui.label(row_index.to_string());
@@ -280,6 +285,7 @@ impl TableDemo {
                         };
 
                         row.set_selected(self.selection.contains(&row_index));
+                        row.set_overline(self.overline && row_index % 7 == 3);
 
                         row.col(|ui| {
                             ui.label(row_index.to_string());
