@@ -362,6 +362,14 @@ impl InputState {
                 Event::Zoom(factor) => {
                     zoom_factor_delta *= *factor;
                 }
+                Event::WindowFocused(false) => {
+                    // Example: pressing `Cmd+S` brings up a save-dialog (e.g. using rfd),
+                    // but we get no key-up event for the `S` key (in winit).
+                    // This leads to `S` being mistakenly marked as down when we switch back to the app.
+                    // So we take the safe route and just clear all the keys and modifiers when
+                    // the app loses focus.
+                    keys_down.clear();
+                }
                 _ => {}
             }
         }
