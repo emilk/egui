@@ -6,7 +6,10 @@ jobs:
   cargo-machete:
     runs-on: ubuntu-latest
     steps:
+      - name: Machete install
+        run: cargo install cargo-machete
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Machete
-        run: cargo install cargo-machete && cargo machete
+      - name: Machete Check
+        run: cargo machete
+      
