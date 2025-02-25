@@ -118,7 +118,7 @@ enum OpenKind<'a> {
     },
 }
 
-impl<'a> OpenKind<'a> {
+impl OpenKind<'_> {
     /// Returns `true` if the popup should be open
     fn is_open(&self, id: Id, ctx: &Context) -> bool {
         match self {

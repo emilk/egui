@@ -11,7 +11,7 @@ pub struct Tooltip<'a> {
     widget_id: Id,
 }
 
-impl<'a> Tooltip<'a> {
+impl Tooltip<'_> {
     /// Show a tooltip that is always open
     pub fn new(
         widget_id: Id,
