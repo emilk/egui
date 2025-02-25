@@ -374,6 +374,7 @@ fn combo_box_dyn<'c, R>(
 
     let inner = Popup::menu(&button_response)
         .id(popup_id)
+        .style(None)
         .width(button_response.rect.width())
         .close_behavior(close_behavior)
         .show(|ui| {

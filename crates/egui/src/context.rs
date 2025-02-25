@@ -26,7 +26,6 @@ use crate::{
     load,
     load::{Bytes, Loaders, SizedTexture},
     memory::{Options, Theme},
-    menu,
     os::OperatingSystem,
     output::FullOutput,
     pass_state::PassState,
@@ -1200,12 +1199,18 @@ impl Context {
     pub fn read_response(&self, id: Id) -> Option<Response> {
         self.write(|ctx| {
             let viewport = ctx.viewport();
-            viewport
-                .this_pass
-                .widgets
-                .get(id)
-                .or_else(|| viewport.prev_pass.widgets.get(id))
-                .copied()
+            let rect = viewport.this_pass.widgets.get(id);
+            if let Some(rect) = rect {
+                if rect.rect != Rect::NOTHING {
+                    Some(*rect)
+                } else if let Some(prev_rect) = viewport.prev_pass.widgets.get(id) {
+                    Some(*prev_rect)
+                } else {
+                    Some(*rect)
+                }
+            } else {
+                None
+            }
         })
         .map(|widget_rect| self.get_response(widget_rect))
     }
@@ -2626,10 +2631,25 @@ impl Context {
     }
 
     /// Is an egui context menu open?
+    ///
+    /// This only works with the old, deprecated [`crate::menu`] API.
+    #[allow(deprecated)]
+    #[deprecated = "Use `is_popup_open` instead"]
     pub fn is_context_menu_open(&self) -> bool {
         self.data(|d| {
-            d.get_temp::<crate::menu::BarState>(menu::CONTEXT_MENU_ID_STR.into())
+            d.get_temp::<crate::menu::BarState>(crate::menu::CONTEXT_MENU_ID_STR.into())
                 .is_some_and(|state| state.has_root())
+        })
+    }
+
+    /// Is a popup or (context) menu open?
+    ///
+    /// Will return false for [`crate::Tooltip`]s (which are technically popups as well).
+    pub fn is_popup_open(&self) -> bool {
+        self.pass_state_mut(|fs| {
+            fs.layers
+                .values()
+                .any(|layer| !layer.open_popups.is_empty())
         })
     }
 }
@@ -2676,7 +2696,8 @@ impl Context {
     ///
     /// Can be used to implement pan and zoom (see relevant demo).
     ///
-    /// For a temporary transform, use [`Self::transform_layer_shapes`] instead.
+    /// For a temporary transform, use [`Self::transform_layer_shapes`] or
+    /// [`Ui::with_visual_transform`].
     pub fn set_transform_layer(&self, layer_id: LayerId, transform: TSTransform) {
         self.memory_mut(|m| {
             if transform == TSTransform::IDENTITY {
@@ -3166,13 +3187,14 @@ impl Context {
             }
         });
 
+        #[allow(deprecated)]
         ui.horizontal(|ui| {
             ui.label(format!(
                 "{} menu bars",
-                self.data(|d| d.count::<menu::BarState>())
+                self.data(|d| d.count::<crate::menu::BarState>())
             ));
             if ui.button("Reset").clicked() {
-                self.data_mut(|d| d.remove_by_type::<menu::BarState>());
+                self.data_mut(|d| d.remove_by_type::<crate::menu::BarState>());
             }
         });
 
