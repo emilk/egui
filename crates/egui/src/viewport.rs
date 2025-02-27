@@ -291,6 +291,7 @@ pub struct ViewportBuilder {
 
     // macOS:
     pub fullsize_content_view: Option<bool>,
+    pub movable_by_window_background: Option<bool>,
     pub title_shown: Option<bool>,
     pub titlebar_buttons_shown: Option<bool>,
     pub titlebar_shown: Option<bool>,
@@ -429,6 +430,15 @@ impl ViewportBuilder {
     #[inline]
     pub fn with_fullsize_content_view(mut self, value: bool) -> Self {
         self.fullsize_content_view = Some(value);
+        self
+    }
+
+    /// macOS: Set to `true` to allow the window to be moved by dragging the background.
+    ///
+    /// Enabling this feature can result in unexpected behaviour with draggable UI widgets such as sliders.
+    #[inline]
+    pub fn with_movable_by_background(mut self, value: bool) -> Self {
+        self.movable_by_window_background = Some(value);
         self
     }
 
@@ -640,6 +650,7 @@ impl ViewportBuilder {
             visible: new_visible,
             drag_and_drop: new_drag_and_drop,
             fullsize_content_view: new_fullsize_content_view,
+            movable_by_window_background: new_movable_by_window_background,
             title_shown: new_title_shown,
             titlebar_buttons_shown: new_titlebar_buttons_shown,
             titlebar_shown: new_titlebar_shown,
@@ -822,6 +833,13 @@ impl ViewportBuilder {
             && self.fullsize_content_view != new_fullsize_content_view
         {
             self.fullsize_content_view = new_fullsize_content_view;
+            recreate_window = true;
+        }
+
+        if new_movable_by_window_background.is_some()
+            && self.movable_by_window_background != new_movable_by_window_background
+        {
+            self.movable_by_window_background = new_movable_by_window_background;
             recreate_window = true;
         }
 
