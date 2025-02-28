@@ -345,7 +345,6 @@ fn file_menu_button(ui: &mut Ui) {
             .clicked()
         {
             ui.ctx().memory_mut(|mem| mem.reset_areas());
-            ui.close();
         }
 
         if ui
@@ -357,7 +356,6 @@ fn file_menu_button(ui: &mut Ui) {
             .clicked()
         {
             ui.ctx().memory_mut(|mem| *mem = Default::default());
-            ui.close();
         }
     });
 }
