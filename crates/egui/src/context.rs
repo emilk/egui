@@ -1196,21 +1196,27 @@ impl Context {
     /// This is because widget interaction happens at the start of the pass, using the widget rects from the previous pass.
     ///
     /// If the widget was not visible the previous pass (or this pass), this will return `None`.
+    ///
+    /// If you try to read a [`Ui`]'s response, while still inside, this will return the [`Rect`] from the previous frame.
     pub fn read_response(&self, id: Id) -> Option<Response> {
         self.write(|ctx| {
             let viewport = ctx.viewport();
-            let rect = viewport.this_pass.widgets.get(id);
-            if let Some(rect) = rect {
-                if rect.rect != Rect::NOTHING {
-                    Some(*rect)
-                } else if let Some(prev_rect) = viewport.prev_pass.widgets.get(id) {
-                    Some(*prev_rect)
-                } else {
-                    Some(*rect)
+            let widget_rect = viewport
+                .this_pass
+                .widgets
+                .get(id)
+                .or_else(|| viewport.prev_pass.widgets.get(id))
+                .copied();
+            widget_rect.map(|mut rect| {
+                // If the Rect is invalid the Ui hasn't registered its final Rect yet.
+                // We return the Rect from last frame instead.
+                if !(rect.rect.is_positive() && rect.rect.is_finite()) {
+                    if let Some(prev_rect) = viewport.prev_pass.widgets.get(id) {
+                        rect.rect = prev_rect.rect;
+                    }
                 }
-            } else {
-                None
-            }
+                rect
+            })
         })
         .map(|widget_rect| self.get_response(widget_rect))
     }
