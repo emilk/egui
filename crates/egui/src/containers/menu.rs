@@ -1,3 +1,4 @@
+use crate::style::StyleModifier;
 use crate::{
     Button, Color32, Context, Frame, Id, InnerResponse, Layout, Popup, PopupCloseBehavior,
     Response, Style, Ui, UiBuilder, UiKind, UiStack, UiStackInfo, Widget, WidgetText,
@@ -60,7 +61,7 @@ pub struct MenuConfig {
     /// Override the menu style.
     ///
     /// Default is [`menu_style`].
-    pub style: Option<fn(&mut Style)>,
+    pub style: StyleModifier,
 }
 
 impl Default for MenuConfig {
@@ -68,7 +69,7 @@ impl Default for MenuConfig {
         Self {
             close_behavior: PopupCloseBehavior::default(),
             bar: false,
-            style: Some(menu_style),
+            style: menu_style.into(),
         }
     }
 }
@@ -92,7 +93,7 @@ impl MenuConfig {
     ///
     /// Default is [`menu_style`].
     #[inline]
-    pub fn style(mut self, style: impl Into<Option<fn(&mut Style)>>) -> Self {
+    pub fn style(mut self, style: impl Into<StyleModifier>) -> Self {
         self.style = style.into();
         self
     }
@@ -165,14 +166,14 @@ impl MenuState {
 #[derive(Clone, Debug)]
 pub struct Bar {
     config: MenuConfig,
-    style: Option<fn(&mut Style)>,
+    style: StyleModifier,
 }
 
 impl Default for Bar {
     fn default() -> Self {
         Self {
             config: MenuConfig::default(),
-            style: Some(menu_style),
+            style: menu_style.into(),
         }
     }
 }
@@ -187,7 +188,7 @@ impl Bar {
     /// Doesn't affect the style of submenus, use [`MenuConfig::style`] for that.
     /// Default is [`menu_style`].
     #[inline]
-    pub fn style(mut self, style: impl Into<Option<fn(&mut Style)>>) -> Self {
+    pub fn style(mut self, style: impl Into<StyleModifier>) -> Self {
         self.style = style.into();
         self
     }
@@ -217,9 +218,7 @@ impl Bar {
                             .with_tag_value(MenuConfig::MENU_CONFIG_TAG, config),
                     ),
                 |ui| {
-                    if let Some(style) = style {
-                        style(ui.style_mut());
-                    }
+                    style.apply(ui.style_mut());
 
                     // Take full width and fixed height:
                     let height = ui.spacing().interact_size.y;
@@ -275,7 +274,7 @@ impl<'a> MenuButton<'a> {
         config.bar = false;
         let inner = Popup::menu(&response)
             .close_behavior(config.close_behavior)
-            .style(config.style)
+            .style(config.style.clone())
             .info(
                 UiStackInfo::new(UiKind::Menu).with_tag_value(MenuConfig::MENU_CONFIG_TAG, config),
             )
@@ -436,7 +435,7 @@ impl SubMenu {
             .align(RectAlign::RIGHT_START)
             .layout(Layout::top_down_justified(Align::Min))
             .gap(gap)
-            .style(menu_config.style)
+            .style(menu_config.style.clone())
             .frame(frame)
             // The close behavior is handled by the menu (see below)
             .close_behavior(PopupCloseBehavior::IgnoreClicks)

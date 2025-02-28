@@ -5,8 +5,8 @@ use crate::is_mobile;
 use crate::Demo;
 use crate::View;
 use egui::containers::menu;
+use egui::style::StyleModifier;
 use egui::{Context, Modifiers, ScrollArea, Ui};
-
 // ----------------------------------------------------------------------------
 
 struct DemoGroup {
@@ -227,7 +227,7 @@ impl DemoWindows {
     fn mobile_top_bar(&mut self, ctx: &Context) {
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
             menu::Bar::new()
-                .config(menu::MenuConfig::new().style(None))
+                .config(menu::MenuConfig::new().style(StyleModifier::default()))
                 .ui(ui, |ui| {
                     let font_size = 16.5;
 

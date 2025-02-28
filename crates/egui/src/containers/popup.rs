@@ -1,4 +1,5 @@
 use crate::containers::menu::{menu_style, MenuConfig, MenuState};
+use crate::style::StyleModifier;
 use crate::{
     Area, AreaState, Context, Frame, Id, InnerResponse, Key, LayerId, Layout, Order, Response,
     Sense, Style, Ui, UiKind, UiStackInfo,
@@ -180,7 +181,7 @@ pub struct Popup<'a> {
     sense: Sense,
     layout: Layout,
     frame: Option<Frame>,
-    style: Option<fn(&mut Style)>,
+    style: StyleModifier,
 }
 
 impl<'a> Popup<'a> {
@@ -203,7 +204,7 @@ impl<'a> Popup<'a> {
             sense: Sense::click(),
             layout: Layout::default(),
             frame: None,
-            style: None,
+            style: StyleModifier::default(),
         }
     }
 
@@ -258,14 +259,10 @@ impl<'a> Popup<'a> {
     /// Sets the layout to `Layout::top_down_justified(Align::Min)`.
     pub fn menu(response: &Response) -> Self {
         Self::from_response(response)
-            .open_memory(if response.clicked() {
-                Some(SetOpenCommand::Toggle)
-            } else {
-                None
-            })
+            .open_memory(response.clicked().then_some(SetOpenCommand::Toggle))
             .kind(PopupKind::Menu)
             .layout(Layout::top_down_justified(Align::Min))
-            .style(Some(menu_style))
+            .style(menu_style)
             .gap(0.0)
     }
 
@@ -396,8 +393,8 @@ impl<'a> Popup<'a> {
     /// - is [`menu_style`] for [`Self::menu`] and [`Self::context_menu`]
     /// - is [`None`] otherwise
     #[inline]
-    pub fn style(mut self, style: Option<fn(&mut Style)>) -> Self {
-        self.style = style;
+    pub fn style(mut self, style: impl Into<StyleModifier>) -> Self {
+        self.style = style.into();
         self
     }
 
@@ -569,9 +566,7 @@ impl<'a> Popup<'a> {
         let frame = frame.unwrap_or_else(|| Frame::popup(&ctx.style()));
 
         let mut response = area.show(&ctx, |ui| {
-            if let Some(style) = style {
-                style(ui.style_mut());
-            }
+            style.apply(ui.style_mut());
             frame.show(ui, content).inner
         });
 
