@@ -31,7 +31,7 @@ fn main() -> eframe::Result {
 struct MyApp {
     keep_repainting: bool,
 
-    // It is useful to be able t oinspect how eframe acts with multiple viewport
+    // It is useful to be able to inspect how eframe acts with multiple viewport
     // so we have two viewports here that we can toggle on/off.
     show_immediate_viewport: bool,
     show_deferred_viewport: Arc<AtomicBool>,
