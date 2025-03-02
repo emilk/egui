@@ -163,6 +163,7 @@ impl Placer {
         frame_rect: Rect,
         widget_rect: Rect,
         item_spacing: Vec2,
+        desired_size: Vec2,
     ) {
         debug_assert!(!frame_rect.any_nan());
         debug_assert!(!widget_rect.any_nan());
@@ -179,9 +180,15 @@ impl Placer {
             );
         }
 
+        self.region.min_item_size = self.region.min_item_size.max(desired_size);
+
         self.expand_to_include_rect(frame_rect); // e.g. for centered layouts: pretend we used whole frame
 
         self.region.sanity_check();
+    }
+
+    pub(crate) fn min_item_size(&self) -> Vec2 {
+        self.region.min_item_size
     }
 
     /// Move to the next row in a grid layout or wrapping layout.

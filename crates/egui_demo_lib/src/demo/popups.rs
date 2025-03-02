@@ -70,6 +70,18 @@ fn nested_menus(ui: &mut egui::Ui, checked: &mut bool) {
             }
             let _ = ui.button("Item");
             ui.menu_button("Recursive", |ui| nested_menus(ui, checked));
+
+            // if ui.button(if *checked { "short" } else { "Very long text for this item that should be wrapped" }).clicked() {
+            //     *checked = !*checked;
+            // }
+            ui.checkbox(
+                checked,
+                if *checked {
+                    "short"
+                } else {
+                    "Very long text for this item that should be wrapped"
+                },
+            );
         });
         ui.menu_button("SubMenu", |ui| {
             if ui.button("Open…").clicked() {
