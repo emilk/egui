@@ -144,7 +144,7 @@ impl MenuState {
                 last_visible_pass: pass_nr,
             });
             // If the menu was closed for at least a frame, reset the open item
-            if state.last_visible_pass < pass_nr - 1 {
+            if state.last_visible_pass + 1 < pass_nr {
                 state.open_item = None;
             }
             state.last_visible_pass = pass_nr;
