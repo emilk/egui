@@ -730,14 +730,17 @@ impl TextEdit<'_> {
                 }
             }
 
-            // Allocate additional space if edits were made this frame that changed the size. This is important so that,
-            // if there's a ScrollArea, it can properly scroll to the cursor.
-            let extra_size = galley.size() - rect.size();
-            if extra_size.x > 0.0 || extra_size.y > 0.0 {
-                ui.allocate_rect(
-                    Rect::from_min_size(outer_rect.max, extra_size),
-                    Sense::hover(),
-                );
+            if !clip_text {
+                // Allocate additional space if edits were made this frame that changed the size. This is important so that,
+                // if there's a ScrollArea, it can properly scroll to the cursor.
+                // Condition `!clip_text` is important to avoid breaking layout for `TextEdit::singleline` (PR #5640)
+                let extra_size = galley.size() - rect.size();
+                if extra_size.x > 0.0 || extra_size.y > 0.0 {
+                    ui.allocate_rect(
+                        Rect::from_min_size(outer_rect.max, extra_size),
+                        Sense::hover(),
+                    );
+                }
             }
 
             painter.galley(galley_pos, galley.clone(), text_color);
