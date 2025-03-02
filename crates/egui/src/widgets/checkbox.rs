@@ -75,6 +75,7 @@ impl Widget for Checkbox<'_> {
 
         desired_size = desired_size.at_least(Vec2::splat(spacing.interact_size.y));
         desired_size.y = desired_size.y.max(icon_width);
+        dbg!(desired_size);
         let (rect, mut response) = ui.allocate_exact_size(desired_size, Sense::click());
 
         if response.clicked() {

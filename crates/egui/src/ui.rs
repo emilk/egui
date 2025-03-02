@@ -1379,7 +1379,7 @@ impl Ui {
         let widget_rect = self.placer.justify_and_align(frame_rect, desired_size);
 
         self.placer
-            .advance_after_rects(frame_rect, widget_rect, item_spacing);
+            .advance_after_rects(frame_rect, widget_rect, item_spacing, desired_size);
 
         register_rect(self, widget_rect);
 
@@ -1402,7 +1402,8 @@ impl Ui {
         let rect = rect.round_ui();
 
         let item_spacing = self.spacing().item_spacing;
-        self.placer.advance_after_rects(rect, rect, item_spacing);
+        self.placer
+            .advance_after_rects(rect, rect, item_spacing, rect.size());
         register_rect(self, rect);
 
         let id = Id::new(self.next_auto_id_salt);
@@ -1516,7 +1517,8 @@ impl Ui {
         let inner = add_contents(&mut child_ui);
         let rect = child_ui.min_rect();
         let item_spacing = self.spacing().item_spacing;
-        self.placer.advance_after_rects(rect, rect, item_spacing);
+        self.placer
+            .advance_after_rects(rect, rect, item_spacing, rect.size());
         register_rect(self, rect);
         let response = self.interact(rect, child_ui.unique_id, Sense::hover());
         InnerResponse::new(inner, response)
@@ -2402,8 +2404,22 @@ impl Ui {
         let mut child_ui = self.new_child(ui_builder);
         self.next_auto_id_salt = next_auto_id_salt; // HACK: we want `scope` to only increment this once, so that `ui.scope` is equivalent to `ui.allocate_space`.
         let ret = add_contents(&mut child_ui);
-        let response = child_ui.remember_min_rect();
+        let mut response = child_ui.remember_min_rect();
         self.advance_cursor_after_rect(child_ui.min_rect());
+        match self.layout().is_horizontal() {
+            true => {
+                response.intrinsic_size = Some(Vec2::new(
+                    response.rect.width(),
+                    self.placer.min_item_size().y,
+                ));
+            }
+            false => {
+                response.intrinsic_size = Some(Vec2::new(
+                    self.placer.min_item_size().x,
+                    response.rect.height(),
+                ));
+            }
+        }
         InnerResponse::new(ret, response)
     }
 

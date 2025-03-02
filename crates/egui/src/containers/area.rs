@@ -613,7 +613,9 @@ impl Prepared {
             ..
         } = self;
 
-        state.size = Some(content_ui.min_size());
+        state.size = Some(content_ui.placer().min_item_size());
+
+        dbg!(state.size);
 
         // Make sure we report back the correct size.
         // Very important after the initial sizing pass, when the initial estimate of the size is way off.
