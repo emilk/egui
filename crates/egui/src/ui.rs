@@ -6,6 +6,7 @@ use epaint::mutex::RwLock;
 use std::{any::Any, hash::Hash, sync::Arc};
 
 use crate::close_tag::ClosableTag;
+use crate::containers::menu;
 #[cfg(debug_assertions)]
 use crate::Stroke;
 use crate::{
@@ -15,8 +16,6 @@ use crate::{
     epaint::text::Fonts,
     grid,
     layout::{Direction, Layout},
-    menu,
-    menu::MenuState,
     pass_state,
     placer::Placer,
     pos2, style,
@@ -99,7 +98,8 @@ pub struct Ui {
     sizing_pass: bool,
 
     /// Indicates whether this Ui belongs to a Menu.
-    menu_state: Option<Arc<RwLock<MenuState>>>,
+    #[allow(deprecated)]
+    menu_state: Option<Arc<RwLock<crate::menu::MenuState>>>,
 
     /// The [`UiStack`] for this [`Ui`].
     stack: Arc<UiStack>,
@@ -1236,6 +1236,17 @@ impl Ui {
             .tags
             .get_downcast(ClosableTag::NAME)
             .is_some_and(|tag: &ClosableTag| tag.should_close())
+    }
+
+    /// Should this [`Ui`] or any of its parents close?
+    pub fn will_close(&self) -> bool {
+        self.stack.iter().any(|stack| {
+            stack
+                .info
+                .tags
+                .get_downcast::<ClosableTag>(ClosableTag::NAME)
+                .is_some_and(|tag| tag.should_close())
+        })
     }
 }
 
@@ -2977,7 +2988,11 @@ impl Ui {
         self.close_kind(UiKind::Menu);
     }
 
-    pub(crate) fn set_menu_state(&mut self, menu_state: Option<Arc<RwLock<MenuState>>>) {
+    #[allow(deprecated)]
+    pub(crate) fn set_menu_state(
+        &mut self,
+        menu_state: Option<Arc<RwLock<crate::menu::MenuState>>>,
+    ) {
         self.menu_state = menu_state;
     }
 
@@ -3004,11 +3019,12 @@ impl Ui {
         title: impl Into<WidgetText>,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<Option<R>> {
-        if let Some(menu_state) = self.menu_state.clone() {
-            menu::submenu_button(self, menu_state, title, add_contents)
+        let (response, inner) = if menu::is_in_menu(self) {
+            menu::SubMenuButton::new(title).ui(self, add_contents)
         } else {
-            menu::menu_button(self, title, add_contents)
-        }
+            menu::MenuButton::new(title).ui(self, add_contents)
+        };
+        InnerResponse::new(inner.map(|i| i.inner), response)
     }
 
     /// Create a menu button with an image that when clicked will show the given menu.
@@ -3037,11 +3053,15 @@ impl Ui {
         image: impl Into<Image<'a>>,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<Option<R>> {
-        if let Some(menu_state) = self.menu_state.clone() {
-            menu::submenu_button(self, menu_state, String::new(), add_contents)
+        let (response, inner) = if menu::is_in_menu(self) {
+            menu::SubMenuButton::from_button(
+                Button::image(image).right_text(menu::SubMenuButton::RIGHT_ARROW),
+            )
+            .ui(self, add_contents)
         } else {
-            menu::menu_custom_button(self, Button::image(image), add_contents)
-        }
+            menu::MenuButton::from_button(Button::image(image)).ui(self, add_contents)
+        };
+        InnerResponse::new(inner.map(|i| i.inner), response)
     }
 
     /// Create a menu button with an image and a text that when clicked will show the given menu.
@@ -3071,11 +3091,16 @@ impl Ui {
         title: impl Into<WidgetText>,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<Option<R>> {
-        if let Some(menu_state) = self.menu_state.clone() {
-            menu::submenu_button(self, menu_state, title, add_contents)
+        let (response, inner) = if menu::is_in_menu(self) {
+            menu::SubMenuButton::from_button(
+                Button::image_and_text(image, title).right_text(menu::SubMenuButton::RIGHT_ARROW),
+            )
+            .ui(self, add_contents)
         } else {
-            menu::menu_custom_button(self, Button::image_and_text(image, title), add_contents)
-        }
+            menu::MenuButton::from_button(Button::image_and_text(image, title))
+                .ui(self, add_contents)
+        };
+        InnerResponse::new(inner.map(|i| i.inner), response)
     }
 }
 

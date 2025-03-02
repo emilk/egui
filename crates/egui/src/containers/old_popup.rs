@@ -196,7 +196,8 @@ pub fn popup_above_or_below_widget<R>(
 ) -> Option<R> {
     let response = Popup::from_response(widget_response)
         .layout(Layout::top_down_justified(Align::LEFT))
-        .open_memory(None, close_behavior)
+        .open_memory(None)
+        .close_behavior(close_behavior)
         .id(popup_id)
         .align(match above_or_below {
             AboveOrBelow::Above => RectAlign::TOP_START,

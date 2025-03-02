@@ -103,10 +103,10 @@ impl AreaState {
 ///
 /// The previous rectangle used by this area can be obtained through [`crate::Memory::area_rect()`].
 #[must_use = "You should call .show()"]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct Area {
     pub(crate) id: Id,
-    kind: UiKind,
+    info: UiStackInfo,
     sense: Option<Sense>,
     movable: bool,
     interactable: bool,
@@ -132,7 +132,7 @@ impl Area {
     pub fn new(id: Id) -> Self {
         Self {
             id,
-            kind: UiKind::GenericArea,
+            info: UiStackInfo::new(UiKind::GenericArea),
             sense: None,
             movable: true,
             interactable: true,
@@ -164,7 +164,16 @@ impl Area {
     /// Default to [`UiKind::GenericArea`].
     #[inline]
     pub fn kind(mut self, kind: UiKind) -> Self {
-        self.kind = kind;
+        self.info = UiStackInfo::new(kind);
+        self
+    }
+
+    /// Set the [`UiStackInfo`] of the area's [`Ui`].
+    ///
+    /// Default to [`UiStackInfo::new(UiKind::GenericArea)`].
+    #[inline]
+    pub fn info(mut self, info: UiStackInfo) -> Self {
+        self.info = info;
         self
     }
 
@@ -351,7 +360,7 @@ impl Area {
 }
 
 pub(crate) struct Prepared {
-    kind: UiKind,
+    info: Option<UiStackInfo>,
     layer_id: LayerId,
     state: AreaState,
     move_response: Response,
@@ -376,7 +385,7 @@ impl Area {
         ctx: &Context,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        let prepared = self.begin(ctx);
+        let mut prepared = self.begin(ctx);
         let mut content_ui = prepared.content_ui(ctx);
         let inner = add_contents(&mut content_ui);
         let response = prepared.end(ctx, content_ui);
@@ -386,7 +395,7 @@ impl Area {
     pub(crate) fn begin(self, ctx: &Context) -> Prepared {
         let Self {
             id,
-            kind,
+            info,
             sense,
             movable,
             order,
@@ -518,7 +527,7 @@ impl Area {
         move_response.interact_rect = state.rect();
 
         Prepared {
-            kind,
+            info: Some(info),
             layer_id,
             state,
             move_response,
@@ -549,11 +558,11 @@ impl Prepared {
         self.constrain_rect
     }
 
-    pub(crate) fn content_ui(&self, ctx: &Context) -> Ui {
+    pub(crate) fn content_ui(&mut self, ctx: &Context) -> Ui {
         let max_rect = self.state.rect();
 
         let mut ui_builder = UiBuilder::new()
-            .ui_stack_info(UiStackInfo::new(self.kind))
+            .ui_stack_info(self.info.take().unwrap_or_default())
             .layer_id(self.layer_id)
             .max_rect(max_rect)
             .layout(self.layout)
@@ -596,7 +605,7 @@ impl Prepared {
     #[allow(clippy::needless_pass_by_value)] // intentional to swallow up `content_ui`.
     pub(crate) fn end(self, ctx: &Context, content_ui: Ui) -> Response {
         let Self {
-            kind: _,
+            info: _,
             layer_id,
             mut state,
             move_response: mut response,
