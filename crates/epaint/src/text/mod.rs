@@ -1,8 +1,10 @@
 //! Everything related to text, fonts, text layout, cursors etc.
 
+pub mod cosmic_layout;
 pub mod cursor;
 mod font;
 mod fonts;
+mod glyph_atlas;
 mod text_layout;
 mod text_layout_types;
 
