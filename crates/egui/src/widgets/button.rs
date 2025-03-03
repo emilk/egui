@@ -26,7 +26,6 @@ pub struct Button<'a> {
     image: Option<Image<'a>>,
     text: Option<WidgetText>,
     right_text: WidgetText,
-    right_text_weak: bool,
     wrap_mode: Option<TextWrapMode>,
 
     /// None means default for interact
@@ -63,7 +62,6 @@ impl<'a> Button<'a> {
             text,
             image,
             right_text: Default::default(),
-            right_text_weak: false,
             wrap_mode: None,
             fill: None,
             stroke: None,
@@ -183,10 +181,11 @@ impl<'a> Button<'a> {
     /// Designed for menu buttons, for setting a keyboard shortcut text (e.g. `Ctrl+S`).
     ///
     /// The text can be created with [`crate::Context::format_shortcut`].
+    ///
+    /// See also [`Self::right_text`].
     #[inline]
     pub fn shortcut_text(mut self, shortcut_text: impl Into<WidgetText>) -> Self {
-        self.right_text = shortcut_text.into();
-        self.right_text_weak = true;
+        self.right_text = shortcut_text.into().weak();
         self
     }
 
@@ -211,7 +210,6 @@ impl Widget for Button<'_> {
             text,
             image,
             right_text,
-            right_text_weak,
             wrap_mode,
             fill,
             stroke,
@@ -396,12 +394,9 @@ impl Widget for Button<'_> {
                 let right_text_pos = layout
                     .align_size_within_rect(right_galley.size(), rect.shrink2(button_padding))
                     .min;
-                let color = if right_text_weak {
-                    ui.visuals().weak_text_color()
-                } else {
-                    visuals.text_color()
-                };
-                ui.painter().galley(right_text_pos, right_galley, color);
+
+                ui.painter()
+                    .galley(right_text_pos, right_galley, visuals.text_color());
             }
         }
 
