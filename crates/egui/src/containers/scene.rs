@@ -118,7 +118,7 @@ impl Scene {
         }
 
         if !scene_rect_was_good {
-            // Auto-reset if the trsnsformation goes bad somehow (or started bad).
+            // Auto-reset if the transformation goes bad somehow (or started bad).
             *scene_rect = inner_rect;
         }
 

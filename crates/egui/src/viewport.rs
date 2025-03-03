@@ -543,6 +543,15 @@ impl ViewportBuilder {
 
     /// The initial "outer" position of the window,
     /// i.e. where the top-left corner of the frame/chrome should be.
+    ///
+    /// **`eframe` notes**:
+    ///
+    /// - **iOS:** Sets the top left coordinates of the window in the screen space coordinate system.
+    /// - **Web:** Sets the top-left coordinates relative to the viewport. Doesn't account for CSS
+    ///   [`transform`].
+    /// - **Android / Wayland:** Unsupported.
+    ///
+    /// [`transform`]: https://developer.mozilla.org/en-US/docs/Web/CSS/transform
     #[inline]
     pub fn with_position(mut self, pos: impl Into<Pos2>) -> Self {
         self.position = Some(pos.into());

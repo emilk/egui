@@ -214,11 +214,21 @@ pub struct ViewportInfo {
     /// The inner rectangle of the native window, in monitor space and ui points scale.
     ///
     /// This is the content rectangle of the viewport.
+    ///
+    /// **`eframe` notes**:
+    ///
+    /// On Android / Wayland, this will always be `None` since getting the
+    /// position of the window is not possible.
     pub inner_rect: Option<Rect>,
 
     /// The outer rectangle of the native window, in monitor space and ui points scale.
     ///
     /// This is the content rectangle plus decoration chrome.
+    ///
+    /// **`eframe` notes**:
+    ///
+    /// On Android / Wayland, this will always be `None` since getting the
+    /// position of the window is not possible.
     pub outer_rect: Option<Rect>,
 
     /// Are we minimized?
@@ -1091,7 +1101,7 @@ impl RawInput {
             system_theme,
         } = self;
 
-        ui.label(format!("Active viwport: {viewport_id:?}"));
+        ui.label(format!("Active viewport: {viewport_id:?}"));
         for (id, viewport) in viewports {
             ui.group(|ui| {
                 ui.label(format!("Viewport {id:?}"));
