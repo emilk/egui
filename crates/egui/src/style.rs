@@ -175,7 +175,7 @@ impl From<TextStyle> for FontSelection {
 
 /// Utility to modify a [`Style`] in some way.
 /// Constructed via [`StyleModifier::from`] from a `Fn(&mut Style)` or a [`Style`].
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct StyleModifier(Option<Arc<dyn Fn(&mut Style) + Send + Sync>>);
 
 impl std::fmt::Debug for StyleModifier {
@@ -199,12 +199,6 @@ impl From<Style> for StyleModifier {
     }
 }
 
-impl Default for StyleModifier {
-    fn default() -> Self {
-        Self(None)
-    }
-}
-
 impl StyleModifier {
     /// Create a new [`StyleModifier`] from a function.
     pub fn new(f: impl Fn(&mut Style) + Send + Sync + 'static) -> Self {
@@ -215,7 +209,7 @@ impl StyleModifier {
     /// Usually used with [`Ui::style_mut`].
     pub fn apply(&self, style: &mut Style) {
         if let Some(f) = &self.0 {
-            f(style)
+            f(style);
         }
     }
 }

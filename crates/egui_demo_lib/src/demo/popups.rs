@@ -1,7 +1,8 @@
 use crate::rust_view_ui;
 use egui::containers::menu::{MenuConfig, SubMenuButton};
 use egui::{
-    include_image, Align2, ComboBox, Frame, Id, Popup, PopupCloseBehavior, RectAlign, Tooltip, Ui,
+    include_image, Align, Align2, ComboBox, Frame, Id, Layout, Popup, PopupCloseBehavior,
+    RectAlign, Tooltip, Ui, UiBuilder,
 };
 
 /// Showcase [`Popup`].
@@ -135,6 +136,19 @@ impl crate::View for PopupsDemo {
         });
 
         Frame::canvas(ui.style()).show(ui, |ui| {
+            let mut reset_btn_ui = ui.new_child(
+                UiBuilder::new()
+                    .max_rect(ui.max_rect())
+                    .layout(Layout::right_to_left(Align::Min)),
+            );
+            if reset_btn_ui
+                .button("⟲")
+                .on_hover_text("Reset to defaults")
+                .clicked()
+            {
+                *self = Self::default();
+            }
+
             ui.set_width(ui.available_width());
             ui.style_mut().override_text_style = Some(egui::TextStyle::Monospace);
             ui.spacing_mut().item_spacing.x = 0.0;

@@ -2,7 +2,7 @@ use crate::containers::menu::{menu_style, MenuConfig, MenuState};
 use crate::style::StyleModifier;
 use crate::{
     Area, AreaState, Context, Frame, Id, InnerResponse, Key, LayerId, Layout, Order, Response,
-    Sense, Style, Ui, UiKind, UiStackInfo,
+    Sense, Ui, UiKind, UiStackInfo,
 };
 use emath::{vec2, Align, Pos2, Rect, RectAlign, Vec2};
 use std::iter::once;
