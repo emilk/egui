@@ -75,7 +75,7 @@ impl PopupAnchor {
 pub enum PopupCloseBehavior {
     /// Popup will be closed on click anywhere, inside or outside the popup.
     ///
-    /// It is used in [`crate::ComboBox`].
+    /// It is used in [`crate::ComboBox`] and in [`crate::containers::menu`]s.
     #[default]
     CloseOnClick,
 

@@ -512,7 +512,7 @@ impl SubMenu {
                 set_open = Some(false);
             }
 
-            if ui.will_close() {
+            if ui.will_parent_close() {
                 ui.data_mut(|data| data.remove_by_type::<MenuState>());
             }
         }

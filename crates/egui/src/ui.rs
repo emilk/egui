@@ -1190,6 +1190,11 @@ impl Ui {
     ///
     /// Also note that this won't bubble up across [`crate::Area`]s. If needed, you can check
     /// `response.should_close()` and close the parent manually. ([`menu`] does this for example).
+    ///
+    /// See also:
+    /// - [`Ui::close_kind`]
+    /// - [`Ui::should_close`]
+    /// - [`Ui::will_parent_close`]
     pub fn close(&self) {
         let tag = self.stack.iter().find_map(|stack| {
             stack
@@ -1210,6 +1215,11 @@ impl Ui {
     /// This is useful if you want to e.g. close a [`crate::Window`]. Since it contains a
     /// `Collapsible`, [`Ui::close`] would close the `Collapsible` instead.
     /// You can close the [`crate::Window`] by calling `ui.close_kind(UiKind::Window)`.
+    ///
+    /// See also:
+    /// - [`Ui::close`]
+    /// - [`Ui::should_close`]
+    /// - [`Ui::will_parent_close`]
     pub fn close_kind(&self, ui_kind: UiKind) {
         let tag = self
             .stack
@@ -1233,6 +1243,12 @@ impl Ui {
     /// Only works if the [`Ui`] was created with [`UiBuilder::closable`].
     ///
     /// You can also check via this [`Ui`]'s [`Response::should_close`].
+    ///
+    /// See also:
+    /// - [`Ui::will_parent_close`]
+    /// - [`Ui::close`]
+    /// - [`Ui::close_kind`]
+    /// - [`Response::should_close`]
     pub fn should_close(&self) -> bool {
         self.stack
             .info
@@ -1241,8 +1257,13 @@ impl Ui {
             .is_some_and(|tag: &ClosableTag| tag.should_close())
     }
 
-    /// Should this [`Ui`] or any of its parents close?
-    pub fn will_close(&self) -> bool {
+    /// Will this [`Ui`] or any of its parents close this frame?
+    ///
+    /// See also
+    /// - [`Ui::should_close`]
+    /// - [`Ui::close`]
+    /// - [`Ui::close_kind`]
+    pub fn will_parent_close(&self) -> bool {
         self.stack.iter().any(|stack| {
             stack
                 .info
