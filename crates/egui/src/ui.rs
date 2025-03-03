@@ -1187,6 +1187,9 @@ impl Ui {
     /// [`crate::Area`] e.g. will return true from it's [`Response::should_close`] method.
     ///
     /// If you want to close a specific kind of container, use [`Ui::close_kind`] instead.
+    ///
+    /// Also note that this won't bubble up across [`crate::Area`]s. If needed, you can check
+    /// `response.should_close()` and close the parent manually. ([`menu`] does this for example).
     pub fn close(&self) {
         let tag = self.stack.iter().find_map(|stack| {
             stack
