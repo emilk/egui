@@ -46,7 +46,8 @@ impl From<Pos2> for PopupAnchor {
 
 impl From<&Response> for PopupAnchor {
     fn from(response: &Response) -> Self {
-        let mut widget_rect = response.rect;
+        // We use interact_rect so we don't show the popup relative to some clipped point
+        let mut widget_rect = response.interact_rect;
         if let Some(to_global) = response.ctx.layer_transform_to_global(response.layer_id) {
             widget_rect = to_global * widget_rect;
         }
