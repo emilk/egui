@@ -149,12 +149,7 @@ pub fn layout(fonts: &mut FontsImpl, job: LayoutJob) -> Galley {
                 pos: glyph_rect.min,
                 advance_width: glyph.w,
                 line_height,
-                font_ascent: 0.0,
-                font_height: 0.0,
-                font_impl_ascent: 0.0,
-                font_impl_height: 0.0,
                 uv_rect: uv_rect.unwrap_or_default(),
-                section_index: 0,
             });
 
             let Some(uv_rect) = uv_rect else {
@@ -186,12 +181,7 @@ pub fn layout(fonts: &mut FontsImpl, job: LayoutJob) -> Galley {
             pos: row_logical_bounds.max,
             advance_width: 0.0,
             line_height: 0.0,
-            font_ascent: 0.0,
-            font_height: 0.0,
-            font_impl_ascent: 0.0,
-            font_impl_height: 0.0,
             uv_rect: UvRect::default(),
-            section_index: 0,
         });
 
         let mesh_bounds = mesh.calc_bounds();
