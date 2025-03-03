@@ -4,6 +4,7 @@ use crate::{
     mutex::{Mutex, MutexGuard},
     text::{
         font::{Font, FontImpl},
+        glyph_atlas::GlyphAtlas,
         Galley, LayoutJob,
     },
     TextureAtlas,
@@ -621,12 +622,15 @@ impl FontsAndCache {
 ///
 /// Required in order to paint text.
 pub struct FontsImpl {
-    pixels_per_point: f32,
+    pub(super) pixels_per_point: f32,
     max_texture_side: usize,
     definitions: FontDefinitions,
     atlas: Arc<Mutex<TextureAtlas>>,
     font_impl_cache: FontImplCache,
     sized_family: ahash::HashMap<(OrderedFloat<f32>, FontFamily), Font>,
+
+    pub(super) font_system: cosmic_text::FontSystem,
+    pub(super) glyph_atlas: GlyphAtlas,
 }
 
 impl FontsImpl {
@@ -651,13 +655,27 @@ impl FontsImpl {
         let font_impl_cache =
             FontImplCache::new(atlas.clone(), pixels_per_point, &definitions.font_data);
 
+        let mut db = cosmic_text::fontdb::Database::new();
+        for data in definitions.font_data.values() {
+            db.load_font_data(data.font.to_vec());
+        }
+        db.load_system_fonts();
+        /*for face in db.faces() {
+            dbg!(&face.id, &face.families, &face.monospaced);
+        }*/
+        db.set_monospace_family("Hack");
+        db.set_sans_serif_family("Ubuntu");
+        let font_system = cosmic_text::FontSystem::new_with_locale_and_db("en-US".to_owned(), db);
+
         Self {
             pixels_per_point,
             max_texture_side,
             definitions,
+            glyph_atlas: GlyphAtlas::new(atlas.clone()),
             atlas,
             font_impl_cache,
             sized_family: Default::default(),
+            font_system,
         }
     }
 
@@ -766,7 +784,8 @@ impl GalleyCache {
                 cached.galley.clone()
             }
             std::collections::hash_map::Entry::Vacant(entry) => {
-                let galley = super::layout(fonts, job.into());
+                //let galley = super::layout(fonts, job.into());
+                let galley = super::cosmic_layout::layout(fonts, job);
                 let galley = Arc::new(galley);
                 entry.insert(CachedGalley {
                     last_used: self.generation,
