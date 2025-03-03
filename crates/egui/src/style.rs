@@ -2,10 +2,9 @@
 
 #![allow(clippy::if_same_then_else)]
 
-use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
-
 use emath::Align;
 use epaint::{text::FontTweak, CornerRadius, Shadow, Stroke};
+use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
 
 use crate::{
     ecolor::Color32,
@@ -169,6 +168,49 @@ impl From<TextStyle> for FontSelection {
     #[inline(always)]
     fn from(text_style: TextStyle) -> Self {
         Self::Style(text_style)
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// Utility to modify a [`Style`] in some way.
+/// Constructed via [`StyleModifier::from`] from a `Fn(&mut Style)` or a [`Style`].
+#[derive(Clone, Default)]
+pub struct StyleModifier(Option<Arc<dyn Fn(&mut Style) + Send + Sync>>);
+
+impl std::fmt::Debug for StyleModifier {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("StyleModifier")
+    }
+}
+
+impl<T> From<T> for StyleModifier
+where
+    T: Fn(&mut Style) + Send + Sync + 'static,
+{
+    fn from(f: T) -> Self {
+        Self(Some(Arc::new(f)))
+    }
+}
+
+impl From<Style> for StyleModifier {
+    fn from(style: Style) -> Self {
+        Self(Some(Arc::new(move |s| *s = style.clone())))
+    }
+}
+
+impl StyleModifier {
+    /// Create a new [`StyleModifier`] from a function.
+    pub fn new(f: impl Fn(&mut Style) + Send + Sync + 'static) -> Self {
+        Self::from(f)
+    }
+
+    /// Apply the modification to the given [`Style`].
+    /// Usually used with [`Ui::style_mut`].
+    pub fn apply(&self, style: &mut Style) {
+        if let Some(f) = &self.0 {
+            f(style);
+        }
     }
 }
 

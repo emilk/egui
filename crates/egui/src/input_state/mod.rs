@@ -1333,6 +1333,18 @@ impl PointerState {
     pub fn middle_down(&self) -> bool {
         self.button_down(PointerButton::Middle)
     }
+
+    /// Is the mouse moving in the direction of the given rect?
+    pub fn is_moving_towards_rect(&self, rect: &Rect) -> bool {
+        if self.is_still() {
+            return false;
+        }
+
+        if let Some(pos) = self.hover_pos() {
+            return rect.intersects_ray(pos, self.direction());
+        }
+        false
+    }
 }
 
 impl InputState {
