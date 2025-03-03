@@ -233,9 +233,6 @@ impl DemoWindows {
 
                     ui.menu_button(egui::RichText::new("⏷ demos").size(font_size), |ui| {
                         self.demo_list_ui(ui);
-                        if ui.ui_contains_pointer() && ui.input(|i| i.pointer.any_click()) {
-                            ui.close();
-                        }
                     });
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
