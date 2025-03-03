@@ -328,6 +328,7 @@ impl<'a> SubMenuButton<'a> {
             state.open_item == Some(SubMenu::id_from_widget_id(my_id))
         });
         let inactive = ui.style().visuals.widgets.inactive;
+        // TODO(lucasmerlin) add `open` function to `Button`
         if open {
             ui.style_mut().visuals.widgets.inactive = ui.style().visuals.widgets.open;
         }
@@ -390,7 +391,7 @@ impl SubMenu {
 
         let hover_pos = ui.ctx().pointer_hover_pos();
 
-        // We don't care if the users is hovering over the border
+        // We don't care if the user is hovering over the border
         let menu_rect = menu_root_response.rect - frame.total_margin();
         let is_hovering_menu = hover_pos.is_some_and(|pos| {
             ui.ctx().layer_id_at(pos) == Some(menu_root_response.layer_id)
