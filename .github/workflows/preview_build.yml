@@ -16,8 +16,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - run: rustup toolchain install stable --profile minimal --target wasm32-unknown-unknown
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.81.0
+          targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
         with:
           prefix-key: "pr-preview-"
