@@ -105,7 +105,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             let mut locked_fonts = fonts.lock();
             c.bench_function("text_layout_uncached", |b| {
                 b.iter(|| {
-                    use egui::epaint::text::{layout, LayoutJob};
+                    use egui::epaint::text::{cosmic_layout::layout, LayoutJob};
 
                     let job = LayoutJob::simple(
                         LOREM_IPSUM_LONG.to_owned(),
@@ -113,7 +113,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                         text_color,
                         wrap_width,
                     );
-                    layout(&mut locked_fonts.fonts, job.into())
+                    layout(&mut locked_fonts.fonts, job)
                 });
             });
         }
