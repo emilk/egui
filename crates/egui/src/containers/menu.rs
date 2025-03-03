@@ -426,9 +426,8 @@ impl SubMenu {
 
         let mut response = button_response.clone();
         // Expand the button rect so that the button and the first item in the submenu are aligned
-        response.rect = response
-            .rect
-            .expand2(Vec2::new(0.0, frame.total_margin().sum().y / 2.0));
+        let expand = Vec2::new(0.0, frame.total_margin().sum().y / 2.0);
+        response.interact_rect = response.interact_rect.expand2(expand);
 
         let popup_response = Popup::from_response(&response)
             .id(id)
