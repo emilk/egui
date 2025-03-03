@@ -9,7 +9,7 @@ use super::{
     font::UvRect,
 };
 use crate::{Color32, FontId, Mesh, Stroke};
-use emath::{pos2, vec2, Align, NumExt, OrderedFloat, Pos2, Rect, Vec2};
+use emath::{pos2, Align, NumExt, OrderedFloat, Pos2, Rect, Vec2};
 
 /// Describes the task of laying out text.
 ///
@@ -61,6 +61,7 @@ pub struct LayoutJob {
     /// of some earlier text (sharing the same row),
     /// in which case this will be the height of the earlier text.
     /// In other cases, set this to `0.0`.
+    /// TODO(valadaptive): implement this
     pub first_row_min_height: f32,
 
     /// If `true`, all `\n` characters will result in a new _paragraph_,
@@ -70,6 +71,7 @@ pub struct LayoutJob {
     /// and show up as the replacement character.
     ///
     /// Default: `true`.
+    /// TODO(valadaptive): implement this
     pub break_on_newline: bool,
 
     /// How to horizontally align the text (`Align::LEFT`, `Align::Center`, `Align::RIGHT`).
@@ -79,6 +81,7 @@ pub struct LayoutJob {
     pub justify: bool,
 
     /// Round output sizes using [`emath::GuiRounding`], to avoid rounding errors in layout code.
+    /// TODO(valadaptive): implement this
     pub round_output_to_gui: bool,
 }
 
@@ -618,23 +621,8 @@ pub struct Glyph {
     /// unless explicitly overridden by [`TextFormat::line_height`].
     pub line_height: f32,
 
-    /// The ascent of this font.
-    pub font_ascent: f32,
-
-    /// The row/line height of this font.
-    pub font_height: f32,
-
-    /// The ascent of the sub-font within the font (`FontImpl`).
-    pub font_impl_ascent: f32,
-
-    /// The row/line height of the sub-font within the font (`FontImpl`).
-    pub font_impl_height: f32,
-
     /// Position and size of the glyph in the font texture, in texels.
     pub uv_rect: UvRect,
-
-    /// Index into [`LayoutJob::sections`]. Decides color etc.
-    pub section_index: u32,
 }
 
 impl Glyph {
@@ -643,26 +631,16 @@ impl Glyph {
         Vec2::new(self.advance_width, self.line_height)
     }
 
-    #[inline]
-    pub fn max_x(&self) -> f32 {
-        self.pos.x + self.advance_width
-    }
-
     /// Same y range for all characters with the same [`TextFormat`].
     #[inline]
     pub fn logical_rect(&self) -> Rect {
-        Rect::from_min_size(self.pos - vec2(0.0, self.font_ascent), self.size())
+        Rect::from_min_size(self.pos, self.size())
     }
 }
 
 // ----------------------------------------------------------------------------
 
 impl Row {
-    /// The text on this row, excluding the implicit `\n` if any.
-    pub fn text(&self) -> String {
-        self.glyphs.iter().map(|g| g.chr).collect()
-    }
-
     /// Excludes the implicit `\n` after the [`Row`], if any.
     #[inline]
     pub fn char_count_excluding_newline(&self) -> usize {
