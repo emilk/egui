@@ -1,4 +1,4 @@
-use crate::{grid, vec2, Layout, Painter, Pos2, Rect, Region, Vec2};
+use crate::{grid, vec2, Direction, Layout, Painter, Pos2, Rect, Region, Vec2};
 
 #[cfg(debug_assertions)]
 use crate::{Align2, Color32, Stroke};
@@ -163,7 +163,7 @@ impl Placer {
         frame_rect: Rect,
         widget_rect: Rect,
         item_spacing: Vec2,
-        desired_size: Vec2,
+        intrinsic_size: Vec2,
     ) {
         debug_assert!(!frame_rect.any_nan());
         debug_assert!(!widget_rect.any_nan());
@@ -180,15 +180,27 @@ impl Placer {
             );
         }
 
-        self.region.min_item_size = self.region.min_item_size.max(desired_size);
+        if self.layout.is_horizontal() {
+            if self.region.intrinsic_size.x != 0.0 {
+                self.region.intrinsic_size.x += item_spacing.x;
+            }
+            self.region.intrinsic_size.x += intrinsic_size.x;
+            self.region.intrinsic_size.y = self.region.intrinsic_size.y.max(intrinsic_size.y);
+        } else {
+            if self.region.intrinsic_size.y != 0.0 {
+                self.region.intrinsic_size.y += item_spacing.y;
+            }
+            self.region.intrinsic_size.x = self.region.intrinsic_size.x.max(intrinsic_size.x);
+            self.region.intrinsic_size.y += intrinsic_size.y;
+        }
 
         self.expand_to_include_rect(frame_rect); // e.g. for centered layouts: pretend we used whole frame
 
         self.region.sanity_check();
     }
 
-    pub(crate) fn min_item_size(&self) -> Vec2 {
-        self.region.min_item_size
+    pub(crate) fn intrinsic_size(&self) -> Vec2 {
+        self.region.intrinsic_size
     }
 
     /// Move to the next row in a grid layout or wrapping layout.

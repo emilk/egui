@@ -1,3 +1,4 @@
+use eframe::emath::Vec2;
 use egui::util::History;
 
 pub struct FrameHistory {
@@ -62,7 +63,7 @@ impl FrameHistory {
         // TODO(emilk): we should not use `slider_width` as default graph width.
         let height = ui.spacing().slider_width;
         let size = vec2(ui.available_size_before_wrap().x, height);
-        let (rect, response) = ui.allocate_at_least(size, Sense::hover());
+        let (rect, response) = ui.allocate_at_least(size, Sense::hover(), Vec2::ZERO); // TODO
         let style = ui.style().noninteractive();
 
         let graph_top_cpu_usage = 0.010;

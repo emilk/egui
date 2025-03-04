@@ -613,7 +613,7 @@ impl Prepared {
             ..
         } = self;
 
-        state.size = Some(content_ui.placer().min_item_size());
+        state.size = Some(content_ui.intrinsic_size());
 
         dbg!(state.size);
 

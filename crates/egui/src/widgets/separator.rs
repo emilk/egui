@@ -108,7 +108,7 @@ impl Widget for Separator {
             vec2(spacing, available_space.y)
         };
 
-        let (rect, response) = ui.allocate_at_least(size, Sense::hover());
+        let (rect, response) = ui.allocate_at_least(size, Sense::hover(), size);
 
         if ui.is_rect_visible(response.rect) {
             let stroke = ui.visuals().widgets.noninteractive.bg_stroke;

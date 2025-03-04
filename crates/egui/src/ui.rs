@@ -1140,6 +1140,12 @@ impl Ui {
         if self.should_close() {
             response.set_close();
         }
+        response.intrinsic_size = Some(self.intrinsic_size());
+        // self.ctx().debug_painter().debug_rect(
+        //     Rect::from_min_size(self.min_rect().min, self.intrinsic_size()),
+        //     Color32::GREEN,
+        //     "",
+        // );
         response
     }
 
@@ -1272,8 +1278,13 @@ impl Ui {
     /// ui.painter().rect_stroke(response.rect, 0.0, (1.0, egui::Color32::WHITE), egui::StrokeKind::Inside);
     /// # });
     /// ```
-    pub fn allocate_response(&mut self, desired_size: Vec2, sense: Sense) -> Response {
-        let (id, rect) = self.allocate_space(desired_size);
+    pub fn allocate_response(
+        &mut self,
+        desired_size: Vec2,
+        sense: Sense,
+        desired_size_2: Vec2,
+    ) -> Response {
+        let (id, rect) = self.allocate_space(desired_size, desired_size_2);
         let mut response = self.interact(rect, id, sense);
         response.intrinsic_size = Some(desired_size);
         response
@@ -1285,7 +1296,7 @@ impl Ui {
     /// This means that if this is a narrow widget in a wide justified layout, then
     /// the widget will react to interactions outside the returned [`Rect`].
     pub fn allocate_exact_size(&mut self, desired_size: Vec2, sense: Sense) -> (Rect, Response) {
-        let response = self.allocate_response(desired_size, sense);
+        let response = self.allocate_response(desired_size, sense, desired_size); // TODO?
         let rect = self
             .placer
             .align_size_within_rect(desired_size, response.rect);
@@ -1295,8 +1306,15 @@ impl Ui {
     /// Allocate at least as much space as needed, and interact with that rect.
     ///
     /// The returned [`Rect`] will be the same size as `Response::rect`.
-    pub fn allocate_at_least(&mut self, desired_size: Vec2, sense: Sense) -> (Rect, Response) {
-        let response = self.allocate_response(desired_size, sense);
+    // TODO: Is this still needed?
+    // TODO: Awful naming conflict
+    pub fn allocate_at_least(
+        &mut self,
+        desired_size: Vec2,
+        sense: Sense,
+        desired_size_2: Vec2,
+    ) -> (Rect, Response) {
+        let response = self.allocate_response(desired_size, sense, desired_size_2);
         (response.rect, response)
     }
 
@@ -1321,11 +1339,11 @@ impl Ui {
     /// let response = ui.interact(rect, id, egui::Sense::click());
     /// # });
     /// ```
-    pub fn allocate_space(&mut self, desired_size: Vec2) -> (Id, Rect) {
+    pub fn allocate_space(&mut self, desired_size: Vec2, desired_size_2: Vec2) -> (Id, Rect) {
         #[cfg(debug_assertions)]
         let original_available = self.available_size_before_wrap();
 
-        let rect = self.allocate_space_impl(desired_size);
+        let rect = self.allocate_space_impl(desired_size, desired_size_2);
 
         #[cfg(debug_assertions)]
         {
@@ -1372,14 +1390,19 @@ impl Ui {
 
     /// Reserve this much space and move the cursor.
     /// Returns where to put the widget.
-    fn allocate_space_impl(&mut self, desired_size: Vec2) -> Rect {
+    fn allocate_space_impl(&mut self, desired_size: Vec2, desired_size_2: Vec2) -> Rect {
+        // self.ctx().debug_painter().debug_rect(
+        //     Rect::from_min_size(self.cursor().min, desired_size_2),
+        //     Color32::YELLOW,
+        //     "",
+        // );
         let item_spacing = self.spacing().item_spacing;
         let frame_rect = self.placer.next_space(desired_size, item_spacing);
         debug_assert!(!frame_rect.any_nan());
         let widget_rect = self.placer.justify_and_align(frame_rect, desired_size);
 
         self.placer
-            .advance_after_rects(frame_rect, widget_rect, item_spacing, desired_size);
+            .advance_after_rects(frame_rect, widget_rect, item_spacing, desired_size_2);
 
         register_rect(self, widget_rect);
 
@@ -1390,20 +1413,20 @@ impl Ui {
     ///
     /// Ignore the layout of the [`Ui`]: just put my widget here!
     /// The layout cursor will advance to past this `rect`.
-    pub fn allocate_rect(&mut self, rect: Rect, sense: Sense) -> Response {
+    pub fn allocate_rect(&mut self, rect: Rect, sense: Sense, intrinsic_size: Vec2) -> Response {
         let rect = rect.round_ui();
-        let id = self.advance_cursor_after_rect(rect);
+        let id = self.advance_cursor_after_rect(rect, intrinsic_size);
         self.interact(rect, id, sense)
     }
 
     /// Allocate a rect without interacting with it.
-    pub fn advance_cursor_after_rect(&mut self, rect: Rect) -> Id {
+    pub fn advance_cursor_after_rect(&mut self, rect: Rect, intrinsic_size: Vec2) -> Id {
         debug_assert!(!rect.any_nan());
         let rect = rect.round_ui();
 
         let item_spacing = self.spacing().item_spacing;
         self.placer
-            .advance_after_rects(rect, rect, item_spacing, rect.size());
+            .advance_after_rects(rect, rect, item_spacing, intrinsic_size);
         register_rect(self, rect);
 
         let id = Id::new(self.next_auto_id_salt);
@@ -1513,15 +1536,7 @@ impl Ui {
         ui_builder: UiBuilder,
         add_contents: Box<dyn FnOnce(&mut Self) -> R + 'c>,
     ) -> InnerResponse<R> {
-        let mut child_ui = self.new_child(ui_builder);
-        let inner = add_contents(&mut child_ui);
-        let rect = child_ui.min_rect();
-        let item_spacing = self.spacing().item_spacing;
-        self.placer
-            .advance_after_rects(rect, rect, item_spacing, rect.size());
-        register_rect(self, rect);
-        let response = self.interact(rect, child_ui.unique_id, Sense::hover());
-        InnerResponse::new(inner, response)
+        self.scope_dyn(ui_builder, add_contents)
     }
 
     /// Convenience function to get a region to paint on.
@@ -1546,7 +1561,7 @@ impl Ui {
     /// # });
     /// ```
     pub fn allocate_painter(&mut self, desired_size: Vec2, sense: Sense) -> (Response, Painter) {
-        let response = self.allocate_response(desired_size, sense);
+        let response = self.allocate_response(desired_size, sense, desired_size); // TODO?
         let clip_rect = self.clip_rect().intersect(response.rect); // Make sure we don't paint out of bounds
         let painter = self.painter().with_clip_rect(clip_rect);
         (response, painter)
@@ -2405,22 +2420,15 @@ impl Ui {
         self.next_auto_id_salt = next_auto_id_salt; // HACK: we want `scope` to only increment this once, so that `ui.scope` is equivalent to `ui.allocate_space`.
         let ret = add_contents(&mut child_ui);
         let mut response = child_ui.remember_min_rect();
-        self.advance_cursor_after_rect(child_ui.min_rect());
-        match self.layout().is_horizontal() {
-            true => {
-                response.intrinsic_size = Some(Vec2::new(
-                    response.rect.width(),
-                    self.placer.min_item_size().y,
-                ));
-            }
-            false => {
-                response.intrinsic_size = Some(Vec2::new(
-                    self.placer.min_item_size().x,
-                    response.rect.height(),
-                ));
-            }
-        }
+        self.advance_cursor_after_rect(
+            child_ui.min_rect(),
+            response.intrinsic_size.unwrap_or(response.rect.size()),
+        );
         InnerResponse::new(ret, response)
+    }
+
+    pub(crate) fn intrinsic_size(&self) -> Vec2 {
+        self.placer.intrinsic_size()
     }
 
     /// Redirect shapes to another paint layer.
@@ -2511,7 +2519,11 @@ impl Ui {
             }
         }
 
-        let response = self.allocate_rect(child_ui.min_rect(), Sense::hover());
+        let response = self.allocate_rect(
+            child_ui.min_rect(),
+            Sense::hover(),
+            child_ui.intrinsic_size(),
+        ); // TODO
         InnerResponse::new(ret, response)
     }
 
@@ -2801,7 +2813,7 @@ impl Ui {
         let total_required_width = total_spacing + max_column_width * (num_columns as f32);
 
         let size = vec2(self.available_width().max(total_required_width), max_height);
-        self.advance_cursor_after_rect(Rect::from_min_size(top_left, size));
+        self.advance_cursor_after_rect(Rect::from_min_size(top_left, size), Vec2::ZERO); // TODO
         result
     }
 
@@ -2856,7 +2868,7 @@ impl Ui {
         let total_required_width = total_spacing + max_column_width * (NUM_COL as f32);
 
         let size = vec2(self.available_width().max(total_required_width), max_height);
-        self.advance_cursor_after_rect(Rect::from_min_size(top_left, size));
+        self.advance_cursor_after_rect(Rect::from_min_size(top_left, size), Vec2::ZERO); // TODO
         result
     }
 

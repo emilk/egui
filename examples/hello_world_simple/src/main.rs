@@ -19,6 +19,7 @@ fn main() -> eframe::Result {
     let mut checked = true;
 
     eframe::run_simple_native("My egui App", options, move |ctx, _frame| {
+        ctx.options_mut(|o| o.max_passes = 1.try_into().unwrap());
         egui::CentralPanel::default().show(ctx, |ui| {
             // ui.heading("My egui Application");
             // ui.horizontal(|ui| {
@@ -32,6 +33,7 @@ fn main() -> eframe::Result {
             // }
             // ui.label(format!("Hello '{name}', age {age}"));
 
+            std::thread::sleep(std::time::Duration::from_millis(100));
             let response = ui.button("Hiiii");
 
             let text = if checked {
@@ -46,13 +48,20 @@ fn main() -> eframe::Result {
 
                     ui.button("Hiiii");
 
-                    if Button::new(text)
-                        .wrap_mode(TextWrapMode::Extend)
-                        .ui(ui)
-                        .clicked()
-                    {
-                        checked = !checked;
-                    }
+                    ui.horizontal(|ui| {
+                        ui.vertical(|ui| {
+                            if Button::new(text)
+                                // .wrap_mode(TextWrapMode::Extend)
+                                .ui(ui)
+                                .clicked()
+                            {
+                                checked = !checked;
+                            }
+                            ui.button("Button1");
+                        });
+
+                        ui.button("Button2")
+                    });
 
                     ui.button("Some other button");
                 });
