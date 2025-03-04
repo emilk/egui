@@ -1,10 +1,10 @@
 //! Everything related to text, fonts, text layout, cursors etc.
 
-pub mod cosmic_layout;
 pub mod cursor;
 mod font;
 mod fonts;
 mod glyph_atlas;
+pub mod parley_layout;
 mod text_layout_types;
 
 /// One `\t` character is this many spaces wide.
