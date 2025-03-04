@@ -1,0 +1,35 @@
+Parley:
+- Text truncation with ellipsis
+- serde support for some types (the selection ones at least)
+
+Here:
+- Text overflow between different items doesn't wrap properly (see Font Book code link)
+- Absolute line height (does Parley support this?)
+- Figure out what's going on with baseline alignment (the monospace font does not vertically align with Ubuntu in e.g. the EasyMark right pane)
+- Fix FontDefinitions and adding fonts
+  - Get fallback/ordering working properly
+- Investigate whether swash is being too conservative with its shape bounds and cutting off rendered glyphs
+- Better texture atlas management
+  - I think it's a bit broken right now
+  - Automatically switch between multiple atlases if one isn't enough
+  - Use etagere instead of rolling our own atlas?'
+- Colored emoji
+- Global/scoped RTL? Do we get bidirectional support for free?
+- Better (more CSSish) font API
+  - move font db into FontDefinitions
+  - Families and not just files
+  - Option to load system fonts
+  - FontTweak is very not-implemented
+  - Can we do bold now?
+  - Letter spacing
+- Strikethrough and underline
+- Rewrite selection code to use parley's API
+- Implement max_rows for wrapping
+- Actually remove all the ab_glyph stuff
+- Actually render text decorations (underline, strikethhrough, etc) and backgrounds
+
+- Perf optimizations!
+  - Stop using TreeBuilder so we don't have to allocate a bunch of strings
+  - https://github.com/emilk/egui/issues/1098
+  - Enable shape_run_cache
+  - Use monochrome texture for font atlas (R8 format)

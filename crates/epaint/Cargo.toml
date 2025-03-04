@@ -76,7 +76,9 @@ ecolor.workspace = true
 
 ab_glyph = "0.2.11"
 #cosmic-text = { git = "https://github.com/valadaptive/cosmic-text/", rev = "564b634" }
-cosmic-text = { path = "../../../cosmic-text" }
+#cosmic-text = { path = "../../../cosmic-text" }
+parley = { version = "0.3", features = ["system"] }
+swash = { version = "0.2" }
 ahash.workspace = true
 nohash-hasher.workspace = true
 parking_lot.workspace = true   # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios.
