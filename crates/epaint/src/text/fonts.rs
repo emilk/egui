@@ -9,7 +9,10 @@ use crate::{
     },
     TextureAtlas,
 };
+use ecolor::Color32;
 use emath::{NumExt as _, OrderedFloat};
+
+use parley::fontique;
 
 #[cfg(feature = "default_fonts")]
 use epaint_default_fonts::{EMOJI_ICON, HACK_REGULAR, NOTO_EMOJI_REGULAR, UBUNTU_LIGHT};
@@ -629,7 +632,8 @@ pub struct FontsImpl {
     font_impl_cache: FontImplCache,
     sized_family: ahash::HashMap<(OrderedFloat<f32>, FontFamily), Font>,
 
-    pub(super) font_system: cosmic_text::FontSystem,
+    pub(super) font_context: parley::FontContext,
+    pub(super) layout_context: parley::LayoutContext<Color32>,
     pub(super) glyph_atlas: GlyphAtlas,
 }
 
@@ -646,7 +650,7 @@ impl FontsImpl {
             "pixels_per_point out of range: {pixels_per_point}"
         );
 
-        let texture_width = max_texture_side.at_most(16 * 1024);
+        let texture_width = max_texture_side.at_most(/*16 * 1024*/ 2048);
         let initial_height = 32; // Keep initial font atlas small, so it is fast to upload to GPU. This will expand as needed anyways.
         let atlas = TextureAtlas::new([texture_width, initial_height]);
 
@@ -655,7 +659,7 @@ impl FontsImpl {
         let font_impl_cache =
             FontImplCache::new(atlas.clone(), pixels_per_point, &definitions.font_data);
 
-        let mut db = cosmic_text::fontdb::Database::new();
+        /*let mut db = cosmic_text::fontdb::Database::new();
         for data in definitions.font_data.values() {
             db.load_font_data(data.font.to_vec());
         }
@@ -665,7 +669,33 @@ impl FontsImpl {
         }*/
         db.set_monospace_family("Hack");
         db.set_sans_serif_family("Ubuntu");
-        let font_system = cosmic_text::FontSystem::new_with_locale_and_db("en-US".to_owned(), db);
+        let font_system = cosmic_text::FontSystem::new_with_locale_and_db("en-US".to_owned(), db);*/
+
+        let mut collection = fontique::Collection::new(fontique::CollectionOptions {
+            shared: true,
+            system_fonts: true,
+        });
+
+        for data in definitions.font_data.values() {
+            collection.register_fonts(data.font.to_vec());
+        }
+        let ubuntu = collection.family_by_name("Ubuntu").unwrap();
+        let hack = collection.family_by_name("Hack").unwrap();
+        collection.set_generic_families(
+            fontique::GenericFamily::SansSerif,
+            std::iter::once(ubuntu.id()),
+        );
+        collection.set_generic_families(
+            fontique::GenericFamily::Monospace,
+            std::iter::once(hack.id()),
+        );
+
+        let font_system = parley::FontContext {
+            collection,
+            source_cache: fontique::SourceCache::new_shared(),
+        };
+
+        let layout_context = parley::LayoutContext::new();
 
         Self {
             pixels_per_point,
@@ -675,7 +705,8 @@ impl FontsImpl {
             atlas,
             font_impl_cache,
             sized_family: Default::default(),
-            font_system,
+            font_context: font_system,
+            layout_context,
         }
     }
 
@@ -785,7 +816,7 @@ impl GalleyCache {
             }
             std::collections::hash_map::Entry::Vacant(entry) => {
                 //let galley = super::layout(fonts, job.into());
-                let galley = super::cosmic_layout::layout(fonts, job);
+                let galley = super::parley_layout::layout(fonts, job);
                 let galley = Arc::new(galley);
                 entry.insert(CachedGalley {
                     last_used: self.generation,
