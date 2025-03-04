@@ -46,7 +46,7 @@ pub(crate) struct Region {
     /// The cursor can thus be `style.spacing.item_spacing` pixels outside of the `min_rect`.
     pub(crate) cursor: Rect,
 
-    pub min_item_size: Vec2,
+    pub intrinsic_size: Vec2,
 }
 
 impl Region {
@@ -428,7 +428,7 @@ impl Layout {
             min_rect: Rect::NOTHING, // temporary
             max_rect,
             cursor: self.initial_cursor(max_rect),
-            min_item_size: Vec2::default(),
+            intrinsic_size: Vec2::default(),
         };
         let seed = self.next_widget_position(&region);
         region.min_rect = Rect::from_center_size(seed, Vec2::ZERO);
@@ -532,7 +532,7 @@ impl Layout {
                 mut cursor,
                 mut max_rect,
                 min_rect,
-                min_item_size,
+                intrinsic_size: min_item_size,
             } = *region;
 
             match self.main_dir {
@@ -594,7 +594,7 @@ impl Layout {
                 min_rect,
                 max_rect,
                 cursor,
-                min_item_size,
+                intrinsic_size: min_item_size,
             };
 
             self.next_frame_ignore_wrap(&region, child_size)

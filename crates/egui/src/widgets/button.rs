@@ -295,7 +295,25 @@ impl Widget for Button<'_> {
         }
         desired_size = desired_size.at_least(min_size);
 
-        let (rect, mut response) = ui.allocate_at_least(desired_size, sense);
+        // TODO: Missing a lot
+        let mut desired_size_2 = galley
+            .as_ref()
+            .map_or(Vec2::ZERO, |galley| galley.desired_size());
+        let mut desired_right_galley_size = right_galley.as_ref().map_or(Vec2::ZERO, |galley| {
+            galley.desired_size() + Vec2::new(gap_before_right_text, 0.0)
+        });
+        desired_size_2.x += desired_right_galley_size.x;
+        desired_size_2.y = desired_size_2.y.max(desired_right_galley_size.y);
+        desired_size_2 += 2.0 * button_padding;
+
+        // dbg!(desired_size_2);
+        // ui.ctx().debug_painter().debug_rect(
+        //     Rect::from_min_size(ui.cursor().min, desired_size_2),
+        //     Color32::from_rgb(100, 0, 0),
+        //     "",
+        // );
+
+        let (rect, mut response) = ui.allocate_at_least(desired_size, sense, desired_size_2);
         response.widget_info(|| {
             if let Some(galley) = &galley {
                 WidgetInfo::labeled(WidgetType::Button, ui.is_enabled(), galley.text())

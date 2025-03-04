@@ -568,8 +568,7 @@ impl<'a> Popup<'a> {
 
         let mut response = area.show(&ctx, |ui| {
             style.apply(ui.style_mut());
-            // frame.show(ui, content).inner
-            content(ui)
+            frame.show(ui, content).inner
         });
 
         let closed_by_click = match close_behavior {

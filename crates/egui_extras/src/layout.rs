@@ -1,4 +1,4 @@
-use egui::{emath::GuiRounding, Id, Pos2, Rect, Response, Sense, Ui, UiBuilder};
+use egui::{emath::GuiRounding, Id, Pos2, Rect, Response, Sense, Ui, UiBuilder, Vec2};
 
 #[derive(Clone, Copy)]
 pub(crate) enum CellSize {
@@ -166,7 +166,8 @@ impl<'l> StripLayout<'l> {
 
         self.set_pos(allocation_rect);
 
-        self.ui.advance_cursor_after_rect(allocation_rect);
+        self.ui
+            .advance_cursor_after_rect(allocation_rect, Vec2::ZERO); // TODO
 
         let response = child_ui.response();
 
@@ -192,7 +193,7 @@ impl<'l> StripLayout<'l> {
         let before = self.cursor;
         self.cursor += delta;
         let rect = Rect::from_two_pos(before, self.cursor);
-        self.ui.allocate_rect(rect, Sense::hover());
+        self.ui.allocate_rect(rect, Sense::hover(), Vec2::ZERO); // TODO
     }
 
     /// Return the Ui to which the contents where added
@@ -243,6 +244,6 @@ impl<'l> StripLayout<'l> {
         rect.set_right(self.max.x);
         rect.set_bottom(self.max.y);
 
-        self.ui.allocate_rect(rect, Sense::hover())
+        self.ui.allocate_rect(rect, Sense::hover(), Vec2::ZERO) // TODO
     }
 }

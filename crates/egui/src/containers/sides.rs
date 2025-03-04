@@ -1,4 +1,4 @@
-use emath::Align;
+use emath::{Align, Vec2};
 
 use crate::{Layout, Ui, UiBuilder};
 
@@ -84,7 +84,7 @@ impl Sides {
         let result_left;
         let result_right;
 
-        let left_rect = {
+        let (left_rect, left_preferred_size) = {
             let left_max_rect = top_rect;
             let mut left_ui = ui.new_child(
                 UiBuilder::new()
@@ -92,10 +92,10 @@ impl Sides {
                     .layout(Layout::left_to_right(Align::Center)),
             );
             result_left = add_left(&mut left_ui);
-            left_ui.min_rect()
+            (left_ui.min_rect(), left_ui.intrinsic_size())
         };
 
-        let right_rect = {
+        let (right_rect, right_preferred_size) = {
             let right_max_rect = top_rect.with_min_x(left_rect.max.x);
             let mut right_ui = ui.new_child(
                 UiBuilder::new()
@@ -103,7 +103,7 @@ impl Sides {
                     .layout(Layout::right_to_left(Align::Center)),
             );
             result_right = add_right(&mut right_ui);
-            right_ui.min_rect()
+            (right_ui.min_rect(), right_ui.intrinsic_size())
         };
 
         let mut final_rect = left_rect.union(right_rect);
@@ -118,7 +118,12 @@ impl Sides {
             final_rect.max.x = final_rect.max.x.max(left_rect.min.x + min_width);
         }
 
-        ui.advance_cursor_after_rect(final_rect);
+        let preferred_size = Vec2::new(
+            left_preferred_size.x + spacing + right_preferred_size.x,
+            left_preferred_size.y.max(right_preferred_size.y),
+        );
+
+        ui.advance_cursor_after_rect(final_rect, preferred_size);
 
         (result_left, result_right)
     }

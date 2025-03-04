@@ -48,7 +48,8 @@ impl Widget for SelectableLabel {
 
         let mut desired_size = total_extra + galley.size();
         desired_size.y = desired_size.y.at_least(ui.spacing().interact_size.y);
-        let (rect, response) = ui.allocate_at_least(desired_size, Sense::click());
+        let (rect, response) =
+            ui.allocate_at_least(desired_size, Sense::click(), galley.desired_size());
         response.widget_info(|| {
             WidgetInfo::selected(
                 WidgetType::SelectableLabel,
