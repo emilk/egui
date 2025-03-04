@@ -61,7 +61,6 @@ pub struct LayoutJob {
     /// of some earlier text (sharing the same row),
     /// in which case this will be the height of the earlier text.
     /// In other cases, set this to `0.0`.
-    /// TODO(valadaptive): implement this
     pub first_row_min_height: f32,
 
     /// If `true`, all `\n` characters will result in a new _paragraph_,
