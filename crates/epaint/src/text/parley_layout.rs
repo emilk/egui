@@ -85,14 +85,18 @@ pub fn layout(fonts: &mut FontsImpl, job: LayoutJob) -> Galley {
             .layout_context
             .tree_builder(&mut fonts.font_context, 1.0, &default_style);
 
-    job.sections.iter().for_each(|section| {
+    job.sections.iter().enumerate().for_each(|(i, section)| {
         if section.leading_space > 0.0 {
-            // Emulate the leading space with an inline box
+            // Emulate the leading space with an inline box.
             builder.push_inline_box(InlineBox {
                 id: 0,
                 index: section.byte_range.start,
                 width: section.leading_space,
-                height: 2.0,
+                height: if i == 0 {
+                    job.first_row_min_height
+                } else {
+                    0.0
+                },
             });
         }
         builder.push_style_span(text_format_to_style(&section.format));
@@ -132,8 +136,8 @@ pub fn layout(fonts: &mut FontsImpl, job: LayoutJob) -> Galley {
                 /*if let PositionedLayoutItem::InlineBox(inline_box) = item {
                     mesh.add_colored_rect(
                         Rect::from_min_size(
-                            pos2(inline_box.x, inline_box.y),
-                            vec2(inline_box.width, inline_box.height),
+                            pos2(inline_box.x, inline_box.y - 1.0),
+                            vec2(inline_box.width, inline_box.height + 2.0),
                         ),
                         Color32::DEBUG_COLOR.gamma_multiply(0.3),
                     );
@@ -141,13 +145,17 @@ pub fn layout(fonts: &mut FontsImpl, job: LayoutJob) -> Galley {
                 continue;
             };
 
-            for (glyph, uv_rect, (x, y)) in
-                fonts
-                    .glyph_atlas
-                    .render_glyph_run(&run, (0.0, 0.0), fonts.pixels_per_point())
-            {
+            // TODO(valadaptive): use this to implement faux italics (and faux bold?)
+            // run.run.synthesis()
+
+            for (mut glyph, uv_rect, (x, y)) in fonts.glyph_atlas.render_glyph_run(
+                &run,
+                (horiz_offset, 0.0),
+                fonts.pixels_per_point(),
+            ) {
+                glyph.x += horiz_offset;
                 let glyph_rect = Rect::from_min_size(
-                    pos2(glyph.x + horiz_offset, line.metrics().min_coord),
+                    pos2(glyph.x, line.metrics().min_coord),
                     vec2(
                         glyph.advance,
                         line.metrics().max_coord - line.metrics().min_coord,
