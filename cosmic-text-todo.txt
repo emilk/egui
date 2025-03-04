@@ -1,4 +1,5 @@
 In cosmic-text:
+- IME support
 - More flexible font fallback stack
 - Ability to control leading space before the first line (added in upstream fork)
 - Span-level styling of *empty* lines' height
