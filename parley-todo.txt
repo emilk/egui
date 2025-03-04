@@ -4,15 +4,25 @@ Parley:
 
 Here:
 - Text overflow between different items doesn't wrap properly (see Font Book code link)
+- is InlineBox the best/only way to offset the first line?
+  - (I think it works well for now)
 - Absolute line height (does Parley support this?)
-- Figure out what's going on with baseline alignment (the monospace font does not vertically align with Ubuntu in e.g. the EasyMark right pane)
+- Auto fallback to faux italics (and perhaps faux bold)
+  - run.synthesis()
 - Fix FontDefinitions and adding fonts
   - Get fallback/ordering working properly
 - Investigate whether swash is being too conservative with its shape bounds and cutting off rendered glyphs
-- Better texture atlas management
+- We don't need to do all the weird DPI stuff now, probably
+  - (see https://github.com/emilk/egui/issues/3664 for an example of the hacks we can get rid of)
+- A bunch of font atlas stuff
   - I think it's a bit broken right now
   - Automatically switch between multiple atlases if one isn't enough
-  - Use etagere instead of rolling our own atlas?'
+  - There will not be any "the font texture" anymore
+  - Use etagere instead of rolling our own atlas?
+  - Use monochrome texture for font atlas (R8 format)
+    - Does the current one only use RGBA so we can use the same shader for everything?
+    - Probably needs support in the backends for mask-only textures (gl.ALPHA and whatever the wgpu equivalent is)
+  - Have separate atlases for color emoji and glyphs/discs
 - Colored emoji
 - Global/scoped RTL? Do we get bidirectional support for free?
 - Better (more CSSish) font API
@@ -21,7 +31,10 @@ Here:
   - Option to load system fonts
   - FontTweak is very not-implemented
   - Can we do bold now?
+  - Revamp TextFormat in general
+    - Can it cascade?
   - Letter spacing
+  - Hinting enable/disable
 - Strikethrough and underline
 - Rewrite selection code to use parley's API
 - Implement max_rows for wrapping
@@ -32,4 +45,3 @@ Here:
   - Stop using TreeBuilder so we don't have to allocate a bunch of strings
   - https://github.com/emilk/egui/issues/1098
   - Enable shape_run_cache
-  - Use monochrome texture for font atlas (R8 format)
