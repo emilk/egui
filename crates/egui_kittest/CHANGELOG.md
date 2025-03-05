@@ -6,6 +6,13 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.31.1 - 2025-03-05
+* Fix modifiers not working in kittest [#5693](https://github.com/emilk/egui/pull/5693) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Enable all features for egui_kittest docs [#5711](https://github.com/emilk/egui/pull/5711) by [@YgorSouza](https://github.com/YgorSouza)
+* Run a frame per queued event in egui_kittest [#5704](https://github.com/emilk/egui/pull/5704) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Add guidelines for image comparison tests [#5714](https://github.com/emilk/egui/pull/5714) by [@Wumpf](https://github.com/Wumpf)
+
+
 ## 0.31.0 - 2025-02-04
 ### ⭐ Added
 * Add `Harness::new_eframe` and `TestRenderer` trait [#5539](https://github.com/emilk/egui/pull/5539) by [@lucasmerlin](https://github.com/lucasmerlin)

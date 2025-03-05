@@ -5,6 +5,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.31.1 - 2025-03-05
+* Fix image_loader for animated image types [#5688](https://github.com/emilk/egui/pull/5688) by [@BSteffaniak](https://github.com/BSteffaniak)
+
+
 ## 0.31.0 - 2025-02-04
 * Animated WebP support [#5470](https://github.com/emilk/egui/pull/5470), [#5586](https://github.com/emilk/egui/pull/5586) by [@Aely0](https://github.com/Aely0)
 * Make image extension check case-insensitive [#5501](https://github.com/emilk/egui/pull/5501) by [@RyanBluth](https://github.com/RyanBluth)
