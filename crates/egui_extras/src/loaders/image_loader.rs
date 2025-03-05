@@ -127,7 +127,8 @@ impl ImageLoader for ImageCrateLoader {
             }
         }
 
-        if let Some(entry) = cache.get(uri).cloned() {
+        let entry = self.cache.lock().get(uri).cloned();
+        if let Some(entry) = entry {
             match entry {
                 Poll::Ready(Ok(image)) => Ok(ImagePoll::Ready { image }),
                 Poll::Ready(Err(err)) => Err(LoadError::Loading(err)),
