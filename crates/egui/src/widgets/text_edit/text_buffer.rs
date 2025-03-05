@@ -183,6 +183,15 @@ pub trait TextBuffer {
             self.delete_selected(&CursorRange::two(min, max))
         }
     }
+
+    /// Returns a unique identifier for the implementing type.
+    ///
+    /// By default, this returns `0`, which represents an unknown type.
+    /// Implementers should override this method with a unique identifier
+    /// to enable safe downcasting.
+    fn type_id(&self) -> usize {
+        0
+    }
 }
 
 impl TextBuffer for String {
