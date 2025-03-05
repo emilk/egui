@@ -6,6 +6,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.31.1 - 2025-03-05
+Nothing new
+
+
 ## 0.31.0 - 2025-02-04
 * Upgrade to wgpu 24 [#5610](https://github.com/emilk/egui/pull/5610) by [@torokati44](https://github.com/torokati44)
 * Extend `WgpuSetup`, `egui_kittest` now prefers software rasterizers for testing [#5506](https://github.com/emilk/egui/pull/5506) by [@Wumpf](https://github.com/Wumpf)

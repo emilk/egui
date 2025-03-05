@@ -5,6 +5,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.31.1 - 2025-03-05
+Nothing new
+
+
 ## 0.31.0 - 2025-02-04
 * Update `egui_default_fonts` license [#5361](https://github.com/emilk/egui/pull/5361) by [@pombredanne](https://github.com/pombredanne)
 
