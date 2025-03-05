@@ -72,7 +72,6 @@ impl ImageLoader for ImageCrateLoader {
             return Err(LoadError::NotSupported);
         }
 
-        let cache = self.cache.lock();
 
         #[cfg(not(target_arch = "wasm32"))]
         #[allow(clippy::unnecessary_wraps)] // needed here to match other return types
