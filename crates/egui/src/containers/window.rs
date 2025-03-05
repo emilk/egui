@@ -1217,7 +1217,7 @@ impl TitleBar {
             let button_rect = Rect::from_center_size(button_center, button_size);
             let button_rect = button_rect.round_ui();
 
-            ui.allocate_new_ui(UiBuilder::new().max_rect(button_rect), |ui| {
+            ui.scope_builder(UiBuilder::new().max_rect(button_rect), |ui| {
                 collapsing.show_default_button_with_size(ui, button_size);
             });
         }

@@ -1498,7 +1498,7 @@ impl Ui {
         let item_spacing = self.spacing().item_spacing;
         let frame_rect = self.placer.next_space(desired_size, item_spacing);
         let child_rect = self.placer.justify_and_align(frame_rect, desired_size);
-        self.allocate_new_ui(
+        self.scope_dyn(
             UiBuilder::new().max_rect(child_rect).layout(layout),
             add_contents,
         )
@@ -1515,7 +1515,7 @@ impl Ui {
         max_rect: Rect,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
-        self.allocate_new_ui(UiBuilder::new().max_rect(max_rect), add_contents)
+        self.scope_builder(UiBuilder::new().max_rect(max_rect), add_contents)
     }
 
     /// Allocated space (`UiBuilder::max_rect`) and then add content to it.
@@ -1523,27 +1523,13 @@ impl Ui {
     /// If the contents overflow, more space will be allocated.
     /// When finished, the amount of space actually used (`min_rect`) will be allocated in the parent.
     /// So you can request a lot of space and then use less.
+    #[deprecated = "Use `scope_builder` instead"]
     pub fn allocate_new_ui<R>(
         &mut self,
         ui_builder: UiBuilder,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
-        self.allocate_new_ui_dyn(ui_builder, Box::new(add_contents))
-    }
-
-    fn allocate_new_ui_dyn<'c, R>(
-        &mut self,
-        ui_builder: UiBuilder,
-        add_contents: Box<dyn FnOnce(&mut Self) -> R + 'c>,
-    ) -> InnerResponse<R> {
-        let mut child_ui = self.new_child(ui_builder);
-        let inner = add_contents(&mut child_ui);
-        let rect = child_ui.min_rect();
-        let item_spacing = self.spacing().item_spacing;
-        self.placer.advance_after_rects(rect, rect, item_spacing);
-        register_rect(self, rect);
-        let response = self.interact(rect, child_ui.unique_id, Sense::hover());
-        InnerResponse::new(inner, response)
+        self.scope_dyn(ui_builder, Box::new(add_contents))
     }
 
     /// Convenience function to get a region to paint on.
@@ -1749,7 +1735,7 @@ impl Ui {
     ///
     /// See also [`Self::add`] and [`Self::add_sized`].
     pub fn put(&mut self, max_rect: Rect, widget: impl Widget) -> Response {
-        self.allocate_new_ui(
+        self.scope_builder(
             UiBuilder::new()
                 .max_rect(max_rect)
                 .layout(Layout::centered_and_justified(Direction::TopDown)),
@@ -2640,7 +2626,7 @@ impl Ui {
     /// See also [`Self::with_layout`] for more options.
     #[inline]
     pub fn vertical<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
-        self.allocate_new_ui(
+        self.scope_builder(
             UiBuilder::new().layout(Layout::top_down(Align::Min)),
             add_contents,
         )
@@ -2662,7 +2648,7 @@ impl Ui {
         &mut self,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.allocate_new_ui(
+        self.scope_builder(
             UiBuilder::new().layout(Layout::top_down(Align::Center)),
             add_contents,
         )
@@ -2683,7 +2669,7 @@ impl Ui {
         &mut self,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.allocate_new_ui(
+        self.scope_builder(
             UiBuilder::new().layout(Layout::top_down(Align::Center).with_cross_justify(true)),
             add_contents,
         )
@@ -2709,7 +2695,7 @@ impl Ui {
         layout: Layout,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
-        self.allocate_new_ui(UiBuilder::new().layout(layout), add_contents)
+        self.scope_builder(UiBuilder::new().layout(layout), add_contents)
     }
 
     /// This will make the next added widget centered and justified in the available space.
@@ -2719,7 +2705,7 @@ impl Ui {
         &mut self,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
-        self.allocate_new_ui(
+        self.scope_builder(
             UiBuilder::new().layout(Layout::centered_and_justified(Direction::TopDown)),
             add_contents,
         )

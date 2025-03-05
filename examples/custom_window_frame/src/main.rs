@@ -114,7 +114,7 @@ fn title_bar_ui(ui: &mut egui::Ui, title_bar_rect: eframe::epaint::Rect, title: 
         ui.ctx().send_viewport_cmd(ViewportCommand::StartDrag);
     }
 
-    ui.allocate_new_ui(
+    ui.scope_builder(
         UiBuilder::new()
             .max_rect(title_bar_rect)
             .layout(egui::Layout::right_to_left(egui::Align::Center)),
