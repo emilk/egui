@@ -78,6 +78,7 @@ ab_glyph = "0.2.11"
 #cosmic-text = { git = "https://github.com/valadaptive/cosmic-text/", rev = "564b634" }
 #cosmic-text = { path = "../../../cosmic-text" }
 parley = { version = "0.3", features = ["system"] }
+#parley = { path = "../../../parley/parley", features = ["system"] }
 swash = { version = "0.2" }
 ahash.workspace = true
 nohash-hasher.workspace = true
