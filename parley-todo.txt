@@ -1,12 +1,13 @@
 Parley:
 - Text truncation with ellipsis
 - serde support for some types (the selection ones at least)
+- Vertical alignment options, especially for InlineBox
+- Ability to set line.offset
+  - This can't just be a visual thing because of hit testing; Layout needs to agree on where everything is
+- Absolute line height
 
 Here:
-- Text overflow between different items doesn't wrap properly (see Font Book code link)
-- is InlineBox the best/only way to offset the first line?
-  - (I think it works well for now)
-- Absolute line height (does Parley support this?)
+- Sometimes when resizing the Font Book window, the text doesn't wrap properly
 - Auto fallback to faux italics (and perhaps faux bold)
   - run.synthesis()
 - Fix FontDefinitions and adding fonts
@@ -23,6 +24,7 @@ Here:
     - Does the current one only use RGBA so we can use the same shader for everything?
     - Probably needs support in the backends for mask-only textures (gl.ALPHA and whatever the wgpu equivalent is)
   - Have separate atlases for color emoji and glyphs/discs
+- AccessKit integration(?)
 - Colored emoji
 - Global/scoped RTL? Do we get bidirectional support for free?
 - Better (more CSSish) font API

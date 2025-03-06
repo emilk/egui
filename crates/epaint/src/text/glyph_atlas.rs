@@ -74,15 +74,9 @@ struct CacheKey {
 }
 
 impl CacheKey {
-    fn from_glyph(
-        glyph: &Glyph,
-        font_id: u64,
-        font_size: f32,
-        offset: (f32, f32),
-        scale: f32,
-    ) -> (Self, i32, i32) {
-        let (x, x_bin) = SubpixelBin::new((glyph.x + offset.0) * scale);
-        let (y, y_bin) = SubpixelBin::new((glyph.y + offset.1) * scale);
+    fn from_glyph(glyph: &Glyph, font_id: u64, font_size: f32, scale: f32) -> (Self, i32, i32) {
+        let (x, x_bin) = SubpixelBin::new(glyph.x * scale);
+        let (y, y_bin) = SubpixelBin::new(glyph.y * scale);
         (
             Self {
                 font_id,
@@ -154,9 +148,10 @@ impl GlyphAtlas {
             // The Y-position transform applies to the font *after* it's been hinted, making it blurry. (So does the
             // X-position transform, but the hinter doesn't change the X coordinates anymore.)
             // TODO(valadaptive): remove Y subpixel position from the cache key entirely
-            glyph.y = glyph.y.round_to_pixels(pixels_per_point);
+            glyph.x += offset.0;
+            glyph.y = (glyph.y + offset.1).round_to_pixels(pixels_per_point);
             let (cache_key, x, y) =
-                CacheKey::from_glyph(&glyph, font_id, font_size, offset, pixels_per_point);
+                CacheKey::from_glyph(&glyph, font_id, font_size, pixels_per_point);
 
             if let Some(rendered_glyph) = rendered_glyphs.get(&cache_key) {
                 return (glyph, *rendered_glyph, (x, y));
