@@ -72,7 +72,6 @@ impl ImageLoader for ImageCrateLoader {
             return Err(LoadError::NotSupported);
         }
 
-
         #[cfg(not(target_arch = "wasm32"))]
         #[allow(clippy::unnecessary_wraps)] // needed here to match other return types
         fn load_image(
@@ -97,7 +96,9 @@ impl ImageLoader for ImageCrateLoader {
                     let uri = uri.clone();
                     move || {
                         log::trace!("ImageLoader - started loading {uri:?}");
-                        let result = crate::image::load_image_bytes(&bytes).map(Arc::new);
+                        let result = crate::image::load_image_bytes(&bytes)
+                            .map(Arc::new)
+                            .map_err(|err| err.to_string());
                         log::trace!("ImageLoader - finished loading {uri:?}");
                         let prev = cache.lock().insert(uri, Poll::Ready(result));
                         assert!(matches!(prev, Some(Poll::Pending)));
@@ -117,7 +118,9 @@ impl ImageLoader for ImageCrateLoader {
         ) -> ImageLoadResult {
             let mut cache_lock = cache.lock();
             log::trace!("started loading {uri:?}");
-            let result = crate::image::load_image_bytes(bytes).map(Arc::new);
+            let result = crate::image::load_image_bytes(bytes)
+                .map(Arc::new)
+                .map_err(|err| err.to_string());
             log::trace!("finished loading {uri:?}");
             cache_lock.insert(uri.into(), std::task::Poll::Ready(result.clone()));
             match result {
