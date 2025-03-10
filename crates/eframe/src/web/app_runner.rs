@@ -336,6 +336,9 @@ impl AppRunner {
                 egui::OutputCommand::OpenUrl(open_url) => {
                     super::open_url(&open_url.url, open_url.new_tab);
                 }
+                egui::OutputCommand::SetCursorPosition(egui::Pos2 { x, y }) => {
+                    let _ = window.set_cursor_position(winit::dpi::LogicalPosition { x, y });
+                }
             }
         }
 
