@@ -8,7 +8,7 @@ use super::{
     cursor::{CCursor, LayoutCursor},
     font::UvRect,
 };
-use crate::{Color32, FontId, Mesh, Stroke};
+use crate::{mutex::Mutex, Color32, FontId, Mesh, Stroke};
 use emath::{pos2, Align, NumExt, OrderedFloat, Pos2, Rect, Vec2};
 
 /// Describes the task of laying out text.
@@ -518,7 +518,7 @@ impl TextWrapping {
 ///
 /// The name comes from typography, where a "galley" is a metal tray
 /// containing a column of set type, usually the size of a page of text.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Galley {
     /// The job that this galley is the result of.
@@ -533,6 +533,15 @@ pub struct Galley {
     /// Note that a paragraph (a piece of text separated with `\n`)
     /// can be split up into multiple rows.
     pub rows: Vec<Row>,
+
+    // TODO: store position offset for hit testing
+    // This needs to be wrapped in a Mutex because Shape stores it and must be Send+Sync
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(super) parley_layout: Mutex<parley::Layout<Color32>>,
+
+    #[cfg(feature = "accesskit")]
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(super) layout_access: Mutex<Option<parley::LayoutAccessibility>>,
 
     /// Set to true the text was truncated due to [`TextWrapping::max_rows`].
     pub elided: bool,
@@ -562,6 +571,22 @@ pub struct Galley {
     /// so that we can warn if this has changed once we get to
     /// tessellation.
     pub pixels_per_point: f32,
+}
+
+// parley::Layout does not implement Debug
+impl std::fmt::Debug for Galley {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Galley")
+            .field("job", &self.job)
+            .field("rows", &self.rows)
+            .field("elided", &self.elided)
+            .field("rect", &self.rect)
+            .field("mesh_bounds", &self.mesh_bounds)
+            .field("num_vertices", &self.num_vertices)
+            .field("num_indices", &self.num_indices)
+            .field("pixels_per_point", &self.pixels_per_point)
+            .finish()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]

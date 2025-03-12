@@ -23,7 +23,7 @@ use super::{
 /// [`Shape::Text`] depends on the current `pixels_per_point` (dpi scale)
 /// and so must be recreated every time `pixels_per_point` changes.
 #[must_use = "Add a Shape to a Painter"]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum Shape {
     /// Paint nothing. This can be useful as a placeholder.
     Noop,

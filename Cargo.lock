@@ -1519,6 +1519,7 @@ name = "epaint"
 version = "0.31.1"
 dependencies = [
  "ab_glyph",
+ "accesskit",
  "ahash",
  "backtrace",
  "bytemuck",
@@ -1711,8 +1712,6 @@ dependencies = [
 [[package]]
 name = "fontique"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6b5fcb214137f01bc842c4fd633236255c51f8a24c6d3923eb8361c6d0940737"
 dependencies = [
  "bytemuck",
  "fontconfig-cache-parser",
@@ -3147,12 +3146,12 @@ dependencies = [
 [[package]]
 name = "parley"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d1c2b33b240c246f06cfceac48dc6c96040cb177d2aa5348899982b298b5577"
 dependencies = [
+ "accesskit",
  "fontique",
  "hashbrown",
  "peniko",
+ "serde",
  "skrifa",
  "swash",
 ]
