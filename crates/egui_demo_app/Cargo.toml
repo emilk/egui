@@ -86,7 +86,9 @@ env_logger = { version = "0.10", default-features = false, features = [
   "auto-color",
   "humantime",
 ] }
-rfd = { version = "0.15", optional = true }
+# TODO: change back to released version once https://github.com/PolyMeilex/rfd/pull/240 makes it in
+# (a new ashpd version has broken dependencies)
+rfd = { git = "https://github.com/PolyMeilex/rfd", rev = "24842c4", optional = true }
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
