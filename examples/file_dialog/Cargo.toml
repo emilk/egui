@@ -20,6 +20,4 @@ env_logger = { version = "0.10", default-features = false, features = [
     "auto-color",
     "humantime",
 ] }
-# TODO: change back to released version once https://github.com/PolyMeilex/rfd/pull/240 makes it in
-# (a new ashpd version has broken dependencies)
-rfd = { git = "https://github.com/PolyMeilex/rfd", rev = "24842c4" }
+rfd = "0.15.3"
