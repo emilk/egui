@@ -1,0 +1,53 @@
+Parley:
+- Text truncation with ellipsis
+- serde support for some types (the selection ones at least)
+- Vertical alignment options, especially for InlineBox
+- Ability to set line.offset
+  - This can't just be a visual thing because of hit testing; Layout needs to agree on where everything is
+- Absolute line height
+
+Here:
+- Text rendering
+  - Implement max_rows for wrapping
+  - Sometimes when resizing the Font Book window, the text doesn't wrap properly
+  - Investigate whether swash is being too conservative with its shape bounds and cutting off rendered glyphs
+  - We don't need to do all the weird DPI stuff now, probably
+    - (see https://github.com/emilk/egui/issues/3664 for an example of the hacks we can get rid of)
+  - A bunch of font atlas stuff
+    - I think it's a bit broken right now
+    - Automatically switch between multiple atlases if one isn't enough
+    - There will not be any "the font texture" anymore
+    - Use etagere instead of rolling our own atlas?
+    - Use monochrome texture for font atlas (R8 format)
+      - Does the current one only use RGBA so we can use the same shader for everything?
+      - Probably needs support in the backends for mask-only textures (gl.ALPHA and whatever the wgpu equivalent is)
+    - Have separate atlases for color emoji and glyphs/discs
+  - Colored emoji
+- Text selection and editing
+  - Unify the three different cursor types and move to a Parley-like API before moving to the actual Parley API
+  - Rewrite selection code to use parley's API
+  - AccessKit integration(?)
+- Text styling
+  - Fix FontDefinitions and adding fonts
+    - Get fallback/ordering working properly
+  - Auto fallback to faux italics (and perhaps faux bold)
+    - run.synthesis()
+  - Actually render text decorations (underline, strikethhrough, etc) and backgrounds
+  - Strikethrough and underline
+  - Better (more CSSish) font API
+    - move font db into FontDefinitions
+    - Families and not just files
+    - Option to load system fonts
+    - FontTweak is very not-implemented
+    - Can we do bold now?
+    - Revamp TextFormat in general
+      - Can it cascade?
+    - Letter spacing
+    - Hinting enable/disable
+- Cross-cutting concerns
+  - Global/scoped RTL? Do we get bidirectional support for free if we use Parley's APIs?
+  - Actually remove all the ab_glyph stuff
+- Perf optimizations!
+  - Stop using TreeBuilder so we don't have to allocate a bunch of strings
+  - https://github.com/emilk/egui/issues/1098
+  - Enable shape_run_cache
