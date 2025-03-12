@@ -120,7 +120,7 @@ impl Default for TextureId {
 /// A [`Shape`] within a clip rectangle.
 ///
 /// Everything is using logical points.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct ClippedShape {
     /// Clip / scissor rectangle.
     /// Only show the part of the [`Shape`] that falls within this.
