@@ -508,6 +508,7 @@ pub use self::{
     ui_builder::UiBuilder,
     ui_stack::*,
     viewport::*,
+    widget_layout::*,
     widget_rect::{WidgetRect, WidgetRects},
     widget_text::{RichText, WidgetText},
     widgets::*,
