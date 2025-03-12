@@ -29,6 +29,8 @@ rustdoc-args = ["--generate-link-to-definition"]
 
 
 [features]
+accesskit = ["dep:accesskit", "parley/accesskit"]
+
 default = ["default_fonts"]
 
 ## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast [`Vertex`] to `&[u8]`.
@@ -61,7 +63,7 @@ mint = ["emath/mint"]
 rayon = ["dep:rayon"]
 
 ## Allow serialization using [`serde`](https://docs.rs/serde).
-serde = ["dep:serde", "ahash/serde", "emath/serde", "ecolor/serde"]
+serde = ["dep:serde", "ahash/serde", "emath/serde", "ecolor/serde", "parley/serde"]
 
 ## Change Vertex layout to be compatible with unity
 unity = []
@@ -77,8 +79,8 @@ ecolor.workspace = true
 ab_glyph = "0.2.11"
 #cosmic-text = { git = "https://github.com/valadaptive/cosmic-text/", rev = "564b634" }
 #cosmic-text = { path = "../../../cosmic-text" }
-parley = { version = "0.3", features = ["system"] }
-#parley = { path = "../../../parley/parley", features = ["system"] }
+#parley = { version = "0.3", features = ["system"] }
+parley = { path = "../../../parley/parley", features = ["system"] }
 swash = { version = "0.2" }
 ahash.workspace = true
 nohash-hasher.workspace = true
@@ -86,6 +88,9 @@ parking_lot.workspace = true   # Using parking_lot over std::sync::Mutex gives 5
 profiling = { workspace = true}
 
 #! ### Optional dependencies
+
+accesskit = { workspace = true, optional = true }
+
 bytemuck = { workspace = true, optional = true, features = ["derive"] }
 
 ## Enable this when generating docs.
