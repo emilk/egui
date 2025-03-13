@@ -458,24 +458,6 @@ impl Font {
         font_index_glyph_info
     }
 
-    #[inline]
-    pub(crate) fn font_impl_and_glyph_info(&mut self, c: char) -> (Option<&FontImpl>, GlyphInfo) {
-        if self.fonts.is_empty() {
-            return (None, self.replacement_glyph.1);
-        }
-        let (font_index, glyph_info) = self.glyph_info(c);
-        let font_impl = &self.fonts[font_index];
-        (Some(font_impl), glyph_info)
-    }
-
-    pub(crate) fn ascent(&self) -> f32 {
-        if let Some(first) = self.fonts.first() {
-            first.ascent()
-        } else {
-            self.row_height
-        }
-    }
-
     fn glyph_info_no_cache_or_fallback(&mut self, c: char) -> Option<(FontIndex, GlyphInfo)> {
         for (font_index, font_impl) in self.fonts.iter().enumerate() {
             if let Some(glyph_info) = font_impl.glyph_info(c) {

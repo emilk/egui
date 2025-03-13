@@ -5,7 +5,7 @@ use crate::*;
 /// How to paint some text on screen.
 ///
 /// This needs to be recreated if `pixels_per_point` (dpi scale) changes.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TextShape {
     /// Top left corner of the first character.

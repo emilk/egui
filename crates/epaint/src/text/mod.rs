@@ -3,7 +3,8 @@
 pub mod cursor;
 mod font;
 mod fonts;
-mod text_layout;
+mod glyph_atlas;
+pub mod parley_layout;
 mod text_layout_types;
 
 /// One `\t` character is this many spaces wide.
@@ -14,7 +15,6 @@ pub use {
         FontData, FontDefinitions, FontFamily, FontId, FontInsert, FontPriority, FontTweak, Fonts,
         FontsImpl, InsertFontFamily,
     },
-    text_layout::layout,
     text_layout_types::*,
 };
 
