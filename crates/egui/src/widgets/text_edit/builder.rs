@@ -579,6 +579,12 @@ impl TextEdit<'_> {
 
         if interactive {
             if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
+                let from_global = ui
+                    .ctx()
+                    .layer_transform_from_global(ui.layer_id())
+                    .unwrap_or_default();
+                let pointer_pos = from_global.mul_pos(pointer_pos);
+
                 if response.hovered() && text.is_mutable() {
                     ui.output_mut(|o| o.mutable_text_under_cursor = true);
                 }
