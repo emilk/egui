@@ -579,6 +579,8 @@ impl TextEdit<'_> {
 
         if interactive {
             if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
+                // Transform the pointer position from global coordinates to ui layer local coordinates.
+                // This is important if the TextEdit has a Scene parent.
                 let from_global = ui
                     .ctx()
                     .layer_transform_from_global(ui.layer_id())
