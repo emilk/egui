@@ -17,8 +17,8 @@ pub fn update_accesskit_for_text_widget(
         let parent_id = widget_id;
 
         if let Some(cursor_range) = &cursor_range {
-            let anchor = galley.from_ccursor(cursor_range.secondary).rcursor; // TODO(valadaptive): figure this out
-            let focus = galley.from_ccursor(cursor_range.primary).rcursor; // TODO(valadaptive): figure this out
+            let anchor = galley.rcursor_from_ccursor(cursor_range.secondary);
+            let focus = galley.rcursor_from_ccursor(cursor_range.primary);
             builder.set_text_selection(accesskit::TextSelection {
                 anchor: accesskit::TextPosition {
                     node: parent_id.with(anchor.row).accesskit_id(),

@@ -27,8 +27,8 @@ pub fn paint_text_selection(
 
     let color = visuals.selection.bg_fill;
     let [min, max] = cursor_range.sorted_cursors();
-    let min = galley.from_ccursor(min).rcursor;
-    let max = galley.from_ccursor(max).rcursor;
+    let min = galley.rcursor_from_ccursor(min);
+    let max = galley.rcursor_from_ccursor(max);
 
     for ri in min.row..=max.row {
         let row = &mut galley.rows[ri];
