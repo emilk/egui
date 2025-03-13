@@ -31,7 +31,8 @@ all-features = true
 [advisories]
 version = 2
 ignore = [
-  "RUSTSEC-2024-0320", # unmaintaines yaml-rust pulled in by syntect
+  "RUSTSEC-2024-0320", # unmaintained yaml-rust pulled in by syntect
+  "RUSTSEC-2024-0436", # unmaintained paste pulled via metal/wgpu, see https://github.com/gfx-rs/metal-rs/issues/349
 ]
 
 [bans]
