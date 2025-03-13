@@ -279,7 +279,7 @@ pub fn slice_char_range(s: &str, char_range: std::ops::Range<usize>) -> &str {
 
 /// The thin rectangle of one end of the selection, e.g. the primary cursor, in local galley coordinates.
 pub fn cursor_rect(galley: &Galley, cursor: &CCursor, row_height: f32) -> Rect {
-    let mut cursor_pos = galley.pos_from_ccursor(*cursor);
+    let mut cursor_pos = galley.pos_from_cursor(*cursor);
 
     // Handle completely empty galleys
     cursor_pos.max.y = cursor_pos.max.y.at_least(cursor_pos.min.y + row_height);
