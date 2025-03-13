@@ -521,7 +521,7 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
         if !button_response.clicked()
             && (ui.input(|i| i.key_pressed(Key::Escape)) || area_response.clicked_elsewhere())
         {
-            ui.memory_mut(|mem| mem.close_popup());
+            ui.memory_mut(|mem| mem.close_popup(popup_id));
         }
     }
 
