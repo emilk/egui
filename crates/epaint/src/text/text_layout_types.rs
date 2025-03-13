@@ -812,7 +812,7 @@ impl Galley {
 
     /// Returns a 0-width Rect.
     pub fn pos_from_rcursor(&self, rcursor: RCursor) -> Rect {
-        self.pos_from_cursor(&self.from_rcursor(rcursor))
+        self.pos_from_ccursor(self.from_rcursor(rcursor))
     }
 
     /// Cursor at the given position within the galley.
@@ -822,7 +822,7 @@ impl Galley {
     /// and a cursor below the galley is considered
     /// same as a cursor at the end.
     /// This allows implementing text-selection by dragging above/below the galley.
-    pub fn cursor_from_pos(&self, pos: Vec2) -> Cursor {
+    pub fn cursor_from_pos(&self, pos: Vec2) -> CCursor {
         if let Some(first_row) = self.rows.first() {
             if pos.y < first_row.min_y() {
                 return self.begin();
@@ -835,32 +835,21 @@ impl Galley {
         }
 
         let mut best_y_dist = f32::INFINITY;
-        let mut cursor = Cursor::default();
+        let mut cursor = CCursor::default();
 
         let mut ccursor_index = 0;
         let mut pcursor_it = PCursor::default();
 
-        for (row_nr, row) in self.rows.iter().enumerate() {
+        for row in &self.rows {
             let is_pos_within_row = row.min_y() <= pos.y && pos.y <= row.max_y();
             let y_dist = (row.min_y() - pos.y).abs().min((row.max_y() - pos.y).abs());
             if is_pos_within_row || y_dist < best_y_dist {
                 best_y_dist = y_dist;
                 let column = row.char_at(pos.x);
                 let prefer_next_row = column < row.char_count_excluding_newline();
-                cursor = Cursor {
-                    ccursor: CCursor {
-                        index: ccursor_index + column,
-                        prefer_next_row,
-                    },
-                    rcursor: RCursor {
-                        row: row_nr,
-                        column,
-                    },
-                    pcursor: PCursor {
-                        paragraph: pcursor_it.paragraph,
-                        offset: pcursor_it.offset + column,
-                        prefer_next_row,
-                    },
+                cursor = CCursor {
+                    index: ccursor_index + column,
+                    prefer_next_row,
                 };
 
                 if is_pos_within_row {
@@ -884,15 +873,15 @@ impl Galley {
 impl Galley {
     /// Cursor to the first character.
     ///
-    /// This is the same as [`Cursor::default`].
+    /// This is the same as [`CCursor::default`].
     #[inline]
     #[allow(clippy::unused_self)]
-    pub fn begin(&self) -> Cursor {
-        Cursor::default()
+    pub fn begin(&self) -> CCursor {
+        CCursor::default()
     }
 
     /// Cursor to one-past last character.
-    pub fn end(&self) -> Cursor {
+    pub fn end(&self) -> CCursor {
         if self.rows.is_empty() {
             return Default::default();
         }
@@ -915,11 +904,7 @@ impl Galley {
                 pcursor.offset += row_char_count;
             }
         }
-        Cursor {
-            ccursor,
-            rcursor: self.end_rcursor(),
-            pcursor,
-        }
+        ccursor
     }
 
     pub fn end_rcursor(&self) -> RCursor {
@@ -980,7 +965,7 @@ impl Galley {
                 pcursor_it.offset += row.char_count_including_newline();
             }
         }
-        debug_assert!(ccursor_it == self.end().ccursor);
+        debug_assert!(ccursor_it == self.end());
         Cursor {
             ccursor: ccursor_it, // clamp
             rcursor: self.end_rcursor(),
@@ -988,7 +973,7 @@ impl Galley {
         }
     }
 
-    pub fn from_rcursor(&self, rcursor: RCursor) -> Cursor {
+    pub fn from_rcursor(&self, rcursor: RCursor) -> CCursor {
         if rcursor.row >= self.rows.len() {
             return self.end();
         }
@@ -1015,11 +1000,7 @@ impl Galley {
                 } else {
                     pcursor_it.offset += rcursor.column.at_most(row.char_count_excluding_newline());
                 }
-                return Cursor {
-                    ccursor: ccursor_it,
-                    rcursor,
-                    pcursor: pcursor_it,
-                };
+                return ccursor_it;
             }
             ccursor_it.index += row.char_count_including_newline();
             if row.ends_with_newline {
@@ -1029,11 +1010,7 @@ impl Galley {
                 pcursor_it.offset += row.char_count_including_newline();
             }
         }
-        Cursor {
-            ccursor: ccursor_it,
-            rcursor: self.end_rcursor(),
-            pcursor: pcursor_it,
-        }
+        ccursor_it
     }
 
     // TODO(emilk): return identical cursor, or clamp?
@@ -1095,81 +1072,74 @@ impl Galley {
 }
 
 /// ## Cursor positions
+/// TODO(valadaptive): rewrite all of these to avoid intermediate cursor conversions
 impl Galley {
-    pub fn cursor_left_one_character(&self, cursor: &Cursor) -> Cursor {
-        if cursor.ccursor.index == 0 {
+    pub fn cursor_left_one_character(&self, cursor: &CCursor) -> CCursor {
+        if cursor.index == 0 {
             Default::default()
         } else {
             let ccursor = CCursor {
-                index: cursor.ccursor.index,
+                index: cursor.index,
                 prefer_next_row: true, // default to this when navigating. It is more often useful to put cursor at the begging of a row than at the end.
             };
-            self.from_ccursor(ccursor - 1)
+            self.from_ccursor(ccursor - 1).ccursor
         }
     }
 
-    pub fn cursor_right_one_character(&self, cursor: &Cursor) -> Cursor {
+    pub fn cursor_right_one_character(&self, cursor: &CCursor) -> CCursor {
         let ccursor = CCursor {
-            index: cursor.ccursor.index,
+            index: cursor.index,
             prefer_next_row: true, // default to this when navigating. It is more often useful to put cursor at the begging of a row than at the end.
         };
-        self.from_ccursor(ccursor + 1)
+        self.from_ccursor(ccursor + 1).ccursor
     }
 
-    pub fn cursor_up_one_row(&self, cursor: &Cursor) -> Cursor {
+    pub fn cursor_up_one_row(
+        &self,
+        cursor: &CCursor,
+        h_pos: Option<f32>,
+    ) -> (CCursor, Option<f32>) {
+        let cursor = self.from_ccursor(*cursor);
+        let h_pos = h_pos.unwrap_or_else(|| self.pos_from_cursor(&cursor).center().x);
         if cursor.rcursor.row == 0 {
-            Cursor::default()
+            (CCursor::default(), None)
         } else {
             let new_row = cursor.rcursor.row - 1;
 
-            let cursor_is_beyond_end_of_current_row = cursor.rcursor.column
-                >= self.rows[cursor.rcursor.row].char_count_excluding_newline();
-
-            let new_rcursor = if cursor_is_beyond_end_of_current_row {
-                // keep same column
-                RCursor {
-                    row: new_row,
-                    column: cursor.rcursor.column,
-                }
-            } else {
+            let new_rcursor = {
                 // keep same X coord
-                let x = self.pos_from_cursor(cursor).center().x;
-                let column = if x > self.rows[new_row].rect.right() {
+                let column = if h_pos > self.rows[new_row].rect.right() {
                     // beyond the end of this row - keep same column
                     cursor.rcursor.column
                 } else {
-                    self.rows[new_row].char_at(x)
+                    self.rows[new_row].char_at(h_pos)
                 };
                 RCursor {
                     row: new_row,
                     column,
                 }
             };
-            self.from_rcursor(new_rcursor)
+            (self.from_rcursor(new_rcursor), Some(h_pos))
         }
     }
 
-    pub fn cursor_down_one_row(&self, cursor: &Cursor) -> Cursor {
+    pub fn cursor_down_one_row(
+        &self,
+        cursor: &CCursor,
+        h_pos: Option<f32>,
+    ) -> (CCursor, Option<f32>) {
+        let cursor = self.from_ccursor(*cursor);
+        let h_pos = h_pos.unwrap_or_else(|| self.pos_from_cursor(&cursor).center().x);
         if cursor.rcursor.row + 1 < self.rows.len() {
             let new_row = cursor.rcursor.row + 1;
 
-            let cursor_is_beyond_end_of_current_row = cursor.rcursor.column
-                >= self.rows[cursor.rcursor.row].char_count_excluding_newline();
-
-            let new_rcursor = if cursor_is_beyond_end_of_current_row {
-                // keep same column
-                RCursor {
-                    row: new_row,
-                    column: cursor.rcursor.column,
-                }
-            } else {
+            let new_rcursor = {
                 // keep same X coord
-                let x = self.pos_from_cursor(cursor).center().x;
-                let column = if x > self.rows[new_row].rect.right() {
+                let column = if h_pos > self.rows[new_row].rect.right() {
                     // beyond the end of the next row - keep same column
                     cursor.rcursor.column
                 } else {
-                    self.rows[new_row].char_at(x)
+                    self.rows[new_row].char_at(h_pos)
                 };
                 RCursor {
                     row: new_row,
@@ -1177,23 +1147,37 @@ impl Galley {
                 }
             };
 
-            self.from_rcursor(new_rcursor)
+            (self.from_rcursor(new_rcursor), Some(h_pos))
         } else {
-            self.end()
+            (self.end(), None)
         }
     }
 
-    pub fn cursor_begin_of_row(&self, cursor: &Cursor) -> Cursor {
+    pub fn cursor_begin_of_row(&self, cursor: &CCursor) -> CCursor {
+        let cursor = self.from_ccursor(*cursor);
         self.from_rcursor(RCursor {
             row: cursor.rcursor.row,
             column: 0,
         })
     }
 
-    pub fn cursor_end_of_row(&self, cursor: &Cursor) -> Cursor {
+    pub fn cursor_end_of_row(&self, cursor: &CCursor) -> CCursor {
+        let cursor = self.from_ccursor(*cursor);
         self.from_rcursor(RCursor {
             row: cursor.rcursor.row,
             column: self.rows[cursor.rcursor.row].char_count_excluding_newline(),
         })
+    }
+
+    pub fn cursor_begin_of_paragraph(&self, cursor: &CCursor) -> CCursor {
+        let mut pcursor = self.from_ccursor(*cursor).pcursor;
+        pcursor.offset = 0;
+        self.from_pcursor(pcursor).ccursor
+    }
+
+    pub fn cursor_end_of_paragraph(&self, cursor: &CCursor) -> CCursor {
+        let mut pcursor = self.from_ccursor(*cursor).pcursor;
+        pcursor.offset = usize::MAX;
+        self.from_pcursor(pcursor).ccursor
     }
 }
