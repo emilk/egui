@@ -4,11 +4,14 @@ use crate::{
 use emath::{Align2, Vec2};
 
 /// A modal dialog.
+///
 /// Similar to a [`crate::Window`] but centered and with a backdrop that
 /// blocks input to the rest of the UI.
 ///
 /// You can show multiple modals on top of each other. The topmost modal will always be
 /// the most recently shown one.
+/// If multiple modals are newly shown in the same frame, the order of the modals not undefined
+/// (either first or second could be top).
 pub struct Modal {
     pub area: Area,
     pub backdrop_color: Color32,
@@ -16,7 +19,9 @@ pub struct Modal {
 }
 
 impl Modal {
-    /// Create a new Modal. The id is passed to the area.
+    /// Create a new Modal.
+    ///
+    /// The id is passed to the area.
     pub fn new(id: Id) -> Self {
         Self {
             area: Self::default_area(id),
@@ -26,6 +31,7 @@ impl Modal {
     }
 
     /// Returns an area customized for a modal.
+    ///
     /// Makes these changes to the default area:
     /// - sense: hover
     /// - anchor: center
