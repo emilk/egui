@@ -5,7 +5,7 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use super::{
-    cursor::{CCursor, RCursor},
+    cursor::{CCursor, LayoutCursor},
     font::UvRect,
 };
 use crate::{Color32, FontId, Mesh, Stroke};
@@ -766,18 +766,18 @@ impl Galley {
     }
 
     /// Returns a 0-width Rect.
-    fn pos_from_rcursor(&self, rcursor: &RCursor) -> Rect {
-        let Some(row) = self.rows.get(rcursor.row) else {
+    fn pos_from_layout_cursor(&self, layout_cursor: &LayoutCursor) -> Rect {
+        let Some(row) = self.rows.get(layout_cursor.row) else {
             return self.end_pos();
         };
 
-        let x = row.x_offset(rcursor.column);
+        let x = row.x_offset(layout_cursor.column);
         Rect::from_min_max(pos2(x, row.min_y()), pos2(x, row.max_y()))
     }
 
     /// Returns a 0-width Rect.
-    pub fn pos_from_ccursor(&self, ccursor: CCursor) -> Rect {
-        self.pos_from_rcursor(&self.rcursor_from_ccursor(ccursor))
+    pub fn pos_from_cursor(&self, cursor: CCursor) -> Rect {
+        self.pos_from_layout_cursor(&self.layout_from_cursor(cursor))
     }
 
     /// Cursor at the given position within the galley.
@@ -853,24 +853,13 @@ impl Galley {
         }
         ccursor
     }
-
-    pub fn end_rcursor(&self) -> RCursor {
-        if let Some(last_row) = self.rows.last() {
-            RCursor {
-                row: self.rows.len() - 1,
-                column: last_row.char_count_including_newline(),
-            }
-        } else {
-            Default::default()
-        }
-    }
 }
 
 /// ## Cursor conversions
 impl Galley {
     // The returned cursor is clamped.
-    pub fn rcursor_from_ccursor(&self, ccursor: CCursor) -> RCursor {
-        let prefer_next_row = ccursor.prefer_next_row;
+    pub fn layout_from_cursor(&self, cursor: CCursor) -> LayoutCursor {
+        let prefer_next_row = cursor.prefer_next_row;
         let mut ccursor_it = CCursor {
             index: 0,
             prefer_next_row,
@@ -879,16 +868,15 @@ impl Galley {
         for (row_nr, row) in self.rows.iter().enumerate() {
             let row_char_count = row.char_count_excluding_newline();
 
-            if ccursor_it.index <= ccursor.index
-                && ccursor.index <= ccursor_it.index + row_char_count
+            if ccursor_it.index <= cursor.index && cursor.index <= ccursor_it.index + row_char_count
             {
-                let column = ccursor.index - ccursor_it.index;
+                let column = cursor.index - ccursor_it.index;
 
                 let select_next_row_instead = prefer_next_row
                     && !row.ends_with_newline
                     && column >= row.char_count_excluding_newline();
                 if !select_next_row_instead {
-                    return RCursor {
+                    return LayoutCursor {
                         row: row_nr,
                         column,
                     };
@@ -897,30 +885,40 @@ impl Galley {
             ccursor_it.index += row.char_count_including_newline();
         }
         debug_assert!(ccursor_it == self.end());
-        self.end_rcursor()
+
+        if let Some(last_row) = self.rows.last() {
+            LayoutCursor {
+                row: self.rows.len() - 1,
+                column: last_row.char_count_including_newline(),
+            }
+        } else {
+            Default::default()
+        }
     }
 
-    fn from_rcursor(&self, rcursor: RCursor) -> CCursor {
-        if rcursor.row >= self.rows.len() {
+    fn cursor_from_layout(&self, layout_cursor: LayoutCursor) -> CCursor {
+        if layout_cursor.row >= self.rows.len() {
             return self.end();
         }
 
         let prefer_next_row =
-            rcursor.column < self.rows[rcursor.row].char_count_excluding_newline();
-        let mut ccursor_it = CCursor {
+            layout_cursor.column < self.rows[layout_cursor.row].char_count_excluding_newline();
+        let mut cursor_it = CCursor {
             index: 0,
             prefer_next_row,
         };
 
         for (row_nr, row) in self.rows.iter().enumerate() {
-            if row_nr == rcursor.row {
-                ccursor_it.index += rcursor.column.at_most(row.char_count_excluding_newline());
+            if row_nr == layout_cursor.row {
+                cursor_it.index += layout_cursor
+                    .column
+                    .at_most(row.char_count_excluding_newline());
 
-                return ccursor_it;
+                return cursor_it;
             }
-            ccursor_it.index += row.char_count_including_newline();
+            cursor_it.index += row.char_count_including_newline();
         }
-        ccursor_it
+        cursor_it
     }
 }
 
@@ -950,27 +948,27 @@ impl Galley {
         cursor: &CCursor,
         h_pos: Option<f32>,
     ) -> (CCursor, Option<f32>) {
-        let rcursor = self.rcursor_from_ccursor(*cursor);
-        let h_pos = h_pos.unwrap_or_else(|| self.pos_from_rcursor(&rcursor).center().x);
-        if rcursor.row == 0 {
+        let layout_cursor = self.layout_from_cursor(*cursor);
+        let h_pos = h_pos.unwrap_or_else(|| self.pos_from_layout_cursor(&layout_cursor).center().x);
+        if layout_cursor.row == 0 {
             (CCursor::default(), None)
         } else {
-            let new_row = rcursor.row - 1;
+            let new_row = layout_cursor.row - 1;
 
-            let new_rcursor = {
+            let new_layout_cursor = {
                 // keep same X coord
                 let column = if h_pos > self.rows[new_row].rect.right() {
                     // beyond the end of this row - keep same column
-                    rcursor.column
+                    layout_cursor.column
                 } else {
                     self.rows[new_row].char_at(h_pos)
                 };
-                RCursor {
+                LayoutCursor {
                     row: new_row,
                     column,
                 }
             };
-            (self.from_rcursor(new_rcursor), Some(h_pos))
+            (self.cursor_from_layout(new_layout_cursor), Some(h_pos))
         }
     }
 
@@ -979,53 +977,53 @@ impl Galley {
         cursor: &CCursor,
         h_pos: Option<f32>,
     ) -> (CCursor, Option<f32>) {
-        let rcursor = self.rcursor_from_ccursor(*cursor);
-        let h_pos = h_pos.unwrap_or_else(|| self.pos_from_rcursor(&rcursor).center().x);
-        if rcursor.row + 1 < self.rows.len() {
-            let new_row = rcursor.row + 1;
+        let layout_cursor = self.layout_from_cursor(*cursor);
+        let h_pos = h_pos.unwrap_or_else(|| self.pos_from_layout_cursor(&layout_cursor).center().x);
+        if layout_cursor.row + 1 < self.rows.len() {
+            let new_row = layout_cursor.row + 1;
 
-            let new_rcursor = {
+            let new_layout_cursor = {
                 // keep same X coord
                 let column = if h_pos > self.rows[new_row].rect.right() {
                     // beyond the end of the next row - keep same column
-                    rcursor.column
+                    layout_cursor.column
                 } else {
                     self.rows[new_row].char_at(h_pos)
                 };
-                RCursor {
+                LayoutCursor {
                     row: new_row,
                     column,
                 }
             };
 
-            (self.from_rcursor(new_rcursor), Some(h_pos))
+            (self.cursor_from_layout(new_layout_cursor), Some(h_pos))
         } else {
             (self.end(), None)
         }
     }
 
     pub fn cursor_begin_of_row(&self, cursor: &CCursor) -> CCursor {
-        let rcursor = self.rcursor_from_ccursor(*cursor);
-        self.from_rcursor(RCursor {
-            row: rcursor.row,
+        let layout_cursor = self.layout_from_cursor(*cursor);
+        self.cursor_from_layout(LayoutCursor {
+            row: layout_cursor.row,
             column: 0,
         })
     }
 
     pub fn cursor_end_of_row(&self, cursor: &CCursor) -> CCursor {
-        let rcursor = self.rcursor_from_ccursor(*cursor);
-        self.from_rcursor(RCursor {
-            row: rcursor.row,
-            column: self.rows[rcursor.row].char_count_excluding_newline(),
+        let layout_cursor = self.layout_from_cursor(*cursor);
+        self.cursor_from_layout(LayoutCursor {
+            row: layout_cursor.row,
+            column: self.rows[layout_cursor.row].char_count_excluding_newline(),
         })
     }
 
     pub fn cursor_begin_of_paragraph(&self, cursor: &CCursor) -> CCursor {
-        let mut rcursor = self.rcursor_from_ccursor(*cursor);
-        rcursor.column = 0;
+        let mut layout_cursor = self.layout_from_cursor(*cursor);
+        layout_cursor.column = 0;
 
         loop {
-            let prev_row = rcursor
+            let prev_row = layout_cursor
                 .row
                 .checked_sub(1)
                 .and_then(|row| self.rows.get(row));
@@ -1039,24 +1037,24 @@ impl Galley {
                 break;
             }
 
-            rcursor.row -= 1;
+            layout_cursor.row -= 1;
         }
 
-        self.from_rcursor(rcursor)
+        self.cursor_from_layout(layout_cursor)
     }
 
     pub fn cursor_end_of_paragraph(&self, cursor: &CCursor) -> CCursor {
-        let mut rcursor = self.rcursor_from_ccursor(*cursor);
+        let mut layout_cursor = self.layout_from_cursor(*cursor);
         loop {
-            let row = &self.rows[rcursor.row];
-            if row.ends_with_newline || rcursor.row == self.rows.len() - 1 {
-                rcursor.column = row.char_count_excluding_newline();
+            let row = &self.rows[layout_cursor.row];
+            if row.ends_with_newline || layout_cursor.row == self.rows.len() - 1 {
+                layout_cursor.column = row.char_count_excluding_newline();
                 break;
             }
 
-            rcursor.row += 1;
+            layout_cursor.row += 1;
         }
 
-        self.from_rcursor(rcursor)
+        self.cursor_from_layout(layout_cursor)
     }
 }

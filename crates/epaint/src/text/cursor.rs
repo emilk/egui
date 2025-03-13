@@ -74,7 +74,7 @@ impl std::ops::SubAssign<usize> for CCursor {
 /// This refers to rows and columns in layout terms--text wrapping creates multiple rows.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct RCursor {
+pub struct LayoutCursor {
     /// 0 is first row, and so on.
     /// Note that a single paragraph can span multiple rows.
     /// (a paragraph is text separated by `\n`).

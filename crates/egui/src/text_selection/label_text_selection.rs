@@ -44,7 +44,7 @@ impl WidgetTextCursor {
 }
 
 fn pos_in_galley(galley: &Galley, ccursor: CCursor) -> Pos2 {
-    galley.pos_from_ccursor(ccursor).center()
+    galley.pos_from_cursor(ccursor).center()
 }
 
 impl std::fmt::Debug for WidgetTextCursor {

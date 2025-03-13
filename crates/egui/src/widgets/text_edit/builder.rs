@@ -660,7 +660,7 @@ impl TextEdit<'_> {
         // Visual clipping for singleline text editor with text larger than width
         if clip_text && align_offset == 0.0 {
             let cursor_pos = match (cursor_range, ui.memory(|mem| mem.has_focus(id))) {
-                (Some(cursor_range), true) => galley.pos_from_ccursor(cursor_range.primary).min.x,
+                (Some(cursor_range), true) => galley.pos_from_cursor(cursor_range.primary).min.x,
                 _ => 0.0,
             };
 
