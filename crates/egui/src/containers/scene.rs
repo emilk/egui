@@ -119,7 +119,9 @@ impl Scene {
 
         if !scene_rect_was_good {
             // Auto-reset if the transformation goes bad somehow (or started bad).
-            *scene_rect = inner_rect;
+            // Recalculates transform based on inner_rect, resulting in a rect that's the full size of outer_rect but centered on inner_rect.
+            let to_global = fit_to_rect_in_scene(outer_rect, inner_rect, self.zoom_range);
+            *scene_rect = to_global.inverse() * outer_rect;
         }
 
         ret
