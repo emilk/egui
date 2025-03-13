@@ -578,15 +578,7 @@ impl TextEdit<'_> {
         let painter = ui.painter_at(text_clip_rect.expand(1.0)); // expand to avoid clipping cursor
 
         if interactive {
-            if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
-                // Transform the pointer position from global coordinates to ui layer local coordinates.
-                // This is important if the TextEdit has a Scene parent.
-                let from_global = ui
-                    .ctx()
-                    .layer_transform_from_global(ui.layer_id())
-                    .unwrap_or_default();
-                let pointer_pos = from_global.mul_pos(pointer_pos);
-
+            if let Some(pointer_pos) = response.interact_pointer_pos() {
                 if response.hovered() && text.is_mutable() {
                     ui.output_mut(|o| o.mutable_text_under_cursor = true);
                 }
