@@ -927,6 +927,7 @@ impl PointerState {
             self.motion = Some(Vec2::ZERO);
         }
 
+        let mut clear_history_after_velocity_calculation = false;
         for event in &new.events {
             match event {
                 Event::PointerMoved(pos) => {
@@ -1013,7 +1014,10 @@ impl PointerState {
                     // When dragging a slider and the mouse leaves the viewport, we still want the drag to work,
                     // so we don't treat this as a `PointerEvent::Released`.
                     // NOTE: we do NOT clear `self.interact_pos` here. It will be cleared next frame.
-                    self.pos_history.clear();
+
+                    // Delay the clearing until after the final velocity calculation, so we can
+                    // get the final velocity when `drag_stopped` is true.
+                    clear_history_after_velocity_calculation = true;
                 }
                 Event::MouseMoved(delta) => *self.motion.get_or_insert(Vec2::ZERO) += *delta,
                 _ => {}
@@ -1043,6 +1047,9 @@ impl PointerState {
         };
         if self.velocity != Vec2::ZERO {
             self.last_move_time = time;
+        }
+        if clear_history_after_velocity_calculation {
+            self.pos_history.clear();
         }
 
         self.direction = self.pos_history.velocity().unwrap_or_default().normalized();
