@@ -2369,7 +2369,7 @@ checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 [[package]]
 name = "kittest"
 version = "0.1.0"
-source = "git+https://github.com/valadaptive/kittest?rev=9b2b8cd#9b2b8cdbc8442d4deed28ad038c72f4438bba5f2"
+source = "git+https://github.com/rerun-io/kittest#5803de399c0061d4cd5479929277066faa034331"
 dependencies = [
  "accesskit",
  "accesskit_consumer",
