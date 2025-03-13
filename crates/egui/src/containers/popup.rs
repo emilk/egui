@@ -272,11 +272,15 @@ impl<'a> Popup<'a> {
     /// In contrast to [`Self::menu`], this will open at the pointer position.
     pub fn context_menu(response: &Response) -> Self {
         Self::menu(response)
-            .open_memory(
-                response
-                    .secondary_clicked()
-                    .then_some(SetOpenCommand::Bool(true)),
-            )
+            .open_memory(if response.secondary_clicked() {
+                Some(SetOpenCommand::Bool(true))
+            } else if response.clicked() {
+                // Explicitly close the menu if the widget was clicked
+                // Without this, the context menu would stay open if the user clicks the widget
+                Some(SetOpenCommand::Bool(false))
+            } else {
+                None
+            })
             .at_pointer_fixed()
     }
 
