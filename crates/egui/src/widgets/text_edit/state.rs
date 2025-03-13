@@ -3,8 +3,8 @@ use std::sync::Arc;
 use crate::mutex::Mutex;
 
 use crate::{
-    text_selection::{CCursorRange, CursorRange, TextCursorState},
-    Context, Galley, Id,
+    text_selection::{CCursorRange, TextCursorState},
+    Context, Id,
 };
 
 pub type TextEditUndoer = crate::util::undoer::Undoer<(CCursorRange, String)>;
@@ -47,7 +47,7 @@ pub struct TextEditState {
 
     // cursor range for IME candidate.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) ime_cursor_range: CursorRange,
+    pub(crate) ime_cursor_range: CCursorRange,
 
     // Visual offset when editing singleline text bigger than the width.
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -68,23 +68,6 @@ impl TextEditState {
         ctx.data_mut(|d| d.insert_persisted(id, self));
     }
 
-    /// The currently selected range of characters.
-    #[deprecated = "Use `self.cursor.char_range` instead"]
-    pub fn ccursor_range(&self) -> Option<CCursorRange> {
-        self.cursor.char_range()
-    }
-
-    /// Sets the currently selected range of characters.
-    #[deprecated = "Use `self.cursor.set_char_range` instead"]
-    pub fn set_ccursor_range(&mut self, ccursor_range: Option<CCursorRange>) {
-        self.cursor.set_char_range(ccursor_range);
-    }
-
-    #[deprecated = "Use `self.cursor.set_range` instead"]
-    pub fn set_cursor_range(&mut self, cursor_range: Option<CursorRange>) {
-        self.cursor.set_range(cursor_range);
-    }
-
     pub fn undoer(&self) -> TextEditUndoer {
         self.undoer.lock().clone()
     }
@@ -96,10 +79,5 @@ impl TextEditState {
 
     pub fn clear_undoer(&mut self) {
         self.set_undoer(TextEditUndoer::default());
-    }
-
-    #[deprecated = "Use `self.cursor.range` instead"]
-    pub fn cursor_range(&self, galley: &Galley) -> Option<CursorRange> {
-        self.cursor.range(galley)
     }
 }

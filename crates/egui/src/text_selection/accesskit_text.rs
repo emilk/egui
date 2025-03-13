@@ -2,13 +2,13 @@ use emath::TSTransform;
 
 use crate::{Context, Galley, Id};
 
-use super::{text_cursor_state::is_word_char, CursorRange};
+use super::{text_cursor_state::is_word_char, CCursorRange};
 
 /// Update accesskit with the current text state.
 pub fn update_accesskit_for_text_widget(
     ctx: &Context,
     widget_id: Id,
-    cursor_range: Option<CursorRange>,
+    cursor_range: Option<CCursorRange>,
     role: accesskit::Role,
     global_from_galley: TSTransform,
     galley: &Galley,
@@ -17,8 +17,8 @@ pub fn update_accesskit_for_text_widget(
         let parent_id = widget_id;
 
         if let Some(cursor_range) = &cursor_range {
-            let anchor = &cursor_range.secondary.rcursor;
-            let focus = &cursor_range.primary.rcursor;
+            let anchor = galley.layout_from_cursor(cursor_range.secondary);
+            let focus = galley.layout_from_cursor(cursor_range.primary);
             builder.set_text_selection(accesskit::TextSelection {
                 anchor: accesskit::TextPosition {
                     node: parent_id.with(anchor.row).accesskit_id(),
