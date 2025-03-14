@@ -89,7 +89,7 @@ nohash-hasher.workspace = true
 profiling.workspace = true
 
 #! ### Optional dependencies
-accesskit = { version = "0.17.0", optional = true }
+accesskit = { workspace = true, optional = true }
 
 backtrace = { workspace = true, optional = true }
 
