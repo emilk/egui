@@ -556,7 +556,9 @@ impl<'a> Popup<'a> {
             .info(info.unwrap_or_else(|| {
                 UiStackInfo::new(kind.into()).with_tag_value(
                     MenuConfig::MENU_CONFIG_TAG,
-                    MenuConfig::new().close_behavior(close_behavior),
+                    MenuConfig::new()
+                        .close_behavior(close_behavior)
+                        .style(style.clone()),
                 )
             }));
 
