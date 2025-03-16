@@ -80,11 +80,8 @@ impl ImageLoader for ImageCrateLoader {
             cache: &Arc<Mutex<HashMap<String, Entry>>>,
             bytes: Bytes,
         ) -> ImageLoadResult {
-            let mut cache_lock = cache.lock();
-
             let uri = uri.to_owned();
-            cache_lock.insert(uri.clone(), Poll::Pending);
-            drop(cache_lock);
+            cache.lock().insert(uri.clone(), Poll::Pending);
 
             // Do the image parsing on a bg thread
             thread::Builder::new()
