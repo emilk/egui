@@ -1,6 +1,5 @@
 use crate::{
-    widgets, Align, Color32, CornerRadius, Image, NumExt, Rect, Response, Sense, Stroke, TextStyle,
-    TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
+    widgets, Align, Color32, CornerRadius, FontSelection, Image, NumExt, Rect, Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetType
 };
 
 /// Clickable button with text.
@@ -224,6 +223,10 @@ impl Widget for Button<'_> {
 
         let frame = frame.unwrap_or_else(|| ui.visuals().button_frame);
 
+        let font_selection = FontSelection::default();
+        let font_id = font_selection.resolve(ui.style());
+        let row_height = ui.fonts(|f| f.row_height(&font_id));
+
         let mut button_padding = if frame {
             ui.spacing().button_padding
         } else {
@@ -283,11 +286,11 @@ impl Widget for Button<'_> {
         }
         if let Some(galley) = &galley {
             desired_size.x += galley.size().x;
-            desired_size.y = desired_size.y.max(galley.size().y);
+            desired_size.y = desired_size.y.max(galley.size().y).max(row_height);
         }
         if let Some(right_galley) = &right_galley {
             desired_size.x += gap_before_right_text + right_galley.size().x;
-            desired_size.y = desired_size.y.max(right_galley.size().y);
+            desired_size.y = desired_size.y.max(right_galley.size().y).max(row_height);
         }
         desired_size += 2.0 * button_padding;
         if !small {
