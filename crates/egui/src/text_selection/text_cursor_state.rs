@@ -328,6 +328,19 @@ pub fn byte_index_from_char_index(s: &str, char_index: usize) -> usize {
     s.len()
 }
 
+pub fn char_index_from_byte_index(input: &str, byte_index: usize) -> usize {
+    for (ci, (bi, _)) in input.char_indices().enumerate() {
+        if bi == byte_index {
+            return ci;
+        }
+    }
+
+    input
+        .char_indices()
+        .last()
+        .map_or(0, |(i, c)| i + c.len_utf8())
+}
+
 pub fn slice_char_range(s: &str, char_range: std::ops::Range<usize>) -> &str {
     assert!(char_range.start <= char_range.end);
     let start_byte = byte_index_from_char_index(s, char_range.start);
