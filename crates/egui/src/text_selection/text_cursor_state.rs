@@ -4,8 +4,9 @@ use epaint::text::{
     cursor::{CCursor, Cursor},
     Galley,
 };
+use unicode_segmentation::UnicodeSegmentation;
 
-use crate::{epaint, NumExt, Rect, Response, Ui};
+use crate::{epaint, NumExt, Rect, Response, TextBuffer, Ui};
 
 use super::{CCursorRange, CursorRange};
 
@@ -224,7 +225,7 @@ fn select_line_at(text: &str, ccursor: CCursor) -> CCursorRange {
 
 pub fn ccursor_next_word(text: &str, ccursor: CCursor) -> CCursor {
     CCursor {
-        index: next_word_boundary_char_index(text.chars(), ccursor.index),
+        index: next_word_boundary_char_index(text, ccursor.index),
         prefer_next_row: false,
     }
 }
@@ -238,9 +239,10 @@ fn ccursor_next_line(text: &str, ccursor: CCursor) -> CCursor {
 
 pub fn ccursor_previous_word(text: &str, ccursor: CCursor) -> CCursor {
     let num_chars = text.chars().count();
+    let reversed: String = text.graphemes(true).rev().collect();
     CCursor {
         index: num_chars
-            - next_word_boundary_char_index(text.chars().rev(), num_chars - ccursor.index),
+            - next_word_boundary_char_index(&reversed, num_chars - ccursor.index).min(num_chars),
         prefer_next_row: true,
     }
 }
@@ -254,22 +256,28 @@ fn ccursor_previous_line(text: &str, ccursor: CCursor) -> CCursor {
     }
 }
 
-fn next_word_boundary_char_index(it: impl Iterator<Item = char>, mut index: usize) -> usize {
-    let mut it = it.skip(index);
-    if let Some(_first) = it.next() {
-        index += 1;
+fn next_word_boundary_char_index(text: &str, index: usize) -> usize {
+    let start_byte_index = text.byte_index_from_char_index(index);
+    let words = text.split_word_bound_indices().collect::<Vec<_>>();
 
-        if let Some(second) = it.next() {
-            index += 1;
-            for next in it {
-                if is_word_char(next) != is_word_char(second) {
-                    break;
-                }
-                index += 1;
-            }
+    for i in 0..words.len() {
+        let bi = words[i].0;
+        // Splitting considers contiguous whitespace as one word, such words must be skipped
+        // such that the cursor jumps right after the next word (this is consistent with text
+        // editors or browsers), the naive approach would jump after the whitespace following
+        // the next word.
+        if bi > start_byte_index && i > 0 && skip_word(words[i - 1].1) {
+            return char_index_from_byte_index(text, bi);
         }
     }
-    index
+
+    char_index_from_byte_index(text, text.len())
+}
+
+fn skip_word(text: &str) -> bool {
+    // skip words that contain anything other than alphanumeric characters and underscore
+    // (i.e. whitespace, dashes, etc.)
+    !text.chars().any(|c| !(c.is_alphanumeric() || c == '_'))
 }
 
 fn next_line_boundary_char_index(it: impl Iterator<Item = char>, mut index: usize) -> usize {
