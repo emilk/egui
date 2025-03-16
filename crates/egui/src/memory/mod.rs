@@ -1122,7 +1122,7 @@ impl Memory {
 
     /// Popups must call this every frame while open.
     ///
-    /// This is needed because in some cases popups can go away without close_popup being called, for example, when a
+    /// This is needed because in some cases popups can go away without `close_popup` being called, for example, when a
     /// context menu is open and the underlying widget stops being rendered
     pub fn keep_popup_open(&mut self, popup_id: Id) {
         if let Some(state) = self.popup.as_mut() {
