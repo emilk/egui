@@ -525,7 +525,11 @@ impl<'a> Popup<'a> {
                 Some(SetOpenCommand::Toggle) => {
                     mem.toggle_popup(id);
                 }
-                None => {}
+                None => {
+                    if mem.is_popup_open(id) {
+                        mem.keep_popup_open(id);
+                    }
+                }
             });
         }
 
