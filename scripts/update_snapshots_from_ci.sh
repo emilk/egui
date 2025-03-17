@@ -3,9 +3,11 @@
 # and replaces your existing snapshots with the new ones.
 # Make sure you have the gh cli installed and authenticated before running this script.
 
+set -eu
+
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
-RUN_ID=$(gh run list --json databaseId --branch "$BRANCH" -q '.[0].databaseId')
+RUN_ID=$(gh run list --branch "$BRANCH" --workflow "Rust" --json databaseId -q '.[0].databaseId')
 
 ECHO "Downloading test results from run $RUN_ID from branch $BRANCH"
 
