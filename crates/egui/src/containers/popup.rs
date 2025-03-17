@@ -519,7 +519,7 @@ impl<'a> Popup<'a> {
                             _ => mem.open_popup(id),
                         }
                     } else {
-                        mem.close_popup();
+                        mem.close_popup(id);
                     }
                 }
                 Some(SetOpenCommand::Toggle) => {
@@ -599,7 +599,7 @@ impl<'a> Popup<'a> {
             }
             OpenKind::Memory { .. } => {
                 if should_close {
-                    ctx.memory_mut(|mem| mem.close_popup());
+                    ctx.memory_mut(|mem| mem.close_popup(id));
                 }
             }
         }

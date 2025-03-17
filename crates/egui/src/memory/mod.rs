@@ -94,7 +94,7 @@ pub struct Memory {
     /// If position is [`None`], the popup position will be calculated based on some configuration
     /// (e.g. relative to some other widget).
     #[cfg_attr(feature = "persistence", serde(skip))]
-    popup: Option<(Id, Option<Pos2>)>,
+    popup: Vec<(Id, Option<Pos2>)>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     everything_is_visible: bool,
@@ -1070,37 +1070,42 @@ impl Memory {
 
 /// ## Popups
 /// Popups are things like combo-boxes, color pickers, menus etc.
-/// Only one can be open at a time.
 impl Memory {
     /// Is the given popup open?
     pub fn is_popup_open(&self, popup_id: Id) -> bool {
-        self.popup.is_some_and(|(id, _)| id == popup_id) || self.everything_is_visible()
+        self.popup.iter().any(|(id, _)| id == &popup_id) || self.everything_is_visible()
     }
 
     /// Is any popup open?
     pub fn any_popup_open(&self) -> bool {
-        self.popup.is_some() || self.everything_is_visible()
+        !self.popup.is_empty() || self.everything_is_visible()
     }
 
-    /// Open the given popup and close all others.
+    /// Open the given popup.
     pub fn open_popup(&mut self, popup_id: Id) {
-        self.popup = Some((popup_id, None));
+        self.popup.push((popup_id, None));
     }
 
     /// Open the popup and remember its position.
     pub fn open_popup_at(&mut self, popup_id: Id, pos: impl Into<Option<Pos2>>) {
-        self.popup = Some((popup_id, pos.into()));
+        self.popup.push((popup_id, pos.into()));
     }
 
     /// Get the position for this popup.
     pub fn popup_position(&self, id: Id) -> Option<Pos2> {
         self.popup
-            .and_then(|(popup_id, pos)| if popup_id == id { pos } else { None })
+            .iter()
+            .find_map(|(popup_id, pos)| if *popup_id == id { *pos } else { None })
     }
 
-    /// Close the open popup, if any.
-    pub fn close_popup(&mut self) {
-        self.popup = None;
+    /// Close the popup with the given id.
+    pub fn close_popup(&mut self, id: Id) {
+        self.popup.retain(|(popup_id, _)| *popup_id != id);
+    }
+
+    /// Close all popups.
+    pub fn close_all_popups(&mut self) {
+        self.popup.clear();
     }
 
     /// Toggle the given popup between closed and open.
@@ -1108,7 +1113,7 @@ impl Memory {
     /// Note: At most, only one popup can be open at a time.
     pub fn toggle_popup(&mut self, popup_id: Id) {
         if self.is_popup_open(popup_id) {
-            self.close_popup();
+            self.close_popup(popup_id);
         } else {
             self.open_popup(popup_id);
         }
