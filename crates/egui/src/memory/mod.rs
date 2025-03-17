@@ -1116,14 +1116,17 @@ impl Memory {
     }
 
     /// Open the given popup and close all others.
+    ///
+    /// Note that you must call `keep_popup_open` on subsequent frames as long as the popup is open.
     pub fn open_popup(&mut self, popup_id: Id) {
         self.popup = Some(OpenPopup::new(popup_id, None));
     }
 
     /// Popups must call this every frame while open.
     ///
-    /// This is needed because in some cases popups can go away without `close_popup` being called, for example, when a
-    /// context menu is open and the underlying widget stops being rendered
+    /// This is needed because in some cases popups can go away without `close_popup` being
+    /// called. For example, when a context menu is open and the underlying widget stops
+    /// being rendered.
     pub fn keep_popup_open(&mut self, popup_id: Id) {
         if let Some(state) = self.popup.as_mut() {
             if state.id == popup_id {

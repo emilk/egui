@@ -526,9 +526,7 @@ impl<'a> Popup<'a> {
                     mem.toggle_popup(id);
                 }
                 None => {
-                    if mem.is_popup_open(id) {
-                        mem.keep_popup_open(id);
-                    }
+                    mem.keep_popup_open(id);
                 }
             });
         }
