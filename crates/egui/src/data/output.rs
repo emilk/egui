@@ -96,7 +96,7 @@ pub enum OutputCommand {
     /// Open this url in a browser.
     OpenUrl(OpenUrl),
 
-    /// Set the mouse cursor position if the platform supports it.
+    /// Set the mouse cursor position (if the platform supports it).
     SetPointerPosition(emath::Pos2),
 }
 

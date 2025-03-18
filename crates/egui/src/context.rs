@@ -1482,7 +1482,7 @@ impl Context {
         self.send_cmd(crate::OutputCommand::CopyImage(image));
     }
 
-    /// Sets the pointer position if the platform supports it.
+    /// Set the mouse cursor position (if the platform supports it).
     pub fn set_pointer_position(&self, position: Pos2) {
         self.send_cmd(crate::OutputCommand::SetPointerPosition(position));
     }
