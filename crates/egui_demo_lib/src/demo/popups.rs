@@ -73,7 +73,7 @@ impl PopupsDemo {
                 ui.checkbox(&mut self.checked, "Checkbox");
 
                 // Customized color SubMenuButton
-                let is_bright = self.color.intensity() > 128.0;
+                let is_bright = self.color.intensity() > 0.5;
                 let text_color = if is_bright {
                     egui::Color32::BLACK
                 } else {
