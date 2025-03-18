@@ -957,12 +957,7 @@ impl Galley {
 
             let new_layout_cursor = {
                 // keep same X coord
-                let column = if h_pos > self.rows[new_row].rect.right() {
-                    // beyond the end of this row - keep same column
-                    layout_cursor.column
-                } else {
-                    self.rows[new_row].char_at(h_pos)
-                };
+                let column = self.rows[new_row].char_at(h_pos);
                 LayoutCursor {
                     row: new_row,
                     column,
@@ -984,12 +979,7 @@ impl Galley {
 
             let new_layout_cursor = {
                 // keep same X coord
-                let column = if h_pos > self.rows[new_row].rect.right() {
-                    // beyond the end of the next row - keep same column
-                    layout_cursor.column
-                } else {
-                    self.rows[new_row].char_at(h_pos)
-                };
+                let column = self.rows[new_row].char_at(h_pos);
                 LayoutCursor {
                     row: new_row,
                     column,
