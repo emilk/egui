@@ -336,7 +336,7 @@ impl AppRunner {
                 egui::OutputCommand::OpenUrl(open_url) => {
                     super::open_url(&open_url.url, open_url.new_tab);
                 }
-                egui::OutputCommand::SetCursorPosition(_) => {
+                egui::OutputCommand::SetPointerPosition(_) => {
                     // Not supported on the web.
                 }
             }
