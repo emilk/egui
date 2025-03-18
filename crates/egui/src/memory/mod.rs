@@ -1098,7 +1098,7 @@ impl Memory {
             .and_then(|(popup_id, pos)| if popup_id == id { pos } else { None })
     }
 
-    /// Close any currently open popup
+    /// Close any currently open popup.
     pub fn close_all_popups(&mut self) {
         self.popup = None;
     }
