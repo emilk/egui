@@ -84,7 +84,7 @@ pub enum PopupCloseBehavior {
     /// but in the popup's body
     CloseOnClickOutside,
 
-    /// Clicks will be ignored. Popup might be closed manually by calling [`crate::Memory::close_popup`]
+    /// Clicks will be ignored. Popup might be closed manually by calling [`crate::Memory::close_all_popups`]
     /// or by pressing the escape button
     IgnoreClicks,
 }
@@ -519,7 +519,7 @@ impl<'a> Popup<'a> {
                             _ => mem.open_popup(id),
                         }
                     } else {
-                        mem.close_popup_with_id(id);
+                        mem.close_popup(id);
                     }
                 }
                 Some(SetOpenCommand::Toggle) => {
@@ -599,7 +599,7 @@ impl<'a> Popup<'a> {
             }
             OpenKind::Memory { .. } => {
                 if should_close {
-                    ctx.memory_mut(|mem| mem.close_popup_with_id(id));
+                    ctx.memory_mut(|mem| mem.close_popup(id));
                 }
             }
         }

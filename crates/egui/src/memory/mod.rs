@@ -1098,15 +1098,17 @@ impl Memory {
             .and_then(|(popup_id, pos)| if popup_id == id { pos } else { None })
     }
 
-    /// Close the open popup, if any.
-    pub fn close_popup(&mut self) {
+    /// Close any currently open popup
+    pub fn close_all_popups(&mut self) {
         self.popup = None;
     }
 
     /// Close the given popup, if it is open.
-    pub fn close_popup_with_id(&mut self, popup_id: Id) {
+    ///
+    /// See also [`Self::close_all_popups`] if you want to close any / all currently open popups.
+    pub fn close_popup(&mut self, popup_id: Id) {
         if self.is_popup_open(popup_id) {
-            self.close_popup();
+            self.popup = None;
         }
     }
 
@@ -1115,7 +1117,7 @@ impl Memory {
     /// Note: At most, only one popup can be open at a time.
     pub fn toggle_popup(&mut self, popup_id: Id) {
         if self.is_popup_open(popup_id) {
-            self.close_popup_with_id(popup_id);
+            self.close_popup(popup_id);
         } else {
             self.open_popup(popup_id);
         }
