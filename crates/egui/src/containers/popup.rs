@@ -8,6 +8,7 @@ use emath::{vec2, Align, Pos2, Rect, RectAlign, Vec2};
 use std::iter::once;
 
 /// What should we anchor the popup to?
+///
 /// The final position for the popup will be calculated based on [`RectAlign`]
 /// and can be customized with [`Popup::align`] and [`Popup::align_alternatives`].
 /// [`PopupAnchor`] is the parent rect of [`RectAlign`].
