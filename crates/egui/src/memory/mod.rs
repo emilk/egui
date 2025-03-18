@@ -1103,12 +1103,19 @@ impl Memory {
         self.popup = None;
     }
 
+    /// Close the given popup, if it is open.
+    pub fn close_popup_with_id(&mut self, popup_id: Id) {
+        if self.is_popup_open(popup_id) {
+            self.close_popup();
+        }
+    }
+
     /// Toggle the given popup between closed and open.
     ///
     /// Note: At most, only one popup can be open at a time.
     pub fn toggle_popup(&mut self, popup_id: Id) {
         if self.is_popup_open(popup_id) {
-            self.close_popup();
+            self.close_popup_with_id(popup_id);
         } else {
             self.open_popup(popup_id);
         }
