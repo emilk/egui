@@ -89,12 +89,13 @@ fn main() -> eframe::Result {
             MenuButton::new("Menu")
                 .config(MenuConfig::new().close_behavior(PopupCloseBehavior::CloseOnClickOutside))
                 .ui(ui, |ui| {
-                    // ui.set_max_width(180.0);
+                    ui.set_max_width(180.0);
                     if ui.button("Close menu").clicked() {
                         ui.close_menu();
                     }
                     ui.collapsing("Collapsing", |ui| {
                         egui::ScrollArea::both().show(ui, |ui| {
+                            // ui.set_width(ui.available_width());
                             for _ in 0..10 {
                                 ui.label(
                                     "This is a long text label containing \

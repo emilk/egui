@@ -200,7 +200,15 @@ impl Placer {
     }
 
     pub(crate) fn intrinsic_size(&self) -> Vec2 {
-        self.region.intrinsic_size
+        //self.region.intrinsic_size.min(self.max_rect().size())
+        let mut intrinsic = self.region.intrinsic_size;
+        if let Some(max_x) = self.region.max_intrinsic_width {
+            intrinsic.x = intrinsic.x.min(max_x);
+        }
+        if let Some(max_y) = self.region.max_intrinsic_height {
+            intrinsic.y = intrinsic.y.min(max_y);
+        }
+        intrinsic
     }
 
     /// Move to the next row in a grid layout or wrapping layout.
@@ -253,6 +261,8 @@ impl Placer {
         region.cursor.max.x = region.max_rect.max.x;
 
         region.sanity_check();
+
+        region.max_intrinsic_width = Some(width);
     }
 
     /// Set the maximum height of the ui.
@@ -268,6 +278,8 @@ impl Placer {
         region.cursor.max.y = region.max_rect.max.y;
 
         region.sanity_check();
+
+        region.max_intrinsic_height = Some(height);
     }
 
     /// Set the minimum width of the ui.
