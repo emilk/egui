@@ -16,6 +16,7 @@ use crate::{fast_round, linear_f32_from_linear_u8, Rgba};
 pub struct Color32(pub(crate) [u8; 4]);
 
 impl std::fmt::Debug for Color32 {
+    /// Prints the contents with premultiplied alpha!
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let [r, g, b, a] = self.0;
         write!(f, "#{r:02X}_{g:02X}_{b:02X}_{a:02X}")
@@ -212,9 +213,23 @@ impl Color32 {
         (self.r(), self.g(), self.b(), self.a())
     }
 
+    /// Convert to a normal "unmultiplied" RGBA color (i.e. with separate alpha).
+    ///
+    /// This will unmultiply the alpha.
     #[inline]
     pub fn to_srgba_unmultiplied(&self) -> [u8; 4] {
-        Rgba::from(*self).to_srgba_unmultiplied()
+        let [r, g, b, a] = self.to_array();
+        match a {
+            // Common-case optimization.
+            0 | 255 => self.to_array(),
+            a => {
+                let factor = 255.0 / a as f32;
+                let r = fast_round(factor * r as f32);
+                let g = fast_round(factor * g as f32);
+                let b = fast_round(factor * b as f32);
+                [r, g, b, a]
+            }
+        }
     }
 
     /// Multiply with 0.5 to make color half as opaque, perceptually.
@@ -375,6 +390,34 @@ mod test {
             let dest = dest as f32 / 255.0;
             let alpha = alpha as f32 / 255.0;
             fast_round((src * alpha + dest * (1.0 - alpha)) * 255.0)
+        }
+    }
+
+    #[test]
+    fn color32_unmultiplied_routrip() {
+        for in_rgba in [
+            [10, 0, 30, 40],
+            [10, 100, 200, 100],
+            [10, 100, 200, 200],
+            [10, 100, 200, 255],
+            [10, 100, 200, 40],
+            [10, 20, 0, 255],
+            [10, 20, 30, 255],
+            [10, 20, 30, 40],
+        ] {
+            let [r, g, b, a] = in_rgba;
+            let c = Color32::from_rgba_unmultiplied(r, g, b, a);
+            let out_rgba = c.to_srgba_unmultiplied();
+
+            if a == 255 {
+                assert_eq!(in_rgba, out_rgba);
+            } else {
+                // There will be small rounding errors whenever the alpha is not 0 or 255,
+                // because we multiply and then unmultiply the alpha.
+                for (&a, &b) in in_rgba.iter().zip(out_rgba.iter()) {
+                    assert!(a.abs_diff(b) <= 3, "{in_rgba:?} != {out_rgba:?}");
+                }
+            }
         }
     }
 }
