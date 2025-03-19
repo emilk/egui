@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use crate::{pos2, vec2, Galley, Painter, Rect, Ui, Visuals};
+use epaint::text::cursor::Selection;
 
-use super::CCursorRange;
+use crate::{pos2, vec2, Galley, Painter, Rect, Ui, Visuals};
 
 #[derive(Clone, Debug)]
 pub struct RowVertexIndices {
@@ -14,10 +14,10 @@ pub struct RowVertexIndices {
 pub fn paint_text_selection(
     galley: &mut Arc<Galley>,
     visuals: &Visuals,
-    cursor_range: &CCursorRange,
+    selection: &Selection,
     mut new_vertex_indices: Option<&mut Vec<RowVertexIndices>>,
 ) {
-    if cursor_range.is_empty() {
+    if selection.is_empty() {
         return;
     }
 
@@ -25,8 +25,11 @@ pub fn paint_text_selection(
     // and so we need to clone it if it is shared:
     let galley: &mut Galley = Arc::make_mut(galley);
 
-    let color = visuals.selection.bg_fill;
-    let [min, max] = cursor_range.sorted_cursors();
+    // TODO(valadaptive): implement selection stroke? the old code never did
+    galley.paint_selection(visuals.selection.bg_fill, Some(selection));
+
+    /*let color = visuals.selection.bg_fill;
+    let [min, max] = selection.sorted_cursors();
     let min = galley.layout_from_cursor(min);
     let max = galley.layout_from_cursor(max);
 
@@ -91,7 +94,7 @@ pub fn paint_text_selection(
                 vertex_indices: selection_triangles,
             });
         }
-    }
+    }*/
 }
 
 /// Paint one end of the selection, e.g. the primary cursor.
