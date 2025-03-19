@@ -206,7 +206,7 @@ pub fn layout(fonts: &mut FontsImpl, job: LayoutJob) -> Galley {
                     // TODO(valadaptive): use this to implement faux italics (and faux bold?)
                     // run.run.synthesis()
 
-                    for (mut glyph, uv_rect, (x, y)) in fonts.glyph_atlas.render_glyph_run(
+                    for (mut glyph, uv_rect, (x, y), color) in fonts.glyph_atlas.render_glyph_run(
                         &run,
                         (horiz_offset, vertical_offset),
                         fonts.pixels_per_point(),
@@ -226,8 +226,6 @@ pub fn layout(fonts: &mut FontsImpl, job: LayoutJob) -> Galley {
                             pos2(uv_rect.min[0] as f32, uv_rect.min[1] as f32),
                             pos2(uv_rect.max[0] as f32, uv_rect.max[1] as f32),
                         );
-
-                        let color = run.style().brush;
 
                         //mesh.add_colored_rect(rect, Color32::DEBUG_COLOR.gamma_multiply(0.3));
                         mesh.add_rect_with_uv(

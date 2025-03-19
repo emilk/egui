@@ -271,7 +271,7 @@ pub enum TextureWrapMode {
 /// What has been allocated and freed during the last period.
 ///
 /// These are commands given to the integration painter.
-#[derive(Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[must_use = "The painter must take care of this"]
 pub struct TexturesDelta {

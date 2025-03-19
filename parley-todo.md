@@ -33,7 +33,8 @@
       - [ ] Probably needs support in the backends for mask-only textures (gl.ALPHA and whatever the wgpu equivalent is)
       - [ ] Have separate atlases for color emoji and glyphs/discs
     - [ ] If we aren't recreating the atlas from scratch, we eventually need to "garbage collect" unused glyphs
-  - [ ] Colored emoji
+  - [x] Colored emoji
+    - [ ] Alpha is a bit messed up, probably due to sRGB not un-multiplying and re-multiplying the alpha
 - [ ] Text selection and editing
   - [x] Unify the three different cursor types and move to a Parley-like API before moving to the actual Parley API (done)
   - [ ] Rewrite selection code to use parley's API
@@ -79,5 +80,4 @@
 - [ ] Perf optimizations!
   - [ ] Stop using TreeBuilder so we don't have to allocate a bunch of strings
   - [ ] https://github.com/emilk/egui/issues/1098
-  - [ ] Enable shape_run_cache
-  - [ ] Cache `Galley`s across frames
+  - [ ] Cache `Galley`s across frames (oops, this is already done)

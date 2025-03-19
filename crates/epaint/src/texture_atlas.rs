@@ -1,6 +1,7 @@
+use ecolor::Color32;
 use emath::{remap_clamp, Rect};
 
-use crate::{FontImage, ImageDelta};
+use crate::{ColorImage, ImageDelta};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct Rectu {
@@ -57,7 +58,7 @@ pub struct PreparedDisc {
 /// More characters can be added, possibly expanding the texture.
 #[derive(Clone)]
 pub struct TextureAtlas {
-    image: FontImage,
+    image: ColorImage,
 
     /// What part of the image that is dirty
     dirty: Rectu,
@@ -72,18 +73,22 @@ pub struct TextureAtlas {
 
     /// pre-rasterized discs of radii `2^i`, where `i` is the index.
     discs: Vec<PrerasterizedDisc>,
+
+    /// Gamma to use when converting coverage to alpha for glyphs and other shapes.
+    pub gamma: Option<f32>,
 }
 
 impl TextureAtlas {
     pub fn new(size: [usize; 2]) -> Self {
         assert!(size[0] >= 1024, "Tiny texture atlas");
         let mut atlas = Self {
-            image: FontImage::new(size),
+            image: ColorImage::filled(size, Color32::TRANSPARENT),
             dirty: Rectu::EVERYTHING,
             cursor: (0, 0),
             row_height: 0,
             overflowed: false,
             discs: vec![], // will be filled in below
+            gamma: None,
         };
 
         // Make the top left pixel fully white for `WHITE_UV`, i.e. painting something with solid color:
@@ -93,7 +98,7 @@ impl TextureAtlas {
             (0, 0),
             "Expected the first allocation to be at (0, 0), but was at {pos:?}"
         );
-        image[pos] = 1.0;
+        image[pos] = Color32::WHITE;
 
         // Allocate a series of anti-aliased discs used to render small filled circles:
         // TODO(emilk): these circles can be packed A LOT better.
@@ -109,6 +114,7 @@ impl TextureAtlas {
             }
             let hw = (r + 0.5).ceil() as i32;
             let w = (2 * hw + 1) as usize;
+            let gamma = atlas.gamma;
             let ((x, y), image) = atlas.allocate((w, w));
             for dx in -hw..=hw {
                 for dy in -hw..=hw {
@@ -116,7 +122,7 @@ impl TextureAtlas {
                     let coverage =
                         remap_clamp(distance_to_center, (r - 0.5)..=(r + 0.5), 1.0..=0.0);
                     image[((x as i32 + hw + dx) as usize, (y as i32 + hw + dy) as usize)] =
-                        coverage;
+                        Self::coverage_to_color(gamma, coverage);
                 }
             }
             atlas.discs.push(PrerasterizedDisc {
@@ -131,6 +137,22 @@ impl TextureAtlas {
         }
 
         atlas
+    }
+
+    #[inline]
+    pub fn coverage_to_color(gamma: Option<f32>, coverage: f32) -> Color32 {
+        let alpha = if let Some(gamma) = gamma {
+            coverage.powf(gamma)
+        } else {
+            // alpha = coverage * coverage; // recommended by the article for WHITE text (using linear blending)
+
+            // The following is recommended by the article for BLACK text (using linear blending).
+            // Very similar to a gamma of 0.5, but produces sharper text.
+            // In practice it works well for all text colors (better than a gamma of 0.5, for instance).
+            // See https://www.desmos.com/calculator/w0ndf5blmn for a visual comparison.
+            2.0 * coverage - coverage * coverage
+        };
+        Color32::from_white_alpha(ecolor::linear_u8_from_linear_f32(alpha))
     }
 
     pub fn size(&self) -> [usize; 2] {
@@ -184,7 +206,7 @@ impl TextureAtlas {
 
     /// The full font atlas image.
     #[inline]
-    pub fn image(&self) -> &FontImage {
+    pub fn image(&self) -> &ColorImage {
         &self.image
     }
 
@@ -200,14 +222,14 @@ impl TextureAtlas {
         } else {
             let pos = [dirty.min_x, dirty.min_y];
             let size = [dirty.max_x - dirty.min_x, dirty.max_y - dirty.min_y];
-            let region = self.image.region(pos, size);
+            let region = self.image.region_by_pixels(pos, size);
             Some(ImageDelta::partial(pos, region, texture_options))
         }
     }
 
     /// Returns the coordinates of where the rect ended up,
     /// and invalidates the region.
-    pub fn allocate(&mut self, (w, h): (usize, usize)) -> ((usize, usize), &mut FontImage) {
+    pub fn allocate(&mut self, (w, h): (usize, usize)) -> ((usize, usize), &mut ColorImage) {
         /// On some low-precision GPUs (my old iPad) characters get muddled up
         /// if we don't add some empty pixels between the characters.
         /// On modern high-precision GPUs this is not needed.
@@ -254,15 +276,22 @@ impl TextureAtlas {
     }
 }
 
-fn resize_to_min_height(image: &mut FontImage, required_height: usize) -> bool {
+fn resize_to_min_height(image: &mut ColorImage, required_height: usize) -> bool {
     while required_height >= image.height() {
         image.size[1] *= 2; // double the height
     }
 
     if image.width() * image.height() > image.pixels.len() {
-        image.pixels.resize(image.width() * image.height(), 0.0);
+        image
+            .pixels
+            .resize(image.width() * image.height(), Color32::TRANSPARENT);
         true
     } else {
         false
     }
+}
+
+#[inline]
+fn fast_round(r: f32) -> u8 {
+    (r + 0.5) as _ // rust does a saturating cast since 1.45
 }
