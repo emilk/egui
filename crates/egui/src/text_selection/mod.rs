@@ -3,11 +3,10 @@
 #[cfg(feature = "accesskit")]
 pub mod accesskit_text;
 
-mod cursor_range;
+pub mod handle_event;
 mod label_text_selection;
 pub mod text_cursor_state;
 pub mod visuals;
 
-pub use cursor_range::CCursorRange;
 pub use label_text_selection::LabelSelectionState;
 pub use text_cursor_state::TextCursorState;

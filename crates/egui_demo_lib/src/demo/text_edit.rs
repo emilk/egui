@@ -52,13 +52,13 @@ impl crate::View for TextEditDemo {
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
             ui.label("Selected text: ");
-            if let Some(text_cursor_range) = output.cursor_range {
-                let selected_text = text_cursor_range.slice_str(text);
+            if let Some(selection) = output.selection {
+                let selected_text = selection.slice_str(text);
                 ui.code(selected_text);
             }
         });
 
-        let anything_selected = output.cursor_range.is_some_and(|cursor| !cursor.is_empty());
+        let anything_selected = output.selection.is_some_and(|cursor| !cursor.is_empty());
 
         ui.add_enabled(
             anything_selected,
@@ -66,18 +66,18 @@ impl crate::View for TextEditDemo {
         );
 
         if ui.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::Y)) {
-            if let Some(text_cursor_range) = output.cursor_range {
-                use egui::TextBuffer as _;
-                let selected_chars = text_cursor_range.as_sorted_char_range();
-                let selected_text = text.char_range(selected_chars.clone());
+            // TODO(valadaptive): in both the old and new selection code, this doesn't account for uppercase and
+            // lowercase character counts being different. In the new code, it may panic if we end up between bytes.
+            if let Some(selection) = output.selection {
+                let selected_range = selection.byte_range();
+                let selected_text = &text[selected_range.clone()];
                 let upper_case = selected_text.to_uppercase();
                 let new_text = if selected_text == upper_case {
                     selected_text.to_lowercase()
                 } else {
                     upper_case
                 };
-                text.delete_char_range(selected_chars.clone());
-                text.insert_text(&new_text, selected_chars.start);
+                <String as egui::TextBuffer>::replace_range(text, selected_range, &new_text);
             }
         }
 
@@ -87,10 +87,7 @@ impl crate::View for TextEditDemo {
             if ui.button("start").clicked() {
                 let text_edit_id = output.response.id;
                 if let Some(mut state) = egui::TextEdit::load_state(ui.ctx(), text_edit_id) {
-                    let ccursor = egui::text::CCursor::new(0);
-                    state
-                        .cursor
-                        .set_char_range(Some(egui::text::CCursorRange::one(ccursor)));
+                    state.select_byte_range(0..0);
                     state.store(ui.ctx(), text_edit_id);
                     ui.ctx().memory_mut(|mem| mem.request_focus(text_edit_id)); // give focus back to the [`TextEdit`].
                 }
@@ -99,10 +96,7 @@ impl crate::View for TextEditDemo {
             if ui.button("end").clicked() {
                 let text_edit_id = output.response.id;
                 if let Some(mut state) = egui::TextEdit::load_state(ui.ctx(), text_edit_id) {
-                    let ccursor = egui::text::CCursor::new(text.chars().count());
-                    state
-                        .cursor
-                        .set_char_range(Some(egui::text::CCursorRange::one(ccursor)));
+                    state.select_byte_range(text.len()..text.len());
                     state.store(ui.ctx(), text_edit_id);
                     ui.ctx().memory_mut(|mem| mem.request_focus(text_edit_id)); // give focus back to the [`TextEdit`].
                 }

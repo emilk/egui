@@ -86,13 +86,14 @@ impl AllocInfo {
     // }
 
     pub fn from_galley(galley: &Galley) -> Self {
+        // TODO(valadaptive): this doesn't count the Parley layout's memory usage
         Self::from_slice(galley.text().as_bytes())
             + Self::from_slice(&galley.rows)
             + galley.rows.iter().map(Self::from_galley_row).sum()
     }
 
     fn from_galley_row(row: &crate::text::Row) -> Self {
-        Self::from_mesh(&row.visuals.mesh) + Self::from_slice(&row.glyphs)
+        Self::from_mesh(&row.visuals.mesh)
     }
 
     pub fn from_mesh(mesh: &Mesh) -> Self {

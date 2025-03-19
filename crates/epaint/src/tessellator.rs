@@ -2008,8 +2008,15 @@ impl Tessellator {
             println!("{warn}");
         }
 
-        out.vertices.reserve(galley.num_vertices);
-        out.indices.reserve(galley.num_indices);
+        let mut num_vertices = galley.num_vertices;
+        let mut num_indices = galley.num_indices;
+        if let Some(selection_mesh) = &galley.selection_mesh {
+            num_vertices += selection_mesh.vertices.len();
+            num_indices += selection_mesh.indices.len();
+        }
+
+        out.vertices.reserve(num_vertices);
+        out.indices.reserve(num_indices);
 
         // The contents of the galley are already snapped to pixel coordinates,
         // but we need to make sure the galley ends up on the start of a physical pixel:
@@ -2025,6 +2032,33 @@ impl Tessellator {
         );
 
         let rotator = Rot2::from_angle(*angle);
+
+        // TODO(valadaptive): store selection rects as rects so we can cull them
+        if let Some(selection_mesh) = &galley.selection_mesh {
+            let index_offset = out.vertices.len() as u32;
+
+            out.indices.extend(
+                selection_mesh
+                    .indices
+                    .iter()
+                    .map(|index| index + index_offset),
+            );
+            out.vertices
+                .extend(selection_mesh.vertices.iter().map(|vertex| {
+                    let Vertex { pos, uv, color } = *vertex;
+                    let offset = if *angle == 0.0 {
+                        pos.to_vec2()
+                    } else {
+                        rotator * pos.to_vec2()
+                    };
+
+                    Vertex {
+                        pos: galley_pos + offset,
+                        uv: (uv.to_vec2() * uv_normalizer).to_pos2(),
+                        color,
+                    }
+                }));
+        }
 
         for row in &galley.rows {
             if row.visuals.mesh.is_empty() {

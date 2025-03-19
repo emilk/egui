@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::text::CCursorRange;
+use crate::text::Selection;
 
 /// The output from a [`TextEdit`](crate::TextEdit).
 pub struct TextEditOutput {
@@ -20,7 +20,7 @@ pub struct TextEditOutput {
     pub state: super::TextEditState,
 
     /// Where the text cursor is.
-    pub cursor_range: Option<CCursorRange>,
+    pub selection: Option<Selection>,
 }
 
 // TODO(emilk): add `output.paint` and `output.store` and split out that code from `TextEdit::show`.

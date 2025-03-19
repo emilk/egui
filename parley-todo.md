@@ -1,53 +1,83 @@
-Parley:
-- Text truncation with ellipsis
-- serde support for some types (the selection ones at least)
-- Vertical alignment options, especially for InlineBox
-- Ability to set line.offset
-  - This can't just be a visual thing because of hit testing; Layout needs to agree on where everything is
-- Absolute line height
+## Parley:
+- [ ] Text truncation with ellipsis
+  - [ ] Also requires breaking mid-word
+- [ ] serde support for some types (the selection ones at least)
+- [ ] Vertical alignment options, especially for InlineBox
+- [ ] Ability to set line.offset (necessary for LayoutSection::leading_space)
+  - [ ] This can't just be a visual thing because of hit testing; Layout needs to agree on where everything is
+- [ ] Absolute line height
+- [ ] Custom family names (https://github.com/linebender/parley/issues/117)
+- [ ] Inline box fix (https://github.com/linebender/parley/pull/299)
+- [ ] Don't round vertical metrics (https://github.com/linebender/parley/pull/297)
+- [ ] RTL jank (https://github.com/linebender/parley/issues/298)
+- [ ] Support the tab character (https://github.com/linebender/parley/issues/302)
 
-Here:
-- Text rendering
-  - Implement max_rows for wrapping
-  - Sometimes when resizing the Font Book window, the text doesn't wrap properly
-  - Investigate whether swash is being too conservative with its shape bounds and cutting off rendered glyphs
-  - We don't need to do all the weird DPI stuff now, probably
-    - (see https://github.com/emilk/egui/issues/3664 for an example of the hacks we can get rid of)
-  - A bunch of font atlas stuff
-    - I think it's a bit broken right now
-    - Automatically switch between multiple atlases if one isn't enough
-    - There will not be any "the font texture" anymore
-    - Use etagere instead of rolling our own atlas?
-    - Use monochrome texture for font atlas (R8 format)
-      - Does the current one only use RGBA so we can use the same shader for everything?
-      - Probably needs support in the backends for mask-only textures (gl.ALPHA and whatever the wgpu equivalent is)
-    - Have separate atlases for color emoji and glyphs/discs
-  - Colored emoji
-- Text selection and editing
-  - Unify the three different cursor types and move to a Parley-like API before moving to the actual Parley API
-  - Rewrite selection code to use parley's API
-  - AccessKit integration(?)
-- Text styling
-  - Fix FontDefinitions and adding fonts
-    - Get fallback/ordering working properly
-  - Auto fallback to faux italics (and perhaps faux bold)
-    - run.synthesis()
-  - Actually render text decorations (underline, strikethhrough, etc) and backgrounds
-  - Strikethrough and underline
-  - Better (more CSSish) font API
-    - move font db into FontDefinitions
-    - Families and not just files
-    - Option to load system fonts
-    - FontTweak is very not-implemented
-    - Can we do bold now?
-    - Revamp TextFormat in general
-      - Can it cascade?
-    - Letter spacing
-    - Hinting enable/disable
-- Cross-cutting concerns
-  - Global/scoped RTL? Do we get bidirectional support for free if we use Parley's APIs?
-  - Actually remove all the ab_glyph stuff
-- Perf optimizations!
-  - Stop using TreeBuilder so we don't have to allocate a bunch of strings
-  - https://github.com/emilk/egui/issues/1098
-  - Enable shape_run_cache
+## Here:
+- [ ] Text layout
+  - [x] Sometimes when resizing the Font Book window, the text doesn't wrap properly (fixed)
+    - [ ] ~~Only happens when the mouse is held down~~
+    - [ ] ~~Could it be trailing whitespace?~~
+  - [ ] If you really scrunch up the "Code Example" window, it'll wrap while the cursor is held
+  - [ ] In the EasyMark example, with the text "There is no alternative way to specify the strong style", at certain wrap widths, the text from "strong" onwards will be shifted down 1px
+- [ ] Text rendering
+  - [ ] Investigate whether swash is being too conservative with its shape bounds and cutting off rendered glyphs
+  - [ ] We don't need to do all the weird DPI stuff now, probably
+    - [ ] (see https://github.com/emilk/egui/issues/3664 for an example of the hacks we can get rid of)
+  - [ ] A bunch of font atlas stuff
+    - [ ] I think it's a bit broken right now
+    - [ ] Automatically switch between multiple atlases if one isn't enough
+    - [ ] There will not be any "the font texture" anymore
+    - [ ] Use etagere instead of rolling our own atlas?
+    - [ ] Use monochrome texture for font atlas (R8 format)
+      - [ ] Does the current one only use RGBA so we can use the same shader for everything?
+      - [ ] Probably needs support in the backends for mask-only textures (gl.ALPHA and whatever the wgpu equivalent is)
+      - [ ] Have separate atlases for color emoji and glyphs/discs
+    - [ ] If we aren't recreating the atlas from scratch, we eventually need to "garbage collect" unused glyphs
+  - [ ] Colored emoji
+- [ ] Text selection and editing
+  - [x] Unify the three different cursor types and move to a Parley-like API before moving to the actual Parley API (done)
+  - [ ] Rewrite selection code to use parley's API
+    - [x] Basic API mapping (done)
+    - [x] Selection painting (done but kinda janky)
+    - [ ] Probably rework label_text_selection (does it take bidirectional text into account?)
+      - [x] Still some jank when the cursor is kinda below the first label and it selects the "rest of the line" (fixed)
+      - [ ] Make it support bidirectional text (fun!)
+    - [x] finish the gnarly parts that i've been putting off
+      - [x] indentation (done, but untested because parley's tab character support is broken)
+      - [x] selecting a range without having a Galley rendered already (done)
+    - [x] Fully remove CCursor and CCursorRange
+  - [x] Support `char_limit` (done but untested)
+  - [x] AccessKit integration(?) (done; kinda janky and cannot currently test whether the bounding boxes are correct)
+  - [ ] Allow modifying text without doing a relayout afterwards (or at least not a full one)
+    - [ ] The original TextEdit code had a relayout too
+  - [ ] Remove RowVertexIndices from selection painting
+  - [ ] Update the doctests aaaaaaa
+  - [ ] Do another pass over TextBuffer's API
+  - [ ] See if there's a way to reduce temporary allocations for the AccessKit stuff (maybe by improving Parley's API)?
+  - [ ] Test IME support
+- [ ] Text styling
+  - [ ] Fix FontDefinitions and adding fonts
+    - [ ] Get fallback/ordering working properly
+  - [ ] Auto fallback to faux italics (and perhaps faux bold)
+    - [ ] run.synthesis()
+  - [ ] Actually render text decorations (underline, strikethhrough, etc) and backgrounds
+  - [ ] Strikethrough and underline
+  - [ ] Better (more CSSish) font API
+    - [ ] move font db into FontDefinitions
+    - [ ] Families and not just files
+    - [ ] Option to load system fonts
+    - [ ] FontTweak is very not-implemented
+    - [ ] Can we do bold now?
+      - [ ] We can probably ship the *variable* Ubuntu font and do every weight cheaply
+    - [ ] Revamp TextFormat in general
+      - [ ] Can it cascade?
+    - [ ] Letter spacing
+    - [ ] Hinting enable/disable
+- [ ] Cross-cutting concerns
+  - [ ] Global/scoped RTL? Do we get bidirectional support for free if we use Parley's APIs?
+  - [ ] Actually remove all the ab_glyph stuff
+- [ ] Perf optimizations!
+  - [ ] Stop using TreeBuilder so we don't have to allocate a bunch of strings
+  - [ ] https://github.com/emilk/egui/issues/1098
+  - [ ] Enable shape_run_cache
+  - [ ] Cache `Galley`s across frames
