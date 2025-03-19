@@ -89,6 +89,7 @@ fn main() -> eframe::Result {
             MenuButton::new("Menu")
                 .config(MenuConfig::new().close_behavior(PopupCloseBehavior::CloseOnClickOutside))
                 .ui(ui, |ui| {
+                    // ui.set_max_width(180.0);
                     if ui.button("Close menu").clicked() {
                         ui.close_menu();
                     }
