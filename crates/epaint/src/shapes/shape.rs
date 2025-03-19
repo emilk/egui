@@ -486,6 +486,12 @@ impl Shape {
                         v.pos = Pos2::new(transform.scaling * v.pos.x, transform.scaling * v.pos.y);
                     }
                 }
+                // Scale selection:
+                if let Some(selection_mesh) = &mut galley.selection_mesh {
+                    for v in &mut selection_mesh.vertices {
+                        v.pos = Pos2::new(transform.scaling * v.pos.x, transform.scaling * v.pos.y);
+                    }
+                }
 
                 *mesh_bounds = transform.scaling * *mesh_bounds;
                 *rect = transform.scaling * *rect;

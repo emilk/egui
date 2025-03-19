@@ -158,8 +158,8 @@ impl GlyphAtlas {
             }
             let offset = zeno::Vector::new(cache_key.x.as_float(), cache_key.y.as_float());
             let Some(image) = swash::scale::Render::new(&[
-                //swash::scale::Source::ColorOutline(0),
-                //swash::scale::Source::ColorBitmap(swash::scale::StrikeWith::BestFit),
+                swash::scale::Source::ColorOutline(0),
+                swash::scale::Source::ColorBitmap(swash::scale::StrikeWith::BestFit),
                 swash::scale::Source::Outline,
             ])
             .format(swash::zeno::Format::Alpha)
@@ -185,9 +185,22 @@ impl GlyphAtlas {
                         }
                     }
                 }
-                // TODO(valadaptive): color emoji support
-                swash::scale::image::Content::SubpixelMask => todo!(),
-                swash::scale::image::Content::Color => todo!(),
+                swash::scale::image::Content::SubpixelMask => {
+                    panic!("Got a subpixel glyph we didn't ask for")
+                }
+                // TODO(valadaptive): real color emoji support. Right now we
+                // just render the alpha so we know the emoji is loaded and
+                // vaguely the right shape
+                swash::scale::image::Content::Color => {
+                    let mut i = 0;
+                    for y in 0..image.placement.height as usize {
+                        for x in 0..image.placement.width as usize {
+                            font_image[(x + allocated_pos.0, y + allocated_pos.1)] =
+                                image.data[(i * 4) + 3] as f32 / 255.0;
+                            i += 1;
+                        }
+                    }
+                }
             }
 
             let uv_rect = UvRect {
