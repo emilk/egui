@@ -219,6 +219,11 @@ impl Rgba {
             linear_u8_from_linear_f32(a.abs()),
         ]
     }
+
+    /// Blend two colors, so that `self` is behind the argument.
+    pub fn blend(self, on_top: Self) -> Self {
+        self.multiply(1.0 - on_top.a()) + on_top
+    }
 }
 
 impl std::ops::Add for Rgba {
@@ -274,5 +279,31 @@ impl std::ops::Mul<Rgba> for f32 {
             self * rgba[2],
             self * rgba[3],
         ])
+    }
+}
+
+#[cfg(test)]
+mod test {
+
+    use super::*;
+
+    #[test]
+    fn test_rgba_blend() {
+        let opaque = Rgba::from_rgb(0.4, 0.5, 0.6);
+        let transparent = Rgba::from_rgb(1.0, 0.5, 0.0).multiply(0.3);
+        assert_eq!(
+            transparent.blend(opaque),
+            opaque,
+            "Opaque on top of transparent"
+        );
+        assert_eq!(
+            opaque.blend(transparent),
+            Rgba::from_rgb(
+                0.7 * 0.4 + 0.3 * 1.0,
+                0.7 * 0.5 + 0.3 * 0.5,
+                0.7 * 0.6 + 0.3 * 0.0
+            ),
+            "Transparent on top of opaque"
+        );
     }
 }
