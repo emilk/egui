@@ -564,19 +564,6 @@ impl Renderer {
                 );
                 Cow::Borrowed(&image.pixels)
             }
-            epaint::ImageData::Font(image) => {
-                assert_eq!(
-                    width as usize * height as usize,
-                    image.pixels.len(),
-                    "Mismatch between texture size and texel count"
-                );
-                profiling::scope!("font -> sRGBA");
-                Cow::Owned(
-                    image
-                        .srgba_pixels(Default::default())
-                        .collect::<Vec<epaint::Color32>>(),
-                )
-            }
         };
         let data_bytes: &[u8] = bytemuck::cast_slice(data_color32.as_slice());
 
