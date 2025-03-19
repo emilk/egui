@@ -501,7 +501,7 @@ impl Fonts {
 
     /// The full font atlas image.
     #[inline]
-    pub fn image(&self) -> crate::FontImage {
+    pub fn image(&self) -> crate::ColorImage {
         self.lock().fonts.atlas.lock().image().clone()
     }
 
