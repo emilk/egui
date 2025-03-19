@@ -111,20 +111,19 @@ impl Color32 {
     pub fn from_rgba_unmultiplied(r: u8, g: u8, b: u8, a: u8) -> Self {
         use std::sync::OnceLock;
         match a {
-            // common-case optimization
+            // common-case optimization:
             0 => Self::TRANSPARENT,
-            // common-case optimization
+
+            // common-case optimization:
             255 => Self::from_rgb(r, g, b),
+
             a => {
                 static LOOKUP_TABLE: OnceLock<Box<[u8]>> = OnceLock::new();
                 let lut = LOOKUP_TABLE.get_or_init(|| {
-                    use crate::{gamma_u8_from_linear_f32, linear_f32_from_gamma_u8};
                     (0..=u16::MAX)
                         .map(|i| {
                             let [value, alpha] = i.to_ne_bytes();
-                            let value_lin = linear_f32_from_gamma_u8(value);
-                            let alpha_lin = linear_f32_from_linear_u8(alpha);
-                            gamma_u8_from_linear_f32(value_lin * alpha_lin)
+                            fast_round(value as f32 * linear_f32_from_linear_u8(alpha))
                         })
                         .collect()
                 });
@@ -291,7 +290,7 @@ impl Color32 {
         )
     }
 
-    /// Blend two colors, so that `self` is behind the argument.
+    /// Blend two colors in gamma space, so that `self` is behind the argument.
     pub fn blend(self, on_top: Self) -> Self {
         self.gamma_multiply_u8(255 - on_top.a()) + on_top
     }
@@ -331,5 +330,51 @@ impl std::ops::Add for Color32 {
             self[2].saturating_add(other[2]),
             self[3].saturating_add(other[3]),
         ])
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_color32_additive() {
+        let opaque = Color32::from_rgb(40, 50, 60);
+        let additive = Color32::from_rgb(255, 127, 10).additive();
+        assert_eq!(additive.blend(opaque), opaque, "opaque on top of additive");
+        assert_eq!(
+            opaque.blend(additive),
+            Color32::from_rgb(255, 177, 70),
+            "additive on top of opaque"
+        );
+    }
+
+    #[test]
+    fn test_color32_blend_vs_gamma_blend() {
+        let opaque = Color32::from_rgb(0x60, 0x60, 0x60);
+        let transparent = Color32::from_rgba_unmultiplied(168, 65, 65, 79);
+        assert_eq!(
+            transparent.blend(opaque),
+            opaque,
+            "Opaque on top of transparent"
+        );
+        // Blending in gamma-space is the de-facto standard everywhere,
+        // and it is what e.g. Chromium does.
+        assert_eq!(
+            opaque.blend(transparent),
+            Color32::from_rgb(
+                blend(0x60, 168, 79),
+                blend(0x60, 65, 79),
+                blend(0x60, 65, 79)
+            ),
+            "Transparent on top of opaque"
+        );
+
+        fn blend(dest: u8, src: u8, alpha: u8) -> u8 {
+            let src = src as f32 / 255.0;
+            let dest = dest as f32 / 255.0;
+            let alpha = alpha as f32 / 255.0;
+            fast_round((src * alpha + dest * (1.0 - alpha)) * 255.0)
+        }
     }
 }
