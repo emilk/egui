@@ -2,8 +2,10 @@ use std::{borrow::Cow, sync::Arc};
 
 use ecolor::Color32;
 use emath::{pos2, vec2, Pos2, Rect, Vec2};
+use log::debug;
 use parley::{
-    AlignmentOptions, FontStyle, FontWeight, FontWidth, InlineBox, PositionedLayoutItem, TextStyle,
+    AlignmentOptions, BreakReason, FontStyle, FontWeight, FontWidth, InlineBox,
+    PositionedLayoutItem, TextStyle,
 };
 
 use crate::{
@@ -12,7 +14,11 @@ use crate::{
     Mesh,
 };
 
-use super::{font::UvRect, FontFamily, FontsImpl, Galley, Glyph, LayoutJob, TextFormat};
+use super::{FontFamily, FontsImpl, Galley, LayoutJob, TextFormat};
+
+fn text_format_to_line_height(format: &TextFormat) -> f32 {
+    format.line_height.unwrap_or(format.font_id.size)
+}
 
 fn text_format_to_style<'b: 'c, 'c>(format: &'b TextFormat) -> TextStyle<'c, Color32> {
     TextStyle {
@@ -49,9 +55,7 @@ fn text_format_to_style<'b: 'c, 'c>(format: &'b TextFormat) -> TextStyle<'c, Col
             .then_some(format.strikethrough.width),
         strikethrough_brush: (!format.strikethrough.is_empty())
             .then_some(format.strikethrough.color),
-        line_height: format
-            .line_height
-            .map_or(1.0, |line_height| line_height / format.font_id.size),
+        line_height: text_format_to_line_height(format) / format.font_id.size,
         word_spacing: 0.0,
         letter_spacing: format.extra_letter_spacing,
     }
@@ -64,8 +68,10 @@ pub fn layout(fonts: &mut FontsImpl, job: LayoutJob) -> Galley {
             job: Arc::new(job),
             rows: Default::default(),
             parley_layout: Mutex::new(parley::Layout::new()),
+            layout_offset: Vec2::ZERO,
             #[cfg(feature = "accesskit")]
-            layout_access: Mutex::new(None),
+            accessibility: Default::default(),
+            selection_mesh: None,
             rect: Rect::from_min_max(Pos2::ZERO, Pos2::ZERO),
             mesh_bounds: Rect::NOTHING,
             num_vertices: 0,
@@ -77,19 +83,16 @@ pub fn layout(fonts: &mut FontsImpl, job: LayoutJob) -> Galley {
 
     let justify = job.justify && job.wrap.max_width.is_finite();
 
-    let horiz_offset = match (job.wrap.max_width.is_finite() && !justify, job.halign) {
-        (true, emath::Align::Center) => -job.wrap.max_width * 0.5,
-        (true, emath::Align::RIGHT) => -job.wrap.max_width,
-        _ => 0.0,
-    };
-
     let default_style = text_format_to_style(&first_section.format);
     let mut builder =
         fonts
             .layout_context
             .tree_builder(&mut fonts.font_context, 1.0, &default_style);
 
-    job.sections.iter().for_each(|section| {
+    let mut first_row_height = job.first_row_min_height;
+
+    job.sections.iter().enumerate().for_each(|(i, section)| {
+        // TODO(valadaptive): this only works for the first section
         if section.leading_space > 0.0 {
             // Emulate the leading space with an inline box.
             builder.push_inline_box(InlineBox {
@@ -103,12 +106,12 @@ pub fn layout(fonts: &mut FontsImpl, job: LayoutJob) -> Galley {
             });
         }
         let mut style = text_format_to_style(&section.format);
-        if job.first_row_min_height > 0.0 {
-            // TODO(valadaptive): This is only supposed to apply to the first row, but there's no way ahead of time to
-            // know which span of text the "first row" is. It's also supposed to be the *minimum* height, but for
-            // alignment purposes, we really want it to just be the height itself.
-            let min_height = job.first_row_min_height / section.format.font_id.size;
-            style.line_height = min_height;
+        if i == 0 {
+            // If the first section takes up more than one row, this will apply to the entire first section. There
+            // doesn't seem to be any way to prevent this because we don't know ahead of time what the "first row" will
+            // be due to line wrapping.
+            first_row_height = first_row_height.max(text_format_to_line_height(&section.format));
+            style.line_height = first_row_height / section.format.font_id.size;
         }
 
         builder.push_style_span(style);
@@ -121,10 +124,30 @@ pub fn layout(fonts: &mut FontsImpl, job: LayoutJob) -> Galley {
     let (mut layout, _text) = builder.build();
 
     let max_width = job.wrap.max_width.is_finite().then_some(job.wrap.max_width);
-    layout.break_all_lines(max_width);
+    let mut break_lines = layout.break_lines();
+    for _ in 0..job.wrap.max_rows {
+        if break_lines
+            .break_next(max_width.unwrap_or(f32::MAX))
+            .is_none()
+        {
+            break;
+        }
+    }
+    break_lines.finish();
+
+    // Parley will left-align the line if there's not enough space. In this
+    // case, that could occur due to floating-point error if we use
+    // `layout.width()` as the alignment width, but it's okay as left-alignment
+    // will look the same as the "correct" alignment.
+    let alignment_width = max_width.unwrap_or_else(|| layout.width());
+    let horiz_offset = match (justify, job.halign) {
+        (false, emath::Align::Center) => -alignment_width * 0.5,
+        (false, emath::Align::RIGHT) => -alignment_width,
+        _ => 0.0,
+    };
 
     layout.align(
-        max_width,
+        Some(alignment_width),
         match (justify, job.halign) {
             (true, _) => parley::Alignment::Justified,
             (false, emath::Align::Min) => parley::Alignment::Start,
@@ -142,22 +165,41 @@ pub fn layout(fonts: &mut FontsImpl, job: LayoutJob) -> Galley {
 
     let mut vertical_offset = 0f32;
 
+    let mut prev_break_reason = None;
     for (i, line) in layout.lines().enumerate() {
-        let mut glyphs = Vec::new();
         let mut mesh = Mesh::default();
         let mut row_logical_bounds = Rect::NOTHING;
+        let mut box_offset = 0.0;
+
+        // Parley will wrap the last whitespace character(s) onto a whole new
+        // line. We don't want that to count for layout purposes.
+        let is_trailing_wrapped_whitespace = i == layout.len() - 1
+            && matches!(
+                prev_break_reason,
+                Some(BreakReason::Regular | BreakReason::Emergency)
+            )
+            && line
+                .runs()
+                .all(|run| run.clusters().all(|cluster| cluster.is_space_or_nbsp()));
+
+        prev_break_reason = Some(line.break_reason());
+
+        // Nothing on this line except whitespace that should be collapsed.
+        if is_trailing_wrapped_whitespace {
+            continue;
+        }
 
         for item in line.items() {
             match item {
                 PositionedLayoutItem::GlyphRun(run) => {
                     // We saw something that isn't a box on the first line. (See below for why we need vertical_offset)
                     if i == 0 {
-                        if vertical_offset != 0.0 {
+                        /*if vertical_offset != 0.0 {
                             println!(
                                 "reset vertical offset because we saw {:?}",
                                 &job.text[run.run().text_range()]
                             );
-                        }
+                        }*/
                         vertical_offset = 0.0;
                     }
 
@@ -171,24 +213,6 @@ pub fn layout(fonts: &mut FontsImpl, job: LayoutJob) -> Galley {
                     ) {
                         glyph.x += horiz_offset;
                         glyph.y += vertical_offset;
-                        let glyph_rect = Rect::from_min_size(
-                            pos2(glyph.x, line.metrics().min_coord + vertical_offset),
-                            vec2(
-                                glyph.advance,
-                                line.metrics().max_coord - line.metrics().min_coord,
-                                //line.metrics().min_coord + line.metrics().baseline,
-                            ),
-                        );
-                        acc_logical_bounds = acc_logical_bounds.union(glyph_rect);
-                        row_logical_bounds = row_logical_bounds.union(glyph_rect);
-                        // TODO(valadaptive): stop storing glyphs!
-                        glyphs.push(Glyph {
-                            chr: ' ',
-                            pos: pos2(glyph.x, glyph.y),
-                            advance_width: glyph.advance,
-                            line_height: line.metrics().line_height,
-                            uv_rect: uv_rect.unwrap_or_default(),
-                        });
 
                         let Some(uv_rect) = uv_rect else {
                             continue;
@@ -205,7 +229,6 @@ pub fn layout(fonts: &mut FontsImpl, job: LayoutJob) -> Galley {
 
                         let color = run.style().brush;
 
-                        //mesh.add_colored_rect(glyph_rect, Color32::DEBUG_COLOR.gamma_multiply(0.3));
                         //mesh.add_colored_rect(rect, Color32::DEBUG_COLOR.gamma_multiply(0.3));
                         mesh.add_rect_with_uv(
                             rect,
@@ -219,11 +242,11 @@ pub fn layout(fonts: &mut FontsImpl, job: LayoutJob) -> Galley {
                         );
                     }
                 }
-                PositionedLayoutItem::InlineBox(_inline_box) => {
+                PositionedLayoutItem::InlineBox(inline_box) => {
                     /*mesh.add_colored_rect(
                         Rect::from_min_size(
-                            pos2(_inline_box.x, _inline_box.y),
-                            vec2(_inline_box.width, _inline_box.height.max(1.0)),
+                            pos2(inline_box.x, inline_box.y),
+                            vec2(inline_box.width, inline_box.height.max(1.0)),
                         ),
                         Color32::RED.gamma_multiply(0.3),
                     );*/
@@ -231,18 +254,46 @@ pub fn layout(fonts: &mut FontsImpl, job: LayoutJob) -> Galley {
                     // As described above, the InlineBox can't have any height, but that means that if the first line
                     // completely wraps, it'll end up at the same place instead of one line down. To avoid this, add a
                     // vertical offset to all text in this layout if it wraps.
-                    vertical_offset += job.first_row_min_height;
+                    vertical_offset += first_row_height;
+                    box_offset += inline_box.width;
                 }
             }
         }
 
-        glyphs.push(Glyph {
-            chr: '\n',
-            pos: pos2(0.0, line.metrics().baseline),
-            advance_width: 0.0,
-            line_height: line.metrics().line_height,
-            uv_rect: UvRect::default(),
-        });
+        let line_metrics = line.metrics();
+        // Don't include the leading inline box in the row bounds
+        let line_start = line_metrics.offset + horiz_offset + box_offset;
+
+        // Be flexible with trailing whitespace.
+        // - max_line_end is the widest the line can be if all trailing
+        //   whitespace is included.
+        // - min_line_end is the narrowest the line can be if all trailing
+        //   whitespace is excluded.
+        // - max_desired_line_end is the job's max wrap width.
+        //
+        // This lets us count trailing whitespace for inline labels while
+        // ignoring it for the purpose of text wrapping.
+        let max_line_end = line_metrics.offset + horiz_offset + line_metrics.advance;
+        let min_line_end = max_line_end - line_metrics.trailing_whitespace;
+        let max_desired_line_end = line_start + job.wrap.max_width;
+        // If this line's trailing whitespace is what would push the line over
+        // the max wrap width, clamp it. However, we must be at least as wide as
+        // min_line_end.
+        let line_end = max_line_end.min(max_desired_line_end).max(min_line_end);
+
+        row_logical_bounds = row_logical_bounds.union(Rect::from_min_max(
+            pos2(line_start, line_metrics.min_coord + vertical_offset),
+            pos2(line_end, line_metrics.max_coord + vertical_offset),
+        ));
+        acc_logical_bounds = acc_logical_bounds.union(row_logical_bounds);
+
+        if acc_logical_bounds.width() > job.wrap.max_width {
+            debug!(
+                "actual wrapped text width {} exceeds max_width {}",
+                acc_logical_bounds.width(),
+                job.wrap.max_width
+            );
+        }
 
         let mesh_bounds = mesh.calc_bounds();
         let glyph_vertex_range = 0..mesh.vertices.len();
@@ -254,11 +305,8 @@ pub fn layout(fonts: &mut FontsImpl, job: LayoutJob) -> Galley {
         if !row_logical_bounds.is_finite() {
             row_logical_bounds = Rect::ZERO;
         }
-        //row_logical_bounds.max.y -= 8.0;
 
         let row = Row {
-            section_index_at_start: 0,
-            glyphs,
             rect: row_logical_bounds,
             visuals: RowVisuals {
                 mesh,
@@ -266,7 +314,6 @@ pub fn layout(fonts: &mut FontsImpl, job: LayoutJob) -> Galley {
                 glyph_index_start: 0,
                 glyph_vertex_range,
             },
-            ends_with_newline: false,
         };
 
         rows.push(row);
@@ -285,8 +332,10 @@ pub fn layout(fonts: &mut FontsImpl, job: LayoutJob) -> Galley {
         job: Arc::new(job),
         rows,
         parley_layout: Mutex::new(layout),
+        layout_offset: vec2(horiz_offset, vertical_offset),
         #[cfg(feature = "accesskit")]
-        layout_access: Mutex::new(None),
+        accessibility: Default::default(),
+        selection_mesh: None,
         elided: false,
         rect: acc_logical_bounds,
         mesh_bounds: acc_mesh_bounds,

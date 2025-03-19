@@ -1,5 +1,7 @@
+use std::ops::Range;
+
 use egui::{
-    text::CCursorRange, Key, KeyboardShortcut, Modifiers, ScrollArea, TextBuffer, TextEdit, Ui,
+    text::Selection, Key, KeyboardShortcut, Modifiers, ScrollArea, TextBuffer, TextEdit, Ui,
 };
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -97,10 +99,9 @@ impl EasyMarkEditor {
         };
 
         if let Some(mut state) = TextEdit::load_state(ui.ctx(), response.id) {
-            if let Some(mut ccursor_range) = state.cursor.char_range() {
-                let any_change = shortcuts(ui, code, &mut ccursor_range);
-                if any_change {
-                    state.cursor.set_char_range(Some(ccursor_range));
+            if let Some(selection) = state.cursor.selection() {
+                if let Some(new_selection_range) = shortcuts(ui, code, &selection) {
+                    state.select_byte_range(new_selection_range);
                     state.store(ui.ctx(), response.id);
                 }
             }
@@ -140,17 +141,17 @@ fn nested_hotkeys_ui(ui: &mut egui::Ui) {
     });
 }
 
-fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRange) -> bool {
+fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, selection: &Selection) -> Option<Range<usize>> {
     let mut any_change = false;
 
+    let mut selection_range = selection.byte_range();
     if ui.input_mut(|i| i.consume_shortcut(&SHORTCUT_INDENT)) {
         // This is a placeholder till we can indent the active line
         any_change = true;
-        let [primary, _secondary] = ccursor_range.sorted_cursors();
 
-        let advance = code.insert_text("  ", primary.index);
-        ccursor_range.primary.index += advance;
-        ccursor_range.secondary.index += advance;
+        let advance = code.insert_text("  ", selection_range.start);
+        selection_range.start += advance;
+        selection_range.end += advance;
     }
 
     for (shortcut, surrounding) in [
@@ -164,39 +165,33 @@ fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRang
     ] {
         if ui.input_mut(|i| i.consume_shortcut(&shortcut)) {
             any_change = true;
-            toggle_surrounding(code, ccursor_range, surrounding);
+            toggle_surrounding(code, &mut selection_range, surrounding);
         };
     }
 
-    any_change
+    any_change.then_some(selection_range)
 }
 
 /// E.g. toggle *strong* with `toggle_surrounding(&mut text, &mut cursor, "*")`
-fn toggle_surrounding(
-    code: &mut dyn TextBuffer,
-    ccursor_range: &mut CCursorRange,
-    surrounding: &str,
-) {
-    let [primary, secondary] = ccursor_range.sorted_cursors();
+fn toggle_surrounding(code: &mut dyn TextBuffer, byte_range: &mut Range<usize>, surrounding: &str) {
+    let surrounding_count = surrounding.len();
 
-    let surrounding_ccount = surrounding.chars().count();
-
-    let prefix_crange = primary.index.saturating_sub(surrounding_ccount)..primary.index;
-    let suffix_crange = secondary.index..secondary.index.saturating_add(surrounding_ccount);
-    let already_surrounded = code.char_range(prefix_crange.clone()) == surrounding
-        && code.char_range(suffix_crange.clone()) == surrounding;
+    let prefix_range = byte_range.start.saturating_sub(surrounding_count)..byte_range.start;
+    let suffix_range = byte_range.end..byte_range.end.saturating_add(surrounding_count);
+    let already_surrounded = code.byte_range(prefix_range.clone()) == surrounding
+        && code.byte_range(suffix_range.clone()) == surrounding;
 
     if already_surrounded {
-        code.delete_char_range(suffix_crange);
-        code.delete_char_range(prefix_crange);
-        ccursor_range.primary.index -= surrounding_ccount;
-        ccursor_range.secondary.index -= surrounding_ccount;
+        code.replace_range(suffix_range, "");
+        code.replace_range(prefix_range, "");
+        byte_range.start -= surrounding_count;
+        byte_range.end -= surrounding_count;
     } else {
-        code.insert_text(surrounding, secondary.index);
-        let advance = code.insert_text(surrounding, primary.index);
+        code.insert_text(surrounding, byte_range.end);
+        let advance = code.insert_text(surrounding, byte_range.start);
 
-        ccursor_range.primary.index += advance;
-        ccursor_range.secondary.index += advance;
+        byte_range.start += advance;
+        byte_range.end += advance;
     }
 }
 
