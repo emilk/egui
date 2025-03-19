@@ -1310,7 +1310,7 @@ impl Ui {
     ) -> Response {
         let (id, rect) = self.allocate_space(desired_size, desired_size_2);
         let mut response = self.interact(rect, id, sense);
-        response.intrinsic_size = Some(desired_size);
+        response.intrinsic_size = Some(desired_size_2);
         response
     }
 
