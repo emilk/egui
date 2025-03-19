@@ -91,11 +91,17 @@ impl CacheKey {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct RenderedGlyph {
+    rect: UvRect,
+    is_color_glyph: bool,
+}
+
 pub(super) struct GlyphAtlas {
     scale_context: swash::scale::ScaleContext,
     // TODO: just pass this in from Fonts
     atlas: Arc<Mutex<TextureAtlas>>,
-    rendered_glyphs: ahash::HashMap<CacheKey, Option<UvRect>>,
+    rendered_glyphs: ahash::HashMap<CacheKey, Option<RenderedGlyph>>,
     /// Map of [`parley::fontique::Blob`] ID + [`parley::Font`] indexes to [`swash::FontRef`] offsets and cache keys.
     swash_keys: ahash::HashMap<(u64, u32), (swash::CacheKey, u32)>,
 }
@@ -115,7 +121,7 @@ impl GlyphAtlas {
         glyph_run: &'b GlyphRun<'b, Color32>,
         offset: (f32, f32),
         pixels_per_point: f32,
-    ) -> impl Iterator<Item = (Glyph, Option<UvRect>, (i32, i32))> + use<'a, 'b> {
+    ) -> impl Iterator<Item = (Glyph, Option<UvRect>, (i32, i32), Color32)> + use<'a, 'b> {
         let run = glyph_run.run();
         let font = run.font();
         let font_size = run.font_size();
@@ -143,6 +149,7 @@ impl GlyphAtlas {
         // TODO(valadaptive): is it fine to lock the mutex here?
         let mut atlas = self.atlas.lock();
         let rendered_glyphs = &mut self.rendered_glyphs;
+        let color = glyph_run.style().brush;
 
         glyph_run.positioned_glyphs().map(move |mut glyph| {
             // The Y-position transform applies to the font *after* it's been hinted, making it blurry. (So does the
@@ -154,7 +161,18 @@ impl GlyphAtlas {
                 CacheKey::from_glyph(&glyph, font_id, font_size, pixels_per_point);
 
             if let Some(rendered_glyph) = rendered_glyphs.get(&cache_key) {
-                return (glyph, *rendered_glyph, (x, y));
+                return (
+                    glyph,
+                    rendered_glyph.map(|r| r.rect),
+                    (x, y),
+                    rendered_glyph.map_or(color, |r| {
+                        if r.is_color_glyph {
+                            Color32::WHITE
+                        } else {
+                            color
+                        }
+                    }),
+                );
             }
             let offset = zeno::Vector::new(cache_key.x.as_float(), cache_key.y.as_float());
             let Some(image) = swash::scale::Render::new(&[
@@ -166,42 +184,48 @@ impl GlyphAtlas {
             .offset(offset)
             .render(&mut scaler, glyph.id) else {
                 rendered_glyphs.insert(cache_key, None);
-                return (glyph, None, (x, y));
+                return (glyph, None, (x, y), color);
             };
 
+            let gamma = atlas.gamma;
             let (allocated_pos, font_image) = atlas.allocate((
                 image.placement.width as usize,
                 image.placement.height as usize,
             ));
 
-            match image.content {
+            let is_color_glyph = match image.content {
                 swash::scale::image::Content::Mask => {
                     let mut i = 0;
                     for y in 0..image.placement.height as usize {
                         for x in 0..image.placement.width as usize {
                             font_image[(x + allocated_pos.0, y + allocated_pos.1)] =
-                                image.data[i] as f32 / 255.0;
+                                TextureAtlas::coverage_to_color(
+                                    gamma,
+                                    image.data[i] as f32 / 255.0,
+                                );
                             i += 1;
                         }
                     }
+
+                    false
                 }
                 swash::scale::image::Content::SubpixelMask => {
                     panic!("Got a subpixel glyph we didn't ask for")
                 }
-                // TODO(valadaptive): real color emoji support. Right now we
-                // just render the alpha so we know the emoji is loaded and
-                // vaguely the right shape
                 swash::scale::image::Content::Color => {
                     let mut i = 0;
                     for y in 0..image.placement.height as usize {
                         for x in 0..image.placement.width as usize {
+                            let [r, g, b, a] = image.data[i * 4..(i * 4) + 4].try_into().unwrap();
                             font_image[(x + allocated_pos.0, y + allocated_pos.1)] =
-                                image.data[(i * 4) + 3] as f32 / 255.0;
+                                Color32::from_rgba_unmultiplied(r, g, b, a);
                             i += 1;
                         }
                     }
+
+                    true
                 }
-            }
+            };
 
             let uv_rect = UvRect {
                 offset: vec2(image.placement.left as f32, -image.placement.top as f32)
@@ -215,8 +239,23 @@ impl GlyphAtlas {
                 ],
             };
 
-            rendered_glyphs.insert(cache_key, Some(uv_rect));
-            (glyph, Some(uv_rect), (x, y))
+            rendered_glyphs.insert(
+                cache_key,
+                Some(RenderedGlyph {
+                    rect: uv_rect,
+                    is_color_glyph,
+                }),
+            );
+            (
+                glyph,
+                Some(uv_rect),
+                (x, y),
+                if is_color_glyph {
+                    Color32::WHITE
+                } else {
+                    color
+                },
+            )
         })
     }
 }
