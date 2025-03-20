@@ -2240,18 +2240,21 @@ impl Ui {
 /// # Colors
 impl Ui {
     /// Shows a button with the given color.
+    ///
     /// If the user clicks the button, a full color picker is shown.
     pub fn color_edit_button_srgba(&mut self, srgba: &mut Color32) -> Response {
         color_picker::color_edit_button_srgba(self, srgba, color_picker::Alpha::BlendOrAdditive)
     }
 
     /// Shows a button with the given color.
+    ///
     /// If the user clicks the button, a full color picker is shown.
     pub fn color_edit_button_hsva(&mut self, hsva: &mut Hsva) -> Response {
         color_picker::color_edit_button_hsva(self, hsva, color_picker::Alpha::BlendOrAdditive)
     }
 
     /// Shows a button with the given color.
+    ///
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in `sRGB` space.
     pub fn color_edit_button_srgb(&mut self, srgb: &mut [u8; 3]) -> Response {
@@ -2259,6 +2262,7 @@ impl Ui {
     }
 
     /// Shows a button with the given color.
+    ///
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in linear RGB space.
     pub fn color_edit_button_rgb(&mut self, rgb: &mut [f32; 3]) -> Response {
@@ -2266,6 +2270,7 @@ impl Ui {
     }
 
     /// Shows a button with the given color.
+    ///
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in `sRGBA` space with premultiplied alpha
     pub fn color_edit_button_srgba_premultiplied(&mut self, srgba: &mut [u8; 4]) -> Response {
@@ -2276,6 +2281,7 @@ impl Ui {
     }
 
     /// Shows a button with the given color.
+    ///
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in `sRGBA` space without premultiplied alpha.
     /// If unsure, what "premultiplied alpha" is, then this is probably the function you want to use.
@@ -2288,6 +2294,7 @@ impl Ui {
     }
 
     /// Shows a button with the given color.
+    ///
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in linear RGBA space with premultiplied alpha
     pub fn color_edit_button_rgba_premultiplied(&mut self, rgba_premul: &mut [f32; 4]) -> Response {
@@ -2307,6 +2314,7 @@ impl Ui {
     }
 
     /// Shows a button with the given color.
+    ///
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in linear RGBA space without premultiplied alpha.
     /// If unsure, what "premultiplied alpha" is, then this is probably the function you want to use.

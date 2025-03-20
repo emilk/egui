@@ -7,6 +7,8 @@ use crate::{fast_round, linear_f32_from_linear_u8, Rgba};
 ///
 /// Internally this uses 0-255 gamma space `sRGBA` color with _premultiplied alpha_.
 ///
+/// It's the non-linear ("gamma") values that are multiplied with the alpha.
+///
 /// Premultiplied alpha means that the color values have been pre-multiplied with the alpha (opacity).
 /// This is in contrast with "normal" RGBA, where the alpha is _separate_ (or "unmultiplied").
 /// Using premultiplied alpha has some advantages:
@@ -500,5 +502,10 @@ mod test {
             let back = Color32::from(rgba);
             assert_eq!(back, original);
         }
+
+        assert_eq!(
+            Color32::from(Rgba::from_rgba_unmultiplied(1.0, 0.0, 0.0, 0.5)),
+            Color32::from_rgba_unmultiplied(255, 0, 0, 128)
+        );
     }
 }
