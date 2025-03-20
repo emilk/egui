@@ -75,7 +75,7 @@ mod mutex_impl {
             // Detect if we are recursively taking out a lock on this mutex.
 
             // use a pointer to the inner data as an id for this lock
-            let ptr = (&self.0 as *const parking_lot::Mutex<_>).cast::<()>();
+            let ptr = std::ptr::from_ref::<parking_lot::Mutex<_>>(&self.0).cast::<()>();
 
             // Store it in thread local storage while we have a lock guard taken out
             HELD_LOCKS_TLS.with(|held_locks| {
@@ -190,7 +190,7 @@ mod rw_lock_impl {
         }
     }
 
-    impl<'a, T> Deref for RwLockReadGuard<'a, T> {
+    impl<T> Deref for RwLockReadGuard<'_, T> {
         type Target = T;
 
         fn deref(&self) -> &Self::Target {
@@ -198,7 +198,7 @@ mod rw_lock_impl {
         }
     }
 
-    impl<'a, T> Drop for RwLockReadGuard<'a, T> {
+    impl<T> Drop for RwLockReadGuard<'_, T> {
         fn drop(&mut self) {
             let tid = std::thread::current().id();
             self.holders.lock().remove(&tid);
@@ -229,7 +229,7 @@ mod rw_lock_impl {
         }
     }
 
-    impl<'a, T> Deref for RwLockWriteGuard<'a, T> {
+    impl<T> Deref for RwLockWriteGuard<'_, T> {
         type Target = T;
 
         fn deref(&self) -> &Self::Target {
@@ -237,13 +237,13 @@ mod rw_lock_impl {
         }
     }
 
-    impl<'a, T> DerefMut for RwLockWriteGuard<'a, T> {
+    impl<T> DerefMut for RwLockWriteGuard<'_, T> {
         fn deref_mut(&mut self) -> &mut Self::Target {
             self.guard.as_mut().unwrap()
         }
     }
 
-    impl<'a, T> Drop for RwLockWriteGuard<'a, T> {
+    impl<T> Drop for RwLockWriteGuard<'_, T> {
         fn drop(&mut self) {
             let tid = std::thread::current().id();
             self.holders.lock().remove(&tid);

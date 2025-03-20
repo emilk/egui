@@ -23,15 +23,18 @@
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
 
-mod bezier;
+mod brush;
 pub mod color;
+mod corner_radius;
+mod corner_radius_f32;
 pub mod image;
 mod margin;
+mod margin_f32;
 mod mesh;
 pub mod mutex;
 mod shadow;
-mod shape;
 pub mod shape_transform;
+mod shapes;
 pub mod stats;
 mod stroke;
 pub mod tessellator;
@@ -40,26 +43,34 @@ mod texture_atlas;
 mod texture_handle;
 pub mod textures;
 pub mod util;
+mod viewport;
 
 pub use self::{
-    bezier::{CubicBezierShape, QuadraticBezierShape},
+    brush::Brush,
     color::ColorMode,
+    corner_radius::CornerRadius,
+    corner_radius_f32::CornerRadiusF32,
     image::{ColorImage, FontImage, ImageData, ImageDelta},
     margin::Margin,
+    margin_f32::*,
     mesh::{Mesh, Mesh16, Vertex},
     shadow::Shadow,
-    shape::{
-        CircleShape, EllipseShape, PaintCallback, PaintCallbackInfo, PathShape, RectShape,
-        Rounding, Shape, TextShape,
+    shapes::{
+        CircleShape, CubicBezierShape, EllipseShape, PaintCallback, PaintCallbackInfo, PathShape,
+        QuadraticBezierShape, RectShape, Shape, TextShape,
     },
     stats::PaintStats,
-    stroke::{PathStroke, Stroke},
+    stroke::{PathStroke, Stroke, StrokeKind},
     tessellator::{TessellationOptions, Tessellator},
     text::{FontFamily, FontId, Fonts, Galley},
     texture_atlas::TextureAtlas,
     texture_handle::TextureHandle,
     textures::TextureManager,
+    viewport::ViewportInPixels,
 };
+
+#[deprecated = "Renamed to CornerRadius"]
+pub type Rounding = CornerRadius;
 
 #[allow(deprecated)]
 pub use tessellator::tessellate_shapes;
@@ -143,33 +154,3 @@ pub enum Primitive {
 
 /// Was epaint compiled with the `rayon` feature?
 pub const HAS_RAYON: bool = cfg!(feature = "rayon");
-
-// ---------------------------------------------------------------------------
-
-mod profiling_scopes {
-    #![allow(unused_macros)]
-    #![allow(unused_imports)]
-
-    /// Profiling macro for feature "puffin"
-    macro_rules! profile_function {
-        ($($arg: tt)*) => {
-            #[cfg(feature = "puffin")]
-            #[cfg(not(target_arch = "wasm32"))] // Disabled on web because of the coarse 1ms clock resolution there.
-            puffin::profile_function!($($arg)*);
-        };
-    }
-    pub(crate) use profile_function;
-
-    /// Profiling macro for feature "puffin"
-    macro_rules! profile_scope {
-        ($($arg: tt)*) => {
-            #[cfg(feature = "puffin")]
-            #[cfg(not(target_arch = "wasm32"))] // Disabled on web because of the coarse 1ms clock resolution there.
-            puffin::profile_scope!($($arg)*);
-        };
-    }
-    pub(crate) use profile_scope;
-}
-
-#[allow(unused_imports)]
-pub(crate) use profiling_scopes::{profile_function, profile_scope};

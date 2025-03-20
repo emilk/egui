@@ -1,10 +1,14 @@
 #![warn(missing_docs)] // Let's keep `Ui` well-documented.
 #![allow(clippy::use_self)]
 
+use emath::GuiRounding as _;
+use epaint::mutex::RwLock;
 use std::{any::Any, hash::Hash, sync::Arc};
 
-use epaint::mutex::RwLock;
-
+use crate::close_tag::ClosableTag;
+use crate::containers::menu;
+#[cfg(debug_assertions)]
+use crate::Stroke;
 use crate::{
     containers::{CollapsingHeader, CollapsingResponse, Frame},
     ecolor::Hsva,
@@ -12,8 +16,6 @@ use crate::{
     epaint::text::Fonts,
     grid,
     layout::{Direction, Layout},
-    menu,
-    menu::MenuState,
     pass_state,
     placer::Placer,
     pos2, style,
@@ -25,11 +27,9 @@ use crate::{
     },
     Align, Color32, Context, CursorIcon, DragAndDrop, Id, InnerResponse, InputState, LayerId,
     Memory, Order, Painter, PlatformOutput, Pos2, Rangef, Rect, Response, Rgba, RichText, Sense,
-    Style, TextStyle, TextWrapMode, UiBuilder, UiStack, UiStackInfo, Vec2, WidgetRect, WidgetText,
+    Style, TextStyle, TextWrapMode, UiBuilder, UiKind, UiStack, UiStackInfo, Vec2, WidgetRect,
+    WidgetText,
 };
-
-#[cfg(debug_assertions)]
-use crate::Stroke;
 // ----------------------------------------------------------------------------
 
 /// This is what you use to place widgets.
@@ -98,7 +98,8 @@ pub struct Ui {
     sizing_pass: bool,
 
     /// Indicates whether this Ui belongs to a Menu.
-    menu_state: Option<Arc<RwLock<MenuState>>>,
+    #[allow(deprecated)]
+    menu_state: Option<Arc<RwLock<crate::menu::MenuState>>>,
 
     /// The [`UiStack`] for this [`Ui`].
     stack: Arc<UiStack>,
@@ -301,7 +302,7 @@ impl Ui {
             min_rect: placer.min_rect(),
             max_rect: placer.max_rect(),
         };
-        let child_ui = Ui {
+        let mut child_ui = Ui {
             id: stable_id,
             unique_id,
             next_auto_id_salt,
@@ -315,6 +316,10 @@ impl Ui {
             sense,
             min_rect_already_remembered: false,
         };
+
+        if disabled {
+            child_ui.disable();
+        }
 
         // Register in the widget stack early, to ensure we are behind all widgets we contain:
         let start_rect = Rect::NOTHING; // This will be overwritten when `remember_min_rect` is called
@@ -476,6 +481,12 @@ impl Ui {
     #[inline]
     pub fn painter(&self) -> &Painter {
         &self.painter
+    }
+
+    /// Number of physical pixels for each logical UI point.
+    #[inline]
+    pub fn pixels_per_point(&self) -> f32 {
+        self.painter.pixels_per_point()
     }
 
     /// If `false`, the [`Ui`] does not allow any interaction and
@@ -712,7 +723,9 @@ impl Ui {
         self.painter().layer_id()
     }
 
-    /// The height of text of this text style
+    /// The height of text of this text style.
+    ///
+    /// Returns a value rounded to [`emath::GUI_ROUNDING`].
     pub fn text_style_height(&self, style: &TextStyle) -> f32 {
         self.fonts(|f| f.row_height(&style.resolve(self.style())))
     }
@@ -1082,7 +1095,8 @@ impl Ui {
         // This is the inverse of Context::read_response. We prefer a response
         // based on last frame's widget rect since the one from this frame is Rect::NOTHING until
         // Ui::interact_bg is called or the Ui is dropped.
-        self.ctx()
+        let mut response = self
+            .ctx()
             .viewport(|viewport| {
                 viewport
                     .prev_pass
@@ -1094,7 +1108,11 @@ impl Ui {
             .map(|widget_rect| self.ctx().get_response(widget_rect))
             .expect(
                 "Since we always call Context::create_widget in Ui::new, this should never be None",
-            )
+            );
+        if self.should_close() {
+            response.set_close();
+        }
+        response
     }
 
     /// Update the [`WidgetRect`] created in [`Ui::new`] or [`Ui::new_child`] with the current
@@ -1108,7 +1126,7 @@ impl Ui {
             fs.used_ids.remove(&self.unique_id);
         });
         // This will update the WidgetRect that was first created in `Ui::new`.
-        self.ctx().create_widget(
+        let mut response = self.ctx().create_widget(
             WidgetRect {
                 id: self.unique_id,
                 layer_id: self.layer_id(),
@@ -1118,7 +1136,11 @@ impl Ui {
                 enabled: self.enabled,
             },
             false,
-        )
+        );
+        if self.should_close() {
+            response.set_close();
+        }
+        response
     }
 
     /// Interact with the background of this [`Ui`],
@@ -1152,6 +1174,104 @@ impl Ui {
     pub fn ui_contains_pointer(&self) -> bool {
         self.rect_contains_pointer(self.min_rect())
     }
+
+    /// Find and close the first closable parent.
+    ///
+    /// Use [`UiBuilder::closable`] to make a [`Ui`] closable.
+    /// You can then use [`Ui::should_close`] to check if it should be closed.
+    ///
+    /// This is implemented for all egui containers, e.g. [`crate::Popup`], [`crate::Modal`],
+    /// [`crate::Area`], [`crate::Window`], [`crate::CollapsingHeader`], etc.
+    ///
+    /// What exactly happens when you close a container depends on the container implementation.
+    /// [`crate::Area`] e.g. will return true from it's [`Response::should_close`] method.
+    ///
+    /// If you want to close a specific kind of container, use [`Ui::close_kind`] instead.
+    ///
+    /// Also note that this won't bubble up across [`crate::Area`]s. If needed, you can check
+    /// `response.should_close()` and close the parent manually. ([`menu`] does this for example).
+    ///
+    /// See also:
+    /// - [`Ui::close_kind`]
+    /// - [`Ui::should_close`]
+    /// - [`Ui::will_parent_close`]
+    pub fn close(&self) {
+        let tag = self.stack.iter().find_map(|stack| {
+            stack
+                .info
+                .tags
+                .get_downcast::<ClosableTag>(ClosableTag::NAME)
+        });
+        if let Some(tag) = tag {
+            tag.set_close();
+        } else {
+            #[cfg(feature = "log")]
+            log::warn!("Called ui.close() on a Ui that has no closable parent.");
+        }
+    }
+
+    /// Find and close the first closable parent of a specific [`UiKind`].
+    ///
+    /// This is useful if you want to e.g. close a [`crate::Window`]. Since it contains a
+    /// `Collapsible`, [`Ui::close`] would close the `Collapsible` instead.
+    /// You can close the [`crate::Window`] by calling `ui.close_kind(UiKind::Window)`.
+    ///
+    /// See also:
+    /// - [`Ui::close`]
+    /// - [`Ui::should_close`]
+    /// - [`Ui::will_parent_close`]
+    pub fn close_kind(&self, ui_kind: UiKind) {
+        let tag = self
+            .stack
+            .iter()
+            .filter(|stack| stack.info.kind == Some(ui_kind))
+            .find_map(|stack| {
+                stack
+                    .info
+                    .tags
+                    .get_downcast::<ClosableTag>(ClosableTag::NAME)
+            });
+        if let Some(tag) = tag {
+            tag.set_close();
+        } else {
+            #[cfg(feature = "log")]
+            log::warn!("Called ui.close_kind({ui_kind:?}) on ui with no such closable parent.");
+        }
+    }
+
+    /// Was [`Ui::close`] called on this [`Ui`] or any of its children?
+    /// Only works if the [`Ui`] was created with [`UiBuilder::closable`].
+    ///
+    /// You can also check via this [`Ui`]'s [`Response::should_close`].
+    ///
+    /// See also:
+    /// - [`Ui::will_parent_close`]
+    /// - [`Ui::close`]
+    /// - [`Ui::close_kind`]
+    /// - [`Response::should_close`]
+    pub fn should_close(&self) -> bool {
+        self.stack
+            .info
+            .tags
+            .get_downcast(ClosableTag::NAME)
+            .is_some_and(|tag: &ClosableTag| tag.should_close())
+    }
+
+    /// Will this [`Ui`] or any of its parents close this frame?
+    ///
+    /// See also
+    /// - [`Ui::should_close`]
+    /// - [`Ui::close`]
+    /// - [`Ui::close_kind`]
+    pub fn will_parent_close(&self) -> bool {
+        self.stack.iter().any(|stack| {
+            stack
+                .info
+                .tags
+                .get_downcast::<ClosableTag>(ClosableTag::NAME)
+                .is_some_and(|tag| tag.should_close())
+        })
+    }
 }
 
 /// # Allocating space: where do I put my widgets?
@@ -1173,7 +1293,7 @@ impl Ui {
     /// # egui::__run_test_ui(|ui| {
     /// let response = ui.allocate_response(egui::vec2(100.0, 200.0), egui::Sense::click());
     /// if response.clicked() { /* … */ }
-    /// ui.painter().rect_stroke(response.rect, 0.0, (1.0, egui::Color32::WHITE));
+    /// ui.painter().rect_stroke(response.rect, 0.0, (1.0, egui::Color32::WHITE), egui::StrokeKind::Inside);
     /// # });
     /// ```
     pub fn allocate_response(&mut self, desired_size: Vec2, sense: Sense) -> Response {
@@ -1240,8 +1360,12 @@ impl Ui {
             let debug_expand_height = self.style().debug.show_expand_height;
 
             if (debug_expand_width && too_wide) || (debug_expand_height && too_high) {
-                self.painter
-                    .rect_stroke(rect, 0.0, (1.0, Color32::LIGHT_BLUE));
+                self.painter.rect_stroke(
+                    rect,
+                    0.0,
+                    (1.0, Color32::LIGHT_BLUE),
+                    crate::StrokeKind::Inside,
+                );
 
                 let stroke = Stroke::new(2.5, Color32::from_rgb(200, 0, 0));
                 let paint_line_seg = |a, b| self.painter().line_segment([a, b], stroke);
@@ -1291,6 +1415,7 @@ impl Ui {
     /// Ignore the layout of the [`Ui`]: just put my widget here!
     /// The layout cursor will advance to past this `rect`.
     pub fn allocate_rect(&mut self, rect: Rect, sense: Sense) -> Response {
+        let rect = rect.round_ui();
         let id = self.advance_cursor_after_rect(rect);
         self.interact(rect, id, sense)
     }
@@ -1298,6 +1423,8 @@ impl Ui {
     /// Allocate a rect without interacting with it.
     pub fn advance_cursor_after_rect(&mut self, rect: Rect) -> Id {
         debug_assert!(!rect.any_nan());
+        let rect = rect.round_ui();
+
         let item_spacing = self.spacing().item_spacing;
         self.placer.advance_after_rects(rect, rect, item_spacing);
         register_rect(self, rect);
@@ -1371,7 +1498,7 @@ impl Ui {
         let item_spacing = self.spacing().item_spacing;
         let frame_rect = self.placer.next_space(desired_size, item_spacing);
         let child_rect = self.placer.justify_and_align(frame_rect, desired_size);
-        self.allocate_new_ui(
+        self.scope_dyn(
             UiBuilder::new().max_rect(child_rect).layout(layout),
             add_contents,
         )
@@ -1388,7 +1515,7 @@ impl Ui {
         max_rect: Rect,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
-        self.allocate_new_ui(UiBuilder::new().max_rect(max_rect), add_contents)
+        self.scope_builder(UiBuilder::new().max_rect(max_rect), add_contents)
     }
 
     /// Allocated space (`UiBuilder::max_rect`) and then add content to it.
@@ -1396,27 +1523,13 @@ impl Ui {
     /// If the contents overflow, more space will be allocated.
     /// When finished, the amount of space actually used (`min_rect`) will be allocated in the parent.
     /// So you can request a lot of space and then use less.
+    #[deprecated = "Use `scope_builder` instead"]
     pub fn allocate_new_ui<R>(
         &mut self,
         ui_builder: UiBuilder,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
-        self.allocate_new_ui_dyn(ui_builder, Box::new(add_contents))
-    }
-
-    fn allocate_new_ui_dyn<'c, R>(
-        &mut self,
-        ui_builder: UiBuilder,
-        add_contents: Box<dyn FnOnce(&mut Self) -> R + 'c>,
-    ) -> InnerResponse<R> {
-        let mut child_ui = self.new_child(ui_builder);
-        let inner = add_contents(&mut child_ui);
-        let rect = child_ui.min_rect();
-        let item_spacing = self.spacing().item_spacing;
-        self.placer.advance_after_rects(rect, rect, item_spacing);
-        register_rect(self, rect);
-        let response = self.interact(rect, child_ui.unique_id, Sense::hover());
-        InnerResponse::new(inner, response)
+        self.scope_dyn(ui_builder, Box::new(add_contents))
     }
 
     /// Convenience function to get a region to paint on.
@@ -1622,7 +1735,7 @@ impl Ui {
     ///
     /// See also [`Self::add`] and [`Self::add_sized`].
     pub fn put(&mut self, max_rect: Rect, widget: impl Widget) -> Response {
-        self.allocate_new_ui(
+        self.scope_builder(
             UiBuilder::new()
                 .max_rect(max_rect)
                 .layout(Layout::centered_and_justified(Direction::TopDown)),
@@ -1755,12 +1868,14 @@ impl Ui {
     /// Add extra space before the next widget.
     ///
     /// The direction is dependent on the layout.
-    /// This will be in addition to the [`crate::style::Spacing::item_spacing`].
+    ///
+    /// This will be in addition to the [`crate::style::Spacing::item_spacing`]
+    /// that is always added, but `item_spacing` won't be added _again_ by `add_space`.
     ///
     /// [`Self::min_rect`] will expand to contain the space.
     #[inline]
     pub fn add_space(&mut self, amount: f32) {
-        self.placer.advance_cursor(amount);
+        self.placer.advance_cursor(amount.round_ui());
     }
 
     /// Show some text.
@@ -2061,7 +2176,7 @@ impl Ui {
         // only touch `*radians` if we actually changed the degree value
         if degrees != radians.to_degrees() {
             *radians = degrees.to_radians();
-            response.changed = true;
+            response.mark_changed();
         }
 
         response
@@ -2084,7 +2199,7 @@ impl Ui {
         // only touch `*radians` if we actually changed the value
         if taus != *radians / TAU {
             *radians = taus * TAU;
-            response.changed = true;
+            response.mark_changed();
         }
 
         response
@@ -2105,7 +2220,7 @@ impl Ui {
     /// ui.add(
     ///     egui::Image::new(egui::include_image!("../assets/ferris.png"))
     ///         .max_width(200.0)
-    ///         .rounding(10.0),
+    ///         .corner_radius(10),
     /// );
     /// # });
     /// ```
@@ -2375,9 +2490,7 @@ impl Ui {
 
             let stroke = self.visuals().widgets.noninteractive.bg_stroke;
             let left_top = child_rect.min - 0.5 * indent * Vec2::X;
-            let left_top = self.painter().round_pos_to_pixel_center(left_top);
             let left_bottom = pos2(left_top.x, child_ui.min_rect().bottom() - 2.0);
-            let left_bottom = self.painter().round_pos_to_pixel_center(left_bottom);
 
             if left_vline {
                 // draw a faint line on the left to mark the indented section
@@ -2513,7 +2626,7 @@ impl Ui {
     /// See also [`Self::with_layout`] for more options.
     #[inline]
     pub fn vertical<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
-        self.allocate_new_ui(
+        self.scope_builder(
             UiBuilder::new().layout(Layout::top_down(Align::Min)),
             add_contents,
         )
@@ -2535,7 +2648,7 @@ impl Ui {
         &mut self,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.allocate_new_ui(
+        self.scope_builder(
             UiBuilder::new().layout(Layout::top_down(Align::Center)),
             add_contents,
         )
@@ -2556,7 +2669,7 @@ impl Ui {
         &mut self,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.allocate_new_ui(
+        self.scope_builder(
             UiBuilder::new().layout(Layout::top_down(Align::Center).with_cross_justify(true)),
             add_contents,
         )
@@ -2582,7 +2695,7 @@ impl Ui {
         layout: Layout,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
-        self.allocate_new_ui(UiBuilder::new().layout(layout), add_contents)
+        self.scope_builder(UiBuilder::new().layout(layout), add_contents)
     }
 
     /// This will make the next added widget centered and justified in the available space.
@@ -2592,7 +2705,7 @@ impl Ui {
         &mut self,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
-        self.allocate_new_ui(
+        self.scope_builder(
             UiBuilder::new().layout(Layout::centered_and_justified(Direction::TopDown)),
             add_contents,
         )
@@ -2880,14 +2993,16 @@ impl Ui {
     /// Close the menu we are in (including submenus), if any.
     ///
     /// See also: [`Self::menu_button`] and [`Response::context_menu`].
-    pub fn close_menu(&mut self) {
-        if let Some(menu_state) = &mut self.menu_state {
-            menu_state.write().close();
-        }
-        self.menu_state = None;
+    #[deprecated = "Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead"]
+    pub fn close_menu(&self) {
+        self.close_kind(UiKind::Menu);
     }
 
-    pub(crate) fn set_menu_state(&mut self, menu_state: Option<Arc<RwLock<MenuState>>>) {
+    #[allow(deprecated)]
+    pub(crate) fn set_menu_state(
+        &mut self,
+        menu_state: Option<Arc<RwLock<crate::menu::MenuState>>>,
+    ) {
         self.menu_state = menu_state;
     }
 
@@ -2901,24 +3016,25 @@ impl Ui {
     /// ui.menu_button("My menu", |ui| {
     ///     ui.menu_button("My sub-menu", |ui| {
     ///         if ui.button("Close the menu").clicked() {
-    ///             ui.close_menu();
+    ///             ui.close();
     ///         }
     ///     });
     /// });
     /// # });
     /// ```
     ///
-    /// See also: [`Self::close_menu`] and [`Response::context_menu`].
+    /// See also: [`Self::close`] and [`Response::context_menu`].
     pub fn menu_button<R>(
         &mut self,
         title: impl Into<WidgetText>,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<Option<R>> {
-        if let Some(menu_state) = self.menu_state.clone() {
-            menu::submenu_button(self, menu_state, title, add_contents)
+        let (response, inner) = if menu::is_in_menu(self) {
+            menu::SubMenuButton::new(title).ui(self, add_contents)
         } else {
-            menu::menu_button(self, title, add_contents)
-        }
+            menu::MenuButton::new(title).ui(self, add_contents)
+        };
+        InnerResponse::new(inner.map(|i| i.inner), response)
     }
 
     /// Create a menu button with an image that when clicked will show the given menu.
@@ -2932,7 +3048,7 @@ impl Ui {
     /// ui.menu_image_button(title, img, |ui| {
     ///     ui.menu_button("My sub-menu", |ui| {
     ///         if ui.button("Close the menu").clicked() {
-    ///             ui.close_menu();
+    ///             ui.close();
     ///         }
     ///     });
     /// });
@@ -2940,18 +3056,22 @@ impl Ui {
     /// ```
     ///
     ///
-    /// See also: [`Self::close_menu`] and [`Response::context_menu`].
+    /// See also: [`Self::close`] and [`Response::context_menu`].
     #[inline]
     pub fn menu_image_button<'a, R>(
         &mut self,
         image: impl Into<Image<'a>>,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<Option<R>> {
-        if let Some(menu_state) = self.menu_state.clone() {
-            menu::submenu_button(self, menu_state, String::new(), add_contents)
+        let (response, inner) = if menu::is_in_menu(self) {
+            menu::SubMenuButton::from_button(
+                Button::image(image).right_text(menu::SubMenuButton::RIGHT_ARROW),
+            )
+            .ui(self, add_contents)
         } else {
-            menu::menu_custom_button(self, Button::image(image), add_contents)
-        }
+            menu::MenuButton::from_button(Button::image(image)).ui(self, add_contents)
+        };
+        InnerResponse::new(inner.map(|i| i.inner), response)
     }
 
     /// Create a menu button with an image and a text that when clicked will show the given menu.
@@ -2966,14 +3086,14 @@ impl Ui {
     /// ui.menu_image_text_button(img, title, |ui| {
     ///     ui.menu_button("My sub-menu", |ui| {
     ///         if ui.button("Close the menu").clicked() {
-    ///             ui.close_menu();
+    ///             ui.close();
     ///         }
     ///     });
     /// });
     /// # });
     /// ```
     ///
-    /// See also: [`Self::close_menu`] and [`Response::context_menu`].
+    /// See also: [`Self::close`] and [`Response::context_menu`].
     #[inline]
     pub fn menu_image_text_button<'a, R>(
         &mut self,
@@ -2981,11 +3101,16 @@ impl Ui {
         title: impl Into<WidgetText>,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<Option<R>> {
-        if let Some(menu_state) = self.menu_state.clone() {
-            menu::submenu_button(self, menu_state, title, add_contents)
+        let (response, inner) = if menu::is_in_menu(self) {
+            menu::SubMenuButton::from_button(
+                Button::image_and_text(image, title).right_text(menu::SubMenuButton::RIGHT_ARROW),
+            )
+            .ui(self, add_contents)
         } else {
-            menu::menu_custom_button(self, Button::image_and_text(image, title), add_contents)
-        }
+            menu::MenuButton::from_button(Button::image_and_text(image, title))
+                .ui(self, add_contents)
+        };
+        InnerResponse::new(inner.map(|i| i.inner), response)
     }
 }
 
@@ -3014,7 +3139,7 @@ impl Drop for Ui {
 /// Show this rectangle to the user if certain debug options are set.
 #[cfg(debug_assertions)]
 fn register_rect(ui: &Ui, rect: Rect) {
-    use emath::Align2;
+    use emath::{Align2, GuiRounding};
 
     let debug = ui.style().debug;
 
@@ -3027,16 +3152,16 @@ fn register_rect(ui: &Ui, rect: Rect) {
                 .text(p0, Align2::LEFT_TOP, "Unaligned", font_id, color);
         };
 
-        if rect.left().fract() != 0.0 {
+        if rect.left() != rect.left().round_ui() {
             unaligned_line(rect.left_top(), rect.left_bottom());
         }
-        if rect.right().fract() != 0.0 {
+        if rect.right() != rect.right().round_ui() {
             unaligned_line(rect.right_top(), rect.right_bottom());
         }
-        if rect.top().fract() != 0.0 {
+        if rect.top() != rect.top().round_ui() {
             unaligned_line(rect.left_top(), rect.right_top());
         }
-        if rect.bottom().fract() != 0.0 {
+        if rect.bottom() != rect.bottom().round_ui() {
             unaligned_line(rect.left_bottom(), rect.right_bottom());
         }
     }

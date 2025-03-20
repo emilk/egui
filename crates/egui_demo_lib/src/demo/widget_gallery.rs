@@ -22,6 +22,9 @@ pub struct WidgetGallery {
     #[cfg(feature = "chrono")]
     #[cfg_attr(feature = "serde", serde(skip))]
     date: Option<chrono::NaiveDate>,
+
+    #[cfg(feature = "chrono")]
+    with_date_button: bool,
 }
 
 impl Default for WidgetGallery {
@@ -38,7 +41,21 @@ impl Default for WidgetGallery {
             animate_progress_bar: false,
             #[cfg(feature = "chrono")]
             date: None,
+            #[cfg(feature = "chrono")]
+            with_date_button: true,
         }
+    }
+}
+
+impl WidgetGallery {
+    #[allow(unused_mut)] // if not chrono
+    #[inline]
+    pub fn with_date_button(mut self, _with_date_button: bool) -> Self {
+        #[cfg(feature = "chrono")]
+        {
+            self.with_date_button = _with_date_button;
+        }
+        self
     }
 }
 
@@ -50,7 +67,7 @@ impl crate::Demo for WidgetGallery {
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
-            .resizable([true, false])
+            .resizable([true, false]) // resizable so we can shrink if the text edit grows
             .default_width(280.0)
             .show(ctx, |ui| {
                 use crate::View as _;
@@ -124,6 +141,8 @@ impl WidgetGallery {
             animate_progress_bar,
             #[cfg(feature = "chrono")]
             date,
+            #[cfg(feature = "chrono")]
+            with_date_button,
         } = self;
 
         ui.add(doc_link_label("Label", "label"));
@@ -226,7 +245,7 @@ impl WidgetGallery {
         ui.end_row();
 
         #[cfg(feature = "chrono")]
-        {
+        if *with_date_button {
             let date = date.get_or_insert_with(|| chrono::offset::Utc::now().date_naive());
             ui.add(doc_link_label_with_crate(
                 "egui_extras",
@@ -254,7 +273,7 @@ impl WidgetGallery {
         ui.end_row();
 
         ui.hyperlink_to(
-            "Custom widget:",
+            "Custom widget",
             super::toggle_switch::url_to_file_source_code(),
         );
         ui.add(super::toggle_switch::toggle(boolean)).on_hover_text(
@@ -274,10 +293,9 @@ fn doc_link_label_with_crate<'a>(
     title: &'a str,
     search_term: &'a str,
 ) -> impl egui::Widget + 'a {
-    let label = format!("{title}:");
     let url = format!("https://docs.rs/{crate_name}?search={search_term}");
     move |ui: &mut egui::Ui| {
-        ui.hyperlink_to(label, url).on_hover_ui(|ui| {
+        ui.hyperlink_to(title, url).on_hover_ui(|ui| {
             ui.horizontal_wrapped(|ui| {
                 ui.label("Search egui docs for");
                 ui.code(search_term);
@@ -286,6 +304,7 @@ fn doc_link_label_with_crate<'a>(
     }
 }
 
+#[cfg(feature = "chrono")]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -307,6 +326,6 @@ mod tests {
 
         harness.fit_contents();
 
-        harness.wgpu_snapshot("widget_gallery");
+        harness.snapshot("widget_gallery");
     }
 }

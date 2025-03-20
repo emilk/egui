@@ -66,7 +66,7 @@ impl Theme {
 }
 
 /// The user's theme preference.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ThemePreference {
     /// Dark mode: light text on a dark background.
@@ -76,6 +76,7 @@ pub enum ThemePreference {
     Light,
 
     /// Follow the system's theme preference.
+    #[default]
     System,
 }
 

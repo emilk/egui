@@ -79,6 +79,27 @@ pub struct IMEOutput {
     pub cursor_rect: crate::Rect,
 }
 
+/// Commands that the egui integration should execute at the end of a frame.
+///
+/// Commands that are specific to a viewport should be put in [`crate::ViewportCommand`] instead.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum OutputCommand {
+    /// Put this text to the system clipboard.
+    ///
+    /// This is often a response to [`crate::Event::Copy`] or [`crate::Event::Cut`].
+    CopyText(String),
+
+    /// Put this image to the system clipboard.
+    CopyImage(crate::ColorImage),
+
+    /// Open this url in a browser.
+    OpenUrl(OpenUrl),
+
+    /// Set the mouse cursor position (if the platform supports it).
+    SetPointerPosition(emath::Pos2),
+}
+
 /// The non-rendering part of what egui emits each frame.
 ///
 /// You can access (and modify) this with [`crate::Context::output`].
@@ -87,10 +108,14 @@ pub struct IMEOutput {
 #[derive(Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct PlatformOutput {
+    /// Commands that the egui integration should execute at the end of a frame.
+    pub commands: Vec<OutputCommand>,
+
     /// Set the cursor to this icon.
     pub cursor_icon: CursorIcon,
 
     /// If set, open this url.
+    #[deprecated = "Use `Context::open_url` or `PlatformOutput::commands` instead"]
     pub open_url: Option<OpenUrl>,
 
     /// If set, put this text in the system clipboard. Ignore if empty.
@@ -104,6 +129,7 @@ pub struct PlatformOutput {
     /// }
     /// # });
     /// ```
+    #[deprecated = "Use `Context::copy_text` or `PlatformOutput::commands` instead"]
     pub copied_text: String,
 
     /// Events that may be useful to e.g. a screen reader.
@@ -162,7 +188,10 @@ impl PlatformOutput {
 
     /// Add on new output.
     pub fn append(&mut self, newer: Self) {
+        #![allow(deprecated)]
+
         let Self {
+            mut commands,
             cursor_icon,
             open_url,
             copied_text,
@@ -175,6 +204,7 @@ impl PlatformOutput {
             mut request_discard_reasons,
         } = newer;
 
+        self.commands.append(&mut commands);
         self.cursor_icon = cursor_icon;
         if open_url.is_some() {
             self.open_url = open_url;
@@ -213,7 +243,7 @@ impl PlatformOutput {
 /// What URL to open, and how.
 ///
 /// Use with [`crate::Context::open_url`].
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct OpenUrl {
     pub url: String,
@@ -512,6 +542,9 @@ pub struct WidgetInfo {
 
     /// Selected range of characters in [`Self::current_text_value`].
     pub text_selection: Option<std::ops::RangeInclusive<usize>>,
+
+    /// The hint text for text edit fields.
+    pub hint_text: Option<String>,
 }
 
 impl std::fmt::Debug for WidgetInfo {
@@ -525,6 +558,7 @@ impl std::fmt::Debug for WidgetInfo {
             selected,
             value,
             text_selection,
+            hint_text,
         } = self;
 
         let mut s = f.debug_struct("WidgetInfo");
@@ -553,6 +587,9 @@ impl std::fmt::Debug for WidgetInfo {
         if let Some(text_selection) = text_selection {
             s.field("text_selection", text_selection);
         }
+        if let Some(hint_text) = hint_text {
+            s.field("hint_text", hint_text);
+        }
 
         s.finish()
     }
@@ -569,6 +606,7 @@ impl WidgetInfo {
             selected: None,
             value: None,
             text_selection: None,
+            hint_text: None,
         }
     }
 
@@ -616,9 +654,11 @@ impl WidgetInfo {
         enabled: bool,
         prev_text_value: impl ToString,
         text_value: impl ToString,
+        hint_text: impl ToString,
     ) -> Self {
         let text_value = text_value.to_string();
         let prev_text_value = prev_text_value.to_string();
+        let hint_text = hint_text.to_string();
         let prev_text_value = if text_value == prev_text_value {
             None
         } else {
@@ -628,6 +668,7 @@ impl WidgetInfo {
             enabled,
             current_text_value: Some(text_value),
             prev_text_value,
+            hint_text: Some(hint_text),
             ..Self::new(WidgetType::TextEdit)
         }
     }
@@ -657,6 +698,7 @@ impl WidgetInfo {
             selected,
             value,
             text_selection: _,
+            hint_text: _,
         } = self;
 
         // TODO(emilk): localization
@@ -673,6 +715,7 @@ impl WidgetInfo {
             WidgetType::DragValue => "drag value",
             WidgetType::ColorButton => "color button",
             WidgetType::ImageButton => "image button",
+            WidgetType::Image => "image",
             WidgetType::CollapsingHeader => "collapsing header",
             WidgetType::ProgressIndicator => "progress indicator",
             WidgetType::Window => "window",

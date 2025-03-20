@@ -24,6 +24,9 @@ pub enum UiKind {
     /// A bottom [`crate::TopBottomPanel`].
     BottomPanel,
 
+    /// A modal [`crate::Modal`].
+    Modal,
+
     /// A [`crate::Frame`].
     Frame,
 
@@ -50,6 +53,9 @@ pub enum UiKind {
 
     /// An [`crate::Area`] that is not of any other kind.
     GenericArea,
+
+    /// A collapsible container, e.g. a [`crate::CollapsingHeader`].
+    Collapsible,
 }
 
 impl UiKind {
@@ -78,10 +84,12 @@ impl UiKind {
             | Self::Frame
             | Self::ScrollArea
             | Self::Resize
+            | Self::Collapsible
             | Self::TableCell => false,
 
             Self::Window
             | Self::Menu
+            | Self::Modal
             | Self::Popup
             | Self::Tooltip
             | Self::Picker
@@ -225,7 +233,13 @@ impl UiStack {
     /// Is this [`crate::Ui`] a panel?
     #[inline]
     pub fn is_panel_ui(&self) -> bool {
-        self.kind().map_or(false, |kind| kind.is_panel())
+        self.kind().is_some_and(|kind| kind.is_panel())
+    }
+
+    /// Is this [`crate::Ui`] an [`crate::Area`]?
+    #[inline]
+    pub fn is_area_ui(&self) -> bool {
+        self.kind().is_some_and(|kind| kind.is_area())
     }
 
     /// Is this a root [`crate::Ui`], i.e. created with [`crate::Ui::new()`]?
@@ -275,4 +289,4 @@ impl<'a> Iterator for UiStackIterator<'a> {
     }
 }
 
-impl<'a> FusedIterator for UiStackIterator<'a> {}
+impl FusedIterator for UiStackIterator<'_> {}

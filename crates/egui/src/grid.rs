@@ -1,3 +1,5 @@
+use emath::GuiRounding as _;
+
 use crate::{
     vec2, Align2, Color32, Context, Id, InnerResponse, NumExt, Painter, Rect, Region, Style, Ui,
     UiBuilder, Vec2,
@@ -179,13 +181,15 @@ impl GridLayout {
         let width = self.prev_state.col_width(self.col).unwrap_or(0.0);
         let height = self.prev_row_height(self.row);
         let size = child_size.max(vec2(width, height));
-        Rect::from_min_size(cursor.min, size)
+        Rect::from_min_size(cursor.min, size).round_ui()
     }
 
     #[allow(clippy::unused_self)]
     pub(crate) fn align_size_within_rect(&self, size: Vec2, frame: Rect) -> Rect {
         // TODO(emilk): allow this alignment to be customized
-        Align2::LEFT_CENTER.align_size_within_rect(size, frame)
+        Align2::LEFT_CENTER
+            .align_size_within_rect(size, frame)
+            .round_ui()
     }
 
     pub(crate) fn justify_and_align(&self, frame: Rect, size: Vec2) -> Rect {
@@ -204,7 +208,12 @@ impl GridLayout {
 
                 if (debug_expand_width && too_wide) || (debug_expand_height && too_high) {
                     let painter = self.ctx.debug_painter();
-                    painter.rect_stroke(rect, 0.0, (1.0, Color32::LIGHT_BLUE));
+                    painter.rect_stroke(
+                        rect,
+                        0.0,
+                        (1.0, Color32::LIGHT_BLUE),
+                        crate::StrokeKind::Inside,
+                    );
 
                     let stroke = Stroke::new(2.5, Color32::from_rgb(200, 0, 0));
                     let paint_line_seg = |a, b| painter.line_segment([a, b], stroke);
@@ -227,7 +236,7 @@ impl GridLayout {
         self.col += 1;
     }
 
-    fn paint_row(&mut self, cursor: &Rect, painter: &Painter) {
+    fn paint_row(&self, cursor: &Rect, painter: &Painter) {
         // handle row color painting based on color-picker function
         let Some(color_picker) = self.color_picker.as_ref() else {
             return;
@@ -447,10 +456,10 @@ impl Grid {
             ui_builder = ui_builder.sizing_pass().invisible();
         }
 
-        ui.allocate_new_ui(ui_builder, |ui| {
+        ui.scope_builder(ui_builder, |ui| {
             ui.horizontal(|ui| {
                 let is_color = color_picker.is_some();
-                let mut grid = GridLayout {
+                let grid = GridLayout {
                     num_columns,
                     color_picker,
                     min_cell_size: vec2(min_col_width, min_row_height),

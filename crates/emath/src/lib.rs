@@ -27,12 +27,14 @@ use std::ops::{Add, Div, Mul, RangeInclusive, Sub};
 
 pub mod align;
 pub mod easing;
+mod gui_rounding;
 mod history;
 mod numeric;
 mod ordered_float;
 mod pos2;
 mod range;
 mod rect;
+mod rect_align;
 mod rect_transform;
 mod rot2;
 pub mod smart_aim;
@@ -42,12 +44,14 @@ mod vec2b;
 
 pub use self::{
     align::{Align, Align2},
+    gui_rounding::{GuiRounding, GUI_ROUNDING},
     history::History,
     numeric::*,
     ordered_float::*,
     pos2::*,
     range::Rangef,
     rect::*,
+    rect_align::RectAlign,
     rect_transform::*,
     rot2::*,
     ts_transform::*,

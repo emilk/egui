@@ -643,7 +643,7 @@ impl<'a> Slider<'a> {
     }
 }
 
-impl<'a> Slider<'a> {
+impl Slider<'_> {
     /// Just the slider, no text
     fn allocate_slider_space(&self, ui: &mut Ui, thickness: f32) -> Response {
         let desired_size = match self.orientation {
@@ -760,10 +760,10 @@ impl<'a> Slider<'a> {
 
             let rail_radius = (spacing.slider_rail_height / 2.0).at_least(0.0);
             let rail_rect = self.rail_rect(rect, rail_radius);
-            let rounding = widget_visuals.inactive.rounding;
+            let corner_radius = widget_visuals.inactive.corner_radius;
 
             ui.painter()
-                .rect_filled(rail_rect, rounding, widget_visuals.inactive.bg_fill);
+                .rect_filled(rail_rect, corner_radius, widget_visuals.inactive.bg_fill);
 
             let position_1d = self.position_from_value(value, position_range);
             let center = self.marker_center(position_1d, &rail_rect);
@@ -780,16 +780,16 @@ impl<'a> Slider<'a> {
                 // The trailing rect has to be drawn differently depending on the orientation.
                 match self.orientation {
                     SliderOrientation::Horizontal => {
-                        trailing_rail_rect.max.x = center.x + rounding.nw;
+                        trailing_rail_rect.max.x = center.x + corner_radius.nw as f32;
                     }
                     SliderOrientation::Vertical => {
-                        trailing_rail_rect.min.y = center.y - rounding.se;
+                        trailing_rail_rect.min.y = center.y - corner_radius.se as f32;
                     }
                 };
 
                 ui.painter().rect_filled(
                     trailing_rail_rect,
-                    rounding,
+                    corner_radius,
                     ui.visuals().selection.bg_fill,
                 );
             }
@@ -815,8 +815,13 @@ impl<'a> Slider<'a> {
                     };
                     let v = v + Vec2::splat(visuals.expansion);
                     let rect = Rect::from_center_size(center, 2.0 * v);
-                    ui.painter()
-                        .rect(rect, visuals.rounding, visuals.bg_fill, visuals.fg_stroke);
+                    ui.painter().rect(
+                        rect,
+                        visuals.corner_radius,
+                        visuals.bg_fill,
+                        visuals.fg_stroke,
+                        epaint::StrokeKind::Inside,
+                    );
                 }
             }
         }
@@ -946,7 +951,9 @@ impl<'a> Slider<'a> {
         self.slider_ui(ui, &response);
 
         let value = self.get_value();
-        response.changed = value != old_value;
+        if value != old_value {
+            response.mark_changed();
+        }
         response.widget_info(|| WidgetInfo::slider(ui.is_enabled(), value, self.text.text()));
 
         #[cfg(feature = "accesskit")]
@@ -1013,7 +1020,7 @@ impl<'a> Slider<'a> {
     }
 }
 
-impl<'a> Widget for Slider<'a> {
+impl Widget for Slider<'_> {
     fn ui(mut self, ui: &mut Ui) -> Response {
         let inner_response = match self.orientation {
             SliderOrientation::Horizontal => ui.horizontal(|ui| self.add_contents(ui)),
@@ -1030,7 +1037,7 @@ impl<'a> Widget for Slider<'a> {
 // Logarithmic sliders are allowed to include zero and infinity,
 // even though mathematically it doesn't make sense.
 
-use std::f64::INFINITY;
+const INFINITY: f64 = f64::INFINITY;
 
 /// When the user asks for an infinitely large range (e.g. logarithmic from zero),
 /// give a scale that this many orders of magnitude in size.

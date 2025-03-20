@@ -1,10 +1,192 @@
 # egui changelog
 All notable changes to the `egui` crate will be documented in this file.
 
-NOTE: this is just the changelog for the core `egui` crate. [`eframe`](crates/eframe/CHANGELOG.md), [`ecolor`](crates/ecolor/CHANGELOG.md), [`epaint`](crates/epaint/CHANGELOG.md), [`egui-winit`](crates/egui-winit/CHANGELOG.md), [`egui_glow`](crates/egui_glow/CHANGELOG.md) and [`egui-wgpu`](crates/egui-wgpu/CHANGELOG.md) have their own changelogs!
+This is just the changelog for the core `egui` crate. Every crate in this repository has their own changelog:
+* [`epaint` changelog](crates/epaint/CHANGELOG.md)
+* [`egui-winit` changelog](crates/egui-winit/CHANGELOG.md)
+* [`egui-wgpu` changelog](crates/egui-wgpu/CHANGELOG.md)
+* [`egui_kittest` changelog](crates/egui_kittest/CHANGELOG.md)
+* [`egui_glow` changelog](crates/egui_glow/CHANGELOG.md)
+* [`ecolor` changelog](crates/ecolor/CHANGELOG.md)
+* [`eframe` changelog](crates/eframe/CHANGELOG.md)
 
 This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
+
+
+## 0.31.1 - 2025-03-05
+* Fix sizing bug in `TextEdit::singleline` [#5640](https://github.com/emilk/egui/pull/5640) by [@IaVashik](https://github.com/IaVashik)
+* Fix panic when rendering thin textured rectangles [#5692](https://github.com/emilk/egui/pull/5692) by [@PPakalns](https://github.com/PPakalns)
+
+
+## 0.31.0 - 2025-02-04 - Scene container, improved rendering quality
+
+### Highlights ✨
+
+#### Scene container
+This release adds the `Scene` container to egui. It is a pannable, zoomable canvas that can contain `Widget`s and child `Ui`s.
+This will make it easier to e.g. implement a graph editor.
+
+![scene](https://github.com/user-attachments/assets/7dc5e395-a3cb-4bf3-83a3-51a76a48c409)
+
+#### Clearer, pixel perfect rendering
+The tessellator has been updated for improved rendering quality and better performance. It will produce fewer vertices
+and shapes will have less overdraw. We've also defined what `CornerRadius` (previously `Rounding`) means.
+
+We've also added a tessellator test to the [demo app](https://www.egui.rs/), where you can play around with different
+values to see what's produced:
+
+
+https://github.com/user-attachments/assets/adf55e3b-fb48-4df0-aaa2-150ee3163684
+
+
+Check the [PR](https://github.com/emilk/egui/pull/5669) for more details.
+
+#### `CornerRadius`, `Margin`, `Shadow` size reduction
+In order to pave the path for more complex and customizable styling solutions, we've reduced the size of
+`CornerRadius`, `Margin` and `Shadow` values to `i8` and `u8`.
+
+
+
+### Migration guide
+- Add a `StrokeKind` to all your `Painter::rect` calls [#5648](https://github.com/emilk/egui/pull/5648)
+- `StrokeKind::default` was removed, since the 'normal' value depends on the context [#5658](https://github.com/emilk/egui/pull/5658)
+  - You probably want to use `StrokeKind::Inside` when drawing rectangles
+  - You probably want to use `StrokeKind::Middle` when drawing open paths
+- Rename `Rounding` to `CornerRadius` [#5673](https://github.com/emilk/egui/pull/5673)
+- `CornerRadius`, `Margin` and `Shadow` have been updated to use `i8` and `u8` [#5563](https://github.com/emilk/egui/pull/5563), [#5567](https://github.com/emilk/egui/pull/5567), [#5568](https://github.com/emilk/egui/pull/5568)
+  - Remove the .0 from your values
+  - Cast dynamic values with `as i8` / `as u8` or `as _` if you want Rust to infer the type
+    - Rust will do a 'saturating' cast, so if your `f32` value is bigger than `127` it will be clamped to `127`
+- `RectShape` parameters changed [#5565](https://github.com/emilk/egui/pull/5565)
+  - Prefer to use the builder methods to create it instead of initializing it directly
+- `Frame` now takes the `Stroke` width into account for its sizing, so check all views of your app to make sure they still look right.
+  Read the [PR](https://github.com/emilk/egui/pull/5575) for more info.
+
+### ⭐ Added
+* Add `egui::Scene` for panning/zooming a `Ui` [#5505](https://github.com/emilk/egui/pull/5505) by [@grtlr](https://github.com/grtlr)
+* Animated WebP support [#5470](https://github.com/emilk/egui/pull/5470) by [@Aely0](https://github.com/Aely0)
+* Improve tessellation quality [#5669](https://github.com/emilk/egui/pull/5669) by [@emilk](https://github.com/emilk)
+* Add `OutputCommand` for copying text and opening URL:s [#5532](https://github.com/emilk/egui/pull/5532) by [@emilk](https://github.com/emilk)
+* Add `Context::copy_image` [#5533](https://github.com/emilk/egui/pull/5533) by [@emilk](https://github.com/emilk)
+* Add `WidgetType::Image` and `Image::alt_text` [#5534](https://github.com/emilk/egui/pull/5534) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Add `epaint::Brush` for controlling `RectShape` texturing [#5565](https://github.com/emilk/egui/pull/5565) by [@emilk](https://github.com/emilk)
+* Implement `nohash_hasher::IsEnabled` for `Id` [#5628](https://github.com/emilk/egui/pull/5628) by [@emilk](https://github.com/emilk)
+* Add keys for `!`, `{`, `}` [#5548](https://github.com/emilk/egui/pull/5548) by [@Its-Just-Nans](https://github.com/Its-Just-Nans)
+* Add `RectShape::stroke_kind ` to control if stroke is inside/outside/centered [#5647](https://github.com/emilk/egui/pull/5647) by [@emilk](https://github.com/emilk)
+
+### 🔧 Changed
+* ⚠️ `Frame` now includes stroke width as part of padding [#5575](https://github.com/emilk/egui/pull/5575) by [@emilk](https://github.com/emilk)
+* Rename `Rounding` to `CornerRadius` [#5673](https://github.com/emilk/egui/pull/5673) by [@emilk](https://github.com/emilk)
+* Require a `StrokeKind` when painting rectangles with strokes [#5648](https://github.com/emilk/egui/pull/5648) by [@emilk](https://github.com/emilk)
+* Round widget coordinates to even multiple of 1/32 [#5517](https://github.com/emilk/egui/pull/5517) by [@emilk](https://github.com/emilk)
+* Make all lines and rectangles crisp [#5518](https://github.com/emilk/egui/pull/5518) by [@emilk](https://github.com/emilk)
+* Tweak window resize handles [#5524](https://github.com/emilk/egui/pull/5524) by [@emilk](https://github.com/emilk)
+
+### 🔥 Removed
+* Remove `egui::special_emojis::TWITTER` [#5622](https://github.com/emilk/egui/pull/5622) by [@emilk](https://github.com/emilk)
+* Remove `StrokeKind::default` [#5658](https://github.com/emilk/egui/pull/5658) by [@emilk](https://github.com/emilk)
+
+### 🐛 Fixed
+* Use correct minimum version of `profiling` crate [#5494](https://github.com/emilk/egui/pull/5494) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Fix interactive widgets sometimes being incorrectly marked as hovered [#5523](https://github.com/emilk/egui/pull/5523) by [@emilk](https://github.com/emilk)
+* Fix panic due to non-total ordering in `Area::compare_order()` [#5569](https://github.com/emilk/egui/pull/5569) by [@HactarCE](https://github.com/HactarCE)
+* Fix hovering through custom menu button [#5555](https://github.com/emilk/egui/pull/5555) by [@M4tthewDE](https://github.com/M4tthewDE)
+
+### 🚀 Performance
+* Use `u8` in `CornerRadius`, and introduce `CornerRadiusF32` [#5563](https://github.com/emilk/egui/pull/5563) by [@emilk](https://github.com/emilk)
+* Store `Margin` using `i8` to reduce its size [#5567](https://github.com/emilk/egui/pull/5567) by [@emilk](https://github.com/emilk)
+* Shrink size of `Shadow` by using `i8/u8` instead of `f32` [#5568](https://github.com/emilk/egui/pull/5568) by [@emilk](https://github.com/emilk)
+* Avoid allocations for loader cache lookup [#5584](https://github.com/emilk/egui/pull/5584) by [@mineichen](https://github.com/mineichen)
+* Use bitfield instead of bools in `Response` and `Sense` [#5556](https://github.com/emilk/egui/pull/5556) by [@polwel](https://github.com/polwel)
+
+
+## 0.30.0 - 2024-12-16 - Modals and better layer support
+
+### ✨ Highlights
+* Add `Modal`, a popup that blocks input to the rest of the application ([#5358](https://github.com/emilk/egui/pull/5358) by [@lucasmerlin](https://github.com/lucasmerlin))
+* Improved support for transform layers ([#5465](https://github.com/emilk/egui/pull/5465), [#5468](https://github.com/emilk/egui/pull/5468), [#5429](https://github.com/emilk/egui/pull/5429))
+
+#### `egui_kittest`
+This release welcomes a new crate to the family: [egui_kittest](https://github.com/emilk/egui/tree/master/crates/egui_kittest).
+`egui_kittest` is a testing framework for egui, allowing you to test both automation (simulated clicks and other events),
+and also do screenshot testing (useful for regression tests).
+`egui_kittest` is built using [`kittest`](https://github.com/rerun-io/kittest), which is a general GUI testing framework that aims to work with any Rust GUI (not just egui!).
+`kittest` uses the accessibility library [`AccessKit`](https://github.com/AccessKit/accesskit/) for automatation and to query the widget tree.
+
+`kittest` and `egui_kittest` are written by [@lucasmerlin](https://github.com/lucasmerlin).
+
+Here's a quick example of how to use `egui_kittest` to test a checkbox:
+
+```rust
+use egui::accesskit::Toggled;
+use egui_kittest::{Harness, kittest::Queryable};
+
+fn main() {
+    let mut checked = false;
+    let app = |ui: &mut egui::Ui| {
+        ui.checkbox(&mut checked, "Check me!");
+    };
+
+    let mut harness = egui_kittest::Harness::new_ui(app);
+
+    let checkbox = harness.get_by_label("Check me!");
+    assert_eq!(checkbox.toggled(), Some(Toggled::False));
+    checkbox.click();
+
+    harness.run();
+
+    let checkbox = harness.get_by_label("Check me!");
+    assert_eq!(checkbox.toggled(), Some(Toggled::True));
+
+    // You can even render the ui and do image snapshot tests
+    #[cfg(all(feature = "wgpu", feature = "snapshot"))]
+    harness.wgpu_snapshot("readme_example");
+}
+```
+
+### ⭐ Added
+* Add `Modal` and `Memory::set_modal_layer` [#5358](https://github.com/emilk/egui/pull/5358) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Add `UiBuilder::layer_id` and remove `layer_id` from `Ui::new` [#5195](https://github.com/emilk/egui/pull/5195) by [@emilk](https://github.com/emilk)
+* Allow easier setting of background color for `TextEdit` [#5203](https://github.com/emilk/egui/pull/5203) by [@bircni](https://github.com/bircni)
+* Set `Response::intrinsic_size` for `TextEdit` [#5266](https://github.com/emilk/egui/pull/5266) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Expose center position in `MultiTouchInfo` [#5247](https://github.com/emilk/egui/pull/5247) by [@lucasmerlin](https://github.com/lucasmerlin)
+* `Context::add_font` [#5228](https://github.com/emilk/egui/pull/5228) by [@frederik-uni](https://github.com/frederik-uni)
+* Impl from `Box<str>` for `WidgetText`, `RichText` [#5309](https://github.com/emilk/egui/pull/5309) by [@dimtpap](https://github.com/dimtpap)
+* Add `Window::scroll_bar_visibility` [#5231](https://github.com/emilk/egui/pull/5231) by [@Zeenobit](https://github.com/Zeenobit)
+* Add `ComboBox::close_behavior` [#5305](https://github.com/emilk/egui/pull/5305) by [@avalsch](https://github.com/avalsch)
+* Add `painter.line()` [#5291](https://github.com/emilk/egui/pull/5291) by [@bircni](https://github.com/bircni)
+* Allow attaching custom user data to a screenshot command [#5416](https://github.com/emilk/egui/pull/5416) by [@emilk](https://github.com/emilk)
+* Add `Button::image_tint_follows_text_color` [#5430](https://github.com/emilk/egui/pull/5430) by [@emilk](https://github.com/emilk)
+* Consume escape keystroke when bailing out from a drag operation [#5433](https://github.com/emilk/egui/pull/5433) by [@abey79](https://github.com/abey79)
+* Add `Context::layer_transform_to_global` & `layer_transform_from_global` [#5465](https://github.com/emilk/egui/pull/5465) by [@emilk](https://github.com/emilk)
+
+### 🔧 Changed
+* Update MSRV to Rust 1.80 [#5421](https://github.com/emilk/egui/pull/5421), [#5457](https://github.com/emilk/egui/pull/5457) by [@emilk](https://github.com/emilk)
+* Expand max font atlas size from 8k to 16k [#5257](https://github.com/emilk/egui/pull/5257) by [@rustbasic](https://github.com/rustbasic)
+* Put font data into `Arc` to reduce memory consumption [#5276](https://github.com/emilk/egui/pull/5276) by [@StarStarJ](https://github.com/StarStarJ)
+* Move `egui::util::cache` to `egui::cache`; add `FramePublisher` [#5426](https://github.com/emilk/egui/pull/5426) by [@emilk](https://github.com/emilk)
+* Remove `Order::PanelResizeLine` [#5455](https://github.com/emilk/egui/pull/5455) by [@emilk](https://github.com/emilk)
+* Drag-and-drop: keep cursor set by user, if any [#5467](https://github.com/emilk/egui/pull/5467) by [@abey79](https://github.com/abey79)
+* Use `profiling` crate to support more profiler backends [#5150](https://github.com/emilk/egui/pull/5150) by [@teddemunnik](https://github.com/teddemunnik)
+* Improve hit-test of thin widgets, and widgets across layers [#5468](https://github.com/emilk/egui/pull/5468) by [@emilk](https://github.com/emilk)
+
+### 🐛 Fixed
+* Update `ScrollArea` drag velocity when drag stopped [#5175](https://github.com/emilk/egui/pull/5175) by [@valadaptive](https://github.com/valadaptive)
+* Fix bug causing wrong-fire of `ViewportCommand::Visible` [#5244](https://github.com/emilk/egui/pull/5244) by [@rustbasic](https://github.com/rustbasic)
+* Fix: `Ui::new_child` does not consider the `sizing_pass` field of `UiBuilder` [#5262](https://github.com/emilk/egui/pull/5262) by [@zhatuokun](https://github.com/zhatuokun)
+* Fix Ctrl+Shift+Z redo shortcut [#5258](https://github.com/emilk/egui/pull/5258) by [@YgorSouza](https://github.com/YgorSouza)
+* Fix: `Window::default_pos` does not work [#5315](https://github.com/emilk/egui/pull/5315) by [@rustbasic](https://github.com/rustbasic)
+* Fix: `Sides` did not apply the layout position correctly [#5303](https://github.com/emilk/egui/pull/5303) by [@zhatuokun](https://github.com/zhatuokun)
+* Respect `Style::override_font_id` in `RichText` [#5310](https://github.com/emilk/egui/pull/5310) by [@MStarha](https://github.com/MStarha)
+* Fix disabled widgets "eating" focus [#5370](https://github.com/emilk/egui/pull/5370) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Fix cursor clipping in `TextEdit` inside a `ScrollArea` [#3660](https://github.com/emilk/egui/pull/3660) by [@juancampa](https://github.com/juancampa)
+* Make text cursor always appear on click  [#5420](https://github.com/emilk/egui/pull/5420) by [@juancampa](https://github.com/juancampa)
+* Fix `on_hover_text_at_pointer` for transformed layers [#5429](https://github.com/emilk/egui/pull/5429) by [@emilk](https://github.com/emilk)
+* Fix: don't interact with `Area` outside its `constrain_rect` [#5459](https://github.com/emilk/egui/pull/5459) by [@MScottMcBee](https://github.com/MScottMcBee)
+* Fix broken images on egui.rs (move from git lfs to normal git) [#5480](https://github.com/emilk/egui/pull/5480) by [@emilk](https://github.com/emilk)
+* Fix: `ui.new_child` should now respect `disabled` [#5483](https://github.com/emilk/egui/pull/5483) by [@emilk](https://github.com/emilk)
+* Fix zero-width strokes still affecting the feathering color of boxes [#5485](https://github.com/emilk/egui/pull/5485) by [@emilk](https://github.com/emilk)
 
 
 ## 0.29.1 - 2024-10-01 - Bug fixes
@@ -1135,7 +1317,7 @@ egui_extras::install_image_loaders(egui_ctx);
 * [Tweaked the default visuals style](https://github.com/emilk/egui/pull/450).
 * Plot: Renamed `Curve` to `Line`.
 * `TopPanel::top` is now `TopBottomPanel::top`.
-* `SidePanel::left` no longet takes the default width by argument, but by a builder call.
+* `SidePanel::left` no longer takes the default width by argument, but by a builder call.
 * `SidePanel::left` is resizable by default.
 
 ### 🐛 Fixed

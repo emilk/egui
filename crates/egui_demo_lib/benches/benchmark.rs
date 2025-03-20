@@ -76,7 +76,13 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 let painter = ui.painter();
                 let rect = ui.max_rect();
                 b.iter(|| {
-                    painter.rect(rect, 2.0, egui::Color32::RED, (1.0, egui::Color32::WHITE));
+                    painter.rect(
+                        rect,
+                        2.0,
+                        egui::Color32::RED,
+                        (1.0, egui::Color32::WHITE),
+                        egui::StrokeKind::Inside,
+                    );
                 });
             });
         });

@@ -32,7 +32,7 @@ impl FrameHistory {
         1.0 / self.frame_times.mean_time_interval().unwrap_or_default()
     }
 
-    pub fn ui(&mut self, ui: &mut egui::Ui) {
+    pub fn ui(&self, ui: &mut egui::Ui) {
         ui.label(format!(
             "Mean CPU usage: {:.2} ms / frame",
             1e3 * self.mean_frame_time()
@@ -72,9 +72,10 @@ impl FrameHistory {
         let mut shapes = Vec::with_capacity(3 + 2 * history.len());
         shapes.push(Shape::Rect(epaint::RectShape::new(
             rect,
-            style.rounding,
+            style.corner_radius,
             ui.visuals().extreme_bg_color,
             ui.style().noninteractive().bg_stroke,
+            egui::StrokeKind::Inside,
         )));
 
         let rect = rect.shrink(4.0);

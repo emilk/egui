@@ -30,6 +30,7 @@ pub struct Label {
     sense: Option<Sense>,
     selectable: Option<bool>,
     halign: Option<Align>,
+    show_tooltip_when_elided: bool,
 }
 
 impl Label {
@@ -40,6 +41,7 @@ impl Label {
             sense: None,
             selectable: None,
             halign: None,
+            show_tooltip_when_elided: true,
         }
     }
 
@@ -116,6 +118,23 @@ impl Label {
         self.sense = Some(sense);
         self
     }
+
+    /// Show the full text when hovered, if the text was elided.
+    ///
+    /// By default, this is true.
+    ///
+    /// ```
+    /// # use egui::{Label, Sense};
+    /// # egui::__run_test_ui(|ui| {
+    /// ui.add(Label::new("some text").show_tooltip_when_elided(false))
+    ///     .on_hover_text("completely different text");
+    /// # });
+    /// ```
+    #[inline]
+    pub fn show_tooltip_when_elided(mut self, show: bool) -> Self {
+        self.show_tooltip_when_elided = show;
+        self
+    }
 }
 
 impl Label {
@@ -146,7 +165,7 @@ impl Label {
             } else {
                 Sense::click()
             };
-            select_sense.focusable = false; // Don't move focus to labels with TAB key.
+            select_sense -= Sense::FOCUSABLE; // Don't move focus to labels with TAB key.
 
             sense = sense.union(select_sense);
         }
@@ -244,16 +263,17 @@ impl Widget for Label {
         // Interactive = the uses asked to sense interaction.
         // We DON'T want to have the color respond just because the text is selectable;
         // the cursor is enough to communicate that.
-        let interactive = self.sense.map_or(false, |sense| sense != Sense::hover());
+        let interactive = self.sense.is_some_and(|sense| sense != Sense::hover());
 
         let selectable = self.selectable;
+        let show_tooltip_when_elided = self.show_tooltip_when_elided;
 
         let (galley_pos, galley, mut response) = self.layout_in_ui(ui);
         response
             .widget_info(|| WidgetInfo::labeled(WidgetType::Label, ui.is_enabled(), galley.text()));
 
         if ui.is_rect_visible(response.rect) {
-            if galley.elided {
+            if show_tooltip_when_elided && galley.elided {
                 // Show the full (non-elided) text on hover:
                 response = response.on_hover_text(galley.text());
             }

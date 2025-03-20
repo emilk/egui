@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
 use egui::{
-    epaint, lerp, pos2, vec2, widgets::color_picker::show_color, Align2, Color32, FontId, Image,
-    Mesh, Pos2, Rect, Response, Rgba, RichText, Sense, Shape, Stroke, TextureHandle,
-    TextureOptions, Ui, Vec2,
+    emath::GuiRounding as _, epaint, lerp, pos2, vec2, widgets::color_picker::show_color, Align2,
+    Color32, FontId, Image, Mesh, Pos2, Rect, Response, Rgba, RichText, Sense, Shape, Stroke,
+    TextureHandle, TextureOptions, Ui, Vec2,
 };
 
 const GRADIENT_SIZE: Vec2 = vec2(256.0, 18.0);
@@ -270,6 +270,7 @@ impl ColorTest {
 
 fn vertex_gradient(ui: &mut Ui, bg_fill: Color32, gradient: &Gradient) -> Response {
     let (rect, response) = ui.allocate_at_least(GRADIENT_SIZE, Sense::hover());
+    let rect = rect.round_to_pixels(ui.pixels_per_point());
     if bg_fill != Default::default() {
         let mut mesh = Mesh::default();
         mesh.add_colored_rect(rect, bg_fill);
@@ -451,7 +452,12 @@ fn pixel_test_strokes(ui: &mut Ui) {
                 Pos2::new(cursor_pixel.x, cursor_pixel.y),
                 Vec2::splat(size as f32),
             );
-            painter.rect_stroke(rect_points / pixels_per_point, 0.0, stroke);
+            painter.rect_stroke(
+                rect_points / pixels_per_point,
+                0.0,
+                stroke,
+                egui::StrokeKind::Outside,
+            );
             cursor_pixel.x += (1 + size) as f32 + thickness_pixels * 2.0;
         }
     }
@@ -681,30 +687,29 @@ fn mul_color_gamma(left: Color32, right: Color32) -> Color32 {
 #[cfg(test)]
 mod tests {
     use crate::ColorTest;
-    use egui::vec2;
+    use egui_kittest::kittest::Queryable as _;
+    use egui_kittest::SnapshotResults;
 
     #[test]
     pub fn rendering_test() {
-        let mut errors = vec![];
+        let mut results = SnapshotResults::new();
         for dpi in [1.0, 1.25, 1.5, 1.75, 1.6666667, 2.0] {
             let mut color_test = ColorTest::default();
             let mut harness = egui_kittest::Harness::builder()
-                .with_size(vec2(2000.0, 2000.0))
                 .with_pixels_per_point(dpi)
                 .build_ui(|ui| {
                     color_test.ui(ui);
                 });
 
-            //harness.set_size(harness.ctx.used_size());
+            {
+                // Expand color-test collapsing header
+                harness.get_by_label("Color test").click();
+                harness.run();
+            }
 
             harness.fit_contents();
 
-            let result = harness.try_wgpu_snapshot(&format!("rendering_test/dpi_{dpi:.2}"));
-            if let Err(err) = result {
-                errors.push(err);
-            }
+            results.add(harness.try_snapshot(&format!("rendering_test/dpi_{dpi:.2}")));
         }
-
-        assert!(errors.is_empty(), "Errors: {errors:#?}");
     }
 }

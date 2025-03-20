@@ -166,7 +166,7 @@ pub struct Strip<'a, 'b> {
     size_index: usize,
 }
 
-impl<'a, 'b> Strip<'a, 'b> {
+impl Strip<'_, '_> {
     #[cfg_attr(debug_assertions, track_caller)]
     fn next_cell_size(&mut self) -> (CellSize, CellSize) {
         let size = if let Some(size) = self.sizes.get(self.size_index) {
@@ -219,7 +219,7 @@ impl<'a, 'b> Strip<'a, 'b> {
     }
 }
 
-impl<'a, 'b> Drop for Strip<'a, 'b> {
+impl Drop for Strip<'_, '_> {
     fn drop(&mut self) {
         while self.size_index < self.sizes.len() {
             self.empty();

@@ -281,7 +281,7 @@ impl Placer {
 
         if let Some(grid) = &self.grid {
             let rect = grid.next_cell(self.cursor(), Vec2::splat(0.0));
-            painter.rect_stroke(rect, 1.0, stroke);
+            painter.rect_stroke(rect, 1.0, stroke, epaint::StrokeKind::Inside);
             let align = Align2::CENTER_CENTER;
             painter.debug_text(align.pos_in_rect(&rect), align, stroke.color, text);
         } else {

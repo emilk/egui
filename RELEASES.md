@@ -36,34 +36,29 @@ We don't update the MSRV in a patch release, unless we really, really need to.
 
 ## Release testing
 * [ ] `cargo r -p egui_demo_app` and click around for while
-* [ ] `./scripts/build_demo_web.sh --release -g`
-  - check frame-rate and wasm size
-  - test on mobile
-  - test on chromium
-  - check the in-browser profiler
-* [ ] check the color test
 * [ ] update `eframe_template` and test
 * [ ] update `egui_plot` and test
+* [ ] update `egui_table` and test
 * [ ] update `egui_tiles` and test
 * [ ] test with Rerun
 * [ ] `./scripts/check.sh`
 * [ ] check that CI is green
 
 ## Preparation
+* [ ] make sure there are no important unmerged PRs
 * [ ] run `scripts/generate_example_screenshots.sh` if needed
-* [ ] write a short release note that fits in a tweet
-* [ ] record gif for `CHANGELOG.md` release note (and later twitter post)
-* [ ] update changelogs using `scripts/generate_changelog.py --write`
-  - For major releases, always diff to the latest MAJOR release, e.g. `--commit-range 0.29.0..HEAD`
+* [ ] write a short release note that fits in a bluesky post
+* [ ] record gif for `CHANGELOG.md` release note (and later bluesky post)
+* [ ] update changelogs using `scripts/generate_changelog.py --version 0.x.0 --write`
 * [ ] bump version numbers in workspace `Cargo.toml`
 
 ## Actual release
 I usually do this all on the `master` branch, but doing it in a release branch is also fine, as long as you remember to merge it into `master` later.
 
 * [ ] Run `typos`
-* [ ] `git commit -m 'Release 0.x.0 - summary'`
+* [ ] `git commit -m 'Release 0.x.0 - <release title>'`
 * [ ] `cargo publish` (see below)
-* [ ] `git tag -a 0.x.0 -m 'Release 0.x.0 - summary'`
+* [ ] `git tag -a 0.x.0 -m 'Release 0.x.0 - <release title>'`
 * [ ] `git pull --tags ; git tag -d latest && git tag -a latest -m 'Latest release' && git push --tags origin latest --force ; git push --tags`
 * [ ] merge release PR or push to `master`
 * [ ] check that CI is green
@@ -79,15 +74,18 @@ I usually do this all on the `master` branch, but doing it in a release branch i
 (cd crates/epaint               && cargo publish --quiet)  &&  echo "✅ epaint"
 (cd crates/egui                 && cargo publish --quiet)  &&  echo "✅ egui"
 (cd crates/egui-winit           && cargo publish --quiet)  &&  echo "✅ egui-winit"
-(cd crates/egui_extras          && cargo publish --quiet)  &&  echo "✅ egui_extras"
 (cd crates/egui-wgpu            && cargo publish --quiet)  &&  echo "✅ egui-wgpu"
+(cd crates/eframe               && cargo publish --quiet)  &&  echo "✅ eframe"
+(cd crates/egui_kittest         && cargo publish --quiet)  &&  echo "✅ egui_kittest"
+(cd crates/egui_extras          && cargo publish --quiet)  &&  echo "✅ egui_extras"
 (cd crates/egui_demo_lib        && cargo publish --quiet)  &&  echo "✅ egui_demo_lib"
 (cd crates/egui_glow            && cargo publish --quiet)  &&  echo "✅ egui_glow"
-(cd crates/eframe               && cargo publish --quiet)  &&  echo "✅ eframe"
 ```
 
+\<continue with the checklist above\>
+
 ## Announcements
-* [ ] [twitter](https://x.com/ernerfeldt/status/1772665412225823105)
+* [ ] [Bluesky](https://bsky.app/profile/ernerfeldt.bsky.social)
 * [ ] egui discord
 * [ ] [r/rust](https://www.reddit.com/r/rust/comments/1bocr5s/announcing_egui_027_with_improved_menus_and/)
 * [ ] [r/programming](https://www.reddit.com/r/programming/comments/1bocsf6/announcing_egui_027_an_easytouse_crossplatform/)
@@ -98,3 +96,5 @@ I usually do this all on the `master` branch, but doing it in a release branch i
 * [ ] publish new `egui_plot`
 * [ ] publish new `egui_table`
 * [ ] publish new `egui_tiles`
+* [ ] make a PR to `egui_commonmark`
+* [ ] make a PR to `rerun`

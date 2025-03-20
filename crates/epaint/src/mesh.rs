@@ -6,7 +6,7 @@ use emath::{Pos2, Rect, Rot2, TSTransform, Vec2};
 /// Should be friendly to send to GPU as is.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[cfg(not(feature = "unity"))]
+#[cfg(any(not(feature = "unity"), feature = "_override_unity"))]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Vertex {
@@ -25,7 +25,7 @@ pub struct Vertex {
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[cfg(feature = "unity")]
+#[cfg(all(feature = "unity", not(feature = "_override_unity")))]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Vertex {
@@ -85,7 +85,7 @@ impl Mesh {
 
     /// Are all indices within the bounds of the contained vertices?
     pub fn is_valid(&self) -> bool {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         if let Ok(n) = u32::try_from(self.vertices.len()) {
             self.indices.iter().all(|&i| i < n)
@@ -96,6 +96,13 @@ impl Mesh {
 
     pub fn is_empty(&self) -> bool {
         self.indices.is_empty() && self.vertices.is_empty()
+    }
+
+    /// Iterate over the triangles of this mesh, returning vertex indices.
+    pub fn triangles(&self) -> impl Iterator<Item = [u32; 3]> + '_ {
+        self.indices
+            .chunks_exact(3)
+            .map(|chunk| [chunk[0], chunk[1], chunk[2]])
     }
 
     /// Calculate a bounding rectangle.
@@ -111,7 +118,7 @@ impl Mesh {
     ///
     /// Panics when `other` mesh has a different texture.
     pub fn append(&mut self, other: Self) {
-        crate::profile_function!();
+        profiling::function_scope!();
         debug_assert!(other.is_valid());
 
         if self.is_empty() {

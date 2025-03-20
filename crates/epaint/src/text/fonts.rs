@@ -144,6 +144,12 @@ impl FontData {
     }
 }
 
+impl AsRef<[u8]> for FontData {
+    fn as_ref(&self) -> &[u8] {
+        self.font.as_ref()
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// Extra scale and vertical tweak to apply to all text of a certain font.
@@ -519,7 +525,9 @@ impl Fonts {
         self.lock().fonts.has_glyphs(font_id, s)
     }
 
-    /// Height of one row of text in points
+    /// Height of one row of text in points.
+    ///
+    /// Returns a value rounded to [`emath::GUI_ROUNDING`].
     #[inline]
     pub fn row_height(&self, font_id: &FontId) -> f32 {
         self.lock().fonts.row_height(font_id)
@@ -706,6 +714,8 @@ impl FontsImpl {
     }
 
     /// Height of one row of text in points.
+    ///
+    /// Returns a value rounded to [`emath::GUI_ROUNDING`].
     fn row_height(&mut self, font_id: &FontId) -> f32 {
         self.font(font_id).row_height()
     }

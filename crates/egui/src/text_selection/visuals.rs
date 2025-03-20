@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{pos2, vec2, Galley, Painter, Rect, Ui, Visuals};
 
-use super::CursorRange;
+use super::CCursorRange;
 
 #[derive(Clone, Debug)]
 pub struct RowVertexIndices {
@@ -14,7 +14,7 @@ pub struct RowVertexIndices {
 pub fn paint_text_selection(
     galley: &mut Arc<Galley>,
     visuals: &Visuals,
-    cursor_range: &CursorRange,
+    cursor_range: &CCursorRange,
     mut new_vertex_indices: Option<&mut Vec<RowVertexIndices>>,
 ) {
     if cursor_range.is_empty() {
@@ -27,8 +27,8 @@ pub fn paint_text_selection(
 
     let color = visuals.selection.bg_fill;
     let [min, max] = cursor_range.sorted_cursors();
-    let min = min.rcursor;
-    let max = max.rcursor;
+    let min = galley.layout_from_cursor(min);
+    let max = galley.layout_from_cursor(max);
 
     for ri in min.row..=max.row {
         let row = &mut galley.rows[ri];
@@ -121,14 +121,14 @@ pub fn paint_text_cursor(
     ui: &Ui,
     painter: &Painter,
     primary_cursor_rect: Rect,
-    time_since_last_edit: f64,
+    time_since_last_interaction: f64,
 ) {
     if ui.visuals().text_cursor.blink {
         let on_duration = ui.visuals().text_cursor.on_duration;
         let off_duration = ui.visuals().text_cursor.off_duration;
         let total_duration = on_duration + off_duration;
 
-        let time_in_cycle = (time_since_last_edit % (total_duration as f64)) as f32;
+        let time_in_cycle = (time_since_last_interaction % (total_duration as f64)) as f32;
 
         let wake_in = if time_in_cycle < on_duration {
             // Cursor is visible
