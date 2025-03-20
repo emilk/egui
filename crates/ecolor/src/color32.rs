@@ -157,7 +157,7 @@ impl Color32 {
 
     #[inline]
     pub fn from_white_alpha(a: u8) -> Self {
-        Rgba::from_white_alpha(linear_f32_from_linear_u8(a)).into()
+        Self([a, a, a, a])
     }
 
     #[inline]
