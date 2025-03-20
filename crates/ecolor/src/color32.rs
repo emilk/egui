@@ -5,10 +5,18 @@ use crate::{fast_round, linear_f32_from_linear_u8, Rgba};
 /// Instead of manipulating this directly it is often better
 /// to first convert it to either [`Rgba`] or [`crate::Hsva`].
 ///
-/// Internally this uses 0-255 gamma space `sRGBA` color with premultiplied alpha.
-/// Alpha channel is in linear space.
+/// Internally this uses 0-255 gamma space `sRGBA` color with _premultiplied alpha_.
 ///
-/// The special value of alpha=0 means the color is to be treated as an additive color.
+/// Premultiplied alpha means that the color values have been pre-multiplied with the alpha (opacity).
+/// This is in contrast with "normal" RGBA, where the alpha is _separate_ (or "unmultiplied").
+///
+/// The color space is assumed to be [sRGB](https://en.wikipedia.org/wiki/SRGB).
+///
+/// All operations on `Color32` is done in "gamma space" (see <https://en.wikipedia.org/wiki/SRGB>).
+/// This is not physically correct, but it is fast and sometimes more perceptually even than linear space.
+/// If you want linear-space color, use [`Rgba`].
+///
+/// An `alpha=0` means the color is to be treated as an additive color.
 #[repr(C)]
 #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
