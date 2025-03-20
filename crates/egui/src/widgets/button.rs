@@ -1,6 +1,6 @@
 use crate::{
-    widgets, Align, Color32, CornerRadius, Image, NumExt, Rect, Response, Sense, Stroke, TextStyle,
-    TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
+    widgets, Align, Color32, CornerRadius, FontSelection, Image, NumExt, Rect, Response, Sense,
+    Stroke, TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
 };
 
 /// Clickable button with text.
@@ -224,6 +224,16 @@ impl Widget for Button<'_> {
 
         let frame = frame.unwrap_or_else(|| ui.visuals().button_frame);
 
+        let default_font_height = || {
+            let font_selection = FontSelection::default();
+            let font_id = font_selection.resolve(ui.style());
+            ui.fonts(|f| f.row_height(&font_id))
+        };
+
+        let text_font_height = ui
+            .fonts(|fonts| text.as_ref().map(|wt| wt.font_height(fonts, ui.style())))
+            .unwrap_or_else(default_font_height);
+
         let mut button_padding = if frame {
             ui.spacing().button_padding
         } else {
@@ -233,11 +243,17 @@ impl Widget for Button<'_> {
             button_padding.y = 0.0;
         }
 
-        let space_available_for_image = if let Some(text) = &text {
+        let (space_available_for_image, right_text_font_height) = if let Some(text) = &text {
             let font_height = ui.fonts(|fonts| text.font_height(fonts, ui.style()));
-            Vec2::splat(font_height) // Reasonable?
+            (
+                Vec2::splat(font_height), // Reasonable?
+                font_height,
+            )
         } else {
-            ui.available_size() - 2.0 * button_padding
+            (
+                ui.available_size() - 2.0 * button_padding,
+                default_font_height(),
+            )
         };
 
         let image_size = if let Some(image) = &image {
@@ -283,11 +299,14 @@ impl Widget for Button<'_> {
         }
         if let Some(galley) = &galley {
             desired_size.x += galley.size().x;
-            desired_size.y = desired_size.y.max(galley.size().y);
+            desired_size.y = desired_size.y.max(galley.size().y).max(text_font_height);
         }
         if let Some(right_galley) = &right_galley {
             desired_size.x += gap_before_right_text + right_galley.size().x;
-            desired_size.y = desired_size.y.max(right_galley.size().y);
+            desired_size.y = desired_size
+                .y
+                .max(right_galley.size().y)
+                .max(right_text_font_height);
         }
         desired_size += 2.0 * button_padding;
         if !small {

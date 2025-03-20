@@ -426,18 +426,11 @@ impl TextEdit<'_> {
         let background_color = self
             .background_color
             .unwrap_or(ui.visuals().extreme_bg_color);
-        let margin = self.margin;
-        let mut output = self.show_content(ui);
-
-        // TODO(emilk): return full outer_rect in `TextEditOutput`.
-        // Can't do it now because this fix is ging into a patch release.
-        let outer_rect = output.response.rect;
-        let inner_rect = outer_rect - margin;
-        output.response.rect = inner_rect;
+        let output = self.show_content(ui);
 
         if frame {
             let visuals = ui.style().interact(&output.response);
-            let frame_rect = outer_rect.expand(visuals.expansion);
+            let frame_rect = output.response.rect.expand(visuals.expansion);
             let shape = if is_mutable {
                 if output.response.has_focus() {
                     epaint::RectShape::new(

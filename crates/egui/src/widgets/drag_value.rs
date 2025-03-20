@@ -562,7 +562,9 @@ impl Widget for DragValue<'_> {
                     .margin(ui.spacing().button_padding)
                     .min_size(ui.spacing().interact_size)
                     .id(id)
-                    .desired_width(ui.spacing().interact_size.x)
+                    .desired_width(
+                        ui.spacing().interact_size.x - 2.0 * ui.spacing().button_padding.x,
+                    )
                     .font(text_style),
             );
 
