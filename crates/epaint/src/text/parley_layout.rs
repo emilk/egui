@@ -14,7 +14,7 @@ use crate::{
     Mesh,
 };
 
-use super::{FontFamily, FontsImpl, Galley, LayoutJob, TextFormat};
+use super::{fonts::FontsLayoutView, FontFamily, Galley, LayoutJob, TextFormat};
 
 fn text_format_to_line_height(format: &TextFormat) -> f32 {
     format.line_height.unwrap_or(format.font_id.size)
@@ -61,7 +61,7 @@ fn text_format_to_style<'b: 'c, 'c>(format: &'b TextFormat) -> TextStyle<'c, Col
     }
 }
 
-pub fn layout(fonts: &mut FontsImpl, job: LayoutJob) -> Galley {
+pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley {
     let Some(first_section) = job.sections.first() else {
         // Early-out: no text
         return Galley {
@@ -76,7 +76,7 @@ pub fn layout(fonts: &mut FontsImpl, job: LayoutJob) -> Galley {
             mesh_bounds: Rect::NOTHING,
             num_vertices: 0,
             num_indices: 0,
-            pixels_per_point: fonts.pixels_per_point(),
+            pixels_per_point: fonts.pixels_per_point,
             elided: true,
         };
     };
@@ -84,10 +84,9 @@ pub fn layout(fonts: &mut FontsImpl, job: LayoutJob) -> Galley {
     let justify = job.justify && job.wrap.max_width.is_finite();
 
     let default_style = text_format_to_style(&first_section.format);
-    let mut builder =
-        fonts
-            .layout_context
-            .tree_builder(&mut fonts.font_context, 1.0, &default_style);
+    let mut builder = fonts
+        .layout_context
+        .tree_builder(fonts.font_context, 1.0, &default_style);
 
     let mut first_row_height = job.first_row_min_height;
 
@@ -209,7 +208,7 @@ pub fn layout(fonts: &mut FontsImpl, job: LayoutJob) -> Galley {
                     for (mut glyph, uv_rect, (x, y), color) in fonts.glyph_atlas.render_glyph_run(
                         &run,
                         (horiz_offset, vertical_offset),
-                        fonts.pixels_per_point(),
+                        fonts.pixels_per_point,
                     ) {
                         glyph.x += horiz_offset;
                         glyph.y += vertical_offset;
@@ -339,6 +338,6 @@ pub fn layout(fonts: &mut FontsImpl, job: LayoutJob) -> Galley {
         mesh_bounds: acc_mesh_bounds,
         num_vertices: acc_num_vertices,
         num_indices: acc_num_indices,
-        pixels_per_point: fonts.pixels_per_point(),
+        pixels_per_point: fonts.pixels_per_point,
     }
 }
