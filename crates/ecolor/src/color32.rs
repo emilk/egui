@@ -394,7 +394,7 @@ mod test {
     }
 
     #[test]
-    fn color32_unmultiplied_routrip() {
+    fn color32_unmultiplied_round_trip() {
         for in_rgba in [
             [10, 0, 30, 40],
             [10, 100, 200, 100],
