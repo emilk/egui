@@ -78,7 +78,11 @@ type Serializer = fn(&Box<dyn Any + 'static + Send + Sync>) -> Option<String>;
 enum Element {
     /// A value, maybe serializable.
     Value {
+
+        /// The data id this value was created with.
+        /// Is equal to `current_data_id` of the `TypeIdMap` at the time of insertion.
         data_id: Id,
+
         /// The actual value.
         value: Box<dyn Any + 'static + Send + Sync>,
 
