@@ -148,7 +148,6 @@ impl ImageLoader for ImageCrateLoader {
                     }
 
                     load_image(ctx, uri, &self.cache, bytes)
-                    }
                 }
                 Ok(BytesPoll::Pending { size }) => Ok(ImagePoll::Pending { size }),
                 Err(err) => Err(err),
