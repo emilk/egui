@@ -12,7 +12,7 @@ use crate::{
 use ecolor::Color32;
 use emath::{NumExt as _, OrderedFloat};
 
-use parley::fontique;
+use parley::fontique::{self, Blob};
 
 #[cfg(feature = "default_fonts")]
 use epaint_default_fonts::{EMOJI_ICON, HACK_REGULAR, NOTO_EMOJI_REGULAR, UBUNTU_LIGHT};
@@ -684,7 +684,7 @@ impl FontsImpl {
         });
 
         for data in definitions.font_data.values() {
-            collection.register_fonts(data.font.to_vec());
+            collection.register_fonts(Blob::new(Arc::new(data.font.clone())));
         }
         let ubuntu = collection.family_by_name("Ubuntu").unwrap();
         let hack = collection.family_by_name("Hack").unwrap();
