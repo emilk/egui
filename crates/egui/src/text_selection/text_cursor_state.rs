@@ -299,7 +299,7 @@ fn next_line_boundary_char_index(it: impl Iterator<Item = char>, mut index: usiz
 }
 
 pub fn is_word_char(c: char) -> bool {
-    c.is_ascii_alphanumeric() || c == '_'
+    c.is_alphanumeric() || c == '_'
 }
 
 fn is_linebreak(c: char) -> bool {
