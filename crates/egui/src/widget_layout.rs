@@ -3,6 +3,7 @@ use emath::{Align2, Vec2};
 use epaint::Galley;
 use std::sync::Arc;
 
+/// Naming: AtimicItem
 enum WidgetLayoutItemType<'a> {
     Text(WidgetText),
     Image(Image<'a>),
@@ -40,7 +41,9 @@ impl SizedWidgetLayoutItemType<'_> {
     }
 }
 
+/// AtomicLayout
 struct WidgetLayout<'a> {
+    /// TODO: SmallVec?
     items: Vec<(Item, WidgetLayoutItemType<'a>)>,
     gap: f32,
     frame: Frame,
