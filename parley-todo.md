@@ -18,6 +18,7 @@
     - [ ] ~~Only happens when the mouse is held down~~
     - [ ] ~~Could it be trailing whitespace?~~
   - [ ] If you really scrunch up the "Code Example" window, it'll wrap while the cursor is held
+    - This is an issue in the non-Parley branch too, but only at >1x zoom
   - [ ] In the EasyMark example, with the text "There is no alternative way to specify the strong style", at certain wrap widths, the text from "strong" onwards will be shifted down 1px
 - [ ] Text rendering
   - [ ] Investigate whether swash is being too conservative with its shape bounds and cutting off rendered glyphs
