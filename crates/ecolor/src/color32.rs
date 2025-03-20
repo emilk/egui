@@ -126,6 +126,9 @@ impl Color32 {
     /// From `sRGBA` with separate alpha.
     ///
     /// This is a "normal" RGBA value that you would find in a color picker or a table somewhere.
+    ///
+    /// You can use [`Self::to_srgba_unmultiplied`] to get back these values,
+    /// but for transparent colors what you get back might be slightly different (rounding errors).
     #[inline]
     pub fn from_rgba_unmultiplied(r: u8, g: u8, b: u8, a: u8) -> Self {
         use std::sync::OnceLock;
@@ -242,6 +245,9 @@ impl Color32 {
     /// Convert to a normal "unmultiplied" RGBA color (i.e. with separate alpha).
     ///
     /// This will unmultiply the alpha.
+    ///
+    /// This is the inverse of [`Self::from_rgba_unmultiplied`],
+    /// but due to precision problems it may return slightly different values for transparent colors.
     #[inline]
     pub fn to_srgba_unmultiplied(&self) -> [u8; 4] {
         let [r, g, b, a] = self.to_array();
@@ -378,6 +384,27 @@ impl std::ops::Add for Color32 {
 mod test {
     use super::*;
 
+    fn test_rgba() -> impl Iterator<Item = [u8; 4]> {
+        [
+            [0, 0, 0, 0],
+            [0, 0, 0, 255],
+            [10, 0, 30, 0],
+            [10, 0, 30, 40],
+            [10, 100, 200, 0],
+            [10, 100, 200, 100],
+            [10, 100, 200, 200],
+            [10, 100, 200, 255],
+            [10, 100, 200, 40],
+            [10, 20, 0, 0],
+            [10, 20, 0, 255],
+            [10, 20, 30, 255],
+            [10, 20, 30, 40],
+            [255, 255, 255, 0],
+            [255, 255, 255, 255],
+        ]
+        .into_iter()
+    }
+
     #[test]
     fn test_color32_additive() {
         let opaque = Color32::from_rgb(40, 50, 60);
@@ -421,17 +448,12 @@ mod test {
 
     #[test]
     fn color32_unmultiplied_round_trip() {
-        for in_rgba in [
-            [10, 0, 30, 40],
-            [10, 100, 200, 100],
-            [10, 100, 200, 200],
-            [10, 100, 200, 255],
-            [10, 100, 200, 40],
-            [10, 20, 0, 255],
-            [10, 20, 30, 255],
-            [10, 20, 30, 40],
-        ] {
+        for in_rgba in test_rgba() {
             let [r, g, b, a] = in_rgba;
+            if a == 0 {
+                continue;
+            }
+
             let c = Color32::from_rgba_unmultiplied(r, g, b, a);
             let out_rgba = c.to_srgba_unmultiplied();
 
@@ -472,19 +494,7 @@ mod test {
 
     #[test]
     fn to_from_rgba() {
-        for [r, g, b, a] in [
-            [10, 0, 30, 0],
-            [10, 0, 30, 40],
-            [10, 100, 200, 0],
-            [10, 100, 200, 100],
-            [10, 100, 200, 200],
-            [10, 100, 200, 255],
-            [10, 100, 200, 40],
-            [10, 20, 0, 0],
-            [10, 20, 0, 255],
-            [10, 20, 30, 255],
-            [10, 20, 30, 40],
-        ] {
+        for [r, g, b, a] in test_rgba() {
             let original = Color32::from_rgba_unmultiplied(r, g, b, a);
             let rgba = Rgba::from(original);
             let back = Color32::from(rgba);

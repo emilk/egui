@@ -1,11 +1,8 @@
-use crate::{
-    gamma_u8_from_linear_f32, linear_f32_from_gamma_u8, linear_f32_from_linear_u8,
-    linear_u8_from_linear_f32,
-};
+use crate::{linear_f32_from_gamma_u8, linear_f32_from_linear_u8};
 
 /// 0-1 linear space `RGBA` color with premultiplied alpha.
 ///
-/// See [`Color32`] for explanation of what "premultiplied alpha" means.
+/// See [`crate::Color32`] for explanation of what "premultiplied alpha" means.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -213,13 +210,7 @@ impl Rgba {
     /// unmultiply the alpha
     #[inline]
     pub fn to_srgba_unmultiplied(&self) -> [u8; 4] {
-        let [r, g, b, a] = self.to_rgba_unmultiplied();
-        [
-            gamma_u8_from_linear_f32(r),
-            gamma_u8_from_linear_f32(g),
-            gamma_u8_from_linear_f32(b),
-            linear_u8_from_linear_f32(a.abs()),
-        ]
+        crate::Color32::from(*self).to_srgba_unmultiplied()
     }
 
     /// Blend two colors in linear space, so that `self` is behind the argument.
