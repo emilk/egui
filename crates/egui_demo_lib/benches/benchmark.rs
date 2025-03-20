@@ -162,13 +162,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let wrap_width = 512.0;
         let font_id = egui::FontId::default();
         let text_color = egui::Color32::WHITE;
-        let fonts = egui::epaint::text::Fonts::new(
+        let mut fonts = egui::epaint::text::Fonts::new(
             pixels_per_point,
             max_texture_side,
             egui::FontDefinitions::default(),
         );
         {
-            let mut locked_fonts = fonts.lock();
             c.bench_function("text_layout_uncached", |b| {
                 b.iter(|| {
                     use egui::epaint::text::{parley_layout::layout, LayoutJob};
@@ -179,7 +178,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                         text_color,
                         wrap_width,
                     );
-                    layout(&mut locked_fonts.fonts, job)
+                    layout(&mut fonts.0.fonts, job)
                 });
             });
         }

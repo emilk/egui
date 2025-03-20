@@ -622,7 +622,7 @@ impl ContextImpl {
             // Preload the most common characters for the most common fonts.
             // This is not very important to do, but may save a few GPU operations.
             for font_id in self.memory.options.style().text_styles.values() {
-                fonts.lock().fonts.font(font_id).preload_common_characters();
+                fonts.0.fonts.font(font_id).preload_common_characters();
             }
         }
     }
@@ -1020,17 +1020,17 @@ impl Context {
         self.write(move |ctx| reader(&ctx.viewport().prev_pass))
     }
 
-    /// Read-only access to [`Fonts`].
+    /// Read-write access to [`Fonts`].
     ///
     /// Not valid until first call to [`Context::run()`].
     /// That's because since we don't know the proper `pixels_per_point` until then.
     #[inline]
-    pub fn fonts<R>(&self, reader: impl FnOnce(&Fonts) -> R) -> R {
+    pub fn fonts<R>(&self, reader: impl FnOnce(&mut Fonts) -> R) -> R {
         self.write(move |ctx| {
             let pixels_per_point = ctx.pixels_per_point();
             reader(
                 ctx.fonts
-                    .get(&pixels_per_point.into())
+                    .get_mut(&pixels_per_point.into())
                     .expect("No fonts available until first call to Context::run()"),
             )
         })
@@ -1494,8 +1494,7 @@ impl Context {
 
         let font_id = TextStyle::Body.resolve(&self.style());
         self.fonts(|f| {
-            let mut lock = f.lock();
-            let font = lock.fonts.font(&font_id);
+            let font = f.0.fonts.font(&font_id);
             font.has_glyphs(alt)
                 && font.has_glyphs(ctrl)
                 && font.has_glyphs(shift)
@@ -1808,7 +1807,7 @@ impl Context {
         self.read(|ctx| {
             if let Some(current_fonts) = ctx.fonts.get(&pixels_per_point.into()) {
                 // NOTE: this comparison is expensive since it checks TTF data for equality
-                if current_fonts.lock().fonts.definitions() == &font_definitions {
+                if current_fonts.0.fonts.definitions() == &font_definitions {
                     update_fonts = false; // no need to update
                 }
             }
@@ -1836,7 +1835,7 @@ impl Context {
         self.read(|ctx| {
             if let Some(current_fonts) = ctx.fonts.get(&pixels_per_point.into()) {
                 if current_fonts
-                    .lock()
+                    .0
                     .fonts
                     .definitions()
                     .font_data
@@ -2325,14 +2324,15 @@ impl ContextImpl {
 
         self.memory.end_pass(&viewport.this_pass.used_ids);
 
-        if let Some(fonts) = self.fonts.get(&pixels_per_point.into()) {
+        let num_fonts = self.fonts.len();
+        if let Some(fonts) = self.fonts.get_mut(&pixels_per_point.into()) {
             let tex_mngr = &mut self.tex_manager.0.write();
             if let Some(font_image_delta) = fonts.font_image_delta() {
                 // A partial font atlas update, e.g. a new glyph has been entered.
                 tex_mngr.set(TextureId::default(), font_image_delta);
             }
 
-            if 1 < self.fonts.len() {
+            if 1 < num_fonts {
                 // We have multiple different `pixels_per_point`,
                 // e.g. because we have many viewports spread across
                 // monitors with different DPI scaling.
@@ -2535,13 +2535,13 @@ impl Context {
 
         self.write(|ctx| {
             let tessellation_options = ctx.memory.options.tessellation_options;
-            let texture_atlas = if let Some(fonts) = ctx.fonts.get(&pixels_per_point.into()) {
+            let texture_atlas = if let Some(fonts) = ctx.fonts.get_mut(&pixels_per_point.into()) {
                 fonts.texture_atlas()
             } else {
                 #[cfg(feature = "log")]
                 log::warn!("No font size matching {pixels_per_point} pixels per point found.");
                 ctx.fonts
-                    .iter()
+                    .iter_mut()
                     .next()
                     .expect("No fonts loaded")
                     .1

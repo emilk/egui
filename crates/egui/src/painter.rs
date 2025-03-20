@@ -140,11 +140,11 @@ impl Painter {
         self.pixels_per_point
     }
 
-    /// Read-only access to the shared [`Fonts`].
+    /// Read-write access to the shared [`Fonts`].
     ///
     /// See [`Context`] documentation for how locks work.
     #[inline]
-    pub fn fonts<R>(&self, reader: impl FnOnce(&Fonts) -> R) -> R {
+    pub fn fonts<R>(&self, reader: impl FnOnce(&mut Fonts) -> R) -> R {
         self.ctx.fonts(reader)
     }
 
