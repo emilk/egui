@@ -29,10 +29,7 @@ fn is_supported_uri(uri: &str) -> bool {
     };
 
     // Uses only the enabled image crate features
-    ImageFormat::all()
-        .filter(ImageFormat::reading_enabled)
-        .flat_map(ImageFormat::extensions_str)
-        .any(|format_ext| ext == *format_ext)
+    ImageFormat::from_extension(ext).is_some_and(|format| format.reading_enabled())
 }
 
 fn is_supported_mime(mime: &str) -> bool {
@@ -52,10 +49,7 @@ fn is_supported_mime(mime: &str) -> bool {
     }
 
     // Uses only the enabled image crate features
-    ImageFormat::all()
-        .filter(ImageFormat::reading_enabled)
-        .map(|fmt| fmt.to_mime_type())
-        .any(|format_mime| mime == format_mime)
+    ImageFormat::from_mime_type(mime).is_some_and(|format| format.reading_enabled())
 }
 
 impl ImageLoader for ImageCrateLoader {
