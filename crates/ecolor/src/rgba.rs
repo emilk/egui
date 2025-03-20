@@ -4,6 +4,8 @@ use crate::{
 };
 
 /// 0-1 linear space `RGBA` color with premultiplied alpha.
+///
+/// See [`Color32`] for explanation of what "premultiplied alpha" means.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -220,7 +222,7 @@ impl Rgba {
         ]
     }
 
-    /// Blend two colors, so that `self` is behind the argument.
+    /// Blend two colors in linear space, so that `self` is behind the argument.
     pub fn blend(self, on_top: Self) -> Self {
         self.multiply(1.0 - on_top.a()) + on_top
     }

@@ -9,6 +9,10 @@ use crate::{fast_round, linear_f32_from_linear_u8, Rgba};
 ///
 /// Premultiplied alpha means that the color values have been pre-multiplied with the alpha (opacity).
 /// This is in contrast with "normal" RGBA, where the alpha is _separate_ (or "unmultiplied").
+/// Using premultiplied alpha has some advantages:
+/// * It allows encoding additive colors
+/// * It is the better way to blend colors, e.g. when filtering texture colors
+/// * Because the above, it is the better way to encode colors in a GPU texture
 ///
 /// The color space is assumed to be [sRGB](https://en.wikipedia.org/wiki/SRGB).
 ///
@@ -99,23 +103,29 @@ impl Color32 {
     #[deprecated = "Renamed to PLACEHOLDER"]
     pub const TEMPORARY_COLOR: Self = Self::PLACEHOLDER;
 
+    /// From RGB with alpha of 255 (opaque).
     #[inline]
     pub const fn from_rgb(r: u8, g: u8, b: u8) -> Self {
         Self([r, g, b, 255])
     }
 
+    /// From RGB into an additive color (will make everything it blend with brighter).
     #[inline]
     pub const fn from_rgb_additive(r: u8, g: u8, b: u8) -> Self {
         Self([r, g, b, 0])
     }
 
     /// From `sRGBA` with premultiplied alpha.
+    ///
+    /// You likely want to use [`Self::from_rgba_unmultiplied`] instead.
     #[inline]
     pub const fn from_rgba_premultiplied(r: u8, g: u8, b: u8, a: u8) -> Self {
         Self([r, g, b, a])
     }
 
-    /// From `sRGBA` WITHOUT premultiplied alpha.
+    /// From `sRGBA` with separate alpha.
+    ///
+    /// This is a "normal" RGBA value that you would find in a color picker or a table somewhere.
     #[inline]
     pub fn from_rgba_unmultiplied(r: u8, g: u8, b: u8, a: u8) -> Self {
         use std::sync::OnceLock;
@@ -144,22 +154,26 @@ impl Color32 {
         }
     }
 
+    /// Opaque gray.
     #[doc(alias = "from_grey")]
     #[inline]
     pub const fn from_gray(l: u8) -> Self {
         Self([l, l, l, 255])
     }
 
+    /// Black with the given opacity.
     #[inline]
     pub const fn from_black_alpha(a: u8) -> Self {
         Self([0, 0, 0, a])
     }
 
+    /// White with the given opacity.
     #[inline]
     pub fn from_white_alpha(a: u8) -> Self {
         Self([a, a, a, a])
     }
 
+    /// Additive white.
     #[inline]
     pub const fn from_additive_luminance(l: u8) -> Self {
         Self([l, l, l, 0])
@@ -170,21 +184,25 @@ impl Color32 {
         self.a() == 255
     }
 
+    /// Red component multiplied by alpha.
     #[inline]
     pub const fn r(&self) -> u8 {
         self.0[0]
     }
 
+    /// Green component multiplied by alpha.
     #[inline]
     pub const fn g(&self) -> u8 {
         self.0[1]
     }
 
+    /// Blue component multiplied by alpha.
     #[inline]
     pub const fn b(&self) -> u8 {
         self.0[2]
     }
 
+    /// Alpha (opacity).
     #[inline]
     pub const fn a(&self) -> u8 {
         self.0[3]
@@ -381,8 +399,8 @@ mod test {
             opaque,
             "Opaque on top of transparent"
         );
-        // Blending in gamma-space is the de-facto standard everywhere,
-        // and it is what e.g. Chromium does.
+        // Blending in gamma-space is the de-facto standard almost everywhere.
+        // Browsers and most image editors do it, and so it is what users expect.
         assert_eq!(
             opaque.blend(transparent),
             Color32::from_rgb(
@@ -426,6 +444,51 @@ mod test {
                     assert!(a.abs_diff(b) <= 3, "{in_rgba:?} != {out_rgba:?}");
                 }
             }
+        }
+    }
+
+    #[test]
+    fn from_black_white_alpha() {
+        for a in 0..=255 {
+            assert_eq!(
+                Color32::from_white_alpha(a),
+                Color32::from_rgba_unmultiplied(255, 255, 255, a)
+            );
+            assert_eq!(
+                Color32::from_white_alpha(a),
+                Color32::WHITE.gamma_multiply_u8(a)
+            );
+
+            assert_eq!(
+                Color32::from_black_alpha(a),
+                Color32::from_rgba_unmultiplied(0, 0, 0, a)
+            );
+            assert_eq!(
+                Color32::from_black_alpha(a),
+                Color32::BLACK.gamma_multiply_u8(a)
+            );
+        }
+    }
+
+    #[test]
+    fn to_from_rgba() {
+        for [r, g, b, a] in [
+            [10, 0, 30, 0],
+            [10, 0, 30, 40],
+            [10, 100, 200, 0],
+            [10, 100, 200, 100],
+            [10, 100, 200, 200],
+            [10, 100, 200, 255],
+            [10, 100, 200, 40],
+            [10, 20, 0, 0],
+            [10, 20, 0, 255],
+            [10, 20, 30, 255],
+            [10, 20, 30, 40],
+        ] {
+            let original = Color32::from_rgba_unmultiplied(r, g, b, a);
+            let rgba = Rgba::from(original);
+            let back = Color32::from(rgba);
+            assert_eq!(back, original);
         }
     }
 }

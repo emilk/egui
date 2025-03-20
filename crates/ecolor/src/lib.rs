@@ -1,8 +1,19 @@
 //! Color conversions and types.
 //!
+//! This crate is built for the wants and needs of [`egui`](https://github.com/emilk/egui/).
+//!
+//! If you want an actual _good_ color crate, use [`color`](https://crates.io/crates/color) instead.
+//!
 //! If you want a compact color representation, use [`Color32`].
-//! If you want to manipulate RGBA colors use [`Rgba`].
+//! If you want to manipulate RGBA colors in linear space use [`Rgba`].
 //! If you want to manipulate colors in a way closer to how humans think about colors, use [`HsvaGamma`].
+//!
+//! ## Conventions
+//! The word "gamma" or "srgb" is used to refer to values in the non-linear space defined by
+//! [the sRGB transfer function](https://en.wikipedia.org/wiki/SRGB).
+//! We use `u8` for anything in the "gamma" space.
+//!
+//! We use `f32` in 0-1 range for anything in the linear space.
 //!
 //! ## Feature flags
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
