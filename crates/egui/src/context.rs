@@ -622,7 +622,7 @@ impl ContextImpl {
             // Preload the most common characters for the most common fonts.
             // This is not very important to do, but may save a few GPU operations.
             for font_id in self.memory.options.style().text_styles.values() {
-                fonts.0.fonts.font(font_id).preload_common_characters();
+                fonts.fonts.font(font_id).preload_common_characters();
             }
         }
     }
@@ -1494,7 +1494,7 @@ impl Context {
 
         let font_id = TextStyle::Body.resolve(&self.style());
         self.fonts(|f| {
-            let font = f.0.fonts.font(&font_id);
+            let font = f.fonts.font(&font_id);
             font.has_glyphs(alt)
                 && font.has_glyphs(ctrl)
                 && font.has_glyphs(shift)
@@ -1807,7 +1807,7 @@ impl Context {
         self.read(|ctx| {
             if let Some(current_fonts) = ctx.fonts.get(&pixels_per_point.into()) {
                 // NOTE: this comparison is expensive since it checks TTF data for equality
-                if current_fonts.0.fonts.definitions() == &font_definitions {
+                if current_fonts.fonts.definitions() == &font_definitions {
                     update_fonts = false; // no need to update
                 }
             }
@@ -1835,7 +1835,6 @@ impl Context {
         self.read(|ctx| {
             if let Some(current_fonts) = ctx.fonts.get(&pixels_per_point.into()) {
                 if current_fonts
-                    .0
                     .fonts
                     .definitions()
                     .font_data
