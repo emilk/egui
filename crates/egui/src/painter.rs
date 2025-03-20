@@ -144,7 +144,7 @@ impl Painter {
     ///
     /// See [`Context`] documentation for how locks work.
     #[inline]
-    pub fn fonts<R>(&self, reader: impl FnOnce(&mut Fonts) -> R) -> R {
+    pub fn fonts<R>(&self, reader: impl FnOnce(&mut Fonts<'_>) -> R) -> R {
         self.ctx.fonts(reader)
     }
 

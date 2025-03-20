@@ -433,7 +433,7 @@ pub(super) struct FontsLayoutView<'a> {
 /// If you are using `egui`, use `egui::Context::set_fonts` and `egui::Context::fonts`.
 ///
 /// You need to call [`Self::begin_pass`] and [`Self::font_image_delta`] once every frame.
-pub struct Fonts {
+pub struct FontStore {
     pub(super) pixels_per_point: f32,
     max_texture_side: usize,
     definitions: FontDefinitions,
@@ -447,7 +447,7 @@ pub struct Fonts {
     pub(super) glyph_atlas: GlyphAtlas,
 }
 
-impl Fonts {
+impl FontStore {
     /// Create a new [`Fonts`] for text layout.
     /// This call is expensive, so only create one [`Fonts`] and then reuse it.
     ///
@@ -537,9 +537,11 @@ impl Fonts {
         self.galley_cache.flush_cache();
     }
 
-    #[inline(always)]
-    pub fn pixels_per_point(&self) -> f32 {
-        self.pixels_per_point
+    pub fn with_pixels_per_point(&mut self, pixels_per_point: f32) -> Fonts<'_> {
+        Fonts {
+            fonts: self,
+            pixels_per_point,
+        }
     }
 
     #[inline]
@@ -623,6 +625,105 @@ impl Fonts {
         self.definitions.families.keys().cloned().collect()
     }
 
+    pub fn num_galleys_in_cache(&self) -> usize {
+        self.galley_cache.num_galleys_in_cache()
+    }
+
+    /// How full is the font atlas?
+    ///
+    /// This increases as new fonts and/or glyphs are used,
+    /// but can also decrease in a call to [`Self::begin_pass`].
+    pub fn font_atlas_fill_ratio(&self) -> f32 {
+        self.atlas.lock().fill_ratio()
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// View into a [`FontStore`] that lets you perform text layout at a given DPI.
+pub struct Fonts<'a> {
+    fonts: &'a mut FontStore,
+    pixels_per_point: f32,
+}
+
+impl Fonts<'_> {
+    #[inline]
+    pub fn definitions(&self) -> &FontDefinitions {
+        self.fonts.definitions()
+    }
+
+    /// Get the right font implementation from size and [`FontFamily`].
+    pub fn font(&mut self, font_id: &FontId) -> &mut Font {
+        self.fonts.font(font_id)
+    }
+
+    /// Width of this character in points.
+    pub fn glyph_width(&mut self, font_id: &FontId, c: char) -> f32 {
+        self.fonts.glyph_width(font_id, c)
+    }
+
+    /// Can we display this glyph?
+    pub fn has_glyph(&mut self, font_id: &FontId, c: char) -> bool {
+        self.fonts.has_glyph(font_id, c)
+    }
+
+    /// Can we display all the glyphs in this text?
+    pub fn has_glyphs(&mut self, font_id: &FontId, s: &str) -> bool {
+        self.fonts.has_glyphs(font_id, s)
+    }
+
+    /// Height of one row of text in points.
+    ///
+    /// Returns a value rounded to [`emath::GUI_ROUNDING`].
+    pub fn row_height(&mut self, font_id: &FontId) -> f32 {
+        self.fonts.row_height(font_id)
+    }
+
+    /// Call at the end of each frame (before painting) to get the change to the font texture since last call.
+    pub fn font_image_delta(&self) -> Option<crate::ImageDelta> {
+        self.fonts.font_image_delta()
+    }
+
+    #[inline]
+    pub fn max_texture_side(&self) -> usize {
+        self.fonts.max_texture_side()
+    }
+
+    /// The font atlas.
+    /// Pass this to [`crate::Tessellator`].
+    pub fn texture_atlas(&self) -> Arc<Mutex<TextureAtlas>> {
+        self.fonts.texture_atlas()
+    }
+
+    /// The full font atlas image.
+    #[inline]
+    pub fn image(&self) -> crate::ColorImage {
+        self.fonts.image()
+    }
+
+    /// Current size of the font image.
+    /// Pass this to [`crate::Tessellator`].
+    pub fn font_image_size(&self) -> [usize; 2] {
+        self.fonts.font_image_size()
+    }
+
+    /// List of all known font families.
+    pub fn families(&self) -> Vec<FontFamily> {
+        self.fonts.families()
+    }
+
+    pub fn num_galleys_in_cache(&self) -> usize {
+        self.fonts.num_galleys_in_cache()
+    }
+
+    /// How full is the font atlas?
+    ///
+    /// This increases as new fonts and/or glyphs are used,
+    /// but can also decrease in a call to [`Self::begin_pass`].
+    pub fn font_atlas_fill_ratio(&self) -> f32 {
+        self.fonts.font_atlas_fill_ratio()
+    }
+
     /// Layout some text.
     ///
     /// This is the most advanced layout function.
@@ -632,11 +733,11 @@ impl Fonts {
     /// The implementation uses memoization so repeated calls are cheap.
     #[inline]
     pub fn layout_job(&mut self, job: LayoutJob) -> Arc<Galley> {
-        self.galley_cache.layout(
+        self.fonts.galley_cache.layout(
             &mut FontsLayoutView {
-                font_context: &mut self.font_context,
-                layout_context: &mut self.layout_context,
-                glyph_atlas: &mut self.glyph_atlas,
+                font_context: &mut self.fonts.font_context,
+                layout_context: &mut self.fonts.layout_context,
+                glyph_atlas: &mut self.fonts.glyph_atlas,
                 pixels_per_point: self.pixels_per_point,
             },
             job,
@@ -651,25 +752,13 @@ impl Fonts {
     pub fn layout_job_uncached(&mut self, job: LayoutJob) -> Arc<Galley> {
         Arc::new(super::parley_layout::layout(
             &mut FontsLayoutView {
-                font_context: &mut self.font_context,
-                layout_context: &mut self.layout_context,
-                glyph_atlas: &mut self.glyph_atlas,
+                font_context: &mut self.fonts.font_context,
+                layout_context: &mut self.fonts.layout_context,
+                glyph_atlas: &mut self.fonts.glyph_atlas,
                 pixels_per_point: self.pixels_per_point,
             },
             job,
         ))
-    }
-
-    pub fn num_galleys_in_cache(&self) -> usize {
-        self.galley_cache.num_galleys_in_cache()
-    }
-
-    /// How full is the font atlas?
-    ///
-    /// This increases as new fonts and/or glyphs are used,
-    /// but can also decrease in a call to [`Self::begin_pass`].
-    pub fn font_atlas_fill_ratio(&self) -> f32 {
-        self.atlas.lock().fill_ratio()
     }
 
     /// Will wrap text at the given width and line break at `\n`.

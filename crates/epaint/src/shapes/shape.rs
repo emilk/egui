@@ -6,8 +6,8 @@ use emath::{pos2, Align2, Pos2, Rangef, Rect, TSTransform, Vec2};
 
 use crate::{
     stroke::PathStroke,
-    text::{FontId, Fonts, Galley},
-    Color32, CornerRadius, Mesh, Stroke, StrokeKind, TextureId,
+    text::{FontId, Galley},
+    Color32, CornerRadius, Fonts, Mesh, Stroke, StrokeKind, TextureId,
 };
 
 use super::{
@@ -298,7 +298,7 @@ impl Shape {
 
     #[expect(clippy::needless_pass_by_value)]
     pub fn text(
-        fonts: &mut Fonts,
+        fonts: &mut Fonts<'_>,
         pos: Pos2,
         anchor: Align2,
         text: impl ToString,

@@ -8,7 +8,7 @@ use epaint::{
     mutex::RwLock,
     stats::PaintStats,
     tessellator,
-    text::{FontInsert, FontPriority, Fonts},
+    text::{FontInsert, FontPriority, FontStore, Fonts},
     vec2, ClippedPrimitive, ClippedShape, Color32, ImageData, ImageDelta, Pos2, Rect, StrokeKind,
     TessellationOptions, TextureAtlas, TextureId, Vec2,
 };
@@ -400,7 +400,7 @@ struct ContextImpl {
     /// `pixels_per_point`.
     /// This is because the `Fonts` depend on `pixels_per_point` for the font atlas
     /// as well as kerning, font sizes, etc.
-    fonts: std::collections::BTreeMap<OrderedFloat<f32>, Fonts>,
+    fonts: std::collections::BTreeMap<OrderedFloat<f32>, FontStore>,
     font_definitions: FontDefinitions,
 
     memory: Memory,
@@ -605,7 +605,7 @@ impl ContextImpl {
 
                 is_new = true;
                 profiling::scope!("Fonts::new");
-                Fonts::new(
+                FontStore::new(
                     pixels_per_point,
                     max_texture_side,
                     self.font_definitions.clone(),
@@ -1025,13 +1025,15 @@ impl Context {
     /// Not valid until first call to [`Context::run()`].
     /// That's because since we don't know the proper `pixels_per_point` until then.
     #[inline]
-    pub fn fonts<R>(&self, reader: impl FnOnce(&mut Fonts) -> R) -> R {
+    pub fn fonts<R>(&self, reader: impl FnOnce(&mut Fonts<'_>) -> R) -> R {
         self.write(move |ctx| {
             let pixels_per_point = ctx.pixels_per_point();
             reader(
-                ctx.fonts
+                &mut ctx
+                    .fonts
                     .get_mut(&pixels_per_point.into())
-                    .expect("No fonts available until first call to Context::run()"),
+                    .expect("No fonts available until first call to Context::run()")
+                    .with_pixels_per_point(pixels_per_point),
             )
         })
     }
