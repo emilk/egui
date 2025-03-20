@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use crate::{
-    mutex::{Mutex, MutexGuard},
+    mutex::Mutex,
     text::{
         font::{Font, FontImpl},
         glyph_atlas::GlyphAtlas,
@@ -422,8 +422,7 @@ impl FontDefinitions {
 /// If you are using `egui`, use `egui::Context::set_fonts` and `egui::Context::fonts`.
 ///
 /// You need to call [`Self::begin_pass`] and [`Self::font_image_delta`] once every frame.
-#[derive(Clone)]
-pub struct Fonts(Arc<Mutex<FontsAndCache>>);
+pub struct Fonts(pub FontsAndCache);
 
 impl Fonts {
     /// Create a new [`Fonts`] for text layout.
@@ -440,18 +439,17 @@ impl Fonts {
             fonts: FontsImpl::new(pixels_per_point, max_texture_side, definitions),
             galley_cache: Default::default(),
         };
-        Self(Arc::new(Mutex::new(fonts_and_cache)))
+        Self(fonts_and_cache)
     }
 
-    /// Call at the start of each frame with the latest known
-    /// `pixels_per_point` and `max_texture_side`.
+    /// Call at the start of each frame with the latest known `max_texture_side`.
     ///
     /// Call after painting the previous frame, but before using [`Fonts`] for the new frame.
     ///
     /// This function will react to changes in `pixels_per_point` and `max_texture_side`,
     /// as well as notice when the font atlas is getting full, and handle that.
-    pub fn begin_pass(&self, pixels_per_point: f32, max_texture_side: usize) {
-        let mut fonts_and_cache = self.0.lock();
+    pub fn begin_pass(&mut self, pixels_per_point: f32, max_texture_side: usize) {
+        let fonts_and_cache = &mut self.0;
 
         let pixels_per_point_changed = fonts_and_cache.fonts.pixels_per_point != pixels_per_point;
         let max_texture_side_changed = fonts_and_cache.fonts.max_texture_side != max_texture_side;
@@ -473,78 +471,65 @@ impl Fonts {
 
     /// Call at the end of each frame (before painting) to get the change to the font texture since last call.
     pub fn font_image_delta(&self) -> Option<crate::ImageDelta> {
-        self.lock().fonts.atlas.lock().take_delta()
-    }
-
-    /// Access the underlying [`FontsAndCache`].
-    #[doc(hidden)]
-    #[inline]
-    pub fn lock(&self) -> MutexGuard<'_, FontsAndCache> {
-        self.0.lock()
+        self.0.fonts.atlas.lock().take_delta()
     }
 
     #[inline]
     pub fn pixels_per_point(&self) -> f32 {
-        self.lock().fonts.pixels_per_point
+        self.0.fonts.pixels_per_point
     }
 
     #[inline]
     pub fn max_texture_side(&self) -> usize {
-        self.lock().fonts.max_texture_side
+        self.0.fonts.max_texture_side
     }
 
     /// The font atlas.
     /// Pass this to [`crate::Tessellator`].
     pub fn texture_atlas(&self) -> Arc<Mutex<TextureAtlas>> {
-        self.lock().fonts.atlas.clone()
+        self.0.fonts.atlas.clone()
     }
 
     /// The full font atlas image.
     #[inline]
     pub fn image(&self) -> crate::ColorImage {
-        self.lock().fonts.atlas.lock().image().clone()
+        self.0.fonts.atlas.lock().image().clone()
     }
 
     /// Current size of the font image.
     /// Pass this to [`crate::Tessellator`].
     pub fn font_image_size(&self) -> [usize; 2] {
-        self.lock().fonts.atlas.lock().size()
+        self.0.fonts.atlas.lock().size()
     }
 
     /// Width of this character in points.
     #[inline]
-    pub fn glyph_width(&self, font_id: &FontId, c: char) -> f32 {
-        self.lock().fonts.glyph_width(font_id, c)
+    pub fn glyph_width(&mut self, font_id: &FontId, c: char) -> f32 {
+        self.0.fonts.glyph_width(font_id, c)
     }
 
     /// Can we display this glyph?
     #[inline]
-    pub fn has_glyph(&self, font_id: &FontId, c: char) -> bool {
-        self.lock().fonts.has_glyph(font_id, c)
+    pub fn has_glyph(&mut self, font_id: &FontId, c: char) -> bool {
+        self.0.fonts.has_glyph(font_id, c)
     }
 
     /// Can we display all the glyphs in this text?
-    pub fn has_glyphs(&self, font_id: &FontId, s: &str) -> bool {
-        self.lock().fonts.has_glyphs(font_id, s)
+    pub fn has_glyphs(&mut self, font_id: &FontId, s: &str) -> bool {
+        self.0.fonts.has_glyphs(font_id, s)
     }
 
     /// Height of one row of text in points.
     ///
     /// Returns a value rounded to [`emath::GUI_ROUNDING`].
     #[inline]
-    pub fn row_height(&self, font_id: &FontId) -> f32 {
-        self.lock().fonts.row_height(font_id)
+    pub fn row_height(&mut self, font_id: &FontId) -> f32 {
+        self.0.fonts.row_height(font_id)
     }
 
     /// List of all known font families.
     pub fn families(&self) -> Vec<FontFamily> {
-        self.lock()
-            .fonts
-            .definitions
-            .families
-            .keys()
-            .cloned()
-            .collect()
+        self.0.fonts.definitions.families.keys().cloned().collect()
     }
 
     /// Layout some text.
@@ -555,12 +540,12 @@ impl Fonts {
     ///
     /// The implementation uses memoization so repeated calls are cheap.
     #[inline]
-    pub fn layout_job(&self, job: LayoutJob) -> Arc<Galley> {
-        self.lock().layout_job(job)
+    pub fn layout_job(&mut self, job: LayoutJob) -> Arc<Galley> {
+        self.0.layout_job(job)
     }
 
     pub fn num_galleys_in_cache(&self) -> usize {
-        self.lock().galley_cache.num_galleys_in_cache()
+        self.0.galley_cache.num_galleys_in_cache()
     }
 
     /// How full is the font atlas?
@@ -568,14 +553,14 @@ impl Fonts {
     /// This increases as new fonts and/or glyphs are used,
     /// but can also decrease in a call to [`Self::begin_pass`].
     pub fn font_atlas_fill_ratio(&self) -> f32 {
-        self.lock().fonts.atlas.lock().fill_ratio()
+        self.0.fonts.atlas.lock().fill_ratio()
     }
 
     /// Will wrap text at the given width and line break at `\n`.
     ///
     /// The implementation uses memoization so repeated calls are cheap.
     pub fn layout(
-        &self,
+        &mut self,
         text: String,
         font_id: FontId,
         color: crate::Color32,
@@ -589,7 +574,7 @@ impl Fonts {
     ///
     /// The implementation uses memoization so repeated calls are cheap.
     pub fn layout_no_wrap(
-        &self,
+        &mut self,
         text: String,
         font_id: FontId,
         color: crate::Color32,
@@ -602,7 +587,7 @@ impl Fonts {
     ///
     /// The implementation uses memoization so repeated calls are cheap.
     pub fn layout_delayed_color(
-        &self,
+        &mut self,
         text: String,
         font_id: FontId,
         wrap_width: f32,
@@ -665,18 +650,6 @@ impl FontsImpl {
 
         let font_impl_cache =
             FontImplCache::new(atlas.clone(), pixels_per_point, &definitions.font_data);
-
-        /*let mut db = cosmic_text::fontdb::Database::new();
-        for data in definitions.font_data.values() {
-            db.load_font_data(data.font.to_vec());
-        }
-        db.load_system_fonts();
-        /*for face in db.faces() {
-            dbg!(&face.id, &face.families, &face.monospaced);
-        }*/
-        db.set_monospace_family("Hack");
-        db.set_sans_serif_family("Ubuntu");
-        let font_system = cosmic_text::FontSystem::new_with_locale_and_db("en-US".to_owned(), db);*/
 
         let mut collection = fontique::Collection::new(fontique::CollectionOptions {
             shared: true,
