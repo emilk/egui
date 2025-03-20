@@ -170,7 +170,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         {
             c.bench_function("text_layout_uncached", |b| {
                 b.iter(|| {
-                    use egui::epaint::text::{parley_layout::layout, LayoutJob};
+                    use egui::epaint::text::LayoutJob;
 
                     let job = LayoutJob::simple(
                         LOREM_IPSUM_LONG.to_owned(),
@@ -178,7 +178,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                         text_color,
                         wrap_width,
                     );
-                    layout(&mut fonts.fonts, job)
+                    fonts.layout_job_uncached(job);
                 });
             });
         }
