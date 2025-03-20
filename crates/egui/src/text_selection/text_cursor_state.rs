@@ -277,7 +277,7 @@ fn next_word_boundary_char_index(text: &str, index: usize) -> usize {
 fn skip_word(text: &str) -> bool {
     // skip words that contain anything other than alphanumeric characters and underscore
     // (i.e. whitespace, dashes, etc.)
-    !text.chars().any(|c| !(c.is_alphanumeric() || c == '_'))
+    !text.chars().any(|c| !is_word_char(c))
 }
 
 fn next_line_boundary_char_index(it: impl Iterator<Item = char>, mut index: usize) -> usize {
