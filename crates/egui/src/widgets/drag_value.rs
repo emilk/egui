@@ -451,10 +451,11 @@ impl Widget for DragValue<'_> {
         // it is immediately rendered in edit mode, rather than being rendered
         // in button mode for just one frame. This is important for
         // screen readers.
-        let is_kb_editing = ui.memory_mut(|mem| {
-            mem.interested_in_focus(id, ui.layer_id());
-            mem.has_focus(id)
-        });
+        let is_kb_editing = ui.is_enabled()
+            && ui.memory_mut(|mem| {
+                mem.interested_in_focus(id, ui.layer_id());
+                mem.has_focus(id)
+            });
 
         if ui.memory_mut(|mem| mem.gained_focus(id)) {
             ui.data_mut(|data| data.remove::<String>(id));
