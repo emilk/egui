@@ -147,13 +147,7 @@ impl ImageLoader for ImageCrateLoader {
                         }
                     }
 
-                    if cfg!(target_arch = "wasm32") {
-                        load_image_wasm(uri, &self.cache, &bytes)
-                    } else {
-                        #[cfg(target_arch = "wasm32")]
-                        unreachable!();
-                        #[cfg(not(target_arch = "wasm32"))]
-                        load_image(ctx, uri, &self.cache, bytes)
+                    load_image(ctx, uri, &self.cache, bytes)
                     }
                 }
                 Ok(BytesPoll::Pending { size }) => Ok(ImagePoll::Pending { size }),
