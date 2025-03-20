@@ -839,9 +839,9 @@ impl Ui {
         self.ctx().output_mut(writer)
     }
 
-    /// Read-only access to [`Fonts`].
+    /// Read-write access to [`Fonts`].
     #[inline]
-    pub fn fonts<R>(&self, reader: impl FnOnce(&Fonts) -> R) -> R {
+    pub fn fonts<R>(&self, reader: impl FnOnce(&mut Fonts) -> R) -> R {
         self.ctx().fonts(reader)
     }
 }
