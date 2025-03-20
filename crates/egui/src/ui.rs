@@ -2,7 +2,7 @@
 #![allow(clippy::use_self)]
 
 use emath::GuiRounding as _;
-use epaint::mutex::RwLock;
+use epaint::{mutex::RwLock, text::Fonts};
 use std::{any::Any, hash::Hash, sync::Arc};
 
 use crate::close_tag::ClosableTag;
@@ -12,9 +12,7 @@ use crate::Stroke;
 use crate::{
     containers::{CollapsingHeader, CollapsingResponse, Frame},
     ecolor::Hsva,
-    emath, epaint,
-    epaint::text::Fonts,
-    grid,
+    emath, epaint, grid,
     layout::{Direction, Layout},
     pass_state,
     placer::Placer,
@@ -841,7 +839,7 @@ impl Ui {
 
     /// Read-write access to [`Fonts`].
     #[inline]
-    pub fn fonts<R>(&self, reader: impl FnOnce(&mut Fonts) -> R) -> R {
+    pub fn fonts<R>(&self, reader: impl FnOnce(&mut Fonts<'_>) -> R) -> R {
         self.ctx().fonts(reader)
     }
 }

@@ -476,8 +476,8 @@ pub use epaint::{
 pub mod text {
     pub use epaint::text::{
         cursor::{ByteCursor, Selection},
-        FontData, FontDefinitions, FontFamily, Fonts, Galley, LayoutJob, LayoutSection, TextFormat,
-        TextWrapping, TAB_SIZE,
+        FontData, FontDefinitions, FontFamily, FontStore, Galley, LayoutJob, LayoutSection,
+        TextFormat, TextWrapping, TAB_SIZE,
     };
 }
 
