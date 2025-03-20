@@ -95,6 +95,9 @@ pub enum OutputCommand {
 
     /// Open this url in a browser.
     OpenUrl(OpenUrl),
+
+    /// Set the mouse cursor position (if the platform supports it).
+    SetPointerPosition(emath::Pos2),
 }
 
 /// The non-rendering part of what egui emits each frame.

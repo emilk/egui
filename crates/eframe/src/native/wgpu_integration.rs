@@ -249,7 +249,7 @@ impl<'app> WgpuWinitApp<'app> {
         #[cfg(feature = "accesskit")]
         {
             let event_loop_proxy = self.repaint_proxy.lock().clone();
-            egui_winit.init_accesskit(&window, event_loop_proxy);
+            egui_winit.init_accesskit(event_loop, &window, event_loop_proxy);
         }
 
         let app_creator = std::mem::take(&mut self.app_creator)

@@ -10,7 +10,7 @@ use crate::{
 use super::{
     text_cursor_state::cursor_rect,
     visuals::{paint_text_selection, RowVertexIndices},
-    CursorRange, TextCursorState,
+    TextCursorState,
 };
 
 /// Turn on to help debug this
@@ -44,7 +44,7 @@ impl WidgetTextCursor {
 }
 
 fn pos_in_galley(galley: &Galley, ccursor: CCursor) -> Pos2 {
-    galley.pos_from_ccursor(ccursor).center()
+    galley.pos_from_cursor(ccursor).center()
 }
 
 impl std::fmt::Debug for WidgetTextCursor {
@@ -235,7 +235,7 @@ impl LabelSelectionState {
         self.selection = None;
     }
 
-    fn copy_text(&mut self, new_galley_rect: Rect, galley: &Galley, cursor_range: &CursorRange) {
+    fn copy_text(&mut self, new_galley_rect: Rect, galley: &Galley, cursor_range: &CCursorRange) {
         let new_text = selected_text(galley, cursor_range);
         if new_text.is_empty() {
             return;
@@ -433,7 +433,11 @@ impl LabelSelectionState {
         match (primary, secondary) {
             (Some(primary), Some(secondary)) => {
                 // This is the only selected label.
-                TextCursorState::from(CCursorRange { primary, secondary })
+                TextCursorState::from(CCursorRange {
+                    primary,
+                    secondary,
+                    h_pos: None,
+                })
             }
 
             (Some(primary), None) => {
@@ -442,12 +446,16 @@ impl LabelSelectionState {
                     // Secondary was before primary.
                     // Select everything up to the cursor.
                     // We assume normal left-to-right and top-down layout order here.
-                    galley.begin().ccursor
+                    galley.begin()
                 } else {
                     // Select everything from the cursor onward:
-                    galley.end().ccursor
+                    galley.end()
                 };
-                TextCursorState::from(CCursorRange { primary, secondary })
+                TextCursorState::from(CCursorRange {
+                    primary,
+                    secondary,
+                    h_pos: None,
+                })
             }
 
             (None, Some(secondary)) => {
@@ -456,12 +464,16 @@ impl LabelSelectionState {
                     // Primary was before secondary.
                     // Select everything up to the cursor.
                     // We assume normal left-to-right and top-down layout order here.
-                    galley.begin().ccursor
+                    galley.begin()
                 } else {
                     // Select everything from the cursor onward:
-                    galley.end().ccursor
+                    galley.end()
                 };
-                TextCursorState::from(CCursorRange { primary, secondary })
+                TextCursorState::from(CCursorRange {
+                    primary,
+                    secondary,
+                    h_pos: None,
+                })
             }
 
             (None, None) => {
@@ -515,7 +527,7 @@ impl LabelSelectionState {
 
         let mut cursor_state = self.cursor_for(ui, response, global_from_galley, galley);
 
-        let old_range = cursor_state.range(galley);
+        let old_range = cursor_state.char_range();
 
         if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
             if response.contains_pointer() {
@@ -529,7 +541,7 @@ impl LabelSelectionState {
             }
         }
 
-        if let Some(mut cursor_range) = cursor_state.range(galley) {
+        if let Some(mut cursor_range) = cursor_state.char_range() {
             let galley_rect = global_from_galley * Rect::from_min_size(Pos2::ZERO, galley.size());
             self.selection_bbox_this_frame = self.selection_bbox_this_frame.union(galley_rect);
 
@@ -543,11 +555,11 @@ impl LabelSelectionState {
                 self.copy_text(galley_rect, galley, &cursor_range);
             }
 
-            cursor_state.set_range(Some(cursor_range));
+            cursor_state.set_char_range(Some(cursor_range));
         }
 
         // Look for changes due to keyboard and/or mouse interaction:
-        let new_range = cursor_state.range(galley);
+        let new_range = cursor_state.char_range();
         let selection_changed = old_range != new_range;
 
         if let (true, Some(range)) = (selection_changed, new_range) {
@@ -617,7 +629,7 @@ impl LabelSelectionState {
             }
         }
 
-        let cursor_range = cursor_state.range(galley);
+        let cursor_range = cursor_state.char_range();
 
         let mut new_vertex_indices = vec![];
 
@@ -657,7 +669,7 @@ fn process_selection_key_events(
     ctx: &Context,
     galley: &Galley,
     widget_id: Id,
-    cursor_range: &mut CursorRange,
+    cursor_range: &mut CCursorRange,
 ) -> bool {
     let os = ctx.os();
 
@@ -674,10 +686,10 @@ fn process_selection_key_events(
     changed
 }
 
-fn selected_text(galley: &Galley, cursor_range: &CursorRange) -> String {
+fn selected_text(galley: &Galley, cursor_range: &CCursorRange) -> String {
     // This logic means we can select everything in an elided label (including the `…`)
     // and still copy the entire un-elided text!
-    let everything_is_selected = cursor_range.contains(&CursorRange::select_all(galley));
+    let everything_is_selected = cursor_range.contains(CCursorRange::select_all(galley));
 
     let copy_everything = cursor_range.is_empty() || everything_is_selected;
 

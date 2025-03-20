@@ -295,6 +295,14 @@ impl Color32 {
     pub fn blend(self, on_top: Self) -> Self {
         self.gamma_multiply_u8(255 - on_top.a()) + on_top
     }
+
+    /// Intensity of the color.
+    ///
+    /// Returns a value in the range 0-1.
+    /// The brighter the color, the closer to 1.
+    pub fn intensity(&self) -> f32 {
+        (self.r() as f32 * 0.299 + self.g() as f32 * 0.587 + self.b() as f32 * 0.114) / 255.0
+    }
 }
 
 impl std::ops::Mul for Color32 {

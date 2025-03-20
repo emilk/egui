@@ -1482,6 +1482,11 @@ impl Context {
         self.send_cmd(crate::OutputCommand::CopyImage(image));
     }
 
+    /// Set the mouse cursor position (if the platform supports it).
+    pub fn set_pointer_position(&self, position: Pos2) {
+        self.send_cmd(crate::OutputCommand::SetPointerPosition(position));
+    }
+
     /// Format the given shortcut in a human-readable way (e.g. `Ctrl+Shift+X`).
     ///
     /// Can be used to get the text for [`crate::Button::shortcut_text`].

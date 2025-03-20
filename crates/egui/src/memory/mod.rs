@@ -94,7 +94,7 @@ pub struct Memory {
     /// If position is [`None`], the popup position will be calculated based on some configuration
     /// (e.g. relative to some other widget).
     #[cfg_attr(feature = "persistence", serde(skip))]
-    popup: Option<(Id, Option<Pos2>)>,
+    popup: Option<OpenPopup>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     everything_is_visible: bool,
@@ -807,6 +807,15 @@ impl Memory {
         self.caches.update();
         self.areas_mut().end_pass();
         self.focus_mut().end_pass(used_ids);
+
+        // Clean up abandoned popups.
+        if let Some(popup) = &mut self.popup {
+            if popup.open_this_frame {
+                popup.open_this_frame = false;
+            } else {
+                self.popup = None;
+            }
+        }
     }
 
     pub(crate) fn set_viewport_id(&mut self, viewport_id: ViewportId) {
@@ -1068,13 +1077,37 @@ impl Memory {
     }
 }
 
+/// State of an open popup.
+#[derive(Clone, Copy, Debug)]
+struct OpenPopup {
+    /// Id of the popup.
+    id: Id,
+
+    /// Optional position of the popup.
+    pos: Option<Pos2>,
+
+    /// Whether this popup was still open this frame. Otherwise it's considered abandoned and `Memory::popup` will be cleared.
+    open_this_frame: bool,
+}
+
+impl OpenPopup {
+    /// Create a new `OpenPopup`.
+    fn new(id: Id, pos: Option<Pos2>) -> Self {
+        Self {
+            id,
+            pos,
+            open_this_frame: true,
+        }
+    }
+}
+
 /// ## Popups
 /// Popups are things like combo-boxes, color pickers, menus etc.
 /// Only one can be open at a time.
 impl Memory {
     /// Is the given popup open?
     pub fn is_popup_open(&self, popup_id: Id) -> bool {
-        self.popup.is_some_and(|(id, _)| id == popup_id) || self.everything_is_visible()
+        self.popup.is_some_and(|state| state.id == popup_id) || self.everything_is_visible()
     }
 
     /// Is any popup open?
@@ -1083,24 +1116,48 @@ impl Memory {
     }
 
     /// Open the given popup and close all others.
+    ///
+    /// Note that you must call `keep_popup_open` on subsequent frames as long as the popup is open.
     pub fn open_popup(&mut self, popup_id: Id) {
-        self.popup = Some((popup_id, None));
+        self.popup = Some(OpenPopup::new(popup_id, None));
+    }
+
+    /// Popups must call this every frame while open.
+    ///
+    /// This is needed because in some cases popups can go away without `close_popup` being
+    /// called. For example, when a context menu is open and the underlying widget stops
+    /// being rendered.
+    pub fn keep_popup_open(&mut self, popup_id: Id) {
+        if let Some(state) = self.popup.as_mut() {
+            if state.id == popup_id {
+                state.open_this_frame = true;
+            }
+        }
     }
 
     /// Open the popup and remember its position.
     pub fn open_popup_at(&mut self, popup_id: Id, pos: impl Into<Option<Pos2>>) {
-        self.popup = Some((popup_id, pos.into()));
+        self.popup = Some(OpenPopup::new(popup_id, pos.into()));
     }
 
     /// Get the position for this popup.
     pub fn popup_position(&self, id: Id) -> Option<Pos2> {
         self.popup
-            .and_then(|(popup_id, pos)| if popup_id == id { pos } else { None })
+            .and_then(|state| if state.id == id { state.pos } else { None })
     }
 
-    /// Close the open popup, if any.
-    pub fn close_popup(&mut self) {
+    /// Close any currently open popup.
+    pub fn close_all_popups(&mut self) {
         self.popup = None;
+    }
+
+    /// Close the given popup, if it is open.
+    ///
+    /// See also [`Self::close_all_popups`] if you want to close any / all currently open popups.
+    pub fn close_popup(&mut self, popup_id: Id) {
+        if self.is_popup_open(popup_id) {
+            self.popup = None;
+        }
     }
 
     /// Toggle the given popup between closed and open.
@@ -1108,7 +1165,7 @@ impl Memory {
     /// Note: At most, only one popup can be open at a time.
     pub fn toggle_popup(&mut self, popup_id: Id) {
         if self.is_popup_open(popup_id) {
-            self.close_popup();
+            self.close_popup(popup_id);
         } else {
             self.open_popup(popup_id);
         }
