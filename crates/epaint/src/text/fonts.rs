@@ -684,7 +684,7 @@ impl FontsImpl {
         });
 
         for data in definitions.font_data.values() {
-            collection.register_fonts(Blob::new(Arc::new(data.font.clone())));
+            collection.register_fonts(Blob::new(Arc::new(data.font.clone())), None);
         }
         let ubuntu = collection.family_by_name("Ubuntu").unwrap();
         let hack = collection.family_by_name("Hack").unwrap();
