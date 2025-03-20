@@ -434,7 +434,6 @@ pub(super) struct FontsLayoutView<'a> {
 ///
 /// You need to call [`Self::begin_pass`] and [`Self::font_image_delta`] once every frame.
 pub struct FontStore {
-    pub(super) pixels_per_point: f32,
     max_texture_side: usize,
     definitions: FontDefinitions,
     atlas: Arc<Mutex<TextureAtlas>>,
@@ -451,18 +450,8 @@ impl FontStore {
     /// Create a new [`Fonts`] for text layout.
     /// This call is expensive, so only create one [`Fonts`] and then reuse it.
     ///
-    /// * `pixels_per_point`: how many physical pixels per logical "point".
     /// * `max_texture_side`: largest supported texture size (one side).
-    pub fn new(
-        pixels_per_point: f32,
-        max_texture_side: usize,
-        definitions: FontDefinitions,
-    ) -> Self {
-        assert!(
-            0.0 < pixels_per_point && pixels_per_point < 100.0,
-            "pixels_per_point out of range: {pixels_per_point}"
-        );
-
+    pub fn new(max_texture_side: usize, definitions: FontDefinitions) -> Self {
         let texture_width = max_texture_side.at_most(16 * 1024).at_most(
             1024, /* limit atlas size to test that multiple atlases work */
         );
@@ -471,8 +460,9 @@ impl FontStore {
 
         let atlas = Arc::new(Mutex::new(atlas));
 
-        let font_impl_cache =
-            FontImplCache::new(atlas.clone(), pixels_per_point, &definitions.font_data);
+        // TODO(valadaptive): setting pixels_per_point: 1.0 here because we don't actually use the FontImplCache for
+        // anything important now.
+        let font_impl_cache = FontImplCache::new(atlas.clone(), 1.0, &definitions.font_data);
 
         let mut collection = fontique::Collection::new(fontique::CollectionOptions {
             shared: true,
@@ -501,7 +491,6 @@ impl FontStore {
         let layout_context = parley::LayoutContext::new();
 
         Self {
-            pixels_per_point,
             max_texture_side,
             definitions,
             glyph_atlas: GlyphAtlas::new(atlas.clone()),
@@ -518,19 +507,19 @@ impl FontStore {
     ///
     /// Call after painting the previous frame, but before using [`Fonts`] for the new frame.
     ///
-    /// This function will react to changes in `pixels_per_point` and `max_texture_side`,
-    /// as well as notice when the font atlas is getting full, and handle that.
-    pub fn begin_pass(&mut self, pixels_per_point: f32, max_texture_side: usize) {
-        let pixels_per_point_changed = self.pixels_per_point != pixels_per_point;
+    /// This function will react to changes in `max_texture_side`, as well as notice when the font atlas is getting
+    /// full, and handle that.
+    pub fn begin_pass(&mut self, max_texture_side: usize) {
         let max_texture_side_changed = self.max_texture_side != max_texture_side;
+        // TODO(valadaptive): this seems suspicious. Does this mean the atlas can never use more than 80% of its actual
+        // capacity?
         let font_atlas_almost_full = self.atlas.lock().fill_ratio() > 0.8;
-        let needs_recreate =
-            pixels_per_point_changed || max_texture_side_changed || font_atlas_almost_full;
+        let needs_recreate = max_texture_side_changed || font_atlas_almost_full;
 
         if needs_recreate {
             let definitions = self.definitions.clone();
 
-            *self = Self::new(pixels_per_point, max_texture_side, definitions);
+            *self = Self::new(max_texture_side, definitions);
             self.galley_cache = Default::default();
         }
 
