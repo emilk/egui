@@ -6,7 +6,7 @@ use epaint::text::{
 };
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::{epaint, NumExt, Rect, Response, TextBuffer, Ui};
+use crate::{epaint, NumExt, Rect, Response, Ui};
 
 use super::{CCursorRange, CursorRange};
 
@@ -257,17 +257,14 @@ fn ccursor_previous_line(text: &str, ccursor: CCursor) -> CCursor {
 }
 
 fn next_word_boundary_char_index(text: &str, index: usize) -> usize {
-    let start_byte_index = text.byte_index_from_char_index(index);
-    let words = text.split_word_bound_indices().collect::<Vec<_>>();
-
-    for i in 0..words.len() {
-        let bi = words[i].0;
-        // Splitting considers contiguous whitespace as one word, such words must be skipped
-        // such that the cursor jumps right after the next word (this is consistent with text
-        // editors or browsers), the naive approach would jump after the whitespace following
-        // the next word.
-        if bi > start_byte_index && i > 0 && skip_word(words[i - 1].1) {
-            return char_index_from_byte_index(text, bi);
+    for word in text.split_word_bound_indices() {
+        // Splitting considers contiguous whitespace as one word, such words must be skipped,
+        // this handles cases for example ' abc' (a space and a word), the cursor is at the beginning
+        // (before space) - this jumps at the end of 'abc' (this is consistent with text editors
+        // or browsers)
+        let ci = char_index_from_byte_index(text, word.0);
+        if ci > index && !skip_word(word.1) {
+            return ci;
         }
     }
 
@@ -343,10 +340,7 @@ pub fn char_index_from_byte_index(input: &str, byte_index: usize) -> usize {
         }
     }
 
-    input
-        .char_indices()
-        .last()
-        .map_or(0, |(i, c)| i + c.len_utf8())
+    input.char_indices().last().map_or(0, |(i, _)| i + 1)
 }
 
 pub fn slice_char_range(s: &str, char_range: std::ops::Range<usize>) -> &str {
@@ -366,4 +360,39 @@ pub fn cursor_rect(galley: &Galley, cursor: &Cursor, row_height: f32) -> Rect {
     cursor_pos = cursor_pos.expand(1.5); // slightly above/below row
 
     cursor_pos
+}
+
+#[cfg(test)]
+mod test {
+    use crate::text_selection::text_cursor_state::next_word_boundary_char_index;
+
+    #[test]
+    fn test_next_word_boundary_char_index() {
+        // ASCII only
+        let text = "abc d3f g_h i-j";
+        assert_eq!(next_word_boundary_char_index(text, 1), 3);
+        assert_eq!(next_word_boundary_char_index(text, 3), 7);
+        assert_eq!(next_word_boundary_char_index(text, 9), 11);
+        assert_eq!(next_word_boundary_char_index(text, 12), 13);
+        assert_eq!(next_word_boundary_char_index(text, 13), 15);
+        assert_eq!(next_word_boundary_char_index(text, 15), 15);
+
+        assert_eq!(next_word_boundary_char_index("", 0), 0);
+        assert_eq!(next_word_boundary_char_index("", 1), 0);
+
+        // Unicode graphemes, some of which consist of multiple Unicode characters,
+        // !!! Unicode character is not always what is tranditionally considered a character,
+        // the values below are correct despite not seeming that way on the first look,
+        // handling of and around emojis is kind of weird and is not consistent across
+        // text editors and browsers
+        let text = "❤️👍 skvělá knihovna 👍❤️";
+        assert_eq!(next_word_boundary_char_index(text, 0), 2);
+        assert_eq!(next_word_boundary_char_index(text, 2), 3); // this does not skip the space between thumbs-up and 'skvělá'
+        assert_eq!(next_word_boundary_char_index(text, 6), 10);
+        assert_eq!(next_word_boundary_char_index(text, 9), 10);
+        assert_eq!(next_word_boundary_char_index(text, 12), 19);
+        assert_eq!(next_word_boundary_char_index(text, 15), 19);
+        assert_eq!(next_word_boundary_char_index(text, 19), 20);
+        assert_eq!(next_word_boundary_char_index(text, 20), 21);
+    }
 }
