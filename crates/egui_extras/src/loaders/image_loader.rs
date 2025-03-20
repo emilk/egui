@@ -108,7 +108,9 @@ impl ImageLoader for ImageCrateLoader {
             Ok(ImagePoll::Pending { size: None })
         }
 
-        fn load_image_wasm(
+		#[cfg(not(target_arch = "wasm32"))]
+        fn load_image(
+            _ctx: &egui::Context,
             uri: &str,
             cache: &Arc<Mutex<HashMap<String, Entry>>>,
             bytes: &Bytes,
