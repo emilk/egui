@@ -22,8 +22,8 @@
   - [ ] In the EasyMark example, with the text "There is no alternative way to specify the strong style", at certain wrap widths, the text from "strong" onwards will be shifted down 1px
 - [ ] Text rendering
   - [ ] Investigate whether swash is being too conservative with its shape bounds and cutting off rendered glyphs
-  - [ ] We don't need to do all the weird DPI stuff now, probably
-    - [ ] (see https://github.com/emilk/egui/issues/3664 for an example of the hacks we can get rid of)
+  - [x] We don't need to do all the weird DPI stuff now, probably
+    - [x] (see https://github.com/emilk/egui/issues/3664 for an example of the hacks we can get rid of)
   - [ ] A bunch of font atlas stuff
     - [ ] I think it's a bit broken right now
     - [ ] Automatically switch between multiple atlases if one isn't enough
@@ -52,6 +52,7 @@
   - [x] AccessKit integration(?) (done; kinda janky and cannot currently test whether the bounding boxes are correct)
   - [ ] Allow modifying text without doing a relayout afterwards (or at least not a full one)
     - [ ] The original TextEdit code had a relayout too
+  - [ ] Per-viewport pixels_per_point seems to not be taken into account when calculating cursor positions for selections
   - [ ] Remove RowVertexIndices from selection painting
   - [ ] Update the doctests aaaaaaa
   - [ ] Do another pass over TextBuffer's API
