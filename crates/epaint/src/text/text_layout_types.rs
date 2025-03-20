@@ -609,6 +609,7 @@ pub struct GalleyAccessibility {
 #[derive(Default, Clone)]
 pub(super) struct LazyAccessibility(OnceLock<GalleyAccessibility>);
 
+#[cfg(feature = "accesskit")]
 impl LazyAccessibility {
     fn get_or_init(
         &self,
