@@ -142,8 +142,7 @@ fn char_info_ui(ui: &mut egui::Ui, chr: char, glyph_info: &GlyphInfo, font_id: e
 
 fn available_characters(ui: &egui::Ui, family: egui::FontFamily) -> BTreeMap<char, GlyphInfo> {
     ui.fonts(|f| {
-        f.lock()
-            .fonts
+        f.0.fonts
             .font(&egui::FontId::new(10.0, family)) // size is arbitrary for getting the characters
             .characters()
             .iter()
