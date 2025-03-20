@@ -112,7 +112,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                         text_color,
                         wrap_width,
                     );
-                    layout(&mut fonts.0.fonts, job)
+                    layout(&mut fonts.fonts, job)
                 });
             });
         }
