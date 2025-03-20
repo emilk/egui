@@ -78,7 +78,7 @@ impl ImageLoader for ImageCrateLoader {
             ctx: &egui::Context,
             uri: &str,
             cache: &Arc<Mutex<HashMap<String, Entry>>>,
-            bytes: Bytes,
+            bytes: &Bytes,
         ) -> ImageLoadResult {
             let uri = uri.to_owned();
             cache.lock().insert(uri.clone(), Poll::Pending);
@@ -93,7 +93,7 @@ impl ImageLoader for ImageCrateLoader {
                     let uri = uri.clone();
                     move || {
                         log::trace!("ImageLoader - started loading {uri:?}");
-                        let result = crate::image::load_image_bytes(&bytes)
+                        let result = crate::image::load_image_bytes(bytes)
                             .map(Arc::new)
                             .map_err(|err| err.to_string());
                         log::trace!("ImageLoader - finished loading {uri:?}");
@@ -108,7 +108,7 @@ impl ImageLoader for ImageCrateLoader {
             Ok(ImagePoll::Pending { size: None })
         }
 
-		#[cfg(not(target_arch = "wasm32"))]
+        #[cfg(target_arch = "wasm32")]
         fn load_image(
             _ctx: &egui::Context,
             uri: &str,
@@ -147,7 +147,7 @@ impl ImageLoader for ImageCrateLoader {
                         }
                     }
 
-                    load_image(ctx, uri, &self.cache, bytes)
+                    load_image(ctx, uri, &self.cache, &bytes)
                 }
                 Ok(BytesPoll::Pending { size }) => Ok(ImagePoll::Pending { size }),
                 Err(err) => Err(err),
