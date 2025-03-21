@@ -34,8 +34,11 @@ Browse through [`ARCHITECTURE.md`](ARCHITECTURE.md) to get a sense of how all pi
 You can test your code locally by running `./scripts/check.sh`.
 There are snapshots test that might need to be updated.
 Run the tests with `UPDATE_SNAPSHOTS=true cargo test --workspace --all-features` to update all of them.
+If CI keeps complaining about snapshots (which could happen if you don't use macOS, snapshots in CI are currently
+rendered with macOS), you can instead run `./scripts/update_snapshots_from_ci.sh` to update your local snapshots from 
+the last CI run of your PR (which will download the `test_results` artefact).
 For more info about the tests see [egui_kittest](./crates/egui_kittest/README.md).
-Snapshots and other big files are stored with git lfs. See [Working with lfs](#working-with-lfs) for more info.
+Snapshots and other big files are stored with git lfs. See [Working with git lfs](#working-with-git-lfs) for more info.
 If you see an `InvalidSignature` error when running snapshot tests, it's probably a problem related to git-lfs.
 
 When you have something that works, open a draft PR. You may get some helpful feedback early!
