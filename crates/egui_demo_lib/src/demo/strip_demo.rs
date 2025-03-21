@@ -6,9 +6,9 @@ use egui_extras::{Size, StripBuilder};
 #[derive(Default)]
 pub struct StripDemo {}
 
-impl super::Demo for StripDemo {
+impl crate::Demo for StripDemo {
     fn name(&self) -> &'static str {
-        "▣ Strip Demo"
+        "▣ Strip"
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
@@ -17,13 +17,13 @@ impl super::Demo for StripDemo {
             .resizable(true)
             .default_width(400.0)
             .show(ctx, |ui| {
-                use super::View as _;
+                use crate::View as _;
                 self.ui(ui);
             });
     }
 }
 
-impl super::View for StripDemo {
+impl crate::View for StripDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
         let dark_mode = ui.visuals().dark_mode;
         let faded_color = ui.visuals().window_fill();

@@ -33,7 +33,7 @@ pub fn best_in_range_f64(min: f64, max: f64) -> f64 {
     if !max.is_finite() {
         return min;
     }
-    crate::emath_assert!(min.is_finite() && max.is_finite());
+    debug_assert!(min.is_finite() && max.is_finite());
 
     let min_exponent = min.log10();
     let max_exponent = max.log10();
@@ -55,9 +55,6 @@ pub fn best_in_range_f64(min: f64, max: f64) -> f64 {
 
     let min_str = to_decimal_string(min / exp_factor);
     let max_str = to_decimal_string(max / exp_factor);
-
-    // eprintln!("min_str: {:?}", min_str);
-    // eprintln!("max_str: {:?}", max_str);
 
     let mut ret_str = [0; NUM_DECIMALS];
 
@@ -82,7 +79,7 @@ fn is_integer(f: f64) -> bool {
 }
 
 fn to_decimal_string(v: f64) -> [i32; NUM_DECIMALS] {
-    crate::emath_assert!(v < 10.0, "{:?}", v);
+    debug_assert!(v < 10.0, "{v:?}");
     let mut digits = [0; NUM_DECIMALS];
     let mut v = v.abs();
     for r in &mut digits {
@@ -104,7 +101,7 @@ fn from_decimal_string(s: &[i32]) -> f64 {
 
 /// Find the simplest integer in the range [min, max]
 fn simplest_digit_closed_range(min: i32, max: i32) -> i32 {
-    crate::emath_assert!(1 <= min && min <= max && max <= 9);
+    debug_assert!(1 <= min && min <= max && max <= 9);
     if min <= 5 && 5 <= max {
         5
     } else {
@@ -141,7 +138,9 @@ fn test_aim() {
     assert_eq!(best_in_range_f64(99.999, 100.000), 100.0);
     assert_eq!(best_in_range_f64(10.001, 100.001), 100.0);
 
-    use std::f64::{INFINITY, NAN, NEG_INFINITY};
+    const NAN: f64 = f64::NAN;
+    const INFINITY: f64 = f64::INFINITY;
+    const NEG_INFINITY: f64 = f64::NEG_INFINITY;
     assert!(best_in_range_f64(NAN, NAN).is_nan());
     assert_eq!(best_in_range_f64(NAN, 1.2), 1.2);
     assert_eq!(best_in_range_f64(NAN, INFINITY), INFINITY);

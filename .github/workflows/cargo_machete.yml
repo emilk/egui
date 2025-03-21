@@ -1,0 +1,18 @@
+name: Cargo Machete
+
+on: [push, pull_request]
+
+jobs:
+  cargo-machete:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.85
+      - name: Machete install
+        run: cargo install cargo-machete --locked
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Machete Check
+        run: cargo machete
+      

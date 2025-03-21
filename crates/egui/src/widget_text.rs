@@ -1,8 +1,10 @@
 use std::{borrow::Cow, sync::Arc};
 
+use emath::GuiRounding as _;
+
 use crate::{
-    text::LayoutJob, Align, Color32, FontFamily, FontSelection, Galley, Style, TextStyle, Ui,
-    Visuals,
+    text::{LayoutJob, TextWrapping},
+    Align, Color32, FontFamily, FontSelection, Galley, Style, TextStyle, TextWrapMode, Ui, Visuals,
 };
 
 /// Text and optional style choices for it.
@@ -20,7 +22,7 @@ use crate::{
 /// RichText::new("colored").color(Color32::RED);
 /// RichText::new("Large and underlined").size(20.0).underline();
 /// ```
-#[derive(Clone, Default, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct RichText {
     text: String,
     size: Option<f32>,
@@ -29,6 +31,7 @@ pub struct RichText {
     family: Option<FontFamily>,
     text_style: Option<TextStyle>,
     background_color: Color32,
+    expand_bg: f32,
     text_color: Option<Color32>,
     code: bool,
     strong: bool,
@@ -37,6 +40,29 @@ pub struct RichText {
     underline: bool,
     italics: bool,
     raised: bool,
+}
+
+impl Default for RichText {
+    fn default() -> Self {
+        Self {
+            text: Default::default(),
+            size: Default::default(),
+            extra_letter_spacing: Default::default(),
+            line_height: Default::default(),
+            family: Default::default(),
+            text_style: Default::default(),
+            background_color: Default::default(),
+            expand_bg: 1.0,
+            text_color: Default::default(),
+            code: Default::default(),
+            strong: Default::default(),
+            weak: Default::default(),
+            strikethrough: Default::default(),
+            underline: Default::default(),
+            italics: Default::default(),
+            raised: Default::default(),
+        }
+    }
 }
 
 impl From<&str> for RichText {
@@ -63,6 +89,27 @@ impl From<&mut String> for RichText {
 impl From<String> for RichText {
     #[inline]
     fn from(text: String) -> Self {
+        Self::new(text)
+    }
+}
+
+impl From<&Box<str>> for RichText {
+    #[inline]
+    fn from(text: &Box<str>) -> Self {
+        Self::new(text.clone())
+    }
+}
+
+impl From<&mut Box<str>> for RichText {
+    #[inline]
+    fn from(text: &mut Box<str>) -> Self {
+        Self::new(text.clone())
+    }
+}
+
+impl From<Box<str>> for RichText {
+    #[inline]
+    fn from(text: Box<str>) -> Self {
         Self::new(text)
     }
 }
@@ -257,6 +304,8 @@ impl RichText {
     }
 
     /// Read the font height of the selected text style.
+    ///
+    /// Returns a value rounded to [`emath::GUI_ROUNDING`].
     pub fn font_height(&self, fonts: &epaint::Fonts, style: &Style) -> f32 {
         let mut font_id = self.text_style.as_ref().map_or_else(
             || FontSelection::Default.resolve(style),
@@ -339,6 +388,7 @@ impl RichText {
             family,
             text_style,
             background_color,
+            expand_bg,
             text_color: _, // already used by `get_text_color`
             code,
             strong: _, // already used by `get_text_color`
@@ -359,6 +409,9 @@ impl RichText {
                     || fallback_font.resolve(style),
                     |text_style| text_style.resolve(style),
                 );
+            if let Some(fid) = style.override_font_id.clone() {
+                font_id = fid;
+            }
             if let Some(size) = size {
                 font_id.size = size;
             }
@@ -401,6 +454,7 @@ impl RichText {
                 underline,
                 strikethrough,
                 valign,
+                expand_bg,
             },
         )
     }
@@ -611,15 +665,16 @@ impl WidgetText {
         }
     }
 
+    /// Returns a value rounded to [`emath::GUI_ROUNDING`].
     pub(crate) fn font_height(&self, fonts: &epaint::Fonts, style: &Style) -> f32 {
         match self {
             Self::RichText(text) => text.font_height(fonts, style),
             Self::LayoutJob(job) => job.font_height(fonts),
             Self::Galley(galley) => {
                 if let Some(row) = galley.rows.first() {
-                    row.height()
+                    row.height().round_ui()
                 } else {
-                    galley.size().y
+                    galley.size().y.round_ui()
                 }
             }
         }
@@ -640,47 +695,39 @@ impl WidgetText {
 
     /// Layout with wrap mode based on the containing [`Ui`].
     ///
-    /// wrap: override for [`Ui::wrap_text`].
+    /// `wrap_mode`: override for [`Ui::wrap_mode`]
     pub fn into_galley(
         self,
         ui: &Ui,
-        wrap: Option<bool>,
+        wrap_mode: Option<TextWrapMode>,
         available_width: f32,
         fallback_font: impl Into<FontSelection>,
     ) -> Arc<Galley> {
-        let wrap = wrap.unwrap_or_else(|| ui.wrap_text());
-        let valign = ui.layout().vertical_align();
+        let valign = ui.text_valign();
         let style = ui.style();
 
-        self.into_galley_impl(
-            ui.ctx(),
-            style,
-            wrap,
-            available_width,
-            fallback_font.into(),
-            valign,
-        )
+        let wrap_mode = wrap_mode.unwrap_or_else(|| ui.wrap_mode());
+        let text_wrapping = TextWrapping::from_wrap_mode_and_width(wrap_mode, available_width);
+
+        self.into_galley_impl(ui.ctx(), style, text_wrapping, fallback_font.into(), valign)
     }
 
     pub fn into_galley_impl(
         self,
         ctx: &crate::Context,
         style: &Style,
-        wrap: bool,
-        available_width: f32,
+        text_wrapping: TextWrapping,
         fallback_font: FontSelection,
         default_valign: Align,
     ) -> Arc<Galley> {
-        let wrap_width = if wrap { available_width } else { f32::INFINITY };
-
         match self {
             Self::RichText(text) => {
                 let mut layout_job = text.into_layout_job(style, fallback_font, default_valign);
-                layout_job.wrap.max_width = wrap_width;
+                layout_job.wrap = text_wrapping;
                 ctx.fonts(|f| f.layout_job(layout_job))
             }
             Self::LayoutJob(mut job) => {
-                job.wrap.max_width = wrap_width;
+                job.wrap = text_wrapping;
                 ctx.fonts(|f| f.layout_job(job))
             }
             Self::Galley(galley) => galley,
@@ -705,6 +752,20 @@ impl From<&String> for WidgetText {
 impl From<String> for WidgetText {
     #[inline]
     fn from(text: String) -> Self {
+        Self::RichText(RichText::new(text))
+    }
+}
+
+impl From<&Box<str>> for WidgetText {
+    #[inline]
+    fn from(text: &Box<str>) -> Self {
+        Self::RichText(RichText::new(text.clone()))
+    }
+}
+
+impl From<Box<str>> for WidgetText {
+    #[inline]
+    fn from(text: Box<str>) -> Self {
         Self::RichText(RichText::new(text))
     }
 }

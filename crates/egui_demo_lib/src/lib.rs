@@ -10,20 +10,18 @@
 
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
-#![cfg_attr(feature = "puffin", deny(unsafe_code))]
-#![cfg_attr(not(feature = "puffin"), forbid(unsafe_code))]
 
-mod color_test;
 mod demo;
 pub mod easy_mark;
+mod rendering_test;
 
-pub use color_test::ColorTest;
-pub use demo::{DemoWindows, WidgetGallery};
+pub use demo::{Demo, DemoWindows, View, WidgetGallery};
+pub use rendering_test::ColorTest;
 
 /// View some Rust code with syntax highlighting and selection.
 pub(crate) fn rust_view_ui(ui: &mut egui::Ui, code: &str) {
     let language = "rs";
-    let theme = egui_extras::syntax_highlighting::CodeTheme::from_memory(ui.ctx());
+    let theme = egui_extras::syntax_highlighting::CodeTheme::from_memory(ui.ctx(), ui.style());
     egui_extras::syntax_highlighting::code_view_ui(ui, &theme, code, language);
 }
 

@@ -1,8 +1,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
+#![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
 use eframe::egui;
 
-fn main() -> Result<(), eframe::Error> {
+fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
@@ -13,7 +14,7 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "Native file dialogs and drag-and-drop files",
         options,
-        Box::new(|_cc| Box::<MyApp>::default()),
+        Box::new(|_cc| Ok(Box::<MyApp>::default())),
     )
 }
 
@@ -77,7 +78,7 @@ impl eframe::App for MyApp {
         // Collect dropped files:
         ctx.input(|i| {
             if !i.raw.dropped_files.is_empty() {
-                self.dropped_files = i.raw.dropped_files.clone();
+                self.dropped_files.clone_from(&i.raw.dropped_files);
             }
         });
     }
@@ -85,7 +86,7 @@ impl eframe::App for MyApp {
 
 /// Preview hovering files:
 fn preview_files_being_dropped(ctx: &egui::Context) {
-    use egui::*;
+    use egui::{Align2, Color32, Id, LayerId, Order, TextStyle};
     use std::fmt::Write as _;
 
     if !ctx.input(|i| i.raw.hovered_files.is_empty()) {

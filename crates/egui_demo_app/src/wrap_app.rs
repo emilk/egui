@@ -38,15 +38,20 @@ impl eframe::App for DemoApp {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct FractalClockApp {
     fractal_clock: crate::apps::FractalClock,
+    pub mock_time: Option<f64>,
 }
 
 impl eframe::App for FractalClockApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default()
-            .frame(egui::Frame::dark_canvas(&ctx.style()))
+            .frame(
+                egui::Frame::dark_canvas(&ctx.style())
+                    .stroke(egui::Stroke::NONE)
+                    .corner_radius(0),
+            )
             .show(ctx, |ui| {
                 self.fractal_clock
-                    .ui(ui, Some(crate::seconds_since_midnight()));
+                    .ui(ui, self.mock_time.or(Some(crate::seconds_since_midnight())));
             });
     }
 }
@@ -77,17 +82,24 @@ impl eframe::App for ColorTestApp {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-enum Anchor {
+pub enum Anchor {
     Demo,
+
     EasyMarkEditor,
+
     #[cfg(feature = "http")]
     Http,
+
     #[cfg(feature = "image_viewer")]
     ImageViewer,
+
     Clock,
+
     #[cfg(any(feature = "glow", feature = "wgpu"))]
     Custom3d,
-    Colors,
+
+    /// Rendering test
+    Rendering,
 }
 
 impl Anchor {
@@ -101,14 +113,22 @@ impl Anchor {
             Self::Clock,
             #[cfg(any(feature = "glow", feature = "wgpu"))]
             Self::Custom3d,
-            Self::Colors,
+            Self::Rendering,
         ]
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn from_str_case_insensitive(anchor: &str) -> Option<Self> {
+        let anchor = anchor.to_lowercase();
+        Self::all().into_iter().find(|x| x.to_string() == anchor)
     }
 }
 
 impl std::fmt::Display for Anchor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{self:?}")
+        let mut name = format!("{self:?}");
+        name.make_ascii_lowercase();
+        f.write_str(&name)
     }
 }
 
@@ -146,8 +166,8 @@ pub struct State {
     http: crate::apps::HttpApp,
     #[cfg(feature = "image_viewer")]
     image_viewer: crate::apps::ImageViewer,
-    clock: FractalClockApp,
-    color_test: ColorTestApp,
+    pub clock: FractalClockApp,
+    rendering_test: ColorTestApp,
 
     selected_anchor: Anchor,
     backend_panel: super::backend_panel::BackendPanel,
@@ -155,7 +175,7 @@ pub struct State {
 
 /// Wraps many demo/test apps into one.
 pub struct WrapApp {
-    state: State,
+    pub state: State,
 
     #[cfg(any(feature = "glow", feature = "wgpu"))]
     custom3d: Option<crate::apps::Custom3d>,
@@ -188,7 +208,9 @@ impl WrapApp {
         slf
     }
 
-    fn apps_iter_mut(&mut self) -> impl Iterator<Item = (&str, Anchor, &mut dyn eframe::App)> {
+    pub fn apps_iter_mut(
+        &mut self,
+    ) -> impl Iterator<Item = (&'static str, Anchor, &mut dyn eframe::App)> {
         let mut vec = vec![
             (
                 "✨ Demos",
@@ -229,9 +251,9 @@ impl WrapApp {
         }
 
         vec.push((
-            "🎨 Color test",
-            Anchor::Colors,
-            &mut self.state.color_test as &mut dyn eframe::App,
+            "🎨 Rendering test",
+            Anchor::Rendering,
+            &mut self.state.rendering_test as &mut dyn eframe::App,
         ));
 
         vec.into_iter()
@@ -245,16 +267,26 @@ impl eframe::App for WrapApp {
     }
 
     fn clear_color(&self, visuals: &egui::Visuals) -> [f32; 4] {
-        visuals.panel_fill.to_normalized_gamma_f32()
+        // Give the area behind the floating windows a different color, because it looks better:
+        let color = egui::lerp(
+            egui::Rgba::from(visuals.panel_fill)..=egui::Rgba::from(visuals.extreme_bg_color),
+            0.5,
+        );
+        let color = egui::Color32::from(color);
+        color.to_normalized_gamma_f32()
     }
 
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         #[cfg(target_arch = "wasm32")]
-        if let Some(anchor) = frame.info().web_info.location.hash.strip_prefix('#') {
-            let anchor = Anchor::all().into_iter().find(|x| x.to_string() == anchor);
-            if let Some(v) = anchor {
-                self.state.selected_anchor = v;
-            }
+        if let Some(anchor) = frame
+            .info()
+            .web_info
+            .location
+            .hash
+            .strip_prefix('#')
+            .and_then(Anchor::from_str_case_insensitive)
+        {
+            self.state.selected_anchor = anchor;
         }
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -264,12 +296,14 @@ impl eframe::App for WrapApp {
         }
 
         let mut cmd = Command::Nothing;
-        egui::TopBottomPanel::top("wrap_app_top_bar").show(ctx, |ui| {
-            ui.horizontal_wrapped(|ui| {
-                ui.visuals_mut().button_frame = false;
-                self.bar_contents(ui, frame, &mut cmd);
+        egui::TopBottomPanel::top("wrap_app_top_bar")
+            .frame(egui::Frame::new().inner_margin(4))
+            .show(ctx, |ui| {
+                ui.horizontal_wrapped(|ui| {
+                    ui.visuals_mut().button_frame = false;
+                    self.bar_contents(ui, frame, &mut cmd);
+                });
             });
-        });
 
         self.state.backend_panel.update(ctx, frame);
 
@@ -311,6 +345,7 @@ impl WrapApp {
         egui::SidePanel::left("backend_panel")
             .resizable(false)
             .show_animated(ctx, is_open, |ui| {
+                ui.add_space(4.0);
                 ui.vertical_centered(|ui| {
                     ui.heading("💻 Backend");
                 });
@@ -349,12 +384,12 @@ impl WrapApp {
                 .clicked()
             {
                 ui.ctx().memory_mut(|mem| *mem = Default::default());
-                ui.close_menu();
+                ui.close();
             }
 
             if ui.button("Reset everything").clicked() {
                 *cmd = Command::ResetEverything;
-                ui.close_menu();
+                ui.close();
             }
         });
     }
@@ -369,7 +404,7 @@ impl WrapApp {
     }
 
     fn bar_contents(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame, cmd: &mut Command) {
-        egui::widgets::global_dark_light_mode_switch(ui);
+        egui::widgets::global_theme_preference_switch(ui);
 
         ui.separator();
 
@@ -415,7 +450,7 @@ impl WrapApp {
     }
 
     fn ui_file_drag_and_drop(&mut self, ctx: &egui::Context) {
-        use egui::*;
+        use egui::{Align2, Color32, Id, LayerId, Order, TextStyle};
         use std::fmt::Write as _;
 
         // Preview hovering files:
@@ -451,7 +486,7 @@ impl WrapApp {
         // Collect dropped files:
         ctx.input(|i| {
             if !i.raw.dropped_files.is_empty() {
-                self.dropped_files = i.raw.dropped_files.clone();
+                self.dropped_files.clone_from(&i.raw.dropped_files);
             }
         });
 

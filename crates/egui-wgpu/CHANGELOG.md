@@ -6,6 +6,63 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.31.1 - 2025-03-05
+Nothing new
+
+
+## 0.31.0 - 2025-02-04
+* Upgrade to wgpu 24 [#5610](https://github.com/emilk/egui/pull/5610) by [@torokati44](https://github.com/torokati44)
+* Extend `WgpuSetup`, `egui_kittest` now prefers software rasterizers for testing [#5506](https://github.com/emilk/egui/pull/5506) by [@Wumpf](https://github.com/Wumpf)
+* Wgpu resources are no longer wrapped in `Arc` (since they are now `Clone`) [#5612](https://github.com/emilk/egui/pull/5612) by [@Wumpf](https://github.com/Wumpf)
+
+
+## 0.30.0 - 2024-12-16
+* Fix docs.rs build [#5204](https://github.com/emilk/egui/pull/5204) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Free textures after submitting queue instead of before with wgpu renderer [#5226](https://github.com/emilk/egui/pull/5226) by [@Rusty-Cube](https://github.com/Rusty-Cube)
+* Add option to initialize with existing wgpu instance/adapter/device/queue [#5319](https://github.com/emilk/egui/pull/5319) by [@ArthurBrussee](https://github.com/ArthurBrussee)
+* Updare to `wgpu` 23.0.0 and `wasm-bindgen` to 0.2.95 [#5330](https://github.com/emilk/egui/pull/5330) by [@torokati44](https://github.com/torokati44)
+* Support wgpu-tracing with same mechanism as wgpu examples [#5450](https://github.com/emilk/egui/pull/5450) by [@EriKWDev](https://github.com/EriKWDev)
+
+
+## 0.29.1 - 2024-10-01
+Nothing new
+
+
+## 0.29.0 - 2024-09-26 - `wgpu` 22.0
+### ⭐ Added
+* Add opt-out `fragile-send-sync-non-atomic-wasm` feature for wgpu [#5098](https://github.com/emilk/egui/pull/5098) by [@9SMTM6](https://github.com/9SMTM6)
+
+### 🔧 Changed
+* Upgrade to wgpu 22.0.0 [#4847](https://github.com/emilk/egui/pull/4847) by [@KeKsBoTer](https://github.com/KeKsBoTer)
+* Introduce dithering to reduce banding [#4497](https://github.com/emilk/egui/pull/4497) by [@jwagner](https://github.com/jwagner)
+* Ensure that `WgpuConfiguration` is `Send + Sync` [#4803](https://github.com/emilk/egui/pull/4803) by [@murl-digital](https://github.com/murl-digital)
+* Wgpu render pass on paint callback has now `'static` lifetime [#5149](https://github.com/emilk/egui/pull/5149) by [@Wumpf](https://github.com/Wumpf)
+
+### 🐛 Fixed
+* Update sampler along with texture on wgpu backend [#5122](https://github.com/emilk/egui/pull/5122) by [@valadaptive](https://github.com/valadaptive)
+
+
+## 0.28.1 - 2024-07-05
+Nothing new
+
+
+## 0.28.0 - 2024-07-03
+* Update to wgpu 0.20 [#4433](https://github.com/emilk/egui/pull/4433) by [@KeKsBoTer](https://github.com/KeKsBoTer)
+* Fix doclinks in egui-wgpu docs [#4677](https://github.com/emilk/egui/pull/4677) by [@emilk](https://github.com/emilk)
+
+
+## 0.27.2 - 2024-04-02
+* Nothing new
+
+
+## 0.27.1 - 2024-03-29
+* Nothing new
+
+
+## 0.27.0 - 2024-03-26
+* Improve panic message in egui-wgpu when failing to create buffers [#3986](https://github.com/emilk/egui/pull/3986)
+
+
 ## 0.26.2 - 2024-02-14
 * Nothing new
 

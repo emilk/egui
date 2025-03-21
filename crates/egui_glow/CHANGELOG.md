@@ -6,6 +6,50 @@ Changes since the last release can be found at <https://github.com/emilk/egui/co
 
 
 
+## 0.31.1 - 2025-03-05
+Nothing new
+
+
+## 0.31.0 - 2025-02-04
+Nothing new
+
+
+## 0.30.0 - 2024-12-16
+* Update glow to 0.16 [#5395](https://github.com/emilk/egui/pull/5395) by [@sagudev](https://github.com/sagudev)
+
+
+## 0.29.1 - 2024-10-01
+Nothing new
+
+
+## 0.29.0 - 2024-09-26 - `glow` 0.14
+* Update `glow` to 0.14 [#4952](https://github.com/emilk/egui/pull/4952) by [@bircni](https://github.com/bircni)
+* Introduce dithering to reduce banding [#4497](https://github.com/emilk/egui/pull/4497) by [@jwagner](https://github.com/jwagner)
+* Fix missing `winit` feature in `egui_glow` [#4916](https://github.com/emilk/egui/pull/4916) by [@bash](https://github.com/bash)
+* Add support for mipmap textures [#5146](https://github.com/emilk/egui/pull/5146) by [@nolanderc](https://github.com/nolanderc)
+
+
+## 0.28.1 - 2024-07-05
+Nothing new
+
+
+## 0.28.0 - 2024-07-03
+* Enable `egui_glow`'s `winit` feature on Wasm (#4420) [#4421](https://github.com/emilk/egui/pull/4421) by [@simon-frankau](https://github.com/simon-frankau)
+
+
+## 0.27.2 - 2024-04-02
+* Nothing new
+
+
+## 0.27.1 - 2024-03-29
+* Nothing new
+
+
+## 0.27.0 - 2024-03-26
+* Only disable sRGB framebuffer on supported platforms [#3994](https://github.com/emilk/egui/pull/3994) (thanks [@Nopey](https://github.com/Nopey)!)
+* Update memoffset to 0.9.0, arboard to 3.3.1, and remove egui_glow's needless dependency on pure_glow's deps  [#4036](https://github.com/emilk/egui/pull/4036) (thanks [@Nopey](https://github.com/Nopey)!)
+
+
 ## 0.26.2 - 2024-02-14
 * Update memoffset to 0.9.0, arboard to 3.3.1, and remove egui_glow's needless dependency on pure_glow's deps  [#4036](https://github.com/emilk/egui/pull/4036) (thanks [@Nopey](https://github.com/Nopey)!)
 

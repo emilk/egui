@@ -5,7 +5,7 @@ Also see [`CONTRIBUTING.md`](CONTRIBUTING.md) for what to do before opening a PR
 
 
 ## Crate overview
-The crates in this repository are: `egui, emath, epaint, egui_extras, egui_plot, egui-winit, egui_glow, egui_demo_lib, egui_demo_app`.
+The crates in this repository are: `egui, emath, epaint, epaint_default_fonts, egui_extras, egui-winit, egui_glow, egui_demo_lib, egui_demo_app`.
 
 ### `egui`: The main GUI library.
 Example code: `if ui.button("Click me").clicked() { … }`
@@ -19,13 +19,15 @@ Examples: `Vec2, Pos2, Rect, lerp, remap`
 
 Example: `Shape::Circle { center, radius, fill, stroke }`
 
-Depends on `emath`.
+Depends on `emath`. Also depends on `epaint_default_fonts` when the `default_fonts` feature is enabled.
+
+### `epaint_default_fonts`
+Embedded fonts (using `include_bytes!()`) for use by `epaint` in selecting defaults.
+
+Since the font files themselves are licensed differently from the `epaint` source code, this simplifies licenses for callers who disable the default fonts.
 
 ### `egui_extras`
 This adds additional features on top of `egui`.
-
-### `egui_plot`
-Plotting for `egui`.
 
 ### `egui-winit`
 This crates provides bindings between [`egui`](https://github.com/emilk/egui) and [winit](https://crates.io/crates/winit).
@@ -47,6 +49,9 @@ This contains a bunch of uses of `egui` and looks like the ui code you would wri
 ### `egui_demo_app`
 Thin wrapper around `egui_demo_lib` so we can compile it to a web site or a native app executable.
 Depends on `egui_demo_lib` + `eframe`.
+
+### `egui_kittest`
+A test harness for egui based on [kittest](https://github.com/rerun/kittest) and [AccessKit](https://github.com/AccessKit/accesskit/).
 
 ### Other integrations
 

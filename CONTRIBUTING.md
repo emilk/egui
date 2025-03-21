@@ -32,6 +32,11 @@ For small things, just go ahead an open a PR. For bigger things, please file an 
 Browse through [`ARCHITECTURE.md`](ARCHITECTURE.md) to get a sense of how all pieces connects.
 
 You can test your code locally by running `./scripts/check.sh`.
+There are snapshots test that might need to be updated.
+Run the tests with `UPDATE_SNAPSHOTS=true cargo test --workspace --all-features` to update all of them.
+For more info about the tests see [egui_kittest](./crates/egui_kittest/README.md).
+Snapshots and other big files are stored with git lfs. See [Working with lfs](#working-with-lfs) for more info.
+If you see an `InvalidSignature` error when running snapshot tests, it's probably a problem related to git-lfs.
 
 When you have something that works, open a draft PR. You may get some helpful feedback early!
 When you feel the PR is ready to go, do a self-review of the code, and then open it for review.
@@ -39,6 +44,31 @@ When you feel the PR is ready to go, do a self-review of the code, and then open
 Don't worry about having many small commits in the PR - they will be squashed to one commit once merged.
 
 Please keep pull requests small and focused. The smaller it is, the more likely it is to get merged.
+
+## Working with git lfs
+
+We use [git-lfs](https://git-lfs.com/) to store big files in the repository.
+Make sure you have it installed (running `git lfs ls-files` from the repository root should list some files).
+Don't forget to run `git lfs install` in this repo after installing the git-lfs binary.
+You need to add any .png images to `git lfs` (see the .gitattributes file for rules and exclusions).
+If the CI complains about lfs, try running `git add --renormalize .`.
+
+Common git-lfs commands:
+```bash
+# Install git-lfs in the repo (installs git hooks)
+git lfs install
+
+# Move a file to git lfs
+git lfs track "path/to/file/or/pattern" # OR manually edit .gitattributes
+git add --renormalize . # Moves already added files to lfs (according to .gitattributes)
+
+# Move a file from lfs to regular git
+git lfs untrack "path/to/file/or/pattern" # OR manually edit .gitattributes
+git add --renormalize . # Moves already added files to regular git (according to .gitattributes)
+
+# Push to a contributor remote (see https://github.com/cli/cli/discussions/8794#discussioncomment-8695076)
+git push --no-verify
+```
 
 ## PR review
 
@@ -66,7 +96,7 @@ Make a PR to add it as a link to [`README.md`](README.md#integrations) so others
 ## Testing the web viewer
 * Build with `scripts/build_demo_web.sh`
 * Host with `scripts/start_server.sh`
-* Open <http://localhost:8888/index.html>
+* Open <http://localhost:8765/index.html>
 
 
 ## Code Style
@@ -91,6 +121,7 @@ While using an immediate mode gui is simple, implementing one is a lot more tric
 * Avoid double negatives
 * Flip `if !condition {} else {}`
 * Sets of things should be lexicographically sorted (e.g. crate dependencies in `Cargo.toml`)
+* Put each type in their own file, unless they are trivial (e.g. a `struct` with no `impl`)
 * Break the above rules when it makes sense
 
 

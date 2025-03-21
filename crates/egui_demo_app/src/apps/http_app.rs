@@ -116,7 +116,7 @@ impl eframe::App for HttpApp {
     }
 }
 
-fn ui_url(ui: &mut egui::Ui, frame: &mut eframe::Frame, url: &mut String) -> bool {
+fn ui_url(ui: &mut egui::Ui, frame: &eframe::Frame, url: &mut String) -> bool {
     let mut trigger_fetch = false;
 
     ui.horizontal(|ui| {
@@ -224,7 +224,11 @@ fn syntax_highlighting(
     let extension = extension_and_rest.first()?;
     let theme = egui_extras::syntax_highlighting::CodeTheme::from_style(&ctx.style());
     Some(ColoredText(egui_extras::syntax_highlighting::highlight(
-        ctx, &theme, text, extension,
+        ctx,
+        &ctx.style(),
+        &theme,
+        text,
+        extension,
     )))
 }
 

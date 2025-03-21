@@ -5,6 +5,54 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.31.1 - 2025-03-05
+Nothing new
+
+
+## 0.31.0 - 2025-02-04
+* Re-enable IME support on Linux [#5198](https://github.com/emilk/egui/pull/5198) by [@YgorSouza](https://github.com/YgorSouza)
+* Update to winit 0.30.7 [#5516](https://github.com/emilk/egui/pull/5516) by [@emilk](https://github.com/emilk)
+
+
+## 0.30.0 - 2024-12-16
+* iOS: Support putting UI next to the dynamic island [#5211](https://github.com/emilk/egui/pull/5211) by [@frederik-uni](https://github.com/frederik-uni)
+* Remove implicit `accesskit_winit` feature [#5316](https://github.com/emilk/egui/pull/5316) by [@waywardmonkeys](https://github.com/waywardmonkeys)
+
+
+## 0.29.1 - 2024-10-01 - Fix backspace/arrow keys on X11
+* Linux: Disable IME to fix backspace/arrow keys [#5188](https://github.com/emilk/egui/pull/5188) by [@emilk](https://github.com/emilk)
+
+
+## 0.29.0 - 2024-09-26 - `winit` 0.30
+* Upgrade to `winit` 0.30 [#4849](https://github.com/emilk/egui/pull/4849) [#4939](https://github.com/emilk/egui/pull/4939) by [@ArthurBrussee](https://github.com/ArthurBrussee)
+* Fix: Backspace not working after IME input [#4912](https://github.com/emilk/egui/pull/4912) by [@rustbasic](https://github.com/rustbasic)
+
+
+## 0.28.1 - 2024-07-05
+Nothing new
+
+
+## 0.28.0 - 2024-07-03
+* Update `webbrowser` to `v1.0.0` [#4394](https://github.com/emilk/egui/pull/4394) by [@torokati44](https://github.com/torokati44)
+* Emit physical key presses when a non-Latin layout is active [#4461](https://github.com/emilk/egui/pull/4461) by [@TicClick](https://github.com/TicClick)
+* IME for chinese [#4436](https://github.com/emilk/egui/pull/4436) by [@rustbasic](https://github.com/rustbasic)
+* Fix: Window position creeps between executions on scaled monitors [#4443](https://github.com/emilk/egui/pull/4443) by [@avery-radmacher](https://github.com/avery-radmacher)
+* Ignore synthetic key presses [#4514](https://github.com/emilk/egui/pull/4514) by [@hut](https://github.com/hut)
+
+
+## 0.27.2 - 2024-04-02
+* Fix continuous repaint on Wayland when TextEdit is focused or IME output is set [#4269](https://github.com/emilk/egui/pull/4269) (thanks [@white-axe](https://github.com/white-axe)!)
+
+
+## 0.27.1 - 2024-03-29
+* Nothing new
+
+
+## 0.27.0 - 2024-03-26
+* Update memoffset to 0.9.0, arboard to 3.3.1, and remove egui_glow's needless dependency on pure_glow's deps  [#4036](https://github.com/emilk/egui/pull/4036) (thanks [@Nopey](https://github.com/Nopey)!)
+* Don't clear modifier state on focus change [#4157](https://github.com/emilk/egui/pull/4157) (thanks [@ming08108](https://github.com/ming08108)!)
+
+
 ## 0.26.2 - 2024-02-14
 * Update memoffset to 0.9.0, arboard to 3.3.1, and remove egui_glow's needless dependency on pure_glow's deps  [#4036](https://github.com/emilk/egui/pull/4036) (thanks [@Nopey](https://github.com/Nopey)!)
 

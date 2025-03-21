@@ -1,6 +1,5 @@
-mod ordered_float;
-
-pub use ordered_float::*;
+#[deprecated = "Use emath::OrderedFloat instead"]
+pub use emath::OrderedFloat;
 
 /// Hash the given value with a predictable hasher.
 #[inline]

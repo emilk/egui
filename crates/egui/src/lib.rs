@@ -3,7 +3,7 @@
 //! Try the live web demo: <https://www.egui.rs/#demo>. Read more about egui at <https://github.com/emilk/egui>.
 //!
 //! `egui` is in heavy development, with each new version having breaking changes.
-//! You need to have rust 1.62.0 or later to use `egui`.
+//! You need to have rust 1.81.0 or later to use `egui`.
 //!
 //! To quickly get started with egui, you can take a look at [`eframe_template`](https://github.com/emilk/eframe_template)
 //! which uses [`eframe`](https://docs.rs/eframe).
@@ -106,7 +106,7 @@
 //!
 //! `egui` uses logical _points_ as its coordinate system.
 //! Those related to physical _pixels_ by the `pixels_per_point` scale factor.
-//! For example, a high-dpi screeen can have `pixels_per_point = 2.0`,
+//! For example, a high-dpi screen can have `pixels_per_point = 2.0`,
 //! meaning there are two physical screen pixels for each logical point.
 //!
 //! Angles are in radians, and are measured clockwise from the X-axis, which has angle=0.
@@ -223,6 +223,25 @@
 //!
 //! Read more about the pros and cons of immediate mode at <https://github.com/emilk/egui#why-immediate-mode>.
 //!
+//! ## Multi-pass immediate mode
+//! By default, egui usually only does one pass for each rendered frame.
+//! However, egui supports multi-pass immediate mode.
+//! Another pass can be requested with [`Context::request_discard`].
+//!
+//! This is used by some widgets to cover up "first-frame jitters".
+//! For instance, the [`Grid`] needs to know the width of all columns before it can properly place the widgets.
+//! But it cannot know the width of widgets to come.
+//! So it stores the max widths of previous frames and uses that.
+//! This means the first time a `Grid` is shown it will _guess_ the widths of the columns, and will usually guess wrong.
+//! This means the contents of the grid will be wrong for one frame, before settling to the correct places.
+//! Therefore `Grid` calls [`Context::request_discard`] when it is first shown, so the wrong placement is never
+//! visible to the end user.
+//!
+//! This is an example of a form of multi-pass immediate mode, where earlier passes are used for sizing,
+//! and later passes for layout.
+//!
+//! See [`Context::request_discard`] and [`Options::max_passes`] for more.
+//!
 //! # Misc
 //!
 //! ## How widgets works
@@ -270,7 +289,7 @@
 //!
 //! ## Widget interaction
 //! Each widget has a [`Sense`], which defines whether or not the widget
-//! is sensitive to clickicking and/or drags.
+//! is sensitive to clicking and/or drags.
 //!
 //! For instance, a [`Button`] only has a [`Sense::click`] (by default).
 //! This means if you drag a button it will not respond with [`Response::dragged`].
@@ -338,6 +357,7 @@
 //! ## Code snippets
 //!
 //! ```
+//! # use egui::TextWrapMode;
 //! # egui::__run_test_ui(|ui| {
 //! # let mut some_bool = true;
 //! // Miscellaneous tips and tricks
@@ -358,7 +378,7 @@
 //! ui.scope(|ui| {
 //!     ui.visuals_mut().override_text_color = Some(egui::Color32::RED);
 //!     ui.style_mut().override_text_style = Some(egui::TextStyle::Monospace);
-//!     ui.style_mut().wrap = Some(false);
+//!     ui.style_mut().wrap_mode = Some(TextWrapMode::Truncate);
 //!
 //!     ui.label("This text will be red, monospace, and won't wrap to a new line");
 //! }); // the temporary settings are reverted here
@@ -368,19 +388,29 @@
 //! ## Installing additional fonts
 //! The default egui fonts only support latin and cryllic characters, and some emojis.
 //! To use egui with e.g. asian characters you need to install your own font (`.ttf` or `.otf`) using [`Context::set_fonts`].
+//!
+//! ## Instrumentation
+//! This crate supports using the [profiling](https://crates.io/crates/profiling) crate for instrumentation.
+//! You can enable features on the profiling crates in your application to add instrumentation for all
+//! crates that support it, including egui. See the profiling crate docs for more information.
+//! ```toml
+//! [dependencies]
+//! profiling = "1.0"
+//! [features]
+//! profile-with-puffin = ["profiling/profile-with-puffin"]
+//! ```
+//!
 
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
-#![cfg_attr(feature = "puffin", deny(unsafe_code))]
-#![cfg_attr(not(feature = "puffin"), forbid(unsafe_code))]
 
 mod animation_manager;
+pub mod cache;
 pub mod containers;
 mod context;
 mod data;
 pub mod debug_text;
 mod drag_and_drop;
-mod frame_state;
 pub(crate) mod grid;
 pub mod gui_zoom;
 mod hit_test;
@@ -392,15 +422,19 @@ pub mod layers;
 mod layout;
 pub mod load;
 mod memory;
+#[deprecated = "Use `egui::containers::menu` instead"]
 pub mod menu;
 pub mod os;
 mod painter;
+mod pass_state;
 pub(crate) mod placer;
-mod response;
+pub mod response;
 mod sense;
 pub mod style;
 pub mod text_selection;
 mod ui;
+mod ui_builder;
+mod ui_stack;
 pub mod util;
 pub mod viewport;
 mod widget_rect;
@@ -414,6 +448,7 @@ mod callstack;
 #[cfg(feature = "accesskit")]
 pub use accesskit;
 
+#[deprecated = "Use the ahash crate directly."]
 pub use ahash;
 
 pub use epaint;
@@ -424,53 +459,61 @@ pub use epaint::emath;
 pub use ecolor::hex_color;
 pub use ecolor::{Color32, Rgba};
 pub use emath::{
-    lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos2, Rangef, Rect, Vec2, Vec2b,
+    lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos2, Rangef, Rect, RectAlign,
+    Vec2, Vec2b,
 };
 pub use epaint::{
     mutex,
     text::{FontData, FontDefinitions, FontFamily, FontId, FontTweak},
     textures::{TextureFilter, TextureOptions, TextureWrapMode, TexturesDelta},
-    ClippedPrimitive, ColorImage, FontImage, ImageData, Mesh, PaintCallback, PaintCallbackInfo,
-    Rounding, Shape, Stroke, TextureHandle, TextureId,
+    ClippedPrimitive, ColorImage, CornerRadius, FontImage, ImageData, Margin, Mesh, PaintCallback,
+    PaintCallbackInfo, Shadow, Shape, Stroke, StrokeKind, TextureHandle, TextureId,
 };
 
 pub mod text {
-    pub use crate::text_selection::{CCursorRange, CursorRange};
+    pub use crate::text_selection::CCursorRange;
     pub use epaint::text::{
         cursor::CCursor, FontData, FontDefinitions, FontFamily, Fonts, Galley, LayoutJob,
         LayoutSection, TextFormat, TextWrapping, TAB_SIZE,
     };
 }
 
-pub use {
+pub use self::{
     containers::*,
     context::{Context, RepaintCause, RequestRepaintInfo},
     data::{
         input::*,
         output::{
-            self, CursorIcon, FullOutput, OpenUrl, PlatformOutput, UserAttentionType, WidgetInfo,
+            self, CursorIcon, FullOutput, OpenUrl, OutputCommand, PlatformOutput,
+            UserAttentionType, WidgetInfo,
         },
-        Key,
+        Key, UserData,
     },
     drag_and_drop::DragAndDrop,
+    epaint::text::TextWrapMode,
     grid::Grid,
     id::{Id, IdMap},
     input_state::{InputState, MultiTouchInfo, PointerState},
     layers::{LayerId, Order},
     layout::*,
     load::SizeHint,
-    memory::{Memory, Options},
+    memory::{Memory, Options, Theme, ThemePreference},
     painter::Painter,
     response::{InnerResponse, Response},
     sense::Sense,
-    style::{FontSelection, Margin, Style, TextStyle, Visuals},
+    style::{FontSelection, Spacing, Style, TextStyle, Visuals},
     text::{Galley, TextFormat},
     ui::Ui,
+    ui_builder::UiBuilder,
+    ui_stack::*,
     viewport::*,
     widget_rect::{WidgetRect, WidgetRects},
     widget_text::{RichText, WidgetText},
     widgets::*,
 };
+
+#[deprecated = "Renamed to CornerRadius"]
+pub type Rounding = CornerRadius;
 
 // ----------------------------------------------------------------------------
 
@@ -500,7 +543,7 @@ pub fn warn_if_debug_build(ui: &mut crate::Ui) {
 /// ui.add(
 ///     egui::Image::new(egui::include_image!("../assets/ferris.png"))
 ///         .max_width(200.0)
-///         .rounding(10.0),
+///         .corner_radius(10),
 /// );
 ///
 /// let image_source: egui::ImageSource = egui::include_image!("../assets/ferris.png");
@@ -509,7 +552,7 @@ pub fn warn_if_debug_build(ui: &mut crate::Ui) {
 /// ```
 #[macro_export]
 macro_rules! include_image {
-    ($path: literal) => {
+    ($path:expr $(,)?) => {
         $crate::ImageSource::Bytes {
             uri: ::std::borrow::Cow::Borrowed(concat!("bytes://", $path)),
             bytes: $crate::load::Bytes::Static(include_bytes!($path)),
@@ -517,7 +560,7 @@ macro_rules! include_image {
     };
 }
 
-/// Create a [`Hyperlink`](crate::Hyperlink) to the current [`file!()`] (and line) on Github
+/// Create a [`Hyperlink`] to the current [`file!()`] (and line) on Github
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
@@ -532,7 +575,7 @@ macro_rules! github_link_file_line {
     }};
 }
 
-/// Create a [`Hyperlink`](crate::Hyperlink) to the current [`file!()`] on github.
+/// Create a [`Hyperlink`] to the current [`file!()`] on github.
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
@@ -545,22 +588,6 @@ macro_rules! github_link_file {
         let url = format!("{}{}", $github_url, file!());
         $crate::Hyperlink::from_label_and_url($label, url)
     }};
-}
-
-// ----------------------------------------------------------------------------
-
-/// An assert that is only active when `egui` is compiled with the `extra_asserts` feature
-/// or with the `extra_debug_asserts` feature in debug builds.
-#[macro_export]
-macro_rules! egui_assert {
-    ($($arg: tt)*) => {
-        if cfg!(any(
-            feature = "extra_asserts",
-            all(feature = "extra_debug_asserts", debug_assertions),
-        )) {
-            assert!($($arg)*);
-        }
-    }
 }
 
 // ----------------------------------------------------------------------------
@@ -603,9 +630,6 @@ pub mod special_emojis {
     /// The Github logo.
     pub const GITHUB: char = '';
 
-    /// The Twitter bird.
-    pub const TWITTER: char = '';
-
     /// The word `git`.
     pub const GIT: char = '';
 
@@ -629,6 +653,9 @@ pub enum WidgetType {
 
     RadioButton,
 
+    /// A group of radio buttons.
+    RadioGroup,
+
     SelectableLabel,
 
     ComboBox,
@@ -641,9 +668,13 @@ pub enum WidgetType {
 
     ImageButton,
 
+    Image,
+
     CollapsingHeader,
 
     ProgressIndicator,
+
+    Window,
 
     /// If you cannot fit any of the above slots.
     ///
@@ -663,7 +694,7 @@ pub fn __run_test_ctx(mut run_ui: impl FnMut(&Context)) {
 }
 
 /// For use in tests; especially doctests.
-pub fn __run_test_ui(mut add_contents: impl FnMut(&mut Ui)) {
+pub fn __run_test_ui(add_contents: impl Fn(&mut Ui)) {
     let ctx = Context::default();
     ctx.set_fonts(FontDefinitions::empty()); // prevent fonts from being loaded (save CPU time)
     let _ = ctx.run(Default::default(), |ctx| {
@@ -677,33 +708,3 @@ pub fn __run_test_ui(mut add_contents: impl FnMut(&mut Ui)) {
 pub fn accesskit_root_id() -> Id {
     Id::new("accesskit_root")
 }
-
-// ---------------------------------------------------------------------------
-
-mod profiling_scopes {
-    #![allow(unused_macros)]
-    #![allow(unused_imports)]
-
-    /// Profiling macro for feature "puffin"
-    macro_rules! profile_function {
-        ($($arg: tt)*) => {
-            #[cfg(feature = "puffin")]
-            #[cfg(not(target_arch = "wasm32"))] // Disabled on web because of the coarse 1ms clock resolution there.
-            puffin::profile_function!($($arg)*);
-        };
-    }
-    pub(crate) use profile_function;
-
-    /// Profiling macro for feature "puffin"
-    macro_rules! profile_scope {
-        ($($arg: tt)*) => {
-            #[cfg(feature = "puffin")]
-            #[cfg(not(target_arch = "wasm32"))] // Disabled on web because of the coarse 1ms clock resolution there.
-            puffin::profile_scope!($($arg)*);
-        };
-    }
-    pub(crate) use profile_scope;
-}
-
-#[allow(unused_imports)]
-pub(crate) use profiling_scopes::*;

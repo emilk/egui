@@ -5,6 +5,98 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.31.1 - 2025-03-05
+* Fix panic when rendering thin textured rectangles [#5692](https://github.com/emilk/egui/pull/5692) by [@PPakalns](https://github.com/PPakalns)
+
+
+## 0.31.0 - 2025-02-04
+### ⭐ Added
+* Improve tessellation quality [#5669](https://github.com/emilk/egui/pull/5669) by [@emilk](https://github.com/emilk)
+* Add `epaint::Brush` for controlling `RectShape` texturing [#5565](https://github.com/emilk/egui/pull/5565) by [@emilk](https://github.com/emilk)
+* Add `RectShape::stroke_kind ` to control if stroke is inside/outside/centered [#5647](https://github.com/emilk/egui/pull/5647) by [@emilk](https://github.com/emilk)
+
+### 🔧 Changed
+* Rename `Rounding` to `CornerRadius` [#5673](https://github.com/emilk/egui/pull/5673) by [@emilk](https://github.com/emilk)
+* Make all lines and rectangles crisp [#5518](https://github.com/emilk/egui/pull/5518) by [@emilk](https://github.com/emilk)
+* Better rounding of rectangles with thin outlines [#5571](https://github.com/emilk/egui/pull/5571) by [@emilk](https://github.com/emilk)
+* Require a `StrokeKind` when painting rectangles with strokes [#5648](https://github.com/emilk/egui/pull/5648) by [@emilk](https://github.com/emilk)
+
+### 🔥 Removed
+* Remove `StrokeKind::default` [#5658](https://github.com/emilk/egui/pull/5658) by [@emilk](https://github.com/emilk)
+
+### 🚀 Performance
+* Use `u8` in `Rounding`, and introduce `Roundingf` [#5563](https://github.com/emilk/egui/pull/5563) by [@emilk](https://github.com/emilk)
+* Store `Margin` using `i8` to reduce its size [#5567](https://github.com/emilk/egui/pull/5567) by [@emilk](https://github.com/emilk)
+* Shrink size of `Shadow` by using `i8/u8` instead of `f32` [#5568](https://github.com/emilk/egui/pull/5568) by [@emilk](https://github.com/emilk)
+
+
+## 0.30.0 - 2024-12-16
+* Expand max font atlas size from 8k to 16k [#5257](https://github.com/emilk/egui/pull/5257) by [@rustbasic](https://github.com/rustbasic)
+* Put font data into `Arc` to reduce memory consumption [#5276](https://github.com/emilk/egui/pull/5276) by [@StarStarJ](https://github.com/StarStarJ)
+* Reduce aliasing when painting thin box outlines [#5484](https://github.com/emilk/egui/pull/5484) by [@emilk](https://github.com/emilk)
+* Fix zero-width strokes still affecting the feathering color of boxes [#5485](https://github.com/emilk/egui/pull/5485) by [@emilk](https://github.com/emilk)
+
+
+## 0.29.1 - 2024-10-01
+Nothing new
+
+
+## 0.29.0 - 2024-09-26
+### 🚀 Performance
+* Optimize `Color32::from_rgba_unmultiplied` with LUT [#5088](https://github.com/emilk/egui/pull/5088) by [@YgorSouza](https://github.com/YgorSouza)
+
+### 🔧 Changed
+* Fix blurry lines by aligning to pixel grid [#4943](https://github.com/emilk/egui/pull/4943) by [@juancampa](https://github.com/juancampa)
+* Better vertical text alignment [#5117](https://github.com/emilk/egui/pull/5117) by [@emilk](https://github.com/emilk)
+* Deprecate `ahash` re-exports [#4979](https://github.com/emilk/egui/pull/4979) by [@oscargus](https://github.com/oscargus)
+
+### 🐛 Fixed
+* Fix bug in size calculation of truncated text [#5076](https://github.com/emilk/egui/pull/5076) by [@emilk](https://github.com/emilk)
+* Fix text sometime line-breaking or truncating too early [#5077](https://github.com/emilk/egui/pull/5077) by [@emilk](https://github.com/emilk)
+* Prevent text shrinking in tooltips; round wrap-width to integer [#5161](https://github.com/emilk/egui/pull/5161) by [@emilk](https://github.com/emilk)
+
+
+## 0.28.1 - 2024-07-05
+Nothing new
+
+
+## 0.28.0 - 2024-07-03
+### ⭐ Added
+* Add `RectShape::blur_width` to implement shadows [#4267](https://github.com/emilk/egui/pull/4267) by [@emilk](https://github.com/emilk)
+* Overload operators for `Rect + Margin`, `Rect - Margin` etc [#4277](https://github.com/emilk/egui/pull/4277) by [@emilk](https://github.com/emilk)
+* Added ability to define colors at UV coordinates along a path [#4353](https://github.com/emilk/egui/pull/4353) by [@murl-digital](https://github.com/murl-digital)
+* Add a `Display` impl for `Vec2`, `Pos2`, and `Rect` [#4428](https://github.com/emilk/egui/pull/4428) by [@tgross35](https://github.com/tgross35)
+
+### 🔧 Changed
+* Move `epaint::util::OrderedFloat` to `emath::OrderedFloat` [#4389](https://github.com/emilk/egui/pull/4389) by [@emilk](https://github.com/emilk)
+* Remove `extra_asserts` and `extra_debug_asserts` feature flags [#4478](https://github.com/emilk/egui/pull/4478) by [@emilk](https://github.com/emilk)
+* Make `epaint::mutex::RwLock` allow `?Sized` types [#4485](https://github.com/emilk/egui/pull/4485) by [@crumblingstatue](https://github.com/crumblingstatue)
+* Round text galley sizes to nearest UI point size [#4578](https://github.com/emilk/egui/pull/4578) by [@emilk](https://github.com/emilk)
+
+### 🐛 Fixed
+* Fix incorrect line breaks [#4377](https://github.com/emilk/egui/pull/4377) by [@juancampa](https://github.com/juancampa)
+* Fix `hex_color!` macro by re-exporting `color_hex` crate from `ecolor` [#4372](https://github.com/emilk/egui/pull/4372) by [@dataphract](https://github.com/dataphract)
+* Don't panic when replacement glyph is not found [#4542](https://github.com/emilk/egui/pull/4542) by [@RyanBluth](https://github.com/RyanBluth)
+
+
+## 0.27.2 - 2024-04-02
+* Nothing new
+
+
+## 0.27.1 - 2024-03-29
+* Fix visual glitch on the right side of highly rounded rectangles [#4244](https://github.com/emilk/egui/pull/4244)
+* Prevent visual glitch when shadow blur width is very high [#4245](https://github.com/emilk/egui/pull/4245)
+
+
+## 0.27.0 - 2024-03-26
+* Add `ColorImage::from_gray_iter` [#3536](https://github.com/emilk/egui/pull/3536) (thanks [@wangxiaochuTHU](https://github.com/wangxiaochuTHU)!)
+* Convenience const fn for `Margin`, `Rounding` and `Shadow` [#4080](https://github.com/emilk/egui/pull/4080) (thanks [@0Qwel](https://github.com/0Qwel)!)
+* Added `Shape::{scale,translate}` wrappers [#4090](https://github.com/emilk/egui/pull/4090) (thanks [@varphone](https://github.com/varphone)!)
+* Add `EllipseShape` [#4122](https://github.com/emilk/egui/pull/4122) (thanks [@TheTacBanana](https://github.com/TheTacBanana)!)
+* Add `Margin` to `epaint` [#4231](https://github.com/emilk/egui/pull/4231)
+* CSS-like `Shadow` with offset, spread, and blur [#4232](https://github.com/emilk/egui/pull/4232)
+
+
 ## 0.26.2 - 2024-02-14
 * Nothing new
 

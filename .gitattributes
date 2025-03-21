@@ -1,0 +1,9 @@
+* text=auto eol=lf
+Cargo.lock linguist-generated=false
+*.png filter=lfs diff=lfs merge=lfs -text
+*.gif filter=lfs diff=lfs merge=lfs -text
+
+# Exclude some small files from LFS:
+crates/eframe/data/* !filter !diff !merge text=auto eol=lf
+crates/egui_demo_lib/data/* !filter !diff !merge text=auto eol=lf
+crates/egui/assets/* !filter !diff !merge text=auto eol=lf

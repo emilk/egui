@@ -5,6 +5,75 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.31.1 - 2025-03-05
+* Fix image_loader for animated image types [#5688](https://github.com/emilk/egui/pull/5688) by [@BSteffaniak](https://github.com/BSteffaniak)
+
+
+## 0.31.0 - 2025-02-04
+* Animated WebP support [#5470](https://github.com/emilk/egui/pull/5470), [#5586](https://github.com/emilk/egui/pull/5586) by [@Aely0](https://github.com/Aely0)
+* Make image extension check case-insensitive [#5501](https://github.com/emilk/egui/pull/5501) by [@RyanBluth](https://github.com/RyanBluth)
+* Avoid allocations for loader cache lookup [#5584](https://github.com/emilk/egui/pull/5584) by [@mineichen](https://github.com/mineichen)
+
+
+## 0.30.0 - 2024-12-16
+* Use `Table::id_salt` on `ScrollArea` [#5282](https://github.com/emilk/egui/pull/5282) by [@jwhear](https://github.com/jwhear)
+* Use proper `image` crate URI and MIME support detection [#5324](https://github.com/emilk/egui/pull/5324) by [@xangelix](https://github.com/xangelix)
+* Support loading images with weird urls and improve error message [#5431](https://github.com/emilk/egui/pull/5431) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+
+## 0.29.1 - 2024-10-01 - Fix table interaction
+* Bug fix: click anywhere on a `Table` row to select it [#5193](https://github.com/emilk/egui/pull/5193) by [@emilk](https://github.com/emilk)
+
+
+## 0.29.0 - 2024-09-26
+### ⭐ Added
+* Add `TableRow::set_hovered` [#4820](https://github.com/emilk/egui/pull/4820) by [@addiswebb](https://github.com/addiswebb)
+* Add `TableBuilder::id_salt` [#5022](https://github.com/emilk/egui/pull/5022) by [@emilk](https://github.com/emilk)
+* Add `TableBuilder::animate_scrolling` [#5159](https://github.com/emilk/egui/pull/5159) by [@ecpost](https://github.com/ecpost)
+
+### 🔧 Changed
+* Truncate text in clipped `Table` columns [#5023](https://github.com/emilk/egui/pull/5023) by [@emilk](https://github.com/emilk)
+* Change default `max_scroll_height` of `egui::Table` to `f32::INFINITY` [#4817](https://github.com/emilk/egui/pull/4817) by [@abey79](https://github.com/abey79)
+* Return `ScrollAreaOutput` from `Table::body` [#4829](https://github.com/emilk/egui/pull/4829) by [@frederik-uni](https://github.com/frederik-uni)
+* Use `Style`'s font size in `egui_extras::syntax_highlighting` [#5090](https://github.com/emilk/egui/pull/5090) by [@lampsitter](https://github.com/lampsitter)
+
+### 🐛 Fixed
+* Make sure SVGs are crisp [#4823](https://github.com/emilk/egui/pull/4823) by [@AurevoirXavier](https://github.com/AurevoirXavier)
+* Fix file mime from path (wrong feature name) [#4933](https://github.com/emilk/egui/pull/4933) by [@rustbasic](https://github.com/rustbasic)
+* Fix compilation of `egui_extras` without `serde` feature [#5014](https://github.com/emilk/egui/pull/5014) by [@emilk](https://github.com/emilk)
+
+
+## 0.28.1 - 2024-07-05
+* Make `serde` a default (opt-out) feature of `egui_extras` [#4786](https://github.com/emilk/egui/pull/4786) by [@emilk](https://github.com/emilk)
+
+
+## 0.28.0 - 2024-07-03
+* Update `image` crate to 0.25 [#4160](https://github.com/emilk/egui/pull/4160) by [@emilk](https://github.com/emilk)
+* Set the `sizing_pass` flag in first frame of `egui_extras::Table` [#4613](https://github.com/emilk/egui/pull/4613) by [@emilk](https://github.com/emilk)
+* Make `serde` an opt-in feature [#4641](https://github.com/emilk/egui/pull/4641) by [@Dinnerbone](https://github.com/Dinnerbone)
+* GIF support [#4620](https://github.com/emilk/egui/pull/4620) by [@JustFrederik](https://github.com/JustFrederik)
+* Improve `egui_extras::Table` layout [#4755](https://github.com/emilk/egui/pull/4755) by [@emilk](https://github.com/emilk)
+* Improve the auto-sizing of `Table` [#4756](https://github.com/emilk/egui/pull/4756) by [@emilk](https://github.com/emilk)
+
+
+## 0.27.2 - 2024-04-02
+* Nothing new
+
+
+## 0.27.1 - 2024-03-29
+* Nothing new
+
+
+## 0.27.0 - 2024-03-26
+* Add scroll bar visibility option to `Table` widget [#3981](https://github.com/emilk/egui/pull/3981) (thanks [@richardhozak](https://github.com/richardhozak)!)
+* Update `ehttp` to 0.5 [#4055](https://github.com/emilk/egui/pull/4055)
+* Fix: assign a different id to each table cell, avoiding id clashes [#4076](https://github.com/emilk/egui/pull/4076)
+* Fix interaction with widgets inside selectable rows of `Table` [#4077](https://github.com/emilk/egui/pull/4077)
+* Fixed handling of `file://` protocol for images [#4107](https://github.com/emilk/egui/pull/4107) (thanks [@varphone](https://github.com/varphone)!)
+* Option to change date picker format [#4180](https://github.com/emilk/egui/pull/4180) (thanks [@zaaarf](https://github.com/zaaarf)!)
+* Added ability to disable highlighting of weekend days in `DatePickerPopup`. [#4151](https://github.com/emilk/egui/pull/4151) (thanks [@hiyosilver](https://github.com/hiyosilver)!)
+
+
 ## 0.26.2 - 2024-02-14
 * Nothing new
 

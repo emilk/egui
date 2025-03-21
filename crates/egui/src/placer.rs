@@ -1,7 +1,10 @@
-use crate::*;
+use crate::{grid, vec2, Layout, Painter, Pos2, Rect, Region, Vec2};
+
+#[cfg(debug_assertions)]
+use crate::{Align2, Color32, Stroke};
 
 pub(crate) struct Placer {
-    /// If set this will take precedence over [`layout`].
+    /// If set this will take precedence over [`crate::layout`].
     grid: Option<grid::GridLayout>,
     layout: Layout,
     region: Region,
@@ -106,7 +109,10 @@ impl Placer {
     /// This is what you then pass to `advance_after_rects`.
     /// Use `justify_and_align` to get the inner `widget_rect`.
     pub(crate) fn next_space(&self, child_size: Vec2, item_spacing: Vec2) -> Rect {
-        egui_assert!(child_size.is_finite() && child_size.x >= 0.0 && child_size.y >= 0.0);
+        debug_assert!(
+            0.0 <= child_size.x && 0.0 <= child_size.y,
+            "Negative child size: {child_size:?}"
+        );
         self.region.sanity_check();
         if let Some(grid) = &self.grid {
             grid.next_cell(self.region.cursor, child_size)
@@ -127,8 +133,8 @@ impl Placer {
 
     /// Apply justify or alignment after calling `next_space`.
     pub(crate) fn justify_and_align(&self, rect: Rect, child_size: Vec2) -> Rect {
-        crate::egui_assert!(!rect.any_nan());
-        crate::egui_assert!(!child_size.any_nan());
+        debug_assert!(!rect.any_nan());
+        debug_assert!(!child_size.any_nan());
 
         if let Some(grid) = &self.grid {
             grid.justify_and_align(rect, child_size)
@@ -140,7 +146,7 @@ impl Placer {
     /// Advance the cursor by this many points.
     /// [`Self::min_rect`] will expand to contain the cursor.
     pub(crate) fn advance_cursor(&mut self, amount: f32) {
-        crate::egui_assert!(
+        debug_assert!(
             self.grid.is_none(),
             "You cannot advance the cursor when in a grid layout"
         );
@@ -158,8 +164,8 @@ impl Placer {
         widget_rect: Rect,
         item_spacing: Vec2,
     ) {
-        egui_assert!(!frame_rect.any_nan());
-        egui_assert!(!widget_rect.any_nan());
+        debug_assert!(!frame_rect.any_nan());
+        debug_assert!(!widget_rect.any_nan());
         self.region.sanity_check();
 
         if let Some(grid) = &mut self.grid {
@@ -248,6 +254,9 @@ impl Placer {
     /// Set the minimum width of the ui.
     /// This can't shrink the ui, only make it larger.
     pub(crate) fn set_min_width(&mut self, width: f32) {
+        if width <= 0.0 {
+            return;
+        }
         let rect = self.next_widget_space_ignore_wrap_justify(vec2(width, 0.0));
         self.region.expand_to_include_x(rect.min.x);
         self.region.expand_to_include_x(rect.max.x);
@@ -256,6 +265,9 @@ impl Placer {
     /// Set the minimum height of the ui.
     /// This can't shrink the ui, only make it larger.
     pub(crate) fn set_min_height(&mut self, height: f32) {
+        if height <= 0.0 {
+            return;
+        }
         let rect = self.next_widget_space_ignore_wrap_justify(vec2(0.0, height));
         self.region.expand_to_include_y(rect.min.y);
         self.region.expand_to_include_y(rect.max.y);
@@ -269,7 +281,7 @@ impl Placer {
 
         if let Some(grid) = &self.grid {
             let rect = grid.next_cell(self.cursor(), Vec2::splat(0.0));
-            painter.rect_stroke(rect, 1.0, stroke);
+            painter.rect_stroke(rect, 1.0, stroke, epaint::StrokeKind::Inside);
             let align = Align2::CENTER_CENTER;
             painter.debug_text(align.pos_in_rect(&rect), align, stroke.color, text);
         } else {

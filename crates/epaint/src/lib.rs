@@ -11,7 +11,7 @@
 //!
 //! `epaint` uses logical _points_ as its coordinate system.
 //! Those related to physical _pixels_ by the `pixels_per_point` scale factor.
-//! For example, a high-dpi screeen can have `pixels_per_point = 2.0`,
+//! For example, a high-dpi screen can have `pixels_per_point = 2.0`,
 //! meaning there are two physical screen pixels for each logical point.
 //!
 //! Angles are in radians, and are measured clockwise from the X-axis, which has angle=0.
@@ -22,16 +22,19 @@
 
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
-#![cfg_attr(feature = "puffin", deny(unsafe_code))]
-#![cfg_attr(not(feature = "puffin"), forbid(unsafe_code))]
 
-mod bezier;
+mod brush;
+pub mod color;
+mod corner_radius;
+mod corner_radius_f32;
 pub mod image;
+mod margin;
+mod margin_f32;
 mod mesh;
 pub mod mutex;
 mod shadow;
-mod shape;
 pub mod shape_transform;
+mod shapes;
 pub mod stats;
 mod stroke;
 pub mod tessellator;
@@ -40,24 +43,34 @@ mod texture_atlas;
 mod texture_handle;
 pub mod textures;
 pub mod util;
+mod viewport;
 
-pub use {
-    bezier::{CubicBezierShape, QuadraticBezierShape},
+pub use self::{
+    brush::Brush,
+    color::ColorMode,
+    corner_radius::CornerRadius,
+    corner_radius_f32::CornerRadiusF32,
     image::{ColorImage, FontImage, ImageData, ImageDelta},
+    margin::Margin,
+    margin_f32::*,
     mesh::{Mesh, Mesh16, Vertex},
     shadow::Shadow,
-    shape::{
-        CircleShape, PaintCallback, PaintCallbackInfo, PathShape, RectShape, Rounding, Shape,
-        TextShape,
+    shapes::{
+        CircleShape, CubicBezierShape, EllipseShape, PaintCallback, PaintCallbackInfo, PathShape,
+        QuadraticBezierShape, RectShape, Shape, TextShape,
     },
     stats::PaintStats,
-    stroke::Stroke,
+    stroke::{PathStroke, Stroke, StrokeKind},
     tessellator::{TessellationOptions, Tessellator},
     text::{FontFamily, FontId, Fonts, Galley},
     texture_atlas::TextureAtlas,
     texture_handle::TextureHandle,
     textures::TextureManager,
+    viewport::ViewportInPixels,
 };
+
+#[deprecated = "Renamed to CornerRadius"]
+pub type Rounding = CornerRadius;
 
 #[allow(deprecated)]
 pub use tessellator::tessellate_shapes;
@@ -65,7 +78,9 @@ pub use tessellator::tessellate_shapes;
 pub use ecolor::{Color32, Hsva, HsvaGamma, Rgba};
 pub use emath::{pos2, vec2, Pos2, Rect, Vec2};
 
+#[deprecated = "Use the ahash crate directly."]
 pub use ahash;
+
 pub use ecolor;
 pub use emath;
 
@@ -73,6 +88,7 @@ pub use emath;
 pub use ecolor::hex_color;
 
 /// The UV coordinate of a white region of the texture mesh.
+///
 /// The default egui texture has the top-left corner pixel fully white.
 /// You need need use a clamping texture sampler for this to work
 /// (so it doesn't do bilinear blending with bottom right corner).
@@ -134,79 +150,7 @@ pub enum Primitive {
     Callback(PaintCallback),
 }
 
-// ----------------------------------------------------------------------------
-
-/// An assert that is only active when `epaint` is compiled with the `extra_asserts` feature
-/// or with the `extra_debug_asserts` feature in debug builds.
-#[macro_export]
-macro_rules! epaint_assert {
-    ($($arg: tt)*) => {
-        if cfg!(any(
-            feature = "extra_asserts",
-            all(feature = "extra_debug_asserts", debug_assertions),
-        )) {
-            assert!($($arg)*);
-        }
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-#[inline(always)]
-pub(crate) fn f32_hash<H: std::hash::Hasher>(state: &mut H, f: f32) {
-    if f == 0.0 {
-        state.write_u8(0);
-    } else if f.is_nan() {
-        state.write_u8(1);
-    } else {
-        use std::hash::Hash;
-        f.to_bits().hash(state);
-    }
-}
-
-#[inline(always)]
-pub(crate) fn f64_hash<H: std::hash::Hasher>(state: &mut H, f: f64) {
-    if f == 0.0 {
-        state.write_u8(0);
-    } else if f.is_nan() {
-        state.write_u8(1);
-    } else {
-        use std::hash::Hash;
-        f.to_bits().hash(state);
-    }
-}
-
 // ---------------------------------------------------------------------------
 
 /// Was epaint compiled with the `rayon` feature?
 pub const HAS_RAYON: bool = cfg!(feature = "rayon");
-
-// ---------------------------------------------------------------------------
-
-mod profiling_scopes {
-    #![allow(unused_macros)]
-    #![allow(unused_imports)]
-
-    /// Profiling macro for feature "puffin"
-    macro_rules! profile_function {
-        ($($arg: tt)*) => {
-            #[cfg(feature = "puffin")]
-            #[cfg(not(target_arch = "wasm32"))] // Disabled on web because of the coarse 1ms clock resolution there.
-            puffin::profile_function!($($arg)*);
-        };
-    }
-    pub(crate) use profile_function;
-
-    /// Profiling macro for feature "puffin"
-    macro_rules! profile_scope {
-        ($($arg: tt)*) => {
-            #[cfg(feature = "puffin")]
-            #[cfg(not(target_arch = "wasm32"))] // Disabled on web because of the coarse 1ms clock resolution there.
-            puffin::profile_scope!($($arg)*);
-        };
-    }
-    pub(crate) use profile_scope;
-}
-
-#[allow(unused_imports)]
-pub(crate) use profiling_scopes::*;

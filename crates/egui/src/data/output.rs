@@ -1,6 +1,6 @@
 //! All the data egui returns to the backend at the end of each frame.
 
-use crate::{ViewportIdMap, ViewportOutput, WidgetType};
+use crate::{RepaintCause, ViewportIdMap, ViewportOutput, WidgetType};
 
 /// What egui emits each frame from [`crate::Context::run`].
 ///
@@ -43,7 +43,7 @@ impl FullOutput {
             textures_delta,
             shapes,
             pixels_per_point,
-            viewport_output: viewports,
+            viewport_output,
         } = newer;
 
         self.platform_output.append(platform_output);
@@ -51,7 +51,7 @@ impl FullOutput {
         self.shapes = shapes; // Only paint the latest
         self.pixels_per_point = pixels_per_point; // Use latest
 
-        for (id, new_viewport) in viewports {
+        for (id, new_viewport) in viewport_output {
             match self.viewport_output.entry(id) {
                 std::collections::hash_map::Entry::Vacant(entry) => {
                     entry.insert(new_viewport);
@@ -79,6 +79,27 @@ pub struct IMEOutput {
     pub cursor_rect: crate::Rect,
 }
 
+/// Commands that the egui integration should execute at the end of a frame.
+///
+/// Commands that are specific to a viewport should be put in [`crate::ViewportCommand`] instead.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum OutputCommand {
+    /// Put this text to the system clipboard.
+    ///
+    /// This is often a response to [`crate::Event::Copy`] or [`crate::Event::Cut`].
+    CopyText(String),
+
+    /// Put this image to the system clipboard.
+    CopyImage(crate::ColorImage),
+
+    /// Open this url in a browser.
+    OpenUrl(OpenUrl),
+
+    /// Set the mouse cursor position (if the platform supports it).
+    SetPointerPosition(emath::Pos2),
+}
+
 /// The non-rendering part of what egui emits each frame.
 ///
 /// You can access (and modify) this with [`crate::Context::output`].
@@ -87,10 +108,14 @@ pub struct IMEOutput {
 #[derive(Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct PlatformOutput {
+    /// Commands that the egui integration should execute at the end of a frame.
+    pub commands: Vec<OutputCommand>,
+
     /// Set the cursor to this icon.
     pub cursor_icon: CursorIcon,
 
     /// If set, open this url.
+    #[deprecated = "Use `Context::open_url` or `PlatformOutput::commands` instead"]
     pub open_url: Option<OpenUrl>,
 
     /// If set, put this text in the system clipboard. Ignore if empty.
@@ -104,6 +129,7 @@ pub struct PlatformOutput {
     /// }
     /// # });
     /// ```
+    #[deprecated = "Use `Context::copy_text` or `PlatformOutput::commands` instead"]
     pub copied_text: String,
 
     /// Events that may be useful to e.g. a screen reader.
@@ -113,7 +139,7 @@ pub struct PlatformOutput {
     /// Use by `eframe` web to show/hide mobile keyboard and IME agent.
     pub mutable_text_under_cursor: bool,
 
-    /// This is et if, and only if, the user is currently editing text.
+    /// This is set if, and only if, the user is currently editing text.
     ///
     /// Useful for IME.
     pub ime: Option<IMEOutput>,
@@ -123,6 +149,22 @@ pub struct PlatformOutput {
     /// NOTE: this needs to be per-viewport.
     #[cfg(feature = "accesskit")]
     pub accesskit_update: Option<accesskit::TreeUpdate>,
+
+    /// How many ui passes is this the sum of?
+    ///
+    /// See [`crate::Context::request_discard`] for details.
+    ///
+    /// This is incremented at the END of each frame,
+    /// so this will be `0` for the first pass.
+    pub num_completed_passes: usize,
+
+    /// Was [`crate::Context::request_discard`] called during the latest pass?
+    ///
+    /// If so, what was the reason(s) for it?
+    ///
+    /// If empty, there was never any calls.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub request_discard_reasons: Vec<RepaintCause>,
 }
 
 impl PlatformOutput {
@@ -146,7 +188,10 @@ impl PlatformOutput {
 
     /// Add on new output.
     pub fn append(&mut self, newer: Self) {
+        #![allow(deprecated)]
+
         let Self {
+            mut commands,
             cursor_icon,
             open_url,
             copied_text,
@@ -155,8 +200,11 @@ impl PlatformOutput {
             ime,
             #[cfg(feature = "accesskit")]
             accesskit_update,
+            num_completed_passes,
+            mut request_discard_reasons,
         } = newer;
 
+        self.commands.append(&mut commands);
         self.cursor_icon = cursor_icon;
         if open_url.is_some() {
             self.open_url = open_url;
@@ -167,6 +215,9 @@ impl PlatformOutput {
         self.events.append(&mut events);
         self.mutable_text_under_cursor = mutable_text_under_cursor;
         self.ime = ime.or(self.ime);
+        self.num_completed_passes += num_completed_passes;
+        self.request_discard_reasons
+            .append(&mut request_discard_reasons);
 
         #[cfg(feature = "accesskit")]
         {
@@ -182,12 +233,17 @@ impl PlatformOutput {
         self.cursor_icon = taken.cursor_icon; // everything else is ephemeral
         taken
     }
+
+    /// Was [`crate::Context::request_discard`] called?
+    pub fn requested_discard(&self) -> bool {
+        !self.request_discard_reasons.is_empty()
+    }
 }
 
 /// What URL to open, and how.
 ///
 /// Use with [`crate::Context::open_url`].
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct OpenUrl {
     pub url: String,
@@ -486,6 +542,9 @@ pub struct WidgetInfo {
 
     /// Selected range of characters in [`Self::current_text_value`].
     pub text_selection: Option<std::ops::RangeInclusive<usize>>,
+
+    /// The hint text for text edit fields.
+    pub hint_text: Option<String>,
 }
 
 impl std::fmt::Debug for WidgetInfo {
@@ -499,12 +558,16 @@ impl std::fmt::Debug for WidgetInfo {
             selected,
             value,
             text_selection,
+            hint_text,
         } = self;
 
         let mut s = f.debug_struct("WidgetInfo");
 
         s.field("typ", typ);
-        s.field("enabled", enabled);
+
+        if !enabled {
+            s.field("enabled", enabled);
+        }
 
         if let Some(label) = label {
             s.field("label", label);
@@ -524,6 +587,9 @@ impl std::fmt::Debug for WidgetInfo {
         if let Some(text_selection) = text_selection {
             s.field("text_selection", text_selection);
         }
+        if let Some(hint_text) = hint_text {
+            s.field("hint_text", hint_text);
+        }
 
         s.finish()
     }
@@ -540,12 +606,14 @@ impl WidgetInfo {
             selected: None,
             value: None,
             text_selection: None,
+            hint_text: None,
         }
     }
 
     #[allow(clippy::needless_pass_by_value)]
-    pub fn labeled(typ: WidgetType, label: impl ToString) -> Self {
+    pub fn labeled(typ: WidgetType, enabled: bool, label: impl ToString) -> Self {
         Self {
+            enabled,
             label: Some(label.to_string()),
             ..Self::new(typ)
         }
@@ -553,25 +621,28 @@ impl WidgetInfo {
 
     /// checkboxes, radio-buttons etc
     #[allow(clippy::needless_pass_by_value)]
-    pub fn selected(typ: WidgetType, selected: bool, label: impl ToString) -> Self {
+    pub fn selected(typ: WidgetType, enabled: bool, selected: bool, label: impl ToString) -> Self {
         Self {
+            enabled,
             label: Some(label.to_string()),
             selected: Some(selected),
             ..Self::new(typ)
         }
     }
 
-    pub fn drag_value(value: f64) -> Self {
+    pub fn drag_value(enabled: bool, value: f64) -> Self {
         Self {
+            enabled,
             value: Some(value),
             ..Self::new(WidgetType::DragValue)
         }
     }
 
     #[allow(clippy::needless_pass_by_value)]
-    pub fn slider(value: f64, label: impl ToString) -> Self {
+    pub fn slider(enabled: bool, value: f64, label: impl ToString) -> Self {
         let label = label.to_string();
         Self {
+            enabled,
             label: if label.is_empty() { None } else { Some(label) },
             value: Some(value),
             ..Self::new(WidgetType::Slider)
@@ -579,27 +650,37 @@ impl WidgetInfo {
     }
 
     #[allow(clippy::needless_pass_by_value)]
-    pub fn text_edit(prev_text_value: impl ToString, text_value: impl ToString) -> Self {
+    pub fn text_edit(
+        enabled: bool,
+        prev_text_value: impl ToString,
+        text_value: impl ToString,
+        hint_text: impl ToString,
+    ) -> Self {
         let text_value = text_value.to_string();
         let prev_text_value = prev_text_value.to_string();
+        let hint_text = hint_text.to_string();
         let prev_text_value = if text_value == prev_text_value {
             None
         } else {
             Some(prev_text_value)
         };
         Self {
+            enabled,
             current_text_value: Some(text_value),
             prev_text_value,
+            hint_text: Some(hint_text),
             ..Self::new(WidgetType::TextEdit)
         }
     }
 
     #[allow(clippy::needless_pass_by_value)]
     pub fn text_selection_changed(
+        enabled: bool,
         text_selection: std::ops::RangeInclusive<usize>,
         current_text_value: impl ToString,
     ) -> Self {
         Self {
+            enabled,
             text_selection: Some(text_selection),
             current_text_value: Some(current_text_value.to_string()),
             ..Self::new(WidgetType::TextEdit)
@@ -617,6 +698,7 @@ impl WidgetInfo {
             selected,
             value,
             text_selection: _,
+            hint_text: _,
         } = self;
 
         // TODO(emilk): localization
@@ -626,14 +708,17 @@ impl WidgetInfo {
             WidgetType::Button => "button",
             WidgetType::Checkbox => "checkbox",
             WidgetType::RadioButton => "radio",
+            WidgetType::RadioGroup => "radio group",
             WidgetType::SelectableLabel => "selectable",
             WidgetType::ComboBox => "combo",
             WidgetType::Slider => "slider",
             WidgetType::DragValue => "drag value",
             WidgetType::ColorButton => "color button",
             WidgetType::ImageButton => "image button",
+            WidgetType::Image => "image",
             WidgetType::CollapsingHeader => "collapsing header",
             WidgetType::ProgressIndicator => "progress indicator",
+            WidgetType::Window => "window",
             WidgetType::Label | WidgetType::Other => "",
         };
 

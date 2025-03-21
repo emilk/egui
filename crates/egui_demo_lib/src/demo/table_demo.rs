@@ -1,4 +1,4 @@
-use egui::TextStyle;
+use egui::{TextStyle, TextWrapMode};
 
 #[derive(PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -20,6 +20,7 @@ pub struct TableDemo {
     scroll_to_row: Option<usize>,
     selection: std::collections::HashSet<usize>,
     checked: bool,
+    reversed: bool,
 }
 
 impl Default for TableDemo {
@@ -34,13 +35,14 @@ impl Default for TableDemo {
             scroll_to_row: None,
             selection: Default::default(),
             checked: false,
+            reversed: false,
         }
     }
 }
 
-impl super::Demo for TableDemo {
+impl crate::Demo for TableDemo {
     fn name(&self) -> &'static str {
-        "☰ Table Demo"
+        "☰ Table"
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
@@ -48,7 +50,7 @@ impl super::Demo for TableDemo {
             .open(open)
             .default_width(400.0)
             .show(ctx, |ui| {
-                use super::View as _;
+                use crate::View as _;
                 self.ui(ui);
             });
     }
@@ -56,8 +58,10 @@ impl super::Demo for TableDemo {
 
 const NUM_MANUAL_ROWS: usize = 20;
 
-impl super::View for TableDemo {
+impl crate::View for TableDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
+        let mut reset = false;
+
         ui.vertical(|ui| {
             ui.horizontal(|ui| {
                 ui.checkbox(&mut self.striped, "Striped");
@@ -102,6 +106,8 @@ impl super::View for TableDemo {
                     self.scroll_to_row = Some(self.scroll_to_row_slider);
                 }
             }
+
+            reset = ui.button("Reset").clicked();
         });
 
         ui.separator();
@@ -115,7 +121,7 @@ impl super::View for TableDemo {
             .vertical(|mut strip| {
                 strip.cell(|ui| {
                     egui::ScrollArea::horizontal().show(ui, |ui| {
-                        self.table_ui(ui);
+                        self.table_ui(ui, reset);
                     });
                 });
                 strip.cell(|ui| {
@@ -128,7 +134,7 @@ impl super::View for TableDemo {
 }
 
 impl TableDemo {
-    fn table_ui(&mut self, ui: &mut egui::Ui) {
+    fn table_ui(&mut self, ui: &mut egui::Ui, reset: bool) {
         use egui_extras::{Column, TableBuilder};
 
         let text_height = egui::TextStyle::Body
@@ -136,16 +142,23 @@ impl TableDemo {
             .size
             .max(ui.spacing().interact_size.y);
 
+        let available_height = ui.available_height();
         let mut table = TableBuilder::new(ui)
             .striped(self.striped)
             .resizable(self.resizable)
             .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
             .column(Column::auto())
+            .column(
+                Column::remainder()
+                    .at_least(40.0)
+                    .clip(true)
+                    .resizable(true),
+            )
             .column(Column::auto())
-            .column(Column::initial(100.0).range(40.0..=300.0))
-            .column(Column::initial(100.0).at_least(40.0).clip(true))
             .column(Column::remainder())
-            .min_scrolled_height(0.0);
+            .column(Column::remainder())
+            .min_scrolled_height(0.0)
+            .max_scroll_height(available_height);
 
         if self.clickable {
             table = table.sense(egui::Sense::click());
@@ -155,19 +168,32 @@ impl TableDemo {
             table = table.scroll_to_row(row_index, None);
         }
 
+        if reset {
+            table.reset();
+        }
+
         table
             .header(20.0, |mut header| {
                 header.col(|ui| {
-                    ui.strong("Row");
+                    egui::Sides::new().show(
+                        ui,
+                        |ui| {
+                            ui.strong("Row");
+                        },
+                        |ui| {
+                            self.reversed ^=
+                                ui.button(if self.reversed { "⬆" } else { "⬇" }).clicked();
+                        },
+                    );
                 });
                 header.col(|ui| {
-                    ui.strong("Interaction");
+                    ui.strong("Clipped text");
                 });
                 header.col(|ui| {
                     ui.strong("Expanding content");
                 });
                 header.col(|ui| {
-                    ui.strong("Clipped text");
+                    ui.strong("Interaction");
                 });
                 header.col(|ui| {
                     ui.strong("Content");
@@ -176,6 +202,12 @@ impl TableDemo {
             .body(|mut body| match self.demo {
                 DemoType::Manual => {
                     for row_index in 0..NUM_MANUAL_ROWS {
+                        let row_index = if self.reversed {
+                            NUM_MANUAL_ROWS - 1 - row_index
+                        } else {
+                            row_index
+                        };
+
                         let is_thick = thick_row(row_index);
                         let row_height = if is_thick { 30.0 } else { 18.0 };
                         body.row(row_height, |mut row| {
@@ -185,16 +217,16 @@ impl TableDemo {
                                 ui.label(row_index.to_string());
                             });
                             row.col(|ui| {
-                                ui.checkbox(&mut self.checked, "Click me");
+                                ui.label(long_text(row_index));
                             });
                             row.col(|ui| {
                                 expanding_content(ui);
                             });
                             row.col(|ui| {
-                                ui.label(long_text(row_index));
+                                ui.checkbox(&mut self.checked, "Click me");
                             });
                             row.col(|ui| {
-                                ui.style_mut().wrap = Some(false);
+                                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
                                 if is_thick {
                                     ui.heading("Extra thick row");
                                 } else {
@@ -208,24 +240,30 @@ impl TableDemo {
                 }
                 DemoType::ManyHomogeneous => {
                     body.rows(text_height, self.num_rows, |mut row| {
-                        let row_index = row.index();
+                        let row_index = if self.reversed {
+                            self.num_rows - 1 - row.index()
+                        } else {
+                            row.index()
+                        };
+
                         row.set_selected(self.selection.contains(&row_index));
 
                         row.col(|ui| {
                             ui.label(row_index.to_string());
                         });
                         row.col(|ui| {
-                            ui.checkbox(&mut self.checked, "Click me");
+                            ui.label(long_text(row_index));
                         });
                         row.col(|ui| {
                             expanding_content(ui);
                         });
                         row.col(|ui| {
-                            ui.label(long_text(row_index));
+                            ui.checkbox(&mut self.checked, "Click me");
                         });
                         row.col(|ui| {
                             ui.add(
-                                egui::Label::new("Thousands of rows of even height").wrap(false),
+                                egui::Label::new("Thousands of rows of even height")
+                                    .wrap_mode(TextWrapMode::Extend),
                             );
                         });
 
@@ -235,23 +273,28 @@ impl TableDemo {
                 DemoType::ManyHeterogenous => {
                     let row_height = |i: usize| if thick_row(i) { 30.0 } else { 18.0 };
                     body.heterogeneous_rows((0..self.num_rows).map(row_height), |mut row| {
-                        let row_index = row.index();
+                        let row_index = if self.reversed {
+                            self.num_rows - 1 - row.index()
+                        } else {
+                            row.index()
+                        };
+
                         row.set_selected(self.selection.contains(&row_index));
 
                         row.col(|ui| {
                             ui.label(row_index.to_string());
                         });
                         row.col(|ui| {
-                            ui.checkbox(&mut self.checked, "Click me");
+                            ui.label(long_text(row_index));
                         });
                         row.col(|ui| {
                             expanding_content(ui);
                         });
                         row.col(|ui| {
-                            ui.label(long_text(row_index));
+                            ui.checkbox(&mut self.checked, "Click me");
                         });
                         row.col(|ui| {
-                            ui.style_mut().wrap = Some(false);
+                            ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
                             if thick_row(row_index) {
                                 ui.heading("Extra thick row");
                             } else {
@@ -277,14 +320,7 @@ impl TableDemo {
 }
 
 fn expanding_content(ui: &mut egui::Ui) {
-    let width = ui.available_width().clamp(20.0, 200.0);
-    let height = ui.available_height();
-    let (rect, _response) = ui.allocate_exact_size(egui::vec2(width, height), egui::Sense::hover());
-    ui.painter().hline(
-        rect.x_range(),
-        rect.center().y,
-        (1.0, ui.visuals().text_color()),
-    );
+    ui.add(egui::Separator::default().horizontal());
 }
 
 fn long_text(row_index: usize) -> String {

@@ -1,4 +1,7 @@
-use crate::*;
+use crate::{
+    epaint, text_selection, CursorIcon, Label, Response, Sense, Stroke, Ui, Widget, WidgetInfo,
+    WidgetText, WidgetType,
+};
 
 use self::text_selection::LabelSelectionState;
 
@@ -20,7 +23,7 @@ use self::text_selection::LabelSelectionState;
 /// }
 /// # });
 /// ```
-#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+#[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct Link {
     text: WidgetText,
 }
@@ -37,7 +40,8 @@ impl Widget for Link {
         let label = Label::new(text).sense(Sense::click());
 
         let (galley_pos, galley, response) = label.layout_in_ui(ui);
-        response.widget_info(|| WidgetInfo::labeled(WidgetType::Link, galley.text()));
+        response
+            .widget_info(|| WidgetInfo::labeled(WidgetType::Link, ui.is_enabled(), galley.text()));
 
         if ui.is_rect_visible(response.rect) {
             let color = ui.visuals().hyperlink_color;
@@ -49,13 +53,15 @@ impl Widget for Link {
                 Stroke::NONE
             };
 
-            ui.painter().add(
-                epaint::TextShape::new(galley_pos, galley.clone(), color).with_underline(underline),
-            );
-
             let selectable = ui.style().interaction.selectable_labels;
             if selectable {
-                LabelSelectionState::label_text_selection(ui, &response, galley_pos, &galley);
+                LabelSelectionState::label_text_selection(
+                    ui, &response, galley_pos, galley, color, underline,
+                );
+            } else {
+                ui.painter().add(
+                    epaint::TextShape::new(galley_pos, galley, color).with_underline(underline),
+                );
             }
 
             if response.hovered() {
@@ -82,7 +88,7 @@ impl Widget for Link {
 /// ui.add(egui::Hyperlink::from_label_and_url("My favorite repo", "https://github.com/emilk/egui"));
 /// # });
 /// ```
-#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+#[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct Hyperlink {
     url: String,
     text: WidgetText,
@@ -136,6 +142,11 @@ impl Widget for Hyperlink {
                 new_tab: true,
             });
         }
-        response.on_hover_text(url)
+
+        if ui.style().url_in_tooltip {
+            response.on_hover_text(url)
+        } else {
+            response
+        }
     }
 }

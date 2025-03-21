@@ -1,5 +1,9 @@
-use super::*;
-use egui::*;
+use super::{Demo, View};
+
+use egui::{
+    vec2, Align, Checkbox, CollapsingHeader, Color32, Context, FontId, Resize, RichText, Sense,
+    Slider, Stroke, TextFormat, TextStyle, Ui, Vec2, Window,
+};
 
 /// Showcase some ui code
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -120,9 +124,9 @@ impl View for MiscDemoWindow {
                     )
                     .changed()
                 {
-                    self.checklist
-                        .iter_mut()
-                        .for_each(|checked| *checked = all_checked);
+                    for check in &mut self.checklist {
+                        *check = all_checked;
+                    }
                 }
                 for (i, checked) in self.checklist.iter_mut().enumerate() {
                     ui.checkbox(checked, format!("Item {}", i + 1));
@@ -153,6 +157,10 @@ impl View for MiscDemoWindow {
                     ui.label("Just pull the handle on the bottom right");
                 });
             });
+
+        CollapsingHeader::new("Ui Stack")
+            .default_open(false)
+            .show(ui, ui_stack_demo);
 
         CollapsingHeader::new("Misc")
             .default_open(false)
@@ -221,9 +229,9 @@ fn label_ui(ui: &mut egui::Ui) {
 
     ui.add(
         egui::Label::new(
-            "Labels containing long text can be set to elide the text that doesn't fit on a single line using `Label::elide`. When hovered, the label will show the full text.",
+            "Labels containing long text can be set to elide the text that doesn't fit on a single line using `Label::truncate`. When hovered, the label will show the full text.",
         )
-        .truncate(true),
+        .truncate(),
     );
 }
 
@@ -233,7 +241,6 @@ fn label_ui(ui: &mut egui::Ui) {
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Widgets {
     angle: f32,
-    enabled: bool,
     password: String,
 }
 
@@ -241,7 +248,6 @@ impl Default for Widgets {
     fn default() -> Self {
         Self {
             angle: std::f32::consts::TAU / 3.0,
-            enabled: true,
             password: "hunter2".to_owned(),
         }
     }
@@ -249,37 +255,10 @@ impl Default for Widgets {
 
 impl Widgets {
     pub fn ui(&mut self, ui: &mut Ui) {
-        let Self {
-            angle,
-            enabled,
-            password,
-        } = self;
+        let Self { angle, password } = self;
         ui.vertical_centered(|ui| {
             ui.add(crate::egui_github_link_file_line!());
         });
-
-        let tooltip_ui = |ui: &mut Ui| {
-            ui.heading("The name of the tooltip");
-            ui.horizontal(|ui| {
-                ui.label("This tooltip was created with");
-                ui.monospace(".on_hover_ui(…)");
-            });
-            let _ = ui.button("A button you can never press");
-        };
-        let disabled_tooltip_ui = |ui: &mut Ui| {
-            ui.heading("Different tooltip when widget is disabled");
-            ui.horizontal(|ui| {
-                ui.label("This tooltip was created with");
-                ui.monospace(".on_disabled_hover_ui(…)");
-            });
-        };
-        ui.checkbox(enabled, "Enabled");
-        ui.add_enabled(
-            *enabled,
-            egui::Label::new("Tooltips can be more than just simple text."),
-        )
-        .on_hover_ui(tooltip_ui)
-        .on_disabled_hover_ui(disabled_tooltip_ui);
 
         ui.separator();
 
@@ -328,7 +307,7 @@ impl Default for ColorWidgets {
 
 impl ColorWidgets {
     fn ui(&mut self, ui: &mut Ui) {
-        egui::reset_button(ui, self);
+        egui::reset_button(ui, self, "Reset");
 
         ui.label("egui lets you edit colors stored as either sRGBA or linear RGBA and with or without premultiplied alpha");
 
@@ -379,7 +358,7 @@ impl ColorWidgets {
 #[cfg_attr(feature = "serde", serde(default))]
 struct BoxPainting {
     size: Vec2,
-    rounding: f32,
+    corner_radius: f32,
     stroke_width: f32,
     num_boxes: usize,
 }
@@ -388,7 +367,7 @@ impl Default for BoxPainting {
     fn default() -> Self {
         Self {
             size: vec2(64.0, 32.0),
-            rounding: 5.0,
+            corner_radius: 5.0,
             stroke_width: 2.0,
             num_boxes: 1,
         }
@@ -399,7 +378,7 @@ impl BoxPainting {
     pub fn ui(&mut self, ui: &mut Ui) {
         ui.add(Slider::new(&mut self.size.x, 0.0..=500.0).text("width"));
         ui.add(Slider::new(&mut self.size.y, 0.0..=500.0).text("height"));
-        ui.add(Slider::new(&mut self.rounding, 0.0..=50.0).text("rounding"));
+        ui.add(Slider::new(&mut self.corner_radius, 0.0..=50.0).text("corner_radius"));
         ui.add(Slider::new(&mut self.stroke_width, 0.0..=10.0).text("stroke_width"));
         ui.add(Slider::new(&mut self.num_boxes, 0..=8).text("num_boxes"));
 
@@ -408,9 +387,10 @@ impl BoxPainting {
                 let (rect, _response) = ui.allocate_at_least(self.size, Sense::hover());
                 ui.painter().rect(
                     rect,
-                    self.rounding,
+                    self.corner_radius,
                     ui.visuals().text_color().gamma_multiply(0.5),
                     Stroke::new(self.stroke_width, Color32::WHITE),
+                    egui::StrokeKind::Inside,
                 );
             }
         });
@@ -521,6 +501,70 @@ impl Tree {
 
 // ----------------------------------------------------------------------------
 
+fn ui_stack_demo(ui: &mut Ui) {
+    ui.horizontal_wrapped(|ui| {
+        ui.label("The");
+        ui.code("egui::Ui");
+        ui.label("core type is typically deeply nested in");
+        ui.code("egui");
+        ui.label(
+            "applications. To provide context to nested code, it maintains a stack \
+                        with various information.\n\nThis is how the stack looks like here:",
+        );
+    });
+    let stack = ui.stack().clone();
+    egui::Frame::new()
+        .inner_margin(ui.spacing().menu_margin)
+        .stroke(ui.visuals().widgets.noninteractive.bg_stroke)
+        .show(ui, |ui| {
+            egui_extras::TableBuilder::new(ui)
+                .column(egui_extras::Column::auto())
+                .column(egui_extras::Column::auto())
+                .header(18.0, |mut header| {
+                    header.col(|ui| {
+                        ui.strong("id");
+                    });
+                    header.col(|ui| {
+                        ui.strong("kind");
+                    });
+                })
+                .body(|mut body| {
+                    for node in stack.iter() {
+                        body.row(18.0, |mut row| {
+                            row.col(|ui| {
+                                let response = ui.label(format!("{:?}", node.id));
+
+                                if response.hovered() {
+                                    ui.ctx().debug_painter().debug_rect(
+                                        node.max_rect,
+                                        Color32::GREEN,
+                                        "max_rect",
+                                    );
+                                    ui.ctx().debug_painter().circle_filled(
+                                        node.min_rect.min,
+                                        2.0,
+                                        Color32::RED,
+                                    );
+                                }
+                            });
+
+                            row.col(|ui| {
+                                ui.label(if let Some(kind) = node.kind() {
+                                    format!("{kind:?}")
+                                } else {
+                                    "-".to_owned()
+                                });
+                            });
+                        });
+                    }
+                });
+        });
+
+    ui.small("Hover on UI's ids to display their origin and max rect.");
+}
+
+// ----------------------------------------------------------------------------
+
 fn text_layout_demo(ui: &mut Ui) {
     use egui::text::LayoutJob;
 
@@ -535,8 +579,17 @@ fn text_layout_demo(ui: &mut Ui) {
     };
 
     job.append(
-        "This is a demonstration of ",
+        "This",
         first_row_indentation,
+        TextFormat {
+            color: default_color,
+            font_id: FontId::proportional(20.0),
+            ..Default::default()
+        },
+    );
+    job.append(
+        " is a demonstration of ",
+        0.0,
         TextFormat {
             color: default_color,
             ..Default::default()
@@ -587,7 +640,7 @@ fn text_layout_demo(ui: &mut Ui) {
         "mixing ",
         0.0,
         TextFormat {
-            font_id: FontId::proportional(17.0),
+            font_id: FontId::proportional(20.0),
             color: default_color,
             ..Default::default()
         },

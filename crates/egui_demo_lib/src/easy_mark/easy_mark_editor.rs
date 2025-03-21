@@ -1,4 +1,6 @@
-use egui::{text::CCursorRange, *};
+use egui::{
+    text::CCursorRange, Key, KeyboardShortcut, Modifiers, ScrollArea, TextBuffer, TextEdit, Ui,
+};
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
@@ -45,10 +47,10 @@ impl EasyMarkEditor {
 
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         egui::Grid::new("controls").show(ui, |ui| {
-            let _ = ui.button("Hotkeys").on_hover_ui(nested_hotkeys_ui);
+            let _response = ui.button("Hotkeys").on_hover_ui(nested_hotkeys_ui);
             ui.checkbox(&mut self.show_rendered, "Show rendered");
             ui.checkbox(&mut self.highlight_editor, "Highlight editor");
-            egui::reset_button(ui, self);
+            egui::reset_button(ui, self, "Reset");
             ui.end_row();
         });
         ui.separator();
@@ -56,10 +58,10 @@ impl EasyMarkEditor {
         if self.show_rendered {
             ui.columns(2, |columns| {
                 ScrollArea::vertical()
-                    .id_source("source")
+                    .id_salt("source")
                     .show(&mut columns[0], |ui| self.editor_ui(ui));
                 ScrollArea::vertical()
-                    .id_source("rendered")
+                    .id_salt("rendered")
                     .show(&mut columns[1], |ui| {
                         // TODO(emilk): we can save some more CPU by caching the rendered output.
                         crate::easy_mark::easy_mark(ui, &self.code);
@@ -67,7 +69,7 @@ impl EasyMarkEditor {
             });
         } else {
             ScrollArea::vertical()
-                .id_source("source")
+                .id_salt("source")
                 .show(ui, |ui| self.editor_ui(ui));
         }
     }
@@ -144,7 +146,7 @@ fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRang
     if ui.input_mut(|i| i.consume_shortcut(&SHORTCUT_INDENT)) {
         // This is a placeholder till we can indent the active line
         any_change = true;
-        let [primary, _secondary] = ccursor_range.sorted();
+        let [primary, _secondary] = ccursor_range.sorted_cursors();
 
         let advance = code.insert_text("  ", primary.index);
         ccursor_range.primary.index += advance;
@@ -175,7 +177,7 @@ fn toggle_surrounding(
     ccursor_range: &mut CCursorRange,
     surrounding: &str,
 ) {
-    let [primary, secondary] = ccursor_range.sorted();
+    let [primary, secondary] = ccursor_range.sorted_cursors();
 
     let surrounding_ccount = surrounding.chars().count();
 
@@ -261,7 +263,7 @@ The style characters are chosen to be similar to what they are representing:
   `$` = $small$
   `^` = ^raised^
 
-# TODO
+# To do
 - Sub-headers (`## h2`, `### h3` etc)
 - Hotkey Editor
 - International keyboard algorithm for non-letter keys
@@ -277,5 +279,5 @@ The style characters are chosen to be similar to what they are representing:
   - `<url>` and `[url](url)` do the same thing yet look completely different.
   - let's keep similarity with images
 - Tables
-- Inspiration: <https://mycorrhiza.lesarbr.es/page/mycomarkup>
+- Inspiration: <https://mycorrhiza.wiki/help/en/mycomarkup>
 "#;

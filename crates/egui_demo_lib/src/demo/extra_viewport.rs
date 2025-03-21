@@ -1,7 +1,7 @@
 #[derive(Default)]
 pub struct ExtraViewport {}
 
-impl super::Demo for ExtraViewport {
+impl crate::Demo for ExtraViewport {
     fn is_enabled(&self, ctx: &egui::Context) -> bool {
         !ctx.embed_viewports()
     }

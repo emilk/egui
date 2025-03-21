@@ -14,7 +14,7 @@ impl Default for TextEditDemo {
     }
 }
 
-impl super::Demo for TextEditDemo {
+impl crate::Demo for TextEditDemo {
     fn name(&self) -> &'static str {
         "🖹 TextEdit"
     }
@@ -24,13 +24,13 @@ impl super::Demo for TextEditDemo {
             .open(open)
             .resizable(false)
             .show(ctx, |ui| {
-                use super::View as _;
+                use crate::View as _;
                 self.ui(ui);
             });
     }
 }
 
-impl super::View for TextEditDemo {
+impl crate::View for TextEditDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.vertical_centered(|ui| {
             ui.add(crate::egui_github_link_file!());
@@ -58,9 +58,7 @@ impl super::View for TextEditDemo {
             }
         });
 
-        let anything_selected = output
-            .cursor_range
-            .map_or(false, |cursor| !cursor.is_empty());
+        let anything_selected = output.cursor_range.is_some_and(|cursor| !cursor.is_empty());
 
         ui.add_enabled(
             anything_selected,
@@ -110,5 +108,43 @@ impl super::View for TextEditDemo {
                 }
             }
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use egui::{accesskit, CentralPanel};
+    use egui_kittest::kittest::{Key, Queryable};
+    use egui_kittest::Harness;
+
+    #[test]
+    pub fn should_type() {
+        let text = "Hello, world!".to_owned();
+        let mut harness = Harness::new_state(
+            move |ctx, text| {
+                CentralPanel::default().show(ctx, |ui| {
+                    ui.text_edit_singleline(text);
+                });
+            },
+            text,
+        );
+
+        harness.run();
+
+        let text_edit = harness.get_by_role(accesskit::Role::TextInput);
+        assert_eq!(text_edit.value().as_deref(), Some("Hello, world!"));
+
+        text_edit.key_combination(&[Key::Command, Key::A]);
+        text_edit.type_text("Hi ");
+
+        harness.run();
+        harness
+            .get_by_role(accesskit::Role::TextInput)
+            .type_text("there!");
+
+        harness.run();
+        let text_edit = harness.get_by_role(accesskit::Role::TextInput);
+        assert_eq!(text_edit.value().as_deref(), Some("Hi there!"));
+        assert_eq!(harness.state(), "Hi there!");
     }
 }

@@ -1,12 +1,12 @@
-use crate::*;
-use emath::*;
+use crate::{emath, Color32, TextureId, WHITE_UV};
+use emath::{Pos2, Rect, Rot2, TSTransform, Vec2};
 
 /// The 2D vertex type.
 ///
 /// Should be friendly to send to GPU as is.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[cfg(not(feature = "unity"))]
+#[cfg(any(not(feature = "unity"), feature = "_override_unity"))]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Vertex {
@@ -25,7 +25,7 @@ pub struct Vertex {
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[cfg(feature = "unity")]
+#[cfg(all(feature = "unity", not(feature = "_override_unity")))]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Vertex {
@@ -76,6 +76,7 @@ impl Mesh {
         self.vertices = Default::default();
     }
 
+    /// Returns the amount of memory used by the vertices and indices.
     pub fn bytes_used(&self) -> usize {
         std::mem::size_of::<Self>()
             + self.vertices.len() * std::mem::size_of::<Vertex>()
@@ -84,7 +85,7 @@ impl Mesh {
 
     /// Are all indices within the bounds of the contained vertices?
     pub fn is_valid(&self) -> bool {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         if let Ok(n) = u32::try_from(self.vertices.len()) {
             self.indices.iter().all(|&i| i < n)
@@ -97,6 +98,13 @@ impl Mesh {
         self.indices.is_empty() && self.vertices.is_empty()
     }
 
+    /// Iterate over the triangles of this mesh, returning vertex indices.
+    pub fn triangles(&self) -> impl Iterator<Item = [u32; 3]> + '_ {
+        self.indices
+            .chunks_exact(3)
+            .map(|chunk| [chunk[0], chunk[1], chunk[2]])
+    }
+
     /// Calculate a bounding rectangle.
     pub fn calc_bounds(&self) -> Rect {
         let mut bounds = Rect::NOTHING;
@@ -107,9 +115,11 @@ impl Mesh {
     }
 
     /// Append all the indices and vertices of `other` to `self`.
+    ///
+    /// Panics when `other` mesh has a different texture.
     pub fn append(&mut self, other: Self) {
-        crate::profile_function!();
-        crate::epaint_assert!(other.is_valid());
+        profiling::function_scope!();
+        debug_assert!(other.is_valid());
 
         if self.is_empty() {
             *self = other;
@@ -120,8 +130,10 @@ impl Mesh {
 
     /// Append all the indices and vertices of `other` to `self` without
     /// taking ownership.
+    ///
+    /// Panics when `other` mesh has a different texture.
     pub fn append_ref(&mut self, other: &Self) {
-        crate::epaint_assert!(other.is_valid());
+        debug_assert!(other.is_valid());
 
         if self.is_empty() {
             self.texture_id = other.texture_id;
@@ -138,9 +150,12 @@ impl Mesh {
         self.vertices.extend(other.vertices.iter());
     }
 
+    /// Add a colored vertex.
+    ///
+    /// Panics when the mesh has assigned a texture.
     #[inline(always)]
     pub fn colored_vertex(&mut self, pos: Pos2, color: Color32) {
-        crate::epaint_assert!(self.texture_id == TextureId::default());
+        debug_assert!(self.texture_id == TextureId::default());
         self.vertices.push(Vertex {
             pos,
             uv: WHITE_UV,
@@ -203,7 +218,7 @@ impl Mesh {
     /// Uniformly colored rectangle.
     #[inline(always)]
     pub fn add_colored_rect(&mut self, rect: Rect, color: Color32) {
-        crate::epaint_assert!(self.texture_id == TextureId::default());
+        debug_assert!(self.texture_id == TextureId::default());
         self.add_rect_with_uv(rect, [WHITE_UV, WHITE_UV].into(), color);
     }
 
@@ -212,9 +227,9 @@ impl Mesh {
     /// Splits this mesh into many smaller meshes (if needed)
     /// where the smaller meshes have 16-bit indices.
     pub fn split_to_u16(self) -> Vec<Mesh16> {
-        crate::epaint_assert!(self.is_valid());
+        debug_assert!(self.is_valid());
 
-        const MAX_SIZE: u32 = std::u16::MAX as u32;
+        const MAX_SIZE: u32 = u16::MAX as u32;
 
         if self.vertices.len() <= MAX_SIZE as usize {
             // Common-case optimization:
@@ -265,7 +280,7 @@ impl Mesh {
                 vertices: self.vertices[(min_vindex as usize)..=(max_vindex as usize)].to_vec(),
                 texture_id: self.texture_id,
             };
-            crate::epaint_assert!(mesh.is_valid());
+            debug_assert!(mesh.is_valid());
             output.push(mesh);
         }
         output

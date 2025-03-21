@@ -5,11 +5,6 @@ cd "$script_path/.."
 
 ./scripts/setup_web.sh
 
-# This is required to enable the web_sys clipboard API which eframe web uses
-# https://rustwasm.github.io/wasm-bindgen/api/web_sys/struct.Clipboard.html
-# https://rustwasm.github.io/docs/wasm-bindgen/web-sys/unstable-apis.html
-export RUSTFLAGS=--cfg=web_sys_unstable_apis
-
 CRATE_NAME="egui_demo_app"
 
 FEATURES="web_app"
@@ -24,7 +19,7 @@ WASM_OPT_FLAGS="-O2 --fast-math"
 while test $# -gt 0; do
   case "$1" in
     -h|--help)
-      echo "build_demo_web.sh [--release] [--webgpu] [--open]"
+      echo "build_demo_web.sh [--release] [--wgpu] [--open]"
       echo ""
       echo "  -g:        Keep debug symbols even with --release."
       echo "             These are useful profiling and size trimming."
@@ -122,12 +117,12 @@ echo "Finished ${FINAL_WASM_PATH}"
 if [[ "${OPEN}" == true ]]; then
   if [[ "$OSTYPE" == "linux-gnu"* ]]; then
     # Linux, ex: Fedora
-    xdg-open http://localhost:8888/index.html
+    xdg-open http://localhost:8765/index.html
   elif [[ "$OSTYPE" == "msys" ]]; then
     # Windows
-    start http://localhost:8888/index.html
+    start http://localhost:8765/index.html
   else
     # Darwin/MacOS, or something else
-    open http://localhost:8888/index.html
+    open http://localhost:8765/index.html
   fi
 fi

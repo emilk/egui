@@ -1,8 +1,8 @@
-use crate::*;
+use crate::{NumExt, Response, Sense, TextStyle, Ui, Widget, WidgetInfo, WidgetText, WidgetType};
 
 /// One out of several alternatives, either selected or not.
 /// Will mark selected items with a different background color.
-/// An alternative to [`RadioButton`] and [`Checkbox`].
+/// An alternative to [`crate::RadioButton`] and [`crate::Checkbox`].
 ///
 /// Usually you'd use [`Ui::selectable_value`] or [`Ui::selectable_label`] instead.
 ///
@@ -21,7 +21,7 @@ use crate::*;
 /// }
 /// # });
 /// ```
-#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+#[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct SelectableLabel {
     selected: bool,
     text: WidgetText,
@@ -50,7 +50,12 @@ impl Widget for SelectableLabel {
         desired_size.y = desired_size.y.at_least(ui.spacing().interact_size.y);
         let (rect, response) = ui.allocate_at_least(desired_size, Sense::click());
         response.widget_info(|| {
-            WidgetInfo::selected(WidgetType::SelectableLabel, selected, galley.text())
+            WidgetInfo::selected(
+                WidgetType::SelectableLabel,
+                ui.is_enabled(),
+                selected,
+                galley.text(),
+            )
         });
 
         if ui.is_rect_visible(response.rect) {
@@ -66,9 +71,10 @@ impl Widget for SelectableLabel {
 
                 ui.painter().rect(
                     rect,
-                    visuals.rounding,
+                    visuals.corner_radius,
                     visuals.weak_bg_fill,
                     visuals.bg_stroke,
+                    epaint::StrokeKind::Inside,
                 );
             }
 

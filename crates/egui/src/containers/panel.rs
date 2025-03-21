@@ -3,7 +3,7 @@
 //! Panels can either be a child of a [`Ui`] (taking up a portion of the parent)
 //! or be top-level (taking up a portion of the whole screen).
 //!
-//! Together with [`Window`] and [`Area`]:s, top-level panels are
+//! Together with [`crate::Window`] and [`crate::Area`]:s, top-level panels are
 //! the only places where you can put you widgets.
 //!
 //! The order in which you add panels matter!
@@ -13,9 +13,18 @@
 //!
 //! ⚠ Always add any [`CentralPanel`] last.
 //!
-//! Add your [`Window`]:s after any top-level panels.
+//! Add your [`crate::Window`]:s after any top-level panels.
 
-use crate::*;
+use emath::GuiRounding as _;
+
+use crate::{
+    lerp, vec2, Align, Context, CursorIcon, Frame, Id, InnerResponse, LayerId, Layout, NumExt,
+    Rangef, Rect, Sense, Stroke, Ui, UiBuilder, UiKind, UiStackInfo, Vec2,
+};
+
+fn animate_expansion(ctx: &Context, id: Id, is_expanded: bool) -> f32 {
+    ctx.animate_bool_responsive(id, is_expanded)
+}
 
 /// State regarding panels.
 #[derive(Clone, Copy, Debug)]
@@ -67,6 +76,13 @@ impl Side {
         match self {
             Self::Left => rect.left(),
             Self::Right => rect.right(),
+        }
+    }
+
+    fn sign(self) -> f32 {
+        match self {
+            Self::Left => -1.0,
+            Self::Right => 1.0,
         }
     }
 }
@@ -131,9 +147,9 @@ impl SidePanel {
     /// If you want your panel to be resizable you also need a widget in it that
     /// takes up more space as you resize it, such as:
     /// * Wrapping text ([`Ui::horizontal_wrapped`]).
-    /// * A [`ScrollArea`].
-    /// * A [`Separator`].
-    /// * A [`TextEdit`].
+    /// * A [`crate::ScrollArea`].
+    /// * A [`crate::Separator`].
+    /// * A [`crate::TextEdit`].
     /// * …
     #[inline]
     pub fn resizable(mut self, resizable: bool) -> Self {
@@ -150,7 +166,7 @@ impl SidePanel {
         self
     }
 
-    /// The initial wrapping width of the [`SidePanel`].
+    /// The initial wrapping width of the [`SidePanel`], including margins.
     #[inline]
     pub fn default_width(mut self, default_width: f32) -> Self {
         self.default_width = default_width;
@@ -161,21 +177,21 @@ impl SidePanel {
         self
     }
 
-    /// Minimum width of the panel.
+    /// Minimum width of the panel, including margins.
     #[inline]
     pub fn min_width(mut self, min_width: f32) -> Self {
         self.width_range = Rangef::new(min_width, self.width_range.max.at_least(min_width));
         self
     }
 
-    /// Maximum width of the panel.
+    /// Maximum width of the panel, including margins.
     #[inline]
     pub fn max_width(mut self, max_width: f32) -> Self {
         self.width_range = Rangef::new(self.width_range.min.at_most(max_width), max_width);
         self
     }
 
-    /// The allowable width range for the panel.
+    /// The allowable width range for the panel, including margins.
     #[inline]
     pub fn width_range(mut self, width_range: impl Into<Rangef>) -> Self {
         let width_range = width_range.into();
@@ -184,7 +200,7 @@ impl SidePanel {
         self
     }
 
-    /// Enforce this exact width.
+    /// Enforce this exact width, including margins.
     #[inline]
     pub fn exact_width(mut self, width: f32) -> Self {
         self.default_width = width;
@@ -228,8 +244,8 @@ impl SidePanel {
 
         let available_rect = ui.available_rect_before_wrap();
         let mut panel_rect = available_rect;
+        let mut width = default_width;
         {
-            let mut width = default_width;
             if let Some(state) = PanelState::load(ui.ctx(), id) {
                 width = state.rect.width();
             }
@@ -249,21 +265,33 @@ impl SidePanel {
 
                 if is_resizing {
                     if let Some(pointer) = resize_response.interact_pointer_pos() {
-                        let width = (pointer.x - side.side_x(panel_rect)).abs();
-                        let width =
-                            clamp_to_range(width, width_range).at_most(available_rect.width());
+                        width = (pointer.x - side.side_x(panel_rect)).abs();
+                        width = clamp_to_range(width, width_range).at_most(available_rect.width());
                         side.set_rect_width(&mut panel_rect, width);
                     }
                 }
             }
         }
 
-        let mut panel_ui = ui.child_ui_with_id_source(panel_rect, Layout::top_down(Align::Min), id);
+        panel_rect = panel_rect.round_ui();
+
+        let mut panel_ui = ui.new_child(
+            UiBuilder::new()
+                .id_salt(id)
+                .ui_stack_info(UiStackInfo::new(match side {
+                    Side::Left => UiKind::LeftPanel,
+                    Side::Right => UiKind::RightPanel,
+                }))
+                .max_rect(panel_rect)
+                .layout(Layout::top_down(Align::Min)),
+        );
         panel_ui.expand_to_include_rect(panel_rect);
+        panel_ui.set_clip_rect(panel_rect); // If we overflow, don't do so visibly (#4475)
+
         let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
         let inner_response = frame.show(&mut panel_ui, |ui| {
             ui.set_min_height(ui.max_rect().height()); // Make sure the frame fills the full height
-            ui.set_min_width(width_range.min);
+            ui.set_min_width((width_range.min - frame.inner_margin.sum().x).at_least(0.0));
             add_contents(ui)
         });
 
@@ -296,7 +324,20 @@ impl SidePanel {
         }
 
         if resize_hover || is_resizing {
-            ui.ctx().set_cursor_icon(CursorIcon::ResizeHorizontal);
+            let cursor_icon = if width <= width_range.min {
+                match self.side {
+                    Side::Left => CursorIcon::ResizeEast,
+                    Side::Right => CursorIcon::ResizeWest,
+                }
+            } else if width < width_range.max {
+                CursorIcon::ResizeHorizontal
+            } else {
+                match self.side {
+                    Side::Left => CursorIcon::ResizeWest,
+                    Side::Right => CursorIcon::ResizeEast,
+                }
+            };
+            ui.ctx().set_cursor_icon(cursor_icon);
         }
 
         PanelState { rect }.store(ui.ctx(), id);
@@ -313,11 +354,11 @@ impl SidePanel {
                 Stroke::NONE
             };
             // TODO(emilk): draw line on top of all panels in this ui when https://github.com/emilk/egui/issues/1516 is done
-            // In the meantime: nudge the line so its inside the panel, so it won't be covered by neighboring panel
-            // (hence the shrink).
-            let resize_x = side.opposite().side_x(rect.shrink(1.0));
-            let resize_x = ui.painter().round_to_pixel(resize_x);
-            ui.painter().vline(resize_x, rect.y_range(), stroke);
+            let resize_x = side.opposite().side_x(rect);
+
+            // Make sure the line is on the inside of the panel:
+            let resize_x = resize_x + 0.5 * side.sign() * stroke.width;
+            ui.painter().vline(resize_x, panel_rect.y_range(), stroke);
         }
 
         inner_response
@@ -338,20 +379,25 @@ impl SidePanel {
         ctx: &Context,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
-        let layer_id = LayerId::background();
         let side = self.side;
         let available_rect = ctx.available_rect();
-        let clip_rect = ctx.screen_rect();
-        let mut panel_ui = Ui::new(ctx.clone(), layer_id, self.id, available_rect, clip_rect);
+        let mut panel_ui = Ui::new(
+            ctx.clone(),
+            self.id,
+            UiBuilder::new()
+                .layer_id(LayerId::background())
+                .max_rect(available_rect),
+        );
+        panel_ui.set_clip_rect(ctx.screen_rect());
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
         let rect = inner_response.response.rect;
 
         match side {
-            Side::Left => ctx.frame_state_mut(|state| {
+            Side::Left => ctx.pass_state_mut(|state| {
                 state.allocate_left_panel(Rect::from_min_max(available_rect.min, rect.max));
             }),
-            Side::Right => ctx.frame_state_mut(|state| {
+            Side::Right => ctx.pass_state_mut(|state| {
                 state.allocate_right_panel(Rect::from_min_max(rect.min, available_rect.max));
             }),
         }
@@ -366,7 +412,7 @@ impl SidePanel {
         is_expanded: bool,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
-        let how_expanded = ctx.animate_bool(self.id.with("animation"), is_expanded);
+        let how_expanded = animate_expansion(ctx, self.id.with("animation"), is_expanded);
 
         if 0.0 == how_expanded {
             None
@@ -399,9 +445,7 @@ impl SidePanel {
         is_expanded: bool,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
-        let how_expanded = ui
-            .ctx()
-            .animate_bool(self.id.with("animation"), is_expanded);
+        let how_expanded = animate_expansion(ui.ctx(), self.id.with("animation"), is_expanded);
 
         if 0.0 == how_expanded {
             None
@@ -434,7 +478,7 @@ impl SidePanel {
         expanded_panel: Self,
         add_contents: impl FnOnce(&mut Ui, f32) -> R,
     ) -> Option<InnerResponse<R>> {
-        let how_expanded = ctx.animate_bool(expanded_panel.id.with("animation"), is_expanded);
+        let how_expanded = animate_expansion(ctx, expanded_panel.id.with("animation"), is_expanded);
 
         if 0.0 == how_expanded {
             Some(collapsed_panel.show(ctx, |ui| add_contents(ui, how_expanded)))
@@ -466,9 +510,8 @@ impl SidePanel {
         expanded_panel: Self,
         add_contents: impl FnOnce(&mut Ui, f32) -> R,
     ) -> InnerResponse<R> {
-        let how_expanded = ui
-            .ctx()
-            .animate_bool(expanded_panel.id.with("animation"), is_expanded);
+        let how_expanded =
+            animate_expansion(ui.ctx(), expanded_panel.id.with("animation"), is_expanded);
 
         if 0.0 == how_expanded {
             collapsed_panel.show_inside(ui, |ui| add_contents(ui, how_expanded))
@@ -520,6 +563,13 @@ impl TopBottomSide {
         match self {
             Self::Top => rect.top(),
             Self::Bottom => rect.bottom(),
+        }
+    }
+
+    fn sign(self) -> f32 {
+        match self {
+            Self::Top => -1.0,
+            Self::Bottom => 1.0,
         }
     }
 }
@@ -584,9 +634,9 @@ impl TopBottomPanel {
     /// If you want your panel to be resizable you also need a widget in it that
     /// takes up more space as you resize it, such as:
     /// * Wrapping text ([`Ui::horizontal_wrapped`]).
-    /// * A [`ScrollArea`].
-    /// * A [`Separator`].
-    /// * A [`TextEdit`].
+    /// * A [`crate::ScrollArea`].
+    /// * A [`crate::Separator`].
+    /// * A [`crate::TextEdit`].
     /// * …
     #[inline]
     pub fn resizable(mut self, resizable: bool) -> Self {
@@ -603,8 +653,8 @@ impl TopBottomPanel {
         self
     }
 
-    /// The initial height of the [`TopBottomPanel`].
-    /// Defaults to [`style::Spacing::interact_size`].y.
+    /// The initial height of the [`TopBottomPanel`], including margins.
+    /// Defaults to [`crate::style::Spacing::interact_size`].y, plus frame margins.
     #[inline]
     pub fn default_height(mut self, default_height: f32) -> Self {
         self.default_height = Some(default_height);
@@ -615,21 +665,21 @@ impl TopBottomPanel {
         self
     }
 
-    /// Minimum height of the panel.
+    /// Minimum height of the panel, including margins.
     #[inline]
     pub fn min_height(mut self, min_height: f32) -> Self {
         self.height_range = Rangef::new(min_height, self.height_range.max.at_least(min_height));
         self
     }
 
-    /// Maximum height of the panel.
+    /// Maximum height of the panel, including margins.
     #[inline]
     pub fn max_height(mut self, max_height: f32) -> Self {
         self.height_range = Rangef::new(self.height_range.min.at_most(max_height), max_height);
         self
     }
 
-    /// The allowable height range for the panel.
+    /// The allowable height range for the panel, including margins.
     #[inline]
     pub fn height_range(mut self, height_range: impl Into<Rangef>) -> Self {
         let height_range = height_range.into();
@@ -640,7 +690,7 @@ impl TopBottomPanel {
         self
     }
 
-    /// Enforce this exact height.
+    /// Enforce this exact height, including margins.
     #[inline]
     pub fn exact_height(mut self, height: f32) -> Self {
         self.default_height = Some(height);
@@ -682,14 +732,18 @@ impl TopBottomPanel {
             height_range,
         } = self;
 
+        let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
+
         let available_rect = ui.available_rect_before_wrap();
         let mut panel_rect = available_rect;
+
+        let mut height = if let Some(state) = PanelState::load(ui.ctx(), id) {
+            state.rect.height()
+        } else {
+            default_height
+                .unwrap_or_else(|| ui.style().spacing.interact_size.y + frame.inner_margin.sum().y)
+        };
         {
-            let mut height = if let Some(state) = PanelState::load(ui.ctx(), id) {
-                state.rect.height()
-            } else {
-                default_height.unwrap_or_else(|| ui.style().spacing.interact_size.y)
-            };
             height = clamp_to_range(height, height_range).at_most(available_rect.height());
             side.set_rect_height(&mut panel_rect, height);
             ui.ctx()
@@ -707,8 +761,8 @@ impl TopBottomPanel {
 
                 if is_resizing {
                     if let Some(pointer) = resize_response.interact_pointer_pos() {
-                        let height = (pointer.y - side.side_y(panel_rect)).abs();
-                        let height =
+                        height = (pointer.y - side.side_y(panel_rect)).abs();
+                        height =
                             clamp_to_range(height, height_range).at_most(available_rect.height());
                         side.set_rect_height(&mut panel_rect, height);
                     }
@@ -716,12 +770,24 @@ impl TopBottomPanel {
             }
         }
 
-        let mut panel_ui = ui.child_ui_with_id_source(panel_rect, Layout::top_down(Align::Min), id);
+        panel_rect = panel_rect.round_ui();
+
+        let mut panel_ui = ui.new_child(
+            UiBuilder::new()
+                .id_salt(id)
+                .ui_stack_info(UiStackInfo::new(match side {
+                    TopBottomSide::Top => UiKind::TopPanel,
+                    TopBottomSide::Bottom => UiKind::BottomPanel,
+                }))
+                .max_rect(panel_rect)
+                .layout(Layout::top_down(Align::Min)),
+        );
         panel_ui.expand_to_include_rect(panel_rect);
-        let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
+        panel_ui.set_clip_rect(panel_rect); // If we overflow, don't do so visibly (#4475)
+
         let inner_response = frame.show(&mut panel_ui, |ui| {
             ui.set_min_width(ui.max_rect().width()); // Make the frame fill full width
-            ui.set_min_height(height_range.min);
+            ui.set_min_height((height_range.min - frame.inner_margin.sum().y).at_least(0.0));
             add_contents(ui)
         });
 
@@ -755,7 +821,20 @@ impl TopBottomPanel {
         }
 
         if resize_hover || is_resizing {
-            ui.ctx().set_cursor_icon(CursorIcon::ResizeVertical);
+            let cursor_icon = if height <= height_range.min {
+                match self.side {
+                    TopBottomSide::Top => CursorIcon::ResizeSouth,
+                    TopBottomSide::Bottom => CursorIcon::ResizeNorth,
+                }
+            } else if height < height_range.max {
+                CursorIcon::ResizeVertical
+            } else {
+                match self.side {
+                    TopBottomSide::Top => CursorIcon::ResizeNorth,
+                    TopBottomSide::Bottom => CursorIcon::ResizeSouth,
+                }
+            };
+            ui.ctx().set_cursor_icon(cursor_icon);
         }
 
         PanelState { rect }.store(ui.ctx(), id);
@@ -772,11 +851,11 @@ impl TopBottomPanel {
                 Stroke::NONE
             };
             // TODO(emilk): draw line on top of all panels in this ui when https://github.com/emilk/egui/issues/1516 is done
-            // In the meantime: nudge the line so its inside the panel, so it won't be covered by neighboring panel
-            // (hence the shrink).
-            let resize_y = side.opposite().side_y(rect.shrink(1.0));
-            let resize_y = ui.painter().round_to_pixel(resize_y);
-            ui.painter().hline(rect.x_range(), resize_y, stroke);
+            let resize_y = side.opposite().side_y(rect);
+
+            // Make sure the line is on the inside of the panel:
+            let resize_y = resize_y + 0.5 * side.sign() * stroke.width;
+            ui.painter().hline(panel_rect.x_range(), resize_y, stroke);
         }
 
         inner_response
@@ -797,24 +876,29 @@ impl TopBottomPanel {
         ctx: &Context,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
-        let layer_id = LayerId::background();
         let available_rect = ctx.available_rect();
         let side = self.side;
 
-        let clip_rect = ctx.screen_rect();
-        let mut panel_ui = Ui::new(ctx.clone(), layer_id, self.id, available_rect, clip_rect);
+        let mut panel_ui = Ui::new(
+            ctx.clone(),
+            self.id,
+            UiBuilder::new()
+                .layer_id(LayerId::background())
+                .max_rect(available_rect),
+        );
+        panel_ui.set_clip_rect(ctx.screen_rect());
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
         let rect = inner_response.response.rect;
 
         match side {
             TopBottomSide::Top => {
-                ctx.frame_state_mut(|state| {
+                ctx.pass_state_mut(|state| {
                     state.allocate_top_panel(Rect::from_min_max(available_rect.min, rect.max));
                 });
             }
             TopBottomSide::Bottom => {
-                ctx.frame_state_mut(|state| {
+                ctx.pass_state_mut(|state| {
                     state.allocate_bottom_panel(Rect::from_min_max(rect.min, available_rect.max));
                 });
             }
@@ -831,7 +915,7 @@ impl TopBottomPanel {
         is_expanded: bool,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
-        let how_expanded = ctx.animate_bool(self.id.with("animation"), is_expanded);
+        let how_expanded = animate_expansion(ctx, self.id.with("animation"), is_expanded);
 
         if 0.0 == how_expanded {
             None
@@ -866,9 +950,7 @@ impl TopBottomPanel {
         is_expanded: bool,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
-        let how_expanded = ui
-            .ctx()
-            .animate_bool(self.id.with("animation"), is_expanded);
+        let how_expanded = animate_expansion(ui.ctx(), self.id.with("animation"), is_expanded);
 
         if 0.0 == how_expanded {
             None
@@ -903,7 +985,7 @@ impl TopBottomPanel {
         expanded_panel: Self,
         add_contents: impl FnOnce(&mut Ui, f32) -> R,
     ) -> Option<InnerResponse<R>> {
-        let how_expanded = ctx.animate_bool(expanded_panel.id.with("animation"), is_expanded);
+        let how_expanded = animate_expansion(ctx, expanded_panel.id.with("animation"), is_expanded);
 
         if 0.0 == how_expanded {
             Some(collapsed_panel.show(ctx, |ui| add_contents(ui, how_expanded)))
@@ -941,9 +1023,8 @@ impl TopBottomPanel {
         expanded_panel: Self,
         add_contents: impl FnOnce(&mut Ui, f32) -> R,
     ) -> InnerResponse<R> {
-        let how_expanded = ui
-            .ctx()
-            .animate_bool(expanded_panel.id.with("animation"), is_expanded);
+        let how_expanded =
+            animate_expansion(ui.ctx(), expanded_panel.id.with("animation"), is_expanded);
 
         if 0.0 == how_expanded {
             collapsed_panel.show_inside(ui, |ui| add_contents(ui, how_expanded))
@@ -983,7 +1064,7 @@ impl TopBottomPanel {
 ///
 /// ⚠ [`CentralPanel`] must be added after all other panels!
 ///
-/// NOTE: Any [`Window`]s and [`Area`]s will cover the top-level [`CentralPanel`].
+/// NOTE: Any [`crate::Window`]s and [`crate::Area`]s will cover the top-level [`CentralPanel`].
 ///
 /// See the [module level docs](crate::containers::panel) for more details.
 ///
@@ -1031,7 +1112,13 @@ impl CentralPanel {
         let Self { frame } = self;
 
         let panel_rect = ui.available_rect_before_wrap();
-        let mut panel_ui = ui.child_ui(panel_rect, Layout::top_down(Align::Min));
+        let mut panel_ui = ui.new_child(
+            UiBuilder::new()
+                .ui_stack_info(UiStackInfo::new(UiKind::CentralPanel))
+                .max_rect(panel_rect)
+                .layout(Layout::top_down(Align::Min)),
+        );
+        panel_ui.set_clip_rect(panel_rect); // If we overflow, don't do so visibly (#4475)
 
         let frame = frame.unwrap_or_else(|| Frame::central_panel(ui.style()));
         frame.show(&mut panel_ui, |ui| {
@@ -1055,17 +1142,21 @@ impl CentralPanel {
         ctx: &Context,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
-        let available_rect = ctx.available_rect();
-        let layer_id = LayerId::background();
         let id = Id::new((ctx.viewport_id(), "central_panel"));
 
-        let clip_rect = ctx.screen_rect();
-        let mut panel_ui = Ui::new(ctx.clone(), layer_id, id, available_rect, clip_rect);
+        let mut panel_ui = Ui::new(
+            ctx.clone(),
+            id,
+            UiBuilder::new()
+                .layer_id(LayerId::background())
+                .max_rect(ctx.available_rect().round_ui()),
+        );
+        panel_ui.set_clip_rect(ctx.screen_rect());
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
 
         // Only inform ctx about what we actually used, so we can shrink the native window to fit.
-        ctx.frame_state_mut(|state| state.allocate_central_panel(inner_response.response.rect));
+        ctx.pass_state_mut(|state| state.allocate_central_panel(inner_response.response.rect));
 
         inner_response
     }

@@ -1,16 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
+#![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
 use eframe::egui;
 
-fn main() -> Result<(), eframe::Error> {
+fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
-
-    if cfg!(target_os = "macos") {
-        eprintln!(
-            "This example does not work on Mac! See https://github.com/emilk/egui/issues/1918"
-        );
-        return Ok(());
-    }
 
     let options = eframe::NativeOptions {
         run_and_return: true,
@@ -18,29 +12,29 @@ fn main() -> Result<(), eframe::Error> {
         ..Default::default()
     };
 
-    eprintln!("Starting first window…");
+    log::info!("Starting first window…");
     eframe::run_native(
         "First Window",
         options.clone(),
-        Box::new(|_cc| Box::new(MyApp { has_next: true })),
+        Box::new(|_cc| Ok(Box::new(MyApp { has_next: true }))),
     )?;
 
     std::thread::sleep(std::time::Duration::from_secs(2));
 
-    eprintln!("Starting second window…");
+    log::info!("Starting second window…");
     eframe::run_native(
         "Second Window",
         options.clone(),
-        Box::new(|_cc| Box::new(MyApp { has_next: true })),
+        Box::new(|_cc| Ok(Box::new(MyApp { has_next: true }))),
     )?;
 
     std::thread::sleep(std::time::Duration::from_secs(2));
 
-    eprintln!("Starting third window…");
+    log::info!("Starting third window…");
     eframe::run_native(
         "Third Window",
         options,
-        Box::new(|_cc| Box::new(MyApp { has_next: false })),
+        Box::new(|_cc| Ok(Box::new(MyApp { has_next: false }))),
     )
 }
 
@@ -58,12 +52,8 @@ impl eframe::App for MyApp {
             };
             ui.label(label_text);
 
-            if ctx.os() == egui::os::OperatingSystem::Mac {
-                ui.label("This example doesn't work on Mac!");
-            }
-
             if ui.button("Close").clicked() {
-                eprintln!("Pressed Close button");
+                log::info!("Pressed Close button");
                 ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
             }
         });

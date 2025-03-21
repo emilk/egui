@@ -13,6 +13,8 @@ pub struct WindowSettings {
 
     fullscreen: bool,
 
+    maximized: bool,
+
     /// Inner size of window in logical pixels
     inner_size_points: Option<egui::Vec2>,
 }
@@ -38,6 +40,7 @@ impl WindowSettings {
             outer_position_pixels,
 
             fullscreen: window.fullscreen().is_some(),
+            maximized: window.is_maximized(),
 
             inner_size_points: Some(egui::vec2(
                 inner_size_points.width,
@@ -52,9 +55,11 @@ impl WindowSettings {
 
     pub fn initialize_viewport_builder(
         &self,
+        egui_zoom_factor: f32,
+        event_loop: &winit::event_loop::ActiveEventLoop,
         mut viewport_builder: ViewportBuilder,
     ) -> ViewportBuilder {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         // `WindowBuilder::with_position` expects inner position in Macos, and outer position elsewhere
         // See [`winit::window::WindowBuilder::with_position`] for details.
@@ -64,13 +69,22 @@ impl WindowSettings {
             self.outer_position_pixels
         };
         if let Some(pos) = pos_px {
-            viewport_builder = viewport_builder.with_position(pos);
+            let monitor_scale_factor = if let Some(inner_size_points) = self.inner_size_points {
+                find_active_monitor(egui_zoom_factor, event_loop, inner_size_points, &pos)
+                    .map_or(1.0, |monitor| monitor.scale_factor() as f32)
+            } else {
+                1.0
+            };
+
+            let scaled_pos = pos / (egui_zoom_factor * monitor_scale_factor);
+            viewport_builder = viewport_builder.with_position(scaled_pos);
         }
 
         if let Some(inner_size_points) = self.inner_size_points {
             viewport_builder = viewport_builder
                 .with_inner_size(inner_size_points)
-                .with_fullscreen(self.fullscreen);
+                .with_fullscreen(self.fullscreen)
+                .with_maximized(self.maximized);
         }
 
         viewport_builder
@@ -100,10 +114,10 @@ impl WindowSettings {
         }
     }
 
-    pub fn clamp_position_to_monitors<E>(
+    pub fn clamp_position_to_monitors(
         &mut self,
         egui_zoom_factor: f32,
-        event_loop: &winit::event_loop::EventLoopWindowTarget<E>,
+        event_loop: &winit::event_loop::ActiveEventLoop,
     ) {
         // If the app last ran on two monitors and only one is now connected, then
         // the given position is invalid.
@@ -127,14 +141,13 @@ impl WindowSettings {
     }
 }
 
-fn clamp_pos_to_monitors<E>(
+fn find_active_monitor(
     egui_zoom_factor: f32,
-    event_loop: &winit::event_loop::EventLoopWindowTarget<E>,
+    event_loop: &winit::event_loop::ActiveEventLoop,
     window_size_pts: egui::Vec2,
-    position_px: &mut egui::Pos2,
-) {
-    crate::profile_function!();
-
+    position_px: &egui::Pos2,
+) -> Option<winit::monitor::MonitorHandle> {
+    profiling::function_scope!();
     let monitors = event_loop.available_monitors();
 
     // default to primary monitor, in case the correct monitor was disconnected.
@@ -142,7 +155,7 @@ fn clamp_pos_to_monitors<E>(
         .primary_monitor()
         .or_else(|| event_loop.available_monitors().next())
     else {
-        return; // no monitors 🤷
+        return None; // no monitors 🤷
     };
 
     for monitor in monitors {
@@ -158,6 +171,23 @@ fn clamp_pos_to_monitors<E>(
             active_monitor = monitor;
         }
     }
+
+    Some(active_monitor)
+}
+
+fn clamp_pos_to_monitors(
+    egui_zoom_factor: f32,
+    event_loop: &winit::event_loop::ActiveEventLoop,
+    window_size_pts: egui::Vec2,
+    position_px: &mut egui::Pos2,
+) {
+    profiling::function_scope!();
+
+    let Some(active_monitor) =
+        find_active_monitor(egui_zoom_factor, event_loop, window_size_pts, position_px)
+    else {
+        return; // no monitors 🤷
+    };
 
     let mut window_size_px =
         window_size_pts * (egui_zoom_factor * active_monitor.scale_factor() as f32);

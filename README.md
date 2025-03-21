@@ -11,7 +11,7 @@
 
 
 <div align="center">
-<a href="https://www.rerun.io/"><img src="media/rerun_io_logo.png" width="250"></a>
+<a href="https://www.rerun.io/"><img src="https://github.com/user-attachments/assets/78e79463-4357-461b-bbd1-31aa5ef5e1a2" width="250"></a>
 
 egui development is sponsored by [Rerun](https://www.rerun.io/), a startup building<br>
 an SDK for visualizing streams of multimodal data.
@@ -46,7 +46,7 @@ ui.label(format!("Hello '{name}', age {age}"));
 ui.image(egui::include_image!("ferris.png"));
 ```
 
-<img alt="Dark mode" src="media/demo.gif"> &nbsp; &nbsp; <img alt="Light mode" src="media/demo_light_mode.png" height="278">
+<img alt="Dark mode" src="https://github.com/user-attachments/assets/3b446d29-99d8-4c82-86bb-4d8ef0516017"> &nbsp; &nbsp; <img alt="Light mode" src="https://github.com/user-attachments/assets/a5e7da93-89a8-4ba0-86b8-0fa2228a4f62" height="278">
 
 ## Sections:
 
@@ -98,8 +98,7 @@ On Fedora Rawhide you need to run:
 * Portable: the same code works on the web and as a native app
 * Easy to integrate into any environment
 * A simple 2D graphics API for custom painting ([`epaint`](https://docs.rs/epaint)).
-* No callbacks
-* Pure immediate mode
+* Pure immediate mode: no callbacks
 * Extensible: [easy to write your own widgets for egui](https://github.com/emilk/egui/blob/master/crates/egui_demo_lib/src/demo/toggle_switch.rs)
 * Modular: You should be able to use small parts of egui and combine them in new ways
 * Safe: there is no `unsafe` code in egui
@@ -113,7 +112,6 @@ egui is *not* a framework. egui is a library you call into, not an environment y
 
 * Become the most powerful GUI library
 * Native looking interface
-* Advanced and flexible layouts (that's fundamentally incompatible with immediate mode)
 
 ## State
 
@@ -135,23 +133,26 @@ Still, egui can be used to create professional looking applications, like [the R
 * Label text selection
 * And more!
 
-<img src="media/widget_gallery_0.23.gif" width="50%">
+Check out the [3rd party egui crates wiki](https://github.com/emilk/egui/wiki/3rd-party-egui-crates) for even more
+widgets and features, maintained by the community.
+
+<img src="https://github.com/user-attachments/assets/13e73b76-e456-42bd-8ec9-220802834268" width="50%">
 
 Light Theme:
 
-<img src="media/widget_gallery_0.23_light.png" width="50%">
-
+<img src="https://github.com/user-attachments/assets/2e38972c-a444-4894-b32f-47a2719cf369" width="50%">
 
 ## Dependencies
 `egui` has a minimal set of default dependencies:
 
 * [`ab_glyph`](https://crates.io/crates/ab_glyph)
 * [`ahash`](https://crates.io/crates/ahash)
+* [`bitflags`](https://crates.io/crates/bitflags)
 * [`nohash-hasher`](https://crates.io/crates/nohash-hasher)
 * [`parking_lot`](https://crates.io/crates/parking_lot)
 
 Heavier dependencies are kept out of `egui`, even as opt-in.
-No code that isn't fully Wasm-friendly is part of `egui`.
+All code in `egui` is Wasm-friendly (even outside a browser).
 
 To load images into `egui` you can use the official [`egui_extras`](https://github.com/emilk/egui/tree/master/crates/egui_extras) crate.
 
@@ -189,30 +190,8 @@ These are the official egui integrations:
 
 ### 3rd party integrations
 
-* [`amethyst_egui`](https://github.com/jgraef/amethyst_egui) for [the Amethyst game engine](https://amethyst.rs/)
-* [`egui-ash`](https://github.com/MatchaChoco010/egui-ash) for [`ash`](https://github.com/ash-rs/ash) (a very lightweight wrapper around Vulkan)
-* [`bevy_egui`](https://github.com/mvlabat/bevy_egui) for [the Bevy game engine](https://bevyengine.org/)
-* [`egui_gl_glfw`](https://github.com/mrclean71774/egui_gl_glfw) for [GLFW](https://crates.io/crates/glfw)
-* [`egui_glium`](https://github.com/fayalalebrun/egui_glium) for compiling native apps with [Glium](https://github.com/glium/glium)
-* [`egui-glutin-gl`](https://github.com/h3r2tic/egui-glutin-gl/) for [glutin](https://crates.io/crates/glutin)
-* [`egui_sdl2_gl`](https://crates.io/crates/egui_sdl2_gl) for [SDL2](https://crates.io/crates/sdl2)
-* [`egui_sdl2_platform`](https://github.com/ComLarsic/egui_sdl2_platform) for [SDL2](https://crates.io/crates/sdl2)
-* [`egui_vulkano`](https://github.com/derivator/egui_vulkano) for [Vulkano](https://github.com/vulkano-rs/vulkano)
-* [`egui_winit_vulkano`](https://github.com/hakolao/egui_winit_vulkano) for [Vulkano](https://github.com/vulkano-rs/vulkano)
-* [`egui-macroquad`](https://github.com/optozorax/egui-macroquad) for [macroquad](https://github.com/not-fl3/macroquad)
-* [`egui-miniquad`](https://github.com/not-fl3/egui-miniquad) for [Miniquad](https://github.com/not-fl3/miniquad)
-* [`egui_speedy2d`](https://github.com/heretik31/egui_speedy2d) for [Speedy2d](https://github.com/QuantumBadger/Speedy2D)
-* [`egui-tetra`](https://crates.io/crates/egui-tetra) for [Tetra](https://crates.io/crates/tetra), a 2D game framework
-* [`egui-winit-ash-integration`](https://github.com/MatchaChoco010/egui-winit-ash-integration) for [winit](https://github.com/rust-windowing/winit) and [ash](https://github.com/MaikKlein/ash)
-* [`fltk-egui`](https://crates.io/crates/fltk-egui) for [fltk-rs](https://github.com/fltk-rs/fltk-rs)
-* [`ggegui`](https://github.com/NemuiSen/ggegui) for the [ggez](https://ggez.rs/) game framework
-* [`godot-egui`](https://github.com/setzer22/godot-egui) for [godot-rust](https://github.com/godot-rust/godot-rust)
-* [`nannou_egui`](https://github.com/nannou-org/nannou/tree/master/nannou_egui) for [nannou](https://nannou.cc)
-* [`notan_egui`](https://github.com/Nazariglez/notan/tree/main/crates/notan_egui) for [notan](https://github.com/Nazariglez/notan)
-* [`screen-13-egui`](https://github.com/attackgoat/screen-13/tree/master/contrib/screen-13-egui) for [Screen 13](https://github.com/attackgoat/screen-13)
-* [`egui_skia`](https://github.com/lucasmerlin/egui_skia) for [skia](https://github.com/rust-skia/rust-skia/tree/master/skia-safe)
-* [`smithay-egui`](https://github.com/Smithay/smithay-egui) for [smithay](https://github.com/Smithay/smithay/)
-* [`tauri-egui`](https://github.com/tauri-apps/tauri-egui) for [tauri](https://github.com/tauri-apps/tauri)
+Check the wiki to find [3rd party integrations](https://github.com/emilk/egui/wiki/3rd-party-integrations)
+and [egui crates](https://github.com/emilk/egui/wiki/3rd-party-egui-crates).
 
 ### Writing your own egui integration
 Missing an integration for the thing you're working on? Create one, it's easy!
@@ -251,9 +230,12 @@ This is a fundamental shortcoming of immediate mode GUIs, and any attempt to res
 
 One workaround is to store the size and use it the next frame. This produces a frame-delay for the correct layout, producing occasional flickering the first frame something shows up. `egui` does this for some things such as windows and grid layouts.
 
-You can also call the layout code twice (once to get the size, once to do the interaction), but that is not only more expensive, it's also complex to implement, and in some cases twice is not enough. `egui` never does this.
+The "first-frame jitter" can be covered up with an extra _pass_, which egui supports via `Context::request_discard`.
+The downside of this is the added CPU cost of a second pass, so egui only does this in very rare circumstances (the majority of frames are single-pass).
 
 For "atomic" widgets (e.g. a button) `egui` knows the size before showing it, so centering buttons, labels etc is possible in `egui` without any special workarounds.
+
+See [this issue](https://github.com/emilk/egui/issues/4378) for more.
 
 #### CPU usage
 Since an immediate mode GUI does a full layout each frame, the layout code needs to be quick. If you have a very complex GUI this can tax the CPU. In particular, having a very large UI in a scroll area (with very long scrollback) can be slow, as the content needs to be laid out each frame.
@@ -285,7 +267,7 @@ This is not yet as powerful as say CSS, [but this is going to improve](https://g
 
 Here is an example (from https://github.com/a-liashenko/TinyPomodoro):
 
-<img src="media/pompodoro-skin.png" width="50%">
+<img src="https://github.com/user-attachments/assets/e6107237-2547-41d6-996b-9a20ae0345ab" width="50%">
 
 ### How do I use egui with `async`?
 If you call `.await` in your GUI code, the UI will freeze, which is very bad UX. Instead, keep the GUI thread non-blocking and communicate with any concurrent tasks (`async` tasks or other threads) with something like:
@@ -295,7 +277,7 @@ If you call `.await` in your GUI code, the UI will freeze, which is very bad UX.
 * [`eventuals::Eventual`](https://docs.rs/eventuals/latest/eventuals/struct.Eventual.html)
 * [`tokio::sync::watch::channel`](https://docs.rs/tokio/latest/tokio/sync/watch/fn.channel.html)
 
-### How to I create a file dialog?
+### How do I create a file dialog?
 
 The async version of [rfd](https://docs.rs/rfd/latest/rfd/) supports both native and Wasm. See example app here https://github.com/woelper/egui_pick_file which also has a demo available via [gitub pages](https://woelper.github.io/egui_pick_file/).
 
@@ -393,7 +375,7 @@ Default fonts:
 ---
 
 <div align="center">
-<a href="https://www.rerun.io/"><img src="media/rerun_io_logo.png" width="440"></a>
+<a href="https://www.rerun.io/"><img src="https://github.com/user-attachments/assets/78e79463-4357-461b-bbd1-31aa5ef5e1a2" width="440"></a>
 
 egui development is sponsored by [Rerun](https://www.rerun.io/), a startup building<br>
 an SDK for visualizing streams of multimodal data.

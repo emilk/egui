@@ -2,7 +2,10 @@
 
 use epaint::ColorImage;
 
-use crate::{emath::*, Key, ViewportId, ViewportIdMap};
+use crate::{
+    emath::{Pos2, Rect, Vec2},
+    Key, Theme, ViewportId, ViewportIdMap,
+};
 
 /// What the integrations provides to egui at the start of each frame.
 ///
@@ -65,14 +68,19 @@ pub struct RawInput {
 
     /// Dragged files dropped into egui.
     ///
-    /// Note: when using `eframe` on Windows you need to enable
-    /// drag-and-drop support using `eframe::NativeOptions`.
+    /// Note: when using `eframe` on Windows, this will always be empty if drag-and-drop support has
+    /// been disabled in [`crate::viewport::ViewportBuilder`].
     pub dropped_files: Vec<DroppedFile>,
 
     /// The native window has the keyboard focus (i.e. is receiving key presses).
     ///
     /// False when the user alt-tab away from the application, for instance.
     pub focused: bool,
+
+    /// Does the OS use dark or light mode?
+    ///
+    /// `None` means "don't know".
+    pub system_theme: Option<Theme>,
 }
 
 impl Default for RawInput {
@@ -89,6 +97,7 @@ impl Default for RawInput {
             hovered_files: Default::default(),
             dropped_files: Default::default(),
             focused: true, // integrations opt into global focus tracking
+            system_theme: None,
         }
     }
 }
@@ -107,16 +116,21 @@ impl RawInput {
     pub fn take(&mut self) -> Self {
         Self {
             viewport_id: self.viewport_id,
-            viewports: self.viewports.clone(),
+            viewports: self
+                .viewports
+                .iter_mut()
+                .map(|(id, info)| (*id, info.take()))
+                .collect(),
             screen_rect: self.screen_rect.take(),
             max_texture_side: self.max_texture_side.take(),
-            time: self.time.take(),
+            time: self.time,
             predicted_dt: self.predicted_dt,
             modifiers: self.modifiers,
             events: std::mem::take(&mut self.events),
             hovered_files: self.hovered_files.clone(),
             dropped_files: std::mem::take(&mut self.dropped_files),
             focused: self.focused,
+            system_theme: self.system_theme,
         }
     }
 
@@ -134,6 +148,7 @@ impl RawInput {
             mut hovered_files,
             mut dropped_files,
             focused,
+            system_theme,
         } = newer;
 
         self.viewport_id = viewport_ids;
@@ -147,6 +162,7 @@ impl RawInput {
         self.hovered_files.append(&mut hovered_files);
         self.dropped_files.append(&mut dropped_files);
         self.focused = focused;
+        self.system_theme = system_theme;
     }
 }
 
@@ -189,7 +205,7 @@ pub struct ViewportInfo {
     /// This should always be set, if known.
     ///
     /// On web this takes browser scaling into account,
-    /// and orresponds to [`window.devicePixelRatio`](https://developer.mozilla.org/en-US/docs/Web/API/Window/devicePixelRatio) in JavaScript.
+    /// and corresponds to [`window.devicePixelRatio`](https://developer.mozilla.org/en-US/docs/Web/API/Window/devicePixelRatio) in JavaScript.
     pub native_pixels_per_point: Option<f32>,
 
     /// Current monitor size in egui points.
@@ -198,11 +214,21 @@ pub struct ViewportInfo {
     /// The inner rectangle of the native window, in monitor space and ui points scale.
     ///
     /// This is the content rectangle of the viewport.
+    ///
+    /// **`eframe` notes**:
+    ///
+    /// On Android / Wayland, this will always be `None` since getting the
+    /// position of the window is not possible.
     pub inner_rect: Option<Rect>,
 
     /// The outer rectangle of the native window, in monitor space and ui points scale.
     ///
     /// This is the content rectangle plus decoration chrome.
+    ///
+    /// **`eframe` notes**:
+    ///
+    /// On Android / Wayland, this will always be `None` since getting the
+    /// position of the window is not possible.
     pub outer_rect: Option<Rect>,
 
     /// Are we minimized?
@@ -233,6 +259,23 @@ impl ViewportInfo {
         self.events
             .iter()
             .any(|&event| event == ViewportEvent::Close)
+    }
+
+    /// Helper: move [`Self::events`], clone the other fields.
+    pub fn take(&mut self) -> Self {
+        Self {
+            parent: self.parent,
+            title: self.title.clone(),
+            events: std::mem::take(&mut self.events),
+            native_pixels_per_point: self.native_pixels_per_point,
+            monitor_size: self.monitor_size,
+            inner_rect: self.inner_rect,
+            outer_rect: self.outer_rect,
+            minimized: self.minimized,
+            maximized: self.maximized,
+            fullscreen: self.fullscreen,
+            focused: self.focused,
+        }
     }
 
     pub fn ui(&self, ui: &mut crate::Ui) {
@@ -361,10 +404,12 @@ pub enum Event {
 
     /// A key was pressed or released.
     Key {
-        /// The logical key, heeding the users keymap.
+        /// Most of the time, it's the logical key, heeding the active keymap -- for instance, if the user has Dvorak
+        /// keyboard layout, it will be taken into account.
         ///
-        /// For instance, if the user is using Dvorak keyboard layout,
-        /// this will take that into account.
+        /// If it's impossible to determine the logical key on desktop platforms (say, in case of non-Latin letters),
+        /// `key` falls back to the value of the corresponding physical key. This is necessary for proper work of
+        /// standard shortcuts that only respond to Latin-based bindings (such as `Ctrl` + `V`).
         key: Key,
 
         /// The physical key, corresponding to the actual position on the keyboard.
@@ -424,35 +469,20 @@ pub enum Event {
     /// On touch-up first send `PointerButton{pressed: false, …}` followed by `PointerLeft`.
     PointerGone,
 
-    /// How many points (logical pixels) the user scrolled.
+    /// Zoom scale factor this frame (e.g. from a pinch gesture).
     ///
-    /// The direction of the vector indicates how to move the _content_ that is being viewed.
-    /// So if you get positive values, the content being viewed should move to the right and down,
-    /// revealing new things to the left and up.
-    ///
-    /// A positive X-value indicates the content is being moved right,
-    /// as when swiping right on a touch-screen or track-pad with natural scrolling.
-    ///
-    /// A positive Y-value indicates the content is being moved down,
-    /// as when swiping down on a touch-screen or track-pad with natural scrolling.
-    ///
-    /// Shift-scroll should result in horizontal scrolling (it is up to the integrations to do this).
-    Scroll(Vec2),
-
-    /// Zoom scale factor this frame (e.g. from ctrl-scroll or pinch gesture).
     /// * `zoom = 1`: no change.
     /// * `zoom < 1`: pinch together
     /// * `zoom > 1`: pinch spread
+    ///
+    /// Note that egui also implement zooming by holding `Ctrl` and scrolling the mouse wheel,
+    /// so integration need NOT emit this `Zoom` event in those cases, just [`Self::MouseWheel`].
+    ///
+    /// As a user, check [`crate::InputState::smooth_scroll_delta`] to see if the user did any zooming this frame.
     Zoom(f32),
 
-    /// IME composition start.
-    CompositionStart,
-
-    /// A new IME candidate is being suggested.
-    CompositionUpdate(String),
-
-    /// IME composition ended with this final result.
-    CompositionEnd(String),
+    /// IME Event
+    Ime(ImeEvent),
 
     /// On touch screens, report this *in addition to*
     /// [`Self::PointerMoved`], [`Self::PointerButton`], [`Self::PointerGone`]
@@ -477,16 +507,22 @@ pub enum Event {
         force: Option<f32>,
     },
 
-    /// A raw mouse wheel event as sent by the backend (minus the z coordinate),
-    /// for implementing alternative custom controls.
-    /// Note that the same event can also trigger [`Self::Zoom`] and [`Self::Scroll`],
-    /// so you probably want to handle only one of them.
+    /// A raw mouse wheel event as sent by the backend.
+    ///
+    /// Used for scrolling.
     MouseWheel {
-        /// The unit of scrolling: points, lines, or pages.
+        /// The unit of `delta`: points, lines, or pages.
         unit: MouseWheelUnit,
 
-        /// The amount scrolled horizontally and vertically. The amount and direction corresponding
-        /// to one step of the wheel depends on the platform.
+        /// The direction of the vector indicates how to move the _content_ that is being viewed.
+        /// So if you get positive values, the content being viewed should move to the right and down,
+        /// revealing new things to the left and up.
+        ///
+        /// A positive X-value indicates the content is being moved right,
+        /// as when swiping right on a touch-screen or track-pad with natural scrolling.
+        ///
+        /// A positive Y-value indicates the content is being moved down,
+        /// as when swiping down on a touch-screen or track-pad with natural scrolling.
         delta: Vec2,
 
         /// The state of the modifier keys at the time of the event.
@@ -503,8 +539,31 @@ pub enum Event {
     /// The reply of a screenshot requested with [`crate::ViewportCommand::Screenshot`].
     Screenshot {
         viewport_id: crate::ViewportId,
+
+        /// Whatever was passed to [`crate::ViewportCommand::Screenshot`].
+        user_data: crate::UserData,
+
         image: std::sync::Arc<ColorImage>,
     },
+}
+
+/// IME event.
+///
+/// See <https://docs.rs/winit/latest/winit/event/enum.Ime.html>
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum ImeEvent {
+    /// Notifies when the IME was enabled.
+    Enabled,
+
+    /// A new IME candidate is being suggested.
+    Preedit(String),
+
+    /// IME composition ended with this final result.
+    Commit(String),
+
+    /// Notifies when the IME was disabled.
+    Disabled,
 }
 
 /// Mouse button (or similar for touch input)
@@ -538,7 +597,7 @@ pub const NUM_POINTER_BUTTONS: usize = 5;
 /// NOTE: For cross-platform uses, ALT+SHIFT is a bad combination of modifiers
 /// as on mac that is how you type special characters,
 /// so those key presses are usually not reported to egui.
-#[derive(Clone, Copy, Debug, Default, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Default, Hash, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Modifiers {
     /// Either of the alt keys are down (option ⌥ on Mac).
@@ -559,6 +618,40 @@ pub struct Modifiers {
     /// This is so that egui can, for instance, select all text by checking for `command + A`
     /// and it will work on both Mac and Windows.
     pub command: bool,
+}
+
+impl std::fmt::Debug for Modifiers {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.is_none() {
+            return write!(f, "Modifiers::NONE");
+        }
+
+        let Self {
+            alt,
+            ctrl,
+            shift,
+            mac_cmd,
+            command,
+        } = *self;
+
+        let mut debug = f.debug_struct("Modifiers");
+        if alt {
+            debug.field("alt", &true);
+        }
+        if ctrl {
+            debug.field("ctrl", &true);
+        }
+        if shift {
+            debug.field("shift", &true);
+        }
+        if mac_cmd {
+            debug.field("mac_cmd", &true);
+        }
+        if command {
+            debug.field("command", &true);
+        }
+        debug.finish()
+    }
 }
 
 impl Modifiers {
@@ -664,7 +757,7 @@ impl Modifiers {
     }
 
     /// Checks that the `ctrl/cmd` matches, and that the `shift/alt` of the argument is a subset
-    /// of the pressed ksey (`self`).
+    /// of the pressed key (`self`).
     ///
     /// This means that if the pattern has not set `shift`, then `self` can have `shift` set or not.
     ///
@@ -860,6 +953,13 @@ impl std::ops::BitOr for Modifiers {
     }
 }
 
+impl std::ops::BitOrAssign for Modifiers {
+    #[inline]
+    fn bitor_assign(&mut self, rhs: Self) {
+        *self = *self | rhs;
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// Names of different modifier keys.
@@ -903,7 +1003,7 @@ impl ModifierNames<'static> {
     };
 }
 
-impl<'a> ModifierNames<'a> {
+impl ModifierNames<'_> {
     pub fn format(&self, modifiers: &Modifiers, is_mac: bool) -> String {
         let mut s = String::new();
 
@@ -998,9 +1098,10 @@ impl RawInput {
             hovered_files,
             dropped_files,
             focused,
+            system_theme,
         } = self;
 
-        ui.label(format!("Active viwport: {viewport_id:?}"));
+        ui.label(format!("Active viewport: {viewport_id:?}"));
         for (id, viewport) in viewports {
             ui.group(|ui| {
                 ui.label(format!("Viewport {id:?}"));
@@ -1022,6 +1123,7 @@ impl RawInput {
         ui.label(format!("hovered_files: {}", hovered_files.len()));
         ui.label(format!("dropped_files: {}", dropped_files.len()));
         ui.label(format!("focused: {focused}"));
+        ui.label(format!("system_theme: {system_theme:?}"));
         ui.scope(|ui| {
             ui.set_min_height(150.0);
             ui.label(format!("events: {events:#?}"))
