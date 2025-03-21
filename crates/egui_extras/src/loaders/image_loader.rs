@@ -29,23 +29,27 @@ fn is_supported_uri(uri: &str) -> bool {
     };
 
     // Uses only the enabled image crate features
-    ImageFormat::all()
-        .filter(ImageFormat::reading_enabled)
-        .flat_map(ImageFormat::extensions_str)
-        .any(|format_ext| ext == *format_ext)
+    ImageFormat::from_extension(ext).is_some_and(|format| format.reading_enabled())
 }
 
 fn is_supported_mime(mime: &str) -> bool {
-    // This is the default mime type for binary files, so this might actually be a valid image,
-    // let's relay on image's format guessing
-    if mime == "application/octet-stream" {
-        return true;
+    // some mime types e.g. reflect binary files or mark the content as a download, which
+    // may be a valid image or not, in this case, defer the decision on the format guessing
+    // or the image crate and return true here
+    let mimes_to_defer = [
+        "application/octet-stream",
+        "application/x-msdownload",
+        "application/force-download",
+    ];
+    for m in &mimes_to_defer {
+        // use contains instead of direct equality, as e.g. encoding info might be appended
+        if mime.contains(m) {
+            return true;
+        }
     }
+
     // Uses only the enabled image crate features
-    ImageFormat::all()
-        .filter(ImageFormat::reading_enabled)
-        .map(|fmt| fmt.to_mime_type())
-        .any(|format_mime| mime == format_mime)
+    ImageFormat::from_mime_type(mime).is_some_and(|format| format.reading_enabled())
 }
 
 impl ImageLoader for ImageCrateLoader {

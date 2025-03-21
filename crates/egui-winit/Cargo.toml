@@ -67,7 +67,7 @@ winit = { workspace = true, default-features = false }
 #! ### Optional dependencies
 
 # feature accesskit
-accesskit_winit = { version = "0.23", optional = true }
+accesskit_winit = { workspace = true, optional = true }
 
 bytemuck = { workspace = true, optional = true }
 

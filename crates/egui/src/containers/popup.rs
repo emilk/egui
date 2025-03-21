@@ -8,6 +8,7 @@ use emath::{vec2, Align, Pos2, Rect, RectAlign, Vec2};
 use std::iter::once;
 
 /// What should we anchor the popup to?
+///
 /// The final position for the popup will be calculated based on [`RectAlign`]
 /// and can be customized with [`Popup::align`] and [`Popup::align_alternatives`].
 /// [`PopupAnchor`] is the parent rect of [`RectAlign`].
@@ -84,7 +85,7 @@ pub enum PopupCloseBehavior {
     /// but in the popup's body
     CloseOnClickOutside,
 
-    /// Clicks will be ignored. Popup might be closed manually by calling [`crate::Memory::close_popup`]
+    /// Clicks will be ignored. Popup might be closed manually by calling [`crate::Memory::close_all_popups`]
     /// or by pressing the escape button
     IgnoreClicks,
 }
@@ -272,11 +273,15 @@ impl<'a> Popup<'a> {
     /// In contrast to [`Self::menu`], this will open at the pointer position.
     pub fn context_menu(response: &Response) -> Self {
         Self::menu(response)
-            .open_memory(
-                response
-                    .secondary_clicked()
-                    .then_some(SetOpenCommand::Bool(true)),
-            )
+            .open_memory(if response.secondary_clicked() {
+                Some(SetOpenCommand::Bool(true))
+            } else if response.clicked() {
+                // Explicitly close the menu if the widget was clicked
+                // Without this, the context menu would stay open if the user clicks the widget
+                Some(SetOpenCommand::Bool(false))
+            } else {
+                None
+            })
             .at_pointer_fixed()
     }
 
@@ -519,13 +524,15 @@ impl<'a> Popup<'a> {
                             _ => mem.open_popup(id),
                         }
                     } else {
-                        mem.close_popup();
+                        mem.close_popup(id);
                     }
                 }
                 Some(SetOpenCommand::Toggle) => {
                     mem.toggle_popup(id);
                 }
-                None => {}
+                None => {
+                    mem.keep_popup_open(id);
+                }
             });
         }
 
@@ -556,7 +563,9 @@ impl<'a> Popup<'a> {
             .info(info.unwrap_or_else(|| {
                 UiStackInfo::new(kind.into()).with_tag_value(
                     MenuConfig::MENU_CONFIG_TAG,
-                    MenuConfig::new().close_behavior(close_behavior),
+                    MenuConfig::new()
+                        .close_behavior(close_behavior)
+                        .style(style.clone()),
                 )
             }));
 
@@ -599,7 +608,7 @@ impl<'a> Popup<'a> {
             }
             OpenKind::Memory { .. } => {
                 if should_close {
-                    ctx.memory_mut(|mem| mem.close_popup());
+                    ctx.memory_mut(|mem| mem.close_popup(id));
                 }
             }
         }

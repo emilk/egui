@@ -306,14 +306,23 @@ impl FontImage {
     /// If you are having problems with text looking skinny and pixelated, try using a low gamma, e.g. `0.4`.
     #[inline]
     pub fn srgba_pixels(&self, gamma: Option<f32>) -> impl ExactSizeIterator<Item = Color32> + '_ {
-        // TODO(emilk): this default coverage gamma is a magic constant, chosen by eye. I don't even know why we need it.
-        // Maybe we need to implement the ideas in https://hikogui.org/2022/10/24/the-trouble-with-anti-aliasing.html
-        let gamma = gamma.unwrap_or(0.55);
+        // This whole function is less than rigorous.
+        // Ideally we should do this in a shader instead, and use different computations
+        // for different text colors.
+        // See https://hikogui.org/2022/10/24/the-trouble-with-anti-aliasing.html for an in-depth analysis.
         self.pixels.iter().map(move |coverage| {
-            let alpha = coverage.powf(gamma);
-            // We want to multiply with `vec4(alpha)` in the fragment shader:
-            let a = fast_round(alpha * 255.0);
-            Color32::from_rgba_premultiplied(a, a, a, a)
+            let alpha = if let Some(gamma) = gamma {
+                coverage.powf(gamma)
+            } else {
+                // alpha = coverage * coverage; // recommended by the article for WHITE text (using linear blending)
+
+                // The following is recommended by the article for BLACK text (using linear blending).
+                // Very similar to a gamma of 0.5, but produces sharper text.
+                // In practice it works well for all text colors (better than a gamma of 0.5, for instance).
+                // See https://www.desmos.com/calculator/w0ndf5blmn for a visual comparison.
+                2.0 * coverage - coverage * coverage
+            };
+            Color32::from_white_alpha(ecolor::linear_u8_from_linear_f32(alpha))
         })
     }
 
@@ -360,11 +369,6 @@ impl From<FontImage> for ImageData {
     fn from(image: FontImage) -> Self {
         Self::Font(image)
     }
-}
-
-#[inline]
-fn fast_round(r: f32) -> u8 {
-    (r + 0.5) as _ // rust does a saturating cast since 1.45
 }
 
 // ----------------------------------------------------------------------------

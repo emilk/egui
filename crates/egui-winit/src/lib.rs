@@ -166,12 +166,14 @@ impl State {
     #[cfg(feature = "accesskit")]
     pub fn init_accesskit<T: From<accesskit_winit::Event> + Send>(
         &mut self,
+        event_loop: &ActiveEventLoop,
         window: &Window,
         event_loop_proxy: winit::event_loop::EventLoopProxy<T>,
     ) {
         profiling::function_scope!();
 
         self.accesskit = Some(accesskit_winit::Adapter::with_event_loop_proxy(
+            event_loop,
             window,
             event_loop_proxy,
         ));
@@ -849,6 +851,9 @@ impl State {
                 }
                 egui::OutputCommand::OpenUrl(open_url) => {
                     open_url_in_browser(&open_url.url);
+                }
+                egui::OutputCommand::SetPointerPosition(egui::Pos2 { x, y }) => {
+                    let _ = window.set_cursor_position(winit::dpi::LogicalPosition { x, y });
                 }
             }
         }
@@ -1610,6 +1615,7 @@ pub fn create_winit_window_attributes(
 
         // macOS:
         fullsize_content_view: _fullsize_content_view,
+        movable_by_window_background: _movable_by_window_background,
         title_shown: _title_shown,
         titlebar_buttons_shown: _titlebar_buttons_shown,
         titlebar_shown: _titlebar_shown,
@@ -1756,7 +1762,8 @@ pub fn create_winit_window_attributes(
             .with_title_hidden(!_title_shown.unwrap_or(true))
             .with_titlebar_buttons_hidden(!_titlebar_buttons_shown.unwrap_or(true))
             .with_titlebar_transparent(!_titlebar_shown.unwrap_or(true))
-            .with_fullsize_content_view(_fullsize_content_view.unwrap_or(false));
+            .with_fullsize_content_view(_fullsize_content_view.unwrap_or(false))
+            .with_movable_by_window_background(_movable_by_window_background.unwrap_or(false));
     }
 
     window_attributes
