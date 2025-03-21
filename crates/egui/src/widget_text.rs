@@ -22,7 +22,7 @@ use crate::{
 /// RichText::new("colored").color(Color32::RED);
 /// RichText::new("Large and underlined").size(20.0).underline();
 /// ```
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct RichText {
     text: String,
     size: Option<f32>,
@@ -31,6 +31,7 @@ pub struct RichText {
     family: Option<FontFamily>,
     text_style: Option<TextStyle>,
     background_color: Color32,
+    expand_bg: f32,
     text_color: Option<Color32>,
     code: bool,
     strong: bool,
@@ -39,6 +40,29 @@ pub struct RichText {
     underline: bool,
     italics: bool,
     raised: bool,
+}
+
+impl Default for RichText {
+    fn default() -> Self {
+        Self {
+            text: Default::default(),
+            size: Default::default(),
+            extra_letter_spacing: Default::default(),
+            line_height: Default::default(),
+            family: Default::default(),
+            text_style: Default::default(),
+            background_color: Default::default(),
+            expand_bg: 1.0,
+            text_color: Default::default(),
+            code: Default::default(),
+            strong: Default::default(),
+            weak: Default::default(),
+            strikethrough: Default::default(),
+            underline: Default::default(),
+            italics: Default::default(),
+            raised: Default::default(),
+        }
+    }
 }
 
 impl From<&str> for RichText {
@@ -364,6 +388,7 @@ impl RichText {
             family,
             text_style,
             background_color,
+            expand_bg,
             text_color: _, // already used by `get_text_color`
             code,
             strong: _, // already used by `get_text_color`
@@ -429,6 +454,7 @@ impl RichText {
                 underline,
                 strikethrough,
                 valign,
+                expand_bg,
             },
         )
     }
