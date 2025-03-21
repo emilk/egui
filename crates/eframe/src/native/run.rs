@@ -88,7 +88,6 @@ impl<T: WinitApp> WinitAppWrapper<T> {
         event_loop: &ActiveEventLoop,
         event_result: Result<EventResult>,
     ) {
-        let mut now = Instant::now();
         let mut exit = false;
         let mut save = false;
 
@@ -99,12 +98,11 @@ impl<T: WinitApp> WinitAppWrapper<T> {
         if cfg!(target_os = "windows") {
             if let Ok(EventResult::RepaintNow(window_id)) = event_result {
                 log::trace!("RepaintNow of {window_id:?}");
-                self.windows_next_repaint_times.insert(window_id, now);
+                self.windows_next_repaint_times
+                    .insert(window_id, Instant::now());
 
                 // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
                 event_result = self.winit_app.run_ui_and_paint(event_loop, window_id);
-
-                now = Instant::now();
             }
         }
 
@@ -115,12 +113,14 @@ impl<T: WinitApp> WinitAppWrapper<T> {
             }
             EventResult::RepaintNow(window_id) => {
                 log::trace!("RepaintNow of {window_id:?}",);
-                self.windows_next_repaint_times.insert(window_id, now);
+                self.windows_next_repaint_times
+                    .insert(window_id, Instant::now());
                 event_result
             }
             EventResult::RepaintNext(window_id) => {
                 log::trace!("RepaintNext of {window_id:?}",);
-                self.windows_next_repaint_times.insert(window_id, now);
+                self.windows_next_repaint_times
+                    .insert(window_id, Instant::now());
                 event_result
             }
             EventResult::RepaintAt(window_id, repaint_time) => {
