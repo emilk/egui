@@ -20,7 +20,7 @@ use crate::{fast_round, linear_f32_from_linear_u8, Rgba};
 ///
 /// All operations on `Color32` is done in "gamma space" (see <https://en.wikipedia.org/wiki/SRGB>).
 /// This is not physically correct, but it is fast and sometimes more perceptually even than linear space.
-/// If you want linear-space color, use [`Rgba`].
+/// If you instead want to perform these operations in linear-space color, use [`Rgba`].
 ///
 /// An `alpha=0` means the color is to be treated as an additive color.
 #[repr(C)]
