@@ -807,7 +807,7 @@ impl State {
                 if pressed && !is_cmd {
                     self.egui_input
                         .events
-                        .push(egui::Event::Text(text.to_string()));
+                        .push(egui::Event::Text(text.to_owned()));
                 }
             }
         }
