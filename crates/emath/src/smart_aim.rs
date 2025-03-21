@@ -33,7 +33,10 @@ pub fn best_in_range_f64(min: f64, max: f64) -> f64 {
     if !max.is_finite() {
         return min;
     }
-    debug_assert!(min.is_finite() && max.is_finite());
+    debug_assert!(
+        min.is_finite() && max.is_finite(),
+        "min: {min:?}, max: {max:?}"
+    );
 
     let min_exponent = min.log10();
     let max_exponent = max.log10();
@@ -101,7 +104,10 @@ fn from_decimal_string(s: &[i32]) -> f64 {
 
 /// Find the simplest integer in the range [min, max]
 fn simplest_digit_closed_range(min: i32, max: i32) -> i32 {
-    debug_assert!(1 <= min && min <= max && max <= 9);
+    debug_assert!(
+        1 <= min && min <= max && max <= 9,
+        "min should be in [1, 9], but was {min:?} and max should be in [min, 9], but was {max:?}"
+    );
     if min <= 5 && 5 <= max {
         5
     } else {

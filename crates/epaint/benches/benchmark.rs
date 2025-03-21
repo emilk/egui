@@ -53,7 +53,12 @@ fn tessellate_circles(c: &mut Criterion) {
                 clipped_shapes.push(ClippedShape { clip_rect, shape });
             }
         }
-        assert_eq!(clipped_shapes.len(), 100_000);
+        assert_eq!(
+            clipped_shapes.len(),
+            100_000,
+            "length of clipped shapes should be 100k, but was {}",
+            clipped_shapes.len()
+        );
 
         let pixels_per_point = 2.0;
         let options = TessellationOptions::default();

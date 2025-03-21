@@ -469,7 +469,7 @@ impl Painter {
 
     #[inline(never)] // Easier profiling
     fn paint_mesh(&mut self, mesh: &Mesh) {
-        debug_assert!(mesh.is_valid());
+        debug_assert!(mesh.is_valid(), "Mesh is not valid");
         if let Some(texture) = self.texture(mesh.texture_id) {
             unsafe {
                 self.gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.vbo));
@@ -560,7 +560,12 @@ impl Painter {
         data: &[u8],
     ) {
         profiling::function_scope!();
-        assert_eq!(data.len(), w * h * 4);
+        assert_eq!(
+            data.len(),
+            w * h * 4,
+            "Mismatch between texture size and texel count, by {}",
+            data.len() % (w * h * 4)
+        );
         assert!(
             w <= self.max_texture_side && h <= self.max_texture_side,
             "Got a texture image of size {}x{}, but the maximum supported texture side is only {}",

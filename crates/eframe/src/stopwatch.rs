@@ -18,7 +18,7 @@ impl Stopwatch {
     }
 
     pub fn start(&mut self) {
-        assert!(self.start.is_none());
+        assert!(self.start.is_none(), "Stopwatch already running");
         self.start = Some(Instant::now());
     }
 
@@ -29,7 +29,7 @@ impl Stopwatch {
     }
 
     pub fn resume(&mut self) {
-        assert!(self.start.is_none());
+        assert!(self.start.is_none(), "Stopwatch still running");
         self.start = Some(Instant::now());
     }
 

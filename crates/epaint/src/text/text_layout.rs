@@ -529,7 +529,7 @@ fn halign_and_justify_row(
         (num_leading_spaces, row.glyphs.len() - num_trailing_spaces)
     };
     let num_glyphs_in_range = glyph_range.1 - glyph_range.0;
-    assert!(num_glyphs_in_range > 0);
+    assert!(num_glyphs_in_range > 0, "Should have at least one glyph");
 
     let original_min_x = row.glyphs[glyph_range.0].logical_rect().min.x;
     let original_max_x = row.glyphs[glyph_range.1 - 1].logical_rect().max.x;
@@ -898,7 +898,10 @@ fn add_hline(point_scale: PointScale, [start, stop]: [Pos2; 2], stroke: Stroke, 
     } else {
         // Thin lines often lost, so this is a bad idea
 
-        assert_eq!(start.y, stop.y);
+        assert_eq!(
+            start.y, stop.y,
+            "Horizontal line must be horizontal, but got: {start:?} -> {stop:?}"
+        );
 
         let min_y = point_scale.round_to_pixel(start.y - 0.5 * stroke.width);
         let max_y = point_scale.round_to_pixel(min_y + stroke.width);
