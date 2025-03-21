@@ -194,7 +194,10 @@ impl TextBuffer for String {
     }
 
     fn delete_char_range(&mut self, char_range: Range<usize>) {
-        assert!(char_range.start <= char_range.end);
+        assert!(
+            char_range.start <= char_range.end,
+            "start must be <= end, but got {char_range:?}"
+        );
 
         // Get both byte indices
         let byte_start = byte_index_from_char_index(self.as_str(), char_range.start);

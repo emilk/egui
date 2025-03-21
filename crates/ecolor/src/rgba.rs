@@ -90,15 +90,24 @@ impl Rgba {
 
     #[inline]
     pub fn from_luminance_alpha(l: f32, a: f32) -> Self {
-        debug_assert!(0.0 <= l && l <= 1.0);
-        debug_assert!(0.0 <= a && a <= 1.0);
+        debug_assert!(
+            0.0 <= l && l <= 1.0,
+            "l should be in the range [0, 1], but was {l}"
+        );
+        debug_assert!(
+            0.0 <= a && a <= 1.0,
+            "a should be in the range [0, 1], but was {a}"
+        );
         Self([l * a, l * a, l * a, a])
     }
 
     /// Transparent black
     #[inline]
     pub fn from_black_alpha(a: f32) -> Self {
-        debug_assert!(0.0 <= a && a <= 1.0);
+        debug_assert!(
+            0.0 <= a && a <= 1.0,
+            "a should be in the range [0, 1], but was {a}"
+        );
         Self([0.0, 0.0, 0.0, a])
     }
 

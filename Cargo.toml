@@ -207,6 +207,7 @@ match_wild_err_arm = "warn"
 match_wildcard_for_single_variants = "warn"
 mem_forget = "warn"
 mismatching_type_param_order = "warn"
+missing_assert_message = "warn"
 missing_enforced_import_renames = "warn"
 missing_errors_doc = "warn"
 missing_safety_doc = "warn"
@@ -274,7 +275,6 @@ zero_sized_map_values = "warn"
 
 # TODO(emilk): maybe enable more of these lints?
 iter_over_hash_type = "allow"
-missing_assert_message = "allow"
 should_panic_without_expect = "allow"
 too_many_lines = "allow"
 unwrap_used = "allow"                 # TODO(emilk): We really wanna warn on this one

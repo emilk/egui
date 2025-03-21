@@ -307,7 +307,10 @@ fn vertex_gradient(ui: &mut Ui, bg_fill: Color32, gradient: &Gradient) -> Respon
     }
     {
         let n = gradient.0.len();
-        assert!(n >= 2);
+        assert!(
+            n >= 2,
+            "A gradient must have at least two colors, but this had {n}"
+        );
         let mut mesh = Mesh::default();
         for (i, &color) in gradient.0.iter().enumerate() {
             let t = i as f32 / (n as f32 - 1.0);
@@ -594,8 +597,14 @@ fn blending_and_feathering_test(ui: &mut Ui) {
 }
 
 fn text_on_bg(ui: &mut egui::Ui, fg: Color32, bg: Color32) {
-    assert!(fg.is_opaque());
-    assert!(bg.is_opaque());
+    assert!(
+        fg.is_opaque(),
+        "Foreground color must be opaque, but was: {fg:?}",
+    );
+    assert!(
+        bg.is_opaque(),
+        "Background color must be opaque, but was: {bg:?}",
+    );
 
     ui.horizontal(|ui| {
         ui.label(
