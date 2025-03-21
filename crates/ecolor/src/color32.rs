@@ -18,7 +18,7 @@ use crate::{fast_round, linear_f32_from_linear_u8, Rgba};
 ///
 /// The color space is assumed to be [sRGB](https://en.wikipedia.org/wiki/SRGB).
 ///
-/// All operations on `Color32` is done in "gamma space" (see <https://en.wikipedia.org/wiki/SRGB>).
+/// All operations on `Color32` are done in "gamma space" (see <https://en.wikipedia.org/wiki/SRGB>).
 /// This is not physically correct, but it is fast and sometimes more perceptually even than linear space.
 /// If you instead want to perform these operations in linear-space color, use [`Rgba`].
 ///
