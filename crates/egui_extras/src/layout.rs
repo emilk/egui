@@ -234,8 +234,9 @@ impl<'l> StripLayout<'l> {
         }
 
         if flags.overline {
-            child_ui.painter().line_segment(
-                [max_rect.left_top(), max_rect.right_top()],
+            child_ui.painter().hline(
+                max_rect.x_range(),
+                max_rect.top(),
                 child_ui.visuals().widgets.noninteractive.bg_stroke,
             );
         }
