@@ -33,7 +33,8 @@ pub const NOTO_EMOJI_REGULAR: &[u8] = include_bytes!("../fonts/NotoEmoji-Regular
 /// the Ubuntu brand that convey a precise, reliable and free attitude.
 ///
 /// See [Ubuntu design](https://design.ubuntu.com/font) for more information.
-pub const UBUNTU_LIGHT: &[u8] = include_bytes!("../fonts/Ubuntu-Light.ttf");
+pub const UBUNTU_LIGHT: &[u8] = include_bytes!("../fonts/UbuntuSans-VariableFont_wght_hinted.ttf");
+//pub const UBUNTU_LIGHT: &[u8] = include_bytes!("../fonts/Ubuntu-Light.ttf");
 
 /// An experimental typeface that uses standardized
 /// [UNICODE planes](http://en.wikipedia.org/wiki/Plane_(Unicode))

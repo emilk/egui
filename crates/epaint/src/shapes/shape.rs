@@ -6,8 +6,8 @@ use emath::{pos2, Align2, Pos2, Rangef, Rect, TSTransform, Vec2};
 
 use crate::{
     stroke::PathStroke,
-    text::{FontId, Fonts, Galley},
-    Color32, CornerRadius, Mesh, Stroke, StrokeKind, TextureId,
+    text::{FontStyle, Galley},
+    Color32, CornerRadius, Fonts, Mesh, Stroke, StrokeKind, TextureId,
 };
 
 use super::{
@@ -23,7 +23,7 @@ use super::{
 /// [`Shape::Text`] depends on the current `pixels_per_point` (dpi scale)
 /// and so must be recreated every time `pixels_per_point` changes.
 #[must_use = "Add a Shape to a Painter"]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum Shape {
     /// Paint nothing. This can be useful as a placeholder.
     Noop,
@@ -298,14 +298,14 @@ impl Shape {
 
     #[allow(clippy::needless_pass_by_value)]
     pub fn text(
-        fonts: &Fonts,
+        fonts: &mut Fonts<'_>,
         pos: Pos2,
         anchor: Align2,
         text: impl ToString,
-        font_id: FontId,
+        font: FontStyle,
         color: Color32,
     ) -> Self {
-        let galley = fonts.layout_no_wrap(text.to_string(), font_id, color);
+        let galley = fonts.layout_no_wrap(text.to_string(), font, color);
         let rect = anchor.anchor_size(pos, galley.size());
         Self::galley(rect.min, galley, color)
     }
@@ -463,6 +463,12 @@ impl Shape {
                 for row in &mut galley.rows {
                     row.visuals.mesh_bounds = transform.scaling * row.visuals.mesh_bounds;
                     for v in &mut row.visuals.mesh.vertices {
+                        v.pos = Pos2::new(transform.scaling * v.pos.x, transform.scaling * v.pos.y);
+                    }
+                }
+                // Scale selection:
+                if let Some(selection_mesh) = &mut galley.selection_mesh {
+                    for v in &mut selection_mesh.vertices {
                         v.pos = Pos2::new(transform.scaling * v.pos.x, transform.scaling * v.pos.y);
                     }
                 }

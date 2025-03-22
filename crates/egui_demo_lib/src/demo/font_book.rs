@@ -38,7 +38,7 @@ impl crate::Demo for FontBook {
 
 impl crate::View for FontBook {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.vertical_centered(|ui| {
+        /*ui.vertical_centered(|ui| {
             ui.add(crate::egui_github_link_file!());
         });
 
@@ -107,11 +107,12 @@ impl crate::View for FontBook {
                     }
                 }
             });
-        });
+        });*/
+        todo!()
     }
 }
 
-fn char_info_ui(ui: &mut egui::Ui, chr: char, glyph_info: &GlyphInfo, font_id: egui::FontId) {
+fn char_info_ui(ui: &mut egui::Ui, chr: char, glyph_info: &GlyphInfo, font_id: egui::FontStyle) {
     let resp = ui.label(egui::RichText::new(chr.to_string()).font(font_id));
 
     egui::Grid::new("char_info")
@@ -142,9 +143,7 @@ fn char_info_ui(ui: &mut egui::Ui, chr: char, glyph_info: &GlyphInfo, font_id: e
 
 fn available_characters(ui: &egui::Ui, family: egui::FontFamily) -> BTreeMap<char, GlyphInfo> {
     ui.fonts(|f| {
-        f.lock()
-            .fonts
-            .font(&egui::FontId::new(10.0, family)) // size is arbitrary for getting the characters
+        f.font(&egui::FontStyle::simple(10.0, family)) // size is arbitrary for getting the characters
             .characters()
             .iter()
             .filter(|(chr, _fonts)| !chr.is_whitespace() && !chr.is_ascii_control())

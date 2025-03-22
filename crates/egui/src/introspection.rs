@@ -1,28 +1,23 @@
 //! Showing UI:s for egui/epaint types.
+use epaint::text::FontStyle;
+
 use crate::{
-    epaint, memory, pos2, remap_clamp, vec2, Color32, CursorIcon, FontFamily, FontId, Label, Mesh,
-    NumExt, Rect, Response, Sense, Shape, Slider, TextStyle, TextWrapMode, Ui, Widget,
+    epaint, memory, pos2, remap_clamp, vec2, Color32, CursorIcon, FontFamily, Label, Mesh, NumExt,
+    Rect, Response, Sense, Shape, Slider, TextStyle, TextWrapMode, Ui, Widget,
 };
 
-pub fn font_family_ui(ui: &mut Ui, font_family: &mut FontFamily) {
-    let families = ui.fonts(|f| f.families());
-    ui.horizontal(|ui| {
-        for alternative in families {
-            let text = alternative.to_string();
-            ui.radio_value(font_family, alternative, text);
-        }
-    });
-}
+// TODO(valadaptive): reinstate font_family_ui? It wasn't used anywhere, even in the demo app...
 
-pub fn font_id_ui(ui: &mut Ui, font_id: &mut FontId) {
-    let families = ui.fonts(|f| f.families());
+pub fn font_id_ui(ui: &mut Ui, font_id: &mut FontStyle) {
+    // TODO(valadaptive)
+    /*let families = ui.fonts(|f| f.families());
     ui.horizontal(|ui| {
         ui.add(Slider::new(&mut font_id.size, 4.0..=40.0).max_decimals(1));
         for alternative in families {
             let text = alternative.to_string();
-            ui.radio_value(&mut font_id.family, alternative, text);
+            ui.radio_value(&mut font_id.family, alternative.into(), text);
         }
-    });
+    });*/
 }
 
 // Show font texture in demo Ui

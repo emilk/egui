@@ -1,8 +1,8 @@
 use super::{Demo, View};
 
 use egui::{
-    vec2, Align, Checkbox, CollapsingHeader, Color32, Context, FontId, Resize, RichText, Sense,
-    Slider, Stroke, TextFormat, TextStyle, Ui, Vec2, Window,
+    epaint::text::GenericFamily, vec2, Align, Checkbox, CollapsingHeader, Color32, Context,
+    FontStyle, Resize, RichText, Sense, Slider, Stroke, TextFormat, TextStyle, Ui, Vec2, Window,
 };
 
 /// Showcase some ui code
@@ -583,7 +583,7 @@ fn text_layout_demo(ui: &mut Ui) {
         first_row_indentation,
         TextFormat {
             color: default_color,
-            font_id: FontId::proportional(20.0),
+            font: FontStyle::simple(20.0, GenericFamily::SystemUi),
             ..Default::default()
         },
     );
@@ -640,7 +640,7 @@ fn text_layout_demo(ui: &mut Ui) {
         "mixing ",
         0.0,
         TextFormat {
-            font_id: FontId::proportional(20.0),
+            font: FontStyle::simple(20.0, GenericFamily::SystemUi),
             color: default_color,
             ..Default::default()
         },
@@ -649,7 +649,7 @@ fn text_layout_demo(ui: &mut Ui) {
         "fonts, ",
         0.0,
         TextFormat {
-            font_id: FontId::monospace(12.0),
+            font: FontStyle::simple(12.0, GenericFamily::Monospace),
             color: default_color,
             ..Default::default()
         },
@@ -658,7 +658,7 @@ fn text_layout_demo(ui: &mut Ui) {
         "raised text, ",
         0.0,
         TextFormat {
-            font_id: FontId::proportional(7.0),
+            font: FontStyle::simple(7.0, GenericFamily::SystemUi),
             color: default_color,
             valign: Align::TOP,
             ..Default::default()
@@ -719,7 +719,7 @@ fn text_layout_demo(ui: &mut Ui) {
         " mix these!",
         0.0,
         TextFormat {
-            font_id: FontId::proportional(7.0),
+            font: FontStyle::simple(7.0, GenericFamily::SystemUi),
             color: Color32::LIGHT_BLUE,
             background: Color32::from_rgb(128, 0, 0),
             underline: Stroke::new(1.0, strong_color),

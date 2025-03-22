@@ -1,0 +1,121 @@
+## Parley:
+- [ ] Text truncation with ellipsis
+  - [ ] Also requires breaking mid-word
+- [ ] serde support for some types (the selection ones at least)
+- [ ] Vertical alignment options, especially for InlineBox (https://github.com/linebender/parley/issues/291)
+- [ ] Ability to set line.offset (necessary for LayoutSection::leading_space)
+  - [ ] This can't just be a visual thing because of hit testing; Layout needs to agree on where everything is
+- [ ] Absolute line height
+- [ ] Custom family names (https://github.com/linebender/parley/issues/117)
+- [ ] Inline box fix (https://github.com/linebender/parley/pull/299)
+- [ ] Don't round vertical metrics (https://github.com/linebender/parley/pull/297)
+- [ ] RTL jank (https://github.com/linebender/parley/issues/298)
+- [ ] Support the tab character (https://github.com/linebender/parley/issues/302)
+- [ ] AccessKit improvements (https://github.com/linebender/parley/issues/310)
+- [ ] Not Parley, but Swash: tighter glyph bounds (https://github.com/dfrg/zeno/pull/15)
+
+## Here:
+- [ ] Text layout
+  - [x] Sometimes when resizing the Font Book window, the text doesn't wrap properly (fixed)
+    - ~~Only happens when the mouse is held down~~
+    - ~~Could it be trailing whitespace?~~
+  - [ ] If you really scrunch up the "Code Example" window, it'll wrap while the cursor is held
+    - This is an issue in the non-Parley branch too, but only at >1x zoom
+  - [ ] In the EasyMark example, with the text "There is no alternative way to specify the strong style", at certain wrap widths, the text from "strong" onwards will be shifted down 1px
+  - [ ] With the fancy variable autohinted Ubuntu font, *sometimes* the "Interactive Container" label on the right demos bar appears improperly wrapped?
+  - [ ] With "Text Wrap Mode" set to "Some(Wrap)" or "Some(Truncate)" in the Settings window, labels are not as wide as they should be compared to master branch (see Text Layout window)
+- [ ] Text rendering
+  - [x] Investigate whether swash is being too conservative with its shape bounds and cutting off rendered glyphs
+    - The reverse is true https://github.com/dfrg/zeno/pull/15
+  - [x] We don't need to do all the weird DPI stuff now, probably
+    - [x] (see https://github.com/emilk/egui/issues/3664 for an example of the hacks we can get rid of)
+  - [ ] A bunch of font atlas stuff
+    - [ ] Use etagere instead of rolling our own atlas?
+      - guillotiere did well in synthetic testing but seemed to fall over when I tried it here; revisit?
+      - This requires multiple texture sampler support in the backends. This can be done another time
+      - [ ] If using etagere or guillotiere, allow reclaiming unused glyphs
+  - [x] Colored emoji
+    - [x] Alpha is a bit messed up, probably due to sRGB not un-multiplying and re-multiplying the alpha
+      - ~~Probably~~ fixed in https://github.com/emilk/egui/pull/5824
+  - [ ] Drawing really really big glyphs causes a panic because the atlas can't allocate enough space
+    - This may exist in the current version as well
+  - [x] When zooming in and out, there are these one-frame glitches where the wrong texture coordinates are used for the glyphs
+    - Once again, confirm that this is a regression and not an existing bug
+    - Forgot to clear the glyph atlas
+- [ ] Text selection and editing
+  - [x] Unify the three different cursor types and move to a Parley-like API before moving to the actual Parley API (done)
+  - [ ] Rewrite selection code to use parley's API
+    - [x] Basic API mapping (done)
+    - [x] Selection painting (done but kinda janky)
+    - [ ] Probably rework label_text_selection (does it take bidirectional text into account?)
+      - [x] Still some jank when the cursor is kinda below the first label and it selects the "rest of the line" (fixed)
+      - [ ] Make it support bidirectional text (fun!)
+    - [x] finish the gnarly parts that i've been putting off
+      - [x] indentation (done, but untested because parley's tab character support is broken)
+      - [x] selecting a range without having a Galley rendered already (done)
+    - [x] Fully remove CCursor and CCursorRange
+    - [ ] Go over the TextBuffer API again
+  - [x] Support `char_limit` (done but untested)
+  - [x] AccessKit integration(?) (done; kinda janky and cannot currently test whether the bounding boxes are correct)
+  - [ ] Allow modifying text without doing a relayout afterwards (or at least not a full one)
+    - [ ] The original TextEdit code had a relayout too
+  - [ ] Per-viewport pixels_per_point seems to not be taken into account when calculating cursor positions for selections
+  - [ ] Remove RowVertexIndices from selection painting
+  - [ ] Update the doctests aaaaaaa
+  - [ ] Do another pass over TextBuffer's API
+  - [ ] See if there's a way to reduce temporary allocations for the AccessKit stuff (maybe by improving Parley's API)?
+  - [ ] Test IME support
+- [ ] Text styling
+  - [x] Fix FontDefinitions and adding fonts
+    - [x] Get fallback/ordering working properly
+      - I think this is done?
+  - [x] Auto fallback to faux italics (and perhaps faux bold)
+    - [x] run.synthesis()
+    - Faux bold doesn't work because Parley always tries to embolden Ubuntu Light because we ask for Ubuntu Regular
+  - [ ] Actually render text decorations (underline, strikethhrough, etc) and backgrounds
+    - [x] Strikethrough and underline
+    - [ ] Backgrounds
+    - [ ] valign (this will take a lot of implementing in Parley)
+  - [ ] Better (more CSSish) font API
+    - ~~move font db into FontDefinitions~~
+    - [x] Families and not just files
+    - [ ] Option to load system fonts in FontDefinitions
+    - [ ] FontTweak is very not-implemented
+      - [ ] scale
+        - This actually *does* affect layout, but only horizontally. Not sure if this is implementable.
+      - [x] y_offset_factor
+      - [x] y_offset
+      - [ ] baseline_offset_factor
+        - What does this even do?
+    - [x] Can we do bold now?
+    - [ ] Revamp TextFormat in general
+      - [ ] Can it cascade?
+    - [x] Letter spacing
+      - Why was this here? It's been implemented for a while
+    - [ ] Hinting enable/disable
+      - [ ] Maybe a global setting and also an override in FontTweak?
+    - [ ] If file size isn't an issue, ship variable fonts in epaint-default-fonts
+  - [ ] Make sure to test with syntect disabled (there's some old style-heavy code that is cfg'd out with syntect enabled)
+- [ ] Cross-cutting concerns
+  - [ ] Global/scoped RTL? Do we get bidirectional support for free if we use Parley's APIs?
+  - [x] Actually remove all the ab_glyph stuff
+    - Sayonara, ab_glyph 🫡
+- [ ] Perf optimizations!
+  - [ ] Stop using TreeBuilder so we don't have to allocate a bunch of strings
+  - [ ] https://github.com/emilk/egui/issues/1098
+  - [ ] Cache `Galley`s across frames (oops, this is already done)
+  - [ ] Line-level layout memoization (https://github.com/emilk/egui/pull/5411)
+- [ ] The other 90%
+  - [ ] update All Of The Doctests...
+  - [ ] Go over APIs and clean them up
+  - [ ] New documentation for the new APIs
+  - [ ] Make sure everything's landed in Parley
+  - [ ] Migration guide for the release notes
+- [ ] Deferred to the future
+  - [ ] Multiple (and smaller) text atlases
+    - [ ] Use monochrome texture for font atlas (R8 format)
+      - [ ] Does the current one only use RGBA so we can use the same shader for everything?
+      - [ ] Probably needs support in the backends for mask-only textures (gl.ALPHA and whatever the wgpu equivalent is)
+      - [ ] Have separate atlases for color emoji and glyphs/discs
+    - [ ] Multiple texture sampler support in all the backends
+    - [ ] Automatically switch between multiple atlases if one isn't enough

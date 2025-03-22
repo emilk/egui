@@ -3,14 +3,16 @@
 #![allow(clippy::if_same_then_else)]
 
 use emath::Align;
-use epaint::{text::FontTweak, CornerRadius, Shadow, Stroke};
+use epaint::{
+    text::{FontStyle, FontTweak, GenericFamily},
+    CornerRadius, Shadow, Stroke,
+};
 use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
 
 use crate::{
     ecolor::Color32,
     emath::{pos2, vec2, Rangef, Rect, Vec2},
-    ComboBox, CursorIcon, FontFamily, FontId, Grid, Margin, Response, RichText, TextWrapMode,
-    WidgetText,
+    ComboBox, CursorIcon, Grid, Margin, Response, RichText, TextWrapMode, WidgetText,
 };
 
 /// How to format numbers in e.g. a [`crate::DragValue`].
@@ -106,7 +108,7 @@ impl std::fmt::Display for TextStyle {
 
 impl TextStyle {
     /// Look up this [`TextStyle`] in [`Style::text_styles`].
-    pub fn resolve(&self, style: &Style) -> FontId {
+    pub fn resolve(&self, style: &Style) -> FontStyle {
         style.text_styles.get(self).cloned().unwrap_or_else(|| {
             panic!(
                 "Failed to find {:?} in Style::text_styles. Available styles:\n{:#?}",
@@ -119,14 +121,14 @@ impl TextStyle {
 
 // ----------------------------------------------------------------------------
 
-/// A way to select [`FontId`], either by picking one directly or by using a [`TextStyle`].
+/// A way to select [`FontStyle`], either by picking one directly or by using a [`TextStyle`].
 pub enum FontSelection {
     /// Default text style - will use [`TextStyle::Body`], unless
     /// [`Style::override_font_id`] or [`Style::override_text_style`] is set.
     Default,
 
-    /// Directly select size and font family
-    FontId(FontId),
+    /// Directly select font style
+    Font(FontStyle),
 
     /// Use a [`TextStyle`] to look up the [`FontId`] in [`Style::text_styles`].
     Style(TextStyle),
@@ -140,7 +142,7 @@ impl Default for FontSelection {
 }
 
 impl FontSelection {
-    pub fn resolve(self, style: &Style) -> FontId {
+    pub fn resolve(self, style: &Style) -> FontStyle {
         match self {
             Self::Default => {
                 if let Some(override_font_id) = &style.override_font_id {
@@ -151,16 +153,16 @@ impl FontSelection {
                     TextStyle::Body.resolve(style)
                 }
             }
-            Self::FontId(font_id) => font_id,
+            Self::Font(font) => font,
             Self::Style(text_style) => text_style.resolve(style),
         }
     }
 }
 
-impl From<FontId> for FontSelection {
+impl From<FontStyle> for FontSelection {
     #[inline(always)]
-    fn from(font_id: FontId) -> Self {
-        Self::FontId(font_id)
+    fn from(font: FontStyle) -> Self {
+        Self::Font(font)
     }
 }
 
@@ -237,7 +239,7 @@ pub struct Style {
     ///
     /// On most widgets you can also set an explicit text style,
     /// which will take precedence over this.
-    pub override_font_id: Option<FontId>,
+    pub override_font_id: Option<FontStyle>,
 
     /// How to vertically align text.
     ///
@@ -271,7 +273,7 @@ pub struct Style {
     /// // Mutate global styles with new text styles
     /// ctx.all_styles_mut(move |style| style.text_styles = text_styles.clone());
     /// ```
-    pub text_styles: BTreeMap<TextStyle, FontId>,
+    pub text_styles: BTreeMap<TextStyle, FontStyle>,
 
     /// The style to use for [`DragValue`] text.
     pub drag_value_text_style: TextStyle,
@@ -1245,15 +1247,15 @@ impl Default for DebugOptions {
 // ----------------------------------------------------------------------------
 
 /// The default text styles of the default egui theme.
-pub fn default_text_styles() -> BTreeMap<TextStyle, FontId> {
-    use FontFamily::{Monospace, Proportional};
+pub fn default_text_styles() -> BTreeMap<TextStyle, FontStyle> {
+    use GenericFamily::{Monospace, SystemUi};
 
     [
-        (TextStyle::Small, FontId::new(9.0, Proportional)),
-        (TextStyle::Body, FontId::new(12.5, Proportional)),
-        (TextStyle::Button, FontId::new(12.5, Proportional)),
-        (TextStyle::Heading, FontId::new(18.0, Proportional)),
-        (TextStyle::Monospace, FontId::new(12.0, Monospace)),
+        (TextStyle::Small, FontStyle::simple(9.0, SystemUi)),
+        (TextStyle::Body, FontStyle::simple(12.5, SystemUi)),
+        (TextStyle::Button, FontStyle::simple(12.5, SystemUi)),
+        (TextStyle::Heading, FontStyle::simple(18.0, SystemUi)),
+        (TextStyle::Monospace, FontStyle::simple(12.0, Monospace)),
     ]
     .into()
 }
@@ -1591,7 +1593,7 @@ impl Style {
                 ui.horizontal(|ui| {
                     ui.radio_value(override_font_id, None, "None");
                     if ui.radio(override_font_id.is_some(), "override").clicked() {
-                        *override_font_id = Some(FontId::default());
+                        *override_font_id = Some(FontStyle::default());
                     }
                 });
                 if let Some(override_font_id) = override_font_id {
@@ -1706,7 +1708,7 @@ impl Style {
     }
 }
 
-fn text_styles_ui(ui: &mut Ui, text_styles: &mut BTreeMap<TextStyle, FontId>) -> Response {
+fn text_styles_ui(ui: &mut Ui, text_styles: &mut BTreeMap<TextStyle, FontStyle>) -> Response {
     ui.vertical(|ui| {
         crate::Grid::new("text_styles").show(ui, |ui| {
             for (text_style, font_id) in &mut *text_styles {

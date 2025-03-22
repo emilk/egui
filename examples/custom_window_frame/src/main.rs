@@ -3,7 +3,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 #![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
-use eframe::egui::{self, ViewportCommand};
+use eframe::{
+    egui::{self, FontStyle, ViewportCommand},
+    epaint::text::GenericFamily,
+};
 
 fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -75,7 +78,7 @@ fn custom_window_frame(ctx: &egui::Context, title: &str, add_contents: impl FnOn
 }
 
 fn title_bar_ui(ui: &mut egui::Ui, title_bar_rect: eframe::epaint::Rect, title: &str) {
-    use egui::{vec2, Align2, FontId, Id, PointerButton, Sense, UiBuilder};
+    use egui::{vec2, Align2, Id, PointerButton, Sense, UiBuilder};
 
     let painter = ui.painter();
 
@@ -90,7 +93,7 @@ fn title_bar_ui(ui: &mut egui::Ui, title_bar_rect: eframe::epaint::Rect, title: 
         title_bar_rect.center(),
         Align2::CENTER_CENTER,
         title,
-        FontId::proportional(20.0),
+        FontStyle::simple(20.0, GenericFamily::SystemUi),
         ui.style().visuals.text_color(),
     );
 

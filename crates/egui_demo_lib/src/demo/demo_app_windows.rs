@@ -68,7 +68,7 @@ impl Default for DemoGroups {
                 Box::<super::dancing_strings::DancingStrings>::default(),
                 Box::<super::drag_and_drop::DragAndDropDemo>::default(),
                 Box::<super::extra_viewport::ExtraViewport>::default(),
-                Box::<super::font_book::FontBook>::default(),
+                //Box::<super::font_book::FontBook>::default(),
                 Box::<super::frame_demo::FrameDemo>::default(),
                 Box::<super::highlighting::Highlighting>::default(),
                 Box::<super::interactive_container::InteractiveContainerDemo>::default(),

@@ -5,9 +5,9 @@
 //! The plugin registers itself onto a specific [`Context`]
 //! to get callbacks on certain events ([`Context::on_begin_pass`], [`Context::on_end_pass`]).
 
-use crate::{
-    text, Align, Align2, Color32, Context, FontFamily, FontId, Id, Rect, Shape, Vec2, WidgetText,
-};
+use epaint::text::{FontStyle, GenericFamily};
+
+use crate::{text, Align, Align2, Color32, Context, Id, Rect, Shape, Vec2, WidgetText};
 
 /// Register this plugin on the given egui context,
 /// so that it will be called every pass.
@@ -92,7 +92,7 @@ impl State {
         let mut bounding_rect = Rect::from_points(&[pos]);
 
         let color = Color32::GRAY;
-        let font_id = FontId::new(10.0, FontFamily::Proportional);
+        let font_id = FontStyle::simple(10.0, GenericFamily::SystemUi);
 
         for Entry { location, text } in entries {
             {

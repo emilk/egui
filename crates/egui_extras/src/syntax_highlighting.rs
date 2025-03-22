@@ -5,6 +5,7 @@
 
 #![allow(clippy::mem_forget)] // False positive from enum_map macro
 
+use egui::epaint::text::GenericFamily;
 use egui::text::LayoutJob;
 use egui::TextStyle;
 
@@ -33,10 +34,12 @@ pub fn highlight(
     // performing it at a separate thread (ctx, ctx.style()) can be used and when ui is available
     // (ui.ctx(), ui.style()) can be used
 
-    impl egui::cache::ComputerMut<(&egui::FontId, &CodeTheme, &str, &str), LayoutJob> for Highlighter {
+    impl egui::cache::ComputerMut<(&egui::FontStyle, &CodeTheme, &str, &str), LayoutJob>
+        for Highlighter
+    {
         fn compute(
             &mut self,
-            (font_id, theme, code, lang): (&egui::FontId, &CodeTheme, &str, &str),
+            (font_id, theme, code, lang): (&egui::FontStyle, &CodeTheme, &str, &str),
         ) -> LayoutJob {
             self.highlight(font_id.clone(), theme, code, lang)
         }
@@ -152,7 +155,7 @@ pub struct CodeTheme {
     #[cfg(feature = "syntect")]
     syntect_theme: SyntectTheme,
     #[cfg(feature = "syntect")]
-    font_id: egui::FontId,
+    font: egui::FontStyle,
 
     #[cfg(not(feature = "syntect"))]
     formats: enum_map::EnumMap<TokenType, egui::TextFormat>,
@@ -173,9 +176,9 @@ impl CodeTheme {
             .unwrap_or_else(|| TextStyle::Monospace.resolve(style));
 
         if style.visuals.dark_mode {
-            Self::dark_with_font_id(font_id)
+            Self::dark_with_font(font_id)
         } else {
-            Self::light_with_font_id(font_id)
+            Self::light_with_font(font_id)
         }
     }
 
@@ -188,7 +191,7 @@ impl CodeTheme {
     /// # });
     /// ```
     pub fn dark(font_size: f32) -> Self {
-        Self::dark_with_font_id(egui::FontId::monospace(font_size))
+        Self::dark_with_font(egui::FontStyle::simple(font_size, GenericFamily::Monospace))
     }
 
     /// ### Example
@@ -200,7 +203,7 @@ impl CodeTheme {
     /// # });
     /// ```
     pub fn light(font_size: f32) -> Self {
-        Self::light_with_font_id(egui::FontId::monospace(font_size))
+        Self::light_with_font(egui::FontStyle::simple(font_size, GenericFamily::Monospace))
     }
 
     /// Load code theme from egui memory.
@@ -252,19 +255,19 @@ impl CodeTheme {
 
 #[cfg(feature = "syntect")]
 impl CodeTheme {
-    fn dark_with_font_id(font_id: egui::FontId) -> Self {
+    fn dark_with_font(font: egui::FontStyle) -> Self {
         Self {
             dark_mode: true,
             syntect_theme: SyntectTheme::Base16MochaDark,
-            font_id,
+            font,
         }
     }
 
-    fn light_with_font_id(font_id: egui::FontId) -> Self {
+    fn light_with_font(font: egui::FontStyle) -> Self {
         Self {
             dark_mode: false,
             syntect_theme: SyntectTheme::SolarizedLight,
-            font_id,
+            font,
         }
     }
 
@@ -415,7 +418,7 @@ impl Highlighter {
     #[allow(clippy::unused_self, clippy::unnecessary_wraps)]
     fn highlight(
         &self,
-        font_id: egui::FontId,
+        font: egui::FontStyle,
         theme: &CodeTheme,
         code: &str,
         lang: &str,
@@ -424,7 +427,7 @@ impl Highlighter {
             // Fallback:
             LayoutJob::simple(
                 code.into(),
-                font_id,
+                font,
                 if theme.dark_mode {
                     egui::Color32::LIGHT_GRAY
                 } else {
@@ -450,7 +453,10 @@ impl Highlighter {
         let syn_theme = theme.syntect_theme.syntect_key_name();
         let mut h = HighlightLines::new(syntax, &self.ts.themes[syn_theme]);
 
-        use egui::text::{LayoutSection, TextFormat};
+        use egui::{
+            epaint::text::FontSlant,
+            text::{LayoutSection, TextFormat},
+        };
 
         let mut job = LayoutJob {
             text: text.into(),
@@ -472,9 +478,8 @@ impl Highlighter {
                     leading_space: 0.0,
                     byte_range: as_byte_range(text, range),
                     format: TextFormat {
-                        font_id: theme.font_id.clone(),
+                        font: theme.font.with_slant(FontSlant::italic(italics)),
                         color: text_color,
-                        italics,
                         underline,
                         ..Default::default()
                     },
