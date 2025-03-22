@@ -6,7 +6,7 @@ use emath::{pos2, Align2, Pos2, Rangef, Rect, TSTransform, Vec2};
 
 use crate::{
     stroke::PathStroke,
-    text::{FontId, Galley},
+    text::{FontStyle, Galley},
     Color32, CornerRadius, Fonts, Mesh, Stroke, StrokeKind, TextureId,
 };
 
@@ -302,10 +302,10 @@ impl Shape {
         pos: Pos2,
         anchor: Align2,
         text: impl ToString,
-        font_id: FontId,
+        font: FontStyle,
         color: Color32,
     ) -> Self {
-        let galley = fonts.layout_no_wrap(text.to_string(), font_id, color);
+        let galley = fonts.layout_no_wrap(text.to_string(), font, color);
         let rect = anchor.anchor_size(pos, galley.size());
         Self::galley(rect.min, galley, color)
     }

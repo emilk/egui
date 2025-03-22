@@ -91,8 +91,14 @@ impl TextureAtlas {
             gamma: None,
         };
 
+        atlas.initialize();
+
+        atlas
+    }
+
+    fn initialize(&mut self) {
         // Make the top left pixel fully white for `WHITE_UV`, i.e. painting something with solid color:
-        let (pos, image) = atlas.allocate((1, 1));
+        let (pos, image) = self.allocate((1, 1));
         assert_eq!(pos, (0, 0));
         image[pos] = Color32::WHITE;
 
@@ -110,8 +116,8 @@ impl TextureAtlas {
             }
             let hw = (r + 0.5).ceil() as i32;
             let w = (2 * hw + 1) as usize;
-            let gamma = atlas.gamma;
-            let ((x, y), image) = atlas.allocate((w, w));
+            let gamma = self.gamma;
+            let ((x, y), image) = self.allocate((w, w));
             for dx in -hw..=hw {
                 for dy in -hw..=hw {
                     let distance_to_center = ((dx * dx + dy * dy) as f32).sqrt();
@@ -121,7 +127,7 @@ impl TextureAtlas {
                         Self::coverage_to_color(gamma, coverage);
                 }
             }
-            atlas.discs.push(PrerasterizedDisc {
+            self.discs.push(PrerasterizedDisc {
                 r,
                 uv: Rectu {
                     min_x: x,
@@ -131,8 +137,6 @@ impl TextureAtlas {
                 },
             });
         }
-
-        atlas
     }
 
     #[inline]
@@ -269,6 +273,21 @@ impl TextureAtlas {
         self.dirty.max_y = self.dirty.max_y.max(pos.1 + h);
 
         (pos, &mut self.image)
+    }
+
+    /// Clear this atlas, allowing it to be reused.
+    pub fn clear(&mut self) {
+        // We can't just let new glyphs overwrite old ones because they won't overwrite the 1-pixel padding.
+        self.image.pixels.fill(Color32::TRANSPARENT);
+
+        self.dirty = Rectu::EVERYTHING;
+        self.cursor = (0, 0);
+        self.row_height = 0;
+        self.overflowed = false;
+        self.discs.clear();
+        self.initialize();
+
+        // TODO(valadaptive): reset to initial size?
     }
 }
 

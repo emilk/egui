@@ -14,6 +14,7 @@ use std::{
 };
 
 pub use crate::Key;
+use epaint::text::GenericFamily;
 pub use touch_state::MultiTouchInfo;
 use touch_state::TouchState;
 
@@ -1386,7 +1387,7 @@ impl InputState {
             .text_styles
             .get_mut(&crate::TextStyle::Body)
             .unwrap()
-            .family = crate::FontFamily::Monospace;
+            .family = GenericFamily::Monospace.into();
 
         ui.collapsing("Raw Input", |ui| raw.ui(ui));
 

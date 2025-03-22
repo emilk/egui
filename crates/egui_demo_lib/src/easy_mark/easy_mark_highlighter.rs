@@ -1,3 +1,5 @@
+use egui::epaint::text::FontSlant;
+
 use crate::easy_mark::easy_mark_parser;
 
 /// Highlight easymark, memoizing previous output to save CPU.
@@ -181,10 +183,16 @@ fn format_from_style(
     };
 
     egui::text::TextFormat {
-        font_id: text_style.resolve(egui_style),
+        font: text_style
+            .resolve(egui_style)
+            .with_slant(FontSlant::italic(emark_style.italics))
+            .with_weight(if emark_style.strong || emark_style.heading {
+                egui::epaint::text::style::FontWeight::BOLD
+            } else {
+                egui::epaint::text::style::FontWeight::NORMAL
+            }),
         color,
         background,
-        italics: emark_style.italics,
         underline,
         strikethrough,
         valign,

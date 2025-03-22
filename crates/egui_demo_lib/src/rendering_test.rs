@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use egui::{
     emath::GuiRounding as _, epaint, lerp, pos2, vec2, widgets::color_picker::show_color, Align2,
-    Color32, FontId, Image, Mesh, Pos2, Rect, Response, Rgba, RichText, Sense, Shape, Stroke,
+    Color32, FontStyle, Image, Mesh, Pos2, Rect, Response, Rgba, RichText, Sense, Shape, Stroke,
     TextureHandle, TextureOptions, Ui, Vec2,
 };
 
@@ -623,21 +623,21 @@ fn paint_fine_lines_and_text(painter: &egui::Painter, mut rect: Rect, color: Col
                 rect.center_top() + vec2(0.0, y),
                 Align2::LEFT_TOP,
                 format!("{:.0}% white", 100.0 * opacity),
-                FontId::proportional(14.0),
+                FontStyle::system_ui(14.0),
                 Color32::WHITE.gamma_multiply(opacity),
             );
             painter.text(
                 rect.center_top() + vec2(80.0, y),
                 Align2::LEFT_TOP,
                 format!("{:.0}% gray", 100.0 * opacity),
-                FontId::proportional(14.0),
+                FontStyle::system_ui(14.0),
                 Color32::GRAY.gamma_multiply(opacity),
             );
             painter.text(
                 rect.center_top() + vec2(160.0, y),
                 Align2::LEFT_TOP,
                 format!("{:.0}% black", 100.0 * opacity),
-                FontId::proportional(14.0),
+                FontStyle::system_ui(14.0),
                 Color32::BLACK.gamma_multiply(opacity),
             );
             y += 20.0;
@@ -650,7 +650,7 @@ fn paint_fine_lines_and_text(painter: &egui::Painter, mut rect: Rect, color: Col
                 format!(
                     "{font_size}px - The quick brown fox jumps over the lazy dog and runs away."
                 ),
-                FontId::proportional(font_size),
+                FontStyle::system_ui(font_size),
                 color,
             );
             y += font_size + 1.0;
@@ -665,7 +665,7 @@ fn paint_fine_lines_and_text(painter: &egui::Painter, mut rect: Rect, color: Col
             rect.left_top(),
             Align2::CENTER_CENTER,
             width.to_string(),
-            FontId::monospace(12.0),
+            FontStyle::monospace(12.0),
             color,
         );
 
@@ -690,7 +690,7 @@ fn paint_fine_lines_and_text(painter: &egui::Painter, mut rect: Rect, color: Col
         rect.left_top(),
         Align2::LEFT_CENTER,
         "transparent --> opaque",
-        FontId::monospace(10.0),
+        FontStyle::monospace(10.0),
         color,
     );
     rect.min.y += 12.0;

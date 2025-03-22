@@ -4,11 +4,11 @@
 use std::sync::Arc;
 use std::{ops::Range, sync::OnceLock};
 
-use super::{
-    cursor::{ByteCursor, Selection},
-    font::UvRect,
-};
-use crate::{mutex::Mutex, Color32, FontId, Mesh, Stroke};
+use super::cursor::{ByteCursor, Selection};
+use super::glyph_atlas::UvRect;
+use super::style::FontStyle;
+use super::TextFormat;
+use crate::{mutex::Mutex, Color32, Mesh};
 use emath::{Align, OrderedFloat, Pos2, Rect, Vec2};
 
 /// Describes the task of laying out text.
@@ -19,13 +19,13 @@ use emath::{Align, OrderedFloat, Pos2, Rect, Vec2};
 ///
 /// ## Example:
 /// ```
-/// use epaint::{Color32, text::{LayoutJob, TextFormat}, FontFamily, FontId};
+/// use epaint::{Color32, text::{LayoutJob, TextStyle}, FontFamily, FontId};
 ///
 /// let mut job = LayoutJob::default();
 /// job.append(
 ///     "Hello ",
 ///     0.0,
-///     TextFormat {
+///     TextStyle {
 ///         font_id: FontId::new(14.0, FontFamily::Proportional),
 ///         color: Color32::WHITE,
 ///         ..Default::default()
@@ -34,7 +34,7 @@ use emath::{Align, OrderedFloat, Pos2, Rect, Vec2};
 /// job.append(
 ///     "World!",
 ///     0.0,
-///     TextFormat {
+///     TextStyle {
 ///         font_id: FontId::new(14.0, FontFamily::Monospace),
 ///         color: Color32::BLACK,
 ///         ..Default::default()
@@ -103,12 +103,12 @@ impl Default for LayoutJob {
 impl LayoutJob {
     /// Break on `\n` and at the given wrap width.
     #[inline]
-    pub fn simple(text: String, font_id: FontId, color: Color32, wrap_width: f32) -> Self {
+    pub fn simple(text: String, font: FontStyle, color: Color32, wrap_width: f32) -> Self {
         Self {
             sections: vec![LayoutSection {
                 leading_space: 0.0,
                 byte_range: 0..text.len(),
-                format: TextFormat::simple(font_id, color),
+                format: TextFormat::simple(font, color),
             }],
             text,
             wrap: TextWrapping {
@@ -122,12 +122,12 @@ impl LayoutJob {
 
     /// Does not break on `\n`, but shows the replacement character instead.
     #[inline]
-    pub fn simple_singleline(text: String, font_id: FontId, color: Color32) -> Self {
+    pub fn simple_singleline(text: String, font: FontStyle, color: Color32) -> Self {
         Self {
             sections: vec![LayoutSection {
                 leading_space: 0.0,
                 byte_range: 0..text.len(),
-                format: TextFormat::simple(font_id, color),
+                format: TextFormat::simple(font, color),
             }],
             text,
             wrap: Default::default(),
@@ -174,7 +174,7 @@ impl LayoutJob {
     pub fn font_height(&self, fonts: &mut crate::Fonts<'_>) -> f32 {
         let mut max_height = 0.0_f32;
         for section in &self.sections {
-            max_height = max_height.max(fonts.row_height(&section.format.font_id));
+            max_height = max_height.max(fonts.row_height(&section.format.font));
         }
         max_height
     }
@@ -237,122 +237,11 @@ impl std::hash::Hash for LayoutSection {
         let Self {
             leading_space,
             byte_range,
-            format,
+            format: style,
         } = self;
         OrderedFloat(*leading_space).hash(state);
         byte_range.hash(state);
-        format.hash(state);
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-/// Formatting option for a section of text.
-#[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct TextFormat {
-    pub font_id: FontId,
-
-    /// Extra spacing between letters, in points.
-    ///
-    /// Default: 0.0.
-    ///
-    /// For even text it is recommended you round this to an even number of _pixels_.
-    pub extra_letter_spacing: f32,
-
-    /// Explicit line height of the text in points.
-    ///
-    /// This is the distance between the bottom row of two subsequent lines of text.
-    ///
-    /// If `None` (the default), the line height is determined by the font.
-    ///
-    /// For even text it is recommended you round this to an even number of _pixels_.
-    pub line_height: Option<f32>,
-
-    /// Text color
-    pub color: Color32,
-
-    pub background: Color32,
-
-    /// Amount to expand background fill by.
-    ///
-    /// Default: 1.0
-    pub expand_bg: f32,
-
-    pub italics: bool,
-
-    pub underline: Stroke,
-
-    pub strikethrough: Stroke,
-
-    /// If you use a small font and [`Align::TOP`] you
-    /// can get the effect of raised text.
-    ///
-    /// If you use a small font and [`Align::BOTTOM`]
-    /// you get the effect of a subscript.
-    ///
-    /// If you use [`Align::Center`], you get text that is centered
-    /// around a common center-line, which is nice when mixining emojis
-    /// and normal text in e.g. a button.
-    pub valign: Align,
-}
-
-impl Default for TextFormat {
-    #[inline]
-    fn default() -> Self {
-        Self {
-            font_id: FontId::default(),
-            extra_letter_spacing: 0.0,
-            line_height: None,
-            color: Color32::GRAY,
-            background: Color32::TRANSPARENT,
-            expand_bg: 1.0,
-            italics: false,
-            underline: Stroke::NONE,
-            strikethrough: Stroke::NONE,
-            valign: Align::BOTTOM,
-        }
-    }
-}
-
-impl std::hash::Hash for TextFormat {
-    #[inline]
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        let Self {
-            font_id,
-            extra_letter_spacing,
-            line_height,
-            color,
-            background,
-            expand_bg,
-            italics,
-            underline,
-            strikethrough,
-            valign,
-        } = self;
-        font_id.hash(state);
-        emath::OrderedFloat(*extra_letter_spacing).hash(state);
-        if let Some(line_height) = *line_height {
-            emath::OrderedFloat(line_height).hash(state);
-        }
-        color.hash(state);
-        background.hash(state);
-        emath::OrderedFloat(*expand_bg).hash(state);
-        italics.hash(state);
-        underline.hash(state);
-        strikethrough.hash(state);
-        valign.hash(state);
-    }
-}
-
-impl TextFormat {
-    #[inline]
-    pub fn simple(font_id: FontId, color: Color32) -> Self {
-        Self {
-            font_id,
-            color,
-            ..Default::default()
-        }
+        style.hash(state);
     }
 }
 
@@ -702,7 +591,7 @@ pub struct Glyph {
     pub chr: char,
 
     /// Baseline position, relative to the galley.
-    /// Logical position: pos.y is the same for all chars of the same [`TextFormat`].
+    /// Logical position: pos.y is the same for all chars of the same [`TextStyle`].
     pub pos: Pos2,
 
     /// Logical width of the glyph.
@@ -711,7 +600,7 @@ pub struct Glyph {
     /// Height of this row of text.
     ///
     /// Usually same as [`Self::font_height`],
-    /// unless explicitly overridden by [`TextFormat::line_height`].
+    /// unless explicitly overridden by [`TextStyle::line_height`].
     pub line_height: f32,
 
     /// Position and size of the glyph in the font texture, in texels.
@@ -724,7 +613,7 @@ impl Glyph {
         Vec2::new(self.advance_width, self.line_height)
     }
 
-    /// Same y range for all characters with the same [`TextFormat`].
+    /// Same y range for all characters with the same [`TextStyle`].
     #[inline]
     pub fn logical_rect(&self) -> Rect {
         Rect::from_min_size(self.pos, self.size())

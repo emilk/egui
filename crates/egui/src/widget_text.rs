@@ -1,6 +1,7 @@
 use std::{borrow::Cow, sync::Arc};
 
 use emath::GuiRounding as _;
+use epaint::text::FontSlant;
 
 use crate::{
     text::{LayoutJob, TextWrapping},
@@ -28,7 +29,8 @@ pub struct RichText {
     size: Option<f32>,
     extra_letter_spacing: f32,
     line_height: Option<f32>,
-    family: Option<FontFamily>,
+    // TODO(valadaptive): just stick FontStyle in here entirely
+    family: Option<crate::FontStack>,
     text_style: Option<TextStyle>,
     background_color: Color32,
     expand_bg: f32,
@@ -180,19 +182,16 @@ impl RichText {
     ///
     /// Only the families available in [`crate::FontDefinitions::families`] may be used.
     #[inline]
-    pub fn family(mut self, family: FontFamily) -> Self {
-        self.family = Some(family);
+    pub fn family(mut self, family: impl Into<crate::FontStack>) -> Self {
+        self.family = Some(family.into());
         self
     }
 
     /// Select the font and size.
     /// This overrides the value from [`Self::text_style`].
     #[inline]
-    pub fn font(mut self, font_id: crate::FontId) -> Self {
-        let crate::FontId { size, family } = font_id;
-        self.size = Some(size);
-        self.family = Some(family);
-        self
+    pub fn font(mut self, font_id: crate::FontStyle) -> Self {
+        todo!()
     }
 
     /// Override the [`TextStyle`].
@@ -445,12 +444,11 @@ impl RichText {
         (
             text,
             crate::text::TextFormat {
-                font_id,
+                font: font_id.with_slant(FontSlant::italic(italics)),
                 extra_letter_spacing,
                 line_height,
                 color: text_color,
                 background: background_color,
-                italics,
                 underline,
                 strikethrough,
                 valign,

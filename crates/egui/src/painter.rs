@@ -2,14 +2,14 @@ use std::sync::Arc;
 
 use emath::GuiRounding as _;
 use epaint::{
-    text::{Fonts, Galley, LayoutJob},
+    text::{FontStyle, Fonts, Galley, GenericFamily, LayoutJob},
     CircleShape, ClippedShape, CornerRadius, PathStroke, RectShape, Shape, Stroke, StrokeKind,
 };
 
 use crate::{
     emath::{Align2, Pos2, Rangef, Rect, Vec2},
     layers::{LayerId, PaintList, ShapeIdx},
-    Color32, Context, FontId,
+    Color32, Context,
 };
 
 /// Helper to paint shapes and text to a specific region on a specific layer.
@@ -307,7 +307,7 @@ impl Painter {
             rect.min,
             Align2::LEFT_TOP,
             text.to_string(),
-            FontId::monospace(12.0),
+            FontStyle::simple(12.0, GenericFamily::Monospace),
             color,
         );
     }
@@ -328,7 +328,11 @@ impl Painter {
         color: Color32,
         text: impl ToString,
     ) -> Rect {
-        let galley = self.layout_no_wrap(text.to_string(), FontId::monospace(12.0), color);
+        let galley = self.layout_no_wrap(
+            text.to_string(),
+            FontStyle::simple(12.0, GenericFamily::Monospace),
+            color,
+        );
         let rect = anchor.anchor_size(pos, galley.size());
         let frame_rect = rect.expand(2.0);
 
@@ -503,7 +507,7 @@ impl Painter {
         pos: Pos2,
         anchor: Align2,
         text: impl ToString,
-        font_id: FontId,
+        font_id: FontStyle,
         text_color: Color32,
     ) -> Rect {
         let galley = self.layout_no_wrap(text.to_string(), font_id, text_color);
@@ -520,7 +524,7 @@ impl Painter {
     pub fn layout(
         &self,
         text: String,
-        font_id: FontId,
+        font_id: FontStyle,
         color: crate::Color32,
         wrap_width: f32,
     ) -> Arc<Galley> {
@@ -535,7 +539,7 @@ impl Painter {
     pub fn layout_no_wrap(
         &self,
         text: String,
-        font_id: FontId,
+        font_id: FontStyle,
         color: crate::Color32,
     ) -> Arc<Galley> {
         self.fonts(|f| f.layout(text, font_id, color, f32::INFINITY))

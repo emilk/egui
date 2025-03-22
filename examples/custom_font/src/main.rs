@@ -27,14 +27,15 @@ fn add_font(ctx: &egui::Context) {
             "../../../crates/epaint_default_fonts/fonts/Hack-Regular.ttf"
         )),
         vec![
-            InsertFontFamily {
+            /*InsertFontFamily {
                 family: egui::FontFamily::Proportional,
                 priority: egui::epaint::text::FontPriority::Highest,
             },
             InsertFontFamily {
                 family: egui::FontFamily::Monospace,
                 priority: egui::epaint::text::FontPriority::Lowest,
-            },
+            },*/
+            todo!(),
         ],
     ));
 }
@@ -54,7 +55,7 @@ fn replace_fonts(ctx: &egui::Context) {
     );
 
     // Put my font first (highest priority) for proportional text:
-    fonts
+    /*fonts
         .families
         .entry(egui::FontFamily::Proportional)
         .or_default()
@@ -65,7 +66,8 @@ fn replace_fonts(ctx: &egui::Context) {
         .families
         .entry(egui::FontFamily::Monospace)
         .or_default()
-        .push("my_font".to_owned());
+        .push("my_font".to_owned());*/
+    todo!();
 
     // Tell egui to use these fonts:
     ctx.set_fonts(fonts);
