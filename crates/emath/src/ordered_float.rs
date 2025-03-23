@@ -11,7 +11,7 @@ use std::hash::{Hash, Hasher};
 /// The size of zero is ignored.
 ///
 /// See also [`Float`].
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct OrderedFloat<T>(pub T);
 
 impl<T: Float + Copy> OrderedFloat<T> {

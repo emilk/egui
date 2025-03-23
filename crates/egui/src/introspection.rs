@@ -1,27 +1,32 @@
 //! Showing UI:s for egui/epaint types.
+
+use epaint::text::style::GenericFamily;
+
 use crate::{
-    epaint, memory, pos2, remap_clamp, vec2, Color32, CursorIcon, FontFamily, FontId, Label, Mesh,
-    NumExt as _, Rect, Response, Sense, Shape, Slider, TextStyle, TextWrapMode, Ui, Widget,
+    epaint, memory, pos2, remap_clamp, text::style::FontId, vec2, Color32, ComboBox, CursorIcon,
+    Label, Mesh, NumExt as _, Rect, Response, Sense, Shape, Slider, TextStyle, TextWrapMode, Ui,
+    Widget,
 };
 
-pub fn font_family_ui(ui: &mut Ui, font_family: &mut FontFamily) {
-    let families = ui.fonts(|f| f.families());
-    ui.horizontal(|ui| {
-        for alternative in families {
-            let text = alternative.to_string();
-            ui.radio_value(font_family, alternative, text);
-        }
-    });
-}
-
 pub fn font_id_ui(ui: &mut Ui, font_id: &mut FontId) {
-    let families = ui.fonts(|f| f.families());
-    ui.horizontal(|ui| {
+    let families = ui.fonts(|f| f.families().to_owned());
+    ui.horizontal_wrapped(|ui| {
         ui.add(Slider::new(&mut font_id.size, 4.0..=40.0).max_decimals(1));
-        for alternative in families {
-            let text = alternative.to_string();
-            ui.radio_value(&mut font_id.family, alternative, text);
-        }
+        ComboBox::from_id_salt(ui.next_auto_id())
+            .selected_text(font_id.family.first_family().to_string())
+            .show_ui(ui, |ui| {
+                for generic in GenericFamily::ALL {
+                    let text = generic.to_string();
+                    ui.selectable_value(&mut font_id.family, generic.into(), text);
+                }
+
+                ui.separator();
+
+                for alternative in families {
+                    let text = alternative.to_string();
+                    ui.selectable_value(&mut font_id.family, alternative.into(), text);
+                }
+            });
     });
 }
 
