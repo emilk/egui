@@ -467,7 +467,7 @@ pub use emath::{
 };
 pub use epaint::{
     mutex,
-    text::{FontData, FontDefinitions, FontFamily, FontId, FontTweak},
+    text::{FontData, FontDefinitions, FontTweak},
     textures::{TextureFilter, TextureOptions, TextureWrapMode, TexturesDelta},
     ClippedPrimitive, ColorImage, CornerRadius, ImageData, Margin, Mesh, PaintCallback,
     PaintCallbackInfo, Shadow, Shape, Stroke, StrokeKind, TextureHandle, TextureId,
@@ -476,8 +476,9 @@ pub use epaint::{
 pub mod text {
     pub use epaint::text::{
         cursor::{ByteCursor, Selection},
-        FontData, FontDefinitions, FontFamily, FontStore, Galley, LayoutJob, LayoutSection,
-        TextFormat, TextWrapping, TAB_SIZE,
+        style::{self, TextFormat},
+        FontData, FontDefinitions, FontStore, Galley, LayoutJob, LayoutSection, TextWrapping,
+        TAB_SIZE,
     };
 }
 

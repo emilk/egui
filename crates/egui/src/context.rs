@@ -396,7 +396,6 @@ impl ViewportRepaintInfo {
 #[derive(Default)]
 struct ContextImpl {
     fonts: Option<FontStore>,
-    font_definitions: FontDefinitions,
 
     memory: Memory,
     animation_manager: AnimationManager,
@@ -554,33 +553,29 @@ impl ContextImpl {
     fn update_fonts_mut(&mut self) {
         profiling::function_scope!();
         let input = &self.viewport().input;
-        let pixels_per_point = input.pixels_per_point();
         let max_texture_side = input.max_texture_side;
 
-        if let Some(font_definitions) = self.memory.new_font_definitions.take() {
-            // New font definition loaded, so we need to reload all fonts.
-            self.fonts = None;
-            self.font_definitions = font_definitions;
-            #[cfg(feature = "log")]
-            log::trace!("Loading new font definitions");
-        }
+        let mut new_font_definitions =
+            if let Some(font_definitions) = self.memory.new_font_definitions.take() {
+                Cow::Owned(font_definitions)
+            } else if let Some(fonts) = &self.fonts {
+                Cow::Borrowed(fonts.definitions())
+            } else {
+                Cow::Owned(FontDefinitions::default())
+            };
 
         if !self.memory.add_fonts.is_empty() {
             let fonts = self.memory.add_fonts.drain(..);
+            let font_definitions = new_font_definitions.to_mut();
             for font in fonts {
-                self.fonts = None; // recreate all the fonts
                 for family in font.families {
-                    let fam = self
-                        .font_definitions
-                        .families
-                        .entry(family.family)
-                        .or_default();
+                    let fam = font_definitions.families.entry(family.family).or_default();
                     match family.priority {
                         FontPriority::Highest => fam.insert(0, font.name.clone()),
                         FontPriority::Lowest => fam.push(font.name.clone()),
                     }
                 }
-                self.font_definitions
+                font_definitions
                     .font_data
                     .insert(font.name, Arc::new(font.data));
             }
@@ -589,28 +584,43 @@ impl ContextImpl {
             log::trace!("Adding new fonts");
         }
 
-        let mut is_new = false;
+        let mut did_change_fonts = false;
 
-        let fonts = self.fonts.get_or_insert_with(|| {
-            #[cfg(feature = "log")]
-            log::trace!("Creating new Fonts for pixels_per_point={pixels_per_point}");
+        // If we changed the font definitions this frame, or self.fonts previously did not exist, new_font_definitions
+        // must be Cow::Owned. Set the font definitions.
+        let fonts = if let Cow::Owned(new_font_definitions) = new_font_definitions {
+            did_change_fonts = true;
+            if let Some(fonts) = self.fonts.as_mut() {
+                fonts.set_definitions(new_font_definitions);
+                did_change_fonts = true;
+                fonts
+            } else {
+                self.fonts.get_or_insert_with(|| {
+                    #[cfg(feature = "log")]
+                    log::trace!("Creating new FontStore");
 
-            is_new = true;
-            profiling::scope!("FontStore::new");
-            FontStore::new(max_texture_side, self.font_definitions.clone())
-        });
+                    did_change_fonts = true;
+                    profiling::scope!("FontStore::new");
+                    FontStore::new(max_texture_side, new_font_definitions)
+                })
+            }
+        } else {
+            self.fonts
+                .as_mut()
+                .expect("new_font_definitions is borrowed, but we had nowhere to borrow it from")
+        };
 
         {
             profiling::scope!("FontStore::begin_pass");
             fonts.begin_pass(max_texture_side);
         }
 
-        if is_new && self.memory.options.preload_font_glyphs {
+        if did_change_fonts && self.memory.options.preload_font_glyphs {
             profiling::scope!("preload_font_glyphs");
             // Preload the most common characters for the most common fonts.
             // This is not very important to do, but may save a few GPU operations.
-            for font_id in self.memory.options.style().text_styles.values() {
-                fonts.font(font_id).preload_common_characters();
+            for font_style in self.memory.options.style().text_styles.values() {
+                fonts.preload_common_characters(font_style);
             }
         }
     }
@@ -1484,11 +1494,10 @@ impl Context {
 
         let font_id = TextStyle::Body.resolve(&self.style());
         self.fonts(|f| {
-            let font = f.font(&font_id);
-            font.has_glyphs(alt)
-                && font.has_glyphs(ctrl)
-                && font.has_glyphs(shift)
-                && font.has_glyphs(mac_cmd)
+            f.has_glyphs_for(&font_id, alt)
+                && f.has_glyphs_for(&font_id, ctrl)
+                && f.has_glyphs_for(&font_id, shift)
+                && f.has_glyphs_for(&font_id, mac_cmd)
         })
     }
 
@@ -2905,7 +2914,7 @@ impl Context {
     }
 
     fn fonts_tweak_ui(&self, ui: &mut Ui) {
-        let mut font_definitions = self.write(|ctx| ctx.font_definitions.clone());
+        let mut font_definitions = self.fonts(|fonts| fonts.definitions().clone());
         let mut changed = false;
 
         for (name, data) in &mut font_definitions.font_data {

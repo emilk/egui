@@ -1,8 +1,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 #![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
-use eframe::egui;
-use egui::{FontFamily, FontId, RichText, TextStyle};
+use eframe::egui::{
+    self,
+    text::style::{FontId, GenericFamily},
+};
+use egui::{RichText, TextStyle};
 use std::collections::BTreeMap;
 
 fn main() -> eframe::Result {
@@ -27,16 +30,16 @@ fn heading3() -> TextStyle {
 }
 
 fn configure_text_styles(ctx: &egui::Context) {
-    use FontFamily::{Monospace, Proportional};
+    use GenericFamily::{Monospace, SystemUi};
 
     let text_styles: BTreeMap<TextStyle, FontId> = [
-        (TextStyle::Heading, FontId::new(25.0, Proportional)),
-        (heading2(), FontId::new(22.0, Proportional)),
-        (heading3(), FontId::new(19.0, Proportional)),
-        (TextStyle::Body, FontId::new(16.0, Proportional)),
-        (TextStyle::Monospace, FontId::new(12.0, Monospace)),
-        (TextStyle::Button, FontId::new(12.0, Proportional)),
-        (TextStyle::Small, FontId::new(8.0, Proportional)),
+        (TextStyle::Heading, FontId::simple(25.0, SystemUi)),
+        (heading2(), FontId::simple(22.0, SystemUi)),
+        (heading3(), FontId::simple(19.0, SystemUi)),
+        (TextStyle::Body, FontId::simple(16.0, SystemUi)),
+        (TextStyle::Monospace, FontId::simple(12.0, Monospace)),
+        (TextStyle::Button, FontId::simple(12.0, SystemUi)),
+        (TextStyle::Small, FontId::simple(8.0, SystemUi)),
     ]
     .into();
     ctx.all_styles_mut(move |style| style.text_styles = text_styles.clone());

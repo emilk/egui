@@ -2,14 +2,14 @@ use std::sync::Arc;
 
 use emath::GuiRounding as _;
 use epaint::{
-    text::{Fonts, Galley, LayoutJob},
+    text::{style::FontId, Fonts, Galley, LayoutJob},
     CircleShape, ClippedShape, CornerRadius, PathStroke, RectShape, Shape, Stroke, StrokeKind,
 };
 
 use crate::{
     emath::{Align2, Pos2, Rangef, Rect, Vec2},
     layers::{LayerId, PaintList, ShapeIdx},
-    Color32, Context, FontId,
+    Color32, Context,
 };
 
 /// Helper to paint shapes and text to a specific region on a specific layer.
