@@ -1,19 +1,42 @@
-use std::sync::Arc;
+use std::{borrow::Cow, sync::Arc};
 
 use ahash::HashMapExt;
 use ecolor::Color32;
-use emath::{vec2, GuiRounding};
+use emath::{vec2, GuiRounding, OrderedFloat, Vec2};
 use parley::{Glyph, GlyphRun};
 use swash::zeno;
 
 use crate::{mutex::Mutex, TextureAtlas};
 
-use super::font::UvRect;
+use super::FontTweak;
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct UvRect {
+    /// X/Y offset for nice rendering (unit: points).
+    pub offset: Vec2,
+
+    /// Screen size (in points) of this glyph.
+    /// Note that the height is different from the font height.
+    pub size: Vec2,
+
+    /// Top left corner UV in texture.
+    pub min: [u16; 2],
+
+    /// Bottom right corner (exclusive).
+    pub max: [u16; 2],
+}
+
+impl UvRect {
+    pub fn is_nothing(&self) -> bool {
+        self.min == self.max
+    }
+}
 
 // Subpixel binning, taken from cosmic-text:
 // https://github.com/pop-os/cosmic-text/blob/974ddaed96b334f560b606ebe5d2ca2d2f9f23ef/src/glyph_cache.rs
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-enum SubpixelBin {
+pub(super) enum SubpixelBin {
     Zero,
     One,
     Two,
@@ -21,7 +44,7 @@ enum SubpixelBin {
 }
 
 impl SubpixelBin {
-    pub fn new(pos: f32) -> (i32, Self) {
+    fn new(pos: f32) -> (i32, Self) {
         let trunc = pos as i32;
         let fract = pos - trunc as f32;
 
@@ -53,7 +76,7 @@ impl SubpixelBin {
         }
     }
 
-    pub fn as_float(&self) -> f32 {
+    fn as_float(&self) -> f32 {
         match self {
             Self::Zero => 0.0,
             Self::One => 0.25,
@@ -61,33 +84,62 @@ impl SubpixelBin {
             Self::Three => 0.75,
         }
     }
+
+    pub const SUBPIXEL_OFFSETS: [f32; 4] = [0.0, 0.25, 0.5, 0.75];
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-struct CacheKey {
-    // TODO(valadaptive): is this the right key?
-    font_id: u64,
+struct GlyphKey {
     glyph_id: swash::GlyphId,
-    font_size_bits: u32,
     x: SubpixelBin,
     y: SubpixelBin,
+    style_id: u32,
 }
 
-impl CacheKey {
-    fn from_glyph(glyph: &Glyph, font_id: u64, font_size: f32, scale: f32) -> (Self, i32, i32) {
+impl GlyphKey {
+    fn from_glyph(glyph: &Glyph, scale: f32, style_id: u32) -> (Self, i32, i32) {
         let (x, x_bin) = SubpixelBin::new(glyph.x * scale);
         let (y, y_bin) = SubpixelBin::new(glyph.y * scale);
         (
             Self {
-                font_id,
                 glyph_id: glyph.id,
-                font_size_bits: (font_size * scale).to_bits(),
                 x: x_bin,
                 y: y_bin,
+                style_id,
             },
             x,
             y,
         )
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+struct StyleKey<'a> {
+    font_id: u64,
+    font_size: OrderedFloat<f32>,
+    skew: i8,
+    /// We want to avoid doing a bunch of allocations. When looking up this key in a map, this can be a borrowed slice.
+    /// We only need to convert it to an owned [`Vec<i16>`] the first time we insert it into the map.
+    normalized_coords: Cow<'a, [i16]>,
+}
+
+impl<'a> StyleKey<'a> {
+    fn new(font_id: u64, font_size: f32, skew: i8, normalized_coords: &'a [i16]) -> Self {
+        Self {
+            font_id,
+            font_size: font_size.into(),
+            skew,
+            normalized_coords: Cow::Borrowed(normalized_coords),
+        }
+    }
+
+    fn to_static(&self) -> StyleKey<'static> {
+        StyleKey {
+            font_id: self.font_id,
+            font_size: self.font_size,
+            skew: self.skew,
+            normalized_coords: self.normalized_coords.clone().into_owned().into(),
+        }
     }
 }
 
@@ -101,7 +153,13 @@ pub(super) struct GlyphAtlas {
     scale_context: swash::scale::ScaleContext,
     // TODO: just pass this in from Fonts
     atlas: Arc<Mutex<TextureAtlas>>,
-    rendered_glyphs: ahash::HashMap<CacheKey, Option<RenderedGlyph>>,
+    /// Style-related properties (font, size, variation coordinates) are the same for each glyph run and don't need to
+    /// be part of each glyph's cache key. Instead, we associate each style with its own compact ID, included in each
+    /// glyph's cache key. Compared to having a nested hash map of one cache per style, this keeps things flat and
+    /// avoids a bunch of gnarly lifetime issues.
+    style_ids: ahash::HashMap<StyleKey<'static>, u32>,
+    next_style_id: u32,
+    rendered_glyphs: ahash::HashMap<GlyphKey, Option<RenderedGlyph>>,
     /// Map of [`parley::fontique::Blob`] ID + [`parley::Font`] indexes to [`swash::FontRef`] offsets and cache keys.
     swash_keys: ahash::HashMap<(u64, u32), (swash::CacheKey, u32)>,
 }
@@ -111,9 +169,20 @@ impl GlyphAtlas {
         Self {
             scale_context: swash::scale::ScaleContext::new(),
             atlas,
+            style_ids: ahash::HashMap::new(),
+            next_style_id: 0,
             rendered_glyphs: ahash::HashMap::new(),
             swash_keys: ahash::HashMap::new(),
         }
+    }
+
+    /// Clears this glyph atlas, allowing it to be reused.
+    /// This will not clear the associated texture atlas--you should do that yourself before calling this.
+    pub fn clear(&mut self) {
+        self.style_ids.clear();
+        self.next_style_id = 0;
+        self.rendered_glyphs.clear();
+        self.swash_keys.clear();
     }
 
     pub fn render_glyph_run<'a: 'b, 'b>(
@@ -121,6 +190,7 @@ impl GlyphAtlas {
         glyph_run: &'b GlyphRun<'b, Color32>,
         offset: (f32, f32),
         pixels_per_point: f32,
+        font_tweaks: &ahash::HashMap<u64, FontTweak>,
     ) -> impl Iterator<Item = (Glyph, Option<UvRect>, (i32, i32), Color32)> + use<'a, 'b> {
         let run = glyph_run.run();
         let font = run.font();
@@ -140,10 +210,15 @@ impl GlyphAtlas {
             offset: swash_offset,
             key: swash_key,
         };
+
+        let size = font_size * pixels_per_point;
+        let normalized_coords = run.normalized_coords();
+
         let mut scaler: swash::scale::Scaler<'b> = self
             .scale_context
             .builder(font_ref)
-            .size(font_size * pixels_per_point)
+            .size(size)
+            .normalized_coords(normalized_coords)
             .hint(true)
             .build();
         // TODO(valadaptive): is it fine to lock the mutex here?
@@ -151,14 +226,40 @@ impl GlyphAtlas {
         let rendered_glyphs = &mut self.rendered_glyphs;
         let color = glyph_run.style().brush;
 
+        // TODO(valadaptive): there's also a faux embolden property, but it's always true with the defaut font because
+        // it's "light" and we technically asked for "normal"
+        let skew = run.synthesis().skew();
+
+        let style_key = StyleKey::<'b>::new(
+            font_id,
+            size,
+            skew.unwrap_or_default() as i8,
+            normalized_coords,
+        );
+
+        let style_id = match self.style_ids.get(&style_key) {
+            Some(key) => *key,
+            None => *self
+                .style_ids
+                .entry(style_key.to_static())
+                .or_insert_with(|| {
+                    let id = self.next_style_id;
+                    self.next_style_id += 1;
+                    id
+                }),
+        };
+
+        let tweak_offset = font_tweaks.get(&font_id).map_or(0.0, |tweak| {
+            (font_size * tweak.y_offset_factor) + tweak.y_offset
+        });
+
         glyph_run.positioned_glyphs().map(move |mut glyph| {
             // The Y-position transform applies to the font *after* it's been hinted, making it blurry. (So does the
             // X-position transform, but the hinter doesn't change the X coordinates anymore.)
             // TODO(valadaptive): remove Y subpixel position from the cache key entirely
             glyph.x += offset.0;
-            glyph.y = (glyph.y + offset.1).round_to_pixels(pixels_per_point);
-            let (cache_key, x, y) =
-                CacheKey::from_glyph(&glyph, font_id, font_size, pixels_per_point);
+            glyph.y = (glyph.y + offset.1 + tweak_offset).round_to_pixels(pixels_per_point);
+            let (cache_key, x, y) = GlyphKey::from_glyph(&glyph, pixels_per_point, style_id);
 
             if let Some(rendered_glyph) = rendered_glyphs.get(&cache_key) {
                 return (
@@ -180,12 +281,21 @@ impl GlyphAtlas {
                 swash::scale::Source::ColorBitmap(swash::scale::StrikeWith::BestFit),
                 swash::scale::Source::Outline,
             ])
+            .transform(skew.map(|skew| {
+                zeno::Transform::skew(zeno::Angle::from_degrees(skew), zeno::Angle::ZERO)
+            }))
             .format(swash::zeno::Format::Alpha)
             .offset(offset)
             .render(&mut scaler, glyph.id) else {
                 rendered_glyphs.insert(cache_key, None);
                 return (glyph, None, (x, y), color);
             };
+
+            // Some glyphs may have zero size (e.g. whitespace). Don't bother rendering them.
+            if image.placement.width == 0 || image.placement.height == 0 {
+                rendered_glyphs.insert(cache_key, None);
+                return (glyph, None, (x, y), color);
+            }
 
             let gamma = atlas.gamma;
             let (allocated_pos, font_image) = atlas.allocate((

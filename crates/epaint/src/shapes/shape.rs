@@ -6,7 +6,7 @@ use emath::{pos2, Align2, Pos2, Rangef, Rect, TSTransform, Vec2};
 
 use crate::{
     stroke::PathStroke,
-    text::{FontId, Galley},
+    text::{style::FontId, Galley},
     Color32, CornerRadius, Fonts, Mesh, Stroke, StrokeKind, TextureId,
 };
 

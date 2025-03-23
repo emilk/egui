@@ -1,12 +1,9 @@
-use std::{borrow::Cow, sync::Arc};
+use std::sync::Arc;
 
 use ecolor::Color32;
 use emath::{pos2, vec2, Pos2, Rect, Vec2};
 use log::debug;
-use parley::{
-    AlignmentOptions, BreakReason, FontStyle, FontWeight, FontWidth, InlineBox,
-    PositionedLayoutItem, TextStyle,
-};
+use parley::{AlignmentOptions, BreakReason, GlyphRun, InlineBox, PositionedLayoutItem};
 
 use crate::{
     mutex::Mutex,
@@ -14,51 +11,25 @@ use crate::{
     Mesh,
 };
 
-use super::{fonts::FontsLayoutView, FontFamily, Galley, LayoutJob, TextFormat};
+use super::{fonts::FontsLayoutView, Galley, LayoutJob};
 
-fn text_format_to_line_height(format: &TextFormat) -> f32 {
-    format.line_height.unwrap_or(format.font_id.size)
-}
+fn render_decoration(
+    run: &GlyphRun<'_, Color32>,
+    mesh: &mut Mesh,
+    offset: (f32, f32),
+    color: Color32,
+    decoration_offset: f32,
+    size: f32,
+) {
+    let y = run.baseline() - decoration_offset + offset.1;
+    let x_start = run.offset() + offset.0;
+    let x_end = x_start + run.advance();
+    let half_size = size * 0.5;
 
-fn text_format_to_style<'b: 'c, 'c>(format: &'b TextFormat) -> TextStyle<'c, Color32> {
-    TextStyle {
-        font_stack: match &format.font_id.family {
-            FontFamily::Proportional => parley::FontStack::Single(parley::FontFamily::Generic(
-                parley::GenericFamily::SansSerif,
-            )),
-            FontFamily::Monospace => parley::FontStack::Single(parley::FontFamily::Generic(
-                parley::GenericFamily::Monospace,
-            )),
-            FontFamily::Name(name) => {
-                parley::FontStack::Single(parley::FontFamily::Named(Cow::Borrowed(name)))
-            }
-        },
-        font_size: format.font_id.size,
-        font_width: FontWidth::NORMAL,
-        font_style: if format.italics {
-            FontStyle::Italic
-        } else {
-            FontStyle::Normal
-        },
-        font_weight: FontWeight::NORMAL,
-        font_variations: parley::FontSettings::List(Cow::Borrowed(&[])),
-        font_features: parley::FontSettings::List(Cow::Borrowed(&[])),
-        locale: None,
-        brush: format.color,
-        has_underline: !format.underline.is_empty(),
-        underline_offset: None,
-        underline_size: (!format.underline.is_empty()).then_some(format.underline.width),
-        underline_brush: (!format.underline.is_empty()).then_some(format.underline.color),
-        has_strikethrough: !format.strikethrough.is_empty(),
-        strikethrough_offset: None,
-        strikethrough_size: (!format.strikethrough.is_empty())
-            .then_some(format.strikethrough.width),
-        strikethrough_brush: (!format.strikethrough.is_empty())
-            .then_some(format.strikethrough.color),
-        line_height: text_format_to_line_height(format) / format.font_id.size,
-        word_spacing: 0.0,
-        letter_spacing: format.extra_letter_spacing,
-    }
+    mesh.add_colored_rect(
+        Rect::from_min_max(pos2(x_start, y - half_size), pos2(x_end, y + half_size)),
+        color,
+    );
 }
 
 pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley {
@@ -83,7 +54,7 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
 
     let justify = job.justify && job.wrap.max_width.is_finite();
 
-    let default_style = text_format_to_style(&first_section.format);
+    let default_style = first_section.format.as_parley();
     let mut builder = fonts
         .layout_context
         .tree_builder(fonts.font_context, 1.0, &default_style);
@@ -104,12 +75,12 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
                 height: 0.0,
             });
         }
-        let mut style = text_format_to_style(&section.format);
+        let mut style = section.format.as_parley();
         if i == 0 {
             // If the first section takes up more than one row, this will apply to the entire first section. There
             // doesn't seem to be any way to prevent this because we don't know ahead of time what the "first row" will
             // be due to line wrapping.
-            first_row_height = first_row_height.max(text_format_to_line_height(&section.format));
+            first_row_height = first_row_height.max(section.format.line_height());
             style.line_height = first_row_height / section.format.font_id.size;
         }
 
@@ -202,13 +173,13 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
                         vertical_offset = 0.0;
                     }
 
-                    // TODO(valadaptive): use this to implement faux italics (and faux bold?)
-                    // run.run.synthesis()
+                    let run_metrics = run.run().metrics();
 
                     for (mut glyph, uv_rect, (x, y), color) in fonts.glyph_atlas.render_glyph_run(
                         &run,
                         (horiz_offset, vertical_offset),
                         fonts.pixels_per_point,
+                        fonts.font_tweaks,
                     ) {
                         glyph.x += horiz_offset;
                         glyph.y += vertical_offset;
@@ -227,16 +198,35 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
                         );
 
                         //mesh.add_colored_rect(rect, Color32::DEBUG_COLOR.gamma_multiply(0.3));
-                        mesh.add_rect_with_uv(
-                            rect,
-                            uv,
-                            Color32::from_rgba_premultiplied(
-                                color.r(),
-                                color.g(),
-                                color.b(),
-                                color.a(),
-                            ),
-                        );
+                        mesh.add_rect_with_uv(rect, uv, color);
+
+                        if let Some(underline) = &run.style().underline {
+                            let offset = underline.offset.unwrap_or(run_metrics.underline_offset);
+                            let size = underline.size.unwrap_or(run_metrics.underline_size);
+                            render_decoration(
+                                &run,
+                                &mut mesh,
+                                (horiz_offset, vertical_offset),
+                                underline.brush,
+                                offset,
+                                size,
+                            );
+                        }
+
+                        if let Some(strikethrough) = &run.style().strikethrough {
+                            let offset = strikethrough
+                                .offset
+                                .unwrap_or(run_metrics.strikethrough_offset);
+                            let size = strikethrough.size.unwrap_or(run_metrics.strikethrough_size);
+                            render_decoration(
+                                &run,
+                                &mut mesh,
+                                (horiz_offset, vertical_offset),
+                                strikethrough.brush,
+                                offset,
+                                size,
+                            );
+                        }
                     }
                 }
                 PositionedLayoutItem::InlineBox(inline_box) => {
