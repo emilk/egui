@@ -80,7 +80,7 @@
   - [ ] Better (more CSSish) font API
     - ~~move font db into FontDefinitions~~
     - [x] Families and not just files
-    - [ ] Option to load system fonts in FontDefinitions
+    - [x] Option to load system fonts in FontDefinitions
     - [ ] FontTweak is very not-implemented
       - [ ] scale
         - This actually *does* affect layout, but only horizontally. Not sure if this is implementable.

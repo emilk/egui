@@ -165,6 +165,10 @@ pub struct FontDefinitions {
     /// the first font and then move to the second, and so on.
     /// So the first font is the primary, and then comes a list of fallbacks in order of priority.
     pub families: BTreeMap<GenericFamily, Vec<String>>,
+
+    /// Whether system fonts should also be loaded. Useful for supporting broad character sets without shipping large
+    /// fonts, at the expense of load time.
+    pub include_system_fonts: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -289,6 +293,7 @@ impl Default for FontDefinitions {
         Self {
             font_data,
             families,
+            include_system_fonts: false,
         }
     }
 }
@@ -303,7 +308,14 @@ impl FontDefinitions {
         Self {
             font_data: Default::default(),
             families,
+            include_system_fonts: false,
         }
+    }
+
+    /// Set whether [`Self::include_system_fonts`] is enabled.
+    pub fn with_system_fonts(mut self, include_system_fonts: bool) -> Self {
+        self.include_system_fonts = include_system_fonts;
+        self
     }
 
     /// List of all the builtin font names used by `epaint`.
@@ -381,8 +393,8 @@ impl FontStore {
         let atlas = Arc::new(Mutex::new(atlas));
 
         let collection = fontique::Collection::new(fontique::CollectionOptions {
-            shared: true,
-            system_fonts: true,
+            shared: false,
+            system_fonts: definitions.include_system_fonts,
         });
 
         let mut font_store = Self {
@@ -432,8 +444,6 @@ impl FontStore {
     }
 
     fn load_fonts_from_definitions(&mut self) {
-        self.font_context.collection.clear();
-        self.font_tweaks.clear();
         for (name, data) in &self.definitions.font_data {
             // TODO(valadaptive): in the case where we're just adding new fonts, we can probably reuse the blobs
             let blob = Blob::new(Arc::new(data.font.clone()));
@@ -475,7 +485,18 @@ impl FontStore {
     }
 
     pub fn set_definitions(&mut self, definitions: FontDefinitions) {
+        // We need to recreate the font collection if we start or stop loading system fonts
+        if definitions.include_system_fonts != self.definitions.include_system_fonts {
+            self.font_context.collection = fontique::Collection::new(fontique::CollectionOptions {
+                shared: false,
+                system_fonts: self.definitions.include_system_fonts,
+            });
+        } else {
+            self.font_context.collection.clear();
+        }
+
         self.definitions = definitions;
+        self.font_tweaks.clear();
         self.font_context.source_cache.prune(0, true);
         self.clear_cache(self.max_texture_side);
         self.load_fonts_from_definitions();
@@ -667,11 +688,19 @@ impl FontStore {
     /// List of all loaded font families.
     pub fn families(&mut self) -> &[FontFamily] {
         self.all_families.get_or_insert_with(|| {
-            self.font_context
+            let mut all_families = self
+                .font_context
                 .collection
                 .family_names()
                 .map(|name| FontFamily::Named(Cow::Owned(name.to_owned())))
-                .collect()
+                .collect::<Vec<_>>();
+
+            all_families.sort_by_cached_key(|f| match f {
+                FontFamily::Named(name) => name.to_lowercase(),
+                FontFamily::Generic(_) => unreachable!(),
+            });
+
+            all_families
         })
     }
 
