@@ -277,6 +277,10 @@ pub struct Options {
     ///
     /// This can lead to fewer texture operations, but may use up the texture atlas quicker
     /// if you are changing [`Style::text_styles`], or have a lot of text styles.
+    ///
+    /// TODO(valadaptive): preload_font_glyphs used to do something, but the new text layout code rasterizes at subpixel
+    /// offsets, and I don't feel like rasterizing all 4 offsets for every glyph ahead of time. Is preload_font_glyphs
+    /// actually useful or just a placebo?
     pub preload_font_glyphs: bool,
 
     /// Check reusing of [`Id`]s, and show a visual warning on screen when one is found.

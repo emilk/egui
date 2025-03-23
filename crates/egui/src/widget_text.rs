@@ -1,11 +1,14 @@
 use std::{borrow::Cow, sync::Arc};
 
 use emath::GuiRounding as _;
-use epaint::text::TextFormat;
+use epaint::text::style::{FontFeatures, FontVariations, FontWeight, FontWidth, TextFormat};
 
 use crate::{
-    text::{LayoutJob, TextWrapping},
-    Align, Color32, FontFamily, FontSelection, Galley, Style, TextStyle, TextWrapMode, Ui, Visuals,
+    text::{
+        style::{FontId, FontStack},
+        LayoutJob, TextWrapping,
+    },
+    Align, Color32, FontSelection, Galley, Style, TextStyle, TextWrapMode, Ui, Visuals,
 };
 
 /// Text and optional style choices for it.
@@ -29,7 +32,7 @@ pub struct RichText {
     size: Option<f32>,
     extra_letter_spacing: f32,
     line_height: Option<f32>,
-    family: Option<FontFamily>,
+    family: Option<FontStack>,
     text_style: Option<TextStyle>,
     background_color: Color32,
     expand_bg: f32,
@@ -37,6 +40,10 @@ pub struct RichText {
     code: bool,
     strong: bool,
     weak: bool,
+    weight: Option<FontWeight>,
+    width: Option<FontWidth>,
+    variations: Option<Arc<FontVariations>>,
+    features: Option<Arc<FontFeatures>>,
     strikethrough: bool,
     underline: bool,
     italics: bool,
@@ -58,6 +65,10 @@ impl Default for RichText {
             code: Default::default(),
             strong: Default::default(),
             weak: Default::default(),
+            weight: Default::default(),
+            width: Default::default(),
+            variations: Default::default(),
+            features: Default::default(),
             strikethrough: Default::default(),
             underline: Default::default(),
             italics: Default::default(),
@@ -181,18 +192,30 @@ impl RichText {
     ///
     /// Only the families available in [`crate::FontDefinitions::families`] may be used.
     #[inline]
-    pub fn family(mut self, family: FontFamily) -> Self {
-        self.family = Some(family);
+    pub fn family(mut self, family: impl Into<FontStack>) -> Self {
+        self.family = Some(family.into());
         self
     }
 
     /// Select the font and size.
     /// This overrides the value from [`Self::text_style`].
     #[inline]
-    pub fn font(mut self, font_id: crate::FontId) -> Self {
-        let crate::FontId { size, family } = font_id;
+    pub fn font(mut self, font_id: FontId) -> Self {
+        let FontId {
+            size,
+            family,
+            weight,
+            width,
+            variations,
+            features,
+        } = font_id;
         self.size = Some(size);
         self.family = Some(family);
+        self.weight = Some(weight);
+        self.width = Some(width);
+        self.variations = variations;
+        self.features = features;
+
         self
     }
 
@@ -240,6 +263,30 @@ impl RichText {
     #[inline]
     pub fn weak(mut self) -> Self {
         self.weak = true;
+        self
+    }
+
+    /// Override the font weight.
+    pub fn weight(mut self, weight: FontWeight) -> Self {
+        self.weight = Some(weight);
+        self
+    }
+
+    /// Override the font width/stretch (not wrap width).
+    pub fn width(mut self, width: FontWidth) -> Self {
+        self.width = Some(width);
+        self
+    }
+
+    /// Override the font's OpenType variations.
+    pub fn variations(mut self, variations: Arc<FontVariations>) -> Self {
+        self.variations = Some(variations);
+        self
+    }
+
+    /// Override the font's OpenType features.
+    pub fn features(mut self, features: Arc<FontFeatures>) -> Self {
+        self.features = Some(features);
         self
     }
 
@@ -394,6 +441,10 @@ impl RichText {
             code,
             strong: _, // already used by `get_text_color`
             weak: _,   // already used by `get_text_color`
+            weight,
+            width,
+            variations,
+            features,
             strikethrough,
             underline,
             italics,
@@ -404,20 +455,33 @@ impl RichText {
         let text_color = text_color.unwrap_or(crate::Color32::PLACEHOLDER);
 
         let font_id = {
-            let mut font_id = text_style
-                .or_else(|| style.override_text_style.clone())
-                .map_or_else(
-                    || fallback_font.resolve(style),
-                    |text_style| text_style.resolve(style),
-                );
-            if let Some(fid) = style.override_font_id.clone() {
-                font_id = fid;
-            }
+            let mut font_id = if let Some(fid) = style.override_font_id.clone() {
+                fid
+            } else if let Some(text_style) = text_style {
+                text_style.resolve(style)
+            } else if let Some(text_style) = style.override_text_style.clone() {
+                text_style.resolve(style)
+            } else {
+                fallback_font.resolve(style)
+            };
+
             if let Some(size) = size {
                 font_id.size = size;
             }
             if let Some(family) = family {
                 font_id.family = family;
+            }
+            if let Some(weight) = weight {
+                font_id.weight = weight;
+            }
+            if let Some(width) = width {
+                font_id.width = width;
+            }
+            if let Some(variations) = variations {
+                font_id.variations = Some(variations);
+            }
+            if let Some(features) = features {
+                font_id.features = Some(features);
             }
             font_id
         };
