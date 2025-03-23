@@ -1528,7 +1528,6 @@ dependencies = [
 name = "epaint"
 version = "0.31.1"
 dependencies = [
- "ab_glyph",
  "accesskit",
  "ahash",
  "backtrace",
@@ -1538,6 +1537,7 @@ dependencies = [
  "ecolor",
  "emath",
  "epaint_default_fonts",
+ "etagere",
  "log",
  "mimalloc",
  "nohash-hasher",
@@ -1546,7 +1546,7 @@ dependencies = [
  "profiling",
  "rayon",
  "serde",
- "swash",
+ "swash 0.2.2",
 ]
 
 [[package]]
@@ -1574,6 +1574,25 @@ name = "error-code"
 version = "3.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a5d9305ccc6942a704f4335694ecd3de2ea531b114ac2d51f5f843750787a92f"
+
+[[package]]
+name = "etagere"
+version = "0.2.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fc89bf99e5dc15954a60f707c1e09d7540e5cd9af85fa75caa0b510bc08c5342"
+dependencies = [
+ "euclid",
+ "svg_fmt",
+]
+
+[[package]]
+name = "euclid"
+version = "0.22.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ad9cdb4b747e485a12abb0e6566612956c7a1bafa3bdb8d682c5b6d403589e48"
+dependencies = [
+ "num-traits",
+]
 
 [[package]]
 name = "event-listener"
@@ -1680,6 +1699,15 @@ checksum = "a0d2fde1f7b3d48b8395d5f2de76c18a528bd6a9cdde438df747bfcba3e05d6f"
 
 [[package]]
 name = "font-types"
+version = "0.8.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fa6a5e5a77b5f3f7f9e32879f484aa5b3632ddfbe568a16266c904a6f32cdaf"
+dependencies = [
+ "bytemuck",
+]
+
+[[package]]
+name = "font-types"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "02a596f5713680923a2080d86de50fe472fb290693cf0f701187a1c8b36996b7"
@@ -1733,7 +1761,7 @@ dependencies = [
  "objc2-core-text",
  "objc2-foundation 0.3.1",
  "peniko",
- "read-fonts",
+ "read-fonts 0.29.0",
  "roxmltree",
  "smallvec",
  "windows 0.58.0",
@@ -3164,8 +3192,8 @@ dependencies = [
  "hashbrown",
  "peniko",
  "serde",
- "skrifa",
- "swash",
+ "skrifa 0.31.0",
+ "swash 0.2.4",
 ]
 
 [[package]]
@@ -3522,12 +3550,22 @@ dependencies = [
 
 [[package]]
 name = "read-fonts"
+version = "0.25.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f6f9e8a4f503e5c8750e4cd3b32a4e090035c46374b305a15c70bad833dca05f"
+dependencies = [
+ "bytemuck",
+ "font-types 0.8.4",
+]
+
+[[package]]
+name = "read-fonts"
 version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5ce8e2ca6b24313587a03ca61bb74c384e2a815bd90cf2866cfc9f5fb7a11fa0"
 dependencies = [
  "bytemuck",
- "font-types",
+ "font-types 0.9.0",
 ]
 
 [[package]]
@@ -3894,12 +3932,22 @@ checksum = "56199f7ddabf13fe5074ce809e7d3f42b42ae711800501b5b16ea82ad029c39d"
 
 [[package]]
 name = "skrifa"
+version = "0.26.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8cc1aa86c26dbb1b63875a7180aa0819709b33348eb5b1491e4321fae388179d"
+dependencies = [
+ "bytemuck",
+ "read-fonts 0.25.3",
+]
+
+[[package]]
+name = "skrifa"
 version = "0.31.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbe6666ab11018ab91ff7b03f1a3b9fdbecfb610848436fefa5ce50343d3d913"
 dependencies = [
  "bytemuck",
- "read-fonts",
+ "read-fonts 0.29.0",
 ]
 
 [[package]]
@@ -4040,6 +4088,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
+name = "svg_fmt"
+version = "0.4.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0193cc4331cfd2f3d2011ef287590868599a2f33c3e69bc22c1a3d3acf9e02fb"
+
+[[package]]
 name = "svgtypes"
 version = "0.15.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4051,13 +4105,23 @@ dependencies = [
 
 [[package]]
 name = "swash"
+version = "0.2.2"
+source = "git+https://github.com/valadaptive/swash?branch=tight-bounds#2884db1436e05256246047dc4a41b970afb7a74a"
+dependencies = [
+ "skrifa 0.26.6",
+ "yazi",
+ "zeno 0.3.2",
+]
+
+[[package]]
+name = "swash"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5dce3f0af95643c855cdc449fbaa17d8c2cd08e0b00a49a6babcbe6e71667f3d"
 dependencies = [
- "skrifa",
+ "skrifa 0.31.0",
  "yazi",
- "zeno",
+ "zeno 0.3.3",
 ]
 
 [[package]]
@@ -5701,6 +5765,11 @@ dependencies = [
  "zbus_names",
  "zvariant",
 ]
+
+[[package]]
+name = "zeno"
+version = "0.3.2"
+source = "git+https://github.com/valadaptive/zeno?branch=tight-bounds#696f94184a1af5c0411c282045549264236ff881"
 
 [[package]]
 name = "zeno"

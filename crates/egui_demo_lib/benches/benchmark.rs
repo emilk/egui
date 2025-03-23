@@ -160,7 +160,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let pixels_per_point = 1.0;
         let max_texture_side = 8 * 1024;
         let wrap_width = 512.0;
-        let font_id = egui::FontId::default();
+        let font_id = egui::text::style::FontId::default();
         let text_color = egui::Color32::WHITE;
         let mut fonts =
             egui::epaint::text::FontStore::new(max_texture_side, egui::FontDefinitions::default());
