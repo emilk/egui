@@ -339,7 +339,7 @@ impl Shape {
     #[inline]
     pub fn mesh(mesh: impl Into<Arc<Mesh>>) -> Self {
         let mesh = mesh.into();
-        debug_assert!(mesh.is_valid());
+        debug_assert!(mesh.is_valid(), "Invalid mesh: {mesh:#?}");
         Self::Mesh(mesh)
     }
 
@@ -525,7 +525,13 @@ fn dashes_from_line(
     shapes: &mut Vec<Shape>,
     dash_offset: f32,
 ) {
-    assert_eq!(dash_lengths.len(), gap_lengths.len());
+    assert_eq!(
+        dash_lengths.len(),
+        gap_lengths.len(),
+        "Mismatched dash and gap lengths, got dash_lengths: {}, gap_lengths: {}",
+        dash_lengths.len(),
+        gap_lengths.len()
+    );
     let mut position_on_segment = dash_offset;
     let mut drawing_dash = false;
     let mut step = 0;

@@ -59,7 +59,11 @@ pub fn paint_text_selection(
         // Start by appending the selection rectangle to end of the mesh, as two triangles (= 6 indices):
         let num_indices_before = mesh.indices.len();
         mesh.add_colored_rect(rect, color);
-        assert_eq!(num_indices_before + 6, mesh.indices.len());
+        assert_eq!(
+            num_indices_before + 6,
+            mesh.indices.len(),
+            "We expect exactly 6 new indices"
+        );
 
         // Copy out the new triangles:
         let selection_triangles = [

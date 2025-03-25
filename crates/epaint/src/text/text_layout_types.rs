@@ -892,7 +892,7 @@ impl Galley {
             }
             ccursor_it.index += row.char_count_including_newline();
         }
-        debug_assert!(ccursor_it == self.end());
+        debug_assert!(ccursor_it == self.end(), "Cursor out of bounds");
 
         if let Some(last_row) = self.rows.last() {
             LayoutCursor {
