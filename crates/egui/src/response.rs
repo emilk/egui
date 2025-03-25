@@ -987,7 +987,7 @@ impl Response {
     pub fn union(&self, other: Self) -> Self {
         assert!(
             self.ctx == other.ctx,
-            "Responses must be from the same `Ui`"
+            "Responses must be from the same `Context`"
         );
         debug_assert!(
             self.layer_id == other.layer_id,
