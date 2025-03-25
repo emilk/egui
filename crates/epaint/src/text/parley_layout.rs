@@ -54,7 +54,8 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
 
     let justify = job.justify && job.wrap.max_width.is_finite();
 
-    let default_style = first_section.format.as_parley();
+    let mut default_style = first_section.format.as_parley();
+    job.wrap.apply_to_parley_style(&mut default_style);
     let mut builder = fonts
         .layout_context
         .tree_builder(fonts.font_context, 1.0, &default_style);
@@ -76,6 +77,7 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
             });
         }
         let mut style = section.format.as_parley();
+        job.wrap.apply_to_parley_style(&mut style);
         if i == 0 {
             // If the first section takes up more than one row, this will apply to the entire first section. There
             // doesn't seem to be any way to prevent this because we don't know ahead of time what the "first row" will

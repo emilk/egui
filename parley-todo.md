@@ -6,13 +6,14 @@
 - [ ] Ability to set line.offset (necessary for LayoutSection::leading_space)
   - [ ] This can't just be a visual thing because of hit testing; Layout needs to agree on where everything is
 - [ ] Absolute line height
-- [ ] Custom family names (https://github.com/linebender/parley/issues/117)
+- [x] Custom family names (https://github.com/linebender/parley/issues/117)
 - [ ] Inline box fix (https://github.com/linebender/parley/pull/299)
 - [ ] Don't round vertical metrics (https://github.com/linebender/parley/pull/297)
 - [ ] RTL jank (https://github.com/linebender/parley/issues/298)
 - [ ] Support the tab character (https://github.com/linebender/parley/issues/302)
 - [ ] AccessKit improvements (https://github.com/linebender/parley/issues/310)
 - [ ] Not Parley, but Swash: tighter glyph bounds (https://github.com/dfrg/zeno/pull/15)
+- [ ] Text wrap styling (https://github.com/linebender/parley/pull/315)
 
 ## Here:
 - [ ] Text layout
@@ -24,6 +25,10 @@
   - [ ] In the EasyMark example, with the text "There is no alternative way to specify the strong style", at certain wrap widths, the text from "strong" onwards will be shifted down 1px
   - [ ] With the fancy variable autohinted Ubuntu font, *sometimes* the "Interactive Container" label on the right demos bar appears improperly wrapped?
   - [ ] With "Text Wrap Mode" set to "Some(Wrap)" or "Some(Truncate)" in the Settings window, labels are not as wide as they should be compared to master branch (see Text Layout window)
+  - [ ] Text wrapping
+    - [x] max_rows
+    - [x] break_anywhere
+    - [ ] overflow_character
 - [ ] Text rendering
   - [x] Investigate whether swash is being too conservative with its shape bounds and cutting off rendered glyphs
     - The reverse is true https://github.com/dfrg/zeno/pull/15
