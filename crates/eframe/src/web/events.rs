@@ -139,7 +139,8 @@ fn install_keydown(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), J
             {
                 if let Some(text) = text_from_keyboard_event(&event) {
                     let egui_event = egui::Event::Text(text);
-                    let should_propagate = (runner.web_options.should_propagate_event)(&egui_event);
+                    let should_stop_propagation =
+                        (runner.web_options.should_stop_propagation)(&egui_event);
                     let should_prevent_default =
                         (runner.web_options.should_prevent_default)(&egui_event);
                     runner.input.raw.events.push(egui_event);
@@ -151,7 +152,7 @@ fn install_keydown(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), J
                     }
 
                     // Use web options to tell if the event should be propagated to parent elements.
-                    if !should_propagate {
+                    if should_stop_propagation {
                         event.stop_propagation();
                     }
                 }
@@ -188,7 +189,7 @@ pub(crate) fn on_keydown(event: web_sys::KeyboardEvent, runner: &mut AppRunner) 
             repeat: false, // egui will fill this in for us!
             modifiers,
         };
-        let should_propagate = (runner.web_options.should_propagate_event)(&egui_event);
+        let should_stop_propagation = (runner.web_options.should_stop_propagation)(&egui_event);
         runner.input.raw.events.push(egui_event);
         runner.needs_repaint.repaint_asap();
 
@@ -205,7 +206,7 @@ pub(crate) fn on_keydown(event: web_sys::KeyboardEvent, runner: &mut AppRunner) 
         }
 
         // Use web options to tell if the web event should be propagated to parent elements based on the egui event.
-        if !should_propagate {
+        if should_stop_propagation {
             event.stop_propagation();
         }
     }
@@ -265,7 +266,7 @@ pub(crate) fn on_keyup(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
     let modifiers = modifiers_from_kb_event(&event);
     runner.input.raw.modifiers = modifiers;
 
-    let mut propagate_event = false;
+    let mut should_stop_propagation = true;
 
     if let Some(key) = translate_key(&event.key()) {
         let egui_event = egui::Event::Key {
@@ -275,7 +276,7 @@ pub(crate) fn on_keyup(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
             repeat: false,
             modifiers,
         };
-        propagate_event |= (runner.web_options.should_propagate_event)(&egui_event);
+        should_stop_propagation &= (runner.web_options.should_stop_propagation)(&egui_event);
         runner.input.raw.events.push(egui_event);
     }
 
@@ -294,7 +295,7 @@ pub(crate) fn on_keyup(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
                 repeat: false,
                 modifiers,
             };
-            propagate_event |= (runner.web_options.should_propagate_event)(&egui_event);
+            should_stop_propagation &= (runner.web_options.should_stop_propagation)(&egui_event);
             runner.input.raw.events.push(egui_event);
         }
     }
@@ -303,7 +304,7 @@ pub(crate) fn on_keyup(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
 
     // Use web options to tell if the web event should be propagated to parent elements based on the egui event.
     let has_focus = runner.input.raw.focused;
-    if has_focus && !propagate_event {
+    if has_focus && should_stop_propagation {
         event.stop_propagation();
     }
 }
@@ -314,11 +315,12 @@ fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Resul
             if let Ok(text) = data.get_data("text") {
                 let text = text.replace("\r\n", "\n");
 
-                let mut should_propagate = false;
+                let mut should_stop_propagation = true;
                 let mut should_prevent_default = true;
                 if !text.is_empty() && runner.input.raw.focused {
                     let egui_event = egui::Event::Paste(text);
-                    should_propagate = (runner.web_options.should_propagate_event)(&egui_event);
+                    should_stop_propagation =
+                        (runner.web_options.should_stop_propagation)(&egui_event);
                     should_prevent_default =
                         (runner.web_options.should_prevent_default)(&egui_event);
                     runner.input.raw.events.push(egui_event);
@@ -326,7 +328,7 @@ fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Resul
                 }
 
                 // Use web options to tell if the web event should be propagated to parent elements based on the egui event.
-                if !should_propagate {
+                if should_stop_propagation {
                     event.stop_propagation();
                 }
 
@@ -350,7 +352,7 @@ fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Resul
         }
 
         // Use web options to tell if the web event should be propagated to parent elements based on the egui event.
-        if !(runner.web_options.should_propagate_event)(&egui::Event::Cut) {
+        if (runner.web_options.should_stop_propagation)(&egui::Event::Cut) {
             event.stop_propagation();
         }
 
@@ -372,7 +374,7 @@ fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Resul
         }
 
         // Use web options to tell if the web event should be propagated to parent elements based on the egui event.
-        if !(runner.web_options.should_propagate_event)(&egui::Event::Copy) {
+        if (runner.web_options.should_stop_propagation)(&egui::Event::Copy) {
             event.stop_propagation();
         }
 
@@ -500,7 +502,7 @@ fn install_pointerdown(runner_ref: &WebRunner, target: &EventTarget) -> Result<(
         |event: web_sys::PointerEvent, runner: &mut AppRunner| {
             let modifiers = modifiers_from_mouse_event(&event);
             runner.input.raw.modifiers = modifiers;
-            let mut should_propagate = false;
+            let mut should_stop_propagation = true;
             if let Some(button) = button_from_mouse_event(&event) {
                 let pos = pos_from_mouse_event(runner.canvas(), &event, runner.egui_ctx());
                 let modifiers = runner.input.raw.modifiers;
@@ -510,7 +512,7 @@ fn install_pointerdown(runner_ref: &WebRunner, target: &EventTarget) -> Result<(
                     pressed: true,
                     modifiers,
                 };
-                should_propagate = (runner.web_options.should_propagate_event)(&egui_event);
+                should_stop_propagation = (runner.web_options.should_stop_propagation)(&egui_event);
                 runner.input.raw.events.push(egui_event);
 
                 // In Safari we are only allowed to write to the clipboard during the
@@ -522,7 +524,7 @@ fn install_pointerdown(runner_ref: &WebRunner, target: &EventTarget) -> Result<(
             }
 
             // Use web options to tell if the web event should be propagated to parent elements based on the egui event.
-            if !should_propagate {
+            if should_stop_propagation {
                 event.stop_propagation();
             }
             // Note: prevent_default breaks VSCode tab focusing, hence why we don't call it here.
@@ -552,7 +554,8 @@ fn install_pointerup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
                         pressed: false,
                         modifiers,
                     };
-                    let should_propagate = (runner.web_options.should_propagate_event)(&egui_event);
+                    let should_stop_propagation =
+                        (runner.web_options.should_stop_propagation)(&egui_event);
                     let should_prevent_default =
                         (runner.web_options.should_prevent_default)(&egui_event);
                     runner.input.raw.events.push(egui_event);
@@ -578,7 +581,7 @@ fn install_pointerup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
                     }
 
                     // Use web options to tell if the web event should be propagated to parent elements based on the egui event.
-                    if !should_propagate {
+                    if should_stop_propagation {
                         event.stop_propagation();
                     }
                 }
@@ -620,13 +623,13 @@ fn install_mousemove(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
             egui::pos2(event.client_x() as f32, event.client_y() as f32),
         ) {
             let egui_event = egui::Event::PointerMoved(pos);
-            let should_propagate = (runner.web_options.should_propagate_event)(&egui_event);
+            let should_stop_propagation = (runner.web_options.should_stop_propagation)(&egui_event);
             let should_prevent_default = (runner.web_options.should_prevent_default)(&egui_event);
             runner.input.raw.events.push(egui_event);
             runner.needs_repaint.repaint_asap();
 
             // Use web options to tell if the web event should be propagated to parent elements based on the egui event.
-            if !should_propagate {
+            if should_stop_propagation {
                 event.stop_propagation();
             }
 
@@ -646,7 +649,7 @@ fn install_mouseleave(runner_ref: &WebRunner, target: &EventTarget) -> Result<()
             runner.needs_repaint.repaint_asap();
 
             // Use web options to tell if the web event should be propagated to parent elements based on the egui event.
-            if !(runner.web_options.should_propagate_event)(&egui::Event::PointerGone) {
+            if (runner.web_options.should_stop_propagation)(&egui::Event::PointerGone) {
                 event.stop_propagation();
             }
 
@@ -662,7 +665,7 @@ fn install_touchstart(runner_ref: &WebRunner, target: &EventTarget) -> Result<()
         target,
         "touchstart",
         |event: web_sys::TouchEvent, runner| {
-            let mut should_propagate = false;
+            let mut should_stop_propagation = true;
             let mut should_prevent_default = true;
             if let Some((pos, _)) = primary_touch_pos(runner, &event) {
                 let egui_event = egui::Event::PointerButton {
@@ -671,7 +674,7 @@ fn install_touchstart(runner_ref: &WebRunner, target: &EventTarget) -> Result<()
                     pressed: true,
                     modifiers: runner.input.raw.modifiers,
                 };
-                should_propagate = (runner.web_options.should_propagate_event)(&egui_event);
+                should_stop_propagation = (runner.web_options.should_stop_propagation)(&egui_event);
                 should_prevent_default = (runner.web_options.should_prevent_default)(&egui_event);
                 runner.input.raw.events.push(egui_event);
             }
@@ -680,7 +683,7 @@ fn install_touchstart(runner_ref: &WebRunner, target: &EventTarget) -> Result<()
             runner.needs_repaint.repaint_asap();
 
             // Use web options to tell if the web event should be propagated to parent elements based on the egui event.
-            if !should_propagate {
+            if should_stop_propagation {
                 event.stop_propagation();
             }
 
@@ -699,7 +702,8 @@ fn install_touchmove(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
                 egui::pos2(touch.client_x() as f32, touch.client_y() as f32),
             ) {
                 let egui_event = egui::Event::PointerMoved(pos);
-                let should_propagate = (runner.web_options.should_propagate_event)(&egui_event);
+                let should_stop_propagation =
+                    (runner.web_options.should_stop_propagation)(&egui_event);
                 let should_prevent_default =
                     (runner.web_options.should_prevent_default)(&egui_event);
                 runner.input.raw.events.push(egui_event);
@@ -708,7 +712,7 @@ fn install_touchmove(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
                 runner.needs_repaint.repaint_asap();
 
                 // Use web options to tell if the web event should be propagated to parent elements based on the egui event.
-                if !should_propagate {
+                if should_stop_propagation {
                     event.stop_propagation();
                 }
 
@@ -728,7 +732,7 @@ fn install_touchend(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), 
                 egui::pos2(touch.client_x() as f32, touch.client_y() as f32),
             ) {
                 // First release mouse to click:
-                let mut should_propagate = false;
+                let mut should_stop_propagation = true;
                 let mut should_prevent_default = true;
                 let egui_event = egui::Event::PointerButton {
                     pos,
@@ -736,12 +740,13 @@ fn install_touchend(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), 
                     pressed: false,
                     modifiers: runner.input.raw.modifiers,
                 };
-                should_propagate |= (runner.web_options.should_propagate_event)(&egui_event);
+                should_stop_propagation &=
+                    (runner.web_options.should_stop_propagation)(&egui_event);
                 should_prevent_default &= (runner.web_options.should_prevent_default)(&egui_event);
                 runner.input.raw.events.push(egui_event);
                 // Then remove hover effect:
-                should_propagate |=
-                    (runner.web_options.should_propagate_event)(&egui::Event::PointerGone);
+                should_stop_propagation &=
+                    (runner.web_options.should_stop_propagation)(&egui::Event::PointerGone);
                 should_prevent_default &=
                     (runner.web_options.should_prevent_default)(&egui::Event::PointerGone);
                 runner.input.raw.events.push(egui::Event::PointerGone);
@@ -751,7 +756,7 @@ fn install_touchend(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), 
                 runner.needs_repaint.repaint_asap();
 
                 // Use web options to tell if the web event should be propagated to parent elements based on the egui event.
-                if !should_propagate {
+                if should_stop_propagation {
                     event.stop_propagation();
                 }
 
@@ -813,14 +818,14 @@ fn install_wheel(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsV
                 modifiers,
             }
         };
-        let should_propagate = (runner.web_options.should_propagate_event)(&egui_event);
+        let should_stop_propagation = (runner.web_options.should_stop_propagation)(&egui_event);
         let should_prevent_default = (runner.web_options.should_prevent_default)(&egui_event);
         runner.input.raw.events.push(egui_event);
 
         runner.needs_repaint.repaint_asap();
 
         // Use web options to tell if the web event should be propagated to parent elements based on the egui event.
-        if !should_propagate {
+        if should_stop_propagation {
             event.stop_propagation();
         }
 
