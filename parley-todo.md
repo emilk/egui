@@ -1,6 +1,6 @@
 ## Parley:
+- [ ] Text wrap styling (https://github.com/linebender/parley/pull/315)
 - [ ] Text truncation with ellipsis
-  - [ ] Also requires breaking mid-word
 - [ ] serde support for some types (the selection ones at least)
 - [ ] Vertical alignment options, especially for InlineBox (https://github.com/linebender/parley/issues/291)
 - [ ] Ability to set line.offset (necessary for LayoutSection::leading_space)
@@ -13,7 +13,6 @@
 - [ ] Support the tab character (https://github.com/linebender/parley/issues/302)
 - [ ] AccessKit improvements (https://github.com/linebender/parley/issues/310)
 - [ ] Not Parley, but Swash: tighter glyph bounds (https://github.com/dfrg/zeno/pull/15)
-- [ ] Text wrap styling (https://github.com/linebender/parley/pull/315)
 
 ## Here:
 - [ ] Text layout
@@ -43,8 +42,6 @@
   - [x] Colored emoji
     - [x] Alpha is a bit messed up, probably due to sRGB not un-multiplying and re-multiplying the alpha
       - ~~Probably~~ fixed in https://github.com/emilk/egui/pull/5824
-  - [ ] Drawing really really big glyphs causes a panic because the atlas can't allocate enough space
-    - This may exist in the current version as well
   - [x] When zooming in and out, there are these one-frame glitches where the wrong texture coordinates are used for the glyphs
     - Once again, confirm that this is a regression and not an existing bug
     - Forgot to clear the glyph atlas
@@ -60,17 +57,12 @@
       - [x] indentation (done, but untested because parley's tab character support is broken)
       - [x] selecting a range without having a Galley rendered already (done)
     - [x] Fully remove CCursor and CCursorRange
-    - [ ] Go over the TextBuffer API again
   - [x] Support `char_limit` (done but untested)
   - [x] AccessKit integration(?) (done; kinda janky and cannot currently test whether the bounding boxes are correct)
-  - [ ] Allow modifying text without doing a relayout afterwards (or at least not a full one)
-    - [ ] The original TextEdit code had a relayout too
-  - [ ] Per-viewport pixels_per_point seems to not be taken into account when calculating cursor positions for selections
   - [ ] Remove RowVertexIndices from selection painting
-  - [ ] Update the doctests aaaaaaa
   - [ ] Do another pass over TextBuffer's API
-  - [ ] See if there's a way to reduce temporary allocations for the AccessKit stuff (maybe by improving Parley's API)?
   - [ ] Test IME support
+  - [ ] Smoothe out AccessKit API integration (and reduce temp allocations)
 - [ ] Text styling
   - [x] Fix FontDefinitions and adding fonts
     - [x] Get fallback/ordering working properly
@@ -82,24 +74,22 @@
     - [x] Strikethrough and underline
     - [ ] Backgrounds
     - [ ] valign (this will take a lot of implementing in Parley)
-  - [ ] Better (more CSSish) font API
-    - ~~move font db into FontDefinitions~~
     - [x] Families and not just files
     - [x] Option to load system fonts in FontDefinitions
-    - [ ] FontTweak is very not-implemented
-      - [ ] scale
-        - This actually *does* affect layout, but only horizontally. Not sure if this is implementable.
-      - [x] y_offset_factor
-      - [x] y_offset
-      - [ ] baseline_offset_factor
-        - What does this even do?
-    - [x] Can we do bold now?
-    - [x] Letter spacing
-      - Why was this here? It's been implemented for a while
-    - [ ] Hinting enable/disable
-      - [ ] Maybe a global setting and also an override in FontTweak?
-    - [ ] If file size isn't an issue, ship variable fonts in epaint-default-fonts
-  - [ ] Make sure to test with syntect disabled (there's some old style-heavy code that is cfg'd out with syntect enabled)
+  - [ ] FontTweak is very not-implemented
+    - [ ] scale
+      - This actually *does* affect layout, but only horizontally. Not sure if this is implementable.
+    - [x] y_offset_factor
+    - [x] y_offset
+    - [ ] baseline_offset_factor
+      - What does this even do?
+  - [x] Can we do bold now?
+  - [x] Letter spacing
+    - Why was this here? It's been implemented for a while
+  - [ ] Hinting enable/disable
+    - [ ] Maybe a global setting and also an override in FontTweak?
+  - [ ] If file size isn't an issue, ship variable fonts in epaint-default-fonts
+  - [x] Make sure to test with syntect disabled (there's some old style-heavy code that is cfg'd out with syntect enabled)
   - [ ] Smoothe out the janky parts of the new API
     - [ ] For mixed-DPI purposes, and because we don't need to store the FontStore as a mutex, ctx.fonts() now returns a "fonts view" that's technically read/write. But there are no operations that *semantically* modify the fonts from it
     - [ ] FontStore and Fonts are different and we should just expose them separately instead of passing through all the FontStore methods onto Fonts
@@ -115,7 +105,6 @@
 - [ ] Perf optimizations!
   - [ ] Stop using TreeBuilder so we don't have to allocate a bunch of strings
   - [ ] https://github.com/emilk/egui/issues/1098
-  - [ ] Cache `Galley`s across frames (oops, this is already done)
   - [ ] Line-level layout memoization (https://github.com/emilk/egui/pull/5411)
 - [ ] The other 90%
   - [ ] update All Of The Doctests...
@@ -134,3 +123,8 @@
   - [ ] Better (more CSSish) font API
     - [ ] Revamp TextFormat in general
       - [ ] Can it cascade?
+  - [ ] Drawing really really big glyphs causes a panic because the atlas can't allocate enough space
+  - [ ] Allow modifying text without doing a relayout afterwards (or at least not a full one)
+    - [ ] The original TextEdit code had a relayout too
+  - [ ] Per-viewport pixels_per_point seems to not be taken into account when calculating cursor positions for selections
+    - Not a new issue
