@@ -1502,7 +1502,7 @@ impl Ui {
     ) -> InnerResponse<R> {
         debug_assert!(
             desired_size.x >= 0.0 && desired_size.y >= 0.0,
-            "Negative desired size"
+            "Negative desired size: {desired_size:?}"
         );
         let item_spacing = self.spacing().item_spacing;
         let frame_rect = self.placer.next_space(desired_size, item_spacing);
