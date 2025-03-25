@@ -3105,7 +3105,7 @@ dependencies = [
  "peniko",
  "serde",
  "skrifa",
- "swash 0.2.1",
+ "swash 0.2.1 (git+https://github.com/valadaptive/swash?branch=word-break-setting)",
 ]
 
 [[package]]
@@ -3975,20 +3975,21 @@ dependencies = [
 [[package]]
 name = "swash"
 version = "0.2.1"
-dependencies = [
- "skrifa",
- "yazi",
- "zeno 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "swash"
-version = "0.2.1"
 source = "git+https://github.com/valadaptive/swash?branch=tight-bounds#46eafa8b69e07b31da163556cb85989a9f99ba42"
 dependencies = [
  "skrifa",
  "yazi",
  "zeno 0.3.2 (git+https://github.com/valadaptive/zeno?branch=tight-bounds)",
+]
+
+[[package]]
+name = "swash"
+version = "0.2.1"
+source = "git+https://github.com/valadaptive/swash?branch=word-break-setting#83d62ccf09a115001ebca3bd92cbc077f2274c98"
+dependencies = [
+ "skrifa",
+ "yazi",
+ "zeno 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
