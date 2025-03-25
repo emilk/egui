@@ -678,7 +678,7 @@ impl Layout {
         let frame = self.next_frame_ignore_wrap(region, size);
         let rect = self.align_size_within_rect(size, frame);
         debug_assert!(!rect.any_nan(), "rect is NaN: {rect:?}");
-        debug_assert!(!rect.is_negative(), "rect is negative");
+        debug_assert!(!rect.is_negative(), "rect is negative: {rect:?}");
         rect
     }
 
