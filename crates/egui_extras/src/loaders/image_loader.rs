@@ -103,7 +103,10 @@ impl ImageLoader for ImageCrateLoader {
                             .map_err(|err| err.to_string());
                         log::trace!("ImageLoader - finished loading {uri:?}");
                         let prev = cache.lock().insert(uri, Poll::Ready(result));
-                        debug_assert!(matches!(prev, Some(Poll::Pending)));
+                        debug_assert!(
+                            matches!(prev, Some(Poll::Pending)),
+                            "Expected previous state to be Pending"
+                        );
 
                         ctx.request_repaint();
                     }
