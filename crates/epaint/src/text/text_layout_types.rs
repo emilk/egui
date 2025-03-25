@@ -393,9 +393,9 @@ impl TextWrapping {
     pub(crate) fn apply_to_parley_style(&self, style: &mut parley::TextStyle<'_, Color32>) {
         style.overflow_wrap = OverflowWrap::Anywhere;
         style.word_break = if self.break_anywhere {
-            parley::WordBreak::BreakAll
+            parley::WordBreakStrength::BreakAll
         } else {
-            parley::WordBreak::Normal
+            parley::WordBreakStrength::Normal
         };
     }
 }
