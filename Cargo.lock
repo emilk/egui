@@ -3105,7 +3105,7 @@ dependencies = [
  "peniko",
  "serde",
  "skrifa",
- "swash 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "swash 0.2.1",
 ]
 
 [[package]]
@@ -3975,8 +3975,6 @@ dependencies = [
 [[package]]
 name = "swash"
 version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13d5bbc2aa266907ed8ee977c9c9e16363cc2b001266104e13397b57f1d15f71"
 dependencies = [
  "skrifa",
  "yazi",
