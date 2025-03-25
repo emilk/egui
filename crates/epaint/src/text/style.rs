@@ -1012,6 +1012,9 @@ impl TextFormat {
             line_height: self.line_height() / self.font_id.size,
             word_spacing: 0.0,
             letter_spacing: self.extra_letter_spacing,
+            // These will be filled in during layout
+            word_break: Default::default(),
+            overflow_wrap: Default::default(),
         }
     }
 }
