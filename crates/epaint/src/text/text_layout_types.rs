@@ -9,6 +9,7 @@ use super::glyph_atlas::UvRect;
 use super::style::{FontId, TextFormat};
 use crate::{mutex::Mutex, Color32, Mesh};
 use emath::{Align, OrderedFloat, Pos2, Rect, Vec2};
+use parley::OverflowWrap;
 
 /// Describes the task of laying out text.
 ///
@@ -387,6 +388,15 @@ impl TextWrapping {
             break_anywhere: true,
             ..Default::default()
         }
+    }
+
+    pub(crate) fn apply_to_parley_style(&self, style: &mut parley::TextStyle<'_, Color32>) {
+        style.overflow_wrap = OverflowWrap::Anywhere;
+        style.word_break = if self.break_anywhere {
+            parley::WordBreak::BreakAll
+        } else {
+            parley::WordBreak::Normal
+        };
     }
 }
 
