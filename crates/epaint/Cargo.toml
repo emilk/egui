@@ -80,7 +80,6 @@ ecolor.workspace = true
 parley = { path = "../../../parley/parley", features = ["system"] }
 #swash = { version = "0.2" }
 swash = { git = "https://github.com/valadaptive/swash", branch = "tight-bounds" }
-etagere = "0.2"
 ahash.workspace = true
 nohash-hasher.workspace = true
 parking_lot.workspace = true   # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios.
