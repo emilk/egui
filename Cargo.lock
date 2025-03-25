@@ -3959,7 +3959,7 @@ dependencies = [
 [[package]]
 name = "swash"
 version = "0.2.1"
-source = "git+https://github.com/valadaptive/swash?branch=word-break-setting#83d62ccf09a115001ebca3bd92cbc077f2274c98"
+source = "git+https://github.com/valadaptive/swash?branch=word-break-setting#1c0431d44e5dfcc52a3469df3cf82cc73c9dce05"
 dependencies = [
  "skrifa",
  "yazi",
