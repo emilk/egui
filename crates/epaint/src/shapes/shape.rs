@@ -465,11 +465,10 @@ impl Shape {
                     for v in &mut row.visuals.mesh.vertices {
                         v.pos = Pos2::new(transform.scaling * v.pos.x, transform.scaling * v.pos.y);
                     }
-                }
-                // Scale selection:
-                if let Some(selection_mesh) = &mut galley.selection_mesh {
-                    for v in &mut selection_mesh.vertices {
-                        v.pos = Pos2::new(transform.scaling * v.pos.x, transform.scaling * v.pos.y);
+                    if let Some(rects) = &mut row.visuals.selection_rects {
+                        for rect in rects {
+                            *rect = transform.scaling * *rect;
+                        }
                     }
                 }
 
