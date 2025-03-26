@@ -444,12 +444,8 @@ pub struct Galley {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(super) accessibility: LazyAccessibility,
 
-    /// Mesh for the current text selection highlight, if any.
-    ///
-    /// TODO(valadaptive): because the text background needs to be behind the
-    /// selection, we'll also need a separate mesh for the text background when
-    /// implementing that
-    pub selection_mesh: Option<Mesh>,
+    /// Color of the selection, if it exists. Otherwise, [`Color32::TRANSPARENT`].
+    pub selection_color: Color32,
 
     /// Set to true the text was truncated due to [`TextWrapping::max_rows`].
     pub elided: bool,
@@ -554,23 +550,12 @@ impl LazyAccessibility {
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Row {
-    /*/// This is included in case there are no glyphs
-    pub section_index_at_start: u32,
-
-    /// One for each `char`.
-    pub glyphs: Vec<Glyph>,*/
     /// Logical bounding rectangle based on font heights etc.
     /// Use this when drawing a selection or similar!
     /// Includes leading and trailing whitespace.
     pub rect: Rect,
     /// The mesh, ready to be rendered.
     pub visuals: RowVisuals,
-    /*/// If true, this [`Row`] came from a paragraph ending with a `\n`.
-    /// The `\n` itself is omitted from [`Self::glyphs`].
-    /// A `\n` in the input text always creates a new [`Row`] below it,
-    /// so that text that ends with `\n` has an empty [`Row`] last.
-    /// This also implies that the last [`Row`] in a [`Galley`] always has `ends_with_newline == false`.
-    pub ends_with_newline: bool,*/
 }
 
 /// The tessellated output of a row.
@@ -584,6 +569,9 @@ pub struct RowVisuals {
     /// Bounds of the mesh, and can be used for culling.
     /// Does NOT include leading or trailing whitespace glyphs!!
     pub mesh_bounds: Rect,
+
+    /// Geometry for any selection to be painted.
+    pub selection_rects: Option<Vec<Rect>>,
 
     /// The number of triangle indices added before the first glyph triangle.
     ///
@@ -602,6 +590,7 @@ impl Default for RowVisuals {
         Self {
             mesh: Default::default(),
             mesh_bounds: Rect::NOTHING,
+            selection_rects: None,
             glyph_index_start: 0,
             glyph_vertex_range: 0..0,
         }
@@ -835,14 +824,16 @@ impl SelectionDriver<'_> {
 
     /// Call the given function with a sequence of rectangles (in galley-space) that represents the visual geometry of
     /// this selection.
-    pub fn with_selection_rects(&self, selection: &Selection, mut f: impl FnMut(Rect)) {
-        selection.0.geometry_with(self.layout, |parley_rect| {
-            let rect = Rect {
-                min: Pos2::new(parley_rect.x0 as f32, parley_rect.y0 as f32),
-                max: Pos2::new(parley_rect.x1 as f32, parley_rect.y1 as f32),
-            };
-            f(rect);
-        });
+    pub fn with_selection_rects(&self, selection: &Selection, mut f: impl FnMut(Rect, usize)) {
+        selection
+            .0
+            .geometry_with(self.layout, |parley_rect, line_idx| {
+                let rect = Rect {
+                    min: Pos2::new(parley_rect.x0 as f32, parley_rect.y0 as f32),
+                    max: Pos2::new(parley_rect.x1 as f32, parley_rect.y1 as f32),
+                };
+                f(rect, line_idx);
+            });
     }
 
     #[cfg(feature = "accesskit")]
@@ -905,24 +896,31 @@ impl Galley {
         )
     }
 
-    pub fn paint_selection(&mut self, color: Color32, selection: Option<&Selection>) {
-        let Some(selection) = selection else {
-            self.selection_mesh = None;
-            return;
-        };
+    pub fn paint_selection(&mut self, color: Color32, selection: &Selection) -> bool {
+        self.selection_color = color;
 
-        let mut mesh = Mesh::default();
+        let mut did_draw_any = false;
         selection
             .0
-            .geometry_with(&self.parley_layout.lock(), |parley_rect| {
+            .geometry_with(&self.parley_layout.lock(), |parley_rect, line_idx| {
                 let rect = Rect {
                     min: Pos2::new(parley_rect.x0 as f32, parley_rect.y0 as f32),
                     max: Pos2::new(parley_rect.x1 as f32, parley_rect.y1 as f32),
                 }
                 .translate(self.layout_offset);
-                mesh.add_colored_rect(rect, color);
+
+                let Some(row) = self.rows.get_mut(line_idx) else {
+                    return;
+                };
+
+                let selection_rects = row.visuals.selection_rects.get_or_insert_default();
+                selection_rects.push(rect);
+                // Count selection rectangle bounds when culling
+                row.visuals.mesh_bounds = row.visuals.mesh_bounds.union(rect);
+                did_draw_any = true;
             });
-        self.selection_mesh = Some(mesh);
+
+        did_draw_any
     }
 }
 

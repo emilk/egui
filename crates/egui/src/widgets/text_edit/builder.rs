@@ -728,7 +728,7 @@ impl TextEdit<'_> {
             if has_focus {
                 if let Some(selection) = state.cursor.selection() {
                     // Add text selection rectangles to the galley:
-                    paint_text_selection(&mut galley, ui.visuals(), &selection, None);
+                    paint_text_selection(&mut galley, ui.visuals(), &selection);
                 }
             }
 
