@@ -59,7 +59,7 @@
     - [x] Fully remove CCursor and CCursorRange
   - [x] Support `char_limit` (done but untested)
   - [x] AccessKit integration(?) (done; kinda janky and cannot currently test whether the bounding boxes are correct)
-  - [ ] Remove RowVertexIndices from selection painting
+  - [x] Remove RowVertexIndices from selection painting
   - [ ] Do another pass over TextBuffer's API
   - [ ] Test IME support
   - [ ] Smoothe out AccessKit API integration (and reduce temp allocations)
@@ -72,7 +72,7 @@
     - Faux bold doesn't work because Parley always tries to embolden Ubuntu Light because we ask for Ubuntu Regular
   - [ ] Actually render text decorations (underline, strikethrough, etc) and backgrounds
     - [x] Strikethrough and underline
-    - [ ] Backgrounds
+    - [x] Backgrounds
     - [ ] valign (this will take a lot of implementing in Parley)
     - [x] Families and not just files
     - [x] Option to load system fonts in FontDefinitions

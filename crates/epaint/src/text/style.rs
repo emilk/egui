@@ -1041,7 +1041,7 @@ impl std::hash::Hash for TextFormat {
     #[inline]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         let Self {
-            font_id: font,
+            font_id,
             extra_letter_spacing,
             line_height,
             color,
@@ -1052,11 +1052,9 @@ impl std::hash::Hash for TextFormat {
             strikethrough,
             valign,
         } = self;
-        font.hash(state);
+        font_id.hash(state);
         OrderedFloat(*extra_letter_spacing).hash(state);
-        if let Some(line_height) = *line_height {
-            OrderedFloat(line_height).hash(state);
-        }
+        line_height.map(OrderedFloat).hash(state);
         color.hash(state);
         background.hash(state);
         OrderedFloat(*expand_bg).hash(state);
