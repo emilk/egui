@@ -183,7 +183,7 @@ impl<'app> WgpuWinitApp<'app> {
     ) -> crate::Result<&mut WgpuWinitRunning<'app>> {
         profiling::function_scope!();
         #[allow(unsafe_code, unused_mut, unused_unsafe)]
-        let mut painter = egui_wgpu::winit::Painter::new(
+        let mut painter = pollster::block_on(egui_wgpu::winit::Painter::new(
             egui_ctx.clone(),
             self.native_options.wgpu_options.clone(),
             self.native_options.multisampling.max(1) as _,
@@ -193,7 +193,7 @@ impl<'app> WgpuWinitApp<'app> {
             ),
             self.native_options.viewport.transparent.unwrap_or(false),
             self.native_options.dithering,
-        );
+        ));
 
         let window = Arc::new(window);
 
@@ -249,7 +249,7 @@ impl<'app> WgpuWinitApp<'app> {
         #[cfg(feature = "accesskit")]
         {
             let event_loop_proxy = self.repaint_proxy.lock().clone();
-            egui_winit.init_accesskit(&window, event_loop_proxy);
+            egui_winit.init_accesskit(event_loop, &window, event_loop_proxy);
         }
 
         let app_creator = std::mem::take(&mut self.app_creator)
@@ -323,7 +323,7 @@ impl<'app> WgpuWinitApp<'app> {
     }
 }
 
-impl<'app> WinitApp for WgpuWinitApp<'app> {
+impl WinitApp for WgpuWinitApp<'_> {
     fn egui_ctx(&self) -> Option<&egui::Context> {
         self.running.as_ref().map(|r| &r.integration.egui_ctx)
     }
@@ -353,6 +353,13 @@ impl<'app> WinitApp for WgpuWinitApp<'app> {
                 .as_ref()?
                 .id(),
         )
+    }
+
+    fn save(&mut self) {
+        log::debug!("WinitApp::save called");
+        if let Some(running) = self.running.as_mut() {
+            running.save();
+        }
     }
 
     fn save_and_destroy(&mut self) {
@@ -415,7 +422,7 @@ impl<'app> WinitApp for WgpuWinitApp<'app> {
     fn suspended(&mut self, _: &ActiveEventLoop) -> crate::Result<EventResult> {
         #[cfg(target_os = "android")]
         self.drop_window()?;
-        Ok(EventResult::Wait)
+        Ok(EventResult::Save)
     }
 
     fn device_event(
@@ -487,14 +494,24 @@ impl<'app> WinitApp for WgpuWinitApp<'app> {
     }
 }
 
-impl<'app> WgpuWinitRunning<'app> {
+impl WgpuWinitRunning<'_> {
+    /// Saves the application state
+    fn save(&mut self) {
+        let shared = self.shared.borrow();
+        // This is done because of the "save on suspend" logic on Android. Once the application is suspended, there is no window associated to it.
+        let window = if let Some(Viewport { window, .. }) = shared.viewports.get(&ViewportId::ROOT)
+        {
+            window.as_deref()
+        } else {
+            None
+        };
+        self.integration.save(self.app.as_mut(), window);
+    }
+
     fn save_and_destroy(&mut self) {
         profiling::function_scope!();
 
-        let mut shared = self.shared.borrow_mut();
-        if let Some(Viewport { window, .. }) = shared.viewports.get(&ViewportId::ROOT) {
-            self.integration.save(self.app.as_mut(), window.as_deref());
-        }
+        self.save();
 
         #[cfg(feature = "glow")]
         self.app.on_exit(None);
@@ -502,6 +519,7 @@ impl<'app> WgpuWinitRunning<'app> {
         #[cfg(not(feature = "glow"))]
         self.app.on_exit();
 
+        let mut shared = self.shared.borrow_mut();
         shared.painter.destroy();
     }
 

@@ -103,7 +103,7 @@ impl<'a> DatePickerButton<'a> {
     }
 }
 
-impl<'a> Widget for DatePickerButton<'a> {
+impl Widget for DatePickerButton<'_> {
     fn ui(self, ui: &mut Ui) -> egui::Response {
         let id = ui.make_persistent_id(self.id_salt);
         let mut button_state = ui

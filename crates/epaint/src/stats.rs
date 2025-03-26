@@ -111,7 +111,10 @@ impl AllocInfo {
     }
 
     pub fn num_elements(&self) -> usize {
-        assert!(self.element_size != ElementSize::Heterogenous);
+        assert!(
+            self.element_size != ElementSize::Heterogenous,
+            "Heterogenous element size"
+        );
         self.num_elements
     }
 

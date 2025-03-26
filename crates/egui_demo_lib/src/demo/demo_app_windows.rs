@@ -1,12 +1,12 @@
 use std::collections::BTreeSet;
 
-use egui::{Context, Modifiers, ScrollArea, Ui};
-
 use super::About;
 use crate::is_mobile;
 use crate::Demo;
 use crate::View;
-
+use egui::containers::menu;
+use egui::style::StyleModifier;
+use egui::{Context, Modifiers, ScrollArea, Ui};
 // ----------------------------------------------------------------------------
 
 struct DemoGroup {
@@ -65,7 +65,6 @@ impl Default for DemoGroups {
                 Box::<super::paint_bezier::PaintBezier>::default(),
                 Box::<super::code_editor::CodeEditor>::default(),
                 Box::<super::code_example::CodeExample>::default(),
-                Box::<super::context_menu::ContextMenus>::default(),
                 Box::<super::dancing_strings::DancingStrings>::default(),
                 Box::<super::drag_and_drop::DragAndDropDemo>::default(),
                 Box::<super::extra_viewport::ExtraViewport>::default(),
@@ -77,8 +76,9 @@ impl Default for DemoGroups {
                 Box::<super::modals::Modals>::default(),
                 Box::<super::multi_touch::MultiTouch>::default(),
                 Box::<super::painting::Painting>::default(),
-                Box::<super::pan_zoom::PanZoom>::default(),
                 Box::<super::panels::Panels>::default(),
+                Box::<super::popups::PopupsDemo>::default(),
+                Box::<super::scene::SceneDemo>::default(),
                 Box::<super::screenshot::Screenshot>::default(),
                 Box::<super::scrolling::Scrolling>::default(),
                 Box::<super::sliders::Sliders>::default(),
@@ -100,6 +100,7 @@ impl Default for DemoGroups {
                 Box::<super::tests::InputTest>::default(),
                 Box::<super::tests::LayoutTest>::default(),
                 Box::<super::tests::ManualLayoutTest>::default(),
+                Box::<super::tests::TessellationTest>::default(),
                 Box::<super::tests::WindowResizeTest>::default(),
             ]),
         }
@@ -225,29 +226,27 @@ impl DemoWindows {
 
     fn mobile_top_bar(&mut self, ctx: &Context) {
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
-            egui::menu::bar(ui, |ui| {
-                let font_size = 16.5;
+            menu::Bar::new()
+                .config(menu::MenuConfig::new().style(StyleModifier::default()))
+                .ui(ui, |ui| {
+                    let font_size = 16.5;
 
-                ui.menu_button(egui::RichText::new("⏷ demos").size(font_size), |ui| {
-                    ui.set_style(ui.ctx().style()); // ignore the "menu" style set by `menu_button`.
-                    self.demo_list_ui(ui);
-                    if ui.ui_contains_pointer() && ui.input(|i| i.pointer.any_click()) {
-                        ui.close_menu();
-                    }
-                });
+                    ui.menu_button(egui::RichText::new("⏷ demos").size(font_size), |ui| {
+                        self.demo_list_ui(ui);
+                    });
 
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    use egui::special_emojis::{GITHUB, TWITTER};
-                    ui.hyperlink_to(
-                        egui::RichText::new(TWITTER).size(font_size),
-                        "https://twitter.com/ernerfeldt",
-                    );
-                    ui.hyperlink_to(
-                        egui::RichText::new(GITHUB).size(font_size),
-                        "https://github.com/emilk/egui",
-                    );
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        use egui::special_emojis::GITHUB;
+                        ui.hyperlink_to(
+                            egui::RichText::new("🦋").size(font_size),
+                            "https://bsky.app/profile/ernerfeldt.bsky.social",
+                        );
+                        ui.hyperlink_to(
+                            egui::RichText::new(GITHUB).size(font_size),
+                            "https://github.com/emilk/egui",
+                        );
+                    });
                 });
-            });
         });
     }
 
@@ -264,14 +263,14 @@ impl DemoWindows {
 
                 ui.separator();
 
-                use egui::special_emojis::{GITHUB, TWITTER};
+                use egui::special_emojis::GITHUB;
                 ui.hyperlink_to(
                     format!("{GITHUB} egui on GitHub"),
                     "https://github.com/emilk/egui",
                 );
                 ui.hyperlink_to(
-                    format!("{TWITTER} @ernerfeldt"),
-                    "https://twitter.com/ernerfeldt",
+                    "@ernerfeldt.bsky.social",
+                    "https://bsky.app/profile/ernerfeldt.bsky.social",
                 );
 
                 ui.separator();
@@ -280,7 +279,7 @@ impl DemoWindows {
             });
 
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
-            egui::menu::bar(ui, |ui| {
+            menu::Bar::new().ui(ui, |ui| {
                 file_menu_button(ui);
             });
         });
@@ -343,7 +342,6 @@ fn file_menu_button(ui: &mut Ui) {
             .clicked()
         {
             ui.ctx().memory_mut(|mem| mem.reset_areas());
-            ui.close_menu();
         }
 
         if ui
@@ -355,7 +353,6 @@ fn file_menu_button(ui: &mut Ui) {
             .clicked()
         {
             ui.ctx().memory_mut(|mem| *mem = Default::default());
-            ui.close_menu();
         }
     });
 }
@@ -365,13 +362,13 @@ mod tests {
     use crate::{demo::demo_app_windows::DemoGroups, Demo};
     use egui::Vec2;
     use egui_kittest::kittest::Queryable;
-    use egui_kittest::{Harness, SnapshotOptions};
+    use egui_kittest::{Harness, SnapshotOptions, SnapshotResults};
 
     #[test]
     fn demos_should_match_snapshot() {
         let demos = DemoGroups::default().demos;
 
-        let mut errors = Vec::new();
+        let mut results = SnapshotResults::new();
 
         for mut demo in demos.demos {
             // Widget Gallery needs to be customized (to set a specific date) and has its own test
@@ -397,7 +394,7 @@ mod tests {
             harness.set_size(Vec2::new(size.width as f32, size.height as f32));
 
             // Run the app for some more frames...
-            harness.run();
+            harness.run_ok();
 
             let mut options = SnapshotOptions::default();
             // The Bézier Curve demo needs a threshold of 2.1 to pass on linux
@@ -405,12 +402,7 @@ mod tests {
                 options.threshold = 2.1;
             }
 
-            let result = harness.try_snapshot_options(&format!("demos/{name}"), &options);
-            if let Err(err) = result {
-                errors.push(err.to_string());
-            }
+            results.add(harness.try_snapshot_options(&format!("demos/{name}"), &options));
         }
-
-        assert!(errors.is_empty(), "Errors: {errors:#?}");
     }
 }

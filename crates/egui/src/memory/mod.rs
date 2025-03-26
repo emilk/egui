@@ -89,8 +89,12 @@ pub struct Memory {
 
     /// Which popup-window is open (if any)?
     /// Could be a combo box, color picker, menu, etc.
+    /// Optionally stores the position of the popup (usually this would be the position where
+    /// the user clicked).
+    /// If position is [`None`], the popup position will be calculated based on some configuration
+    /// (e.g. relative to some other widget).
     #[cfg_attr(feature = "persistence", serde(skip))]
-    popup: Option<Id>,
+    popup: Option<OpenPopup>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     everything_is_visible: bool,
@@ -318,7 +322,7 @@ impl Default for Options {
         Self {
             dark_style: std::sync::Arc::new(Theme::Dark.default_style()),
             light_style: std::sync::Arc::new(Theme::Light.default_style()),
-            theme_preference: ThemePreference::System,
+            theme_preference: Default::default(),
             fallback_theme: Theme::Dark,
             system_theme: None,
             zoom_factor: 1.0,
@@ -803,6 +807,15 @@ impl Memory {
         self.caches.update();
         self.areas_mut().end_pass();
         self.focus_mut().end_pass(used_ids);
+
+        // Clean up abandoned popups.
+        if let Some(popup) = &mut self.popup {
+            if popup.open_this_frame {
+                popup.open_this_frame = false;
+            } else {
+                self.popup = None;
+            }
+        }
     }
 
     pub(crate) fn set_viewport_id(&mut self, viewport_id: ViewportId) {
@@ -1064,13 +1077,37 @@ impl Memory {
     }
 }
 
+/// State of an open popup.
+#[derive(Clone, Copy, Debug)]
+struct OpenPopup {
+    /// Id of the popup.
+    id: Id,
+
+    /// Optional position of the popup.
+    pos: Option<Pos2>,
+
+    /// Whether this popup was still open this frame. Otherwise it's considered abandoned and `Memory::popup` will be cleared.
+    open_this_frame: bool,
+}
+
+impl OpenPopup {
+    /// Create a new `OpenPopup`.
+    fn new(id: Id, pos: Option<Pos2>) -> Self {
+        Self {
+            id,
+            pos,
+            open_this_frame: true,
+        }
+    }
+}
+
 /// ## Popups
 /// Popups are things like combo-boxes, color pickers, menus etc.
 /// Only one can be open at a time.
 impl Memory {
     /// Is the given popup open?
     pub fn is_popup_open(&self, popup_id: Id) -> bool {
-        self.popup == Some(popup_id) || self.everything_is_visible()
+        self.popup.is_some_and(|state| state.id == popup_id) || self.everything_is_visible()
     }
 
     /// Is any popup open?
@@ -1079,13 +1116,48 @@ impl Memory {
     }
 
     /// Open the given popup and close all others.
+    ///
+    /// Note that you must call `keep_popup_open` on subsequent frames as long as the popup is open.
     pub fn open_popup(&mut self, popup_id: Id) {
-        self.popup = Some(popup_id);
+        self.popup = Some(OpenPopup::new(popup_id, None));
     }
 
-    /// Close the open popup, if any.
-    pub fn close_popup(&mut self) {
+    /// Popups must call this every frame while open.
+    ///
+    /// This is needed because in some cases popups can go away without `close_popup` being
+    /// called. For example, when a context menu is open and the underlying widget stops
+    /// being rendered.
+    pub fn keep_popup_open(&mut self, popup_id: Id) {
+        if let Some(state) = self.popup.as_mut() {
+            if state.id == popup_id {
+                state.open_this_frame = true;
+            }
+        }
+    }
+
+    /// Open the popup and remember its position.
+    pub fn open_popup_at(&mut self, popup_id: Id, pos: impl Into<Option<Pos2>>) {
+        self.popup = Some(OpenPopup::new(popup_id, pos.into()));
+    }
+
+    /// Get the position for this popup.
+    pub fn popup_position(&self, id: Id) -> Option<Pos2> {
+        self.popup
+            .and_then(|state| if state.id == id { state.pos } else { None })
+    }
+
+    /// Close any currently open popup.
+    pub fn close_all_popups(&mut self) {
         self.popup = None;
+    }
+
+    /// Close the given popup, if it is open.
+    ///
+    /// See also [`Self::close_all_popups`] if you want to close any / all currently open popups.
+    pub fn close_popup(&mut self, popup_id: Id) {
+        if self.is_popup_open(popup_id) {
+            self.popup = None;
+        }
     }
 
     /// Toggle the given popup between closed and open.
@@ -1093,7 +1165,7 @@ impl Memory {
     /// Note: At most, only one popup can be open at a time.
     pub fn toggle_popup(&mut self, popup_id: Id) {
         if self.is_popup_open(popup_id) {
-            self.close_popup();
+            self.close_popup(popup_id);
         } else {
             self.open_popup(popup_id);
         }
@@ -1175,17 +1247,19 @@ impl Areas {
     ///
     /// May return [`std::cmp::Ordering::Equal`] if the layers are not in the order list.
     pub(crate) fn compare_order(&self, a: LayerId, b: LayerId) -> std::cmp::Ordering {
-        if let (Some(a), Some(b)) = (self.order_map.get(&a), self.order_map.get(&b)) {
-            a.cmp(b)
-        } else {
-            a.order.cmp(&b.order)
+        // Sort by layer `order` first and use `order_map` to resolve disputes.
+        // If `order_map` only contains one layer ID, then the other one will be
+        // lower because `None < Some(x)`.
+        match a.order.cmp(&b.order) {
+            std::cmp::Ordering::Equal => self.order_map.get(&a).cmp(&self.order_map.get(&b)),
+            cmp => cmp,
         }
     }
 
     pub(crate) fn set_state(&mut self, layer_id: LayerId, state: area::AreaState) {
         self.visible_areas_current_frame.insert(layer_id);
         self.areas.insert(layer_id.id, state);
-        if !self.order.iter().any(|x| *x == layer_id) {
+        if !self.order.contains(&layer_id) {
             self.order.push(layer_id);
         }
     }
@@ -1350,4 +1424,48 @@ impl Areas {
 fn memory_impl_send_sync() {
     fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Memory>();
+}
+
+#[test]
+fn order_map_total_ordering() {
+    let mut layers = [
+        LayerId::new(Order::Tooltip, Id::new("a")),
+        LayerId::new(Order::Background, Id::new("b")),
+        LayerId::new(Order::Background, Id::new("c")),
+        LayerId::new(Order::Tooltip, Id::new("d")),
+        LayerId::new(Order::Background, Id::new("e")),
+        LayerId::new(Order::Background, Id::new("f")),
+        LayerId::new(Order::Tooltip, Id::new("g")),
+    ];
+    let mut areas = Areas::default();
+
+    // skip some of the layers
+    for &layer in &layers[3..] {
+        areas.set_state(layer, crate::AreaState::default());
+    }
+    areas.end_pass(); // sort layers
+
+    // Sort layers
+    layers.sort_by(|&a, &b| areas.compare_order(a, b));
+
+    // Assert that `areas.compare_order()` forms a total ordering
+    let mut equivalence_classes = vec![0];
+    let mut i = 0;
+    for l in layers.windows(2) {
+        assert!(l[0].order <= l[1].order, "does not follow LayerId.order");
+        if areas.compare_order(l[0], l[1]) != std::cmp::Ordering::Equal {
+            i += 1;
+        }
+        equivalence_classes.push(i);
+    }
+    assert_eq!(layers.len(), equivalence_classes.len());
+    for (&l1, c1) in std::iter::zip(&layers, &equivalence_classes) {
+        for (&l2, c2) in std::iter::zip(&layers, &equivalence_classes) {
+            assert_eq!(
+                c1.cmp(c2),
+                areas.compare_order(l1, l2),
+                "not a total ordering",
+            );
+        }
+    }
 }

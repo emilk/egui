@@ -4,11 +4,14 @@ use crate::{
 use emath::{Align2, Vec2};
 
 /// A modal dialog.
+///
 /// Similar to a [`crate::Window`] but centered and with a backdrop that
 /// blocks input to the rest of the UI.
 ///
 /// You can show multiple modals on top of each other. The topmost modal will always be
 /// the most recently shown one.
+/// If multiple modals are newly shown in the same frame, the order of the modals not undefined
+/// (either first or second could be top).
 pub struct Modal {
     pub area: Area,
     pub backdrop_color: Color32,
@@ -16,7 +19,9 @@ pub struct Modal {
 }
 
 impl Modal {
-    /// Create a new Modal. The id is passed to the area.
+    /// Create a new Modal.
+    ///
+    /// The id is passed to the area.
     pub fn new(id: Id) -> Self {
         Self {
             area: Self::default_area(id),
@@ -26,6 +31,7 @@ impl Modal {
     }
 
     /// Returns an area customized for a modal.
+    ///
     /// Makes these changes to the default area:
     /// - sense: hover
     /// - anchor: center
@@ -86,11 +92,7 @@ impl Modal {
             response,
         } = area.show(ctx, |ui| {
             let bg_rect = ui.ctx().screen_rect();
-            let bg_sense = Sense {
-                click: true,
-                drag: true,
-                focusable: false,
-            };
+            let bg_sense = Sense::CLICK | Sense::DRAG;
             let mut backdrop = ui.new_child(UiBuilder::new().sense(bg_sense).max_rect(bg_rect));
             backdrop.set_min_size(bg_rect.size());
             ui.painter().rect_filled(bg_rect, 0.0, backdrop_color);
@@ -101,14 +103,9 @@ impl Modal {
             // We need the extra scope with the sense since frame can't have a sense and since we
             // need to prevent the clicks from passing through to the backdrop.
             let inner = ui
-                .scope_builder(
-                    UiBuilder::new().sense(Sense {
-                        click: true,
-                        drag: true,
-                        focusable: false,
-                    }),
-                    |ui| frame.show(ui, content).inner,
-                )
+                .scope_builder(UiBuilder::new().sense(Sense::CLICK | Sense::DRAG), |ui| {
+                    frame.show(ui, content).inner
+                })
                 .inner;
 
             (inner, backdrop_response)
@@ -159,7 +156,10 @@ impl<T> ModalResponse<T> {
         let escape_clicked =
             || ctx.input_mut(|i| i.consume_key(crate::Modifiers::NONE, crate::Key::Escape));
 
+        let ui_close_called = self.response.should_close();
+
         self.backdrop_response.clicked()
+            || ui_close_called
             || (self.is_top_modal && !self.any_popup_open && escape_clicked())
     }
 }

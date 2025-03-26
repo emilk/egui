@@ -144,6 +144,12 @@ impl FontData {
     }
 }
 
+impl AsRef<[u8]> for FontData {
+    fn as_ref(&self) -> &[u8] {
+        self.font.as_ref()
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// Extra scale and vertical tweak to apply to all text of a certain font.

@@ -643,7 +643,7 @@ impl<'a> Slider<'a> {
     }
 }
 
-impl<'a> Slider<'a> {
+impl Slider<'_> {
     /// Just the slider, no text
     fn allocate_slider_space(&self, ui: &mut Ui, thickness: f32) -> Response {
         let desired_size = match self.orientation {
@@ -760,10 +760,10 @@ impl<'a> Slider<'a> {
 
             let rail_radius = (spacing.slider_rail_height / 2.0).at_least(0.0);
             let rail_rect = self.rail_rect(rect, rail_radius);
-            let rounding = widget_visuals.inactive.rounding;
+            let corner_radius = widget_visuals.inactive.corner_radius;
 
             ui.painter()
-                .rect_filled(rail_rect, rounding, widget_visuals.inactive.bg_fill);
+                .rect_filled(rail_rect, corner_radius, widget_visuals.inactive.bg_fill);
 
             let position_1d = self.position_from_value(value, position_range);
             let center = self.marker_center(position_1d, &rail_rect);
@@ -780,16 +780,16 @@ impl<'a> Slider<'a> {
                 // The trailing rect has to be drawn differently depending on the orientation.
                 match self.orientation {
                     SliderOrientation::Horizontal => {
-                        trailing_rail_rect.max.x = center.x + rounding.nw as f32;
+                        trailing_rail_rect.max.x = center.x + corner_radius.nw as f32;
                     }
                     SliderOrientation::Vertical => {
-                        trailing_rail_rect.min.y = center.y - rounding.se as f32;
+                        trailing_rail_rect.min.y = center.y - corner_radius.se as f32;
                     }
                 };
 
                 ui.painter().rect_filled(
                     trailing_rail_rect,
-                    rounding,
+                    corner_radius,
                     ui.visuals().selection.bg_fill,
                 );
             }
@@ -815,8 +815,13 @@ impl<'a> Slider<'a> {
                     };
                     let v = v + Vec2::splat(visuals.expansion);
                     let rect = Rect::from_center_size(center, 2.0 * v);
-                    ui.painter()
-                        .rect(rect, visuals.rounding, visuals.bg_fill, visuals.fg_stroke);
+                    ui.painter().rect(
+                        rect,
+                        visuals.corner_radius,
+                        visuals.bg_fill,
+                        visuals.fg_stroke,
+                        epaint::StrokeKind::Inside,
+                    );
                 }
             }
         }
@@ -946,7 +951,9 @@ impl<'a> Slider<'a> {
         self.slider_ui(ui, &response);
 
         let value = self.get_value();
-        response.changed = value != old_value;
+        if value != old_value {
+            response.mark_changed();
+        }
         response.widget_info(|| WidgetInfo::slider(ui.is_enabled(), value, self.text.text()));
 
         #[cfg(feature = "accesskit")]
@@ -1013,7 +1020,7 @@ impl<'a> Slider<'a> {
     }
 }
 
-impl<'a> Widget for Slider<'a> {
+impl Widget for Slider<'_> {
     fn ui(mut self, ui: &mut Ui) -> Response {
         let inner_response = match self.orientation {
             SliderOrientation::Horizontal => ui.horizontal(|ui| self.add_contents(ui)),
@@ -1058,7 +1065,10 @@ fn value_from_normalized(normalized: f64, range: RangeInclusive<f64>, spec: &Sli
             let log = lerp(min_log..=max_log, normalized);
             10.0_f64.powf(log)
         } else {
-            assert!(min < 0.0 && 0.0 < max);
+            assert!(
+                min < 0.0 && 0.0 < max,
+                "min should be negative and max positive, but got min={min} and max={max}"
+            );
             let zero_cutoff = logarithmic_zero_cutoff(min, max);
             if normalized < zero_cutoff {
                 // negative
@@ -1107,7 +1117,10 @@ fn normalized_from_value(value: f64, range: RangeInclusive<f64>, spec: &SliderSp
             let value_log = value.log10();
             remap_clamp(value_log, min_log..=max_log, 0.0..=1.0)
         } else {
-            assert!(min < 0.0 && 0.0 < max);
+            assert!(
+                min < 0.0 && 0.0 < max,
+                "min should be negative and max positive, but got min={min} and max={max}"
+            );
             let zero_cutoff = logarithmic_zero_cutoff(min, max);
             if value < 0.0 {
                 // negative
@@ -1135,8 +1148,11 @@ fn normalized_from_value(value: f64, range: RangeInclusive<f64>, spec: &SliderSp
 }
 
 fn range_log10(min: f64, max: f64, spec: &SliderSpec) -> (f64, f64) {
-    assert!(spec.logarithmic);
-    assert!(min <= max);
+    assert!(spec.logarithmic, "spec must be logarithmic");
+    assert!(
+        min <= max,
+        "min must be less than or equal to max, but was min={min} and max={max}"
+    );
 
     if min == 0.0 && max == INFINITY {
         (spec.smallest_positive.log10(), INF_RANGE_MAGNITUDE)
@@ -1160,7 +1176,10 @@ fn range_log10(min: f64, max: f64, spec: &SliderSpec) -> (f64, f64) {
 /// where to put the zero cutoff for logarithmic sliders
 /// that crosses zero ?
 fn logarithmic_zero_cutoff(min: f64, max: f64) -> f64 {
-    assert!(min < 0.0 && 0.0 < max);
+    assert!(
+        min < 0.0 && 0.0 < max,
+        "min must be negative and max positive, but got min={min} and max={max}"
+    );
 
     let min_magnitude = if min == -INFINITY {
         INF_RANGE_MAGNITUDE

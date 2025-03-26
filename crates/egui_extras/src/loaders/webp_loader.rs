@@ -5,7 +5,7 @@ use egui::{
     mutex::Mutex,
     ColorImage, FrameDurations, Id,
 };
-use image::{codecs::webp::WebPDecoder, AnimationDecoder as _, ImageDecoder, Rgba};
+use image::{codecs::webp::WebPDecoder, AnimationDecoder as _, ColorType, ImageDecoder, Rgba};
 use std::{io::Cursor, mem::size_of, sync::Arc, time::Duration};
 
 #[derive(Clone)]
@@ -48,6 +48,17 @@ impl WebP {
                 frame_durations: FrameDurations::new(durations),
             }))
         } else {
+            // color_type() of WebPDecoder only returns Rgb8/Rgba8 variants of ColorType
+            let create_image = match decoder.color_type() {
+                ColorType::Rgb8 => ColorImage::from_rgb,
+                ColorType::Rgba8 => ColorImage::from_rgba_unmultiplied,
+                unreachable => {
+                    return Err(format!(
+                        "Unreachable WebP color type, expected Rgb8/Rgba8, got {unreachable:?}"
+                    ))
+                }
+            };
+
             let (width, height) = decoder.dimensions();
             let size = decoder.total_bytes() as usize;
 
@@ -56,10 +67,10 @@ impl WebP {
                 .read_image(&mut data)
                 .map_err(|error| format!("WebP image read failure ({error})"))?;
 
-            let image =
-                ColorImage::from_rgba_unmultiplied([width as usize, height as usize], &data);
-
-            Ok(Self::Static(Arc::new(image)))
+            Ok(Self::Static(Arc::new(create_image(
+                [width as usize, height as usize],
+                &data,
+            ))))
         }
     }
 

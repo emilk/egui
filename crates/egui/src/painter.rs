@@ -3,7 +3,7 @@ use std::sync::Arc;
 use emath::GuiRounding as _;
 use epaint::{
     text::{Fonts, Galley, LayoutJob},
-    CircleShape, ClippedShape, PathStroke, RectShape, Rounding, Shape, Stroke,
+    CircleShape, ClippedShape, CornerRadius, PathStroke, RectShape, Shape, Stroke, StrokeKind,
 };
 
 use crate::{
@@ -301,6 +301,7 @@ impl Painter {
             0.0,
             color.additive().linear_multiply(0.015),
             (1.0, color),
+            StrokeKind::Outside,
         );
         self.text(
             rect.min,
@@ -407,34 +408,41 @@ impl Painter {
         })
     }
 
-    /// The stroke extends _outside_ the [`Rect`].
+    /// See also [`Self::rect_filled`] and [`Self::rect_stroke`].
     pub fn rect(
         &self,
         rect: Rect,
-        rounding: impl Into<Rounding>,
+        corner_radius: impl Into<CornerRadius>,
         fill_color: impl Into<Color32>,
         stroke: impl Into<Stroke>,
+        stroke_kind: StrokeKind,
     ) -> ShapeIdx {
-        self.add(RectShape::new(rect, rounding, fill_color, stroke))
+        self.add(RectShape::new(
+            rect,
+            corner_radius,
+            fill_color,
+            stroke,
+            stroke_kind,
+        ))
     }
 
     pub fn rect_filled(
         &self,
         rect: Rect,
-        rounding: impl Into<Rounding>,
+        corner_radius: impl Into<CornerRadius>,
         fill_color: impl Into<Color32>,
     ) -> ShapeIdx {
-        self.add(RectShape::filled(rect, rounding, fill_color))
+        self.add(RectShape::filled(rect, corner_radius, fill_color))
     }
 
-    /// The stroke extends _outside_ the [`Rect`].
     pub fn rect_stroke(
         &self,
         rect: Rect,
-        rounding: impl Into<Rounding>,
+        corner_radius: impl Into<CornerRadius>,
         stroke: impl Into<Stroke>,
+        stroke_kind: StrokeKind,
     ) -> ShapeIdx {
-        self.add(RectShape::stroke(rect, rounding, stroke))
+        self.add(RectShape::stroke(rect, corner_radius, stroke, stroke_kind))
     }
 
     /// Show an arrow starting at `origin` and going in the direction of `vec`, with the length `vec.length()`.
@@ -463,7 +471,7 @@ impl Painter {
     /// # egui::__run_test_ui(|ui| {
     /// # let rect = egui::Rect::from_min_size(Default::default(), egui::Vec2::splat(100.0));
     /// egui::Image::new(egui::include_image!("../assets/ferris.png"))
-    ///     .rounding(5.0)
+    ///     .corner_radius(5)
     ///     .tint(egui::Color32::LIGHT_BLUE)
     ///     .paint_at(ui, rect);
     /// # });

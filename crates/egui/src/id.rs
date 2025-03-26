@@ -33,6 +33,8 @@ use std::num::NonZeroU64;
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Id(NonZeroU64);
 
+impl nohash_hasher::IsEnabled for Id {}
+
 impl Id {
     /// A special [`Id`], in particular as a key to [`crate::Memory::data`]
     /// for when there is no particular widget to attach the data.
@@ -112,77 +114,8 @@ fn id_size() {
 
 // ----------------------------------------------------------------------------
 
-// Idea taken from the `nohash_hasher` crate.
-#[derive(Default)]
-pub struct IdHasher(u64);
-
-impl std::hash::Hasher for IdHasher {
-    fn write(&mut self, _: &[u8]) {
-        unreachable!("Invalid use of IdHasher");
-    }
-
-    fn write_u8(&mut self, _n: u8) {
-        unreachable!("Invalid use of IdHasher");
-    }
-
-    fn write_u16(&mut self, _n: u16) {
-        unreachable!("Invalid use of IdHasher");
-    }
-
-    fn write_u32(&mut self, _n: u32) {
-        unreachable!("Invalid use of IdHasher");
-    }
-
-    #[inline(always)]
-    fn write_u64(&mut self, n: u64) {
-        self.0 = n;
-    }
-
-    fn write_usize(&mut self, _n: usize) {
-        unreachable!("Invalid use of IdHasher");
-    }
-
-    fn write_i8(&mut self, _n: i8) {
-        unreachable!("Invalid use of IdHasher");
-    }
-
-    fn write_i16(&mut self, _n: i16) {
-        unreachable!("Invalid use of IdHasher");
-    }
-
-    fn write_i32(&mut self, _n: i32) {
-        unreachable!("Invalid use of IdHasher");
-    }
-
-    fn write_i64(&mut self, _n: i64) {
-        unreachable!("Invalid use of IdHasher");
-    }
-
-    fn write_isize(&mut self, _n: isize) {
-        unreachable!("Invalid use of IdHasher");
-    }
-
-    #[inline(always)]
-    fn finish(&self) -> u64 {
-        self.0
-    }
-}
-
-#[derive(Copy, Clone, Debug, Default)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct BuildIdHasher {}
-
-impl std::hash::BuildHasher for BuildIdHasher {
-    type Hasher = IdHasher;
-
-    #[inline(always)]
-    fn build_hasher(&self) -> IdHasher {
-        IdHasher::default()
-    }
-}
-
 /// `IdSet` is a `HashSet<Id>` optimized by knowing that [`Id`] has good entropy, and doesn't need more hashing.
-pub type IdSet = std::collections::HashSet<Id, BuildIdHasher>;
+pub type IdSet = nohash_hasher::IntSet<Id>;
 
 /// `IdMap<V>` is a `HashMap<Id, V>` optimized by knowing that [`Id`] has good entropy, and doesn't need more hashing.
-pub type IdMap<V> = std::collections::HashMap<Id, V, BuildIdHasher>;
+pub type IdMap<V> = nohash_hasher::IntMap<Id, V>;

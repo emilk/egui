@@ -11,7 +11,7 @@
 
 
 <div align="center">
-<a href="https://www.rerun.io/"><img src="media/rerun_io_logo.png" width="250"></a>
+<a href="https://www.rerun.io/"><img src="https://github.com/user-attachments/assets/78e79463-4357-461b-bbd1-31aa5ef5e1a2" width="250"></a>
 
 egui development is sponsored by [Rerun](https://www.rerun.io/), a startup building<br>
 an SDK for visualizing streams of multimodal data.
@@ -46,7 +46,7 @@ ui.label(format!("Hello '{name}', age {age}"));
 ui.image(egui::include_image!("ferris.png"));
 ```
 
-<img alt="Dark mode" src="media/demo.gif"> &nbsp; &nbsp; <img alt="Light mode" src="media/demo_light_mode.png" height="278">
+<img alt="Dark mode" src="https://github.com/user-attachments/assets/3b446d29-99d8-4c82-86bb-4d8ef0516017"> &nbsp; &nbsp; <img alt="Light mode" src="https://github.com/user-attachments/assets/a5e7da93-89a8-4ba0-86b8-0fa2228a4f62" height="278">
 
 ## Sections:
 
@@ -133,26 +133,26 @@ Still, egui can be used to create professional looking applications, like [the R
 * Label text selection
 * And more!
 
-Check out the [3rd party egui crates wiki](https://github.com/emilk/egui/wiki/3rd-party-egui-crates) for even more 
+Check out the [3rd party egui crates wiki](https://github.com/emilk/egui/wiki/3rd-party-egui-crates) for even more
 widgets and features, maintained by the community.
 
-<img src="media/widget_gallery_0.23.gif" width="50%">
+<img src="https://github.com/user-attachments/assets/13e73b76-e456-42bd-8ec9-220802834268" width="50%">
 
 Light Theme:
 
-<img src="media/widget_gallery_0.23_light.png" width="50%">
-
+<img src="https://github.com/user-attachments/assets/2e38972c-a444-4894-b32f-47a2719cf369" width="50%">
 
 ## Dependencies
 `egui` has a minimal set of default dependencies:
 
 * [`ab_glyph`](https://crates.io/crates/ab_glyph)
 * [`ahash`](https://crates.io/crates/ahash)
+* [`bitflags`](https://crates.io/crates/bitflags)
 * [`nohash-hasher`](https://crates.io/crates/nohash-hasher)
 * [`parking_lot`](https://crates.io/crates/parking_lot)
 
 Heavier dependencies are kept out of `egui`, even as opt-in.
-No code that isn't fully Wasm-friendly is part of `egui`.
+All code in `egui` is Wasm-friendly (even outside a browser).
 
 To load images into `egui` you can use the official [`egui_extras`](https://github.com/emilk/egui/tree/master/crates/egui_extras) crate.
 
@@ -190,7 +190,7 @@ These are the official egui integrations:
 
 ### 3rd party integrations
 
-Check the wiki to find [3rd party integrations](https://github.com/emilk/egui/wiki/3rd-party-integrations) 
+Check the wiki to find [3rd party integrations](https://github.com/emilk/egui/wiki/3rd-party-integrations)
 and [egui crates](https://github.com/emilk/egui/wiki/3rd-party-egui-crates).
 
 ### Writing your own egui integration
@@ -267,7 +267,7 @@ This is not yet as powerful as say CSS, [but this is going to improve](https://g
 
 Here is an example (from https://github.com/a-liashenko/TinyPomodoro):
 
-<img src="media/pompodoro-skin.png" width="50%">
+<img src="https://github.com/user-attachments/assets/e6107237-2547-41d6-996b-9a20ae0345ab" width="50%">
 
 ### How do I use egui with `async`?
 If you call `.await` in your GUI code, the UI will freeze, which is very bad UX. Instead, keep the GUI thread non-blocking and communicate with any concurrent tasks (`async` tasks or other threads) with something like:
@@ -375,7 +375,7 @@ Default fonts:
 ---
 
 <div align="center">
-<a href="https://www.rerun.io/"><img src="media/rerun_io_logo.png" width="440"></a>
+<a href="https://www.rerun.io/"><img src="https://github.com/user-attachments/assets/78e79463-4357-461b-bbd1-31aa5ef5e1a2" width="440"></a>
 
 egui development is sponsored by [Rerun](https://www.rerun.io/), a startup building<br>
 an SDK for visualizing streams of multimodal data.

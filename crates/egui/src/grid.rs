@@ -208,7 +208,12 @@ impl GridLayout {
 
                 if (debug_expand_width && too_wide) || (debug_expand_height && too_high) {
                     let painter = self.ctx.debug_painter();
-                    painter.rect_stroke(rect, 0.0, (1.0, Color32::LIGHT_BLUE));
+                    painter.rect_stroke(
+                        rect,
+                        0.0,
+                        (1.0, Color32::LIGHT_BLUE),
+                        crate::StrokeKind::Inside,
+                    );
 
                     let stroke = Stroke::new(2.5, Color32::from_rgb(200, 0, 0));
                     let paint_line_seg = |a, b| painter.line_segment([a, b], stroke);
@@ -451,7 +456,7 @@ impl Grid {
             ui_builder = ui_builder.sizing_pass().invisible();
         }
 
-        ui.allocate_new_ui(ui_builder, |ui| {
+        ui.scope_builder(ui_builder, |ui| {
             ui.horizontal(|ui| {
                 let is_color = color_picker.is_some();
                 let grid = GridLayout {

@@ -272,7 +272,7 @@ impl<'app> GlowWinitApp<'app> {
                 ..
             } = viewport
             {
-                egui_winit.init_accesskit(window, event_loop_proxy);
+                egui_winit.init_accesskit(event_loop, window, event_loop_proxy);
             }
         }
 
@@ -344,7 +344,7 @@ impl<'app> GlowWinitApp<'app> {
     }
 }
 
-impl<'app> WinitApp for GlowWinitApp<'app> {
+impl WinitApp for GlowWinitApp<'_> {
     fn egui_ctx(&self) -> Option<&egui::Context> {
         self.running.as_ref().map(|r| &r.integration.egui_ctx)
     }
@@ -364,6 +364,20 @@ impl<'app> WinitApp for GlowWinitApp<'app> {
         self.running
             .as_ref()
             .and_then(|r| r.glutin.borrow().window_from_viewport.get(&id).copied())
+    }
+
+    fn save(&mut self) {
+        log::debug!("WinitApp::save called");
+        if let Some(running) = self.running.as_mut() {
+            profiling::function_scope!();
+
+            // This is used because of the "save on suspend" logic on Android. Once the application is suspended, there is no window associated to it, which was causing panics when `.window().expect()` was used.
+            let window_opt = running.glutin.borrow().window_opt(ViewportId::ROOT);
+
+            running
+                .integration
+                .save(running.app.as_mut(), window_opt.as_deref());
+        }
     }
 
     fn save_and_destroy(&mut self) {
@@ -413,7 +427,7 @@ impl<'app> WinitApp for GlowWinitApp<'app> {
         if let Some(running) = &mut self.running {
             running.glutin.borrow_mut().on_suspend()?;
         }
-        Ok(EventResult::Wait)
+        Ok(EventResult::Save)
     }
 
     fn device_event(
@@ -479,7 +493,7 @@ impl<'app> WinitApp for GlowWinitApp<'app> {
     }
 }
 
-impl<'app> GlowWinitRunning<'app> {
+impl GlowWinitRunning<'_> {
     fn run_ui_and_paint(
         &mut self,
         event_loop: &ActiveEventLoop,
@@ -1214,10 +1228,12 @@ impl GlutinWindowContext {
             .expect("viewport doesn't exist")
     }
 
+    fn window_opt(&self, viewport_id: ViewportId) -> Option<Arc<Window>> {
+        self.viewport(viewport_id).window.clone()
+    }
+
     fn window(&self, viewport_id: ViewportId) -> Arc<Window> {
-        self.viewport(viewport_id)
-            .window
-            .clone()
+        self.window_opt(viewport_id)
             .expect("winit window doesn't exist")
     }
 

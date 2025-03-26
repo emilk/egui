@@ -23,8 +23,8 @@ members = [
 [workspace.package]
 edition = "2021"
 license = "MIT OR Apache-2.0"
-rust-version = "1.80"
-version = "0.30.0"
+rust-version = "1.81"
+version = "0.31.1"
 
 
 [profile.release]
@@ -55,24 +55,27 @@ opt-level = 2
 
 
 [workspace.dependencies]
-emath = { version = "0.30.0", path = "crates/emath", default-features = false }
-ecolor = { version = "0.30.0", path = "crates/ecolor", default-features = false }
-epaint = { version = "0.30.0", path = "crates/epaint", default-features = false }
-epaint_default_fonts = { version = "0.30.0", path = "crates/epaint_default_fonts" }
-egui = { version = "0.30.0", path = "crates/egui", default-features = false }
-egui-winit = { version = "0.30.0", path = "crates/egui-winit", default-features = false }
-egui_extras = { version = "0.30.0", path = "crates/egui_extras", default-features = false }
-egui-wgpu = { version = "0.30.0", path = "crates/egui-wgpu", default-features = false }
-egui_demo_lib = { version = "0.30.0", path = "crates/egui_demo_lib", default-features = false }
-egui_glow = { version = "0.30.0", path = "crates/egui_glow", default-features = false }
-egui_kittest = { version = "0.30.0", path = "crates/egui_kittest", default-features = false }
-eframe = { version = "0.30.0", path = "crates/eframe", default-features = false }
+emath = { version = "0.31.1", path = "crates/emath", default-features = false }
+ecolor = { version = "0.31.1", path = "crates/ecolor", default-features = false }
+epaint = { version = "0.31.1", path = "crates/epaint", default-features = false }
+epaint_default_fonts = { version = "0.31.1", path = "crates/epaint_default_fonts" }
+egui = { version = "0.31.1", path = "crates/egui", default-features = false }
+egui-winit = { version = "0.31.1", path = "crates/egui-winit", default-features = false }
+egui_extras = { version = "0.31.1", path = "crates/egui_extras", default-features = false }
+egui-wgpu = { version = "0.31.1", path = "crates/egui-wgpu", default-features = false }
+egui_demo_lib = { version = "0.31.1", path = "crates/egui_demo_lib", default-features = false }
+egui_glow = { version = "0.31.1", path = "crates/egui_glow", default-features = false }
+egui_kittest = { version = "0.31.1", path = "crates/egui_kittest", default-features = false }
+eframe = { version = "0.31.1", path = "crates/eframe", default-features = false }
 
+accesskit = "0.18.0"
+accesskit_winit = "0.24"
 ahash = { version = "0.8.11", default-features = false, features = [
     "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
     "std",
 ] }
 backtrace = "0.3"
+bitflags = "2.6"
 bytemuck = "1.7.2"
 criterion = { version = "0.5.1", default-features = false }
 dify = { version = "0.7", default-features = false }
@@ -82,7 +85,7 @@ glutin = { version = "0.32.0", default-features = false }
 glutin-winit = { version = "0.5.0", default-features = false }
 home = "0.5.9"
 image = { version = "0.25", default-features = false }
-kittest = { version = "0.1" }
+kittest = { version = "0.1.0", git = "https://github.com/rerun-io/kittest", branch = "main" }
 log = { version = "0.4", features = ["std"] }
 nohash-hasher = "0.2"
 parking_lot = "0.12"
@@ -99,7 +102,7 @@ wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 web-sys = "0.3.70"
 web-time = "1.1.0" # Timekeeping for native and web
-wgpu = { version = "23.0.0", default-features = false }
+wgpu = { version = "24.0.0", default-features = false }
 windows-sys = "0.59"
 winit = { version = "0.30.7", default-features = false }
 
@@ -113,6 +116,7 @@ rust_2018_idioms = { level = "warn", priority = -1 }
 rust_2021_prelude_collisions = "warn"
 semicolon_in_expressions_from_macros = "warn"
 trivial_numeric_casts = "warn"
+unexpected_cfgs = "warn"
 unsafe_op_in_unsafe_fn = "warn"                         # `unsafe_op_in_unsafe_fn` may become the default in future Rust versions: https://github.com/rust-lang/rust/issues/71668
 unused_extern_crates = "warn"
 unused_import_braces = "warn"
@@ -202,8 +206,8 @@ match_same_arms = "warn"
 match_wild_err_arm = "warn"
 match_wildcard_for_single_variants = "warn"
 mem_forget = "warn"
-mismatched_target_os = "warn"
 mismatching_type_param_order = "warn"
+missing_assert_message = "warn"
 missing_enforced_import_renames = "warn"
 missing_errors_doc = "warn"
 missing_safety_doc = "warn"
@@ -271,7 +275,6 @@ zero_sized_map_values = "warn"
 
 # TODO(emilk): maybe enable more of these lints?
 iter_over_hash_type = "allow"
-missing_assert_message = "allow"
 should_panic_without_expect = "allow"
 too_many_lines = "allow"
 unwrap_used = "allow"                 # TODO(emilk): We really wanna warn on this one

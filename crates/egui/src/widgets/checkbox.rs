@@ -47,7 +47,7 @@ impl<'a> Checkbox<'a> {
     }
 }
 
-impl<'a> Widget for Checkbox<'a> {
+impl Widget for Checkbox<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         let Checkbox {
             checked,
@@ -104,9 +104,10 @@ impl<'a> Widget for Checkbox<'a> {
             let (small_icon_rect, big_icon_rect) = ui.spacing().icon_rectangles(rect);
             ui.painter().add(epaint::RectShape::new(
                 big_icon_rect.expand(visuals.expansion),
-                visuals.rounding,
+                visuals.corner_radius,
                 visuals.bg_fill,
                 visuals.bg_stroke,
+                epaint::StrokeKind::Inside,
             ));
 
             if indeterminate {

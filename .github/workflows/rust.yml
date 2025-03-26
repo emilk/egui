@@ -9,7 +9,7 @@ env:
 
 jobs:
   fmt-crank-check-test:
-    name: Format + check + test
+    name: Format + check
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -18,11 +18,11 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.80.0
+          toolchain: 1.81.0
 
       - name: Install packages (Linux)
         if: runner.os == 'Linux'
-        uses: awalsh128/cache-apt-pkgs-action@v1.4.2
+        uses: awalsh128/cache-apt-pkgs-action@v1.4.3
         with:
           packages: libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev libgtk-3-dev # libgtk-3-dev is used by rfd
           version: 1.0
@@ -83,7 +83,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.80.0
+          toolchain: 1.81.0
           targets: wasm32-unknown-unknown
 
       - run: sudo apt-get update && sudo apt-get install libgtk-3-dev libatk1.0-dev
@@ -103,7 +103,7 @@ jobs:
       - name: wasm-bindgen
         uses: jetli/wasm-bindgen-action@v0.1.0
         with:
-          version: "0.2.95"
+          version: "0.2.97"
 
       - run: ./scripts/wasm_bindgen_check.sh --skip-setup
 
@@ -153,9 +153,9 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - uses: EmbarkStudios/cargo-deny-action@v1
+      - uses: EmbarkStudios/cargo-deny-action@v2
         with:
-          rust-version: "1.80.0"
+          rust-version: "1.81.0"
           log-level: error
           command: check
           arguments: --target  ${{ matrix.target }}
@@ -170,7 +170,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.80.0
+          toolchain: 1.81.0
           targets: aarch64-linux-android
 
       - name: Set up cargo cache
@@ -189,7 +189,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.80.0
+          toolchain: 1.81.0
           targets: aarch64-apple-ios
 
       - name: Set up cargo cache
@@ -208,7 +208,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.80.0
+          toolchain: 1.81.0
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
@@ -223,7 +223,7 @@ jobs:
 
   tests:
     name: Run tests
-    # We run the tests on macOS because it will run with a actual GPU
+    # We run the tests on macOS because it will run with an actual GPU
     runs-on: macos-latest
 
     steps:
@@ -232,7 +232,7 @@ jobs:
           lfs: true
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.80.0
+          toolchain: 1.81.0
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2

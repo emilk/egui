@@ -50,6 +50,16 @@ impl Align {
         }
     }
 
+    /// Returns the inverse alignment.
+    /// `Min` becomes `Max`, `Center` stays the same, `Max` becomes `Min`.
+    pub fn flip(self) -> Self {
+        match self {
+            Self::Min => Self::Max,
+            Self::Center => Self::Center,
+            Self::Max => Self::Min,
+        }
+    }
+
     /// Returns a range of given size within a specified range.
     ///
     /// If the requested `size` is bigger than the size of `range`, then the returned
@@ -168,6 +178,24 @@ impl Align2 {
     /// -1, 0, or +1 for each axis
     pub fn to_sign(self) -> Vec2 {
         vec2(self.x().to_sign(), self.y().to_sign())
+    }
+
+    /// Flip on the x-axis
+    /// e.g. `TOP_LEFT` -> `TOP_RIGHT`
+    pub fn flip_x(self) -> Self {
+        Self([self.x().flip(), self.y()])
+    }
+
+    /// Flip on the y-axis
+    /// e.g. `TOP_LEFT` -> `BOTTOM_LEFT`
+    pub fn flip_y(self) -> Self {
+        Self([self.x(), self.y().flip()])
+    }
+
+    /// Flip on both axes
+    /// e.g. `TOP_LEFT` -> `BOTTOM_RIGHT`
+    pub fn flip(self) -> Self {
+        Self([self.x().flip(), self.y().flip()])
     }
 
     /// Used e.g. to anchor a piece of text to a part of the rectangle.

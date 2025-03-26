@@ -2,10 +2,9 @@
 
 #![allow(clippy::if_same_then_else)]
 
-use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
-
 use emath::Align;
-use epaint::{text::FontTweak, Rounding, Shadow, Stroke};
+use epaint::{text::FontTweak, CornerRadius, Shadow, Stroke};
+use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
 
 use crate::{
     ecolor::Color32,
@@ -174,6 +173,49 @@ impl From<TextStyle> for FontSelection {
 
 // ----------------------------------------------------------------------------
 
+/// Utility to modify a [`Style`] in some way.
+/// Constructed via [`StyleModifier::from`] from a `Fn(&mut Style)` or a [`Style`].
+#[derive(Clone, Default)]
+pub struct StyleModifier(Option<Arc<dyn Fn(&mut Style) + Send + Sync>>);
+
+impl std::fmt::Debug for StyleModifier {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("StyleModifier")
+    }
+}
+
+impl<T> From<T> for StyleModifier
+where
+    T: Fn(&mut Style) + Send + Sync + 'static,
+{
+    fn from(f: T) -> Self {
+        Self(Some(Arc::new(f)))
+    }
+}
+
+impl From<Style> for StyleModifier {
+    fn from(style: Style) -> Self {
+        Self(Some(Arc::new(move |s| *s = style.clone())))
+    }
+}
+
+impl StyleModifier {
+    /// Create a new [`StyleModifier`] from a function.
+    pub fn new(f: impl Fn(&mut Style) + Send + Sync + 'static) -> Self {
+        Self::from(f)
+    }
+
+    /// Apply the modification to the given [`Style`].
+    /// Usually used with [`Ui::style_mut`].
+    pub fn apply(&self, style: &mut Style) {
+        if let Some(f) = &self.0 {
+            f(style);
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 /// Specifies the look and feel of egui.
 ///
 /// You can change the visuals of a [`Ui`] with [`Ui::style_mut`]
@@ -290,6 +332,9 @@ pub struct Style {
 
     /// The animation that should be used when scrolling a [`crate::ScrollArea`] using e.g. [`Ui::scroll_to_rect`].
     pub scroll_animation: ScrollAnimation,
+
+    /// Use a more compact style for menus.
+    pub compact_menu_style: bool,
 }
 
 #[test]
@@ -915,7 +960,7 @@ pub struct Visuals {
     /// A good color for error text (e.g. red).
     pub error_fg_color: Color32,
 
-    pub window_rounding: Rounding,
+    pub window_corner_radius: CornerRadius,
     pub window_shadow: Shadow,
     pub window_fill: Color32,
     pub window_stroke: Stroke,
@@ -923,7 +968,7 @@ pub struct Visuals {
     /// Highlight the topmost window.
     pub window_highlight_topmost: bool,
 
-    pub menu_rounding: Rounding,
+    pub menu_corner_radius: CornerRadius,
 
     /// Panel background color
     pub panel_fill: Color32,
@@ -944,7 +989,7 @@ pub struct Visuals {
     /// Show a background behind collapsing headers.
     pub collapsing_header_frame: bool,
 
-    /// Draw a vertical lien left of indented region, in e.g. [`crate::CollapsingHeader`].
+    /// Draw a vertical line left of indented region, in e.g. [`crate::CollapsingHeader`].
     pub indent_has_left_vline: bool,
 
     /// Whether or not Grids and Tables should be striped by default
@@ -1107,7 +1152,7 @@ pub struct WidgetVisuals {
     pub bg_stroke: Stroke,
 
     /// Button frames etc.
-    pub rounding: Rounding,
+    pub corner_radius: CornerRadius,
 
     /// Stroke and text color of the interactive part of a component (button text, slider grab, check-mark, …).
     pub fg_stroke: Stroke,
@@ -1120,6 +1165,11 @@ impl WidgetVisuals {
     #[inline(always)]
     pub fn text_color(&self) -> Color32 {
         self.fg_stroke.color
+    }
+
+    #[deprecated = "Renamed to corner_radius"]
+    pub fn rounding(&self) -> CornerRadius {
+        self.corner_radius
     }
 }
 
@@ -1230,6 +1280,7 @@ impl Default for Style {
             url_in_tooltip: false,
             always_scroll_the_only_direction: false,
             scroll_animation: ScrollAnimation::default(),
+            compact_menu_style: true,
         }
     }
 }
@@ -1291,7 +1342,7 @@ impl Visuals {
             warn_fg_color: Color32::from_rgb(255, 143, 0), // orange
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
 
-            window_rounding: Rounding::same(6),
+            window_corner_radius: CornerRadius::same(6),
             window_shadow: Shadow {
                 offset: [10, 20],
                 blur: 15,
@@ -1302,7 +1353,7 @@ impl Visuals {
             window_stroke: Stroke::new(1.0, Color32::from_gray(60)),
             window_highlight_topmost: true,
 
-            menu_rounding: Rounding::same(6),
+            menu_corner_radius: CornerRadius::same(6),
 
             panel_fill: Color32::from_gray(27),
 
@@ -1412,7 +1463,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(27),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(60)), // separators, indentation lines
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(140)), // normal text color
-                rounding: Rounding::same(2),
+                corner_radius: CornerRadius::same(2),
                 expansion: 0.0,
             },
             inactive: WidgetVisuals {
@@ -1420,7 +1471,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(60),      // checkbox background
                 bg_stroke: Default::default(),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(180)), // button text
-                rounding: Rounding::same(2),
+                corner_radius: CornerRadius::same(2),
                 expansion: 0.0,
             },
             hovered: WidgetVisuals {
@@ -1428,7 +1479,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(70),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(150)), // e.g. hover over window edge or button
                 fg_stroke: Stroke::new(1.5, Color32::from_gray(240)),
-                rounding: Rounding::same(3),
+                corner_radius: CornerRadius::same(3),
                 expansion: 1.0,
             },
             active: WidgetVisuals {
@@ -1436,7 +1487,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(55),
                 bg_stroke: Stroke::new(1.0, Color32::WHITE),
                 fg_stroke: Stroke::new(2.0, Color32::WHITE),
-                rounding: Rounding::same(2),
+                corner_radius: CornerRadius::same(2),
                 expansion: 1.0,
             },
             open: WidgetVisuals {
@@ -1444,7 +1495,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(27),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(60)),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(210)),
-                rounding: Rounding::same(2),
+                corner_radius: CornerRadius::same(2),
                 expansion: 0.0,
             },
         }
@@ -1457,7 +1508,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(248),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(190)), // separators, indentation lines
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(80)),  // normal text color
-                rounding: Rounding::same(2),
+                corner_radius: CornerRadius::same(2),
                 expansion: 0.0,
             },
             inactive: WidgetVisuals {
@@ -1465,7 +1516,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(230),      // checkbox background
                 bg_stroke: Default::default(),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(60)), // button text
-                rounding: Rounding::same(2),
+                corner_radius: CornerRadius::same(2),
                 expansion: 0.0,
             },
             hovered: WidgetVisuals {
@@ -1473,7 +1524,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(220),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(105)), // e.g. hover over window edge or button
                 fg_stroke: Stroke::new(1.5, Color32::BLACK),
-                rounding: Rounding::same(3),
+                corner_radius: CornerRadius::same(3),
                 expansion: 1.0,
             },
             active: WidgetVisuals {
@@ -1481,7 +1532,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(165),
                 bg_stroke: Stroke::new(1.0, Color32::BLACK),
                 fg_stroke: Stroke::new(2.0, Color32::BLACK),
-                rounding: Rounding::same(2),
+                corner_radius: CornerRadius::same(2),
                 expansion: 1.0,
             },
             open: WidgetVisuals {
@@ -1489,7 +1540,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(220),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(160)),
                 fg_stroke: Stroke::new(1.0, Color32::BLACK),
-                rounding: Rounding::same(2),
+                corner_radius: CornerRadius::same(2),
                 expansion: 0.0,
             },
         }
@@ -1531,6 +1582,7 @@ impl Style {
             url_in_tooltip,
             always_scroll_the_only_direction,
             scroll_animation,
+            compact_menu_style,
         } = self;
 
         crate::Grid::new("_options").show(ui, |ui| {
@@ -1635,6 +1687,8 @@ impl Style {
 
         #[cfg(debug_assertions)]
         ui.collapsing("🐛 Debug", |ui| debug.ui(ui));
+
+        ui.checkbox(compact_menu_style, "Compact menu style");
 
         ui.checkbox(explanation_tooltips, "Explanation tooltips")
             .on_hover_text(
@@ -1924,7 +1978,7 @@ impl WidgetVisuals {
             weak_bg_fill,
             bg_fill: mandatory_bg_fill,
             bg_stroke,
-            rounding,
+            corner_radius,
             fg_stroke,
             expansion,
         } = self;
@@ -1948,8 +2002,8 @@ impl WidgetVisuals {
                 ui.add(bg_stroke);
                 ui.end_row();
 
-                ui.label("Rounding");
-                ui.add(rounding);
+                ui.label("Corner radius");
+                ui.add(corner_radius);
                 ui.end_row();
 
                 ui.label("Foreground stroke (text)");
@@ -1978,13 +2032,13 @@ impl Visuals {
             warn_fg_color,
             error_fg_color,
 
-            window_rounding,
+            window_corner_radius,
             window_shadow,
             window_fill,
             window_stroke,
             window_highlight_topmost,
 
-            menu_rounding,
+            menu_corner_radius,
 
             panel_fill,
 
@@ -2066,8 +2120,8 @@ impl Visuals {
                     ui.add(window_stroke);
                     ui.end_row();
 
-                    ui.label("Rounding");
-                    ui.add(window_rounding);
+                    ui.label("Corner radius");
+                    ui.add(window_corner_radius);
                     ui.end_row();
 
                     ui.label("Shadow");
@@ -2084,8 +2138,8 @@ impl Visuals {
                 .spacing([12.0, 8.0])
                 .striped(true)
                 .show(ui, |ui| {
-                    ui.label("Rounding");
-                    ui.add(menu_rounding);
+                    ui.label("Corner radius");
+                    ui.add(menu_corner_radius);
                     ui.end_row();
 
                     ui.label("Shadow");
@@ -2388,7 +2442,7 @@ impl Widget for &mut Margin {
     }
 }
 
-impl Widget for &mut Rounding {
+impl Widget for &mut CornerRadius {
     fn ui(self, ui: &mut Ui) -> Response {
         let mut same = self.is_same();
 
@@ -2398,37 +2452,39 @@ impl Widget for &mut Rounding {
 
                 let mut cr = self.nw;
                 ui.add(DragValue::new(&mut cr).range(0.0..=f32::INFINITY));
-                *self = Rounding::same(cr);
+                *self = CornerRadius::same(cr);
             })
             .response
         } else {
             ui.vertical(|ui| {
                 ui.checkbox(&mut same, "same");
 
-                crate::Grid::new("rounding").num_columns(2).show(ui, |ui| {
-                    ui.label("NW");
-                    ui.add(DragValue::new(&mut self.nw).range(0.0..=f32::INFINITY));
-                    ui.end_row();
+                crate::Grid::new("Corner radius")
+                    .num_columns(2)
+                    .show(ui, |ui| {
+                        ui.label("NW");
+                        ui.add(DragValue::new(&mut self.nw).range(0.0..=f32::INFINITY));
+                        ui.end_row();
 
-                    ui.label("NE");
-                    ui.add(DragValue::new(&mut self.ne).range(0.0..=f32::INFINITY));
-                    ui.end_row();
+                        ui.label("NE");
+                        ui.add(DragValue::new(&mut self.ne).range(0.0..=f32::INFINITY));
+                        ui.end_row();
 
-                    ui.label("SW");
-                    ui.add(DragValue::new(&mut self.sw).range(0.0..=f32::INFINITY));
-                    ui.end_row();
+                        ui.label("SW");
+                        ui.add(DragValue::new(&mut self.sw).range(0.0..=f32::INFINITY));
+                        ui.end_row();
 
-                    ui.label("SE");
-                    ui.add(DragValue::new(&mut self.se).range(0.0..=f32::INFINITY));
-                    ui.end_row();
-                });
+                        ui.label("SE");
+                        ui.add(DragValue::new(&mut self.se).range(0.0..=f32::INFINITY));
+                        ui.end_row();
+                    });
             })
             .response
         };
 
         // Apply the checkbox:
         if same {
-            *self = Rounding::from(self.average());
+            *self = CornerRadius::from(self.average());
         } else {
             // Make sure we aren't same:
             if self.is_same() {
@@ -2513,7 +2569,7 @@ impl Widget for &mut crate::Frame {
         let crate::Frame {
             inner_margin,
             outer_margin,
-            rounding,
+            corner_radius,
             shadow,
             fill,
             stroke,
@@ -2533,8 +2589,8 @@ impl Widget for &mut crate::Frame {
                 ui.push_id("outer", |ui| ui.add(outer_margin));
                 ui.end_row();
 
-                ui.label("Rounding");
-                ui.add(rounding);
+                ui.label("Corner radius");
+                ui.add(corner_radius);
                 ui.end_row();
 
                 ui.label("Shadow");

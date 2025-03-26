@@ -1,5 +1,4 @@
 use crate::app_kind::AppKind;
-use crate::wgpu::WgpuTestRenderer;
 use crate::{Harness, LazyRenderer, TestRenderer};
 use egui::{Pos2, Rect, Vec2};
 use std::marker::PhantomData;
@@ -8,6 +7,8 @@ use std::marker::PhantomData;
 pub struct HarnessBuilder<State = ()> {
     pub(crate) screen_rect: Rect,
     pub(crate) pixels_per_point: f32,
+    pub(crate) max_steps: u64,
+    pub(crate) step_dt: f32,
     pub(crate) state: PhantomData<State>,
     pub(crate) renderer: Box<dyn TestRenderer>,
 }
@@ -19,6 +20,8 @@ impl<State> Default for HarnessBuilder<State> {
             pixels_per_point: 1.0,
             state: PhantomData,
             renderer: Box::new(LazyRenderer::default()),
+            max_steps: 4,
+            step_dt: 1.0 / 4.0,
         }
     }
 }
@@ -40,6 +43,26 @@ impl<State> HarnessBuilder<State> {
         self
     }
 
+    /// Set the maximum number of steps to run when calling [`Harness::run`].
+    ///
+    /// Default is 4.
+    /// With the default `step_dt`, this means 1 second of simulation.
+    #[inline]
+    pub fn with_max_steps(mut self, max_steps: u64) -> Self {
+        self.max_steps = max_steps;
+        self
+    }
+
+    /// Set the time delta for a single [`Harness::step`].
+    ///
+    /// Default is 1.0 / 4.0 (4fps).
+    /// The default is low so we don't waste cpu waiting for animations.
+    #[inline]
+    pub fn with_step_dt(mut self, step_dt: f32) -> Self {
+        self.step_dt = step_dt;
+        self
+    }
+
     /// Set the [`TestRenderer`] to use for rendering.
     ///
     /// By default, a [`LazyRenderer`] is used.
@@ -51,16 +74,16 @@ impl<State> HarnessBuilder<State> {
 
     /// Enable wgpu rendering with a default setup suitable for testing.
     ///
-    /// This sets up a [`WgpuTestRenderer`] with the default setup.
+    /// This sets up a [`crate::wgpu::WgpuTestRenderer`] with the default setup.
     #[cfg(feature = "wgpu")]
     pub fn wgpu(self) -> Self {
-        self.renderer(WgpuTestRenderer::default())
+        self.renderer(crate::wgpu::WgpuTestRenderer::default())
     }
 
     /// Enable wgpu rendering with the given setup.
     #[cfg(feature = "wgpu")]
     pub fn wgpu_setup(self, setup: egui_wgpu::WgpuSetup) -> Self {
-        self.renderer(WgpuTestRenderer::from_setup(setup))
+        self.renderer(crate::wgpu::WgpuTestRenderer::from_setup(setup))
     }
 
     /// Create a new Harness with the given app closure and a state.

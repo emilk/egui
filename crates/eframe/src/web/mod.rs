@@ -41,7 +41,7 @@ pub(crate) type ActiveWebPainter = web_painter_wgpu::WebPainterWgpu;
 pub use backend::*;
 
 use wasm_bindgen::prelude::*;
-use web_sys::MediaQueryList;
+use web_sys::{Document, MediaQueryList, Node};
 
 use input::{
     button_from_mouse_event, modifiers_from_kb_event, modifiers_from_mouse_event,
@@ -50,6 +50,9 @@ use input::{
 };
 
 // ----------------------------------------------------------------------------
+
+/// Debug browser resizing?
+const DEBUG_RESIZE: bool = false;
 
 pub(crate) fn string_from_js_value(value: &JsValue) -> String {
     value.as_string().unwrap_or_else(|| format!("{value:#?}"))
@@ -61,18 +64,22 @@ pub(crate) fn string_from_js_value(value: &JsValue) -> String {
 /// - `<a>`/`<area>` with an `href` attribute
 /// - `<input>`/`<select>`/`<textarea>`/`<button>` which aren't `disabled`
 /// - any other element with a `tabindex` attribute
-pub(crate) fn focused_element() -> Option<web_sys::Element> {
-    web_sys::window()?
-        .document()?
-        .active_element()?
-        .dyn_into()
-        .ok()
+pub(crate) fn focused_element(root: &Node) -> Option<web_sys::Element> {
+    if let Some(document) = root.dyn_ref::<Document>() {
+        document.active_element()
+    } else if let Some(shadow) = root.dyn_ref::<web_sys::ShadowRoot>() {
+        shadow.active_element()
+    } else {
+        None
+    }
 }
 
 pub(crate) fn has_focus<T: JsCast>(element: &T) -> bool {
     fn try_has_focus<T: JsCast>(element: &T) -> Option<bool> {
         let element = element.dyn_ref::<web_sys::Element>()?;
-        let focused_element = focused_element()?;
+        let root = element.get_root_node();
+
+        let focused_element = focused_element(&root)?;
         Some(element == &focused_element)
     }
     try_has_focus(element).unwrap_or(false)
@@ -152,7 +159,10 @@ fn canvas_content_rect(canvas: &web_sys::HtmlCanvasElement) -> egui::Rect {
 }
 
 fn canvas_size_in_points(canvas: &web_sys::HtmlCanvasElement, ctx: &egui::Context) -> egui::Vec2 {
-    let pixels_per_point = ctx.pixels_per_point();
+    // ctx.pixels_per_point can be outdated
+
+    let pixels_per_point = ctx.zoom_factor() * native_pixels_per_point();
+
     egui::vec2(
         canvas.width() as f32 / pixels_per_point,
         canvas.height() as f32 / pixels_per_point,
@@ -351,4 +361,9 @@ pub fn percent_decode(s: &str) -> String {
     percent_encoding::percent_decode_str(s)
         .decode_utf8_lossy()
         .to_string()
+}
+
+/// Are we running inside the Safari browser?
+pub fn is_safari_browser() -> bool {
+    web_sys::window().is_some_and(|window| window.has_own_property(&JsValue::from("safari")))
 }

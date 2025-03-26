@@ -4,12 +4,24 @@ use kittest::{ElementState, MouseButton, SimulatedEvent};
 
 #[derive(Default)]
 pub(crate) struct EventState {
-    modifiers: Modifiers,
     last_mouse_pos: Pos2,
 }
 
 impl EventState {
-    pub fn kittest_event_to_egui(&mut self, event: kittest::Event) -> Option<egui::Event> {
+    /// Map the kittest event to an egui event, add it to the input and update the modifiers.
+    /// This function accesses `egui::RawInput::modifiers`. Make sure it is not reset after each
+    /// frame (Since we use [`egui::RawInput::take`], this should be fine).
+    pub fn update(&mut self, event: kittest::Event, input: &mut egui::RawInput) {
+        if let Some(event) = self.kittest_event_to_egui(&mut input.modifiers, event) {
+            input.events.push(event);
+        }
+    }
+
+    fn kittest_event_to_egui(
+        &mut self,
+        modifiers: &mut Modifiers,
+        event: kittest::Event,
+    ) -> Option<egui::Event> {
         match event {
             kittest::Event::ActionRequest(e) => Some(Event::AccessKitActionRequest(e)),
             kittest::Event::Simulated(e) => match e {
@@ -23,7 +35,7 @@ impl EventState {
                 SimulatedEvent::MouseInput { state, button } => {
                     pointer_button_to_egui(button).map(|button| PointerButton {
                         button,
-                        modifiers: self.modifiers,
+                        modifiers: *modifiers,
                         pos: self.last_mouse_pos,
                         pressed: matches!(state, ElementState::Pressed),
                     })
@@ -32,22 +44,22 @@ impl EventState {
                 SimulatedEvent::KeyInput { state, key } => {
                     match key {
                         kittest::Key::Alt => {
-                            self.modifiers.alt = matches!(state, ElementState::Pressed);
+                            modifiers.alt = matches!(state, ElementState::Pressed);
                         }
                         kittest::Key::Command => {
-                            self.modifiers.command = matches!(state, ElementState::Pressed);
+                            modifiers.command = matches!(state, ElementState::Pressed);
                         }
                         kittest::Key::Control => {
-                            self.modifiers.ctrl = matches!(state, ElementState::Pressed);
+                            modifiers.ctrl = matches!(state, ElementState::Pressed);
                         }
                         kittest::Key::Shift => {
-                            self.modifiers.shift = matches!(state, ElementState::Pressed);
+                            modifiers.shift = matches!(state, ElementState::Pressed);
                         }
                         _ => {}
                     }
                     kittest_key_to_egui(key).map(|key| Event::Key {
                         key,
-                        modifiers: self.modifiers,
+                        modifiers: *modifiers,
                         pressed: matches!(state, ElementState::Pressed),
                         repeat: false,
                         physical_key: None,
@@ -58,7 +70,7 @@ impl EventState {
     }
 }
 
-pub fn kittest_key_to_egui(value: kittest::Key) -> Option<egui::Key> {
+fn kittest_key_to_egui(value: kittest::Key) -> Option<egui::Key> {
     use egui::Key as EKey;
     use kittest::Key;
     match value {
@@ -170,7 +182,7 @@ pub fn kittest_key_to_egui(value: kittest::Key) -> Option<egui::Key> {
     }
 }
 
-pub fn pointer_button_to_egui(value: MouseButton) -> Option<egui::PointerButton> {
+fn pointer_button_to_egui(value: MouseButton) -> Option<egui::PointerButton> {
     match value {
         MouseButton::Left => Some(egui::PointerButton::Primary),
         MouseButton::Right => Some(egui::PointerButton::Secondary),

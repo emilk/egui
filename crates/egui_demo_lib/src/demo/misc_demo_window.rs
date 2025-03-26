@@ -1,8 +1,8 @@
 use super::{Demo, View};
 
 use egui::{
-    vec2, Align, Checkbox, CollapsingHeader, Color32, Context, FontId, Frame, Resize, RichText,
-    Sense, Slider, Stroke, TextFormat, TextStyle, Ui, Vec2, Window,
+    vec2, Align, Checkbox, CollapsingHeader, Color32, Context, FontId, Resize, RichText, Sense,
+    Slider, Stroke, TextFormat, TextStyle, Ui, Vec2, Window,
 };
 
 /// Showcase some ui code
@@ -124,9 +124,9 @@ impl View for MiscDemoWindow {
                     )
                     .changed()
                 {
-                    self.checklist
-                        .iter_mut()
-                        .for_each(|checked| *checked = all_checked);
+                    for check in &mut self.checklist {
+                        *check = all_checked;
+                    }
                 }
                 for (i, checked) in self.checklist.iter_mut().enumerate() {
                     ui.checkbox(checked, format!("Item {}", i + 1));
@@ -358,7 +358,7 @@ impl ColorWidgets {
 #[cfg_attr(feature = "serde", serde(default))]
 struct BoxPainting {
     size: Vec2,
-    rounding: f32,
+    corner_radius: f32,
     stroke_width: f32,
     num_boxes: usize,
 }
@@ -367,7 +367,7 @@ impl Default for BoxPainting {
     fn default() -> Self {
         Self {
             size: vec2(64.0, 32.0),
-            rounding: 5.0,
+            corner_radius: 5.0,
             stroke_width: 2.0,
             num_boxes: 1,
         }
@@ -378,7 +378,7 @@ impl BoxPainting {
     pub fn ui(&mut self, ui: &mut Ui) {
         ui.add(Slider::new(&mut self.size.x, 0.0..=500.0).text("width"));
         ui.add(Slider::new(&mut self.size.y, 0.0..=500.0).text("height"));
-        ui.add(Slider::new(&mut self.rounding, 0.0..=50.0).text("rounding"));
+        ui.add(Slider::new(&mut self.corner_radius, 0.0..=50.0).text("corner_radius"));
         ui.add(Slider::new(&mut self.stroke_width, 0.0..=10.0).text("stroke_width"));
         ui.add(Slider::new(&mut self.num_boxes, 0..=8).text("num_boxes"));
 
@@ -387,9 +387,10 @@ impl BoxPainting {
                 let (rect, _response) = ui.allocate_at_least(self.size, Sense::hover());
                 ui.painter().rect(
                     rect,
-                    self.rounding,
+                    self.corner_radius,
                     ui.visuals().text_color().gamma_multiply(0.5),
                     Stroke::new(self.stroke_width, Color32::WHITE),
+                    egui::StrokeKind::Inside,
                 );
             }
         });
@@ -512,54 +513,52 @@ fn ui_stack_demo(ui: &mut Ui) {
         );
     });
     let stack = ui.stack().clone();
-    Frame {
-        inner_margin: ui.spacing().menu_margin,
-        stroke: ui.visuals().widgets.noninteractive.bg_stroke,
-        ..Default::default()
-    }
-    .show(ui, |ui| {
-        egui_extras::TableBuilder::new(ui)
-            .column(egui_extras::Column::auto())
-            .column(egui_extras::Column::auto())
-            .header(18.0, |mut header| {
-                header.col(|ui| {
-                    ui.strong("id");
-                });
-                header.col(|ui| {
-                    ui.strong("kind");
-                });
-            })
-            .body(|mut body| {
-                for node in stack.iter() {
-                    body.row(18.0, |mut row| {
-                        row.col(|ui| {
-                            let response = ui.label(format!("{:?}", node.id));
+    egui::Frame::new()
+        .inner_margin(ui.spacing().menu_margin)
+        .stroke(ui.visuals().widgets.noninteractive.bg_stroke)
+        .show(ui, |ui| {
+            egui_extras::TableBuilder::new(ui)
+                .column(egui_extras::Column::auto())
+                .column(egui_extras::Column::auto())
+                .header(18.0, |mut header| {
+                    header.col(|ui| {
+                        ui.strong("id");
+                    });
+                    header.col(|ui| {
+                        ui.strong("kind");
+                    });
+                })
+                .body(|mut body| {
+                    for node in stack.iter() {
+                        body.row(18.0, |mut row| {
+                            row.col(|ui| {
+                                let response = ui.label(format!("{:?}", node.id));
 
-                            if response.hovered() {
-                                ui.ctx().debug_painter().debug_rect(
-                                    node.max_rect,
-                                    Color32::GREEN,
-                                    "max_rect",
-                                );
-                                ui.ctx().debug_painter().circle_filled(
-                                    node.min_rect.min,
-                                    2.0,
-                                    Color32::RED,
-                                );
-                            }
-                        });
+                                if response.hovered() {
+                                    ui.ctx().debug_painter().debug_rect(
+                                        node.max_rect,
+                                        Color32::GREEN,
+                                        "max_rect",
+                                    );
+                                    ui.ctx().debug_painter().circle_filled(
+                                        node.min_rect.min,
+                                        2.0,
+                                        Color32::RED,
+                                    );
+                                }
+                            });
 
-                        row.col(|ui| {
-                            ui.label(if let Some(kind) = node.kind() {
-                                format!("{kind:?}")
-                            } else {
-                                "-".to_owned()
+                            row.col(|ui| {
+                                ui.label(if let Some(kind) = node.kind() {
+                                    format!("{kind:?}")
+                                } else {
+                                    "-".to_owned()
+                                });
                             });
                         });
-                    });
-                }
-            });
-    });
+                    }
+                });
+        });
 
     ui.small("Hover on UI's ids to display their origin and max rect.");
 }

@@ -3,7 +3,7 @@
 //! Try the live web demo: <https://www.egui.rs/#demo>. Read more about egui at <https://github.com/emilk/egui>.
 //!
 //! `egui` is in heavy development, with each new version having breaking changes.
-//! You need to have rust 1.80.0 or later to use `egui`.
+//! You need to have rust 1.81.0 or later to use `egui`.
 //!
 //! To quickly get started with egui, you can take a look at [`eframe_template`](https://github.com/emilk/eframe_template)
 //! which uses [`eframe`](https://docs.rs/eframe).
@@ -422,12 +422,13 @@ pub mod layers;
 mod layout;
 pub mod load;
 mod memory;
+#[deprecated = "Use `egui::containers::menu` instead"]
 pub mod menu;
 pub mod os;
 mod painter;
 mod pass_state;
 pub(crate) mod placer;
-mod response;
+pub mod response;
 mod sense;
 pub mod style;
 pub mod text_selection;
@@ -458,18 +459,19 @@ pub use epaint::emath;
 pub use ecolor::hex_color;
 pub use ecolor::{Color32, Rgba};
 pub use emath::{
-    lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos2, Rangef, Rect, Vec2, Vec2b,
+    lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos2, Rangef, Rect, RectAlign,
+    Vec2, Vec2b,
 };
 pub use epaint::{
     mutex,
     text::{FontData, FontDefinitions, FontFamily, FontId, FontTweak},
     textures::{TextureFilter, TextureOptions, TextureWrapMode, TexturesDelta},
-    ClippedPrimitive, ColorImage, FontImage, ImageData, Margin, Mesh, PaintCallback,
-    PaintCallbackInfo, Rounding, Shadow, Shape, Stroke, TextureHandle, TextureId,
+    ClippedPrimitive, ColorImage, CornerRadius, FontImage, ImageData, Margin, Mesh, PaintCallback,
+    PaintCallbackInfo, Shadow, Shape, Stroke, StrokeKind, TextureHandle, TextureId,
 };
 
 pub mod text {
-    pub use crate::text_selection::{CCursorRange, CursorRange};
+    pub use crate::text_selection::CCursorRange;
     pub use epaint::text::{
         cursor::CCursor, FontData, FontDefinitions, FontFamily, Fonts, Galley, LayoutJob,
         LayoutSection, TextFormat, TextWrapping, TAB_SIZE,
@@ -510,6 +512,9 @@ pub use self::{
     widgets::*,
 };
 
+#[deprecated = "Renamed to CornerRadius"]
+pub type Rounding = CornerRadius;
+
 // ----------------------------------------------------------------------------
 
 /// Helper function that adds a label when compiling with debug assertions enabled.
@@ -538,7 +543,7 @@ pub fn warn_if_debug_build(ui: &mut crate::Ui) {
 /// ui.add(
 ///     egui::Image::new(egui::include_image!("../assets/ferris.png"))
 ///         .max_width(200.0)
-///         .rounding(10.0),
+///         .corner_radius(10),
 /// );
 ///
 /// let image_source: egui::ImageSource = egui::include_image!("../assets/ferris.png");
@@ -624,9 +629,6 @@ pub mod special_emojis {
 
     /// The Github logo.
     pub const GITHUB: char = '';
-
-    /// The Twitter bird.
-    pub const TWITTER: char = '';
 
     /// The word `git`.
     pub const GIT: char = '';

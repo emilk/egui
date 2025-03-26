@@ -57,7 +57,7 @@ http = ["dep:ehttp"]
 image = ["dep:image"]
 
 ## Derive serde Serialize/Deserialize on stateful structs
-serde = ["egui/serde", "dep:serde"]
+serde = ["egui/serde", "enum-map/serde", "dep:serde"]
 
 ## Support loading svg images.
 svg = ["resvg"]
@@ -70,7 +70,7 @@ syntect = ["dep:syntect"]
 egui = { workspace = true, default-features = false }
 
 ahash.workspace = true
-enum-map = { version = "2", features = ["serde"] }
+enum-map = "2"
 log.workspace = true
 profiling.workspace = true
 

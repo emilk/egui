@@ -11,7 +11,7 @@ use epaint::{
     tessellator,
     text::{FontInsert, FontPriority, Fonts},
     util::OrderedFloat,
-    vec2, ClippedPrimitive, ClippedShape, Color32, ImageData, ImageDelta, Pos2, Rect,
+    vec2, ClippedPrimitive, ClippedShape, Color32, ImageData, ImageDelta, Pos2, Rect, StrokeKind,
     TessellationOptions, TextureAtlas, TextureId, Vec2,
 };
 
@@ -26,11 +26,10 @@ use crate::{
     load,
     load::{Bytes, Loaders, SizedTexture},
     memory::{Options, Theme},
-    menu,
     os::OperatingSystem,
     output::FullOutput,
     pass_state::PassState,
-    resize, scroll_area,
+    resize, response, scroll_area,
     util::IdTypeMap,
     viewport::ViewportClass,
     Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, Grid, Id, ImmediateViewport,
@@ -83,7 +82,11 @@ impl Default for WrappedTextureManager {
             epaint::FontImage::new([0, 0]).into(),
             Default::default(),
         );
-        assert_eq!(font_id, TextureId::default());
+        assert_eq!(
+            font_id,
+            TextureId::default(),
+            "font id should be equal to TextureId::default(), but was {font_id:?}",
+        );
 
         Self(Arc::new(RwLock::new(tex_mngr)))
     }
@@ -211,14 +214,14 @@ impl ContextImpl {
     fn requested_immediate_repaint_prev_pass(&self, viewport_id: &ViewportId) -> bool {
         self.viewports
             .get(viewport_id)
-            .map_or(false, |v| v.repaint.requested_immediate_repaint_prev_pass())
+            .is_some_and(|v| v.repaint.requested_immediate_repaint_prev_pass())
     }
 
     #[must_use]
     fn has_requested_repaint(&self, viewport_id: &ViewportId) -> bool {
-        self.viewports.get(viewport_id).map_or(false, |v| {
-            0 < v.repaint.outstanding || v.repaint.repaint_delay < Duration::MAX
-        })
+        self.viewports
+            .get(viewport_id)
+            .is_some_and(|v| 0 < v.repaint.outstanding || v.repaint.repaint_delay < Duration::MAX)
     }
 }
 
@@ -775,7 +778,7 @@ impl Context {
         writer(&mut self.0.write())
     }
 
-    /// Run the ui code for one 1.
+    /// Run the ui code for one frame.
     ///
     /// At most [`Options::max_passes`] calls will be issued to `run_ui`,
     /// and only on the rare occasion that [`Context::request_discard`] is called.
@@ -805,7 +808,11 @@ impl Context {
         let max_passes = self.write(|ctx| ctx.memory.options.max_passes.get());
 
         let mut output = FullOutput::default();
-        debug_assert_eq!(output.platform_output.num_completed_passes, 0);
+        debug_assert_eq!(
+            output.platform_output.num_completed_passes, 0,
+            "output must be fresh, but had {} passes",
+            output.platform_output.num_completed_passes
+        );
 
         loop {
             profiling::scope!(
@@ -829,7 +836,11 @@ impl Context {
             self.begin_pass(new_input.take());
             run_ui(self);
             output.append(self.end_pass());
-            debug_assert!(0 < output.platform_output.num_completed_passes);
+            debug_assert!(
+                0 < output.platform_output.num_completed_passes,
+                "Completed passes was lower than 0, was {}",
+                output.platform_output.num_completed_passes
+            );
 
             if !output.platform_output.requested_discard() {
                 break; // no need for another pass
@@ -1087,7 +1098,7 @@ impl Context {
             let text = format!("🔥 {text}");
             let color = self.style().visuals.error_fg_color;
             let painter = self.debug_painter();
-            painter.rect_stroke(widget_rect, 0.0, (1.0, color));
+            painter.rect_stroke(widget_rect, 0.0, (1.0, color), StrokeKind::Outside);
 
             let below = widget_rect.bottom() + 32.0 < screen_rect.bottom();
 
@@ -1151,8 +1162,9 @@ impl Context {
     /// same widget, then `allow_focus` should only be true once (like in [`Ui::new`] (true) and [`Ui::remember_min_rect`] (false)).
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn create_widget(&self, w: WidgetRect, allow_focus: bool) -> Response {
-        let interested_in_focus =
-            w.enabled && w.sense.focusable && self.memory(|mem| mem.allows_interaction(w.layer_id));
+        let interested_in_focus = w.enabled
+            && w.sense.is_focusable()
+            && self.memory(|mem| mem.allows_interaction(w.layer_id));
 
         // Remember this widget
         self.write(|ctx| {
@@ -1173,7 +1185,7 @@ impl Context {
             self.memory_mut(|mem| mem.surrender_focus(w.id));
         }
 
-        if w.sense.interactive() || w.sense.focusable {
+        if w.sense.interactive() || w.sense.is_focusable() {
             self.check_for_id_clash(w.id, w.rect, "widget");
         }
 
@@ -1181,7 +1193,7 @@ impl Context {
         let res = self.get_response(w);
 
         #[cfg(feature = "accesskit")]
-        if allow_focus && w.sense.focusable {
+        if allow_focus && w.sense.is_focusable() {
             // Make sure anything that can receive focus has an AccessKit node.
             // TODO(mwcampbell): For nodes that are filled from widget info,
             // some information is written to the node twice.
@@ -1196,15 +1208,27 @@ impl Context {
     /// This is because widget interaction happens at the start of the pass, using the widget rects from the previous pass.
     ///
     /// If the widget was not visible the previous pass (or this pass), this will return `None`.
+    ///
+    /// If you try to read a [`Ui`]'s response, while still inside, this will return the [`Rect`] from the previous frame.
     pub fn read_response(&self, id: Id) -> Option<Response> {
         self.write(|ctx| {
             let viewport = ctx.viewport();
-            viewport
+            let widget_rect = viewport
                 .this_pass
                 .widgets
                 .get(id)
                 .or_else(|| viewport.prev_pass.widgets.get(id))
-                .copied()
+                .copied();
+            widget_rect.map(|mut rect| {
+                // If the Rect is invalid the Ui hasn't registered its final Rect yet.
+                // We return the Rect from last frame instead.
+                if !(rect.rect.is_positive() && rect.rect.is_finite()) {
+                    if let Some(prev_rect) = viewport.prev_pass.widgets.get(id) {
+                        rect.rect = prev_rect.rect;
+                    }
+                }
+                rect
+            })
         })
         .map(|widget_rect| self.get_response(widget_rect))
     }
@@ -1213,11 +1237,13 @@ impl Context {
     #[deprecated = "Use Response.contains_pointer or Context::read_response instead"]
     pub fn widget_contains_pointer(&self, id: Id) -> bool {
         self.read_response(id)
-            .map_or(false, |response| response.contains_pointer)
+            .is_some_and(|response| response.contains_pointer())
     }
 
     /// Do all interaction for an existing widget, without (re-)registering it.
     pub(crate) fn get_response(&self, widget_rect: WidgetRect) -> Response {
+        use response::Flags;
+
         let WidgetRect {
             id,
             layer_id,
@@ -1237,61 +1263,72 @@ impl Context {
             rect,
             interact_rect,
             sense,
-            enabled,
-            contains_pointer: false,
-            hovered: false,
-            highlighted,
-            clicked: false,
-            fake_primary_click: false,
-            long_touched: false,
-            drag_started: false,
-            dragged: false,
-            drag_stopped: false,
-            is_pointer_button_down_on: false,
+            flags: Flags::empty(),
             interact_pointer_pos: None,
-            changed: false,
             intrinsic_size: None,
         };
+
+        res.flags.set(Flags::ENABLED, enabled);
+        res.flags.set(Flags::HIGHLIGHTED, highlighted);
 
         self.write(|ctx| {
             let viewport = ctx.viewports.entry(ctx.viewport_id()).or_default();
 
-            res.contains_pointer = viewport.interact_widgets.contains_pointer.contains(&id);
+            res.flags.set(
+                Flags::CONTAINS_POINTER,
+                viewport.interact_widgets.contains_pointer.contains(&id),
+            );
 
             let input = &viewport.input;
             let memory = &mut ctx.memory;
 
             if enabled
-                && sense.click
+                && sense.senses_click()
                 && memory.has_focus(id)
                 && (input.key_pressed(Key::Space) || input.key_pressed(Key::Enter))
             {
                 // Space/enter works like a primary click for e.g. selected buttons
-                res.fake_primary_click = true;
+                res.flags.set(Flags::FAKE_PRIMARY_CLICKED, true);
             }
 
             #[cfg(feature = "accesskit")]
             if enabled
-                && sense.click
+                && sense.senses_click()
                 && input.has_accesskit_action_request(id, accesskit::Action::Click)
             {
-                res.fake_primary_click = true;
+                res.flags.set(Flags::FAKE_PRIMARY_CLICKED, true);
             }
 
-            if enabled && sense.click && Some(id) == viewport.interact_widgets.long_touched {
-                res.long_touched = true;
+            if enabled && sense.senses_click() && Some(id) == viewport.interact_widgets.long_touched
+            {
+                res.flags.set(Flags::LONG_TOUCHED, true);
             }
 
             let interaction = memory.interaction();
 
-            res.is_pointer_button_down_on = interaction.potential_click_id == Some(id)
-                || interaction.potential_drag_id == Some(id);
+            res.flags.set(
+                Flags::IS_POINTER_BUTTON_DOWN_ON,
+                interaction.potential_click_id == Some(id)
+                    || interaction.potential_drag_id == Some(id),
+            );
 
-            if res.enabled {
-                res.hovered = viewport.interact_widgets.hovered.contains(&id);
-                res.dragged = Some(id) == viewport.interact_widgets.dragged;
-                res.drag_started = Some(id) == viewport.interact_widgets.drag_started;
-                res.drag_stopped = Some(id) == viewport.interact_widgets.drag_stopped;
+            if res.enabled() {
+                res.flags.set(
+                    Flags::HOVERED,
+                    viewport.interact_widgets.hovered.contains(&id),
+                );
+                res.flags.set(
+                    Flags::DRAGGED,
+                    Some(id) == viewport.interact_widgets.dragged,
+                );
+                res.flags.set(
+                    Flags::DRAG_STARTED,
+                    Some(id) == viewport.interact_widgets.drag_started,
+                );
+                res.flags.set(
+                    Flags::DRAG_STOPPED,
+                    Some(id) == viewport.interact_widgets.drag_stopped,
+                );
             }
 
             let clicked = Some(id) == viewport.interact_widgets.clicked;
@@ -1304,20 +1341,22 @@ impl Context {
                         any_press = true;
                     }
                     PointerEvent::Released { click, .. } => {
-                        if enabled && sense.click && clicked && click.is_some() {
-                            res.clicked = true;
+                        if enabled && sense.senses_click() && clicked && click.is_some() {
+                            res.flags.set(Flags::CLICKED, true);
                         }
 
-                        res.is_pointer_button_down_on = false;
-                        res.dragged = false;
+                        res.flags.set(Flags::IS_POINTER_BUTTON_DOWN_ON, false);
+                        res.flags.set(Flags::DRAGGED, false);
                     }
                 }
             }
 
             // is_pointer_button_down_on is false when released, but we want interact_pointer_pos
             // to still work.
-            let is_interacted_with =
-                res.is_pointer_button_down_on || res.long_touched || clicked || res.drag_stopped;
+            let is_interacted_with = res.is_pointer_button_down_on()
+                || res.long_touched()
+                || clicked
+                || res.drag_stopped();
             if is_interacted_with {
                 res.interact_pointer_pos = input.pointer.interact_pos();
                 if let (Some(to_global), Some(pos)) = (
@@ -1330,10 +1369,10 @@ impl Context {
 
             if input.pointer.any_down() && !is_interacted_with {
                 // We don't hover widgets while interacting with *other* widgets:
-                res.hovered = false;
+                res.flags.set(Flags::HOVERED, false);
             }
 
-            let pointer_pressed_elsewhere = any_press && !res.hovered;
+            let pointer_pressed_elsewhere = any_press && !res.hovered();
             if pointer_pressed_elsewhere && memory.has_focus(id) {
                 memory.surrender_focus(id);
             }
@@ -1453,6 +1492,11 @@ impl Context {
     /// error and do nothing. See <https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts>.
     pub fn copy_image(&self, image: crate::ColorImage) {
         self.send_cmd(crate::OutputCommand::CopyImage(image));
+    }
+
+    /// Set the mouse cursor position (if the platform supports it).
+    pub fn set_pointer_position(&self, position: Pos2) {
+        self.send_cmd(crate::OutputCommand::SetPointerPosition(position));
     }
 
     /// Format the given shortcut in a human-readable way (e.g. `Ctrl+Shift+X`).
@@ -2152,11 +2196,12 @@ impl Context {
                 let painter = Painter::new(self.clone(), *layer_id, Rect::EVERYTHING);
                 for rect in rects {
                     if rect.sense.interactive() {
-                        let (color, text) = if rect.sense.click && rect.sense.drag {
+                        let (color, text) = if rect.sense.senses_click() && rect.sense.senses_drag()
+                        {
                             (Color32::from_rgb(0x88, 0, 0x88), "click+drag")
-                        } else if rect.sense.click {
+                        } else if rect.sense.senses_click() {
                             (Color32::from_rgb(0x88, 0, 0), "click")
-                        } else if rect.sense.drag {
+                        } else if rect.sense.senses_drag() {
                             (Color32::from_rgb(0, 0, 0x88), "drag")
                         } else {
                             // unreachable since we only show interactive
@@ -2532,10 +2577,7 @@ impl Context {
         self.input(|i| i.screen_rect()).round_ui()
     }
 
-    /// How much space is still available after panels has been added.
-    ///
-    /// This is the "background" area, what egui doesn't cover with panels (but may cover with windows).
-    /// This is also the area to which windows are constrained.
+    /// How much space is still available after panels have been added.
     pub fn available_rect(&self) -> Rect {
         self.pass_state(|s| s.available_rect()).round_ui()
     }
@@ -2612,10 +2654,25 @@ impl Context {
     }
 
     /// Is an egui context menu open?
+    ///
+    /// This only works with the old, deprecated [`crate::menu`] API.
+    #[allow(deprecated)]
+    #[deprecated = "Use `is_popup_open` instead"]
     pub fn is_context_menu_open(&self) -> bool {
         self.data(|d| {
-            d.get_temp::<crate::menu::BarState>(menu::CONTEXT_MENU_ID_STR.into())
-                .map_or(false, |state| state.has_root())
+            d.get_temp::<crate::menu::BarState>(crate::menu::CONTEXT_MENU_ID_STR.into())
+                .is_some_and(|state| state.has_root())
+        })
+    }
+
+    /// Is a popup or (context) menu open?
+    ///
+    /// Will return false for [`crate::Tooltip`]s (which are technically popups as well).
+    pub fn is_popup_open(&self) -> bool {
+        self.pass_state_mut(|fs| {
+            fs.layers
+                .values()
+                .any(|layer| !layer.open_popups.is_empty())
         })
     }
 }
@@ -2662,7 +2719,8 @@ impl Context {
     ///
     /// Can be used to implement pan and zoom (see relevant demo).
     ///
-    /// For a temporary transform, use [`Self::transform_layer_shapes`] instead.
+    /// For a temporary transform, use [`Self::transform_layer_shapes`] or
+    /// [`Ui::with_visual_transform`].
     pub fn set_transform_layer(&self, layer_id: LayerId, transform: TSTransform) {
         self.memory_mut(|m| {
             if transform == TSTransform::IDENTITY {
@@ -3131,7 +3189,7 @@ impl Context {
                     // TODO(emilk): `Sense::hover_highlight()`
                     let response =
                         ui.add(Label::new(RichText::new(text).monospace()).sense(Sense::click()));
-                    if response.hovered && is_visible {
+                    if response.hovered() && is_visible {
                         ui.ctx()
                             .debug_painter()
                             .debug_rect(area.rect(), Color32::RED, "");
@@ -3152,13 +3210,14 @@ impl Context {
             }
         });
 
+        #[allow(deprecated)]
         ui.horizontal(|ui| {
             ui.label(format!(
                 "{} menu bars",
-                self.data(|d| d.count::<menu::BarState>())
+                self.data(|d| d.count::<crate::menu::BarState>())
             ));
             if ui.button("Reset").clicked() {
-                self.data_mut(|d| d.remove_by_type::<menu::BarState>());
+                self.data_mut(|d| d.remove_by_type::<crate::menu::BarState>());
             }
         });
 
@@ -3225,7 +3284,11 @@ impl Context {
         #[cfg(feature = "accesskit")]
         self.pass_state_mut(|fs| {
             if let Some(state) = fs.accesskit_state.as_mut() {
-                assert_eq!(state.parent_stack.pop(), Some(_id));
+                assert_eq!(
+                    state.parent_stack.pop(),
+                    Some(_id),
+                    "Mismatched push/pop in with_accessibility_parent"
+                );
             }
         });
 
@@ -3488,7 +3551,6 @@ impl Context {
 
     /// The loaders of bytes, images, and textures.
     pub fn loaders(&self) -> Arc<Loaders> {
-        profiling::function_scope!();
         self.read(|this| this.loaders.clone())
     }
 }

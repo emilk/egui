@@ -426,7 +426,7 @@ impl<'a> DragValue<'a> {
     }
 }
 
-impl<'a> Widget for DragValue<'a> {
+impl Widget for DragValue<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         let Self {
             mut get_set_value,
@@ -451,10 +451,11 @@ impl<'a> Widget for DragValue<'a> {
         // it is immediately rendered in edit mode, rather than being rendered
         // in button mode for just one frame. This is important for
         // screen readers.
-        let is_kb_editing = ui.memory_mut(|mem| {
-            mem.interested_in_focus(id, ui.layer_id());
-            mem.has_focus(id)
-        });
+        let is_kb_editing = ui.is_enabled()
+            && ui.memory_mut(|mem| {
+                mem.interested_in_focus(id, ui.layer_id());
+                mem.has_focus(id)
+            });
 
         if ui.memory_mut(|mem| mem.gained_focus(id)) {
             ui.data_mut(|data| data.remove::<String>(id));
@@ -562,7 +563,9 @@ impl<'a> Widget for DragValue<'a> {
                     .margin(ui.spacing().button_padding)
                     .min_size(ui.spacing().interact_size)
                     .id(id)
-                    .desired_width(ui.spacing().interact_size.x)
+                    .desired_width(
+                        ui.spacing().interact_size.x - 2.0 * ui.spacing().button_padding.x,
+                    )
                     .font(text_style),
             );
 
@@ -660,7 +663,9 @@ impl<'a> Widget for DragValue<'a> {
             response
         };
 
-        response.changed = get(&mut get_set_value) != old_value;
+        if get(&mut get_set_value) != old_value {
+            response.mark_changed();
+        }
 
         response.widget_info(|| WidgetInfo::drag_value(ui.is_enabled(), value));
 
