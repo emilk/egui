@@ -7,29 +7,28 @@ use parley::{AlignmentOptions, BreakReason, GlyphRun, InlineBox, PositionedLayou
 
 use crate::{
     mutex::Mutex,
+    tessellator::Path,
     text::{Row, RowVisuals},
-    Mesh,
+    Mesh, Stroke,
 };
 
 use super::{fonts::FontsLayoutView, Galley, LayoutJob};
 
 fn render_decoration(
+    pixels_per_point: f32,
     run: &GlyphRun<'_, Color32>,
     mesh: &mut Mesh,
     offset: (f32, f32),
-    color: Color32,
-    decoration_offset: f32,
-    size: f32,
+    stroke: Stroke,
 ) {
-    let y = run.baseline() - decoration_offset + offset.1;
+    let y = run.baseline() + offset.1;
     let x_start = run.offset() + offset.0;
     let x_end = x_start + run.advance();
-    let half_size = size * 0.5;
 
-    mesh.add_colored_rect(
-        Rect::from_min_max(pos2(x_start, y - half_size), pos2(x_end, y + half_size)),
-        color,
-    );
+    let mut path = Path::default();
+    path.reserve(2);
+    path.add_line_segment([pos2(x_start, y), pos2(x_end, y)]);
+    path.stroke_open(1.0 / pixels_per_point, &stroke.into(), mesh);
 }
 
 pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley {
@@ -192,6 +191,15 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
                     let section_format = &job.sections[section_idx].format;
                     let background = section_format.background;
 
+                    let mut visual_vertical_offset = vertical_offset;
+                    visual_vertical_offset += match section_format.valign {
+                        emath::Align::TOP => run.run().metrics().ascent - line.metrics().ascent,
+                        emath::Align::Center => 0.0,
+                        emath::Align::BOTTOM => {
+                            run.run().metrics().descent - line.metrics().descent
+                        }
+                    };
+
                     if background != Color32::TRANSPARENT {
                         let min_y = run.baseline() - run.run().metrics().ascent;
                         let max_y = run.baseline() + run.run().metrics().descent;
@@ -200,7 +208,7 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
 
                         background_mesh.add_colored_rect(
                             Rect::from_min_max(pos2(min_x, min_y), pos2(max_x, max_y))
-                                .translate(vec2(horiz_offset, vertical_offset))
+                                .translate(vec2(horiz_offset, visual_vertical_offset))
                                 .expand(section_format.expand_bg),
                             background,
                         );
@@ -208,15 +216,12 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
 
                     let run_metrics = run.run().metrics();
 
-                    for (mut glyph, uv_rect, (x, y), color) in fonts.glyph_atlas.render_glyph_run(
+                    for (_glyph, uv_rect, (x, y), color) in fonts.glyph_atlas.render_glyph_run(
                         &run,
-                        (horiz_offset, vertical_offset),
+                        (horiz_offset, visual_vertical_offset),
                         fonts.pixels_per_point,
                         fonts.font_tweaks,
                     ) {
-                        glyph.x += horiz_offset;
-                        glyph.y += vertical_offset;
-
                         let Some(uv_rect) = uv_rect else {
                             continue;
                         };
@@ -234,16 +239,20 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
                         mesh.add_rect_with_uv(rect, uv, color);
                     }
 
+                    // TODO(valadaptive): feathering makes this really blurry sometimes, and the underline is sometimes
+                    // not a full pixel under the text. Maybe just use the rounded glyph position?
                     if let Some(underline) = &run.style().underline {
                         let offset = underline.offset.unwrap_or(run_metrics.underline_offset);
                         let size = underline.size.unwrap_or(run_metrics.underline_size);
                         render_decoration(
+                            fonts.pixels_per_point,
                             &run,
                             &mut decorations,
-                            (horiz_offset, vertical_offset),
-                            underline.brush,
-                            offset,
-                            size,
+                            (horiz_offset, visual_vertical_offset - offset),
+                            Stroke {
+                                width: size,
+                                color: underline.brush,
+                            },
                         );
                     }
 
@@ -253,12 +262,14 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
                             .unwrap_or(run_metrics.strikethrough_offset);
                         let size = strikethrough.size.unwrap_or(run_metrics.strikethrough_size);
                         render_decoration(
+                            fonts.pixels_per_point,
                             &run,
                             &mut decorations,
-                            (horiz_offset, vertical_offset),
-                            strikethrough.brush,
-                            offset,
-                            size,
+                            (horiz_offset, visual_vertical_offset - offset),
+                            Stroke {
+                                width: size,
+                                color: strikethrough.brush,
+                            },
                         );
                     }
                 }

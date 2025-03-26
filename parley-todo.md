@@ -8,7 +8,7 @@
 - [ ] Absolute line height
 - [x] Custom family names (https://github.com/linebender/parley/issues/117)
 - [ ] Inline box fix (https://github.com/linebender/parley/pull/299)
-- [ ] Don't round vertical metrics (https://github.com/linebender/parley/pull/297)
+- [x] Don't round vertical metrics (https://github.com/linebender/parley/pull/297)
 - [ ] RTL jank (https://github.com/linebender/parley/issues/298)
 - [ ] Support the tab character (https://github.com/linebender/parley/issues/302)
 - [ ] AccessKit improvements (https://github.com/linebender/parley/issues/310)
@@ -72,8 +72,9 @@
     - Faux bold doesn't work because Parley always tries to embolden Ubuntu Light because we ask for Ubuntu Regular
   - [ ] Actually render text decorations (underline, strikethrough, etc) and backgrounds
     - [x] Strikethrough and underline
+      - [x] Feathered
     - [x] Backgrounds
-    - [ ] valign (this will take a lot of implementing in Parley)
+    - [x] valign ~~(this will take a lot of implementing in Parley)~~
     - [x] Families and not just files
     - [x] Option to load system fonts in FontDefinitions
   - [ ] FontTweak is very not-implemented
