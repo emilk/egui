@@ -9,9 +9,7 @@ use crate::{
 };
 
 use super::{
-    handle_event::SelectionExt,
-    text_cursor_state::cursor_rect,
-    visuals::{paint_text_selection, RowVertexIndices},
+    handle_event::SelectionExt, text_cursor_state::cursor_rect, visuals::paint_text_selection,
     TextCursorState,
 };
 
@@ -105,7 +103,7 @@ pub struct LabelSelectionState {
     /// Painted selections this frame.
     ///
     /// Kept so we can undo a bad selection visualization if we don't see both ends of the selection this frame.
-    painted_selections: Vec<(ShapeIdx, Vec<RowVertexIndices>)>,
+    painted_selections: Vec<ShapeIdx>,
 }
 
 impl Default for LabelSelectionState {
@@ -183,23 +181,12 @@ impl LabelSelectionState {
                 // glitching by removing all painted selections:
                 ctx.graphics_mut(|layers| {
                     if let Some(list) = layers.get_mut(selection.layer_id) {
-                        for (shape_idx, row_selections) in state.painted_selections.drain(..) {
+                        for shape_idx in state.painted_selections.drain(..) {
                             list.mutate_shape(shape_idx, |shape| {
                                 if let epaint::Shape::Text(text_shape) = &mut shape.shape {
                                     let galley = Arc::make_mut(&mut text_shape.galley);
-                                    for row_selection in row_selections {
-                                        if let Some(row) = galley.rows.get_mut(row_selection.row) {
-                                            for vertex_index in row_selection.vertex_indices {
-                                                if let Some(vertex) = row
-                                                    .visuals
-                                                    .mesh
-                                                    .vertices
-                                                    .get_mut(vertex_index as usize)
-                                                {
-                                                    vertex.color = epaint::Color32::TRANSPARENT;
-                                                }
-                                            }
-                                        }
+                                    for row in &mut galley.rows {
+                                        row.visuals.selection_rects = None;
                                     }
                                 }
                             });
@@ -297,16 +284,14 @@ impl LabelSelectionState {
         underline: epaint::Stroke,
     ) {
         let mut state = Self::load(ui.ctx());
-        let new_vertex_indices = state.on_label(ui, response, galley_pos, &mut galley);
+        let did_draw_selection = state.on_label(ui, response, galley_pos, &mut galley);
 
         let shape_idx = ui.painter().add(
             epaint::TextShape::new(galley_pos, galley, fallback_color).with_underline(underline),
         );
 
-        if !new_vertex_indices.is_empty() {
-            state
-                .painted_selections
-                .push((shape_idx, new_vertex_indices));
+        if did_draw_selection {
+            state.painted_selections.push(shape_idx);
         }
 
         state.store(ui.ctx());
@@ -489,14 +474,14 @@ impl LabelSelectionState {
         }
     }
 
-    /// Returns the painted selections, if any.
+    /// Returns true if any selections were painted.
     fn on_label(
         &mut self,
         ui: &Ui,
         response: &Response,
         galley_pos_in_layer: Pos2,
         galley: &mut Arc<Galley>,
-    ) -> Vec<RowVertexIndices> {
+    ) -> bool {
         let widget_id = response.id;
 
         let global_from_layer = ui
@@ -629,16 +614,8 @@ impl LabelSelectionState {
 
         let selection = cursor_state.selection();
 
-        let mut new_vertex_indices = vec![];
-
-        if let Some(selection) = selection {
-            paint_text_selection(
-                galley,
-                ui.visuals(),
-                &selection,
-                Some(&mut new_vertex_indices),
-            );
-        }
+        let did_draw_selection = selection
+            .is_some_and(|selection| paint_text_selection(galley, ui.visuals(), &selection));
 
         #[cfg(feature = "accesskit")]
         super::accesskit_text::update_accesskit_for_text_widget(
@@ -650,7 +627,7 @@ impl LabelSelectionState {
             galley,
         );
 
-        new_vertex_indices
+        did_draw_selection
     }
 }
 
