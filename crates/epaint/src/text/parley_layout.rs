@@ -42,7 +42,7 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
             layout_offset: Vec2::ZERO,
             #[cfg(feature = "accesskit")]
             accessibility: Default::default(),
-            selection_mesh: None,
+            selection_color: Color32::TRANSPARENT,
             rect: Rect::from_min_max(Pos2::ZERO, Pos2::ZERO),
             mesh_bounds: Rect::NOTHING,
             num_vertices: 0,
@@ -134,12 +134,16 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
     let mut acc_num_indices = 0;
     let mut acc_num_vertices = 0;
     let mut acc_logical_bounds = Rect::NOTHING;
+    // Temporary mesh used to store each row's decorations before they're all appended after the glyphs. Reused to avoid
+    // allocations.
+    let mut decorations = Mesh::default();
 
     let mut vertical_offset = 0f32;
 
     let mut prev_break_reason = None;
     for (i, line) in layout.lines().enumerate() {
         let mut mesh = Mesh::default();
+        let mut background_mesh = Mesh::default();
         let mut row_logical_bounds = Rect::NOTHING;
         let mut box_offset = 0.0;
 
@@ -175,6 +179,33 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
                         vertical_offset = 0.0;
                     }
 
+                    let run_range = run.run().text_range();
+
+                    // Get the layout section corresponding to this run, for the background color. We have to do a
+                    // binary search each time because in mixed-direction text, we may not traverse glyph runs in
+                    // increasing byte order.
+                    let section_idx = job
+                        .sections
+                        .binary_search_by(|section| section.byte_range.start.cmp(&run_range.start))
+                        .unwrap_or_else(|i| i.saturating_sub(1));
+
+                    let section_format = &job.sections[section_idx].format;
+                    let background = section_format.background;
+
+                    if background != Color32::TRANSPARENT {
+                        let min_y = run.baseline() - run.run().metrics().ascent;
+                        let max_y = run.baseline() + run.run().metrics().descent;
+                        let min_x = run.offset();
+                        let max_x = run.offset() + run.advance();
+
+                        background_mesh.add_colored_rect(
+                            Rect::from_min_max(pos2(min_x, min_y), pos2(max_x, max_y))
+                                .translate(vec2(horiz_offset, vertical_offset))
+                                .expand(section_format.expand_bg),
+                            background,
+                        );
+                    }
+
                     let run_metrics = run.run().metrics();
 
                     for (mut glyph, uv_rect, (x, y), color) in fonts.glyph_atlas.render_glyph_run(
@@ -201,34 +232,34 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
 
                         //mesh.add_colored_rect(rect, Color32::DEBUG_COLOR.gamma_multiply(0.3));
                         mesh.add_rect_with_uv(rect, uv, color);
+                    }
 
-                        if let Some(underline) = &run.style().underline {
-                            let offset = underline.offset.unwrap_or(run_metrics.underline_offset);
-                            let size = underline.size.unwrap_or(run_metrics.underline_size);
-                            render_decoration(
-                                &run,
-                                &mut mesh,
-                                (horiz_offset, vertical_offset),
-                                underline.brush,
-                                offset,
-                                size,
-                            );
-                        }
+                    if let Some(underline) = &run.style().underline {
+                        let offset = underline.offset.unwrap_or(run_metrics.underline_offset);
+                        let size = underline.size.unwrap_or(run_metrics.underline_size);
+                        render_decoration(
+                            &run,
+                            &mut decorations,
+                            (horiz_offset, vertical_offset),
+                            underline.brush,
+                            offset,
+                            size,
+                        );
+                    }
 
-                        if let Some(strikethrough) = &run.style().strikethrough {
-                            let offset = strikethrough
-                                .offset
-                                .unwrap_or(run_metrics.strikethrough_offset);
-                            let size = strikethrough.size.unwrap_or(run_metrics.strikethrough_size);
-                            render_decoration(
-                                &run,
-                                &mut mesh,
-                                (horiz_offset, vertical_offset),
-                                strikethrough.brush,
-                                offset,
-                                size,
-                            );
-                        }
+                    if let Some(strikethrough) = &run.style().strikethrough {
+                        let offset = strikethrough
+                            .offset
+                            .unwrap_or(run_metrics.strikethrough_offset);
+                        let size = strikethrough.size.unwrap_or(run_metrics.strikethrough_size);
+                        render_decoration(
+                            &run,
+                            &mut decorations,
+                            (horiz_offset, vertical_offset),
+                            strikethrough.brush,
+                            offset,
+                            size,
+                        );
                     }
                 }
                 PositionedLayoutItem::InlineBox(inline_box) => {
@@ -284,8 +315,24 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
             );
         }
 
+        let num_glyph_vertices = mesh.vertices.len();
+
+        // TODO(valadaptive): it would be really nice to avoid this temporary allocation, which only exists to ensure
+        // that override_text_color doesn't change the decoration color.
+        if !decorations.is_empty() {
+            mesh.append_ref(&decorations);
+            decorations.clear();
+        }
+
+        let glyph_index_start = background_mesh.indices.len();
+        let glyph_vertex_range =
+            background_mesh.vertices.len()..background_mesh.vertices.len() + num_glyph_vertices;
+        if !background_mesh.is_empty() {
+            background_mesh.append(mesh);
+            mesh = background_mesh;
+        }
+
         let mesh_bounds = mesh.calc_bounds();
-        let glyph_vertex_range = 0..mesh.vertices.len();
 
         acc_mesh_bounds = acc_mesh_bounds.union(mesh_bounds);
         acc_num_indices += mesh.indices.len();
@@ -300,7 +347,8 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
             visuals: RowVisuals {
                 mesh,
                 mesh_bounds,
-                glyph_index_start: 0,
+                selection_rects: None,
+                glyph_index_start,
                 glyph_vertex_range,
             },
         };
@@ -324,7 +372,7 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
         layout_offset: vec2(horiz_offset, vertical_offset),
         #[cfg(feature = "accesskit")]
         accessibility: Default::default(),
-        selection_mesh: None,
+        selection_color: Color32::TRANSPARENT,
         elided: false,
         rect: acc_logical_bounds,
         mesh_bounds: acc_mesh_bounds,

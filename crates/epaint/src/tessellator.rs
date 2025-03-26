@@ -2008,12 +2008,8 @@ impl Tessellator {
             println!("{warn}");
         }
 
-        let mut num_vertices = galley.num_vertices;
-        let mut num_indices = galley.num_indices;
-        if let Some(selection_mesh) = &galley.selection_mesh {
-            num_vertices += selection_mesh.vertices.len();
-            num_indices += selection_mesh.indices.len();
-        }
+        let num_vertices = galley.num_vertices;
+        let num_indices = galley.num_indices;
 
         out.vertices.reserve(num_vertices);
         out.indices.reserve(num_indices);
@@ -2033,33 +2029,6 @@ impl Tessellator {
 
         let rotator = Rot2::from_angle(*angle);
 
-        // TODO(valadaptive): store selection rects as rects so we can cull them
-        if let Some(selection_mesh) = &galley.selection_mesh {
-            let index_offset = out.vertices.len() as u32;
-
-            out.indices.extend(
-                selection_mesh
-                    .indices
-                    .iter()
-                    .map(|index| index + index_offset),
-            );
-            out.vertices
-                .extend(selection_mesh.vertices.iter().map(|vertex| {
-                    let Vertex { pos, uv, color } = *vertex;
-                    let offset = if *angle == 0.0 {
-                        pos.to_vec2()
-                    } else {
-                        rotator * pos.to_vec2()
-                    };
-
-                    Vertex {
-                        pos: galley_pos + offset,
-                        uv: (uv.to_vec2() * uv_normalizer).to_pos2(),
-                        color,
-                    }
-                }));
-        }
-
         for row in &galley.rows {
             if row.visuals.mesh.is_empty() {
                 continue;
@@ -2077,13 +2046,71 @@ impl Tessellator {
                 continue;
             }
 
-            let index_offset = out.vertices.len() as u32;
+            let mut post_selection_index_start = 0;
+            let mut index_offset = out.vertices.len() as u32;
+
+            if let Some(selection_rects) = &row.visuals.selection_rects {
+                // Paint the selection above the background but below the text.
+                index_offset += (selection_rects.len() * 4) as u32;
+                // We're drawing the background here, so only draw the foreground later.
+                post_selection_index_start = row.visuals.glyph_index_start;
+
+                out.indices.extend(
+                    row.visuals
+                        .mesh
+                        .indices
+                        .iter()
+                        .take(post_selection_index_start)
+                        // We know how many vertices the selection rectangles will take up, and since we're adding the
+                        // selection vertices first and the row vertices all at once, we should add that to the index
+                        // offset here too.
+                        .map(|index| index + index_offset),
+                );
+
+                if *angle == 0.0 {
+                    for rect in selection_rects {
+                        out.add_colored_rect(
+                            rect.translate(galley_pos.to_vec2()),
+                            galley.selection_color,
+                        );
+                    }
+                } else {
+                    for rect in selection_rects {
+                        // We don't feather the background so let's not feather the selection either.
+                        fill_closed_path(
+                            0.0,
+                            &mut [
+                                PathPoint {
+                                    pos: galley_pos + (rotator * rect.left_top().to_vec2()),
+                                    normal: Vec2::ZERO,
+                                },
+                                PathPoint {
+                                    pos: galley_pos + (rotator * rect.right_top().to_vec2()),
+                                    normal: Vec2::ZERO,
+                                },
+                                PathPoint {
+                                    pos: galley_pos + (rotator * rect.right_bottom().to_vec2()),
+                                    normal: Vec2::ZERO,
+                                },
+                                PathPoint {
+                                    pos: galley_pos + (rotator * rect.left_bottom().to_vec2()),
+                                    normal: Vec2::ZERO,
+                                },
+                            ],
+                            galley.selection_color,
+                            out,
+                        );
+                    }
+                }
+            }
 
             out.indices.extend(
                 row.visuals
                     .mesh
                     .indices
                     .iter()
+                    // If there was a selection, we start from the foreground vertices. Otherwise, we start from zero.
+                    .skip(post_selection_index_start)
                     .map(|index| index + index_offset),
             );
 

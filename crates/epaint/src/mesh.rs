@@ -73,7 +73,6 @@ impl Mesh {
     pub fn clear(&mut self) {
         self.indices.clear();
         self.vertices.clear();
-        self.vertices = Default::default();
     }
 
     /// Returns the amount of memory used by the vertices and indices.
