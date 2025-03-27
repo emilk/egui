@@ -3949,7 +3949,7 @@ dependencies = [
 [[package]]
 name = "swash"
 version = "0.2.1"
-source = "git+https://github.com/valadaptive/swash?branch=tight-bounds#46eafa8b69e07b31da163556cb85989a9f99ba42"
+source = "git+https://github.com/valadaptive/swash?branch=tight-bounds#059903eb7175c6a0a838fc1e4b7d445150cfe7d9"
 dependencies = [
  "skrifa",
  "yazi",
@@ -5423,7 +5423,7 @@ checksum = "cc0de2315dc13d00e5df3cd6b8d2124a6eaec6a2d4b6a1c5f37b7efad17fcc17"
 [[package]]
 name = "zeno"
 version = "0.3.2"
-source = "git+https://github.com/valadaptive/zeno?branch=tight-bounds#1c5e5eb226e05e21a8efa1925df36a58d6bbbd72"
+source = "git+https://github.com/valadaptive/zeno?branch=tight-bounds#696f94184a1af5c0411c282045549264236ff881"
 
 [[package]]
 name = "zerocopy"
