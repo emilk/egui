@@ -454,7 +454,10 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
             *bounds = Rect::from_min_size(pos2(horiz_offset, 0.0), Vec2::ZERO);
         }
 
-        debug_assert!(!bounds.is_negative());
+        debug_assert!(
+            !bounds.is_negative(),
+            "Invalid bounds for galley mesh: {bounds:?}"
+        );
     }
 
     Galley {
