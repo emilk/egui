@@ -21,12 +21,12 @@
     - ~~Could it be trailing whitespace?~~
   - [ ] In the EasyMark example, with the text "There is no alternative way to specify the strong style", at certain wrap widths, the text from "strong" onwards will be shifted down 1px
   - [ ] With the fancy variable autohinted Ubuntu font, *sometimes* the "Interactive Container" label on the right demos bar appears improperly wrapped?
-  - [ ] With "Text Wrap Mode" set to "Some(Wrap)" or "Some(Truncate)" in the Settings window, labels are not as wide as they should be compared to master branch (see Text Layout window)
-  - [ ] Text wrapping
+  - [x] With "Text Wrap Mode" set to "Some(Wrap)" or "Some(Truncate)" in the Settings window, labels are not as wide as they should be compared to master branch (see Text Layout window)
+  - [x] Text wrapping
     - [x] max_rows
     - [x] break_anywhere
     - [x] overflow_character
-  - [ ] `LayoutJob::round_output_to_gui`
+  - [x] `LayoutJob::round_output_to_gui`
   - [ ] `LayoutJob::break_on_newline`
   - [ ] RTL considerations
     - [ ] Label wrapping only occurs in LTR layouts, but make sure it doesn't do anything weird with RTL labels

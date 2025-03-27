@@ -80,7 +80,6 @@ pub struct LayoutJob {
     pub justify: bool,
 
     /// Round output sizes using [`emath::GuiRounding`], to avoid rounding errors in layout code.
-    /// TODO(valadaptive): implement this
     pub round_output_to_gui: bool,
 }
 

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use ecolor::Color32;
-use emath::{pos2, vec2, Pos2, Rect, Vec2};
+use emath::{pos2, vec2, GuiRounding, NumExt, Pos2, Rect, Vec2};
 use log::debug;
 use parley::{AlignmentOptions, BreakReason, GlyphRun, InlineBox, PositionedLayoutItem};
 
@@ -95,12 +95,15 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
 
     let mut overflow_char_layout = None;
 
-    let max_width = job.wrap.max_width.is_finite().then_some(job.wrap.max_width);
     let mut break_lines = layout.break_lines();
     for i in 0..job.wrap.max_rows {
-        let width = max_width.unwrap_or(f32::MAX);
-
-        let line = break_lines.break_next(width);
+        let wrap_width = job.effective_wrap_width();
+        let wrap_width = if wrap_width.is_finite() {
+            wrap_width
+        } else {
+            f32::MAX
+        };
+        let line = break_lines.break_next(wrap_width);
 
         // We're truncating the text with an overflow character.
         if let (Some(overflow_character), true, true) = (
@@ -118,7 +121,7 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
             layout.break_all_lines(None);
 
             break_lines.revert();
-            break_lines.break_next(width - layout.full_width());
+            break_lines.break_next(wrap_width - layout.full_width());
             overflow_char_layout = Some((layout, Vec2::ZERO));
         }
 
@@ -133,7 +136,14 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
     // case, that could occur due to floating-point error if we use
     // `layout.width()` as the alignment width, but it's okay as left-alignment
     // will look the same as the "correct" alignment.
-    let alignment_width = max_width.unwrap_or_else(|| layout.width());
+    //
+    // Note that we only use the "effective wrap width" for determining line
+    // breaks. Everywhere else, we want to use the actual specified width.
+    let alignment_width = if job.wrap.max_width.is_finite() {
+        job.wrap.max_width
+    } else {
+        layout.width()
+    };
     let horiz_offset = match (justify, job.halign) {
         (false, emath::Align::Center) => -alignment_width * 0.5,
         (false, emath::Align::RIGHT) => -alignment_width,
@@ -395,6 +405,22 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
             pos2(line_start, line_metrics.min_coord + vertical_offset),
             pos2(line_end, line_metrics.max_coord + vertical_offset),
         ));
+
+        if job.round_output_to_gui {
+            let did_exceed_wrap_width_by_a_lot =
+                row_logical_bounds.max.x > job.wrap.max_width + 1.0;
+
+            row_logical_bounds = row_logical_bounds.round_ui();
+
+            if did_exceed_wrap_width_by_a_lot {
+                // If the user picked a too aggressive wrap width (e.g. more narrow than any individual glyph),
+                // we should let the user know by reporting that our width is wider than the wrap width.
+            } else {
+                // Make sure we don't report being wider than the wrap width the user picked:
+                row_logical_bounds.max.x = row_logical_bounds.max.x.at_most(job.wrap.max_width);
+            }
+        }
+
         acc_logical_bounds = acc_logical_bounds.union(row_logical_bounds);
 
         if acc_logical_bounds.width() > job.wrap.max_width {
@@ -459,6 +485,10 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
             !bounds.is_negative(),
             "Invalid bounds for galley mesh: {bounds:?}"
         );
+    }
+
+    if job.round_output_to_gui {
+        acc_logical_bounds = acc_logical_bounds.round_ui();
     }
 
     Galley {
