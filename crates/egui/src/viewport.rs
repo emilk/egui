@@ -131,7 +131,7 @@ impl ViewportId {
     pub const ROOT: Self = Self(Id::NULL);
 
     #[inline]
-    pub fn from_hash_of(source: impl std::hash::Hash) -> Self {
+    pub fn from_hash_of(source: impl crate::IdTrait) -> Self {
         Self(Id::new(source))
     }
 }

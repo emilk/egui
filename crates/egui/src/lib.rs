@@ -492,7 +492,7 @@ pub use self::{
     drag_and_drop::DragAndDrop,
     epaint::text::TextWrapMode,
     grid::Grid,
-    id::{Id, IdMap},
+    id::{Id, IdMap, IdTrait},
     input_state::{InputState, MultiTouchInfo, PointerState},
     layers::{LayerId, Order},
     layout::*,
