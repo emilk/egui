@@ -2627,6 +2627,7 @@ impl Widget for &mut FontTweak {
                     y_offset_factor,
                     y_offset,
                     baseline_offset_factor,
+                    hinting_override,
                 } = self;
 
                 ui.label("Scale");
@@ -2645,6 +2646,19 @@ impl Widget for &mut FontTweak {
                 ui.label("baseline_offset_factor");
                 ui.add(DragValue::new(baseline_offset_factor).speed(-0.0025));
                 ui.end_row();
+
+                ui.label("hinting_override");
+                ComboBox::from_id_salt("hinting_override")
+                    .selected_text(match hinting_override {
+                        None => "None",
+                        Some(true) => "Enable",
+                        Some(false) => "Disable",
+                    })
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(hinting_override, None, "None");
+                        ui.selectable_value(hinting_override, Some(true), "Enable");
+                        ui.selectable_value(hinting_override, Some(false), "Disable");
+                    });
 
                 if ui.button("Reset").clicked() {
                     *self = Default::default();

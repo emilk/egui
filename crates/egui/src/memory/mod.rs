@@ -79,6 +79,10 @@ pub struct Memory {
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) new_font_definitions: Option<epaint::text::FontDefinitions>,
 
+    /// new font hinting setting that will be applied at the start of the next frame
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    pub(crate) new_font_hinting: Option<bool>,
+
     /// add new font that will be applied at the start of the next frame
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) add_fonts: Vec<epaint::text::FontInsert>,
@@ -125,6 +129,7 @@ impl Default for Memory {
             data: Default::default(),
             caches: Default::default(),
             new_font_definitions: Default::default(),
+            new_font_hinting: Default::default(),
             interactions: Default::default(),
             focus: Default::default(),
             viewport_id: Default::default(),

@@ -115,27 +115,33 @@ struct StyleKey<'a> {
     font_id: u64,
     font_size: OrderedFloat<f32>,
     skew: i8,
+    hinting_enabled: bool,
     /// We want to avoid doing a bunch of allocations. When looking up this key in a map, this can be a borrowed slice.
     /// We only need to convert it to an owned [`Vec<i16>`] the first time we insert it into the map.
     normalized_coords: Cow<'a, [i16]>,
 }
 
 impl<'a> StyleKey<'a> {
-    fn new(font_id: u64, font_size: f32, skew: i8, normalized_coords: &'a [i16]) -> Self {
+    fn new(
+        font_id: u64,
+        font_size: f32,
+        skew: i8,
+        hinting_enabled: bool,
+        normalized_coords: &'a [i16],
+    ) -> Self {
         Self {
             font_id,
             font_size: font_size.into(),
             skew,
+            hinting_enabled,
             normalized_coords: Cow::Borrowed(normalized_coords),
         }
     }
 
     fn to_static(&self) -> StyleKey<'static> {
         StyleKey {
-            font_id: self.font_id,
-            font_size: self.font_size,
-            skew: self.skew,
             normalized_coords: self.normalized_coords.clone().into_owned().into(),
+            ..*self
         }
     }
 }
@@ -184,6 +190,7 @@ impl GlyphAtlas {
         atlas: &'c mut TextureAtlas,
         glyph_run: &'b GlyphRun<'b, Color32>,
         offset: Vec2,
+        hinting_enabled: bool,
         pixels_per_point: f32,
         font_tweaks: &ahash::HashMap<u64, FontTweak>,
     ) -> impl Iterator<Item = (Glyph, Option<UvRect>, (i32, i32), Color32)> + use<'a, 'b, 'c> {
@@ -209,12 +216,20 @@ impl GlyphAtlas {
         let size = font_size * pixels_per_point;
         let normalized_coords = run.normalized_coords();
 
+        let font_tweak = font_tweaks.get(&font_id);
+        let tweak_offset = font_tweak.map_or(0.0, |tweak| {
+            (font_size * tweak.y_offset_factor) + tweak.y_offset
+        });
+        let hinting_enabled = font_tweak
+            .and_then(|tweak| tweak.hinting_override)
+            .unwrap_or(hinting_enabled);
+
         let mut scaler: swash::scale::Scaler<'b> = self
             .scale_context
             .builder(font_ref)
             .size(size)
             .normalized_coords(normalized_coords)
-            .hint(true)
+            .hint(hinting_enabled)
             .build();
         let rendered_glyphs = &mut self.rendered_glyphs;
         let color = glyph_run.style().brush;
@@ -227,6 +242,7 @@ impl GlyphAtlas {
             font_id,
             size,
             skew.unwrap_or_default() as i8,
+            hinting_enabled,
             normalized_coords,
         );
 
@@ -241,10 +257,6 @@ impl GlyphAtlas {
                     id
                 }),
         };
-
-        let tweak_offset = font_tweaks.get(&font_id).map_or(0.0, |tweak| {
-            (font_size * tweak.y_offset_factor) + tweak.y_offset
-        });
 
         glyph_run.positioned_glyphs().map(move |mut glyph| {
             // The Y-position transform applies to the font *after* it's been hinted, making it blurry. (So does the

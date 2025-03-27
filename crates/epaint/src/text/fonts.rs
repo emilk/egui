@@ -103,6 +103,11 @@ pub struct FontTweak {
     /// A positive value shifts the text downwards.
     /// A negative value shifts it upwards.
     pub baseline_offset_factor: f32,
+
+    /// Override the global font hinting setting for this specific font.
+    ///
+    /// `None` means use the global setting.
+    pub hinting_override: Option<bool>,
 }
 
 impl Default for FontTweak {
@@ -112,6 +117,7 @@ impl Default for FontTweak {
             y_offset_factor: 0.0,
             y_offset: 0.0,
             baseline_offset_factor: 0.0,
+            hinting_override: None,
         }
     }
 }
@@ -345,6 +351,7 @@ pub(super) struct FontsLayoutView<'a> {
     pub texture_atlas: &'a mut TextureAtlas,
     pub glyph_atlas: &'a mut GlyphAtlas,
     pub font_tweaks: &'a mut ahash::HashMap<u64, FontTweak>,
+    pub hinting_enabled: bool,
     pub pixels_per_point: f32,
 }
 
@@ -363,6 +370,7 @@ pub struct FontStore {
     max_texture_side: usize,
     definitions: FontDefinitions,
     font_tweaks: ahash::HashMap<u64, FontTweak>,
+    hinting_enabled: bool,
     atlas: TextureAtlas,
     galley_cache: GalleyCache,
 
@@ -399,6 +407,7 @@ impl FontStore {
             max_texture_side,
             definitions,
             font_tweaks: Default::default(),
+            hinting_enabled: true,
             glyph_atlas: GlyphAtlas::new(),
             atlas,
             galley_cache: Default::default(),
@@ -500,6 +509,15 @@ impl FontStore {
         self.load_fonts_from_definitions();
     }
 
+    pub fn hinting_enabled(&self) -> bool {
+        self.hinting_enabled
+    }
+
+    pub fn set_hinting_enabled(&mut self, enabled: bool) {
+        self.hinting_enabled = enabled;
+        self.clear_cache(self.max_texture_side);
+    }
+
     /// Width of this character in points.
     pub fn glyph_width(&mut self, font_id: &FontId, c: char) -> f32 {
         *self.glyph_width_cache.entry(c).or_insert_with(|| {
@@ -559,6 +577,7 @@ impl FontStore {
                             &mut self.atlas,
                             &run,
                             vec2(x_offset, 0.0),
+                            self.hinting_enabled,
                             pixels_per_point,
                             &self.font_tweaks,
                         )
@@ -730,12 +749,19 @@ impl Fonts<'_> {
         self.fonts.definitions()
     }
 
+    #[inline]
+    pub fn hinting_enabled(&self) -> bool {
+        self.fonts.hinting_enabled()
+    }
+
     /// Width of this character in points.
+    #[inline]
     pub fn glyph_width(&mut self, font_id: &FontId, c: char) -> f32 {
         self.fonts.glyph_width(font_id, c)
     }
 
     /// Can we display all the glyphs in this text?
+    #[inline]
     pub fn has_glyphs_for(&mut self, font_id: &FontId, s: &str) -> bool {
         self.fonts.has_glyphs_for(font_id, s)
     }
@@ -746,6 +772,7 @@ impl Fonts<'_> {
     /// Height of one row of text in points.
     ///
     /// Returns a value rounded to [`emath::GUI_ROUNDING`].
+    #[inline]
     pub fn row_height(&mut self, font_id: &FontId) -> f32 {
         self.fonts
             .row_height(font_id)
@@ -753,6 +780,7 @@ impl Fonts<'_> {
     }
 
     /// Call at the end of each frame (before painting) to get the change to the font texture since last call.
+    #[inline]
     pub fn font_image_delta(&mut self) -> Option<crate::ImageDelta> {
         self.fonts.font_image_delta()
     }
@@ -764,21 +792,25 @@ impl Fonts<'_> {
 
     /// The font atlas.
     /// Pass this to [`crate::Tessellator`].
+    #[inline]
     pub fn texture_atlas(&self) -> &TextureAtlas {
         self.fonts.texture_atlas()
     }
 
     /// Current size of the font image.
     /// Pass this to [`crate::Tessellator`].
+    #[inline]
     pub fn font_image_size(&self) -> [usize; 2] {
         self.fonts.font_image_size()
     }
 
     /// List of all loaded font families.
+    #[inline]
     pub fn families(&mut self) -> &[FontFamily] {
         self.fonts.families()
     }
 
+    #[inline]
     pub fn num_galleys_in_cache(&self) -> usize {
         self.fonts.num_galleys_in_cache()
     }
@@ -787,6 +819,7 @@ impl Fonts<'_> {
     ///
     /// This increases as new fonts and/or glyphs are used,
     /// but can also decrease in a call to [`Self::begin_pass`].
+    #[inline]
     pub fn font_atlas_fill_ratio(&self) -> f32 {
         self.fonts.font_atlas_fill_ratio()
     }
@@ -807,6 +840,7 @@ impl Fonts<'_> {
                 texture_atlas: &mut self.fonts.atlas,
                 glyph_atlas: &mut self.fonts.glyph_atlas,
                 font_tweaks: &mut self.fonts.font_tweaks,
+                hinting_enabled: self.fonts.hinting_enabled,
                 pixels_per_point: self.pixels_per_point,
             },
             job,
@@ -827,6 +861,7 @@ impl Fonts<'_> {
                 texture_atlas: &mut self.fonts.atlas,
                 glyph_atlas: &mut self.fonts.glyph_atlas,
                 font_tweaks: &mut self.fonts.font_tweaks,
+                hinting_enabled: self.fonts.hinting_enabled,
                 pixels_per_point: self.pixels_per_point,
             },
             job,
@@ -836,6 +871,7 @@ impl Fonts<'_> {
     /// Will wrap text at the given width and line break at `\n`.
     ///
     /// The implementation uses memoization so repeated calls are cheap.
+    #[inline]
     pub fn layout(
         &mut self,
         text: String,
@@ -850,6 +886,7 @@ impl Fonts<'_> {
     /// Will line break at `\n`.
     ///
     /// The implementation uses memoization so repeated calls are cheap.
+    #[inline]
     pub fn layout_no_wrap(
         &mut self,
         text: String,
@@ -863,6 +900,7 @@ impl Fonts<'_> {
     /// Like [`Self::layout`], made for when you want to pick a color for the text later.
     ///
     /// The implementation uses memoization so repeated calls are cheap.
+    #[inline]
     pub fn layout_delayed_color(
         &mut self,
         text: String,
