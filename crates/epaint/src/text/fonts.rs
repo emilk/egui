@@ -6,7 +6,7 @@ use crate::{
     TextureAtlas,
 };
 use ecolor::Color32;
-use emath::{GuiRounding, NumExt as _, OrderedFloat};
+use emath::{vec2, GuiRounding, NumExt as _, OrderedFloat};
 
 use parley::{
     fontique::{self, Blob, FontInfoOverride, QueryFamily},
@@ -559,7 +559,7 @@ impl FontStore {
                     self.glyph_atlas
                         .render_glyph_run(
                             &run,
-                            (x_offset, 0.0),
+                            vec2(x_offset, 0.0),
                             pixels_per_point,
                             &self.font_tweaks,
                         )
