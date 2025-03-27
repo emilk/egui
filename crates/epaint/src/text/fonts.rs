@@ -185,6 +185,11 @@ pub struct FontTweak {
     ///
     /// Example value: `2.0`.
     pub y_offset: f32,
+
+    /// Override the global font hinting setting for this specific font.
+    ///
+    /// `None` means use the global setting.
+    pub hinting_override: Option<bool>,
 }
 
 impl Default for FontTweak {
@@ -193,6 +198,7 @@ impl Default for FontTweak {
             scale: 1.0,
             y_offset_factor: 0.0,
             y_offset: 0.0,
+            hinting_override: None,
         }
     }
 }
@@ -509,10 +515,16 @@ impl Fonts {
     pub fn new(
         max_texture_side: usize,
         text_alpha_from_coverage: AlphaFromCoverage,
+        hinting_enabled: bool,
         definitions: FontDefinitions,
     ) -> Self {
         Self {
-            fonts: FontsImpl::new(max_texture_side, text_alpha_from_coverage, definitions),
+            fonts: FontsImpl::new(
+                max_texture_side,
+                text_alpha_from_coverage,
+                hinting_enabled,
+                definitions,
+            ),
             galley_cache: Default::default(),
         }
     }
@@ -528,19 +540,28 @@ impl Fonts {
         &mut self,
         max_texture_side: usize,
         text_alpha_from_coverage: AlphaFromCoverage,
+        hinting_enabled: bool,
     ) {
         let max_texture_side_changed = self.fonts.max_texture_side != max_texture_side;
         let text_alpha_from_coverage_changed =
             self.fonts.atlas.text_alpha_from_coverage != text_alpha_from_coverage;
+        let hinting_enabled_changed = self.fonts.hinting_enabled != hinting_enabled;
         let font_atlas_almost_full = self.fonts.atlas.fill_ratio() > 0.8;
-        let needs_recreate =
-            max_texture_side_changed || text_alpha_from_coverage_changed || font_atlas_almost_full;
+        let needs_recreate = max_texture_side_changed
+            || text_alpha_from_coverage_changed
+            || hinting_enabled_changed
+            || font_atlas_almost_full;
 
         if needs_recreate {
             let definitions = self.fonts.definitions.clone();
 
             *self = Self {
-                fonts: FontsImpl::new(max_texture_side, text_alpha_from_coverage, definitions),
+                fonts: FontsImpl::new(
+                    max_texture_side,
+                    text_alpha_from_coverage,
+                    hinting_enabled,
+                    definitions,
+                ),
                 galley_cache: Default::default(),
             };
         }
@@ -579,6 +600,12 @@ impl Fonts {
     /// Pass this to [`crate::Tessellator`].
     pub fn font_image_size(&self) -> [usize; 2] {
         self.fonts.atlas.size()
+    }
+
+    /// Whether font hinting is currently enabled.
+    #[inline]
+    pub fn hinting_enabled(&self) -> bool {
+        self.fonts.hinting_enabled
     }
 
     /// Can we display this glyph?
@@ -645,6 +672,12 @@ impl FontsView<'_> {
         self.fonts.atlas.size()
     }
 
+    /// Whether font hinting is currently enabled.
+    #[inline]
+    pub fn hinting_enabled(&self) -> bool {
+        self.fonts.hinting_enabled
+    }
+
     /// Width of this character in points.
     ///
     /// If the font doesn't exist, this will return `0.0`.
@@ -667,6 +700,7 @@ impl FontsView<'_> {
     /// Height of one row of text in points.
     ///
     /// Returns a value rounded to [`emath::GUI_ROUNDING`].
+    #[inline]
     pub fn row_height(&mut self, font_id: &FontId) -> f32 {
         self.fonts
             .font(&font_id.family)
@@ -712,6 +746,7 @@ impl FontsView<'_> {
     /// Will wrap text at the given width and line break at `\n`.
     ///
     /// The implementation uses memoization so repeated calls are cheap.
+    #[inline]
     pub fn layout(
         &mut self,
         text: String,
@@ -726,6 +761,7 @@ impl FontsView<'_> {
     /// Will line break at `\n`.
     ///
     /// The implementation uses memoization so repeated calls are cheap.
+    #[inline]
     pub fn layout_no_wrap(
         &mut self,
         text: String,
@@ -739,6 +775,7 @@ impl FontsView<'_> {
     /// Like [`Self::layout`], made for when you want to pick a color for the text later.
     ///
     /// The implementation uses memoization so repeated calls are cheap.
+    #[inline]
     pub fn layout_delayed_color(
         &mut self,
         text: String,
@@ -758,6 +795,7 @@ pub struct FontsImpl {
     max_texture_side: usize,
     definitions: FontDefinitions,
     atlas: TextureAtlas,
+    hinting_enabled: bool,
     fonts_by_id: nohash_hasher::IntMap<FontFaceKey, FontFace>,
     fonts_by_name: ahash::HashMap<String, FontFaceKey>,
     family_cache: ahash::HashMap<FontFamily, CachedFamily>,
@@ -769,6 +807,7 @@ impl FontsImpl {
     pub fn new(
         max_texture_side: usize,
         text_alpha_from_coverage: AlphaFromCoverage,
+        hinting_enabled: bool,
         definitions: FontDefinitions,
     ) -> Self {
         let texture_width = max_texture_side.at_most(16 * 1024);
@@ -780,8 +819,11 @@ impl FontsImpl {
         for (name, font_data) in &definitions.font_data {
             let tweak = font_data.tweak;
             let blob = blob_from_font_data(font_data);
-            let font_impl = FontFace::new(name.clone(), blob, font_data.index, tweak)
-                .unwrap_or_else(|err| panic!("Error parsing {name:?} TTF/OTF font file: {err}"));
+            let font_impl =
+                FontFace::new(name.clone(), blob, font_data.index, hinting_enabled, tweak)
+                    .unwrap_or_else(|err| {
+                        panic!("Error parsing {name:?} TTF/OTF font file: {err}")
+                    });
             let key = FontFaceKey::new();
             fonts_by_id.insert(key, font_impl);
             font_impls.insert(name.clone(), key);
@@ -791,6 +833,7 @@ impl FontsImpl {
             max_texture_side,
             definitions,
             atlas,
+            hinting_enabled,
             fonts_by_id,
             fonts_by_name: font_impls,
             family_cache: Default::default(),
@@ -1193,6 +1236,7 @@ mod tests {
             let mut fonts = FontsImpl::new(
                 max_texture_side,
                 AlphaFromCoverage::default(),
+                true,
                 FontDefinitions::default(),
             );
 
@@ -1255,6 +1299,7 @@ mod tests {
             let mut fonts = FontsImpl::new(
                 1024,
                 AlphaFromCoverage::default(),
+                true,
                 FontDefinitions::default(),
             );
 
@@ -1303,7 +1348,12 @@ mod tests {
 
     #[test]
     fn test_fallback_glyph_width() {
-        let mut fonts = Fonts::new(1024, AlphaFromCoverage::default(), FontDefinitions::empty());
+        let mut fonts = Fonts::new(
+            1024,
+            AlphaFromCoverage::default(),
+            true,
+            FontDefinitions::empty(),
+        );
         let mut view = fonts.with_pixels_per_point(1.0);
 
         let width = view.glyph_width(&FontId::new(12.0, FontFamily::Proportional), ' ');

@@ -188,6 +188,7 @@ mod tests {
         let mut fonts = Fonts::new(
             1024,
             AlphaFromCoverage::default(),
+            true,
             FontDefinitions::default(),
         );
         let font = FontId::monospace(12.0);

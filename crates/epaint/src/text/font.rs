@@ -177,6 +177,7 @@ struct DependentFontData<'a> {
     outline_glyphs: skrifa::outline::OutlineGlyphCollection<'a>,
     metrics: skrifa::metrics::Metrics,
     glyph_metrics: skrifa::metrics::GlyphMetrics<'a>,
+    hinting_instance: Option<skrifa::outline::HintingInstance>,
 }
 
 self_cell! {
@@ -195,7 +196,7 @@ impl FontCell {
     }
 
     fn allocate_glyph_uncached(
-        &self,
+        &mut self,
         atlas: &mut TextureAtlas,
         metrics: &ScaledMetrics,
         glyph_info: &GlyphInfo,
@@ -208,27 +209,44 @@ impl FontCell {
             "Can't allocate glyph for id 0"
         );
 
-        let font_data = self.borrow_dependent();
-        let outline = font_data.outline_glyphs.get(glyph_id)?;
-        let draw_settings = skrifa::outline::DrawSettings::unhinted(
-            skrifa::instance::Size::new(metrics.scale),
-            skrifa::instance::LocationRef::default(),
-        );
-        /*let hinting_instance = skrifa::outline::HintingInstance::new(
-            &font_data.outline_glyphs,
-            skrifa::instance::Size::new(metrics.scale),
-            skrifa::instance::LocationRef::default(),
-            skrifa::outline::Target::default(),
-        )
-        .unwrap();
-        let draw_settings = skrifa::outline::DrawSettings::hinted(&hinting_instance, false);*/
-
         let mut path = kurbo::BezPath::new();
         let mut pen = VelloPen {
             path: &mut path,
             x_offset: bin.as_float() as f64,
         };
-        outline.draw(draw_settings, &mut pen).ok()?;
+
+        self.with_dependent_mut(|_, font_data| {
+            let outline = font_data.outline_glyphs.get(glyph_id)?;
+
+            if let Some(hinting_instance) = &mut font_data.hinting_instance {
+                let size = skrifa::instance::Size::new(metrics.scale);
+                if hinting_instance.size() != size {
+                    hinting_instance
+                        .reconfigure(
+                            &font_data.outline_glyphs,
+                            size,
+                            skrifa::instance::LocationRef::default(),
+                            skrifa::outline::Target::Smooth {
+                                mode: skrifa::outline::SmoothMode::Normal,
+                                symmetric_rendering: true,
+                                preserve_linear_metrics: true,
+                            },
+                        )
+                        .ok()?;
+                }
+                let draw_settings = skrifa::outline::DrawSettings::hinted(hinting_instance, false);
+                outline.draw(draw_settings, &mut pen).ok()?;
+            } else {
+                let draw_settings = skrifa::outline::DrawSettings::unhinted(
+                    skrifa::instance::Size::new(metrics.scale),
+                    skrifa::instance::LocationRef::default(),
+                );
+                outline.draw(draw_settings, &mut pen).ok()?;
+            }
+
+            Some(())
+        })?;
+
         let bounds = path.control_box().expand();
         let width = bounds.width() as u16;
         let height = bounds.height() as u16;
@@ -328,6 +346,7 @@ impl FontFace {
         name: String,
         font_data: Blob,
         index: u32,
+        hinting_enabled: bool,
         tweak: FontTweak,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let font = FontCell::try_new(font_data, |font_data| {
@@ -345,12 +364,28 @@ impl FontFace {
                 skrifa::instance::LocationRef::default(),
             );
 
+            let hinting_enabled = tweak.hinting_override.unwrap_or(hinting_enabled);
+            let hinting_instance = hinting_enabled
+                .then(|| {
+                    // It doesn't really matter what we put here for options. Since the size is `unscaled()`, we will
+                    // always reconfigure this hinting instance with the real options when rendering for the first time.
+                    skrifa::outline::HintingInstance::new(
+                        &glyphs,
+                        skrifa::instance::Size::unscaled(),
+                        skrifa::instance::LocationRef::default(),
+                        skrifa::outline::Target::default(),
+                    )
+                    .ok()
+                })
+                .flatten();
+
             Ok::<DependentFontData<'_>, Box<dyn std::error::Error>>(DependentFontData {
                 skrifa: skrifa_font,
                 charmap,
                 outline_glyphs: glyphs,
                 metrics,
                 glyph_metrics,
+                hinting_instance,
             })
         })?;
         Ok(Self {

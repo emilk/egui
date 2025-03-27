@@ -936,6 +936,9 @@ pub struct Visuals {
     /// ADVANCED: Controls how we render text.
     pub text_alpha_from_coverage: AlphaFromCoverage,
 
+    /// Whether to enable font hinting (round some font coordinates to pixels for sharper text).
+    pub font_hinting_enabled: bool,
+
     /// Override default text color for all text.
     ///
     /// This is great for setting the color of text for any widget.
@@ -1393,6 +1396,7 @@ impl Visuals {
         Self {
             dark_mode: true,
             text_alpha_from_coverage: AlphaFromCoverage::DARK_MODE_DEFAULT,
+            font_hinting_enabled: true,
             override_text_color: None,
             weak_text_alpha: 0.6,
             weak_text_color: None,
@@ -2089,6 +2093,7 @@ impl Visuals {
         let Self {
             dark_mode,
             text_alpha_from_coverage,
+            font_hinting_enabled,
             override_text_color: _,
             weak_text_alpha,
             weak_text_color,
@@ -2188,7 +2193,7 @@ impl Visuals {
                 });
         });
 
-        ui.collapsing("Text color", |ui| {
+        ui.collapsing("Text rendering", |ui| {
             fn ui_text_color(ui: &mut Ui, color: &mut Color32, label: impl Into<RichText>) {
                 ui.label(label.into().color(*color));
                 ui.color_edit_button_srgba(color);
@@ -2241,6 +2246,8 @@ impl Visuals {
             ui.add_space(4.0);
 
             text_alpha_from_coverage_ui(ui, text_alpha_from_coverage);
+
+            ui.checkbox(font_hinting_enabled, "Enable font hinting");
         });
 
         ui.collapsing("Text cursor", |ui| {
@@ -2793,6 +2800,7 @@ impl Widget for &mut FontTweak {
                     scale,
                     y_offset_factor,
                     y_offset,
+                    hinting_override,
                 } = self;
 
                 ui.label("Scale");
@@ -2807,6 +2815,19 @@ impl Widget for &mut FontTweak {
                 ui.label("y_offset");
                 ui.add(DragValue::new(y_offset).speed(-0.02));
                 ui.end_row();
+
+                ui.label("hinting_override");
+                ComboBox::from_id_salt("hinting_override")
+                    .selected_text(match hinting_override {
+                        None => "None",
+                        Some(true) => "Enable",
+                        Some(false) => "Disable",
+                    })
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(hinting_override, None, "None");
+                        ui.selectable_value(hinting_override, Some(true), "Enable");
+                        ui.selectable_value(hinting_override, Some(false), "Disable");
+                    });
 
                 if ui.button("Reset").clicked() {
                     *self = Default::default();
