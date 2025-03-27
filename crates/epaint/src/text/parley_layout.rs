@@ -221,6 +221,7 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
                     fonts.texture_atlas,
                     run,
                     vec2(horiz_offset, visual_vertical_offset),
+                    fonts.hinting_enabled,
                     fonts.pixels_per_point,
                     fonts.font_tweaks,
                 ) {

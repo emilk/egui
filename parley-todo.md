@@ -92,8 +92,8 @@
   - [x] Can we do bold now?
   - [x] Letter spacing
     - Why was this here? It's been implemented for a while
-  - [ ] Hinting enable/disable
-    - [ ] Maybe a global setting and also an override in FontTweak?
+  - [x] Hinting enable/disable
+    - [x] Maybe a global setting and also an override in FontTweak?
   - [ ] If file size isn't an issue, ship variable fonts in epaint-default-fonts
   - [x] Make sure to test with syntect disabled (there's some old style-heavy code that is cfg'd out with syntect enabled)
   - [ ] Smoothe out the janky parts of the new API
@@ -138,3 +138,4 @@
     - This is an issue in the non-Parley branch too, but only at >1x zoom
   - [ ] If you select the text overflow character, the "logical selection" should extend to the end of the text.
   - [ ] Text overflow character should use the style at the end of the line it replaces, but we have no way to get that without redoing the *entire* layout
+  - [ ] Unify the behavior of `Context::set_fonts` and `Context::add_font` wrt equality checking (or just don't do it, and unconditionally set fonts)
