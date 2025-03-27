@@ -2502,10 +2502,8 @@ impl Context {
                     .expect("No fonts loaded")
                     .texture_atlas()
             };
-            let (font_tex_size, prepared_discs) = {
-                let atlas = texture_atlas.lock();
-                (atlas.size(), atlas.prepared_discs())
-            };
+            let (font_tex_size, prepared_discs) =
+                { (texture_atlas.size(), texture_atlas.prepared_discs()) };
 
             let paint_stats = PaintStats::from_shapes(&shapes);
             let clipped_primitives = {

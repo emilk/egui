@@ -1,7 +1,6 @@
 use std::{borrow::Cow, collections::BTreeMap, sync::Arc};
 
 use crate::{
-    mutex::Mutex,
     text::{glyph_atlas::GlyphAtlas, Galley, LayoutJob},
     TextureAtlas,
 };
@@ -343,6 +342,7 @@ impl FontDefinitions {
 pub(super) struct FontsLayoutView<'a> {
     pub font_context: &'a mut parley::FontContext,
     pub layout_context: &'a mut parley::LayoutContext<Color32>,
+    pub texture_atlas: &'a mut TextureAtlas,
     pub glyph_atlas: &'a mut GlyphAtlas,
     pub font_tweaks: &'a mut ahash::HashMap<u64, FontTweak>,
     pub pixels_per_point: f32,
@@ -363,7 +363,7 @@ pub struct FontStore {
     max_texture_side: usize,
     definitions: FontDefinitions,
     font_tweaks: ahash::HashMap<u64, FontTweak>,
-    atlas: Arc<Mutex<TextureAtlas>>,
+    atlas: TextureAtlas,
     galley_cache: GalleyCache,
 
     // TODO(valadaptive): glyph_width_cache and has_glyphs_cache should be frame-to-frame caches, but FrameCache is in
@@ -390,8 +390,6 @@ impl FontStore {
         let initial_height = 32;
         let atlas = TextureAtlas::new([texture_width, initial_height]);
 
-        let atlas = Arc::new(Mutex::new(atlas));
-
         let collection = fontique::Collection::new(fontique::CollectionOptions {
             shared: false,
             system_fonts: definitions.include_system_fonts,
@@ -401,7 +399,7 @@ impl FontStore {
             max_texture_side,
             definitions,
             font_tweaks: Default::default(),
-            glyph_atlas: GlyphAtlas::new(atlas.clone()),
+            glyph_atlas: GlyphAtlas::new(),
             atlas,
             galley_cache: Default::default(),
 
@@ -431,7 +429,7 @@ impl FontStore {
         let max_texture_side_changed = self.max_texture_side != max_texture_side;
         // TODO(valadaptive): this seems suspicious. Does this mean the atlas can never use more than 80% of its actual
         // capacity?
-        let font_atlas_almost_full = self.atlas.lock().fill_ratio() > 0.8;
+        let font_atlas_almost_full = self.atlas.fill_ratio() > 0.8;
         let needs_recreate = max_texture_side_changed || font_atlas_almost_full;
 
         if needs_recreate {
@@ -558,6 +556,7 @@ impl FontStore {
                 for x_offset in SubpixelBin::SUBPIXEL_OFFSETS {
                     self.glyph_atlas
                         .render_glyph_run(
+                            &mut self.atlas,
                             &run,
                             vec2(x_offset, 0.0),
                             pixels_per_point,
@@ -650,7 +649,7 @@ impl FontStore {
     }
 
     fn clear_atlas(&mut self, new_max_texture_side: usize) {
-        self.atlas.lock().clear();
+        self.atlas.clear();
         self.glyph_atlas.clear();
         self.galley_cache.clear();
         self.max_texture_side = new_max_texture_side;
@@ -664,8 +663,8 @@ impl FontStore {
     }
 
     /// Call at the end of each frame (before painting) to get the change to the font texture since last call.
-    pub fn font_image_delta(&self) -> Option<crate::ImageDelta> {
-        self.atlas.lock().take_delta()
+    pub fn font_image_delta(&mut self) -> Option<crate::ImageDelta> {
+        self.atlas.take_delta()
     }
 
     #[inline]
@@ -675,14 +674,14 @@ impl FontStore {
 
     /// The font atlas.
     /// Pass this to [`crate::Tessellator`].
-    pub fn texture_atlas(&self) -> Arc<Mutex<TextureAtlas>> {
-        self.atlas.clone()
+    pub fn texture_atlas(&self) -> &TextureAtlas {
+        &self.atlas
     }
 
     /// Current size of the font image.
     /// Pass this to [`crate::Tessellator`].
     pub fn font_image_size(&self) -> [usize; 2] {
-        self.atlas.lock().size()
+        self.atlas.size()
     }
 
     /// List of all loaded font families.
@@ -713,7 +712,7 @@ impl FontStore {
     /// This increases as new fonts and/or glyphs are used,
     /// but can also decrease in a call to [`Self::begin_pass`].
     pub fn font_atlas_fill_ratio(&self) -> f32 {
-        self.atlas.lock().fill_ratio()
+        self.atlas.fill_ratio()
     }
 }
 
@@ -754,7 +753,7 @@ impl Fonts<'_> {
     }
 
     /// Call at the end of each frame (before painting) to get the change to the font texture since last call.
-    pub fn font_image_delta(&self) -> Option<crate::ImageDelta> {
+    pub fn font_image_delta(&mut self) -> Option<crate::ImageDelta> {
         self.fonts.font_image_delta()
     }
 
@@ -765,7 +764,7 @@ impl Fonts<'_> {
 
     /// The font atlas.
     /// Pass this to [`crate::Tessellator`].
-    pub fn texture_atlas(&self) -> Arc<Mutex<TextureAtlas>> {
+    pub fn texture_atlas(&self) -> &TextureAtlas {
         self.fonts.texture_atlas()
     }
 
@@ -805,6 +804,7 @@ impl Fonts<'_> {
             &mut FontsLayoutView {
                 font_context: &mut self.fonts.font_context,
                 layout_context: &mut self.fonts.layout_context,
+                texture_atlas: &mut self.fonts.atlas,
                 glyph_atlas: &mut self.fonts.glyph_atlas,
                 font_tweaks: &mut self.fonts.font_tweaks,
                 pixels_per_point: self.pixels_per_point,
@@ -824,6 +824,7 @@ impl Fonts<'_> {
             &mut FontsLayoutView {
                 font_context: &mut self.fonts.font_context,
                 layout_context: &mut self.fonts.layout_context,
+                texture_atlas: &mut self.fonts.atlas,
                 glyph_atlas: &mut self.fonts.glyph_atlas,
                 font_tweaks: &mut self.fonts.font_tweaks,
                 pixels_per_point: self.pixels_per_point,
