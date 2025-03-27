@@ -400,6 +400,24 @@ impl TextWrapping {
     }
 }
 
+#[derive(Clone, Default)]
+pub(super) struct LayoutAndOffset {
+    // This needs to be wrapped in a Mutex because Shape stores it and must be Send+Sync
+    pub(super) layout: Mutex<parley::Layout<Color32>>,
+    /// Position offset added to the Parley layout. Must be subtracted again to
+    /// translate coords into Parley-space.
+    pub(super) offset: Vec2,
+}
+
+impl LayoutAndOffset {
+    pub(super) fn new(layout: parley::Layout<Color32>, offset: Vec2) -> Self {
+        Self {
+            layout: Mutex::new(layout),
+            offset,
+        }
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// Text that has been laid out, ready for painting.
@@ -432,14 +450,21 @@ pub struct Galley {
     /// can be split up into multiple rows.
     pub rows: Vec<Row>,
 
-    // This needs to be wrapped in a Mutex because Shape stores it and must be Send+Sync
+    /// Parley text layout, primarily used for text editing.
+    /// TODO(valadaptive): serde support?
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub(super) parley_layout: Mutex<parley::Layout<Color32>>,
+    pub(super) parley_layout: LayoutAndOffset,
 
-    /// Position offset added to the Parley layout. Must be subtracted again to
-    /// translate coords into Parley-space.
-    pub(super) layout_offset: Vec2,
+    /// Optional extra layout for the character used to truncate this text.
+    /// Boxed because it's pretty large and most text is not truncated.
+    ///
+    /// TODO(valadaptive): use this to test whether the truncation character is
+    /// selected.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    #[allow(dead_code)]
+    pub(super) overflow_char_layout: Option<Box<LayoutAndOffset>>,
 
+    /// Lazy-initialized AccessKit adapter for this galley's layout.
     #[cfg(feature = "accesskit")]
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(super) accessibility: LazyAccessibility,
@@ -891,8 +916,8 @@ impl Galley {
     pub fn accessibility(&self) -> &GalleyAccessibility {
         self.accessibility.get_or_init(
             &self.job.text,
-            &self.parley_layout.lock(),
-            self.layout_offset,
+            &self.parley_layout.layout.lock(),
+            self.parley_layout.offset,
         )
     }
 
@@ -900,14 +925,14 @@ impl Galley {
         self.selection_color = color;
 
         let mut did_draw_any = false;
-        selection
-            .0
-            .geometry_with(&self.parley_layout.lock(), |parley_rect, line_idx| {
+        selection.0.geometry_with(
+            &self.parley_layout.layout.lock(),
+            |parley_rect, line_idx| {
                 let rect = Rect {
                     min: Pos2::new(parley_rect.x0 as f32, parley_rect.y0 as f32),
                     max: Pos2::new(parley_rect.x1 as f32, parley_rect.y1 as f32),
                 }
-                .translate(self.layout_offset);
+                .translate(self.parley_layout.offset);
 
                 let Some(row) = self.rows.get_mut(line_idx) else {
                     return;
@@ -918,7 +943,8 @@ impl Galley {
                 // Count selection rectangle bounds when culling
                 row.visuals.mesh_bounds = row.visuals.mesh_bounds.union(rect);
                 did_draw_any = true;
-            });
+            },
+        );
 
         did_draw_any
     }
@@ -951,19 +977,19 @@ impl std::ops::Deref for Galley {
 /// ## Physical positions
 impl Galley {
     fn pos_to_parley(&self, pos: Vec2) -> Vec2 {
-        pos - self.layout_offset
+        pos - self.parley_layout.offset
     }
 
     /// Returns a 0-width Rect.
     pub fn pos_from_cursor(&self, cursor: ByteCursor) -> Rect {
-        let layout = &self.parley_layout.lock();
+        let layout = &self.parley_layout.layout.lock();
         let cursor = cursor.as_parley(layout);
         let parley_rect = cursor.geometry(layout, 0.0);
         Rect {
             min: Pos2::new(parley_rect.x0 as f32, parley_rect.y0 as f32),
             max: Pos2::new(parley_rect.x1 as f32, parley_rect.y1 as f32),
         }
-        .translate(self.layout_offset)
+        .translate(self.parley_layout.offset)
     }
 
     /// Cursor at the given position within the galley.
@@ -973,7 +999,7 @@ impl Galley {
     /// galley.
     pub fn cursor_from_pos(&self, pos: Vec2) -> ByteCursor {
         let Vec2 { x, y } = self.pos_to_parley(pos);
-        parley::Cursor::from_point(&self.parley_layout.lock(), x, y).into()
+        parley::Cursor::from_point(&self.parley_layout.layout.lock(), x, y).into()
     }
 }
 
@@ -990,8 +1016,12 @@ impl Galley {
 
     /// Cursor to one-past last character.
     pub fn end(&self) -> ByteCursor {
-        parley::Cursor::from_byte_index(&self.parley_layout.lock(), usize::MAX, Default::default())
-            .into()
+        parley::Cursor::from_byte_index(
+            &self.parley_layout.layout.lock(),
+            usize::MAX,
+            Default::default(),
+        )
+        .into()
     }
 }
 
@@ -1001,8 +1031,8 @@ impl Galley {
     /// text [`Selection`]s.
     pub fn selection<T>(&self, f: impl FnOnce(&mut SelectionDriver<'_>) -> T) -> T {
         let mut driver = SelectionDriver {
-            layout_offset: self.layout_offset,
-            layout: &self.parley_layout.lock(),
+            layout_offset: self.parley_layout.offset,
+            layout: &self.parley_layout.layout.lock(),
             text: &self.job.text,
             #[cfg(feature = "accesskit")]
             accessibility: &self.accessibility,

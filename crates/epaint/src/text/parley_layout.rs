@@ -6,9 +6,8 @@ use log::debug;
 use parley::{AlignmentOptions, BreakReason, GlyphRun, InlineBox, PositionedLayoutItem};
 
 use crate::{
-    mutex::Mutex,
     tessellator::Path,
-    text::{Row, RowVisuals},
+    text::{LayoutAndOffset, Row, RowVisuals},
     Mesh, Stroke,
 };
 
@@ -37,8 +36,8 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
         return Galley {
             job: Arc::new(job),
             rows: Default::default(),
-            parley_layout: Mutex::new(parley::Layout::new()),
-            layout_offset: Vec2::ZERO,
+            parley_layout: LayoutAndOffset::default(),
+            overflow_char_layout: None,
             #[cfg(feature = "accesskit")]
             accessibility: Default::default(),
             selection_color: Color32::TRANSPARENT,
@@ -94,16 +93,40 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
     // (but RangedBuilder requires one call per individual style attribute :( )
     let (mut layout, _text) = builder.build();
 
+    let mut overflow_char_layout = None;
+
     let max_width = job.wrap.max_width.is_finite().then_some(job.wrap.max_width);
     let mut break_lines = layout.break_lines();
-    for _ in 0..job.wrap.max_rows {
-        if break_lines
-            .break_next(max_width.unwrap_or(f32::MAX))
-            .is_none()
-        {
+    for i in 0..job.wrap.max_rows {
+        let width = max_width.unwrap_or(f32::MAX);
+
+        let line = break_lines.break_next(width);
+
+        // We're truncating the text with an overflow character.
+        if let (Some(overflow_character), true, true) = (
+            job.wrap.overflow_character,
+            i == job.wrap.max_rows - 1,
+            !break_lines.is_done(),
+        ) {
+            let mut builder =
+                fonts
+                    .layout_context
+                    .tree_builder(fonts.font_context, 1.0, &default_style);
+
+            builder.push_text(&overflow_character.to_string());
+            let (mut layout, _text) = builder.build();
+            layout.break_all_lines(None);
+
+            break_lines.revert();
+            break_lines.break_next(width - layout.full_width());
+            overflow_char_layout = Some((layout, Vec2::ZERO));
+        }
+
+        if line.is_none() {
             break;
         }
     }
+    let broke_all_lines: bool = break_lines.is_done();
     break_lines.finish();
 
     // Parley will left-align the line if there's not enough space. In this
@@ -164,6 +187,95 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
             continue;
         }
 
+        let mut draw_run =
+            |run: &GlyphRun<'_, Color32>,
+             section_idx: usize,
+             (horiz_offset, vertical_offset): (f32, f32)| {
+                let section_format = &job.sections[section_idx].format;
+                let background = section_format.background;
+
+                let mut visual_vertical_offset = vertical_offset;
+                visual_vertical_offset += match section_format.valign {
+                    emath::Align::TOP => run.run().metrics().ascent - line.metrics().ascent,
+                    emath::Align::Center => 0.0,
+                    emath::Align::BOTTOM => run.run().metrics().descent - line.metrics().descent,
+                };
+
+                if background != Color32::TRANSPARENT {
+                    let min_y = run.baseline() - run.run().metrics().ascent;
+                    let max_y = run.baseline() + run.run().metrics().descent;
+                    let min_x = run.offset();
+                    let max_x = run.offset() + run.advance();
+
+                    background_mesh.add_colored_rect(
+                        Rect::from_min_max(pos2(min_x, min_y), pos2(max_x, max_y))
+                            .translate(vec2(horiz_offset, visual_vertical_offset))
+                            .expand(section_format.expand_bg),
+                        background,
+                    );
+                }
+
+                let run_metrics = run.run().metrics();
+
+                for (_glyph, uv_rect, (x, y), color) in fonts.glyph_atlas.render_glyph_run(
+                    run,
+                    (horiz_offset, visual_vertical_offset),
+                    fonts.pixels_per_point,
+                    fonts.font_tweaks,
+                ) {
+                    let Some(uv_rect) = uv_rect else {
+                        continue;
+                    };
+
+                    let left_top =
+                        (pos2(x as f32, y as f32) / fonts.pixels_per_point) + uv_rect.offset;
+
+                    let rect = Rect::from_min_max(left_top, left_top + uv_rect.size);
+                    let uv = Rect::from_min_max(
+                        pos2(uv_rect.min[0] as f32, uv_rect.min[1] as f32),
+                        pos2(uv_rect.max[0] as f32, uv_rect.max[1] as f32),
+                    );
+
+                    //mesh.add_colored_rect(rect, Color32::DEBUG_COLOR.gamma_multiply(0.3));
+                    mesh.add_rect_with_uv(rect, uv, color);
+                }
+
+                // TODO(valadaptive): feathering makes this really blurry sometimes, and the underline is sometimes
+                // not a full pixel under the text. Maybe just use the rounded glyph position?
+                if let Some(underline) = &run.style().underline {
+                    let offset = underline.offset.unwrap_or(run_metrics.underline_offset);
+                    let size = underline.size.unwrap_or(run_metrics.underline_size);
+                    render_decoration(
+                        fonts.pixels_per_point,
+                        run,
+                        &mut decorations,
+                        (horiz_offset, visual_vertical_offset - offset),
+                        Stroke {
+                            width: size,
+                            color: underline.brush,
+                        },
+                    );
+                }
+
+                if let Some(strikethrough) = &run.style().strikethrough {
+                    let offset = strikethrough
+                        .offset
+                        .unwrap_or(run_metrics.strikethrough_offset);
+                    let size = strikethrough.size.unwrap_or(run_metrics.strikethrough_size);
+                    render_decoration(
+                        fonts.pixels_per_point,
+                        run,
+                        &mut decorations,
+                        (horiz_offset, visual_vertical_offset - offset),
+                        Stroke {
+                            width: size,
+                            color: strikethrough.brush,
+                        },
+                    );
+                }
+            };
+
+        let mut is_inline_box_only = i == 0;
         for item in line.items() {
             match item {
                 PositionedLayoutItem::GlyphRun(run) => {
@@ -176,6 +288,7 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
                             );
                         }*/
                         vertical_offset = 0.0;
+                        is_inline_box_only = false;
                     }
 
                     let run_range = run.run().text_range();
@@ -188,90 +301,7 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
                         .binary_search_by(|section| section.byte_range.start.cmp(&run_range.start))
                         .unwrap_or_else(|i| i.saturating_sub(1));
 
-                    let section_format = &job.sections[section_idx].format;
-                    let background = section_format.background;
-
-                    let mut visual_vertical_offset = vertical_offset;
-                    visual_vertical_offset += match section_format.valign {
-                        emath::Align::TOP => run.run().metrics().ascent - line.metrics().ascent,
-                        emath::Align::Center => 0.0,
-                        emath::Align::BOTTOM => {
-                            run.run().metrics().descent - line.metrics().descent
-                        }
-                    };
-
-                    if background != Color32::TRANSPARENT {
-                        let min_y = run.baseline() - run.run().metrics().ascent;
-                        let max_y = run.baseline() + run.run().metrics().descent;
-                        let min_x = run.offset();
-                        let max_x = run.offset() + run.advance();
-
-                        background_mesh.add_colored_rect(
-                            Rect::from_min_max(pos2(min_x, min_y), pos2(max_x, max_y))
-                                .translate(vec2(horiz_offset, visual_vertical_offset))
-                                .expand(section_format.expand_bg),
-                            background,
-                        );
-                    }
-
-                    let run_metrics = run.run().metrics();
-
-                    for (_glyph, uv_rect, (x, y), color) in fonts.glyph_atlas.render_glyph_run(
-                        &run,
-                        (horiz_offset, visual_vertical_offset),
-                        fonts.pixels_per_point,
-                        fonts.font_tweaks,
-                    ) {
-                        let Some(uv_rect) = uv_rect else {
-                            continue;
-                        };
-
-                        let left_top =
-                            (pos2(x as f32, y as f32) / fonts.pixels_per_point) + uv_rect.offset;
-
-                        let rect = Rect::from_min_max(left_top, left_top + uv_rect.size);
-                        let uv = Rect::from_min_max(
-                            pos2(uv_rect.min[0] as f32, uv_rect.min[1] as f32),
-                            pos2(uv_rect.max[0] as f32, uv_rect.max[1] as f32),
-                        );
-
-                        //mesh.add_colored_rect(rect, Color32::DEBUG_COLOR.gamma_multiply(0.3));
-                        mesh.add_rect_with_uv(rect, uv, color);
-                    }
-
-                    // TODO(valadaptive): feathering makes this really blurry sometimes, and the underline is sometimes
-                    // not a full pixel under the text. Maybe just use the rounded glyph position?
-                    if let Some(underline) = &run.style().underline {
-                        let offset = underline.offset.unwrap_or(run_metrics.underline_offset);
-                        let size = underline.size.unwrap_or(run_metrics.underline_size);
-                        render_decoration(
-                            fonts.pixels_per_point,
-                            &run,
-                            &mut decorations,
-                            (horiz_offset, visual_vertical_offset - offset),
-                            Stroke {
-                                width: size,
-                                color: underline.brush,
-                            },
-                        );
-                    }
-
-                    if let Some(strikethrough) = &run.style().strikethrough {
-                        let offset = strikethrough
-                            .offset
-                            .unwrap_or(run_metrics.strikethrough_offset);
-                        let size = strikethrough.size.unwrap_or(run_metrics.strikethrough_size);
-                        render_decoration(
-                            fonts.pixels_per_point,
-                            &run,
-                            &mut decorations,
-                            (horiz_offset, visual_vertical_offset - offset),
-                            Stroke {
-                                width: size,
-                                color: strikethrough.brush,
-                            },
-                        );
-                    }
+                    draw_run(&run, section_idx, (horiz_offset, vertical_offset));
                 }
                 PositionedLayoutItem::InlineBox(inline_box) => {
                     /*mesh.add_colored_rect(
@@ -292,6 +322,55 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
         }
 
         let line_metrics = line.metrics();
+
+        // The text overflowed, and we have an overflow character to use when truncating the text. Add it to the mesh.
+        if i == layout.len() - 1 && !broke_all_lines {
+            if let Some((overflow_line, overflow_layout_offset)) = overflow_char_layout
+                .as_mut()
+                .and_then(|(layout, overflow_layout_offset)| {
+                    Some((layout.lines().next()?, overflow_layout_offset))
+                })
+            {
+                let overflow_metrics = overflow_line.metrics();
+                let overflow_horiz_offset = (line_metrics.offset
+                    + horiz_offset
+                    + line_metrics.advance
+                    + overflow_metrics.advance)
+                    .min(job.wrap.max_width)
+                    - overflow_metrics.advance;
+                let overflow_vertical_offset =
+                    vertical_offset + line_metrics.baseline - overflow_metrics.baseline;
+
+                for item in overflow_line.items() {
+                    let PositionedLayoutItem::GlyphRun(run) = item else {
+                        continue;
+                    };
+
+                    draw_run(&run, 0, (overflow_horiz_offset, overflow_vertical_offset));
+                }
+
+                row_logical_bounds = row_logical_bounds.union(Rect::from_min_max(
+                    pos2(
+                        overflow_horiz_offset,
+                        overflow_metrics.min_coord + overflow_vertical_offset,
+                    ),
+                    pos2(
+                        overflow_horiz_offset + overflow_metrics.advance,
+                        overflow_metrics.max_coord + overflow_vertical_offset,
+                    ),
+                ));
+
+                overflow_layout_offset.x = overflow_horiz_offset;
+                overflow_layout_offset.y = overflow_vertical_offset;
+            }
+        }
+
+        // Don't include the leading inline box when calculating text bounds.
+        // TODO(valadaptive): the old layout code includes this box. Is that good?
+        if is_inline_box_only {
+            continue;
+        }
+
         // Don't include the leading inline box in the row bounds
         let line_start = line_metrics.offset + horiz_offset + box_offset;
 
@@ -300,17 +379,15 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
         //   whitespace is included.
         // - min_line_end is the narrowest the line can be if all trailing
         //   whitespace is excluded.
-        // - max_desired_line_end is the job's max wrap width.
         //
         // This lets us count trailing whitespace for inline labels while
         // ignoring it for the purpose of text wrapping.
         let max_line_end = line_metrics.offset + horiz_offset + line_metrics.advance;
         let min_line_end = max_line_end - line_metrics.trailing_whitespace;
-        let max_desired_line_end = line_start + job.wrap.max_width;
         // If this line's trailing whitespace is what would push the line over
         // the max wrap width, clamp it. However, we must be at least as wide as
         // min_line_end.
-        let line_end = max_line_end.min(max_desired_line_end).max(min_line_end);
+        let line_end = max_line_end.min(job.wrap.max_width).max(min_line_end);
 
         row_logical_bounds = row_logical_bounds.union(Rect::from_min_max(
             pos2(line_start, line_metrics.min_coord + vertical_offset),
@@ -329,15 +406,18 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
         let num_glyph_vertices = mesh.vertices.len();
 
         // TODO(valadaptive): it would be really nice to avoid this temporary allocation, which only exists to ensure
-        // that override_text_color doesn't change the decoration color.
+        // that override_text_color doesn't change the decoration color by moving all decoration meshes past the end of
+        // `glyph_vertex_range`.
         if !decorations.is_empty() {
             mesh.append_ref(&decorations);
             decorations.clear();
         }
 
+        // Glyph vertices start after (above) the background vertices.
         let glyph_index_start = background_mesh.indices.len();
-        let glyph_vertex_range =
-            background_mesh.vertices.len()..background_mesh.vertices.len() + num_glyph_vertices;
+        let glyph_vertex_range = glyph_index_start..glyph_index_start + num_glyph_vertices;
+        // Prepend the background to the text mesh. Actually, we append the *text* to the *background*, then set the
+        // text mesh to the newly-appended-to background mesh.
         if !background_mesh.is_empty() {
             background_mesh.append(mesh);
             mesh = background_mesh;
@@ -367,24 +447,25 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
         rows.push(row);
     }
 
+    // In case no glyphs got drawn (e.g. all whitespace)
     for bounds in [&mut acc_logical_bounds, &mut acc_mesh_bounds] {
         if !bounds.is_finite() {
             *bounds = Rect::from_min_size(pos2(horiz_offset, 0.0), Vec2::ZERO);
         }
-    }
 
-    debug_assert!(!acc_logical_bounds.is_negative());
-    debug_assert!(!acc_mesh_bounds.is_negative());
+        debug_assert!(!bounds.is_negative());
+    }
 
     Galley {
         job: Arc::new(job),
         rows,
-        parley_layout: Mutex::new(layout),
-        layout_offset: vec2(horiz_offset, vertical_offset),
+        parley_layout: LayoutAndOffset::new(layout, vec2(horiz_offset, vertical_offset)),
+        overflow_char_layout: overflow_char_layout
+            .map(|(layout, offset)| Box::new(LayoutAndOffset::new(layout, offset))),
         #[cfg(feature = "accesskit")]
         accessibility: Default::default(),
         selection_color: Color32::TRANSPARENT,
-        elided: false,
+        elided: !broke_all_lines,
         rect: acc_logical_bounds,
         mesh_bounds: acc_mesh_bounds,
         num_vertices: acc_num_vertices,
