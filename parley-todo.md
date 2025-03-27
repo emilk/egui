@@ -19,15 +19,20 @@
   - [x] Sometimes when resizing the Font Book window, the text doesn't wrap properly (fixed)
     - ~~Only happens when the mouse is held down~~
     - ~~Could it be trailing whitespace?~~
-  - [ ] If you really scrunch up the "Code Example" window, it'll wrap while the cursor is held
-    - This is an issue in the non-Parley branch too, but only at >1x zoom
   - [ ] In the EasyMark example, with the text "There is no alternative way to specify the strong style", at certain wrap widths, the text from "strong" onwards will be shifted down 1px
   - [ ] With the fancy variable autohinted Ubuntu font, *sometimes* the "Interactive Container" label on the right demos bar appears improperly wrapped?
   - [ ] With "Text Wrap Mode" set to "Some(Wrap)" or "Some(Truncate)" in the Settings window, labels are not as wide as they should be compared to master branch (see Text Layout window)
   - [ ] Text wrapping
     - [x] max_rows
     - [x] break_anywhere
-    - [ ] overflow_character
+    - [x] overflow_character
+  - [ ] `LayoutJob::round_output_to_gui`
+  - [ ] `LayoutJob::break_on_newline`
+  - [ ] RTL considerations
+    - [ ] Label wrapping only occurs in LTR layouts, but make sure it doesn't do anything weird with RTL labels
+    - [ ] Text is right-justified if a label is split in the middle of RTL text
+      - This may be desirable behavior, but is weird
+    - [ ] overflow_character should appear at the "start" of the line for RTL text
 - [ ] Text rendering
   - [x] Investigate whether swash is being too conservative with its shape bounds and cutting off rendered glyphs
     - The reverse is true https://github.com/dfrg/zeno/pull/15
@@ -129,3 +134,7 @@
     - [ ] The original TextEdit code had a relayout too
   - [ ] Per-viewport pixels_per_point seems to not be taken into account when calculating cursor positions for selections
     - Not a new issue
+  - [ ] If you really scrunch up the "Code Example" window, it'll wrap while the cursor is held
+    - This is an issue in the non-Parley branch too, but only at >1x zoom
+  - [ ] If you select the text overflow character, the "logical selection" should extend to the end of the text.
+  - [ ] Text overflow character should use the style at the end of the line it replaces, but we have no way to get that without redoing the *entire* layout
