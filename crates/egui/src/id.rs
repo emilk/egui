@@ -1,5 +1,8 @@
 // TODO(emilk): have separate types `PositionId` and `UniqueId`. ?
 
+use crate::id::id_source::IdSource;
+use crate::CollapsingHeader;
+use epaint::Color32;
 use std::num::NonZeroU64;
 
 /// egui tracks widgets frame-to-frame using [`Id`]s.
@@ -97,12 +100,133 @@ impl Id {
         self.value().into()
     }
 
-    // TODO: Nice debug ui
-    // pub fn ui(self, ui: &mut crate::Ui) -> crate::Response {
-    //     ui.code(self.short_debug_format()).on_hover_ui(|ui| {
-    //         let data = self.info();
-    //     })
-    // }
+    fn source_ui(ui: &mut crate::Ui, source: IdSource) {
+        match source {
+            IdSource::Id(id) => {
+                Self::parent_ui(ui, id);
+            }
+            IdSource::Other(other) => {
+                ui.code(other);
+            }
+        }
+    }
+
+    fn parent_ui(ui: &mut crate::Ui, id: Id) {
+        let data = id.info();
+        if let Some(data) = data {
+            if let Some(parent) = data.parent {
+                Self::parent_ui(ui, parent);
+                ui.horizontal(|ui| {
+                    ui.code(".with(");
+                    Self::source_ui(ui, data.source);
+                    ui.code(format!("  /* {} */", id.short_debug_format()));
+                    ui.code(")");
+                });
+            } else {
+                ui.horizontal(|ui| {
+                    ui.code("Id::new(");
+                    Self::source_ui(ui, data.source);
+                    ui.code(format!("  /* {} */", id.short_debug_format()));
+                    ui.code(")");
+                });
+            }
+        } else {
+            ui.code(format!("Id::from_hash({})", id.short_debug_format()));
+        }
+    }
+
+    fn group_ui(ui: &mut crate::Ui, id: Id) {
+        ui.group(|ui| {
+            let info = id.info();
+            if let Some(info) = info {
+                ui.horizontal(|ui| {
+                    ui.label("Id(");
+                    ui.code(format!("{:04X}", id.value() as u16));
+                    ui.label(")");
+
+                    ui.label("Source:");
+                    match info.source {
+                        IdSource::Id(id) => {
+                            Self::group_ui(ui, id);
+                        }
+                        IdSource::Other(other) => {
+                            ui.code(other);
+                        }
+                    }
+                });
+                if let Some(parent) = info.parent {
+                    ui.label("^ with");
+                    Self::group_ui(ui, parent);
+                }
+            } else {
+            }
+        });
+    }
+
+    fn tree_ui(ui: &mut crate::Ui, id: Id, prefix: &str, depth: usize) {
+        let info = id.info();
+        if let Some(info) = info {
+            let response =
+                CollapsingHeader::new(format!("{}Id({})", prefix, id.short_debug_format()))
+                    .default_open(depth < 4)
+                    .show(ui, |ui| {
+                        match info.source {
+                            IdSource::Id(id_source) => {
+                                Self::tree_ui(ui, id_source, "Source: ", depth + 1);
+                            }
+                            IdSource::Other(other) => {
+                                ui.horizontal(|ui| {
+                                    ui.add_space(ui.spacing().indent);
+                                    ui.label("Source:");
+                                    ui.code(other);
+                                });
+                            }
+                        }
+
+                        if let Some(parent) = info.parent {
+                            Self::tree_ui(ui, parent, "Parent: ", depth + 1);
+                        }
+                    });
+
+            if response.header_response.hovered() {
+                id.try_highlight(ui.ctx());
+            }
+        }
+    }
+
+    pub fn try_highlight(self, ctx: &crate::Context) {
+        let response = ctx.read_response(self);
+        if let Some(response) = response {
+            ctx.debug_painter().debug_rect(
+                response.rect,
+                Color32::GREEN,
+                self.short_debug_format(),
+            );
+        }
+
+        if let Some(area_rect) = ctx.memory(|mem| mem.area_rect(self)) {
+            ctx.debug_painter()
+                .debug_rect(area_rect, Color32::RED, self.short_debug_format());
+        }
+    }
+
+    pub fn ui(self, ui: &mut crate::Ui) -> crate::Response {
+        let data = self.info();
+        let label = if let Some(data) = &data {
+            format!("{} ({})", self.short_debug_format(), data.source)
+        } else {
+            self.short_debug_format()
+        };
+        let response = ui.code(label).on_hover_ui(|ui| {
+            Self::tree_ui(ui, self, "", 0);
+        });
+
+        if response.hovered() {
+            self.try_highlight(ui.ctx());
+        }
+
+        response
+    }
 }
 
 #[cfg(debug_assertions)]
@@ -110,6 +234,7 @@ mod id_source {
     use crate::{AsId, Id};
     use ahash::HashMap;
     use epaint::mutex::RwLock;
+    use std::fmt::{Display, Formatter};
     use std::hash::Hasher;
     use std::sync::LazyLock;
 
@@ -125,6 +250,19 @@ mod id_source {
     pub enum IdSource {
         Id(Id),
         Other(String),
+    }
+
+    impl Display for IdSource {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            match self {
+                IdSource::Id(id) => {
+                    write!(f, "{}", id.short_debug_format())
+                }
+                IdSource::Other(other) => {
+                    write!(f, "{}", other)
+                }
+            }
+        }
     }
 
     static ID_MAP: LazyLock<RwLock<HashMap<Id, IdInfo>>> = LazyLock::new(|| {

@@ -70,7 +70,7 @@ impl InteractionSnapshot {
 
         fn id_ui<'a>(ui: &mut crate::Ui, widgets: impl IntoIterator<Item = &'a Id>) {
             for id in widgets {
-                ui.label(format!("{:?}", id));
+                id.ui(ui);
             }
         }
 
