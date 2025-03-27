@@ -2,7 +2,7 @@ use std::{borrow::Cow, sync::Arc};
 
 use ahash::HashMapExt;
 use ecolor::Color32;
-use emath::{vec2, GuiRounding, OrderedFloat, Vec2};
+use emath::{vec2, OrderedFloat, Vec2};
 use parley::{Glyph, GlyphRun};
 use swash::zeno;
 
@@ -91,24 +91,21 @@ impl SubpixelBin {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct GlyphKey {
     glyph_id: swash::GlyphId,
+    // We don't store the y-position because it's always rounded to an integer coordinate
     x: SubpixelBin,
-    y: SubpixelBin,
     style_id: u32,
 }
 
 impl GlyphKey {
-    fn from_glyph(glyph: &Glyph, scale: f32, style_id: u32) -> (Self, i32, i32) {
+    fn from_glyph(glyph: &Glyph, scale: f32, style_id: u32) -> (Self, i32) {
         let (x, x_bin) = SubpixelBin::new(glyph.x * scale);
-        let (y, y_bin) = SubpixelBin::new(glyph.y * scale);
         (
             Self {
                 glyph_id: glyph.id,
                 x: x_bin,
-                y: y_bin,
                 style_id,
             },
             x,
-            y,
         )
     }
 }
@@ -151,7 +148,7 @@ struct RenderedGlyph {
 
 pub(super) struct GlyphAtlas {
     scale_context: swash::scale::ScaleContext,
-    // TODO: just pass this in from Fonts
+    // TODO(valadaptive): just pass this in from Fonts
     atlas: Arc<Mutex<TextureAtlas>>,
     /// Style-related properties (font, size, variation coordinates) are the same for each glyph run and don't need to
     /// be part of each glyph's cache key. Instead, we associate each style with its own compact ID, included in each
@@ -188,7 +185,7 @@ impl GlyphAtlas {
     pub fn render_glyph_run<'a: 'b, 'b>(
         &'a mut self,
         glyph_run: &'b GlyphRun<'b, Color32>,
-        offset: (f32, f32),
+        offset: Vec2,
         pixels_per_point: f32,
         font_tweaks: &ahash::HashMap<u64, FontTweak>,
     ) -> impl Iterator<Item = (Glyph, Option<UvRect>, (i32, i32), Color32)> + use<'a, 'b> {
@@ -256,10 +253,11 @@ impl GlyphAtlas {
         glyph_run.positioned_glyphs().map(move |mut glyph| {
             // The Y-position transform applies to the font *after* it's been hinted, making it blurry. (So does the
             // X-position transform, but the hinter doesn't change the X coordinates anymore.)
-            // TODO(valadaptive): remove Y subpixel position from the cache key entirely
-            glyph.x += offset.0;
-            glyph.y = (glyph.y + offset.1 + tweak_offset).round_to_pixels(pixels_per_point);
-            let (cache_key, x, y) = GlyphKey::from_glyph(&glyph, pixels_per_point, style_id);
+            glyph.x += offset.x;
+            let y = ((glyph.y + offset.y + tweak_offset) * pixels_per_point).round();
+            glyph.y = y / pixels_per_point;
+            let y = y as i32;
+            let (cache_key, x) = GlyphKey::from_glyph(&glyph, pixels_per_point, style_id);
 
             if let Some(rendered_glyph) = rendered_glyphs.get(&cache_key) {
                 return (
@@ -275,7 +273,7 @@ impl GlyphAtlas {
                     }),
                 );
             }
-            let offset = zeno::Vector::new(cache_key.x.as_float(), cache_key.y.as_float());
+            let offset = zeno::Vector::new(cache_key.x.as_float(), 0.0);
             let Some(image) = swash::scale::Render::new(&[
                 swash::scale::Source::ColorOutline(0),
                 swash::scale::Source::ColorBitmap(swash::scale::StrikeWith::BestFit),
