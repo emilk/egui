@@ -218,6 +218,7 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
                 let run_metrics = run.run().metrics();
 
                 for (_glyph, uv_rect, (x, y), color) in fonts.glyph_atlas.render_glyph_run(
+                    fonts.texture_atlas,
                     run,
                     vec2(horiz_offset, visual_vertical_offset),
                     fonts.pixels_per_point,

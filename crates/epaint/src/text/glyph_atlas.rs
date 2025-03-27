@@ -1,4 +1,4 @@
-use std::{borrow::Cow, sync::Arc};
+use std::borrow::Cow;
 
 use ahash::HashMapExt;
 use ecolor::Color32;
@@ -6,7 +6,7 @@ use emath::{vec2, OrderedFloat, Vec2};
 use parley::{Glyph, GlyphRun};
 use swash::zeno;
 
-use crate::{mutex::Mutex, TextureAtlas};
+use crate::TextureAtlas;
 
 use super::FontTweak;
 
@@ -148,8 +148,6 @@ struct RenderedGlyph {
 
 pub(super) struct GlyphAtlas {
     scale_context: swash::scale::ScaleContext,
-    // TODO(valadaptive): just pass this in from Fonts
-    atlas: Arc<Mutex<TextureAtlas>>,
     /// Style-related properties (font, size, variation coordinates) are the same for each glyph run and don't need to
     /// be part of each glyph's cache key. Instead, we associate each style with its own compact ID, included in each
     /// glyph's cache key. Compared to having a nested hash map of one cache per style, this keeps things flat and
@@ -162,10 +160,9 @@ pub(super) struct GlyphAtlas {
 }
 
 impl GlyphAtlas {
-    pub(super) fn new(atlas: Arc<Mutex<TextureAtlas>>) -> Self {
+    pub(super) fn new() -> Self {
         Self {
             scale_context: swash::scale::ScaleContext::new(),
-            atlas,
             style_ids: ahash::HashMap::new(),
             next_style_id: 0,
             rendered_glyphs: ahash::HashMap::new(),
@@ -182,13 +179,14 @@ impl GlyphAtlas {
         self.swash_keys.clear();
     }
 
-    pub fn render_glyph_run<'a: 'b, 'b>(
+    pub fn render_glyph_run<'a: 'b, 'b, 'c>(
         &'a mut self,
+        atlas: &'c mut TextureAtlas,
         glyph_run: &'b GlyphRun<'b, Color32>,
         offset: Vec2,
         pixels_per_point: f32,
         font_tweaks: &ahash::HashMap<u64, FontTweak>,
-    ) -> impl Iterator<Item = (Glyph, Option<UvRect>, (i32, i32), Color32)> + use<'a, 'b> {
+    ) -> impl Iterator<Item = (Glyph, Option<UvRect>, (i32, i32), Color32)> + use<'a, 'b, 'c> {
         let run = glyph_run.run();
         let font = run.font();
         let font_size = run.font_size();
@@ -218,8 +216,6 @@ impl GlyphAtlas {
             .normalized_coords(normalized_coords)
             .hint(true)
             .build();
-        // TODO(valadaptive): is it fine to lock the mutex here?
-        let mut atlas = self.atlas.lock();
         let rendered_glyphs = &mut self.rendered_glyphs;
         let color = glyph_run.style().brush;
 
