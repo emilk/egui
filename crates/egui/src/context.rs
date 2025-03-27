@@ -610,6 +610,10 @@ impl ContextImpl {
                 .expect("new_font_definitions is borrowed, but we had nowhere to borrow it from")
         };
 
+        if let Some(new_font_hinting) = self.memory.new_font_hinting.take() {
+            fonts.set_hinting_enabled(new_font_hinting);
+        }
+
         {
             profiling::scope!("FontStore::begin_pass");
             fonts.begin_pass(max_texture_side);
@@ -1799,15 +1803,12 @@ impl Context {
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
         profiling::function_scope!();
 
-        let mut update_fonts = true;
-
-        self.read(|ctx| {
-            if let Some(current_fonts) = ctx.fonts.as_ref() {
-                // NOTE: this comparison is expensive since it checks TTF data for equality
-                if current_fonts.definitions() == &font_definitions {
-                    update_fonts = false; // no need to update
-                }
-            }
+        let update_fonts = self.read(|ctx| {
+            // NOTE: this comparison is expensive since it checks TTF data for equality
+            // TODO(valadaptive): add_font only checks the *names* for equality. Change this?
+            ctx.fonts
+                .as_ref()
+                .is_none_or(|fonts| fonts.definitions() != &font_definitions)
         });
 
         if update_fonts {
@@ -1825,22 +1826,34 @@ impl Context {
     pub fn add_font(&self, new_font: FontInsert) {
         profiling::function_scope!();
 
-        let mut update_fonts = true;
-
-        self.read(|ctx| {
-            if let Some(current_fonts) = ctx.fonts.as_ref() {
-                if current_fonts
-                    .definitions()
-                    .font_data
-                    .contains_key(&new_font.name)
-                {
-                    update_fonts = false; // no need to update
-                }
-            }
+        let update_fonts = self.read(|ctx| {
+            ctx.fonts
+                .as_ref()
+                .is_none_or(|fonts| !fonts.definitions().font_data.contains_key(&new_font.name))
         });
 
         if update_fonts {
             self.memory_mut(|mem| mem.add_fonts.push(new_font));
+        }
+    }
+
+    /// Set whether font hinting (pixel snapping for clearer fonts) is enabled.
+    ///
+    /// By default, hinting is enabled. You can override this per-font with
+    /// [`crate::FontTweak::hinting_enabled`].
+    ///
+    /// The new font hinting setting will become active at the start of the next pass.
+    pub fn set_font_hinting_enabled(&self, hinting_enabled: bool) {
+        profiling::function_scope!();
+
+        let update_hinting = self.read(|ctx| {
+            ctx.fonts
+                .as_ref()
+                .is_none_or(|fonts| fonts.hinting_enabled() != hinting_enabled)
+        });
+
+        if update_hinting {
+            self.memory_mut(|mem| mem.new_font_hinting = Some(hinting_enabled));
         }
     }
 
