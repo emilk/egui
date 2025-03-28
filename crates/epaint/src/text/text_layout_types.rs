@@ -872,14 +872,14 @@ impl Galley {
             rows: Vec::new(),
             elided: false,
             rect: emath::Rect::ZERO,
-            mesh_bounds: emath::Rect::ZERO,
+            mesh_bounds: emath::Rect::NOTHING,
             num_vertices: 0,
             num_indices: 0,
             pixels_per_point,
         };
 
         for (i, galley) in galleys.iter().enumerate() {
-            let current_offset = emath::vec2(0.0, merged_galley.rect.height());
+            let current_offset = Vec2::new(0.0, merged_galley.rect.height());
 
             let mut rows = galley.rows.iter();
             // As documented in `Row::ends_with_newline`, a '\n' will always create a

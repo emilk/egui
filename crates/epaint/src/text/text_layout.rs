@@ -74,7 +74,7 @@ pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>) -> Galley {
         return Galley {
             job,
             rows: Default::default(),
-            rect: Rect::from_min_max(Pos2::ZERO, Pos2::ZERO),
+            rect: Rect::ZERO,
             mesh_bounds: Rect::NOTHING,
             num_vertices: 0,
             num_indices: 0,
@@ -655,7 +655,8 @@ fn galley_from_rows(
     for placed_row in &mut rows {
         let row = Arc::get_mut(&mut placed_row.row).unwrap();
         row.visuals = tessellate_row(point_scale, &job, &format_summary, row);
-        mesh_bounds = mesh_bounds.union(row.visuals.mesh_bounds);
+        mesh_bounds =
+            mesh_bounds.union(row.visuals.mesh_bounds.translate(placed_row.pos.to_vec2()));
         num_vertices += row.visuals.mesh.vertices.len();
         num_indices += row.visuals.mesh.indices.len();
     }
