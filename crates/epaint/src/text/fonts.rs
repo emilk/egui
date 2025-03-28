@@ -980,3 +980,88 @@ impl FontImplCache {
             .clone()
     }
 }
+
+#[cfg(feature = "default_fonts")]
+#[cfg(test)]
+mod tests {
+    use core::f32;
+
+    use super::*;
+    use crate::{text::TextFormat, Stroke};
+    use ecolor::Color32;
+
+    fn jobs() -> Vec<LayoutJob> {
+        // TODO: add more tests here with newlines etc
+        vec![
+            LayoutJob::simple(
+                "Simplest test.".to_owned(),
+                FontId::new(14.0, FontFamily::Monospace),
+                Color32::WHITE,
+                f32::INFINITY,
+            ),
+            LayoutJob::simple(
+                "The is some text that may be long.\nDet kanske också finns lite ÅÄÖ här."
+                    .to_owned(),
+                FontId::new(14.0, FontFamily::Proportional),
+                Color32::WHITE,
+                50.0,
+            ),
+            {
+                let mut job = LayoutJob {
+                    first_row_min_height: 20.0,
+                    justify: true,
+                    ..Default::default()
+                };
+                job.append(
+                    "The first paragraph has some leading space.\n",
+                    16.0,
+                    TextFormat {
+                        font_id: FontId::new(14.0, FontFamily::Proportional),
+                        ..Default::default()
+                    },
+                );
+                job.append(
+                    "The second paragraph has underline and strikthrough, and has some non-ASCII characters: ÅÄÖ.",
+                    0.0,
+                    TextFormat {
+                        font_id: FontId::new(15.0, FontFamily::Monospace),
+                        underline: Stroke::new(1.0, Color32::RED),
+                        strikethrough: Stroke::new(1.0, Color32::GREEN),
+                        ..Default::default()
+                    },
+                );
+                job.append(
+                    "The last paragraph is kind of boring, bust has italics.",
+                    0.0,
+                    TextFormat {
+                        font_id: FontId::new(10.0, FontFamily::Proportional),
+                        italics: true,
+                        ..Default::default()
+                    },
+                );
+
+                job
+            },
+        ]
+    }
+
+    #[test]
+    fn test_split_paragraphs() {
+        for pixels_per_point in [1.0, 2.0_f32.sqrt(), 2.0] {
+            let max_texture_side = 4096;
+            let mut fonts = FontsImpl::new(
+                pixels_per_point,
+                max_texture_side,
+                FontDefinitions::default(),
+            );
+
+            for job in jobs() {
+                let as_whole = GalleyCache::default().layout(&mut fonts, job.clone(), false);
+
+                let split = GalleyCache::default().layout(&mut fonts, job.clone(), true);
+
+                similar_asserts::assert_eq!(split, as_whole, "Input text: '{}'", job.text);
+            }
+        }
+    }
+}
