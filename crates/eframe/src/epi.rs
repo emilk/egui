@@ -499,10 +499,16 @@ pub struct WebOptions {
     /// If the web event corresponding to an egui event should be propagated
     /// to the rest of the web page.
     ///
-    /// The default is `false`, meaning
+    /// The default is `true`, meaning
     /// [`stopPropagation`](https://developer.mozilla.org/en-US/docs/Web/API/Event/stopPropagation)
-    /// is called on every event.
-    pub should_propagate_event: Box<dyn Fn(&egui::Event) -> bool>,
+    /// is called on every event, and the event is not propagated to the rest of the web page.
+    pub should_stop_propagation: Box<dyn Fn(&egui::Event) -> bool>,
+
+    /// Whether the web event corresponding to an egui event should have `prevent_default` called
+    /// on it or not.
+    ///
+    /// Defaults to true.
+    pub should_prevent_default: Box<dyn Fn(&egui::Event) -> bool>,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -519,7 +525,8 @@ impl Default for WebOptions {
 
             dithering: true,
 
-            should_propagate_event: Box::new(|_| false),
+            should_stop_propagation: Box::new(|_| true),
+            should_prevent_default: Box::new(|_| true),
         }
     }
 }
