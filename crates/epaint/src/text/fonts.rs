@@ -772,11 +772,7 @@ impl GalleyCache {
                 cached.galley.clone()
             }
             std::collections::hash_map::Entry::Vacant(entry) => {
-                // If the text contains newlines that will always break into a new row then
-                // we can easily lay out all the lines individually and then merge the `Galley`s.
-                // This allows individual lines to be cached separately which means small
-                // modifications to the source text will only cause impacted lines to be laid out again.
-                if job.break_on_newline && job.text.contains('\n') {
+                if should_cache_each_paragraph_individually(&job) {
                     let galley = self.layout_multiline(fonts, job);
                     let galley = Arc::new(galley);
                     self.cache.insert(
@@ -908,6 +904,17 @@ impl GalleyCache {
     }
 }
 
+/// If true, lay out and cache each paragraph (sections separated by newlines) individually.
+///
+/// This makes it much faster to re-lauout the full tet when only a portion of it has changed since last frame, i.e. when editing somewhere in a file with thousands of lines/paragraphs.
+fn should_cache_each_paragraph_individually(job: &LayoutJob) -> bool {
+    // We currently don't support this elided text, i.e. when `max_rows` is set.
+    // Most often, elided text is elided to one row,
+    // and so will always be fast to lay out.
+    job.break_on_newline && job.wrap.max_rows == usize::MAX && job.text.contains('\n')
+}
+
+/// Append each galley under the previous one.
 fn concat_galleys(job: LayoutJob, galleys: &[Arc<Galley>], pixels_per_point: f32) -> Galley {
     let mut merged_galley = Galley {
         job: Arc::new(job),
