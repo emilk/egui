@@ -9,7 +9,7 @@ use super::{
     font::UvRect,
 };
 use crate::{Color32, FontId, Mesh, Stroke};
-use emath::{pos2, vec2, Align, NumExt, OrderedFloat, Pos2, Rect, Vec2};
+use emath::{pos2, vec2, Align, GuiRounding as _, NumExt, OrderedFloat, Pos2, Rect, Vec2};
 
 /// Describes the task of laying out text.
 ///
@@ -863,6 +863,61 @@ impl Galley {
         }
 
         cursor
+    }
+
+    /// Append each galley under the previous one.
+    pub fn concat(job: Arc<LayoutJob>, galleys: &[Arc<Self>], pixels_per_point: f32) -> Self {
+        let mut merged_galley = Self {
+            job,
+            rows: Vec::new(),
+            elided: false,
+            rect: emath::Rect::ZERO,
+            mesh_bounds: emath::Rect::ZERO,
+            num_vertices: 0,
+            num_indices: 0,
+            pixels_per_point,
+        };
+
+        for (i, galley) in galleys.iter().enumerate() {
+            let current_offset = emath::vec2(0.0, merged_galley.rect.height());
+
+            let mut rows = galley.rows.iter();
+            // As documented in `Row::ends_with_newline`, a '\n' will always create a
+            // new `Row` immediately below the current one. Here it doesn't make sense
+            // for us to append this new row so we just ignore it.
+            let is_last_row = i + 1 == galleys.len();
+            if !is_last_row && !galley.elided {
+                let popped = rows.next_back();
+                debug_assert_eq!(popped.unwrap().row.glyphs.len(), 0, "Bug in Galley::concat");
+            }
+
+            merged_galley.rows.extend(rows.map(|placed_row| {
+                let mut new_pos = placed_row.pos + current_offset;
+                new_pos.y = new_pos.y.round_to_pixels(pixels_per_point);
+                merged_galley.mesh_bounds = merged_galley
+                    .mesh_bounds
+                    .union(placed_row.visuals.mesh_bounds.translate(new_pos.to_vec2()));
+                merged_galley.rect = merged_galley
+                    .rect
+                    .union(emath::Rect::from_min_size(new_pos, placed_row.size));
+
+                super::PlacedRow {
+                    row: placed_row.row.clone(),
+                    pos: new_pos,
+                }
+            }));
+
+            merged_galley.num_vertices += galley.num_vertices;
+            merged_galley.num_indices += galley.num_indices;
+            // Note that if `galley.elided` is true this will be the last `Galley` in
+            // the vector and the loop will end.
+            merged_galley.elided |= galley.elided;
+        }
+
+        if merged_galley.job.round_output_to_gui {
+            super::round_output_to_gui(&mut merged_galley.rect, &merged_galley.job);
+        }
+        merged_galley
     }
 }
 
