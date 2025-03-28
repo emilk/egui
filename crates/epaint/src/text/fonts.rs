@@ -4,7 +4,7 @@ use crate::{
     mutex::{Mutex, MutexGuard},
     text::{
         font::{Font, FontImpl},
-        Galley, LayoutJob,
+        Galley, LayoutJob, LayoutSection,
     },
     TextureAtlas,
 };
@@ -809,7 +809,8 @@ impl GalleyCache {
         fonts: &mut FontsImpl,
         job: Arc<LayoutJob>,
     ) -> Galley {
-        let mut current_section = 0;
+        profiling::function_scope!();
+
         let mut current = 0;
         let mut max_rows_remaining = job.wrap.max_rows;
         let mut galleys = Vec::new();
@@ -839,29 +840,35 @@ impl GalleyCache {
                 round_output_to_gui: job.round_output_to_gui,
             };
 
-            while current < end {
-                let mut s = &job.sections[current_section];
-                while s.byte_range.end <= current {
-                    current_section += 1;
-                    s = &job.sections[current_section];
-                }
-
-                debug_assert!(s.byte_range.contains(&current), "Bug in LayoutJob splitter");
-                let section_end = s.byte_range.end.min(end);
-                paragraph_job.sections.push(crate::text::LayoutSection {
-                    // Leading space should only be added to the first section
-                    // if the there are multiple sections that will be created
-                    // from splitting the current section.
-                    leading_space: if current == s.byte_range.start {
-                        s.leading_space
+            // Keep all (previous) sections (so the correct `section_index` is outputted),
+            // but shift their byte ranges:
+            paragraph_job.sections = job
+                .sections
+                .iter()
+                .cloned()
+                .filter_map(|section| {
+                    let LayoutSection {
+                        leading_space,
+                        byte_range,
+                        format,
+                    } = section;
+                    if end <= byte_range.start {
+                        None
                     } else {
-                        0.0
-                    },
-                    byte_range: current - start..section_end - start,
-                    format: s.format.clone(),
-                });
-                current = section_end;
-            }
+                        let byte_range = byte_range.start.saturating_sub(start)
+                            ..byte_range.end.saturating_sub(start).min(end - start);
+                        Some(LayoutSection {
+                            leading_space: if byte_range.end == 0 {
+                                0.0 // this sections is behind us (unused in this paragraph)
+                            } else {
+                                leading_space
+                            },
+                            byte_range,
+                            format,
+                        })
+                    }
+                })
+                .collect();
 
             let galley = self.layout(fonts, paragraph_job, false);
 
@@ -1005,8 +1012,7 @@ mod tests {
                 f32::INFINITY,
             ),
             LayoutJob::simple(
-                "The is some text that may be long.\nDet kanske också finns lite ÅÄÖ här."
-                    .to_owned(),
+                "This some text that may be long.\nDet kanske också finns lite ÅÄÖ här.".to_owned(),
                 FontId::new(14.0, FontFamily::Proportional),
                 Color32::WHITE,
                 50.0,
@@ -1018,7 +1024,7 @@ mod tests {
                     ..Default::default()
                 };
                 job.append(
-                    "The first paragraph has some leading space.\n",
+                    "1st paragraph has some leading space.\n",
                     16.0,
                     TextFormat {
                         font_id: FontId::new(14.0, FontFamily::Proportional),
@@ -1026,7 +1032,7 @@ mod tests {
                     },
                 );
                 job.append(
-                    "The second paragraph has underline and strikthrough, and has some non-ASCII characters:\n ÅÄÖ.",
+                    "2nd paragraph has underline and strikthrough, and has some non-ASCII characters:\n ÅÄÖ.",
                     0.0,
                     TextFormat {
                         font_id: FontId::new(15.0, FontFamily::Monospace),
@@ -1036,7 +1042,7 @@ mod tests {
                     },
                 );
                 job.append(
-                    "The last paragraph is kind of boring, but has italics.\nAnd a newline",
+                    "3rd paragraph is kind of boring, but has italics.\nAnd a newline",
                     0.0,
                     TextFormat {
                         font_id: FontId::new(10.0, FontFamily::Proportional),
@@ -1061,11 +1067,34 @@ mod tests {
             );
 
             for job in jobs() {
-                let as_whole = GalleyCache::default().layout(&mut fonts, job.clone(), false);
+                let whole = GalleyCache::default().layout(&mut fonts, job.clone(), false);
 
                 let split = GalleyCache::default().layout(&mut fonts, job.clone(), true);
 
-                similar_asserts::assert_eq!(split, as_whole, "Input text: '{}'", job.text);
+                dbg!(whole.rect, whole.mesh_bounds);
+                dbg!(split.rect, split.mesh_bounds);
+
+                for (i, row) in whole.rows.iter().enumerate() {
+                    println!(
+                        "Whole row {i}: section_index_at_start={}, first glyph section_index: {:?}",
+                        row.row.section_index_at_start,
+                        row.row.glyphs.first().map(|g| g.section_index)
+                    );
+                }
+                for (i, row) in split.rows.iter().enumerate() {
+                    println!(
+                        "Split row {i}: section_index_at_start={}, first glyph section_index: {:?}",
+                        row.row.section_index_at_start,
+                        row.row.glyphs.first().map(|g| g.section_index)
+                    );
+                }
+
+                similar_asserts::assert_eq!(
+                    split,
+                    whole,
+                    "pixels_per_point: {pixels_per_point:.2}, input text: '{}'",
+                    job.text
+                );
             }
         }
     }

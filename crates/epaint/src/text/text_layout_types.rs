@@ -914,6 +914,13 @@ impl Galley {
             merged_galley.elided |= galley.elided;
         }
 
+        for placed in &mut merged_galley.rows {
+            let row = Arc::make_mut(&mut placed.row);
+            if let Some(first_glyph) = row.glyphs.first_mut() {
+                row.section_index_at_start = first_glyph.section_index;
+            }
+        }
+
         if merged_galley.job.round_output_to_gui {
             super::round_output_to_gui(&mut merged_galley.rect, &merged_galley.job);
         }

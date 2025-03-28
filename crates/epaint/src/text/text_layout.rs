@@ -661,6 +661,14 @@ fn galley_from_rows(
         num_indices += row.visuals.mesh.indices.len();
     }
 
+    // Fill in correct section_index_at_start for each row:
+    for placed in &mut rows {
+        let row = Arc::make_mut(&mut placed.row);
+        if let Some(first_glyph) = row.glyphs.first_mut() {
+            row.section_index_at_start = first_glyph.section_index;
+        }
+    }
+
     let mut rect = Rect::from_min_max(pos2(min_x, 0.0), pos2(max_x, cursor_y));
 
     if job.round_output_to_gui {
