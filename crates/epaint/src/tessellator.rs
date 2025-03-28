@@ -1656,7 +1656,7 @@ impl Tessellator {
             if a.x == b.x {
                 // Vertical line
                 let mut x = a.x;
-                stroke.round_coord_to_pixel(self.pixels_per_point, &mut x);
+                stroke.round_center_to_pixel(self.pixels_per_point, &mut x);
                 a.x = x;
                 b.x = x;
 
@@ -1677,7 +1677,7 @@ impl Tessellator {
             if a.y == b.y {
                 // Horizontal line
                 let mut y = a.y;
-                stroke.round_coord_to_pixel(self.pixels_per_point, &mut y);
+                stroke.round_center_to_pixel(self.pixels_per_point, &mut y);
                 a.y = y;
                 b.y = y;
 
