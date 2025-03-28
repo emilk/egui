@@ -778,8 +778,9 @@ impl GalleyCache {
                 cached.galley.clone()
             }
             std::collections::hash_map::Entry::Vacant(entry) => {
+                let job = Arc::new(job);
                 if allow_split_paragraphs && should_cache_each_paragraph_individually(&job) {
-                    let galley = self.layout_multiline(fonts, job);
+                    let galley = self.layout_each_paragraph_individuallly(fonts, job);
                     let galley = Arc::new(galley);
                     self.cache.insert(
                         hash,
@@ -790,7 +791,7 @@ impl GalleyCache {
                     );
                     galley
                 } else {
-                    let galley = super::layout(fonts, job.into());
+                    let galley = super::layout(fonts, job);
                     let galley = Arc::new(galley);
                     entry.insert(CachedGalley {
                         last_used: self.generation,
@@ -802,32 +803,41 @@ impl GalleyCache {
         }
     }
 
-    fn layout_multiline(&mut self, fonts: &mut FontsImpl, job: LayoutJob) -> Galley {
+    /// Split on `\n` and lay out (and cache) each paragraph individually.
+    fn layout_each_paragraph_individuallly(
+        &mut self,
+        fonts: &mut FontsImpl,
+        job: Arc<LayoutJob>,
+    ) -> Galley {
         let mut current_section = 0;
         let mut current = 0;
-        let mut left_max_rows = job.wrap.max_rows;
+        let mut max_rows_remaining = job.wrap.max_rows;
         let mut galleys = Vec::new();
-        let mut first_row_min_height = job.first_row_min_height;
+
         while current < job.text.len() {
+            let is_first_paragraph = current == 0;
             let end = job.text[current..]
                 .find('\n')
-                .map_or(job.text.len(), |i| i + current + 1);
+                .map_or(job.text.len(), |i| current + i + 1);
             let start = current;
 
             let mut paragraph_job = LayoutJob {
-                text: job.text[current..end].to_string(),
+                text: job.text[current..end].to_owned(),
                 wrap: crate::text::TextWrapping {
-                    max_rows: left_max_rows,
+                    max_rows: max_rows_remaining,
                     ..job.wrap
                 },
                 sections: Vec::new(),
-                break_on_newline: true,
+                break_on_newline: job.break_on_newline,
                 halign: job.halign,
                 justify: job.justify,
-                first_row_min_height,
+                first_row_min_height: if is_first_paragraph {
+                    job.first_row_min_height
+                } else {
+                    0.0
+                },
                 round_output_to_gui: job.round_output_to_gui,
             };
-            first_row_min_height = 0.0;
 
             while current < end {
                 let mut s = &job.sections[current_section];
@@ -854,12 +864,13 @@ impl GalleyCache {
             }
 
             let galley = self.layout(fonts, paragraph_job, false);
-            // This will prevent us from invalidating cache entries unnecessarily
-            if left_max_rows != usize::MAX {
-                left_max_rows -= galley.rows.len();
-                // Ignore extra trailing row, see merging counterpart below for more details.
+
+            // This will prevent us from invalidating cache entries unnecessarily:
+            if max_rows_remaining != usize::MAX {
+                max_rows_remaining -= galley.rows.len();
+                // Ignore extra trailing row, see merging concat_galleys for more details.
                 if end < job.text.len() && !galley.elided {
-                    left_max_rows += 1;
+                    max_rows_remaining += 1;
                 }
             }
 
@@ -900,9 +911,9 @@ fn should_cache_each_paragraph_individually(job: &LayoutJob) -> bool {
 }
 
 /// Append each galley under the previous one.
-fn concat_galleys(job: LayoutJob, galleys: &[Arc<Galley>], pixels_per_point: f32) -> Galley {
+fn concat_galleys(job: Arc<LayoutJob>, galleys: &[Arc<Galley>], pixels_per_point: f32) -> Galley {
     let mut merged_galley = Galley {
-        job: Arc::new(job),
+        job,
         rows: Vec::new(),
         elided: false,
         rect: emath::Rect::ZERO,
