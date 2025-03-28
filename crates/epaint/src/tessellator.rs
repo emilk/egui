@@ -1656,7 +1656,7 @@ impl Tessellator {
             if a.x == b.x {
                 // Vertical line
                 let mut x = a.x;
-                round_line_segment(&mut x, &stroke, self.pixels_per_point);
+                stroke.round_coord_to_pixel(self.pixels_per_point, &mut x);
                 a.x = x;
                 b.x = x;
 
@@ -1677,7 +1677,7 @@ impl Tessellator {
             if a.y == b.y {
                 // Horizontal line
                 let mut y = a.y;
-                round_line_segment(&mut y, &stroke, self.pixels_per_point);
+                stroke.round_coord_to_pixel(self.pixels_per_point, &mut y);
                 a.y = y;
                 b.y = y;
 
@@ -1778,7 +1778,6 @@ impl Tessellator {
 
         let mut corner_radius = CornerRadiusF32::from(corner_radius);
         let round_to_pixels = round_to_pixels.unwrap_or(self.options.round_rects_to_pixels);
-        let pixel_size = 1.0 / self.pixels_per_point;
 
         if stroke.width == 0.0 {
             stroke.color = Color32::TRANSPARENT;
@@ -1849,17 +1848,7 @@ impl Tessellator {
                 }
                 StrokeKind::Middle => {
                     // On this path we optimize for crisp and symmetric strokes.
-                    // We put odd-width strokes in the center of pixels.
-                    // To understand why, see `fn round_line_segment`.
-                    if stroke.width <= 0.0 {
-                        rect = rect.round_to_pixels(self.pixels_per_point);
-                    } else if stroke.width <= pixel_size
-                        || is_nearest_integer_odd(self.pixels_per_point * stroke.width)
-                    {
-                        rect = rect.round_to_pixel_center(self.pixels_per_point);
-                    } else {
-                        rect = rect.round_to_pixels(self.pixels_per_point);
-                    }
+                    stroke.round_rect_to_pixel(self.pixels_per_point, &mut rect);
                 }
                 StrokeKind::Outside => {
                     // Put the inside of the stroke on a pixel boundary.
@@ -2203,45 +2192,6 @@ impl Tessellator {
                 .stroke(self.feathering, PathType::Open, stroke, out);
         }
     }
-}
-
-fn round_line_segment(coord: &mut f32, stroke: &Stroke, pixels_per_point: f32) {
-    // If the stroke is an odd number of pixels wide,
-    // we want to round the center of it to the center of a pixel.
-    //
-    // If however it is an even number of pixels wide,
-    // we want to round the center to be between two pixels.
-    //
-    // We also want to treat strokes that are _almost_ odd as it it was odd,
-    // to make it symmetric. Same for strokes that are _almost_ even.
-    //
-    // For strokes less than a pixel wide we also round to the center,
-    // because it will rendered as a single row of pixels by the tessellator.
-
-    let pixel_size = 1.0 / pixels_per_point;
-
-    if stroke.width <= pixel_size || is_nearest_integer_odd(pixels_per_point * stroke.width) {
-        *coord = coord.round_to_pixel_center(pixels_per_point);
-    } else {
-        *coord = coord.round_to_pixels(pixels_per_point);
-    }
-}
-
-fn is_nearest_integer_odd(width: f32) -> bool {
-    (width * 0.5 + 0.25).fract() > 0.5
-}
-
-#[test]
-fn test_is_nearest_integer_odd() {
-    assert!(is_nearest_integer_odd(0.6));
-    assert!(is_nearest_integer_odd(1.0));
-    assert!(is_nearest_integer_odd(1.4));
-    assert!(!is_nearest_integer_odd(1.6));
-    assert!(!is_nearest_integer_odd(2.0));
-    assert!(!is_nearest_integer_odd(2.4));
-    assert!(is_nearest_integer_odd(2.6));
-    assert!(is_nearest_integer_odd(3.0));
-    assert!(is_nearest_integer_odd(3.4));
 }
 
 #[deprecated = "Use `Tessellator::new(…).tessellate_shapes(…)` instead"]
