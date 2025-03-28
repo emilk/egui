@@ -811,13 +811,12 @@ impl GalleyCache {
     ) -> Galley {
         profiling::function_scope!();
 
-        let mut current = 0;
+        let mut start = 0;
         let mut max_rows_remaining = job.wrap.max_rows;
         let mut galleys = Vec::new();
 
-        while current < job.text.len() {
-            let is_first_paragraph = current == 0;
-            let start = current;
+        while start < job.text.len() {
+            let is_first_paragraph = start == 0;
             let end = job.text[start..]
                 .find('\n')
                 .map_or(job.text.len(), |i| start + i + 1);
@@ -887,7 +886,7 @@ impl GalleyCache {
                 break;
             }
 
-            current = end;
+            start = end;
         }
 
         Galley::concat(job, &galleys, fonts.pixels_per_point)
