@@ -96,7 +96,7 @@ pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>) -> Galley {
     let mut rows = rows_from_paragraphs(paragraphs, &job, &mut elided);
     if elided {
         if let Some(last_placed) = rows.last_mut() {
-            let last_row = Arc::get_mut(&mut last_placed.row).unwrap();
+            let last_row = Arc::make_mut(&mut last_placed.row);
             replace_last_glyph_with_overflow_character(fonts, &job, last_row);
             if let Some(last) = last_row.glyphs.last() {
                 last_row.size.x = last.max_x();
@@ -234,7 +234,7 @@ fn rows_from_paragraphs(
             } else {
                 line_break(&paragraph, job, &mut rows, elided);
                 let placed_row = rows.last_mut().unwrap();
-                let row = Arc::get_mut(&mut placed_row.row).unwrap();
+                let row = Arc::make_mut(&mut placed_row.row);
                 row.ends_with_newline = !is_last_paragraph;
             }
         }
@@ -517,7 +517,7 @@ fn halign_and_justify_row(
     wrap_width: f32,
     justify: bool,
 ) {
-    let row = Arc::get_mut(&mut placed_row.row).unwrap();
+    let row = Arc::make_mut(&mut placed_row.row);
 
     if row.glyphs.is_empty() {
         return;
@@ -615,7 +615,7 @@ fn galley_from_rows(
     let mut max_x: f32 = 0.0;
     for placed_row in &mut rows {
         let mut max_row_height = first_row_min_height.max(placed_row.rect().height());
-        let row = Arc::get_mut(&mut placed_row.row).unwrap();
+        let row = Arc::make_mut(&mut placed_row.row);
 
         first_row_min_height = 0.0;
         for glyph in &row.glyphs {
@@ -653,7 +653,7 @@ fn galley_from_rows(
     let mut num_indices = 0;
 
     for placed_row in &mut rows {
-        let row = Arc::get_mut(&mut placed_row.row).unwrap();
+        let row = Arc::make_mut(&mut placed_row.row);
         row.visuals = tessellate_row(point_scale, &job, &format_summary, row);
         mesh_bounds =
             mesh_bounds.union(row.visuals.mesh_bounds.translate(placed_row.pos.to_vec2()));
@@ -666,7 +666,7 @@ fn galley_from_rows(
     if job.round_output_to_gui {
         for placed_row in &mut rows {
             placed_row.pos = placed_row.pos.round_ui();
-            let row = Arc::get_mut(&mut placed_row.row).unwrap();
+            let row = Arc::make_mut(&mut placed_row.row);
             row.size = row.size.round_ui();
         }
         round_output_to_gui(&mut rect, &job);
