@@ -1070,9 +1070,6 @@ mod tests {
 
                 let split = GalleyCache::default().layout(&mut fonts, job.clone(), true);
 
-                dbg!(whole.rect, whole.mesh_bounds);
-                dbg!(split.rect, split.mesh_bounds);
-
                 for (i, row) in whole.rows.iter().enumerate() {
                     println!(
                         "Whole row {i}: section_index_at_start={}, first glyph section_index: {:?}",
