@@ -673,7 +673,7 @@ fn galley_from_rows(
 
     if job.round_output_to_gui {
         for placed_row in &mut rows {
-            placed_row.pos = placed_row.pos.round_ui();
+            // NOTE: we round the size, but not the position, because the position should be _pixel_ aligned.
             let row = Arc::make_mut(&mut placed_row.row);
             row.size = row.size.round_ui();
         }
