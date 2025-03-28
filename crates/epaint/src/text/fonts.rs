@@ -617,7 +617,7 @@ pub struct FontsAndCache {
 
 impl FontsAndCache {
     fn layout_job(&mut self, job: LayoutJob) -> Arc<Galley> {
-        self.galley_cache.layout(&mut self.fonts, job)
+        self.galley_cache.layout(&mut self.fonts, job, true)
     }
 }
 
@@ -737,7 +737,12 @@ struct GalleyCache {
 }
 
 impl GalleyCache {
-    fn layout(&mut self, fonts: &mut FontsImpl, mut job: LayoutJob) -> Arc<Galley> {
+    fn layout(
+        &mut self,
+        fonts: &mut FontsImpl,
+        mut job: LayoutJob,
+        allow_split_paragraphs: bool,
+    ) -> Arc<Galley> {
         if job.wrap.max_width.is_finite() {
             // Protect against rounding errors in egui layout code.
 
@@ -767,12 +772,13 @@ impl GalleyCache {
 
         match self.cache.entry(hash) {
             std::collections::hash_map::Entry::Occupied(entry) => {
+                // The job was found in cache - no need to re-layout.
                 let cached = entry.into_mut();
                 cached.last_used = self.generation;
                 cached.galley.clone()
             }
             std::collections::hash_map::Entry::Vacant(entry) => {
-                if should_cache_each_paragraph_individually(&job) {
+                if allow_split_paragraphs && should_cache_each_paragraph_individually(&job) {
                     let galley = self.layout_multiline(fonts, job);
                     let galley = Arc::new(galley);
                     self.cache.insert(
@@ -808,7 +814,7 @@ impl GalleyCache {
                 .map_or(job.text.len(), |i| i + current + 1);
             let start = current;
 
-            let mut line_job = LayoutJob {
+            let mut paragraph_job = LayoutJob {
                 text: job.text[current..end].to_string(),
                 wrap: crate::text::TextWrapping {
                     max_rows: left_max_rows,
@@ -832,7 +838,7 @@ impl GalleyCache {
 
                 debug_assert!(s.byte_range.contains(&current), "Bug in LayoutJob splitter");
                 let section_end = s.byte_range.end.min(end);
-                line_job.sections.push(crate::text::LayoutSection {
+                paragraph_job.sections.push(crate::text::LayoutSection {
                     // Leading space should only be added to the first section
                     // if the there are multiple sections that will be created
                     // from splitting the current section.
@@ -847,7 +853,7 @@ impl GalleyCache {
                 current = section_end;
             }
 
-            let galley = self.layout_component_line(fonts, line_job);
+            let galley = self.layout(fonts, paragraph_job, false);
             // This will prevent us from invalidating cache entries unnecessarily
             if left_max_rows != usize::MAX {
                 left_max_rows -= galley.rows.len();
@@ -867,27 +873,6 @@ impl GalleyCache {
         }
 
         concat_galleys(job, &galleys, fonts.pixels_per_point)
-    }
-
-    fn layout_component_line(&mut self, fonts: &mut FontsImpl, job: LayoutJob) -> Arc<Galley> {
-        let hash = crate::util::hash(&job);
-
-        match self.cache.entry(hash) {
-            std::collections::hash_map::Entry::Occupied(entry) => {
-                let cached = entry.into_mut();
-                cached.last_used = self.generation;
-                cached.galley.clone()
-            }
-            std::collections::hash_map::Entry::Vacant(entry) => {
-                let galley = super::layout(fonts, job.into());
-                let galley = Arc::new(galley);
-                entry.insert(CachedGalley {
-                    last_used: self.generation,
-                    galley: galley.clone(),
-                });
-                galley
-            }
-        }
     }
 
     pub fn num_galleys_in_cache(&self) -> usize {
