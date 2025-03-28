@@ -142,13 +142,13 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 string.push('\n');
             }
 
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
             b.iter(|| {
                 fonts.begin_pass(pixels_per_point, max_texture_side);
 
                 // Delete a random character, simulating a user making an edit in a long file:
                 let mut new_string = string.clone();
-                let idx = rng.gen_range(0..string.len());
+                let idx = rng.random_range(0..string.len());
                 new_string.remove(idx);
 
                 fonts.layout(new_string, font_id.clone(), text_color, wrap_width);
