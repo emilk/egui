@@ -4,7 +4,7 @@ use crate::{
     mutex::{Mutex, MutexGuard},
     text::{
         font::{Font, FontImpl},
-        Galley, LayoutJob,
+        Galley, LayoutJob, LayoutSection,
     },
     TextureAtlas,
 };
@@ -617,7 +617,7 @@ pub struct FontsAndCache {
 
 impl FontsAndCache {
     fn layout_job(&mut self, job: LayoutJob) -> Arc<Galley> {
-        self.galley_cache.layout(&mut self.fonts, job)
+        self.galley_cache.layout(&mut self.fonts, job, true)
     }
 }
 
@@ -737,13 +737,18 @@ struct GalleyCache {
 }
 
 impl GalleyCache {
-    fn layout(&mut self, fonts: &mut FontsImpl, mut job: LayoutJob) -> Arc<Galley> {
+    fn layout(
+        &mut self,
+        fonts: &mut FontsImpl,
+        mut job: LayoutJob,
+        allow_split_paragraphs: bool,
+    ) -> Arc<Galley> {
         if job.wrap.max_width.is_finite() {
             // Protect against rounding errors in egui layout code.
 
             // Say the user asks to wrap at width 200.0.
             // The text layout wraps, and reports that the final width was 196.0 points.
-            // This than trickles up the `Ui` chain and gets stored as the width for a tooltip (say).
+            // This then trickles up the `Ui` chain and gets stored as the width for a tooltip (say).
             // On the next frame, this is then set as the max width for the tooltip,
             // and we end up calling the text layout code again, this time with a wrap width of 196.0.
             // Except, somewhere in the `Ui` chain with added margins etc, a rounding error was introduced,
@@ -767,20 +772,124 @@ impl GalleyCache {
 
         match self.cache.entry(hash) {
             std::collections::hash_map::Entry::Occupied(entry) => {
+                // The job was found in cache - no need to re-layout.
                 let cached = entry.into_mut();
                 cached.last_used = self.generation;
                 cached.galley.clone()
             }
             std::collections::hash_map::Entry::Vacant(entry) => {
-                let galley = super::layout(fonts, job.into());
-                let galley = Arc::new(galley);
-                entry.insert(CachedGalley {
-                    last_used: self.generation,
-                    galley: galley.clone(),
-                });
-                galley
+                let job = Arc::new(job);
+                if allow_split_paragraphs && should_cache_each_paragraph_individually(&job) {
+                    let galley = self.layout_each_paragraph_individuallly(fonts, job);
+                    let galley = Arc::new(galley);
+                    self.cache.insert(
+                        hash,
+                        CachedGalley {
+                            last_used: self.generation,
+                            galley: galley.clone(),
+                        },
+                    );
+                    galley
+                } else {
+                    let galley = super::layout(fonts, job);
+                    let galley = Arc::new(galley);
+                    entry.insert(CachedGalley {
+                        last_used: self.generation,
+                        galley: galley.clone(),
+                    });
+                    galley
+                }
             }
         }
+    }
+
+    /// Split on `\n` and lay out (and cache) each paragraph individually.
+    fn layout_each_paragraph_individuallly(
+        &mut self,
+        fonts: &mut FontsImpl,
+        job: Arc<LayoutJob>,
+    ) -> Galley {
+        profiling::function_scope!();
+
+        let mut start = 0;
+        let mut max_rows_remaining = job.wrap.max_rows;
+        let mut galleys = Vec::new();
+
+        while start < job.text.len() {
+            let is_first_paragraph = start == 0;
+            let end = job.text[start..]
+                .find('\n')
+                .map_or(job.text.len(), |i| start + i + 1);
+
+            let mut paragraph_job = LayoutJob {
+                text: job.text[start..end].to_owned(),
+                wrap: crate::text::TextWrapping {
+                    max_rows: max_rows_remaining,
+                    ..job.wrap
+                },
+                sections: Vec::new(),
+                break_on_newline: job.break_on_newline,
+                halign: job.halign,
+                justify: job.justify,
+                first_row_min_height: if is_first_paragraph {
+                    job.first_row_min_height
+                } else {
+                    0.0
+                },
+                round_output_to_gui: job.round_output_to_gui,
+            };
+
+            // Keep all (previous) sections (so the correct `section_index` is outputted),
+            // but shift their byte ranges:
+            paragraph_job.sections = job
+                .sections
+                .iter()
+                .cloned()
+                .filter_map(|section| {
+                    let LayoutSection {
+                        leading_space,
+                        byte_range,
+                        format,
+                    } = section;
+                    if end <= byte_range.start {
+                        None
+                    } else {
+                        let byte_range = byte_range.start.saturating_sub(start)
+                            ..byte_range.end.saturating_sub(start).min(end - start);
+                        Some(LayoutSection {
+                            leading_space: if byte_range.end == 0 {
+                                0.0 // this sections is behind us (unused in this paragraph)
+                            } else {
+                                leading_space
+                            },
+                            byte_range,
+                            format,
+                        })
+                    }
+                })
+                .collect();
+
+            let galley = self.layout(fonts, paragraph_job, false);
+
+            // This will prevent us from invalidating cache entries unnecessarily:
+            if max_rows_remaining != usize::MAX {
+                max_rows_remaining -= galley.rows.len();
+                // Ignore extra trailing row, see merging `Galley::concat` for more details.
+                if end < job.text.len() && !galley.elided {
+                    max_rows_remaining += 1;
+                }
+            }
+
+            let elided = galley.elided;
+            galleys.push(galley);
+            if elided {
+                break;
+            }
+
+            start = end;
+        }
+
+        Galley::concat(job, &galleys, fonts.pixels_per_point)
     }
 
     pub fn num_galleys_in_cache(&self) -> usize {
@@ -795,6 +904,16 @@ impl GalleyCache {
         });
         self.generation = self.generation.wrapping_add(1);
     }
+}
+
+/// If true, lay out and cache each paragraph (sections separated by newlines) individually.
+///
+/// This makes it much faster to re-lauout the full tet when only a portion of it has changed since last frame, i.e. when editing somewhere in a file with thousands of lines/paragraphs.
+fn should_cache_each_paragraph_individually(job: &LayoutJob) -> bool {
+    // We currently don't support this elided text, i.e. when `max_rows` is set.
+    // Most often, elided text is elided to one row,
+    // and so will always be fast to lay out.
+    job.break_on_newline && job.wrap.max_rows == usize::MAX && job.text.contains('\n')
 }
 
 // ----------------------------------------------------------------------------
@@ -865,5 +984,115 @@ impl FontImplCache {
                 ))
             })
             .clone()
+    }
+}
+
+#[cfg(feature = "default_fonts")]
+#[cfg(test)]
+mod tests {
+    use core::f32;
+
+    use super::*;
+    use crate::{text::TextFormat, Stroke};
+    use ecolor::Color32;
+
+    fn jobs() -> Vec<LayoutJob> {
+        vec![
+            LayoutJob::simple(
+                String::default(),
+                FontId::new(14.0, FontFamily::Monospace),
+                Color32::WHITE,
+                f32::INFINITY,
+            ),
+            LayoutJob::simple(
+                "Simple test.".to_owned(),
+                FontId::new(14.0, FontFamily::Monospace),
+                Color32::WHITE,
+                f32::INFINITY,
+            ),
+            LayoutJob::simple(
+                "This some text that may be long.\nDet kanske också finns lite ÅÄÖ här.".to_owned(),
+                FontId::new(14.0, FontFamily::Proportional),
+                Color32::WHITE,
+                50.0,
+            ),
+            {
+                let mut job = LayoutJob {
+                    first_row_min_height: 20.0,
+                    justify: true,
+                    ..Default::default()
+                };
+                job.append(
+                    "1st paragraph has some leading space.\n",
+                    16.0,
+                    TextFormat {
+                        font_id: FontId::new(14.0, FontFamily::Proportional),
+                        ..Default::default()
+                    },
+                );
+                job.append(
+                    "2nd paragraph has underline and strikthrough, and has some non-ASCII characters:\n ÅÄÖ.",
+                    0.0,
+                    TextFormat {
+                        font_id: FontId::new(15.0, FontFamily::Monospace),
+                        underline: Stroke::new(1.0, Color32::RED),
+                        strikethrough: Stroke::new(1.0, Color32::GREEN),
+                        ..Default::default()
+                    },
+                );
+                job.append(
+                    "3rd paragraph is kind of boring, but has italics.\nAnd a newline",
+                    0.0,
+                    TextFormat {
+                        font_id: FontId::new(10.0, FontFamily::Proportional),
+                        italics: true,
+                        ..Default::default()
+                    },
+                );
+
+                job
+            },
+        ]
+    }
+
+    #[test]
+    fn test_split_paragraphs() {
+        for pixels_per_point in [1.0, 2.0_f32.sqrt(), 2.0] {
+            let max_texture_side = 4096;
+            let mut fonts = FontsImpl::new(
+                pixels_per_point,
+                max_texture_side,
+                FontDefinitions::default(),
+            );
+
+            for job in jobs() {
+                let whole = GalleyCache::default().layout(&mut fonts, job.clone(), false);
+
+                let split = GalleyCache::default().layout(&mut fonts, job.clone(), true);
+
+                for (i, row) in whole.rows.iter().enumerate() {
+                    println!(
+                        "Whole row {i}: section_index_at_start={}, first glyph section_index: {:?}",
+                        row.row.section_index_at_start,
+                        row.row.glyphs.first().map(|g| g.section_index)
+                    );
+                }
+                for (i, row) in split.rows.iter().enumerate() {
+                    println!(
+                        "Split row {i}: section_index_at_start={}, first glyph section_index: {:?}",
+                        row.row.section_index_at_start,
+                        row.row.glyphs.first().map(|g| g.section_index)
+                    );
+                }
+
+                // Don't compare for equaliity; but format with a specific precision and make sure we hit that.
+                similar_asserts::assert_eq!(
+                    format!("{:#.5?}", split),
+                    format!("{:#.5?}", whole),
+                    "pixels_per_point: {pixels_per_point:.2}, input text: '{}'",
+                    job.text
+                );
+            }
+        }
     }
 }

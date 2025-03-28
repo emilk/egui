@@ -58,6 +58,7 @@ serde = { workspace = true, optional = true }
 criterion.workspace = true
 egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }
 egui = { workspace = true, features = ["default_fonts"] }
+rand = "0.9"
 
 [[bench]]
 name = "benchmark"
