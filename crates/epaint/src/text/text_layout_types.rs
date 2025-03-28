@@ -796,13 +796,16 @@ impl Galley {
     /// same as a cursor at the end.
     /// This allows implementing text-selection by dragging above/below the galley.
     pub fn cursor_from_pos(&self, pos: Vec2) -> CCursor {
+        // Vertical margin around galley improves text selection UX
+        const VMARGIN: f32 = 5.0;
+
         if let Some(first_row) = self.rows.first() {
-            if pos.y < first_row.min_y() {
+            if pos.y < first_row.min_y() - VMARGIN {
                 return self.begin();
             }
         }
         if let Some(last_row) = self.rows.last() {
-            if last_row.max_y() < pos.y {
+            if last_row.max_y() + VMARGIN < pos.y {
                 return self.end();
             }
         }
