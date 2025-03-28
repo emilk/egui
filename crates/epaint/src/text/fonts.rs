@@ -991,7 +991,6 @@ mod tests {
     use ecolor::Color32;
 
     fn jobs() -> Vec<LayoutJob> {
-        // TODO: add more tests here with newlines etc
         vec![
             LayoutJob::simple(
                 "Simplest test.".to_owned(),
