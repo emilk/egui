@@ -469,7 +469,7 @@ fn pixel_test_strokes(ui: &mut Ui) {
         let thickness_points = thickness_pixels / pixels_per_point;
         let num_squares = (pixels_per_point * 10.0).round().max(10.0) as u32;
         let size_pixels = vec2(ui.min_size().x, num_squares as f32 + thickness_pixels * 2.0);
-        let size_points = size_pixels / pixels_per_point + Vec2::splat(2.0);
+        let size_points = size_pixels / pixels_per_point;
         let (response, painter) = ui.allocate_painter(size_points, Sense::hover());
 
         let mut cursor_pixel = Pos2::new(
