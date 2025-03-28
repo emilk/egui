@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{pos2, vec2, Galley, Painter, Rect, Ui, Visuals};
 
-use super::CursorRange;
+use super::CCursorRange;
 
 #[derive(Clone, Debug)]
 pub struct RowVertexIndices {
@@ -14,7 +14,7 @@ pub struct RowVertexIndices {
 pub fn paint_text_selection(
     galley: &mut Arc<Galley>,
     visuals: &Visuals,
-    cursor_range: &CursorRange,
+    cursor_range: &CCursorRange,
     mut new_vertex_indices: Option<&mut Vec<RowVertexIndices>>,
 ) {
     if cursor_range.is_empty() {
@@ -27,8 +27,8 @@ pub fn paint_text_selection(
 
     let color = visuals.selection.bg_fill;
     let [min, max] = cursor_range.sorted_cursors();
-    let min = min.rcursor;
-    let max = max.rcursor;
+    let min = galley.layout_from_cursor(min);
+    let max = galley.layout_from_cursor(max);
 
     for ri in min.row..=max.row {
         let row = &mut galley.rows[ri];
@@ -59,7 +59,11 @@ pub fn paint_text_selection(
         // Start by appending the selection rectangle to end of the mesh, as two triangles (= 6 indices):
         let num_indices_before = mesh.indices.len();
         mesh.add_colored_rect(rect, color);
-        assert_eq!(num_indices_before + 6, mesh.indices.len());
+        assert_eq!(
+            num_indices_before + 6,
+            mesh.indices.len(),
+            "We expect exactly 6 new indices"
+        );
 
         // Copy out the new triangles:
         let selection_triangles = [

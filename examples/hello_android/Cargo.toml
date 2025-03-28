@@ -12,11 +12,13 @@ publish = false
 # workspace = true
 
 [lib]
-crate-type = ["cdylib"]
+# cdylib is required for Android, lib is required for desktop
+crate-type = ["cdylib", "lib"]
 
 
 [dependencies]
 eframe = { workspace = true, features = ["default", "android-native-activity"] }
+egui_demo_lib = { workspace = true, features = ["chrono"] }
 
 # For image support:
 egui_extras = { workspace = true, features = ["default", "image"] }
@@ -27,3 +29,7 @@ android_logger = "0.14"
 
 [package.metadata.android]
 build_targets = ["armv7-linux-androideabi", "aarch64-linux-android"]
+
+[package.metadata.android.sdk]
+min_sdk_version = 23
+target_sdk_version = 35

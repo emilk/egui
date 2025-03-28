@@ -92,8 +92,6 @@ impl ColorTest {
 
         ui.label("Test that vertex color times texture color is done in gamma space:");
         ui.scope(|ui| {
-            ui.spacing_mut().item_spacing.y = 0.0; // No spacing between gradients
-
             let tex_color = Color32::from_rgb(64, 128, 255);
             let vertex_color = Color32::from_rgb(128, 196, 196);
             let ground_truth = mul_color_gamma(tex_color, vertex_color);
@@ -106,6 +104,9 @@ impl ColorTest {
                 show_color(ui, vertex_color, color_size);
                 ui.label(" vertex color =");
             });
+
+            ui.spacing_mut().item_spacing.y = 0.0; // No spacing between gradients
+
             {
                 let g = Gradient::one_color(ground_truth);
                 self.vertex_gradient(ui, "Ground truth (vertices)", WHITE, &g);
@@ -125,6 +126,34 @@ impl ColorTest {
                 .on_hover_text(format!("A texture that is {} texels wide", g.0.len()));
                 ui.label("GPU result");
             });
+        });
+
+        ui.separator();
+
+        ui.label("Test that blending is done in gamma space:");
+        ui.scope(|ui| {
+            let background = Color32::from_rgb(200, 60, 10);
+            let foreground = Color32::from_rgba_unmultiplied(108, 65, 200, 82);
+            let ground_truth = background.blend(foreground);
+
+            ui.horizontal(|ui| {
+                let color_size = ui.spacing().interact_size;
+                ui.label("Background:");
+                show_color(ui, background, color_size);
+                ui.label(", foreground: ");
+                show_color(ui, foreground, color_size);
+            });
+            ui.spacing_mut().item_spacing.y = 0.0; // No spacing between gradients
+            {
+                let g = Gradient::one_color(ground_truth);
+                self.vertex_gradient(ui, "Ground truth (vertices)", WHITE, &g);
+                self.tex_gradient(ui, "Ground truth (texture)", WHITE, &g);
+            }
+            {
+                let g = Gradient::one_color(foreground);
+                self.vertex_gradient(ui, "Vertex blending", background, &g);
+                self.tex_gradient(ui, "Texture blending", background, &g);
+            }
         });
 
         ui.separator();
@@ -278,7 +307,10 @@ fn vertex_gradient(ui: &mut Ui, bg_fill: Color32, gradient: &Gradient) -> Respon
     }
     {
         let n = gradient.0.len();
-        assert!(n >= 2);
+        assert!(
+            n >= 2,
+            "A gradient must have at least two colors, but this had {n}"
+        );
         let mut mesh = Mesh::default();
         for (i, &color) in gradient.0.iter().enumerate() {
             let t = i as f32 / (n as f32 - 1.0);
@@ -565,8 +597,14 @@ fn blending_and_feathering_test(ui: &mut Ui) {
 }
 
 fn text_on_bg(ui: &mut egui::Ui, fg: Color32, bg: Color32) {
-    assert!(fg.is_opaque());
-    assert!(bg.is_opaque());
+    assert!(
+        fg.is_opaque(),
+        "Foreground color must be opaque, but was: {fg:?}",
+    );
+    assert!(
+        bg.is_opaque(),
+        "Background color must be opaque, but was: {bg:?}",
+    );
 
     ui.horizontal(|ui| {
         ui.label(

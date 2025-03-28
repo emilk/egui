@@ -1,19 +1,16 @@
 use std::{borrow::Cow, ops::Range};
 
 use epaint::{
-    text::{
-        cursor::{CCursor, PCursor},
-        TAB_SIZE,
-    },
+    text::{cursor::CCursor, TAB_SIZE},
     Galley,
 };
 
-use crate::text_selection::{
-    text_cursor_state::{
+use crate::{
+    text::CCursorRange,
+    text_selection::text_cursor_state::{
         byte_index_from_char_index, ccursor_next_word, ccursor_previous_word, find_line_start,
         slice_char_range,
     },
-    CursorRange,
 };
 
 /// Trait constraining what types [`crate::TextEdit`] may use as
@@ -111,9 +108,9 @@ pub trait TextBuffer {
         }
     }
 
-    fn delete_selected(&mut self, cursor_range: &CursorRange) -> CCursor {
+    fn delete_selected(&mut self, cursor_range: &CCursorRange) -> CCursor {
         let [min, max] = cursor_range.sorted_cursors();
-        self.delete_selected_ccursor_range([min.ccursor, max.ccursor])
+        self.delete_selected_ccursor_range([min, max])
     }
 
     fn delete_selected_ccursor_range(&mut self, [min, max]: [CCursor; 2]) -> CCursor {
@@ -151,36 +148,28 @@ pub trait TextBuffer {
     fn delete_paragraph_before_cursor(
         &mut self,
         galley: &Galley,
-        cursor_range: &CursorRange,
+        cursor_range: &CCursorRange,
     ) -> CCursor {
         let [min, max] = cursor_range.sorted_cursors();
-        let min = galley.from_pcursor(PCursor {
-            paragraph: min.pcursor.paragraph,
-            offset: 0,
-            prefer_next_row: true,
-        });
-        if min.ccursor == max.ccursor {
-            self.delete_previous_char(min.ccursor)
+        let min = galley.cursor_begin_of_paragraph(&min);
+        if min == max {
+            self.delete_previous_char(min)
         } else {
-            self.delete_selected(&CursorRange::two(min, max))
+            self.delete_selected(&CCursorRange::two(min, max))
         }
     }
 
     fn delete_paragraph_after_cursor(
         &mut self,
         galley: &Galley,
-        cursor_range: &CursorRange,
+        cursor_range: &CCursorRange,
     ) -> CCursor {
         let [min, max] = cursor_range.sorted_cursors();
-        let max = galley.from_pcursor(PCursor {
-            paragraph: max.pcursor.paragraph,
-            offset: usize::MAX, // end of paragraph
-            prefer_next_row: false,
-        });
-        if min.ccursor == max.ccursor {
-            self.delete_next_char(min.ccursor)
+        let max = galley.cursor_end_of_paragraph(&max);
+        if min == max {
+            self.delete_next_char(min)
         } else {
-            self.delete_selected(&CursorRange::two(min, max))
+            self.delete_selected(&CCursorRange::two(min, max))
         }
     }
 }
@@ -205,7 +194,10 @@ impl TextBuffer for String {
     }
 
     fn delete_char_range(&mut self, char_range: Range<usize>) {
-        assert!(char_range.start <= char_range.end);
+        assert!(
+            char_range.start <= char_range.end,
+            "start must be <= end, but got {char_range:?}"
+        );
 
         // Get both byte indices
         let byte_start = byte_index_from_char_index(self.as_str(), char_range.start);

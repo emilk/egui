@@ -529,7 +529,7 @@ fn halign_and_justify_row(
         (num_leading_spaces, row.glyphs.len() - num_trailing_spaces)
     };
     let num_glyphs_in_range = glyph_range.1 - glyph_range.0;
-    assert!(num_glyphs_in_range > 0);
+    assert!(num_glyphs_in_range > 0, "Should have at least one glyph");
 
     let original_min_x = row.glyphs[glyph_range.0].logical_rect().min.x;
     let original_max_x = row.glyphs[glyph_range.1 - 1].logical_rect().max.x;
@@ -758,10 +758,10 @@ fn add_row_backgrounds(job: &LayoutJob, row: &Row, mesh: &mut Mesh) {
         return;
     }
 
-    let mut end_run = |start: Option<(Color32, Rect)>, stop_x: f32| {
-        if let Some((color, start_rect)) = start {
+    let mut end_run = |start: Option<(Color32, Rect, f32)>, stop_x: f32| {
+        if let Some((color, start_rect, expand)) = start {
             let rect = Rect::from_min_max(start_rect.left_top(), pos2(stop_x, start_rect.bottom()));
-            let rect = rect.expand(1.0); // looks better
+            let rect = rect.expand(expand);
             mesh.add_colored_rect(rect, color);
         }
     };
@@ -776,18 +776,19 @@ fn add_row_backgrounds(job: &LayoutJob, row: &Row, mesh: &mut Mesh) {
 
         if color == Color32::TRANSPARENT {
             end_run(run_start.take(), last_rect.right());
-        } else if let Some((existing_color, start)) = run_start {
+        } else if let Some((existing_color, start, expand)) = run_start {
             if existing_color == color
                 && start.top() == rect.top()
                 && start.bottom() == rect.bottom()
+                && format.expand_bg == expand
             {
                 // continue the same background rectangle
             } else {
                 end_run(run_start.take(), last_rect.right());
-                run_start = Some((color, rect));
+                run_start = Some((color, rect, format.expand_bg));
             }
         } else {
-            run_start = Some((color, rect));
+            run_start = Some((color, rect, format.expand_bg));
         }
 
         last_rect = rect;
@@ -897,7 +898,10 @@ fn add_hline(point_scale: PointScale, [start, stop]: [Pos2; 2], stroke: Stroke, 
     } else {
         // Thin lines often lost, so this is a bad idea
 
-        assert_eq!(start.y, stop.y);
+        assert_eq!(
+            start.y, stop.y,
+            "Horizontal line must be horizontal, but got: {start:?} -> {stop:?}"
+        );
 
         let min_y = point_scale.round_to_pixel(start.y - 0.5 * stroke.width);
         let max_y = point_scale.round_to_pixel(min_y + stroke.width);

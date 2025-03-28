@@ -82,7 +82,11 @@ impl Default for WrappedTextureManager {
             epaint::FontImage::new([0, 0]).into(),
             Default::default(),
         );
-        assert_eq!(font_id, TextureId::default());
+        assert_eq!(
+            font_id,
+            TextureId::default(),
+            "font id should be equal to TextureId::default(), but was {font_id:?}",
+        );
 
         Self(Arc::new(RwLock::new(tex_mngr)))
     }
@@ -804,7 +808,11 @@ impl Context {
         let max_passes = self.write(|ctx| ctx.memory.options.max_passes.get());
 
         let mut output = FullOutput::default();
-        debug_assert_eq!(output.platform_output.num_completed_passes, 0);
+        debug_assert_eq!(
+            output.platform_output.num_completed_passes, 0,
+            "output must be fresh, but had {} passes",
+            output.platform_output.num_completed_passes
+        );
 
         loop {
             profiling::scope!(
@@ -828,7 +836,11 @@ impl Context {
             self.begin_pass(new_input.take());
             run_ui(self);
             output.append(self.end_pass());
-            debug_assert!(0 < output.platform_output.num_completed_passes);
+            debug_assert!(
+                0 < output.platform_output.num_completed_passes,
+                "Completed passes was lower than 0, was {}",
+                output.platform_output.num_completed_passes
+            );
 
             if !output.platform_output.requested_discard() {
                 break; // no need for another pass
@@ -1480,6 +1492,11 @@ impl Context {
     /// error and do nothing. See <https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts>.
     pub fn copy_image(&self, image: crate::ColorImage) {
         self.send_cmd(crate::OutputCommand::CopyImage(image));
+    }
+
+    /// Set the mouse cursor position (if the platform supports it).
+    pub fn set_pointer_position(&self, position: Pos2) {
+        self.send_cmd(crate::OutputCommand::SetPointerPosition(position));
     }
 
     /// Format the given shortcut in a human-readable way (e.g. `Ctrl+Shift+X`).
@@ -3267,7 +3284,11 @@ impl Context {
         #[cfg(feature = "accesskit")]
         self.pass_state_mut(|fs| {
             if let Some(state) = fs.accesskit_state.as_mut() {
-                assert_eq!(state.parent_stack.pop(), Some(_id));
+                assert_eq!(
+                    state.parent_stack.pop(),
+                    Some(_id),
+                    "Mismatched push/pop in with_accessibility_parent"
+                );
             }
         });
 

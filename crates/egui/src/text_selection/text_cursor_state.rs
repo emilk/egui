@@ -1,13 +1,10 @@
 //! Text cursor changes/interaction, without modifying the text.
 
-use epaint::text::{
-    cursor::{CCursor, Cursor},
-    Galley,
-};
+use epaint::text::{cursor::CCursor, Galley};
 
 use crate::{epaint, NumExt, Rect, Response, Ui};
 
-use super::{CCursorRange, CursorRange};
+use super::CCursorRange;
 
 /// The state of a text cursor selection.
 ///
@@ -16,29 +13,12 @@ use super::{CCursorRange, CursorRange};
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct TextCursorState {
-    cursor_range: Option<CursorRange>,
-
-    /// This is what is easiest to work with when editing text,
-    /// so users are more likely to read/write this.
     ccursor_range: Option<CCursorRange>,
-}
-
-impl From<CursorRange> for TextCursorState {
-    fn from(cursor_range: CursorRange) -> Self {
-        Self {
-            cursor_range: Some(cursor_range),
-            ccursor_range: Some(CCursorRange {
-                primary: cursor_range.primary.ccursor,
-                secondary: cursor_range.secondary.ccursor,
-            }),
-        }
-    }
 }
 
 impl From<CCursorRange> for TextCursorState {
     fn from(ccursor_range: CCursorRange) -> Self {
         Self {
-            cursor_range: None,
             ccursor_range: Some(ccursor_range),
         }
     }
@@ -46,49 +26,17 @@ impl From<CCursorRange> for TextCursorState {
 
 impl TextCursorState {
     pub fn is_empty(&self) -> bool {
-        self.cursor_range.is_none() && self.ccursor_range.is_none()
+        self.ccursor_range.is_none()
     }
 
     /// The currently selected range of characters.
     pub fn char_range(&self) -> Option<CCursorRange> {
-        self.ccursor_range.or_else(|| {
-            self.cursor_range
-                .map(|cursor_range| cursor_range.as_ccursor_range())
-        })
-    }
-
-    pub fn range(&self, galley: &Galley) -> Option<CursorRange> {
-        self.cursor_range
-            .map(|cursor_range| {
-                // We only use the PCursor (paragraph number, and character offset within that paragraph).
-                // This is so that if we resize the [`TextEdit`] region, and text wrapping changes,
-                // we keep the same byte character offset from the beginning of the text,
-                // even though the number of rows changes
-                // (each paragraph can be several rows, due to word wrapping).
-                // The column (character offset) should be able to extend beyond the last word so that we can
-                // go down and still end up on the same column when we return.
-                CursorRange {
-                    primary: galley.from_pcursor(cursor_range.primary.pcursor),
-                    secondary: galley.from_pcursor(cursor_range.secondary.pcursor),
-                }
-            })
-            .or_else(|| {
-                self.ccursor_range.map(|ccursor_range| CursorRange {
-                    primary: galley.from_ccursor(ccursor_range.primary),
-                    secondary: galley.from_ccursor(ccursor_range.secondary),
-                })
-            })
+        self.ccursor_range
     }
 
     /// Sets the currently selected range of characters.
     pub fn set_char_range(&mut self, ccursor_range: Option<CCursorRange>) {
-        self.cursor_range = None;
         self.ccursor_range = ccursor_range;
-    }
-
-    pub fn set_range(&mut self, cursor_range: Option<CursorRange>) {
-        self.cursor_range = cursor_range;
-        self.ccursor_range = None;
     }
 }
 
@@ -100,7 +48,7 @@ impl TextCursorState {
         &mut self,
         ui: &Ui,
         response: &Response,
-        cursor_at_pointer: Cursor,
+        cursor_at_pointer: CCursor,
         galley: &Galley,
         is_being_dragged: bool,
     ) -> bool {
@@ -108,39 +56,33 @@ impl TextCursorState {
 
         if response.double_clicked() {
             // Select word:
-            let ccursor_range = select_word_at(text, cursor_at_pointer.ccursor);
-            self.set_range(Some(CursorRange {
-                primary: galley.from_ccursor(ccursor_range.primary),
-                secondary: galley.from_ccursor(ccursor_range.secondary),
-            }));
+            let ccursor_range = select_word_at(text, cursor_at_pointer);
+            self.set_char_range(Some(ccursor_range));
             true
         } else if response.triple_clicked() {
             // Select line:
-            let ccursor_range = select_line_at(text, cursor_at_pointer.ccursor);
-            self.set_range(Some(CursorRange {
-                primary: galley.from_ccursor(ccursor_range.primary),
-                secondary: galley.from_ccursor(ccursor_range.secondary),
-            }));
+            let ccursor_range = select_line_at(text, cursor_at_pointer);
+            self.set_char_range(Some(ccursor_range));
             true
         } else if response.sense.senses_drag() {
             if response.hovered() && ui.input(|i| i.pointer.any_pressed()) {
                 // The start of a drag (or a click).
                 if ui.input(|i| i.modifiers.shift) {
-                    if let Some(mut cursor_range) = self.range(galley) {
+                    if let Some(mut cursor_range) = self.char_range() {
                         cursor_range.primary = cursor_at_pointer;
-                        self.set_range(Some(cursor_range));
+                        self.set_char_range(Some(cursor_range));
                     } else {
-                        self.set_range(Some(CursorRange::one(cursor_at_pointer)));
+                        self.set_char_range(Some(CCursorRange::one(cursor_at_pointer)));
                     }
                 } else {
-                    self.set_range(Some(CursorRange::one(cursor_at_pointer)));
+                    self.set_char_range(Some(CCursorRange::one(cursor_at_pointer)));
                 }
                 true
             } else if is_being_dragged {
                 // Drag to select text:
-                if let Some(mut cursor_range) = self.range(galley) {
+                if let Some(mut cursor_range) = self.char_range() {
                     cursor_range.primary = cursor_at_pointer;
-                    self.set_range(Some(cursor_range));
+                    self.set_char_range(Some(cursor_range));
                 }
                 true
             } else {
@@ -329,15 +271,20 @@ pub fn byte_index_from_char_index(s: &str, char_index: usize) -> usize {
 }
 
 pub fn slice_char_range(s: &str, char_range: std::ops::Range<usize>) -> &str {
-    assert!(char_range.start <= char_range.end);
+    assert!(
+        char_range.start <= char_range.end,
+        "Invalid range, start must be less than end, but start = {}, end = {}",
+        char_range.start,
+        char_range.end
+    );
     let start_byte = byte_index_from_char_index(s, char_range.start);
     let end_byte = byte_index_from_char_index(s, char_range.end);
     &s[start_byte..end_byte]
 }
 
 /// The thin rectangle of one end of the selection, e.g. the primary cursor, in local galley coordinates.
-pub fn cursor_rect(galley: &Galley, cursor: &Cursor, row_height: f32) -> Rect {
-    let mut cursor_pos = galley.pos_from_cursor(cursor);
+pub fn cursor_rect(galley: &Galley, cursor: &CCursor, row_height: f32) -> Rect {
+    let mut cursor_pos = galley.pos_from_cursor(*cursor);
 
     // Handle completely empty galleys
     cursor_pos.max.y = cursor_pos.max.y.at_least(cursor_pos.min.y + row_height);

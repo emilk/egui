@@ -166,12 +166,14 @@ impl State {
     #[cfg(feature = "accesskit")]
     pub fn init_accesskit<T: From<accesskit_winit::Event> + Send>(
         &mut self,
+        event_loop: &ActiveEventLoop,
         window: &Window,
         event_loop_proxy: winit::event_loop::EventLoopProxy<T>,
     ) {
         profiling::function_scope!();
 
         self.accesskit = Some(accesskit_winit::Adapter::with_event_loop_proxy(
+            event_loop,
             window,
             event_loop_proxy,
         ));
@@ -727,7 +729,7 @@ impl State {
             // When telling users "Press Ctrl-F to find", this is where we should
             // look for the "F" key, because they may have a dvorak layout on
             // a qwerty keyboard, and so the logical "F" character may not be located on the physical `KeyCode::KeyF` position.
-            logical_key,
+            logical_key: winit_logical_key,
 
             text,
 
@@ -746,7 +748,7 @@ impl State {
             None
         };
 
-        let logical_key = key_from_winit_key(logical_key);
+        let logical_key = key_from_winit_key(winit_logical_key);
 
         // Helpful logging to enable when adding new key support
         log::trace!(
@@ -789,7 +791,11 @@ impl State {
             });
         }
 
-        if let Some(text) = &text {
+        if let Some(text) = text
+            .as_ref()
+            .map(|t| t.as_str())
+            .or_else(|| winit_logical_key.to_text())
+        {
             // Make sure there is text, and that it is not control characters
             // (e.g. delete is sent as "\u{f728}" on macOS).
             if !text.is_empty() && text.chars().all(is_printable_char) {
@@ -803,7 +809,7 @@ impl State {
                 if pressed && !is_cmd {
                     self.egui_input
                         .events
-                        .push(egui::Event::Text(text.to_string()));
+                        .push(egui::Event::Text(text.to_owned()));
                 }
             }
         }
@@ -849,6 +855,9 @@ impl State {
                 }
                 egui::OutputCommand::OpenUrl(open_url) => {
                     open_url_in_browser(&open_url.url);
+                }
+                egui::OutputCommand::SetPointerPosition(egui::Pos2 { x, y }) => {
+                    let _ = window.set_cursor_position(winit::dpi::LogicalPosition { x, y });
                 }
             }
         }
@@ -1610,6 +1619,7 @@ pub fn create_winit_window_attributes(
 
         // macOS:
         fullsize_content_view: _fullsize_content_view,
+        movable_by_window_background: _movable_by_window_background,
         title_shown: _title_shown,
         titlebar_buttons_shown: _titlebar_buttons_shown,
         titlebar_shown: _titlebar_shown,
@@ -1756,7 +1766,8 @@ pub fn create_winit_window_attributes(
             .with_title_hidden(!_title_shown.unwrap_or(true))
             .with_titlebar_buttons_hidden(!_titlebar_buttons_shown.unwrap_or(true))
             .with_titlebar_transparent(!_titlebar_shown.unwrap_or(true))
-            .with_fullsize_content_view(_fullsize_content_view.unwrap_or(false));
+            .with_fullsize_content_view(_fullsize_content_view.unwrap_or(false))
+            .with_movable_by_window_background(_movable_by_window_background.unwrap_or(false));
     }
 
     window_attributes
