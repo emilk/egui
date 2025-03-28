@@ -816,13 +816,13 @@ impl GalleyCache {
 
         while current < job.text.len() {
             let is_first_paragraph = current == 0;
-            let end = job.text[current..]
-                .find('\n')
-                .map_or(job.text.len(), |i| current + i + 1);
             let start = current;
+            let end = job.text[start..]
+                .find('\n')
+                .map_or(job.text.len(), |i| start + i + 1);
 
             let mut paragraph_job = LayoutJob {
-                text: job.text[current..end].to_owned(),
+                text: job.text[start..end].to_owned(),
                 wrap: crate::text::TextWrapping {
                     max_rows: max_rows_remaining,
                     ..job.wrap
@@ -993,7 +993,13 @@ mod tests {
     fn jobs() -> Vec<LayoutJob> {
         vec![
             LayoutJob::simple(
-                "Simplest test.".to_owned(),
+                String::default(),
+                FontId::new(14.0, FontFamily::Monospace),
+                Color32::WHITE,
+                f32::INFINITY,
+            ),
+            LayoutJob::simple(
+                "Simple test.".to_owned(),
                 FontId::new(14.0, FontFamily::Monospace),
                 Color32::WHITE,
                 f32::INFINITY,
@@ -1020,7 +1026,7 @@ mod tests {
                     },
                 );
                 job.append(
-                    "The second paragraph has underline and strikthrough, and has some non-ASCII characters: ÅÄÖ.",
+                    "The second paragraph has underline and strikthrough, and has some non-ASCII characters:\n ÅÄÖ.",
                     0.0,
                     TextFormat {
                         font_id: FontId::new(15.0, FontFamily::Monospace),
@@ -1030,7 +1036,7 @@ mod tests {
                     },
                 );
                 job.append(
-                    "The last paragraph is kind of boring, bust has italics.",
+                    "The last paragraph is kind of boring, but has italics.\nAnd a newline",
                     0.0,
                     TextFormat {
                         font_id: FontId::new(10.0, FontFamily::Proportional),
