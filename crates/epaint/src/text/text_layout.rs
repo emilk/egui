@@ -866,7 +866,8 @@ fn add_row_hline(
     let mut last_right_x = f32::NAN;
 
     for glyph in &row.glyphs {
-        let (stroke, y) = stroke_and_y(glyph);
+        let (stroke, mut y) = stroke_and_y(glyph);
+        stroke.round_center_to_pixel(point_scale.pixels_per_point, &mut y);
 
         if stroke == Stroke::NONE {
             end_line(line_start.take(), last_right_x);
