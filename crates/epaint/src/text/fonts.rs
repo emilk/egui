@@ -802,7 +802,7 @@ impl GalleyCache {
         let mut left_max_rows = job.wrap.max_rows;
         let mut galleys = Vec::new();
         let mut first_row_min_height = job.first_row_min_height;
-        while current != job.text.len() {
+        while current < job.text.len() {
             let end = job.text[current..]
                 .find('\n')
                 .map_or(job.text.len(), |i| i + current + 1);
@@ -830,7 +830,7 @@ impl GalleyCache {
                     s = &job.sections[current_section];
                 }
 
-                assert!(s.byte_range.contains(&current));
+                debug_assert!(s.byte_range.contains(&current), "Bug in LayoutJob splitter");
                 let section_end = s.byte_range.end.min(end);
                 line_job.sections.push(crate::text::LayoutSection {
                     // Leading space should only be added to the first section
@@ -937,7 +937,7 @@ fn concat_galleys(job: LayoutJob, galleys: &[Arc<Galley>], pixels_per_point: f32
         let is_last_row = i + 1 == galleys.len();
         if !is_last_row && !galley.elided {
             let popped = rows.next_back();
-            debug_assert_eq!(popped.unwrap().row.glyphs.len(), 0);
+            debug_assert_eq!(popped.unwrap().row.glyphs.len(), 0, "Bug in concat_galleys");
         }
 
         merged_galley.rows.extend(rows.map(|placed_row| {
