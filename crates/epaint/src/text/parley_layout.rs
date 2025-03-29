@@ -20,7 +20,8 @@ fn render_decoration(
     offset: (f32, f32),
     stroke: Stroke,
 ) {
-    let y = run.baseline() + offset.1;
+    let mut y = run.baseline() + offset.1;
+    stroke.round_center_to_pixel(pixels_per_point, &mut y);
     let x_start = run.offset() + offset.0;
     let x_end = x_start + run.advance();
 
@@ -252,8 +253,6 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
                     mesh.add_rect_with_uv(rect, uv, color);
                 }
 
-                // TODO(valadaptive): feathering makes this really blurry sometimes, and the underline is sometimes
-                // not a full pixel under the text. Maybe just use the rounded glyph position?
                 if let Some(underline) = &run.style().underline {
                     let offset = underline.offset.unwrap_or(run_metrics.underline_offset);
                     let size = underline.size.unwrap_or(run_metrics.underline_size);
