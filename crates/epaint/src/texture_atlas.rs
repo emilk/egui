@@ -290,8 +290,6 @@ impl TextureAtlas {
         self.overflowed = false;
         self.discs.clear();
         self.initialize();
-
-        // TODO(valadaptive): reset to initial size?
     }
 }
 
