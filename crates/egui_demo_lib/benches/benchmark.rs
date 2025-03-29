@@ -94,18 +94,15 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let pixels_per_point = 1.0;
         let max_texture_side = 8 * 1024;
         let wrap_width = 512.0;
-        let font_id = egui::FontId::default();
+        let font_id = egui::text::style::FontId::default();
         let text_color = egui::Color32::WHITE;
-        let fonts = egui::epaint::text::Fonts::new(
-            pixels_per_point,
-            max_texture_side,
-            egui::FontDefinitions::default(),
-        );
+        let mut fonts =
+            egui::epaint::text::FontStore::new(max_texture_side, egui::FontDefinitions::default());
+        let mut fonts = fonts.with_pixels_per_point(pixels_per_point);
         {
-            let mut locked_fonts = fonts.lock();
             c.bench_function("text_layout_uncached", |b| {
                 b.iter(|| {
-                    use egui::epaint::text::{layout, LayoutJob};
+                    use egui::epaint::text::LayoutJob;
 
                     let job = LayoutJob::simple(
                         LOREM_IPSUM_LONG.to_owned(),
@@ -113,7 +110,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                         text_color,
                         wrap_width,
                     );
-                    layout(&mut locked_fonts.fonts, job.into())
+                    fonts.layout_job_uncached(job);
                 });
             });
         }
@@ -130,7 +127,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
         let galley = fonts.layout(LOREM_IPSUM_LONG.to_owned(), font_id, text_color, wrap_width);
         let font_image_size = fonts.font_image_size();
-        let prepared_discs = fonts.texture_atlas().lock().prepared_discs();
+        let prepared_discs = fonts.texture_atlas().prepared_discs();
         let mut tessellator = egui::epaint::Tessellator::new(
             1.0,
             Default::default(),

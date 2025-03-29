@@ -9,7 +9,7 @@ mod mutex_impl {
     /// This is a thin wrapper around [`parking_lot::Mutex`], except if
     /// the feature `deadlock_detection` is turned enabled, in which case
     /// extra checks are added to detect deadlocks.
-    #[derive(Default)]
+    #[derive(Default, Debug)]
     pub struct Mutex<T>(parking_lot::Mutex<T>);
 
     /// The lock you get from [`Mutex`].
@@ -35,7 +35,7 @@ mod mutex_impl {
     /// This is a thin wrapper around [`parking_lot::Mutex`], except if
     /// the feature `deadlock_detection` is turned enabled, in which case
     /// extra checks are added to detect deadlocks.
-    #[derive(Default)]
+    #[derive(Default, Debug)]
     pub struct Mutex<T>(parking_lot::Mutex<T>);
 
     /// The lock you get from [`Mutex`].

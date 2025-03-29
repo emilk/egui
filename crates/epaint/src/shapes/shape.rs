@@ -6,8 +6,8 @@ use emath::{pos2, Align2, Pos2, Rangef, Rect, TSTransform, Vec2};
 
 use crate::{
     stroke::PathStroke,
-    text::{FontId, Fonts, Galley},
-    Color32, CornerRadius, Mesh, Stroke, StrokeKind, TextureId,
+    text::{style::FontId, Galley},
+    Color32, CornerRadius, Fonts, Mesh, Stroke, StrokeKind, TextureId,
 };
 
 use super::{
@@ -23,7 +23,7 @@ use super::{
 /// [`Shape::Text`] depends on the current `pixels_per_point` (dpi scale)
 /// and so must be recreated every time `pixels_per_point` changes.
 #[must_use = "Add a Shape to a Painter"]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum Shape {
     /// Paint nothing. This can be useful as a placeholder.
     Noop,
@@ -298,7 +298,7 @@ impl Shape {
 
     #[allow(clippy::needless_pass_by_value)]
     pub fn text(
-        fonts: &Fonts,
+        fonts: &mut Fonts<'_>,
         pos: Pos2,
         anchor: Align2,
         text: impl ToString,
@@ -464,6 +464,11 @@ impl Shape {
                     row.visuals.mesh_bounds = transform.scaling * row.visuals.mesh_bounds;
                     for v in &mut row.visuals.mesh.vertices {
                         v.pos = Pos2::new(transform.scaling * v.pos.x, transform.scaling * v.pos.y);
+                    }
+                    if let Some(rects) = &mut row.visuals.selection_rects {
+                        for rect in rects {
+                            *rect = transform.scaling * *rect;
+                        }
                     }
                 }
 

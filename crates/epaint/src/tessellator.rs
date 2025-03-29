@@ -2010,8 +2010,11 @@ impl Tessellator {
             println!("{warn}");
         }
 
-        out.vertices.reserve(galley.num_vertices);
-        out.indices.reserve(galley.num_indices);
+        let num_vertices = galley.num_vertices;
+        let num_indices = galley.num_indices;
+
+        out.vertices.reserve(num_vertices);
+        out.indices.reserve(num_indices);
 
         // The contents of the galley are already snapped to pixel coordinates,
         // but we need to make sure the galley ends up on the start of a physical pixel:
@@ -2045,13 +2048,71 @@ impl Tessellator {
                 continue;
             }
 
-            let index_offset = out.vertices.len() as u32;
+            let mut post_selection_index_start = 0;
+            let mut index_offset = out.vertices.len() as u32;
+
+            if let Some(selection_rects) = &row.visuals.selection_rects {
+                // Paint the selection above the background but below the text.
+                index_offset += (selection_rects.len() * 4) as u32;
+                // We're drawing the background here, so only draw the foreground later.
+                post_selection_index_start = row.visuals.glyph_index_start;
+
+                out.indices.extend(
+                    row.visuals
+                        .mesh
+                        .indices
+                        .iter()
+                        .take(post_selection_index_start)
+                        // We know how many vertices the selection rectangles will take up, and since we're adding the
+                        // selection vertices first and the row vertices all at once, we should add that to the index
+                        // offset here too.
+                        .map(|index| index + index_offset),
+                );
+
+                if *angle == 0.0 {
+                    for rect in selection_rects {
+                        out.add_colored_rect(
+                            rect.translate(galley_pos.to_vec2()),
+                            galley.selection_color,
+                        );
+                    }
+                } else {
+                    for rect in selection_rects {
+                        // We don't feather the background so let's not feather the selection either.
+                        fill_closed_path(
+                            0.0,
+                            &mut [
+                                PathPoint {
+                                    pos: galley_pos + (rotator * rect.left_top().to_vec2()),
+                                    normal: Vec2::ZERO,
+                                },
+                                PathPoint {
+                                    pos: galley_pos + (rotator * rect.right_top().to_vec2()),
+                                    normal: Vec2::ZERO,
+                                },
+                                PathPoint {
+                                    pos: galley_pos + (rotator * rect.right_bottom().to_vec2()),
+                                    normal: Vec2::ZERO,
+                                },
+                                PathPoint {
+                                    pos: galley_pos + (rotator * rect.left_bottom().to_vec2()),
+                                    normal: Vec2::ZERO,
+                                },
+                            ],
+                            galley.selection_color,
+                            out,
+                        );
+                    }
+                }
+            }
 
             out.indices.extend(
                 row.visuals
                     .mesh
                     .indices
                     .iter()
+                    // If there was a selection, we start from the foreground vertices. Otherwise, we start from zero.
+                    .skip(post_selection_index_start)
                     .map(|index| index + index_offset),
             );
 
