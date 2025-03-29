@@ -3949,7 +3949,7 @@ dependencies = [
 [[package]]
 name = "swash"
 version = "0.2.1"
-source = "git+https://github.com/valadaptive/swash?branch=tight-bounds#059903eb7175c6a0a838fc1e4b7d445150cfe7d9"
+source = "git+https://github.com/valadaptive/swash?branch=tight-bounds#2a6429fb81b692d7345a78986354f939f424d1f3"
 dependencies = [
  "skrifa",
  "yazi",

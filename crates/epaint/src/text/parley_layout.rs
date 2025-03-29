@@ -154,9 +154,9 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
         Some(alignment_width),
         match (justify, job.halign) {
             (true, _) => parley::Alignment::Justified,
-            (false, emath::Align::Min) => parley::Alignment::Start,
+            (false, emath::Align::Min) => parley::Alignment::Left,
             (false, emath::Align::Center) => parley::Alignment::Middle,
-            (false, emath::Align::Max) => parley::Alignment::End,
+            (false, emath::Align::Max) => parley::Alignment::Right,
         },
         AlignmentOptions::default(),
     );
