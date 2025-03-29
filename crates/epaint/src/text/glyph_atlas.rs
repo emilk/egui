@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 
-use ahash::HashMapExt;
 use ecolor::Color32;
 use emath::{vec2, OrderedFloat, Vec2};
 use parley::{Glyph, GlyphRun};
@@ -160,19 +159,23 @@ pub(super) struct GlyphAtlas {
     /// avoids a bunch of gnarly lifetime issues.
     style_ids: ahash::HashMap<StyleKey<'static>, u32>,
     next_style_id: u32,
+    /// Cache of rendered glyph bitmaps. Also stores `None` for certain glyphs if they're blank.
     rendered_glyphs: ahash::HashMap<GlyphKey, Option<RenderedGlyph>>,
     /// Map of [`parley::fontique::Blob`] ID + [`parley::Font`] indexes to [`swash::FontRef`] offsets and cache keys.
     swash_keys: ahash::HashMap<(u64, u32), (swash::CacheKey, u32)>,
+    /// Scratch image buffer, used to write bitmap data into.
+    scratch: swash::scale::image::Image,
 }
 
 impl GlyphAtlas {
     pub(super) fn new() -> Self {
         Self {
-            scale_context: swash::scale::ScaleContext::new(),
-            style_ids: ahash::HashMap::new(),
+            scale_context: Default::default(),
+            style_ids: Default::default(),
             next_style_id: 0,
-            rendered_glyphs: ahash::HashMap::new(),
-            swash_keys: ahash::HashMap::new(),
+            rendered_glyphs: Default::default(),
+            swash_keys: Default::default(),
+            scratch: Default::default(),
         }
     }
 
@@ -232,6 +235,7 @@ impl GlyphAtlas {
             .hint(hinting_enabled)
             .build();
         let rendered_glyphs = &mut self.rendered_glyphs;
+        let image = &mut self.scratch;
         let color = glyph_run.style().brush;
 
         // TODO(valadaptive): there's also a faux embolden property, but it's always true with the defaut font because
@@ -282,7 +286,9 @@ impl GlyphAtlas {
                 );
             }
             let offset = zeno::Vector::new(cache_key.x.as_float(), 0.0);
-            let Some(image) = swash::scale::Render::new(&[
+
+            image.clear();
+            let did_render = swash::scale::Render::new(&[
                 swash::scale::Source::ColorOutline(0),
                 swash::scale::Source::ColorBitmap(swash::scale::StrikeWith::BestFit),
                 swash::scale::Source::Outline,
@@ -292,7 +298,9 @@ impl GlyphAtlas {
             }))
             .format(swash::zeno::Format::Alpha)
             .offset(offset)
-            .render(&mut scaler, glyph.id) else {
+            .render_into(&mut scaler, glyph.id, image);
+
+            if !did_render {
                 rendered_glyphs.insert(cache_key, None);
                 return (glyph, None, (x, y), color);
             };
