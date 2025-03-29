@@ -105,7 +105,6 @@ pub fn cursor_rect(galley: &Galley, cursor: &ByteCursor, row_height: f32) -> Rec
     let mut cursor_pos = galley.pos_from_cursor(*cursor);
 
     // Handle completely empty galleys
-    // TODO(valadaptive): had to adjust this because Parley's row height is less than egui's. Is this necessary anymore?
     if cursor_pos.height() < 1.0 {
         cursor_pos.max.y = cursor_pos.max.y.at_least(cursor_pos.min.y + row_height);
     }

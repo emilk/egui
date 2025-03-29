@@ -238,13 +238,14 @@ impl GlyphAtlas {
         let image = &mut self.scratch;
         let color = glyph_run.style().brush;
 
-        // TODO(valadaptive): there's also a faux embolden property, but it's always true with the defaut font because
-        // it's "light" and we technically asked for "normal"
+        // There's also a faux embolden property, but it's always true with the default font because it's "light" and we
+        // technically asked for "normal", so we can't use it
         let skew = run.synthesis().skew();
 
         let style_key = StyleKey::<'b>::new(
             font_id,
             size,
+            // Parley stores skew as an i8 internally, so it's fine to convert it back into one
             skew.unwrap_or_default() as i8,
             hinting_enabled,
             normalized_coords,

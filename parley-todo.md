@@ -13,6 +13,7 @@
 - [ ] Support the tab character (https://github.com/linebender/parley/issues/302)
 - [ ] AccessKit improvements (https://github.com/linebender/parley/issues/310)
 - [ ] Not Parley, but Swash: tighter glyph bounds (https://github.com/dfrg/zeno/pull/15)
+- [ ] SystemUi doesn't properly fallback in some cases (e.g. Arabic text, macOS shortcut symbols) on my machine; SansSerif does (https://github.com/linebender/parley/issues/323)
 
 ## Here:
 - [ ] Text layout
@@ -30,9 +31,15 @@
   - [ ] `LayoutJob::break_on_newline`
   - [ ] RTL considerations
     - [ ] Label wrapping only occurs in LTR layouts, but make sure it doesn't do anything weird with RTL labels
-    - [ ] Text is right-justified if a label is split in the middle of RTL text
+    - [ ] Do label wrapping in RTL too?
+    - [x] Text is right-justified if a label is split in the middle of RTL text, or if a line contains only an RTL label
       - This may be desirable behavior, but is weird
+      - Whoops; we asked Parley for RTL-aware behavior and got it
     - [ ] overflow_character should appear at the "start" of the line for RTL text
+    - [ ] RTL support for `egui::Align`
+  - [ ] Once Parley has vertical alignment, remove the hack for leading_space/first_row_min_height
+  - [ ] Align multiple consecutive labels to the same baseline, even with different fonts
+  - [ ] Line height discrepancy between old and new layout (Parley line height is just the font size)
 - [ ] Text rendering
   - [x] Investigate whether swash is being too conservative with its shape bounds and cutting off rendered glyphs
     - The reverse is true https://github.com/dfrg/zeno/pull/15
@@ -52,12 +59,13 @@
     - Forgot to clear the glyph atlas
 - [ ] Text selection and editing
   - [x] Unify the three different cursor types and move to a Parley-like API before moving to the actual Parley API (done)
-  - [ ] Rewrite selection code to use parley's API
+  - [x] Rewrite selection code to use parley's API
     - [x] Basic API mapping (done)
     - [x] Selection painting (done but kinda janky)
-    - [ ] Probably rework label_text_selection (does it take bidirectional text into account?)
+    - [x] Probably rework label_text_selection (does it take bidirectional text into account?)
       - [x] Still some jank when the cursor is kinda below the first label and it selects the "rest of the line" (fixed)
-      - [ ] Make it support bidirectional text (fun!)
+      - [x] Make it support bidirectional text (fun!)
+        - I think this... just works already?
     - [x] finish the gnarly parts that i've been putting off
       - [x] indentation (done, but untested because parley's tab character support is broken)
       - [x] selecting a range without having a Galley rendered already (done)
@@ -68,6 +76,7 @@
   - [ ] Do another pass over TextBuffer's API
   - [ ] Test IME support
   - [ ] Smoothe out AccessKit API integration (and reduce temp allocations)
+  - [ ] Test AccessKit text bounding boxes (horiz_offset for alignment and vertical_offset for wrapped labels working)
 - [ ] Text styling
   - [x] Fix FontDefinitions and adding fonts
     - [x] Get fallback/ordering working properly
@@ -99,13 +108,8 @@
   - [ ] Smoothe out the janky parts of the new API
     - [ ] For mixed-DPI purposes, and because we don't need to store the FontStore as a mutex, ctx.fonts() now returns a "fonts view" that's technically read/write. But there are no operations that *semantically* modify the fonts from it
     - [ ] FontStore and Fonts are different and we should just expose them separately instead of passing through all the FontStore methods onto Fonts
-  - [ ] SystemUi doesn't properly fallback in some cases (e.g. Arabic text, macOS shortcut symbols) on my machine; SansSerif does
   - [ ] Work around https://github.com/jslegers/emoji-icon-font/issues/18 / https://github.com/emilk/egui/issues/1284
-- [ ] Cross-cutting concerns
-  - [ ] Global/scoped RTL? Do we get bidirectional support for free if we use Parley's APIs?
-    - [ ] RTL support for `egui::Align`
-    - [ ] RTL/bidi support for cross-label text selection
-    - [ ] RTL support for cross-label text wrapping
+- [x] Cross-cutting concerns
   - [x] Actually remove all the ab_glyph stuff
     - Sayonara, ab_glyph 🫡
 - [ ] Perf optimizations!
@@ -113,6 +117,7 @@
   - [ ] https://github.com/emilk/egui/issues/1098
   - [ ] Line-level layout memoization (https://github.com/emilk/egui/pull/5411)
 - [ ] The other 90%
+  - [ ] Comment the new code better
   - [ ] update All Of The Doctests...
   - [ ] Go over APIs and clean them up
   - [ ] New documentation for the new APIs
