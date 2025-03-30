@@ -617,7 +617,9 @@ pub struct FontsAndCache {
 
 impl FontsAndCache {
     fn layout_job(&mut self, job: LayoutJob) -> Arc<Galley> {
-        self.galley_cache.layout(&mut self.fonts, job, true)
+        let allow_split_paragraphs = true; // Optimization for editing text with many paragraphs.
+        self.galley_cache
+            .layout(&mut self.fonts, job, allow_split_paragraphs)
     }
 }
 
