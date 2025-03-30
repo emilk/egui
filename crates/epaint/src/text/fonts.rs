@@ -905,7 +905,6 @@ impl GalleyCache {
             start = end;
         }
 
-        // TODO: adjust section_index in the concatted galley
         Galley::concat(job, &galleys, fonts.pixels_per_point)
     }
 
