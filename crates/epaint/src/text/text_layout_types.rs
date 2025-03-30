@@ -763,6 +763,95 @@ impl Galley {
     pub fn size(&self) -> Vec2 {
         self.rect.size()
     }
+
+    pub(crate) fn round_output_to_gui(&mut self) {
+        for placed_row in &mut self.rows {
+            // NOTE: we round the size, but not the position, because the position should be _pixel_ aligned.
+            let row = Arc::make_mut(&mut placed_row.row);
+            row.size = row.size.round_ui();
+        }
+
+        let rect = &mut self.rect;
+
+        let did_exceed_wrap_width_by_a_lot = rect.width() > self.job.wrap.max_width + 1.0;
+
+        *rect = rect.round_ui();
+
+        if did_exceed_wrap_width_by_a_lot {
+            // If the user picked a too aggressive wrap width (e.g. more narrow than any individual glyph),
+            // we should let the user know by reporting that our width is wider than the wrap width.
+        } else {
+            // Make sure we don't report being wider than the wrap width the user picked:
+            rect.max.x = rect
+                .max
+                .x
+                .at_most(rect.min.x + self.job.wrap.max_width)
+                .floor_ui();
+        }
+    }
+
+    /// Append each galley under the previous one.
+    pub fn concat(job: Arc<LayoutJob>, galleys: &[Arc<Self>], pixels_per_point: f32) -> Self {
+        let mut merged_galley = Self {
+            job,
+            rows: Vec::new(),
+            elided: false,
+            rect: Rect::ZERO,
+            mesh_bounds: Rect::NOTHING,
+            num_vertices: 0,
+            num_indices: 0,
+            pixels_per_point,
+        };
+
+        for (i, galley) in galleys.iter().enumerate() {
+            let current_y_offset = merged_galley.rect.height();
+
+            let mut rows = galley.rows.iter();
+            // As documented in `Row::ends_with_newline`, a '\n' will always create a
+            // new `Row` immediately below the current one. Here it doesn't make sense
+            // for us to append this new row so we just ignore it.
+            let is_last_row = i + 1 == galleys.len();
+            if !is_last_row && !galley.elided {
+                let popped = rows.next_back();
+                debug_assert_eq!(popped.unwrap().row.glyphs.len(), 0, "Bug in Galley::concat");
+            }
+
+            merged_galley.rows.extend(rows.map(|placed_row| {
+                let new_pos = placed_row.pos + current_y_offset * Vec2::Y;
+                let new_pos = new_pos.round_to_pixels(pixels_per_point);
+                merged_galley.mesh_bounds = merged_galley
+                    .mesh_bounds
+                    .union(placed_row.visuals.mesh_bounds.translate(new_pos.to_vec2()));
+                merged_galley.rect = merged_galley
+                    .rect
+                    .union(Rect::from_min_size(new_pos, placed_row.size));
+
+                super::PlacedRow {
+                    row: placed_row.row.clone(),
+                    pos: new_pos,
+                }
+            }));
+
+            merged_galley.num_vertices += galley.num_vertices;
+            merged_galley.num_indices += galley.num_indices;
+            // Note that if `galley.elided` is true this will be the last `Galley` in
+            // the vector and the loop will end.
+            merged_galley.elided |= galley.elided;
+        }
+
+        for placed in &mut merged_galley.rows {
+            let row = Arc::make_mut(&mut placed.row);
+            if let Some(first_glyph) = row.glyphs.first_mut() {
+                row.section_index_at_start = first_glyph.section_index;
+            }
+        }
+
+        if merged_galley.job.round_output_to_gui {
+            merged_galley.round_output_to_gui();
+        }
+
+        merged_galley
+    }
 }
 
 impl AsRef<str> for Galley {
@@ -868,68 +957,6 @@ impl Galley {
         }
 
         cursor
-    }
-
-    /// Append each galley under the previous one.
-    pub fn concat(job: Arc<LayoutJob>, galleys: &[Arc<Self>], pixels_per_point: f32) -> Self {
-        let mut merged_galley = Self {
-            job,
-            rows: Vec::new(),
-            elided: false,
-            rect: Rect::ZERO,
-            mesh_bounds: Rect::NOTHING,
-            num_vertices: 0,
-            num_indices: 0,
-            pixels_per_point,
-        };
-
-        for (i, galley) in galleys.iter().enumerate() {
-            let current_y_offset = merged_galley.rect.height();
-
-            let mut rows = galley.rows.iter();
-            // As documented in `Row::ends_with_newline`, a '\n' will always create a
-            // new `Row` immediately below the current one. Here it doesn't make sense
-            // for us to append this new row so we just ignore it.
-            let is_last_row = i + 1 == galleys.len();
-            if !is_last_row && !galley.elided {
-                let popped = rows.next_back();
-                debug_assert_eq!(popped.unwrap().row.glyphs.len(), 0, "Bug in Galley::concat");
-            }
-
-            merged_galley.rows.extend(rows.map(|placed_row| {
-                let new_pos = placed_row.pos + current_y_offset * Vec2::Y;
-                let new_pos = new_pos.round_to_pixels(pixels_per_point);
-                merged_galley.mesh_bounds = merged_galley
-                    .mesh_bounds
-                    .union(placed_row.visuals.mesh_bounds.translate(new_pos.to_vec2()));
-                merged_galley.rect = merged_galley
-                    .rect
-                    .union(Rect::from_min_size(new_pos, placed_row.size));
-
-                super::PlacedRow {
-                    row: placed_row.row.clone(),
-                    pos: new_pos,
-                }
-            }));
-
-            merged_galley.num_vertices += galley.num_vertices;
-            merged_galley.num_indices += galley.num_indices;
-            // Note that if `galley.elided` is true this will be the last `Galley` in
-            // the vector and the loop will end.
-            merged_galley.elided |= galley.elided;
-        }
-
-        for placed in &mut merged_galley.rows {
-            let row = Arc::make_mut(&mut placed.row);
-            if let Some(first_glyph) = row.glyphs.first_mut() {
-                row.section_index_at_start = first_glyph.section_index;
-            }
-        }
-
-        if merged_galley.job.round_output_to_gui {
-            super::round_output_to_gui(&mut merged_galley.rect, &merged_galley.job);
-        }
-        merged_galley
     }
 }
 

@@ -860,7 +860,7 @@ impl GalleyCache {
                             ..byte_range.end.saturating_sub(start).min(end - start);
                         Some(LayoutSection {
                             leading_space: if byte_range.end == 0 {
-                                0.0 // this sections is behind us (unused in this paragraph)
+                                0.0 // this section is behind us (unused in this paragraph)
                             } else {
                                 leading_space
                             },

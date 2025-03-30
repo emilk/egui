@@ -669,18 +669,9 @@ fn galley_from_rows(
         }
     }
 
-    let mut rect = Rect::from_min_max(pos2(min_x, 0.0), pos2(max_x, cursor_y));
+    let rect = Rect::from_min_max(pos2(min_x, 0.0), pos2(max_x, cursor_y));
 
-    if job.round_output_to_gui {
-        for placed_row in &mut rows {
-            // NOTE: we round the size, but not the position, because the position should be _pixel_ aligned.
-            let row = Arc::make_mut(&mut placed_row.row);
-            row.size = row.size.round_ui();
-        }
-        round_output_to_gui(&mut rect, &job);
-    }
-
-    Galley {
+    let mut galley = Galley {
         job,
         rows,
         elided,
@@ -689,25 +680,13 @@ fn galley_from_rows(
         num_vertices,
         num_indices,
         pixels_per_point: point_scale.pixels_per_point,
+    };
+
+    if galley.job.round_output_to_gui {
+        galley.round_output_to_gui();
     }
-}
 
-pub(crate) fn round_output_to_gui(rect: &mut Rect, job: &LayoutJob) {
-    let did_exceed_wrap_width_by_a_lot = rect.width() > job.wrap.max_width + 1.0;
-
-    *rect = rect.round_ui();
-
-    if did_exceed_wrap_width_by_a_lot {
-        // If the user picked a too aggressive wrap width (e.g. more narrow than any individual glyph),
-        // we should let the user know by reporting that our width is wider than the wrap width.
-    } else {
-        // Make sure we don't report being wider than the wrap width the user picked:
-        rect.max.x = rect
-            .max
-            .x
-            .at_most(rect.min.x + job.wrap.max_width)
-            .floor_ui();
-    }
+    galley
 }
 
 #[derive(Default)]
