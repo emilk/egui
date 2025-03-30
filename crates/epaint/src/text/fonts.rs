@@ -813,6 +813,7 @@ impl GalleyCache {
     ) -> Galley {
         profiling::function_scope!();
 
+        let mut current_section = 0;
         let mut start = 0;
         let mut max_rows_remaining = job.wrap.max_rows;
         let mut galleys = Vec::new();
@@ -841,36 +842,49 @@ impl GalleyCache {
                 round_output_to_gui: job.round_output_to_gui,
             };
 
-            // Keep all (previous) sections (so the correct `section_index` is outputted),
-            // but shift their byte ranges:
-            paragraph_job.sections = job
-                .sections
-                .iter()
-                .cloned()
-                .filter_map(|section| {
-                    let LayoutSection {
-                        leading_space,
-                        byte_range,
-                        format,
-                    } = section;
-                    if end <= byte_range.start {
-                        None
-                    } else {
-                        let byte_range = byte_range.start.saturating_sub(start)
-                            ..byte_range.end.saturating_sub(start).min(end - start);
-                        Some(LayoutSection {
-                            leading_space: if byte_range.end == 0 {
-                                0.0 // this section is behind us (unused in this paragraph)
-                            } else {
-                                leading_space
-                            },
-                            byte_range,
-                            format,
-                        })
-                    }
-                })
-                .collect();
+            // Add overlapping sections:
+            for section in &job.sections[current_section..job.sections.len()] {
+                let LayoutSection {
+                    leading_space,
+                    byte_range: section_range,
+                    format,
+                } = section;
 
+                // dbg!(section_index, section_range);
+
+                // `start` and `end` are the byte range of the current paragraph.
+                // How does the current section overlap with the paragraph range?
+
+                if section_range.end <= start {
+                    // The section is behind us
+                    current_section += 1;
+                } else if end <= section_range.start {
+                    break; // Haven't reached this one yet.
+                } else {
+                    // Section range overlaps with paragraph range
+                    debug_assert!(
+                        section_range.start < section_range.end,
+                        "Bad byte_range: {section_range:?}"
+                    );
+                    let new_range = section_range.start.saturating_sub(start)
+                        ..(section_range.end.at_most(end)).saturating_sub(start);
+                    debug_assert!(
+                        new_range.start <= new_range.end,
+                        "Bad new section range: {new_range:?}"
+                    );
+                    paragraph_job.sections.push(LayoutSection {
+                        leading_space: if start <= new_range.start {
+                            *leading_space
+                        } else {
+                            0.0
+                        },
+                        byte_range: new_range,
+                        format: format.clone(),
+                    });
+                }
+            }
+
+            // TODO(emilk): we could lay out each paragraph in parallel to get a nice speedup on multicore machines.
             let galley = self.layout(fonts, paragraph_job, false);
 
             // This will prevent us from invalidating cache entries unnecessarily:
@@ -891,6 +905,7 @@ impl GalleyCache {
             start = end;
         }
 
+        // TODO: adjust section_index in the concatted galley
         Galley::concat(job, &galleys, fonts.pixels_per_point)
     }
 

@@ -69,6 +69,8 @@ impl Paragraph {
 /// In most cases you should use [`crate::Fonts::layout_job`] instead
 /// since that memoizes the input, making subsequent layouting of the same text much faster.
 pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>) -> Galley {
+    profiling::function_scope!();
+
     if job.wrap.max_rows == 0 {
         // Early-out: no text
         return Galley {

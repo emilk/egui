@@ -792,6 +792,8 @@ impl Galley {
 
     /// Append each galley under the previous one.
     pub fn concat(job: Arc<LayoutJob>, galleys: &[Arc<Self>], pixels_per_point: f32) -> Self {
+        profiling::function_scope!();
+
         let mut merged_galley = Self {
             job,
             rows: Vec::new(),
