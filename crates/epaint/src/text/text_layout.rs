@@ -884,7 +884,7 @@ fn add_row_hline(
         let (stroke, mut y) = stroke_and_y(glyph);
         stroke.round_center_to_pixel(point_scale.pixels_per_point, &mut y);
 
-        if stroke == Stroke::NONE {
+        if stroke.is_empty() {
             end_line(line_start.take(), last_right_x);
         } else if let Some((existing_stroke, start)) = line_start {
             if existing_stroke == stroke && start.y == y {
