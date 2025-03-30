@@ -997,6 +997,7 @@ mod tests {
     use super::*;
     use crate::{text::TextFormat, Stroke};
     use ecolor::Color32;
+    use emath::Align;
 
     fn jobs() -> Vec<LayoutJob> {
         vec![
@@ -1021,7 +1022,6 @@ mod tests {
             {
                 let mut job = LayoutJob {
                     first_row_min_height: 20.0,
-                    justify: true,
                     ..Default::default()
                 };
                 job.append(
@@ -1067,33 +1067,40 @@ mod tests {
                 FontDefinitions::default(),
             );
 
-            for job in jobs() {
-                let whole = GalleyCache::default().layout(&mut fonts, job.clone(), false);
+            for halign in [Align::Min, Align::Center, Align::Max] {
+                for justify in [false, true] {
+                    for mut job in jobs() {
+                        job.halign = halign;
+                        job.justify = justify;
 
-                let split = GalleyCache::default().layout(&mut fonts, job.clone(), true);
+                        let whole = GalleyCache::default().layout(&mut fonts, job.clone(), false);
 
-                for (i, row) in whole.rows.iter().enumerate() {
-                    println!(
+                        let split = GalleyCache::default().layout(&mut fonts, job.clone(), true);
+
+                        for (i, row) in whole.rows.iter().enumerate() {
+                            println!(
                         "Whole row {i}: section_index_at_start={}, first glyph section_index: {:?}",
                         row.row.section_index_at_start,
                         row.row.glyphs.first().map(|g| g.section_index)
                     );
-                }
-                for (i, row) in split.rows.iter().enumerate() {
-                    println!(
+                        }
+                        for (i, row) in split.rows.iter().enumerate() {
+                            println!(
                         "Split row {i}: section_index_at_start={}, first glyph section_index: {:?}",
                         row.row.section_index_at_start,
                         row.row.glyphs.first().map(|g| g.section_index)
                     );
-                }
+                        }
 
-                // Don't compare for equaliity; but format with a specific precision and make sure we hit that.
-                similar_asserts::assert_eq!(
-                    format!("{:#.5?}", split),
-                    format!("{:#.5?}", whole),
-                    "pixels_per_point: {pixels_per_point:.2}, input text: '{}'",
-                    job.text
-                );
+                        // Don't compare for equaliity; but format with a specific precision and make sure we hit that.
+                        similar_asserts::assert_eq!(
+                            format!("{:#.5?}", split),
+                            format!("{:#.5?}", whole),
+                            "pixels_per_point: {pixels_per_point:.2}, input text: '{}'",
+                            job.text
+                        );
+                    }
+                }
             }
         }
     }
