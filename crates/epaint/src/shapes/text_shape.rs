@@ -8,7 +8,7 @@ use crate::*;
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TextShape {
-    /// Where the origin of [`Self::Galley`] is.
+    /// Where the origin of [`Self::galley`] is.
     ///
     /// Usually the top left corner of the first character.
     pub pos: Pos2,
