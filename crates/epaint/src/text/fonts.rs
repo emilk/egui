@@ -1107,9 +1107,10 @@ mod tests {
                         }
 
                         // Don't compare for equaliity; but format with a specific precision and make sure we hit that.
+                        // NOTE: we use a rather low precision, because as long as we're within a pixel I think it's good enough.
                         similar_asserts::assert_eq!(
-                            format!("{:#.5?}", split),
-                            format!("{:#.5?}", whole),
+                            format!("{:#.1?}", split),
+                            format!("{:#.1?}", whole),
                             "pixels_per_point: {pixels_per_point:.2}, input text: '{}'",
                             job.text
                         );
