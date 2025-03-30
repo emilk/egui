@@ -484,7 +484,7 @@ impl Shape {
                     let row = Arc::make_mut(&mut placed_row.row);
                     row.visuals.mesh_bounds = transform.scaling * row.visuals.mesh_bounds;
                     for v in &mut row.visuals.mesh.vertices {
-                        v.pos = Pos2::new(transform.scaling * v.pos.x, transform.scaling * v.pos.y);
+                        v.pos *= transform.scaling;
                     }
                 }
 
