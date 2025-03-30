@@ -856,9 +856,15 @@ fn add_row_hline(
     mesh: &mut Mesh,
     stroke_and_y: impl Fn(&Glyph) -> (Stroke, f32),
 ) {
+    let mut path = crate::tessellator::Path::default(); // reusing path to avoid re-allocations.
+
     let mut end_line = |start: Option<(Stroke, Pos2)>, stop_x: f32| {
         if let Some((stroke, start)) = start {
-            add_hline(point_scale, [start, pos2(stop_x, start.y)], stroke, mesh);
+            let stop = pos2(stop_x, start.y);
+            path.clear();
+            path.add_line_segment([start, stop]);
+            let feathering = 1.0 / point_scale.pixels_per_point();
+            path.stroke_open(feathering, &PathStroke::from(stroke), mesh);
         }
     };
 
@@ -886,34 +892,6 @@ fn add_row_hline(
     }
 
     end_line(line_start.take(), last_right_x);
-}
-
-fn add_hline(point_scale: PointScale, [start, stop]: [Pos2; 2], stroke: Stroke, mesh: &mut Mesh) {
-    let antialiased = true;
-
-    if antialiased {
-        let mut path = crate::tessellator::Path::default(); // TODO(emilk): reuse this to avoid re-allocations.
-        path.add_line_segment([start, stop]);
-        let feathering = 1.0 / point_scale.pixels_per_point();
-        path.stroke_open(feathering, &PathStroke::from(stroke), mesh);
-    } else {
-        // Thin lines often lost, so this is a bad idea
-
-        assert_eq!(
-            start.y, stop.y,
-            "Horizontal line must be horizontal, but got: {start:?} -> {stop:?}"
-        );
-
-        let min_y = point_scale.round_to_pixel(start.y - 0.5 * stroke.width);
-        let max_y = point_scale.round_to_pixel(min_y + stroke.width);
-
-        let rect = Rect::from_min_max(
-            pos2(point_scale.round_to_pixel(start.x), min_y),
-            pos2(point_scale.round_to_pixel(stop.x), max_y),
-        );
-
-        mesh.add_colored_rect(rect, stroke.color);
-    }
 }
 
 // ----------------------------------------------------------------------------
