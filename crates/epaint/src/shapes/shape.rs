@@ -456,19 +456,39 @@ impl Shape {
                 rect_shape.blur_width *= transform.scaling;
             }
             Self::Text(text_shape) => {
-                text_shape.pos = transform * text_shape.pos;
+                let TextShape {
+                    pos,
+                    galley,
+                    underline,
+                    fallback_color: _,
+                    override_text_color: _,
+                    opacity_factor: _,
+                    angle: _,
+                } = text_shape;
 
-                // Scale text:
-                let galley = Arc::make_mut(&mut text_shape.galley);
-                for row in &mut galley.rows {
+                *pos = transform * *pos;
+                underline.width *= transform.scaling;
+
+                let Galley {
+                    job: _,
+                    rows,
+                    elided: _,
+                    rect,
+                    mesh_bounds,
+                    num_vertices: _,
+                    num_indices: _,
+                    pixels_per_point: _,
+                } = Arc::make_mut(galley);
+
+                for row in rows {
                     row.visuals.mesh_bounds = transform.scaling * row.visuals.mesh_bounds;
                     for v in &mut row.visuals.mesh.vertices {
                         v.pos = Pos2::new(transform.scaling * v.pos.x, transform.scaling * v.pos.y);
                     }
                 }
 
-                galley.mesh_bounds = transform.scaling * galley.mesh_bounds;
-                galley.rect = transform.scaling * galley.rect;
+                *mesh_bounds = transform.scaling * *mesh_bounds;
+                *rect = transform.scaling * *rect;
             }
             Self::Mesh(mesh) => {
                 Arc::make_mut(mesh).transform(transform);
