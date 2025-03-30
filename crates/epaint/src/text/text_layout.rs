@@ -208,6 +208,7 @@ fn rows_from_paragraphs(
 
         if paragraph.glyphs.is_empty() {
             rows.push(PlacedRow {
+                pos: Pos2::ZERO,
                 row: Arc::new(Row {
                     section_index_at_start: paragraph.section_index_at_start,
                     glyphs: vec![],
@@ -215,13 +216,13 @@ fn rows_from_paragraphs(
                     size: vec2(0.0, paragraph.empty_paragraph_height),
                     ends_with_newline: !is_last_paragraph,
                 }),
-                pos: pos2(0.0, 0.0),
             });
         } else {
             let paragraph_max_x = paragraph.glyphs.last().unwrap().max_x();
             if paragraph_max_x <= job.effective_wrap_width() {
                 // Early-out optimization: the whole paragraph fits on one row.
                 rows.push(PlacedRow {
+                    pos: pos2(0.0, f32::NAN),
                     row: Arc::new(Row {
                         section_index_at_start: paragraph.section_index_at_start,
                         glyphs: paragraph.glyphs,
@@ -229,7 +230,6 @@ fn rows_from_paragraphs(
                         size: vec2(paragraph_max_x, 0.0),
                         ends_with_newline: !is_last_paragraph,
                     }),
-                    pos: pos2(0.0, f32::NAN),
                 });
             } else {
                 line_break(&paragraph, job, &mut rows, elided);
@@ -275,14 +275,14 @@ fn line_break(
                 // Allow the first row to be completely empty, because we know there will be more space on the next row:
                 // TODO(emilk): this records the height of this first row as zero, though that is probably fine since first_row_indentation usually comes with a first_row_min_height.
                 out_rows.push(PlacedRow {
+                    pos: pos2(0.0, f32::NAN),
                     row: Arc::new(Row {
                         section_index_at_start: paragraph.section_index_at_start,
                         glyphs: vec![],
                         visuals: Default::default(),
-                        size: vec2(0.0, 0.0),
+                        size: Vec2::ZERO,
                         ends_with_newline: false,
                     }),
-                    pos: pos2(0.0, f32::NAN),
                 });
                 row_start_x += first_row_indentation;
                 first_row_indentation = 0.0;
@@ -301,6 +301,7 @@ fn line_break(
                 let paragraph_max_x = glyphs.last().unwrap().max_x();
 
                 out_rows.push(PlacedRow {
+                    pos: pos2(0.0, f32::NAN),
                     row: Arc::new(Row {
                         section_index_at_start,
                         glyphs,
@@ -308,7 +309,6 @@ fn line_break(
                         size: vec2(paragraph_max_x, 0.0),
                         ends_with_newline: false,
                     }),
-                    pos: pos2(0.0, f32::NAN),
                 });
 
                 // Start a new row:
@@ -343,6 +343,7 @@ fn line_break(
             let paragraph_max_x = glyphs.last().unwrap().max_x();
 
             out_rows.push(PlacedRow {
+                pos: pos2(paragraph_min_x, 0.0),
                 row: Arc::new(Row {
                     section_index_at_start,
                     glyphs,
@@ -350,7 +351,6 @@ fn line_break(
                     size: vec2(paragraph_max_x - paragraph_min_x, 0.0),
                     ends_with_newline: false,
                 }),
-                pos: pos2(paragraph_min_x, 0.0),
             });
         }
     }

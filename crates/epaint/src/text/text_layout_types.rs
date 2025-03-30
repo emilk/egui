@@ -550,13 +550,13 @@ pub struct Galley {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct PlacedRow {
-    /// The underlying row unpositioned [`Row`].
-    pub row: Arc<Row>,
-
     /// The position of this [`Row`] relative to the galley.
     ///
     /// This is rounded to the closest _pixel_ in order to produce crisp, pixel-perfect text.
     pub pos: Pos2,
+
+    /// The underlying row unpositioned [`Row`].
+    pub row: Arc<Row>,
 }
 
 impl PlacedRow {
@@ -827,8 +827,8 @@ impl Galley {
                     .union(Rect::from_min_size(new_pos, placed_row.size));
 
                 super::PlacedRow {
-                    row: placed_row.row.clone(),
                     pos: new_pos,
+                    row: placed_row.row.clone(),
                 }
             }));
 

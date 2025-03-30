@@ -119,7 +119,7 @@ impl TextShape {
         *rect = transform.scaling * *rect;
         *mesh_bounds = transform.scaling * *mesh_bounds;
 
-        for text::PlacedRow { row, pos } in rows {
+        for text::PlacedRow { pos, row } in rows {
             *pos *= transform.scaling;
 
             let text::Row {
