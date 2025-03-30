@@ -715,7 +715,7 @@ fn tessellate_row(
     mesh.reserve_vertices(row.glyphs.len() * 4);
 
     if format_summary.any_background {
-        add_row_backgrounds(job, row, &mut mesh);
+        add_row_backgrounds(point_scale, job, row, &mut mesh);
     }
 
     let glyph_index_start = mesh.indices.len();
@@ -753,7 +753,7 @@ fn tessellate_row(
 
 /// Create background for glyphs that have them.
 /// Creates as few rectangular regions as possible.
-fn add_row_backgrounds(job: &LayoutJob, row: &Row, mesh: &mut Mesh) {
+fn add_row_backgrounds(point_scale: PointScale, job: &LayoutJob, row: &Row, mesh: &mut Mesh) {
     if row.glyphs.is_empty() {
         return;
     }
@@ -762,6 +762,7 @@ fn add_row_backgrounds(job: &LayoutJob, row: &Row, mesh: &mut Mesh) {
         if let Some((color, start_rect, expand)) = start {
             let rect = Rect::from_min_max(start_rect.left_top(), pos2(stop_x, start_rect.bottom()));
             let rect = rect.expand(expand);
+            let rect = rect.round_to_pixels(point_scale.pixels_per_point());
             mesh.add_colored_rect(rect, color);
         }
     };
