@@ -634,6 +634,8 @@ fn galley_from_rows(
                 // When mixing different `FontImpl` (e.g. latin and emojis),
                 // we always center the difference:
                 + 0.5 * (glyph.font_height - glyph.font_impl_height);
+
+            glyph.pos.y = point_scale.round_to_pixel(glyph.pos.y);
         }
 
         placed_row.pos.y = cursor_y;
