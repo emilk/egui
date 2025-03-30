@@ -611,8 +611,7 @@ fn galley_from_rows(
 ) -> Galley {
     let mut first_row_min_height = job.first_row_min_height;
     let mut cursor_y = 0.0;
-    let mut min_x: f32 = 0.0;
-    let mut max_x: f32 = 0.0;
+
     for placed_row in &mut rows {
         let mut max_row_height = first_row_min_height.max(placed_row.rect().height());
         let row = Arc::make_mut(&mut placed_row.row);
@@ -640,21 +639,23 @@ fn galley_from_rows(
         placed_row.pos.y = cursor_y;
         row.size.y = max_row_height;
 
-        min_x = min_x.min(placed_row.rect().min.x);
-        max_x = max_x.max(placed_row.rect().max.x);
         cursor_y += max_row_height;
         cursor_y = point_scale.round_to_pixel(cursor_y); // TODO(emilk): it would be better to do the calculations in pixels instead.
     }
 
     let format_summary = format_summary(&job);
 
+    let mut rect = Rect::ZERO;
     let mut mesh_bounds = Rect::NOTHING;
     let mut num_vertices = 0;
     let mut num_indices = 0;
 
     for placed_row in &mut rows {
+        rect = rect.union(placed_row.rect());
+
         let row = Arc::make_mut(&mut placed_row.row);
         row.visuals = tessellate_row(point_scale, &job, &format_summary, row);
+
         mesh_bounds =
             mesh_bounds.union(row.visuals.mesh_bounds.translate(placed_row.pos.to_vec2()));
         num_vertices += row.visuals.mesh.vertices.len();
@@ -668,8 +669,6 @@ fn galley_from_rows(
             row.section_index_at_start = first_glyph.section_index;
         }
     }
-
-    let rect = Rect::from_min_max(pos2(min_x, 0.0), pos2(max_x, cursor_y));
 
     let mut galley = Galley {
         job,
