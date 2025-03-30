@@ -554,6 +554,8 @@ pub struct PlacedRow {
     pub row: Arc<Row>,
 
     /// The position of this [`Row`] relative to the galley.
+    ///
+    /// This is rounded to the closest _pixel_ in order to produce crisp, pixel-perfect text.
     pub pos: Pos2,
 }
 
@@ -874,15 +876,15 @@ impl Galley {
             job,
             rows: Vec::new(),
             elided: false,
-            rect: emath::Rect::ZERO,
-            mesh_bounds: emath::Rect::NOTHING,
+            rect: Rect::ZERO,
+            mesh_bounds: Rect::NOTHING,
             num_vertices: 0,
             num_indices: 0,
             pixels_per_point,
         };
 
         for (i, galley) in galleys.iter().enumerate() {
-            let current_offset = Vec2::new(0.0, merged_galley.rect.height());
+            let current_y_offset = merged_galley.rect.height();
 
             let mut rows = galley.rows.iter();
             // As documented in `Row::ends_with_newline`, a '\n' will always create a
@@ -895,14 +897,14 @@ impl Galley {
             }
 
             merged_galley.rows.extend(rows.map(|placed_row| {
-                let mut new_pos = placed_row.pos + current_offset;
-                new_pos.y = new_pos.y.round_to_pixels(pixels_per_point);
+                let new_pos = placed_row.pos + current_y_offset * Vec2::Y;
+                let new_pos = new_pos.round_to_pixels(pixels_per_point);
                 merged_galley.mesh_bounds = merged_galley
                     .mesh_bounds
                     .union(placed_row.visuals.mesh_bounds.translate(new_pos.to_vec2()));
                 merged_galley.rect = merged_galley
                     .rect
-                    .union(emath::Rect::from_min_size(new_pos, placed_row.size));
+                    .union(Rect::from_min_size(new_pos, placed_row.size));
 
                 super::PlacedRow {
                     row: placed_row.row.clone(),
