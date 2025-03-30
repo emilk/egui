@@ -842,9 +842,13 @@ impl Galley {
         }
 
         for placed in &mut merged_galley.rows {
-            let row = Arc::make_mut(&mut placed.row);
-            if let Some(first_glyph) = row.glyphs.first_mut() {
-                row.section_index_at_start = first_glyph.section_index;
+            let section_index_at_start = placed.row.glyphs.first().map(|g| g.section_index);
+            if let Some(section_index_at_start) = section_index_at_start {
+                if placed.row.section_index_at_start != section_index_at_start {
+                    // This `make_mut` is slow, so only do it when necessary.
+                    let row = Arc::make_mut(&mut placed.row);
+                    row.section_index_at_start = section_index_at_start;
+                }
             }
         }
 
