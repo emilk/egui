@@ -33,6 +33,7 @@ pub fn highlight(
     // performing it at a separate thread (ctx, ctx.style()) can be used and when ui is available
     // (ui.ctx(), ui.style()) can be used
 
+    #[allow(non_local_definitions)]
     impl egui::cache::ComputerMut<(&egui::FontId, &CodeTheme, &str, &str), LayoutJob> for Highlighter {
         fn compute(
             &mut self,
