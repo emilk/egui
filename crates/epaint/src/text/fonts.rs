@@ -1094,17 +1094,17 @@ mod tests {
 
                         for (i, row) in whole.rows.iter().enumerate() {
                             println!(
-                        "Whole row {i}: section_index_at_start={}, first glyph section_index: {:?}",
-                        row.row.section_index_at_start,
-                        row.row.glyphs.first().map(|g| g.section_index)
-                    );
+                                "Whole row {i}: section_index_at_start={}, first glyph section_index: {:?}",
+                                row.row.section_index_at_start,
+                                row.row.glyphs.first().map(|g| g.section_index)
+                            );
                         }
                         for (i, row) in split.rows.iter().enumerate() {
                             println!(
-                        "Split row {i}: section_index_at_start={}, first glyph section_index: {:?}",
-                        row.row.section_index_at_start,
-                        row.row.glyphs.first().map(|g| g.section_index)
-                    );
+                                "Split row {i}: section_index_at_start={}, first glyph section_index: {:?}",
+                                row.row.section_index_at_start,
+                                row.row.glyphs.first().map(|g| g.section_index)
+                            );
                         }
 
                         // Don't compare for equaliity; but format with a specific precision and make sure we hit that.

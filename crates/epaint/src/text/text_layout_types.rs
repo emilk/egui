@@ -578,8 +578,12 @@ impl std::ops::Deref for PlacedRow {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Row {
-    /// This is included in case there are no glyphs
-    pub section_index_at_start: u32,
+    /// This is included in case there are no glyphs.
+    ///
+    /// Only used during layout, then set to an invalid value in order to
+    /// enable the paragraph-concat optimization path without having to
+    /// adjust `section_index` when concatting.
+    pub(crate) section_index_at_start: u32,
 
     /// One for each `char`.
     pub glyphs: Vec<Glyph>,
@@ -669,7 +673,11 @@ pub struct Glyph {
     pub uv_rect: UvRect,
 
     /// Index into [`LayoutJob::sections`]. Decides color etc.
-    pub section_index: u32,
+    ///
+    /// Only used during layout, then set to an invalid value in order to
+    /// enable the paragraph-concat optimization path without having to
+    /// adjust `section_index` when concatting.
+    pub(crate) section_index: u32,
 }
 
 impl Glyph {
@@ -839,17 +847,6 @@ impl Galley {
             // Note that if `galley.elided` is true this will be the last `Galley` in
             // the vector and the loop will end.
             merged_galley.elided |= galley.elided;
-        }
-
-        for placed in &mut merged_galley.rows {
-            let section_index_at_start = placed.row.glyphs.first().map(|g| g.section_index);
-            if let Some(section_index_at_start) = section_index_at_start {
-                if placed.row.section_index_at_start != section_index_at_start {
-                    // This `make_mut` is slow, so only do it when necessary.
-                    let row = Arc::make_mut(&mut placed.row);
-                    row.section_index_at_start = section_index_at_start;
-                }
-            }
         }
 
         if merged_galley.job.round_output_to_gui {

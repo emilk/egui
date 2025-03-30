@@ -664,13 +664,10 @@ fn galley_from_rows(
             mesh_bounds.union(row.visuals.mesh_bounds.translate(placed_row.pos.to_vec2()));
         num_vertices += row.visuals.mesh.vertices.len();
         num_indices += row.visuals.mesh.indices.len();
-    }
 
-    // Fill in correct section_index_at_start for each row:
-    for placed in &mut rows {
-        let row = Arc::make_mut(&mut placed.row);
-        if let Some(first_glyph) = row.glyphs.first_mut() {
-            row.section_index_at_start = first_glyph.section_index;
+        row.section_index_at_start = u32::MAX; // No longer in use.
+        for glyph in &mut row.glyphs {
+            glyph.section_index = u32::MAX; // No longer in use.
         }
     }
 
