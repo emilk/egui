@@ -1,7 +1,8 @@
 use crate::style::StyleModifier;
 use crate::{
-    Button, Color32, Context, Frame, Id, InnerResponse, Layout, Popup, PopupCloseBehavior,
-    Response, Style, Ui, UiBuilder, UiKind, UiStack, UiStackInfo, Widget, WidgetText,
+    Button, Color32, Context, Frame, Id, InnerResponse, IntoAtomics, Layout, Popup,
+    PopupCloseBehavior, Response, Style, Ui, UiBuilder, UiKind, UiStack, UiStackInfo, Widget,
+    WidgetText,
 };
 use emath::{vec2, Align, RectAlign, Vec2};
 use epaint::Stroke;
@@ -242,8 +243,8 @@ pub struct MenuButton<'a> {
 }
 
 impl<'a> MenuButton<'a> {
-    pub fn new(text: impl Into<WidgetText>) -> Self {
-        Self::from_button(Button::new(text))
+    pub fn new(text: impl IntoAtomics<'a>) -> Self {
+        Self::from_button(Button::new(text.into_atomics()))
     }
 
     /// Set the config for the menu.
@@ -292,8 +293,8 @@ impl<'a> SubMenuButton<'a> {
     /// The default right arrow symbol: `"⏵"`
     pub const RIGHT_ARROW: &'static str = "⏵";
 
-    pub fn new(text: impl Into<WidgetText>) -> Self {
-        Self::from_button(Button::new(text).right_text("⏵"))
+    pub fn new(text: impl IntoAtomics<'a>) -> Self {
+        Self::from_button(Button::new(text.into_atomics()).right_text("⏵"))
     }
 
     /// Create a new submenu button from a [`Button`].

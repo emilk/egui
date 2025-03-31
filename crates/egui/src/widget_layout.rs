@@ -3,65 +3,44 @@ use emath::{Align2, Vec2};
 use epaint::Galley;
 use std::sync::Arc;
 
-/// Naming: AtimicItem
-enum WidgetLayoutItemType<'a> {
-    Text(WidgetText),
-    Image(Image<'a>),
-    Custom(Vec2),
-    Grow,
-}
-
-enum SizedWidgetLayoutItemType<'a> {
+pub enum SizedAtomicKind<'a> {
     Text(Arc<Galley>),
     Image(Image<'a>, Vec2),
     Custom(Vec2),
     Grow,
 }
 
-struct Item {
-    align2: Align2,
-}
-
-impl Default for Item {
-    fn default() -> Self {
-        Self {
-            align2: Align2::LEFT_CENTER,
-        }
-    }
-}
-
-impl SizedWidgetLayoutItemType<'_> {
+impl SizedAtomicKind<'_> {
     pub fn size(&self) -> Vec2 {
         match self {
-            SizedWidgetLayoutItemType::Text(galley) => galley.size(),
-            SizedWidgetLayoutItemType::Image(_, size) => *size,
-            SizedWidgetLayoutItemType::Custom(size) => *size,
-            SizedWidgetLayoutItemType::Grow => Vec2::ZERO,
+            SizedAtomicKind::Text(galley) => galley.size(),
+            SizedAtomicKind::Image(_, size) => *size,
+            SizedAtomicKind::Custom(size) => *size,
+            SizedAtomicKind::Grow => Vec2::ZERO,
         }
     }
 }
 
 /// AtomicLayout
-struct WidgetLayout<'a> {
-    /// TODO: SmallVec?
-    items: Vec<(Item, WidgetLayoutItemType<'a>)>,
+pub struct WidgetLayout<'a> {
+    pub atomics: Atomics<'a>,
     gap: f32,
-    frame: Frame,
-    sense: Sense,
+    pub(crate) frame: Frame,
+    pub(crate) sense: Sense,
 }
 
 impl<'a> WidgetLayout<'a> {
-    pub fn new() -> Self {
+    pub fn new(atomics: impl IntoAtomics<'a>) -> Self {
         Self {
-            items: Vec::new(),
+            atomics: atomics.into_atomics(),
             gap: 4.0,
             frame: Frame::default(),
             sense: Sense::hover(),
         }
     }
 
-    pub fn add(mut self, item: Item, kind: impl Into<WidgetLayoutItemType<'a>>) -> Self {
-        self.items.push((item, kind.into()));
+    pub fn add(mut self, atomic: impl Into<Atomic<'a>>) -> Self {
+        self.atomics.add(atomic.into());
         self
     }
 
@@ -93,27 +72,25 @@ impl<'a> WidgetLayout<'a> {
 
         let mut grow_count = 0;
 
-        for (item, kind) in self.items {
-            let (preferred_size, sized) = match kind {
-                WidgetLayoutItemType::Text(text) => {
+        for (item) in self.atomics.0 {
+            let (preferred_size, sized) = match item.kind {
+                AtomicKind::Text(text) => {
                     let galley = text.into_galley(ui, None, available_width, TextStyle::Button);
                     (
                         galley.size(), // TODO
-                        SizedWidgetLayoutItemType::Text(galley),
+                        SizedAtomicKind::Text(galley),
                     )
                 }
-                WidgetLayoutItemType::Image(image) => {
+                AtomicKind::Image(image) => {
                     let size =
                         image.load_and_calc_size(ui, Vec2::min(available_size, Vec2::splat(16.0)));
                     let size = size.unwrap_or_default();
-                    (size, SizedWidgetLayoutItemType::Image(image, size))
+                    (size, SizedAtomicKind::Image(image, size))
                 }
-                WidgetLayoutItemType::Custom(size) => {
-                    (size, SizedWidgetLayoutItemType::Custom(size))
-                }
-                WidgetLayoutItemType::Grow => {
+                AtomicKind::Custom(size) => (size, SizedAtomicKind::Custom(size)),
+                AtomicKind::Grow => {
                     grow_count += 1;
-                    (Vec2::ZERO, SizedWidgetLayoutItemType::Grow)
+                    (Vec2::ZERO, SizedAtomicKind::Grow)
                 }
             };
             let size = sized.size();
@@ -123,7 +100,7 @@ impl<'a> WidgetLayout<'a> {
 
             height = height.max(size.y);
 
-            sized_items.push((item, sized));
+            sized_items.push(sized);
         }
 
         if sized_items.len() > 1 {
@@ -147,28 +124,29 @@ impl<'a> WidgetLayout<'a> {
 
         let mut cursor = content_rect.left();
 
-        for (item, sized) in sized_items {
+        for sized in sized_items {
             let size = sized.size();
             let width = match sized {
-                SizedWidgetLayoutItemType::Grow => grow_width,
+                SizedAtomicKind::Grow => grow_width,
                 _ => size.x,
             };
 
             let frame = content_rect.with_min_x(cursor).with_max_x(cursor + width);
             cursor = frame.right() + self.gap;
 
-            let rect = item.align2.align_size_within_rect(size, frame);
+            let align = Align2::CENTER_CENTER;
+            let rect = align.align_size_within_rect(size, frame);
 
             match sized {
-                SizedWidgetLayoutItemType::Text(galley) => {
+                SizedAtomicKind::Text(galley) => {
                     ui.painter()
                         .galley(rect.min, galley, ui.visuals().text_color());
                 }
-                SizedWidgetLayoutItemType::Image(image, _) => {
+                SizedAtomicKind::Image(image, _) => {
                     image.paint_at(ui, rect);
                 }
-                SizedWidgetLayoutItemType::Custom(_) => {}
-                SizedWidgetLayoutItemType::Grow => {}
+                SizedAtomicKind::Custom(_) => {}
+                SizedAtomicKind::Grow => {}
             }
         }
 
@@ -176,62 +154,217 @@ impl<'a> WidgetLayout<'a> {
     }
 }
 
-pub struct WLButton<'a> {
-    wl: WidgetLayout<'a>,
+// pub struct WLButton<'a> {
+//     wl: WidgetLayout<'a>,
+// }
+//
+// impl<'a> WLButton<'a> {
+//     pub fn new(text: impl Into<WidgetText>) -> Self {
+//         Self {
+//             wl: WidgetLayout::new()
+//                 .sense(Sense::click())
+//                 .add(Item::default(), WidgetLayoutItemType::Text(text.into())),
+//         }
+//     }
+//
+//     pub fn image(image: impl Into<Image<'a>>) -> Self {
+//         Self {
+//             wl: WidgetLayout::new().sense(Sense::click()).add(
+//                 Item::default(),
+//                 WidgetLayoutItemType::Image(image.into().max_size(Vec2::splat(16.0))),
+//             ),
+//         }
+//     }
+//
+//     pub fn image_and_text(image: impl Into<Image<'a>>, text: impl Into<WidgetText>) -> Self {
+//         Self {
+//             wl: WidgetLayout::new()
+//                 .sense(Sense::click())
+//                 .add(Item::default(), WidgetLayoutItemType::Image(image.into()))
+//                 .add(Item::default(), WidgetLayoutItemType::Text(text.into())),
+//         }
+//     }
+//
+//     pub fn right_text(mut self, text: impl Into<WidgetText>) -> Self {
+//         self.wl = self
+//             .wl
+//             .add(Item::default(), WidgetLayoutItemType::Grow)
+//             .add(Item::default(), WidgetLayoutItemType::Text(text.into()));
+//         self
+//     }
+// }
+//
+// impl<'a> Widget for WLButton<'a> {
+//     fn ui(mut self, ui: &mut Ui) -> Response {
+//         let response = ui.ctx().read_response(ui.next_auto_id());
+//
+//         let visuals = response.map_or(&ui.style().visuals.widgets.inactive, |response| {
+//             ui.style().interact(&response)
+//         });
+//
+//         self.wl.frame = self
+//             .wl
+//             .frame
+//             .inner_margin(ui.style().spacing.button_padding)
+//             .fill(visuals.bg_fill)
+//             .stroke(visuals.bg_stroke)
+//             .corner_radius(visuals.corner_radius);
+//
+//         self.wl.show(ui)
+//     }
+// }
+
+pub enum AtomicKind<'a> {
+    Text(WidgetText),
+    Image(Image<'a>),
+    Custom(Vec2),
+    Grow,
 }
 
-impl<'a> WLButton<'a> {
-    pub fn new(text: impl Into<WidgetText>) -> Self {
-        Self {
-            wl: WidgetLayout::new()
-                .sense(Sense::click())
-                .add(Item::default(), WidgetLayoutItemType::Text(text.into())),
-        }
-    }
+pub struct Atomic<'a> {
+    size: Option<Vec2>,
+    grow: bool,
+    pub kind: AtomicKind<'a>,
+}
 
-    pub fn image(image: impl Into<Image<'a>>) -> Self {
-        Self {
-            wl: WidgetLayout::new().sense(Sense::click()).add(
-                Item::default(),
-                WidgetLayoutItemType::Image(image.into().max_size(Vec2::splat(16.0))),
-            ),
-        }
-    }
-
-    pub fn image_and_text(image: impl Into<Image<'a>>, text: impl Into<WidgetText>) -> Self {
-        Self {
-            wl: WidgetLayout::new()
-                .sense(Sense::click())
-                .add(Item::default(), WidgetLayoutItemType::Image(image.into()))
-                .add(Item::default(), WidgetLayoutItemType::Text(text.into())),
-        }
-    }
-
-    pub fn right_text(mut self, text: impl Into<WidgetText>) -> Self {
-        self.wl = self
-            .wl
-            .add(Item::default(), WidgetLayoutItemType::Grow)
-            .add(Item::default(), WidgetLayoutItemType::Text(text.into()));
-        self
+pub fn a<'a>(i: impl Into<AtomicKind<'a>>) -> Atomic<'a> {
+    Atomic {
+        size: None,
+        grow: false,
+        kind: i.into(),
     }
 }
 
-impl<'a> Widget for WLButton<'a> {
-    fn ui(mut self, ui: &mut Ui) -> Response {
-        let response = ui.ctx().read_response(ui.next_auto_id());
+impl Atomic<'_> {
+    // pub fn size(mut self, size: Vec2) -> Self {
+    //     self.size = Some(size);
+    //     self
+    // }
+    //
+    // pub fn grow(mut self, grow: bool) -> Self {
+    //     self.grow = grow;
+    //     self
+    // }
+}
 
-        let visuals = response.map_or(&ui.style().visuals.widgets.inactive, |response| {
-            ui.style().interact(&response)
-        });
+trait AtomicExt<'a> {
+    fn a_size(self, size: Vec2) -> Atomic<'a>;
+    fn a_grow(self, grow: bool) -> Atomic<'a>;
+}
 
-        self.wl.frame = self
-            .wl
-            .frame
-            .inner_margin(ui.style().spacing.button_padding)
-            .fill(visuals.bg_fill)
-            .stroke(visuals.bg_stroke)
-            .corner_radius(visuals.corner_radius);
+impl<'a, T> AtomicExt<'a> for T
+where
+    T: Into<Atomic<'a>> + Sized,
+{
+    fn a_size(self, size: Vec2) -> Atomic<'a> {
+        let mut atomic = self.into();
+        atomic.size = Some(size);
+        atomic
+    }
 
-        self.wl.show(ui)
+    fn a_grow(self, grow: bool) -> Atomic<'a> {
+        let mut atomic = self.into();
+        atomic.grow = grow;
+        atomic
     }
 }
+
+impl<'a, T> From<T> for Atomic<'a>
+where
+    T: Into<AtomicKind<'a>>,
+{
+    fn from(value: T) -> Self {
+        Atomic {
+            size: None,
+            grow: false,
+            kind: value.into(),
+        }
+    }
+}
+
+impl<'a> From<Image<'a>> for AtomicKind<'a> {
+    fn from(value: Image<'a>) -> Self {
+        AtomicKind::Image(value)
+    }
+}
+
+// impl<'a> From<&str> for AtomicKind<'a> {
+//     fn from(value: &str) -> Self {
+//         AtomicKind::Text(value.into())
+//     }
+// }
+
+impl<'a, T> From<T> for AtomicKind<'a>
+where
+    T: Into<WidgetText>,
+{
+    fn from(value: T) -> Self {
+        AtomicKind::Text(value.into())
+    }
+}
+
+pub struct Atomics<'a>(Vec<Atomic<'a>>);
+
+impl<'a> Atomics<'a> {
+    pub fn add(&mut self, atomic: impl Into<Atomic<'a>>) {
+        self.0.push(atomic.into());
+    }
+
+    pub fn add_front(&mut self, atomic: impl Into<Atomic<'a>>) {
+        self.0.insert(0, atomic.into());
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Atomic<'a>> {
+        self.0.iter_mut()
+    }
+}
+
+impl<'a, T> IntoAtomics<'a> for T
+where
+    T: Into<Atomic<'a>>,
+{
+    fn collect(self, atomics: &mut Atomics<'a>) {
+        atomics.add(self);
+    }
+}
+
+pub trait IntoAtomics<'a> {
+    fn collect(self, atomics: &mut Atomics<'a>);
+
+    fn into_atomics(self) -> Atomics<'a>
+    where
+        Self: Sized,
+    {
+        let mut atomics = Atomics(Vec::new());
+        self.collect(&mut atomics);
+        atomics
+    }
+}
+
+impl<'a> IntoAtomics<'a> for Atomics<'a> {
+    fn collect(self, atomics: &mut Atomics<'a>) {
+        atomics.0.extend(self.0);
+    }
+}
+
+macro_rules! all_the_atomics {
+    ($($T:ident),*) => {
+        impl<'a, $($T),*> IntoAtomics<'a> for ($($T),*)
+        where
+            $($T: IntoAtomics<'a>),*
+        {
+            fn collect(self, atomics: &mut Atomics<'a>) {
+                #[allow(non_snake_case)]
+                let ($($T),*) = self;
+                $($T.collect(atomics);)*
+            }
+        }
+    };
+}
+
+all_the_atomics!();
+all_the_atomics!(T0, T1);
+all_the_atomics!(T0, T1, T2);
+all_the_atomics!(T0, T1, T2, T3);
+all_the_atomics!(T0, T1, T2, T3, T4);
+all_the_atomics!(T0, T1, T2, T3, T4, T5);
