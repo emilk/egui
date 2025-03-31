@@ -20,3 +20,5 @@ env_logger = { version = "0.10", default-features = false, features = [
     "auto-color",
     "humantime",
 ] }
+egui_extras = {workspace = true, features = ["image", "all_loaders"]}
+image = {workspace = true, features = ["png"]}
