@@ -30,5 +30,5 @@ jobs:
       - name: Link Checker
         uses: lycheeverse/lychee-action@v2
         with:
-          args: "'**/*.md' --exclude localhost --exclude reddit.com" # I guess reddit doesn't like github action IPs
+          args: "'**/*.md' '**/*.toml' --exclude localhost --exclude reddit.com" # I guess reddit doesn't like github action IPs
 
