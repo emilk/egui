@@ -3,8 +3,8 @@
 
 use eframe::egui;
 use eframe::egui::{
-    include_image, Image, Key, KeyboardShortcut, ModifierNames, Modifiers, Popup, RichText,
-    WLButton, Widget,
+    include_image, Button, Image, Key, KeyboardShortcut, ModifierNames, Modifiers, Popup, RichText,
+    Widget,
 };
 
 fn main() -> eframe::Result {
@@ -34,15 +34,17 @@ fn main() -> eframe::Result {
             }
             ui.label(format!("Hello '{name}', age {age}"));
 
-            if WLButton::new("WL Button").ui(ui).clicked() {
+            if Button::new("WL Button").ui(ui).clicked() {
                 age += 1;
             };
 
             let source = include_image!("../../../crates/eframe/data/icon.png");
-            let response = WLButton::image_and_text(source, "Hello World").ui(ui);
+            let response = Button::image_and_text(source.clone(), "Hello World").ui(ui);
+
+            Button::new((Image::new(source).tint(egui::Color32::RED), "Tuple Button")).ui(ui);
 
             Popup::menu(&response).show(|ui| {
-                WLButton::new("Print")
+                Button::new("Print")
                     .right_text(
                         RichText::new(
                             KeyboardShortcut::new(Modifiers::COMMAND, Key::P)
@@ -51,7 +53,7 @@ fn main() -> eframe::Result {
                         .weak(),
                     )
                     .ui(ui);
-                WLButton::new("A very long button")
+                Button::new("A very long button")
                     .right_text(
                         RichText::new(
                             KeyboardShortcut::new(Modifiers::COMMAND, Key::O)
