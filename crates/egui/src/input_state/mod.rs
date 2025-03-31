@@ -941,6 +941,7 @@ impl PointerState {
                             press_origin.distance(pos) > self.input_options.max_click_dist;
                     }
 
+                    self.last_move_time = time;
                     self.pointer_events.push(PointerEvent::Moved(pos));
                 }
                 Event::PointerButton {
