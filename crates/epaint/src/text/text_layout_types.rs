@@ -555,7 +555,7 @@ pub struct PlacedRow {
     /// This is rounded to the closest _pixel_ in order to produce crisp, pixel-perfect text.
     pub pos: Pos2,
 
-    /// The underlying row unpositioned [`Row`].
+    /// The underlying unpositioned [`Row`].
     pub row: Arc<Row>,
 }
 

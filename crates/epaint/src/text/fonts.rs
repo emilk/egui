@@ -917,7 +917,7 @@ impl GalleyCache {
 
 /// If true, lay out and cache each paragraph (sections separated by newlines) individually.
 ///
-/// This makes it much faster to re-lauout the full tet when only a portion of it has changed since last frame, i.e. when editing somewhere in a file with thousands of lines/paragraphs.
+/// This makes it much faster to re-layout the full text when only a portion of it has changed since last frame, i.e. when editing somewhere in a file with thousands of lines/paragraphs.
 fn should_cache_each_paragraph_individually(job: &LayoutJob) -> bool {
     // We currently don't support this elided text, i.e. when `max_rows` is set.
     // Most often, elided text is elided to one row,
