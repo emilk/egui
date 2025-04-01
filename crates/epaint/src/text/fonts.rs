@@ -728,6 +728,10 @@ impl FontsImpl {
 struct CachedGalley {
     /// When it was last used
     last_used: u32,
+    /// Hashes of all other entries this one depends on for quick re-layout.
+    /// Their `last_used`s should be updated alongside this one to make sure they're
+    /// not evicted.
+    children: Option<Arc<[u64]>>,
     galley: Arc<Galley>,
 }
 
@@ -739,12 +743,12 @@ struct GalleyCache {
 }
 
 impl GalleyCache {
-    fn layout(
+    fn layout_internal(
         &mut self,
         fonts: &mut FontsImpl,
         mut job: LayoutJob,
         allow_split_paragraphs: bool,
-    ) -> Arc<Galley> {
+    ) -> (u64, Arc<Galley>) {
         if job.wrap.max_width.is_finite() {
             // Protect against rounding errors in egui layout code.
 
@@ -772,32 +776,56 @@ impl GalleyCache {
 
         let hash = crate::util::hash(&job); // TODO(emilk): even faster hasher?
 
-        match self.cache.entry(hash) {
+        (hash, match self.cache.entry(hash) {
             std::collections::hash_map::Entry::Occupied(entry) => {
                 // The job was found in cache - no need to re-layout.
                 let cached = entry.into_mut();
                 cached.last_used = self.generation;
-                cached.galley.clone()
+
+                let galley = cached.galley.clone();
+                if let Some(children) = &cached.children {
+                    for child_hash in children.clone().iter() {
+                        if let Some(cached_child) = self.cache.get_mut(child_hash) {
+                            cached_child.last_used = self.generation;
+                        }
+                    }
+                }
+
+                galley
             }
             std::collections::hash_map::Entry::Vacant(entry) => {
                 let job = Arc::new(job);
                 if allow_split_paragraphs && should_cache_each_paragraph_individually(&job) {
-                    let galley = self.layout_each_paragraph_individuallly(fonts, job);
-                    // TODO(afishhh): This Galley cannot be added directly into the cache without taking
-                    //     extra precautions to make sure all component paragraph Galleys are not invalidated
-                    //     immediately next frame (since their `last_used` will not be updated).
-                    Arc::new(galley)
+                    let mut child_hashes = Vec::new();
+                    let galley = self.layout_each_paragraph_individuallly(fonts, job, &mut child_hashes);
+                    let galley = Arc::new(galley);
+                    self.cache.insert(hash, CachedGalley {
+                        last_used: self.generation,
+                        children: Some(child_hashes.into()),
+                        galley: galley.clone()
+                    });
+                    galley
                 } else {
                     let galley = super::layout(fonts, job);
                     let galley = Arc::new(galley);
                     entry.insert(CachedGalley {
                         last_used: self.generation,
+                        children: None,
                         galley: galley.clone(),
                     });
                     galley
                 }
             }
-        }
+        })
+    }
+
+    fn layout(
+        &mut self,
+        fonts: &mut FontsImpl,
+        job: LayoutJob,
+        allow_split_paragraphs: bool,
+    ) -> Arc<Galley> {
+        self.layout_internal(fonts, job, allow_split_paragraphs).1
     }
 
     /// Split on `\n` and lay out (and cache) each paragraph individually.
@@ -805,6 +833,7 @@ impl GalleyCache {
         &mut self,
         fonts: &mut FontsImpl,
         job: Arc<LayoutJob>,
+        child_hashes: &mut Vec<u64>
     ) -> Galley {
         profiling::function_scope!();
 
@@ -878,7 +907,8 @@ impl GalleyCache {
             }
 
             // TODO(emilk): we could lay out each paragraph in parallel to get a nice speedup on multicore machines.
-            let galley = self.layout(fonts, paragraph_job, false);
+            let (hash, galley) = self.layout_internal(fonts, paragraph_job, false);
+            child_hashes.push(hash);
 
             // This will prevent us from invalidating cache entries unnecessarily:
             if max_rows_remaining != usize::MAX {
