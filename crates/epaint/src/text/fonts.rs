@@ -776,47 +776,54 @@ impl GalleyCache {
 
         let hash = crate::util::hash(&job); // TODO(emilk): even faster hasher?
 
-        (hash, match self.cache.entry(hash) {
-            std::collections::hash_map::Entry::Occupied(entry) => {
-                // The job was found in cache - no need to re-layout.
-                let cached = entry.into_mut();
-                cached.last_used = self.generation;
+        (
+            hash,
+            match self.cache.entry(hash) {
+                std::collections::hash_map::Entry::Occupied(entry) => {
+                    // The job was found in cache - no need to re-layout.
+                    let cached = entry.into_mut();
+                    cached.last_used = self.generation;
 
-                let galley = cached.galley.clone();
-                if let Some(children) = &cached.children {
-                    for child_hash in children.clone().iter() {
-                        if let Some(cached_child) = self.cache.get_mut(child_hash) {
-                            cached_child.last_used = self.generation;
+                    let galley = cached.galley.clone();
+                    if let Some(children) = &cached.children {
+                        for child_hash in children.clone().iter() {
+                            if let Some(cached_child) = self.cache.get_mut(child_hash) {
+                                cached_child.last_used = self.generation;
+                            }
                         }
                     }
-                }
 
-                galley
-            }
-            std::collections::hash_map::Entry::Vacant(entry) => {
-                let job = Arc::new(job);
-                if allow_split_paragraphs && should_cache_each_paragraph_individually(&job) {
-                    let mut child_hashes = Vec::new();
-                    let galley = self.layout_each_paragraph_individuallly(fonts, job, &mut child_hashes);
-                    let galley = Arc::new(galley);
-                    self.cache.insert(hash, CachedGalley {
-                        last_used: self.generation,
-                        children: Some(child_hashes.into()),
-                        galley: galley.clone()
-                    });
-                    galley
-                } else {
-                    let galley = super::layout(fonts, job);
-                    let galley = Arc::new(galley);
-                    entry.insert(CachedGalley {
-                        last_used: self.generation,
-                        children: None,
-                        galley: galley.clone(),
-                    });
                     galley
                 }
-            }
-        })
+                std::collections::hash_map::Entry::Vacant(entry) => {
+                    let job = Arc::new(job);
+                    if allow_split_paragraphs && should_cache_each_paragraph_individually(&job) {
+                        let mut child_hashes = Vec::new();
+                        let galley =
+                            self.layout_each_paragraph_individuallly(fonts, job, &mut child_hashes);
+                        let galley = Arc::new(galley);
+                        self.cache.insert(
+                            hash,
+                            CachedGalley {
+                                last_used: self.generation,
+                                children: Some(child_hashes.into()),
+                                galley: galley.clone(),
+                            },
+                        );
+                        galley
+                    } else {
+                        let galley = super::layout(fonts, job);
+                        let galley = Arc::new(galley);
+                        entry.insert(CachedGalley {
+                            last_used: self.generation,
+                            children: None,
+                            galley: galley.clone(),
+                        });
+                        galley
+                    }
+                }
+            },
+        )
     }
 
     fn layout(
@@ -833,7 +840,7 @@ impl GalleyCache {
         &mut self,
         fonts: &mut FontsImpl,
         job: Arc<LayoutJob>,
-        child_hashes: &mut Vec<u64>
+        child_hashes: &mut Vec<u64>,
     ) -> Galley {
         profiling::function_scope!();
 
