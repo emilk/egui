@@ -254,7 +254,7 @@ impl GridLayout {
         let mut rect = rect.expand2(2.0 * Vec2::X); // HACK: just looks better with some spacing on the sides
 
         if self.num_columns.is_some() {
-            rect.set_width(cursor.width())
+            rect.set_width(cursor.width());
         }
 
         painter.rect_filled(rect, 2.0, row_color);
