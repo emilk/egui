@@ -783,15 +783,10 @@ impl GalleyCache {
                 let job = Arc::new(job);
                 if allow_split_paragraphs && should_cache_each_paragraph_individually(&job) {
                     let galley = self.layout_each_paragraph_individuallly(fonts, job);
-                    let galley = Arc::new(galley);
-                    self.cache.insert(
-                        hash,
-                        CachedGalley {
-                            last_used: self.generation,
-                            galley: galley.clone(),
-                        },
-                    );
-                    galley
+                    // TODO(afishhh): This Galley cannot be added directly into the cache without taking
+                    //     extra precautions to make sure all component paragraph Galleys are not invalidated
+                    //     immediately next frame (since their `last_used` will not be updated).
+                    Arc::new(galley)
                 } else {
                     let galley = super::layout(fonts, job);
                     let galley = Arc::new(galley);
@@ -849,8 +844,6 @@ impl GalleyCache {
                     byte_range: section_range,
                     format,
                 } = section;
-
-                // dbg!(section_index, section_range);
 
                 // `start` and `end` are the byte range of the current paragraph.
                 // How does the current section overlap with the paragraph range?
