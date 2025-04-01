@@ -774,9 +774,11 @@ impl Galley {
 
     pub(crate) fn round_output_to_gui(&mut self) {
         for placed_row in &mut self.rows {
-            // NOTE: we round the size, but not the position, because the position should be _pixel_ aligned.
-            let row = Arc::make_mut(&mut placed_row.row);
-            row.size = row.size.round_ui();
+            // Optimization: only call `make_mut` if necessary (can cause a deep clone)
+            let rounded_size = placed_row.row.size.round_ui();
+            if placed_row.row.size != rounded_size {
+                Arc::make_mut(&mut placed_row.row).size = rounded_size;
+            }
         }
 
         let rect = &mut self.rect;
