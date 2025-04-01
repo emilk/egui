@@ -251,7 +251,11 @@ impl GridLayout {
         let size = Vec2::new(self.prev_state.full_width(self.spacing.x), height);
         let rect = Rect::from_min_size(cursor.min, size);
         let rect = rect.expand2(0.5 * self.spacing.y * Vec2::Y);
-        let rect = rect.expand2(2.0 * Vec2::X); // HACK: just looks better with some spacing on the sides
+        let mut rect = rect.expand2(2.0 * Vec2::X); // HACK: just looks better with some spacing on the sides
+
+        if self.num_columns.is_some() {
+            rect.set_width(cursor.width())
+        }
 
         painter.rect_filled(rect, 2.0, row_color);
     }
