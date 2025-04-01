@@ -728,10 +728,12 @@ impl FontsImpl {
 struct CachedGalley {
     /// When it was last used
     last_used: u32,
+
     /// Hashes of all other entries this one depends on for quick re-layout.
     /// Their `last_used`s should be updated alongside this one to make sure they're
     /// not evicted.
     children: Option<Arc<[u64]>>,
+
     galley: Arc<Galley>,
 }
 
@@ -776,54 +778,64 @@ impl GalleyCache {
 
         let hash = crate::util::hash(&job); // TODO(emilk): even faster hasher?
 
-        (
-            hash,
-            match self.cache.entry(hash) {
-                std::collections::hash_map::Entry::Occupied(entry) => {
-                    // The job was found in cache - no need to re-layout.
-                    let cached = entry.into_mut();
-                    cached.last_used = self.generation;
+        let galley = match self.cache.entry(hash) {
+            std::collections::hash_map::Entry::Occupied(entry) => {
+                // The job was found in cache - no need to re-layout.
+                let cached = entry.into_mut();
+                cached.last_used = self.generation;
 
-                    let galley = cached.galley.clone();
-                    if let Some(children) = &cached.children {
-                        for child_hash in children.clone().iter() {
-                            if let Some(cached_child) = self.cache.get_mut(child_hash) {
-                                cached_child.last_used = self.generation;
-                            }
+                let galley = cached.galley.clone();
+                if let Some(children) = &cached.children {
+                    // The point of `allow_split_paragraphs` is to split large jobs into paragraph,
+                    // and then cache each paragraph individually.
+                    // That way, if we edit a single paragraph, only that paragraph will be re-layouted.
+                    // For that to work we need to keep all the child/paragraph
+                    // galleys alive while the parent galley is alive:
+                    for child_hash in children.clone().iter() {
+                        if let Some(cached_child) = self.cache.get_mut(child_hash) {
+                            cached_child.last_used = self.generation;
                         }
                     }
+                }
 
+                galley
+            }
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                let job = Arc::new(job);
+                if allow_split_paragraphs && should_cache_each_paragraph_individually(&job) {
+                    let (child_galleys, child_hashes) =
+                        self.layout_each_paragraph_individuallly(fonts, &job);
+                    debug_assert_eq!(
+                        child_hashes.len(),
+                        child_galleys.len(),
+                        "Bug in `layout_each_paragraph_individuallly`"
+                    );
+                    let galley =
+                        Arc::new(Galley::concat(job, &child_galleys, fonts.pixels_per_point));
+
+                    self.cache.insert(
+                        hash,
+                        CachedGalley {
+                            last_used: self.generation,
+                            children: Some(child_hashes.into()),
+                            galley: galley.clone(),
+                        },
+                    );
+                    galley
+                } else {
+                    let galley = super::layout(fonts, job);
+                    let galley = Arc::new(galley);
+                    entry.insert(CachedGalley {
+                        last_used: self.generation,
+                        children: None,
+                        galley: galley.clone(),
+                    });
                     galley
                 }
-                std::collections::hash_map::Entry::Vacant(entry) => {
-                    let job = Arc::new(job);
-                    if allow_split_paragraphs && should_cache_each_paragraph_individually(&job) {
-                        let mut child_hashes = Vec::new();
-                        let galley =
-                            self.layout_each_paragraph_individuallly(fonts, job, &mut child_hashes);
-                        let galley = Arc::new(galley);
-                        self.cache.insert(
-                            hash,
-                            CachedGalley {
-                                last_used: self.generation,
-                                children: Some(child_hashes.into()),
-                                galley: galley.clone(),
-                            },
-                        );
-                        galley
-                    } else {
-                        let galley = super::layout(fonts, job);
-                        let galley = Arc::new(galley);
-                        entry.insert(CachedGalley {
-                            last_used: self.generation,
-                            children: None,
-                            galley: galley.clone(),
-                        });
-                        galley
-                    }
-                }
-            },
-        )
+            }
+        };
+
+        (hash, galley)
     }
 
     fn layout(
@@ -839,15 +851,15 @@ impl GalleyCache {
     fn layout_each_paragraph_individuallly(
         &mut self,
         fonts: &mut FontsImpl,
-        job: Arc<LayoutJob>,
-        child_hashes: &mut Vec<u64>,
-    ) -> Galley {
+        job: &LayoutJob,
+    ) -> (Vec<Arc<Galley>>, Vec<u64>) {
         profiling::function_scope!();
 
         let mut current_section = 0;
         let mut start = 0;
         let mut max_rows_remaining = job.wrap.max_rows;
-        let mut galleys = Vec::new();
+        let mut child_galleys = Vec::new();
+        let mut child_hashes = Vec::new();
 
         while start < job.text.len() {
             let is_first_paragraph = start == 0;
@@ -927,7 +939,7 @@ impl GalleyCache {
             }
 
             let elided = galley.elided;
-            galleys.push(galley);
+            child_galleys.push(galley);
             if elided {
                 break;
             }
@@ -935,7 +947,7 @@ impl GalleyCache {
             start = end;
         }
 
-        Galley::concat(job, &galleys, fonts.pixels_per_point)
+        (child_galleys, child_hashes)
     }
 
     pub fn num_galleys_in_cache(&self) -> usize {
