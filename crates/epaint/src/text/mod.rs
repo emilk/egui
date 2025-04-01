@@ -14,7 +14,7 @@ pub use {
         FontData, FontDefinitions, FontFamily, FontId, FontInsert, FontPriority, FontTweak, Fonts,
         FontsImpl, InsertFontFamily,
     },
-    text_layout::layout,
+    text_layout::*,
     text_layout_types::*,
 };
 

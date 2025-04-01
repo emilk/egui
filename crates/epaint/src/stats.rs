@@ -91,7 +91,7 @@ impl AllocInfo {
             + galley.rows.iter().map(Self::from_galley_row).sum()
     }
 
-    fn from_galley_row(row: &crate::text::Row) -> Self {
+    fn from_galley_row(row: &crate::text::PlacedRow) -> Self {
         Self::from_mesh(&row.visuals.mesh) + Self::from_slice(&row.glyphs)
     }
 
