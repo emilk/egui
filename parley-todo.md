@@ -7,7 +7,7 @@
   - [ ] This can't just be a visual thing because of hit testing; Layout needs to agree on where everything is
 - [ ] Absolute line height
 - [x] Custom family names (https://github.com/linebender/parley/issues/117)
-- [ ] Inline box fix (https://github.com/linebender/parley/pull/299)
+- [x] Inline box fix (https://github.com/linebender/parley/pull/299)
 - [x] Don't round vertical metrics (https://github.com/linebender/parley/pull/297)
 - [ ] RTL jank (https://github.com/linebender/parley/issues/298)
 - [ ] Support the tab character (https://github.com/linebender/parley/issues/302)
@@ -77,6 +77,7 @@
   - [ ] Test IME support
   - [ ] Smoothe out AccessKit API integration (and reduce temp allocations)
   - [ ] Test AccessKit text bounding boxes (horiz_offset for alignment and vertical_offset for wrapped labels working)
+  - [ ] Character-based cursors could never be in an invalid state; byte-based cursors can. Ensure we don't try to slice a string using any non-validated selections
 - [ ] Text styling
   - [x] Fix FontDefinitions and adding fonts
     - [x] Get fallback/ordering working properly
@@ -109,6 +110,7 @@
     - [ ] For mixed-DPI purposes, and because we don't need to store the FontStore as a mutex, ctx.fonts() now returns a "fonts view" that's technically read/write. But there are no operations that *semantically* modify the fonts from it
     - [ ] FontStore and Fonts are different and we should just expose them separately instead of passing through all the FontStore methods onto Fonts
   - [ ] Work around https://github.com/jslegers/emoji-icon-font/issues/18 / https://github.com/emilk/egui/issues/1284
+  - [ ] Ship a newer revision of the Ubuntu font? The hinting on the current one is kinda distracting
 - [x] Cross-cutting concerns
   - [x] Actually remove all the ab_glyph stuff
     - Sayonara, ab_glyph 🫡
