@@ -31,12 +31,11 @@ pub fn paint_text_selection(
     let max = galley.layout_from_cursor(max);
 
     for ri in min.row..=max.row {
-        let row = Arc::make_mut(&mut galley.rows[ri].row);
-
+        let row = &mut galley.rows[ri];
         let left = if ri == min.row {
             row.x_offset(min.column)
         } else {
-            0.0
+            row.rect.left()
         };
         let right = if ri == max.row {
             row.x_offset(max.column)
@@ -46,10 +45,10 @@ pub fn paint_text_selection(
             } else {
                 0.0
             };
-            row.size.x + newline_size
+            row.rect.right() + newline_size
         };
 
-        let rect = Rect::from_min_max(pos2(left, 0.0), pos2(right, row.size.y));
+        let rect = Rect::from_min_max(pos2(left, row.min_y()), pos2(right, row.max_y()));
         let mesh = &mut row.visuals.mesh;
 
         // Time to insert the selection rectangle into the row mesh.

@@ -2031,13 +2031,11 @@ impl Tessellator {
                 continue;
             }
 
-            let final_row_pos = galley_pos + row.pos.to_vec2();
-
             let mut row_rect = row.visuals.mesh_bounds;
             if *angle != 0.0 {
                 row_rect = row_rect.rotate_bb(rotator);
             }
-            row_rect = row_rect.translate(final_row_pos.to_vec2());
+            row_rect = row_rect.translate(galley_pos.to_vec2());
 
             if self.options.coarse_tessellation_culling && !self.clip_rect.intersects(row_rect) {
                 // culling individual lines of text is important, since a single `Shape::Text`
@@ -2086,7 +2084,7 @@ impl Tessellator {
                         };
 
                         Vertex {
-                            pos: final_row_pos + offset,
+                            pos: galley_pos + offset,
                             uv: (uv.to_vec2() * uv_normalizer).to_pos2(),
                             color,
                         }

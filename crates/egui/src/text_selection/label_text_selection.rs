@@ -186,10 +186,7 @@ impl LabelSelectionState {
                                 if let epaint::Shape::Text(text_shape) = &mut shape.shape {
                                     let galley = Arc::make_mut(&mut text_shape.galley);
                                     for row_selection in row_selections {
-                                        if let Some(placed_row) =
-                                            galley.rows.get_mut(row_selection.row)
-                                        {
-                                            let row = Arc::make_mut(&mut placed_row.row);
+                                        if let Some(row) = galley.rows.get_mut(row_selection.row) {
                                             for vertex_index in row_selection.vertex_indices {
                                                 if let Some(vertex) = row
                                                     .visuals
@@ -704,8 +701,8 @@ fn selected_text(galley: &Galley, cursor_range: &CCursorRange) -> String {
 }
 
 fn estimate_row_height(galley: &Galley) -> f32 {
-    if let Some(placed_row) = galley.rows.first() {
-        placed_row.height()
+    if let Some(row) = galley.rows.first() {
+        row.rect.height()
     } else {
         galley.size().y
     }

@@ -102,7 +102,6 @@ backtrace = { workspace = true, optional = true }
 [dev-dependencies]
 criterion.workspace = true
 mimalloc.workspace = true
-similar-asserts.workspace = true
 
 
 [[bench]]
