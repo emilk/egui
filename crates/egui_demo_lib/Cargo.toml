@@ -61,7 +61,6 @@ egui_extras = { workspace = true, features = ["image", "svg"] }
 egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }
 image = { workspace = true, features = ["png"] }
 mimalloc.workspace = true                                            # for benchmarks
-rand = "0.9"
 
 [[bench]]
 name = "benchmark"
