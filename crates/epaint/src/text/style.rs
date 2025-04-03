@@ -599,7 +599,7 @@ pub mod named_variants {
         /// Enables display of font-specific alternate annotation forms.
         pub annotation: u16,
         /// Selects the way East Asian glyphs are rendered.
-        east_asian_variant: EastAsianVariant,
+        pub east_asian_variant: EastAsianVariant,
         /// Selects the width variants of East Asian glyphs.
         pub east_asian_width: Option<EastAsianWidth>,
         /// Enables display of ruby (superscript-like annotations) variant glyphs.

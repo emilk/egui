@@ -573,6 +573,20 @@ impl ContextImpl {
                     match family.priority {
                         FontPriority::Highest => fam.insert(0, font.name.clone()),
                         FontPriority::Lowest => fam.push(font.name.clone()),
+                        FontPriority::Above(name) => {
+                            let position = fam
+                                .iter()
+                                .position(|f| f == name.as_ref())
+                                .unwrap_or(fam.len());
+                            fam.insert(position, font.name.clone());
+                        }
+                        FontPriority::Below(name) => {
+                            let position = fam
+                                .iter()
+                                .position(|f| f == name.as_ref())
+                                .unwrap_or(fam.len() - 1);
+                            fam.insert(position + 1, font.name.clone());
+                        }
                     }
                 }
                 font_definitions
