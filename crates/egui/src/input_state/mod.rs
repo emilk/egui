@@ -1386,7 +1386,7 @@ impl InputState {
             .text_styles
             .get_mut(&crate::TextStyle::Body)
             .unwrap()
-            .family = crate::FontFamily::Monospace;
+            .family = crate::text::style::GenericFamily::Monospace.into();
 
         ui.collapsing("Raw Input", |ui| raw.ui(ui));
 
