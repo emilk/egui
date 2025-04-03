@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::hash::Hash;
 
 use crate::{
@@ -446,7 +447,7 @@ impl CollapsingHeader {
     /// Explicitly set the source of the [`Id`] of this widget, instead of using title label.
     /// This is useful if the title label is dynamic or not unique.
     #[inline]
-    pub fn id_salt(mut self, id_salt: impl Hash) -> Self {
+    pub fn id_salt(mut self, id_salt: impl Hash + Debug) -> Self {
         self.id_salt = Id::new(id_salt);
         self
     }
@@ -455,7 +456,7 @@ impl CollapsingHeader {
     /// This is useful if the title label is dynamic or not unique.
     #[deprecated = "Renamed id_salt"]
     #[inline]
-    pub fn id_source(mut self, id_salt: impl Hash) -> Self {
+    pub fn id_source(mut self, id_salt: impl Hash + Debug) -> Self {
         self.id_salt = Id::new(id_salt);
         self
     }
