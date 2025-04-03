@@ -209,6 +209,16 @@ pub enum FontPriority {
     ///
     /// This font will only be used if the glyph is not found in any of the previously installed fonts.
     Lowest,
+
+    /// Insert this font above the given family in the priority stack.
+    ///
+    /// If the given family cannot be found, this font will be placed at the lowest priority.
+    Above(Cow<'static, str>),
+
+    /// Insert this font below the given family in the priority stack.
+    ///
+    /// If the given family cannot be found, this font will be placed at the lowest priority.
+    Below(Cow<'static, str>),
 }
 
 impl FontInsert {
