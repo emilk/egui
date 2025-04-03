@@ -856,9 +856,6 @@ impl State {
                 egui::OutputCommand::OpenUrl(open_url) => {
                     open_url_in_browser(&open_url.url);
                 }
-                egui::OutputCommand::SetPointerPosition(egui::Pos2 { x, y }) => {
-                    let _ = window.set_cursor_position(winit::dpi::LogicalPosition { x, y });
-                }
             }
         }
 
