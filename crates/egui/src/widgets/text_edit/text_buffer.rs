@@ -172,6 +172,39 @@ pub trait TextBuffer {
             self.delete_selected(&CCursorRange::two(min, max))
         }
     }
+
+    /// Returns a unique identifier for the implementing type.
+    ///
+    /// This is useful for downcasting from this trait to the implementing type.
+    /// Here is an example usage:
+    /// ```
+    /// use egui::TextBuffer;
+    /// use std::any::TypeId;
+    ///
+    /// struct ExampleBuffer {}
+    ///
+    /// impl TextBuffer for ExampleBuffer {
+    ///     fn is_mutable(&self) -> bool { unimplemented!() }
+    ///     fn as_str(&self) -> &str { unimplemented!() }
+    ///     fn insert_text(&mut self, text: &str, char_index: usize) -> usize { unimplemented!() }
+    ///     fn delete_char_range(&mut self, char_range: std::ops::Range<usize>) { unimplemented!() }
+    ///
+    ///     // Implement it like the following:
+    ///     fn type_id(&self) -> TypeId {
+    ///         TypeId::of::<Self>()
+    ///     }
+    /// }
+    ///
+    /// // Example downcast:
+    /// pub fn downcast_example(buffer: &dyn TextBuffer) -> Option<&ExampleBuffer> {
+    ///     if buffer.type_id() == TypeId::of::<ExampleBuffer>() {
+    ///         unsafe { Some(&*(buffer as *const dyn TextBuffer as *const ExampleBuffer)) }
+    ///     } else {
+    ///         None
+    ///     }
+    /// }
+    /// ```
+    fn type_id(&self) -> std::any::TypeId;
 }
 
 impl TextBuffer for String {
@@ -218,6 +251,10 @@ impl TextBuffer for String {
     fn take(&mut self) -> String {
         std::mem::take(self)
     }
+
+    fn type_id(&self) -> std::any::TypeId {
+        std::any::TypeId::of::<Self>()
+    }
 }
 
 impl TextBuffer for Cow<'_, str> {
@@ -248,6 +285,10 @@ impl TextBuffer for Cow<'_, str> {
     fn take(&mut self) -> String {
         std::mem::take(self).into_owned()
     }
+
+    fn type_id(&self) -> std::any::TypeId {
+        std::any::TypeId::of::<Cow<'_, str>>()
+    }
 }
 
 /// Immutable view of a `&str`!
@@ -265,4 +306,8 @@ impl TextBuffer for &str {
     }
 
     fn delete_char_range(&mut self, _ch_range: Range<usize>) {}
+
+    fn type_id(&self) -> std::any::TypeId {
+        std::any::TypeId::of::<&str>()
+    }
 }
