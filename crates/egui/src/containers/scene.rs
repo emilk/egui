@@ -160,16 +160,16 @@ impl Scene {
         // Set a correct global clip rect:
         local_ui.set_clip_rect(to_global.inverse() * outer_rect);
 
+        // Tell egui to apply the transform on the layer:
+        local_ui
+            .ctx()
+            .set_transform_layer(scene_layer_id, *to_global);
+
         // Add the actual contents to the area:
         let ret = add_contents(&mut local_ui);
 
         // This ensures we catch clicks/drags/pans anywhere on the background.
         local_ui.force_set_min_rect((to_global.inverse() * outer_rect).round_ui());
-
-        // Tell egui to apply the transform on the layer:
-        local_ui
-            .ctx()
-            .set_transform_layer(scene_layer_id, *to_global);
 
         InnerResponse {
             response: pan_response,
