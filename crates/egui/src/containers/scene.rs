@@ -210,15 +210,13 @@ impl Scene {
 
     /// Helper function to handle pan and zoom interactions on a response.
     pub fn register_pan_and_zoom(&self, ui: &Ui, resp: &mut Response, to_global: &mut TSTransform) {
-        let dragged = self.drag_pan_buttons.iter().any(|button| {
-            match button {
-                DragPanButtons::PRIMARY => resp.dragged_by(PointerButton::Primary),
-                DragPanButtons::SECONDARY => resp.dragged_by(PointerButton::Secondary),
-                DragPanButtons::MIDDLE => resp.dragged_by(PointerButton::Middle),
-                DragPanButtons::EXTRA_1 => resp.dragged_by(PointerButton::Extra1),
-                DragPanButtons::EXTRA_2 => resp.dragged_by(PointerButton::Extra2),
-                _ => false,
-            }
+        let dragged = self.drag_pan_buttons.iter().any(|button| match button {
+            DragPanButtons::PRIMARY => resp.dragged_by(PointerButton::Primary),
+            DragPanButtons::SECONDARY => resp.dragged_by(PointerButton::Secondary),
+            DragPanButtons::MIDDLE => resp.dragged_by(PointerButton::Middle),
+            DragPanButtons::EXTRA_1 => resp.dragged_by(PointerButton::Extra1),
+            DragPanButtons::EXTRA_2 => resp.dragged_by(PointerButton::Extra2),
+            _ => false,
         });
         if dragged {
             to_global.translation += to_global.scaling * resp.drag_delta();
