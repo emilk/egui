@@ -44,6 +44,7 @@ fn fit_to_rect_in_scene(
 #[must_use = "You should call .show()"]
 pub struct Scene {
     zoom_range: Rangef,
+    sense: Sense,
     max_inner_size: Vec2,
 }
 
@@ -51,6 +52,7 @@ impl Default for Scene {
     fn default() -> Self {
         Self {
             zoom_range: Rangef::new(f32::EPSILON, 1.0),
+            sense: Sense::click_and_drag(),
             max_inner_size: Vec2::splat(1000.0),
         }
     }
@@ -60,6 +62,16 @@ impl Scene {
     #[inline]
     pub fn new() -> Self {
         Default::default()
+    }
+
+    /// Specify what type of input the scene should respond to.
+    ///
+    /// The default is `Sense::click_and_drag()`.
+    ///
+    /// Set this to `Sense::hover()` to disable panning via clicking and dragging.
+    pub fn sense(mut self, sense: Sense) -> Self {
+        self.sense = sense;
+        self
     }
 
     /// Set the allowed zoom range.
@@ -149,7 +161,7 @@ impl Scene {
             UiBuilder::new()
                 .layer_id(scene_layer_id)
                 .max_rect(Rect::from_min_size(Pos2::ZERO, self.max_inner_size))
-                .sense(Sense::click_and_drag()),
+                .sense(self.sense),
         );
 
         let mut pan_response = local_ui.response();
