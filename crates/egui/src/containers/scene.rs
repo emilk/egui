@@ -57,12 +57,16 @@ bitflags::bitflags! {
     impl DragPanButtons: u8 {
         /// [PointerButton::Primary]
         const PRIMARY = PointerButton::Primary as _;
+
         /// [PointerButton::Secondary]
         const SECONDARY = PointerButton::Secondary as _;
+
         /// [PointerButton::Middle]
         const MIDDLE = PointerButton::Middle as _;
+
         /// [PointerButton::Extra1]
         const EXTRA_1 = PointerButton::Extra1 as _;
+
         /// [PointerButton::Extra2]
         const EXTRA_2 = PointerButton::Extra2 as _;
     }
