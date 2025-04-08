@@ -69,6 +69,7 @@ impl Scene {
     /// The default is `Sense::click_and_drag()`.
     ///
     /// Set this to `Sense::hover()` to disable panning via clicking and dragging.
+    #[inline]
     pub fn sense(mut self, sense: Sense) -> Self {
         self.sense = sense;
         self
