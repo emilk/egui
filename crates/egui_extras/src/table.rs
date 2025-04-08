@@ -507,6 +507,7 @@ impl<'a> TableBuilder<'a> {
                 striped: false,
                 hovered: false,
                 selected: false,
+                overline: false,
                 response: &mut response,
             });
             layout.allocate_rect();
@@ -990,6 +991,7 @@ impl<'a> TableBody<'a> {
             striped: self.striped && self.row_index % 2 == 0,
             hovered: self.hovered_row_index == Some(self.row_index),
             selected: false,
+            overline: false,
             response: &mut response,
         });
         self.capture_hover_state(&response, self.row_index);
@@ -1071,6 +1073,7 @@ impl<'a> TableBody<'a> {
                 striped: self.striped && (row_index + self.row_index) % 2 == 0,
                 hovered: self.hovered_row_index == Some(row_index),
                 selected: false,
+                overline: false,
                 response: &mut response,
             });
             self.capture_hover_state(&response, row_index);
@@ -1152,6 +1155,7 @@ impl<'a> TableBody<'a> {
                     striped: self.striped && (row_index + self.row_index) % 2 == 0,
                     hovered: self.hovered_row_index == Some(row_index),
                     selected: false,
+                    overline: false,
                     response: &mut response,
                 });
                 self.capture_hover_state(&response, row_index);
@@ -1173,6 +1177,7 @@ impl<'a> TableBody<'a> {
                 height: row_height,
                 striped: self.striped && (row_index + self.row_index) % 2 == 0,
                 hovered: self.hovered_row_index == Some(row_index),
+                overline: false,
                 selected: false,
                 response: &mut response,
             });
@@ -1260,6 +1265,7 @@ pub struct TableRow<'a, 'b> {
     striped: bool,
     hovered: bool,
     selected: bool,
+    overline: bool,
 
     response: &'b mut Option<Response>,
 }
@@ -1297,6 +1303,7 @@ impl TableRow<'_, '_> {
             striped: self.striped,
             hovered: self.hovered,
             selected: self.selected,
+            overline: self.overline,
             sizing_pass: auto_size_this_frame || self.layout.ui.is_sizing_pass(),
         };
 
@@ -1331,6 +1338,13 @@ impl TableRow<'_, '_> {
     #[inline]
     pub fn set_hovered(&mut self, hovered: bool) {
         self.hovered = hovered;
+    }
+
+    /// Set the overline state for this row. The overline is a line above the row,
+    /// usable for e.g. visually grouping rows.
+    #[inline]
+    pub fn set_overline(&mut self, overline: bool) {
+        self.overline = overline;
     }
 
     /// Returns a union of the [`Response`]s of the cells added to the row up to this point.
