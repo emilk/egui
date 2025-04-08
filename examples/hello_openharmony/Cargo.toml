@@ -1,7 +1,7 @@
 [package]
-name = "hello_android"
+name = "hello_openharmony"
 version = "0.1.0"
-authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
+authors = ["richerfu <southorange0929@foxmail.com>"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
 rust-version = "1.81"
@@ -12,12 +12,11 @@ publish = false
 # workspace = true
 
 [lib]
-# cdylib is required for Android, lib is required for desktop
-crate-type = ["cdylib", "lib"]
+crate-type = ["cdylib"]
 
 
 [dependencies]
-eframe = { workspace = true, features = ["default", "android-native-activity"] }
+eframe = { workspace = true, features = ["default"] }
 egui_demo_lib = { workspace = true, features = ["chrono"] }
 
 # For image support:
@@ -25,11 +24,5 @@ egui_extras = { workspace = true, features = ["default", "image"] }
 
 log = { workspace = true }
 winit = { workspace = true }
-android_logger = "0.14"
-
-[package.metadata.android]
-build_targets = ["aarch64-linux-android"]
-
-[package.metadata.android.sdk]
-min_sdk_version = 23
-target_sdk_version = 35
+openharmony-ability = { workspace = true }
+openharmony-ability-derive = { workspace = true }

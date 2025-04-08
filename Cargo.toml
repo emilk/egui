@@ -68,8 +68,12 @@ egui_glow = { version = "0.31.1", path = "crates/egui_glow", default-features = 
 egui_kittest = { version = "0.31.1", path = "crates/egui_kittest", default-features = false }
 eframe = { version = "0.31.1", path = "crates/eframe", default-features = false }
 
-accesskit = "0.18.0"
-accesskit_winit = "0.24"
+# accesskit = "0.18.0"
+# accesskit_winit = "0.24"
+
+accesskit = {path = "../accesskit/common"}
+accesskit_winit = {path = "../accesskit/platforms/winit"}
+
 ahash = { version = "0.8.11", default-features = false, features = [
     "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
     "std",
@@ -81,8 +85,8 @@ criterion = { version = "0.5.1", default-features = false }
 dify = { version = "0.7", default-features = false }
 document-features = "0.2.10"
 glow = "0.16"
-glutin = { version = "0.32.0", default-features = false }
-glutin-winit = { version = "0.5.0", default-features = false }
+glutin = { git = "https://github.com/richerfu/glutin.git",branch = "master", default-features = false }
+glutin-winit = { git = "https://github.com/richerfu/glutin.git",branch = "master", default-features = false }
 home = "0.5.9"
 image = { version = "0.25", default-features = false }
 kittest = { version = "0.1.0", git = "https://github.com/rerun-io/kittest", branch = "main" }
@@ -102,9 +106,13 @@ wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 web-sys = "0.3.70"
 web-time = "1.1.0" # Timekeeping for native and web
-wgpu = { version = "24.0.0", default-features = false }
+wgpu = { version = "24.0.3", default-features = false }
 windows-sys = "0.59"
-winit = { version = "0.30.7", default-features = false }
+winit = { git = "https://github.com/richerfu/winit.git", branch = "feat-ohos-30", default-features = false }
+# winit = { path = "../win", default-features = false }
+
+openharmony-ability = {version = "0.1.1"}
+openharmony-ability-derive = {version = "0.1.1"}
 
 [workspace.lints.rust]
 unsafe_code = "deny"

@@ -32,7 +32,6 @@ workspace = true
 
 [features]
 default = [
-  "accesskit",
   "default_fonts",
   "glow",
   "wayland",                                      # Required for Linux support (including CI!)
