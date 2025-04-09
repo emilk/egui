@@ -223,6 +223,7 @@ impl<'a> Button<'a> {
         } = self;
 
         let has_frame = frame.unwrap_or_else(|| ui.visuals().button_frame);
+        let wrap_mode = wrap_mode.unwrap_or_else(|| ui.wrap_mode());
 
         let mut button_padding = if has_frame {
             ui.spacing().button_padding
@@ -237,6 +238,23 @@ impl<'a> Button<'a> {
                 }
                 _ => {}
             })
+        }
+
+        // TODO: Pass TextWrapMode to AtomicLayout
+        // TODO: Should this rather be part of AtomicLayout?
+        // If the TextWrapMode is not Extend, ensure there is some item marked as `shrink`.
+        if !matches!(wrap_mode, TextWrapMode::Extend) {
+            let any_shrink = wl.atomics.iter_mut().any(|a| a.shrink);
+            if !any_shrink {
+                let first_text = wl
+                    .atomics
+                    .iter_mut()
+                    .filter(|a| matches!(a.kind, AtomicKind::Text(..)))
+                    .next();
+                if let Some(atomic) = first_text {
+                    atomic.shrink = true;
+                }
+            }
         }
 
         let response = ui.ctx().read_response(ui.next_auto_id());
