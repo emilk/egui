@@ -56,19 +56,19 @@ pub struct DragPanButtons(u8);
 bitflags::bitflags! {
     impl DragPanButtons: u8 {
         /// [PointerButton::Primary]
-        const PRIMARY = PointerButton::Primary as _;
+        const PRIMARY = 1 << 0;
 
         /// [PointerButton::Secondary]
-        const SECONDARY = PointerButton::Secondary as _;
+        const SECONDARY = 1 << 1;
 
         /// [PointerButton::Middle]
-        const MIDDLE = PointerButton::Middle as _;
+        const MIDDLE = 1 << 2;
 
         /// [PointerButton::Extra1]
-        const EXTRA_1 = PointerButton::Extra1 as _;
+        const EXTRA_1 = 1 << 3;
 
         /// [PointerButton::Extra2]
-        const EXTRA_2 = PointerButton::Extra2 as _;
+        const EXTRA_2 = 1 << 4;
     }
 }
 
