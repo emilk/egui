@@ -1,12 +1,13 @@
-use crate::{Frame, Image, ImageSource, Response, Sense, TextStyle, Ui, Widget, WidgetText};
-use emath::{Align2, Vec2};
-use epaint::Galley;
+use crate::{Frame, Id, Image, ImageSource, Response, Sense, TextStyle, Ui, Widget, WidgetText};
+use ahash::HashMap;
+use emath::{Align2, Rect, Vec2};
+use epaint::{Color32, Galley};
 use std::sync::Arc;
 
 pub enum SizedAtomicKind<'a> {
     Text(Arc<Galley>),
     Image(Image<'a>, Vec2),
-    Custom(Vec2),
+    Custom(Id, Vec2),
     Grow,
 }
 
@@ -15,7 +16,7 @@ impl SizedAtomicKind<'_> {
         match self {
             SizedAtomicKind::Text(galley) => galley.size(),
             SizedAtomicKind::Image(_, size) => *size,
-            SizedAtomicKind::Custom(size) => *size,
+            SizedAtomicKind::Custom(_, size) => *size,
             SizedAtomicKind::Grow => Vec2::ZERO,
         }
     }
@@ -24,18 +25,20 @@ impl SizedAtomicKind<'_> {
 /// AtomicLayout
 pub struct WidgetLayout<'a> {
     pub atomics: Atomics<'a>,
-    gap: f32,
+    gap: Option<f32>,
     pub(crate) frame: Frame,
     pub(crate) sense: Sense,
+    fallback_text_color: Option<Color32>,
 }
 
 impl<'a> WidgetLayout<'a> {
     pub fn new(atomics: impl IntoAtomics<'a>) -> Self {
         Self {
             atomics: atomics.into_atomics(),
-            gap: 4.0,
+            gap: None,
             frame: Frame::default(),
             sense: Sense::hover(),
+            fallback_text_color: None,
         }
     }
 
@@ -44,8 +47,9 @@ impl<'a> WidgetLayout<'a> {
         self
     }
 
+    /// Default: `Spacing::icon_spacing`
     pub fn gap(mut self, gap: f32) -> Self {
-        self.gap = gap;
+        self.gap = Some(gap);
         self
     }
 
@@ -59,7 +63,17 @@ impl<'a> WidgetLayout<'a> {
         self
     }
 
-    pub fn show(self, ui: &mut Ui) -> Response {
+    pub fn fallback_text_color(mut self, color: Color32) -> Self {
+        self.fallback_text_color = Some(color);
+        self
+    }
+
+    pub fn show(self, ui: &mut Ui) -> AtomicLayoutResponse {
+        let fallback_text_color = self
+            .fallback_text_color
+            .unwrap_or_else(|| ui.style().visuals.text_color());
+        let gap = self.gap.unwrap_or(ui.spacing().icon_spacing);
+
         let available_size = ui.available_size();
         let available_width = available_size.x;
 
@@ -87,7 +101,7 @@ impl<'a> WidgetLayout<'a> {
                     let size = size.unwrap_or_default();
                     (size, SizedAtomicKind::Image(image, size))
                 }
-                AtomicKind::Custom(size) => (size, SizedAtomicKind::Custom(size)),
+                AtomicKind::Custom(id, size) => (size, SizedAtomicKind::Custom(id, size)),
                 AtomicKind::Grow => {
                     grow_count += 1;
                     (Vec2::ZERO, SizedAtomicKind::Grow)
@@ -104,7 +118,7 @@ impl<'a> WidgetLayout<'a> {
         }
 
         if sized_items.len() > 1 {
-            let gap_space = self.gap * (sized_items.len() as f32 - 1.0);
+            let gap_space = gap * (sized_items.len() as f32 - 1.0);
             desired_width += gap_space;
             preferred_width += gap_space;
         }
@@ -114,6 +128,11 @@ impl<'a> WidgetLayout<'a> {
         let frame_size = content_size + margin.sum();
 
         let (rect, response) = ui.allocate_at_least(frame_size, self.sense);
+
+        let mut response = AtomicLayoutResponse {
+            response,
+            custom_rects: HashMap::default(),
+        };
 
         let content_rect = rect - margin;
         ui.painter().add(self.frame.paint(content_rect));
@@ -132,26 +151,32 @@ impl<'a> WidgetLayout<'a> {
             };
 
             let frame = content_rect.with_min_x(cursor).with_max_x(cursor + width);
-            cursor = frame.right() + self.gap;
+            cursor = frame.right() + gap;
 
             let align = Align2::CENTER_CENTER;
             let rect = align.align_size_within_rect(size, frame);
 
             match sized {
                 SizedAtomicKind::Text(galley) => {
-                    ui.painter()
-                        .galley(rect.min, galley, ui.visuals().text_color());
+                    ui.painter().galley(rect.min, galley, fallback_text_color);
                 }
                 SizedAtomicKind::Image(image, _) => {
                     image.paint_at(ui, rect);
                 }
-                SizedAtomicKind::Custom(_) => {}
+                SizedAtomicKind::Custom(id, size) => {
+                    response.custom_rects.insert(id, rect);
+                }
                 SizedAtomicKind::Grow => {}
             }
         }
 
         response
     }
+}
+
+pub struct AtomicLayoutResponse {
+    pub response: Response,
+    pub custom_rects: HashMap<Id, Rect>,
 }
 
 // pub struct WLButton<'a> {
@@ -217,7 +242,7 @@ impl<'a> WidgetLayout<'a> {
 pub enum AtomicKind<'a> {
     Text(WidgetText),
     Image(Image<'a>),
-    Custom(Vec2),
+    Custom(Id, Vec2),
     Grow,
 }
 
@@ -247,7 +272,7 @@ impl Atomic<'_> {
     // }
 }
 
-trait AtomicExt<'a> {
+pub trait AtomicExt<'a> {
     fn a_size(self, size: Vec2) -> Atomic<'a>;
     fn a_grow(self, grow: bool) -> Atomic<'a>;
 }
@@ -317,6 +342,21 @@ impl<'a> Atomics<'a> {
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Atomic<'a>> {
         self.0.iter_mut()
     }
+
+    pub fn text(&self) -> Option<String> {
+        let mut string: Option<String> = None;
+        for atomic in &self.0 {
+            if let AtomicKind::Text(text) = &atomic.kind {
+                if let Some(string) = &mut string {
+                    string.push(' ');
+                    string.push_str(text.text());
+                } else {
+                    string = Some(text.text().to_owned());
+                }
+            }
+        }
+        string
+    }
 }
 
 impl<'a, T> IntoAtomics<'a> for T
@@ -368,3 +408,20 @@ all_the_atomics!(T0, T1, T2);
 all_the_atomics!(T0, T1, T2, T3);
 all_the_atomics!(T0, T1, T2, T3, T4);
 all_the_atomics!(T0, T1, T2, T3, T4, T5);
+
+// trait AtomicWidget {
+//     fn show(&self, ui: &mut Ui) -> WidgetLayout;
+// }
+
+// TODO: This conflicts with the FnOnce Widget impl, is there some way around that?
+// impl<T> Widget for T where T: AtomicWidget {
+//     fn ui(self, ui: &mut Ui) -> Response {
+//         ui.add(self)
+//     }
+// }
+
+impl Widget for WidgetLayout<'_> {
+    fn ui(self, ui: &mut Ui) -> Response {
+        self.show(ui).response
+    }
+}

@@ -1,6 +1,7 @@
+use crate::AtomicKind::Custom;
 use crate::{
-    epaint, pos2, vec2, NumExt, Response, Sense, Shape, TextStyle, Ui, Vec2, Widget, WidgetInfo,
-    WidgetText, WidgetType,
+    epaint, pos2, vec2, Atomics, Id, IntoAtomics, NumExt, Response, Sense, Shape, TextStyle, Ui,
+    Vec2, Widget, WidgetInfo, WidgetLayout, WidgetText, WidgetType,
 };
 
 // TODO(emilk): allow checkbox without a text label
@@ -19,21 +20,21 @@ use crate::{
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct Checkbox<'a> {
     checked: &'a mut bool,
-    text: WidgetText,
+    atomics: Atomics<'a>,
     indeterminate: bool,
 }
 
 impl<'a> Checkbox<'a> {
-    pub fn new(checked: &'a mut bool, text: impl Into<WidgetText>) -> Self {
+    pub fn new(checked: &'a mut bool, atomics: impl IntoAtomics<'a>) -> Self {
         Checkbox {
             checked,
-            text: text.into(),
+            atomics: atomics.into_atomics(),
             indeterminate: false,
         }
     }
 
     pub fn without_text(checked: &'a mut bool) -> Self {
-        Self::new(checked, WidgetText::default())
+        Self::new(checked, ())
     }
 
     /// Display an indeterminate state (neither checked nor unchecked)
@@ -51,56 +52,46 @@ impl Widget for Checkbox<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         let Checkbox {
             checked,
-            text,
+            mut atomics,
             indeterminate,
         } = self;
 
         let spacing = &ui.spacing();
         let icon_width = spacing.icon_width;
-        let icon_spacing = spacing.icon_spacing;
 
-        let (galley, mut desired_size) = if text.is_empty() {
-            (None, vec2(icon_width, 0.0))
-        } else {
-            let total_extra = vec2(icon_width + icon_spacing, 0.0);
+        let rect_id = Id::new("checkbox");
+        atomics.add_front(Custom(rect_id, Vec2::splat(icon_width)));
 
-            let wrap_width = ui.available_width() - total_extra.x;
-            let galley = text.into_galley(ui, None, wrap_width, TextStyle::Button);
+        let text = atomics.text();
 
-            let mut desired_size = total_extra + galley.size();
-            desired_size = desired_size.at_least(spacing.interact_size);
+        let mut response = WidgetLayout::new(atomics).sense(Sense::click()).show(ui);
 
-            (Some(galley), desired_size)
-        };
-
-        desired_size = desired_size.at_least(Vec2::splat(spacing.interact_size.y));
-        desired_size.y = desired_size.y.max(icon_width);
-        let (rect, mut response) = ui.allocate_exact_size(desired_size, Sense::click());
-
-        if response.clicked() {
+        if response.response.clicked() {
             *checked = !*checked;
-            response.mark_changed();
+            response.response.mark_changed();
         }
-        response.widget_info(|| {
+        response.response.widget_info(|| {
             if indeterminate {
                 WidgetInfo::labeled(
                     WidgetType::Checkbox,
                     ui.is_enabled(),
-                    galley.as_ref().map_or("", |x| x.text()),
+                    text.clone().unwrap_or("".to_owned()),
                 )
             } else {
                 WidgetInfo::selected(
                     WidgetType::Checkbox,
                     ui.is_enabled(),
                     *checked,
-                    galley.as_ref().map_or("", |x| x.text()),
+                    text.clone().unwrap_or("".to_owned()),
                 )
             }
         });
 
-        if ui.is_rect_visible(rect) {
+        if ui.is_rect_visible(response.response.rect) {
             // let visuals = ui.style().interact_selectable(&response, *checked); // too colorful
-            let visuals = ui.style().interact(&response);
+            let visuals = ui.style().interact(&response.response);
+            let rect = response.custom_rects.get(&rect_id).unwrap().clone();
+
             let (small_icon_rect, big_icon_rect) = ui.spacing().icon_rectangles(rect);
             ui.painter().add(epaint::RectShape::new(
                 big_icon_rect.expand(visuals.expansion),
@@ -128,15 +119,8 @@ impl Widget for Checkbox<'_> {
                     visuals.fg_stroke,
                 ));
             }
-            if let Some(galley) = galley {
-                let text_pos = pos2(
-                    rect.min.x + icon_width + icon_spacing,
-                    rect.center().y - 0.5 * galley.size().y,
-                );
-                ui.painter().galley(text_pos, galley, visuals.text_color());
-            }
         }
 
-        response
+        response.response
     }
 }
