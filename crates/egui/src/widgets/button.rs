@@ -1,7 +1,7 @@
 use crate::{
-    widgets, Align, Atomic, AtomicKind, Color32, CornerRadius, Frame, Image, IntoAtomics, NumExt,
-    Rect, Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo,
-    WidgetLayout, WidgetText, WidgetType,
+    widgets, Align, Atomic, AtomicExt, AtomicKind, AtomicLayoutResponse, Color32, CornerRadius,
+    Frame, Image, IntoAtomics, NumExt, Rect, Response, Sense, Stroke, TextStyle, TextWrapMode, Ui,
+    Vec2, Widget, WidgetInfo, WidgetLayout, WidgetText, WidgetType,
 };
 
 /// Clickable button with text.
@@ -184,14 +184,20 @@ impl<'a> Button<'a> {
     /// See also [`Self::right_text`].
     #[inline]
     pub fn shortcut_text(mut self, shortcut_text: impl Into<Atomic<'a>>) -> Self {
-        self.wl = self.wl.add(shortcut_text);
+        self.wl = self
+            .wl
+            .add(AtomicKind::Grow.a_grow(true))
+            .add(shortcut_text);
         self
     }
 
     /// Show some text on the right side of the button.
     #[inline]
     pub fn right_text(mut self, right_text: impl Into<Atomic<'a>>) -> Self {
-        self.wl = self.wl.add(right_text.into());
+        self.wl = self
+            .wl
+            .add(AtomicKind::Grow.a_grow(true))
+            .add(right_text.into());
         self
     }
 
@@ -201,10 +207,8 @@ impl<'a> Button<'a> {
         self.selected = selected;
         self
     }
-}
 
-impl Widget for Button<'_> {
-    fn ui(mut self, ui: &mut Ui) -> Response {
+    pub fn atomic_ui(mut self, ui: &mut Ui) -> AtomicLayoutResponse {
         let Button {
             wrap_mode,
             fill,
@@ -241,26 +245,37 @@ impl Widget for Button<'_> {
             ui.style().interact(&response)
         });
 
+        wl = wl.fallback_text_color(visuals.text_color());
+
         wl.frame = if has_frame {
             wl.frame
                 .inner_margin(button_padding)
-                .fill(fill.unwrap_or(visuals.bg_fill))
+                .fill(fill.unwrap_or(visuals.weak_bg_fill))
                 .stroke(stroke.unwrap_or(visuals.bg_stroke))
                 .corner_radius(corner_radius.unwrap_or(visuals.corner_radius))
         } else {
             Frame::new()
         };
 
+        let text = wl.atomics.text();
+
         let response = wl.show(ui);
 
-        // TODO: How to get text?
-        // response.widget_info(|| {
-        //     if let Some(galley) = &galley {
-        //         WidgetInfo::labeled(WidgetType::Button, ui.is_enabled(), galley.text())
-        //     } else {
-        //         WidgetInfo::new(WidgetType::Button)
-        //     }
-        // });
+        response.response.widget_info(|| {
+            if let Some(text) = &text {
+                WidgetInfo::labeled(WidgetType::Button, ui.is_enabled(), text)
+            } else {
+                WidgetInfo::new(WidgetType::Button)
+            }
+        });
+
+        response
+    }
+}
+
+impl Widget for Button<'_> {
+    fn ui(mut self, ui: &mut Ui) -> Response {
+        self.atomic_ui(ui).response
 
         //
         // let space_available_for_image = if let Some(text) = &text {
@@ -326,13 +341,6 @@ impl Widget for Button<'_> {
         // desired_size = desired_size.at_least(min_size);
         //
         // let (rect, mut response) = ui.allocate_at_least(desired_size, sense);
-        // response.widget_info(|| {
-        //     if let Some(galley) = &galley {
-        //         WidgetInfo::labeled(WidgetType::Button, ui.is_enabled(), galley.text())
-        //     } else {
-        //         WidgetInfo::new(WidgetType::Button)
-        //     }
-        // });
         //
         // if ui.is_rect_visible(rect) {
         //     let visuals = ui.style().interact(&response);
@@ -435,7 +443,5 @@ impl Widget for Button<'_> {
         //         ui.ctx().set_cursor_icon(cursor);
         //     }
         // }
-
-        response
     }
 }
