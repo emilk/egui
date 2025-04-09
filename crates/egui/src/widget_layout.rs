@@ -74,8 +74,8 @@ impl<'a> WidgetLayout<'a> {
             .unwrap_or_else(|| ui.style().visuals.text_color());
         let gap = self.gap.unwrap_or(ui.spacing().icon_spacing);
 
-        let available_size = ui.available_size();
-        let available_width = available_size.x;
+        // The size available for the content
+        let available_inner_size = ui.available_size() - self.frame.total_margin().sum();
 
         let mut desired_width = 0.0;
         let mut preferred_width = 0.0;
@@ -86,27 +86,29 @@ impl<'a> WidgetLayout<'a> {
 
         let mut grow_count = 0;
 
-        for (item) in self.atomics.0 {
-            let (preferred_size, sized) = match item.kind {
-                AtomicKind::Text(text) => {
-                    let galley = text.into_galley(ui, None, available_width, TextStyle::Button);
-                    (
-                        galley.size(), // TODO
-                        SizedAtomicKind::Text(galley),
-                    )
+        let mut shrink_item = None;
+
+        if self.atomics.0.len() > 1 {
+            let gap_space = gap * (self.atomics.0.len() as f32 - 1.0);
+            desired_width += gap_space;
+            preferred_width += gap_space;
+        }
+
+        for ((idx, item)) in self.atomics.0.into_iter().enumerate() {
+            if item.shrink {
+                debug_assert!(
+                    shrink_item.is_none(),
+                    "Only one atomic may be marked as shrink"
+                );
+                if shrink_item.is_none() {
+                    shrink_item = Some((idx, item));
+                    continue;
                 }
-                AtomicKind::Image(image) => {
-                    let size =
-                        image.load_and_calc_size(ui, Vec2::min(available_size, Vec2::splat(16.0)));
-                    let size = size.unwrap_or_default();
-                    (size, SizedAtomicKind::Image(image, size))
-                }
-                AtomicKind::Custom(id, size) => (size, SizedAtomicKind::Custom(id, size)),
-                AtomicKind::Grow => {
-                    grow_count += 1;
-                    (Vec2::ZERO, SizedAtomicKind::Grow)
-                }
-            };
+            }
+            if item.grow {
+                grow_count += 1;
+            }
+            let (preferred_size, sized) = item.kind.into_sized(ui, available_inner_size);
             let size = sized.size();
 
             desired_width += size.x;
@@ -117,10 +119,21 @@ impl<'a> WidgetLayout<'a> {
             sized_items.push(sized);
         }
 
-        if sized_items.len() > 1 {
-            let gap_space = gap * (sized_items.len() as f32 - 1.0);
-            desired_width += gap_space;
-            preferred_width += gap_space;
+        if let Some((index, item)) = shrink_item {
+            // The `shrink` item gets the remaining space
+            let mut shrunk_size = Vec2::new(
+                available_inner_size.x - desired_width,
+                available_inner_size.y,
+            );
+            let (preferred_size, sized) = item.kind.into_sized(ui, shrunk_size);
+            let size = sized.size();
+
+            desired_width += size.x;
+            preferred_width += preferred_size.x;
+
+            height = height.max(size.y);
+
+            sized_items.insert(index, sized);
         }
 
         let margin = self.frame.total_margin();
@@ -146,6 +159,7 @@ impl<'a> WidgetLayout<'a> {
         for sized in sized_items {
             let size = sized.size();
             let width = match sized {
+                // TODO: check for atomic.grow here
                 SizedAtomicKind::Grow => grow_width,
                 _ => size.x,
             };
@@ -246,9 +260,33 @@ pub enum AtomicKind<'a> {
     Grow,
 }
 
+impl<'a> AtomicKind<'a> {
+    /// First returned argument is the preferred size.
+    pub fn into_sized(self, ui: &Ui, available_size: Vec2) -> (Vec2, SizedAtomicKind<'a>) {
+        match self {
+            AtomicKind::Text(text) => {
+                let galley = text.into_galley(ui, None, available_size.x, TextStyle::Button);
+                (
+                    galley.size(), // TODO
+                    SizedAtomicKind::Text(galley),
+                )
+            }
+            AtomicKind::Image(image) => {
+                let size =
+                    image.load_and_calc_size(ui, Vec2::min(available_size, Vec2::splat(16.0)));
+                let size = size.unwrap_or_default();
+                (size, SizedAtomicKind::Image(image, size))
+            }
+            AtomicKind::Custom(id, size) => (size, SizedAtomicKind::Custom(id, size)),
+            AtomicKind::Grow => (Vec2::ZERO, SizedAtomicKind::Grow),
+        }
+    }
+}
+
 pub struct Atomic<'a> {
-    size: Option<Vec2>,
-    grow: bool,
+    pub size: Option<Vec2>,
+    pub grow: bool,
+    pub shrink: bool,
     pub kind: AtomicKind<'a>,
 }
 
@@ -256,6 +294,7 @@ pub fn a<'a>(i: impl Into<AtomicKind<'a>>) -> Atomic<'a> {
     Atomic {
         size: None,
         grow: false,
+        shrink: false,
         kind: i.into(),
     }
 }
@@ -275,6 +314,7 @@ impl Atomic<'_> {
 pub trait AtomicExt<'a> {
     fn a_size(self, size: Vec2) -> Atomic<'a>;
     fn a_grow(self, grow: bool) -> Atomic<'a>;
+    fn a_shrink(self, shrink: bool) -> Atomic<'a>;
 }
 
 impl<'a, T> AtomicExt<'a> for T
@@ -292,6 +332,13 @@ where
         atomic.grow = grow;
         atomic
     }
+
+    /// NOTE: Only a single atomic may be marked as shrink
+    fn a_shrink(self, shrink: bool) -> Atomic<'a> {
+        let mut atomic = self.into();
+        atomic.shrink = shrink;
+        atomic
+    }
 }
 
 impl<'a, T> From<T> for Atomic<'a>
@@ -302,6 +349,7 @@ where
         Atomic {
             size: None,
             grow: false,
+            shrink: false,
             kind: value.into(),
         }
     }
