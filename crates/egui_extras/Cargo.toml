@@ -62,6 +62,9 @@ serde = ["egui/serde", "enum-map/serde", "dep:serde"]
 ## Support loading svg images.
 svg = ["resvg"]
 
+## Support rendering text in svg images.
+svg_text = ["svg", "resvg/text", "resvg/system-fonts"]
+
 ## Enable better syntax highlighting using [`syntect`](https://docs.rs/syntect).
 syntect = ["dep:syntect"]
 
@@ -101,7 +104,7 @@ syntect = { version = "5", optional = true, default-features = false, features =
 ] }
 
 # svg feature
-resvg = { version = "0.37", optional = true, default-features = false }
+resvg = { version = "0.45", optional = true, default-features = false }
 
 # http feature
 ehttp = { version = "0.5", optional = true, default-features = false }

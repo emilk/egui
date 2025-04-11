@@ -10,9 +10,9 @@ use egui::{
 
 type Entry = Result<Arc<ColorImage>, String>;
 
-#[derive(Default)]
 pub struct SvgLoader {
     cache: Mutex<HashMap<(Cow<'static, str>, SizeHint), Entry>>,
+    options: resvg::usvg::Options<'static>,
 }
 
 impl SvgLoader {
@@ -25,6 +25,22 @@ fn is_supported(uri: &str) -> bool {
     };
 
     ext == "svg"
+}
+
+impl Default for SvgLoader {
+    fn default() -> Self {
+        // opt is mutated when `svg_text` feature flag is enabled
+        #[allow(unused_mut)]
+        let mut options = resvg::usvg::Options::default();
+
+        #[cfg(feature = "svg_text")]
+        options.fontdb_mut().load_system_fonts();
+
+        Self {
+            cache: Mutex::new(HashMap::default()),
+            options,
+        }
+    }
 }
 
 impl ImageLoader for SvgLoader {
@@ -48,8 +64,12 @@ impl ImageLoader for SvgLoader {
             match ctx.try_load_bytes(uri) {
                 Ok(BytesPoll::Ready { bytes, .. }) => {
                     log::trace!("started loading {uri:?}");
-                    let result = crate::image::load_svg_bytes_with_size(&bytes, Some(size_hint))
-                        .map(Arc::new);
+                    let result = crate::image::load_svg_bytes_with_size(
+                        &bytes,
+                        Some(size_hint),
+                        &self.options,
+                    )
+                    .map(Arc::new);
                     log::trace!("finished loading {uri:?}");
                     cache.insert((Cow::Owned(uri.to_owned()), size_hint), result.clone());
                     match result {
