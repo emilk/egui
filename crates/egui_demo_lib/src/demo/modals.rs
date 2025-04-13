@@ -200,7 +200,7 @@ mod tests {
     use crate::demo::modals::Modals;
     use crate::Demo;
     use egui::accesskit::Role;
-    use egui::Key;
+    use egui::{Event, Key, PointerButton, Vec2};
     use egui_kittest::kittest::Queryable;
     use egui_kittest::{Harness, SnapshotResults};
 
@@ -282,6 +282,59 @@ mod tests {
         harness.get_by_label("Yes Please").click();
         harness.run_ok();
         results.add(harness.try_snapshot("modals_3"));
+    }
+
+    #[test]
+    fn draggable_should_drag_and_close() {
+        let initial_state = Modals {
+            drag_modal_open: true,
+            ..Modals::default()
+        };
+
+        let mut harness = Harness::new_state(
+            |ctx, modals| {
+                modals.show(ctx, &mut true);
+            },
+            initial_state,
+        );
+
+        let mut results = SnapshotResults::new();
+
+        harness.run();
+        results.add(harness.try_snapshot("modals_drag_1"));
+
+        let center = harness.ctx.screen_rect().center();
+        let delta = Vec2::new(150.0, 25.0);
+        let pos_after = center + delta;
+
+        harness.input_mut().events.push(Event::PointerButton {
+            pos: center,
+            button: PointerButton::Primary,
+            pressed: true,
+            modifiers: Default::default(),
+        });
+        harness.step();
+
+        harness
+            .input_mut()
+            .events
+            .push(Event::PointerMoved(pos_after));
+        harness.step();
+
+        harness.input_mut().events.push(Event::PointerButton {
+            pos: pos_after,
+            button: PointerButton::Primary,
+            pressed: false,
+            modifiers: Default::default(),
+        });
+        harness.step();
+
+        results.add(harness.try_snapshot("modals_drag_2"));
+
+        harness.press_key(Key::Escape);
+        harness.run();
+
+        results.add(harness.try_snapshot("modals_drag_3"));
     }
 
     // This tests whether the backdrop actually prevents interaction with lower layers.
