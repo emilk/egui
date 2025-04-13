@@ -6,6 +6,7 @@ pub struct Modals {
     user_modal_open: bool,
     save_modal_open: bool,
     save_progress: Option<f32>,
+    drag_modal_open: bool,
 
     role: &'static str,
     name: String,
@@ -16,6 +17,7 @@ impl Default for Modals {
         Self {
             user_modal_open: false,
             save_modal_open: false,
+            drag_modal_open: false,
             save_progress: None,
             role: Self::ROLES[0],
             name: "John Doe".to_owned(),
@@ -48,6 +50,7 @@ impl crate::View for Modals {
             user_modal_open,
             save_modal_open,
             save_progress,
+            drag_modal_open,
             role,
             name,
         } = self;
@@ -59,6 +62,10 @@ impl crate::View for Modals {
 
             if ui.button("Open Save Modal").clicked() {
                 *save_modal_open = true;
+            }
+
+            if ui.button("Draggable Modal").clicked() {
+                *drag_modal_open = true;
             }
         });
 
@@ -152,6 +159,34 @@ impl crate::View for Modals {
                     ui.ctx().request_repaint();
                 }
             });
+        }
+
+        if *drag_modal_open {
+            let id = Id::new("Modal D");
+
+            // It is tempting to do this:
+            // let area = Modal::default_area(id).movable(true);
+            // However the default area sets anchors, and thus movable will not work.
+            // Instead, use Modal::draggable_area instead.
+            let modal = Modal::new(id)
+                .area(Modal::draggable_area(id))
+                .show(ui.ctx(), |ui| {
+                    egui::Resize::default()
+                        .with_stroke(false)
+                        .min_size([125.0, 225.0])
+                        .max_size(ui.ctx().screen_rect().size())
+                        .show(ui, |ui| {
+                            ui.vertical_centered(|ui| {
+                                ui.add_space(25.0);
+                                ui.heading("You should be able to drag me around!");
+                                ui.add_space(125.0);
+                            });
+                        });
+                });
+
+            if modal.should_close() {
+                *drag_modal_open = false;
+            }
         }
 
         ui.vertical_centered(|ui| {
