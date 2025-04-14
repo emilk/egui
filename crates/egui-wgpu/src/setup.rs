@@ -126,13 +126,6 @@ pub struct WgpuSetupCreateNew {
     /// Configuration passed on device request, given an adapter
     pub device_descriptor:
         Arc<dyn Fn(&wgpu::Adapter) -> wgpu::DeviceDescriptor<'static> + Send + Sync>,
-
-    /// Option path to output a wgpu trace file.
-    ///
-    /// This only works if this feature is enabled in `wgpu-core`.
-    /// Does not work when running with WebGPU.
-    /// Defaults to the path set in the `WGPU_TRACE` environment variable.
-    pub trace_path: Option<std::path::PathBuf>,
 }
 
 impl Clone for WgpuSetupCreateNew {
@@ -142,7 +135,6 @@ impl Clone for WgpuSetupCreateNew {
             power_preference: self.power_preference,
             native_adapter_selector: self.native_adapter_selector.clone(),
             device_descriptor: self.device_descriptor.clone(),
-            trace_path: self.trace_path.clone(),
         }
     }
 }
@@ -156,7 +148,6 @@ impl std::fmt::Debug for WgpuSetupCreateNew {
                 "native_adapter_selector",
                 &self.native_adapter_selector.is_some(),
             )
-            .field("trace_path", &self.trace_path)
             .finish()
     }
 }
@@ -195,12 +186,9 @@ impl Default for WgpuSetupCreateNew {
                         ..base_limits
                     },
                     memory_hints: wgpu::MemoryHints::default(),
+                    trace: wgpu::Trace::Off,
                 }
             }),
-
-            trace_path: std::env::var("WGPU_TRACE")
-                .ok()
-                .map(std::path::PathBuf::from),
         }
     }
 }
