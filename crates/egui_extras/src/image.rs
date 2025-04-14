@@ -63,8 +63,12 @@ impl RetainedImage {
     /// # Errors
     /// On invalid image
     #[cfg(feature = "svg")]
-    pub fn from_svg_bytes(debug_name: impl Into<String>, svg_bytes: &[u8]) -> Result<Self, String> {
-        Self::from_svg_bytes_with_size(debug_name, svg_bytes, None)
+    pub fn from_svg_bytes(
+        debug_name: impl Into<String>,
+        svg_bytes: &[u8],
+        options: &resvg::usvg::Options<'_>,
+    ) -> Result<Self, String> {
+        Self::from_svg_bytes_with_size(debug_name, svg_bytes, None, options)
     }
 
     /// Pass in the str of an SVG that you've loaded.
@@ -72,8 +76,12 @@ impl RetainedImage {
     /// # Errors
     /// On invalid image
     #[cfg(feature = "svg")]
-    pub fn from_svg_str(debug_name: impl Into<String>, svg_str: &str) -> Result<Self, String> {
-        Self::from_svg_bytes(debug_name, svg_str.as_bytes())
+    pub fn from_svg_str(
+        debug_name: impl Into<String>,
+        svg_str: &str,
+        options: &resvg::usvg::Options<'_>,
+    ) -> Result<Self, String> {
+        Self::from_svg_bytes(debug_name, svg_str.as_bytes(), options)
     }
 
     /// Pass in the bytes of an SVG that you've loaded
@@ -86,10 +94,11 @@ impl RetainedImage {
         debug_name: impl Into<String>,
         svg_bytes: &[u8],
         size_hint: Option<SizeHint>,
+        options: &resvg::usvg::Options<'_>,
     ) -> Result<Self, String> {
         Ok(Self::from_color_image(
             debug_name,
-            load_svg_bytes_with_size(svg_bytes, size_hint)?,
+            load_svg_bytes_with_size(svg_bytes, size_hint, options)?,
         ))
     }
 
@@ -227,8 +236,11 @@ pub fn load_image_bytes(image_bytes: &[u8]) -> Result<egui::ColorImage, egui::lo
 /// # Errors
 /// On invalid image
 #[cfg(feature = "svg")]
-pub fn load_svg_bytes(svg_bytes: &[u8]) -> Result<egui::ColorImage, String> {
-    load_svg_bytes_with_size(svg_bytes, None)
+pub fn load_svg_bytes(
+    svg_bytes: &[u8],
+    options: &resvg::usvg::Options<'_>,
+) -> Result<egui::ColorImage, String> {
+    load_svg_bytes_with_size(svg_bytes, None, options)
 }
 
 /// Load an SVG and rasterize it into an egui image with a scaling parameter.
@@ -241,48 +253,47 @@ pub fn load_svg_bytes(svg_bytes: &[u8]) -> Result<egui::ColorImage, String> {
 pub fn load_svg_bytes_with_size(
     svg_bytes: &[u8],
     size_hint: Option<SizeHint>,
+    options: &resvg::usvg::Options<'_>,
 ) -> Result<egui::ColorImage, String> {
     use resvg::tiny_skia::{IntSize, Pixmap};
-    use resvg::usvg::{Options, Tree, TreeParsing};
+    use resvg::usvg::{Transform, Tree};
 
     profiling::function_scope!();
 
-    let opt = Options::default();
+    let rtree = Tree::from_data(svg_bytes, options).map_err(|err| err.to_string())?;
 
-    let mut rtree = Tree::from_data(svg_bytes, &opt).map_err(|err| err.to_string())?;
-
-    let mut size = rtree.size.to_int_size();
-    match size_hint {
-        None => (),
-        Some(SizeHint::Size(w, h)) => {
-            size = size.scale_to(
-                IntSize::from_wh(w, h).ok_or_else(|| format!("Failed to scale SVG to {w}x{h}"))?,
-            );
-        }
-        Some(SizeHint::Height(h)) => {
-            size = size
-                .scale_to_height(h)
-                .ok_or_else(|| format!("Failed to scale SVG to height {h}"))?;
-        }
-        Some(SizeHint::Width(w)) => {
-            size = size
-                .scale_to_width(w)
-                .ok_or_else(|| format!("Failed to scale SVG to width {w}"))?;
-        }
+    let size = rtree.size().to_int_size();
+    let scaled_size = match size_hint {
+        None => size,
+        Some(SizeHint::Size(w, h)) => size.scale_to(
+            IntSize::from_wh(w, h).ok_or_else(|| format!("Failed to scale SVG to {w}x{h}"))?,
+        ),
+        Some(SizeHint::Height(h)) => size
+            .scale_to_height(h)
+            .ok_or_else(|| format!("Failed to scale SVG to height {h}"))?,
+        Some(SizeHint::Width(w)) => size
+            .scale_to_width(w)
+            .ok_or_else(|| format!("Failed to scale SVG to width {w}"))?,
         Some(SizeHint::Scale(z)) => {
             let z_inner = z.into_inner();
-            size = size
-                .scale_by(z_inner)
-                .ok_or_else(|| format!("Failed to scale SVG by {z_inner}"))?;
+            size.scale_by(z_inner)
+                .ok_or_else(|| format!("Failed to scale SVG by {z_inner}"))?
         }
     };
-    let (w, h) = (size.width(), size.height());
+
+    let (w, h) = (scaled_size.width(), scaled_size.height());
 
     let mut pixmap =
         Pixmap::new(w, h).ok_or_else(|| format!("Failed to create SVG Pixmap of size {w}x{h}"))?;
 
-    rtree.size = size.to_size();
-    resvg::Tree::from_usvg(&rtree).render(Default::default(), &mut pixmap.as_mut());
+    resvg::render(
+        &rtree,
+        Transform::from_scale(
+            w as f32 / size.width() as f32,
+            h as f32 / size.height() as f32,
+        ),
+        &mut pixmap.as_mut(),
+    );
 
     let image = egui::ColorImage::from_rgba_unmultiplied([w as _, h as _], pixmap.data());
 
