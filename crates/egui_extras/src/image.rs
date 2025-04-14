@@ -260,7 +260,7 @@ pub fn load_svg_bytes_with_size(
 
     profiling::function_scope!();
 
-    let rtree = Tree::from_data(svg_bytes, &options).map_err(|err| err.to_string())?;
+    let rtree = Tree::from_data(svg_bytes, options).map_err(|err| err.to_string())?;
 
     let size = rtree.size().to_int_size();
     let scaled_size = match size_hint {
