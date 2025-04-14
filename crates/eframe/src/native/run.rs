@@ -363,6 +363,19 @@ pub fn run_glow(
     run_and_exit(event_loop, glow_eframe)
 }
 
+#[cfg(feature = "glow")]
+pub fn create_glow<'a>(
+    app_name: &str,
+    native_options: epi::NativeOptions,
+    app_creator: epi::AppCreator<'a>,
+    event_loop: &EventLoop<UserEvent>,
+) -> impl ApplicationHandler<UserEvent> + 'a {
+    use super::glow_integration::GlowWinitApp;
+
+    let glow_eframe = GlowWinitApp::new(event_loop, app_name, native_options, app_creator);
+    WinitAppWrapper::new(glow_eframe, true)
+}
+
 // ----------------------------------------------------------------------------
 
 #[cfg(feature = "wgpu")]
@@ -386,4 +399,17 @@ pub fn run_wgpu(
     let event_loop = create_event_loop(&mut native_options)?;
     let wgpu_eframe = WgpuWinitApp::new(&event_loop, app_name, native_options, app_creator);
     run_and_exit(event_loop, wgpu_eframe)
+}
+
+#[cfg(feature = "wgpu")]
+pub fn create_wgpu<'a>(
+    app_name: &str,
+    native_options: epi::NativeOptions,
+    app_creator: epi::AppCreator<'a>,
+    event_loop: &EventLoop<UserEvent>,
+) -> impl ApplicationHandler<UserEvent> + 'a {
+    use super::wgpu_integration::WgpuWinitApp;
+
+    let wgpu_eframe = WgpuWinitApp::new(event_loop, app_name, native_options, app_creator);
+    WinitAppWrapper::new(wgpu_eframe, true)
 }
