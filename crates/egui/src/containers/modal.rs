@@ -142,7 +142,6 @@ impl Modal {
             // The backdrop still needs painting.
             ui.painter().rect_filled(bg_rect, 0.0, backdrop_color);
 
-            // We are handling the area sensing already, so we can jow just create and show the frame.
             let frame = frame.unwrap_or_else(|| Frame::popup(ui.style()));
             frame.show(ui, content).inner
         });
