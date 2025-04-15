@@ -34,7 +34,7 @@ impl Modal {
     /// Returns an area customized for a modal.
     ///
     /// Makes these changes to the default area:
-    /// - sense: hover + click + drag
+    /// - sense: click + drag
     /// - anchor: center
     /// - order: foreground
     ///
@@ -42,7 +42,7 @@ impl Modal {
     pub fn default_area(id: Id) -> Area {
         Area::new(id)
             .kind(UiKind::Modal)
-            .sense(Sense::HOVER | Sense::DRAG | Sense::CLICK)
+            .sense(Sense::click_and_drag())
             .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
             .order(Order::Foreground)
             .interactable(true)
@@ -51,7 +51,7 @@ impl Modal {
     /// Returns an area customized to make a modal draggable.
     ///
     /// Makes these changes to the default area:
-    /// - sense: hover + click + drag
+    /// - sense: click + drag
     /// - pivot: center
     /// - order: foreground
     ///
@@ -59,7 +59,7 @@ impl Modal {
     pub fn draggable_area(id: Id) -> Area {
         Area::new(id)
             .kind(UiKind::Modal)
-            .sense(Sense::HOVER | Sense::DRAG | Sense::CLICK)
+            .sense(Sense::click_and_drag())
             .pivot(Align2::CENTER_CENTER)
             .order(Order::Foreground)
             .interactable(true)
