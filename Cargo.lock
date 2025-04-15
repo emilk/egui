@@ -1424,6 +1424,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "egui_tests"
+version = "0.31.1"
+dependencies = [
+ "egui",
+ "egui_extras",
+ "egui_kittest",
+ "image",
+]
+
+[[package]]
 name = "ehttp"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
