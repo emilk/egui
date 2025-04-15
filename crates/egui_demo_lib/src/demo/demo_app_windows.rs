@@ -102,6 +102,7 @@ impl Default for DemoGroups {
                 Box::<super::tests::ManualLayoutTest>::default(),
                 Box::<super::tests::TessellationTest>::default(),
                 Box::<super::tests::WindowResizeTest>::default(),
+                Box::<super::tests::WindowPositionTest>::default(),
             ]),
         }
     }
