@@ -144,13 +144,6 @@
 #![warn(missing_docs)] // let's keep eframe well-documented
 #![allow(clippy::needless_doctest_main)]
 
-use std::time::Duration;
-use winit::{
-    application::ApplicationHandler,
-    event_loop,
-    platform::pump_events::{EventLoopExtPumpEvents, PumpStatus},
-};
-
 // Re-export all useful libraries:
 pub use {egui, egui::emath, egui::epaint};
 
@@ -188,6 +181,10 @@ pub use web::{WebLogger, WebRunner};
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu"))]
 mod native;
+
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(feature = "glow", feature = "wgpu"))]
+pub use native::run::{EframePumpStatus, EframeWinitApplication};
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu"))]
@@ -266,45 +263,44 @@ pub fn run_native(
     }
 }
 
-/// TODO: docs
+/// TODO(wpbrown): docs
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu"))]
 pub fn create_native<'a>(
     app_name: &str,
     mut native_options: NativeOptions,
     app_creator: AppCreator<'a>,
-    event_loop: &event_loop::EventLoop<UserEvent>,
+    event_loop: &winit::event_loop::EventLoop<UserEvent>,
 ) -> EframeWinitApplication<'a> {
     let renderer = init_native(app_name, &mut native_options);
 
-    EframeWinitApplication {
-        wrapper: match renderer {
-            #[cfg(feature = "glow")]
-            Renderer::Glow => {
-                log::debug!("Using the glow renderer");
-                Box::new(native::run::create_glow(
-                    app_name,
-                    native_options,
-                    app_creator,
-                    event_loop,
-                ))
-            }
+    match renderer {
+        #[cfg(feature = "glow")]
+        Renderer::Glow => {
+            log::debug!("Using the glow renderer");
+            EframeWinitApplication::new(native::run::create_glow(
+                app_name,
+                native_options,
+                app_creator,
+                event_loop,
+            ))
+        }
 
-            #[cfg(feature = "wgpu")]
-            Renderer::Wgpu => {
-                log::debug!("Using the wgpu renderer");
-                Box::new(native::run::create_wgpu(
-                    app_name,
-                    native_options,
-                    app_creator,
-                    event_loop,
-                ))
-            }
-        },
-        control_flow: event_loop::ControlFlow::default(),
+        #[cfg(feature = "wgpu")]
+        Renderer::Wgpu => {
+            log::debug!("Using the wgpu renderer");
+            EframeWinitApplication::new(native::run::create_wgpu(
+                app_name,
+                native_options,
+                app_creator,
+                event_loop,
+            ))
+        }
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(feature = "glow", feature = "wgpu"))]
 fn init_native(app_name: &str, native_options: &mut NativeOptions) -> Renderer {
     #[cfg(not(feature = "__screenshot"))]
     assert!(
@@ -328,87 +324,6 @@ fn init_native(app_name: &str, native_options: &mut NativeOptions) -> Renderer {
     }
 
     renderer
-}
-
-// ----------------------------------------------------------------------------
-
-/// TODO: doc
-pub struct EframeWinitApplication<'a> {
-    wrapper: Box<dyn ApplicationHandler<UserEvent> + 'a>,
-    control_flow: event_loop::ControlFlow,
-}
-
-impl ApplicationHandler<UserEvent> for EframeWinitApplication<'_> {
-    fn resumed(&mut self, event_loop: &event_loop::ActiveEventLoop) {
-        self.wrapper.resumed(event_loop);
-    }
-
-    fn window_event(
-        &mut self,
-        event_loop: &event_loop::ActiveEventLoop,
-        window_id: winit::window::WindowId,
-        event: winit::event::WindowEvent,
-    ) {
-        self.wrapper.window_event(event_loop, window_id, event);
-    }
-
-    fn new_events(
-        &mut self,
-        event_loop: &event_loop::ActiveEventLoop,
-        cause: winit::event::StartCause,
-    ) {
-        self.wrapper.new_events(event_loop, cause);
-    }
-
-    fn user_event(&mut self, event_loop: &event_loop::ActiveEventLoop, event: UserEvent) {
-        self.wrapper.user_event(event_loop, event);
-    }
-
-    fn device_event(
-        &mut self,
-        event_loop: &event_loop::ActiveEventLoop,
-        device_id: winit::event::DeviceId,
-        event: winit::event::DeviceEvent,
-    ) {
-        self.wrapper.device_event(event_loop, device_id, event);
-    }
-
-    fn about_to_wait(&mut self, event_loop: &event_loop::ActiveEventLoop) {
-        self.wrapper.about_to_wait(event_loop);
-        self.control_flow = event_loop.control_flow();
-    }
-
-    fn suspended(&mut self, event_loop: &event_loop::ActiveEventLoop) {
-        self.wrapper.suspended(event_loop);
-    }
-
-    fn exiting(&mut self, event_loop: &event_loop::ActiveEventLoop) {
-        self.wrapper.exiting(event_loop);
-    }
-
-    fn memory_warning(&mut self, event_loop: &event_loop::ActiveEventLoop) {
-        self.wrapper.memory_warning(event_loop);
-    }
-}
-
-impl EframeWinitApplication<'_> {
-    /// TODO: docs
-    pub fn pump_eframe_app(
-        &mut self,
-        event_loop: &mut event_loop::EventLoop<UserEvent>,
-        timeout: Option<Duration>,
-    ) -> EframePumpStatus {
-        match event_loop.pump_app_events(timeout, self) {
-            PumpStatus::Continue => EframePumpStatus::Continue(self.control_flow),
-            PumpStatus::Exit(code) => EframePumpStatus::Exit(code),
-        }
-    }
-}
-
-/// TODO: docs
-pub enum EframePumpStatus {
-    Continue(event_loop::ControlFlow),
-    Exit(i32),
 }
 
 // ----------------------------------------------------------------------------

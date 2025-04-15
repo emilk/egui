@@ -3,6 +3,7 @@ use std::time::Instant;
 use winit::{
     application::ApplicationHandler,
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
+    platform::pump_events::{EventLoopExtPumpEvents, PumpStatus},
     window::WindowId,
 };
 
@@ -412,4 +413,91 @@ pub fn create_wgpu<'a>(
 
     let wgpu_eframe = WgpuWinitApp::new(event_loop, app_name, native_options, app_creator);
     WinitAppWrapper::new(wgpu_eframe, true)
+}
+
+// ----------------------------------------------------------------------------
+
+/// TODO(wpbrown): docs
+pub struct EframeWinitApplication<'a> {
+    wrapper: Box<dyn ApplicationHandler<UserEvent> + 'a>,
+    control_flow: ControlFlow,
+}
+
+impl ApplicationHandler<UserEvent> for EframeWinitApplication<'_> {
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        self.wrapper.resumed(event_loop);
+    }
+
+    fn window_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        window_id: winit::window::WindowId,
+        event: winit::event::WindowEvent,
+    ) {
+        self.wrapper.window_event(event_loop, window_id, event);
+    }
+
+    fn new_events(&mut self, event_loop: &ActiveEventLoop, cause: winit::event::StartCause) {
+        self.wrapper.new_events(event_loop, cause);
+    }
+
+    fn user_event(&mut self, event_loop: &ActiveEventLoop, event: UserEvent) {
+        self.wrapper.user_event(event_loop, event);
+    }
+
+    fn device_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        device_id: winit::event::DeviceId,
+        event: winit::event::DeviceEvent,
+    ) {
+        self.wrapper.device_event(event_loop, device_id, event);
+    }
+
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        self.wrapper.about_to_wait(event_loop);
+        self.control_flow = event_loop.control_flow();
+    }
+
+    fn suspended(&mut self, event_loop: &ActiveEventLoop) {
+        self.wrapper.suspended(event_loop);
+    }
+
+    fn exiting(&mut self, event_loop: &ActiveEventLoop) {
+        self.wrapper.exiting(event_loop);
+    }
+
+    fn memory_warning(&mut self, event_loop: &ActiveEventLoop) {
+        self.wrapper.memory_warning(event_loop);
+    }
+}
+
+impl<'a> EframeWinitApplication<'a> {
+    pub(crate) fn new<T: ApplicationHandler<UserEvent> + 'a>(app: T) -> Self {
+        Self {
+            wrapper: Box::new(app),
+            control_flow: ControlFlow::default(),
+        }
+    }
+
+    /// TODO(wpbrown): docs
+    pub fn pump_eframe_app(
+        &mut self,
+        event_loop: &mut EventLoop<UserEvent>,
+        timeout: Option<std::time::Duration>,
+    ) -> EframePumpStatus {
+        match event_loop.pump_app_events(timeout, self) {
+            PumpStatus::Continue => EframePumpStatus::Continue(self.control_flow),
+            PumpStatus::Exit(code) => EframePumpStatus::Exit(code),
+        }
+    }
+}
+
+/// TODO(wpbrown): docs
+pub enum EframePumpStatus {
+    /// TODO(wpbrown): docs
+    Continue(ControlFlow),
+
+    /// TODO(wpbrown): docs
+    Exit(i32),
 }
