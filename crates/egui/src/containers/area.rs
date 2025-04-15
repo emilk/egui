@@ -135,6 +135,10 @@ pub struct AreaState {
     /// Used to fade in the area.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub last_became_visible_at: Option<f64>,
+
+    /// Was the last frame a sizing pass?
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub last_was_sizing_pass: bool,
 }
 
 impl Default for AreaState {
@@ -145,6 +149,7 @@ impl Default for AreaState {
             size: None,
             interactable: true,
             last_became_visible_at: None,
+            last_was_sizing_pass: false,
         }
     }
 }
@@ -550,6 +555,7 @@ impl Area {
             size: None,
             interactable,
             last_became_visible_at: None,
+            last_was_sizing_pass: false,
         });
         state.pivot = pivot;
         state.interactable = interactable;
@@ -603,7 +609,9 @@ impl Area {
                     state.pivot_pos = Some(override_pos);
                 } else {
                     // If we are shown for the first time ever, or we reset the position on re-open, set a new position.
-                    if reset_position_on_open && !visible_last_frame {
+                    if reset_position_on_open
+                        && (!visible_last_frame || sizing_pass || state.last_was_sizing_pass)
+                    {
                         state.pivot_pos = None;
                     }
                     state
@@ -612,7 +620,10 @@ impl Area {
                             InitialAreaPosition::Automatic => {
                                 automatic_area_position(ctx, layer_id)
                             }
-                            InitialAreaPosition::Centered => ctx.screen_rect().center(),
+                            InitialAreaPosition::Centered => {
+                                let offset = self.pivot.to_sign() * size * 0.5;
+                                ctx.screen_rect().center() + offset
+                            }
                             InitialAreaPosition::Position(default_pos) => default_pos,
                         });
                 }
@@ -761,6 +772,7 @@ impl Prepared {
         } = self;
 
         state.size = Some(content_ui.min_size());
+        state.last_was_sizing_pass = sizing_pass;
 
         // Make sure we report back the correct size.
         // Very important after the initial sizing pass, when the initial estimate of the size is way off.
