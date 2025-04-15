@@ -20,7 +20,7 @@ mod tooltip;
 pub(crate) mod window;
 
 pub use {
-    area::{Area, AreaState},
+    area::{Area, AreaPosition, AreaState, InitialAreaPosition},
     collapsing_header::{CollapsingHeader, CollapsingResponse},
     combo_box::*,
     frame::Frame,
