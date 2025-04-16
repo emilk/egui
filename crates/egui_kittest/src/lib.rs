@@ -274,7 +274,7 @@ impl<'a, State> Harness<'a, State> {
     ///
     /// See also:
     /// - [`Harness::try_run`].
-    /// - [`Harness::try_run_async`].
+    /// - [`Harness::try_run_realtime`].
     /// - [`Harness::run_ok`].
     /// - [`Harness::step`].
     /// - [`Harness::run_steps`].
@@ -324,7 +324,7 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::run_ok`].
     /// - [`Harness::step`].
     /// - [`Harness::run_steps`].
-    /// - [`Harness::try_run_async`].
+    /// - [`Harness::try_run_realtime`].
     pub fn try_run(&mut self) -> Result<u64, ExceededMaxStepsError> {
         self._try_run(false)
     }
@@ -341,7 +341,7 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::try_run`].
     /// - [`Harness::step`].
     /// - [`Harness::run_steps`].
-    /// - [`Harness::try_run_async`].
+    /// - [`Harness::try_run_realtime`].
     pub fn run_ok(&mut self) -> Option<u64> {
         self.try_run().ok()
     }
@@ -365,7 +365,7 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::step`].
     /// - [`Harness::run_steps`].
     /// - [`Harness::try_run`].
-    pub fn try_run_async(&mut self) -> Result<u64, ExceededMaxStepsError> {
+    pub fn try_run_realtime(&mut self) -> Result<u64, ExceededMaxStepsError> {
         self._try_run(true)
     }
 
