@@ -521,8 +521,7 @@ impl Ui {
     pub fn disable(&mut self) {
         self.enabled = false;
         if self.is_visible() {
-            self.painter
-                .set_fade_to_color(Some(self.visuals().fade_out_to_color()));
+            self.painter.multiply_opacity(0.5);
         }
     }
 
