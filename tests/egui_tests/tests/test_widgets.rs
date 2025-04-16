@@ -5,27 +5,37 @@ use egui::{
     TextureHandle, TextureOptions, Ui, UiBuilder, Vec2, Widget,
 };
 use egui_kittest::kittest::{by, Node, Queryable};
-use egui_kittest::Harness;
+use egui_kittest::{Harness, SnapshotResult, SnapshotResults};
 
 #[test]
 fn widget_tests() {
-    test_widget("button", |ui| ui.button("Button"));
-    test_widget("button_image", |ui| {
-        Button::image_and_text(
-            include_image!("../../../crates/eframe/data/icon.png"),
-            "Button",
-        )
-        .ui(ui)
-    });
-    test_widget("button_image_shortcut", |ui| {
-        Button::image_and_text(
-            include_image!("../../../crates/eframe/data/icon.png"),
-            "Open",
-        )
-        .shortcut_text("⌘O")
-        .ui(ui)
-    });
-    VisualTests::test("button_image_shortcut_selected", |ui| {
+    let mut results = SnapshotResults::new();
+
+    test_widget("button", |ui| ui.button("Button"), &mut results);
+    test_widget(
+        "button_image",
+        |ui| {
+            Button::image_and_text(
+                include_image!("../../../crates/eframe/data/icon.png"),
+                "Button",
+            )
+            .ui(ui)
+        },
+        &mut results,
+    );
+    test_widget(
+        "button_image_shortcut",
+        |ui| {
+            Button::image_and_text(
+                include_image!("../../../crates/eframe/data/icon.png"),
+                "Open",
+            )
+            .shortcut_text("⌘O")
+            .ui(ui)
+        },
+        &mut results,
+    );
+    results.add(VisualTests::test("button_image_shortcut_selected", |ui| {
         Button::image_and_text(
             include_image!("../../../crates/eframe/data/icon.png"),
             "Open",
@@ -33,39 +43,63 @@ fn widget_tests() {
         .shortcut_text("⌘O")
         .selected(true)
         .ui(ui)
-    });
+    }));
 
-    test_widget("selectable_value", |ui| {
-        ui.selectable_label(false, "Selectable")
-    });
-    test_widget("selectable_value_selected", |ui| {
-        ui.selectable_label(true, "Selectable")
-    });
+    test_widget(
+        "selectable_value",
+        |ui| ui.selectable_label(false, "Selectable"),
+        &mut results,
+    );
+    test_widget(
+        "selectable_value_selected",
+        |ui| ui.selectable_label(true, "Selectable"),
+        &mut results,
+    );
 
-    test_widget("checkbox", |ui| ui.checkbox(&mut false, "Checkbox"));
-    test_widget("checkbox_checked", |ui| ui.checkbox(&mut true, "Checkbox"));
-    test_widget("radio", |ui| ui.radio(false, "Radio"));
-    test_widget("radio_checked", |ui| ui.radio(true, "Radio"));
+    test_widget(
+        "checkbox",
+        |ui| ui.checkbox(&mut false, "Checkbox"),
+        &mut results,
+    );
+    test_widget(
+        "checkbox_checked",
+        |ui| ui.checkbox(&mut true, "Checkbox"),
+        &mut results,
+    );
+    test_widget("radio", |ui| ui.radio(false, "Radio"), &mut results);
+    test_widget("radio_checked", |ui| ui.radio(true, "Radio"), &mut results);
 
-    test_widget("drag_value", |ui| DragValue::new(&mut 12.0).ui(ui));
+    test_widget(
+        "drag_value",
+        |ui| DragValue::new(&mut 12.0).ui(ui),
+        &mut results,
+    );
 
-    test_widget("text_edit", |ui| {
-        ui.spacing_mut().text_edit_width = 45.0;
-        ui.text_edit_singleline(&mut "Hi!".to_owned())
-    });
+    test_widget(
+        "text_edit",
+        |ui| {
+            ui.spacing_mut().text_edit_width = 45.0;
+            ui.text_edit_singleline(&mut "Hi!".to_owned())
+        },
+        &mut results,
+    );
 
-    test_widget("slider", |ui| {
-        ui.spacing_mut().slider_width = 45.0;
-        Slider::new(&mut 12.0, 0.0..=100.0).ui(ui)
-    });
+    test_widget(
+        "slider",
+        |ui| {
+            ui.spacing_mut().slider_width = 45.0;
+            Slider::new(&mut 12.0, 0.0..=100.0).ui(ui)
+        },
+        &mut results,
+    );
 }
 
-fn test_widget(name: &str, mut w: impl FnMut(&mut Ui) -> Response) {
+fn test_widget(name: &str, mut w: impl FnMut(&mut Ui) -> Response, results: &mut SnapshotResults) {
     test_widget_layout(name, &mut w);
     VisualTests::test(name, &mut w);
 }
 
-fn test_widget_layout(name: &str, mut w: impl FnMut(&mut Ui) -> Response) {
+fn test_widget_layout(name: &str, mut w: impl FnMut(&mut Ui) -> Response) -> SnapshotResult {
     let test_size = Vec2::new(110.0, 45.0);
 
     struct Row {
@@ -195,7 +229,7 @@ fn test_widget_layout(name: &str, mut w: impl FnMut(&mut Ui) -> Response) {
     });
 
     harness.fit_contents();
-    harness.snapshot(&format!("layout/{name}"));
+    harness.try_snapshot(&format!("layout/{name}"))
 }
 
 /// Utility to create a snapshot test of the different states of a egui widget.
@@ -208,10 +242,10 @@ struct VisualTests<'a> {
 }
 
 impl<'a> VisualTests<'a> {
-    pub fn test(name: &str, mut w: impl FnMut(&mut Ui) -> Response) {
+    pub fn test(name: &str, mut w: impl FnMut(&mut Ui) -> Response) -> SnapshotResult {
         let mut vis = VisualTests::new(name, &mut w);
         vis.add_default_states();
-        vis.render();
+        vis.render()
     }
 
     pub fn new(name: &str, w: &'a mut dyn FnMut(&mut Ui) -> Response) -> Self {
@@ -289,7 +323,7 @@ impl<'a> VisualTests<'a> {
         });
     }
 
-    pub fn render(self) {
+    pub fn render(self) -> SnapshotResult {
         let mut results = Some(self.results);
         let mut images: Option<Vec<(String, TextureHandle, SizedTexture)>> = None;
 
@@ -325,7 +359,7 @@ impl<'a> VisualTests<'a> {
 
         harness.fit_contents();
 
-        harness.snapshot(&format!("visuals/{}", self.name));
+        harness.try_snapshot(&format!("visuals/{}", self.name))
     }
 }
 
