@@ -95,8 +95,8 @@ fn widget_tests() {
 }
 
 fn test_widget(name: &str, mut w: impl FnMut(&mut Ui) -> Response, results: &mut SnapshotResults) {
-    test_widget_layout(name, &mut w);
-    VisualTests::test(name, &mut w);
+    results.add(test_widget_layout(name, &mut w));
+    results.add(VisualTests::test(name, &mut w));
 }
 
 fn test_widget_layout(name: &str, mut w: impl FnMut(&mut Ui) -> Response) -> SnapshotResult {
