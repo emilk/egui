@@ -9,3 +9,6 @@
 /.vscode
 /media/*
 .idea/
+**/jniLibs
+**/.gradle
+**/app/build
