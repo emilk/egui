@@ -6,7 +6,6 @@ use egui::{
 };
 use egui_kittest::kittest::{by, Node, Queryable};
 use egui_kittest::Harness;
-use std::time::Duration;
 
 #[test]
 fn widget_tests() {
@@ -156,7 +155,7 @@ fn test_widget_layout(name: &str, mut w: impl FnMut(&mut Ui) -> Response) {
     });
 
     harness.fit_contents();
-    harness.snapshot(&format!("{name}_layout"));
+    harness.snapshot(&format!("layout/{name}"));
 }
 
 /// Utility to create a snapshot test of the different states of a egui widget.
@@ -209,20 +208,21 @@ impl<'a> VisualTests<'a> {
     }
 
     fn single_test(&mut self, f: impl FnOnce(&mut Harness<'_>), enabled: bool) -> ColorImage {
-        let mut harness = Harness::new_ui(|ui| {
+        let mut harness = Harness::builder().with_step_dt(0.05).build_ui(|ui| {
             egui_extras::install_image_loaders(ui.ctx());
             ui.add_enabled_ui(enabled, |ui| {
                 (self.w)(ui);
             });
         });
 
-        f(&mut harness);
-
         harness.fit_contents();
 
-        while harness.run_ok().is_none() {
-            std::thread::sleep(Duration::from_millis(10));
-        }
+        /// Wait for images to load
+        harness.try_run_async().ok();
+
+        f(&mut harness);
+
+        harness.step();
 
         let image = harness.render().expect("Failed to render harness");
 
@@ -285,7 +285,7 @@ impl<'a> VisualTests<'a> {
 
         harness.fit_contents();
 
-        harness.snapshot(&format!("{}_visuals", self.name));
+        harness.snapshot(&format!("visuals/{}", self.name));
     }
 }
 
