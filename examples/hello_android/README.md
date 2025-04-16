@@ -1,24 +1,18 @@
 Hello world example for Android.
 
-Use `cargo-apk` to build and run. Requires a patch to workaround [an upstream bug](https://github.com/rust-mobile/cargo-subcommand/issues/29).
+You need to have [Android SDK](https://developer.android.com/) and
+[cargo-ndk](https://github.com/bbqsrc/cargo-ndk) installed.
 
-One-time setup:
+To build:
 
-```sh
-cargo install \
-    --git https://github.com/parasyte/cargo-apk.git \
-    --rev 282639508eeed7d73f2e1eaeea042da2716436d5 \
-    cargo-apk
+```
+make
 ```
 
-Build and run:
+Or to run on a device:
 
-```sh
-# Run on android
-cargo apk run -p hello_android --lib
-
-# Run on your desktop
-cargo run -p hello_android
+```
+make run-on-device
 ```
 
 ![](screenshot.png)
