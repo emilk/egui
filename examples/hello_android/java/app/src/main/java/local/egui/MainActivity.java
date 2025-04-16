@@ -1,4 +1,4 @@
-package local.walkers;
+package local.egui;
 
 import android.os.Bundle;
 import android.util.Log;

@@ -26,10 +26,3 @@ egui_extras = { workspace = true, features = ["default", "image"] }
 log = { workspace = true }
 winit = { workspace = true }
 android_logger = "0.14"
-
-[package.metadata.android]
-build_targets = ["armv7-linux-androideabi", "aarch64-linux-android"]
-
-[package.metadata.android.sdk]
-min_sdk_version = 23
-target_sdk_version = 35
