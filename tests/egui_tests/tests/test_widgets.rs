@@ -1,8 +1,8 @@
 use egui::load::SizedTexture;
 use egui::{
     include_image, Align, Button, Color32, ColorImage, Direction, DragValue, Event, Grid, Layout,
-    PointerButton, Pos2, Rect, Response, Sense, Slider, Stroke, StrokeKind, TextWrapMode,
-    TextureHandle, TextureOptions, Ui, UiBuilder, Vec2, Widget,
+    PointerButton, Pos2, Response, Slider, Stroke, StrokeKind, TextWrapMode, TextureHandle,
+    TextureOptions, Ui, UiBuilder, Vec2, Widget,
 };
 use egui_kittest::kittest::{by, Node, Queryable};
 use egui_kittest::{Harness, SnapshotResult, SnapshotResults};
@@ -155,32 +155,29 @@ fn test_widget_layout(name: &str, mut w: impl FnMut(&mut Ui) -> Response) -> Sna
                 TextWrapMode::Truncate,
                 TextWrapMode::Wrap,
             ];
-            Grid::new("wrapping").show(ui, |ui| {
-                for mode in &modes {
-                    ui.label(format!("{mode:?}"));
-                }
-                ui.end_row();
+            Grid::new("wrapping")
+                .spacing(Vec2::new(test_size.x / 2.0, 4.0))
+                .show(ui, |ui| {
+                    for mode in &modes {
+                        ui.label(format!("{mode:?}"));
+                    }
+                    ui.end_row();
 
-                for mode in &modes {
-                    let rect = Rect::from_min_size(ui.cursor().min, wrap_test_size);
+                    for mode in &modes {
+                        let (_, rect) = ui.allocate_space(wrap_test_size);
 
-                    ui.scope_builder(UiBuilder::new().max_rect(rect), |ui| {
-                        ui.style_mut().wrap_mode = Some(*mode);
+                        let mut child_ui = ui.new_child(UiBuilder::new().max_rect(rect));
+                        child_ui.style_mut().wrap_mode = Some(*mode);
+                        w(&mut child_ui);
 
-                        w(ui);
-
-                        // Ensure we always take the full height
-                        ui.allocate_rect(rect, Sense::hover());
-                    });
-
-                    ui.painter().rect_stroke(
-                        rect,
-                        0.0,
-                        Stroke::new(1.0, Color32::WHITE),
-                        StrokeKind::Outside,
-                    );
-                }
-            });
+                        ui.painter().rect_stroke(
+                            rect,
+                            0.0,
+                            Stroke::new(1.0, Color32::WHITE),
+                            StrokeKind::Outside,
+                        );
+                    }
+                });
         }
 
         ui.heading("Layout");
@@ -209,12 +206,11 @@ fn test_widget_layout(name: &str, mut w: impl FnMut(&mut Ui) -> Response) -> Sna
                         main_wrap: false,
                     };
 
-                    let rect = Rect::from_min_size(ui.cursor().min, test_size);
-                    ui.scope_builder(UiBuilder::new().layout(layout).max_rect(rect), |ui| {
-                        w(ui);
-                        // Ensure we always take the full height
-                        ui.allocate_rect(rect, Sense::hover());
-                    });
+                    let (_, rect) = ui.allocate_space(test_size);
+
+                    let mut child_ui = ui.new_child(UiBuilder::new().layout(layout).max_rect(rect));
+                    w(&mut child_ui);
+
                     ui.painter().rect_stroke(
                         rect,
                         0.0,
