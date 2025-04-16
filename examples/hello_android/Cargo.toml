@@ -15,9 +15,8 @@ publish = false
 name = "main"
 crate-type = ["cdylib"]
 
-
 [dependencies]
-eframe = { workspace = true, features = ["default", "android-native-activity"] }
+eframe = { workspace = true, features = ["default", "android-game-activity"] }
 egui_demo_lib = { workspace = true, features = ["chrono"] }
 
 # For image support:
