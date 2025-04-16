@@ -37,14 +37,6 @@ impl MyApp {
 
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Reserve some space at the top so the demo ui isn't hidden behind the android status bar
-        // TODO(lucasmerlin): This is a pretty big hack, should be fixed once safe_area implemented
-        // for android:
-        // https://github.com/rust-windowing/winit/issues/3910
-        egui::TopBottomPanel::top("status_bar_space").show(ctx, |ui| {
-            ui.set_height(32.0);
-        });
-
         self.demo.ui(ctx);
     }
 }
