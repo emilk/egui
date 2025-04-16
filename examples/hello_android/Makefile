@@ -2,7 +2,7 @@
 .PHONY: jni apk run-on-device
 
 jni:
-	cd rust && cargo ndk --target arm64-v8a -o java/app/src/main/jniLibs/ build --profile release
+	cargo ndk --target arm64-v8a -o java/app/src/main/jniLibs/ build --profile release
 
 apk: jni
 	cd java && ./gradlew build

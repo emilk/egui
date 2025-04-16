@@ -12,8 +12,8 @@ publish = false
 # workspace = true
 
 [lib]
-# cdylib is required for Android, lib is required for desktop
-crate-type = ["cdylib", "lib"]
+name = "main"
+crate-type = ["cdylib"]
 
 
 [dependencies]
