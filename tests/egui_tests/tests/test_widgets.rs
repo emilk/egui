@@ -217,7 +217,7 @@ impl<'a> VisualTests<'a> {
 
         harness.fit_contents();
 
-        /// Wait for images to load
+        // Wait for images to load
         harness.try_run_async().ok();
 
         f(&mut harness);
