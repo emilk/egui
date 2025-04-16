@@ -26,6 +26,7 @@ impl SizedAtomicKind<'_> {
 
 /// AtomicLayout
 pub struct WidgetLayout<'a> {
+    id: Option<Id>,
     pub atomics: Atomics<'a>,
     gap: Option<f32>,
     pub(crate) frame: Frame,
@@ -37,6 +38,7 @@ pub struct WidgetLayout<'a> {
 impl<'a> WidgetLayout<'a> {
     pub fn new(atomics: impl IntoAtomics<'a>) -> Self {
         Self {
+            id: None,
             atomics: atomics.into_atomics(),
             gap: None,
             frame: Frame::default(),
@@ -77,8 +79,14 @@ impl<'a> WidgetLayout<'a> {
         self
     }
 
+    pub fn id(mut self, id: Id) -> Self {
+        self.id = Some(id);
+        self
+    }
+
     pub fn show(self, ui: &mut Ui) -> AtomicLayoutResponse {
         let Self {
+            id,
             atomics,
             gap,
             frame,
@@ -86,6 +94,8 @@ impl<'a> WidgetLayout<'a> {
             fallback_text_color,
             min_size,
         } = self;
+
+        let id = id.unwrap_or_else(|| ui.next_auto_id());
 
         let fallback_text_color = self
             .fallback_text_color
@@ -178,7 +188,8 @@ impl<'a> WidgetLayout<'a> {
         let content_size = Vec2::new(desired_width, height);
         let frame_size = (content_size + margin.sum()).at_least(min_size);
 
-        let (rect, response) = ui.allocate_at_least(frame_size, sense);
+        let (_, rect) = ui.allocate_space(frame_size);
+        let response = ui.interact(rect, id, sense);
 
         let mut response = AtomicLayoutResponse {
             response,

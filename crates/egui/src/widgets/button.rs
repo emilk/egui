@@ -259,7 +259,9 @@ impl<'a> Button<'a> {
             }
         }
 
-        let response = ui.ctx().read_response(ui.next_auto_id());
+        let id = ui.next_auto_id().with("egui::button");
+        wl = wl.id(id);
+        let response = ui.ctx().read_response(id);
 
         let visuals = response.map_or(&ui.style().visuals.widgets.inactive, |response| {
             ui.style().interact(&response)
