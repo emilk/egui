@@ -128,12 +128,15 @@ fn test_widget_layout(name: &str, mut w: impl FnMut(&mut Ui) -> Response) {
                 ui.end_row();
 
                 for mode in &modes {
-                    let (_, rect) = ui.allocate_space(wrap_test_size);
+                    let rect = Rect::from_min_size(ui.cursor().min, wrap_test_size);
 
                     ui.scope_builder(UiBuilder::new().max_rect(rect), |ui| {
                         ui.style_mut().wrap_mode = Some(*mode);
 
                         w(ui);
+
+                        // Ensure we always take the full height
+                        ui.allocate_rect(rect, Sense::hover());
                     });
 
                     ui.painter().rect_stroke(
