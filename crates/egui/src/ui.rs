@@ -25,10 +25,10 @@ use crate::{
         color_picker, Button, Checkbox, DragValue, Hyperlink, Image, ImageSource, Label, Link,
         RadioButton, SelectableLabel, Separator, Spinner, TextEdit, Widget,
     },
-    Align, Color32, Context, CursorIcon, DragAndDrop, Id, InnerResponse, InputState, LayerId,
-    Memory, Order, Painter, PlatformOutput, Pos2, Rangef, Rect, Response, Rgba, RichText, Sense,
-    Style, TextStyle, TextWrapMode, UiBuilder, UiKind, UiStack, UiStackInfo, Vec2, WidgetRect,
-    WidgetText,
+    Align, Color32, Context, CursorIcon, DragAndDrop, Id, InnerResponse, InputState, IntoAtomics,
+    LayerId, Memory, Order, Painter, PlatformOutput, Pos2, Rangef, Rect, Response, Rgba, RichText,
+    Sense, Style, TextStyle, TextWrapMode, UiBuilder, UiKind, UiStack, UiStackInfo, Vec2,
+    WidgetRect, WidgetText,
 };
 // ----------------------------------------------------------------------------
 
@@ -2055,7 +2055,7 @@ impl Ui {
     /// ```
     #[must_use = "You should check if the user clicked this with `if ui.button(…).clicked() { … } "]
     #[inline]
-    pub fn button(&mut self, text: impl Into<WidgetText>) -> Response {
+    pub fn button<'a>(&mut self, text: impl IntoAtomics<'a>) -> Response {
         Button::new(text).ui(self)
     }
 
