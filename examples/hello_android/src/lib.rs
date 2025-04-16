@@ -7,7 +7,9 @@ use eframe::{egui, CreationContext};
 fn android_main(app: winit::platform::android::activity::AndroidApp) {
     // Log to android output
     android_logger::init_once(
-        android_logger::Config::default().with_max_level(log::LevelFilter::Info),
+        android_logger::Config::default()
+            .with_tag("egui")
+            .with_max_level(log::LevelFilter::Debug),
     );
 
     let options = eframe::NativeOptions {
