@@ -184,10 +184,12 @@ impl<'a> Button<'a> {
     /// See also [`Self::right_text`].
     #[inline]
     pub fn shortcut_text(mut self, shortcut_text: impl Into<Atomic<'a>>) -> Self {
-        self.wl = self
-            .wl
-            .add(AtomicKind::Grow.a_grow(true))
-            .add(shortcut_text);
+        let mut atomic = shortcut_text.into();
+        atomic.kind = match atomic.kind {
+            AtomicKind::Text(text) => AtomicKind::Text(text.weak()),
+            other => other,
+        };
+        self.wl = self.wl.add(AtomicKind::Grow.a_grow(true)).add(atomic);
         self
     }
 
@@ -215,7 +217,7 @@ impl<'a> Button<'a> {
             stroke,
             small,
             frame,
-            min_size,
+            mut min_size,
             corner_radius,
             selected,
             image_tint_follows_text_color,
@@ -266,14 +268,23 @@ impl<'a> Button<'a> {
         wl = wl.fallback_text_color(visuals.text_color());
 
         wl.frame = if has_frame {
+            let stroke = stroke.unwrap_or(visuals.bg_stroke);
             wl.frame
-                .inner_margin(button_padding)
+                .inner_margin(
+                    button_padding + Vec2::splat(visuals.expansion) - Vec2::splat(stroke.width),
+                )
+                .outer_margin(-Vec2::splat(visuals.expansion))
                 .fill(fill.unwrap_or(visuals.weak_bg_fill))
-                .stroke(stroke.unwrap_or(visuals.bg_stroke))
+                .stroke(stroke)
                 .corner_radius(corner_radius.unwrap_or(visuals.corner_radius))
         } else {
             Frame::new()
         };
+
+        if !small {
+            min_size.y = min_size.y.at_least(ui.spacing().interact_size.y);
+        }
+        wl = wl.min_size(min_size);
 
         let text = wl.atomics.text();
 

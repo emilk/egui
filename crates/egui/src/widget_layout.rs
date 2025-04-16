@@ -1,7 +1,7 @@
-use crate::{Frame, Id, Image, ImageSource, Response, Sense, TextStyle, Ui, Widget, WidgetText};
+use crate::{Frame, Id, Image, Response, Sense, Style, TextStyle, Ui, Widget, WidgetText};
 use ahash::HashMap;
-use emath::{Align2, Rect, Vec2};
-use epaint::{Color32, Galley};
+use emath::{Align2, NumExt, Rect, Vec2};
+use epaint::{Color32, Fonts, Galley};
 use std::sync::Arc;
 
 pub enum SizedAtomicKind<'a> {
@@ -29,6 +29,7 @@ pub struct WidgetLayout<'a> {
     pub(crate) frame: Frame,
     pub(crate) sense: Sense,
     fallback_text_color: Option<Color32>,
+    min_size: Vec2,
 }
 
 impl<'a> WidgetLayout<'a> {
@@ -39,6 +40,7 @@ impl<'a> WidgetLayout<'a> {
             frame: Frame::default(),
             sense: Sense::hover(),
             fallback_text_color: None,
+            min_size: Vec2::ZERO,
         }
     }
 
@@ -68,14 +70,28 @@ impl<'a> WidgetLayout<'a> {
         self
     }
 
+    pub fn min_size(mut self, size: Vec2) -> Self {
+        self.min_size = size;
+        self
+    }
+
     pub fn show(self, ui: &mut Ui) -> AtomicLayoutResponse {
+        let Self {
+            atomics,
+            gap,
+            frame,
+            sense,
+            fallback_text_color,
+            min_size,
+        } = self;
+
         let fallback_text_color = self
             .fallback_text_color
             .unwrap_or_else(|| ui.style().visuals.text_color());
-        let gap = self.gap.unwrap_or(ui.spacing().icon_spacing);
+        let gap = gap.unwrap_or(ui.spacing().icon_spacing);
 
         // The size available for the content
-        let available_inner_size = ui.available_size() - self.frame.total_margin().sum();
+        let available_inner_size = ui.available_size() - frame.total_margin().sum();
 
         let mut desired_width = 0.0;
         let mut preferred_width = 0.0;
@@ -88,13 +104,25 @@ impl<'a> WidgetLayout<'a> {
 
         let mut shrink_item = None;
 
-        if self.atomics.0.len() > 1 {
-            let gap_space = gap * (self.atomics.0.len() as f32 - 1.0);
+        let align2 = Align2([ui.layout().horizontal_align(), ui.layout().vertical_align()]);
+
+        if atomics.0.len() > 1 {
+            let gap_space = gap * (atomics.0.len() as f32 - 1.0);
             desired_width += gap_space;
             preferred_width += gap_space;
         }
 
-        for ((idx, item)) in self.atomics.0.into_iter().enumerate() {
+        let max_font_size = ui
+            .fonts(|fonts| {
+                atomics
+                    .0
+                    .iter()
+                    .filter_map(|a| a.get_min_height_for_image(fonts, ui.style()))
+                    .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+            })
+            .unwrap_or_else(|| ui.text_style_height(&TextStyle::Body));
+
+        for ((idx, item)) in atomics.0.into_iter().enumerate() {
             if item.shrink {
                 debug_assert!(
                     shrink_item.is_none(),
@@ -108,7 +136,9 @@ impl<'a> WidgetLayout<'a> {
             if item.grow {
                 grow_count += 1;
             }
-            let (preferred_size, sized) = item.kind.into_sized(ui, available_inner_size);
+            let (preferred_size, sized) =
+                item.kind
+                    .into_sized(ui, available_inner_size, max_font_size);
             let size = sized.size();
 
             desired_width += size.x;
@@ -125,7 +155,7 @@ impl<'a> WidgetLayout<'a> {
                 available_inner_size.x - desired_width,
                 available_inner_size.y,
             );
-            let (preferred_size, sized) = item.kind.into_sized(ui, shrunk_size);
+            let (preferred_size, sized) = item.kind.into_sized(ui, shrunk_size, max_font_size);
             let size = sized.size();
 
             desired_width += size.x;
@@ -136,25 +166,31 @@ impl<'a> WidgetLayout<'a> {
             sized_items.insert(index, sized);
         }
 
-        let margin = self.frame.total_margin();
+        let margin = frame.total_margin();
         let content_size = Vec2::new(desired_width, height);
-        let frame_size = content_size + margin.sum();
+        let frame_size = (content_size + margin.sum()).at_least(min_size);
 
-        let (rect, response) = ui.allocate_at_least(frame_size, self.sense);
+        let (rect, response) = ui.allocate_at_least(frame_size, sense);
 
         let mut response = AtomicLayoutResponse {
             response,
             custom_rects: HashMap::default(),
         };
 
-        let content_rect = rect - margin;
-        ui.painter().add(self.frame.paint(content_rect));
+        let inner_rect = rect - margin;
+        ui.painter().add(frame.paint(inner_rect));
 
-        let width_to_fill = content_rect.width();
+        let width_to_fill = inner_rect.width();
         let extra_space = f32::max(width_to_fill - desired_width, 0.0);
         let grow_width = f32::max(extra_space / grow_count as f32, 0.0);
 
-        let mut cursor = content_rect.left();
+        let aligned_rect = if grow_count > 0 {
+            align2.align_size_within_rect(Vec2::new(width_to_fill, content_size.y), inner_rect)
+        } else {
+            align2.align_size_within_rect(content_size, inner_rect)
+        };
+
+        let mut cursor = aligned_rect.left();
 
         for sized in sized_items {
             let size = sized.size();
@@ -164,7 +200,7 @@ impl<'a> WidgetLayout<'a> {
                 _ => size.x,
             };
 
-            let frame = content_rect.with_min_x(cursor).with_max_x(cursor + width);
+            let frame = aligned_rect.with_min_x(cursor).with_max_x(cursor + width);
             cursor = frame.right() + gap;
 
             let align = Align2::CENTER_CENTER;
@@ -262,7 +298,12 @@ pub enum AtomicKind<'a> {
 
 impl<'a> AtomicKind<'a> {
     /// First returned argument is the preferred size.
-    pub fn into_sized(self, ui: &Ui, available_size: Vec2) -> (Vec2, SizedAtomicKind<'a>) {
+    pub fn into_sized(
+        self,
+        ui: &Ui,
+        available_size: Vec2,
+        font_size: f32,
+    ) -> (Vec2, SizedAtomicKind<'a>) {
         match self {
             AtomicKind::Text(text) => {
                 let galley = text.into_galley(ui, None, available_size.x, TextStyle::Button);
@@ -272,9 +313,9 @@ impl<'a> AtomicKind<'a> {
                 )
             }
             AtomicKind::Image(image) => {
-                let size =
-                    image.load_and_calc_size(ui, Vec2::min(available_size, Vec2::splat(16.0)));
-                let size = size.unwrap_or_default();
+                let max_size = Vec2::splat(font_size);
+                let size = image.load_and_calc_size(ui, Vec2::min(available_size, max_size));
+                let size = size.unwrap_or(max_size);
                 (size, SizedAtomicKind::Image(image, size))
             }
             AtomicKind::Custom(id, size) => (size, SizedAtomicKind::Custom(id, size)),
@@ -300,6 +341,19 @@ pub fn a<'a>(i: impl Into<AtomicKind<'a>>) -> Atomic<'a> {
 }
 
 impl Atomic<'_> {
+    fn get_min_height_for_image(&self, fonts: &Fonts, style: &Style) -> Option<f32> {
+        self.size.map(|s| s.y).or_else(|| {
+            match &self.kind {
+                AtomicKind::Text(text) => Some(text.font_height(fonts, style)),
+                AtomicKind::Custom(_, size) => Some(size.y),
+                AtomicKind::Grow => None,
+                // Since this method is used to calculate the best height for an image, we always return
+                // None for images.
+                AtomicKind::Image(_) => None,
+            }
+        })
+    }
+
     // pub fn size(mut self, size: Vec2) -> Self {
     //     self.size = Some(size);
     //     self
