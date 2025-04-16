@@ -189,10 +189,6 @@ fn test_widget_layout(name: &str, mut w: impl FnMut(&mut Ui) -> Response) {
                 ui.end_row();
             }
         });
-
-        // For some reason the bottom is cut off otherwise...
-        // TODO: Figure out why fit_contents doesn't work as expected
-        ui.add_space(50.0);
     });
 
     harness.fit_contents();
