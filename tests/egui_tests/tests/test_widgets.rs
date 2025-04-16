@@ -1,8 +1,8 @@
 use egui::load::SizedTexture;
 use egui::{
     include_image, Align, Button, Color32, ColorImage, Direction, DragValue, Event, Grid, Layout,
-    PointerButton, Pos2, Rect, Response, Slider, Stroke, StrokeKind, TextureHandle, TextureOptions,
-    Ui, UiBuilder, Vec2, Widget,
+    PointerButton, Pos2, Rect, Response, Sense, Slider, Stroke, StrokeKind, TextWrapMode,
+    TextureHandle, TextureOptions, Ui, UiBuilder, Vec2, Widget,
 };
 use egui_kittest::kittest::{by, Node, Queryable};
 use egui_kittest::Harness;
@@ -110,6 +110,43 @@ fn test_widget_layout(name: &str, mut w: impl FnMut(&mut Ui) -> Response) {
 
     let mut harness = Harness::builder().build_ui(|ui| {
         egui_extras::install_image_loaders(ui.ctx());
+
+        {
+            let mut wrap_test_size = test_size;
+            wrap_test_size.x /= 3.0;
+            ui.heading("Wrapping");
+
+            let modes = [
+                TextWrapMode::Extend,
+                TextWrapMode::Truncate,
+                TextWrapMode::Wrap,
+            ];
+            Grid::new("wrapping").show(ui, |ui| {
+                for mode in &modes {
+                    ui.label(format!("{mode:?}"));
+                }
+                ui.end_row();
+
+                for mode in &modes {
+                    let (_, rect) = ui.allocate_space(wrap_test_size);
+
+                    ui.scope_builder(UiBuilder::new().max_rect(rect), |ui| {
+                        ui.style_mut().wrap_mode = Some(*mode);
+
+                        w(ui);
+                    });
+
+                    ui.painter().rect_stroke(
+                        rect,
+                        0.0,
+                        Stroke::new(1.0, Color32::WHITE),
+                        StrokeKind::Outside,
+                    );
+                }
+            });
+        }
+
+        ui.heading("Layout");
         Grid::new("layout").striped(true).show(ui, |ui| {
             ui.label("");
             for col in &cols {
@@ -136,7 +173,11 @@ fn test_widget_layout(name: &str, mut w: impl FnMut(&mut Ui) -> Response) {
                     };
 
                     let rect = Rect::from_min_size(ui.cursor().min, test_size);
-                    ui.scope_builder(UiBuilder::new().layout(layout).max_rect(rect), |ui| w(ui));
+                    ui.scope_builder(UiBuilder::new().layout(layout).max_rect(rect), |ui| {
+                        w(ui);
+                        // Ensure we always take the full height
+                        ui.allocate_rect(rect, Sense::hover());
+                    });
                     ui.painter().rect_stroke(
                         rect,
                         0.0,
