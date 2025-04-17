@@ -35,10 +35,10 @@ default = [
   "accesskit",
   "default_fonts",
   "glow",
-  "wayland",                                      # Required for Linux support (including CI!)
+  "wayland-glow",                                 # Required for Linux support (including CI!)
   "web_screen_reader",
   "winit/default",
-  "x11",
+  "x11-glow",
   "egui-wgpu?/fragile-send-sync-non-atomic-wasm",
 ]
 
@@ -71,12 +71,15 @@ persistence = [
   "serde",
 ]
 
-## Enables wayland support and fixes clipboard issue.
-##
-## If you are compiling for Linux (or want to test on a CI system using Linux), you should enable this feature.
-wayland = [
-  "egui-winit/wayland",
-  "egui-wgpu?/wayland",
+## Enables basic wayland windowing support (renderer-agnostic)
+wayland-base = ["egui-winit/wayland"]
+
+## Enables wayland support with wgpu renderer
+wayland-wgpu = ["wayland-base", "egui-wgpu?/wayland"]
+
+## Enables wayland support with glow renderer
+wayland-glow = [
+  "wayland-base",
   "egui_glow?/wayland",
   "glutin?/wayland",
   "glutin-winit?/wayland",
@@ -105,10 +108,15 @@ web_screen_reader = [
 ## you can configure this at run-time with [`NativeOptions::wgpu_options`].
 wgpu = ["dep:wgpu", "dep:egui-wgpu", "dep:pollster"]
 
-## Enables compiling for x11.
-x11 = [
-  "egui-winit/x11",
-  "egui-wgpu?/x11",
+## Enables basic X11 windowing support (renderer-agnostic)
+x11-base = ["egui-winit/x11"]
+
+## Enables X11 support with wgpu renderer
+x11-wgpu = ["x11-base", "egui-wgpu?/x11"]
+
+## Enables X11 support with glow renderer
+x11-glow = [
+  "x11-base",
   "egui_glow?/x11",
   "glutin?/x11",
   "glutin?/glx",
