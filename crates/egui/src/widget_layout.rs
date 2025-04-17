@@ -174,16 +174,14 @@ impl<'a> WidgetLayout<'a> {
             if item.grow {
                 grow_count += 1;
             }
-            let (preferred_size, sized) =
-                item.kind
-                    .into_sized(ui, available_inner_size, max_font_size, wrap_mode);
-            let size = sized.size();
+            let sized = item.into_sized(ui, available_inner_size, max_font_size, wrap_mode);
+            let size = sized.size;
 
             desired_width += size.x;
-            preferred_width += preferred_size.x;
+            preferred_width += sized.preferred_size.x;
 
             height = height.at_least(size.y);
-            preferred_height = preferred_height.at_least(preferred_size.y);
+            preferred_height = preferred_height.at_least(sized.preferred_size.y);
 
             sized_items.push(sized);
         }
@@ -194,16 +192,14 @@ impl<'a> WidgetLayout<'a> {
                 available_inner_size.x - desired_width,
                 available_inner_size.y,
             );
-            let (preferred_size, sized) =
-                item.kind
-                    .into_sized(ui, shrunk_size, max_font_size, wrap_mode);
-            let size = sized.size();
+            let sized = item.into_sized(ui, shrunk_size, max_font_size, wrap_mode);
+            let size = sized.size;
 
             desired_width += size.x;
-            preferred_width += preferred_size.x;
+            preferred_width += sized.preferred_size.x;
 
             height = height.at_least(size.y);
-            preferred_height = preferred_height.at_least(preferred_size.y);
+            preferred_height = preferred_height.at_least(sized.preferred_size.y);
 
             sized_items.insert(index, sized);
         }
@@ -239,8 +235,8 @@ impl<'a> WidgetLayout<'a> {
         let mut cursor = aligned_rect.left();
 
         for sized in sized_items {
-            let size = sized.size();
-            let width = match sized {
+            let size = sized.size;
+            let width = match sized.kind {
                 // TODO: check for atomic.grow here
                 SizedAtomicKind::Grow => grow_width,
                 _ => size.x,
@@ -252,7 +248,7 @@ impl<'a> WidgetLayout<'a> {
             let align = Align2::CENTER_CENTER;
             let rect = align.align_size_within_rect(size, frame);
 
-            match sized {
+            match sized.kind {
                 SizedAtomicKind::Text(galley) => {
                     ui.painter().galley(rect.min, galley, fallback_text_color);
                 }
@@ -390,6 +386,12 @@ pub struct Atomic<'a> {
     pub kind: AtomicKind<'a>,
 }
 
+struct SizedAtomic<'a> {
+    size: Vec2,
+    preferred_size: Vec2,
+    kind: SizedAtomicKind<'a>,
+}
+
 pub fn a<'a>(i: impl Into<AtomicKind<'a>>) -> Atomic<'a> {
     Atomic {
         size: None,
@@ -399,7 +401,7 @@ pub fn a<'a>(i: impl Into<AtomicKind<'a>>) -> Atomic<'a> {
     }
 }
 
-impl Atomic<'_> {
+impl<'a> Atomic<'a> {
     fn get_min_height_for_image(&self, fonts: &Fonts, style: &Style) -> Option<f32> {
         self.size.map(|s| s.y).or_else(|| {
             match &self.kind {
@@ -411,6 +413,23 @@ impl Atomic<'_> {
                 AtomicKind::Image(_) => None,
             }
         })
+    }
+
+    fn into_sized(
+        self,
+        ui: &Ui,
+        available_size: Vec2,
+        font_size: f32,
+        wrap_mode: Option<TextWrapMode>,
+    ) -> SizedAtomic<'a> {
+        let (preferred, kind) = self
+            .kind
+            .into_sized(ui, available_size, font_size, wrap_mode);
+        SizedAtomic {
+            size: self.size.unwrap_or_else(|| kind.size()),
+            preferred_size: preferred,
+            kind,
+        }
     }
 
     // pub fn size(mut self, size: Vec2) -> Self {
