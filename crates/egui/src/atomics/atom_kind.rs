@@ -81,9 +81,21 @@ impl<'a> AtomKind<'a> {
     ) -> (Vec2, SizedAtomKind<'a>) {
         match self {
             AtomKind::Text(text) => {
-                let galley = text.into_galley(ui, wrap_mode, available_size.x, TextStyle::Button);
+                let wrap_mode = wrap_mode.unwrap_or(ui.wrap_mode());
+                let desired_size = matches!(wrap_mode, TextWrapMode::Truncate).then(|| {
+                    text.clone()
+                        .into_galley(
+                            ui,
+                            Some(TextWrapMode::Extend),
+                            available_size.x,
+                            TextStyle::Button,
+                        )
+                        .desired_size()
+                });
+                let galley =
+                    text.into_galley(ui, Some(wrap_mode), available_size.x, TextStyle::Button);
                 (
-                    galley.size(), // TODO(#5762): calculate the preferred size
+                    desired_size.unwrap_or_else(|| galley.desired_size()),
                     SizedAtomKind::Text(galley),
                 )
             }
