@@ -107,6 +107,7 @@ impl<'a> WidgetLayout<'a> {
 
         let mut desired_width = 0.0;
         let mut preferred_width = 0.0;
+        let mut preferred_height = 0.0;
 
         let mut height: f32 = 0.0;
 
@@ -162,7 +163,8 @@ impl<'a> WidgetLayout<'a> {
             desired_width += size.x;
             preferred_width += preferred_size.x;
 
-            height = height.max(size.y);
+            height = height.at_least(size.y);
+            preferred_height = preferred_height.at_least(preferred_size.y);
 
             sized_items.push(sized);
         }
@@ -179,7 +181,8 @@ impl<'a> WidgetLayout<'a> {
             desired_width += size.x;
             preferred_width += preferred_size.x;
 
-            height = height.max(size.y);
+            height = height.at_least(size.y);
+            preferred_height = preferred_height.at_least(preferred_size.y);
 
             sized_items.insert(index, sized);
         }
@@ -238,6 +241,9 @@ impl<'a> WidgetLayout<'a> {
                 SizedAtomicKind::Grow => {}
             }
         }
+
+        response.response.intrinsic_size =
+            Some(Vec2::new(preferred_width, preferred_height) + margin.sum());
 
         response
     }
