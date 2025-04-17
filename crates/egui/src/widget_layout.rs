@@ -192,7 +192,10 @@ impl<'a> WidgetLayout<'a> {
         let frame_size = (content_size + margin.sum()).at_least(min_size);
 
         let (_, rect) = ui.allocate_space(frame_size);
-        let response = ui.interact(rect, id, sense);
+        let mut response = ui.interact(rect, id, sense);
+
+        response.intrinsic_size =
+            Some((Vec2::new(preferred_width, preferred_height) + margin.sum()).at_least(min_size));
 
         let mut response = AtomicLayoutResponse {
             response,
@@ -241,9 +244,6 @@ impl<'a> WidgetLayout<'a> {
                 SizedAtomicKind::Grow => {}
             }
         }
-
-        response.response.intrinsic_size =
-            Some(Vec2::new(preferred_width, preferred_height) + margin.sum());
 
         response
     }
