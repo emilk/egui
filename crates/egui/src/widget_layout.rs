@@ -3,6 +3,7 @@ use crate::{
 };
 use ahash::HashMap;
 use emath::{Align2, NumExt, Rect, Vec2};
+use epaint::text::TextWrapMode;
 use epaint::{Color32, Fonts, Galley};
 use std::sync::Arc;
 
@@ -33,6 +34,7 @@ pub struct WidgetLayout<'a> {
     pub(crate) sense: Sense,
     fallback_text_color: Option<Color32>,
     min_size: Vec2,
+    wrap_mode: Option<TextWrapMode>,
 }
 
 impl<'a> WidgetLayout<'a> {
@@ -45,6 +47,7 @@ impl<'a> WidgetLayout<'a> {
             sense: Sense::hover(),
             fallback_text_color: None,
             min_size: Vec2::ZERO,
+            wrap_mode: None,
         }
     }
 
@@ -84,6 +87,11 @@ impl<'a> WidgetLayout<'a> {
         self
     }
 
+    pub fn wrap_mode(mut self, wrap_mode: TextWrapMode) -> Self {
+        self.wrap_mode = Some(wrap_mode);
+        self
+    }
+
     pub fn show(self, ui: &mut Ui) -> AtomicLayoutResponse {
         let Self {
             id,
@@ -93,6 +101,7 @@ impl<'a> WidgetLayout<'a> {
             sense,
             fallback_text_color,
             min_size,
+            wrap_mode,
         } = self;
 
         let id = id.unwrap_or_else(|| ui.next_auto_id());
@@ -157,7 +166,7 @@ impl<'a> WidgetLayout<'a> {
             }
             let (preferred_size, sized) =
                 item.kind
-                    .into_sized(ui, available_inner_size, max_font_size);
+                    .into_sized(ui, available_inner_size, max_font_size, wrap_mode);
             let size = sized.size();
 
             desired_width += size.x;
@@ -175,7 +184,9 @@ impl<'a> WidgetLayout<'a> {
                 available_inner_size.x - desired_width,
                 available_inner_size.y,
             );
-            let (preferred_size, sized) = item.kind.into_sized(ui, shrunk_size, max_font_size);
+            let (preferred_size, sized) =
+                item.kind
+                    .into_sized(ui, shrunk_size, max_font_size, wrap_mode);
             let size = sized.size();
 
             desired_width += size.x;
@@ -328,10 +339,11 @@ impl<'a> AtomicKind<'a> {
         ui: &Ui,
         available_size: Vec2,
         font_size: f32,
+        wrap_mode: Option<TextWrapMode>,
     ) -> (Vec2, SizedAtomicKind<'a>) {
         match self {
             AtomicKind::Text(text) => {
-                let galley = text.into_galley(ui, None, available_size.x, TextStyle::Button);
+                let galley = text.into_galley(ui, wrap_mode, available_size.x, TextStyle::Button);
                 (
                     galley.size(), // TODO
                     SizedAtomicKind::Text(galley),
