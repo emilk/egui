@@ -332,10 +332,7 @@ impl<'a> AtomicKind<'a> {
         match self {
             AtomicKind::Text(text) => {
                 let galley = text.into_galley(ui, None, available_size.x, TextStyle::Button);
-                (
-                    galley.size(), // TODO
-                    SizedAtomicKind::Text(galley),
-                )
+                (galley.desired_size(), SizedAtomicKind::Text(galley))
             }
             AtomicKind::Image(image) => {
                 let max_size = Vec2::splat(font_size);
