@@ -35,6 +35,7 @@ pub struct WidgetLayout<'a> {
     fallback_text_color: Option<Color32>,
     min_size: Vec2,
     wrap_mode: Option<TextWrapMode>,
+    align2: Option<Align2>,
 }
 
 impl<'a> WidgetLayout<'a> {
@@ -48,6 +49,7 @@ impl<'a> WidgetLayout<'a> {
             fallback_text_color: None,
             min_size: Vec2::ZERO,
             wrap_mode: None,
+            align2: None,
         }
     }
 
@@ -92,6 +94,11 @@ impl<'a> WidgetLayout<'a> {
         self
     }
 
+    pub fn align2(mut self, align2: Align2) -> Self {
+        self.align2 = Some(align2);
+        self
+    }
+
     pub fn show(self, ui: &mut Ui) -> AtomicLayoutResponse {
         let Self {
             id,
@@ -102,6 +109,7 @@ impl<'a> WidgetLayout<'a> {
             fallback_text_color,
             min_size,
             wrap_mode,
+            align2,
         } = self;
 
         let id = id.unwrap_or_else(|| ui.next_auto_id());
@@ -126,7 +134,9 @@ impl<'a> WidgetLayout<'a> {
 
         let mut shrink_item = None;
 
-        let align2 = Align2([ui.layout().horizontal_align(), ui.layout().vertical_align()]);
+        let align2 = align2.unwrap_or_else(|| {
+            Align2([ui.layout().horizontal_align(), ui.layout().vertical_align()])
+        });
 
         if atomics.0.len() > 1 {
             let gap_space = gap * (atomics.0.len() as f32 - 1.0);
