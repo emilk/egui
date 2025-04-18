@@ -124,6 +124,11 @@ x11-glow = [
   "glutin-winit?/glx",
 ]
 
+## For backwards compatibility
+wayland = ["wayland-glow"]
+x11 = ["x11-glow"]
+
+
 ## If set, eframe will look for the env-var `EFRAME_SCREENSHOT_TO` and write a screenshot to that location, and then quit.
 ## This is used to generate images for examples.
 __screenshot = []
