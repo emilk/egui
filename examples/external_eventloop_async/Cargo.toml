@@ -10,15 +10,18 @@ publish = false
 [lints]
 workspace = true
 
+[features]
+linux-example = []
+
+[[bin]]
+name = "external_eventloop_async"
+required-features = ["linux-example"]
 
 [dependencies]
 eframe = { workspace = true, features = [
     "default",
     "__screenshot", # __screenshot is so we can dump a screenshot using EFRAME_SCREENSHOT_TO
 ] }
-
-# For image support:
-egui_extras = { workspace = true, features = ["default", "image"] }
 
 env_logger = { version = "0.10", default-features = false, features = [
     "auto-color",

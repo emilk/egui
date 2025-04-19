@@ -1614,7 +1614,6 @@ name = "external_eventloop"
 version = "0.1.0"
 dependencies = [
  "eframe",
- "egui_extras",
  "env_logger",
  "winit",
 ]
@@ -1624,7 +1623,6 @@ name = "external_eventloop_async"
 version = "0.1.0"
 dependencies = [
  "eframe",
- "egui_extras",
  "env_logger",
  "log",
  "tokio",
@@ -4217,9 +4215,9 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.42.1"
+version = "1.44.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2209a14885b74764cce87ffa777ffa1b8ce81a3f3166c6f886b83337fe7e077f"
+checksum = "e6b88822cbe49de4185e3a4cbf8321dd487cf5fe0c5c65695fef6346371e9c48"
 dependencies = [
  "backtrace",
  "libc",
