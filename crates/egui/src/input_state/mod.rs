@@ -160,8 +160,8 @@ pub struct InputState {
     // ----------------------------------------------
     /// Position and size of the egui area.
     ///
-    /// This is including the safe area, in contrast to [`Context::screen_rect`], where the safe
-    /// area has been substracted.
+    /// This is including the safe area, in contrast to [`crate::Context::screen_rect`], where the safe
+    /// area has been subtracted.
     screen_rect: Rect,
 
     /// The safe area insets of the screen.
