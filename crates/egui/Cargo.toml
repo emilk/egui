@@ -87,6 +87,7 @@ ahash.workspace = true
 bitflags.workspace = true
 nohash-hasher.workspace = true
 profiling.workspace = true
+unicode-segmentation.workspace = true
 
 #! ### Optional dependencies
 accesskit = { workspace = true, optional = true }
