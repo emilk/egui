@@ -10,21 +10,43 @@ mod snapshot;
 
 #[cfg(feature = "snapshot")]
 pub use snapshot::*;
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Display, Formatter};
+use std::time::Duration;
+
 mod app_kind;
+mod renderer;
 #[cfg(feature = "wgpu")]
 mod texture_to_image;
 #[cfg(feature = "wgpu")]
 pub mod wgpu;
 
 pub use kittest;
-use std::mem;
 
 use crate::app_kind::AppKind;
 use crate::event::EventState;
+
 pub use builder::*;
-use egui::{Pos2, Rect, TexturesDelta, Vec2, ViewportId};
+pub use renderer::*;
+
+use egui::{Modifiers, Pos2, Rect, RepaintCause, Vec2, ViewportId};
 use kittest::{Node, Queryable};
+
+pub struct ExceededMaxStepsError {
+    pub max_steps: u64,
+    pub repaint_causes: Vec<RepaintCause>,
+}
+
+impl Display for ExceededMaxStepsError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Harness::run exceeded max_steps ({}). If your expect your ui to keep repainting \
+            (e.g. when showing a spinner) call Harness::step or Harness::run_steps instead.\
+            \nRepaint causes: {:#?}",
+            self.max_steps, self.repaint_causes,
+        )
+    }
+}
 
 /// The test Harness. This contains everything needed to run the test.
 /// Create a new Harness using [`Harness::new`] or [`Harness::builder`].
@@ -37,14 +59,16 @@ pub struct Harness<'a, State = ()> {
     input: egui::RawInput,
     kittest: kittest::State,
     output: egui::FullOutput,
-    texture_deltas: Vec<TexturesDelta>,
     app: AppKind<'a, State>,
     event_state: EventState,
     response: Option<egui::Response>,
     state: State,
+    renderer: Box<dyn TestRenderer>,
+    max_steps: u64,
+    step_dt: f32,
 }
 
-impl<'a, State> Debug for Harness<'a, State> {
+impl<State> Debug for Harness<'_, State> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         self.kittest.fmt(f)
     }
@@ -52,18 +76,29 @@ impl<'a, State> Debug for Harness<'a, State> {
 
 impl<'a, State> Harness<'a, State> {
     pub(crate) fn from_builder(
-        builder: &HarnessBuilder<State>,
+        builder: HarnessBuilder<State>,
         mut app: AppKind<'a, State>,
         mut state: State,
+        ctx: Option<egui::Context>,
     ) -> Self {
-        let ctx = egui::Context::default();
+        let HarnessBuilder {
+            screen_rect,
+            pixels_per_point,
+            max_steps,
+            step_dt,
+            state: _,
+            mut renderer,
+        } = builder;
+        let ctx = ctx.unwrap_or_default();
         ctx.enable_accesskit();
+        // Disable cursor blinking so it doesn't interfere with snapshots
+        ctx.all_styles_mut(|style| style.visuals.text_cursor.blink = false);
         let mut input = egui::RawInput {
-            screen_rect: Some(builder.screen_rect),
+            screen_rect: Some(screen_rect),
             ..Default::default()
         };
         let viewport = input.viewports.get_mut(&ViewportId::ROOT).unwrap();
-        viewport.native_pixels_per_point = Some(builder.pixels_per_point);
+        viewport.native_pixels_per_point = Some(pixels_per_point);
 
         let mut response = None;
 
@@ -72,6 +107,8 @@ impl<'a, State> Harness<'a, State> {
         let mut output = ctx.run(input.clone(), |ctx| {
             response = app.run(ctx, &mut state, false);
         });
+
+        renderer.handle_delta(&output.textures_delta);
 
         let mut harness = Self {
             app,
@@ -84,14 +121,16 @@ impl<'a, State> Harness<'a, State> {
                     .take()
                     .expect("AccessKit was disabled"),
             ),
-            texture_deltas: vec![mem::take(&mut output.textures_delta)],
             output,
             response,
             event_state: EventState::default(),
             state,
+            renderer,
+            max_steps,
+            step_dt,
         };
         // Run the harness until it is stable, ensuring that all Areas are shown and animations are done
-        harness.run();
+        harness.run_ok();
         harness
     }
 
@@ -119,7 +158,7 @@ impl<'a, State> Harness<'a, State> {
     ///     });
     /// }, checked);
     ///
-    /// harness.get_by_name("Check me!").click();
+    /// harness.get_by_label("Check me!").click();
     /// harness.run();
     ///
     /// assert_eq!(*harness.state(), true);
@@ -144,13 +183,22 @@ impl<'a, State> Harness<'a, State> {
     ///     ui.checkbox(checked, "Check me!");
     /// }, checked);
     ///
-    /// harness.get_by_name("Check me!").click();
+    /// harness.get_by_label("Check me!").click();
     /// harness.run();
     ///
     /// assert_eq!(*harness.state(), true);
     /// ```
     pub fn new_ui_state(app: impl FnMut(&mut egui::Ui, &mut State) + 'a, state: State) -> Self {
         Self::builder().build_ui_state(app, state)
+    }
+
+    /// Create a new [Harness] from the given eframe creation closure.
+    #[cfg(feature = "eframe")]
+    pub fn new_eframe(builder: impl FnOnce(&mut eframe::CreationContext<'a>) -> State) -> Self
+    where
+        State: eframe::App,
+    {
+        Self::builder().build_eframe(builder)
     }
 
     /// Set the size of the window.
@@ -171,18 +219,23 @@ impl<'a, State> Harness<'a, State> {
         self
     }
 
-    /// Run a frame.
-    /// This will call the app closure with the current context and update the Harness.
+    /// Run a frame for each queued event (or a single frame if there are no events).
+    /// This will call the app closure with each queued event and
+    /// update the Harness.
     pub fn step(&mut self) {
-        self._step(false);
+        let events = self.kittest.take_events();
+        if events.is_empty() {
+            self._step(false);
+        }
+        for event in events {
+            self.event_state.update(event, &mut self.input);
+            self._step(false);
+        }
     }
 
+    /// Run a single step. This will not process any events.
     fn _step(&mut self, sizing_pass: bool) {
-        for event in self.kittest.take_events() {
-            if let Some(event) = self.event_state.kittest_event_to_egui(event) {
-                self.input.events.push(event);
-            }
-        }
+        self.input.predicted_dt = self.step_dt;
 
         let mut output = self.ctx.run(self.input.take(), |ctx| {
             self.response = self.app.run(ctx, &mut self.state, sizing_pass);
@@ -194,28 +247,132 @@ impl<'a, State> Harness<'a, State> {
                 .take()
                 .expect("AccessKit was disabled"),
         );
-        self.texture_deltas
-            .push(mem::take(&mut output.textures_delta));
+        self.renderer.handle_delta(&output.textures_delta);
         self.output = output;
     }
 
     /// Resize the test harness to fit the contents. This only works when creating the Harness via
-    /// [`Harness::new_ui`] or [`HarnessBuilder::build_ui`].
+    /// [`Harness::new_ui`] / [`Harness::new_ui_state`] or
+    /// [`HarnessBuilder::build_ui`] / [`HarnessBuilder::build_ui_state`].
     pub fn fit_contents(&mut self) {
         self._step(true);
         if let Some(response) = &self.response {
             self.set_size(response.rect.size());
         }
-        self.run();
+        self.run_ok();
     }
 
-    /// Run a few frames.
-    /// This will soon be changed to run the app until it is "stable", meaning
+    /// Run until
     /// - all animations are done
     /// - no more repaints are requested
-    pub fn run(&mut self) {
-        const STEPS: usize = 2;
-        for _ in 0..STEPS {
+    ///
+    /// Returns the number of frames that were run.
+    ///
+    /// # Panics
+    /// Panics if the number of steps exceeds the maximum number of steps set
+    /// in [`HarnessBuilder::with_max_steps`].
+    ///
+    /// See also:
+    /// - [`Harness::try_run`].
+    /// - [`Harness::try_run_realtime`].
+    /// - [`Harness::run_ok`].
+    /// - [`Harness::step`].
+    /// - [`Harness::run_steps`].
+    #[track_caller]
+    pub fn run(&mut self) -> u64 {
+        match self.try_run() {
+            Ok(steps) => steps,
+            Err(err) => {
+                panic!("{err}");
+            }
+        }
+    }
+
+    fn _try_run(&mut self, sleep: bool) -> Result<u64, ExceededMaxStepsError> {
+        let mut steps = 0;
+        loop {
+            steps += 1;
+            self.step();
+            // We only care about immediate repaints
+            if self.root_viewport_output().repaint_delay != Duration::ZERO {
+                break;
+            } else if sleep {
+                std::thread::sleep(Duration::from_secs_f32(self.step_dt));
+            }
+            if steps > self.max_steps {
+                return Err(ExceededMaxStepsError {
+                    max_steps: self.max_steps,
+                    repaint_causes: self.ctx.repaint_causes(),
+                });
+            }
+        }
+        Ok(steps)
+    }
+
+    /// Run until
+    /// - all animations are done
+    /// - no more repaints are requested
+    /// - the maximum number of steps is reached (See [`HarnessBuilder::with_max_steps`])
+    ///
+    /// Returns the number of steps that were run.
+    ///
+    /// # Errors
+    /// Returns an error if the maximum number of steps is exceeded.
+    ///
+    /// See also:
+    /// - [`Harness::run`].
+    /// - [`Harness::run_ok`].
+    /// - [`Harness::step`].
+    /// - [`Harness::run_steps`].
+    /// - [`Harness::try_run_realtime`].
+    pub fn try_run(&mut self) -> Result<u64, ExceededMaxStepsError> {
+        self._try_run(false)
+    }
+
+    /// Run until
+    /// - all animations are done
+    /// - no more repaints are requested
+    /// - the maximum number of steps is reached (See [`HarnessBuilder::with_max_steps`])
+    ///
+    /// Returns the number of steps that were run, or None if the maximum number of steps was exceeded.
+    ///
+    /// See also:
+    /// - [`Harness::run`].
+    /// - [`Harness::try_run`].
+    /// - [`Harness::step`].
+    /// - [`Harness::run_steps`].
+    /// - [`Harness::try_run_realtime`].
+    pub fn run_ok(&mut self) -> Option<u64> {
+        self.try_run().ok()
+    }
+
+    /// Run multiple frames, sleeping for [`HarnessBuilder::with_step_dt`] between frames.
+    ///
+    /// This is useful to e.g. wait for an async operation to complete (e.g. loading of images).
+    /// Runs until
+    /// - all animations are done
+    /// - no more repaints are requested
+    /// - the maximum number of steps is reached (See [`HarnessBuilder::with_max_steps`])
+    ///
+    /// Returns the number of steps that were run.
+    ///
+    /// # Errors
+    /// Returns an error if the maximum number of steps is exceeded.
+    ///
+    /// See also:
+    /// - [`Harness::run`].
+    /// - [`Harness::run_ok`].
+    /// - [`Harness::step`].
+    /// - [`Harness::run_steps`].
+    /// - [`Harness::try_run`].
+    pub fn try_run_realtime(&mut self) -> Result<u64, ExceededMaxStepsError> {
+        self._try_run(true)
+    }
+
+    /// Run a number of steps.
+    /// Equivalent to calling [`Harness::step`] x times.
+    pub fn run_steps(&mut self, steps: usize) {
+        for _ in 0..steps {
             self.step();
         }
     }
@@ -248,6 +405,71 @@ impl<'a, State> Harness<'a, State> {
     /// Access the state mutably.
     pub fn state_mut(&mut self) -> &mut State {
         &mut self.state
+    }
+
+    /// Press a key.
+    /// This will create a key down event and a key up event.
+    pub fn press_key(&mut self, key: egui::Key) {
+        self.input.events.push(egui::Event::Key {
+            key,
+            pressed: true,
+            modifiers: self.input.modifiers,
+            repeat: false,
+            physical_key: None,
+        });
+        self.input.events.push(egui::Event::Key {
+            key,
+            pressed: false,
+            modifiers: self.input.modifiers,
+            repeat: false,
+            physical_key: None,
+        });
+    }
+
+    /// Press a key with modifiers.
+    /// This will create a key-down event, a key-up event, and update the modifiers.
+    ///
+    /// NOTE: In contrast to the event fns on [`Node`], this will call [`Harness::step`], in
+    /// order to properly update modifiers.
+    pub fn press_key_modifiers(&mut self, modifiers: Modifiers, key: egui::Key) {
+        // Combine the modifiers with the current modifiers
+        let previous_modifiers = self.input.modifiers;
+        self.input.modifiers |= modifiers;
+
+        self.input.events.push(egui::Event::Key {
+            key,
+            pressed: true,
+            modifiers,
+            repeat: false,
+            physical_key: None,
+        });
+        self.step();
+        self.input.events.push(egui::Event::Key {
+            key,
+            pressed: false,
+            modifiers,
+            repeat: false,
+            physical_key: None,
+        });
+
+        self.input.modifiers = previous_modifiers;
+    }
+
+    /// Render the last output to an image.
+    ///
+    /// # Errors
+    /// Returns an error if the rendering fails.
+    #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+    pub fn render(&mut self) -> Result<image::RgbaImage, String> {
+        self.renderer.render(&self.ctx, &self.output)
+    }
+
+    /// Get the root viewport output
+    fn root_viewport_output(&self) -> &egui::ViewportOutput {
+        self.output
+            .viewport_output
+            .get(&ViewportId::ROOT)
+            .expect("Missing root viewport")
     }
 }
 
@@ -297,7 +519,7 @@ impl<'a> Harness<'a> {
     }
 }
 
-impl<'t, 'n, 'h, State> Queryable<'t, 'n> for Harness<'h, State>
+impl<'t, 'n, State> Queryable<'t, 'n> for Harness<'_, State>
 where
     'n: 't,
 {

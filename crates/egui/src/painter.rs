@@ -1,22 +1,29 @@
 use std::sync::Arc;
 
+use emath::GuiRounding as _;
+use epaint::{
+    text::{Fonts, Galley, LayoutJob},
+    CircleShape, ClippedShape, CornerRadius, PathStroke, RectShape, Shape, Stroke, StrokeKind,
+};
+
 use crate::{
     emath::{Align2, Pos2, Rangef, Rect, Vec2},
     layers::{LayerId, PaintList, ShapeIdx},
     Color32, Context, FontId,
 };
-use epaint::{
-    text::{Fonts, Galley, LayoutJob},
-    CircleShape, ClippedShape, PathStroke, RectShape, Rounding, Shape, Stroke,
-};
 
 /// Helper to paint shapes and text to a specific region on a specific layer.
 ///
 /// All coordinates are screen coordinates in the unit points (one point can consist of many physical pixels).
+///
+/// A [`Painter`] never outlive a single frame/pass.
 #[derive(Clone)]
 pub struct Painter {
     /// Source of fonts and destination of shapes
     ctx: Context,
+
+    /// For quick access, without having to go via [`Context`].
+    pixels_per_point: f32,
 
     /// Where we paint
     layer_id: LayerId,
@@ -38,8 +45,10 @@ pub struct Painter {
 impl Painter {
     /// Create a painter to a specific layer within a certain clip rectangle.
     pub fn new(ctx: Context, layer_id: LayerId, clip_rect: Rect) -> Self {
+        let pixels_per_point = ctx.pixels_per_point();
         Self {
             ctx,
+            pixels_per_point,
             layer_id,
             clip_rect,
             fade_to_color: None,
@@ -49,14 +58,10 @@ impl Painter {
 
     /// Redirect where you are painting.
     #[must_use]
-    pub fn with_layer_id(self, layer_id: LayerId) -> Self {
-        Self {
-            ctx: self.ctx,
-            layer_id,
-            clip_rect: self.clip_rect,
-            fade_to_color: None,
-            opacity_factor: 1.0,
-        }
+    #[inline]
+    pub fn with_layer_id(mut self, layer_id: LayerId) -> Self {
+        self.layer_id = layer_id;
+        self
     }
 
     /// Create a painter for a sub-region of this [`Painter`].
@@ -64,13 +69,9 @@ impl Painter {
     /// The clip-rect of the returned [`Painter`] will be the intersection
     /// of the given rectangle and the `clip_rect()` of the parent [`Painter`].
     pub fn with_clip_rect(&self, rect: Rect) -> Self {
-        Self {
-            ctx: self.ctx.clone(),
-            layer_id: self.layer_id,
-            clip_rect: rect.intersect(self.clip_rect),
-            fade_to_color: self.fade_to_color,
-            opacity_factor: self.opacity_factor,
-        }
+        let mut new_self = self.clone();
+        new_self.clip_rect = rect.intersect(self.clip_rect);
+        new_self
     }
 
     /// Redirect where you are painting.
@@ -82,7 +83,7 @@ impl Painter {
     }
 
     /// If set, colors will be modified to look like this
-    pub(crate) fn set_fade_to_color(&mut self, fade_to_color: Option<Color32>) {
+    pub fn set_fade_to_color(&mut self, fade_to_color: Option<Color32>) {
         self.fade_to_color = fade_to_color;
     }
 
@@ -118,22 +119,25 @@ impl Painter {
     /// If `false`, nothing you paint will show up.
     ///
     /// Also checks [`Context::will_discard`].
-    pub(crate) fn is_visible(&self) -> bool {
+    pub fn is_visible(&self) -> bool {
         self.fade_to_color != Some(Color32::TRANSPARENT) && !self.ctx.will_discard()
     }
 
     /// If `false`, nothing added to the painter will be visible
-    pub(crate) fn set_invisible(&mut self) {
+    pub fn set_invisible(&mut self) {
         self.fade_to_color = Some(Color32::TRANSPARENT);
     }
-}
 
-/// ## Accessors etc
-impl Painter {
     /// Get a reference to the parent [`Context`].
     #[inline]
     pub fn ctx(&self) -> &Context {
         &self.ctx
+    }
+
+    /// Number of physical pixels for each logical UI point.
+    #[inline]
+    pub fn pixels_per_point(&self) -> f32 {
+        self.pixels_per_point
     }
 
     /// Read-only access to the shared [`Fonts`].
@@ -180,37 +184,42 @@ impl Painter {
     /// Useful for pixel-perfect rendering of lines that are one pixel wide (or any odd number of pixels).
     #[inline]
     pub fn round_to_pixel_center(&self, point: f32) -> f32 {
-        self.ctx().round_to_pixel_center(point)
+        point.round_to_pixel_center(self.pixels_per_point())
     }
 
     /// Useful for pixel-perfect rendering of lines that are one pixel wide (or any odd number of pixels).
+    #[deprecated = "Use `emath::GuiRounding` with `painter.pixels_per_point()` instead"]
     #[inline]
     pub fn round_pos_to_pixel_center(&self, pos: Pos2) -> Pos2 {
-        self.ctx().round_pos_to_pixel_center(pos)
+        pos.round_to_pixel_center(self.pixels_per_point())
     }
 
     /// Useful for pixel-perfect rendering of filled shapes.
+    #[deprecated = "Use `emath::GuiRounding` with `painter.pixels_per_point()` instead"]
     #[inline]
     pub fn round_to_pixel(&self, point: f32) -> f32 {
-        self.ctx().round_to_pixel(point)
+        point.round_to_pixels(self.pixels_per_point())
     }
 
     /// Useful for pixel-perfect rendering.
+    #[deprecated = "Use `emath::GuiRounding` with `painter.pixels_per_point()` instead"]
     #[inline]
     pub fn round_vec_to_pixels(&self, vec: Vec2) -> Vec2 {
-        self.ctx().round_vec_to_pixels(vec)
+        vec.round_to_pixels(self.pixels_per_point())
     }
 
     /// Useful for pixel-perfect rendering.
+    #[deprecated = "Use `emath::GuiRounding` with `painter.pixels_per_point()` instead"]
     #[inline]
     pub fn round_pos_to_pixels(&self, pos: Pos2) -> Pos2 {
-        self.ctx().round_pos_to_pixels(pos)
+        pos.round_to_pixels(self.pixels_per_point())
     }
 
     /// Useful for pixel-perfect rendering.
+    #[deprecated = "Use `emath::GuiRounding` with `painter.pixels_per_point()` instead"]
     #[inline]
     pub fn round_rect_to_pixels(&self, rect: Rect) -> Rect {
-        self.ctx().round_rect_to_pixels(rect)
+        rect.round_to_pixels(self.pixels_per_point())
     }
 }
 
@@ -292,6 +301,7 @@ impl Painter {
             0.0,
             color.additive().linear_multiply(0.015),
             (1.0, color),
+            StrokeKind::Outside,
         );
         self.text(
             rect.min,
@@ -337,21 +347,27 @@ impl Painter {
 /// # Paint different primitives
 impl Painter {
     /// Paints a line from the first point to the second.
-    pub fn line_segment(&self, points: [Pos2; 2], stroke: impl Into<PathStroke>) -> ShapeIdx {
+    pub fn line_segment(&self, points: [Pos2; 2], stroke: impl Into<Stroke>) -> ShapeIdx {
         self.add(Shape::LineSegment {
             points,
             stroke: stroke.into(),
         })
     }
 
+    /// Paints a line connecting the points.
+    /// NOTE: all coordinates are screen coordinates!
+    pub fn line(&self, points: Vec<Pos2>, stroke: impl Into<PathStroke>) -> ShapeIdx {
+        self.add(Shape::line(points, stroke))
+    }
+
     /// Paints a horizontal line.
-    pub fn hline(&self, x: impl Into<Rangef>, y: f32, stroke: impl Into<PathStroke>) -> ShapeIdx {
-        self.add(Shape::hline(x, y, stroke.into()))
+    pub fn hline(&self, x: impl Into<Rangef>, y: f32, stroke: impl Into<Stroke>) -> ShapeIdx {
+        self.add(Shape::hline(x, y, stroke))
     }
 
     /// Paints a vertical line.
-    pub fn vline(&self, x: f32, y: impl Into<Rangef>, stroke: impl Into<PathStroke>) -> ShapeIdx {
-        self.add(Shape::vline(x, y, stroke.into()))
+    pub fn vline(&self, x: f32, y: impl Into<Rangef>, stroke: impl Into<Stroke>) -> ShapeIdx {
+        self.add(Shape::vline(x, y, stroke))
     }
 
     pub fn circle(
@@ -392,32 +408,41 @@ impl Painter {
         })
     }
 
+    /// See also [`Self::rect_filled`] and [`Self::rect_stroke`].
     pub fn rect(
         &self,
         rect: Rect,
-        rounding: impl Into<Rounding>,
+        corner_radius: impl Into<CornerRadius>,
         fill_color: impl Into<Color32>,
         stroke: impl Into<Stroke>,
+        stroke_kind: StrokeKind,
     ) -> ShapeIdx {
-        self.add(RectShape::new(rect, rounding, fill_color, stroke))
+        self.add(RectShape::new(
+            rect,
+            corner_radius,
+            fill_color,
+            stroke,
+            stroke_kind,
+        ))
     }
 
     pub fn rect_filled(
         &self,
         rect: Rect,
-        rounding: impl Into<Rounding>,
+        corner_radius: impl Into<CornerRadius>,
         fill_color: impl Into<Color32>,
     ) -> ShapeIdx {
-        self.add(RectShape::filled(rect, rounding, fill_color))
+        self.add(RectShape::filled(rect, corner_radius, fill_color))
     }
 
     pub fn rect_stroke(
         &self,
         rect: Rect,
-        rounding: impl Into<Rounding>,
+        corner_radius: impl Into<CornerRadius>,
         stroke: impl Into<Stroke>,
+        stroke_kind: StrokeKind,
     ) -> ShapeIdx {
-        self.add(RectShape::stroke(rect, rounding, stroke))
+        self.add(RectShape::stroke(rect, corner_radius, stroke, stroke_kind))
     }
 
     /// Show an arrow starting at `origin` and going in the direction of `vec`, with the length `vec.length()`.
@@ -446,7 +471,7 @@ impl Painter {
     /// # egui::__run_test_ui(|ui| {
     /// # let rect = egui::Rect::from_min_size(Default::default(), egui::Vec2::splat(100.0));
     /// egui::Image::new(egui::include_image!("../assets/ferris.png"))
-    ///     .rounding(5.0)
+    ///     .corner_radius(5)
     ///     .tint(egui::Color32::LIGHT_BLUE)
     ///     .paint_at(ui, rect);
     /// # });

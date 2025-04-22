@@ -1,10 +1,41 @@
 # Changelog for eframe
 All notable changes to the `eframe` crate.
 
-NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/CHANGELOG.md), [`egui_glow`](../egui_glow/CHANGELOG.md),and [`egui-wgpu`](../egui-wgpu/CHANGELOG.md) have their own changelogs!
+NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glow`](../egui_glow/CHANGELOG.md),and [`egui-wgpu`](../egui-wgpu/CHANGELOG.md) have their own changelogs!
 
 This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
+
+
+## 0.31.1 - 2025-03-05
+Nothing new
+
+
+## 0.31.0 - 2025-02-04
+* Web: Fix incorrect scale when moving to screen with new DPI [#5631](https://github.com/emilk/egui/pull/5631) by [@emilk](https://github.com/emilk)
+* Re-enable IME support on Linux [#5198](https://github.com/emilk/egui/pull/5198) by [@YgorSouza](https://github.com/YgorSouza)
+* Serialize window maximized state in `WindowSettings` [#5554](https://github.com/emilk/egui/pull/5554) by [@landaire](https://github.com/landaire)
+* Save state on suspend on Android and iOS [#5601](https://github.com/emilk/egui/pull/5601) by [@Pandicon](https://github.com/Pandicon)
+* Eframe web: forward cmd-S/O to egui app (stop default browser action) [#5655](https://github.com/emilk/egui/pull/5655) by [@emilk](https://github.com/emilk)
+
+
+## 0.30.0 - 2024-12-16 - Android support
+NOTE: you now need to enable the `wayland` or `x11` features to get Linux support, including getting it to work on most CI systems.
+
+### ⭐ Added
+* Support `ViewportCommand::Screenshot` on web [#5438](https://github.com/emilk/egui/pull/5438) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+### 🔧 Changed
+* Android support [#5318](https://github.com/emilk/egui/pull/5318) by [@parasyte](https://github.com/parasyte)
+* Update MSRV to 1.80 [#5457](https://github.com/emilk/egui/pull/5457) by [@emilk](https://github.com/emilk)
+* Use `profiling` crate to support more profiler backends [#5150](https://github.com/emilk/egui/pull/5150) by [@teddemunnik](https://github.com/teddemunnik)
+* Update glow to 0.16 [#5395](https://github.com/emilk/egui/pull/5395) by [@sagudev](https://github.com/sagudev)
+* Forward `x11` and `wayland` features to `glutin` [#5391](https://github.com/emilk/egui/pull/5391) by [@e00E](https://github.com/e00E)
+
+### 🐛 Fixed
+* iOS: Support putting UI next to the dynamic island [#5211](https://github.com/emilk/egui/pull/5211) by [@frederik-uni](https://github.com/frederik-uni)
+* Prevent panic when copying text outside of a secure context [#5326](https://github.com/emilk/egui/pull/5326) by [@YgorSouza](https://github.com/YgorSouza)
+* Fix accidental change of `FallbackEgl` to `PreferEgl` [#5408](https://github.com/emilk/egui/pull/5408) by [@e00E](https://github.com/e00E)
 
 
 ## 0.29.1 - 2024-10-01 - Fix backspace/arrow keys on X11

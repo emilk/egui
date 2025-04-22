@@ -1,5 +1,7 @@
 use std::{borrow::Cow, sync::Arc};
 
+use emath::GuiRounding as _;
+
 use crate::{
     text::{LayoutJob, TextWrapping},
     Align, Color32, FontFamily, FontSelection, Galley, Style, TextStyle, TextWrapMode, Ui, Visuals,
@@ -20,7 +22,7 @@ use crate::{
 /// RichText::new("colored").color(Color32::RED);
 /// RichText::new("Large and underlined").size(20.0).underline();
 /// ```
-#[derive(Clone, Default, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct RichText {
     text: String,
     size: Option<f32>,
@@ -29,6 +31,7 @@ pub struct RichText {
     family: Option<FontFamily>,
     text_style: Option<TextStyle>,
     background_color: Color32,
+    expand_bg: f32,
     text_color: Option<Color32>,
     code: bool,
     strong: bool,
@@ -37,6 +40,29 @@ pub struct RichText {
     underline: bool,
     italics: bool,
     raised: bool,
+}
+
+impl Default for RichText {
+    fn default() -> Self {
+        Self {
+            text: Default::default(),
+            size: Default::default(),
+            extra_letter_spacing: Default::default(),
+            line_height: Default::default(),
+            family: Default::default(),
+            text_style: Default::default(),
+            background_color: Default::default(),
+            expand_bg: 1.0,
+            text_color: Default::default(),
+            code: Default::default(),
+            strong: Default::default(),
+            weak: Default::default(),
+            strikethrough: Default::default(),
+            underline: Default::default(),
+            italics: Default::default(),
+            raised: Default::default(),
+        }
+    }
 }
 
 impl From<&str> for RichText {
@@ -278,6 +304,8 @@ impl RichText {
     }
 
     /// Read the font height of the selected text style.
+    ///
+    /// Returns a value rounded to [`emath::GUI_ROUNDING`].
     pub fn font_height(&self, fonts: &epaint::Fonts, style: &Style) -> f32 {
         let mut font_id = self.text_style.as_ref().map_or_else(
             || FontSelection::Default.resolve(style),
@@ -360,6 +388,7 @@ impl RichText {
             family,
             text_style,
             background_color,
+            expand_bg,
             text_color: _, // already used by `get_text_color`
             code,
             strong: _, // already used by `get_text_color`
@@ -425,6 +454,7 @@ impl RichText {
                 underline,
                 strikethrough,
                 valign,
+                expand_bg,
             },
         )
     }
@@ -635,15 +665,16 @@ impl WidgetText {
         }
     }
 
+    /// Returns a value rounded to [`emath::GUI_ROUNDING`].
     pub(crate) fn font_height(&self, fonts: &epaint::Fonts, style: &Style) -> f32 {
         match self {
             Self::RichText(text) => text.font_height(fonts, style),
             Self::LayoutJob(job) => job.font_height(fonts),
             Self::Galley(galley) => {
-                if let Some(row) = galley.rows.first() {
-                    row.height()
+                if let Some(placed_row) = galley.rows.first() {
+                    placed_row.height().round_ui()
                 } else {
-                    galley.size().y
+                    galley.size().y.round_ui()
                 }
             }
         }

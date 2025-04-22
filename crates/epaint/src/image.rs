@@ -94,7 +94,13 @@ impl ColorImage {
     /// }
     /// ```
     pub fn from_rgba_unmultiplied(size: [usize; 2], rgba: &[u8]) -> Self {
-        assert_eq!(size[0] * size[1] * 4, rgba.len());
+        assert_eq!(
+            size[0] * size[1] * 4,
+            rgba.len(),
+            "size: {:?}, rgba.len(): {}",
+            size,
+            rgba.len()
+        );
         let pixels = rgba
             .chunks_exact(4)
             .map(|p| Color32::from_rgba_unmultiplied(p[0], p[1], p[2], p[3]))
@@ -103,7 +109,13 @@ impl ColorImage {
     }
 
     pub fn from_rgba_premultiplied(size: [usize; 2], rgba: &[u8]) -> Self {
-        assert_eq!(size[0] * size[1] * 4, rgba.len());
+        assert_eq!(
+            size[0] * size[1] * 4,
+            rgba.len(),
+            "size: {:?}, rgba.len(): {}",
+            size,
+            rgba.len()
+        );
         let pixels = rgba
             .chunks_exact(4)
             .map(|p| Color32::from_rgba_premultiplied(p[0], p[1], p[2], p[3]))
@@ -115,7 +127,13 @@ impl ColorImage {
     ///
     /// Panics if `size[0] * size[1] != gray.len()`.
     pub fn from_gray(size: [usize; 2], gray: &[u8]) -> Self {
-        assert_eq!(size[0] * size[1], gray.len());
+        assert_eq!(
+            size[0] * size[1],
+            gray.len(),
+            "size: {:?}, gray.len(): {}",
+            size,
+            gray.len()
+        );
         let pixels = gray.iter().map(|p| Color32::from_gray(*p)).collect();
         Self { size, pixels }
     }
@@ -127,7 +145,13 @@ impl ColorImage {
     #[doc(alias = "from_grey_iter")]
     pub fn from_gray_iter(size: [usize; 2], gray_iter: impl Iterator<Item = u8>) -> Self {
         let pixels: Vec<_> = gray_iter.map(Color32::from_gray).collect();
-        assert_eq!(size[0] * size[1], pixels.len());
+        assert_eq!(
+            size[0] * size[1],
+            pixels.len(),
+            "size: {:?}, pixels.len(): {}",
+            size,
+            pixels.len()
+        );
         Self { size, pixels }
     }
 
@@ -143,35 +167,6 @@ impl ColorImage {
         bytemuck::cast_slice_mut(&mut self.pixels)
     }
 
-    /// Create a new Image from a patch of the current image. This method is especially convenient for screenshotting a part of the app
-    /// since `region` can be interpreted as screen coordinates of the entire screenshot if `pixels_per_point` is provided for the native application.
-    /// The floats of [`emath::Rect`] are cast to usize, rounding them down in order to interpret them as indices to the image data.
-    ///
-    /// Panics if `region.min.x > region.max.x || region.min.y > region.max.y`, or if a region larger than the image is passed.
-    pub fn region(&self, region: &emath::Rect, pixels_per_point: Option<f32>) -> Self {
-        let pixels_per_point = pixels_per_point.unwrap_or(1.0);
-        let min_x = (region.min.x * pixels_per_point) as usize;
-        let max_x = (region.max.x * pixels_per_point) as usize;
-        let min_y = (region.min.y * pixels_per_point) as usize;
-        let max_y = (region.max.y * pixels_per_point) as usize;
-        assert!(min_x <= max_x);
-        assert!(min_y <= max_y);
-        let width = max_x - min_x;
-        let height = max_y - min_y;
-        let mut output = Vec::with_capacity(width * height);
-        let row_stride = self.size[0];
-
-        for row in min_y..max_y {
-            output.extend_from_slice(
-                &self.pixels[row * row_stride + min_x..row * row_stride + max_x],
-            );
-        }
-        Self {
-            size: [width, height],
-            pixels: output,
-        }
-    }
-
     /// Create a [`ColorImage`] from flat RGB data.
     ///
     /// This is what you want to use after having loaded an image file (and if
@@ -179,7 +174,13 @@ impl ColorImage {
     ///
     /// Panics if `size[0] * size[1] * 3 != rgb.len()`.
     pub fn from_rgb(size: [usize; 2], rgb: &[u8]) -> Self {
-        assert_eq!(size[0] * size[1] * 3, rgb.len());
+        assert_eq!(
+            size[0] * size[1] * 3,
+            rgb.len(),
+            "size: {:?}, rgb.len(): {}",
+            size,
+            rgb.len()
+        );
         let pixels = rgb
             .chunks_exact(3)
             .map(|p| Color32::from_rgb(p[0], p[1], p[2]))
@@ -213,6 +214,39 @@ impl ColorImage {
     pub fn height(&self) -> usize {
         self.size[1]
     }
+
+    /// Create a new image from a patch of the current image.
+    ///
+    /// This method is especially convenient for screenshotting a part of the app
+    /// since `region` can be interpreted as screen coordinates of the entire screenshot if `pixels_per_point` is provided for the native application.
+    /// The floats of [`emath::Rect`] are cast to usize, rounding them down in order to interpret them as indices to the image data.
+    ///
+    /// Panics if `region.min.x > region.max.x || region.min.y > region.max.y`, or if a region larger than the image is passed.
+    pub fn region(&self, region: &emath::Rect, pixels_per_point: Option<f32>) -> Self {
+        let pixels_per_point = pixels_per_point.unwrap_or(1.0);
+        let min_x = (region.min.x * pixels_per_point) as usize;
+        let max_x = (region.max.x * pixels_per_point) as usize;
+        let min_y = (region.min.y * pixels_per_point) as usize;
+        let max_y = (region.max.y * pixels_per_point) as usize;
+        assert!(
+            min_x <= max_x && min_y <= max_y,
+            "Screenshot region is invalid: {region:?}"
+        );
+        let width = max_x - min_x;
+        let height = max_y - min_y;
+        let mut output = Vec::with_capacity(width * height);
+        let row_stride = self.size[0];
+
+        for row in min_y..max_y {
+            output.extend_from_slice(
+                &self.pixels[row * row_stride + min_x..row * row_stride + max_x],
+            );
+        }
+        Self {
+            size: [width, height],
+            pixels: output,
+        }
+    }
 }
 
 impl std::ops::Index<(usize, usize)> for ColorImage {
@@ -221,7 +255,7 @@ impl std::ops::Index<(usize, usize)> for ColorImage {
     #[inline]
     fn index(&self, (x, y): (usize, usize)) -> &Color32 {
         let [w, h] = self.size;
-        assert!(x < w && y < h);
+        assert!(x < w && y < h, "x: {x}, y: {y}, w: {w}, h: {h}");
         &self.pixels[y * w + x]
     }
 }
@@ -230,7 +264,7 @@ impl std::ops::IndexMut<(usize, usize)> for ColorImage {
     #[inline]
     fn index_mut(&mut self, (x, y): (usize, usize)) -> &mut Color32 {
         let [w, h] = self.size;
-        assert!(x < w && y < h);
+        assert!(x < w && y < h, "x: {x}, y: {y}, w: {w}, h: {h}");
         &mut self.pixels[y * w + x]
     }
 }
@@ -302,28 +336,54 @@ impl FontImage {
     /// If you are having problems with text looking skinny and pixelated, try using a low gamma, e.g. `0.4`.
     #[inline]
     pub fn srgba_pixels(&self, gamma: Option<f32>) -> impl ExactSizeIterator<Item = Color32> + '_ {
-        // TODO(emilk): this default coverage gamma is a magic constant, chosen by eye. I don't even know why we need it.
-        // Maybe we need to implement the ideas in https://hikogui.org/2022/10/24/the-trouble-with-anti-aliasing.html
-        let gamma = gamma.unwrap_or(0.55);
+        // This whole function is less than rigorous.
+        // Ideally we should do this in a shader instead, and use different computations
+        // for different text colors.
+        // See https://hikogui.org/2022/10/24/the-trouble-with-anti-aliasing.html for an in-depth analysis.
         self.pixels.iter().map(move |coverage| {
-            let alpha = coverage.powf(gamma);
-            // We want to multiply with `vec4(alpha)` in the fragment shader:
-            let a = fast_round(alpha * 255.0);
-            Color32::from_rgba_premultiplied(a, a, a, a)
+            let alpha = if let Some(gamma) = gamma {
+                coverage.powf(gamma)
+            } else {
+                // alpha = coverage * coverage; // recommended by the article for WHITE text (using linear blending)
+
+                // The following is recommended by the article for BLACK text (using linear blending).
+                // Very similar to a gamma of 0.5, but produces sharper text.
+                // In practice it works well for all text colors (better than a gamma of 0.5, for instance).
+                // See https://www.desmos.com/calculator/w0ndf5blmn for a visual comparison.
+                2.0 * coverage - coverage * coverage
+            };
+            Color32::from_white_alpha(ecolor::linear_u8_from_linear_f32(alpha))
         })
     }
 
     /// Clone a sub-region as a new image.
     pub fn region(&self, [x, y]: [usize; 2], [w, h]: [usize; 2]) -> Self {
-        assert!(x + w <= self.width());
-        assert!(y + h <= self.height());
+        assert!(
+            x + w <= self.width(),
+            "x + w should be <= self.width(), but x: {}, w: {}, width: {}",
+            x,
+            w,
+            self.width()
+        );
+        assert!(
+            y + h <= self.height(),
+            "y + h should be <= self.height(), but y: {}, h: {}, height: {}",
+            y,
+            h,
+            self.height()
+        );
 
         let mut pixels = Vec::with_capacity(w * h);
         for y in y..y + h {
             let offset = y * self.width() + x;
             pixels.extend(&self.pixels[offset..(offset + w)]);
         }
-        assert_eq!(pixels.len(), w * h);
+        assert_eq!(
+            pixels.len(),
+            w * h,
+            "pixels.len should be w * h, but got {}",
+            pixels.len()
+        );
         Self {
             size: [w, h],
             pixels,
@@ -337,7 +397,7 @@ impl std::ops::Index<(usize, usize)> for FontImage {
     #[inline]
     fn index(&self, (x, y): (usize, usize)) -> &f32 {
         let [w, h] = self.size;
-        assert!(x < w && y < h);
+        assert!(x < w && y < h, "x: {x}, y: {y}, w: {w}, h: {h}");
         &self.pixels[y * w + x]
     }
 }
@@ -346,7 +406,7 @@ impl std::ops::IndexMut<(usize, usize)> for FontImage {
     #[inline]
     fn index_mut(&mut self, (x, y): (usize, usize)) -> &mut f32 {
         let [w, h] = self.size;
-        assert!(x < w && y < h);
+        assert!(x < w && y < h, "x: {x}, y: {y}, w: {w}, h: {h}");
         &mut self.pixels[y * w + x]
     }
 }
@@ -356,11 +416,6 @@ impl From<FontImage> for ImageData {
     fn from(image: FontImage) -> Self {
         Self::Font(image)
     }
-}
-
-#[inline]
-fn fast_round(r: f32) -> u8 {
-    (r + 0.5) as _ // rust does a saturating cast since 1.45
 }
 
 // ----------------------------------------------------------------------------

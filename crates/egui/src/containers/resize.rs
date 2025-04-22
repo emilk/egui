@@ -205,7 +205,7 @@ struct Prepared {
 }
 
 impl Resize {
-    fn begin(&mut self, ui: &mut Ui) -> Prepared {
+    fn begin(&self, ui: &mut Ui) -> Prepared {
         let position = ui.available_rect_before_wrap().min;
         let id = self.id.unwrap_or_else(|| {
             let id_salt = self.id_salt.unwrap_or_else(|| Id::new("resize"));
@@ -221,7 +221,8 @@ impl Resize {
                 .at_most(self.max_size)
                 .at_most(
                     ui.ctx().screen_rect().size() - ui.spacing().window_margin.sum(), // hack for windows
-                );
+                )
+                .round_ui();
 
             State {
                 desired_size: default_size,
@@ -233,7 +234,8 @@ impl Resize {
         state.desired_size = state
             .desired_size
             .at_least(self.min_size)
-            .at_most(self.max_size);
+            .at_most(self.max_size)
+            .round_ui();
 
         let mut user_requested_size = state.requested_size.take();
 
@@ -295,7 +297,7 @@ impl Resize {
         }
     }
 
-    pub fn show<R>(mut self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
+    pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
         let mut prepared = self.begin(ui);
         let ret = add_contents(&mut prepared.content_ui);
         self.end(ui, prepared);
@@ -354,6 +356,7 @@ impl Resize {
                 rect,
                 3.0,
                 ui.visuals().widgets.noninteractive.bg_stroke,
+                epaint::StrokeKind::Inside,
             ));
         }
 
@@ -383,6 +386,7 @@ impl Resize {
     }
 }
 
+use emath::GuiRounding as _;
 use epaint::Stroke;
 
 pub fn paint_resize_corner(ui: &Ui, response: &Response) {
@@ -397,7 +401,9 @@ pub fn paint_resize_corner_with_style(
     corner: Align2,
 ) {
     let painter = ui.painter();
-    let cp = painter.round_pos_to_pixels(corner.pos_in_rect(rect));
+    let cp = corner
+        .pos_in_rect(rect)
+        .round_to_pixels(ui.pixels_per_point());
     let mut w = 2.0;
     let stroke = Stroke {
         width: 1.0, // Set width to 1.0 to prevent overlapping

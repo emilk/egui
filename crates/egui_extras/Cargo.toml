@@ -31,7 +31,7 @@ rustdoc-args = ["--generate-link-to-definition"]
 default = ["dep:mime_guess2"]
 
 ## Shorthand for enabling the different types of image loaders (`file`, `http`, `image`, `svg`).
-all_loaders = ["file", "http", "image", "svg", "gif"]
+all_loaders = ["file", "http", "image", "svg", "gif", "webp"]
 
 ## Enable [`DatePickerButton`] widget.
 datepicker = ["chrono"]
@@ -41,6 +41,9 @@ file = ["dep:mime_guess2"]
 
 ## Support loading gif images.
 gif = ["image", "image/gif"]
+
+## Support loading webp images.
+webp = ["image", "image/webp"]
 
 ## Add support for loading images via HTTP.
 http = ["dep:ehttp"]
@@ -53,16 +56,14 @@ http = ["dep:ehttp"]
 ## ```
 image = ["dep:image"]
 
-## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
-##
-## Only enabled on native, because of the low resolution (1ms) of clocks in browsers.
-puffin = ["dep:puffin", "egui/puffin"]
-
 ## Derive serde Serialize/Deserialize on stateful structs
-serde = ["egui/serde", "dep:serde"]
+serde = ["egui/serde", "enum-map/serde", "dep:serde"]
 
 ## Support loading svg images.
 svg = ["resvg"]
+
+## Support rendering text in svg images.
+svg_text = ["svg", "resvg/text", "resvg/system-fonts"]
 
 ## Enable better syntax highlighting using [`syntect`](https://docs.rs/syntect).
 syntect = ["dep:syntect"]
@@ -72,8 +73,9 @@ syntect = ["dep:syntect"]
 egui = { workspace = true, default-features = false }
 
 ahash.workspace = true
-enum-map = { version = "2", features = ["serde"] }
+enum-map = "2"
 log.workspace = true
+profiling.workspace = true
 
 #! ### Optional dependencies
 
@@ -96,14 +98,13 @@ image = { workspace = true, optional = true }
 # file feature
 mime_guess2 = { version = "2", optional = true, default-features = false }
 
-puffin = { workspace = true, optional = true }
 
 syntect = { version = "5", optional = true, default-features = false, features = [
   "default-fancy",
 ] }
 
 # svg feature
-resvg = { version = "0.37", optional = true, default-features = false }
+resvg = { version = "0.45", optional = true, default-features = false }
 
 # http feature
 ehttp = { version = "0.5", optional = true, default-features = false }

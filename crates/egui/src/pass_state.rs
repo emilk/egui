@@ -1,4 +1,4 @@
-use ahash::{HashMap, HashSet};
+use ahash::HashMap;
 
 use crate::{
     id::IdSet, style, Align, Id, IdMap, LayerId, Rangef, Rect, SafeArea, Vec2, WidgetRects,
@@ -36,7 +36,7 @@ pub struct PerLayerState {
     /// Is there any open popup (menus, combo-boxes, etc)?
     ///
     /// Does NOT include tooltips.
-    pub open_popups: HashSet<Id>,
+    pub open_popups: IdSet,
 
     /// Which widget is showing a tooltip (if any)?
     ///
@@ -72,7 +72,7 @@ impl ScrollTarget {
 #[cfg(feature = "accesskit")]
 #[derive(Clone)]
 pub struct AccessKitPassState {
-    pub node_builders: IdMap<accesskit::NodeBuilder>,
+    pub nodes: IdMap<accesskit::Node>,
     pub parent_stack: Vec<Id>,
 }
 
@@ -123,7 +123,13 @@ impl DebugRect {
                 Color32::LIGHT_BLUE
             };
             let rect_bg_color = Color32::BLUE.gamma_multiply(0.5);
-            painter.rect(rect, 0.0, rect_bg_color, (1.0, rect_fg_color));
+            painter.rect(
+                rect,
+                0.0,
+                rect_bg_color,
+                (1.0, rect_fg_color),
+                crate::StrokeKind::Outside,
+            );
         }
 
         if !callstack.is_empty() {
@@ -159,7 +165,13 @@ impl DebugRect {
                 text_bg_color
             };
             let text_rect = Rect::from_min_size(text_pos, galley.size());
-            painter.rect(text_rect, 0.0, text_bg_color, (1.0, text_rect_stroke_color));
+            painter.rect(
+                text_rect,
+                0.0,
+                text_bg_color,
+                (1.0, text_rect_stroke_color),
+                crate::StrokeKind::Middle,
+            );
             painter.galley(text_pos, galley, text_color);
 
             if is_clicking {
@@ -192,7 +204,6 @@ pub struct PassState {
 
     /// Starts off as the `screen_rect`, shrinks as panels are added.
     /// The [`crate::CentralPanel`] does not change this.
-    /// This is the area available to Window's.
     pub available_rect: Rect,
 
     /// Starts off as the `screen_rect`, shrinks as panels are added.
@@ -254,7 +265,7 @@ impl PassState {
             screen_rect.min + emath::vec2(safe_area.left, safe_area.top),
             screen_rect.max - emath::vec2(safe_area.right, safe_area.bottom),
         );
-        crate::profile_function!();
+        profiling::function_scope!();
         let Self {
             used_ids,
             widgets,
@@ -297,8 +308,6 @@ impl PassState {
     }
 
     /// How much space is still available after panels has been added.
-    /// This is the "background" area, what egui doesn't cover with panels (but may cover with windows).
-    /// This is also the area to which windows are constrained.
     pub(crate) fn available_rect(&self) -> Rect {
         debug_assert!(
             self.available_rect.is_finite(),

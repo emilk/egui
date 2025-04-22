@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use super::{
     BytesLoader, Context, HashMap, ImagePoll, Mutex, SizeHint, SizedTexture, TextureHandle,
     TextureLoadResult, TextureLoader, TextureOptions, TexturePoll,
@@ -5,7 +7,7 @@ use super::{
 
 #[derive(Default)]
 pub struct DefaultTextureLoader {
-    cache: Mutex<HashMap<(String, TextureOptions), TextureHandle>>,
+    cache: Mutex<HashMap<(Cow<'static, str>, TextureOptions), TextureHandle>>,
 }
 
 impl TextureLoader for DefaultTextureLoader {
@@ -21,7 +23,7 @@ impl TextureLoader for DefaultTextureLoader {
         size_hint: SizeHint,
     ) -> TextureLoadResult {
         let mut cache = self.cache.lock();
-        if let Some(handle) = cache.get(&(uri.into(), texture_options)) {
+        if let Some(handle) = cache.get(&(Cow::Borrowed(uri), texture_options)) {
             let texture = SizedTexture::from_handle(handle);
             Ok(TexturePoll::Ready { texture })
         } else {
@@ -30,7 +32,7 @@ impl TextureLoader for DefaultTextureLoader {
                 ImagePoll::Ready { image } => {
                     let handle = ctx.load_texture(uri, image, texture_options);
                     let texture = SizedTexture::from_handle(&handle);
-                    cache.insert((uri.into(), texture_options), handle);
+                    cache.insert((Cow::Owned(uri.to_owned()), texture_options), handle);
                     let reduce_texture_memory = ctx.options(|o| o.reduce_texture_memory);
                     if reduce_texture_memory {
                         let loaders = ctx.loaders();

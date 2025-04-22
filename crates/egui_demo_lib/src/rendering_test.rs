@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
 use egui::{
-    epaint, lerp, pos2, vec2, widgets::color_picker::show_color, Align2, Color32, FontId, Image,
-    Mesh, Pos2, Rect, Response, Rgba, RichText, Sense, Shape, Stroke, TextureHandle,
-    TextureOptions, Ui, Vec2,
+    emath::GuiRounding as _, epaint, lerp, pos2, vec2, widgets::color_picker::show_color, Align2,
+    Color32, FontId, Image, Mesh, Pos2, Rect, Response, Rgba, RichText, Sense, Shape, Stroke,
+    TextureHandle, TextureOptions, Ui, Vec2,
 };
 
 const GRADIENT_SIZE: Vec2 = vec2(256.0, 18.0);
@@ -92,8 +92,6 @@ impl ColorTest {
 
         ui.label("Test that vertex color times texture color is done in gamma space:");
         ui.scope(|ui| {
-            ui.spacing_mut().item_spacing.y = 0.0; // No spacing between gradients
-
             let tex_color = Color32::from_rgb(64, 128, 255);
             let vertex_color = Color32::from_rgb(128, 196, 196);
             let ground_truth = mul_color_gamma(tex_color, vertex_color);
@@ -106,6 +104,9 @@ impl ColorTest {
                 show_color(ui, vertex_color, color_size);
                 ui.label(" vertex color =");
             });
+
+            ui.spacing_mut().item_spacing.y = 0.0; // No spacing between gradients
+
             {
                 let g = Gradient::one_color(ground_truth);
                 self.vertex_gradient(ui, "Ground truth (vertices)", WHITE, &g);
@@ -125,6 +126,34 @@ impl ColorTest {
                 .on_hover_text(format!("A texture that is {} texels wide", g.0.len()));
                 ui.label("GPU result");
             });
+        });
+
+        ui.separator();
+
+        ui.label("Test that blending is done in gamma space:");
+        ui.scope(|ui| {
+            let background = Color32::from_rgb(200, 60, 10);
+            let foreground = Color32::from_rgba_unmultiplied(108, 65, 200, 82);
+            let ground_truth = background.blend(foreground);
+
+            ui.horizontal(|ui| {
+                let color_size = ui.spacing().interact_size;
+                ui.label("Background:");
+                show_color(ui, background, color_size);
+                ui.label(", foreground: ");
+                show_color(ui, foreground, color_size);
+            });
+            ui.spacing_mut().item_spacing.y = 0.0; // No spacing between gradients
+            {
+                let g = Gradient::one_color(ground_truth);
+                self.vertex_gradient(ui, "Ground truth (vertices)", WHITE, &g);
+                self.tex_gradient(ui, "Ground truth (texture)", WHITE, &g);
+            }
+            {
+                let g = Gradient::one_color(foreground);
+                self.vertex_gradient(ui, "Vertex blending", background, &g);
+                self.tex_gradient(ui, "Texture blending", background, &g);
+            }
         });
 
         ui.separator();
@@ -270,6 +299,7 @@ impl ColorTest {
 
 fn vertex_gradient(ui: &mut Ui, bg_fill: Color32, gradient: &Gradient) -> Response {
     let (rect, response) = ui.allocate_at_least(GRADIENT_SIZE, Sense::hover());
+    let rect = rect.round_to_pixels(ui.pixels_per_point());
     if bg_fill != Default::default() {
         let mut mesh = Mesh::default();
         mesh.add_colored_rect(rect, bg_fill);
@@ -277,7 +307,10 @@ fn vertex_gradient(ui: &mut Ui, bg_fill: Color32, gradient: &Gradient) -> Respon
     }
     {
         let n = gradient.0.len();
-        assert!(n >= 2);
+        assert!(
+            n >= 2,
+            "A gradient must have at least two colors, but this had {n}"
+        );
         let mut mesh = Mesh::default();
         for (i, &color) in gradient.0.iter().enumerate() {
             let t = i as f32 / (n as f32 - 1.0);
@@ -436,7 +469,7 @@ fn pixel_test_strokes(ui: &mut Ui) {
         let thickness_points = thickness_pixels / pixels_per_point;
         let num_squares = (pixels_per_point * 10.0).round().max(10.0) as u32;
         let size_pixels = vec2(ui.min_size().x, num_squares as f32 + thickness_pixels * 2.0);
-        let size_points = size_pixels / pixels_per_point + Vec2::splat(2.0);
+        let size_points = size_pixels / pixels_per_point;
         let (response, painter) = ui.allocate_painter(size_points, Sense::hover());
 
         let mut cursor_pixel = Pos2::new(
@@ -451,7 +484,12 @@ fn pixel_test_strokes(ui: &mut Ui) {
                 Pos2::new(cursor_pixel.x, cursor_pixel.y),
                 Vec2::splat(size as f32),
             );
-            painter.rect_stroke(rect_points / pixels_per_point, 0.0, stroke);
+            painter.rect_stroke(
+                rect_points / pixels_per_point,
+                0.0,
+                stroke,
+                egui::StrokeKind::Outside,
+            );
             cursor_pixel.x += (1 + size) as f32 + thickness_pixels * 2.0;
         }
     }
@@ -559,8 +597,14 @@ fn blending_and_feathering_test(ui: &mut Ui) {
 }
 
 fn text_on_bg(ui: &mut egui::Ui, fg: Color32, bg: Color32) {
-    assert!(fg.is_opaque());
-    assert!(bg.is_opaque());
+    assert!(
+        fg.is_opaque(),
+        "Foreground color must be opaque, but was: {fg:?}",
+    );
+    assert!(
+        bg.is_opaque(),
+        "Background color must be opaque, but was: {bg:?}",
+    );
 
     ui.horizontal(|ui| {
         ui.label(
@@ -681,30 +725,29 @@ fn mul_color_gamma(left: Color32, right: Color32) -> Color32 {
 #[cfg(test)]
 mod tests {
     use crate::ColorTest;
-    use egui::vec2;
+    use egui_kittest::kittest::Queryable as _;
+    use egui_kittest::SnapshotResults;
 
     #[test]
     pub fn rendering_test() {
-        let mut errors = vec![];
+        let mut results = SnapshotResults::new();
         for dpi in [1.0, 1.25, 1.5, 1.75, 1.6666667, 2.0] {
             let mut color_test = ColorTest::default();
             let mut harness = egui_kittest::Harness::builder()
-                .with_size(vec2(2000.0, 2000.0))
                 .with_pixels_per_point(dpi)
                 .build_ui(|ui| {
                     color_test.ui(ui);
                 });
 
-            //harness.set_size(harness.ctx.used_size());
+            {
+                // Expand color-test collapsing header
+                harness.get_by_label("Color test").click();
+                harness.run();
+            }
 
             harness.fit_contents();
 
-            let result = harness.try_wgpu_snapshot(&format!("rendering_test/dpi_{dpi:.2}"));
-            if let Err(err) = result {
-                errors.push(err);
-            }
+            results.add(harness.try_snapshot(&format!("rendering_test/dpi_{dpi:.2}")));
         }
-
-        assert!(errors.is_empty(), "Errors: {errors:#?}");
     }
 }

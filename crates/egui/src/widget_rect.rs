@@ -20,10 +20,10 @@ pub struct WidgetRect {
     /// What layer the widget is on.
     pub layer_id: LayerId,
 
-    /// The full widget rectangle.
+    /// The full widget rectangle, in local layer coordinates.
     pub rect: Rect,
 
-    /// Where the widget is.
+    /// Where the widget is, in local layer coordinates.
     ///
     /// This is after clipping with the parent ui clip rect.
     pub interact_rect: Rect,
@@ -40,6 +40,27 @@ pub struct WidgetRect {
 
     /// Is the widget enabled?
     pub enabled: bool,
+}
+
+impl WidgetRect {
+    pub fn transform(self, transform: emath::TSTransform) -> Self {
+        let Self {
+            id,
+            layer_id,
+            rect,
+            interact_rect,
+            sense,
+            enabled,
+        } = self;
+        Self {
+            id,
+            layer_id,
+            rect: transform * rect,
+            interact_rect: transform * interact_rect,
+            sense,
+            enabled,
+        }
+    }
 }
 
 /// Stores the [`WidgetRect`]s of all widgets generated during a single egui update/frame.

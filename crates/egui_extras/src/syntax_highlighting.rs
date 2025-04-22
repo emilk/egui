@@ -33,9 +33,8 @@ pub fn highlight(
     // performing it at a separate thread (ctx, ctx.style()) can be used and when ui is available
     // (ui.ctx(), ui.style()) can be used
 
-    impl egui::util::cache::ComputerMut<(&egui::FontId, &CodeTheme, &str, &str), LayoutJob>
-        for Highlighter
-    {
+    #[allow(non_local_definitions)]
+    impl egui::cache::ComputerMut<(&egui::FontId, &CodeTheme, &str, &str), LayoutJob> for Highlighter {
         fn compute(
             &mut self,
             (font_id, theme, code, lang): (&egui::FontId, &CodeTheme, &str, &str),
@@ -44,7 +43,7 @@ pub fn highlight(
         }
     }
 
-    type HighlightCache = egui::util::cache::FrameCache<LayoutJob, Highlighter>;
+    type HighlightCache = egui::cache::FrameCache<LayoutJob, Highlighter>;
 
     let font_id = style
         .override_font_id
@@ -405,7 +404,7 @@ struct Highlighter {
 #[cfg(feature = "syntect")]
 impl Default for Highlighter {
     fn default() -> Self {
-        crate::profile_function!();
+        profiling::function_scope!();
         Self {
             ps: syntect::parsing::SyntaxSet::load_defaults_newlines(),
             ts: syntect::highlighting::ThemeSet::load_defaults(),
@@ -439,8 +438,7 @@ impl Highlighter {
 
     #[cfg(feature = "syntect")]
     fn highlight_impl(&self, theme: &CodeTheme, text: &str, language: &str) -> Option<LayoutJob> {
-        crate::profile_function!();
-
+        profiling::function_scope!();
         use syntect::easy::HighlightLines;
         use syntect::highlighting::FontStyle;
         use syntect::util::LinesWithEndings;
@@ -493,8 +491,15 @@ impl Highlighter {
 fn as_byte_range(whole: &str, range: &str) -> std::ops::Range<usize> {
     let whole_start = whole.as_ptr() as usize;
     let range_start = range.as_ptr() as usize;
-    assert!(whole_start <= range_start);
-    assert!(range_start + range.len() <= whole_start + whole.len());
+    assert!(
+        whole_start <= range_start,
+        "range must be within whole, but was {range}"
+    );
+    assert!(
+        range_start + range.len() <= whole_start + whole.len(),
+        "range_start + range length must be smaller than whole_start + whole length, but was {}",
+        range_start + range.len()
+    );
     let offset = range_start - whole_start;
     offset..(offset + range.len())
 }
@@ -514,7 +519,7 @@ impl Highlighter {
         mut text: &str,
         language: &str,
     ) -> Option<LayoutJob> {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         let language = Language::new(language)?;
 

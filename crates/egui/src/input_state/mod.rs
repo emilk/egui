@@ -269,7 +269,7 @@ impl InputState {
         pixels_per_point: f32,
         options: &crate::Options,
     ) -> Self {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         let time = new.time.unwrap_or(self.time + new.predicted_dt as f64);
         let unstable_dt = (time - self.time) as f32;
@@ -361,6 +361,14 @@ impl InputState {
                 }
                 Event::Zoom(factor) => {
                     zoom_factor_delta *= *factor;
+                }
+                Event::WindowFocused(false) => {
+                    // Example: pressing `Cmd+S` brings up a save-dialog (e.g. using rfd),
+                    // but we get no key-up event for the `S` key (in winit).
+                    // This leads to `S` being mistakenly marked as down when we switch back to the app.
+                    // So we take the safe route and just clear all the keys and modifiers when
+                    // the app loses focus.
+                    keys_down.clear();
                 }
                 _ => {}
             }
@@ -889,9 +897,9 @@ impl Default for PointerState {
             press_start_time: None,
             has_moved_too_much_for_a_click: false,
             started_decidedly_dragging: false,
-            last_click_time: std::f64::NEG_INFINITY,
-            last_last_click_time: std::f64::NEG_INFINITY,
-            last_move_time: std::f64::NEG_INFINITY,
+            last_click_time: f64::NEG_INFINITY,
+            last_last_click_time: f64::NEG_INFINITY,
+            last_move_time: f64::NEG_INFINITY,
             pointer_events: vec![],
             input_options: Default::default(),
         }
@@ -919,6 +927,7 @@ impl PointerState {
             self.motion = Some(Vec2::ZERO);
         }
 
+        let mut clear_history_after_velocity_calculation = false;
         for event in &new.events {
             match event {
                 Event::PointerMoved(pos) => {
@@ -932,6 +941,7 @@ impl PointerState {
                             press_origin.distance(pos) > self.input_options.max_click_dist;
                     }
 
+                    self.last_move_time = time;
                     self.pointer_events.push(PointerEvent::Moved(pos));
                 }
                 Event::PointerButton {
@@ -1005,7 +1015,10 @@ impl PointerState {
                     // When dragging a slider and the mouse leaves the viewport, we still want the drag to work,
                     // so we don't treat this as a `PointerEvent::Released`.
                     // NOTE: we do NOT clear `self.interact_pos` here. It will be cleared next frame.
-                    self.pos_history.clear();
+
+                    // Delay the clearing until after the final velocity calculation, so we can
+                    // get the final velocity when `drag_stopped` is true.
+                    clear_history_after_velocity_calculation = true;
                 }
                 Event::MouseMoved(delta) => *self.motion.get_or_insert(Vec2::ZERO) += *delta,
                 _ => {}
@@ -1035,6 +1048,9 @@ impl PointerState {
         };
         if self.velocity != Vec2::ZERO {
             self.last_move_time = time;
+        }
+        if clear_history_after_velocity_calculation {
+            self.pos_history.clear();
         }
 
         self.direction = self.pos_history.velocity().unwrap_or_default().normalized();
@@ -1303,7 +1319,7 @@ impl PointerState {
         self.started_decidedly_dragging
             && !self.has_moved_too_much_for_a_click
             && self.button_down(PointerButton::Primary)
-            && self.press_start_time.map_or(false, |press_start_time| {
+            && self.press_start_time.is_some_and(|press_start_time| {
                 self.time - press_start_time > self.input_options.max_click_duration
             })
     }
@@ -1324,6 +1340,18 @@ impl PointerState {
     #[inline(always)]
     pub fn middle_down(&self) -> bool {
         self.button_down(PointerButton::Middle)
+    }
+
+    /// Is the mouse moving in the direction of the given rect?
+    pub fn is_moving_towards_rect(&self, rect: &Rect) -> bool {
+        if self.is_still() {
+            return false;
+        }
+
+        if let Some(pos) = self.hover_pos() {
+            return rect.intersects_ray(pos, self.direction());
+        }
+        false
     }
 }
 

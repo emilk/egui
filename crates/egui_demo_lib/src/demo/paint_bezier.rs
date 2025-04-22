@@ -1,6 +1,7 @@
-use egui::epaint::{CubicBezierShape, PathShape, QuadraticBezierShape};
 use egui::{
-    emath, epaint, pos2, Color32, Context, Frame, Grid, Pos2, Rect, Sense, Shape, Stroke, Ui, Vec2,
+    emath,
+    epaint::{self, CubicBezierShape, PathShape, QuadraticBezierShape},
+    pos2, Color32, Context, Frame, Grid, Pos2, Rect, Sense, Shape, Stroke, StrokeKind, Ui, Vec2,
     Widget, Window,
 };
 
@@ -132,6 +133,7 @@ impl PaintBezier {
                     shape.visual_bounding_rect(),
                     0.0,
                     self.bounding_box_stroke,
+                    StrokeKind::Outside,
                 ));
                 painter.add(shape);
             }
@@ -143,6 +145,7 @@ impl PaintBezier {
                     shape.visual_bounding_rect(),
                     0.0,
                     self.bounding_box_stroke,
+                    StrokeKind::Outside,
                 ));
                 painter.add(shape);
             }

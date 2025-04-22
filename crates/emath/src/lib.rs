@@ -27,12 +27,14 @@ use std::ops::{Add, Div, Mul, RangeInclusive, Sub};
 
 pub mod align;
 pub mod easing;
+mod gui_rounding;
 mod history;
 mod numeric;
 mod ordered_float;
 mod pos2;
 mod range;
 mod rect;
+mod rect_align;
 mod rect_transform;
 mod rot2;
 pub mod smart_aim;
@@ -42,12 +44,14 @@ mod vec2b;
 
 pub use self::{
     align::{Align, Align2},
+    gui_rounding::{GuiRounding, GUI_ROUNDING},
     history::History,
     numeric::*,
     ordered_float::*,
     pos2::*,
     range::Rangef,
     rect::*,
+    rect_align::RectAlign,
     rect_transform::*,
     rot2::*,
     ts_transform::*,
@@ -145,7 +149,10 @@ where
 {
     let from = from.into();
     let to = to.into();
-    debug_assert!(from.start() != from.end());
+    debug_assert!(
+        from.start() != from.end(),
+        "from.start() and from.end() should not be equal"
+    );
     let t = (x - *from.start()) / (*from.end() - *from.start());
     lerp(to, t)
 }
@@ -169,7 +176,10 @@ where
     } else if *from.end() <= x {
         *to.end()
     } else {
-        debug_assert!(from.start() != from.end());
+        debug_assert!(
+            from.start() != from.end(),
+            "from.start() and from.end() should not be equal"
+        );
         let t = (x - *from.start()) / (*from.end() - *from.start());
         // Ensure no numerical inaccuracies sneak in:
         if T::ONE <= t {
@@ -196,8 +206,14 @@ pub fn format_with_minimum_decimals(value: f64, decimals: usize) -> String {
 pub fn format_with_decimals_in_range(value: f64, decimal_range: RangeInclusive<usize>) -> String {
     let min_decimals = *decimal_range.start();
     let max_decimals = *decimal_range.end();
-    debug_assert!(min_decimals <= max_decimals);
-    debug_assert!(max_decimals < 100);
+    debug_assert!(
+        min_decimals <= max_decimals,
+        "min_decimals should be <= max_decimals, but got min_decimals: {min_decimals}, max_decimals: {max_decimals}"
+    );
+    debug_assert!(
+        max_decimals < 100,
+        "max_decimals should be < 100, but got {max_decimals}"
+    );
     let max_decimals = max_decimals.min(16);
     let min_decimals = min_decimals.min(max_decimals);
 

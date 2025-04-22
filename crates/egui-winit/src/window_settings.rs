@@ -13,6 +13,8 @@ pub struct WindowSettings {
 
     fullscreen: bool,
 
+    maximized: bool,
+
     /// Inner size of window in logical pixels
     inner_size_points: Option<egui::Vec2>,
 }
@@ -38,6 +40,7 @@ impl WindowSettings {
             outer_position_pixels,
 
             fullscreen: window.fullscreen().is_some(),
+            maximized: window.is_maximized(),
 
             inner_size_points: Some(egui::vec2(
                 inner_size_points.width,
@@ -56,7 +59,7 @@ impl WindowSettings {
         event_loop: &winit::event_loop::ActiveEventLoop,
         mut viewport_builder: ViewportBuilder,
     ) -> ViewportBuilder {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         // `WindowBuilder::with_position` expects inner position in Macos, and outer position elsewhere
         // See [`winit::window::WindowBuilder::with_position`] for details.
@@ -80,7 +83,8 @@ impl WindowSettings {
         if let Some(inner_size_points) = self.inner_size_points {
             viewport_builder = viewport_builder
                 .with_inner_size(inner_size_points)
-                .with_fullscreen(self.fullscreen);
+                .with_fullscreen(self.fullscreen)
+                .with_maximized(self.maximized);
         }
 
         viewport_builder
@@ -143,8 +147,7 @@ fn find_active_monitor(
     window_size_pts: egui::Vec2,
     position_px: &egui::Pos2,
 ) -> Option<winit::monitor::MonitorHandle> {
-    crate::profile_function!();
-
+    profiling::function_scope!();
     let monitors = event_loop.available_monitors();
 
     // default to primary monitor, in case the correct monitor was disconnected.
@@ -178,7 +181,7 @@ fn clamp_pos_to_monitors(
     window_size_pts: egui::Vec2,
     position_px: &mut egui::Pos2,
 ) {
-    crate::profile_function!();
+    profiling::function_scope!();
 
     let Some(active_monitor) =
         find_active_monitor(egui_zoom_factor, event_loop, window_size_pts, position_px)

@@ -188,7 +188,7 @@ impl std::fmt::Debug for IconData {
 
 impl From<IconData> for epaint::ColorImage {
     fn from(icon: IconData) -> Self {
-        crate::profile_function!();
+        profiling::function_scope!();
         let IconData {
             rgba,
             width,
@@ -200,7 +200,7 @@ impl From<IconData> for epaint::ColorImage {
 
 impl From<&IconData> for epaint::ColorImage {
     fn from(icon: &IconData) -> Self {
-        crate::profile_function!();
+        profiling::function_scope!();
         let IconData {
             rgba,
             width,
@@ -291,6 +291,7 @@ pub struct ViewportBuilder {
 
     // macOS:
     pub fullsize_content_view: Option<bool>,
+    pub movable_by_window_background: Option<bool>,
     pub title_shown: Option<bool>,
     pub titlebar_buttons_shown: Option<bool>,
     pub titlebar_shown: Option<bool>,
@@ -432,6 +433,15 @@ impl ViewportBuilder {
         self
     }
 
+    /// macOS: Set to `true` to allow the window to be moved by dragging the background.
+    ///
+    /// Enabling this feature can result in unexpected behaviour with draggable UI widgets such as sliders.
+    #[inline]
+    pub fn with_movable_by_background(mut self, value: bool) -> Self {
+        self.movable_by_window_background = Some(value);
+        self
+    }
+
     /// macOS: Set to `false` to hide the window title.
     #[inline]
     pub fn with_title_shown(mut self, title_shown: bool) -> Self {
@@ -543,6 +553,15 @@ impl ViewportBuilder {
 
     /// The initial "outer" position of the window,
     /// i.e. where the top-left corner of the frame/chrome should be.
+    ///
+    /// **`eframe` notes**:
+    ///
+    /// - **iOS:** Sets the top left coordinates of the window in the screen space coordinate system.
+    /// - **Web:** Sets the top-left coordinates relative to the viewport. Doesn't account for CSS
+    ///   [`transform`].
+    /// - **Android / Wayland:** Unsupported.
+    ///
+    /// [`transform`]: https://developer.mozilla.org/en-US/docs/Web/CSS/transform
     #[inline]
     pub fn with_position(mut self, pos: impl Into<Pos2>) -> Self {
         self.position = Some(pos.into());
@@ -631,6 +650,7 @@ impl ViewportBuilder {
             visible: new_visible,
             drag_and_drop: new_drag_and_drop,
             fullsize_content_view: new_fullsize_content_view,
+            movable_by_window_background: new_movable_by_window_background,
             title_shown: new_title_shown,
             titlebar_buttons_shown: new_titlebar_buttons_shown,
             titlebar_shown: new_titlebar_shown,
@@ -816,6 +836,13 @@ impl ViewportBuilder {
             recreate_window = true;
         }
 
+        if new_movable_by_window_background.is_some()
+            && self.movable_by_window_background != new_movable_by_window_background
+        {
+            self.movable_by_window_background = new_movable_by_window_background;
+            recreate_window = true;
+        }
+
         if new_drag_and_drop.is_some() && self.drag_and_drop != new_drag_and_drop {
             self.drag_and_drop = new_drag_and_drop;
             recreate_window = true;
@@ -936,13 +963,16 @@ pub enum ResizeDirection {
 
 /// An output [viewport](crate::viewport)-command from egui to the backend, e.g. to change the window title or size.
 ///
-///  You can send a [`ViewportCommand`] to the viewport with [`Context::send_viewport_cmd`].
+/// You can send a [`ViewportCommand`] to the viewport with [`Context::send_viewport_cmd`].
 ///
 /// See [`crate::viewport`] for how to build new viewports (native windows).
 ///
 /// All coordinates are in logical points.
 ///
-/// This is essentially a way to diff [`ViewportBuilder`].
+/// [`ViewportCommand`] is essentially a way to diff [`ViewportBuilder`]s.
+///
+/// Only commands specific to a viewport are part of [`ViewportCommand`].
+/// Other commands should be put in [`crate::OutputCommand`].
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ViewportCommand {
@@ -1056,10 +1086,10 @@ pub enum ViewportCommand {
     /// Enable mouse pass-through: mouse clicks pass through the window, used for non-interactable overlays.
     MousePassthrough(bool),
 
-    /// Take a screenshot.
+    /// Take a screenshot of the next frame after this.
     ///
-    /// The results are returned in `crate::Event::Screenshot`.
-    Screenshot,
+    /// The results are returned in [`crate::Event::Screenshot`].
+    Screenshot(crate::UserData),
 
     /// Request cut of the current selection
     ///
@@ -1099,6 +1129,8 @@ impl ViewportCommand {
         self == &Self::Close
     }
 }
+
+// ----------------------------------------------------------------------------
 
 /// Describes a viewport, i.e. a native window.
 ///

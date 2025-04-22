@@ -15,9 +15,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       - run: mkdir -p empty_dir
-      - name: Url slug variable
+      - name: Generate URL_SLUG
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          URL_SLUG: ${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.ref }}
         run: |
-          echo "URL_SLUG=${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.ref }}" >> $GITHUB_ENV
+          # Sanitize the URL_SLUG to only contain alphanumeric characters and dashes
+          URL_SLUG=$(echo $URL_SLUG | tr -cd '[:alnum:]-')
+          echo "URL_SLUG=$URL_SLUG" >> $GITHUB_ENV
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4
         with:
