@@ -25,9 +25,12 @@ jobs:
         with:
           prefix-key: "pr-preview-"
 
-      - name: "Install wasmopt / binaryen"
-        run: |
-          sudo apt-get update && sudo apt-get install binaryen
+      - name: Install wasm-opt
+        uses: sigoden/install-binary@v1
+        with:
+          repo: WebAssembly/binaryen
+          tag: version_123
+          name: wasm-opt
 
       - run: |
           scripts/build_demo_web.sh --release
