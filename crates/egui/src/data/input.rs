@@ -7,6 +7,7 @@ use crate::{
     Key, Theme, ViewportId, ViewportIdMap,
 };
 
+/// Safe area insets of the screen. I.e., area not covered by the status bar, navigation bar, etc.
 #[derive(Debug, PartialEq, Copy, Clone, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct SafeArea {
@@ -14,6 +15,17 @@ pub struct SafeArea {
     pub right: f32,
     pub bottom: f32,
     pub left: f32,
+}
+
+impl std::ops::Sub<SafeArea> for Rect {
+    type Output = Self;
+
+    fn sub(self, rhs: SafeArea) -> Self::Output {
+        Self::from_min_max(
+            self.min + emath::vec2(rhs.left, rhs.top),
+            self.max - emath::vec2(rhs.right, rhs.bottom),
+        )
+    }
 }
 
 /// What the integrations provides to egui at the start of each frame.
@@ -137,6 +149,7 @@ impl RawInput {
                 .map(|(id, info)| (*id, info.take()))
                 .collect(),
             screen_rect: self.screen_rect.take(),
+            safe_area: self.safe_area.take(),
             max_texture_side: self.max_texture_side.take(),
             time: self.time,
             predicted_dt: self.predicted_dt,
@@ -146,7 +159,6 @@ impl RawInput {
             dropped_files: std::mem::take(&mut self.dropped_files),
             focused: self.focused,
             system_theme: self.system_theme,
-            safe_area: self.safe_area,
         }
     }
 

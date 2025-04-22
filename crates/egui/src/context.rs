@@ -474,7 +474,7 @@ impl ContextImpl {
 
                 let input = &viewport.input;
                 // This is a bit hacky, but is required to avoid jitter:
-                let mut rect = input.screen_rect;
+                let mut rect = input.screen_rect();
                 rect.min = (ratio * rect.min.to_vec2()).to_pos2();
                 rect.max = (ratio * rect.max.to_vec2()).to_pos2();
                 new_raw_input.screen_rect = Some(rect);
@@ -501,9 +501,9 @@ impl ContextImpl {
             &self.memory.options,
         );
 
-        let screen_rect = viewport.input.screen_rect;
+        let screen_rect = viewport.input.screen_rect();
 
-        viewport.this_pass.begin_pass(screen_rect, self.safe_area);
+        viewport.this_pass.begin_pass(screen_rect);
 
         {
             let mut layers: Vec<LayerId> = viewport.prev_pass.widgets.layer_ids().collect();
