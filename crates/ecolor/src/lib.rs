@@ -1,8 +1,19 @@
 //! Color conversions and types.
 //!
+//! This crate is built for the wants and needs of [`egui`](https://github.com/emilk/egui/).
+//!
+//! If you want an actual _good_ color crate, use [`color`](https://crates.io/crates/color) instead.
+//!
 //! If you want a compact color representation, use [`Color32`].
-//! If you want to manipulate RGBA colors use [`Rgba`].
+//! If you want to manipulate RGBA colors in linear space use [`Rgba`].
 //! If you want to manipulate colors in a way closer to how humans think about colors, use [`HsvaGamma`].
+//!
+//! ## Conventions
+//! The word "gamma" or "srgb" is used to refer to values in the non-linear space defined by
+//! [the sRGB transfer function](https://en.wikipedia.org/wiki/SRGB).
+//! We use `u8` for anything in the "gamma" space.
+//!
+//! We use `f32` in 0-1 range for anything in the linear space.
 //!
 //! ## Feature flags
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
@@ -39,23 +50,46 @@ pub use hex_color_runtime::*;
 
 impl From<Color32> for Rgba {
     fn from(srgba: Color32) -> Self {
-        Self([
-            linear_f32_from_gamma_u8(srgba.0[0]),
-            linear_f32_from_gamma_u8(srgba.0[1]),
-            linear_f32_from_gamma_u8(srgba.0[2]),
-            linear_f32_from_linear_u8(srgba.0[3]),
-        ])
+        let [r, g, b, a] = srgba.to_array();
+        if a == 0 {
+            // Additive, or completely transparent
+            Self([
+                linear_f32_from_gamma_u8(r),
+                linear_f32_from_gamma_u8(g),
+                linear_f32_from_gamma_u8(b),
+                0.0,
+            ])
+        } else {
+            let a = linear_f32_from_linear_u8(a);
+            Self([
+                linear_from_gamma(r as f32 / (255.0 * a)) * a,
+                linear_from_gamma(g as f32 / (255.0 * a)) * a,
+                linear_from_gamma(b as f32 / (255.0 * a)) * a,
+                a,
+            ])
+        }
     }
 }
 
 impl From<Rgba> for Color32 {
     fn from(rgba: Rgba) -> Self {
-        Self([
-            gamma_u8_from_linear_f32(rgba.0[0]),
-            gamma_u8_from_linear_f32(rgba.0[1]),
-            gamma_u8_from_linear_f32(rgba.0[2]),
-            linear_u8_from_linear_f32(rgba.0[3]),
-        ])
+        let [r, g, b, a] = rgba.to_array();
+        if a == 0.0 {
+            // Additive, or completely transparent
+            Self([
+                gamma_u8_from_linear_f32(r),
+                gamma_u8_from_linear_f32(g),
+                gamma_u8_from_linear_f32(b),
+                0,
+            ])
+        } else {
+            Self([
+                fast_round(gamma_u8_from_linear_f32(r / a) as f32 * a),
+                fast_round(gamma_u8_from_linear_f32(g / a) as f32 * a),
+                fast_round(gamma_u8_from_linear_f32(b / a) as f32 * a),
+                linear_u8_from_linear_f32(a),
+            ])
+        }
     }
 }
 

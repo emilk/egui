@@ -80,8 +80,8 @@ impl EasyMarkEditor {
         } = self;
 
         let response = if self.highlight_editor {
-            let mut layouter = |ui: &egui::Ui, easymark: &str, wrap_width: f32| {
-                let mut layout_job = highlighter.highlight(ui.style(), easymark);
+            let mut layouter = |ui: &egui::Ui, easymark: &dyn TextBuffer, wrap_width: f32| {
+                let mut layout_job = highlighter.highlight(ui.style(), easymark.as_str());
                 layout_job.wrap.max_width = wrap_width;
                 ui.fonts(|f| f.layout_job(layout_job))
             };
@@ -146,7 +146,7 @@ fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRang
     if ui.input_mut(|i| i.consume_shortcut(&SHORTCUT_INDENT)) {
         // This is a placeholder till we can indent the active line
         any_change = true;
-        let [primary, _secondary] = ccursor_range.sorted();
+        let [primary, _secondary] = ccursor_range.sorted_cursors();
 
         let advance = code.insert_text("  ", primary.index);
         ccursor_range.primary.index += advance;
@@ -177,7 +177,7 @@ fn toggle_surrounding(
     ccursor_range: &mut CCursorRange,
     surrounding: &str,
 ) {
-    let [primary, secondary] = ccursor_range.sorted();
+    let [primary, secondary] = ccursor_range.sorted_cursors();
 
     let surrounding_ccount = surrounding.chars().count();
 

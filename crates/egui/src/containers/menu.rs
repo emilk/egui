@@ -159,7 +159,6 @@ impl MenuState {
 }
 
 /// Horizontal menu bar where you can add [`MenuButton`]s.
-
 /// The menu bar goes well in a [`crate::TopBottomPanel::top`],
 /// but can also be placed in a [`crate::Window`].
 /// In the latter case you may want to wrap it in [`Frame`].

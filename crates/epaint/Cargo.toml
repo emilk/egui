@@ -101,6 +101,7 @@ backtrace = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion.workspace = true
+similar-asserts.workspace = true
 
 
 [[bench]]

@@ -1,7 +1,10 @@
+use std::fmt::Write as _;
+
 use criterion::{criterion_group, criterion_main, Criterion};
 
 use egui::epaint::TextShape;
 use egui_demo_lib::LOREM_IPSUM_LONG;
+use rand::Rng as _;
 
 pub fn criterion_benchmark(c: &mut Criterion) {
     use egui::RawInput;
@@ -125,6 +128,30 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                     text_color,
                     wrap_width,
                 )
+            });
+        });
+
+        c.bench_function("text_layout_cached_many_lines_modified", |b| {
+            const NUM_LINES: usize = 2_000;
+
+            let mut string = String::new();
+            for _ in 0..NUM_LINES {
+                for i in 0..30_u8 {
+                    write!(string, "{i:02X} ").unwrap();
+                }
+                string.push('\n');
+            }
+
+            let mut rng = rand::rng();
+            b.iter(|| {
+                fonts.begin_pass(pixels_per_point, max_texture_side);
+
+                // Delete a random character, simulating a user making an edit in a long file:
+                let mut new_string = string.clone();
+                let idx = rng.random_range(0..string.len());
+                new_string.remove(idx);
+
+                fonts.layout(new_string, font_id.clone(), text_color, wrap_width);
             });
         });
 

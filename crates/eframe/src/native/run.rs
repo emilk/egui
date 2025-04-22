@@ -93,48 +93,52 @@ impl<T: WinitApp> WinitAppWrapper<T> {
 
         log::trace!("event_result: {event_result:?}");
 
-        let combined_result = event_result.and_then(|event_result| {
-            match event_result {
-                EventResult::Wait => {
-                    event_loop.set_control_flow(ControlFlow::Wait);
-                    Ok(event_result)
-                }
-                EventResult::RepaintNow(window_id) => {
-                    log::trace!("RepaintNow of {window_id:?}",);
+        let mut event_result = event_result;
 
-                    if cfg!(target_os = "windows") {
-                        // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
-                        self.winit_app.run_ui_and_paint(event_loop, window_id)
-                    } else {
-                        // Fix for https://github.com/emilk/egui/issues/2425
-                        self.windows_next_repaint_times
-                            .insert(window_id, Instant::now());
-                        Ok(event_result)
-                    }
-                }
-                EventResult::RepaintNext(window_id) => {
-                    log::trace!("RepaintNext of {window_id:?}",);
+        if cfg!(target_os = "windows") {
+            if let Ok(EventResult::RepaintNow(window_id)) = event_result {
+                log::trace!("RepaintNow of {window_id:?}");
+                self.windows_next_repaint_times
+                    .insert(window_id, Instant::now());
+
+                // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
+                event_result = self.winit_app.run_ui_and_paint(event_loop, window_id);
+            }
+        }
+
+        let combined_result = event_result.map(|event_result| match event_result {
+            EventResult::Wait => {
+                event_loop.set_control_flow(ControlFlow::Wait);
+                event_result
+            }
+            EventResult::RepaintNow(window_id) => {
+                log::trace!("RepaintNow of {window_id:?}",);
+                self.windows_next_repaint_times
+                    .insert(window_id, Instant::now());
+                event_result
+            }
+            EventResult::RepaintNext(window_id) => {
+                log::trace!("RepaintNext of {window_id:?}",);
+                self.windows_next_repaint_times
+                    .insert(window_id, Instant::now());
+                event_result
+            }
+            EventResult::RepaintAt(window_id, repaint_time) => {
+                self.windows_next_repaint_times.insert(
+                    window_id,
                     self.windows_next_repaint_times
-                        .insert(window_id, Instant::now());
-                    Ok(event_result)
-                }
-                EventResult::RepaintAt(window_id, repaint_time) => {
-                    self.windows_next_repaint_times.insert(
-                        window_id,
-                        self.windows_next_repaint_times
-                            .get(&window_id)
-                            .map_or(repaint_time, |last| (*last).min(repaint_time)),
-                    );
-                    Ok(event_result)
-                }
-                EventResult::Save => {
-                    save = true;
-                    Ok(event_result)
-                }
-                EventResult::Exit => {
-                    exit = true;
-                    Ok(event_result)
-                }
+                        .get(&window_id)
+                        .map_or(repaint_time, |last| (*last).min(repaint_time)),
+                );
+                event_result
+            }
+            EventResult::Save => {
+                save = true;
+                event_result
+            }
+            EventResult::Exit => {
+                exit = true;
+                event_result
             }
         });
 

@@ -286,7 +286,7 @@ impl Ui {
             }
         }
 
-        debug_assert!(!max_rect.any_nan());
+        debug_assert!(!max_rect.any_nan(), "max_rect is NaN: {max_rect:?}");
         let stable_id = self.id.with(id_salt);
         let unique_id = stable_id.with(self.next_auto_id_salt);
         let next_auto_id_salt = unique_id.value().wrapping_add(1);
@@ -914,14 +914,20 @@ impl Ui {
     /// Set the minimum width of the ui.
     /// This can't shrink the ui, only make it larger.
     pub fn set_min_width(&mut self, width: f32) {
-        debug_assert!(0.0 <= width);
+        debug_assert!(
+            0.0 <= width,
+            "Negative width makes no sense, but got: {width}"
+        );
         self.placer.set_min_width(width);
     }
 
     /// Set the minimum height of the ui.
     /// This can't shrink the ui, only make it larger.
     pub fn set_min_height(&mut self, height: f32) {
-        debug_assert!(0.0 <= height);
+        debug_assert!(
+            0.0 <= height,
+            "Negative height makes no sense, but got: {height}"
+        );
         self.placer.set_min_height(height);
     }
 
@@ -1399,7 +1405,7 @@ impl Ui {
     fn allocate_space_impl(&mut self, desired_size: Vec2) -> Rect {
         let item_spacing = self.spacing().item_spacing;
         let frame_rect = self.placer.next_space(desired_size, item_spacing);
-        debug_assert!(!frame_rect.any_nan());
+        debug_assert!(!frame_rect.any_nan(), "frame_rect is nan in allocate_space");
         let widget_rect = self.placer.justify_and_align(frame_rect, desired_size);
 
         self.placer
@@ -1422,7 +1428,7 @@ impl Ui {
 
     /// Allocate a rect without interacting with it.
     pub fn advance_cursor_after_rect(&mut self, rect: Rect) -> Id {
-        debug_assert!(!rect.any_nan());
+        debug_assert!(!rect.any_nan(), "rect is nan in advance_cursor_after_rect");
         let rect = rect.round_ui();
 
         let item_spacing = self.spacing().item_spacing;
@@ -1494,7 +1500,10 @@ impl Ui {
         layout: Layout,
         add_contents: Box<dyn FnOnce(&mut Self) -> R + 'c>,
     ) -> InnerResponse<R> {
-        debug_assert!(desired_size.x >= 0.0 && desired_size.y >= 0.0);
+        debug_assert!(
+            desired_size.x >= 0.0 && desired_size.y >= 0.0,
+            "Negative desired size: {desired_size:?}"
+        );
         let item_spacing = self.spacing().item_spacing;
         let frame_rect = self.placer.next_space(desired_size, item_spacing);
         let child_rect = self.placer.justify_and_align(frame_rect, desired_size);
@@ -2240,18 +2249,21 @@ impl Ui {
 /// # Colors
 impl Ui {
     /// Shows a button with the given color.
+    ///
     /// If the user clicks the button, a full color picker is shown.
     pub fn color_edit_button_srgba(&mut self, srgba: &mut Color32) -> Response {
         color_picker::color_edit_button_srgba(self, srgba, color_picker::Alpha::BlendOrAdditive)
     }
 
     /// Shows a button with the given color.
+    ///
     /// If the user clicks the button, a full color picker is shown.
     pub fn color_edit_button_hsva(&mut self, hsva: &mut Hsva) -> Response {
         color_picker::color_edit_button_hsva(self, hsva, color_picker::Alpha::BlendOrAdditive)
     }
 
     /// Shows a button with the given color.
+    ///
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in `sRGB` space.
     pub fn color_edit_button_srgb(&mut self, srgb: &mut [u8; 3]) -> Response {
@@ -2259,6 +2271,7 @@ impl Ui {
     }
 
     /// Shows a button with the given color.
+    ///
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in linear RGB space.
     pub fn color_edit_button_rgb(&mut self, rgb: &mut [f32; 3]) -> Response {
@@ -2266,6 +2279,7 @@ impl Ui {
     }
 
     /// Shows a button with the given color.
+    ///
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in `sRGBA` space with premultiplied alpha
     pub fn color_edit_button_srgba_premultiplied(&mut self, srgba: &mut [u8; 4]) -> Response {
@@ -2276,6 +2290,7 @@ impl Ui {
     }
 
     /// Shows a button with the given color.
+    ///
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in `sRGBA` space without premultiplied alpha.
     /// If unsure, what "premultiplied alpha" is, then this is probably the function you want to use.
@@ -2288,6 +2303,7 @@ impl Ui {
     }
 
     /// Shows a button with the given color.
+    ///
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in linear RGBA space with premultiplied alpha
     pub fn color_edit_button_rgba_premultiplied(&mut self, rgba_premul: &mut [f32; 4]) -> Response {
@@ -2307,6 +2323,7 @@ impl Ui {
     }
 
     /// Shows a button with the given color.
+    ///
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in linear RGBA space without premultiplied alpha.
     /// If unsure, what "premultiplied alpha" is, then this is probably the function you want to use.

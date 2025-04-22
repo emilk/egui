@@ -222,25 +222,32 @@ impl Response {
     ///
     /// Clicks on widgets contained in this one counts as clicks inside this widget,
     /// so that clicking a button in an area will not be considered as clicking "elsewhere" from the area.
+    ///
+    /// Clicks on other layers above this widget *will* be considered as clicking elsewhere.
     pub fn clicked_elsewhere(&self) -> bool {
+        let (pointer_interact_pos, any_click) = self
+            .ctx
+            .input(|i| (i.pointer.interact_pos(), i.pointer.any_click()));
+
         // We do not use self.clicked(), because we want to catch all clicks within our frame,
         // even if we aren't clickable (or even enabled).
         // This is important for windows and such that should close then the user clicks elsewhere.
-        self.ctx.input(|i| {
-            let pointer = &i.pointer;
-
-            if pointer.any_click() {
-                if self.contains_pointer() || self.hovered() {
-                    false
-                } else if let Some(pos) = pointer.interact_pos() {
-                    !self.interact_rect.contains(pos)
+        if any_click {
+            if self.contains_pointer() || self.hovered() {
+                false
+            } else if let Some(pos) = pointer_interact_pos {
+                let layer_under_pointer = self.ctx.layer_id_at(pos);
+                if layer_under_pointer != Some(self.layer_id) {
+                    true
                 } else {
-                    false // clicked without a pointer, weird
+                    !self.interact_rect.contains(pos)
                 }
             } else {
-                false
+                false // clicked without a pointer, weird
             }
-        })
+        } else {
+            false
+        }
     }
 
     /// Was the widget enabled?
@@ -978,7 +985,10 @@ impl Response {
     ///
     /// You may not call [`Self::interact`] on the resulting `Response`.
     pub fn union(&self, other: Self) -> Self {
-        assert!(self.ctx == other.ctx);
+        assert!(
+            self.ctx == other.ctx,
+            "Responses must be from the same `Context`"
+        );
         debug_assert!(
             self.layer_id == other.layer_id,
             "It makes no sense to combine Responses from two different layers"

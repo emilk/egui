@@ -1,6 +1,5 @@
 use crate::{
-    gamma_u8_from_linear_f32, linear_f32_from_gamma_u8, linear_f32_from_linear_u8,
-    linear_u8_from_linear_f32, Color32, Rgba,
+    gamma_u8_from_linear_f32, linear_f32_from_gamma_u8, linear_u8_from_linear_f32, Color32, Rgba,
 };
 
 /// Hue, saturation, value, alpha. All in the range [0, 1].
@@ -29,30 +28,20 @@ impl Hsva {
     /// From `sRGBA` with premultiplied alpha
     #[inline]
     pub fn from_srgba_premultiplied([r, g, b, a]: [u8; 4]) -> Self {
-        Self::from_rgba_premultiplied(
-            linear_f32_from_gamma_u8(r),
-            linear_f32_from_gamma_u8(g),
-            linear_f32_from_gamma_u8(b),
-            linear_f32_from_linear_u8(a),
-        )
+        Self::from(Color32::from_rgba_premultiplied(r, g, b, a))
     }
 
     /// From `sRGBA` without premultiplied alpha
     #[inline]
     pub fn from_srgba_unmultiplied([r, g, b, a]: [u8; 4]) -> Self {
-        Self::from_rgba_unmultiplied(
-            linear_f32_from_gamma_u8(r),
-            linear_f32_from_gamma_u8(g),
-            linear_f32_from_gamma_u8(b),
-            linear_f32_from_linear_u8(a),
-        )
+        Self::from(Color32::from_rgba_unmultiplied(r, g, b, a))
     }
 
     /// From linear RGBA with premultiplied alpha
     #[inline]
     pub fn from_rgba_premultiplied(r: f32, g: f32, b: f32, a: f32) -> Self {
         #![allow(clippy::many_single_char_names)]
-        if a == 0.0 {
+        if a <= 0.0 {
             if r == 0.0 && b == 0.0 && a == 0.0 {
                 Self::default()
             } else {
@@ -152,13 +141,7 @@ impl Hsva {
 
     #[inline]
     pub fn to_srgba_premultiplied(&self) -> [u8; 4] {
-        let [r, g, b, a] = self.to_rgba_premultiplied();
-        [
-            gamma_u8_from_linear_f32(r),
-            gamma_u8_from_linear_f32(g),
-            gamma_u8_from_linear_f32(b),
-            linear_u8_from_linear_f32(a),
-        ]
+        Color32::from(*self).to_array()
     }
 
     /// To gamma-space 0-255.

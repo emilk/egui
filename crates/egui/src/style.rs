@@ -332,6 +332,9 @@ pub struct Style {
 
     /// The animation that should be used when scrolling a [`crate::ScrollArea`] using e.g. [`Ui::scroll_to_rect`].
     pub scroll_animation: ScrollAnimation,
+
+    /// Use a more compact style for menus.
+    pub compact_menu_style: bool,
 }
 
 #[test]
@@ -986,7 +989,7 @@ pub struct Visuals {
     /// Show a background behind collapsing headers.
     pub collapsing_header_frame: bool,
 
-    /// Draw a vertical lien left of indented region, in e.g. [`crate::CollapsingHeader`].
+    /// Draw a vertical line left of indented region, in e.g. [`crate::CollapsingHeader`].
     pub indent_has_left_vline: bool,
 
     /// Whether or not Grids and Tables should be striped by default
@@ -1277,6 +1280,7 @@ impl Default for Style {
             url_in_tooltip: false,
             always_scroll_the_only_direction: false,
             scroll_animation: ScrollAnimation::default(),
+            compact_menu_style: true,
         }
     }
 }
@@ -1578,6 +1582,7 @@ impl Style {
             url_in_tooltip,
             always_scroll_the_only_direction,
             scroll_animation,
+            compact_menu_style,
         } = self;
 
         crate::Grid::new("_options").show(ui, |ui| {
@@ -1682,6 +1687,8 @@ impl Style {
 
         #[cfg(debug_assertions)]
         ui.collapsing("🐛 Debug", |ui| debug.ui(ui));
+
+        ui.checkbox(compact_menu_style, "Compact menu style");
 
         ui.checkbox(explanation_tooltips, "Explanation tooltips")
             .on_hover_text(
