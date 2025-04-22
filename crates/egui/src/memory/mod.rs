@@ -87,15 +87,6 @@ pub struct Memory {
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) viewport_id: ViewportId,
 
-    /// Which popup-window is open (if any)?
-    /// Could be a combo box, color picker, menu, etc.
-    /// Optionally stores the position of the popup (usually this would be the position where
-    /// the user clicked).
-    /// If position is [`None`], the popup position will be calculated based on some configuration
-    /// (e.g. relative to some other widget).
-    #[cfg_attr(feature = "persistence", serde(skip))]
-    popup: Option<OpenPopup>,
-
     #[cfg_attr(feature = "persistence", serde(skip))]
     everything_is_visible: bool,
 
@@ -116,6 +107,15 @@ pub struct Memory {
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) focus: ViewportIdMap<Focus>,
+
+    /// Which popup-window is open on a viewport (if any)?
+    /// Could be a combo box, color picker, menu, etc.
+    /// Optionally stores the position of the popup (usually this would be the position where
+    /// the user clicked).
+    /// If position is [`None`], the popup position will be calculated based on some configuration
+    /// (e.g. relative to some other widget).
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    popups: ViewportIdMap<OpenPopup>,
 }
 
 impl Default for Memory {
@@ -130,7 +130,7 @@ impl Default for Memory {
             viewport_id: Default::default(),
             areas: Default::default(),
             to_global: Default::default(),
-            popup: Default::default(),
+            popups: Default::default(),
             everything_is_visible: Default::default(),
             add_fonts: Default::default(),
         };
@@ -790,6 +790,7 @@ impl Memory {
         // Cleanup
         self.interactions.retain(|id, _| viewports.contains(id));
         self.areas.retain(|id, _| viewports.contains(id));
+        self.popups.retain(|id, _| viewports.contains(id));
 
         self.areas.entry(self.viewport_id).or_default();
 
@@ -809,11 +810,11 @@ impl Memory {
         self.focus_mut().end_pass(used_ids);
 
         // Clean up abandoned popups.
-        if let Some(popup) = &mut self.popup {
+        if let Some(popup) = self.popups.get_mut(&self.viewport_id) {
             if popup.open_this_frame {
                 popup.open_this_frame = false;
             } else {
-                self.popup = None;
+                self.popups.remove(&self.viewport_id);
             }
         }
     }
@@ -1107,19 +1108,23 @@ impl OpenPopup {
 impl Memory {
     /// Is the given popup open?
     pub fn is_popup_open(&self, popup_id: Id) -> bool {
-        self.popup.is_some_and(|state| state.id == popup_id) || self.everything_is_visible()
+        self.popups
+            .get(&self.viewport_id)
+            .is_some_and(|state| state.id == popup_id)
+            || self.everything_is_visible()
     }
 
     /// Is any popup open?
     pub fn any_popup_open(&self) -> bool {
-        self.popup.is_some() || self.everything_is_visible()
+        self.popups.contains_key(&self.viewport_id) || self.everything_is_visible()
     }
 
     /// Open the given popup and close all others.
     ///
     /// Note that you must call `keep_popup_open` on subsequent frames as long as the popup is open.
     pub fn open_popup(&mut self, popup_id: Id) {
-        self.popup = Some(OpenPopup::new(popup_id, None));
+        self.popups
+            .insert(self.viewport_id, OpenPopup::new(popup_id, None));
     }
 
     /// Popups must call this every frame while open.
@@ -1128,7 +1133,7 @@ impl Memory {
     /// called. For example, when a context menu is open and the underlying widget stops
     /// being rendered.
     pub fn keep_popup_open(&mut self, popup_id: Id) {
-        if let Some(state) = self.popup.as_mut() {
+        if let Some(state) = self.popups.get_mut(&self.viewport_id) {
             if state.id == popup_id {
                 state.open_this_frame = true;
             }
@@ -1137,18 +1142,20 @@ impl Memory {
 
     /// Open the popup and remember its position.
     pub fn open_popup_at(&mut self, popup_id: Id, pos: impl Into<Option<Pos2>>) {
-        self.popup = Some(OpenPopup::new(popup_id, pos.into()));
+        self.popups
+            .insert(self.viewport_id, OpenPopup::new(popup_id, pos.into()));
     }
 
     /// Get the position for this popup.
     pub fn popup_position(&self, id: Id) -> Option<Pos2> {
-        self.popup
+        self.popups
+            .get(&self.viewport_id)
             .and_then(|state| if state.id == id { state.pos } else { None })
     }
 
     /// Close any currently open popup.
     pub fn close_all_popups(&mut self) {
-        self.popup = None;
+        self.popups.clear();
     }
 
     /// Close the given popup, if it is open.
@@ -1156,7 +1163,7 @@ impl Memory {
     /// See also [`Self::close_all_popups`] if you want to close any / all currently open popups.
     pub fn close_popup(&mut self, popup_id: Id) {
         if self.is_popup_open(popup_id) {
-            self.popup = None;
+            self.popups.remove(&self.viewport_id);
         }
     }
 
