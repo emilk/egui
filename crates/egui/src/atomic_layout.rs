@@ -1,17 +1,19 @@
 use crate::{
     FontSelection, Frame, Id, Image, Response, Sense, Style, TextStyle, Ui, Widget, WidgetText,
 };
-use ahash::HashMap;
+use ahash::{HashMap, HashMapExt};
 use emath::{Align2, NumExt, Rect, Vec2};
 use epaint::text::TextWrapMode;
 use epaint::{Color32, Fonts, Galley};
 use std::sync::Arc;
 
+#[derive(Clone, Default)]
 pub enum SizedAtomicKind<'a> {
+    #[default]
+    Empty,
     Text(Arc<Galley>),
     Image(Image<'a>, Vec2),
     Custom(Id, Vec2),
-    Empty,
 }
 
 impl SizedAtomicKind<'_> {
@@ -99,6 +101,10 @@ impl<'a> AtomicLayout<'a> {
     }
 
     pub fn show(self, ui: &mut Ui) -> AtomicLayoutResponse {
+        self.allocate(ui).paint(ui)
+    }
+
+    pub fn allocate(self, ui: &mut Ui) -> AllocatedAtomicLayout<'a> {
         let Self {
             id,
             mut atomics,
@@ -129,9 +135,8 @@ impl<'a> AtomicLayout<'a> {
 
         let id = id.unwrap_or_else(|| ui.next_auto_id());
 
-        let fallback_text_color = self
-            .fallback_text_color
-            .unwrap_or_else(|| ui.style().visuals.text_color());
+        let fallback_text_color =
+            fallback_text_color.unwrap_or_else(|| ui.style().visuals.text_color());
         let gap = gap.unwrap_or(ui.spacing().icon_spacing);
 
         // The size available for the content
@@ -220,8 +225,8 @@ impl<'a> AtomicLayout<'a> {
         }
 
         let margin = frame.total_margin();
-        let content_size = Vec2::new(desired_width, height);
-        let frame_size = (content_size + margin.sum()).at_least(min_size);
+        let desired_size = Vec2::new(desired_width, height);
+        let frame_size = (desired_size + margin.sum()).at_least(min_size);
 
         let (_, rect) = ui.allocate_space(frame_size);
         let mut response = ui.interact(rect, id, sense);
@@ -229,35 +234,72 @@ impl<'a> AtomicLayout<'a> {
         response.intrinsic_size =
             Some((Vec2::new(preferred_width, preferred_height) + margin.sum()).at_least(min_size));
 
-        let mut response = AtomicLayoutResponse {
+        AllocatedAtomicLayout {
+            sized_atomics: sized_items,
+            frame,
+            fallback_text_color,
             response,
-            custom_rects: HashMap::default(),
-        };
+            grow_count,
+            desired_size,
+            align2,
+            gap,
+        }
+    }
+}
 
-        let inner_rect = rect - margin;
+pub struct AllocatedAtomicLayout<'a> {
+    pub sized_atomics: Vec<SizedAtomic<'a>>,
+    pub frame: Frame,
+    pub fallback_text_color: Color32,
+    pub response: Response,
+    grow_count: usize,
+    // The size of the inner content, before any growing.
+    desired_size: Vec2,
+    align2: Align2,
+    gap: f32,
+}
+
+impl<'a> AllocatedAtomicLayout<'a> {
+    pub fn paint(self, ui: &mut Ui) -> AtomicLayoutResponse {
+        let Self {
+            sized_atomics: sized_items,
+            frame,
+            fallback_text_color,
+            response,
+            grow_count,
+            desired_size,
+            align2,
+            gap,
+        } = self;
+
+        let inner_rect = response.rect - self.frame.total_margin();
+
         ui.painter().add(frame.paint(inner_rect));
 
         let width_to_fill = inner_rect.width();
-        let extra_space = f32::max(width_to_fill - desired_width, 0.0);
+        let extra_space = f32::max(width_to_fill - desired_size.x, 0.0);
         let grow_width = f32::max(extra_space / grow_count as f32, 0.0);
 
         let aligned_rect = if grow_count > 0 {
-            align2.align_size_within_rect(Vec2::new(width_to_fill, content_size.y), inner_rect)
+            align2.align_size_within_rect(Vec2::new(width_to_fill, desired_size.y), inner_rect)
         } else {
-            align2.align_size_within_rect(content_size, inner_rect)
+            align2.align_size_within_rect(desired_size, inner_rect)
         };
 
         let mut cursor = aligned_rect.left();
 
+        let mut response = AtomicLayoutResponse {
+            response,
+            custom_rects: HashMap::new(),
+        };
+
         for sized in sized_items {
             let size = sized.size;
-            let width = match sized.kind {
-                // TODO: check for atomic.grow here
-                SizedAtomicKind::Empty => grow_width,
-                _ => size.x,
-            };
+            let growth = if sized.grow { grow_width } else { 0.0 };
 
-            let frame = aligned_rect.with_min_x(cursor).with_max_x(cursor + width);
+            let frame = aligned_rect
+                .with_min_x(cursor)
+                .with_max_x(cursor + size.x + growth);
             cursor = frame.right() + gap;
 
             let align = Align2::CENTER_CENTER;
@@ -343,10 +385,11 @@ pub struct Atomic<'a> {
     pub kind: AtomicKind<'a>,
 }
 
-struct SizedAtomic<'a> {
-    size: Vec2,
-    preferred_size: Vec2,
-    kind: SizedAtomicKind<'a>,
+pub struct SizedAtomic<'a> {
+    pub grow: bool,
+    pub size: Vec2,
+    pub preferred_size: Vec2,
+    pub kind: SizedAtomicKind<'a>,
 }
 
 impl<'a> Atomic<'a> {
@@ -386,6 +429,7 @@ impl<'a> Atomic<'a> {
         SizedAtomic {
             size: self.size.unwrap_or_else(|| kind.size()),
             preferred_size: preferred,
+            grow: self.grow,
             kind,
         }
     }

@@ -1,8 +1,9 @@
 use crate::AtomicKind::Custom;
 use crate::{
-    epaint, pos2, vec2, AtomicLayout, Atomics, Id, IntoAtomics, NumExt, Response, Sense, Shape,
-    TextStyle, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
+    epaint, pos2, AtomicLayout, Atomics, Id, IntoAtomics, Response, Sense, Shape, Ui, Vec2, Widget,
+    WidgetInfo, WidgetType,
 };
+use emath::NumExt;
 
 // TODO(emilk): allow checkbox without a text label
 /// Boolean on/off control with text label.
@@ -59,18 +60,27 @@ impl Widget for Checkbox<'_> {
         let spacing = &ui.spacing();
         let icon_width = spacing.icon_width;
 
+        let mut min_size = Vec2::splat(spacing.interact_size.y);
+        min_size.y = min_size.y.at_least(icon_width);
+
+        // In order to center the checkbox based on min_size we set the icon height to at least min_size.y
+        let mut icon_size = Vec2::splat(icon_width);
+        icon_size.y = icon_size.y.at_least(min_size.y);
         let rect_id = Id::new("egui::checkbox");
-        atomics.add_front(Custom(rect_id, Vec2::splat(icon_width)));
+        atomics.add_front(Custom(rect_id, icon_size));
 
         let text = atomics.text();
 
-        let mut response = AtomicLayout::new(atomics).sense(Sense::click()).show(ui);
+        let mut prepared = AtomicLayout::new(atomics)
+            .sense(Sense::click())
+            .min_size(min_size)
+            .allocate(ui);
 
-        if response.response.clicked() {
+        if prepared.response.clicked() {
             *checked = !*checked;
-            response.response.mark_changed();
+            prepared.response.mark_changed();
         }
-        response.response.widget_info(|| {
+        prepared.response.widget_info(|| {
             if indeterminate {
                 WidgetInfo::labeled(
                     WidgetType::Checkbox,
@@ -87,40 +97,46 @@ impl Widget for Checkbox<'_> {
             }
         });
 
-        if ui.is_rect_visible(response.response.rect) {
+        let response = if ui.is_rect_visible(prepared.response.rect) {
             // let visuals = ui.style().interact_selectable(&response, *checked); // too colorful
-            let visuals = ui.style().interact(&response.response);
-            let rect = response.custom_rects.get(&rect_id).unwrap().clone();
+            let visuals = *ui.style().interact(&prepared.response);
+            prepared.fallback_text_color = visuals.text_color();
+            let response = prepared.paint(ui);
 
-            let (small_icon_rect, big_icon_rect) = ui.spacing().icon_rectangles(rect);
-            ui.painter().add(epaint::RectShape::new(
-                big_icon_rect.expand(visuals.expansion),
-                visuals.corner_radius,
-                visuals.bg_fill,
-                visuals.bg_stroke,
-                epaint::StrokeKind::Inside,
-            ));
+            if let Some(rect) = response.custom_rects.get(&rect_id).copied() {
+                let (small_icon_rect, big_icon_rect) = ui.spacing().icon_rectangles(rect);
+                ui.painter().add(epaint::RectShape::new(
+                    big_icon_rect.expand(visuals.expansion),
+                    visuals.corner_radius,
+                    visuals.bg_fill,
+                    visuals.bg_stroke,
+                    epaint::StrokeKind::Inside,
+                ));
 
-            if indeterminate {
-                // Horizontal line:
-                ui.painter().add(Shape::hline(
-                    small_icon_rect.x_range(),
-                    small_icon_rect.center().y,
-                    visuals.fg_stroke,
-                ));
-            } else if *checked {
-                // Check mark:
-                ui.painter().add(Shape::line(
-                    vec![
-                        pos2(small_icon_rect.left(), small_icon_rect.center().y),
-                        pos2(small_icon_rect.center().x, small_icon_rect.bottom()),
-                        pos2(small_icon_rect.right(), small_icon_rect.top()),
-                    ],
-                    visuals.fg_stroke,
-                ));
+                if indeterminate {
+                    // Horizontal line:
+                    ui.painter().add(Shape::hline(
+                        small_icon_rect.x_range(),
+                        small_icon_rect.center().y,
+                        visuals.fg_stroke,
+                    ));
+                } else if *checked {
+                    // Check mark:
+                    ui.painter().add(Shape::line(
+                        vec![
+                            pos2(small_icon_rect.left(), small_icon_rect.center().y),
+                            pos2(small_icon_rect.center().x, small_icon_rect.bottom()),
+                            pos2(small_icon_rect.right(), small_icon_rect.top()),
+                        ],
+                        visuals.fg_stroke,
+                    ));
+                }
             }
-        }
+            response.response
+        } else {
+            prepared.response
+        };
 
-        response.response
+        response
     }
 }

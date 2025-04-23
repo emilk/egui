@@ -1,7 +1,7 @@
 use crate::{
     Atomic, AtomicKind, AtomicLayout, AtomicLayoutResponse, Atomics, Color32, CornerRadius, Frame,
-    Image, IntoAtomics, NumExt, Response, Sense, Stroke, TextWrapMode, Ui, Vec2, Widget,
-    WidgetInfo, WidgetText, WidgetType,
+    Image, IntoAtomics, NumExt, Response, Sense, SizedAtomicKind, Stroke, TextWrapMode, Ui, Vec2,
+    Widget, WidgetInfo, WidgetText, WidgetType,
 };
 
 /// Clickable button with text.
@@ -224,9 +224,16 @@ impl<'a> Button<'a> {
             image_tint_follows_text_color,
         } = self;
 
-        let mut wl = AtomicLayout::new(atomics)
+        if !small {
+            min_size.y = min_size.y.at_least(ui.spacing().interact_size.y);
+        }
+
+        let text = atomics.text();
+
+        let mut layout = AtomicLayout::new(atomics)
             .wrap_mode(wrap_mode.unwrap_or(ui.wrap_mode()))
-            .sense(sense);
+            .sense(sense)
+            .min_size(min_size);
 
         let has_frame = frame.unwrap_or_else(|| ui.visuals().button_frame);
 
@@ -237,55 +244,54 @@ impl<'a> Button<'a> {
         };
         if small {
             button_padding.y = 0.0;
-            wl.atomics.iter_mut().for_each(|a| {
+            layout.atomics.iter_mut().for_each(|a| {
                 if let AtomicKind::Text(text) = &mut a.kind {
                     *text = std::mem::take(text).small();
                 }
             });
         }
 
-        let id = ui.next_auto_id().with("egui::button");
-        wl = wl.id(id);
-        let response = ui.ctx().read_response(id);
+        let mut prepared = layout
+            .frame(Frame::new().inner_margin(button_padding))
+            .allocate(ui);
 
-        let visuals = response.map_or(ui.style().visuals.widgets.inactive, |response| {
-            ui.style().interact_selectable(&response, selected)
-        });
+        let response = if ui.is_rect_visible(prepared.response.rect) {
+            let visuals = ui.style().interact_selectable(&prepared.response, selected);
 
-        if image_tint_follows_text_color {
-            wl.atomics.iter_mut().for_each(|a| {
-                a.kind = match std::mem::take(&mut a.kind) {
-                    AtomicKind::Image(image) => AtomicKind::Image(image.tint(visuals.text_color())),
-                    other => other,
-                }
-            });
-        }
+            if image_tint_follows_text_color {
+                prepared.sized_atomics.iter_mut().for_each(|a| {
+                    a.kind = match std::mem::take(&mut a.kind) {
+                        SizedAtomicKind::Image(image, size) => {
+                            SizedAtomicKind::Image(image.tint(visuals.text_color()), size)
+                        }
+                        other => other,
+                    }
+                });
+            }
 
-        wl = wl.fallback_text_color(visuals.text_color());
+            prepared.fallback_text_color = visuals.text_color();
 
-        wl.frame = if has_frame {
-            let stroke = stroke.unwrap_or(visuals.bg_stroke);
-            let fill = fill.unwrap_or(visuals.weak_bg_fill);
-            wl.frame
-                .inner_margin(
-                    button_padding + Vec2::splat(visuals.expansion) - Vec2::splat(stroke.width),
-                )
-                .outer_margin(-Vec2::splat(visuals.expansion))
-                .fill(fill)
-                .stroke(stroke)
-                .corner_radius(corner_radius.unwrap_or(visuals.corner_radius))
+            if has_frame {
+                let stroke = stroke.unwrap_or(visuals.bg_stroke);
+                let fill = fill.unwrap_or(visuals.weak_bg_fill);
+                prepared.frame = prepared
+                    .frame
+                    .inner_margin(
+                        button_padding + Vec2::splat(visuals.expansion) - Vec2::splat(stroke.width),
+                    )
+                    .outer_margin(-Vec2::splat(visuals.expansion))
+                    .fill(fill)
+                    .stroke(stroke)
+                    .corner_radius(corner_radius.unwrap_or(visuals.corner_radius));
+            };
+
+            prepared.paint(ui)
         } else {
-            Frame::new()
+            AtomicLayoutResponse {
+                response: prepared.response,
+                custom_rects: Default::default(),
+            }
         };
-
-        if !small {
-            min_size.y = min_size.y.at_least(ui.spacing().interact_size.y);
-        }
-        wl = wl.min_size(min_size);
-
-        let text = wl.atomics.text();
-
-        let response = wl.show(ui);
 
         response.response.widget_info(|| {
             if let Some(text) = &text {
