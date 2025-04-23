@@ -2,7 +2,6 @@ use crate::style::StyleModifier;
 use crate::{
     Button, Color32, Context, Frame, Id, InnerResponse, IntoAtomics, Layout, Popup,
     PopupCloseBehavior, Response, Style, Ui, UiBuilder, UiKind, UiStack, UiStackInfo, Widget,
-    WidgetText,
 };
 use emath::{vec2, Align, RectAlign, Vec2};
 use epaint::Stroke;

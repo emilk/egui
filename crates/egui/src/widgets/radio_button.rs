@@ -55,7 +55,7 @@ impl<'a> Widget for RadioButton<'a> {
         let mut icon_size = Vec2::splat(icon_width);
         icon_size.y = icon_size.y.at_least(min_size.y);
         let rect_id = Id::new("egui::radio_button");
-        atomics.add_front(AtomicKind::Custom(rect_id, icon_size));
+        atomics.push_front(AtomicKind::Custom(rect_id, icon_size));
 
         let text = atomics.text();
 

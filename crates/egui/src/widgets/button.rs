@@ -70,10 +70,10 @@ impl<'a> Button<'a> {
     pub fn opt_image_and_text(image: Option<Image<'a>>, text: Option<WidgetText>) -> Self {
         let mut button = Self::new(());
         if let Some(image) = image {
-            button.atomics.add(image);
+            button.atomics.push(image);
         }
         if let Some(text) = text {
-            button.atomics.add(text);
+            button.atomics.push(text);
         }
         button
     }
@@ -189,16 +189,16 @@ impl<'a> Button<'a> {
             AtomicKind::Text(text) => AtomicKind::Text(text.weak()),
             other => other,
         };
-        self.atomics.add(Atomic::grow());
-        self.atomics.add(atomic);
+        self.atomics.push(Atomic::grow());
+        self.atomics.push(atomic);
         self
     }
 
     /// Show some text on the right side of the button.
     #[inline]
     pub fn right_text(mut self, right_text: impl Into<Atomic<'a>>) -> Self {
-        self.atomics.add(Atomic::grow());
-        self.atomics.add(right_text.into());
+        self.atomics.push(Atomic::grow());
+        self.atomics.push(right_text.into());
         self
     }
 
@@ -306,7 +306,7 @@ impl<'a> Button<'a> {
 }
 
 impl Widget for Button<'_> {
-    fn ui(mut self, ui: &mut Ui) -> Response {
+    fn ui(self, ui: &mut Ui) -> Response {
         self.atomic_ui(ui).response
 
         //

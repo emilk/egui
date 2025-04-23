@@ -67,7 +67,7 @@ impl Widget for Checkbox<'_> {
         let mut icon_size = Vec2::splat(icon_width);
         icon_size.y = icon_size.y.at_least(min_size.y);
         let rect_id = Id::new("egui::checkbox");
-        atomics.add_front(Custom(rect_id, icon_size));
+        atomics.push_front(Custom(rect_id, icon_size));
 
         let text = atomics.text();
 
@@ -85,14 +85,14 @@ impl Widget for Checkbox<'_> {
                 WidgetInfo::labeled(
                     WidgetType::Checkbox,
                     ui.is_enabled(),
-                    text.clone().unwrap_or("".to_owned()),
+                    text.as_deref().unwrap_or(""),
                 )
             } else {
                 WidgetInfo::selected(
                     WidgetType::Checkbox,
                     ui.is_enabled(),
                     *checked,
-                    text.clone().unwrap_or("".to_owned()),
+                    text.as_deref().unwrap_or(""),
                 )
             }
         });

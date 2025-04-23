@@ -20,8 +20,7 @@ impl SizedAtomicKind<'_> {
     pub fn size(&self) -> Vec2 {
         match self {
             SizedAtomicKind::Text(galley) => galley.size(),
-            SizedAtomicKind::Image(_, size) => *size,
-            SizedAtomicKind::Custom(_, size) => *size,
+            SizedAtomicKind::Image(_, size) | SizedAtomicKind::Custom(_, size) => *size,
             SizedAtomicKind::Empty => Vec2::ZERO,
         }
     }
@@ -54,8 +53,13 @@ impl<'a> AtomicLayout<'a> {
         }
     }
 
-    pub fn add(mut self, atomic: impl Into<Atomic<'a>>) -> Self {
-        self.atomics.add(atomic.into());
+    pub fn push(mut self, atomic: impl Into<Atomic<'a>>) -> Self {
+        self.atomics.push(atomic.into());
+        self
+    }
+
+    pub fn push_front(mut self, atomic: impl Into<Atomic<'a>>) -> Self {
+        self.atomics.push_front(atomic.into());
         self
     }
 
@@ -180,7 +184,7 @@ impl<'a> AtomicLayout<'a> {
             })
             .unwrap_or_else(default_font_height);
 
-        for ((idx, item)) in atomics.0.into_iter().enumerate() {
+        for (idx, item) in atomics.0.into_iter().enumerate() {
             if item.shrink {
                 debug_assert!(
                     shrink_item.is_none(),
@@ -260,7 +264,7 @@ pub struct AllocatedAtomicLayout<'a> {
 }
 
 impl<'a> AllocatedAtomicLayout<'a> {
-    pub fn paint(self, ui: &mut Ui) -> AtomicLayoutResponse {
+    pub fn paint(self, ui: &Ui) -> AtomicLayoutResponse {
         let Self {
             sized_atomics: sized_items,
             frame,
@@ -312,7 +316,7 @@ impl<'a> AllocatedAtomicLayout<'a> {
                 SizedAtomicKind::Image(image, _) => {
                     image.paint_at(ui, rect);
                 }
-                SizedAtomicKind::Custom(id, size) => {
+                SizedAtomicKind::Custom(id, _) => {
                     response.custom_rects.insert(id, rect);
                 }
                 SizedAtomicKind::Empty => {}
@@ -408,10 +412,9 @@ impl<'a> Atomic<'a> {
             match &self.kind {
                 AtomicKind::Text(text) => Some(text.font_height(fonts, style)),
                 AtomicKind::Custom(_, size) => Some(size.y),
-                AtomicKind::Empty => None,
                 // Since this method is used to calculate the best height for an image, we always return
                 // None for images.
-                AtomicKind::Image(_) => None,
+                AtomicKind::Empty | AtomicKind::Image(_) => None,
             }
         })
     }
@@ -503,11 +506,11 @@ where
 pub struct Atomics<'a>(Vec<Atomic<'a>>);
 
 impl<'a> Atomics<'a> {
-    pub fn add(&mut self, atomic: impl Into<Atomic<'a>>) {
+    pub fn push(&mut self, atomic: impl Into<Atomic<'a>>) {
         self.0.push(atomic.into());
     }
 
-    pub fn add_front(&mut self, atomic: impl Into<Atomic<'a>>) {
+    pub fn push_front(&mut self, atomic: impl Into<Atomic<'a>>) {
         self.0.insert(0, atomic.into());
     }
 
@@ -540,7 +543,7 @@ where
     T: Into<Atomic<'a>>,
 {
     fn collect(self, atomics: &mut Atomics<'a>) {
-        atomics.add(self);
+        atomics.push(self);
     }
 }
 
@@ -558,7 +561,7 @@ pub trait IntoAtomics<'a> {
 }
 
 impl<'a> IntoAtomics<'a> for Atomics<'a> {
-    fn collect(self, atomics: &mut Atomics<'a>) {
+    fn collect(self, atomics: &mut Self) {
         atomics.0.extend(self.0);
     }
 }
@@ -569,10 +572,10 @@ macro_rules! all_the_atomics {
         where
             $($T: IntoAtomics<'a>),*
         {
-            fn collect(self, atomics: &mut Atomics<'a>) {
+            fn collect(self, _atomics: &mut Atomics<'a>) {
                 #[allow(non_snake_case)]
                 let ($($T),*) = self;
-                $($T.collect(atomics);)*
+                $($T.collect(_atomics);)*
             }
         }
     };
