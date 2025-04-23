@@ -230,7 +230,7 @@ impl<'a> Button<'a> {
 
         let text = atomics.text();
 
-        let mut layout = AtomicLayout::new(atomics)
+        let layout = AtomicLayout::new(atomics)
             .wrap_mode(wrap_mode.unwrap_or(ui.wrap_mode()))
             .sense(sense)
             .min_size(min_size);
@@ -244,11 +244,6 @@ impl<'a> Button<'a> {
         };
         if small {
             button_padding.y = 0.0;
-            layout.atomics.iter_mut().for_each(|a| {
-                if let AtomicKind::Text(text) = &mut a.kind {
-                    *text = std::mem::take(text).small();
-                }
-            });
         }
 
         let mut prepared = layout

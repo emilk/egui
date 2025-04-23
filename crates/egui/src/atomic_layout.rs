@@ -5,6 +5,7 @@ use ahash::{HashMap, HashMapExt};
 use emath::{Align2, NumExt, Rect, Vec2};
 use epaint::text::TextWrapMode;
 use epaint::{Color32, Fonts, Galley};
+use std::fmt::Formatter;
 use std::sync::Arc;
 
 #[derive(Clone, Default)]
@@ -341,6 +342,17 @@ pub enum AtomicKind<'a> {
     Custom(Id, Vec2),
 }
 
+impl std::fmt::Debug for AtomicKind<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AtomicKind::Empty => write!(f, "AtomicKind::Empty"),
+            AtomicKind::Text(text) => write!(f, "AtomicKind::Text({})", text.text()),
+            AtomicKind::Image(image) => write!(f, "AtomicKind::Image({image:?})"),
+            AtomicKind::Custom(id, size) => write!(f, "AtomicKind::Custom({id:?}, {size:?})"),
+        }
+    }
+}
+
 impl<'a> AtomicKind<'a> {
     pub fn text(text: impl Into<WidgetText>) -> Self {
         AtomicKind::Text(text.into())
@@ -382,6 +394,7 @@ impl<'a> AtomicKind<'a> {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct Atomic<'a> {
     pub size: Option<Vec2>,
     pub grow: bool,
@@ -503,6 +516,7 @@ where
     }
 }
 
+#[derive(Clone, Debug, Default)]
 pub struct Atomics<'a>(Vec<Atomic<'a>>);
 
 impl<'a> Atomics<'a> {
@@ -522,6 +536,8 @@ impl<'a> Atomics<'a> {
         self.0.iter_mut()
     }
 
+    // TODO(lucasmerlin): It might not always make sense to return the concatenated text, e.g.
+    // in a submenu button there is a right text '⏵' which is now passed to the screen reader.
     pub fn text(&self) -> Option<String> {
         let mut string: Option<String> = None;
         for atomic in &self.0 {
