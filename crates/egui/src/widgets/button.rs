@@ -209,7 +209,7 @@ impl<'a> Button<'a> {
         self
     }
 
-    pub fn atomic_ui(mut self, ui: &mut Ui) -> AtomicLayoutResponse {
+    pub fn atomic_ui(self, ui: &mut Ui) -> AtomicLayoutResponse {
         let Button {
             atomics,
             wrap_mode,
@@ -251,6 +251,15 @@ impl<'a> Button<'a> {
         let visuals = response.map_or(ui.style().visuals.widgets.inactive, |response| {
             ui.style().interact_selectable(&response, selected)
         });
+
+        if image_tint_follows_text_color {
+            wl.atomics.iter_mut().for_each(|a| {
+                a.kind = match std::mem::take(&mut a.kind) {
+                    AtomicKind::Image(image) => AtomicKind::Image(image.tint(visuals.text_color())),
+                    other => other,
+                }
+            });
+        }
 
         wl = wl.fallback_text_color(visuals.text_color());
 

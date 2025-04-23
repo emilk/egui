@@ -347,11 +347,13 @@ pub struct AtomicLayoutResponse {
 //     }
 // }
 
+#[derive(Clone, Default)]
 pub enum AtomicKind<'a> {
+    #[default]
+    Empty,
     Text(WidgetText),
     Image(Image<'a>),
     Custom(Id, Vec2),
-    Empty,
 }
 
 impl<'a> AtomicKind<'a> {
