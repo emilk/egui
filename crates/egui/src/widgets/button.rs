@@ -1,7 +1,7 @@
 use crate::{
-    widgets, Align, Atomic, AtomicExt, AtomicKind, AtomicLayoutResponse, Color32, CornerRadius,
-    Frame, Image, IntoAtomics, NumExt, Rect, Response, Sense, Stroke, TextStyle, TextWrapMode, Ui,
-    Vec2, Widget, WidgetInfo, WidgetLayout, WidgetText, WidgetType,
+    Atomic, AtomicExt, AtomicKind, AtomicLayoutResponse, Color32, CornerRadius, Frame, Image,
+    IntoAtomics, NumExt, Response, Sense, Stroke, TextWrapMode, Ui, Vec2, Widget, WidgetInfo,
+    WidgetLayout, WidgetText, WidgetType,
 };
 
 /// Clickable button with text.
@@ -234,12 +234,11 @@ impl<'a> Button<'a> {
         };
         if small {
             button_padding.y = 0.0;
-            wl.atomics.iter_mut().for_each(|a| match &mut a.kind {
-                AtomicKind::Text(text) => {
+            wl.atomics.iter_mut().for_each(|a| {
+                if let AtomicKind::Text(text) = &mut a.kind {
                     *text = std::mem::take(text).small();
                 }
-                _ => {}
-            })
+            });
         }
 
         // TODO: Pass TextWrapMode to AtomicLayout
