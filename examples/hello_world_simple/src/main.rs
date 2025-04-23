@@ -2,10 +2,6 @@
 #![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
 use eframe::egui;
-use eframe::egui::{
-    include_image, Button, Image, Key, KeyboardShortcut, ModifierNames, Modifiers, Popup, RichText,
-    Widget,
-};
 
 fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -21,7 +17,6 @@ fn main() -> eframe::Result {
 
     eframe::run_simple_native("My egui App", options, move |ctx, _frame| {
         egui::CentralPanel::default().show(ctx, |ui| {
-            egui_extras::install_image_loaders(ctx);
             ui.heading("My egui Application");
             ui.horizontal(|ui| {
                 let name_label = ui.label("Your name: ");
@@ -33,40 +28,6 @@ fn main() -> eframe::Result {
                 age += 1;
             }
             ui.label(format!("Hello '{name}', age {age}"));
-
-            if Button::new("WL Button").ui(ui).clicked() {
-                age += 1;
-            };
-
-            let source = include_image!("../../../crates/eframe/data/icon.png");
-            let response = Button::image_and_text(source.clone(), "Hello World").ui(ui);
-
-            Button::new((Image::new(source).tint(egui::Color32::RED), "Tuple Button"))
-                .selected(true)
-                .ui(ui);
-
-            ui.selectable_label(true, "Selectable Label");
-
-            Popup::menu(&response).show(|ui| {
-                Button::new("Print")
-                    .right_text(
-                        RichText::new(
-                            KeyboardShortcut::new(Modifiers::COMMAND, Key::P)
-                                .format(&ModifierNames::SYMBOLS, true),
-                        )
-                        .weak(),
-                    )
-                    .ui(ui);
-                Button::new("A very long button")
-                    .right_text(
-                        RichText::new(
-                            KeyboardShortcut::new(Modifiers::COMMAND, Key::O)
-                                .format(&ModifierNames::SYMBOLS, true),
-                        )
-                        .weak(),
-                    )
-                    .ui(ui);
-            });
         });
     })
 }
