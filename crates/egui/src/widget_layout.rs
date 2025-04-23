@@ -11,7 +11,7 @@ pub enum SizedAtomicKind<'a> {
     Text(Arc<Galley>),
     Image(Image<'a>, Vec2),
     Custom(Id, Vec2),
-    Grow,
+    Empty,
 }
 
 impl SizedAtomicKind<'_> {
@@ -20,7 +20,7 @@ impl SizedAtomicKind<'_> {
             SizedAtomicKind::Text(galley) => galley.size(),
             SizedAtomicKind::Image(_, size) => *size,
             SizedAtomicKind::Custom(_, size) => *size,
-            SizedAtomicKind::Grow => Vec2::ZERO,
+            SizedAtomicKind::Empty => Vec2::ZERO,
         }
     }
 }
@@ -254,7 +254,7 @@ impl<'a> WidgetLayout<'a> {
             let size = sized.size;
             let width = match sized.kind {
                 // TODO: check for atomic.grow here
-                SizedAtomicKind::Grow => grow_width,
+                SizedAtomicKind::Empty => grow_width,
                 _ => size.x,
             };
 
@@ -274,7 +274,7 @@ impl<'a> WidgetLayout<'a> {
                 SizedAtomicKind::Custom(id, size) => {
                     response.custom_rects.insert(id, rect);
                 }
-                SizedAtomicKind::Grow => {}
+                SizedAtomicKind::Empty => {}
             }
         }
 
@@ -351,10 +351,22 @@ pub enum AtomicKind<'a> {
     Text(WidgetText),
     Image(Image<'a>),
     Custom(Id, Vec2),
-    Grow,
+    Empty,
 }
 
 impl<'a> AtomicKind<'a> {
+    pub fn text(text: impl Into<WidgetText>) -> Self {
+        AtomicKind::Text(text.into())
+    }
+
+    pub fn image(image: impl Into<Image<'a>>) -> Self {
+        AtomicKind::Image(image.into())
+    }
+
+    pub fn custom(id: Id, size: Vec2) -> Self {
+        AtomicKind::Custom(id, size)
+    }
+
     /// First returned argument is the preferred size.
     pub fn into_sized(
         self,
@@ -378,7 +390,7 @@ impl<'a> AtomicKind<'a> {
                 (size, SizedAtomicKind::Image(image, size))
             }
             AtomicKind::Custom(id, size) => (size, SizedAtomicKind::Custom(id, size)),
-            AtomicKind::Grow => (Vec2::ZERO, SizedAtomicKind::Grow),
+            AtomicKind::Empty => (Vec2::ZERO, SizedAtomicKind::Empty),
         }
     }
 }
@@ -396,22 +408,23 @@ struct SizedAtomic<'a> {
     kind: SizedAtomicKind<'a>,
 }
 
-pub fn a<'a>(i: impl Into<AtomicKind<'a>>) -> Atomic<'a> {
-    Atomic {
-        size: None,
-        grow: false,
-        shrink: false,
-        kind: i.into(),
-    }
-}
-
 impl<'a> Atomic<'a> {
+    /// Create an empty [`Atomic`] marked as `grow`.
+    pub fn grow() -> Self {
+        Atomic {
+            size: None,
+            grow: true,
+            shrink: false,
+            kind: AtomicKind::Empty,
+        }
+    }
+
     fn get_min_height_for_image(&self, fonts: &Fonts, style: &Style) -> Option<f32> {
         self.size.map(|s| s.y).or_else(|| {
             match &self.kind {
                 AtomicKind::Text(text) => Some(text.font_height(fonts, style)),
                 AtomicKind::Custom(_, size) => Some(size.y),
-                AtomicKind::Grow => None,
+                AtomicKind::Empty => None,
                 // Since this method is used to calculate the best height for an image, we always return
                 // None for images.
                 AtomicKind::Image(_) => None,
@@ -435,16 +448,6 @@ impl<'a> Atomic<'a> {
             kind,
         }
     }
-
-    // pub fn size(mut self, size: Vec2) -> Self {
-    //     self.size = Some(size);
-    //     self
-    // }
-    //
-    // pub fn grow(mut self, grow: bool) -> Self {
-    //     self.grow = grow;
-    //     self
-    // }
 }
 
 pub trait AtomicExt<'a> {

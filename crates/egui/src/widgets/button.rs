@@ -1,5 +1,5 @@
 use crate::{
-    Atomic, AtomicExt, AtomicKind, AtomicLayoutResponse, Color32, CornerRadius, Frame, Image,
+    Atomic, AtomicKind, AtomicLayoutResponse, Atomics, Color32, CornerRadius, Frame, Image,
     IntoAtomics, NumExt, Response, Sense, Stroke, TextWrapMode, Ui, Vec2, Widget, WidgetInfo,
     WidgetLayout, WidgetText, WidgetType,
 };
@@ -24,34 +24,34 @@ use crate::{
 /// ```
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct Button<'a> {
+    atomics: Atomics<'a>,
     wrap_mode: Option<TextWrapMode>,
-
     /// None means default for interact
     fill: Option<Color32>,
     stroke: Option<Stroke>,
+    sense: Sense,
     small: bool,
     frame: Option<bool>,
     min_size: Vec2,
     corner_radius: Option<CornerRadius>,
     selected: bool,
     image_tint_follows_text_color: bool,
-
-    wl: WidgetLayout<'a>,
 }
 
 impl<'a> Button<'a> {
-    pub fn new(text: impl IntoAtomics<'a>) -> Self {
+    pub fn new(content: impl IntoAtomics<'a>) -> Self {
         Self {
+            atomics: content.into_atomics(),
             wrap_mode: None,
             fill: None,
             stroke: None,
+            sense: Sense::click(),
             small: false,
             frame: None,
             min_size: Vec2::ZERO,
             corner_radius: None,
             selected: false,
             image_tint_follows_text_color: false,
-            wl: WidgetLayout::new(text.into_atomics()).sense(Sense::click()),
         }
     }
 
@@ -70,10 +70,10 @@ impl<'a> Button<'a> {
     pub fn opt_image_and_text(image: Option<Image<'a>>, text: Option<WidgetText>) -> Self {
         let mut button = Self::new(());
         if let Some(image) = image {
-            button.wl.atomics.add(image);
+            button.atomics.add(image);
         }
         if let Some(text) = text {
-            button.wl.atomics.add(text);
+            button.atomics.add(text);
         }
         button
     }
@@ -139,7 +139,7 @@ impl<'a> Button<'a> {
     /// Change this to a drag-button with `Sense::drag()`.
     #[inline]
     pub fn sense(mut self, sense: Sense) -> Self {
-        self.wl.sense = sense;
+        self.sense = sense;
         self
     }
 
@@ -189,17 +189,16 @@ impl<'a> Button<'a> {
             AtomicKind::Text(text) => AtomicKind::Text(text.weak()),
             other => other,
         };
-        self.wl = self.wl.add(AtomicKind::Grow.a_grow(true)).add(atomic);
+        self.atomics.add(Atomic::grow());
+        self.atomics.add(atomic);
         self
     }
 
     /// Show some text on the right side of the button.
     #[inline]
     pub fn right_text(mut self, right_text: impl Into<Atomic<'a>>) -> Self {
-        self.wl = self
-            .wl
-            .add(AtomicKind::Grow.a_grow(true))
-            .add(right_text.into());
+        self.atomics.add(Atomic::grow());
+        self.atomics.add(right_text.into());
         self
     }
 
@@ -212,17 +211,22 @@ impl<'a> Button<'a> {
 
     pub fn atomic_ui(mut self, ui: &mut Ui) -> AtomicLayoutResponse {
         let Button {
+            atomics,
             wrap_mode,
             fill,
             stroke,
+            sense,
             small,
             frame,
             mut min_size,
             corner_radius,
             selected,
             image_tint_follows_text_color,
-            mut wl,
         } = self;
+
+        let mut wl = WidgetLayout::new(atomics)
+            .wrap_mode(wrap_mode.unwrap_or(ui.wrap_mode()))
+            .sense(sense);
 
         let has_frame = frame.unwrap_or_else(|| ui.visuals().button_frame);
 
