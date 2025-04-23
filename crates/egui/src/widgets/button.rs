@@ -262,20 +262,21 @@ impl<'a> Button<'a> {
         wl = wl.id(id);
         let response = ui.ctx().read_response(id);
 
-        let visuals = response.map_or(&ui.style().visuals.widgets.inactive, |response| {
-            ui.style().interact(&response)
+        let visuals = response.map_or(ui.style().visuals.widgets.inactive, |response| {
+            ui.style().interact_selectable(&response, selected)
         });
 
         wl = wl.fallback_text_color(visuals.text_color());
 
         wl.frame = if has_frame {
             let stroke = stroke.unwrap_or(visuals.bg_stroke);
+            let fill = fill.unwrap_or(visuals.bg_fill);
             wl.frame
                 .inner_margin(
                     button_padding + Vec2::splat(visuals.expansion) - Vec2::splat(stroke.width),
                 )
                 .outer_margin(-Vec2::splat(visuals.expansion))
-                .fill(fill.unwrap_or(visuals.weak_bg_fill))
+                .fill(fill)
                 .stroke(stroke)
                 .corner_radius(corner_radius.unwrap_or(visuals.corner_radius))
         } else {
