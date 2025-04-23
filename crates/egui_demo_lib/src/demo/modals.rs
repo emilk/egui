@@ -6,6 +6,7 @@ pub struct Modals {
     user_modal_open: bool,
     save_modal_open: bool,
     save_progress: Option<f32>,
+    drag_modal_open: bool,
 
     role: &'static str,
     name: String,
@@ -16,6 +17,7 @@ impl Default for Modals {
         Self {
             user_modal_open: false,
             save_modal_open: false,
+            drag_modal_open: false,
             save_progress: None,
             role: Self::ROLES[0],
             name: "John Doe".to_owned(),
@@ -48,6 +50,7 @@ impl crate::View for Modals {
             user_modal_open,
             save_modal_open,
             save_progress,
+            drag_modal_open,
             role,
             name,
         } = self;
@@ -59,6 +62,10 @@ impl crate::View for Modals {
 
             if ui.button("Open Save Modal").clicked() {
                 *save_modal_open = true;
+            }
+
+            if ui.button("Draggable Modal").clicked() {
+                *drag_modal_open = true;
             }
         });
 
@@ -154,6 +161,34 @@ impl crate::View for Modals {
             });
         }
 
+        if *drag_modal_open {
+            let id = Id::new("Modal D");
+
+            // It is tempting to do this:
+            // let area = Modal::default_area(id).movable(true);
+            // However the default area sets anchors, and thus movable will not work.
+            // Instead, use Modal::draggable_area instead.
+            let modal = Modal::new(id)
+                .area(Modal::draggable_area(id))
+                .show(ui.ctx(), |ui| {
+                    egui::Resize::default()
+                        .with_stroke(false)
+                        .min_size([125.0, 225.0])
+                        .max_size(ui.ctx().screen_rect().size())
+                        .show(ui, |ui| {
+                            ui.vertical_centered(|ui| {
+                                ui.add_space(25.0);
+                                ui.heading("You should be able to drag me around!");
+                                ui.add_space(125.0);
+                            });
+                        });
+                });
+
+            if modal.should_close() {
+                *drag_modal_open = false;
+            }
+        }
+
         ui.vertical_centered(|ui| {
             ui.add(crate::egui_github_link_file!());
         });
@@ -165,7 +200,7 @@ mod tests {
     use crate::demo::modals::Modals;
     use crate::Demo;
     use egui::accesskit::Role;
-    use egui::Key;
+    use egui::{Event, Key, PointerButton, Vec2};
     use egui_kittest::kittest::Queryable;
     use egui_kittest::{Harness, SnapshotResults};
 
@@ -247,6 +282,59 @@ mod tests {
         harness.get_by_label("Yes Please").click();
         harness.run_ok();
         results.add(harness.try_snapshot("modals_3"));
+    }
+
+    #[test]
+    fn draggable_should_drag_and_close() {
+        let initial_state = Modals {
+            drag_modal_open: true,
+            ..Modals::default()
+        };
+
+        let mut harness = Harness::new_state(
+            |ctx, modals| {
+                modals.show(ctx, &mut true);
+            },
+            initial_state,
+        );
+
+        let mut results = SnapshotResults::new();
+
+        harness.run();
+        results.add(harness.try_snapshot("modals_drag_1"));
+
+        let center = harness.ctx.screen_rect().center();
+        let delta = Vec2::new(150.0, 25.0);
+        let pos_after = center + delta;
+
+        harness.input_mut().events.push(Event::PointerButton {
+            pos: center,
+            button: PointerButton::Primary,
+            pressed: true,
+            modifiers: Default::default(),
+        });
+        harness.step();
+
+        harness
+            .input_mut()
+            .events
+            .push(Event::PointerMoved(pos_after));
+        harness.step();
+
+        harness.input_mut().events.push(Event::PointerButton {
+            pos: pos_after,
+            button: PointerButton::Primary,
+            pressed: false,
+            modifiers: Default::default(),
+        });
+        harness.step();
+
+        results.add(harness.try_snapshot("modals_drag_2"));
+
+        harness.press_key(Key::Escape);
+        harness.run();
+
+        results.add(harness.try_snapshot("modals_drag_3"));
     }
 
     // This tests whether the backdrop actually prevents interaction with lower layers.

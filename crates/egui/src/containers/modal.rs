@@ -1,5 +1,6 @@
 use crate::{
-    Area, Color32, Context, Frame, Id, InnerResponse, Order, Response, Sense, Ui, UiBuilder, UiKind,
+    Area, Color32, Context, Frame, Id, InnerResponse, Order, Response, Sense, Ui, UiKind,
+    WidgetRect,
 };
 use emath::{Align2, Vec2};
 
@@ -33,14 +34,33 @@ impl Modal {
     /// Returns an area customized for a modal.
     ///
     /// Makes these changes to the default area:
-    /// - sense: hover
+    /// - sense: click + drag
     /// - anchor: center
     /// - order: foreground
+    ///
+    /// Consider the notes at [`Modal::area`] for more information.
     pub fn default_area(id: Id) -> Area {
         Area::new(id)
             .kind(UiKind::Modal)
-            .sense(Sense::hover())
+            .sense(Sense::click_and_drag())
             .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
+            .order(Order::Foreground)
+            .interactable(true)
+    }
+
+    /// Returns an area customized to make a modal draggable.
+    ///
+    /// Makes these changes to the default area:
+    /// - sense: click + drag
+    /// - pivot: center
+    /// - order: foreground
+    ///
+    /// Consider the notes at [`Modal::area`] for more information.
+    pub fn draggable_area(id: Id) -> Area {
+        Area::new(id)
+            .kind(UiKind::Modal)
+            .sense(Sense::click_and_drag())
+            .pivot(Align2::CENTER_CENTER)
             .order(Order::Foreground)
             .interactable(true)
     }
@@ -66,6 +86,14 @@ impl Modal {
     /// Set the area of the modal.
     ///
     /// Default is [`Modal::default_area`].
+    ///
+    /// If the modal should be draggable, consider using [`Modal::draggable_area`] instead.
+    ///
+    /// If you want to provide a custom area, make sure it senses [`Sense::CLICK`] and [`Sense::DRAG`].
+    /// Otherwise the background backdrop might catch events meant for the content of the modal.
+    ///
+    /// Also, if the Area satisfies [`Area::is_movable`], the Modal will ignore the stored position and re-center it on modal re-open.
+    /// This is affected by [`Area::pivot`], which [`Modal::draggable_area`] sets to [`Align2::CENTER_CENTER`].
     #[inline]
     pub fn area(mut self, area: Area) -> Self {
         self.area = area;
@@ -75,7 +103,7 @@ impl Modal {
     /// Show the modal.
     pub fn show<T>(self, ctx: &Context, content: impl FnOnce(&mut Ui) -> T) -> ModalResponse<T> {
         let Self {
-            area,
+            mut area,
             backdrop_color,
             frame,
         } = self;
@@ -87,28 +115,35 @@ impl Modal {
                 mem.any_popup_open(),
             )
         });
-        let InnerResponse {
-            inner: (inner, backdrop_response),
-            response,
-        } = area.show(ctx, |ui| {
-            let bg_rect = ui.ctx().screen_rect();
-            let bg_sense = Sense::CLICK | Sense::DRAG;
-            let mut backdrop = ui.new_child(UiBuilder::new().sense(bg_sense).max_rect(bg_rect));
-            backdrop.set_min_size(bg_rect.size());
+
+        // The backdrop response is responsible for checking for click through etc.
+        // It needs to be drawn before everything else, so we can use it to block clicks.
+        // Thus, we manually add the widget.
+        let bg_rect = ctx.screen_rect();
+        let bg_sense = Sense::CLICK | Sense::DRAG;
+        let backdrop_response = ctx.create_widget(
+            WidgetRect {
+                id: area.id.with("background rect"),
+                layer_id: area.layer(),
+                rect: bg_rect,
+                interact_rect: bg_rect,
+                sense: bg_sense,
+                enabled: true,
+            },
+            true,
+        );
+
+        // Should the area be movable, and we are (re-)opening it, try to center it.
+        if area.is_movable() && !ctx.memory(|mem| mem.areas().visible_last_frame(&area.layer())) {
+            area = area.current_pos(ctx.screen_rect().center());
+        }
+
+        let InnerResponse { inner, response } = area.show(ctx, |ui| {
+            // The backdrop still needs painting.
             ui.painter().rect_filled(bg_rect, 0.0, backdrop_color);
-            let backdrop_response = backdrop.response();
 
             let frame = frame.unwrap_or_else(|| Frame::popup(ui.style()));
-
-            // We need the extra scope with the sense since frame can't have a sense and since we
-            // need to prevent the clicks from passing through to the backdrop.
-            let inner = ui
-                .scope_builder(UiBuilder::new().sense(Sense::CLICK | Sense::DRAG), |ui| {
-                    frame.show(ui, content).inner
-                })
-                .inner;
-
-            (inner, backdrop_response)
+            frame.show(ui, content).inner
         });
 
         ModalResponse {
