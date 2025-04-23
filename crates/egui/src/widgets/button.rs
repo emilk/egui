@@ -256,7 +256,7 @@ impl<'a> Button<'a> {
 
         wl.frame = if has_frame {
             let stroke = stroke.unwrap_or(visuals.bg_stroke);
-            let fill = fill.unwrap_or(visuals.bg_fill);
+            let fill = fill.unwrap_or(visuals.weak_bg_fill);
             wl.frame
                 .inner_margin(
                     button_padding + Vec2::splat(visuals.expansion) - Vec2::splat(stroke.width),
