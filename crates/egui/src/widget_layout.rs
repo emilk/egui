@@ -102,7 +102,7 @@ impl<'a> WidgetLayout<'a> {
     pub fn show(self, ui: &mut Ui) -> AtomicLayoutResponse {
         let Self {
             id,
-            atomics,
+            mut atomics,
             gap,
             frame,
             sense,
@@ -111,6 +111,22 @@ impl<'a> WidgetLayout<'a> {
             wrap_mode,
             align2,
         } = self;
+
+        let wrap_mode = wrap_mode.unwrap_or(ui.wrap_mode());
+
+        // If the TextWrapMode is not Extend, ensure there is some item marked as `shrink`.
+        // If none is found, mark the first text item as `shrink`.
+        if !matches!(wrap_mode, TextWrapMode::Extend) {
+            let any_shrink = atomics.iter().any(|a| a.shrink);
+            if !any_shrink {
+                let first_text = atomics
+                    .iter_mut()
+                    .find(|a| matches!(a.kind, AtomicKind::Text(..)));
+                if let Some(atomic) = first_text {
+                    atomic.shrink = true;
+                }
+            }
+        }
 
         let id = id.unwrap_or_else(|| ui.next_auto_id());
 
@@ -174,7 +190,7 @@ impl<'a> WidgetLayout<'a> {
             if item.grow {
                 grow_count += 1;
             }
-            let sized = item.into_sized(ui, available_inner_size, max_font_size, wrap_mode);
+            let sized = item.into_sized(ui, available_inner_size, max_font_size, Some(wrap_mode));
             let size = sized.size;
 
             desired_width += size.x;
@@ -188,11 +204,11 @@ impl<'a> WidgetLayout<'a> {
 
         if let Some((index, item)) = shrink_item {
             // The `shrink` item gets the remaining space
-            let mut shrunk_size = Vec2::new(
+            let shrunk_size = Vec2::new(
                 available_inner_size.x - desired_width,
                 available_inner_size.y,
             );
-            let sized = item.into_sized(ui, shrunk_size, max_font_size, wrap_mode);
+            let sized = item.into_sized(ui, shrunk_size, max_font_size, Some(wrap_mode));
             let size = sized.size;
 
             desired_width += size.x;
@@ -505,6 +521,10 @@ impl<'a> Atomics<'a> {
 
     pub fn add_front(&mut self, atomic: impl Into<Atomic<'a>>) {
         self.0.insert(0, atomic.into());
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &Atomic<'a>> {
+        self.0.iter()
     }
 
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Atomic<'a>> {
