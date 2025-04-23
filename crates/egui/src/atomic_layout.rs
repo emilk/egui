@@ -25,8 +25,7 @@ impl SizedAtomicKind<'_> {
     }
 }
 
-/// AtomicLayout
-pub struct WidgetLayout<'a> {
+pub struct AtomicLayout<'a> {
     id: Option<Id>,
     pub atomics: Atomics<'a>,
     gap: Option<f32>,
@@ -38,7 +37,7 @@ pub struct WidgetLayout<'a> {
     align2: Option<Align2>,
 }
 
-impl<'a> WidgetLayout<'a> {
+impl<'a> AtomicLayout<'a> {
     pub fn new(atomics: impl IntoAtomics<'a>) -> Self {
         Self {
             id: None,
@@ -286,66 +285,6 @@ pub struct AtomicLayoutResponse {
     pub response: Response,
     pub custom_rects: HashMap<Id, Rect>,
 }
-
-// pub struct WLButton<'a> {
-//     wl: WidgetLayout<'a>,
-// }
-//
-// impl<'a> WLButton<'a> {
-//     pub fn new(text: impl Into<WidgetText>) -> Self {
-//         Self {
-//             wl: WidgetLayout::new()
-//                 .sense(Sense::click())
-//                 .add(Item::default(), WidgetLayoutItemType::Text(text.into())),
-//         }
-//     }
-//
-//     pub fn image(image: impl Into<Image<'a>>) -> Self {
-//         Self {
-//             wl: WidgetLayout::new().sense(Sense::click()).add(
-//                 Item::default(),
-//                 WidgetLayoutItemType::Image(image.into().max_size(Vec2::splat(16.0))),
-//             ),
-//         }
-//     }
-//
-//     pub fn image_and_text(image: impl Into<Image<'a>>, text: impl Into<WidgetText>) -> Self {
-//         Self {
-//             wl: WidgetLayout::new()
-//                 .sense(Sense::click())
-//                 .add(Item::default(), WidgetLayoutItemType::Image(image.into()))
-//                 .add(Item::default(), WidgetLayoutItemType::Text(text.into())),
-//         }
-//     }
-//
-//     pub fn right_text(mut self, text: impl Into<WidgetText>) -> Self {
-//         self.wl = self
-//             .wl
-//             .add(Item::default(), WidgetLayoutItemType::Grow)
-//             .add(Item::default(), WidgetLayoutItemType::Text(text.into()));
-//         self
-//     }
-// }
-//
-// impl<'a> Widget for WLButton<'a> {
-//     fn ui(mut self, ui: &mut Ui) -> Response {
-//         let response = ui.ctx().read_response(ui.next_auto_id());
-//
-//         let visuals = response.map_or(&ui.style().visuals.widgets.inactive, |response| {
-//             ui.style().interact(&response)
-//         });
-//
-//         self.wl.frame = self
-//             .wl
-//             .frame
-//             .inner_margin(ui.style().spacing.button_padding)
-//             .fill(visuals.bg_fill)
-//             .stroke(visuals.bg_stroke)
-//             .corner_radius(visuals.corner_radius);
-//
-//         self.wl.show(ui)
-//     }
-// }
 
 #[derive(Clone, Default)]
 pub enum AtomicKind<'a> {
@@ -613,7 +552,7 @@ all_the_atomics!(T0, T1, T2, T3, T4, T5);
 //     }
 // }
 
-impl Widget for WidgetLayout<'_> {
+impl Widget for AtomicLayout<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         self.show(ui).response
     }

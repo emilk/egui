@@ -1,7 +1,7 @@
 use crate::{
-    Atomic, AtomicKind, AtomicLayoutResponse, Atomics, Color32, CornerRadius, Frame, Image,
-    IntoAtomics, NumExt, Response, Sense, Stroke, TextWrapMode, Ui, Vec2, Widget, WidgetInfo,
-    WidgetLayout, WidgetText, WidgetType,
+    Atomic, AtomicKind, AtomicLayout, AtomicLayoutResponse, Atomics, Color32, CornerRadius, Frame,
+    Image, IntoAtomics, NumExt, Response, Sense, Stroke, TextWrapMode, Ui, Vec2, Widget,
+    WidgetInfo, WidgetText, WidgetType,
 };
 
 /// Clickable button with text.
@@ -224,7 +224,7 @@ impl<'a> Button<'a> {
             image_tint_follows_text_color,
         } = self;
 
-        let mut wl = WidgetLayout::new(atomics)
+        let mut wl = AtomicLayout::new(atomics)
             .wrap_mode(wrap_mode.unwrap_or(ui.wrap_mode()))
             .sense(sense);
 

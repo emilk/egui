@@ -441,10 +441,10 @@ mod widget_rect;
 pub mod widget_text;
 pub mod widgets;
 
+mod atomic_layout;
 #[cfg(feature = "callstack")]
 #[cfg(debug_assertions)]
 mod callstack;
-mod widget_layout;
 
 #[cfg(feature = "accesskit")]
 pub use accesskit;
@@ -480,6 +480,7 @@ pub mod text {
 }
 
 pub use self::{
+    atomic_layout::*,
     containers::*,
     context::{Context, RepaintCause, RequestRepaintInfo},
     data::{
@@ -508,7 +509,6 @@ pub use self::{
     ui_builder::UiBuilder,
     ui_stack::*,
     viewport::*,
-    widget_layout::*,
     widget_rect::{WidgetRect, WidgetRects},
     widget_text::{RichText, WidgetText},
     widgets::*,

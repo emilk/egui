@@ -41,7 +41,11 @@ fn main() -> eframe::Result {
             let source = include_image!("../../../crates/eframe/data/icon.png");
             let response = Button::image_and_text(source.clone(), "Hello World").ui(ui);
 
-            Button::new((Image::new(source).tint(egui::Color32::RED), "Tuple Button")).ui(ui);
+            Button::new((Image::new(source).tint(egui::Color32::RED), "Tuple Button"))
+                .selected(true)
+                .ui(ui);
+
+            ui.selectable_label(true, "Selectable Label");
 
             Popup::menu(&response).show(|ui| {
                 Button::new("Print")
