@@ -97,7 +97,7 @@ impl Widget for Checkbox<'_> {
             }
         });
 
-        let response = if ui.is_rect_visible(prepared.response.rect) {
+        if ui.is_rect_visible(prepared.response.rect) {
             // let visuals = ui.style().interact_selectable(&response, *checked); // too colorful
             let visuals = *ui.style().interact(&prepared.response);
             prepared.fallback_text_color = visuals.text_color();
@@ -135,8 +135,6 @@ impl Widget for Checkbox<'_> {
             response.response
         } else {
             prepared.response
-        };
-
-        response
+        }
     }
 }
