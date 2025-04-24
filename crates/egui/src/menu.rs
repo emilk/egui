@@ -23,8 +23,8 @@ use super::{
 use crate::{
     epaint, vec2,
     widgets::{Button, ImageButton},
-    Align2, Area, Color32, Frame, Key, LayerId, Layout, NumExt, Order, Stroke, Style, TextWrapMode,
-    UiKind, WidgetText,
+    Align2, Area, Color32, Frame, Key, LayerId, Layout, NumExt as _, Order, Stroke, Style,
+    TextWrapMode, UiKind, WidgetText,
 };
 use epaint::mutex::RwLock;
 use std::sync::Arc;

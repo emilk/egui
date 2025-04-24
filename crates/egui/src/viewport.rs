@@ -260,7 +260,6 @@ pub type ImmediateViewportRendererCallback = dyn for<'a> Fn(&Context, ImmediateV
 /// The default values are implementation defined, so you may want to explicitly
 /// configure the size of the window, and what buttons are shown.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
-#[allow(clippy::option_option)]
 pub struct ViewportBuilder {
     /// The title of the viewport.
     /// `eframe` will use this as the title of the native window.

@@ -1,6 +1,6 @@
 use egui::Modifiers;
 use egui_kittest::Harness;
-use kittest::{Key, Queryable};
+use kittest::{Key, Queryable as _};
 
 #[test]
 fn test_shrink() {

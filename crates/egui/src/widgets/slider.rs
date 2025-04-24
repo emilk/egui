@@ -4,8 +4,8 @@ use std::ops::RangeInclusive;
 
 use crate::{
     emath, epaint, lerp, pos2, remap, remap_clamp, style, style::HandleShape, vec2, Color32,
-    DragValue, EventFilter, Key, Label, NumExt, Pos2, Rangef, Rect, Response, Sense, TextStyle,
-    TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, MINUS_CHAR_STR,
+    DragValue, EventFilter, Key, Label, NumExt as _, Pos2, Rangef, Rect, Response, Sense,
+    TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, MINUS_CHAR_STR,
 };
 
 use super::drag_value::clamp_value_to_range;

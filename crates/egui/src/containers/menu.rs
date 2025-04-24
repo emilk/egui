@@ -1,7 +1,7 @@
 use crate::style::StyleModifier;
 use crate::{
     Button, Color32, Context, Frame, Id, InnerResponse, Layout, Popup, PopupCloseBehavior,
-    Response, Style, Ui, UiBuilder, UiKind, UiStack, UiStackInfo, Widget, WidgetText,
+    Response, Style, Ui, UiBuilder, UiKind, UiStack, UiStackInfo, Widget as _, WidgetText,
 };
 use emath::{vec2, Align, RectAlign, Vec2};
 use epaint::Stroke;
@@ -159,6 +159,7 @@ impl MenuState {
 }
 
 /// Horizontal menu bar where you can add [`MenuButton`]s.
+///
 /// The menu bar goes well in a [`crate::TopBottomPanel::top`],
 /// but can also be placed in a [`crate::Window`].
 /// In the latter case you may want to wrap it in [`Frame`].

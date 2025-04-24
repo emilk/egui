@@ -9,7 +9,7 @@ use super::{
     font::UvRect,
 };
 use crate::{Color32, FontId, Mesh, Stroke};
-use emath::{pos2, vec2, Align, GuiRounding as _, NumExt, OrderedFloat, Pos2, Rect, Vec2};
+use emath::{pos2, vec2, Align, GuiRounding as _, NumExt as _, OrderedFloat, Pos2, Rect, Vec2};
 
 /// Describes the task of laying out text.
 ///
@@ -971,7 +971,7 @@ impl Galley {
     ///
     /// This is the same as [`CCursor::default`].
     #[inline]
-    #[allow(clippy::unused_self)]
+    #[expect(clippy::unused_self)]
     pub fn begin(&self) -> CCursor {
         CCursor::default()
     }
@@ -1062,7 +1062,7 @@ impl Galley {
 
 /// ## Cursor positions
 impl Galley {
-    #[allow(clippy::unused_self)]
+    #[expect(clippy::unused_self)]
     pub fn cursor_left_one_character(&self, cursor: &CCursor) -> CCursor {
         if cursor.index == 0 {
             Default::default()

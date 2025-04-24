@@ -1,5 +1,5 @@
 /// A cache, storing some value for some length of time.
-#[allow(clippy::len_without_is_empty)]
+#[expect(clippy::len_without_is_empty)]
 pub trait CacheTrait: 'static + Send + Sync {
     /// Call once per frame to evict cache.
     fn update(&mut self);

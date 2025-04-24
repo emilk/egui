@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use emath::{vec2, GuiRounding, Vec2};
+use emath::{vec2, GuiRounding as _, Vec2};
 
 use crate::{
     mutex::{Mutex, RwLock},
@@ -100,7 +100,7 @@ impl FontImpl {
             "pixels_per_point must be greater than 0, got: {pixels_per_point:?}"
         );
 
-        use ab_glyph::{Font, ScaleFont};
+        use ab_glyph::{Font as _, ScaleFont as _};
         let scaled = ab_glyph_font.as_scaled(scale_in_pixels);
         let ascent = (scaled.ascent() / pixels_per_point).round_ui();
         let descent = (scaled.descent() / pixels_per_point).round_ui();
@@ -241,7 +241,7 @@ impl FontImpl {
         last_glyph_id: ab_glyph::GlyphId,
         glyph_id: ab_glyph::GlyphId,
     ) -> f32 {
-        use ab_glyph::{Font as _, ScaleFont};
+        use ab_glyph::{Font as _, ScaleFont as _};
         self.ab_glyph_font
             .as_scaled(self.scale_in_pixels as f32)
             .kern(last_glyph_id, glyph_id)
@@ -271,7 +271,7 @@ impl FontImpl {
 
     fn allocate_glyph(&self, glyph_id: ab_glyph::GlyphId) -> GlyphInfo {
         assert!(glyph_id.0 != 0, "Can't allocate glyph for id 0");
-        use ab_glyph::{Font as _, ScaleFont};
+        use ab_glyph::{Font as _, ScaleFont as _};
 
         let glyph = glyph_id.with_scale_and_position(
             self.scale_in_pixels as f32,

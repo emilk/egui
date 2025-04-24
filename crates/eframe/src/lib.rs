@@ -69,7 +69,7 @@
 //! #[wasm_bindgen]
 //! impl WebHandle {
 //!     /// Installs a panic hook, then returns.
-//!     #[allow(clippy::new_without_default)]
+//!     #[expect(clippy::new_without_default)]
 //!     #[wasm_bindgen(constructor)]
 //!     pub fn new() -> Self {
 //!         // Redirect [`log`] message to `console.log` and friends:
@@ -236,7 +236,7 @@ pub mod icon_data;
 /// This function can fail if we fail to set up a graphics context.
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu"))]
-#[allow(clippy::needless_pass_by_value)]
+#[allow(clippy::needless_pass_by_value, clippy::allow_attributes)]
 pub fn run_native(
     app_name: &str,
     mut native_options: NativeOptions,

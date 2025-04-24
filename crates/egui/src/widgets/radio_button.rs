@@ -1,5 +1,5 @@
 use crate::{
-    epaint, pos2, vec2, NumExt, Response, Sense, TextStyle, Ui, Vec2, Widget, WidgetInfo,
+    epaint, pos2, vec2, NumExt as _, Response, Sense, TextStyle, Ui, Vec2, Widget, WidgetInfo,
     WidgetText, WidgetType,
 };
 

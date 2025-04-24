@@ -33,7 +33,7 @@ pub fn highlight(
     // performing it at a separate thread (ctx, ctx.style()) can be used and when ui is available
     // (ui.ctx(), ui.style()) can be used
 
-    #[allow(non_local_definitions)]
+    #[expect(non_local_definitions)]
     impl egui::cache::ComputerMut<(&egui::FontId, &CodeTheme, &str, &str), LayoutJob> for Highlighter {
         fn compute(
             &mut self,
@@ -285,7 +285,7 @@ impl CodeTheme {
 impl CodeTheme {
     // The syntect version takes it by value. This could be avoided by specializing the from_style
     // function, but at the cost of more code duplication.
-    #[allow(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value)]
     fn dark_with_font_id(font_id: egui::FontId) -> Self {
         use egui::{Color32, TextFormat};
         Self {
@@ -302,7 +302,7 @@ impl CodeTheme {
     }
 
     // The syntect version takes it by value
-    #[allow(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value)]
     fn light_with_font_id(font_id: egui::FontId) -> Self {
         use egui::{Color32, TextFormat};
         Self {
@@ -413,7 +413,6 @@ impl Default for Highlighter {
 }
 
 impl Highlighter {
-    #[allow(clippy::unused_self, clippy::unnecessary_wraps)]
     fn highlight(
         &self,
         font_id: egui::FontId,
@@ -512,7 +511,7 @@ struct Highlighter {}
 
 #[cfg(not(feature = "syntect"))]
 impl Highlighter {
-    #[allow(clippy::unused_self, clippy::unnecessary_wraps)]
+    #[expect(clippy::unused_self, clippy::unnecessary_wraps)]
     fn highlight_impl(
         &self,
         theme: &CodeTheme,

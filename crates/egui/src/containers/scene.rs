@@ -1,6 +1,6 @@
 use core::f32;
 
-use emath::{GuiRounding, Pos2};
+use emath::{GuiRounding as _, Pos2};
 
 use crate::{
     emath::TSTransform, InnerResponse, LayerId, PointerButton, Rangef, Rect, Response, Sense, Ui,
