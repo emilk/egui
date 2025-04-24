@@ -176,7 +176,7 @@ jobs:
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
 
-      - run: cargo check --features wgpu,android-native-activity --target aarch64-linux-android
+      - run: cargo check --features wgpu,android-game-activity --target aarch64-linux-android
         working-directory: crates/eframe
 
   # ---------------------------------------------------------------------------
