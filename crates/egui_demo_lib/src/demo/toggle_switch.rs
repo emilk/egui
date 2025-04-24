@@ -76,7 +76,7 @@ pub fn toggle_ui(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
 }
 
 /// Here is the same code again, but a bit more compact:
-#[allow(dead_code)]
+#[expect(dead_code)]
 fn toggle_ui_compact(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
     let desired_size = ui.spacing().interact_size.y * egui::vec2(2.0, 1.0);
     let (rect, mut response) = ui.allocate_exact_size(desired_size, egui::Sense::click());

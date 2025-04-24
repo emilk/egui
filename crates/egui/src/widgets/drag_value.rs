@@ -550,7 +550,7 @@ impl Widget for DragValue<'_> {
         }
 
         // some clones below are redundant if AccessKit is disabled
-        #[allow(clippy::redundant_clone)]
+        #[expect(clippy::redundant_clone)]
         let mut response = if is_kb_editing {
             let mut value_text = ui
                 .data_mut(|data| data.remove_temp::<String>(id))

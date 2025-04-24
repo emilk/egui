@@ -163,7 +163,6 @@ impl<T: WinitApp> WinitAppWrapper<T> {
 
                 log::debug!("Exiting with return code 0");
 
-                #[allow(clippy::exit)]
                 std::process::exit(0);
             }
         }

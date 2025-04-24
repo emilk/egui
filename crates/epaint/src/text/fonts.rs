@@ -54,7 +54,6 @@ impl FontId {
     }
 }
 
-#[allow(clippy::derived_hash_with_manual_eq)]
 impl std::hash::Hash for FontId {
     #[inline(always)]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {

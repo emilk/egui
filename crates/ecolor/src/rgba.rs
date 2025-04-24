@@ -38,7 +38,6 @@ pub(crate) fn f32_hash<H: std::hash::Hasher>(state: &mut H, f: f32) {
     }
 }
 
-#[allow(clippy::derived_hash_with_manual_eq)]
 impl std::hash::Hash for Rgba {
     #[inline]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {

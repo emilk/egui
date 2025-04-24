@@ -134,7 +134,7 @@ broken_intra_doc_links = "warn"
 
 # See also clippy.toml
 [workspace.lints.clippy]
-# allow_attributes = "warn" # TODO
+allow_attributes = "warn"
 as_ptr_cast_mut = "warn"
 await_holding_lock = "warn"
 bool_to_int_with_if = "warn"

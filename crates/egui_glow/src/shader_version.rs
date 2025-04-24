@@ -5,7 +5,6 @@ use std::convert::TryInto as _;
 
 /// Helper for parsing and interpreting the OpenGL shader version.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-#[allow(dead_code)]
 pub enum ShaderVersion {
     Gl120,
 

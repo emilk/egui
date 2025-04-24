@@ -315,7 +315,7 @@ impl std::fmt::Display for RepaintCause {
 
 impl RepaintCause {
     /// Capture the file and line number of the call site.
-    #[allow(clippy::new_without_default)]
+    #[expect(clippy::new_without_default)]
     #[track_caller]
     pub fn new() -> Self {
         let caller = Location::caller();
@@ -328,7 +328,6 @@ impl RepaintCause {
 
     /// Capture the file and line number of the call site,
     /// as well as add a reason.
-    #[allow(clippy::new_without_default)]
     #[track_caller]
     pub fn new_reason(reason: impl Into<Cow<'static, str>>) -> Self {
         let caller = Location::caller();
@@ -1161,7 +1160,6 @@ impl Context {
     ///
     /// `allow_focus` should usually be true, unless you call this function multiple times with the
     /// same widget, then `allow_focus` should only be true once (like in [`Ui::new`] (true) and [`Ui::remember_min_rect`] (false)).
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn create_widget(&self, w: WidgetRect, allow_focus: bool) -> Response {
         let interested_in_focus = w.enabled
             && w.sense.is_focusable()
@@ -1190,7 +1188,7 @@ impl Context {
             self.check_for_id_clash(w.id, w.rect, "widget");
         }
 
-        #[allow(clippy::let_and_return)]
+        #[allow(clippy::let_and_return, clippy::allow_attributes)]
         let res = self.get_response(w);
 
         #[cfg(feature = "accesskit")]
@@ -2351,7 +2349,6 @@ impl ContextImpl {
         // Inform the backend of all textures that have been updated (including font atlas).
         let textures_delta = self.tex_manager.0.write().take_delta();
 
-        #[cfg_attr(not(feature = "accesskit"), allow(unused_mut))]
         let mut platform_output: PlatformOutput = std::mem::take(&mut viewport.output);
 
         #[cfg(feature = "accesskit")]
@@ -2652,7 +2649,7 @@ impl Context {
     /// Is an egui context menu open?
     ///
     /// This only works with the old, deprecated [`crate::menu`] API.
-    #[allow(deprecated)]
+    #[expect(deprecated)]
     #[deprecated = "Use `is_popup_open` instead"]
     pub fn is_context_menu_open(&self) -> bool {
         self.data(|d| {
@@ -3206,7 +3203,7 @@ impl Context {
             }
         });
 
-        #[allow(deprecated)]
+        #[expect(deprecated)]
         ui.horizontal(|ui| {
             ui.label(format!(
                 "{} menu bars",
@@ -3264,7 +3261,7 @@ impl Context {
     /// the function is still called, but with no other effect.
     ///
     /// No locks are held while the given closure is called.
-    #[allow(clippy::unused_self, clippy::let_and_return)]
+    #[allow(clippy::unused_self, clippy::let_and_return, clippy::allow_attributes)]
     #[inline]
     pub fn with_accessibility_parent<R>(&self, _id: Id, f: impl FnOnce() -> R) -> R {
         // TODO(emilk): this isn't thread-safe - another thread can call this function between the push/pop calls
@@ -3597,7 +3594,6 @@ impl Context {
     /// * Set the window attributes (position, size, …) based on [`ImmediateViewport::builder`].
     /// * Call [`Context::run`] with [`ImmediateViewport::viewport_ui_cb`].
     /// * Handle the output from [`Context::run`], including rendering
-    #[allow(clippy::unused_self)]
     pub fn set_immediate_viewport_renderer(
         callback: impl for<'a> Fn(&Self, ImmediateViewport<'a>) + 'static,
     ) {

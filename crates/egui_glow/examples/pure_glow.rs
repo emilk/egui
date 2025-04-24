@@ -22,7 +22,7 @@ struct GlutinWindowContext {
 impl GlutinWindowContext {
     // refactor this function to use `glutin-winit` crate eventually.
     // preferably add android support at the same time.
-    #[allow(unsafe_code)]
+    #[expect(unsafe_code)]
     unsafe fn new(event_loop: &winit::event_loop::ActiveEventLoop) -> Self {
         use glutin::context::NotCurrentGlContext as _;
         use glutin::display::GetGlDisplay as _;

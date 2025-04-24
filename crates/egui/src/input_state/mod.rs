@@ -344,7 +344,7 @@ impl InputState {
 
                     let is_zoom = modifiers.ctrl || modifiers.mac_cmd || modifiers.command;
 
-                    #[allow(clippy::collapsible_else_if)]
+                    #[expect(clippy::collapsible_else_if)]
                     if is_zoom {
                         if is_smooth {
                             smooth_scroll_delta_for_zoom += delta.y;
