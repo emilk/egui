@@ -71,7 +71,7 @@ fn set_title_and_icon(_title: &str, _icon_data: Option<&IconData>) -> AppIconSta
     #[cfg(target_os = "macos")]
     return set_title_and_icon_mac(_title, _icon_data);
 
-    #[expect(unreachable_code)]
+    #[allow(unreachable_code, clippy::allow_attributes)]
     AppIconStatus::NotSetIgnored
 }
 
