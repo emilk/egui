@@ -209,6 +209,7 @@ impl<'a> Button<'a> {
         self
     }
 
+    /// Show the button and return a [`AtomicLayoutResponse`] for painting custom contents.
     pub fn atomic_ui(self, ui: &mut Ui) -> AtomicLayoutResponse {
         let Button {
             atomics,

@@ -8,25 +8,25 @@ use epaint::{Color32, Fonts, Galley};
 use std::fmt::Formatter;
 use std::sync::Arc;
 
-#[derive(Clone, Default)]
-pub enum SizedAtomicKind<'a> {
-    #[default]
-    Empty,
-    Text(Arc<Galley>),
-    Image(Image<'a>, Vec2),
-    Custom(Id, Vec2),
-}
-
-impl SizedAtomicKind<'_> {
-    pub fn size(&self) -> Vec2 {
-        match self {
-            SizedAtomicKind::Text(galley) => galley.size(),
-            SizedAtomicKind::Image(_, size) | SizedAtomicKind::Custom(_, size) => *size,
-            SizedAtomicKind::Empty => Vec2::ZERO,
-        }
-    }
-}
-
+/// Intra-widget layout utility.
+///
+/// Used to lay out and paint [`Atomic`]s.
+/// This is used internally by widgets like [`crate::Button`] and [`crate::Checkbox`].
+/// You can use it to make your own widgets.
+///
+/// Painting the atomics can be split in two phases:
+/// - [`AtomicLayout::allocate`]
+///   - calculates sizes
+///   - converts texts to [`Galley`]s
+///   - allocates a [`Response`]
+///   - returns a [`AllocatedAtomicLayout`]
+/// - [`AllocatedAtomicLayout::paint`]
+///   - paints the [`Frame`]
+///   - calculates individual [`Atomic`] positions
+///   - paints each single atomic
+///
+/// You can use this to first allocate a response and then modify, e.g., the [`Frame`] on the
+/// [`AllocatedAtomicLayout`] for interaction styling.
 pub struct AtomicLayout<'a> {
     id: Option<Id>,
     pub atomics: Atomics<'a>,
@@ -37,6 +37,12 @@ pub struct AtomicLayout<'a> {
     min_size: Vec2,
     wrap_mode: Option<TextWrapMode>,
     align2: Option<Align2>,
+}
+
+impl Default for AtomicLayout<'_> {
+    fn default() -> Self {
+        Self::new(())
+    }
 }
 
 impl<'a> AtomicLayout<'a> {
@@ -54,61 +60,86 @@ impl<'a> AtomicLayout<'a> {
         }
     }
 
+    /// Insert a new [`Atomic`] at the end of the list (left side).
     pub fn push(mut self, atomic: impl Into<Atomic<'a>>) -> Self {
         self.atomics.push(atomic.into());
         self
     }
 
+    /// Insert a new [`Atomic`] at the beginning of the list (right side).
     pub fn push_front(mut self, atomic: impl Into<Atomic<'a>>) -> Self {
         self.atomics.push_front(atomic.into());
         self
     }
 
+    /// Set the gap between atomics.
+    ///
     /// Default: `Spacing::icon_spacing`
     pub fn gap(mut self, gap: f32) -> Self {
         self.gap = Some(gap);
         self
     }
 
+    /// Set the [`Frame`].
     pub fn frame(mut self, frame: Frame) -> Self {
         self.frame = frame;
         self
     }
 
+    /// Set the [`Sense`] used when allocating the [`Response`].
     pub fn sense(mut self, sense: Sense) -> Self {
         self.sense = sense;
         self
     }
 
+    /// Set the fallback (default) text color.
+    ///
+    /// Default: [`crate::Visuals::text_color`]
     pub fn fallback_text_color(mut self, color: Color32) -> Self {
         self.fallback_text_color = Some(color);
         self
     }
 
+    /// Set the minimum size of the Widget.
     pub fn min_size(mut self, size: Vec2) -> Self {
         self.min_size = size;
         self
     }
 
+    /// Set the [`Id`] used to allocate a [`Response`].
     pub fn id(mut self, id: Id) -> Self {
         self.id = Some(id);
         self
     }
 
+    /// Set the [`TextWrapMode`] for the [`Atomic`] marked as `shrink`.
+    ///
+    /// Only a single [`Atomic`] may shrink. If this (or `ui.wrap_mode()`) is not
+    /// [`TextWrapMode::Extend`] and no item is set to shrink, the first (right-most)
+    /// [`AtomicKind::Text`] will be set to shrink.
     pub fn wrap_mode(mut self, wrap_mode: TextWrapMode) -> Self {
         self.wrap_mode = Some(wrap_mode);
         self
     }
 
+    /// Set the [`Align2`].
+    ///
+    /// The default is chosen based on the [`Ui`]s [`crate::Layout`]. See
+    /// [this snapshot](https://github.com/emilk/egui/blob/master/tests/egui_tests/tests/snapshots/layout/button.png)
+    /// for info on how the [`Layout`] affects the alignment.
     pub fn align2(mut self, align2: Align2) -> Self {
         self.align2 = Some(align2);
         self
     }
 
+    /// [`AtomicLayout::allocate`] and [`AllocatedAtomicLayout::paint`] in one go.
     pub fn show(self, ui: &mut Ui) -> AtomicLayoutResponse {
         self.allocate(ui).paint(ui)
     }
 
+    /// Calculate sizes, create [`Galley`]s and allocate a [`Response`].
+    ///
+    /// Use the returned [`AllocatedAtomicLayout`] for painting.
     pub fn allocate(self, ui: &mut Ui) -> AllocatedAtomicLayout<'a> {
         let Self {
             id,
@@ -252,6 +283,8 @@ impl<'a> AtomicLayout<'a> {
     }
 }
 
+/// Instructions for painting an [`AtomicLayout`].
+#[derive(Clone, Debug)]
 pub struct AllocatedAtomicLayout<'a> {
     pub sized_atomics: Vec<SizedAtomic<'a>>,
     pub frame: Frame,
@@ -265,6 +298,7 @@ pub struct AllocatedAtomicLayout<'a> {
 }
 
 impl<'a> AllocatedAtomicLayout<'a> {
+    /// Paint the [`Frame`] and individual [`Atomic`]s.
     pub fn paint(self, ui: &Ui) -> AtomicLayoutResponse {
         let Self {
             sized_atomics: sized_items,
@@ -328,17 +362,45 @@ impl<'a> AllocatedAtomicLayout<'a> {
     }
 }
 
+/// Response from a [`AtomicLayout::show`] or [`AllocatedAtomicLayout::paint`].
+///
+/// Use the `custom_rects` together with [`AtomicKind::Custom`] to add child widgets to a widget.
+///
+/// NOTE: Don't `unwrap` rects, they might be empty when the widget is not visible.
+#[derive(Clone, Debug)]
 pub struct AtomicLayoutResponse {
     pub response: Response,
     pub custom_rects: HashMap<Id, Rect>,
 }
 
+/// The different kinds of [`Atomic`]s.
 #[derive(Clone, Default)]
 pub enum AtomicKind<'a> {
+    /// Empty, that can be used with [`Atomic::a_grow`] to reserve space.
     #[default]
     Empty,
     Text(WidgetText),
     Image(Image<'a>),
+
+    /// For custom rendering.
+    ///
+    /// You can get the [`Rect`] with the [`Id`] from [`AtomicLayoutResponse`] and use a
+    /// [`crate::Painter`] or [`Ui::put`] to add/draw some custom content.
+    ///
+    /// Example:
+    /// ```
+    /// # use egui::{AtomicKind, Button, Id, __run_test_ui};
+    /// # use emath::Vec2;
+    /// # __run_test_ui(|ui| {
+    /// let id = Id::new("my_button");
+    /// let response = Button::new(("Hi!", AtomicKind::Custom(id, Vec2::splat(18.0)))).atomic_ui(ui);
+    ///
+    /// let rect = response.custom_rects.get(&id);
+    /// if let Some(rect) = rect {
+    ///     ui.put(*rect, Button::new("⏵"));
+    /// }
+    /// # });
+    /// ```
     Custom(Id, Vec2),
 }
 
@@ -366,7 +428,10 @@ impl<'a> AtomicKind<'a> {
         AtomicKind::Custom(id, size)
     }
 
-    /// First returned argument is the preferred size.
+    /// Turn this [`AtomicKind`] into a [`SizedAtomicKind`].
+    ///
+    /// This converts [`WidgetText`] into [`Galley`] and tries to load and size [`Image`].
+    /// The first returned argument is the preferred size.
     pub fn into_sized(
         self,
         ui: &Ui,
@@ -394,6 +459,37 @@ impl<'a> AtomicKind<'a> {
     }
 }
 
+/// A sized [`AtomicKind`].
+#[derive(Clone, Default, Debug)]
+pub enum SizedAtomicKind<'a> {
+    #[default]
+    Empty,
+    Text(Arc<Galley>),
+    Image(Image<'a>, Vec2),
+    Custom(Id, Vec2),
+}
+
+impl SizedAtomicKind<'_> {
+    /// Get the calculated size.
+    pub fn size(&self) -> Vec2 {
+        match self {
+            SizedAtomicKind::Text(galley) => galley.size(),
+            SizedAtomicKind::Image(_, size) | SizedAtomicKind::Custom(_, size) => *size,
+            SizedAtomicKind::Empty => Vec2::ZERO,
+        }
+    }
+}
+
+/// A low-level ui building block.
+///
+/// Implements [`From`] for [`String`], [`str`], [`Image`] and much more for convenience.
+/// You can directly call the `a_*` methods on anything that implements `Into<Atomic>`.
+/// ```
+/// # use egui::{Image, emath::Vec2};
+/// use egui::AtomicExt;
+/// let string_atomic = "Hello".a_grow(true);
+/// let image_atomic = Image::new("some_image_url").a_size(Vec2::splat(20.0));
+/// ```
 #[derive(Clone, Debug)]
 pub struct Atomic<'a> {
     pub size: Option<Vec2>,
@@ -402,6 +498,8 @@ pub struct Atomic<'a> {
     pub kind: AtomicKind<'a>,
 }
 
+/// A [`Atomic`] which has been sized.
+#[derive(Clone, Debug)]
 pub struct SizedAtomic<'a> {
     pub grow: bool,
     pub size: Vec2,
@@ -420,6 +518,8 @@ impl<'a> Atomic<'a> {
         }
     }
 
+    /// Heuristic to find the best height for an image.
+    /// Basically returns the height if this is not an [`Image`].
     fn get_min_height_for_image(&self, fonts: &Fonts, style: &Style) -> Option<f32> {
         self.size.map(|s| s.y).or_else(|| {
             match &self.kind {
@@ -432,7 +532,8 @@ impl<'a> Atomic<'a> {
         })
     }
 
-    fn into_sized(
+    /// Turn this into a [`SizedAtomic`].
+    pub fn into_sized(
         self,
         ui: &Ui,
         available_size: Vec2,
@@ -451,9 +552,17 @@ impl<'a> Atomic<'a> {
     }
 }
 
+/// A trait for conveniently building [`Atomic`]s.
 pub trait AtomicExt<'a> {
+    /// Set the atomic to a fixed size.
     fn a_size(self, size: Vec2) -> Atomic<'a>;
+
+    /// Grow this atomic to the available space.
     fn a_grow(self, grow: bool) -> Atomic<'a>;
+
+    /// Shrink this atomic if there isn't enough space.
+    ///
+    /// NOTE: Only a single [`Atomic`] may shrink for each widget.
     fn a_shrink(self, shrink: bool) -> Atomic<'a>;
 }
 
@@ -501,12 +610,6 @@ impl<'a> From<Image<'a>> for AtomicKind<'a> {
     }
 }
 
-// impl<'a> From<&str> for AtomicKind<'a> {
-//     fn from(value: &str) -> Self {
-//         AtomicKind::Text(value.into())
-//     }
-// }
-
 impl<'a, T> From<T> for AtomicKind<'a>
 where
     T: Into<WidgetText>,
@@ -516,6 +619,7 @@ where
     }
 }
 
+/// A list of [`Atomic`]s.
 #[derive(Clone, Debug, Default)]
 pub struct Atomics<'a>(Vec<Atomic<'a>>);
 
@@ -536,6 +640,7 @@ impl<'a> Atomics<'a> {
         self.0.iter_mut()
     }
 
+    /// Concatenate and return the text contents.
     // TODO(lucasmerlin): It might not always make sense to return the concatenated text, e.g.
     // in a submenu button there is a right text '⏵' which is now passed to the screen reader.
     pub fn text(&self) -> Option<String> {
@@ -554,6 +659,16 @@ impl<'a> Atomics<'a> {
     }
 }
 
+/// Helper trait to convert a tuple of atomics into [`Atomics`].
+///
+/// ```
+/// use egui::{Atomics, Image, IntoAtomics, RichText};
+/// let atomics: Atomics = (
+///     "Some text",
+///     RichText::new("Some RichText"),
+///     Image::new("some_image_url"),
+/// ).into_atomics();
+/// ```
 impl<'a, T> IntoAtomics<'a> for T
 where
     T: Into<Atomic<'a>>,
@@ -603,17 +718,6 @@ all_the_atomics!(T0, T1, T2);
 all_the_atomics!(T0, T1, T2, T3);
 all_the_atomics!(T0, T1, T2, T3, T4);
 all_the_atomics!(T0, T1, T2, T3, T4, T5);
-
-// trait AtomicWidget {
-//     fn show(&self, ui: &mut Ui) -> WidgetLayout;
-// }
-
-// TODO: This conflicts with the FnOnce Widget impl, is there some way around that?
-// impl<T> Widget for T where T: AtomicWidget {
-//     fn ui(self, ui: &mut Ui) -> Response {
-//         ui.add(self)
-//     }
-// }
 
 impl Widget for AtomicLayout<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
