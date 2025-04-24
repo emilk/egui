@@ -135,7 +135,7 @@ impl<'a> AtomicLayout<'a> {
     ///
     /// The default is chosen based on the [`Ui`]s [`crate::Layout`]. See
     /// [this snapshot](https://github.com/emilk/egui/blob/master/tests/egui_tests/tests/snapshots/layout/button.png)
-    /// for info on how the [`Layout`] affects the alignment.
+    /// for info on how the [`crate::Layout`] affects the alignment.
     #[inline]
     pub fn align2(mut self, align2: Align2) -> Self {
         self.align2 = Some(align2);
@@ -390,7 +390,7 @@ pub struct AtomicLayoutResponse {
 /// The different kinds of [`Atomic`]s.
 #[derive(Clone, Default)]
 pub enum AtomicKind<'a> {
-    /// Empty, that can be used with [`Atomic::a_grow`] to reserve space.
+    /// Empty, that can be used with [`AtomicExt::a_grow`] to reserve space.
     #[default]
     Empty,
     Text(WidgetText),
