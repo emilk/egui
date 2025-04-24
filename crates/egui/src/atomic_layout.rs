@@ -258,6 +258,10 @@ impl<'a> AtomicLayout<'a> {
                 available_inner_size.x - desired_width,
                 available_inner_size.y,
             );
+            if item.grow {
+                grow_count += 1;
+            }
+
             let sized = item.into_sized(ui, shrunk_size, max_font_size, Some(wrap_mode));
             let size = sized.size;
 

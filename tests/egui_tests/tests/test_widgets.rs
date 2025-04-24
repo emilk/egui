@@ -95,15 +95,21 @@ fn widget_tests() {
 
     let source = include_image!("../../../crates/eframe/data/icon.png");
     let interesting_atomics = vec![
-        ("Hello World!").into_atomics(),
-        (Image::new(source.clone()), "With Image").into_atomics(),
-        ("1", "grow".a_grow(true), "2", "grow".a_grow(true), "3").into_atomics(),
+        ("minimal", ("Hello World!").into_atomics()),
+        (
+            "image",
+            (Image::new(source.clone()), "With Image").into_atomics(),
+        ),
+        (
+            "multi_grow",
+            ("g".a_grow(true), "2", "g".a_grow(true), "4").into_atomics(),
+        ),
     ];
 
     for atomics in interesting_atomics {
         results.add(test_widget_layout(
-            &format!("atomics_{}", atomics.text().unwrap()),
-            |ui| AtomicLayout::new(atomics.clone()).ui(ui),
+            &format!("atomics_{}", atomics.0),
+            |ui| AtomicLayout::new(atomics.1.clone()).ui(ui),
         ));
     }
 }
