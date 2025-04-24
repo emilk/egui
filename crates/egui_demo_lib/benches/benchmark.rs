@@ -111,7 +111,9 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 group.bench_function("button image right text", |b| {
                     b.iter_batched_ref(
                         || ui.new_child(UiBuilder::new()),
-                        |ui| ui.add(Button::image_and_text(image, "Hello World")),
+                        |ui| {
+                            ui.add(Button::image_and_text(image, "Hello World").right_text("⏵"));
+                        },
                         BatchSize::LargeInput,
                     )
                 });
