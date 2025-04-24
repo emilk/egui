@@ -28,7 +28,7 @@ impl DefaultBytesLoader {
 }
 
 impl BytesLoader for DefaultBytesLoader {
-    fn id(&self) -> &str {
+    fn id(&self) -> &'static str {
         generate_loader_id!(DefaultBytesLoader)
     }
 

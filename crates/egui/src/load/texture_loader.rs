@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use super::{
-    BytesLoader, Context, HashMap, ImagePoll, Mutex, SizeHint, SizedTexture, TextureHandle,
+    BytesLoader as _, Context, HashMap, ImagePoll, Mutex, SizeHint, SizedTexture, TextureHandle,
     TextureLoadResult, TextureLoader, TextureOptions, TexturePoll,
 };
 
@@ -11,7 +11,7 @@ pub struct DefaultTextureLoader {
 }
 
 impl TextureLoader for DefaultTextureLoader {
-    fn id(&self) -> &str {
+    fn id(&self) -> &'static str {
         crate::generate_loader_id!(DefaultTextureLoader)
     }
 

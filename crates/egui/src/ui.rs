@@ -98,7 +98,7 @@ pub struct Ui {
     sizing_pass: bool,
 
     /// Indicates whether this Ui belongs to a Menu.
-    #[allow(deprecated)]
+    #[expect(deprecated)]
     menu_state: Option<Arc<RwLock<crate::menu::MenuState>>>,
 
     /// The [`UiStack`] for this [`Ui`].
@@ -666,7 +666,7 @@ impl Ui {
     ///
     /// This is determined first by [`Style::wrap_mode`], and then by the layout of this [`Ui`].
     pub fn wrap_mode(&self) -> TextWrapMode {
-        #[allow(deprecated)]
+        #[expect(deprecated)]
         if let Some(wrap_mode) = self.style.wrap_mode {
             wrap_mode
         }
@@ -3015,7 +3015,7 @@ impl Ui {
         self.close_kind(UiKind::Menu);
     }
 
-    #[allow(deprecated)]
+    #[expect(deprecated)]
     pub(crate) fn set_menu_state(
         &mut self,
         menu_state: Option<Arc<RwLock<crate::menu::MenuState>>>,
@@ -3156,7 +3156,7 @@ impl Drop for Ui {
 /// Show this rectangle to the user if certain debug options are set.
 #[cfg(debug_assertions)]
 fn register_rect(ui: &Ui, rect: Rect) {
-    use emath::{Align2, GuiRounding};
+    use emath::{Align2, GuiRounding as _};
 
     let debug = ui.style().debug;
 

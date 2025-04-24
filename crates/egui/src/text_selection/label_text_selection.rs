@@ -616,7 +616,7 @@ impl LabelSelectionState {
             let old_primary = old_selection.map(|s| s.primary);
             let new_primary = self.selection.as_ref().map(|s| s.primary);
             if let Some(new_primary) = new_primary {
-                let primary_changed = old_primary.map_or(true, |old| {
+                let primary_changed = old_primary.is_none_or(|old| {
                     old.widget_id != new_primary.widget_id || old.ccursor != new_primary.ccursor
                 });
                 if primary_changed && new_primary.widget_id == widget_id {

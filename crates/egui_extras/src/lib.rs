@@ -26,7 +26,7 @@ mod table;
 pub use crate::datepicker::DatePickerButton;
 
 #[doc(hidden)]
-#[allow(deprecated)]
+#[expect(deprecated)]
 pub use crate::image::RetainedImage;
 pub(crate) use crate::layout::StripLayout;
 pub use crate::sizing::Size;

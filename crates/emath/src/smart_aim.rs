@@ -115,7 +115,7 @@ fn simplest_digit_closed_range(min: i32, max: i32) -> i32 {
     }
 }
 
-#[allow(clippy::approx_constant)]
+#[expect(clippy::approx_constant)]
 #[test]
 fn test_aim() {
     assert_eq!(best_in_range_f64(-0.2, 0.0), 0.0, "Prefer zero");

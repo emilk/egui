@@ -1,6 +1,6 @@
 use crate::{
-    pos2, vec2, Align2, Color32, Context, CursorIcon, Id, NumExt, Rect, Response, Sense, Shape, Ui,
-    UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b,
+    pos2, vec2, Align2, Color32, Context, CursorIcon, Id, NumExt as _, Rect, Response, Sense,
+    Shape, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b,
 };
 
 #[derive(Clone, Copy, Debug)]

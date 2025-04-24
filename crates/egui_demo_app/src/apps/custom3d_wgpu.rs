@@ -1,7 +1,7 @@
 use std::num::NonZeroU64;
 
 use eframe::{
-    egui_wgpu::wgpu::util::DeviceExt,
+    egui_wgpu::wgpu::util::DeviceExt as _,
     egui_wgpu::{self, wgpu},
 };
 

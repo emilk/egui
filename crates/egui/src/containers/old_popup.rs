@@ -4,7 +4,7 @@
 use crate::containers::tooltip::Tooltip;
 use crate::{
     Align, Context, Id, LayerId, Layout, Popup, PopupAnchor, PopupCloseBehavior, Pos2, Rect,
-    Response, Ui, Widget, WidgetText,
+    Response, Ui, Widget as _, WidgetText,
 };
 use emath::RectAlign;
 // ----------------------------------------------------------------------------
@@ -19,7 +19,7 @@ use emath::RectAlign;
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
-/// # #[allow(deprecated)]
+/// # #[expect(deprecated)]
 /// if ui.ui_contains_pointer() {
 ///     egui::show_tooltip(ui.ctx(), ui.layer_id(), egui::Id::new("my_tooltip"), |ui| {
 ///         ui.label("Helpful text");
@@ -177,7 +177,7 @@ pub fn popup_below_widget<R>(
 /// }
 /// let below = egui::AboveOrBelow::Below;
 /// let close_on_click_outside = egui::PopupCloseBehavior::CloseOnClickOutside;
-/// # #[allow(deprecated)]
+/// # #[expect(deprecated)]
 /// egui::popup_above_or_below_widget(ui, popup_id, &response, below, close_on_click_outside, |ui| {
 ///     ui.set_min_width(200.0); // if you want to control the size
 ///     ui.label("Some more info, or things you can select:");

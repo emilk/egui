@@ -4,7 +4,7 @@
 use eframe::egui::{
     self, global_theme_preference_buttons, style::Selection, Color32, Stroke, Style, Theme,
 };
-use egui_demo_lib::{View, WidgetGallery};
+use egui_demo_lib::{View as _, WidgetGallery};
 
 fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).

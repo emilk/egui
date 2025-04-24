@@ -14,7 +14,7 @@ pub struct WebHandle {
 #[wasm_bindgen]
 impl WebHandle {
     /// Installs a panic hook, then returns.
-    #[allow(clippy::new_without_default)]
+    #[allow(clippy::new_without_default, clippy::allow_attributes)]
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
         // Redirect [`log`] message to `console.log` and friends:
