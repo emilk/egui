@@ -5,10 +5,12 @@ use crate::{Atomic, AtomicKind};
 pub struct Atomics<'a>(Vec<Atomic<'a>>);
 
 impl<'a> Atomics<'a> {
+    /// Insert a new [`Atomic`] at the end of the list (right side).
     pub fn push(&mut self, atomic: impl Into<Atomic<'a>>) {
         self.0.push(atomic.into());
     }
 
+    /// Insert a new [`Atomic`] at the beginning of the list (left side).
     pub fn push_front(&mut self, atomic: impl Into<Atomic<'a>>) {
         self.0.insert(0, atomic.into());
     }

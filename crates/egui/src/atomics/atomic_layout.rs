@@ -59,14 +59,14 @@ impl<'a> AtomicLayout<'a> {
         }
     }
 
-    /// Insert a new [`Atomic`] at the end of the list (left side).
+    /// Insert a new [`Atomic`] at the end of the list (right side).
     #[inline]
     pub fn push(mut self, atomic: impl Into<Atomic<'a>>) -> Self {
         self.atomics.push(atomic.into());
         self
     }
 
-    /// Insert a new [`Atomic`] at the beginning of the list (right side).
+    /// Insert a new [`Atomic`] at the beginning of the list (left side).
     #[inline]
     pub fn push_front(mut self, atomic: impl Into<Atomic<'a>>) -> Self {
         self.atomics.push_front(atomic.into());
