@@ -3,7 +3,8 @@ use std::fmt::Write as _;
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 
 use egui::epaint::TextShape;
-use egui::{Button, UiBuilder};
+use egui::load::SizedTexture;
+use egui::{Button, TextureId, UiBuilder, Vec2};
 use egui_demo_lib::LOREM_IPSUM_LONG;
 use rand::Rng as _;
 
@@ -84,6 +85,11 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let _ = ctx.run(RawInput::default(), |ctx| {
             egui::CentralPanel::default().show(ctx, |ui| {
                 let mut group = c.benchmark_group("button");
+
+                // To ensure we have a valid image, let's use the font texture. The size
+                // shouldn't be important for this benchmark.
+                let image = SizedTexture::new(TextureId::default(), Vec2::splat(16.0));
+
                 group.bench_function("button", |b| {
                     b.iter_batched_ref(
                         || ui.new_child(UiBuilder::new()),
@@ -97,7 +103,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                     b.iter_batched_ref(
                         || ui.new_child(UiBuilder::new()),
                         |ui| {
-                            ui.add(Button::image_and_text("some-image.png", "Hello World"));
+                            ui.add(Button::image_and_text(image, "Hello World"));
                         },
                         BatchSize::LargeInput,
                     )
@@ -105,7 +111,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 group.bench_function("button image right text", |b| {
                     b.iter_batched_ref(
                         || ui.new_child(UiBuilder::new()),
-                        |ui| ui.add(Button::image_and_text("some-image.png", "Hello World")),
+                        |ui| ui.add(Button::image_and_text(image, "Hello World")),
                         BatchSize::LargeInput,
                     )
                 });
