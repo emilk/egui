@@ -23,8 +23,7 @@ use crate::{
     input_state::{InputState, MultiTouchInfo, PointerEvent},
     interaction,
     layers::GraphicLayers,
-    load,
-    load::{Bytes, Loaders, SizedTexture},
+    load::{self, Bytes, Loaders, SizedTexture},
     memory::{Options, Theme},
     os::OperatingSystem,
     output::FullOutput,
@@ -34,9 +33,10 @@ use crate::{
     viewport::ViewportClass,
     Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, Grid, Id, ImmediateViewport,
     ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId, Memory,
-    ModifierNames, NumExt, Order, Painter, RawInput, Response, RichText, ScrollArea, Sense, Style,
-    TextStyle, TextureHandle, TextureOptions, Ui, ViewportBuilder, ViewportCommand, ViewportId,
-    ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput, Widget, WidgetRect, WidgetText,
+    ModifierNames, NumExt, Order, Painter, RawInput, Response, RichText, SafeArea, ScrollArea,
+    Sense, Style, TextStyle, TextureHandle, TextureOptions, Ui, ViewportBuilder, ViewportCommand,
+    ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput, Widget, WidgetRect,
+    WidgetText,
 };
 
 #[cfg(feature = "accesskit")]
@@ -410,6 +410,7 @@ struct ContextImpl {
     animation_manager: AnimationManager,
 
     plugins: Plugins,
+    safe_area: SafeArea,
 
     /// All viewports share the same texture manager and texture namespace.
     ///
@@ -455,6 +456,10 @@ impl ContextImpl {
             .unwrap_or_default();
         let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent_id);
 
+        if let Some(safe_area) = new_raw_input.safe_area {
+            self.safe_area = safe_area;
+        }
+
         let is_outermost_viewport = self.viewport_stack.is_empty(); // not necessarily root, just outermost immediate viewport
         self.viewport_stack.push(ids);
 
@@ -469,7 +474,7 @@ impl ContextImpl {
 
                 let input = &viewport.input;
                 // This is a bit hacky, but is required to avoid jitter:
-                let mut rect = input.screen_rect;
+                let mut rect = input.screen_rect();
                 rect.min = (ratio * rect.min.to_vec2()).to_pos2();
                 rect.max = (ratio * rect.max.to_vec2()).to_pos2();
                 new_raw_input.screen_rect = Some(rect);
@@ -496,7 +501,7 @@ impl ContextImpl {
             &self.memory.options,
         );
 
-        let screen_rect = viewport.input.screen_rect;
+        let screen_rect = viewport.input.screen_rect();
 
         viewport.this_pass.begin_pass(screen_rect);
 

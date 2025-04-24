@@ -1317,6 +1317,7 @@ dependencies = [
  "document-features",
  "egui",
  "log",
+ "objc",
  "profiling",
  "raw-window-handle 0.6.2",
  "serde",
