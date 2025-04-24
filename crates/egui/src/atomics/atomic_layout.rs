@@ -166,7 +166,7 @@ impl<'a> AtomicLayout<'a> {
 
         // If the TextWrapMode is not Extend, ensure there is some item marked as `shrink`.
         // If none is found, mark the first text item as `shrink`.
-        if !matches!(wrap_mode, TextWrapMode::Extend) {
+        if wrap_mode != TextWrapMode::Extend {
             let any_shrink = atomics.iter().any(|a| a.shrink);
             if !any_shrink {
                 let first_text = atomics
