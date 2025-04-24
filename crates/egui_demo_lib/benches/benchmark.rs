@@ -1,8 +1,9 @@
 use std::fmt::Write as _;
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 
 use egui::epaint::TextShape;
+use egui::{Button, UiBuilder};
 use egui_demo_lib::LOREM_IPSUM_LONG;
 use rand::Rng as _;
 
@@ -57,14 +58,56 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let _ = ctx.run(RawInput::default(), |ctx| {
             egui::CentralPanel::default().show(ctx, |ui| {
                 c.bench_function("label &str", |b| {
-                    b.iter(|| {
-                        ui.label("the quick brown fox jumps over the lazy dog");
-                    });
+                    b.iter_batched_ref(
+                        || ui.new_child(UiBuilder::new()),
+                        |ui| {
+                            ui.label("the quick brown fox jumps over the lazy dog");
+                        },
+                        BatchSize::LargeInput,
+                    )
                 });
                 c.bench_function("label format!", |b| {
-                    b.iter(|| {
-                        ui.label("the quick brown fox jumps over the lazy dog".to_owned());
-                    });
+                    b.iter_batched_ref(
+                        || ui.new_child(UiBuilder::new()),
+                        |ui| {
+                            ui.label("the quick brown fox jumps over the lazy dog".to_owned());
+                        },
+                        BatchSize::LargeInput,
+                    )
+                });
+            });
+        });
+    }
+
+    {
+        let ctx = egui::Context::default();
+        let _ = ctx.run(RawInput::default(), |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                let mut group = c.benchmark_group("button");
+                group.bench_function("button", |b| {
+                    b.iter_batched_ref(
+                        || ui.new_child(UiBuilder::new()),
+                        |ui| {
+                            ui.add(Button::new("Hello World"));
+                        },
+                        BatchSize::LargeInput,
+                    );
+                });
+                group.bench_function("button image", |b| {
+                    b.iter_batched_ref(
+                        || ui.new_child(UiBuilder::new()),
+                        |ui| {
+                            ui.add(Button::image_and_text("some-image.png", "Hello World"));
+                        },
+                        BatchSize::LargeInput,
+                    )
+                });
+                group.bench_function("button image right text", |b| {
+                    b.iter_batched_ref(
+                        || ui.new_child(UiBuilder::new()),
+                        |ui| ui.add(Button::image_and_text("some-image.png", "Hello World")),
+                        BatchSize::LargeInput,
+                    )
                 });
             });
         });
