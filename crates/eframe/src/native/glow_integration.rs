@@ -11,13 +11,13 @@ use std::{cell::RefCell, num::NonZeroU32, rc::Rc, sync::Arc, time::Instant};
 
 use egui_winit::ActionRequested;
 use glutin::{
-    config::GlConfig,
-    context::NotCurrentGlContext,
-    display::GetGlDisplay,
-    prelude::{GlDisplay, PossiblyCurrentGlContext},
-    surface::GlSurface,
+    config::GlConfig as _,
+    context::NotCurrentGlContext as _,
+    display::GetGlDisplay as _,
+    prelude::{GlDisplay as _, PossiblyCurrentGlContext as _},
+    surface::GlSurface as _,
 };
-use raw_window_handle::HasWindowHandle;
+use raw_window_handle::HasWindowHandle as _;
 use winit::{
     event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
     window::{Window, WindowId},

@@ -4,6 +4,7 @@ use std::sync::{mpsc, Arc};
 use wgpu::{BindGroupLayout, MultisampleState, StoreOp};
 
 /// A texture and a buffer for reading the rendered frame back to the cpu.
+///
 /// The texture is required since [`wgpu::TextureUsages::COPY_SRC`] is not an allowed
 /// flag for the surface texture on all platforms. This means that anytime we want to
 /// capture the frame, we first render it to this texture, and then we can copy it to

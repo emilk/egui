@@ -33,7 +33,7 @@ pub(crate) fn f32_hash<H: std::hash::Hasher>(state: &mut H, f: f32) {
     } else if f.is_nan() {
         state.write_u8(1);
     } else {
-        use std::hash::Hash;
+        use std::hash::Hash as _;
         f.to_bits().hash(state);
     }
 }

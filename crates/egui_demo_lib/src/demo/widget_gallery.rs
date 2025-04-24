@@ -308,7 +308,7 @@ fn doc_link_label_with_crate<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::View;
+    use crate::View as _;
     use egui::Vec2;
     use egui_kittest::Harness;
 

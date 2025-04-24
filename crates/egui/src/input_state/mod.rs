@@ -5,7 +5,7 @@ use crate::data::input::{
     TouchDeviceId, ViewportInfo, NUM_POINTER_BUTTONS,
 };
 use crate::{
-    emath::{vec2, NumExt, Pos2, Rect, Vec2},
+    emath::{vec2, NumExt as _, Pos2, Rect, Vec2},
     util::History,
 };
 use std::{

@@ -4,7 +4,7 @@
 use crate::containers::tooltip::Tooltip;
 use crate::{
     Align, Context, Id, LayerId, Layout, Popup, PopupAnchor, PopupCloseBehavior, Pos2, Rect,
-    Response, Ui, Widget, WidgetText,
+    Response, Ui, Widget as _, WidgetText,
 };
 use emath::RectAlign;
 // ----------------------------------------------------------------------------

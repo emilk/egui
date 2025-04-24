@@ -5,7 +5,7 @@
 
 #![allow(clippy::identity_op)]
 
-use emath::{pos2, remap, vec2, GuiRounding as _, NumExt, Pos2, Rect, Rot2, Vec2};
+use emath::{pos2, remap, vec2, GuiRounding as _, NumExt as _, Pos2, Rect, Rot2, Vec2};
 
 use crate::{
     color::ColorMode, emath, stroke::PathStroke, texture_atlas::PreparedDisc, CircleShape,

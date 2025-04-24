@@ -339,6 +339,7 @@ pub fn image_snapshot_options(current: &image::RgbaImage, name: &str, options: &
 }
 
 /// Image snapshot test.
+///
 /// The snapshot will be saved under `tests/snapshots/{name}.png`.
 /// The new image from the last test run will be saved under `tests/snapshots/{name}.new.png`.
 /// If the new image didn't match the snapshot, a diff image will be saved under `tests/snapshots/{name}.diff.png`.

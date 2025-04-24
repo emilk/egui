@@ -747,7 +747,8 @@ impl ScrollStyle {
 
 // ----------------------------------------------------------------------------
 
-/// Scroll animation configuration, used when programmatically scrolling somewhere (e.g. with `[crate::Ui::scroll_to_cursor]`)
+/// Scroll animation configuration, used when programmatically scrolling somewhere (e.g. with `[crate::Ui::scroll_to_cursor]`).
+///
 /// The animation duration is calculated based on the distance to be scrolled via `[ScrollAnimation::points_per_second]`
 /// and can be clamped to a min / max duration via `[ScrollAnimation::duration]`.
 #[derive(Copy, Clone, Debug, PartialEq)]

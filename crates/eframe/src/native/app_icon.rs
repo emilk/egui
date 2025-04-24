@@ -203,7 +203,7 @@ fn set_title_and_icon_mac(title: &str, icon_data: Option<&IconData>) -> AppIconS
     use crate::icon_data::IconDataExt as _;
     profiling::function_scope!();
 
-    use objc2::ClassType;
+    use objc2::ClassType as _;
     use objc2_app_kit::{NSApplication, NSImage};
     use objc2_foundation::{NSData, NSString};
 

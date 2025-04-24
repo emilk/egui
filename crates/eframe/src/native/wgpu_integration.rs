@@ -15,7 +15,7 @@ use winit::{
     window::{Window, WindowId},
 };
 
-use ahash::{HashMap, HashSet, HashSetExt};
+use ahash::{HashMap, HashSet, HashSetExt as _};
 use egui::{
     DeferredViewportUiCallback, FullOutput, ImmediateViewport, ViewportBuilder, ViewportClass,
     ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportInfo, ViewportOutput,

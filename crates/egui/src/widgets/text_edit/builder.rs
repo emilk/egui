@@ -13,8 +13,8 @@ use crate::{
     response, text_selection,
     text_selection::{text_cursor_state::cursor_rect, visuals::paint_text_selection, CCursorRange},
     vec2, Align, Align2, Color32, Context, CursorIcon, Event, EventFilter, FontSelection, Id,
-    ImeEvent, Key, KeyboardShortcut, Margin, Modifiers, NumExt, Response, Sense, Shape, TextBuffer,
-    TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetWithState,
+    ImeEvent, Key, KeyboardShortcut, Margin, Modifiers, NumExt as _, Response, Sense, Shape,
+    TextBuffer, TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetWithState,
 };
 
 use super::{TextEditOutput, TextEditState};

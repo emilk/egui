@@ -3156,7 +3156,7 @@ impl Drop for Ui {
 /// Show this rectangle to the user if certain debug options are set.
 #[cfg(debug_assertions)]
 fn register_rect(ui: &Ui, rect: Rect) {
-    use emath::{Align2, GuiRounding};
+    use emath::{Align2, GuiRounding as _};
 
     let debug = ui.style().debug;
 

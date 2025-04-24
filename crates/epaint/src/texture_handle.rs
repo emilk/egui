@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    emath::NumExt, mutex::RwLock, textures::TextureOptions, ImageData, ImageDelta, TextureId,
+    emath::NumExt as _, mutex::RwLock, textures::TextureOptions, ImageData, ImageDelta, TextureId,
     TextureManager,
 };
 

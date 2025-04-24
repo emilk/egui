@@ -34,9 +34,10 @@ use crate::{
     viewport::ViewportClass,
     Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, Grid, Id, ImmediateViewport,
     ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId, Memory,
-    ModifierNames, NumExt, Order, Painter, RawInput, Response, RichText, ScrollArea, Sense, Style,
-    TextStyle, TextureHandle, TextureOptions, Ui, ViewportBuilder, ViewportCommand, ViewportId,
-    ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput, Widget, WidgetRect, WidgetText,
+    ModifierNames, NumExt as _, Order, Painter, RawInput, Response, RichText, ScrollArea, Sense,
+    Style, TextStyle, TextureHandle, TextureOptions, Ui, ViewportBuilder, ViewportCommand,
+    ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput, Widget as _,
+    WidgetRect, WidgetText,
 };
 
 #[cfg(feature = "accesskit")]

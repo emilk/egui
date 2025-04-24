@@ -1,4 +1,4 @@
-use egui::{Frame, Label, RichText, Sense, UiBuilder, Widget};
+use egui::{Frame, Label, RichText, Sense, UiBuilder, Widget as _};
 
 /// Showcase [`egui::Ui::response`].
 #[derive(PartialEq, Eq, Default)]

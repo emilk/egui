@@ -1,7 +1,7 @@
 #![allow(unsafe_code)]
 #![allow(clippy::undocumented_unsafe_blocks)]
 
-use std::convert::TryInto;
+use std::convert::TryInto as _;
 
 /// Helper for parsing and interpreting the OpenGL shader version.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]

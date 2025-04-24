@@ -2,7 +2,7 @@ use egui::{
     emath,
     epaint::{self, CubicBezierShape, PathShape, QuadraticBezierShape},
     pos2, Color32, Context, Frame, Grid, Pos2, Rect, Sense, Shape, Stroke, StrokeKind, Ui, Vec2,
-    Widget, Window,
+    Widget as _, Window,
 };
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
