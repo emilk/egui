@@ -144,6 +144,9 @@
 #![warn(missing_docs)] // let's keep eframe well-documented
 #![allow(clippy::needless_doctest_main)]
 
+#[cfg(all(feature = "accesskit", feature = "android-native-activity"))]
+compile_error!("`accesskit` feature is only available with `android-game-activity`");
+
 // Re-export all useful libraries:
 pub use {egui, egui::emath, egui::epaint};
 
