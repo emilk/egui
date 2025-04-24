@@ -282,10 +282,7 @@ impl<'a> Button<'a> {
 
             prepared.paint(ui)
         } else {
-            AtomicLayoutResponse {
-                response: prepared.response,
-                custom_rects: Default::default(),
-            }
+            AtomicLayoutResponse::empty(prepared.response)
         };
 
         response.response.widget_info(|| {

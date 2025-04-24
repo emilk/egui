@@ -1,11 +1,12 @@
+use crate::atomics::ATOMICS_SMALL_VEC_SIZE;
 use crate::{
     Atomic, AtomicKind, Atomics, FontSelection, Frame, Id, IntoAtomics, Response, Sense,
     SizedAtomic, SizedAtomicKind, Ui, Widget,
 };
-use ahash::{HashMap, HashMapExt};
 use emath::{Align2, NumExt, Rect, Vec2};
 use epaint::text::TextWrapMode;
 use epaint::Color32;
+use smallvec::SmallVec;
 
 /// Intra-widget layout utility.
 ///
@@ -193,7 +194,7 @@ impl<'a> AtomicLayout<'a> {
 
         let mut height: f32 = 0.0;
 
-        let mut sized_items = Vec::new();
+        let mut sized_items = SmallVec::new();
 
         let mut grow_count = 0;
 
@@ -298,7 +299,7 @@ impl<'a> AtomicLayout<'a> {
 /// Instructions for painting an [`AtomicLayout`].
 #[derive(Clone, Debug)]
 pub struct AllocatedAtomicLayout<'a> {
-    pub sized_atomics: Vec<SizedAtomic<'a>>,
+    pub sized_atomics: SmallVec<[SizedAtomic<'a>; ATOMICS_SMALL_VEC_SIZE]>,
     pub frame: Frame,
     pub fallback_text_color: Color32,
     pub response: Response,
@@ -339,10 +340,7 @@ impl<'a> AllocatedAtomicLayout<'a> {
 
         let mut cursor = aligned_rect.left();
 
-        let mut response = AtomicLayoutResponse {
-            response,
-            custom_rects: HashMap::new(),
-        };
+        let mut response = AtomicLayoutResponse::empty(response);
 
         for sized in sized_items {
             let size = sized.size;
@@ -364,7 +362,11 @@ impl<'a> AllocatedAtomicLayout<'a> {
                     image.paint_at(ui, rect);
                 }
                 SizedAtomicKind::Custom(id, _) => {
-                    response.custom_rects.insert(id, rect);
+                    debug_assert!(
+                        !response.custom_rects.iter().any(|(i, _)| *i == id),
+                        "Duplicate custom id"
+                    );
+                    response.custom_rects.push((id, rect));
                 }
                 SizedAtomicKind::Empty => {}
             }
@@ -382,7 +384,27 @@ impl<'a> AllocatedAtomicLayout<'a> {
 #[derive(Clone, Debug)]
 pub struct AtomicLayoutResponse {
     pub response: Response,
-    pub custom_rects: HashMap<Id, Rect>,
+    // There should rarely be more than one custom rect.
+    custom_rects: SmallVec<[(Id, Rect); 1]>,
+}
+
+impl AtomicLayoutResponse {
+    pub fn empty(response: Response) -> Self {
+        Self {
+            response,
+            custom_rects: SmallVec::new(),
+        }
+    }
+
+    pub fn custom_rects(&self) -> impl Iterator<Item = (Id, Rect)> + '_ {
+        self.custom_rects.iter().copied()
+    }
+
+    pub fn get_rect(&self, id: Id) -> Option<Rect> {
+        self.custom_rects
+            .iter()
+            .find_map(|(i, r)| if *i == id { Some(*r) } else { None })
+    }
 }
 
 impl Widget for AtomicLayout<'_> {

@@ -1,10 +1,19 @@
 use crate::{Atomic, AtomicKind};
+use smallvec::SmallVec;
+
+// Rarely there should be more than 2 atomics in one Widget.
+// I guess it could happen in a menu button with Image and right text...
+pub(crate) const ATOMICS_SMALL_VEC_SIZE: usize = 2;
 
 /// A list of [`Atomic`]s.
 #[derive(Clone, Debug, Default)]
-pub struct Atomics<'a>(Vec<Atomic<'a>>);
+pub struct Atomics<'a>(SmallVec<[Atomic<'a>; ATOMICS_SMALL_VEC_SIZE]>);
 
 impl<'a> Atomics<'a> {
+    pub fn new(content: impl IntoAtomics<'a>) -> Self {
+        content.into_atomics()
+    }
+
     /// Insert a new [`Atomic`] at the end of the list (right side).
     pub fn push(&mut self, atomic: impl Into<Atomic<'a>>) {
         self.0.push(atomic.into());
@@ -52,7 +61,7 @@ impl<'a> Atomics<'a> {
 
 impl<'a> IntoIterator for Atomics<'a> {
     type Item = Atomic<'a>;
-    type IntoIter = std::vec::IntoIter<Self::Item>;
+    type IntoIter = smallvec::IntoIter<[Atomic<'a>; ATOMICS_SMALL_VEC_SIZE]>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
@@ -85,7 +94,7 @@ pub trait IntoAtomics<'a> {
     where
         Self: Sized,
     {
-        let mut atomics = Atomics(Vec::new());
+        let mut atomics = Atomics::default();
         self.collect(&mut atomics);
         atomics
     }
