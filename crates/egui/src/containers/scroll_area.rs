@@ -218,7 +218,7 @@ impl BitOr for ScrollSource {
     }
 }
 
-#[allow(clippy::suspicious_arithmetic_impl)]
+#[expect(clippy::suspicious_arithmetic_impl)]
 impl Add for ScrollSource {
     type Output = Self;
 
