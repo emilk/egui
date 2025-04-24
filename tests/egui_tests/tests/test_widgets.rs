@@ -101,9 +101,10 @@ fn widget_tests() {
     ];
 
     for atomics in interesting_atomics {
-        test_widget_layout(&format!("atomics_{}", atomics.text().unwrap()), |ui| {
-            AtomicLayout::new(atomics.clone()).ui(ui)
-        });
+        results.add(test_widget_layout(
+            &format!("atomics_{}", atomics.text().unwrap()),
+            |ui| AtomicLayout::new(atomics.clone()).ui(ui),
+        ));
     }
 }
 

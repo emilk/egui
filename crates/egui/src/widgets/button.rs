@@ -26,7 +26,6 @@ use crate::{
 pub struct Button<'a> {
     atomics: Atomics<'a>,
     wrap_mode: Option<TextWrapMode>,
-    /// None means default for interact
     fill: Option<Color32>,
     stroke: Option<Stroke>,
     sense: Sense,

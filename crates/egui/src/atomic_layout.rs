@@ -61,12 +61,14 @@ impl<'a> AtomicLayout<'a> {
     }
 
     /// Insert a new [`Atomic`] at the end of the list (left side).
+    #[inline]
     pub fn push(mut self, atomic: impl Into<Atomic<'a>>) -> Self {
         self.atomics.push(atomic.into());
         self
     }
 
     /// Insert a new [`Atomic`] at the beginning of the list (right side).
+    #[inline]
     pub fn push_front(mut self, atomic: impl Into<Atomic<'a>>) -> Self {
         self.atomics.push_front(atomic.into());
         self
@@ -75,18 +77,21 @@ impl<'a> AtomicLayout<'a> {
     /// Set the gap between atomics.
     ///
     /// Default: `Spacing::icon_spacing`
+    #[inline]
     pub fn gap(mut self, gap: f32) -> Self {
         self.gap = Some(gap);
         self
     }
 
     /// Set the [`Frame`].
+    #[inline]
     pub fn frame(mut self, frame: Frame) -> Self {
         self.frame = frame;
         self
     }
 
     /// Set the [`Sense`] used when allocating the [`Response`].
+    #[inline]
     pub fn sense(mut self, sense: Sense) -> Self {
         self.sense = sense;
         self
@@ -95,18 +100,21 @@ impl<'a> AtomicLayout<'a> {
     /// Set the fallback (default) text color.
     ///
     /// Default: [`crate::Visuals::text_color`]
+    #[inline]
     pub fn fallback_text_color(mut self, color: Color32) -> Self {
         self.fallback_text_color = Some(color);
         self
     }
 
     /// Set the minimum size of the Widget.
+    #[inline]
     pub fn min_size(mut self, size: Vec2) -> Self {
         self.min_size = size;
         self
     }
 
     /// Set the [`Id`] used to allocate a [`Response`].
+    #[inline]
     pub fn id(mut self, id: Id) -> Self {
         self.id = Some(id);
         self
@@ -117,6 +125,7 @@ impl<'a> AtomicLayout<'a> {
     /// Only a single [`Atomic`] may shrink. If this (or `ui.wrap_mode()`) is not
     /// [`TextWrapMode::Extend`] and no item is set to shrink, the first (right-most)
     /// [`AtomicKind::Text`] will be set to shrink.
+    #[inline]
     pub fn wrap_mode(mut self, wrap_mode: TextWrapMode) -> Self {
         self.wrap_mode = Some(wrap_mode);
         self
@@ -127,6 +136,7 @@ impl<'a> AtomicLayout<'a> {
     /// The default is chosen based on the [`Ui`]s [`crate::Layout`]. See
     /// [this snapshot](https://github.com/emilk/egui/blob/master/tests/egui_tests/tests/snapshots/layout/button.png)
     /// for info on how the [`Layout`] affects the alignment.
+    #[inline]
     pub fn align2(mut self, align2: Align2) -> Self {
         self.align2 = Some(align2);
         self
@@ -443,7 +453,7 @@ impl<'a> AtomicKind<'a> {
             AtomicKind::Text(text) => {
                 let galley = text.into_galley(ui, wrap_mode, available_size.x, TextStyle::Button);
                 (
-                    galley.size(), // TODO
+                    galley.size(), // TODO(lucasmerlin): calculate the preferred size
                     SizedAtomicKind::Text(galley),
                 )
             }
