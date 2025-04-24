@@ -1,6 +1,6 @@
 ## Parley:
-- [ ] Text wrap styling (https://github.com/linebender/parley/pull/315)
-- [ ] Text truncation with ellipsis
+- [x] Text wrap styling (https://github.com/linebender/parley/pull/315)
+- [x] Text truncation with ellipsis
 - [ ] serde support for some types (the selection ones at least)
 - [ ] Vertical alignment options, especially for InlineBox (https://github.com/linebender/parley/issues/291)
 - [ ] Ability to set line.offset (necessary for LayoutSection::leading_space)
@@ -9,7 +9,7 @@
 - [x] Custom family names (https://github.com/linebender/parley/issues/117)
 - [x] Inline box fix (https://github.com/linebender/parley/pull/299)
 - [x] Don't round vertical metrics (https://github.com/linebender/parley/pull/297)
-- [ ] RTL jank (https://github.com/linebender/parley/issues/298)
+- [x] RTL jank (https://github.com/linebender/parley/issues/298)
 - [ ] Support the tab character (https://github.com/linebender/parley/issues/302)
 - [ ] AccessKit improvements (https://github.com/linebender/parley/issues/310)
 - [ ] Not Parley, but Swash: tighter glyph bounds (https://github.com/dfrg/zeno/pull/15)
@@ -111,6 +111,8 @@
     - [ ] FontStore and Fonts are different and we should just expose them separately instead of passing through all the FontStore methods onto Fonts
   - [ ] Work around https://github.com/jslegers/emoji-icon-font/issues/18 / https://github.com/emilk/egui/issues/1284
   - [ ] Ship a newer revision of the Ubuntu font? The hinting on the current one is kinda distracting
+  - [ ] https://github.com/emilk/egui/pull/5979/files great, now we have two different implementations of system font scanning
+    - https://github.com/linebender/resvg/issues/862
 - [x] Cross-cutting concerns
   - [x] Actually remove all the ab_glyph stuff
     - Sayonara, ab_glyph 🫡
