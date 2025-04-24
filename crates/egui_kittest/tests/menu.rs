@@ -1,7 +1,7 @@
 use egui::containers::menu::{Bar, MenuConfig, SubMenuButton};
 use egui::{include_image, PopupCloseBehavior, Ui};
 use egui_kittest::{Harness, SnapshotResults};
-use kittest::Queryable;
+use kittest::Queryable as _;
 
 struct TestMenu {
     config: MenuConfig,

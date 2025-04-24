@@ -1,8 +1,7 @@
 use crate::{
-    epaint, AtomicKind, AtomicLayout, Atomics, Id, IntoAtomics, Response, Sense, Ui, Widget,
-    WidgetInfo, WidgetType,
+    epaint, AtomicKind, AtomicLayout, Atomics, Id, IntoAtomics, NumExt as _, Response, Sense, Ui,
+    Vec2, Widget, WidgetInfo, WidgetType,
 };
-use emath::{NumExt, Vec2};
 
 /// One out of several alternatives, either selected or not.
 ///

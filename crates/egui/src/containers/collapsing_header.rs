@@ -1,7 +1,7 @@
 use std::hash::Hash;
 
 use crate::{
-    emath, epaint, pos2, remap, remap_clamp, vec2, Context, Id, InnerResponse, NumExt, Rect,
+    emath, epaint, pos2, remap, remap_clamp, vec2, Context, Id, InnerResponse, NumExt as _, Rect,
     Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, UiBuilder, UiKind, UiStackInfo, Vec2,
     WidgetInfo, WidgetText, WidgetType,
 };

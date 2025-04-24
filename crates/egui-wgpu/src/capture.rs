@@ -4,6 +4,7 @@ use std::sync::{mpsc, Arc};
 use wgpu::{BindGroupLayout, MultisampleState, StoreOp};
 
 /// A texture and a buffer for reading the rendered frame back to the cpu.
+///
 /// The texture is required since [`wgpu::TextureUsages::COPY_SRC`] is not an allowed
 /// flag for the surface texture on all platforms. This means that anytime we want to
 /// capture the frame, we first render it to this texture, and then we can copy it to
@@ -125,7 +126,7 @@ impl CaptureState {
         // It would be more efficient to reuse the Buffer, e.g. via some kind of ring buffer, but
         // for most screenshot use cases this should be fine. When taking many screenshots (e.g. for a video)
         // it might make sense to revisit this and implement a more efficient solution.
-        #[allow(clippy::arc_with_non_send_sync)]
+        #[allow(clippy::arc_with_non_send_sync, clippy::allow_attributes)] // For wasm
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("egui_screen_capture_buffer"),
             size: (self.padding.padded_bytes_per_row * self.texture.height()) as u64,
@@ -184,7 +185,7 @@ impl CaptureState {
         tx: CaptureSender,
         viewport_id: ViewportId,
     ) {
-        #[allow(clippy::arc_with_non_send_sync)]
+        #[allow(clippy::arc_with_non_send_sync, clippy::allow_attributes)] // For wasm
         let buffer = Arc::new(buffer);
         let buffer_clone = buffer.clone();
         let buffer_slice = buffer_clone.slice(..);

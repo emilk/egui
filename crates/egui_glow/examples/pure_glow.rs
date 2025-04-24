@@ -9,7 +9,7 @@ use std::num::NonZeroU32;
 use std::sync::Arc;
 
 use egui_winit::winit;
-use winit::raw_window_handle::HasWindowHandle;
+use winit::raw_window_handle::HasWindowHandle as _;
 
 /// The majority of `GlutinWindowContext` is taken from `eframe`
 struct GlutinWindowContext {
@@ -22,12 +22,12 @@ struct GlutinWindowContext {
 impl GlutinWindowContext {
     // refactor this function to use `glutin-winit` crate eventually.
     // preferably add android support at the same time.
-    #[allow(unsafe_code)]
+    #[expect(unsafe_code)]
     unsafe fn new(event_loop: &winit::event_loop::ActiveEventLoop) -> Self {
-        use glutin::context::NotCurrentGlContext;
-        use glutin::display::GetGlDisplay;
-        use glutin::display::GlDisplay;
-        use glutin::prelude::GlSurface;
+        use glutin::context::NotCurrentGlContext as _;
+        use glutin::display::GetGlDisplay as _;
+        use glutin::display::GlDisplay as _;
+        use glutin::prelude::GlSurface as _;
         let winit_window_builder = winit::window::WindowAttributes::default()
             .with_resizable(true)
             .with_inner_size(winit::dpi::LogicalSize {
@@ -138,7 +138,7 @@ impl GlutinWindowContext {
     }
 
     fn resize(&self, physical_size: winit::dpi::PhysicalSize<u32>) {
-        use glutin::surface::GlSurface;
+        use glutin::surface::GlSurface as _;
         self.gl_surface.resize(
             &self.gl_context,
             physical_size.width.try_into().unwrap(),
@@ -147,12 +147,12 @@ impl GlutinWindowContext {
     }
 
     fn swap_buffers(&self) -> glutin::error::Result<()> {
-        use glutin::surface::GlSurface;
+        use glutin::surface::GlSurface as _;
         self.gl_surface.swap_buffers(&self.gl_context)
     }
 
     fn get_proc_address(&self, addr: &std::ffi::CStr) -> *const std::ffi::c_void {
-        use glutin::display::GlDisplay;
+        use glutin::display::GlDisplay as _;
         self.gl_display.get_proc_address(addr)
     }
 }

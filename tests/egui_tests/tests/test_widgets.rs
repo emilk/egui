@@ -2,9 +2,9 @@ use egui::load::SizedTexture;
 use egui::{
     include_image, Align, AtomicExt, AtomicLayout, Button, Color32, ColorImage, Direction,
     DragValue, Event, Grid, Image, IntoAtomics, Layout, PointerButton, Pos2, Response, Slider,
-    Stroke, StrokeKind, TextWrapMode, TextureHandle, TextureOptions, Ui, UiBuilder, Vec2, Widget,
+    Stroke, StrokeKind, TextWrapMode, TextureHandle, TextureOptions, Ui, UiBuilder, Vec2, Widget as _,
 };
-use egui_kittest::kittest::{by, Node, Queryable};
+use egui_kittest::kittest::{by, Node, Queryable as _};
 use egui_kittest::{Harness, SnapshotResult, SnapshotResults};
 
 #[test]

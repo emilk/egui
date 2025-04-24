@@ -163,7 +163,6 @@ impl<T: WinitApp> WinitAppWrapper<T> {
 
                 log::debug!("Exiting with return code 0");
 
-                #[allow(clippy::exit)]
                 std::process::exit(0);
             }
         }
@@ -317,7 +316,7 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
 
 #[cfg(not(target_os = "ios"))]
 fn run_and_return(event_loop: &mut EventLoop<UserEvent>, winit_app: impl WinitApp) -> Result {
-    use winit::platform::run_on_demand::EventLoopExtRunOnDemand;
+    use winit::platform::run_on_demand::EventLoopExtRunOnDemand as _;
 
     log::trace!("Entering the winit event loop (run_app_on_demand)…");
 

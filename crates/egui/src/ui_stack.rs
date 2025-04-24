@@ -258,7 +258,7 @@ impl UiStack {
 // these methods act on the entire stack
 impl UiStack {
     /// Return an iterator that walks the stack from this node to the root.
-    #[allow(clippy::iter_without_into_iter)]
+    #[expect(clippy::iter_without_into_iter)]
     pub fn iter(&self) -> UiStackIterator<'_> {
         UiStackIterator { next: Some(self) }
     }

@@ -8,7 +8,6 @@
 /// ``` ignore
 /// password_ui(ui, &mut my_password);
 /// ```
-#[allow(clippy::ptr_arg)] // false positive
 pub fn password_ui(ui: &mut egui::Ui, password: &mut String) -> egui::Response {
     // This widget has its own state — show or hide password characters (`show_plaintext`).
     // In this case we use a simple `bool`, but you can also declare your own type.

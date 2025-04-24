@@ -339,6 +339,7 @@ pub fn image_snapshot_options(current: &image::RgbaImage, name: &str, options: &
 }
 
 /// Image snapshot test.
+///
 /// The snapshot will be saved under `tests/snapshots/{name}.png`.
 /// The new image from the last test run will be saved under `tests/snapshots/{name}.new.png`.
 /// If the new image didn't match the snapshot, a diff image will be saved under `tests/snapshots/{name}.diff.png`.
@@ -451,7 +452,7 @@ impl<State> Harness<'_, State> {
 
 // Deprecated wgpu_snapshot functions
 // TODO(lucasmerlin): Remove in 0.32
-#[allow(clippy::missing_errors_doc)]
+#[expect(clippy::missing_errors_doc)]
 #[cfg(feature = "wgpu")]
 impl<State> Harness<'_, State> {
     #[deprecated(
@@ -552,7 +553,7 @@ impl SnapshotResults {
     }
 
     /// Convert this into a `Result<(), Self>`.
-    #[allow(clippy::missing_errors_doc)]
+    #[expect(clippy::missing_errors_doc)]
     pub fn into_result(self) -> Result<(), Self> {
         if self.has_errors() {
             Err(self)
@@ -566,7 +567,7 @@ impl SnapshotResults {
     }
 
     /// Panics if there are any errors, displaying each.
-    #[allow(clippy::unused_self)]
+    #[expect(clippy::unused_self)]
     #[track_caller]
     pub fn unwrap(self) {
         // Panic is handled in drop
@@ -586,7 +587,7 @@ impl Drop for SnapshotResults {
         if std::thread::panicking() {
             return;
         }
-        #[allow(clippy::manual_assert)]
+        #[expect(clippy::manual_assert)]
         if self.has_errors() {
             panic!("{}", self);
         }

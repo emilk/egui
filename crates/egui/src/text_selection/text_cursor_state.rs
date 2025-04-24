@@ -1,9 +1,9 @@
 //! Text cursor changes/interaction, without modifying the text.
 
 use epaint::text::{cursor::CCursor, Galley};
-use unicode_segmentation::UnicodeSegmentation;
+use unicode_segmentation::UnicodeSegmentation as _;
 
-use crate::{epaint, NumExt, Rect, Response, Ui};
+use crate::{epaint, NumExt as _, Rect, Response, Ui};
 
 use super::CCursorRange;
 

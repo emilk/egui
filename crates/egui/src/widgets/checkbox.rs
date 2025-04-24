@@ -1,9 +1,8 @@
 use crate::AtomicKind::Custom;
 use crate::{
-    epaint, pos2, AtomicLayout, Atomics, Id, IntoAtomics, Response, Sense, Shape, Ui, Vec2, Widget,
+    epaint, pos2, AtomicLayout, Atomics, Id, IntoAtomics, NumExt as _, Response, Sense, Shape, Ui, Vec2, Widget,
     WidgetInfo, WidgetType,
 };
-use emath::NumExt;
 
 // TODO(emilk): allow checkbox without a text label
 /// Boolean on/off control with text label.

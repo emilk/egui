@@ -4,7 +4,7 @@ use super::{
     button_from_mouse_event, location_hash, modifiers_from_kb_event, modifiers_from_mouse_event,
     modifiers_from_wheel_event, native_pixels_per_point, pos_from_mouse_event,
     prefers_color_scheme_dark, primary_touch_pos, push_touches, text_from_keyboard_event,
-    theme_from_dark_mode, translate_key, AppRunner, Closure, JsCast, JsValue, WebRunner,
+    theme_from_dark_mode, translate_key, AppRunner, Closure, JsCast as _, JsValue, WebRunner,
     DEBUG_RESIZE,
 };
 
@@ -163,7 +163,7 @@ fn install_keydown(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), J
     )
 }
 
-#[allow(clippy::needless_pass_by_value)] // So that we can pass it directly to `add_event_listener`
+#[expect(clippy::needless_pass_by_value)] // So that we can pass it directly to `add_event_listener`
 pub(crate) fn on_keydown(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
     let has_focus = runner.input.raw.focused;
     if !has_focus {
@@ -261,7 +261,7 @@ fn install_keyup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsV
     runner_ref.add_event_listener(target, "keyup", on_keyup)
 }
 
-#[allow(clippy::needless_pass_by_value)] // So that we can pass it directly to `add_event_listener`
+#[expect(clippy::needless_pass_by_value)] // So that we can pass it directly to `add_event_listener`
 pub(crate) fn on_keyup(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
     let modifiers = modifiers_from_kb_event(&event);
     runner.input.raw.modifiers = modifiers;
