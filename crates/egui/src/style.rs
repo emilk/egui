@@ -1514,7 +1514,7 @@ impl Widgets {
             inactive: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(230), // button background
                 bg_fill: Color32::from_gray(230),      // checkbox background
-                bg_stroke: Stroke::new(1.0, Color32::default()),
+                bg_stroke: Default::default(),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(60)), // button text
                 corner_radius: CornerRadius::same(2),
                 expansion: 0.0,
