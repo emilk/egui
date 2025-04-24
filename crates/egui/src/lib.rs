@@ -442,6 +442,7 @@ pub mod widget_text;
 pub mod widgets;
 
 mod atomic_layout;
+mod atomics;
 #[cfg(feature = "callstack")]
 #[cfg(debug_assertions)]
 mod callstack;
@@ -480,7 +481,7 @@ pub mod text {
 }
 
 pub use self::{
-    atomic_layout::*,
+    atomics::*,
     containers::*,
     context::{Context, RepaintCause, RequestRepaintInfo},
     data::{
