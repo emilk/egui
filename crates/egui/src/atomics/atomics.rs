@@ -1,5 +1,6 @@
 use crate::{Atomic, AtomicKind};
 use smallvec::SmallVec;
+use std::ops::{Deref, DerefMut};
 
 // Rarely there should be more than 2 atomics in one Widget.
 // I guess it could happen in a menu button with Image and right text...
@@ -15,29 +16,13 @@ impl<'a> Atomics<'a> {
     }
 
     /// Insert a new [`Atomic`] at the end of the list (right side).
-    pub fn push(&mut self, atomic: impl Into<Atomic<'a>>) {
+    pub fn push_left(&mut self, atomic: impl Into<Atomic<'a>>) {
         self.0.push(atomic.into());
     }
 
     /// Insert a new [`Atomic`] at the beginning of the list (left side).
-    pub fn push_front(&mut self, atomic: impl Into<Atomic<'a>>) {
+    pub fn push_right(&mut self, atomic: impl Into<Atomic<'a>>) {
         self.0.insert(0, atomic.into());
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = &Atomic<'a>> {
-        self.0.iter()
-    }
-
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Atomic<'a>> {
-        self.0.iter_mut()
     }
 
     /// Concatenate and return the text contents.
@@ -83,7 +68,7 @@ where
     T: Into<Atomic<'a>>,
 {
     fn collect(self, atomics: &mut Atomics<'a>) {
-        atomics.push(self);
+        atomics.push_left(self);
     }
 }
 
@@ -127,3 +112,17 @@ all_the_atomics!(T0, T1, T2);
 all_the_atomics!(T0, T1, T2, T3);
 all_the_atomics!(T0, T1, T2, T3, T4);
 all_the_atomics!(T0, T1, T2, T3, T4, T5);
+
+impl<'a> Deref for Atomics<'a> {
+    type Target = [Atomic<'a>];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<'a> DerefMut for Atomics<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}

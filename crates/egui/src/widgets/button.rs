@@ -1,7 +1,7 @@
 use crate::{
     Atomic, AtomicKind, AtomicLayout, AtomicLayoutResponse, Atomics, Color32, CornerRadius, Frame,
-    Image, IntoAtomics, NumExt as _, Response, Sense, SizedAtomicKind, Stroke, TextWrapMode, Ui, Vec2,
-    Widget, WidgetInfo, WidgetText, WidgetType,
+    Image, IntoAtomics, NumExt as _, Response, Sense, SizedAtomicKind, Stroke, TextWrapMode, Ui,
+    Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
 };
 
 /// Clickable button with text.
@@ -67,10 +67,10 @@ impl<'a> Button<'a> {
     pub fn opt_image_and_text(image: Option<Image<'a>>, text: Option<WidgetText>) -> Self {
         let mut button = Self::new(());
         if let Some(image) = image {
-            button.atomics.push(image);
+            button.atomics.push_left(image);
         }
         if let Some(text) = text {
-            button.atomics.push(text);
+            button.atomics.push_left(text);
         }
         button
     }
@@ -186,16 +186,16 @@ impl<'a> Button<'a> {
             AtomicKind::Text(text) => AtomicKind::Text(text.weak()),
             other => other,
         };
-        self.atomics.push(Atomic::grow());
-        self.atomics.push(atomic);
+        self.atomics.push_left(Atomic::grow());
+        self.atomics.push_left(atomic);
         self
     }
 
     /// Show some text on the right side of the button.
     #[inline]
     pub fn right_text(mut self, right_text: impl Into<Atomic<'a>>) -> Self {
-        self.atomics.push(Atomic::grow());
-        self.atomics.push(right_text.into());
+        self.atomics.push_left(Atomic::grow());
+        self.atomics.push_left(right_text.into());
         self
     }
 

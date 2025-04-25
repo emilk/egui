@@ -1,16 +1,17 @@
 use crate::atomics::ATOMICS_SMALL_VEC_SIZE;
 use crate::{
-    Atomic, AtomicKind, Atomics, FontSelection, Frame, Id, IntoAtomics, Response, Sense,
-    SizedAtomic, SizedAtomicKind, Ui, Widget,
+    AtomicKind, Atomics, FontSelection, Frame, Id, IntoAtomics, Response, Sense, SizedAtomic,
+    SizedAtomicKind, Ui, Widget,
 };
 use emath::{Align2, NumExt, Rect, Vec2};
 use epaint::text::TextWrapMode;
 use epaint::Color32;
 use smallvec::SmallVec;
+use std::ops::{Deref, DerefMut};
 
 /// Intra-widget layout utility.
 ///
-/// Used to lay out and paint [`Atomic`]s.
+/// Used to lay out and paint [`crate::Atomic`]s.
 /// This is used internally by widgets like [`crate::Button`] and [`crate::Checkbox`].
 /// You can use it to make your own widgets.
 ///
@@ -58,20 +59,6 @@ impl<'a> AtomicLayout<'a> {
             wrap_mode: None,
             align2: None,
         }
-    }
-
-    /// Insert a new [`Atomic`] at the end of the list (right side).
-    #[inline]
-    pub fn push(mut self, atomic: impl Into<Atomic<'a>>) -> Self {
-        self.atomics.push(atomic.into());
-        self
-    }
-
-    /// Insert a new [`Atomic`] at the beginning of the list (left side).
-    #[inline]
-    pub fn push_front(mut self, atomic: impl Into<Atomic<'a>>) -> Self {
-        self.atomics.push_front(atomic.into());
-        self
     }
 
     /// Set the gap between atomics.
@@ -410,5 +397,32 @@ impl AtomicLayoutResponse {
 impl Widget for AtomicLayout<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         self.show(ui).response
+    }
+}
+
+impl<'a> Deref for AtomicLayout<'a> {
+    type Target = Atomics<'a>;
+    fn deref(&self) -> &Self::Target {
+        &self.atomics
+    }
+}
+
+impl<'a> DerefMut for AtomicLayout<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.atomics
+    }
+}
+
+impl<'a> Deref for AllocatedAtomicLayout<'a> {
+    type Target = [SizedAtomic<'a>];
+
+    fn deref(&self) -> &Self::Target {
+        &self.sized_atomics
+    }
+}
+
+impl<'a> DerefMut for AllocatedAtomicLayout<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.sized_atomics
     }
 }
