@@ -9,7 +9,7 @@ use epaint::Fonts;
 /// You can directly call the `a_*` methods on anything that implements `Into<Atomic>`.
 /// ```
 /// # use egui::{Image, emath::Vec2};
-/// use egui::AtomicExt;
+/// use egui::AtomicExt as _;
 /// let string_atomic = "Hello".a_grow(true);
 /// let image_atomic = Image::new("some_image_url").a_size(Vec2::splat(20.0));
 /// ```

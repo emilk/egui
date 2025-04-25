@@ -441,7 +441,6 @@ mod widget_rect;
 pub mod widget_text;
 pub mod widgets;
 
-mod atomic_layout;
 mod atomics;
 #[cfg(feature = "callstack")]
 #[cfg(debug_assertions)]
