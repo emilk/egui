@@ -1052,18 +1052,17 @@ impl Visuals {
         self.window_stroke
     }
 
-    /// When fading out things, we fade the colors towards this.
-    // TODO(emilk): replace with an alpha
+    /// When fading out things, we multiply the opacity by this.
     #[inline(always)]
-    pub fn fade_out_to_color(&self) -> Color32 {
-        self.widgets.noninteractive.weak_bg_fill
+    pub fn fade_out_opacity(&self) -> f32 {
+        0.5
     }
 
     /// Returned a "grayed out" version of the given color.
     #[doc(alias = "grey_out")]
     #[inline(always)]
     pub fn gray_out(&self, color: Color32) -> Color32 {
-        crate::ecolor::tint_color_towards(color, self.fade_out_to_color())
+        color.gamma_multiply(self.fade_out_opacity())
     }
 }
 
