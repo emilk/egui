@@ -26,4 +26,7 @@ cargo bench -p egui_demo_lib "benchmark name"
 
 # Profile benchmarks with cargo-flamegraph (--root flag is necessary for MacOS)
 CARGO_PROFILE_BENCH_DEBUG=true cargo flamegraph --bench benchmark --root -p egui_demo_lib  -- --bench "benchmark name"
+
+# Profile with cargo-instruments
+CARGO_PROFILE_BENCH_DEBUG=true cargo instruments --profile bench --bench benchmark -p egui_demo_lib -t time -- --bench "benchmark name" 
 ```
