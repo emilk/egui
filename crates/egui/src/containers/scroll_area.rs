@@ -22,6 +22,9 @@ pub struct State {
     /// If set, quickly but smoothly scroll to this target offset.
     offset_target: [Option<ScrollingToTarget>; 2],
 
+    /// The offset value when the `offset_target` is set.
+    offset_target_start: [Option<f32>; 2],
+
     /// Were the scroll bars visible last frame?
     show_scroll: Vec2b,
 
@@ -52,6 +55,7 @@ impl Default for State {
         Self {
             offset: Vec2::ZERO,
             offset_target: Default::default(),
+            offset_target_start: Default::default(),
             show_scroll: Vec2b::FALSE,
             content_is_too_large: Vec2b::FALSE,
             scroll_bar_interaction: Vec2b::FALSE,
@@ -839,15 +843,7 @@ impl Prepared {
 
         let content_size = content_ui.min_size();
 
-        let scroll_delta = content_ui
-            .ctx()
-            .pass_state_mut(|state| std::mem::take(&mut state.scroll_delta));
-
         for d in 0..2 {
-            // PassState::scroll_delta is inverted from the way we apply the delta, so we need to negate it.
-            let mut delta = -scroll_delta.0[d];
-            let mut animation = scroll_delta.1;
-
             // We always take both scroll targets regardless of which scroll axes are enabled. This
             // is to avoid them leaking to other scroll areas.
             let scroll_target = content_ui
@@ -855,6 +851,17 @@ impl Prepared {
                 .pass_state_mut(|state| state.scroll_target[d].take());
 
             if scroll_enabled[d] {
+                let (scroll_delta_0, scroll_delta_1) = content_ui.ctx().pass_state_mut(|state| {
+                    (
+                        std::mem::take(&mut state.scroll_delta.0[d]),
+                        std::mem::take(&mut state.scroll_delta.1),
+                    )
+                });
+
+                // PassState::scroll_delta is inverted from the way we apply the delta, so we need to negate it.
+                let mut delta = -scroll_delta_0;
+                let mut animation = scroll_delta_1;
+
                 if let Some(target) = scroll_target {
                     let pass_state::ScrollTarget {
                         range,
@@ -897,10 +904,14 @@ impl Prepared {
 
                     if !animated {
                         state.offset[d] = target_offset;
-                    } else if let Some(animation) = &mut state.offset_target[d] {
+                    } else if let Some(scroll_to_target) = &mut state.offset_target[d] {
                         // For instance: the user is continuously calling `ui.scroll_to_cursor`,
                         // so we don't want to reset the animation, but perhaps update the target:
-                        animation.target_offset = target_offset;
+                        if let Some(offset_target_start) = state.offset_target_start[d].take() {
+                            let new_target_offset = offset_target_start + delta;
+                            scroll_to_target.target_offset +=
+                                scroll_to_target.target_offset - new_target_offset;
+                        }
                     } else {
                         // The further we scroll, the more time we take.
                         let now = ui.input(|i| i.time);
@@ -910,6 +921,7 @@ impl Prepared {
                             animation_time_span: (now, now + animation_duration as f64),
                             target_offset,
                         });
+                        state.offset_target_start[d] = Some(state.offset[d]);
                     }
                     ui.ctx().request_repaint();
                 }
