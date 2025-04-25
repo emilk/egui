@@ -10,8 +10,8 @@ use epaint::Fonts;
 /// ```
 /// # use egui::{Image, emath::Vec2};
 /// use egui::AtomicExt as _;
-/// let string_atomic = "Hello".a_grow(true);
-/// let image_atomic = Image::new("some_image_url").a_size(Vec2::splat(20.0));
+/// let string_atomic = "Hello".atom_grow(true);
+/// let image_atomic = Image::new("some_image_url").atom_size(Vec2::splat(20.0));
 /// ```
 #[derive(Clone, Debug)]
 pub struct Atomic<'a> {
@@ -69,35 +69,34 @@ impl<'a> Atomic<'a> {
 /// A trait for conveniently building [`Atomic`]s.
 pub trait AtomicExt<'a> {
     /// Set the atomic to a fixed size.
-    fn a_size(self, size: Vec2) -> Atomic<'a>;
+    fn atom_size(self, size: Vec2) -> Atomic<'a>;
 
     /// Grow this atomic to the available space.
-    fn a_grow(self, grow: bool) -> Atomic<'a>;
+    fn atom_grow(self, grow: bool) -> Atomic<'a>;
 
     /// Shrink this atomic if there isn't enough space.
     ///
     /// NOTE: Only a single [`Atomic`] may shrink for each widget.
-    fn a_shrink(self, shrink: bool) -> Atomic<'a>;
+    fn atom_shrink(self, shrink: bool) -> Atomic<'a>;
 }
 
 impl<'a, T> AtomicExt<'a> for T
 where
     T: Into<Atomic<'a>> + Sized,
 {
-    fn a_size(self, size: Vec2) -> Atomic<'a> {
+    fn atom_size(self, size: Vec2) -> Atomic<'a> {
         let mut atomic = self.into();
         atomic.size = Some(size);
         atomic
     }
 
-    fn a_grow(self, grow: bool) -> Atomic<'a> {
+    fn atom_grow(self, grow: bool) -> Atomic<'a> {
         let mut atomic = self.into();
         atomic.grow = grow;
         atomic
     }
 
-    /// NOTE: Only a single atomic may be marked as shrink
-    fn a_shrink(self, shrink: bool) -> Atomic<'a> {
+    fn atom_shrink(self, shrink: bool) -> Atomic<'a> {
         let mut atomic = self.into();
         atomic.shrink = shrink;
         atomic

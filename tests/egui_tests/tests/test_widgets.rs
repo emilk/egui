@@ -2,7 +2,8 @@ use egui::load::SizedTexture;
 use egui::{
     include_image, Align, AtomicExt, AtomicLayout, Button, Color32, ColorImage, Direction,
     DragValue, Event, Grid, Image, IntoAtomics, Layout, PointerButton, Pos2, Response, Slider,
-    Stroke, StrokeKind, TextWrapMode, TextureHandle, TextureOptions, Ui, UiBuilder, Vec2, Widget as _,
+    Stroke, StrokeKind, TextWrapMode, TextureHandle, TextureOptions, Ui, UiBuilder, Vec2,
+    Widget as _,
 };
 use egui_kittest::kittest::{by, Node, Queryable as _};
 use egui_kittest::{Harness, SnapshotResult, SnapshotResults};
@@ -102,7 +103,7 @@ fn widget_tests() {
         ),
         (
             "multi_grow",
-            ("g".a_grow(true), "2", "g".a_grow(true), "4").into_atomics(),
+            ("g".atom_grow(true), "2", "g".atom_grow(true), "4").into_atomics(),
         ),
     ];
 
