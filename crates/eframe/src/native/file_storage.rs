@@ -207,7 +207,8 @@ fn save_to_disk(file_path: &PathBuf, kv: &HashMap<String, String>) {
             let config = Default::default();
 
             profiling::scope!("ron::serialize");
-            if let Err(err) = ron::ser::to_writer_pretty(&mut writer, &kv, config)
+            if let Err(err) = ron::Options::default()
+                .to_io_writer_pretty(&mut writer, &kv, config)
                 .and_then(|_| writer.flush().map_err(|err| err.into()))
             {
                 log::warn!("Failed to serialize app state: {}", err);
