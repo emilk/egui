@@ -176,6 +176,15 @@ impl Default for WgpuSetupCreateNew {
                     wgpu::Limits::default()
                 };
 
+                let mut _trace = wgpu::Trace::Off;
+                #[cfg(feature = "wgpu-trace")]
+                if let Some(path) = std::env::var("WGPU_TRACE")
+                    .ok()
+                    .map(std::path::PathBuf::from)
+                {
+                    _trace = wgpu::Trace::Directory(path);
+                }
+
                 wgpu::DeviceDescriptor {
                     label: Some("egui wgpu device"),
                     required_features: wgpu::Features::default(),
@@ -186,7 +195,7 @@ impl Default for WgpuSetupCreateNew {
                         ..base_limits
                     },
                     memory_hints: wgpu::MemoryHints::default(),
-                    trace: wgpu::Trace::Off,
+                    trace: _trace,
                 }
             }),
         }
