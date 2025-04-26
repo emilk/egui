@@ -399,13 +399,13 @@ pub struct Spacing {
     /// Horizontal and vertical margins within a menu frame.
     pub menu_margin: Margin,
 
-    /// Horizontal and vertical margins within a SidePanel or TopBottomPanel
+    /// Horizontal and vertical margins within a `SidePanel` or `TopBottomPanel`
     pub side_top_panel_margin: Margin,
 
-    /// Horizontal and vertical margins within a CentralPanel
+    /// Horizontal and vertical margins within a `CentralPanel`
     pub central_panel_margin: Margin,
 
-    /// Horizontal and vertical margins within a canvas frame
+    /// Horizontal and vertical margins within a canvas `Frame`
     pub canvas_margin: Margin,
 
     /// Indent collapsing regions etc by this much.

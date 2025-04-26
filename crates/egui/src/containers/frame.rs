@@ -193,7 +193,9 @@ impl Frame {
     }
 
     pub fn central_panel(style: &Style) -> Self {
-        Self::new().inner_margin(style.spacing.central_panel_margin).fill(style.visuals.panel_fill)
+        Self::new()
+            .inner_margin(style.spacing.central_panel_margin)
+            .fill(style.visuals.panel_fill)
     }
 
     pub fn window(style: &Style) -> Self {

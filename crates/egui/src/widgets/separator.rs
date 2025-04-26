@@ -13,7 +13,7 @@ use crate::{vec2, Response, Sense, Ui, Vec2, Widget};
 /// ```
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct Separator {
-    /// None if inheriting from Spacing::item_spacing()
+    /// None if inheriting from `Spacing::item_spacing()` (the default)
     spacing: Option<f32>,
     grow: f32,
     is_horizontal_line: Option<bool>,
