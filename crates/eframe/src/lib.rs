@@ -184,7 +184,11 @@ mod native;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu"))]
-pub use native::run::{EframePumpStatus, EframeWinitApplication};
+pub use native::run::EframeWinitApplication;
+
+#[cfg(not(any(target_arch = "wasm32", target_os = "ios")))]
+#[cfg(any(feature = "glow", feature = "wgpu"))]
+pub use native::run::EframePumpStatus;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu"))]
@@ -263,7 +267,51 @@ pub fn run_native(
     }
 }
 
-/// TODO(wpbrown): docs
+/// Provides a proxy for your native eframe application to run on your own event loop.
+///
+/// See `run_native` for details about `app_name`.
+///
+/// Call from `fn main` like this:
+/// ``` no_run
+/// use eframe::{egui, UserEvent};
+/// use winit::event_loop::{ControlFlow, EventLoop};
+///
+/// fn main() -> eframe::Result {
+///     let native_options = eframe::NativeOptions::default();
+///     let eventloop = EventLoop::<UserEvent>::with_user_event().build()?;
+///     eventloop.set_control_flow(ControlFlow::Poll);
+///
+///     let mut winit_app = eframe::create_native(
+///         "MyExtApp",
+///         native_options,
+///         Box::new(|cc| Ok(Box::new(MyEguiApp::new(cc)))),
+///         &eventloop,
+///     );
+///
+///     eventloop.run_app(&mut winit_app)?;
+///
+///     Ok(())
+/// }
+///
+/// #[derive(Default)]
+/// struct MyEguiApp {}
+///
+/// impl MyEguiApp {
+///     fn new(cc: &eframe::CreationContext<'_>) -> Self {
+///         Self::default()
+///     }
+/// }
+///
+/// impl eframe::App for MyEguiApp {
+///    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+///        egui::CentralPanel::default().show(ctx, |ui| {
+///            ui.heading("Hello World!");
+///        });
+///    }
+/// }
+/// ```
+///
+/// See the `external_eventloop` example for a more complete example.
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu"))]
 pub fn create_native<'a>(
