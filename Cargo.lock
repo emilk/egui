@@ -1285,6 +1285,7 @@ dependencies = [
  "profiling",
  "ron",
  "serde",
+ "unicode-segmentation",
 ]
 
 [[package]]
@@ -1421,6 +1422,16 @@ dependencies = [
  "kittest",
  "pollster",
  "wgpu",
+]
+
+[[package]]
+name = "egui_tests"
+version = "0.31.1"
+dependencies = [
+ "egui",
+ "egui_extras",
+ "egui_kittest",
+ "image",
 ]
 
 [[package]]

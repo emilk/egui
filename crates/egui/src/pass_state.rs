@@ -3,7 +3,7 @@ use ahash::HashMap;
 use crate::{id::IdSet, style, Align, Id, IdMap, LayerId, Rangef, Rect, Vec2, WidgetRects};
 
 #[cfg(debug_assertions)]
-use crate::{pos2, Align2, Color32, FontId, NumExt, Painter};
+use crate::{pos2, Align2, Color32, FontId, NumExt as _, Painter};
 
 /// Reset at the start of each frame.
 #[derive(Clone, Debug, Default)]

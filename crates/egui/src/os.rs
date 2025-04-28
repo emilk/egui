@@ -1,5 +1,5 @@
 /// An `enum` of common operating systems.
-#[allow(clippy::upper_case_acronyms)] // `Ios` looks too ugly
+#[expect(clippy::upper_case_acronyms)] // `Ios` looks too ugly
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum OperatingSystem {
     /// Unknown OS - could be wasm

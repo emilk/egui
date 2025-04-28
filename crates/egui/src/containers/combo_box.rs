@@ -2,11 +2,11 @@ use epaint::Shape;
 
 use crate::{
     epaint, style::StyleModifier, style::WidgetVisuals, vec2, Align2, Context, Id, InnerResponse,
-    NumExt, Painter, Popup, PopupCloseBehavior, Rect, Response, ScrollArea, Sense, Stroke,
+    NumExt as _, Painter, Popup, PopupCloseBehavior, Rect, Response, ScrollArea, Sense, Stroke,
     TextStyle, TextWrapMode, Ui, UiBuilder, Vec2, WidgetInfo, WidgetText, WidgetType,
 };
 
-#[allow(unused_imports)] // Documentation
+#[expect(unused_imports)] // Documentation
 use crate::style::Spacing;
 
 /// A function that paints the [`ComboBox`] icon
@@ -297,7 +297,7 @@ impl ComboBox {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 fn combo_box_dyn<'c, R>(
     ui: &mut Ui,
     button_id: Id,

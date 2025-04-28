@@ -64,7 +64,7 @@ use std::{
 
 use ahash::HashMap;
 
-use emath::{Float, OrderedFloat};
+use emath::{Float as _, OrderedFloat};
 use epaint::{mutex::Mutex, textures::TextureOptions, ColorImage, TextureHandle, TextureId, Vec2};
 
 use crate::Context;

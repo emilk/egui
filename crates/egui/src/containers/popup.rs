@@ -466,7 +466,7 @@ impl<'a> Popup<'a> {
         };
 
         RectAlign::find_best_align(
-            #[allow(clippy::iter_on_empty_collections)]
+            #[expect(clippy::iter_on_empty_collections)]
             once(self.rect_align).chain(
                 self.alternative_aligns
                     // Need the empty slice so the iters have the same type so we can unwrap_or

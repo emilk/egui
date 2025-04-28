@@ -1,9 +1,10 @@
 use core::f32;
 
-use emath::{GuiRounding, Pos2};
+use emath::{GuiRounding as _, Pos2};
 
 use crate::{
-    emath::TSTransform, InnerResponse, LayerId, Rangef, Rect, Response, Sense, Ui, UiBuilder, Vec2,
+    emath::TSTransform, InnerResponse, LayerId, PointerButton, Rangef, Rect, Response, Sense, Ui,
+    UiBuilder, Vec2,
 };
 
 /// Creates a transformation that fits a given scene rectangle into the available screen size.
@@ -45,6 +46,30 @@ fn fit_to_rect_in_scene(
 pub struct Scene {
     zoom_range: Rangef,
     max_inner_size: Vec2,
+    drag_pan_buttons: DragPanButtons,
+}
+
+/// Specifies which pointer buttons can be used to pan the scene by dragging.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct DragPanButtons(u8);
+
+bitflags::bitflags! {
+    impl DragPanButtons: u8 {
+        /// [PointerButton::Primary]
+        const PRIMARY = 1 << 0;
+
+        /// [PointerButton::Secondary]
+        const SECONDARY = 1 << 1;
+
+        /// [PointerButton::Middle]
+        const MIDDLE = 1 << 2;
+
+        /// [PointerButton::Extra1]
+        const EXTRA_1 = 1 << 3;
+
+        /// [PointerButton::Extra2]
+        const EXTRA_2 = 1 << 4;
+    }
 }
 
 impl Default for Scene {
@@ -52,6 +77,7 @@ impl Default for Scene {
         Self {
             zoom_range: Rangef::new(f32::EPSILON, 1.0),
             max_inner_size: Vec2::splat(1000.0),
+            drag_pan_buttons: DragPanButtons::all(),
         }
     }
 }
@@ -79,6 +105,15 @@ impl Scene {
     #[inline]
     pub fn max_inner_size(mut self, max_inner_size: impl Into<Vec2>) -> Self {
         self.max_inner_size = max_inner_size.into();
+        self
+    }
+
+    /// Specify which pointer buttons can be used to pan by clicking and dragging.
+    ///
+    /// By default, this is `DragPanButtons::all()`.
+    #[inline]
+    pub fn drag_pan_buttons(mut self, flags: DragPanButtons) -> Self {
+        self.drag_pan_buttons = flags;
         self
     }
 
@@ -179,7 +214,15 @@ impl Scene {
 
     /// Helper function to handle pan and zoom interactions on a response.
     pub fn register_pan_and_zoom(&self, ui: &Ui, resp: &mut Response, to_global: &mut TSTransform) {
-        if resp.dragged() {
+        let dragged = self.drag_pan_buttons.iter().any(|button| match button {
+            DragPanButtons::PRIMARY => resp.dragged_by(PointerButton::Primary),
+            DragPanButtons::SECONDARY => resp.dragged_by(PointerButton::Secondary),
+            DragPanButtons::MIDDLE => resp.dragged_by(PointerButton::Middle),
+            DragPanButtons::EXTRA_1 => resp.dragged_by(PointerButton::Extra1),
+            DragPanButtons::EXTRA_2 => resp.dragged_by(PointerButton::Extra2),
+            _ => false,
+        });
+        if dragged {
             to_global.translation += to_global.scaling * resp.drag_delta();
             resp.mark_changed();
         }

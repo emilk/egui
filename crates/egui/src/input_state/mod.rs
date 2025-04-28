@@ -5,7 +5,7 @@ use crate::data::input::{
     TouchDeviceId, ViewportInfo, NUM_POINTER_BUTTONS,
 };
 use crate::{
-    emath::{vec2, NumExt, Pos2, Rect, Vec2},
+    emath::{vec2, NumExt as _, Pos2, Rect, Vec2},
     util::History,
 };
 use std::{
@@ -344,7 +344,7 @@ impl InputState {
 
                     let is_zoom = modifiers.ctrl || modifiers.mac_cmd || modifiers.command;
 
-                    #[allow(clippy::collapsible_else_if)]
+                    #[expect(clippy::collapsible_else_if)]
                     if is_zoom {
                         if is_smooth {
                             smooth_scroll_delta_for_zoom += delta.y;
@@ -941,6 +941,7 @@ impl PointerState {
                             press_origin.distance(pos) > self.input_options.max_click_dist;
                     }
 
+                    self.last_move_time = time;
                     self.pointer_events.push(PointerEvent::Moved(pos));
                 }
                 Event::PointerButton {

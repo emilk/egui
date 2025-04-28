@@ -95,9 +95,6 @@ pub enum OutputCommand {
 
     /// Open this url in a browser.
     OpenUrl(OpenUrl),
-
-    /// Set the mouse cursor position (if the platform supports it).
-    SetPointerPosition(emath::Pos2),
 }
 
 /// The non-rendering part of what egui emits each frame.
@@ -255,7 +252,7 @@ pub struct OpenUrl {
 }
 
 impl OpenUrl {
-    #[allow(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value)]
     pub fn same_tab(url: impl ToString) -> Self {
         Self {
             url: url.to_string(),
@@ -263,7 +260,7 @@ impl OpenUrl {
         }
     }
 
-    #[allow(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value)]
     pub fn new_tab(url: impl ToString) -> Self {
         Self {
             url: url.to_string(),
@@ -610,7 +607,7 @@ impl WidgetInfo {
         }
     }
 
-    #[allow(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value)]
     pub fn labeled(typ: WidgetType, enabled: bool, label: impl ToString) -> Self {
         Self {
             enabled,
@@ -620,7 +617,7 @@ impl WidgetInfo {
     }
 
     /// checkboxes, radio-buttons etc
-    #[allow(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value)]
     pub fn selected(typ: WidgetType, enabled: bool, selected: bool, label: impl ToString) -> Self {
         Self {
             enabled,
@@ -638,7 +635,7 @@ impl WidgetInfo {
         }
     }
 
-    #[allow(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value)]
     pub fn slider(enabled: bool, value: f64, label: impl ToString) -> Self {
         let label = label.to_string();
         Self {
@@ -649,7 +646,7 @@ impl WidgetInfo {
         }
     }
 
-    #[allow(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value)]
     pub fn text_edit(
         enabled: bool,
         prev_text_value: impl ToString,
@@ -673,7 +670,7 @@ impl WidgetInfo {
         }
     }
 
-    #[allow(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value)]
     pub fn text_selection_changed(
         enabled: bool,
         text_selection: std::ops::RangeInclusive<usize>,

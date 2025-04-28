@@ -5,7 +5,7 @@
 
 #![allow(clippy::identity_op)]
 
-use emath::{pos2, remap, vec2, GuiRounding as _, NumExt, Pos2, Rect, Rot2, Vec2};
+use emath::{pos2, remap, vec2, GuiRounding as _, NumExt as _, Pos2, Rect, Rot2, Vec2};
 
 use crate::{
     color::ColorMode, emath, stroke::PathStroke, texture_atlas::PreparedDisc, CircleShape,
@@ -16,7 +16,7 @@ use crate::{
 
 // ----------------------------------------------------------------------------
 
-#[allow(clippy::approx_constant)]
+#[expect(clippy::approx_constant)]
 mod precomputed_vertices {
     // fn main() {
     //     let n = 64;
@@ -2222,7 +2222,7 @@ impl Tessellator {
     ///
     /// ## Returns
     /// A list of clip rectangles with matching [`Mesh`].
-    #[allow(unused_mut)]
+    #[allow(unused_mut, clippy::allow_attributes)]
     pub fn tessellate_shapes(&mut self, mut shapes: Vec<ClippedShape>) -> Vec<ClippedPrimitive> {
         profiling::function_scope!();
 

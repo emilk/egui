@@ -3,7 +3,7 @@
 use std::{borrow::Cow, num::NonZeroU64, ops::Range};
 
 use ahash::HashMap;
-use epaint::{emath::NumExt, PaintCallbackInfo, Primitive, Vertex};
+use epaint::{emath::NumExt as _, PaintCallbackInfo, Primitive, Vertex};
 
 use wgpu::util::DeviceExt as _;
 
@@ -749,7 +749,7 @@ impl Renderer {
     ///
     /// The texture must have the format [`wgpu::TextureFormat::Rgba8UnormSrgb`].
     /// Any compare function supplied in the [`wgpu::SamplerDescriptor`] will be ignored.
-    #[allow(clippy::needless_pass_by_value)] // false positive
+    #[expect(clippy::needless_pass_by_value)] // false positive
     pub fn register_native_texture_with_sampler_options(
         &mut self,
         device: &wgpu::Device,
@@ -796,7 +796,7 @@ impl Renderer {
     /// [`wgpu::SamplerDescriptor`] options.
     ///
     /// This allows applications to reuse [`epaint::TextureId`]s created with custom sampler options.
-    #[allow(clippy::needless_pass_by_value)] // false positive
+    #[expect(clippy::needless_pass_by_value)] // false positive
     pub fn update_egui_texture_from_wgpu_texture_with_sampler_options(
         &mut self,
         device: &wgpu::Device,

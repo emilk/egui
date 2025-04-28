@@ -72,7 +72,7 @@ pub use self::{
 #[deprecated = "Renamed to CornerRadius"]
 pub type Rounding = CornerRadius;
 
-#[allow(deprecated)]
+#[expect(deprecated)]
 pub use tessellator::tessellate_shapes;
 
 pub use ecolor::{Color32, Hsva, HsvaGamma, Rgba};

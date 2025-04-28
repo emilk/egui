@@ -91,7 +91,7 @@ pub struct CreationContext<'s> {
     pub(crate) raw_display_handle: Result<RawDisplayHandle, HandleError>,
 }
 
-#[allow(unsafe_code)]
+#[expect(unsafe_code)]
 #[cfg(not(target_arch = "wasm32"))]
 impl HasWindowHandle for CreationContext<'_> {
     fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
@@ -100,7 +100,7 @@ impl HasWindowHandle for CreationContext<'_> {
     }
 }
 
-#[allow(unsafe_code)]
+#[expect(unsafe_code)]
 #[cfg(not(target_arch = "wasm32"))]
 impl HasDisplayHandle for CreationContext<'_> {
     fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
@@ -662,7 +662,7 @@ pub struct Frame {
 #[cfg(not(target_arch = "wasm32"))]
 assert_not_impl_any!(Frame: Clone);
 
-#[allow(unsafe_code)]
+#[expect(unsafe_code)]
 #[cfg(not(target_arch = "wasm32"))]
 impl HasWindowHandle for Frame {
     fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
@@ -671,7 +671,7 @@ impl HasWindowHandle for Frame {
     }
 }
 
-#[allow(unsafe_code)]
+#[expect(unsafe_code)]
 #[cfg(not(target_arch = "wasm32"))]
 impl HasDisplayHandle for Frame {
     fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
@@ -703,7 +703,7 @@ impl Frame {
     /// True if you are in a web environment.
     ///
     /// Equivalent to `cfg!(target_arch = "wasm32")`
-    #[allow(clippy::unused_self)]
+    #[expect(clippy::unused_self)]
     pub fn is_web(&self) -> bool {
         cfg!(target_arch = "wasm32")
     }

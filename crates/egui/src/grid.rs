@@ -1,8 +1,8 @@
 use emath::GuiRounding as _;
 
 use crate::{
-    vec2, Align2, Color32, Context, Id, InnerResponse, NumExt, Painter, Rect, Region, Style, Ui,
-    UiBuilder, Vec2,
+    vec2, Align2, Color32, Context, Id, InnerResponse, NumExt as _, Painter, Rect, Region, Style,
+    Ui, UiBuilder, Vec2,
 };
 
 #[cfg(debug_assertions)]
@@ -184,7 +184,7 @@ impl GridLayout {
         Rect::from_min_size(cursor.min, size).round_ui()
     }
 
-    #[allow(clippy::unused_self)]
+    #[expect(clippy::unused_self)]
     pub(crate) fn align_size_within_rect(&self, size: Vec2, frame: Rect) -> Rect {
         // TODO(emilk): allow this alignment to be customized
         Align2::LEFT_CENTER

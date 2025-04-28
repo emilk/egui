@@ -77,7 +77,7 @@ impl ImageLoader for ImageCrateLoader {
         }
 
         #[cfg(not(target_arch = "wasm32"))]
-        #[allow(clippy::unnecessary_wraps)] // needed here to match other return types
+        #[expect(clippy::unnecessary_wraps)] // needed here to match other return types
         fn load_image(
             ctx: &egui::Context,
             uri: &str,

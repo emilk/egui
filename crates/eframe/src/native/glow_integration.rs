@@ -11,13 +11,13 @@ use std::{cell::RefCell, num::NonZeroU32, rc::Rc, sync::Arc, time::Instant};
 
 use egui_winit::ActionRequested;
 use glutin::{
-    config::GlConfig,
-    context::NotCurrentGlContext,
-    display::GetGlDisplay,
-    prelude::{GlDisplay, PossiblyCurrentGlContext},
-    surface::GlSurface,
+    config::GlConfig as _,
+    context::NotCurrentGlContext as _,
+    display::GetGlDisplay as _,
+    prelude::{GlDisplay as _, PossiblyCurrentGlContext as _},
+    surface::GlSurface as _,
 };
-use raw_window_handle::HasWindowHandle;
+use raw_window_handle::HasWindowHandle as _;
 use winit::{
     event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
     window::{Window, WindowId},
@@ -139,7 +139,7 @@ impl<'app> GlowWinitApp<'app> {
         }
     }
 
-    #[allow(unsafe_code)]
+    #[expect(unsafe_code)]
     fn create_glutin_windowed_context(
         egui_ctx: &egui::Context,
         event_loop: &ActiveEventLoop,
@@ -901,7 +901,7 @@ fn change_gl_context(
 }
 
 impl GlutinWindowContext {
-    #[allow(unsafe_code)]
+    #[expect(unsafe_code)]
     unsafe fn new(
         egui_ctx: &egui::Context,
         viewport_builder: ViewportBuilder,
@@ -1094,7 +1094,7 @@ impl GlutinWindowContext {
     }
 
     /// Create a surface, window, and winit integration for the viewport, if missing.
-    #[allow(unsafe_code)]
+    #[expect(unsafe_code)]
     pub(crate) fn initialize_window(
         &mut self,
         viewport_id: ViewportId,
@@ -1566,6 +1566,6 @@ fn save_screenshot_and_exit(
     });
     log::info!("Screenshot saved to {path:?}.");
 
-    #[allow(clippy::exit)]
+    #[expect(clippy::exit)]
     std::process::exit(0);
 }
