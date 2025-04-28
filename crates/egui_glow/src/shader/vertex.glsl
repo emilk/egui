@@ -9,7 +9,11 @@
 #endif
 
 #ifdef GL_ES
+#if defined(GL_FRAGMENT_PRECISION_HIGH) && GL_FRAGMENT_PRECISION_HIGH == 1
     precision highp float;
+#else
+    precision mediump float;
+#endif
 #endif
 
 uniform vec2 u_screen_size;
