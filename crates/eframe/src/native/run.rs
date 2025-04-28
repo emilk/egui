@@ -494,7 +494,7 @@ impl<'a> EframeWinitApplication<'a> {
         event_loop: &mut EventLoop<UserEvent>,
         timeout: Option<std::time::Duration>,
     ) -> EframePumpStatus {
-        use winit::platform::pump_events::{EventLoopExtPumpEvents, PumpStatus};
+        use winit::platform::pump_events::{EventLoopExtPumpEvents as _, PumpStatus};
 
         match event_loop.pump_app_events(timeout, self) {
             PumpStatus::Continue => EframePumpStatus::Continue(self.control_flow),
