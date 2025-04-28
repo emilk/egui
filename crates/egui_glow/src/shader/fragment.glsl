@@ -1,5 +1,9 @@
 #ifdef GL_ES
+#if defined(GL_FRAGMENT_PRECISION_HIGH) && GL_FRAGMENT_PRECISION_HIGH == 1
     precision highp float;
+#else
+    precision mediump float;
+#endif
 #endif
 
 uniform sampler2D u_sampler;
