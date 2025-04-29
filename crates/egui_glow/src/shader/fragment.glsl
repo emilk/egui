@@ -1,4 +1,6 @@
 #ifdef GL_ES
+// To avoid weird distortion issues when rendering text etc, we want highp if possible.
+// But apparently some devices don't support it, so we have to check first.
 #if defined(GL_FRAGMENT_PRECISION_HIGH) && GL_FRAGMENT_PRECISION_HIGH == 1
     precision highp float;
 #else
