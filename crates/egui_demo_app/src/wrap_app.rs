@@ -5,6 +5,7 @@ use eframe::glow;
 
 #[cfg(target_arch = "wasm32")]
 use core::any::Any;
+use egui::WidgetText;
 
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -134,7 +135,7 @@ impl std::fmt::Display for Anchor {
 
 impl From<Anchor> for egui::WidgetText {
     fn from(value: Anchor) -> Self {
-        Self::RichText(egui::RichText::new(value.to_string()))
+        WidgetText::from(value.to_string())
     }
 }
 
