@@ -8,9 +8,6 @@ use egui::{
 use image::ImageFormat;
 use std::{mem::size_of, path::Path, sync::Arc, task::Poll};
 
-#[cfg(not(target_arch = "wasm32"))]
-use std::thread;
-
 type Entry = Poll<Result<Arc<ColorImage>, String>>;
 
 #[derive(Default)]
@@ -88,7 +85,7 @@ impl ImageLoader for ImageCrateLoader {
             cache.lock().insert(uri.clone(), Poll::Pending);
 
             // Do the image parsing on a bg thread
-            thread::Builder::new()
+            std::thread::Builder::new()
                 .name(format!("egui_extras::ImageLoader::load({uri:?})"))
                 .spawn({
                     let ctx = ctx.clone();
