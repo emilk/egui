@@ -822,3 +822,13 @@ impl From<Arc<Galley>> for WidgetText {
         Self::Galley(galley)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::WidgetText;
+
+    #[test]
+    fn ensure_small_widget_text() {
+        assert_eq!(size_of::<WidgetText>(), size_of::<String>());
+    }
+}
