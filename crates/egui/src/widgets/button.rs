@@ -249,7 +249,7 @@ impl Widget for Button<'_> {
             )
         } else {
             (
-                ui.available_size() - 2.0 * button_padding,
+                (ui.available_size() - 2.0 * button_padding).at_least(Vec2::ZERO),
                 default_font_height(),
             )
         };
