@@ -76,7 +76,7 @@ impl ImageLoader for ImageCrateLoader {
             return Err(LoadError::NotSupported);
         }
 
-        #[cfg(not(target_arch = "wasm32"))]
+        #[cfg(not(any(target_arch = "wasm32", test)))]
         #[expect(clippy::unnecessary_wraps)] // needed here to match other return types
         fn load_image(
             ctx: &egui::Context,
@@ -116,7 +116,8 @@ impl ImageLoader for ImageCrateLoader {
             Ok(ImagePoll::Pending { size: None })
         }
 
-        #[cfg(target_arch = "wasm32")]
+        // Load images on the current thread for tests, so they are less flaky
+        #[cfg(any(target_arch = "wasm32", test))]
         fn load_image(
             _ctx: &egui::Context,
             uri: &str,
