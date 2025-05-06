@@ -1,6 +1,7 @@
 use std::{borrow::Cow, sync::Arc};
 
 use emath::GuiRounding as _;
+use epaint::text::TextFormat;
 
 use crate::{
     text::{LayoutJob, TextWrapping},
@@ -683,10 +684,14 @@ impl WidgetText {
         default_valign: Align,
     ) -> Arc<LayoutJob> {
         match self {
-            Self::Text(text) => Arc::new(LayoutJob::simple_singleline(
+            Self::Text(text) => Arc::new(LayoutJob::simple_format(
                 text,
-                FontSelection::Default.resolve(style),
-                crate::Color32::PLACEHOLDER,
+                TextFormat {
+                    font_id: FontSelection::Default.resolve(style),
+                    color: crate::Color32::PLACEHOLDER,
+                    valign: default_valign,
+                    ..Default::default()
+                },
             )),
             Self::RichText(text) => Arc::new(Arc::unwrap_or_clone(text).into_layout_job(
                 style,
@@ -727,10 +732,14 @@ impl WidgetText {
     ) -> Arc<Galley> {
         match self {
             Self::Text(text) => {
-                let mut layout_job = LayoutJob::simple_singleline(
+                let mut layout_job = LayoutJob::simple_format(
                     text,
-                    FontSelection::Default.resolve(style),
-                    crate::Color32::PLACEHOLDER,
+                    TextFormat {
+                        font_id: FontSelection::Default.resolve(style),
+                        color: crate::Color32::PLACEHOLDER,
+                        valign: default_valign,
+                        ..Default::default()
+                    },
                 );
                 layout_job.wrap = text_wrapping;
                 ctx.fonts(|f| f.layout_job(layout_job))
