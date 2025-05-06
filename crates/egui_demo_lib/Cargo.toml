@@ -56,8 +56,9 @@ serde = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion.workspace = true
-egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }
 egui = { workspace = true, features = ["default_fonts"] }
+egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }
+mimalloc.workspace = true                                            # for benchmarks
 rand = "0.9"
 
 [[bench]]

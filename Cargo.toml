@@ -87,6 +87,7 @@ home = "0.5.9"
 image = { version = "0.25", default-features = false }
 kittest = { version = "0.1.0", git = "https://github.com/rerun-io/kittest", branch = "main" }
 log = { version = "0.4", features = ["std"] }
+mimalloc = "0.1.46"
 nohash-hasher = "0.2"
 parking_lot = "0.12"
 pollster = "0.4"
