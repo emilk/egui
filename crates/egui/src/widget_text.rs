@@ -552,17 +552,14 @@ impl WidgetText {
     /// - [`Self::Text`] => convert to [`RichText`] and call f
     /// - [`Self::RichText`] => call f
     /// - else do nothing
+    #[must_use]
     fn map_rich_text<F>(self, f: F) -> Self
     where
         F: FnOnce(RichText) -> RichText,
     {
         match self {
-            Self::Text(text) => f(RichText::new(text)).into(),
-            Self::RichText(text) => {
-                let mut text = Arc::unwrap_or_clone(text);
-                text = f(text);
-                Self::RichText(text.into())
-            }
+            Self::Text(text) => Self::RichText(Arc::new(f(RichText::new(text)))),
+            Self::RichText(text) => Self::RichText(Arc::new(f(Arc::unwrap_or_clone(text)))),
             other => other,
         }
     }
