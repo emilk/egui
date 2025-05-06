@@ -8,6 +8,9 @@ use egui::{Button, Id, RichText, TextureId, Ui, UiBuilder, Vec2};
 use egui_demo_lib::LOREM_IPSUM_LONG;
 use rand::Rng as _;
 
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc; // Much faster allocator
+
 /// Each iteration should be called in their own `Ui` with an intentional id clash,
 /// to prevent the Context from building a massive map of `WidgetRects` (which would slow the test,
 /// causing unreliable results).
