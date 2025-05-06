@@ -558,10 +558,10 @@ impl WidgetText {
     {
         match self {
             Self::Text(text) => f(RichText::new(text)).into(),
-            Self::RichText(mut text) => {
-                let a = Arc::make_mut(&mut text);
-                *a = f(std::mem::take(&mut *a));
-                Self::RichText(text)
+            Self::RichText(text) => {
+                let mut text = Arc::unwrap_or_clone(text);
+                text = f(text);
+                Self::RichText(text.into())
             }
             other => other,
         }
