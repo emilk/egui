@@ -134,7 +134,7 @@ impl std::fmt::Display for Anchor {
 
 impl From<Anchor> for egui::WidgetText {
     fn from(value: Anchor) -> Self {
-        Self::RichText(egui::RichText::new(value.to_string()))
+        Self::from(value.to_string())
     }
 }
 

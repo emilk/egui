@@ -118,6 +118,21 @@ impl LayoutJob {
         }
     }
 
+    /// Break on `\n`
+    #[inline]
+    pub fn simple_format(text: String, format: TextFormat) -> Self {
+        Self {
+            sections: vec![LayoutSection {
+                leading_space: 0.0,
+                byte_range: 0..text.len(),
+                format,
+            }],
+            text,
+            break_on_newline: true,
+            ..Default::default()
+        }
+    }
+
     /// Does not break on `\n`, but shows the replacement character instead.
     #[inline]
     pub fn simple_singleline(text: String, font_id: FontId, color: Color32) -> Self {
