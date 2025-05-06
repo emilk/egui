@@ -1336,6 +1336,7 @@ dependencies = [
  "env_logger",
  "image",
  "log",
+ "mimalloc",
  "poll-promise",
  "profiling",
  "puffin",
