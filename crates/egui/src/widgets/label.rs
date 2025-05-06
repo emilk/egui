@@ -1,9 +1,11 @@
 use std::sync::Arc;
 
 use crate::{
-    epaint, pos2, text_selection::LabelSelectionState, Align, Direction, FontSelection, Galley,
-    Pos2, Response, Sense, Stroke, TextWrapMode, Ui, Widget, WidgetInfo, WidgetText, WidgetType,
+    epaint, pos2, text_selection, Align, Direction, FontSelection, Galley, Pos2, Response, Sense,
+    Stroke, TextWrapMode, Ui, Widget, WidgetInfo, WidgetText, WidgetType,
 };
+
+use self::text_selection::LabelSelectionState;
 
 /// Static text.
 ///
@@ -214,7 +216,9 @@ impl Label {
             let pos = pos2(ui.max_rect().left(), ui.cursor().top());
             assert!(!galley.rows.is_empty(), "Galleys are never empty");
             // collect a response from many rows:
-            let rect = galley.rows[0].rect().translate(pos.to_vec2());
+            let mut rect = galley.rows[0].rect().translate(pos.to_vec2());
+            // The rect ignores first_row_indentation, so we add it back:
+            rect.min.x += first_row_indentation;
             let mut response = ui.allocate_rect(rect, sense);
             for placed_row in galley.rows.iter().skip(1) {
                 let rect = placed_row.rect().translate(pos.to_vec2());
