@@ -1,5 +1,7 @@
 # 🖌 egui: an easy-to-use GUI in pure Rust
 
+DONT MERGE MEEE
+
 [<img alt="github" src="https://img.shields.io/badge/github-emilk/egui-8da0cb?logo=github" height="20">](https://github.com/emilk/egui)
 [![Latest version](https://img.shields.io/crates/v/egui.svg)](https://crates.io/crates/egui)
 [![Documentation](https://docs.rs/egui/badge.svg)](https://docs.rs/egui)
