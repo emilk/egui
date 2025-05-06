@@ -666,7 +666,7 @@ impl WidgetText {
     /// Returns a value rounded to [`emath::GUI_ROUNDING`].
     pub(crate) fn font_height(&self, fonts: &epaint::Fonts, style: &Style) -> f32 {
         match self {
-            Self::Text(_) => fonts.row_height(&FontSelection::Default.resolve(style)),
+            Self::Text(_) => fonts.row_height(&TextStyle::Body.resolve(style)),
             Self::RichText(text) => text.font_height(fonts, style),
             Self::LayoutJob(job) => job.font_height(fonts),
             Self::Galley(galley) => {
@@ -686,9 +686,10 @@ impl WidgetText {
         default_valign: Align,
     ) -> Arc<LayoutJob> {
         match self {
-            Self::Text(text) => Arc::new(LayoutJob::single_section(
+            Self::Text(text) => Arc::new(LayoutJob::simple_singleline(
                 text,
-                crate::text::TextFormat::default(),
+                TextStyle::Body.resolve(style),
+                crate::Color32::PLACEHOLDER,
             )),
             Self::RichText(text) => Arc::new(Arc::unwrap_or_clone(text).into_layout_job(
                 style,
@@ -729,8 +730,11 @@ impl WidgetText {
     ) -> Arc<Galley> {
         match self {
             Self::Text(text) => {
-                let mut layout_job =
-                    LayoutJob::single_section(text, crate::text::TextFormat::default());
+                let mut layout_job = LayoutJob::simple_singleline(
+                    text,
+                    TextStyle::Body.resolve(style),
+                    crate::Color32::PLACEHOLDER,
+                );
                 layout_job.wrap = text_wrapping;
                 ctx.fonts(|f| f.layout_job(layout_job))
             }
