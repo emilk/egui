@@ -488,8 +488,15 @@ impl RichText {
 /// which will be replaced with a color chosen by the widget that paints the text.
 #[derive(Clone)]
 pub enum WidgetText {
+    /// Plain unstyled text.
+    ///
+    /// We have this as a special case, as it is the common-case,
+    /// and it uses less memory than [`Self::RichText`].
     Text(String),
 
+    /// Text and optional style choices for it.
+    ///
+    /// Prefer [`Self::Text`] if there is no styling, as it will be faster.
     RichText(Arc<RichText>),
 
     /// Use this [`LayoutJob`] when laying out the text.
