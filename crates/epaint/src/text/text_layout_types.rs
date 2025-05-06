@@ -561,9 +561,14 @@ pub struct PlacedRow {
 
 impl PlacedRow {
     /// Logical bounding rectangle on font heights etc.
+    ///
     /// Use this when drawing a selection or similar!
+    ///
+    /// If `LayoutSection::leading_space` is set, the returned [`Rect`] will be offset by that.
     pub fn rect(&self) -> Rect {
-        Rect::from_min_size(self.pos, self.row.size)
+        let x = self.glyphs.first().map_or(self.pos.x, |g| g.pos.x);
+        let size_x = self.size.x - x;
+        Rect::from_min_size(Pos2::new(x, self.pos.y), Vec2::new(size_x, self.size.y))
     }
 }
 
