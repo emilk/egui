@@ -82,7 +82,6 @@ impl<'a> AtomicKind<'a> {
         self,
         ui: &Ui,
         available_size: Vec2,
-        max_size: Vec2,
         wrap_mode: Option<TextWrapMode>,
     ) -> (Vec2, SizedAtomicKind<'a>) {
         match self {
@@ -94,7 +93,7 @@ impl<'a> AtomicKind<'a> {
                 )
             }
             AtomicKind::Image(image) => {
-                let size = image.load_and_calc_size(ui, Vec2::min(available_size, max_size));
+                let size = image.load_and_calc_size(ui, available_size);
                 let size = size.unwrap_or(Vec2::ZERO);
                 (size, SizedAtomicKind::Image(image, size))
             }

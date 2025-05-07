@@ -1,5 +1,5 @@
 use crate::{AtomicKind, SizedAtomic, Ui};
-use emath::Vec2;
+use emath::{NumExt, Vec2};
 use epaint::text::TextWrapMode;
 
 /// A low-level ui building block.
@@ -49,15 +49,15 @@ impl<'a> Atomic<'a> {
     pub fn into_sized(
         self,
         ui: &Ui,
-        available_size: Vec2,
+        mut available_size: Vec2,
         mut wrap_mode: Option<TextWrapMode>,
     ) -> SizedAtomic<'a> {
         if !self.shrink {
             wrap_mode = Some(TextWrapMode::Extend);
         }
-        let (preferred, kind) = self
-            .kind
-            .into_sized(ui, available_size, self.max_size, wrap_mode);
+        available_size = available_size.at_most(self.max_size);
+
+        let (preferred, kind) = self.kind.into_sized(ui, available_size, wrap_mode);
         SizedAtomic {
             size: self.size.unwrap_or_else(|| kind.size()),
             preferred_size: preferred,
