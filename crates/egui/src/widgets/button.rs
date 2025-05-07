@@ -1,7 +1,7 @@
 use crate::{
-    Atomic, AtomicKind, AtomicLayout, AtomicLayoutResponse, Atomics, Color32, CornerRadius, Frame,
-    Image, IntoAtomics, NumExt as _, Response, Sense, SizedAtomicKind, Stroke, TextWrapMode, Ui,
-    Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
+    Atomic, AtomicExt, AtomicKind, AtomicLayout, AtomicLayoutResponse, Atomics, Color32,
+    CornerRadius, Frame, Image, IntoAtomics, NumExt as _, Response, Sense, Stroke, TextWrapMode,
+    Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
 };
 
 /// Clickable button with text.
@@ -35,6 +35,7 @@ pub struct Button<'a> {
     corner_radius: Option<CornerRadius>,
     selected: bool,
     image_tint_follows_text_color: bool,
+    limit_image_size: bool,
 }
 
 impl<'a> Button<'a> {
@@ -51,19 +52,30 @@ impl<'a> Button<'a> {
             corner_radius: None,
             selected: false,
             image_tint_follows_text_color: false,
+            limit_image_size: false,
         }
     }
 
     /// Creates a button with an image. The size of the image as displayed is defined by the provided size.
+    ///
+    /// Note: In contrast to [`Button::new`], this limits the image size to the default font height
+    /// (using [`Atomic::atom_max_height_font_size`]).
     pub fn image(image: impl Into<Image<'a>>) -> Self {
         Self::opt_image_and_text(Some(image.into()), None)
     }
 
-    /// Creates a button with an image to the left of the text. The size of the image as displayed is defined by the provided size.
+    /// Creates a button with an image to the left of the text.
+    ///
+    /// Note: In contrast to [`Button::new`], this limits the image size to the default font height
+    /// (using [`Atomic::atom_max_height_font_size`]).
     pub fn image_and_text(image: impl Into<Image<'a>>, text: impl Into<WidgetText>) -> Self {
         Self::opt_image_and_text(Some(image.into()), Some(text.into()))
     }
 
+    /// Create a button with an optional image and optional text.
+    ///
+    /// Note: In contrast to [`Button::new`], this limits the image size to the default font height
+    /// (using [`Atomic::atom_max_height_font_size`]).
     pub fn opt_image_and_text(image: Option<Image<'a>>, text: Option<WidgetText>) -> Self {
         let mut button = Self::new(());
         if let Some(image) = image {
@@ -72,6 +84,7 @@ impl<'a> Button<'a> {
         if let Some(text) = text {
             button.atomics.push_left(text);
         }
+        button.limit_image_size = true;
         button
     }
 
@@ -209,7 +222,7 @@ impl<'a> Button<'a> {
     /// Show the button and return a [`AtomicLayoutResponse`] for painting custom contents.
     pub fn atomic_ui(self, ui: &mut Ui) -> AtomicLayoutResponse {
         let Button {
-            atomics,
+            mut atomics,
             wrap_mode,
             fill,
             stroke,
@@ -220,10 +233,21 @@ impl<'a> Button<'a> {
             corner_radius,
             selected,
             image_tint_follows_text_color,
+            limit_image_size,
         } = self;
 
         if !small {
             min_size.y = min_size.y.at_least(ui.spacing().interact_size.y);
+        }
+
+        if limit_image_size {
+            atomics = atomics.map(|atomic| {
+                if matches!(&atomic.kind, AtomicKind::Image(_)) {
+                    atomic.atom_max_height_font_size(&ui)
+                } else {
+                    atomic
+                }
+            });
         }
 
         let text = atomics.text();

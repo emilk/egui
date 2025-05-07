@@ -1,7 +1,7 @@
 use crate::atomics::ATOMICS_SMALL_VEC_SIZE;
 use crate::{
-    AtomicKind, Atomics, FontSelection, Frame, Id, Image, IntoAtomics, Response, Sense,
-    SizedAtomic, SizedAtomicKind, Ui, Widget,
+    AtomicKind, Atomics, Frame, Id, Image, IntoAtomics, Response, Sense, SizedAtomic,
+    SizedAtomicKind, Ui, Widget,
 };
 use emath::{Align2, NumExt as _, Rect, Vec2};
 use epaint::text::TextWrapMode;
@@ -198,21 +198,6 @@ impl<'a> AtomicLayout<'a> {
             preferred_width += gap_space;
         }
 
-        let default_font_height = || {
-            let font_selection = FontSelection::default();
-            let font_id = font_selection.resolve(ui.style());
-            ui.fonts(|f| f.row_height(&font_id))
-        };
-
-        let max_font_size = ui
-            .fonts(|fonts| {
-                atomics
-                    .iter()
-                    .filter_map(|a| a.get_min_height_for_image(fonts, ui.style()))
-                    .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
-            })
-            .unwrap_or_else(default_font_height);
-
         for (idx, item) in atomics.into_iter().enumerate() {
             if item.shrink {
                 debug_assert!(
@@ -227,7 +212,7 @@ impl<'a> AtomicLayout<'a> {
             if item.grow {
                 grow_count += 1;
             }
-            let sized = item.into_sized(ui, available_inner_size, max_font_size, Some(wrap_mode));
+            let sized = item.into_sized(ui, available_inner_size, Some(wrap_mode));
             let size = sized.size;
 
             desired_width += size.x;
@@ -249,7 +234,7 @@ impl<'a> AtomicLayout<'a> {
                 grow_count += 1;
             }
 
-            let sized = item.into_sized(ui, shrunk_size, max_font_size, Some(wrap_mode));
+            let sized = item.into_sized(ui, shrunk_size, Some(wrap_mode));
             let size = sized.size;
 
             desired_width += size.x;

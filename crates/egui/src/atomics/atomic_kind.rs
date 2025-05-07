@@ -1,4 +1,4 @@
-use crate::{Id, Image, SizedAtomicKind, TextStyle, Ui, WidgetText};
+use crate::{Id, Image, ImageSource, SizedAtomicKind, TextStyle, Ui, WidgetText};
 use emath::Vec2;
 use epaint::text::TextWrapMode;
 use std::fmt::Formatter;
@@ -82,7 +82,7 @@ impl<'a> AtomicKind<'a> {
         self,
         ui: &Ui,
         available_size: Vec2,
-        font_size: f32,
+        max_size: Vec2,
         wrap_mode: Option<TextWrapMode>,
     ) -> (Vec2, SizedAtomicKind<'a>) {
         match self {
@@ -94,14 +94,19 @@ impl<'a> AtomicKind<'a> {
                 )
             }
             AtomicKind::Image(image) => {
-                let max_size = Vec2::splat(font_size);
                 let size = image.load_and_calc_size(ui, Vec2::min(available_size, max_size));
-                let size = size.unwrap_or(max_size);
+                let size = size.unwrap_or(Vec2::ZERO);
                 (size, SizedAtomicKind::Image(image, size))
             }
             AtomicKind::Custom(id, size) => (size, SizedAtomicKind::Custom(id, size)),
             AtomicKind::Empty => (Vec2::ZERO, SizedAtomicKind::Empty),
         }
+    }
+}
+
+impl<'a> From<ImageSource<'a>> for AtomicKind<'a> {
+    fn from(value: ImageSource<'a>) -> Self {
+        AtomicKind::Image(value.into())
     }
 }
 

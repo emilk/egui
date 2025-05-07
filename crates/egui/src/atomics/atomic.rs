@@ -1,7 +1,6 @@
-use crate::{AtomicKind, SizedAtomic, Style, Ui};
+use crate::{AtomicKind, SizedAtomic, Ui};
 use emath::Vec2;
 use epaint::text::TextWrapMode;
-use epaint::Fonts;
 
 /// A low-level ui building block.
 ///
@@ -16,34 +15,34 @@ use epaint::Fonts;
 #[derive(Clone, Debug)]
 pub struct Atomic<'a> {
     pub size: Option<Vec2>,
+    pub max_size: Vec2,
     pub grow: bool,
     pub shrink: bool,
     pub kind: AtomicKind<'a>,
 }
 
-impl<'a> Atomic<'a> {
-    /// Create an empty [`Atomic`] marked as `grow`.
-    pub fn grow() -> Self {
+impl Default for Atomic<'_> {
+    fn default() -> Self {
         Atomic {
             size: None,
-            grow: true,
+            max_size: Vec2::INFINITY,
+            grow: false,
             shrink: false,
             kind: AtomicKind::Empty,
         }
     }
+}
 
-    /// Heuristic to find the best height for an image.
-    /// Basically returns the height if this is not an [`Image`].
-    pub(crate) fn get_min_height_for_image(&self, fonts: &Fonts, style: &Style) -> Option<f32> {
-        self.size.map(|s| s.y).or_else(|| {
-            match &self.kind {
-                AtomicKind::Text(text) => Some(text.font_height(fonts, style)),
-                AtomicKind::Custom(_, size) => Some(size.y),
-                // Since this method is used to calculate the best height for an image, we always return
-                // None for images.
-                AtomicKind::Empty | AtomicKind::Image(_) => None,
-            }
-        })
+impl<'a> Atomic<'a> {
+    /// Create an empty [`Atomic`] marked as `grow`.
+    ///
+    /// This will expand in size, allowing all proceeding atomics to be left-aligned,
+    /// and all following atomics to be right-aligned
+    pub fn grow() -> Self {
+        Atomic {
+            grow: true,
+            ..Default::default()
+        }
     }
 
     /// Turn this into a [`SizedAtomic`].
@@ -51,7 +50,6 @@ impl<'a> Atomic<'a> {
         self,
         ui: &Ui,
         available_size: Vec2,
-        font_size: f32,
         mut wrap_mode: Option<TextWrapMode>,
     ) -> SizedAtomic<'a> {
         if !self.shrink {
@@ -59,7 +57,7 @@ impl<'a> Atomic<'a> {
         }
         let (preferred, kind) = self
             .kind
-            .into_sized(ui, available_size, font_size, wrap_mode);
+            .into_sized(ui, available_size, self.max_size, wrap_mode);
         SizedAtomic {
             size: self.size.unwrap_or_else(|| kind.size()),
             preferred_size: preferred,
@@ -75,10 +73,8 @@ where
 {
     fn from(value: T) -> Self {
         Atomic {
-            size: None,
-            grow: false,
-            shrink: false,
             kind: value.into(),
+            ..Default::default()
         }
     }
 }

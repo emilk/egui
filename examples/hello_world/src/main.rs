@@ -2,6 +2,7 @@
 #![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
 use eframe::egui;
+use eframe::egui::{AtomicExt, Button};
 
 fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -50,9 +51,11 @@ impl eframe::App for MyApp {
             }
             ui.label(format!("Hello '{}', age {}", self.name, self.age));
 
-            ui.image(egui::include_image!(
-                "../../../crates/egui/assets/ferris.png"
-            ));
+            ui.add(Button::new((
+                egui::include_image!("../../../crates/egui/assets/ferris.png")
+                    .atom_max_height_font_size(ui),
+                "Hiii",
+            )));
         });
     }
 }
