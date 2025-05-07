@@ -179,6 +179,10 @@ impl ImageLoader for ImageCrateLoader {
             })
             .sum()
     }
+
+    fn has_pending(&self) -> bool {
+        self.cache.lock().values().any(|result| result.is_pending())
+    }
 }
 
 #[cfg(test)]
