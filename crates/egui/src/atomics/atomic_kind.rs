@@ -4,7 +4,7 @@ use epaint::text::TextWrapMode;
 use std::fmt::Formatter;
 
 /// The different kinds of [`Atomic`]s.
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub enum AtomicKind<'a> {
     /// Empty, that can be used with [`AtomicExt::a_grow`] to reserve space.
     #[default]
@@ -59,17 +59,6 @@ pub enum AtomicKind<'a> {
     /// # });
     /// ```
     Custom(Id, Vec2),
-}
-
-impl std::fmt::Debug for AtomicKind<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            AtomicKind::Empty => write!(f, "AtomicKind::Empty"),
-            AtomicKind::Text(text) => write!(f, "AtomicKind::Text({})", text.text()),
-            AtomicKind::Image(image) => write!(f, "AtomicKind::Image({image:?})"),
-            AtomicKind::Custom(id, size) => write!(f, "AtomicKind::Custom({id:?}, {size:?})"),
-        }
-    }
 }
 
 impl<'a> AtomicKind<'a> {
