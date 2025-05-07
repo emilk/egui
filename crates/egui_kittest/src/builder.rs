@@ -1,6 +1,6 @@
 use crate::app_kind::AppKind;
 use crate::{Harness, LazyRenderer, TestRenderer};
-use egui::{Context, Pos2, Rect, Vec2};
+use egui::{Pos2, Rect, Vec2};
 use std::marker::PhantomData;
 
 /// Builder for [`Harness`].
@@ -68,10 +68,11 @@ impl<State> HarnessBuilder<State> {
     /// Should we wait for pending images?
     ///
     /// If `true`, [`Harness::run`] and related methods will check if there are pending images
-    /// (via [`Context::has_pending_images`]) and sleep for [`Self::with_step_dt`] up to
+    /// (via [`egui::Context::has_pending_images`]) and sleep for [`Self::with_step_dt`] up to
     /// [`Self::with_max_steps`] times.
     ///
     /// Default: `true`
+    #[inline]
     pub fn with_wait_for_pending_images(mut self, wait_for_pending_images: bool) -> Self {
         self.wait_for_pending_images = wait_for_pending_images;
         self
