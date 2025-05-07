@@ -1,4 +1,4 @@
-use crate::{Atomic, AtomicKind};
+use crate::{Atomic, AtomicKind, Image, WidgetText};
 use smallvec::SmallVec;
 use std::ops::{Deref, DerefMut};
 
@@ -41,6 +41,89 @@ impl<'a> Atomics<'a> {
             }
         }
         string
+    }
+
+    pub fn iter_kinds(&'a self) -> impl Iterator<Item = &'a AtomicKind<'a>> {
+        self.0.iter().map(|atomic| &atomic.kind)
+    }
+
+    pub fn iter_kinds_mut(&'a mut self) -> impl Iterator<Item = &'a mut AtomicKind<'a>> {
+        self.0.iter_mut().map(|atomic| &mut atomic.kind)
+    }
+
+    pub fn iter_images(&'a self) -> impl Iterator<Item = &'a Image<'a>> {
+        self.iter_kinds().filter_map(|kind| {
+            if let AtomicKind::Image(image) = kind {
+                Some(image)
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn iter_images_mut(&'a mut self) -> impl Iterator<Item = &'a mut Image<'a>> {
+        self.iter_kinds_mut().filter_map(|kind| {
+            if let AtomicKind::Image(image) = kind {
+                Some(image)
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn iter_texts(&'a self) -> impl Iterator<Item = &'a WidgetText> {
+        self.iter_kinds().filter_map(|kind| {
+            if let AtomicKind::Text(text) = kind {
+                Some(text)
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn iter_texts_mut(&'a mut self) -> impl Iterator<Item = &'a mut WidgetText> {
+        self.iter_kinds_mut().filter_map(|kind| {
+            if let AtomicKind::Text(text) = kind {
+                Some(text)
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn map_kind<F>(&'a mut self, mut f: F)
+    where
+        F: FnMut(AtomicKind<'a>) -> AtomicKind<'a>,
+    {
+        for kind in self.iter_kinds_mut() {
+            *kind = f(std::mem::take(kind));
+        }
+    }
+
+    pub fn map_images<F>(&'a mut self, mut f: F)
+    where
+        F: FnMut(Image<'a>) -> Image<'a>,
+    {
+        self.map_kind(|kind| {
+            if let AtomicKind::Image(image) = kind {
+                AtomicKind::Image(f(image))
+            } else {
+                kind
+            }
+        });
+    }
+
+    pub fn map_texts<F>(&'a mut self, mut f: F)
+    where
+        F: FnMut(WidgetText) -> WidgetText,
+    {
+        self.map_kind(|kind| {
+            if let AtomicKind::Text(text) = kind {
+                AtomicKind::Text(f(text))
+            } else {
+                kind
+            }
+        });
     }
 }
 

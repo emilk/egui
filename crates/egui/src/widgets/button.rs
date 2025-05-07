@@ -252,14 +252,7 @@ impl<'a> Button<'a> {
             let visuals = ui.style().interact_selectable(&prepared.response, selected);
 
             if image_tint_follows_text_color {
-                prepared.sized_atomics.iter_mut().for_each(|a| {
-                    a.kind = match std::mem::take(&mut a.kind) {
-                        SizedAtomicKind::Image(image, size) => {
-                            SizedAtomicKind::Image(image.tint(visuals.text_color()), size)
-                        }
-                        other => other,
-                    }
-                });
+                prepared.map_images(|image| image.tint(visuals.text_color()));
             }
 
             prepared.fallback_text_color = visuals.text_color();

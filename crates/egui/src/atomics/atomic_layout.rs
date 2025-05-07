@@ -1,13 +1,14 @@
 use crate::atomics::ATOMICS_SMALL_VEC_SIZE;
 use crate::{
-    AtomicKind, Atomics, FontSelection, Frame, Id, IntoAtomics, Response, Sense, SizedAtomic,
-    SizedAtomicKind, Ui, Widget,
+    AtomicKind, Atomics, FontSelection, Frame, Id, Image, IntoAtomics, Response, Sense,
+    SizedAtomic, SizedAtomicKind, Ui, Widget,
 };
 use emath::{Align2, NumExt as _, Rect, Vec2};
 use epaint::text::TextWrapMode;
-use epaint::Color32;
+use epaint::{Color32, Galley};
 use smallvec::SmallVec;
 use std::ops::{Deref, DerefMut};
+use std::sync::Arc;
 
 /// Intra-widget layout utility.
 ///
@@ -297,7 +298,77 @@ pub struct AllocatedAtomicLayout<'a> {
     gap: f32,
 }
 
-impl AllocatedAtomicLayout<'_> {
+impl<'atomic> AllocatedAtomicLayout<'atomic> {
+    pub fn iter_kinds(&self) -> impl Iterator<Item = &SizedAtomicKind<'atomic>> {
+        self.sized_atomics.iter().map(|atomic| &atomic.kind)
+    }
+
+    pub fn iter_kinds_mut(&mut self) -> impl Iterator<Item = &mut SizedAtomicKind<'atomic>> {
+        self.sized_atomics.iter_mut().map(|atomic| &mut atomic.kind)
+    }
+
+    pub fn iter_images(&self) -> impl Iterator<Item = &Image<'atomic>> {
+        self.iter_kinds().filter_map(|kind| {
+            if let SizedAtomicKind::Image(image, _) = kind {
+                Some(image)
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn iter_images_mut(&mut self) -> impl Iterator<Item = &mut Image<'atomic>> {
+        self.iter_kinds_mut().filter_map(|kind| {
+            if let SizedAtomicKind::Image(image, _) = kind {
+                Some(image)
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn iter_texts(&self) -> impl Iterator<Item = &Arc<Galley>> + use<'atomic, '_> {
+        self.iter_kinds().filter_map(|kind| {
+            if let SizedAtomicKind::Text(text) = kind {
+                Some(text)
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn iter_texts_mut(&mut self) -> impl Iterator<Item = &mut Arc<Galley>> + use<'atomic, '_> {
+        self.iter_kinds_mut().filter_map(|kind| {
+            if let SizedAtomicKind::Text(text) = kind {
+                Some(text)
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn map_kind<F>(&mut self, mut f: F)
+    where
+        F: FnMut(SizedAtomicKind<'atomic>) -> SizedAtomicKind<'atomic>,
+    {
+        for kind in self.iter_kinds_mut() {
+            *kind = f(std::mem::take(kind));
+        }
+    }
+
+    pub fn map_images<F>(&mut self, mut f: F)
+    where
+        F: FnMut(Image<'atomic>) -> Image<'atomic>,
+    {
+        self.map_kind(|kind| {
+            if let SizedAtomicKind::Image(image, size) = kind {
+                SizedAtomicKind::Image(f(image), size)
+            } else {
+                kind
+            }
+        });
+    }
+
     /// Paint the [`Frame`] and individual [`Atomic`]s.
     pub fn paint(self, ui: &Ui) -> AtomicLayoutResponse {
         let Self {
