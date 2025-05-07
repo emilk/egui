@@ -402,6 +402,7 @@ impl Widget for AtomicLayout<'_> {
 
 impl<'a> Deref for AtomicLayout<'a> {
     type Target = Atomics<'a>;
+
     fn deref(&self) -> &Self::Target {
         &self.atomics
     }
