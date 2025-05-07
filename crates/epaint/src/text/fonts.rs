@@ -913,7 +913,7 @@ impl GalleyCache {
                         "Bad new section range: {new_range:?}"
                     );
                     paragraph_job.sections.push(LayoutSection {
-                        leading_space: if start <= new_range.start {
+                        leading_space: if start <= section_range.start {
                             *leading_space
                         } else {
                             0.0
