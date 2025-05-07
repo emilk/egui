@@ -99,7 +99,7 @@ fn widget_tests() {
         ("minimal", ("Hello World!").into_atomics()),
         (
             "image",
-            (Image::new(source.clone()), "With Image").into_atomics(),
+            (source.clone().atom_max_height(12.0), "With Image").into_atomics(),
         ),
         (
             "multi_grow",

@@ -383,6 +383,7 @@ mod tests {
                 .map_or(demo.name(), |(_, name)| name);
 
             let mut harness = Harness::new(|ctx| {
+                egui_extras::install_image_loaders(ctx);
                 demo.show(ctx, &mut true);
             });
 

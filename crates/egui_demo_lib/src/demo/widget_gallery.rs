@@ -322,7 +322,10 @@ mod tests {
         let mut harness = Harness::builder()
             .with_pixels_per_point(2.0)
             .with_size(Vec2::new(380.0, 550.0))
-            .build_ui(|ui| demo.ui(ui));
+            .build_ui(|ui| {
+                egui_extras::install_image_loaders(ui.ctx());
+                demo.ui(ui);
+            });
 
         harness.fit_contents();
 
