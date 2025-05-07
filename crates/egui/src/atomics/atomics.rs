@@ -91,7 +91,7 @@ impl<'a> Atomics<'a> {
         })
     }
 
-    pub fn map(self, f: impl FnMut(Atomic<'a>) -> Atomic<'a>) -> Atomics<'a> {
+    pub fn map(self, f: impl FnMut(Atomic<'a>) -> Atomic<'a>) -> Self {
         Atomics(self.0.into_iter().map(f).collect())
     }
 

@@ -4,15 +4,23 @@ use emath::Vec2;
 /// A [`Atomic`] which has been sized.
 #[derive(Clone, Debug)]
 pub struct SizedAtomic<'a> {
-    grow: bool,
+    pub(crate) grow: bool,
+
+    /// The size of the atomic.
+    ///
+    /// Used for placing this atomic in [`crate::AtomicLayout`], the cursor will advance by
+    /// size.x + gap.
     pub size: Vec2,
+
+    /// Preferred size of the atomic. This is used to calculate `Response::intrinsic_size`.
     pub preferred_size: Vec2,
+
     pub kind: SizedAtomicKind<'a>,
 }
 
 impl SizedAtomic<'_> {
     /// Was this [`Atomic`] marked as `grow`?
-    fn is_grow(&self) -> bool {
+    pub fn is_grow(&self) -> bool {
         self.grow
     }
 }

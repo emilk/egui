@@ -1,5 +1,5 @@
 use crate::{
-    Atomic, AtomicExt, AtomicKind, AtomicLayout, AtomicLayoutResponse, Atomics, Color32,
+    Atomic, AtomicExt as _, AtomicKind, AtomicLayout, AtomicLayoutResponse, Atomics, Color32,
     CornerRadius, Frame, Image, IntoAtomics, NumExt as _, Response, Sense, Stroke, TextWrapMode,
     Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
 };
@@ -243,7 +243,7 @@ impl<'a> Button<'a> {
         if limit_image_size {
             atomics = atomics.map(|atomic| {
                 if matches!(&atomic.kind, AtomicKind::Image(_)) {
-                    atomic.atom_max_height_font_size(&ui)
+                    atomic.atom_max_height_font_size(ui)
                 } else {
                     atomic
                 }

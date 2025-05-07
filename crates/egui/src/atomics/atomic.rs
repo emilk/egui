@@ -1,5 +1,5 @@
 use crate::{AtomicKind, SizedAtomic, Ui};
-use emath::{NumExt, Vec2};
+use emath::{NumExt as _, Vec2};
 use epaint::text::TextWrapMode;
 
 /// A low-level ui building block.

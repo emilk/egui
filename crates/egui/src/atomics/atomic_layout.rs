@@ -3,7 +3,7 @@ use crate::{
     AtomicKind, Atomics, Frame, Id, Image, IntoAtomics, Response, Sense, SizedAtomic,
     SizedAtomicKind, Ui, Widget,
 };
-use emath::{Align2, NumExt as _, Rect, Vec2};
+use emath::{Align2, GuiRounding as _, NumExt as _, Rect, Vec2};
 use epaint::text::TextWrapMode;
 use epaint::{Color32, Galley};
 use smallvec::SmallVec;
@@ -111,7 +111,7 @@ impl<'a> AtomicLayout<'a> {
     /// Set the [`TextWrapMode`] for the [`Atomic`] marked as `shrink`.
     ///
     /// Only a single [`Atomic`] may shrink. If this (or `ui.wrap_mode()`) is not
-    /// [`TextWrapMode::Extend`] and no item is set to shrink, the first (right-most)
+    /// [`TextWrapMode::Extend`] and no item is set to shrink, the first (left-most)
     /// [`AtomicKind::Text`] will be set to shrink.
     #[inline]
     pub fn wrap_mode(mut self, wrap_mode: TextWrapMode) -> Self {
@@ -120,6 +120,8 @@ impl<'a> AtomicLayout<'a> {
     }
 
     /// Set the [`Align2`].
+    ///
+    /// This will align the [`Atomic`]s within the [`Rect`] returned by [`Ui::allocate_space`].
     ///
     /// The default is chosen based on the [`Ui`]s [`crate::Layout`]. See
     /// [this snapshot](https://github.com/emilk/egui/blob/master/tests/egui_tests/tests/snapshots/layout/button.png)
@@ -162,7 +164,7 @@ impl<'a> AtomicLayout<'a> {
                     .iter_mut()
                     .find(|a| matches!(a.kind, AtomicKind::Text(..)));
                 if let Some(atomic) = first_text {
-                    atomic.shrink = true;
+                    atomic.shrink = true; // Will make the text truncate or shrink depending on wrap_mode
                 }
             }
         }
@@ -177,6 +179,9 @@ impl<'a> AtomicLayout<'a> {
         let available_inner_size = ui.available_size() - frame.total_margin().sum();
 
         let mut desired_width = 0.0;
+
+        // Preferred width / height is the ideal size of the widget, e.g. the size where the
+        // text is not wrapped. Used to set Response::intrinsic_size.
         let mut preferred_width = 0.0;
         let mut preferred_height = 0.0;
 
@@ -199,18 +204,18 @@ impl<'a> AtomicLayout<'a> {
         }
 
         for (idx, item) in atomics.into_iter().enumerate() {
+            if item.grow {
+                grow_count += 1;
+            }
             if item.shrink {
                 debug_assert!(
                     shrink_item.is_none(),
-                    "Only one atomic may be marked as shrink"
+                    "Only one atomic may be marked as shrink. {item:?}"
                 );
                 if shrink_item.is_none() {
                     shrink_item = Some((idx, item));
                     continue;
                 }
-            }
-            if item.grow {
-                grow_count += 1;
             }
             let sized = item.into_sized(ui, available_inner_size, Some(wrap_mode));
             let size = sized.size;
@@ -226,15 +231,12 @@ impl<'a> AtomicLayout<'a> {
 
         if let Some((index, item)) = shrink_item {
             // The `shrink` item gets the remaining space
-            let shrunk_size = Vec2::new(
+            let available_size_for_shrink_item = Vec2::new(
                 available_inner_size.x - desired_width,
                 available_inner_size.y,
             );
-            if item.grow {
-                grow_count += 1;
-            }
 
-            let sized = item.into_sized(ui, shrunk_size, Some(wrap_mode));
+            let sized = item.into_sized(ui, available_size_for_shrink_item, Some(wrap_mode));
             let size = sized.size;
 
             desired_width += size.x;
@@ -357,7 +359,7 @@ impl<'atomic> AllocatedAtomicLayout<'atomic> {
     /// Paint the [`Frame`] and individual [`Atomic`]s.
     pub fn paint(self, ui: &Ui) -> AtomicLayoutResponse {
         let Self {
-            sized_atomics: sized_items,
+            sized_atomics,
             frame,
             fallback_text_color,
             response,
@@ -373,7 +375,7 @@ impl<'atomic> AllocatedAtomicLayout<'atomic> {
 
         let width_to_fill = inner_rect.width();
         let extra_space = f32::max(width_to_fill - desired_size.x, 0.0);
-        let grow_width = f32::max(extra_space / grow_count as f32, 0.0);
+        let grow_width = f32::max(extra_space / grow_count as f32, 0.0).floor_ui();
 
         let aligned_rect = if grow_count > 0 {
             align2.align_size_within_rect(Vec2::new(width_to_fill, desired_size.y), inner_rect)
@@ -385,9 +387,9 @@ impl<'atomic> AllocatedAtomicLayout<'atomic> {
 
         let mut response = AtomicLayoutResponse::empty(response);
 
-        for sized in sized_items {
+        for sized in sized_atomics {
             let size = sized.size;
-            let growth = if sized.grow { grow_width } else { 0.0 };
+            let growth = if sized.is_grow() { grow_width } else { 0.0 };
 
             let frame = aligned_rect
                 .with_min_x(cursor)
@@ -435,7 +437,7 @@ impl AtomicLayoutResponse {
     pub fn empty(response: Response) -> Self {
         Self {
             response,
-            custom_rects: SmallVec::new(),
+            custom_rects: Default::default(),
         }
     }
 
