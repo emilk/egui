@@ -4,6 +4,10 @@ use emath::Vec2;
 /// A trait for conveniently building [`Atomic`]s.
 pub trait AtomicExt<'a> {
     /// Set the atomic to a fixed size.
+    ///
+    /// If [`Atomic::grow`] is `true`, this will be the minimum width.
+    /// If [`Atomic::shrink`] is `true`, this will be the maximum width.
+    /// If both are true, the width will have no effect.
     fn atom_size(self, size: Vec2) -> Atomic<'a>;
 
     /// Grow this atomic to the available space.
