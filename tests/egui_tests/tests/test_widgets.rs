@@ -1,7 +1,7 @@
 use egui::load::SizedTexture;
 use egui::{
     include_image, Align, AtomicExt as _, AtomicLayout, Button, Color32, ColorImage, Direction,
-    DragValue, Event, Grid, Image, IntoAtomics as _, Layout, PointerButton, Pos2, Response, Slider,
+    DragValue, Event, Grid, IntoAtomics as _, Layout, PointerButton, Pos2, Response, Slider,
     Stroke, StrokeKind, TextWrapMode, TextureHandle, TextureOptions, Ui, UiBuilder, Vec2,
     Widget as _,
 };
