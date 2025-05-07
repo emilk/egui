@@ -98,7 +98,7 @@ macro_rules! all_the_atomics {
             $($T: IntoAtomics<'a>),*
         {
             fn collect(self, _atomics: &mut Atomics<'a>) {
-                #[allow(non_snake_case)]
+                #[expect(non_snake_case)]
                 let ($($T),*) = self;
                 $($T.collect(_atomics);)*
             }
@@ -121,7 +121,7 @@ impl<'a> Deref for Atomics<'a> {
     }
 }
 
-impl<'a> DerefMut for Atomics<'a> {
+impl DerefMut for Atomics<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }

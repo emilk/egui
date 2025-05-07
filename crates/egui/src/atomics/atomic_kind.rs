@@ -25,7 +25,7 @@ pub enum AtomicKind<'a> {
     /// let id = Id::new("my_button");
     /// let response = Button::new(("Hi!", AtomicKind::Custom(id, Vec2::splat(18.0)))).atomic_ui(ui);
     ///
-    /// let rect = response.custom_rects.get(&id);
+    /// let rect = response.get_rect(id);
     /// if let Some(rect) = rect {
     ///     ui.put(*rect, Button::new("⏵"));
     /// }
@@ -95,7 +95,7 @@ impl<'a> From<Image<'a>> for AtomicKind<'a> {
     }
 }
 
-impl<'a, T> From<T> for AtomicKind<'a>
+impl<T> From<T> for AtomicKind<'_>
 where
     T: Into<WidgetText>,
 {

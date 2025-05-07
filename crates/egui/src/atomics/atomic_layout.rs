@@ -3,7 +3,7 @@ use crate::{
     AtomicKind, Atomics, FontSelection, Frame, Id, IntoAtomics, Response, Sense, SizedAtomic,
     SizedAtomicKind, Ui, Widget,
 };
-use emath::{Align2, NumExt, Rect, Vec2};
+use emath::{Align2, NumExt as _, Rect, Vec2};
 use epaint::text::TextWrapMode;
 use epaint::Color32;
 use smallvec::SmallVec;
@@ -297,7 +297,7 @@ pub struct AllocatedAtomicLayout<'a> {
     gap: f32,
 }
 
-impl<'a> AllocatedAtomicLayout<'a> {
+impl AllocatedAtomicLayout<'_> {
     /// Paint the [`Frame`] and individual [`Atomic`]s.
     pub fn paint(self, ui: &Ui) -> AtomicLayoutResponse {
         let Self {
@@ -407,7 +407,7 @@ impl<'a> Deref for AtomicLayout<'a> {
     }
 }
 
-impl<'a> DerefMut for AtomicLayout<'a> {
+impl DerefMut for AtomicLayout<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.atomics
     }
@@ -421,7 +421,7 @@ impl<'a> Deref for AllocatedAtomicLayout<'a> {
     }
 }
 
-impl<'a> DerefMut for AllocatedAtomicLayout<'a> {
+impl DerefMut for AllocatedAtomicLayout<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.sized_atomics
     }

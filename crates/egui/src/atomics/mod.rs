@@ -1,7 +1,7 @@
 mod atomic;
 mod atomic_kind;
 mod atomic_layout;
-#[allow(clippy::module_inception)]
+#[expect(clippy::module_inception)]
 mod atomics;
 mod sized_atomic;
 mod sized_atomic_kind;

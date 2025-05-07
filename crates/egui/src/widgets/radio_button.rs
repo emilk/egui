@@ -37,7 +37,7 @@ impl<'a> RadioButton<'a> {
     }
 }
 
-impl<'a> Widget for RadioButton<'a> {
+impl Widget for RadioButton<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         let Self {
             checked,
