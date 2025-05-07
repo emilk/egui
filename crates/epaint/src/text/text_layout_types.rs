@@ -118,6 +118,21 @@ impl LayoutJob {
         }
     }
 
+    /// Break on `\n`
+    #[inline]
+    pub fn simple_format(text: String, format: TextFormat) -> Self {
+        Self {
+            sections: vec![LayoutSection {
+                leading_space: 0.0,
+                byte_range: 0..text.len(),
+                format,
+            }],
+            text,
+            break_on_newline: true,
+            ..Default::default()
+        }
+    }
+
     /// Does not break on `\n`, but shows the replacement character instead.
     #[inline]
     pub fn simple_singleline(text: String, font_id: FontId, color: Color32) -> Self {
@@ -561,9 +576,17 @@ pub struct PlacedRow {
 
 impl PlacedRow {
     /// Logical bounding rectangle on font heights etc.
-    /// Use this when drawing a selection or similar!
+    ///
+    /// This ignores / includes the `LayoutSection::leading_space`.
     pub fn rect(&self) -> Rect {
         Rect::from_min_size(self.pos, self.row.size)
+    }
+
+    /// Same as [`Self::rect`] but excluding the `LayoutSection::leading_space`.
+    pub fn rect_without_leading_space(&self) -> Rect {
+        let x = self.glyphs.first().map_or(self.pos.x, |g| g.pos.x);
+        let size_x = self.size.x - x;
+        Rect::from_min_size(Pos2::new(x, self.pos.y), Vec2::new(size_x, self.size.y))
     }
 }
 

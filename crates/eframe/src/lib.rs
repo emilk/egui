@@ -184,6 +184,14 @@ mod native;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu"))]
+pub use native::run::EframeWinitApplication;
+
+#[cfg(not(any(target_arch = "wasm32", target_os = "ios")))]
+#[cfg(any(feature = "glow", feature = "wgpu"))]
+pub use native::run::EframePumpStatus;
+
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(feature = "glow", feature = "wgpu"))]
 #[cfg(feature = "persistence")]
 pub use native::file_storage::storage_dir;
 
@@ -242,26 +250,7 @@ pub fn run_native(
     mut native_options: NativeOptions,
     app_creator: AppCreator<'_>,
 ) -> Result {
-    #[cfg(not(feature = "__screenshot"))]
-    assert!(
-        std::env::var("EFRAME_SCREENSHOT_TO").is_err(),
-        "EFRAME_SCREENSHOT_TO found without compiling with the '__screenshot' feature"
-    );
-
-    if native_options.viewport.title.is_none() {
-        native_options.viewport.title = Some(app_name.to_owned());
-    }
-
-    let renderer = native_options.renderer;
-
-    #[cfg(all(feature = "glow", feature = "wgpu"))]
-    {
-        match renderer {
-            Renderer::Glow => "glow",
-            Renderer::Wgpu => "wgpu",
-        };
-        log::info!("Both the glow and wgpu renderers are available. Using {renderer}.");
-    }
+    let renderer = init_native(app_name, &mut native_options);
 
     match renderer {
         #[cfg(feature = "glow")]
@@ -276,6 +265,113 @@ pub fn run_native(
             native::run::run_wgpu(app_name, native_options, app_creator)
         }
     }
+}
+
+/// Provides a proxy for your native eframe application to run on your own event loop.
+///
+/// See `run_native` for details about `app_name`.
+///
+/// Call from `fn main` like this:
+/// ``` no_run
+/// use eframe::{egui, UserEvent};
+/// use winit::event_loop::{ControlFlow, EventLoop};
+///
+/// fn main() -> eframe::Result {
+///     let native_options = eframe::NativeOptions::default();
+///     let eventloop = EventLoop::<UserEvent>::with_user_event().build()?;
+///     eventloop.set_control_flow(ControlFlow::Poll);
+///
+///     let mut winit_app = eframe::create_native(
+///         "MyExtApp",
+///         native_options,
+///         Box::new(|cc| Ok(Box::new(MyEguiApp::new(cc)))),
+///         &eventloop,
+///     );
+///
+///     eventloop.run_app(&mut winit_app)?;
+///
+///     Ok(())
+/// }
+///
+/// #[derive(Default)]
+/// struct MyEguiApp {}
+///
+/// impl MyEguiApp {
+///     fn new(cc: &eframe::CreationContext<'_>) -> Self {
+///         Self::default()
+///     }
+/// }
+///
+/// impl eframe::App for MyEguiApp {
+///    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+///        egui::CentralPanel::default().show(ctx, |ui| {
+///            ui.heading("Hello World!");
+///        });
+///    }
+/// }
+/// ```
+///
+/// See the `external_eventloop` example for a more complete example.
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(feature = "glow", feature = "wgpu"))]
+pub fn create_native<'a>(
+    app_name: &str,
+    mut native_options: NativeOptions,
+    app_creator: AppCreator<'a>,
+    event_loop: &winit::event_loop::EventLoop<UserEvent>,
+) -> EframeWinitApplication<'a> {
+    let renderer = init_native(app_name, &mut native_options);
+
+    match renderer {
+        #[cfg(feature = "glow")]
+        Renderer::Glow => {
+            log::debug!("Using the glow renderer");
+            EframeWinitApplication::new(native::run::create_glow(
+                app_name,
+                native_options,
+                app_creator,
+                event_loop,
+            ))
+        }
+
+        #[cfg(feature = "wgpu")]
+        Renderer::Wgpu => {
+            log::debug!("Using the wgpu renderer");
+            EframeWinitApplication::new(native::run::create_wgpu(
+                app_name,
+                native_options,
+                app_creator,
+                event_loop,
+            ))
+        }
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(feature = "glow", feature = "wgpu"))]
+fn init_native(app_name: &str, native_options: &mut NativeOptions) -> Renderer {
+    #[cfg(not(feature = "__screenshot"))]
+    assert!(
+        std::env::var("EFRAME_SCREENSHOT_TO").is_err(),
+        "EFRAME_SCREENSHOT_TO found without compiling with the '__screenshot' feature"
+    );
+
+    if native_options.viewport.title.is_none() {
+        native_options.viewport.title = Some(app_name.to_owned());
+    }
+
+    let renderer = native_options.renderer;
+
+    #[cfg(all(feature = "glow", feature = "wgpu"))]
+    {
+        match native_options.renderer {
+            Renderer::Glow => "glow",
+            Renderer::Wgpu => "wgpu",
+        };
+        log::info!("Both the glow and wgpu renderers are available. Using {renderer}.");
+    }
+
+    renderer
 }
 
 // ----------------------------------------------------------------------------

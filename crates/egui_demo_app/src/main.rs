@@ -4,6 +4,9 @@
 #![allow(rustdoc::missing_crate_level_docs)] // it's an example
 #![allow(clippy::never_loop)] // False positive
 
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc; // Much faster allocator, can give 20% speedups: https://github.com/emilk/egui/pull/7029
+
 // When compiling natively:
 fn main() -> eframe::Result {
     for arg in std::env::args().skip(1) {

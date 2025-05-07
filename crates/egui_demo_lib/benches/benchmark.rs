@@ -4,9 +4,12 @@ use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 
 use egui::epaint::TextShape;
 use egui::load::SizedTexture;
-use egui::{Button, Id, TextureId, Ui, UiBuilder, Vec2};
+use egui::{Button, Id, RichText, TextureId, Ui, UiBuilder, Vec2};
 use egui_demo_lib::LOREM_IPSUM_LONG;
 use rand::Rng as _;
+
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc; // Much faster allocator
 
 /// Each iteration should be called in their own `Ui` with an intentional id clash,
 /// to prevent the Context from building a massive map of `WidgetRects` (which would slow the test,
@@ -117,6 +120,15 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                     || create_benchmark_ui(ctx),
                     |ui| {
                         ui.add(Button::image_and_text(image, "Hello World").right_text("⏵"));
+                    },
+                    BatchSize::LargeInput,
+                );
+            });
+            group.bench_function("4_button_italic", |b| {
+                b.iter_batched_ref(
+                    || create_benchmark_ui(ctx),
+                    |ui| {
+                        ui.add(Button::new(RichText::new("Hello World").italics()));
                     },
                     BatchSize::LargeInput,
                 );

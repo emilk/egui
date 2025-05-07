@@ -362,6 +362,19 @@ pub fn run_glow(
     run_and_exit(event_loop, glow_eframe)
 }
 
+#[cfg(feature = "glow")]
+pub fn create_glow<'a>(
+    app_name: &str,
+    native_options: epi::NativeOptions,
+    app_creator: epi::AppCreator<'a>,
+    event_loop: &EventLoop<UserEvent>,
+) -> impl ApplicationHandler<UserEvent> + 'a {
+    use super::glow_integration::GlowWinitApp;
+
+    let glow_eframe = GlowWinitApp::new(event_loop, app_name, native_options, app_creator);
+    WinitAppWrapper::new(glow_eframe, true)
+}
+
 // ----------------------------------------------------------------------------
 
 #[cfg(feature = "wgpu")]
@@ -385,4 +398,121 @@ pub fn run_wgpu(
     let event_loop = create_event_loop(&mut native_options)?;
     let wgpu_eframe = WgpuWinitApp::new(&event_loop, app_name, native_options, app_creator);
     run_and_exit(event_loop, wgpu_eframe)
+}
+
+#[cfg(feature = "wgpu")]
+pub fn create_wgpu<'a>(
+    app_name: &str,
+    native_options: epi::NativeOptions,
+    app_creator: epi::AppCreator<'a>,
+    event_loop: &EventLoop<UserEvent>,
+) -> impl ApplicationHandler<UserEvent> + 'a {
+    use super::wgpu_integration::WgpuWinitApp;
+
+    let wgpu_eframe = WgpuWinitApp::new(event_loop, app_name, native_options, app_creator);
+    WinitAppWrapper::new(wgpu_eframe, true)
+}
+
+// ----------------------------------------------------------------------------
+
+/// A proxy to the eframe application that implements [`ApplicationHandler`].
+///
+/// This can be run directly on your own [`EventLoop`] by itself or with other
+/// windows you manage outside of eframe.
+pub struct EframeWinitApplication<'a> {
+    wrapper: Box<dyn ApplicationHandler<UserEvent> + 'a>,
+    control_flow: ControlFlow,
+}
+
+impl ApplicationHandler<UserEvent> for EframeWinitApplication<'_> {
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        self.wrapper.resumed(event_loop);
+    }
+
+    fn window_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        window_id: winit::window::WindowId,
+        event: winit::event::WindowEvent,
+    ) {
+        self.wrapper.window_event(event_loop, window_id, event);
+    }
+
+    fn new_events(&mut self, event_loop: &ActiveEventLoop, cause: winit::event::StartCause) {
+        self.wrapper.new_events(event_loop, cause);
+    }
+
+    fn user_event(&mut self, event_loop: &ActiveEventLoop, event: UserEvent) {
+        self.wrapper.user_event(event_loop, event);
+    }
+
+    fn device_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        device_id: winit::event::DeviceId,
+        event: winit::event::DeviceEvent,
+    ) {
+        self.wrapper.device_event(event_loop, device_id, event);
+    }
+
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        self.wrapper.about_to_wait(event_loop);
+        self.control_flow = event_loop.control_flow();
+    }
+
+    fn suspended(&mut self, event_loop: &ActiveEventLoop) {
+        self.wrapper.suspended(event_loop);
+    }
+
+    fn exiting(&mut self, event_loop: &ActiveEventLoop) {
+        self.wrapper.exiting(event_loop);
+    }
+
+    fn memory_warning(&mut self, event_loop: &ActiveEventLoop) {
+        self.wrapper.memory_warning(event_loop);
+    }
+}
+
+impl<'a> EframeWinitApplication<'a> {
+    pub(crate) fn new<T: ApplicationHandler<UserEvent> + 'a>(app: T) -> Self {
+        Self {
+            wrapper: Box::new(app),
+            control_flow: ControlFlow::default(),
+        }
+    }
+
+    /// Pump the `EventLoop` to check for and dispatch pending events to this application.
+    ///
+    /// Returns either the exit code for the application or the final state of the [`ControlFlow`]
+    /// after all events have been dispatched in this iteration.
+    ///
+    /// This is useful when your [`EventLoop`] is not the main event loop for your application.
+    /// See the `external_eventloop_async` example.
+    #[cfg(not(target_os = "ios"))]
+    pub fn pump_eframe_app(
+        &mut self,
+        event_loop: &mut EventLoop<UserEvent>,
+        timeout: Option<std::time::Duration>,
+    ) -> EframePumpStatus {
+        use winit::platform::pump_events::{EventLoopExtPumpEvents as _, PumpStatus};
+
+        match event_loop.pump_app_events(timeout, self) {
+            PumpStatus::Continue => EframePumpStatus::Continue(self.control_flow),
+            PumpStatus::Exit(code) => EframePumpStatus::Exit(code),
+        }
+    }
+}
+
+/// Either an exit code or a [`ControlFlow`] from the [`ActiveEventLoop`].
+///
+/// The result of [`EframeWinitApplication::pump_eframe_app`].
+#[cfg(not(target_os = "ios"))]
+pub enum EframePumpStatus {
+    /// The final state of the [`ControlFlow`] after all events have been dispatched
+    ///
+    /// Callers should perform the action that is appropriate for the [`ControlFlow`] value.
+    Continue(ControlFlow),
+
+    /// The exit code for the application
+    Exit(i32),
 }

@@ -45,25 +45,18 @@ deny = [
 ]
 
 skip = [
-  { name = "base64" },         # Pretty small
   { name = "bit-set" },        # wgpu's naga depends on 0.8, syntect's (used by egui_extras) fancy-regex depends on 0.5
   { name = "bit-vec" },        # dependency of bit-set in turn, different between 0.6 and 0.5
   { name = "bitflags" },       # old 1.0 version via glutin, png, spirv, …
-  { name = "event-listener" }, # TODO(emilk): rustls pulls in two versions of this 😭
-  { name = "futures-lite" },   # old version via accesskit_unix and zbus
-  { name = "memoffset" },      # tiny dependency
   { name = "ndk-sys" },        # old version via wgpu, winit uses newer version
   { name = "quick-xml" },      # old version via wayland-scanner
   { name = "redox_syscall" },  # old version via winit
   { name = "thiserror" },      # ecosystem is in the process of migrating from 1.x to 2.x
   { name = "thiserror-impl" }, # same as above
-  { name = "time" },           # old version pulled in by unmaintained crate 'chrono'
   { name = "windows-core" },   # Chrono pulls in 0.51, accesskit uses 0.58.0
   { name = "windows-sys" },    # glutin pulls in 0.52.0, accesskit pulls in 0.59.0, rfd pulls 0.48, webbrowser pulls 0.45.0 (via jni)
 ]
 skip-tree = [
-  { name = "criterion" },     # dev-dependency
-  { name = "foreign-types" }, # small crate. Old version via core-graphics (winit).
   { name = "rfd" },           # example dependency
 ]
 
