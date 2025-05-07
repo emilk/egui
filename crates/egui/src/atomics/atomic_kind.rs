@@ -9,7 +9,23 @@ pub enum AtomicKind<'a> {
     /// Empty, that can be used with [`AtomicExt::a_grow`] to reserve space.
     #[default]
     Empty,
+
+    /// Text atomic.
+    ///
+    /// Truncation within [`crate::AtomicLayout`] works like this:
+    /// -
+    /// - if `wrap_mode` is not Extend
+    ///   - if no atomic is `shrink`
+    ///     - the first text atomic is selected and will be marked as `shrink`
+    ///   - the atomic marked as `shrink` will shrink / wrap based on the selected wrap mode
+    ///   - any other text atomics will have `wrap_mode` extend
+    /// - if `wrap_mode` is extend, Text will extend as expected.
+    ///
+    /// Generally, `wrap_mode` should only be set via [`crate::Style`] or
+    /// [`crate::AtomicLayout::wrap_mode`], as setting a wrap mode on a [`WidgetText`] atomic
+    /// that is not `shrink` will have unexpected results.
     Text(WidgetText),
+
     Image(Image<'a>),
 
     /// For custom rendering.

@@ -52,8 +52,11 @@ impl<'a> Atomic<'a> {
         ui: &Ui,
         available_size: Vec2,
         font_size: f32,
-        wrap_mode: Option<TextWrapMode>,
+        mut wrap_mode: Option<TextWrapMode>,
     ) -> SizedAtomic<'a> {
+        if !self.shrink {
+            wrap_mode = Some(TextWrapMode::Extend);
+        }
         let (preferred, kind) = self
             .kind
             .into_sized(ui, available_size, font_size, wrap_mode);
