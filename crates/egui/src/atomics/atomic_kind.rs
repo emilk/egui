@@ -1,4 +1,4 @@
-use crate::{Id, Image, ImageSource, SizedAtomicKind, TextStyle, Ui, WidgetText};
+use crate::{Atomic, Id, Image, ImageSource, SizedAtomicKind, TextStyle, Ui, WidgetText};
 use emath::Vec2;
 use epaint::text::TextWrapMode;
 use std::fmt::Formatter;
@@ -21,11 +21,22 @@ pub enum AtomicKind<'a> {
     ///   - any other text atomics will have `wrap_mode` extend
     /// - if `wrap_mode` is extend, Text will extend as expected.
     ///
-    /// Generally, `wrap_mode` should only be set via [`crate::Style`] or
+    /// Unless [`Atomic::atom_max_width`] is set, `wrap_mode` should only be set via [`crate::Style`] or
     /// [`crate::AtomicLayout::wrap_mode`], as setting a wrap mode on a [`WidgetText`] atomic
     /// that is not `shrink` will have unexpected results.
+    ///
+    /// The size is determined by converting the [`WidgetText`] into a galley and using the galleys
+    /// size. You can use [`Atomic::atom_size`] to override this, and [`Atomic::atom_max_width`]
+    /// to limit the width (Causing the text to wrap or truncate, depending on the `wrap_mode`.
+    /// [`Atomic::atom_max_height`] has no effect on text.
     Text(WidgetText),
 
+    /// Image atomic.
+    ///
+    /// By default the size is determined via [`Image::calc_size`].
+    /// You can use [`Atomic::atom_max_size`] or [`Atomic::atom_size`] to customize the size.
+    /// There is also a helper [`Atomic::atom_max_height_font_size`] to set the max height to the
+    /// default font height, which is convenient for icons.
     Image(Image<'a>),
 
     /// For custom rendering.
