@@ -36,7 +36,7 @@ impl Default for Atomic<'_> {
 impl<'a> Atomic<'a> {
     /// Create an empty [`Atomic`] marked as `grow`.
     ///
-    /// This will expand in size, allowing all proceeding atomics to be left-aligned,
+    /// This will expand in size, allowing all preceding atomics to be left-aligned,
     /// and all following atomics to be right-aligned
     pub fn grow() -> Self {
         Atomic {
