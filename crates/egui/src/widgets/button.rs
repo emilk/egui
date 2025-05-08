@@ -55,7 +55,7 @@ impl<'a> Button<'a> {
     /// Creates a button with an image. The size of the image as displayed is defined by the provided size.
     ///
     /// Note: In contrast to [`Button::new`], this limits the image size to the default font height
-    /// (using [`AtomicExt::atom_max_height_font_size`]).
+    /// (using [`crate::AtomicExt::atom_max_height_font_size`]).
     pub fn image(image: impl Into<Image<'a>>) -> Self {
         Self::opt_image_and_text(Some(image.into()), None)
     }
@@ -63,7 +63,7 @@ impl<'a> Button<'a> {
     /// Creates a button with an image to the left of the text.
     ///
     /// Note: In contrast to [`Button::new`], this limits the image size to the default font height
-    /// (using [`AtomicExt::atom_max_height_font_size`]).
+    /// (using [`crate::AtomicExt::atom_max_height_font_size`]).
     pub fn image_and_text(image: impl Into<Image<'a>>, text: impl Into<WidgetText>) -> Self {
         Self::opt_image_and_text(Some(image.into()), Some(text.into()))
     }
@@ -71,7 +71,7 @@ impl<'a> Button<'a> {
     /// Create a button with an optional image and optional text.
     ///
     /// Note: In contrast to [`Button::new`], this limits the image size to the default font height
-    /// (using [`AtomicExt::atom_max_height_font_size`]).
+    /// (using [`crate::AtomicExt::atom_max_height_font_size`]).
     pub fn opt_image_and_text(image: Option<Image<'a>>, text: Option<WidgetText>) -> Self {
         let mut button = Self::new(());
         if let Some(image) = image {
