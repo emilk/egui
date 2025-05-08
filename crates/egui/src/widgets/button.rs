@@ -39,7 +39,7 @@ pub struct Button<'a> {
 impl<'a> Button<'a> {
     pub fn new(content: impl IntoAtomics<'a>) -> Self {
         Self {
-            layout: AtomicLayout::new(content.into_atomics()),
+            layout: AtomicLayout::new(content.into_atomics()).sense(Sense::click()),
             fill: None,
             stroke: None,
             small: false,
