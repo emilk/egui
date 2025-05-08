@@ -1433,7 +1433,7 @@ impl Context {
     /// figured out from the `target_os`.
     ///
     /// For web, this can be figured out from the user-agent,
-    /// and is done so by [`eframe`](https://github.com/emilk/egui/tree/master/crates/eframe).
+    /// and is done so by [`eframe`](https://github.com/emilk/egui/tree/main/crates/eframe).
     pub fn os(&self) -> OperatingSystem {
         self.read(|ctx| ctx.os)
     }

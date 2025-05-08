@@ -143,7 +143,7 @@
 //! }
 //! ```
 //!
-//! For a reference OpenGL renderer, see [the `egui_glow` painter](https://github.com/emilk/egui/blob/master/crates/egui_glow/src/painter.rs).
+//! For a reference OpenGL renderer, see [the `egui_glow` painter](https://github.com/emilk/egui/blob/main/crates/egui_glow/src/painter.rs).
 //!
 //!
 //! ### Debugging your renderer
@@ -219,7 +219,7 @@
 //! This means it is responsibility of the egui user to store the state (`value`) so that it persists between frames.
 //!
 //! It can be useful to read the code for the toggle switch example widget to get a better understanding
-//! of how egui works: <https://github.com/emilk/egui/blob/master/crates/egui_demo_lib/src/demo/toggle_switch.rs>.
+//! of how egui works: <https://github.com/emilk/egui/blob/main/crates/egui_demo_lib/src/demo/toggle_switch.rs>.
 //!
 //! Read more about the pros and cons of immediate mode at <https://github.com/emilk/egui#why-immediate-mode>.
 //!
@@ -567,7 +567,7 @@ macro_rules! include_image {
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
-/// ui.add(egui::github_link_file_line!("https://github.com/YOUR/PROJECT/blob/master/", "(source code)"));
+/// ui.add(egui::github_link_file_line!("https://github.com/YOUR/PROJECT/blob/main/", "(source code)"));
 /// # });
 /// ```
 #[macro_export]
@@ -582,7 +582,7 @@ macro_rules! github_link_file_line {
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
-/// ui.add(egui::github_link_file!("https://github.com/YOUR/PROJECT/blob/master/", "(source code)"));
+/// ui.add(egui::github_link_file!("https://github.com/YOUR/PROJECT/blob/main/", "(source code)"));
 /// # });
 /// ```
 #[macro_export]

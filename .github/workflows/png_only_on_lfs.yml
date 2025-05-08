@@ -25,7 +25,7 @@ jobs:
           exclude_pattern=$(printf "|^%s" "${exclude_paths[@]}" | sed 's/^|//')
 
           if comm -23 <(git ls-files | grep -Ev "$exclude_pattern" | sort) <(git lfs ls-files -n | sort) | grep "\.${ext}$"; then
-            echo "Error: Found binary file with extension .$ext not tracked by git LFS. See https://github.com/emilk/egui/blob/master/CONTRIBUTING.md#working-with-git-lfs"
+            echo "Error: Found binary file with extension .$ext not tracked by git LFS. See https://github.com/emilk/egui/blob/main/CONTRIBUTING.md#working-with-git-lfs"
             exit 1
           fi
         done

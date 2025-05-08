@@ -1,9 +1,9 @@
 name: Deploy web demo
 
 on:
-  # We only run this on merges to master
+  # We only run this on merges to main
   push:
-    branches: ["master"]
+    branches: ["main"]
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 # to only run when you do a new github release, comment out above part and uncomment the below trigger.

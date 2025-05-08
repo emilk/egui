@@ -9,10 +9,10 @@ authors = [
 ]
 edition.workspace = true
 rust-version.workspace = true
-homepage = "https://github.com/emilk/egui/tree/master/crates/egui-wgpu"
+homepage = "https://github.com/emilk/egui/tree/main/crates/egui-wgpu"
 license.workspace = true
 readme = "README.md"
-repository = "https://github.com/emilk/egui/tree/master/crates/egui-wgpu"
+repository = "https://github.com/emilk/egui/tree/main/crates/egui-wgpu"
 categories = ["gui", "game-development"]
 keywords = ["wgpu", "egui", "gui", "gamedev"]
 include = [
