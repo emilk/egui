@@ -159,6 +159,7 @@ where
     }
 }
 
+/// Trait for turning a tuple of [`Atomic`]s into [`Atomics`].
 pub trait IntoAtomics<'a> {
     fn collect(self, atomics: &mut Atomics<'a>);
 

@@ -1,7 +1,7 @@
 use crate::SizedAtomicKind;
 use emath::Vec2;
 
-/// A [`Atomic`] which has been sized.
+/// A [`crate::Atomic`] which has been sized.
 #[derive(Clone, Debug)]
 pub struct SizedAtomic<'a> {
     pub(crate) grow: bool,
@@ -19,7 +19,7 @@ pub struct SizedAtomic<'a> {
 }
 
 impl SizedAtomic<'_> {
-    /// Was this [`Atomic`] marked as `grow`?
+    /// Was this [`crate::Atomic`] marked as `grow`?
     pub fn is_grow(&self) -> bool {
         self.grow
     }

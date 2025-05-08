@@ -3,7 +3,7 @@ use emath::Vec2;
 use epaint::Galley;
 use std::sync::Arc;
 
-/// A sized [`AtomicKind`].
+/// A sized [`crate::AtomicKind`].
 #[derive(Clone, Default, Debug)]
 pub enum SizedAtomicKind<'a> {
     #[default]

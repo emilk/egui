@@ -2,10 +2,10 @@ use crate::{Id, Image, ImageSource, SizedAtomicKind, TextStyle, Ui, WidgetText};
 use emath::Vec2;
 use epaint::text::TextWrapMode;
 
-/// The different kinds of [`Atomic`]s.
+/// The different kinds of [`crate::Atomic`]s.
 #[derive(Clone, Default, Debug)]
 pub enum AtomicKind<'a> {
-    /// Empty, that can be used with [`AtomicExt::a_grow`] to reserve space.
+    /// Empty, that can be used with [`crate::AtomicExt::atom_grow`] to reserve space.
     #[default]
     Empty,
 
@@ -20,27 +20,27 @@ pub enum AtomicKind<'a> {
     ///   - any other text atomics will have `wrap_mode` extend
     /// - if `wrap_mode` is extend, Text will extend as expected.
     ///
-    /// Unless [`crate::Atomic::atom_max_width`] is set, `wrap_mode` should only be set via [`crate::Style`] or
+    /// Unless [`crate::AtomicExt::atom_max_width`] is set, `wrap_mode` should only be set via [`crate::Style`] or
     /// [`crate::AtomicLayout::wrap_mode`], as setting a wrap mode on a [`WidgetText`] atomic
     /// that is not `shrink` will have unexpected results.
     ///
     /// The size is determined by converting the [`WidgetText`] into a galley and using the galleys
-    /// size. You can use [`crate::Atomic::atom_size`] to override this, and [`crate::Atomic::atom_max_width`]
+    /// size. You can use [`crate::AtomicExt::atom_size`] to override this, and [`crate::AtomicExt::atom_max_width`]
     /// to limit the width (Causing the text to wrap or truncate, depending on the `wrap_mode`.
-    /// [`crate::Atomic::atom_max_height`] has no effect on text.
+    /// [`crate::AtomicExt::atom_max_height`] has no effect on text.
     Text(WidgetText),
 
     /// Image atomic.
     ///
     /// By default the size is determined via [`Image::calc_size`].
-    /// You can use [`Atomic::atom_max_size`] or [`Atomic::atom_size`] to customize the size.
-    /// There is also a helper [`Atomic::atom_max_height_font_size`] to set the max height to the
+    /// You can use [`crate::AtomicExt::atom_max_size`] or [`crate::AtomicExt::atom_size`] to customize the size.
+    /// There is also a helper [`crate::AtomicExt::atom_max_height_font_size`] to set the max height to the
     /// default font height, which is convenient for icons.
     Image(Image<'a>),
 
     /// For custom rendering.
     ///
-    /// You can get the [`Rect`] with the [`Id`] from [`AtomicLayoutResponse`] and use a
+    /// You can get the [`crate::Rect`] with the [`Id`] from [`crate::AtomicLayoutResponse`] and use a
     /// [`crate::Painter`] or [`Ui::put`] to add/draw some custom content.
     ///
     /// Example:
@@ -75,7 +75,7 @@ impl<'a> AtomicKind<'a> {
 
     /// Turn this [`AtomicKind`] into a [`SizedAtomicKind`].
     ///
-    /// This converts [`WidgetText`] into [`Galley`] and tries to load and size [`Image`].
+    /// This converts [`WidgetText`] into [`crate::Galley`] and tries to load and size [`Image`].
     /// The first returned argument is the preferred size.
     pub fn into_sized(
         self,

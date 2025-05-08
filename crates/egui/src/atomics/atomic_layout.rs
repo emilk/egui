@@ -24,7 +24,7 @@ use std::sync::Arc;
 ///   - returns a [`AllocatedAtomicLayout`]
 /// - [`AllocatedAtomicLayout::paint`]
 ///   - paints the [`Frame`]
-///   - calculates individual [`Atomic`] positions
+///   - calculates individual [`crate::Atomic`] positions
 ///   - paints each single atomic
 ///
 /// You can use this to first allocate a response and then modify, e.g., the [`Frame`] on the
@@ -108,9 +108,9 @@ impl<'a> AtomicLayout<'a> {
         self
     }
 
-    /// Set the [`TextWrapMode`] for the [`Atomic`] marked as `shrink`.
+    /// Set the [`TextWrapMode`] for the [`crate::Atomic`] marked as `shrink`.
     ///
-    /// Only a single [`Atomic`] may shrink. If this (or `ui.wrap_mode()`) is not
+    /// Only a single [`crate::Atomic`] may shrink. If this (or `ui.wrap_mode()`) is not
     /// [`TextWrapMode::Extend`] and no item is set to shrink, the first (left-most)
     /// [`AtomicKind::Text`] will be set to shrink.
     #[inline]
@@ -121,7 +121,7 @@ impl<'a> AtomicLayout<'a> {
 
     /// Set the [`Align2`].
     ///
-    /// This will align the [`Atomic`]s within the [`Rect`] returned by [`Ui::allocate_space`].
+    /// This will align the [`crate::Atomic`]s within the [`Rect`] returned by [`Ui::allocate_space`].
     ///
     /// The default is chosen based on the [`Ui`]s [`crate::Layout`]. See
     /// [this snapshot](https://github.com/emilk/egui/blob/master/tests/egui_tests/tests/snapshots/layout/button.png)
@@ -356,7 +356,7 @@ impl<'atomic> AllocatedAtomicLayout<'atomic> {
         });
     }
 
-    /// Paint the [`Frame`] and individual [`Atomic`]s.
+    /// Paint the [`Frame`] and individual [`crate::Atomic`]s.
     pub fn paint(self, ui: &Ui) -> AtomicLayoutResponse {
         let Self {
             sized_atomics,
