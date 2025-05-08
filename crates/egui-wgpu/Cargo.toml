@@ -42,6 +42,9 @@ wayland = ["winit?/wayland"]
 ## Enables x11 support for winit.
 x11 = ["winit?/x11"]
 
+## Enables tracing support for wgpu. Requires setting the `WGPU_TRACE` environment variable to a directory to work.
+wgpu-trace = ["wgpu-core/trace"]
+
 ## Make the renderer `Sync` on wasm, exploiting that by default wasm isn't multithreaded.
 ## It may make code easier, expecially when targeting both native and web.
 ## On native most wgpu objects are send and sync, on the web they are not (by nature of the WebGPU specification).
@@ -62,6 +65,7 @@ thiserror.workspace = true
 type-map.workspace = true
 web-time.workspace = true
 wgpu = { workspace = true, features = ["wgsl"] }
+wgpu-core.workspace = true
 
 # Optional dependencies:
 

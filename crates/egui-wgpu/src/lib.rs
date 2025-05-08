@@ -104,7 +104,7 @@ async fn request_adapter(
             force_fallback_adapter: false,
         })
         .await
-        .ok_or_else(|| {
+        .map_err(|e| {
             #[cfg(not(target_arch = "wasm32"))]
             if _available_adapters.is_empty() {
                 log::info!("No wgpu adapters found");
@@ -121,7 +121,7 @@ async fn request_adapter(
                 );
             }
 
-            WgpuError::NoSuitableAdapterFound("`request_adapters` returned `None`".to_owned())
+            WgpuError::NoSuitableAdapterFound(format!("`request_adapters` returned `Err`: {e}"))
         })?;
 
     #[cfg(target_arch = "wasm32")]
@@ -184,7 +184,6 @@ impl RenderState {
                 power_preference,
                 native_adapter_selector: _native_adapter_selector,
                 device_descriptor,
-                trace_path,
             }) => {
                 let adapter = {
                     #[cfg(target_arch = "wasm32")]
@@ -209,7 +208,7 @@ impl RenderState {
                 let (device, queue) = {
                     profiling::scope!("request_device");
                     adapter
-                        .request_device(&(*device_descriptor)(&adapter), trace_path.as_deref())
+                        .request_device(&(*device_descriptor)(&adapter))
                         .await?
                 };
 
