@@ -108,7 +108,7 @@ In order to pave the path for more complex and customizable styling solutions, w
 * Improved support for transform layers ([#5465](https://github.com/emilk/egui/pull/5465), [#5468](https://github.com/emilk/egui/pull/5468), [#5429](https://github.com/emilk/egui/pull/5429))
 
 #### `egui_kittest`
-This release welcomes a new crate to the family: [egui_kittest](https://github.com/emilk/egui/tree/master/crates/egui_kittest).
+This release welcomes a new crate to the family: [egui_kittest](https://github.com/emilk/egui/tree/main/crates/egui_kittest).
 `egui_kittest` is a testing framework for egui, allowing you to test both automation (simulated clicks and other events),
 and also do screenshot testing (useful for regression tests).
 `egui_kittest` is built using [`kittest`](https://github.com/rerun-io/kittest), which is a general GUI testing framework that aims to work with any Rust GUI (not just egui!).
@@ -942,7 +942,7 @@ egui_extras::install_image_loaders(egui_ctx);
 ## 0.18.0 - 2022-04-30
 
 ### ⭐ Added
-* Added `Shape::Callback` for backend-specific painting, [with an example](https://github.com/emilk/egui/tree/master/examples/custom_3d_glow) ([#1351](https://github.com/emilk/egui/pull/1351)).
+* Added `Shape::Callback` for backend-specific painting, [with an example](https://github.com/emilk/egui/tree/main/examples/custom_3d_glow) ([#1351](https://github.com/emilk/egui/pull/1351)).
 * Added `Frame::canvas` ([#1362](https://github.com/emilk/egui/pull/1362)).
 * `Context::request_repaint` will now wake up UI thread, if integrations has called `Context::set_request_repaint_callback` ([#1366](https://github.com/emilk/egui/pull/1366)).
 * Added `Plot::allow_scroll`, `Plot::allow_zoom` no longer affects scrolling ([#1382](https://github.com/emilk/egui/pull/1382)).

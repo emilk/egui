@@ -42,7 +42,7 @@
 //! a [`ViewportCommand`] to it using [`Context::send_viewport_cmd`].
 //! You can interact with other viewports using [`Context::send_viewport_cmd_to`].
 //!
-//! There is an example in <https://github.com/emilk/egui/tree/master/examples/multiple_viewports/src/main.rs>.
+//! There is an example in <https://github.com/emilk/egui/tree/main/examples/multiple_viewports/src/main.rs>.
 //!
 //! You can find all available viewports in [`crate::RawInput::viewports`] and the active viewport in
 //! [`crate::InputState::viewport`]:

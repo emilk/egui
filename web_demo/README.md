@@ -6,4 +6,4 @@ This folder contains the files required for the egui web demo hosted at <https:/
 * Open <http://localhost:8765/index.html>
 
 ## Deploying egui.rs
-Each merge into `master` will trigger a new deploy
+Each merge into `main` will trigger a new deploy

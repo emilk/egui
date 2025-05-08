@@ -9,7 +9,7 @@ All crates under the [`crates/`](crates/) folder are published in lock-step, wit
 
 The only exception to this are patch releases, where we sometimes only patch a single crate.
 
-The egui version in egui `master` is always the version of the last published crates. This is so that users can easily patch their egui crates to egui `master` if they want to.
+The egui version in egui `main` is always the version of the last published crates. This is so that users can easily patch their egui crates to egui `main` if they want to.
 
 ## Governance
 Releases are generally done by [emilk](https://github.com/emilk/), but the [rerun-io](https://github.com/rerun-io/) organization (where emilk is CTO) also has publish rights to all the crates.
@@ -53,14 +53,14 @@ We don't update the MSRV in a patch release, unless we really, really need to.
 * [ ] bump version numbers in workspace `Cargo.toml`
 
 ## Actual release
-I usually do this all on the `master` branch, but doing it in a release branch is also fine, as long as you remember to merge it into `master` later.
+I usually do this all on the `main` branch, but doing it in a release branch is also fine, as long as you remember to merge it into `main` later.
 
 * [ ] Run `typos`
 * [ ] `git commit -m 'Release 0.x.0 - <release title>'`
 * [ ] `cargo publish` (see below)
 * [ ] `git tag -a 0.x.0 -m 'Release 0.x.0 - <release title>'`
 * [ ] `git pull --tags ; git tag -d latest && git tag -a latest -m 'Latest release' && git push --tags origin latest --force ; git push --tags`
-* [ ] merge release PR or push to `master`
+* [ ] merge release PR or push to `main`
 * [ ] check that CI is green
 * [ ] do a GitHub release: https://github.com/emilk/egui/releases/new
   * Follow the format of the last release

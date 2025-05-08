@@ -3,7 +3,7 @@
 //! If you are planning to write an app for web or native,
 //! and want to use [`egui`] for everything, then `eframe` is for you!
 //!
-//! To get started, see the [examples](https://github.com/emilk/egui/tree/master/examples).
+//! To get started, see the [examples](https://github.com/emilk/egui/tree/main/examples).
 //! To learn how to set up `eframe` for web and native, go to <https://github.com/emilk/eframe_template/> and follow the instructions there!
 //!
 //! In short, you implement [`App`] (especially [`App::update`]) and then
