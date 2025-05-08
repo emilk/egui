@@ -53,7 +53,7 @@ pub enum AtomicKind<'a> {
     ///
     /// let rect = response.get_rect(id);
     /// if let Some(rect) = rect {
-    ///     ui.put(*rect, Button::new("⏵"));
+    ///     ui.put(rect, Button::new("⏵"));
     /// }
     /// # });
     /// ```
