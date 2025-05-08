@@ -91,8 +91,9 @@ impl<'a> Atomics<'a> {
         })
     }
 
-    pub fn map(self, f: impl FnMut(Atomic<'a>) -> Atomic<'a>) -> Self {
-        Atomics(self.0.into_iter().map(f).collect())
+    pub fn map_atomics(&mut self, mut f: impl FnMut(Atomic<'a>) -> Atomic<'a>) {
+        self.iter_mut()
+            .for_each(|atomic| *atomic = f(std::mem::take(atomic)));
     }
 
     pub fn map_kind<F>(&'a mut self, mut f: F)

@@ -1,7 +1,7 @@
 use crate::{
-    Atomic, AtomicExt, AtomicKind, AtomicLayout, AtomicLayoutResponse, Atomics, Color32,
-    CornerRadius, Frame, Image, IntoAtomics, NumExt as _, Response, Sense, Stroke, TextWrapMode,
-    Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
+    Atomic, AtomicExt as _, AtomicKind, AtomicLayout, AtomicLayoutResponse, Color32, CornerRadius,
+    Frame, Image, IntoAtomics, NumExt as _, Response, Sense, Stroke, TextWrapMode, Ui, Vec2,
+    Widget, WidgetInfo, WidgetText, WidgetType,
 };
 
 /// Clickable button with text.
@@ -24,11 +24,9 @@ use crate::{
 /// ```
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct Button<'a> {
-    atomics: Atomics<'a>,
-    wrap_mode: Option<TextWrapMode>,
+    layout: AtomicLayout<'a>,
     fill: Option<Color32>,
     stroke: Option<Stroke>,
-    sense: Sense,
     small: bool,
     frame: Option<bool>,
     min_size: Vec2,
@@ -41,11 +39,9 @@ pub struct Button<'a> {
 impl<'a> Button<'a> {
     pub fn new(content: impl IntoAtomics<'a>) -> Self {
         Self {
-            atomics: content.into_atomics(),
-            wrap_mode: None,
+            layout: AtomicLayout::new(content.into_atomics()),
             fill: None,
             stroke: None,
-            sense: Sense::click(),
             small: false,
             frame: None,
             min_size: Vec2::ZERO,
@@ -79,10 +75,10 @@ impl<'a> Button<'a> {
     pub fn opt_image_and_text(image: Option<Image<'a>>, text: Option<WidgetText>) -> Self {
         let mut button = Self::new(());
         if let Some(image) = image {
-            button.atomics.push_left(image);
+            button.layout.push_left(image);
         }
         if let Some(text) = text {
-            button.atomics.push_left(text);
+            button.layout.push_left(text);
         }
         button.limit_image_size = true;
         button
@@ -95,23 +91,20 @@ impl<'a> Button<'a> {
     /// Note that any `\n` in the text will always produce a new line.
     #[inline]
     pub fn wrap_mode(mut self, wrap_mode: TextWrapMode) -> Self {
-        self.wrap_mode = Some(wrap_mode);
+        self.layout = self.layout.wrap_mode(wrap_mode);
         self
     }
 
     /// Set [`Self::wrap_mode`] to [`TextWrapMode::Wrap`].
     #[inline]
-    pub fn wrap(mut self) -> Self {
-        self.wrap_mode = Some(TextWrapMode::Wrap);
-
-        self
+    pub fn wrap(self) -> Self {
+        self.wrap_mode(TextWrapMode::Wrap)
     }
 
     /// Set [`Self::wrap_mode`] to [`TextWrapMode::Truncate`].
     #[inline]
-    pub fn truncate(mut self) -> Self {
-        self.wrap_mode = Some(TextWrapMode::Truncate);
-        self
+    pub fn truncate(self) -> Self {
+        self.wrap_mode(TextWrapMode::Truncate)
     }
 
     /// Override background fill color. Note that this will override any on-hover effects.
@@ -149,7 +142,7 @@ impl<'a> Button<'a> {
     /// Change this to a drag-button with `Sense::drag()`.
     #[inline]
     pub fn sense(mut self, sense: Sense) -> Self {
-        self.sense = sense;
+        self.layout = self.layout.sense(sense);
         self
     }
 
@@ -199,16 +192,16 @@ impl<'a> Button<'a> {
             AtomicKind::Text(text) => AtomicKind::Text(text.weak()),
             other => other,
         };
-        self.atomics.push_left(Atomic::grow());
-        self.atomics.push_left(atomic);
+        self.layout.push_left(Atomic::grow());
+        self.layout.push_left(atomic);
         self
     }
 
     /// Show some text on the right side of the button.
     #[inline]
     pub fn right_text(mut self, right_text: impl Into<Atomic<'a>>) -> Self {
-        self.atomics.push_left(Atomic::grow());
-        self.atomics.push_left(right_text.into());
+        self.layout.push_left(Atomic::grow());
+        self.layout.push_left(right_text.into());
         self
     }
 
@@ -222,11 +215,9 @@ impl<'a> Button<'a> {
     /// Show the button and return a [`AtomicLayoutResponse`] for painting custom contents.
     pub fn atomic_ui(self, ui: &mut Ui) -> AtomicLayoutResponse {
         let Button {
-            mut atomics,
-            wrap_mode,
+            mut layout,
             fill,
             stroke,
-            sense,
             small,
             frame,
             mut min_size,
@@ -241,7 +232,7 @@ impl<'a> Button<'a> {
         }
 
         if limit_image_size {
-            atomics = atomics.map(|atomic| {
+            layout.map_atomics(|atomic| {
                 if matches!(&atomic.kind, AtomicKind::Image(_)) {
                     atomic.atom_max_height_font_size(ui)
                 } else {
@@ -250,12 +241,7 @@ impl<'a> Button<'a> {
             });
         }
 
-        let text = atomics.text();
-
-        let layout = AtomicLayout::new(atomics)
-            .wrap_mode(wrap_mode.unwrap_or(ui.wrap_mode()))
-            .sense(sense)
-            .min_size(min_size);
+        let text = layout.text();
 
         let has_frame = frame.unwrap_or_else(|| ui.visuals().button_frame);
 
@@ -270,6 +256,7 @@ impl<'a> Button<'a> {
 
         let mut prepared = layout
             .frame(Frame::new().inner_margin(button_padding))
+            .min_size(min_size)
             .allocate(ui);
 
         let response = if ui.is_rect_visible(prepared.response.rect) {
