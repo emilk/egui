@@ -125,4 +125,8 @@ impl BytesLoader for EhttpLoader {
             })
             .sum()
     }
+
+    fn has_pending(&self) -> bool {
+        self.cache.lock().values().any(|entry| entry.is_pending())
+    }
 }

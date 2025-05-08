@@ -3546,6 +3546,14 @@ impl Context {
     pub fn loaders(&self) -> Arc<Loaders> {
         self.read(|this| this.loaders.clone())
     }
+
+    /// Returns `true` if any image is currently being loaded.
+    pub fn has_pending_images(&self) -> bool {
+        self.read(|this| {
+            this.loaders.image.lock().iter().any(|i| i.has_pending())
+                || this.loaders.bytes.lock().iter().any(|i| i.has_pending())
+        })
+    }
 }
 
 /// ## Viewports
