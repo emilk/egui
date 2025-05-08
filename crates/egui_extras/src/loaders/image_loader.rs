@@ -8,6 +8,9 @@ use egui::{
 use image::ImageFormat;
 use std::{mem::size_of, path::Path, sync::Arc, task::Poll};
 
+#[cfg(not(target_arch = "wasm32"))]
+use std::thread;
+
 type Entry = Poll<Result<Arc<ColorImage>, String>>;
 
 #[derive(Default)]
@@ -73,7 +76,7 @@ impl ImageLoader for ImageCrateLoader {
             return Err(LoadError::NotSupported);
         }
 
-        #[cfg(not(any(target_arch = "wasm32", test)))]
+        #[cfg(not(target_arch = "wasm32"))]
         #[expect(clippy::unnecessary_wraps)] // needed here to match other return types
         fn load_image(
             ctx: &egui::Context,
@@ -85,7 +88,7 @@ impl ImageLoader for ImageCrateLoader {
             cache.lock().insert(uri.clone(), Poll::Pending);
 
             // Do the image parsing on a bg thread
-            std::thread::Builder::new()
+            thread::Builder::new()
                 .name(format!("egui_extras::ImageLoader::load({uri:?})"))
                 .spawn({
                     let ctx = ctx.clone();
@@ -113,8 +116,7 @@ impl ImageLoader for ImageCrateLoader {
             Ok(ImagePoll::Pending { size: None })
         }
 
-        // Load images on the current thread for tests, so they are less flaky
-        #[cfg(any(target_arch = "wasm32", test))]
+        #[cfg(target_arch = "wasm32")]
         fn load_image(
             _ctx: &egui::Context,
             uri: &str,
@@ -178,6 +180,10 @@ impl ImageLoader for ImageCrateLoader {
                 Poll::Pending => 0,
             })
             .sum()
+    }
+
+    fn has_pending(&self) -> bool {
+        self.cache.lock().values().any(|result| result.is_pending())
     }
 }
 

@@ -31,6 +31,7 @@ pub use renderer::*;
 use egui::{Modifiers, Pos2, Rect, RepaintCause, Vec2, ViewportId};
 use kittest::{Node, Queryable};
 
+#[derive(Debug, Clone)]
 pub struct ExceededMaxStepsError {
     pub max_steps: u64,
     pub repaint_causes: Vec<RepaintCause>,
@@ -66,6 +67,7 @@ pub struct Harness<'a, State = ()> {
     renderer: Box<dyn TestRenderer>,
     max_steps: u64,
     step_dt: f32,
+    wait_for_pending_images: bool,
 }
 
 impl<State> Debug for Harness<'_, State> {
@@ -88,6 +90,7 @@ impl<'a, State> Harness<'a, State> {
             step_dt,
             state: _,
             mut renderer,
+            wait_for_pending_images,
         } = builder;
         let ctx = ctx.unwrap_or_default();
         ctx.enable_accesskit();
@@ -128,6 +131,7 @@ impl<'a, State> Harness<'a, State> {
             renderer,
             max_steps,
             step_dt,
+            wait_for_pending_images,
         };
         // Run the harness until it is stable, ensuring that all Areas are shown and animations are done
         harness.run_ok();
@@ -293,10 +297,13 @@ impl<'a, State> Harness<'a, State> {
         loop {
             steps += 1;
             self.step();
+
+            let wait_for_images = self.wait_for_pending_images && self.ctx.has_pending_images();
+
             // We only care about immediate repaints
-            if self.root_viewport_output().repaint_delay != Duration::ZERO {
+            if self.root_viewport_output().repaint_delay != Duration::ZERO && !wait_for_images {
                 break;
-            } else if sleep {
+            } else if sleep || wait_for_images {
                 std::thread::sleep(Duration::from_secs_f32(self.step_dt));
             }
             if steps > self.max_steps {

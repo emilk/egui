@@ -61,5 +61,5 @@ pub fn password(password: &mut String) -> impl egui::Widget + '_ {
 }
 
 pub fn url_to_file_source_code() -> String {
-    format!("https://github.com/emilk/egui/blob/master/{}", file!())
+    format!("https://github.com/emilk/egui/blob/main/{}", file!())
 }

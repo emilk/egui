@@ -1433,7 +1433,7 @@ impl Context {
     /// figured out from the `target_os`.
     ///
     /// For web, this can be figured out from the user-agent,
-    /// and is done so by [`eframe`](https://github.com/emilk/egui/tree/master/crates/eframe).
+    /// and is done so by [`eframe`](https://github.com/emilk/egui/tree/main/crates/eframe).
     pub fn os(&self) -> OperatingSystem {
         self.read(|ctx| ctx.os)
     }
@@ -3545,6 +3545,14 @@ impl Context {
     /// The loaders of bytes, images, and textures.
     pub fn loaders(&self) -> Arc<Loaders> {
         self.read(|this| this.loaders.clone())
+    }
+
+    /// Returns `true` if any image is currently being loaded.
+    pub fn has_pending_images(&self) -> bool {
+        self.read(|this| {
+            this.loaders.image.lock().iter().any(|i| i.has_pending())
+                || this.loaders.bytes.lock().iter().any(|i| i.has_pending())
+        })
     }
 }
 

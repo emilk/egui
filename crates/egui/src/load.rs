@@ -328,6 +328,11 @@ pub trait BytesLoader {
 
     /// If the loader caches any data, this should return the size of that cache.
     fn byte_size(&self) -> usize;
+
+    /// Returns `true` if some data is currently being loaded.
+    fn has_pending(&self) -> bool {
+        false
+    }
 }
 
 /// Represents an image which is currently being loaded.
@@ -395,6 +400,13 @@ pub trait ImageLoader {
 
     /// If the loader caches any data, this should return the size of that cache.
     fn byte_size(&self) -> usize;
+
+    /// Returns `true` if some image is currently being loaded.
+    ///  
+    /// NOTE: You probably also want to check [`BytesLoader::has_pending`].
+    fn has_pending(&self) -> bool {
+        false
+    }
 }
 
 /// A texture with a known size.
