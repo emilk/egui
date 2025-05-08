@@ -1,0 +1,40 @@
+################################################################################
+# Config for the link checker lychee.
+#
+# Download & learn more at:
+# https://github.com/lycheeverse/lychee
+#
+# Example config:
+# https://github.com/lycheeverse/lychee/blob/master/lychee.example.toml
+#
+# Run `lychee . --dump` to list all found links that are being checked.
+#
+# Note that by default lychee will only check markdown and html files,
+# to check any other files you have to point to them explicitly, e.g.:
+# `lychee **/*.rs`.
+#
+# This unfortunately doesn't list anything for non-glob checks.
+################################################################################
+
+# Maximum number of concurrent link checks.
+# Workaround for "too many open files" error on MacOS, see https://github.com/lycheeverse/lychee/issues/1248
+max_concurrency = 32
+
+# Check links inside `<code>` and `<pre>` blocks as well as Markdown code blocks.
+include_verbatim = true
+
+# Proceed for server connections considered insecure (invalid TLS).
+insecure = true
+
+# Maximum number of allowed retries before a link is declared dead.
+max_retries = 4
+
+# Wait time between attempts in seconds.
+retry_wait_time = 2
+
+# Comma-separated list of accepted status codes for valid links.
+accept = [
+  "100..=103", # Informational codes.
+  "200..=299", # Success codes.
+  "429",       # Too many requests. This is practically never a sign of a broken link.
+]
