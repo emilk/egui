@@ -710,11 +710,7 @@ impl Rect {
 
 impl fmt::Debug for Rect {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(precision) = f.precision() {
-            write!(f, "[{1:.0$?} - {2:.0$?}]", precision, self.min, self.max)
-        } else {
-            write!(f, "[{:?} - {:?}]", self.min, self.max)
-        }
+        write!(f, "[{:?} - {:?}]", self.min, self.max)
     }
 }
 

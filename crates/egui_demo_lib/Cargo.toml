@@ -59,7 +59,6 @@ criterion.workspace = true
 egui = { workspace = true, features = ["default_fonts"] }
 egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }
 mimalloc.workspace = true                                            # for benchmarks
-rand = "0.9"
 
 [[bench]]
 name = "benchmark"

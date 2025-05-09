@@ -23,7 +23,7 @@ members = [
 [workspace.package]
 edition = "2021"
 license = "MIT OR Apache-2.0"
-rust-version = "1.84"
+rust-version = "1.85"
 version = "0.31.1"
 
 
@@ -68,8 +68,8 @@ egui_glow = { version = "0.31.1", path = "crates/egui_glow", default-features = 
 egui_kittest = { version = "0.31.1", path = "crates/egui_kittest", default-features = false }
 eframe = { version = "0.31.1", path = "crates/eframe", default-features = false }
 
-accesskit = "0.18.0"
-accesskit_winit = "0.24"
+accesskit = "0.19.0"
+accesskit_winit = "0.27"
 ahash = { version = "0.8.11", default-features = false, features = [
     "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
     "std",
@@ -85,7 +85,7 @@ glutin = { version = "0.32.0", default-features = false }
 glutin-winit = { version = "0.5.0", default-features = false }
 home = "0.5.9"
 image = { version = "0.25", default-features = false }
-kittest = { version = "0.1.0", git = "https://github.com/rerun-io/kittest", branch = "main" }
+kittest = { version = "0.1.0", git = "https://github.com/valadaptive/kittest", branch = "accesskit-bump-2" }
 log = { version = "0.4", features = ["std"] }
 mimalloc = "0.1.46"
 nohash-hasher = "0.2"
@@ -97,7 +97,6 @@ puffin_http = "0.16"
 raw-window-handle = "0.6.0"
 ron = "0.10.1"
 serde = { version = "1", features = ["derive"] }
-similar-asserts = "1.4.2"
 thiserror = "1.0.37"
 type-map = "0.5.0"
 unicode-segmentation = "1.12.0"
