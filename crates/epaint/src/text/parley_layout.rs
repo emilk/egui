@@ -55,9 +55,10 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
 
     let mut default_style = first_section.format.as_parley();
     job.wrap.apply_to_parley_style(&mut default_style);
-    let mut builder = fonts
-        .layout_context
-        .tree_builder(fonts.font_context, 1.0, &default_style);
+    let mut builder =
+        fonts
+            .layout_context
+            .tree_builder(fonts.font_context, 1.0, false, &default_style);
 
     let mut first_row_height = job.first_row_min_height;
 
@@ -115,7 +116,7 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
             let mut builder =
                 fonts
                     .layout_context
-                    .tree_builder(fonts.font_context, 1.0, &default_style);
+                    .tree_builder(fonts.font_context, 1.0, false, &default_style);
 
             builder.push_text(&overflow_character.to_string());
             let (mut layout, _text) = builder.build();

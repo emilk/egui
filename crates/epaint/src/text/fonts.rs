@@ -535,7 +535,7 @@ impl FontStore {
             let text_style = TextFormat::simple(font_id.clone(), Default::default()).as_parley();
             let mut builder =
                 self.layout_context
-                    .tree_builder(&mut self.font_context, 1.0, &text_style);
+                    .tree_builder(&mut self.font_context, 1.0, false, &text_style);
             builder.push_text(&text);
             let (mut layout, _) = builder.build();
             layout.break_lines().break_next(f32::MAX);
@@ -569,9 +569,9 @@ impl FontStore {
             ..Default::default()
         };
         let style = style.as_parley();
-        let mut builder = self
-            .layout_context
-            .tree_builder(&mut self.font_context, 1.0, &style);
+        let mut builder =
+            self.layout_context
+                .tree_builder(&mut self.font_context, 1.0, false, &style);
         builder.push_text(text);
         let (mut layout, _) = builder.build();
         layout.break_all_lines(None);
@@ -616,7 +616,7 @@ impl FontStore {
                 let style = style.as_parley();
                 let mut builder =
                     self.layout_context
-                        .tree_builder(&mut self.font_context, 1.0, &style);
+                        .tree_builder(&mut self.font_context, 1.0, false, &style);
                 builder.push_text(text);
                 let (mut layout, _) = builder.build();
                 layout.break_all_lines(None);
