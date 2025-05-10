@@ -1121,10 +1121,14 @@ impl CentralPanel {
         panel_ui.set_clip_rect(panel_rect); // If we overflow, don't do so visibly (#4475)
 
         let frame = frame.unwrap_or_else(|| Frame::central_panel(ui.style()));
-        frame.show(&mut panel_ui, |ui| {
+        let inner_response = frame.show(&mut panel_ui, |ui| {
             ui.expand_to_include_rect(ui.max_rect()); // Expand frame to include it all
             add_contents(ui)
-        })
+        });
+
+        ui.expand_to_include_rect(inner_response.response.rect);
+
+        inner_response
     }
 
     /// Show the panel at the top level.
