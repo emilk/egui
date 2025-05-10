@@ -25,10 +25,10 @@ use crate::{
         color_picker, Button, Checkbox, DragValue, Hyperlink, Image, ImageSource, Label, Link,
         RadioButton, SelectableLabel, Separator, Spinner, TextEdit, Widget,
     },
-    Align, Color32, Context, CursorIcon, DragAndDrop, Id, InnerResponse, InputState, LayerId,
-    Memory, Order, Painter, PlatformOutput, Pos2, Rangef, Rect, Response, Rgba, RichText, Sense,
-    Style, TextStyle, TextWrapMode, UiBuilder, UiKind, UiStack, UiStackInfo, Vec2, WidgetRect,
-    WidgetText,
+    Align, Color32, Context, CursorIcon, DragAndDrop, Id, InnerResponse, InputState, IntoAtomics,
+    LayerId, Memory, Order, Painter, PlatformOutput, Pos2, Rangef, Rect, Response, Rgba, RichText,
+    Sense, Style, TextStyle, TextWrapMode, UiBuilder, UiKind, UiStack, UiStackInfo, Vec2,
+    WidgetRect, WidgetText,
 };
 // ----------------------------------------------------------------------------
 
@@ -2055,7 +2055,7 @@ impl Ui {
     /// ```
     #[must_use = "You should check if the user clicked this with `if ui.button(…).clicked() { … } "]
     #[inline]
-    pub fn button(&mut self, text: impl Into<WidgetText>) -> Response {
+    pub fn button<'a>(&mut self, text: impl IntoAtomics<'a>) -> Response {
         Button::new(text).ui(self)
     }
 
@@ -2073,7 +2073,7 @@ impl Ui {
     ///
     /// See also [`Self::toggle_value`].
     #[inline]
-    pub fn checkbox(&mut self, checked: &mut bool, text: impl Into<WidgetText>) -> Response {
+    pub fn checkbox<'a>(&mut self, checked: &'a mut bool, text: impl IntoAtomics<'a>) -> Response {
         Checkbox::new(checked, text).ui(self)
     }
 
@@ -2095,7 +2095,7 @@ impl Ui {
     /// Often you want to use [`Self::radio_value`] instead.
     #[must_use = "You should check if the user clicked this with `if ui.radio(…).clicked() { … } "]
     #[inline]
-    pub fn radio(&mut self, selected: bool, text: impl Into<WidgetText>) -> Response {
+    pub fn radio<'a>(&mut self, selected: bool, text: impl IntoAtomics<'a>) -> Response {
         RadioButton::new(selected, text).ui(self)
     }
 
@@ -2118,11 +2118,11 @@ impl Ui {
     /// }
     /// # });
     /// ```
-    pub fn radio_value<Value: PartialEq>(
+    pub fn radio_value<'a, Value: PartialEq>(
         &mut self,
         current_value: &mut Value,
         alternative: Value,
-        text: impl Into<WidgetText>,
+        text: impl IntoAtomics<'a>,
     ) -> Response {
         let mut response = self.radio(*current_value == alternative, text);
         if response.clicked() && *current_value != alternative {
@@ -3041,15 +3041,15 @@ impl Ui {
     /// ```
     ///
     /// See also: [`Self::close`] and [`Response::context_menu`].
-    pub fn menu_button<R>(
+    pub fn menu_button<'a, R>(
         &mut self,
-        title: impl Into<WidgetText>,
+        content: impl IntoAtomics<'a>,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<Option<R>> {
         let (response, inner) = if menu::is_in_menu(self) {
-            menu::SubMenuButton::new(title).ui(self, add_contents)
+            menu::SubMenuButton::new(content).ui(self, add_contents)
         } else {
-            menu::MenuButton::new(title).ui(self, add_contents)
+            menu::MenuButton::new(content).ui(self, add_contents)
         };
         InnerResponse::new(inner.map(|i| i.inner), response)
     }

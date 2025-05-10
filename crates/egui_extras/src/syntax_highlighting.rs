@@ -511,7 +511,7 @@ struct Highlighter {}
 
 #[cfg(not(feature = "syntect"))]
 impl Highlighter {
-    #[expect(clippy::unused_self, clippy::unnecessary_wraps)]
+    #[expect(clippy::unused_self)]
     fn highlight_impl(
         &self,
         theme: &CodeTheme,
