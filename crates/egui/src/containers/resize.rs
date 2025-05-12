@@ -252,17 +252,11 @@ impl Resize {
         }
 
         if let Some(user_requested_size) = user_requested_size {
-            match self.resizable {
-                Vec2b { x: true, y: true } => {
-                    state.desired_size = user_requested_size;
-                }
-                Vec2b { x: true, y: false } => {
-                    state.desired_size.x = user_requested_size.x;
-                }
-                Vec2b { x: false, y: true } => {
-                    state.desired_size.y = user_requested_size.y;
-                }
-                _ => {}
+            if self.resizable.x {
+                state.desired_size.x = user_requested_size.x;
+            }
+            if self.resizable.y {
+                state.desired_size.y = user_requested_size.y;
             }
         } else {
             // We are not being actively resized, so auto-expand to include size of last frame.
