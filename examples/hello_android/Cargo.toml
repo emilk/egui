@@ -17,7 +17,11 @@ crate-type = ["cdylib", "lib"]
 
 
 [dependencies]
-eframe = { workspace = true, features = ["default", "android-native-activity"] }
+eframe = { workspace = true, default-features = false, features = [
+    "default_fonts",
+    "glow",
+    "android-native-activity",
+] }
 egui_demo_lib = { workspace = true, features = ["chrono"] }
 
 # For image support:

@@ -176,7 +176,9 @@ jobs:
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
 
-      - run: cargo check --features wgpu,android-native-activity --target aarch64-linux-android
+        # Default features disabled to turn off accesskit, which does not work
+        # with NativeActivity.
+      - run: cargo check --features wgpu,android-native-activity --target aarch64-linux-android --no-default-features
         working-directory: crates/eframe
 
   # ---------------------------------------------------------------------------
