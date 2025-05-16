@@ -86,7 +86,7 @@ impl ComboBox {
     }
 
     /// Without label.
-    #[deprecated = "Renamed id_salt"]
+    #[deprecated = "Renamed from_id_salt"]
     pub fn from_id_source(id_salt: impl std::hash::Hash) -> Self {
         Self::from_id_salt(id_salt)
     }
