@@ -75,10 +75,10 @@ impl<'a> Button<'a> {
     pub fn opt_image_and_text(image: Option<Image<'a>>, text: Option<WidgetText>) -> Self {
         let mut button = Self::new(());
         if let Some(image) = image {
-            button.layout.push_left(image);
+            button.layout.push_right(image);
         }
         if let Some(text) = text {
-            button.layout.push_left(text);
+            button.layout.push_right(text);
         }
         button.limit_image_size = true;
         button
@@ -192,16 +192,16 @@ impl<'a> Button<'a> {
             AtomicKind::Text(text) => AtomicKind::Text(text.weak()),
             other => other,
         };
-        self.layout.push_left(Atomic::grow());
-        self.layout.push_left(atomic);
+        self.layout.push_right(Atomic::grow());
+        self.layout.push_right(atomic);
         self
     }
 
     /// Show some text on the right side of the button.
     #[inline]
     pub fn right_text(mut self, right_text: impl Into<Atomic<'a>>) -> Self {
-        self.layout.push_left(Atomic::grow());
-        self.layout.push_left(right_text.into());
+        self.layout.push_right(Atomic::grow());
+        self.layout.push_right(right_text.into());
         self
     }
 

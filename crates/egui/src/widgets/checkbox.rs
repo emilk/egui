@@ -66,7 +66,7 @@ impl Widget for Checkbox<'_> {
         let mut icon_size = Vec2::splat(icon_width);
         icon_size.y = icon_size.y.at_least(min_size.y);
         let rect_id = Id::new("egui::checkbox");
-        atomics.push_right(Custom(rect_id, icon_size));
+        atomics.push_left(Custom(rect_id, icon_size));
 
         let text = atomics.text();
 

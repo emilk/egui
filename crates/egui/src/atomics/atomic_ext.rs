@@ -8,9 +8,17 @@ pub trait AtomicExt<'a> {
     /// If [`Atomic::grow`] is `true`, this will be the minimum width.
     /// If [`Atomic::shrink`] is `true`, this will be the maximum width.
     /// If both are true, the width will have no effect.
+    ///
+    /// See [`crate::AtomicKind`] docs to see how the size affects the different types.
     fn atom_size(self, size: Vec2) -> Atomic<'a>;
 
     /// Grow this atomic to the available space.
+    ///
+    /// This will affect the size of the [`Atomic`] in the main direction. Since
+    /// [`AtomicLayout`] today only supports horizontal layout, it will affect the width.
+    ///
+    /// You can also combine this with [`Self::atom_shrink`] to make it always take exactly the
+    /// remaining space.
     fn atom_grow(self, grow: bool) -> Atomic<'a>;
 
     /// Shrink this atomic if there isn't enough space.
@@ -19,6 +27,8 @@ pub trait AtomicExt<'a> {
     fn atom_shrink(self, shrink: bool) -> Atomic<'a>;
 
     /// Set the maximum size of this atomic.
+    ///
+    /// This is mostly used as a
     fn atom_max_size(self, max_size: Vec2) -> Atomic<'a>;
 
     /// Set the maximum width of this atomic.

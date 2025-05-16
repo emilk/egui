@@ -16,12 +16,12 @@ impl<'a> Atomics<'a> {
     }
 
     /// Insert a new [`Atomic`] at the end of the list (right side).
-    pub fn push_left(&mut self, atomic: impl Into<Atomic<'a>>) {
+    pub fn push_right(&mut self, atomic: impl Into<Atomic<'a>>) {
         self.0.push(atomic.into());
     }
 
     /// Insert a new [`Atomic`] at the beginning of the list (left side).
-    pub fn push_right(&mut self, atomic: impl Into<Atomic<'a>>) {
+    pub fn push_left(&mut self, atomic: impl Into<Atomic<'a>>) {
         self.0.insert(0, atomic.into());
     }
 
@@ -156,7 +156,7 @@ where
     T: Into<Atomic<'a>>,
 {
     fn collect(self, atomics: &mut Atomics<'a>) {
-        atomics.push_left(self);
+        atomics.push_right(self);
     }
 }
 
