@@ -216,6 +216,14 @@ impl RichText {
         self.text_style(TextStyle::Heading)
     }
 
+    pub fn heading2(self) -> Self {
+        self.text_style(TextStyle::Heading2)
+    }
+
+    pub fn heading3(self) -> Self {
+        self.text_style(TextStyle::Heading3)
+    }
+
     /// Use [`TextStyle::Monospace`].
     #[inline]
     pub fn monospace(self) -> Self {
