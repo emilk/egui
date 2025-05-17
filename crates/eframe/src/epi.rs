@@ -404,6 +404,7 @@ pub struct NativeOptions {
     ///
     /// [`EventLoopBuilder::build`]: winit::event_loop::EventLoopBuilder::build
     /// [`with_openharmony_app`]: winit::platform::android::EventLoopBuilderExtOhos::with_openharmony_app
+    #[cfg(target_env = "ohos")]
     pub openharmony_app: Option<winit::platform::ohos::ability::OpenHarmonyApp>,
 }
 

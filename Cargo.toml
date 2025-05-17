@@ -68,11 +68,8 @@ egui_glow = { version = "0.31.1", path = "crates/egui_glow", default-features = 
 egui_kittest = { version = "0.31.1", path = "crates/egui_kittest", default-features = false }
 eframe = { version = "0.31.1", path = "crates/eframe", default-features = false }
 
-# accesskit = "0.18.0"
-# accesskit_winit = "0.24"
-
-accesskit = {path = "../accesskit/common"}
-accesskit_winit = {path = "../accesskit/platforms/winit"}
+accesskit = "0.18.0"
+accesskit_winit = "0.24"
 
 ahash = { version = "0.8.11", default-features = false, features = [
     "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
@@ -109,10 +106,9 @@ web-time = "1.1.0" # Timekeeping for native and web
 wgpu = { version = "24.0.3", default-features = false }
 windows-sys = "0.59"
 winit = { git = "https://github.com/richerfu/winit.git", branch = "feat-ohos-30", default-features = false }
-# winit = { path = "../win", default-features = false }
 
-openharmony-ability = {version = "0.1.1"}
-openharmony-ability-derive = {version = "0.1.1"}
+openharmony-ability = {version = "0.1"}
+openharmony-ability-derive = {version = "0.1"}
 
 [workspace.lints.rust]
 unsafe_code = "deny"
