@@ -5,10 +5,10 @@ authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Example library for egui"
 edition.workspace = true
 rust-version.workspace = true
-homepage = "https://github.com/emilk/egui/tree/master/crates/egui_demo_lib"
+homepage = "https://github.com/emilk/egui/tree/main/crates/egui_demo_lib"
 license.workspace = true
 readme = "README.md"
-repository = "https://github.com/emilk/egui/tree/master/crates/egui_demo_lib"
+repository = "https://github.com/emilk/egui/tree/main/crates/egui_demo_lib"
 categories = ["gui", "graphics"]
 keywords = ["glow", "egui", "gui", "gamedev"]
 include = [
@@ -56,8 +56,9 @@ serde = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion.workspace = true
-egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }
 egui = { workspace = true, features = ["default_fonts"] }
+egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }
+mimalloc.workspace = true                                            # for benchmarks
 rand = "0.9"
 
 [[bench]]

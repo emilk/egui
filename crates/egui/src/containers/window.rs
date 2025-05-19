@@ -8,7 +8,7 @@ use epaint::{CornerRadiusF32, RectShape};
 use crate::collapsing_header::CollapsingState;
 use crate::*;
 
-use super::scroll_area::ScrollBarVisibility;
+use super::scroll_area::{ScrollBarVisibility, ScrollSource};
 use super::{area, resize, Area, Frame, Resize, ScrollArea};
 
 /// Builder for a floating window which can be dragged, closed, collapsed, resized and scrolled (off by default).
@@ -403,7 +403,10 @@ impl<'open> Window<'open> {
     /// See [`ScrollArea::drag_to_scroll`] for more.
     #[inline]
     pub fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
-        self.scroll = self.scroll.drag_to_scroll(drag_to_scroll);
+        self.scroll = self.scroll.scroll_source(ScrollSource {
+            drag: drag_to_scroll,
+            ..Default::default()
+        });
         self
     }
 

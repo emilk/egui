@@ -3,7 +3,7 @@
 //! Try the live web demo: <https://www.egui.rs/#demo>. Read more about egui at <https://github.com/emilk/egui>.
 //!
 //! `egui` is in heavy development, with each new version having breaking changes.
-//! You need to have rust 1.81.0 or later to use `egui`.
+//! You need to have rust 1.84.0 or later to use `egui`.
 //!
 //! To quickly get started with egui, you can take a look at [`eframe_template`](https://github.com/emilk/eframe_template)
 //! which uses [`eframe`](https://docs.rs/eframe).
@@ -143,7 +143,7 @@
 //! }
 //! ```
 //!
-//! For a reference OpenGL renderer, see [the `egui_glow` painter](https://github.com/emilk/egui/blob/master/crates/egui_glow/src/painter.rs).
+//! For a reference OpenGL renderer, see [the `egui_glow` painter](https://github.com/emilk/egui/blob/main/crates/egui_glow/src/painter.rs).
 //!
 //!
 //! ### Debugging your renderer
@@ -219,7 +219,7 @@
 //! This means it is responsibility of the egui user to store the state (`value`) so that it persists between frames.
 //!
 //! It can be useful to read the code for the toggle switch example widget to get a better understanding
-//! of how egui works: <https://github.com/emilk/egui/blob/master/crates/egui_demo_lib/src/demo/toggle_switch.rs>.
+//! of how egui works: <https://github.com/emilk/egui/blob/main/crates/egui_demo_lib/src/demo/toggle_switch.rs>.
 //!
 //! Read more about the pros and cons of immediate mode at <https://github.com/emilk/egui#why-immediate-mode>.
 //!
@@ -400,6 +400,9 @@
 //! profile-with-puffin = ["profiling/profile-with-puffin"]
 //! ```
 //!
+//! ## Custom allocator
+//! egui apps can run significantly (~20%) faster by using a custom allocator, like [mimalloc](https://crates.io/crates/mimalloc) or [talc](https://crates.io/crates/talc).
+//!
 
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
@@ -564,7 +567,7 @@ macro_rules! include_image {
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
-/// ui.add(egui::github_link_file_line!("https://github.com/YOUR/PROJECT/blob/master/", "(source code)"));
+/// ui.add(egui::github_link_file_line!("https://github.com/YOUR/PROJECT/blob/main/", "(source code)"));
 /// # });
 /// ```
 #[macro_export]
@@ -579,7 +582,7 @@ macro_rules! github_link_file_line {
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
-/// ui.add(egui::github_link_file!("https://github.com/YOUR/PROJECT/blob/master/", "(source code)"));
+/// ui.add(egui::github_link_file!("https://github.com/YOUR/PROJECT/blob/main/", "(source code)"));
 /// # });
 /// ```
 #[macro_export]

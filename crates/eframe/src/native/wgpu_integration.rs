@@ -15,7 +15,7 @@ use winit::{
     window::{Window, WindowId},
 };
 
-use ahash::{HashMap, HashSet, HashSetExt};
+use ahash::{HashMap, HashSet, HashSetExt as _};
 use egui::{
     DeferredViewportUiCallback, FullOutput, ImmediateViewport, ViewportBuilder, ViewportClass,
     ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportInfo, ViewportOutput,
@@ -182,7 +182,6 @@ impl<'app> WgpuWinitApp<'app> {
         builder: ViewportBuilder,
     ) -> crate::Result<&mut WgpuWinitRunning<'app>> {
         profiling::function_scope!();
-        #[allow(unsafe_code, unused_mut, unused_unsafe)]
         let mut painter = pollster::block_on(egui_wgpu::winit::Painter::new(
             egui_ctx.clone(),
             self.native_options.wgpu_options.clone(),
@@ -236,7 +235,7 @@ impl<'app> WgpuWinitApp<'app> {
             });
         }
 
-        #[allow(unused_mut)] // used for accesskit
+        #[allow(unused_mut, clippy::allow_attributes)] // used for accesskit
         let mut egui_winit = egui_winit::State::new(
             egui_ctx.clone(),
             ViewportId::ROOT,

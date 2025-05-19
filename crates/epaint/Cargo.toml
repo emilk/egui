@@ -5,10 +5,10 @@ authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Minimal 2D graphics library for GUI work"
 edition.workspace = true
 rust-version.workspace = true
-homepage = "https://github.com/emilk/egui/tree/master/crates/epaint"
+homepage = "https://github.com/emilk/egui/tree/main/crates/epaint"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
-repository = "https://github.com/emilk/egui/tree/master/crates/epaint"
+repository = "https://github.com/emilk/egui/tree/main/crates/epaint"
 categories = ["graphics", "gui"]
 keywords = ["graphics", "gui", "egui"]
 include = [
@@ -101,6 +101,7 @@ backtrace = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion.workspace = true
+mimalloc.workspace = true
 similar-asserts.workspace = true
 
 

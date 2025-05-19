@@ -5,7 +5,7 @@ use egui::{
     mutex::Mutex,
     ColorImage, FrameDurations, Id,
 };
-use image::{codecs::webp::WebPDecoder, AnimationDecoder as _, ColorType, ImageDecoder, Rgba};
+use image::{codecs::webp::WebPDecoder, AnimationDecoder as _, ColorType, ImageDecoder as _, Rgba};
 use std::{io::Cursor, mem::size_of, sync::Arc, time::Duration};
 
 #[derive(Clone)]

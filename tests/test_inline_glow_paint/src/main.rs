@@ -29,7 +29,7 @@ impl eframe::App for MyTestApp {
         use glow::HasContext as _;
         let gl = frame.gl().unwrap();
 
-        #[allow(unsafe_code)]
+        #[expect(unsafe_code)]
         unsafe {
             gl.disable(glow::SCISSOR_TEST);
             gl.viewport(0, 0, 100, 100);

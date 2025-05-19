@@ -65,7 +65,7 @@ pub fn hit_test(
         .filter(|layer| layer.order.allow_interaction())
         .flat_map(|&layer_id| widgets.get_layer(layer_id))
         .filter(|&w| {
-            if w.interact_rect.is_negative() {
+            if w.interact_rect.is_negative() || w.interact_rect.any_nan() {
                 return false;
             }
 

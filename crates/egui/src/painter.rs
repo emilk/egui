@@ -294,7 +294,7 @@ impl Painter {
 
 /// ## Debug painting
 impl Painter {
-    #[allow(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value)]
     pub fn debug_rect(&self, rect: Rect, color: Color32, text: impl ToString) {
         self.rect(
             rect,
@@ -320,7 +320,7 @@ impl Painter {
     /// Text with a background.
     ///
     /// See also [`Context::debug_text`].
-    #[allow(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value)]
     pub fn debug_text(
         &self,
         pos: Pos2,
@@ -497,7 +497,7 @@ impl Painter {
     /// [`Self::layout`] or [`Self::layout_no_wrap`].
     ///
     /// Returns where the text ended up.
-    #[allow(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value)]
     pub fn text(
         &self,
         pos: Pos2,

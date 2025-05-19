@@ -1,6 +1,6 @@
 use crate::{
-    widgets, Align, Color32, CornerRadius, FontSelection, Image, NumExt, Rect, Response, Sense,
-    Stroke, TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
+    widgets, Align, Color32, CornerRadius, FontSelection, Image, NumExt as _, Rect, Response,
+    Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
 };
 
 /// Clickable button with text.
@@ -46,13 +46,11 @@ impl<'a> Button<'a> {
     }
 
     /// Creates a button with an image. The size of the image as displayed is defined by the provided size.
-    #[allow(clippy::needless_pass_by_value)]
     pub fn image(image: impl Into<Image<'a>>) -> Self {
         Self::opt_image_and_text(Some(image.into()), None)
     }
 
     /// Creates a button with an image to the left of the text. The size of the image as displayed is defined by the provided size.
-    #[allow(clippy::needless_pass_by_value)]
     pub fn image_and_text(image: impl Into<Image<'a>>, text: impl Into<WidgetText>) -> Self {
         Self::opt_image_and_text(Some(image.into()), Some(text.into()))
     }
@@ -251,7 +249,7 @@ impl Widget for Button<'_> {
             )
         } else {
             (
-                ui.available_size() - 2.0 * button_padding,
+                (ui.available_size() - 2.0 * button_padding).at_least(Vec2::ZERO),
                 default_font_height(),
             )
         };
