@@ -1020,7 +1020,7 @@ pub struct Visuals {
     pub numeric_color_space: NumericColorSpace,
 
     /// Opacity is multiplied by this amount when fading out widgets.
-    pub fade_out_by: f32,
+    pub disabled_alpha: f32,
 }
 
 impl Visuals {
@@ -1058,7 +1058,7 @@ impl Visuals {
     /// When fading out things, we multiply the opacity by this.
     #[inline(always)]
     pub fn fade_out_opacity(&self) -> f32 {
-        self.fade_out_by
+        self.disabled_alpha
     }
 
     /// Returned a "grayed out" version of the given color.
@@ -1385,7 +1385,7 @@ impl Visuals {
             image_loading_spinners: true,
 
             numeric_color_space: NumericColorSpace::GammaByte,
-            fade_out_by: 0.5,
+            disabled_alpha: 0.5,
         }
     }
 
@@ -2065,7 +2065,7 @@ impl Visuals {
             image_loading_spinners,
 
             numeric_color_space,
-            fade_out_by,
+            disabled_alpha: fade_out_by,
         } = self;
 
         ui.collapsing("Background Colors", |ui| {
@@ -2195,7 +2195,7 @@ impl Visuals {
                 numeric_color_space.toggle_button_ui(ui);
             });
 
-            ui.add(Slider::new(fade_out_by, 0.0..=1.0).text("Fades out widgets by"));
+            ui.add(Slider::new(fade_out_by, 0.0..=1.0).text("Disabled element alpha"));
         });
 
         ui.vertical_centered(|ui| reset_button(ui, self, "Reset visuals"));
