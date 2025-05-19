@@ -1057,7 +1057,7 @@ impl Visuals {
 
     /// When fading out things, we multiply the opacity by this.
     #[inline(always)]
-    pub fn fade_out_opacity(&self) -> f32 {
+    pub fn disabled_alpha(&self) -> f32 {
         self.disabled_alpha
     }
 
@@ -1065,7 +1065,7 @@ impl Visuals {
     #[doc(alias = "grey_out")]
     #[inline(always)]
     pub fn gray_out(&self, color: Color32) -> Color32 {
-        color.gamma_multiply(self.fade_out_opacity())
+        color.gamma_multiply(self.disabled_alpha())
     }
 }
 
@@ -2065,7 +2065,7 @@ impl Visuals {
             image_loading_spinners,
 
             numeric_color_space,
-            disabled_alpha: fade_out_by,
+            disabled_alpha,
         } = self;
 
         ui.collapsing("Background Colors", |ui| {
@@ -2195,7 +2195,7 @@ impl Visuals {
                 numeric_color_space.toggle_button_ui(ui);
             });
 
-            ui.add(Slider::new(fade_out_by, 0.0..=1.0).text("Disabled element alpha"));
+            ui.add(Slider::new(disabled_alpha, 0.0..=1.0).text("Disabled element alpha"));
         });
 
         ui.vertical_centered(|ui| reset_button(ui, self, "Reset visuals"));
