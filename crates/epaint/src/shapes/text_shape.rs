@@ -104,16 +104,16 @@ impl From<TextShape> for Shape {
 #[cfg(test)]
 mod tests {
     use super::{super::*, *};
-    use crate::text::FontDefinitions;
+    use crate::text::{style::FontId, FontDefinitions, FontStore};
     use emath::almost_equal;
 
     #[test]
     fn text_bounding_box_under_rotation() {
-        let fonts = Fonts::new(1.0, 1024, FontDefinitions::default());
+        let mut fonts = FontStore::new(1024, FontDefinitions::default());
         let font = FontId::monospace(12.0);
 
         let mut t = crate::Shape::text(
-            &fonts,
+            &mut fonts.with_pixels_per_point(1.0),
             Pos2::ZERO,
             emath::Align2::CENTER_CENTER,
             "testing123",
