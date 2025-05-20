@@ -60,7 +60,7 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
             .layout_context
             .tree_builder(fonts.font_context, 1.0, false, &default_style);
 
-    let mut first_row_height = job.first_row_min_height;
+    let first_row_height = job.first_row_min_height;
 
     job.sections.iter().enumerate().for_each(|(i, section)| {
         // TODO(valadaptive): this only works for the first section
@@ -82,8 +82,10 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
             // If the first section takes up more than one row, this will apply to the entire first section. There
             // doesn't seem to be any way to prevent this because we don't know ahead of time what the "first row" will
             // be due to line wrapping.
-            first_row_height = first_row_height.max(section.format.line_height());
-            style.line_height = first_row_height / section.format.font_id.size;
+
+            //TODO(valadaptive): how to make this work with metrics-relative line height?
+            //first_row_height = first_row_height.max(section.format.line_height());
+            style.line_height = parley::LineHeight::Absolute(first_row_height);
         }
 
         builder.push_style_span(style);

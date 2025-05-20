@@ -39,7 +39,7 @@
     - [ ] RTL support for `egui::Align`
   - [ ] Once Parley has vertical alignment, remove the hack for leading_space/first_row_min_height
   - [ ] Align multiple consecutive labels to the same baseline, even with different fonts
-  - [ ] Line height discrepancy between old and new layout (Parley line height is just the font size)
+  - [x] Line height discrepancy between old and new layout (Parley line height is just the font size)
 - [ ] Text rendering
   - [x] Investigate whether swash is being too conservative with its shape bounds and cutting off rendered glyphs
     - The reverse is true https://github.com/dfrg/zeno/pull/15

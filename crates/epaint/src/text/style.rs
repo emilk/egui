@@ -1009,7 +1009,7 @@ impl TextFormat {
                 .then_some(self.strikethrough.width),
             strikethrough_brush: (!self.strikethrough.is_empty())
                 .then_some(self.strikethrough.color),
-            line_height: self.line_height() / self.font_id.size,
+            line_height: self.parley_line_height(),
             word_spacing: 0.0,
             letter_spacing: self.extra_letter_spacing,
             // These will be filled in during layout
@@ -1075,7 +1075,10 @@ impl TextFormat {
         }
     }
 
-    pub(crate) fn line_height(&self) -> f32 {
-        self.line_height.unwrap_or(self.font_id.size)
+    pub(crate) fn parley_line_height(&self) -> parley::style::LineHeight {
+        match self.line_height {
+            Some(height) => parley::style::LineHeight::Absolute(height),
+            None => parley::style::LineHeight::MetricsRelative(1.0),
+        }
     }
 }
