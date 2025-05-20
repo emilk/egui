@@ -364,11 +364,17 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
                 row_logical_bounds = row_logical_bounds.union(Rect::from_min_max(
                     pos2(
                         overflow_horiz_offset,
-                        overflow_metrics.min_coord + overflow_vertical_offset,
+                        overflow_metrics.baseline
+                            - overflow_metrics.ascent
+                            - (overflow_metrics.leading * 0.5)
+                            + overflow_vertical_offset,
                     ),
                     pos2(
                         overflow_horiz_offset + overflow_metrics.advance,
-                        overflow_metrics.max_coord + overflow_vertical_offset,
+                        overflow_metrics.baseline
+                            + overflow_metrics.descent
+                            + (overflow_metrics.leading * 0.5)
+                            + overflow_vertical_offset,
                     ),
                 ));
 
@@ -402,8 +408,18 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
         let line_end = max_line_end.min(job.wrap.max_width).max(min_line_end);
 
         row_logical_bounds = row_logical_bounds.union(Rect::from_min_max(
-            pos2(line_start, line_metrics.min_coord + vertical_offset),
-            pos2(line_end, line_metrics.max_coord + vertical_offset),
+            pos2(
+                line_start,
+                line_metrics.baseline - line_metrics.ascent - (line_metrics.leading * 0.5)
+                    + vertical_offset,
+            ),
+            pos2(
+                line_end,
+                line_metrics.baseline
+                    + line_metrics.descent
+                    + (line_metrics.leading * 0.5)
+                    + vertical_offset,
+            ),
         ));
 
         if job.round_output_to_gui {
