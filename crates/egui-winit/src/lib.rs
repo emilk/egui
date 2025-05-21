@@ -1108,6 +1108,7 @@ fn key_from_named_key(named_key: winit::keyboard::NamedKey) -> Option<egui::Key>
         NamedKey::Paste => Key::Paste,
 
         NamedKey::Space => Key::Space,
+        NamedKey::BrowserBack => Key::Backspace,
 
         NamedKey::F1 => Key::F1,
         NamedKey::F2 => Key::F2,
