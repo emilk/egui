@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
 
 use super::{
     BytesLoader as _, Context, HashMap, ImagePoll, Mutex, SizeHint, SizedTexture, TextureHandle,
@@ -6,15 +6,23 @@ use super::{
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-struct Key<'a> {
-    uri: Cow<'a, str>,
+struct PrimaryKey {
+    uri: String,
     texture_options: TextureOptions,
-    svg_size_hint: Option<SizeHint>,
+}
+
+/// SVG:s might have several different sizes loaded
+type Bucket = HashMap<Option<SizeHint>, Entry>;
+
+struct Entry {
+    last_used: AtomicU64,
+    handle: TextureHandle,
 }
 
 #[derive(Default)]
 pub struct DefaultTextureLoader {
-    cache: Mutex<HashMap<Key<'static>, TextureHandle>>,
+    pass_index: AtomicU64,
+    cache: Mutex<HashMap<PrimaryKey, Bucket>>,
 }
 
 impl TextureLoader for DefaultTextureLoader {
@@ -29,7 +37,7 @@ impl TextureLoader for DefaultTextureLoader {
         texture_options: TextureOptions,
         size_hint: SizeHint,
     ) -> TextureLoadResult {
-        let svg_size_hint = if uri.ends_with(".svg") {
+        let svg_size_hint = if is_svg(uri) {
             // For SVGs it's important that we render at the desired size,
             // or we might get a blurry image when we scale it up.
             // So we make the size hint a part of the cache key.
@@ -42,12 +50,18 @@ impl TextureLoader for DefaultTextureLoader {
         };
 
         let mut cache = self.cache.lock();
-        if let Some(handle) = cache.get(&Key {
-            uri: Cow::Borrowed(uri),
-            texture_options,
-            svg_size_hint,
-        }) {
-            let texture = SizedTexture::from_handle(handle);
+        let bucket = cache
+            .entry(PrimaryKey {
+                uri: uri.to_owned(),
+                texture_options,
+            })
+            .or_default();
+
+        if let Some(texture) = bucket.get(&svg_size_hint) {
+            texture
+                .last_used
+                .store(self.pass_index.load(Relaxed), Relaxed);
+            let texture = SizedTexture::from_handle(&texture.handle);
             Ok(TexturePoll::Ready { texture })
         } else {
             match ctx.try_load_image(uri, size_hint)? {
@@ -55,13 +69,12 @@ impl TextureLoader for DefaultTextureLoader {
                 ImagePoll::Ready { image } => {
                     let handle = ctx.load_texture(uri, image, texture_options);
                     let texture = SizedTexture::from_handle(&handle);
-                    cache.insert(
-                        Key {
-                            uri: Cow::Owned(uri.to_owned()),
-                            texture_options,
-                            svg_size_hint,
+                    bucket.insert(
+                        svg_size_hint,
+                        Entry {
+                            last_used: AtomicU64::new(self.pass_index.load(Relaxed)),
+                            handle,
                         },
-                        handle,
                     );
                     let reduce_texture_memory = ctx.options(|o| o.reduce_texture_memory);
                     if reduce_texture_memory {
@@ -94,11 +107,35 @@ impl TextureLoader for DefaultTextureLoader {
         self.cache.lock().clear();
     }
 
+    fn end_pass(&self, pass_index: u64) {
+        self.pass_index.store(pass_index, Relaxed);
+        let mut cache = self.cache.lock();
+        cache.retain(|_key, bucket| {
+            if 2 <= bucket.len() {
+                // There are multiple textures of the same URI (e.g. SVGs of different scales).
+                // This could be because someone has an SVG in a resizable container,
+                // and so we get a lot of different sizes of it.
+                // This could wast VRAM, so we remove the ones that are not used in this frame.
+                bucket.retain(|_, texture| pass_index <= texture.last_used.load(Relaxed) + 1);
+            }
+            !bucket.is_empty()
+        });
+    }
+
     fn byte_size(&self) -> usize {
         self.cache
             .lock()
             .values()
-            .map(|texture| texture.byte_size())
+            .map(|bucket| {
+                bucket
+                    .values()
+                    .map(|texture| texture.handle.byte_size())
+                    .sum::<usize>()
+            })
             .sum()
     }
+}
+
+fn is_svg(uri: &str) -> bool {
+    uri.ends_with(".svg")
 }
