@@ -1099,7 +1099,7 @@ fn key_from_named_key(named_key: winit::keyboard::NamedKey) -> Option<egui::Key>
         NamedKey::Home => Key::Home,
         NamedKey::PageDown => Key::PageDown,
         NamedKey::PageUp => Key::PageUp,
-        NamedKey::Backspace => Key::Backspace,
+        NamedKey::Backspace | NamedKey::BrowserBack => Key::Backspace,
         NamedKey::Delete => Key::Delete,
         NamedKey::Insert => Key::Insert,
         NamedKey::Escape => Key::Escape,
@@ -1108,7 +1108,6 @@ fn key_from_named_key(named_key: winit::keyboard::NamedKey) -> Option<egui::Key>
         NamedKey::Paste => Key::Paste,
 
         NamedKey::Space => Key::Space,
-        NamedKey::BrowserBack => Key::Backspace,
 
         NamedKey::F1 => Key::F1,
         NamedKey::F2 => Key::F2,
