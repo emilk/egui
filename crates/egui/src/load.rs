@@ -146,7 +146,7 @@ pub type Result<T, E = LoadError> = std::result::Result<T, E>;
 /// The size is measured in texels, with the pixels per point already factored in.
 ///
 /// All variants will preserve the original aspect ratio.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum SizeHint {
     /// Scale original size by some factor.
     Scale(OrderedFloat<f32>),
@@ -402,7 +402,7 @@ pub trait ImageLoader {
     fn byte_size(&self) -> usize;
 
     /// Returns `true` if some image is currently being loaded.
-    ///  
+    ///
     /// NOTE: You probably also want to check [`BytesLoader::has_pending`].
     fn has_pending(&self) -> bool {
         false

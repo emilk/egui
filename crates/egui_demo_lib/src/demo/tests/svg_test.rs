@@ -27,6 +27,15 @@ impl crate::View for SvgTest {
     fn ui(&mut self, ui: &mut egui::Ui) {
         let Self { color } = self;
         ui.color_edit_button_srgba(color);
-        ui.add(egui::Image::new(egui::include_image!("../../../data/peace.svg")).tint(*color));
+        let img_src = egui::include_image!("../../../data/peace.svg");
+
+        // First paint a small version…
+        ui.add_sized(
+            egui::Vec2 { x: 20.0, y: 20.0 },
+            egui::Image::new(img_src.clone()).tint(*color),
+        );
+
+        // …then a big one, to make sure they are both crisp
+        ui.add(egui::Image::new(img_src).tint(*color));
     }
 }
