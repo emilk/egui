@@ -64,8 +64,6 @@ impl TextureLoader for DefaultTextureLoader {
         self.cache.lock().clear();
     }
 
-    fn end_pass(&self, _: usize) {}
-
     fn byte_size(&self) -> usize {
         self.cache
             .lock()
