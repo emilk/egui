@@ -2,7 +2,6 @@
 
 use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration};
 
-use containers::area::AreaState;
 use emath::GuiRounding as _;
 use epaint::{
     emath::{self, TSTransform},
@@ -17,7 +16,7 @@ use epaint::{
 
 use crate::{
     animation_manager::AnimationManager,
-    containers,
+    containers::{self, area::AreaState},
     data::output::PlatformOutput,
     epaint, hit_test,
     input_state::{InputState, MultiTouchInfo, PointerEvent},
@@ -3065,6 +3064,12 @@ impl Context {
                 self.texture_ui(ui);
             });
 
+        CollapsingHeader::new("🖼 Image loaders")
+            .default_open(false)
+            .show(ui, |ui| {
+                self.loaders_ui(ui);
+            });
+
         CollapsingHeader::new("🔠 Font texture")
             .default_open(false)
             .show(ui, |ui| {
@@ -3145,6 +3150,73 @@ impl Context {
                         });
                 });
         });
+    }
+
+    /// Show stats about different image loaders.
+    pub fn loaders_ui(&self, ui: &mut crate::Ui) {
+        struct LoaderInfo {
+            id: String,
+            byte_size: usize,
+        }
+
+        let mut byte_loaders = vec![];
+        let mut image_loaders = vec![];
+        let mut texture_loaders = vec![];
+
+        {
+            let loaders = self.loaders();
+            let Loaders {
+                include: _,
+                bytes,
+                image,
+                texture,
+            } = loaders.as_ref();
+
+            for loader in bytes.lock().iter() {
+                byte_loaders.push(LoaderInfo {
+                    id: loader.id().to_owned(),
+                    byte_size: loader.byte_size(),
+                });
+            }
+            for loader in image.lock().iter() {
+                image_loaders.push(LoaderInfo {
+                    id: loader.id().to_owned(),
+                    byte_size: loader.byte_size(),
+                });
+            }
+            for loader in texture.lock().iter() {
+                texture_loaders.push(LoaderInfo {
+                    id: loader.id().to_owned(),
+                    byte_size: loader.byte_size(),
+                });
+            }
+        }
+
+        fn loaders_ui(ui: &mut crate::Ui, title: &str, loaders: &[LoaderInfo]) {
+            let heading = format!("{} {title} loaders", loaders.len());
+            crate::CollapsingHeader::new(heading)
+                .default_open(true)
+                .show(ui, |ui| {
+                    Grid::new("loaders")
+                        .striped(true)
+                        .num_columns(2)
+                        .show(ui, |ui| {
+                            ui.label("ID");
+                            ui.label("Size");
+                            ui.end_row();
+
+                            for loader in loaders {
+                                ui.label(&loader.id);
+                                ui.label(format!("{:.3} MB", loader.byte_size as f64 * 1e-6));
+                                ui.end_row();
+                            }
+                        });
+                });
+        }
+
+        loaders_ui(ui, "byte", &byte_loaders);
+        loaders_ui(ui, "image", &image_loaders);
+        loaders_ui(ui, "texture", &texture_loaders);
     }
 
     /// Shows the contents of [`Self::memory`].
