@@ -522,7 +522,7 @@ impl Ui {
         self.enabled = false;
         if self.is_visible() {
             self.painter
-                .multiply_opacity(self.visuals().fade_out_opacity());
+                .multiply_opacity(self.visuals().disabled_alpha());
         }
     }
 
