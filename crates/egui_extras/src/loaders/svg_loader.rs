@@ -1,4 +1,4 @@
-use std::{borrow::Cow, mem::size_of, path::Path, sync::Arc};
+use std::{borrow::Cow, mem::size_of, sync::Arc};
 
 use ahash::HashMap;
 
@@ -20,11 +20,7 @@ impl SvgLoader {
 }
 
 fn is_supported(uri: &str) -> bool {
-    let Some(ext) = Path::new(uri).extension().and_then(|ext| ext.to_str()) else {
-        return false;
-    };
-
-    ext == "svg"
+    uri.ends_with(".svg")
 }
 
 impl Default for SvgLoader {
