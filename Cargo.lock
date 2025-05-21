@@ -1343,6 +1343,7 @@ dependencies = [
  "egui",
  "egui_extras",
  "egui_kittest",
+ "image",
  "mimalloc",
  "rand",
  "serde",
