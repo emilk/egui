@@ -295,7 +295,7 @@ pub fn load_svg_bytes_with_size(
         &mut pixmap.as_mut(),
     );
 
-    let image = egui::ColorImage::from_rgba_unmultiplied([w as _, h as _], pixmap.data());
+    let image = egui::ColorImage::from_rgba_premultiplied([w as _, h as _], pixmap.data());
 
     Ok(image)
 }
