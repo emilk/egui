@@ -13,6 +13,16 @@ struct DemoGroup {
     demos: Vec<Box<dyn Demo>>,
 }
 
+impl std::ops::Add for DemoGroup {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        let mut demos = self.demos;
+        demos.extend(other.demos);
+        Self { demos }
+    }
+}
+
 impl DemoGroup {
     pub fn new(demos: Vec<Box<dyn Demo>>) -> Self {
         Self { demos }
@@ -367,7 +377,12 @@ mod tests {
 
     #[test]
     fn demos_should_match_snapshot() {
-        let demos = DemoGroups::default().demos;
+        let DemoGroups {
+            demos,
+            tests,
+            about: _,
+        } = DemoGroups::default();
+        let demos = demos + tests;
 
         let mut results = SnapshotResults::new();
 
@@ -377,13 +392,10 @@ mod tests {
                 continue;
             }
 
-            // Remove the emoji from the demo name
-            let name = demo
-                .name()
-                .split_once(' ')
-                .map_or(demo.name(), |(_, name)| name);
+            let name = remove_leading_emoji(demo.name());
 
             let mut harness = Harness::new(|ctx| {
+                egui_extras::install_image_loaders(ctx);
                 demo.show(ctx, &mut true);
             });
 
@@ -405,5 +417,14 @@ mod tests {
 
             results.add(harness.try_snapshot_options(&format!("demos/{name}"), &options));
         }
+    }
+
+    fn remove_leading_emoji(full_name: &str) -> &str {
+        if let Some((start, name)) = full_name.split_once(' ') {
+            if start.len() <= 4 && start.bytes().next().is_some_and(|byte| byte >= 128) {
+                return name;
+            }
+        }
+        full_name
     }
 }
