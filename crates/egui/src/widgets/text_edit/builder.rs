@@ -549,6 +549,19 @@ impl TextEdit<'_> {
         });
         let mut state = TextEditState::load(ui.ctx(), id).unwrap_or_default();
 
+        // At this point we don't know if the saved cursor still applies to the current galley since
+        // it's possible the app changed the TextBuffer (e.g. when submitting a chat input) so here
+        // we detect if the galley changed from the last known one and clamp the cursor to the new one
+        if let Some(last_galley) = state.last_galley.as_ref() {
+            let changed = last_galley
+                .upgrade()
+                .map_or(true, |last_galley| last_galley != galley);
+            if changed {
+                state.cursor.ensure_in_bounds(&galley);
+                state.last_galley = Some(Arc::downgrade(&galley));
+            }
+        }
+
         // On touch screens (e.g. mobile in `eframe` web), should
         // dragging select text, or scroll the enclosing [`ScrollArea`] (if any)?
         // Since currently copying selected text in not supported on `eframe` web,
@@ -799,6 +812,7 @@ impl TextEdit<'_> {
             ui.input_mut(|i| i.events.retain(|e| !matches!(e, Event::Ime(_))));
         }
 
+        state.last_galley = Some(Arc::downgrade(&galley));
         state.clone().store(ui.ctx(), id);
 
         if response.changed() {

@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 
 use crate::mutex::Mutex;
 
@@ -57,6 +57,10 @@ pub struct TextEditState {
     /// Used to pause the cursor animation when typing.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) last_interaction_time: f64,
+
+    /// The last galley that was used to render the text. When this changes, we need to ensure the cursor is still in bounds.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) last_galley: Option<Weak<epaint::Galley>>,
 }
 
 impl TextEditState {
