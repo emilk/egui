@@ -384,7 +384,11 @@ impl<'a> Image<'a> {
         let texture = self.source(ui.ctx()).clone().load(
             ui.ctx(),
             self.texture_options,
-            SizeHint::Size(pixel_size.x as _, pixel_size.y as _),
+            SizeHint::Size {
+                width: pixel_size.x as _,
+                height: pixel_size.y as _,
+                maintain_aspect_ratio: false, // no - just get exactly what we asked for
+            },
         );
 
         paint_texture_load_result(
@@ -481,22 +485,30 @@ impl ImageFit {
 impl ImageSize {
     /// Size hint for e.g. rasterizing an svg.
     pub fn hint(&self, available_size: Vec2, pixels_per_point: f32) -> SizeHint {
-        let point_size = match self.fit {
+        let Self {
+            maintain_aspect_ratio,
+            max_size,
+            fit,
+        } = *self;
+
+        let point_size = match fit {
             ImageFit::Original { scale } => {
                 return SizeHint::Scale((pixels_per_point * scale).ord())
             }
             ImageFit::Fraction(fract) => available_size * fract,
             ImageFit::Exact(size) => size,
         };
-        let point_size = point_size.at_most(self.max_size);
+        let point_size = point_size.at_most(max_size);
 
         let pixel_size = pixels_per_point * point_size;
 
         // `inf` on an axis means "any value"
         match (pixel_size.x.is_finite(), pixel_size.y.is_finite()) {
-            (true, true) => {
-                SizeHint::Size(pixel_size.x.round() as u32, pixel_size.y.round() as u32)
-            }
+            (true, true) => SizeHint::Size {
+                width: pixel_size.x.round() as u32,
+                height: pixel_size.y.round() as u32,
+                maintain_aspect_ratio,
+            },
             (true, false) => SizeHint::Width(pixel_size.x.round() as u32),
             (false, true) => SizeHint::Height(pixel_size.y.round() as u32),
             (false, false) => SizeHint::Scale(pixels_per_point.ord()),

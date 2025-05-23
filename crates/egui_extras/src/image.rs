@@ -269,7 +269,23 @@ pub fn load_svg_bytes_with_size(
 
     let scaled_size = match size_hint {
         None => original_size,
-        Some(SizeHint::Size(w, h)) => Vec2::new(w as _, h as _),
+        Some(SizeHint::Size {
+            width,
+            height,
+            maintain_aspect_ratio,
+        }) => {
+            if maintain_aspect_ratio {
+                // As large as possible, without exceeding the given size:
+                let mut size = original_size;
+                size *= width as f32 / original_size.x;
+                if size.y > height as f32 {
+                    size *= height as f32 / size.y;
+                }
+                size
+            } else {
+                Vec2::new(width as _, height as _)
+            }
+        }
         Some(SizeHint::Height(h)) => original_size * (h as f32 / original_size.y),
         Some(SizeHint::Width(w)) => original_size * (w as f32 / original_size.x),
         Some(SizeHint::Scale(scale)) => scale.into_inner() * original_size,

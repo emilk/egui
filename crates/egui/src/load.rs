@@ -157,21 +157,21 @@ pub enum SizeHint {
     /// Scale to exactly this pixel height, keeping the original aspect ratio.
     Height(u32),
 
-    /// Scale to exacrtly this pixel size, ignoring the original aspect ratio.
-    Size(u32, u32),
+    /// Scale to this pixel size.
+    Size {
+        width: u32,
+        height: u32,
+
+        /// If true, the image will be as large as possible
+        /// while still fitting within the given width/height.
+        maintain_aspect_ratio: bool,
+    },
 }
 
 impl Default for SizeHint {
     #[inline]
     fn default() -> Self {
         Self::Scale(1.0.ord())
-    }
-}
-
-impl From<Vec2> for SizeHint {
-    #[inline]
-    fn from(value: Vec2) -> Self {
-        Self::Size(value.x.round() as u32, value.y.round() as u32)
     }
 }
 
