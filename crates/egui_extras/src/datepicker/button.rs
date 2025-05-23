@@ -19,6 +19,8 @@ pub struct DatePickerButton<'a> {
     show_icon: bool,
     format: String,
     highlight_weekends: bool,
+    start_year: Option<i32>,
+    end_year: Option<i32>,
 }
 
 impl<'a> DatePickerButton<'a> {
@@ -33,6 +35,8 @@ impl<'a> DatePickerButton<'a> {
             show_icon: true,
             format: "%Y-%m-%d".to_owned(),
             highlight_weekends: true,
+            start_year: None,
+            end_year: None,
         }
     }
 
@@ -101,6 +105,20 @@ impl<'a> DatePickerButton<'a> {
         self.highlight_weekends = highlight_weekends;
         self
     }
+
+    /// Set the start year for the date picker. (Default: None)
+    #[inline]
+    pub fn start_year(mut self, start_year: i32) -> Self {
+        self.start_year = Some(start_year);
+        self
+    }
+
+    /// Set the end year for the date picker. (Default: None)
+    #[inline]
+    pub fn end_year(mut self, end_year: i32) -> Self {
+        self.end_year = Some(end_year);
+        self
+    }
 }
 
 impl Widget for DatePickerButton<'_> {
@@ -167,6 +185,8 @@ impl Widget for DatePickerButton<'_> {
                                 calendar: self.calendar,
                                 calendar_week: self.calendar_week,
                                 highlight_weekends: self.highlight_weekends,
+                                start_year: self.start_year,
+                                end_year: self.end_year,
                             }
                             .draw(ui)
                         })
