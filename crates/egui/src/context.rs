@@ -3114,6 +3114,8 @@ impl Context {
         ));
         let max_preview_size = vec2(48.0, 32.0);
 
+        let pixels_per_point = self.pixels_per_point();
+
         ui.group(|ui| {
             ScrollArea::vertical()
                 .max_height(300.0)
@@ -3128,15 +3130,16 @@ impl Context {
                         .show(ui, |ui| {
                             for (&texture_id, meta) in textures {
                                 let [w, h] = meta.size;
+                                let point_size = vec2(w as f32, h as f32) / pixels_per_point;
 
-                                let mut size = vec2(w as f32, h as f32);
+                                let mut size = point_size;
                                 size *= (max_preview_size.x / size.x).min(1.0);
                                 size *= (max_preview_size.y / size.y).min(1.0);
                                 ui.image(SizedTexture::new(texture_id, size))
                                     .on_hover_ui(|ui| {
                                         // show larger on hover
                                         let max_size = 0.5 * ui.ctx().screen_rect().size();
-                                        let mut size = vec2(w as f32, h as f32);
+                                        let mut size = point_size;
                                         size *= max_size.x / size.x.max(max_size.x);
                                         size *= max_size.y / size.y.max(max_size.y);
                                         ui.image(SizedTexture::new(texture_id, size));
