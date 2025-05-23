@@ -1,6 +1,6 @@
 use std::{borrow::Cow, slice::Iter, sync::Arc, time::Duration};
 
-use emath::{Align, Float as _, Rot2};
+use emath::{Align, Float as _, GuiRounding as _, NumExt as _, Rot2};
 use epaint::{
     text::{LayoutJob, TextFormat, TextWrapping},
     RectShape,
@@ -373,9 +373,23 @@ impl<'a> Image<'a> {
     /// ```
     #[inline]
     pub fn paint_at(&self, ui: &Ui, rect: Rect) {
+        let pixels_per_point = ui.pixels_per_point();
+
+        let rect = rect.round_to_pixels(pixels_per_point);
+
+        // Load exactly the size of the rectangle we are painting to.
+        // This is important for getting crisp SVG:s.
+        let pixel_size = (pixels_per_point * rect.size()).round();
+
+        let texture = self.source(ui.ctx()).clone().load(
+            ui.ctx(),
+            self.texture_options,
+            SizeHint::Size(pixel_size.x as _, pixel_size.y as _),
+        );
+
         paint_texture_load_result(
             ui,
-            &self.load_for_size(ui.ctx(), rect.size()),
+            &texture,
             rect,
             self.show_loading_spinner,
             &self.image_options,
@@ -467,19 +481,24 @@ impl ImageFit {
 impl ImageSize {
     /// Size hint for e.g. rasterizing an svg.
     pub fn hint(&self, available_size: Vec2, pixels_per_point: f32) -> SizeHint {
-        let size = match self.fit {
-            ImageFit::Original { scale } => return SizeHint::Scale(scale.ord()),
+        let point_size = match self.fit {
+            ImageFit::Original { scale } => {
+                return SizeHint::Scale((pixels_per_point * scale).ord())
+            }
             ImageFit::Fraction(fract) => available_size * fract,
             ImageFit::Exact(size) => size,
         };
-        let size = size.min(self.max_size);
-        let size = size * pixels_per_point;
+        let point_size = point_size.at_most(self.max_size);
+
+        let pixel_size = pixels_per_point * point_size;
 
         // `inf` on an axis means "any value"
-        match (size.x.is_finite(), size.y.is_finite()) {
-            (true, true) => SizeHint::Size(size.x.round() as u32, size.y.round() as u32),
-            (true, false) => SizeHint::Width(size.x.round() as u32),
-            (false, true) => SizeHint::Height(size.y.round() as u32),
+        match (pixel_size.x.is_finite(), pixel_size.y.is_finite()) {
+            (true, true) => {
+                SizeHint::Size(pixel_size.x.round() as u32, pixel_size.y.round() as u32)
+            }
+            (true, false) => SizeHint::Width(pixel_size.x.round() as u32),
+            (false, true) => SizeHint::Height(pixel_size.y.round() as u32),
             (false, false) => SizeHint::Scale(pixels_per_point.ord()),
         }
     }

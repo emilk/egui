@@ -413,6 +413,8 @@ pub trait ImageLoader {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SizedTexture {
     pub id: TextureId,
+
+    /// Size in logical ui points.
     pub size: Vec2,
 }
 
