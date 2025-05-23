@@ -1,6 +1,6 @@
 use std::{borrow::Cow, slice::Iter, sync::Arc, time::Duration};
 
-use emath::{Align, Float as _, Rot2};
+use emath::{Align, Float as _, GuiRounding, NumExt, Rot2};
 use epaint::{
     text::{LayoutJob, TextFormat, TextWrapping},
     RectShape,
@@ -373,9 +373,23 @@ impl<'a> Image<'a> {
     /// ```
     #[inline]
     pub fn paint_at(&self, ui: &Ui, rect: Rect) {
+        let pixels_per_point = ui.pixels_per_point();
+
+        let rect = rect.round_to_pixels(pixels_per_point);
+
+        // Load exactly the size of the rectangle we are painting to.
+        // This is important for getting crisp SVG:s.
+        let pixel_size = (pixels_per_point * rect.size()).round();
+
+        let texture = self.source(ui.ctx()).clone().load(
+            ui.ctx(),
+            self.texture_options,
+            SizeHint::Size(pixel_size.x as _, pixel_size.y as _),
+        );
+
         paint_texture_load_result(
             ui,
-            &self.load_for_size(ui.ctx(), rect.size()),
+            &texture,
             rect,
             self.show_loading_spinner,
             &self.image_options,
