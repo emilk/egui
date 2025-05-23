@@ -255,43 +255,51 @@ pub fn load_svg_bytes_with_size(
     size_hint: Option<SizeHint>,
     options: &resvg::usvg::Options<'_>,
 ) -> Result<egui::ColorImage, String> {
-    use resvg::tiny_skia::{IntSize, Pixmap};
-    use resvg::usvg::{Transform, Tree};
+    use egui::Vec2;
+    use resvg::{
+        tiny_skia::Pixmap,
+        usvg::{Transform, Tree},
+    };
 
     profiling::function_scope!();
 
     let rtree = Tree::from_data(svg_bytes, options).map_err(|err| err.to_string())?;
 
-    let size = rtree.size().to_int_size();
+    let original_size = Vec2::new(rtree.size().width(), rtree.size().height());
+
     let scaled_size = match size_hint {
-        None => size,
-        Some(SizeHint::Size(w, h)) => size.scale_to(
-            IntSize::from_wh(w, h).ok_or_else(|| format!("Failed to scale SVG to {w}x{h}"))?,
-        ),
-        Some(SizeHint::Height(h)) => size
-            .scale_to_height(h)
-            .ok_or_else(|| format!("Failed to scale SVG to height {h}"))?,
-        Some(SizeHint::Width(w)) => size
-            .scale_to_width(w)
-            .ok_or_else(|| format!("Failed to scale SVG to width {w}"))?,
-        Some(SizeHint::Scale(z)) => {
-            let z_inner = z.into_inner();
-            size.scale_by(z_inner)
-                .ok_or_else(|| format!("Failed to scale SVG by {z_inner}"))?
+        None => original_size,
+        Some(SizeHint::Size {
+            width,
+            height,
+            maintain_aspect_ratio,
+        }) => {
+            if maintain_aspect_ratio {
+                // As large as possible, without exceeding the given size:
+                let mut size = original_size;
+                size *= width as f32 / original_size.x;
+                if size.y > height as f32 {
+                    size *= height as f32 / size.y;
+                }
+                size
+            } else {
+                Vec2::new(width as _, height as _)
+            }
         }
+        Some(SizeHint::Height(h)) => original_size * (h as f32 / original_size.y),
+        Some(SizeHint::Width(w)) => original_size * (w as f32 / original_size.x),
+        Some(SizeHint::Scale(scale)) => scale.into_inner() * original_size,
     };
 
-    let (w, h) = (scaled_size.width(), scaled_size.height());
+    let scaled_size = scaled_size.round();
+    let (w, h) = (scaled_size.x as u32, scaled_size.y as u32);
 
     let mut pixmap =
         Pixmap::new(w, h).ok_or_else(|| format!("Failed to create SVG Pixmap of size {w}x{h}"))?;
 
     resvg::render(
         &rtree,
-        Transform::from_scale(
-            w as f32 / size.width() as f32,
-            h as f32 / size.height() as f32,
-        ),
+        Transform::from_scale(w as f32 / original_size.x, h as f32 / original_size.y),
         &mut pixmap.as_mut(),
     );
 
