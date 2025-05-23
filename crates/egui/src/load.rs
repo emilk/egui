@@ -151,13 +151,13 @@ pub enum SizeHint {
     /// Scale original size by some factor.
     Scale(OrderedFloat<f32>),
 
-    /// Scale to width.
+    /// Scale to exactly this pixel width, keeping the original aspect ratio.
     Width(u32),
 
-    /// Scale to height.
+    /// Scale to exactly this pixel height, keeping the original aspect ratio.
     Height(u32),
 
-    /// Scale to size.
+    /// Scale to exacrtly this pixel size, ignoring the original aspect ratio.
     Size(u32, u32),
 }
 
