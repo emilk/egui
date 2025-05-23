@@ -467,19 +467,24 @@ impl ImageFit {
 impl ImageSize {
     /// Size hint for e.g. rasterizing an svg.
     pub fn hint(&self, available_size: Vec2, pixels_per_point: f32) -> SizeHint {
-        let size = match self.fit {
-            ImageFit::Original { scale } => return SizeHint::Scale(scale.ord()),
+        let point_size = match self.fit {
+            ImageFit::Original { scale } => {
+                return SizeHint::Scale((pixels_per_point * scale).ord())
+            }
             ImageFit::Fraction(fract) => available_size * fract,
             ImageFit::Exact(size) => size,
         };
-        let size = size.min(self.max_size);
-        let size = size * pixels_per_point;
+        let point_size = point_size.at_most(self.max_size);
+
+        let pixel_size = pixels_per_point * point_size;
 
         // `inf` on an axis means "any value"
-        match (size.x.is_finite(), size.y.is_finite()) {
-            (true, true) => SizeHint::Size(size.x.round() as u32, size.y.round() as u32),
-            (true, false) => SizeHint::Width(size.x.round() as u32),
-            (false, true) => SizeHint::Height(size.y.round() as u32),
+        match (pixel_size.x.is_finite(), pixel_size.y.is_finite()) {
+            (true, true) => {
+                SizeHint::Size(pixel_size.x.round() as u32, pixel_size.y.round() as u32)
+            }
+            (true, false) => SizeHint::Width(pixel_size.x.round() as u32),
+            (false, true) => SizeHint::Height(pixel_size.y.round() as u32),
             (false, false) => SizeHint::Scale(pixels_per_point.ord()),
         }
     }
