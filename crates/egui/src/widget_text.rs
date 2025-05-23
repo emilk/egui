@@ -1,7 +1,7 @@
-use std::{borrow::Cow, sync::Arc};
-
 use emath::GuiRounding as _;
 use epaint::text::TextFormat;
+use std::fmt::Formatter;
+use std::{borrow::Cow, sync::Arc};
 
 use crate::{
     text::{LayoutJob, TextWrapping},
@@ -519,6 +519,18 @@ pub enum WidgetText {
     /// You can color the text however you want, or use [`Color32::PLACEHOLDER`]
     /// which will be replaced with a color chosen by the widget that paints the text.
     Galley(Arc<Galley>),
+}
+
+impl std::fmt::Debug for WidgetText {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let text = self.text();
+        match self {
+            Self::Text(_) => write!(f, "Text({text:?})"),
+            Self::RichText(_) => write!(f, "RichText({text:?})"),
+            Self::LayoutJob(_) => write!(f, "LayoutJob({text:?})"),
+            Self::Galley(_) => write!(f, "Galley({text:?})"),
+        }
+    }
 }
 
 impl Default for WidgetText {
