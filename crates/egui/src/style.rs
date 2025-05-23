@@ -1019,6 +1019,9 @@ pub struct Visuals {
 
     /// How to display numeric color values.
     pub numeric_color_space: NumericColorSpace,
+
+    /// Opacity is multiplied by this amount when fading out widgets.
+    pub disabled_alpha: f32,
 }
 
 impl Visuals {
@@ -1053,18 +1056,17 @@ impl Visuals {
         self.window_stroke
     }
 
-    /// When fading out things, we fade the colors towards this.
-    // TODO(emilk): replace with an alpha
+    /// When fading out things, we multiply the opacity by this.
     #[inline(always)]
-    pub fn fade_out_to_color(&self) -> Color32 {
-        self.widgets.noninteractive.weak_bg_fill
+    pub fn disabled_alpha(&self) -> f32 {
+        self.disabled_alpha
     }
 
     /// Returned a "grayed out" version of the given color.
     #[doc(alias = "grey_out")]
     #[inline(always)]
     pub fn gray_out(&self, color: Color32) -> Color32 {
-        crate::ecolor::tint_color_towards(color, self.fade_out_to_color())
+        color.gamma_multiply(self.disabled_alpha())
     }
 }
 
@@ -1384,6 +1386,7 @@ impl Visuals {
             image_loading_spinners: true,
 
             numeric_color_space: NumericColorSpace::GammaByte,
+            disabled_alpha: 0.5,
         }
     }
 
@@ -2063,6 +2066,7 @@ impl Visuals {
             image_loading_spinners,
 
             numeric_color_space,
+            disabled_alpha,
         } = self;
 
         ui.collapsing("Background Colors", |ui| {
@@ -2191,6 +2195,8 @@ impl Visuals {
                 ui.label("Color picker type");
                 numeric_color_space.toggle_button_ui(ui);
             });
+
+            ui.add(Slider::new(disabled_alpha, 0.0..=1.0).text("Disabled element alpha"));
         });
 
         ui.vertical_centered(|ui| reset_button(ui, self, "Reset visuals"));
