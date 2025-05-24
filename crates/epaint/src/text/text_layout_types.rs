@@ -1104,6 +1104,10 @@ impl Galley {
         }
     }
 
+    pub fn clamp_cursor(&self, cursor: &CCursor) -> CCursor {
+        self.cursor_from_layout(self.layout_from_cursor(*cursor))
+    }
+
     pub fn cursor_up_one_row(
         &self,
         cursor: &CCursor,
