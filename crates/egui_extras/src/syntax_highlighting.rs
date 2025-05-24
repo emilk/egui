@@ -32,18 +32,19 @@ pub fn highlight(
     highlight_inner(ctx, style, theme, code, language, None)
 }
 
-/// Add syntax highlighting to a code string, with custom settings
+/// Add syntax highlighting to a code string, with custom `syntect` settings
 ///
 /// The results are memoized, so you can call this every frame without performance penalty.
+#[cfg(feature = "syntect")]
 pub fn highlight_with(
     ctx: &egui::Context,
     style: &egui::Style,
     theme: &CodeTheme,
     code: &str,
     language: &str,
-    highlighter: &Highlighter,
+    settings: &SyntectSettings,
 ) -> LayoutJob {
-    highlight_inner(ctx, style, theme, code, language, Some(highlighter))
+    highlight_inner(ctx, style, theme, code, language, Some(Settings(settings)))
 }
 
 /// Add syntax highlighting to a code string.
@@ -55,74 +56,64 @@ fn highlight_inner(
     theme: &CodeTheme,
     code: &str,
     language: &str,
-    highlighter: Option<&Highlighter>,
+    settings: Option<Settings<'_>>,
 ) -> LayoutJob {
     // We take in both context and style so that in situations where ui is not available such as when
     // performing it at a separate thread (ctx, ctx.style()) can be used and when ui is available
     // (ui.ctx(), ui.style()) can be used
 
     #[expect(non_local_definitions)]
-    impl
-        egui::cache::ComputerMut<
-            (
-                &egui::FontId,
-                &CodeTheme,
-                &str,
-                &str,
-                WrappedHighlighter<'_>,
-            ),
-            LayoutJob,
-        > for HighlightWorker
+    impl egui::cache::ComputerMut<(&egui::FontId, &CodeTheme, &str, &str, Settings<'_>), LayoutJob>
+        for Highlighter
     {
         fn compute(
             &mut self,
-            (font_id, theme, code, lang, highlighter): (
+            (font_id, theme, code, lang, settings): (
                 &egui::FontId,
                 &CodeTheme,
                 &str,
                 &str,
-                WrappedHighlighter<'_>,
+                Settings<'_>,
             ),
         ) -> LayoutJob {
-            Self::highlight(font_id.clone(), theme, code, lang, highlighter.0)
+            Self::highlight(font_id.clone(), theme, code, lang, settings)
         }
     }
 
-    type HighlightCache = egui::cache::FrameCache<LayoutJob, HighlightWorker>;
-
-    // Type which does hashing based on reference address
-    #[derive(Copy, Clone)]
-    struct WrappedHighlighter<'a>(&'a Highlighter);
-    impl std::hash::Hash for WrappedHighlighter<'_> {
-        fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-            std::ptr::hash(self.0, state);
-        }
-    }
-
-    // Private type so that others can't interfere with the value stored in `data`
-    #[derive(Default)]
-    struct PrivateHighlighter(Highlighter);
+    type HighlightCache = egui::cache::FrameCache<LayoutJob, Highlighter>;
 
     let font_id = style
         .override_font_id
         .clone()
         .unwrap_or_else(|| TextStyle::Monospace.resolve(style));
 
+    #[cfg(feature = "syntect")]
+    #[derive(Clone, Default)]
+    struct PrivateSettings(std::sync::Arc<SyntectSettings>);
+
     ctx.memory_mut(|mem| {
-        // Get either the user-provided highlighter or a global highlighter
+        // Get either the user-provided settings or global settings
         // constructed using `Default`
-        let highlighter = highlighter.unwrap_or_else(|| {
-            &mem.data
-                .get_temp_mut_or_insert_with::<std::sync::Arc<PrivateHighlighter>>(
-                    egui::Id::NULL,
-                    || PrivateHighlighter::default().into(),
-                )
-                .0
-        });
-        let wr = WrappedHighlighter(highlighter);
+        let global_settings = if settings.is_some() {
+            None
+        } else {
+            #[cfg(feature = "syntect")]
+            {
+                Some(Settings(
+                    &mem.data
+                        .get_temp_mut_or_default::<PrivateSettings>(egui::Id::NULL)
+                        .0,
+                ))
+            }
+            #[cfg(not(feature = "syntect"))]
+            {
+                Some(Settings(std::marker::PhantomData))
+            }
+        };
+        let settings = settings.or(global_settings).unwrap();
         mem.caches
             .cache::<HighlightCache>()
-            .get((&font_id, theme, code, language, wr))
+            .get((&font_id, theme, code, language, settings))
     })
 }
 
@@ -465,13 +456,13 @@ impl CodeTheme {
 // ----------------------------------------------------------------------------
 
 #[cfg(feature = "syntect")]
-pub struct Highlighter {
+pub struct SyntectSettings {
     pub ps: syntect::parsing::SyntaxSet,
     pub ts: syntect::highlighting::ThemeSet,
 }
 
 #[cfg(feature = "syntect")]
-impl Default for Highlighter {
+impl Default for SyntectSettings {
     fn default() -> Self {
         profiling::function_scope!();
         Self {
@@ -481,18 +472,33 @@ impl Default for Highlighter {
     }
 }
 
-#[derive(Default)]
-struct HighlightWorker;
+#[cfg(feature = "syntect")]
+#[derive(Copy, Clone)]
+struct Settings<'a>(&'a SyntectSettings);
 
-impl HighlightWorker {
+#[cfg(not(feature = "syntect"))]
+#[derive(Copy, Clone, Hash)]
+struct Settings<'a>(std::marker::PhantomData<&'a ()>);
+
+#[cfg(feature = "syntect")]
+impl std::hash::Hash for Settings<'_> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.0, state);
+    }
+}
+
+#[derive(Default)]
+struct Highlighter;
+
+impl Highlighter {
     fn highlight(
         font_id: egui::FontId,
         theme: &CodeTheme,
         code: &str,
         lang: &str,
-        highlighter: &Highlighter,
+        settings: Settings<'_>,
     ) -> LayoutJob {
-        Self::highlight_impl(theme, code, lang, highlighter).unwrap_or_else(|| {
+        Self::highlight_impl(theme, code, lang, settings).unwrap_or_else(|| {
             // Fallback:
             LayoutJob::simple(
                 code.into(),
@@ -512,7 +518,7 @@ impl HighlightWorker {
         theme: &CodeTheme,
         text: &str,
         language: &str,
-        highlighter: &Highlighter,
+        highlighter: Settings<'_>,
     ) -> Option<LayoutJob> {
         profiling::function_scope!();
         use syntect::easy::HighlightLines;
@@ -520,12 +526,13 @@ impl HighlightWorker {
         use syntect::util::LinesWithEndings;
 
         let syntax = highlighter
+            .0
             .ps
             .find_syntax_by_name(language)
-            .or_else(|| highlighter.ps.find_syntax_by_extension(language))?;
+            .or_else(|| highlighter.0.ps.find_syntax_by_extension(language))?;
 
         let syn_theme = theme.syntect_theme.syntect_key_name();
-        let mut h = HighlightLines::new(syntax, &highlighter.ts.themes[syn_theme]);
+        let mut h = HighlightLines::new(syntax, &highlighter.0.ts.themes[syn_theme]);
 
         use egui::text::{LayoutSection, TextFormat};
 
@@ -535,7 +542,7 @@ impl HighlightWorker {
         };
 
         for line in LinesWithEndings::from(text) {
-            for (style, range) in h.highlight_line(line, &highlighter.ps).ok()? {
+            for (style, range) in h.highlight_line(line, &highlighter.0.ps).ok()? {
                 let fg = style.foreground;
                 let text_color = egui::Color32::from_rgb(fg.r, fg.g, fg.b);
                 let italics = style.font_style.contains(FontStyle::ITALIC);
@@ -583,17 +590,13 @@ fn as_byte_range(whole: &str, range: &str) -> std::ops::Range<usize> {
 // ----------------------------------------------------------------------------
 
 #[cfg(not(feature = "syntect"))]
-#[derive(Default)]
-struct Highlighter {}
-
-#[cfg(not(feature = "syntect"))]
-impl HighlightWorker {
+impl Highlighter {
     #[expect(clippy::unnecessary_wraps)]
     fn highlight_impl(
         theme: &CodeTheme,
         mut text: &str,
         language: &str,
-        _highlighter: &Highlighter,
+        _settings: Settings<'_>,
     ) -> Option<LayoutJob> {
         profiling::function_scope!();
 
