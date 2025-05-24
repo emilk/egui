@@ -36,7 +36,7 @@ pub fn highlight(
 ///
 /// The results are memoized, so you can call this every frame without performance penalty.
 ///
-/// The `syntect` settings are memoized by address, so a stable reference should
+/// The `syntect` settings are memoized by *address*, so a stable reference should
 /// be used to avoid unnecessary recomputation.
 #[cfg(feature = "syntect")]
 pub fn highlight_with(
@@ -47,7 +47,14 @@ pub fn highlight_with(
     language: &str,
     settings: &SyntectSettings,
 ) -> LayoutJob {
-    highlight_inner(ctx, style, theme, code, language, Some(Settings(settings)))
+    highlight_inner(
+        ctx,
+        style,
+        theme,
+        code,
+        language,
+        Some(HighlightSettings(settings)),
+    )
 }
 
 fn highlight_inner(
@@ -56,15 +63,18 @@ fn highlight_inner(
     theme: &CodeTheme,
     code: &str,
     language: &str,
-    settings: Option<Settings<'_>>,
+    settings: Option<HighlightSettings<'_>>,
 ) -> LayoutJob {
     // We take in both context and style so that in situations where ui is not available such as when
     // performing it at a separate thread (ctx, ctx.style()) can be used and when ui is available
     // (ui.ctx(), ui.style()) can be used
 
     #[expect(non_local_definitions)]
-    impl egui::cache::ComputerMut<(&egui::FontId, &CodeTheme, &str, &str, Settings<'_>), LayoutJob>
-        for Highlighter
+    impl
+        egui::cache::ComputerMut<
+            (&egui::FontId, &CodeTheme, &str, &str, HighlightSettings<'_>),
+            LayoutJob,
+        > for Highlighter
     {
         fn compute(
             &mut self,
@@ -73,7 +83,7 @@ fn highlight_inner(
                 &CodeTheme,
                 &str,
                 &str,
-                Settings<'_>,
+                HighlightSettings<'_>,
             ),
         ) -> LayoutJob {
             Self::highlight(font_id.clone(), theme, code, lang, settings)
@@ -92,22 +102,18 @@ fn highlight_inner(
     #[derive(Clone, Default)]
     struct PrivateSettings(std::sync::Arc<SyntectSettings>);
 
+    // Dummy private settings, to minimize code changes without `syntect`
+    #[cfg(not(feature = "syntect"))]
+    #[derive(Clone, Default)]
+    struct PrivateSettings(std::sync::Arc<()>);
+
     ctx.memory_mut(|mem| {
-        // Get either the user-provided settings or global settings
-        // constructed using `Default`
         let settings = settings.unwrap_or_else(|| {
-            #[cfg(feature = "syntect")]
-            {
-                Settings(
-                    &mem.data
-                        .get_temp_mut_or_default::<PrivateSettings>(egui::Id::NULL)
-                        .0,
-                )
-            }
-            #[cfg(not(feature = "syntect"))]
-            {
-                Settings(std::marker::PhantomData)
-            }
+            HighlightSettings(
+                &mem.data
+                    .get_temp_mut_or_default::<PrivateSettings>(egui::Id::NULL)
+                    .0,
+            )
         });
         mem.caches
             .cache::<HighlightCache>()
@@ -470,16 +476,16 @@ impl Default for SyntectSettings {
     }
 }
 
+/// Highlight settings are memoized by reference address, rather than value
 #[cfg(feature = "syntect")]
 #[derive(Copy, Clone)]
-struct Settings<'a>(&'a SyntectSettings);
+struct HighlightSettings<'a>(&'a SyntectSettings);
 
 #[cfg(not(feature = "syntect"))]
-#[derive(Copy, Clone, Hash)]
-struct Settings<'a>(std::marker::PhantomData<&'a ()>);
+#[derive(Copy, Clone)]
+struct HighlightSettings<'a>(&'a ());
 
-#[cfg(feature = "syntect")]
-impl std::hash::Hash for Settings<'_> {
+impl std::hash::Hash for HighlightSettings<'_> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         std::ptr::hash(self.0, state);
     }
@@ -494,7 +500,7 @@ impl Highlighter {
         theme: &CodeTheme,
         code: &str,
         lang: &str,
-        settings: Settings<'_>,
+        settings: HighlightSettings<'_>,
     ) -> LayoutJob {
         Self::highlight_impl(theme, code, lang, settings).unwrap_or_else(|| {
             // Fallback:
@@ -516,7 +522,7 @@ impl Highlighter {
         theme: &CodeTheme,
         text: &str,
         language: &str,
-        highlighter: Settings<'_>,
+        highlighter: HighlightSettings<'_>,
     ) -> Option<LayoutJob> {
         profiling::function_scope!();
         use syntect::easy::HighlightLines;
@@ -594,7 +600,7 @@ impl Highlighter {
         theme: &CodeTheme,
         mut text: &str,
         language: &str,
-        _settings: Settings<'_>,
+        _settings: HighlightSettings<'_>,
     ) -> Option<LayoutJob> {
         profiling::function_scope!();
 
