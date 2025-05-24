@@ -79,6 +79,10 @@ pub struct Memory {
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) new_font_definitions: Option<epaint::text::FontDefinitions>,
 
+    /// new font hinting setting that will be applied at the start of the next frame
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    pub(crate) new_font_hinting: Option<bool>,
+
     /// add new font that will be applied at the start of the next frame
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) add_fonts: Vec<epaint::text::FontInsert>,
@@ -125,6 +129,7 @@ impl Default for Memory {
             data: Default::default(),
             caches: Default::default(),
             new_font_definitions: Default::default(),
+            new_font_hinting: Default::default(),
             interactions: Default::default(),
             focus: Default::default(),
             viewport_id: Default::default(),
@@ -275,8 +280,12 @@ pub struct Options {
     ///
     /// Only the fonts in [`Style::text_styles`] will be pre-cached.
     ///
-    /// This can lead to fewer texture operations, but may use up the texture atlas quicker
-    /// if you are changing [`Style::text_styles`], or have a lot of text styles.
+    /// This can lead to fewer texture operations, but may use up the texture atlas quicker if you are changing
+    /// [`Style::text_styles`], or have a lot of text styles.
+    ///
+    /// TODO(valadaptive): `preload_font_glyphs` used to do something, but the new text layout code rasterizes at
+    /// subpixel offsets, and I don't feel like rasterizing all 4 offsets for every glyph ahead of time. Is
+    /// `preload_font_glyphs` actually useful or just a placebo?
     pub preload_font_glyphs: bool,
 
     /// Check reusing of [`Id`]s, and show a visual warning on screen when one is found.

@@ -2,7 +2,7 @@ use std::{borrow::Cow, slice::Iter, sync::Arc, time::Duration};
 
 use emath::{Align, Float as _, GuiRounding as _, NumExt as _, Rot2};
 use epaint::{
-    text::{LayoutJob, TextFormat, TextWrapping},
+    text::{style::TextFormat, LayoutJob, TextWrapping},
     RectShape,
 };
 
