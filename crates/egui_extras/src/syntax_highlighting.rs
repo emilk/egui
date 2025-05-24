@@ -35,6 +35,9 @@ pub fn highlight(
 /// Add syntax highlighting to a code string, with custom `syntect` settings
 ///
 /// The results are memoized, so you can call this every frame without performance penalty.
+///
+/// The `syntect` settings are memoized by address, so a stable reference should
+/// be used to avoid unnecessary recomputation.
 #[cfg(feature = "syntect")]
 pub fn highlight_with(
     ctx: &egui::Context,
@@ -47,9 +50,6 @@ pub fn highlight_with(
     highlight_inner(ctx, style, theme, code, language, Some(Settings(settings)))
 }
 
-/// Add syntax highlighting to a code string.
-///
-/// The results are memoized, so you can call this every frame without performance penalty.
 fn highlight_inner(
     ctx: &egui::Context,
     style: &egui::Style,
@@ -87,6 +87,7 @@ fn highlight_inner(
         .clone()
         .unwrap_or_else(|| TextStyle::Monospace.resolve(style));
 
+    // Private type, so that users can't interfere with it in the `IdTypeMap`
     #[cfg(feature = "syntect")]
     #[derive(Clone, Default)]
     struct PrivateSettings(std::sync::Arc<SyntectSettings>);
@@ -94,23 +95,20 @@ fn highlight_inner(
     ctx.memory_mut(|mem| {
         // Get either the user-provided settings or global settings
         // constructed using `Default`
-        let global_settings = if settings.is_some() {
-            None
-        } else {
+        let settings = settings.unwrap_or_else(|| {
             #[cfg(feature = "syntect")]
             {
-                Some(Settings(
+                Settings(
                     &mem.data
                         .get_temp_mut_or_default::<PrivateSettings>(egui::Id::NULL)
                         .0,
-                ))
+                )
             }
             #[cfg(not(feature = "syntect"))]
             {
-                Some(Settings(std::marker::PhantomData))
+                Settings(std::marker::PhantomData)
             }
-        };
-        let settings = settings.or(global_settings).unwrap();
+        });
         mem.caches
             .cache::<HighlightCache>()
             .get((&font_id, theme, code, language, settings))
