@@ -109,7 +109,7 @@
   - [ ] Smoothe out the janky parts of the new API
     - [ ] For mixed-DPI purposes, and because we don't need to store the FontStore as a mutex, ctx.fonts() now returns a "fonts view" that's technically read/write. But there are no operations that *semantically* modify the fonts from it
     - [ ] FontStore and Fonts are different and we should just expose them separately instead of passing through all the FontStore methods onto Fonts
-  - [ ] Work around https://github.com/jslegers/emoji-icon-font/issues/18 / https://github.com/emilk/egui/issues/1284
+  - [x] Work around https://github.com/jslegers/emoji-icon-font/issues/18 / https://github.com/emilk/egui/issues/1284
   - [ ] Ship a newer revision of the Ubuntu font? The hinting on the current one is kinda distracting
   - [ ] https://github.com/emilk/egui/pull/5979/files great, now we have two different implementations of system font scanning
     - https://github.com/linebender/resvg/issues/862
