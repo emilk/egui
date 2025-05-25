@@ -569,4 +569,22 @@ mod test {
             assert!(vn.is_normalized());
         }
     }
+
+    #[test]
+    fn test_vec2_debug_precision() {
+        let v = vec2(0.01, -0.01);
+        let debug_output = format!("{v:?}");
+
+        // The default Debug formatting should preserve the digits
+        assert!(
+            debug_output.contains("0.01") && debug_output.contains("-0.01"),
+            "Debug output was truncated: `{debug_output}`"
+        );
+        let display_output = format!("{v}");
+        // in this case the Display formatting and the Debug formatting should be the same
+        assert_eq!(
+            debug_output, display_output,
+            "Display and Debug output should match: Display:`{display_output}` Debug:`{debug_output}`"
+        );
+    }
 }
