@@ -1019,7 +1019,7 @@ pub struct Visuals {
     /// How to display numeric color values.
     pub numeric_color_space: NumericColorSpace,
 
-    /// Opacity is multiplied by this amount when fading out widgets.
+    /// How much to modify the alpha of a disabled widget.
     pub disabled_alpha: f32,
 }
 
@@ -1055,17 +1055,26 @@ impl Visuals {
         self.window_stroke
     }
 
-    /// When fading out things, we multiply the opacity by this.
+    /// Disabled widgets have their alpha modified by this.
     #[inline(always)]
     pub fn disabled_alpha(&self) -> f32 {
         self.disabled_alpha
     }
 
-    /// Returned a "grayed out" version of the given color.
+    /// Returns a "disabled" version of the given color.
+    ///
+    /// This function modifies the opcacity of the given color.
+    /// If this is undesirable use [`gray_out`](Self::gray_out).
+    #[inline(always)]
+    pub fn disable(&self, color: Color32) -> Color32 {
+        color.gamma_multiply(self.disabled_alpha())
+    }
+
+    /// Returns a "grayed out" version of the given color.
     #[doc(alias = "grey_out")]
     #[inline(always)]
     pub fn gray_out(&self, color: Color32) -> Color32 {
-        color.gamma_multiply(self.disabled_alpha())
+        crate::ecolor::tint_color_towards(color, self.widgets.noninteractive.weak_bg_fill)
     }
 }
 
