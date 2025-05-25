@@ -488,7 +488,7 @@ impl fmt::Debug for Vec2 {
         if let Some(precision) = f.precision() {
             write!(f, "[{1:.0$} {2:.0$}]", precision, self.x, self.y)
         } else {
-            write!(f, "[{:.1} {:.1}]", self.x, self.y)
+            write!(f, "[{:?} {:?}]", self.x, self.y)
         }
     }
 }
