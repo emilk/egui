@@ -137,11 +137,7 @@ pub fn exponential_in(t: f32) -> f32 {
 /// There is a small discontinuity at 1.
 #[inline]
 pub fn exponential_out(t: f32) -> f32 {
-    if t == 1. {
-        t
-    } else {
-        1. - powf(2.0, -10. * t)
-    }
+    if t == 1. { t } else { 1. - powf(2.0, -10. * t) }
 }
 
 /// <https://easings.net/#easeInOutExpo>

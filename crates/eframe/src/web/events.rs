@@ -1,11 +1,10 @@
 use crate::web::string_from_js_value;
 
 use super::{
-    button_from_mouse_event, location_hash, modifiers_from_kb_event, modifiers_from_mouse_event,
-    modifiers_from_wheel_event, native_pixels_per_point, pos_from_mouse_event,
-    prefers_color_scheme_dark, primary_touch_pos, push_touches, text_from_keyboard_event,
-    theme_from_dark_mode, translate_key, AppRunner, Closure, JsCast as _, JsValue, WebRunner,
-    DEBUG_RESIZE,
+    AppRunner, Closure, DEBUG_RESIZE, JsCast as _, JsValue, WebRunner, button_from_mouse_event,
+    location_hash, modifiers_from_kb_event, modifiers_from_mouse_event, modifiers_from_wheel_event,
+    native_pixels_per_point, pos_from_mouse_event, prefers_color_scheme_dark, primary_touch_pos,
+    push_touches, text_from_keyboard_event, theme_from_dark_mode, translate_key,
 };
 
 use web_sys::{Document, EventTarget, ShadowRoot};

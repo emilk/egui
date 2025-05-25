@@ -1,9 +1,8 @@
 use ahash::HashMap;
 use egui::{
-    decode_animated_image_uri,
+    ColorImage, decode_animated_image_uri,
     load::{Bytes, BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
     mutex::Mutex,
-    ColorImage,
 };
 use image::ImageFormat;
 use std::{mem::size_of, path::Path, sync::Arc, task::Poll};

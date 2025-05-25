@@ -128,11 +128,17 @@ impl Display for SnapshotError {
                             write!(f, "Missing snapshot: {path:?}. {HOW_TO_UPDATE_SCREENSHOTS}")
                         }
                         err => {
-                            write!(f, "Error reading snapshot: {err:?}\nAt: {path:?}. {HOW_TO_UPDATE_SCREENSHOTS}")
+                            write!(
+                                f,
+                                "Error reading snapshot: {err:?}\nAt: {path:?}. {HOW_TO_UPDATE_SCREENSHOTS}"
+                            )
                         }
                     },
                     err => {
-                        write!(f, "Error decoding snapshot: {err:?}\nAt: {path:?}. Make sure git-lfs is setup correctly. Read the instructions here: https://github.com/emilk/egui/blob/main/CONTRIBUTING.md#making-a-pr")
+                        write!(
+                            f,
+                            "Error decoding snapshot: {err:?}\nAt: {path:?}. Make sure git-lfs is setup correctly. Read the instructions here: https://github.com/emilk/egui/blob/main/CONTRIBUTING.md#making-a-pr"
+                        )
                     }
                 }
             }
@@ -555,11 +561,7 @@ impl SnapshotResults {
     /// Convert this into a `Result<(), Self>`.
     #[expect(clippy::missing_errors_doc)]
     pub fn into_result(self) -> Result<(), Self> {
-        if self.has_errors() {
-            Err(self)
-        } else {
-            Ok(())
-        }
+        if self.has_errors() { Err(self) } else { Ok(()) }
     }
 
     pub fn into_inner(mut self) -> Vec<SnapshotError> {

@@ -33,7 +33,7 @@ macro_rules! egui_github_link_file {
     () => {
         $crate::egui_github_link_file!("(source code)")
     };
-    ($label: expr) => {
+    ($label: expr_2021) => {
         egui::github_link_file!(
             "https://github.com/emilk/egui/blob/main/",
             egui::RichText::new($label).small()
@@ -47,7 +47,7 @@ macro_rules! egui_github_link_file_line {
     () => {
         $crate::egui_github_link_file_line!("(source code)")
     };
-    ($label: expr) => {
+    ($label: expr_2021) => {
         egui::github_link_file_line!(
             "https://github.com/emilk/egui/blob/main/",
             egui::RichText::new($label).small()

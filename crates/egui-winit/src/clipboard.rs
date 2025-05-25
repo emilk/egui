@@ -123,7 +123,9 @@ impl Clipboard {
             return;
         }
 
-        log::error!("Copying images is not supported. Enable the 'clipboard' feature of `egui-winit` to enable it.");
+        log::error!(
+            "Copying images is not supported. Enable the 'clipboard' feature of `egui-winit` to enable it."
+        );
         _ = image;
     }
 }

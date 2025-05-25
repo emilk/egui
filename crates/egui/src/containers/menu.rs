@@ -3,7 +3,7 @@ use crate::{
     Button, Color32, Context, Frame, Id, InnerResponse, Layout, Popup, PopupCloseBehavior,
     Response, Style, Ui, UiBuilder, UiKind, UiStack, UiStackInfo, Widget as _, WidgetText,
 };
-use emath::{vec2, Align, RectAlign, Vec2};
+use emath::{Align, RectAlign, Vec2, vec2};
 use epaint::Stroke;
 
 /// Apply a menu style to the [`Style`].

@@ -6,7 +6,7 @@
 //! to get callbacks on certain events ([`Context::on_begin_pass`], [`Context::on_end_pass`]).
 
 use crate::{
-    text, Align, Align2, Color32, Context, FontFamily, FontId, Id, Rect, Shape, Vec2, WidgetText,
+    Align, Align2, Color32, Context, FontFamily, FontId, Id, Rect, Shape, Vec2, WidgetText, text,
 };
 
 /// Register this plugin on the given egui context,

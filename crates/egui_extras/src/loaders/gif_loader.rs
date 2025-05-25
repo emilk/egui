@@ -1,9 +1,8 @@
 use ahash::HashMap;
 use egui::{
-    decode_animated_image_uri, has_gif_magic_header,
+    ColorImage, FrameDurations, Id, decode_animated_image_uri, has_gif_magic_header,
     load::{BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
     mutex::Mutex,
-    ColorImage, FrameDurations, Id,
 };
 use image::AnimationDecoder as _;
 use std::{io::Cursor, mem::size_of, sync::Arc, time::Duration};
@@ -77,15 +76,14 @@ impl ImageLoader for GifLoader {
         let (image_uri, frame_index) =
             decode_animated_image_uri(frame_uri).map_err(|_err| LoadError::NotSupported)?;
         let mut cache = self.cache.lock();
-        if let Some(entry) = cache.get(image_uri).cloned() {
-            match entry {
+        match cache.get(image_uri).cloned() {
+            Some(entry) => match entry {
                 Ok(image) => Ok(ImagePoll::Ready {
                     image: image.get_image(frame_index),
                 }),
                 Err(err) => Err(LoadError::Loading(err)),
-            }
-        } else {
-            match ctx.try_load_bytes(image_uri) {
+            },
+            _ => match ctx.try_load_bytes(image_uri) {
                 Ok(BytesPoll::Ready { bytes, .. }) => {
                     if !has_gif_magic_header(&bytes) {
                         return Err(LoadError::NotSupported);
@@ -109,7 +107,7 @@ impl ImageLoader for GifLoader {
                 }
                 Ok(BytesPoll::Pending { size }) => Ok(ImagePoll::Pending { size }),
                 Err(err) => Err(err),
-            }
+            },
         }
     }
 

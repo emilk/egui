@@ -4,13 +4,13 @@
 //! Takes all available height, so if you want something below the table, put it in a strip.
 
 use egui::{
-    scroll_area::{ScrollAreaOutput, ScrollBarVisibility, ScrollSource},
     Align, Id, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui, Vec2, Vec2b,
+    scroll_area::{ScrollAreaOutput, ScrollBarVisibility, ScrollSource},
 };
 
 use crate::{
-    layout::{CellDirection, CellSize, StripLayoutFlags},
     StripLayout,
+    layout::{CellDirection, CellSize, StripLayoutFlags},
 };
 
 // -----------------------------------------------------------------=----------

@@ -1,6 +1,6 @@
 #![doc = include_str!("../README.md")]
 
-use eframe::{egui, CreationContext};
+use eframe::{CreationContext, egui};
 
 #[cfg(target_os = "android")]
 #[no_mangle]

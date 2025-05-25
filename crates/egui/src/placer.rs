@@ -1,4 +1,4 @@
-use crate::{grid, vec2, Layout, Painter, Pos2, Rect, Region, Vec2};
+use crate::{Layout, Painter, Pos2, Rect, Region, Vec2, grid, vec2};
 
 #[cfg(debug_assertions)]
 use crate::{Align2, Color32, Stroke};
@@ -79,28 +79,25 @@ impl Placer {
 
 impl Placer {
     pub(crate) fn align_size_within_rect(&self, size: Vec2, outer: Rect) -> Rect {
-        if let Some(grid) = &self.grid {
-            grid.align_size_within_rect(size, outer)
-        } else {
-            self.layout.align_size_within_rect(size, outer)
+        match &self.grid {
+            Some(grid) => grid.align_size_within_rect(size, outer),
+            _ => self.layout.align_size_within_rect(size, outer),
         }
     }
 
     pub(crate) fn available_rect_before_wrap(&self) -> Rect {
-        if let Some(grid) = &self.grid {
-            grid.available_rect(&self.region)
-        } else {
-            self.layout.available_rect_before_wrap(&self.region)
+        match &self.grid {
+            Some(grid) => grid.available_rect(&self.region),
+            _ => self.layout.available_rect_before_wrap(&self.region),
         }
     }
 
     /// Amount of space available for a widget.
     /// For wrapping layouts, this is the maximum (after wrap).
     pub(crate) fn available_size(&self) -> Vec2 {
-        if let Some(grid) = &self.grid {
-            grid.available_rect(&self.region).size()
-        } else {
-            self.layout.available_size(&self.region)
+        match &self.grid {
+            Some(grid) => grid.available_rect(&self.region).size(),
+            _ => self.layout.available_size(&self.region),
         }
     }
 
@@ -114,20 +111,19 @@ impl Placer {
             "Negative child size: {child_size:?}"
         );
         self.region.sanity_check();
-        if let Some(grid) = &self.grid {
-            grid.next_cell(self.region.cursor, child_size)
-        } else {
-            self.layout
-                .next_frame(&self.region, child_size, item_spacing)
+        match &self.grid {
+            Some(grid) => grid.next_cell(self.region.cursor, child_size),
+            _ => self
+                .layout
+                .next_frame(&self.region, child_size, item_spacing),
         }
     }
 
     /// Where do we expect a zero-sized widget to be placed?
     pub(crate) fn next_widget_position(&self) -> Pos2 {
-        if let Some(grid) = &self.grid {
-            grid.next_cell(self.region.cursor, Vec2::ZERO).center()
-        } else {
-            self.layout.next_widget_position(&self.region)
+        match &self.grid {
+            Some(grid) => grid.next_cell(self.region.cursor, Vec2::ZERO).center(),
+            _ => self.layout.next_widget_position(&self.region),
         }
     }
 
@@ -136,10 +132,9 @@ impl Placer {
         debug_assert!(!rect.any_nan(), "rect: {rect:?}");
         debug_assert!(!child_size.any_nan(), "child_size is NaN: {child_size:?}");
 
-        if let Some(grid) = &self.grid {
-            grid.justify_and_align(rect, child_size)
-        } else {
-            self.layout.justify_and_align(rect, child_size)
+        match &self.grid {
+            Some(grid) => grid.justify_and_align(rect, child_size),
+            _ => self.layout.justify_and_align(rect, child_size),
         }
     }
 
@@ -171,15 +166,18 @@ impl Placer {
         );
         self.region.sanity_check();
 
-        if let Some(grid) = &mut self.grid {
-            grid.advance(&mut self.region.cursor, frame_rect, widget_rect);
-        } else {
-            self.layout.advance_after_rects(
-                &mut self.region.cursor,
-                frame_rect,
-                widget_rect,
-                item_spacing,
-            );
+        match &mut self.grid {
+            Some(grid) => {
+                grid.advance(&mut self.region.cursor, frame_rect, widget_rect);
+            }
+            _ => {
+                self.layout.advance_after_rects(
+                    &mut self.region.cursor,
+                    frame_rect,
+                    widget_rect,
+                    item_spacing,
+                );
+            }
         }
 
         self.expand_to_include_rect(frame_rect); // e.g. for centered layouts: pretend we used whole frame
@@ -190,10 +188,13 @@ impl Placer {
     /// Move to the next row in a grid layout or wrapping layout.
     /// Otherwise does nothing.
     pub(crate) fn end_row(&mut self, item_spacing: Vec2, painter: &Painter) {
-        if let Some(grid) = &mut self.grid {
-            grid.end_row(&mut self.region.cursor, painter);
-        } else {
-            self.layout.end_row(&mut self.region, item_spacing);
+        match &mut self.grid {
+            Some(grid) => {
+                grid.end_row(&mut self.region.cursor, painter);
+            }
+            _ => {
+                self.layout.end_row(&mut self.region, item_spacing);
+            }
         }
     }
 
@@ -282,14 +283,17 @@ impl Placer {
     pub(crate) fn debug_paint_cursor(&self, painter: &crate::Painter, text: impl ToString) {
         let stroke = Stroke::new(1.0, Color32::DEBUG_COLOR);
 
-        if let Some(grid) = &self.grid {
-            let rect = grid.next_cell(self.cursor(), Vec2::splat(0.0));
-            painter.rect_stroke(rect, 1.0, stroke, epaint::StrokeKind::Inside);
-            let align = Align2::CENTER_CENTER;
-            painter.debug_text(align.pos_in_rect(&rect), align, stroke.color, text);
-        } else {
-            self.layout
-                .paint_text_at_cursor(painter, &self.region, stroke, text);
+        match &self.grid {
+            Some(grid) => {
+                let rect = grid.next_cell(self.cursor(), Vec2::splat(0.0));
+                painter.rect_stroke(rect, 1.0, stroke, epaint::StrokeKind::Inside);
+                let align = Align2::CENTER_CENTER;
+                painter.debug_text(align.pos_in_rect(&rect), align, stroke.color, text);
+            }
+            _ => {
+                self.layout
+                    .paint_text_at_cursor(painter, &self.region, stroke, text);
+            }
         }
     }
 }

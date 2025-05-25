@@ -1,4 +1,4 @@
-use eframe::egui::{self, pos2, vec2, Button, Ui, Vec2};
+use eframe::egui::{self, Button, Ui, Vec2, pos2, vec2};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 enum Transition {

@@ -162,10 +162,10 @@ impl crate::View for Modals {
 
 #[cfg(test)]
 mod tests {
-    use crate::demo::modals::Modals;
     use crate::Demo as _;
-    use egui::accesskit::Role;
+    use crate::demo::modals::Modals;
     use egui::Key;
+    use egui::accesskit::Role;
     use egui_kittest::kittest::Queryable as _;
     use egui_kittest::{Harness, SnapshotResults};
 

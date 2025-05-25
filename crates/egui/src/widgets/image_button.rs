@@ -1,6 +1,6 @@
 use crate::{
-    widgets, Color32, CornerRadius, Image, Rect, Response, Sense, Ui, Vec2, Widget, WidgetInfo,
-    WidgetType,
+    Color32, CornerRadius, Image, Rect, Response, Sense, Ui, Vec2, Widget, WidgetInfo, WidgetType,
+    widgets,
 };
 
 /// A clickable image within a frame.

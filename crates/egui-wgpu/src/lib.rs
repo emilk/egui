@@ -170,10 +170,9 @@ impl RenderState {
         // This is always an empty list on web.
         #[cfg(not(target_arch = "wasm32"))]
         let available_adapters = {
-            let backends = if let WgpuSetup::CreateNew(create_new) = &config.wgpu_setup {
-                create_new.instance_descriptor.backends
-            } else {
-                wgpu::Backends::all()
+            let backends = match &config.wgpu_setup {
+                WgpuSetup::CreateNew(create_new) => create_new.instance_descriptor.backends,
+                _ => wgpu::Backends::all(),
             };
 
             instance.enumerate_adapters(backends)
@@ -192,17 +191,20 @@ impl RenderState {
                         request_adapter(instance, power_preference, compatible_surface, &[]).await
                     }
                     #[cfg(not(target_arch = "wasm32"))]
-                    if let Some(native_adapter_selector) = _native_adapter_selector {
-                        native_adapter_selector(&available_adapters, compatible_surface)
-                            .map_err(WgpuError::CustomNativeAdapterSelectionError)
-                    } else {
-                        request_adapter(
-                            instance,
-                            power_preference,
-                            compatible_surface,
-                            &available_adapters,
-                        )
-                        .await
+                    match _native_adapter_selector {
+                        Some(native_adapter_selector) => {
+                            native_adapter_selector(&available_adapters, compatible_surface)
+                                .map_err(WgpuError::CustomNativeAdapterSelectionError)
+                        }
+                        _ => {
+                            request_adapter(
+                                instance,
+                                power_preference,
+                                compatible_surface,
+                                &available_adapters,
+                            )
+                            .await
+                        }
                     }
                 }?;
 

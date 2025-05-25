@@ -1,9 +1,9 @@
 use epaint::Shape;
 
 use crate::{
-    epaint, style::StyleModifier, style::WidgetVisuals, vec2, Align2, Context, Id, InnerResponse,
-    NumExt as _, Painter, Popup, PopupCloseBehavior, Rect, Response, ScrollArea, Sense, Stroke,
-    TextStyle, TextWrapMode, Ui, UiBuilder, Vec2, WidgetInfo, WidgetText, WidgetType,
+    Align2, Context, Id, InnerResponse, NumExt as _, Painter, Popup, PopupCloseBehavior, Rect,
+    Response, ScrollArea, Sense, Stroke, TextStyle, TextWrapMode, Ui, UiBuilder, Vec2, WidgetInfo,
+    WidgetText, WidgetType, epaint, style::StyleModifier, style::WidgetVisuals, vec2,
 };
 
 #[expect(unused_imports)] // Documentation
@@ -353,15 +353,18 @@ fn combo_box_dyn<'c, R>(
                 ui.style().interact(&response)
             };
 
-            if let Some(icon) = icon {
-                icon(
-                    ui,
-                    icon_rect.expand(visuals.expansion),
-                    visuals,
-                    is_popup_open,
-                );
-            } else {
-                paint_default_icon(ui.painter(), icon_rect.expand(visuals.expansion), visuals);
+            match icon {
+                Some(icon) => {
+                    icon(
+                        ui,
+                        icon_rect.expand(visuals.expansion),
+                        visuals,
+                        is_popup_open,
+                    );
+                }
+                _ => {
+                    paint_default_icon(ui.painter(), icon_rect.expand(visuals.expansion), visuals);
+                }
             }
 
             let text_rect = Align2::LEFT_CENTER.align_size_within_rect(galley.size(), rect);

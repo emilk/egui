@@ -1,8 +1,8 @@
 use std::{borrow::Cow, ops::Range};
 
 use epaint::{
-    text::{cursor::CCursor, TAB_SIZE},
     Galley,
+    text::{TAB_SIZE, cursor::CCursor},
 };
 
 use crate::{

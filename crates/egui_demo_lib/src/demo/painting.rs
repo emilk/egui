@@ -1,4 +1,4 @@
-use egui::{emath, vec2, Color32, Context, Frame, Pos2, Rect, Sense, Stroke, Ui, Window};
+use egui::{Color32, Context, Frame, Pos2, Rect, Sense, Stroke, Ui, Window, emath, vec2};
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
@@ -46,15 +46,20 @@ impl Painting {
 
         let current_line = self.lines.last_mut().unwrap();
 
-        if let Some(pointer_pos) = response.interact_pointer_pos() {
-            let canvas_pos = from_screen * pointer_pos;
-            if current_line.last() != Some(&canvas_pos) {
-                current_line.push(canvas_pos);
-                response.mark_changed();
+        match response.interact_pointer_pos() {
+            Some(pointer_pos) => {
+                let canvas_pos = from_screen * pointer_pos;
+                if current_line.last() != Some(&canvas_pos) {
+                    current_line.push(canvas_pos);
+                    response.mark_changed();
+                }
             }
-        } else if !current_line.is_empty() {
-            self.lines.push(vec![]);
-            response.mark_changed();
+            _ => {
+                if !current_line.is_empty() {
+                    self.lines.push(vec![]);
+                    response.mark_changed();
+                }
+            }
         }
 
         let shapes = self

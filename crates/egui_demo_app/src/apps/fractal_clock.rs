@@ -1,8 +1,8 @@
 use egui::{
+    Color32, Painter, Pos2, Rect, Shape, Stroke, Ui, Vec2,
     containers::{CollapsingHeader, Frame},
     emath, pos2,
     widgets::Slider,
-    Color32, Painter, Pos2, Rect, Shape, Stroke, Ui, Vec2,
 };
 use std::f32::consts::TAU;
 

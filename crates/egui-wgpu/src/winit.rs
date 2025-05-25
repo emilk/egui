@@ -1,8 +1,8 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::undocumented_unsafe_blocks)]
 
-use crate::capture::{capture_channel, CaptureReceiver, CaptureSender, CaptureState};
-use crate::{renderer, RenderState, SurfaceErrorAction, WgpuConfiguration};
+use crate::capture::{CaptureReceiver, CaptureSender, CaptureState, capture_channel};
+use crate::{RenderState, SurfaceErrorAction, WgpuConfiguration, renderer};
 use egui::{Context, Event, UserData, ViewportId, ViewportIdMap, ViewportIdSet};
 use std::{num::NonZeroU32, sync::Arc};
 
@@ -149,15 +149,18 @@ impl Painter {
     ) -> Result<(), crate::WgpuError> {
         profiling::scope!("Painter::set_window"); // profile_function gives bad names for async functions
 
-        if let Some(window) = window {
-            let size = window.inner_size();
-            if !self.surfaces.contains_key(&viewport_id) {
-                let surface = self.instance.create_surface(window)?;
-                self.add_surface(surface, viewport_id, size).await?;
+        match window {
+            Some(window) => {
+                let size = window.inner_size();
+                if !self.surfaces.contains_key(&viewport_id) {
+                    let surface = self.instance.create_surface(window)?;
+                    self.add_surface(surface, viewport_id, size).await?;
+                }
             }
-        } else {
-            log::warn!("No window - clearing all surfaces");
-            self.surfaces.clear();
+            _ => {
+                log::warn!("No window - clearing all surfaces");
+                self.surfaces.clear();
+            }
         }
         Ok(())
     }
@@ -197,19 +200,20 @@ impl Painter {
         viewport_id: ViewportId,
         size: winit::dpi::PhysicalSize<u32>,
     ) -> Result<(), crate::WgpuError> {
-        let render_state = if let Some(render_state) = &self.render_state {
-            render_state
-        } else {
-            let render_state = RenderState::create(
-                &self.configuration,
-                &self.instance,
-                Some(&surface),
-                self.depth_format,
-                self.msaa_samples,
-                self.dithering,
-            )
-            .await?;
-            self.render_state.get_or_insert(render_state)
+        let render_state = match &self.render_state {
+            Some(render_state) => render_state,
+            _ => {
+                let render_state = RenderState::create(
+                    &self.configuration,
+                    &self.instance,
+                    Some(&surface),
+                    self.depth_format,
+                    self.msaa_samples,
+                    self.dithering,
+                )
+                .await?;
+                self.render_state.get_or_insert(render_state)
+            }
         };
         let alpha_mode = if self.support_transparent_backbuffer {
             let supported_alpha_modes = surface.get_capabilities(&render_state.adapter).alpha_modes;
@@ -220,7 +224,9 @@ impl Painter {
             } else if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PostMultiplied) {
                 wgpu::CompositeAlphaMode::PostMultiplied
             } else {
-                log::warn!("Transparent window was requested, but the active wgpu surface does not support a `CompositeAlphaMode` with transparency.");
+                log::warn!(
+                    "Transparent window was requested, but the active wgpu surface does not support a `CompositeAlphaMode` with transparency."
+                );
                 wgpu::CompositeAlphaMode::Auto
             }
         } else {
@@ -344,7 +350,9 @@ impl Painter {
                 height_in_pixels,
             );
         } else {
-            log::warn!("Ignoring window resize notification with no surface created via Painter::set_window()");
+            log::warn!(
+                "Ignoring window resize notification with no surface created via Painter::set_window()"
+            );
         }
     }
 

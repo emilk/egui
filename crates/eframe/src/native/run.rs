@@ -10,9 +10,8 @@ use ahash::HashMap;
 
 use super::winit_integration::{UserEvent, WinitApp};
 use crate::{
-    epi,
+    Result, epi,
     native::{event_loop_context, winit_integration::EventResult},
-    Result,
 };
 
 // ----------------------------------------------------------------------------
@@ -55,10 +54,9 @@ fn with_event_loop<R>(
         // do that as part of the lazy thread local storage initialization and so we instead
         // create the event loop lazily here
         let mut event_loop_lock = event_loop.borrow_mut();
-        let event_loop = if let Some(event_loop) = &mut *event_loop_lock {
-            event_loop
-        } else {
-            event_loop_lock.insert(create_event_loop(&mut native_options)?)
+        let event_loop = match &mut *event_loop_lock {
+            Some(event_loop) => event_loop,
+            _ => event_loop_lock.insert(create_event_loop(&mut native_options)?),
         };
         Ok(f(event_loop, native_options))
     })
@@ -181,11 +179,14 @@ impl<T: WinitApp> WinitAppWrapper<T> {
 
                 event_loop.set_control_flow(ControlFlow::Poll);
 
-                if let Some(window) = self.winit_app.window(*window_id) {
-                    log::trace!("request_redraw for {window_id:?}");
-                    window.request_redraw();
-                } else {
-                    log::trace!("No window found for {window_id:?}");
+                match self.winit_app.window(*window_id) {
+                    Some(window) => {
+                        log::trace!("request_redraw for {window_id:?}");
+                        window.request_redraw();
+                    }
+                    _ => {
+                        log::trace!("No window found for {window_id:?}");
+                    }
                 }
                 false
             });
@@ -263,12 +264,9 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
                         || current_pass_nr == cumulative_pass_nr + 1
                     {
                         log::trace!("UserEvent::RequestRepaint scheduling repaint at {when:?}");
-                        if let Some(window_id) =
-                            self.winit_app.window_id_from_viewport_id(viewport_id)
-                        {
-                            Ok(EventResult::RepaintAt(window_id, when))
-                        } else {
-                            Ok(EventResult::Wait)
+                        match self.winit_app.window_id_from_viewport_id(viewport_id) {
+                            Some(window_id) => Ok(EventResult::RepaintAt(window_id, when)),
+                            _ => Ok(EventResult::Wait),
                         }
                     } else {
                         log::trace!("Got outdated UserEvent::RequestRepaint");
@@ -368,7 +366,7 @@ pub fn create_glow<'a>(
     native_options: epi::NativeOptions,
     app_creator: epi::AppCreator<'a>,
     event_loop: &EventLoop<UserEvent>,
-) -> impl ApplicationHandler<UserEvent> + 'a {
+) -> impl ApplicationHandler<UserEvent> + 'a + use<'a> {
     use super::glow_integration::GlowWinitApp;
 
     let glow_eframe = GlowWinitApp::new(event_loop, app_name, native_options, app_creator);
@@ -406,7 +404,7 @@ pub fn create_wgpu<'a>(
     native_options: epi::NativeOptions,
     app_creator: epi::AppCreator<'a>,
     event_loop: &EventLoop<UserEvent>,
-) -> impl ApplicationHandler<UserEvent> + 'a {
+) -> impl ApplicationHandler<UserEvent> + 'a + use<'a> {
     use super::wgpu_integration::WgpuWinitApp;
 
     let wgpu_eframe = WgpuWinitApp::new(event_loop, app_name, native_options, app_creator);

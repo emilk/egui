@@ -2,7 +2,7 @@ use std::iter::once;
 use std::sync::Arc;
 
 use egui::TexturesDelta;
-use egui_wgpu::{wgpu, RenderState, ScreenDescriptor, WgpuSetup};
+use egui_wgpu::{RenderState, ScreenDescriptor, WgpuSetup, wgpu};
 use image::RgbaImage;
 
 use crate::texture_to_image::texture_to_image;

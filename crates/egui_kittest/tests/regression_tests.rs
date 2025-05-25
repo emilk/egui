@@ -1,6 +1,6 @@
 use egui::accesskit::Role;
 use egui::{Button, ComboBox, Image, Vec2, Widget as _};
-use egui_kittest::{kittest::Queryable as _, Harness, SnapshotResults};
+use egui_kittest::{Harness, SnapshotResults, kittest::Queryable as _};
 
 #[test]
 pub fn focus_should_skip_over_disabled_buttons() {

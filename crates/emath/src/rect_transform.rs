@@ -1,4 +1,4 @@
-use crate::{pos2, remap, remap_clamp, Pos2, Rect, Vec2};
+use crate::{Pos2, Rect, Vec2, pos2, remap, remap_clamp};
 
 /// Linearly transforms positions from one [`Rect`] to another.
 ///

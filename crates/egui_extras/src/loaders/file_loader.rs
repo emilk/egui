@@ -50,60 +50,63 @@ impl BytesLoader for FileLoader {
         };
 
         let mut cache = self.cache.lock();
-        if let Some(entry) = cache.get(uri).cloned() {
-            // `path` has either begun loading, is loaded, or has failed to load.
-            match entry {
-                Poll::Ready(Ok(file)) => Ok(BytesPoll::Ready {
-                    size: None,
-                    bytes: Bytes::Shared(file.bytes),
-                    mime: file.mime,
-                }),
-                Poll::Ready(Err(err)) => Err(LoadError::Loading(err)),
-                Poll::Pending => Ok(BytesPoll::Pending { size: None }),
+        match cache.get(uri).cloned() {
+            Some(entry) => {
+                // `path` has either begun loading, is loaded, or has failed to load.
+                match entry {
+                    Poll::Ready(Ok(file)) => Ok(BytesPoll::Ready {
+                        size: None,
+                        bytes: Bytes::Shared(file.bytes),
+                        mime: file.mime,
+                    }),
+                    Poll::Ready(Err(err)) => Err(LoadError::Loading(err)),
+                    Poll::Pending => Ok(BytesPoll::Pending { size: None }),
+                }
             }
-        } else {
-            log::trace!("started loading {uri:?}");
-            // We need to load the file at `path`.
+            _ => {
+                log::trace!("started loading {uri:?}");
+                // We need to load the file at `path`.
 
-            // Set the file to `pending` until we finish loading it.
-            let path = path.to_owned();
-            cache.insert(uri.to_owned(), Poll::Pending);
-            drop(cache);
+                // Set the file to `pending` until we finish loading it.
+                let path = path.to_owned();
+                cache.insert(uri.to_owned(), Poll::Pending);
+                drop(cache);
 
-            // Spawn a thread to read the file, so that we don't block the render for too long.
-            thread::Builder::new()
-                .name(format!("egui_extras::FileLoader::load({uri:?})"))
-                .spawn({
-                    let ctx = ctx.clone();
-                    let cache = self.cache.clone();
-                    let uri = uri.to_owned();
-                    move || {
-                        let result = match std::fs::read(&path) {
-                            Ok(bytes) => {
-                                #[cfg(feature = "file")]
-                                let mime = mime_guess2::from_path(&path)
-                                    .first_raw()
-                                    .map(|v| v.to_owned());
+                // Spawn a thread to read the file, so that we don't block the render for too long.
+                thread::Builder::new()
+                    .name(format!("egui_extras::FileLoader::load({uri:?})"))
+                    .spawn({
+                        let ctx = ctx.clone();
+                        let cache = self.cache.clone();
+                        let uri = uri.to_owned();
+                        move || {
+                            let result = match std::fs::read(&path) {
+                                Ok(bytes) => {
+                                    #[cfg(feature = "file")]
+                                    let mime = mime_guess2::from_path(&path)
+                                        .first_raw()
+                                        .map(|v| v.to_owned());
 
-                                #[cfg(not(feature = "file"))]
-                                let mime = None;
+                                    #[cfg(not(feature = "file"))]
+                                    let mime = None;
 
-                                Ok(File {
-                                    bytes: bytes.into(),
-                                    mime,
-                                })
-                            }
-                            Err(err) => Err(err.to_string()),
-                        };
-                        let prev = cache.lock().insert(uri.clone(), Poll::Ready(result));
-                        assert!(matches!(prev, Some(Poll::Pending)), "unexpected state");
-                        ctx.request_repaint();
-                        log::trace!("finished loading {uri:?}");
-                    }
-                })
-                .expect("failed to spawn thread");
+                                    Ok(File {
+                                        bytes: bytes.into(),
+                                        mime,
+                                    })
+                                }
+                                Err(err) => Err(err.to_string()),
+                            };
+                            let prev = cache.lock().insert(uri.clone(), Poll::Ready(result));
+                            assert!(matches!(prev, Some(Poll::Pending)), "unexpected state");
+                            ctx.request_repaint();
+                            log::trace!("finished loading {uri:?}");
+                        }
+                    })
+                    .expect("failed to spawn thread");
 
-            Ok(BytesPoll::Pending { size: None })
+                Ok(BytesPoll::Pending { size: None })
+            }
         }
     }
 

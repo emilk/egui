@@ -462,22 +462,21 @@ pub use epaint::emath;
 pub use ecolor::hex_color;
 pub use ecolor::{Color32, Rgba};
 pub use emath::{
-    lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos2, Rangef, Rect, RectAlign,
-    Vec2, Vec2b,
+    Align, Align2, NumExt, Pos2, Rangef, Rect, RectAlign, Vec2, Vec2b, lerp, pos2, remap,
+    remap_clamp, vec2,
 };
 pub use epaint::{
-    mutex,
+    ClippedPrimitive, ColorImage, CornerRadius, FontImage, ImageData, Margin, Mesh, PaintCallback,
+    PaintCallbackInfo, Shadow, Shape, Stroke, StrokeKind, TextureHandle, TextureId, mutex,
     text::{FontData, FontDefinitions, FontFamily, FontId, FontTweak},
     textures::{TextureFilter, TextureOptions, TextureWrapMode, TexturesDelta},
-    ClippedPrimitive, ColorImage, CornerRadius, FontImage, ImageData, Margin, Mesh, PaintCallback,
-    PaintCallbackInfo, Shadow, Shape, Stroke, StrokeKind, TextureHandle, TextureId,
 };
 
 pub mod text {
     pub use crate::text_selection::CCursorRange;
     pub use epaint::text::{
-        cursor::CCursor, FontData, FontDefinitions, FontFamily, Fonts, Galley, LayoutJob,
-        LayoutSection, TextFormat, TextWrapping, TAB_SIZE,
+        FontData, FontDefinitions, FontFamily, Fonts, Galley, LayoutJob, LayoutSection, TAB_SIZE,
+        TextFormat, TextWrapping, cursor::CCursor,
     };
 }
 
@@ -485,12 +484,12 @@ pub use self::{
     containers::*,
     context::{Context, RepaintCause, RequestRepaintInfo},
     data::{
+        Key, UserData,
         input::*,
         output::{
             self, CursorIcon, FullOutput, OpenUrl, OutputCommand, PlatformOutput,
             UserAttentionType, WidgetInfo,
         },
-        Key, UserData,
     },
     drag_and_drop::DragAndDrop,
     epaint::text::TextWrapMode,
@@ -555,7 +554,7 @@ pub fn warn_if_debug_build(ui: &mut crate::Ui) {
 /// ```
 #[macro_export]
 macro_rules! include_image {
-    ($path:expr $(,)?) => {
+    ($path:expr_2021 $(,)?) => {
         $crate::ImageSource::Bytes {
             uri: ::std::borrow::Cow::Borrowed(concat!("bytes://", $path)),
             bytes: $crate::load::Bytes::Static(include_bytes!($path)),
@@ -572,7 +571,7 @@ macro_rules! include_image {
 /// ```
 #[macro_export]
 macro_rules! github_link_file_line {
-    ($github_url: expr, $label: expr) => {{
+    ($github_url: expr_2021, $label: expr_2021) => {{
         let url = format!("{}{}#L{}", $github_url, file!(), line!());
         $crate::Hyperlink::from_label_and_url($label, url)
     }};
@@ -587,7 +586,7 @@ macro_rules! github_link_file_line {
 /// ```
 #[macro_export]
 macro_rules! github_link_file {
-    ($github_url: expr, $label: expr) => {{
+    ($github_url: expr_2021, $label: expr_2021) => {{
         let url = format!("{}{}", $github_url, file!());
         $crate::Hyperlink::from_label_and_url($label, url)
     }};

@@ -3,7 +3,7 @@
 use std::{borrow::Cow, num::NonZeroU64, ops::Range};
 
 use ahash::HashMap;
-use epaint::{emath::NumExt as _, PaintCallbackInfo, Primitive, Vertex};
+use epaint::{PaintCallbackInfo, Primitive, Vertex, emath::NumExt as _};
 
 use wgpu::util::DeviceExt as _;
 
@@ -472,23 +472,27 @@ impl Renderer {
                     let index_buffer_slice = index_buffer_slices.next().unwrap();
                     let vertex_buffer_slice = vertex_buffer_slices.next().unwrap();
 
-                    if let Some(Texture { bind_group, .. }) = self.textures.get(&mesh.texture_id) {
-                        render_pass.set_bind_group(1, bind_group, &[]);
-                        render_pass.set_index_buffer(
-                            self.index_buffer.buffer.slice(
-                                index_buffer_slice.start as u64..index_buffer_slice.end as u64,
-                            ),
-                            wgpu::IndexFormat::Uint32,
-                        );
-                        render_pass.set_vertex_buffer(
-                            0,
-                            self.vertex_buffer.buffer.slice(
-                                vertex_buffer_slice.start as u64..vertex_buffer_slice.end as u64,
-                            ),
-                        );
-                        render_pass.draw_indexed(0..mesh.indices.len() as u32, 0, 0..1);
-                    } else {
-                        log::warn!("Missing texture: {:?}", mesh.texture_id);
+                    match self.textures.get(&mesh.texture_id) {
+                        Some(Texture { bind_group, .. }) => {
+                            render_pass.set_bind_group(1, bind_group, &[]);
+                            render_pass.set_index_buffer(
+                                self.index_buffer.buffer.slice(
+                                    index_buffer_slice.start as u64..index_buffer_slice.end as u64,
+                                ),
+                                wgpu::IndexFormat::Uint32,
+                            );
+                            render_pass.set_vertex_buffer(
+                                0,
+                                self.vertex_buffer.buffer.slice(
+                                    vertex_buffer_slice.start as u64
+                                        ..vertex_buffer_slice.end as u64,
+                                ),
+                            );
+                            render_pass.draw_indexed(0..mesh.indices.len() as u32, 0, 0..1);
+                        }
+                        _ => {
+                            log::warn!("Missing texture: {:?}", mesh.texture_id);
+                        }
                     }
                 }
                 Primitive::Callback(callback) => {
@@ -878,10 +882,15 @@ impl Renderer {
                         (acc.0 + mesh.vertices.len(), acc.1 + mesh.indices.len())
                     }
                     Primitive::Callback(callback) => {
-                        if let Some(c) = callback.callback.downcast_ref::<Callback>() {
-                            callbacks.push(c.0.as_ref());
-                        } else {
-                            log::warn!("Unknown paint callback: expected `egui_wgpu::Callback`");
+                        match callback.callback.downcast_ref::<Callback>() {
+                            Some(c) => {
+                                callbacks.push(c.0.as_ref());
+                            }
+                            _ => {
+                                log::warn!(
+                                    "Unknown paint callback: expected `egui_wgpu::Callback`"
+                                );
+                            }
                         };
                         acc
                     }
@@ -909,7 +918,11 @@ impl Renderer {
             );
 
             let Some(mut index_buffer_staging) = index_buffer_staging else {
-                panic!("Failed to create staging buffer for index data. Index count: {index_count}. Required index buffer size: {required_index_buffer_size}. Actual size {} and capacity: {} (bytes)", self.index_buffer.buffer.size(), self.index_buffer.capacity);
+                panic!(
+                    "Failed to create staging buffer for index data. Index count: {index_count}. Required index buffer size: {required_index_buffer_size}. Actual size {} and capacity: {} (bytes)",
+                    self.index_buffer.buffer.size(),
+                    self.index_buffer.capacity
+                );
             };
 
             let mut index_offset = 0;
@@ -948,7 +961,11 @@ impl Renderer {
             );
 
             let Some(mut vertex_buffer_staging) = vertex_buffer_staging else {
-                panic!("Failed to create staging buffer for vertex data. Vertex count: {vertex_count}. Required vertex buffer size: {required_vertex_buffer_size}. Actual size {} and capacity: {} (bytes)", self.vertex_buffer.buffer.size(), self.vertex_buffer.capacity);
+                panic!(
+                    "Failed to create staging buffer for vertex data. Vertex count: {vertex_count}. Required vertex buffer size: {required_vertex_buffer_size}. Actual size {} and capacity: {} (bytes)",
+                    self.vertex_buffer.buffer.size(),
+                    self.vertex_buffer.capacity
+                );
             };
 
             let mut vertex_offset = 0;

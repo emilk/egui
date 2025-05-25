@@ -1,4 +1,4 @@
-use epaint::{emath::lerp, vec2, Color32, Pos2, Rect, Shape, Stroke};
+use epaint::{Color32, Pos2, Rect, Shape, Stroke, emath::lerp, vec2};
 
 use crate::{Response, Sense, Ui, Widget, WidgetInfo, WidgetType};
 

@@ -1,12 +1,12 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use emath::{vec2, GuiRounding as _, Vec2};
+use emath::{GuiRounding as _, Vec2, vec2};
 
 use crate::{
+    TextureAtlas,
     mutex::{Mutex, RwLock},
     text::FontTweak,
-    TextureAtlas,
 };
 
 // ----------------------------------------------------------------------------
@@ -467,10 +467,9 @@ impl Font {
     }
 
     pub(crate) fn ascent(&self) -> f32 {
-        if let Some(first) = self.fonts.first() {
-            first.ascent()
-        } else {
-            self.row_height
+        match self.fonts.first() {
+            Some(first) => first.ascent(),
+            _ => self.row_height,
         }
     }
 

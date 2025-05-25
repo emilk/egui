@@ -3,7 +3,7 @@ use std::{
     ops::{Add, AddAssign, MulAssign, Sub, SubAssign},
 };
 
-use crate::{lerp, Div, Mul, Vec2};
+use crate::{Div, Mul, Vec2, lerp};
 
 /// A position on screen.
 ///

@@ -1,7 +1,7 @@
 use super::easy_mark_parser as easy_mark;
 use egui::{
-    vec2, Align, Align2, Hyperlink, Layout, Response, RichText, Sense, Separator, Shape, TextStyle,
-    Ui,
+    Align, Align2, Hyperlink, Layout, Response, RichText, Sense, Separator, Shape, TextStyle, Ui,
+    vec2,
 };
 
 /// Parse and display a VERY simple and small subset of Markdown.

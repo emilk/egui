@@ -4,7 +4,7 @@ use std::{fmt::Debug, sync::Arc};
 
 use emath::GuiRounding as _;
 
-use super::{emath, Color32, ColorMode, Pos2, Rect};
+use super::{Color32, ColorMode, Pos2, Rect, emath};
 
 /// Describes the width and color of a line.
 ///

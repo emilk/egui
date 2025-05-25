@@ -1,8 +1,8 @@
-use egui::accesskit::Role;
 use egui::Vec2;
+use egui::accesskit::Role;
 use egui_demo_app::{Anchor, WrapApp};
-use egui_kittest::kittest::Queryable as _;
 use egui_kittest::SnapshotResults;
+use egui_kittest::kittest::Queryable as _;
 
 #[test]
 fn test_demo_app() {

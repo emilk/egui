@@ -1,12 +1,12 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use crate::{
+    TextureAtlas,
     mutex::{Mutex, MutexGuard},
     text::{
-        font::{Font, FontImpl},
         Galley, LayoutJob, LayoutSection,
+        font::{Font, FontImpl},
     },
-    TextureAtlas,
 };
 use emath::{NumExt as _, OrderedFloat};
 
@@ -469,7 +469,8 @@ impl Fonts {
 
     /// Call at the end of each frame (before painting) to get the change to the font texture since last call.
     pub fn font_image_delta(&self) -> Option<crate::ImageDelta> {
-        self.lock().fonts.atlas.lock().take_delta()
+        let delta = self.lock().fonts.atlas.lock().take_delta();
+        delta
     }
 
     /// Access the underlying [`FontsAndCache`].
@@ -498,13 +499,15 @@ impl Fonts {
     /// The full font atlas image.
     #[inline]
     pub fn image(&self) -> crate::FontImage {
-        self.lock().fonts.atlas.lock().image().clone()
+        let font_image = self.lock().fonts.atlas.lock().image().clone();
+        font_image
     }
 
     /// Current size of the font image.
     /// Pass this to [`crate::Tessellator`].
     pub fn font_image_size(&self) -> [usize; 2] {
-        self.lock().fonts.atlas.lock().size()
+        let size = self.lock().fonts.atlas.lock().size();
+        size
     }
 
     /// Width of this character in points.
@@ -680,7 +683,10 @@ impl FontsImpl {
 
     /// Get the right font implementation from size and [`FontFamily`].
     pub fn font(&mut self, font_id: &FontId) -> &mut Font {
-        let FontId { mut size, family } = font_id;
+        let &FontId {
+            mut size,
+            ref family,
+        } = font_id;
         size = size.at_least(0.1).at_most(2048.0);
 
         self.sized_family
@@ -1050,7 +1056,7 @@ mod tests {
     use core::f32;
 
     use super::*;
-    use crate::{text::TextFormat, Stroke};
+    use crate::{Stroke, text::TextFormat};
     use ecolor::Color32;
     use emath::Align;
 

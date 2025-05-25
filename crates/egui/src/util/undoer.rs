@@ -152,11 +152,14 @@ where
             // state changed since the last undo, redos should be cleared.
             self.redos.clear();
             None
-        } else if let Some(state) = self.redos.pop() {
-            self.undos.push_back(state);
-            self.undos.back()
         } else {
-            None
+            match self.redos.pop() {
+                Some(state) => {
+                    self.undos.push_back(state);
+                    self.undos.back()
+                }
+                _ => None,
+            }
         }
     }
 

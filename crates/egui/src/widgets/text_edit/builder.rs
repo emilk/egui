@@ -2,19 +2,19 @@ use std::sync::Arc;
 
 use emath::{Rect, TSTransform};
 use epaint::{
-    text::{cursor::CCursor, Galley, LayoutJob},
     StrokeKind,
+    text::{Galley, LayoutJob, cursor::CCursor},
 };
 
 use crate::{
-    epaint,
+    Align, Align2, Color32, Context, CursorIcon, Event, EventFilter, FontSelection, Id, ImeEvent,
+    Key, KeyboardShortcut, Margin, Modifiers, NumExt as _, Response, Sense, Shape, TextBuffer,
+    TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetWithState, epaint,
     os::OperatingSystem,
     output::OutputEvent,
     response, text_selection,
-    text_selection::{text_cursor_state::cursor_rect, visuals::paint_text_selection, CCursorRange},
-    vec2, Align, Align2, Color32, Context, CursorIcon, Event, EventFilter, FontSelection, Id,
-    ImeEvent, Key, KeyboardShortcut, Margin, Modifiers, NumExt as _, Response, Sense, Shape,
-    TextBuffer, TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetWithState,
+    text_selection::{CCursorRange, text_cursor_state::cursor_rect, visuals::paint_text_selection},
+    vec2,
 };
 
 use super::{TextEditOutput, TextEditState};
@@ -1009,15 +1009,16 @@ fn events(
                 || (modifiers.matches_logically(Modifiers::SHIFT | Modifiers::COMMAND)
                     && *key == Key::Z) =>
             {
-                if let Some((redo_ccursor_range, redo_txt)) = state
+                match state
                     .undoer
                     .lock()
                     .redo(&(cursor_range, text.as_str().to_owned()))
                 {
-                    text.replace_with(redo_txt);
-                    Some(*redo_ccursor_range)
-                } else {
-                    None
+                    Some((redo_ccursor_range, redo_txt)) => {
+                        text.replace_with(redo_txt);
+                        Some(*redo_ccursor_range)
+                    }
+                    _ => None,
                 }
             }
 
@@ -1027,15 +1028,16 @@ fn events(
                 modifiers,
                 ..
             } if modifiers.matches_logically(Modifiers::COMMAND) => {
-                if let Some((undo_ccursor_range, undo_txt)) = state
+                match state
                     .undoer
                     .lock()
                     .undo(&(cursor_range, text.as_str().to_owned()))
                 {
-                    text.replace_with(undo_txt);
-                    Some(*undo_ccursor_range)
-                } else {
-                    None
+                    Some((undo_ccursor_range, undo_txt)) => {
+                        text.replace_with(undo_txt);
+                        Some(*undo_ccursor_range)
+                    }
+                    _ => None,
                 }
             }
 

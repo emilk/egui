@@ -1,6 +1,6 @@
 use crate::{
-    emath::{remap_clamp, NumExt as _},
     Id, IdMap, InputState,
+    emath::{NumExt as _, remap_clamp},
 };
 
 #[derive(Clone, Default)]

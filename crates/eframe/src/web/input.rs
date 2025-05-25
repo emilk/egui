@@ -1,4 +1,4 @@
-use super::{canvas_content_rect, AppRunner};
+use super::{AppRunner, canvas_content_rect};
 
 pub fn pos_from_mouse_event(
     canvas: &web_sys::HtmlCanvasElement,

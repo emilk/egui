@@ -1,6 +1,6 @@
 use std::fmt::Write as _;
 
-use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
+use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 
 use egui::epaint::TextShape;
 use egui::load::SizedTexture;
@@ -174,7 +174,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             let mut locked_fonts = fonts.lock();
             c.bench_function("text_layout_uncached", |b| {
                 b.iter(|| {
-                    use egui::epaint::text::{layout, LayoutJob};
+                    use egui::epaint::text::{LayoutJob, layout};
 
                     let job = LayoutJob::simple(
                         LOREM_IPSUM_LONG.to_owned(),

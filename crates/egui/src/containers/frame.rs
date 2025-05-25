@@ -1,8 +1,8 @@
 //! Frame container
 
 use crate::{
-    epaint, layers::ShapeIdx, InnerResponse, Response, Sense, Style, Ui, UiBuilder, UiKind,
-    UiStackInfo,
+    InnerResponse, Response, Sense, Style, Ui, UiBuilder, UiKind, UiStackInfo, epaint,
+    layers::ShapeIdx,
 };
 use epaint::{Color32, CornerRadius, Margin, MarginF32, Rect, Shadow, Shape, Stroke};
 
@@ -143,7 +143,8 @@ pub struct Frame {
 #[test]
 fn frame_size() {
     assert_eq!(
-        std::mem::size_of::<Frame>(), 32,
+        std::mem::size_of::<Frame>(),
+        32,
         "Frame changed size! If it shrank - good! Update this test. If it grew - bad! Try to find a way to avoid it."
     );
     assert!(

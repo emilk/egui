@@ -3,8 +3,8 @@
 use std::{cmp::Ordering, ops::RangeInclusive};
 
 use crate::{
-    emath, text, Button, CursorIcon, Key, Modifiers, NumExt as _, Response, RichText, Sense,
-    TextEdit, TextWrapMode, Ui, Widget, WidgetInfo, MINUS_CHAR_STR,
+    Button, CursorIcon, Key, MINUS_CHAR_STR, Modifiers, NumExt as _, Response, RichText, Sense,
+    TextEdit, TextWrapMode, Ui, Widget, WidgetInfo, emath, text,
 };
 
 // ----------------------------------------------------------------------------
@@ -764,7 +764,7 @@ mod tests {
     use super::clamp_value_to_range;
 
     macro_rules! total_assert_eq {
-        ($a:expr, $b:expr) => {
+        ($a:expr_2021, $b:expr_2021) => {
             assert!(
                 matches!($a.total_cmp(&$b), std::cmp::Ordering::Equal),
                 "{} != {}",

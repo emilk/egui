@@ -1,9 +1,9 @@
 use std::hash::Hash;
 
 use crate::{
-    emath, epaint, pos2, remap, remap_clamp, vec2, Context, Id, InnerResponse, NumExt as _, Rect,
-    Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, UiBuilder, UiKind, UiStackInfo, Vec2,
-    WidgetInfo, WidgetText, WidgetType,
+    Context, Id, InnerResponse, NumExt as _, Rect, Response, Sense, Stroke, TextStyle,
+    TextWrapMode, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetInfo, WidgetText, WidgetType,
+    emath, epaint, pos2, remap, remap_clamp, vec2,
 };
 use emath::GuiRounding as _;
 use epaint::{Shape, StrokeKind};
@@ -612,10 +612,13 @@ impl CollapsingHeader {
                     header_response.rect.center().y,
                 ));
                 let icon_response = header_response.clone().with_new_rect(icon_rect);
-                if let Some(icon) = icon {
-                    icon(ui, openness, &icon_response);
-                } else {
-                    paint_default_icon(ui, openness, &icon_response);
+                match icon {
+                    Some(icon) => {
+                        icon(ui, openness, &icon_response);
+                    }
+                    _ => {
+                        paint_default_icon(ui, openness, &icon_response);
+                    }
                 }
             }
 
@@ -672,20 +675,19 @@ impl CollapsingHeader {
                 state.show_body_unindented(ui, add_body)
             };
 
-            if let Some(ret_response) = ret_response {
-                CollapsingResponse {
+            match ret_response {
+                Some(ret_response) => CollapsingResponse {
                     header_response,
                     body_response: Some(ret_response.response),
                     body_returned: Some(ret_response.inner),
                     openness,
-                }
-            } else {
-                CollapsingResponse {
+                },
+                _ => CollapsingResponse {
                     header_response,
                     body_response: None,
                     body_returned: None,
                     openness,
-                }
+                },
             }
         })
         .inner

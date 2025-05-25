@@ -3,8 +3,8 @@
 use std::ops::{Add, AddAssign, BitOr, BitOrAssign};
 
 use crate::{
-    emath, epaint, lerp, pass_state, pos2, remap, remap_clamp, Context, CursorIcon, Id,
-    NumExt as _, Pos2, Rangef, Rect, Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b,
+    Context, CursorIcon, Id, NumExt as _, Pos2, Rangef, Rect, Sense, Ui, UiBuilder, UiKind,
+    UiStackInfo, Vec2, Vec2b, emath, epaint, lerp, pass_state, pos2, remap, remap_clamp,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -1307,33 +1307,37 @@ impl Prepared {
 
             state.scroll_bar_interaction[d] = response.hovered() || response.dragged();
 
-            if let Some(pointer_pos) = response.interact_pointer_pos() {
-                let scroll_start_offset_from_top_left = state.scroll_start_offset_from_top_left[d]
-                    .get_or_insert_with(|| {
-                        if handle_rect.contains(pointer_pos) {
-                            pointer_pos[d] - handle_rect.min[d]
-                        } else {
-                            let handle_top_pos_at_bottom =
-                                scroll_bar_rect.max[d] - handle_rect.size()[d];
-                            // Calculate the new handle top position, centering the handle on the mouse.
-                            let new_handle_top_pos = (pointer_pos[d] - handle_rect.size()[d] / 2.0)
-                                .clamp(scroll_bar_rect.min[d], handle_top_pos_at_bottom);
-                            pointer_pos[d] - new_handle_top_pos
-                        }
-                    });
+            match response.interact_pointer_pos() {
+                Some(pointer_pos) => {
+                    let scroll_start_offset_from_top_left =
+                        state.scroll_start_offset_from_top_left[d].get_or_insert_with(|| {
+                            if handle_rect.contains(pointer_pos) {
+                                pointer_pos[d] - handle_rect.min[d]
+                            } else {
+                                let handle_top_pos_at_bottom =
+                                    scroll_bar_rect.max[d] - handle_rect.size()[d];
+                                // Calculate the new handle top position, centering the handle on the mouse.
+                                let new_handle_top_pos = (pointer_pos[d]
+                                    - handle_rect.size()[d] / 2.0)
+                                    .clamp(scroll_bar_rect.min[d], handle_top_pos_at_bottom);
+                                pointer_pos[d] - new_handle_top_pos
+                            }
+                        });
 
-                let new_handle_top = pointer_pos[d] - *scroll_start_offset_from_top_left;
-                state.offset[d] = remap(
-                    new_handle_top,
-                    scroll_bar_rect.min[d]..=(scroll_bar_rect.max[d] - handle_rect.size()[d]),
-                    0.0..=max_offset[d],
-                );
+                    let new_handle_top = pointer_pos[d] - *scroll_start_offset_from_top_left;
+                    state.offset[d] = remap(
+                        new_handle_top,
+                        scroll_bar_rect.min[d]..=(scroll_bar_rect.max[d] - handle_rect.size()[d]),
+                        0.0..=max_offset[d],
+                    );
 
-                // some manual action taken, scroll not stuck
-                state.scroll_stuck_to_end[d] = false;
-                state.offset_target[d] = None;
-            } else {
-                state.scroll_start_offset_from_top_left[d] = None;
+                    // some manual action taken, scroll not stuck
+                    state.scroll_stuck_to_end[d] = false;
+                    state.offset_target[d] = None;
+                }
+                _ => {
+                    state.scroll_start_offset_from_top_left[d] = None;
+                }
             }
 
             let unbounded_offset = state.offset[d];

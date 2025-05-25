@@ -1,11 +1,10 @@
 use ahash::HashMap;
 use egui::{
-    decode_animated_image_uri, has_webp_header,
+    ColorImage, FrameDurations, Id, decode_animated_image_uri, has_webp_header,
     load::{BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
     mutex::Mutex,
-    ColorImage, FrameDurations, Id,
 };
-use image::{codecs::webp::WebPDecoder, AnimationDecoder as _, ColorType, ImageDecoder as _, Rgba};
+use image::{AnimationDecoder as _, ColorType, ImageDecoder as _, Rgba, codecs::webp::WebPDecoder};
 use std::{io::Cursor, mem::size_of, sync::Arc, time::Duration};
 
 #[derive(Clone)]
@@ -55,7 +54,7 @@ impl WebP {
                 unreachable => {
                     return Err(format!(
                         "Unreachable WebP color type, expected Rgb8/Rgba8, got {unreachable:?}"
-                    ))
+                    ));
                 }
             };
 
@@ -134,15 +133,14 @@ impl ImageLoader for WebPLoader {
             decode_animated_image_uri(frame_uri).map_err(|_error| LoadError::NotSupported)?;
 
         let mut cache = self.cache.lock();
-        if let Some(entry) = cache.get(image_uri).cloned() {
-            match entry {
+        match cache.get(image_uri).cloned() {
+            Some(entry) => match entry {
                 Ok(image) => Ok(ImagePoll::Ready {
                     image: image.get_image(frame_index),
                 }),
                 Err(error) => Err(LoadError::Loading(error)),
-            }
-        } else {
-            match ctx.try_load_bytes(image_uri) {
+            },
+            _ => match ctx.try_load_bytes(image_uri) {
                 Ok(BytesPoll::Ready { bytes, .. }) => {
                     if !has_webp_header(&bytes) {
                         return Err(LoadError::NotSupported);
@@ -172,7 +170,7 @@ impl ImageLoader for WebPLoader {
                 }
                 Ok(BytesPoll::Pending { size }) => Ok(ImagePoll::Pending { size }),
                 Err(error) => Err(error),
-            }
+            },
         }
     }
 

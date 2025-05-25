@@ -1,4 +1,4 @@
-use egui::{vec2, Color32, Context, Frame, Id, Ui, Window};
+use egui::{Color32, Context, Frame, Id, Ui, Window, vec2};
 
 #[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]

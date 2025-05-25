@@ -3,9 +3,9 @@
 use std::ops::RangeInclusive;
 
 use crate::{
-    emath, epaint, lerp, pos2, remap, remap_clamp, style, style::HandleShape, vec2, Color32,
-    DragValue, EventFilter, Key, Label, NumExt as _, Pos2, Rangef, Rect, Response, Sense,
-    TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, MINUS_CHAR_STR,
+    Color32, DragValue, EventFilter, Key, Label, MINUS_CHAR_STR, NumExt as _, Pos2, Rangef, Rect,
+    Response, Sense, TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, emath,
+    epaint, lerp, pos2, remap, remap_clamp, style, style::HandleShape, vec2,
 };
 
 use super::drag_value::clamp_value_to_range;
@@ -134,11 +134,7 @@ impl<'a> Slider<'a> {
             value.to_f64()
         });
 
-        if Num::INTEGRAL {
-            slf.integer()
-        } else {
-            slf
-        }
+        if Num::INTEGRAL { slf.integer() } else { slf }
     }
 
     pub fn from_get_set(

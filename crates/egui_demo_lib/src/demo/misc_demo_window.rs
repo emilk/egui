@@ -1,8 +1,8 @@
 use super::{Demo, View};
 
 use egui::{
-    vec2, Align, Checkbox, CollapsingHeader, Color32, Context, FontId, Resize, RichText, Sense,
-    Slider, Stroke, TextFormat, TextStyle, Ui, Vec2, Window,
+    Align, Checkbox, CollapsingHeader, Color32, Context, FontId, Resize, RichText, Sense, Slider,
+    Stroke, TextFormat, TextStyle, Ui, Vec2, Window, vec2,
 };
 
 /// Showcase some ui code

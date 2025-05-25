@@ -9,7 +9,7 @@ use crate::collapsing_header::CollapsingState;
 use crate::*;
 
 use super::scroll_area::{ScrollBarVisibility, ScrollSource};
-use super::{area, resize, Area, Frame, Resize, ScrollArea};
+use super::{Area, Frame, Resize, ScrollArea, area, resize};
 
 /// Builder for a floating window which can be dragged, closed, collapsed, resized and scrolled (off by default).
 ///

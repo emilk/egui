@@ -1,4 +1,4 @@
-use emath::{remap_clamp, Rect};
+use emath::{Rect, remap_clamp};
 
 use crate::{FontImage, ImageDelta};
 

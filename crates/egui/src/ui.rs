@@ -5,11 +5,15 @@ use emath::GuiRounding as _;
 use epaint::mutex::RwLock;
 use std::{any::Any, hash::Hash, sync::Arc};
 
-use crate::close_tag::ClosableTag;
-use crate::containers::menu;
 #[cfg(debug_assertions)]
 use crate::Stroke;
+use crate::close_tag::ClosableTag;
+use crate::containers::menu;
 use crate::{
+    Align, Color32, Context, CursorIcon, DragAndDrop, Id, InnerResponse, InputState, LayerId,
+    Memory, Order, Painter, PlatformOutput, Pos2, Rangef, Rect, Response, Rgba, RichText, Sense,
+    Style, TextStyle, TextWrapMode, UiBuilder, UiKind, UiStack, UiStackInfo, Vec2, WidgetRect,
+    WidgetText,
     containers::{CollapsingHeader, CollapsingResponse, Frame},
     ecolor::Hsva,
     emath, epaint,
@@ -22,13 +26,9 @@ use crate::{
     util::IdTypeMap,
     vec2, widgets,
     widgets::{
-        color_picker, Button, Checkbox, DragValue, Hyperlink, Image, ImageSource, Label, Link,
-        RadioButton, SelectableLabel, Separator, Spinner, TextEdit, Widget,
+        Button, Checkbox, DragValue, Hyperlink, Image, ImageSource, Label, Link, RadioButton,
+        SelectableLabel, Separator, Spinner, TextEdit, Widget, color_picker,
     },
-    Align, Color32, Context, CursorIcon, DragAndDrop, Id, InnerResponse, InputState, LayerId,
-    Memory, Order, Painter, PlatformOutput, Pos2, Rangef, Rect, Response, Rgba, RichText, Sense,
-    Style, TextStyle, TextWrapMode, UiBuilder, UiKind, UiStack, UiStackInfo, Vec2, WidgetRect,
-    WidgetText,
 };
 // ----------------------------------------------------------------------------
 
@@ -667,29 +667,34 @@ impl Ui {
     /// This is determined first by [`Style::wrap_mode`], and then by the layout of this [`Ui`].
     pub fn wrap_mode(&self) -> TextWrapMode {
         #[expect(deprecated)]
-        if let Some(wrap_mode) = self.style.wrap_mode {
-            wrap_mode
-        }
-        // `wrap` handling for backward compatibility
-        else if let Some(wrap) = self.style.wrap {
-            if wrap {
-                TextWrapMode::Wrap
-            } else {
-                TextWrapMode::Extend
-            }
-        } else if let Some(grid) = self.placer.grid() {
-            if grid.wrap_text() {
-                TextWrapMode::Wrap
-            } else {
-                TextWrapMode::Extend
-            }
-        } else {
-            let layout = self.layout();
-            if layout.is_vertical() || layout.is_horizontal() && layout.main_wrap() {
-                TextWrapMode::Wrap
-            } else {
-                TextWrapMode::Extend
-            }
+        match self.style.wrap_mode {
+            Some(wrap_mode) => wrap_mode,
+            _ => match self.style.wrap {
+                Some(wrap) => {
+                    if wrap {
+                        TextWrapMode::Wrap
+                    } else {
+                        TextWrapMode::Extend
+                    }
+                }
+                _ => match self.placer.grid() {
+                    Some(grid) => {
+                        if grid.wrap_text() {
+                            TextWrapMode::Wrap
+                        } else {
+                            TextWrapMode::Extend
+                        }
+                    }
+                    _ => {
+                        let layout = self.layout();
+                        if layout.is_vertical() || layout.is_horizontal() && layout.main_wrap() {
+                            TextWrapMode::Wrap
+                        } else {
+                            TextWrapMode::Extend
+                        }
+                    }
+                },
+            },
         }
     }
 

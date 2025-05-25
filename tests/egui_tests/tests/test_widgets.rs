@@ -1,10 +1,10 @@
 use egui::load::SizedTexture;
 use egui::{
-    include_image, Align, Button, Color32, ColorImage, Direction, DragValue, Event, Grid, Layout,
-    PointerButton, Pos2, Response, Slider, Stroke, StrokeKind, TextWrapMode, TextureHandle,
-    TextureOptions, Ui, UiBuilder, Vec2, Widget as _,
+    Align, Button, Color32, ColorImage, Direction, DragValue, Event, Grid, Layout, PointerButton,
+    Pos2, Response, Slider, Stroke, StrokeKind, TextWrapMode, TextureHandle, TextureOptions, Ui,
+    UiBuilder, Vec2, Widget as _, include_image,
 };
-use egui_kittest::kittest::{by, Node, Queryable as _};
+use egui_kittest::kittest::{Node, Queryable as _, by};
 use egui_kittest::{Harness, SnapshotResult, SnapshotResults};
 
 #[test]

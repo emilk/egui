@@ -69,10 +69,13 @@ impl eframe::App for MyApp {
                 });
             });
 
-            if let Some(texture) = self.texture.as_ref() {
-                ui.image((texture.id(), ui.available_size()));
-            } else {
-                ui.spinner();
+            match self.texture.as_ref() {
+                Some(texture) => {
+                    ui.image((texture.id(), ui.available_size()));
+                }
+                _ => {
+                    ui.spinner();
+                }
             }
 
             // Check for returned screenshot:

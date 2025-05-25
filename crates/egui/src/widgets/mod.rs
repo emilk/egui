@@ -4,7 +4,7 @@
 //! * `ui.add(Label::new("Text").text_color(color::red));`
 //! * `if ui.add(Button::new("Click me")).clicked() { … }`
 
-use crate::{epaint, Response, Ui};
+use crate::{Response, Ui, epaint};
 
 mod button;
 mod checkbox;
@@ -28,8 +28,8 @@ pub use self::{
     drag_value::DragValue,
     hyperlink::{Hyperlink, Link},
     image::{
-        decode_animated_image_uri, has_gif_magic_header, has_webp_header, paint_texture_at,
         FrameDurations, Image, ImageFit, ImageOptions, ImageSize, ImageSource,
+        decode_animated_image_uri, has_gif_magic_header, has_webp_header, paint_texture_at,
     },
     image_button::ImageButton,
     label::Label,

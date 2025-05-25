@@ -1,9 +1,9 @@
 use crate::rust_view_ui;
-use egui::color_picker::{color_picker_color32, Alpha};
+use egui::color_picker::{Alpha, color_picker_color32};
 use egui::containers::menu::{MenuConfig, SubMenuButton};
 use egui::{
-    include_image, Align, Align2, ComboBox, Frame, Id, Layout, Popup, PopupCloseBehavior,
-    RectAlign, RichText, Tooltip, Ui, UiBuilder,
+    Align, Align2, ComboBox, Frame, Id, Layout, Popup, PopupCloseBehavior, RectAlign, RichText,
+    Tooltip, Ui, UiBuilder, include_image,
 };
 
 /// Showcase [`Popup`].

@@ -1,4 +1,4 @@
-use crate::{gamma_from_linear, linear_from_gamma, Color32, Hsva, Rgba};
+use crate::{Color32, Hsva, Rgba, gamma_from_linear, linear_from_gamma};
 
 /// Like Hsva but with the `v` value (brightness) being gamma corrected
 /// so that it is somewhat perceptually even.

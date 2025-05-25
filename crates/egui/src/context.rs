@@ -4,17 +4,24 @@ use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration
 
 use emath::GuiRounding as _;
 use epaint::{
+    ClippedPrimitive, ClippedShape, Color32, ImageData, ImageDelta, Pos2, Rect, StrokeKind,
+    TessellationOptions, TextureAtlas, TextureId, Vec2,
     emath::{self, TSTransform},
     mutex::RwLock,
     stats::PaintStats,
     tessellator,
     text::{FontInsert, FontPriority, Fonts},
     util::OrderedFloat,
-    vec2, ClippedPrimitive, ClippedShape, Color32, ImageData, ImageDelta, Pos2, Rect, StrokeKind,
-    TessellationOptions, TextureAtlas, TextureId, Vec2,
+    vec2,
 };
 
 use crate::{
+    Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, Grid, Id, ImmediateViewport,
+    ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId, Memory,
+    ModifierNames, NumExt as _, Order, Painter, RawInput, Response, RichText, ScrollArea, Sense,
+    Style, TextStyle, TextureHandle, TextureOptions, Ui, ViewportBuilder, ViewportCommand,
+    ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput, Widget as _,
+    WidgetRect, WidgetText,
     animation_manager::AnimationManager,
     containers::{self, area::AreaState},
     data::output::PlatformOutput,
@@ -31,12 +38,6 @@ use crate::{
     resize, response, scroll_area,
     util::IdTypeMap,
     viewport::ViewportClass,
-    Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, Grid, Id, ImmediateViewport,
-    ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId, Memory,
-    ModifierNames, NumExt as _, Order, Painter, RawInput, Response, RichText, ScrollArea, Sense,
-    Style, TextStyle, TextureHandle, TextureOptions, Ui, ViewportBuilder, ViewportCommand,
-    ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput, Widget as _,
-    WidgetRect, WidgetText,
 };
 
 #[cfg(feature = "accesskit")]
@@ -503,18 +504,19 @@ impl ContextImpl {
             let mut layers: Vec<LayerId> = viewport.prev_pass.widgets.layer_ids().collect();
             layers.sort_by(|&a, &b| self.memory.areas().compare_order(a, b));
 
-            viewport.hits = if let Some(pos) = viewport.input.pointer.interact_pos() {
-                let interact_radius = self.memory.options.style().interaction.interact_radius;
+            viewport.hits = match viewport.input.pointer.interact_pos() {
+                Some(pos) => {
+                    let interact_radius = self.memory.options.style().interaction.interact_radius;
 
-                crate::hit_test::hit_test(
-                    &viewport.prev_pass.widgets,
-                    &layers,
-                    &self.memory.to_global,
-                    pos,
-                    interact_radius,
-                )
-            } else {
-                WidgetHits::default()
+                    crate::hit_test::hit_test(
+                        &viewport.prev_pass.widgets,
+                        &layers,
+                        &self.memory.to_global,
+                        pos,
+                        interact_radius,
+                    )
+                }
+                _ => WidgetHits::default(),
             };
 
             viewport.interact_widgets = crate::interaction::interact(
@@ -847,7 +849,10 @@ impl Context {
 
             if max_passes <= output.platform_output.num_completed_passes {
                 #[cfg(feature = "log")]
-                log::debug!("Ignoring call request_discard, because max_passes={max_passes}. Requested from {:?}", output.platform_output.request_discard_reasons);
+                log::debug!(
+                    "Ignoring call request_discard, because max_passes={max_passes}. Requested from {:?}",
+                    output.platform_output.request_discard_reasons
+                );
 
                 break;
             }
@@ -2296,7 +2301,9 @@ impl Context {
             // If you see this message, it means we've been paying the cost of multi-pass for multiple frames in a row.
             // This is likely a bug. `request_discard` should only be called in rare situations, when some layout changes.
 
-            let mut warning = format!("egui PERF WARNING: request_discard has been called {num_multipass_in_row} frames in a row");
+            let mut warning = format!(
+                "egui PERF WARNING: request_discard has been called {num_multipass_in_row} frames in a row"
+            );
             self.viewport(|vp| {
                 for reason in &vp.output.request_discard_reasons {
                     warning += &format!("\n  {reason}");
@@ -2394,8 +2401,13 @@ impl ContextImpl {
 
         if repaint_needed {
             self.request_repaint(ended_viewport_id, RepaintCause::new());
-        } else if let Some(delay) = viewport.input.wants_repaint_after() {
-            self.request_repaint_after(delay, ended_viewport_id, RepaintCause::new());
+        } else {
+            match viewport.input.wants_repaint_after() {
+                Some(delay) => {
+                    self.request_repaint_after(delay, ended_viewport_id, RepaintCause::new());
+                }
+                _ => {}
+            }
         }
 
         //  -------------------
@@ -2531,17 +2543,18 @@ impl Context {
 
         self.write(|ctx| {
             let tessellation_options = ctx.memory.options.tessellation_options;
-            let texture_atlas = if let Some(fonts) = ctx.fonts.get(&pixels_per_point.into()) {
-                fonts.texture_atlas()
-            } else {
-                #[cfg(feature = "log")]
-                log::warn!("No font size matching {pixels_per_point} pixels per point found.");
-                ctx.fonts
-                    .iter()
-                    .next()
-                    .expect("No fonts loaded")
-                    .1
-                    .texture_atlas()
+            let texture_atlas = match ctx.fonts.get(&pixels_per_point.into()) {
+                Some(fonts) => fonts.texture_atlas(),
+                _ => {
+                    #[cfg(feature = "log")]
+                    log::warn!("No font size matching {pixels_per_point} pixels per point found.");
+                    ctx.fonts
+                        .iter()
+                        .next()
+                        .expect("No fonts loaded")
+                        .1
+                        .texture_atlas()
+                }
             };
             let (font_tex_size, prepared_discs) = {
                 let atlas = texture_atlas.lock();

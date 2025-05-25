@@ -25,8 +25,8 @@ use egui_winit::accesskit_winit;
 use winit_integration::UserEvent;
 
 use crate::{
-    native::{epi_integration::EpiIntegration, winit_integration::EventResult},
     App, AppCreator, CreationContext, NativeOptions, Result, Storage,
+    native::{epi_integration::EpiIntegration, winit_integration::EventResult},
 };
 
 use super::{epi_integration, event_loop_context, winit_integration, winit_integration::WinitApp};
@@ -306,10 +306,13 @@ impl<'app> WgpuWinitApp<'app> {
             let beginning = integration.beginning;
 
             egui::Context::set_immediate_viewport_renderer(move |_egui_ctx, immediate_viewport| {
-                if let Some(shared) = shared.upgrade() {
-                    render_immediate_viewport(beginning, &shared, immediate_viewport);
-                } else {
-                    log::warn!("render_sync_callback called after window closed");
+                match shared.upgrade() {
+                    Some(shared) => {
+                        render_immediate_viewport(beginning, &shared, immediate_viewport);
+                    }
+                    _ => {
+                        log::warn!("render_sync_callback called after window closed");
+                    }
                 }
             });
         }
@@ -374,47 +377,47 @@ impl WinitApp for WgpuWinitApp<'_> {
     ) -> Result<EventResult> {
         self.initialized_all_windows(event_loop);
 
-        if let Some(running) = &mut self.running {
-            running.run_ui_and_paint(window_id)
-        } else {
-            Ok(EventResult::Wait)
+        match &mut self.running {
+            Some(running) => running.run_ui_and_paint(window_id),
+            _ => Ok(EventResult::Wait),
         }
     }
 
     fn resumed(&mut self, event_loop: &ActiveEventLoop) -> crate::Result<EventResult> {
         log::debug!("Event::Resumed");
 
-        let running = if let Some(running) = &self.running {
-            #[cfg(target_os = "android")]
-            self.recreate_window(event_loop, running);
-            running
-        } else {
-            let storage = if let Some(file) = &self.native_options.persistence_path {
-                epi_integration::create_storage_with_file(file)
-            } else {
-                epi_integration::create_storage(
-                    self.native_options
-                        .viewport
-                        .app_id
-                        .as_ref()
-                        .unwrap_or(&self.app_name),
-                )
-            };
-            let egui_ctx = winit_integration::create_egui_context(storage.as_deref());
-            let (window, builder) = create_window(
-                &egui_ctx,
-                event_loop,
-                storage.as_deref(),
-                &mut self.native_options,
-            )?;
-            self.init_run_state(egui_ctx, event_loop, storage, window, builder)?
+        let running = match &self.running {
+            Some(running) => {
+                #[cfg(target_os = "android")]
+                self.recreate_window(event_loop, running);
+                running
+            }
+            _ => {
+                let storage = match &self.native_options.persistence_path {
+                    Some(file) => epi_integration::create_storage_with_file(file),
+                    _ => epi_integration::create_storage(
+                        self.native_options
+                            .viewport
+                            .app_id
+                            .as_ref()
+                            .unwrap_or(&self.app_name),
+                    ),
+                };
+                let egui_ctx = winit_integration::create_egui_context(storage.as_deref());
+                let (window, builder) = create_window(
+                    &egui_ctx,
+                    event_loop,
+                    storage.as_deref(),
+                    &mut self.native_options,
+                )?;
+                self.init_run_state(egui_ctx, event_loop, storage, window, builder)?
+            }
         };
 
         let viewport = &running.shared.borrow().viewports[&ViewportId::ROOT];
-        if let Some(window) = &viewport.window {
-            Ok(EventResult::RepaintNow(window.id()))
-        } else {
-            Ok(EventResult::Wait)
+        match &viewport.window {
+            Some(window) => Ok(EventResult::RepaintNow(window.id())),
+            _ => Ok(EventResult::Wait),
         }
     }
 
@@ -459,10 +462,9 @@ impl WinitApp for WgpuWinitApp<'_> {
     ) -> crate::Result<EventResult> {
         self.initialized_all_windows(event_loop);
 
-        if let Some(running) = &mut self.running {
-            Ok(running.on_window_event(window_id, &event))
-        } else {
-            Ok(EventResult::Wait)
+        match &mut self.running {
+            Some(running) => Ok(running.on_window_event(window_id, &event)),
+            _ => Ok(EventResult::Wait),
         }
     }
 
@@ -498,11 +500,9 @@ impl WgpuWinitRunning<'_> {
     fn save(&mut self) {
         let shared = self.shared.borrow();
         // This is done because of the "save on suspend" logic on Android. Once the application is suspended, there is no window associated to it.
-        let window = if let Some(Viewport { window, .. }) = shared.viewports.get(&ViewportId::ROOT)
-        {
-            window.as_deref()
-        } else {
-            None
+        let window = match shared.viewports.get(&ViewportId::ROOT) {
+            Some(Viewport { window, .. }) => window.as_deref(),
+            _ => None,
         };
         self.integration.save(self.app.as_mut(), window);
     }

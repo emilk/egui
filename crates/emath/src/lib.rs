@@ -44,7 +44,7 @@ mod vec2b;
 
 pub use self::{
     align::{Align, Align2},
-    gui_rounding::{GuiRounding, GUI_ROUNDING},
+    gui_rounding::{GUI_ROUNDING, GuiRounding},
     history::History,
     numeric::*,
     ordered_float::*,
@@ -182,11 +182,7 @@ where
         );
         let t = (x - *from.start()) / (*from.end() - *from.start());
         // Ensure no numerical inaccuracies sneak in:
-        if T::ONE <= t {
-            *to.end()
-        } else {
-            lerp(to, t)
-        }
+        if T::ONE <= t { *to.end() } else { lerp(to, t) }
     }
 }
 
@@ -365,7 +361,7 @@ pub fn normalized_angle(mut angle: f32) -> f32 {
 #[test]
 fn test_normalized_angle() {
     macro_rules! almost_eq {
-        ($left: expr, $right: expr) => {
+        ($left: expr_2021, $right: expr_2021) => {
             let left = $left;
             let right = $right;
             assert!((left - right).abs() < 1e-6, "{} != {}", left, right);

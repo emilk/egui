@@ -442,10 +442,15 @@ impl Painter {
                             );
                         }
 
-                        if let Some(callback) = callback.callback.downcast_ref::<CallbackFn>() {
-                            (callback.f)(info, self);
-                        } else {
-                            log::warn!("Warning: Unsupported render callback. Expected egui_glow::CallbackFn");
+                        match callback.callback.downcast_ref::<CallbackFn>() {
+                            Some(callback) => {
+                                (callback.f)(info, self);
+                            }
+                            _ => {
+                                log::warn!(
+                                    "Warning: Unsupported render callback. Expected egui_glow::CallbackFn"
+                                );
+                            }
                         }
 
                         check_for_gl_error!(&self.gl, "callback");

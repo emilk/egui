@@ -1,8 +1,8 @@
 use egui::{TexturesDelta, UserData, ViewportCommand};
 
-use crate::{epi, App};
+use crate::{App, epi};
 
-use super::{now_sec, text_agent::TextAgent, web_painter::WebPainter as _, NeedRepaint};
+use super::{NeedRepaint, now_sec, text_agent::TextAgent, web_painter::WebPainter as _};
 
 pub struct AppRunner {
     #[allow(dead_code, clippy::allow_attributes)]

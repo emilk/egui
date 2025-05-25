@@ -17,14 +17,13 @@
 //! ```
 
 use super::{
-    style::WidgetVisuals, Align, Context, Id, InnerResponse, PointerState, Pos2, Rect, Response,
-    Sense, TextStyle, Ui, Vec2,
+    Align, Context, Id, InnerResponse, PointerState, Pos2, Rect, Response, Sense, TextStyle, Ui,
+    Vec2, style::WidgetVisuals,
 };
 use crate::{
-    epaint, vec2,
-    widgets::{Button, ImageButton},
     Align2, Area, Color32, Frame, Key, LayerId, Layout, NumExt as _, Order, Stroke, Style,
-    TextWrapMode, UiKind, WidgetText,
+    TextWrapMode, UiKind, WidgetText, epaint, vec2,
+    widgets::{Button, ImageButton},
 };
 use epaint::mutex::RwLock;
 use std::sync::Arc;

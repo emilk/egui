@@ -16,7 +16,9 @@ fn main() -> eframe::Result {
                 start_puffin_server();
 
                 #[cfg(not(feature = "puffin"))]
-                panic!("Unknown argument: {arg} - you need to enable the 'puffin' feature to use this.");
+                panic!(
+                    "Unknown argument: {arg} - you need to enable the 'puffin' feature to use this."
+                );
             }
 
             _ => {

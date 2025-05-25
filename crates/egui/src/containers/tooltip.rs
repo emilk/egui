@@ -291,14 +291,13 @@ impl Tooltip<'_> {
         }
 
         let is_other_tooltip_open = response.ctx.prev_pass_state(|fs| {
-            if let Some(already_open_tooltip) = fs
+            match fs
                 .layers
                 .get(&response.layer_id)
                 .and_then(|layer| layer.widget_with_tooltip)
             {
-                already_open_tooltip != response.id
-            } else {
-                false
+                Some(already_open_tooltip) => already_open_tooltip != response.id,
+                _ => false,
             }
         });
         if is_other_tooltip_open {

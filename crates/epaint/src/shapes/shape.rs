@@ -2,12 +2,12 @@
 
 use std::sync::Arc;
 
-use emath::{pos2, Align2, Pos2, Rangef, Rect, TSTransform, Vec2};
+use emath::{Align2, Pos2, Rangef, Rect, TSTransform, Vec2, pos2};
 
 use crate::{
+    Color32, CornerRadius, Mesh, Stroke, StrokeKind, TextureId,
     stroke::PathStroke,
     text::{FontId, Fonts, Galley},
-    Color32, CornerRadius, Mesh, Stroke, StrokeKind, TextureId,
 };
 
 use super::{
@@ -73,7 +73,8 @@ pub enum Shape {
 #[test]
 fn shape_size() {
     assert_eq!(
-        std::mem::size_of::<Shape>(), 64,
+        std::mem::size_of::<Shape>(),
+        64,
         "Shape changed size! If it shrank - good! Update this test. If it grew - bad! Try to find a way to avoid it."
     );
     assert!(

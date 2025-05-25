@@ -1,6 +1,6 @@
 #![allow(deprecated)]
 
-use egui::{mutex::Mutex, TextureOptions};
+use egui::{TextureOptions, mutex::Mutex};
 
 #[cfg(feature = "svg")]
 use egui::SizeHint;

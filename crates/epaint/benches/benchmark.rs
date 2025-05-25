@@ -1,8 +1,8 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 
 use epaint::{
-    pos2, tessellator::Path, ClippedShape, Color32, Mesh, PathStroke, Pos2, Rect, Shape, Stroke,
-    TessellationOptions, Tessellator, TextureAtlas, Vec2,
+    ClippedShape, Color32, Mesh, PathStroke, Pos2, Rect, Shape, Stroke, TessellationOptions,
+    Tessellator, TextureAtlas, Vec2, pos2, tessellator::Path,
 };
 
 #[global_allocator]

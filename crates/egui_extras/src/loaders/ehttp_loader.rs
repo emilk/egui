@@ -19,13 +19,13 @@ impl File {
                     return Err(format!(
                         "failed to load {uri:?}: {} {} {response_text}",
                         response.status, response.status_text
-                    ))
+                    ));
                 }
                 None => {
                     return Err(format!(
                         "failed to load {uri:?}: {} {}",
                         response.status, response.status_text
-                    ))
+                    ));
                 }
             }
         }
@@ -65,8 +65,8 @@ impl BytesLoader for EhttpLoader {
         }
 
         let mut cache = self.cache.lock();
-        if let Some(entry) = cache.get(uri).cloned() {
-            match entry {
+        match cache.get(uri).cloned() {
+            Some(entry) => match entry {
                 Poll::Ready(Ok(file)) => Ok(BytesPoll::Ready {
                     size: None,
                     bytes: Bytes::Shared(file.bytes),
@@ -74,33 +74,34 @@ impl BytesLoader for EhttpLoader {
                 }),
                 Poll::Ready(Err(err)) => Err(LoadError::Loading(err)),
                 Poll::Pending => Ok(BytesPoll::Pending { size: None }),
+            },
+            _ => {
+                log::trace!("started loading {uri:?}");
+
+                let uri = uri.to_owned();
+                cache.insert(uri.clone(), Poll::Pending);
+                drop(cache);
+
+                ehttp::fetch(ehttp::Request::get(uri.clone()), {
+                    let ctx = ctx.clone();
+                    let cache = self.cache.clone();
+                    move |response| {
+                        let result = match response {
+                            Ok(response) => File::from_response(&uri, response),
+                            Err(err) => {
+                                // Log details; return summary
+                                log::error!("Failed to load {uri:?}: {err}");
+                                Err(format!("Failed to load {uri:?}"))
+                            }
+                        };
+                        log::trace!("finished loading {uri:?}");
+                        cache.lock().insert(uri, Poll::Ready(result));
+                        ctx.request_repaint();
+                    }
+                });
+
+                Ok(BytesPoll::Pending { size: None })
             }
-        } else {
-            log::trace!("started loading {uri:?}");
-
-            let uri = uri.to_owned();
-            cache.insert(uri.clone(), Poll::Pending);
-            drop(cache);
-
-            ehttp::fetch(ehttp::Request::get(uri.clone()), {
-                let ctx = ctx.clone();
-                let cache = self.cache.clone();
-                move |response| {
-                    let result = match response {
-                        Ok(response) => File::from_response(&uri, response),
-                        Err(err) => {
-                            // Log details; return summary
-                            log::error!("Failed to load {uri:?}: {err}");
-                            Err(format!("Failed to load {uri:?}"))
-                        }
-                    };
-                    log::trace!("finished loading {uri:?}");
-                    cache.lock().insert(uri, Poll::Ready(result));
-                    ctx.request_repaint();
-                }
-            });
-
-            Ok(BytesPoll::Pending { size: None })
         }
     }
 

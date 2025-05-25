@@ -1,5 +1,5 @@
 use egui::containers::menu::{Bar, MenuConfig, SubMenuButton};
-use egui::{include_image, PopupCloseBehavior, Ui};
+use egui::{PopupCloseBehavior, Ui, include_image};
 use egui_kittest::{Harness, SnapshotResults};
 use kittest::Queryable as _;
 

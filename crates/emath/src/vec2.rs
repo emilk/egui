@@ -169,11 +169,7 @@ impl Vec2 {
     #[inline(always)]
     pub fn normalized(self) -> Self {
         let len = self.length();
-        if len <= 0.0 {
-            self
-        } else {
-            self / len
-        }
+        if len <= 0.0 { self } else { self / len }
     }
 
     /// Checks if `self` has length `1.0` up to a precision of `1e-6`.
@@ -508,7 +504,7 @@ mod test {
     use super::*;
 
     macro_rules! almost_eq {
-        ($left: expr, $right: expr) => {
+        ($left: expr_2021, $right: expr_2021) => {
             let left = $left;
             let right = $right;
             assert!((left - right).abs() < 1e-6, "{} != {}", left, right);

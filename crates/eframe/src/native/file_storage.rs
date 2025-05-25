@@ -52,10 +52,10 @@ fn roaming_appdata() -> Option<PathBuf> {
     use windows_sys::Win32::Foundation::S_OK;
     use windows_sys::Win32::System::Com::CoTaskMemFree;
     use windows_sys::Win32::UI::Shell::{
-        FOLDERID_RoamingAppData, SHGetKnownFolderPath, KF_FLAG_DONT_VERIFY,
+        FOLDERID_RoamingAppData, KF_FLAG_DONT_VERIFY, SHGetKnownFolderPath,
     };
 
-    extern "C" {
+    unsafe extern "C" {
         fn wcslen(buf: *const u16) -> usize;
     }
     let mut path_raw = ptr::null_mut();
@@ -207,13 +207,16 @@ fn save_to_disk(file_path: &PathBuf, kv: &HashMap<String, String>) {
             let config = Default::default();
 
             profiling::scope!("ron::serialize");
-            if let Err(err) = ron::Options::default()
+            match ron::Options::default()
                 .to_io_writer_pretty(&mut writer, &kv, config)
                 .and_then(|_| writer.flush().map_err(|err| err.into()))
             {
-                log::warn!("Failed to serialize app state: {}", err);
-            } else {
-                log::trace!("Persisted to {:?}", file_path);
+                Err(err) => {
+                    log::warn!("Failed to serialize app state: {}", err);
+                }
+                _ => {
+                    log::trace!("Persisted to {:?}", file_path);
+                }
             }
         }
         Err(err) => {

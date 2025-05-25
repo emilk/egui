@@ -1,6 +1,6 @@
 use egui::{UserData, ViewportId};
 use epaint::ColorImage;
-use std::sync::{mpsc, Arc};
+use std::sync::{Arc, mpsc};
 use wgpu::{BindGroupLayout, MultisampleState, StoreOp};
 
 /// A texture and a buffer for reading the rendered frame back to the cpu.
@@ -196,7 +196,10 @@ impl CaptureState {
             wgpu::TextureFormat::Rgba8Unorm => [0, 1, 2, 3],
             wgpu::TextureFormat::Bgra8Unorm => [2, 1, 0, 3],
             _ => {
-                log::error!("Screen can't be captured unless the surface format is Rgba8Unorm or Bgra8Unorm. Current surface format is {:?}", format);
+                log::error!(
+                    "Screen can't be captured unless the surface format is Rgba8Unorm or Bgra8Unorm. Current surface format is {:?}",
+                    format
+                );
                 return;
             }
         };

@@ -1,6 +1,6 @@
 use crate::{
-    widgets, Align, Color32, CornerRadius, FontSelection, Image, NumExt as _, Rect, Response,
-    Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
+    Align, Color32, CornerRadius, FontSelection, Image, NumExt as _, Rect, Response, Sense, Stroke,
+    TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetType, widgets,
 };
 
 /// Clickable button with text.
