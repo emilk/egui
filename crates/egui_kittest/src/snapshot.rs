@@ -16,6 +16,11 @@ pub struct SnapshotOptions {
     /// The path where the snapshots will be saved.
     /// The default is `tests/snapshots`.
     pub output_path: PathBuf,
+
+    /// The percentage of pixels that can differ before the snapshot is considered a failure.
+    /// If `None`, the default is `0.00` (0%).
+    /// If `Some`, the value should be between `0.0` and `1.0`, where `1.0` means 100% of pixels can differ.
+    pub diff_percentage: Option<f64>,
 }
 
 impl Default for SnapshotOptions {
@@ -23,6 +28,7 @@ impl Default for SnapshotOptions {
         Self {
             threshold: 0.6,
             output_path: PathBuf::from("tests/snapshots"),
+            diff_percentage: None,
         }
     }
 }
@@ -195,6 +201,7 @@ pub fn try_image_snapshot_options(
     let SnapshotOptions {
         threshold,
         output_path,
+        diff_percentage,
     } = options;
 
     let parent_path = if let Some(parent) = PathBuf::from(name).parent() {
@@ -284,6 +291,14 @@ pub fn try_image_snapshot_options(
         if should_update_snapshots() {
             update_snapshot()
         } else {
+            if let Some(diff_perc) = diff_percentage {
+                let dimensions = result_image.dimensions();
+                let num_pixels = (dimensions.0 * dimensions.1) as f64;
+                let broken_percent = diff as f64 / num_pixels;
+                if broken_percent <= *diff_perc {
+                    return Ok(());
+                }
+            }
             Err(SnapshotError::Diff {
                 name: name.to_owned(),
                 diff,
