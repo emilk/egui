@@ -85,7 +85,7 @@ pub(super) fn layout(fonts: &mut FontsLayoutView<'_>, job: LayoutJob) -> Galley 
 
             //TODO(valadaptive): how to make this work with metrics-relative line height?
             //first_row_height = first_row_height.max(section.format.line_height());
-            style.line_height = parley::LineHeight::Absolute(first_row_height);
+            //style.line_height = parley::LineHeight::Absolute(first_row_height);
         }
 
         builder.push_style_span(style);
