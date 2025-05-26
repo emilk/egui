@@ -129,17 +129,15 @@ impl Widget for Hyperlink {
 
         let response = ui.add(Link::new(text));
 
-        if response.clicked() {
-            let modifiers = ui.ctx().input(|i| i.modifiers);
-            ui.ctx().open_url(crate::OpenUrl {
-                url: url.clone(),
-                new_tab: new_tab || modifiers.any(),
-            });
-        }
-        if response.middle_clicked() {
+        if response.clicked_with_open_in_background() {
             ui.ctx().open_url(crate::OpenUrl {
                 url: url.clone(),
                 new_tab: true,
+            });
+        } else if response.clicked() {
+            ui.ctx().open_url(crate::OpenUrl {
+                url: url.clone(),
+                new_tab,
             });
         }
 
