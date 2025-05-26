@@ -618,6 +618,10 @@ pub struct Modifiers {
     /// This is so that egui can, for instance, select all text by checking for `command + A`
     /// and it will work on both Mac and Windows.
     pub command: bool,
+
+    /// On Windows, the Windows key. On Linux, the super key (often.. the Windows key)
+    /// On Mac, the ⌘ Command key
+    pub meta: bool,
 }
 
 impl std::fmt::Debug for Modifiers {
@@ -661,6 +665,7 @@ impl Modifiers {
         shift: false,
         mac_cmd: false,
         command: false,
+        meta: false,
     };
 
     pub const ALT: Self = Self {
@@ -669,6 +674,7 @@ impl Modifiers {
         shift: false,
         mac_cmd: false,
         command: false,
+        meta: false,
     };
     pub const CTRL: Self = Self {
         alt: false,
@@ -676,6 +682,7 @@ impl Modifiers {
         shift: false,
         mac_cmd: false,
         command: false,
+        meta: false,
     };
     pub const SHIFT: Self = Self {
         alt: false,
@@ -683,6 +690,7 @@ impl Modifiers {
         shift: true,
         mac_cmd: false,
         command: false,
+        meta: false,
     };
 
     /// The Mac ⌘ Command key
@@ -692,6 +700,7 @@ impl Modifiers {
         shift: false,
         mac_cmd: true,
         command: false,
+        meta: false,
     };
 
     /// On Mac: ⌘ Command key, elsewhere: Ctrl key
@@ -701,6 +710,17 @@ impl Modifiers {
         shift: false,
         mac_cmd: false,
         command: true,
+        meta: false,
+    };
+
+    /// On Windows: the Windows key, On Linux: Super
+    pub const META: Self = Self {
+        alt: false,
+        ctrl: false,
+        shift: false,
+        mac_cmd: false,
+        command: false,
+        meta: true,
     };
 
     /// ```
@@ -717,6 +737,10 @@ impl Modifiers {
     ///     Modifiers::CTRL | Modifiers::ALT,
     ///     Modifiers::CTRL.plus(Modifiers::ALT),
     /// );
+    /// assert_eq!(
+    ///     Modifiers::META | Modifiers::ALT,
+    ///     Modifiers::META.plus(Modifiers::ALT),
+    /// );
     /// ```
     #[inline]
     pub const fn plus(self, rhs: Self) -> Self {
@@ -726,6 +750,7 @@ impl Modifiers {
             shift: self.shift | rhs.shift,
             mac_cmd: self.mac_cmd | rhs.mac_cmd,
             command: self.command | rhs.command,
+            meta: self.meta | rhs.meta,
         }
     }
 
@@ -741,19 +766,25 @@ impl Modifiers {
 
     #[inline]
     pub fn all(&self) -> bool {
-        self.alt && self.ctrl && self.shift && self.command
+        self.alt && self.ctrl && self.shift && self.command && self.meta
     }
 
     /// Is shift the only pressed button?
     #[inline]
     pub fn shift_only(&self) -> bool {
-        self.shift && !(self.alt || self.command)
+        self.shift && !(self.alt || self.command || self.meta)
+    }
+
+    /// Is meta the only pressed button?
+    #[inline]
+    pub fn meta_only(&self) -> bool {
+        self.meta && !(self.alt || self.command || self.shift)
     }
 
     /// true if only [`Self::ctrl`] or only [`Self::mac_cmd`] is pressed.
     #[inline]
     pub fn command_only(&self) -> bool {
-        !self.alt && !self.shift && self.command
+        self.command && !(self.alt || self.shift || self.meta)
     }
 
     /// Checks that the `ctrl/cmd` matches, and that the `shift/alt` of the argument is a subset
@@ -775,7 +806,7 @@ impl Modifiers {
     /// ```
     /// # use egui::Modifiers;
     /// # let pressed_modifiers = Modifiers::default();
-    /// if pressed_modifiers.matches(Modifiers::ALT | Modifiers::SHIFT) {
+    /// if pressed_modifiers.matches_logically(Modifiers::ALT | Modifiers::SHIFT) {
     ///     // Alt and Shift are pressed, and nothing else
     /// }
     /// ```
@@ -789,6 +820,8 @@ impl Modifiers {
     /// assert!((Modifiers::CTRL | Modifiers::COMMAND).matches_logically(Modifiers::CTRL));
     /// assert!((Modifiers::CTRL | Modifiers::COMMAND).matches_logically(Modifiers::COMMAND));
     /// assert!((Modifiers::MAC_CMD | Modifiers::COMMAND).matches_logically(Modifiers::COMMAND));
+    /// assert!(Modifiers::META.matches_logically(Modifiers::META));
+    /// assert!(!Modifiers::META.matches_logically(Modifiers::CTRL));
     /// assert!(!Modifiers::COMMAND.matches_logically(Modifiers::MAC_CMD));
     /// ```
     pub fn matches_logically(&self, pattern: Self) -> bool {
@@ -796,6 +829,9 @@ impl Modifiers {
             return false;
         }
         if pattern.shift && !self.shift {
+            return false;
+        }
+        if pattern.meta && !self.meta {
             return false;
         }
 
@@ -817,7 +853,7 @@ impl Modifiers {
     /// ```
     /// # use egui::Modifiers;
     /// # let pressed_modifiers = Modifiers::default();
-    /// if pressed_modifiers.matches(Modifiers::ALT | Modifiers::SHIFT) {
+    /// if pressed_modifiers.matches_exact(Modifiers::ALT | Modifiers::SHIFT) {
     ///     // Alt and Shift are pressed, and nothing else
     /// }
     /// ```
@@ -834,8 +870,8 @@ impl Modifiers {
     /// assert!(!Modifiers::COMMAND.matches(Modifiers::MAC_CMD));
     /// ```
     pub fn matches_exact(&self, pattern: Self) -> bool {
-        // alt and shift must always match the pattern:
-        if pattern.alt != self.alt || pattern.shift != self.shift {
+        // alt, shift, meta must always match the pattern:
+        if pattern.alt != self.alt || pattern.shift != self.shift || pattern.meta != self.meta {
             return false;
         }
 
@@ -910,6 +946,7 @@ impl Modifiers {
             shift,
             mac_cmd,
             command,
+            meta,
         } = *self;
 
         if alt && query.alt {
@@ -918,6 +955,7 @@ impl Modifiers {
                 ..query
             });
         }
+
         if shift && query.shift {
             return self.contains(Self {
                 shift: false,
@@ -932,10 +970,18 @@ impl Modifiers {
                 ..query
             });
         }
+
         if (mac_cmd || command) && (query.mac_cmd || query.command) {
             return self.contains(Self {
                 mac_cmd: false,
                 command: false,
+                ..query
+            });
+        }
+
+        if meta && query.meta {
+            return self.contains(Self {
+                meta: false,
                 ..query
             });
         }
@@ -974,13 +1020,14 @@ pub struct ModifierNames<'a> {
     pub shift: &'a str,
     pub mac_cmd: &'a str,
     pub mac_alt: &'a str,
+    pub meta: &'a str,
 
     /// What goes between the names
     pub concat: &'a str,
 }
 
 impl ModifierNames<'static> {
-    /// ⌥ ⌃ ⇧ ⌘ - NOTE: not supported by the default egui font.
+    /// ⌥ ⌃ ⇧ ⌘ ⊞ - NOTE: not supported by the default egui font.
     pub const SYMBOLS: Self = Self {
         is_short: true,
         alt: "⌥",
@@ -988,10 +1035,11 @@ impl ModifierNames<'static> {
         shift: "⇧",
         mac_cmd: "⌘",
         mac_alt: "⌥",
+        meta: "⊞",
         concat: "",
     };
 
-    /// Alt, Ctrl, Shift, Cmd
+    /// Alt, Ctrl, Shift, Cmd, Win
     pub const NAMES: Self = Self {
         is_short: false,
         alt: "Alt",
@@ -999,6 +1047,7 @@ impl ModifierNames<'static> {
         shift: "Shift",
         mac_cmd: "Cmd",
         mac_alt: "Option",
+        meta: "Win",
         concat: "+",
     };
 }
@@ -1022,6 +1071,7 @@ impl ModifierNames<'_> {
             append_if(modifiers.alt, self.mac_alt);
             append_if(modifiers.mac_cmd || modifiers.command, self.mac_cmd);
         } else {
+            append_if(modifiers.meta, self.meta);
             append_if(modifiers.ctrl || modifiers.command, self.ctrl);
             append_if(modifiers.alt, self.alt);
             append_if(modifiers.shift, self.shift);
