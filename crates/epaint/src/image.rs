@@ -47,7 +47,7 @@ impl ImageData {
 #[derive(Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ColorImage {
-    /// width, height.
+    /// width, height in texels.
     pub size: [usize; 2],
 
     /// The pixels, row by row, from top to bottom.
@@ -56,7 +56,20 @@ pub struct ColorImage {
 
 impl ColorImage {
     /// Create an image filled with the given color.
-    pub fn new(size: [usize; 2], color: Color32) -> Self {
+    pub fn new(size: [usize; 2], pixels: Vec<Color32>) -> Self {
+        debug_assert!(
+            size[0] * size[1] == pixels.len(),
+            "size: {size:?}, pixels.len(): {}",
+            pixels.len()
+        );
+        Self {
+            size,
+            pixels,
+        }
+    }
+
+    /// Create an image filled with the given color.
+    pub fn filled(size: [usize; 2], color: Color32) -> Self {
         Self {
             size,
             pixels: vec![color; size[0] * size[1]],
@@ -105,7 +118,7 @@ impl ColorImage {
             .chunks_exact(4)
             .map(|p| Color32::from_rgba_unmultiplied(p[0], p[1], p[2], p[3]))
             .collect();
-        Self { size, pixels }
+        Self::new(size, pixels)
     }
 
     pub fn from_rgba_premultiplied(size: [usize; 2], rgba: &[u8]) -> Self {
@@ -120,7 +133,7 @@ impl ColorImage {
             .chunks_exact(4)
             .map(|p| Color32::from_rgba_premultiplied(p[0], p[1], p[2], p[3]))
             .collect();
-        Self { size, pixels }
+        Self::new(size, pixels)
     }
 
     /// Create a [`ColorImage`] from flat opaque gray data.
@@ -135,7 +148,7 @@ impl ColorImage {
             gray.len()
         );
         let pixels = gray.iter().map(|p| Color32::from_gray(*p)).collect();
-        Self { size, pixels }
+        Self::new(size, pixels)
     }
 
     /// Alternative method to `from_gray`.
@@ -152,7 +165,7 @@ impl ColorImage {
             size,
             pixels.len()
         );
-        Self { size, pixels }
+        Self::new(size, pixels)
     }
 
     /// A view of the underlying data as `&[u8]`
@@ -185,14 +198,14 @@ impl ColorImage {
             .chunks_exact(3)
             .map(|p| Color32::from_rgb(p[0], p[1], p[2]))
             .collect();
-        Self { size, pixels }
+        Self::new(size, pixels)
     }
 
     /// An example color image, useful for tests.
     pub fn example() -> Self {
         let width = 128;
         let height = 64;
-        let mut img = Self::new([width, height], Color32::TRANSPARENT);
+        let mut img = Self::filled([width, height], Color32::TRANSPARENT);
         for y in 0..height {
             for x in 0..width {
                 let h = x as f32 / width as f32;
@@ -242,10 +255,7 @@ impl ColorImage {
                 &self.pixels[row * row_stride + min_x..row * row_stride + max_x],
             );
         }
-        Self {
-            size: [width, height],
-            pixels: output,
-        }
+        Self::new([width, height], output)
     }
 }
 
