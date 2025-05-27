@@ -168,6 +168,26 @@ pub enum SizeHint {
     },
 }
 
+impl SizeHint {
+    /// Multiply size hint by a factor.
+    pub fn scale_by(self, factor: f32) -> Self {
+        match self {
+            Self::Scale(scale) => Self::Scale(OrderedFloat(factor * scale.0)),
+            Self::Width(width) => Self::Width((factor * width as f32).round() as _),
+            Self::Height(height) => Self::Height((factor * height as f32).round() as _),
+            Self::Size {
+                width,
+                height,
+                maintain_aspect_ratio,
+            } => Self::Size {
+                width: (factor * width as f32).round() as _,
+                height: (factor * height as f32).round() as _,
+                maintain_aspect_ratio,
+            },
+        }
+    }
+}
+
 impl Default for SizeHint {
     #[inline]
     fn default() -> Self {
