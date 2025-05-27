@@ -226,6 +226,7 @@ impl ColorImage {
     }
 
     /// Set the source size of e.g. the original SVG image.
+    #[inline]
     pub fn with_source_size(mut self, source_size: Vec2) -> Self {
         self.source_size = source_size;
         self

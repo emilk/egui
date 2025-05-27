@@ -18,8 +18,10 @@ type Bucket = HashMap<Option<SizeHint>, Entry>;
 
 struct Entry {
     last_used: AtomicU64,
+
     /// Size of the original SVG, if any, or the texel size of the image if not an SVG.
     source_size: Vec2,
+
     handle: TextureHandle,
 }
 
