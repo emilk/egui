@@ -93,7 +93,7 @@ impl Widget for ImageButton<'_> {
 
         let available_size_for_image = ui.available_size() - 2.0 * padding;
         let tlr = self.image.load_for_size(ui.ctx(), available_size_for_image);
-        let original_image_size = tlr.as_ref().ok().and_then(|t| t.size());
+        let original_image_size = tlr.as_ref().ok().and_then(|t| t.source_size());
         let image_size = self
             .image
             .calc_size(available_size_for_image, original_image_size);

@@ -291,13 +291,16 @@ impl<'a, T: Into<ImageSource<'a>>> From<T> for Image<'a> {
 impl<'a> Image<'a> {
     /// Returns the size the image will occupy in the final UI.
     #[inline]
-    pub fn calc_size(&self, available_size: Vec2, original_image_size: Option<Vec2>) -> Vec2 {
-        let original_image_size = original_image_size.unwrap_or(Vec2::splat(24.0)); // Fallback for still-loading textures, or failure to load.
-        self.size.calc_size(available_size, original_image_size)
+    pub fn calc_size(&self, available_size: Vec2, image_source_size: Option<Vec2>) -> Vec2 {
+        let image_source_size = image_source_size.unwrap_or(Vec2::splat(24.0)); // Fallback for still-loading textures, or failure to load.
+        self.size.calc_size(available_size, image_source_size)
     }
 
     pub fn load_and_calc_size(&self, ui: &Ui, available_size: Vec2) -> Option<Vec2> {
-        let image_size = self.load_for_size(ui.ctx(), available_size).ok()?.size()?;
+        let image_size = self
+            .load_for_size(ui.ctx(), available_size)
+            .ok()?
+            .source_size()?;
         Some(self.size.calc_size(available_size, image_size))
     }
 
@@ -405,8 +408,8 @@ impl<'a> Image<'a> {
 impl Widget for Image<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         let tlr = self.load_for_size(ui.ctx(), ui.available_size());
-        let original_image_size = tlr.as_ref().ok().and_then(|t| t.size());
-        let ui_size = self.calc_size(ui.available_size(), original_image_size);
+        let image_source_size = tlr.as_ref().ok().and_then(|t| t.source_size());
+        let ui_size = self.calc_size(ui.available_size(), image_source_size);
 
         let (rect, response) = ui.allocate_exact_size(ui_size, self.sense);
         response.widget_info(|| {
@@ -516,7 +519,7 @@ impl ImageSize {
     }
 
     /// Calculate the final on-screen size in points.
-    pub fn calc_size(&self, available_size: Vec2, original_image_size: Vec2) -> Vec2 {
+    pub fn calc_size(&self, available_size: Vec2, image_source_size: Vec2) -> Vec2 {
         let Self {
             maintain_aspect_ratio,
             max_size,
@@ -524,7 +527,7 @@ impl ImageSize {
         } = *self;
         match fit {
             ImageFit::Original { scale } => {
-                let image_size = original_image_size * scale;
+                let image_size = scale * image_source_size;
                 if image_size.x <= max_size.x && image_size.y <= max_size.y {
                     image_size
                 } else {
@@ -533,11 +536,11 @@ impl ImageSize {
             }
             ImageFit::Fraction(fract) => {
                 let scale_to_size = (available_size * fract).min(max_size);
-                scale_to_fit(original_image_size, scale_to_size, maintain_aspect_ratio)
+                scale_to_fit(image_source_size, scale_to_size, maintain_aspect_ratio)
             }
             ImageFit::Exact(size) => {
                 let scale_to_size = size.min(max_size);
-                scale_to_fit(original_image_size, scale_to_size, maintain_aspect_ratio)
+                scale_to_fit(image_source_size, scale_to_size, maintain_aspect_ratio)
             }
         }
     }

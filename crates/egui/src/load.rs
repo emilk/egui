@@ -414,7 +414,7 @@ pub trait ImageLoader {
 pub struct SizedTexture {
     pub id: TextureId,
 
-    /// Size in logical ui points.
+    /// Size of the original SVG, or the size of the image in texels.
     pub size: Vec2,
 }
 
@@ -469,8 +469,18 @@ pub enum TexturePoll {
 }
 
 impl TexturePoll {
+    /// Size of the original SVG, or the size of the image in texels.
     #[inline]
     pub fn size(&self) -> Option<Vec2> {
+        match self {
+            Self::Pending { size } => *size,
+            Self::Ready { texture } => Some(texture.size),
+        }
+    }
+
+    /// Size of the original SVG, or the size of the image in texels.
+    #[inline]
+    pub fn source_size(&self) -> Option<Vec2> {
         match self {
             Self::Pending { size } => *size,
             Self::Ready { texture } => Some(texture.size),

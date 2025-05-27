@@ -1,3 +1,5 @@
+use emath::Vec2;
+
 use crate::{textures::TextureOptions, Color32};
 use std::sync::Arc;
 
@@ -50,6 +52,9 @@ pub struct ColorImage {
     /// width, height in texels.
     pub size: [usize; 2],
 
+    /// Size of the original SVG image (if any), or just the texel size of the image.
+    pub source_size: Vec2,
+
     /// The pixels, row by row, from top to bottom.
     pub pixels: Vec<Color32>,
 }
@@ -64,6 +69,7 @@ impl ColorImage {
         );
         Self {
             size,
+            source_size: Vec2::new(size[0] as f32, size[1] as f32),
             pixels,
         }
     }
@@ -72,6 +78,7 @@ impl ColorImage {
     pub fn filled(size: [usize; 2], color: Color32) -> Self {
         Self {
             size,
+            source_size: Vec2::new(size[0] as f32, size[1] as f32),
             pixels: vec![color; size[0] * size[1]],
         }
     }
@@ -216,6 +223,12 @@ impl ColorImage {
             }
         }
         img
+    }
+
+    /// Set the source size of e.g. the original SVG image.
+    pub fn with_source_size(mut self, source_size: Vec2) -> Self {
+        self.source_size = source_size;
+        self
     }
 
     #[inline]

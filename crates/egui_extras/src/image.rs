@@ -1,6 +1,6 @@
 #![allow(deprecated)]
 
-use egui::{mutex::Mutex, TextureOptions};
+use egui::{load::SizedTexture, mutex::Mutex, ColorImage, TextureOptions, Vec2};
 
 #[cfg(feature = "svg")]
 use egui::SizeHint;
@@ -16,10 +16,16 @@ use egui::SizeHint;
 pub struct RetainedImage {
     debug_name: String,
 
-    size: [usize; 2],
+    /// Texel size.
+    ///
+    /// Same as [`Self.image`]`.size`
+    texel_size: [usize; 2],
+
+    /// Original SVG size (if this is an SVG), or same as [`Self::size`].
+    source_size: Vec2,
 
     /// Cleared once [`Self::texture`] has been loaded.
-    image: Mutex<egui::ColorImage>,
+    image: Mutex<ColorImage>,
 
     /// Lazily loaded when we have an egui context.
     texture: Mutex<Option<egui::TextureHandle>>,
@@ -28,10 +34,11 @@ pub struct RetainedImage {
 }
 
 impl RetainedImage {
-    pub fn from_color_image(debug_name: impl Into<String>, image: egui::ColorImage) -> Self {
+    pub fn from_color_image(debug_name: impl Into<String>, image: ColorImage) -> Self {
         Self {
             debug_name: debug_name.into(),
-            size: image.size,
+            texel_size: image.size,
+            source_size: image.source_size,
             image: Mutex::new(image),
             texture: Default::default(),
             options: Default::default(),
@@ -68,7 +75,7 @@ impl RetainedImage {
         svg_bytes: &[u8],
         options: &resvg::usvg::Options<'_>,
     ) -> Result<Self, String> {
-        Self::from_svg_bytes_with_size(debug_name, svg_bytes, None, options)
+        Self::from_svg_bytes_with_size(debug_name, svg_bytes, Default::default(), options)
     }
 
     /// Pass in the str of an SVG that you've loaded.
@@ -81,11 +88,11 @@ impl RetainedImage {
         svg_str: &str,
         options: &resvg::usvg::Options<'_>,
     ) -> Result<Self, String> {
-        Self::from_svg_bytes(debug_name, svg_str.as_bytes(), options)
+        Self::from_svg_bytes_with_size(debug_name, svg_str.as_bytes(), Default::default(), options)
     }
 
     /// Pass in the bytes of an SVG that you've loaded
-    /// and the scaling option to resize the SVG with
+    /// and the scaling option to resize the SVG with.
     ///
     /// # Errors
     /// On invalid image
@@ -93,7 +100,7 @@ impl RetainedImage {
     pub fn from_svg_bytes_with_size(
         debug_name: impl Into<String>,
         svg_bytes: &[u8],
-        size_hint: Option<SizeHint>,
+        size_hint: SizeHint,
         options: &resvg::usvg::Options<'_>,
     ) -> Result<Self, String> {
         Ok(Self::from_color_image(
@@ -133,24 +140,16 @@ impl RetainedImage {
     }
 
     /// The size of the image data (number of pixels wide/high).
-    pub fn size(&self) -> [usize; 2] {
-        self.size
+    pub fn texel_size(&self) -> [usize; 2] {
+        self.texel_size
     }
 
-    /// The width of the image.
-    pub fn width(&self) -> usize {
-        self.size[0]
-    }
-
-    /// The height of the image.
-    pub fn height(&self) -> usize {
-        self.size[1]
-    }
-
-    /// The size of the image data (number of pixels wide/high).
-    pub fn size_vec2(&self) -> egui::Vec2 {
-        let [w, h] = self.size();
-        egui::vec2(w as f32, h as f32)
+    /// The size of the original SVG image (if any).
+    ///
+    /// Note that this can differ from [`Self::texel_size`] if the SVG was rasterized at a different
+    /// resolution than the size of the original SVG.
+    pub fn source_size(&self) -> Vec2 {
+        self.source_size
     }
 
     /// The debug name of the image, e.g. the file name.
@@ -163,7 +162,7 @@ impl RetainedImage {
         self.texture
             .lock()
             .get_or_insert_with(|| {
-                let image: &mut egui::ColorImage = &mut self.image.lock();
+                let image: &mut ColorImage = &mut self.image.lock();
                 let image = std::mem::take(image);
                 ctx.load_texture(&self.debug_name, image, self.options)
             })
@@ -172,7 +171,7 @@ impl RetainedImage {
 
     /// Show the image with the given maximum size.
     pub fn show_max_size(&self, ui: &mut egui::Ui, max_size: egui::Vec2) -> egui::Response {
-        let mut desired_size = self.size_vec2();
+        let mut desired_size = self.source_size();
         desired_size *= (max_size.x / desired_size.x).min(1.0);
         desired_size *= (max_size.y / desired_size.y).min(1.0);
         self.show_size(ui, desired_size)
@@ -180,12 +179,12 @@ impl RetainedImage {
 
     /// Show the image with the original size (one image pixel = one gui point).
     pub fn show(&self, ui: &mut egui::Ui) -> egui::Response {
-        self.show_size(ui, self.size_vec2())
+        self.show_size(ui, self.source_size())
     }
 
     /// Show the image with the given scale factor (1.0 = original size).
     pub fn show_scaled(&self, ui: &mut egui::Ui, scale: f32) -> egui::Response {
-        self.show_size(ui, self.size_vec2() * scale)
+        self.show_size(ui, self.source_size() * scale)
     }
 
     /// Show the image with the given size.
@@ -193,7 +192,7 @@ impl RetainedImage {
         // We need to convert the SVG to a texture to display it:
         // Future improvement: tell backend to do mip-mapping of the image to
         // make it look smoother when downsized.
-        ui.image((self.texture_id(ui.ctx()), desired_size))
+        ui.image(SizedTexture::new(self.texture_id(ui.ctx()), desired_size))
     }
 }
 
@@ -207,7 +206,7 @@ impl RetainedImage {
 /// # Errors
 /// On invalid image or unsupported image format.
 #[cfg(feature = "image")]
-pub fn load_image_bytes(image_bytes: &[u8]) -> Result<egui::ColorImage, egui::load::LoadError> {
+pub fn load_image_bytes(image_bytes: &[u8]) -> Result<ColorImage, egui::load::LoadError> {
     profiling::function_scope!();
     let image = image::load_from_memory(image_bytes).map_err(|err| match err {
         image::ImageError::Unsupported(err) => match err.kind() {
@@ -223,10 +222,7 @@ pub fn load_image_bytes(image_bytes: &[u8]) -> Result<egui::ColorImage, egui::lo
     let size = [image.width() as _, image.height() as _];
     let image_buffer = image.to_rgba8();
     let pixels = image_buffer.as_flat_samples();
-    Ok(egui::ColorImage::from_rgba_unmultiplied(
-        size,
-        pixels.as_slice(),
-    ))
+    Ok(ColorImage::from_rgba_unmultiplied(size, pixels.as_slice()))
 }
 
 /// Load an SVG and rasterize it into an egui image.
@@ -239,8 +235,8 @@ pub fn load_image_bytes(image_bytes: &[u8]) -> Result<egui::ColorImage, egui::lo
 pub fn load_svg_bytes(
     svg_bytes: &[u8],
     options: &resvg::usvg::Options<'_>,
-) -> Result<egui::ColorImage, String> {
-    load_svg_bytes_with_size(svg_bytes, None, options)
+) -> Result<ColorImage, String> {
+    load_svg_bytes_with_size(svg_bytes, Default::default(), options)
 }
 
 /// Load an SVG and rasterize it into an egui image with a scaling parameter.
@@ -252,9 +248,9 @@ pub fn load_svg_bytes(
 #[cfg(feature = "svg")]
 pub fn load_svg_bytes_with_size(
     svg_bytes: &[u8],
-    size_hint: Option<SizeHint>,
+    size_hint: SizeHint,
     options: &resvg::usvg::Options<'_>,
-) -> Result<egui::ColorImage, String> {
+) -> Result<ColorImage, String> {
     use egui::Vec2;
     use resvg::{
         tiny_skia::Pixmap,
@@ -265,19 +261,18 @@ pub fn load_svg_bytes_with_size(
 
     let rtree = Tree::from_data(svg_bytes, options).map_err(|err| err.to_string())?;
 
-    let original_size = Vec2::new(rtree.size().width(), rtree.size().height());
+    let source_size = Vec2::new(rtree.size().width(), rtree.size().height());
 
     let scaled_size = match size_hint {
-        None => original_size,
-        Some(SizeHint::Size {
+        SizeHint::Size {
             width,
             height,
             maintain_aspect_ratio,
-        }) => {
+        } => {
             if maintain_aspect_ratio {
                 // As large as possible, without exceeding the given size:
-                let mut size = original_size;
-                size *= width as f32 / original_size.x;
+                let mut size = source_size;
+                size *= width as f32 / source_size.x;
                 if size.y > height as f32 {
                     size *= height as f32 / size.y;
                 }
@@ -286,9 +281,9 @@ pub fn load_svg_bytes_with_size(
                 Vec2::new(width as _, height as _)
             }
         }
-        Some(SizeHint::Height(h)) => original_size * (h as f32 / original_size.y),
-        Some(SizeHint::Width(w)) => original_size * (w as f32 / original_size.x),
-        Some(SizeHint::Scale(scale)) => scale.into_inner() * original_size,
+        SizeHint::Height(h) => source_size * (h as f32 / source_size.y),
+        SizeHint::Width(w) => source_size * (w as f32 / source_size.x),
+        SizeHint::Scale(scale) => scale.into_inner() * source_size,
     };
 
     let scaled_size = scaled_size.round();
@@ -299,11 +294,12 @@ pub fn load_svg_bytes_with_size(
 
     resvg::render(
         &rtree,
-        Transform::from_scale(w as f32 / original_size.x, h as f32 / original_size.y),
+        Transform::from_scale(w as f32 / source_size.x, h as f32 / source_size.y),
         &mut pixmap.as_mut(),
     );
 
-    let image = egui::ColorImage::from_rgba_premultiplied([w as _, h as _], pixmap.data());
+    let image = ColorImage::from_rgba_premultiplied([w as _, h as _], pixmap.data())
+        .with_source_size(source_size);
 
     Ok(image)
 }
