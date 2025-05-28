@@ -461,10 +461,10 @@ pub struct ImageSize {
 #[derive(Debug, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ImageFit {
-    /// Fit the image to its original size, scaled by some factor.
+    /// Fit the image to its original srce size, scaled by some factor.
     ///
-    /// The texel size of the source image will be multiplied by the `scale` factor,
-    /// and then become the _ui_ size of the [`Image`].
+    /// The original size of the image is usually its texel resolution,
+    /// but for an SVG it's the point size of the SVG.
     ///
     /// Ignores how much space is actually available in the ui.
     Original { scale: f32 },
