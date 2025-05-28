@@ -817,7 +817,7 @@ impl Modifiers {
     /// ```
     /// # use egui::Modifiers;
     /// # let pressed_modifiers = Modifiers::default();
-    /// if pressed_modifiers.matches(Modifiers::ALT | Modifiers::SHIFT) {
+    /// if pressed_modifiers.matches_exact(Modifiers::ALT | Modifiers::SHIFT) {
     ///     // Alt and Shift are pressed, and nothing else
     /// }
     /// ```
@@ -825,13 +825,13 @@ impl Modifiers {
     /// ## Behavior:
     /// ```
     /// # use egui::Modifiers;
-    /// assert!(Modifiers::CTRL.matches_logically(Modifiers::CTRL));
-    /// assert!(!Modifiers::CTRL.matches_logically(Modifiers::CTRL | Modifiers::SHIFT));
-    /// assert!(!(Modifiers::CTRL | Modifiers::SHIFT).matches_logically(Modifiers::CTRL));
-    /// assert!((Modifiers::CTRL | Modifiers::COMMAND).matches_logically(Modifiers::CTRL));
-    /// assert!((Modifiers::CTRL | Modifiers::COMMAND).matches_logically(Modifiers::COMMAND));
-    /// assert!((Modifiers::MAC_CMD | Modifiers::COMMAND).matches_logically(Modifiers::COMMAND));
-    /// assert!(!Modifiers::COMMAND.matches_logically(Modifiers::MAC_CMD));
+    /// assert!(Modifiers::CTRL.matches_exact(Modifiers::CTRL));
+    /// assert!(!Modifiers::CTRL.matches_exact(Modifiers::CTRL | Modifiers::SHIFT));
+    /// assert!(!(Modifiers::CTRL | Modifiers::SHIFT).matches_exact(Modifiers::CTRL));
+    /// assert!((Modifiers::CTRL | Modifiers::COMMAND).matches_exact(Modifiers::CTRL));
+    /// assert!((Modifiers::CTRL | Modifiers::COMMAND).matches_exact(Modifiers::COMMAND));
+    /// assert!((Modifiers::MAC_CMD | Modifiers::COMMAND).matches_exact(Modifiers::COMMAND));
+    /// assert!(!Modifiers::COMMAND.matches_exact(Modifiers::MAC_CMD));
     /// ```
     pub fn matches_exact(&self, pattern: Self) -> bool {
         // alt and shift must always match the pattern:
