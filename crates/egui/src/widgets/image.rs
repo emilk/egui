@@ -156,6 +156,9 @@ impl<'a> Image<'a> {
 
     /// Fit the image to its original size with some scaling.
     ///
+    /// The texel size of the source image will be multiplied by the `scale` factor,
+    /// and then become the _ui_ size of the [`Image`].
+    ///
     /// This will cause the image to overflow if it is larger than the available space.
     ///
     /// If [`Image::max_size`] is set, this is guaranteed to never exceed that limit.
@@ -297,10 +300,7 @@ impl<'a> Image<'a> {
     }
 
     pub fn load_and_calc_size(&self, ui: &Ui, available_size: Vec2) -> Option<Vec2> {
-        let image_size = self
-            .load_for_size(ui.ctx(), available_size)
-            .ok()?
-            .source_size()?;
+        let image_size = self.load_for_size(ui.ctx(), available_size).ok()?.size()?;
         Some(self.size.calc_size(available_size, image_size))
     }
 
@@ -408,7 +408,7 @@ impl<'a> Image<'a> {
 impl Widget for Image<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         let tlr = self.load_for_size(ui.ctx(), ui.available_size());
-        let image_source_size = tlr.as_ref().ok().and_then(|t| t.source_size());
+        let image_source_size = tlr.as_ref().ok().and_then(|t| t.size());
         let ui_size = self.calc_size(ui.available_size(), image_source_size);
 
         let (rect, response) = ui.allocate_exact_size(ui_size, self.sense);
@@ -462,6 +462,9 @@ pub struct ImageSize {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ImageFit {
     /// Fit the image to its original size, scaled by some factor.
+    ///
+    /// The texel size of the source image will be multiplied by the `scale` factor,
+    /// and then become the _ui_ size of the [`Image`].
     ///
     /// Ignores how much space is actually available in the ui.
     Original { scale: f32 },

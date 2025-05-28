@@ -222,6 +222,10 @@ pub fn load_image_bytes(image_bytes: &[u8]) -> Result<ColorImage, egui::load::Lo
     let size = [image.width() as _, image.height() as _];
     let image_buffer = image.to_rgba8();
     let pixels = image_buffer.as_flat_samples();
+
+    // TODO(emilk): if this is a PNG, looks for DPI info to calculate the source size,
+    // e.g. for screenshots taken on a high-DPI/retina display.
+
     Ok(ColorImage::from_rgba_unmultiplied(size, pixels.as_slice()))
 }
 
