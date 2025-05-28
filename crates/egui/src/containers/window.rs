@@ -205,6 +205,13 @@ impl<'open> Window<'open> {
         self
     }
 
+    /// Set the [`AreaPosition`] of this window
+    #[inline]
+    pub fn position(mut self, position: AreaPosition) -> Self {
+        self.area = self.area.position(position);
+        self
+    }
+
     /// Set current position of the window.
     /// If the window is movable it is up to you to keep track of where it moved to!
     #[inline]
