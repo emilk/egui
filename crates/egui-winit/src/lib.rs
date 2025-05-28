@@ -1102,7 +1102,7 @@ fn key_from_named_key(named_key: winit::keyboard::NamedKey) -> Option<egui::Key>
         NamedKey::Backspace => Key::Backspace,
         NamedKey::Delete => Key::Delete,
         NamedKey::Insert => Key::Insert,
-        NamedKey::Escape => Key::Escape,
+        NamedKey::Escape | NamedKey::BrowserBack => Key::Escape,
         NamedKey::Cut => Key::Cut,
         NamedKey::Copy => Key::Copy,
         NamedKey::Paste => Key::Paste,
