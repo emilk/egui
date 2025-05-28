@@ -1019,6 +1019,9 @@ pub struct Visuals {
 
     /// How to display numeric color values.
     pub numeric_color_space: NumericColorSpace,
+
+    /// How much to modify the alpha of a disabled widget.
+    pub disabled_alpha: f32,
 }
 
 impl Visuals {
@@ -1053,18 +1056,26 @@ impl Visuals {
         self.window_stroke
     }
 
-    /// When fading out things, we fade the colors towards this.
-    // TODO(emilk): replace with an alpha
+    /// Disabled widgets have their alpha modified by this.
     #[inline(always)]
-    pub fn fade_out_to_color(&self) -> Color32 {
-        self.widgets.noninteractive.weak_bg_fill
+    pub fn disabled_alpha(&self) -> f32 {
+        self.disabled_alpha
     }
 
-    /// Returned a "grayed out" version of the given color.
+    /// Returns a "disabled" version of the given color.
+    ///
+    /// This function modifies the opcacity of the given color.
+    /// If this is undesirable use [`gray_out`](Self::gray_out).
+    #[inline(always)]
+    pub fn disable(&self, color: Color32) -> Color32 {
+        color.gamma_multiply(self.disabled_alpha())
+    }
+
+    /// Returns a "grayed out" version of the given color.
     #[doc(alias = "grey_out")]
     #[inline(always)]
     pub fn gray_out(&self, color: Color32) -> Color32 {
-        crate::ecolor::tint_color_towards(color, self.fade_out_to_color())
+        crate::ecolor::tint_color_towards(color, self.widgets.noninteractive.weak_bg_fill)
     }
 }
 
@@ -1384,6 +1395,7 @@ impl Visuals {
             image_loading_spinners: true,
 
             numeric_color_space: NumericColorSpace::GammaByte,
+            disabled_alpha: 0.5,
         }
     }
 
@@ -2063,6 +2075,7 @@ impl Visuals {
             image_loading_spinners,
 
             numeric_color_space,
+            disabled_alpha,
         } = self;
 
         ui.collapsing("Background Colors", |ui| {
@@ -2191,6 +2204,8 @@ impl Visuals {
                 ui.label("Color picker type");
                 numeric_color_space.toggle_button_ui(ui);
             });
+
+            ui.add(Slider::new(disabled_alpha, 0.0..=1.0).text("Disabled element alpha"));
         });
 
         ui.vertical_centered(|ui| reset_button(ui, self, "Reset visuals"));
