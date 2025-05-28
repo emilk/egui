@@ -467,17 +467,18 @@ pub use emath::{
 };
 pub use epaint::{
     mutex,
-    text::{FontData, FontDefinitions, FontFamily, FontId, FontTweak},
+    text::{FontData, FontDefinitions, FontTweak},
     textures::{TextureFilter, TextureOptions, TextureWrapMode, TexturesDelta},
-    ClippedPrimitive, ColorImage, CornerRadius, FontImage, ImageData, Margin, Mesh, PaintCallback,
+    ClippedPrimitive, ColorImage, CornerRadius, ImageData, Margin, Mesh, PaintCallback,
     PaintCallbackInfo, Shadow, Shape, Stroke, StrokeKind, TextureHandle, TextureId,
 };
 
 pub mod text {
-    pub use crate::text_selection::CCursorRange;
     pub use epaint::text::{
-        cursor::CCursor, FontData, FontDefinitions, FontFamily, Fonts, Galley, LayoutJob,
-        LayoutSection, TextFormat, TextWrapping, TAB_SIZE,
+        cursor::{ByteCursor, Selection},
+        style::{self, TextFormat},
+        FontData, FontDefinitions, FontStore, Galley, LayoutJob, LayoutSection, TextWrapping,
+        TAB_SIZE,
     };
 }
 

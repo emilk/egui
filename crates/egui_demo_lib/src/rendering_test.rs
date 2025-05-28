@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
 use egui::{
-    emath::GuiRounding as _, epaint, lerp, pos2, vec2, widgets::color_picker::show_color, Align2,
-    Color32, FontId, Image, Mesh, Pos2, Rect, Response, Rgba, RichText, Sense, Shape, Stroke,
-    TextureHandle, TextureOptions, Ui, Vec2,
+    emath::GuiRounding as _, epaint, lerp, pos2, text::style::FontId, vec2,
+    widgets::color_picker::show_color, Align2, Color32, Image, Mesh, Pos2, Rect, Response, Rgba,
+    RichText, Sense, Shape, Stroke, TextureHandle, TextureOptions, Ui, Vec2,
 };
 
 const GRADIENT_SIZE: Vec2 = vec2(256.0, 18.0);
@@ -629,21 +629,21 @@ fn paint_fine_lines_and_text(painter: &egui::Painter, mut rect: Rect, color: Col
                 rect.center_top() + vec2(0.0, y),
                 Align2::LEFT_TOP,
                 format!("{:.0}% white", 100.0 * opacity),
-                FontId::proportional(14.0),
+                FontId::system_ui(14.0),
                 Color32::WHITE.gamma_multiply(opacity),
             );
             painter.text(
                 rect.center_top() + vec2(80.0, y),
                 Align2::LEFT_TOP,
                 format!("{:.0}% gray", 100.0 * opacity),
-                FontId::proportional(14.0),
+                FontId::system_ui(14.0),
                 Color32::GRAY.gamma_multiply(opacity),
             );
             painter.text(
                 rect.center_top() + vec2(160.0, y),
                 Align2::LEFT_TOP,
                 format!("{:.0}% black", 100.0 * opacity),
-                FontId::proportional(14.0),
+                FontId::system_ui(14.0),
                 Color32::BLACK.gamma_multiply(opacity),
             );
             y += 20.0;
@@ -656,7 +656,7 @@ fn paint_fine_lines_and_text(painter: &egui::Painter, mut rect: Rect, color: Col
                 format!(
                     "{font_size}px - The quick brown fox jumps over the lazy dog and runs away."
                 ),
-                FontId::proportional(font_size),
+                FontId::system_ui(font_size),
                 color,
             );
             y += font_size + 1.0;
