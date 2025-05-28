@@ -2,7 +2,7 @@
 //!
 //! Made for [`egui`](https://github.com/emilk/egui/).
 //!
-//! Create some [`Shape`]:s and pass them to [`tessellate_shapes`] to generate [`Mesh`]:es
+//! Create some [`Shape`]:s and pass them to [`Tessellator::tessellate_shapes`] to generate [`Mesh`]:es
 //! that you can then paint using some graphics API of your choice (e.g. OpenGL).
 //!
 //! ## Coordinate system
@@ -71,9 +71,6 @@ pub use self::{
 
 #[deprecated = "Renamed to CornerRadius"]
 pub type Rounding = CornerRadius;
-
-#[expect(deprecated)]
-pub use tessellator::tessellate_shapes;
 
 pub use ecolor::{Color32, Hsva, HsvaGamma, Rgba};
 pub use emath::{pos2, vec2, Pos2, Rect, Vec2};

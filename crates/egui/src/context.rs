@@ -2,14 +2,13 @@
 
 use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration};
 
-use emath::GuiRounding as _;
+use emath::{GuiRounding as _, OrderedFloat};
 use epaint::{
     emath::{self, TSTransform},
     mutex::RwLock,
     stats::PaintStats,
     tessellator,
     text::{FontInsert, FontPriority, Fonts},
-    util::OrderedFloat,
     vec2, ClippedPrimitive, ClippedShape, Color32, ImageData, ImageDelta, Pos2, Rect, StrokeKind,
     TessellationOptions, TextureAtlas, TextureId, Vec2,
 };
@@ -1229,13 +1228,6 @@ impl Context {
             })
         })
         .map(|widget_rect| self.get_response(widget_rect))
-    }
-
-    /// Returns `true` if the widget with the given `Id` contains the pointer.
-    #[deprecated = "Use Response.contains_pointer or Context::read_response instead"]
-    pub fn widget_contains_pointer(&self, id: Id) -> bool {
-        self.read_response(id)
-            .is_some_and(|response| response.contains_pointer())
     }
 
     /// Do all interaction for an existing widget, without (re-)registering it.
@@ -2738,21 +2730,6 @@ impl Context {
     pub fn layer_transform_from_global(&self, layer_id: LayerId) -> Option<TSTransform> {
         self.layer_transform_to_global(layer_id)
             .map(|t| t.inverse())
-    }
-
-    /// Move all the graphics at the given layer.
-    ///
-    /// Is used to implement drag-and-drop preview.
-    ///
-    /// This only applied to the existing graphics at the layer, not to new graphics added later.
-    ///
-    /// For a persistent transform, use [`Self::set_transform_layer`] instead.
-    #[deprecated = "Use `transform_layer_shapes` instead"]
-    pub fn translate_layer(&self, layer_id: LayerId, delta: Vec2) {
-        if delta != Vec2::ZERO {
-            let transform = emath::TSTransform::from_translation(delta);
-            self.transform_layer_shapes(layer_id, transform);
-        }
     }
 
     /// Transform all the graphics at the given layer.

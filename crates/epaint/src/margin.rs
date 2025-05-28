@@ -96,18 +96,6 @@ impl Margin {
     pub const fn is_same(self) -> bool {
         self.left == self.right && self.left == self.top && self.left == self.bottom
     }
-
-    #[deprecated = "Use `rect + margin` instead"]
-    #[inline]
-    pub fn expand_rect(self, rect: Rect) -> Rect {
-        Rect::from_min_max(rect.min - self.left_top(), rect.max + self.right_bottom())
-    }
-
-    #[deprecated = "Use `rect - margin` instead"]
-    #[inline]
-    pub fn shrink_rect(self, rect: Rect) -> Rect {
-        Rect::from_min_max(rect.min + self.left_top(), rect.max - self.right_bottom())
-    }
 }
 
 impl From<i8> for Margin {
