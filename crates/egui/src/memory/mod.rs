@@ -993,59 +993,6 @@ impl Memory {
         self.focus_mut().focused_widget = None;
     }
 
-    /// Is any widget being dragged?
-    #[deprecated = "Use `Context::dragged_id` instead"]
-    #[inline(always)]
-    pub fn is_anything_being_dragged(&self) -> bool {
-        self.interaction().potential_drag_id.is_some()
-    }
-
-    /// Is this specific widget being dragged?
-    ///
-    /// A widget that sense both clicks and drags is only marked as "dragged"
-    /// when the mouse has moved a bit, but `is_being_dragged` will return true immediately.
-    #[deprecated = "Use `Context::is_being_dragged` instead"]
-    #[inline(always)]
-    pub fn is_being_dragged(&self, id: Id) -> bool {
-        self.interaction().potential_drag_id == Some(id)
-    }
-
-    /// Get the id of the widget being dragged, if any.
-    ///
-    /// Note that this is set as soon as the mouse is pressed,
-    /// so the widget may not yet be marked as "dragged",
-    /// as that can only happen after the mouse has moved a bit
-    /// (at least if the widget is interesated in both clicks and drags).
-    #[deprecated = "Use `Context::dragged_id` instead"]
-    #[inline(always)]
-    pub fn dragged_id(&self) -> Option<Id> {
-        self.interaction().potential_drag_id
-    }
-
-    /// Set which widget is being dragged.
-    #[inline(always)]
-    #[deprecated = "Use `Context::set_dragged_id` instead"]
-    pub fn set_dragged_id(&mut self, id: Id) {
-        self.interaction_mut().potential_drag_id = Some(id);
-    }
-
-    /// Stop dragging any widget.
-    #[inline(always)]
-    #[deprecated = "Use `Context::stop_dragging` instead"]
-    pub fn stop_dragging(&mut self) {
-        self.interaction_mut().potential_drag_id = None;
-    }
-
-    /// Is something else being dragged?
-    ///
-    /// Returns true if we are dragging something, but not the given widget.
-    #[inline(always)]
-    #[deprecated = "Use `Context::dragging_something_else` instead"]
-    pub fn dragging_something_else(&self, not_this: Id) -> bool {
-        let drag_id = self.interaction().potential_drag_id;
-        drag_id.is_some() && drag_id != Some(not_this)
-    }
-
     /// Forget window positions, sizes etc.
     /// Can be used to auto-layout windows.
     pub fn reset_areas(&mut self) {

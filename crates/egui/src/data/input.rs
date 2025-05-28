@@ -592,7 +592,7 @@ pub const NUM_POINTER_BUTTONS: usize = 5;
 
 /// State of the modifier keys. These must be fed to egui.
 ///
-/// The best way to compare [`Modifiers`] is by using [`Modifiers::matches`].
+/// The best way to compare [`Modifiers`] is by using [`Modifiers::matches_logically`] or [`Modifiers::matches_exact`].
 ///
 /// NOTE: For cross-platform uses, ALT+SHIFT is a bad combination of modifiers
 /// as on mac that is how you type special characters,
@@ -840,11 +840,6 @@ impl Modifiers {
         }
 
         self.cmd_ctrl_matches(pattern)
-    }
-
-    #[deprecated = "Renamed `matches_exact`, but maybe you want to use `matches_logically` instead"]
-    pub fn matches(&self, pattern: Self) -> bool {
-        self.matches_exact(pattern)
     }
 
     /// Checks only cmd/ctrl, not alt/shift.
