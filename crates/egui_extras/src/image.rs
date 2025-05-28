@@ -1,5 +1,3 @@
-use egui::ColorImage;
-
 #[cfg(feature = "svg")]
 use egui::SizeHint;
 
@@ -13,7 +11,7 @@ use egui::SizeHint;
 /// # Errors
 /// On invalid image or unsupported image format.
 #[cfg(feature = "image")]
-pub fn load_image_bytes(image_bytes: &[u8]) -> Result<ColorImage, egui::load::LoadError> {
+pub fn load_image_bytes(image_bytes: &[u8]) -> Result<egui::ColorImage, egui::load::LoadError> {
     profiling::function_scope!();
     let image = image::load_from_memory(image_bytes).map_err(|err| match err {
         image::ImageError::Unsupported(err) => match err.kind() {
@@ -33,7 +31,10 @@ pub fn load_image_bytes(image_bytes: &[u8]) -> Result<ColorImage, egui::load::Lo
     // TODO(emilk): if this is a PNG, looks for DPI info to calculate the source size,
     // e.g. for screenshots taken on a high-DPI/retina display.
 
-    Ok(ColorImage::from_rgba_unmultiplied(size, pixels.as_slice()))
+    Ok(egui::ColorImage::from_rgba_unmultiplied(
+        size,
+        pixels.as_slice(),
+    ))
 }
 
 /// Load an SVG and rasterize it into an egui image.
@@ -46,7 +47,7 @@ pub fn load_image_bytes(image_bytes: &[u8]) -> Result<ColorImage, egui::load::Lo
 pub fn load_svg_bytes(
     svg_bytes: &[u8],
     options: &resvg::usvg::Options<'_>,
-) -> Result<ColorImage, String> {
+) -> Result<egui::ColorImage, String> {
     load_svg_bytes_with_size(svg_bytes, Default::default(), options)
 }
 
@@ -61,7 +62,7 @@ pub fn load_svg_bytes_with_size(
     svg_bytes: &[u8],
     size_hint: SizeHint,
     options: &resvg::usvg::Options<'_>,
-) -> Result<ColorImage, String> {
+) -> Result<egui::ColorImage, String> {
     use egui::Vec2;
     use resvg::{
         tiny_skia::Pixmap,
@@ -109,7 +110,7 @@ pub fn load_svg_bytes_with_size(
         &mut pixmap.as_mut(),
     );
 
-    let image = ColorImage::from_rgba_premultiplied([w as _, h as _], pixmap.data())
+    let image = egui::ColorImage::from_rgba_premultiplied([w as _, h as _], pixmap.data())
         .with_source_size(source_size);
 
     Ok(image)
