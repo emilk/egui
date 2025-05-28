@@ -21,7 +21,7 @@ pub struct RetainedImage {
     /// Same as [`Self.image`]`.size`
     texel_size: [usize; 2],
 
-    /// Original SVG size (if this is an SVG), or same as [`Self::size`].
+    /// Original SVG size (if this is an SVG), or same as [`Self::texel_size`].
     source_size: Vec2,
 
     /// Cleared once [`Self::texture`] has been loaded.
