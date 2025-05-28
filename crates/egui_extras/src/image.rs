@@ -119,10 +119,7 @@ impl RetainedImage {
     /// # use egui_extras::RetainedImage;
     /// # use egui::{Color32, epaint::{ColorImage, textures::TextureOptions}};
     /// # let pixels = vec![Color32::BLACK];
-    /// # let color_image = ColorImage {
-    /// #   size: [1, 1],
-    /// #   pixels,
-    /// # };
+    /// # let color_image = ColorImage::new([1, 1], pixels);
     /// #
     /// // Upload a pixel art image without it getting blurry when resized
     /// let image = RetainedImage::from_color_image("my_image", color_image)
