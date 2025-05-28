@@ -152,6 +152,30 @@ impl RetainedImage {
         self.source_size
     }
 
+    #[deprecated = "use `texel_size` or `source_size` instead"]
+    pub fn size(&self) -> [usize; 2] {
+        self.texel_size
+    }
+
+    /// The width of the image.
+    #[deprecated = "use `texel_size` or `source_size` instead"]
+    pub fn width(&self) -> usize {
+        self.texel_size[0]
+    }
+
+    /// The height of the image.
+    #[deprecated = "use `texel_size` or `source_size` instead"]
+    pub fn height(&self) -> usize {
+        self.texel_size[1]
+    }
+
+    /// The size of the image data (number of pixels wide/high).
+    #[deprecated = "use `texel_size` or `source_size` instead"]
+    pub fn size_vec2(&self) -> egui::Vec2 {
+        let [w, h] = self.texel_size;
+        egui::vec2(w as f32, h as f32)
+    }
+
     /// The debug name of the image, e.g. the file name.
     pub fn debug_name(&self) -> &str {
         &self.debug_name
