@@ -312,6 +312,7 @@ You can also render your 3D scene to a texture and display it using [`ui.image(â
 
 Examples:
 * Using [`egui-miniquad`]( https://github.com/not-fl3/egui-miniquad): https://github.com/not-fl3/egui-miniquad/blob/master/examples/render_to_egui_image.rs
+* Using [`eframe`](https://github.com/emilk/egui/tree/main/crates/eframe) + [`VTK (C++)`](https://vtk.org/): https://github.com/Gerharddc/vtk-egui-demo
 
 
 ## Other
