@@ -76,6 +76,8 @@ pub enum Event {
 
         /// The state of the modifier keys at the time of the event.
         modifiers: Modifiers,
+
+        text: Option<String>,
     },
 
     /// The set of held modifier keys changed.
