@@ -758,6 +758,20 @@ impl State {
             physical_key
         );
 
+        // Filter text of control characters
+        let text = match text
+            .as_ref()
+            .map(|t| t.as_str())
+            .or_else(|| winit_logical_key.to_text())
+        {
+            // On some platforms we get here when the user presses Cmd-C (copy), ctrl-W, etc.
+            // We need to ignore these characters that are side-effects of commands.
+            Some(text) if !text.is_empty() && text.chars().all(is_printable_char) => {
+                Some(text.to_owned())
+            }
+            _ => None,
+        };
+
         // "Logical OR physical key" is a fallback mechanism for keyboard layouts without Latin characters: it lets them
         // emit events as if the corresponding keys from the Latin layout were pressed. In this case, clipboard shortcuts
         // are mapped to the physical keys that normally contain C, X, V, etc.
@@ -787,29 +801,24 @@ impl State {
                 pressed,
                 repeat: false, // egui will fill this in for us!
                 modifiers: self.egui_input.modifiers,
+                text: text.clone(),
             });
         }
 
-        if let Some(text) = text
-            .as_ref()
-            .map(|t| t.as_str())
-            .or_else(|| winit_logical_key.to_text())
-        {
-            // Make sure there is text, and that it is not control characters
-            // (e.g. delete is sent as "\u{f728}" on macOS).
-            if !text.is_empty() && text.chars().all(is_printable_char) {
-                // On some platforms we get here when the user presses Cmd-C (copy), ctrl-W, etc.
-                // We need to ignore these characters that are side-effects of commands.
-                // Also make sure the key is pressed (not released). On Linux, text might
-                // contain some data even when the key is released.
-                let is_cmd = self.egui_input.modifiers.ctrl
-                    || self.egui_input.modifiers.command
-                    || self.egui_input.modifiers.mac_cmd;
-                if pressed && !is_cmd {
-                    self.egui_input
-                        .events
-                        .push(egui::Event::Text(text.to_owned()));
-                }
+        // Make sure there is text, and that it is not control characters
+        // (e.g. delete is sent as "\u{f728}" on macOS).
+        if let Some(text) = text {
+            // On some platforms we get here when the user presses Cmd-C (copy), ctrl-W, etc.
+            // We need to ignore these characters that are side-effects of commands.
+            // Also make sure the key is pressed (not released). On Linux, text might
+            // contain some data even when the key is released.
+
+            let is_cmd = self.egui_input.modifiers.ctrl
+                || self.egui_input.modifiers.command
+                || self.egui_input.modifiers.mac_cmd;
+
+            if pressed && !is_cmd {
+                self.egui_input.events.push(egui::Event::Text(text));
             }
         }
     }
