@@ -569,6 +569,16 @@ impl Widget for DragValue<'_> {
                     .font(text_style),
             );
 
+            // Select all text when the edit gains focus.
+            if ui.memory_mut(|mem| mem.gained_focus(id)) {
+                let mut state = TextEdit::load_state(ui.ctx(), id).unwrap_or_default();
+                state.cursor.set_char_range(Some(text::CCursorRange::two(
+                    text::CCursor::default(),
+                    text::CCursor::new(value_text.chars().count()),
+                )));
+                state.store(ui.ctx(), response.id);
+            }
+
             let update = if update_while_editing {
                 // Update when the edit content has changed.
                 response.changed()
