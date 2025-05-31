@@ -423,6 +423,7 @@ impl<'a, State> Harness<'a, State> {
             modifiers: self.input.modifiers,
             repeat: false,
             physical_key: None,
+            text: None
         });
         self.input.events.push(egui::Event::Key {
             key,
@@ -430,6 +431,7 @@ impl<'a, State> Harness<'a, State> {
             modifiers: self.input.modifiers,
             repeat: false,
             physical_key: None,
+            text: None
         });
     }
 
@@ -449,6 +451,7 @@ impl<'a, State> Harness<'a, State> {
             modifiers,
             repeat: false,
             physical_key: None,
+            text: None
         });
         self.step();
         self.input.events.push(egui::Event::Key {
@@ -457,6 +460,7 @@ impl<'a, State> Harness<'a, State> {
             modifiers,
             repeat: false,
             physical_key: None,
+            text: None
         });
 
         self.input.modifiers = previous_modifiers;

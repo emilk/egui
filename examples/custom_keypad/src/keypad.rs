@@ -39,6 +39,7 @@ impl State {
                 pressed: true,
                 repeat: false,
                 modifiers: Default::default(),
+                text: None,
             });
         }
         events.push(egui::Event::Text(c.to_string()));
@@ -52,6 +53,7 @@ impl State {
             pressed: true,
             repeat: false,
             modifiers: Default::default(),
+                text: None,
         });
     }
 }
