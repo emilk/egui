@@ -17,10 +17,45 @@ pub struct SnapshotOptions {
     /// The default is `tests/snapshots`.
     pub output_path: PathBuf,
 
-    /// The percentage of pixels that can differ before the snapshot is considered a failure.
-    /// If `None`, the default is `0.00` (0%).
-    /// If `Some`, the value should be between `0.0` and `1.0`, where `1.0` means 100% of pixels can differ.
-    pub diff_percentage: Option<f64>,
+    /// The number of pixels that can differ before the snapshot is considered a failure.
+    /// Preferably, you should use `threshold` to control the sensitivity of the image comparison.
+    /// As a last resort, you can use this to allow a certain number of pixels to differ.
+    /// If `None`, the default is `0` (meaning no pixels can differ).
+    /// If `Some`, the value can be set per OS
+    pub diff_threshold: Option<ThresholdHelper>,
+}
+
+/// Helper struct to define the number of pixels that can differ before the snapshot is considered a failure.
+/// This is useful if you want to set different thresholds for different operating systems.
+#[derive(Default, Copy, Clone)]
+pub struct ThresholdHelper {
+    pub windows: i32,
+    pub macos: i32,
+    pub linux: i32,
+}
+
+impl ThresholdHelper {
+    pub fn new(windows: Option<i32>, macos: Option<i32>, linux: Option<i32>) -> Self {
+        Self {
+            windows: windows.unwrap_or(0),
+            macos: macos.unwrap_or(0),
+            linux: linux.unwrap_or(0),
+        }
+    }
+}
+
+impl From<ThresholdHelper> for i32 {
+    fn from(val: ThresholdHelper) -> Self {
+        if cfg!(target_os = "windows") {
+            val.windows
+        } else if cfg!(target_os = "macos") {
+            val.macos
+        } else if cfg!(target_os = "linux") {
+            val.linux
+        } else {
+            0 // Default value if the OS is not recognized
+        }
+    }
 }
 
 impl Default for SnapshotOptions {
@@ -28,7 +63,7 @@ impl Default for SnapshotOptions {
         Self {
             threshold: 0.6,
             output_path: PathBuf::from("tests/snapshots"),
-            diff_percentage: None,
+            diff_threshold: None,
         }
     }
 }
@@ -201,7 +236,7 @@ pub fn try_image_snapshot_options(
     let SnapshotOptions {
         threshold,
         output_path,
-        diff_percentage,
+        diff_threshold,
     } = options;
 
     let parent_path = if let Some(parent) = PathBuf::from(name).parent() {
@@ -288,14 +323,13 @@ pub fn try_image_snapshot_options(
                 path: diff_path.clone(),
                 err,
             })?;
+
         if should_update_snapshots() {
             update_snapshot()
         } else {
-            if let Some(diff_perc) = diff_percentage {
-                let dimensions = result_image.dimensions();
-                let num_pixels = (dimensions.0 * dimensions.1) as f64;
-                let broken_percent = diff as f64 / num_pixels;
-                if broken_percent <= *diff_perc {
+            if let Some(diff_threshold) = *diff_threshold {
+                let diff_value: i32 = diff_threshold.into();
+                if diff <= diff_value {
                     return Ok(());
                 }
             }
