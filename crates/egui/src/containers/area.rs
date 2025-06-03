@@ -120,6 +120,7 @@ pub struct Area {
     anchor: Option<(Align2, Vec2)>,
     new_pos: Option<Pos2>,
     fade_in: bool,
+    force_resize_to_content: bool,
 }
 
 impl WidgetWithState for Area {
@@ -145,6 +146,7 @@ impl Area {
             pivot: Align2::LEFT_TOP,
             anchor: None,
             fade_in: true,
+            force_resize_to_content: false,
         }
     }
 
@@ -339,6 +341,12 @@ impl Area {
         self.fade_in = fade_in;
         self
     }
+
+    #[inline]
+    pub fn force_resize_to_content(mut self, resize: bool) -> Self {
+        self.force_resize_to_content = resize;
+        self
+    }
 }
 
 pub(crate) struct Prepared {
@@ -390,6 +398,7 @@ impl Area {
             constrain,
             constrain_rect,
             fade_in,
+            force_resize_to_content,
         } = self;
 
         let constrain_rect = constrain_rect.unwrap_or_else(|| ctx.screen_rect());
@@ -405,6 +414,10 @@ impl Area {
             interactable,
             last_became_visible_at: None,
         });
+        if force_resize_to_content {
+            sizing_pass = true;
+            state.size = None;
+        }
         state.pivot = pivot;
         state.interactable = interactable;
         if let Some(new_pos) = new_pos {
