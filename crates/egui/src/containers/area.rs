@@ -121,6 +121,7 @@ pub struct Area {
     new_pos: Option<Pos2>,
     fade_in: bool,
     layout: Layout,
+    force_resize_to_content: bool,
 }
 
 impl WidgetWithState for Area {
@@ -147,6 +148,7 @@ impl Area {
             anchor: None,
             fade_in: true,
             layout: Layout::default(),
+            force_resize_to_content: false,
         }
     }
 
@@ -355,6 +357,11 @@ impl Area {
     #[inline]
     pub fn layout(mut self, layout: Layout) -> Self {
         self.layout = layout;
+    }
+
+    #[inline]
+    pub fn force_resize_to_content(mut self, resize: bool) -> Self {
+        self.force_resize_to_content = resize;
         self
     }
 }
@@ -410,6 +417,7 @@ impl Area {
             constrain_rect,
             fade_in,
             layout,
+            force_resize_to_content,
         } = self;
 
         let constrain_rect = constrain_rect.unwrap_or_else(|| ctx.screen_rect());
@@ -425,6 +433,10 @@ impl Area {
             interactable,
             last_became_visible_at: None,
         });
+        if force_resize_to_content {
+            sizing_pass = true;
+            state.size = None;
+        }
         state.pivot = pivot;
         state.interactable = interactable;
         if let Some(new_pos) = new_pos {

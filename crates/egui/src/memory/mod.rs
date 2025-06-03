@@ -1155,20 +1155,6 @@ impl Areas {
         self.areas.get(&id)
     }
 
-    /// Remove an area by its `LayerId`.
-    pub fn remove(&mut self, layer_id: LayerId) {
-        self.areas.remove(&layer_id.id);
-        self.visible_areas_last_frame.remove(&layer_id);
-        self.visible_areas_current_frame.remove(&layer_id);
-        self.order.retain(|l| l != &layer_id);
-        self.order_map.remove(&layer_id);
-        self.wants_to_be_on_top.remove(&layer_id);
-        self.sublayers.retain(|parent, children| {
-            children.remove(&layer_id);
-            !children.is_empty() || *parent != layer_id
-        });
-    }
-
     /// All layers back-to-front, top is last.
     pub(crate) fn order(&self) -> &[LayerId] {
         &self.order
