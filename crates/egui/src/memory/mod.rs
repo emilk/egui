@@ -1155,6 +1155,10 @@ impl Areas {
         self.areas.get(&id)
     }
 
+    pub(crate) fn remove(&mut self, id: Id) -> Option<area::AreaState> {
+        self.areas.remove(&id)
+    }
+
     /// All layers back-to-front, top is last.
     pub(crate) fn order(&self) -> &[LayerId] {
         &self.order
