@@ -1730,6 +1730,7 @@ dependencies = [
 [[package]]
 name = "fontique"
 version = "0.4.0"
+source = "git+https://github.com/valadaptive/parley?branch=egui#ff827afca82ed0d5266cdb5c96f330d39856cd25"
 dependencies = [
  "bytemuck",
  "fontconfig-cache-parser",
@@ -3166,6 +3167,7 @@ dependencies = [
 [[package]]
 name = "parley"
 version = "0.4.0"
+source = "git+https://github.com/valadaptive/parley?branch=egui#ff827afca82ed0d5266cdb5c96f330d39856cd25"
 dependencies = [
  "accesskit",
  "fontique",
