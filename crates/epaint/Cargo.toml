@@ -77,7 +77,7 @@ emath.workspace = true
 ecolor.workspace = true
 
 #parley = { version = "0.3", features = ["system"] }
-parley = { path = "../../../parley/parley", features = ["system"] }
+parley = { git = "https://github.com/valadaptive/parley", branch = "egui", features = ["system"] }
 #swash = { version = "0.2" }
 swash = { git = "https://github.com/valadaptive/swash", branch = "tight-bounds" }
 ahash.workspace = true
