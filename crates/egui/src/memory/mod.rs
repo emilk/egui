@@ -1155,7 +1155,7 @@ impl Areas {
         self.areas.get(&id)
     }
 
-    pub(crate) fn remove(&mut self, id: Id) -> Option<area::AreaState> {
+    pub fn remove(&mut self, id: Id) -> Option<area::AreaState> {
         self.areas.remove(&id)
     }
 
