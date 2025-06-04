@@ -436,6 +436,8 @@ pub enum Event {
 
         /// The state of the modifier keys at the time of the event.
         modifiers: Modifiers,
+
+        text: Option<String>,
     },
 
     /// The mouse or touch moved to a new place.
