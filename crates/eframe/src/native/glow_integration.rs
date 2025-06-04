@@ -959,7 +959,6 @@ impl GlutinWindowContext {
             .with_preference(glutin_winit::ApiPreference::FallbackEgl)
             .with_window_attributes(Some(egui_winit::create_winit_window_attributes(
                 egui_ctx,
-                event_loop,
                 viewport_builder.clone(),
             )));
 
@@ -1113,7 +1112,6 @@ impl GlutinWindowContext {
             log::debug!("Creating a window for viewport {viewport_id:?}");
             let window_attributes = egui_winit::create_winit_window_attributes(
                 &self.egui_ctx,
-                event_loop,
                 viewport.builder.clone(),
             );
             if window_attributes.transparent()
