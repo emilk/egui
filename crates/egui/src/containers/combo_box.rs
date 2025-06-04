@@ -16,9 +16,10 @@ pub type IconPainter = Box<dyn FnOnce(&Ui, Rect, &WidgetVisuals, bool)>;
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
-/// # #[derive(Debug, PartialEq)]
+/// # #[derive(Debug, PartialEq, Copy, Clone)]
 /// # enum Enum { First, Second, Third }
 /// # let mut selected = Enum::First;
+/// let before = selected;
 /// egui::ComboBox::from_label("Select one!")
 ///     .selected_text(format!("{:?}", selected))
 ///     .show_ui(ui, |ui| {
@@ -27,6 +28,10 @@ pub type IconPainter = Box<dyn FnOnce(&Ui, Rect, &WidgetVisuals, bool)>;
 ///         ui.selectable_value(&mut selected, Enum::Third, "Third");
 ///     }
 /// );
+///
+/// if selected != before {
+///     // Handle selection change
+/// }
 /// # });
 /// ```
 #[must_use = "You should call .show*"]
