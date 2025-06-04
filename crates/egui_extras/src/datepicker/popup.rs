@@ -35,6 +35,8 @@ pub(crate) struct DatePickerPopup<'a> {
     pub calendar: bool,
     pub calendar_week: bool,
     pub highlight_weekends: bool,
+    pub start_year: Option<i32>,
+    pub end_year: Option<i32>,
 }
 
 impl DatePickerPopup<'_> {
@@ -84,7 +86,10 @@ impl DatePickerPopup<'_> {
                                 ComboBox::from_id_salt("date_picker_year")
                                     .selected_text(popup_state.year.to_string())
                                     .show_ui(ui, |ui| {
-                                        for year in today.year() - 100..today.year() + 10 {
+                                        let start_year =
+                                            self.start_year.unwrap_or(today.year() - 100);
+                                        let end_year = self.end_year.unwrap_or(today.year() + 10);
+                                        for year in start_year..end_year {
                                             if ui
                                                 .selectable_value(
                                                     &mut popup_state.year,
