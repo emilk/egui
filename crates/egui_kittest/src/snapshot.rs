@@ -16,6 +16,65 @@ pub struct SnapshotOptions {
     /// The path where the snapshots will be saved.
     /// The default is `tests/snapshots`.
     pub output_path: PathBuf,
+
+    /// The number of pixels that can differ before the snapshot is considered a failure.
+    /// Preferably, you should use `threshold` to control the sensitivity of the image comparison.
+    /// As a last resort, you can use this to allow a certain number of pixels to differ.
+    /// If `None`, the default is `0` (meaning no pixels can differ).
+    /// If `Some`, the value can be set per OS
+    pub diff_threshold: i32,
+}
+
+/// Helper struct to define the number of pixels that can differ before the snapshot is considered a failure.
+/// This is useful if you want to set different thresholds for different operating systems.
+#[derive(Default, Copy, Clone)]
+pub struct OsThreshold {
+    pub windows: i32,
+    pub macos: i32,
+    pub linux: i32,
+}
+
+impl OsThreshold {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl OsThreshold {
+    /// Set the threshold for Windows.
+    #[inline]
+    pub fn windows(mut self, threshold: i32) -> Self {
+        self.windows = threshold;
+        self
+    }
+
+    /// Set the threshold for macOS.
+    #[inline]
+    pub fn macos(mut self, threshold: i32) -> Self {
+        self.macos = threshold;
+        self
+    }
+
+    /// Set the threshold for Linux.
+    #[inline]
+    pub fn linux(mut self, threshold: i32) -> Self {
+        self.linux = threshold;
+        self
+    }
+}
+
+impl From<OsThreshold> for i32 {
+    fn from(val: OsThreshold) -> Self {
+        if cfg!(target_os = "windows") {
+            val.windows
+        } else if cfg!(target_os = "macos") {
+            val.macos
+        } else if cfg!(target_os = "linux") {
+            val.linux
+        } else {
+            0 // Default value if the OS is not recognized
+        }
+    }
 }
 
 impl Default for SnapshotOptions {
@@ -23,6 +82,7 @@ impl Default for SnapshotOptions {
         Self {
             threshold: 0.6,
             output_path: PathBuf::from("tests/snapshots"),
+            diff_threshold: 0, // Default is 0, meaning no pixels can differ
         }
     }
 }
@@ -47,6 +107,15 @@ impl SnapshotOptions {
     #[inline]
     pub fn output_path(mut self, output_path: impl Into<PathBuf>) -> Self {
         self.output_path = output_path.into();
+        self
+    }
+
+    /// Change the number of pixels that can differ before the snapshot is considered a failure.
+    /// Preferably, you should use `threshold` to control the sensitivity of the image comparison.
+    /// As a last resort, you can use this to allow a certain number of pixels to differ.
+    #[inline]
+    pub fn diff_threshold(mut self, diff_threshold: impl Into<i32>) -> Self {
+        self.diff_threshold = diff_threshold.into();
         self
     }
 }
@@ -195,6 +264,7 @@ pub fn try_image_snapshot_options(
     let SnapshotOptions {
         threshold,
         output_path,
+        diff_threshold,
     } = options;
 
     let parent_path = if let Some(parent) = PathBuf::from(name).parent() {
@@ -281,9 +351,14 @@ pub fn try_image_snapshot_options(
                 path: diff_path.clone(),
                 err,
             })?;
+
         if should_update_snapshots() {
             update_snapshot()
         } else {
+            if diff <= *diff_threshold {
+                return Ok(());
+            }
+
             Err(SnapshotError::Diff {
                 name: name.to_owned(),
                 diff,
