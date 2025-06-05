@@ -12,8 +12,6 @@ pub enum Key {
     ArrowRight,
     ArrowUp,
 
-    BrowserBack,
-
     Escape,
     Tab,
     Backspace,
@@ -185,6 +183,8 @@ pub enum Key {
     F33,
     F34,
     F35,
+
+    BrowserBack,
     // When adding keys, remember to also update:
     // * crates/egui-winit/src/lib.rs
     // * Key::ALL
@@ -309,6 +309,8 @@ impl Key {
         Self::F33,
         Self::F34,
         Self::F35,
+        // Navigation keys:
+        Self::BrowserBack,
     ];
 
     /// Converts `"A"` to `Key::A`, `Space` to `Key::Space`, etc.
@@ -326,8 +328,6 @@ impl Key {
             "⏴" | "ArrowLeft" | "Left" => Self::ArrowLeft,
             "⏵" | "ArrowRight" | "Right" => Self::ArrowRight,
             "⏶" | "ArrowUp" | "Up" => Self::ArrowUp,
-
-            "BrowserBack" => Self::BrowserBack,
 
             "Escape" | "Esc" => Self::Escape,
             "Tab" => Self::Tab,
@@ -439,6 +439,8 @@ impl Key {
             "F34" => Self::F34,
             "F35" => Self::F35,
 
+            "BrowserBack" => Self::BrowserBack,
+
             _ => return None,
         })
     }
@@ -483,8 +485,6 @@ impl Key {
             Self::ArrowLeft => "Left",
             Self::ArrowRight => "Right",
             Self::ArrowUp => "Up",
-
-            Self::BrowserBack => "BrowserBack",
 
             Self::Escape => "Escape",
             Self::Tab => "Tab",
@@ -594,6 +594,8 @@ impl Key {
             Self::F33 => "F33",
             Self::F34 => "F34",
             Self::F35 => "F35",
+
+            Self::BrowserBack => "BrowserBack",
         }
     }
 }
