@@ -863,9 +863,11 @@ impl TextEdit<'_> {
 
 fn mask_if_password(is_password: bool, text: &str) -> String {
     fn mask_password(text: &str) -> String {
-        std::iter::repeat(epaint::text::PASSWORD_REPLACEMENT_CHAR)
-            .take(text.chars().count())
-            .collect::<String>()
+        std::iter::repeat_n(
+            epaint::text::PASSWORD_REPLACEMENT_CHAR,
+            text.chars().count(),
+        )
+        .collect::<String>()
     }
 
     if is_password {

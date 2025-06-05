@@ -1272,7 +1272,7 @@ impl Areas {
         self.visible_areas_current_frame.insert(layer_id);
         self.wants_to_be_on_top.insert(layer_id);
 
-        if !self.order.iter().any(|x| *x == layer_id) {
+        if !self.order.contains(&layer_id) {
             self.order.push(layer_id);
         }
     }
@@ -1293,10 +1293,10 @@ impl Areas {
         self.sublayers.entry(parent).or_default().insert(child);
 
         // Make sure the layers are in the order list:
-        if !self.order.iter().any(|x| *x == parent) {
+        if !self.order.contains(&parent) {
             self.order.push(parent);
         }
-        if !self.order.iter().any(|x| *x == child) {
+        if !self.order.contains(&child) {
             self.order.push(child);
         }
     }
@@ -1305,7 +1305,7 @@ impl Areas {
         self.order
             .iter()
             .filter(|layer| layer.order == order && !self.is_sublayer(layer))
-            .last()
+            .next_back()
             .copied()
     }
 

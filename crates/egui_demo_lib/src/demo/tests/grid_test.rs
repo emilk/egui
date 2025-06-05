@@ -110,7 +110,7 @@ impl crate::View for GridTest {
             ui.end_row();
 
             let mut dyn_text = String::from("O");
-            dyn_text.extend(std::iter::repeat('h').take(self.text_length));
+            dyn_text.extend(std::iter::repeat_n('h', self.text_length));
             ui.label(dyn_text);
             ui.label("Fifth row, second column");
             ui.end_row();
