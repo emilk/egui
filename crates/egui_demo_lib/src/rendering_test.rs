@@ -419,10 +419,7 @@ impl TextureManager {
             let height = 1;
             ctx.load_texture(
                 "color_test_gradient",
-                epaint::ColorImage {
-                    size: [width, height],
-                    pixels,
-                },
+                epaint::ColorImage::new([width, height], pixels),
                 TextureOptions::LINEAR,
             )
         })
