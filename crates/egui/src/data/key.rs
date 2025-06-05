@@ -12,6 +12,8 @@ pub enum Key {
     ArrowRight,
     ArrowUp,
 
+    BrowserBack,
+
     Escape,
     Tab,
     Backspace,
@@ -325,6 +327,8 @@ impl Key {
             "⏵" | "ArrowRight" | "Right" => Self::ArrowRight,
             "⏶" | "ArrowUp" | "Up" => Self::ArrowUp,
 
+            "BrowserBack" => Self::BrowserBack,
+
             "Escape" | "Esc" => Self::Escape,
             "Tab" => Self::Tab,
             "Backspace" => Self::Backspace,
@@ -479,6 +483,8 @@ impl Key {
             Self::ArrowLeft => "Left",
             Self::ArrowRight => "Right",
             Self::ArrowUp => "Up",
+            
+            Self::BrowserBack => "BrowserBack",
 
             Self::Escape => "Escape",
             Self::Tab => "Tab",
