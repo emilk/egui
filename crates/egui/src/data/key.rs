@@ -604,7 +604,7 @@ impl Key {
 fn test_key_from_name() {
     assert_eq!(
         Key::ALL.len(),
-        Key::F35 as usize + 1,
+        Key::BrowserBack as usize + 1,
         "Some keys are missing in Key::ALL"
     );
 
