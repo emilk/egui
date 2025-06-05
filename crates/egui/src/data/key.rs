@@ -483,7 +483,7 @@ impl Key {
             Self::ArrowLeft => "Left",
             Self::ArrowRight => "Right",
             Self::ArrowUp => "Up",
-            
+
             Self::BrowserBack => "BrowserBack",
 
             Self::Escape => "Escape",
