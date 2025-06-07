@@ -425,9 +425,9 @@ impl InputState {
                     #[expect(clippy::collapsible_else_if)]
                     if is_zoom {
                         if is_smooth {
-                            smooth_scroll_delta_for_zoom += delta.y;
+                            smooth_scroll_delta_for_zoom += delta.x + delta.y;
                         } else {
-                            unprocessed_scroll_delta_for_zoom += delta.y;
+                            unprocessed_scroll_delta_for_zoom += delta.x + delta.y;
                         }
                     } else {
                         if is_smooth {
