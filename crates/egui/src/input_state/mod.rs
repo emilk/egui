@@ -76,7 +76,7 @@ impl Default for InputOptions {
             max_click_dist: 6.0,
             max_click_duration: 0.8,
             max_double_click_delay: 0.3,
-            zoom_modifier: Modifiers::CTRL | Modifiers::MAC_CMD | Modifiers::COMMAND,
+            zoom_modifier: Modifiers::COMMAND,
             horizontal_scroll_modifier: Modifiers::SHIFT,
             vertical_scroll_modifier: Modifiers::ALT,
         }
