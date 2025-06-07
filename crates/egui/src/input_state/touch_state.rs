@@ -194,7 +194,7 @@ impl TouchState {
 
             let zoom_delta = state.current.avg_distance / state_previous.avg_distance;
 
-            let zoom_delta2 = match state.pinch_type {
+            let zoom_delta_2d = match state.pinch_type {
                 PinchType::Horizontal => Vec2::new(
                     state.current.avg_abs_distance2.x / state_previous.avg_abs_distance2.x,
                     1.0,
@@ -213,7 +213,7 @@ impl TouchState {
                 start_pos: state.start_pointer_pos,
                 num_touches: self.active_touches.len(),
                 zoom_delta,
-                zoom_delta_2d: zoom_delta2,
+                zoom_delta_2d,
                 rotation_delta: normalized_angle(state.current.heading - state_previous.heading),
                 translation_delta: state.current.avg_pos - state_previous.avg_pos,
                 force: state.current.avg_force,

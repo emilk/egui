@@ -986,6 +986,12 @@ impl std::ops::BitOrAssign for Modifiers {
     }
 }
 
+impl Modifiers {
+    pub fn ui(&self, ui: &mut crate::Ui) {
+        ui.label(ModifierNames::NAMES.format(self, ui.ctx().os().is_mac()));
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// Names of different modifier keys.

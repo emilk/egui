@@ -41,6 +41,23 @@ pub struct InputOptions {
     /// The new pointer press must come within this many seconds from previous pointer release
     /// for double click (or when this value is doubled, triple click) to count.
     pub max_double_click_delay: f64,
+
+    /// When this modifier is down, all scroll events are treated as zoom events.
+    ///
+    /// The default is CTRL/CMD, and it is STRONGLY recommended to NOT change this.
+    pub zoom_modifier: Modifiers,
+
+    /// When this modifier is down, all scroll events are treated as horizontal scrolls,
+    /// and when combined with [`Self::zoom_modifier`] it will result in zooming
+    /// on only the horizontal axis.
+    ///
+    /// The default is SHIFT, and it is STRONGLY recommended to NOT change this.
+    pub horizontal_scroll_modifier: Modifiers,
+
+    /// When this modifier is down, all scroll events are treated as vertical scrolls,
+    /// and when combined with [`Self::zoom_modifier`] it will result in zooming
+    /// on only the vertical axis.
+    pub vertical_scroll_modifier: Modifiers,
 }
 
 impl Default for InputOptions {
@@ -59,6 +76,9 @@ impl Default for InputOptions {
             max_click_dist: 6.0,
             max_click_duration: 0.8,
             max_double_click_delay: 0.3,
+            zoom_modifier: Modifiers::COMMAND,
+            horizontal_scroll_modifier: Modifiers::SHIFT,
+            vertical_scroll_modifier: Modifiers::ALT,
         }
     }
 }
@@ -72,6 +92,9 @@ impl InputOptions {
             max_click_dist,
             max_click_duration,
             max_double_click_delay,
+            zoom_modifier,
+            horizontal_scroll_modifier,
+            vertical_scroll_modifier,
         } = self;
         crate::Grid::new("InputOptions")
             .num_columns(2)
@@ -100,7 +123,6 @@ impl InputOptions {
                     );
                 ui.end_row();
 
-
                 ui.label("Max click duration");
                 ui.add(
                     crate::DragValue::new(max_click_duration)
@@ -120,6 +142,19 @@ impl InputOptions {
                 )
                 .on_hover_text("Max time interval for double click to count");
                 ui.end_row();
+
+                ui.label("zoom_modifier");
+                zoom_modifier.ui(ui);
+                ui.end_row();
+
+                ui.label("horizontal_scroll_modifier");
+                horizontal_scroll_modifier.ui(ui);
+                ui.end_row();
+
+                ui.label("vertical_scroll_modifier");
+                vertical_scroll_modifier.ui(ui);
+                ui.end_row();
+
             });
     }
 }
@@ -263,7 +298,7 @@ pub struct InputState {
     /// Input state management configuration.
     ///
     /// This gets copied from `egui::Options` at the start of each frame for convenience.
-    input_options: InputOptions,
+    options: InputOptions,
 }
 
 impl Default for InputState {
@@ -291,7 +326,7 @@ impl Default for InputState {
             modifiers: Default::default(),
             keys_down: Default::default(),
             events: Default::default(),
-            input_options: Default::default(),
+            options: Default::default(),
         }
     }
 }
@@ -303,7 +338,7 @@ impl InputState {
         mut new: RawInput,
         requested_immediate_repaint_prev_frame: bool,
         pixels_per_point: f32,
-        input_options: InputOptions,
+        options: InputOptions,
     ) -> Self {
         profiling::function_scope!();
 
@@ -323,7 +358,7 @@ impl InputState {
         for touch_state in self.touch_states.values_mut() {
             touch_state.begin_pass(time, &new, self.pointer.interact_pos);
         }
-        let pointer = self.pointer.begin_pass(time, &new, input_options);
+        let pointer = self.pointer.begin_pass(time, &new, options);
 
         let mut keys_down = self.keys_down;
         let mut zoom_factor_delta = 1.0; // TODO(emilk): smoothing for zoom factor
@@ -356,14 +391,21 @@ impl InputState {
                 } => {
                     let mut delta = match unit {
                         MouseWheelUnit::Point => *delta,
-                        MouseWheelUnit::Line => input_options.line_scroll_speed * *delta,
+                        MouseWheelUnit::Line => options.line_scroll_speed * *delta,
                         MouseWheelUnit::Page => screen_rect.height() * *delta,
                     };
 
-                    if modifiers.shift {
-                        // Treat as horizontal scrolling.
+                    let is_horizontal = modifiers.matches_any(options.horizontal_scroll_modifier);
+                    let is_vertical = modifiers.matches_any(options.vertical_scroll_modifier);
+
+                    if is_horizontal && !is_vertical {
+                        // Treat all scrolling as horizontal scrolling.
                         // Note: one Mac we already get horizontal scroll events when shift is down.
                         delta = vec2(delta.x + delta.y, 0.0);
+                    }
+                    if !is_horizontal && is_vertical {
+                        // Treat all scrolling as vertical scrolling.
+                        delta = vec2(0.0, delta.x + delta.y);
                     }
 
                     raw_scroll_delta += delta;
@@ -378,14 +420,14 @@ impl InputState {
                         MouseWheelUnit::Line | MouseWheelUnit::Page => false,
                     };
 
-                    let is_zoom = modifiers.ctrl || modifiers.mac_cmd || modifiers.command;
+                    let is_zoom = modifiers.matches_any(options.zoom_modifier);
 
                     #[expect(clippy::collapsible_else_if)]
                     if is_zoom {
                         if is_smooth {
-                            smooth_scroll_delta_for_zoom += delta.y;
+                            smooth_scroll_delta_for_zoom += delta.x + delta.y;
                         } else {
-                            unprocessed_scroll_delta_for_zoom += delta.y;
+                            unprocessed_scroll_delta_for_zoom += delta.x + delta.y;
                         }
                     } else {
                         if is_smooth {
@@ -439,7 +481,7 @@ impl InputState {
                 }
 
                 zoom_factor_delta *=
-                    (input_options.scroll_zoom_speed * smooth_scroll_delta_for_zoom).exp();
+                    (options.scroll_zoom_speed * smooth_scroll_delta_for_zoom).exp();
             }
         }
 
@@ -473,7 +515,7 @@ impl InputState {
             keys_down,
             events: new.events.clone(), // TODO(emilk): remove clone() and use raw.events
             raw: new,
-            input_options,
+            options,
         }
     }
 
@@ -488,10 +530,13 @@ impl InputState {
         self.screen_rect
     }
 
-    /// Zoom scale factor this frame (e.g. from ctrl-scroll or pinch gesture).
+    /// Uniform zoom scale factor this frame (e.g. from ctrl-scroll or pinch gesture).
     /// * `zoom = 1`: no change
     /// * `zoom < 1`: pinch together
     /// * `zoom > 1`: pinch spread
+    ///
+    /// If your application supports non-proportional zooming,
+    /// then you probably want to use [`Self::zoom_delta_2d`] instead.
     #[inline(always)]
     pub fn zoom_delta(&self) -> f32 {
         // If a multi touch gesture is detected, it measures the exact and linear proportions of
@@ -521,10 +566,29 @@ impl InputState {
         // the distances of the finger tips.  It is therefore potentially more accurate than
         // `zoom_factor_delta` which is based on the `ctrl-scroll` event which, in turn, may be
         // synthesized from an original touch gesture.
-        self.multi_touch().map_or_else(
-            || Vec2::splat(self.zoom_factor_delta),
-            |touch| touch.zoom_delta_2d,
-        )
+        if let Some(multi_touch) = self.multi_touch() {
+            multi_touch.zoom_delta_2d
+        } else {
+            let mut zoom = Vec2::splat(self.zoom_factor_delta);
+
+            let is_horizontal = self
+                .modifiers
+                .matches_any(self.options.horizontal_scroll_modifier);
+            let is_vertical = self
+                .modifiers
+                .matches_any(self.options.vertical_scroll_modifier);
+
+            if is_horizontal && !is_vertical {
+                // Horizontal-only zooming.
+                zoom.y = 1.0;
+            }
+            if !is_horizontal && is_vertical {
+                // Vertical-only zooming.
+                zoom.x = 1.0;
+            }
+
+            zoom
+        }
     }
 
     /// How long has it been (in seconds) since the use last scrolled?
@@ -550,10 +614,10 @@ impl InputState {
             // We need to wake up and check for press-and-hold for the context menu.
             if let Some(press_start_time) = self.pointer.press_start_time {
                 let press_duration = self.time - press_start_time;
-                if self.input_options.max_click_duration.is_finite()
-                    && press_duration < self.input_options.max_click_duration
+                if self.options.max_click_duration.is_finite()
+                    && press_duration < self.options.max_click_duration
                 {
-                    let secs_until_menu = self.input_options.max_click_duration - press_duration;
+                    let secs_until_menu = self.options.max_click_duration - press_duration;
                     return Some(Duration::from_secs_f64(secs_until_menu));
                 }
             }
@@ -914,7 +978,7 @@ pub struct PointerState {
     /// Input state management configuration.
     ///
     /// This gets copied from `egui::Options` at the start of each frame for convenience.
-    input_options: InputOptions,
+    options: InputOptions,
 }
 
 impl Default for PointerState {
@@ -937,23 +1001,18 @@ impl Default for PointerState {
             last_last_click_time: f64::NEG_INFINITY,
             last_move_time: f64::NEG_INFINITY,
             pointer_events: vec![],
-            input_options: Default::default(),
+            options: Default::default(),
         }
     }
 }
 
 impl PointerState {
     #[must_use]
-    pub(crate) fn begin_pass(
-        mut self,
-        time: f64,
-        new: &RawInput,
-        input_options: InputOptions,
-    ) -> Self {
+    pub(crate) fn begin_pass(mut self, time: f64, new: &RawInput, options: InputOptions) -> Self {
         let was_decidedly_dragging = self.is_decidedly_dragging();
 
         self.time = time;
-        self.input_options = input_options;
+        self.options = options;
 
         self.pointer_events.clear();
 
@@ -974,7 +1033,7 @@ impl PointerState {
 
                     if let Some(press_origin) = self.press_origin {
                         self.has_moved_too_much_for_a_click |=
-                            press_origin.distance(pos) > self.input_options.max_click_dist;
+                            press_origin.distance(pos) > self.options.max_click_dist;
                     }
 
                     self.last_move_time = time;
@@ -1013,10 +1072,10 @@ impl PointerState {
                         let clicked = self.could_any_button_be_click();
 
                         let click = if clicked {
-                            let double_click = (time - self.last_click_time)
-                                < self.input_options.max_double_click_delay;
+                            let double_click =
+                                (time - self.last_click_time) < self.options.max_double_click_delay;
                             let triple_click = (time - self.last_last_click_time)
-                                < (self.input_options.max_double_click_delay * 2.0);
+                                < (self.options.max_double_click_delay * 2.0);
                             let count = if triple_click {
                                 3
                             } else if double_click {
@@ -1320,7 +1379,7 @@ impl PointerState {
             }
 
             if let Some(press_start_time) = self.press_start_time {
-                if self.time - press_start_time > self.input_options.max_click_duration {
+                if self.time - press_start_time > self.options.max_click_duration {
                     return false;
                 }
             }
@@ -1356,7 +1415,7 @@ impl PointerState {
             && !self.has_moved_too_much_for_a_click
             && self.button_down(PointerButton::Primary)
             && self.press_start_time.is_some_and(|press_start_time| {
-                self.time - press_start_time > self.input_options.max_click_duration
+                self.time - press_start_time > self.options.max_click_duration
             })
     }
 
@@ -1416,7 +1475,7 @@ impl InputState {
             modifiers,
             keys_down,
             events,
-            input_options: _,
+            options: _,
         } = self;
 
         ui.style_mut()
@@ -1502,7 +1561,7 @@ impl PointerState {
             last_last_click_time,
             pointer_events,
             last_move_time,
-            input_options: _,
+            options: _,
         } = self;
 
         ui.label(format!("latest_pos: {latest_pos:?}"));
