@@ -298,7 +298,7 @@ pub struct InputState {
     /// Input state management configuration.
     ///
     /// This gets copied from `egui::Options` at the start of each frame for convenience.
-    input_options: InputOptions,
+    options: InputOptions,
 }
 
 impl Default for InputState {
@@ -326,7 +326,7 @@ impl Default for InputState {
             modifiers: Default::default(),
             keys_down: Default::default(),
             events: Default::default(),
-            input_options: Default::default(),
+            options: Default::default(),
         }
     }
 }
@@ -338,7 +338,7 @@ impl InputState {
         mut new: RawInput,
         requested_immediate_repaint_prev_frame: bool,
         pixels_per_point: f32,
-        input_options: InputOptions,
+        options: InputOptions,
     ) -> Self {
         profiling::function_scope!();
 
@@ -358,7 +358,7 @@ impl InputState {
         for touch_state in self.touch_states.values_mut() {
             touch_state.begin_pass(time, &new, self.pointer.interact_pos);
         }
-        let pointer = self.pointer.begin_pass(time, &new, input_options);
+        let pointer = self.pointer.begin_pass(time, &new, options);
 
         let mut keys_down = self.keys_down;
         let mut zoom_factor_delta = 1.0; // TODO(emilk): smoothing for zoom factor
@@ -391,13 +391,12 @@ impl InputState {
                 } => {
                     let mut delta = match unit {
                         MouseWheelUnit::Point => *delta,
-                        MouseWheelUnit::Line => input_options.line_scroll_speed * *delta,
+                        MouseWheelUnit::Line => options.line_scroll_speed * *delta,
                         MouseWheelUnit::Page => screen_rect.height() * *delta,
                     };
 
-                    let is_horizontal =
-                        modifiers.matches_any(input_options.horizontal_scroll_modifier);
-                    let is_vertical = modifiers.matches_any(input_options.vertical_scroll_modifier);
+                    let is_horizontal = modifiers.matches_any(options.horizontal_scroll_modifier);
+                    let is_vertical = modifiers.matches_any(options.vertical_scroll_modifier);
 
                     if is_horizontal && !is_vertical {
                         // Treat all scrolling as horizontal scrolling.
@@ -421,7 +420,7 @@ impl InputState {
                         MouseWheelUnit::Line | MouseWheelUnit::Page => false,
                     };
 
-                    let is_zoom = modifiers.matches_any(input_options.zoom_modifier);
+                    let is_zoom = modifiers.matches_any(options.zoom_modifier);
 
                     #[expect(clippy::collapsible_else_if)]
                     if is_zoom {
@@ -482,7 +481,7 @@ impl InputState {
                 }
 
                 zoom_factor_delta *=
-                    (input_options.scroll_zoom_speed * smooth_scroll_delta_for_zoom).exp();
+                    (options.scroll_zoom_speed * smooth_scroll_delta_for_zoom).exp();
             }
         }
 
@@ -516,7 +515,7 @@ impl InputState {
             keys_down,
             events: new.events.clone(), // TODO(emilk): remove clone() and use raw.events
             raw: new,
-            input_options,
+            options,
         }
     }
 
@@ -574,10 +573,10 @@ impl InputState {
 
             let is_horizontal = self
                 .modifiers
-                .matches_any(self.input_options.horizontal_scroll_modifier);
+                .matches_any(self.options.horizontal_scroll_modifier);
             let is_vertical = self
                 .modifiers
-                .matches_any(self.input_options.vertical_scroll_modifier);
+                .matches_any(self.options.vertical_scroll_modifier);
 
             if is_horizontal && !is_vertical {
                 // Horizontal-only zooming.
@@ -615,10 +614,10 @@ impl InputState {
             // We need to wake up and check for press-and-hold for the context menu.
             if let Some(press_start_time) = self.pointer.press_start_time {
                 let press_duration = self.time - press_start_time;
-                if self.input_options.max_click_duration.is_finite()
-                    && press_duration < self.input_options.max_click_duration
+                if self.options.max_click_duration.is_finite()
+                    && press_duration < self.options.max_click_duration
                 {
-                    let secs_until_menu = self.input_options.max_click_duration - press_duration;
+                    let secs_until_menu = self.options.max_click_duration - press_duration;
                     return Some(Duration::from_secs_f64(secs_until_menu));
                 }
             }
@@ -979,7 +978,7 @@ pub struct PointerState {
     /// Input state management configuration.
     ///
     /// This gets copied from `egui::Options` at the start of each frame for convenience.
-    input_options: InputOptions,
+    options: InputOptions,
 }
 
 impl Default for PointerState {
@@ -1002,23 +1001,18 @@ impl Default for PointerState {
             last_last_click_time: f64::NEG_INFINITY,
             last_move_time: f64::NEG_INFINITY,
             pointer_events: vec![],
-            input_options: Default::default(),
+            options: Default::default(),
         }
     }
 }
 
 impl PointerState {
     #[must_use]
-    pub(crate) fn begin_pass(
-        mut self,
-        time: f64,
-        new: &RawInput,
-        input_options: InputOptions,
-    ) -> Self {
+    pub(crate) fn begin_pass(mut self, time: f64, new: &RawInput, options: InputOptions) -> Self {
         let was_decidedly_dragging = self.is_decidedly_dragging();
 
         self.time = time;
-        self.input_options = input_options;
+        self.options = options;
 
         self.pointer_events.clear();
 
@@ -1039,7 +1033,7 @@ impl PointerState {
 
                     if let Some(press_origin) = self.press_origin {
                         self.has_moved_too_much_for_a_click |=
-                            press_origin.distance(pos) > self.input_options.max_click_dist;
+                            press_origin.distance(pos) > self.options.max_click_dist;
                     }
 
                     self.last_move_time = time;
@@ -1078,10 +1072,10 @@ impl PointerState {
                         let clicked = self.could_any_button_be_click();
 
                         let click = if clicked {
-                            let double_click = (time - self.last_click_time)
-                                < self.input_options.max_double_click_delay;
+                            let double_click =
+                                (time - self.last_click_time) < self.options.max_double_click_delay;
                             let triple_click = (time - self.last_last_click_time)
-                                < (self.input_options.max_double_click_delay * 2.0);
+                                < (self.options.max_double_click_delay * 2.0);
                             let count = if triple_click {
                                 3
                             } else if double_click {
@@ -1385,7 +1379,7 @@ impl PointerState {
             }
 
             if let Some(press_start_time) = self.press_start_time {
-                if self.time - press_start_time > self.input_options.max_click_duration {
+                if self.time - press_start_time > self.options.max_click_duration {
                     return false;
                 }
             }
@@ -1421,7 +1415,7 @@ impl PointerState {
             && !self.has_moved_too_much_for_a_click
             && self.button_down(PointerButton::Primary)
             && self.press_start_time.is_some_and(|press_start_time| {
-                self.time - press_start_time > self.input_options.max_click_duration
+                self.time - press_start_time > self.options.max_click_duration
             })
     }
 
@@ -1481,7 +1475,7 @@ impl InputState {
             modifiers,
             keys_down,
             events,
-            input_options: _,
+            options: _,
         } = self;
 
         ui.style_mut()
@@ -1567,7 +1561,7 @@ impl PointerState {
             last_last_click_time,
             pointer_events,
             last_move_time,
-            input_options: _,
+            options: _,
         } = self;
 
         ui.label(format!("latest_pos: {latest_pos:?}"));
