@@ -496,7 +496,7 @@ pub use self::{
     epaint::text::TextWrapMode,
     grid::Grid,
     id::{Id, IdMap},
-    input_state::{InputState, MultiTouchInfo, PointerState},
+    input_state::{InputOptions, InputState, MultiTouchInfo, PointerState},
     layers::{LayerId, Order},
     layout::*,
     load::SizeHint,
