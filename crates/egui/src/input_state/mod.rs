@@ -73,45 +73,54 @@ impl InputOptions {
             max_click_duration,
             max_double_click_delay,
         } = self;
-        ui.horizontal(|ui| {
-            ui.label("Line scroll speed");
-            ui.add(crate::DragValue::new(line_scroll_speed).range(0.0..=f32::INFINITY))
-                .on_hover_text("How many lines to scroll with each tick of the mouse wheel");
-        });
-        ui.horizontal(|ui| {
-            ui.label("Scroll zoom speed");
-            ui.add(
-                crate::DragValue::new(scroll_zoom_speed)
-                    .range(0.0..=f32::INFINITY)
-                    .speed(0.001),
-            )
-            .on_hover_text("How fast to zoom with ctrl/cmd + scroll");
-        });
-        ui.horizontal(|ui| {
-            ui.label("Max click distance");
-            ui.add(crate::DragValue::new(max_click_dist).range(0.0..=f32::INFINITY))
-                .on_hover_text("If the pointer moves more than this, it won't become a click");
-        });
-        ui.horizontal(|ui| {
-            ui.label("Max click duration");
-            ui.add(
-                crate::DragValue::new(max_click_duration)
-                    .range(0.1..=f64::INFINITY)
-                    .speed(0.1),
-            )
-            .on_hover_text(
-                "If the pointer is down for longer than this it will no longer register as a click",
-            );
-        });
-        ui.horizontal(|ui| {
-            ui.label("Max double click delay");
-            ui.add(
-                crate::DragValue::new(max_double_click_delay)
-                    .range(0.01..=f64::INFINITY)
-                    .speed(0.1),
-            )
-            .on_hover_text("Max time interval for double click to count");
-        });
+        crate::Grid::new("InputOptions")
+            .num_columns(2)
+            .striped(true)
+            .show(ui, |ui| {
+                ui.label("Line scroll speed");
+                ui.add(crate::DragValue::new(line_scroll_speed).range(0.0..=f32::INFINITY))
+                    .on_hover_text(
+                        "How many lines to scroll with each tick of the mouse wheel",
+                    );
+                ui.end_row();
+
+                ui.label("Scroll zoom speed");
+                ui.add(
+                    crate::DragValue::new(scroll_zoom_speed)
+                        .range(0.0..=f32::INFINITY)
+                        .speed(0.001),
+                )
+                .on_hover_text("How fast to zoom with ctrl/cmd + scroll");
+                ui.end_row();
+
+                ui.label("Max click distance");
+                ui.add(crate::DragValue::new(max_click_dist).range(0.0..=f32::INFINITY))
+                    .on_hover_text(
+                        "If the pointer moves more than this, it won't become a click",
+                    );
+                ui.end_row();
+
+
+                ui.label("Max click duration");
+                ui.add(
+                    crate::DragValue::new(max_click_duration)
+                        .range(0.1..=f64::INFINITY)
+                        .speed(0.1),
+                    )
+                    .on_hover_text(
+                        "If the pointer is down for longer than this it will no longer register as a click",
+                    );
+                ui.end_row();
+
+                ui.label("Max double click delay");
+                ui.add(
+                    crate::DragValue::new(max_double_click_delay)
+                        .range(0.01..=f64::INFINITY)
+                        .speed(0.1),
+                )
+                .on_hover_text("Max time interval for double click to count");
+                ui.end_row();
+            });
     }
 }
 
