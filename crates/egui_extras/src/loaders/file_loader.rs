@@ -95,10 +95,14 @@ impl BytesLoader for FileLoader {
                             }
                             Err(err) => Err(err.to_string()),
                         };
-                        let prev = cache.lock().insert(uri.clone(), Poll::Ready(result));
-                        assert!(matches!(prev, Some(Poll::Pending)), "unexpected state");
-                        ctx.request_repaint();
-                        log::trace!("finished loading {uri:?}");
+                        let mut cache = cache.lock();
+                        if cache.contains_key(&uri) {
+                            cache.insert(uri.clone(), Poll::Ready(result));
+                            ctx.request_repaint();
+                            log::trace!("finished loading {uri:?}");
+                        } else {
+                            log::trace!("cancelled loading {uri:?}");
+                        }
                     }
                 })
                 .expect("failed to spawn thread");
