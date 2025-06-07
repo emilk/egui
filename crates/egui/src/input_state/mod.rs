@@ -18,9 +18,15 @@ pub use touch_state::MultiTouchInfo;
 use touch_state::TouchState;
 
 /// Options for input state handling.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct InputOptions {
+    /// Multiplier for the scroll speed when reported in [`crate::MouseWheelUnit::Line`]s.
+    pub line_scroll_speed: f32,
+
+    /// Controls the speed at which we zoom in when doing ctrl/cmd + scroll.
+    pub scroll_zoom_speed: f32,
+
     /// After a pointer-down event, if the pointer moves more than this, it won't become a click.
     pub max_click_dist: f32,
 
@@ -39,7 +45,17 @@ pub struct InputOptions {
 
 impl Default for InputOptions {
     fn default() -> Self {
+        // TODO(emilk): figure out why these constants need to be different on web and on native (winit).
+        let is_web = cfg!(target_arch = "wasm32");
+        let line_scroll_speed = if is_web {
+            8.0
+        } else {
+            40.0 // Scroll speed decided by consensus: https://github.com/emilk/egui/issues/461
+        };
+
         Self {
+            line_scroll_speed,
+            scroll_zoom_speed: 1.0 / 200.0,
             max_click_dist: 6.0,
             max_click_duration: 0.8,
             max_double_click_delay: 0.3,
@@ -51,39 +67,59 @@ impl InputOptions {
     /// Show the options in the ui.
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
+            line_scroll_speed,
+            scroll_zoom_speed,
             max_click_dist,
             max_click_duration,
             max_double_click_delay,
         } = self;
-        crate::containers::CollapsingHeader::new("InputOptions")
-            .default_open(false)
+        crate::Grid::new("InputOptions")
+            .num_columns(2)
+            .striped(true)
             .show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.label("Max click distance");
-                    ui.add(
-                        crate::DragValue::new(max_click_dist)
-                            .range(0.0..=f32::INFINITY)
+                ui.label("Line scroll speed");
+                ui.add(crate::DragValue::new(line_scroll_speed).range(0.0..=f32::INFINITY))
+                    .on_hover_text(
+                        "How many lines to scroll with each tick of the mouse wheel",
+                    );
+                ui.end_row();
+
+                ui.label("Scroll zoom speed");
+                ui.add(
+                    crate::DragValue::new(scroll_zoom_speed)
+                        .range(0.0..=f32::INFINITY)
+                        .speed(0.001),
+                )
+                .on_hover_text("How fast to zoom with ctrl/cmd + scroll");
+                ui.end_row();
+
+                ui.label("Max click distance");
+                ui.add(crate::DragValue::new(max_click_dist).range(0.0..=f32::INFINITY))
+                    .on_hover_text(
+                        "If the pointer moves more than this, it won't become a click",
+                    );
+                ui.end_row();
+
+
+                ui.label("Max click duration");
+                ui.add(
+                    crate::DragValue::new(max_click_duration)
+                        .range(0.1..=f64::INFINITY)
+                        .speed(0.1),
                     )
-                    .on_hover_text("If the pointer moves more than this, it won't become a click");
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Max click duration");
-                    ui.add(
-                        crate::DragValue::new(max_click_duration)
-                            .range(0.1..=f64::INFINITY)
-                            .speed(0.1),
-                    )
-                    .on_hover_text("If the pointer is down for longer than this it will no longer register as a click");
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Max double click delay");
-                    ui.add(
-                        crate::DragValue::new(max_double_click_delay)
-                            .range(0.01..=f64::INFINITY)
-                            .speed(0.1),
-                    )
-                    .on_hover_text("Max time interval for double click to count");
-                });
+                    .on_hover_text(
+                        "If the pointer is down for longer than this it will no longer register as a click",
+                    );
+                ui.end_row();
+
+                ui.label("Max double click delay");
+                ui.add(
+                    crate::DragValue::new(max_double_click_delay)
+                        .range(0.01..=f64::INFINITY)
+                        .speed(0.1),
+                )
+                .on_hover_text("Max time interval for double click to count");
+                ui.end_row();
             });
     }
 }
@@ -267,7 +303,7 @@ impl InputState {
         mut new: RawInput,
         requested_immediate_repaint_prev_frame: bool,
         pixels_per_point: f32,
-        options: &crate::Options,
+        input_options: InputOptions,
     ) -> Self {
         profiling::function_scope!();
 
@@ -287,7 +323,7 @@ impl InputState {
         for touch_state in self.touch_states.values_mut() {
             touch_state.begin_pass(time, &new, self.pointer.interact_pos);
         }
-        let pointer = self.pointer.begin_pass(time, &new, options);
+        let pointer = self.pointer.begin_pass(time, &new, input_options);
 
         let mut keys_down = self.keys_down;
         let mut zoom_factor_delta = 1.0; // TODO(emilk): smoothing for zoom factor
@@ -320,7 +356,7 @@ impl InputState {
                 } => {
                     let mut delta = match unit {
                         MouseWheelUnit::Point => *delta,
-                        MouseWheelUnit::Line => options.line_scroll_speed * *delta,
+                        MouseWheelUnit::Line => input_options.line_scroll_speed * *delta,
                         MouseWheelUnit::Page => screen_rect.height() * *delta,
                     };
 
@@ -403,7 +439,7 @@ impl InputState {
                 }
 
                 zoom_factor_delta *=
-                    (options.scroll_zoom_speed * smooth_scroll_delta_for_zoom).exp();
+                    (input_options.scroll_zoom_speed * smooth_scroll_delta_for_zoom).exp();
             }
         }
 
@@ -437,7 +473,7 @@ impl InputState {
             keys_down,
             events: new.events.clone(), // TODO(emilk): remove clone() and use raw.events
             raw: new,
-            input_options: options.input_options.clone(),
+            input_options,
         }
     }
 
@@ -912,12 +948,12 @@ impl PointerState {
         mut self,
         time: f64,
         new: &RawInput,
-        options: &crate::Options,
+        input_options: InputOptions,
     ) -> Self {
         let was_decidedly_dragging = self.is_decidedly_dragging();
 
         self.time = time;
-        self.input_options = options.input_options.clone();
+        self.input_options = input_options;
 
         self.pointer_events.clear();
 
