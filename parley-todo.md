@@ -1,3 +1,13 @@
+## Actually actionable list
+- [ ] Implement vertical alignment in Parley. Then we can just use a regular InlineBox to implement first_row_min_height and leading_space
+- [ ] Figure out what to do for the tab character. My swash changes alone don't fix it, and it may be best to just wait for parley to switch to harfruzz
+- [ ] Land a "font size multiplier" in Parley to implement FontTweak::scale
+- [ ] Find a better way to expose AccessKit from Parley that doesn't require so many hacks
+- [ ] Add a Parley API for using *full* style objects in RangedBuilder instead of having to set one property at a time
+- [ ] Figure out the best way to implement "newlines don't actually create a new line"
+  - If Parley exposes a lower-level line-by-line API, we can just lay out the lines horizontally instead of vertically
+  - If Parley can shape text based on a character iterator instead of a string, we can map newlines to spaces without having to allocate an entire string
+
 ## Parley:
 - [x] Text wrap styling (https://github.com/linebender/parley/pull/315)
 - [x] Text truncation with ellipsis
@@ -5,7 +15,7 @@
 - [ ] Vertical alignment options, especially for InlineBox (https://github.com/linebender/parley/issues/291)
 - [ ] Ability to set line.offset (necessary for LayoutSection::leading_space)
   - [ ] This can't just be a visual thing because of hit testing; Layout needs to agree on where everything is
-- [ ] Absolute line height
+- [x] Absolute line height
 - [x] Custom family names (https://github.com/linebender/parley/issues/117)
 - [x] Inline box fix (https://github.com/linebender/parley/pull/299)
 - [x] Don't round vertical metrics (https://github.com/linebender/parley/pull/297)
