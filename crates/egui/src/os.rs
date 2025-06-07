@@ -76,4 +76,9 @@ impl OperatingSystem {
             Self::Unknown
         }
     }
+
+    /// Are we either macOS or iOS?
+    pub fn is_mac(&self) -> bool {
+        matches!(self, Self::Mac | Self::IOS)
+    }
 }
