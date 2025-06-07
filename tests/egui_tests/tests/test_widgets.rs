@@ -1,8 +1,9 @@
 use egui::load::SizedTexture;
 use egui::{
-    include_image, Align, Button, Color32, ColorImage, Direction, DragValue, Event, Grid, Layout,
-    PointerButton, Pos2, Response, Slider, Stroke, StrokeKind, TextWrapMode, TextureHandle,
-    TextureOptions, Ui, UiBuilder, Vec2, Widget as _,
+    include_image, Align, AtomicExt as _, AtomicLayout, Button, Color32, ColorImage, Direction,
+    DragValue, Event, Grid, IntoAtomics as _, Layout, PointerButton, Pos2, Response, Slider,
+    Stroke, StrokeKind, TextWrapMode, TextureHandle, TextureOptions, Ui, UiBuilder, Vec2,
+    Widget as _,
 };
 use egui_kittest::kittest::{by, Node, Queryable as _};
 use egui_kittest::{Harness, SnapshotResult, SnapshotResults};
@@ -92,6 +93,26 @@ fn widget_tests() {
         },
         &mut results,
     );
+
+    let source = include_image!("../../../crates/eframe/data/icon.png");
+    let interesting_atomics = vec![
+        ("minimal", ("Hello World!").into_atomics()),
+        (
+            "image",
+            (source.clone().atom_max_height(12.0), "With Image").into_atomics(),
+        ),
+        (
+            "multi_grow",
+            ("g".atom_grow(true), "2", "g".atom_grow(true), "4").into_atomics(),
+        ),
+    ];
+
+    for atomics in interesting_atomics {
+        results.add(test_widget_layout(
+            &format!("atomics_{}", atomics.0),
+            |ui| AtomicLayout::new(atomics.1.clone()).ui(ui),
+        ));
+    }
 }
 
 fn test_widget(name: &str, mut w: impl FnMut(&mut Ui) -> Response, results: &mut SnapshotResults) {
