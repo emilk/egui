@@ -567,10 +567,29 @@ impl InputState {
         // the distances of the finger tips.  It is therefore potentially more accurate than
         // `zoom_factor_delta` which is based on the `ctrl-scroll` event which, in turn, may be
         // synthesized from an original touch gesture.
-        self.multi_touch().map_or_else(
-            || Vec2::splat(self.zoom_factor_delta),
-            |touch| touch.zoom_delta_2d,
-        )
+        if let Some(multi_touch) = self.multi_touch() {
+            multi_touch.zoom_delta_2d
+        } else {
+            let mut zoom = Vec2::splat(self.zoom_factor_delta);
+
+            let is_horizontal = self
+                .modifiers
+                .matches_any(self.input_options.horizontal_scroll_modifier);
+            let is_vertical = self
+                .modifiers
+                .matches_any(self.input_options.vertical_scroll_modifier);
+
+            if is_horizontal && !is_vertical {
+                // Horizontal-only zooming.
+                zoom.y = 1.0;
+            }
+            if !is_horizontal && is_vertical {
+                // Vertical-only zooming.
+                zoom.x = 1.0;
+            }
+
+            zoom
+        }
     }
 
     /// How long has it been (in seconds) since the use last scrolled?
