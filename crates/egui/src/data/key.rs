@@ -184,6 +184,9 @@ pub enum Key {
     F34,
     F35,
 
+    /// Back navigation key from multimedia keyboard.
+    /// Android sends this key on Back button press.
+    /// Does not work on Web.
     BrowserBack,
     // When adding keys, remember to also update:
     // * crates/egui-winit/src/lib.rs
