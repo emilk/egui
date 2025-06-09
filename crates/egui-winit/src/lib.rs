@@ -18,6 +18,8 @@ use egui::{Pos2, Rect, Theme, Vec2, ViewportBuilder, ViewportCommand, ViewportId
 pub use winit;
 
 pub mod clipboard;
+#[cfg(target_os = "ios")]
+mod safe_area;
 mod window_settings;
 
 pub use window_settings::WindowSettings;
@@ -274,6 +276,17 @@ impl State {
         }
 
         use winit::event::WindowEvent;
+        #[cfg(target_os = "ios")]
+        match &event {
+            WindowEvent::Resized(_)
+            | WindowEvent::ScaleFactorChanged { .. }
+            | WindowEvent::Focused(true)
+            | WindowEvent::Occluded(false) => {
+                self.egui_input_mut().safe_area =
+                    Some(egui::SafeArea::from(safe_area::get_ios_safe_area_insets()));
+            }
+            _ => {}
+        }
         match event {
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                 let native_pixels_per_point = *scale_factor as f32;

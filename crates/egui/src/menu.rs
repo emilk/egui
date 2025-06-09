@@ -401,7 +401,7 @@ impl MenuRoot {
 
             if let Some(root) = root.inner.as_mut() {
                 let menu_rect = root.menu_state.read().rect;
-                let screen_rect = button.ctx.input(|i| i.screen_rect);
+                let screen_rect = button.ctx.input(|i| i.screen_rect());
 
                 if pos.y + menu_rect.height() > screen_rect.max.y {
                     pos.y = screen_rect.max.y - menu_rect.height() - button.rect.height();

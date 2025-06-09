@@ -1314,6 +1314,7 @@ dependencies = [
  "document-features",
  "egui",
  "log",
+ "objc",
  "profiling",
  "raw-window-handle",
  "serde",
