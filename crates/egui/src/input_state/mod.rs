@@ -7,6 +7,7 @@ use crate::data::input::{
 use crate::{
     emath::{NumExt as _, Pos2, Rect, Vec2, vec2},
     util::History,
+    SafeArea,
 };
 use std::{
     collections::{BTreeMap, HashSet},
@@ -272,7 +273,13 @@ pub struct InputState {
 
     // ----------------------------------------------
     /// Position and size of the egui area.
-    pub screen_rect: Rect,
+    ///
+    /// This is including the safe area, in contrast to [`crate::Context::screen_rect`], where the safe
+    /// area has been subtracted.
+    screen_rect: Rect,
+
+    /// The safe area insets of the screen.
+    safe_area: SafeArea,
 
     /// Also known as device pixel ratio, > 1 for high resolution screens.
     pub pixels_per_point: f32,
@@ -360,6 +367,7 @@ impl Default for InputState {
             rotation_radians: 0.0,
 
             screen_rect: Rect::from_min_size(Default::default(), vec2(10_000.0, 10_000.0)),
+            safe_area: Default::default(),
             pixels_per_point: 1.0,
             max_texture_side: 2048,
             time: 0.0,
@@ -397,7 +405,11 @@ impl InputState {
             new.predicted_dt
         };
 
-        let screen_rect = new.screen_rect.unwrap_or(self.screen_rect);
+        let safe_area = new.safe_area.unwrap_or(self.safe_area);
+        let screen_rect = new.screen_rect.map_or(self.screen_rect, |rect| {
+            // rect - new.safe_area.unwrap_or_default()
+            rect
+        });
         self.create_touch_states_for_new_devices(&new.events);
         for touch_state in self.touch_states.values_mut() {
             touch_state.begin_pass(time, &new, self.pointer.interact_pos);
@@ -553,6 +565,7 @@ impl InputState {
             rotation_radians,
 
             screen_rect,
+            safe_area,
             pixels_per_point,
             max_texture_side: new.max_texture_side.unwrap_or(self.max_texture_side),
             time,
@@ -574,9 +587,28 @@ impl InputState {
         self.raw.viewport()
     }
 
+    /// Which part of the screen does egui cover?
+    ///
+    /// Returns the `RawInput::screen_rect` - [`Self::safe_area`].
+    /// To get the full `screen_rect`, use [`Self::screen_rect_including_unsafe_area`]
     #[inline(always)]
     pub fn screen_rect(&self) -> Rect {
+        self.screen_rect - self.safe_area
+    }
+
+    /// Returns the full area available to egui, including parts that might be partially
+    /// covered, for example, by the OS status bar or notches.
+    ///
+    /// Usually you want to use [`Self::screen_rect`] instead.
+    ///
+    /// _Note that the name has nothing to do with rust safety and it's always safe to call this._
+    pub fn screen_rect_including_unsafe_area(&self) -> Rect {
         self.screen_rect
+    }
+
+    /// Get the safe area insets.
+    pub fn safe_area(&self) -> SafeArea {
+        self.safe_area
     }
 
     /// Uniform zoom scale factor this frame (e.g. from ctrl-scroll or pinch gesture).
@@ -1560,6 +1592,7 @@ impl InputState {
 
             zoom_factor_delta,
             screen_rect,
+            safe_area,
             pixels_per_point,
             max_texture_side,
             time,
@@ -1613,6 +1646,7 @@ impl InputState {
         ui.label(format!("rotation_radians: {rotation_radians:.3} radians"));
 
         ui.label(format!("screen_rect: {screen_rect:?} points"));
+        ui.label(format!("safe_area: {safe_area:?} points"));
         ui.label(format!(
             "{pixels_per_point} physical pixels for each logical point"
         ));

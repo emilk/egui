@@ -17,7 +17,7 @@ use epaint::{
 use crate::{
     Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, Grid, Id, ImmediateViewport,
     ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId, Memory,
-    ModifierNames, Modifiers, NumExt as _, Order, Painter, Plugin, RawInput, Response, RichText,
+    ModifierNames, Modifiers, NumExt as _, Order, Painter, RawInput, Response, RichText, SafeArea,
     ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions, Ui, ViewportBuilder,
     ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput,
     Widget as _, WidgetRect, WidgetText,
@@ -374,6 +374,7 @@ struct ContextImpl {
     animation_manager: AnimationManager,
 
     plugins: plugin::Plugins,
+    safe_area: SafeArea,
 
     /// All viewports share the same texture manager and texture namespace.
     ///
@@ -419,6 +420,10 @@ impl ContextImpl {
             .unwrap_or_default();
         let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent_id);
 
+        if let Some(safe_area) = new_raw_input.safe_area {
+            self.safe_area = safe_area;
+        }
+
         let is_outermost_viewport = self.viewport_stack.is_empty(); // not necessarily root, just outermost immediate viewport
         self.viewport_stack.push(ids);
 
@@ -432,7 +437,7 @@ impl ContextImpl {
 
             let input = &viewport.input;
             // This is a bit hacky, but is required to avoid jitter:
-            let mut rect = input.screen_rect;
+            let mut rect = input.screen_rect();
             rect.min = (ratio * rect.min.to_vec2()).to_pos2();
             rect.max = (ratio * rect.max.to_vec2()).to_pos2();
             new_raw_input.screen_rect = Some(rect);
@@ -459,7 +464,7 @@ impl ContextImpl {
         );
         let repaint_after = viewport.input.wants_repaint_after();
 
-        let screen_rect = viewport.input.screen_rect;
+        let screen_rect = viewport.input.screen_rect();
 
         viewport.this_pass.begin_pass(screen_rect);
 
@@ -1867,7 +1872,7 @@ impl Context {
     ///
     /// A plugin of the same type can only be added once (further calls with the same type will be ignored).
     /// This way it's convenient to add plugins in `eframe::run_simple_native`.
-    pub fn add_plugin(&self, plugin: impl Plugin + 'static) {
+    pub fn add_plugin(&self, plugin: impl plugin::Plugin + 'static) {
         let handle = plugin::PluginHandle::new(plugin);
 
         let added = self.write(|ctx| ctx.plugins.add(handle.clone()));
@@ -1880,7 +1885,10 @@ impl Context {
     /// Call the provided closure with the plugin of type `T`, if it was registered.
     ///
     /// Returns `None` if the plugin was not registered.
-    pub fn with_plugin<T: Plugin + 'static, R>(&self, f: impl FnOnce(&mut T) -> R) -> Option<R> {
+    pub fn with_plugin<T: plugin::Plugin + 'static, R>(
+        &self,
+        f: impl FnOnce(&mut T) -> R,
+    ) -> Option<R> {
         let plugin = self.read(|ctx| ctx.plugins.get(std::any::TypeId::of::<T>()));
         plugin.map(|plugin| f(plugin.lock().typed_plugin_mut()))
     }
@@ -1889,7 +1897,7 @@ impl Context {
     ///
     /// ## Panics
     /// If the plugin of type `T` was not registered, this will panic.
-    pub fn plugin<T: Plugin>(&self) -> TypedPluginHandle<T> {
+    pub fn plugin<T: plugin::Plugin>(&self) -> TypedPluginHandle<T> {
         if let Some(plugin) = self.plugin_opt() {
             plugin
         } else {
@@ -1898,13 +1906,13 @@ impl Context {
     }
 
     /// Get a handle to the plugin of type `T`, if it was registered.
-    pub fn plugin_opt<T: Plugin>(&self) -> Option<TypedPluginHandle<T>> {
+    pub fn plugin_opt<T: plugin::Plugin>(&self) -> Option<TypedPluginHandle<T>> {
         let plugin = self.read(|ctx| ctx.plugins.get(std::any::TypeId::of::<T>()));
         plugin.map(TypedPluginHandle::new)
     }
 
     /// Get a handle to the plugin of type `T`, or insert its default.
-    pub fn plugin_or_default<T: Plugin + Default>(&self) -> TypedPluginHandle<T> {
+    pub fn plugin_or_default<T: plugin::Plugin + Default>(&self) -> TypedPluginHandle<T> {
         if let Some(plugin) = self.plugin_opt() {
             plugin
         } else {
