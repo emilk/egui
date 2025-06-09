@@ -284,14 +284,6 @@ pub struct Options {
     /// By default this is `true` in debug builds.
     pub warn_on_id_clash: bool,
 
-    // ------------------------------
-    // Input:
-    /// Multiplier for the scroll speed when reported in [`crate::MouseWheelUnit::Line`]s.
-    pub line_scroll_speed: f32,
-
-    /// Controls the speed at which we zoom in when doing ctrl/cmd + scroll.
-    pub scroll_zoom_speed: f32,
-
     /// Options related to input state handling.
     pub input_options: crate::input_state::InputOptions,
 
@@ -311,14 +303,6 @@ pub struct Options {
 
 impl Default for Options {
     fn default() -> Self {
-        // TODO(emilk): figure out why these constants need to be different on web and on native (winit).
-        let is_web = cfg!(target_arch = "wasm32");
-        let line_scroll_speed = if is_web {
-            8.0
-        } else {
-            40.0 // Scroll speed decided by consensus: https://github.com/emilk/egui/issues/461
-        };
-
         Self {
             dark_style: std::sync::Arc::new(Theme::Dark.default_style()),
             light_style: std::sync::Arc::new(Theme::Light.default_style()),
@@ -335,8 +319,6 @@ impl Default for Options {
             warn_on_id_clash: cfg!(debug_assertions),
 
             // Input:
-            line_scroll_speed,
-            scroll_zoom_speed: 1.0 / 200.0,
             input_options: Default::default(),
             reduce_texture_memory: false,
         }
@@ -391,9 +373,6 @@ impl Options {
             screen_reader: _, // needs to come from the integration
             preload_font_glyphs: _,
             warn_on_id_clash,
-
-            line_scroll_speed,
-            scroll_zoom_speed,
             input_options,
             reduce_texture_memory,
         } = self;
@@ -448,22 +427,6 @@ impl Options {
         CollapsingHeader::new("🖱 Input")
             .default_open(false)
             .show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.label("Line scroll speed");
-                    ui.add(crate::DragValue::new(line_scroll_speed).range(0.0..=f32::INFINITY))
-                        .on_hover_text(
-                            "How many lines to scroll with each tick of the mouse wheel",
-                        );
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Scroll zoom speed");
-                    ui.add(
-                        crate::DragValue::new(scroll_zoom_speed)
-                            .range(0.0..=f32::INFINITY)
-                            .speed(0.001),
-                    )
-                    .on_hover_text("How fast to zoom with ctrl/cmd + scroll");
-                });
                 input_options.ui(ui);
             });
 
