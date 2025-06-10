@@ -4,6 +4,7 @@ use crate::{
 
 /// Hue, saturation, value, alpha. All in the range [0, 1].
 /// No premultiplied alpha.
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Hsva {
     /// hue 0-1
