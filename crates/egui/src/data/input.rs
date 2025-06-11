@@ -256,9 +256,7 @@ impl ViewportInfo {
     /// If this is not the root viewport,
     /// it is up to the user to hide this viewport the next frame.
     pub fn close_requested(&self) -> bool {
-        self.events
-            .iter()
-            .any(|&event| event == ViewportEvent::Close)
+        self.events.contains(&ViewportEvent::Close)
     }
 
     /// Helper: move [`Self::events`], clone the other fields.
