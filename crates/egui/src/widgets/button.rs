@@ -314,11 +314,15 @@ impl Widget for Button<'_> {
 
         let (rect, mut response) = ui.allocate_at_least(desired_size, sense);
         response.widget_info(|| {
+            let mut widget_info = WidgetInfo::new(WidgetType::Button);
+            widget_info.enabled = ui.is_enabled();
+
             if let Some(galley) = &galley {
-                WidgetInfo::labeled(WidgetType::Button, ui.is_enabled(), galley.text())
-            } else {
-                WidgetInfo::new(WidgetType::Button)
+                widget_info.label = Some(galley.text().to_owned());
+            } else if let Some(image) = &image {
+                widget_info.label = image.alt_text.clone();
             }
+            widget_info
         });
 
         if ui.is_rect_visible(rect) {
