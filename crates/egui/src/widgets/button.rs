@@ -37,9 +37,9 @@ pub struct Button<'a> {
 }
 
 impl<'a> Button<'a> {
-    pub fn new(content: impl IntoAtoms<'a>) -> Self {
+    pub fn new(atoms: impl IntoAtoms<'a>) -> Self {
         Self {
-            layout: AtomLayout::new(content.into_atoms()).sense(Sense::click()),
+            layout: AtomLayout::new(atoms.into_atoms()).sense(Sense::click()),
             fill: None,
             stroke: None,
             small: false,

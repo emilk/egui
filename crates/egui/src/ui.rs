@@ -2055,8 +2055,8 @@ impl Ui {
     /// ```
     #[must_use = "You should check if the user clicked this with `if ui.button(…).clicked() { … } "]
     #[inline]
-    pub fn button<'a>(&mut self, text: impl IntoAtoms<'a>) -> Response {
-        Button::new(text).ui(self)
+    pub fn button<'a>(&mut self, atoms: impl IntoAtoms<'a>) -> Response {
+        Button::new(atoms).ui(self)
     }
 
     /// A button as small as normal body text.
@@ -2073,8 +2073,8 @@ impl Ui {
     ///
     /// See also [`Self::toggle_value`].
     #[inline]
-    pub fn checkbox<'a>(&mut self, checked: &'a mut bool, text: impl IntoAtoms<'a>) -> Response {
-        Checkbox::new(checked, text).ui(self)
+    pub fn checkbox<'a>(&mut self, checked: &'a mut bool, atoms: impl IntoAtoms<'a>) -> Response {
+        Checkbox::new(checked, atoms).ui(self)
     }
 
     /// Acts like a checkbox, but looks like a [`SelectableLabel`].
@@ -2095,8 +2095,8 @@ impl Ui {
     /// Often you want to use [`Self::radio_value`] instead.
     #[must_use = "You should check if the user clicked this with `if ui.radio(…).clicked() { … } "]
     #[inline]
-    pub fn radio<'a>(&mut self, selected: bool, text: impl IntoAtoms<'a>) -> Response {
-        RadioButton::new(selected, text).ui(self)
+    pub fn radio<'a>(&mut self, selected: bool, atoms: impl IntoAtoms<'a>) -> Response {
+        RadioButton::new(selected, atoms).ui(self)
     }
 
     /// Show a [`RadioButton`]. It is selected if `*current_value == selected_value`.
@@ -2122,9 +2122,9 @@ impl Ui {
         &mut self,
         current_value: &mut Value,
         alternative: Value,
-        text: impl IntoAtoms<'a>,
+        atoms: impl IntoAtoms<'a>,
     ) -> Response {
-        let mut response = self.radio(*current_value == alternative, text);
+        let mut response = self.radio(*current_value == alternative, atoms);
         if response.clicked() && *current_value != alternative {
             *current_value = alternative;
             response.mark_changed();
@@ -3043,13 +3043,13 @@ impl Ui {
     /// See also: [`Self::close`] and [`Response::context_menu`].
     pub fn menu_button<'a, R>(
         &mut self,
-        content: impl IntoAtoms<'a>,
+        atoms: impl IntoAtoms<'a>,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<Option<R>> {
         let (response, inner) = if menu::is_in_menu(self) {
-            menu::SubMenuButton::new(content).ui(self, add_contents)
+            menu::SubMenuButton::new(atoms).ui(self, add_contents)
         } else {
-            menu::MenuButton::new(content).ui(self, add_contents)
+            menu::MenuButton::new(atoms).ui(self, add_contents)
         };
         InnerResponse::new(inner.map(|i| i.inner), response)
     }

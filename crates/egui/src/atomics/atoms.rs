@@ -12,8 +12,8 @@ pub(crate) const ATOMS_SMALL_VEC_SIZE: usize = 2;
 pub struct Atoms<'a>(SmallVec<[Atom<'a>; ATOMS_SMALL_VEC_SIZE]>);
 
 impl<'a> Atoms<'a> {
-    pub fn new(content: impl IntoAtoms<'a>) -> Self {
-        content.into_atoms()
+    pub fn new(atoms: impl IntoAtoms<'a>) -> Self {
+        atoms.into_atoms()
     }
 
     /// Insert a new [`Atom`] at the end of the list (right side).

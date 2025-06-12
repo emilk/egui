@@ -243,8 +243,8 @@ pub struct MenuButton<'a> {
 }
 
 impl<'a> MenuButton<'a> {
-    pub fn new(text: impl IntoAtoms<'a>) -> Self {
-        Self::from_button(Button::new(text.into_atoms()))
+    pub fn new(atoms: impl IntoAtoms<'a>) -> Self {
+        Self::from_button(Button::new(atoms.into_atoms()))
     }
 
     /// Set the config for the menu.
@@ -293,8 +293,8 @@ impl<'a> SubMenuButton<'a> {
     /// The default right arrow symbol: `"⏵"`
     pub const RIGHT_ARROW: &'static str = "⏵";
 
-    pub fn new(text: impl IntoAtoms<'a>) -> Self {
-        Self::from_button(Button::new(text.into_atoms()).right_text("⏵"))
+    pub fn new(atoms: impl IntoAtoms<'a>) -> Self {
+        Self::from_button(Button::new(atoms.into_atoms()).right_text("⏵"))
     }
 
     /// Create a new submenu button from a [`Button`].

@@ -29,10 +29,10 @@ pub struct RadioButton<'a> {
 }
 
 impl<'a> RadioButton<'a> {
-    pub fn new(checked: bool, text: impl IntoAtoms<'a>) -> Self {
+    pub fn new(checked: bool, atoms: impl IntoAtoms<'a>) -> Self {
         Self {
             checked,
-            atoms: text.into_atoms(),
+            atoms: atoms.into_atoms(),
         }
     }
 }
