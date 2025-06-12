@@ -95,6 +95,9 @@ impl<'a> AtomLayout<'a> {
     }
 
     /// Set the minimum size of the Widget.
+    ///
+    /// This will find and expand atoms with `grow: true`.
+    /// If there are no growable atoms then everything will be left-aligned.
     #[inline]
     pub fn min_size(mut self, size: Vec2) -> Self {
         self.min_size = size;
