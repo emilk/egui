@@ -16,12 +16,16 @@ use epaint::text::TextWrapMode;
 pub struct Atom<'a> {
     /// See [`crate::AtomExt::atom_size`]
     pub size: Option<Vec2>,
+
     /// See [`crate::AtomExt::atom_max_size`]
     pub max_size: Vec2,
+
     /// See [`crate::AtomExt::atom_grow`]
     pub grow: bool,
+
     /// See [`crate::AtomExt::atom_shrink`]
     pub shrink: bool,
+
     /// The atom type
     pub kind: AtomKind<'a>,
 }
