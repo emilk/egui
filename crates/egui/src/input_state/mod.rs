@@ -299,9 +299,6 @@ pub struct InputState {
     ///
     /// This gets copied from `egui::Options` at the start of each frame for convenience.
     options: InputOptions,
-
-    /// Set if we need a repaint (i.e., in [`InputState::consume_key`])
-    needs_repaint: bool,
 }
 
 impl Default for InputState {
@@ -330,7 +327,6 @@ impl Default for InputState {
             keys_down: Default::default(),
             events: Default::default(),
             options: Default::default(),
-            needs_repaint: false,
         }
     }
 }
@@ -520,7 +516,6 @@ impl InputState {
             events: new.events.clone(), // TODO(emilk): remove clone() and use raw.events
             raw: new,
             options,
-            needs_repaint: false,
         }
     }
 
@@ -602,15 +597,18 @@ impl InputState {
         (self.time - self.last_scroll_time) as f32
     }
 
-    /// The [`crate::Context`] will call this at the end of each frame to see if we need a repaint.
+    /// The [`crate::Context`] will call this at the beginning of each frame to see if we need a repaint.
     ///
     /// Returns how long to wait for a repaint.
-    pub fn wants_repaint_after(&self) -> Option<Duration> {
+    ///
+    /// NOTE: It's important to call this immediately after [`Self::begin_pass`] since calls to
+    /// [`Self::consume_key`] will remove events from the vec, meaning those key presses wouldn't
+    /// cause a repaint.
+    pub(crate) fn wants_repaint_after(&self) -> Option<Duration> {
         if self.pointer.wants_repaint()
             || self.unprocessed_scroll_delta.abs().max_elem() > 0.2
             || self.unprocessed_scroll_delta_for_zoom.abs() > 0.2
             || !self.events.is_empty()
-            || self.needs_repaint
         {
             // Immediate repaint
             return Some(Duration::ZERO);
@@ -659,10 +657,6 @@ impl InputState {
 
             !is_match
         });
-
-        if count > 0 {
-            self.needs_repaint = true;
-        }
 
         count
     }
@@ -1486,7 +1480,6 @@ impl InputState {
             keys_down,
             events,
             options: _,
-            needs_repaint,
         } = self;
 
         ui.style_mut()
@@ -1544,7 +1537,6 @@ impl InputState {
         ui.label(format!("focused:   {focused}"));
         ui.label(format!("modifiers: {modifiers:#?}"));
         ui.label(format!("keys_down: {keys_down:?}"));
-        ui.label(format!("needs_repaint: {needs_repaint:?}"));
         ui.scope(|ui| {
             ui.set_min_height(150.0);
             ui.label(format!("events: {events:#?}"))
