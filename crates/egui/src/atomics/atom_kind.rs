@@ -51,7 +51,7 @@ pub enum AtomKind<'a> {
     /// let id = Id::new("my_button");
     /// let response = Button::new(("Hi!", Atom::custom(id, Vec2::splat(18.0)))).atom_ui(ui);
     ///
-    /// let rect = response.get_rect(id);
+    /// let rect = response.rect(id);
     /// if let Some(rect) = rect {
     ///     ui.put(rect, Button::new("⏵"));
     /// }

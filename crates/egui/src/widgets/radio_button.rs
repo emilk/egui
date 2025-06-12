@@ -76,7 +76,7 @@ impl Widget for RadioButton<'_> {
             prepared.fallback_text_color = visuals.text_color();
             let response = prepared.paint(ui);
 
-            if let Some(rect) = response.get_rect(rect_id) {
+            if let Some(rect) = response.rect(rect_id) {
                 let (small_icon_rect, big_icon_rect) = ui.spacing().icon_rectangles(rect);
 
                 let painter = ui.painter();
