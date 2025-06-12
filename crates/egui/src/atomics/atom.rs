@@ -5,7 +5,7 @@ use epaint::text::TextWrapMode;
 /// A low-level ui building block.
 ///
 /// Implements [`From`] for [`String`], [`str`], [`crate::Image`] and much more for convenience.
-/// You can directly call the `a_*` methods on anything that implements `Into<Atom>`.
+/// You can directly call the `atom_*` methods on anything that implements `Into<Atom>`.
 /// ```
 /// # use egui::{Image, emath::Vec2};
 /// use egui::AtomExt as _;
