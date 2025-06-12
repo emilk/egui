@@ -1,5 +1,6 @@
 use crate::{Atomic, AtomicKind, Image, WidgetText};
 use smallvec::SmallVec;
+use std::borrow::Cow;
 use std::ops::{Deref, DerefMut};
 
 // Rarely there should be more than 2 atomics in one Widget.
@@ -28,15 +29,16 @@ impl<'a> Atomics<'a> {
     /// Concatenate and return the text contents.
     // TODO(lucasmerlin): It might not always make sense to return the concatenated text, e.g.
     // in a submenu button there is a right text '⏵' which is now passed to the screen reader.
-    pub fn text(&self) -> Option<String> {
-        let mut string: Option<String> = None;
+    pub fn text(&self) -> Option<Cow<str>> {
+        let mut string: Option<Cow<str>> = None;
         for atomic in &self.0 {
             if let AtomicKind::Text(text) = &atomic.kind {
                 if let Some(string) = &mut string {
+                    let string = string.to_mut();
                     string.push(' ');
                     string.push_str(text.text());
                 } else {
-                    string = Some(text.text().to_owned());
+                    string = Some(Cow::Borrowed(text.text()));
                 }
             }
         }
