@@ -27,44 +27,55 @@ pub struct SnapshotOptions {
 
 /// Helper struct to define the number of pixels that can differ before the snapshot is considered a failure.
 /// This is useful if you want to set different thresholds for different operating systems.
-#[derive(Default, Copy, Clone)]
-pub struct OsThreshold {
-    pub windows: i32,
-    pub macos: i32,
-    pub linux: i32,
+#[derive(Debug, Clone, Copy)]
+pub struct OsThreshold<T: Default> {
+    pub windows: T,
+    pub macos: T,
+    pub linux: T,
 }
 
-impl OsThreshold {
-    pub fn new() -> Self {
-        Self::default()
+impl<T: Default> Default for OsThreshold<T> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
-impl OsThreshold {
+impl<T> OsThreshold<T>
+where
+    T: Default,
+{
+    pub fn new() -> Self {
+        Self {
+            windows: T::default(),
+            macos: T::default(),
+            linux: T::default(),
+        }
+    }
+
     /// Set the threshold for Windows.
     #[inline]
-    pub fn windows(mut self, threshold: i32) -> Self {
+    pub fn windows(mut self, threshold: T) -> Self {
         self.windows = threshold;
         self
     }
 
     /// Set the threshold for macOS.
     #[inline]
-    pub fn macos(mut self, threshold: i32) -> Self {
+    pub fn macos(mut self, threshold: T) -> Self {
         self.macos = threshold;
         self
     }
 
     /// Set the threshold for Linux.
     #[inline]
-    pub fn linux(mut self, threshold: i32) -> Self {
+    pub fn linux(mut self, threshold: T) -> Self {
         self.linux = threshold;
         self
     }
 }
 
-impl From<OsThreshold> for i32 {
-    fn from(val: OsThreshold) -> Self {
+impl From<OsThreshold<Self>> for i32 {
+    fn from(val: OsThreshold<Self>) -> Self {
         if cfg!(target_os = "windows") {
             val.windows
         } else if cfg!(target_os = "macos") {
