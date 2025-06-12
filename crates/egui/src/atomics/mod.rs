@@ -2,7 +2,6 @@ mod atom;
 mod atom_ext;
 mod atom_kind;
 mod atom_layout;
-#[expect(clippy::module_inception)]
 mod atoms;
 mod sized_atom;
 mod sized_atom_kind;
