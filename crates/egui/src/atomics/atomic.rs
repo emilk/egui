@@ -14,10 +14,15 @@ use epaint::text::TextWrapMode;
 /// ```
 #[derive(Clone, Debug)]
 pub struct Atomic<'a> {
+    /// See [`crate::AtomicExt::atom_size`]
     pub size: Option<Vec2>,
+    /// See [`crate::AtomicExt::atom_max_size`]
     pub max_size: Vec2,
+    /// See [`crate::AtomicExt::atom_grow`]
     pub grow: bool,
+    /// See [`crate::AtomicExt::atom_shrink`]
     pub shrink: bool,
+    /// The atom type
     pub kind: AtomicKind<'a>,
 }
 
@@ -65,13 +70,21 @@ impl<'a> Atomic<'a> {
             wrap_mode = Some(TextWrapMode::Extend);
         }
         available_size = available_size.at_most(self.max_size);
+        if let Some(size) = self.size {
+            available_size = available_size.at_most(size);
+        }
         if self.max_size.x.is_finite() {
             wrap_mode = Some(TextWrapMode::Truncate);
         }
 
         let (preferred, kind) = self.kind.into_sized(ui, available_size, wrap_mode);
+
+        let size = self
+            .size
+            .map_or_else(|| kind.size(), |s| s.at_most(self.max_size));
+
         SizedAtomic {
-            size: self.size.unwrap_or_else(|| kind.size()),
+            size,
             preferred_size: preferred,
             grow: self.grow,
             kind,

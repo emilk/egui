@@ -36,6 +36,15 @@ fn test_atomics() {
             "I grow as well".atom_grow(true),
         )));
     }));
+    results.add(single_test("size_max_size", |ui| {
+        ui.style_mut().wrap_mode = Some(TextWrapMode::Truncate);
+        ui.add(Button::new((
+            "size and max size"
+                .atom_size(Vec2::new(80.0, 80.0))
+                .atom_max_size(Vec2::new(20.0, 20.0)),
+            "other text".atom_grow(true),
+        )));
+    }));
 }
 
 fn single_test(name: &str, mut f: impl FnMut(&mut Ui)) -> SnapshotResult {

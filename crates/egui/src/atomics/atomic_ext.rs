@@ -11,6 +11,8 @@ pub trait AtomicExt<'a> {
     /// If [`Atomic::shrink`] is `true`, this will be the maximum width.
     /// If both are true, the width will have no effect.
     ///
+    /// [`Self::atom_max_size`] will limit size.
+    ///
     /// See [`crate::AtomicKind`] docs to see how the size affects the different types.
     fn atom_size(self, size: Vec2) -> Atomic<'a>;
 
