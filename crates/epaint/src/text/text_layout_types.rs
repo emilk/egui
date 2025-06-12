@@ -456,7 +456,7 @@ pub struct Galley {
     /// TODO(valadaptive): use this to test whether the truncation character is
     /// selected.
     #[cfg_attr(feature = "serde", serde(skip))]
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub(super) overflow_char_layout: Option<Box<LayoutAndOffset>>,
 
     /// Lazy-initialized AccessKit adapter for this galley's layout.
@@ -1003,7 +1003,7 @@ impl Galley {
     ///
     /// This is the same as [`ByteCursor::default`].
     #[inline]
-    #[allow(clippy::unused_self)]
+    #[expect(clippy::unused_self)]
     pub fn begin(&self) -> ByteCursor {
         ByteCursor::default()
     }

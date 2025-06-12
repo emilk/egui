@@ -2,7 +2,7 @@
 
 use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration};
 
-use emath::{GuiRounding as _, OrderedFloat};
+use emath::GuiRounding as _;
 use epaint::{
     emath::{self, TSTransform},
     mutex::RwLock,

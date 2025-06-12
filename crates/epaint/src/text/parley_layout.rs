@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use ecolor::Color32;
-use emath::{pos2, vec2, GuiRounding, NumExt, Pos2, Rect, Vec2};
+use emath::{pos2, vec2, GuiRounding as _, NumExt as _, Pos2, Rect, Vec2};
 use log::debug;
 use parley::{AlignmentOptions, BreakReason, GlyphRun, InlineBox, PositionedLayoutItem};
 

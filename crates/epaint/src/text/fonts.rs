@@ -5,7 +5,7 @@ use crate::{
     TextureAtlas,
 };
 use ecolor::Color32;
-use emath::{vec2, GuiRounding, NumExt as _, OrderedFloat};
+use emath::{vec2, GuiRounding as _, NumExt as _, OrderedFloat};
 
 use parley::{
     fontique::{self, Blob, FontInfoOverride, QueryFamily},
@@ -670,7 +670,7 @@ impl FontStore {
     }
 
     /// Height of one row of text in points.
-    #[allow(clippy::unused_self, clippy::needless_pass_by_ref_mut)]
+    #[expect(clippy::unused_self, clippy::needless_pass_by_ref_mut)]
     pub fn row_height(&mut self, font_id: &FontId) -> f32 {
         // TODO(valadaptive): if styling is changed so line height is more overridable, this function won't make very
         // much sense

@@ -9,7 +9,7 @@ use crate::{
 };
 
 use super::{
-    handle_event::SelectionExt, text_cursor_state::cursor_rect, visuals::paint_text_selection,
+    handle_event::SelectionExt as _, text_cursor_state::cursor_rect, visuals::paint_text_selection,
     TextCursorState,
 };
 

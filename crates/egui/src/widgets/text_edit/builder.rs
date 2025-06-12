@@ -15,7 +15,7 @@ use crate::{
     output::OutputEvent,
     response,
     text_selection::{
-        self, handle_event::SelectionExt, text_cursor_state::cursor_rect,
+        self, handle_event::SelectionExt as _, text_cursor_state::cursor_rect,
         visuals::paint_text_selection,
     },
     vec2, Align, Align2, Color32, Context, CursorIcon, Event, EventFilter, FontSelection, Id,
@@ -1186,7 +1186,6 @@ fn remove_ime_incompatible_events(events: &mut Vec<Event>) {
 // ----------------------------------------------------------------------------
 
 /// Returns `Some(new_cursor)` if we did mutate `text`.
-#[allow(clippy::too_many_arguments)]
 fn check_for_mutating_key_press(
     os: OperatingSystem,
     selection: &Selection,

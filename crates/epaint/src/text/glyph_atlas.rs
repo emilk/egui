@@ -47,6 +47,7 @@ impl SubpixelBin {
         let trunc = pos as i32;
         let fract = pos - trunc as f32;
 
+        #[expect(clippy::collapsible_else_if)]
         if pos.is_sign_negative() {
             if fract > -0.125 {
                 (trunc, Self::Zero)
@@ -60,7 +61,6 @@ impl SubpixelBin {
                 (trunc - 1, Self::Zero)
             }
         } else {
-            #[allow(clippy::collapsible_else_if)]
             if fract < 0.125 {
                 (trunc, Self::Zero)
             } else if fract < 0.375 {

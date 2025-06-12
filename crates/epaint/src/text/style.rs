@@ -294,9 +294,13 @@ impl Default for FontWidth {
     }
 }
 
+// Clippy thinks it's too long because the links are long
+// (https://github.com/rust-lang/rust-clippy/issues/13315)
+#[expect(clippy::too_long_first_doc_paragraph)]
 /// An OpenType tag, typically a [feature tag](https://learn.microsoft.com/en-us/typography/opentype/spec/featurelist)
-/// or [variation axis tag](https://learn.microsoft.com/en-us/typography/opentype/spec/dvaraxisreg). This is a 4-byte
-/// identifier, typically represented as a 4-character string.
+/// or [variation axis tag](https://learn.microsoft.com/en-us/typography/opentype/spec/dvaraxisreg).
+///
+/// This is a 4-byte identifier, typically represented as a 4-character string.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Tag([u8; 4]);
