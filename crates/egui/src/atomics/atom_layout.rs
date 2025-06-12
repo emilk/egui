@@ -392,6 +392,8 @@ impl<'atom> AllocatedAtomLayout<'atom> {
 
         for sized in sized_atoms {
             let size = sized.size;
+            // TODO(lucasmerlin): This is not ideal, since this might lead to accumulated rounding errors
+            // https://github.com/emilk/egui/pull/5830#discussion_r2079627864
             let growth = if sized.is_grow() { grow_width } else { 0.0 };
 
             let frame = aligned_rect
