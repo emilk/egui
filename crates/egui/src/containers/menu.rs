@@ -1,6 +1,6 @@
 use crate::style::StyleModifier;
 use crate::{
-    Button, Color32, Context, Frame, Id, InnerResponse, IntoAtomics, Layout, Popup,
+    Button, Color32, Context, Frame, Id, InnerResponse, IntoAtoms, Layout, Popup,
     PopupCloseBehavior, Response, Style, Ui, UiBuilder, UiKind, UiStack, UiStackInfo, Widget as _,
 };
 use emath::{vec2, Align, RectAlign, Vec2};
@@ -243,8 +243,8 @@ pub struct MenuButton<'a> {
 }
 
 impl<'a> MenuButton<'a> {
-    pub fn new(text: impl IntoAtomics<'a>) -> Self {
-        Self::from_button(Button::new(text.into_atomics()))
+    pub fn new(text: impl IntoAtoms<'a>) -> Self {
+        Self::from_button(Button::new(text.into_atoms()))
     }
 
     /// Set the config for the menu.
@@ -293,8 +293,8 @@ impl<'a> SubMenuButton<'a> {
     /// The default right arrow symbol: `"⏵"`
     pub const RIGHT_ARROW: &'static str = "⏵";
 
-    pub fn new(text: impl IntoAtomics<'a>) -> Self {
-        Self::from_button(Button::new(text.into_atomics()).right_text("⏵"))
+    pub fn new(text: impl IntoAtoms<'a>) -> Self {
+        Self::from_button(Button::new(text.into_atoms()).right_text("⏵"))
     }
 
     /// Create a new submenu button from a [`Button`].

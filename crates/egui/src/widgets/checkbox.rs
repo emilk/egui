@@ -1,6 +1,6 @@
 use crate::{
-    epaint, pos2, Atomic, AtomicLayout, Atomics, Id, IntoAtomics, NumExt as _, Response, Sense,
-    Shape, Ui, Vec2, Widget, WidgetInfo, WidgetType,
+    epaint, pos2, Atom, AtomLayout, Atoms, Id, IntoAtoms, NumExt as _, Response, Sense, Shape, Ui,
+    Vec2, Widget, WidgetInfo, WidgetType,
 };
 
 // TODO(emilk): allow checkbox without a text label
@@ -19,15 +19,15 @@ use crate::{
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct Checkbox<'a> {
     checked: &'a mut bool,
-    atomics: Atomics<'a>,
+    atoms: Atoms<'a>,
     indeterminate: bool,
 }
 
 impl<'a> Checkbox<'a> {
-    pub fn new(checked: &'a mut bool, atomics: impl IntoAtomics<'a>) -> Self {
+    pub fn new(checked: &'a mut bool, atoms: impl IntoAtoms<'a>) -> Self {
         Checkbox {
             checked,
-            atomics: atomics.into_atomics(),
+            atoms: atoms.into_atoms(),
             indeterminate: false,
         }
     }
@@ -51,7 +51,7 @@ impl Widget for Checkbox<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         let Checkbox {
             checked,
-            mut atomics,
+            mut atoms,
             indeterminate,
         } = self;
 
@@ -65,11 +65,11 @@ impl Widget for Checkbox<'_> {
         let mut icon_size = Vec2::splat(icon_width);
         icon_size.y = icon_size.y.at_least(min_size.y);
         let rect_id = Id::new("egui::checkbox");
-        atomics.push_left(Atomic::custom(rect_id, icon_size));
+        atoms.push_left(Atom::custom(rect_id, icon_size));
 
-        let text = atomics.text();
+        let text = atoms.text().map(String::from);
 
-        let mut prepared = AtomicLayout::new(atomics)
+        let mut prepared = AtomLayout::new(atoms)
             .sense(Sense::click())
             .min_size(min_size)
             .allocate(ui);

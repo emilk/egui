@@ -1,7 +1,7 @@
 use crate::{
-    Atomic, AtomicExt as _, AtomicKind, AtomicLayout, AtomicLayoutResponse, Color32, CornerRadius,
-    Frame, Image, IntoAtomics, NumExt as _, Response, Sense, Stroke, TextWrapMode, Ui, Vec2,
-    Widget, WidgetInfo, WidgetText, WidgetType,
+    Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Color32, CornerRadius, Frame,
+    Image, IntoAtoms, NumExt as _, Response, Sense, Stroke, TextWrapMode, Ui, Vec2, Widget,
+    WidgetInfo, WidgetText, WidgetType,
 };
 
 /// Clickable button with text.
@@ -24,7 +24,7 @@ use crate::{
 /// ```
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct Button<'a> {
-    layout: AtomicLayout<'a>,
+    layout: AtomLayout<'a>,
     fill: Option<Color32>,
     stroke: Option<Stroke>,
     small: bool,
@@ -37,9 +37,9 @@ pub struct Button<'a> {
 }
 
 impl<'a> Button<'a> {
-    pub fn new(content: impl IntoAtomics<'a>) -> Self {
+    pub fn new(content: impl IntoAtoms<'a>) -> Self {
         Self {
-            layout: AtomicLayout::new(content.into_atomics()).sense(Sense::click()),
+            layout: AtomLayout::new(content.into_atoms()).sense(Sense::click()),
             fill: None,
             stroke: None,
             small: false,
@@ -55,7 +55,7 @@ impl<'a> Button<'a> {
     /// Creates a button with an image. The size of the image as displayed is defined by the provided size.
     ///
     /// Note: In contrast to [`Button::new`], this limits the image size to the default font height
-    /// (using [`crate::AtomicExt::atom_max_height_font_size`]).
+    /// (using [`crate::AtomExt::atom_max_height_font_size`]).
     pub fn image(image: impl Into<Image<'a>>) -> Self {
         Self::opt_image_and_text(Some(image.into()), None)
     }
@@ -63,7 +63,7 @@ impl<'a> Button<'a> {
     /// Creates a button with an image to the left of the text.
     ///
     /// Note: In contrast to [`Button::new`], this limits the image size to the default font height
-    /// (using [`crate::AtomicExt::atom_max_height_font_size`]).
+    /// (using [`crate::AtomExt::atom_max_height_font_size`]).
     pub fn image_and_text(image: impl Into<Image<'a>>, text: impl Into<WidgetText>) -> Self {
         Self::opt_image_and_text(Some(image.into()), Some(text.into()))
     }
@@ -71,7 +71,7 @@ impl<'a> Button<'a> {
     /// Create a button with an optional image and optional text.
     ///
     /// Note: In contrast to [`Button::new`], this limits the image size to the default font height
-    /// (using [`crate::AtomicExt::atom_max_height_font_size`]).
+    /// (using [`crate::AtomExt::atom_max_height_font_size`]).
     pub fn opt_image_and_text(image: Option<Image<'a>>, text: Option<WidgetText>) -> Self {
         let mut button = Self::new(());
         if let Some(image) = image {
@@ -186,21 +186,21 @@ impl<'a> Button<'a> {
     ///
     /// See also [`Self::right_text`].
     #[inline]
-    pub fn shortcut_text(mut self, shortcut_text: impl Into<Atomic<'a>>) -> Self {
-        let mut atomic = shortcut_text.into();
-        atomic.kind = match atomic.kind {
-            AtomicKind::Text(text) => AtomicKind::Text(text.weak()),
+    pub fn shortcut_text(mut self, shortcut_text: impl Into<Atom<'a>>) -> Self {
+        let mut atom = shortcut_text.into();
+        atom.kind = match atom.kind {
+            AtomKind::Text(text) => AtomKind::Text(text.weak()),
             other => other,
         };
-        self.layout.push_right(Atomic::grow());
-        self.layout.push_right(atomic);
+        self.layout.push_right(Atom::grow());
+        self.layout.push_right(atom);
         self
     }
 
     /// Show some text on the right side of the button.
     #[inline]
-    pub fn right_text(mut self, right_text: impl Into<Atomic<'a>>) -> Self {
-        self.layout.push_right(Atomic::grow());
+    pub fn right_text(mut self, right_text: impl Into<Atom<'a>>) -> Self {
+        self.layout.push_right(Atom::grow());
         self.layout.push_right(right_text.into());
         self
     }
@@ -212,8 +212,8 @@ impl<'a> Button<'a> {
         self
     }
 
-    /// Show the button and return a [`AtomicLayoutResponse`] for painting custom contents.
-    pub fn atomic_ui(self, ui: &mut Ui) -> AtomicLayoutResponse {
+    /// Show the button and return a [`AtomLayoutResponse`] for painting custom contents.
+    pub fn atom_ui(self, ui: &mut Ui) -> AtomLayoutResponse {
         let Button {
             mut layout,
             fill,
@@ -232,16 +232,16 @@ impl<'a> Button<'a> {
         }
 
         if limit_image_size {
-            layout.map_atomics(|atomic| {
-                if matches!(&atomic.kind, AtomicKind::Image(_)) {
-                    atomic.atom_max_height_font_size(ui)
+            layout.map_atoms(|atom| {
+                if matches!(&atom.kind, AtomKind::Image(_)) {
+                    atom.atom_max_height_font_size(ui)
                 } else {
-                    atomic
+                    atom
                 }
             });
         }
 
-        let text = layout.text();
+        let text = layout.text().map(String::from);
 
         let has_frame = frame.unwrap_or_else(|| ui.visuals().button_frame);
 
@@ -284,7 +284,7 @@ impl<'a> Button<'a> {
 
             prepared.paint(ui)
         } else {
-            AtomicLayoutResponse::empty(prepared.response)
+            AtomLayoutResponse::empty(prepared.response)
         };
 
         response.response.widget_info(|| {
@@ -301,6 +301,6 @@ impl<'a> Button<'a> {
 
 impl Widget for Button<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
-        self.atomic_ui(ui).response
+        self.atom_ui(ui).response
     }
 }

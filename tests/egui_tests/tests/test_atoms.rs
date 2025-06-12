@@ -1,8 +1,8 @@
-use egui::{Align, AtomicExt as _, Button, Layout, TextWrapMode, Ui, Vec2};
+use egui::{Align, AtomExt as _, Button, Layout, TextWrapMode, Ui, Vec2};
 use egui_kittest::{HarnessBuilder, SnapshotResult, SnapshotResults};
 
 #[test]
-fn test_atomics() {
+fn test_atoms() {
     let mut results = SnapshotResults::new();
 
     results.add(single_test("max_width", |ui| {

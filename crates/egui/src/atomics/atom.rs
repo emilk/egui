@@ -1,71 +1,71 @@
-use crate::{AtomicKind, Id, SizedAtomic, Ui};
+use crate::{AtomKind, Id, SizedAtom, Ui};
 use emath::{NumExt as _, Vec2};
 use epaint::text::TextWrapMode;
 
 /// A low-level ui building block.
 ///
 /// Implements [`From`] for [`String`], [`str`], [`crate::Image`] and much more for convenience.
-/// You can directly call the `a_*` methods on anything that implements `Into<Atomic>`.
+/// You can directly call the `a_*` methods on anything that implements `Into<Atom>`.
 /// ```
 /// # use egui::{Image, emath::Vec2};
-/// use egui::AtomicExt as _;
-/// let string_atomic = "Hello".atom_grow(true);
-/// let image_atomic = Image::new("some_image_url").atom_size(Vec2::splat(20.0));
+/// use egui::AtomExt as _;
+/// let string_atom = "Hello".atom_grow(true);
+/// let image_atom = Image::new("some_image_url").atom_size(Vec2::splat(20.0));
 /// ```
 #[derive(Clone, Debug)]
-pub struct Atomic<'a> {
-    /// See [`crate::AtomicExt::atom_size`]
+pub struct Atom<'a> {
+    /// See [`crate::AtomExt::atom_size`]
     pub size: Option<Vec2>,
-    /// See [`crate::AtomicExt::atom_max_size`]
+    /// See [`crate::AtomExt::atom_max_size`]
     pub max_size: Vec2,
-    /// See [`crate::AtomicExt::atom_grow`]
+    /// See [`crate::AtomExt::atom_grow`]
     pub grow: bool,
-    /// See [`crate::AtomicExt::atom_shrink`]
+    /// See [`crate::AtomExt::atom_shrink`]
     pub shrink: bool,
     /// The atom type
-    pub kind: AtomicKind<'a>,
+    pub kind: AtomKind<'a>,
 }
 
-impl Default for Atomic<'_> {
+impl Default for Atom<'_> {
     fn default() -> Self {
-        Atomic {
+        Atom {
             size: None,
             max_size: Vec2::INFINITY,
             grow: false,
             shrink: false,
-            kind: AtomicKind::Empty,
+            kind: AtomKind::Empty,
         }
     }
 }
 
-impl<'a> Atomic<'a> {
-    /// Create an empty [`Atomic`] marked as `grow`.
+impl<'a> Atom<'a> {
+    /// Create an empty [`Atom`] marked as `grow`.
     ///
-    /// This will expand in size, allowing all preceding atomics to be left-aligned,
-    /// and all following atomics to be right-aligned
+    /// This will expand in size, allowing all preceding atoms to be left-aligned,
+    /// and all following atoms to be right-aligned
     pub fn grow() -> Self {
-        Atomic {
+        Atom {
             grow: true,
             ..Default::default()
         }
     }
 
-    /// Create a [`AtomicKind::Custom`] with a specific size.
+    /// Create a [`AtomKind::Custom`] with a specific size.
     pub fn custom(id: Id, size: impl Into<Vec2>) -> Self {
-        Atomic {
+        Atom {
             size: Some(size.into()),
-            kind: AtomicKind::Custom(id),
+            kind: AtomKind::Custom(id),
             ..Default::default()
         }
     }
 
-    /// Turn this into a [`SizedAtomic`].
+    /// Turn this into a [`SizedAtom`].
     pub fn into_sized(
         self,
         ui: &Ui,
         mut available_size: Vec2,
         mut wrap_mode: Option<TextWrapMode>,
-    ) -> SizedAtomic<'a> {
+    ) -> SizedAtom<'a> {
         if !self.shrink && self.max_size.x.is_infinite() {
             wrap_mode = Some(TextWrapMode::Extend);
         }
@@ -83,7 +83,7 @@ impl<'a> Atomic<'a> {
             .size
             .map_or_else(|| kind.size(), |s| s.at_most(self.max_size));
 
-        SizedAtomic {
+        SizedAtom {
             size,
             preferred_size: preferred,
             grow: self.grow,
@@ -92,12 +92,12 @@ impl<'a> Atomic<'a> {
     }
 }
 
-impl<'a, T> From<T> for Atomic<'a>
+impl<'a, T> From<T> for Atom<'a>
 where
-    T: Into<AtomicKind<'a>>,
+    T: Into<AtomKind<'a>>,
 {
     fn from(value: T) -> Self {
-        Atomic {
+        Atom {
             kind: value.into(),
             ..Default::default()
         }

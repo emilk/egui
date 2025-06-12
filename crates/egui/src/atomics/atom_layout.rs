@@ -1,7 +1,7 @@
-use crate::atomics::ATOMICS_SMALL_VEC_SIZE;
+use crate::atomics::ATOMS_SMALL_VEC_SIZE;
 use crate::{
-    AtomicKind, Atomics, Frame, Id, Image, IntoAtomics, Response, Sense, SizedAtomic,
-    SizedAtomicKind, Ui, Widget,
+    AtomKind, Atoms, Frame, Id, Image, IntoAtoms, Response, Sense, SizedAtom, SizedAtomKind, Ui,
+    Widget,
 };
 use emath::{Align2, GuiRounding as _, NumExt as _, Rect, Vec2};
 use epaint::text::TextWrapMode;
@@ -12,26 +12,26 @@ use std::sync::Arc;
 
 /// Intra-widget layout utility.
 ///
-/// Used to lay out and paint [`crate::Atomic`]s.
+/// Used to lay out and paint [`crate::Atom`]s.
 /// This is used internally by widgets like [`crate::Button`] and [`crate::Checkbox`].
 /// You can use it to make your own widgets.
 ///
-/// Painting the atomics can be split in two phases:
-/// - [`AtomicLayout::allocate`]
+/// Painting the atoms can be split in two phases:
+/// - [`AtomLayout::allocate`]
 ///   - calculates sizes
 ///   - converts texts to [`Galley`]s
 ///   - allocates a [`Response`]
-///   - returns a [`AllocatedAtomicLayout`]
-/// - [`AllocatedAtomicLayout::paint`]
+///   - returns a [`AllocatedAtomLayout`]
+/// - [`AllocatedAtomLayout::paint`]
 ///   - paints the [`Frame`]
-///   - calculates individual [`crate::Atomic`] positions
-///   - paints each single atomic
+///   - calculates individual [`crate::Atom`] positions
+///   - paints each single atom
 ///
 /// You can use this to first allocate a response and then modify, e.g., the [`Frame`] on the
-/// [`AllocatedAtomicLayout`] for interaction styling.
-pub struct AtomicLayout<'a> {
+/// [`AllocatedAtomLayout`] for interaction styling.
+pub struct AtomLayout<'a> {
     id: Option<Id>,
-    pub atomics: Atomics<'a>,
+    pub atoms: Atoms<'a>,
     gap: Option<f32>,
     pub(crate) frame: Frame,
     pub(crate) sense: Sense,
@@ -41,17 +41,17 @@ pub struct AtomicLayout<'a> {
     align2: Option<Align2>,
 }
 
-impl Default for AtomicLayout<'_> {
+impl Default for AtomLayout<'_> {
     fn default() -> Self {
         Self::new(())
     }
 }
 
-impl<'a> AtomicLayout<'a> {
-    pub fn new(atomics: impl IntoAtomics<'a>) -> Self {
+impl<'a> AtomLayout<'a> {
+    pub fn new(atoms: impl IntoAtoms<'a>) -> Self {
         Self {
             id: None,
-            atomics: atomics.into_atomics(),
+            atoms: atoms.into_atoms(),
             gap: None,
             frame: Frame::default(),
             sense: Sense::hover(),
@@ -62,7 +62,7 @@ impl<'a> AtomicLayout<'a> {
         }
     }
 
-    /// Set the gap between atomics.
+    /// Set the gap between atoms.
     ///
     /// Default: `Spacing::icon_spacing`
     #[inline]
@@ -108,11 +108,11 @@ impl<'a> AtomicLayout<'a> {
         self
     }
 
-    /// Set the [`TextWrapMode`] for the [`crate::Atomic`] marked as `shrink`.
+    /// Set the [`TextWrapMode`] for the [`crate::Atom`] marked as `shrink`.
     ///
-    /// Only a single [`crate::Atomic`] may shrink. If this (or `ui.wrap_mode()`) is not
+    /// Only a single [`crate::Atom`] may shrink. If this (or `ui.wrap_mode()`) is not
     /// [`TextWrapMode::Extend`] and no item is set to shrink, the first (left-most)
-    /// [`AtomicKind::Text`] will be set to shrink.
+    /// [`AtomKind::Text`] will be set to shrink.
     #[inline]
     pub fn wrap_mode(mut self, wrap_mode: TextWrapMode) -> Self {
         self.wrap_mode = Some(wrap_mode);
@@ -121,7 +121,7 @@ impl<'a> AtomicLayout<'a> {
 
     /// Set the [`Align2`].
     ///
-    /// This will align the [`crate::Atomic`]s within the [`Rect`] returned by [`Ui::allocate_space`].
+    /// This will align the [`crate::Atom`]s within the [`Rect`] returned by [`Ui::allocate_space`].
     ///
     /// The default is chosen based on the [`Ui`]s [`crate::Layout`]. See
     /// [this snapshot](https://github.com/emilk/egui/blob/master/tests/egui_tests/tests/snapshots/layout/button.png)
@@ -132,18 +132,18 @@ impl<'a> AtomicLayout<'a> {
         self
     }
 
-    /// [`AtomicLayout::allocate`] and [`AllocatedAtomicLayout::paint`] in one go.
-    pub fn show(self, ui: &mut Ui) -> AtomicLayoutResponse {
+    /// [`AtomLayout::allocate`] and [`AllocatedAtomLayout::paint`] in one go.
+    pub fn show(self, ui: &mut Ui) -> AtomLayoutResponse {
         self.allocate(ui).paint(ui)
     }
 
     /// Calculate sizes, create [`Galley`]s and allocate a [`Response`].
     ///
-    /// Use the returned [`AllocatedAtomicLayout`] for painting.
-    pub fn allocate(self, ui: &mut Ui) -> AllocatedAtomicLayout<'a> {
+    /// Use the returned [`AllocatedAtomLayout`] for painting.
+    pub fn allocate(self, ui: &mut Ui) -> AllocatedAtomLayout<'a> {
         let Self {
             id,
-            mut atomics,
+            mut atoms,
             gap,
             frame,
             sense,
@@ -158,13 +158,13 @@ impl<'a> AtomicLayout<'a> {
         // If the TextWrapMode is not Extend, ensure there is some item marked as `shrink`.
         // If none is found, mark the first text item as `shrink`.
         if wrap_mode != TextWrapMode::Extend {
-            let any_shrink = atomics.iter().any(|a| a.shrink);
+            let any_shrink = atoms.iter().any(|a| a.shrink);
             if !any_shrink {
-                let first_text = atomics
+                let first_text = atoms
                     .iter_mut()
-                    .find(|a| matches!(a.kind, AtomicKind::Text(..)));
-                if let Some(atomic) = first_text {
-                    atomic.shrink = true; // Will make the text truncate or shrink depending on wrap_mode
+                    .find(|a| matches!(a.kind, AtomKind::Text(..)));
+                if let Some(atom) = first_text {
+                    atom.shrink = true; // Will make the text truncate or shrink depending on wrap_mode
                 }
             }
         }
@@ -197,13 +197,13 @@ impl<'a> AtomicLayout<'a> {
             Align2([ui.layout().horizontal_align(), ui.layout().vertical_align()])
         });
 
-        if atomics.len() > 1 {
-            let gap_space = gap * (atomics.len() as f32 - 1.0);
+        if atoms.len() > 1 {
+            let gap_space = gap * (atoms.len() as f32 - 1.0);
             desired_width += gap_space;
             preferred_width += gap_space;
         }
 
-        for (idx, item) in atomics.into_iter().enumerate() {
+        for (idx, item) in atoms.into_iter().enumerate() {
             if item.grow {
                 grow_count += 1;
             }
@@ -258,8 +258,8 @@ impl<'a> AtomicLayout<'a> {
         response.intrinsic_size =
             Some((Vec2::new(preferred_width, preferred_height) + margin.sum()).at_least(min_size));
 
-        AllocatedAtomicLayout {
-            sized_atomics: sized_items,
+        AllocatedAtomLayout {
+            sized_atoms: sized_items,
             frame,
             fallback_text_color,
             response,
@@ -271,10 +271,10 @@ impl<'a> AtomicLayout<'a> {
     }
 }
 
-/// Instructions for painting an [`AtomicLayout`].
+/// Instructions for painting an [`AtomLayout`].
 #[derive(Clone, Debug)]
-pub struct AllocatedAtomicLayout<'a> {
-    pub sized_atomics: SmallVec<[SizedAtomic<'a>; ATOMICS_SMALL_VEC_SIZE]>,
+pub struct AllocatedAtomLayout<'a> {
+    pub sized_atoms: SmallVec<[SizedAtom<'a>; ATOMS_SMALL_VEC_SIZE]>,
     pub frame: Frame,
     pub fallback_text_color: Color32,
     pub response: Response,
@@ -285,18 +285,18 @@ pub struct AllocatedAtomicLayout<'a> {
     gap: f32,
 }
 
-impl<'atomic> AllocatedAtomicLayout<'atomic> {
-    pub fn iter_kinds(&self) -> impl Iterator<Item = &SizedAtomicKind<'atomic>> {
-        self.sized_atomics.iter().map(|atomic| &atomic.kind)
+impl<'atom> AllocatedAtomLayout<'atom> {
+    pub fn iter_kinds(&self) -> impl Iterator<Item = &SizedAtomKind<'atom>> {
+        self.sized_atoms.iter().map(|atom| &atom.kind)
     }
 
-    pub fn iter_kinds_mut(&mut self) -> impl Iterator<Item = &mut SizedAtomicKind<'atomic>> {
-        self.sized_atomics.iter_mut().map(|atomic| &mut atomic.kind)
+    pub fn iter_kinds_mut(&mut self) -> impl Iterator<Item = &mut SizedAtomKind<'atom>> {
+        self.sized_atoms.iter_mut().map(|atom| &mut atom.kind)
     }
 
-    pub fn iter_images(&self) -> impl Iterator<Item = &Image<'atomic>> {
+    pub fn iter_images(&self) -> impl Iterator<Item = &Image<'atom>> {
         self.iter_kinds().filter_map(|kind| {
-            if let SizedAtomicKind::Image(image, _) = kind {
+            if let SizedAtomKind::Image(image, _) = kind {
                 Some(image)
             } else {
                 None
@@ -304,9 +304,9 @@ impl<'atomic> AllocatedAtomicLayout<'atomic> {
         })
     }
 
-    pub fn iter_images_mut(&mut self) -> impl Iterator<Item = &mut Image<'atomic>> {
+    pub fn iter_images_mut(&mut self) -> impl Iterator<Item = &mut Image<'atom>> {
         self.iter_kinds_mut().filter_map(|kind| {
-            if let SizedAtomicKind::Image(image, _) = kind {
+            if let SizedAtomKind::Image(image, _) = kind {
                 Some(image)
             } else {
                 None
@@ -314,9 +314,9 @@ impl<'atomic> AllocatedAtomicLayout<'atomic> {
         })
     }
 
-    pub fn iter_texts(&self) -> impl Iterator<Item = &Arc<Galley>> + use<'atomic, '_> {
+    pub fn iter_texts(&self) -> impl Iterator<Item = &Arc<Galley>> + use<'atom, '_> {
         self.iter_kinds().filter_map(|kind| {
-            if let SizedAtomicKind::Text(text) = kind {
+            if let SizedAtomKind::Text(text) = kind {
                 Some(text)
             } else {
                 None
@@ -324,9 +324,9 @@ impl<'atomic> AllocatedAtomicLayout<'atomic> {
         })
     }
 
-    pub fn iter_texts_mut(&mut self) -> impl Iterator<Item = &mut Arc<Galley>> + use<'atomic, '_> {
+    pub fn iter_texts_mut(&mut self) -> impl Iterator<Item = &mut Arc<Galley>> + use<'atom, '_> {
         self.iter_kinds_mut().filter_map(|kind| {
-            if let SizedAtomicKind::Text(text) = kind {
+            if let SizedAtomKind::Text(text) = kind {
                 Some(text)
             } else {
                 None
@@ -336,7 +336,7 @@ impl<'atomic> AllocatedAtomicLayout<'atomic> {
 
     pub fn map_kind<F>(&mut self, mut f: F)
     where
-        F: FnMut(SizedAtomicKind<'atomic>) -> SizedAtomicKind<'atomic>,
+        F: FnMut(SizedAtomKind<'atom>) -> SizedAtomKind<'atom>,
     {
         for kind in self.iter_kinds_mut() {
             *kind = f(std::mem::take(kind));
@@ -345,21 +345,21 @@ impl<'atomic> AllocatedAtomicLayout<'atomic> {
 
     pub fn map_images<F>(&mut self, mut f: F)
     where
-        F: FnMut(Image<'atomic>) -> Image<'atomic>,
+        F: FnMut(Image<'atom>) -> Image<'atom>,
     {
         self.map_kind(|kind| {
-            if let SizedAtomicKind::Image(image, size) = kind {
-                SizedAtomicKind::Image(f(image), size)
+            if let SizedAtomKind::Image(image, size) = kind {
+                SizedAtomKind::Image(f(image), size)
             } else {
                 kind
             }
         });
     }
 
-    /// Paint the [`Frame`] and individual [`crate::Atomic`]s.
-    pub fn paint(self, ui: &Ui) -> AtomicLayoutResponse {
+    /// Paint the [`Frame`] and individual [`crate::Atom`]s.
+    pub fn paint(self, ui: &Ui) -> AtomLayoutResponse {
         let Self {
-            sized_atomics,
+            sized_atoms,
             frame,
             fallback_text_color,
             response,
@@ -385,9 +385,9 @@ impl<'atomic> AllocatedAtomicLayout<'atomic> {
 
         let mut cursor = aligned_rect.left();
 
-        let mut response = AtomicLayoutResponse::empty(response);
+        let mut response = AtomLayoutResponse::empty(response);
 
-        for sized in sized_atomics {
+        for sized in sized_atoms {
             let size = sized.size;
             let growth = if sized.is_grow() { grow_width } else { 0.0 };
 
@@ -400,20 +400,20 @@ impl<'atomic> AllocatedAtomicLayout<'atomic> {
             let rect = align.align_size_within_rect(size, frame);
 
             match sized.kind {
-                SizedAtomicKind::Text(galley) => {
+                SizedAtomKind::Text(galley) => {
                     ui.painter().galley(rect.min, galley, fallback_text_color);
                 }
-                SizedAtomicKind::Image(image, _) => {
+                SizedAtomKind::Image(image, _) => {
                     image.paint_at(ui, rect);
                 }
-                SizedAtomicKind::Custom(id) => {
+                SizedAtomKind::Custom(id) => {
                     debug_assert!(
                         !response.custom_rects.iter().any(|(i, _)| *i == id),
                         "Duplicate custom id"
                     );
                     response.custom_rects.push((id, rect));
                 }
-                SizedAtomicKind::Empty => {}
+                SizedAtomKind::Empty => {}
             }
         }
 
@@ -421,19 +421,19 @@ impl<'atomic> AllocatedAtomicLayout<'atomic> {
     }
 }
 
-/// Response from a [`AtomicLayout::show`] or [`AllocatedAtomicLayout::paint`].
+/// Response from a [`AtomLayout::show`] or [`AllocatedAtomLayout::paint`].
 ///
-/// Use the `custom_rects` together with [`AtomicKind::Custom`] to add child widgets to a widget.
+/// Use the `custom_rects` together with [`AtomKind::Custom`] to add child widgets to a widget.
 ///
 /// NOTE: Don't `unwrap` rects, they might be empty when the widget is not visible.
 #[derive(Clone, Debug)]
-pub struct AtomicLayoutResponse {
+pub struct AtomLayoutResponse {
     pub response: Response,
     // There should rarely be more than one custom rect.
     custom_rects: SmallVec<[(Id, Rect); 1]>,
 }
 
-impl AtomicLayoutResponse {
+impl AtomLayoutResponse {
     pub fn empty(response: Response) -> Self {
         Self {
             response,
@@ -452,36 +452,36 @@ impl AtomicLayoutResponse {
     }
 }
 
-impl Widget for AtomicLayout<'_> {
+impl Widget for AtomLayout<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         self.show(ui).response
     }
 }
 
-impl<'a> Deref for AtomicLayout<'a> {
-    type Target = Atomics<'a>;
+impl<'a> Deref for AtomLayout<'a> {
+    type Target = Atoms<'a>;
 
     fn deref(&self) -> &Self::Target {
-        &self.atomics
+        &self.atoms
     }
 }
 
-impl DerefMut for AtomicLayout<'_> {
+impl DerefMut for AtomLayout<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.atomics
+        &mut self.atoms
     }
 }
 
-impl<'a> Deref for AllocatedAtomicLayout<'a> {
-    type Target = [SizedAtomic<'a>];
+impl<'a> Deref for AllocatedAtomLayout<'a> {
+    type Target = [SizedAtom<'a>];
 
     fn deref(&self) -> &Self::Target {
-        &self.sized_atomics
+        &self.sized_atoms
     }
 }
 
-impl DerefMut for AllocatedAtomicLayout<'_> {
+impl DerefMut for AllocatedAtomLayout<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.sized_atomics
+        &mut self.sized_atoms
     }
 }

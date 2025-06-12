@@ -1,6 +1,6 @@
 use crate::{
-    epaint, Atomic, AtomicLayout, Atomics, Id, IntoAtomics, NumExt as _, Response, Sense, Ui, Vec2,
-    Widget, WidgetInfo, WidgetType,
+    epaint, Atom, AtomLayout, Atoms, Id, IntoAtoms, NumExt as _, Response, Sense, Ui, Vec2, Widget,
+    WidgetInfo, WidgetType,
 };
 
 /// One out of several alternatives, either selected or not.
@@ -25,24 +25,21 @@ use crate::{
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct RadioButton<'a> {
     checked: bool,
-    atomics: Atomics<'a>,
+    atoms: Atoms<'a>,
 }
 
 impl<'a> RadioButton<'a> {
-    pub fn new(checked: bool, text: impl IntoAtomics<'a>) -> Self {
+    pub fn new(checked: bool, text: impl IntoAtoms<'a>) -> Self {
         Self {
             checked,
-            atomics: text.into_atomics(),
+            atoms: text.into_atoms(),
         }
     }
 }
 
 impl Widget for RadioButton<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
-        let Self {
-            checked,
-            mut atomics,
-        } = self;
+        let Self { checked, mut atoms } = self;
 
         let spacing = &ui.spacing();
         let icon_width = spacing.icon_width;
@@ -54,11 +51,11 @@ impl Widget for RadioButton<'_> {
         let mut icon_size = Vec2::splat(icon_width);
         icon_size.y = icon_size.y.at_least(min_size.y);
         let rect_id = Id::new("egui::radio_button");
-        atomics.push_left(Atomic::custom(rect_id, icon_size));
+        atoms.push_left(Atom::custom(rect_id, icon_size));
 
-        let text = atomics.text();
+        let text = atoms.text().map(String::from);
 
-        let mut prepared = AtomicLayout::new(atomics)
+        let mut prepared = AtomLayout::new(atoms)
             .sense(Sense::click())
             .min_size(min_size)
             .allocate(ui);
