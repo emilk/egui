@@ -28,7 +28,7 @@ default = ["default_fonts"]
 
 ## Exposes detailed accessibility implementation required by platform
 ## accessibility APIs. Also requires support in the egui integration.
-accesskit = ["dep:accesskit"]
+accesskit = ["dep:accesskit", "epaint/accesskit"]
 
 ## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast [`epaint::Vertex`], [`emath::Vec2`] etc to `&[u8]`.
 bytemuck = ["epaint/bytemuck"]

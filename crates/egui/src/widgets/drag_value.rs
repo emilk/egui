@@ -3,8 +3,8 @@
 use std::{cmp::Ordering, ops::RangeInclusive};
 
 use crate::{
-    emath, text, Button, CursorIcon, Key, Modifiers, NumExt as _, Response, RichText, Sense,
-    TextEdit, TextWrapMode, Ui, Widget, WidgetInfo, MINUS_CHAR_STR,
+    emath, Button, CursorIcon, Key, Modifiers, NumExt as _, Response, RichText, Sense, TextEdit,
+    TextWrapMode, Ui, Widget, WidgetInfo, MINUS_CHAR_STR,
 };
 
 // ----------------------------------------------------------------------------
@@ -624,10 +624,7 @@ impl Widget for DragValue<'_> {
                 ui.data_mut(|data| data.remove::<String>(id));
                 ui.memory_mut(|mem| mem.request_focus(id));
                 let mut state = TextEdit::load_state(ui.ctx(), id).unwrap_or_default();
-                state.cursor.set_char_range(Some(text::CCursorRange::two(
-                    text::CCursor::default(),
-                    text::CCursor::new(value_text.chars().count()),
-                )));
+                state.select_byte_range(0..value_text.len());
                 state.store(ui.ctx(), response.id);
             } else if response.dragged() {
                 ui.ctx().set_cursor_icon(cursor_icon);

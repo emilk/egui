@@ -1,7 +1,5 @@
-use std::{
-    fmt,
-    ops::{Add, AddAssign, MulAssign, Sub, SubAssign},
-};
+use std::fmt;
+use std::ops::{Add, AddAssign, Sub, SubAssign};
 
 use crate::{lerp, Div, Mul, Vec2};
 
@@ -304,14 +302,6 @@ impl Mul<Pos2> for f32 {
             x: self * vec.x,
             y: self * vec.y,
         }
-    }
-}
-
-impl MulAssign<f32> for Pos2 {
-    #[inline(always)]
-    fn mul_assign(&mut self, rhs: f32) {
-        self.x *= rhs;
-        self.y *= rhs;
     }
 }
 

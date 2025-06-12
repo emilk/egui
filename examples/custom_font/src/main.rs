@@ -3,7 +3,7 @@
 
 use eframe::{
     egui,
-    epaint::text::{FontInsert, InsertFontFamily},
+    epaint::text::{style::GenericFamily, FontInsert, InsertFontFamily},
 };
 
 fn main() -> eframe::Result {
@@ -28,11 +28,11 @@ fn add_font(ctx: &egui::Context) {
         )),
         vec![
             InsertFontFamily {
-                family: egui::FontFamily::Proportional,
+                family: GenericFamily::SystemUi,
                 priority: egui::epaint::text::FontPriority::Highest,
             },
             InsertFontFamily {
-                family: egui::FontFamily::Monospace,
+                family: GenericFamily::Monospace,
                 priority: egui::epaint::text::FontPriority::Lowest,
             },
         ],
@@ -56,14 +56,14 @@ fn replace_fonts(ctx: &egui::Context) {
     // Put my font first (highest priority) for proportional text:
     fonts
         .families
-        .entry(egui::FontFamily::Proportional)
+        .entry(GenericFamily::SystemUi)
         .or_default()
         .insert(0, "my_font".to_owned());
 
     // Put my font as last fallback for monospace:
     fonts
         .families
-        .entry(egui::FontFamily::Monospace)
+        .entry(GenericFamily::Monospace)
         .or_default()
         .push("my_font".to_owned());
 

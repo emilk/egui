@@ -1,12 +1,9 @@
-use std::fmt::Write as _;
-
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 
 use egui::epaint::TextShape;
 use egui::load::SizedTexture;
 use egui::{Button, Id, RichText, TextureId, Ui, UiBuilder, Vec2};
 use egui_demo_lib::LOREM_IPSUM_LONG;
-use rand::Rng as _;
 
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc; // Much faster allocator
@@ -163,18 +160,15 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let pixels_per_point = 1.0;
         let max_texture_side = 8 * 1024;
         let wrap_width = 512.0;
-        let font_id = egui::FontId::default();
+        let font_id = egui::text::style::FontId::default();
         let text_color = egui::Color32::WHITE;
-        let fonts = egui::epaint::text::Fonts::new(
-            pixels_per_point,
-            max_texture_side,
-            egui::FontDefinitions::default(),
-        );
+        let mut fonts =
+            egui::epaint::text::FontStore::new(max_texture_side, egui::FontDefinitions::default());
+        let mut fonts = fonts.with_pixels_per_point(pixels_per_point);
         {
-            let mut locked_fonts = fonts.lock();
             c.bench_function("text_layout_uncached", |b| {
                 b.iter(|| {
-                    use egui::epaint::text::{layout, LayoutJob};
+                    use egui::epaint::text::LayoutJob;
 
                     let job = LayoutJob::simple(
                         LOREM_IPSUM_LONG.to_owned(),
@@ -182,7 +176,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                         text_color,
                         wrap_width,
                     );
-                    layout(&mut locked_fonts.fonts, job.into())
+                    fonts.layout_job_uncached(job);
                 });
             });
         }
@@ -197,33 +191,9 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             });
         });
 
-        c.bench_function("text_layout_cached_many_lines_modified", |b| {
-            const NUM_LINES: usize = 2_000;
-
-            let mut string = String::new();
-            for _ in 0..NUM_LINES {
-                for i in 0..30_u8 {
-                    write!(string, "{i:02X} ").unwrap();
-                }
-                string.push('\n');
-            }
-
-            let mut rng = rand::rng();
-            b.iter(|| {
-                fonts.begin_pass(pixels_per_point, max_texture_side);
-
-                // Delete a random character, simulating a user making an edit in a long file:
-                let mut new_string = string.clone();
-                let idx = rng.random_range(0..string.len());
-                new_string.remove(idx);
-
-                fonts.layout(new_string, font_id.clone(), text_color, wrap_width);
-            });
-        });
-
         let galley = fonts.layout(LOREM_IPSUM_LONG.to_owned(), font_id, text_color, wrap_width);
         let font_image_size = fonts.font_image_size();
-        let prepared_discs = fonts.texture_atlas().lock().prepared_discs();
+        let prepared_discs = fonts.texture_atlas().prepared_discs();
         let mut tessellator = egui::epaint::Tessellator::new(
             1.0,
             Default::default(),

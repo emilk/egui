@@ -4,12 +4,12 @@
 use std::ops::Range;
 use std::sync::Arc;
 
-use super::{
-    cursor::{CCursor, LayoutCursor},
-    font::UvRect,
-};
-use crate::{Color32, FontId, Mesh, Stroke};
-use emath::{pos2, vec2, Align, GuiRounding as _, NumExt as _, OrderedFloat, Pos2, Rect, Vec2};
+use super::cursor::{ByteCursor, Selection};
+use super::glyph_atlas::UvRect;
+use super::style::{FontId, TextFormat};
+use crate::{Color32, Mesh};
+use emath::{Align, OrderedFloat, Pos2, Rect, Vec2};
+use parley::OverflowWrap;
 
 /// Describes the task of laying out text.
 ///
@@ -19,13 +19,13 @@ use emath::{pos2, vec2, Align, GuiRounding as _, NumExt as _, OrderedFloat, Pos2
 ///
 /// ## Example:
 /// ```
-/// use epaint::{Color32, text::{LayoutJob, TextFormat}, FontFamily, FontId};
+/// use epaint::{Color32, text::{LayoutJob, TextStyle}, FontFamily, FontId};
 ///
 /// let mut job = LayoutJob::default();
 /// job.append(
 ///     "Hello ",
 ///     0.0,
-///     TextFormat {
+///     TextStyle {
 ///         font_id: FontId::new(14.0, FontFamily::Proportional),
 ///         color: Color32::WHITE,
 ///         ..Default::default()
@@ -34,7 +34,7 @@ use emath::{pos2, vec2, Align, GuiRounding as _, NumExt as _, OrderedFloat, Pos2
 /// job.append(
 ///     "World!",
 ///     0.0,
-///     TextFormat {
+///     TextStyle {
 ///         font_id: FontId::new(14.0, FontFamily::Monospace),
 ///         color: Color32::BLACK,
 ///         ..Default::default()
@@ -70,6 +70,7 @@ pub struct LayoutJob {
     /// and show up as the replacement character.
     ///
     /// Default: `true`.
+    /// TODO(valadaptive): implement this
     pub break_on_newline: bool,
 
     /// How to horizontally align the text (`Align::LEFT`, `Align::Center`, `Align::RIGHT`).
@@ -101,12 +102,12 @@ impl Default for LayoutJob {
 impl LayoutJob {
     /// Break on `\n` and at the given wrap width.
     #[inline]
-    pub fn simple(text: String, font_id: FontId, color: Color32, wrap_width: f32) -> Self {
+    pub fn simple(text: String, font: FontId, color: Color32, wrap_width: f32) -> Self {
         Self {
             sections: vec![LayoutSection {
                 leading_space: 0.0,
                 byte_range: 0..text.len(),
-                format: TextFormat::simple(font_id, color),
+                format: TextFormat::simple(font, color),
             }],
             text,
             wrap: TextWrapping {
@@ -135,12 +136,12 @@ impl LayoutJob {
 
     /// Does not break on `\n`, but shows the replacement character instead.
     #[inline]
-    pub fn simple_singleline(text: String, font_id: FontId, color: Color32) -> Self {
+    pub fn simple_singleline(text: String, font: FontId, color: Color32) -> Self {
         Self {
             sections: vec![LayoutSection {
                 leading_space: 0.0,
                 byte_range: 0..text.len(),
-                format: TextFormat::simple(font_id, color),
+                format: TextFormat::simple(font, color),
             }],
             text,
             wrap: Default::default(),
@@ -184,7 +185,7 @@ impl LayoutJob {
     /// The height of the tallest font used in the job.
     ///
     /// Returns a value rounded to [`emath::GUI_ROUNDING`].
-    pub fn font_height(&self, fonts: &crate::Fonts) -> f32 {
+    pub fn font_height(&self, fonts: &mut crate::Fonts<'_>) -> f32 {
         let mut max_height = 0.0_f32;
         for section in &self.sections {
             max_height = max_height.max(fonts.row_height(&section.format.font_id));
@@ -250,122 +251,11 @@ impl std::hash::Hash for LayoutSection {
         let Self {
             leading_space,
             byte_range,
-            format,
+            format: style,
         } = self;
         OrderedFloat(*leading_space).hash(state);
         byte_range.hash(state);
-        format.hash(state);
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-/// Formatting option for a section of text.
-#[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct TextFormat {
-    pub font_id: FontId,
-
-    /// Extra spacing between letters, in points.
-    ///
-    /// Default: 0.0.
-    ///
-    /// For even text it is recommended you round this to an even number of _pixels_.
-    pub extra_letter_spacing: f32,
-
-    /// Explicit line height of the text in points.
-    ///
-    /// This is the distance between the bottom row of two subsequent lines of text.
-    ///
-    /// If `None` (the default), the line height is determined by the font.
-    ///
-    /// For even text it is recommended you round this to an even number of _pixels_.
-    pub line_height: Option<f32>,
-
-    /// Text color
-    pub color: Color32,
-
-    pub background: Color32,
-
-    /// Amount to expand background fill by.
-    ///
-    /// Default: 1.0
-    pub expand_bg: f32,
-
-    pub italics: bool,
-
-    pub underline: Stroke,
-
-    pub strikethrough: Stroke,
-
-    /// If you use a small font and [`Align::TOP`] you
-    /// can get the effect of raised text.
-    ///
-    /// If you use a small font and [`Align::BOTTOM`]
-    /// you get the effect of a subscript.
-    ///
-    /// If you use [`Align::Center`], you get text that is centered
-    /// around a common center-line, which is nice when mixining emojis
-    /// and normal text in e.g. a button.
-    pub valign: Align,
-}
-
-impl Default for TextFormat {
-    #[inline]
-    fn default() -> Self {
-        Self {
-            font_id: FontId::default(),
-            extra_letter_spacing: 0.0,
-            line_height: None,
-            color: Color32::GRAY,
-            background: Color32::TRANSPARENT,
-            expand_bg: 1.0,
-            italics: false,
-            underline: Stroke::NONE,
-            strikethrough: Stroke::NONE,
-            valign: Align::BOTTOM,
-        }
-    }
-}
-
-impl std::hash::Hash for TextFormat {
-    #[inline]
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        let Self {
-            font_id,
-            extra_letter_spacing,
-            line_height,
-            color,
-            background,
-            expand_bg,
-            italics,
-            underline,
-            strikethrough,
-            valign,
-        } = self;
-        font_id.hash(state);
-        emath::OrderedFloat(*extra_letter_spacing).hash(state);
-        if let Some(line_height) = *line_height {
-            emath::OrderedFloat(line_height).hash(state);
-        }
-        color.hash(state);
-        background.hash(state);
-        emath::OrderedFloat(*expand_bg).hash(state);
-        italics.hash(state);
-        underline.hash(state);
-        strikethrough.hash(state);
-        valign.hash(state);
-    }
-}
-
-impl TextFormat {
-    #[inline]
-    pub fn simple(font_id: FontId, color: Color32) -> Self {
-        Self {
-            font_id,
-            color,
-            ..Default::default()
-        }
+        style.hash(state);
     }
 }
 
@@ -498,6 +388,29 @@ impl TextWrapping {
             ..Default::default()
         }
     }
+
+    pub(crate) fn apply_to_parley_style(&self, style: &mut parley::TextStyle<'_, Color32>) {
+        style.overflow_wrap = OverflowWrap::Anywhere;
+        style.word_break = if self.break_anywhere {
+            parley::WordBreakStrength::BreakAll
+        } else {
+            parley::WordBreakStrength::Normal
+        };
+    }
+}
+
+#[derive(Clone, Default)]
+pub(super) struct LayoutAndOffset {
+    pub(super) layout: parley::Layout<Color32>,
+    /// Position offset added to the Parley layout. Must be subtracted again to
+    /// translate coords into Parley-space.
+    pub(super) offset: Vec2,
+}
+
+impl LayoutAndOffset {
+    pub(super) fn new(layout: parley::Layout<Color32>, offset: Vec2) -> Self {
+        Self { layout, offset }
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -516,21 +429,43 @@ impl TextWrapping {
 ///
 /// The name comes from typography, where a "galley" is a metal tray
 /// containing a column of set type, usually the size of a page of text.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Galley {
     /// The job that this galley is the result of.
     /// Contains the original string and style sections.
     pub job: Arc<LayoutJob>,
 
-    /// Rows of text, from top to bottom, and their offsets.
+    /// Rows of text, from top to bottom.
     ///
     /// The number of characters in all rows sum up to `job.text.chars().count()`
     /// unless [`Self::elided`] is `true`.
     ///
     /// Note that a paragraph (a piece of text separated with `\n`)
     /// can be split up into multiple rows.
-    pub rows: Vec<PlacedRow>,
+    pub rows: Vec<Row>,
+
+    /// Parley text layout, primarily used for text editing.
+    /// TODO(valadaptive): serde support?
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(super) parley_layout: LayoutAndOffset,
+
+    /// Optional extra layout for the character used to truncate this text.
+    /// Boxed because it's pretty large and most text is not truncated.
+    ///
+    /// TODO(valadaptive): use this to test whether the truncation character is
+    /// selected.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    #[expect(dead_code)]
+    pub(super) overflow_char_layout: Option<Box<LayoutAndOffset>>,
+
+    /// Lazy-initialized AccessKit adapter for this galley's layout.
+    #[cfg(feature = "accesskit")]
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(super) accessibility: LazyAccessibility,
+
+    /// Color of the selection, if it exists. Otherwise, [`Color32::TRANSPARENT`].
+    pub selection_color: Color32,
 
     /// Set to true the text was truncated due to [`TextWrapping::max_rows`].
     pub elided: bool,
@@ -562,68 +497,85 @@ pub struct Galley {
     pub pixels_per_point: f32,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct PlacedRow {
-    /// The position of this [`Row`] relative to the galley.
-    ///
-    /// This is rounded to the closest _pixel_ in order to produce crisp, pixel-perfect text.
-    pub pos: Pos2,
-
-    /// The underlying unpositioned [`Row`].
-    pub row: Arc<Row>,
-}
-
-impl PlacedRow {
-    /// Logical bounding rectangle on font heights etc.
-    ///
-    /// This ignores / includes the `LayoutSection::leading_space`.
-    pub fn rect(&self) -> Rect {
-        Rect::from_min_size(self.pos, self.row.size)
-    }
-
-    /// Same as [`Self::rect`] but excluding the `LayoutSection::leading_space`.
-    pub fn rect_without_leading_space(&self) -> Rect {
-        let x = self.glyphs.first().map_or(self.pos.x, |g| g.pos.x);
-        let size_x = self.size.x - x;
-        Rect::from_min_size(Pos2::new(x, self.pos.y), Vec2::new(size_x, self.size.y))
+// parley::Layout does not implement Debug
+impl std::fmt::Debug for Galley {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Galley")
+            .field("job", &self.job)
+            .field("elided", &self.elided)
+            .field("rect", &self.rect)
+            .field("mesh_bounds", &self.mesh_bounds)
+            .field("num_vertices", &self.num_vertices)
+            .field("num_indices", &self.num_indices)
+            .field("pixels_per_point", &self.pixels_per_point)
+            .finish()
     }
 }
 
-impl std::ops::Deref for PlacedRow {
-    type Target = Row;
+#[cfg(feature = "accesskit")]
+#[derive(Clone)]
+pub struct GalleyAccessibility {
+    layout_access: parley::LayoutAccessibility,
+    pub nodes: Vec<(accesskit::NodeId, accesskit::Node)>,
+}
 
-    fn deref(&self) -> &Self::Target {
-        &self.row
+#[cfg(feature = "accesskit")]
+#[derive(Default, Clone)]
+pub(super) struct LazyAccessibility(std::sync::OnceLock<GalleyAccessibility>);
+
+#[cfg(feature = "accesskit")]
+impl LazyAccessibility {
+    fn get_or_init(
+        &self,
+        text: &str,
+        layout: &parley::Layout<Color32>,
+        layout_offset: Vec2,
+    ) -> &GalleyAccessibility {
+        self.0.get_or_init(|| {
+            // TODO(valadaptive): this is quite janky since parley expects to be
+            // able to directly write to a TreeUpdate. Ask if there's a better
+            // way to do this.
+            let nodes = Vec::new();
+            let mut tree_update = accesskit::TreeUpdate {
+                nodes,
+                tree: None,
+                focus: accesskit::NodeId(0), // TODO(valadaptive): does this need to be a "real" value?
+            };
+            let mut parent_node = accesskit::Node::new(accesskit::Role::Unknown);
+            let mut id_counter = 0;
+            let mut next_node_id = || {
+                id_counter += 1;
+                accesskit::NodeId(id_counter)
+            };
+
+            let mut layout_access = parley::LayoutAccessibility::default();
+            layout_access.build_nodes(
+                text,
+                layout,
+                &mut tree_update,
+                &mut parent_node,
+                &mut next_node_id,
+                layout_offset.x as f64,
+                layout_offset.y as f64,
+            );
+
+            GalleyAccessibility {
+                layout_access,
+                nodes: tree_update.nodes,
+            }
+        })
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Row {
-    /// This is included in case there are no glyphs.
-    ///
-    /// Only used during layout, then set to an invalid value in order to
-    /// enable the paragraph-concat optimization path without having to
-    /// adjust `section_index` when concatting.
-    pub(crate) section_index_at_start: u32,
-
-    /// One for each `char`.
-    pub glyphs: Vec<Glyph>,
-
-    /// Logical size based on font heights etc.
+    /// Logical bounding rectangle based on font heights etc.
+    /// Use this when drawing a selection or similar!
     /// Includes leading and trailing whitespace.
-    pub size: Vec2,
-
+    pub rect: Rect,
     /// The mesh, ready to be rendered.
     pub visuals: RowVisuals,
-
-    /// If true, this [`Row`] came from a paragraph ending with a `\n`.
-    /// The `\n` itself is omitted from [`Self::glyphs`].
-    /// A `\n` in the input text always creates a new [`Row`] below it,
-    /// so that text that ends with `\n` has an empty [`Row`] last.
-    /// This also implies that the last [`Row`] in a [`Galley`] always has `ends_with_newline == false`.
-    pub ends_with_newline: bool,
 }
 
 /// The tessellated output of a row.
@@ -637,6 +589,9 @@ pub struct RowVisuals {
     /// Bounds of the mesh, and can be used for culling.
     /// Does NOT include leading or trailing whitespace glyphs!!
     pub mesh_bounds: Rect,
+
+    /// Geometry for any selection to be painted.
+    pub selection_rects: Option<Vec<Rect>>,
 
     /// The number of triangle indices added before the first glyph triangle.
     ///
@@ -655,6 +610,7 @@ impl Default for RowVisuals {
         Self {
             mesh: Default::default(),
             mesh_bounds: Rect::NOTHING,
+            selection_rects: None,
             glyph_index_start: 0,
             glyph_vertex_range: 0..0,
         }
@@ -667,8 +623,8 @@ pub struct Glyph {
     /// The character this glyph represents.
     pub chr: char,
 
-    /// Baseline position, relative to the row.
-    /// Logical position: pos.y is the same for all chars of the same [`TextFormat`].
+    /// Baseline position, relative to the galley.
+    /// Logical position: pos.y is the same for all chars of the same [`TextStyle`].
     pub pos: Pos2,
 
     /// Logical width of the glyph.
@@ -677,30 +633,11 @@ pub struct Glyph {
     /// Height of this row of text.
     ///
     /// Usually same as [`Self::font_height`],
-    /// unless explicitly overridden by [`TextFormat::line_height`].
+    /// unless explicitly overridden by [`TextStyle::line_height`].
     pub line_height: f32,
-
-    /// The ascent of this font.
-    pub font_ascent: f32,
-
-    /// The row/line height of this font.
-    pub font_height: f32,
-
-    /// The ascent of the sub-font within the font (`FontImpl`).
-    pub font_impl_ascent: f32,
-
-    /// The row/line height of the sub-font within the font (`FontImpl`).
-    pub font_impl_height: f32,
 
     /// Position and size of the glyph in the font texture, in texels.
     pub uv_rect: UvRect,
-
-    /// Index into [`LayoutJob::sections`]. Decides color etc.
-    ///
-    /// Only used during layout, then set to an invalid value in order to
-    /// enable the paragraph-concat optimization path without having to
-    /// adjust `section_index` when concatting.
-    pub(crate) section_index: u32,
 }
 
 impl Glyph {
@@ -709,74 +646,249 @@ impl Glyph {
         Vec2::new(self.advance_width, self.line_height)
     }
 
-    #[inline]
-    pub fn max_x(&self) -> f32 {
-        self.pos.x + self.advance_width
-    }
-
-    /// Same y range for all characters with the same [`TextFormat`].
+    /// Same y range for all characters with the same [`TextStyle`].
     #[inline]
     pub fn logical_rect(&self) -> Rect {
-        Rect::from_min_size(self.pos - vec2(0.0, self.font_ascent), self.size())
+        Rect::from_min_size(self.pos, self.size())
+    }
+}
+
+/// Helper for creating and transforming text [`Selection`]s given a layout
+/// computed in a [`Galley`].
+pub struct SelectionDriver<'a> {
+    layout_offset: Vec2,
+    layout: &'a parley::Layout<Color32>,
+    text: &'a str,
+    #[cfg(feature = "accesskit")]
+    accessibility: &'a LazyAccessibility,
+}
+
+impl SelectionDriver<'_> {
+    fn pos_to_parley(&self, pos: Vec2) -> Vec2 {
+        pos - self.layout_offset
+    }
+
+    /// Returns a [`Selection`] of the entire contents of the associated [`Galley`].
+    pub fn select_all(&self) -> Selection {
+        parley::Selection::from_byte_index(self.layout, 0usize, Default::default())
+            .move_lines(self.layout, isize::MAX, true)
+            .into()
+    }
+
+    /// Returns an empty [`Selection`] at the given byte location.
+    pub fn select_at_cursor(&self, cursor: &ByteCursor) -> Selection {
+        parley::Selection::from_byte_index(self.layout, cursor.index, cursor.affinity.into()).into()
+    }
+
+    /// Returns a [`Selection`] at the given [`ByteCursor`] range. See [`Selection::anchor`] and [`Selection::focus`]
+    /// for more info.
+    pub fn select_cursor_range(&self, anchor: &ByteCursor, focus: &ByteCursor) -> Selection {
+        parley::Selection::from_byte_index(self.layout, anchor.index, Default::default())
+            .extend(focus.as_parley(self.layout))
+            .into()
+    }
+
+    /// Returns an empty [`Selection`] at the given galley-space location.
+    pub fn select_single_point_at(&self, pos: Vec2) -> Selection {
+        let Vec2 { x, y } = self.pos_to_parley(pos);
+        parley::Selection::from_point(self.layout, x, y).into()
+    }
+
+    /// Returns a [`Selection`] of the word at the given galley-space location.
+    pub fn select_word_at(&self, pos: Vec2) -> Selection {
+        let Vec2 { x, y } = self.pos_to_parley(pos);
+        parley::Selection::word_from_point(self.layout, x, y).into()
+    }
+
+    /// Returns a [`Selection`] of the layout line (wrapping text creates distinct lines) at the given galley-space
+    /// location.
+    pub fn select_line_at(&self, pos: Vec2) -> Selection {
+        let Vec2 { x, y } = self.pos_to_parley(pos);
+        parley::Selection::line_from_point(self.layout, x, y).into()
+    }
+
+    /// Returns a [`Selection`] with the [`Selection::focus`] moved to the given galley-space location. If this is a
+    /// word-based or line-based selection, the [`Selection::anchor`] may also be extended to a word or line boundary
+    /// respectively.
+    pub fn extend_selection_to_point(&self, selection: &Selection, pos: Vec2) -> Selection {
+        let Vec2 { x, y } = self.pos_to_parley(pos);
+        selection.0.extend_to_point(self.layout, x, y).into()
+    }
+
+    /// Returns a [`Selection`] with the [`Selection::focus`] moved to the given [`ByteCursor`]. If this is a word-based
+    /// or line-based selection, the [`Selection::anchor`] may also be extended to a word or line boundary respectively.
+    pub fn extend_selection_to_cursor(
+        &self,
+        selection: &Selection,
+        focus: &ByteCursor,
+    ) -> Selection {
+        selection.0.extend(focus.as_parley(self.layout)).into()
+    }
+
+    /// Returns a [`Selection`] at the previous visual character (this will differ from the previous "logical" character
+    /// in right-to-left text). If the `extend` parameter is true, the original selection's [`Selection::anchor`] will
+    /// stay where it is; if it is false, the selection at the new location will be empty.
+    pub fn select_prev_character(&self, selection: &Selection, extend: bool) -> Selection {
+        selection.0.previous_visual(self.layout, extend).into()
+    }
+
+    /// Returns a [`Selection`] at the next visual character (this will differ from the previous "logical" character
+    /// in right-to-left text). If the `extend` parameter is true, the original selection's [`Selection::anchor`] will
+    /// stay where it is; if it is false, the selection at the new location will be empty.
+    pub fn select_next_character(&self, selection: &Selection, extend: bool) -> Selection {
+        selection.0.next_visual(self.layout, extend).into()
+    }
+
+    /// Returns the byte range of the beginning of the paragraph to the left of the cursor (returning 0 if we're at the
+    /// first paragraph). Used for deleting text, so we don't need to return a [`Selection`].
+    pub fn paragraph_before_cursor(&self, selection: &Selection) -> Option<Range<usize>> {
+        let range = selection.byte_range();
+        let newline_index = self.text[0..range.start].rfind('\n').unwrap_or(0);
+        if newline_index == range.end {
+            self.prev_cluster(selection)
+        } else {
+            Some(newline_index..range.end)
+        }
+    }
+
+    /// Returns the byte range of the beginning of the paragraph to the right of the cursor (returning 0 if we're at the
+    /// first paragraph). Used for deleting text, so we don't need to return a [`Selection`].
+    pub fn paragraph_after_cursor(&self, selection: &Selection) -> Option<Range<usize>> {
+        let range = selection.byte_range();
+        let newline_index = self.text[range.start..]
+            .find('\n')
+            .map_or(self.text.len(), |idx| idx + range.start);
+        if newline_index == range.end {
+            self.next_cluster(selection)
+        } else {
+            Some(range.start..newline_index)
+        }
+    }
+
+    /// Returns the byte range of the previous logical character. Used for deleting text, so we don't need to return a
+    /// [`Selection`].
+    pub fn prev_cluster(&self, selection: &Selection) -> Option<Range<usize>> {
+        // Adapted from Parley:
+        // https://github.com/linebender/parley/blob/4307d3f/parley/src/layout/editor.rs#L236-L275
+        let cluster = selection.0.focus().logical_clusters(self.layout)[0]?;
+        let range = cluster.text_range();
+        let end = range.end;
+        let start = if cluster.is_hard_line_break() || cluster.is_emoji() {
+            // For newline sequences and emoji, delete the previous cluster
+            range.start
+        } else {
+            // Otherwise, delete the previous character
+            let (start, _) = self
+                .text
+                .get(..end)
+                .and_then(|s| s.char_indices().next_back())?;
+            start
+        };
+        Some(start..end)
+    }
+
+    /// Returns the byte range of the previous logical character. Used for deleting text, so we don't need to return a
+    /// [`Selection`].
+    pub fn next_cluster(&self, selection: &Selection) -> Option<Range<usize>> {
+        // Adapted from Parley:
+        // https://github.com/linebender/parley/blob/4307d3f/parley/src/layout/editor.rs#L215-L233
+        let cluster = selection.0.focus().logical_clusters(self.layout)[1]?;
+        let range = cluster.text_range();
+        if range.is_empty() {
+            return None;
+        }
+        Some(range)
+    }
+
+    /// Returns a [`Selection`] at the previous visual word (this will differ from the previous "logical" word in
+    /// right-to-left text). If the `extend` parameter is true, the original selection's [`Selection::anchor`] will stay
+    /// where it is; if it is false, the selection at the new location will be empty.
+    pub fn select_prev_word(&self, selection: &Selection, extend: bool) -> Selection {
+        selection.0.previous_visual_word(self.layout, extend).into()
+    }
+
+    /// Returns a [`Selection`] at the next visual word (this will differ from the next "logical" word in
+    /// right-to-left text). If the `extend` parameter is true, the original selection's [`Selection::anchor`] will stay
+    /// where it is; if it is false, the selection at the new location will be empty.
+    pub fn select_next_word(&self, selection: &Selection, extend: bool) -> Selection {
+        selection.0.next_visual_word(self.layout, extend).into()
+    }
+
+    /// Returns a [`Selection`] at the same approximate x-position in the previous line. Successive calls to
+    /// [`Self::select_prev_row`] and [`Self::select_next_row`] maintain the [`Selection`]'s internal state, and will
+    /// remember the selection cursor's horizontal position, even if the currently-selected line is not that long.
+    pub fn select_prev_row(&self, selection: &Selection, extend: bool) -> Selection {
+        selection.0.previous_line(self.layout, extend).into()
+    }
+
+    /// Returns a [`Selection`] at the same approximate x-position in the next line. Successive calls to
+    /// [`Self::select_prev_row`] and [`Self::select_next_row`] maintain the [`Selection`]'s internal state, and will
+    /// remember the selection cursor's horizontal position, even if the currently-selected line is not that long.
+    pub fn select_next_row(&self, selection: &Selection, extend: bool) -> Selection {
+        selection.0.next_line(self.layout, extend).into()
+    }
+
+    /// Returns a [`Selection`] at the start of the current line. If the `extend` parameter is true, the original
+    /// selection's [`Selection::anchor`] will stay where it is; if it is false, the selection at the new location will
+    /// be empty.
+    pub fn select_row_start(&self, selection: &Selection, extend: bool) -> Selection {
+        selection.0.line_start(self.layout, extend).into()
+    }
+
+    /// Returns a [`Selection`] at the end of the current line. If the `extend` parameter is true, the original
+    /// selection's [`Selection::anchor`] will stay where it is; if it is false, the selection at the new location will
+    /// be empty.
+    pub fn select_row_end(&self, selection: &Selection, extend: bool) -> Selection {
+        selection.0.line_end(self.layout, extend).into()
+    }
+
+    /// Call the given function with a sequence of rectangles (in galley-space) that represents the visual geometry of
+    /// this selection.
+    pub fn with_selection_rects(&self, selection: &Selection, mut f: impl FnMut(Rect, usize)) {
+        selection
+            .0
+            .geometry_with(self.layout, |parley_rect, line_idx| {
+                let rect = Rect {
+                    min: Pos2::new(parley_rect.x0 as f32, parley_rect.y0 as f32),
+                    max: Pos2::new(parley_rect.x1 as f32, parley_rect.y1 as f32),
+                };
+                f(rect, line_idx);
+            });
+    }
+
+    #[cfg(feature = "accesskit")]
+    /// Create a new selection from an [`accesskit::TextSelection`].
+    pub fn from_accesskit_selection(
+        &self,
+        selection: &accesskit::TextSelection,
+    ) -> Option<Selection> {
+        let accessibility =
+            self.accessibility
+                .get_or_init(self.text, self.layout, self.layout_offset);
+        parley::Selection::from_access_selection(
+            selection,
+            self.layout,
+            &accessibility.layout_access,
+        )
+        .map(Into::into)
+    }
+
+    #[cfg(feature = "accesskit")]
+    /// Convert the given selection to an [`accesskit::TextSelection`].
+    pub fn to_accesskit_selection(
+        &self,
+        selection: &Selection,
+    ) -> Option<accesskit::TextSelection> {
+        let accessibility =
+            self.accessibility
+                .get_or_init(self.text, self.layout, self.layout_offset);
+        selection
+            .0
+            .to_access_selection(self.layout, &accessibility.layout_access)
     }
 }
 
 // ----------------------------------------------------------------------------
-
-impl Row {
-    /// The text on this row, excluding the implicit `\n` if any.
-    pub fn text(&self) -> String {
-        self.glyphs.iter().map(|g| g.chr).collect()
-    }
-
-    /// Excludes the implicit `\n` after the [`Row`], if any.
-    #[inline]
-    pub fn char_count_excluding_newline(&self) -> usize {
-        self.glyphs.len()
-    }
-
-    /// Includes the implicit `\n` after the [`Row`], if any.
-    #[inline]
-    pub fn char_count_including_newline(&self) -> usize {
-        self.glyphs.len() + (self.ends_with_newline as usize)
-    }
-
-    /// Closest char at the desired x coordinate in row-relative coordinates.
-    /// Returns something in the range `[0, char_count_excluding_newline()]`.
-    pub fn char_at(&self, desired_x: f32) -> usize {
-        for (i, glyph) in self.glyphs.iter().enumerate() {
-            if desired_x < glyph.logical_rect().center().x {
-                return i;
-            }
-        }
-        self.char_count_excluding_newline()
-    }
-
-    pub fn x_offset(&self, column: usize) -> f32 {
-        if let Some(glyph) = self.glyphs.get(column) {
-            glyph.pos.x
-        } else {
-            self.size.x
-        }
-    }
-
-    #[inline]
-    pub fn height(&self) -> f32 {
-        self.size.y
-    }
-}
-
-impl PlacedRow {
-    #[inline]
-    pub fn min_y(&self) -> f32 {
-        self.rect().top()
-    }
-
-    #[inline]
-    pub fn max_y(&self) -> f32 {
-        self.rect().bottom()
-    }
-}
 
 impl Galley {
     #[inline]
@@ -795,90 +907,40 @@ impl Galley {
         self.rect.size()
     }
 
-    pub(crate) fn round_output_to_gui(&mut self) {
-        for placed_row in &mut self.rows {
-            // Optimization: only call `make_mut` if necessary (can cause a deep clone)
-            let rounded_size = placed_row.row.size.round_ui();
-            if placed_row.row.size != rounded_size {
-                Arc::make_mut(&mut placed_row.row).size = rounded_size;
-            }
-        }
-
-        let rect = &mut self.rect;
-
-        let did_exceed_wrap_width_by_a_lot = rect.width() > self.job.wrap.max_width + 1.0;
-
-        *rect = rect.round_ui();
-
-        if did_exceed_wrap_width_by_a_lot {
-            // If the user picked a too aggressive wrap width (e.g. more narrow than any individual glyph),
-            // we should let the user know by reporting that our width is wider than the wrap width.
-        } else {
-            // Make sure we don't report being wider than the wrap width the user picked:
-            rect.max.x = rect
-                .max
-                .x
-                .at_most(rect.min.x + self.job.wrap.max_width)
-                .floor_ui();
-        }
+    #[cfg(feature = "accesskit")]
+    pub fn accessibility(&self) -> &GalleyAccessibility {
+        self.accessibility.get_or_init(
+            &self.job.text,
+            &self.parley_layout.layout,
+            self.parley_layout.offset,
+        )
     }
 
-    /// Append each galley under the previous one.
-    pub fn concat(job: Arc<LayoutJob>, galleys: &[Arc<Self>], pixels_per_point: f32) -> Self {
-        profiling::function_scope!();
+    pub fn paint_selection(&mut self, color: Color32, selection: &Selection) -> bool {
+        self.selection_color = color;
 
-        let mut merged_galley = Self {
-            job,
-            rows: Vec::new(),
-            elided: false,
-            rect: Rect::ZERO,
-            mesh_bounds: Rect::NOTHING,
-            num_vertices: 0,
-            num_indices: 0,
-            pixels_per_point,
-        };
-
-        for (i, galley) in galleys.iter().enumerate() {
-            let current_y_offset = merged_galley.rect.height();
-
-            let mut rows = galley.rows.iter();
-            // As documented in `Row::ends_with_newline`, a '\n' will always create a
-            // new `Row` immediately below the current one. Here it doesn't make sense
-            // for us to append this new row so we just ignore it.
-            let is_last_row = i + 1 == galleys.len();
-            if !is_last_row && !galley.elided {
-                let popped = rows.next_back();
-                debug_assert_eq!(popped.unwrap().row.glyphs.len(), 0, "Bug in Galley::concat");
-            }
-
-            merged_galley.rows.extend(rows.map(|placed_row| {
-                let new_pos = placed_row.pos + current_y_offset * Vec2::Y;
-                let new_pos = new_pos.round_to_pixels(pixels_per_point);
-                merged_galley.mesh_bounds = merged_galley
-                    .mesh_bounds
-                    .union(placed_row.visuals.mesh_bounds.translate(new_pos.to_vec2()));
-                merged_galley.rect = merged_galley
-                    .rect
-                    .union(Rect::from_min_size(new_pos, placed_row.size));
-
-                super::PlacedRow {
-                    pos: new_pos,
-                    row: placed_row.row.clone(),
+        let mut did_draw_any = false;
+        selection
+            .0
+            .geometry_with(&self.parley_layout.layout, |parley_rect, line_idx| {
+                let rect = Rect {
+                    min: Pos2::new(parley_rect.x0 as f32, parley_rect.y0 as f32),
+                    max: Pos2::new(parley_rect.x1 as f32, parley_rect.y1 as f32),
                 }
-            }));
+                .translate(self.parley_layout.offset);
 
-            merged_galley.num_vertices += galley.num_vertices;
-            merged_galley.num_indices += galley.num_indices;
-            // Note that if `galley.elided` is true this will be the last `Galley` in
-            // the vector and the loop will end.
-            merged_galley.elided |= galley.elided;
-        }
+                let Some(row) = self.rows.get_mut(line_idx) else {
+                    return;
+                };
 
-        if merged_galley.job.round_output_to_gui {
-            merged_galley.round_output_to_gui();
-        }
+                let selection_rects = row.visuals.selection_rects.get_or_insert_default();
+                selection_rects.push(rect);
+                // Count selection rectangle bounds when culling
+                row.visuals.mesh_bounds = row.visuals.mesh_bounds.union(rect);
+                did_draw_any = true;
+            });
 
-        merged_galley
+        did_draw_any
     }
 }
 
@@ -908,83 +970,30 @@ impl std::ops::Deref for Galley {
 
 /// ## Physical positions
 impl Galley {
-    /// Zero-width rect past the last character.
-    fn end_pos(&self) -> Rect {
-        if let Some(row) = self.rows.last() {
-            let x = row.rect().right();
-            Rect::from_min_max(pos2(x, row.min_y()), pos2(x, row.max_y()))
-        } else {
-            // Empty galley
-            Rect::from_min_max(pos2(0.0, 0.0), pos2(0.0, 0.0))
+    fn pos_to_parley(&self, pos: Vec2) -> Vec2 {
+        pos - self.parley_layout.offset
+    }
+
+    /// Returns a 0-width Rect.
+    pub fn pos_from_cursor(&self, cursor: ByteCursor) -> Rect {
+        let layout = &self.parley_layout.layout;
+        let cursor = cursor.as_parley(layout);
+        let parley_rect = cursor.geometry(layout, 0.0);
+        Rect {
+            min: Pos2::new(parley_rect.x0 as f32, parley_rect.y0 as f32),
+            max: Pos2::new(parley_rect.x1 as f32, parley_rect.y1 as f32),
         }
-    }
-
-    /// Returns a 0-width Rect.
-    fn pos_from_layout_cursor(&self, layout_cursor: &LayoutCursor) -> Rect {
-        let Some(row) = self.rows.get(layout_cursor.row) else {
-            return self.end_pos();
-        };
-
-        let x = row.x_offset(layout_cursor.column);
-        Rect::from_min_max(pos2(x, row.min_y()), pos2(x, row.max_y()))
-    }
-
-    /// Returns a 0-width Rect.
-    pub fn pos_from_cursor(&self, cursor: CCursor) -> Rect {
-        self.pos_from_layout_cursor(&self.layout_from_cursor(cursor))
+        .translate(self.parley_layout.offset)
     }
 
     /// Cursor at the given position within the galley.
     ///
-    /// A cursor above the galley is considered
-    /// same as a cursor at the start,
-    /// and a cursor below the galley is considered
-    /// same as a cursor at the end.
-    /// This allows implementing text-selection by dragging above/below the galley.
-    pub fn cursor_from_pos(&self, pos: Vec2) -> CCursor {
-        // Vertical margin around galley improves text selection UX
-        const VMARGIN: f32 = 5.0;
-
-        if let Some(first_row) = self.rows.first() {
-            if pos.y < first_row.min_y() - VMARGIN {
-                return self.begin();
-            }
-        }
-        if let Some(last_row) = self.rows.last() {
-            if last_row.max_y() + VMARGIN < pos.y {
-                return self.end();
-            }
-        }
-
-        let mut best_y_dist = f32::INFINITY;
-        let mut cursor = CCursor::default();
-
-        let mut ccursor_index = 0;
-
-        for row in &self.rows {
-            let min_y = row.min_y();
-            let max_y = row.max_y();
-
-            let is_pos_within_row = min_y <= pos.y && pos.y <= max_y;
-            let y_dist = (min_y - pos.y).abs().min((max_y - pos.y).abs());
-            if is_pos_within_row || y_dist < best_y_dist {
-                best_y_dist = y_dist;
-                // char_at is `Row` not `PlacedRow` relative which means we have to subtract the pos.
-                let column = row.char_at(pos.x - row.pos.x);
-                let prefer_next_row = column < row.char_count_excluding_newline();
-                cursor = CCursor {
-                    index: ccursor_index + column,
-                    prefer_next_row,
-                };
-
-                if is_pos_within_row {
-                    return cursor;
-                }
-            }
-            ccursor_index += row.char_count_including_newline();
-        }
-
-        cursor
+    /// A cursor above the galley is considered same as a cursor at the start, and a cursor below the galley is
+    /// considered same as a cursor at the end. This allows implementing text-selection by dragging above/below the
+    /// galley.
+    pub fn cursor_from_pos(&self, pos: Vec2) -> ByteCursor {
+        let Vec2 { x, y } = self.pos_to_parley(pos);
+        parley::Cursor::from_point(&self.parley_layout.layout, x, y).into()
     }
 }
 
@@ -992,220 +1001,33 @@ impl Galley {
 impl Galley {
     /// Cursor to the first character.
     ///
-    /// This is the same as [`CCursor::default`].
+    /// This is the same as [`ByteCursor::default`].
     #[inline]
     #[expect(clippy::unused_self)]
-    pub fn begin(&self) -> CCursor {
-        CCursor::default()
+    pub fn begin(&self) -> ByteCursor {
+        ByteCursor::default()
     }
 
     /// Cursor to one-past last character.
-    pub fn end(&self) -> CCursor {
-        if self.rows.is_empty() {
-            return Default::default();
-        }
-        let mut ccursor = CCursor {
-            index: 0,
-            prefer_next_row: true,
-        };
-        for row in &self.rows {
-            let row_char_count = row.char_count_including_newline();
-            ccursor.index += row_char_count;
-        }
-        ccursor
+    pub fn end(&self) -> ByteCursor {
+        parley::Cursor::from_byte_index(&self.parley_layout.layout, usize::MAX, Default::default())
+            .into()
     }
 }
 
-/// ## Cursor conversions
+/// ## Selections
 impl Galley {
-    // The returned cursor is clamped.
-    pub fn layout_from_cursor(&self, cursor: CCursor) -> LayoutCursor {
-        let prefer_next_row = cursor.prefer_next_row;
-        let mut ccursor_it = CCursor {
-            index: 0,
-            prefer_next_row,
+    /// Scoped access to a [`SelectionDriver`] for creating and transforming
+    /// text [`Selection`]s.
+    pub fn selection<T>(&self, f: impl FnOnce(&mut SelectionDriver<'_>) -> T) -> T {
+        let mut driver = SelectionDriver {
+            layout_offset: self.parley_layout.offset,
+            layout: &self.parley_layout.layout,
+            text: &self.job.text,
+            #[cfg(feature = "accesskit")]
+            accessibility: &self.accessibility,
         };
 
-        for (row_nr, row) in self.rows.iter().enumerate() {
-            let row_char_count = row.char_count_excluding_newline();
-
-            if ccursor_it.index <= cursor.index && cursor.index <= ccursor_it.index + row_char_count
-            {
-                let column = cursor.index - ccursor_it.index;
-
-                let select_next_row_instead = prefer_next_row
-                    && !row.ends_with_newline
-                    && column >= row.char_count_excluding_newline();
-                if !select_next_row_instead {
-                    return LayoutCursor {
-                        row: row_nr,
-                        column,
-                    };
-                }
-            }
-            ccursor_it.index += row.char_count_including_newline();
-        }
-        debug_assert!(ccursor_it == self.end(), "Cursor out of bounds");
-
-        if let Some(last_row) = self.rows.last() {
-            LayoutCursor {
-                row: self.rows.len() - 1,
-                column: last_row.char_count_including_newline(),
-            }
-        } else {
-            Default::default()
-        }
-    }
-
-    fn cursor_from_layout(&self, layout_cursor: LayoutCursor) -> CCursor {
-        if layout_cursor.row >= self.rows.len() {
-            return self.end();
-        }
-
-        let prefer_next_row =
-            layout_cursor.column < self.rows[layout_cursor.row].char_count_excluding_newline();
-        let mut cursor_it = CCursor {
-            index: 0,
-            prefer_next_row,
-        };
-
-        for (row_nr, row) in self.rows.iter().enumerate() {
-            if row_nr == layout_cursor.row {
-                cursor_it.index += layout_cursor
-                    .column
-                    .at_most(row.char_count_excluding_newline());
-
-                return cursor_it;
-            }
-            cursor_it.index += row.char_count_including_newline();
-        }
-        cursor_it
-    }
-}
-
-/// ## Cursor positions
-impl Galley {
-    #[expect(clippy::unused_self)]
-    pub fn cursor_left_one_character(&self, cursor: &CCursor) -> CCursor {
-        if cursor.index == 0 {
-            Default::default()
-        } else {
-            CCursor {
-                index: cursor.index - 1,
-                prefer_next_row: true, // default to this when navigating. It is more often useful to put cursor at the beginning of a row than at the end.
-            }
-        }
-    }
-
-    pub fn cursor_right_one_character(&self, cursor: &CCursor) -> CCursor {
-        CCursor {
-            index: (cursor.index + 1).min(self.end().index),
-            prefer_next_row: true, // default to this when navigating. It is more often useful to put cursor at the beginning of a row than at the end.
-        }
-    }
-
-    pub fn cursor_up_one_row(
-        &self,
-        cursor: &CCursor,
-        h_pos: Option<f32>,
-    ) -> (CCursor, Option<f32>) {
-        let layout_cursor = self.layout_from_cursor(*cursor);
-        let h_pos = h_pos.unwrap_or_else(|| self.pos_from_layout_cursor(&layout_cursor).center().x);
-        if layout_cursor.row == 0 {
-            (CCursor::default(), None)
-        } else {
-            let new_row = layout_cursor.row - 1;
-
-            let new_layout_cursor = {
-                // keep same X coord
-                let column = self.rows[new_row].char_at(h_pos);
-                LayoutCursor {
-                    row: new_row,
-                    column,
-                }
-            };
-            (self.cursor_from_layout(new_layout_cursor), Some(h_pos))
-        }
-    }
-
-    pub fn cursor_down_one_row(
-        &self,
-        cursor: &CCursor,
-        h_pos: Option<f32>,
-    ) -> (CCursor, Option<f32>) {
-        let layout_cursor = self.layout_from_cursor(*cursor);
-        let h_pos = h_pos.unwrap_or_else(|| self.pos_from_layout_cursor(&layout_cursor).center().x);
-        if layout_cursor.row + 1 < self.rows.len() {
-            let new_row = layout_cursor.row + 1;
-
-            let new_layout_cursor = {
-                // keep same X coord
-                let column = self.rows[new_row].char_at(h_pos);
-                LayoutCursor {
-                    row: new_row,
-                    column,
-                }
-            };
-
-            (self.cursor_from_layout(new_layout_cursor), Some(h_pos))
-        } else {
-            (self.end(), None)
-        }
-    }
-
-    pub fn cursor_begin_of_row(&self, cursor: &CCursor) -> CCursor {
-        let layout_cursor = self.layout_from_cursor(*cursor);
-        self.cursor_from_layout(LayoutCursor {
-            row: layout_cursor.row,
-            column: 0,
-        })
-    }
-
-    pub fn cursor_end_of_row(&self, cursor: &CCursor) -> CCursor {
-        let layout_cursor = self.layout_from_cursor(*cursor);
-        self.cursor_from_layout(LayoutCursor {
-            row: layout_cursor.row,
-            column: self.rows[layout_cursor.row].char_count_excluding_newline(),
-        })
-    }
-
-    pub fn cursor_begin_of_paragraph(&self, cursor: &CCursor) -> CCursor {
-        let mut layout_cursor = self.layout_from_cursor(*cursor);
-        layout_cursor.column = 0;
-
-        loop {
-            let prev_row = layout_cursor
-                .row
-                .checked_sub(1)
-                .and_then(|row| self.rows.get(row));
-
-            let Some(prev_row) = prev_row else {
-                // This is the first row
-                break;
-            };
-
-            if prev_row.ends_with_newline {
-                break;
-            }
-
-            layout_cursor.row -= 1;
-        }
-
-        self.cursor_from_layout(layout_cursor)
-    }
-
-    pub fn cursor_end_of_paragraph(&self, cursor: &CCursor) -> CCursor {
-        let mut layout_cursor = self.layout_from_cursor(*cursor);
-        loop {
-            let row = &self.rows[layout_cursor.row];
-            if row.ends_with_newline || layout_cursor.row == self.rows.len() - 1 {
-                layout_cursor.column = row.char_count_excluding_newline();
-                break;
-            }
-
-            layout_cursor.row += 1;
-        }
-
-        self.cursor_from_layout(layout_cursor)
+        f(&mut driver)
     }
 }

@@ -50,7 +50,7 @@ pub use self::{
     color::ColorMode,
     corner_radius::CornerRadius,
     corner_radius_f32::CornerRadiusF32,
-    image::{ColorImage, FontImage, ImageData, ImageDelta},
+    image::{ColorImage, ImageData, ImageDelta},
     margin::Margin,
     margin_f32::*,
     mesh::{Mesh, Mesh16, Vertex},
@@ -62,7 +62,7 @@ pub use self::{
     stats::PaintStats,
     stroke::{PathStroke, Stroke, StrokeKind},
     tessellator::{TessellationOptions, Tessellator},
-    text::{FontFamily, FontId, Fonts, Galley},
+    text::{Fonts, Galley},
     texture_atlas::TextureAtlas,
     texture_handle::TextureHandle,
     textures::TextureManager,
@@ -117,7 +117,7 @@ impl Default for TextureId {
 /// A [`Shape`] within a clip rectangle.
 ///
 /// Everything is using logical points.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct ClippedShape {
     /// Clip / scissor rectangle.
     /// Only show the part of the [`Shape`] that falls within this.

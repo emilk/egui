@@ -1,5 +1,7 @@
 use std::collections::BTreeMap;
 
+use egui::text::style::{FontFamily, FontId};
+
 struct GlyphInfo {
     name: String,
 
@@ -9,15 +11,15 @@ struct GlyphInfo {
 
 pub struct FontBook {
     filter: String,
-    font_id: egui::FontId,
-    available_glyphs: BTreeMap<egui::FontFamily, BTreeMap<char, GlyphInfo>>,
+    font_id: FontId,
+    available_glyphs: BTreeMap<FontFamily, BTreeMap<char, GlyphInfo>>,
 }
 
 impl Default for FontBook {
     fn default() -> Self {
         Self {
             filter: Default::default(),
-            font_id: egui::FontId::proportional(18.0),
+            font_id: FontId::system_ui(18.0),
             available_glyphs: Default::default(),
         }
     }
@@ -45,7 +47,7 @@ impl crate::View for FontBook {
         ui.label(format!(
             "The selected font supports {} characters.",
             self.available_glyphs
-                .get(&self.font_id.family)
+                .get(self.font_id.family.first_family())
                 .map(|map| map.len())
                 .unwrap_or_default()
         ));
@@ -76,8 +78,8 @@ impl crate::View for FontBook {
         let filter = &self.filter;
         let available_glyphs = self
             .available_glyphs
-            .entry(self.font_id.family.clone())
-            .or_insert_with(|| available_characters(ui, self.font_id.family.clone()));
+            .entry(self.font_id.family.first_family().clone())
+            .or_insert_with(|| available_characters(ui, self.font_id.family.first_family()));
 
         ui.separator();
 
@@ -111,7 +113,7 @@ impl crate::View for FontBook {
     }
 }
 
-fn char_info_ui(ui: &mut egui::Ui, chr: char, glyph_info: &GlyphInfo, font_id: egui::FontId) {
+fn char_info_ui(ui: &mut egui::Ui, chr: char, glyph_info: &GlyphInfo, font_id: FontId) {
     let resp = ui.label(egui::RichText::new(chr.to_string()).font(font_id));
 
     egui::Grid::new("char_info")
@@ -140,25 +142,28 @@ fn char_info_ui(ui: &mut egui::Ui, chr: char, glyph_info: &GlyphInfo, font_id: e
         });
 }
 
-fn available_characters(ui: &egui::Ui, family: egui::FontFamily) -> BTreeMap<char, GlyphInfo> {
+fn available_characters(ui: &egui::Ui, family: &FontFamily) -> BTreeMap<char, GlyphInfo> {
+    let mut chars = BTreeMap::new();
     ui.fonts(|f| {
-        f.lock()
-            .fonts
-            .font(&egui::FontId::new(10.0, family)) // size is arbitrary for getting the characters
-            .characters()
-            .iter()
-            .filter(|(chr, _fonts)| !chr.is_whitespace() && !chr.is_ascii_control())
-            .map(|(chr, fonts)| {
-                (
-                    *chr,
-                    GlyphInfo {
-                        name: char_name(*chr),
-                        fonts: fonts.clone(),
-                    },
-                )
-            })
-            .collect()
-    })
+        f.with_characters(family, |chr, _glyph| {
+            let Some(chr) = char::from_u32(chr) else {
+                return;
+            };
+
+            if chr.is_whitespace() || chr.is_ascii_control() {
+                return;
+            }
+
+            chars.insert(
+                chr,
+                GlyphInfo {
+                    name: char_name(chr),
+                    fonts: vec![],
+                },
+            );
+        });
+    });
+    chars
 }
 
 fn char_name(chr: char) -> String {

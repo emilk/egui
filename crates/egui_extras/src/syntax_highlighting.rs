@@ -5,7 +5,7 @@
 
 #![allow(clippy::mem_forget)] // False positive from enum_map macro
 
-use egui::text::LayoutJob;
+use egui::text::{style::FontId, LayoutJob};
 use egui::TextStyle;
 
 /// View some code with syntax highlighting and selection.
@@ -34,10 +34,10 @@ pub fn highlight(
     // (ui.ctx(), ui.style()) can be used
 
     #[expect(non_local_definitions)]
-    impl egui::cache::ComputerMut<(&egui::FontId, &CodeTheme, &str, &str), LayoutJob> for Highlighter {
+    impl egui::cache::ComputerMut<(&FontId, &CodeTheme, &str, &str), LayoutJob> for Highlighter {
         fn compute(
             &mut self,
-            (font_id, theme, code, lang): (&egui::FontId, &CodeTheme, &str, &str),
+            (font_id, theme, code, lang): (&FontId, &CodeTheme, &str, &str),
         ) -> LayoutJob {
             self.highlight(font_id.clone(), theme, code, lang)
         }
@@ -153,7 +153,7 @@ pub struct CodeTheme {
     #[cfg(feature = "syntect")]
     syntect_theme: SyntectTheme,
     #[cfg(feature = "syntect")]
-    font_id: egui::FontId,
+    font_id: FontId,
 
     #[cfg(not(feature = "syntect"))]
     formats: enum_map::EnumMap<TokenType, egui::TextFormat>,
@@ -189,7 +189,7 @@ impl CodeTheme {
     /// # });
     /// ```
     pub fn dark(font_size: f32) -> Self {
-        Self::dark_with_font_id(egui::FontId::monospace(font_size))
+        Self::dark_with_font_id(FontId::monospace(font_size))
     }
 
     /// ### Example
@@ -201,7 +201,7 @@ impl CodeTheme {
     /// # });
     /// ```
     pub fn light(font_size: f32) -> Self {
-        Self::light_with_font_id(egui::FontId::monospace(font_size))
+        Self::light_with_font_id(FontId::monospace(font_size))
     }
 
     /// Load code theme from egui memory.
@@ -253,7 +253,7 @@ impl CodeTheme {
 
 #[cfg(feature = "syntect")]
 impl CodeTheme {
-    fn dark_with_font_id(font_id: egui::FontId) -> Self {
+    fn dark_with_font_id(font_id: FontId) -> Self {
         Self {
             dark_mode: true,
             syntect_theme: SyntectTheme::Base16MochaDark,
@@ -261,7 +261,7 @@ impl CodeTheme {
         }
     }
 
-    fn light_with_font_id(font_id: egui::FontId) -> Self {
+    fn light_with_font_id(font_id: FontId) -> Self {
         Self {
             dark_mode: false,
             syntect_theme: SyntectTheme::SolarizedLight,
@@ -286,7 +286,7 @@ impl CodeTheme {
     // The syntect version takes it by value. This could be avoided by specializing the from_style
     // function, but at the cost of more code duplication.
     #[expect(clippy::needless_pass_by_value)]
-    fn dark_with_font_id(font_id: egui::FontId) -> Self {
+    fn dark_with_font_id(font_id: FontId) -> Self {
         use egui::{Color32, TextFormat};
         Self {
             dark_mode: true,
@@ -303,7 +303,7 @@ impl CodeTheme {
 
     // The syntect version takes it by value
     #[expect(clippy::needless_pass_by_value)]
-    fn light_with_font_id(font_id: egui::FontId) -> Self {
+    fn light_with_font_id(font_id: FontId) -> Self {
         use egui::{Color32, TextFormat};
         Self {
             dark_mode: false,
@@ -413,13 +413,7 @@ impl Default for Highlighter {
 }
 
 impl Highlighter {
-    fn highlight(
-        &self,
-        font_id: egui::FontId,
-        theme: &CodeTheme,
-        code: &str,
-        lang: &str,
-    ) -> LayoutJob {
+    fn highlight(&self, font_id: FontId, theme: &CodeTheme, code: &str, lang: &str) -> LayoutJob {
         self.highlight_impl(theme, code, lang).unwrap_or_else(|| {
             // Fallback:
             LayoutJob::simple(
@@ -511,7 +505,7 @@ struct Highlighter {}
 
 #[cfg(not(feature = "syntect"))]
 impl Highlighter {
-    #[expect(clippy::unused_self, clippy::unnecessary_wraps)]
+    #[expect(clippy::unused_self)]
     fn highlight_impl(
         &self,
         theme: &CodeTheme,

@@ -1,108 +1,24 @@
-use std::{collections::BTreeMap, sync::Arc};
+use std::{borrow::Cow, collections::BTreeMap, sync::Arc};
 
 use crate::{
-    mutex::{Mutex, MutexGuard},
-    text::{
-        font::{Font, FontImpl},
-        Galley, LayoutJob, LayoutSection,
-    },
+    text::{glyph_atlas::GlyphAtlas, Galley, LayoutJob},
     TextureAtlas,
 };
-use emath::{NumExt as _, OrderedFloat};
+use ecolor::Color32;
+use emath::{vec2, GuiRounding as _, NumExt as _, OrderedFloat};
+
+use parley::{
+    fontique::{self, Blob, FontInfoOverride, QueryFamily},
+    PositionedLayoutItem,
+};
 
 #[cfg(feature = "default_fonts")]
 use epaint_default_fonts::{EMOJI_ICON, HACK_REGULAR, NOTO_EMOJI_REGULAR, UBUNTU_LIGHT};
 
-// ----------------------------------------------------------------------------
-
-/// How to select a sized font.
-#[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct FontId {
-    /// Height in points.
-    pub size: f32,
-
-    /// What font family to use.
-    pub family: FontFamily,
-    // TODO(emilk): weight (bold), italics, …
-}
-
-impl Default for FontId {
-    #[inline]
-    fn default() -> Self {
-        Self {
-            size: 14.0,
-            family: FontFamily::Proportional,
-        }
-    }
-}
-
-impl FontId {
-    #[inline]
-    pub const fn new(size: f32, family: FontFamily) -> Self {
-        Self { size, family }
-    }
-
-    #[inline]
-    pub const fn proportional(size: f32) -> Self {
-        Self::new(size, FontFamily::Proportional)
-    }
-
-    #[inline]
-    pub const fn monospace(size: f32) -> Self {
-        Self::new(size, FontFamily::Monospace)
-    }
-}
-
-impl std::hash::Hash for FontId {
-    #[inline(always)]
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        let Self { size, family } = self;
-        emath::OrderedFloat(*size).hash(state);
-        family.hash(state);
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-/// Font of unknown size.
-///
-/// Which style of font: [`Monospace`][`FontFamily::Monospace`], [`Proportional`][`FontFamily::Proportional`],
-/// or by user-chosen name.
-#[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub enum FontFamily {
-    /// A font where some characters are wider than other (e.g. 'w' is wider than 'i').
-    ///
-    /// Proportional fonts are easier to read and should be the preferred choice in most situations.
-    #[default]
-    Proportional,
-
-    /// A font where each character is the same width (`w` is the same width as `i`).
-    ///
-    /// Useful for code snippets, or when you need to align numbers or text.
-    Monospace,
-
-    /// One of the names in [`FontDefinitions::families`].
-    ///
-    /// ```
-    /// # use epaint::FontFamily;
-    /// // User-chosen names:
-    /// FontFamily::Name("arial".into());
-    /// FontFamily::Name("serif".into());
-    /// ```
-    Name(Arc<str>),
-}
-
-impl std::fmt::Display for FontFamily {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Monospace => "Monospace".fmt(f),
-            Self::Proportional => "Proportional".fmt(f),
-            Self::Name(name) => (*name).fmt(f),
-        }
-    }
-}
+use super::{
+    glyph_atlas::SubpixelBin,
+    style::{FontFamily, FontId, GenericFamily, TextFormat},
+};
 
 // ----------------------------------------------------------------------------
 
@@ -110,6 +26,7 @@ impl std::fmt::Display for FontFamily {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct FontData {
+    // TODO(valadaptive): the font definitions API takes an Arc<FontData> but Parley wants the data *itself* to be an Arc
     /// The content of a `.ttf` or `.otf` file.
     pub font: std::borrow::Cow<'static, [u8]>,
 
@@ -186,6 +103,11 @@ pub struct FontTweak {
     /// A positive value shifts the text downwards.
     /// A negative value shifts it upwards.
     pub baseline_offset_factor: f32,
+
+    /// Override the global font hinting setting for this specific font.
+    ///
+    /// `None` means use the global setting.
+    pub hinting_override: Option<bool>,
 }
 
 impl Default for FontTweak {
@@ -195,25 +117,12 @@ impl Default for FontTweak {
             y_offset_factor: 0.0,
             y_offset: 0.0,
             baseline_offset_factor: 0.0,
+            hinting_override: None,
         }
     }
 }
 
 // ----------------------------------------------------------------------------
-
-fn ab_glyph_font_from_font_data(name: &str, data: &FontData) -> ab_glyph::FontArc {
-    match &data.font {
-        std::borrow::Cow::Borrowed(bytes) => {
-            ab_glyph::FontRef::try_from_slice_and_index(bytes, data.index)
-                .map(ab_glyph::FontArc::from)
-        }
-        std::borrow::Cow::Owned(bytes) => {
-            ab_glyph::FontVec::try_from_vec_and_index(bytes.clone(), data.index)
-                .map(ab_glyph::FontArc::from)
-        }
-    }
-    .unwrap_or_else(|err| panic!("Error parsing {name:?} TTF/OTF font file: {err}"))
-}
 
 /// Describes the font data and the sizes to use.
 ///
@@ -254,13 +163,17 @@ pub struct FontDefinitions {
     /// `epaint` has built-in-default for these, but you can override them if you like.
     pub font_data: BTreeMap<String, Arc<FontData>>,
 
-    /// Which fonts (names) to use for each [`FontFamily`].
+    /// Which named font families to use for each [`GenericFamily`].
     ///
     /// The list should be a list of keys into [`Self::font_data`].
     /// When looking for a character glyph `epaint` will start with
     /// the first font and then move to the second, and so on.
     /// So the first font is the primary, and then comes a list of fallbacks in order of priority.
-    pub families: BTreeMap<FontFamily, Vec<String>>,
+    pub families: BTreeMap<GenericFamily, Vec<String>>,
+
+    /// Whether system fonts should also be loaded. Useful for supporting broad character sets without shipping large
+    /// fonts, at the expense of load time.
+    pub include_system_fonts: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -275,10 +188,11 @@ pub struct FontInsert {
     pub families: Vec<InsertFontFamily>,
 }
 
+/// Optionally, you can add a font you insert to be used as a generic font family.
 #[derive(Debug, Clone)]
 pub struct InsertFontFamily {
     /// Font family
-    pub family: FontFamily,
+    pub family: GenericFamily,
 
     /// Fallback or Primary font
     pub priority: FontPriority,
@@ -295,6 +209,16 @@ pub enum FontPriority {
     ///
     /// This font will only be used if the glyph is not found in any of the previously installed fonts.
     Lowest,
+
+    /// Insert this font above the given family in the priority stack.
+    ///
+    /// If the given family cannot be found, this font will be placed at the lowest priority.
+    Above(Cow<'static, str>),
+
+    /// Insert this font below the given family in the priority stack.
+    ///
+    /// If the given family cannot be found, this font will be placed at the lowest priority.
+    Below(Cow<'static, str>),
 }
 
 impl FontInsert {
@@ -352,7 +276,7 @@ impl Default for FontDefinitions {
         );
 
         families.insert(
-            FontFamily::Monospace,
+            GenericFamily::Monospace,
             vec![
                 "Hack".to_owned(),
                 "Ubuntu-Light".to_owned(), // fallback for √ etc
@@ -361,17 +285,30 @@ impl Default for FontDefinitions {
             ],
         );
         families.insert(
-            FontFamily::Proportional,
+            GenericFamily::SystemUi,
             vec![
                 "Ubuntu-Light".to_owned(),
                 "NotoEmoji-Regular".to_owned(),
                 "emoji-icon-font".to_owned(),
             ],
         );
+        families.insert(
+            GenericFamily::SansSerif,
+            vec![
+                "Ubuntu-Light".to_owned(),
+                "NotoEmoji-Regular".to_owned(),
+                "emoji-icon-font".to_owned(),
+            ],
+        );
+        families.insert(
+            GenericFamily::Emoji,
+            vec!["NotoEmoji-Regular".to_owned(), "emoji-icon-font".to_owned()],
+        );
 
         Self {
             font_data,
             families,
+            include_system_fonts: false,
         }
     }
 }
@@ -380,13 +317,20 @@ impl FontDefinitions {
     /// No fonts.
     pub fn empty() -> Self {
         let mut families = BTreeMap::new();
-        families.insert(FontFamily::Monospace, vec![]);
-        families.insert(FontFamily::Proportional, vec![]);
+        families.insert(GenericFamily::Monospace, vec![]);
+        families.insert(GenericFamily::SystemUi, vec![]);
 
         Self {
             font_data: Default::default(),
             families,
+            include_system_fonts: false,
         }
+    }
+
+    /// Set whether [`Self::include_system_fonts`] is enabled.
+    pub fn with_system_fonts(mut self, include_system_fonts: bool) -> Self {
+        self.include_system_fonts = include_system_fonts;
+        self
     }
 
     /// List of all the builtin font names used by `epaint`.
@@ -409,6 +353,20 @@ impl FontDefinitions {
 
 // ----------------------------------------------------------------------------
 
+/// "View struct" of the fields of [`Fonts`] necessary to perform a layout job.
+#[doc(hidden)]
+pub(super) struct FontsLayoutView<'a> {
+    pub font_context: &'a mut parley::FontContext,
+    pub layout_context: &'a mut parley::LayoutContext<Color32>,
+    pub texture_atlas: &'a mut TextureAtlas,
+    pub glyph_atlas: &'a mut GlyphAtlas,
+    pub font_tweaks: &'a mut ahash::HashMap<u64, FontTweak>,
+    pub hinting_enabled: bool,
+    pub pixels_per_point: f32,
+}
+
+// ----------------------------------------------------------------------------
+
 /// The collection of fonts used by `epaint`.
 ///
 /// Required in order to paint text. Create one and reuse. Cheap to clone.
@@ -418,129 +376,462 @@ impl FontDefinitions {
 /// If you are using `egui`, use `egui::Context::set_fonts` and `egui::Context::fonts`.
 ///
 /// You need to call [`Self::begin_pass`] and [`Self::font_image_delta`] once every frame.
-#[derive(Clone)]
-pub struct Fonts(Arc<Mutex<FontsAndCache>>);
+pub struct FontStore {
+    max_texture_side: usize,
+    definitions: FontDefinitions,
+    font_tweaks: ahash::HashMap<u64, FontTweak>,
+    hinting_enabled: bool,
+    atlas: TextureAtlas,
+    galley_cache: GalleyCache,
 
-impl Fonts {
+    // TODO(valadaptive): glyph_width_cache and has_glyphs_cache should be frame-to-frame caches, but FrameCache is in
+    // the egui crate
+    glyph_width_cache: ahash::HashMap<char, f32>,
+    has_glyphs_cache: ahash::HashMap<(Cow<'static, str>, Cow<'static, FontId>), bool>,
+    all_families: Option<Vec<FontFamily>>,
+
+    pub(super) font_context: parley::FontContext,
+    pub(super) layout_context: parley::LayoutContext<Color32>,
+    pub(super) glyph_atlas: GlyphAtlas,
+}
+
+impl FontStore {
     /// Create a new [`Fonts`] for text layout.
     /// This call is expensive, so only create one [`Fonts`] and then reuse it.
     ///
-    /// * `pixels_per_point`: how many physical pixels per logical "point".
     /// * `max_texture_side`: largest supported texture size (one side).
-    pub fn new(
-        pixels_per_point: f32,
-        max_texture_side: usize,
-        definitions: FontDefinitions,
-    ) -> Self {
-        let fonts_and_cache = FontsAndCache {
-            fonts: FontsImpl::new(pixels_per_point, max_texture_side, definitions),
+    pub fn new(max_texture_side: usize, definitions: FontDefinitions) -> Self {
+        let texture_width = max_texture_side.at_most(16 * 1024).at_most(
+            1024, /* limit atlas size to test that multiple atlases work */
+        );
+        // Keep initial font atlas small, so it is fast to upload to GPU. This will expand as needed anyways.
+        let initial_height = 32;
+        let atlas = TextureAtlas::new([texture_width, initial_height]);
+
+        let collection = fontique::Collection::new(fontique::CollectionOptions {
+            shared: false,
+            system_fonts: definitions.include_system_fonts,
+        });
+
+        let mut font_store = Self {
+            max_texture_side,
+            definitions,
+            font_tweaks: Default::default(),
+            hinting_enabled: true,
+            glyph_atlas: GlyphAtlas::new(),
+            atlas,
             galley_cache: Default::default(),
+
+            glyph_width_cache: Default::default(),
+            has_glyphs_cache: Default::default(),
+            all_families: Default::default(),
+
+            font_context: parley::FontContext {
+                collection,
+                source_cache: fontique::SourceCache::new_shared(),
+            },
+            layout_context: parley::LayoutContext::new(),
         };
-        Self(Arc::new(Mutex::new(fonts_and_cache)))
+
+        font_store.load_fonts_from_definitions();
+
+        font_store
     }
 
-    /// Call at the start of each frame with the latest known
-    /// `pixels_per_point` and `max_texture_side`.
+    /// Call at the start of each frame with the latest known `max_texture_side`.
     ///
     /// Call after painting the previous frame, but before using [`Fonts`] for the new frame.
     ///
-    /// This function will react to changes in `pixels_per_point` and `max_texture_side`,
-    /// as well as notice when the font atlas is getting full, and handle that.
-    pub fn begin_pass(&self, pixels_per_point: f32, max_texture_side: usize) {
-        let mut fonts_and_cache = self.0.lock();
-
-        let pixels_per_point_changed = fonts_and_cache.fonts.pixels_per_point != pixels_per_point;
-        let max_texture_side_changed = fonts_and_cache.fonts.max_texture_side != max_texture_side;
-        let font_atlas_almost_full = fonts_and_cache.fonts.atlas.lock().fill_ratio() > 0.8;
-        let needs_recreate =
-            pixels_per_point_changed || max_texture_side_changed || font_atlas_almost_full;
+    /// This function will react to changes in `max_texture_side`, as well as notice when the font atlas is getting
+    /// full, and handle that.
+    pub fn begin_pass(&mut self, max_texture_side: usize) {
+        let max_texture_side_changed = self.max_texture_side != max_texture_side;
+        // TODO(valadaptive): this seems suspicious. Does this mean the atlas can never use more than 80% of its actual
+        // capacity?
+        let font_atlas_almost_full = self.atlas.fill_ratio() > 0.8;
+        let needs_recreate = max_texture_side_changed || font_atlas_almost_full;
 
         if needs_recreate {
-            let definitions = fonts_and_cache.fonts.definitions.clone();
-
-            *fonts_and_cache = FontsAndCache {
-                fonts: FontsImpl::new(pixels_per_point, max_texture_side, definitions),
-                galley_cache: Default::default(),
-            };
+            self.clear_atlas(max_texture_side);
         }
 
-        fonts_and_cache.galley_cache.flush_cache();
+        self.galley_cache.flush_cache();
+        // TODO(valadaptive): make this configurable?
+        self.font_context.source_cache.prune(250, false);
+    }
+
+    fn load_fonts_from_definitions(&mut self) {
+        for (name, data) in &self.definitions.font_data {
+            // TODO(valadaptive): in the case where we're just adding new fonts, we can probably reuse the blobs
+            let blob = Blob::new(Arc::new(data.font.clone()));
+            self.font_tweaks.insert(blob.id(), data.tweak);
+            // TODO(valadaptive): we completely ignore the font index because fontique only lets us load all the fonts
+            self.font_context.collection.register_fonts(
+                blob,
+                Some(FontInfoOverride {
+                    family_name: Some(name),
+                    ..Default::default()
+                }),
+            );
+        }
+
+        for (generic_family, family_fonts) in &self.definitions.families {
+            let family_ids: Vec<_> = family_fonts
+                .iter()
+                .filter_map(|family_name| self.font_context.collection.family_id(family_name))
+                .collect();
+
+            self.font_context
+                .collection
+                .set_generic_families(generic_family.as_parley(), family_ids.into_iter());
+        }
+
+        self.clear_cache(self.max_texture_side);
+    }
+
+    pub fn with_pixels_per_point(&mut self, pixels_per_point: f32) -> Fonts<'_> {
+        Fonts {
+            fonts: self,
+            pixels_per_point,
+        }
+    }
+
+    #[inline]
+    pub fn definitions(&self) -> &FontDefinitions {
+        &self.definitions
+    }
+
+    pub fn set_definitions(&mut self, definitions: FontDefinitions) {
+        // We need to recreate the font collection if we start or stop loading system fonts
+        if definitions.include_system_fonts != self.definitions.include_system_fonts {
+            self.font_context.collection = fontique::Collection::new(fontique::CollectionOptions {
+                shared: false,
+                system_fonts: self.definitions.include_system_fonts,
+            });
+        } else {
+            self.font_context.collection.clear();
+        }
+
+        self.definitions = definitions;
+        self.font_tweaks.clear();
+        self.font_context.source_cache.prune(0, true);
+        self.clear_cache(self.max_texture_side);
+        self.load_fonts_from_definitions();
+    }
+
+    pub fn hinting_enabled(&self) -> bool {
+        self.hinting_enabled
+    }
+
+    pub fn set_hinting_enabled(&mut self, enabled: bool) {
+        self.hinting_enabled = enabled;
+        self.clear_cache(self.max_texture_side);
+    }
+
+    /// Width of this character in points.
+    pub fn glyph_width(&mut self, font_id: &FontId, c: char) -> f32 {
+        *self.glyph_width_cache.entry(c).or_insert_with(|| {
+            let text = c.to_string();
+            let text_style = TextFormat::simple(font_id.clone(), Default::default()).as_parley();
+            let mut builder =
+                self.layout_context
+                    .tree_builder(&mut self.font_context, 1.0, false, &text_style);
+            builder.push_text(&text);
+            let (mut layout, _) = builder.build();
+            layout.break_lines().break_next(f32::MAX);
+            let Some(first_line) = layout.lines().next() else {
+                return 0.0;
+            };
+            first_line.metrics().advance
+        })
+    }
+
+    pub fn preload_common_characters(&mut self, font_id: &FontId) {
+        // LAST_ASCII - FIRST_ASCII + 1 ASCII characters (since the range is inclusive) + the degrees symbol and
+        // password replacement character
+        let mut common_chars = String::with_capacity(LAST_ASCII - FIRST_ASCII + 3);
+
+        // Preload the printable ASCII characters [32, 126] (which excludes control codes):
+        const FIRST_ASCII: usize = 32; // 32 == space
+        const LAST_ASCII: usize = 126;
+        for c in (FIRST_ASCII..=LAST_ASCII).map(|c| c as u8 as char) {
+            common_chars.push(c);
+        }
+        common_chars.push('°');
+        common_chars.push(crate::text::PASSWORD_REPLACEMENT_CHAR);
+
+        self.preload_text(1.0, font_id, &common_chars);
+    }
+
+    fn preload_text(&mut self, pixels_per_point: f32, font_id: &FontId, text: &str) {
+        let style = TextFormat {
+            font_id: font_id.clone(),
+            ..Default::default()
+        };
+        let style = style.as_parley();
+        let mut builder =
+            self.layout_context
+                .tree_builder(&mut self.font_context, 1.0, false, &style);
+        builder.push_text(text);
+        let (mut layout, _) = builder.build();
+        layout.break_all_lines(None);
+        for line in layout.lines() {
+            for item in line.items() {
+                let PositionedLayoutItem::GlyphRun(run) = item else {
+                    continue;
+                };
+
+                for x_offset in SubpixelBin::SUBPIXEL_OFFSETS {
+                    self.glyph_atlas
+                        .render_glyph_run(
+                            &mut self.atlas,
+                            &run,
+                            vec2(x_offset, 0.0),
+                            self.hinting_enabled,
+                            pixels_per_point,
+                            &self.font_tweaks,
+                        )
+                        .for_each(|_| {});
+                }
+            }
+        }
+    }
+
+    pub fn has_glyphs_for(&mut self, font_id: &FontId, text: &str) -> bool {
+        if let Some(has_glyphs) = self
+            .has_glyphs_cache
+            .get(&(text.into(), Cow::Borrowed(font_id)))
+        {
+            return *has_glyphs;
+        }
+
+        *self
+            .has_glyphs_cache
+            .entry((Cow::Owned(text.to_owned()), Cow::Owned(font_id.clone())))
+            .or_insert_with(|| {
+                let style = TextFormat {
+                    font_id: font_id.clone(),
+                    ..Default::default()
+                };
+                let style = style.as_parley();
+                let mut builder =
+                    self.layout_context
+                        .tree_builder(&mut self.font_context, 1.0, false, &style);
+                builder.push_text(text);
+                let (mut layout, _) = builder.build();
+                layout.break_all_lines(None);
+
+                for line in layout.lines() {
+                    for item in line.items() {
+                        let PositionedLayoutItem::GlyphRun(run) = item else {
+                            continue;
+                        };
+
+                        for glyph in run.glyphs() {
+                            if glyph.id == 0 {
+                                return false;
+                            }
+                        }
+                    }
+                }
+
+                true
+            })
+    }
+
+    pub fn with_characters(&mut self, font_family: &FontFamily, cb: impl FnMut(u32, u16)) {
+        let mut query = self
+            .font_context
+            .collection
+            .query(&mut self.font_context.source_cache);
+        query.set_families(std::iter::once(match font_family {
+            FontFamily::Named(cow) => QueryFamily::Named(cow),
+            FontFamily::Generic(generic_family) => QueryFamily::Generic(generic_family.as_parley()),
+        }));
+
+        let mut font_data = None;
+
+        query.matches_with(|font| {
+            font_data = Some((font.blob.clone(), font.index));
+            fontique::QueryStatus::Stop
+        });
+
+        let Some((font_data, font_index)) = font_data else {
+            return;
+        };
+
+        let Some(swash_font) =
+            parley::swash::FontRef::from_index(font_data.as_ref(), font_index as usize)
+        else {
+            return;
+        };
+
+        swash_font.charmap().enumerate(cb);
+    }
+
+    /// Height of one row of text in points.
+    #[expect(clippy::unused_self, clippy::needless_pass_by_ref_mut)]
+    pub fn row_height(&mut self, font_id: &FontId) -> f32 {
+        // TODO(valadaptive): if styling is changed so line height is more overridable, this function won't make very
+        // much sense
+        font_id.size
+    }
+
+    fn clear_atlas(&mut self, new_max_texture_side: usize) {
+        self.atlas.clear();
+        self.glyph_atlas.clear();
+        self.galley_cache.clear();
+        self.max_texture_side = new_max_texture_side;
+    }
+
+    fn clear_cache(&mut self, new_max_texture_side: usize) {
+        self.clear_atlas(new_max_texture_side);
+        self.glyph_width_cache.clear();
+        self.has_glyphs_cache.clear();
+        self.all_families = None;
     }
 
     /// Call at the end of each frame (before painting) to get the change to the font texture since last call.
-    pub fn font_image_delta(&self) -> Option<crate::ImageDelta> {
-        self.lock().fonts.atlas.lock().take_delta()
-    }
-
-    /// Access the underlying [`FontsAndCache`].
-    #[doc(hidden)]
-    #[inline]
-    pub fn lock(&self) -> MutexGuard<'_, FontsAndCache> {
-        self.0.lock()
-    }
-
-    #[inline]
-    pub fn pixels_per_point(&self) -> f32 {
-        self.lock().fonts.pixels_per_point
+    pub fn font_image_delta(&mut self) -> Option<crate::ImageDelta> {
+        self.atlas.take_delta()
     }
 
     #[inline]
     pub fn max_texture_side(&self) -> usize {
-        self.lock().fonts.max_texture_side
+        self.max_texture_side
     }
 
     /// The font atlas.
     /// Pass this to [`crate::Tessellator`].
-    pub fn texture_atlas(&self) -> Arc<Mutex<TextureAtlas>> {
-        self.lock().fonts.atlas.clone()
-    }
-
-    /// The full font atlas image.
-    #[inline]
-    pub fn image(&self) -> crate::FontImage {
-        self.lock().fonts.atlas.lock().image().clone()
+    pub fn texture_atlas(&self) -> &TextureAtlas {
+        &self.atlas
     }
 
     /// Current size of the font image.
     /// Pass this to [`crate::Tessellator`].
     pub fn font_image_size(&self) -> [usize; 2] {
-        self.lock().fonts.atlas.lock().size()
+        self.atlas.size()
+    }
+
+    /// List of all loaded font families.
+    pub fn families(&mut self) -> &[FontFamily] {
+        self.all_families.get_or_insert_with(|| {
+            let mut all_families = self
+                .font_context
+                .collection
+                .family_names()
+                .map(|name| FontFamily::Named(Cow::Owned(name.to_owned())))
+                .collect::<Vec<_>>();
+
+            all_families.sort_by_cached_key(|f| match f {
+                FontFamily::Named(name) => name.to_lowercase(),
+                FontFamily::Generic(_) => unreachable!(),
+            });
+
+            all_families
+        })
+    }
+
+    pub fn num_galleys_in_cache(&self) -> usize {
+        self.galley_cache.num_galleys_in_cache()
+    }
+
+    /// How full is the font atlas?
+    ///
+    /// This increases as new fonts and/or glyphs are used,
+    /// but can also decrease in a call to [`Self::begin_pass`].
+    pub fn font_atlas_fill_ratio(&self) -> f32 {
+        self.atlas.fill_ratio()
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// View into a [`FontStore`] that lets you perform text layout at a given DPI.
+pub struct Fonts<'a> {
+    fonts: &'a mut FontStore,
+    pixels_per_point: f32,
+}
+
+impl Fonts<'_> {
+    #[inline]
+    pub fn definitions(&self) -> &FontDefinitions {
+        self.fonts.definitions()
+    }
+
+    #[inline]
+    pub fn hinting_enabled(&self) -> bool {
+        self.fonts.hinting_enabled()
     }
 
     /// Width of this character in points.
     #[inline]
-    pub fn glyph_width(&self, font_id: &FontId, c: char) -> f32 {
-        self.lock().fonts.glyph_width(font_id, c)
-    }
-
-    /// Can we display this glyph?
-    #[inline]
-    pub fn has_glyph(&self, font_id: &FontId, c: char) -> bool {
-        self.lock().fonts.has_glyph(font_id, c)
+    pub fn glyph_width(&mut self, font_id: &FontId, c: char) -> f32 {
+        self.fonts.glyph_width(font_id, c)
     }
 
     /// Can we display all the glyphs in this text?
-    pub fn has_glyphs(&self, font_id: &FontId, s: &str) -> bool {
-        self.lock().fonts.has_glyphs(font_id, s)
+    #[inline]
+    pub fn has_glyphs_for(&mut self, font_id: &FontId, s: &str) -> bool {
+        self.fonts.has_glyphs_for(font_id, s)
+    }
+    pub fn with_characters(&mut self, font_family: &FontFamily, cb: impl FnMut(u32, u16)) {
+        self.fonts.with_characters(font_family, cb);
     }
 
     /// Height of one row of text in points.
     ///
     /// Returns a value rounded to [`emath::GUI_ROUNDING`].
     #[inline]
-    pub fn row_height(&self, font_id: &FontId) -> f32 {
-        self.lock().fonts.row_height(font_id)
+    pub fn row_height(&mut self, font_id: &FontId) -> f32 {
+        self.fonts
+            .row_height(font_id)
+            .round_to_pixels(self.pixels_per_point)
     }
 
-    /// List of all known font families.
-    pub fn families(&self) -> Vec<FontFamily> {
-        self.lock()
-            .fonts
-            .definitions
-            .families
-            .keys()
-            .cloned()
-            .collect()
+    /// Call at the end of each frame (before painting) to get the change to the font texture since last call.
+    #[inline]
+    pub fn font_image_delta(&mut self) -> Option<crate::ImageDelta> {
+        self.fonts.font_image_delta()
+    }
+
+    #[inline]
+    pub fn max_texture_side(&self) -> usize {
+        self.fonts.max_texture_side()
+    }
+
+    /// The font atlas.
+    /// Pass this to [`crate::Tessellator`].
+    #[inline]
+    pub fn texture_atlas(&self) -> &TextureAtlas {
+        self.fonts.texture_atlas()
+    }
+
+    /// Current size of the font image.
+    /// Pass this to [`crate::Tessellator`].
+    #[inline]
+    pub fn font_image_size(&self) -> [usize; 2] {
+        self.fonts.font_image_size()
+    }
+
+    /// List of all loaded font families.
+    #[inline]
+    pub fn families(&mut self) -> &[FontFamily] {
+        self.fonts.families()
+    }
+
+    #[inline]
+    pub fn num_galleys_in_cache(&self) -> usize {
+        self.fonts.num_galleys_in_cache()
+    }
+
+    /// How full is the font atlas?
+    ///
+    /// This increases as new fonts and/or glyphs are used,
+    /// but can also decrease in a call to [`Self::begin_pass`].
+    #[inline]
+    pub fn font_atlas_fill_ratio(&self) -> f32 {
+        self.fonts.font_atlas_fill_ratio()
     }
 
     /// Layout some text.
@@ -551,27 +842,48 @@ impl Fonts {
     ///
     /// The implementation uses memoization so repeated calls are cheap.
     #[inline]
-    pub fn layout_job(&self, job: LayoutJob) -> Arc<Galley> {
-        self.lock().layout_job(job)
+    pub fn layout_job(&mut self, job: LayoutJob) -> Arc<Galley> {
+        self.fonts.galley_cache.layout(
+            &mut FontsLayoutView {
+                font_context: &mut self.fonts.font_context,
+                layout_context: &mut self.fonts.layout_context,
+                texture_atlas: &mut self.fonts.atlas,
+                glyph_atlas: &mut self.fonts.glyph_atlas,
+                font_tweaks: &mut self.fonts.font_tweaks,
+                hinting_enabled: self.fonts.hinting_enabled,
+                pixels_per_point: self.pixels_per_point,
+            },
+            job,
+            self.pixels_per_point,
+        )
     }
 
-    pub fn num_galleys_in_cache(&self) -> usize {
-        self.lock().galley_cache.num_galleys_in_cache()
-    }
-
-    /// How full is the font atlas?
+    /// Layout some text, without memoization.
     ///
-    /// This increases as new fonts and/or glyphs are used,
-    /// but can also decrease in a call to [`Self::begin_pass`].
-    pub fn font_atlas_fill_ratio(&self) -> f32 {
-        self.lock().fonts.atlas.lock().fill_ratio()
+    /// Mostly useful for benchmarking.
+    #[inline]
+    #[doc(hidden)]
+    pub fn layout_job_uncached(&mut self, job: LayoutJob) -> Arc<Galley> {
+        Arc::new(super::parley_layout::layout(
+            &mut FontsLayoutView {
+                font_context: &mut self.fonts.font_context,
+                layout_context: &mut self.fonts.layout_context,
+                texture_atlas: &mut self.fonts.atlas,
+                glyph_atlas: &mut self.fonts.glyph_atlas,
+                font_tweaks: &mut self.fonts.font_tweaks,
+                hinting_enabled: self.fonts.hinting_enabled,
+                pixels_per_point: self.pixels_per_point,
+            },
+            job,
+        ))
     }
 
     /// Will wrap text at the given width and line break at `\n`.
     ///
     /// The implementation uses memoization so repeated calls are cheap.
+    #[inline]
     pub fn layout(
-        &self,
+        &mut self,
         text: String,
         font_id: FontId,
         color: crate::Color32,
@@ -584,8 +896,9 @@ impl Fonts {
     /// Will line break at `\n`.
     ///
     /// The implementation uses memoization so repeated calls are cheap.
+    #[inline]
     pub fn layout_no_wrap(
-        &self,
+        &mut self,
         text: String,
         font_id: FontId,
         color: crate::Color32,
@@ -597,8 +910,9 @@ impl Fonts {
     /// Like [`Self::layout`], made for when you want to pick a color for the text later.
     ///
     /// The implementation uses memoization so repeated calls are cheap.
+    #[inline]
     pub fn layout_delayed_color(
-        &self,
+        &mut self,
         text: String,
         font_id: FontId,
         wrap_width: f32,
@@ -609,130 +923,9 @@ impl Fonts {
 
 // ----------------------------------------------------------------------------
 
-pub struct FontsAndCache {
-    pub fonts: FontsImpl,
-    galley_cache: GalleyCache,
-}
-
-impl FontsAndCache {
-    fn layout_job(&mut self, job: LayoutJob) -> Arc<Galley> {
-        let allow_split_paragraphs = true; // Optimization for editing text with many paragraphs.
-        self.galley_cache
-            .layout(&mut self.fonts, job, allow_split_paragraphs)
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-/// The collection of fonts used by `epaint`.
-///
-/// Required in order to paint text.
-pub struct FontsImpl {
-    pixels_per_point: f32,
-    max_texture_side: usize,
-    definitions: FontDefinitions,
-    atlas: Arc<Mutex<TextureAtlas>>,
-    font_impl_cache: FontImplCache,
-    sized_family: ahash::HashMap<(OrderedFloat<f32>, FontFamily), Font>,
-}
-
-impl FontsImpl {
-    /// Create a new [`FontsImpl`] for text layout.
-    /// This call is expensive, so only create one [`FontsImpl`] and then reuse it.
-    pub fn new(
-        pixels_per_point: f32,
-        max_texture_side: usize,
-        definitions: FontDefinitions,
-    ) -> Self {
-        assert!(
-            0.0 < pixels_per_point && pixels_per_point < 100.0,
-            "pixels_per_point out of range: {pixels_per_point}"
-        );
-
-        let texture_width = max_texture_side.at_most(16 * 1024);
-        let initial_height = 32; // Keep initial font atlas small, so it is fast to upload to GPU. This will expand as needed anyways.
-        let atlas = TextureAtlas::new([texture_width, initial_height]);
-
-        let atlas = Arc::new(Mutex::new(atlas));
-
-        let font_impl_cache =
-            FontImplCache::new(atlas.clone(), pixels_per_point, &definitions.font_data);
-
-        Self {
-            pixels_per_point,
-            max_texture_side,
-            definitions,
-            atlas,
-            font_impl_cache,
-            sized_family: Default::default(),
-        }
-    }
-
-    #[inline(always)]
-    pub fn pixels_per_point(&self) -> f32 {
-        self.pixels_per_point
-    }
-
-    #[inline]
-    pub fn definitions(&self) -> &FontDefinitions {
-        &self.definitions
-    }
-
-    /// Get the right font implementation from size and [`FontFamily`].
-    pub fn font(&mut self, font_id: &FontId) -> &mut Font {
-        let FontId { mut size, family } = font_id;
-        size = size.at_least(0.1).at_most(2048.0);
-
-        self.sized_family
-            .entry((OrderedFloat(size), family.clone()))
-            .or_insert_with(|| {
-                let fonts = &self.definitions.families.get(family);
-                let fonts = fonts
-                    .unwrap_or_else(|| panic!("FontFamily::{family:?} is not bound to any fonts"));
-
-                let fonts: Vec<Arc<FontImpl>> = fonts
-                    .iter()
-                    .map(|font_name| self.font_impl_cache.font_impl(size, font_name))
-                    .collect();
-
-                Font::new(fonts)
-            })
-    }
-
-    /// Width of this character in points.
-    fn glyph_width(&mut self, font_id: &FontId, c: char) -> f32 {
-        self.font(font_id).glyph_width(c)
-    }
-
-    /// Can we display this glyph?
-    pub fn has_glyph(&mut self, font_id: &FontId, c: char) -> bool {
-        self.font(font_id).has_glyph(c)
-    }
-
-    /// Can we display all the glyphs in this text?
-    pub fn has_glyphs(&mut self, font_id: &FontId, s: &str) -> bool {
-        self.font(font_id).has_glyphs(s)
-    }
-
-    /// Height of one row of text in points.
-    ///
-    /// Returns a value rounded to [`emath::GUI_ROUNDING`].
-    fn row_height(&mut self, font_id: &FontId) -> f32 {
-        self.font(font_id).row_height()
-    }
-}
-
-// ----------------------------------------------------------------------------
-
 struct CachedGalley {
     /// When it was last used
     last_used: u32,
-
-    /// Hashes of all other entries this one depends on for quick re-layout.
-    /// Their `last_used`s should be updated alongside this one to make sure they're
-    /// not evicted.
-    children: Option<Arc<[u64]>>,
-
     galley: Arc<Galley>,
 }
 
@@ -744,18 +937,18 @@ struct GalleyCache {
 }
 
 impl GalleyCache {
-    fn layout_internal(
+    fn layout(
         &mut self,
-        fonts: &mut FontsImpl,
+        fonts: &mut FontsLayoutView<'_>,
         mut job: LayoutJob,
-        allow_split_paragraphs: bool,
-    ) -> (u64, Arc<Galley>) {
+        pixels_per_point: f32,
+    ) -> Arc<Galley> {
         if job.wrap.max_width.is_finite() {
             // Protect against rounding errors in egui layout code.
 
             // Say the user asks to wrap at width 200.0.
             // The text layout wraps, and reports that the final width was 196.0 points.
-            // This then trickles up the `Ui` chain and gets stored as the width for a tooltip (say).
+            // This than trickles up the `Ui` chain and gets stored as the width for a tooltip (say).
             // On the next frame, this is then set as the max width for the tooltip,
             // and we end up calling the text layout code again, this time with a wrap width of 196.0.
             // Except, somewhere in the `Ui` chain with added margins etc, a rounding error was introduced,
@@ -775,178 +968,25 @@ impl GalleyCache {
             job.wrap.max_width = job.wrap.max_width.round();
         }
 
-        let hash = crate::util::hash(&job); // TODO(emilk): even faster hasher?
+        let hash = crate::util::hash((&job, OrderedFloat(pixels_per_point))); // TODO(emilk): even faster hasher?
 
-        let galley = match self.cache.entry(hash) {
+        match self.cache.entry(hash) {
             std::collections::hash_map::Entry::Occupied(entry) => {
-                // The job was found in cache - no need to re-layout.
                 let cached = entry.into_mut();
                 cached.last_used = self.generation;
-
-                let galley = cached.galley.clone();
-                if let Some(children) = &cached.children {
-                    // The point of `allow_split_paragraphs` is to split large jobs into paragraph,
-                    // and then cache each paragraph individually.
-                    // That way, if we edit a single paragraph, only that paragraph will be re-layouted.
-                    // For that to work we need to keep all the child/paragraph
-                    // galleys alive while the parent galley is alive:
-                    for child_hash in children.clone().iter() {
-                        if let Some(cached_child) = self.cache.get_mut(child_hash) {
-                            cached_child.last_used = self.generation;
-                        }
-                    }
-                }
-
-                galley
+                cached.galley.clone()
             }
             std::collections::hash_map::Entry::Vacant(entry) => {
-                let job = Arc::new(job);
-                if allow_split_paragraphs && should_cache_each_paragraph_individually(&job) {
-                    let (child_galleys, child_hashes) =
-                        self.layout_each_paragraph_individuallly(fonts, &job);
-                    debug_assert_eq!(
-                        child_hashes.len(),
-                        child_galleys.len(),
-                        "Bug in `layout_each_paragraph_individuallly`"
-                    );
-                    let galley =
-                        Arc::new(Galley::concat(job, &child_galleys, fonts.pixels_per_point));
-
-                    self.cache.insert(
-                        hash,
-                        CachedGalley {
-                            last_used: self.generation,
-                            children: Some(child_hashes.into()),
-                            galley: galley.clone(),
-                        },
-                    );
-                    galley
-                } else {
-                    let galley = super::layout(fonts, job);
-                    let galley = Arc::new(galley);
-                    entry.insert(CachedGalley {
-                        last_used: self.generation,
-                        children: None,
-                        galley: galley.clone(),
-                    });
-                    galley
-                }
+                //let galley = super::layout(fonts, job.into());
+                let galley = super::parley_layout::layout(fonts, job);
+                let galley = Arc::new(galley);
+                entry.insert(CachedGalley {
+                    last_used: self.generation,
+                    galley: galley.clone(),
+                });
+                galley
             }
-        };
-
-        (hash, galley)
-    }
-
-    fn layout(
-        &mut self,
-        fonts: &mut FontsImpl,
-        job: LayoutJob,
-        allow_split_paragraphs: bool,
-    ) -> Arc<Galley> {
-        self.layout_internal(fonts, job, allow_split_paragraphs).1
-    }
-
-    /// Split on `\n` and lay out (and cache) each paragraph individually.
-    fn layout_each_paragraph_individuallly(
-        &mut self,
-        fonts: &mut FontsImpl,
-        job: &LayoutJob,
-    ) -> (Vec<Arc<Galley>>, Vec<u64>) {
-        profiling::function_scope!();
-
-        let mut current_section = 0;
-        let mut start = 0;
-        let mut max_rows_remaining = job.wrap.max_rows;
-        let mut child_galleys = Vec::new();
-        let mut child_hashes = Vec::new();
-
-        while start < job.text.len() {
-            let is_first_paragraph = start == 0;
-            let end = job.text[start..]
-                .find('\n')
-                .map_or(job.text.len(), |i| start + i + 1);
-
-            let mut paragraph_job = LayoutJob {
-                text: job.text[start..end].to_owned(),
-                wrap: crate::text::TextWrapping {
-                    max_rows: max_rows_remaining,
-                    ..job.wrap
-                },
-                sections: Vec::new(),
-                break_on_newline: job.break_on_newline,
-                halign: job.halign,
-                justify: job.justify,
-                first_row_min_height: if is_first_paragraph {
-                    job.first_row_min_height
-                } else {
-                    0.0
-                },
-                round_output_to_gui: job.round_output_to_gui,
-            };
-
-            // Add overlapping sections:
-            for section in &job.sections[current_section..job.sections.len()] {
-                let LayoutSection {
-                    leading_space,
-                    byte_range: section_range,
-                    format,
-                } = section;
-
-                // `start` and `end` are the byte range of the current paragraph.
-                // How does the current section overlap with the paragraph range?
-
-                if section_range.end <= start {
-                    // The section is behind us
-                    current_section += 1;
-                } else if end <= section_range.start {
-                    break; // Haven't reached this one yet.
-                } else {
-                    // Section range overlaps with paragraph range
-                    debug_assert!(
-                        section_range.start < section_range.end,
-                        "Bad byte_range: {section_range:?}"
-                    );
-                    let new_range = section_range.start.saturating_sub(start)
-                        ..(section_range.end.at_most(end)).saturating_sub(start);
-                    debug_assert!(
-                        new_range.start <= new_range.end,
-                        "Bad new section range: {new_range:?}"
-                    );
-                    paragraph_job.sections.push(LayoutSection {
-                        leading_space: if start <= section_range.start {
-                            *leading_space
-                        } else {
-                            0.0
-                        },
-                        byte_range: new_range,
-                        format: format.clone(),
-                    });
-                }
-            }
-
-            // TODO(emilk): we could lay out each paragraph in parallel to get a nice speedup on multicore machines.
-            let (hash, galley) = self.layout_internal(fonts, paragraph_job, false);
-            child_hashes.push(hash);
-
-            // This will prevent us from invalidating cache entries unnecessarily:
-            if max_rows_remaining != usize::MAX {
-                max_rows_remaining -= galley.rows.len();
-                // Ignore extra trailing row, see merging `Galley::concat` for more details.
-                if end < job.text.len() && !galley.elided {
-                    max_rows_remaining += 1;
-                }
-            }
-
-            let elided = galley.elided;
-            child_galleys.push(galley);
-            if elided {
-                break;
-            }
-
-            start = end;
         }
-
-        (child_galleys, child_hashes)
     }
 
     pub fn num_galleys_in_cache(&self) -> usize {
@@ -961,203 +1001,8 @@ impl GalleyCache {
         });
         self.generation = self.generation.wrapping_add(1);
     }
-}
 
-/// If true, lay out and cache each paragraph (sections separated by newlines) individually.
-///
-/// This makes it much faster to re-layout the full text when only a portion of it has changed since last frame, i.e. when editing somewhere in a file with thousands of lines/paragraphs.
-fn should_cache_each_paragraph_individually(job: &LayoutJob) -> bool {
-    // We currently don't support this elided text, i.e. when `max_rows` is set.
-    // Most often, elided text is elided to one row,
-    // and so will always be fast to lay out.
-    job.break_on_newline && job.wrap.max_rows == usize::MAX && job.text.contains('\n')
-}
-
-// ----------------------------------------------------------------------------
-
-struct FontImplCache {
-    atlas: Arc<Mutex<TextureAtlas>>,
-    pixels_per_point: f32,
-    ab_glyph_fonts: BTreeMap<String, (FontTweak, ab_glyph::FontArc)>,
-
-    /// Map font pixel sizes and names to the cached [`FontImpl`].
-    cache: ahash::HashMap<(u32, String), Arc<FontImpl>>,
-}
-
-impl FontImplCache {
-    pub fn new(
-        atlas: Arc<Mutex<TextureAtlas>>,
-        pixels_per_point: f32,
-        font_data: &BTreeMap<String, Arc<FontData>>,
-    ) -> Self {
-        let ab_glyph_fonts = font_data
-            .iter()
-            .map(|(name, font_data)| {
-                let tweak = font_data.tweak;
-                let ab_glyph = ab_glyph_font_from_font_data(name, font_data);
-                (name.clone(), (tweak, ab_glyph))
-            })
-            .collect();
-
-        Self {
-            atlas,
-            pixels_per_point,
-            ab_glyph_fonts,
-            cache: Default::default(),
-        }
-    }
-
-    pub fn font_impl(&mut self, scale_in_points: f32, font_name: &str) -> Arc<FontImpl> {
-        use ab_glyph::Font as _;
-
-        let (tweak, ab_glyph_font) = self
-            .ab_glyph_fonts
-            .get(font_name)
-            .unwrap_or_else(|| panic!("No font data found for {font_name:?}"))
-            .clone();
-
-        let scale_in_pixels = self.pixels_per_point * scale_in_points;
-
-        // Scale the font properly (see https://github.com/emilk/egui/issues/2068).
-        let units_per_em = ab_glyph_font.units_per_em().unwrap_or_else(|| {
-            panic!("The font unit size of {font_name:?} exceeds the expected range (16..=16384)")
-        });
-        let font_scaling = ab_glyph_font.height_unscaled() / units_per_em;
-        let scale_in_pixels = scale_in_pixels * font_scaling;
-
-        self.cache
-            .entry((
-                (scale_in_pixels * tweak.scale).round() as u32,
-                font_name.to_owned(),
-            ))
-            .or_insert_with(|| {
-                Arc::new(FontImpl::new(
-                    self.atlas.clone(),
-                    self.pixels_per_point,
-                    font_name.to_owned(),
-                    ab_glyph_font,
-                    scale_in_pixels,
-                    tweak,
-                ))
-            })
-            .clone()
-    }
-}
-
-#[cfg(feature = "default_fonts")]
-#[cfg(test)]
-mod tests {
-    use core::f32;
-
-    use super::*;
-    use crate::{text::TextFormat, Stroke};
-    use ecolor::Color32;
-    use emath::Align;
-
-    fn jobs() -> Vec<LayoutJob> {
-        vec![
-            LayoutJob::simple(
-                String::default(),
-                FontId::new(14.0, FontFamily::Monospace),
-                Color32::WHITE,
-                f32::INFINITY,
-            ),
-            LayoutJob::simple(
-                "Simple test.".to_owned(),
-                FontId::new(14.0, FontFamily::Monospace),
-                Color32::WHITE,
-                f32::INFINITY,
-            ),
-            LayoutJob::simple(
-                "This some text that may be long.\nDet kanske också finns lite ÅÄÖ här.".to_owned(),
-                FontId::new(14.0, FontFamily::Proportional),
-                Color32::WHITE,
-                50.0,
-            ),
-            {
-                let mut job = LayoutJob {
-                    first_row_min_height: 20.0,
-                    ..Default::default()
-                };
-                job.append(
-                    "1st paragraph has underline and strikethrough, and has some non-ASCII characters:\n ÅÄÖ.",
-                    0.0,
-                    TextFormat {
-                        font_id: FontId::new(15.0, FontFamily::Monospace),
-                        underline: Stroke::new(1.0, Color32::RED),
-                        strikethrough: Stroke::new(1.0, Color32::GREEN),
-                        ..Default::default()
-                    },
-                );
-                job.append(
-                    "2nd paragraph has some leading space.\n",
-                    16.0,
-                    TextFormat {
-                        font_id: FontId::new(14.0, FontFamily::Proportional),
-                        ..Default::default()
-                    },
-                );
-                job.append(
-                    "3rd paragraph is kind of boring, but has italics.\nAnd a newline",
-                    0.0,
-                    TextFormat {
-                        font_id: FontId::new(10.0, FontFamily::Proportional),
-                        italics: true,
-                        ..Default::default()
-                    },
-                );
-
-                job
-            },
-        ]
-    }
-
-    #[test]
-    fn test_split_paragraphs() {
-        for pixels_per_point in [1.0, 2.0_f32.sqrt(), 2.0] {
-            let max_texture_side = 4096;
-            let mut fonts = FontsImpl::new(
-                pixels_per_point,
-                max_texture_side,
-                FontDefinitions::default(),
-            );
-
-            for halign in [Align::Min, Align::Center, Align::Max] {
-                for justify in [false, true] {
-                    for mut job in jobs() {
-                        job.halign = halign;
-                        job.justify = justify;
-
-                        let whole = GalleyCache::default().layout(&mut fonts, job.clone(), false);
-
-                        let split = GalleyCache::default().layout(&mut fonts, job.clone(), true);
-
-                        for (i, row) in whole.rows.iter().enumerate() {
-                            println!(
-                                "Whole row {i}: section_index_at_start={}, first glyph section_index: {:?}",
-                                row.row.section_index_at_start,
-                                row.row.glyphs.first().map(|g| g.section_index)
-                            );
-                        }
-                        for (i, row) in split.rows.iter().enumerate() {
-                            println!(
-                                "Split row {i}: section_index_at_start={}, first glyph section_index: {:?}",
-                                row.row.section_index_at_start,
-                                row.row.glyphs.first().map(|g| g.section_index)
-                            );
-                        }
-
-                        // Don't compare for equaliity; but format with a specific precision and make sure we hit that.
-                        // NOTE: we use a rather low precision, because as long as we're within a pixel I think it's good enough.
-                        similar_asserts::assert_eq!(
-                            format!("{:#.1?}", split),
-                            format!("{:#.1?}", whole),
-                            "pixels_per_point: {pixels_per_point:.2}, input text: '{}'",
-                            job.text
-                        );
-                    }
-                }
-            }
-        }
+    pub fn clear(&mut self) {
+        self.cache.clear();
     }
 }

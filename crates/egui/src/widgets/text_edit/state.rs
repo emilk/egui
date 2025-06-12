@@ -1,13 +1,11 @@
+use std::ops::Range;
 use std::sync::Arc;
 
 use crate::mutex::Mutex;
 
-use crate::{
-    text_selection::{CCursorRange, TextCursorState},
-    Context, Id,
-};
+use crate::{text::Selection, text_selection::TextCursorState, Context, Id};
 
-pub type TextEditUndoer = crate::util::undoer::Undoer<(CCursorRange, String)>;
+pub type TextEditUndoer = crate::util::undoer::Undoer<(Selection, String)>;
 
 /// The text edit state stored between frames.
 ///
@@ -15,17 +13,10 @@ pub type TextEditUndoer = crate::util::undoer::Undoer<(CCursorRange, String)>;
 /// ```
 /// # egui::__run_test_ui(|ui| {
 /// # let mut text = String::new();
-/// use egui::text::{CCursor, CCursorRange};
-///
 /// let mut output = egui::TextEdit::singleline(&mut text).show(ui);
 ///
-/// // Create a new selection range
-/// let min = CCursor::new(0);
-/// let max = CCursor::new(0);
-/// let new_range = CCursorRange::two(min, max);
-///
 /// // Update the state
-/// output.state.cursor.set_char_range(Some(new_range));
+/// output.state.cursor.select_byte_range(0..0);
 /// // Store the updated state
 /// output.state.store(ui.ctx(), output.response.id);
 /// # });
@@ -47,7 +38,7 @@ pub struct TextEditState {
 
     // cursor range for IME candidate.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) ime_cursor_range: CCursorRange,
+    pub(crate) ime_selection: Selection,
 
     // Visual offset when editing singleline text bigger than the width.
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -57,6 +48,12 @@ pub struct TextEditState {
     /// Used to pause the cursor animation when typing.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) last_interaction_time: f64,
+
+    /// Byte selection set by whatever's controlling this `TextEdit`, to be
+    /// resolved into a `Selection` the next time the `TextEdit` widget is
+    /// shown.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) pending_selection: Option<Range<usize>>,
 }
 
 impl TextEditState {
@@ -79,5 +76,11 @@ impl TextEditState {
 
     pub fn clear_undoer(&mut self) {
         self.set_undoer(TextEditUndoer::default());
+    }
+
+    /// Select a specific byte range next time the `TextEdit` is shown. This is
+    /// processed before any events on the same frame.
+    pub fn select_byte_range(&mut self, range: Range<usize>) {
+        self.pending_selection = Some(range);
     }
 }

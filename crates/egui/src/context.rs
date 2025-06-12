@@ -2,15 +2,15 @@
 
 use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration};
 
-use emath::{GuiRounding as _, OrderedFloat};
+use emath::GuiRounding as _;
 use epaint::{
     emath::{self, TSTransform},
     mutex::RwLock,
     stats::PaintStats,
     tessellator,
-    text::{FontInsert, FontPriority, Fonts},
-    vec2, ClippedPrimitive, ClippedShape, Color32, ImageData, ImageDelta, Pos2, Rect, StrokeKind,
-    TessellationOptions, TextureAtlas, TextureId, Vec2,
+    text::{FontInsert, FontPriority, FontStore, Fonts},
+    vec2, ClippedPrimitive, ClippedShape, Color32, ImageData, Pos2, Rect, StrokeKind,
+    TessellationOptions, TextureId, Vec2,
 };
 
 use crate::{
@@ -77,7 +77,7 @@ impl Default for WrappedTextureManager {
         // Will be filled in later
         let font_id = tex_mngr.alloc(
             "egui_font_texture".into(),
-            epaint::FontImage::new([0, 0]).into(),
+            epaint::ColorImage::filled([0, 0], Color32::TRANSPARENT).into(),
             Default::default(),
         );
         assert_eq!(
@@ -395,13 +395,7 @@ impl ViewportRepaintInfo {
 
 #[derive(Default)]
 struct ContextImpl {
-    /// Since we could have multiple viewports across multiple monitors with
-    /// different `pixels_per_point`, we need a `Fonts` instance for each unique
-    /// `pixels_per_point`.
-    /// This is because the `Fonts` depend on `pixels_per_point` for the font atlas
-    /// as well as kerning, font sizes, etc.
-    fonts: std::collections::BTreeMap<OrderedFloat<f32>, Fonts>,
-    font_definitions: FontDefinitions,
+    fonts: Option<FontStore>,
 
     memory: Memory,
     animation_manager: AnimationManager,
@@ -559,33 +553,43 @@ impl ContextImpl {
     fn update_fonts_mut(&mut self) {
         profiling::function_scope!();
         let input = &self.viewport().input;
-        let pixels_per_point = input.pixels_per_point();
         let max_texture_side = input.max_texture_side;
 
-        if let Some(font_definitions) = self.memory.new_font_definitions.take() {
-            // New font definition loaded, so we need to reload all fonts.
-            self.fonts.clear();
-            self.font_definitions = font_definitions;
-            #[cfg(feature = "log")]
-            log::trace!("Loading new font definitions");
-        }
+        let mut new_font_definitions =
+            if let Some(font_definitions) = self.memory.new_font_definitions.take() {
+                Cow::Owned(font_definitions)
+            } else if let Some(fonts) = &self.fonts {
+                Cow::Borrowed(fonts.definitions())
+            } else {
+                Cow::Owned(FontDefinitions::default())
+            };
 
         if !self.memory.add_fonts.is_empty() {
             let fonts = self.memory.add_fonts.drain(..);
+            let font_definitions = new_font_definitions.to_mut();
             for font in fonts {
-                self.fonts.clear(); // recreate all the fonts
                 for family in font.families {
-                    let fam = self
-                        .font_definitions
-                        .families
-                        .entry(family.family)
-                        .or_default();
+                    let fam = font_definitions.families.entry(family.family).or_default();
                     match family.priority {
                         FontPriority::Highest => fam.insert(0, font.name.clone()),
                         FontPriority::Lowest => fam.push(font.name.clone()),
+                        FontPriority::Above(name) => {
+                            let position = fam
+                                .iter()
+                                .position(|f| f == name.as_ref())
+                                .unwrap_or(fam.len());
+                            fam.insert(position, font.name.clone());
+                        }
+                        FontPriority::Below(name) => {
+                            let position = fam
+                                .iter()
+                                .position(|f| f == name.as_ref())
+                                .unwrap_or(fam.len() - 1);
+                            fam.insert(position + 1, font.name.clone());
+                        }
                     }
                 }
-                self.font_definitions
+                font_definitions
                     .font_data
                     .insert(font.name, Arc::new(font.data));
             }
@@ -594,35 +598,47 @@ impl ContextImpl {
             log::trace!("Adding new fonts");
         }
 
-        let mut is_new = false;
+        let mut did_change_fonts = false;
 
-        let fonts = self
-            .fonts
-            .entry(pixels_per_point.into())
-            .or_insert_with(|| {
-                #[cfg(feature = "log")]
-                log::trace!("Creating new Fonts for pixels_per_point={pixels_per_point}");
+        // If we changed the font definitions this frame, or self.fonts previously did not exist, new_font_definitions
+        // must be Cow::Owned. Set the font definitions.
+        let fonts = if let Cow::Owned(new_font_definitions) = new_font_definitions {
+            did_change_fonts = true;
+            if let Some(fonts) = self.fonts.as_mut() {
+                fonts.set_definitions(new_font_definitions);
+                did_change_fonts = true;
+                fonts
+            } else {
+                self.fonts.get_or_insert_with(|| {
+                    #[cfg(feature = "log")]
+                    log::trace!("Creating new FontStore");
 
-                is_new = true;
-                profiling::scope!("Fonts::new");
-                Fonts::new(
-                    pixels_per_point,
-                    max_texture_side,
-                    self.font_definitions.clone(),
-                )
-            });
+                    did_change_fonts = true;
+                    profiling::scope!("FontStore::new");
+                    FontStore::new(max_texture_side, new_font_definitions)
+                })
+            }
+        } else {
+            self.fonts
+                .as_mut()
+                .expect("new_font_definitions is borrowed, but we had nowhere to borrow it from")
+        };
 
-        {
-            profiling::scope!("Fonts::begin_pass");
-            fonts.begin_pass(pixels_per_point, max_texture_side);
+        if let Some(new_font_hinting) = self.memory.new_font_hinting.take() {
+            fonts.set_hinting_enabled(new_font_hinting);
         }
 
-        if is_new && self.memory.options.preload_font_glyphs {
+        {
+            profiling::scope!("FontStore::begin_pass");
+            fonts.begin_pass(max_texture_side);
+        }
+
+        if did_change_fonts && self.memory.options.preload_font_glyphs {
             profiling::scope!("preload_font_glyphs");
             // Preload the most common characters for the most common fonts.
             // This is not very important to do, but may save a few GPU operations.
-            for font_id in self.memory.options.style().text_styles.values() {
-                fonts.lock().fonts.font(font_id).preload_common_characters();
+            for font_style in self.memory.options.style().text_styles.values() {
+                fonts.preload_common_characters(font_style);
             }
         }
     }
@@ -1020,18 +1036,20 @@ impl Context {
         self.write(move |ctx| reader(&ctx.viewport().prev_pass))
     }
 
-    /// Read-only access to [`Fonts`].
+    /// Read-write access to [`Fonts`].
     ///
     /// Not valid until first call to [`Context::run()`].
     /// That's because since we don't know the proper `pixels_per_point` until then.
     #[inline]
-    pub fn fonts<R>(&self, reader: impl FnOnce(&Fonts) -> R) -> R {
+    pub fn fonts<R>(&self, reader: impl FnOnce(&mut Fonts<'_>) -> R) -> R {
         self.write(move |ctx| {
             let pixels_per_point = ctx.pixels_per_point();
             reader(
-                ctx.fonts
-                    .get(&pixels_per_point.into())
-                    .expect("No fonts available until first call to Context::run()"),
+                &mut ctx
+                    .fonts
+                    .as_mut()
+                    .expect("No fonts available until first call to Context::run()")
+                    .with_pixels_per_point(pixels_per_point),
             )
         })
     }
@@ -1494,12 +1512,10 @@ impl Context {
 
         let font_id = TextStyle::Body.resolve(&self.style());
         self.fonts(|f| {
-            let mut lock = f.lock();
-            let font = lock.fonts.font(&font_id);
-            font.has_glyphs(alt)
-                && font.has_glyphs(ctrl)
-                && font.has_glyphs(shift)
-                && font.has_glyphs(mac_cmd)
+            f.has_glyphs_for(&font_id, alt)
+                && f.has_glyphs_for(&font_id, ctrl)
+                && f.has_glyphs_for(&font_id, shift)
+                && f.has_glyphs_for(&font_id, mac_cmd)
         })
     }
 
@@ -1801,17 +1817,12 @@ impl Context {
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
         profiling::function_scope!();
 
-        let pixels_per_point = self.pixels_per_point();
-
-        let mut update_fonts = true;
-
-        self.read(|ctx| {
-            if let Some(current_fonts) = ctx.fonts.get(&pixels_per_point.into()) {
-                // NOTE: this comparison is expensive since it checks TTF data for equality
-                if current_fonts.lock().fonts.definitions() == &font_definitions {
-                    update_fonts = false; // no need to update
-                }
-            }
+        let update_fonts = self.read(|ctx| {
+            // NOTE: this comparison is expensive since it checks TTF data for equality
+            // TODO(valadaptive): add_font only checks the *names* for equality. Change this?
+            ctx.fonts
+                .as_ref()
+                .is_none_or(|fonts| fonts.definitions() != &font_definitions)
         });
 
         if update_fonts {
@@ -1829,26 +1840,34 @@ impl Context {
     pub fn add_font(&self, new_font: FontInsert) {
         profiling::function_scope!();
 
-        let pixels_per_point = self.pixels_per_point();
-
-        let mut update_fonts = true;
-
-        self.read(|ctx| {
-            if let Some(current_fonts) = ctx.fonts.get(&pixels_per_point.into()) {
-                if current_fonts
-                    .lock()
-                    .fonts
-                    .definitions()
-                    .font_data
-                    .contains_key(&new_font.name)
-                {
-                    update_fonts = false; // no need to update
-                }
-            }
+        let update_fonts = self.read(|ctx| {
+            ctx.fonts
+                .as_ref()
+                .is_none_or(|fonts| !fonts.definitions().font_data.contains_key(&new_font.name))
         });
 
         if update_fonts {
             self.memory_mut(|mem| mem.add_fonts.push(new_font));
+        }
+    }
+
+    /// Set whether font hinting (pixel snapping for clearer fonts) is enabled.
+    ///
+    /// By default, hinting is enabled. You can override this per-font with
+    /// [`crate::FontTweak::hinting_enabled`].
+    ///
+    /// The new font hinting setting will become active at the start of the next pass.
+    pub fn set_font_hinting_enabled(&self, hinting_enabled: bool) {
+        profiling::function_scope!();
+
+        let update_hinting = self.read(|ctx| {
+            ctx.fonts
+                .as_ref()
+                .is_none_or(|fonts| fonts.hinting_enabled() != hinting_enabled)
+        });
+
+        if update_hinting {
+            self.memory_mut(|mem| mem.new_font_hinting = Some(hinting_enabled));
         }
     }
 
@@ -2325,29 +2344,11 @@ impl ContextImpl {
 
         self.memory.end_pass(&viewport.this_pass.used_ids);
 
-        if let Some(fonts) = self.fonts.get(&pixels_per_point.into()) {
+        if let Some(fonts) = self.fonts.as_mut() {
             let tex_mngr = &mut self.tex_manager.0.write();
             if let Some(font_image_delta) = fonts.font_image_delta() {
                 // A partial font atlas update, e.g. a new glyph has been entered.
                 tex_mngr.set(TextureId::default(), font_image_delta);
-            }
-
-            if 1 < self.fonts.len() {
-                // We have multiple different `pixels_per_point`,
-                // e.g. because we have many viewports spread across
-                // monitors with different DPI scaling.
-                // All viewports share the same texture namespace and renderer,
-                // so the all use `TextureId::default()` for the font texture.
-                // This is a problem.
-                // We solve this with a hack: we always upload the full font atlas
-                // every frame, for all viewports.
-                // This ensures it is up-to-date, solving
-                // https://github.com/emilk/egui/issues/3664
-                // at the cost of a lot of performance.
-                // (This will override any smaller delta that was uploaded above.)
-                profiling::scope!("full_font_atlas_update");
-                let full_delta = ImageDelta::full(fonts.image(), TextureAtlas::texture_options());
-                tex_mngr.set(TextureId::default(), full_delta);
             }
         }
 
@@ -2486,24 +2487,6 @@ impl ContextImpl {
             self.memory.set_viewport_id(viewport_id);
         }
 
-        let active_pixels_per_point: std::collections::BTreeSet<OrderedFloat<f32>> = self
-            .viewports
-            .values()
-            .map(|v| v.input.pixels_per_point.into())
-            .collect();
-        self.fonts.retain(|pixels_per_point, _| {
-            if active_pixels_per_point.contains(pixels_per_point) {
-                true
-            } else {
-                #[cfg(feature = "log")]
-                log::trace!(
-                    "Freeing Fonts with pixels_per_point={} because it is no longer needed",
-                    pixels_per_point.into_inner()
-                );
-                false
-            }
-        });
-
         platform_output.num_completed_passes += 1;
 
         FullOutput {
@@ -2535,22 +2518,19 @@ impl Context {
 
         self.write(|ctx| {
             let tessellation_options = ctx.memory.options.tessellation_options;
-            let texture_atlas = if let Some(fonts) = ctx.fonts.get(&pixels_per_point.into()) {
+            let texture_atlas = if let Some(fonts) = ctx.fonts.as_mut() {
                 fonts.texture_atlas()
             } else {
                 #[cfg(feature = "log")]
                 log::warn!("No font size matching {pixels_per_point} pixels per point found.");
                 ctx.fonts
-                    .iter()
+                    .iter_mut()
                     .next()
                     .expect("No fonts loaded")
-                    .1
                     .texture_atlas()
             };
-            let (font_tex_size, prepared_discs) = {
-                let atlas = texture_atlas.lock();
-                (atlas.size(), atlas.prepared_discs())
-            };
+            let (font_tex_size, prepared_discs) =
+                { (texture_atlas.size(), texture_atlas.prepared_discs()) };
 
             let paint_stats = PaintStats::from_shapes(&shapes);
             let clipped_primitives = {
@@ -2959,7 +2939,7 @@ impl Context {
     }
 
     fn fonts_tweak_ui(&self, ui: &mut Ui) {
-        let mut font_definitions = self.write(|ctx| ctx.font_definitions.clone());
+        let mut font_definitions = self.fonts(|fonts| fonts.definitions().clone());
         let mut changed = false;
 
         for (name, data) in &mut font_definitions.font_data {

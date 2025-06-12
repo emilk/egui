@@ -6,7 +6,8 @@
 //! to get callbacks on certain events ([`Context::on_begin_pass`], [`Context::on_end_pass`]).
 
 use crate::{
-    text, Align, Align2, Color32, Context, FontFamily, FontId, Id, Rect, Shape, Vec2, WidgetText,
+    text::{self, style::FontId},
+    Align, Align2, Color32, Context, Id, Rect, Shape, Vec2, WidgetText,
 };
 
 /// Register this plugin on the given egui context,
@@ -92,7 +93,7 @@ impl State {
         let mut bounding_rect = Rect::from_points(&[pos]);
 
         let color = Color32::GRAY;
-        let font_id = FontId::new(10.0, FontFamily::Proportional);
+        let font_id = FontId::system_ui(10.0);
 
         for Entry { location, text } in entries {
             {

@@ -3,14 +3,19 @@
 #![allow(clippy::if_same_then_else)]
 
 use emath::Align;
-use epaint::{text::FontTweak, CornerRadius, Shadow, Stroke};
+use epaint::{
+    text::{
+        style::{FontId, GenericFamily},
+        FontTweak,
+    },
+    CornerRadius, Shadow, Stroke,
+};
 use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
 
 use crate::{
     ecolor::Color32,
     emath::{pos2, vec2, Rangef, Rect, Vec2},
-    ComboBox, CursorIcon, FontFamily, FontId, Grid, Margin, Response, RichText, TextWrapMode,
-    WidgetText,
+    ComboBox, CursorIcon, Grid, Margin, Response, RichText, TextWrapMode, WidgetText,
 };
 
 /// How to format numbers in e.g. a [`crate::DragValue`].
@@ -125,7 +130,7 @@ pub enum FontSelection {
     /// [`Style::override_font_id`] or [`Style::override_text_style`] is set.
     Default,
 
-    /// Directly select size and font family
+    /// Directly select font
     FontId(FontId),
 
     /// Use a [`TextStyle`] to look up the [`FontId`] in [`Style::text_styles`].
@@ -1247,14 +1252,14 @@ impl Default for DebugOptions {
 
 /// The default text styles of the default egui theme.
 pub fn default_text_styles() -> BTreeMap<TextStyle, FontId> {
-    use FontFamily::{Monospace, Proportional};
+    use GenericFamily::{Monospace, SystemUi};
 
     [
-        (TextStyle::Small, FontId::new(9.0, Proportional)),
-        (TextStyle::Body, FontId::new(12.5, Proportional)),
-        (TextStyle::Button, FontId::new(12.5, Proportional)),
-        (TextStyle::Heading, FontId::new(18.0, Proportional)),
-        (TextStyle::Monospace, FontId::new(12.0, Monospace)),
+        (TextStyle::Small, FontId::simple(9.0, SystemUi)),
+        (TextStyle::Body, FontId::simple(12.5, SystemUi)),
+        (TextStyle::Button, FontId::simple(12.5, SystemUi)),
+        (TextStyle::Heading, FontId::simple(18.0, SystemUi)),
+        (TextStyle::Monospace, FontId::simple(12.0, Monospace)),
     ]
     .into()
 }
@@ -2622,6 +2627,7 @@ impl Widget for &mut FontTweak {
                     y_offset_factor,
                     y_offset,
                     baseline_offset_factor,
+                    hinting_override,
                 } = self;
 
                 ui.label("Scale");
@@ -2640,6 +2646,19 @@ impl Widget for &mut FontTweak {
                 ui.label("baseline_offset_factor");
                 ui.add(DragValue::new(baseline_offset_factor).speed(-0.0025));
                 ui.end_row();
+
+                ui.label("hinting_override");
+                ComboBox::from_id_salt("hinting_override")
+                    .selected_text(match hinting_override {
+                        None => "None",
+                        Some(true) => "Enable",
+                        Some(false) => "Disable",
+                    })
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(hinting_override, None, "None");
+                        ui.selectable_value(hinting_override, Some(true), "Enable");
+                        ui.selectable_value(hinting_override, Some(false), "Disable");
+                    });
 
                 if ui.button("Reset").clicked() {
                     *self = Default::default();

@@ -2,14 +2,14 @@ use std::sync::Arc;
 
 use emath::GuiRounding as _;
 use epaint::{
-    text::{Fonts, Galley, LayoutJob},
+    text::{style::FontId, Fonts, Galley, LayoutJob},
     CircleShape, ClippedShape, CornerRadius, PathStroke, RectShape, Shape, Stroke, StrokeKind,
 };
 
 use crate::{
     emath::{Align2, Pos2, Rangef, Rect, Vec2},
     layers::{LayerId, PaintList, ShapeIdx},
-    Color32, Context, FontId,
+    Color32, Context,
 };
 
 /// Helper to paint shapes and text to a specific region on a specific layer.
@@ -140,11 +140,11 @@ impl Painter {
         self.pixels_per_point
     }
 
-    /// Read-only access to the shared [`Fonts`].
+    /// Read-write access to the shared [`Fonts`].
     ///
     /// See [`Context`] documentation for how locks work.
     #[inline]
-    pub fn fonts<R>(&self, reader: impl FnOnce(&Fonts) -> R) -> R {
+    pub fn fonts<R>(&self, reader: impl FnOnce(&mut Fonts<'_>) -> R) -> R {
         self.ctx.fonts(reader)
     }
 
