@@ -28,7 +28,7 @@ pub fn default_wgpu_setup() -> egui_wgpu::WgpuSetup {
             wgpu::Backend::Dx12 => 2,
             wgpu::Backend::Gl => 4,
             wgpu::Backend::BrowserWebGpu => 6,
-            wgpu::Backend::Empty => 7,
+            wgpu::Backend::Noop => 7,
         });
 
         // Prefer CPU adapters, otherwise if we can't, prefer discrete GPU over integrated GPU.
@@ -202,7 +202,10 @@ impl crate::TestRenderer for WgpuTestRenderer {
             .queue
             .submit(user_buffers.into_iter().chain(once(encoder.finish())));
 
-        self.render_state.device.poll(wgpu::Maintain::Wait);
+        self.render_state
+            .device
+            .poll(wgpu::PollType::Wait)
+            .map_err(|e| format!("{e}"))?;
 
         Ok(texture_to_image(
             &self.render_state.device,

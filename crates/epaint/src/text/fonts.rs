@@ -913,7 +913,7 @@ impl GalleyCache {
                         "Bad new section range: {new_range:?}"
                     );
                     paragraph_job.sections.push(LayoutSection {
-                        leading_space: if start <= new_range.start {
+                        leading_space: if start <= section_range.start {
                             *leading_space
                         } else {
                             0.0
@@ -1080,20 +1080,20 @@ mod tests {
                     ..Default::default()
                 };
                 job.append(
-                    "1st paragraph has some leading space.\n",
-                    16.0,
-                    TextFormat {
-                        font_id: FontId::new(14.0, FontFamily::Proportional),
-                        ..Default::default()
-                    },
-                );
-                job.append(
-                    "2nd paragraph has underline and strikthrough, and has some non-ASCII characters:\n ÅÄÖ.",
+                    "1st paragraph has underline and strikethrough, and has some non-ASCII characters:\n ÅÄÖ.",
                     0.0,
                     TextFormat {
                         font_id: FontId::new(15.0, FontFamily::Monospace),
                         underline: Stroke::new(1.0, Color32::RED),
                         strikethrough: Stroke::new(1.0, Color32::GREEN),
+                        ..Default::default()
+                    },
+                );
+                job.append(
+                    "2nd paragraph has some leading space.\n",
+                    16.0,
+                    TextFormat {
+                        font_id: FontId::new(14.0, FontFamily::Proportional),
                         ..Default::default()
                     },
                 );

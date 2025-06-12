@@ -16,7 +16,7 @@ include = [
     "../LICENSE-MIT",
     "**/*.rs",
     "Cargo.toml",
-    "data/icon.png",
+    "data/*",
 ]
 
 [lints]
@@ -43,7 +43,7 @@ syntect = ["egui_extras/syntect"]
 
 [dependencies]
 egui = { workspace = true, default-features = false, features = ["color-hex"] }
-egui_extras = { workspace = true, features = ["default"] }
+egui_extras = { workspace = true, features = ["image", "svg"] }
 
 unicode_names2 = { version = "0.6.0", default-features = false } # this old version has fewer dependencies
 
@@ -57,7 +57,9 @@ serde = { workspace = true, optional = true }
 [dev-dependencies]
 criterion.workspace = true
 egui = { workspace = true, features = ["default_fonts"] }
+egui_extras = { workspace = true, features = ["image", "svg"] }
 egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }
+image = { workspace = true, features = ["png"] }
 mimalloc.workspace = true                                            # for benchmarks
 rand = "0.9"
 

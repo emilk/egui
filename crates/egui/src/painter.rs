@@ -582,16 +582,6 @@ impl Painter {
             ));
         }
     }
-
-    #[deprecated = "Use `Painter::galley` or `Painter::galley_with_override_text_color` instead"]
-    #[inline]
-    pub fn galley_with_color(&self, pos: Pos2, galley: Arc<Galley>, text_color: Color32) {
-        if !galley.is_empty() {
-            self.add(Shape::galley_with_override_text_color(
-                pos, galley, text_color,
-            ));
-        }
-    }
 }
 
 fn tint_shape_towards(shape: &mut Shape, target: Color32) {

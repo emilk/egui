@@ -144,6 +144,15 @@
 #![warn(missing_docs)] // let's keep eframe well-documented
 #![allow(clippy::needless_doctest_main)]
 
+// Limitation imposed by `accesskit_winit`:
+// https://github.com/AccessKit/accesskit/tree/accesskit-v0.18.0/platforms/winit#android-activity-compatibility`
+#[cfg(all(
+    target_os = "android",
+    feature = "accesskit",
+    feature = "android-native-activity"
+))]
+compile_error!("`accesskit` feature is only available with `android-game-activity`");
+
 // Re-export all useful libraries:
 pub use {egui, egui::emath, egui::epaint};
 
@@ -200,7 +209,7 @@ pub mod icon_data;
 
 /// This is how you start a native (desktop) app.
 ///
-/// The first argument is name of your app, which is a an identifier
+/// The first argument is name of your app, which is an identifier
 /// used for the save location of persistence (see [`App::save`]).
 /// It is also used as the application id on wayland.
 /// If you set no title on the viewport, the app id will be used

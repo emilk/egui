@@ -53,11 +53,11 @@ skip = [
   { name = "redox_syscall" },  # old version via winit
   { name = "thiserror" },      # ecosystem is in the process of migrating from 1.x to 2.x
   { name = "thiserror-impl" }, # same as above
-  { name = "windows-core" },   # Chrono pulls in 0.51, accesskit uses 0.58.0
-  { name = "windows-sys" },    # glutin pulls in 0.52.0, accesskit pulls in 0.59.0, rfd pulls 0.48, webbrowser pulls 0.45.0 (via jni)
+  { name = "windows-sys" },    # mostly hopeless to avoid
 ]
 skip-tree = [
   { name = "rfd" },           # example dependency
+  { name = "windows" },       # the ecosystem is currently transitioning from 0.58 to 0.61
 ]
 
 
