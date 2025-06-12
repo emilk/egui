@@ -2,6 +2,8 @@ use crate::{Atomic, FontSelection, Ui};
 use emath::Vec2;
 
 /// A trait for conveniently building [`Atomic`]s.
+///
+/// The functions are prefixed with `atom_` to avoid conflicts with e.g. [`crate::RichText::size`].
 pub trait AtomicExt<'a> {
     /// Set the atomic to a fixed size.
     ///
@@ -23,15 +25,25 @@ pub trait AtomicExt<'a> {
 
     /// Shrink this atomic if there isn't enough space.
     ///
+    /// This will affect the size of the [`Atomic`] in the main direction. Since
+    /// [`AtomicLayout`] today only supports horizontal layout, it will affect the width.
+    ///
     /// NOTE: Only a single [`Atomic`] may shrink for each widget.
+    ///
+    /// If no atomic was set to shrink and `wrap_mode != TextWrapMode::Extend`, the first
+    /// `AtomKind::Text` is set to shrink.
     fn atom_shrink(self, shrink: bool) -> Atomic<'a>;
 
     /// Set the maximum size of this atomic.
     ///
-    /// This is mostly used as a
+    /// Will not affect the space taken by `grow` (All atomics marked as grow will always grow
+    /// equally to fill the available space).
     fn atom_max_size(self, max_size: Vec2) -> Atomic<'a>;
 
     /// Set the maximum width of this atomic.
+    ///
+    /// Will not affect the space taken by `grow` (All atomics marked as grow will always grow
+    /// equally to fill the available space).
     fn atom_max_width(self, max_width: f32) -> Atomic<'a>;
 
     /// Set the maximum height of this atomic.

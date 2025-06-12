@@ -45,11 +45,11 @@ pub enum AtomicKind<'a> {
     ///
     /// Example:
     /// ```
-    /// # use egui::{AtomicKind, Button, Id, __run_test_ui};
+    /// # use egui::{AtomicExt, AtomicKind, Atomic, Button, Id, __run_test_ui};
     /// # use emath::Vec2;
     /// # __run_test_ui(|ui| {
     /// let id = Id::new("my_button");
-    /// let response = Button::new(("Hi!", AtomicKind::Custom(id, Vec2::splat(18.0)))).atomic_ui(ui);
+    /// let response = Button::new(("Hi!", Atomic::custom(id, Vec2::splat(18.0)))).atomic_ui(ui);
     ///
     /// let rect = response.get_rect(id);
     /// if let Some(rect) = rect {
@@ -57,7 +57,7 @@ pub enum AtomicKind<'a> {
     /// }
     /// # });
     /// ```
-    Custom(Id, Vec2),
+    Custom(Id),
 }
 
 impl<'a> AtomicKind<'a> {
@@ -67,10 +67,6 @@ impl<'a> AtomicKind<'a> {
 
     pub fn image(image: impl Into<Image<'a>>) -> Self {
         AtomicKind::Image(image.into())
-    }
-
-    pub fn custom(id: Id, size: Vec2) -> Self {
-        AtomicKind::Custom(id, size)
     }
 
     /// Turn this [`AtomicKind`] into a [`SizedAtomicKind`].
@@ -87,7 +83,7 @@ impl<'a> AtomicKind<'a> {
             AtomicKind::Text(text) => {
                 let galley = text.into_galley(ui, wrap_mode, available_size.x, TextStyle::Button);
                 (
-                    galley.size(), // TODO(lucasmerlin): calculate the preferred size
+                    galley.size(), // TODO(#5762): calculate the preferred size
                     SizedAtomicKind::Text(galley),
                 )
             }
@@ -96,7 +92,7 @@ impl<'a> AtomicKind<'a> {
                 let size = size.unwrap_or(Vec2::ZERO);
                 (size, SizedAtomicKind::Image(image, size))
             }
-            AtomicKind::Custom(id, size) => (size, SizedAtomicKind::Custom(id, size)),
+            AtomicKind::Custom(id) => (Vec2::ZERO, SizedAtomicKind::Custom(id)),
             AtomicKind::Empty => (Vec2::ZERO, SizedAtomicKind::Empty),
         }
     }

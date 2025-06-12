@@ -1,6 +1,6 @@
 use crate::{
-    epaint, AtomicKind, AtomicLayout, Atomics, Id, IntoAtomics, NumExt as _, Response, Sense, Ui,
-    Vec2, Widget, WidgetInfo, WidgetType,
+    epaint, Atomic, AtomicLayout, Atomics, Id, IntoAtomics, NumExt as _, Response, Sense, Ui, Vec2,
+    Widget, WidgetInfo, WidgetType,
 };
 
 /// One out of several alternatives, either selected or not.
@@ -54,7 +54,7 @@ impl Widget for RadioButton<'_> {
         let mut icon_size = Vec2::splat(icon_width);
         icon_size.y = icon_size.y.at_least(min_size.y);
         let rect_id = Id::new("egui::radio_button");
-        atomics.push_left(AtomicKind::Custom(rect_id, icon_size));
+        atomics.push_left(Atomic::custom(rect_id, icon_size));
 
         let text = atomics.text();
 

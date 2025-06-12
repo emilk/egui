@@ -1,4 +1,4 @@
-use crate::{AtomicKind, SizedAtomic, Ui};
+use crate::{AtomicKind, Id, SizedAtomic, Ui};
 use emath::{NumExt as _, Vec2};
 use epaint::text::TextWrapMode;
 
@@ -45,6 +45,15 @@ impl<'a> Atomic<'a> {
         }
     }
 
+    /// Create a [`AtomicKind::Custom`] with a specific size.
+    pub fn custom(id: Id, size: impl Into<Vec2>) -> Self {
+        Atomic {
+            size: Some(size.into()),
+            kind: AtomicKind::Custom(id),
+            ..Default::default()
+        }
+    }
+
     /// Turn this into a [`SizedAtomic`].
     pub fn into_sized(
         self,
@@ -52,10 +61,13 @@ impl<'a> Atomic<'a> {
         mut available_size: Vec2,
         mut wrap_mode: Option<TextWrapMode>,
     ) -> SizedAtomic<'a> {
-        if !self.shrink {
+        if !self.shrink && self.max_size.x.is_infinite() {
             wrap_mode = Some(TextWrapMode::Extend);
         }
         available_size = available_size.at_most(self.max_size);
+        if self.max_size.x.is_finite() {
+            wrap_mode = Some(TextWrapMode::Truncate);
+        }
 
         let (preferred, kind) = self.kind.into_sized(ui, available_size, wrap_mode);
         SizedAtomic {

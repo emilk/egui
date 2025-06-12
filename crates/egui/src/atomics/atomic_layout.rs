@@ -406,7 +406,7 @@ impl<'atomic> AllocatedAtomicLayout<'atomic> {
                 SizedAtomicKind::Image(image, _) => {
                     image.paint_at(ui, rect);
                 }
-                SizedAtomicKind::Custom(id, _) => {
+                SizedAtomicKind::Custom(id) => {
                     debug_assert!(
                         !response.custom_rects.iter().any(|(i, _)| *i == id),
                         "Duplicate custom id"

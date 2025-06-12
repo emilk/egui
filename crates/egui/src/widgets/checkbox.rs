@@ -1,7 +1,6 @@
-use crate::AtomicKind::Custom;
 use crate::{
-    epaint, pos2, AtomicLayout, Atomics, Id, IntoAtomics, NumExt as _, Response, Sense, Shape, Ui,
-    Vec2, Widget, WidgetInfo, WidgetType,
+    epaint, pos2, Atomic, AtomicLayout, Atomics, Id, IntoAtomics, NumExt as _, Response, Sense,
+    Shape, Ui, Vec2, Widget, WidgetInfo, WidgetType,
 };
 
 // TODO(emilk): allow checkbox without a text label
@@ -66,7 +65,7 @@ impl Widget for Checkbox<'_> {
         let mut icon_size = Vec2::splat(icon_width);
         icon_size.y = icon_size.y.at_least(min_size.y);
         let rect_id = Id::new("egui::checkbox");
-        atomics.push_left(Custom(rect_id, icon_size));
+        atomics.push_left(Atomic::custom(rect_id, icon_size));
 
         let text = atomics.text();
 
