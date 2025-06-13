@@ -54,15 +54,15 @@ impl<'a> Atoms<'a> {
         string
     }
 
-    pub fn iter_kinds(&'a self) -> impl Iterator<Item = &'a AtomKind<'a>> {
+    pub fn iter_kinds(&self) -> impl Iterator<Item = &AtomKind<'a>> {
         self.0.iter().map(|atom| &atom.kind)
     }
 
-    pub fn iter_kinds_mut(&'a mut self) -> impl Iterator<Item = &'a mut AtomKind<'a>> {
+    pub fn iter_kinds_mut(&mut self) -> impl Iterator<Item = &mut AtomKind<'a>> {
         self.0.iter_mut().map(|atom| &mut atom.kind)
     }
 
-    pub fn iter_images(&'a self) -> impl Iterator<Item = &'a Image<'a>> {
+    pub fn iter_images(&self) -> impl Iterator<Item = &Image<'a>> {
         self.iter_kinds().filter_map(|kind| {
             if let AtomKind::Image(image) = kind {
                 Some(image)
@@ -72,7 +72,7 @@ impl<'a> Atoms<'a> {
         })
     }
 
-    pub fn iter_images_mut(&'a mut self) -> impl Iterator<Item = &'a mut Image<'a>> {
+    pub fn iter_images_mut(&mut self) -> impl Iterator<Item = &mut Image<'a>> {
         self.iter_kinds_mut().filter_map(|kind| {
             if let AtomKind::Image(image) = kind {
                 Some(image)
@@ -82,7 +82,7 @@ impl<'a> Atoms<'a> {
         })
     }
 
-    pub fn iter_texts(&'a self) -> impl Iterator<Item = &'a WidgetText> {
+    pub fn iter_texts(&self) -> impl Iterator<Item = &WidgetText> + use<'_, 'a> {
         self.iter_kinds().filter_map(|kind| {
             if let AtomKind::Text(text) = kind {
                 Some(text)
@@ -92,7 +92,7 @@ impl<'a> Atoms<'a> {
         })
     }
 
-    pub fn iter_texts_mut(&'a mut self) -> impl Iterator<Item = &'a mut WidgetText> {
+    pub fn iter_texts_mut(&mut self) -> impl Iterator<Item = &mut WidgetText> + use<'a, '_> {
         self.iter_kinds_mut().filter_map(|kind| {
             if let AtomKind::Text(text) = kind {
                 Some(text)
@@ -107,7 +107,7 @@ impl<'a> Atoms<'a> {
             .for_each(|atom| *atom = f(std::mem::take(atom)));
     }
 
-    pub fn map_kind<F>(&'a mut self, mut f: F)
+    pub fn map_kind<F>(&mut self, mut f: F)
     where
         F: FnMut(AtomKind<'a>) -> AtomKind<'a>,
     {
@@ -116,7 +116,7 @@ impl<'a> Atoms<'a> {
         }
     }
 
-    pub fn map_images<F>(&'a mut self, mut f: F)
+    pub fn map_images<F>(&mut self, mut f: F)
     where
         F: FnMut(Image<'a>) -> Image<'a>,
     {
@@ -129,7 +129,7 @@ impl<'a> Atoms<'a> {
         });
     }
 
-    pub fn map_texts<F>(&'a mut self, mut f: F)
+    pub fn map_texts<F>(&mut self, mut f: F)
     where
         F: FnMut(WidgetText) -> WidgetText,
     {
