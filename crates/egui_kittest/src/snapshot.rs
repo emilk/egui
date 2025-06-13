@@ -27,17 +27,27 @@ pub struct SnapshotOptions {
 
 /// Helper struct to define the number of pixels that can differ before the snapshot is considered a failure.
 /// This is useful if you want to set different thresholds for different operating systems.
-#[derive(Debug, Clone, Copy)]
+///
+/// The default values are 0 / 0.0
+///
+/// Example usage:
+/// ```no_run
+///  use egui_kittest::{OsThreshold, SnapshotOptions};
+///  let mut harness = egui_kittest::Harness::new_ui(|ui| {
+///      ui.label("Hi!");
+///  });
+///  harness.snapshot_options(
+///      "os_threshold_example",
+///      &SnapshotOptions::new()
+///          .threshold(OsThreshold::new().windows(10.0))
+///          .diff_threshold(OsThreshold::new().windows(10).macos(53)
+///  ))
+/// ```
+#[derive(Debug, Clone, Copy, Default)]
 pub struct OsThreshold<T: Default> {
     pub windows: T,
     pub macos: T,
     pub linux: T,
-}
-
-impl<T: Default> Default for OsThreshold<T> {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl<T> OsThreshold<T>
@@ -45,11 +55,7 @@ where
     T: Default,
 {
     pub fn new() -> Self {
-        Self {
-            windows: T::default(),
-            macos: T::default(),
-            linux: T::default(),
-        }
+        Self::default()
     }
 
     /// Set the threshold for Windows.
@@ -72,19 +78,30 @@ where
         self.linux = threshold;
         self
     }
+
+    /// Get the threshold for the current operating system.
+    pub fn threshold(self) -> T {
+        if cfg!(target_os = "windows") {
+            self.windows
+        } else if cfg!(target_os = "macos") {
+            self.macos
+        } else if cfg!(target_os = "linux") {
+            self.linux
+        } else {
+            T::default() // Default value if the OS is not recognized
+        }
+    }
 }
 
-impl From<OsThreshold<Self>> for i32 {
-    fn from(val: OsThreshold<Self>) -> Self {
-        if cfg!(target_os = "windows") {
-            val.windows
-        } else if cfg!(target_os = "macos") {
-            val.macos
-        } else if cfg!(target_os = "linux") {
-            val.linux
-        } else {
-            0 // Default value if the OS is not recognized
-        }
+impl From<OsThreshold<i32>> for i32 {
+    fn from(threshold: OsThreshold<i32>) -> Self {
+        threshold.threshold()
+    }
+}
+
+impl From<OsThreshold<f32>> for f32 {
+    fn from(threshold: OsThreshold<f32>) -> Self {
+        threshold.threshold()
     }
 }
 
@@ -108,8 +125,8 @@ impl SnapshotOptions {
     /// The default is `0.6` (which is enough for most egui tests to pass across different
     /// wgpu backends).
     #[inline]
-    pub fn threshold(mut self, threshold: f32) -> Self {
-        self.threshold = threshold;
+    pub fn threshold(mut self, threshold: impl Into<f32>) -> Self {
+        self.threshold = threshold.into();
         self
     }
 
