@@ -183,6 +183,11 @@ pub enum Key {
     F33,
     F34,
     F35,
+
+    /// Back navigation key from multimedia keyboard.
+    /// Android sends this key on Back button press.
+    /// Does not work on Web.
+    BrowserBack,
     // When adding keys, remember to also update:
     // * crates/egui-winit/src/lib.rs
     // * Key::ALL
@@ -307,6 +312,8 @@ impl Key {
         Self::F33,
         Self::F34,
         Self::F35,
+        // Navigation keys:
+        Self::BrowserBack,
     ];
 
     /// Converts `"A"` to `Key::A`, `Space` to `Key::Space`, etc.
@@ -434,6 +441,8 @@ impl Key {
             "F33" => Self::F33,
             "F34" => Self::F34,
             "F35" => Self::F35,
+
+            "BrowserBack" => Self::BrowserBack,
 
             _ => return None,
         })
@@ -588,6 +597,8 @@ impl Key {
             Self::F33 => "F33",
             Self::F34 => "F34",
             Self::F35 => "F35",
+
+            Self::BrowserBack => "BrowserBack",
         }
     }
 }
@@ -596,7 +607,7 @@ impl Key {
 fn test_key_from_name() {
     assert_eq!(
         Key::ALL.len(),
-        Key::F35 as usize + 1,
+        Key::BrowserBack as usize + 1,
         "Some keys are missing in Key::ALL"
     );
 
