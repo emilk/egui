@@ -103,8 +103,7 @@ fn test_combobox() {
     results.add(harness.try_snapshot("combobox_opened"));
 
     let item_2 = harness.get_by_role_and_label(Role::Button, "Item 2");
-    // Node::click doesn't close the popup, so we use simulate_click
-    item_2.simulate_click();
+    item_2.click();
 
     harness.run();
 

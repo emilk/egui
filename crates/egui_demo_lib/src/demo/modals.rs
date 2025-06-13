@@ -267,7 +267,7 @@ mod tests {
 
         harness.run_ok();
 
-        harness.get_by_label("Yes Please").simulate_click();
+        harness.get_by_label("Yes Please").click();
 
         harness.run_ok();
 

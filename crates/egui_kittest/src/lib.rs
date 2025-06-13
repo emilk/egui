@@ -29,7 +29,6 @@ pub use builder::*;
 pub use node::*;
 pub use renderer::*;
 
-use egui::mutex::Mutex;
 use egui::{Key, Modifiers, Pos2, Rect, RepaintCause, Vec2, ViewportId};
 use kittest::Queryable;
 
@@ -234,7 +233,14 @@ impl<'a, State> Harness<'a, State> {
             self._step(false);
         }
         for event in events {
-            self.input.events.push(event);
+            match event {
+                EventType::Event(event) => {
+                    self.input.events.push(event);
+                }
+                EventType::Modifiers(modifiers) => {
+                    self.input.modifiers = modifiers;
+                }
+            }
             self._step(false);
         }
     }
@@ -416,52 +422,100 @@ impl<'a, State> Harness<'a, State> {
         &mut self.state
     }
 
+    fn event(&self, event: egui::Event) {
+        self.queued_events.lock().push(EventType::Event(event));
+    }
+
+    fn event_modifiers(&self, event: egui::Event, modifiers: Modifiers) {
+        let mut queue = self.queued_events.lock();
+        queue.push(EventType::Modifiers(modifiers));
+        queue.push(EventType::Event(event));
+        queue.push(EventType::Modifiers(Modifiers::default()));
+    }
+
+    fn modifiers(&self, modifiers: Modifiers) {
+        self.queued_events
+            .lock()
+            .push(EventType::Modifiers(modifiers));
+    }
+
     pub fn key_down(&self, key: egui::Key) {
-        self.queued_events.lock().push(egui::Event::Key {
+        self.event(egui::Event::Key {
             key,
             pressed: true,
-            modifiers: Modifiers::default(), // TODO: Handle modifiers
+            modifiers: Modifiers::default(),
             repeat: false,
             physical_key: None,
         });
+    }
+
+    pub fn key_down_modifiers(&self, modifiers: Modifiers, key: egui::Key) {
+        self.event_modifiers(
+            egui::Event::Key {
+                key,
+                pressed: true,
+                modifiers,
+                repeat: false,
+                physical_key: None,
+            },
+            modifiers,
+        );
     }
 
     pub fn key_up(&self, key: egui::Key) {
-        self.queued_events.lock().push(egui::Event::Key {
+        self.event(egui::Event::Key {
             key,
             pressed: false,
-            modifiers: Modifiers::default(), // TODO: Handle modifiers
+            modifiers: Modifiers::default(),
             repeat: false,
             physical_key: None,
         });
     }
 
-    pub fn key_combination(&self, p0: &[Key]) {
-        for key in p0 {
+    pub fn key_up_modifiers(&self, modifiers: Modifiers, key: egui::Key) {
+        self.event_modifiers(
+            egui::Event::Key {
+                key,
+                pressed: false,
+                modifiers,
+                repeat: false,
+                physical_key: None,
+            },
+            modifiers,
+        );
+    }
+
+    pub fn key_combination(&self, keys: &[Key]) {
+        for key in keys {
             self.key_down(*key);
         }
-        for key in p0.iter().rev() {
+        for key in keys.iter().rev() {
             self.key_up(*key);
         }
     }
 
+    pub fn key_combination_modifiers(&self, modifiers: Modifiers, keys: &[Key]) {
+        self.modifiers(modifiers);
+
+        for pressed in [true, false] {
+            for key in keys {
+                self.event(egui::Event::Key {
+                    key: *key,
+                    pressed,
+                    modifiers,
+                    repeat: false,
+                    physical_key: None,
+                });
+            }
+        }
+
+        self.modifiers(Modifiers::default());
+    }
+
     /// Press a key.
     /// This will create a key down event and a key up event.
-    pub fn key_press(&mut self, key: egui::Key) {
-        self.input.events.push(egui::Event::Key {
-            key,
-            pressed: true,
-            modifiers: self.input.modifiers,
-            repeat: false,
-            physical_key: None,
-        });
-        self.input.events.push(egui::Event::Key {
-            key,
-            pressed: false,
-            modifiers: self.input.modifiers,
-            repeat: false,
-            physical_key: None,
-        });
+    pub fn key_press(&self, key: egui::Key) {
+        self.key_combination(&[key])
     }
 
     /// Press a key with modifiers.
@@ -470,8 +524,7 @@ impl<'a, State> Harness<'a, State> {
     /// NOTE: In contrast to the event fns on [`Node`], this will call [`Harness::step`], in
     /// order to properly update modifiers.
     pub fn key_press_modifiers(&self, modifiers: Modifiers, key: egui::Key) {
-        self.key_down(key);
-        self.key_up(key);
+        self.key_combination_modifiers(modifiers, &[key]);
 
         // // Combine the modifiers with the current modifiers
         // let previous_modifiers = self.input.modifiers;

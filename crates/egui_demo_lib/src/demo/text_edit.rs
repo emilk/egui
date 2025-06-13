@@ -133,6 +133,7 @@ mod tests {
 
         let text_edit = harness.get_by_role(accesskit::Role::TextInput);
         assert_eq!(text_edit.value().as_deref(), Some("Hello, world!"));
+        text_edit.focus();
 
         harness.key_press_modifiers(Modifiers::COMMAND, Key::A);
         text_edit.type_text("Hi ");

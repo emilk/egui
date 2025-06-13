@@ -1,11 +1,15 @@
-use crate::Harness;
 use egui::accesskit::ActionRequest;
 use egui::mutex::Mutex;
 use egui::{accesskit, Modifiers, PointerButton, Pos2};
-use kittest::{AccessKitNode, Key, NodeT};
+use kittest::{debug_fmt_node, AccessKitNode, NodeT};
 use std::fmt::{Debug, Formatter};
 
-pub type EventQueue = Mutex<Vec<egui::Event>>;
+pub(crate) enum EventType {
+    Event(egui::Event),
+    Modifiers(Modifiers),
+}
+
+pub(crate) type EventQueue = Mutex<Vec<EventType>>;
 
 #[derive(Clone, Copy)]
 pub struct Node<'tree> {
@@ -15,7 +19,7 @@ pub struct Node<'tree> {
 
 impl Debug for Node<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        debug_fmt_node(self, f)
     }
 }
 
@@ -24,7 +28,7 @@ impl<'tree> NodeT<'tree> for Node<'tree> {
         self.accesskit_node
     }
 
-    fn new_child(&self, child_node: AccessKitNode<'tree>) -> Self {
+    fn new_related(&self, child_node: AccessKitNode<'tree>) -> Self {
         Self {
             queue: self.queue,
             accesskit_node: child_node,
@@ -34,7 +38,11 @@ impl<'tree> NodeT<'tree> for Node<'tree> {
 
 impl<'tree> Node<'tree> {
     fn event(&self, event: egui::Event) {
-        self.queue.lock().push(event);
+        self.queue.lock().push(EventType::Event(event));
+    }
+
+    fn modifiers(&self, modifiers: Modifiers) {
+        self.queue.lock().push(EventType::Modifiers(modifiers));
     }
 
     pub fn hover(&self) {
@@ -42,7 +50,7 @@ impl<'tree> Node<'tree> {
     }
 
     pub fn click(&self) {
-        self.click_button_modifiers(PointerButton::Primary, Modifiers::default());
+        self.click_button(PointerButton::Primary);
     }
 
     #[deprecated = "Use `click()` instead."]
@@ -51,11 +59,19 @@ impl<'tree> Node<'tree> {
     }
 
     pub fn click_secondary(&self) {
-        self.click_button_modifiers(PointerButton::Secondary, Modifiers::default());
+        self.click_button(PointerButton::Secondary);
     }
 
     pub fn click_button(&self, button: PointerButton) {
-        self.click_button_modifiers(button, Modifiers::default());
+        self.hover();
+        for pressed in [true, false] {
+            self.event(egui::Event::PointerButton {
+                pos: self.rect().center(),
+                button,
+                pressed,
+                modifiers: Modifiers::default(),
+            })
+        }
     }
 
     pub fn click_modifiers(&self, modifiers: Modifiers) {
@@ -64,6 +80,7 @@ impl<'tree> Node<'tree> {
 
     pub fn click_button_modifiers(&self, button: PointerButton, modifiers: Modifiers) {
         self.hover();
+        self.modifiers(modifiers);
         for pressed in [true, false] {
             self.event(egui::Event::PointerButton {
                 pos: self.rect().center(),
@@ -72,6 +89,7 @@ impl<'tree> Node<'tree> {
                 modifiers,
             })
         }
+        self.modifiers(Modifiers::default());
     }
 
     pub fn click_accesskit(&self) {

@@ -47,6 +47,7 @@ fn test_modifiers() {
     harness.key_press_modifiers(Modifiers::COMMAND, egui::Key::Z);
     harness.run();
 
+    harness.key_combination_modifiers(Modifiers::COMMAND, &[egui::Key::Y]);
     harness.run();
 
     let state = harness.state();
