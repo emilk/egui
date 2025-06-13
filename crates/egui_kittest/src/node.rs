@@ -126,7 +126,7 @@ impl Node<'_> {
         self.event(egui::Event::Key {
             key,
             pressed: true,
-            modifiers: Modifiers::default(), // TODO: Handle modifiers
+            modifiers: Modifiers::default(),
             repeat: false,
             physical_key: None,
         });
@@ -137,7 +137,7 @@ impl Node<'_> {
         self.event(egui::Event::Key {
             key,
             pressed: false,
-            modifiers: Modifiers::default(), // TODO: Handle modifiers
+            modifiers: Modifiers::default(),
             repeat: false,
             physical_key: None,
         });
