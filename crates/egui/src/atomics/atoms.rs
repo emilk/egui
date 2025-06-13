@@ -227,3 +227,32 @@ impl DerefMut for Atoms<'_> {
         &mut self.0
     }
 }
+
+impl<'a, T: Into<Atom<'a>>> From<Vec<T>> for Atoms<'a> {
+    fn from(vec: Vec<T>) -> Self {
+        Atoms(vec.into_iter().map(Into::into).collect())
+    }
+}
+impl<'a, T: Into<Atom<'a>> + Clone> From<&[T]> for Atoms<'a> {
+    fn from(slice: &[T]) -> Self {
+        Atoms(slice.iter().cloned().map(Into::into).collect())
+    }
+}
+
+impl<'a, Item: Into<Atom<'a>>> FromIterator<Item> for Atoms<'a> {
+    fn from_iter<T: IntoIterator<Item = Item>>(iter: T) -> Self {
+        Atoms(iter.into_iter().map(Into::into).collect())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::Atoms;
+
+    #[test]
+    fn collect_atoms() {
+        let _: Atoms<'_> = ["Hello", "World"].into_iter().collect();
+        let _ = Atoms::from(vec!["Hi"]);
+        let _ = Atoms::from(["Hi"].as_slice());
+    }
+}
