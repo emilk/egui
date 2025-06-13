@@ -738,7 +738,7 @@ mod tests {
 
             {
                 // Expand color-test collapsing header
-                harness.get_by_label("Color test").click();
+                harness.get_by_label("Color test").click_accesskit();
                 harness.run();
             }
 

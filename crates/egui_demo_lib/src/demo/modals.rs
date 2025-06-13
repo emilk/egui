@@ -190,7 +190,7 @@ mod tests {
         assert!(harness.ctx.memory(|mem| mem.any_popup_open()));
         assert!(harness.state().user_modal_open);
 
-        harness.press_key(Key::Escape);
+        harness.key_press(Key::Escape);
         harness.run_ok();
         assert!(!harness.ctx.memory(|mem| mem.any_popup_open()));
         assert!(harness.state().user_modal_open);
@@ -214,7 +214,7 @@ mod tests {
         assert!(harness.state().user_modal_open);
         assert!(harness.state().save_modal_open);
 
-        harness.press_key(Key::Escape);
+        harness.key_press(Key::Escape);
         harness.run();
 
         assert!(harness.state().user_modal_open);
@@ -267,7 +267,7 @@ mod tests {
 
         harness.run_ok();
 
-        harness.get_by_label("Yes Please").simulate_click();
+        harness.get_by_label("Yes Please").click();
 
         harness.run_ok();
 

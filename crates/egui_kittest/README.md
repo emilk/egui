@@ -10,7 +10,7 @@ Ui testing library for egui, based on [kittest](https://github.com/rerun-io/kitt
 ## Example usage
 ```rust
 use egui::accesskit::Toggled;
-use egui_kittest::{Harness, kittest::Queryable};
+use egui_kittest::{Harness, kittest::{Queryable, NodeT}};
 
 fn main() {
     let mut checked = false;
@@ -21,13 +21,13 @@ fn main() {
     let mut harness = Harness::new_ui(app);
 
     let checkbox = harness.get_by_label("Check me!");
-    assert_eq!(checkbox.toggled(), Some(Toggled::False));
+    assert_eq!(checkbox.accesskit_node().toggled(), Some(Toggled::False));
     checkbox.click();
 
     harness.run();
 
     let checkbox = harness.get_by_label("Check me!");
-    assert_eq!(checkbox.toggled(), Some(Toggled::True));
+    assert_eq!(checkbox.accesskit_node().toggled(), Some(Toggled::True));
 
     // Shrink the window size to the smallest size possible
     harness.fit_contents();
