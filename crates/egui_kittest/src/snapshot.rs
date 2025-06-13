@@ -93,14 +93,14 @@ where
     }
 }
 
-impl From<OsThreshold<i32>> for i32 {
-    fn from(threshold: OsThreshold<i32>) -> Self {
+impl From<OsThreshold<Self>> for i32 {
+    fn from(threshold: OsThreshold<Self>) -> Self {
         threshold.threshold()
     }
 }
 
-impl From<OsThreshold<f32>> for f32 {
-    fn from(threshold: OsThreshold<f32>) -> Self {
+impl From<OsThreshold<Self>> for f32 {
+    fn from(threshold: OsThreshold<Self>) -> Self {
         threshold.threshold()
     }
 }
