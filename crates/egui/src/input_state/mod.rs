@@ -597,10 +597,14 @@ impl InputState {
         (self.time - self.last_scroll_time) as f32
     }
 
-    /// The [`crate::Context`] will call this at the end of each frame to see if we need a repaint.
+    /// The [`crate::Context`] will call this at the beginning of each frame to see if we need a repaint.
     ///
     /// Returns how long to wait for a repaint.
-    pub fn wants_repaint_after(&self) -> Option<Duration> {
+    ///
+    /// NOTE: It's important to call this immediately after [`Self::begin_pass`] since calls to
+    /// [`Self::consume_key`] will remove events from the vec, meaning those key presses wouldn't
+    /// cause a repaint.
+    pub(crate) fn wants_repaint_after(&self) -> Option<Duration> {
         if self.pointer.wants_repaint()
             || self.unprocessed_scroll_delta.abs().max_elem() > 0.2
             || self.unprocessed_scroll_delta_for_zoom.abs() > 0.2
