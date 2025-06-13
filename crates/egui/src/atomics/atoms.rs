@@ -42,6 +42,15 @@ impl<'a> Atoms<'a> {
                 }
             }
         }
+
+        // If there is no text, try to find an image with alt text.
+        if string.is_none() {
+            string = self.iter().find_map(|a| match &a.kind {
+                AtomKind::Image(image) => image.alt_text.as_deref().map(Cow::Borrowed),
+                _ => None,
+            });
+        }
+
         string
     }
 
