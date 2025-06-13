@@ -55,7 +55,7 @@ fn test_demo_app() {
                 harness
                     .get_by_role_and_label(Role::TextInput, "URI:")
                     .focus();
-                harness.press_key_modifiers(egui::Modifiers::COMMAND, egui::Key::A);
+                harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::A);
 
                 harness
                     .get_by_role_and_label(Role::TextInput, "URI:")

@@ -4,16 +4,17 @@
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 
 mod builder;
-mod event;
 #[cfg(feature = "snapshot")]
 mod snapshot;
 
 #[cfg(feature = "snapshot")]
 pub use snapshot::*;
 use std::fmt::{Debug, Display, Formatter};
+use std::ops::DerefMut;
 use std::time::Duration;
 
 mod app_kind;
+mod node;
 mod renderer;
 #[cfg(feature = "wgpu")]
 mod texture_to_image;
@@ -23,13 +24,14 @@ pub mod wgpu;
 pub use kittest;
 
 use crate::app_kind::AppKind;
-use crate::event::EventState;
 
 pub use builder::*;
+pub use node::*;
 pub use renderer::*;
 
-use egui::{Modifiers, Pos2, Rect, RepaintCause, Vec2, ViewportId};
-use kittest::{Node, Queryable};
+use egui::mutex::Mutex;
+use egui::{Key, Modifiers, Pos2, Rect, RepaintCause, Vec2, ViewportId};
+use kittest::Queryable;
 
 #[derive(Debug, Clone)]
 pub struct ExceededMaxStepsError {
@@ -61,13 +63,13 @@ pub struct Harness<'a, State = ()> {
     kittest: kittest::State,
     output: egui::FullOutput,
     app: AppKind<'a, State>,
-    event_state: EventState,
     response: Option<egui::Response>,
     state: State,
     renderer: Box<dyn TestRenderer>,
     max_steps: u64,
     step_dt: f32,
     wait_for_pending_images: bool,
+    queued_events: EventQueue,
 }
 
 impl<State> Debug for Harness<'_, State> {
@@ -126,12 +128,12 @@ impl<'a, State> Harness<'a, State> {
             ),
             output,
             response,
-            event_state: EventState::default(),
             state,
             renderer,
             max_steps,
             step_dt,
             wait_for_pending_images,
+            queued_events: Default::default(),
         };
         // Run the harness until it is stable, ensuring that all Areas are shown and animations are done
         harness.run_ok();
@@ -227,12 +229,12 @@ impl<'a, State> Harness<'a, State> {
     /// This will call the app closure with each queued event and
     /// update the Harness.
     pub fn step(&mut self) {
-        let events = self.kittest.take_events();
+        let events = std::mem::take(self.queued_events.lock().deref_mut());
         if events.is_empty() {
             self._step(false);
         }
         for event in events {
-            self.event_state.update(event, &mut self.input);
+            self.input.events.push(event);
             self._step(false);
         }
     }
@@ -414,9 +416,38 @@ impl<'a, State> Harness<'a, State> {
         &mut self.state
     }
 
+    pub fn key_down(&self, key: egui::Key) {
+        self.queued_events.lock().push(egui::Event::Key {
+            key,
+            pressed: true,
+            modifiers: Modifiers::default(), // TODO: Handle modifiers
+            repeat: false,
+            physical_key: None,
+        });
+    }
+
+    pub fn key_up(&self, key: egui::Key) {
+        self.queued_events.lock().push(egui::Event::Key {
+            key,
+            pressed: false,
+            modifiers: Modifiers::default(), // TODO: Handle modifiers
+            repeat: false,
+            physical_key: None,
+        });
+    }
+
+    pub fn key_combination(&self, p0: &[Key]) {
+        for key in p0 {
+            self.key_down(*key);
+        }
+        for key in p0.iter().rev() {
+            self.key_up(*key);
+        }
+    }
+
     /// Press a key.
     /// This will create a key down event and a key up event.
-    pub fn press_key(&mut self, key: egui::Key) {
+    pub fn key_press(&mut self, key: egui::Key) {
         self.input.events.push(egui::Event::Key {
             key,
             pressed: true,
@@ -438,28 +469,31 @@ impl<'a, State> Harness<'a, State> {
     ///
     /// NOTE: In contrast to the event fns on [`Node`], this will call [`Harness::step`], in
     /// order to properly update modifiers.
-    pub fn press_key_modifiers(&mut self, modifiers: Modifiers, key: egui::Key) {
-        // Combine the modifiers with the current modifiers
-        let previous_modifiers = self.input.modifiers;
-        self.input.modifiers |= modifiers;
+    pub fn key_press_modifiers(&self, modifiers: Modifiers, key: egui::Key) {
+        self.key_down(key);
+        self.key_up(key);
 
-        self.input.events.push(egui::Event::Key {
-            key,
-            pressed: true,
-            modifiers,
-            repeat: false,
-            physical_key: None,
-        });
-        self.step();
-        self.input.events.push(egui::Event::Key {
-            key,
-            pressed: false,
-            modifiers,
-            repeat: false,
-            physical_key: None,
-        });
-
-        self.input.modifiers = previous_modifiers;
+        // // Combine the modifiers with the current modifiers
+        // let previous_modifiers = self.input.modifiers;
+        // self.input.modifiers |= modifiers;
+        //
+        // self.input.events.push(egui::Event::Key {
+        //     key,
+        //     pressed: true,
+        //     modifiers,
+        //     repeat: false,
+        //     physical_key: None,
+        // });
+        // self.step();
+        // self.input.events.push(egui::Event::Key {
+        //     key,
+        //     pressed: false,
+        //     modifiers,
+        //     repeat: false,
+        //     physical_key: None,
+        // });
+        //
+        // self.input.modifiers = previous_modifiers;
     }
 
     /// Render the last output to an image.
@@ -477,6 +511,18 @@ impl<'a, State> Harness<'a, State> {
             .viewport_output
             .get(&ViewportId::ROOT)
             .expect("Missing root viewport")
+    }
+
+    fn root(&self) -> Node<'_> {
+        Node {
+            accesskit_node: self.kittest.root(),
+            queue: &self.queued_events,
+        }
+    }
+
+    #[deprecated = "Use `Harness::root` instead."]
+    pub fn node(&self) -> Node<'_> {
+        self.root()
     }
 }
 
@@ -526,11 +572,11 @@ impl<'a> Harness<'a> {
     }
 }
 
-impl<'t, 'n, State> Queryable<'t, 'n> for Harness<'_, State>
+impl<'tree, 'node, State> Queryable<'tree, 'node, Node<'tree>> for Harness<'_, State>
 where
-    'n: 't,
+    'node: 'tree,
 {
-    fn node(&'n self) -> Node<'t> {
-        self.kittest_state().node()
+    fn queryable_node(&'node self) -> Node<'tree> {
+        self.root()
     }
 }
