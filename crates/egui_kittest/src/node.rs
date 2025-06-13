@@ -36,7 +36,7 @@ impl<'tree> NodeT<'tree> for Node<'tree> {
     }
 }
 
-impl<'tree> Node<'tree> {
+impl Node<'_> {
     fn event(&self, event: egui::Event) {
         self.queue.lock().push(EventType::Event(event));
     }
@@ -46,7 +46,7 @@ impl<'tree> Node<'tree> {
     }
 
     pub fn hover(&self) {
-        self.event(egui::Event::PointerMoved(self.rect().center()))
+        self.event(egui::Event::PointerMoved(self.rect().center()));
     }
 
     pub fn click(&self) {
@@ -70,7 +70,7 @@ impl<'tree> Node<'tree> {
                 button,
                 pressed,
                 modifiers: Modifiers::default(),
-            })
+            });
         }
     }
 
@@ -87,7 +87,7 @@ impl<'tree> Node<'tree> {
                 button,
                 pressed,
                 modifiers,
-            })
+            });
         }
         self.modifiers(Modifiers::default());
     }
@@ -99,7 +99,7 @@ impl<'tree> Node<'tree> {
                 action: accesskit::Action::Click,
                 data: None,
             },
-        ))
+        ));
     }
 
     pub fn rect(&self) -> egui::Rect {

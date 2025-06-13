@@ -152,9 +152,7 @@ fn clicking_submenu_button_should_never_close_menu() {
     harness.run();
 
     // Clicking the submenu button should not close the menu
-    harness
-        .get_by_label_contains("Submenu B with icon")
-        .click();
+    harness.get_by_label_contains("Submenu B with icon").click();
     harness.run();
 
     harness.get_by_label("Button in Submenu B").click();

@@ -10,7 +10,6 @@ mod snapshot;
 #[cfg(feature = "snapshot")]
 pub use snapshot::*;
 use std::fmt::{Debug, Display, Formatter};
-use std::ops::DerefMut;
 use std::time::Duration;
 
 mod app_kind;
@@ -228,7 +227,7 @@ impl<'a, State> Harness<'a, State> {
     /// This will call the app closure with each queued event and
     /// update the Harness.
     pub fn step(&mut self) {
-        let events = std::mem::take(self.queued_events.lock().deref_mut());
+        let events = std::mem::take(&mut *self.queued_events.lock());
         if events.is_empty() {
             self._step(false);
         }
@@ -515,7 +514,7 @@ impl<'a, State> Harness<'a, State> {
     /// Press a key.
     /// This will create a key down event and a key up event.
     pub fn key_press(&self, key: egui::Key) {
-        self.key_combination(&[key])
+        self.key_combination(&[key]);
     }
 
     /// Press a key with modifiers.

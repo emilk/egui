@@ -371,8 +371,8 @@ fn file_menu_button(ui: &mut Ui) {
 #[cfg(test)]
 mod tests {
     use crate::{demo::demo_app_windows::DemoGroups, Demo as _};
-    use egui::Vec2;
-    use egui_kittest::kittest::{NodeT, Queryable as _};
+
+    use egui_kittest::kittest::{NodeT as _, Queryable as _};
     use egui_kittest::{Harness, SnapshotOptions, SnapshotResults};
 
     #[test]
