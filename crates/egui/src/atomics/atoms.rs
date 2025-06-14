@@ -233,6 +233,7 @@ impl<'a, T: Into<Atom<'a>>> From<Vec<T>> for Atoms<'a> {
         Atoms(vec.into_iter().map(Into::into).collect())
     }
 }
+
 impl<'a, T: Into<Atom<'a>> + Clone> From<&[T]> for Atoms<'a> {
     fn from(slice: &[T]) -> Self {
         Atoms(slice.iter().cloned().map(Into::into).collect())
