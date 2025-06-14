@@ -530,7 +530,7 @@ impl LabelSelectionState {
 
         let mut cursor_state = self.cursor_for(ui, response, global_from_galley, galley);
 
-        let old_range = cursor_state.char_range();
+        let old_range = cursor_state.range(galley);
 
         if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
             if response.contains_pointer() {
@@ -544,7 +544,7 @@ impl LabelSelectionState {
             }
         }
 
-        if let Some(mut cursor_range) = cursor_state.char_range() {
+        if let Some(mut cursor_range) = cursor_state.range(galley) {
             let galley_rect = global_from_galley * Rect::from_min_size(Pos2::ZERO, galley.size());
             self.selection_bbox_this_frame = self.selection_bbox_this_frame.union(galley_rect);
 
@@ -562,7 +562,7 @@ impl LabelSelectionState {
         }
 
         // Look for changes due to keyboard and/or mouse interaction:
-        let new_range = cursor_state.char_range();
+        let new_range = cursor_state.range(galley);
         let selection_changed = old_range != new_range;
 
         if let (true, Some(range)) = (selection_changed, new_range) {
@@ -632,7 +632,7 @@ impl LabelSelectionState {
             }
         }
 
-        let cursor_range = cursor_state.char_range();
+        let cursor_range = cursor_state.range(galley);
 
         let mut new_vertex_indices = vec![];
 
