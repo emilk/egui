@@ -736,7 +736,7 @@ impl Slider<'_> {
             let prev_value = self.get_value();
             let prev_position = self.position_from_value(prev_value, position_range);
             let new_position = prev_position + ui_point_per_step * kb_step;
-            let new_value = match self.step {
+            let mut new_value = match self.step {
                 Some(step) => prev_value + (kb_step as f64 * step),
                 None if self.smart_aim => {
                     let aim_radius = 0.49 * ui_point_per_step; // Chosen so we don't include `prev_value` in the search.
@@ -747,6 +747,19 @@ impl Slider<'_> {
                 }
                 _ => self.value_from_position(new_position, position_range),
             };
+            if let Some(max_decimals) = self.max_decimals {
+                // self.set_value rounds, so ensure we reach at the least the next breakpoint
+                // note: we give it a little bit of leeway due to floating point errors. (0.1 isn't representable in binary)
+                // 'set_value' will round it to the nearest value.
+                let min_increment = 1.0 / (10.0_f64.powi(max_decimals as i32));
+                new_value = if new_value > prev_value {
+                    f64::max(new_value, prev_value + min_increment * 1.001)
+                } else if new_value < prev_value {
+                    f64::min(new_value, prev_value - min_increment * 1.001)
+                } else {
+                    new_value
+                };
+            }
             self.set_value(new_value);
         }
 
