@@ -378,6 +378,8 @@ pub struct NativeOptions {
     /// data storage path for each target system.
     pub persistence_path: Option<std::path::PathBuf>,
 
+    /// A custom storage creator function. If set, this function will be used to create a storage instance
+    /// that implements the `epi::Storage` trait, allowing for custom data serialization and deserialization.
     pub storage_creator: Option<Box<dyn Fn() -> Option<Box<dyn crate::epi::Storage>>>>,
 
     /// Controls whether to apply dithering to minimize banding artifacts.
