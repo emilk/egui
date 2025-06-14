@@ -39,6 +39,14 @@ impl TextCursorState {
     pub fn set_char_range(&mut self, ccursor_range: Option<CCursorRange>) {
         self.ccursor_range = ccursor_range;
     }
+
+    /// Clamp the cursors to be in bounds of the galley.
+    pub fn ensure_in_bounds(&mut self, galley: &Galley) {
+        if let Some(range) = self.ccursor_range.as_mut() {
+            range.primary = galley.clamp_cursor(&range.primary);
+            range.secondary = galley.clamp_cursor(&range.secondary);
+        }
+    }
 }
 
 impl TextCursorState {
