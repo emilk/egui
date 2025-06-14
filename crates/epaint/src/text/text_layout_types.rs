@@ -795,6 +795,31 @@ impl Galley {
         self.rect.size()
     }
 
+    // TODO: Instead return Option<Vec2>?
+    pub fn desired_size(&self) -> Vec2 {
+        let mut current_width: f32 = 0.0;
+        let mut widest_width: f32 = 0.0;
+        let mut height = self.rows.first().map_or(0.0, |row| row.height());
+        for row in &self.rows {
+            if current_width != 0.0 {
+                let space = row.glyphs.last();
+                if let Some(space) = space {
+                    if space.chr.is_whitespace() {
+                        // TODO: Needed or not? Doesn't seem like it's needed
+                        // current_width += space.advance_width;
+                    }
+                }
+            }
+            current_width += row.rect().width();
+            widest_width = widest_width.max(current_width);
+            if row.ends_with_newline {
+                height += row.height();
+                current_width = 0.0;
+            }
+        }
+        vec2(widest_width, height)
+    }
+
     pub(crate) fn round_output_to_gui(&mut self) {
         for placed_row in &mut self.rows {
             // Optimization: only call `make_mut` if necessary (can cause a deep clone)
