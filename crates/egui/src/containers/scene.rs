@@ -3,8 +3,7 @@ use core::f32;
 use emath::{GuiRounding as _, Pos2};
 
 use crate::{
-    emath::TSTransform, InnerResponse, LayerId, PointerButton, Rangef, Rect, Response, Sense, Ui,
-    UiBuilder, Vec2,
+    emath::TSTransform, InnerResponse, LayerId, PointerButton, Rangef, Rect, Response, Sense, Ui, UiBuilder, Vec2
 };
 
 /// Creates a transformation that fits a given scene rectangle into the available screen size.
@@ -141,6 +140,7 @@ impl Scene {
         &self,
         parent_ui: &mut Ui,
         scene_rect: &mut Rect,
+        mouse_position_in_scene: &mut Option<Pos2>,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         let (outer_rect, _outer_response) =
@@ -150,6 +150,14 @@ impl Scene {
 
         let scene_rect_was_good =
             to_global.is_valid() && scene_rect.is_finite() && scene_rect.size() != Vec2::ZERO;
+
+        *mouse_position_in_scene = None;
+        let mouse_position = parent_ui.input(|i| i.pointer.latest_pos() );
+        if mouse_position.is_some() {
+            let scene_rect_offset = Pos2 { x: to_global.translation.x, y: to_global.translation.y };
+            let mouse_position_in_scene_with_scaling = (1.0 / to_global.scaling) * (-1.0 * scene_rect_offset + mouse_position.unwrap().to_vec2());
+            *mouse_position_in_scene = Some( mouse_position_in_scene_with_scaling );
+        }
 
         let mut inner_rect = *scene_rect;
 

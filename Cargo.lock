@@ -3690,6 +3690,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "scene_circle_placer"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "env_logger",
+]
+
+[[package]]
 name = "scoped-tls"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
