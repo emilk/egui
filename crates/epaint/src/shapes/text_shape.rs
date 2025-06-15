@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use emath::{Align2, Rot2};
+
 use crate::*;
 
 /// How to paint some text on screen.
@@ -78,11 +80,22 @@ impl TextShape {
         self
     }
 
-    /// Rotate text by this many radians clockwise.
+    /// Set text rotation to `angle` radians clockwise.
     /// The pivot is `pos` (the upper left corner of the text).
     #[inline]
     pub fn with_angle(mut self, angle: f32) -> Self {
         self.angle = angle;
+        self
+    }
+
+    /// Set the text rotation to the `angle` radians clockwise.
+    /// The pivot is determined by the given `anchor` point on the text bounding box.
+    #[inline]
+    pub fn with_angle_and_anchor(mut self, angle: f32, anchor: Align2) -> Self {
+        self.angle = angle;
+        let a0 = anchor.pos_in_rect(&self.galley.rect).to_vec2();
+        let a1 = Rot2::from_angle(angle) * a0;
+        self.pos += a0 - a1;
         self
     }
 

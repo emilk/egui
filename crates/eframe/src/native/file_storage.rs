@@ -45,7 +45,7 @@ pub fn storage_dir(app_id: &str) -> Option<PathBuf> {
 #[expect(unsafe_code)]
 fn roaming_appdata() -> Option<PathBuf> {
     use std::ffi::OsString;
-    use std::os::windows::ffi::OsStringExt;
+    use std::os::windows::ffi::OsStringExt as _;
     use std::ptr;
     use std::slice;
 

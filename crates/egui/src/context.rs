@@ -21,8 +21,7 @@ use crate::{
     input_state::{InputState, MultiTouchInfo, PointerEvent},
     interaction,
     layers::GraphicLayers,
-    load,
-    load::{Bytes, Loaders, SizedTexture},
+    load::{self, Bytes, Loaders, SizedTexture},
     memory::{Options, Theme},
     os::OperatingSystem,
     output::FullOutput,
@@ -32,10 +31,10 @@ use crate::{
     viewport::ViewportClass,
     Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, Grid, Id, ImmediateViewport,
     ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId, Memory,
-    ModifierNames, NumExt as _, Order, Painter, RawInput, Response, RichText, ScrollArea, Sense,
-    Style, TextStyle, TextureHandle, TextureOptions, Ui, ViewportBuilder, ViewportCommand,
-    ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput, Widget as _,
-    WidgetRect, WidgetText,
+    ModifierNames, Modifiers, NumExt as _, Order, Painter, RawInput, Response, RichText,
+    ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions, Ui, ViewportBuilder,
+    ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput,
+    Widget as _, WidgetRect, WidgetText,
 };
 
 #[cfg(feature = "accesskit")]
@@ -491,8 +490,9 @@ impl ContextImpl {
             new_raw_input,
             viewport.repaint.requested_immediate_repaint_prev_pass(),
             pixels_per_point,
-            &self.memory.options,
+            self.memory.options.input_options,
         );
+        let repaint_after = viewport.input.wants_repaint_after();
 
         let screen_rect = viewport.input.screen_rect;
 
@@ -554,6 +554,10 @@ impl ContextImpl {
         }
 
         self.update_fonts_mut();
+
+        if let Some(delay) = repaint_after {
+            self.request_repaint_after(delay, viewport_id, RepaintCause::new());
+        }
     }
 
     /// Load fonts unless already loaded.
@@ -1484,35 +1488,48 @@ impl Context {
         self.send_cmd(crate::OutputCommand::CopyImage(image));
     }
 
+    fn can_show_modifier_symbols(&self) -> bool {
+        let ModifierNames {
+            alt,
+            ctrl,
+            shift,
+            mac_cmd,
+            ..
+        } = ModifierNames::SYMBOLS;
+
+        let font_id = TextStyle::Body.resolve(&self.style());
+        self.fonts(|f| {
+            let mut lock = f.lock();
+            let font = lock.fonts.font(&font_id);
+            font.has_glyphs(alt)
+                && font.has_glyphs(ctrl)
+                && font.has_glyphs(shift)
+                && font.has_glyphs(mac_cmd)
+        })
+    }
+
+    /// Format the given modifiers in a human-readable way (e.g. `Ctrl+Shift+X`).
+    pub fn format_modifiers(&self, modifiers: Modifiers) -> String {
+        let os = self.os();
+
+        let is_mac = os.is_mac();
+
+        if is_mac && self.can_show_modifier_symbols() {
+            ModifierNames::SYMBOLS.format(&modifiers, is_mac)
+        } else {
+            ModifierNames::NAMES.format(&modifiers, is_mac)
+        }
+    }
+
     /// Format the given shortcut in a human-readable way (e.g. `Ctrl+Shift+X`).
     ///
     /// Can be used to get the text for [`crate::Button::shortcut_text`].
     pub fn format_shortcut(&self, shortcut: &KeyboardShortcut) -> String {
         let os = self.os();
 
-        let is_mac = matches!(os, OperatingSystem::Mac | OperatingSystem::IOS);
+        let is_mac = os.is_mac();
 
-        let can_show_symbols = || {
-            let ModifierNames {
-                alt,
-                ctrl,
-                shift,
-                mac_cmd,
-                ..
-            } = ModifierNames::SYMBOLS;
-
-            let font_id = TextStyle::Body.resolve(&self.style());
-            self.fonts(|f| {
-                let mut lock = f.lock();
-                let font = lock.fonts.font(&font_id);
-                font.has_glyphs(alt)
-                    && font.has_glyphs(ctrl)
-                    && font.has_glyphs(shift)
-                    && font.has_glyphs(mac_cmd)
-            })
-        };
-
-        if is_mac && can_show_symbols() {
+        if is_mac && self.can_show_modifier_symbols() {
             shortcut.format(&ModifierNames::SYMBOLS, is_mac)
         } else {
             shortcut.format(&ModifierNames::NAMES, is_mac)
@@ -2386,10 +2403,7 @@ impl ContextImpl {
 
         if repaint_needed {
             self.request_repaint(ended_viewport_id, RepaintCause::new());
-        } else if let Some(delay) = viewport.input.wants_repaint_after() {
-            self.request_repaint_after(delay, ended_viewport_id, RepaintCause::new());
         }
-
         //  -------------------
 
         let all_viewport_ids = self.all_viewport_ids();
@@ -3499,9 +3513,10 @@ impl Context {
 
         // Try most recently added loaders first (hence `.rev()`)
         for loader in bytes_loaders.iter().rev() {
-            match loader.load(self, uri) {
-                Err(load::LoadError::NotSupported) => continue,
-                result => return result,
+            let result = loader.load(self, uri);
+            match result {
+                Err(load::LoadError::NotSupported) => {}
+                _ => return result,
             }
         }
 
@@ -3542,10 +3557,9 @@ impl Context {
         // Try most recently added loaders first (hence `.rev()`)
         for loader in image_loaders.iter().rev() {
             match loader.load(self, uri, size_hint) {
-                Err(load::LoadError::NotSupported) => continue,
+                Err(load::LoadError::NotSupported) => {}
                 Err(load::LoadError::FormatNotSupported { detected_format }) => {
                     format = format.or(detected_format);
-                    continue;
                 }
                 result => return result,
             }
@@ -3588,7 +3602,7 @@ impl Context {
         // Try most recently added loaders first (hence `.rev()`)
         for loader in texture_loaders.iter().rev() {
             match loader.load(self, uri, texture_options, size_hint) {
-                Err(load::LoadError::NotSupported) => continue,
+                Err(load::LoadError::NotSupported) => {}
                 result => return result,
             }
         }

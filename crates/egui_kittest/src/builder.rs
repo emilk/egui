@@ -205,6 +205,7 @@ impl HarnessBuilder {
     ///         });
     ///     });
     /// ```
+    #[must_use]
     pub fn build<'a>(self, app: impl FnMut(&egui::Context) + 'a) -> Harness<'a> {
         Harness::from_builder(self, AppKind::Context(Box::new(app)), (), None)
     }
@@ -224,6 +225,7 @@ impl HarnessBuilder {
     ///         ui.label("Hello, world!");
     ///     });
     /// ```
+    #[must_use]
     pub fn build_ui<'a>(self, app: impl FnMut(&mut egui::Ui) + 'a) -> Harness<'a> {
         Harness::from_builder(self, AppKind::Ui(Box::new(app)), (), None)
     }

@@ -54,7 +54,7 @@ pub struct Image<'a> {
     sense: Sense,
     size: ImageSize,
     pub(crate) show_loading_spinner: Option<bool>,
-    alt_text: Option<String>,
+    pub(crate) alt_text: Option<String>,
 }
 
 impl<'a> Image<'a> {
