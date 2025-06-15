@@ -1144,6 +1144,8 @@ fn key_from_named_key(named_key: winit::keyboard::NamedKey) -> Option<egui::Key>
         NamedKey::F33 => Key::F33,
         NamedKey::F34 => Key::F34,
         NamedKey::F35 => Key::F35,
+
+        NamedKey::BrowserBack => Key::BrowserBack,
         _ => {
             log::trace!("Unknown key: {named_key:?}");
             return None;
