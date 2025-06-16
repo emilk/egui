@@ -121,7 +121,7 @@ pub struct Area {
     new_pos: Option<Pos2>,
     fade_in: bool,
     layout: Layout,
-    force_resize_to_content: bool,
+    sizing_pass: bool,
 }
 
 impl WidgetWithState for Area {
@@ -148,7 +148,7 @@ impl Area {
             anchor: None,
             fade_in: true,
             layout: Layout::default(),
-            force_resize_to_content: false,
+            sizing_pass: false,
         }
     }
 
@@ -357,11 +357,23 @@ impl Area {
     #[inline]
     pub fn layout(mut self, layout: Layout) -> Self {
         self.layout = layout;
+        self
     }
 
+    /// While true, a sizing pass will be done. This means the area will be invisible
+    /// and the contents will be laid out to estimate the proper containing size of the area.
+    /// If false, there will be no change to the default area behavior. This is useful if the
+    /// area contents area dynamic and you need to need to make sure the area adjusts its size
+    /// accordingly.
+    ///
+    /// # Arguments
+    /// - resize: If true, the area will be resized to fit its contents. False will keep the
+    ///         default area resizing behavior.
+    ///
+    /// Default: `false`.
     #[inline]
-    pub fn force_resize_to_content(mut self, resize: bool) -> Self {
-        self.force_resize_to_content = resize;
+    pub fn sizing_pass(mut self, resize: bool) -> Self {
+        self.sizing_pass = resize;
         self
     }
 }
@@ -417,7 +429,7 @@ impl Area {
             constrain_rect,
             fade_in,
             layout,
-            force_resize_to_content,
+            sizing_pass: force_sizing_pass,
         } = self;
 
         let constrain_rect = constrain_rect.unwrap_or_else(|| ctx.screen_rect());
@@ -433,7 +445,7 @@ impl Area {
             interactable,
             last_became_visible_at: None,
         });
-        if force_resize_to_content {
+        if force_sizing_pass {
             sizing_pass = true;
             state.size = None;
         }
