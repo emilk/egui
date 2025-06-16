@@ -110,7 +110,7 @@ impl BackendPanel {
         if cfg!(debug_assertions) && cfg!(target_arch = "wasm32") {
             ui.separator();
             // For testing panic handling on web:
-            #[allow(clippy::manual_assert)]
+            #[expect(clippy::manual_assert)]
             if ui.button("panic!()").clicked() {
                 panic!("intentional panic!");
             }
@@ -183,7 +183,7 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         ui.label("egui running inside ");
         ui.hyperlink_to(
             "eframe",
-            "https://github.com/emilk/egui/tree/master/crates/eframe",
+            "https://github.com/emilk/egui/tree/main/crates/eframe",
         );
         ui.label(".");
     });

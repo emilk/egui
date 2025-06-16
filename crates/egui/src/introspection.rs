@@ -2,7 +2,7 @@
 
 use crate::{
     epaint, memory, pos2, remap_clamp, vec2, Color32, CursorIcon, FontFamily, FontId, Label, Mesh,
-    NumExt, Rect, Response, Sense, Shape, Slider, TextStyle, TextWrapMode, Ui, Widget,
+    NumExt as _, Rect, Response, Sense, Shape, Slider, TextStyle, TextWrapMode, Ui, Widget,
 };
 use emath::Vec2;
 

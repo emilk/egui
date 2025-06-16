@@ -96,7 +96,7 @@ impl BytesLoader for FileLoader {
                             Err(err) => Err(err.to_string()),
                         };
                         let prev = cache.lock().insert(uri.clone(), Poll::Ready(result));
-                        assert!(matches!(prev, Some(Poll::Pending)));
+                        assert!(matches!(prev, Some(Poll::Pending)), "unexpected state");
                         ctx.request_repaint();
                         log::trace!("finished loading {uri:?}");
                     }
@@ -127,5 +127,9 @@ impl BytesLoader for FileLoader {
                 _ => 0,
             })
             .sum()
+    }
+
+    fn has_pending(&self) -> bool {
+        self.cache.lock().values().any(|entry| entry.is_pending())
     }
 }

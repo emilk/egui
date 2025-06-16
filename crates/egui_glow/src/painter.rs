@@ -113,7 +113,7 @@ pub struct Painter {
 ///
 /// # Example
 ///
-/// See the [`custom3d_glow`](https://github.com/emilk/egui/blob/master/crates/egui_demo_app/src/apps/custom3d_wgpu.rs) demo source for a detailed usage example.
+/// See the [`custom3d_glow`](https://github.com/emilk/egui/blob/main/crates/egui_demo_app/src/apps/custom3d_wgpu.rs) demo source for a detailed usage example.
 pub struct CallbackFn {
     f: Box<dyn Fn(PaintCallbackInfo, &Painter) + Sync + Send>,
 }
@@ -296,7 +296,7 @@ impl Painter {
     /// So if in a [`egui::Shape::Callback`] you need to use an offscreen FBO, you should
     /// then restore to this afterwards with
     /// `gl.bind_framebuffer(glow::FRAMEBUFFER, painter.intermediate_fbo());`
-    #[allow(clippy::unused_self)]
+    #[expect(clippy::unused_self)]
     pub fn intermediate_fbo(&self) -> Option<glow::Framebuffer> {
         // We don't currently ever render to an offscreen buffer,
         // but we may want to start to in order to do anti-aliasing on web, for instance.
@@ -469,7 +469,7 @@ impl Painter {
 
     #[inline(never)] // Easier profiling
     fn paint_mesh(&mut self, mesh: &Mesh) {
-        debug_assert!(mesh.is_valid());
+        debug_assert!(mesh.is_valid(), "Mesh is not valid");
         if let Some(texture) = self.texture(mesh.texture_id) {
             unsafe {
                 self.gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.vbo));
@@ -560,7 +560,12 @@ impl Painter {
         data: &[u8],
     ) {
         profiling::function_scope!();
-        assert_eq!(data.len(), w * h * 4);
+        assert_eq!(
+            data.len(),
+            w * h * 4,
+            "Mismatch between texture size and texel count, by {}",
+            data.len() % (w * h * 4)
+        );
         assert!(
             w <= self.max_texture_side && h <= self.max_texture_side,
             "Got a texture image of size {}x{}, but the maximum supported texture side is only {}",
@@ -658,7 +663,6 @@ impl Painter {
         self.textures.get(&texture_id).copied()
     }
 
-    #[allow(clippy::needless_pass_by_value)] // False positive
     pub fn register_native_texture(&mut self, native: glow::Texture) -> egui::TextureId {
         self.assert_not_destroyed();
         let id = egui::TextureId::User(self.next_native_tex_id);
@@ -667,7 +671,6 @@ impl Painter {
         id
     }
 
-    #[allow(clippy::needless_pass_by_value)] // False positive
     pub fn replace_native_texture(&mut self, id: egui::TextureId, replacing: glow::Texture) {
         if let Some(old_tex) = self.textures.insert(id, replacing) {
             self.textures_to_destroy.push(old_tex);
@@ -693,10 +696,7 @@ impl Painter {
         for row in pixels.chunks_exact((w * 4) as usize).rev() {
             flipped.extend_from_slice(bytemuck::cast_slice(row));
         }
-        egui::ColorImage {
-            size: [w as usize, h as usize],
-            pixels: flipped,
-        }
+        egui::ColorImage::new([w as usize, h as usize], flipped)
     }
 
     pub fn read_screen_rgb(&self, [w, h]: [u32; 2]) -> Vec<u8> {

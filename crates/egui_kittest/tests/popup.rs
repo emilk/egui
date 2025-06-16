@@ -1,4 +1,4 @@
-use kittest::Queryable;
+use kittest::Queryable as _;
 
 #[test]
 fn test_interactive_tooltip() {

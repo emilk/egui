@@ -21,6 +21,13 @@ impl<T: Float + Copy> OrderedFloat<T> {
     }
 }
 
+impl<T: std::fmt::Debug> std::fmt::Debug for OrderedFloat<T> {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
 impl<T: Float> Eq for OrderedFloat<T> {}
 
 impl<T: Float> PartialEq<Self> for OrderedFloat<T> {
@@ -101,7 +108,7 @@ impl Float for f64 {
 
 // Keep this trait in private module, to avoid exposing its methods as extensions in user code
 mod private {
-    use super::{Hash, Hasher};
+    use super::{Hash as _, Hasher};
 
     pub trait FloatImpl {
         fn is_nan(&self) -> bool;

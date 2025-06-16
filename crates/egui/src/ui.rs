@@ -25,10 +25,10 @@ use crate::{
         color_picker, Button, Checkbox, DragValue, Hyperlink, Image, ImageSource, Label, Link,
         RadioButton, SelectableLabel, Separator, Spinner, TextEdit, Widget,
     },
-    Align, Color32, Context, CursorIcon, DragAndDrop, Id, InnerResponse, InputState, LayerId,
-    Memory, Order, Painter, PlatformOutput, Pos2, Rangef, Rect, Response, Rgba, RichText, Sense,
-    Style, TextStyle, TextWrapMode, UiBuilder, UiKind, UiStack, UiStackInfo, Vec2, WidgetRect,
-    WidgetText,
+    Align, Color32, Context, CursorIcon, DragAndDrop, Id, InnerResponse, InputState, IntoAtoms,
+    LayerId, Memory, Order, Painter, PlatformOutput, Pos2, Rangef, Rect, Response, Rgba, RichText,
+    Sense, Style, TextStyle, TextWrapMode, UiBuilder, UiKind, UiStack, UiStackInfo, Vec2,
+    WidgetRect, WidgetText,
 };
 // ----------------------------------------------------------------------------
 
@@ -98,7 +98,7 @@ pub struct Ui {
     sizing_pass: bool,
 
     /// Indicates whether this Ui belongs to a Menu.
-    #[allow(deprecated)]
+    #[expect(deprecated)]
     menu_state: Option<Arc<RwLock<crate::menu::MenuState>>>,
 
     /// The [`UiStack`] for this [`Ui`].
@@ -286,7 +286,7 @@ impl Ui {
             }
         }
 
-        debug_assert!(!max_rect.any_nan());
+        debug_assert!(!max_rect.any_nan(), "max_rect is NaN: {max_rect:?}");
         let stable_id = self.id.with(id_salt);
         let unique_id = stable_id.with(self.next_auto_id_salt);
         let next_auto_id_salt = unique_id.value().wrapping_add(1);
@@ -666,7 +666,7 @@ impl Ui {
     ///
     /// This is determined first by [`Style::wrap_mode`], and then by the layout of this [`Ui`].
     pub fn wrap_mode(&self) -> TextWrapMode {
-        #[allow(deprecated)]
+        #[expect(deprecated)]
         if let Some(wrap_mode) = self.style.wrap_mode {
             wrap_mode
         }
@@ -914,14 +914,20 @@ impl Ui {
     /// Set the minimum width of the ui.
     /// This can't shrink the ui, only make it larger.
     pub fn set_min_width(&mut self, width: f32) {
-        debug_assert!(0.0 <= width);
+        debug_assert!(
+            0.0 <= width,
+            "Negative width makes no sense, but got: {width}"
+        );
         self.placer.set_min_width(width);
     }
 
     /// Set the minimum height of the ui.
     /// This can't shrink the ui, only make it larger.
     pub fn set_min_height(&mut self, height: f32) {
-        debug_assert!(0.0 <= height);
+        debug_assert!(
+            0.0 <= height,
+            "Negative height makes no sense, but got: {height}"
+        );
         self.placer.set_min_height(height);
     }
 
@@ -1422,7 +1428,7 @@ impl Ui {
         // );
         let item_spacing = self.spacing().item_spacing;
         let frame_rect = self.placer.next_space(desired_size, item_spacing);
-        debug_assert!(!frame_rect.any_nan());
+        debug_assert!(!frame_rect.any_nan(), "frame_rect is nan in allocate_space");
         let widget_rect = self.placer.justify_and_align(frame_rect, desired_size);
 
         self.placer
@@ -1445,7 +1451,7 @@ impl Ui {
 
     /// Allocate a rect without interacting with it.
     pub fn advance_cursor_after_rect(&mut self, rect: Rect, intrinsic_size: Vec2) -> Id {
-        debug_assert!(!rect.any_nan());
+        debug_assert!(!rect.any_nan(), "rect is nan in advance_cursor_after_rect");
         let rect = rect.round_ui();
 
         let item_spacing = self.spacing().item_spacing;
@@ -1518,7 +1524,10 @@ impl Ui {
         layout: Layout,
         add_contents: Box<dyn FnOnce(&mut Self) -> R + 'c>,
     ) -> InnerResponse<R> {
-        debug_assert!(desired_size.x >= 0.0 && desired_size.y >= 0.0);
+        debug_assert!(
+            desired_size.x >= 0.0 && desired_size.y >= 0.0,
+            "Negative desired size: {desired_size:?}"
+        );
         let item_spacing = self.spacing().item_spacing;
         let frame_rect = self.placer.next_space(desired_size, item_spacing);
         let child_rect = self.placer.justify_and_align(frame_rect, desired_size);
@@ -2070,8 +2079,8 @@ impl Ui {
     /// ```
     #[must_use = "You should check if the user clicked this with `if ui.button(…).clicked() { … } "]
     #[inline]
-    pub fn button(&mut self, text: impl Into<WidgetText>) -> Response {
-        Button::new(text).ui(self)
+    pub fn button<'a>(&mut self, atoms: impl IntoAtoms<'a>) -> Response {
+        Button::new(atoms).ui(self)
     }
 
     /// A button as small as normal body text.
@@ -2088,8 +2097,8 @@ impl Ui {
     ///
     /// See also [`Self::toggle_value`].
     #[inline]
-    pub fn checkbox(&mut self, checked: &mut bool, text: impl Into<WidgetText>) -> Response {
-        Checkbox::new(checked, text).ui(self)
+    pub fn checkbox<'a>(&mut self, checked: &'a mut bool, atoms: impl IntoAtoms<'a>) -> Response {
+        Checkbox::new(checked, atoms).ui(self)
     }
 
     /// Acts like a checkbox, but looks like a [`SelectableLabel`].
@@ -2110,8 +2119,8 @@ impl Ui {
     /// Often you want to use [`Self::radio_value`] instead.
     #[must_use = "You should check if the user clicked this with `if ui.radio(…).clicked() { … } "]
     #[inline]
-    pub fn radio(&mut self, selected: bool, text: impl Into<WidgetText>) -> Response {
-        RadioButton::new(selected, text).ui(self)
+    pub fn radio<'a>(&mut self, selected: bool, atoms: impl IntoAtoms<'a>) -> Response {
+        RadioButton::new(selected, atoms).ui(self)
     }
 
     /// Show a [`RadioButton`]. It is selected if `*current_value == selected_value`.
@@ -2133,13 +2142,13 @@ impl Ui {
     /// }
     /// # });
     /// ```
-    pub fn radio_value<Value: PartialEq>(
+    pub fn radio_value<'a, Value: PartialEq>(
         &mut self,
         current_value: &mut Value,
         alternative: Value,
-        text: impl Into<WidgetText>,
+        atoms: impl IntoAtoms<'a>,
     ) -> Response {
-        let mut response = self.radio(*current_value == alternative, text);
+        let mut response = self.radio(*current_value == alternative, atoms);
         if response.clicked() && *current_value != alternative {
             *current_value = alternative;
             response.mark_changed();
@@ -2264,18 +2273,21 @@ impl Ui {
 /// # Colors
 impl Ui {
     /// Shows a button with the given color.
+    ///
     /// If the user clicks the button, a full color picker is shown.
     pub fn color_edit_button_srgba(&mut self, srgba: &mut Color32) -> Response {
         color_picker::color_edit_button_srgba(self, srgba, color_picker::Alpha::BlendOrAdditive)
     }
 
     /// Shows a button with the given color.
+    ///
     /// If the user clicks the button, a full color picker is shown.
     pub fn color_edit_button_hsva(&mut self, hsva: &mut Hsva) -> Response {
         color_picker::color_edit_button_hsva(self, hsva, color_picker::Alpha::BlendOrAdditive)
     }
 
     /// Shows a button with the given color.
+    ///
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in `sRGB` space.
     pub fn color_edit_button_srgb(&mut self, srgb: &mut [u8; 3]) -> Response {
@@ -2283,6 +2295,7 @@ impl Ui {
     }
 
     /// Shows a button with the given color.
+    ///
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in linear RGB space.
     pub fn color_edit_button_rgb(&mut self, rgb: &mut [f32; 3]) -> Response {
@@ -2290,6 +2303,7 @@ impl Ui {
     }
 
     /// Shows a button with the given color.
+    ///
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in `sRGBA` space with premultiplied alpha
     pub fn color_edit_button_srgba_premultiplied(&mut self, srgba: &mut [u8; 4]) -> Response {
@@ -2300,6 +2314,7 @@ impl Ui {
     }
 
     /// Shows a button with the given color.
+    ///
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in `sRGBA` space without premultiplied alpha.
     /// If unsure, what "premultiplied alpha" is, then this is probably the function you want to use.
@@ -2312,6 +2327,7 @@ impl Ui {
     }
 
     /// Shows a button with the given color.
+    ///
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in linear RGBA space with premultiplied alpha
     pub fn color_edit_button_rgba_premultiplied(&mut self, rgba_premul: &mut [f32; 4]) -> Response {
@@ -2331,6 +2347,7 @@ impl Ui {
     }
 
     /// Shows a button with the given color.
+    ///
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in linear RGBA space without premultiplied alpha.
     /// If unsure, what "premultiplied alpha" is, then this is probably the function you want to use.
@@ -3033,7 +3050,7 @@ impl Ui {
         self.close_kind(UiKind::Menu);
     }
 
-    #[allow(deprecated)]
+    #[expect(deprecated)]
     pub(crate) fn set_menu_state(
         &mut self,
         menu_state: Option<Arc<RwLock<crate::menu::MenuState>>>,
@@ -3059,15 +3076,15 @@ impl Ui {
     /// ```
     ///
     /// See also: [`Self::close`] and [`Response::context_menu`].
-    pub fn menu_button<R>(
+    pub fn menu_button<'a, R>(
         &mut self,
-        title: impl Into<WidgetText>,
+        atoms: impl IntoAtoms<'a>,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<Option<R>> {
         let (response, inner) = if menu::is_in_menu(self) {
-            menu::SubMenuButton::new(title).ui(self, add_contents)
+            menu::SubMenuButton::new(atoms).ui(self, add_contents)
         } else {
-            menu::MenuButton::new(title).ui(self, add_contents)
+            menu::MenuButton::new(atoms).ui(self, add_contents)
         };
         InnerResponse::new(inner.map(|i| i.inner), response)
     }
@@ -3174,7 +3191,7 @@ impl Drop for Ui {
 /// Show this rectangle to the user if certain debug options are set.
 #[cfg(debug_assertions)]
 fn register_rect(ui: &Ui, rect: Rect) {
-    use emath::{Align2, GuiRounding};
+    use emath::{Align2, GuiRounding as _};
 
     let debug = ui.style().debug;
 

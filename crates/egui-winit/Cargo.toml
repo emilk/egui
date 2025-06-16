@@ -5,10 +5,10 @@ authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui with winit"
 edition.workspace = true
 rust-version.workspace = true
-homepage = "https://github.com/emilk/egui/tree/master/crates/egui-winit"
+homepage = "https://github.com/emilk/egui/tree/main/crates/egui-winit"
 license.workspace = true
 readme = "README.md"
-repository = "https://github.com/emilk/egui/tree/master/crates/egui-winit"
+repository = "https://github.com/emilk/egui/tree/main/crates/egui-winit"
 categories = ["gui", "game-development"]
 keywords = ["winit", "egui", "gui", "gamedev"]
 include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
@@ -67,7 +67,7 @@ winit = { workspace = true, default-features = false }
 #! ### Optional dependencies
 
 # feature accesskit
-accesskit_winit = { version = "0.23", optional = true }
+accesskit_winit = { workspace = true, optional = true }
 
 bytemuck = { workspace = true, optional = true }
 

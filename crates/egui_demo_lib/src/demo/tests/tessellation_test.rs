@@ -1,5 +1,5 @@
 use egui::{
-    emath::{GuiRounding, TSTransform},
+    emath::{GuiRounding as _, TSTransform},
     epaint::{self, RectShape},
     vec2, Color32, Pos2, Rect, Sense, StrokeKind, Vec2,
 };

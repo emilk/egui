@@ -1,7 +1,7 @@
 use egui::accesskit::Role;
 use egui::Vec2;
 use egui_demo_app::{Anchor, WrapApp};
-use egui_kittest::kittest::Queryable;
+use egui_kittest::kittest::Queryable as _;
 use egui_kittest::SnapshotResults;
 
 #[test]
@@ -67,7 +67,7 @@ fn test_demo_app() {
         }
 
         // Can't use Harness::run because fractal clock keeps requesting repaints
-        harness.run_steps(2);
+        harness.run_steps(4);
 
         results.add(harness.try_snapshot(&anchor.to_string()));
     }

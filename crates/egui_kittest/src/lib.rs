@@ -31,6 +31,7 @@ pub use renderer::*;
 use egui::{Modifiers, Pos2, Rect, RepaintCause, Vec2, ViewportId};
 use kittest::{Node, Queryable};
 
+#[derive(Debug, Clone)]
 pub struct ExceededMaxStepsError {
     pub max_steps: u64,
     pub repaint_causes: Vec<RepaintCause>,
@@ -66,6 +67,7 @@ pub struct Harness<'a, State = ()> {
     renderer: Box<dyn TestRenderer>,
     max_steps: u64,
     step_dt: f32,
+    wait_for_pending_images: bool,
 }
 
 impl<State> Debug for Harness<'_, State> {
@@ -88,6 +90,7 @@ impl<'a, State> Harness<'a, State> {
             step_dt,
             state: _,
             mut renderer,
+            wait_for_pending_images,
         } = builder;
         let ctx = ctx.unwrap_or_default();
         ctx.enable_accesskit();
@@ -128,6 +131,7 @@ impl<'a, State> Harness<'a, State> {
             renderer,
             max_steps,
             step_dt,
+            wait_for_pending_images,
         };
         // Run the harness until it is stable, ensuring that all Areas are shown and animations are done
         harness.run_ok();
@@ -274,6 +278,7 @@ impl<'a, State> Harness<'a, State> {
     ///
     /// See also:
     /// - [`Harness::try_run`].
+    /// - [`Harness::try_run_realtime`].
     /// - [`Harness::run_ok`].
     /// - [`Harness::step`].
     /// - [`Harness::run_steps`].
@@ -285,6 +290,30 @@ impl<'a, State> Harness<'a, State> {
                 panic!("{err}");
             }
         }
+    }
+
+    fn _try_run(&mut self, sleep: bool) -> Result<u64, ExceededMaxStepsError> {
+        let mut steps = 0;
+        loop {
+            steps += 1;
+            self.step();
+
+            let wait_for_images = self.wait_for_pending_images && self.ctx.has_pending_images();
+
+            // We only care about immediate repaints
+            if self.root_viewport_output().repaint_delay != Duration::ZERO && !wait_for_images {
+                break;
+            } else if sleep || wait_for_images {
+                std::thread::sleep(Duration::from_secs_f32(self.step_dt));
+            }
+            if steps > self.max_steps {
+                return Err(ExceededMaxStepsError {
+                    max_steps: self.max_steps,
+                    repaint_causes: self.ctx.repaint_causes(),
+                });
+            }
+        }
+        Ok(steps)
     }
 
     /// Run until
@@ -302,23 +331,9 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::run_ok`].
     /// - [`Harness::step`].
     /// - [`Harness::run_steps`].
+    /// - [`Harness::try_run_realtime`].
     pub fn try_run(&mut self) -> Result<u64, ExceededMaxStepsError> {
-        let mut steps = 0;
-        loop {
-            steps += 1;
-            self.step();
-            // We only care about immediate repaints
-            if self.root_viewport_output().repaint_delay != Duration::ZERO {
-                break;
-            }
-            if steps > self.max_steps {
-                return Err(ExceededMaxStepsError {
-                    max_steps: self.max_steps,
-                    repaint_causes: self.ctx.repaint_causes(),
-                });
-            }
-        }
-        Ok(steps)
+        self._try_run(false)
     }
 
     /// Run until
@@ -333,8 +348,32 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::try_run`].
     /// - [`Harness::step`].
     /// - [`Harness::run_steps`].
+    /// - [`Harness::try_run_realtime`].
     pub fn run_ok(&mut self) -> Option<u64> {
         self.try_run().ok()
+    }
+
+    /// Run multiple frames, sleeping for [`HarnessBuilder::with_step_dt`] between frames.
+    ///
+    /// This is useful to e.g. wait for an async operation to complete (e.g. loading of images).
+    /// Runs until
+    /// - all animations are done
+    /// - no more repaints are requested
+    /// - the maximum number of steps is reached (See [`HarnessBuilder::with_max_steps`])
+    ///
+    /// Returns the number of steps that were run.
+    ///
+    /// # Errors
+    /// Returns an error if the maximum number of steps is exceeded.
+    ///
+    /// See also:
+    /// - [`Harness::run`].
+    /// - [`Harness::run_ok`].
+    /// - [`Harness::step`].
+    /// - [`Harness::run_steps`].
+    /// - [`Harness::try_run`].
+    pub fn try_run_realtime(&mut self) -> Result<u64, ExceededMaxStepsError> {
+        self._try_run(true)
     }
 
     /// Run a number of steps.

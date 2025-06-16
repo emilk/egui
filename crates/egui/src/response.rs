@@ -218,29 +218,44 @@ impl Response {
             && self.ctx.input(|i| i.pointer.button_triple_clicked(button))
     }
 
+    /// Was this widget middle-clicked or clicked while holding down a modifier key?
+    ///
+    /// This is used by [`crate::Hyperlink`] to check if a URL should be opened
+    /// in a new tab, using [`crate::OpenUrl::new_tab`].
+    pub fn clicked_with_open_in_background(&self) -> bool {
+        self.middle_clicked() || self.clicked() && self.ctx.input(|i| i.modifiers.any())
+    }
+
     /// `true` if there was a click *outside* the rect of this widget.
     ///
     /// Clicks on widgets contained in this one counts as clicks inside this widget,
     /// so that clicking a button in an area will not be considered as clicking "elsewhere" from the area.
+    ///
+    /// Clicks on other layers above this widget *will* be considered as clicking elsewhere.
     pub fn clicked_elsewhere(&self) -> bool {
+        let (pointer_interact_pos, any_click) = self
+            .ctx
+            .input(|i| (i.pointer.interact_pos(), i.pointer.any_click()));
+
         // We do not use self.clicked(), because we want to catch all clicks within our frame,
         // even if we aren't clickable (or even enabled).
         // This is important for windows and such that should close then the user clicks elsewhere.
-        self.ctx.input(|i| {
-            let pointer = &i.pointer;
-
-            if pointer.any_click() {
-                if self.contains_pointer() || self.hovered() {
-                    false
-                } else if let Some(pos) = pointer.interact_pos() {
-                    !self.interact_rect.contains(pos)
+        if any_click {
+            if self.contains_pointer() || self.hovered() {
+                false
+            } else if let Some(pos) = pointer_interact_pos {
+                let layer_under_pointer = self.ctx.layer_id_at(pos);
+                if layer_under_pointer != Some(self.layer_id) {
+                    true
                 } else {
-                    false // clicked without a pointer, weird
+                    !self.interact_rect.contains(pos)
                 }
             } else {
-                false
+                false // clicked without a pointer, weird
             }
-        })
+        } else {
+            false
+        }
     }
 
     /// Was the widget enabled?
@@ -378,19 +393,6 @@ impl Response {
     /// The widget was being dragged by the button, but now it has been released.
     pub fn drag_stopped_by(&self, button: PointerButton) -> bool {
         self.drag_stopped() && self.ctx.input(|i| i.pointer.button_released(button))
-    }
-
-    /// The widget was being dragged, but now it has been released.
-    #[inline]
-    #[deprecated = "Renamed 'drag_stopped'"]
-    pub fn drag_released(&self) -> bool {
-        self.drag_stopped()
-    }
-
-    /// The widget was being dragged by the button, but now it has been released.
-    #[deprecated = "Renamed 'drag_stopped_by'"]
-    pub fn drag_released_by(&self, button: PointerButton) -> bool {
-        self.drag_stopped_by(button)
     }
 
     /// If dragged, how many points were we dragged and in what direction?
@@ -978,7 +980,10 @@ impl Response {
     ///
     /// You may not call [`Self::interact`] on the resulting `Response`.
     pub fn union(&self, other: Self) -> Self {
-        assert!(self.ctx == other.ctx);
+        assert!(
+            self.ctx == other.ctx,
+            "Responses must be from the same `Context`"
+        );
         debug_assert!(
             self.layer_id == other.layer_id,
             "It makes no sense to combine Responses from two different layers"

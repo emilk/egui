@@ -4,8 +4,8 @@ use std::ops::RangeInclusive;
 
 use crate::{
     emath, epaint, lerp, pos2, remap, remap_clamp, style, style::HandleShape, vec2, Color32,
-    DragValue, EventFilter, Key, Label, NumExt, Pos2, Rangef, Rect, Response, Sense, TextStyle,
-    TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, MINUS_CHAR_STR,
+    DragValue, EventFilter, Key, Label, NumExt as _, Pos2, Rangef, Rect, Response, Sense,
+    TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, MINUS_CHAR_STR,
 };
 
 use super::drag_value::clamp_value_to_range;
@@ -117,6 +117,7 @@ pub struct Slider<'a> {
     custom_parser: Option<NumParser<'a>>,
     trailing_fill: Option<bool>,
     handle_shape: Option<HandleShape>,
+    update_while_editing: bool,
 }
 
 impl<'a> Slider<'a> {
@@ -167,6 +168,7 @@ impl<'a> Slider<'a> {
             custom_parser: None,
             trailing_fill: None,
             handle_shape: None,
+            update_while_editing: true,
         }
     }
 
@@ -641,6 +643,16 @@ impl<'a> Slider<'a> {
         let normalized = normalized_from_value(value, self.range(), &self.spec);
         lerp(position_range, normalized as f32)
     }
+
+    /// Update the value on each key press when text-editing the value.
+    ///
+    /// Default: `true`.
+    /// If `false`, the value will only be updated when user presses enter or deselects the value.
+    #[inline]
+    pub fn update_while_editing(mut self, update: bool) -> Self {
+        self.update_while_editing = update;
+        self
+    }
 }
 
 impl Slider<'_> {
@@ -900,7 +912,8 @@ impl Slider<'_> {
                 .min_decimals(self.min_decimals)
                 .max_decimals_opt(self.max_decimals)
                 .suffix(self.suffix.clone())
-                .prefix(self.prefix.clone());
+                .prefix(self.prefix.clone())
+                .update_while_editing(self.update_while_editing);
 
             match self.clamping {
                 SliderClamping::Never => {}
@@ -1065,7 +1078,10 @@ fn value_from_normalized(normalized: f64, range: RangeInclusive<f64>, spec: &Sli
             let log = lerp(min_log..=max_log, normalized);
             10.0_f64.powf(log)
         } else {
-            assert!(min < 0.0 && 0.0 < max);
+            assert!(
+                min < 0.0 && 0.0 < max,
+                "min should be negative and max positive, but got min={min} and max={max}"
+            );
             let zero_cutoff = logarithmic_zero_cutoff(min, max);
             if normalized < zero_cutoff {
                 // negative
@@ -1114,7 +1130,10 @@ fn normalized_from_value(value: f64, range: RangeInclusive<f64>, spec: &SliderSp
             let value_log = value.log10();
             remap_clamp(value_log, min_log..=max_log, 0.0..=1.0)
         } else {
-            assert!(min < 0.0 && 0.0 < max);
+            assert!(
+                min < 0.0 && 0.0 < max,
+                "min should be negative and max positive, but got min={min} and max={max}"
+            );
             let zero_cutoff = logarithmic_zero_cutoff(min, max);
             if value < 0.0 {
                 // negative
@@ -1142,8 +1161,11 @@ fn normalized_from_value(value: f64, range: RangeInclusive<f64>, spec: &SliderSp
 }
 
 fn range_log10(min: f64, max: f64, spec: &SliderSpec) -> (f64, f64) {
-    assert!(spec.logarithmic);
-    assert!(min <= max);
+    assert!(spec.logarithmic, "spec must be logarithmic");
+    assert!(
+        min <= max,
+        "min must be less than or equal to max, but was min={min} and max={max}"
+    );
 
     if min == 0.0 && max == INFINITY {
         (spec.smallest_positive.log10(), INF_RANGE_MAGNITUDE)
@@ -1167,7 +1189,10 @@ fn range_log10(min: f64, max: f64, spec: &SliderSpec) -> (f64, f64) {
 /// where to put the zero cutoff for logarithmic sliders
 /// that crosses zero ?
 fn logarithmic_zero_cutoff(min: f64, max: f64) -> f64 {
-    assert!(min < 0.0 && 0.0 < max);
+    assert!(
+        min < 0.0 && 0.0 < max,
+        "min must be negative and max positive, but got min={min} and max={max}"
+    );
 
     let min_magnitude = if min == -INFINITY {
         INF_RANGE_MAGNITUDE

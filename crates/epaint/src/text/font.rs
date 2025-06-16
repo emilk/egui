@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use emath::{vec2, GuiRounding, Vec2};
+use emath::{vec2, GuiRounding as _, Vec2};
 
 use crate::{
     mutex::{Mutex, RwLock},
@@ -91,10 +91,16 @@ impl FontImpl {
         scale_in_pixels: f32,
         tweak: FontTweak,
     ) -> Self {
-        assert!(scale_in_pixels > 0.0);
-        assert!(pixels_per_point > 0.0);
+        assert!(
+            scale_in_pixels > 0.0,
+            "scale_in_pixels is smaller than 0, got: {scale_in_pixels:?}"
+        );
+        assert!(
+            pixels_per_point > 0.0,
+            "pixels_per_point must be greater than 0, got: {pixels_per_point:?}"
+        );
 
-        use ab_glyph::{Font, ScaleFont};
+        use ab_glyph::{Font as _, ScaleFont as _};
         let scaled = ab_glyph_font.as_scaled(scale_in_pixels);
         let ascent = (scaled.ascent() / pixels_per_point).round_ui();
         let descent = (scaled.descent() / pixels_per_point).round_ui();
@@ -141,14 +147,6 @@ impl FontImpl {
 
         if !FontDefinitions::builtin_font_names().contains(&self.name.as_str()) {
             return false;
-        }
-
-        if self.name == "emoji-icon-font" {
-            // HACK: https://github.com/emilk/egui/issues/1284 https://github.com/jslegers/emoji-icon-font/issues/18
-            // Don't show the wrong fullwidth capital letters:
-            if 'Ｓ' <= chr && chr <= 'Ｙ' {
-                return true;
-            }
         }
 
         matches!(
@@ -235,7 +233,7 @@ impl FontImpl {
         last_glyph_id: ab_glyph::GlyphId,
         glyph_id: ab_glyph::GlyphId,
     ) -> f32 {
-        use ab_glyph::{Font as _, ScaleFont};
+        use ab_glyph::{Font as _, ScaleFont as _};
         self.ab_glyph_font
             .as_scaled(self.scale_in_pixels as f32)
             .kern(last_glyph_id, glyph_id)
@@ -264,8 +262,8 @@ impl FontImpl {
     }
 
     fn allocate_glyph(&self, glyph_id: ab_glyph::GlyphId) -> GlyphInfo {
-        assert!(glyph_id.0 != 0);
-        use ab_glyph::{Font as _, ScaleFont};
+        assert!(glyph_id.0 != 0, "Can't allocate glyph for id 0");
+        use ab_glyph::{Font as _, ScaleFont as _};
 
         let glyph = glyph_id.with_scale_and_position(
             self.scale_in_pixels as f32,

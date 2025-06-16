@@ -29,7 +29,7 @@ pub use {
     panel::{CentralPanel, SidePanel, TopBottomPanel},
     popup::*,
     resize::Resize,
-    scene::Scene,
+    scene::{DragPanButtons, Scene},
     scroll_area::ScrollArea,
     sides::Sides,
     tooltip::*,

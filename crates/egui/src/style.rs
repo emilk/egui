@@ -332,6 +332,9 @@ pub struct Style {
 
     /// The animation that should be used when scrolling a [`crate::ScrollArea`] using e.g. [`Ui::scroll_to_rect`].
     pub scroll_animation: ScrollAnimation,
+
+    /// Use a more compact style for menus.
+    pub compact_menu_style: bool,
 }
 
 #[test]
@@ -744,7 +747,8 @@ impl ScrollStyle {
 
 // ----------------------------------------------------------------------------
 
-/// Scroll animation configuration, used when programmatically scrolling somewhere (e.g. with `[crate::Ui::scroll_to_cursor]`)
+/// Scroll animation configuration, used when programmatically scrolling somewhere (e.g. with `[crate::Ui::scroll_to_cursor]`).
+///
 /// The animation duration is calculated based on the distance to be scrolled via `[ScrollAnimation::points_per_second]`
 /// and can be clamped to a min / max duration via `[ScrollAnimation::duration]`.
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -986,7 +990,7 @@ pub struct Visuals {
     /// Show a background behind collapsing headers.
     pub collapsing_header_frame: bool,
 
-    /// Draw a vertical lien left of indented region, in e.g. [`crate::CollapsingHeader`].
+    /// Draw a vertical line left of indented region, in e.g. [`crate::CollapsingHeader`].
     pub indent_has_left_vline: bool,
 
     /// Whether or not Grids and Tables should be striped by default
@@ -1257,7 +1261,7 @@ pub fn default_text_styles() -> BTreeMap<TextStyle, FontId> {
 
 impl Default for Style {
     fn default() -> Self {
-        #[allow(deprecated)]
+        #[expect(deprecated)]
         Self {
             override_font_id: None,
             override_text_style: None,
@@ -1277,6 +1281,7 @@ impl Default for Style {
             url_in_tooltip: false,
             always_scroll_the_only_direction: false,
             scroll_animation: ScrollAnimation::default(),
+            compact_menu_style: true,
         }
     }
 }
@@ -1558,7 +1563,7 @@ use crate::{
 
 impl Style {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
-        #[allow(deprecated)]
+        #[expect(deprecated)]
         let Self {
             override_font_id,
             override_text_style,
@@ -1578,6 +1583,7 @@ impl Style {
             url_in_tooltip,
             always_scroll_the_only_direction,
             scroll_animation,
+            compact_menu_style,
         } = self;
 
         crate::Grid::new("_options").show(ui, |ui| {
@@ -1682,6 +1688,8 @@ impl Style {
 
         #[cfg(debug_assertions)]
         ui.collapsing("🐛 Debug", |ui| debug.ui(ui));
+
+        ui.checkbox(compact_menu_style, "Compact menu style");
 
         ui.checkbox(explanation_tooltips, "Explanation tooltips")
             .on_hover_text(

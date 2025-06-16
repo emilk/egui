@@ -1,4 +1,4 @@
-use egui::{ComboBox, Context, Id, Modal, ProgressBar, Ui, Widget, Window};
+use egui::{ComboBox, Context, Id, Modal, ProgressBar, Ui, Widget as _, Window};
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
@@ -163,10 +163,10 @@ impl crate::View for Modals {
 #[cfg(test)]
 mod tests {
     use crate::demo::modals::Modals;
-    use crate::Demo;
+    use crate::Demo as _;
     use egui::accesskit::Role;
     use egui::Key;
-    use egui_kittest::kittest::Queryable;
+    use egui_kittest::kittest::Queryable as _;
     use egui_kittest::{Harness, SnapshotResults};
 
     #[test]

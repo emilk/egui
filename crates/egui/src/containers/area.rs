@@ -5,8 +5,8 @@
 use emath::GuiRounding as _;
 
 use crate::{
-    emath, pos2, Align2, Context, Id, InnerResponse, LayerId, Layout, NumExt, Order, Pos2, Rect,
-    Response, Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetRect, WidgetWithState,
+    emath, pos2, Align2, Context, Id, InnerResponse, LayerId, Layout, NumExt as _, Order, Pos2,
+    Rect, Response, Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetRect, WidgetWithState,
 };
 
 /// State of an [`Area`] that is persisted between frames.
@@ -602,7 +602,7 @@ impl Prepared {
         self.move_response.id
     }
 
-    #[allow(clippy::needless_pass_by_value)] // intentional to swallow up `content_ui`.
+    #[expect(clippy::needless_pass_by_value)] // intentional to swallow up `content_ui`.
     pub(crate) fn end(self, ctx: &Context, content_ui: Ui) -> Response {
         let Self {
             info: _,

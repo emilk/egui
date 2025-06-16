@@ -256,9 +256,7 @@ impl ViewportInfo {
     /// If this is not the root viewport,
     /// it is up to the user to hide this viewport the next frame.
     pub fn close_requested(&self) -> bool {
-        self.events
-            .iter()
-            .any(|&event| event == ViewportEvent::Close)
+        self.events.contains(&ViewportEvent::Close)
     }
 
     /// Helper: move [`Self::events`], clone the other fields.
@@ -592,7 +590,7 @@ pub const NUM_POINTER_BUTTONS: usize = 5;
 
 /// State of the modifier keys. These must be fed to egui.
 ///
-/// The best way to compare [`Modifiers`] is by using [`Modifiers::matches`].
+/// The best way to compare [`Modifiers`] is by using [`Modifiers::matches_logically`] or [`Modifiers::matches_exact`].
 ///
 /// NOTE: For cross-platform uses, ALT+SHIFT is a bad combination of modifiers
 /// as on mac that is how you type special characters,
@@ -775,8 +773,8 @@ impl Modifiers {
     /// ```
     /// # use egui::Modifiers;
     /// # let pressed_modifiers = Modifiers::default();
-    /// if pressed_modifiers.matches(Modifiers::ALT | Modifiers::SHIFT) {
-    ///     // Alt and Shift are pressed, and nothing else
+    /// if pressed_modifiers.matches_logically(Modifiers::ALT | Modifiers::SHIFT) {
+    ///     // Alt and Shift are pressed, but not ctrl/command
     /// }
     /// ```
     ///
@@ -817,7 +815,7 @@ impl Modifiers {
     /// ```
     /// # use egui::Modifiers;
     /// # let pressed_modifiers = Modifiers::default();
-    /// if pressed_modifiers.matches(Modifiers::ALT | Modifiers::SHIFT) {
+    /// if pressed_modifiers.matches_exact(Modifiers::ALT | Modifiers::SHIFT) {
     ///     // Alt and Shift are pressed, and nothing else
     /// }
     /// ```
@@ -825,13 +823,13 @@ impl Modifiers {
     /// ## Behavior:
     /// ```
     /// # use egui::Modifiers;
-    /// assert!(Modifiers::CTRL.matches(Modifiers::CTRL));
-    /// assert!(!Modifiers::CTRL.matches(Modifiers::CTRL | Modifiers::SHIFT));
-    /// assert!(!(Modifiers::CTRL | Modifiers::SHIFT).matches(Modifiers::CTRL));
-    /// assert!((Modifiers::CTRL | Modifiers::COMMAND).matches(Modifiers::CTRL));
-    /// assert!((Modifiers::CTRL | Modifiers::COMMAND).matches(Modifiers::COMMAND));
-    /// assert!((Modifiers::MAC_CMD | Modifiers::COMMAND).matches(Modifiers::COMMAND));
-    /// assert!(!Modifiers::COMMAND.matches(Modifiers::MAC_CMD));
+    /// assert!(Modifiers::CTRL.matches_exact(Modifiers::CTRL));
+    /// assert!(!Modifiers::CTRL.matches_exact(Modifiers::CTRL | Modifiers::SHIFT));
+    /// assert!(!(Modifiers::CTRL | Modifiers::SHIFT).matches_exact(Modifiers::CTRL));
+    /// assert!((Modifiers::CTRL | Modifiers::COMMAND).matches_exact(Modifiers::CTRL));
+    /// assert!((Modifiers::CTRL | Modifiers::COMMAND).matches_exact(Modifiers::COMMAND));
+    /// assert!((Modifiers::MAC_CMD | Modifiers::COMMAND).matches_exact(Modifiers::COMMAND));
+    /// assert!(!Modifiers::COMMAND.matches_exact(Modifiers::MAC_CMD));
     /// ```
     pub fn matches_exact(&self, pattern: Self) -> bool {
         // alt and shift must always match the pattern:
@@ -842,9 +840,35 @@ impl Modifiers {
         self.cmd_ctrl_matches(pattern)
     }
 
-    #[deprecated = "Renamed `matches_exact`, but maybe you want to use `matches_logically` instead"]
-    pub fn matches(&self, pattern: Self) -> bool {
-        self.matches_exact(pattern)
+    /// Check if any of the modifiers match exactly.
+    ///
+    /// Returns true if the same modifier is pressed in `self` as in `pattern`,
+    /// for at least one modifier.
+    ///
+    /// ## Behavior:
+    /// ```
+    /// # use egui::Modifiers;
+    /// assert!(Modifiers::CTRL.matches_any(Modifiers::CTRL));
+    /// assert!(Modifiers::CTRL.matches_any(Modifiers::CTRL | Modifiers::SHIFT));
+    /// assert!((Modifiers::CTRL | Modifiers::SHIFT).matches_any(Modifiers::CTRL));
+    /// ```
+    pub fn matches_any(&self, pattern: Self) -> bool {
+        if self.alt && pattern.alt {
+            return true;
+        }
+        if self.shift && pattern.shift {
+            return true;
+        }
+        if self.ctrl && pattern.ctrl {
+            return true;
+        }
+        if self.mac_cmd && pattern.mac_cmd {
+            return true;
+        }
+        if (self.mac_cmd || self.command || self.ctrl) && pattern.command {
+            return true;
+        }
+        false
     }
 
     /// Checks only cmd/ctrl, not alt/shift.
@@ -957,6 +981,12 @@ impl std::ops::BitOrAssign for Modifiers {
     #[inline]
     fn bitor_assign(&mut self, rhs: Self) {
         *self = *self | rhs;
+    }
+}
+
+impl Modifiers {
+    pub fn ui(&self, ui: &mut crate::Ui) {
+        ui.label(ModifierNames::NAMES.format(self, ui.ctx().os().is_mac()));
     }
 }
 
@@ -1233,7 +1263,7 @@ pub struct EventFilter {
     pub escape: bool,
 }
 
-#[allow(clippy::derivable_impls)] // let's be explicit
+#[expect(clippy::derivable_impls)] // let's be explicit
 impl Default for EventFilter {
     fn default() -> Self {
         Self {

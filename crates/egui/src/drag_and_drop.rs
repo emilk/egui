@@ -13,7 +13,7 @@ use crate::{Context, CursorIcon, Id};
 /// - [`crate::Response::dnd_hover_payload`]
 /// - [`crate::Response::dnd_release_payload`]
 ///
-/// See [this example](https://github.com/emilk/egui/blob/master/crates/egui_demo_lib/src/demo/drag_and_drop.rs).
+/// See [this example](https://github.com/emilk/egui/blob/main/crates/egui_demo_lib/src/demo/drag_and_drop.rs).
 #[doc(alias = "drag and drop")]
 #[derive(Clone, Default)]
 pub struct DragAndDrop {

@@ -2,29 +2,26 @@
 
 use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration};
 
-use containers::area::AreaState;
-use emath::GuiRounding as _;
+use emath::{GuiRounding as _, OrderedFloat};
 use epaint::{
     emath::{self, TSTransform},
     mutex::RwLock,
     stats::PaintStats,
     tessellator,
     text::{FontInsert, FontPriority, Fonts},
-    util::OrderedFloat,
     vec2, ClippedPrimitive, ClippedShape, Color32, ImageData, ImageDelta, Pos2, Rect, StrokeKind,
     TessellationOptions, TextureAtlas, TextureId, Vec2,
 };
 
 use crate::{
     animation_manager::AnimationManager,
-    containers,
+    containers::{self, area::AreaState},
     data::output::PlatformOutput,
     epaint, hit_test,
     input_state::{InputState, MultiTouchInfo, PointerEvent},
     interaction,
     layers::GraphicLayers,
-    load,
-    load::{Bytes, Loaders, SizedTexture},
+    load::{self, Bytes, Loaders, SizedTexture},
     memory::{Options, Theme},
     os::OperatingSystem,
     output::FullOutput,
@@ -34,9 +31,10 @@ use crate::{
     viewport::ViewportClass,
     Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, Grid, Id, ImmediateViewport,
     ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId, Memory,
-    ModifierNames, NumExt, Order, Painter, RawInput, Response, RichText, ScrollArea, Sense, Style,
-    TextStyle, TextureHandle, TextureOptions, Ui, ViewportBuilder, ViewportCommand, ViewportId,
-    ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput, Widget, WidgetRect, WidgetText,
+    ModifierNames, Modifiers, NumExt as _, Order, Painter, RawInput, Response, RichText,
+    ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions, Ui, ViewportBuilder,
+    ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput,
+    Widget as _, WidgetRect, WidgetText,
 };
 
 #[cfg(feature = "accesskit")]
@@ -82,7 +80,11 @@ impl Default for WrappedTextureManager {
             epaint::FontImage::new([0, 0]).into(),
             Default::default(),
         );
-        assert_eq!(font_id, TextureId::default());
+        assert_eq!(
+            font_id,
+            TextureId::default(),
+            "font id should be equal to TextureId::default(), but was {font_id:?}",
+        );
 
         Self(Arc::new(RwLock::new(tex_mngr)))
     }
@@ -310,7 +312,7 @@ impl std::fmt::Display for RepaintCause {
 
 impl RepaintCause {
     /// Capture the file and line number of the call site.
-    #[allow(clippy::new_without_default)]
+    #[expect(clippy::new_without_default)]
     #[track_caller]
     pub fn new() -> Self {
         let caller = Location::caller();
@@ -323,7 +325,6 @@ impl RepaintCause {
 
     /// Capture the file and line number of the call site,
     /// as well as add a reason.
-    #[allow(clippy::new_without_default)]
     #[track_caller]
     pub fn new_reason(reason: impl Into<Cow<'static, str>>) -> Self {
         let caller = Location::caller();
@@ -489,8 +490,9 @@ impl ContextImpl {
             new_raw_input,
             viewport.repaint.requested_immediate_repaint_prev_pass(),
             pixels_per_point,
-            &self.memory.options,
+            self.memory.options.input_options,
         );
+        let repaint_after = viewport.input.wants_repaint_after();
 
         let screen_rect = viewport.input.screen_rect;
 
@@ -552,6 +554,10 @@ impl ContextImpl {
         }
 
         self.update_fonts_mut();
+
+        if let Some(delay) = repaint_after {
+            self.request_repaint_after(delay, viewport_id, RepaintCause::new());
+        }
     }
 
     /// Load fonts unless already loaded.
@@ -804,7 +810,11 @@ impl Context {
         let max_passes = self.write(|ctx| ctx.memory.options.max_passes.get());
 
         let mut output = FullOutput::default();
-        debug_assert_eq!(output.platform_output.num_completed_passes, 0);
+        debug_assert_eq!(
+            output.platform_output.num_completed_passes, 0,
+            "output must be fresh, but had {} passes",
+            output.platform_output.num_completed_passes
+        );
 
         loop {
             profiling::scope!(
@@ -828,7 +838,11 @@ impl Context {
             self.begin_pass(new_input.take());
             run_ui(self);
             output.append(self.end_pass());
-            debug_assert!(0 < output.platform_output.num_completed_passes);
+            debug_assert!(
+                0 < output.platform_output.num_completed_passes,
+                "Completed passes was lower than 0, was {}",
+                output.platform_output.num_completed_passes
+            );
 
             if !output.platform_output.requested_discard() {
                 break; // no need for another pass
@@ -1148,7 +1162,6 @@ impl Context {
     ///
     /// `allow_focus` should usually be true, unless you call this function multiple times with the
     /// same widget, then `allow_focus` should only be true once (like in [`Ui::new`] (true) and [`Ui::remember_min_rect`] (false)).
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn create_widget(&self, w: WidgetRect, allow_focus: bool) -> Response {
         let interested_in_focus = w.enabled
             && w.sense.is_focusable()
@@ -1177,7 +1190,7 @@ impl Context {
             self.check_for_id_clash(w.id, w.rect, "widget");
         }
 
-        #[allow(clippy::let_and_return)]
+        #[allow(clippy::let_and_return, clippy::allow_attributes)]
         let res = self.get_response(w);
 
         #[cfg(feature = "accesskit")]
@@ -1219,13 +1232,6 @@ impl Context {
             })
         })
         .map(|widget_rect| self.get_response(widget_rect))
-    }
-
-    /// Returns `true` if the widget with the given `Id` contains the pointer.
-    #[deprecated = "Use Response.contains_pointer or Context::read_response instead"]
-    pub fn widget_contains_pointer(&self, id: Id) -> bool {
-        self.read_response(id)
-            .is_some_and(|response| response.contains_pointer())
     }
 
     /// Do all interaction for an existing widget, without (re-)registering it.
@@ -1422,7 +1428,7 @@ impl Context {
     /// figured out from the `target_os`.
     ///
     /// For web, this can be figured out from the user-agent,
-    /// and is done so by [`eframe`](https://github.com/emilk/egui/tree/master/crates/eframe).
+    /// and is done so by [`eframe`](https://github.com/emilk/egui/tree/main/crates/eframe).
     pub fn os(&self) -> OperatingSystem {
         self.read(|ctx| ctx.os)
     }
@@ -1482,35 +1488,48 @@ impl Context {
         self.send_cmd(crate::OutputCommand::CopyImage(image));
     }
 
+    fn can_show_modifier_symbols(&self) -> bool {
+        let ModifierNames {
+            alt,
+            ctrl,
+            shift,
+            mac_cmd,
+            ..
+        } = ModifierNames::SYMBOLS;
+
+        let font_id = TextStyle::Body.resolve(&self.style());
+        self.fonts(|f| {
+            let mut lock = f.lock();
+            let font = lock.fonts.font(&font_id);
+            font.has_glyphs(alt)
+                && font.has_glyphs(ctrl)
+                && font.has_glyphs(shift)
+                && font.has_glyphs(mac_cmd)
+        })
+    }
+
+    /// Format the given modifiers in a human-readable way (e.g. `Ctrl+Shift+X`).
+    pub fn format_modifiers(&self, modifiers: Modifiers) -> String {
+        let os = self.os();
+
+        let is_mac = os.is_mac();
+
+        if is_mac && self.can_show_modifier_symbols() {
+            ModifierNames::SYMBOLS.format(&modifiers, is_mac)
+        } else {
+            ModifierNames::NAMES.format(&modifiers, is_mac)
+        }
+    }
+
     /// Format the given shortcut in a human-readable way (e.g. `Ctrl+Shift+X`).
     ///
     /// Can be used to get the text for [`crate::Button::shortcut_text`].
     pub fn format_shortcut(&self, shortcut: &KeyboardShortcut) -> String {
         let os = self.os();
 
-        let is_mac = matches!(os, OperatingSystem::Mac | OperatingSystem::IOS);
+        let is_mac = os.is_mac();
 
-        let can_show_symbols = || {
-            let ModifierNames {
-                alt,
-                ctrl,
-                shift,
-                mac_cmd,
-                ..
-            } = ModifierNames::SYMBOLS;
-
-            let font_id = TextStyle::Body.resolve(&self.style());
-            self.fonts(|f| {
-                let mut lock = f.lock();
-                let font = lock.fonts.font(&font_id);
-                font.has_glyphs(alt)
-                    && font.has_glyphs(ctrl)
-                    && font.has_glyphs(shift)
-                    && font.has_glyphs(mac_cmd)
-            })
-        };
-
-        if is_mac && can_show_symbols() {
+        if is_mac && self.can_show_modifier_symbols() {
             shortcut.format(&ModifierNames::SYMBOLS, is_mac)
         } else {
             shortcut.format(&ModifierNames::NAMES, is_mac)
@@ -2305,6 +2324,8 @@ impl ContextImpl {
         let viewport = self.viewports.entry(ended_viewport_id).or_default();
         let pixels_per_point = viewport.input.pixels_per_point;
 
+        self.loaders.end_pass(viewport.repaint.cumulative_pass_nr);
+
         viewport.repaint.cumulative_pass_nr += 1;
 
         self.memory.end_pass(&viewport.this_pass.used_ids);
@@ -2338,7 +2359,6 @@ impl ContextImpl {
         // Inform the backend of all textures that have been updated (including font atlas).
         let textures_delta = self.tex_manager.0.write().take_delta();
 
-        #[cfg_attr(not(feature = "accesskit"), allow(unused_mut))]
         let mut platform_output: PlatformOutput = std::mem::take(&mut viewport.output);
 
         #[cfg(feature = "accesskit")]
@@ -2383,10 +2403,7 @@ impl ContextImpl {
 
         if repaint_needed {
             self.request_repaint(ended_viewport_id, RepaintCause::new());
-        } else if let Some(delay) = viewport.input.wants_repaint_after() {
-            self.request_repaint_after(delay, ended_viewport_id, RepaintCause::new());
         }
-
         //  -------------------
 
         let all_viewport_ids = self.all_viewport_ids();
@@ -2639,7 +2656,7 @@ impl Context {
     /// Is an egui context menu open?
     ///
     /// This only works with the old, deprecated [`crate::menu`] API.
-    #[allow(deprecated)]
+    #[expect(deprecated)]
     #[deprecated = "Use `is_popup_open` instead"]
     pub fn is_context_menu_open(&self) -> bool {
         self.data(|d| {
@@ -2727,21 +2744,6 @@ impl Context {
     pub fn layer_transform_from_global(&self, layer_id: LayerId) -> Option<TSTransform> {
         self.layer_transform_to_global(layer_id)
             .map(|t| t.inverse())
-    }
-
-    /// Move all the graphics at the given layer.
-    ///
-    /// Is used to implement drag-and-drop preview.
-    ///
-    /// This only applied to the existing graphics at the layer, not to new graphics added later.
-    ///
-    /// For a persistent transform, use [`Self::set_transform_layer`] instead.
-    #[deprecated = "Use `transform_layer_shapes` instead"]
-    pub fn translate_layer(&self, layer_id: LayerId, delta: Vec2) {
-        if delta != Vec2::ZERO {
-            let transform = emath::TSTransform::from_translation(delta);
-            self.transform_layer_shapes(layer_id, transform);
-        }
     }
 
     /// Transform all the graphics at the given layer.
@@ -3053,6 +3055,12 @@ impl Context {
                 self.texture_ui(ui);
             });
 
+        CollapsingHeader::new("🖼 Image loaders")
+            .default_open(false)
+            .show(ui, |ui| {
+                self.loaders_ui(ui);
+            });
+
         CollapsingHeader::new("🔠 Font texture")
             .default_open(false)
             .show(ui, |ui| {
@@ -3097,6 +3105,8 @@ impl Context {
         ));
         let max_preview_size = vec2(48.0, 32.0);
 
+        let pixels_per_point = self.pixels_per_point();
+
         ui.group(|ui| {
             ScrollArea::vertical()
                 .max_height(300.0)
@@ -3111,15 +3121,16 @@ impl Context {
                         .show(ui, |ui| {
                             for (&texture_id, meta) in textures {
                                 let [w, h] = meta.size;
+                                let point_size = vec2(w as f32, h as f32) / pixels_per_point;
 
-                                let mut size = vec2(w as f32, h as f32);
+                                let mut size = point_size;
                                 size *= (max_preview_size.x / size.x).min(1.0);
                                 size *= (max_preview_size.y / size.y).min(1.0);
                                 ui.image(SizedTexture::new(texture_id, size))
                                     .on_hover_ui(|ui| {
                                         // show larger on hover
                                         let max_size = 0.5 * ui.ctx().screen_rect().size();
-                                        let mut size = vec2(w as f32, h as f32);
+                                        let mut size = point_size;
                                         size *= max_size.x / size.x.max(max_size.x);
                                         size *= max_size.y / size.y.max(max_size.y);
                                         ui.image(SizedTexture::new(texture_id, size));
@@ -3133,6 +3144,73 @@ impl Context {
                         });
                 });
         });
+    }
+
+    /// Show stats about different image loaders.
+    pub fn loaders_ui(&self, ui: &mut crate::Ui) {
+        struct LoaderInfo {
+            id: String,
+            byte_size: usize,
+        }
+
+        let mut byte_loaders = vec![];
+        let mut image_loaders = vec![];
+        let mut texture_loaders = vec![];
+
+        {
+            let loaders = self.loaders();
+            let Loaders {
+                include: _,
+                bytes,
+                image,
+                texture,
+            } = loaders.as_ref();
+
+            for loader in bytes.lock().iter() {
+                byte_loaders.push(LoaderInfo {
+                    id: loader.id().to_owned(),
+                    byte_size: loader.byte_size(),
+                });
+            }
+            for loader in image.lock().iter() {
+                image_loaders.push(LoaderInfo {
+                    id: loader.id().to_owned(),
+                    byte_size: loader.byte_size(),
+                });
+            }
+            for loader in texture.lock().iter() {
+                texture_loaders.push(LoaderInfo {
+                    id: loader.id().to_owned(),
+                    byte_size: loader.byte_size(),
+                });
+            }
+        }
+
+        fn loaders_ui(ui: &mut crate::Ui, title: &str, loaders: &[LoaderInfo]) {
+            let heading = format!("{} {title} loaders", loaders.len());
+            crate::CollapsingHeader::new(heading)
+                .default_open(true)
+                .show(ui, |ui| {
+                    Grid::new("loaders")
+                        .striped(true)
+                        .num_columns(2)
+                        .show(ui, |ui| {
+                            ui.label("ID");
+                            ui.label("Size");
+                            ui.end_row();
+
+                            for loader in loaders {
+                                ui.label(&loader.id);
+                                ui.label(format!("{:.3} MB", loader.byte_size as f64 * 1e-6));
+                                ui.end_row();
+                            }
+                        });
+                });
+        }
+
+        loaders_ui(ui, "byte", &byte_loaders);
+        loaders_ui(ui, "image", &image_loaders);
+        loaders_ui(ui, "texture", &texture_loaders);
     }
 
     /// Shows the contents of [`Self::memory`].
@@ -3193,7 +3271,7 @@ impl Context {
             }
         });
 
-        #[allow(deprecated)]
+        #[expect(deprecated)]
         ui.horizontal(|ui| {
             ui.label(format!(
                 "{} menu bars",
@@ -3251,7 +3329,7 @@ impl Context {
     /// the function is still called, but with no other effect.
     ///
     /// No locks are held while the given closure is called.
-    #[allow(clippy::unused_self, clippy::let_and_return)]
+    #[allow(clippy::unused_self, clippy::let_and_return, clippy::allow_attributes)]
     #[inline]
     pub fn with_accessibility_parent<R>(&self, _id: Id, f: impl FnOnce() -> R) -> R {
         // TODO(emilk): this isn't thread-safe - another thread can call this function between the push/pop calls
@@ -3267,7 +3345,11 @@ impl Context {
         #[cfg(feature = "accesskit")]
         self.pass_state_mut(|fs| {
             if let Some(state) = fs.accesskit_state.as_mut() {
-                assert_eq!(state.parent_stack.pop(), Some(_id));
+                assert_eq!(
+                    state.parent_stack.pop(),
+                    Some(_id),
+                    "Mismatched push/pop in with_accessibility_parent"
+                );
             }
         });
 
@@ -3431,9 +3513,10 @@ impl Context {
 
         // Try most recently added loaders first (hence `.rev()`)
         for loader in bytes_loaders.iter().rev() {
-            match loader.load(self, uri) {
-                Err(load::LoadError::NotSupported) => continue,
-                result => return result,
+            let result = loader.load(self, uri);
+            match result {
+                Err(load::LoadError::NotSupported) => {}
+                _ => return result,
             }
         }
 
@@ -3474,10 +3557,9 @@ impl Context {
         // Try most recently added loaders first (hence `.rev()`)
         for loader in image_loaders.iter().rev() {
             match loader.load(self, uri, size_hint) {
-                Err(load::LoadError::NotSupported) => continue,
+                Err(load::LoadError::NotSupported) => {}
                 Err(load::LoadError::FormatNotSupported { detected_format }) => {
                     format = format.or(detected_format);
-                    continue;
                 }
                 result => return result,
             }
@@ -3520,7 +3602,7 @@ impl Context {
         // Try most recently added loaders first (hence `.rev()`)
         for loader in texture_loaders.iter().rev() {
             match loader.load(self, uri, texture_options, size_hint) {
-                Err(load::LoadError::NotSupported) => continue,
+                Err(load::LoadError::NotSupported) => {}
                 result => return result,
             }
         }
@@ -3531,6 +3613,14 @@ impl Context {
     /// The loaders of bytes, images, and textures.
     pub fn loaders(&self) -> Arc<Loaders> {
         self.read(|this| this.loaders.clone())
+    }
+
+    /// Returns `true` if any image is currently being loaded.
+    pub fn has_pending_images(&self) -> bool {
+        self.read(|this| {
+            this.loaders.image.lock().iter().any(|i| i.has_pending())
+                || this.loaders.bytes.lock().iter().any(|i| i.has_pending())
+        })
     }
 }
 
@@ -3580,7 +3670,6 @@ impl Context {
     /// * Set the window attributes (position, size, …) based on [`ImmediateViewport::builder`].
     /// * Call [`Context::run`] with [`ImmediateViewport::viewport_ui_cb`].
     /// * Handle the output from [`Context::run`], including rendering
-    #[allow(clippy::unused_self)]
     pub fn set_immediate_viewport_renderer(
         callback: impl for<'a> Fn(&Self, ImmediateViewport<'a>) + 'static,
     ) {

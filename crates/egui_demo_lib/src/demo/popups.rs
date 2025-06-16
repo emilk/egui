@@ -1,8 +1,9 @@
 use crate::rust_view_ui;
+use egui::color_picker::{color_picker_color32, Alpha};
 use egui::containers::menu::{MenuConfig, SubMenuButton};
 use egui::{
     include_image, Align, Align2, ComboBox, Frame, Id, Layout, Popup, PopupCloseBehavior,
-    RectAlign, Tooltip, Ui, UiBuilder,
+    RectAlign, RichText, Tooltip, Ui, UiBuilder,
 };
 
 /// Showcase [`Popup`].
@@ -16,6 +17,7 @@ pub struct PopupsDemo {
     close_behavior: PopupCloseBehavior,
     popup_open: bool,
     checked: bool,
+    color: egui::Color32,
 }
 
 impl PopupsDemo {
@@ -25,51 +27,20 @@ impl PopupsDemo {
             .gap(self.gap)
             .close_behavior(self.close_behavior)
     }
-}
 
-impl Default for PopupsDemo {
-    fn default() -> Self {
-        Self {
-            align4: RectAlign::default(),
-            gap: 4.0,
-            close_behavior: PopupCloseBehavior::CloseOnClick,
-            popup_open: false,
-            checked: false,
+    fn nested_menus(&mut self, ui: &mut Ui) {
+        ui.set_max_width(200.0); // To make sure we wrap long text
+
+        if ui.button("Open…").clicked() {
+            ui.close();
         }
-    }
-}
-
-impl crate::Demo for PopupsDemo {
-    fn name(&self) -> &'static str {
-        "\u{2755} Popups"
-    }
-
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        egui::Window::new(self.name())
-            .open(open)
-            .resizable(false)
-            .default_width(250.0)
-            .constrain(false)
-            .show(ctx, |ui| {
-                use crate::View as _;
-                self.ui(ui);
-            });
-    }
-}
-
-fn nested_menus(ui: &mut egui::Ui, checked: &mut bool) {
-    ui.set_max_width(200.0); // To make sure we wrap long text
-
-    if ui.button("Open…").clicked() {
-        ui.close();
-    }
-    ui.menu_button("Popups can have submenus", |ui| {
-        ui.menu_button("SubMenu", |ui| {
-            if ui.button("Open…").clicked() {
-                ui.close();
-            }
-            let _ = ui.button("Item");
-            ui.menu_button("Recursive", |ui| nested_menus(ui, checked));
+        ui.menu_button("Popups can have submenus", |ui| {
+            ui.menu_button("SubMenu", |ui| {
+                if ui.button("Open…").clicked() {
+                    ui.close();
+                }
+                let _ = ui.button("Item");
+                ui.menu_button("Recursive", |ui| self.nested_menus(ui));
 
             // if ui.button(if *checked { "short" } else { "Very long text for this item that should be wrapped" }).clicked() {
             //     *checked = !*checked;
@@ -111,11 +82,62 @@ fn nested_menus(ui: &mut egui::Ui, checked: &mut bool) {
     SubMenuButton::new("Always CloseOnClickOutside")
         .config(MenuConfig::new().close_behavior(PopupCloseBehavior::CloseOnClickOutside))
         .ui(ui, |ui| {
-            ui.checkbox(checked, "Checkbox");
-            if ui.button("Open…").clicked() {
-                ui.close();
-            }
-        });
+            ui.checkbox(&mut self.checked, "Checkbox");
+
+                // Customized color SubMenuButton
+                let is_bright = self.color.intensity() > 0.5;
+                let text_color = if is_bright {
+                    egui::Color32::BLACK
+                } else {
+                    egui::Color32::WHITE
+                };
+                let mut color_button =
+                    SubMenuButton::new(RichText::new("Background").color(text_color));
+                color_button.button = color_button.button.fill(self.color);
+                color_button.button = color_button
+                    .button
+                    .right_text(RichText::new(SubMenuButton::RIGHT_ARROW).color(text_color));
+                color_button.ui(ui, |ui| {
+                    ui.spacing_mut().slider_width = 200.0;
+                    color_picker_color32(ui, &mut self.color, Alpha::Opaque);
+                });
+
+                if ui.button("Open…").clicked() {
+                    ui.close();
+                }
+            });
+    }
+}
+
+impl Default for PopupsDemo {
+    fn default() -> Self {
+        Self {
+            align4: RectAlign::default(),
+            gap: 4.0,
+            close_behavior: PopupCloseBehavior::CloseOnClick,
+            popup_open: false,
+            checked: false,
+            color: egui::Color32::RED,
+        }
+    }
+}
+
+impl crate::Demo for PopupsDemo {
+    fn name(&self) -> &'static str {
+        "\u{2755} Popups"
+    }
+
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+        egui::Window::new(self.name())
+            .open(open)
+            .resizable(false)
+            .default_width(250.0)
+            .constrain(false)
+            .show(ctx, |ui| {
+                use crate::View as _;
+                self.ui(ui);
+            });
+    }
 }
 
 impl crate::View for PopupsDemo {
@@ -129,10 +151,10 @@ impl crate::View for PopupsDemo {
             .inner;
 
         self.apply_options(Popup::menu(&response).id(Id::new("menu")))
-            .show(|ui| nested_menus(ui, &mut self.checked));
+            .show(|ui| self.nested_menus(ui));
 
         self.apply_options(Popup::context_menu(&response).id(Id::new("context_menu")))
-            .show(|ui| nested_menus(ui, &mut self.checked));
+            .show(|ui| self.nested_menus(ui));
 
         if self.popup_open {
             self.apply_options(Popup::from_response(&response).id(Id::new("popup")))

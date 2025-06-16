@@ -65,7 +65,7 @@ pub fn hit_test(
         .filter(|layer| layer.order.allow_interaction())
         .flat_map(|&layer_id| widgets.get_layer(layer_id))
         .filter(|&w| {
-            if w.interact_rect.is_negative() {
+            if w.interact_rect.is_negative() || w.interact_rect.any_nan() {
                 return false;
             }
 
@@ -175,11 +175,17 @@ pub fn hit_test(
             restore_widget_rect(wr);
         }
         if let Some(wr) = &mut hits.drag {
-            debug_assert!(wr.sense.senses_drag());
+            debug_assert!(
+                wr.sense.senses_drag(),
+                "We should only return drag hits if they sense drag"
+            );
             restore_widget_rect(wr);
         }
         if let Some(wr) = &mut hits.click {
-            debug_assert!(wr.sense.senses_click());
+            debug_assert!(
+                wr.sense.senses_click(),
+                "We should only return click hits if they sense click"
+            );
             restore_widget_rect(wr);
         }
     }

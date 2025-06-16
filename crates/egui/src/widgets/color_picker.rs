@@ -3,7 +3,7 @@
 use crate::util::fixed_cache::FixedCache;
 use crate::{
     epaint, lerp, remap_clamp, Area, Context, DragValue, Frame, Id, Key, Order, Painter, Response,
-    Sense, Ui, UiKind, Widget, WidgetInfo, WidgetType,
+    Sense, Ui, UiKind, Widget as _, WidgetInfo, WidgetType,
 };
 use epaint::{
     ecolor::{Color32, Hsva, HsvaGamma, Rgba},
@@ -504,8 +504,9 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
 
     const COLOR_SLIDER_WIDTH: f32 = 275.0;
 
-    // TODO(emilk): make it easier to show a temporary popup that closes when you click outside it
+    // TODO(lucasmerlin): Update this to use new Popup struct
     if ui.memory(|mem| mem.is_popup_open(popup_id)) {
+        ui.memory_mut(|mem| mem.keep_popup_open(popup_id));
         let area_response = Area::new(popup_id)
             .kind(UiKind::Picker)
             .order(Order::Foreground)
@@ -523,7 +524,7 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
         if !button_response.clicked()
             && (ui.input(|i| i.key_pressed(Key::Escape)) || area_response.clicked_elsewhere())
         {
-            ui.memory_mut(|mem| mem.close_popup());
+            ui.memory_mut(|mem| mem.close_popup(popup_id));
         }
     }
 

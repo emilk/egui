@@ -86,7 +86,8 @@ env_logger = { version = "0.10", default-features = false, features = [
   "auto-color",
   "humantime",
 ] }
-rfd = { version = "0.15", optional = true }
+mimalloc.workspace = true
+rfd = { version = "0.15.3", optional = true }
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]

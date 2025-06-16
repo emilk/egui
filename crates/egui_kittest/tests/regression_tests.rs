@@ -1,6 +1,6 @@
 use egui::accesskit::Role;
-use egui::{Button, ComboBox, Image, Vec2, Widget};
-use egui_kittest::{kittest::Queryable, Harness, SnapshotResults};
+use egui::{Button, ComboBox, Image, Vec2, Widget as _};
+use egui_kittest::{kittest::Queryable as _, Harness, SnapshotResults};
 
 #[test]
 pub fn focus_should_skip_over_disabled_buttons() {
@@ -27,6 +27,31 @@ pub fn focus_should_skip_over_disabled_buttons() {
 
     let button_1 = harness.get_by_label("Button 1");
     assert!(button_1.is_focused());
+}
+
+#[test]
+pub fn focus_should_skip_over_disabled_drag_values() {
+    let mut value_1: u16 = 1;
+    let mut value_2: u16 = 2;
+    let mut value_3: u16 = 3;
+
+    let mut harness = Harness::new_ui(|ui| {
+        ui.add(egui::DragValue::new(&mut value_1));
+        ui.add_enabled(false, egui::DragValue::new(&mut value_2));
+        ui.add(egui::DragValue::new(&mut value_3));
+    });
+
+    harness.press_key(egui::Key::Tab);
+    harness.run();
+
+    let drag_value_1 = harness.get_by(|node| node.numeric_value() == Some(1.0));
+    assert!(drag_value_1.is_focused());
+
+    harness.press_key(egui::Key::Tab);
+    harness.run();
+
+    let drag_value_3 = harness.get_by(|node| node.numeric_value() == Some(3.0));
+    assert!(drag_value_3.is_focused());
 }
 
 #[test]

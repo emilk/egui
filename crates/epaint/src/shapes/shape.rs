@@ -296,7 +296,7 @@ impl Shape {
         Self::Rect(RectShape::stroke(rect, corner_radius, stroke, stroke_kind))
     }
 
-    #[allow(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value)]
     pub fn text(
         fonts: &Fonts,
         pos: Pos2,
@@ -339,7 +339,7 @@ impl Shape {
     #[inline]
     pub fn mesh(mesh: impl Into<Arc<Mesh>>) -> Self {
         let mesh = mesh.into();
-        debug_assert!(mesh.is_valid());
+        debug_assert!(mesh.is_valid(), "Invalid mesh: {mesh:#?}");
         Self::Mesh(mesh)
     }
 
@@ -456,19 +456,7 @@ impl Shape {
                 rect_shape.blur_width *= transform.scaling;
             }
             Self::Text(text_shape) => {
-                text_shape.pos = transform * text_shape.pos;
-
-                // Scale text:
-                let galley = Arc::make_mut(&mut text_shape.galley);
-                for row in &mut galley.rows {
-                    row.visuals.mesh_bounds = transform.scaling * row.visuals.mesh_bounds;
-                    for v in &mut row.visuals.mesh.vertices {
-                        v.pos = Pos2::new(transform.scaling * v.pos.x, transform.scaling * v.pos.y);
-                    }
-                }
-
-                galley.mesh_bounds = transform.scaling * galley.mesh_bounds;
-                galley.rect = transform.scaling * galley.rect;
+                text_shape.transform(transform);
             }
             Self::Mesh(mesh) => {
                 Arc::make_mut(mesh).transform(transform);
@@ -525,7 +513,13 @@ fn dashes_from_line(
     shapes: &mut Vec<Shape>,
     dash_offset: f32,
 ) {
-    assert_eq!(dash_lengths.len(), gap_lengths.len());
+    assert_eq!(
+        dash_lengths.len(),
+        gap_lengths.len(),
+        "Mismatched dash and gap lengths, got dash_lengths: {}, gap_lengths: {}",
+        dash_lengths.len(),
+        gap_lengths.len()
+    );
     let mut position_on_segment = dash_offset;
     let mut drawing_dash = false;
     let mut step = 0;

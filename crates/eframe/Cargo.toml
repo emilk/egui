@@ -5,10 +5,10 @@ authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "egui framework - write GUI apps that compiles to web and/or natively"
 edition.workspace = true
 rust-version.workspace = true
-homepage = "https://github.com/emilk/egui/tree/master/crates/eframe"
+homepage = "https://github.com/emilk/egui/tree/main/crates/eframe"
 license.workspace = true
 readme = "README.md"
-repository = "https://github.com/emilk/egui/tree/master/crates/eframe"
+repository = "https://github.com/emilk/egui/tree/main/crates/eframe"
 categories = ["gui", "game-development"]
 keywords = ["egui", "gui", "gamedev"]
 include = [
@@ -59,7 +59,7 @@ android-native-activity = ["egui-winit/android-native-activity"]
 ## If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["egui/default_fonts"]
 
-## Use [`glow`](https://github.com/grovesNL/glow) for painting, via [`egui_glow`](https://github.com/emilk/egui/tree/master/crates/egui_glow).
+## Use [`glow`](https://github.com/grovesNL/glow) for painting, via [`egui_glow`](https://github.com/emilk/egui/tree/main/crates/egui_glow).
 glow = ["dep:egui_glow", "dep:glow", "dep:glutin-winit", "dep:glutin"]
 
 ## Enable saving app state to disk.
@@ -90,7 +90,7 @@ web_screen_reader = [
   "web-sys/SpeechSynthesisUtterance",
 ]
 
-## Use [`wgpu`](https://docs.rs/wgpu) for painting (via [`egui-wgpu`](https://github.com/emilk/egui/tree/master/crates/egui-wgpu)).
+## Use [`wgpu`](https://docs.rs/wgpu) for painting (via [`egui-wgpu`](https://github.com/emilk/egui/tree/main/crates/egui-wgpu)).
 ##
 ## This overrides the `glow` feature.
 ##

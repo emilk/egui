@@ -208,17 +208,22 @@ mod tests {
 
     #[test]
     fn hex_string_round_trip() {
-        use Color32 as C;
         let cases = [
-            C::from_rgba_unmultiplied(10, 20, 30, 0),
-            C::from_rgba_unmultiplied(10, 20, 30, 40),
-            C::from_rgba_unmultiplied(10, 20, 30, 255),
-            C::from_rgba_unmultiplied(0, 20, 30, 0),
-            C::from_rgba_unmultiplied(10, 0, 30, 40),
-            C::from_rgba_unmultiplied(10, 20, 0, 255),
+            [0, 20, 30, 0],
+            [10, 0, 30, 40],
+            [10, 100, 200, 0],
+            [10, 100, 200, 100],
+            [10, 100, 200, 200],
+            [10, 100, 200, 255],
+            [10, 100, 200, 40],
+            [10, 20, 0, 255],
+            [10, 20, 30, 0],
+            [10, 20, 30, 255],
+            [10, 20, 30, 40],
         ];
-        for color in cases {
-            assert_eq!(C::from_hex(color.to_hex().as_str()), Ok(color));
+        for [r, g, b, a] in cases {
+            let color = Color32::from_rgba_unmultiplied(r, g, b, a);
+            assert_eq!(Color32::from_hex(color.to_hex().as_str()), Ok(color));
         }
     }
 }

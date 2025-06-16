@@ -8,4 +8,6 @@
 
 A simple color storage and conversion library.
 
-Made for [`egui`](https://github.com/emilk/egui/).
+This crate is built for the wants and needs of [`egui`](https://github.com/emilk/egui/).
+
+If you want an actual _good_ color crate, use [`color`](https://crates.io/crates/color) instead.

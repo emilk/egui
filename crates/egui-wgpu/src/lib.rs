@@ -42,8 +42,11 @@ use epaint::mutex::RwLock;
 /// An error produced by egui-wgpu.
 #[derive(thiserror::Error, Debug)]
 pub enum WgpuError {
-    #[error("Failed to create wgpu adapter, no suitable adapter found: {0}")]
-    NoSuitableAdapterFound(String),
+    #[error(transparent)]
+    RequestAdapterError(#[from] wgpu::RequestAdapterError),
+
+    #[error("Adapter selection failed: {0}")]
+    CustomNativeAdapterSelectionError(String),
 
     #[error("There was no valid format for the surface at all.")]
     NoSurfaceFormatsAvailable,
@@ -104,7 +107,7 @@ async fn request_adapter(
             force_fallback_adapter: false,
         })
         .await
-        .ok_or_else(|| {
+        .inspect_err(|_err| {
             #[cfg(not(target_arch = "wasm32"))]
             if _available_adapters.is_empty() {
                 log::info!("No wgpu adapters found");
@@ -120,8 +123,6 @@ async fn request_adapter(
                     describe_adapters(_available_adapters)
                 );
             }
-
-            WgpuError::NoSuitableAdapterFound("`request_adapters` returned `None`".to_owned())
         })?;
 
     #[cfg(target_arch = "wasm32")]
@@ -184,7 +185,6 @@ impl RenderState {
                 power_preference,
                 native_adapter_selector: _native_adapter_selector,
                 device_descriptor,
-                trace_path,
             }) => {
                 let adapter = {
                     #[cfg(target_arch = "wasm32")]
@@ -194,7 +194,7 @@ impl RenderState {
                     #[cfg(not(target_arch = "wasm32"))]
                     if let Some(native_adapter_selector) = _native_adapter_selector {
                         native_adapter_selector(&available_adapters, compatible_surface)
-                            .map_err(WgpuError::NoSuitableAdapterFound)
+                            .map_err(WgpuError::CustomNativeAdapterSelectionError)
                     } else {
                         request_adapter(
                             instance,
@@ -209,7 +209,7 @@ impl RenderState {
                 let (device, queue) = {
                     profiling::scope!("request_device");
                     adapter
-                        .request_device(&(*device_descriptor)(&adapter), trace_path.as_deref())
+                        .request_device(&(*device_descriptor)(&adapter))
                         .await?
                 };
 
@@ -242,7 +242,7 @@ impl RenderState {
 
         // On wasm, depending on feature flags, wgpu objects may or may not implement sync.
         // It doesn't make sense to switch to Rc for that special usecase, so simply disable the lint.
-        #[allow(clippy::arc_with_non_send_sync)]
+        #[allow(clippy::arc_with_non_send_sync, clippy::allow_attributes)] // For wasm
         Ok(Self {
             adapter,
             #[cfg(not(target_arch = "wasm32"))]

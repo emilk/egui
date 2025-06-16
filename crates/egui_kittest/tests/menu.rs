@@ -1,7 +1,7 @@
 use egui::containers::menu::{Bar, MenuConfig, SubMenuButton};
 use egui::{include_image, PopupCloseBehavior, Ui};
 use egui_kittest::{Harness, SnapshotResults};
-use kittest::Queryable;
+use kittest::Queryable as _;
 
 struct TestMenu {
     config: MenuConfig,
@@ -99,7 +99,7 @@ fn menu_close_on_click_outside() {
     harness.run();
 
     harness
-        .get_by_label("Submenu C (CloseOnClickOutside)")
+        .get_by_label_contains("Submenu C (CloseOnClickOutside)")
         .hover();
     harness.run();
 
@@ -133,7 +133,7 @@ fn menu_close_on_click() {
     harness.get_by_label("Menu A").simulate_click();
     harness.run();
 
-    harness.get_by_label("Submenu B with icon").hover();
+    harness.get_by_label_contains("Submenu B with icon").hover();
     harness.run();
 
     // Clicking the button should close the menu (even if ui.close() is not called by the button)
@@ -154,7 +154,9 @@ fn clicking_submenu_button_should_never_close_menu() {
     harness.run();
 
     // Clicking the submenu button should not close the menu
-    harness.get_by_label("Submenu B with icon").simulate_click();
+    harness
+        .get_by_label_contains("Submenu B with icon")
+        .simulate_click();
     harness.run();
 
     harness.get_by_label("Button in Submenu B").simulate_click();
@@ -177,12 +179,12 @@ fn menu_snapshots() {
     results.add(harness.try_snapshot("menu/opened"));
 
     harness
-        .get_by_label("Submenu C (CloseOnClickOutside)")
+        .get_by_label_contains("Submenu C (CloseOnClickOutside)")
         .hover();
     harness.run();
     results.add(harness.try_snapshot("menu/submenu"));
 
-    harness.get_by_label("Submenu D").hover();
+    harness.get_by_label_contains("Submenu D").hover();
     harness.run();
     results.add(harness.try_snapshot("menu/subsubmenu"));
 }

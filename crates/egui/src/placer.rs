@@ -133,8 +133,8 @@ impl Placer {
 
     /// Apply justify or alignment after calling `next_space`.
     pub(crate) fn justify_and_align(&self, rect: Rect, child_size: Vec2) -> Rect {
-        debug_assert!(!rect.any_nan());
-        debug_assert!(!child_size.any_nan());
+        debug_assert!(!rect.any_nan(), "rect: {rect:?}");
+        debug_assert!(!child_size.any_nan(), "child_size is NaN: {child_size:?}");
 
         if let Some(grid) = &self.grid {
             grid.justify_and_align(rect, child_size)
@@ -165,8 +165,11 @@ impl Placer {
         item_spacing: Vec2,
         intrinsic_size: Vec2,
     ) {
-        debug_assert!(!frame_rect.any_nan());
-        debug_assert!(!widget_rect.any_nan());
+        debug_assert!(!frame_rect.any_nan(), "frame_rect: {frame_rect:?}");
+        debug_assert!(
+            !widget_rect.any_nan(),
+            "widget_rect is NaN: {widget_rect:?}"
+        );
         self.region.sanity_check();
 
         if let Some(grid) = &mut self.grid {

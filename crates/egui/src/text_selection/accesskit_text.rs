@@ -2,13 +2,13 @@ use emath::TSTransform;
 
 use crate::{Context, Galley, Id};
 
-use super::{text_cursor_state::is_word_char, CursorRange};
+use super::{text_cursor_state::is_word_char, CCursorRange};
 
 /// Update accesskit with the current text state.
 pub fn update_accesskit_for_text_widget(
     ctx: &Context,
     widget_id: Id,
-    cursor_range: Option<CursorRange>,
+    cursor_range: Option<CCursorRange>,
     role: accesskit::Role,
     global_from_galley: TSTransform,
     galley: &Galley,
@@ -17,8 +17,8 @@ pub fn update_accesskit_for_text_widget(
         let parent_id = widget_id;
 
         if let Some(cursor_range) = &cursor_range {
-            let anchor = &cursor_range.secondary.rcursor;
-            let focus = &cursor_range.primary.rcursor;
+            let anchor = galley.layout_from_cursor(cursor_range.secondary);
+            let focus = galley.layout_from_cursor(cursor_range.primary);
             builder.set_text_selection(accesskit::TextSelection {
                 anchor: accesskit::TextPosition {
                     node: parent_id.with(anchor.row).accesskit_id(),
@@ -45,7 +45,7 @@ pub fn update_accesskit_for_text_widget(
             let row_id = parent_id.with(row_index);
             ctx.accesskit_node_builder(row_id, |builder| {
                 builder.set_role(accesskit::Role::TextRun);
-                let rect = global_from_galley * row.rect;
+                let rect = global_from_galley * row.rect_without_leading_space();
                 builder.set_bounds(accesskit::Rect {
                     x0: rect.min.x.into(),
                     y0: rect.min.y.into(),
@@ -76,14 +76,14 @@ pub fn update_accesskit_for_text_widget(
                     let old_len = value.len();
                     value.push(glyph.chr);
                     character_lengths.push((value.len() - old_len) as _);
-                    character_positions.push(glyph.pos.x - row.rect.min.x);
+                    character_positions.push(glyph.pos.x - row.pos.x);
                     character_widths.push(glyph.advance_width);
                 }
 
                 if row.ends_with_newline {
                     value.push('\n');
                     character_lengths.push(1);
-                    character_positions.push(row.rect.max.x - row.rect.min.x);
+                    character_positions.push(row.size.x);
                     character_widths.push(0.0);
                 }
                 word_lengths.push((character_lengths.len() - last_word_start) as _);
