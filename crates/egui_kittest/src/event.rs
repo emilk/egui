@@ -63,6 +63,7 @@ impl EventState {
                         pressed: matches!(state, ElementState::Pressed),
                         repeat: false,
                         physical_key: None,
+                        text: None
                     })
                 }
             },
