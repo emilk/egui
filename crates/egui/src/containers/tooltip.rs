@@ -17,7 +17,25 @@ pub struct Tooltip<'a> {
 
 impl Tooltip<'_> {
     /// Show a tooltip that is always open.
+    #[deprecated = "Use `Tooltip::always_open` instead."]
     pub fn new(
+        parent_widget: Id,
+        ctx: Context,
+        anchor: impl Into<PopupAnchor>,
+        parent_layer: LayerId,
+    ) -> Self {
+        Self {
+            popup: Popup::new(parent_widget, ctx, anchor.into(), parent_layer)
+                .kind(PopupKind::Tooltip)
+                .gap(4.0)
+                .sense(Sense::hover()),
+            parent_layer,
+            parent_widget,
+        }
+    }
+
+    /// Show a tooltip that is always open.
+    pub fn always_open(
         ctx: Context,
         parent_layer: LayerId,
         parent_widget: Id,
