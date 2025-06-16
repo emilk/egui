@@ -42,47 +42,48 @@ impl PopupsDemo {
                 let _ = ui.button("Item");
                 ui.menu_button("Recursive", |ui| self.nested_menus(ui));
 
-            // if ui.button(if *checked { "short" } else { "Very long text for this item that should be wrapped" }).clicked() {
-            //     *checked = !*checked;
-            // }
-            ui.checkbox(
-                checked,
-                if *checked {
-                    "short"
-                } else {
-                    "Very long text for this item that should be wrapped"
-                },
-            );
-        });
-        ui.menu_button("SubMenu", |ui| {
-            if ui.button("Open…").clicked() {
-                ui.close();
-            }
+                // if ui.button(if self.checked { "short" } else { "Very long text for this item that should be wrapped" }).clicked() {
+                //     self.checked = !self.checked;
+                // }
+                let checked = self.checked;
+                ui.checkbox(
+                    &mut self.checked,
+                    if checked {
+                        "short"
+                    } else {
+                        "Very long text for this item that should be wrapped"
+                    },
+                );
+            });
+            ui.menu_button("SubMenu", |ui| {
+                if ui.button("Open…").clicked() {
+                    ui.close();
+                }
+                let _ = ui.button("Item");
+            });
             let _ = ui.button("Item");
-        });
-        let _ = ui.button("Item");
-        if ui.button("Open…").clicked() {
-            ui.close();
-        }
-    });
-    ui.menu_image_text_button(
-        include_image!("../../data/icon.png"),
-        "I have an icon!",
-        |ui| {
-            let _ = ui.button("Item1");
-            let _ = ui.button("Item2");
-            let _ = ui.button("Item3");
-            let _ = ui.button("Item4");
             if ui.button("Open…").clicked() {
                 ui.close();
             }
-        },
-    );
-    let _ = ui.button("Very long text for this item that should be wrapped");
-    SubMenuButton::new("Always CloseOnClickOutside")
-        .config(MenuConfig::new().close_behavior(PopupCloseBehavior::CloseOnClickOutside))
-        .ui(ui, |ui| {
-            ui.checkbox(&mut self.checked, "Checkbox");
+        });
+        ui.menu_image_text_button(
+            include_image!("../../data/icon.png"),
+            "I have an icon!",
+            |ui| {
+                let _ = ui.button("Item1");
+                let _ = ui.button("Item2");
+                let _ = ui.button("Item3");
+                let _ = ui.button("Item4");
+                if ui.button("Open…").clicked() {
+                    ui.close();
+                }
+            },
+        );
+        let _ = ui.button("Very long text for this item that should be wrapped");
+        SubMenuButton::new("Always CloseOnClickOutside")
+            .config(MenuConfig::new().close_behavior(PopupCloseBehavior::CloseOnClickOutside))
+            .ui(ui, |ui| {
+                ui.checkbox(&mut self.checked, "Checkbox");
 
                 // Customized color SubMenuButton
                 let is_bright = self.color.intensity() > 0.5;
