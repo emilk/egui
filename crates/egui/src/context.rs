@@ -492,6 +492,7 @@ impl ContextImpl {
             pixels_per_point,
             self.memory.options.input_options,
         );
+        let repaint_after = viewport.input.wants_repaint_after();
 
         let screen_rect = viewport.input.screen_rect;
 
@@ -553,6 +554,10 @@ impl ContextImpl {
         }
 
         self.update_fonts_mut();
+
+        if let Some(delay) = repaint_after {
+            self.request_repaint_after(delay, viewport_id, RepaintCause::new());
+        }
     }
 
     /// Load fonts unless already loaded.
@@ -2398,10 +2403,7 @@ impl ContextImpl {
 
         if repaint_needed {
             self.request_repaint(ended_viewport_id, RepaintCause::new());
-        } else if let Some(delay) = viewport.input.wants_repaint_after() {
-            self.request_repaint_after(delay, ended_viewport_id, RepaintCause::new());
         }
-
         //  -------------------
 
         let all_viewport_ids = self.all_viewport_ids();
