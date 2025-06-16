@@ -149,14 +149,6 @@ impl FontImpl {
             return false;
         }
 
-        if self.name == "emoji-icon-font" {
-            // HACK: https://github.com/emilk/egui/issues/1284 https://github.com/jslegers/emoji-icon-font/issues/18
-            // Don't show the wrong fullwidth capital letters:
-            if 'Ｓ' <= chr && chr <= 'Ｙ' {
-                return true;
-            }
-        }
-
         matches!(
             chr,
             // Strip out a religious symbol with secondary nefarious interpretation:

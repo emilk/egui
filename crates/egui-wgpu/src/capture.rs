@@ -227,10 +227,10 @@ impl CaptureState {
             tx.send((
                 viewport_id,
                 data,
-                ColorImage {
-                    size: [tex_extent.width as usize, tex_extent.height as usize],
+                ColorImage::new(
+                    [tex_extent.width as usize, tex_extent.height as usize],
                     pixels,
-                },
+                ),
             ))
             .ok();
             ctx.request_repaint();

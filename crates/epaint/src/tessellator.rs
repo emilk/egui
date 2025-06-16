@@ -1300,8 +1300,6 @@ fn mul_color(color: Color32, factor: f32) -> Color32 {
 /// Converts [`Shape`]s into triangles ([`Mesh`]).
 ///
 /// For performance reasons it is smart to reuse the same [`Tessellator`].
-///
-/// See also [`tessellate_shapes`], a convenient wrapper around [`Tessellator`].
 #[derive(Clone)]
 pub struct Tessellator {
     pixels_per_point: f32,
@@ -2192,18 +2190,6 @@ impl Tessellator {
                 .stroke(self.feathering, PathType::Open, stroke, out);
         }
     }
-}
-
-#[deprecated = "Use `Tessellator::new(…).tessellate_shapes(…)` instead"]
-pub fn tessellate_shapes(
-    pixels_per_point: f32,
-    options: TessellationOptions,
-    font_tex_size: [usize; 2],
-    prepared_discs: Vec<PreparedDisc>,
-    shapes: Vec<ClippedShape>,
-) -> Vec<ClippedPrimitive> {
-    Tessellator::new(pixels_per_point, options, font_tex_size, prepared_discs)
-        .tessellate_shapes(shapes)
 }
 
 impl Tessellator {

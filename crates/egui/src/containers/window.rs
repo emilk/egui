@@ -376,14 +376,6 @@ impl<'open> Window<'open> {
         self
     }
 
-    /// Enable/disable horizontal/vertical scrolling. `false` by default.
-    #[deprecated = "Renamed to `scroll`"]
-    #[inline]
-    pub fn scroll2(mut self, scroll: impl Into<Vec2b>) -> Self {
-        self.scroll = self.scroll.scroll(scroll);
-        self
-    }
-
     /// Enable/disable horizontal scrolling. `false` by default.
     #[inline]
     pub fn hscroll(mut self, hscroll: bool) -> Self {
