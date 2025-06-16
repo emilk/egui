@@ -1140,4 +1140,39 @@ mod tests {
         assert_eq!(row.pos, Pos2::ZERO);
         assert_eq!(row.rect().max.x, row.glyphs.last().unwrap().max_x());
     }
+
+    #[test]
+    fn test_desired_size() {
+        let mut fonts = FontsImpl::new(1.0, 1024, FontDefinitions::default());
+
+        let mut job = LayoutJob::simple(
+            "Some basic text with /n multiple lines.".to_owned(),
+            FontId::default(),
+            Color32::BLACK,
+            80.0,
+        );
+
+        let galley_wrapped = layout(&mut fonts, job.clone().into());
+
+        job.wrap = TextWrapping::no_max_width();
+
+        let galley_unwrapped = layout(&mut fonts, job.into());
+
+        assert!(
+            galley_wrapped.size().y > galley_unwrapped.size().y * 2.0,
+            "Text should be wrapped"
+        );
+
+        let desired_size = galley_wrapped.desired_size();
+        let unwrapped_size = galley_unwrapped.size();
+        assert!(
+            (desired_size - unwrapped_size).length() < 1.0,
+            "Wrapped desired size should almost match unwrapped size: {desired_size:?} vs {unwrapped_size:?}"
+        );
+        assert_eq!(
+            galley_unwrapped.desired_size(),
+            galley_unwrapped.size(),
+            "Unwrapped galley desired size should exactly match its size"
+        );
+    }
 }
