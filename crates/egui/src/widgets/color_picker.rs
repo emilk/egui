@@ -2,8 +2,8 @@
 
 use crate::util::fixed_cache::FixedCache;
 use crate::{
-    epaint, lerp, remap_clamp, Context, DragValue, Id, Painter, Popup, Response, Sense, Ui,
-    Widget as _, WidgetInfo, WidgetType,
+    epaint, lerp, remap_clamp, Context, DragValue, Id, Painter, Popup, PopupCloseBehavior,
+    Response, Sense, Ui, Widget as _, WidgetInfo, WidgetType,
 };
 use epaint::{
     ecolor::{Color32, Hsva, HsvaGamma, Rgba},
@@ -498,12 +498,15 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
 
     const COLOR_SLIDER_WIDTH: f32 = 275.0;
 
-    Popup::menu(&button_response).id(popup_id).show(|ui| {
-        ui.spacing_mut().slider_width = COLOR_SLIDER_WIDTH;
-        if color_picker_hsva_2d(ui, hsva, alpha) {
-            button_response.mark_changed();
-        }
-    });
+    Popup::menu(&button_response)
+        .id(popup_id)
+        .close_behavior(PopupCloseBehavior::CloseOnClickOutside)
+        .show(|ui| {
+            ui.spacing_mut().slider_width = COLOR_SLIDER_WIDTH;
+            if color_picker_hsva_2d(ui, hsva, alpha) {
+                button_response.mark_changed();
+            }
+        });
 
     button_response
 }
