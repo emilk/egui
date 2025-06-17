@@ -248,7 +248,7 @@ pub fn almost_equal(a: f32, b: f32, epsilon: f32) -> bool {
     }
 }
 
-#[allow(clippy::approx_constant)]
+#[expect(clippy::approx_constant)]
 #[test]
 fn test_format() {
     assert_eq!(format_with_minimum_decimals(1_234_567.0, 0), "1234567");

@@ -5,7 +5,7 @@
 
 #![allow(clippy::identity_op)]
 
-use emath::{pos2, remap, vec2, GuiRounding as _, NumExt, Pos2, Rect, Rot2, Vec2};
+use emath::{pos2, remap, vec2, GuiRounding as _, NumExt as _, Pos2, Rect, Rot2, Vec2};
 
 use crate::{
     color::ColorMode, emath, stroke::PathStroke, texture_atlas::PreparedDisc, CircleShape,
@@ -16,7 +16,7 @@ use crate::{
 
 // ----------------------------------------------------------------------------
 
-#[allow(clippy::approx_constant)]
+#[expect(clippy::approx_constant)]
 mod precomputed_vertices {
     // fn main() {
     //     let n = 64;
@@ -1300,8 +1300,6 @@ fn mul_color(color: Color32, factor: f32) -> Color32 {
 /// Converts [`Shape`]s into triangles ([`Mesh`]).
 ///
 /// For performance reasons it is smart to reuse the same [`Tessellator`].
-///
-/// See also [`tessellate_shapes`], a convenient wrapper around [`Tessellator`].
 #[derive(Clone)]
 pub struct Tessellator {
     pixels_per_point: f32,
@@ -2194,18 +2192,6 @@ impl Tessellator {
     }
 }
 
-#[deprecated = "Use `Tessellator::new(…).tessellate_shapes(…)` instead"]
-pub fn tessellate_shapes(
-    pixels_per_point: f32,
-    options: TessellationOptions,
-    font_tex_size: [usize; 2],
-    prepared_discs: Vec<PreparedDisc>,
-    shapes: Vec<ClippedShape>,
-) -> Vec<ClippedPrimitive> {
-    Tessellator::new(pixels_per_point, options, font_tex_size, prepared_discs)
-        .tessellate_shapes(shapes)
-}
-
 impl Tessellator {
     /// Turns [`Shape`]:s into sets of triangles.
     ///
@@ -2222,7 +2208,7 @@ impl Tessellator {
     ///
     /// ## Returns
     /// A list of clip rectangles with matching [`Mesh`].
-    #[allow(unused_mut)]
+    #[allow(unused_mut, clippy::allow_attributes)]
     pub fn tessellate_shapes(&mut self, mut shapes: Vec<ClippedShape>) -> Vec<ClippedPrimitive> {
         profiling::function_scope!();
 

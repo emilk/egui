@@ -218,6 +218,14 @@ impl Response {
             && self.ctx.input(|i| i.pointer.button_triple_clicked(button))
     }
 
+    /// Was this widget middle-clicked or clicked while holding down a modifier key?
+    ///
+    /// This is used by [`crate::Hyperlink`] to check if a URL should be opened
+    /// in a new tab, using [`crate::OpenUrl::new_tab`].
+    pub fn clicked_with_open_in_background(&self) -> bool {
+        self.middle_clicked() || self.clicked() && self.ctx.input(|i| i.modifiers.any())
+    }
+
     /// `true` if there was a click *outside* the rect of this widget.
     ///
     /// Clicks on widgets contained in this one counts as clicks inside this widget,
@@ -385,19 +393,6 @@ impl Response {
     /// The widget was being dragged by the button, but now it has been released.
     pub fn drag_stopped_by(&self, button: PointerButton) -> bool {
         self.drag_stopped() && self.ctx.input(|i| i.pointer.button_released(button))
-    }
-
-    /// The widget was being dragged, but now it has been released.
-    #[inline]
-    #[deprecated = "Renamed 'drag_stopped'"]
-    pub fn drag_released(&self) -> bool {
-        self.drag_stopped()
-    }
-
-    /// The widget was being dragged by the button, but now it has been released.
-    #[deprecated = "Renamed 'drag_stopped_by'"]
-    pub fn drag_released_by(&self, button: PointerButton) -> bool {
-        self.drag_stopped_by(button)
     }
 
     /// If dragged, how many points were we dragged and in what direction?

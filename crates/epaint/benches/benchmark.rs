@@ -5,6 +5,9 @@ use epaint::{
     TessellationOptions, Tessellator, TextureAtlas, Vec2,
 };
 
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc; // Much faster allocator
+
 fn single_dashed_lines(c: &mut Criterion) {
     c.bench_function("single_dashed_lines", move |b| {
         b.iter(|| {

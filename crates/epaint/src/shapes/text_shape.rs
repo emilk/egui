@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use emath::{Align2, Rot2};
+
 use crate::*;
 
 /// How to paint some text on screen.
@@ -59,7 +61,10 @@ impl TextShape {
     /// The visual bounding rectangle
     #[inline]
     pub fn visual_bounding_rect(&self) -> Rect {
-        self.galley.mesh_bounds.translate(self.pos.to_vec2())
+        self.galley
+            .mesh_bounds
+            .rotate_bb(emath::Rot2::from_angle(self.angle))
+            .translate(self.pos.to_vec2())
     }
 
     #[inline]
@@ -75,11 +80,22 @@ impl TextShape {
         self
     }
 
-    /// Rotate text by this many radians clockwise.
+    /// Set text rotation to `angle` radians clockwise.
     /// The pivot is `pos` (the upper left corner of the text).
     #[inline]
     pub fn with_angle(mut self, angle: f32) -> Self {
         self.angle = angle;
+        self
+    }
+
+    /// Set the text rotation to the `angle` radians clockwise.
+    /// The pivot is determined by the given `anchor` point on the text bounding box.
+    #[inline]
+    pub fn with_angle_and_anchor(mut self, angle: f32, anchor: Align2) -> Self {
+        self.angle = angle;
+        let a0 = anchor.pos_in_rect(&self.galley.rect).to_vec2();
+        let a1 = Rot2::from_angle(angle) * a0;
+        self.pos += a0 - a1;
         self
     }
 
@@ -152,5 +168,40 @@ impl From<TextShape> for Shape {
     #[inline(always)]
     fn from(shape: TextShape) -> Self {
         Self::Text(shape)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{super::*, *};
+    use crate::text::FontDefinitions;
+    use emath::almost_equal;
+
+    #[test]
+    fn text_bounding_box_under_rotation() {
+        let fonts = Fonts::new(1.0, 1024, FontDefinitions::default());
+        let font = FontId::monospace(12.0);
+
+        let mut t = crate::Shape::text(
+            &fonts,
+            Pos2::ZERO,
+            emath::Align2::CENTER_CENTER,
+            "testing123",
+            font,
+            Color32::BLACK,
+        );
+
+        let size_orig = t.visual_bounding_rect().size();
+
+        // 90 degree rotation
+        if let Shape::Text(ts) = &mut t {
+            ts.angle = std::f32::consts::PI / 2.0;
+        }
+
+        let size_rot = t.visual_bounding_rect().size();
+
+        // make sure the box is actually rotated
+        assert!(almost_equal(size_orig.x, size_rot.y, 1e-4));
+        assert!(almost_equal(size_orig.y, size_rot.x, 1e-4));
     }
 }

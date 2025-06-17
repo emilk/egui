@@ -7,26 +7,49 @@ use emath::Vec2;
 
 pub struct Tooltip<'a> {
     pub popup: Popup<'a>,
-    layer_id: LayerId,
-    widget_id: Id,
+
+    /// The layer of the parent widget.
+    parent_layer: LayerId,
+
+    /// The id of the widget that owns this tooltip.
+    parent_widget: Id,
 }
 
 impl Tooltip<'_> {
-    /// Show a tooltip that is always open
+    /// Show a tooltip that is always open.
+    #[deprecated = "Use `Tooltip::always_open` instead."]
     pub fn new(
-        widget_id: Id,
+        parent_widget: Id,
         ctx: Context,
         anchor: impl Into<PopupAnchor>,
-        layer_id: LayerId,
+        parent_layer: LayerId,
     ) -> Self {
         Self {
-            // TODO(lucasmerlin): Set width somehow (we're missing context here)
-            popup: Popup::new(widget_id, ctx, anchor.into(), layer_id)
+            popup: Popup::new(parent_widget, ctx, anchor.into(), parent_layer)
                 .kind(PopupKind::Tooltip)
                 .gap(4.0)
                 .sense(Sense::hover()),
-            layer_id,
-            widget_id,
+            parent_layer,
+            parent_widget,
+        }
+    }
+
+    /// Show a tooltip that is always open.
+    pub fn always_open(
+        ctx: Context,
+        parent_layer: LayerId,
+        parent_widget: Id,
+        anchor: impl Into<PopupAnchor>,
+    ) -> Self {
+        let width = ctx.style().spacing.tooltip_width;
+        Self {
+            popup: Popup::new(parent_widget, ctx, anchor.into(), parent_layer)
+                .kind(PopupKind::Tooltip)
+                .gap(4.0)
+                .width(width)
+                .sense(Sense::hover()),
+            parent_layer,
+            parent_widget,
         }
     }
 
@@ -39,8 +62,8 @@ impl Tooltip<'_> {
             .sense(Sense::hover());
         Self {
             popup,
-            layer_id: response.layer_id,
-            widget_id: response.id,
+            parent_layer: response.layer_id,
+            parent_widget: response.id,
         }
     }
 
@@ -96,8 +119,8 @@ impl Tooltip<'_> {
     pub fn show<R>(self, content: impl FnOnce(&mut crate::Ui) -> R) -> Option<InnerResponse<R>> {
         let Self {
             mut popup,
-            layer_id: parent_layer,
-            widget_id,
+            parent_layer,
+            parent_widget,
         } = self;
 
         if !popup.is_open() {
@@ -111,11 +134,11 @@ impl Tooltip<'_> {
             fs.layers
                 .entry(parent_layer)
                 .or_default()
-                .widget_with_tooltip = Some(widget_id);
+                .widget_with_tooltip = Some(parent_widget);
 
             fs.tooltips
                 .widget_tooltips
-                .get(&widget_id)
+                .get(&parent_widget)
                 .copied()
                 .unwrap_or(PerWidgetTooltipState {
                     bounding_rect: rect,
@@ -123,7 +146,7 @@ impl Tooltip<'_> {
                 })
         });
 
-        let tooltip_area_id = Self::tooltip_id(widget_id, state.tooltip_count);
+        let tooltip_area_id = Self::tooltip_id(parent_widget, state.tooltip_count);
         popup = popup.anchor(state.bounding_rect).id(tooltip_area_id);
 
         let response = popup.show(|ui| {
@@ -144,7 +167,7 @@ impl Tooltip<'_> {
             response
                 .response
                 .ctx
-                .pass_state_mut(|fs| fs.tooltips.widget_tooltips.insert(widget_id, state));
+                .pass_state_mut(|fs| fs.tooltips.widget_tooltips.insert(parent_widget, state));
             Self::remember_that_tooltip_was_shown(&response.response.ctx);
         }
 

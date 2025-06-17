@@ -8,8 +8,8 @@ use epaint::{
 use crate::{
     text::CCursorRange,
     text_selection::text_cursor_state::{
-        byte_index_from_char_index, ccursor_next_word, ccursor_previous_word, find_line_start,
-        slice_char_range,
+        byte_index_from_char_index, ccursor_next_word, ccursor_previous_word,
+        char_index_from_byte_index, find_line_start, slice_char_range,
     },
 };
 
@@ -46,6 +46,10 @@ pub trait TextBuffer {
 
     fn byte_index_from_char_index(&self, char_index: usize) -> usize {
         byte_index_from_char_index(self.as_str(), char_index)
+    }
+
+    fn char_index_from_byte_index(&self, char_index: usize) -> usize {
+        char_index_from_byte_index(self.as_str(), char_index)
     }
 
     /// Clears all characters in this buffer

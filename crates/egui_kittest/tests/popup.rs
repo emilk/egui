@@ -1,4 +1,4 @@
-use kittest::Queryable;
+use kittest::Queryable as _;
 
 #[test]
 fn test_interactive_tooltip() {
@@ -23,7 +23,7 @@ fn test_interactive_tooltip() {
     harness.run();
     harness.get_by_label("link").hover();
     harness.run();
-    harness.get_by_label("link").simulate_click();
+    harness.get_by_label("link").click();
 
     harness.run();
 

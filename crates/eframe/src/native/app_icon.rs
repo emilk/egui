@@ -47,7 +47,7 @@ enum AppIconStatus {
     NotSetTryAgain,
 
     /// We successfully set the icon and it should be visible now.
-    #[allow(dead_code)] // Not used on Linux
+    #[allow(dead_code, clippy::allow_attributes)] // Not used on Linux
     Set,
 }
 
@@ -71,13 +71,13 @@ fn set_title_and_icon(_title: &str, _icon_data: Option<&IconData>) -> AppIconSta
     #[cfg(target_os = "macos")]
     return set_title_and_icon_mac(_title, _icon_data);
 
-    #[allow(unreachable_code)]
+    #[allow(unreachable_code, clippy::allow_attributes)]
     AppIconStatus::NotSetIgnored
 }
 
 /// Set icon for Windows applications.
 #[cfg(target_os = "windows")]
-#[allow(unsafe_code)]
+#[expect(unsafe_code)]
 fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
     use crate::icon_data::IconDataExt as _;
     use winapi::um::winuser;
@@ -198,12 +198,12 @@ fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
 
 /// Set icon & app title for `MacOS` applications.
 #[cfg(target_os = "macos")]
-#[allow(unsafe_code)]
+#[expect(unsafe_code)]
 fn set_title_and_icon_mac(title: &str, icon_data: Option<&IconData>) -> AppIconStatus {
     use crate::icon_data::IconDataExt as _;
     profiling::function_scope!();
 
-    use objc2::ClassType;
+    use objc2::ClassType as _;
     use objc2_app_kit::{NSApplication, NSImage};
     use objc2_foundation::{NSData, NSString};
 

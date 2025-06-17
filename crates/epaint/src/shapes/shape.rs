@@ -296,7 +296,7 @@ impl Shape {
         Self::Rect(RectShape::stroke(rect, corner_radius, stroke, stroke_kind))
     }
 
-    #[allow(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value)]
     pub fn text(
         fonts: &Fonts,
         pos: Pos2,

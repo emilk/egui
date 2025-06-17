@@ -419,10 +419,7 @@ impl TextureManager {
             let height = 1;
             ctx.load_texture(
                 "color_test_gradient",
-                epaint::ColorImage {
-                    size: [width, height],
-                    pixels,
-                },
+                epaint::ColorImage::new([width, height], pixels),
                 TextureOptions::LINEAR,
             )
         })
@@ -740,8 +737,9 @@ mod tests {
                 });
 
             {
-                // Expand color-test collapsing header
-                harness.get_by_label("Color test").click();
+                // Expand color-test collapsing header. We accesskit-click since collapsing header
+                // might not be on screen at this point.
+                harness.get_by_label("Color test").click_accesskit();
                 harness.run();
             }
 

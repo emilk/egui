@@ -1,7 +1,7 @@
 use egui::{Event, UserData, ViewportId};
 use egui_glow::glow;
 use std::sync::Arc;
-use wasm_bindgen::JsCast;
+use wasm_bindgen::JsCast as _;
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
 
@@ -27,7 +27,8 @@ impl WebPainterGlow {
     ) -> Result<Self, String> {
         let (gl, shader_prefix) =
             init_glow_context_from_canvas(&canvas, options.webgl_context_option)?;
-        #[allow(clippy::arc_with_non_send_sync)]
+
+        #[allow(clippy::arc_with_non_send_sync, clippy::allow_attributes)] // For wasm
         let gl = std::sync::Arc::new(gl);
 
         let painter = egui_glow::Painter::new(gl, shader_prefix, None, options.dithering)

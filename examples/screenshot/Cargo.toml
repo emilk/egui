@@ -7,7 +7,7 @@ authors = [
 ]
 license = "MIT OR Apache-2.0"
 edition = "2021"
-rust-version = "1.81"
+rust-version = "1.84"
 publish = false
 
 [lints]

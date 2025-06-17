@@ -1,10 +1,22 @@
 use std::fmt::Write as _;
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 
 use egui::epaint::TextShape;
+use egui::load::SizedTexture;
+use egui::{Button, Id, RichText, TextureId, Ui, UiBuilder, Vec2};
 use egui_demo_lib::LOREM_IPSUM_LONG;
 use rand::Rng as _;
+
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc; // Much faster allocator
+
+/// Each iteration should be called in their own `Ui` with an intentional id clash,
+/// to prevent the Context from building a massive map of `WidgetRects` (which would slow the test,
+/// causing unreliable results).
+fn create_benchmark_ui(ctx: &egui::Context) -> Ui {
+    Ui::new(ctx.clone(), Id::new("clashing_id"), UiBuilder::new())
+}
 
 pub fn criterion_benchmark(c: &mut Criterion) {
     use egui::RawInput;
@@ -55,17 +67,71 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     {
         let ctx = egui::Context::default();
         let _ = ctx.run(RawInput::default(), |ctx| {
-            egui::CentralPanel::default().show(ctx, |ui| {
-                c.bench_function("label &str", |b| {
-                    b.iter(|| {
+            c.bench_function("label &str", |b| {
+                b.iter_batched_ref(
+                    || create_benchmark_ui(ctx),
+                    |ui| {
                         ui.label("the quick brown fox jumps over the lazy dog");
-                    });
-                });
-                c.bench_function("label format!", |b| {
-                    b.iter(|| {
+                    },
+                    BatchSize::LargeInput,
+                );
+            });
+            c.bench_function("label format!", |b| {
+                b.iter_batched_ref(
+                    || create_benchmark_ui(ctx),
+                    |ui| {
                         ui.label("the quick brown fox jumps over the lazy dog".to_owned());
-                    });
-                });
+                    },
+                    BatchSize::LargeInput,
+                );
+            });
+        });
+    }
+
+    {
+        let ctx = egui::Context::default();
+        let _ = ctx.run(RawInput::default(), |ctx| {
+            let mut group = c.benchmark_group("button");
+
+            // To ensure we have a valid image, let's use the font texture. The size
+            // shouldn't be important for this benchmark.
+            let image = SizedTexture::new(TextureId::default(), Vec2::splat(16.0));
+
+            group.bench_function("1_button_text", |b| {
+                b.iter_batched_ref(
+                    || create_benchmark_ui(ctx),
+                    |ui| {
+                        ui.add(Button::new("Hello World"));
+                    },
+                    BatchSize::LargeInput,
+                );
+            });
+            group.bench_function("2_button_text_image", |b| {
+                b.iter_batched_ref(
+                    || create_benchmark_ui(ctx),
+                    |ui| {
+                        ui.add(Button::image_and_text(image, "Hello World"));
+                    },
+                    BatchSize::LargeInput,
+                );
+            });
+            group.bench_function("3_button_text_image_right_text", |b| {
+                b.iter_batched_ref(
+                    || create_benchmark_ui(ctx),
+                    |ui| {
+                        ui.add(Button::image_and_text(image, "Hello World").right_text("⏵"));
+                    },
+                    BatchSize::LargeInput,
+                );
+            });
+            group.bench_function("4_button_italic", |b| {
+                b.iter_batched_ref(
+                    || create_benchmark_ui(ctx),
+                    |ui| {
+                        ui.add(Button::new(RichText::new("Hello World").italics()));
+                    },
+                    BatchSize::LargeInput,
+                );
             });
         });
     }

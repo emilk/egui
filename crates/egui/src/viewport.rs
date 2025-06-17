@@ -42,7 +42,7 @@
 //! a [`ViewportCommand`] to it using [`Context::send_viewport_cmd`].
 //! You can interact with other viewports using [`Context::send_viewport_cmd_to`].
 //!
-//! There is an example in <https://github.com/emilk/egui/tree/master/examples/multiple_viewports/src/main.rs>.
+//! There is an example in <https://github.com/emilk/egui/tree/main/examples/multiple_viewports/src/main.rs>.
 //!
 //! You can find all available viewports in [`crate::RawInput::viewports`] and the active viewport in
 //! [`crate::InputState::viewport`]:
@@ -260,7 +260,6 @@ pub type ImmediateViewportRendererCallback = dyn for<'a> Fn(&Context, ImmediateV
 /// The default values are implementation defined, so you may want to explicitly
 /// configure the size of the window, and what buttons are shown.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
-#[allow(clippy::option_option)]
 pub struct ViewportBuilder {
     /// The title of the viewport.
     /// `eframe` will use this as the title of the native window.
@@ -295,6 +294,7 @@ pub struct ViewportBuilder {
     pub title_shown: Option<bool>,
     pub titlebar_buttons_shown: Option<bool>,
     pub titlebar_shown: Option<bool>,
+    pub has_shadow: Option<bool>,
 
     // windows:
     pub drag_and_drop: Option<bool>,
@@ -381,6 +381,10 @@ impl ViewportBuilder {
     /// The default is `false`.
     /// If this is not working, it's because the graphic context doesn't support transparency,
     /// you will need to set the transparency in the eframe!
+    ///
+    /// ## Platform-specific
+    ///
+    /// **macOS:** When using this feature to create an overlay-like UI, you likely want to combine this with [`Self::with_has_shadow`] set to `false` in order to avoid ghosting artifacts.
     #[inline]
     pub fn with_transparent(mut self, transparent: bool) -> Self {
         self.transparent = Some(transparent);
@@ -434,7 +438,6 @@ impl ViewportBuilder {
     }
 
     /// macOS: Set to `true` to allow the window to be moved by dragging the background.
-    ///
     /// Enabling this feature can result in unexpected behaviour with draggable UI widgets such as sliders.
     #[inline]
     pub fn with_movable_by_background(mut self, value: bool) -> Self {
@@ -460,6 +463,19 @@ impl ViewportBuilder {
     #[inline]
     pub fn with_titlebar_shown(mut self, shown: bool) -> Self {
         self.titlebar_shown = Some(shown);
+        self
+    }
+
+    /// macOS: Set to `false` to make the window render without a drop shadow.
+    ///
+    /// The default is `true`.
+    ///
+    /// Disabling this feature can solve ghosting issues experienced if using [`Self::with_transparent`].
+    ///
+    /// Look at winit for more details
+    #[inline]
+    pub fn with_has_shadow(mut self, has_shadow: bool) -> Self {
+        self.has_shadow = Some(has_shadow);
         self
     }
 
@@ -654,6 +670,7 @@ impl ViewportBuilder {
             title_shown: new_title_shown,
             titlebar_buttons_shown: new_titlebar_buttons_shown,
             titlebar_shown: new_titlebar_shown,
+            has_shadow: new_has_shadow,
             close_button: new_close_button,
             minimize_button: new_minimize_button,
             maximize_button: new_maximize_button,
@@ -821,6 +838,11 @@ impl ViewportBuilder {
 
         if new_titlebar_shown.is_some() && self.titlebar_shown != new_titlebar_shown {
             self.titlebar_shown = new_titlebar_shown;
+            recreate_window = true;
+        }
+
+        if new_has_shadow.is_some() && self.has_shadow != new_has_shadow {
+            self.has_shadow = new_has_shadow;
             recreate_window = true;
         }
 

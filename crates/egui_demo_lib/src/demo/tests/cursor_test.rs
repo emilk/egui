@@ -16,14 +16,6 @@ impl crate::Demo for CursorTest {
 
 impl crate::View for CursorTest {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        if ui
-            .button("Center pointer in window")
-            .on_hover_text("The platform may not support this.")
-            .clicked()
-        {
-            let position = ui.ctx().available_rect().center();
-            ui.ctx().set_pointer_position(position);
-        }
         ui.vertical_centered_justified(|ui| {
             ui.heading("Hover to switch cursor icon:");
             for &cursor_icon in &egui::CursorIcon::ALL {

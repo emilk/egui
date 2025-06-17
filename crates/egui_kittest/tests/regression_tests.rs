@@ -1,6 +1,6 @@
 use egui::accesskit::Role;
-use egui::{Button, ComboBox, Image, Vec2, Widget};
-use egui_kittest::{kittest::Queryable, Harness, SnapshotResults};
+use egui::{Button, ComboBox, Image, Vec2, Widget as _};
+use egui_kittest::{kittest::Queryable as _, Harness, SnapshotResults};
 
 #[test]
 pub fn focus_should_skip_over_disabled_buttons() {
@@ -10,19 +10,19 @@ pub fn focus_should_skip_over_disabled_buttons() {
         ui.add(Button::new("Button 3"));
     });
 
-    harness.press_key(egui::Key::Tab);
+    harness.key_press(egui::Key::Tab);
     harness.run();
 
     let button_1 = harness.get_by_label("Button 1");
     assert!(button_1.is_focused());
 
-    harness.press_key(egui::Key::Tab);
+    harness.key_press(egui::Key::Tab);
     harness.run();
 
     let button_3 = harness.get_by_label("Button 3");
     assert!(button_3.is_focused());
 
-    harness.press_key(egui::Key::Tab);
+    harness.key_press(egui::Key::Tab);
     harness.run();
 
     let button_1 = harness.get_by_label("Button 1");
@@ -41,13 +41,13 @@ pub fn focus_should_skip_over_disabled_drag_values() {
         ui.add(egui::DragValue::new(&mut value_3));
     });
 
-    harness.press_key(egui::Key::Tab);
+    harness.key_press(egui::Key::Tab);
     harness.run();
 
     let drag_value_1 = harness.get_by(|node| node.numeric_value() == Some(1.0));
     assert!(drag_value_1.is_focused());
 
-    harness.press_key(egui::Key::Tab);
+    harness.key_press(egui::Key::Tab);
     harness.run();
 
     let drag_value_3 = harness.get_by(|node| node.numeric_value() == Some(3.0));
@@ -103,8 +103,7 @@ fn test_combobox() {
     results.add(harness.try_snapshot("combobox_opened"));
 
     let item_2 = harness.get_by_role_and_label(Role::Button, "Item 2");
-    // Node::click doesn't close the popup, so we use simulate_click
-    item_2.simulate_click();
+    item_2.click();
 
     harness.run();
 

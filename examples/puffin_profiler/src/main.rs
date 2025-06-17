@@ -165,7 +165,7 @@ fn start_puffin_server() {
 
             // We can store the server if we want, but in this case we just want
             // it to keep running. Dropping it closes the server, so let's not drop it!
-            #[allow(clippy::mem_forget)]
+            #[expect(clippy::mem_forget)]
             std::mem::forget(puffin_server);
         }
         Err(err) => {

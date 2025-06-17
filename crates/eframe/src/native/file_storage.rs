@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    io::Write,
+    io::Write as _,
     path::{Path, PathBuf},
 };
 
@@ -42,10 +42,10 @@ pub fn storage_dir(app_id: &str) -> Option<PathBuf> {
 // Adapted from
 // https://github.com/rust-lang/cargo/blob/6e11c77384989726bb4f412a0e23b59c27222c34/crates/home/src/windows.rs#L19-L37
 #[cfg(all(windows, not(target_vendor = "uwp")))]
-#[allow(unsafe_code)]
+#[expect(unsafe_code)]
 fn roaming_appdata() -> Option<PathBuf> {
     use std::ffi::OsString;
-    use std::os::windows::ffi::OsStringExt;
+    use std::os::windows::ffi::OsStringExt as _;
     use std::ptr;
     use std::slice;
 
@@ -207,7 +207,8 @@ fn save_to_disk(file_path: &PathBuf, kv: &HashMap<String, String>) {
             let config = Default::default();
 
             profiling::scope!("ron::serialize");
-            if let Err(err) = ron::ser::to_writer_pretty(&mut writer, &kv, config)
+            if let Err(err) = ron::Options::default()
+                .to_io_writer_pretty(&mut writer, &kv, config)
                 .and_then(|_| writer.flush().map_err(|err| err.into()))
             {
                 log::warn!("Failed to serialize app state: {}", err);
