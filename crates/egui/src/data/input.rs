@@ -598,6 +598,9 @@ pub const NUM_POINTER_BUTTONS: usize = 5;
 #[derive(Clone, Copy, Default, Hash, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Modifiers {
+    /// The fn key (or the 🌐︎ Globe key on Mac).
+    pub function: bool,
+
     /// Either of the alt keys are down (option ⌥ on Mac).
     pub alt: bool,
 
@@ -625,6 +628,7 @@ impl std::fmt::Debug for Modifiers {
         }
 
         let Self {
+            function,
             alt,
             ctrl,
             shift,
@@ -633,6 +637,9 @@ impl std::fmt::Debug for Modifiers {
         } = *self;
 
         let mut debug = f.debug_struct("Modifiers");
+        if function {
+            debug.field("function", &true);
+        }
         if alt {
             debug.field("alt", &true);
         }
@@ -654,6 +661,7 @@ impl std::fmt::Debug for Modifiers {
 
 impl Modifiers {
     pub const NONE: Self = Self {
+        function: false,
         alt: false,
         ctrl: false,
         shift: false,
@@ -661,7 +669,16 @@ impl Modifiers {
         command: false,
     };
 
+    pub const FN: Self = Self {
+        function: true,
+        alt: false,
+        ctrl: false,
+        shift: false,
+        mac_cmd: false,
+        command: false,
+    };
     pub const ALT: Self = Self {
+        function: false,
         alt: true,
         ctrl: false,
         shift: false,
@@ -669,6 +686,7 @@ impl Modifiers {
         command: false,
     };
     pub const CTRL: Self = Self {
+        function: false,
         alt: false,
         ctrl: true,
         shift: false,
@@ -676,6 +694,7 @@ impl Modifiers {
         command: false,
     };
     pub const SHIFT: Self = Self {
+        function: false,
         alt: false,
         ctrl: false,
         shift: true,
@@ -685,6 +704,7 @@ impl Modifiers {
 
     /// The Mac ⌘ Command key
     pub const MAC_CMD: Self = Self {
+        function: false,
         alt: false,
         ctrl: false,
         shift: false,
@@ -694,6 +714,7 @@ impl Modifiers {
 
     /// On Mac: ⌘ Command key, elsewhere: Ctrl key
     pub const COMMAND: Self = Self {
+        function: false,
         alt: false,
         ctrl: false,
         shift: false,
@@ -719,6 +740,7 @@ impl Modifiers {
     #[inline]
     pub const fn plus(self, rhs: Self) -> Self {
         Self {
+            function: self.function | rhs.function,
             alt: self.alt | rhs.alt,
             ctrl: self.ctrl | rhs.ctrl,
             shift: self.shift | rhs.shift,
@@ -739,19 +761,19 @@ impl Modifiers {
 
     #[inline]
     pub fn all(&self) -> bool {
-        self.alt && self.ctrl && self.shift && self.command
+        self.function && self.alt && self.ctrl && self.shift && self.command
     }
 
     /// Is shift the only pressed button?
     #[inline]
     pub fn shift_only(&self) -> bool {
-        self.shift && !(self.alt || self.command)
+        self.shift && !(self.function || self.alt || self.command)
     }
 
     /// true if only [`Self::ctrl`] or only [`Self::mac_cmd`] is pressed.
     #[inline]
     pub fn command_only(&self) -> bool {
-        !self.alt && !self.shift && self.command
+        !self.function && !self.alt && !self.shift && self.command
     }
 
     /// Checks that the `ctrl/cmd` matches, and that the `shift/alt` of the argument is a subset
@@ -790,6 +812,9 @@ impl Modifiers {
     /// assert!(!Modifiers::COMMAND.matches_logically(Modifiers::MAC_CMD));
     /// ```
     pub fn matches_logically(&self, pattern: Self) -> bool {
+        if pattern.function && !self.function {
+            return false;
+        }
         if pattern.alt && !self.alt {
             return false;
         }
@@ -833,7 +858,10 @@ impl Modifiers {
     /// ```
     pub fn matches_exact(&self, pattern: Self) -> bool {
         // alt and shift must always match the pattern:
-        if pattern.alt != self.alt || pattern.shift != self.shift {
+        if pattern.function != self.function
+            || pattern.alt != self.alt
+            || pattern.shift != self.shift
+        {
             return false;
         }
 
@@ -929,6 +957,7 @@ impl Modifiers {
         }
 
         let Self {
+            function,
             alt,
             ctrl,
             shift,
@@ -936,6 +965,12 @@ impl Modifiers {
             command,
         } = *self;
 
+        if function && query.function {
+            return self.contains(Self {
+                function: false,
+                ..query
+            });
+        }
         if alt && query.alt {
             return self.contains(Self {
                 alt: false,
@@ -999,6 +1034,7 @@ impl Modifiers {
 pub struct ModifierNames<'a> {
     pub is_short: bool,
 
+    pub function: &'a str,
     pub alt: &'a str,
     pub ctrl: &'a str,
     pub shift: &'a str,
@@ -1010,9 +1046,10 @@ pub struct ModifierNames<'a> {
 }
 
 impl ModifierNames<'static> {
-    /// ⌥ ⌃ ⇧ ⌘ - NOTE: not supported by the default egui font.
+    /// 🌐︎ ⌥ ⌃ ⇧ ⌘ - NOTE: not supported by the default egui font.
     pub const SYMBOLS: Self = Self {
         is_short: true,
+        function: "🌐︎",
         alt: "⌥",
         ctrl: "⌃",
         shift: "⇧",
@@ -1021,9 +1058,10 @@ impl ModifierNames<'static> {
         concat: "",
     };
 
-    /// Alt, Ctrl, Shift, Cmd
+    /// Fn, Alt, Ctrl, Shift, Cmd
     pub const NAMES: Self = Self {
         is_short: false,
+        function: "Fn",
         alt: "Alt",
         ctrl: "Ctrl",
         shift: "Shift",
@@ -1049,11 +1087,13 @@ impl ModifierNames<'_> {
         if is_mac {
             append_if(modifiers.ctrl, self.ctrl);
             append_if(modifiers.shift, self.shift);
+            append_if(modifiers.function, self.function);
             append_if(modifiers.alt, self.mac_alt);
             append_if(modifiers.mac_cmd || modifiers.command, self.mac_cmd);
         } else {
             append_if(modifiers.ctrl || modifiers.command, self.ctrl);
             append_if(modifiers.alt, self.alt);
+            append_if(modifiers.function, self.function);
             append_if(modifiers.shift, self.shift);
         }
 
