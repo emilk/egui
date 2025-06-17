@@ -1056,6 +1056,13 @@ impl Visuals {
         self.window_stroke
     }
 
+    /// When fading out things, we fade the colors towards this.
+    #[inline(always)]
+    #[deprecated = "Use disabled_alpha(). Fading is now handled by modifying the alpha channel."]
+    pub fn fade_out_to_color(&self) -> Color32 {
+        self.widgets.noninteractive.weak_bg_fill
+    }
+
     /// Disabled widgets have their alpha modified by this.
     #[inline(always)]
     pub fn disabled_alpha(&self) -> f32 {
