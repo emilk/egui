@@ -747,7 +747,8 @@ impl ScrollStyle {
 
 // ----------------------------------------------------------------------------
 
-/// Scroll animation configuration, used when programmatically scrolling somewhere (e.g. with `[crate::Ui::scroll_to_cursor]`)
+/// Scroll animation configuration, used when programmatically scrolling somewhere (e.g. with `[crate::Ui::scroll_to_cursor]`).
+///
 /// The animation duration is calculated based on the distance to be scrolled via `[ScrollAnimation::points_per_second]`
 /// and can be clamped to a min / max duration via `[ScrollAnimation::duration]`.
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -1271,7 +1272,7 @@ pub fn default_text_styles() -> BTreeMap<TextStyle, FontId> {
 
 impl Default for Style {
     fn default() -> Self {
-        #[allow(deprecated)]
+        #[expect(deprecated)]
         Self {
             override_font_id: None,
             override_text_style: None,
@@ -1574,7 +1575,7 @@ use crate::{
 
 impl Style {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
-        #[allow(deprecated)]
+        #[expect(deprecated)]
         let Self {
             override_font_id,
             override_text_style,

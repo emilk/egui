@@ -9,7 +9,7 @@ use super::{
     font::UvRect,
 };
 use crate::{Color32, FontId, Mesh, Stroke};
-use emath::{pos2, vec2, Align, GuiRounding as _, NumExt, OrderedFloat, Pos2, Rect, Vec2};
+use emath::{pos2, vec2, Align, GuiRounding as _, NumExt as _, OrderedFloat, Pos2, Rect, Vec2};
 
 /// Describes the task of laying out text.
 ///
@@ -113,6 +113,21 @@ impl LayoutJob {
                 max_width: wrap_width,
                 ..Default::default()
             },
+            break_on_newline: true,
+            ..Default::default()
+        }
+    }
+
+    /// Break on `\n`
+    #[inline]
+    pub fn simple_format(text: String, format: TextFormat) -> Self {
+        Self {
+            sections: vec![LayoutSection {
+                leading_space: 0.0,
+                byte_range: 0..text.len(),
+                format,
+            }],
+            text,
             break_on_newline: true,
             ..Default::default()
         }
@@ -561,9 +576,17 @@ pub struct PlacedRow {
 
 impl PlacedRow {
     /// Logical bounding rectangle on font heights etc.
-    /// Use this when drawing a selection or similar!
+    ///
+    /// This ignores / includes the `LayoutSection::leading_space`.
     pub fn rect(&self) -> Rect {
         Rect::from_min_size(self.pos, self.row.size)
+    }
+
+    /// Same as [`Self::rect`] but excluding the `LayoutSection::leading_space`.
+    pub fn rect_without_leading_space(&self) -> Rect {
+        let x = self.glyphs.first().map_or(self.pos.x, |g| g.pos.x);
+        let size_x = self.size.x - x;
+        Rect::from_min_size(Pos2::new(x, self.pos.y), Vec2::new(size_x, self.size.y))
     }
 }
 
@@ -971,7 +994,7 @@ impl Galley {
     ///
     /// This is the same as [`CCursor::default`].
     #[inline]
-    #[allow(clippy::unused_self)]
+    #[expect(clippy::unused_self)]
     pub fn begin(&self) -> CCursor {
         CCursor::default()
     }
@@ -1062,7 +1085,7 @@ impl Galley {
 
 /// ## Cursor positions
 impl Galley {
-    #[allow(clippy::unused_self)]
+    #[expect(clippy::unused_self)]
     pub fn cursor_left_one_character(&self, cursor: &CCursor) -> CCursor {
         if cursor.index == 0 {
             Default::default()
@@ -1079,6 +1102,10 @@ impl Galley {
             index: (cursor.index + 1).min(self.end().index),
             prefer_next_row: true, // default to this when navigating. It is more often useful to put cursor at the beginning of a row than at the end.
         }
+    }
+
+    pub fn clamp_cursor(&self, cursor: &CCursor) -> CCursor {
+        self.cursor_from_layout(self.layout_from_cursor(*cursor))
     }
 
     pub fn cursor_up_one_row(

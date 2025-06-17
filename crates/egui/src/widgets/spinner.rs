@@ -43,7 +43,7 @@ impl Spinner {
                 .color
                 .unwrap_or_else(|| ui.visuals().strong_text_color());
             let radius = (rect.height() / 2.0) - 2.0;
-            let n_points = 20;
+            let n_points = (radius.round() as u32).clamp(8, 128);
             let time = ui.input(|i| i.time);
             let start_angle = time * std::f64::consts::TAU;
             let end_angle = start_angle + 240f64.to_radians() * time.sin();

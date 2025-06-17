@@ -23,7 +23,7 @@ members = [
 [workspace.package]
 edition = "2021"
 license = "MIT OR Apache-2.0"
-rust-version = "1.81"
+rust-version = "1.84"
 version = "0.31.1"
 
 
@@ -68,8 +68,8 @@ egui_glow = { version = "0.31.1", path = "crates/egui_glow", default-features = 
 egui_kittest = { version = "0.31.1", path = "crates/egui_kittest", default-features = false }
 eframe = { version = "0.31.1", path = "crates/eframe", default-features = false }
 
-accesskit = "0.18.0"
-accesskit_winit = "0.24"
+accesskit = "0.19.0"
+accesskit_winit = "0.27"
 ahash = { version = "0.8.11", default-features = false, features = [
     "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
     "std",
@@ -87,6 +87,7 @@ home = "0.5.9"
 image = { version = "0.25", default-features = false }
 kittest = { version = "0.1.0", git = "https://github.com/rerun-io/kittest", branch = "main" }
 log = { version = "0.4", features = ["std"] }
+mimalloc = "0.1.46"
 nohash-hasher = "0.2"
 parking_lot = "0.12"
 pollster = "0.4"
@@ -94,16 +95,18 @@ profiling = { version = "1.0.16", default-features = false }
 puffin = "0.19"
 puffin_http = "0.16"
 raw-window-handle = "0.6.0"
-ron = "0.8"
+ron = "0.10.1"
 serde = { version = "1", features = ["derive"] }
 similar-asserts = "1.4.2"
+smallvec = "1"
 thiserror = "1.0.37"
 type-map = "0.5.0"
+unicode-segmentation = "1.12.0"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 web-sys = "0.3.73"
 web-time = "1.1.0" # Timekeeping for native and web
-wgpu = { version = "24.0.0", default-features = false }
+wgpu = { version = "25.0.0", default-features = false }
 windows-sys = "0.59"
 winit = { version = "0.30.7", default-features = false }
 
@@ -133,6 +136,7 @@ broken_intra_doc_links = "warn"
 
 # See also clippy.toml
 [workspace.lints.clippy]
+allow_attributes = "warn"
 as_ptr_cast_mut = "warn"
 await_holding_lock = "warn"
 bool_to_int_with_if = "warn"
@@ -194,13 +198,13 @@ macro_use_imports = "warn"
 manual_assert = "warn"
 manual_clamp = "warn"
 manual_instant_elapsed = "warn"
+manual_is_power_of_two = "warn"
 manual_is_variant_and = "warn"
 manual_let_else = "warn"
 manual_ok_or = "warn"
 manual_string_new = "warn"
 map_err_ignore = "warn"
 map_flatten = "warn"
-map_unwrap_or = "warn"
 match_bool = "warn"
 match_on_vec_items = "warn"
 match_same_arms = "warn"
@@ -221,11 +225,13 @@ needless_for_each = "warn"
 needless_pass_by_ref_mut = "warn"
 needless_pass_by_value = "warn"
 negative_feature_names = "warn"
+non_zero_suggestions = "warn"
 nonstandard_macro_braces = "warn"
 option_as_ref_cloned = "warn"
 option_option = "warn"
 path_buf_push_overwrite = "warn"
 print_stderr = "warn"
+pathbuf_init_then_push = "warn"
 ptr_as_ptr = "warn"
 ptr_cast_constness = "warn"
 pub_underscore_fields = "warn"
@@ -239,6 +245,7 @@ ref_patterns = "warn"
 rest_pat_in_fully_bound_structs = "warn"
 same_functions_in_if_condition = "warn"
 semicolon_if_nothing_returned = "warn"
+set_contains_or_insert = "warn"
 single_char_pattern = "warn"
 single_match_else = "warn"
 str_split_at_newline = "warn"
@@ -251,6 +258,7 @@ string_to_string = "warn"
 suspicious_command_arg_space = "warn"
 suspicious_xor_used_as_pow = "warn"
 todo = "warn"
+too_long_first_doc_paragraph = "warn"
 trailing_empty_array = "warn"
 trait_duplication_in_bounds = "warn"
 tuple_array_conversions = "warn"
@@ -260,6 +268,7 @@ unimplemented = "warn"
 uninhabited_references = "warn"
 uninlined_format_args = "warn"
 unnecessary_box_returns = "warn"
+unnecessary_literal_bound = "warn"
 unnecessary_safety_doc = "warn"
 unnecessary_struct_initialization = "warn"
 unnecessary_wraps = "warn"
@@ -267,6 +276,7 @@ unnested_or_patterns = "warn"
 unused_peekable = "warn"
 unused_rounding = "warn"
 unused_self = "warn"
+unused_trait_names = "warn"
 use_self = "warn"
 useless_transmute = "warn"
 verbose_file_reads = "warn"
@@ -285,6 +295,7 @@ assigning_clones = "allow"            # No please
 let_underscore_must_use = "allow"
 let_underscore_untyped = "allow"
 manual_range_contains = "allow"       # this one is just worse imho
+map_unwrap_or = "allow"               # so is this one
 self_named_module_files = "allow"     # Disabled waiting on https://github.com/rust-lang/rust-clippy/issues/9602
 significant_drop_tightening = "allow" # Too many false positives
 wildcard_imports = "allow"            # `use crate::*` is useful to avoid merge conflicts when adding/removing imports

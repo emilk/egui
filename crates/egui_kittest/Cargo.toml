@@ -52,7 +52,12 @@ egui-wgpu = { workspace = true, optional = true }
 pollster = { workspace = true, optional = true }
 image = { workspace = true, optional = true }
 # Enable DX12 because it always comes with a software rasterizer.
-wgpu = { workspace = true, features = ["metal", "dx12"], optional = true }
+wgpu = { workspace = true, features = [
+    "metal",
+    "dx12",
+    "vulkan",
+    "gles",
+], optional = true }
 
 # snapshot dependencies
 dify = { workspace = true, optional = true }
@@ -63,7 +68,7 @@ document-features = { workspace = true, optional = true }
 [dev-dependencies]
 egui = { workspace = true, features = ["default_fonts"] }
 image = { workspace = true, features = ["png"] }
-egui_extras = { workspace = true, features = ["image"] }
+egui_extras = { workspace = true, features = ["image", "http"] }
 
 [lints]
 workspace = true

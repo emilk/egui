@@ -77,7 +77,7 @@ impl ImageLoader for ImageCrateLoader {
         }
 
         #[cfg(not(target_arch = "wasm32"))]
-        #[allow(clippy::unnecessary_wraps)] // needed here to match other return types
+        #[expect(clippy::unnecessary_wraps)] // needed here to match other return types
         fn load_image(
             ctx: &egui::Context,
             uri: &str,
@@ -180,6 +180,10 @@ impl ImageLoader for ImageCrateLoader {
                 Poll::Pending => 0,
             })
             .sum()
+    }
+
+    fn has_pending(&self) -> bool {
+        self.cache.lock().values().any(|result| result.is_pending())
     }
 }
 

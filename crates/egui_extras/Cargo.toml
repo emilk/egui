@@ -30,7 +30,7 @@ rustdoc-args = ["--generate-link-to-definition"]
 [features]
 default = ["dep:mime_guess2"]
 
-## Shorthand for enabling the different types of image loaders (`file`, `http`, `image`, `svg`).
+## Shorthand for enabling all the different types of image loaders.
 all_loaders = ["file", "http", "image", "svg", "gif", "webp"]
 
 ## Enable [`DatePickerButton`] widget.

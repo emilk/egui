@@ -87,6 +87,7 @@ env_logger = { version = "0.10", default-features = false, features = [
   "auto-color",
   "humantime",
 ] }
+mimalloc.workspace = true
 rfd = { version = "0.15.3", optional = true }
 
 # web:

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use emath::{pos2, vec2, Align, GuiRounding as _, NumExt, Pos2, Rect, Vec2};
+use emath::{pos2, vec2, Align, GuiRounding as _, NumExt as _, Pos2, Rect, Vec2};
 
 use crate::{stroke::PathStroke, text::font::Font, Color32, Mesh, Stroke, Vertex};
 

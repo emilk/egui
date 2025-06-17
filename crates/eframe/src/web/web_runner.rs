@@ -37,7 +37,7 @@ pub struct WebRunner {
 
 impl WebRunner {
     /// Will install a panic handler that will catch and log any panics
-    #[allow(clippy::new_without_default)]
+    #[expect(clippy::new_without_default)]
     pub fn new() -> Self {
         let panic_handler = PanicHandler::install();
 
@@ -280,7 +280,7 @@ struct TargetEvent {
     closure: Closure<dyn FnMut(web_sys::Event)>,
 }
 
-#[allow(unused)]
+#[expect(unused)]
 struct IntervalHandle {
     handle: i32,
     closure: Closure<dyn FnMut()>,
@@ -289,7 +289,7 @@ struct IntervalHandle {
 enum EventToUnsubscribe {
     TargetEvent(TargetEvent),
 
-    #[allow(unused)]
+    #[expect(unused)]
     IntervalHandle(IntervalHandle),
 }
 

@@ -4,7 +4,6 @@
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 
 mod builder;
-mod event;
 #[cfg(feature = "snapshot")]
 mod snapshot;
 
@@ -14,6 +13,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::time::Duration;
 
 mod app_kind;
+mod node;
 mod renderer;
 #[cfg(feature = "wgpu")]
 mod texture_to_image;
@@ -23,14 +23,15 @@ pub mod wgpu;
 pub use kittest;
 
 use crate::app_kind::AppKind;
-use crate::event::EventState;
 
 pub use builder::*;
+pub use node::*;
 pub use renderer::*;
 
-use egui::{Modifiers, Pos2, Rect, RepaintCause, Vec2, ViewportId};
-use kittest::{Node, Queryable};
+use egui::{Key, Modifiers, Pos2, Rect, RepaintCause, Vec2, ViewportId};
+use kittest::Queryable;
 
+#[derive(Debug, Clone)]
 pub struct ExceededMaxStepsError {
     pub max_steps: u64,
     pub repaint_causes: Vec<RepaintCause>,
@@ -60,12 +61,13 @@ pub struct Harness<'a, State = ()> {
     kittest: kittest::State,
     output: egui::FullOutput,
     app: AppKind<'a, State>,
-    event_state: EventState,
     response: Option<egui::Response>,
     state: State,
     renderer: Box<dyn TestRenderer>,
     max_steps: u64,
     step_dt: f32,
+    wait_for_pending_images: bool,
+    queued_events: EventQueue,
 }
 
 impl<State> Debug for Harness<'_, State> {
@@ -88,6 +90,7 @@ impl<'a, State> Harness<'a, State> {
             step_dt,
             state: _,
             mut renderer,
+            wait_for_pending_images,
         } = builder;
         let ctx = ctx.unwrap_or_default();
         ctx.enable_accesskit();
@@ -123,11 +126,12 @@ impl<'a, State> Harness<'a, State> {
             ),
             output,
             response,
-            event_state: EventState::default(),
             state,
             renderer,
             max_steps,
             step_dt,
+            wait_for_pending_images,
+            queued_events: Default::default(),
         };
         // Run the harness until it is stable, ensuring that all Areas are shown and animations are done
         harness.run_ok();
@@ -223,12 +227,19 @@ impl<'a, State> Harness<'a, State> {
     /// This will call the app closure with each queued event and
     /// update the Harness.
     pub fn step(&mut self) {
-        let events = self.kittest.take_events();
+        let events = std::mem::take(&mut *self.queued_events.lock());
         if events.is_empty() {
             self._step(false);
         }
         for event in events {
-            self.event_state.update(event, &mut self.input);
+            match event {
+                EventType::Event(event) => {
+                    self.input.events.push(event);
+                }
+                EventType::Modifiers(modifiers) => {
+                    self.input.modifiers = modifiers;
+                }
+            }
             self._step(false);
         }
     }
@@ -274,6 +285,7 @@ impl<'a, State> Harness<'a, State> {
     ///
     /// See also:
     /// - [`Harness::try_run`].
+    /// - [`Harness::try_run_realtime`].
     /// - [`Harness::run_ok`].
     /// - [`Harness::step`].
     /// - [`Harness::run_steps`].
@@ -285,6 +297,30 @@ impl<'a, State> Harness<'a, State> {
                 panic!("{err}");
             }
         }
+    }
+
+    fn _try_run(&mut self, sleep: bool) -> Result<u64, ExceededMaxStepsError> {
+        let mut steps = 0;
+        loop {
+            steps += 1;
+            self.step();
+
+            let wait_for_images = self.wait_for_pending_images && self.ctx.has_pending_images();
+
+            // We only care about immediate repaints
+            if self.root_viewport_output().repaint_delay != Duration::ZERO && !wait_for_images {
+                break;
+            } else if sleep || wait_for_images {
+                std::thread::sleep(Duration::from_secs_f32(self.step_dt));
+            }
+            if steps > self.max_steps {
+                return Err(ExceededMaxStepsError {
+                    max_steps: self.max_steps,
+                    repaint_causes: self.ctx.repaint_causes(),
+                });
+            }
+        }
+        Ok(steps)
     }
 
     /// Run until
@@ -302,23 +338,9 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::run_ok`].
     /// - [`Harness::step`].
     /// - [`Harness::run_steps`].
+    /// - [`Harness::try_run_realtime`].
     pub fn try_run(&mut self) -> Result<u64, ExceededMaxStepsError> {
-        let mut steps = 0;
-        loop {
-            steps += 1;
-            self.step();
-            // We only care about immediate repaints
-            if self.root_viewport_output().repaint_delay != Duration::ZERO {
-                break;
-            }
-            if steps > self.max_steps {
-                return Err(ExceededMaxStepsError {
-                    max_steps: self.max_steps,
-                    repaint_causes: self.ctx.repaint_causes(),
-                });
-            }
-        }
-        Ok(steps)
+        self._try_run(false)
     }
 
     /// Run until
@@ -333,8 +355,32 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::try_run`].
     /// - [`Harness::step`].
     /// - [`Harness::run_steps`].
+    /// - [`Harness::try_run_realtime`].
     pub fn run_ok(&mut self) -> Option<u64> {
         self.try_run().ok()
+    }
+
+    /// Run multiple frames, sleeping for [`HarnessBuilder::with_step_dt`] between frames.
+    ///
+    /// This is useful to e.g. wait for an async operation to complete (e.g. loading of images).
+    /// Runs until
+    /// - all animations are done
+    /// - no more repaints are requested
+    /// - the maximum number of steps is reached (See [`HarnessBuilder::with_max_steps`])
+    ///
+    /// Returns the number of steps that were run.
+    ///
+    /// # Errors
+    /// Returns an error if the maximum number of steps is exceeded.
+    ///
+    /// See also:
+    /// - [`Harness::run`].
+    /// - [`Harness::run_ok`].
+    /// - [`Harness::step`].
+    /// - [`Harness::run_steps`].
+    /// - [`Harness::try_run`].
+    pub fn try_run_realtime(&mut self) -> Result<u64, ExceededMaxStepsError> {
+        self._try_run(true)
     }
 
     /// Run a number of steps.
@@ -375,52 +421,128 @@ impl<'a, State> Harness<'a, State> {
         &mut self.state
     }
 
-    /// Press a key.
-    /// This will create a key down event and a key up event.
-    pub fn press_key(&mut self, key: egui::Key) {
-        self.input.events.push(egui::Event::Key {
+    fn event(&self, event: egui::Event) {
+        self.queued_events.lock().push(EventType::Event(event));
+    }
+
+    fn event_modifiers(&self, event: egui::Event, modifiers: Modifiers) {
+        let mut queue = self.queued_events.lock();
+        queue.push(EventType::Modifiers(modifiers));
+        queue.push(EventType::Event(event));
+        queue.push(EventType::Modifiers(Modifiers::default()));
+    }
+
+    fn modifiers(&self, modifiers: Modifiers) {
+        self.queued_events
+            .lock()
+            .push(EventType::Modifiers(modifiers));
+    }
+
+    pub fn key_down(&self, key: egui::Key) {
+        self.event(egui::Event::Key {
             key,
             pressed: true,
-            modifiers: self.input.modifiers,
-            repeat: false,
-            physical_key: None,
-        });
-        self.input.events.push(egui::Event::Key {
-            key,
-            pressed: false,
-            modifiers: self.input.modifiers,
+            modifiers: Modifiers::default(),
             repeat: false,
             physical_key: None,
         });
     }
 
-    /// Press a key with modifiers.
-    /// This will create a key-down event, a key-up event, and update the modifiers.
-    ///
-    /// NOTE: In contrast to the event fns on [`Node`], this will call [`Harness::step`], in
-    /// order to properly update modifiers.
-    pub fn press_key_modifiers(&mut self, modifiers: Modifiers, key: egui::Key) {
-        // Combine the modifiers with the current modifiers
-        let previous_modifiers = self.input.modifiers;
-        self.input.modifiers |= modifiers;
-
-        self.input.events.push(egui::Event::Key {
-            key,
-            pressed: true,
+    pub fn key_down_modifiers(&self, modifiers: Modifiers, key: egui::Key) {
+        self.event_modifiers(
+            egui::Event::Key {
+                key,
+                pressed: true,
+                modifiers,
+                repeat: false,
+                physical_key: None,
+            },
             modifiers,
-            repeat: false,
-            physical_key: None,
-        });
-        self.step();
-        self.input.events.push(egui::Event::Key {
+        );
+    }
+
+    pub fn key_up(&self, key: egui::Key) {
+        self.event(egui::Event::Key {
             key,
             pressed: false,
-            modifiers,
+            modifiers: Modifiers::default(),
             repeat: false,
             physical_key: None,
         });
+    }
 
-        self.input.modifiers = previous_modifiers;
+    pub fn key_up_modifiers(&self, modifiers: Modifiers, key: egui::Key) {
+        self.event_modifiers(
+            egui::Event::Key {
+                key,
+                pressed: false,
+                modifiers,
+                repeat: false,
+                physical_key: None,
+            },
+            modifiers,
+        );
+    }
+
+    /// Press the given keys in combination.
+    ///
+    /// For e.g. [`Key::A`] + [`Key::B`] this would generate:
+    /// - Press [`Key::A`]
+    /// - Press [`Key::B`]
+    /// - Release [`Key::B`]
+    /// - Release [`Key::A`]
+    pub fn key_combination(&self, keys: &[Key]) {
+        for key in keys {
+            self.key_down(*key);
+        }
+        for key in keys.iter().rev() {
+            self.key_up(*key);
+        }
+    }
+
+    /// Press the given keys in combination, with modifiers.
+    ///
+    /// For e.g. [`Modifiers::COMMAND`] + [`Key::A`] + [`Key::B`] this would generate:
+    /// - Press [`Modifiers::COMMAND`]
+    /// - Press [`Key::A`]
+    /// - Press [`Key::B`]
+    /// - Release [`Key::B`]
+    /// - Release [`Key::A`]
+    /// - Release [`Modifiers::COMMAND`]
+    pub fn key_combination_modifiers(&self, modifiers: Modifiers, keys: &[Key]) {
+        self.modifiers(modifiers);
+
+        for pressed in [true, false] {
+            for key in keys {
+                self.event(egui::Event::Key {
+                    key: *key,
+                    pressed,
+                    modifiers,
+                    repeat: false,
+                    physical_key: None,
+                });
+            }
+        }
+
+        self.modifiers(Modifiers::default());
+    }
+
+    /// Press a key.
+    ///
+    /// This will create a key down event and a key up event.
+    pub fn key_press(&self, key: egui::Key) {
+        self.key_combination(&[key]);
+    }
+
+    /// Press a key with modifiers.
+    ///
+    /// This will
+    /// - set the modifiers
+    /// - create a key down event
+    /// - create a key up event
+    /// - reset the modifiers
+    pub fn key_press_modifiers(&self, modifiers: Modifiers, key: egui::Key) {
+        self.key_combination_modifiers(modifiers, &[key]);
     }
 
     /// Render the last output to an image.
@@ -438,6 +560,18 @@ impl<'a, State> Harness<'a, State> {
             .viewport_output
             .get(&ViewportId::ROOT)
             .expect("Missing root viewport")
+    }
+
+    fn root(&self) -> Node<'_> {
+        Node {
+            accesskit_node: self.kittest.root(),
+            queue: &self.queued_events,
+        }
+    }
+
+    #[deprecated = "Use `Harness::root` instead."]
+    pub fn node(&self) -> Node<'_> {
+        self.root()
     }
 }
 
@@ -487,11 +621,11 @@ impl<'a> Harness<'a> {
     }
 }
 
-impl<'t, 'n, State> Queryable<'t, 'n> for Harness<'_, State>
+impl<'tree, 'node, State> Queryable<'tree, 'node, Node<'tree>> for Harness<'_, State>
 where
-    'n: 't,
+    'node: 'tree,
 {
-    fn node(&'n self) -> Node<'t> {
-        self.kittest_state().node()
+    fn queryable_node(&'node self) -> Node<'tree> {
+        self.root()
     }
 }

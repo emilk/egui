@@ -3,7 +3,7 @@
 use crate::util::fixed_cache::FixedCache;
 use crate::{
     epaint, lerp, remap_clamp, Area, Context, DragValue, Frame, Id, Key, Order, Painter, Response,
-    Sense, Ui, UiKind, Widget, WidgetInfo, WidgetType,
+    Sense, Ui, UiKind, Widget as _, WidgetInfo, WidgetType,
 };
 use epaint::{
     ecolor::{Color32, Hsva, HsvaGamma, Rgba},

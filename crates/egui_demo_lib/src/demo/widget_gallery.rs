@@ -48,7 +48,7 @@ impl Default for WidgetGallery {
 }
 
 impl WidgetGallery {
-    #[allow(unused_mut)] // if not chrono
+    #[allow(unused_mut, clippy::allow_attributes)] // if not chrono
     #[inline]
     pub fn with_date_button(mut self, _with_date_button: bool) -> Self {
         #[cfg(feature = "chrono")]
@@ -308,7 +308,7 @@ fn doc_link_label_with_crate<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::View;
+    use crate::View as _;
     use egui::Vec2;
     use egui_kittest::Harness;
 
@@ -322,7 +322,10 @@ mod tests {
         let mut harness = Harness::builder()
             .with_pixels_per_point(2.0)
             .with_size(Vec2::new(380.0, 550.0))
-            .build_ui(|ui| demo.ui(ui));
+            .build_ui(|ui| {
+                egui_extras::install_image_loaders(ui.ctx());
+                demo.ui(ui);
+            });
 
         harness.fit_contents();
 

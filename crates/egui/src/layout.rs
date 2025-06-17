@@ -1,7 +1,7 @@
 use emath::GuiRounding as _;
 
 use crate::{
-    emath::{pos2, vec2, Align2, NumExt, Pos2, Rect, Vec2},
+    emath::{pos2, vec2, Align2, NumExt as _, Pos2, Rect, Vec2},
     Align,
 };
 const INFINITY: f32 = f32::INFINITY;

@@ -2,10 +2,10 @@ use egui::{TexturesDelta, UserData, ViewportCommand};
 
 use crate::{epi, App};
 
-use super::{now_sec, text_agent::TextAgent, web_painter::WebPainter, NeedRepaint};
+use super::{now_sec, text_agent::TextAgent, web_painter::WebPainter as _, NeedRepaint};
 
 pub struct AppRunner {
-    #[allow(dead_code)]
+    #[allow(dead_code, clippy::allow_attributes)]
     pub(crate) web_options: crate::WebOptions,
     pub(crate) frame: epi::Frame,
     egui_ctx: egui::Context,
@@ -335,9 +335,6 @@ impl AppRunner {
                 }
                 egui::OutputCommand::OpenUrl(open_url) => {
                     super::open_url(&open_url.url, open_url.new_tab);
-                }
-                egui::OutputCommand::SetPointerPosition(_) => {
-                    // Not supported on the web.
                 }
             }
         }

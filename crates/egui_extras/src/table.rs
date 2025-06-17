@@ -4,7 +4,7 @@
 //! Takes all available height, so if you want something below the table, put it in a strip.
 
 use egui::{
-    scroll_area::{ScrollAreaOutput, ScrollBarVisibility},
+    scroll_area::{ScrollAreaOutput, ScrollBarVisibility, ScrollSource},
     Align, Id, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui, Vec2, Vec2b,
 };
 
@@ -745,7 +745,10 @@ impl Table<'_> {
 
         let mut scroll_area = ScrollArea::new([false, vscroll])
             .id_salt(state_id.with("__scroll_area"))
-            .drag_to_scroll(drag_to_scroll)
+            .scroll_source(ScrollSource {
+                drag: drag_to_scroll,
+                ..Default::default()
+            })
             .stick_to_bottom(stick_to_bottom)
             .min_scrolled_height(min_scrolled_height)
             .max_height(max_scroll_height)
