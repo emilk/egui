@@ -342,10 +342,10 @@ impl<'t> TextEdit<'t> {
         self.cursor_at_end = b;
         self
     }
-    
+
     /// When `true`, move the viewport to the location of the cursor.
     /// When `false`, do nothing about viewport.
-    /// 
+    ///
     /// This only works for singleline [`TextEdit`].
     #[inline]
     pub fn auto_scroll(mut self, b: bool) -> Self {
@@ -674,10 +674,10 @@ impl TextEdit<'_> {
         let viewport = cursor_range.or(prev_cursor_range);
         let focused = ui.memory(|mem| mem.has_focus(id));
         if clip_text && (focused || self.auto_scroll) {
-            let cursor_pos = viewport.map(|cr|
-                galley.pos_from_cursor(cr.primary).min.x
-            ).unwrap_or(0.0);
-            
+            let cursor_pos = viewport
+                .map(|cr| galley.pos_from_cursor(cr.primary).min.x)
+                .unwrap_or(0.0);
+
             let mut offset_x = state.singleline_offset;
             let visible_range = offset_x..=offset_x + desired_inner_size.x;
 
@@ -696,7 +696,11 @@ impl TextEdit<'_> {
             state.singleline_offset = offset_x;
             galley_pos -= vec2(offset_x, 0.0);
         } else {
-            state.singleline_offset = if self.auto_scroll { align_offset } else { state.singleline_offset };
+            state.singleline_offset = if self.auto_scroll {
+                align_offset
+            } else {
+                state.singleline_offset
+            };
         }
 
         let selection_changed = if let (Some(cursor_range), Some(prev_cursor_range)) =
