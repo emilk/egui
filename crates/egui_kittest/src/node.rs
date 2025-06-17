@@ -49,6 +49,7 @@ impl Node<'_> {
         self.event(egui::Event::PointerMoved(self.rect().center()));
     }
 
+    /// Click at the node center with the primary button.
     pub fn click(&self) {
         self.click_button(PointerButton::Primary);
     }
@@ -92,6 +93,10 @@ impl Node<'_> {
         self.modifiers(Modifiers::default());
     }
 
+    /// Click the node via accesskit.
+    ///
+    /// This will trigger a [`accesskit::Action::Click`] action.
+    /// In contrast to `click()`, this can also click widgets that are not currently visible.
     pub fn click_accesskit(&self) {
         self.event(egui::Event::AccessKitActionRequest(
             accesskit::ActionRequest {

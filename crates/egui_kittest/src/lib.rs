@@ -484,6 +484,13 @@ impl<'a, State> Harness<'a, State> {
         );
     }
 
+    /// Press the given keys in combination.
+    ///
+    /// For e.g. [`Key::A`] + [`Key::B`] this would generate:
+    /// - Press [`Key::A`]
+    /// - Press [`Key::B`]
+    /// - Release [`Key::B`]
+    /// - Release [`Key::A`]
     pub fn key_combination(&self, keys: &[Key]) {
         for key in keys {
             self.key_down(*key);
@@ -493,6 +500,15 @@ impl<'a, State> Harness<'a, State> {
         }
     }
 
+    /// Press the given keys in combination, with modifiers.
+    ///
+    /// For e.g. [`Modifiers::COMMAND`] + [`Key::A`] + [`Key::B`] this would generate:
+    /// - Press [`Modifiers::COMMAND`]
+    /// - Press [`Key::A`]
+    /// - Press [`Key::B`]
+    /// - Release [`Key::B`]
+    /// - Release [`Key::A`]
+    /// - Release [`Modifiers::COMMAND`]
     pub fn key_combination_modifiers(&self, modifiers: Modifiers, keys: &[Key]) {
         self.modifiers(modifiers);
 
@@ -512,40 +528,21 @@ impl<'a, State> Harness<'a, State> {
     }
 
     /// Press a key.
+    ///
     /// This will create a key down event and a key up event.
     pub fn key_press(&self, key: egui::Key) {
         self.key_combination(&[key]);
     }
 
     /// Press a key with modifiers.
-    /// This will create a key-down event, a key-up event, and update the modifiers.
     ///
-    /// NOTE: In contrast to the event fns on [`Node`], this will call [`Harness::step`], in
-    /// order to properly update modifiers.
+    /// This will
+    /// - set the modifiers
+    /// - create a key down event
+    /// - create a key up event
+    /// - reset the modifiers
     pub fn key_press_modifiers(&self, modifiers: Modifiers, key: egui::Key) {
         self.key_combination_modifiers(modifiers, &[key]);
-
-        // // Combine the modifiers with the current modifiers
-        // let previous_modifiers = self.input.modifiers;
-        // self.input.modifiers |= modifiers;
-        //
-        // self.input.events.push(egui::Event::Key {
-        //     key,
-        //     pressed: true,
-        //     modifiers,
-        //     repeat: false,
-        //     physical_key: None,
-        // });
-        // self.step();
-        // self.input.events.push(egui::Event::Key {
-        //     key,
-        //     pressed: false,
-        //     modifiers,
-        //     repeat: false,
-        //     physical_key: None,
-        // });
-        //
-        // self.input.modifiers = previous_modifiers;
     }
 
     /// Render the last output to an image.

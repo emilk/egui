@@ -737,7 +737,8 @@ mod tests {
                 });
 
             {
-                // Expand color-test collapsing header
+                // Expand color-test collapsing header. We accesskit-click since collapsing header
+                // might not be on screen at this point.
                 harness.get_by_label("Color test").click_accesskit();
                 harness.run();
             }
