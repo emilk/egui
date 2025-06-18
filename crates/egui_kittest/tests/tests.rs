@@ -1,6 +1,6 @@
 use egui::{include_image, Modifiers, Vec2};
 use egui_kittest::Harness;
-use kittest::{Key, Queryable as _};
+use kittest::Queryable as _;
 
 #[test]
 fn test_shrink() {
@@ -39,17 +39,15 @@ fn test_modifiers() {
         State::default(),
     );
 
-    harness.get_by_label("Click me").key_down(Key::Command);
-    // This run isn't necessary, but allows us to test whether modifiers are remembered between frames
-    harness.run();
-    harness.get_by_label("Click me").click();
-    harness.get_by_label("Click me").key_up(Key::Command);
+    harness
+        .get_by_label("Click me")
+        .click_modifiers(Modifiers::COMMAND);
     harness.run();
 
-    harness.press_key_modifiers(Modifiers::COMMAND, egui::Key::Z);
+    harness.key_press_modifiers(Modifiers::COMMAND, egui::Key::Z);
     harness.run();
 
-    harness.node().key_combination(&[Key::Command, Key::Y]);
+    harness.key_combination_modifiers(Modifiers::COMMAND, &[egui::Key::Y]);
     harness.run();
 
     let state = harness.state();
