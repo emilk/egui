@@ -331,7 +331,10 @@ impl Resize {
                 size[d] = state.last_content_size[d];
             }
         }
-        ui.advance_cursor_after_rect(Rect::from_min_size(content_ui.min_rect().min, size));
+        ui.advance_cursor_after_rect(
+            Rect::from_min_size(content_ui.min_rect().min, size),
+            Vec2::ZERO,
+        ); // TODO
 
         // ------------------------------
 

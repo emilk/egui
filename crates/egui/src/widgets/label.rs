@@ -219,10 +219,11 @@ impl Label {
             let rect = galley.rows[0]
                 .rect_without_leading_space()
                 .translate(pos.to_vec2());
-            let mut response = ui.allocate_rect(rect, sense);
+            dbg!(galley.desired_size());
+            let mut response = ui.allocate_rect(rect, sense, galley.desired_size());
             for placed_row in galley.rows.iter().skip(1) {
                 let rect = placed_row.rect().translate(pos.to_vec2());
-                response |= ui.allocate_rect(rect, sense);
+                response |= ui.allocate_rect(rect, sense, galley.desired_size());
             }
             (pos, galley, response)
         } else {
@@ -252,7 +253,8 @@ impl Label {
             };
 
             let galley = ui.fonts(|fonts| fonts.layout_job(layout_job));
-            let (rect, response) = ui.allocate_exact_size(galley.size(), sense);
+            let (rect, response) =
+                ui.allocate_at_least(galley.size(), sense, galley.desired_size()); // TODO: Change back to allocate_exact_size
             let galley_pos = match galley.job.halign {
                 Align::LEFT => rect.left_top(),
                 Align::Center => rect.center_top(),

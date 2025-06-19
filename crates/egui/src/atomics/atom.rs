@@ -89,7 +89,7 @@ impl<'a> Atom<'a> {
 
         SizedAtom {
             size,
-            preferred_size: preferred,
+            preferred_size: preferred.at_least(size),
             grow: self.grow,
             kind,
         }
