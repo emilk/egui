@@ -275,8 +275,6 @@ impl SidePanel {
 
                         if is_expanded.is_some() && width <= width_range.min && width < old_width {
                             drag_to_close = true;
-                            // TODO(emilk): it would be nice if, when the user expands the panel again,
-                            // we could return to the width the panel had before the user started drag-to-closing it.
                         }
                     }
                 }
@@ -306,7 +304,7 @@ impl SidePanel {
             add_contents(ui)
         });
 
-        let rect = inner_response.response.rect;
+        let mut rect = inner_response.response.rect;
 
         {
             let mut cursor = ui.cursor();
@@ -351,8 +349,6 @@ impl SidePanel {
             ui.ctx().set_cursor_icon(cursor_icon);
         }
 
-        PanelState { rect }.store(ui.ctx(), id);
-
         {
             let stroke = if is_resizing {
                 ui.style().visuals.widgets.active.fg_stroke // highly visible
@@ -373,11 +369,24 @@ impl SidePanel {
         }
 
         if let Some(is_expanded) = is_expanded {
-            if panel_ui.should_close() || drag_to_close {
+            if drag_to_close {
+                // Ensure we restore the panel back to the width it had
+                // before the dragging started:
+                if let Some(pointer) = ui.input(|i| i.pointer.press_origin()) {
+                    width = (pointer.x - side.side_x(panel_rect)).abs();
+                    width = clamp_to_range(width, width_range);
+                    side.set_rect_width(&mut rect, width);
+                }
+
+                inner_response.response.set_close();
+                *is_expanded = false;
+            } else if panel_ui.should_close() {
                 inner_response.response.set_close();
                 *is_expanded = false;
             }
         }
+
+        PanelState { rect }.store(ui.ctx(), id);
 
         inner_response
     }
@@ -811,8 +820,6 @@ impl TopBottomPanel {
                             && height < old_height
                         {
                             drag_to_close = true;
-                            // TODO(emilk): it would be nice if, when the user expands the panel again,
-                            // we could return to the width the panel had before the user started drag-to-closing it.
                         }
                     }
                 }
@@ -841,7 +848,7 @@ impl TopBottomPanel {
             add_contents(ui)
         });
 
-        let rect = inner_response.response.rect;
+        let mut rect = inner_response.response.rect;
 
         {
             let mut cursor = ui.cursor();
@@ -887,8 +894,6 @@ impl TopBottomPanel {
             ui.ctx().set_cursor_icon(cursor_icon);
         }
 
-        PanelState { rect }.store(ui.ctx(), id);
-
         {
             let stroke = if is_resizing {
                 ui.style().visuals.widgets.active.fg_stroke // highly visible
@@ -909,11 +914,24 @@ impl TopBottomPanel {
         }
 
         if let Some(is_expanded) = is_expanded {
-            if panel_ui.should_close() || drag_to_close {
+            if drag_to_close {
+                // Ensure we restore the panel back to the height it had
+                // before the dragging started:
+                if let Some(pointer) = ui.input(|i| i.pointer.press_origin()) {
+                    height = (pointer.y - side.side_y(panel_rect)).abs();
+                    height = clamp_to_range(height, height_range);
+                    side.set_rect_height(&mut rect, height);
+                }
+
+                inner_response.response.set_close();
+                *is_expanded = false;
+            } else if panel_ui.should_close() {
                 inner_response.response.set_close();
                 *is_expanded = false;
             }
         }
+
+        PanelState { rect }.store(ui.ctx(), id);
 
         inner_response
     }
