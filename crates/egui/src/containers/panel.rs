@@ -223,13 +223,14 @@ impl SidePanel {
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.show_inside_dyn(ui, Box::new(add_contents))
+        self.show_inside_dyn(ui, false, Box::new(add_contents))
     }
 
     /// Show the panel inside a [`Ui`].
     fn show_inside_dyn<'c, R>(
         self,
         ui: &mut Ui,
+        closable: bool,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         let Self {
@@ -257,6 +258,7 @@ impl SidePanel {
         let resize_id = id.with("__resize");
         let mut resize_hover = false;
         let mut is_resizing = false;
+        let mut drag_to_close = false;
         if resizable {
             // First we read the resize interaction results, to avoid frame latency in the resize:
             if let Some(resize_response) = ui.ctx().read_response(resize_id) {
@@ -265,9 +267,15 @@ impl SidePanel {
 
                 if is_resizing {
                     if let Some(pointer) = resize_response.interact_pointer_pos() {
+                        let old_width = width;
+
                         width = (pointer.x - side.side_x(panel_rect)).abs();
                         width = clamp_to_range(width, width_range).at_most(available_rect.width());
                         side.set_rect_width(&mut panel_rect, width);
+
+                        if closable && width <= width_range.min && width < old_width {
+                            drag_to_close = true;
+                        }
                     }
                 }
             }
@@ -283,13 +291,14 @@ impl SidePanel {
                     Side::Right => UiKind::RightPanel,
                 }))
                 .max_rect(panel_rect)
-                .layout(Layout::top_down(Align::Min)),
+                .layout(Layout::top_down(Align::Min))
+                .with_closable(closable),
         );
         panel_ui.expand_to_include_rect(panel_rect);
         panel_ui.set_clip_rect(panel_rect); // If we overflow, don't do so visibly (#4475)
 
         let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
-        let inner_response = frame.show(&mut panel_ui, |ui| {
+        let mut inner_response = frame.show(&mut panel_ui, |ui| {
             ui.set_min_height(ui.max_rect().height()); // Make sure the frame fills the full height
             ui.set_min_width((width_range.min - frame.inner_margin.sum().x).at_least(0.0));
             add_contents(ui)
@@ -361,6 +370,10 @@ impl SidePanel {
             ui.painter().vline(resize_x, panel_rect.y_range(), stroke);
         }
 
+        if panel_ui.should_close() || drag_to_close {
+            inner_response.response.set_close();
+        }
+
         inner_response
     }
 
@@ -370,13 +383,14 @@ impl SidePanel {
         ctx: &Context,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.show_dyn(ctx, Box::new(add_contents))
+        self.show_dyn(ctx, false, Box::new(add_contents))
     }
 
     /// Show the panel at the top level.
     fn show_dyn<'c, R>(
         self,
         ctx: &Context,
+        closable: bool,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         let side = self.side;
@@ -390,7 +404,7 @@ impl SidePanel {
         );
         panel_ui.set_clip_rect(ctx.screen_rect());
 
-        let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
+        let inner_response = self.show_inside_dyn(&mut panel_ui, closable, add_contents);
         let rect = inner_response.response.rect;
 
         match side {
@@ -433,7 +447,8 @@ impl SidePanel {
             None
         } else {
             // Show the real panel:
-            Some(self.show(ctx, add_contents))
+            let closable = true;
+            Some(self.show_dyn(ctx, closable, Box::new(add_contents)))
         }
     }
 
@@ -466,7 +481,8 @@ impl SidePanel {
             None
         } else {
             // Show the real panel:
-            Some(self.show_inside(ui, add_contents))
+            let closable = true;
+            Some(self.show_inside_dyn(ui, closable, Box::new(add_contents)))
         }
     }
 
@@ -713,13 +729,14 @@ impl TopBottomPanel {
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.show_inside_dyn(ui, Box::new(add_contents))
+        self.show_inside_dyn(ui, false, Box::new(add_contents))
     }
 
     /// Show the panel inside a [`Ui`].
     fn show_inside_dyn<'c, R>(
         self,
         ui: &mut Ui,
+        closable: bool,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         let Self {
@@ -753,6 +770,7 @@ impl TopBottomPanel {
         let resize_id = id.with("__resize");
         let mut resize_hover = false;
         let mut is_resizing = false;
+        let mut drag_to_close = false;
         if resizable {
             // First we read the resize interaction results, to avoid frame latency in the resize:
             if let Some(resize_response) = ui.ctx().read_response(resize_id) {
@@ -761,10 +779,16 @@ impl TopBottomPanel {
 
                 if is_resizing {
                     if let Some(pointer) = resize_response.interact_pointer_pos() {
+                        let old_height = height;
+
                         height = (pointer.y - side.side_y(panel_rect)).abs();
                         height =
                             clamp_to_range(height, height_range).at_most(available_rect.height());
                         side.set_rect_height(&mut panel_rect, height);
+
+                        if closable && height <= height_range.min && height < old_height {
+                            drag_to_close = true;
+                        }
                     }
                 }
             }
@@ -780,12 +804,13 @@ impl TopBottomPanel {
                     TopBottomSide::Bottom => UiKind::BottomPanel,
                 }))
                 .max_rect(panel_rect)
-                .layout(Layout::top_down(Align::Min)),
+                .layout(Layout::top_down(Align::Min))
+                .with_closable(closable),
         );
         panel_ui.expand_to_include_rect(panel_rect);
         panel_ui.set_clip_rect(panel_rect); // If we overflow, don't do so visibly (#4475)
 
-        let inner_response = frame.show(&mut panel_ui, |ui| {
+        let mut inner_response = frame.show(&mut panel_ui, |ui| {
             ui.set_min_width(ui.max_rect().width()); // Make the frame fill full width
             ui.set_min_height((height_range.min - frame.inner_margin.sum().y).at_least(0.0));
             add_contents(ui)
@@ -858,6 +883,10 @@ impl TopBottomPanel {
             ui.painter().hline(panel_rect.x_range(), resize_y, stroke);
         }
 
+        if panel_ui.should_close() || drag_to_close {
+            inner_response.response.set_close();
+        }
+
         inner_response
     }
 
@@ -867,13 +896,14 @@ impl TopBottomPanel {
         ctx: &Context,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.show_dyn(ctx, Box::new(add_contents))
+        self.show_dyn(ctx, false, Box::new(add_contents))
     }
 
     /// Show the panel at the top level.
     fn show_dyn<'c, R>(
         self,
         ctx: &Context,
+        closable: bool,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         let available_rect = ctx.available_rect();
@@ -888,7 +918,7 @@ impl TopBottomPanel {
         );
         panel_ui.set_clip_rect(ctx.screen_rect());
 
-        let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
+        let inner_response = self.show_inside_dyn(&mut panel_ui, closable, add_contents);
         let rect = inner_response.response.rect;
 
         match side {
@@ -973,7 +1003,8 @@ impl TopBottomPanel {
             None
         } else {
             // Show the real panel:
-            Some(self.show_inside(ui, add_contents))
+            let closable = true;
+            Some(self.show_inside_dyn(ui, closable, Box::new(add_contents)))
         }
     }
 
