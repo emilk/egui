@@ -97,9 +97,11 @@ fn vs_main(
 
 @fragment
 fn fs_main_linear_framebuffer(in: VertexOutput) -> @location(0) vec4<f32> {
-    // We always have an sRGB aware texture at the moment.
-    let tex_linear = textureSample(r_tex_color, r_tex_sampler, in.tex_coord);
-    let tex_gamma = gamma_from_linear_rgba(tex_linear);
+    // We use sRGB unware textures, and store (premultiplied) sRGB values.
+    // Hence any interpolation done by the GPU will be in gamma space.
+    // Note: Because we store premultiplied alpha, we can't rely on sRGB aware
+    // textures that convert "sRGB -> linear RGB" before interpolating.
+    let tex_gamma = textureSample(r_tex_color, r_tex_sampler, in.tex_coord);
     var out_color_gamma = in.color * tex_gamma;
     // Dither the float color down to eight bits to reduce banding.
     // This step is optional for egui backends.
@@ -115,9 +117,11 @@ fn fs_main_linear_framebuffer(in: VertexOutput) -> @location(0) vec4<f32> {
 
 @fragment
 fn fs_main_gamma_framebuffer(in: VertexOutput) -> @location(0) vec4<f32> {
-    // We always have an sRGB aware texture at the moment.
-    let tex_linear = textureSample(r_tex_color, r_tex_sampler, in.tex_coord);
-    let tex_gamma = gamma_from_linear_rgba(tex_linear);
+    // We use sRGB unware textures, and store (premultiplied) sRGB values.
+    // Hence any interpolation done by the GPU will be in gamma space.
+    // Note: Because we store premultiplied alpha, we can't rely on sRGB aware
+    // textures that convert "sRGB -> linear RGB" before interpolating.
+    let tex_gamma = textureSample(r_tex_color, r_tex_sampler, in.tex_coord);
     var out_color_gamma = in.color * tex_gamma;
     // Dither the float color down to eight bits to reduce banding.
     // This step is optional for egui backends.
