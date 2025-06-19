@@ -389,7 +389,9 @@ impl WinitApp for WgpuWinitApp<'_> {
             self.recreate_window(event_loop, running);
             running
         } else {
-            let storage = if let Some(file) = &self.native_options.persistence_path {
+            let storage = if let Some(storage_creator) = &self.native_options.storage_creator {
+                storage_creator()
+            } else if let Some(file) = &self.native_options.persistence_path {
                 epi_integration::create_storage_with_file(file)
             } else {
                 epi_integration::create_storage(
