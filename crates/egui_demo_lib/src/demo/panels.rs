@@ -1,6 +1,20 @@
-#[derive(Clone, Default, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct Panels {}
+pub struct Panels {
+    top: bool,
+    left: bool,
+    right: bool,
+}
+
+impl Default for Panels {
+    fn default() -> Self {
+        Self {
+            top: true,
+            left: true,
+            right: true,
+        }
+    }
+}
 
 impl crate::Demo for Panels {
     fn name(&self) -> &'static str {
@@ -22,10 +36,19 @@ impl crate::View for Panels {
     fn ui(&mut self, ui: &mut egui::Ui) {
         // Note that the order we add the panels is very important!
 
+        let Self { top, left, right } = self;
+
+        ui.horizontal(|ui| {
+            ui.toggle_value(left, "Left");
+            ui.toggle_value(top, "Top");
+            ui.toggle_value(right, "Right");
+        });
+        ui.separator();
+
         egui::TopBottomPanel::top("top_panel")
             .resizable(true)
             .min_height(32.0)
-            .show_inside(ui, |ui| {
+            .show_animated_inside(ui, top, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     ui.vertical_centered(|ui| {
                         ui.heading("Expandable Upper Panel");
@@ -38,10 +61,13 @@ impl crate::View for Panels {
             .resizable(true)
             .default_width(150.0)
             .width_range(80.0..=200.0)
-            .show_inside(ui, |ui| {
+            .show_animated_inside(ui, left, |ui| {
                 ui.vertical_centered(|ui| {
                     ui.heading("Left Panel");
                 });
+                if ui.button("Close").clicked() {
+                    ui.close();
+                }
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     lorem_ipsum(ui);
                 });
@@ -51,10 +77,13 @@ impl crate::View for Panels {
             .resizable(true)
             .default_width(150.0)
             .width_range(80.0..=200.0)
-            .show_inside(ui, |ui| {
+            .show_animated_inside(ui, right, |ui| {
                 ui.vertical_centered(|ui| {
                     ui.heading("Right Panel");
                 });
+                if ui.button("Close").clicked() {
+                    ui.close();
+                }
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     lorem_ipsum(ui);
                 });
