@@ -795,6 +795,28 @@ impl Galley {
         self.rect.size()
     }
 
+    /// Calculate the desired size.
+    ///
+    /// This is the size that a non-wrapped, non-truncated, non-justified version of the text
+    /// would have.
+    ///
+    /// This won't work for truncated text. Instead, you can clone the `LayoutJob` and set `WrapMode`
+    /// to `TextWrapMode::Extend` to calculate the desired size.
+    pub fn desired_size(&self) -> Vec2 {
+        let mut current_width: f32 = 0.0;
+        let mut widest_width: f32 = 0.0;
+        let mut height = self.rows.first().map_or(0.0, |row| row.height());
+        for row in &self.rows {
+            current_width += row.rect().width();
+            widest_width = widest_width.max(current_width);
+            if row.ends_with_newline {
+                height += row.height();
+                current_width = 0.0;
+            }
+        }
+        vec2(widest_width, height)
+    }
+
     pub(crate) fn round_output_to_gui(&mut self) {
         for placed_row in &mut self.rows {
             // Optimization: only call `make_mut` if necessary (can cause a deep clone)
