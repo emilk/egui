@@ -275,6 +275,8 @@ impl SidePanel {
 
                         if is_expanded.is_some() && width <= width_range.min && width < old_width {
                             drag_to_close = true;
+                            // TODO(emilk): it would be nice if, when the user expands the panel again,
+                            // we could return to the width the panel had before the user started drag-to-closing it.
                         }
                     }
                 }
@@ -809,6 +811,8 @@ impl TopBottomPanel {
                             && height < old_height
                         {
                             drag_to_close = true;
+                            // TODO(emilk): it would be nice if, when the user expands the panel again,
+                            // we could return to the width the panel had before the user started drag-to-closing it.
                         }
                     }
                 }
