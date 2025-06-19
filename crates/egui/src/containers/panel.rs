@@ -370,7 +370,7 @@ impl SidePanel {
 
         if let Some(is_expanded) = is_expanded {
             if drag_to_close {
-                // Ensure we restore the panel back to the width it had
+                // Restore the panel back to (approximately) the width it had
                 // before the dragging started:
                 if let Some(pointer) = ui.input(|i| i.pointer.press_origin()) {
                     width = (pointer.x - side.side_x(panel_rect)).abs();
@@ -915,7 +915,7 @@ impl TopBottomPanel {
 
         if let Some(is_expanded) = is_expanded {
             if drag_to_close {
-                // Ensure we restore the panel back to the height it had
+                // Restore the panel back to (approximately) the height it had
                 // before the dragging started:
                 if let Some(pointer) = ui.input(|i| i.pointer.press_origin()) {
                     height = (pointer.y - side.side_y(panel_rect)).abs();
