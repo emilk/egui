@@ -2,8 +2,8 @@
 
 use crate::util::fixed_cache::FixedCache;
 use crate::{
-    epaint, lerp, remap_clamp, Area, Context, DragValue, Frame, Id, Key, Order, Painter, Response,
-    Sense, Ui, UiKind, Widget as _, WidgetInfo, WidgetType,
+    epaint, lerp, remap_clamp, Context, DragValue, Id, Painter, Popup, PopupCloseBehavior,
+    Response, Sense, Ui, Widget as _, WidgetInfo, WidgetType,
 };
 use epaint::{
     ecolor::{Color32, Hsva, HsvaGamma, Rgba},
@@ -496,35 +496,17 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
         button_response = button_response.on_hover_text("Click to edit color");
     }
 
-    if button_response.clicked() {
-        ui.memory_mut(|mem| mem.toggle_popup(popup_id));
-    }
-
     const COLOR_SLIDER_WIDTH: f32 = 275.0;
 
-    // TODO(lucasmerlin): Update this to use new Popup struct
-    if ui.memory(|mem| mem.is_popup_open(popup_id)) {
-        ui.memory_mut(|mem| mem.keep_popup_open(popup_id));
-        let area_response = Area::new(popup_id)
-            .kind(UiKind::Picker)
-            .order(Order::Foreground)
-            .fixed_pos(button_response.rect.max)
-            .show(ui.ctx(), |ui| {
-                ui.spacing_mut().slider_width = COLOR_SLIDER_WIDTH;
-                Frame::popup(ui.style()).show(ui, |ui| {
-                    if color_picker_hsva_2d(ui, hsva, alpha) {
-                        button_response.mark_changed();
-                    }
-                });
-            })
-            .response;
-
-        if !button_response.clicked()
-            && (ui.input(|i| i.key_pressed(Key::Escape)) || area_response.clicked_elsewhere())
-        {
-            ui.memory_mut(|mem| mem.close_popup(popup_id));
-        }
-    }
+    Popup::menu(&button_response)
+        .id(popup_id)
+        .close_behavior(PopupCloseBehavior::CloseOnClickOutside)
+        .show(|ui| {
+            ui.spacing_mut().slider_width = COLOR_SLIDER_WIDTH;
+            if color_picker_hsva_2d(ui, hsva, alpha) {
+                button_response.mark_changed();
+            }
+        });
 
     button_response
 }
