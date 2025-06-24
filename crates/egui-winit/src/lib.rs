@@ -1658,7 +1658,10 @@ pub fn create_winit_window_attributes(
     // and trying to do it anyway leads to weird bugs on Wayland, see:
     // https://github.com/emilk/egui/issues/7095#issuecomment-2920545377
     // https://github.com/rust-windowing/winit/issues/4266
-    #[expect(clippy::disallowed_types, reason = "zoom factor is manually accounted for")]
+    #[expect(
+        clippy::disallowed_types,
+        reason = "zoom factor is manually accounted for"
+    )]
     #[cfg(not(target_os = "ios"))]
     if let Some(size) = inner_size {
         window_attributes = window_attributes.with_inner_size(dpi::LogicalSize::new(
@@ -1667,7 +1670,10 @@ pub fn create_winit_window_attributes(
         ));
     }
 
-    #[expect(clippy::disallowed_types, reason = "zoom factor is manually accounted for")]
+    #[expect(
+        clippy::disallowed_types,
+        reason = "zoom factor is manually accounted for"
+    )]
     #[cfg(not(target_os = "ios"))]
     if let Some(size) = min_inner_size {
         window_attributes = window_attributes.with_min_inner_size(dpi::LogicalSize::new(
@@ -1676,7 +1682,10 @@ pub fn create_winit_window_attributes(
         ));
     }
 
-    #[expect(clippy::disallowed_types, reason = "zoom factor is manually accounted for")]
+    #[expect(
+        clippy::disallowed_types,
+        reason = "zoom factor is manually accounted for"
+    )]
     #[cfg(not(target_os = "ios"))]
     if let Some(size) = max_inner_size {
         window_attributes = window_attributes.with_max_inner_size(dpi::LogicalSize::new(
@@ -1685,7 +1694,10 @@ pub fn create_winit_window_attributes(
         ));
     }
 
-    #[expect(clippy::disallowed_types, reason = "zoom factor is manually accounted for")]
+    #[expect(
+        clippy::disallowed_types,
+        reason = "zoom factor is manually accounted for"
+    )]
     #[cfg(not(target_os = "ios"))]
     if let Some(pos) = position {
         window_attributes = window_attributes.with_position(dpi::LogicalPosition::new(
