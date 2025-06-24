@@ -26,7 +26,7 @@ use ahash::HashSet;
 use raw_window_handle::HasDisplayHandle;
 
 use winit::{
-    dpi::{self, PhysicalPosition, PhysicalSize},
+    dpi::{PhysicalPosition, PhysicalSize},
     event::ElementState,
     event_loop::ActiveEventLoop,
     window::{CursorGrabMode, Window, WindowButtons, WindowLevel},
@@ -1578,8 +1578,6 @@ pub fn create_winit_window_attributes(
 ) -> winit::window::WindowAttributes {
     profiling::function_scope!();
 
-    let zoom_factor = egui_ctx.zoom_factor();
-
     let ViewportBuilder {
         title,
         position,
@@ -1665,47 +1663,31 @@ pub fn create_winit_window_attributes(
         reason = "zoom factor is manually accounted for"
     )]
     #[cfg(not(target_os = "ios"))]
-    if let Some(size) = inner_size {
-        window_attributes = window_attributes.with_inner_size(dpi::LogicalSize::new(
-            zoom_factor * size.x,
-            zoom_factor * size.y,
-        ));
-    }
+    {
+        use winit::dpi::{LogicalPosition, LogicalSize};
+        let zoom_factor = egui_ctx.zoom_factor();
 
-    #[expect(
-        clippy::disallowed_types,
-        reason = "zoom factor is manually accounted for"
-    )]
-    #[cfg(not(target_os = "ios"))]
-    if let Some(size) = min_inner_size {
-        window_attributes = window_attributes.with_min_inner_size(dpi::LogicalSize::new(
-            zoom_factor * size.x,
-            zoom_factor * size.y,
-        ));
-    }
+        if let Some(size) = inner_size {
+            window_attributes = window_attributes
+                .with_inner_size(LogicalSize::new(zoom_factor * size.x, zoom_factor * size.y));
+        }
 
-    #[expect(
-        clippy::disallowed_types,
-        reason = "zoom factor is manually accounted for"
-    )]
-    #[cfg(not(target_os = "ios"))]
-    if let Some(size) = max_inner_size {
-        window_attributes = window_attributes.with_max_inner_size(dpi::LogicalSize::new(
-            zoom_factor * size.x,
-            zoom_factor * size.y,
-        ));
-    }
+        if let Some(size) = min_inner_size {
+            window_attributes = window_attributes
+                .with_min_inner_size(LogicalSize::new(zoom_factor * size.x, zoom_factor * size.y));
+        }
 
-    #[expect(
-        clippy::disallowed_types,
-        reason = "zoom factor is manually accounted for"
-    )]
-    #[cfg(not(target_os = "ios"))]
-    if let Some(pos) = position {
-        window_attributes = window_attributes.with_position(dpi::LogicalPosition::new(
-            zoom_factor * pos.x,
-            zoom_factor * pos.y,
-        ));
+        if let Some(size) = max_inner_size {
+            window_attributes = window_attributes
+                .with_max_inner_size(LogicalSize::new(zoom_factor * size.x, zoom_factor * size.y));
+        }
+
+        if let Some(pos) = position {
+            window_attributes = window_attributes.with_position(LogicalPosition::new(
+                zoom_factor * pos.x,
+                zoom_factor * pos.y,
+            ));
+        }
     }
     #[cfg(target_os = "ios")]
     {
