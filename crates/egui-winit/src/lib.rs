@@ -1692,6 +1692,7 @@ pub fn create_winit_window_attributes(
     #[cfg(target_os = "ios")]
     {
         // Unused:
+        _ = egui_ctx;
         _ = pixels_per_point;
         _ = position;
         _ = inner_size;
