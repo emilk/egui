@@ -696,10 +696,7 @@ impl Painter {
         for row in pixels.chunks_exact((w * 4) as usize).rev() {
             flipped.extend_from_slice(bytemuck::cast_slice(row));
         }
-        egui::ColorImage {
-            size: [w as usize, h as usize],
-            pixels: flipped,
-        }
+        egui::ColorImage::new([w as usize, h as usize], flipped)
     }
 
     pub fn read_screen_rgb(&self, [w, h]: [u32; 2]) -> Vec<u8> {

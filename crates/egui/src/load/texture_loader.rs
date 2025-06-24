@@ -1,5 +1,7 @@
 use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
 
+use emath::Vec2;
+
 use super::{
     BytesLoader as _, Context, HashMap, ImagePoll, Mutex, SizeHint, SizedTexture, TextureHandle,
     TextureLoadResult, TextureLoader, TextureOptions, TexturePoll,
@@ -16,6 +18,10 @@ type Bucket = HashMap<Option<SizeHint>, Entry>;
 
 struct Entry {
     last_used: AtomicU64,
+
+    /// Size of the original SVG, if any, or the texel size of the image if not an SVG.
+    source_size: Vec2,
+
     handle: TextureHandle,
 }
 
@@ -61,18 +67,20 @@ impl TextureLoader for DefaultTextureLoader {
             texture
                 .last_used
                 .store(self.pass_index.load(Relaxed), Relaxed);
-            let texture = SizedTexture::from_handle(&texture.handle);
+            let texture = SizedTexture::new(texture.handle.id(), texture.source_size);
             Ok(TexturePoll::Ready { texture })
         } else {
             match ctx.try_load_image(uri, size_hint)? {
                 ImagePoll::Pending { size } => Ok(TexturePoll::Pending { size }),
                 ImagePoll::Ready { image } => {
+                    let source_size = image.source_size;
                     let handle = ctx.load_texture(uri, image, texture_options);
-                    let texture = SizedTexture::from_handle(&handle);
+                    let texture = SizedTexture::new(handle.id(), source_size);
                     bucket.insert(
                         svg_size_hint,
                         Entry {
                             last_used: AtomicU64::new(self.pass_index.load(Relaxed)),
+                            source_size,
                             handle,
                         },
                     );

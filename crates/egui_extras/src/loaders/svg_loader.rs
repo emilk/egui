@@ -75,12 +75,9 @@ impl ImageLoader for SvgLoader {
             match ctx.try_load_bytes(uri) {
                 Ok(BytesPoll::Ready { bytes, .. }) => {
                     log::trace!("Started loading {uri:?}");
-                    let result = crate::image::load_svg_bytes_with_size(
-                        &bytes,
-                        Some(size_hint),
-                        &self.options,
-                    )
-                    .map(Arc::new);
+                    let result =
+                        crate::image::load_svg_bytes_with_size(&bytes, size_hint, &self.options)
+                            .map(Arc::new);
 
                     log::trace!("Finished loading {uri:?}");
                     bucket.insert(

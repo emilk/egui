@@ -513,14 +513,6 @@ impl ScrollArea {
         self
     }
 
-    /// Turn on/off scrolling on the horizontal/vertical axes.
-    #[deprecated = "Renamed to `scroll`"]
-    #[inline]
-    pub fn scroll2(mut self, direction_enabled: impl Into<Vec2b>) -> Self {
-        self.direction_enabled = direction_enabled.into();
-        self
-    }
-
     /// Control the scrolling behavior.
     ///
     /// * If `true` (default), the scroll area will respond to user scrolling.

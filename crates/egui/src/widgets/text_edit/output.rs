@@ -23,11 +23,4 @@ pub struct TextEditOutput {
     pub cursor_range: Option<CCursorRange>,
 }
 
-impl TextEditOutput {
-    #[deprecated = "Renamed `self.galley_pos`"]
-    pub fn text_draw_pos(&self) -> crate::Pos2 {
-        self.galley_pos
-    }
-}
-
 // TODO(emilk): add `output.paint` and `output.store` and split out that code from `TextEdit::show`.

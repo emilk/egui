@@ -143,12 +143,16 @@ pub type Result<T, E = LoadError> = std::result::Result<T, E>;
 /// Given as a hint for image loading requests.
 ///
 /// Used mostly for rendering SVG:s to a good size.
-/// The size is measured in texels, with the pixels per point already factored in.
-///
-/// All variants will preserve the original aspect ratio.
+/// The [`SizeHint`] determines at what resolution the image should be rasterized.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum SizeHint {
-    /// Scale original size by some factor.
+    /// Scale original size by some factor, keeping the original aspect ratio.
+    ///
+    /// The original size of the image is usually its texel resolution,
+    /// but for an SVG it's the point size of the SVG.
+    ///
+    /// For instance, setting `Scale(2.0)` will rasterize SVG:s to twice their original size,
+    /// which is useful for high-DPI displays.
     Scale(OrderedFloat<f32>),
 
     /// Scale to exactly this pixel width, keeping the original aspect ratio.
@@ -166,6 +170,26 @@ pub enum SizeHint {
         /// while still fitting within the given width/height.
         maintain_aspect_ratio: bool,
     },
+}
+
+impl SizeHint {
+    /// Multiply size hint by a factor.
+    pub fn scale_by(self, factor: f32) -> Self {
+        match self {
+            Self::Scale(scale) => Self::Scale(OrderedFloat(factor * scale.0)),
+            Self::Width(width) => Self::Width((factor * width as f32).round() as _),
+            Self::Height(height) => Self::Height((factor * height as f32).round() as _),
+            Self::Size {
+                width,
+                height,
+                maintain_aspect_ratio,
+            } => Self::Size {
+                width: (factor * width as f32).round() as _,
+                height: (factor * height as f32).round() as _,
+                maintain_aspect_ratio,
+            },
+        }
+    }
 }
 
 impl Default for SizeHint {
@@ -249,12 +273,16 @@ impl Deref for Bytes {
 pub enum BytesPoll {
     /// Bytes are being loaded.
     Pending {
+        /// Point size of the image.
+        ///
         /// Set if known (e.g. from a HTTP header, or by parsing the image file header).
         size: Option<Vec2>,
     },
 
     /// Bytes are loaded.
     Ready {
+        /// Point size of the image.
+        ///
         /// Set if known (e.g. from a HTTP header, or by parsing the image file header).
         size: Option<Vec2>,
 
@@ -344,6 +372,8 @@ pub trait BytesLoader {
 pub enum ImagePoll {
     /// Image is loading.
     Pending {
+        /// Point size of the image.
+        ///
         /// Set if known (e.g. from a HTTP header, or by parsing the image file header).
         size: Option<Vec2>,
     },
@@ -414,7 +444,7 @@ pub trait ImageLoader {
 pub struct SizedTexture {
     pub id: TextureId,
 
-    /// Size in logical ui points.
+    /// Point size of the original SVG, or the size of the image in texels.
     pub size: Vec2,
 }
 
@@ -460,6 +490,8 @@ impl<'a> From<&'a TextureHandle> for SizedTexture {
 pub enum TexturePoll {
     /// Texture is loading.
     Pending {
+        /// Point size of the image.
+        ///
         /// Set if known (e.g. from a HTTP header, or by parsing the image file header).
         size: Option<Vec2>,
     },
@@ -469,6 +501,7 @@ pub enum TexturePoll {
 }
 
 impl TexturePoll {
+    /// Point size of the original SVG, or the size of the image in texels.
     #[inline]
     pub fn size(&self) -> Option<Vec2> {
         match self {

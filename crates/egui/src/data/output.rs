@@ -739,7 +739,7 @@ impl WidgetInfo {
                 if text_value.is_empty() {
                     "blank".into()
                 } else {
-                    text_value.to_string()
+                    text_value.clone()
                 }
             } else {
                 "blank".into()

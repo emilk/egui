@@ -2,6 +2,7 @@
 # This script searches for the last CI run with your branch name, downloads the test_results artefact
 # and replaces your existing snapshots with the new ones.
 # Make sure you have the gh cli installed and authenticated before running this script.
+# If prompted to select a default repo, choose the emilk/egui one
 
 set -eu
 
@@ -9,7 +10,7 @@ BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
 RUN_ID=$(gh run list --branch "$BRANCH" --workflow "Rust" --json databaseId -q '.[0].databaseId')
 
-ECHO "Downloading test results from run $RUN_ID from branch $BRANCH"
+echo "Downloading test results from run $RUN_ID from branch $BRANCH"
 
 # remove any existing .new.png that might have been left behind
 find . -type d -path "*/tests/snapshots*" | while read dir; do

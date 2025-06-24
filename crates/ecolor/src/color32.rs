@@ -102,9 +102,6 @@ impl Color32 {
     /// i.e. often taken to mean "no color".
     pub const PLACEHOLDER: Self = Self::from_rgba_premultiplied(64, 254, 0, 128);
 
-    #[deprecated = "Renamed to PLACEHOLDER"]
-    pub const TEMPORARY_COLOR: Self = Self::PLACEHOLDER;
-
     /// From RGB with alpha of 255 (opaque).
     #[inline]
     pub const fn from_rgb(r: u8, g: u8, b: u8) -> Self {

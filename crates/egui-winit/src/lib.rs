@@ -1144,6 +1144,8 @@ fn key_from_named_key(named_key: winit::keyboard::NamedKey) -> Option<egui::Key>
         NamedKey::F33 => Key::F33,
         NamedKey::F34 => Key::F34,
         NamedKey::F35 => Key::F35,
+
+        NamedKey::BrowserBack => Key::BrowserBack,
         _ => {
             log::trace!("Unknown key: {named_key:?}");
             return None;
@@ -1852,8 +1854,8 @@ pub fn short_device_event_description(event: &winit::event::DeviceEvent) -> &'st
     use winit::event::DeviceEvent;
 
     match event {
-        DeviceEvent::Added { .. } => "DeviceEvent::Added",
-        DeviceEvent::Removed { .. } => "DeviceEvent::Removed",
+        DeviceEvent::Added => "DeviceEvent::Added",
+        DeviceEvent::Removed => "DeviceEvent::Removed",
         DeviceEvent::MouseMotion { .. } => "DeviceEvent::MouseMotion",
         DeviceEvent::MouseWheel { .. } => "DeviceEvent::MouseWheel",
         DeviceEvent::Motion { .. } => "DeviceEvent::Motion",
@@ -1871,11 +1873,11 @@ pub fn short_window_event_description(event: &winit::event::WindowEvent) -> &'st
         WindowEvent::ActivationTokenDone { .. } => "WindowEvent::ActivationTokenDone",
         WindowEvent::Resized { .. } => "WindowEvent::Resized",
         WindowEvent::Moved { .. } => "WindowEvent::Moved",
-        WindowEvent::CloseRequested { .. } => "WindowEvent::CloseRequested",
-        WindowEvent::Destroyed { .. } => "WindowEvent::Destroyed",
+        WindowEvent::CloseRequested => "WindowEvent::CloseRequested",
+        WindowEvent::Destroyed => "WindowEvent::Destroyed",
         WindowEvent::DroppedFile { .. } => "WindowEvent::DroppedFile",
         WindowEvent::HoveredFile { .. } => "WindowEvent::HoveredFile",
-        WindowEvent::HoveredFileCancelled { .. } => "WindowEvent::HoveredFileCancelled",
+        WindowEvent::HoveredFileCancelled => "WindowEvent::HoveredFileCancelled",
         WindowEvent::Focused { .. } => "WindowEvent::Focused",
         WindowEvent::KeyboardInput { .. } => "WindowEvent::KeyboardInput",
         WindowEvent::ModifiersChanged { .. } => "WindowEvent::ModifiersChanged",
@@ -1886,7 +1888,7 @@ pub fn short_window_event_description(event: &winit::event::WindowEvent) -> &'st
         WindowEvent::MouseWheel { .. } => "WindowEvent::MouseWheel",
         WindowEvent::MouseInput { .. } => "WindowEvent::MouseInput",
         WindowEvent::PinchGesture { .. } => "WindowEvent::PinchGesture",
-        WindowEvent::RedrawRequested { .. } => "WindowEvent::RedrawRequested",
+        WindowEvent::RedrawRequested => "WindowEvent::RedrawRequested",
         WindowEvent::DoubleTapGesture { .. } => "WindowEvent::DoubleTapGesture",
         WindowEvent::RotationGesture { .. } => "WindowEvent::RotationGesture",
         WindowEvent::TouchpadPressure { .. } => "WindowEvent::TouchpadPressure",

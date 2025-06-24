@@ -58,7 +58,7 @@ impl crate::View for Screenshot {
                         None
                     }
                 })
-                .last()
+                .next_back()
         });
 
         if let Some(image) = image {
