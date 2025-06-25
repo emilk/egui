@@ -13,16 +13,16 @@ pub struct SnapshotOptions {
     /// wgpu backends).
     pub threshold: f32,
 
-    /// The path where the snapshots will be saved.
-    /// The default is `tests/snapshots`.
-    pub output_path: PathBuf,
-
     /// The number of pixels that can differ before the snapshot is considered a failure.
     /// Preferably, you should use `threshold` to control the sensitivity of the image comparison.
     /// As a last resort, you can use this to allow a certain number of pixels to differ.
     /// If `None`, the default is `0` (meaning no pixels can differ).
     /// If `Some`, the value can be set per OS
-    pub diff_threshold: i32,
+    pub failed_pixel_count_threshold: i32,
+
+    /// The path where the snapshots will be saved.
+    /// The default is `tests/snapshots`.
+    pub output_path: PathBuf,
 }
 
 /// Helper struct to define the number of pixels that can differ before the snapshot is considered a failure.
@@ -110,7 +110,7 @@ impl Default for SnapshotOptions {
         Self {
             threshold: 0.6,
             output_path: PathBuf::from("tests/snapshots"),
-            diff_threshold: 0, // Default is 0, meaning no pixels can differ
+            failed_pixel_count_threshold: 0, // Default is 0, meaning no pixels can differ
         }
     }
 }
@@ -139,11 +139,15 @@ impl SnapshotOptions {
     }
 
     /// Change the number of pixels that can differ before the snapshot is considered a failure.
-    /// Preferably, you should use `threshold` to control the sensitivity of the image comparison.
+    ///
+    /// Preferably, you should use [`Self::threshold`] to control the sensitivity of the image comparison.
     /// As a last resort, you can use this to allow a certain number of pixels to differ.
     #[inline]
-    pub fn diff_threshold(mut self, diff_threshold: impl Into<i32>) -> Self {
-        self.diff_threshold = diff_threshold.into();
+    pub fn failed_pixel_count_threshold(
+        mut self,
+        failed_pixel_count_threshold: impl Into<usize>,
+    ) -> Self {
+        self.failed_pixel_count_threshold = failed_pixel_count_threshold.into();
         self
     }
 }
@@ -292,7 +296,7 @@ pub fn try_image_snapshot_options(
     let SnapshotOptions {
         threshold,
         output_path,
-        diff_threshold,
+        failed_pixel_count_threshold,
     } = options;
 
     let parent_path = if let Some(parent) = PathBuf::from(name).parent() {
@@ -383,7 +387,7 @@ pub fn try_image_snapshot_options(
         if should_update_snapshots() {
             update_snapshot()
         } else {
-            if diff <= *diff_threshold {
+            if diff <= *failed_pixel_count_threshold {
                 return Ok(());
             }
 
