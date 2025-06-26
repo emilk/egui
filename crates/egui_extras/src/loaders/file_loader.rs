@@ -101,7 +101,7 @@ impl BytesLoader for FileLoader {
                             ctx.request_repaint();
                             log::trace!("finished loading {uri:?}");
                         } else {
-                            log::trace!("cancelled loading {uri:?}");
+                            log::trace!("cancelled loading {uri:?}\nNote: This can happen if `forget_image` is called while the image is still loading.");
                         }
                     }
                 })
