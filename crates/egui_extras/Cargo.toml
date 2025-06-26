@@ -46,7 +46,7 @@ gif = ["image", "image/gif"]
 webp = ["image", "image/webp"]
 
 ## Support loading avif images.
-webp = ["image", "image/avif", "image/rayon"]
+avif = ["image", "image/avif", "image/rayon"]
 
 ## Add support for loading images via HTTP.
 http = ["dep:ehttp"]
