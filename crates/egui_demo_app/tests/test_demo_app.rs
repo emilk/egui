@@ -71,7 +71,7 @@ fn test_demo_app() {
 
         results.add(harness.try_snapshot_options(
             &anchor.to_string(),
-            &SnapshotOptions::new().failed_pixel_count_threshold(30u32),
+            &SnapshotOptions::new().failed_pixel_count_threshold(30),
         ));
     }
 }

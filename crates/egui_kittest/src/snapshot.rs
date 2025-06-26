@@ -18,7 +18,7 @@ pub struct SnapshotOptions {
     /// As a last resort, you can use this to allow a certain number of pixels to differ.
     /// If `None`, the default is `0` (meaning no pixels can differ).
     /// If `Some`, the value can be set per OS
-    pub failed_pixel_count_threshold: u32,
+    pub failed_pixel_count_threshold: usize,
 
     /// The path where the snapshots will be saved.
     /// The default is `tests/snapshots`.
@@ -93,7 +93,7 @@ where
     }
 }
 
-impl From<OsThreshold<Self>> for u32 {
+impl From<OsThreshold<Self>> for usize {
     fn from(threshold: OsThreshold<Self>) -> Self {
         threshold.threshold()
     }
@@ -145,7 +145,7 @@ impl SnapshotOptions {
     #[inline]
     pub fn failed_pixel_count_threshold(
         mut self,
-        failed_pixel_count_threshold: impl Into<u32>,
+        failed_pixel_count_threshold: impl Into<usize>,
     ) -> Self {
         self.failed_pixel_count_threshold = failed_pixel_count_threshold.into();
         self
@@ -387,7 +387,7 @@ pub fn try_image_snapshot_options(
         if should_update_snapshots() {
             update_snapshot()
         } else {
-            if diff >= 0 && (diff as u32) <= *failed_pixel_count_threshold {
+            if diff >= 0 && (diff as usize) <= *failed_pixel_count_threshold {
                 return Ok(());
             }
 
