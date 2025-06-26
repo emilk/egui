@@ -31,7 +31,7 @@ rustdoc-args = ["--generate-link-to-definition"]
 default = ["dep:mime_guess2"]
 
 ## Shorthand for enabling all the different types of image loaders.
-all_loaders = ["file", "http", "image", "svg", "gif", "webp"]
+all_loaders = ["file", "http", "image", "svg", "gif", "webp", "avif"]
 
 ## Enable [`DatePickerButton`] widget.
 datepicker = ["chrono"]
@@ -44,6 +44,9 @@ gif = ["image", "image/gif"]
 
 ## Support loading webp images.
 webp = ["image", "image/webp"]
+
+## Support loading avif images.
+webp = ["image", "image/avif", "image/rayon"]
 
 ## Add support for loading images via HTTP.
 http = ["dep:ehttp"]
