@@ -96,8 +96,9 @@ impl BytesLoader for FileLoader {
                             Err(err) => Err(err.to_string()),
                         };
                         let mut cache = cache.lock();
-                        if cache.contains_key(&uri) {
-                            cache.insert(uri.clone(), Poll::Ready(result));
+                        if let std::collections::hash_map::Entry::Occupied(mut entry) = cache.entry(uri.clone()) {
+                            let entry = entry.get_mut();
+                            *entry = Poll::Ready(result);
                             ctx.request_repaint();
                             log::trace!("finished loading {uri:?}");
                         } else {
