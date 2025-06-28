@@ -1,0 +1,19 @@
+{
+    "name": "egui demo app",
+    "short_name": "egui demo",
+    "start_url": "index.html",
+    "display": "standalone",
+    "description": "The egui demo app",
+    "dir": "auto",
+    "theme_color": "#000000",
+    "background_color": "#000000",
+    "orientation": "any",
+    "icons": [
+        {
+            "src": "https://ui-avatars.com/api/?name=Egui?s=512",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        }
+    ]
+}
