@@ -255,11 +255,12 @@ impl<'a> AtomLayout<'a> {
         let desired_size = Vec2::new(desired_width, height);
         let frame_size = (desired_size + margin.sum()).at_least(min_size);
 
-        let (_, rect) = ui.allocate_space(frame_size);
+        let intrinsic_size =
+            (Vec2::new(preferred_width, preferred_height) + margin.sum()).at_least(min_size);
+        let (_, rect) = ui.allocate_space(frame_size, intrinsic_size);
         let mut response = ui.interact(rect, id, sense);
 
-        response.intrinsic_size =
-            Some((Vec2::new(preferred_width, preferred_height) + margin.sum()).at_least(min_size));
+        response.intrinsic_size = Some(intrinsic_size);
 
         AllocatedAtomLayout {
             sized_atoms: sized_items,
