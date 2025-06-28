@@ -311,13 +311,17 @@ pub(crate) fn on_keyup(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
 
 fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
     runner_ref.add_event_listener(target, "paste", |event: web_sys::ClipboardEvent, runner| {
+        if !runner.input.raw.focused {
+            return; // The eframe app is not interested
+        }
+
         if let Some(data) = event.clipboard_data() {
             if let Ok(text) = data.get_data("text") {
                 let text = text.replace("\r\n", "\n");
 
                 let mut should_stop_propagation = true;
                 let mut should_prevent_default = true;
-                if !text.is_empty() && runner.input.raw.focused {
+                if !text.is_empty() {
                     let egui_event = egui::Event::Paste(text);
                     should_stop_propagation =
                         (runner.web_options.should_stop_propagation)(&egui_event);
@@ -340,16 +344,18 @@ fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Resul
     })?;
 
     runner_ref.add_event_listener(target, "cut", |event: web_sys::ClipboardEvent, runner| {
-        if runner.input.raw.focused {
-            runner.input.raw.events.push(egui::Event::Cut);
-
-            // In Safari we are only allowed to write to the clipboard during the
-            // event callback, which is why we run the app logic here and now:
-            runner.logic();
-
-            // Make sure we paint the output of the above logic call asap:
-            runner.needs_repaint.repaint_asap();
+        if !runner.input.raw.focused {
+            return; // The eframe app is not interested
         }
+
+        runner.input.raw.events.push(egui::Event::Cut);
+
+        // In Safari we are only allowed to write to the clipboard during the
+        // event callback, which is why we run the app logic here and now:
+        runner.logic();
+
+        // Make sure we paint the output of the above logic call asap:
+        runner.needs_repaint.repaint_asap();
 
         // Use web options to tell if the web event should be propagated to parent elements based on the egui event.
         if (runner.web_options.should_stop_propagation)(&egui::Event::Cut) {
@@ -362,16 +368,18 @@ fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Resul
     })?;
 
     runner_ref.add_event_listener(target, "copy", |event: web_sys::ClipboardEvent, runner| {
-        if runner.input.raw.focused {
-            runner.input.raw.events.push(egui::Event::Copy);
-
-            // In Safari we are only allowed to write to the clipboard during the
-            // event callback, which is why we run the app logic here and now:
-            runner.logic();
-
-            // Make sure we paint the output of the above logic call asap:
-            runner.needs_repaint.repaint_asap();
+        if !runner.input.raw.focused {
+            return; // The eframe app is not interested
         }
+
+        runner.input.raw.events.push(egui::Event::Copy);
+
+        // In Safari we are only allowed to write to the clipboard during the
+        // event callback, which is why we run the app logic here and now:
+        runner.logic();
+
+        // Make sure we paint the output of the above logic call asap:
+        runner.needs_repaint.repaint_asap();
 
         // Use web options to tell if the web event should be propagated to parent elements based on the egui event.
         if (runner.web_options.should_stop_propagation)(&egui::Event::Copy) {

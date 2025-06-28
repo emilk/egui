@@ -573,10 +573,9 @@ impl<'a> Popup<'a> {
             area = area.default_width(width);
         }
 
-        let frame = frame.unwrap_or_else(|| Frame::popup(&ctx.style()));
-
         let mut response = area.show(&ctx, |ui| {
             style.apply(ui.style_mut());
+            let frame = frame.unwrap_or_else(|| Frame::popup(ui.style()));
             frame.show(ui, content).inner
         });
 

@@ -3446,6 +3446,7 @@ impl Context {
     /// Release all memory and textures related to the given image URI.
     ///
     /// If you attempt to load the image again, it will be reloaded from scratch.
+    /// Also this cancels any ongoing loading of the image.
     pub fn forget_image(&self, uri: &str) {
         use load::BytesLoader as _;
 
