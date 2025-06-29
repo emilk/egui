@@ -539,7 +539,7 @@ impl Focus {
         self.focus_direction = FocusDirection::None;
 
         for event in &new_input.events {
-            if !event_filter.matches(event) {
+            if !event_filter.matches_focus(event) {
                 if let crate::Event::Key {
                     key,
                     pressed: true,
@@ -548,10 +548,12 @@ impl Focus {
                 } = event
                 {
                     if let Some(cardinality) = match key {
-                        crate::Key::ArrowUp => Some(FocusDirection::Up),
-                        crate::Key::ArrowRight => Some(FocusDirection::Right),
-                        crate::Key::ArrowDown => Some(FocusDirection::Down),
-                        crate::Key::ArrowLeft => Some(FocusDirection::Left),
+                        crate::Key::ArrowUp if modifiers.is_none() => Some(FocusDirection::Up),
+                        crate::Key::ArrowRight if modifiers.is_none() => {
+                            Some(FocusDirection::Right)
+                        }
+                        crate::Key::ArrowDown if modifiers.is_none() => Some(FocusDirection::Down),
+                        crate::Key::ArrowLeft if modifiers.is_none() => Some(FocusDirection::Left),
 
                         crate::Key::Tab => {
                             if modifiers.shift {
