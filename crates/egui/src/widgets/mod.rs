@@ -16,7 +16,6 @@ mod image_button;
 mod label;
 mod progress_bar;
 mod radio_button;
-mod selected_label;
 mod separator;
 mod slider;
 mod spinner;
@@ -35,7 +34,6 @@ pub use self::{
     label::Label,
     progress_bar::ProgressBar,
     radio_button::RadioButton,
-    selected_label::SelectableLabel,
     separator::Separator,
     slider::{Slider, SliderClamping, SliderOrientation},
     spinner::Spinner,
