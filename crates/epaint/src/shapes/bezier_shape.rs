@@ -253,8 +253,8 @@ impl CubicBezierShape {
         if p > 0.0 {
             return None;
         }
-        let r = (-1.0 * (p / 3.0).powi(3)).sqrt();
-        let theta = (-1.0 * q / (2.0 * r)).acos() / 3.0;
+        let r = (-(p / 3.0).powi(3)).sqrt();
+        let theta = (-q / (2.0 * r)).acos() / 3.0;
 
         let t1 = 2.0 * r.cbrt() * theta.cos() + h;
         let t2 = 2.0 * r.cbrt() * (theta + 120.0 * std::f32::consts::PI / 180.0).cos() + h;
