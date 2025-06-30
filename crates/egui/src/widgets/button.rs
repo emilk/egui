@@ -66,7 +66,7 @@ impl<'a> Button<'a> {
     /// See also:
     ///   - [`Ui::selectable_value`]
     ///   - [`Ui::selectable_label`]
-    pub fn selectable_value(selected: bool, atoms: impl IntoAtoms<'a>) -> Self {
+    pub fn selectable(selected: bool, atoms: impl IntoAtoms<'a>) -> Self {
         Self::new(atoms)
             .selected(selected)
             .frame_when_inactive(selected)

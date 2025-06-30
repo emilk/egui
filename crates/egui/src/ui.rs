@@ -2137,7 +2137,7 @@ impl Ui {
     /// See also [`SelectableLabel`] and [`Self::toggle_value`].
     #[must_use = "You should check if the user clicked this with `if ui.selectable_label(…).clicked() { … } "]
     pub fn selectable_label<'a>(&mut self, checked: bool, text: impl IntoAtoms<'a>) -> Response {
-        Button::selectable_value(checked, text).ui(self)
+        Button::selectable(checked, text).ui(self)
     }
 
     /// Show selectable text. It is selected if `*current_value == selected_value`.
