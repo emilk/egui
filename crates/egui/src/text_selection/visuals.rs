@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{pos2, vec2, Galley, Painter, Rect, Ui, Visuals};
+use crate::{Galley, Painter, Rect, Ui, Visuals, pos2, vec2};
 
 use super::CCursorRange;
 

@@ -2,19 +2,19 @@ use std::sync::Arc;
 
 use emath::{Rect, TSTransform};
 use epaint::{
-    text::{cursor::CCursor, Galley, LayoutJob},
     StrokeKind,
+    text::{Galley, LayoutJob, cursor::CCursor},
 };
 
 use crate::{
-    epaint,
+    Align, Align2, Color32, Context, CursorIcon, Event, EventFilter, FontSelection, Id, ImeEvent,
+    Key, KeyboardShortcut, Margin, Modifiers, NumExt as _, Response, Sense, Shape, TextBuffer,
+    TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetWithState, epaint,
     os::OperatingSystem,
     output::OutputEvent,
     response, text_selection,
-    text_selection::{text_cursor_state::cursor_rect, visuals::paint_text_selection, CCursorRange},
-    vec2, Align, Align2, Color32, Context, CursorIcon, Event, EventFilter, FontSelection, Id,
-    ImeEvent, Key, KeyboardShortcut, Margin, Modifiers, NumExt as _, Response, Sense, Shape,
-    TextBuffer, TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetWithState,
+    text_selection::{CCursorRange, text_cursor_state::cursor_rect, visuals::paint_text_selection},
+    vec2,
 };
 
 use super::{TextEditOutput, TextEditState};
@@ -617,7 +617,7 @@ impl TextEdit<'_> {
         }
 
         let mut cursor_range = None;
-        let prev_cursor_range = state.cursor.char_range();
+        let prev_cursor_range = state.cursor.range(&galley);
         if interactive && ui.memory(|mem| mem.has_focus(id)) {
             ui.memory_mut(|mem| mem.set_focus_lock_filter(id, event_filter));
 
@@ -720,7 +720,7 @@ impl TextEdit<'_> {
             let has_focus = ui.memory(|mem| mem.has_focus(id));
 
             if has_focus {
-                if let Some(cursor_range) = state.cursor.char_range() {
+                if let Some(cursor_range) = state.cursor.range(&galley) {
                     // Add text selection rectangles to the galley:
                     paint_text_selection(&mut galley, ui.visuals(), &cursor_range, None);
                 }
@@ -742,7 +742,7 @@ impl TextEdit<'_> {
             painter.galley(galley_pos, galley.clone(), text_color);
 
             if has_focus {
-                if let Some(cursor_range) = state.cursor.char_range() {
+                if let Some(cursor_range) = state.cursor.range(&galley) {
                     let primary_cursor_rect =
                         cursor_rect(&galley, &cursor_range.primary, row_height)
                             .translate(galley_pos.to_vec2());
@@ -898,7 +898,7 @@ fn events(
 ) -> (bool, CCursorRange) {
     let os = ui.ctx().os();
 
-    let mut cursor_range = state.cursor.char_range().unwrap_or(default_cursor_range);
+    let mut cursor_range = state.cursor.range(galley).unwrap_or(default_cursor_range);
 
     // We feed state to the undoer both before and after handling input
     // so that the undoer creates automatic saves even when there are no events for a while.

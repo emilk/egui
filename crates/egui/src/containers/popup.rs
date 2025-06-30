@@ -1,10 +1,10 @@
-use crate::containers::menu::{menu_style, MenuConfig, MenuState};
+use crate::containers::menu::{MenuConfig, MenuState, menu_style};
 use crate::style::StyleModifier;
 use crate::{
     Area, AreaState, Context, Frame, Id, InnerResponse, Key, LayerId, Layout, Order, Response,
     Sense, Ui, UiKind, UiStackInfo,
 };
-use emath::{vec2, Align, Pos2, Rect, RectAlign, Vec2};
+use emath::{Align, Pos2, Rect, RectAlign, Vec2, vec2};
 use std::iter::once;
 
 /// What should we anchor the popup to?
@@ -573,10 +573,9 @@ impl<'a> Popup<'a> {
             area = area.default_width(width);
         }
 
-        let frame = frame.unwrap_or_else(|| Frame::popup(&ctx.style()));
-
         let mut response = area.show(&ctx, |ui| {
             style.apply(ui.style_mut());
+            let frame = frame.unwrap_or_else(|| Frame::popup(ui.style()));
             frame.show(ui, content).inner
         });
 

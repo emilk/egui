@@ -3,8 +3,8 @@
 use std::{cmp::Ordering, ops::RangeInclusive};
 
 use crate::{
-    emath, text, Button, CursorIcon, Key, Modifiers, NumExt as _, Response, RichText, Sense,
-    TextEdit, TextWrapMode, Ui, Widget, WidgetInfo, MINUS_CHAR_STR,
+    Button, CursorIcon, Id, Key, MINUS_CHAR_STR, Modifiers, NumExt as _, Response, RichText, Sense,
+    TextEdit, TextWrapMode, Ui, Widget, WidgetInfo, emath, text,
 };
 
 // ----------------------------------------------------------------------------
@@ -569,6 +569,11 @@ impl Widget for DragValue<'_> {
                     .font(text_style),
             );
 
+            // Select all text when the edit gains focus.
+            if ui.memory_mut(|mem| mem.gained_focus(id)) {
+                select_all_text(ui, id, response.id, &value_text);
+            }
+
             let update = if update_while_editing {
                 // Update when the edit content has changed.
                 response.changed()
@@ -623,12 +628,7 @@ impl Widget for DragValue<'_> {
             if response.clicked() {
                 ui.data_mut(|data| data.remove::<String>(id));
                 ui.memory_mut(|mem| mem.request_focus(id));
-                let mut state = TextEdit::load_state(ui.ctx(), id).unwrap_or_default();
-                state.cursor.set_char_range(Some(text::CCursorRange::two(
-                    text::CCursor::default(),
-                    text::CCursor::new(value_text.chars().count()),
-                )));
-                state.store(ui.ctx(), response.id);
+                select_all_text(ui, id, response.id, &value_text);
             } else if response.dragged() {
                 ui.ctx().set_cursor_icon(cursor_icon);
 
@@ -757,6 +757,16 @@ pub(crate) fn clamp_value_to_range(x: f64, range: RangeInclusive<f64>) -> f64 {
             Ordering::Less => x,
         },
     }
+}
+
+/// Select all text in the `DragValue` text edit widget.
+fn select_all_text(ui: &Ui, widget_id: Id, response_id: Id, value_text: &str) {
+    let mut state = TextEdit::load_state(ui.ctx(), widget_id).unwrap_or_default();
+    state.cursor.set_char_range(Some(text::CCursorRange::two(
+        text::CCursor::default(),
+        text::CCursor::new(value_text.chars().count()),
+    )));
+    state.store(ui.ctx(), response_id);
 }
 
 #[cfg(test)]

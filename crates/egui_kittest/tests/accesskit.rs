@@ -1,8 +1,8 @@
 //! Tests the accesskit accessibility output of egui.
 
 use egui::{
-    accesskit::{NodeId, Role, TreeUpdate},
     CentralPanel, Context, RawInput, Window,
+    accesskit::{NodeId, Role, TreeUpdate},
 };
 
 /// Baseline test that asserts there are no spurious nodes in the

@@ -2,14 +2,15 @@ use std::{borrow::Cow, slice::Iter, sync::Arc, time::Duration};
 
 use emath::{Align, Float as _, GuiRounding as _, NumExt as _, Rot2};
 use epaint::{
-    text::{LayoutJob, TextFormat, TextWrapping},
     RectShape,
+    text::{LayoutJob, TextFormat, TextWrapping},
 };
 
 use crate::{
-    load::{Bytes, SizeHint, SizedTexture, TextureLoadResult, TexturePoll},
-    pos2, Color32, Context, CornerRadius, Id, Mesh, Painter, Rect, Response, Sense, Shape, Spinner,
+    Color32, Context, CornerRadius, Id, Mesh, Painter, Rect, Response, Sense, Shape, Spinner,
     TextStyle, TextureOptions, Ui, Vec2, Widget, WidgetInfo, WidgetType,
+    load::{Bytes, SizeHint, SizedTexture, TextureLoadResult, TexturePoll},
+    pos2,
 };
 
 /// A widget which displays an image.
@@ -499,7 +500,7 @@ impl ImageSize {
 
         let point_size = match fit {
             ImageFit::Original { scale } => {
-                return SizeHint::Scale((pixels_per_point * scale).ord())
+                return SizeHint::Scale((pixels_per_point * scale).ord());
             }
             ImageFit::Fraction(fract) => available_size * fract,
             ImageFit::Exact(size) => size,

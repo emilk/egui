@@ -582,7 +582,9 @@ impl Default for Renderer {
     fn default() -> Self {
         #[cfg(not(feature = "glow"))]
         #[cfg(not(feature = "wgpu"))]
-        compile_error!("eframe: you must enable at least one of the rendering backend features: 'glow' or 'wgpu'");
+        compile_error!(
+            "eframe: you must enable at least one of the rendering backend features: 'glow' or 'wgpu'"
+        );
 
         #[cfg(feature = "glow")]
         #[cfg(not(feature = "wgpu"))]
@@ -625,7 +627,9 @@ impl std::str::FromStr for Renderer {
             #[cfg(feature = "wgpu")]
             "wgpu" => Ok(Self::Wgpu),
 
-            _ => Err(format!("eframe renderer {name:?} is not available. Make sure that the corresponding eframe feature is enabled."))
+            _ => Err(format!(
+                "eframe renderer {name:?} is not available. Make sure that the corresponding eframe feature is enabled."
+            )),
         }
     }
 }

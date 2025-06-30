@@ -2,7 +2,7 @@ use ahash::HashMap;
 
 use emath::TSTransform;
 
-use crate::{ahash, emath, id::IdSet, LayerId, Pos2, Rect, Sense, WidgetRect, WidgetRects};
+use crate::{LayerId, Pos2, Rect, Sense, WidgetRect, WidgetRects, ahash, emath, id::IdSet};
 
 /// Result of a hit-test against [`WidgetRects`].
 ///
@@ -466,7 +466,7 @@ fn should_prioritize_hits_on_back(back: Rect, front: Rect) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use emath::{pos2, vec2, Rect};
+    use emath::{Rect, pos2, vec2};
 
     use crate::{Id, Sense};
 

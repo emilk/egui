@@ -9,7 +9,7 @@ use super::{
     font::UvRect,
 };
 use crate::{Color32, FontId, Mesh, Stroke};
-use emath::{pos2, vec2, Align, GuiRounding as _, NumExt as _, OrderedFloat, Pos2, Rect, Vec2};
+use emath::{Align, GuiRounding as _, NumExt as _, OrderedFloat, Pos2, Rect, Vec2, pos2, vec2};
 
 /// Describes the task of laying out text.
 ///
@@ -1102,6 +1102,10 @@ impl Galley {
             index: (cursor.index + 1).min(self.end().index),
             prefer_next_row: true, // default to this when navigating. It is more often useful to put cursor at the beginning of a row than at the end.
         }
+    }
+
+    pub fn clamp_cursor(&self, cursor: &CCursor) -> CCursor {
+        self.cursor_from_layout(self.layout_from_cursor(*cursor))
     }
 
     pub fn cursor_up_one_row(

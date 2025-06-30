@@ -1,9 +1,9 @@
 //! Text cursor changes/interaction, without modifying the text.
 
-use epaint::text::{cursor::CCursor, Galley};
+use epaint::text::{Galley, cursor::CCursor};
 use unicode_segmentation::UnicodeSegmentation as _;
 
-use crate::{epaint, NumExt as _, Rect, Response, Ui};
+use crate::{NumExt as _, Rect, Response, Ui, epaint};
 
 use super::CCursorRange;
 
@@ -33,6 +33,16 @@ impl TextCursorState {
     /// The currently selected range of characters.
     pub fn char_range(&self) -> Option<CCursorRange> {
         self.ccursor_range
+    }
+
+    /// The currently selected range of characters, clamped within the character
+    /// range of the given [`Galley`].
+    pub fn range(&self, galley: &Galley) -> Option<CCursorRange> {
+        self.ccursor_range.map(|mut range| {
+            range.primary = galley.clamp_cursor(&range.primary);
+            range.secondary = galley.clamp_cursor(&range.secondary);
+            range
+        })
     }
 
     /// Sets the currently selected range of characters.
@@ -69,7 +79,7 @@ impl TextCursorState {
             if response.hovered() && ui.input(|i| i.pointer.any_pressed()) {
                 // The start of a drag (or a click).
                 if ui.input(|i| i.modifiers.shift) {
-                    if let Some(mut cursor_range) = self.char_range() {
+                    if let Some(mut cursor_range) = self.range(galley) {
                         cursor_range.primary = cursor_at_pointer;
                         self.set_char_range(Some(cursor_range));
                     } else {
@@ -81,7 +91,7 @@ impl TextCursorState {
                 true
             } else if is_being_dragged {
                 // Drag to select text:
-                if let Some(mut cursor_range) = self.char_range() {
+                if let Some(mut cursor_range) = self.range(galley) {
                     cursor_range.primary = cursor_at_pointer;
                     self.set_char_range(Some(cursor_range));
                 }

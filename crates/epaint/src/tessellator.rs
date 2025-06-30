@@ -5,13 +5,13 @@
 
 #![allow(clippy::identity_op)]
 
-use emath::{pos2, remap, vec2, GuiRounding as _, NumExt as _, Pos2, Rect, Rot2, Vec2};
+use emath::{GuiRounding as _, NumExt as _, Pos2, Rect, Rot2, Vec2, pos2, remap, vec2};
 
 use crate::{
-    color::ColorMode, emath, stroke::PathStroke, texture_atlas::PreparedDisc, CircleShape,
-    ClippedPrimitive, ClippedShape, Color32, CornerRadiusF32, CubicBezierShape, EllipseShape, Mesh,
-    PathShape, Primitive, QuadraticBezierShape, RectShape, Shape, Stroke, StrokeKind, TextShape,
-    TextureId, Vertex, WHITE_UV,
+    CircleShape, ClippedPrimitive, ClippedShape, Color32, CornerRadiusF32, CubicBezierShape,
+    EllipseShape, Mesh, PathShape, Primitive, QuadraticBezierShape, RectShape, Shape, Stroke,
+    StrokeKind, TextShape, TextureId, Vertex, WHITE_UV, color::ColorMode, emath,
+    stroke::PathStroke, texture_atlas::PreparedDisc,
 };
 
 // ----------------------------------------------------------------------------
@@ -28,7 +28,7 @@ mod precomputed_vertices {
     //     println!("];")
     // }
 
-    use emath::{vec2, Vec2};
+    use emath::{Vec2, vec2};
 
     pub const CIRCLE_8: [Vec2; 9] = [
         vec2(1.000000, 0.000000),
@@ -340,7 +340,7 @@ impl Path {
     }
 
     pub fn add_circle(&mut self, center: Pos2, radius: f32) {
-        use precomputed_vertices::{CIRCLE_128, CIRCLE_16, CIRCLE_32, CIRCLE_64, CIRCLE_8};
+        use precomputed_vertices::{CIRCLE_8, CIRCLE_16, CIRCLE_32, CIRCLE_64, CIRCLE_128};
 
         // These cutoffs are based on a high-dpi display. TODO(emilk): use pixels_per_point here?
         // same cutoffs as in add_circle_quadrant
@@ -535,7 +535,7 @@ impl Path {
 pub mod path {
     //! Helpers for constructing paths
     use crate::CornerRadiusF32;
-    use emath::{pos2, Pos2, Rect};
+    use emath::{Pos2, Rect, pos2};
 
     /// overwrites existing points
     pub fn rounded_rectangle(path: &mut Vec<Pos2>, rect: Rect, cr: CornerRadiusF32) {
@@ -602,7 +602,7 @@ pub mod path {
     //   - quadrant 3: right top
     // * angle 4 * TAU / 4 = right
     pub fn add_circle_quadrant(path: &mut Vec<Pos2>, center: Pos2, radius: f32, quadrant: f32) {
-        use super::precomputed_vertices::{CIRCLE_128, CIRCLE_16, CIRCLE_32, CIRCLE_64, CIRCLE_8};
+        use super::precomputed_vertices::{CIRCLE_8, CIRCLE_16, CIRCLE_32, CIRCLE_64, CIRCLE_128};
 
         // These cutoffs are based on a high-dpi display. TODO(emilk): use pixels_per_point here?
         // same cutoffs as in add_circle

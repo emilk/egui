@@ -2,7 +2,7 @@ use emath::TSTransform;
 
 use crate::{Context, Galley, Id};
 
-use super::{text_cursor_state::is_word_char, CCursorRange};
+use super::{CCursorRange, text_cursor_state::is_word_char};
 
 /// Update accesskit with the current text state.
 pub fn update_accesskit_for_text_widget(

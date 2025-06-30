@@ -1,9 +1,9 @@
 use std::collections::BTreeSet;
 
 use super::About;
-use crate::is_mobile;
 use crate::Demo;
 use crate::View as _;
+use crate::is_mobile;
 use egui::containers::menu;
 use egui::style::StyleModifier;
 use egui::{Context, Modifiers, ScrollArea, Ui};
@@ -370,9 +370,9 @@ fn file_menu_button(ui: &mut Ui) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{demo::demo_app_windows::DemoGroups, Demo as _};
-    use egui::Vec2;
-    use egui_kittest::kittest::Queryable as _;
+    use crate::{Demo as _, demo::demo_app_windows::DemoGroups};
+
+    use egui_kittest::kittest::{NodeT as _, Queryable as _};
     use egui_kittest::{Harness, SnapshotOptions, SnapshotResults};
 
     #[test]
@@ -399,12 +399,12 @@ mod tests {
                 demo.show(ctx, &mut true);
             });
 
-            let window = harness.node().children().next().unwrap();
+            let window = harness.queryable_node().children().next().unwrap();
             // TODO(lucasmerlin): Windows should probably have a label?
             //let window = harness.get_by_label(name);
 
-            let size = window.raw_bounds().expect("window bounds").size();
-            harness.set_size(Vec2::new(size.width as f32, size.height as f32));
+            let size = window.rect().size();
+            harness.set_size(size);
 
             // Run the app for some more frames...
             harness.run_ok();
