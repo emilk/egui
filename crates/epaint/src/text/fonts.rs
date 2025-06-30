@@ -1,12 +1,12 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use crate::{
+    TextureAtlas,
     mutex::{Mutex, MutexGuard},
     text::{
-        font::{Font, FontImpl},
         Galley, LayoutJob, LayoutSection,
+        font::{Font, FontImpl},
     },
-    TextureAtlas,
 };
 use emath::{NumExt as _, OrderedFloat};
 
@@ -1050,7 +1050,7 @@ mod tests {
     use core::f32;
 
     use super::*;
-    use crate::{text::TextFormat, Stroke};
+    use crate::{Stroke, text::TextFormat};
     use ecolor::Color32;
     use emath::Align;
 

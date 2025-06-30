@@ -1,9 +1,9 @@
 use std::{collections::BTreeMap, fmt::Debug};
 
 use crate::{
-    data::input::TouchDeviceId,
-    emath::{normalized_angle, Pos2, Vec2},
     Event, RawInput, TouchId, TouchPhase,
+    data::input::TouchDeviceId,
+    emath::{Pos2, Vec2, normalized_angle},
 };
 
 /// All you probably need to know about a multi-touch gesture.

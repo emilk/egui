@@ -2,19 +2,19 @@ use std::sync::Arc;
 
 use emath::{Rect, TSTransform};
 use epaint::{
-    text::{cursor::CCursor, Galley, LayoutJob},
     StrokeKind,
+    text::{Galley, LayoutJob, cursor::CCursor},
 };
 
 use crate::{
-    epaint,
+    Align, Align2, Color32, Context, CursorIcon, Event, EventFilter, FontSelection, Id, ImeEvent,
+    Key, KeyboardShortcut, Margin, Modifiers, NumExt as _, Response, Sense, Shape, TextBuffer,
+    TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetWithState, epaint,
     os::OperatingSystem,
     output::OutputEvent,
     response, text_selection,
-    text_selection::{text_cursor_state::cursor_rect, visuals::paint_text_selection, CCursorRange},
-    vec2, Align, Align2, Color32, Context, CursorIcon, Event, EventFilter, FontSelection, Id,
-    ImeEvent, Key, KeyboardShortcut, Margin, Modifiers, NumExt as _, Response, Sense, Shape,
-    TextBuffer, TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetWithState,
+    text_selection::{CCursorRange, text_cursor_state::cursor_rect, visuals::paint_text_selection},
+    vec2,
 };
 
 use super::{TextEditOutput, TextEditState};

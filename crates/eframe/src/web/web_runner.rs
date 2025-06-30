@@ -2,12 +2,12 @@ use std::{cell::RefCell, rc::Rc};
 
 use wasm_bindgen::prelude::*;
 
-use crate::{epi, App};
+use crate::{App, epi};
 
 use super::{
+    AppRunner, PanicHandler,
     events::{self, ResizeObserverContext},
     text_agent::TextAgent,
-    AppRunner, PanicHandler,
 };
 
 /// This is how `eframe` runs your web application

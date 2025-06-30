@@ -2,7 +2,7 @@ use egui::accesskit::{self, Role};
 use egui::{Button, ComboBox, Image, Vec2, Widget as _};
 #[cfg(all(feature = "wgpu", feature = "snapshot"))]
 use egui_kittest::SnapshotResults;
-use egui_kittest::{kittest::Queryable as _, Harness};
+use egui_kittest::{Harness, kittest::Queryable as _};
 
 #[test]
 pub fn focus_should_skip_over_disabled_buttons() {

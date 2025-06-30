@@ -3,8 +3,8 @@
 use std::ops::{Add, AddAssign, BitOr, BitOrAssign};
 
 use crate::{
-    emath, epaint, lerp, pass_state, pos2, remap, remap_clamp, Context, CursorIcon, Id,
-    NumExt as _, Pos2, Rangef, Rect, Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b,
+    Context, CursorIcon, Id, NumExt as _, Pos2, Rangef, Rect, Sense, Ui, UiBuilder, UiKind,
+    UiStackInfo, Vec2, Vec2b, emath, epaint, lerp, pass_state, pos2, remap, remap_clamp,
 };
 
 #[derive(Clone, Copy, Debug)]

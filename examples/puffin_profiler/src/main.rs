@@ -2,8 +2,8 @@
 #![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
     Arc,
+    atomic::{AtomicBool, Ordering},
 };
 
 use eframe::egui;

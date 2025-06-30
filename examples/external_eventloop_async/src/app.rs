@@ -1,4 +1,4 @@
-use eframe::{egui, EframePumpStatus, UserEvent};
+use eframe::{EframePumpStatus, UserEvent, egui};
 use std::{cell::Cell, io, os::fd::AsRawFd as _, rc::Rc, time::Duration};
 use tokio::task::LocalSet;
 use winit::event_loop::{ControlFlow, EventLoop};

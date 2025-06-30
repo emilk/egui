@@ -3,8 +3,8 @@
 use std::{cmp::Ordering, ops::RangeInclusive};
 
 use crate::{
-    emath, text, Button, CursorIcon, Id, Key, Modifiers, NumExt as _, Response, RichText, Sense,
-    TextEdit, TextWrapMode, Ui, Widget, WidgetInfo, MINUS_CHAR_STR,
+    Button, CursorIcon, Id, Key, MINUS_CHAR_STR, Modifiers, NumExt as _, Response, RichText, Sense,
+    TextEdit, TextWrapMode, Ui, Widget, WidgetInfo, emath, text,
 };
 
 // ----------------------------------------------------------------------------

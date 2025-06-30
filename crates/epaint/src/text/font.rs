@@ -1,12 +1,12 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use emath::{vec2, GuiRounding as _, Vec2};
+use emath::{GuiRounding as _, Vec2, vec2};
 
 use crate::{
+    TextureAtlas,
     mutex::{Mutex, RwLock},
     text::FontTweak,
-    TextureAtlas,
 };
 
 // ----------------------------------------------------------------------------
