@@ -10,9 +10,8 @@ use ahash::HashMap;
 
 use super::winit_integration::{UserEvent, WinitApp};
 use crate::{
-    epi,
+    Result, epi,
     native::{event_loop_context, winit_integration::EventResult},
-    Result,
 };
 
 // ----------------------------------------------------------------------------

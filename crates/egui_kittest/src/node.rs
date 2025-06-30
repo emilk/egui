@@ -1,7 +1,7 @@
 use egui::accesskit::ActionRequest;
 use egui::mutex::Mutex;
-use egui::{accesskit, Modifiers, PointerButton, Pos2};
-use kittest::{debug_fmt_node, AccessKitNode, NodeT};
+use egui::{Modifiers, PointerButton, Pos2, accesskit};
+use kittest::{AccessKitNode, NodeT, debug_fmt_node};
 use std::fmt::{Debug, Formatter};
 
 pub(crate) enum EventType {

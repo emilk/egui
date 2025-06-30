@@ -1,4 +1,4 @@
-use egui::{include_image, Modifiers, Vec2};
+use egui::{Modifiers, Vec2, include_image};
 use egui_kittest::Harness;
 use kittest::Queryable as _;
 

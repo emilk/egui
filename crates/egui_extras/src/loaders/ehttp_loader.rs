@@ -19,13 +19,13 @@ impl File {
                     return Err(format!(
                         "failed to load {uri:?}: {} {} {response_text}",
                         response.status, response.status_text
-                    ))
+                    ));
                 }
                 None => {
                     return Err(format!(
                         "failed to load {uri:?}: {} {}",
                         response.status, response.status_text
-                    ))
+                    ));
                 }
             }
         }

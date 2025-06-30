@@ -1,12 +1,12 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use crate::{
+    TextureAtlas,
     mutex::{Mutex, MutexGuard},
     text::{
-        font::{Font, FontImpl},
         Galley, LayoutJob, LayoutSection,
+        font::{Font, FontImpl},
     },
-    TextureAtlas,
 };
 use emath::{NumExt as _, OrderedFloat};
 
@@ -680,7 +680,8 @@ impl FontsImpl {
 
     /// Get the right font implementation from size and [`FontFamily`].
     pub fn font(&mut self, font_id: &FontId) -> &mut Font {
-        let FontId { mut size, family } = font_id;
+        let FontId { size, family } = font_id;
+        let mut size = *size;
         size = size.at_least(0.1).at_most(2048.0);
 
         self.sized_family
@@ -1050,7 +1051,7 @@ mod tests {
     use core::f32;
 
     use super::*;
-    use crate::{text::TextFormat, Stroke};
+    use crate::{Stroke, text::TextFormat};
     use ecolor::Color32;
     use emath::Align;
 

@@ -1,6 +1,6 @@
-use epaint::{text::cursor::CCursor, Galley};
+use epaint::{Galley, text::cursor::CCursor};
 
-use crate::{os::OperatingSystem, Event, Id, Key, Modifiers};
+use crate::{Event, Id, Key, Modifiers, os::OperatingSystem};
 
 use super::text_cursor_state::{ccursor_next_word, ccursor_previous_word, slice_char_range};
 

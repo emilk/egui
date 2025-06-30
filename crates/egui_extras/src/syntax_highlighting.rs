@@ -5,8 +5,8 @@
 
 #![allow(clippy::mem_forget)] // False positive from enum_map macro
 
-use egui::text::LayoutJob;
 use egui::TextStyle;
+use egui::text::LayoutJob;
 
 /// View some code with syntax highlighting and selection.
 pub fn code_view_ui(

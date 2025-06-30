@@ -1,11 +1,11 @@
 mod touch_state;
 
 use crate::data::input::{
-    Event, EventFilter, KeyboardShortcut, Modifiers, MouseWheelUnit, PointerButton, RawInput,
-    TouchDeviceId, ViewportInfo, NUM_POINTER_BUTTONS,
+    Event, EventFilter, KeyboardShortcut, Modifiers, MouseWheelUnit, NUM_POINTER_BUTTONS,
+    PointerButton, RawInput, TouchDeviceId, ViewportInfo,
 };
 use crate::{
-    emath::{vec2, NumExt as _, Pos2, Rect, Vec2},
+    emath::{NumExt as _, Pos2, Rect, Vec2, vec2},
     util::History,
 };
 use std::{

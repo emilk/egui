@@ -44,7 +44,7 @@ mod vec2b;
 
 pub use self::{
     align::{Align, Align2},
-    gui_rounding::{GuiRounding, GUI_ROUNDING},
+    gui_rounding::{GUI_ROUNDING, GuiRounding},
     history::History,
     numeric::*,
     ordered_float::*,
@@ -182,11 +182,7 @@ where
         );
         let t = (x - *from.start()) / (*from.end() - *from.start());
         // Ensure no numerical inaccuracies sneak in:
-        if T::ONE <= t {
-            *to.end()
-        } else {
-            lerp(to, t)
-        }
+        if T::ONE <= t { *to.end() } else { lerp(to, t) }
     }
 }
 

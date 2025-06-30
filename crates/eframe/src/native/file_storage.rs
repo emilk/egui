@@ -52,10 +52,10 @@ fn roaming_appdata() -> Option<PathBuf> {
     use windows_sys::Win32::Foundation::S_OK;
     use windows_sys::Win32::System::Com::CoTaskMemFree;
     use windows_sys::Win32::UI::Shell::{
-        FOLDERID_RoamingAppData, SHGetKnownFolderPath, KF_FLAG_DONT_VERIFY,
+        FOLDERID_RoamingAppData, KF_FLAG_DONT_VERIFY, SHGetKnownFolderPath,
     };
 
-    extern "C" {
+    unsafe extern "C" {
         fn wcslen(buf: *const u16) -> usize;
     }
     let mut path_raw = ptr::null_mut();
