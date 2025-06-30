@@ -10,7 +10,13 @@ use eframe::egui;
 
 fn main() -> eframe::Result {
     let rust_log = std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_owned());
-    std::env::set_var("RUST_LOG", rust_log);
+
+    // SAFETY: we call this from the main thread without any other threads running.
+    #[expect(unsafe_code)]
+    unsafe {
+        std::env::set_var("RUST_LOG", rust_log);
+    };
+
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     start_puffin_server(); // NOTE: you may only want to call this if the users specifies some flag or clicks a button!
 

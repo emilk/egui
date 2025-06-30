@@ -680,7 +680,8 @@ impl FontsImpl {
 
     /// Get the right font implementation from size and [`FontFamily`].
     pub fn font(&mut self, font_id: &FontId) -> &mut Font {
-        let FontId { mut size, family } = font_id;
+        let FontId { size, family } = font_id;
+        let mut size = *size;
         size = size.at_least(0.1).at_most(2048.0);
 
         self.sized_family

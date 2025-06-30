@@ -174,7 +174,7 @@ impl TouchState {
         if added_or_removed_touches {
             // Adding or removing fingers makes the average values "jump". We better forget
             // about the previous values, and don't create delta information for this frame:
-            if let Some(ref mut state) = &mut self.gesture_state {
+            if let Some(state) = &mut self.gesture_state {
                 state.previous = None;
             }
         }
@@ -224,7 +224,7 @@ impl TouchState {
 
     fn update_gesture(&mut self, time: f64, pointer_pos: Option<Pos2>) {
         if let Some(dyn_state) = self.calc_dynamic_state() {
-            if let Some(ref mut state) = &mut self.gesture_state {
+            if let Some(state) = &mut self.gesture_state {
                 // updating an ongoing gesture
                 state.previous = Some(state.current);
                 state.current = dyn_state;
