@@ -18,7 +18,7 @@ pub(crate) struct InnerState {
     open_height: Option<f32>,
 }
 
-/// This is a a building block for building collapsing regions.
+/// This is a building block for building collapsing regions.
 ///
 /// It is used by [`CollapsingHeader`] and [`crate::Window`], but can also be used on its own.
 ///
@@ -87,7 +87,7 @@ impl CollapsingState {
         ui: &mut Ui,
         button_size: Vec2,
     ) -> Response {
-        let (_id, rect) = ui.allocate_space(button_size);
+        let (_id, rect) = ui.allocate_space(button_size, Vec2::ZERO); // TODO
         let response = ui.interact(rect, self.id, Sense::click());
         response.widget_info(|| {
             WidgetInfo::labeled(
@@ -117,7 +117,7 @@ impl CollapsingState {
         icon_fn: impl FnOnce(&mut Ui, f32, &Response) + 'static,
     ) -> Response {
         let size = vec2(ui.spacing().indent, ui.spacing().icon_width);
-        let (_id, rect) = ui.allocate_space(size);
+        let (_id, rect) = ui.allocate_space(size, Vec2::ZERO); // TODO
         let response = ui.interact(rect, self.id, Sense::click());
         if response.clicked() {
             self.toggle(ui);
@@ -554,7 +554,7 @@ impl CollapsingHeader {
 
         let mut desired_size = vec2(desired_width, galley.size().y + 2.0 * button_padding.y);
         desired_size = desired_size.at_least(ui.spacing().interact_size);
-        let (_, rect) = ui.allocate_space(desired_size);
+        let (_, rect) = ui.allocate_space(desired_size, desired_size); // TODO
 
         let mut header_response = ui.interact(rect, id, Sense::click());
         let text_pos = pos2(
