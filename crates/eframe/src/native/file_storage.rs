@@ -55,7 +55,7 @@ fn roaming_appdata() -> Option<PathBuf> {
         FOLDERID_RoamingAppData, KF_FLAG_DONT_VERIFY, SHGetKnownFolderPath,
     };
 
-    extern "C" {
+    unsafe extern "C" {
         fn wcslen(buf: *const u16) -> usize;
     }
     let mut path_raw = ptr::null_mut();
