@@ -1974,8 +1974,8 @@ impl Ui {
     ///
     /// See also [`Link`].
     #[must_use = "You should check if the user clicked this with `if ui.link(…).clicked() { … } "]
-    pub fn link(&mut self, text: impl Into<WidgetText>) -> Response {
-        Link::new(text).ui(self)
+    pub fn link<'a>(&mut self, atoms: impl IntoAtoms<'a>) -> Response {
+        Link::new(atoms).ui(self)
     }
 
     /// Link to a web page.

@@ -168,7 +168,8 @@ impl WidgetGallery {
         ui.end_row();
 
         ui.add(doc_link_label("Link", "link"));
-        if ui.link("Click me!").clicked() {
+        let egui_icon = egui::include_image!("../../data/icon.png");
+        if ui.link((egui_icon, "Click me!")).clicked() {
             *boolean = !*boolean;
         }
         ui.end_row();

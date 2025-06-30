@@ -1,6 +1,6 @@
 use crate::{
-    epaint, text_selection, CursorIcon, Label, Response, Sense, Stroke, Ui, Widget, WidgetInfo,
-    WidgetText, WidgetType,
+    epaint, text_selection, AtomLayout, CursorIcon, IntoAtoms, Response, Sense, Stroke, Ui, Widget,
+    WidgetInfo, WidgetText, WidgetType,
 };
 
 use self::text_selection::LabelSelectionState;
@@ -24,27 +24,38 @@ use self::text_selection::LabelSelectionState;
 /// # });
 /// ```
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
-pub struct Link {
-    text: WidgetText,
+pub struct Link<'a> {
+    layout: AtomLayout<'a>,
 }
 
-impl Link {
-    pub fn new(text: impl Into<WidgetText>) -> Self {
-        Self { text: text.into() }
+impl<'a> Link<'a> {
+    pub fn new(atoms: impl IntoAtoms<'a>) -> Self {
+        Self {
+            layout: AtomLayout::new(atoms).sense(Sense::click()),
+        }
     }
 }
 
-impl Widget for Link {
+impl Widget for Link<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
-        let Self { text } = self;
-        let label = Label::new(text).sense(Sense::click());
+        let Self { layout } = self;
 
-        let (galley_pos, galley, response) = label.layout_in_ui(ui);
-        response
-            .widget_info(|| WidgetInfo::labeled(WidgetType::Link, ui.is_enabled(), galley.text()));
+        let color = ui.visuals().hyperlink_color;
+        let text = layout.atoms.text().map(String::from);
+        let layout_with_color = layout.fallback_text_color(color);
+
+        let allocated = layout_with_color.allocate(ui);
+        let response = allocated.response.clone();
+
+        response.widget_info(|| {
+            WidgetInfo::labeled(
+                WidgetType::Link,
+                ui.is_enabled(),
+                text.as_deref().unwrap_or(""),
+            )
+        });
 
         if ui.is_rect_visible(response.rect) {
-            let color = ui.visuals().hyperlink_color;
             let visuals = ui.style().interact(&response);
 
             let underline = if response.hovered() || response.has_focus() {
@@ -54,14 +65,25 @@ impl Widget for Link {
             };
 
             let selectable = ui.style().interaction.selectable_labels;
-            if selectable {
-                LabelSelectionState::label_text_selection(
-                    ui, &response, galley_pos, galley, color, underline,
-                );
-            } else {
-                ui.painter().add(
-                    epaint::TextShape::new(galley_pos, galley, color).with_underline(underline),
-                );
+
+            for galley in allocated.iter_texts() {
+                let galley_pos = response.rect.min;
+
+                if selectable {
+                    LabelSelectionState::label_text_selection(
+                        ui,
+                        &response,
+                        galley_pos,
+                        galley.clone(),
+                        color,
+                        underline,
+                    );
+                } else {
+                    ui.painter().add(
+                        epaint::TextShape::new(galley_pos, galley.clone(), color)
+                            .with_underline(underline),
+                    );
+                }
             }
 
             if response.hovered() {
