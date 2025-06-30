@@ -162,6 +162,9 @@ impl<'a> Button<'a> {
     /// If `false`, the button will not have a frame when inactive.
     ///
     /// Default: `true`.
+    ///
+    /// Note: When [`Self::frame`] (or `ui.visuals().button_frame`) is `false`, this setting
+    /// has no effect.
     #[inline]
     pub fn frame_when_inactive(mut self, frame_when_inactive: bool) -> Self {
         self.frame_when_inactive = frame_when_inactive;
@@ -276,7 +279,7 @@ impl<'a> Button<'a> {
 
         let mut has_frame = frame.unwrap_or_else(|| ui.visuals().button_frame);
 
-        let mut button_padding = if has_frame || !frame_when_inactive {
+        let mut button_padding = if has_frame {
             ui.spacing().button_padding
         } else {
             Vec2::ZERO
