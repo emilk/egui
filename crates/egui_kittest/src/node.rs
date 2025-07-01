@@ -169,7 +169,7 @@ impl Node<'_> {
         }));
     }
 
-    /// Scroll the [`egui::ScrollArea`] containing this node down.
+    /// Scroll the [`egui::ScrollArea`] containing this node down (100px).
     pub fn scroll_down(&self) {
         self.event(egui::Event::AccessKitActionRequest(ActionRequest {
             action: accesskit::Action::ScrollDown,
@@ -178,7 +178,7 @@ impl Node<'_> {
         }));
     }
 
-    /// Scroll the [`egui::ScrollArea`] containing this node up.
+    /// Scroll the [`egui::ScrollArea`] containing this node up (100px).
     pub fn scroll_up(&self) {
         self.event(egui::Event::AccessKitActionRequest(ActionRequest {
             action: accesskit::Action::ScrollUp,
@@ -187,7 +187,7 @@ impl Node<'_> {
         }));
     }
 
-    /// Scroll the [`egui::ScrollArea`] containing this node left.
+    /// Scroll the [`egui::ScrollArea`] containing this node left (100px).
     pub fn scroll_left(&self) {
         self.event(egui::Event::AccessKitActionRequest(ActionRequest {
             action: accesskit::Action::ScrollLeft,
@@ -196,7 +196,7 @@ impl Node<'_> {
         }));
     }
 
-    /// Scroll the [`egui::ScrollArea`] containing this node right.
+    /// Scroll the [`egui::ScrollArea`] containing this node right (100px).
     pub fn scroll_right(&self) {
         self.event(egui::Event::AccessKitActionRequest(ActionRequest {
             action: accesskit::Action::ScrollRight,
