@@ -52,7 +52,6 @@ chrono = { version = "0.4", default-features = false, features = [
 ] }
 eframe = { workspace = true, default-features = false, features = [
   "web_screen_reader",
-  "wayland",
 ] }
 egui = { workspace = true, features = ["callstack", "default", "log"] }
 egui_demo_lib = { workspace = true, features = ["default", "chrono"] }
