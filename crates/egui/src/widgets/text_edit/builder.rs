@@ -63,7 +63,7 @@ type LayouterFn<'t> = &'t mut dyn FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<Galley
 /// See [`TextEdit::show`].
 ///
 /// ## Other
-/// The background color of a [`crate::TextEdit`] is [`crate::Visuals::extreme_bg_color`] or can be set with [`crate::TextEdit::background_color`].
+/// The background color of a [`crate::TextEdit`] is [`crate::Visuals::text_edit_bg_color`] or can be set with [`crate::TextEdit::background_color`].
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct TextEdit<'t> {
     text: &'t mut dyn TextBuffer,
@@ -207,7 +207,7 @@ impl<'t> TextEdit<'t> {
         self
     }
 
-    /// Set the background color of the [`TextEdit`]. The default is [`crate::Visuals::extreme_bg_color`].
+    /// Set the background color of the [`TextEdit`]. The default is [`crate::Visuals::text_edit_bg_color`].
     // TODO(bircni): remove this once #3284 is implemented
     #[inline]
     pub fn background_color(mut self, color: Color32) -> Self {
@@ -428,7 +428,7 @@ impl TextEdit<'_> {
         let where_to_put_background = ui.painter().add(Shape::Noop);
         let background_color = self
             .background_color
-            .unwrap_or(ui.visuals().extreme_bg_color);
+            .unwrap_or_else(|| ui.visuals().text_edit_bg_color());
         let output = self.show_content(ui);
 
         if frame {
