@@ -73,7 +73,7 @@ pub use self::{
 pub type Rounding = CornerRadius;
 
 pub use ecolor::{Color32, Hsva, HsvaGamma, Rgba};
-pub use emath::{pos2, vec2, Pos2, Rect, Vec2};
+pub use emath::{Pos2, Rect, Vec2, pos2, vec2};
 
 #[deprecated = "Use the ahash crate directly."]
 pub use ahash;

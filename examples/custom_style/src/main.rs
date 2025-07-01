@@ -2,7 +2,7 @@
 #![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
 use eframe::egui::{
-    self, global_theme_preference_buttons, style::Selection, Color32, Stroke, Style, Theme,
+    self, Color32, Stroke, Style, Theme, global_theme_preference_buttons, style::Selection,
 };
 use egui_demo_lib::{View as _, WidgetGallery};
 

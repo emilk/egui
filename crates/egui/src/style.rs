@@ -3,14 +3,14 @@
 #![allow(clippy::if_same_then_else)]
 
 use emath::Align;
-use epaint::{text::FontTweak, CornerRadius, Shadow, Stroke};
+use epaint::{CornerRadius, Shadow, Stroke, text::FontTweak};
 use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
 
 use crate::{
-    ecolor::Color32,
-    emath::{pos2, vec2, Rangef, Rect, Vec2},
     ComboBox, CursorIcon, FontFamily, FontId, Grid, Margin, Response, RichText, TextWrapMode,
     WidgetText,
+    ecolor::Color32,
+    emath::{Rangef, Rect, Vec2, pos2, vec2},
 };
 
 /// How to format numbers in e.g. a [`crate::DragValue`].
@@ -1576,8 +1576,8 @@ impl Default for Widgets {
 // ----------------------------------------------------------------------------
 
 use crate::{
-    widgets::{reset_button, DragValue, Slider, Widget},
     Ui,
+    widgets::{DragValue, Slider, Widget, reset_button},
 };
 
 impl Style {

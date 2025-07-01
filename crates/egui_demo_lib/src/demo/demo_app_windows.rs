@@ -1,9 +1,9 @@
 use std::collections::BTreeSet;
 
 use super::About;
-use crate::is_mobile;
 use crate::Demo;
 use crate::View as _;
+use crate::is_mobile;
 use egui::containers::menu;
 use egui::style::StyleModifier;
 use egui::{Context, Modifiers, ScrollArea, Ui};
@@ -370,7 +370,7 @@ fn file_menu_button(ui: &mut Ui) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{demo::demo_app_windows::DemoGroups, Demo as _};
+    use crate::{Demo as _, demo::demo_app_windows::DemoGroups};
 
     use egui_kittest::kittest::{NodeT as _, Queryable as _};
     use egui_kittest::{Harness, SnapshotOptions, SnapshotResults};

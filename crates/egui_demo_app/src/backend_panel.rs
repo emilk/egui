@@ -147,6 +147,10 @@ impl BackendPanel {
             if cfg!(debug_assertions) {
                 ui.collapsing("More…", |ui| {
                     ui.horizontal(|ui| {
+                        ui.label("Total ui frames:");
+                        ui.monospace(ui.ctx().cumulative_frame_nr().to_string());
+                    });
+                    ui.horizontal(|ui| {
                         ui.label("Total ui passes:");
                         ui.monospace(ui.ctx().cumulative_pass_nr().to_string());
                     });

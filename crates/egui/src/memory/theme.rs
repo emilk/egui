@@ -30,11 +30,7 @@ impl Theme {
 
     /// Chooses between [`Self::Dark`] or [`Self::Light`] based on a boolean value.
     pub fn from_dark_mode(dark_mode: bool) -> Self {
-        if dark_mode {
-            Self::Dark
-        } else {
-            Self::Light
-        }
+        if dark_mode { Self::Dark } else { Self::Light }
     }
 }
 

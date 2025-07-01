@@ -62,6 +62,7 @@ impl CodeExample {
         }
         ui.end_row();
 
+        #[expect(clippy::literal_string_with_formatting_args)]
         show_code(ui, r#"ui.label(format!("{name} is {age}"));"#);
         ui.label(format!("{name} is {age}"));
         ui.end_row();

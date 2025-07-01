@@ -6,8 +6,8 @@ use ahash::{HashMap, HashSet};
 use epaint::emath::TSTransform;
 
 use crate::{
-    area, vec2, EventFilter, Id, IdMap, LayerId, Order, Pos2, Rangef, RawInput, Rect, Style, Vec2,
-    ViewportId, ViewportIdMap, ViewportIdSet,
+    EventFilter, Id, IdMap, LayerId, Order, Pos2, Rangef, RawInput, Rect, Style, Vec2, ViewportId,
+    ViewportIdMap, ViewportIdSet, area, vec2,
 };
 
 mod theme;
@@ -377,8 +377,8 @@ impl Options {
             reduce_texture_memory,
         } = self;
 
-        use crate::containers::CollapsingHeader;
         use crate::Widget as _;
+        use crate::containers::CollapsingHeader;
 
         CollapsingHeader::new("⚙ Options")
             .default_open(false)
@@ -1250,8 +1250,11 @@ impl Areas {
     ///
     /// The two layers must have the same [`LayerId::order`].
     pub fn set_sublayer(&mut self, parent: LayerId, child: LayerId) {
-        debug_assert_eq!(parent.order, child.order,
-            "DEBUG ASSERT: Trying to set sublayers across layers of different order ({:?}, {:?}), which is currently undefined behavior in egui", parent.order, child.order);
+        debug_assert_eq!(
+            parent.order, child.order,
+            "DEBUG ASSERT: Trying to set sublayers across layers of different order ({:?}, {:?}), which is currently undefined behavior in egui",
+            parent.order, child.order
+        );
 
         self.sublayers.entry(parent).or_default().insert(child);
 

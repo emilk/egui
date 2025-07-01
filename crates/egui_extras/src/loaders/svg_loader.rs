@@ -1,17 +1,17 @@
 use std::{
     mem::size_of,
     sync::{
-        atomic::{AtomicU64, Ordering::Relaxed},
         Arc,
+        atomic::{AtomicU64, Ordering::Relaxed},
     },
 };
 
 use ahash::HashMap;
 
 use egui::{
+    ColorImage,
     load::{BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
     mutex::Mutex,
-    ColorImage,
 };
 
 struct Entry {

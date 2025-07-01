@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
 use egui::{
-    emath::GuiRounding as _, epaint, lerp, pos2, vec2, widgets::color_picker::show_color, Align2,
-    Color32, FontId, Image, Mesh, Pos2, Rect, Response, Rgba, RichText, Sense, Shape, Stroke,
-    TextureHandle, TextureOptions, Ui, Vec2,
+    Align2, Color32, FontId, Image, Mesh, Pos2, Rect, Response, Rgba, RichText, Sense, Shape,
+    Stroke, TextureHandle, TextureOptions, Ui, Vec2, emath::GuiRounding as _, epaint, lerp, pos2,
+    vec2, widgets::color_picker::show_color,
 };
 
 const GRADIENT_SIZE: Vec2 = vec2(256.0, 18.0);
@@ -722,8 +722,8 @@ fn mul_color_gamma(left: Color32, right: Color32) -> Color32 {
 #[cfg(test)]
 mod tests {
     use crate::ColorTest;
-    use egui_kittest::kittest::Queryable as _;
     use egui_kittest::SnapshotResults;
+    use egui_kittest::kittest::Queryable as _;
 
     #[test]
     pub fn rendering_test() {
