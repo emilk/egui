@@ -2070,7 +2070,7 @@ impl Visuals {
             dark_mode,
             override_text_color: _,
             weak_text_alpha,
-            weak_text_color: _,
+            weak_text_color,
             widgets,
             selection,
             hyperlink_color,
@@ -2124,12 +2124,8 @@ impl Visuals {
             ui_color(ui, extreme_bg_color, "Extreme")
                 .on_hover_text("Background of plots and paintings");
 
-            ui_color(
-                ui,
-                text_edit_bg_color.get_or_insert(*extreme_bg_color),
-                "TextEdit",
-            )
-            .on_hover_text("Background of TextEdit");
+            ui_optional_color(ui, text_edit_bg_color, *extreme_bg_color, "TextEdit")
+                .on_hover_text("Background of TextEdit");
         });
 
         ui.collapsing("Text color", |ui| {
@@ -2159,7 +2155,16 @@ impl Visuals {
                 },
             );
 
-            ui.add(Slider::new(weak_text_alpha, 0.0..=1.0).text("Weak text alpha"));
+            ui.add_enabled(
+                weak_text_color.is_none(),
+                Slider::new(weak_text_alpha, 0.0..=1.0).text("Weak text alpha"),
+            );
+            ui_optional_color(
+                ui,
+                weak_text_color,
+                widgets.noninteractive.text_color(),
+                "Weak text color",
+            );
         });
 
         ui.collapsing("Text cursor", |ui| {
@@ -2381,6 +2386,26 @@ fn two_drag_values(value: &mut Vec2, range: std::ops::RangeInclusive<f32>) -> im
         })
         .response
     }
+}
+
+fn ui_optional_color(
+    ui: &mut Ui,
+    color: &mut Option<Color32>,
+    default_value: Color32,
+    label: impl Into<WidgetText>,
+) -> Response {
+    ui.horizontal(|ui| {
+        ui.label(label);
+        let mut set = color.is_some();
+        ui.checkbox(&mut set, "");
+        if set {
+            let color = color.get_or_insert(default_value);
+            ui.color_edit_button_srgba(color);
+        } else {
+            *color = None;
+        }
+    })
+    .response
 }
 
 fn ui_color(ui: &mut Ui, color: &mut Color32, label: impl Into<WidgetText>) -> Response {
