@@ -2114,57 +2114,108 @@ impl Visuals {
             disabled_alpha,
         } = self;
 
-        ui.collapsing("Background colors", |ui| {
-            ui_color(ui, &mut widgets.inactive.weak_bg_fill, "Buttons");
-            ui_color(ui, window_fill, "Windows");
-            ui_color(ui, panel_fill, "Panels");
-            ui_color(ui, faint_bg_color, "Faint accent").on_hover_text(
-                "Used for faint accentuation of interactive things, like striped grids.",
-            );
-            ui_color(ui, extreme_bg_color, "Extreme")
-                .on_hover_text("Background of plots and paintings");
+        fn ui_optional_color(
+            ui: &mut Ui,
+            color: &mut Option<Color32>,
+            default_value: Color32,
+            label: impl Into<WidgetText>,
+        ) -> Response {
+            let label_response = ui.label(label);
 
-            ui_optional_color(ui, text_edit_bg_color, *extreme_bg_color, "TextEdit")
-                .on_hover_text("Background of TextEdit");
+            ui.horizontal(|ui| {
+                let mut set = color.is_some();
+                ui.checkbox(&mut set, "");
+                if set {
+                    let color = color.get_or_insert(default_value);
+                    ui.color_edit_button_srgba(color);
+                } else {
+                    *color = None;
+                };
+            });
+
+            ui.end_row();
+
+            label_response
+        }
+
+        ui.collapsing("Background colors", |ui| {
+            Grid::new("background_colors")
+                .num_columns(2)
+                .show(ui, |ui| {
+                    fn ui_color(
+                        ui: &mut Ui,
+                        color: &mut Color32,
+                        label: impl Into<WidgetText>,
+                    ) -> Response {
+                        let label_response = ui.label(label);
+                        ui.color_edit_button_srgba(color);
+                        ui.end_row();
+                        label_response
+                    }
+
+                    ui_color(ui, &mut widgets.inactive.weak_bg_fill, "Buttons");
+                    ui_color(ui, window_fill, "Windows");
+                    ui_color(ui, panel_fill, "Panels");
+                    ui_color(ui, faint_bg_color, "Faint accent").on_hover_text(
+                        "Used for faint accentuation of interactive things, like striped grids.",
+                    );
+                    ui_color(ui, extreme_bg_color, "Extreme")
+                        .on_hover_text("Background of plots and paintings");
+
+                    ui_optional_color(ui, text_edit_bg_color, *extreme_bg_color, "TextEdit")
+                        .on_hover_text("Background of TextEdit");
+                });
         });
 
         ui.collapsing("Text color", |ui| {
-            ui_text_color(ui, &mut widgets.noninteractive.fg_stroke.color, "Label");
+            fn ui_text_color(ui: &mut Ui, color: &mut Color32, label: impl Into<RichText>) {
+                ui.label(label.into().color(*color));
+                ui.color_edit_button_srgba(color);
+                ui.end_row();
+            }
 
-            ui_text_color(
-                ui,
-                &mut widgets.inactive.fg_stroke.color,
-                "Unhovered button",
-            );
-            ui_text_color(ui, &mut widgets.hovered.fg_stroke.color, "Hovered button");
-            ui_text_color(ui, &mut widgets.active.fg_stroke.color, "Clicked button");
+            Grid::new("text_color").num_columns(2).show(ui, |ui| {
+                ui_text_color(ui, &mut widgets.noninteractive.fg_stroke.color, "Label");
 
-            ui_text_color(ui, warn_fg_color, RichText::new("Warnings"));
-            ui_text_color(ui, error_fg_color, RichText::new("Errors"));
+                ui_text_color(
+                    ui,
+                    &mut widgets.inactive.fg_stroke.color,
+                    "Unhovered button",
+                );
+                ui_text_color(ui, &mut widgets.hovered.fg_stroke.color, "Hovered button");
+                ui_text_color(ui, &mut widgets.active.fg_stroke.color, "Clicked button");
 
-            ui_text_color(ui, hyperlink_color, "hyperlink_color");
+                ui_text_color(ui, warn_fg_color, RichText::new("Warnings"));
+                ui_text_color(ui, error_fg_color, RichText::new("Errors"));
 
-            ui_color(ui, code_bg_color, RichText::new("Code background").code()).on_hover_ui(
-                |ui| {
-                    ui.horizontal(|ui| {
-                        ui.spacing_mut().item_spacing.x = 0.0;
-                        ui.label("For monospaced inlined text ");
-                        ui.code("like this");
-                        ui.label(".");
+                ui_text_color(ui, hyperlink_color, "hyperlink_color");
+
+                ui.label(RichText::new("Code background").code())
+                    .on_hover_ui(|ui| {
+                        ui.horizontal(|ui| {
+                            ui.spacing_mut().item_spacing.x = 0.0;
+                            ui.label("For monospaced inlined text ");
+                            ui.code("like this");
+                            ui.label(".");
+                        });
                     });
-                },
-            );
+                ui.color_edit_button_srgba(code_bg_color);
+                ui.end_row();
 
-            ui.add_enabled(
-                weak_text_color.is_none(),
-                Slider::new(weak_text_alpha, 0.0..=1.0).text("Weak text alpha"),
-            );
-            ui_optional_color(
-                ui,
-                weak_text_color,
-                widgets.noninteractive.text_color(),
-                "Weak text color",
-            );
+                ui.label("Weak text alpha");
+                ui.add_enabled(
+                    weak_text_color.is_none(),
+                    DragValue::new(weak_text_alpha).speed(0.01).range(0.0..=1.0),
+                );
+                ui.end_row();
+
+                ui_optional_color(
+                    ui,
+                    weak_text_color,
+                    widgets.noninteractive.text_color(),
+                    "Weak text color",
+                );
+            });
         });
 
         ui.collapsing("Text cursor", |ui| {
@@ -2386,42 +2437,6 @@ fn two_drag_values(value: &mut Vec2, range: std::ops::RangeInclusive<f32>) -> im
         })
         .response
     }
-}
-
-fn ui_optional_color(
-    ui: &mut Ui,
-    color: &mut Option<Color32>,
-    default_value: Color32,
-    label: impl Into<WidgetText>,
-) -> Response {
-    ui.horizontal(|ui| {
-        ui.label(label);
-        let mut set = color.is_some();
-        ui.checkbox(&mut set, "");
-        if set {
-            let color = color.get_or_insert(default_value);
-            ui.color_edit_button_srgba(color);
-        } else {
-            *color = None;
-        }
-    })
-    .response
-}
-
-fn ui_color(ui: &mut Ui, color: &mut Color32, label: impl Into<WidgetText>) -> Response {
-    ui.horizontal(|ui| {
-        ui.color_edit_button_srgba(color);
-        ui.label(label);
-    })
-    .response
-}
-
-fn ui_text_color(ui: &mut Ui, color: &mut Color32, label: impl Into<RichText>) -> Response {
-    ui.horizontal(|ui| {
-        ui.color_edit_button_srgba(color);
-        ui.label(label.into().color(*color));
-    })
-    .response
 }
 
 impl HandleShape {
