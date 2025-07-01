@@ -100,9 +100,9 @@ impl BytesLoader for FileLoader {
                             let entry = entry.get_mut();
                             *entry = Poll::Ready(result);
                             ctx.request_repaint();
-                            log::trace!("finished loading {uri:?}");
+                            log::trace!("Finished loading {uri:?}");
                         } else {
-                            log::trace!("cancelled loading {uri:?}\nNote: This can happen if `forget_image` is called while the image is still loading.");
+                            log::trace!("Canceled loading {uri:?}\nNote: This can happen if `forget_image` is called while the image is still loading.");
                         }
                     }
                 })
