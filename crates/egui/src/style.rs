@@ -936,6 +936,17 @@ pub struct Visuals {
     /// it is disabled, non-interactive, hovered etc.
     pub override_text_color: Option<Color32>,
 
+    /// How strong "weak" text is.
+    ///
+    /// Ignored if [`Self::weak_text_color`] is set.
+    pub weak_text_alpha: f32,
+
+    /// Color of "weak" text.
+    ///
+    /// If `None`, the color is [`Self::text_color`]
+    /// multiplied by [`Self::weak_text_alpha`].
+    pub weak_text_color: Option<Color32>,
+
     /// Visual styles of widgets
     pub widgets: Widgets,
 
@@ -1043,7 +1054,8 @@ impl Visuals {
     }
 
     pub fn weak_text_color(&self) -> Color32 {
-        self.gray_out(self.text_color())
+        self.weak_text_color
+            .unwrap_or_else(|| self.text_color().gamma_multiply(self.weak_text_alpha))
     }
 
     #[inline(always)]
@@ -1363,6 +1375,8 @@ impl Visuals {
         Self {
             dark_mode: true,
             override_text_color: None,
+            weak_text_alpha: 0.6,
+            weak_text_color: None,
             widgets: Widgets::default(),
             selection: Selection::default(),
             hyperlink_color: Color32::from_rgb(90, 170, 255),
@@ -2055,6 +2069,8 @@ impl Visuals {
         let Self {
             dark_mode,
             override_text_color: _,
+            weak_text_alpha,
+            weak_text_color: _,
             widgets,
             selection,
             hyperlink_color,
@@ -2118,6 +2134,7 @@ impl Visuals {
 
         ui.collapsing("Text color", |ui| {
             ui_text_color(ui, &mut widgets.noninteractive.fg_stroke.color, "Label");
+
             ui_text_color(
                 ui,
                 &mut widgets.inactive.fg_stroke.color,
@@ -2141,6 +2158,8 @@ impl Visuals {
                     });
                 },
             );
+
+            ui.add(Slider::new(weak_text_alpha, 0.0..=1.0).text("Weak text alpha"));
         });
 
         ui.collapsing("Text cursor", |ui| {
