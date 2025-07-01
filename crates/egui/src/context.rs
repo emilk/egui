@@ -1240,16 +1240,16 @@ impl Context {
                             ];
                         }
                         accesskit::Action::ScrollDown => {
-                            viewport.this_pass.scroll_delta.0 = vec2(0.0, 100.0);
+                            viewport.this_pass.scroll_delta.0 += vec2(0.0, -100.0);
                         }
                         accesskit::Action::ScrollUp => {
-                            viewport.this_pass.scroll_delta.0 = vec2(0.0, -100.0);
+                            viewport.this_pass.scroll_delta.0 += vec2(0.0, 100.0);
                         }
                         accesskit::Action::ScrollLeft => {
-                            viewport.this_pass.scroll_delta.0 = vec2(-100.0, 0.0);
+                            viewport.this_pass.scroll_delta.0 += vec2(-100.0, 0.0);
                         }
                         accesskit::Action::ScrollRight => {
-                            viewport.this_pass.scroll_delta.0 = vec2(100.0, 0.0);
+                            viewport.this_pass.scroll_delta.0 += vec2(100.0, 0.0);
                         }
                         _ => return false,
                     };

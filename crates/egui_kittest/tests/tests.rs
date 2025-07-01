@@ -125,15 +125,9 @@ fn test_scroll_to_me() {
 fn test_scroll_down() {
     let mut harness = test_scroll_harness();
 
-    harness.get_by_label("Hidden Button").scroll_up();
-    harness.run();
-    harness.get_by_label("Hidden Button").scroll_up();
-    harness.run();
-    harness.get_by_label("Hidden Button").scroll_up();
-    harness.run();
-    harness.get_by_label("Hidden Button").scroll_up();
-    harness.run();
-    harness.get_by_label("Hidden Button").scroll_up();
+    let button = harness.get_by_label("Hidden Button");
+    button.scroll_down();
+    button.scroll_down();
     harness.run();
 
     harness.get_by_label("Hidden Button").click();
