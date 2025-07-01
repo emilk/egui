@@ -28,6 +28,7 @@ pub use builder::*;
 pub use node::*;
 pub use renderer::*;
 
+use egui::style::ScrollAnimation;
 use egui::{Key, Modifiers, Pos2, Rect, RepaintCause, Vec2, ViewportId};
 use kittest::Queryable;
 
@@ -55,6 +56,10 @@ impl Display for ExceededMaxStepsError {
 /// The [Harness] has a optional generic state that can be used to pass data to the app / ui closure.
 /// In _most cases_ it should be fine to just store the state in the closure itself.
 /// The state functions are useful if you need to access the state after the harness has been created.
+///
+/// Some egui style options are changed from the defaults:
+/// - The cursor blinking is disabled
+/// - The scroll animation is disabled
 pub struct Harness<'a, State = ()> {
     pub ctx: egui::Context,
     input: egui::RawInput,
@@ -94,8 +99,11 @@ impl<'a, State> Harness<'a, State> {
         } = builder;
         let ctx = ctx.unwrap_or_default();
         ctx.enable_accesskit();
-        // Disable cursor blinking so it doesn't interfere with snapshots
-        ctx.all_styles_mut(|style| style.visuals.text_cursor.blink = false);
+        ctx.all_styles_mut(|style| {
+            // Disable cursor blinking so it doesn't interfere with snapshots
+            style.visuals.text_cursor.blink = false;
+            style.scroll_animation = ScrollAnimation::none();
+        });
         let mut input = egui::RawInput {
             screen_rect: Some(screen_rect),
             ..Default::default()
@@ -562,7 +570,8 @@ impl<'a, State> Harness<'a, State> {
             .expect("Missing root viewport")
     }
 
-    fn root(&self) -> Node<'_> {
+    /// The root node of the test harness.
+    pub fn root(&self) -> Node<'_> {
         Node {
             accesskit_node: self.kittest.root(),
             queue: &self.queued_events,

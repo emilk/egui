@@ -159,4 +159,49 @@ impl Node<'_> {
     pub fn is_focused(&self) -> bool {
         self.accesskit_node.is_focused()
     }
+
+    /// Scroll the node into view.
+    pub fn scroll_to_me(&self) {
+        self.event(egui::Event::AccessKitActionRequest(ActionRequest {
+            action: accesskit::Action::ScrollIntoView,
+            target: self.accesskit_node.id(),
+            data: None,
+        }));
+    }
+
+    /// Scroll the ScrollArea containing this node down.
+    pub fn scroll_down(&self) {
+        self.event(egui::Event::AccessKitActionRequest(ActionRequest {
+            action: accesskit::Action::ScrollDown,
+            target: self.accesskit_node.id(),
+            data: None,
+        }));
+    }
+
+    /// Scroll the ScrollArea containing this node up.
+    pub fn scroll_up(&self) {
+        self.event(egui::Event::AccessKitActionRequest(ActionRequest {
+            action: accesskit::Action::ScrollUp,
+            target: self.accesskit_node.id(),
+            data: None,
+        }));
+    }
+
+    /// Scroll the ScrollArea containing this node left.
+    pub fn scroll_left(&self) {
+        self.event(egui::Event::AccessKitActionRequest(ActionRequest {
+            action: accesskit::Action::ScrollLeft,
+            target: self.accesskit_node.id(),
+            data: None,
+        }));
+    }
+
+    /// Scroll the ScrollArea containing this node right.
+    pub fn scroll_right(&self) {
+        self.event(egui::Event::AccessKitActionRequest(ActionRequest {
+            action: accesskit::Action::ScrollRight,
+            target: self.accesskit_node.id(),
+            data: None,
+        }));
+    }
 }

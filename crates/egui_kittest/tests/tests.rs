@@ -1,5 +1,5 @@
-use egui::{Modifiers, Vec2, include_image};
-use egui_kittest::Harness;
+use egui::{Modifiers, ScrollArea, Vec2, include_image};
+use egui_kittest::{Harness, SnapshotResults};
 use kittest::Queryable as _;
 
 #[test]
@@ -80,4 +80,67 @@ fn should_wait_for_images() {
         });
 
     harness.snapshot("should_wait_for_images");
+}
+
+fn test_scroll_harness() -> Harness<'static, bool> {
+    Harness::builder()
+        .with_size(Vec2::new(100.0, 200.0))
+        .build_ui_state(
+            |ui, state| {
+                ScrollArea::vertical().show(ui, |ui| {
+                    for i in 0..20 {
+                        ui.label(format!("Item {}", i));
+                    }
+                    if ui.button("Hidden Button").clicked() {
+                        *state = true;
+                    };
+                });
+            },
+            false,
+        )
+}
+
+#[test]
+fn test_scroll_to_me() {
+    let mut harness = test_scroll_harness();
+    let mut results = SnapshotResults::new();
+
+    results.add(harness.try_snapshot("test_scroll_initial"));
+
+    harness.get_by_label("Hidden Button").scroll_to_me();
+
+    harness.run();
+    results.add(harness.try_snapshot("test_scroll_scrolled"));
+
+    harness.get_by_label("Hidden Button").click();
+    harness.run();
+
+    assert!(
+        harness.state(),
+        "The button was not clicked after scrolling."
+    );
+}
+
+#[test]
+fn test_scroll_down() {
+    let mut harness = test_scroll_harness();
+
+    harness.get_by_label("Hidden Button").scroll_up();
+    harness.run();
+    harness.get_by_label("Hidden Button").scroll_up();
+    harness.run();
+    harness.get_by_label("Hidden Button").scroll_up();
+    harness.run();
+    harness.get_by_label("Hidden Button").scroll_up();
+    harness.run();
+    harness.get_by_label("Hidden Button").scroll_up();
+    harness.run();
+
+    harness.get_by_label("Hidden Button").click();
+    harness.run();
+
+    assert!(
+        harness.state(),
+        "The button was not clicked after scrolling down. (Probably not scrolled enough / at all)"
+    );
 }
