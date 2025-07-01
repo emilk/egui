@@ -83,6 +83,7 @@ impl Painter {
     }
 
     /// If set, colors will be modified to look like this
+    #[deprecated = "Use `multiply_opacity` instead"]
     pub fn set_fade_to_color(&mut self, fade_to_color: Option<Color32>) {
         self.fade_to_color = fade_to_color;
     }
