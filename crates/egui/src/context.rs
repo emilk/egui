@@ -2,7 +2,7 @@
 
 use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration};
 
-use emath::{Align, GuiRounding as _, OrderedFloat, Rangef};
+use emath::{GuiRounding as _, OrderedFloat};
 use epaint::{
     ClippedPrimitive, ClippedShape, Color32, ImageData, ImageDelta, Pos2, Rect, StrokeKind,
     TessellationOptions, TextureAtlas, TextureId, Vec2,
@@ -40,8 +40,6 @@ use crate::{
 
 #[cfg(feature = "accesskit")]
 use crate::IdMap;
-use crate::pass_state::ScrollTarget;
-use crate::style::ScrollAnimation;
 
 use self::{hit_test::WidgetHits, interaction::InteractionSnapshot};
 
@@ -1220,6 +1218,7 @@ impl Context {
 
         #[cfg(feature = "accesskit")]
         self.write(|ctx| {
+            use crate::{Align, pass_state::ScrollTarget, style::ScrollAnimation};
             let viewport = ctx.viewport_for(ctx.viewport_id());
 
             viewport

@@ -89,7 +89,7 @@ fn test_scroll_harness() -> Harness<'static, bool> {
             |ui, state| {
                 ScrollArea::vertical().show(ui, |ui| {
                     for i in 0..20 {
-                        ui.label(format!("Item {}", i));
+                        ui.label(format!("Item {i}"));
                     }
                     if ui.button("Hidden Button").clicked() {
                         *state = true;
