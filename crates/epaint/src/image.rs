@@ -407,10 +407,6 @@ impl FontImage {
     }
 
     /// Returns the textures as `sRGBA` premultiplied pixels, row by row, top to bottom.
-    ///
-    /// `gamma` should normally be set to `None`.
-    ///
-    /// If you are having problems with text looking skinny and pixelated, try using a low gamma, e.g. `0.4`.
     #[inline]
     pub fn srgba_pixels(
         &self,
@@ -425,7 +421,7 @@ impl FontImage {
             .map(move |&coverage| alpha_from_coverage.color_from_coverage(coverage))
     }
 
-    /// For explanation of `gamma`, see [`Self::srgba_pixels`].
+    /// Convert this coverage image to a [`ColorImage`].
     pub fn to_color_image(&self, alpha_from_coverage: AlphaFromCoverage) -> ColorImage {
         profiling::function_scope!();
         let pixels = self.srgba_pixels(alpha_from_coverage).collect();

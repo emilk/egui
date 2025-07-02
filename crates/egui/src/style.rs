@@ -2337,13 +2337,14 @@ impl Visuals {
 }
 
 fn text_alpha_from_coverage_ui(ui: &mut Ui, text_alpha_from_coverage: &mut AlphaFromCoverage) {
-    ui.label("Text rendering");
-
     let mut dark_mode_special =
         *text_alpha_from_coverage == AlphaFromCoverage::TwoCoverageMinusCoverageSq;
 
     ui.horizontal(|ui| {
-        ui.checkbox(&mut dark_mode_special, "Dark mode special");
+        ui.label("Text rendering:");
+
+        ui.checkbox(&mut dark_mode_special, "Dark-mode special");
+
         if dark_mode_special {
             *text_alpha_from_coverage = AlphaFromCoverage::TwoCoverageMinusCoverageSq;
         } else {
@@ -2356,8 +2357,8 @@ fn text_alpha_from_coverage_ui(ui: &mut Ui, text_alpha_from_coverage: &mut Alpha
             ui.add(
                 DragValue::new(&mut gamma)
                     .speed(0.01)
-                    .range(0.01..=3.0)
-                    .prefix("Gamma:"),
+                    .range(0.1..=4.0)
+                    .prefix("Gamma: "),
             );
 
             if gamma == 1.0 {
