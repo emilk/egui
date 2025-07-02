@@ -319,16 +319,24 @@ mod tests {
             date: Some(chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()),
             ..Default::default()
         };
-        let mut harness = Harness::builder()
-            .with_pixels_per_point(2.0)
-            .with_size(Vec2::new(380.0, 550.0))
-            .build_ui(|ui| {
-                egui_extras::install_image_loaders(ui.ctx());
-                demo.ui(ui);
-            });
 
-        harness.fit_contents();
+        for theme in [egui::Theme::Light, egui::Theme::Dark] {
+            let mut harness = Harness::builder()
+                .with_pixels_per_point(2.0)
+                .with_theme(theme)
+                .with_size(Vec2::new(380.0, 550.0))
+                .build_ui(|ui| {
+                    egui_extras::install_image_loaders(ui.ctx());
+                    demo.ui(ui);
+                });
 
-        harness.snapshot("widget_gallery");
+            harness.fit_contents();
+
+            let name = match theme {
+                egui::Theme::Light => "widget_gallery_light",
+                egui::Theme::Dark => "widget_gallery_dark",
+            };
+            harness.snapshot(name);
+        }
     }
 }
