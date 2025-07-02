@@ -1224,6 +1224,8 @@ impl Context {
             viewport
                 .input
                 .consume_accesskit_action_requests(res.id, |request| {
+                    const DISTANCE: f32 = 100.0; // TODO(@lucasmerlin): this should be one "screen" according to AccessKit docs: $LINK
+                    
                     match &request.action {
                         accesskit::Action::ScrollIntoView => {
                             viewport.this_pass.scroll_target = [
@@ -1240,16 +1242,16 @@ impl Context {
                             ];
                         }
                         accesskit::Action::ScrollDown => {
-                            viewport.this_pass.scroll_delta.0 += vec2(0.0, -100.0);
+                            viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::DOWN;
                         }
                         accesskit::Action::ScrollUp => {
-                            viewport.this_pass.scroll_delta.0 += vec2(0.0, 100.0);
+                            viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::UP;
                         }
                         accesskit::Action::ScrollLeft => {
-                            viewport.this_pass.scroll_delta.0 += vec2(-100.0, 0.0);
+                            viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::LEFT;
                         }
                         accesskit::Action::ScrollRight => {
-                            viewport.this_pass.scroll_delta.0 += vec2(100.0, 0.0);
+                            viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::RIGHT;
                         }
                         _ => return false,
                     };
