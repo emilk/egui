@@ -3,7 +3,7 @@
 #![allow(clippy::if_same_then_else)]
 
 use emath::Align;
-use epaint::{CornerRadius, Shadow, Stroke, text::FontTweak};
+use epaint::{AlphaFromCoverage, CornerRadius, Shadow, Stroke, text::FontTweak};
 use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
 
 use crate::{
@@ -921,6 +921,9 @@ pub struct Visuals {
     /// this is more to provide a convenient summary of the rest of the settings.
     pub dark_mode: bool,
 
+    /// ADVANCED: Controls how we render text.
+    pub text_alpha_from_coverage: AlphaFromCoverage,
+
     /// Override default text color for all text.
     ///
     /// This is great for setting the color of text for any widget.
@@ -1374,6 +1377,7 @@ impl Visuals {
     pub fn dark() -> Self {
         Self {
             dark_mode: true,
+            text_alpha_from_coverage: AlphaFromCoverage::DARK_MODE_DEFAULT,
             override_text_color: None,
             weak_text_alpha: 0.6,
             weak_text_color: None,
@@ -1436,6 +1440,7 @@ impl Visuals {
     pub fn light() -> Self {
         Self {
             dark_mode: false,
+            text_alpha_from_coverage: AlphaFromCoverage::LIGHT_MODE_DEFAULT,
             widgets: Widgets::light(),
             selection: Selection::light(),
             hyperlink_color: Color32::from_rgb(0, 155, 255),
@@ -2068,6 +2073,7 @@ impl Visuals {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
             dark_mode,
+            text_alpha_from_coverage,
             override_text_color: _,
             weak_text_alpha,
             weak_text_color,
@@ -2216,6 +2222,10 @@ impl Visuals {
                     "Weak text color",
                 );
             });
+
+            ui.add_space(4.0);
+
+            text_alpha_from_coverage_ui(ui, text_alpha_from_coverage);
         });
 
         ui.collapsing("Text cursor", |ui| {
@@ -2324,6 +2334,39 @@ impl Visuals {
             );
         });
     }
+}
+
+fn text_alpha_from_coverage_ui(ui: &mut Ui, text_alpha_from_coverage: &mut AlphaFromCoverage) {
+    ui.label("Text rendering");
+
+    let mut dark_mode_special =
+        *text_alpha_from_coverage == AlphaFromCoverage::TwoCoverageMinusCoverageSq;
+
+    ui.horizontal(|ui| {
+        ui.checkbox(&mut dark_mode_special, "Dark mode special");
+        if dark_mode_special {
+            *text_alpha_from_coverage = AlphaFromCoverage::TwoCoverageMinusCoverageSq;
+        } else {
+            let mut gamma = match text_alpha_from_coverage {
+                AlphaFromCoverage::Linear => 1.0,
+                AlphaFromCoverage::Gamma(gamma) => *gamma,
+                AlphaFromCoverage::TwoCoverageMinusCoverageSq => 0.5, // approximately the same
+            };
+
+            ui.add(
+                DragValue::new(&mut gamma)
+                    .speed(0.01)
+                    .range(0.01..=3.0)
+                    .prefix("Gamma:"),
+            );
+
+            if gamma == 1.0 {
+                *text_alpha_from_coverage = AlphaFromCoverage::Linear;
+            } else {
+                *text_alpha_from_coverage = AlphaFromCoverage::Gamma(gamma);
+            }
+        }
+    });
 }
 
 impl TextCursorStyle {

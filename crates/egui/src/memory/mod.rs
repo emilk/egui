@@ -408,11 +408,11 @@ impl Options {
             .show(ui, |ui| {
                 theme_preference.radio_buttons(ui);
 
-                std::sync::Arc::make_mut(match theme {
+                let style = std::sync::Arc::make_mut(match theme {
                     Theme::Dark => dark_style,
                     Theme::Light => light_style,
-                })
-                .ui(ui);
+                });
+                style.ui(ui);
             });
 
         CollapsingHeader::new("✒ Painting")
