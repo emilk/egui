@@ -279,13 +279,6 @@ impl WebPainter for WebPainterWgpu {
             Some((output_frame, capture_buffer))
         };
 
-        {
-            let mut renderer = render_state.renderer.write();
-            for id in &textures_delta.free {
-                renderer.free_texture(id);
-            }
-        }
-
         // Submit the commands: both the main buffer and user-defined ones.
         render_state
             .queue
@@ -305,6 +298,16 @@ impl WebPainter for WebPainterWgpu {
             }
 
             frame.present();
+        }
+
+        // Free textures marked for destruction **after** queue submit since they might still be used in the current frame.
+        // Calling `wgpu::Texture::destroy` on a texture that is still in use would invalidate the command buffer(s) it is used in.
+        // However, once we called `wgpu::Queue::submit`, it is up for wgpu to determine how long the underlying gpu resource has to live.
+        {
+            let mut renderer = render_state.renderer.write();
+            for id in &textures_delta.free {
+                renderer.free_texture(id);
+            }
         }
 
         Ok(())
