@@ -412,10 +412,6 @@ impl FontImage {
         &self,
         alpha_from_coverage: AlphaFromCoverage,
     ) -> impl ExactSizeIterator<Item = Color32> + '_ {
-        // This whole function is less than rigorous.
-        // Ideally we should do this in a shader instead, and use different computations
-        // for different text colors.
-        // See https://hikogui.org/2022/10/24/the-trouble-with-anti-aliasing.html for an in-depth analysis.
         self.pixels
             .iter()
             .map(move |&coverage| alpha_from_coverage.color_from_coverage(coverage))
