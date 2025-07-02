@@ -1244,10 +1244,10 @@ impl Context {
                             ];
                         }
                         accesskit::Action::ScrollDown => {
-                            viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::DOWN;
+                            viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::UP;
                         }
                         accesskit::Action::ScrollUp => {
-                            viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::UP;
+                            viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::DOWN;
                         }
                         accesskit::Action::ScrollLeft => {
                             viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::LEFT;
