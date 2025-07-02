@@ -320,23 +320,26 @@ mod tests {
             ..Default::default()
         };
 
-        for theme in [egui::Theme::Light, egui::Theme::Dark] {
-            let mut harness = Harness::builder()
-                .with_pixels_per_point(2.0)
-                .with_theme(theme)
-                .with_size(Vec2::new(380.0, 550.0))
-                .build_ui(|ui| {
-                    egui_extras::install_image_loaders(ui.ctx());
-                    demo.ui(ui);
-                });
+        for pixels_per_point in [1, 2] {
+            for theme in [egui::Theme::Light, egui::Theme::Dark] {
+                let mut harness = Harness::builder()
+                    .with_pixels_per_point(pixels_per_point as f32)
+                    .with_theme(theme)
+                    .with_size(Vec2::new(380.0, 550.0))
+                    .build_ui(|ui| {
+                        egui_extras::install_image_loaders(ui.ctx());
+                        demo.ui(ui);
+                    });
 
-            harness.fit_contents();
+                harness.fit_contents();
 
-            let name = match theme {
-                egui::Theme::Light => "widget_gallery_light",
-                egui::Theme::Dark => "widget_gallery_dark",
-            };
-            harness.snapshot(name);
+                let theme_name = match theme {
+                    egui::Theme::Light => "light",
+                    egui::Theme::Dark => "dark",
+                };
+                let image_name = format!("widget_gallery_{theme_name}_x{pixels_per_point}");
+                harness.snapshot(&image_name);
+            }
         }
     }
 }
