@@ -86,6 +86,7 @@ impl<'a, State> Harness<'a, State> {
         let HarnessBuilder {
             screen_rect,
             pixels_per_point,
+            theme,
             max_steps,
             step_dt,
             state: _,
@@ -93,6 +94,7 @@ impl<'a, State> Harness<'a, State> {
             wait_for_pending_images,
         } = builder;
         let ctx = ctx.unwrap_or_default();
+        ctx.set_theme(theme);
         ctx.enable_accesskit();
         // Disable cursor blinking so it doesn't interfere with snapshots
         ctx.all_styles_mut(|style| style.visuals.text_cursor.blink = false);
