@@ -103,6 +103,7 @@ impl<'a, State> Harness<'a, State> {
             // Disable cursor blinking so it doesn't interfere with snapshots
             style.visuals.text_cursor.blink = false;
             style.scroll_animation = ScrollAnimation::none();
+            style.animation_time = 0.0;
         });
         let mut input = egui::RawInput {
             screen_rect: Some(screen_rect),

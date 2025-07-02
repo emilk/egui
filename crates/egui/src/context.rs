@@ -1224,8 +1224,10 @@ impl Context {
             viewport
                 .input
                 .consume_accesskit_action_requests(res.id, |request| {
-                    const DISTANCE: f32 = 100.0; // TODO(@lucasmerlin): this should be one "screen" according to AccessKit docs: $LINK
-                    
+                    // TODO(lucasmerlin): Correctly handle the scroll unit:
+                    // https://github.com/AccessKit/accesskit/blob/e639c0e0d8ccbfd9dff302d972fa06f9766d608e/common/src/lib.rs#L2621
+                    const DISTANCE: f32 = 100.0;
+
                     match &request.action {
                         accesskit::Action::ScrollIntoView => {
                             viewport.this_pass.scroll_target = [
