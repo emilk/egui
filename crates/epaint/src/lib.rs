@@ -50,7 +50,7 @@ pub use self::{
     color::ColorMode,
     corner_radius::CornerRadius,
     corner_radius_f32::CornerRadiusF32,
-    image::{ColorImage, FontImage, ImageData, ImageDelta},
+    image::{AlphaFromCoverage, ColorImage, FontImage, ImageData, ImageDelta},
     margin::Margin,
     margin_f32::*,
     mesh::{Mesh, Mesh16, Vertex},
