@@ -366,9 +366,13 @@ impl Area {
     /// area contents area dynamic and you need to need to make sure the area adjusts its size
     /// accordingly.
     ///
+    /// This should only be set to true during the specific frames you want force a sizing pass.
+    /// Do NOT hard-code this as `.sizing_pass(true)`, as it will cause the area to never be
+    /// visible.
+    ///
     /// # Arguments
     /// - resize: If true, the area will be resized to fit its contents. False will keep the
-    ///         default area resizing behavior.
+    ///   default area resizing behavior.
     ///
     /// Default: `false`.
     #[inline]
