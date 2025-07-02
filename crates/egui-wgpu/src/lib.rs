@@ -234,6 +234,7 @@ impl RenderState {
 
         let renderer = Renderer::new(
             &device,
+            adapter.get_info().backend,
             target_format,
             depth_format,
             msaa_samples,

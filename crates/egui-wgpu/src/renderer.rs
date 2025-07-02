@@ -196,6 +196,8 @@ pub struct Renderer {
 
     dithering: bool,
 
+    backend: wgpu::Backend,
+
     /// Storage for resources shared with all invocations of [`CallbackTrait`]'s methods.
     ///
     /// See also [`CallbackTrait`].
@@ -209,6 +211,7 @@ impl Renderer {
     /// [`wgpu::TextureFormat::Bgra8Unorm`], i.e. in gamma-space.
     pub fn new(
         device: &wgpu::Device,
+        backend: wgpu::Backend,
         output_color_format: wgpu::TextureFormat,
         output_depth_format: Option<wgpu::TextureFormat>,
         msaa_samples: u32,
@@ -403,6 +406,9 @@ impl Renderer {
             next_user_texture_id: 0,
             samplers: HashMap::default(),
             dithering,
+
+            backend,
+
             callback_resources: CallbackResources::default(),
         }
     }
@@ -687,7 +693,11 @@ impl Renderer {
 
     pub fn free_texture(&mut self, id: &epaint::TextureId) {
         if let Some(texture) = self.textures.remove(id).and_then(|t| t.texture) {
-            texture.destroy();
+            // TODO: explain why.
+            let is_webgl = self.backend == wgpu::Backend::Gl && cfg!(target_arch = "wasm32");
+            if !is_webgl {
+                texture.destroy();
+            }
         }
     }
 
