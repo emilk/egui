@@ -544,7 +544,7 @@ impl Painter {
                 let data: Vec<u8> = {
                     profiling::scope!("font -> sRGBA");
                     image
-                        .srgba_pixels(None)
+                        .srgba_pixels(Default::default())
                         .flat_map(|a| a.to_array())
                         .collect()
                 };
