@@ -39,8 +39,8 @@ pub struct SnapshotOptions {
 ///  harness.snapshot_options(
 ///      "os_threshold_example",
 ///      &SnapshotOptions::new()
-///          .threshold(OsThreshold::new().windows(10.0))
-///          .failed_pixel_count_threshold(OsThreshold::new().windows(10).macos(53)
+///          .threshold(OsThreshold::new(0.0).windows(10.0))
+///          .failed_pixel_count_threshold(OsThreshold::new(0).windows(10).macos(53)
 ///  ))
 /// ```
 #[derive(Debug, Clone, Copy)]
