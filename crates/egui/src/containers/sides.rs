@@ -1,4 +1,4 @@
-use emath::{Align, NumExt};
+use emath::{Align, NumExt as _};
 
 use crate::{Layout, Ui, UiBuilder};
 
