@@ -299,7 +299,7 @@ impl Shape {
 
     #[expect(clippy::needless_pass_by_value)]
     pub fn text(
-        fonts: &Fonts,
+        fonts: &mut Fonts,
         pos: Pos2,
         anchor: Align2,
         text: impl ToString,

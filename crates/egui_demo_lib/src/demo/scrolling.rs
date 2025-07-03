@@ -191,7 +191,7 @@ fn huge_content_painter(ui: &mut egui::Ui) {
     ui.add_space(4.0);
 
     let font_id = TextStyle::Body.resolve(ui.style());
-    let row_height = ui.fonts(|f| f.row_height(&font_id)) + ui.spacing().item_spacing.y;
+    let row_height = ui.fonts_mut(|f| f.row_height(&font_id)) + ui.spacing().item_spacing.y;
     let num_rows = 10_000;
 
     ScrollArea::vertical()
