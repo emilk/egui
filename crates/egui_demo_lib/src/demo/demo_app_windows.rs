@@ -409,11 +409,12 @@ mod tests {
             // Run the app for some more frames...
             harness.run_ok();
 
-            let options = SnapshotOptions::default()
+            let mut options = SnapshotOptions::default();
+
+            if name == "Bézier Curve" {
                 // The Bézier Curve demo needs a threshold of 2.1 to pass on linux:
-                .threshold(OsThreshold::new(0.0).linux(2.1))
-                // O windows we need to allow 5 pixels of difference:
-                .failed_pixel_count_threshold(OsThreshold::new(0).windows(5));
+                options = options.threshold(OsThreshold::new(0.0).linux(2.1));
+            }
 
             results.add(harness.try_snapshot_options(&format!("demos/{name}"), &options));
         }
