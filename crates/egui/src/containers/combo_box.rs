@@ -1,9 +1,9 @@
 use epaint::Shape;
 
 use crate::{
-    epaint, style::StyleModifier, style::WidgetVisuals, vec2, Align2, Context, Id, InnerResponse,
-    NumExt as _, Painter, Popup, PopupCloseBehavior, Rect, Response, ScrollArea, Sense, Stroke,
-    TextStyle, TextWrapMode, Ui, UiBuilder, Vec2, WidgetInfo, WidgetText, WidgetType,
+    Align2, Context, Id, InnerResponse, NumExt as _, Painter, Popup, PopupCloseBehavior, Rect,
+    Response, ScrollArea, Sense, Stroke, TextStyle, TextWrapMode, Ui, UiBuilder, Vec2, WidgetInfo,
+    WidgetText, WidgetType, epaint, style::StyleModifier, style::WidgetVisuals, vec2,
 };
 
 #[expect(unused_imports)] // Documentation

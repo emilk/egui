@@ -5,11 +5,15 @@ use emath::GuiRounding as _;
 use epaint::mutex::RwLock;
 use std::{any::Any, hash::Hash, sync::Arc};
 
-use crate::close_tag::ClosableTag;
-use crate::containers::menu;
 #[cfg(debug_assertions)]
 use crate::Stroke;
+use crate::close_tag::ClosableTag;
+use crate::containers::menu;
 use crate::{
+    Align, Color32, Context, CursorIcon, DragAndDrop, Id, InnerResponse, InputState, IntoAtoms,
+    LayerId, Memory, Order, Painter, PlatformOutput, Pos2, Rangef, Rect, Response, Rgba, RichText,
+    Sense, Style, TextStyle, TextWrapMode, UiBuilder, UiKind, UiStack, UiStackInfo, Vec2,
+    WidgetRect, WidgetText,
     containers::{CollapsingHeader, CollapsingResponse, Frame},
     ecolor::Hsva,
     emath, epaint,
@@ -22,13 +26,9 @@ use crate::{
     util::IdTypeMap,
     vec2, widgets,
     widgets::{
-        color_picker, Button, Checkbox, DragValue, Hyperlink, Image, ImageSource, Label, Link,
-        RadioButton, SelectableLabel, Separator, Spinner, TextEdit, Widget,
+        Button, Checkbox, DragValue, Hyperlink, Image, ImageSource, Label, Link, RadioButton,
+        SelectableLabel, Separator, Spinner, TextEdit, Widget, color_picker,
     },
-    Align, Color32, Context, CursorIcon, DragAndDrop, Id, InnerResponse, InputState, IntoAtoms,
-    LayerId, Memory, Order, Painter, PlatformOutput, Pos2, Rangef, Rect, Response, Rgba, RichText,
-    Sense, Style, TextStyle, TextWrapMode, UiBuilder, UiKind, UiStack, UiStackInfo, Vec2,
-    WidgetRect, WidgetText,
 };
 // ----------------------------------------------------------------------------
 
@@ -522,7 +522,7 @@ impl Ui {
         self.enabled = false;
         if self.is_visible() {
             self.painter
-                .set_fade_to_color(Some(self.visuals().fade_out_to_color()));
+                .multiply_opacity(self.visuals().disabled_alpha());
         }
     }
 
@@ -2963,8 +2963,8 @@ impl Ui {
 
         if is_anything_being_dragged && !can_accept_what_is_being_dragged {
             // When dragging something else, show that it can't be dropped here:
-            fill = self.visuals().gray_out(fill);
-            stroke.color = self.visuals().gray_out(stroke.color);
+            fill = self.visuals().disable(fill);
+            stroke.color = self.visuals().disable(stroke.color);
         }
 
         frame.frame.fill = fill;

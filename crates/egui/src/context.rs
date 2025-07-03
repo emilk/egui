@@ -4,16 +4,23 @@ use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration
 
 use emath::{GuiRounding as _, OrderedFloat};
 use epaint::{
+    ClippedPrimitive, ClippedShape, Color32, ImageData, ImageDelta, Pos2, Rect, StrokeKind,
+    TessellationOptions, TextureAtlas, TextureId, Vec2,
     emath::{self, TSTransform},
     mutex::RwLock,
     stats::PaintStats,
     tessellator,
     text::{FontInsert, FontPriority, Fonts},
-    vec2, ClippedPrimitive, ClippedShape, Color32, ImageData, ImageDelta, Pos2, Rect, StrokeKind,
-    TessellationOptions, TextureAtlas, TextureId, Vec2,
+    vec2,
 };
 
 use crate::{
+    Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, Grid, Id, ImmediateViewport,
+    ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId, Memory,
+    ModifierNames, Modifiers, NumExt as _, Order, Painter, RawInput, Response, RichText,
+    ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions, Ui, ViewportBuilder,
+    ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput,
+    Widget as _, WidgetRect, WidgetText,
     animation_manager::AnimationManager,
     containers::{self, area::AreaState},
     data::output::PlatformOutput,
@@ -29,12 +36,6 @@ use crate::{
     resize, response, scroll_area,
     util::IdTypeMap,
     viewport::ViewportClass,
-    Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, Grid, Id, ImmediateViewport,
-    ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId, Memory,
-    ModifierNames, Modifiers, NumExt as _, Order, Painter, RawInput, Response, RichText,
-    ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions, Ui, ViewportBuilder,
-    ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput,
-    Widget as _, WidgetRect, WidgetText,
 };
 
 #[cfg(feature = "accesskit")]
@@ -339,6 +340,15 @@ impl RepaintCause {
 /// Per-viewport state related to repaint scheduling.
 struct ViewportRepaintInfo {
     /// Monotonically increasing counter.
+    ///
+    /// Incremented at the end of [`Context::run`].
+    /// This can be smaller than [`Self::cumulative_pass_nr`],
+    /// but never larger.
+    cumulative_frame_nr: u64,
+
+    /// Monotonically increasing counter, counting the number of passes.
+    /// This can be larger than [`Self::cumulative_frame_nr`],
+    /// but never smaller.
     cumulative_pass_nr: u64,
 
     /// The duration which the backend will poll for new events
@@ -369,6 +379,7 @@ struct ViewportRepaintInfo {
 impl Default for ViewportRepaintInfo {
     fn default() -> Self {
         Self {
+            cumulative_frame_nr: 0,
             cumulative_pass_nr: 0,
 
             // We haven't scheduled a repaint yet.
@@ -850,7 +861,10 @@ impl Context {
 
             if max_passes <= output.platform_output.num_completed_passes {
                 #[cfg(feature = "log")]
-                log::debug!("Ignoring call request_discard, because max_passes={max_passes}. Requested from {:?}", output.platform_output.request_discard_reasons);
+                log::debug!(
+                    "Ignoring call request_discard, because max_passes={max_passes}. Requested from {:?}",
+                    output.platform_output.request_discard_reasons
+                );
 
                 break;
             }
@@ -864,6 +878,7 @@ impl Context {
             } else {
                 viewport.num_multipass_in_row = 0;
             }
+            viewport.repaint.cumulative_frame_nr += 1;
         });
 
         output
@@ -1134,7 +1149,7 @@ impl Context {
                              ID clashes happens when things like Windows or CollapsingHeaders share names,\n\
                              or when things like Plot and Grid:s aren't given unique id_salt:s.\n\n\
                              Sometimes the solution is to use ui.push_id.",
-                         if below { "above" } else { "below" })
+                                if below { "above" } else { "below" }),
                     );
                 }
             }
@@ -1200,6 +1215,51 @@ impl Context {
             // some information is written to the node twice.
             self.accesskit_node_builder(w.id, |builder| res.fill_accesskit_node_common(builder));
         }
+
+        #[cfg(feature = "accesskit")]
+        self.write(|ctx| {
+            use crate::{Align, pass_state::ScrollTarget, style::ScrollAnimation};
+            let viewport = ctx.viewport_for(ctx.viewport_id());
+
+            viewport
+                .input
+                .consume_accesskit_action_requests(res.id, |request| {
+                    // TODO(lucasmerlin): Correctly handle the scroll unit:
+                    // https://github.com/AccessKit/accesskit/blob/e639c0e0d8ccbfd9dff302d972fa06f9766d608e/common/src/lib.rs#L2621
+                    const DISTANCE: f32 = 100.0;
+
+                    match &request.action {
+                        accesskit::Action::ScrollIntoView => {
+                            viewport.this_pass.scroll_target = [
+                                Some(ScrollTarget::new(
+                                    res.rect.x_range(),
+                                    Some(Align::Center),
+                                    ScrollAnimation::none(),
+                                )),
+                                Some(ScrollTarget::new(
+                                    res.rect.y_range(),
+                                    Some(Align::Center),
+                                    ScrollAnimation::none(),
+                                )),
+                            ];
+                        }
+                        accesskit::Action::ScrollDown => {
+                            viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::UP;
+                        }
+                        accesskit::Action::ScrollUp => {
+                            viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::DOWN;
+                        }
+                        accesskit::Action::ScrollLeft => {
+                            viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::LEFT;
+                        }
+                        accesskit::Action::ScrollRight => {
+                            viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::RIGHT;
+                        }
+                        _ => return false,
+                    };
+                    true
+                });
+        });
 
         res
     }
@@ -1536,9 +1596,34 @@ impl Context {
         }
     }
 
+    /// The total number of completed frames.
+    ///
+    /// Starts at zero, and is incremented once at the end of each call to [`Self::run`].
+    ///
+    /// This is always smaller or equal to [`Self::cumulative_pass_nr`].
+    pub fn cumulative_frame_nr(&self) -> u64 {
+        self.cumulative_frame_nr_for(self.viewport_id())
+    }
+
+    /// The total number of completed frames.
+    ///
+    /// Starts at zero, and is incremented once at the end of each call to [`Self::run`].
+    ///
+    /// This is always smaller or equal to [`Self::cumulative_pass_nr_for`].
+    pub fn cumulative_frame_nr_for(&self, id: ViewportId) -> u64 {
+        self.read(|ctx| {
+            ctx.viewports
+                .get(&id)
+                .map_or(0, |v| v.repaint.cumulative_frame_nr)
+        })
+    }
+
     /// The total number of completed passes (usually there is one pass per rendered frame).
     ///
     /// Starts at zero, and is incremented for each completed pass inside of [`Self::run`] (usually once).
+    ///
+    /// If you instead want to know which pass index this is within the current frame,
+    /// use [`Self::current_pass_index`].
     pub fn cumulative_pass_nr(&self) -> u64 {
         self.cumulative_pass_nr_for(self.viewport_id())
     }
@@ -1552,6 +1637,18 @@ impl Context {
                 .get(&id)
                 .map_or(0, |v| v.repaint.cumulative_pass_nr)
         })
+    }
+
+    /// The index of the current pass in the current frame, starting at zero.
+    ///
+    /// Usually this is zero, but if something called [`Self::request_discard`] to do multi-pass layout,
+    /// then this will be incremented for each pass.
+    ///
+    /// This just reads the value of [`PlatformOutput::num_completed_passes`].
+    ///
+    /// To know the total number of passes ever completed, use [`Self::cumulative_pass_nr`].
+    pub fn current_pass_index(&self) -> usize {
+        self.output(|o| o.num_completed_passes)
     }
 
     /// Call this if there is need to repaint the UI, i.e. if you are showing an animation.
@@ -1726,7 +1823,7 @@ impl Context {
     /// This means the first pass will look glitchy, and ideally should not be shown to the user.
     /// So [`crate::Grid`] calls [`Self::request_discard`] to cover up this glitches.
     ///
-    /// There is a limit to how many passes egui will perform, set by [`Options::max_passes`].
+    /// There is a limit to how many passes egui will perform, set by [`Options::max_passes`] (default=2).
     /// Therefore, the request might be declined.
     ///
     /// You can check if the current pass will be discarded with [`Self::will_discard`].
@@ -1822,6 +1919,16 @@ impl Context {
         if update_fonts {
             self.memory_mut(|mem| mem.new_font_definitions = Some(font_definitions));
         }
+    }
+
+    pub(crate) fn reset_font_atlas(&self) {
+        let pixels_per_point = self.pixels_per_point();
+        let fonts = self.read(|ctx| {
+            ctx.fonts
+                .get(&pixels_per_point.into())
+                .map(|current_fonts| current_fonts.lock().fonts.definitions().clone())
+        });
+        self.memory_mut(|mem| mem.new_font_definitions = fonts);
     }
 
     /// Tell `egui` which fonts to use.
@@ -1959,10 +2066,19 @@ impl Context {
     /// You can use [`Ui::style_mut`] to change the style of a single [`Ui`].
     pub fn set_style_of(&self, theme: Theme, style: impl Into<Arc<Style>>) {
         let style = style.into();
-        self.options_mut(|opt| match theme {
-            Theme::Dark => opt.dark_style = style,
-            Theme::Light => opt.light_style = style,
+        let mut recreate_font_atlas = false;
+        self.options_mut(|opt| {
+            let dest = match theme {
+                Theme::Dark => &mut opt.dark_style,
+                Theme::Light => &mut opt.light_style,
+            };
+            recreate_font_atlas =
+                dest.visuals.text_alpha_from_coverage != style.visuals.text_alpha_from_coverage;
+            *dest = style;
         });
+        if recreate_font_atlas {
+            self.reset_font_atlas();
+        }
     }
 
     /// The [`crate::Visuals`] used by all subsequent windows, panels etc.
@@ -2305,7 +2421,9 @@ impl Context {
             // If you see this message, it means we've been paying the cost of multi-pass for multiple frames in a row.
             // This is likely a bug. `request_discard` should only be called in rare situations, when some layout changes.
 
-            let mut warning = format!("egui PERF WARNING: request_discard has been called {num_multipass_in_row} frames in a row");
+            let mut warning = format!(
+                "egui PERF WARNING: request_discard has been called {num_multipass_in_row} frames in a row"
+            );
             self.viewport(|vp| {
                 for reason in &vp.output.request_discard_reasons {
                     warning += &format!("\n  {reason}");
@@ -2357,7 +2475,28 @@ impl ContextImpl {
         }
 
         // Inform the backend of all textures that have been updated (including font atlas).
-        let textures_delta = self.tex_manager.0.write().take_delta();
+        let textures_delta = {
+            // HACK to get much nicer looking text in light mode.
+            // This assumes all text is black-on-white in light mode,
+            // and white-on-black in dark mode, which is not necessarily true,
+            // but often close enough.
+            // Of course this fails for cases when there is black-on-white text in dark mode,
+            // and white-on-black text in light mode.
+
+            let text_alpha_from_coverage =
+                self.memory.options.style().visuals.text_alpha_from_coverage;
+
+            let mut textures_delta = self.tex_manager.0.write().take_delta();
+
+            for (_, delta) in &mut textures_delta.set {
+                if let ImageData::Font(font) = &mut delta.image {
+                    delta.image =
+                        ImageData::Color(font.to_color_image(text_alpha_from_coverage).into());
+                }
+            }
+
+            textures_delta
+        };
 
         let mut platform_output: PlatformOutput = std::mem::take(&mut viewport.output);
 
@@ -2955,8 +3094,16 @@ impl Context {
 
         options.ui(ui);
 
+        let text_alpha_from_coverage_changed =
+            prev_options.style().visuals.text_alpha_from_coverage
+                != options.style().visuals.text_alpha_from_coverage;
+
         if options != prev_options {
             self.options_mut(move |o| *o = options);
+        }
+
+        if text_alpha_from_coverage_changed {
+            ui.ctx().reset_font_atlas();
         }
     }
 
@@ -2983,36 +3130,54 @@ impl Context {
     pub fn inspection_ui(&self, ui: &mut Ui) {
         use crate::containers::CollapsingHeader;
 
-        ui.label(format!("Is using pointer: {}", self.is_using_pointer()))
-            .on_hover_text(
-                "Is egui currently using the pointer actively (e.g. dragging a slider)?",
-            );
-        ui.label(format!("Wants pointer input: {}", self.wants_pointer_input()))
-            .on_hover_text("Is egui currently interested in the location of the pointer (either because it is in use, or because it is hovering over a window).");
-        ui.label(format!(
-            "Wants keyboard input: {}",
-            self.wants_keyboard_input()
-        ))
-        .on_hover_text("Is egui currently listening for text input?");
-        ui.label(format!(
-            "Keyboard focus widget: {}",
-            self.memory(|m| m.focused())
-                .as_ref()
-                .map(Id::short_debug_format)
-                .unwrap_or_default()
-        ))
-        .on_hover_text("Is egui currently listening for text input?");
+        crate::Grid::new("egui-inspection-grid")
+            .num_columns(2)
+            .striped(true)
+            .show(ui, |ui| {
+                ui.label("Total ui frames:");
+                ui.monospace(ui.ctx().cumulative_frame_nr().to_string());
+                ui.end_row();
 
-        let pointer_pos = self
-            .pointer_hover_pos()
-            .map_or_else(String::new, |pos| format!("{pos:?}"));
-        ui.label(format!("Pointer pos: {pointer_pos}"));
+                ui.label("Total ui passes:");
+                ui.monospace(ui.ctx().cumulative_pass_nr().to_string());
+                ui.end_row();
 
-        let top_layer = self
-            .pointer_hover_pos()
-            .and_then(|pos| self.layer_id_at(pos))
-            .map_or_else(String::new, |layer| layer.short_debug_format());
-        ui.label(format!("Top layer under mouse: {top_layer}"));
+                ui.label("Is using pointer")
+                    .on_hover_text("Is egui currently using the pointer actively (e.g. dragging a slider)?");
+                ui.monospace(self.is_using_pointer().to_string());
+                ui.end_row();
+
+                ui.label("Wants pointer input")
+                    .on_hover_text("Is egui currently interested in the location of the pointer (either because it is in use, or because it is hovering over a window).");
+                ui.monospace(self.wants_pointer_input().to_string());
+                ui.end_row();
+
+                ui.label("Wants keyboard input").on_hover_text("Is egui currently listening for text input?");
+                ui.monospace(self.wants_keyboard_input().to_string());
+                ui.end_row();
+
+                ui.label("Keyboard focus widget").on_hover_text("Is egui currently listening for text input?");
+                ui.monospace(self.memory(|m| m.focused())
+                    .as_ref()
+                    .map(Id::short_debug_format)
+                    .unwrap_or_default());
+                ui.end_row();
+
+                let pointer_pos = self
+                    .pointer_hover_pos()
+                    .map_or_else(String::new, |pos| format!("{pos:?}"));
+                ui.label("Pointer pos");
+                ui.monospace(pointer_pos);
+                ui.end_row();
+
+                let top_layer = self
+                    .pointer_hover_pos()
+                    .and_then(|pos| self.layer_id_at(pos))
+                    .map_or_else(String::new, |layer| layer.short_debug_format());
+                ui.label("Top layer under mouse");
+                ui.monospace(top_layer);
+                ui.end_row();
+            });
 
         ui.add_space(16.0);
 
@@ -3446,6 +3611,7 @@ impl Context {
     /// Release all memory and textures related to the given image URI.
     ///
     /// If you attempt to load the image again, it will be reloaded from scratch.
+    /// Also this cancels any ongoing loading of the image.
     pub fn forget_image(&self, uri: &str) {
         use load::BytesLoader as _;
 

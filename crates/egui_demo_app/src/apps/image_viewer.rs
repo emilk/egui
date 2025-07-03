@@ -1,9 +1,9 @@
-use egui::emath::Rot2;
-use egui::panel::Side;
-use egui::panel::TopBottomSide;
 use egui::ImageFit;
 use egui::Slider;
 use egui::Vec2;
+use egui::emath::Rot2;
+use egui::panel::Side;
+use egui::panel::TopBottomSide;
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ImageViewer {

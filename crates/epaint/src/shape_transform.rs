@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    color, CircleShape, Color32, ColorMode, CubicBezierShape, EllipseShape, Mesh, PathShape,
-    QuadraticBezierShape, RectShape, Shape, TextShape,
+    CircleShape, Color32, ColorMode, CubicBezierShape, EllipseShape, Mesh, PathShape,
+    QuadraticBezierShape, RectShape, Shape, TextShape, color,
 };
 
 /// Remember to handle [`Color32::PLACEHOLDER`] specially!

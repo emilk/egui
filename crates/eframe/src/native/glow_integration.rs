@@ -32,13 +32,13 @@ use egui::{
 use egui_winit::accesskit_winit;
 
 use crate::{
-    native::epi_integration::EpiIntegration, App, AppCreator, CreationContext, NativeOptions,
-    Result, Storage,
+    App, AppCreator, CreationContext, NativeOptions, Result, Storage,
+    native::epi_integration::EpiIntegration,
 };
 
 use super::{
     epi_integration, event_loop_context,
-    winit_integration::{create_egui_context, EventResult, UserEvent, WinitApp},
+    winit_integration::{EventResult, UserEvent, WinitApp, create_egui_context},
 };
 
 // ----------------------------------------------------------------------------
@@ -1015,7 +1015,9 @@ impl GlutinWindowContext {
         let gl_context = match gl_context_result {
             Ok(it) => it,
             Err(err) => {
-                log::warn!("Failed to create context using default context attributes {context_attributes:?} due to error: {err}");
+                log::warn!(
+                    "Failed to create context using default context attributes {context_attributes:?} due to error: {err}"
+                );
                 log::debug!(
                     "Retrying with fallback context attributes: {fallback_context_attributes:?}"
                 );

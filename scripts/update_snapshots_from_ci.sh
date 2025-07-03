@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# This script searches for the last CI run with your branch name, downloads the test_results artefact
+# This script searches for the last CI run with your branch name, downloads the test_results artifact
 # and replaces your existing snapshots with the new ones.
 # Make sure you have the gh cli installed and authenticated before running this script.
 # If prompted to select a default repo, choose the emilk/egui one

@@ -2,12 +2,13 @@
 
 use crate::util::fixed_cache::FixedCache;
 use crate::{
-    epaint, lerp, remap_clamp, Context, DragValue, Id, Painter, Popup, PopupCloseBehavior,
-    Response, Sense, Ui, Widget as _, WidgetInfo, WidgetType,
+    Context, DragValue, Id, Painter, Popup, PopupCloseBehavior, Response, Sense, Ui, Widget as _,
+    WidgetInfo, WidgetType, epaint, lerp, remap_clamp,
 };
 use epaint::{
+    Mesh, Rect, Shape, Stroke, StrokeKind, Vec2,
     ecolor::{Color32, Hsva, HsvaGamma, Rgba},
-    pos2, vec2, Mesh, Rect, Shape, Stroke, StrokeKind, Vec2,
+    pos2, vec2,
 };
 
 fn contrast_color(color: impl Into<Rgba>) -> Color32 {

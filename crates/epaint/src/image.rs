@@ -1,6 +1,6 @@
 use emath::Vec2;
 
-use crate::{textures::TextureOptions, Color32};
+use crate::{Color32, textures::TextureOptions};
 use std::sync::Arc;
 
 /// An image stored in RAM.
@@ -318,6 +318,59 @@ impl std::fmt::Debug for ColorImage {
 
 // ----------------------------------------------------------------------------
 
+/// How to convert font coverage values into alpha and color values.
+//
+// This whole thing is less than rigorous.
+// Ideally we should do this in a shader instead, and use different computations
+// for different text colors.
+// See https://hikogui.org/2022/10/24/the-trouble-with-anti-aliasing.html for an in-depth analysis.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum AlphaFromCoverage {
+    /// `alpha = coverage`.
+    ///
+    /// Looks good for black-on-white text, i.e. light mode.
+    ///
+    /// Same as [`Self::Gamma`]`(1.0)`, but more efficient.
+    Linear,
+
+    /// `alpha = coverage^gamma`.
+    Gamma(f32),
+
+    /// `alpha = 2 * coverage - coverage^2`
+    ///
+    /// This looks good for white-on-black text, i.e. dark mode.
+    ///
+    /// Very similar to a gamma of 0.5, but produces sharper text.
+    /// See <https://www.desmos.com/calculator/w0ndf5blmn> for a comparison to gamma=0.5.
+    #[default]
+    TwoCoverageMinusCoverageSq,
+}
+
+impl AlphaFromCoverage {
+    /// A good-looking default for light mode (black-on-white text).
+    pub const LIGHT_MODE_DEFAULT: Self = Self::Linear;
+
+    /// A good-looking default for dark mode (white-on-black text).
+    pub const DARK_MODE_DEFAULT: Self = Self::TwoCoverageMinusCoverageSq;
+
+    /// Convert coverage to alpha.
+    #[inline(always)]
+    pub fn alpha_from_coverage(&self, coverage: f32) -> f32 {
+        match self {
+            Self::Linear => coverage,
+            Self::Gamma(gamma) => coverage.powf(*gamma),
+            Self::TwoCoverageMinusCoverageSq => 2.0 * coverage - coverage * coverage,
+        }
+    }
+
+    #[inline(always)]
+    pub fn color_from_coverage(&self, coverage: f32) -> Color32 {
+        let alpha = self.alpha_from_coverage(coverage);
+        Color32::from_white_alpha(ecolor::linear_u8_from_linear_f32(alpha))
+    }
+}
+
 /// A single-channel image designed for the font texture.
 ///
 /// Each value represents "coverage", i.e. how much a texel is covered by a character.
@@ -354,30 +407,21 @@ impl FontImage {
     }
 
     /// Returns the textures as `sRGBA` premultiplied pixels, row by row, top to bottom.
-    ///
-    /// `gamma` should normally be set to `None`.
-    ///
-    /// If you are having problems with text looking skinny and pixelated, try using a low gamma, e.g. `0.4`.
     #[inline]
-    pub fn srgba_pixels(&self, gamma: Option<f32>) -> impl ExactSizeIterator<Item = Color32> + '_ {
-        // This whole function is less than rigorous.
-        // Ideally we should do this in a shader instead, and use different computations
-        // for different text colors.
-        // See https://hikogui.org/2022/10/24/the-trouble-with-anti-aliasing.html for an in-depth analysis.
-        self.pixels.iter().map(move |coverage| {
-            let alpha = if let Some(gamma) = gamma {
-                coverage.powf(gamma)
-            } else {
-                // alpha = coverage * coverage; // recommended by the article for WHITE text (using linear blending)
+    pub fn srgba_pixels(
+        &self,
+        alpha_from_coverage: AlphaFromCoverage,
+    ) -> impl ExactSizeIterator<Item = Color32> + '_ {
+        self.pixels
+            .iter()
+            .map(move |&coverage| alpha_from_coverage.color_from_coverage(coverage))
+    }
 
-                // The following is recommended by the article for BLACK text (using linear blending).
-                // Very similar to a gamma of 0.5, but produces sharper text.
-                // In practice it works well for all text colors (better than a gamma of 0.5, for instance).
-                // See https://www.desmos.com/calculator/w0ndf5blmn for a visual comparison.
-                2.0 * coverage - coverage * coverage
-            };
-            Color32::from_white_alpha(ecolor::linear_u8_from_linear_f32(alpha))
-        })
+    /// Convert this coverage image to a [`ColorImage`].
+    pub fn to_color_image(&self, alpha_from_coverage: AlphaFromCoverage) -> ColorImage {
+        profiling::function_scope!();
+        let pixels = self.srgba_pixels(alpha_from_coverage).collect();
+        ColorImage::new(self.size, pixels)
     }
 
     /// Clone a sub-region as a new image.
