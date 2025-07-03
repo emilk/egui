@@ -735,7 +735,7 @@ impl Ui {
     ///
     /// Returns a value rounded to [`emath::GUI_ROUNDING`].
     pub fn text_style_height(&self, style: &TextStyle) -> f32 {
-        self.fonts(|f| f.row_height(&style.resolve(self.style())))
+        self.fonts_mut(|f| f.row_height(&style.resolve(self.style())))
     }
 
     /// Screen-space rectangle for clipping what we paint in this ui.
@@ -851,6 +851,12 @@ impl Ui {
     #[inline]
     pub fn fonts<R>(&self, reader: impl FnOnce(&Fonts) -> R) -> R {
         self.ctx().fonts(reader)
+    }
+
+    /// Read-write access to [`Fonts`].
+    #[inline]
+    pub fn fonts_mut<R>(&self, reader: impl FnOnce(&mut Fonts) -> R) -> R {
+        self.ctx().fonts_mut(reader)
     }
 }
 

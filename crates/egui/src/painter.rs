@@ -149,6 +149,14 @@ impl Painter {
         self.ctx.fonts(reader)
     }
 
+    /// Read-write access to the shared [`Fonts`].
+    ///
+    /// See [`Context`] documentation for how locks work.
+    #[inline]
+    pub fn fonts_mut<R>(&self, reader: impl FnOnce(&mut Fonts) -> R) -> R {
+        self.ctx.fonts_mut(reader)
+    }
+
     /// Where we paint
     #[inline]
     pub fn layer_id(&self) -> LayerId {
@@ -525,7 +533,7 @@ impl Painter {
         color: crate::Color32,
         wrap_width: f32,
     ) -> Arc<Galley> {
-        self.fonts(|f| f.layout(text, font_id, color, wrap_width))
+        self.fonts_mut(|f| f.layout(text, font_id, color, wrap_width))
     }
 
     /// Will line break at `\n`.
@@ -539,7 +547,7 @@ impl Painter {
         font_id: FontId,
         color: crate::Color32,
     ) -> Arc<Galley> {
-        self.fonts(|f| f.layout(text, font_id, color, f32::INFINITY))
+        self.fonts_mut(|f| f.layout(text, font_id, color, f32::INFINITY))
     }
 
     /// Lay out this text layut job in a galley.
@@ -548,7 +556,7 @@ impl Painter {
     #[inline]
     #[must_use]
     pub fn layout_job(&self, layout_job: LayoutJob) -> Arc<Galley> {
-        self.fonts(|f| f.layout_job(layout_job))
+        self.fonts_mut(|f| f.layout_job(layout_job))
     }
 
     /// Paint text that has already been laid out in a [`Galley`].

@@ -181,7 +181,7 @@ mod tests {
 
     #[test]
     fn text_bounding_box_under_rotation() {
-        let fonts = Fonts::new(
+        let mut fonts = Fonts::new(
             1.0,
             1024,
             AlphaFromCoverage::default(),
@@ -190,7 +190,7 @@ mod tests {
         let font = FontId::monospace(12.0);
 
         let mut t = crate::Shape::text(
-            &fonts,
+            &mut fonts,
             Pos2::ZERO,
             emath::Align2::CENTER_CENTER,
             "testing123",
