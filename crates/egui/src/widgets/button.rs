@@ -279,9 +279,9 @@ impl<'a> Button<'a> {
 
         let text = layout.text().map(String::from);
 
-        let mut has_frame = frame.unwrap_or_else(|| ui.visuals().button_frame);
+        let has_frame_margin = frame.unwrap_or_else(|| ui.visuals().button_frame);
 
-        let mut button_padding = if has_frame {
+        let mut button_padding = if has_frame_margin {
             ui.spacing().button_padding
         } else {
             Vec2::ZERO
@@ -298,11 +298,14 @@ impl<'a> Button<'a> {
         let response = if ui.is_rect_visible(prepared.response.rect) {
             let visuals = ui.style().interact_selectable(&prepared.response, selected);
 
-            if !frame_when_inactive {
-                has_frame &= prepared.response.hovered()
-                    || prepared.response.is_pointer_button_down_on()
-                    || prepared.response.has_focus();
-            }
+            let visible_frame = if frame_when_inactive {
+                has_frame_margin
+            } else {
+                has_frame_margin
+                    && (prepared.response.hovered()
+                        || prepared.response.is_pointer_button_down_on()
+                        || prepared.response.has_focus())
+            };
 
             if image_tint_follows_text_color {
                 prepared.map_images(|image| image.tint(visuals.text_color()));
@@ -310,7 +313,7 @@ impl<'a> Button<'a> {
 
             prepared.fallback_text_color = visuals.text_color();
 
-            if has_frame {
+            if visible_frame {
                 let stroke = stroke.unwrap_or(visuals.bg_stroke);
                 let fill = fill.unwrap_or(visuals.weak_bg_fill);
                 prepared.frame = prepared
