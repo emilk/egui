@@ -27,7 +27,7 @@ use crate::{
     vec2, widgets,
     widgets::{
         Button, Checkbox, DragValue, Hyperlink, Image, ImageSource, Label, Link, RadioButton,
-        SelectableLabel, Separator, Spinner, TextEdit, Widget, color_picker,
+        Separator, Spinner, TextEdit, Widget, color_picker,
     },
 };
 // ----------------------------------------------------------------------------
@@ -2077,13 +2077,13 @@ impl Ui {
         Checkbox::new(checked, atoms).ui(self)
     }
 
-    /// Acts like a checkbox, but looks like a [`SelectableLabel`].
+    /// Acts like a checkbox, but looks like a [`Button::selectable`].
     ///
     /// Click to toggle to bool.
     ///
     /// See also [`Self::checkbox`].
-    pub fn toggle_value(&mut self, selected: &mut bool, text: impl Into<WidgetText>) -> Response {
-        let mut response = self.selectable_label(*selected, text);
+    pub fn toggle_value<'a>(&mut self, selected: &mut bool, atoms: impl IntoAtoms<'a>) -> Response {
+        let mut response = self.selectable_label(*selected, atoms);
         if response.clicked() {
             *selected = !*selected;
             response.mark_changed();
@@ -2134,10 +2134,10 @@ impl Ui {
 
     /// Show a label which can be selected or not.
     ///
-    /// See also [`SelectableLabel`] and [`Self::toggle_value`].
+    /// See also [`Button::selectable`] and [`Self::toggle_value`].
     #[must_use = "You should check if the user clicked this with `if ui.selectable_label(…).clicked() { … } "]
-    pub fn selectable_label(&mut self, checked: bool, text: impl Into<WidgetText>) -> Response {
-        SelectableLabel::new(checked, text).ui(self)
+    pub fn selectable_label<'a>(&mut self, checked: bool, text: impl IntoAtoms<'a>) -> Response {
+        Button::selectable(checked, text).ui(self)
     }
 
     /// Show selectable text. It is selected if `*current_value == selected_value`.
@@ -2145,12 +2145,12 @@ impl Ui {
     ///
     /// Example: `ui.selectable_value(&mut my_enum, Enum::Alternative, "Alternative")`.
     ///
-    /// See also [`SelectableLabel`] and [`Self::toggle_value`].
-    pub fn selectable_value<Value: PartialEq>(
+    /// See also [`Button::selectable`] and [`Self::toggle_value`].
+    pub fn selectable_value<'a, Value: PartialEq>(
         &mut self,
         current_value: &mut Value,
         selected_value: Value,
-        text: impl Into<WidgetText>,
+        text: impl IntoAtoms<'a>,
     ) -> Response {
         let mut response = self.selectable_label(*current_value == selected_value, text);
         if response.clicked() && *current_value != selected_value {
