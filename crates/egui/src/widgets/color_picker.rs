@@ -491,7 +491,7 @@ pub fn color_picker_color32(ui: &mut Ui, srgba: &mut Color32, alpha: Alpha) -> b
 
 pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Response {
     let popup_id = ui.auto_id_with("popup");
-    let open = ui.memory(|mem| mem.is_popup_open(popup_id));
+    let open = ui.memory(|mem| mem.is_showing_popup(popup_id));
     let mut button_response = color_button(ui, (*hsva).into(), open);
     if ui.style().explanation_tooltips {
         button_response = button_response.on_hover_text("Click to edit color");

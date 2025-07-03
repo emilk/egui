@@ -1017,11 +1017,27 @@ impl OpenPopup {
 /// Only one can be open at a time.
 impl Memory {
     /// Is the given popup open?
-    pub fn is_popup_open(&self, popup_id: Id) -> bool {
+    ///
+    /// NOTE: To actually show the popup, you must call [`Self::show_popup`].
+    /// If [`Self::show_popup`] is not called for a frame, the open state will be cleared.
+    pub fn is_showing_popup(&self, popup_id: Id) -> bool {
         self.popups
             .get(&self.viewport_id)
             .is_some_and(|state| state.id == popup_id)
             || self.everything_is_visible()
+    }
+
+    /// Check if the popup is open and keep it open.
+    pub fn show_popup(&mut self, popup_id: Id) -> bool {
+        let should_show = self.is_showing_popup(popup_id);
+        if should_show {
+            if let Some(state) = self.popups.get_mut(&self.viewport_id) {
+                if state.id == popup_id {
+                    state.open_this_frame = true;
+                }
+            }
+        }
+        should_show
     }
 
     /// Is any popup open?
@@ -1035,19 +1051,6 @@ impl Memory {
     pub fn open_popup(&mut self, popup_id: Id) {
         self.popups
             .insert(self.viewport_id, OpenPopup::new(popup_id, None));
-    }
-
-    /// Popups must call this every frame while open.
-    ///
-    /// This is needed because in some cases popups can go away without `close_popup` being
-    /// called. For example, when a context menu is open and the underlying widget stops
-    /// being rendered.
-    pub fn keep_popup_open(&mut self, popup_id: Id) {
-        if let Some(state) = self.popups.get_mut(&self.viewport_id) {
-            if state.id == popup_id {
-                state.open_this_frame = true;
-            }
-        }
     }
 
     /// Open the popup and remember its position.
@@ -1072,7 +1075,7 @@ impl Memory {
     ///
     /// See also [`Self::close_all_popups`] if you want to close any / all currently open popups.
     pub fn close_popup(&mut self, popup_id: Id) {
-        if self.is_popup_open(popup_id) {
+        if self.is_showing_popup(popup_id) {
             self.popups.remove(&self.viewport_id);
         }
     }
@@ -1081,7 +1084,7 @@ impl Memory {
     ///
     /// Note: At most, only one popup can be open at a time.
     pub fn toggle_popup(&mut self, popup_id: Id) {
-        if self.is_popup_open(popup_id) {
+        if self.is_showing_popup(popup_id) {
             self.close_popup(popup_id);
         } else {
             self.open_popup(popup_id);
