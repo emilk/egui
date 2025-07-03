@@ -26,8 +26,8 @@ use crate::{
     util::IdTypeMap,
     vec2, widgets,
     widgets::{
-         Button, Checkbox, DragValue, Hyperlink, Image, ImageSource, Label, Link,
-        RadioButton, Separator, Spinner, TextEdit, Widget, color_picker,
+        Button, Checkbox, DragValue, Hyperlink, Image, ImageSource, Label, Link, RadioButton,
+        Separator, Spinner, TextEdit, Widget, color_picker,
     },
 };
 // ----------------------------------------------------------------------------
