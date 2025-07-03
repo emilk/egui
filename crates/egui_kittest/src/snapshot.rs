@@ -173,7 +173,7 @@ pub enum SnapshotError {
         /// Name of the test
         name: String,
 
-        /// Count of pixels that were different
+        /// Count of pixels that were different (above the per-pixel threshold).
         diff: i32,
 
         /// Path where the diff image was saved
@@ -396,7 +396,7 @@ pub fn try_image_snapshot_options(
     let result =
         dify::diff::get_results(previous, new.clone(), *threshold, true, None, &None, &None);
 
-    if let Some((diff, result_image)) = result {
+    if let Some((num_wrong_pixels, result_image)) = result {
         result_image
             .save(diff_path.clone())
             .map_err(|err| SnapshotError::WriteSnapshot {
@@ -407,13 +407,13 @@ pub fn try_image_snapshot_options(
         if should_update_snapshots() {
             update_snapshot()
         } else {
-            if diff >= 0 && (diff as usize) <= *failed_pixel_count_threshold {
+            if num_wrong_pixels as i64 <= *failed_pixel_count_threshold as i64 {
                 return Ok(());
             }
 
             Err(SnapshotError::Diff {
                 name: name.to_owned(),
-                diff,
+                diff: num_wrong_pixels,
                 diff_path,
             })
         }
