@@ -23,7 +23,7 @@ use crate::{Layout, Ui, UiBuilder};
 /// The left widgets are added left-to-right.
 /// The right widgets are added right-to-left.
 ///
-/// Which side is first depends on the confuguration:
+/// Which side is first depends on the configuration:
 ///  - [`Sides::extend`] - left widgets are added first
 ///  - [`Sides::shrink_left`] - right widgets are added first
 ///  - [`Sides::shrink_right`] - left widgets are added first
