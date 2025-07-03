@@ -3,8 +3,8 @@ use crate::web::string_from_js_value;
 use super::{
     AppRunner, Closure, DEBUG_RESIZE, JsCast as _, JsValue, WebRunner, button_from_mouse_event,
     location_hash, modifiers_from_kb_event, modifiers_from_mouse_event, modifiers_from_wheel_event,
-    native_pixels_per_point, pos_from_mouse_event, prefers_color_scheme_dark, primary_touch_pos,
-    push_touches, text_from_keyboard_event, theme_from_dark_mode, translate_key,
+    native_pixels_per_point, pos_from_mouse_event, prefers_color_scheme, primary_touch_pos,
+    push_touches, text_from_keyboard_event, translate_key,
 };
 
 use web_sys::{Document, EventTarget, ShadowRoot};
@@ -469,16 +469,19 @@ fn install_color_scheme_change_event(
     runner_ref: &WebRunner,
     window: &web_sys::Window,
 ) -> Result<(), JsValue> {
-    if let Some(media_query_list) = prefers_color_scheme_dark(window)? {
-        runner_ref.add_event_listener::<web_sys::MediaQueryListEvent>(
-            &media_query_list,
-            "change",
-            |event, runner| {
-                let theme = theme_from_dark_mode(event.matches());
-                runner.input.raw.system_theme = Some(theme);
-                runner.needs_repaint.repaint_asap();
-            },
-        )?;
+    for theme in [egui::Theme::Dark, egui::Theme::Light] {
+        if let Some(media_query_list) = prefers_color_scheme(window, theme)? {
+            runner_ref.add_event_listener::<web_sys::MediaQueryListEvent>(
+                &media_query_list,
+                "change",
+                |_event, runner| {
+                    if let Some(theme) = super::system_theme() {
+                        runner.input.raw.system_theme = Some(theme);
+                        runner.needs_repaint.repaint_asap();
+                    }
+                },
+            )?;
+        }
     }
 
     Ok(())
