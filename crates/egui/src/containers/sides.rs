@@ -18,10 +18,15 @@ use crate::{Layout, Ui, UiBuilder};
 /// The width of the gap is dynamic, based on the max width of the parent [`Ui`].
 /// When the parent is being auto-sized ([`Ui::is_sizing_pass`]) the gap will be as small as possible.
 ///
-/// ~If the parent is not wide enough to fit all widgets, the parent will be expanded to the right.~
+/// If the parent is not wide enough to fit all widgets, the parent will be expanded to the right.
 ///
-/// The left widgets are first added to the ui, left-to-right.
-/// Then the right widgets are added, right-to-left.
+/// The left widgets are added left-to-right.
+/// The right widgets are added right-to-left.
+///
+/// Which side is first depends on the confuguration:
+///  - [`Sides::extend`] - left widgets are added first
+///  - [`Sides::shrink_left`] - right widgets are added first
+///  - [`Sides::shrink_right`] - left widgets are added first
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
@@ -78,16 +83,30 @@ impl Sides {
         self
     }
 
+    /// Try to shrink widgets on the left side.
+    ///
+    /// Right widgets will be added first. The left [`Ui`]s max rect will be limited to the
+    /// remaining space.
+    #[inline]
     pub fn shrink_left(mut self) -> Self {
         self.kind = SidesKind::ShrinkLeft;
         self
     }
 
+    /// Try to shrink widgets on the right side.
+    ///
+    /// Left widgets will be added first. The right [`Ui`]s max rect will be limited to the
+    /// remaining space.
+    #[inline]
     pub fn shrink_right(mut self) -> Self {
         self.kind = SidesKind::ShrinkRight;
         self
     }
 
+    /// Extend the left and right sides to fill the available space.
+    ///
+    /// The left widgets will be added first, followed by the right widgets.
+    #[inline]
     pub fn extend(mut self) -> Self {
         self.kind = SidesKind::Extend;
         self
@@ -96,6 +115,7 @@ impl Sides {
     /// The text wrap mode for the shrinking side.
     ///
     /// Does nothing if the kind is [`SidesKind::Extend`].
+    #[inline]
     pub fn wrap_mode(mut self, wrap_mode: crate::TextWrapMode) -> Self {
         self.wrap_mode = Some(wrap_mode);
         self
@@ -105,6 +125,7 @@ impl Sides {
     ///
     /// This is a shortcut for [`Self::wrap_mode`].
     /// Does nothing if the kind is [`SidesKind::Extend`].
+    #[inline]
     pub fn truncate(mut self) -> Self {
         self.wrap_mode = Some(crate::TextWrapMode::Truncate);
         self
@@ -114,6 +135,7 @@ impl Sides {
     ///
     /// This is a shortcut for [`Self::wrap_mode`].
     /// Does nothing if the kind is [`SidesKind::Extend`].
+    #[inline]
     pub fn wrap(mut self) -> Self {
         self.wrap_mode = Some(crate::TextWrapMode::Wrap);
         self
