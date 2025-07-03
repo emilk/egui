@@ -43,19 +43,32 @@ pub struct SnapshotOptions {
 ///          .failed_pixel_count_threshold(OsThreshold::new().windows(10).macos(53)
 ///  ))
 /// ```
-#[derive(Debug, Clone, Copy, Default)]
-pub struct OsThreshold<T: Default> {
+#[derive(Debug, Clone, Copy)]
+pub struct OsThreshold<T> {
     pub windows: T,
     pub macos: T,
     pub linux: T,
+    pub fallback: T,
+}
+
+impl From<usize> for OsThreshold<usize> {
+    fn from(value: usize) -> Self {
+        Self::new(value)
+    }
 }
 
 impl<T> OsThreshold<T>
 where
-    T: Default + Copy,
+    T: Copy,
 {
-    pub fn new() -> Self {
-        Self::default()
+    /// Use the same value for all
+    pub fn new(same: T) -> Self {
+        Self {
+            windows: same,
+            macos: same,
+            linux: same,
+            fallback: same,
+        }
     }
 
     /// Set the threshold for Windows.
@@ -88,7 +101,7 @@ where
         } else if cfg!(target_os = "linux") {
             self.linux
         } else {
-            T::default() // Default value if the OS is not recognized
+            self.fallback
         }
     }
 }
@@ -145,9 +158,10 @@ impl SnapshotOptions {
     #[inline]
     pub fn failed_pixel_count_threshold(
         mut self,
-        failed_pixel_count_threshold: impl Into<usize>,
+        failed_pixel_count_threshold: impl Into<OsThreshold<usize>>,
     ) -> Self {
-        self.failed_pixel_count_threshold = failed_pixel_count_threshold.into();
+        let failed_pixel_count_threshold = failed_pixel_count_threshold.into().threshold();
+        self.failed_pixel_count_threshold = failed_pixel_count_threshold;
         self
     }
 }
