@@ -105,6 +105,7 @@ impl Sides {
 
     /// Extend the left and right sides to fill the available space.
     ///
+    /// This is the default behavior.
     /// The left widgets will be added first, followed by the right widgets.
     #[inline]
     pub fn extend(mut self) -> Self {
@@ -114,7 +115,7 @@ impl Sides {
 
     /// The text wrap mode for the shrinking side.
     ///
-    /// Does nothing if the kind is [`SidesKind::Extend`].
+    /// Does nothing if [`Self::extend`] is used (the default).
     #[inline]
     pub fn wrap_mode(mut self, wrap_mode: crate::TextWrapMode) -> Self {
         self.wrap_mode = Some(wrap_mode);
@@ -124,7 +125,7 @@ impl Sides {
     /// Truncate the text on the shrinking side.
     ///
     /// This is a shortcut for [`Self::wrap_mode`].
-    /// Does nothing if the kind is [`SidesKind::Extend`].
+    /// Does nothing if [`Self::extend`] is used (the default).
     #[inline]
     pub fn truncate(mut self) -> Self {
         self.wrap_mode = Some(crate::TextWrapMode::Truncate);
@@ -134,7 +135,7 @@ impl Sides {
     /// Wrap the text on the shrinking side.
     ///
     /// This is a shortcut for [`Self::wrap_mode`].
-    /// Does nothing if the kind is [`SidesKind::Extend`].
+    /// Does nothing if [`Self::extend`] is used (the default).
     #[inline]
     pub fn wrap(mut self) -> Self {
         self.wrap_mode = Some(crate::TextWrapMode::Wrap);
