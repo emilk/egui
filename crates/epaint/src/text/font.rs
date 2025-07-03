@@ -110,8 +110,6 @@ impl FontImpl {
         let scale_in_pixels = scale_in_pixels * tweak.scale;
         let scale_in_points = scale_in_pixels / pixels_per_point;
 
-        let baseline_offset = (scale_in_points * tweak.baseline_offset_factor).round_ui();
-
         let y_offset_points =
             ((scale_in_points * tweak.y_offset_factor) + tweak.y_offset).round_ui();
 
@@ -132,7 +130,7 @@ impl FontImpl {
             scale_in_pixels,
             height_in_points: ascent - descent + line_gap,
             y_offset_in_points,
-            ascent: ascent + baseline_offset,
+            ascent,
             pixels_per_point,
             glyph_info_cache: Default::default(),
             atlas,

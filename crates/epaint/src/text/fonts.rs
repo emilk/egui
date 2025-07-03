@@ -179,13 +179,6 @@ pub struct FontTweak {
     ///
     /// Example value: `2.0`.
     pub y_offset: f32,
-
-    /// When using this font's metrics to layout a row,
-    /// shift the entire row downwards by this fraction of the font size (in points).
-    ///
-    /// A positive value shifts the text downwards.
-    /// A negative value shifts it upwards.
-    pub baseline_offset_factor: f32,
 }
 
 impl Default for FontTweak {
@@ -194,7 +187,6 @@ impl Default for FontTweak {
             scale: 1.0,
             y_offset_factor: 0.0,
             y_offset: 0.0,
-            baseline_offset_factor: 0.0,
         }
     }
 }
