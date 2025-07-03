@@ -1,5 +1,5 @@
-use egui::{TextWrapMode, Ui, Vec2, containers::Sides};
-use egui_kittest::{Harness, SnapshotResult, SnapshotResults};
+use egui::{TextWrapMode, Vec2, containers::Sides};
+use egui_kittest::{Harness, SnapshotResults};
 
 #[test]
 fn sides_container_tests() {

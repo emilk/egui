@@ -1,4 +1,4 @@
-use emath::Align;
+use emath::{Align, NumExt};
 
 use crate::{Layout, Ui, UiBuilder};
 
@@ -137,9 +137,6 @@ impl Sides {
         let mut top_rect = ui.available_rect_before_wrap();
         top_rect.max.y = top_rect.min.y + height;
 
-        let result_left;
-        let result_right;
-
         if ui.is_sizing_pass() {
             kind = SidesKind::Extend;
             wrap_mode = None;
@@ -147,112 +144,91 @@ impl Sides {
 
         match kind {
             SidesKind::ShrinkLeft => {
-                // Draw right side first, then limit left side width
-                let right_rect = {
-                    let right_max_rect = top_rect;
-                    let mut right_ui = ui.new_child(
-                        UiBuilder::new()
-                            .max_rect(right_max_rect)
-                            .layout(Layout::right_to_left(Align::Center)),
-                    );
-                    result_right = add_right(&mut right_ui);
-                    right_ui.min_rect()
-                };
+                let (right_rect, result_right) = Self::create_ui(
+                    ui,
+                    top_rect,
+                    Layout::right_to_left(Align::Center),
+                    add_right,
+                    None,
+                );
+                let available_width = top_rect.width() - right_rect.width() - spacing;
+                let left_rect_constraint =
+                    top_rect.with_max_x(top_rect.min.x + available_width.at_least(0.0));
+                let (left_rect, result_left) = Self::create_ui(
+                    ui,
+                    left_rect_constraint,
+                    Layout::left_to_right(Align::Center),
+                    add_left,
+                    wrap_mode,
+                );
 
-                let left_rect = {
-                    let available_width = top_rect.width() - right_rect.width() - spacing;
-                    let left_max_rect =
-                        top_rect.with_max_x(top_rect.min.x + available_width.max(0.0));
-                    let mut left_ui = ui.new_child(
-                        UiBuilder::new()
-                            .max_rect(left_max_rect)
-                            .layout(Layout::left_to_right(Align::Center)),
-                    );
-                    if let Some(wrap_mode) = wrap_mode {
-                        left_ui.style_mut().wrap_mode = Some(wrap_mode);
-                    }
-                    result_left = add_left(&mut left_ui);
-                    left_ui.min_rect()
-                };
-
-                let final_rect = left_rect.union(right_rect);
-                ui.advance_cursor_after_rect(final_rect);
+                ui.advance_cursor_after_rect(left_rect.union(right_rect));
+                (result_left, result_right)
             }
             SidesKind::ShrinkRight => {
-                // Draw left side first, then limit right side width
-                let left_rect = {
-                    let left_max_rect = top_rect;
-                    let mut left_ui = ui.new_child(
-                        UiBuilder::new()
-                            .max_rect(left_max_rect)
-                            .layout(Layout::left_to_right(Align::Center)),
-                    );
-                    result_left = add_left(&mut left_ui);
-                    left_ui.min_rect()
-                };
+                let (left_rect, result_left) = Self::create_ui(
+                    ui,
+                    top_rect,
+                    Layout::left_to_right(Align::Center),
+                    add_left,
+                    None,
+                );
+                let right_rect_constraint = top_rect.with_min_x(left_rect.max.x + spacing);
+                let (right_rect, result_right) = Self::create_ui(
+                    ui,
+                    right_rect_constraint,
+                    Layout::right_to_left(Align::Center),
+                    add_right,
+                    wrap_mode,
+                );
 
-                let right_rect = {
-                    let available_width = top_rect.width() - left_rect.width() - spacing;
-                    let right_max_rect = top_rect
-                        .with_min_x(left_rect.max.x + spacing)
-                        .with_max_x(top_rect.max.x);
-                    let right_max_rect =
-                        right_max_rect.with_max_x(right_max_rect.min.x + available_width.max(0.0));
-                    let mut right_ui = ui.new_child(
-                        UiBuilder::new()
-                            .max_rect(right_max_rect)
-                            .layout(Layout::right_to_left(Align::Center)),
-                    );
-                    if let Some(wrap_mode) = wrap_mode {
-                        right_ui.style_mut().wrap_mode = Some(wrap_mode);
-                    }
-                    result_right = add_right(&mut right_ui);
-                    right_ui.min_rect()
-                };
-
-                let final_rect = left_rect.union(right_rect);
-                ui.advance_cursor_after_rect(final_rect);
+                ui.advance_cursor_after_rect(left_rect.union(right_rect));
+                (result_left, result_right)
             }
             SidesKind::Extend => {
-                // Original behavior: left first, then right, then final_rect calculations
-                let left_rect = {
-                    let left_max_rect = top_rect;
-                    let mut left_ui = ui.new_child(
-                        UiBuilder::new()
-                            .max_rect(left_max_rect)
-                            .layout(Layout::left_to_right(Align::Center)),
-                    );
-                    result_left = add_left(&mut left_ui);
-                    left_ui.min_rect()
-                };
-
-                let right_rect = {
-                    let right_max_rect = top_rect.with_min_x(left_rect.max.x);
-                    let mut right_ui = ui.new_child(
-                        UiBuilder::new()
-                            .max_rect(right_max_rect)
-                            .layout(Layout::right_to_left(Align::Center)),
-                    );
-                    result_right = add_right(&mut right_ui);
-                    right_ui.min_rect()
-                };
+                let (left_rect, result_left) = Self::create_ui(
+                    ui,
+                    top_rect,
+                    Layout::left_to_right(Align::Center),
+                    add_left,
+                    None,
+                );
+                let right_max_rect = top_rect.with_min_x(left_rect.max.x);
+                let (right_rect, result_right) = Self::create_ui(
+                    ui,
+                    right_max_rect,
+                    Layout::right_to_left(Align::Center),
+                    add_right,
+                    None,
+                );
 
                 let mut final_rect = left_rect.union(right_rect);
                 let min_width = left_rect.width() + spacing + right_rect.width();
 
                 if ui.is_sizing_pass() {
-                    // Make as small as possible:
                     final_rect.max.x = left_rect.min.x + min_width;
                 } else {
-                    // If the rects overlap, make sure we expand the allocated rect so that the parent
-                    // ui knows we overflowed, and resizes:
                     final_rect.max.x = final_rect.max.x.max(left_rect.min.x + min_width);
                 }
 
                 ui.advance_cursor_after_rect(final_rect);
+                (result_left, result_right)
             }
         }
+    }
 
-        (result_left, result_right)
+    fn create_ui<Ret>(
+        ui: &mut Ui,
+        max_rect: emath::Rect,
+        layout: Layout,
+        add_content: impl FnOnce(&mut Ui) -> Ret,
+        wrap_mode: Option<crate::TextWrapMode>,
+    ) -> (emath::Rect, Ret) {
+        let mut child_ui = ui.new_child(UiBuilder::new().max_rect(max_rect).layout(layout));
+        if let Some(wrap_mode) = wrap_mode {
+            child_ui.style_mut().wrap_mode = Some(wrap_mode);
+        }
+        let result = add_content(&mut child_ui);
+        (child_ui.min_rect(), result)
     }
 }
