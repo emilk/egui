@@ -16,7 +16,9 @@ fn main() -> eframe::Result {
                 start_puffin_server();
 
                 #[cfg(not(feature = "puffin"))]
-                panic!("Unknown argument: {arg} - you need to enable the 'puffin' feature to use this.");
+                panic!(
+                    "Unknown argument: {arg} - you need to enable the 'puffin' feature to use this."
+                );
             }
 
             _ => {
@@ -39,7 +41,12 @@ fn main() -> eframe::Result {
                 rust_log += &format!(",{loud_crate}=warn");
             }
         }
-        std::env::set_var("RUST_LOG", rust_log);
+
+        // SAFETY: we call this from the main thread without any other threads running.
+        #[expect(unsafe_code)]
+        unsafe {
+            std::env::set_var("RUST_LOG", rust_log);
+        }
     }
 
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).

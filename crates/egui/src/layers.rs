@@ -1,8 +1,8 @@
 //! Handles paint layers, i.e. how things
 //! are sometimes painted behind or in front of other things.
 
-use crate::{ahash, epaint, Id, IdMap, Rect};
-use epaint::{emath::TSTransform, ClippedShape, Shape};
+use crate::{Id, IdMap, Rect, ahash, epaint};
+use epaint::{ClippedShape, Shape, emath::TSTransform};
 
 /// Different layer categories
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]

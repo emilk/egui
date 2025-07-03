@@ -3,14 +3,14 @@ use std::sync::Arc;
 use emath::TSTransform;
 
 use crate::{
-    layers::ShapeIdx, text::CCursor, text_selection::CCursorRange, Context, CursorIcon, Event,
-    Galley, Id, LayerId, Pos2, Rect, Response, Ui,
+    Context, CursorIcon, Event, Galley, Id, LayerId, Pos2, Rect, Response, Ui, layers::ShapeIdx,
+    text::CCursor, text_selection::CCursorRange,
 };
 
 use super::{
-    text_cursor_state::cursor_rect,
-    visuals::{paint_text_selection, RowVertexIndices},
     TextCursorState,
+    text_cursor_state::cursor_rect,
+    visuals::{RowVertexIndices, paint_text_selection},
 };
 
 /// Turn on to help debug this

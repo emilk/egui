@@ -445,7 +445,9 @@ impl Painter {
                         if let Some(callback) = callback.callback.downcast_ref::<CallbackFn>() {
                             (callback.f)(info, self);
                         } else {
-                            log::warn!("Warning: Unsupported render callback. Expected egui_glow::CallbackFn");
+                            log::warn!(
+                                "Warning: Unsupported render callback. Expected egui_glow::CallbackFn"
+                            );
                         }
 
                         check_for_gl_error!(&self.gl, "callback");
@@ -542,7 +544,7 @@ impl Painter {
                 let data: Vec<u8> = {
                     profiling::scope!("font -> sRGBA");
                     image
-                        .srgba_pixels(None)
+                        .srgba_pixels(Default::default())
                         .flat_map(|a| a.to_array())
                         .collect()
                 };

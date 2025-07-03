@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{lerp, pos2, vec2, Div, Mul, Pos2, Rangef, Rot2, Vec2};
+use crate::{Div, Mul, Pos2, Rangef, Rot2, Vec2, lerp, pos2, vec2};
 
 /// A rectangular region of space.
 ///

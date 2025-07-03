@@ -1,7 +1,8 @@
 use egui::{
+    Color32, Pos2, Rect, Sense, StrokeKind, Vec2,
     emath::{GuiRounding as _, TSTransform},
     epaint::{self, RectShape},
-    vec2, Color32, Pos2, Rect, Sense, StrokeKind, Vec2,
+    vec2,
 };
 
 #[derive(Clone, Debug, PartialEq)]
