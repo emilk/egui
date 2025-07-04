@@ -78,7 +78,7 @@ impl Default for WrappedTextureManager {
         // Will be filled in later
         let font_id = tex_mngr.alloc(
             "egui_font_texture".into(),
-            epaint::FontImage::new([0, 0]).into(),
+            epaint::ColorImage::filled([0, 0], Color32::TRANSPARENT).into(),
             Default::default(),
         );
         assert_eq!(
@@ -610,6 +610,8 @@ impl ContextImpl {
             log::trace!("Adding new fonts");
         }
 
+        let text_alpha_from_coverage = self.memory.options.style().visuals.text_alpha_from_coverage;
+
         let mut is_new = false;
 
         let fonts = self
@@ -624,13 +626,14 @@ impl ContextImpl {
                 Fonts::new(
                     pixels_per_point,
                     max_texture_side,
+                    text_alpha_from_coverage,
                     self.font_definitions.clone(),
                 )
             });
 
         {
             profiling::scope!("Fonts::begin_pass");
-            fonts.begin_pass(pixels_per_point, max_texture_side);
+            fonts.begin_pass(pixels_per_point, max_texture_side, text_alpha_from_coverage);
         }
 
         if is_new && self.memory.options.preload_font_glyphs {
@@ -1921,16 +1924,6 @@ impl Context {
         }
     }
 
-    pub(crate) fn reset_font_atlas(&self) {
-        let pixels_per_point = self.pixels_per_point();
-        let fonts = self.read(|ctx| {
-            ctx.fonts
-                .get(&pixels_per_point.into())
-                .map(|current_fonts| current_fonts.lock().fonts.definitions().clone())
-        });
-        self.memory_mut(|mem| mem.new_font_definitions = fonts);
-    }
-
     /// Tell `egui` which fonts to use.
     ///
     /// The default `egui` fonts only support latin and cyrillic alphabets,
@@ -2066,19 +2059,10 @@ impl Context {
     /// You can use [`Ui::style_mut`] to change the style of a single [`Ui`].
     pub fn set_style_of(&self, theme: Theme, style: impl Into<Arc<Style>>) {
         let style = style.into();
-        let mut recreate_font_atlas = false;
-        self.options_mut(|opt| {
-            let dest = match theme {
-                Theme::Dark => &mut opt.dark_style,
-                Theme::Light => &mut opt.light_style,
-            };
-            recreate_font_atlas =
-                dest.visuals.text_alpha_from_coverage != style.visuals.text_alpha_from_coverage;
-            *dest = style;
+        self.options_mut(|opt| match theme {
+            Theme::Dark => opt.dark_style = style,
+            Theme::Light => opt.light_style = style,
         });
-        if recreate_font_atlas {
-            self.reset_font_atlas();
-        }
     }
 
     /// The [`crate::Visuals`] used by all subsequent windows, panels etc.
@@ -2475,28 +2459,7 @@ impl ContextImpl {
         }
 
         // Inform the backend of all textures that have been updated (including font atlas).
-        let textures_delta = {
-            // HACK to get much nicer looking text in light mode.
-            // This assumes all text is black-on-white in light mode,
-            // and white-on-black in dark mode, which is not necessarily true,
-            // but often close enough.
-            // Of course this fails for cases when there is black-on-white text in dark mode,
-            // and white-on-black text in light mode.
-
-            let text_alpha_from_coverage =
-                self.memory.options.style().visuals.text_alpha_from_coverage;
-
-            let mut textures_delta = self.tex_manager.0.write().take_delta();
-
-            for (_, delta) in &mut textures_delta.set {
-                if let ImageData::Font(font) = &mut delta.image {
-                    delta.image =
-                        ImageData::Color(font.to_color_image(text_alpha_from_coverage).into());
-                }
-            }
-
-            textures_delta
-        };
+        let textures_delta = self.tex_manager.0.write().take_delta();
 
         let mut platform_output: PlatformOutput = std::mem::take(&mut viewport.output);
 
@@ -3094,16 +3057,8 @@ impl Context {
 
         options.ui(ui);
 
-        let text_alpha_from_coverage_changed =
-            prev_options.style().visuals.text_alpha_from_coverage
-                != options.style().visuals.text_alpha_from_coverage;
-
         if options != prev_options {
             self.options_mut(move |o| *o = options);
-        }
-
-        if text_alpha_from_coverage_changed {
-            ui.ctx().reset_font_atlas();
         }
     }
 

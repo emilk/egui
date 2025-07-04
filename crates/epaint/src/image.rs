@@ -7,24 +7,20 @@ use std::sync::Arc;
 ///
 /// To load an image file, see [`ColorImage::from_rgba_unmultiplied`].
 ///
-/// In order to paint the image on screen, you first need to convert it to
+/// This is currently an enum with only one variant, but more image types may be added in the future.
 ///
-/// See also: [`ColorImage`], [`FontImage`].
-#[derive(Clone, PartialEq)]
+/// See also: [`ColorImage`].
+#[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ImageData {
     /// RGBA image.
     Color(Arc<ColorImage>),
-
-    /// Used for the font texture.
-    Font(FontImage),
 }
 
 impl ImageData {
     pub fn size(&self) -> [usize; 2] {
         match self {
             Self::Color(image) => image.size,
-            Self::Font(image) => image.size,
         }
     }
 
@@ -38,7 +34,7 @@ impl ImageData {
 
     pub fn bytes_per_pixel(&self) -> usize {
         match self {
-            Self::Color(_) | Self::Font(_) => 4,
+            Self::Color(_) => 4,
         }
     }
 }
@@ -271,6 +267,37 @@ impl ColorImage {
         }
         Self::new([width, height], output)
     }
+
+    /// Clone a sub-region as a new image.
+    pub fn region_by_pixels(&self, [x, y]: [usize; 2], [w, h]: [usize; 2]) -> Self {
+        assert!(
+            x + w <= self.width(),
+            "x + w should be <= self.width(), but x: {}, w: {}, width: {}",
+            x,
+            w,
+            self.width()
+        );
+        assert!(
+            y + h <= self.height(),
+            "y + h should be <= self.height(), but y: {}, h: {}, height: {}",
+            y,
+            h,
+            self.height()
+        );
+
+        let mut pixels = Vec::with_capacity(w * h);
+        for y in y..y + h {
+            let offset = y * self.width() + x;
+            pixels.extend(&self.pixels[offset..(offset + w)]);
+        }
+        assert_eq!(
+            pixels.len(),
+            w * h,
+            "pixels.len should be w * h, but got {}",
+            pixels.len()
+        );
+        Self::new([w, h], pixels)
+    }
 }
 
 impl std::ops::Index<(usize, usize)> for ColorImage {
@@ -371,127 +398,12 @@ impl AlphaFromCoverage {
     }
 }
 
-/// A single-channel image designed for the font texture.
-///
-/// Each value represents "coverage", i.e. how much a texel is covered by a character.
-///
-/// This is roughly interpreted as the opacity of a white image.
-#[derive(Clone, Default, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct FontImage {
-    /// width, height
-    pub size: [usize; 2],
-
-    /// The coverage value.
-    ///
-    /// Often you want to use [`Self::srgba_pixels`] instead.
-    pub pixels: Vec<f32>,
-}
-
-impl FontImage {
-    pub fn new(size: [usize; 2]) -> Self {
-        Self {
-            size,
-            pixels: vec![0.0; size[0] * size[1]],
-        }
-    }
-
-    #[inline]
-    pub fn width(&self) -> usize {
-        self.size[0]
-    }
-
-    #[inline]
-    pub fn height(&self) -> usize {
-        self.size[1]
-    }
-
-    /// Returns the textures as `sRGBA` premultiplied pixels, row by row, top to bottom.
-    #[inline]
-    pub fn srgba_pixels(
-        &self,
-        alpha_from_coverage: AlphaFromCoverage,
-    ) -> impl ExactSizeIterator<Item = Color32> + '_ {
-        self.pixels
-            .iter()
-            .map(move |&coverage| alpha_from_coverage.color_from_coverage(coverage))
-    }
-
-    /// Convert this coverage image to a [`ColorImage`].
-    pub fn to_color_image(&self, alpha_from_coverage: AlphaFromCoverage) -> ColorImage {
-        profiling::function_scope!();
-        let pixels = self.srgba_pixels(alpha_from_coverage).collect();
-        ColorImage::new(self.size, pixels)
-    }
-
-    /// Clone a sub-region as a new image.
-    pub fn region(&self, [x, y]: [usize; 2], [w, h]: [usize; 2]) -> Self {
-        assert!(
-            x + w <= self.width(),
-            "x + w should be <= self.width(), but x: {}, w: {}, width: {}",
-            x,
-            w,
-            self.width()
-        );
-        assert!(
-            y + h <= self.height(),
-            "y + h should be <= self.height(), but y: {}, h: {}, height: {}",
-            y,
-            h,
-            self.height()
-        );
-
-        let mut pixels = Vec::with_capacity(w * h);
-        for y in y..y + h {
-            let offset = y * self.width() + x;
-            pixels.extend(&self.pixels[offset..(offset + w)]);
-        }
-        assert_eq!(
-            pixels.len(),
-            w * h,
-            "pixels.len should be w * h, but got {}",
-            pixels.len()
-        );
-        Self {
-            size: [w, h],
-            pixels,
-        }
-    }
-}
-
-impl std::ops::Index<(usize, usize)> for FontImage {
-    type Output = f32;
-
-    #[inline]
-    fn index(&self, (x, y): (usize, usize)) -> &f32 {
-        let [w, h] = self.size;
-        assert!(x < w && y < h, "x: {x}, y: {y}, w: {w}, h: {h}");
-        &self.pixels[y * w + x]
-    }
-}
-
-impl std::ops::IndexMut<(usize, usize)> for FontImage {
-    #[inline]
-    fn index_mut(&mut self, (x, y): (usize, usize)) -> &mut f32 {
-        let [w, h] = self.size;
-        assert!(x < w && y < h, "x: {x}, y: {y}, w: {w}, h: {h}");
-        &mut self.pixels[y * w + x]
-    }
-}
-
-impl From<FontImage> for ImageData {
-    #[inline(always)]
-    fn from(image: FontImage) -> Self {
-        Self::Font(image)
-    }
-}
-
 // ----------------------------------------------------------------------------
 
 /// A change to an image.
 ///
 /// Either a whole new image, or an update to a rectangular region of it.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[must_use = "The painter must take care of this"]
 pub struct ImageDelta {

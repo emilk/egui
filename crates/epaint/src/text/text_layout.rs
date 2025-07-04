@@ -1034,11 +1034,18 @@ fn is_cjk_break_allowed(c: char) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use crate::AlphaFromCoverage;
+
     use super::{super::*, *};
 
     #[test]
     fn test_zero_max_width() {
-        let mut fonts = FontsImpl::new(1.0, 1024, FontDefinitions::default());
+        let mut fonts = FontsImpl::new(
+            1.0,
+            1024,
+            AlphaFromCoverage::default(),
+            FontDefinitions::default(),
+        );
         let mut layout_job = LayoutJob::single_section("W".into(), TextFormat::default());
         layout_job.wrap.max_width = 0.0;
         let galley = layout(&mut fonts, layout_job.into());
@@ -1049,7 +1056,12 @@ mod tests {
     fn test_truncate_with_newline() {
         // No matter where we wrap, we should be appending the newline character.
 
-        let mut fonts = FontsImpl::new(1.0, 1024, FontDefinitions::default());
+        let mut fonts = FontsImpl::new(
+            1.0,
+            1024,
+            AlphaFromCoverage::default(),
+            FontDefinitions::default(),
+        );
         let text_format = TextFormat {
             font_id: FontId::monospace(12.0),
             ..Default::default()
@@ -1094,7 +1106,12 @@ mod tests {
 
     #[test]
     fn test_cjk() {
-        let mut fonts = FontsImpl::new(1.0, 1024, FontDefinitions::default());
+        let mut fonts = FontsImpl::new(
+            1.0,
+            1024,
+            AlphaFromCoverage::default(),
+            FontDefinitions::default(),
+        );
         let mut layout_job = LayoutJob::single_section(
             "日本語とEnglishの混在した文章".into(),
             TextFormat::default(),
@@ -1109,7 +1126,12 @@ mod tests {
 
     #[test]
     fn test_pre_cjk() {
-        let mut fonts = FontsImpl::new(1.0, 1024, FontDefinitions::default());
+        let mut fonts = FontsImpl::new(
+            1.0,
+            1024,
+            AlphaFromCoverage::default(),
+            FontDefinitions::default(),
+        );
         let mut layout_job = LayoutJob::single_section(
             "日本語とEnglishの混在した文章".into(),
             TextFormat::default(),
@@ -1124,7 +1146,12 @@ mod tests {
 
     #[test]
     fn test_truncate_width() {
-        let mut fonts = FontsImpl::new(1.0, 1024, FontDefinitions::default());
+        let mut fonts = FontsImpl::new(
+            1.0,
+            1024,
+            AlphaFromCoverage::default(),
+            FontDefinitions::default(),
+        );
         let mut layout_job =
             LayoutJob::single_section("# DNA\nMore text".into(), TextFormat::default());
         layout_job.wrap.max_width = f32::INFINITY;
