@@ -307,7 +307,7 @@ impl RichText {
     /// Read the font height of the selected text style.
     ///
     /// Returns a value rounded to [`emath::GUI_ROUNDING`].
-    pub fn font_height(&self, fonts: &mut epaint::Fonts, style: &Style) -> f32 {
+    pub fn font_height(&self, fonts: &mut epaint::FontsView<'_>, style: &Style) -> f32 {
         let mut font_id = self.text_style.as_ref().map_or_else(
             || FontSelection::Default.resolve(style),
             |text_style| text_style.resolve(style),
@@ -676,7 +676,7 @@ impl WidgetText {
     }
 
     /// Returns a value rounded to [`emath::GUI_ROUNDING`].
-    pub(crate) fn font_height(&self, fonts: &mut epaint::Fonts, style: &Style) -> f32 {
+    pub(crate) fn font_height(&self, fonts: &mut epaint::FontsView<'_>, style: &Style) -> f32 {
         match self {
             Self::Text(_) => fonts.row_height(&FontSelection::Default.resolve(style)),
             Self::RichText(text) => text.font_height(fonts, style),

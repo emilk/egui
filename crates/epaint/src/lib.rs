@@ -62,7 +62,7 @@ pub use self::{
     stats::PaintStats,
     stroke::{PathStroke, Stroke, StrokeKind},
     tessellator::{TessellationOptions, Tessellator},
-    text::{FontFamily, FontId, Fonts, Galley},
+    text::{FontFamily, FontId, Fonts, FontsView, Galley},
     texture_atlas::TextureAtlas,
     texture_handle::TextureHandle,
     textures::TextureManager,

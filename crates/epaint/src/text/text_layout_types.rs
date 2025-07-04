@@ -8,7 +8,7 @@ use super::{
     cursor::{CCursor, LayoutCursor},
     font::UvRect,
 };
-use crate::{Color32, FontId, Mesh, Stroke};
+use crate::{Color32, FontId, Mesh, Stroke, text::FontsView};
 use emath::{Align, GuiRounding as _, NumExt as _, OrderedFloat, Pos2, Rect, Vec2, pos2, vec2};
 
 /// Describes the task of laying out text.
@@ -184,7 +184,7 @@ impl LayoutJob {
     /// The height of the tallest font used in the job.
     ///
     /// Returns a value rounded to [`emath::GUI_ROUNDING`].
-    pub fn font_height(&self, fonts: &mut crate::Fonts) -> f32 {
+    pub fn font_height(&self, fonts: &mut FontsView<'_>) -> f32 {
         let mut max_height = 0.0_f32;
         for section in &self.sections {
             max_height = max_height.max(fonts.row_height(&section.format.font_id));

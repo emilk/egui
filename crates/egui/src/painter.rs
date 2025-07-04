@@ -3,7 +3,7 @@ use std::sync::Arc;
 use emath::GuiRounding as _;
 use epaint::{
     CircleShape, ClippedShape, CornerRadius, PathStroke, RectShape, Shape, Stroke, StrokeKind,
-    text::{Fonts, Galley, LayoutJob},
+    text::{FontsView, Galley, LayoutJob},
 };
 
 use crate::{
@@ -145,7 +145,7 @@ impl Painter {
     ///
     /// See [`Context`] documentation for how locks work.
     #[inline]
-    pub fn fonts<R>(&self, reader: impl FnOnce(&Fonts) -> R) -> R {
+    pub fn fonts<R>(&self, reader: impl FnOnce(&FontsView<'_>) -> R) -> R {
         self.ctx.fonts(reader)
     }
 
@@ -153,7 +153,7 @@ impl Painter {
     ///
     /// See [`Context`] documentation for how locks work.
     #[inline]
-    pub fn fonts_mut<R>(&self, reader: impl FnOnce(&mut Fonts) -> R) -> R {
+    pub fn fonts_mut<R>(&self, reader: impl FnOnce(&mut FontsView<'_>) -> R) -> R {
         self.ctx.fonts_mut(reader)
     }
 
