@@ -77,7 +77,7 @@ impl crate::View for FontBook {
         let available_glyphs = self
             .available_glyphs
             .entry(self.font_id.family.clone())
-            .or_insert_with(|| available_characters(ui, self.font_id.family.clone()));
+            .or_insert_with(|| available_characters(ui, &self.font_id.family));
 
         ui.separator();
 
@@ -140,10 +140,10 @@ fn char_info_ui(ui: &mut egui::Ui, chr: char, glyph_info: &GlyphInfo, font_id: e
         });
 }
 
-fn available_characters(ui: &egui::Ui, family: egui::FontFamily) -> BTreeMap<char, GlyphInfo> {
+fn available_characters(ui: &egui::Ui, family: &egui::FontFamily) -> BTreeMap<char, GlyphInfo> {
     ui.fonts_mut(|f| {
         f.fonts
-            .font(&egui::FontId::new(10.0, family)) // size is arbitrary for getting the characters
+            .font(family)
             .characters()
             .iter()
             .filter(|(chr, _fonts)| !chr.is_whitespace() && !chr.is_ascii_control())

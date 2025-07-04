@@ -8,7 +8,7 @@ use crate::{
         font::{Font, FontImpl},
     },
 };
-use emath::{NumExt as _, OrderedFloat};
+use emath::NumExt as _;
 
 #[cfg(feature = "default_fonts")]
 use epaint_default_fonts::{EMOJI_ICON, HACK_REGULAR, NOTO_EMOJI_REGULAR, UBUNTU_LIGHT};
@@ -619,8 +619,9 @@ pub struct FontsImpl {
     max_texture_side: usize,
     definitions: FontDefinitions,
     atlas: Arc<Mutex<TextureAtlas>>,
-    font_impl_cache: FontImplCache,
-    sized_family: ahash::HashMap<(OrderedFloat<f32>, FontFamily), Font>,
+    //font_impl_cache: FontImplCache,
+    font_impls: ahash::HashMap<String, Arc<FontImpl>>,
+    family_cache: ahash::HashMap<FontFamily, Font>,
 }
 
 impl FontsImpl {
@@ -643,16 +644,24 @@ impl FontsImpl {
 
         let atlas = Arc::new(Mutex::new(atlas));
 
-        let font_impl_cache =
-            FontImplCache::new(atlas.clone(), pixels_per_point, &definitions.font_data);
+        let font_impls = definitions
+            .font_data
+            .iter()
+            .map(|(name, font_data)| {
+                let tweak = font_data.tweak;
+                let ab_glyph = ab_glyph_font_from_font_data(name, font_data);
+                let font_impl = FontImpl::new(atlas.clone(), name.clone(), ab_glyph, tweak);
+                (name.clone(), Arc::new(font_impl))
+            })
+            .collect();
 
         Self {
             pixels_per_point,
             max_texture_side,
             definitions,
             atlas,
-            font_impl_cache,
-            sized_family: Default::default(),
+            font_impls,
+            family_cache: Default::default(),
         }
     }
 
@@ -666,48 +675,47 @@ impl FontsImpl {
         &self.definitions
     }
 
-    /// Get the right font implementation from size and [`FontFamily`].
-    pub fn font(&mut self, font_id: &FontId) -> &mut Font {
-        let FontId { size, family } = font_id;
-        let mut size = *size;
-        size = size.at_least(0.1).at_most(2048.0);
+    /// Get the right font implementation from  [`FontFamily`].
+    pub fn font(&mut self, family: &FontFamily) -> &mut Font {
+        self.family_cache.entry(family.clone()).or_insert_with(|| {
+            let fonts = &self.definitions.families.get(family);
+            let fonts =
+                fonts.unwrap_or_else(|| panic!("FontFamily::{family:?} is not bound to any fonts"));
 
-        self.sized_family
-            .entry((OrderedFloat(size), family.clone()))
-            .or_insert_with(|| {
-                let fonts = &self.definitions.families.get(family);
-                let fonts = fonts
-                    .unwrap_or_else(|| panic!("FontFamily::{family:?} is not bound to any fonts"));
+            let fonts: Vec<Arc<FontImpl>> = fonts
+                .iter()
+                .map(|font_name| {
+                    self.font_impls
+                        .get(font_name)
+                        .unwrap_or_else(|| panic!("No font data found for {font_name:?}"))
+                        .clone()
+                })
+                .collect();
 
-                let fonts: Vec<Arc<FontImpl>> = fonts
-                    .iter()
-                    .map(|font_name| self.font_impl_cache.font_impl(size, font_name))
-                    .collect();
-
-                Font::new(fonts)
-            })
+            Font::new(fonts)
+        })
     }
 
     /// Width of this character in points.
     fn glyph_width(&mut self, font_id: &FontId, c: char) -> f32 {
-        self.font(font_id).glyph_width(c)
+        self.font(&font_id.family).glyph_width(c, font_id.size)
     }
 
     /// Can we display this glyph?
     pub fn has_glyph(&mut self, font_id: &FontId, c: char) -> bool {
-        self.font(font_id).has_glyph(c)
+        self.font(&font_id.family).has_glyph(c)
     }
 
     /// Can we display all the glyphs in this text?
     pub fn has_glyphs(&mut self, font_id: &FontId, s: &str) -> bool {
-        self.font(font_id).has_glyphs(s)
+        self.font(&font_id.family).has_glyphs(s)
     }
 
     /// Height of one row of text in points.
     ///
     /// Returns a value rounded to [`emath::GUI_ROUNDING`].
     fn row_height(&mut self, font_id: &FontId) -> f32 {
-        self.font(font_id).row_height()
+        self.font(&font_id.family).row_height(font_id.size)
     }
 }
 
@@ -961,77 +969,6 @@ fn should_cache_each_paragraph_individually(job: &LayoutJob) -> bool {
     // Most often, elided text is elided to one row,
     // and so will always be fast to lay out.
     job.break_on_newline && job.wrap.max_rows == usize::MAX && job.text.contains('\n')
-}
-
-// ----------------------------------------------------------------------------
-
-struct FontImplCache {
-    atlas: Arc<Mutex<TextureAtlas>>,
-    pixels_per_point: f32,
-    ab_glyph_fonts: BTreeMap<String, (FontTweak, ab_glyph::FontArc)>,
-
-    /// Map font pixel sizes and names to the cached [`FontImpl`].
-    cache: ahash::HashMap<(u32, String), Arc<FontImpl>>,
-}
-
-impl FontImplCache {
-    pub fn new(
-        atlas: Arc<Mutex<TextureAtlas>>,
-        pixels_per_point: f32,
-        font_data: &BTreeMap<String, Arc<FontData>>,
-    ) -> Self {
-        let ab_glyph_fonts = font_data
-            .iter()
-            .map(|(name, font_data)| {
-                let tweak = font_data.tweak;
-                let ab_glyph = ab_glyph_font_from_font_data(name, font_data);
-                (name.clone(), (tweak, ab_glyph))
-            })
-            .collect();
-
-        Self {
-            atlas,
-            pixels_per_point,
-            ab_glyph_fonts,
-            cache: Default::default(),
-        }
-    }
-
-    pub fn font_impl(&mut self, scale_in_points: f32, font_name: &str) -> Arc<FontImpl> {
-        use ab_glyph::Font as _;
-
-        let (tweak, ab_glyph_font) = self
-            .ab_glyph_fonts
-            .get(font_name)
-            .unwrap_or_else(|| panic!("No font data found for {font_name:?}"))
-            .clone();
-
-        let scale_in_pixels = self.pixels_per_point * scale_in_points;
-
-        // Scale the font properly (see https://github.com/emilk/egui/issues/2068).
-        let units_per_em = ab_glyph_font.units_per_em().unwrap_or_else(|| {
-            panic!("The font unit size of {font_name:?} exceeds the expected range (16..=16384)")
-        });
-        let font_scaling = ab_glyph_font.height_unscaled() / units_per_em;
-        let scale_in_pixels = scale_in_pixels * font_scaling;
-
-        self.cache
-            .entry((
-                (scale_in_pixels * tweak.scale).round() as u32,
-                font_name.to_owned(),
-            ))
-            .or_insert_with(|| {
-                Arc::new(FontImpl::new(
-                    self.atlas.clone(),
-                    self.pixels_per_point,
-                    font_name.to_owned(),
-                    ab_glyph_font,
-                    scale_in_pixels,
-                    tweak,
-                ))
-            })
-            .clone()
-    }
 }
 
 #[cfg(feature = "default_fonts")]
