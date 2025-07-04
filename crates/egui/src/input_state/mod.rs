@@ -1465,7 +1465,10 @@ impl PointerState {
         }
 
         if let Some(pos) = self.hover_pos() {
-            return rect.intersects_ray(pos, self.direction());
+            let dir = self.direction();
+            if dir != Vec2::ZERO {
+                return rect.intersects_ray(pos, self.direction());
+            }
         }
         false
     }
