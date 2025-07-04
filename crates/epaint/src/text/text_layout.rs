@@ -144,7 +144,7 @@ fn layout_section(
         format,
     } = section;
     let pixels_per_point = fonts.pixels_per_point();
-    let font = fonts.font(&format.font_id.family);
+    let mut font = fonts.font(&format.font_id.family);
     let font_size = format.font_id.size;
     let line_height = section
         .format
@@ -416,7 +416,7 @@ fn replace_last_glyph_with_overflow_character(
         }
     }
 
-    fn row_height(section: &LayoutSection, font: &Font, font_size: f32) -> f32 {
+    fn row_height(section: &LayoutSection, font: &Font<'_>, font_size: f32) -> f32 {
         section
             .format
             .line_height
@@ -433,9 +433,9 @@ fn replace_last_glyph_with_overflow_character(
     if let Some(last_glyph) = row.glyphs.last() {
         let section_index = last_glyph.section_index;
         let section = &job.sections[section_index as usize];
-        let font = fonts.font(&section.format.font_id.family);
+        let mut font = fonts.font(&section.format.font_id.family);
         let font_size = section.format.font_id.size;
-        let line_height = row_height(section, font, font_size);
+        let line_height = row_height(section, &font, font_size);
 
         let (_, last_glyph_info) = font.font_impl_and_glyph_info(last_glyph.chr);
 
@@ -470,29 +470,25 @@ fn replace_last_glyph_with_overflow_character(
     } else {
         let section_index = row.section_index_at_start;
         let section = &job.sections[section_index as usize];
-        let font = fonts.font(&section.format.font_id.family);
+        let mut font = fonts.font(&section.format.font_id.family);
         let font_size = section.format.font_id.size;
-        let line_height = row_height(section, font, font_size);
+        let line_height = row_height(section, &font, font_size);
 
         let x = 0.0; // TODO(emilk): heed paragraph leading_space 😬
 
-        let (font_impl, replacement_glyph_info) = font.font_impl_and_glyph_info(overflow_character);
-        let glyph_alloc = if let Some(font_impl) = font_impl {
-            font_impl.allocate_glyph(replacement_glyph_info, font_size, pixels_per_point)
-        } else {
-            Default::default()
-        };
+        let (mut font_impl, replacement_glyph_alloc) =
+            font.font_impl_and_glyph_alloc(overflow_character, font_size, pixels_per_point);
 
         row.glyphs.push(Glyph {
             chr: overflow_character,
             pos: pos2(x, f32::NAN),
-            advance_width: glyph_alloc.advance_width,
+            advance_width: replacement_glyph_alloc.advance_width,
             line_height,
-            font_impl_height: font_impl.map_or(0.0, |f| f.row_height(font_size)),
-            font_impl_ascent: font_impl.map_or(0.0, |f| f.ascent(font_size)),
+            font_impl_height: font_impl.as_mut().map_or(0.0, |f| f.row_height(font_size)),
+            font_impl_ascent: font_impl.as_mut().map_or(0.0, |f| f.ascent(font_size)),
             font_height: font.row_height(font_size),
             font_ascent: font.ascent(font_size),
-            uv_rect: glyph_alloc.uv_rect,
+            uv_rect: replacement_glyph_alloc.uv_rect,
             section_index,
         });
     }
@@ -519,7 +515,7 @@ fn replace_last_glyph_with_overflow_character(
         let section = &job.sections[last_glyph.section_index as usize];
         let extra_letter_spacing = section.format.extra_letter_spacing;
         let pixels_per_point = fonts.pixels_per_point();
-        let font = fonts.font(&section.format.font_id.family);
+        let mut font = fonts.font(&section.format.font_id.family);
         let font_size = section.format.font_id.size;
 
         if let Some(prev_glyph) = prev_glyph {
@@ -573,7 +569,7 @@ fn replace_last_glyph_with_overflow_character(
                 return;
             };
             let pixels_per_point = fonts.pixels_per_point();
-            let font = fonts.font(&section.format.font_id.family);
+            let mut font = fonts.font(&section.format.font_id.family);
             let font_size = section.format.font_id.size;
             // Just replace and be done with it.
             last_glyph.chr = overflow_character;

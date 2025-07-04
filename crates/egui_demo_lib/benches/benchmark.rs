@@ -227,7 +227,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
         let galley = fonts.layout(LOREM_IPSUM_LONG.to_owned(), font_id, text_color, wrap_width);
         let font_image_size = fonts.font_image_size();
-        let prepared_discs = fonts.texture_atlas().lock().prepared_discs();
+        let prepared_discs = fonts.texture_atlas().prepared_discs();
         let mut tessellator = egui::epaint::Tessellator::new(
             1.0,
             Default::default(),
