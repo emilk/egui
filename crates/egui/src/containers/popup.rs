@@ -1,10 +1,10 @@
-use crate::containers::menu::{menu_style, MenuConfig, MenuState};
+use crate::containers::menu::{MenuConfig, MenuState, menu_style};
 use crate::style::StyleModifier;
 use crate::{
     Area, AreaState, Context, Frame, Id, InnerResponse, Key, LayerId, Layout, Order, Response,
     Sense, Ui, UiKind, UiStackInfo,
 };
-use emath::{vec2, Align, Pos2, Rect, RectAlign, Vec2};
+use emath::{Align, Pos2, Rect, RectAlign, Vec2, vec2};
 use std::iter::once;
 
 /// What should we anchor the popup to?

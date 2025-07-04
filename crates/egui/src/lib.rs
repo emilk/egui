@@ -3,7 +3,7 @@
 //! Try the live web demo: <https://www.egui.rs/#demo>. Read more about egui at <https://github.com/emilk/egui>.
 //!
 //! `egui` is in heavy development, with each new version having breaking changes.
-//! You need to have rust 1.84.0 or later to use `egui`.
+//! You need to have rust 1.85.0 or later to use `egui`.
 //!
 //! To quickly get started with egui, you can take a look at [`eframe_template`](https://github.com/emilk/eframe_template)
 //! which uses [`eframe`](https://docs.rs/eframe).
@@ -463,22 +463,21 @@ pub use epaint::emath;
 pub use ecolor::hex_color;
 pub use ecolor::{Color32, Rgba};
 pub use emath::{
-    lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos2, Rangef, Rect, RectAlign,
-    Vec2, Vec2b,
+    Align, Align2, NumExt, Pos2, Rangef, Rect, RectAlign, Vec2, Vec2b, lerp, pos2, remap,
+    remap_clamp, vec2,
 };
 pub use epaint::{
-    mutex,
+    ClippedPrimitive, ColorImage, CornerRadius, ImageData, Margin, Mesh, PaintCallback,
+    PaintCallbackInfo, Shadow, Shape, Stroke, StrokeKind, TextureHandle, TextureId, mutex,
     text::{FontData, FontDefinitions, FontFamily, FontId, FontTweak},
     textures::{TextureFilter, TextureOptions, TextureWrapMode, TexturesDelta},
-    ClippedPrimitive, ColorImage, CornerRadius, FontImage, ImageData, Margin, Mesh, PaintCallback,
-    PaintCallbackInfo, Shadow, Shape, Stroke, StrokeKind, TextureHandle, TextureId,
 };
 
 pub mod text {
     pub use crate::text_selection::CCursorRange;
     pub use epaint::text::{
-        cursor::CCursor, FontData, FontDefinitions, FontFamily, Fonts, Galley, LayoutJob,
-        LayoutSection, TextFormat, TextWrapping, TAB_SIZE,
+        FontData, FontDefinitions, FontFamily, Fonts, Galley, LayoutJob, LayoutSection, TAB_SIZE,
+        TextFormat, TextWrapping, cursor::CCursor,
     };
 }
 
@@ -487,12 +486,12 @@ pub use self::{
     containers::*,
     context::{Context, RepaintCause, RequestRepaintInfo},
     data::{
+        Key, UserData,
         input::*,
         output::{
             self, CursorIcon, FullOutput, OpenUrl, OutputCommand, PlatformOutput,
             UserAttentionType, WidgetInfo,
         },
-        Key, UserData,
     },
     drag_and_drop::DragAndDrop,
     epaint::text::TextWrapMode,

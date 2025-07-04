@@ -1,4 +1,4 @@
-use crate::{grid, vec2, Layout, Painter, Pos2, Rect, Region, Vec2};
+use crate::{Layout, Painter, Pos2, Rect, Region, Vec2, grid, vec2};
 
 #[cfg(debug_assertions)]
 use crate::{Align2, Color32, Stroke};

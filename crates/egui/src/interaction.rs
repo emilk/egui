@@ -1,6 +1,6 @@
 //! How mouse and touch interzcts with widgets.
 
-use crate::{hit_test, id, input_state, memory, Id, InputState, Key, WidgetRects};
+use crate::{Id, InputState, Key, WidgetRects, hit_test, id, input_state, memory};
 
 use self::{hit_test::WidgetHits, id::IdSet, input_state::PointerEvent, memory::InteractionState};
 

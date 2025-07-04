@@ -225,7 +225,7 @@ fn set_title_and_icon_mac(title: &str, icon_data: Option<&IconData>) -> AppIconS
     };
 
     // TODO(madsmtm): Move this into `objc2-app-kit`
-    extern "C" {
+    unsafe extern "C" {
         static NSApp: Option<&'static NSApplication>;
     }
 
@@ -240,7 +240,9 @@ fn set_title_and_icon_mac(title: &str, icon_data: Option<&IconData>) -> AppIconS
             use objc2_app_kit::{NSBitmapImageRep, NSDeviceRGBColorSpace};
             use objc2_foundation::NSSize;
 
-            log::trace!("NSBitmapImageRep::initWithBitmapDataPlanes_pixelsWide_pixelsHigh_bitsPerSample_samplesPerPixel_hasAlpha_isPlanar_colorSpaceName_bytesPerRow_bitsPerPixel");
+            log::trace!(
+                "NSBitmapImageRep::initWithBitmapDataPlanes_pixelsWide_pixelsHigh_bitsPerSample_samplesPerPixel_hasAlpha_isPlanar_colorSpaceName_bytesPerRow_bitsPerPixel"
+            );
             let Some(image_rep) = NSBitmapImageRep::initWithBitmapDataPlanes_pixelsWide_pixelsHigh_bitsPerSample_samplesPerPixel_hasAlpha_isPlanar_colorSpaceName_bytesPerRow_bitsPerPixel(
                 NSBitmapImageRep::alloc(),
                 [image.as_raw().as_ptr().cast_mut()].as_mut_ptr(),

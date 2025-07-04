@@ -5,8 +5,8 @@
 use emath::GuiRounding as _;
 
 use crate::{
-    emath, pos2, Align2, Context, Id, InnerResponse, LayerId, Layout, NumExt as _, Order, Pos2,
-    Rect, Response, Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetRect, WidgetWithState,
+    Align2, Context, Id, InnerResponse, LayerId, Layout, NumExt as _, Order, Pos2, Rect, Response,
+    Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetRect, WidgetWithState, emath, pos2,
 };
 
 /// State of an [`Area`] that is persisted between frames.
@@ -121,6 +121,7 @@ pub struct Area {
     new_pos: Option<Pos2>,
     fade_in: bool,
     layout: Layout,
+    sizing_pass: bool,
 }
 
 impl WidgetWithState for Area {
@@ -147,6 +148,7 @@ impl Area {
             anchor: None,
             fade_in: true,
             layout: Layout::default(),
+            sizing_pass: false,
         }
     }
 
@@ -357,6 +359,27 @@ impl Area {
         self.layout = layout;
         self
     }
+
+    /// While true, a sizing pass will be done. This means the area will be invisible
+    /// and the contents will be laid out to estimate the proper containing size of the area.
+    /// If false, there will be no change to the default area behavior. This is useful if the
+    /// area contents area dynamic and you need to need to make sure the area adjusts its size
+    /// accordingly.
+    ///
+    /// This should only be set to true during the specific frames you want force a sizing pass.
+    /// Do NOT hard-code this as `.sizing_pass(true)`, as it will cause the area to never be
+    /// visible.
+    ///
+    /// # Arguments
+    /// - resize: If true, the area will be resized to fit its contents. False will keep the
+    ///   default area resizing behavior.
+    ///
+    /// Default: `false`.
+    #[inline]
+    pub fn sizing_pass(mut self, resize: bool) -> Self {
+        self.sizing_pass = resize;
+        self
+    }
 }
 
 pub(crate) struct Prepared {
@@ -410,6 +433,7 @@ impl Area {
             constrain_rect,
             fade_in,
             layout,
+            sizing_pass: force_sizing_pass,
         } = self;
 
         let constrain_rect = constrain_rect.unwrap_or_else(|| ctx.screen_rect());
@@ -425,6 +449,10 @@ impl Area {
             interactable,
             last_became_visible_at: None,
         });
+        if force_sizing_pass {
+            sizing_pass = true;
+            state.size = None;
+        }
         state.pivot = pivot;
         state.interactable = interactable;
         if let Some(new_pos) = new_pos {

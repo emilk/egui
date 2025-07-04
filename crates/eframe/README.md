@@ -24,7 +24,7 @@ To use on Linux, first run:
 sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev
 ```
 
-You need to either use `edition = "2021"`, or set `resolver = "2"` in the `[workspace]` section of your to-level `Cargo.toml`. See [this link](https://doc.rust-lang.org/edition-guide/rust-2021/default-cargo-resolver.html) for more info.
+You need to either use `edition = "2024"`, or set `resolver = "2"` in the `[workspace]` section of your to-level `Cargo.toml`. See [this link](https://doc.rust-lang.org/edition-guide/rust-2021/default-cargo-resolver.html) for more info.
 
 You can opt-in to the using [`egui-wgpu`](https://github.com/emilk/egui/tree/main/crates/egui-wgpu) for rendering by enabling the `wgpu` feature and setting `NativeOptions::renderer` to `Renderer::Wgpu`.
 

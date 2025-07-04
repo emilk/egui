@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{lerp, pos2, vec2, Div, Mul, Pos2, Rangef, Rot2, Vec2};
+use crate::{Div, Mul, Pos2, Rangef, Rot2, Vec2, lerp, pos2, vec2};
 
 /// A rectangular region of space.
 ///
@@ -651,7 +651,7 @@ impl Rect {
     pub fn intersects_ray(&self, o: Pos2, d: Vec2) -> bool {
         debug_assert!(
             d.is_normalized(),
-            "expected normalized direction, but `d` has length {}",
+            "Debug assert: expected normalized direction, but `d` has length {}",
             d.length()
         );
 

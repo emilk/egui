@@ -2,7 +2,7 @@ use ahash::HashMap;
 
 use emath::TSTransform;
 
-use crate::{ahash, emath, id::IdSet, LayerId, Pos2, Rect, Sense, WidgetRect, WidgetRects};
+use crate::{LayerId, Pos2, Rect, Sense, WidgetRect, WidgetRects, ahash, emath, id::IdSet};
 
 /// Result of a hit-test against [`WidgetRects`].
 ///
@@ -90,6 +90,8 @@ pub fn hit_test(
             *hit = hit.transform(to_global);
         }
     }
+
+    close.retain(|rect| !rect.interact_rect.any_nan()); // Protect against bad input and transforms
 
     // When using layer transforms it is common to stack layers close to each other.
     // For instance, you may have a resize-separator on a panel, with two
@@ -466,7 +468,7 @@ fn should_prioritize_hits_on_back(back: Rect, front: Rect) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use emath::{pos2, vec2, Rect};
+    use emath::{Rect, pos2, vec2};
 
     use crate::{Id, Sense};
 

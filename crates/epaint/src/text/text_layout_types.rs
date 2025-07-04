@@ -9,7 +9,7 @@ use super::{
     font::UvRect,
 };
 use crate::{Color32, FontId, Mesh, Stroke};
-use emath::{pos2, vec2, Align, GuiRounding as _, NumExt as _, OrderedFloat, Pos2, Rect, Vec2};
+use emath::{Align, GuiRounding as _, NumExt as _, OrderedFloat, Pos2, Rect, Vec2, pos2, vec2};
 
 /// Describes the task of laying out text.
 ///

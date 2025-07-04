@@ -13,9 +13,109 @@ pub struct SnapshotOptions {
     /// wgpu backends).
     pub threshold: f32,
 
+    /// The number of pixels that can differ before the snapshot is considered a failure.
+    /// Preferably, you should use `threshold` to control the sensitivity of the image comparison.
+    /// As a last resort, you can use this to allow a certain number of pixels to differ.
+    /// If `None`, the default is `0` (meaning no pixels can differ).
+    /// If `Some`, the value can be set per OS
+    pub failed_pixel_count_threshold: usize,
+
     /// The path where the snapshots will be saved.
     /// The default is `tests/snapshots`.
     pub output_path: PathBuf,
+}
+
+/// Helper struct to define the number of pixels that can differ before the snapshot is considered a failure.
+/// This is useful if you want to set different thresholds for different operating systems.
+///
+/// The default values are 0 / 0.0
+///
+/// Example usage:
+/// ```no_run
+///  use egui_kittest::{OsThreshold, SnapshotOptions};
+///  let mut harness = egui_kittest::Harness::new_ui(|ui| {
+///      ui.label("Hi!");
+///  });
+///  harness.snapshot_options(
+///      "os_threshold_example",
+///      &SnapshotOptions::new()
+///          .threshold(OsThreshold::new(0.0).windows(10.0))
+///          .failed_pixel_count_threshold(OsThreshold::new(0).windows(10).macos(53)
+///  ))
+/// ```
+#[derive(Debug, Clone, Copy)]
+pub struct OsThreshold<T> {
+    pub windows: T,
+    pub macos: T,
+    pub linux: T,
+    pub fallback: T,
+}
+
+impl From<usize> for OsThreshold<usize> {
+    fn from(value: usize) -> Self {
+        Self::new(value)
+    }
+}
+
+impl<T> OsThreshold<T>
+where
+    T: Copy,
+{
+    /// Use the same value for all
+    pub fn new(same: T) -> Self {
+        Self {
+            windows: same,
+            macos: same,
+            linux: same,
+            fallback: same,
+        }
+    }
+
+    /// Set the threshold for Windows.
+    #[inline]
+    pub fn windows(mut self, threshold: T) -> Self {
+        self.windows = threshold;
+        self
+    }
+
+    /// Set the threshold for macOS.
+    #[inline]
+    pub fn macos(mut self, threshold: T) -> Self {
+        self.macos = threshold;
+        self
+    }
+
+    /// Set the threshold for Linux.
+    #[inline]
+    pub fn linux(mut self, threshold: T) -> Self {
+        self.linux = threshold;
+        self
+    }
+
+    /// Get the threshold for the current operating system.
+    pub fn threshold(&self) -> T {
+        if cfg!(target_os = "windows") {
+            self.windows
+        } else if cfg!(target_os = "macos") {
+            self.macos
+        } else if cfg!(target_os = "linux") {
+            self.linux
+        } else {
+            self.fallback
+        }
+    }
+}
+
+impl From<OsThreshold<Self>> for usize {
+    fn from(threshold: OsThreshold<Self>) -> Self {
+        threshold.threshold()
+    }
+}
+
+impl From<OsThreshold<Self>> for f32 {
+    fn from(threshold: OsThreshold<Self>) -> Self {
+        threshold.threshold()
+    }
 }
 
 impl Default for SnapshotOptions {
@@ -23,6 +123,7 @@ impl Default for SnapshotOptions {
         Self {
             threshold: 0.6,
             output_path: PathBuf::from("tests/snapshots"),
+            failed_pixel_count_threshold: 0, // Default is 0, meaning no pixels can differ
         }
     }
 }
@@ -37,8 +138,8 @@ impl SnapshotOptions {
     /// The default is `0.6` (which is enough for most egui tests to pass across different
     /// wgpu backends).
     #[inline]
-    pub fn threshold(mut self, threshold: f32) -> Self {
-        self.threshold = threshold;
+    pub fn threshold(mut self, threshold: impl Into<f32>) -> Self {
+        self.threshold = threshold.into();
         self
     }
 
@@ -47,6 +148,20 @@ impl SnapshotOptions {
     #[inline]
     pub fn output_path(mut self, output_path: impl Into<PathBuf>) -> Self {
         self.output_path = output_path.into();
+        self
+    }
+
+    /// Change the number of pixels that can differ before the snapshot is considered a failure.
+    ///
+    /// Preferably, you should use [`Self::threshold`] to control the sensitivity of the image comparison.
+    /// As a last resort, you can use this to allow a certain number of pixels to differ.
+    #[inline]
+    pub fn failed_pixel_count_threshold(
+        mut self,
+        failed_pixel_count_threshold: impl Into<OsThreshold<usize>>,
+    ) -> Self {
+        let failed_pixel_count_threshold = failed_pixel_count_threshold.into().threshold();
+        self.failed_pixel_count_threshold = failed_pixel_count_threshold;
         self
     }
 }
@@ -58,7 +173,7 @@ pub enum SnapshotError {
         /// Name of the test
         name: String,
 
-        /// Count of pixels that were different
+        /// Count of pixels that were different (above the per-pixel threshold).
         diff: i32,
 
         /// Path where the diff image was saved
@@ -128,11 +243,17 @@ impl Display for SnapshotError {
                             write!(f, "Missing snapshot: {path:?}. {HOW_TO_UPDATE_SCREENSHOTS}")
                         }
                         err => {
-                            write!(f, "Error reading snapshot: {err:?}\nAt: {path:?}. {HOW_TO_UPDATE_SCREENSHOTS}")
+                            write!(
+                                f,
+                                "Error reading snapshot: {err:?}\nAt: {path:?}. {HOW_TO_UPDATE_SCREENSHOTS}"
+                            )
                         }
                     },
                     err => {
-                        write!(f, "Error decoding snapshot: {err:?}\nAt: {path:?}. Make sure git-lfs is setup correctly. Read the instructions here: https://github.com/emilk/egui/blob/main/CONTRIBUTING.md#making-a-pr")
+                        write!(
+                            f,
+                            "Error decoding snapshot: {err:?}\nAt: {path:?}. Make sure git-lfs is setup correctly. Read the instructions here: https://github.com/emilk/egui/blob/main/CONTRIBUTING.md#making-a-pr"
+                        )
                     }
                 }
             }
@@ -195,6 +316,7 @@ pub fn try_image_snapshot_options(
     let SnapshotOptions {
         threshold,
         output_path,
+        failed_pixel_count_threshold,
     } = options;
 
     let parent_path = if let Some(parent) = PathBuf::from(name).parent() {
@@ -274,19 +396,24 @@ pub fn try_image_snapshot_options(
     let result =
         dify::diff::get_results(previous, new.clone(), *threshold, true, None, &None, &None);
 
-    if let Some((diff, result_image)) = result {
+    if let Some((num_wrong_pixels, result_image)) = result {
         result_image
             .save(diff_path.clone())
             .map_err(|err| SnapshotError::WriteSnapshot {
                 path: diff_path.clone(),
                 err,
             })?;
+
         if should_update_snapshots() {
             update_snapshot()
         } else {
+            if num_wrong_pixels as i64 <= *failed_pixel_count_threshold as i64 {
+                return Ok(());
+            }
+
             Err(SnapshotError::Diff {
                 name: name.to_owned(),
-                diff,
+                diff: num_wrong_pixels,
                 diff_path,
             })
         }
@@ -555,11 +682,7 @@ impl SnapshotResults {
     /// Convert this into a `Result<(), Self>`.
     #[expect(clippy::missing_errors_doc)]
     pub fn into_result(self) -> Result<(), Self> {
-        if self.has_errors() {
-            Err(self)
-        } else {
-            Ok(())
-        }
+        if self.has_errors() { Err(self) } else { Ok(()) }
     }
 
     pub fn into_inner(mut self) -> Vec<SnapshotError> {

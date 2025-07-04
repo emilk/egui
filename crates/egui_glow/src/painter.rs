@@ -445,7 +445,9 @@ impl Painter {
                         if let Some(callback) = callback.callback.downcast_ref::<CallbackFn>() {
                             (callback.f)(info, self);
                         } else {
-                            log::warn!("Warning: Unsupported render callback. Expected egui_glow::CallbackFn");
+                            log::warn!(
+                                "Warning: Unsupported render callback. Expected egui_glow::CallbackFn"
+                            );
                         }
 
                         check_for_gl_error!(&self.gl, "callback");
@@ -531,23 +533,6 @@ impl Painter {
                 let data: &[u8] = bytemuck::cast_slice(image.pixels.as_ref());
 
                 self.upload_texture_srgb(delta.pos, image.size, delta.options, data);
-            }
-            egui::ImageData::Font(image) => {
-                assert_eq!(
-                    image.width() * image.height(),
-                    image.pixels.len(),
-                    "Mismatch between texture size and texel count"
-                );
-
-                let data: Vec<u8> = {
-                    profiling::scope!("font -> sRGBA");
-                    image
-                        .srgba_pixels(None)
-                        .flat_map(|a| a.to_array())
-                        .collect()
-                };
-
-                self.upload_texture_srgb(delta.pos, image.size, delta.options, &data);
             }
         };
     }

@@ -62,12 +62,8 @@ macro_rules! check_for_gl_error {
 /// ```
 #[macro_export]
 macro_rules! check_for_gl_error_even_in_release {
-    ($gl: expr) => {{
-        $crate::check_for_gl_error_impl($gl, file!(), line!(), "")
-    }};
-    ($gl: expr, $context: literal) => {{
-        $crate::check_for_gl_error_impl($gl, file!(), line!(), $context)
-    }};
+    ($gl: expr) => {{ $crate::check_for_gl_error_impl($gl, file!(), line!(), "") }};
+    ($gl: expr, $context: literal) => {{ $crate::check_for_gl_error_impl($gl, file!(), line!(), $context) }};
 }
 
 #[doc(hidden)]
