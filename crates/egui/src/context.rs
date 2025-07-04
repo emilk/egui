@@ -1588,7 +1588,7 @@ impl Context {
 
         let font_id = TextStyle::Body.resolve(&self.style());
         self.fonts_mut(|f| {
-            let font = f.fonts.font(&font_id.family);
+            let mut font = f.fonts.font(&font_id.family);
             font.has_glyphs(alt)
                 && font.has_glyphs(ctrl)
                 && font.has_glyphs(shift)
@@ -2466,14 +2466,15 @@ impl ContextImpl {
 
         self.memory.end_pass(&viewport.this_pass.used_ids);
 
-        if let Some(fonts) = self.fonts.get(&pixels_per_point.into()) {
+        let num_font_envs = self.fonts.len();
+        if let Some(fonts) = self.fonts.get_mut(&pixels_per_point.into()) {
             let tex_mngr = &mut self.tex_manager.0.write();
             if let Some(font_image_delta) = fonts.font_image_delta() {
                 // A partial font atlas update, e.g. a new glyph has been entered.
                 tex_mngr.set(TextureId::default(), font_image_delta);
             }
 
-            if 1 < self.fonts.len() {
+            if 1 < num_font_envs {
                 // We have multiple different `pixels_per_point`,
                 // e.g. because we have many viewports spread across
                 // monitors with different DPI scaling.
@@ -2693,10 +2694,6 @@ impl Context {
                     .1
                     .texture_atlas()
             };
-            let (font_tex_size, prepared_discs) = {
-                let atlas = texture_atlas.lock();
-                (atlas.size(), atlas.prepared_discs())
-            };
 
             let paint_stats = PaintStats::from_shapes(&shapes);
             let clipped_primitives = {
@@ -2704,8 +2701,8 @@ impl Context {
                 tessellator::Tessellator::new(
                     pixels_per_point,
                     tessellation_options,
-                    font_tex_size,
-                    prepared_discs,
+                    texture_atlas.size(),
+                    texture_atlas.prepared_discs(),
                 )
                 .tessellate_shapes(shapes)
             };

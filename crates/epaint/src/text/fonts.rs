@@ -1,11 +1,16 @@
-use std::{collections::BTreeMap, sync::Arc};
+use std::{
+    collections::BTreeMap,
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+    },
+};
 
 use crate::{
     AlphaFromCoverage, TextureAtlas,
-    mutex::Mutex,
     text::{
         Galley, LayoutJob, LayoutSection,
-        font::{Font, FontImpl},
+        font::{Font, FontImpl, GlyphInfo},
     },
 };
 use emath::NumExt as _;
@@ -399,6 +404,79 @@ impl FontDefinitions {
     }
 }
 
+/// Unique ID for looking up a single font face/file.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Default)]
+pub(crate) struct FontFaceKey(pub u64);
+
+static KEY_COUNTER: AtomicU64 = AtomicU64::new(1);
+impl FontFaceKey {
+    fn new() -> Self {
+        Self(KEY_COUNTER.fetch_add(1, Ordering::Relaxed))
+    }
+}
+
+impl nohash_hasher::IsEnabled for FontFaceKey {}
+
+/// Cached data for working with a font family (e.g. doing character lookups).
+#[derive(Debug)]
+pub(super) struct CachedFamily {
+    pub fonts: Vec<FontFaceKey>,
+
+    /// Lazily calculated.
+    pub characters: Option<BTreeMap<char, Vec<String>>>,
+
+    pub replacement_glyph: (FontFaceKey, GlyphInfo),
+
+    pub glyph_info_cache: ahash::HashMap<char, (FontFaceKey, GlyphInfo)>,
+}
+
+impl CachedFamily {
+    fn new(
+        fonts: Vec<FontFaceKey>,
+        fonts_by_id: &mut nohash_hasher::IntMap<FontFaceKey, FontImpl>,
+        atlas: &mut TextureAtlas,
+    ) -> Self {
+        if fonts.is_empty() {
+            return Self {
+                fonts,
+                characters: None,
+                replacement_glyph: Default::default(),
+                glyph_info_cache: Default::default(),
+            };
+        }
+
+        let mut slf = Self {
+            fonts,
+            characters: None,
+            replacement_glyph: Default::default(),
+            glyph_info_cache: Default::default(),
+        };
+
+        const PRIMARY_REPLACEMENT_CHAR: char = '◻'; // white medium square
+        const FALLBACK_REPLACEMENT_CHAR: char = '?'; // fallback for the fallback
+
+        let mut font = Font {
+            fonts_by_id,
+            cached_family: &mut slf,
+            atlas,
+        };
+
+        let replacement_glyph = font
+            .glyph_info_no_cache_or_fallback(PRIMARY_REPLACEMENT_CHAR)
+            .or_else(|| font.glyph_info_no_cache_or_fallback(FALLBACK_REPLACEMENT_CHAR))
+            .unwrap_or_else(|| {
+                #[cfg(feature = "log")]
+                log::warn!(
+                    "Failed to find replacement characters {PRIMARY_REPLACEMENT_CHAR:?} or {FALLBACK_REPLACEMENT_CHAR:?}. Will use empty glyph."
+                );
+                (FontFaceKey::default(), GlyphInfo::default())
+            });
+        slf.replacement_glyph = replacement_glyph;
+
+        slf
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// The collection of fonts used by `epaint`.
@@ -454,8 +532,8 @@ impl Fonts {
         let pixels_per_point_changed = self.fonts.pixels_per_point != pixels_per_point;
         let max_texture_side_changed = self.fonts.max_texture_side != max_texture_side;
         let text_alpha_from_coverage_changed =
-            self.fonts.atlas.lock().text_alpha_from_coverage != text_alpha_from_coverage;
-        let font_atlas_almost_full = self.fonts.atlas.lock().fill_ratio() > 0.8;
+            self.fonts.atlas.text_alpha_from_coverage != text_alpha_from_coverage;
+        let font_atlas_almost_full = self.fonts.atlas.fill_ratio() > 0.8;
         let needs_recreate = pixels_per_point_changed
             || max_texture_side_changed
             || text_alpha_from_coverage_changed
@@ -479,8 +557,8 @@ impl Fonts {
     }
 
     /// Call at the end of each frame (before painting) to get the change to the font texture since last call.
-    pub fn font_image_delta(&self) -> Option<crate::ImageDelta> {
-        self.fonts.atlas.lock().take_delta()
+    pub fn font_image_delta(&mut self) -> Option<crate::ImageDelta> {
+        self.fonts.atlas.take_delta()
     }
 
     #[inline]
@@ -495,20 +573,20 @@ impl Fonts {
 
     /// The font atlas.
     /// Pass this to [`crate::Tessellator`].
-    pub fn texture_atlas(&self) -> Arc<Mutex<TextureAtlas>> {
-        self.fonts.atlas.clone()
+    pub fn texture_atlas(&self) -> &TextureAtlas {
+        &self.fonts.atlas
     }
 
     /// The full font atlas image.
     #[inline]
     pub fn image(&self) -> crate::ColorImage {
-        self.fonts.atlas.lock().image().clone()
+        self.fonts.atlas.image().clone()
     }
 
     /// Current size of the font image.
     /// Pass this to [`crate::Tessellator`].
     pub fn font_image_size(&self) -> [usize; 2] {
-        self.fonts.atlas.lock().size()
+        self.fonts.atlas.size()
     }
 
     /// Width of this character in points.
@@ -564,7 +642,7 @@ impl Fonts {
     /// This increases as new fonts and/or glyphs are used,
     /// but can also decrease in a call to [`Self::begin_pass`].
     pub fn font_atlas_fill_ratio(&self) -> f32 {
-        self.fonts.atlas.lock().fill_ratio()
+        self.fonts.atlas.fill_ratio()
     }
 
     /// Will wrap text at the given width and line break at `\n`.
@@ -618,10 +696,10 @@ pub struct FontsImpl {
     pixels_per_point: f32,
     max_texture_side: usize,
     definitions: FontDefinitions,
-    atlas: Arc<Mutex<TextureAtlas>>,
-    //font_impl_cache: FontImplCache,
-    font_impls: ahash::HashMap<String, Arc<FontImpl>>,
-    family_cache: ahash::HashMap<FontFamily, Font>,
+    atlas: TextureAtlas,
+    fonts_by_id: nohash_hasher::IntMap<FontFaceKey, FontImpl>,
+    font_impls: ahash::HashMap<String, FontFaceKey>,
+    family_cache: ahash::HashMap<FontFamily, CachedFamily>,
 }
 
 impl FontsImpl {
@@ -642,24 +720,23 @@ impl FontsImpl {
         let initial_height = 32; // Keep initial font atlas small, so it is fast to upload to GPU. This will expand as needed anyways.
         let atlas = TextureAtlas::new([texture_width, initial_height], text_alpha_from_coverage);
 
-        let atlas = Arc::new(Mutex::new(atlas));
-
-        let font_impls = definitions
-            .font_data
-            .iter()
-            .map(|(name, font_data)| {
-                let tweak = font_data.tweak;
-                let ab_glyph = ab_glyph_font_from_font_data(name, font_data);
-                let font_impl = FontImpl::new(atlas.clone(), name.clone(), ab_glyph, tweak);
-                (name.clone(), Arc::new(font_impl))
-            })
-            .collect();
+        let mut fonts_by_id: nohash_hasher::IntMap<FontFaceKey, FontImpl> = Default::default();
+        let mut font_impls: ahash::HashMap<String, FontFaceKey> = Default::default();
+        for (name, font_data) in &definitions.font_data {
+            let tweak = font_data.tweak;
+            let ab_glyph = ab_glyph_font_from_font_data(name, font_data);
+            let font_impl = FontImpl::new(name.clone(), ab_glyph, tweak);
+            let key = FontFaceKey::new();
+            fonts_by_id.insert(key, font_impl);
+            font_impls.insert(name.clone(), key);
+        }
 
         Self {
             pixels_per_point,
             max_texture_side,
             definitions,
             atlas,
+            fonts_by_id,
             font_impls,
             family_cache: Default::default(),
         }
@@ -676,24 +753,29 @@ impl FontsImpl {
     }
 
     /// Get the right font implementation from  [`FontFamily`].
-    pub fn font(&mut self, family: &FontFamily) -> &mut Font {
-        self.family_cache.entry(family.clone()).or_insert_with(|| {
+    pub fn font(&mut self, family: &FontFamily) -> Font<'_> {
+        let cached_family = self.family_cache.entry(family.clone()).or_insert_with(|| {
             let fonts = &self.definitions.families.get(family);
             let fonts =
                 fonts.unwrap_or_else(|| panic!("FontFamily::{family:?} is not bound to any fonts"));
 
-            let fonts: Vec<Arc<FontImpl>> = fonts
+            let fonts: Vec<FontFaceKey> = fonts
                 .iter()
                 .map(|font_name| {
-                    self.font_impls
+                    *self
+                        .font_impls
                         .get(font_name)
                         .unwrap_or_else(|| panic!("No font data found for {font_name:?}"))
-                        .clone()
                 })
                 .collect();
 
-            Font::new(fonts)
-        })
+            CachedFamily::new(fonts, &mut self.fonts_by_id, &mut self.atlas)
+        });
+        Font {
+            fonts_by_id: &mut self.fonts_by_id,
+            cached_family,
+            atlas: &mut self.atlas,
+        }
     }
 
     /// Width of this character in points.

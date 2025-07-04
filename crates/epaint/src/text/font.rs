@@ -1,13 +1,14 @@
 use std::collections::BTreeMap;
-use std::sync::Arc;
 
 use ab_glyph::{Font as _, PxScaleFont, ScaleFont as _};
 use emath::{GuiRounding as _, OrderedFloat, Vec2, vec2};
 
 use crate::{
     TextureAtlas,
-    mutex::{Mutex, RwLock},
-    text::FontTweak,
+    text::{
+        FontTweak,
+        fonts::{CachedFamily, FontFaceKey},
+    },
 };
 
 // ----------------------------------------------------------------------------
@@ -84,9 +85,8 @@ pub struct FontImpl {
     name: String,
     ab_glyph_font: ab_glyph::FontArc,
     tweak: FontTweak,
-    glyph_info_cache: RwLock<ahash::HashMap<char, GlyphInfo>>, // TODO(emilk): standard Mutex
-    glyph_alloc_cache: RwLock<ahash::HashMap<(GlyphInfo, OrderedFloat<f32>), GlyphAllocation>>, // TODO(emilk): standard Mutex
-    atlas: Arc<Mutex<TextureAtlas>>,
+    glyph_info_cache: ahash::HashMap<char, GlyphInfo>,
+    glyph_alloc_cache: ahash::HashMap<(GlyphInfo, OrderedFloat<f32>), GlyphAllocation>,
 }
 
 trait FontExt {
@@ -116,19 +116,13 @@ where
 }
 
 impl FontImpl {
-    pub fn new(
-        atlas: Arc<Mutex<TextureAtlas>>,
-        name: String,
-        ab_glyph_font: ab_glyph::FontArc,
-        tweak: FontTweak,
-    ) -> Self {
+    pub fn new(name: String, ab_glyph_font: ab_glyph::FontArc, tweak: FontTweak) -> Self {
         Self {
             name,
             ab_glyph_font,
             tweak,
             glyph_info_cache: Default::default(),
             glyph_alloc_cache: Default::default(),
-            atlas,
         }
     }
 
@@ -161,9 +155,9 @@ impl FontImpl {
     }
 
     /// `\n` will result in `None`
-    fn glyph_info(&self, c: char) -> Option<GlyphInfo> {
+    fn glyph_info(&mut self, c: char) -> Option<GlyphInfo> {
         {
-            if let Some(glyph_info) = self.glyph_info_cache.read().get(&c) {
+            if let Some(glyph_info) = self.glyph_info_cache.get(&c) {
                 return Some(*glyph_info);
             }
         }
@@ -180,7 +174,7 @@ impl FontImpl {
                         .into(),
                     ..space
                 };
-                self.glyph_info_cache.write().insert(c, glyph_info);
+                self.glyph_info_cache.insert(c, glyph_info);
                 return Some(glyph_info);
             }
         }
@@ -197,14 +191,14 @@ impl FontImpl {
                     advance_width_unscaled: advance_width.into(),
                     ..space
                 };
-                self.glyph_info_cache.write().insert(c, glyph_info);
+                self.glyph_info_cache.insert(c, glyph_info);
                 return Some(glyph_info);
             }
         }
 
         if invisible_char(c) {
             let glyph_info = GlyphInfo::default();
-            self.glyph_info_cache.write().insert(c, glyph_info);
+            self.glyph_info_cache.insert(c, glyph_info);
             return Some(glyph_info);
         }
 
@@ -219,7 +213,7 @@ impl FontImpl {
                 advance_width_unscaled: self.ab_glyph_font.h_advance_unscaled(glyph_id).into(),
                 visible: true,
             };
-            self.glyph_info_cache.write().insert(c, glyph_info);
+            self.glyph_info_cache.insert(c, glyph_info);
             Some(glyph_info)
         }
     }
@@ -259,8 +253,9 @@ impl FontImpl {
     }
 
     pub fn allocate_glyph(
-        &self,
+        &mut self,
         glyph_info: GlyphInfo,
+        atlas: &mut TextureAtlas,
         font_size: f32,
         pixels_per_point: f32,
     ) -> GlyphAllocation {
@@ -273,8 +268,7 @@ impl FontImpl {
             .ab_glyph_font
             .pt_scale_factor(font_size * self.tweak.scale * pixels_per_point)
             .round();
-        let mut cache = self.glyph_alloc_cache.write();
-        let entry = match cache.entry((glyph_info, scale.into())) {
+        let entry = match self.glyph_alloc_cache.entry((glyph_info, scale.into())) {
             std::collections::hash_map::Entry::Occupied(glyph_alloc) => {
                 return *glyph_alloc.get();
             }
@@ -312,7 +306,6 @@ impl FontImpl {
                 UvRect::default()
             } else {
                 let glyph_pos = {
-                    let atlas = &mut self.atlas.lock();
                     let text_alpha_from_coverage = atlas.text_alpha_from_coverage;
                     let (glyph_pos, image) = atlas.allocate((glyph_width, glyph_height));
                     glyph.draw(|x, y, v| {
@@ -352,56 +345,15 @@ impl FontImpl {
     }
 }
 
-type FontIndex = usize;
-
 // TODO(emilk): rename?
 /// Wrapper over multiple [`FontImpl`] (e.g. a primary + fallbacks for emojis)
-pub struct Font {
-    fonts: Vec<Arc<FontImpl>>,
-
-    /// Lazily calculated.
-    characters: Option<BTreeMap<char, Vec<String>>>,
-
-    replacement_glyph: (FontIndex, GlyphInfo),
-    glyph_info_cache: ahash::HashMap<char, (FontIndex, GlyphInfo)>,
+pub struct Font<'a> {
+    pub(super) fonts_by_id: &'a mut nohash_hasher::IntMap<FontFaceKey, FontImpl>,
+    pub(super) cached_family: &'a mut CachedFamily,
+    pub(super) atlas: &'a mut TextureAtlas,
 }
 
-impl Font {
-    pub fn new(fonts: Vec<Arc<FontImpl>>) -> Self {
-        if fonts.is_empty() {
-            return Self {
-                fonts,
-                characters: None,
-                replacement_glyph: Default::default(),
-                glyph_info_cache: Default::default(),
-            };
-        }
-
-        let mut slf = Self {
-            fonts,
-            characters: None,
-            replacement_glyph: Default::default(),
-            glyph_info_cache: Default::default(),
-        };
-
-        const PRIMARY_REPLACEMENT_CHAR: char = '◻'; // white medium square
-        const FALLBACK_REPLACEMENT_CHAR: char = '?'; // fallback for the fallback
-
-        let replacement_glyph = slf
-            .glyph_info_no_cache_or_fallback(PRIMARY_REPLACEMENT_CHAR)
-            .or_else(|| slf.glyph_info_no_cache_or_fallback(FALLBACK_REPLACEMENT_CHAR))
-            .unwrap_or_else(|| {
-                #[cfg(feature = "log")]
-                log::warn!(
-                    "Failed to find replacement characters {PRIMARY_REPLACEMENT_CHAR:?} or {FALLBACK_REPLACEMENT_CHAR:?}. Will use empty glyph."
-                );
-                (0, GlyphInfo::default())
-            });
-        slf.replacement_glyph = replacement_glyph;
-
-        slf
-    }
-
+impl Font<'_> {
     pub fn preload_characters(&mut self, s: &str) {
         for c in s.chars() {
             self.glyph_info(c);
@@ -421,9 +373,10 @@ impl Font {
 
     /// All supported characters, and in which font they are available in.
     pub fn characters(&mut self) -> &BTreeMap<char, Vec<String>> {
-        self.characters.get_or_insert_with(|| {
+        self.cached_family.characters.get_or_insert_with(|| {
             let mut characters: BTreeMap<char, Vec<String>> = Default::default();
-            for font in &self.fonts {
+            for font_id in &self.cached_family.fonts {
+                let font = self.fonts_by_id.get(font_id).expect("Nonexistent font ID");
                 for chr in font.characters() {
                     characters.entry(chr).or_default().push(font.name.clone());
                 }
@@ -437,20 +390,27 @@ impl Font {
     /// Returns a value rounded to [`emath::GUI_ROUNDING`].
     #[inline(always)]
     pub fn row_height(&self, font_size: f32) -> f32 {
-        self.fonts[0].row_height(font_size)
+        let Some(first_font) = self.fonts_by_id.get(&self.cached_family.fonts[0]) else {
+            return 0.0;
+        };
+        first_font.row_height(font_size)
     }
 
     /// Width of this character in points.
     pub fn glyph_width(&mut self, c: char, font_size: f32) -> f32 {
-        let (font_index, glyph_info) = self.glyph_info(c);
-        let font = &self.fonts[font_index].ab_glyph_font;
+        let (key, glyph_info) = self.glyph_info(c);
+        let font = &self
+            .fonts_by_id
+            .get(&key)
+            .expect("Nonexistent font ID")
+            .ab_glyph_font;
         glyph_info.advance_width_unscaled.0 * font.pt_scale_factor(font_size)
             / font.height_unscaled()
     }
 
     /// Can we display this glyph?
     pub fn has_glyph(&mut self, c: char) -> bool {
-        self.glyph_info(c) != self.replacement_glyph // TODO(emilk): this is a false negative if the user asks about the replacement character itself 🤦‍♂️
+        self.glyph_info(c) != self.cached_family.replacement_glyph // TODO(emilk): this is a false negative if the user asks about the replacement character itself 🤦‍♂️
     }
 
     /// Can we display all the glyphs in this text?
@@ -459,24 +419,30 @@ impl Font {
     }
 
     /// `\n` will (intentionally) show up as the replacement character.
-    fn glyph_info(&mut self, c: char) -> (FontIndex, GlyphInfo) {
-        if let Some(font_index_glyph_info) = self.glyph_info_cache.get(&c) {
+    fn glyph_info(&mut self, c: char) -> (FontFaceKey, GlyphInfo) {
+        if let Some(font_index_glyph_info) = self.cached_family.glyph_info_cache.get(&c) {
             return *font_index_glyph_info;
         }
 
         let font_index_glyph_info = self.glyph_info_no_cache_or_fallback(c);
-        let font_index_glyph_info = font_index_glyph_info.unwrap_or(self.replacement_glyph);
-        self.glyph_info_cache.insert(c, font_index_glyph_info);
+        let font_index_glyph_info =
+            font_index_glyph_info.unwrap_or(self.cached_family.replacement_glyph);
+        self.cached_family
+            .glyph_info_cache
+            .insert(c, font_index_glyph_info);
         font_index_glyph_info
     }
 
     #[inline]
-    pub(crate) fn font_impl_and_glyph_info(&mut self, c: char) -> (Option<&FontImpl>, GlyphInfo) {
-        if self.fonts.is_empty() {
-            return (None, self.replacement_glyph.1);
+    pub(crate) fn font_impl_and_glyph_info(
+        &mut self,
+        c: char,
+    ) -> (Option<&mut FontImpl>, GlyphInfo) {
+        if self.cached_family.fonts.is_empty() {
+            return (None, self.cached_family.replacement_glyph.1);
         }
-        let (font_index, glyph_info) = self.glyph_info(c);
-        let font_impl = &self.fonts[font_index];
+        let (key, glyph_info) = self.glyph_info(c);
+        let font_impl = self.fonts_by_id.get_mut(&key).expect("Nonexistent font ID");
         (Some(font_impl), glyph_info)
     }
 
@@ -487,28 +453,39 @@ impl Font {
         font_size: f32,
         pixels_per_point: f32,
     ) -> (Option<&FontImpl>, GlyphAllocation) {
-        if self.fonts.is_empty() {
+        if self.cached_family.fonts.is_empty() {
             return (None, Default::default());
         }
-        let (font_index, glyph_info) = self.glyph_info(c);
-        let font_impl = &self.fonts[font_index];
-        let allocated_glyph = font_impl.allocate_glyph(glyph_info, font_size, pixels_per_point);
+        let (key, glyph_info) = self.glyph_info(c);
+        let font_impl = self.fonts_by_id.get_mut(&key).expect("Nonexistent font ID");
+        let allocated_glyph =
+            font_impl.allocate_glyph(glyph_info, self.atlas, font_size, pixels_per_point);
         (Some(font_impl), allocated_glyph)
     }
 
     pub(crate) fn ascent(&self, font_size: f32) -> f32 {
-        if let Some(first) = self.fonts.first() {
+        if let Some(first) = self.cached_family.fonts.first() {
+            let first = self.fonts_by_id.get(first).expect("Nonexistent font ID");
             first.ascent(font_size)
         } else {
             self.row_height(font_size)
         }
     }
 
-    fn glyph_info_no_cache_or_fallback(&mut self, c: char) -> Option<(FontIndex, GlyphInfo)> {
-        for (font_index, font_impl) in self.fonts.iter().enumerate() {
+    pub(crate) fn glyph_info_no_cache_or_fallback(
+        &mut self,
+        c: char,
+    ) -> Option<(FontFaceKey, GlyphInfo)> {
+        for font_key in &self.cached_family.fonts {
+            let font_impl = self
+                .fonts_by_id
+                .get_mut(font_key)
+                .expect("Nonexistent font ID");
             if let Some(glyph_info) = font_impl.glyph_info(c) {
-                self.glyph_info_cache.insert(c, (font_index, glyph_info));
-                return Some((font_index, glyph_info));
+                self.cached_family
+                    .glyph_info_cache
+                    .insert(c, (*font_key, glyph_info));
+                return Some((*font_key, glyph_info));
             }
         }
         None
