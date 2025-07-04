@@ -913,6 +913,11 @@ fn create_window(
     )
     .with_visible(false); // Start hidden until we render the first frame to fix white flash on startup (https://github.com/emilk/egui/pull/3631)
 
+    // Fix the top window area not being clickable on macOS when in fullscreen on an external display
+    // See https://github.com/rust-windowing/winit/issues/4295, https://github.com/rerun-io/rerun/issues/10280
+    #[cfg(all(target_os = "macos", not(feature = "accesskit")))]
+    let viewport_builder = viewport_builder.with_visible(true);
+
     let window = egui_winit::create_window(egui_ctx, event_loop, &viewport_builder)?;
     epi_integration::apply_window_settings(&window, window_settings);
     Ok((window, viewport_builder))
