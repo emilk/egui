@@ -641,7 +641,10 @@ impl ContextImpl {
             // Preload the most common characters for the most common fonts.
             // This is not very important to do, but may save a few GPU operations.
             for font_id in self.memory.options.style().text_styles.values() {
-                fonts.fonts.font(font_id).preload_common_characters();
+                fonts
+                    .fonts
+                    .font(&font_id.family)
+                    .preload_common_characters();
             }
         }
     }
@@ -1585,7 +1588,7 @@ impl Context {
 
         let font_id = TextStyle::Body.resolve(&self.style());
         self.fonts_mut(|f| {
-            let font = f.fonts.font(&font_id);
+            let font = f.fonts.font(&font_id.family);
             font.has_glyphs(alt)
                 && font.has_glyphs(ctrl)
                 && font.has_glyphs(shift)
