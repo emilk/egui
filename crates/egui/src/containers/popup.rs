@@ -127,7 +127,7 @@ impl OpenKind<'_> {
             OpenKind::Open => true,
             OpenKind::Closed => false,
             OpenKind::Bool(open) => **open,
-            OpenKind::Memory { .. } => ctx.memory(|mem| mem.is_popup_open(id)),
+            OpenKind::Memory { .. } => ctx.memory(|mem| mem.is_showing_popup(id)),
         }
     }
 }
@@ -446,7 +446,7 @@ impl<'a> Popup<'a> {
             OpenKind::Open => true,
             OpenKind::Closed => false,
             OpenKind::Bool(open) => **open,
-            OpenKind::Memory { .. } => self.ctx.memory(|mem| mem.is_popup_open(self.id)),
+            OpenKind::Memory { .. } => self.ctx.memory(|mem| mem.is_showing_popup(self.id)),
         }
     }
 
@@ -531,7 +531,7 @@ impl<'a> Popup<'a> {
                     mem.toggle_popup(id);
                 }
                 None => {
-                    mem.keep_popup_open(id);
+                    mem.show_popup(id);
                 }
             });
         }
