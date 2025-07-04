@@ -3,6 +3,7 @@
 
 use emath::GuiRounding as _;
 use epaint::mutex::RwLock;
+use epaint::text::FontsView;
 use std::{any::Any, hash::Hash, sync::Arc};
 
 use crate::ClosableTag;
@@ -16,9 +17,7 @@ use crate::{
     WidgetRect, WidgetText,
     containers::{CollapsingHeader, CollapsingResponse, Frame},
     ecolor::Hsva,
-    emath, epaint,
-    epaint::text::Fonts,
-    grid,
+    emath, epaint, grid,
     layout::{Direction, Layout},
     pass_state,
     placer::Placer,
@@ -849,13 +848,13 @@ impl Ui {
 
     /// Read-only access to [`Fonts`].
     #[inline]
-    pub fn fonts<R>(&self, reader: impl FnOnce(&Fonts) -> R) -> R {
+    pub fn fonts<R>(&self, reader: impl FnOnce(&FontsView<'_>) -> R) -> R {
         self.ctx().fonts(reader)
     }
 
     /// Read-write access to [`Fonts`].
     #[inline]
-    pub fn fonts_mut<R>(&self, reader: impl FnOnce(&mut Fonts) -> R) -> R {
+    pub fn fonts_mut<R>(&self, reader: impl FnOnce(&mut FontsView<'_>) -> R) -> R {
         self.ctx().fonts_mut(reader)
     }
 }

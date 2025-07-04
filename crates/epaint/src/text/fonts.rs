@@ -434,7 +434,6 @@ impl CachedFamily {
     fn new(
         fonts: Vec<FontFaceKey>,
         fonts_by_id: &mut nohash_hasher::IntMap<FontFaceKey, FontImpl>,
-        atlas: &mut TextureAtlas,
     ) -> Self {
         if fonts.is_empty() {
             return Self {
@@ -455,15 +454,9 @@ impl CachedFamily {
         const PRIMARY_REPLACEMENT_CHAR: char = '◻'; // white medium square
         const FALLBACK_REPLACEMENT_CHAR: char = '?'; // fallback for the fallback
 
-        let mut font = Font {
-            fonts_by_id,
-            cached_family: &mut slf,
-            atlas,
-        };
-
-        let replacement_glyph = font
-            .glyph_info_no_cache_or_fallback(PRIMARY_REPLACEMENT_CHAR)
-            .or_else(|| font.glyph_info_no_cache_or_fallback(FALLBACK_REPLACEMENT_CHAR))
+        let replacement_glyph = slf
+            .glyph_info_no_cache_or_fallback(PRIMARY_REPLACEMENT_CHAR, fonts_by_id)
+            .or_else(|| slf.glyph_info_no_cache_or_fallback(FALLBACK_REPLACEMENT_CHAR, fonts_by_id))
             .unwrap_or_else(|| {
                 #[cfg(feature = "log")]
                 log::warn!(
@@ -474,6 +467,21 @@ impl CachedFamily {
         slf.replacement_glyph = replacement_glyph;
 
         slf
+    }
+
+    pub(crate) fn glyph_info_no_cache_or_fallback(
+        &mut self,
+        c: char,
+        fonts_by_id: &mut nohash_hasher::IntMap<FontFaceKey, FontImpl>,
+    ) -> Option<(FontFaceKey, GlyphInfo)> {
+        for font_key in &self.fonts {
+            let font_impl = fonts_by_id.get_mut(font_key).expect("Nonexistent font ID");
+            if let Some(glyph_info) = font_impl.glyph_info(c) {
+                self.glyph_info_cache.insert(c, (*font_key, glyph_info));
+                return Some((*font_key, glyph_info));
+            }
+        }
+        None
     }
 }
 
@@ -497,21 +505,14 @@ impl Fonts {
     /// Create a new [`Fonts`] for text layout.
     /// This call is expensive, so only create one [`Fonts`] and then reuse it.
     ///
-    /// * `pixels_per_point`: how many physical pixels per logical "point".
     /// * `max_texture_side`: largest supported texture size (one side).
     pub fn new(
-        pixels_per_point: f32,
         max_texture_side: usize,
         text_alpha_from_coverage: AlphaFromCoverage,
         definitions: FontDefinitions,
     ) -> Self {
         Self {
-            fonts: FontsImpl::new(
-                pixels_per_point,
-                max_texture_side,
-                text_alpha_from_coverage,
-                definitions,
-            ),
+            fonts: FontsImpl::new(max_texture_side, text_alpha_from_coverage, definitions),
             galley_cache: Default::default(),
         }
     }
@@ -525,30 +526,21 @@ impl Fonts {
     /// as well as notice when the font atlas is getting full, and handle that.
     pub fn begin_pass(
         &mut self,
-        pixels_per_point: f32,
         max_texture_side: usize,
         text_alpha_from_coverage: AlphaFromCoverage,
     ) {
-        let pixels_per_point_changed = self.fonts.pixels_per_point != pixels_per_point;
         let max_texture_side_changed = self.fonts.max_texture_side != max_texture_side;
         let text_alpha_from_coverage_changed =
             self.fonts.atlas.text_alpha_from_coverage != text_alpha_from_coverage;
         let font_atlas_almost_full = self.fonts.atlas.fill_ratio() > 0.8;
-        let needs_recreate = pixels_per_point_changed
-            || max_texture_side_changed
-            || text_alpha_from_coverage_changed
-            || font_atlas_almost_full;
+        let needs_recreate =
+            max_texture_side_changed || text_alpha_from_coverage_changed || font_atlas_almost_full;
 
         if needs_recreate {
             let definitions = self.fonts.definitions.clone();
 
             *self = Self {
-                fonts: FontsImpl::new(
-                    pixels_per_point,
-                    max_texture_side,
-                    text_alpha_from_coverage,
-                    definitions,
-                ),
+                fonts: FontsImpl::new(max_texture_side, text_alpha_from_coverage, definitions),
                 galley_cache: Default::default(),
             };
         }
@@ -562,13 +554,13 @@ impl Fonts {
     }
 
     #[inline]
-    pub fn pixels_per_point(&self) -> f32 {
-        self.fonts.pixels_per_point
+    pub fn max_texture_side(&self) -> usize {
+        self.fonts.max_texture_side
     }
 
     #[inline]
-    pub fn max_texture_side(&self) -> usize {
-        self.fonts.max_texture_side
+    pub fn definitions(&self) -> &FontDefinitions {
+        &self.fonts.definitions
     }
 
     /// The font atlas.
@@ -589,29 +581,92 @@ impl Fonts {
         self.fonts.atlas.size()
     }
 
-    /// Width of this character in points.
-    #[inline]
-    pub fn glyph_width(&mut self, font_id: &FontId, c: char) -> f32 {
-        self.fonts.glyph_width(font_id, c)
-    }
-
     /// Can we display this glyph?
-    #[inline]
     pub fn has_glyph(&mut self, font_id: &FontId, c: char) -> bool {
-        self.fonts.has_glyph(font_id, c)
+        self.fonts.font(&font_id.family).has_glyph(c)
     }
 
     /// Can we display all the glyphs in this text?
     pub fn has_glyphs(&mut self, font_id: &FontId, s: &str) -> bool {
-        self.fonts.has_glyphs(font_id, s)
+        self.fonts.font(&font_id.family).has_glyphs(s)
+    }
+
+    pub fn num_galleys_in_cache(&self) -> usize {
+        self.galley_cache.num_galleys_in_cache()
+    }
+
+    /// How full is the font atlas?
+    ///
+    /// This increases as new fonts and/or glyphs are used,
+    /// but can also decrease in a call to [`Self::begin_pass`].
+    pub fn font_atlas_fill_ratio(&self) -> f32 {
+        self.fonts.atlas.fill_ratio()
+    }
+
+    /// Returns a [`FontsView`] with the given `pixels_per_point` that can be used to do text layout.
+    pub fn with_pixels_per_point(&mut self, pixels_per_point: f32) -> FontsView<'_> {
+        FontsView {
+            fonts: &mut self.fonts,
+            galley_cache: &mut self.galley_cache,
+            pixels_per_point,
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// The context's collection of fonts, with this context's `pixels_per_point`. This is what you use to do text layout.
+pub struct FontsView<'a> {
+    pub fonts: &'a mut FontsImpl,
+    galley_cache: &'a mut GalleyCache,
+    pixels_per_point: f32,
+}
+
+impl FontsView<'_> {
+    #[inline]
+    pub fn max_texture_side(&self) -> usize {
+        self.fonts.max_texture_side
+    }
+
+    #[inline]
+    pub fn definitions(&self) -> &FontDefinitions {
+        &self.fonts.definitions
+    }
+
+    /// The full font atlas image.
+    #[inline]
+    pub fn image(&self) -> crate::ColorImage {
+        self.fonts.atlas.image().clone()
+    }
+
+    /// Current size of the font image.
+    /// Pass this to [`crate::Tessellator`].
+    pub fn font_image_size(&self) -> [usize; 2] {
+        self.fonts.atlas.size()
+    }
+
+    /// Width of this character in points.
+    pub fn glyph_width(&mut self, font_id: &FontId, c: char) -> f32 {
+        self.fonts
+            .font(&font_id.family)
+            .glyph_width(c, font_id.size)
+    }
+
+    /// Can we display this glyph?
+    pub fn has_glyph(&mut self, font_id: &FontId, c: char) -> bool {
+        self.fonts.font(&font_id.family).has_glyph(c)
+    }
+
+    /// Can we display all the glyphs in this text?
+    pub fn has_glyphs(&mut self, font_id: &FontId, s: &str) -> bool {
+        self.fonts.font(&font_id.family).has_glyphs(s)
     }
 
     /// Height of one row of text in points.
     ///
     /// Returns a value rounded to [`emath::GUI_ROUNDING`].
-    #[inline]
     pub fn row_height(&mut self, font_id: &FontId) -> f32 {
-        self.fonts.row_height(font_id)
+        self.fonts.font(&font_id.family).row_height(font_id.size)
     }
 
     /// List of all known font families.
@@ -629,8 +684,12 @@ impl Fonts {
     #[inline]
     pub fn layout_job(&mut self, job: LayoutJob) -> Arc<Galley> {
         let allow_split_paragraphs = true; // Optimization for editing text with many paragraphs.
-        self.galley_cache
-            .layout(&mut self.fonts, job, allow_split_paragraphs)
+        self.galley_cache.layout(
+            self.fonts,
+            job,
+            self.pixels_per_point,
+            allow_split_paragraphs,
+        )
     }
 
     pub fn num_galleys_in_cache(&self) -> usize {
@@ -687,13 +746,10 @@ impl Fonts {
 
 // ----------------------------------------------------------------------------
 
-// ----------------------------------------------------------------------------
-
 /// The collection of fonts used by `epaint`.
 ///
 /// Required in order to paint text.
 pub struct FontsImpl {
-    pixels_per_point: f32,
     max_texture_side: usize,
     definitions: FontDefinitions,
     atlas: TextureAtlas,
@@ -706,16 +762,10 @@ impl FontsImpl {
     /// Create a new [`FontsImpl`] for text layout.
     /// This call is expensive, so only create one [`FontsImpl`] and then reuse it.
     pub fn new(
-        pixels_per_point: f32,
         max_texture_side: usize,
         text_alpha_from_coverage: AlphaFromCoverage,
         definitions: FontDefinitions,
     ) -> Self {
-        assert!(
-            0.0 < pixels_per_point && pixels_per_point < 100.0,
-            "pixels_per_point out of range: {pixels_per_point}"
-        );
-
         let texture_width = max_texture_side.at_most(16 * 1024);
         let initial_height = 32; // Keep initial font atlas small, so it is fast to upload to GPU. This will expand as needed anyways.
         let atlas = TextureAtlas::new([texture_width, initial_height], text_alpha_from_coverage);
@@ -732,7 +782,6 @@ impl FontsImpl {
         }
 
         Self {
-            pixels_per_point,
             max_texture_side,
             definitions,
             atlas,
@@ -740,16 +789,6 @@ impl FontsImpl {
             font_impls,
             family_cache: Default::default(),
         }
-    }
-
-    #[inline(always)]
-    pub fn pixels_per_point(&self) -> f32 {
-        self.pixels_per_point
-    }
-
-    #[inline]
-    pub fn definitions(&self) -> &FontDefinitions {
-        &self.definitions
     }
 
     /// Get the right font implementation from  [`FontFamily`].
@@ -769,35 +808,13 @@ impl FontsImpl {
                 })
                 .collect();
 
-            CachedFamily::new(fonts, &mut self.fonts_by_id, &mut self.atlas)
+            CachedFamily::new(fonts, &mut self.fonts_by_id)
         });
         Font {
             fonts_by_id: &mut self.fonts_by_id,
             cached_family,
             atlas: &mut self.atlas,
         }
-    }
-
-    /// Width of this character in points.
-    fn glyph_width(&mut self, font_id: &FontId, c: char) -> f32 {
-        self.font(&font_id.family).glyph_width(c, font_id.size)
-    }
-
-    /// Can we display this glyph?
-    pub fn has_glyph(&mut self, font_id: &FontId, c: char) -> bool {
-        self.font(&font_id.family).has_glyph(c)
-    }
-
-    /// Can we display all the glyphs in this text?
-    pub fn has_glyphs(&mut self, font_id: &FontId, s: &str) -> bool {
-        self.font(&font_id.family).has_glyphs(s)
-    }
-
-    /// Height of one row of text in points.
-    ///
-    /// Returns a value rounded to [`emath::GUI_ROUNDING`].
-    fn row_height(&mut self, font_id: &FontId) -> f32 {
-        self.font(&font_id.family).row_height(font_id.size)
     }
 }
 
@@ -827,6 +844,7 @@ impl GalleyCache {
         &mut self,
         fonts: &mut FontsImpl,
         mut job: LayoutJob,
+        pixels_per_point: f32,
         allow_split_paragraphs: bool,
     ) -> (u64, Arc<Galley>) {
         if job.wrap.max_width.is_finite() {
@@ -882,14 +900,13 @@ impl GalleyCache {
                 let job = Arc::new(job);
                 if allow_split_paragraphs && should_cache_each_paragraph_individually(&job) {
                     let (child_galleys, child_hashes) =
-                        self.layout_each_paragraph_individually(fonts, &job);
+                        self.layout_each_paragraph_individually(fonts, &job, pixels_per_point);
                     debug_assert_eq!(
                         child_hashes.len(),
                         child_galleys.len(),
                         "Bug in `layout_each_paragraph_individuallly`"
                     );
-                    let galley =
-                        Arc::new(Galley::concat(job, &child_galleys, fonts.pixels_per_point));
+                    let galley = Arc::new(Galley::concat(job, &child_galleys, pixels_per_point));
 
                     self.cache.insert(
                         hash,
@@ -901,7 +918,7 @@ impl GalleyCache {
                     );
                     galley
                 } else {
-                    let galley = super::layout(fonts, job);
+                    let galley = super::layout(fonts, job, pixels_per_point);
                     let galley = Arc::new(galley);
                     entry.insert(CachedGalley {
                         last_used: self.generation,
@@ -920,9 +937,11 @@ impl GalleyCache {
         &mut self,
         fonts: &mut FontsImpl,
         job: LayoutJob,
+        pixels_per_point: f32,
         allow_split_paragraphs: bool,
     ) -> Arc<Galley> {
-        self.layout_internal(fonts, job, allow_split_paragraphs).1
+        self.layout_internal(fonts, job, pixels_per_point, allow_split_paragraphs)
+            .1
     }
 
     /// Split on `\n` and lay out (and cache) each paragraph individually.
@@ -930,6 +949,7 @@ impl GalleyCache {
         &mut self,
         fonts: &mut FontsImpl,
         job: &LayoutJob,
+        pixels_per_point: f32,
     ) -> (Vec<Arc<Galley>>, Vec<u64>) {
         profiling::function_scope!();
 
@@ -1009,7 +1029,8 @@ impl GalleyCache {
             }
 
             // TODO(emilk): we could lay out each paragraph in parallel to get a nice speedup on multicore machines.
-            let (hash, galley) = self.layout_internal(fonts, paragraph_job, false);
+            let (hash, galley) =
+                self.layout_internal(fonts, paragraph_job, pixels_per_point, false);
             child_hashes.push(hash);
 
             // This will prevent us from invalidating cache entries unnecessarily:
@@ -1164,7 +1185,6 @@ mod tests {
         for pixels_per_point in [1.0, 2.0_f32.sqrt(), 2.0] {
             let max_texture_side = 4096;
             let mut fonts = FontsImpl::new(
-                pixels_per_point,
                 max_texture_side,
                 AlphaFromCoverage::default(),
                 FontDefinitions::default(),
@@ -1176,9 +1196,11 @@ mod tests {
                         job.halign = halign;
                         job.justify = justify;
 
-                        let whole = GalleyCache::default().layout(&mut fonts, job.clone(), false);
+                        let whole =
+                            GalleyCache::default().layout(&mut fonts, job.clone(), 1., false);
 
-                        let split = GalleyCache::default().layout(&mut fonts, job.clone(), true);
+                        let split =
+                            GalleyCache::default().layout(&mut fonts, job.clone(), 1., true);
 
                         for (i, row) in whole.rows.iter().enumerate() {
                             println!(
@@ -1217,7 +1239,6 @@ mod tests {
 
         for pixels_per_point in pixels_per_point {
             let mut fonts = FontsImpl::new(
-                pixels_per_point,
                 1024,
                 AlphaFromCoverage::default(),
                 FontDefinitions::default(),
@@ -1230,12 +1251,13 @@ mod tests {
 
                         job.round_output_to_gui = round_output_to_gui;
 
-                        let galley_wrapped = layout(&mut fonts, job.clone().into());
+                        let galley_wrapped =
+                            layout(&mut fonts, job.clone().into(), pixels_per_point);
 
                         job.wrap = TextWrapping::no_max_width();
 
                         let text = job.text.clone();
-                        let galley_unwrapped = layout(&mut fonts, job.into());
+                        let galley_unwrapped = layout(&mut fonts, job.into(), pixels_per_point);
 
                         let intrinsic_size = galley_wrapped.intrinsic_size();
                         let unwrapped_size = galley_unwrapped.size();

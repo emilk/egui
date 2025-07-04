@@ -155,7 +155,7 @@ impl FontImpl {
     }
 
     /// `\n` will result in `None`
-    fn glyph_info(&mut self, c: char) -> Option<GlyphInfo> {
+    pub(super) fn glyph_info(&mut self, c: char) -> Option<GlyphInfo> {
         {
             if let Some(glyph_info) = self.glyph_info_cache.get(&c) {
                 return Some(*glyph_info);
@@ -424,7 +424,9 @@ impl Font<'_> {
             return *font_index_glyph_info;
         }
 
-        let font_index_glyph_info = self.glyph_info_no_cache_or_fallback(c);
+        let font_index_glyph_info = self
+            .cached_family
+            .glyph_info_no_cache_or_fallback(c, self.fonts_by_id);
         let font_index_glyph_info =
             font_index_glyph_info.unwrap_or(self.cached_family.replacement_glyph);
         self.cached_family
@@ -470,25 +472,6 @@ impl Font<'_> {
         } else {
             self.row_height(font_size)
         }
-    }
-
-    pub(crate) fn glyph_info_no_cache_or_fallback(
-        &mut self,
-        c: char,
-    ) -> Option<(FontFaceKey, GlyphInfo)> {
-        for font_key in &self.cached_family.fonts {
-            let font_impl = self
-                .fonts_by_id
-                .get_mut(font_key)
-                .expect("Nonexistent font ID");
-            if let Some(glyph_info) = font_impl.glyph_info(c) {
-                self.cached_family
-                    .glyph_info_cache
-                    .insert(c, (*font_key, glyph_info));
-                return Some((*font_key, glyph_info));
-            }
-        }
-        None
     }
 }
 
