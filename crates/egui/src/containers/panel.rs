@@ -479,6 +479,22 @@ impl SidePanel {
     ) -> Option<InnerResponse<R>> {
         let how_expanded = animate_expansion(ui.ctx(), self.id.with("animation"), *is_expanded);
 
+        // if !*is_expanded {
+        //     // Drag-to-open:
+        //     let resize_id = self.id.with("__resize");
+        //     if let Some(resize_response) = ui.ctx().read_response(resize_id) {
+        //         if resize_response.dragged() {
+        //             if let Some(pointer) = resize_response.interact_pointer_pos() {
+        //                 let width =
+        //                     (pointer.x - self.side.side_x(ui.available_rect_before_wrap())).abs();
+        //                 *is_expanded = self.width_range.min < width;
+        //             }
+        //         }
+        //     }
+        //     // We must register the widget so we don't loose grip of it…
+        //     // ui.interact(resize_rect, resize_id, Sense::drag())
+        // }
+
         if 0.0 == how_expanded {
             None
         } else if how_expanded < 1.0 {
