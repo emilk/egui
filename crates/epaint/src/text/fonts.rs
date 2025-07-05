@@ -13,7 +13,7 @@ use crate::{
         font::{Font, FontImpl, GlyphInfo},
     },
 };
-use emath::NumExt as _;
+use emath::{NumExt as _, OrderedFloat};
 
 #[cfg(feature = "default_fonts")]
 use epaint_default_fonts::{EMOJI_ICON, HACK_REGULAR, NOTO_EMOJI_REGULAR, UBUNTU_LIGHT};
@@ -872,7 +872,7 @@ impl GalleyCache {
             job.wrap.max_width = job.wrap.max_width.round();
         }
 
-        let hash = crate::util::hash(&job); // TODO(emilk): even faster hasher?
+        let hash = crate::util::hash((&job, OrderedFloat(pixels_per_point))); // TODO(emilk): even faster hasher?
 
         let galley = match self.cache.entry(hash) {
             std::collections::hash_map::Entry::Occupied(entry) => {
