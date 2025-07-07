@@ -6,8 +6,8 @@ use ahash::{HashMap, HashSet};
 use epaint::emath::TSTransform;
 
 use crate::{
-    area, vec2, EventFilter, Id, IdMap, LayerId, Order, Pos2, Rangef, RawInput, Rect, Style, Vec2,
-    ViewportId, ViewportIdMap, ViewportIdSet,
+    EventFilter, Id, IdMap, LayerId, Order, Pos2, Rangef, RawInput, Rect, Style, Vec2, ViewportId,
+    ViewportIdMap, ViewportIdSet, area, vec2,
 };
 
 mod theme;
@@ -87,15 +87,6 @@ pub struct Memory {
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) viewport_id: ViewportId,
 
-    /// Which popup-window is open (if any)?
-    /// Could be a combo box, color picker, menu, etc.
-    /// Optionally stores the position of the popup (usually this would be the position where
-    /// the user clicked).
-    /// If position is [`None`], the popup position will be calculated based on some configuration
-    /// (e.g. relative to some other widget).
-    #[cfg_attr(feature = "persistence", serde(skip))]
-    popup: Option<OpenPopup>,
-
     #[cfg_attr(feature = "persistence", serde(skip))]
     everything_is_visible: bool,
 
@@ -116,6 +107,15 @@ pub struct Memory {
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) focus: ViewportIdMap<Focus>,
+
+    /// Which popup-window is open on a viewport (if any)?
+    /// Could be a combo box, color picker, menu, etc.
+    /// Optionally stores the position of the popup (usually this would be the position where
+    /// the user clicked).
+    /// If position is [`None`], the popup position will be calculated based on some configuration
+    /// (e.g. relative to some other widget).
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    popups: ViewportIdMap<OpenPopup>,
 }
 
 impl Default for Memory {
@@ -130,7 +130,7 @@ impl Default for Memory {
             viewport_id: Default::default(),
             areas: Default::default(),
             to_global: Default::default(),
-            popup: Default::default(),
+            popups: Default::default(),
             everything_is_visible: Default::default(),
             add_fonts: Default::default(),
         };
@@ -284,14 +284,6 @@ pub struct Options {
     /// By default this is `true` in debug builds.
     pub warn_on_id_clash: bool,
 
-    // ------------------------------
-    // Input:
-    /// Multiplier for the scroll speed when reported in [`crate::MouseWheelUnit::Line`]s.
-    pub line_scroll_speed: f32,
-
-    /// Controls the speed at which we zoom in when doing ctrl/cmd + scroll.
-    pub scroll_zoom_speed: f32,
-
     /// Options related to input state handling.
     pub input_options: crate::input_state::InputOptions,
 
@@ -311,14 +303,6 @@ pub struct Options {
 
 impl Default for Options {
     fn default() -> Self {
-        // TODO(emilk): figure out why these constants need to be different on web and on native (winit).
-        let is_web = cfg!(target_arch = "wasm32");
-        let line_scroll_speed = if is_web {
-            8.0
-        } else {
-            40.0 // Scroll speed decided by consensus: https://github.com/emilk/egui/issues/461
-        };
-
         Self {
             dark_style: std::sync::Arc::new(Theme::Dark.default_style()),
             light_style: std::sync::Arc::new(Theme::Light.default_style()),
@@ -335,8 +319,6 @@ impl Default for Options {
             warn_on_id_clash: cfg!(debug_assertions),
 
             // Input:
-            line_scroll_speed,
-            scroll_zoom_speed: 1.0 / 200.0,
             input_options: Default::default(),
             reduce_texture_memory: false,
         }
@@ -391,15 +373,12 @@ impl Options {
             screen_reader: _, // needs to come from the integration
             preload_font_glyphs: _,
             warn_on_id_clash,
-
-            line_scroll_speed,
-            scroll_zoom_speed,
             input_options,
             reduce_texture_memory,
         } = self;
 
-        use crate::containers::CollapsingHeader;
         use crate::Widget as _;
+        use crate::containers::CollapsingHeader;
 
         CollapsingHeader::new("⚙ Options")
             .default_open(false)
@@ -429,11 +408,11 @@ impl Options {
             .show(ui, |ui| {
                 theme_preference.radio_buttons(ui);
 
-                std::sync::Arc::make_mut(match theme {
+                let style = std::sync::Arc::make_mut(match theme {
                     Theme::Dark => dark_style,
                     Theme::Light => light_style,
-                })
-                .ui(ui);
+                });
+                style.ui(ui);
             });
 
         CollapsingHeader::new("✒ Painting")
@@ -448,22 +427,6 @@ impl Options {
         CollapsingHeader::new("🖱 Input")
             .default_open(false)
             .show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.label("Line scroll speed");
-                    ui.add(crate::DragValue::new(line_scroll_speed).range(0.0..=f32::INFINITY))
-                        .on_hover_text(
-                            "How many lines to scroll with each tick of the mouse wheel",
-                        );
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Scroll zoom speed");
-                    ui.add(
-                        crate::DragValue::new(scroll_zoom_speed)
-                            .range(0.0..=f32::INFINITY)
-                            .speed(0.001),
-                    )
-                    .on_hover_text("How fast to zoom with ctrl/cmd + scroll");
-                });
                 input_options.ui(ui);
             });
 
@@ -790,6 +753,7 @@ impl Memory {
         // Cleanup
         self.interactions.retain(|id, _| viewports.contains(id));
         self.areas.retain(|id, _| viewports.contains(id));
+        self.popups.retain(|id, _| viewports.contains(id));
 
         self.areas.entry(self.viewport_id).or_default();
 
@@ -809,11 +773,11 @@ impl Memory {
         self.focus_mut().end_pass(used_ids);
 
         // Clean up abandoned popups.
-        if let Some(popup) = &mut self.popup {
+        if let Some(popup) = self.popups.get_mut(&self.viewport_id) {
             if popup.open_this_frame {
                 popup.open_this_frame = false;
             } else {
-                self.popup = None;
+                self.popups.remove(&self.viewport_id);
             }
         }
     }
@@ -992,59 +956,6 @@ impl Memory {
         self.focus_mut().focused_widget = None;
     }
 
-    /// Is any widget being dragged?
-    #[deprecated = "Use `Context::dragged_id` instead"]
-    #[inline(always)]
-    pub fn is_anything_being_dragged(&self) -> bool {
-        self.interaction().potential_drag_id.is_some()
-    }
-
-    /// Is this specific widget being dragged?
-    ///
-    /// A widget that sense both clicks and drags is only marked as "dragged"
-    /// when the mouse has moved a bit, but `is_being_dragged` will return true immediately.
-    #[deprecated = "Use `Context::is_being_dragged` instead"]
-    #[inline(always)]
-    pub fn is_being_dragged(&self, id: Id) -> bool {
-        self.interaction().potential_drag_id == Some(id)
-    }
-
-    /// Get the id of the widget being dragged, if any.
-    ///
-    /// Note that this is set as soon as the mouse is pressed,
-    /// so the widget may not yet be marked as "dragged",
-    /// as that can only happen after the mouse has moved a bit
-    /// (at least if the widget is interesated in both clicks and drags).
-    #[deprecated = "Use `Context::dragged_id` instead"]
-    #[inline(always)]
-    pub fn dragged_id(&self) -> Option<Id> {
-        self.interaction().potential_drag_id
-    }
-
-    /// Set which widget is being dragged.
-    #[inline(always)]
-    #[deprecated = "Use `Context::set_dragged_id` instead"]
-    pub fn set_dragged_id(&mut self, id: Id) {
-        self.interaction_mut().potential_drag_id = Some(id);
-    }
-
-    /// Stop dragging any widget.
-    #[inline(always)]
-    #[deprecated = "Use `Context::stop_dragging` instead"]
-    pub fn stop_dragging(&mut self) {
-        self.interaction_mut().potential_drag_id = None;
-    }
-
-    /// Is something else being dragged?
-    ///
-    /// Returns true if we are dragging something, but not the given widget.
-    #[inline(always)]
-    #[deprecated = "Use `Context::dragging_something_else` instead"]
-    pub fn dragging_something_else(&self, not_this: Id) -> bool {
-        let drag_id = self.interaction().potential_drag_id;
-        drag_id.is_some() && drag_id != Some(not_this)
-    }
-
     /// Forget window positions, sizes etc.
     /// Can be used to auto-layout windows.
     pub fn reset_areas(&mut self) {
@@ -1107,19 +1018,23 @@ impl OpenPopup {
 impl Memory {
     /// Is the given popup open?
     pub fn is_popup_open(&self, popup_id: Id) -> bool {
-        self.popup.is_some_and(|state| state.id == popup_id) || self.everything_is_visible()
+        self.popups
+            .get(&self.viewport_id)
+            .is_some_and(|state| state.id == popup_id)
+            || self.everything_is_visible()
     }
 
     /// Is any popup open?
     pub fn any_popup_open(&self) -> bool {
-        self.popup.is_some() || self.everything_is_visible()
+        self.popups.contains_key(&self.viewport_id) || self.everything_is_visible()
     }
 
     /// Open the given popup and close all others.
     ///
     /// Note that you must call `keep_popup_open` on subsequent frames as long as the popup is open.
     pub fn open_popup(&mut self, popup_id: Id) {
-        self.popup = Some(OpenPopup::new(popup_id, None));
+        self.popups
+            .insert(self.viewport_id, OpenPopup::new(popup_id, None));
     }
 
     /// Popups must call this every frame while open.
@@ -1128,7 +1043,7 @@ impl Memory {
     /// called. For example, when a context menu is open and the underlying widget stops
     /// being rendered.
     pub fn keep_popup_open(&mut self, popup_id: Id) {
-        if let Some(state) = self.popup.as_mut() {
+        if let Some(state) = self.popups.get_mut(&self.viewport_id) {
             if state.id == popup_id {
                 state.open_this_frame = true;
             }
@@ -1137,18 +1052,20 @@ impl Memory {
 
     /// Open the popup and remember its position.
     pub fn open_popup_at(&mut self, popup_id: Id, pos: impl Into<Option<Pos2>>) {
-        self.popup = Some(OpenPopup::new(popup_id, pos.into()));
+        self.popups
+            .insert(self.viewport_id, OpenPopup::new(popup_id, pos.into()));
     }
 
     /// Get the position for this popup.
     pub fn popup_position(&self, id: Id) -> Option<Pos2> {
-        self.popup
+        self.popups
+            .get(&self.viewport_id)
             .and_then(|state| if state.id == id { state.pos } else { None })
     }
 
     /// Close any currently open popup.
     pub fn close_all_popups(&mut self) {
-        self.popup = None;
+        self.popups.clear();
     }
 
     /// Close the given popup, if it is open.
@@ -1156,7 +1073,7 @@ impl Memory {
     /// See also [`Self::close_all_popups`] if you want to close any / all currently open popups.
     pub fn close_popup(&mut self, popup_id: Id) {
         if self.is_popup_open(popup_id) {
-            self.popup = None;
+            self.popups.remove(&self.viewport_id);
         }
     }
 
@@ -1318,7 +1235,7 @@ impl Areas {
         self.visible_areas_current_frame.insert(layer_id);
         self.wants_to_be_on_top.insert(layer_id);
 
-        if !self.order.iter().any(|x| *x == layer_id) {
+        if !self.order.contains(&layer_id) {
             self.order.push(layer_id);
         }
     }
@@ -1333,16 +1250,19 @@ impl Areas {
     ///
     /// The two layers must have the same [`LayerId::order`].
     pub fn set_sublayer(&mut self, parent: LayerId, child: LayerId) {
-        debug_assert_eq!(parent.order, child.order,
-            "DEBUG ASSERT: Trying to set sublayers across layers of different order ({:?}, {:?}), which is currently undefined behavior in egui", parent.order, child.order);
+        debug_assert_eq!(
+            parent.order, child.order,
+            "DEBUG ASSERT: Trying to set sublayers across layers of different order ({:?}, {:?}), which is currently undefined behavior in egui",
+            parent.order, child.order
+        );
 
         self.sublayers.entry(parent).or_default().insert(child);
 
         // Make sure the layers are in the order list:
-        if !self.order.iter().any(|x| *x == parent) {
+        if !self.order.contains(&parent) {
             self.order.push(parent);
         }
-        if !self.order.iter().any(|x| *x == child) {
+        if !self.order.contains(&child) {
             self.order.push(child);
         }
     }
@@ -1351,7 +1271,7 @@ impl Areas {
         self.order
             .iter()
             .filter(|layer| layer.order == order && !self.is_sublayer(layer))
-            .last()
+            .next_back()
             .copied()
     }
 

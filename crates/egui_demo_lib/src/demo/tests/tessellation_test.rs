@@ -1,7 +1,8 @@
 use egui::{
-    emath::{GuiRounding, TSTransform},
+    Color32, Pos2, Rect, Sense, StrokeKind, Vec2,
+    emath::{GuiRounding as _, TSTransform},
     epaint::{self, RectShape},
-    vec2, Color32, Pos2, Rect, Sense, StrokeKind, Vec2,
+    vec2,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -373,7 +374,7 @@ mod tests {
             harness.fit_contents();
             harness.run();
 
-            harness.snapshot(&format!("tessellation_test/{name}"));
+            harness.snapshot(format!("tessellation_test/{name}"));
         }
     }
 }

@@ -1,0 +1,34 @@
+name: PR Branch Name Check
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+
+jobs:
+  check-source-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR source branch
+        run: |
+          # Check if PR is from a fork
+          if [[ "${{ github.event.pull_request.head.repo.fork }}" == "true" ]]; then
+            # Check if PR is from the master/main branch of a fork
+            if [[ "${{ github.event.pull_request.head.ref }}" == "master" || "${{ github.event.pull_request.head.ref }}" == "main" ]]; then
+              echo "ERROR: Pull requests from the master/main branch of forks are not allowed, because it prevents maintainers from contributing to your PR"
+              echo "Please create a feature branch in your fork and submit the PR from that branch instead."
+              exit 1
+            fi
+          fi
+
+      - name: Leave comment if PR is from master/main branch of fork d
+        if: ${{ failure() }}
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '⚠️ **ERROR:** Pull requests from the `master`/`main` branch of forks are not allowed, because it prevents maintainers from contributing to your PR. Please create a feature branch in your fork and submit the PR from that branch instead.'
+            })

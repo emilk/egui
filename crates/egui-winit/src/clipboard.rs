@@ -123,7 +123,9 @@ impl Clipboard {
             return;
         }
 
-        log::error!("Copying images is not supported. Enable the 'clipboard' feature of `egui-winit` to enable it.");
+        log::error!(
+            "Copying images is not supported. Enable the 'clipboard' feature of `egui-winit` to enable it."
+        );
         _ = image;
     }
 }
@@ -161,7 +163,7 @@ fn init_smithay_clipboard(
 
     if let Some(RawDisplayHandle::Wayland(display)) = raw_display_handle {
         log::trace!("Initializing smithay clipboard…");
-        #[allow(unsafe_code)]
+        #[expect(unsafe_code)]
         Some(unsafe { smithay_clipboard::Clipboard::new(display.display.as_ptr()) })
     } else {
         #[cfg(feature = "wayland")]

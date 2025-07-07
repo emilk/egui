@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    emath::NumExt, mutex::RwLock, textures::TextureOptions, ImageData, ImageDelta, TextureId,
-    TextureManager,
+    ImageData, ImageDelta, TextureId, TextureManager, emath::NumExt as _, mutex::RwLock,
+    textures::TextureOptions,
 };
 
 /// Used to paint images.
@@ -66,7 +66,7 @@ impl TextureHandle {
     }
 
     /// Assign a new image to an existing texture.
-    #[allow(clippy::needless_pass_by_ref_mut)] // Intentionally hide interiority of mutability
+    #[expect(clippy::needless_pass_by_ref_mut)] // Intentionally hide interiority of mutability
     pub fn set(&mut self, image: impl Into<ImageData>, options: TextureOptions) {
         self.tex_mngr
             .write()
@@ -74,7 +74,7 @@ impl TextureHandle {
     }
 
     /// Assign a new image to a subregion of the whole texture.
-    #[allow(clippy::needless_pass_by_ref_mut)] // Intentionally hide interiority of mutability
+    #[expect(clippy::needless_pass_by_ref_mut)] // Intentionally hide interiority of mutability
     pub fn set_partial(
         &mut self,
         pos: [usize; 2],

@@ -59,7 +59,7 @@ impl Id {
 
     /// Generate a new [`Id`] by hashing the parent [`Id`] and the given argument.
     pub fn with(self, child: impl std::hash::Hash) -> Self {
-        use std::hash::{BuildHasher, Hasher};
+        use std::hash::{BuildHasher as _, Hasher as _};
         let mut hasher = ahash::RandomState::with_seeds(1, 2, 3, 4).build_hasher();
         hasher.write_u64(self.0.get());
         child.hash(&mut hasher);

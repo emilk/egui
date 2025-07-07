@@ -9,7 +9,7 @@ use super::{
     font::UvRect,
 };
 use crate::{Color32, FontId, Mesh, Stroke};
-use emath::{pos2, vec2, Align, NumExt, OrderedFloat, Pos2, Rect, Vec2};
+use emath::{Align, GuiRounding as _, NumExt as _, OrderedFloat, Pos2, Rect, Vec2, pos2, vec2};
 
 /// Describes the task of laying out text.
 ///
@@ -113,6 +113,21 @@ impl LayoutJob {
                 max_width: wrap_width,
                 ..Default::default()
             },
+            break_on_newline: true,
+            ..Default::default()
+        }
+    }
+
+    /// Break on `\n`
+    #[inline]
+    pub fn simple_format(text: String, format: TextFormat) -> Self {
+        Self {
+            sections: vec![LayoutSection {
+                leading_space: 0.0,
+                byte_range: 0..text.len(),
+                format,
+            }],
+            text,
             break_on_newline: true,
             ..Default::default()
         }
@@ -272,6 +287,11 @@ pub struct TextFormat {
 
     pub background: Color32,
 
+    /// Amount to expand background fill by.
+    ///
+    /// Default: 1.0
+    pub expand_bg: f32,
+
     pub italics: bool,
 
     pub underline: Stroke,
@@ -299,6 +319,7 @@ impl Default for TextFormat {
             line_height: None,
             color: Color32::GRAY,
             background: Color32::TRANSPARENT,
+            expand_bg: 1.0,
             italics: false,
             underline: Stroke::NONE,
             strikethrough: Stroke::NONE,
@@ -316,6 +337,7 @@ impl std::hash::Hash for TextFormat {
             line_height,
             color,
             background,
+            expand_bg,
             italics,
             underline,
             strikethrough,
@@ -328,6 +350,7 @@ impl std::hash::Hash for TextFormat {
         }
         color.hash(state);
         background.hash(state);
+        emath::OrderedFloat(*expand_bg).hash(state);
         italics.hash(state);
         underline.hash(state);
         strikethrough.hash(state);
@@ -500,14 +523,14 @@ pub struct Galley {
     /// Contains the original string and style sections.
     pub job: Arc<LayoutJob>,
 
-    /// Rows of text, from top to bottom.
+    /// Rows of text, from top to bottom, and their offsets.
     ///
     /// The number of characters in all rows sum up to `job.text.chars().count()`
     /// unless [`Self::elided`] is `true`.
     ///
     /// Note that a paragraph (a piece of text separated with `\n`)
     /// can be split up into multiple rows.
-    pub rows: Vec<Row>,
+    pub rows: Vec<PlacedRow>,
 
     /// Set to true the text was truncated due to [`TextWrapping::max_rows`].
     pub elided: bool,
@@ -541,17 +564,56 @@ pub struct Galley {
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct PlacedRow {
+    /// The position of this [`Row`] relative to the galley.
+    ///
+    /// This is rounded to the closest _pixel_ in order to produce crisp, pixel-perfect text.
+    pub pos: Pos2,
+
+    /// The underlying unpositioned [`Row`].
+    pub row: Arc<Row>,
+}
+
+impl PlacedRow {
+    /// Logical bounding rectangle on font heights etc.
+    ///
+    /// This ignores / includes the `LayoutSection::leading_space`.
+    pub fn rect(&self) -> Rect {
+        Rect::from_min_size(self.pos, self.row.size)
+    }
+
+    /// Same as [`Self::rect`] but excluding the `LayoutSection::leading_space`.
+    pub fn rect_without_leading_space(&self) -> Rect {
+        let x = self.glyphs.first().map_or(self.pos.x, |g| g.pos.x);
+        let size_x = self.size.x - x;
+        Rect::from_min_size(Pos2::new(x, self.pos.y), Vec2::new(size_x, self.size.y))
+    }
+}
+
+impl std::ops::Deref for PlacedRow {
+    type Target = Row;
+
+    fn deref(&self) -> &Self::Target {
+        &self.row
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Row {
-    /// This is included in case there are no glyphs
-    pub section_index_at_start: u32,
+    /// This is included in case there are no glyphs.
+    ///
+    /// Only used during layout, then set to an invalid value in order to
+    /// enable the paragraph-concat optimization path without having to
+    /// adjust `section_index` when concatting.
+    pub(crate) section_index_at_start: u32,
 
     /// One for each `char`.
     pub glyphs: Vec<Glyph>,
 
-    /// Logical bounding rectangle based on font heights etc.
-    /// Use this when drawing a selection or similar!
+    /// Logical size based on font heights etc.
     /// Includes leading and trailing whitespace.
-    pub rect: Rect,
+    pub size: Vec2,
 
     /// The mesh, ready to be rendered.
     pub visuals: RowVisuals,
@@ -605,7 +667,7 @@ pub struct Glyph {
     /// The character this glyph represents.
     pub chr: char,
 
-    /// Baseline position, relative to the galley.
+    /// Baseline position, relative to the row.
     /// Logical position: pos.y is the same for all chars of the same [`TextFormat`].
     pub pos: Pos2,
 
@@ -634,7 +696,11 @@ pub struct Glyph {
     pub uv_rect: UvRect,
 
     /// Index into [`LayoutJob::sections`]. Decides color etc.
-    pub section_index: u32,
+    ///
+    /// Only used during layout, then set to an invalid value in order to
+    /// enable the paragraph-concat optimization path without having to
+    /// adjust `section_index` when concatting.
+    pub(crate) section_index: u32,
 }
 
 impl Glyph {
@@ -675,22 +741,7 @@ impl Row {
         self.glyphs.len() + (self.ends_with_newline as usize)
     }
 
-    #[inline]
-    pub fn min_y(&self) -> f32 {
-        self.rect.top()
-    }
-
-    #[inline]
-    pub fn max_y(&self) -> f32 {
-        self.rect.bottom()
-    }
-
-    #[inline]
-    pub fn height(&self) -> f32 {
-        self.rect.height()
-    }
-
-    /// Closest char at the desired x coordinate.
+    /// Closest char at the desired x coordinate in row-relative coordinates.
     /// Returns something in the range `[0, char_count_excluding_newline()]`.
     pub fn char_at(&self, desired_x: f32) -> usize {
         for (i, glyph) in self.glyphs.iter().enumerate() {
@@ -705,8 +756,25 @@ impl Row {
         if let Some(glyph) = self.glyphs.get(column) {
             glyph.pos.x
         } else {
-            self.rect.right()
+            self.size.x
         }
+    }
+
+    #[inline]
+    pub fn height(&self) -> f32 {
+        self.size.y
+    }
+}
+
+impl PlacedRow {
+    #[inline]
+    pub fn min_y(&self) -> f32 {
+        self.rect().top()
+    }
+
+    #[inline]
+    pub fn max_y(&self) -> f32 {
+        self.rect().bottom()
     }
 }
 
@@ -725,6 +793,92 @@ impl Galley {
     #[inline]
     pub fn size(&self) -> Vec2 {
         self.rect.size()
+    }
+
+    pub(crate) fn round_output_to_gui(&mut self) {
+        for placed_row in &mut self.rows {
+            // Optimization: only call `make_mut` if necessary (can cause a deep clone)
+            let rounded_size = placed_row.row.size.round_ui();
+            if placed_row.row.size != rounded_size {
+                Arc::make_mut(&mut placed_row.row).size = rounded_size;
+            }
+        }
+
+        let rect = &mut self.rect;
+
+        let did_exceed_wrap_width_by_a_lot = rect.width() > self.job.wrap.max_width + 1.0;
+
+        *rect = rect.round_ui();
+
+        if did_exceed_wrap_width_by_a_lot {
+            // If the user picked a too aggressive wrap width (e.g. more narrow than any individual glyph),
+            // we should let the user know by reporting that our width is wider than the wrap width.
+        } else {
+            // Make sure we don't report being wider than the wrap width the user picked:
+            rect.max.x = rect
+                .max
+                .x
+                .at_most(rect.min.x + self.job.wrap.max_width)
+                .floor_ui();
+        }
+    }
+
+    /// Append each galley under the previous one.
+    pub fn concat(job: Arc<LayoutJob>, galleys: &[Arc<Self>], pixels_per_point: f32) -> Self {
+        profiling::function_scope!();
+
+        let mut merged_galley = Self {
+            job,
+            rows: Vec::new(),
+            elided: false,
+            rect: Rect::ZERO,
+            mesh_bounds: Rect::NOTHING,
+            num_vertices: 0,
+            num_indices: 0,
+            pixels_per_point,
+        };
+
+        for (i, galley) in galleys.iter().enumerate() {
+            let current_y_offset = merged_galley.rect.height();
+
+            let mut rows = galley.rows.iter();
+            // As documented in `Row::ends_with_newline`, a '\n' will always create a
+            // new `Row` immediately below the current one. Here it doesn't make sense
+            // for us to append this new row so we just ignore it.
+            let is_last_row = i + 1 == galleys.len();
+            if !is_last_row && !galley.elided {
+                let popped = rows.next_back();
+                debug_assert_eq!(popped.unwrap().row.glyphs.len(), 0, "Bug in Galley::concat");
+            }
+
+            merged_galley.rows.extend(rows.map(|placed_row| {
+                let new_pos = placed_row.pos + current_y_offset * Vec2::Y;
+                let new_pos = new_pos.round_to_pixels(pixels_per_point);
+                merged_galley.mesh_bounds = merged_galley
+                    .mesh_bounds
+                    .union(placed_row.visuals.mesh_bounds.translate(new_pos.to_vec2()));
+                merged_galley.rect = merged_galley
+                    .rect
+                    .union(Rect::from_min_size(new_pos, placed_row.size));
+
+                super::PlacedRow {
+                    pos: new_pos,
+                    row: placed_row.row.clone(),
+                }
+            }));
+
+            merged_galley.num_vertices += galley.num_vertices;
+            merged_galley.num_indices += galley.num_indices;
+            // Note that if `galley.elided` is true this will be the last `Galley` in
+            // the vector and the loop will end.
+            merged_galley.elided |= galley.elided;
+        }
+
+        if merged_galley.job.round_output_to_gui {
+            merged_galley.round_output_to_gui();
+        }
+
+        merged_galley
     }
 }
 
@@ -757,7 +911,7 @@ impl Galley {
     /// Zero-width rect past the last character.
     fn end_pos(&self) -> Rect {
         if let Some(row) = self.rows.last() {
-            let x = row.rect.right();
+            let x = row.rect().right();
             Rect::from_min_max(pos2(x, row.min_y()), pos2(x, row.max_y()))
         } else {
             // Empty galley
@@ -788,13 +942,16 @@ impl Galley {
     /// same as a cursor at the end.
     /// This allows implementing text-selection by dragging above/below the galley.
     pub fn cursor_from_pos(&self, pos: Vec2) -> CCursor {
+        // Vertical margin around galley improves text selection UX
+        const VMARGIN: f32 = 5.0;
+
         if let Some(first_row) = self.rows.first() {
-            if pos.y < first_row.min_y() {
+            if pos.y < first_row.min_y() - VMARGIN {
                 return self.begin();
             }
         }
         if let Some(last_row) = self.rows.last() {
-            if last_row.max_y() < pos.y {
+            if last_row.max_y() + VMARGIN < pos.y {
                 return self.end();
             }
         }
@@ -805,11 +962,15 @@ impl Galley {
         let mut ccursor_index = 0;
 
         for row in &self.rows {
-            let is_pos_within_row = row.min_y() <= pos.y && pos.y <= row.max_y();
-            let y_dist = (row.min_y() - pos.y).abs().min((row.max_y() - pos.y).abs());
+            let min_y = row.min_y();
+            let max_y = row.max_y();
+
+            let is_pos_within_row = min_y <= pos.y && pos.y <= max_y;
+            let y_dist = (min_y - pos.y).abs().min((max_y - pos.y).abs());
             if is_pos_within_row || y_dist < best_y_dist {
                 best_y_dist = y_dist;
-                let column = row.char_at(pos.x);
+                // char_at is `Row` not `PlacedRow` relative which means we have to subtract the pos.
+                let column = row.char_at(pos.x - row.pos.x);
                 let prefer_next_row = column < row.char_count_excluding_newline();
                 cursor = CCursor {
                     index: ccursor_index + column,
@@ -833,7 +994,7 @@ impl Galley {
     ///
     /// This is the same as [`CCursor::default`].
     #[inline]
-    #[allow(clippy::unused_self)]
+    #[expect(clippy::unused_self)]
     pub fn begin(&self) -> CCursor {
         CCursor::default()
     }
@@ -884,7 +1045,7 @@ impl Galley {
             }
             ccursor_it.index += row.char_count_including_newline();
         }
-        debug_assert!(ccursor_it == self.end());
+        debug_assert!(ccursor_it == self.end(), "Cursor out of bounds");
 
         if let Some(last_row) = self.rows.last() {
             LayoutCursor {
@@ -924,7 +1085,7 @@ impl Galley {
 
 /// ## Cursor positions
 impl Galley {
-    #[allow(clippy::unused_self)]
+    #[expect(clippy::unused_self)]
     pub fn cursor_left_one_character(&self, cursor: &CCursor) -> CCursor {
         if cursor.index == 0 {
             Default::default()
@@ -941,6 +1102,10 @@ impl Galley {
             index: (cursor.index + 1).min(self.end().index),
             prefer_next_row: true, // default to this when navigating. It is more often useful to put cursor at the beginning of a row than at the end.
         }
+    }
+
+    pub fn clamp_cursor(&self, cursor: &CCursor) -> CCursor {
+        self.cursor_from_layout(self.layout_from_cursor(*cursor))
     }
 
     pub fn cursor_up_one_row(

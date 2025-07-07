@@ -3,14 +3,15 @@
 #![allow(clippy::if_same_then_else)]
 
 use emath::Align;
-use epaint::{text::FontTweak, CornerRadius, Shadow, Stroke};
+use epaint::{AlphaFromCoverage, CornerRadius, Shadow, Stroke, text::FontTweak};
 use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
 
 use crate::{
-    ecolor::Color32,
-    emath::{pos2, vec2, Rangef, Rect, Vec2},
     ComboBox, CursorIcon, FontFamily, FontId, Grid, Margin, Response, RichText, TextWrapMode,
     WidgetText,
+    ecolor::Color32,
+    emath::{Rangef, Rect, Vec2, pos2, vec2},
+    reset_button_with,
 };
 
 /// How to format numbers in e.g. a [`crate::DragValue`].
@@ -747,7 +748,8 @@ impl ScrollStyle {
 
 // ----------------------------------------------------------------------------
 
-/// Scroll animation configuration, used when programmatically scrolling somewhere (e.g. with `[crate::Ui::scroll_to_cursor]`)
+/// Scroll animation configuration, used when programmatically scrolling somewhere (e.g. with `[crate::Ui::scroll_to_cursor]`).
+///
 /// The animation duration is calculated based on the distance to be scrolled via `[ScrollAnimation::points_per_second]`
 /// and can be clamped to a min / max duration via `[ScrollAnimation::duration]`.
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -919,6 +921,9 @@ pub struct Visuals {
     /// this is more to provide a convenient summary of the rest of the settings.
     pub dark_mode: bool,
 
+    /// ADVANCED: Controls how we render text.
+    pub text_alpha_from_coverage: AlphaFromCoverage,
+
     /// Override default text color for all text.
     ///
     /// This is great for setting the color of text for any widget.
@@ -933,6 +938,17 @@ pub struct Visuals {
     /// but its alpha may be different based on whether or not
     /// it is disabled, non-interactive, hovered etc.
     pub override_text_color: Option<Color32>,
+
+    /// How strong "weak" text is.
+    ///
+    /// Ignored if [`Self::weak_text_color`] is set.
+    pub weak_text_alpha: f32,
+
+    /// Color of "weak" text.
+    ///
+    /// If `None`, the color is [`Self::text_color`]
+    /// multiplied by [`Self::weak_text_alpha`].
+    pub weak_text_color: Option<Color32>,
 
     /// Visual styles of widgets
     pub widgets: Widgets,
@@ -950,6 +966,11 @@ pub struct Visuals {
     /// Used as the background of text edits, scroll bars and others things
     /// that needs to look different from other interactive stuff.
     pub extreme_bg_color: Color32,
+
+    /// The background color of [`crate::TextEdit`].
+    ///
+    /// Defaults to [`Self::extreme_bg_color`].
+    pub text_edit_bg_color: Option<Color32>,
 
     /// Background color behind code-styled monospaced labels.
     pub code_bg_color: Color32,
@@ -989,7 +1010,7 @@ pub struct Visuals {
     /// Show a background behind collapsing headers.
     pub collapsing_header_frame: bool,
 
-    /// Draw a vertical lien left of indented region, in e.g. [`crate::CollapsingHeader`].
+    /// Draw a vertical line left of indented region, in e.g. [`crate::CollapsingHeader`].
     pub indent_has_left_vline: bool,
 
     /// Whether or not Grids and Tables should be striped by default
@@ -1018,6 +1039,9 @@ pub struct Visuals {
 
     /// How to display numeric color values.
     pub numeric_color_space: NumericColorSpace,
+
+    /// How much to modify the alpha of a disabled widget.
+    pub disabled_alpha: f32,
 }
 
 impl Visuals {
@@ -1033,12 +1057,18 @@ impl Visuals {
     }
 
     pub fn weak_text_color(&self) -> Color32 {
-        self.gray_out(self.text_color())
+        self.weak_text_color
+            .unwrap_or_else(|| self.text_color().gamma_multiply(self.weak_text_alpha))
     }
 
     #[inline(always)]
     pub fn strong_text_color(&self) -> Color32 {
         self.widgets.active.text_color()
+    }
+
+    /// The background color of [`crate::TextEdit`].
+    pub fn text_edit_bg_color(&self) -> Color32 {
+        self.text_edit_bg_color.unwrap_or(self.extreme_bg_color)
     }
 
     /// Window background color.
@@ -1053,17 +1083,32 @@ impl Visuals {
     }
 
     /// When fading out things, we fade the colors towards this.
-    // TODO(emilk): replace with an alpha
     #[inline(always)]
+    #[deprecated = "Use disabled_alpha(). Fading is now handled by modifying the alpha channel."]
     pub fn fade_out_to_color(&self) -> Color32 {
         self.widgets.noninteractive.weak_bg_fill
     }
 
-    /// Returned a "grayed out" version of the given color.
+    /// Disabled widgets have their alpha modified by this.
+    #[inline(always)]
+    pub fn disabled_alpha(&self) -> f32 {
+        self.disabled_alpha
+    }
+
+    /// Returns a "disabled" version of the given color.
+    ///
+    /// This function modifies the opcacity of the given color.
+    /// If this is undesirable use [`gray_out`](Self::gray_out).
+    #[inline(always)]
+    pub fn disable(&self, color: Color32) -> Color32 {
+        color.gamma_multiply(self.disabled_alpha())
+    }
+
+    /// Returns a "grayed out" version of the given color.
     #[doc(alias = "grey_out")]
     #[inline(always)]
     pub fn gray_out(&self, color: Color32) -> Color32 {
-        crate::ecolor::tint_color_towards(color, self.fade_out_to_color())
+        crate::ecolor::tint_color_towards(color, self.widgets.noninteractive.weak_bg_fill)
     }
 }
 
@@ -1260,7 +1305,7 @@ pub fn default_text_styles() -> BTreeMap<TextStyle, FontId> {
 
 impl Default for Style {
     fn default() -> Self {
-        #[allow(deprecated)]
+        #[expect(deprecated)]
         Self {
             override_font_id: None,
             override_text_style: None,
@@ -1332,12 +1377,16 @@ impl Visuals {
     pub fn dark() -> Self {
         Self {
             dark_mode: true,
+            text_alpha_from_coverage: AlphaFromCoverage::DARK_MODE_DEFAULT,
             override_text_color: None,
+            weak_text_alpha: 0.6,
+            weak_text_color: None,
             widgets: Widgets::default(),
             selection: Selection::default(),
             hyperlink_color: Color32::from_rgb(90, 170, 255),
             faint_bg_color: Color32::from_additive_luminance(5), // visible, but barely so
             extreme_bg_color: Color32::from_gray(10),            // e.g. TextEdit background
+            text_edit_bg_color: None, // use `extreme_bg_color` by default
             code_bg_color: Color32::from_gray(64),
             warn_fg_color: Color32::from_rgb(255, 143, 0), // orange
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
@@ -1383,6 +1432,7 @@ impl Visuals {
             image_loading_spinners: true,
 
             numeric_color_space: NumericColorSpace::GammaByte,
+            disabled_alpha: 0.5,
         }
     }
 
@@ -1390,6 +1440,7 @@ impl Visuals {
     pub fn light() -> Self {
         Self {
             dark_mode: false,
+            text_alpha_from_coverage: AlphaFromCoverage::LIGHT_MODE_DEFAULT,
             widgets: Widgets::light(),
             selection: Selection::light(),
             hyperlink_color: Color32::from_rgb(0, 155, 255),
@@ -1556,13 +1607,13 @@ impl Default for Widgets {
 // ----------------------------------------------------------------------------
 
 use crate::{
-    widgets::{reset_button, DragValue, Slider, Widget},
     Ui,
+    widgets::{DragValue, Slider, Widget, reset_button},
 };
 
 impl Style {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
-        #[allow(deprecated)]
+        #[expect(deprecated)]
         let Self {
             override_font_id,
             override_text_style,
@@ -1679,11 +1730,11 @@ impl Style {
             ui.end_row();
         });
 
-        ui.collapsing("🔠 Text Styles", |ui| text_styles_ui(ui, text_styles));
+        ui.collapsing("🔠 Text styles", |ui| text_styles_ui(ui, text_styles));
         ui.collapsing("📏 Spacing", |ui| spacing.ui(ui));
         ui.collapsing("☝ Interaction", |ui| interaction.ui(ui));
         ui.collapsing("🎨 Visuals", |ui| visuals.ui(ui));
-        ui.collapsing("🔄 Scroll Animation", |ui| scroll_animation.ui(ui));
+        ui.collapsing("🔄 Scroll animation", |ui| scroll_animation.ui(ui));
 
         #[cfg(debug_assertions)]
         ui.collapsing("🐛 Debug", |ui| debug.ui(ui));
@@ -2021,13 +2072,17 @@ impl WidgetVisuals {
 impl Visuals {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
-            dark_mode: _,
+            dark_mode,
+            text_alpha_from_coverage,
             override_text_color: _,
+            weak_text_alpha,
+            weak_text_color,
             widgets,
             selection,
             hyperlink_color,
             faint_bg_color,
             extreme_bg_color,
+            text_edit_bg_color,
             code_bg_color,
             warn_fg_color,
             error_fg_color,
@@ -2062,44 +2117,115 @@ impl Visuals {
             image_loading_spinners,
 
             numeric_color_space,
+            disabled_alpha,
         } = self;
 
-        ui.collapsing("Background Colors", |ui| {
-            ui_color(ui, &mut widgets.inactive.weak_bg_fill, "Buttons");
-            ui_color(ui, window_fill, "Windows");
-            ui_color(ui, panel_fill, "Panels");
-            ui_color(ui, faint_bg_color, "Faint accent").on_hover_text(
-                "Used for faint accentuation of interactive things, like striped grids.",
-            );
-            ui_color(ui, extreme_bg_color, "Extreme")
-                .on_hover_text("Background of plots and paintings");
+        fn ui_optional_color(
+            ui: &mut Ui,
+            color: &mut Option<Color32>,
+            default_value: Color32,
+            label: impl Into<WidgetText>,
+        ) -> Response {
+            let label_response = ui.label(label);
+
+            ui.horizontal(|ui| {
+                let mut set = color.is_some();
+                ui.checkbox(&mut set, "");
+                if set {
+                    let color = color.get_or_insert(default_value);
+                    ui.color_edit_button_srgba(color);
+                } else {
+                    *color = None;
+                };
+            });
+
+            ui.end_row();
+
+            label_response
+        }
+
+        ui.collapsing("Background colors", |ui| {
+            Grid::new("background_colors")
+                .num_columns(2)
+                .show(ui, |ui| {
+                    fn ui_color(
+                        ui: &mut Ui,
+                        color: &mut Color32,
+                        label: impl Into<WidgetText>,
+                    ) -> Response {
+                        let label_response = ui.label(label);
+                        ui.color_edit_button_srgba(color);
+                        ui.end_row();
+                        label_response
+                    }
+
+                    ui_color(ui, &mut widgets.inactive.weak_bg_fill, "Buttons");
+                    ui_color(ui, window_fill, "Windows");
+                    ui_color(ui, panel_fill, "Panels");
+                    ui_color(ui, faint_bg_color, "Faint accent").on_hover_text(
+                        "Used for faint accentuation of interactive things, like striped grids.",
+                    );
+                    ui_color(ui, extreme_bg_color, "Extreme")
+                        .on_hover_text("Background of plots and paintings");
+
+                    ui_optional_color(ui, text_edit_bg_color, *extreme_bg_color, "TextEdit")
+                        .on_hover_text("Background of TextEdit");
+                });
         });
 
         ui.collapsing("Text color", |ui| {
-            ui_text_color(ui, &mut widgets.noninteractive.fg_stroke.color, "Label");
-            ui_text_color(
-                ui,
-                &mut widgets.inactive.fg_stroke.color,
-                "Unhovered button",
-            );
-            ui_text_color(ui, &mut widgets.hovered.fg_stroke.color, "Hovered button");
-            ui_text_color(ui, &mut widgets.active.fg_stroke.color, "Clicked button");
+            fn ui_text_color(ui: &mut Ui, color: &mut Color32, label: impl Into<RichText>) {
+                ui.label(label.into().color(*color));
+                ui.color_edit_button_srgba(color);
+                ui.end_row();
+            }
 
-            ui_text_color(ui, warn_fg_color, RichText::new("Warnings"));
-            ui_text_color(ui, error_fg_color, RichText::new("Errors"));
+            Grid::new("text_color").num_columns(2).show(ui, |ui| {
+                ui_text_color(ui, &mut widgets.noninteractive.fg_stroke.color, "Label");
 
-            ui_text_color(ui, hyperlink_color, "hyperlink_color");
+                ui_text_color(
+                    ui,
+                    &mut widgets.inactive.fg_stroke.color,
+                    "Unhovered button",
+                );
+                ui_text_color(ui, &mut widgets.hovered.fg_stroke.color, "Hovered button");
+                ui_text_color(ui, &mut widgets.active.fg_stroke.color, "Clicked button");
 
-            ui_color(ui, code_bg_color, RichText::new("Code background").code()).on_hover_ui(
-                |ui| {
-                    ui.horizontal(|ui| {
-                        ui.spacing_mut().item_spacing.x = 0.0;
-                        ui.label("For monospaced inlined text ");
-                        ui.code("like this");
-                        ui.label(".");
+                ui_text_color(ui, warn_fg_color, RichText::new("Warnings"));
+                ui_text_color(ui, error_fg_color, RichText::new("Errors"));
+
+                ui_text_color(ui, hyperlink_color, "hyperlink_color");
+
+                ui.label(RichText::new("Code background").code())
+                    .on_hover_ui(|ui| {
+                        ui.horizontal(|ui| {
+                            ui.spacing_mut().item_spacing.x = 0.0;
+                            ui.label("For monospaced inlined text ");
+                            ui.code("like this");
+                            ui.label(".");
+                        });
                     });
-                },
-            );
+                ui.color_edit_button_srgba(code_bg_color);
+                ui.end_row();
+
+                ui.label("Weak text alpha");
+                ui.add_enabled(
+                    weak_text_color.is_none(),
+                    DragValue::new(weak_text_alpha).speed(0.01).range(0.0..=1.0),
+                );
+                ui.end_row();
+
+                ui_optional_color(
+                    ui,
+                    weak_text_color,
+                    widgets.noninteractive.text_color(),
+                    "Weak text color",
+                );
+            });
+
+            ui.add_space(4.0);
+
+            text_alpha_from_coverage_ui(ui, text_alpha_from_coverage);
         });
 
         ui.collapsing("Text cursor", |ui| {
@@ -2190,10 +2316,58 @@ impl Visuals {
                 ui.label("Color picker type");
                 numeric_color_space.toggle_button_ui(ui);
             });
+
+            ui.add(Slider::new(disabled_alpha, 0.0..=1.0).text("Disabled element alpha"));
         });
 
-        ui.vertical_centered(|ui| reset_button(ui, self, "Reset visuals"));
+        let dark_mode = *dark_mode;
+        ui.vertical_centered(|ui| {
+            reset_button_with(
+                ui,
+                self,
+                "Reset visuals",
+                if dark_mode {
+                    Self::dark()
+                } else {
+                    Self::light()
+                },
+            );
+        });
     }
+}
+
+fn text_alpha_from_coverage_ui(ui: &mut Ui, text_alpha_from_coverage: &mut AlphaFromCoverage) {
+    let mut dark_mode_special =
+        *text_alpha_from_coverage == AlphaFromCoverage::TwoCoverageMinusCoverageSq;
+
+    ui.horizontal(|ui| {
+        ui.label("Text rendering:");
+
+        ui.checkbox(&mut dark_mode_special, "Dark-mode special");
+
+        if dark_mode_special {
+            *text_alpha_from_coverage = AlphaFromCoverage::TwoCoverageMinusCoverageSq;
+        } else {
+            let mut gamma = match text_alpha_from_coverage {
+                AlphaFromCoverage::Linear => 1.0,
+                AlphaFromCoverage::Gamma(gamma) => *gamma,
+                AlphaFromCoverage::TwoCoverageMinusCoverageSq => 0.5, // approximately the same
+            };
+
+            ui.add(
+                DragValue::new(&mut gamma)
+                    .speed(0.01)
+                    .range(0.1..=4.0)
+                    .prefix("Gamma: "),
+            );
+
+            if gamma == 1.0 {
+                *text_alpha_from_coverage = AlphaFromCoverage::Linear;
+            } else {
+                *text_alpha_from_coverage = AlphaFromCoverage::Gamma(gamma);
+            }
+        }
+    });
 }
 
 impl TextCursorStyle {
@@ -2307,22 +2481,6 @@ fn two_drag_values(value: &mut Vec2, range: std::ops::RangeInclusive<f32>) -> im
         })
         .response
     }
-}
-
-fn ui_color(ui: &mut Ui, color: &mut Color32, label: impl Into<WidgetText>) -> Response {
-    ui.horizontal(|ui| {
-        ui.color_edit_button_srgba(color);
-        ui.label(label);
-    })
-    .response
-}
-
-fn ui_text_color(ui: &mut Ui, color: &mut Color32, label: impl Into<RichText>) -> Response {
-    ui.horizontal(|ui| {
-        ui.color_edit_button_srgba(color);
-        ui.label(label.into().color(*color));
-    })
-    .response
 }
 
 impl HandleShape {

@@ -95,10 +95,15 @@ impl BytesLoader for FileLoader {
                             }
                             Err(err) => Err(err.to_string()),
                         };
-                        let prev = cache.lock().insert(uri.clone(), Poll::Ready(result));
-                        assert!(matches!(prev, Some(Poll::Pending)));
-                        ctx.request_repaint();
-                        log::trace!("finished loading {uri:?}");
+                        let mut cache = cache.lock();
+                        if let std::collections::hash_map::Entry::Occupied(mut entry) = cache.entry(uri.clone()) {
+                            let entry = entry.get_mut();
+                            *entry = Poll::Ready(result);
+                            ctx.request_repaint();
+                            log::trace!("Finished loading {uri:?}");
+                        } else {
+                            log::trace!("Canceled loading {uri:?}\nNote: This can happen if `forget_image` is called while the image is still loading.");
+                        }
                     }
                 })
                 .expect("failed to spawn thread");
@@ -127,5 +132,9 @@ impl BytesLoader for FileLoader {
                 _ => 0,
             })
             .sum()
+    }
+
+    fn has_pending(&self) -> bool {
+        self.cache.lock().values().any(|entry| entry.is_pending())
     }
 }

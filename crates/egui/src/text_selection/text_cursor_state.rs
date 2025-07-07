@@ -1,8 +1,9 @@
 //! Text cursor changes/interaction, without modifying the text.
 
-use epaint::text::{cursor::CCursor, Galley};
+use epaint::text::{Galley, cursor::CCursor};
+use unicode_segmentation::UnicodeSegmentation as _;
 
-use crate::{epaint, NumExt, Rect, Response, Ui};
+use crate::{NumExt as _, Rect, Response, Ui, epaint};
 
 use super::CCursorRange;
 
@@ -32,6 +33,16 @@ impl TextCursorState {
     /// The currently selected range of characters.
     pub fn char_range(&self) -> Option<CCursorRange> {
         self.ccursor_range
+    }
+
+    /// The currently selected range of characters, clamped within the character
+    /// range of the given [`Galley`].
+    pub fn range(&self, galley: &Galley) -> Option<CCursorRange> {
+        self.ccursor_range.map(|mut range| {
+            range.primary = galley.clamp_cursor(&range.primary);
+            range.secondary = galley.clamp_cursor(&range.secondary);
+            range
+        })
     }
 
     /// Sets the currently selected range of characters.
@@ -68,7 +79,7 @@ impl TextCursorState {
             if response.hovered() && ui.input(|i| i.pointer.any_pressed()) {
                 // The start of a drag (or a click).
                 if ui.input(|i| i.modifiers.shift) {
-                    if let Some(mut cursor_range) = self.char_range() {
+                    if let Some(mut cursor_range) = self.range(galley) {
                         cursor_range.primary = cursor_at_pointer;
                         self.set_char_range(Some(cursor_range));
                     } else {
@@ -80,7 +91,7 @@ impl TextCursorState {
                 true
             } else if is_being_dragged {
                 // Drag to select text:
-                if let Some(mut cursor_range) = self.char_range() {
+                if let Some(mut cursor_range) = self.range(galley) {
                     cursor_range.primary = cursor_at_pointer;
                     self.set_char_range(Some(cursor_range));
                 }
@@ -166,7 +177,7 @@ fn select_line_at(text: &str, ccursor: CCursor) -> CCursorRange {
 
 pub fn ccursor_next_word(text: &str, ccursor: CCursor) -> CCursor {
     CCursor {
-        index: next_word_boundary_char_index(text.chars(), ccursor.index),
+        index: next_word_boundary_char_index(text, ccursor.index),
         prefer_next_row: false,
     }
 }
@@ -180,9 +191,10 @@ fn ccursor_next_line(text: &str, ccursor: CCursor) -> CCursor {
 
 pub fn ccursor_previous_word(text: &str, ccursor: CCursor) -> CCursor {
     let num_chars = text.chars().count();
+    let reversed: String = text.graphemes(true).rev().collect();
     CCursor {
         index: num_chars
-            - next_word_boundary_char_index(text.chars().rev(), num_chars - ccursor.index),
+            - next_word_boundary_char_index(&reversed, num_chars - ccursor.index).min(num_chars),
         prefer_next_row: true,
     }
 }
@@ -196,22 +208,25 @@ fn ccursor_previous_line(text: &str, ccursor: CCursor) -> CCursor {
     }
 }
 
-fn next_word_boundary_char_index(it: impl Iterator<Item = char>, mut index: usize) -> usize {
-    let mut it = it.skip(index);
-    if let Some(_first) = it.next() {
-        index += 1;
-
-        if let Some(second) = it.next() {
-            index += 1;
-            for next in it {
-                if is_word_char(next) != is_word_char(second) {
-                    break;
-                }
-                index += 1;
-            }
+fn next_word_boundary_char_index(text: &str, index: usize) -> usize {
+    for word in text.split_word_bound_indices() {
+        // Splitting considers contiguous whitespace as one word, such words must be skipped,
+        // this handles cases for example ' abc' (a space and a word), the cursor is at the beginning
+        // (before space) - this jumps at the end of 'abc' (this is consistent with text editors
+        // or browsers)
+        let ci = char_index_from_byte_index(text, word.0);
+        if ci > index && !skip_word(word.1) {
+            return ci;
         }
     }
-    index
+
+    char_index_from_byte_index(text, text.len())
+}
+
+fn skip_word(text: &str) -> bool {
+    // skip words that contain anything other than alphanumeric characters and underscore
+    // (i.e. whitespace, dashes, etc.)
+    !text.chars().any(|c| !is_word_char(c))
 }
 
 fn next_line_boundary_char_index(it: impl Iterator<Item = char>, mut index: usize) -> usize {
@@ -233,7 +248,7 @@ fn next_line_boundary_char_index(it: impl Iterator<Item = char>, mut index: usiz
 }
 
 pub fn is_word_char(c: char) -> bool {
-    c.is_ascii_alphanumeric() || c == '_'
+    c.is_alphanumeric() || c == '_'
 }
 
 fn is_linebreak(c: char) -> bool {
@@ -270,8 +285,23 @@ pub fn byte_index_from_char_index(s: &str, char_index: usize) -> usize {
     s.len()
 }
 
+pub fn char_index_from_byte_index(input: &str, byte_index: usize) -> usize {
+    for (ci, (bi, _)) in input.char_indices().enumerate() {
+        if bi == byte_index {
+            return ci;
+        }
+    }
+
+    input.char_indices().last().map_or(0, |(i, _)| i + 1)
+}
+
 pub fn slice_char_range(s: &str, char_range: std::ops::Range<usize>) -> &str {
-    assert!(char_range.start <= char_range.end);
+    assert!(
+        char_range.start <= char_range.end,
+        "Invalid range, start must be less than end, but start = {}, end = {}",
+        char_range.start,
+        char_range.end
+    );
     let start_byte = byte_index_from_char_index(s, char_range.start);
     let end_byte = byte_index_from_char_index(s, char_range.end);
     &s[start_byte..end_byte]
@@ -287,4 +317,39 @@ pub fn cursor_rect(galley: &Galley, cursor: &CCursor, row_height: f32) -> Rect {
     cursor_pos = cursor_pos.expand(1.5); // slightly above/below row
 
     cursor_pos
+}
+
+#[cfg(test)]
+mod test {
+    use crate::text_selection::text_cursor_state::next_word_boundary_char_index;
+
+    #[test]
+    fn test_next_word_boundary_char_index() {
+        // ASCII only
+        let text = "abc d3f g_h i-j";
+        assert_eq!(next_word_boundary_char_index(text, 1), 3);
+        assert_eq!(next_word_boundary_char_index(text, 3), 7);
+        assert_eq!(next_word_boundary_char_index(text, 9), 11);
+        assert_eq!(next_word_boundary_char_index(text, 12), 13);
+        assert_eq!(next_word_boundary_char_index(text, 13), 15);
+        assert_eq!(next_word_boundary_char_index(text, 15), 15);
+
+        assert_eq!(next_word_boundary_char_index("", 0), 0);
+        assert_eq!(next_word_boundary_char_index("", 1), 0);
+
+        // Unicode graphemes, some of which consist of multiple Unicode characters,
+        // !!! Unicode character is not always what is tranditionally considered a character,
+        // the values below are correct despite not seeming that way on the first look,
+        // handling of and around emojis is kind of weird and is not consistent across
+        // text editors and browsers
+        let text = "❤️👍 skvělá knihovna 👍❤️";
+        assert_eq!(next_word_boundary_char_index(text, 0), 2);
+        assert_eq!(next_word_boundary_char_index(text, 2), 3); // this does not skip the space between thumbs-up and 'skvělá'
+        assert_eq!(next_word_boundary_char_index(text, 6), 10);
+        assert_eq!(next_word_boundary_char_index(text, 9), 10);
+        assert_eq!(next_word_boundary_char_index(text, 12), 19);
+        assert_eq!(next_word_boundary_char_index(text, 15), 19);
+        assert_eq!(next_word_boundary_char_index(text, 19), 20);
+        assert_eq!(next_word_boundary_char_index(text, 20), 21);
+    }
 }

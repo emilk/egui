@@ -1,5 +1,5 @@
 <!--
-Please read the "Making a PR" section of [`CONTRIBUTING.md`](https://github.com/emilk/egui/blob/master/CONTRIBUTING.md) before opening a Pull Request!
+Please read the "Making a PR" section of [`CONTRIBUTING.md`](https://github.com/emilk/egui/blob/main/CONTRIBUTING.md) before opening a Pull Request!
 
 * Keep your PR:s small and focused.
 * The PR title is what ends up in the changelog, so make it descriptive!

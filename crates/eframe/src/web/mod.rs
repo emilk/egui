@@ -40,6 +40,7 @@ pub(crate) type ActiveWebPainter = web_painter_wgpu::WebPainterWgpu;
 
 pub use backend::*;
 
+use egui::Theme;
 use wasm_bindgen::prelude::*;
 use web_sys::{Document, MediaQueryList, Node};
 
@@ -113,22 +114,29 @@ pub fn native_pixels_per_point() -> f32 {
 ///
 /// `None` means unknown.
 pub fn system_theme() -> Option<egui::Theme> {
-    let dark_mode = prefers_color_scheme_dark(&web_sys::window()?)
-        .ok()??
-        .matches();
-    Some(theme_from_dark_mode(dark_mode))
-}
-
-fn prefers_color_scheme_dark(window: &web_sys::Window) -> Result<Option<MediaQueryList>, JsValue> {
-    window.match_media("(prefers-color-scheme: dark)")
-}
-
-fn theme_from_dark_mode(dark_mode: bool) -> egui::Theme {
-    if dark_mode {
-        egui::Theme::Dark
+    let window = web_sys::window()?;
+    if does_prefer_color_scheme(&window, Theme::Dark) == Some(true) {
+        Some(Theme::Dark)
+    } else if does_prefer_color_scheme(&window, Theme::Light) == Some(true) {
+        Some(Theme::Light)
     } else {
-        egui::Theme::Light
+        None
     }
+}
+
+fn does_prefer_color_scheme(window: &web_sys::Window, theme: Theme) -> Option<bool> {
+    Some(prefers_color_scheme(window, theme).ok()??.matches())
+}
+
+fn prefers_color_scheme(
+    window: &web_sys::Window,
+    theme: Theme,
+) -> Result<Option<MediaQueryList>, JsValue> {
+    let theme = match theme {
+        Theme::Dark => "dark",
+        Theme::Light => "light",
+    };
+    window.match_media(format!("(prefers-color-scheme: {theme})").as_str())
 }
 
 /// Returns the canvas in client coordinates.
@@ -281,7 +289,7 @@ fn create_clipboard_item(mime: &str, bytes: &[u8]) -> Result<web_sys::ClipboardI
     let items = js_sys::Object::new();
 
     // SAFETY: I hope so
-    #[allow(unsafe_code, unused_unsafe)] // Weird false positive
+    #[expect(unsafe_code, unused_unsafe)] // Weird false positive
     unsafe {
         js_sys::Reflect::set(&items, &JsValue::from_str(mime), &blob)?
     };

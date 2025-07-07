@@ -2,15 +2,21 @@
 #![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
     Arc,
+    atomic::{AtomicBool, Ordering},
 };
 
 use eframe::egui;
 
 fn main() -> eframe::Result {
     let rust_log = std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_owned());
-    std::env::set_var("RUST_LOG", rust_log);
+
+    // SAFETY: we call this from the main thread without any other threads running.
+    #[expect(unsafe_code)]
+    unsafe {
+        std::env::set_var("RUST_LOG", rust_log);
+    };
+
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     start_puffin_server(); // NOTE: you may only want to call this if the users specifies some flag or clicks a button!
 
@@ -165,7 +171,7 @@ fn start_puffin_server() {
 
             // We can store the server if we want, but in this case we just want
             // it to keep running. Dropping it closes the server, so let's not drop it!
-            #[allow(clippy::mem_forget)]
+            #[expect(clippy::mem_forget)]
             std::mem::forget(puffin_server);
         }
         Err(err) => {

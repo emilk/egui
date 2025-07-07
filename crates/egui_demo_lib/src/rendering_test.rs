@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
 use egui::{
-    emath::GuiRounding as _, epaint, lerp, pos2, vec2, widgets::color_picker::show_color, Align2,
-    Color32, FontId, Image, Mesh, Pos2, Rect, Response, Rgba, RichText, Sense, Shape, Stroke,
-    TextureHandle, TextureOptions, Ui, Vec2,
+    Align2, Color32, FontId, Image, Mesh, Pos2, Rect, Response, Rgba, RichText, Sense, Shape,
+    Stroke, TextureHandle, TextureOptions, Ui, Vec2, emath::GuiRounding as _, epaint, lerp, pos2,
+    vec2, widgets::color_picker::show_color,
 };
 
 const GRADIENT_SIZE: Vec2 = vec2(256.0, 18.0);
@@ -307,7 +307,10 @@ fn vertex_gradient(ui: &mut Ui, bg_fill: Color32, gradient: &Gradient) -> Respon
     }
     {
         let n = gradient.0.len();
-        assert!(n >= 2);
+        assert!(
+            n >= 2,
+            "A gradient must have at least two colors, but this had {n}"
+        );
         let mut mesh = Mesh::default();
         for (i, &color) in gradient.0.iter().enumerate() {
             let t = i as f32 / (n as f32 - 1.0);
@@ -416,10 +419,7 @@ impl TextureManager {
             let height = 1;
             ctx.load_texture(
                 "color_test_gradient",
-                epaint::ColorImage {
-                    size: [width, height],
-                    pixels,
-                },
+                epaint::ColorImage::new([width, height], pixels),
                 TextureOptions::LINEAR,
             )
         })
@@ -466,7 +466,7 @@ fn pixel_test_strokes(ui: &mut Ui) {
         let thickness_points = thickness_pixels / pixels_per_point;
         let num_squares = (pixels_per_point * 10.0).round().max(10.0) as u32;
         let size_pixels = vec2(ui.min_size().x, num_squares as f32 + thickness_pixels * 2.0);
-        let size_points = size_pixels / pixels_per_point + Vec2::splat(2.0);
+        let size_points = size_pixels / pixels_per_point;
         let (response, painter) = ui.allocate_painter(size_points, Sense::hover());
 
         let mut cursor_pixel = Pos2::new(
@@ -594,8 +594,14 @@ fn blending_and_feathering_test(ui: &mut Ui) {
 }
 
 fn text_on_bg(ui: &mut egui::Ui, fg: Color32, bg: Color32) {
-    assert!(fg.is_opaque());
-    assert!(bg.is_opaque());
+    assert!(
+        fg.is_opaque(),
+        "Foreground color must be opaque, but was: {fg:?}",
+    );
+    assert!(
+        bg.is_opaque(),
+        "Background color must be opaque, but was: {bg:?}",
+    );
 
     ui.horizontal(|ui| {
         ui.label(
@@ -716,8 +722,8 @@ fn mul_color_gamma(left: Color32, right: Color32) -> Color32 {
 #[cfg(test)]
 mod tests {
     use crate::ColorTest;
-    use egui_kittest::kittest::Queryable as _;
     use egui_kittest::SnapshotResults;
+    use egui_kittest::kittest::Queryable as _;
 
     #[test]
     pub fn rendering_test() {
@@ -731,14 +737,15 @@ mod tests {
                 });
 
             {
-                // Expand color-test collapsing header
-                harness.get_by_label("Color test").click();
+                // Expand color-test collapsing header. We accesskit-click since collapsing header
+                // might not be on screen at this point.
+                harness.get_by_label("Color test").click_accesskit();
                 harness.run();
             }
 
             harness.fit_contents();
 
-            results.add(harness.try_snapshot(&format!("rendering_test/dpi_{dpi:.2}")));
+            results.add(harness.try_snapshot(format!("rendering_test/dpi_{dpi:.2}")));
         }
     }
 }

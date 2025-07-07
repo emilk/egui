@@ -91,7 +91,7 @@ impl AllocInfo {
             + galley.rows.iter().map(Self::from_galley_row).sum()
     }
 
-    fn from_galley_row(row: &crate::text::Row) -> Self {
+    fn from_galley_row(row: &crate::text::PlacedRow) -> Self {
         Self::from_mesh(&row.visuals.mesh) + Self::from_slice(&row.glyphs)
     }
 
@@ -111,7 +111,10 @@ impl AllocInfo {
     }
 
     pub fn num_elements(&self) -> usize {
-        assert!(self.element_size != ElementSize::Heterogenous);
+        assert!(
+            self.element_size != ElementSize::Heterogenous,
+            "Heterogenous element size"
+        );
         self.num_elements
     }
 

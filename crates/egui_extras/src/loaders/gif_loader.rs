@@ -1,9 +1,8 @@
 use ahash::HashMap;
 use egui::{
-    decode_animated_image_uri, has_gif_magic_header,
+    ColorImage, FrameDurations, Id, decode_animated_image_uri, has_gif_magic_header,
     load::{BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
     mutex::Mutex,
-    ColorImage, FrameDurations, Id,
 };
 use image::AnimationDecoder as _;
 use std::{io::Cursor, mem::size_of, sync::Arc, time::Duration};

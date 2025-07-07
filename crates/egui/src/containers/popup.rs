@@ -1,10 +1,10 @@
-use crate::containers::menu::{menu_style, MenuConfig, MenuState};
+use crate::containers::menu::{MenuConfig, MenuState, menu_style};
 use crate::style::StyleModifier;
 use crate::{
     Area, AreaState, Context, Frame, Id, InnerResponse, Key, LayerId, Layout, Order, Response,
     Sense, Ui, UiKind, UiStackInfo,
 };
-use emath::{vec2, Align, Pos2, Rect, RectAlign, Vec2};
+use emath::{Align, Pos2, Rect, RectAlign, Vec2, vec2};
 use std::iter::once;
 
 /// What should we anchor the popup to?
@@ -160,6 +160,7 @@ impl From<PopupKind> for UiKind {
     }
 }
 
+#[must_use = "Call `.show()` to actually display the popup"]
 pub struct Popup<'a> {
     id: Id,
     ctx: Context,
@@ -466,7 +467,7 @@ impl<'a> Popup<'a> {
         };
 
         RectAlign::find_best_align(
-            #[allow(clippy::iter_on_empty_collections)]
+            #[expect(clippy::iter_on_empty_collections)]
             once(self.rect_align).chain(
                 self.alternative_aligns
                     // Need the empty slice so the iters have the same type so we can unwrap_or
@@ -484,37 +485,18 @@ impl<'a> Popup<'a> {
             self.gap,
             expected_popup_size,
         )
+        .unwrap_or_default()
     }
 
     /// Show the popup.
     /// Returns `None` if the popup is not open or anchor is `PopupAnchor::Pointer` and there is
     /// no pointer.
     pub fn show<R>(self, content: impl FnOnce(&mut Ui) -> R) -> Option<InnerResponse<R>> {
-        let best_align = self.get_best_align();
+        let hover_pos = self.ctx.pointer_hover_pos();
 
-        let Popup {
-            id,
-            ctx,
-            anchor,
-            open_kind,
-            close_behavior,
-            kind,
-            info,
-            layer_id,
-            rect_align: _,
-            alternative_aligns: _,
-            gap,
-            widget_clicked_elsewhere,
-            width,
-            sense,
-            layout,
-            frame,
-            style,
-        } = self;
-
-        let hover_pos = ctx.pointer_hover_pos();
-        if let OpenKind::Memory { set, .. } = open_kind {
-            ctx.memory_mut(|mem| match set {
+        let id = self.id;
+        if let OpenKind::Memory { set } = self.open_kind {
+            self.ctx.memory_mut(|mem| match set {
                 Some(SetOpenCommand::Bool(open)) => {
                     if open {
                         match self.anchor {
@@ -536,9 +518,31 @@ impl<'a> Popup<'a> {
             });
         }
 
-        if !open_kind.is_open(id, &ctx) {
+        if !self.open_kind.is_open(self.id, &self.ctx) {
             return None;
         }
+
+        let best_align = self.get_best_align();
+
+        let Popup {
+            id,
+            ctx,
+            anchor,
+            open_kind,
+            close_behavior,
+            kind,
+            info,
+            layer_id,
+            rect_align: _,
+            alternative_aligns: _,
+            gap,
+            widget_clicked_elsewhere,
+            width,
+            sense,
+            layout,
+            frame,
+            style,
+        } = self;
 
         if kind != PopupKind::Tooltip {
             ctx.pass_state_mut(|fs| {
@@ -573,10 +577,9 @@ impl<'a> Popup<'a> {
             area = area.default_width(width);
         }
 
-        let frame = frame.unwrap_or_else(|| Frame::popup(&ctx.style()));
-
         let mut response = area.show(&ctx, |ui| {
             style.apply(ui.style_mut());
+            let frame = frame.unwrap_or_else(|| Frame::popup(ui.style()));
             frame.show(ui, content).inner
         });
 

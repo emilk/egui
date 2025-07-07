@@ -1,18 +1,20 @@
 use ahash::HashMap;
 use egui::{
-    decode_animated_image_uri,
-    load::{BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
+    ColorImage, decode_animated_image_uri,
+    load::{Bytes, BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
     mutex::Mutex,
-    ColorImage,
 };
 use image::ImageFormat;
-use std::{mem::size_of, path::Path, sync::Arc};
+use std::{mem::size_of, path::Path, sync::Arc, task::Poll};
 
-type Entry = Result<Arc<ColorImage>, LoadError>;
+#[cfg(not(target_arch = "wasm32"))]
+use std::thread;
+
+type Entry = Poll<Result<Arc<ColorImage>, String>>;
 
 #[derive(Default)]
 pub struct ImageCrateLoader {
-    cache: Mutex<HashMap<String, Entry>>,
+    cache: Arc<Mutex<HashMap<String, Entry>>>,
 }
 
 impl ImageCrateLoader {
@@ -73,11 +75,72 @@ impl ImageLoader for ImageCrateLoader {
             return Err(LoadError::NotSupported);
         }
 
-        let mut cache = self.cache.lock();
-        if let Some(entry) = cache.get(uri).cloned() {
-            match entry {
+        #[cfg(not(target_arch = "wasm32"))]
+        #[expect(clippy::unnecessary_wraps)] // needed here to match other return types
+        fn load_image(
+            ctx: &egui::Context,
+            uri: &str,
+            cache: &Arc<Mutex<HashMap<String, Entry>>>,
+            bytes: &Bytes,
+        ) -> ImageLoadResult {
+            let uri = uri.to_owned();
+            cache.lock().insert(uri.clone(), Poll::Pending);
+
+            // Do the image parsing on a bg thread
+            thread::Builder::new()
+                .name(format!("egui_extras::ImageLoader::load({uri:?})"))
+                .spawn({
+                    let ctx = ctx.clone();
+                    let cache = cache.clone();
+
+                    let uri = uri.clone();
+                    let bytes = bytes.clone();
+                    move || {
+                        log::trace!("ImageLoader - started loading {uri:?}");
+                        let result = crate::image::load_image_bytes(&bytes)
+                            .map(Arc::new)
+                            .map_err(|err| err.to_string());
+                        log::trace!("ImageLoader - finished loading {uri:?}");
+                        let prev = cache.lock().insert(uri, Poll::Ready(result));
+                        debug_assert!(
+                            matches!(prev, Some(Poll::Pending)),
+                            "Expected previous state to be Pending"
+                        );
+
+                        ctx.request_repaint();
+                    }
+                })
+                .expect("failed to spawn thread");
+
+            Ok(ImagePoll::Pending { size: None })
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        fn load_image(
+            _ctx: &egui::Context,
+            uri: &str,
+            cache: &Arc<Mutex<HashMap<String, Entry>>>,
+            bytes: &Bytes,
+        ) -> ImageLoadResult {
+            let mut cache_lock = cache.lock();
+            log::trace!("started loading {uri:?}");
+            let result = crate::image::load_image_bytes(bytes)
+                .map(Arc::new)
+                .map_err(|err| err.to_string());
+            log::trace!("finished loading {uri:?}");
+            cache_lock.insert(uri.into(), std::task::Poll::Ready(result.clone()));
+            match result {
                 Ok(image) => Ok(ImagePoll::Ready { image }),
-                Err(err) => Err(err),
+                Err(err) => Err(LoadError::Loading(err)),
+            }
+        }
+
+        let entry = self.cache.lock().get(uri).cloned();
+        if let Some(entry) = entry {
+            match entry {
+                Poll::Ready(Ok(image)) => Ok(ImagePoll::Ready { image }),
+                Poll::Ready(Err(err)) => Err(LoadError::Loading(err)),
+                Poll::Pending => Ok(ImagePoll::Pending { size: None }),
             }
         } else {
             match ctx.try_load_bytes(uri) {
@@ -90,19 +153,7 @@ impl ImageLoader for ImageCrateLoader {
                             });
                         }
                     }
-
-                    if bytes.starts_with(b"version https://git-lfs") {
-                        return Err(LoadError::FormatNotSupported {
-                            detected_format: Some("git-lfs".to_owned()),
-                        });
-                    }
-
-                    // (3)
-                    log::trace!("started loading {uri:?}");
-                    let result = crate::image::load_image_bytes(&bytes).map(Arc::new);
-                    log::trace!("finished loading {uri:?}");
-                    cache.insert(uri.into(), result.clone());
-                    result.map(|image| ImagePoll::Ready { image })
+                    load_image(ctx, uri, &self.cache, &bytes)
                 }
                 Ok(BytesPoll::Pending { size }) => Ok(ImagePoll::Pending { size }),
                 Err(err) => Err(err),
@@ -123,10 +174,15 @@ impl ImageLoader for ImageCrateLoader {
             .lock()
             .values()
             .map(|result| match result {
-                Ok(image) => image.pixels.len() * size_of::<egui::Color32>(),
-                Err(err) => err.byte_size(),
+                Poll::Ready(Ok(image)) => image.pixels.len() * size_of::<egui::Color32>(),
+                Poll::Ready(Err(err)) => err.len(),
+                Poll::Pending => 0,
             })
             .sum()
+    }
+
+    fn has_pending(&self) -> bool {
+        self.cache.lock().values().any(|result| result.is_pending())
     }
 }
 

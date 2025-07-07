@@ -4,13 +4,13 @@
 //! Takes all available height, so if you want something below the table, put it in a strip.
 
 use egui::{
-    scroll_area::{ScrollAreaOutput, ScrollBarVisibility},
     Align, Id, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui, Vec2, Vec2b,
+    scroll_area::{ScrollAreaOutput, ScrollBarVisibility, ScrollSource},
 };
 
 use crate::{
-    layout::{CellDirection, CellSize, StripLayoutFlags},
     StripLayout,
+    layout::{CellDirection, CellSize, StripLayoutFlags},
 };
 
 // -----------------------------------------------------------------=----------
@@ -507,6 +507,7 @@ impl<'a> TableBuilder<'a> {
                 striped: false,
                 hovered: false,
                 selected: false,
+                overline: false,
                 response: &mut response,
             });
             layout.allocate_rect();
@@ -744,7 +745,10 @@ impl Table<'_> {
 
         let mut scroll_area = ScrollArea::new([false, vscroll])
             .id_salt(state_id.with("__scroll_area"))
-            .drag_to_scroll(drag_to_scroll)
+            .scroll_source(ScrollSource {
+                drag: drag_to_scroll,
+                ..Default::default()
+            })
             .stick_to_bottom(stick_to_bottom)
             .min_scrolled_height(min_scrolled_height)
             .max_height(max_scroll_height)
@@ -990,6 +994,7 @@ impl<'a> TableBody<'a> {
             striped: self.striped && self.row_index % 2 == 0,
             hovered: self.hovered_row_index == Some(self.row_index),
             selected: false,
+            overline: false,
             response: &mut response,
         });
         self.capture_hover_state(&response, self.row_index);
@@ -1071,6 +1076,7 @@ impl<'a> TableBody<'a> {
                 striped: self.striped && (row_index + self.row_index) % 2 == 0,
                 hovered: self.hovered_row_index == Some(row_index),
                 selected: false,
+                overline: false,
                 response: &mut response,
             });
             self.capture_hover_state(&response, row_index);
@@ -1152,6 +1158,7 @@ impl<'a> TableBody<'a> {
                     striped: self.striped && (row_index + self.row_index) % 2 == 0,
                     hovered: self.hovered_row_index == Some(row_index),
                     selected: false,
+                    overline: false,
                     response: &mut response,
                 });
                 self.capture_hover_state(&response, row_index);
@@ -1173,6 +1180,7 @@ impl<'a> TableBody<'a> {
                 height: row_height,
                 striped: self.striped && (row_index + self.row_index) % 2 == 0,
                 hovered: self.hovered_row_index == Some(row_index),
+                overline: false,
                 selected: false,
                 response: &mut response,
             });
@@ -1260,6 +1268,7 @@ pub struct TableRow<'a, 'b> {
     striped: bool,
     hovered: bool,
     selected: bool,
+    overline: bool,
 
     response: &'b mut Option<Response>,
 }
@@ -1297,6 +1306,7 @@ impl TableRow<'_, '_> {
             striped: self.striped,
             hovered: self.hovered,
             selected: self.selected,
+            overline: self.overline,
             sizing_pass: auto_size_this_frame || self.layout.ui.is_sizing_pass(),
         };
 
@@ -1331,6 +1341,13 @@ impl TableRow<'_, '_> {
     #[inline]
     pub fn set_hovered(&mut self, hovered: bool) {
         self.hovered = hovered;
+    }
+
+    /// Set the overline state for this row. The overline is a line above the row,
+    /// usable for e.g. visually grouping rows.
+    #[inline]
+    pub fn set_overline(&mut self, overline: bool) {
+        self.overline = overline;
     }
 
     /// Returns a union of the [`Response`]s of the cells added to the row up to this point.

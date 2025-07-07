@@ -2,14 +2,14 @@ use std::sync::Arc;
 
 use emath::GuiRounding as _;
 use epaint::{
-    text::{Fonts, Galley, LayoutJob},
     CircleShape, ClippedShape, CornerRadius, PathStroke, RectShape, Shape, Stroke, StrokeKind,
+    text::{Fonts, Galley, LayoutJob},
 };
 
 use crate::{
+    Color32, Context, FontId,
     emath::{Align2, Pos2, Rangef, Rect, Vec2},
     layers::{LayerId, PaintList, ShapeIdx},
-    Color32, Context, FontId,
 };
 
 /// Helper to paint shapes and text to a specific region on a specific layer.
@@ -83,6 +83,7 @@ impl Painter {
     }
 
     /// If set, colors will be modified to look like this
+    #[deprecated = "Use `multiply_opacity` instead"]
     pub fn set_fade_to_color(&mut self, fade_to_color: Option<Color32>) {
         self.fade_to_color = fade_to_color;
     }
@@ -294,7 +295,7 @@ impl Painter {
 
 /// ## Debug painting
 impl Painter {
-    #[allow(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value)]
     pub fn debug_rect(&self, rect: Rect, color: Color32, text: impl ToString) {
         self.rect(
             rect,
@@ -320,7 +321,7 @@ impl Painter {
     /// Text with a background.
     ///
     /// See also [`Context::debug_text`].
-    #[allow(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value)]
     pub fn debug_text(
         &self,
         pos: Pos2,
@@ -497,7 +498,7 @@ impl Painter {
     /// [`Self::layout`] or [`Self::layout_no_wrap`].
     ///
     /// Returns where the text ended up.
-    #[allow(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value)]
     pub fn text(
         &self,
         pos: Pos2,
@@ -576,16 +577,6 @@ impl Painter {
         galley: Arc<Galley>,
         text_color: Color32,
     ) {
-        if !galley.is_empty() {
-            self.add(Shape::galley_with_override_text_color(
-                pos, galley, text_color,
-            ));
-        }
-    }
-
-    #[deprecated = "Use `Painter::galley` or `Painter::galley_with_override_text_color` instead"]
-    #[inline]
-    pub fn galley_with_color(&self, pos: Pos2, galley: Arc<Galley>, text_color: Color32) {
         if !galley.is_empty() {
             self.add(Shape::galley_with_override_text_color(
                 pos, galley, text_color,

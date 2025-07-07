@@ -1,6 +1,6 @@
 use super::{
-    generate_loader_id, Bytes, BytesLoadResult, BytesLoader, BytesPoll, Context, Cow, HashMap,
-    LoadError, Mutex,
+    Bytes, BytesLoadResult, BytesLoader, BytesPoll, Context, Cow, HashMap, LoadError, Mutex,
+    generate_loader_id,
 };
 
 /// Maps URI:s to [`Bytes`], e.g. found with `include_bytes!`.
@@ -28,7 +28,7 @@ impl DefaultBytesLoader {
 }
 
 impl BytesLoader for DefaultBytesLoader {
-    fn id(&self) -> &str {
+    fn id(&self) -> &'static str {
         generate_loader_id!(DefaultBytesLoader)
     }
 

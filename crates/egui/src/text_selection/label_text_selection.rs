@@ -3,14 +3,14 @@ use std::sync::Arc;
 use emath::TSTransform;
 
 use crate::{
-    layers::ShapeIdx, text::CCursor, text_selection::CCursorRange, Context, CursorIcon, Event,
-    Galley, Id, LayerId, Pos2, Rect, Response, Ui,
+    Context, CursorIcon, Event, Galley, Id, LayerId, Pos2, Rect, Response, Ui, layers::ShapeIdx,
+    text::CCursor, text_selection::CCursorRange,
 };
 
 use super::{
-    text_cursor_state::cursor_rect,
-    visuals::{paint_text_selection, RowVertexIndices},
     TextCursorState,
+    text_cursor_state::cursor_rect,
+    visuals::{RowVertexIndices, paint_text_selection},
 };
 
 /// Turn on to help debug this
@@ -186,7 +186,10 @@ impl LabelSelectionState {
                                 if let epaint::Shape::Text(text_shape) = &mut shape.shape {
                                     let galley = Arc::make_mut(&mut text_shape.galley);
                                     for row_selection in row_selections {
-                                        if let Some(row) = galley.rows.get_mut(row_selection.row) {
+                                        if let Some(placed_row) =
+                                            galley.rows.get_mut(row_selection.row)
+                                        {
+                                            let row = Arc::make_mut(&mut placed_row.row);
                                             for vertex_index in row_selection.vertex_indices {
                                                 if let Some(vertex) = row
                                                     .visuals
@@ -527,7 +530,7 @@ impl LabelSelectionState {
 
         let mut cursor_state = self.cursor_for(ui, response, global_from_galley, galley);
 
-        let old_range = cursor_state.char_range();
+        let old_range = cursor_state.range(galley);
 
         if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
             if response.contains_pointer() {
@@ -541,7 +544,7 @@ impl LabelSelectionState {
             }
         }
 
-        if let Some(mut cursor_range) = cursor_state.char_range() {
+        if let Some(mut cursor_range) = cursor_state.range(galley) {
             let galley_rect = global_from_galley * Rect::from_min_size(Pos2::ZERO, galley.size());
             self.selection_bbox_this_frame = self.selection_bbox_this_frame.union(galley_rect);
 
@@ -559,7 +562,7 @@ impl LabelSelectionState {
         }
 
         // Look for changes due to keyboard and/or mouse interaction:
-        let new_range = cursor_state.char_range();
+        let new_range = cursor_state.range(galley);
         let selection_changed = old_range != new_range;
 
         if let (true, Some(range)) = (selection_changed, new_range) {
@@ -613,7 +616,7 @@ impl LabelSelectionState {
             let old_primary = old_selection.map(|s| s.primary);
             let new_primary = self.selection.as_ref().map(|s| s.primary);
             if let Some(new_primary) = new_primary {
-                let primary_changed = old_primary.map_or(true, |old| {
+                let primary_changed = old_primary.is_none_or(|old| {
                     old.widget_id != new_primary.widget_id || old.ccursor != new_primary.ccursor
                 });
                 if primary_changed && new_primary.widget_id == widget_id {
@@ -629,7 +632,7 @@ impl LabelSelectionState {
             }
         }
 
-        let cursor_range = cursor_state.char_range();
+        let cursor_range = cursor_state.range(galley);
 
         let mut new_vertex_indices = vec![];
 
@@ -701,8 +704,8 @@ fn selected_text(galley: &Galley, cursor_range: &CCursorRange) -> String {
 }
 
 fn estimate_row_height(galley: &Galley) -> f32 {
-    if let Some(row) = galley.rows.first() {
-        row.rect.height()
+    if let Some(placed_row) = galley.rows.first() {
+        placed_row.height()
     } else {
         galley.size().y
     }

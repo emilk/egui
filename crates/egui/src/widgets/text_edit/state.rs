@@ -3,8 +3,8 @@ use std::sync::Arc;
 use crate::mutex::Mutex;
 
 use crate::{
-    text_selection::{CCursorRange, TextCursorState},
     Context, Id,
+    text_selection::{CCursorRange, TextCursorState},
 };
 
 pub type TextEditUndoer = crate::util::undoer::Undoer<(CCursorRange, String)>;
@@ -72,7 +72,7 @@ impl TextEditState {
         self.undoer.lock().clone()
     }
 
-    #[allow(clippy::needless_pass_by_ref_mut)] // Intentionally hide interiority of mutability
+    #[expect(clippy::needless_pass_by_ref_mut)] // Intentionally hide interiority of mutability
     pub fn set_undoer(&mut self, undoer: TextEditUndoer) {
         *self.undoer.lock() = undoer;
     }

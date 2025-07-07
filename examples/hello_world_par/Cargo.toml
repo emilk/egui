@@ -3,8 +3,8 @@ name = "hello_world_par"
 version = "0.1.0"
 authors = ["Maxim Osipenko <maxim1999max@gmail.com>"]
 license = "MIT OR Apache-2.0"
-edition = "2021"
-rust-version = "1.81"
+edition = "2024"
+rust-version = "1.85"
 publish = false
 
 [lints]

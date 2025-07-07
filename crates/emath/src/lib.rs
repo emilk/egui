@@ -44,7 +44,7 @@ mod vec2b;
 
 pub use self::{
     align::{Align, Align2},
-    gui_rounding::{GuiRounding, GUI_ROUNDING},
+    gui_rounding::{GUI_ROUNDING, GuiRounding},
     history::History,
     numeric::*,
     ordered_float::*,
@@ -149,7 +149,10 @@ where
 {
     let from = from.into();
     let to = to.into();
-    debug_assert!(from.start() != from.end());
+    debug_assert!(
+        from.start() != from.end(),
+        "from.start() and from.end() should not be equal"
+    );
     let t = (x - *from.start()) / (*from.end() - *from.start());
     lerp(to, t)
 }
@@ -173,14 +176,13 @@ where
     } else if *from.end() <= x {
         *to.end()
     } else {
-        debug_assert!(from.start() != from.end());
+        debug_assert!(
+            from.start() != from.end(),
+            "from.start() and from.end() should not be equal"
+        );
         let t = (x - *from.start()) / (*from.end() - *from.start());
         // Ensure no numerical inaccuracies sneak in:
-        if T::ONE <= t {
-            *to.end()
-        } else {
-            lerp(to, t)
-        }
+        if T::ONE <= t { *to.end() } else { lerp(to, t) }
     }
 }
 
@@ -200,8 +202,14 @@ pub fn format_with_minimum_decimals(value: f64, decimals: usize) -> String {
 pub fn format_with_decimals_in_range(value: f64, decimal_range: RangeInclusive<usize>) -> String {
     let min_decimals = *decimal_range.start();
     let max_decimals = *decimal_range.end();
-    debug_assert!(min_decimals <= max_decimals);
-    debug_assert!(max_decimals < 100);
+    debug_assert!(
+        min_decimals <= max_decimals,
+        "min_decimals should be <= max_decimals, but got min_decimals: {min_decimals}, max_decimals: {max_decimals}"
+    );
+    debug_assert!(
+        max_decimals < 100,
+        "max_decimals should be < 100, but got {max_decimals}"
+    );
     let max_decimals = max_decimals.min(16);
     let min_decimals = min_decimals.min(max_decimals);
 
@@ -236,7 +244,7 @@ pub fn almost_equal(a: f32, b: f32, epsilon: f32) -> bool {
     }
 }
 
-#[allow(clippy::approx_constant)]
+#[expect(clippy::approx_constant)]
 #[test]
 fn test_format() {
     assert_eq!(format_with_minimum_decimals(1_234_567.0, 0), "1234567");

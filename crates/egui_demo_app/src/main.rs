@@ -4,6 +4,9 @@
 #![allow(rustdoc::missing_crate_level_docs)] // it's an example
 #![allow(clippy::never_loop)] // False positive
 
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc; // Much faster allocator, can give 20% speedups: https://github.com/emilk/egui/pull/7029
+
 // When compiling natively:
 fn main() -> eframe::Result {
     for arg in std::env::args().skip(1) {
@@ -13,7 +16,9 @@ fn main() -> eframe::Result {
                 start_puffin_server();
 
                 #[cfg(not(feature = "puffin"))]
-                panic!("Unknown argument: {arg} - you need to enable the 'puffin' feature to use this.");
+                panic!(
+                    "Unknown argument: {arg} - you need to enable the 'puffin' feature to use this."
+                );
             }
 
             _ => {
@@ -36,7 +41,12 @@ fn main() -> eframe::Result {
                 rust_log += &format!(",{loud_crate}=warn");
             }
         }
-        std::env::set_var("RUST_LOG", rust_log);
+
+        // SAFETY: we call this from the main thread without any other threads running.
+        #[expect(unsafe_code)]
+        unsafe {
+            std::env::set_var("RUST_LOG", rust_log);
+        }
     }
 
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -75,7 +85,7 @@ fn start_puffin_server() {
 
             // We can store the server if we want, but in this case we just want
             // it to keep running. Dropping it closes the server, so let's not drop it!
-            #[allow(clippy::mem_forget)]
+            #[expect(clippy::mem_forget)]
             std::mem::forget(puffin_server);
         }
         Err(err) => {

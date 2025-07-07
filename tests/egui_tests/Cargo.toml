@@ -1,0 +1,15 @@
+[package]
+name = "egui_tests"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dev-dependencies]
+egui = { workspace = true, default-features = true }
+egui_kittest = { workspace = true, features = ["snapshot", "wgpu"] }
+egui_extras = { workspace = true, features = ["image"]}
+image = { workspace = true, features = ["png"] }
+
+[lints]
+workspace = true

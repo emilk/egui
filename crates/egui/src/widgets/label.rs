@@ -1,11 +1,9 @@
 use std::sync::Arc;
 
 use crate::{
-    epaint, pos2, text_selection, vec2, Align, Direction, FontSelection, Galley, Pos2, Response,
-    Sense, Stroke, TextWrapMode, Ui, Widget, WidgetInfo, WidgetText, WidgetType,
+    Align, Direction, FontSelection, Galley, Pos2, Response, Sense, Stroke, TextWrapMode, Ui,
+    Widget, WidgetInfo, WidgetText, WidgetType, epaint, pos2, text_selection::LabelSelectionState,
 };
-
-use self::text_selection::LabelSelectionState;
 
 /// Static text.
 ///
@@ -182,9 +180,11 @@ impl Label {
         }
 
         let valign = ui.text_valign();
-        let mut layout_job = self
-            .text
-            .into_layout_job(ui.style(), FontSelection::Default, valign);
+        let mut layout_job = Arc::unwrap_or_clone(self.text.into_layout_job(
+            ui.style(),
+            FontSelection::Default,
+            valign,
+        ));
 
         let available_width = ui.available_width();
 
@@ -199,7 +199,10 @@ impl Label {
 
             let cursor = ui.cursor();
             let first_row_indentation = available_width - ui.available_size_before_wrap().x;
-            debug_assert!(first_row_indentation.is_finite());
+            debug_assert!(
+                first_row_indentation.is_finite(),
+                "first row indentation is not finite: {first_row_indentation}"
+            );
 
             layout_job.wrap.max_width = available_width;
             layout_job.first_row_min_height = cursor.height();
@@ -213,10 +216,12 @@ impl Label {
             let pos = pos2(ui.max_rect().left(), ui.cursor().top());
             assert!(!galley.rows.is_empty(), "Galleys are never empty");
             // collect a response from many rows:
-            let rect = galley.rows[0].rect.translate(vec2(pos.x, pos.y));
+            let rect = galley.rows[0]
+                .rect_without_leading_space()
+                .translate(pos.to_vec2());
             let mut response = ui.allocate_rect(rect, sense);
-            for row in galley.rows.iter().skip(1) {
-                let rect = row.rect.translate(vec2(pos.x, pos.y));
+            for placed_row in galley.rows.iter().skip(1) {
+                let rect = placed_row.rect().translate(pos.to_vec2());
                 response |= ui.allocate_rect(rect, sense);
             }
             (pos, galley, response)

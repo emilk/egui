@@ -1,4 +1,4 @@
-use crate::{fast_round, linear_f32_from_linear_u8, Rgba};
+use crate::{Rgba, fast_round, linear_f32_from_linear_u8};
 
 /// This format is used for space-efficient color representation (32 bits).
 ///
@@ -101,9 +101,6 @@ impl Color32 {
     /// This is used as a special color key,
     /// i.e. often taken to mean "no color".
     pub const PLACEHOLDER: Self = Self::from_rgba_premultiplied(64, 254, 0, 128);
-
-    #[deprecated = "Renamed to PLACEHOLDER"]
-    pub const TEMPORARY_COLOR: Self = Self::PLACEHOLDER;
 
     /// From RGB with alpha of 255 (opaque).
     #[inline]
@@ -273,7 +270,10 @@ impl Color32 {
     /// This is perceptually even, and faster that [`Self::linear_multiply`].
     #[inline]
     pub fn gamma_multiply(self, factor: f32) -> Self {
-        debug_assert!(0.0 <= factor && factor.is_finite());
+        debug_assert!(
+            0.0 <= factor && factor.is_finite(),
+            "factor should be finite, but was {factor}"
+        );
         let Self([r, g, b, a]) = self;
         Self([
             (r as f32 * factor + 0.5) as u8,
@@ -306,7 +306,10 @@ impl Color32 {
     /// You likely want to use [`Self::gamma_multiply`] instead.
     #[inline]
     pub fn linear_multiply(self, factor: f32) -> Self {
-        debug_assert!(0.0 <= factor && factor.is_finite());
+        debug_assert!(
+            0.0 <= factor && factor.is_finite(),
+            "factor should be finite, but was {factor}"
+        );
         // As an unfortunate side-effect of using premultiplied alpha
         // we need a somewhat expensive conversion to linear space and back.
         Rgba::from(self).multiply(factor).into()

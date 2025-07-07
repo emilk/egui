@@ -33,12 +33,11 @@ pub(crate) fn f32_hash<H: std::hash::Hasher>(state: &mut H, f: f32) {
     } else if f.is_nan() {
         state.write_u8(1);
     } else {
-        use std::hash::Hash;
+        use std::hash::Hash as _;
         f.to_bits().hash(state);
     }
 }
 
-#[allow(clippy::derived_hash_with_manual_eq)]
 impl std::hash::Hash for Rgba {
     #[inline]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -90,15 +89,24 @@ impl Rgba {
 
     #[inline]
     pub fn from_luminance_alpha(l: f32, a: f32) -> Self {
-        debug_assert!(0.0 <= l && l <= 1.0);
-        debug_assert!(0.0 <= a && a <= 1.0);
+        debug_assert!(
+            0.0 <= l && l <= 1.0,
+            "l should be in the range [0, 1], but was {l}"
+        );
+        debug_assert!(
+            0.0 <= a && a <= 1.0,
+            "a should be in the range [0, 1], but was {a}"
+        );
         Self([l * a, l * a, l * a, a])
     }
 
     /// Transparent black
     #[inline]
     pub fn from_black_alpha(a: f32) -> Self {
-        debug_assert!(0.0 <= a && a <= 1.0);
+        debug_assert!(
+            0.0 <= a && a <= 1.0,
+            "a should be in the range [0, 1], but was {a}"
+        );
         Self([0.0, 0.0, 0.0, a])
     }
 

@@ -47,7 +47,7 @@ enum AppIconStatus {
     NotSetTryAgain,
 
     /// We successfully set the icon and it should be visible now.
-    #[allow(dead_code)] // Not used on Linux
+    #[allow(dead_code, clippy::allow_attributes)] // Not used on Linux
     Set,
 }
 
@@ -71,13 +71,13 @@ fn set_title_and_icon(_title: &str, _icon_data: Option<&IconData>) -> AppIconSta
     #[cfg(target_os = "macos")]
     return set_title_and_icon_mac(_title, _icon_data);
 
-    #[allow(unreachable_code)]
+    #[allow(unreachable_code, clippy::allow_attributes)]
     AppIconStatus::NotSetIgnored
 }
 
 /// Set icon for Windows applications.
 #[cfg(target_os = "windows")]
-#[allow(unsafe_code)]
+#[expect(unsafe_code)]
 fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
     use crate::icon_data::IconDataExt as _;
     use winapi::um::winuser;
@@ -198,20 +198,25 @@ fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
 
 /// Set icon & app title for `MacOS` applications.
 #[cfg(target_os = "macos")]
-#[allow(unsafe_code)]
+#[expect(unsafe_code)]
 fn set_title_and_icon_mac(title: &str, icon_data: Option<&IconData>) -> AppIconStatus {
     use crate::icon_data::IconDataExt as _;
     profiling::function_scope!();
 
-    use objc2::ClassType;
+    use objc2::ClassType as _;
     use objc2_app_kit::{NSApplication, NSImage};
-    use objc2_foundation::{NSData, NSString};
+    use objc2_foundation::NSString;
 
-    let png_bytes = if let Some(icon_data) = icon_data {
-        match icon_data.to_png_bytes() {
-            Ok(png_bytes) => Some(png_bytes),
+    // Do NOT use png even though creating `NSImage` from it is much easier than from raw images data!
+    //
+    // Some MacOS versions have a bug where creating an `NSImage` from a png will cause it to load an arbitrary `libpng.dylib`.
+    // If this dylib isn't the right version, the application will crash with SIGBUS.
+    // For details see https://github.com/emilk/egui/issues/7155
+    let image = if let Some(icon_data) = icon_data {
+        match icon_data.to_image() {
+            Ok(image) => Some(image),
             Err(err) => {
-                log::warn!("Failed to convert IconData to png: {err}");
+                log::warn!("Failed to read icon data: {err}");
                 return AppIconStatus::NotSetIgnored;
             }
         }
@@ -220,7 +225,7 @@ fn set_title_and_icon_mac(title: &str, icon_data: Option<&IconData>) -> AppIconS
     };
 
     // TODO(madsmtm): Move this into `objc2-app-kit`
-    extern "C" {
+    unsafe extern "C" {
         static NSApp: Option<&'static NSApplication>;
     }
 
@@ -231,15 +236,41 @@ fn set_title_and_icon_mac(title: &str, icon_data: Option<&IconData>) -> AppIconS
             return AppIconStatus::NotSetIgnored;
         };
 
-        if let Some(png_bytes) = png_bytes {
-            let data = NSData::from_vec(png_bytes);
+        if let Some(image) = image {
+            use objc2_app_kit::{NSBitmapImageRep, NSDeviceRGBColorSpace};
+            use objc2_foundation::NSSize;
 
-            log::trace!("NSImage::initWithData…");
-            let app_icon = NSImage::initWithData(NSImage::alloc(), &data);
+            log::trace!(
+                "NSBitmapImageRep::initWithBitmapDataPlanes_pixelsWide_pixelsHigh_bitsPerSample_samplesPerPixel_hasAlpha_isPlanar_colorSpaceName_bytesPerRow_bitsPerPixel"
+            );
+            let Some(image_rep) = NSBitmapImageRep::initWithBitmapDataPlanes_pixelsWide_pixelsHigh_bitsPerSample_samplesPerPixel_hasAlpha_isPlanar_colorSpaceName_bytesPerRow_bitsPerPixel(
+                NSBitmapImageRep::alloc(),
+                [image.as_raw().as_ptr().cast_mut()].as_mut_ptr(),
+                image.width() as isize,
+                image.height() as isize,
+                8, // bits per sample
+                4, // samples per pixel
+                true, // has alpha
+                false, // is not planar
+                NSDeviceRGBColorSpace,
+                (image.width() * 4) as isize, // bytes per row
+                32 // bits per pixel
+            ) else {
+                log::warn!("Failed to create NSBitmapImageRep from app icon data.");
+                return AppIconStatus::NotSetIgnored;
+            };
+
+            log::trace!("NSImage::initWithSize");
+            let app_icon = NSImage::initWithSize(
+                NSImage::alloc(),
+                NSSize::new(image.width() as f64, image.height() as f64),
+            );
+            log::trace!("NSImage::addRepresentation");
+            app_icon.addRepresentation(&image_rep);
 
             profiling::scope!("setApplicationIconImage_");
             log::trace!("setApplicationIconImage…");
-            app.setApplicationIconImage(app_icon.as_deref());
+            app.setApplicationIconImage(Some(&app_icon));
         }
 
         // Change the title in the top bar - for python processes this would be again "python" otherwise.

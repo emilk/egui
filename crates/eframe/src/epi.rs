@@ -91,7 +91,7 @@ pub struct CreationContext<'s> {
     pub(crate) raw_display_handle: Result<RawDisplayHandle, HandleError>,
 }
 
-#[allow(unsafe_code)]
+#[expect(unsafe_code)]
 #[cfg(not(target_arch = "wasm32"))]
 impl HasWindowHandle for CreationContext<'_> {
     fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
@@ -100,7 +100,7 @@ impl HasWindowHandle for CreationContext<'_> {
     }
 }
 
-#[allow(unsafe_code)]
+#[expect(unsafe_code)]
 #[cfg(not(target_arch = "wasm32"))]
 impl HasDisplayHandle for CreationContext<'_> {
     fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
@@ -133,7 +133,7 @@ impl CreationContext<'_> {
 
 // ----------------------------------------------------------------------------
 
-/// Implement this trait to write apps that can be compiled for both web/wasm and desktop/native using [`eframe`](https://github.com/emilk/egui/tree/master/crates/eframe).
+/// Implement this trait to write apps that can be compiled for both web/wasm and desktop/native using [`eframe`](https://github.com/emilk/egui/tree/main/crates/eframe).
 pub trait App {
     /// Called each time the UI needs repainting, which may be many times per second.
     ///
@@ -499,10 +499,16 @@ pub struct WebOptions {
     /// If the web event corresponding to an egui event should be propagated
     /// to the rest of the web page.
     ///
-    /// The default is `false`, meaning
+    /// The default is `true`, meaning
     /// [`stopPropagation`](https://developer.mozilla.org/en-US/docs/Web/API/Event/stopPropagation)
-    /// is called on every event.
-    pub should_propagate_event: Box<dyn Fn(&egui::Event) -> bool>,
+    /// is called on every event, and the event is not propagated to the rest of the web page.
+    pub should_stop_propagation: Box<dyn Fn(&egui::Event) -> bool>,
+
+    /// Whether the web event corresponding to an egui event should have `prevent_default` called
+    /// on it or not.
+    ///
+    /// Defaults to true.
+    pub should_prevent_default: Box<dyn Fn(&egui::Event) -> bool>,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -519,7 +525,8 @@ impl Default for WebOptions {
 
             dithering: true,
 
-            should_propagate_event: Box::new(|_| false),
+            should_stop_propagation: Box::new(|_| true),
+            should_prevent_default: Box::new(|_| true),
         }
     }
 }
@@ -567,7 +574,9 @@ impl Default for Renderer {
     fn default() -> Self {
         #[cfg(not(feature = "glow"))]
         #[cfg(not(feature = "wgpu"))]
-        compile_error!("eframe: you must enable at least one of the rendering backend features: 'glow' or 'wgpu'");
+        compile_error!(
+            "eframe: you must enable at least one of the rendering backend features: 'glow' or 'wgpu'"
+        );
 
         #[cfg(feature = "glow")]
         #[cfg(not(feature = "wgpu"))]
@@ -610,7 +619,9 @@ impl std::str::FromStr for Renderer {
             #[cfg(feature = "wgpu")]
             "wgpu" => Ok(Self::Wgpu),
 
-            _ => Err(format!("eframe renderer {name:?} is not available. Make sure that the corresponding eframe feature is enabled."))
+            _ => Err(format!(
+                "eframe renderer {name:?} is not available. Make sure that the corresponding eframe feature is enabled."
+            )),
         }
     }
 }
@@ -655,7 +666,7 @@ pub struct Frame {
 #[cfg(not(target_arch = "wasm32"))]
 assert_not_impl_any!(Frame: Clone);
 
-#[allow(unsafe_code)]
+#[expect(unsafe_code)]
 #[cfg(not(target_arch = "wasm32"))]
 impl HasWindowHandle for Frame {
     fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
@@ -664,7 +675,7 @@ impl HasWindowHandle for Frame {
     }
 }
 
-#[allow(unsafe_code)]
+#[expect(unsafe_code)]
 #[cfg(not(target_arch = "wasm32"))]
 impl HasDisplayHandle for Frame {
     fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
@@ -696,7 +707,7 @@ impl Frame {
     /// True if you are in a web environment.
     ///
     /// Equivalent to `cfg!(target_arch = "wasm32")`
-    #[allow(clippy::unused_self)]
+    #[expect(clippy::unused_self)]
     pub fn is_web(&self) -> bool {
         cfg!(target_arch = "wasm32")
     }

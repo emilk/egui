@@ -1,8 +1,8 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::undocumented_unsafe_blocks)]
 
-use crate::capture::{capture_channel, CaptureReceiver, CaptureSender, CaptureState};
-use crate::{renderer, RenderState, SurfaceErrorAction, WgpuConfiguration};
+use crate::capture::{CaptureReceiver, CaptureSender, CaptureState, capture_channel};
+use crate::{RenderState, SurfaceErrorAction, WgpuConfiguration, renderer};
 use egui::{Context, Event, UserData, ViewportId, ViewportIdMap, ViewportIdSet};
 use std::{num::NonZeroU32, sync::Arc};
 
@@ -220,7 +220,9 @@ impl Painter {
             } else if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PostMultiplied) {
                 wgpu::CompositeAlphaMode::PostMultiplied
             } else {
-                log::warn!("Transparent window was requested, but the active wgpu surface does not support a `CompositeAlphaMode` with transparency.");
+                log::warn!(
+                    "Transparent window was requested, but the active wgpu surface does not support a `CompositeAlphaMode` with transparency."
+                );
                 wgpu::CompositeAlphaMode::Auto
             }
         } else {
@@ -344,7 +346,9 @@ impl Painter {
                 height_in_pixels,
             );
         } else {
-            log::warn!("Ignoring window resize notification with no surface created via Painter::set_window()");
+            log::warn!(
+                "Ignoring window resize notification with no surface created via Painter::set_window()"
+            );
         }
     }
 
@@ -575,7 +579,7 @@ impl Painter {
             .retain(|id, _| active_viewports.contains(id));
     }
 
-    #[allow(clippy::needless_pass_by_ref_mut, clippy::unused_self)]
+    #[expect(clippy::needless_pass_by_ref_mut, clippy::unused_self)]
     pub fn destroy(&mut self) {
         // TODO(emilk): something here?
     }

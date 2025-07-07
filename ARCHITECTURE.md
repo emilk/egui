@@ -51,7 +51,7 @@ Thin wrapper around `egui_demo_lib` so we can compile it to a web site or a nati
 Depends on `egui_demo_lib` + `eframe`.
 
 ### `egui_kittest`
-A test harness for egui based on [kittest](https://github.com/rerun/kittest) and [AccessKit](https://github.com/AccessKit/accesskit/).
+A test harness for egui based on [kittest](https://github.com/rerun-io/kittest) and [AccessKit](https://github.com/AccessKit/accesskit/).
 
 ### Other integrations
 

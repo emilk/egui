@@ -1,15 +1,16 @@
 use std::{borrow::Cow, slice::Iter, sync::Arc, time::Duration};
 
-use emath::{Align, Float as _, Rot2};
+use emath::{Align, Float as _, GuiRounding as _, NumExt as _, Rot2};
 use epaint::{
-    text::{LayoutJob, TextFormat, TextWrapping},
     RectShape,
+    text::{LayoutJob, TextFormat, TextWrapping},
 };
 
 use crate::{
-    load::{Bytes, SizeHint, SizedTexture, TextureLoadResult, TexturePoll},
-    pos2, Color32, Context, CornerRadius, Id, Mesh, Painter, Rect, Response, Sense, Shape, Spinner,
+    Color32, Context, CornerRadius, Id, Mesh, Painter, Rect, Response, Sense, Shape, Spinner,
     TextStyle, TextureOptions, Ui, Vec2, Widget, WidgetInfo, WidgetType,
+    load::{Bytes, SizeHint, SizedTexture, TextureLoadResult, TexturePoll},
+    pos2,
 };
 
 /// A widget which displays an image.
@@ -54,7 +55,7 @@ pub struct Image<'a> {
     sense: Sense,
     size: ImageSize,
     pub(crate) show_loading_spinner: Option<bool>,
-    alt_text: Option<String>,
+    pub(crate) alt_text: Option<String>,
 }
 
 impl<'a> Image<'a> {
@@ -155,6 +156,9 @@ impl<'a> Image<'a> {
     }
 
     /// Fit the image to its original size with some scaling.
+    ///
+    /// The texel size of the source image will be multiplied by the `scale` factor,
+    /// and then become the _ui_ size of the [`Image`].
     ///
     /// This will cause the image to overflow if it is larger than the available space.
     ///
@@ -274,7 +278,8 @@ impl<'a> Image<'a> {
     }
 
     /// Set alt text for the image. This will be shown when the image fails to load.
-    /// It will also be read to screen readers.
+    ///
+    /// It will also be used for accessibility (e.g. read by screen readers).
     #[inline]
     pub fn alt_text(mut self, label: impl Into<String>) -> Self {
         self.alt_text = Some(label.into());
@@ -291,9 +296,9 @@ impl<'a, T: Into<ImageSource<'a>>> From<T> for Image<'a> {
 impl<'a> Image<'a> {
     /// Returns the size the image will occupy in the final UI.
     #[inline]
-    pub fn calc_size(&self, available_size: Vec2, original_image_size: Option<Vec2>) -> Vec2 {
-        let original_image_size = original_image_size.unwrap_or(Vec2::splat(24.0)); // Fallback for still-loading textures, or failure to load.
-        self.size.calc_size(available_size, original_image_size)
+    pub fn calc_size(&self, available_size: Vec2, image_source_size: Option<Vec2>) -> Vec2 {
+        let image_source_size = image_source_size.unwrap_or(Vec2::splat(24.0)); // Fallback for still-loading textures, or failure to load.
+        self.size.calc_size(available_size, image_source_size)
     }
 
     pub fn load_and_calc_size(&self, ui: &Ui, available_size: Vec2) -> Option<Vec2> {
@@ -373,9 +378,27 @@ impl<'a> Image<'a> {
     /// ```
     #[inline]
     pub fn paint_at(&self, ui: &Ui, rect: Rect) {
+        let pixels_per_point = ui.pixels_per_point();
+
+        let rect = rect.round_to_pixels(pixels_per_point);
+
+        // Load exactly the size of the rectangle we are painting to.
+        // This is important for getting crisp SVG:s.
+        let pixel_size = (pixels_per_point * rect.size()).round();
+
+        let texture = self.source(ui.ctx()).clone().load(
+            ui.ctx(),
+            self.texture_options,
+            SizeHint::Size {
+                width: pixel_size.x as _,
+                height: pixel_size.y as _,
+                maintain_aspect_ratio: false, // no - just get exactly what we asked for
+            },
+        );
+
         paint_texture_load_result(
             ui,
-            &self.load_for_size(ui.ctx(), rect.size()),
+            &texture,
             rect,
             self.show_loading_spinner,
             &self.image_options,
@@ -387,8 +410,8 @@ impl<'a> Image<'a> {
 impl Widget for Image<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         let tlr = self.load_for_size(ui.ctx(), ui.available_size());
-        let original_image_size = tlr.as_ref().ok().and_then(|t| t.size());
-        let ui_size = self.calc_size(ui.available_size(), original_image_size);
+        let image_source_size = tlr.as_ref().ok().and_then(|t| t.size());
+        let ui_size = self.calc_size(ui.available_size(), image_source_size);
 
         let (rect, response) = ui.allocate_exact_size(ui_size, self.sense);
         response.widget_info(|| {
@@ -440,7 +463,10 @@ pub struct ImageSize {
 #[derive(Debug, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ImageFit {
-    /// Fit the image to its original size, scaled by some factor.
+    /// Fit the image to its original srce size, scaled by some factor.
+    ///
+    /// The original size of the image is usually its texel resolution,
+    /// but for an SVG it's the point size of the SVG.
     ///
     /// Ignores how much space is actually available in the ui.
     Original { scale: f32 },
@@ -467,25 +493,38 @@ impl ImageFit {
 impl ImageSize {
     /// Size hint for e.g. rasterizing an svg.
     pub fn hint(&self, available_size: Vec2, pixels_per_point: f32) -> SizeHint {
-        let size = match self.fit {
-            ImageFit::Original { scale } => return SizeHint::Scale(scale.ord()),
+        let Self {
+            maintain_aspect_ratio,
+            max_size,
+            fit,
+        } = *self;
+
+        let point_size = match fit {
+            ImageFit::Original { scale } => {
+                return SizeHint::Scale((pixels_per_point * scale).ord());
+            }
             ImageFit::Fraction(fract) => available_size * fract,
             ImageFit::Exact(size) => size,
         };
-        let size = size.min(self.max_size);
-        let size = size * pixels_per_point;
+        let point_size = point_size.at_most(max_size);
+
+        let pixel_size = pixels_per_point * point_size;
 
         // `inf` on an axis means "any value"
-        match (size.x.is_finite(), size.y.is_finite()) {
-            (true, true) => SizeHint::Size(size.x.round() as u32, size.y.round() as u32),
-            (true, false) => SizeHint::Width(size.x.round() as u32),
-            (false, true) => SizeHint::Height(size.y.round() as u32),
+        match (pixel_size.x.is_finite(), pixel_size.y.is_finite()) {
+            (true, true) => SizeHint::Size {
+                width: pixel_size.x.round() as u32,
+                height: pixel_size.y.round() as u32,
+                maintain_aspect_ratio,
+            },
+            (true, false) => SizeHint::Width(pixel_size.x.round() as u32),
+            (false, true) => SizeHint::Height(pixel_size.y.round() as u32),
             (false, false) => SizeHint::Scale(pixels_per_point.ord()),
         }
     }
 
     /// Calculate the final on-screen size in points.
-    pub fn calc_size(&self, available_size: Vec2, original_image_size: Vec2) -> Vec2 {
+    pub fn calc_size(&self, available_size: Vec2, image_source_size: Vec2) -> Vec2 {
         let Self {
             maintain_aspect_ratio,
             max_size,
@@ -493,7 +532,7 @@ impl ImageSize {
         } = *self;
         match fit {
             ImageFit::Original { scale } => {
-                let image_size = original_image_size * scale;
+                let image_size = scale * image_source_size;
                 if image_size.x <= max_size.x && image_size.y <= max_size.y {
                     image_size
                 } else {
@@ -502,11 +541,11 @@ impl ImageSize {
             }
             ImageFit::Fraction(fract) => {
                 let scale_to_size = (available_size * fract).min(max_size);
-                scale_to_fit(original_image_size, scale_to_size, maintain_aspect_ratio)
+                scale_to_fit(image_source_size, scale_to_size, maintain_aspect_ratio)
             }
             ImageFit::Exact(size) => {
                 let scale_to_size = size.min(max_size);
-                scale_to_fit(original_image_size, scale_to_size, maintain_aspect_ratio)
+                scale_to_fit(image_source_size, scale_to_size, maintain_aspect_ratio)
             }
         }
     }
@@ -634,7 +673,7 @@ pub fn paint_texture_load_result(
     rect: Rect,
     show_loading_spinner: Option<bool>,
     options: &ImageOptions,
-    alt: Option<&str>,
+    alt_text: Option<&str>,
 ) {
     match tlr {
         Ok(TexturePoll::Ready { texture }) => {
@@ -659,9 +698,9 @@ pub fn paint_texture_load_result(
                 0.0,
                 TextFormat::simple(font_id.clone(), ui.visuals().error_fg_color),
             );
-            if let Some(alt) = alt {
+            if let Some(alt_text) = alt_text {
                 job.append(
-                    alt,
+                    alt_text,
                     ui.spacing().item_spacing.x,
                     TextFormat::simple(font_id, ui.visuals().text_color()),
                 );

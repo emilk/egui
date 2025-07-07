@@ -19,13 +19,13 @@ impl File {
                     return Err(format!(
                         "failed to load {uri:?}: {} {} {response_text}",
                         response.status, response.status_text
-                    ))
+                    ));
                 }
                 None => {
                     return Err(format!(
                         "failed to load {uri:?}: {} {}",
                         response.status, response.status_text
-                    ))
+                    ));
                 }
             }
         }
@@ -124,5 +124,9 @@ impl BytesLoader for EhttpLoader {
                 _ => 0,
             })
             .sum()
+    }
+
+    fn has_pending(&self) -> bool {
+        self.cache.lock().values().any(|entry| entry.is_pending())
     }
 }

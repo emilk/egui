@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{pos2, vec2, Galley, Painter, Rect, Ui, Visuals};
+use crate::{Galley, Painter, Rect, Ui, Visuals, pos2, vec2};
 
 use super::CCursorRange;
 
@@ -31,11 +31,12 @@ pub fn paint_text_selection(
     let max = galley.layout_from_cursor(max);
 
     for ri in min.row..=max.row {
-        let row = &mut galley.rows[ri];
+        let row = Arc::make_mut(&mut galley.rows[ri].row);
+
         let left = if ri == min.row {
             row.x_offset(min.column)
         } else {
-            row.rect.left()
+            0.0
         };
         let right = if ri == max.row {
             row.x_offset(max.column)
@@ -45,10 +46,10 @@ pub fn paint_text_selection(
             } else {
                 0.0
             };
-            row.rect.right() + newline_size
+            row.size.x + newline_size
         };
 
-        let rect = Rect::from_min_max(pos2(left, row.min_y()), pos2(right, row.max_y()));
+        let rect = Rect::from_min_max(pos2(left, 0.0), pos2(right, row.size.y));
         let mesh = &mut row.visuals.mesh;
 
         // Time to insert the selection rectangle into the row mesh.
@@ -59,7 +60,11 @@ pub fn paint_text_selection(
         // Start by appending the selection rectangle to end of the mesh, as two triangles (= 6 indices):
         let num_indices_before = mesh.indices.len();
         mesh.add_colored_rect(rect, color);
-        assert_eq!(num_indices_before + 6, mesh.indices.len());
+        assert_eq!(
+            num_indices_before + 6,
+            mesh.indices.len(),
+            "We expect exactly 6 new indices"
+        );
 
         // Copy out the new triangles:
         let selection_triangles = [

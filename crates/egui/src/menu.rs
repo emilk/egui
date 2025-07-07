@@ -1,5 +1,5 @@
 #![allow(deprecated)]
-//! Menu bar functionality (very basic so far).
+//! Deprecated menu API - Use [`crate::containers::menu`] instead.
 //!
 //! Usage:
 //! ```
@@ -17,14 +17,13 @@
 //! ```
 
 use super::{
-    style::WidgetVisuals, Align, Context, Id, InnerResponse, PointerState, Pos2, Rect, Response,
-    Sense, TextStyle, Ui, Vec2,
+    Align, Context, Id, InnerResponse, PointerState, Pos2, Rect, Response, Sense, TextStyle, Ui,
+    Vec2, style::WidgetVisuals,
 };
 use crate::{
-    epaint, vec2,
+    Align2, Area, Color32, Frame, Key, LayerId, Layout, NumExt as _, Order, Stroke, Style,
+    TextWrapMode, UiKind, WidgetText, epaint, vec2,
     widgets::{Button, ImageButton},
-    Align2, Area, Color32, Frame, Key, LayerId, Layout, NumExt, Order, Stroke, Style, TextWrapMode,
-    UiKind, WidgetText,
 };
 use epaint::mutex::RwLock;
 use std::sync::Arc;
@@ -88,6 +87,7 @@ fn set_menu_style(style: &mut Style) {
 /// The menu bar goes well in a [`crate::TopBottomPanel::top`],
 /// but can also be placed in a [`crate::Window`].
 /// In the latter case you may want to wrap it in [`Frame`].
+#[deprecated = "Use `crate::containers::menu::Bar` instead"]
 pub fn bar<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
     ui.horizontal(|ui| {
         set_menu_style(ui.style_mut());

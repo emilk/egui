@@ -140,6 +140,7 @@ impl Vec2 {
     pub const DOWN: Self = Self { x: 0.0, y: 1.0 };
 
     pub const ZERO: Self = Self { x: 0.0, y: 0.0 };
+    pub const ONE: Self = Self { x: 1.0, y: 1.0 };
     pub const INFINITY: Self = Self::splat(f32::INFINITY);
     pub const NAN: Self = Self::splat(f32::NAN);
 
@@ -169,11 +170,7 @@ impl Vec2 {
     #[inline(always)]
     pub fn normalized(self) -> Self {
         let len = self.length();
-        if len <= 0.0 {
-            self
-        } else {
-            self / len
-        }
+        if len <= 0.0 { self } else { self / len }
     }
 
     /// Checks if `self` has length `1.0` up to a precision of `1e-6`.
