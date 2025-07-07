@@ -745,7 +745,7 @@ mod tests {
 
             harness.fit_contents();
 
-            results.add(harness.try_snapshot(&format!("rendering_test/dpi_{dpi:.2}")));
+            results.add(harness.try_snapshot(format!("rendering_test/dpi_{dpi:.2}")));
         }
     }
 }
