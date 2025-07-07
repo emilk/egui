@@ -159,7 +159,7 @@ impl ColorTest {
         ui.separator();
 
         // TODO(emilk): test color multiplication (image tint),
-        // to make sure vertex and texture color multiplication is done in linear space.
+        // to make sure vertex and texture color multiplication is done in gamma space.
 
         ui.label("Gamma interpolation:");
         self.show_gradients(ui, WHITE, (RED, GREEN), Interpolation::Gamma);
@@ -191,8 +191,8 @@ impl ColorTest {
 
         ui.separator();
 
-        ui.label("Linear interpolation (texture sampling):");
-        self.show_gradients(ui, WHITE, (RED, GREEN), Interpolation::Linear);
+        ui.label("Texture interpolation (texture sampling) should be in gamma space:");
+        self.show_gradients(ui, WHITE, (RED, GREEN), Interpolation::Gamma);
     }
 
     fn show_gradients(
@@ -245,11 +245,10 @@ impl ColorTest {
             let g = Gradient::endpoints(left, right);
 
             match interpolation {
-                Interpolation::Linear => {
-                    // texture sampler is sRGBA aware, and should therefore be linear
-                    self.tex_gradient(ui, "Texture of width 2 (test texture sampler)", bg_fill, &g);
-                }
+                Interpolation::Linear => {}
                 Interpolation::Gamma => {
+                    self.tex_gradient(ui, "Texture of width 2 (test texture sampler)", bg_fill, &g);
+
                     // vertex shader uses gamma
                     self.vertex_gradient(
                         ui,
@@ -330,7 +329,10 @@ fn vertex_gradient(ui: &mut Ui, bg_fill: Color32, gradient: &Gradient) -> Respon
 
 #[derive(Clone, Copy)]
 enum Interpolation {
+    /// egui used to want Linear interpolation for some things, but now we're always in gamma space.
+    #[expect(unused)]
     Linear,
+
     Gamma,
 }
 

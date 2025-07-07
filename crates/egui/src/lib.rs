@@ -161,12 +161,10 @@
 //!
 //! * egui uses premultiplied alpha, so make sure your blending function is `(ONE, ONE_MINUS_SRC_ALPHA)`.
 //! * Make sure your texture sampler is clamped (`GL_CLAMP_TO_EDGE`).
-//! * egui prefers linear color spaces for all blending so:
-//!   * Use an sRGBA-aware texture if available (e.g. `GL_SRGB8_ALPHA8`).
-//!     * Otherwise: remember to decode gamma in the fragment shader.
-//!   * Decode the gamma of the incoming vertex colors in your vertex shader.
-//!   * Turn on sRGBA/linear framebuffer if available (`GL_FRAMEBUFFER_SRGB`).
-//!     * Otherwise: gamma-encode the colors before you write them again.
+//! * egui prefers gamma color spaces for all blending so:
+//!   * Do NOT use an sRGBA-aware texture (NOT `GL_SRGB8_ALPHA8`).
+//!   * Multiply texture and vertex colors in gamma space
+//!   * Turn OFF sRGBA/gamma framebuffer (NO `GL_FRAMEBUFFER_SRGB`).
 //!
 //!
 //! # Understanding immediate mode
