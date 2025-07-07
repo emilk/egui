@@ -310,6 +310,14 @@ fn should_update_snapshots() -> bool {
 /// reading or writing the snapshot.
 pub fn try_image_snapshot_options(
     new: &image::RgbaImage,
+    name: impl Into<String>,
+    options: &SnapshotOptions,
+) -> SnapshotResult {
+    try_image_snapshot_options_impl(new, name.into(), options)
+}
+
+fn try_image_snapshot_options_impl(
+    new: &image::RgbaImage,
     name: String,
     options: &SnapshotOptions,
 ) -> SnapshotResult {
@@ -436,7 +444,7 @@ pub fn try_image_snapshot_options(
 /// Returns a [`SnapshotError`] if the image does not match the snapshot or if there was an error
 /// reading or writing the snapshot.
 pub fn try_image_snapshot(current: &image::RgbaImage, name: impl Into<String>) -> SnapshotResult {
-    try_image_snapshot_options(current, name.into(), &SnapshotOptions::default())
+    try_image_snapshot_options(current, name, &SnapshotOptions::default())
 }
 
 /// Image snapshot test with custom options.
@@ -461,7 +469,7 @@ pub fn image_snapshot_options(
     name: impl Into<String>,
     options: &SnapshotOptions,
 ) {
-    match try_image_snapshot_options(current, name.into(), options) {
+    match try_image_snapshot_options(current, name, options) {
         Ok(_) => {}
         Err(err) => {
             panic!("{}", err);
