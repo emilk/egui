@@ -484,6 +484,7 @@ impl<'a> Popup<'a> {
             self.gap,
             expected_popup_size,
         )
+        .unwrap_or_default()
     }
 
     /// Show the popup.

@@ -238,6 +238,9 @@ impl RectAlign {
     /// Look for the first alternative [`RectAlign`] that allows the child rect to fit
     /// inside the `screen_rect`.
     ///
+    /// If no alternative fits, the first is returned.
+    /// If no alternatives are given, `None` is returned.
+    ///
     /// See also:
     /// - [`RectAlign::symmetries`] to calculate alternatives
     /// - [`RectAlign::MENU_ALIGNS`] for the 12 common menu positions
@@ -247,7 +250,7 @@ impl RectAlign {
         parent_rect: Rect,
         gap: f32,
         expected_size: Vec2,
-    ) -> Self {
+    ) -> Option<Self> {
         let mut first_choice = None;
 
         for align in values_to_try {
@@ -256,10 +259,10 @@ impl RectAlign {
             let suggested_popup_rect = align.align_rect(&parent_rect, expected_size, gap);
 
             if screen_rect.contains_rect(suggested_popup_rect) {
-                return align;
+                return Some(align);
             }
         }
 
-        first_choice.unwrap_or_default()
+        first_choice
     }
 }
