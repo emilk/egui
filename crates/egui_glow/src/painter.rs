@@ -172,7 +172,7 @@ impl Painter {
 
         let supported_extensions = gl.supported_extensions();
         log::trace!("OpenGL extensions: {supported_extensions:?}");
-        let srgb_textures = false; // egui wants linear textures
+        let srgb_textures = false; // egui wants normal sRGB-unaware textures
 
         let supports_srgb_framebuffer = !cfg!(target_arch = "wasm32")
             && supported_extensions.iter().any(|extension| {
