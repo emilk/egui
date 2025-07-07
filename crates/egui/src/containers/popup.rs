@@ -490,31 +490,11 @@ impl<'a> Popup<'a> {
     /// Returns `None` if the popup is not open or anchor is `PopupAnchor::Pointer` and there is
     /// no pointer.
     pub fn show<R>(self, content: impl FnOnce(&mut Ui) -> R) -> Option<InnerResponse<R>> {
-        let best_align = self.get_best_align();
+        let hover_pos = self.ctx.pointer_hover_pos();
 
-        let Popup {
-            id,
-            ctx,
-            anchor,
-            open_kind,
-            close_behavior,
-            kind,
-            info,
-            layer_id,
-            rect_align: _,
-            alternative_aligns: _,
-            gap,
-            widget_clicked_elsewhere,
-            width,
-            sense,
-            layout,
-            frame,
-            style,
-        } = self;
-
-        let hover_pos = ctx.pointer_hover_pos();
-        if let OpenKind::Memory { set, .. } = open_kind {
-            ctx.memory_mut(|mem| match set {
+        let id = self.id;
+        if let OpenKind::Memory { set } = self.open_kind {
+            self.ctx.memory_mut(|mem| match set {
                 Some(SetOpenCommand::Bool(open)) => {
                     if open {
                         match self.anchor {
@@ -536,9 +516,31 @@ impl<'a> Popup<'a> {
             });
         }
 
-        if !open_kind.is_open(id, &ctx) {
+        if !self.open_kind.is_open(self.id, &self.ctx) {
             return None;
         }
+
+        let best_align = self.get_best_align();
+
+        let Popup {
+            id,
+            ctx,
+            anchor,
+            open_kind,
+            close_behavior,
+            kind,
+            info,
+            layer_id,
+            rect_align: _,
+            alternative_aligns: _,
+            gap,
+            widget_clicked_elsewhere,
+            width,
+            sense,
+            layout,
+            frame,
+            style,
+        } = self;
 
         if kind != PopupKind::Tooltip {
             ctx.pass_state_mut(|fs| {
