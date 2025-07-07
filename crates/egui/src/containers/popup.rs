@@ -160,6 +160,7 @@ impl From<PopupKind> for UiKind {
     }
 }
 
+#[must_use = "Call `.show()` to actually display the popup"]
 pub struct Popup<'a> {
     id: Id,
     ctx: Context,
