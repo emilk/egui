@@ -97,10 +97,7 @@ fn vs_main(
 
 @fragment
 fn fs_main_linear_framebuffer(in: VertexOutput) -> @location(0) vec4<f32> {
-    // We use sRGB unware textures, and store (premultiplied) sRGB values.
-    // Hence any interpolation done by the GPU will be in gamma space.
-    // Note: Because we store premultiplied alpha, we can't rely on sRGB aware
-    // textures that convert "sRGB -> linear RGB" before interpolating.
+    // We expect "normal" textures that are NOT sRGB-aware.
     let tex_gamma = textureSample(r_tex_color, r_tex_sampler, in.tex_coord);
     var out_color_gamma = in.color * tex_gamma;
     // Dither the float color down to eight bits to reduce banding.
@@ -117,10 +114,7 @@ fn fs_main_linear_framebuffer(in: VertexOutput) -> @location(0) vec4<f32> {
 
 @fragment
 fn fs_main_gamma_framebuffer(in: VertexOutput) -> @location(0) vec4<f32> {
-    // We use sRGB unware textures, and store (premultiplied) sRGB values.
-    // Hence any interpolation done by the GPU will be in gamma space.
-    // Note: Because we store premultiplied alpha, we can't rely on sRGB aware
-    // textures that convert "sRGB -> linear RGB" before interpolating.
+    // We expect "normal" textures that are NOT sRGB-aware.
     let tex_gamma = textureSample(r_tex_color, r_tex_sampler, in.tex_coord);
     var out_color_gamma = in.color * tex_gamma;
     // Dither the float color down to eight bits to reduce banding.

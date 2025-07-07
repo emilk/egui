@@ -164,8 +164,7 @@
 //! * egui prefers gamma color spaces for all blending so:
 //!   * Do NOT use an sRGBA-aware texture (NOT `GL_SRGB8_ALPHA8`).
 //!   * Multiply texture and vertex colors in gamma space
-//!   * HOWEVER: Turn on sRGBA/gamma framebuffer if available (`GL_FRAMEBUFFER_SRGB`).
-//!     * Otherwise: gamma-encode the colors before you write them again.
+//!   * Turn OFF sRGBA/gamma framebuffer (NO `GL_FRAMEBUFFER_SRGB`).
 //!
 //!
 //! # Understanding immediate mode
