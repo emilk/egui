@@ -244,7 +244,7 @@ fn test_widget_layout(name: &str, mut w: impl FnMut(&mut Ui) -> Response) -> Sna
     });
 
     harness.fit_contents();
-    harness.try_snapshot(&format!("layout/{name}"))
+    harness.try_snapshot(format!("layout/{name}"))
 }
 
 /// Utility to create a snapshot test of the different states of a egui widget.
@@ -370,7 +370,7 @@ impl<'a> VisualTests<'a> {
 
         harness.fit_contents();
 
-        harness.try_snapshot(&format!("visuals/{}", self.name))
+        harness.try_snapshot(format!("visuals/{}", self.name))
     }
 }
 

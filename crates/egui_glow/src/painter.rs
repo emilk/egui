@@ -172,12 +172,7 @@ impl Painter {
 
         let supported_extensions = gl.supported_extensions();
         log::trace!("OpenGL extensions: {supported_extensions:?}");
-        let srgb_textures = shader_version == ShaderVersion::Es300 // WebGL2 always support sRGB
-            || supported_extensions.iter().any(|extension| {
-                // EXT_sRGB, GL_ARB_framebuffer_sRGB, GL_EXT_sRGB, GL_EXT_texture_sRGB_decode, …
-                extension.contains("sRGB")
-            });
-        log::debug!("SRGB texture Support: {:?}", srgb_textures);
+        let srgb_textures = false; // egui wants normal sRGB-unaware textures
 
         let supports_srgb_framebuffer = !cfg!(target_arch = "wasm32")
             && supported_extensions.iter().any(|extension| {
@@ -202,11 +197,10 @@ impl Painter {
                 &gl,
                 glow::FRAGMENT_SHADER,
                 &format!(
-                    "{}\n#define NEW_SHADER_INTERFACE {}\n#define DITHERING {}\n#define SRGB_TEXTURES {}\n{}\n{}",
+                    "{}\n#define NEW_SHADER_INTERFACE {}\n#define DITHERING {}\n{}\n{}",
                     shader_version_declaration,
                     shader_version.is_new_shader_interface() as i32,
                     dithering as i32,
-                    srgb_textures as i32,
                     shader_prefix,
                     FRAG_SRC
                 ),

@@ -310,7 +310,15 @@ fn should_update_snapshots() -> bool {
 /// reading or writing the snapshot.
 pub fn try_image_snapshot_options(
     new: &image::RgbaImage,
-    name: &str,
+    name: impl Into<String>,
+    options: &SnapshotOptions,
+) -> SnapshotResult {
+    try_image_snapshot_options_impl(new, name.into(), options)
+}
+
+fn try_image_snapshot_options_impl(
+    new: &image::RgbaImage,
+    name: String,
     options: &SnapshotOptions,
 ) -> SnapshotResult {
     let SnapshotOptions {
@@ -319,7 +327,7 @@ pub fn try_image_snapshot_options(
         failed_pixel_count_threshold,
     } = options;
 
-    let parent_path = if let Some(parent) = PathBuf::from(name).parent() {
+    let parent_path = if let Some(parent) = PathBuf::from(&name).parent() {
         output_path.join(parent)
     } else {
         output_path.clone()
@@ -385,7 +393,7 @@ pub fn try_image_snapshot_options(
             return update_snapshot();
         } else {
             return Err(SnapshotError::SizeMismatch {
-                name: name.to_owned(),
+                name,
                 expected: previous.dimensions(),
                 actual: new.dimensions(),
             });
@@ -412,7 +420,7 @@ pub fn try_image_snapshot_options(
             }
 
             Err(SnapshotError::Diff {
-                name: name.to_owned(),
+                name,
                 diff: num_wrong_pixels,
                 diff_path,
             })
@@ -435,7 +443,7 @@ pub fn try_image_snapshot_options(
 /// # Errors
 /// Returns a [`SnapshotError`] if the image does not match the snapshot or if there was an error
 /// reading or writing the snapshot.
-pub fn try_image_snapshot(current: &image::RgbaImage, name: &str) -> SnapshotResult {
+pub fn try_image_snapshot(current: &image::RgbaImage, name: impl Into<String>) -> SnapshotResult {
     try_image_snapshot_options(current, name, &SnapshotOptions::default())
 }
 
@@ -456,7 +464,11 @@ pub fn try_image_snapshot(current: &image::RgbaImage, name: &str) -> SnapshotRes
 /// Panics if the image does not match the snapshot or if there was an error reading or writing the
 /// snapshot.
 #[track_caller]
-pub fn image_snapshot_options(current: &image::RgbaImage, name: &str, options: &SnapshotOptions) {
+pub fn image_snapshot_options(
+    current: &image::RgbaImage,
+    name: impl Into<String>,
+    options: &SnapshotOptions,
+) {
     match try_image_snapshot_options(current, name, options) {
         Ok(_) => {}
         Err(err) => {
@@ -475,7 +487,7 @@ pub fn image_snapshot_options(current: &image::RgbaImage, name: &str, options: &
 /// Panics if the image does not match the snapshot or if there was an error reading or writing the
 /// snapshot.
 #[track_caller]
-pub fn image_snapshot(current: &image::RgbaImage, name: &str) {
+pub fn image_snapshot(current: &image::RgbaImage, name: impl Into<String>) {
     match try_image_snapshot(current, name) {
         Ok(_) => {}
         Err(err) => {
@@ -506,13 +518,13 @@ impl<State> Harness<'_, State> {
     /// error reading or writing the snapshot, if the rendering fails or if no default renderer is available.
     pub fn try_snapshot_options(
         &mut self,
-        name: &str,
+        name: impl Into<String>,
         options: &SnapshotOptions,
     ) -> SnapshotResult {
         let image = self
             .render()
             .map_err(|err| SnapshotError::RenderError { err })?;
-        try_image_snapshot_options(&image, name, options)
+        try_image_snapshot_options(&image, name.into(), options)
     }
 
     /// Render an image using the setup [`crate::TestRenderer`] and compare it to the snapshot.
@@ -523,7 +535,7 @@ impl<State> Harness<'_, State> {
     /// # Errors
     /// Returns a [`SnapshotError`] if the image does not match the snapshot, if there was an
     /// error reading or writing the snapshot, if the rendering fails or if no default renderer is available.
-    pub fn try_snapshot(&mut self, name: &str) -> SnapshotResult {
+    pub fn try_snapshot(&mut self, name: impl Into<String>) -> SnapshotResult {
         let image = self
             .render()
             .map_err(|err| SnapshotError::RenderError { err })?;
@@ -549,7 +561,7 @@ impl<State> Harness<'_, State> {
     /// Panics if the image does not match the snapshot, if there was an error reading or writing the
     /// snapshot, if the rendering fails or if no default renderer is available.
     #[track_caller]
-    pub fn snapshot_options(&mut self, name: &str, options: &SnapshotOptions) {
+    pub fn snapshot_options(&mut self, name: impl Into<String>, options: &SnapshotOptions) {
         match self.try_snapshot_options(name, options) {
             Ok(_) => {}
             Err(err) => {
@@ -567,7 +579,7 @@ impl<State> Harness<'_, State> {
     /// Panics if the image does not match the snapshot, if there was an error reading or writing the
     /// snapshot, if the rendering fails or if no default renderer is available.
     #[track_caller]
-    pub fn snapshot(&mut self, name: &str) {
+    pub fn snapshot(&mut self, name: impl Into<String>) {
         match self.try_snapshot(name) {
             Ok(_) => {}
             Err(err) => {
@@ -588,7 +600,7 @@ impl<State> Harness<'_, State> {
     )]
     pub fn try_wgpu_snapshot_options(
         &mut self,
-        name: &str,
+        name: impl Into<String>,
         options: &SnapshotOptions,
     ) -> SnapshotResult {
         self.try_snapshot_options(name, options)
@@ -598,7 +610,7 @@ impl<State> Harness<'_, State> {
         since = "0.31.0",
         note = "Use `try_snapshot` instead. This function will be removed in 0.32"
     )]
-    pub fn try_wgpu_snapshot(&mut self, name: &str) -> SnapshotResult {
+    pub fn try_wgpu_snapshot(&mut self, name: impl Into<String>) -> SnapshotResult {
         self.try_snapshot(name)
     }
 
@@ -606,7 +618,7 @@ impl<State> Harness<'_, State> {
         since = "0.31.0",
         note = "Use `snapshot_options` instead. This function will be removed in 0.32"
     )]
-    pub fn wgpu_snapshot_options(&mut self, name: &str, options: &SnapshotOptions) {
+    pub fn wgpu_snapshot_options(&mut self, name: impl Into<String>, options: &SnapshotOptions) {
         self.snapshot_options(name, options);
     }
 

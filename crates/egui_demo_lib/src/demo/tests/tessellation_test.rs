@@ -374,7 +374,7 @@ mod tests {
             harness.fit_contents();
             harness.run();
 
-            harness.snapshot(&format!("tessellation_test/{name}"));
+            harness.snapshot(format!("tessellation_test/{name}"));
         }
     }
 }

@@ -416,7 +416,7 @@ mod tests {
                 options = options.threshold(OsThreshold::new(0.0).linux(2.1));
             }
 
-            results.add(harness.try_snapshot_options(&format!("demos/{name}"), &options));
+            results.add(harness.try_snapshot_options(format!("demos/{name}"), &options));
         }
     }
 
