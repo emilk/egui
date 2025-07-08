@@ -89,8 +89,7 @@ fn test_intrinsic_size() {
                     assert_eq!(
                         Some(current_intrinsic_size),
                         response.intrinsic_size,
-                        "For wrapping: {:?}",
-                        wrapping
+                        "For wrapping: {wrapping:?}"
                     );
                 }
                 intrinsic_size = response.intrinsic_size;
