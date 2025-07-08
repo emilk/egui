@@ -82,7 +82,7 @@ pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>) -> Galley {
             num_indices: 0,
             pixels_per_point: fonts.pixels_per_point(),
             elided: true,
-            desired_size: Vec2::ZERO,
+            intrinsic_size: Vec2::ZERO,
         };
     }
 
@@ -95,7 +95,7 @@ pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>) -> Galley {
 
     let point_scale = PointScale::new(fonts.pixels_per_point());
 
-    let desired_size = calculate_desired_size(point_scale, &job, &paragraphs);
+    let intrinsic_size = calculate_intrinsic_size(point_scale, &job, &paragraphs);
 
     let mut elided = false;
     let mut rows = rows_from_paragraphs(paragraphs, &job, &mut elided);
@@ -127,7 +127,7 @@ pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>) -> Galley {
     }
 
     // Calculate the Y positions and tessellate the text:
-    galley_from_rows(point_scale, job, rows, elided, desired_size)
+    galley_from_rows(point_scale, job, rows, elided, intrinsic_size)
 }
 
 // Ignores the Y coordinate.
@@ -193,26 +193,26 @@ fn layout_section(
     }
 }
 
-fn calculate_desired_size(
+fn calculate_intrinsic_size(
     point_scale: PointScale,
     job: &LayoutJob,
     paragraphs: &[Paragraph],
 ) -> Vec2 {
-    let mut desired_size = Vec2::ZERO;
+    let mut intrinsic_size = Vec2::ZERO;
     for (idx, paragraph) in paragraphs.iter().enumerate() {
         if paragraph.glyphs.is_empty() {
             if idx == 0 {
-                desired_size.y += point_scale.round_to_pixel(paragraph.empty_paragraph_height);
+                intrinsic_size.y += point_scale.round_to_pixel(paragraph.empty_paragraph_height);
             }
             continue;
         }
-        desired_size.x = f32::max(
+        intrinsic_size.x = f32::max(
             paragraph
                 .glyphs
                 .last()
                 .map(|l| l.max_x())
                 .unwrap_or_default(),
-            desired_size.x,
+            intrinsic_size.x,
         );
 
         let mut height = paragraph
@@ -224,9 +224,9 @@ fn calculate_desired_size(
         if idx == 0 {
             height = f32::max(height, job.first_row_min_height);
         }
-        desired_size.y += point_scale.round_to_pixel(height);
+        intrinsic_size.y += point_scale.round_to_pixel(height);
     }
-    desired_size
+    intrinsic_size
 }
 
 // Ignores the Y coordinate.
@@ -649,7 +649,7 @@ fn galley_from_rows(
     job: Arc<LayoutJob>,
     mut rows: Vec<PlacedRow>,
     elided: bool,
-    desired_size: Vec2,
+    intrinsic_size: Vec2,
 ) -> Galley {
     let mut first_row_min_height = job.first_row_min_height;
     let mut cursor_y = 0.0;
@@ -720,7 +720,7 @@ fn galley_from_rows(
         num_vertices,
         num_indices,
         pixels_per_point: point_scale.pixels_per_point,
-        desired_size,
+        intrinsic_size,
     };
 
     if galley.job.round_output_to_gui {

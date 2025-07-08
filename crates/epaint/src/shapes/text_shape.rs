@@ -130,12 +130,12 @@ impl TextShape {
             num_vertices: _,
             num_indices: _,
             pixels_per_point: _,
-            desired_size,
+            intrinsic_size,
         } = Arc::make_mut(galley);
 
         *rect = transform.scaling * *rect;
         *mesh_bounds = transform.scaling * *mesh_bounds;
-        *desired_size = transform.scaling * *desired_size;
+        *intrinsic_size = transform.scaling * *intrinsic_size;
 
         for text::PlacedRow { pos, row } in rows {
             *pos *= transform.scaling;

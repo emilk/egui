@@ -1186,7 +1186,7 @@ mod tests {
     }
 
     #[test]
-    fn test_desired_size() {
+    fn test_intrinsic_size() {
         let pixels_per_point = [1.0, 1.3, 2.0, 0.867];
         let max_widths = [40.0, 80.0, 133.0, 200.0];
         let rounded_output_to_gui = [false, true];
@@ -1213,26 +1213,26 @@ mod tests {
                         let text = job.text.clone();
                         let galley_unwrapped = layout(&mut fonts, job.into());
 
-                        let desired_size = galley_wrapped.desired_size;
+                        let intrinsic_size = galley_wrapped.intrinsic_size;
                         let unwrapped_size = galley_unwrapped.size();
 
-                        let difference = (desired_size - unwrapped_size).length().abs();
+                        let difference = (intrinsic_size - unwrapped_size).length().abs();
                         similar_asserts::assert_eq!(
-                                format!("{desired_size:.4?}"),
-                                format!("{unwrapped_size:.4?}"),
-                                "Wrapped desired size should almost match unwrapped size. Desired: {desired_size:.8?} vs unwrapped: {unwrapped_size:.8?}
+                            format!("{intrinsic_size:.4?}"),
+                            format!("{unwrapped_size:.4?}"),
+                            "Wrapped intrinsic size should almost match unwrapped size. Intrinsic: {intrinsic_size:.8?} vs unwrapped: {unwrapped_size:.8?}
                                 Difference: {difference:.8?}
                                 wrapped rows: {}, unwrapped rows: {}
                                 pixels_per_point: {pixels_per_point}, text: {text:?}, max_width: {max_width}, round_output_to_gui: {round_output_to_gui}",
-                                galley_wrapped.rows.len(),
-                                galley_unwrapped.rows.len()
+                            galley_wrapped.rows.len(),
+                            galley_unwrapped.rows.len()
                             );
                         similar_asserts::assert_eq!(
-                            format!("{desired_size:.4?}"),
+                            format!("{intrinsic_size:.4?}"),
                             format!("{unwrapped_size:.4?}"),
-                            "Unwrapped galley desired size should exactly match its size. \
+                            "Unwrapped galley intrinsic size should exactly match its size. \
                                 {:.8?} vs {:8?}",
-                            galley_unwrapped.desired_size,
+                            galley_unwrapped.intrinsic_size,
                             galley_unwrapped.size(),
                         );
                     }

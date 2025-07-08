@@ -565,7 +565,7 @@ pub struct Galley {
     /// would have.
     ///
     /// Useful for advanced layouting.
-    pub desired_size: Vec2,
+    pub intrinsic_size: Vec2,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -828,7 +828,7 @@ impl Galley {
                 .floor_ui();
         }
 
-        self.desired_size = self.desired_size.round_ui();
+        self.intrinsic_size = self.intrinsic_size.round_ui();
     }
 
     /// Append each galley under the previous one.
@@ -844,7 +844,7 @@ impl Galley {
             num_vertices: 0,
             num_indices: 0,
             pixels_per_point,
-            desired_size: Vec2::ZERO,
+            intrinsic_size: Vec2::ZERO,
         };
 
         for (i, galley) in galleys.iter().enumerate() {
@@ -881,9 +881,9 @@ impl Galley {
             // Note that if `galley.elided` is true this will be the last `Galley` in
             // the vector and the loop will end.
             merged_galley.elided |= galley.elided;
-            merged_galley.desired_size.x =
-                f32::max(merged_galley.desired_size.x, galley.desired_size.x);
-            merged_galley.desired_size.y += galley.desired_size.y;
+            merged_galley.intrinsic_size.x =
+                f32::max(merged_galley.intrinsic_size.x, galley.intrinsic_size.x);
+            merged_galley.intrinsic_size.y += galley.intrinsic_size.y;
         }
 
         if merged_galley.job.round_output_to_gui {
