@@ -193,6 +193,10 @@ fn layout_section(
     }
 }
 
+/// Calculate the intrinsic size of the text.
+///
+/// The result is eventually passed to `Response::intrinsic_size`.
+/// This works by calculating the size of each `Paragraph` (instead of each `Row`).
 fn calculate_intrinsic_size(
     point_scale: PointScale,
     job: &LayoutJob,
