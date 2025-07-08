@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{lerp, pos2, vec2, Div, Mul, Pos2, Rangef, Rot2, Vec2};
+use crate::{Div, Mul, NumExt as _, Pos2, Rangef, Rot2, Vec2, lerp, pos2, vec2};
 
 /// A rectangular region of space.
 ///
@@ -341,11 +341,13 @@ impl Rect {
         self.max - self.min
     }
 
+    /// Note: this can be negative.
     #[inline(always)]
     pub fn width(&self) -> f32 {
         self.max.x - self.min.x
     }
 
+    /// Note: this can be negative.
     #[inline(always)]
     pub fn height(&self) -> f32 {
         self.max.y - self.min.y
@@ -373,9 +375,10 @@ impl Rect {
         }
     }
 
+    /// This is never negative, and instead returns zero for negative rectangles.
     #[inline(always)]
     pub fn area(&self) -> f32 {
-        self.width() * self.height()
+        self.width().at_least(0.0) * self.height().at_least(0.0)
     }
 
     /// The distance from the rect to the position.
@@ -651,7 +654,7 @@ impl Rect {
     pub fn intersects_ray(&self, o: Pos2, d: Vec2) -> bool {
         debug_assert!(
             d.is_normalized(),
-            "expected normalized direction, but `d` has length {}",
+            "Debug assert: expected normalized direction, but `d` has length {}",
             d.length()
         );
 

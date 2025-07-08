@@ -1,4 +1,4 @@
-use emath::{vec2, Rect, Vec2};
+use emath::{Rect, Vec2, vec2};
 
 use crate::Margin;
 

@@ -1,7 +1,7 @@
 use crate::{
+    Size,
     layout::{CellDirection, CellSize, StripLayout, StripLayoutFlags},
     sizing::Sizing,
-    Size,
 };
 use egui::{Response, Ui};
 

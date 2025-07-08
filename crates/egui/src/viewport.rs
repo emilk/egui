@@ -438,7 +438,7 @@ impl ViewportBuilder {
     }
 
     /// macOS: Set to `true` to allow the window to be moved by dragging the background.
-    /// Enabling this feature can result in unexpected behaviour with draggable UI widgets such as sliders.
+    /// Enabling this feature can result in unexpected behavior with draggable UI widgets such as sliders.
     #[inline]
     pub fn with_movable_by_background(mut self, value: bool) -> Self {
         self.movable_by_window_background = Some(value);

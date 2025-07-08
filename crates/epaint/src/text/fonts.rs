@@ -1,12 +1,12 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use crate::{
+    AlphaFromCoverage, TextureAtlas,
     mutex::{Mutex, MutexGuard},
     text::{
-        font::{Font, FontImpl},
         Galley, LayoutJob, LayoutSection,
+        font::{Font, FontImpl},
     },
-    TextureAtlas,
 };
 use emath::{NumExt as _, OrderedFloat};
 
@@ -430,36 +430,56 @@ impl Fonts {
     pub fn new(
         pixels_per_point: f32,
         max_texture_side: usize,
+        text_alpha_from_coverage: AlphaFromCoverage,
         definitions: FontDefinitions,
     ) -> Self {
         let fonts_and_cache = FontsAndCache {
-            fonts: FontsImpl::new(pixels_per_point, max_texture_side, definitions),
+            fonts: FontsImpl::new(
+                pixels_per_point,
+                max_texture_side,
+                text_alpha_from_coverage,
+                definitions,
+            ),
             galley_cache: Default::default(),
         };
         Self(Arc::new(Mutex::new(fonts_and_cache)))
     }
 
     /// Call at the start of each frame with the latest known
-    /// `pixels_per_point` and `max_texture_side`.
+    /// `pixels_per_point`, `max_texture_side`, and `text_alpha_from_coverage`.
     ///
     /// Call after painting the previous frame, but before using [`Fonts`] for the new frame.
     ///
-    /// This function will react to changes in `pixels_per_point` and `max_texture_side`,
+    /// This function will react to changes in `pixels_per_point`, `max_texture_side`, and `text_alpha_from_coverage`,
     /// as well as notice when the font atlas is getting full, and handle that.
-    pub fn begin_pass(&self, pixels_per_point: f32, max_texture_side: usize) {
+    pub fn begin_pass(
+        &self,
+        pixels_per_point: f32,
+        max_texture_side: usize,
+        text_alpha_from_coverage: AlphaFromCoverage,
+    ) {
         let mut fonts_and_cache = self.0.lock();
 
         let pixels_per_point_changed = fonts_and_cache.fonts.pixels_per_point != pixels_per_point;
         let max_texture_side_changed = fonts_and_cache.fonts.max_texture_side != max_texture_side;
+        let text_alpha_from_coverage_changed =
+            fonts_and_cache.fonts.atlas.lock().text_alpha_from_coverage != text_alpha_from_coverage;
         let font_atlas_almost_full = fonts_and_cache.fonts.atlas.lock().fill_ratio() > 0.8;
-        let needs_recreate =
-            pixels_per_point_changed || max_texture_side_changed || font_atlas_almost_full;
+        let needs_recreate = pixels_per_point_changed
+            || max_texture_side_changed
+            || text_alpha_from_coverage_changed
+            || font_atlas_almost_full;
 
         if needs_recreate {
             let definitions = fonts_and_cache.fonts.definitions.clone();
 
             *fonts_and_cache = FontsAndCache {
-                fonts: FontsImpl::new(pixels_per_point, max_texture_side, definitions),
+                fonts: FontsImpl::new(
+                    pixels_per_point,
+                    max_texture_side,
+                    text_alpha_from_coverage,
+                    definitions,
+                ),
                 galley_cache: Default::default(),
             };
         }
@@ -497,7 +517,7 @@ impl Fonts {
 
     /// The full font atlas image.
     #[inline]
-    pub fn image(&self) -> crate::FontImage {
+    pub fn image(&self) -> crate::ColorImage {
         self.lock().fonts.atlas.lock().image().clone()
     }
 
@@ -642,6 +662,7 @@ impl FontsImpl {
     pub fn new(
         pixels_per_point: f32,
         max_texture_side: usize,
+        text_alpha_from_coverage: AlphaFromCoverage,
         definitions: FontDefinitions,
     ) -> Self {
         assert!(
@@ -651,7 +672,7 @@ impl FontsImpl {
 
         let texture_width = max_texture_side.at_most(16 * 1024);
         let initial_height = 32; // Keep initial font atlas small, so it is fast to upload to GPU. This will expand as needed anyways.
-        let atlas = TextureAtlas::new([texture_width, initial_height]);
+        let atlas = TextureAtlas::new([texture_width, initial_height], text_alpha_from_coverage);
 
         let atlas = Arc::new(Mutex::new(atlas));
 
@@ -680,7 +701,8 @@ impl FontsImpl {
 
     /// Get the right font implementation from size and [`FontFamily`].
     pub fn font(&mut self, font_id: &FontId) -> &mut Font {
-        let FontId { mut size, family } = font_id;
+        let FontId { size, family } = font_id;
+        let mut size = *size;
         size = size.at_least(0.1).at_most(2048.0);
 
         self.sized_family
@@ -1050,7 +1072,7 @@ mod tests {
     use core::f32;
 
     use super::*;
-    use crate::{text::TextFormat, Stroke};
+    use crate::{Stroke, text::TextFormat};
     use ecolor::Color32;
     use emath::Align;
 
@@ -1119,6 +1141,7 @@ mod tests {
             let mut fonts = FontsImpl::new(
                 pixels_per_point,
                 max_texture_side,
+                AlphaFromCoverage::default(),
                 FontDefinitions::default(),
             );
 

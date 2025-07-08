@@ -1,11 +1,10 @@
 use ahash::HashMap;
 use egui::{
-    decode_animated_image_uri, has_webp_header,
+    ColorImage, FrameDurations, Id, decode_animated_image_uri, has_webp_header,
     load::{BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
     mutex::Mutex,
-    ColorImage, FrameDurations, Id,
 };
-use image::{codecs::webp::WebPDecoder, AnimationDecoder as _, ColorType, ImageDecoder as _, Rgba};
+use image::{AnimationDecoder as _, ColorType, ImageDecoder as _, Rgba, codecs::webp::WebPDecoder};
 use std::{io::Cursor, mem::size_of, sync::Arc, time::Duration};
 
 #[derive(Clone)]
@@ -55,7 +54,7 @@ impl WebP {
                 unreachable => {
                     return Err(format!(
                         "Unreachable WebP color type, expected Rgb8/Rgba8, got {unreachable:?}"
-                    ))
+                    ));
                 }
             };
 

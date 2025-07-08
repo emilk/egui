@@ -1,6 +1,6 @@
 use crate::{
-    epaint, pos2, Atom, AtomLayout, Atoms, Id, IntoAtoms, NumExt as _, Response, Sense, Shape, Ui,
-    Vec2, Widget, WidgetInfo, WidgetType,
+    Atom, AtomLayout, Atoms, Id, IntoAtoms, NumExt as _, Response, Sense, Shape, Ui, Vec2, Widget,
+    WidgetInfo, WidgetType, epaint, pos2,
 };
 
 // TODO(emilk): allow checkbox without a text label

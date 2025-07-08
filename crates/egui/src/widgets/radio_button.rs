@@ -1,6 +1,6 @@
 use crate::{
-    epaint, Atom, AtomLayout, Atoms, Id, IntoAtoms, NumExt as _, Response, Sense, Ui, Vec2, Widget,
-    WidgetInfo, WidgetType,
+    Atom, AtomLayout, Atoms, Id, IntoAtoms, NumExt as _, Response, Sense, Ui, Vec2, Widget,
+    WidgetInfo, WidgetType, epaint,
 };
 
 /// One out of several alternatives, either selected or not.

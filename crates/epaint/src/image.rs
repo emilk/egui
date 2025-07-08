@@ -1,30 +1,26 @@
 use emath::Vec2;
 
-use crate::{textures::TextureOptions, Color32};
+use crate::{Color32, textures::TextureOptions};
 use std::sync::Arc;
 
 /// An image stored in RAM.
 ///
 /// To load an image file, see [`ColorImage::from_rgba_unmultiplied`].
 ///
-/// In order to paint the image on screen, you first need to convert it to
+/// This is currently an enum with only one variant, but more image types may be added in the future.
 ///
-/// See also: [`ColorImage`], [`FontImage`].
-#[derive(Clone, PartialEq)]
+/// See also: [`ColorImage`].
+#[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ImageData {
     /// RGBA image.
     Color(Arc<ColorImage>),
-
-    /// Used for the font texture.
-    Font(FontImage),
 }
 
 impl ImageData {
     pub fn size(&self) -> [usize; 2] {
         match self {
             Self::Color(image) => image.size,
-            Self::Font(image) => image.size,
         }
     }
 
@@ -38,7 +34,7 @@ impl ImageData {
 
     pub fn bytes_per_pixel(&self) -> usize {
         match self {
-            Self::Color(_) | Self::Font(_) => 4,
+            Self::Color(_) => 4,
         }
     }
 }
@@ -271,6 +267,37 @@ impl ColorImage {
         }
         Self::new([width, height], output)
     }
+
+    /// Clone a sub-region as a new image.
+    pub fn region_by_pixels(&self, [x, y]: [usize; 2], [w, h]: [usize; 2]) -> Self {
+        assert!(
+            x + w <= self.width(),
+            "x + w should be <= self.width(), but x: {}, w: {}, width: {}",
+            x,
+            w,
+            self.width()
+        );
+        assert!(
+            y + h <= self.height(),
+            "y + h should be <= self.height(), but y: {}, h: {}, height: {}",
+            y,
+            h,
+            self.height()
+        );
+
+        let mut pixels = Vec::with_capacity(w * h);
+        for y in y..y + h {
+            let offset = y * self.width() + x;
+            pixels.extend(&self.pixels[offset..(offset + w)]);
+        }
+        assert_eq!(
+            pixels.len(),
+            w * h,
+            "pixels.len should be w * h, but got {}",
+            pixels.len()
+        );
+        Self::new([w, h], pixels)
+    }
 }
 
 impl std::ops::Index<(usize, usize)> for ColorImage {
@@ -318,127 +345,56 @@ impl std::fmt::Debug for ColorImage {
 
 // ----------------------------------------------------------------------------
 
-/// A single-channel image designed for the font texture.
-///
-/// Each value represents "coverage", i.e. how much a texel is covered by a character.
-///
-/// This is roughly interpreted as the opacity of a white image.
-#[derive(Clone, Default, PartialEq)]
+/// How to convert font coverage values into alpha and color values.
+//
+// This whole thing is less than rigorous.
+// Ideally we should do this in a shader instead, and use different computations
+// for different text colors.
+// See https://hikogui.org/2022/10/24/the-trouble-with-anti-aliasing.html for an in-depth analysis.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct FontImage {
-    /// width, height
-    pub size: [usize; 2],
-
-    /// The coverage value.
+pub enum AlphaFromCoverage {
+    /// `alpha = coverage`.
     ///
-    /// Often you want to use [`Self::srgba_pixels`] instead.
-    pub pixels: Vec<f32>,
-}
-
-impl FontImage {
-    pub fn new(size: [usize; 2]) -> Self {
-        Self {
-            size,
-            pixels: vec![0.0; size[0] * size[1]],
-        }
-    }
-
-    #[inline]
-    pub fn width(&self) -> usize {
-        self.size[0]
-    }
-
-    #[inline]
-    pub fn height(&self) -> usize {
-        self.size[1]
-    }
-
-    /// Returns the textures as `sRGBA` premultiplied pixels, row by row, top to bottom.
+    /// Looks good for black-on-white text, i.e. light mode.
     ///
-    /// `gamma` should normally be set to `None`.
+    /// Same as [`Self::Gamma`]`(1.0)`, but more efficient.
+    Linear,
+
+    /// `alpha = coverage^gamma`.
+    Gamma(f32),
+
+    /// `alpha = 2 * coverage - coverage^2`
     ///
-    /// If you are having problems with text looking skinny and pixelated, try using a low gamma, e.g. `0.4`.
-    #[inline]
-    pub fn srgba_pixels(&self, gamma: Option<f32>) -> impl ExactSizeIterator<Item = Color32> + '_ {
-        // This whole function is less than rigorous.
-        // Ideally we should do this in a shader instead, and use different computations
-        // for different text colors.
-        // See https://hikogui.org/2022/10/24/the-trouble-with-anti-aliasing.html for an in-depth analysis.
-        self.pixels.iter().map(move |coverage| {
-            let alpha = if let Some(gamma) = gamma {
-                coverage.powf(gamma)
-            } else {
-                // alpha = coverage * coverage; // recommended by the article for WHITE text (using linear blending)
-
-                // The following is recommended by the article for BLACK text (using linear blending).
-                // Very similar to a gamma of 0.5, but produces sharper text.
-                // In practice it works well for all text colors (better than a gamma of 0.5, for instance).
-                // See https://www.desmos.com/calculator/w0ndf5blmn for a visual comparison.
-                2.0 * coverage - coverage * coverage
-            };
-            Color32::from_white_alpha(ecolor::linear_u8_from_linear_f32(alpha))
-        })
-    }
-
-    /// Clone a sub-region as a new image.
-    pub fn region(&self, [x, y]: [usize; 2], [w, h]: [usize; 2]) -> Self {
-        assert!(
-            x + w <= self.width(),
-            "x + w should be <= self.width(), but x: {}, w: {}, width: {}",
-            x,
-            w,
-            self.width()
-        );
-        assert!(
-            y + h <= self.height(),
-            "y + h should be <= self.height(), but y: {}, h: {}, height: {}",
-            y,
-            h,
-            self.height()
-        );
-
-        let mut pixels = Vec::with_capacity(w * h);
-        for y in y..y + h {
-            let offset = y * self.width() + x;
-            pixels.extend(&self.pixels[offset..(offset + w)]);
-        }
-        assert_eq!(
-            pixels.len(),
-            w * h,
-            "pixels.len should be w * h, but got {}",
-            pixels.len()
-        );
-        Self {
-            size: [w, h],
-            pixels,
-        }
-    }
+    /// This looks good for white-on-black text, i.e. dark mode.
+    ///
+    /// Very similar to a gamma of 0.5, but produces sharper text.
+    /// See <https://www.desmos.com/calculator/w0ndf5blmn> for a comparison to gamma=0.5.
+    #[default]
+    TwoCoverageMinusCoverageSq,
 }
 
-impl std::ops::Index<(usize, usize)> for FontImage {
-    type Output = f32;
+impl AlphaFromCoverage {
+    /// A good-looking default for light mode (black-on-white text).
+    pub const LIGHT_MODE_DEFAULT: Self = Self::Linear;
 
-    #[inline]
-    fn index(&self, (x, y): (usize, usize)) -> &f32 {
-        let [w, h] = self.size;
-        assert!(x < w && y < h, "x: {x}, y: {y}, w: {w}, h: {h}");
-        &self.pixels[y * w + x]
-    }
-}
+    /// A good-looking default for dark mode (white-on-black text).
+    pub const DARK_MODE_DEFAULT: Self = Self::TwoCoverageMinusCoverageSq;
 
-impl std::ops::IndexMut<(usize, usize)> for FontImage {
-    #[inline]
-    fn index_mut(&mut self, (x, y): (usize, usize)) -> &mut f32 {
-        let [w, h] = self.size;
-        assert!(x < w && y < h, "x: {x}, y: {y}, w: {w}, h: {h}");
-        &mut self.pixels[y * w + x]
-    }
-}
-
-impl From<FontImage> for ImageData {
+    /// Convert coverage to alpha.
     #[inline(always)]
-    fn from(image: FontImage) -> Self {
-        Self::Font(image)
+    pub fn alpha_from_coverage(&self, coverage: f32) -> f32 {
+        match self {
+            Self::Linear => coverage,
+            Self::Gamma(gamma) => coverage.powf(*gamma),
+            Self::TwoCoverageMinusCoverageSq => 2.0 * coverage - coverage * coverage,
+        }
+    }
+
+    #[inline(always)]
+    pub fn color_from_coverage(&self, coverage: f32) -> Color32 {
+        let alpha = self.alpha_from_coverage(coverage);
+        Color32::from_white_alpha(ecolor::linear_u8_from_linear_f32(alpha))
     }
 }
 
@@ -447,7 +403,7 @@ impl From<FontImage> for ImageData {
 /// A change to an image.
 ///
 /// Either a whole new image, or an update to a rectangular region of it.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[must_use = "The painter must take care of this"]
 pub struct ImageDelta {

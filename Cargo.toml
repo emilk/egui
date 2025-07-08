@@ -21,9 +21,9 @@ members = [
 ]
 
 [workspace.package]
-edition = "2021"
+edition = "2024"
 license = "MIT OR Apache-2.0"
-rust-version = "1.84"
+rust-version = "1.85"
 version = "0.31.1"
 
 
@@ -171,7 +171,6 @@ fn_params_excessive_bools = "warn"
 fn_to_numeric_cast_any = "warn"
 from_iter_instead_of_collect = "warn"
 get_unwrap = "warn"
-if_let_mutex = "warn"
 implicit_clone = "warn"
 implied_bounds_in_impls = "warn"
 imprecise_flops = "warn"
@@ -193,6 +192,7 @@ large_stack_frames = "warn"
 large_types_passed_by_value = "warn"
 let_unit_value = "warn"
 linkedlist = "warn"
+literal_string_with_formatting_args = "warn"
 lossy_float_literal = "warn"
 macro_use_imports = "warn"
 manual_assert = "warn"

@@ -7,6 +7,7 @@ use std::marker::PhantomData;
 pub struct HarnessBuilder<State = ()> {
     pub(crate) screen_rect: Rect,
     pub(crate) pixels_per_point: f32,
+    pub(crate) theme: egui::Theme,
     pub(crate) max_steps: u64,
     pub(crate) step_dt: f32,
     pub(crate) state: PhantomData<State>,
@@ -19,6 +20,7 @@ impl<State> Default for HarnessBuilder<State> {
         Self {
             screen_rect: Rect::from_min_size(Pos2::ZERO, Vec2::new(800.0, 600.0)),
             pixels_per_point: 1.0,
+            theme: egui::Theme::Dark,
             state: PhantomData,
             renderer: Box::new(LazyRenderer::default()),
             max_steps: 4,
@@ -42,6 +44,13 @@ impl<State> HarnessBuilder<State> {
     #[inline]
     pub fn with_pixels_per_point(mut self, pixels_per_point: f32) -> Self {
         self.pixels_per_point = pixels_per_point;
+        self
+    }
+
+    /// Set the desired theme (dark or light).
+    #[inline]
+    pub fn with_theme(mut self, theme: egui::Theme) -> Self {
+        self.theme = theme;
         self
     }
 

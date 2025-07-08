@@ -1,6 +1,6 @@
-use egui::{include_image, Image};
-use egui_kittest::kittest::Queryable as _;
+use egui::{Image, include_image};
 use egui_kittest::Harness;
+use egui_kittest::kittest::Queryable as _;
 
 #[test]
 fn image_button_should_have_alt_text() {

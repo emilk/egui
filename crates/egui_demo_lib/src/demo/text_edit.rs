@@ -113,9 +113,9 @@ impl crate::View for TextEditDemo {
 
 #[cfg(test)]
 mod tests {
-    use egui::{accesskit, CentralPanel, Key, Modifiers};
-    use egui_kittest::kittest::Queryable as _;
+    use egui::{CentralPanel, Key, Modifiers, accesskit};
     use egui_kittest::Harness;
+    use egui_kittest::kittest::Queryable as _;
 
     #[test]
     pub fn should_type() {

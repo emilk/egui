@@ -172,12 +172,7 @@ impl Painter {
 
         let supported_extensions = gl.supported_extensions();
         log::trace!("OpenGL extensions: {supported_extensions:?}");
-        let srgb_textures = shader_version == ShaderVersion::Es300 // WebGL2 always support sRGB
-            || supported_extensions.iter().any(|extension| {
-                // EXT_sRGB, GL_ARB_framebuffer_sRGB, GL_EXT_sRGB, GL_EXT_texture_sRGB_decode, …
-                extension.contains("sRGB")
-            });
-        log::debug!("SRGB texture Support: {:?}", srgb_textures);
+        let srgb_textures = false; // egui wants normal sRGB-unaware textures
 
         let supports_srgb_framebuffer = !cfg!(target_arch = "wasm32")
             && supported_extensions.iter().any(|extension| {
@@ -202,11 +197,10 @@ impl Painter {
                 &gl,
                 glow::FRAGMENT_SHADER,
                 &format!(
-                    "{}\n#define NEW_SHADER_INTERFACE {}\n#define DITHERING {}\n#define SRGB_TEXTURES {}\n{}\n{}",
+                    "{}\n#define NEW_SHADER_INTERFACE {}\n#define DITHERING {}\n{}\n{}",
                     shader_version_declaration,
                     shader_version.is_new_shader_interface() as i32,
                     dithering as i32,
-                    srgb_textures as i32,
                     shader_prefix,
                     FRAG_SRC
                 ),
@@ -445,7 +439,9 @@ impl Painter {
                         if let Some(callback) = callback.callback.downcast_ref::<CallbackFn>() {
                             (callback.f)(info, self);
                         } else {
-                            log::warn!("Warning: Unsupported render callback. Expected egui_glow::CallbackFn");
+                            log::warn!(
+                                "Warning: Unsupported render callback. Expected egui_glow::CallbackFn"
+                            );
                         }
 
                         check_for_gl_error!(&self.gl, "callback");
@@ -531,23 +527,6 @@ impl Painter {
                 let data: &[u8] = bytemuck::cast_slice(image.pixels.as_ref());
 
                 self.upload_texture_srgb(delta.pos, image.size, delta.options, data);
-            }
-            egui::ImageData::Font(image) => {
-                assert_eq!(
-                    image.width() * image.height(),
-                    image.pixels.len(),
-                    "Mismatch between texture size and texel count"
-                );
-
-                let data: Vec<u8> = {
-                    profiling::scope!("font -> sRGBA");
-                    image
-                        .srgba_pixels(None)
-                        .flat_map(|a| a.to_array())
-                        .collect()
-                };
-
-                self.upload_texture_srgb(delta.pos, image.size, delta.options, &data);
             }
         };
     }

@@ -2,14 +2,15 @@ use std::{borrow::Cow, slice::Iter, sync::Arc, time::Duration};
 
 use emath::{Align, Float as _, GuiRounding as _, NumExt as _, Rot2};
 use epaint::{
-    text::{LayoutJob, TextFormat, TextWrapping},
     RectShape,
+    text::{LayoutJob, TextFormat, TextWrapping},
 };
 
 use crate::{
-    load::{Bytes, SizeHint, SizedTexture, TextureLoadResult, TexturePoll},
-    pos2, Color32, Context, CornerRadius, Id, Mesh, Painter, Rect, Response, Sense, Shape, Spinner,
+    Color32, Context, CornerRadius, Id, Mesh, Painter, Rect, Response, Sense, Shape, Spinner,
     TextStyle, TextureOptions, Ui, Vec2, Widget, WidgetInfo, WidgetType,
+    load::{Bytes, SizeHint, SizedTexture, TextureLoadResult, TexturePoll},
+    pos2,
 };
 
 /// A widget which displays an image.
@@ -277,7 +278,8 @@ impl<'a> Image<'a> {
     }
 
     /// Set alt text for the image. This will be shown when the image fails to load.
-    /// It will also be read to screen readers.
+    ///
+    /// It will also be used for accessibility (e.g. read by screen readers).
     #[inline]
     pub fn alt_text(mut self, label: impl Into<String>) -> Self {
         self.alt_text = Some(label.into());
@@ -499,7 +501,7 @@ impl ImageSize {
 
         let point_size = match fit {
             ImageFit::Original { scale } => {
-                return SizeHint::Scale((pixels_per_point * scale).ord())
+                return SizeHint::Scale((pixels_per_point * scale).ord());
             }
             ImageFit::Fraction(fract) => available_size * fract,
             ImageFit::Exact(size) => size,
@@ -671,7 +673,7 @@ pub fn paint_texture_load_result(
     rect: Rect,
     show_loading_spinner: Option<bool>,
     options: &ImageOptions,
-    alt: Option<&str>,
+    alt_text: Option<&str>,
 ) {
     match tlr {
         Ok(TexturePoll::Ready { texture }) => {
@@ -696,9 +698,9 @@ pub fn paint_texture_load_result(
                 0.0,
                 TextFormat::simple(font_id.clone(), ui.visuals().error_fg_color),
             );
-            if let Some(alt) = alt {
+            if let Some(alt_text) = alt_text {
                 job.append(
-                    alt,
+                    alt_text,
                     ui.spacing().item_spacing.x,
                     TextFormat::simple(font_id, ui.visuals().text_color()),
                 );
