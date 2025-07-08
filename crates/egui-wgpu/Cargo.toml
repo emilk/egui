@@ -61,7 +61,7 @@ profiling.workspace = true
 thiserror.workspace = true
 type-map.workspace = true
 web-time.workspace = true
-wgpu = { workspace = true, features = ["wgsl"] }
+wgpu = { workspace = true, features = ["wgsl", 'metal'] }
 
 # Optional dependencies:
 
