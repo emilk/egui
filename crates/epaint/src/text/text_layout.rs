@@ -1170,13 +1170,19 @@ mod tests {
 
     #[test]
     fn test_desired_size() {
-        let mut fonts = FontsImpl::new(1.0, 1024, FontDefinitions::default());
+        let mut fonts = FontsImpl::new(
+            1.0,
+            1024,
+            AlphaFromCoverage::default(),
+            FontDefinitions::default(),
+        );
 
+        let max_width = 60.0;
         let mut job = LayoutJob::simple(
-            "Some basic text with /n multiple lines.".to_owned(),
+            "Some basic text with \n multiple lines.".to_owned(),
             FontId::default(),
             Color32::BLACK,
-            80.0,
+            max_width,
         );
 
         let galley_wrapped = layout(&mut fonts, job.clone().into());
