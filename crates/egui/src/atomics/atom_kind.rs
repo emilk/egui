@@ -82,22 +82,25 @@ impl<'a> AtomKind<'a> {
         match self {
             AtomKind::Text(text) => {
                 let wrap_mode = wrap_mode.unwrap_or(ui.wrap_mode());
-                let desired_size = matches!(wrap_mode, TextWrapMode::Truncate).then(|| {
-                    text.clone()
-                        .into_galley(
-                            ui,
-                            Some(TextWrapMode::Extend),
-                            available_size.x,
-                            TextStyle::Button,
-                        )
-                        .desired_size()
-                });
-                let galley =
-                    text.into_galley(ui, Some(wrap_mode), available_size.x, TextStyle::Button);
-                (
-                    desired_size.unwrap_or_else(|| galley.desired_size()),
-                    SizedAtomKind::Text(galley),
-                )
+                let galley = text.clone().into_galley(
+                    ui,
+                    Some(wrap_mode),
+                    available_size.x,
+                    TextStyle::Button,
+                );
+                let desired_size = if galley.elided {
+                    // Only calculate desired size if text was actually truncated
+                    text.into_galley(
+                        ui,
+                        Some(TextWrapMode::Extend),
+                        available_size.x,
+                        TextStyle::Button,
+                    )
+                    .desired_size()
+                } else {
+                    galley.desired_size()
+                };
+                (desired_size, SizedAtomKind::Text(galley))
             }
             AtomKind::Image(image) => {
                 let size = image.load_and_calc_size(ui, available_size);
