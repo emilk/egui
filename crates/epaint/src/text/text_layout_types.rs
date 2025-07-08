@@ -560,6 +560,12 @@ pub struct Galley {
     /// so that we can warn if this has changed once we get to
     /// tessellation.
     pub pixels_per_point: f32,
+
+    /// This is the size that a non-wrapped, non-truncated, non-justified version of the text
+    /// would have.
+    ///
+    /// Useful for advanced layouting.
+    pub desired_size: Vec2,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -795,32 +801,6 @@ impl Galley {
         self.rect.size()
     }
 
-    /// Calculate the desired size.
-    ///
-    /// This is the size that a non-wrapped, non-truncated, non-justified version of the text
-    /// would have.
-    ///
-    /// This won't work for truncated text. Instead, you can clone the `LayoutJob` and set `WrapMode`
-    /// to `TextWrapMode::Extend` to calculate the desired size.
-    pub fn desired_size(&self) -> Vec2 {
-        debug_assert!(
-            !self.elided,
-            "Cannot calculate desired size for elided text."
-        );
-        let mut current_width: f32 = 0.0;
-        let mut widest_width: f32 = 0.0;
-        let mut height = self.rows.first().map_or(0.0, |row| row.height());
-        for row in &self.rows {
-            current_width += row.rect().width();
-            widest_width = widest_width.max(current_width);
-            if row.ends_with_newline {
-                height += row.height();
-                current_width = 0.0;
-            }
-        }
-        vec2(widest_width, height)
-    }
-
     pub(crate) fn round_output_to_gui(&mut self) {
         for placed_row in &mut self.rows {
             // Optimization: only call `make_mut` if necessary (can cause a deep clone)
@@ -847,6 +827,8 @@ impl Galley {
                 .at_most(rect.min.x + self.job.wrap.max_width)
                 .floor_ui();
         }
+
+        self.desired_size = self.desired_size.round_ui();
     }
 
     /// Append each galley under the previous one.
@@ -862,6 +844,7 @@ impl Galley {
             num_vertices: 0,
             num_indices: 0,
             pixels_per_point,
+            desired_size: Vec2::ZERO,
         };
 
         for (i, galley) in galleys.iter().enumerate() {
@@ -898,6 +881,9 @@ impl Galley {
             // Note that if `galley.elided` is true this will be the last `Galley` in
             // the vector and the loop will end.
             merged_galley.elided |= galley.elided;
+            merged_galley.desired_size.x =
+                f32::max(merged_galley.desired_size.x, galley.desired_size.x);
+            merged_galley.desired_size.y += galley.desired_size.y;
         }
 
         if merged_galley.job.round_output_to_gui {
