@@ -803,6 +803,10 @@ impl Galley {
     /// This won't work for truncated text. Instead, you can clone the `LayoutJob` and set `WrapMode`
     /// to `TextWrapMode::Extend` to calculate the desired size.
     pub fn desired_size(&self) -> Vec2 {
+        debug_assert!(
+            !self.elided,
+            "Cannot calculate desired size for elided text."
+        );
         let mut current_width: f32 = 0.0;
         let mut widest_width: f32 = 0.0;
         let mut height = self.rows.first().map_or(0.0, |row| row.height());
