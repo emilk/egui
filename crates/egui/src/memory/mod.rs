@@ -1012,9 +1012,8 @@ impl OpenPopup {
     }
 }
 
-/// ## Popups
-/// Popups are things like combo-boxes, color pickers, menus etc.
-/// Only one can be open at a time.
+/// ## Deprecated popup API
+/// Use [`crate::Popup`] instead.
 impl Memory {
     /// Is the given popup open?
     #[deprecated = "Use Popup::is_id_open instead"]
@@ -1086,6 +1085,7 @@ impl Memory {
     /// Toggle the given popup between closed and open.
     ///
     /// Note: At most, only one popup can be open at a time.
+    #[deprecated = "Use Popup::toggle_id instead"]
     pub fn toggle_popup(&mut self, popup_id: Id) {
         #[expect(deprecated)]
         if self.is_popup_open(popup_id) {
@@ -1094,7 +1094,9 @@ impl Memory {
             self.open_popup(popup_id);
         }
     }
+}
 
+impl Memory {
     /// If true, all windows, menus, tooltips, etc., will be visible at once.
     ///
     /// This is useful for testing, benchmarking, pre-caching, etc.

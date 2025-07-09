@@ -522,7 +522,7 @@ impl<'a> Popup<'a> {
                     }
                 }
                 Some(SetOpenCommand::Toggle) => {
-                    self.ctx.memory_mut(|mem| mem.toggle_popup(id));
+                    Self::toggle_id(&self.ctx, id);
                 }
                 None => {
                     self.ctx.memory_mut(|mem| mem.keep_popup_open(id));
@@ -667,5 +667,12 @@ impl<'a> Popup<'a> {
     /// you're showing the popup.
     pub fn open_id(ctx: &Context, popup_id: Id) {
         ctx.memory_mut(|mem| mem.open_popup(popup_id));
+    }
+
+    /// Toggle the given popup between closed and open.
+    ///
+    /// Note: At most, only one popup can be open at a time.
+    pub fn toggle_id(ctx: &Context, popup_id: Id) {
+        ctx.memory_mut(|mem| mem.toggle_popup(popup_id));
     }
 }
