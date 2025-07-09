@@ -886,9 +886,12 @@ impl GalleyCache {
             let is_first_paragraph = start == 0;
             // `end` will not include the `\n` since we don't want to create an empty row in our
             // split galley
-            let end = job.text[start..]
+            let mut end = job.text[start..]
                 .find('\n')
                 .map_or(job.text.len(), |i| start + i);
+            if end == job.text.len() - 1 && job.text.ends_with('\n') {
+                end += 1; // If the text ends with a newline, we include it in the last paragraph.
+            }
 
             let mut paragraph_job = LayoutJob {
                 text: job.text[start..end].to_owned(),
@@ -1079,6 +1082,12 @@ mod tests {
         vec![
             LayoutJob::simple(
                 String::default(),
+                FontId::new(14.0, FontFamily::Monospace),
+                Color32::WHITE,
+                f32::INFINITY,
+            ),
+            LayoutJob::simple(
+                "ends with newlines\n\n".to_owned(),
                 FontId::new(14.0, FontFamily::Monospace),
                 Color32::WHITE,
                 f32::INFINITY,
