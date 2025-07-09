@@ -22,11 +22,11 @@ We don't update the MSRV in a patch release, unless we really, really need to.
 
 
 # Release process
-* [ ] Copy this checklist to a new egui issue, called "Release 0.xx.y"
-* [ ] Close all issues in the milestone for this release
+* [ ] copy this checklist to a new egui issue, called "Release 0.xx.y"
+* [ ] close all issues in the milestone for this release
 
 ## Patch release
-* [ ] Make a branch off of the latest release
+* [ ] make a branch off of the latest release
 * [ ] cherry-pick what you want to release
 * [ ] run `cargo semver-checks`
 
@@ -52,7 +52,10 @@ We don't update the MSRV in a patch release, unless we really, really need to.
 * [ ] run `scripts/generate_example_screenshots.sh` if needed
 * [ ] write a short release note that fits in a bluesky post
 * [ ] record gif for `CHANGELOG.md` release note (and later bluesky post)
-* [ ] update changelogs using `scripts/generate_changelog.py --version 0.x.0 --write`
+* [ ] update changelogs
+  * [ ] run `scripts/generate_changelog.py --version 0.x.0 --write`
+  * [ ] read changelogs and clean them up if needed
+  * [ ] write a good intro with highlight for the main changelog
 * [ ] bump version numbers in workspace `Cargo.toml`
 
 ## Actual release
