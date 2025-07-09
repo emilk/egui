@@ -1,3 +1,5 @@
+#![expect(deprecated)] // This is a new, safe wrapper around the old `Memory::popup` API.
+
 use std::iter::once;
 
 use emath::{Align, Pos2, Rect, RectAlign, Vec2, vec2};
@@ -523,7 +525,6 @@ impl<'a> Popup<'a> {
                     self.ctx.memory_mut(|mem| mem.toggle_popup(id));
                 }
                 None => {
-                    #[expect(deprecated)]
                     self.ctx.memory_mut(|mem| mem.keep_popup_open(id));
                 }
             }
@@ -649,7 +650,6 @@ impl<'a> Popup<'a> {
     /// The popup id should be the same as either you set with [`Self::id`] or the
     /// default one from [`Self::default_response_id`].
     pub fn is_id_open(ctx: &Context, popup_id: Id) -> bool {
-        #[expect(deprecated)]
         ctx.memory(|mem| mem.is_popup_open(popup_id))
     }
 
@@ -657,7 +657,6 @@ impl<'a> Popup<'a> {
     ///
     /// This assumes the egui memory is being used to track the open state of popups.
     pub fn is_any_open(ctx: &Context) -> bool {
-        #[expect(deprecated)]
         ctx.memory(|mem| mem.any_popup_open())
     }
 
@@ -667,7 +666,6 @@ impl<'a> Popup<'a> {
     /// also call [`crate::Memory::keep_popup_open`] as long as
     /// you're showing the popup.
     pub fn open_id(ctx: &Context, popup_id: Id) {
-        #[expect(deprecated)]
         ctx.memory_mut(|mem| mem.open_popup(popup_id));
     }
 }

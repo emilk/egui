@@ -1055,6 +1055,7 @@ impl Memory {
     }
 
     /// Open the popup and remember its position.
+    #[deprecated = "Use Popup with PopupAnchor::Position instead"]
     pub fn open_popup_at(&mut self, popup_id: Id, pos: impl Into<Option<Pos2>>) {
         self.popups
             .insert(self.viewport_id, OpenPopup::new(popup_id, pos.into()));
