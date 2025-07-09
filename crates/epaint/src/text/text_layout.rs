@@ -1253,7 +1253,7 @@ mod tests {
         );
 
         let job = LayoutJob::simple(
-            "Hi!\n".to_string(),
+            "Hi!\n".to_owned(),
             FontId::default(),
             Color32::WHITE,
             f32::INFINITY,
