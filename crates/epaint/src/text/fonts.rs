@@ -825,7 +825,7 @@ impl GalleyCache {
                 let job = Arc::new(job);
                 if allow_split_paragraphs && should_cache_each_paragraph_individually(&job) {
                     let (child_galleys, child_hashes) =
-                        self.layout_each_paragraph_individuallly(fonts, &job);
+                        self.layout_each_paragraph_individually(fonts, &job);
                     debug_assert_eq!(
                         child_hashes.len(),
                         child_galleys.len(),
@@ -869,7 +869,7 @@ impl GalleyCache {
     }
 
     /// Split on `\n` and lay out (and cache) each paragraph individually.
-    fn layout_each_paragraph_individuallly(
+    fn layout_each_paragraph_individually(
         &mut self,
         fonts: &mut FontsImpl,
         job: &LayoutJob,
@@ -884,9 +884,11 @@ impl GalleyCache {
 
         while start < job.text.len() {
             let is_first_paragraph = start == 0;
+            // `end` will not include the `\n` since we don't want to create an empty row in our
+            // split galley
             let end = job.text[start..]
                 .find('\n')
-                .map_or(job.text.len(), |i| start + i + 1);
+                .map_or(job.text.len(), |i| start + i);
 
             let mut paragraph_job = LayoutJob {
                 text: job.text[start..end].to_owned(),
@@ -920,7 +922,7 @@ impl GalleyCache {
                 if section_range.end <= start {
                     // The section is behind us
                     current_section += 1;
-                } else if end <= section_range.start {
+                } else if end < section_range.start {
                     break; // Haven't reached this one yet.
                 } else {
                     // Section range overlaps with paragraph range
@@ -953,10 +955,6 @@ impl GalleyCache {
             // This will prevent us from invalidating cache entries unnecessarily:
             if max_rows_remaining != usize::MAX {
                 max_rows_remaining -= galley.rows.len();
-                // Ignore extra trailing row, see merging `Galley::concat` for more details.
-                if end < job.text.len() && !galley.elided {
-                    max_rows_remaining += 1;
-                }
             }
 
             let elided = galley.elided;
@@ -965,7 +963,7 @@ impl GalleyCache {
                 break;
             }
 
-            start = end;
+            start = end + 1;
         }
 
         (child_galleys, child_hashes)
@@ -1091,6 +1089,29 @@ mod tests {
                 Color32::WHITE,
                 f32::INFINITY,
             ),
+            {
+                let mut job = LayoutJob::simple(
+                    "hi".to_owned(),
+                    FontId::default(),
+                    Color32::WHITE,
+                    f32::INFINITY,
+                );
+                job.append("\n", 0.0, TextFormat::default());
+                job.append("\n", 0.0, TextFormat::default());
+                job.append("world", 0.0, TextFormat::default());
+                job.wrap.max_rows = 2;
+                job
+            },
+            {
+                let mut job = LayoutJob::simple(
+                    "Test text with a lot of words\n and a newline.".to_owned(),
+                    FontId::new(14.0, FontFamily::Monospace),
+                    Color32::WHITE,
+                    40.0,
+                );
+                job.first_row_min_height = 30.0;
+                job
+            },
             LayoutJob::simple(
                 "This some text that may be long.\nDet kanske också finns lite ÅÄÖ här.".to_owned(),
                 FontId::new(14.0, FontFamily::Proportional),
@@ -1213,7 +1234,7 @@ mod tests {
                         let text = job.text.clone();
                         let galley_unwrapped = layout(&mut fonts, job.into());
 
-                        let intrinsic_size = galley_wrapped.intrinsic_size;
+                        let intrinsic_size = galley_wrapped.intrinsic_size();
                         let unwrapped_size = galley_unwrapped.size();
 
                         let difference = (intrinsic_size - unwrapped_size).length().abs();
@@ -1232,7 +1253,7 @@ mod tests {
                             format!("{unwrapped_size:.4?}"),
                             "Unwrapped galley intrinsic size should exactly match its size. \
                                 {:.8?} vs {:8?}",
-                            galley_unwrapped.intrinsic_size,
+                            galley_unwrapped.intrinsic_size(),
                             galley_unwrapped.size(),
                         );
                     }
