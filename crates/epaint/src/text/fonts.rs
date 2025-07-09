@@ -825,7 +825,7 @@ impl GalleyCache {
                 let job = Arc::new(job);
                 if allow_split_paragraphs && should_cache_each_paragraph_individually(&job) {
                     let (child_galleys, child_hashes) =
-                        self.layout_each_paragraph_individuallly(fonts, &job);
+                        self.layout_each_paragraph_individually(fonts, &job);
                     debug_assert_eq!(
                         child_hashes.len(),
                         child_galleys.len(),
@@ -869,7 +869,7 @@ impl GalleyCache {
     }
 
     /// Split on `\n` and lay out (and cache) each paragraph individually.
-    fn layout_each_paragraph_individuallly(
+    fn layout_each_paragraph_individually(
         &mut self,
         fonts: &mut FontsImpl,
         job: &LayoutJob,
@@ -922,7 +922,7 @@ impl GalleyCache {
                 if section_range.end <= start {
                     // The section is behind us
                     current_section += 1;
-                } else if end <= section_range.start {
+                } else if end + 1 <= section_range.start {
                     break; // Haven't reached this one yet.
                 } else {
                     // Section range overlaps with paragraph range
@@ -955,10 +955,6 @@ impl GalleyCache {
             // This will prevent us from invalidating cache entries unnecessarily:
             if max_rows_remaining != usize::MAX {
                 max_rows_remaining -= galley.rows.len();
-                // Ignore extra trailing row, see merging `Galley::concat` for more details.
-                if end < job.text.len() && !galley.elided {
-                    max_rows_remaining += 1;
-                }
             }
 
             let elided = galley.elided;
@@ -1093,6 +1089,19 @@ mod tests {
                 Color32::WHITE,
                 f32::INFINITY,
             ),
+            {
+                let mut job = LayoutJob::simple(
+                    "hi".to_owned(),
+                    FontId::default(),
+                    Color32::WHITE,
+                    f32::INFINITY,
+                );
+                job.append("\n", 0.0, TextFormat::default());
+                job.append("\n", 0.0, TextFormat::default());
+                job.append("world", 0.0, TextFormat::default());
+                job.wrap.max_rows = 2;
+                job
+            },
             LayoutJob::simple(
                 "This some text that may be long.\nDet kanske också finns lite ÅÄÖ här.".to_owned(),
                 FontId::new(14.0, FontFamily::Proportional),
