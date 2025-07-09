@@ -1017,6 +1017,7 @@ impl OpenPopup {
 /// Only one can be open at a time.
 impl Memory {
     /// Is the given popup open?
+    #[deprecated = "Use Popup::is_id_open instead"]
     pub fn is_popup_open(&self, popup_id: Id) -> bool {
         self.popups
             .get(&self.viewport_id)
@@ -1072,6 +1073,7 @@ impl Memory {
     ///
     /// See also [`Self::close_all_popups`] if you want to close any / all currently open popups.
     pub fn close_popup(&mut self, popup_id: Id) {
+        #[expect(deprecated)]
         if self.is_popup_open(popup_id) {
             self.popups.remove(&self.viewport_id);
         }
@@ -1081,6 +1083,7 @@ impl Memory {
     ///
     /// Note: At most, only one popup can be open at a time.
     pub fn toggle_popup(&mut self, popup_id: Id) {
+        #[expect(deprecated)]
         if self.is_popup_open(popup_id) {
             self.close_popup(popup_id);
         } else {

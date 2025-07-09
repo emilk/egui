@@ -293,7 +293,7 @@ impl ComboBox {
 
     /// Check if the [`ComboBox`] with the given id has its popup menu currently opened.
     pub fn is_open(ctx: &Context, id: Id) -> bool {
-        ctx.memory(|m| m.is_popup_open(Self::widget_to_popup_id(id)))
+        Popup::is_id_open(ctx, Self::widget_to_popup_id(id))
     }
 
     /// Convert a [`ComboBox`] id to the id used to store it's popup state.
@@ -315,7 +315,7 @@ fn combo_box_dyn<'c, R>(
 ) -> InnerResponse<Option<R>> {
     let popup_id = ComboBox::widget_to_popup_id(button_id);
 
-    let is_popup_open = ui.memory(|m| m.is_popup_open(popup_id));
+    let is_popup_open = Popup::is_id_open(ui.ctx(), popup_id);
 
     let wrap_mode = wrap_mode.unwrap_or_else(|| ui.wrap_mode());
 

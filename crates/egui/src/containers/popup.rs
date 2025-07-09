@@ -1,11 +1,13 @@
-use crate::containers::menu::{MenuConfig, MenuState, menu_style};
-use crate::style::StyleModifier;
+use std::iter::once;
+
+use emath::{Align, Pos2, Rect, RectAlign, Vec2, vec2};
+
 use crate::{
     Area, AreaState, Context, Frame, Id, InnerResponse, Key, LayerId, Layout, Order, Response,
     Sense, Ui, UiKind, UiStackInfo,
+    containers::menu::{MenuConfig, MenuState, menu_style},
+    style::StyleModifier,
 };
-use emath::{Align, Pos2, Rect, RectAlign, Vec2, vec2};
-use std::iter::once;
 
 /// What should we anchor the popup to?
 ///
@@ -122,12 +124,12 @@ enum OpenKind<'a> {
 
 impl OpenKind<'_> {
     /// Returns `true` if the popup should be open
-    fn is_open(&self, id: Id, ctx: &Context) -> bool {
+    fn is_open(&self, popup_id: Id, ctx: &Context) -> bool {
         match self {
             OpenKind::Open => true,
             OpenKind::Closed => false,
             OpenKind::Bool(open) => **open,
-            OpenKind::Memory { .. } => ctx.memory(|mem| mem.is_popup_open(id)),
+            OpenKind::Memory { .. } => Popup::is_id_open(ctx, popup_id),
         }
     }
 }
@@ -217,7 +219,7 @@ impl<'a> Popup<'a> {
     /// See [`Self::menu`] and [`Self::context_menu`] for common use cases.
     pub fn from_response(response: &Response) -> Self {
         let mut popup = Self::new(
-            response.id.with("popup"),
+            Self::default_response_id(response),
             response.ctx.clone(),
             response,
             response.layer_id,
@@ -455,7 +457,7 @@ impl<'a> Popup<'a> {
             OpenKind::Open => true,
             OpenKind::Closed => false,
             OpenKind::Bool(open) => **open,
-            OpenKind::Memory { .. } => self.ctx.memory(|mem| mem.is_popup_open(self.id)),
+            OpenKind::Memory { .. } => Self::is_id_open(&self.ctx, self.id),
         }
     }
 
@@ -625,5 +627,29 @@ impl<'a> Popup<'a> {
         }
 
         Some(response)
+    }
+}
+
+/// ## Static methods
+impl<'a> Popup<'a> {
+    /// The default ID when constructing a popup from the [`Response`] of e.g. a button.
+    pub fn default_response_id(response: &Response) -> Id {
+        response.id.with("popup")
+    }
+
+    /// Is the given popup open?
+    ///
+    /// This assumes the use of either:
+    /// * [`Self::open_memory`]
+    /// * [`Self::from_toggle_button_response`]
+    /// * [`Self::menu`]
+    /// * [`Self::context_menu`]
+    ///
+    /// The popup id should be the same as either you set with [`Self::id`] or the
+    /// default one from [`Self::default_response_id`].
+    pub fn is_id_open(ctx: &Context, popup_id: Id) -> bool {
+        #[expect(deprecated)]
+        // This is the only place we're using the old API, because this _is_ the safe wrapper around it.
+        ctx.memory(|mem| mem.is_popup_open(popup_id))
     }
 }
