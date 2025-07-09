@@ -93,3 +93,4 @@ I usually do this all on the `main` branch, but doing it in a release branch is 
 ## Finally
 * [ ] Close the milestone
 * [ ] Close this issue
+* [ ] Improve `RELEASES.md` with what you learned this time around
