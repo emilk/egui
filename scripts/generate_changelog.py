@@ -192,7 +192,9 @@ def remove_prefix(text, prefix):
 def print_section(heading: str, content: str) -> None:
     if content != "":
         print(f"## {heading}")
-        print(content)
+        print(content.strip())
+        print()
+        print()
         print()
 
 
@@ -345,11 +347,8 @@ def main() -> None:
     print()
     for crate in crate_names:
         if crate in crate_sections:
-            prs = crate_sections[crate]
-            print_section(crate, changelog_from_prs(prs, crate))
-    print()
+            print_section(crate, changelog_from_prs(crate_sections[crate], crate))
     print_section("Unsorted PRs", "\n".join([f"* {item}" for item in unsorted_prs]))
-    print()
     print_section(
         "Unsorted commits", "\n".join([f"* {item}" for item in unsorted_commits])
     )
