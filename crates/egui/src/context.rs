@@ -78,7 +78,7 @@ impl Default for WrappedTextureManager {
         // Will be filled in later
         let font_id = tex_mngr.alloc(
             "egui_font_texture".into(),
-            epaint::FontImage::new([0, 0]).into(),
+            epaint::ColorImage::filled([0, 0], Color32::TRANSPARENT).into(),
             Default::default(),
         );
         assert_eq!(
@@ -610,6 +610,8 @@ impl ContextImpl {
             log::trace!("Adding new fonts");
         }
 
+        let text_alpha_from_coverage = self.memory.options.style().visuals.text_alpha_from_coverage;
+
         let mut is_new = false;
 
         let fonts = self
@@ -624,13 +626,14 @@ impl ContextImpl {
                 Fonts::new(
                     pixels_per_point,
                     max_texture_side,
+                    text_alpha_from_coverage,
                     self.font_definitions.clone(),
                 )
             });
 
         {
             profiling::scope!("Fonts::begin_pass");
-            fonts.begin_pass(pixels_per_point, max_texture_side);
+            fonts.begin_pass(pixels_per_point, max_texture_side, text_alpha_from_coverage);
         }
 
         if is_new && self.memory.options.preload_font_glyphs {
@@ -1149,7 +1152,7 @@ impl Context {
                              ID clashes happens when things like Windows or CollapsingHeaders share names,\n\
                              or when things like Plot and Grid:s aren't given unique id_salt:s.\n\n\
                              Sometimes the solution is to use ui.push_id.",
-                         if below { "above" } else { "below" })
+                                if below { "above" } else { "below" }),
                     );
                 }
             }
@@ -1215,6 +1218,51 @@ impl Context {
             // some information is written to the node twice.
             self.accesskit_node_builder(w.id, |builder| res.fill_accesskit_node_common(builder));
         }
+
+        #[cfg(feature = "accesskit")]
+        self.write(|ctx| {
+            use crate::{Align, pass_state::ScrollTarget, style::ScrollAnimation};
+            let viewport = ctx.viewport_for(ctx.viewport_id());
+
+            viewport
+                .input
+                .consume_accesskit_action_requests(res.id, |request| {
+                    // TODO(lucasmerlin): Correctly handle the scroll unit:
+                    // https://github.com/AccessKit/accesskit/blob/e639c0e0d8ccbfd9dff302d972fa06f9766d608e/common/src/lib.rs#L2621
+                    const DISTANCE: f32 = 100.0;
+
+                    match &request.action {
+                        accesskit::Action::ScrollIntoView => {
+                            viewport.this_pass.scroll_target = [
+                                Some(ScrollTarget::new(
+                                    res.rect.x_range(),
+                                    Some(Align::Center),
+                                    ScrollAnimation::none(),
+                                )),
+                                Some(ScrollTarget::new(
+                                    res.rect.y_range(),
+                                    Some(Align::Center),
+                                    ScrollAnimation::none(),
+                                )),
+                            ];
+                        }
+                        accesskit::Action::ScrollDown => {
+                            viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::UP;
+                        }
+                        accesskit::Action::ScrollUp => {
+                            viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::DOWN;
+                        }
+                        accesskit::Action::ScrollLeft => {
+                            viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::LEFT;
+                        }
+                        accesskit::Action::ScrollRight => {
+                            viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::RIGHT;
+                        }
+                        _ => return false,
+                    };
+                    true
+                });
+        });
 
         res
     }

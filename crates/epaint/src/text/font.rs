@@ -279,12 +279,13 @@ impl FontImpl {
             } else {
                 let glyph_pos = {
                     let atlas = &mut self.atlas.lock();
+                    let text_alpha_from_coverage = atlas.text_alpha_from_coverage;
                     let (glyph_pos, image) = atlas.allocate((glyph_width, glyph_height));
                     glyph.draw(|x, y, v| {
                         if 0.0 < v {
                             let px = glyph_pos.0 + x as usize;
                             let py = glyph_pos.1 + y as usize;
-                            image[(px, py)] = v;
+                            image[(px, py)] = text_alpha_from_coverage.color_from_coverage(v);
                         }
                     });
                     glyph_pos

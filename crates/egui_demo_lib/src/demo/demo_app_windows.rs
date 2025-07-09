@@ -373,7 +373,7 @@ mod tests {
     use crate::{Demo as _, demo::demo_app_windows::DemoGroups};
 
     use egui_kittest::kittest::{NodeT as _, Queryable as _};
-    use egui_kittest::{Harness, SnapshotOptions, SnapshotResults};
+    use egui_kittest::{Harness, OsThreshold, SnapshotOptions, SnapshotResults};
 
     #[test]
     fn demos_should_match_snapshot() {
@@ -410,12 +410,13 @@ mod tests {
             harness.run_ok();
 
             let mut options = SnapshotOptions::default();
-            // The Bézier Curve demo needs a threshold of 2.1 to pass on linux
+
             if name == "Bézier Curve" {
-                options.threshold = 2.1;
+                // The Bézier Curve demo needs a threshold of 2.1 to pass on linux:
+                options = options.threshold(OsThreshold::new(0.0).linux(2.1));
             }
 
-            results.add(harness.try_snapshot_options(&format!("demos/{name}"), &options));
+            results.add(harness.try_snapshot_options(format!("demos/{name}"), &options));
         }
     }
 

@@ -7,9 +7,9 @@ use crate::{Align2, Pos2, Rect, Vec2};
 ///
 /// There are helper constants for the 12 common menu positions:
 /// ```text
-///              ┌───────────┐  ┌────────┐  ┌─────────┐              
-///              │ TOP_START │  │  TOP   │  │ TOP_END │              
-///              └───────────┘  └────────┘  └─────────┘               
+///              ┌───────────┐  ┌────────┐  ┌─────────┐
+///              │ TOP_START │  │  TOP   │  │ TOP_END │
+///              └───────────┘  └────────┘  └─────────┘
 /// ┌──────────┐ ┌────────────────────────────────────┐ ┌───────────┐
 /// │LEFT_START│ │                                    │ │RIGHT_START│
 /// └──────────┘ │                                    │ └───────────┘
@@ -19,9 +19,9 @@ use crate::{Align2, Pos2, Rect, Vec2};
 /// ┌──────────┐ │                                    │ ┌───────────┐
 /// │ LEFT_END │ │                                    │ │ RIGHT_END │
 /// └──────────┘ └────────────────────────────────────┘ └───────────┘
-///              ┌────────────┐  ┌──────┐  ┌──────────┐              
-///              │BOTTOM_START│  │BOTTOM│  │BOTTOM_END│              
-///              └────────────┘  └──────┘  └──────────┘              
+///              ┌────────────┐  ┌──────┐  ┌──────────┐
+///              │BOTTOM_START│  │BOTTOM│  │BOTTOM_END│
+///              └────────────┘  └──────┘  └──────────┘
 /// ```
 // There is no `new` function on purpose, since writing out `parent` and `child` is more
 // reasonable.
@@ -235,45 +235,34 @@ impl RectAlign {
         [self.flip_x(), self.flip_y(), self.flip()]
     }
 
-    /// Look for the [`RectAlign`] that fits best in the available space.
+    /// Look for the first alternative [`RectAlign`] that allows the child rect to fit
+    /// inside the `screen_rect`.
+    ///
+    /// If no alternative fits, the first is returned.
+    /// If no alternatives are given, `None` is returned.
     ///
     /// See also:
     /// - [`RectAlign::symmetries`] to calculate alternatives
     /// - [`RectAlign::MENU_ALIGNS`] for the 12 common menu positions
     pub fn find_best_align(
-        mut values_to_try: impl Iterator<Item = Self>,
-        available_space: Rect,
+        values_to_try: impl Iterator<Item = Self>,
+        screen_rect: Rect,
         parent_rect: Rect,
         gap: f32,
-        size: Vec2,
-    ) -> Self {
-        let area = size.x * size.y;
-
-        let blocked_area = |pos: Self| {
-            let rect = pos.align_rect(&parent_rect, size, gap);
-            area - available_space.intersect(rect).area()
-        };
-
-        let first = values_to_try.next().unwrap_or_default();
-
-        if blocked_area(first) == 0.0 {
-            return first;
-        }
-
-        let mut best_area = blocked_area(first);
-        let mut best = first;
+        expected_size: Vec2,
+    ) -> Option<Self> {
+        let mut first_choice = None;
 
         for align in values_to_try {
-            let blocked = blocked_area(align);
-            if blocked == 0.0 {
-                return align;
-            }
-            if blocked < best_area {
-                best = align;
-                best_area = blocked;
+            first_choice = first_choice.or(Some(align)); // Remember the first alternative
+
+            let suggested_popup_rect = align.align_rect(&parent_rect, expected_size, gap);
+
+            if screen_rect.contains_rect(suggested_popup_rect) {
+                return Some(align);
             }
         }
 
-        best
+        first_choice
     }
 }

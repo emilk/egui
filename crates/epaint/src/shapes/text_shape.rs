@@ -130,10 +130,12 @@ impl TextShape {
             num_vertices: _,
             num_indices: _,
             pixels_per_point: _,
+            intrinsic_size,
         } = Arc::make_mut(galley);
 
         *rect = transform.scaling * *rect;
         *mesh_bounds = transform.scaling * *mesh_bounds;
+        *intrinsic_size = transform.scaling * *intrinsic_size;
 
         for text::PlacedRow { pos, row } in rows {
             *pos *= transform.scaling;
@@ -179,7 +181,12 @@ mod tests {
 
     #[test]
     fn text_bounding_box_under_rotation() {
-        let fonts = Fonts::new(1.0, 1024, FontDefinitions::default());
+        let fonts = Fonts::new(
+            1.0,
+            1024,
+            AlphaFromCoverage::default(),
+            FontDefinitions::default(),
+        );
         let font = FontId::monospace(12.0);
 
         let mut t = crate::Shape::text(

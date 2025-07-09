@@ -81,7 +81,7 @@ impl<'a> Atom<'a> {
             wrap_mode = Some(TextWrapMode::Truncate);
         }
 
-        let (preferred, kind) = self.kind.into_sized(ui, available_size, wrap_mode);
+        let (intrinsic, kind) = self.kind.into_sized(ui, available_size, wrap_mode);
 
         let size = self
             .size
@@ -89,7 +89,7 @@ impl<'a> Atom<'a> {
 
         SizedAtom {
             size,
-            preferred_size: preferred,
+            intrinsic_size: intrinsic.at_least(self.size.unwrap_or_default()),
             grow: self.grow,
             kind,
         }
