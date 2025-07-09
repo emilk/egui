@@ -680,4 +680,11 @@ impl<'a> Popup<'a> {
     pub fn close_all(ctx: &Context) {
         ctx.memory_mut(|mem| mem.close_all_popups());
     }
+
+    /// Close the given popup, if it is open.
+    ///
+    /// See also [`Self::close_all`] if you want to close any / all currently open popups.
+    pub fn close_id(ctx: &Context, popup_id: Id) {
+        ctx.memory_mut(|mem| mem.close_popup(popup_id));
+    }
 }

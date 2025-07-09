@@ -1076,6 +1076,7 @@ impl Memory {
     /// Close the given popup, if it is open.
     ///
     /// See also [`Self::close_all_popups`] if you want to close any / all currently open popups.
+    #[deprecated = "Use Popup::close_id instead"]
     pub fn close_popup(&mut self, popup_id: Id) {
         #[expect(deprecated)]
         if self.is_popup_open(popup_id) {
