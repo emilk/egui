@@ -1061,6 +1061,7 @@ impl Memory {
     }
 
     /// Get the position for this popup.
+    #[deprecated = "Use Popup::position_of_id instead"]
     pub fn popup_position(&self, id: Id) -> Option<Pos2> {
         self.popups
             .get(&self.viewport_id)

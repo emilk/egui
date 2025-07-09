@@ -68,9 +68,7 @@ impl PopupAnchor {
         match self {
             Self::ParentRect(rect) => Some(rect),
             Self::Pointer => ctx.pointer_hover_pos().map(Rect::from_pos),
-            Self::PointerFixed => ctx
-                .memory(|mem| mem.popup_position(popup_id))
-                .map(Rect::from_pos),
+            Self::PointerFixed => Popup::position_of_id(ctx, popup_id).map(Rect::from_pos),
             Self::Position(pos) => Some(Rect::from_pos(pos)),
         }
     }
@@ -518,7 +516,7 @@ impl<'a> Popup<'a> {
                             _ => Popup::open_id(&self.ctx, id),
                         }
                     } else {
-                        self.ctx.memory_mut(|mem| mem.close_popup(id));
+                        Self::close_id(&self.ctx, id);
                     }
                 }
                 Some(SetOpenCommand::Toggle) => {
@@ -686,5 +684,10 @@ impl<'a> Popup<'a> {
     /// See also [`Self::close_all`] if you want to close any / all currently open popups.
     pub fn close_id(ctx: &Context, popup_id: Id) {
         ctx.memory_mut(|mem| mem.close_popup(popup_id));
+    }
+
+    /// Get the position for this popup, if it is open.
+    pub fn position_of_id(ctx: &Context, popup_id: Id) -> Option<Pos2> {
+        ctx.memory(|mem| mem.popup_position(popup_id))
     }
 }
