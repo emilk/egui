@@ -675,4 +675,9 @@ impl<'a> Popup<'a> {
     pub fn toggle_id(ctx: &Context, popup_id: Id) {
         ctx.memory_mut(|mem| mem.toggle_popup(popup_id));
     }
+
+    /// Close all currently open popups.
+    pub fn close_all(ctx: &Context) {
+        ctx.memory_mut(|mem| mem.close_all_popups());
+    }
 }

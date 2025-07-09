@@ -1068,6 +1068,7 @@ impl Memory {
     }
 
     /// Close any currently open popup.
+    #[deprecated = "Use Popup::close_all instead"]
     pub fn close_all_popups(&mut self) {
         self.popups.clear();
     }
