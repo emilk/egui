@@ -705,7 +705,7 @@ fn automatic_area_position(ctx: &Context, layer_id: LayerId) -> Pos2 {
         let current_column_bb = column_bbs.last_mut().unwrap();
         if rect.left() < current_column_bb.right() {
             // same column
-            *current_column_bb = current_column_bb.union(rect);
+            *current_column_bb |= rect;
         } else {
             // new column
             column_bbs.push(rect);

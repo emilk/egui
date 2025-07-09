@@ -1,6 +1,7 @@
 use std::fmt;
 
 use crate::{Div, Mul, NumExt as _, Pos2, Rangef, Rot2, Vec2, lerp, pos2, vec2};
+use std::ops::{BitOr, BitOrAssign};
 
 /// A rectangular region of space.
 ///
@@ -773,6 +774,22 @@ impl Div<f32> for Rect {
             min: self.min / factor,
             max: self.max / factor,
         }
+    }
+}
+
+impl BitOr for Rect {
+    type Output = Self;
+
+    #[inline]
+    fn bitor(self, other: Self) -> Self {
+        self.union(other)
+    }
+}
+
+impl BitOrAssign for Rect {
+    #[inline]
+    fn bitor_assign(&mut self, other: Self) {
+        *self = self.union(other);
     }
 }
 

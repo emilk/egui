@@ -102,7 +102,7 @@ impl State {
                 let location_rect =
                     Align2::RIGHT_TOP.anchor_size(pos - 4.0 * Vec2::X, location_galley.size());
                 painter.galley(location_rect.min, location_galley, color);
-                bounding_rect = bounding_rect.union(location_rect);
+                bounding_rect |= location_rect;
             }
 
             {
@@ -117,7 +117,7 @@ impl State {
                 );
                 let rect = Align2::LEFT_TOP.anchor_size(pos, galley.size());
                 painter.galley(rect.min, galley, color);
-                bounding_rect = bounding_rect.union(rect);
+                bounding_rect |= rect;
             }
 
             pos.y = bounding_rect.max.y + 4.0;

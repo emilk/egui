@@ -691,7 +691,7 @@ fn galley_from_rows(
     let mut num_indices = 0;
 
     for placed_row in &mut rows {
-        rect = rect.union(placed_row.rect());
+        rect |= placed_row.rect();
 
         let row = Arc::make_mut(&mut placed_row.row);
         row.visuals = tessellate_row(point_scale, &job, &format_summary, row);

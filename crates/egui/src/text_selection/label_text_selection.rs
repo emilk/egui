@@ -546,7 +546,7 @@ impl LabelSelectionState {
 
         if let Some(mut cursor_range) = cursor_state.range(galley) {
             let galley_rect = global_from_galley * Rect::from_min_size(Pos2::ZERO, galley.size());
-            self.selection_bbox_this_frame = self.selection_bbox_this_frame.union(galley_rect);
+            self.selection_bbox_this_frame |= galley_rect;
 
             if let Some(selection) = &self.selection {
                 if selection.primary.widget_id == response.id {

@@ -222,7 +222,7 @@ fn huge_content_painter(ui: &mut egui::Ui) {
                     font_id.clone(),
                     ui.visuals().text_color(),
                 );
-                used_rect = used_rect.union(text_rect);
+                used_rect |= text_rect;
             }
 
             ui.allocate_rect(used_rect, Sense::hover()); // make sure it is visible!

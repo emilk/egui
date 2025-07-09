@@ -50,8 +50,8 @@ pub(crate) struct Region {
 impl Region {
     /// Expand the `min_rect` and `max_rect` of this ui to include a child at the given rect.
     pub fn expand_to_include_rect(&mut self, rect: Rect) {
-        self.min_rect = self.min_rect.union(rect);
-        self.max_rect = self.max_rect.union(rect);
+        self.min_rect |= rect;
+        self.max_rect |= rect;
     }
 
     /// Ensure we are big enough to contain the given X-coordinate.
