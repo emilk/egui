@@ -204,12 +204,6 @@ fn calculate_intrinsic_size(
 ) -> Vec2 {
     let mut intrinsic_size = Vec2::ZERO;
     for (idx, paragraph) in paragraphs.iter().enumerate() {
-        if paragraph.glyphs.is_empty() {
-            if idx == 0 {
-                intrinsic_size.y += point_scale.round_to_pixel(paragraph.empty_paragraph_height);
-            }
-            continue;
-        }
         intrinsic_size.x = f32::max(
             paragraph
                 .glyphs
@@ -253,7 +247,7 @@ fn rows_from_paragraphs(
 
         if paragraph.glyphs.is_empty() {
             rows.push(PlacedRow {
-                pos: Pos2::ZERO,
+                pos: pos2(0.0, f32::NAN),
                 row: Arc::new(Row {
                     section_index_at_start: paragraph.section_index_at_start,
                     glyphs: vec![],
@@ -659,12 +653,12 @@ fn galley_from_rows(
     let mut cursor_y = 0.0;
 
     for placed_row in &mut rows {
-        let mut max_row_height = first_row_min_height.max(placed_row.rect().height());
+        let mut max_row_height = first_row_min_height.at_least(placed_row.height());
         let row = Arc::make_mut(&mut placed_row.row);
 
         first_row_min_height = 0.0;
         for glyph in &row.glyphs {
-            max_row_height = max_row_height.max(glyph.line_height);
+            max_row_height = max_row_height.at_least(glyph.line_height);
         }
         max_row_height = point_scale.round_to_pixel(max_row_height);
 
@@ -1211,5 +1205,77 @@ mod tests {
         let row = &galley.rows[0];
         assert_eq!(row.pos, Pos2::ZERO);
         assert_eq!(row.rect().max.x, row.glyphs.last().unwrap().max_x());
+    }
+
+    #[test]
+    fn test_empty_row() {
+        let mut fonts = FontsImpl::new(
+            1.0,
+            1024,
+            AlphaFromCoverage::default(),
+            FontDefinitions::default(),
+        );
+
+        let job = LayoutJob::simple(
+            String::new(),
+            FontId::default(),
+            Color32::WHITE,
+            f32::INFINITY,
+        );
+
+        let galley = layout(&mut fonts, job.into());
+
+        assert_eq!(galley.rows.len(), 1, "Expected one row");
+        assert_eq!(
+            galley.rows[0].row.glyphs.len(),
+            0,
+            "Expected no glyphs in the empty row"
+        );
+        assert_eq!(
+            galley.size(),
+            Vec2::new(0.0, 16.0),
+            "Unexpected galley size"
+        );
+        assert_eq!(
+            galley.intrinsic_size,
+            Vec2::new(0.0, 16.0),
+            "Unexpected intrinsic size"
+        );
+    }
+
+    #[test]
+    fn test_end_with_newline() {
+        let mut fonts = FontsImpl::new(
+            1.0,
+            1024,
+            AlphaFromCoverage::default(),
+            FontDefinitions::default(),
+        );
+
+        let job = LayoutJob::simple(
+            "Hi!\n".to_string(),
+            FontId::default(),
+            Color32::WHITE,
+            f32::INFINITY,
+        );
+
+        let galley = layout(&mut fonts, job.into());
+
+        assert_eq!(galley.rows.len(), 2, "Expected two rows");
+        assert_eq!(
+            galley.rows[1].row.glyphs.len(),
+            0,
+            "Expected no glyphs in the empty row"
+        );
+        assert_eq!(
+            galley.size().round(),
+            Vec2::new(17.0, 32.0),
+            "Unexpected galley size"
+        );
+        assert_eq!(
+            galley.intrinsic_size.round(),
+            Vec2::new(17.0, 32.0),
+            "Unexpected intrinsic size"
+        );
     }
 }

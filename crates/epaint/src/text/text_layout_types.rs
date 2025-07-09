@@ -849,32 +849,28 @@ impl Galley {
 
         for (i, galley) in galleys.iter().enumerate() {
             let current_y_offset = merged_galley.rect.height();
+            let is_last_galley = i + 1 == galleys.len();
 
-            let mut rows = galley.rows.iter();
-            // As documented in `Row::ends_with_newline`, a '\n' will always create a
-            // new `Row` immediately below the current one. Here it doesn't make sense
-            // for us to append this new row so we just ignore it.
-            let is_last_row = i + 1 == galleys.len();
-            if !is_last_row && !galley.elided {
-                let popped = rows.next_back();
-                debug_assert_eq!(popped.unwrap().row.glyphs.len(), 0, "Bug in Galley::concat");
-            }
+            merged_galley
+                .rows
+                .extend(galley.rows.iter().enumerate().map(|(row_idx, placed_row)| {
+                    let new_pos = placed_row.pos + current_y_offset * Vec2::Y;
+                    let new_pos = new_pos.round_to_pixels(pixels_per_point);
+                    merged_galley.mesh_bounds = merged_galley
+                        .mesh_bounds
+                        .union(placed_row.visuals.mesh_bounds.translate(new_pos.to_vec2()));
+                    merged_galley.rect = merged_galley
+                        .rect
+                        .union(Rect::from_min_size(new_pos, placed_row.size));
 
-            merged_galley.rows.extend(rows.map(|placed_row| {
-                let new_pos = placed_row.pos + current_y_offset * Vec2::Y;
-                let new_pos = new_pos.round_to_pixels(pixels_per_point);
-                merged_galley.mesh_bounds = merged_galley
-                    .mesh_bounds
-                    .union(placed_row.visuals.mesh_bounds.translate(new_pos.to_vec2()));
-                merged_galley.rect = merged_galley
-                    .rect
-                    .union(Rect::from_min_size(new_pos, placed_row.size));
-
-                super::PlacedRow {
-                    pos: new_pos,
-                    row: placed_row.row.clone(),
-                }
-            }));
+                    let mut row = placed_row.row.clone();
+                    let is_last_row_in_galley = row_idx + 1 == galley.rows.len();
+                    if !is_last_galley && is_last_row_in_galley {
+                        // Since we remove the `\n` when splitting rows, we need to add it back here
+                        Arc::make_mut(&mut row).ends_with_newline = true;
+                    }
+                    super::PlacedRow { pos: new_pos, row }
+                }));
 
             merged_galley.num_vertices += galley.num_vertices;
             merged_galley.num_indices += galley.num_indices;

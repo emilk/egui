@@ -884,9 +884,11 @@ impl GalleyCache {
 
         while start < job.text.len() {
             let is_first_paragraph = start == 0;
+            // `end` will not include the `\n` since we don't want to create an empty row in our
+            // split galley
             let end = job.text[start..]
                 .find('\n')
-                .map_or(job.text.len(), |i| start + i + 1);
+                .map_or(job.text.len(), |i| start + i);
 
             let mut paragraph_job = LayoutJob {
                 text: job.text[start..end].to_owned(),
@@ -965,7 +967,7 @@ impl GalleyCache {
                 break;
             }
 
-            start = end;
+            start = end + 1;
         }
 
         (child_galleys, child_hashes)
