@@ -69,6 +69,6 @@ fn test_demo_app() {
         // Can't use Harness::run because fractal clock keeps requesting repaints
         harness.run_steps(4);
 
-        results.add(harness.try_snapshot(&anchor.to_string()));
+        results.add(harness.try_snapshot(anchor.to_string()));
     }
 }

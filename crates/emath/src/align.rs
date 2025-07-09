@@ -146,7 +146,7 @@ impl Align {
 // ----------------------------------------------------------------------------
 
 /// Two-dimension alignment, e.g. [`Align2::LEFT_TOP`].
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Align2(pub [Align; 2]);
 
@@ -297,4 +297,10 @@ impl std::ops::IndexMut<usize> for Align2 {
 /// of the `frame`.
 pub fn center_size_in_rect(size: Vec2, frame: Rect) -> Rect {
     Align2::CENTER_CENTER.align_size_within_rect(size, frame)
+}
+
+impl std::fmt::Debug for Align2 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Align2({:?}, {:?})", self.x(), self.y())
+    }
 }

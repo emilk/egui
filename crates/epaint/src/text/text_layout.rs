@@ -82,6 +82,7 @@ pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>) -> Galley {
             num_indices: 0,
             pixels_per_point: fonts.pixels_per_point(),
             elided: true,
+            intrinsic_size: Vec2::ZERO,
         };
     }
 
@@ -93,6 +94,8 @@ pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>) -> Galley {
     }
 
     let point_scale = PointScale::new(fonts.pixels_per_point());
+
+    let intrinsic_size = calculate_intrinsic_size(point_scale, &job, &paragraphs);
 
     let mut elided = false;
     let mut rows = rows_from_paragraphs(paragraphs, &job, &mut elided);
@@ -124,7 +127,7 @@ pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>) -> Galley {
     }
 
     // Calculate the Y positions and tessellate the text:
-    galley_from_rows(point_scale, job, rows, elided)
+    galley_from_rows(point_scale, job, rows, elided, intrinsic_size)
 }
 
 // Ignores the Y coordinate.
@@ -188,6 +191,46 @@ fn layout_section(
             last_glyph_id = Some(glyph_info.id);
         }
     }
+}
+
+/// Calculate the intrinsic size of the text.
+///
+/// The result is eventually passed to `Response::intrinsic_size`.
+/// This works by calculating the size of each `Paragraph` (instead of each `Row`).
+fn calculate_intrinsic_size(
+    point_scale: PointScale,
+    job: &LayoutJob,
+    paragraphs: &[Paragraph],
+) -> Vec2 {
+    let mut intrinsic_size = Vec2::ZERO;
+    for (idx, paragraph) in paragraphs.iter().enumerate() {
+        if paragraph.glyphs.is_empty() {
+            if idx == 0 {
+                intrinsic_size.y += point_scale.round_to_pixel(paragraph.empty_paragraph_height);
+            }
+            continue;
+        }
+        intrinsic_size.x = f32::max(
+            paragraph
+                .glyphs
+                .last()
+                .map(|l| l.max_x())
+                .unwrap_or_default(),
+            intrinsic_size.x,
+        );
+
+        let mut height = paragraph
+            .glyphs
+            .iter()
+            .map(|g| g.line_height)
+            .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+            .unwrap_or(paragraph.empty_paragraph_height);
+        if idx == 0 {
+            height = f32::max(height, job.first_row_min_height);
+        }
+        intrinsic_size.y += point_scale.round_to_pixel(height);
+    }
+    intrinsic_size
 }
 
 // Ignores the Y coordinate.
@@ -610,6 +653,7 @@ fn galley_from_rows(
     job: Arc<LayoutJob>,
     mut rows: Vec<PlacedRow>,
     elided: bool,
+    intrinsic_size: Vec2,
 ) -> Galley {
     let mut first_row_min_height = job.first_row_min_height;
     let mut cursor_y = 0.0;
@@ -680,6 +724,7 @@ fn galley_from_rows(
         num_vertices,
         num_indices,
         pixels_per_point: point_scale.pixels_per_point,
+        intrinsic_size,
     };
 
     if galley.job.round_output_to_gui {
@@ -1034,11 +1079,18 @@ fn is_cjk_break_allowed(c: char) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use crate::AlphaFromCoverage;
+
     use super::{super::*, *};
 
     #[test]
     fn test_zero_max_width() {
-        let mut fonts = FontsImpl::new(1.0, 1024, FontDefinitions::default());
+        let mut fonts = FontsImpl::new(
+            1.0,
+            1024,
+            AlphaFromCoverage::default(),
+            FontDefinitions::default(),
+        );
         let mut layout_job = LayoutJob::single_section("W".into(), TextFormat::default());
         layout_job.wrap.max_width = 0.0;
         let galley = layout(&mut fonts, layout_job.into());
@@ -1049,7 +1101,12 @@ mod tests {
     fn test_truncate_with_newline() {
         // No matter where we wrap, we should be appending the newline character.
 
-        let mut fonts = FontsImpl::new(1.0, 1024, FontDefinitions::default());
+        let mut fonts = FontsImpl::new(
+            1.0,
+            1024,
+            AlphaFromCoverage::default(),
+            FontDefinitions::default(),
+        );
         let text_format = TextFormat {
             font_id: FontId::monospace(12.0),
             ..Default::default()
@@ -1094,7 +1151,12 @@ mod tests {
 
     #[test]
     fn test_cjk() {
-        let mut fonts = FontsImpl::new(1.0, 1024, FontDefinitions::default());
+        let mut fonts = FontsImpl::new(
+            1.0,
+            1024,
+            AlphaFromCoverage::default(),
+            FontDefinitions::default(),
+        );
         let mut layout_job = LayoutJob::single_section(
             "日本語とEnglishの混在した文章".into(),
             TextFormat::default(),
@@ -1109,7 +1171,12 @@ mod tests {
 
     #[test]
     fn test_pre_cjk() {
-        let mut fonts = FontsImpl::new(1.0, 1024, FontDefinitions::default());
+        let mut fonts = FontsImpl::new(
+            1.0,
+            1024,
+            AlphaFromCoverage::default(),
+            FontDefinitions::default(),
+        );
         let mut layout_job = LayoutJob::single_section(
             "日本語とEnglishの混在した文章".into(),
             TextFormat::default(),
@@ -1124,7 +1191,12 @@ mod tests {
 
     #[test]
     fn test_truncate_width() {
-        let mut fonts = FontsImpl::new(1.0, 1024, FontDefinitions::default());
+        let mut fonts = FontsImpl::new(
+            1.0,
+            1024,
+            AlphaFromCoverage::default(),
+            FontDefinitions::default(),
+        );
         let mut layout_job =
             LayoutJob::single_section("# DNA\nMore text".into(), TextFormat::default());
         layout_job.wrap.max_width = f32::INFINITY;

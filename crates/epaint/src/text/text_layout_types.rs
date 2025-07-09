@@ -560,6 +560,12 @@ pub struct Galley {
     /// so that we can warn if this has changed once we get to
     /// tessellation.
     pub pixels_per_point: f32,
+
+    /// This is the size that a non-wrapped, non-truncated, non-justified version of the text
+    /// would have.
+    ///
+    /// Useful for advanced layouting.
+    pub intrinsic_size: Vec2,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -821,6 +827,8 @@ impl Galley {
                 .at_most(rect.min.x + self.job.wrap.max_width)
                 .floor_ui();
         }
+
+        self.intrinsic_size = self.intrinsic_size.round_ui();
     }
 
     /// Append each galley under the previous one.
@@ -836,6 +844,7 @@ impl Galley {
             num_vertices: 0,
             num_indices: 0,
             pixels_per_point,
+            intrinsic_size: Vec2::ZERO,
         };
 
         for (i, galley) in galleys.iter().enumerate() {
@@ -872,6 +881,9 @@ impl Galley {
             // Note that if `galley.elided` is true this will be the last `Galley` in
             // the vector and the loop will end.
             merged_galley.elided |= galley.elided;
+            merged_galley.intrinsic_size.x =
+                f32::max(merged_galley.intrinsic_size.x, galley.intrinsic_size.x);
+            merged_galley.intrinsic_size.y += galley.intrinsic_size.y;
         }
 
         if merged_galley.job.round_output_to_gui {

@@ -825,6 +825,23 @@ impl InputState {
     }
 
     #[cfg(feature = "accesskit")]
+    pub fn consume_accesskit_action_requests(
+        &mut self,
+        id: crate::Id,
+        mut consume: impl FnMut(&accesskit::ActionRequest) -> bool,
+    ) {
+        let accesskit_id = id.accesskit_id();
+        self.events.retain(|event| {
+            if let Event::AccessKitActionRequest(request) = event {
+                if request.target == accesskit_id {
+                    return !consume(request);
+                }
+            }
+            true
+        });
+    }
+
+    #[cfg(feature = "accesskit")]
     pub fn has_accesskit_action_request(&self, id: crate::Id, action: accesskit::Action) -> bool {
         self.accesskit_action_requests(id, action).next().is_some()
     }
@@ -1448,7 +1465,10 @@ impl PointerState {
         }
 
         if let Some(pos) = self.hover_pos() {
-            return rect.intersects_ray(pos, self.direction());
+            let dir = self.direction();
+            if dir != Vec2::ZERO {
+                return rect.intersects_ray(pos, self.direction());
+            }
         }
         false
     }

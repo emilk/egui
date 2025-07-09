@@ -22,6 +22,8 @@ mod slider;
 mod spinner;
 pub mod text_edit;
 
+#[expect(deprecated)]
+pub use self::selected_label::SelectableLabel;
 pub use self::{
     button::Button,
     checkbox::Checkbox,
@@ -35,7 +37,6 @@ pub use self::{
     label::Label,
     progress_bar::ProgressBar,
     radio_button::RadioButton,
-    selected_label::SelectableLabel,
     separator::Separator,
     slider::{Slider, SliderClamping, SliderOrientation},
     spinner::Spinner,

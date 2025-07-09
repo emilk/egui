@@ -13,9 +13,109 @@ pub struct SnapshotOptions {
     /// wgpu backends).
     pub threshold: f32,
 
+    /// The number of pixels that can differ before the snapshot is considered a failure.
+    /// Preferably, you should use `threshold` to control the sensitivity of the image comparison.
+    /// As a last resort, you can use this to allow a certain number of pixels to differ.
+    /// If `None`, the default is `0` (meaning no pixels can differ).
+    /// If `Some`, the value can be set per OS
+    pub failed_pixel_count_threshold: usize,
+
     /// The path where the snapshots will be saved.
     /// The default is `tests/snapshots`.
     pub output_path: PathBuf,
+}
+
+/// Helper struct to define the number of pixels that can differ before the snapshot is considered a failure.
+/// This is useful if you want to set different thresholds for different operating systems.
+///
+/// The default values are 0 / 0.0
+///
+/// Example usage:
+/// ```no_run
+///  use egui_kittest::{OsThreshold, SnapshotOptions};
+///  let mut harness = egui_kittest::Harness::new_ui(|ui| {
+///      ui.label("Hi!");
+///  });
+///  harness.snapshot_options(
+///      "os_threshold_example",
+///      &SnapshotOptions::new()
+///          .threshold(OsThreshold::new(0.0).windows(10.0))
+///          .failed_pixel_count_threshold(OsThreshold::new(0).windows(10).macos(53)
+///  ))
+/// ```
+#[derive(Debug, Clone, Copy)]
+pub struct OsThreshold<T> {
+    pub windows: T,
+    pub macos: T,
+    pub linux: T,
+    pub fallback: T,
+}
+
+impl From<usize> for OsThreshold<usize> {
+    fn from(value: usize) -> Self {
+        Self::new(value)
+    }
+}
+
+impl<T> OsThreshold<T>
+where
+    T: Copy,
+{
+    /// Use the same value for all
+    pub fn new(same: T) -> Self {
+        Self {
+            windows: same,
+            macos: same,
+            linux: same,
+            fallback: same,
+        }
+    }
+
+    /// Set the threshold for Windows.
+    #[inline]
+    pub fn windows(mut self, threshold: T) -> Self {
+        self.windows = threshold;
+        self
+    }
+
+    /// Set the threshold for macOS.
+    #[inline]
+    pub fn macos(mut self, threshold: T) -> Self {
+        self.macos = threshold;
+        self
+    }
+
+    /// Set the threshold for Linux.
+    #[inline]
+    pub fn linux(mut self, threshold: T) -> Self {
+        self.linux = threshold;
+        self
+    }
+
+    /// Get the threshold for the current operating system.
+    pub fn threshold(&self) -> T {
+        if cfg!(target_os = "windows") {
+            self.windows
+        } else if cfg!(target_os = "macos") {
+            self.macos
+        } else if cfg!(target_os = "linux") {
+            self.linux
+        } else {
+            self.fallback
+        }
+    }
+}
+
+impl From<OsThreshold<Self>> for usize {
+    fn from(threshold: OsThreshold<Self>) -> Self {
+        threshold.threshold()
+    }
+}
+
+impl From<OsThreshold<Self>> for f32 {
+    fn from(threshold: OsThreshold<Self>) -> Self {
+        threshold.threshold()
+    }
 }
 
 impl Default for SnapshotOptions {
@@ -23,6 +123,7 @@ impl Default for SnapshotOptions {
         Self {
             threshold: 0.6,
             output_path: PathBuf::from("tests/snapshots"),
+            failed_pixel_count_threshold: 0, // Default is 0, meaning no pixels can differ
         }
     }
 }
@@ -37,8 +138,8 @@ impl SnapshotOptions {
     /// The default is `0.6` (which is enough for most egui tests to pass across different
     /// wgpu backends).
     #[inline]
-    pub fn threshold(mut self, threshold: f32) -> Self {
-        self.threshold = threshold;
+    pub fn threshold(mut self, threshold: impl Into<f32>) -> Self {
+        self.threshold = threshold.into();
         self
     }
 
@@ -47,6 +148,20 @@ impl SnapshotOptions {
     #[inline]
     pub fn output_path(mut self, output_path: impl Into<PathBuf>) -> Self {
         self.output_path = output_path.into();
+        self
+    }
+
+    /// Change the number of pixels that can differ before the snapshot is considered a failure.
+    ///
+    /// Preferably, you should use [`Self::threshold`] to control the sensitivity of the image comparison.
+    /// As a last resort, you can use this to allow a certain number of pixels to differ.
+    #[inline]
+    pub fn failed_pixel_count_threshold(
+        mut self,
+        failed_pixel_count_threshold: impl Into<OsThreshold<usize>>,
+    ) -> Self {
+        let failed_pixel_count_threshold = failed_pixel_count_threshold.into().threshold();
+        self.failed_pixel_count_threshold = failed_pixel_count_threshold;
         self
     }
 }
@@ -58,7 +173,7 @@ pub enum SnapshotError {
         /// Name of the test
         name: String,
 
-        /// Count of pixels that were different
+        /// Count of pixels that were different (above the per-pixel threshold).
         diff: i32,
 
         /// Path where the diff image was saved
@@ -195,15 +310,24 @@ fn should_update_snapshots() -> bool {
 /// reading or writing the snapshot.
 pub fn try_image_snapshot_options(
     new: &image::RgbaImage,
-    name: &str,
+    name: impl Into<String>,
+    options: &SnapshotOptions,
+) -> SnapshotResult {
+    try_image_snapshot_options_impl(new, name.into(), options)
+}
+
+fn try_image_snapshot_options_impl(
+    new: &image::RgbaImage,
+    name: String,
     options: &SnapshotOptions,
 ) -> SnapshotResult {
     let SnapshotOptions {
         threshold,
         output_path,
+        failed_pixel_count_threshold,
     } = options;
 
-    let parent_path = if let Some(parent) = PathBuf::from(name).parent() {
+    let parent_path = if let Some(parent) = PathBuf::from(&name).parent() {
         output_path.join(parent)
     } else {
         output_path.clone()
@@ -269,7 +393,7 @@ pub fn try_image_snapshot_options(
             return update_snapshot();
         } else {
             return Err(SnapshotError::SizeMismatch {
-                name: name.to_owned(),
+                name,
                 expected: previous.dimensions(),
                 actual: new.dimensions(),
             });
@@ -280,19 +404,24 @@ pub fn try_image_snapshot_options(
     let result =
         dify::diff::get_results(previous, new.clone(), *threshold, true, None, &None, &None);
 
-    if let Some((diff, result_image)) = result {
+    if let Some((num_wrong_pixels, result_image)) = result {
         result_image
             .save(diff_path.clone())
             .map_err(|err| SnapshotError::WriteSnapshot {
                 path: diff_path.clone(),
                 err,
             })?;
+
         if should_update_snapshots() {
             update_snapshot()
         } else {
+            if num_wrong_pixels as i64 <= *failed_pixel_count_threshold as i64 {
+                return Ok(());
+            }
+
             Err(SnapshotError::Diff {
-                name: name.to_owned(),
-                diff,
+                name,
+                diff: num_wrong_pixels,
                 diff_path,
             })
         }
@@ -314,7 +443,7 @@ pub fn try_image_snapshot_options(
 /// # Errors
 /// Returns a [`SnapshotError`] if the image does not match the snapshot or if there was an error
 /// reading or writing the snapshot.
-pub fn try_image_snapshot(current: &image::RgbaImage, name: &str) -> SnapshotResult {
+pub fn try_image_snapshot(current: &image::RgbaImage, name: impl Into<String>) -> SnapshotResult {
     try_image_snapshot_options(current, name, &SnapshotOptions::default())
 }
 
@@ -335,7 +464,11 @@ pub fn try_image_snapshot(current: &image::RgbaImage, name: &str) -> SnapshotRes
 /// Panics if the image does not match the snapshot or if there was an error reading or writing the
 /// snapshot.
 #[track_caller]
-pub fn image_snapshot_options(current: &image::RgbaImage, name: &str, options: &SnapshotOptions) {
+pub fn image_snapshot_options(
+    current: &image::RgbaImage,
+    name: impl Into<String>,
+    options: &SnapshotOptions,
+) {
     match try_image_snapshot_options(current, name, options) {
         Ok(_) => {}
         Err(err) => {
@@ -354,7 +487,7 @@ pub fn image_snapshot_options(current: &image::RgbaImage, name: &str, options: &
 /// Panics if the image does not match the snapshot or if there was an error reading or writing the
 /// snapshot.
 #[track_caller]
-pub fn image_snapshot(current: &image::RgbaImage, name: &str) {
+pub fn image_snapshot(current: &image::RgbaImage, name: impl Into<String>) {
     match try_image_snapshot(current, name) {
         Ok(_) => {}
         Err(err) => {
@@ -385,13 +518,13 @@ impl<State> Harness<'_, State> {
     /// error reading or writing the snapshot, if the rendering fails or if no default renderer is available.
     pub fn try_snapshot_options(
         &mut self,
-        name: &str,
+        name: impl Into<String>,
         options: &SnapshotOptions,
     ) -> SnapshotResult {
         let image = self
             .render()
             .map_err(|err| SnapshotError::RenderError { err })?;
-        try_image_snapshot_options(&image, name, options)
+        try_image_snapshot_options(&image, name.into(), options)
     }
 
     /// Render an image using the setup [`crate::TestRenderer`] and compare it to the snapshot.
@@ -402,7 +535,7 @@ impl<State> Harness<'_, State> {
     /// # Errors
     /// Returns a [`SnapshotError`] if the image does not match the snapshot, if there was an
     /// error reading or writing the snapshot, if the rendering fails or if no default renderer is available.
-    pub fn try_snapshot(&mut self, name: &str) -> SnapshotResult {
+    pub fn try_snapshot(&mut self, name: impl Into<String>) -> SnapshotResult {
         let image = self
             .render()
             .map_err(|err| SnapshotError::RenderError { err })?;
@@ -428,7 +561,7 @@ impl<State> Harness<'_, State> {
     /// Panics if the image does not match the snapshot, if there was an error reading or writing the
     /// snapshot, if the rendering fails or if no default renderer is available.
     #[track_caller]
-    pub fn snapshot_options(&mut self, name: &str, options: &SnapshotOptions) {
+    pub fn snapshot_options(&mut self, name: impl Into<String>, options: &SnapshotOptions) {
         match self.try_snapshot_options(name, options) {
             Ok(_) => {}
             Err(err) => {
@@ -446,7 +579,7 @@ impl<State> Harness<'_, State> {
     /// Panics if the image does not match the snapshot, if there was an error reading or writing the
     /// snapshot, if the rendering fails or if no default renderer is available.
     #[track_caller]
-    pub fn snapshot(&mut self, name: &str) {
+    pub fn snapshot(&mut self, name: impl Into<String>) {
         match self.try_snapshot(name) {
             Ok(_) => {}
             Err(err) => {
@@ -467,7 +600,7 @@ impl<State> Harness<'_, State> {
     )]
     pub fn try_wgpu_snapshot_options(
         &mut self,
-        name: &str,
+        name: impl Into<String>,
         options: &SnapshotOptions,
     ) -> SnapshotResult {
         self.try_snapshot_options(name, options)
@@ -477,7 +610,7 @@ impl<State> Harness<'_, State> {
         since = "0.31.0",
         note = "Use `try_snapshot` instead. This function will be removed in 0.32"
     )]
-    pub fn try_wgpu_snapshot(&mut self, name: &str) -> SnapshotResult {
+    pub fn try_wgpu_snapshot(&mut self, name: impl Into<String>) -> SnapshotResult {
         self.try_snapshot(name)
     }
 
@@ -485,7 +618,7 @@ impl<State> Harness<'_, State> {
         since = "0.31.0",
         note = "Use `snapshot_options` instead. This function will be removed in 0.32"
     )]
-    pub fn wgpu_snapshot_options(&mut self, name: &str, options: &SnapshotOptions) {
+    pub fn wgpu_snapshot_options(&mut self, name: impl Into<String>, options: &SnapshotOptions) {
         self.snapshot_options(name, options);
     }
 
