@@ -865,12 +865,9 @@ impl Galley {
                 .extend(galley.rows.iter().enumerate().map(|(row_idx, placed_row)| {
                     let new_pos = placed_row.pos + current_y_offset * Vec2::Y;
                     let new_pos = new_pos.round_to_pixels(pixels_per_point);
-                    merged_galley.mesh_bounds = merged_galley
-                        .mesh_bounds
-                        .union(placed_row.visuals.mesh_bounds.translate(new_pos.to_vec2()));
-                    merged_galley.rect = merged_galley
-                        .rect
-                        .union(Rect::from_min_size(new_pos, placed_row.size));
+                    merged_galley.mesh_bounds |=
+                        placed_row.visuals.mesh_bounds.translate(new_pos.to_vec2());
+                    merged_galley.rect |= Rect::from_min_size(new_pos, placed_row.size);
 
                     let mut row = placed_row.row.clone();
                     let is_last_row_in_galley = row_idx + 1 == galley.rows.len();

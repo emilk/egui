@@ -2689,7 +2689,7 @@ impl Context {
         self.write(|ctx| {
             let mut used = ctx.viewport().this_pass.used_by_panels;
             for (_id, window) in ctx.memory.areas().visible_windows() {
-                used = used.union(window.rect());
+                used |= window.rect();
             }
             used.round_ui()
         })

@@ -696,8 +696,7 @@ fn galley_from_rows(
         let row = Arc::make_mut(&mut placed_row.row);
         row.visuals = tessellate_row(point_scale, &job, &format_summary, row);
 
-        mesh_bounds =
-            mesh_bounds.union(row.visuals.mesh_bounds.translate(placed_row.pos.to_vec2()));
+        mesh_bounds |= row.visuals.mesh_bounds.translate(placed_row.pos.to_vec2());
         num_vertices += row.visuals.mesh.vertices.len();
         num_indices += row.visuals.mesh.indices.len();
 

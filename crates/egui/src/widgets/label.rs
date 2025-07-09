@@ -165,7 +165,7 @@ impl Label {
             };
             select_sense -= Sense::FOCUSABLE; // Don't move focus to labels with TAB key.
 
-            sense = sense.union(select_sense);
+            sense |= select_sense;
         }
 
         if let WidgetText::Galley(galley) = self.text {

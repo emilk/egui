@@ -725,7 +725,7 @@ impl Layout {
         if self.main_wrap {
             if cursor.intersects(frame_rect.shrink(1.0)) {
                 // make row/column larger if necessary
-                *cursor = cursor.union(frame_rect);
+                *cursor |= frame_rect;
             } else {
                 // this is a new row or column. We temporarily use NAN for what will be filled in later.
                 match self.main_dir {
