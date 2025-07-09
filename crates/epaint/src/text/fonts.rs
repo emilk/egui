@@ -1102,6 +1102,16 @@ mod tests {
                 job.wrap.max_rows = 2;
                 job
             },
+            {
+                let mut job = LayoutJob::simple(
+                    "Simple test.".to_owned(),
+                    FontId::new(14.0, FontFamily::Monospace),
+                    Color32::WHITE,
+                    f32::INFINITY,
+                );
+                job.first_row_min_height = 30.0;
+                job
+            },
             LayoutJob::simple(
                 "This some text that may be long.\nDet kanske också finns lite ÅÄÖ här.".to_owned(),
                 FontId::new(14.0, FontFamily::Proportional),
