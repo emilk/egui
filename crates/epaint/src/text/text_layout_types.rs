@@ -561,11 +561,7 @@ pub struct Galley {
     /// tessellation.
     pub pixels_per_point: f32,
 
-    /// This is the size that a non-wrapped, non-truncated, non-justified version of the text
-    /// would have.
-    ///
-    /// Useful for advanced layouting.
-    pub intrinsic_size: Vec2,
+    pub(crate) intrinsic_size: Vec2,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -801,6 +797,21 @@ impl Galley {
         self.rect.size()
     }
 
+    /// This is the size that a non-wrapped, non-truncated, non-justified version of the text
+    /// would have.
+    ///
+    /// Useful for advanced layouting.
+    #[inline]
+    pub fn intrinsic_size(&self) -> Vec2 {
+        // We do the rounding here instead of in `round_output_to_gui` so that rounding
+        // errors don't accumulate when concatenating multiple galleys.
+        if self.job.round_output_to_gui {
+            self.intrinsic_size.round_ui()
+        } else {
+            self.intrinsic_size
+        }
+    }
+
     pub(crate) fn round_output_to_gui(&mut self) {
         for placed_row in &mut self.rows {
             // Optimization: only call `make_mut` if necessary (can cause a deep clone)
@@ -827,8 +838,6 @@ impl Galley {
                 .at_most(rect.min.x + self.job.wrap.max_width)
                 .floor_ui();
         }
-
-        self.intrinsic_size = self.intrinsic_size.round_ui();
     }
 
     /// Append each galley under the previous one.

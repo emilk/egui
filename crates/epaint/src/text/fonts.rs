@@ -1104,10 +1104,10 @@ mod tests {
             },
             {
                 let mut job = LayoutJob::simple(
-                    "Simple test.".to_owned(),
+                    "Test text with a lot of words\n and a newline.".to_owned(),
                     FontId::new(14.0, FontFamily::Monospace),
                     Color32::WHITE,
-                    f32::INFINITY,
+                    40.0,
                 );
                 job.first_row_min_height = 30.0;
                 job
@@ -1234,7 +1234,7 @@ mod tests {
                         let text = job.text.clone();
                         let galley_unwrapped = layout(&mut fonts, job.into());
 
-                        let intrinsic_size = galley_wrapped.intrinsic_size;
+                        let intrinsic_size = galley_wrapped.intrinsic_size();
                         let unwrapped_size = galley_unwrapped.size();
 
                         let difference = (intrinsic_size - unwrapped_size).length().abs();
@@ -1253,7 +1253,7 @@ mod tests {
                             format!("{unwrapped_size:.4?}"),
                             "Unwrapped galley intrinsic size should exactly match its size. \
                                 {:.8?} vs {:8?}",
-                            galley_unwrapped.intrinsic_size,
+                            galley_unwrapped.intrinsic_size(),
                             galley_unwrapped.size(),
                         );
                     }

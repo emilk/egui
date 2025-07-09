@@ -204,14 +204,12 @@ fn calculate_intrinsic_size(
 ) -> Vec2 {
     let mut intrinsic_size = Vec2::ZERO;
     for (idx, paragraph) in paragraphs.iter().enumerate() {
-        intrinsic_size.x = f32::max(
-            paragraph
-                .glyphs
-                .last()
-                .map(|l| l.max_x())
-                .unwrap_or_default(),
-            intrinsic_size.x,
-        );
+        let width = paragraph
+            .glyphs
+            .last()
+            .map(|l| l.max_x())
+            .unwrap_or_default();
+        intrinsic_size.x = f32::max(intrinsic_size.x, width);
 
         let mut height = paragraph
             .glyphs
@@ -1216,12 +1214,10 @@ mod tests {
             FontDefinitions::default(),
         );
 
-        let job = LayoutJob::simple(
-            String::new(),
-            FontId::default(),
-            Color32::WHITE,
-            f32::INFINITY,
-        );
+        let font_id = FontId::default();
+        let font_height = fonts.font(&font_id).row_height();
+
+        let job = LayoutJob::simple(String::new(), font_id, Color32::WHITE, f32::INFINITY);
 
         let galley = layout(&mut fonts, job.into());
 
@@ -1233,12 +1229,12 @@ mod tests {
         );
         assert_eq!(
             galley.size(),
-            Vec2::new(0.0, 16.0),
+            Vec2::new(0.0, font_height.round()),
             "Unexpected galley size"
         );
         assert_eq!(
-            galley.intrinsic_size,
-            Vec2::new(0.0, 16.0),
+            galley.intrinsic_size(),
+            Vec2::new(0.0, font_height.round()),
             "Unexpected intrinsic size"
         );
     }
@@ -1252,12 +1248,10 @@ mod tests {
             FontDefinitions::default(),
         );
 
-        let job = LayoutJob::simple(
-            "Hi!\n".to_owned(),
-            FontId::default(),
-            Color32::WHITE,
-            f32::INFINITY,
-        );
+        let font_id = FontId::default();
+        let font_height = fonts.font(&font_id).row_height();
+
+        let job = LayoutJob::simple("Hi!\n".to_owned(), font_id, Color32::WHITE, f32::INFINITY);
 
         let galley = layout(&mut fonts, job.into());
 
@@ -1269,12 +1263,12 @@ mod tests {
         );
         assert_eq!(
             galley.size().round(),
-            Vec2::new(17.0, 32.0),
+            Vec2::new(17.0, font_height.round() * 2.0),
             "Unexpected galley size"
         );
         assert_eq!(
-            galley.intrinsic_size.round(),
-            Vec2::new(17.0, 32.0),
+            galley.intrinsic_size().round(),
+            Vec2::new(17.0, font_height.round() * 2.0),
             "Unexpected intrinsic size"
         );
     }
