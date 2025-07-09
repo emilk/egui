@@ -211,38 +211,6 @@ impl<'a> Popup<'a> {
         }
     }
 
-    /// Set the kind of the popup. Used for [`Area::kind`] and [`Area::order`].
-    #[inline]
-    pub fn kind(mut self, kind: PopupKind) -> Self {
-        self.kind = kind;
-        self
-    }
-
-    /// Set the [`UiStackInfo`] of the popup's [`Ui`].
-    #[inline]
-    pub fn info(mut self, info: UiStackInfo) -> Self {
-        self.info = Some(info);
-        self
-    }
-
-    /// Set the [`RectAlign`] of the popup relative to the [`PopupAnchor`].
-    /// This is the default position, and will be used if it fits.
-    /// See [`Self::align_alternatives`] for more on this.
-    #[inline]
-    pub fn align(mut self, position_align: RectAlign) -> Self {
-        self.rect_align = position_align;
-        self
-    }
-
-    /// Set alternative positions to try if the default one doesn't fit. Set to an empty slice to
-    /// always use the position you set with [`Self::align`].
-    /// By default, this will try [`RectAlign::symmetries`] and then [`RectAlign::MENU_ALIGNS`].
-    #[inline]
-    pub fn align_alternatives(mut self, alternatives: &'a [RectAlign]) -> Self {
-        self.alternative_aligns = Some(alternatives);
-        self
-    }
-
     /// Show a popup relative to some widget.
     /// The popup will be always open.
     ///
@@ -284,6 +252,38 @@ impl<'a> Popup<'a> {
                 None
             })
             .at_pointer_fixed()
+    }
+
+    /// Set the kind of the popup. Used for [`Area::kind`] and [`Area::order`].
+    #[inline]
+    pub fn kind(mut self, kind: PopupKind) -> Self {
+        self.kind = kind;
+        self
+    }
+
+    /// Set the [`UiStackInfo`] of the popup's [`Ui`].
+    #[inline]
+    pub fn info(mut self, info: UiStackInfo) -> Self {
+        self.info = Some(info);
+        self
+    }
+
+    /// Set the [`RectAlign`] of the popup relative to the [`PopupAnchor`].
+    /// This is the default position, and will be used if it fits.
+    /// See [`Self::align_alternatives`] for more on this.
+    #[inline]
+    pub fn align(mut self, position_align: RectAlign) -> Self {
+        self.rect_align = position_align;
+        self
+    }
+
+    /// Set alternative positions to try if the default one doesn't fit. Set to an empty slice to
+    /// always use the position you set with [`Self::align`].
+    /// By default, this will try [`RectAlign::symmetries`] and then [`RectAlign::MENU_ALIGNS`].
+    #[inline]
+    pub fn align_alternatives(mut self, alternatives: &'a [RectAlign]) -> Self {
+        self.alternative_aligns = Some(alternatives);
+        self
     }
 
     /// Force the popup to be open or closed.
