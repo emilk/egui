@@ -1012,11 +1012,11 @@ impl OpenPopup {
     }
 }
 
-/// ## Popups
-/// Popups are things like combo-boxes, color pickers, menus etc.
-/// Only one can be open at a time.
+/// ## Deprecated popup API
+/// Use [`crate::Popup`] instead.
 impl Memory {
     /// Is the given popup open?
+    #[deprecated = "Use Popup::is_id_open instead"]
     pub fn is_popup_open(&self, popup_id: Id) -> bool {
         self.popups
             .get(&self.viewport_id)
@@ -1025,6 +1025,7 @@ impl Memory {
     }
 
     /// Is any popup open?
+    #[deprecated = "Use Popup::is_any_open instead"]
     pub fn any_popup_open(&self) -> bool {
         self.popups.contains_key(&self.viewport_id) || self.everything_is_visible()
     }
@@ -1032,6 +1033,7 @@ impl Memory {
     /// Open the given popup and close all others.
     ///
     /// Note that you must call `keep_popup_open` on subsequent frames as long as the popup is open.
+    #[deprecated = "Use Popup::open_id instead"]
     pub fn open_popup(&mut self, popup_id: Id) {
         self.popups
             .insert(self.viewport_id, OpenPopup::new(popup_id, None));
@@ -1042,6 +1044,7 @@ impl Memory {
     /// This is needed because in some cases popups can go away without `close_popup` being
     /// called. For example, when a context menu is open and the underlying widget stops
     /// being rendered.
+    #[deprecated = "Use Popup::show instead"]
     pub fn keep_popup_open(&mut self, popup_id: Id) {
         if let Some(state) = self.popups.get_mut(&self.viewport_id) {
             if state.id == popup_id {
@@ -1051,12 +1054,14 @@ impl Memory {
     }
 
     /// Open the popup and remember its position.
+    #[deprecated = "Use Popup with PopupAnchor::Position instead"]
     pub fn open_popup_at(&mut self, popup_id: Id, pos: impl Into<Option<Pos2>>) {
         self.popups
             .insert(self.viewport_id, OpenPopup::new(popup_id, pos.into()));
     }
 
     /// Get the position for this popup.
+    #[deprecated = "Use Popup::position_of_id instead"]
     pub fn popup_position(&self, id: Id) -> Option<Pos2> {
         self.popups
             .get(&self.viewport_id)
@@ -1064,6 +1069,7 @@ impl Memory {
     }
 
     /// Close any currently open popup.
+    #[deprecated = "Use Popup::close_all instead"]
     pub fn close_all_popups(&mut self) {
         self.popups.clear();
     }
@@ -1071,7 +1077,9 @@ impl Memory {
     /// Close the given popup, if it is open.
     ///
     /// See also [`Self::close_all_popups`] if you want to close any / all currently open popups.
+    #[deprecated = "Use Popup::close_id instead"]
     pub fn close_popup(&mut self, popup_id: Id) {
+        #[expect(deprecated)]
         if self.is_popup_open(popup_id) {
             self.popups.remove(&self.viewport_id);
         }
@@ -1080,14 +1088,18 @@ impl Memory {
     /// Toggle the given popup between closed and open.
     ///
     /// Note: At most, only one popup can be open at a time.
+    #[deprecated = "Use Popup::toggle_id instead"]
     pub fn toggle_popup(&mut self, popup_id: Id) {
+        #[expect(deprecated)]
         if self.is_popup_open(popup_id) {
             self.close_popup(popup_id);
         } else {
             self.open_popup(popup_id);
         }
     }
+}
 
+impl Memory {
     /// If true, all windows, menus, tooltips, etc., will be visible at once.
     ///
     /// This is useful for testing, benchmarking, pre-caching, etc.

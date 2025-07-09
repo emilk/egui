@@ -1,11 +1,15 @@
-use crate::containers::menu::{MenuConfig, MenuState, menu_style};
-use crate::style::StyleModifier;
+#![expect(deprecated)] // This is a new, safe wrapper around the old `Memory::popup` API.
+
+use std::iter::once;
+
+use emath::{Align, Pos2, Rect, RectAlign, Vec2, vec2};
+
 use crate::{
     Area, AreaState, Context, Frame, Id, InnerResponse, Key, LayerId, Layout, Order, Response,
     Sense, Ui, UiKind, UiStackInfo,
+    containers::menu::{MenuConfig, MenuState, menu_style},
+    style::StyleModifier,
 };
-use emath::{Align, Pos2, Rect, RectAlign, Vec2, vec2};
-use std::iter::once;
 
 /// What should we anchor the popup to?
 ///
@@ -64,9 +68,7 @@ impl PopupAnchor {
         match self {
             Self::ParentRect(rect) => Some(rect),
             Self::Pointer => ctx.pointer_hover_pos().map(Rect::from_pos),
-            Self::PointerFixed => ctx
-                .memory(|mem| mem.popup_position(popup_id))
-                .map(Rect::from_pos),
+            Self::PointerFixed => Popup::position_of_id(ctx, popup_id).map(Rect::from_pos),
             Self::Position(pos) => Some(Rect::from_pos(pos)),
         }
     }
@@ -122,12 +124,12 @@ enum OpenKind<'a> {
 
 impl OpenKind<'_> {
     /// Returns `true` if the popup should be open
-    fn is_open(&self, id: Id, ctx: &Context) -> bool {
+    fn is_open(&self, popup_id: Id, ctx: &Context) -> bool {
         match self {
             OpenKind::Open => true,
             OpenKind::Closed => false,
             OpenKind::Bool(open) => **open,
-            OpenKind::Memory { .. } => ctx.memory(|mem| mem.is_popup_open(id)),
+            OpenKind::Memory { .. } => Popup::is_id_open(ctx, popup_id),
         }
     }
 }
@@ -217,7 +219,7 @@ impl<'a> Popup<'a> {
     /// See [`Self::menu`] and [`Self::context_menu`] for common use cases.
     pub fn from_response(response: &Response) -> Self {
         let mut popup = Self::new(
-            response.id.with("popup"),
+            Self::default_response_id(response),
             response.ctx.clone(),
             response,
             response.layer_id,
@@ -455,7 +457,7 @@ impl<'a> Popup<'a> {
             OpenKind::Open => true,
             OpenKind::Closed => false,
             OpenKind::Bool(open) => **open,
-            OpenKind::Memory { .. } => self.ctx.memory(|mem| mem.is_popup_open(self.id)),
+            OpenKind::Memory { .. } => Self::is_id_open(&self.ctx, self.id),
         }
     }
 
@@ -504,26 +506,26 @@ impl<'a> Popup<'a> {
 
         let id = self.id;
         if let OpenKind::Memory { set } = self.open_kind {
-            self.ctx.memory_mut(|mem| match set {
+            match set {
                 Some(SetOpenCommand::Bool(open)) => {
                     if open {
                         match self.anchor {
                             PopupAnchor::PointerFixed => {
-                                mem.open_popup_at(id, hover_pos);
+                                self.ctx.memory_mut(|mem| mem.open_popup_at(id, hover_pos));
                             }
-                            _ => mem.open_popup(id),
+                            _ => Popup::open_id(&self.ctx, id),
                         }
                     } else {
-                        mem.close_popup(id);
+                        Self::close_id(&self.ctx, id);
                     }
                 }
                 Some(SetOpenCommand::Toggle) => {
-                    mem.toggle_popup(id);
+                    Self::toggle_id(&self.ctx, id);
                 }
                 None => {
-                    mem.keep_popup_open(id);
+                    self.ctx.memory_mut(|mem| mem.keep_popup_open(id));
                 }
-            });
+            }
         }
 
         if !self.open_kind.is_open(self.id, &self.ctx) {
@@ -625,5 +627,67 @@ impl<'a> Popup<'a> {
         }
 
         Some(response)
+    }
+}
+
+/// ## Static methods
+impl Popup<'_> {
+    /// The default ID when constructing a popup from the [`Response`] of e.g. a button.
+    pub fn default_response_id(response: &Response) -> Id {
+        response.id.with("popup")
+    }
+
+    /// Is the given popup open?
+    ///
+    /// This assumes the use of either:
+    /// * [`Self::open_memory`]
+    /// * [`Self::from_toggle_button_response`]
+    /// * [`Self::menu`]
+    /// * [`Self::context_menu`]
+    ///
+    /// The popup id should be the same as either you set with [`Self::id`] or the
+    /// default one from [`Self::default_response_id`].
+    pub fn is_id_open(ctx: &Context, popup_id: Id) -> bool {
+        ctx.memory(|mem| mem.is_popup_open(popup_id))
+    }
+
+    /// Is any popup open?
+    ///
+    /// This assumes the egui memory is being used to track the open state of popups.
+    pub fn is_any_open(ctx: &Context) -> bool {
+        ctx.memory(|mem| mem.any_popup_open())
+    }
+
+    /// Open the given popup and close all others.
+    ///
+    /// If you are NOT using [`Popup::show`], you must
+    /// also call [`crate::Memory::keep_popup_open`] as long as
+    /// you're showing the popup.
+    pub fn open_id(ctx: &Context, popup_id: Id) {
+        ctx.memory_mut(|mem| mem.open_popup(popup_id));
+    }
+
+    /// Toggle the given popup between closed and open.
+    ///
+    /// Note: At most, only one popup can be open at a time.
+    pub fn toggle_id(ctx: &Context, popup_id: Id) {
+        ctx.memory_mut(|mem| mem.toggle_popup(popup_id));
+    }
+
+    /// Close all currently open popups.
+    pub fn close_all(ctx: &Context) {
+        ctx.memory_mut(|mem| mem.close_all_popups());
+    }
+
+    /// Close the given popup, if it is open.
+    ///
+    /// See also [`Self::close_all`] if you want to close any / all currently open popups.
+    pub fn close_id(ctx: &Context, popup_id: Id) {
+        ctx.memory_mut(|mem| mem.close_popup(popup_id));
+    }
+
+    /// Get the position for this popup, if it is open.
+    pub fn position_of_id(ctx: &Context, popup_id: Id) -> Option<Pos2> {
+        ctx.memory(|mem| mem.popup_position(popup_id))
     }
 }

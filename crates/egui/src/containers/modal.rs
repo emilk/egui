@@ -1,7 +1,8 @@
+use emath::{Align2, Vec2};
+
 use crate::{
     Area, Color32, Context, Frame, Id, InnerResponse, Order, Response, Sense, Ui, UiBuilder, UiKind,
 };
-use emath::{Align2, Vec2};
 
 /// A modal dialog.
 ///
@@ -80,13 +81,11 @@ impl Modal {
             frame,
         } = self;
 
-        let (is_top_modal, any_popup_open) = ctx.memory_mut(|mem| {
+        let is_top_modal = ctx.memory_mut(|mem| {
             mem.set_modal_layer(area.layer());
-            (
-                mem.top_modal_layer() == Some(area.layer()),
-                mem.any_popup_open(),
-            )
+            mem.top_modal_layer() == Some(area.layer())
         });
+        let any_popup_open = crate::Popup::is_any_open(ctx);
         let InnerResponse {
             inner: (inner, backdrop_response),
             response,
