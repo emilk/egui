@@ -84,7 +84,7 @@ impl<'a> AtomKind<'a> {
                 let wrap_mode = wrap_mode.unwrap_or(ui.wrap_mode());
                 let galley =
                     text.into_galley(ui, Some(wrap_mode), available_size.x, TextStyle::Button);
-                (galley.intrinsic_size, SizedAtomKind::Text(galley))
+                (galley.intrinsic_size(), SizedAtomKind::Text(galley))
             }
             AtomKind::Image(image) => {
                 let size = image.load_and_calc_size(ui, available_size);

@@ -561,11 +561,7 @@ pub struct Galley {
     /// tessellation.
     pub pixels_per_point: f32,
 
-    /// This is the size that a non-wrapped, non-truncated, non-justified version of the text
-    /// would have.
-    ///
-    /// Useful for advanced layouting.
-    pub intrinsic_size: Vec2,
+    pub(crate) intrinsic_size: Vec2,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -801,6 +797,21 @@ impl Galley {
         self.rect.size()
     }
 
+    /// This is the size that a non-wrapped, non-truncated, non-justified version of the text
+    /// would have.
+    ///
+    /// Useful for advanced layouting.
+    #[inline]
+    pub fn intrinsic_size(&self) -> Vec2 {
+        // We do the rounding here instead of in `round_output_to_gui` so that rounding
+        // errors don't accumulate when concatenating multiple galleys.
+        if self.job.round_output_to_gui {
+            self.intrinsic_size.round_ui()
+        } else {
+            self.intrinsic_size
+        }
+    }
+
     pub(crate) fn round_output_to_gui(&mut self) {
         for placed_row in &mut self.rows {
             // Optimization: only call `make_mut` if necessary (can cause a deep clone)
@@ -827,8 +838,6 @@ impl Galley {
                 .at_most(rect.min.x + self.job.wrap.max_width)
                 .floor_ui();
         }
-
-        self.intrinsic_size = self.intrinsic_size.round_ui();
     }
 
     /// Append each galley under the previous one.
@@ -849,32 +858,25 @@ impl Galley {
 
         for (i, galley) in galleys.iter().enumerate() {
             let current_y_offset = merged_galley.rect.height();
+            let is_last_galley = i + 1 == galleys.len();
 
-            let mut rows = galley.rows.iter();
-            // As documented in `Row::ends_with_newline`, a '\n' will always create a
-            // new `Row` immediately below the current one. Here it doesn't make sense
-            // for us to append this new row so we just ignore it.
-            let is_last_row = i + 1 == galleys.len();
-            if !is_last_row && !galley.elided {
-                let popped = rows.next_back();
-                debug_assert_eq!(popped.unwrap().row.glyphs.len(), 0, "Bug in Galley::concat");
-            }
+            merged_galley
+                .rows
+                .extend(galley.rows.iter().enumerate().map(|(row_idx, placed_row)| {
+                    let new_pos = placed_row.pos + current_y_offset * Vec2::Y;
+                    let new_pos = new_pos.round_to_pixels(pixels_per_point);
+                    merged_galley.mesh_bounds |=
+                        placed_row.visuals.mesh_bounds.translate(new_pos.to_vec2());
+                    merged_galley.rect |= Rect::from_min_size(new_pos, placed_row.size);
 
-            merged_galley.rows.extend(rows.map(|placed_row| {
-                let new_pos = placed_row.pos + current_y_offset * Vec2::Y;
-                let new_pos = new_pos.round_to_pixels(pixels_per_point);
-                merged_galley.mesh_bounds = merged_galley
-                    .mesh_bounds
-                    .union(placed_row.visuals.mesh_bounds.translate(new_pos.to_vec2()));
-                merged_galley.rect = merged_galley
-                    .rect
-                    .union(Rect::from_min_size(new_pos, placed_row.size));
-
-                super::PlacedRow {
-                    pos: new_pos,
-                    row: placed_row.row.clone(),
-                }
-            }));
+                    let mut row = placed_row.row.clone();
+                    let is_last_row_in_galley = row_idx + 1 == galley.rows.len();
+                    if !is_last_galley && is_last_row_in_galley {
+                        // Since we remove the `\n` when splitting rows, we need to add it back here
+                        Arc::make_mut(&mut row).ends_with_newline = true;
+                    }
+                    super::PlacedRow { pos: new_pos, row }
+                }));
 
             merged_galley.num_vertices += galley.num_vertices;
             merged_galley.num_indices += galley.num_indices;

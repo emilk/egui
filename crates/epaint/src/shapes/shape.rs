@@ -363,7 +363,7 @@ impl Shape {
             Self::Vec(shapes) => {
                 let mut rect = Rect::NOTHING;
                 for shape in shapes {
-                    rect = rect.union(shape.visual_bounding_rect());
+                    rect |= shape.visual_bounding_rect();
                 }
                 rect
             }
