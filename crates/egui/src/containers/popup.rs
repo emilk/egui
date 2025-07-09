@@ -648,8 +648,17 @@ impl<'a> Popup<'a> {
     /// The popup id should be the same as either you set with [`Self::id`] or the
     /// default one from [`Self::default_response_id`].
     pub fn is_id_open(ctx: &Context, popup_id: Id) -> bool {
-        #[expect(deprecated)]
         // This is the only place we're using the old API, because this _is_ the safe wrapper around it.
+        #[expect(deprecated)]
         ctx.memory(|mem| mem.is_popup_open(popup_id))
+    }
+
+    /// Is any popup open?
+    ///
+    /// This assumes the egui memory is being used to track the open state of popups.
+    pub fn is_any_open(ctx: &Context) -> bool {
+        // This is the only place we're using the old API, because this _is_ the safe wrapper around it.
+        #[expect(deprecated)]
+        ctx.memory(|mem| mem.any_popup_open())
     }
 }

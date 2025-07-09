@@ -1026,6 +1026,7 @@ impl Memory {
     }
 
     /// Is any popup open?
+    #[deprecated = "Use Popup::is_any_open instead"]
     pub fn any_popup_open(&self) -> bool {
         self.popups.contains_key(&self.viewport_id) || self.everything_is_visible()
     }
