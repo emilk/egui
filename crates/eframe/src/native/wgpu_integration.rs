@@ -24,12 +24,12 @@ use egui::{
 use egui_winit::accesskit_winit;
 use winit_integration::UserEvent;
 
+use super::{epi_integration, event_loop_context, winit_integration, winit_integration::WinitApp};
+use crate::native::epi_integration::should_start_visible;
 use crate::{
     App, AppCreator, CreationContext, NativeOptions, Result, Storage,
     native::{epi_integration::EpiIntegration, winit_integration::EventResult},
 };
-
-use super::{epi_integration, event_loop_context, winit_integration, winit_integration::WinitApp};
 
 // ----------------------------------------------------------------------------
 // Types:
@@ -911,12 +911,7 @@ fn create_window(
         native_options,
         window_settings,
     )
-    .with_visible(false); // Start hidden until we render the first frame to fix white flash on startup (https://github.com/emilk/egui/pull/3631)
-
-    // Fix the top window area not being clickable on macOS when in fullscreen on an external display
-    // See https://github.com/rust-windowing/winit/issues/4295, https://github.com/rerun-io/rerun/issues/10280
-    #[cfg(all(target_os = "macos", not(feature = "accesskit")))]
-    let viewport_builder = viewport_builder.with_visible(true);
+    .with_visible(should_start_visible()); // Start hidden until we render the first frame to fix white flash on startup (https://github.com/emilk/egui/pull/3631)
 
     let window = egui_winit::create_window(egui_ctx, event_loop, &viewport_builder)?;
     epi_integration::apply_window_settings(&window, window_settings);

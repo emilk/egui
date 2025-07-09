@@ -90,6 +90,20 @@ pub fn viewport_builder(
     }
 }
 
+pub fn should_start_visible() -> bool {
+    if cfg!(feature = "accesskit") {
+        false // accesskit requires this: https://docs.rs/accesskit_winit/latest/accesskit_winit/struct.Adapter.html#method.with_event_loop_proxy
+    } else if cfg!(windows) {
+        false // Fixes white flash on startup (https://github.com/emilk/egui/pull/3631)
+    } else if cfg!(target_os = "macos") {
+        // Fix the top window area not being clickable on macOS when in fullscreen on an external display
+        // See https://github.com/rust-windowing/winit/issues/4295, https://github.com/rerun-io/rerun/issues/10280
+        true
+    } else {
+        false // no known preference one way or the other
+    }
+}
+
 pub fn apply_window_settings(
     window: &winit::window::Window,
     window_settings: Option<WindowSettings>,
