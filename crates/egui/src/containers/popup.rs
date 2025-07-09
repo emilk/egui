@@ -226,11 +226,19 @@ impl<'a> Popup<'a> {
         popup
     }
 
+    /// Show a popup relative to some widget,
+    /// toggling the open state based on the widget's click state.
+    ///
+    /// See [`Self::menu`] and [`Self::context_menu`] for common use cases.
+    pub fn from_toggle_button_response(button_response: &Response) -> Self {
+        Self::from_response(button_response)
+            .open_memory(button_response.clicked().then_some(SetOpenCommand::Toggle))
+    }
+
     /// Show a popup when the widget was clicked.
     /// Sets the layout to `Layout::top_down_justified(Align::Min)`.
-    pub fn menu(response: &Response) -> Self {
-        Self::from_response(response)
-            .open_memory(response.clicked().then_some(SetOpenCommand::Toggle))
+    pub fn menu(button_response: &Response) -> Self {
+        Self::from_toggle_button_response(button_response)
             .kind(PopupKind::Menu)
             .layout(Layout::top_down_justified(Align::Min))
             .style(menu_style)
