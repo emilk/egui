@@ -60,8 +60,9 @@ impl WindowSettings {
         mut viewport_builder: ViewportBuilder,
     ) -> ViewportBuilder {
         profiling::function_scope!();
-        // On MacOS with an external monitor, if the window starts fullscreen,
-        // the top area is not clickable. See https://github.com/rust-windowing/winit/issues/4295
+        // On macOS with an external monitor, if the window starts fullscreen,
+        // the top area is not clickable. So we don't restore settings if this is the case.
+        // See https://github.com/rust-windowing/winit/issues/4295
         let top_area_not_clickable_workaround =
             cfg!(target_os = "macos") && !cfg!(feature = "accesskit");
         if top_area_not_clickable_workaround && self.fullscreen {
