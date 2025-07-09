@@ -631,7 +631,7 @@ impl<'a> Popup<'a> {
 }
 
 /// ## Static methods
-impl<'a> Popup<'a> {
+impl Popup<'_> {
     /// The default ID when constructing a popup from the [`Response`] of e.g. a button.
     pub fn default_response_id(response: &Response) -> Id {
         response.id.with("popup")
