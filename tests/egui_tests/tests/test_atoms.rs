@@ -92,6 +92,10 @@ fn test_intrinsic_size() {
                         "For wrapping: {wrapping:?}"
                     );
                 }
+                assert!(
+                    response.intrinsic_size.is_some(),
+                    "intrinsic_size should be set for `Button`"
+                );
                 intrinsic_size = response.intrinsic_size;
             });
     }
