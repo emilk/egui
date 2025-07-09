@@ -523,6 +523,7 @@ impl<'a> Popup<'a> {
                     self.ctx.memory_mut(|mem| mem.toggle_popup(id));
                 }
                 None => {
+                    #[expect(deprecated)]
                     self.ctx.memory_mut(|mem| mem.keep_popup_open(id));
                 }
             }

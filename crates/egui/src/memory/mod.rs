@@ -1045,6 +1045,7 @@ impl Memory {
     /// This is needed because in some cases popups can go away without `close_popup` being
     /// called. For example, when a context menu is open and the underlying widget stops
     /// being rendered.
+    #[deprecated = "Use Popup::show instead"]
     pub fn keep_popup_open(&mut self, popup_id: Id) {
         if let Some(state) = self.popups.get_mut(&self.viewport_id) {
             if state.id == popup_id {
