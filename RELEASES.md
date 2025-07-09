@@ -22,6 +22,9 @@ We don't update the MSRV in a patch release, unless we really, really need to.
 
 
 # Release process
+* [ ] Copy this checklist to a new egui issue, called "Release 0.xx.y"
+* [ ] Close all issues in the milestone for this release
+
 ## Patch release
 * [ ] Make a branch off of the latest release
 * [ ] cherry-pick what you want to release
@@ -57,7 +60,7 @@ I usually do this all on the `main` branch, but doing it in a release branch is 
 
 * [ ] Run `typos`
 * [ ] `git commit -m 'Release 0.x.0 - <release title>'`
-* [ ] `cargo publish` (see below)
+* [ ] Publish the crates by running `scripts/publish_crates.sh`
 * [ ] `git tag -a 0.x.0 -m 'Release 0.x.0 - <release title>'`
 * [ ] `git pull --tags ; git tag -d latest && git tag -a latest -m 'Latest release' && git push --tags origin latest --force ; git push --tags`
 * [ ] merge release PR or push to `main`
@@ -66,23 +69,6 @@ I usually do this all on the `main` branch, but doing it in a release branch is 
   * Follow the format of the last release
 * [ ] wait for documentation to build: https://docs.rs/releases/queue
 
-###  `cargo publish`:
-```
-(cd crates/emath                && cargo publish --quiet)  &&  echo "✅ emath"
-(cd crates/ecolor               && cargo publish --quiet)  &&  echo "✅ ecolor"
-(cd crates/epaint_default_fonts && cargo publish --quiet)  &&  echo "✅ epaint_default_fonts"
-(cd crates/epaint               && cargo publish --quiet)  &&  echo "✅ epaint"
-(cd crates/egui                 && cargo publish --quiet)  &&  echo "✅ egui"
-(cd crates/egui-winit           && cargo publish --quiet)  &&  echo "✅ egui-winit"
-(cd crates/egui-wgpu            && cargo publish --quiet)  &&  echo "✅ egui-wgpu"
-(cd crates/eframe               && cargo publish --quiet)  &&  echo "✅ eframe"
-(cd crates/egui_kittest         && cargo publish --quiet)  &&  echo "✅ egui_kittest"
-(cd crates/egui_extras          && cargo publish --quiet)  &&  echo "✅ egui_extras"
-(cd crates/egui_demo_lib        && cargo publish --quiet)  &&  echo "✅ egui_demo_lib"
-(cd crates/egui_glow            && cargo publish --quiet)  &&  echo "✅ egui_glow"
-```
-
-\<continue with the checklist above\>
 
 ## Announcements
 * [ ] [Bluesky](https://bsky.app/profile/ernerfeldt.bsky.social)
@@ -91,6 +77,7 @@ I usually do this all on the `main` branch, but doing it in a release branch is 
 * [ ] [r/programming](https://www.reddit.com/r/programming/comments/1bocsf6/announcing_egui_027_an_easytouse_crossplatform/)
 * [ ] [This Week in Rust](https://github.com/rust-lang/this-week-in-rust/pull/5167)
 
+
 ## After release
 * [ ] publish new `eframe_template`
 * [ ] publish new `egui_plot`
@@ -98,3 +85,8 @@ I usually do this all on the `main` branch, but doing it in a release branch is 
 * [ ] publish new `egui_tiles`
 * [ ] make a PR to `egui_commonmark`
 * [ ] make a PR to `rerun`
+
+
+## Finally
+* [ ] Close the milestone
+* [ ] Close this issue
