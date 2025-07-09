@@ -1034,6 +1034,7 @@ impl Memory {
     /// Open the given popup and close all others.
     ///
     /// Note that you must call `keep_popup_open` on subsequent frames as long as the popup is open.
+    #[deprecated = "Use Popup::open_id instead"]
     pub fn open_popup(&mut self, popup_id: Id) {
         self.popups
             .insert(self.viewport_id, OpenPopup::new(popup_id, None));

@@ -506,26 +506,26 @@ impl<'a> Popup<'a> {
 
         let id = self.id;
         if let OpenKind::Memory { set } = self.open_kind {
-            self.ctx.memory_mut(|mem| match set {
+            match set {
                 Some(SetOpenCommand::Bool(open)) => {
                     if open {
                         match self.anchor {
                             PopupAnchor::PointerFixed => {
-                                mem.open_popup_at(id, hover_pos);
+                                self.ctx.memory_mut(|mem| mem.open_popup_at(id, hover_pos));
                             }
-                            _ => mem.open_popup(id),
+                            _ => Popup::open_id(&self.ctx, id),
                         }
                     } else {
-                        mem.close_popup(id);
+                        self.ctx.memory_mut(|mem| mem.close_popup(id));
                     }
                 }
                 Some(SetOpenCommand::Toggle) => {
-                    mem.toggle_popup(id);
+                    self.ctx.memory_mut(|mem| mem.toggle_popup(id));
                 }
                 None => {
-                    mem.keep_popup_open(id);
+                    self.ctx.memory_mut(|mem| mem.keep_popup_open(id));
                 }
-            });
+            }
         }
 
         if !self.open_kind.is_open(self.id, &self.ctx) {
@@ -648,7 +648,6 @@ impl<'a> Popup<'a> {
     /// The popup id should be the same as either you set with [`Self::id`] or the
     /// default one from [`Self::default_response_id`].
     pub fn is_id_open(ctx: &Context, popup_id: Id) -> bool {
-        // This is the only place we're using the old API, because this _is_ the safe wrapper around it.
         #[expect(deprecated)]
         ctx.memory(|mem| mem.is_popup_open(popup_id))
     }
@@ -657,8 +656,17 @@ impl<'a> Popup<'a> {
     ///
     /// This assumes the egui memory is being used to track the open state of popups.
     pub fn is_any_open(ctx: &Context) -> bool {
-        // This is the only place we're using the old API, because this _is_ the safe wrapper around it.
         #[expect(deprecated)]
         ctx.memory(|mem| mem.any_popup_open())
+    }
+
+    /// Open the given popup and close all others.
+    ///
+    /// If you are NOT using [`Popup::show`], you must
+    /// also call [`crate::Memory::keep_popup_open`] as long as
+    /// you're showing the popup.
+    pub fn open_id(ctx: &Context, popup_id: Id) {
+        #[expect(deprecated)]
+        ctx.memory_mut(|mem| mem.open_popup(popup_id));
     }
 }
