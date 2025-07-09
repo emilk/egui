@@ -211,6 +211,57 @@ impl<'a> Popup<'a> {
         }
     }
 
+    /// Show a popup relative to some widget.
+    /// The popup will be always open.
+    ///
+    /// See [`Self::menu`] and [`Self::context_menu`] for common use cases.
+    pub fn from_response(response: &Response) -> Self {
+        let mut popup = Self::new(
+            response.id.with("popup"),
+            response.ctx.clone(),
+            response,
+            response.layer_id,
+        );
+        popup.widget_clicked_elsewhere = response.clicked_elsewhere();
+        popup
+    }
+
+    /// Show a popup relative to some widget,
+    /// toggling the open state based on the widget's click state.
+    ///
+    /// See [`Self::menu`] and [`Self::context_menu`] for common use cases.
+    pub fn from_toggle_button_response(button_response: &Response) -> Self {
+        Self::from_response(button_response)
+            .open_memory(button_response.clicked().then_some(SetOpenCommand::Toggle))
+    }
+
+    /// Show a popup when the widget was clicked.
+    /// Sets the layout to `Layout::top_down_justified(Align::Min)`.
+    pub fn menu(button_response: &Response) -> Self {
+        Self::from_toggle_button_response(button_response)
+            .kind(PopupKind::Menu)
+            .layout(Layout::top_down_justified(Align::Min))
+            .style(menu_style)
+            .gap(0.0)
+    }
+
+    /// Show a context menu when the widget was secondary clicked.
+    /// Sets the layout to `Layout::top_down_justified(Align::Min)`.
+    /// In contrast to [`Self::menu`], this will open at the pointer position.
+    pub fn context_menu(response: &Response) -> Self {
+        Self::menu(response)
+            .open_memory(if response.secondary_clicked() {
+                Some(SetOpenCommand::Bool(true))
+            } else if response.clicked() {
+                // Explicitly close the menu if the widget was clicked
+                // Without this, the context menu would stay open if the user clicks the widget
+                Some(SetOpenCommand::Bool(false))
+            } else {
+                None
+            })
+            .at_pointer_fixed()
+    }
+
     /// Set the kind of the popup. Used for [`Area::kind`] and [`Area::order`].
     #[inline]
     pub fn kind(mut self, kind: PopupKind) -> Self {
@@ -241,49 +292,6 @@ impl<'a> Popup<'a> {
     pub fn align_alternatives(mut self, alternatives: &'a [RectAlign]) -> Self {
         self.alternative_aligns = Some(alternatives);
         self
-    }
-
-    /// Show a popup relative to some widget.
-    /// The popup will be always open.
-    ///
-    /// See [`Self::menu`] and [`Self::context_menu`] for common use cases.
-    pub fn from_response(response: &Response) -> Self {
-        let mut popup = Self::new(
-            response.id.with("popup"),
-            response.ctx.clone(),
-            response,
-            response.layer_id,
-        );
-        popup.widget_clicked_elsewhere = response.clicked_elsewhere();
-        popup
-    }
-
-    /// Show a popup when the widget was clicked.
-    /// Sets the layout to `Layout::top_down_justified(Align::Min)`.
-    pub fn menu(response: &Response) -> Self {
-        Self::from_response(response)
-            .open_memory(response.clicked().then_some(SetOpenCommand::Toggle))
-            .kind(PopupKind::Menu)
-            .layout(Layout::top_down_justified(Align::Min))
-            .style(menu_style)
-            .gap(0.0)
-    }
-
-    /// Show a context menu when the widget was secondary clicked.
-    /// Sets the layout to `Layout::top_down_justified(Align::Min)`.
-    /// In contrast to [`Self::menu`], this will open at the pointer position.
-    pub fn context_menu(response: &Response) -> Self {
-        Self::menu(response)
-            .open_memory(if response.secondary_clicked() {
-                Some(SetOpenCommand::Bool(true))
-            } else if response.clicked() {
-                // Explicitly close the menu if the widget was clicked
-                // Without this, the context menu would stay open if the user clicks the widget
-                Some(SetOpenCommand::Bool(false))
-            } else {
-                None
-            })
-            .at_pointer_fixed()
     }
 
     /// Force the popup to be open or closed.
