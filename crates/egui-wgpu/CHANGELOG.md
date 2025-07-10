@@ -6,6 +6,12 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.32.0 - 2025-07-10
+* Update to wgpu 25 [#6744](https://github.com/emilk/egui/pull/6744) by [@torokati44](https://github.com/torokati44)
+* Free textures after submitting queue instead of before with wgpu renderer on Web [#7291](https://github.com/emilk/egui/pull/7291) by [@Wumpf](https://github.com/Wumpf)
+* Improve texture filtering by doing it in gamma space [#7311](https://github.com/emilk/egui/pull/7311) by [@emilk](https://github.com/emilk)
+
+
 ## 0.31.1 - 2025-03-05
 Nothing new
 

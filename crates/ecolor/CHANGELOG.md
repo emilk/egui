@@ -6,6 +6,12 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.32.0 - 2025-07-10
+* Fix semi-transparent colors appearing too bright [#5824](https://github.com/emilk/egui/pull/5824) by [@emilk](https://github.com/emilk)
+* Remove things that have been deprecated for over a year [#7099](https://github.com/emilk/egui/pull/7099) by [@emilk](https://github.com/emilk)
+* Make `Hsva` derive serde [#7132](https://github.com/emilk/egui/pull/7132) by [@bircni](https://github.com/bircni)
+
+
 ## 0.31.1 - 2025-03-05
 Nothing new
 
