@@ -28,18 +28,18 @@ Let's dive in!
 #### ⚛️ Atoms
 
 A `egui::Atom` represents the most low-level ui building block in egui. For now this can be `WidgetText` `Image` or `Custom`.
-The new `AtomLayout` can be used within widgets to do basic layout. 
-The initial implementation is as minimal as possible, doing just enough to implement what `Button` could do before. 
-There is a new `IntoAtoms` trait that works with tuples of `Atom`s. Each atom can be customized with the `AtomExt` trait 
+The new `AtomLayout` can be used within widgets to do basic layout.
+The initial implementation is as minimal as possible, doing just enough to implement what `Button` could do before.
+There is a new `IntoAtoms` trait that works with tuples of `Atom`s. Each atom can be customized with the `AtomExt` trait
 which works on everything that implements `Into<Atom>`, so e.g. `RichText` or `Image`.
 So to create a `Button` with text and image you can now do:
 ```rs
 ui.button((include_image!("my_icon.png").atom_size(Vec2::splat(12.0)), "Click me!"));
 ```
 
-As of 0.32, we have ported the `Button`, `Checkbox`, `RadioButton` to use atoms 
-(meaning they support adding Atoms and are build on top of `AtomLayout`). 
-The `Button` implementation is much simpler now, removing ~130 lines of layout math. 
+As of 0.32, we have ported the `Button`, `Checkbox`, `RadioButton` to use atoms
+(meaning they support adding Atoms and are build on top of `AtomLayout`).
+The `Button` implementation is much simpler now, removing ~130 lines of layout math.
 In combination with `ui.read_response`, custom widgets are really simple now, here is a minimal Button implementation:
 
 ```rs
@@ -91,12 +91,12 @@ if let Some(rect) = response.rect(custom_button_id) {
     ui.put(rect, Button::new("🔎").frame_when_inactive(false));
 }
 ```
-Currently, you need to use `atom_ui` to get a `AtomResponse` which will have the `Rect` to use, but in the future 
+Currently, you need to use `atom_ui` to get a `AtomResponse` which will have the `Rect` to use, but in the future
 this could be streamlined, e.g. by adding a `AtomKind::Callback` or by passing the Rects back with `egui::Response`.
 
-Basing our widgets on `AtomLayout` also allowed us to improve `Response::intrinsic_size`, which will now report the 
-correct size even if widgets are truncated. `intrinsic_size` is the size that a non-wrapped, non-truncated, 
-non-justified version of the widget would have, and can be useful in advanced layout 
+Basing our widgets on `AtomLayout` also allowed us to improve `Response::intrinsic_size`, which will now report the
+correct size even if widgets are truncated. `intrinsic_size` is the size that a non-wrapped, non-truncated,
+non-justified version of the widget would have, and can be useful in advanced layout
 calculations like [egui_flex](https://github.com/lucasmerlin/hello_egui/tree/main/crates/egui_flex).
 
 ##### Details
@@ -169,7 +169,7 @@ We have some silently breaking changes (code compiles fine but behavior changed)
 #### Menus close on click by default
 - previously menus would only close on click outside
 - either
-    - remove the `ui.close_menu()` calls from button click handlers since they are obsolte
+    - remove the `ui.close_menu()` calls from button click handlers since they are obsolete
     - if the menu should stay open on clicks, change the `PopupCloseBehavior`:
       ```rs
           // Change this
@@ -182,7 +182,7 @@ We have some silently breaking changes (code compiles fine but behavior changed)
       You can also change the behavior only for a single SubMenu by using `SubMenuButton`, but by default it should be passed to any submenus when using `MenuButton`.
 
 #### `Memory::is_popup_open` api now requires calls to `Memory::keep_popup_open`
-- The popup will immideately close if `keep_popup_open` is not called.
+- The popup will immediately close if `keep_popup_open` is not called.
 - It's recommended to use the new `Popup` api which handles this for you.
 - If you can't switch to the new api for some reason, update the code to call `keep_popup_open`:
   ```rs
@@ -190,7 +190,7 @@ We have some silently breaking changes (code compiles fine but behavior changed)
         ui.memory_mut(|mem| mem.keep_popup_open(popup_id)); // <- add this line
         let area_response = Area::new(popup_id).show(...)
       }
-  ``` 
+  ```
 
 ### ⭐ Added
 * Add `Label::show_tooltip_when_elided` [#5710](https://github.com/emilk/egui/pull/5710) by [@bryceberger](https://github.com/bryceberger)
