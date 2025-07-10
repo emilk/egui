@@ -1,4 +1,12 @@
-//! See [`MenuBar`] for an example
+//! Popup menus, context menus and menu bars.
+//!
+//! Show menus via
+//! - [`Popup::menu`] and [`Popup::context_menu`]
+//! - [`Ui::menu_button`], [`MenuButton`] and [`SubMenuButton`]
+//! - [`MenuBar`]
+//! - [`Response::context_menu`]
+//!
+//! See [`MenuBar`] for an example.
 
 use crate::style::StyleModifier;
 use crate::{
@@ -52,6 +60,7 @@ pub fn is_in_menu(ui: &Ui) -> bool {
     false
 }
 
+/// Configuration and style for menus.
 #[derive(Clone, Debug)]
 pub struct MenuConfig {
     /// Is this a menu bar?
@@ -122,8 +131,10 @@ impl MenuConfig {
     }
 }
 
+/// Holds the state of the menu.
 #[derive(Clone)]
 pub struct MenuState {
+    /// The currently open sub menu in this menu.
     pub open_item: Option<Id>,
     last_visible_pass: u64,
 }
@@ -359,6 +370,10 @@ impl<'a> SubMenuButton<'a> {
     }
 }
 
+/// Show a submenu in a menu.
+///
+/// Useful if you want to make custom menu buttons.
+/// Usually, just use [`MenuButton`] or [`SubMenuButton`] instead.
 #[derive(Clone, Debug, Default)]
 pub struct SubMenu {
     config: Option<MenuConfig>,
