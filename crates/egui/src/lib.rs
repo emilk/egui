@@ -481,7 +481,7 @@ pub mod text {
 
 pub use self::{
     atomics::*,
-    containers::*,
+    containers::{menu::MenuBar, *},
     context::{Context, RepaintCause, RequestRepaintInfo},
     data::{
         Key, UserData,
