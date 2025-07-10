@@ -1,3 +1,5 @@
+//! See [`MenuBar`] for an example
+
 use crate::style::StyleModifier;
 use crate::{
     Button, Color32, Context, Frame, Id, InnerResponse, IntoAtoms, Layout, Popup,
@@ -163,13 +165,30 @@ impl MenuState {
 /// The menu bar goes well in a [`crate::TopBottomPanel::top`],
 /// but can also be placed in a [`crate::Window`].
 /// In the latter case you may want to wrap it in [`Frame`].
+///
+/// ### Example:
+/// ```
+/// # egui::__run_test_ui(|ui| {
+/// egui::MenuBar::new().ui(ui, |ui| {
+///     ui.menu_button("File", |ui| {
+///         if ui.button("Quit").clicked() {
+///             ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+///         }
+///     });
+/// });
+/// # });
+/// ```
+/// ```
 #[derive(Clone, Debug)]
-pub struct Bar {
+pub struct MenuBar {
     config: MenuConfig,
     style: StyleModifier,
 }
 
-impl Default for Bar {
+#[deprecated = "Renamed to `egui::MenuBar`"]
+pub type Bar = MenuBar;
+
+impl Default for MenuBar {
     fn default() -> Self {
         Self {
             config: MenuConfig::default(),
@@ -178,7 +197,7 @@ impl Default for Bar {
     }
 }
 
-impl Bar {
+impl MenuBar {
     pub fn new() -> Self {
         Self::default()
     }

@@ -237,7 +237,7 @@ impl DemoWindows {
 
     fn mobile_top_bar(&mut self, ctx: &Context) {
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
-            menu::Bar::new()
+            menu::MenuBar::new()
                 .config(menu::MenuConfig::new().style(StyleModifier::default()))
                 .ui(ui, |ui| {
                     let font_size = 16.5;
@@ -290,7 +290,7 @@ impl DemoWindows {
             });
 
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
-            menu::Bar::new().ui(ui, |ui| {
+            menu::MenuBar::new().ui(ui, |ui| {
                 file_menu_button(ui);
             });
         });

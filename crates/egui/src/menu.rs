@@ -87,7 +87,7 @@ fn set_menu_style(style: &mut Style) {
 /// The menu bar goes well in a [`crate::TopBottomPanel::top`],
 /// but can also be placed in a [`crate::Window`].
 /// In the latter case you may want to wrap it in [`Frame`].
-#[deprecated = "Use `crate::containers::menu::Bar` instead"]
+#[deprecated = "Use `egui::MenuBar::new().ui(` instead"]
 pub fn bar<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
     ui.horizontal(|ui| {
         set_menu_style(ui.style_mut());
