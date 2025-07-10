@@ -14,33 +14,38 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
-## 0.32.0 - 2025-07-10 - Atoms, Popups, and better SVG support
+## 0.32.0 - 2025-07-10 - Atoms, popups, and better SVG support
 This is a big egui release, with several exciting new features!
 
 * _Atoms_ are new layout primitives in egui, for text and images
 * Popups, tooltips and menus have undergone a complete rewrite
-* Much improved SVG support!
+* Much improved SVG support
 * Crisper graphics (especially text!)
 
 Let's dive in!
 
-### Highlights ✨
-#### ⚛️ Atoms
+### ⚛️ Atoms
 
-A `egui::Atom` represents the most low-level ui building block in egui. For now this can be `WidgetText` `Image` or `Custom`.
+`egui::Atom` is the new, indivisible building blocks of egui (hence their name).
+An `Atom` is an `enum` that can be either `WidgetText`, `Image`, or `Custom`.
+
 The new `AtomLayout` can be used within widgets to do basic layout.
 The initial implementation is as minimal as possible, doing just enough to implement what `Button` could do before.
 There is a new `IntoAtoms` trait that works with tuples of `Atom`s. Each atom can be customized with the `AtomExt` trait
 which works on everything that implements `Into<Atom>`, so e.g. `RichText` or `Image`.
 So to create a `Button` with text and image you can now do:
 ```rs
-ui.button((include_image!("my_icon.png").atom_size(Vec2::splat(12.0)), "Click me!"));
+let image = include_image!("my_icon.png").atom_size(Vec2::splat(12.0));
+ui.button((image, "Click me!"));
 ```
 
+Anywhere you see `impl IntoAtoms` you can add any number of images and text, in any order.
+
 As of 0.32, we have ported the `Button`, `Checkbox`, `RadioButton` to use atoms
-(meaning they support adding Atoms and are build on top of `AtomLayout`).
-The `Button` implementation is much simpler now, removing ~130 lines of layout math.
-In combination with `ui.read_response`, custom widgets are really simple now, here is a minimal Button implementation:
+(meaning they support adding Atoms and are built on top of `AtomLayout`).
+The `Button` implementation is not only more powerful now, but also much simpler, removing ~130 lines of layout math.
+
+In combination with `ui.read_response`, custom widgets are really simple now, here is a minimal button implementation:
 
 ```rs
 pub struct ALButton<'a> {
@@ -57,13 +62,14 @@ impl<'a> ALButton<'a> {
 
 impl<'a> Widget for ALButton<'a> {
     fn ui(mut self, ui: &mut Ui) -> Response {
+        let Self { al } = self;
         let response = ui.ctx().read_response(ui.next_auto_id());
 
         let visuals = response.map_or(&ui.style().visuals.widgets.inactive, |response| {
             ui.style().interact(&response)
         });
 
-        self.al = self.al.frame(
+        let al = al.frame(
             Frame::new()
                 .inner_margin(ui.style().spacing.button_padding)
                 .fill(visuals.bg_fill)
@@ -71,7 +77,7 @@ impl<'a> Widget for ALButton<'a> {
                 .corner_radius(visuals.corner_radius),
         );
 
-        self.al.show(ui).response
+        al.show(ui).response
     }
 }
 ```
@@ -104,7 +110,7 @@ calculations like [egui_flex](https://github.com/lucasmerlin/hello_egui/tree/mai
 * Add `Galley::intrinsic_size` and use it in `AtomLayout` [#7146](https://github.com/emilk/egui/pull/7146) by [@lucasmerlin](https://github.com/lucasmerlin)
 
 
-#### ❕ Improved popups, tooltips, and menus
+### ❕ Improved popups, tooltips, and menus
 
 Introduces a new `egui::Popup` api. Checkout the new demo on https://egui.rs:
 
@@ -132,7 +138,7 @@ We also introduced `ui.close()` which closes the nearest container. So you can n
 * Deprecate `Memory::popup` API in favor of new `Popup` API [#7317](https://github.com/emilk/egui/pull/7317) by [@emilk](https://github.com/emilk)
 
 
-#### ▲ Improved SVG support
+### ▲ Improved SVG support
 You can render SVG in egui with
 
 ```rs
@@ -152,7 +158,7 @@ Previously this would sometimes result in a blurry SVG, epecially if the `Image`
 * Make `Image::paint_at` pixel-perfect crisp for SVG images [#7078](https://github.com/emilk/egui/pull/7078) by [@emilk](https://github.com/emilk)
 
 
-#### ✨ Crisper graphics
+### ✨ Crisper graphics
 Non-SVG icons are also rendered better, and text sharpness has been improved, especially in light mode.
 
 ![image](https://github.com/user-attachments/assets/7f370aaf-886a-423c-8391-c378849b63ca)
@@ -192,7 +198,7 @@ We have some silently breaking changes (code compiles fine but behavior changed)
       }
   ```
 
-### ⭐ Added
+### ⭐ Other improvements
 * Add `Label::show_tooltip_when_elided` [#5710](https://github.com/emilk/egui/pull/5710) by [@bryceberger](https://github.com/bryceberger)
 * Deprecate `Ui::allocate_new_ui` in favor of `Ui::scope_builder` [#5764](https://github.com/emilk/egui/pull/5764) by [@lucasmerlin](https://github.com/lucasmerlin)
 * Add `expand_bg` to customize size of text background [#5365](https://github.com/emilk/egui/pull/5365) by [@MeGaGiGaGon](https://github.com/MeGaGiGaGon)
@@ -271,7 +277,6 @@ We have some silently breaking changes (code compiles fine but behavior changed)
 ### 🚀 Performance
 * Optimize editing long text by caching each paragraph [#5411](https://github.com/emilk/egui/pull/5411) by [@afishhh](https://github.com/afishhh)
 * Make `WidgetText` smaller and faster [#6903](https://github.com/emilk/egui/pull/6903) by [@lucasmerlin](https://github.com/lucasmerlin)
-* Save a few CPU cycles with earlier early-out from `Popup::show` [#7306](https://github.com/emilk/egui/pull/7306) by [@emilk](https://github.com/emilk)
 
 
 ## 0.31.1 - 2025-03-05
