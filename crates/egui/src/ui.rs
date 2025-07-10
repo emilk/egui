@@ -5,9 +5,9 @@ use emath::GuiRounding as _;
 use epaint::mutex::RwLock;
 use std::{any::Any, hash::Hash, sync::Arc};
 
+use crate::ClosableTag;
 #[cfg(debug_assertions)]
 use crate::Stroke;
-use crate::close_tag::ClosableTag;
 use crate::containers::menu;
 use crate::{
     Align, Color32, Context, CursorIcon, DragAndDrop, Id, InnerResponse, InputState, IntoAtoms,
