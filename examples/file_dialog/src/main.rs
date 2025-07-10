@@ -1,7 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 #![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
+use crate::file_picker::{PickError, Picker};
 use eframe::egui;
+
+mod file_picker;
 
 fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -21,6 +24,7 @@ fn main() -> eframe::Result {
 #[derive(Default)]
 struct MyApp {
     dropped_files: Vec<egui::DroppedFile>,
+    picker: Picker,
     picked_path: Option<String>,
 }
 
@@ -29,9 +33,24 @@ impl eframe::App for MyApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.label("Drag-and-drop files onto the window!");
 
-            if ui.button("Open file…").clicked() {
-                if let Some(path) = rfd::FileDialog::new().pick_file() {
-                    self.picked_path = Some(path.display().to_string());
+            let picking_file = self.picker.is_picking();
+
+            if ui
+                .add_enabled(!picking_file, egui::Button::new("Open file…"))
+                .clicked()
+            {
+                self.picker.pick_file();
+            }
+
+            match self.picker.picked() {
+                Ok(picked_path) => {
+                    self.picked_path = Some(picked_path.display().to_string());
+                }
+                Err(reason) => {
+                    if reason == PickError::Cancelled {
+                        // clear the previously picked file if the dialog was cancelled
+                        self.picked_path = None
+                    }
                 }
             }
 
