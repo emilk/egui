@@ -252,8 +252,8 @@ impl MenuBar {
 
 /// A thin wrapper around a [`Button`] that shows a [`Popup::menu`] when clicked.
 ///
-/// The only thing this does is search for the current menu config (if set via [`Bar`]).
-/// If your menu button is not in a [`Bar`] it's fine to use [`Ui::button`] and [`Popup::menu`]
+/// The only thing this does is search for the current menu config (if set via [`MenuBar`]).
+/// If your menu button is not in a [`MenuBar`] it's fine to use [`Ui::button`] and [`Popup::menu`]
 /// directly.
 pub struct MenuButton<'a> {
     pub button: Button<'a>,
