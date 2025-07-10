@@ -182,19 +182,21 @@ impl Frame {
     /// For when you want to group a few widgets together within a frame.
     pub fn group(style: &Style) -> Self {
         Self::new()
-            .inner_margin(6)
+            .inner_margin(style.spacing.group_margin)
             .corner_radius(style.visuals.widgets.noninteractive.corner_radius)
             .stroke(style.visuals.widgets.noninteractive.bg_stroke)
     }
 
     pub fn side_top_panel(style: &Style) -> Self {
         Self::new()
-            .inner_margin(Margin::symmetric(8, 2))
+            .inner_margin(style.spacing.side_top_panel_margin)
             .fill(style.visuals.panel_fill)
     }
 
     pub fn central_panel(style: &Style) -> Self {
-        Self::new().inner_margin(8).fill(style.visuals.panel_fill)
+        Self::new()
+            .inner_margin(style.spacing.central_panel_margin)
+            .fill(style.visuals.panel_fill)
     }
 
     pub fn window(style: &Style) -> Self {
@@ -230,7 +232,7 @@ impl Frame {
     /// and in dark mode this will be very dark.
     pub fn canvas(style: &Style) -> Self {
         Self::new()
-            .inner_margin(2)
+            .inner_margin(style.spacing.canvas_margin)
             .corner_radius(style.visuals.widgets.noninteractive.corner_radius)
             .fill(style.visuals.extreme_bg_color)
             .stroke(style.visuals.window_stroke())
