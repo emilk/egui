@@ -85,7 +85,7 @@ glutin = { version = "0.32.0", default-features = false }
 glutin-winit = { version = "0.5.0", default-features = false }
 home = "0.5.9"
 image = { version = "0.25", default-features = false }
-kittest = { version = "0.1.0", git = "https://github.com/rerun-io/kittest", branch = "main" }
+kittest = { version = "0.2.0" }
 log = { version = "0.4", features = ["std"] }
 mimalloc = "0.1.46"
 nohash-hasher = "0.2"
