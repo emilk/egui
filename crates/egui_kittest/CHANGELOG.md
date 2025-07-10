@@ -15,7 +15,8 @@ Changes since the last release can be found at <https://github.com/emilk/egui/co
 * Add `failed_pixel_count_threshold` [#7092](https://github.com/emilk/egui/pull/7092) by [@bircni](https://github.com/bircni)
 
 ### 🔧 Changed
-* More ergonomic functions taking `Impl Into<String>` [#7307](https://github.com/emilk/egui/pull/7307) by [@emilk](https://github.com/emilk)
+* More ergonomic functions taking `Impl Into<String>` [#7307](https://github.com/emilk/egui/pull/7307) by [@emlik](https://github.com/emilk)
+* Update kittest to 0.2 [#7332](https://github.com/emilk/egui/pull/7332) by [@lucasmerlin](https://github.com/lucasmerlin)
 
 
 ## 0.31.1 - 2025-03-05
