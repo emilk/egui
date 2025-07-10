@@ -14,7 +14,7 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
-## 0.32.0 - 2025-07-10 - Atomics, Popups, and better SVG support
+## 0.32.0 - 2025-07-10 - Atoms, Popups, and better SVG support
 This is a big egui release, with several exciting new features!
 
 * _Atoms_ are new layout primitives in egui, for text and images
