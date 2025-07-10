@@ -38,3 +38,8 @@ accept = [
   "200..=299", # Success codes.
   "429",       # Too many requests. This is practically never a sign of a broken link.
 ]
+
+# Exclude URLs and mail addresses from checking (supports regex).
+exclude = [
+  "https://creativecommons.org/.*", # They don't like bots
+]
