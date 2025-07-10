@@ -57,8 +57,10 @@ impl crate::View for SceneDemo {
 
                 let mut reset_view = false;
                 let mut inner_rect = Rect::NAN;
+                let mut mouse_position_in_scene: Option<egui::Pos2> = Option::None;
+                
                 let response = scene
-                    .show(ui, &mut self.scene_rect, |ui| {
+                    .show(ui, &mut self.scene_rect, &mut mouse_position_in_scene, |ui| {
                         reset_view = ui.button("Reset view").clicked();
 
                         ui.add_space(16.0);
