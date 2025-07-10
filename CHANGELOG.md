@@ -17,7 +17,7 @@ Changes since the last release can be found at <https://github.com/emilk/egui/co
 ## 0.32.0 - 2025-07-10 - Atomics, Popups, and better SVG support
 This is a big egui release, with several exciting new features!
 
-* _Atomics_ are new layout primitives in egui, for text amnd images
+* _Atoms_ are new layout primitives in egui, for text and images
 * Popups, tooltips and menus have undergone a complete rewrite
 * Much improved SVG support!
 * Crisper graphics (especially text!)
@@ -25,14 +25,102 @@ This is a big egui release, with several exciting new features!
 Let's dive in!
 
 ### Highlights ✨
-#### ⚛️ Atomics
-TODO: explain
+#### ⚛️ Atoms
+
+A `egui::Atom` represents the most low-level ui building block in egui. For now this can be `WidgetText` `Image` or `Custom`.
+The new `AtomLayout` can be used within widgets to do basic layout. 
+The initial implementation is as minimal as possible, doing just enough to implement what `Button` could do before. 
+There is a new `IntoAtoms` trait that works with tuples of `Atom`s. Each atom can be customized with the `AtomExt` trait 
+which works on everything that implements `Into<Atom>`, so e.g. `RichText` or `Image`.
+So to create a `Button` with text and image you can now do:
+```rs
+ui.button((include_image!("my_icon.png").atom_size(Vec2::splat(12.0)), "Click me!"));
+```
+
+As of 0.32, we have ported the `Button`, `Checkbox`, `RadioButton` to use atoms 
+(meaning they support adding Atoms and are build on top of `AtomLayout`). 
+The `Button` implementation is much simpler now, removing ~130 lines of layout math. 
+In combination with `ui.read_response`, custom widgets are really simple now, here is a minimal Button implementation:
+
+```rs
+pub struct ALButton<'a> {
+    al: AtomLayout<'a>,
+}
+
+impl<'a> ALButton<'a> {
+    pub fn new(content: impl IntoAtoms<'a>) -> Self {
+        Self {
+            al: AtomLayout::new(content.into_atoms()).sense(Sense::click()),
+        }
+    }
+}
+
+impl<'a> Widget for ALButton<'a> {
+    fn ui(mut self, ui: &mut Ui) -> Response {
+        let response = ui.ctx().read_response(ui.next_auto_id());
+
+        let visuals = response.map_or(&ui.style().visuals.widgets.inactive, |response| {
+            ui.style().interact(&response)
+        });
+
+        self.al = self.al.frame(
+            Frame::new()
+                .inner_margin(ui.style().spacing.button_padding)
+                .fill(visuals.bg_fill)
+                .stroke(visuals.bg_stroke)
+                .corner_radius(visuals.corner_radius),
+        );
+
+        self.al.show(ui).response
+    }
+}
+```
+
+You can even use `Atom::custom` to add custom content to Widgets. Here is a button in a button:
+
+https://github.com/user-attachments/assets/8c649784-dcc5-4979-85f8-e735b9cdd090
+
+```rs
+let custom_button_id = Id::new("custom_button");
+let response = Button::new((
+    Atom::custom(custom_button_id, Vec2::splat(18.0)),
+    "Look at my mini button!",
+))
+.atom_ui(ui);
+if let Some(rect) = response.rect(custom_button_id) {
+    ui.put(rect, Button::new("🔎").frame_when_inactive(false));
+}
+```
+Currently, you need to use `atom_ui` to get a `AtomResponse` which will have the `Rect` to use, but in the future 
+this could be streamlined, e.g. by adding a `AtomKind::Callback` or by passing the Rects back with `egui::Response`.
+
+Basing our widgets on `AtomLayout` also allowed us to improve `Response::intrinsic_size`, which will now report the 
+correct size even if widgets are truncated. `intrinsic_size` is the size that a non-wrapped, non-truncated, 
+non-justified version of the widget would have, and can be useful in advanced layout 
+calculations like [egui_flex](https://github.com/lucasmerlin/hello_egui/tree/main/crates/egui_flex).
+
+##### Details
 * Add `AtomLayout`, abstracting layouting within widgets [#5830](https://github.com/emilk/egui/pull/5830) by [@lucasmerlin](https://github.com/lucasmerlin)
 * Add `Galley::intrinsic_size` and use it in `AtomLayout` [#7146](https://github.com/emilk/egui/pull/7146) by [@lucasmerlin](https://github.com/lucasmerlin)
 
 
 #### ❕ Improved popups, tooltips, and menus
-TODO: write something here
+
+Introduces a new `egui::Popup` api. Checkout the new demo on https://egui.rs:
+
+https://github.com/user-attachments/assets/74e45243-7d05-4fc3-b446-2387e1412c05
+
+We introduced a new `RectAlign` helper to align a rect relative to an other rect. The `Popup` will by default try to find the best `RectAlign` based on the source widgets position (previously submenus would annoyingly overlap if at the edge of the window):
+
+https://github.com/user-attachments/assets/0c5adb6b-8310-4e0a-b936-646bb4ec02f7
+
+`Tooltip` and `menu` have been rewritten based on the new `Popup` api. They are now compatible with each other, meaning you can just show a `ui.menu_button()` in any `Popup` to get a sub menu. There are now customizable `MenuButton` and `SubMenuButton` structs, to help with customizing your menu buttons. This means menus now also support `PopupCloseBehavior` so you can remove your `close_menu` calls from your click handlers!
+
+The old tooltip and popup apis have been ported to the new api so there should be very little breaking changes. The old menu is still around but deprecated. `ui.menu_button` etc now open the new menu, if you can't update to the new one immediately you can use the old buttons from the deprecated `egui::menu` menu.
+
+We also introduced `ui.close()` which closes the nearest container. So you can now conveniently close `Window`s, `Collapsible`s, `Modal`s and `Popup`s from within. To use this for your own containers, call `UiBuilder::closable` and then check for closing within that ui via `ui.should_close()`.
+
+##### Details
 * Add `Popup` and `Tooltip`, unifying the previous behaviours [#5713](https://github.com/emilk/egui/pull/5713) by [@lucasmerlin](https://github.com/lucasmerlin)
 * Add `Ui::close` and `Response::should_close` [#5729](https://github.com/emilk/egui/pull/5729) by [@lucasmerlin](https://github.com/lucasmerlin)
 * ⚠️ Improved menu based on `egui::Popup` [#5716](https://github.com/emilk/egui/pull/5716) by [@lucasmerlin](https://github.com/lucasmerlin)
@@ -75,6 +163,34 @@ Non-SVG icons are also rendered better, and text sharpness has been improved, es
 * Improve texture filtering by doing it in gamma space [#7311](https://github.com/emilk/egui/pull/7311) by [@emilk](https://github.com/emilk)
 * Make text underline and strikethrough pixel perfect crisp [#5857](https://github.com/emilk/egui/pull/5857) by [@emilk](https://github.com/emilk)
 
+### Migration guide
+We have some silently breaking changes (code compiles fine but behavior changed) that require special care:
+
+#### Menus close on click by default
+- previously menus would only close on click outside
+- either
+    - remove the `ui.close_menu()` calls from button click handlers since they are obsolte
+    - if the menu should stay open on clicks, change the `PopupCloseBehavior`:
+      ```rs
+          // Change this
+        ui.menu_button("Text", |ui| { /* Menu Content */ });
+          // To this:
+        MenuButton::new("Text").config(
+            MenuConfig::default().close_behavior(PopupCloseBehavior::CloseOnClickOutside),
+        ).ui(ui, |ui| { /* Menu Content */ });
+        ```
+      You can also change the behavior only for a single SubMenu by using `SubMenuButton`, but by default it should be passed to any submenus when using `MenuButton`.
+
+#### `Memory::is_popup_open` api now requires calls to `Memory::keep_popup_open`
+- The popup will immideately close if `keep_popup_open` is not called.
+- It's recommended to use the new `Popup` api which handles this for you.
+- If you can't switch to the new api for some reason, update the code to call `keep_popup_open`:
+  ```rs
+      if ui.memory(|mem| mem.is_popup_open(popup_id)) {
+        ui.memory_mut(|mem| mem.keep_popup_open(popup_id)); // <- add this line
+        let area_response = Area::new(popup_id).show(...)
+      }
+  ``` 
 
 ### ⭐ Added
 * Add `Label::show_tooltip_when_elided` [#5710](https://github.com/emilk/egui/pull/5710) by [@bryceberger](https://github.com/bryceberger)
