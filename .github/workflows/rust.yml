@@ -103,7 +103,7 @@ jobs:
       - name: wasm-bindgen
         uses: jetli/wasm-bindgen-action@v0.1.0
         with:
-          version: "0.2.97"
+          version: "0.2.100"
 
       - run: ./scripts/wasm_bindgen_check.sh --skip-setup
 
