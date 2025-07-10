@@ -545,6 +545,7 @@ impl ContextImpl {
                 size: Some(screen_rect.size()),
                 interactable: true,
                 last_became_visible_at: None,
+                last_was_sizing_pass: false,
             },
         );
 

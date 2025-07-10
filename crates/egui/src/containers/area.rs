@@ -9,6 +9,102 @@ use crate::{
     Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetRect, WidgetWithState, emath, pos2,
 };
 
+/// Area positioning.
+///
+/// Handles the rather complex question: Where to put an area.
+#[derive(Copy, Clone, Debug)]
+pub enum AreaPosition {
+    /// The area is at this exact position and cannot be moved. This takes [`Area::pivot`] into account.
+    Fixed(Pos2),
+
+    /// The area is in the screen rect. This will anchor the point specified with [`Area::pivot`].
+    Anchored {
+        /// Where exactly to anchor the area.
+        anchor: Align2,
+
+        /// An offset from the anchor position
+        offset: Vec2,
+    },
+
+    /// The area is movable, i.g. for windows.
+    Moveable {
+        /// When the area is first shown or its position is reset, where will it be put?
+        initial_position: InitialAreaPosition,
+
+        /// When re-showing the area after it was not visible, will the position be reset to `initial_position`?
+        reset_position_on_open: bool,
+
+        /// When not `None`, this will put the area to the position, without generally disabling movability.
+        current_position_override: Option<Pos2>,
+    },
+}
+
+impl AreaPosition {
+    // A fixed position
+    pub fn fixed(pos: impl Into<Pos2>) -> Self {
+        Self::Fixed(pos.into())
+    }
+
+    /// An anchored position
+    pub fn anchored(anchor: impl Into<Align2>, offset: impl Into<Vec2>) -> Self {
+        Self::Anchored {
+            anchor: anchor.into(),
+            offset: offset.into(),
+        }
+    }
+
+    /// A moveable position that starts centered
+    pub fn moveable_centered(reset_position_on_open: bool) -> Self {
+        Self::Moveable {
+            initial_position: InitialAreaPosition::Centered,
+            reset_position_on_open,
+            current_position_override: None,
+        }
+    }
+
+    /// A moveable position that starts centered
+    pub fn moveable_automatic(reset_position_on_open: bool) -> Self {
+        Self::Moveable {
+            initial_position: InitialAreaPosition::Automatic,
+            reset_position_on_open,
+            current_position_override: None,
+        }
+    }
+
+    /// A moveable position with a default
+    pub fn moveable_default(default_pos: impl Into<Pos2>, reset_position_on_open: bool) -> Self {
+        Self::Moveable {
+            initial_position: InitialAreaPosition::Position(default_pos.into()),
+            reset_position_on_open,
+            current_position_override: None,
+        }
+    }
+}
+
+impl Default for AreaPosition {
+    fn default() -> Self {
+        Self::Moveable {
+            initial_position: Default::default(),
+            reset_position_on_open: false,
+            current_position_override: None,
+        }
+    }
+}
+
+/// When opening a moveable the Area for the first time, where will it be placed
+#[derive(Copy, Clone, Default, Debug)]
+pub enum InitialAreaPosition {
+    /// Use the automatic positioning, looking for a good space on screen.
+    #[default]
+    Automatic,
+
+    /// Put the Area in the center of the context
+    Centered,
+
+    /// Put the area at a position. This will take [`Area::pivot`] into consideration.
+    Position(Pos2),
+}
+
 /// State of an [`Area`] that is persisted between frames.
 ///
 /// Areas back [`crate::Window`]s and other floating containers,
@@ -39,6 +135,10 @@ pub struct AreaState {
     /// Used to fade in the area.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub last_became_visible_at: Option<f64>,
+
+    /// Was the last frame a sizing pass?
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub last_was_sizing_pass: bool,
 }
 
 impl Default for AreaState {
@@ -49,6 +149,7 @@ impl Default for AreaState {
             size: None,
             interactable: true,
             last_became_visible_at: None,
+            last_was_sizing_pass: false,
         }
     }
 }
@@ -108,17 +209,14 @@ pub struct Area {
     pub(crate) id: Id,
     info: UiStackInfo,
     sense: Option<Sense>,
-    movable: bool,
     interactable: bool,
     enabled: bool,
     constrain: bool,
     constrain_rect: Option<Rect>,
     order: Order,
-    default_pos: Option<Pos2>,
+    position: AreaPosition,
     default_size: Vec2,
     pivot: Align2,
-    anchor: Option<(Align2, Vec2)>,
-    new_pos: Option<Pos2>,
     fade_in: bool,
     layout: Layout,
     sizing_pass: bool,
@@ -135,17 +233,14 @@ impl Area {
             id,
             info: UiStackInfo::new(UiKind::GenericArea),
             sense: None,
-            movable: true,
             interactable: true,
             constrain: true,
             constrain_rect: None,
             enabled: true,
+            position: Default::default(),
             order: Order::Middle,
-            default_pos: None,
             default_size: Vec2::NAN,
-            new_pos: None,
             pivot: Align2::LEFT_TOP,
-            anchor: None,
             fade_in: true,
             layout: Layout::default(),
             sizing_pass: false,
@@ -193,11 +288,28 @@ impl Area {
         self
     }
 
+    #[inline]
+    pub fn position(mut self, position: AreaPosition) -> Self {
+        self.position = position;
+        self
+    }
+
+    pub fn get_position(&self) -> AreaPosition {
+        self.position
+    }
+
     /// Moveable by dragging the area?
+    ///
+    /// Setting this to false if the area is not moveable does nothing.
+    /// Same as setting it to true if the area positioning is already movable.
+    ///
+    /// In case the area is set to a moveable positioning mode, and you set this to false, the area will default to anchoring in the center.
     #[inline]
     pub fn movable(mut self, movable: bool) -> Self {
-        self.movable = movable;
-        self.interactable |= movable;
+        if !movable && self.is_movable() {
+            self.position = AreaPosition::anchored(Align2::CENTER_CENTER, [0.0, 0.0]);
+        }
+
         self
     }
 
@@ -206,7 +318,7 @@ impl Area {
     }
 
     pub fn is_movable(&self) -> bool {
-        self.movable && self.enabled
+        matches!(self.position, AreaPosition::Moveable { .. }) && self.enabled
     }
 
     /// If false, clicks goes straight through to what is behind us.
@@ -217,7 +329,6 @@ impl Area {
     #[inline]
     pub fn interactable(mut self, interactable: bool) -> Self {
         self.interactable = interactable;
-        self.movable &= interactable;
         self
     }
 
@@ -237,9 +348,22 @@ impl Area {
         self
     }
 
+    /// If the area is already movable, this will set the initial position to be [`InitialAreaPosition::Position(default_pos)`]
+    /// If not, it will make the area movable, and set the default position.
     #[inline]
     pub fn default_pos(mut self, default_pos: impl Into<Pos2>) -> Self {
-        self.default_pos = Some(default_pos.into());
+        self.position = match self.position {
+            AreaPosition::Moveable {
+                reset_position_on_open,
+                current_position_override,
+                initial_position: _initial_position,
+            } => AreaPosition::Moveable {
+                initial_position: InitialAreaPosition::Position(default_pos.into()),
+                reset_position_on_open,
+                current_position_override,
+            },
+            _ => AreaPosition::moveable_default(default_pos, false),
+        };
         self
     }
 
@@ -275,8 +399,7 @@ impl Area {
     /// Positions the window and prevents it from being moved
     #[inline]
     pub fn fixed_pos(mut self, fixed_pos: impl Into<Pos2>) -> Self {
-        self.new_pos = Some(fixed_pos.into());
-        self.movable = false;
+        self.position = AreaPosition::fixed(fixed_pos);
         self
     }
 
@@ -312,10 +435,20 @@ impl Area {
         self
     }
 
-    /// Positions the window but you can still move it.
+    /// Put the area at a position.
+    /// If the position is anchored, this will do nothing.
+    /// If the current position is movable, this will override movement input.
+    /// Finally, if the position is fixed, this is the same as calling [`Area::fixed_pos`]
     #[inline]
     pub fn current_pos(mut self, current_pos: impl Into<Pos2>) -> Self {
-        self.new_pos = Some(current_pos.into());
+        match &mut self.position {
+            AreaPosition::Fixed(pos) => *pos = current_pos.into(),
+            AreaPosition::Anchored { .. } => {}
+            AreaPosition::Moveable {
+                current_position_override,
+                ..
+            } => *current_position_override = Some(current_pos.into()),
+        }
         self
     }
 
@@ -332,15 +465,14 @@ impl Area {
     /// It is an error to set both an anchor and a position.
     #[inline]
     pub fn anchor(mut self, align: Align2, offset: impl Into<Vec2>) -> Self {
-        self.anchor = Some((align, offset.into()));
-        self.movable(false)
+        self.position = AreaPosition::anchored(align, offset);
+        self
     }
 
     pub(crate) fn get_pivot(&self) -> Align2 {
-        if let Some((pivot, _)) = self.anchor {
-            pivot
-        } else {
-            Align2::LEFT_TOP
+        match self.position {
+            AreaPosition::Anchored { anchor, .. } => anchor,
+            _ => self.pivot,
         }
     }
 
@@ -416,19 +548,18 @@ impl Area {
     }
 
     pub(crate) fn begin(self, ctx: &Context) -> Prepared {
+        let movable = self.is_movable();
+
         let Self {
             id,
             info,
             sense,
-            movable,
             order,
             interactable,
             enabled,
-            default_pos,
+            position,
             default_size,
-            new_pos,
             pivot,
-            anchor,
             constrain,
             constrain_rect,
             fade_in,
@@ -448,6 +579,7 @@ impl Area {
             size: None,
             interactable,
             last_became_visible_at: None,
+            last_was_sizing_pass: false,
         });
         if force_sizing_pass {
             sizing_pass = true;
@@ -455,12 +587,7 @@ impl Area {
         }
         state.pivot = pivot;
         state.interactable = interactable;
-        if let Some(new_pos) = new_pos {
-            state.pivot_pos = Some(new_pos);
-        }
-        state.pivot_pos.get_or_insert_with(|| {
-            default_pos.unwrap_or_else(|| automatic_area_position(ctx, layer_id))
-        });
+
         state.interactable = interactable;
 
         let size = *state.size.get_or_insert_with(|| {
@@ -491,14 +618,45 @@ impl Area {
             state.last_became_visible_at = Some(ctx.input(|i| i.time));
         }
 
-        if let Some((anchor, offset)) = anchor {
-            state.set_left_top_pos(
-                anchor
-                    .align_size_within_rect(size, constrain_rect)
-                    .left_top()
-                    + offset,
-            );
-        }
+        match position {
+            AreaPosition::Fixed(pos) => state.pivot_pos = Some(pos),
+            AreaPosition::Anchored { anchor, offset } => {
+                state.set_left_top_pos(
+                    anchor
+                        .align_size_within_rect(size, constrain_rect)
+                        .left_top()
+                        + offset,
+                );
+            }
+            AreaPosition::Moveable {
+                initial_position,
+                reset_position_on_open,
+                current_position_override,
+            } => {
+                if let Some(override_pos) = current_position_override {
+                    state.pivot_pos = Some(override_pos);
+                } else {
+                    // If we are shown for the first time ever, or we reset the position on re-open, set a new position.
+                    if reset_position_on_open
+                        && (!visible_last_frame || sizing_pass || state.last_was_sizing_pass)
+                    {
+                        state.pivot_pos = None;
+                    }
+                    state
+                        .pivot_pos
+                        .get_or_insert_with(|| match initial_position {
+                            InitialAreaPosition::Automatic => {
+                                automatic_area_position(ctx, layer_id)
+                            }
+                            InitialAreaPosition::Centered => {
+                                let offset = self.pivot.to_sign() * size * 0.5;
+                                ctx.screen_rect().center() + offset
+                            }
+                            InitialAreaPosition::Position(default_pos) => default_pos,
+                        });
+                }
+            }
+        };
 
         // interact right away to prevent frame-delay
         let mut move_response = {
@@ -642,6 +800,7 @@ impl Prepared {
         } = self;
 
         state.size = Some(content_ui.min_size());
+        state.last_was_sizing_pass = sizing_pass;
 
         // Make sure we report back the correct size.
         // Very important after the initial sizing pass, when the initial estimate of the size is way off.
