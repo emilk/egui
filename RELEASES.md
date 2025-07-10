@@ -63,11 +63,10 @@ We don't update the MSRV in a patch release, unless we really, really need to.
 * [ ] bump version numbers in workspace `Cargo.toml`
 * [ ] check that CI for the PR is green
 * [ ] publish the crates by running `scripts/publish_crates.sh`
-* [ ] merge release PR as `Release 0.x.0 - <release title>`
-* [ ] Check out the release commit locally
 * [ ] `git tag -a 0.x.0 -m 'Release 0.x.0 - <release title>'`
 * [ ] `git pull --tags ; git tag -d latest && git tag -a latest -m 'Latest release' && git push --tags origin latest --force ; git push --tags`
-* [ ] check that CI is green
+* [ ] merge release PR as `Release 0.x.0 - <release title>`
+* [ ] check that CI for `main` is green
 * [ ] do a GitHub release: https://github.com/emilk/egui/releases/new
   * follow the format of the last release
 * [ ] wait for  the documentation build to finish: https://docs.rs/releases/queue
@@ -84,7 +83,7 @@ We don't update the MSRV in a patch release, unless we really, really need to.
 
 
 ## After release
-* [ ] publish new `eframe_template`
+* [ ] update `eframe_template`
 * [ ] publish new `egui_plot`
 * [ ] publish new `egui_table`
 * [ ] publish new `egui_tiles`
