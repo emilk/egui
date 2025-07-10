@@ -25,8 +25,8 @@ We don't update the MSRV in a patch release, unless we really, really need to.
 * [ ] copy this checklist to a new egui issue, called "Release 0.xx.y"
 * [ ] close all issues in the milestone for this release
 
-## Patch release
-* [ ] make a branch off of the latest release
+## Special steps for patch release
+* [ ] make a branch off of the _latest_ release
 * [ ] cherry-pick what you want to release
 * [ ] run `cargo semver-checks`
 
@@ -49,6 +49,7 @@ We don't update the MSRV in a patch release, unless we really, really need to.
 
 ## Preparation
 * [ ] make sure there are no important unmerged PRs
+* [ ] Create a branch called `release-0.xx.0` and open a PR for it
 * [ ] run `scripts/generate_example_screenshots.sh` if needed
 * [ ] write a short release note that fits in a bluesky post
 * [ ] record gif for `CHANGELOG.md` release note (and later bluesky post)
@@ -56,21 +57,22 @@ We don't update the MSRV in a patch release, unless we really, really need to.
   * [ ] run `scripts/generate_changelog.py --version 0.x.0 --write`
   * [ ] read changelogs and clean them up if needed
   * [ ] write a good intro with highlight for the main changelog
-* [ ] bump version numbers in workspace `Cargo.toml`
+* [ ] run `typos`
 
 ## Actual release
-I usually do this all on the `main` branch, but doing it in a release branch is also fine, as long as you remember to merge it into `main` later.
-
-* [ ] Run `typos`
-* [ ] `git commit -m 'Release 0.x.0 - <release title>'`
-* [ ] Publish the crates by running `scripts/publish_crates.sh`
+* [ ] bump version numbers in workspace `Cargo.toml`
+* [ ] check that CI for the PR is green
+* [ ] publish the crates by running `scripts/publish_crates.sh`
+* [ ] merge release PR as `Release 0.x.0 - <release title>`
+* [ ] Check out the release commit locally
 * [ ] `git tag -a 0.x.0 -m 'Release 0.x.0 - <release title>'`
 * [ ] `git pull --tags ; git tag -d latest && git tag -a latest -m 'Latest release' && git push --tags origin latest --force ; git push --tags`
-* [ ] merge release PR or push to `main`
 * [ ] check that CI is green
 * [ ] do a GitHub release: https://github.com/emilk/egui/releases/new
-  * Follow the format of the last release
-* [ ] wait for documentation to build: https://docs.rs/releases/queue
+  * follow the format of the last release
+* [ ] wait for  the documentation build to finish: https://docs.rs/releases/queue
+  * [ ] https://docs.rs/egui/ works
+  * [ ] https://docs.rs/eframe/ works
 
 
 ## Announcements
@@ -91,6 +93,6 @@ I usually do this all on the `main` branch, but doing it in a release branch is 
 
 
 ## Finally
-* [ ] Close the milestone
-* [ ] Close this issue
-* [ ] Improve `RELEASES.md` with what you learned this time around
+* [ ] close the milestone
+* [ ] close this issue
+* [ ] improve `RELEASES.md` with what you learned this time around

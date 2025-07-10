@@ -5,6 +5,29 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.32.0 - 2025-07-10 - Improved SVG support
+### ⭐ Added
+* Allow loading multi-MIME formats using the image_loader [#5769](https://github.com/emilk/egui/pull/5769) by [@MYDIH](https://github.com/MYDIH)
+* Make ImageLoader use background thread [#5394](https://github.com/emilk/egui/pull/5394) by [@bircni](https://github.com/bircni)
+* Add overline option for Table rows [#5637](https://github.com/emilk/egui/pull/5637) by [@akx](https://github.com/akx)
+* Support text in SVGs [#5979](https://github.com/emilk/egui/pull/5979) by [@cernec1999](https://github.com/cernec1999)
+* Enable setting DatePickerButton start and end year explicitly [#7061](https://github.com/emilk/egui/pull/7061) by [@zachbateman](https://github.com/zachbateman)
+* Support custom syntect settings in syntax highlighter [#7084](https://github.com/emilk/egui/pull/7084) by [@mkeeter](https://github.com/mkeeter)
+
+### 🔧 Changed
+* Use enum-map serde feature only when serde is enabled [#5748](https://github.com/emilk/egui/pull/5748) by [@tyssyt](https://github.com/tyssyt)
+* Better define the meaning of `SizeHint` [#7079](https://github.com/emilk/egui/pull/7079) by [@emilk](https://github.com/emilk)
+
+### 🔥 Removed
+* Remove things that have been deprecated for over a year [#7099](https://github.com/emilk/egui/pull/7099) by [@emilk](https://github.com/emilk)
+
+### 🐛 Fixed
+* Refactor MIME type support detection in image loader to allow for deferred handling and appended encoding info [#5686](https://github.com/emilk/egui/pull/5686) by [@markusdd](https://github.com/markusdd)
+* Fix incorrect color fringe colors on SVG:s [#7069](https://github.com/emilk/egui/pull/7069) by [@emilk](https://github.com/emilk)
+* Fix sometimes blurry SVGs [#7071](https://github.com/emilk/egui/pull/7071) by [@emilk](https://github.com/emilk)
+* Fix crash in `egui_extras::FileLoader` after `forget_image` [#6995](https://github.com/emilk/egui/pull/6995) by [@bircni](https://github.com/bircni)
+
+
 ## 0.31.1 - 2025-03-05
 * Fix image_loader for animated image types [#5688](https://github.com/emilk/egui/pull/5688) by [@BSteffaniak](https://github.com/BSteffaniak)
 
