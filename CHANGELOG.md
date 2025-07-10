@@ -14,7 +14,7 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
-## 0.32.0 - 2025-07-10 - Atomics and Popups
+## 0.32.0 - 2025-07-10 - Atomics, Popups, and better SVG support
 
 ### Highlights ✨
 #### ⚛️ Atomics
@@ -37,8 +37,21 @@ TODO: write something here
 
 
 #### ✨ Improved rendering
-This release contains a bunch of fixes that improves the sharpness of text and SVG:s!
+You can render SVG in egui with
 
+```rs
+ui.add(egui::Image::new(egui::include_image!("icon.svg"));
+```
+
+(Requires the use of `egui_extras`, with the `svg` feature enabled and a call to [`install_image_loaders`](https://docs.rs/egui_extras/latest/egui_extras/fn.install_image_loaders.html)).
+
+Previously this would sometimes result in a blurry SVG, epecially if the `Image` was set to be dynamically scale based on the size of the `Ui` that contained it. Now SVG:s are always pixel-perfect, for truly scalable graphics.
+
+![svg-scaling](https://github.com/user-attachments/assets/faf63f0c-0ff7-47a0-a4cb-7210efeccb72)
+
+We've also improved the sharpness of text, and the filtering of images.
+
+##### Details
 * Improve text sharpness [#5838](https://github.com/emilk/egui/pull/5838) by [@emilk](https://github.com/emilk)
 * Improve text rendering in light mode [#7290](https://github.com/emilk/egui/pull/7290) by [@emilk](https://github.com/emilk)
 * Improve texture filtering by doing it in gamma space [#7311](https://github.com/emilk/egui/pull/7311) by [@emilk](https://github.com/emilk)
