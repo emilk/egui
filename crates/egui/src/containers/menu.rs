@@ -178,7 +178,6 @@ impl MenuState {
 /// });
 /// # });
 /// ```
-/// ```
 #[derive(Clone, Debug)]
 pub struct MenuBar {
     config: MenuConfig,
