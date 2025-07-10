@@ -4,7 +4,7 @@ use std::sync::Arc;
 use emath::{GuiRounding as _, Vec2, vec2};
 
 use crate::{
-    TextureAtlas,
+    ColorImage, TextureAtlas,
     mutex::{Mutex, RwLock},
     text::FontTweak,
 };
@@ -261,6 +261,49 @@ impl FontImpl {
         self.ascent
     }
 
+    pub fn allocate_custom_glyph(&self, c: char, image: ColorImage) -> GlyphInfo {
+        let glyph_pos = {
+            let atlas = &mut self.atlas.lock();
+            let (glyph_pos, atlas_image) = atlas.allocate((image.width(), image.height()));
+
+            for x in 0..image.width() {
+                for y in 0..image.height() {
+                    let px = glyph_pos.0 + x;
+                    let py = glyph_pos.1 + y;
+                    atlas_image[(px, py)] = image[(x, y)];
+                }
+            }
+
+            glyph_pos
+        };
+
+        let glyph_width = image.width();
+        let glyph_height = image.height();
+
+        let offset = vec2(0.0, -self.height_in_points / 1.3);
+
+        let height = self.height_in_points;
+        let width = height * (glyph_width as f32 / glyph_height as f32);
+
+        let uv_rect = UvRect {
+            offset,
+            size: vec2(width, height),
+            min: [glyph_pos.0 as u16, glyph_pos.1 as u16],
+            max: [
+                (glyph_pos.0 + glyph_width) as u16,
+                (glyph_pos.1 + glyph_height) as u16,
+            ],
+        };
+
+        let advance_width = width;
+
+        GlyphInfo {
+            id: ab_glyph::GlyphId(0),
+            advance_width: advance_width as f32,
+            uv_rect,
+        }
+    }
+
     fn allocate_glyph(&self, glyph_id: ab_glyph::GlyphId) -> GlyphInfo {
         assert!(glyph_id.0 != 0, "Can't allocate glyph for id 0");
         use ab_glyph::{Font as _, ScaleFont as _};
@@ -383,6 +426,16 @@ impl Font {
     pub fn preload_characters(&mut self, s: &str) {
         for c in s.chars() {
             self.glyph_info(c);
+        }
+    }
+
+    pub fn allocate_custom_glyph(&mut self, c: char, image: ColorImage) -> GlyphInfo {
+        if let Some(font_impl) = self.fonts.first() {
+            let glyph_info = font_impl.allocate_custom_glyph(c, image);
+            self.glyph_info_cache.insert(c, (0, glyph_info));
+            glyph_info
+        } else {
+            GlyphInfo::default()
         }
     }
 
