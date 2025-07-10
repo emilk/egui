@@ -1,10 +1,12 @@
+#[expect(unused_imports)]
+use crate::{Ui, UiBuilder};
 use std::sync::atomic::AtomicBool;
 
 /// A tag to mark a container as closable.
 ///
-/// Usually set via [`crate::UiBuilder::closable`].
+/// Usually set via [`UiBuilder::closable`].
 ///
-/// `ui.close()` will find the closest parent `ClosableTag` and set its `close` field to `true`.
+/// [`Ui::close`] will find the closest parent [`ClosableTag`] and set its `close` field to `true`.
 /// Use [`Ui::should_close`] to check if close has been called.
 #[derive(Debug, Default)]
 pub struct ClosableTag {
