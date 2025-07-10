@@ -72,32 +72,39 @@ fn single_test(name: &str, mut f: impl FnMut(&mut Ui)) -> SnapshotResult {
 
 #[test]
 fn test_intrinsic_size() {
-    let mut intrinsic_size = None;
-    for wrapping in [
-        TextWrapMode::Extend,
-        TextWrapMode::Wrap,
-        TextWrapMode::Truncate,
-    ] {
-        _ = HarnessBuilder::default()
-            .with_size(Vec2::new(100.0, 100.0))
-            .build_ui(|ui| {
-                ui.style_mut().wrap_mode = Some(wrapping);
-                let response = ui.add(Button::new(
-                    "Hello world this is a long text that should be wrapped.",
-                ));
-                if let Some(current_intrinsic_size) = intrinsic_size {
-                    assert_eq!(
-                        Some(current_intrinsic_size),
-                        response.intrinsic_size,
-                        "For wrapping: {wrapping:?}"
+    let widgets = [Ui::button, Ui::label];
+
+    for widget in widgets {
+        let mut intrinsic_size = None;
+        for wrapping in [
+            TextWrapMode::Extend,
+            TextWrapMode::Wrap,
+            TextWrapMode::Truncate,
+        ] {
+            _ = HarnessBuilder::default()
+                .with_size(Vec2::new(100.0, 100.0))
+                .build_ui(|ui| {
+                    ui.style_mut().wrap_mode = Some(wrapping);
+                    let response = widget(
+                        ui,
+                        "Hello world this is a long text that should be wrapped.",
                     );
-                }
-                assert!(
-                    response.intrinsic_size.is_some(),
-                    "intrinsic_size should be set for `Button`"
-                );
-                intrinsic_size = response.intrinsic_size;
-            });
+                    if let Some(current_intrinsic_size) = intrinsic_size {
+                        assert_eq!(
+                            Some(current_intrinsic_size),
+                            response.intrinsic_size,
+                            "For wrapping: {wrapping:?}"
+                        );
+                    }
+                    assert!(
+                        response.intrinsic_size.is_some(),
+                        "intrinsic_size should be set for `Button`"
+                    );
+                    intrinsic_size = response.intrinsic_size;
+                    if wrapping == TextWrapMode::Extend {
+                        assert_eq!(Some(response.rect.size()), response.intrinsic_size);
+                    }
+                });
+        }
     }
-    assert_eq!(intrinsic_size.unwrap().round(), Vec2::new(305.0, 18.0));
 }
