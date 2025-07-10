@@ -10,7 +10,7 @@ Changes since the last release can be found at <https://github.com/emilk/egui/co
 * Allow loading multi-MIME formats using the image_loader [#5769](https://github.com/emilk/egui/pull/5769) by [@MYDIH](https://github.com/MYDIH)
 * Make ImageLoader use background thread [#5394](https://github.com/emilk/egui/pull/5394) by [@bircni](https://github.com/bircni)
 * Add overline option for Table rows [#5637](https://github.com/emilk/egui/pull/5637) by [@akx](https://github.com/akx)
-* Support SVG Text Rendering in egui_extras [#5979](https://github.com/emilk/egui/pull/5979) by [@cernec1999](https://github.com/cernec1999)
+* Support text in SVGs [#5979](https://github.com/emilk/egui/pull/5979) by [@cernec1999](https://github.com/cernec1999)
 * Enable setting DatePickerButton start and end year explicitly [#7061](https://github.com/emilk/egui/pull/7061) by [@zachbateman](https://github.com/zachbateman)
 * Support custom syntect settings in syntax highlighter [#7084](https://github.com/emilk/egui/pull/7084) by [@mkeeter](https://github.com/mkeeter)
 

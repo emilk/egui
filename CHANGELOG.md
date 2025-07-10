@@ -15,6 +15,14 @@ Changes since the last release can be found at <https://github.com/emilk/egui/co
 
 
 ## 0.32.0 - 2025-07-10 - Atomics, Popups, and better SVG support
+This is a big egui release, with several exciting new features!
+
+* _Atomics_ are new layout primitives in egui, for text amnd images
+* Popups, tooltips and menus have undergone a complete rewrite
+* Much improved SVG support!
+* Crisper graphics (especially text!)
+
+Let's dive in!
 
 ### Highlights ✨
 #### ⚛️ Atomics
@@ -36,7 +44,7 @@ TODO: write something here
 * Deprecate `Memory::popup` API in favor of new `Popup` API [#7317](https://github.com/emilk/egui/pull/7317) by [@emilk](https://github.com/emilk)
 
 
-#### ✨ Improved rendering
+#### ▲ Improved SVG support
 You can render SVG in egui with
 
 ```rs
@@ -49,14 +57,22 @@ Previously this would sometimes result in a blurry SVG, epecially if the `Image`
 
 ![svg-scaling](https://github.com/user-attachments/assets/faf63f0c-0ff7-47a0-a4cb-7210efeccb72)
 
-We've also improved the sharpness of text, and the filtering of images.
+##### Details
+* Support text in SVGs [#5979](https://github.com/emilk/egui/pull/5979) by [@cernec1999](https://github.com/cernec1999)
+* Fix sometimes blurry SVGs [#7071](https://github.com/emilk/egui/pull/7071) by [@emilk](https://github.com/emilk)
+* Fix incorrect color fringe colors on SVG:s [#7069](https://github.com/emilk/egui/pull/7069) by [@emilk](https://github.com/emilk)
+* Make `Image::paint_at` pixel-perfect crisp for SVG images [#7078](https://github.com/emilk/egui/pull/7078) by [@emilk](https://github.com/emilk)
+
+
+#### ✨ Crisper graphics
+Non-SVG icons are also rendered better, and text sharpness has been improved, especially in light mode.
+
+![image](https://github.com/user-attachments/assets/7f370aaf-886a-423c-8391-c378849b63ca)
 
 ##### Details
 * Improve text sharpness [#5838](https://github.com/emilk/egui/pull/5838) by [@emilk](https://github.com/emilk)
 * Improve text rendering in light mode [#7290](https://github.com/emilk/egui/pull/7290) by [@emilk](https://github.com/emilk)
 * Improve texture filtering by doing it in gamma space [#7311](https://github.com/emilk/egui/pull/7311) by [@emilk](https://github.com/emilk)
-* Make `Image::paint_at` pixel-perfect crisp for SVG images [#7078](https://github.com/emilk/egui/pull/7078) by [@emilk](https://github.com/emilk)
-* Fix sometimes blurry SVGs [#7071](https://github.com/emilk/egui/pull/7071) by [@emilk](https://github.com/emilk)
 * Make text underline and strikethrough pixel perfect crisp [#5857](https://github.com/emilk/egui/pull/5857) by [@emilk](https://github.com/emilk)
 
 
