@@ -127,7 +127,7 @@ jobs:
           components: rust-src
 
       - name: Check wasm32+atomics eframe with wgpu
-        run: RUSTFLAGS='-C target-feature=+atomics' cargo +${{env.NIGHTLY_VERSION}} check -p eframe --lib --no-default-features --features wgpu --target wasm32-unknown-unknown -Z build-std=std,panic_abort
+        run: RUSTFLAGS='-C target-feature=+atomics' cargo +${{env.NIGHTLY_VERSION}} check -p eframe --lib --no-default-features --features wgpu,wgpu/webgpu --target wasm32-unknown-unknown -Z build-std=std,panic_abort
 
   # ---------------------------------------------------------------------------
 
