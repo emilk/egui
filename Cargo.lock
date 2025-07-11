@@ -1280,7 +1280,6 @@ dependencies = [
  "profiling",
  "thiserror 1.0.66",
  "type-map",
- "web-sys",
  "web-time",
  "wgpu",
  "winit",
