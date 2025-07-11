@@ -1,7 +1,9 @@
 mod atom;
+mod atom_element;
 mod atom_ext;
 mod atom_kind;
 mod atom_layout;
+mod atom_widget;
 mod atoms;
 mod sized_atom;
 mod sized_atom_kind;
