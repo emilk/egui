@@ -66,3 +66,6 @@ wgpu = { workspace = true, features = ["wgsl"] }
 # Optional dependencies:
 
 winit = { workspace = true, optional = true, default-features = false }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+web-sys.workspace = true
