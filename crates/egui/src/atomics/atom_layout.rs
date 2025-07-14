@@ -183,10 +183,10 @@ impl<'a> AtomLayout<'a> {
 
         let mut desired_width = 0.0;
 
-        // Preferred width / height is the ideal size of the widget, e.g. the size where the
+        // intrinsic width / height is the ideal size of the widget, e.g. the size where the
         // text is not wrapped. Used to set Response::intrinsic_size.
-        let mut preferred_width = 0.0;
-        let mut preferred_height = 0.0;
+        let mut intrinsic_width = 0.0;
+        let mut intrinsic_height = 0.0;
 
         let mut height: f32 = 0.0;
 
@@ -203,7 +203,7 @@ impl<'a> AtomLayout<'a> {
         if atoms.len() > 1 {
             let gap_space = gap * (atoms.len() as f32 - 1.0);
             desired_width += gap_space;
-            preferred_width += gap_space;
+            intrinsic_width += gap_space;
         }
 
         for (idx, item) in atoms.into_iter().enumerate() {
@@ -224,10 +224,10 @@ impl<'a> AtomLayout<'a> {
             let size = sized.size;
 
             desired_width += size.x;
-            preferred_width += sized.preferred_size.x;
+            intrinsic_width += sized.intrinsic_size.x;
 
             height = height.at_least(size.y);
-            preferred_height = preferred_height.at_least(sized.preferred_size.y);
+            intrinsic_height = intrinsic_height.at_least(sized.intrinsic_size.y);
 
             sized_items.push(sized);
         }
@@ -243,10 +243,10 @@ impl<'a> AtomLayout<'a> {
             let size = sized.size;
 
             desired_width += size.x;
-            preferred_width += sized.preferred_size.x;
+            intrinsic_width += sized.intrinsic_size.x;
 
             height = height.at_least(size.y);
-            preferred_height = preferred_height.at_least(sized.preferred_size.y);
+            intrinsic_height = intrinsic_height.at_least(sized.intrinsic_size.y);
 
             sized_items.insert(index, sized);
         }
@@ -256,7 +256,7 @@ impl<'a> AtomLayout<'a> {
         let frame_size = (desired_size + margin.sum()).at_least(min_size);
 
         let intrinsic_size =
-            (Vec2::new(preferred_width, preferred_height) + margin.sum()).at_least(min_size);
+            (Vec2::new(intrinsic_width, intrinsic_height) + margin.sum()).at_least(min_size);
         let (_, rect) = ui.allocate_space(frame_size, intrinsic_size);
         let mut response = ui.interact(rect, id, sense);
 

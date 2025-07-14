@@ -1,6 +1,6 @@
 use std::fmt::Write as _;
 
-use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
+use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 
 use egui::epaint::TextShape;
 use egui::load::SizedTexture;
@@ -168,13 +168,14 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let fonts = egui::epaint::text::Fonts::new(
             pixels_per_point,
             max_texture_side,
+            egui::epaint::AlphaFromCoverage::default(),
             egui::FontDefinitions::default(),
         );
         {
             let mut locked_fonts = fonts.lock();
             c.bench_function("text_layout_uncached", |b| {
                 b.iter(|| {
-                    use egui::epaint::text::{layout, LayoutJob};
+                    use egui::epaint::text::{LayoutJob, layout};
 
                     let job = LayoutJob::simple(
                         LOREM_IPSUM_LONG.to_owned(),
@@ -210,7 +211,11 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
             let mut rng = rand::rng();
             b.iter(|| {
-                fonts.begin_pass(pixels_per_point, max_texture_side);
+                fonts.begin_pass(
+                    pixels_per_point,
+                    max_texture_side,
+                    egui::epaint::AlphaFromCoverage::default(),
+                );
 
                 // Delete a random character, simulating a user making an edit in a long file:
                 let mut new_string = string.clone();

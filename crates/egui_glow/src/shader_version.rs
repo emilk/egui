@@ -47,11 +47,7 @@ impl ShaderVersion {
             .try_into()
             .unwrap();
         if es {
-            if maj >= 3 {
-                Self::Es300
-            } else {
-                Self::Es100
-            }
+            if maj >= 3 { Self::Es300 } else { Self::Es100 }
         } else if maj > 1 || (maj == 1 && min >= 40) {
             Self::Gl140
         } else {

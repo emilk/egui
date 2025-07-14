@@ -1,12 +1,12 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use crate::{
+    AlphaFromCoverage, TextureAtlas,
     mutex::{Mutex, MutexGuard},
     text::{
-        font::{Font, FontImpl},
         Galley, LayoutJob, LayoutSection,
+        font::{Font, FontImpl},
     },
-    TextureAtlas,
 };
 use emath::{NumExt as _, OrderedFloat};
 
@@ -430,36 +430,56 @@ impl Fonts {
     pub fn new(
         pixels_per_point: f32,
         max_texture_side: usize,
+        text_alpha_from_coverage: AlphaFromCoverage,
         definitions: FontDefinitions,
     ) -> Self {
         let fonts_and_cache = FontsAndCache {
-            fonts: FontsImpl::new(pixels_per_point, max_texture_side, definitions),
+            fonts: FontsImpl::new(
+                pixels_per_point,
+                max_texture_side,
+                text_alpha_from_coverage,
+                definitions,
+            ),
             galley_cache: Default::default(),
         };
         Self(Arc::new(Mutex::new(fonts_and_cache)))
     }
 
     /// Call at the start of each frame with the latest known
-    /// `pixels_per_point` and `max_texture_side`.
+    /// `pixels_per_point`, `max_texture_side`, and `text_alpha_from_coverage`.
     ///
     /// Call after painting the previous frame, but before using [`Fonts`] for the new frame.
     ///
-    /// This function will react to changes in `pixels_per_point` and `max_texture_side`,
+    /// This function will react to changes in `pixels_per_point`, `max_texture_side`, and `text_alpha_from_coverage`,
     /// as well as notice when the font atlas is getting full, and handle that.
-    pub fn begin_pass(&self, pixels_per_point: f32, max_texture_side: usize) {
+    pub fn begin_pass(
+        &self,
+        pixels_per_point: f32,
+        max_texture_side: usize,
+        text_alpha_from_coverage: AlphaFromCoverage,
+    ) {
         let mut fonts_and_cache = self.0.lock();
 
         let pixels_per_point_changed = fonts_and_cache.fonts.pixels_per_point != pixels_per_point;
         let max_texture_side_changed = fonts_and_cache.fonts.max_texture_side != max_texture_side;
+        let text_alpha_from_coverage_changed =
+            fonts_and_cache.fonts.atlas.lock().text_alpha_from_coverage != text_alpha_from_coverage;
         let font_atlas_almost_full = fonts_and_cache.fonts.atlas.lock().fill_ratio() > 0.8;
-        let needs_recreate =
-            pixels_per_point_changed || max_texture_side_changed || font_atlas_almost_full;
+        let needs_recreate = pixels_per_point_changed
+            || max_texture_side_changed
+            || text_alpha_from_coverage_changed
+            || font_atlas_almost_full;
 
         if needs_recreate {
             let definitions = fonts_and_cache.fonts.definitions.clone();
 
             *fonts_and_cache = FontsAndCache {
-                fonts: FontsImpl::new(pixels_per_point, max_texture_side, definitions),
+                fonts: FontsImpl::new(
+                    pixels_per_point,
+                    max_texture_side,
+                    text_alpha_from_coverage,
+                    definitions,
+                ),
                 galley_cache: Default::default(),
             };
         }
@@ -497,7 +517,7 @@ impl Fonts {
 
     /// The full font atlas image.
     #[inline]
-    pub fn image(&self) -> crate::FontImage {
+    pub fn image(&self) -> crate::ColorImage {
         self.lock().fonts.atlas.lock().image().clone()
     }
 
@@ -642,6 +662,7 @@ impl FontsImpl {
     pub fn new(
         pixels_per_point: f32,
         max_texture_side: usize,
+        text_alpha_from_coverage: AlphaFromCoverage,
         definitions: FontDefinitions,
     ) -> Self {
         assert!(
@@ -651,7 +672,7 @@ impl FontsImpl {
 
         let texture_width = max_texture_side.at_most(16 * 1024);
         let initial_height = 32; // Keep initial font atlas small, so it is fast to upload to GPU. This will expand as needed anyways.
-        let atlas = TextureAtlas::new([texture_width, initial_height]);
+        let atlas = TextureAtlas::new([texture_width, initial_height], text_alpha_from_coverage);
 
         let atlas = Arc::new(Mutex::new(atlas));
 
@@ -680,7 +701,8 @@ impl FontsImpl {
 
     /// Get the right font implementation from size and [`FontFamily`].
     pub fn font(&mut self, font_id: &FontId) -> &mut Font {
-        let FontId { mut size, family } = font_id;
+        let FontId { size, family } = font_id;
+        let mut size = *size;
         size = size.at_least(0.1).at_most(2048.0);
 
         self.sized_family
@@ -803,7 +825,7 @@ impl GalleyCache {
                 let job = Arc::new(job);
                 if allow_split_paragraphs && should_cache_each_paragraph_individually(&job) {
                     let (child_galleys, child_hashes) =
-                        self.layout_each_paragraph_individuallly(fonts, &job);
+                        self.layout_each_paragraph_individually(fonts, &job);
                     debug_assert_eq!(
                         child_hashes.len(),
                         child_galleys.len(),
@@ -847,7 +869,7 @@ impl GalleyCache {
     }
 
     /// Split on `\n` and lay out (and cache) each paragraph individually.
-    fn layout_each_paragraph_individuallly(
+    fn layout_each_paragraph_individually(
         &mut self,
         fonts: &mut FontsImpl,
         job: &LayoutJob,
@@ -862,9 +884,14 @@ impl GalleyCache {
 
         while start < job.text.len() {
             let is_first_paragraph = start == 0;
-            let end = job.text[start..]
+            // `end` will not include the `\n` since we don't want to create an empty row in our
+            // split galley
+            let mut end = job.text[start..]
                 .find('\n')
-                .map_or(job.text.len(), |i| start + i + 1);
+                .map_or(job.text.len(), |i| start + i);
+            if end == job.text.len() - 1 && job.text.ends_with('\n') {
+                end += 1; // If the text ends with a newline, we include it in the last paragraph.
+            }
 
             let mut paragraph_job = LayoutJob {
                 text: job.text[start..end].to_owned(),
@@ -898,7 +925,7 @@ impl GalleyCache {
                 if section_range.end <= start {
                     // The section is behind us
                     current_section += 1;
-                } else if end <= section_range.start {
+                } else if end < section_range.start {
                     break; // Haven't reached this one yet.
                 } else {
                     // Section range overlaps with paragraph range
@@ -931,10 +958,6 @@ impl GalleyCache {
             // This will prevent us from invalidating cache entries unnecessarily:
             if max_rows_remaining != usize::MAX {
                 max_rows_remaining -= galley.rows.len();
-                // Ignore extra trailing row, see merging `Galley::concat` for more details.
-                if end < job.text.len() && !galley.elided {
-                    max_rows_remaining += 1;
-                }
             }
 
             let elided = galley.elided;
@@ -943,7 +966,7 @@ impl GalleyCache {
                 break;
             }
 
-            start = end;
+            start = end + 1;
         }
 
         (child_galleys, child_hashes)
@@ -1050,7 +1073,8 @@ mod tests {
     use core::f32;
 
     use super::*;
-    use crate::{text::TextFormat, Stroke};
+    use crate::text::{TextWrapping, layout};
+    use crate::{Stroke, text::TextFormat};
     use ecolor::Color32;
     use emath::Align;
 
@@ -1063,11 +1087,40 @@ mod tests {
                 f32::INFINITY,
             ),
             LayoutJob::simple(
+                "ends with newlines\n\n".to_owned(),
+                FontId::new(14.0, FontFamily::Monospace),
+                Color32::WHITE,
+                f32::INFINITY,
+            ),
+            LayoutJob::simple(
                 "Simple test.".to_owned(),
                 FontId::new(14.0, FontFamily::Monospace),
                 Color32::WHITE,
                 f32::INFINITY,
             ),
+            {
+                let mut job = LayoutJob::simple(
+                    "hi".to_owned(),
+                    FontId::default(),
+                    Color32::WHITE,
+                    f32::INFINITY,
+                );
+                job.append("\n", 0.0, TextFormat::default());
+                job.append("\n", 0.0, TextFormat::default());
+                job.append("world", 0.0, TextFormat::default());
+                job.wrap.max_rows = 2;
+                job
+            },
+            {
+                let mut job = LayoutJob::simple(
+                    "Test text with a lot of words\n and a newline.".to_owned(),
+                    FontId::new(14.0, FontFamily::Monospace),
+                    Color32::WHITE,
+                    40.0,
+                );
+                job.first_row_min_height = 30.0;
+                job
+            },
             LayoutJob::simple(
                 "This some text that may be long.\nDet kanske också finns lite ÅÄÖ här.".to_owned(),
                 FontId::new(14.0, FontFamily::Proportional),
@@ -1119,6 +1172,7 @@ mod tests {
             let mut fonts = FontsImpl::new(
                 pixels_per_point,
                 max_texture_side,
+                AlphaFromCoverage::default(),
                 FontDefinitions::default(),
             );
 
@@ -1154,6 +1208,62 @@ mod tests {
                             format!("{:#.1?}", whole),
                             "pixels_per_point: {pixels_per_point:.2}, input text: '{}'",
                             job.text
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_intrinsic_size() {
+        let pixels_per_point = [1.0, 1.3, 2.0, 0.867];
+        let max_widths = [40.0, 80.0, 133.0, 200.0];
+        let rounded_output_to_gui = [false, true];
+
+        for pixels_per_point in pixels_per_point {
+            let mut fonts = FontsImpl::new(
+                pixels_per_point,
+                1024,
+                AlphaFromCoverage::default(),
+                FontDefinitions::default(),
+            );
+
+            for &max_width in &max_widths {
+                for round_output_to_gui in rounded_output_to_gui {
+                    for mut job in jobs() {
+                        job.wrap = TextWrapping::wrap_at_width(max_width);
+
+                        job.round_output_to_gui = round_output_to_gui;
+
+                        let galley_wrapped = layout(&mut fonts, job.clone().into());
+
+                        job.wrap = TextWrapping::no_max_width();
+
+                        let text = job.text.clone();
+                        let galley_unwrapped = layout(&mut fonts, job.into());
+
+                        let intrinsic_size = galley_wrapped.intrinsic_size();
+                        let unwrapped_size = galley_unwrapped.size();
+
+                        let difference = (intrinsic_size - unwrapped_size).length().abs();
+                        similar_asserts::assert_eq!(
+                            format!("{intrinsic_size:.4?}"),
+                            format!("{unwrapped_size:.4?}"),
+                            "Wrapped intrinsic size should almost match unwrapped size. Intrinsic: {intrinsic_size:.8?} vs unwrapped: {unwrapped_size:.8?}
+                                Difference: {difference:.8?}
+                                wrapped rows: {}, unwrapped rows: {}
+                                pixels_per_point: {pixels_per_point}, text: {text:?}, max_width: {max_width}, round_output_to_gui: {round_output_to_gui}",
+                            galley_wrapped.rows.len(),
+                            galley_unwrapped.rows.len()
+                            );
+                        similar_asserts::assert_eq!(
+                            format!("{intrinsic_size:.4?}"),
+                            format!("{unwrapped_size:.4?}"),
+                            "Unwrapped galley intrinsic size should exactly match its size. \
+                                {:.8?} vs {:8?}",
+                            galley_unwrapped.intrinsic_size(),
+                            galley_unwrapped.size(),
                         );
                     }
                 }

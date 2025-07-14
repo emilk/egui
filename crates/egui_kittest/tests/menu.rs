@@ -1,5 +1,5 @@
-use egui::containers::menu::{Bar, MenuConfig, SubMenuButton};
-use egui::{include_image, PopupCloseBehavior, Ui};
+use egui::containers::menu::{MenuBar, MenuConfig, SubMenuButton};
+use egui::{PopupCloseBehavior, Ui, include_image};
 use egui_kittest::{Harness, SnapshotResults};
 use kittest::Queryable as _;
 
@@ -18,7 +18,7 @@ impl TestMenu {
 
     fn ui(&mut self, ui: &mut Ui) {
         ui.vertical(|ui| {
-            Bar::new().config(self.config.clone()).ui(ui, |ui| {
+            MenuBar::new().config(self.config.clone()).ui(ui, |ui| {
                 egui::Sides::new().show(
                     ui,
                     |ui| {
@@ -95,7 +95,7 @@ fn menu_close_on_click_outside() {
         TestMenu::new(MenuConfig::new().close_behavior(PopupCloseBehavior::CloseOnClick))
             .into_harness();
 
-    harness.get_by_label("Menu A").simulate_click();
+    harness.get_by_label("Menu A").click();
     harness.run();
 
     harness
@@ -106,9 +106,7 @@ fn menu_close_on_click_outside() {
     // We should be able to check the checkbox without closing the menu
     // Click a couple of times, just in case
     for expect_checked in [true, false, true, false] {
-        harness
-            .get_by_label("Checkbox in Submenu C")
-            .simulate_click();
+        harness.get_by_label("Checkbox in Submenu C").click();
         harness.run();
         assert_eq!(expect_checked, harness.state().checked);
     }
@@ -119,7 +117,7 @@ fn menu_close_on_click_outside() {
     assert!(harness.query_by_label("Checkbox in Submenu C").is_some());
 
     // Clicking outside should close the menu
-    harness.get_by_label("Some other label").simulate_click();
+    harness.get_by_label("Some other label").click();
     harness.run();
     assert!(harness.query_by_label("Checkbox in Submenu C").is_none());
 }
@@ -130,14 +128,14 @@ fn menu_close_on_click() {
         TestMenu::new(MenuConfig::new().close_behavior(PopupCloseBehavior::CloseOnClick))
             .into_harness();
 
-    harness.get_by_label("Menu A").simulate_click();
+    harness.get_by_label("Menu A").click();
     harness.run();
 
     harness.get_by_label_contains("Submenu B with icon").hover();
     harness.run();
 
     // Clicking the button should close the menu (even if ui.close() is not called by the button)
-    harness.get_by_label("Button in Submenu B").simulate_click();
+    harness.get_by_label("Button in Submenu B").click();
     harness.run();
     assert!(harness.query_by_label("Button in Submenu B").is_none());
 }
@@ -145,21 +143,19 @@ fn menu_close_on_click() {
 #[test]
 fn clicking_submenu_button_should_never_close_menu() {
     // We test for this since otherwise the menu wouldn't work on touch devices
-    // The other tests use .hover to open submenus, but this test explicitly uses .simulate_click
+    // The other tests use .hover to open submenus, but this test explicitly uses .click
     let mut harness =
         TestMenu::new(MenuConfig::new().close_behavior(PopupCloseBehavior::CloseOnClick))
             .into_harness();
 
-    harness.get_by_label("Menu A").simulate_click();
+    harness.get_by_label("Menu A").click();
     harness.run();
 
     // Clicking the submenu button should not close the menu
-    harness
-        .get_by_label_contains("Submenu B with icon")
-        .simulate_click();
+    harness.get_by_label_contains("Submenu B with icon").click();
     harness.run();
 
-    harness.get_by_label("Button in Submenu B").simulate_click();
+    harness.get_by_label("Button in Submenu B").click();
     harness.run();
     assert!(harness.query_by_label("Button in Submenu B").is_none());
 }
@@ -174,7 +170,7 @@ fn menu_snapshots() {
     harness.run();
     results.add(harness.try_snapshot("menu/closed_hovered"));
 
-    harness.get_by_label("Menu A").simulate_click();
+    harness.get_by_label("Menu A").click();
     harness.run();
     results.add(harness.try_snapshot("menu/opened"));
 

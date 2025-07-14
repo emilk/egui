@@ -4,7 +4,7 @@
 //! * `ui.add(Label::new("Text").text_color(color::red));`
 //! * `if ui.add(Button::new("Click me")).clicked() { … }`
 
-use crate::{epaint, Response, Ui};
+use crate::{Response, Ui, epaint};
 
 mod button;
 mod checkbox;
@@ -22,20 +22,21 @@ mod slider;
 mod spinner;
 pub mod text_edit;
 
+#[expect(deprecated)]
+pub use self::selected_label::SelectableLabel;
 pub use self::{
     button::Button,
     checkbox::Checkbox,
     drag_value::DragValue,
     hyperlink::{Hyperlink, Link},
     image::{
-        decode_animated_image_uri, has_gif_magic_header, has_webp_header, paint_texture_at,
         FrameDurations, Image, ImageFit, ImageOptions, ImageSize, ImageSource,
+        decode_animated_image_uri, has_gif_magic_header, has_webp_header, paint_texture_at,
     },
     image_button::ImageButton,
     label::Label,
     progress_bar::ProgressBar,
     radio_button::RadioButton,
-    selected_label::SelectableLabel,
     separator::Separator,
     slider::{Slider, SliderClamping, SliderOrientation},
     spinner::Spinner,

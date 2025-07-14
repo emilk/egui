@@ -162,7 +162,7 @@ impl<'l> StripLayout<'l> {
         } else if flags.clip {
             max_rect
         } else {
-            max_rect.union(used_rect)
+            max_rect | used_rect
         };
 
         self.set_pos(allocation_rect);

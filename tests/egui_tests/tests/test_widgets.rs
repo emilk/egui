@@ -1,11 +1,11 @@
 use egui::load::SizedTexture;
 use egui::{
-    include_image, Align, AtomExt as _, AtomLayout, Button, Color32, ColorImage, Direction,
-    DragValue, Event, Grid, IntoAtoms as _, Layout, PointerButton, Pos2, Response, Slider, Stroke,
-    StrokeKind, TextWrapMode, TextureHandle, TextureOptions, Ui, UiBuilder, Vec2, Widget as _,
+    Align, AtomExt as _, AtomLayout, Button, Color32, ColorImage, Direction, DragValue, Event,
+    Grid, IntoAtoms as _, Layout, PointerButton, Response, Slider, Stroke, StrokeKind,
+    TextWrapMode, TextureHandle, TextureOptions, Ui, UiBuilder, Vec2, Widget as _, include_image,
 };
-use egui_kittest::kittest::{by, Node, Queryable as _};
-use egui_kittest::{Harness, SnapshotResult, SnapshotResults};
+use egui_kittest::kittest::{Queryable as _, by};
+use egui_kittest::{Harness, Node, SnapshotResult, SnapshotResults};
 
 #[test]
 fn widget_tests() {
@@ -244,7 +244,7 @@ fn test_widget_layout(name: &str, mut w: impl FnMut(&mut Ui) -> Response) -> Sna
     });
 
     harness.fit_contents();
-    harness.try_snapshot(&format!("layout/{name}"))
+    harness.try_snapshot(format!("layout/{name}"))
 }
 
 /// Utility to create a snapshot test of the different states of a egui widget.
@@ -278,14 +278,10 @@ impl<'a> VisualTests<'a> {
         });
         self.add("pressed", |harness| {
             harness.get_next().hover();
-            let rect = harness.get_next().bounding_box().unwrap();
-            let pos = Pos2::new(
-                ((rect.x0 + rect.x1) / 2.0) as f32,
-                ((rect.y0 + rect.y1) / 2.0) as f32,
-            );
+            let rect = harness.get_next().rect();
             harness.input_mut().events.push(Event::PointerButton {
                 button: PointerButton::Primary,
-                pos,
+                pos: rect.center(),
                 pressed: true,
                 modifiers: Default::default(),
             });
@@ -374,7 +370,7 @@ impl<'a> VisualTests<'a> {
 
         harness.fit_contents();
 
-        harness.try_snapshot(&format!("visuals/{}", self.name))
+        harness.try_snapshot(format!("visuals/{}", self.name))
     }
 }
 

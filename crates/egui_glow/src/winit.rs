@@ -1,8 +1,8 @@
 use ahash::HashSet;
 use egui::{ViewportId, ViewportOutput};
 pub use egui_winit;
-use egui_winit::winit;
 pub use egui_winit::EventResponse;
+use egui_winit::winit;
 
 use crate::shader_version::ShaderVersion;
 

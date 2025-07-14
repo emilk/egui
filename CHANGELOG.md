@@ -14,6 +14,271 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.32.0 - 2025-07-10 - Atoms, popups, and better SVG support
+This is a big egui release, with several exciting new features!
+
+* _Atoms_ are new layout primitives in egui, for text and images
+* Popups, tooltips and menus have undergone a complete rewrite
+* Much improved SVG support
+* Crisper graphics (especially text!)
+
+Let's dive in!
+
+### ⚛️ Atoms
+
+`egui::Atom` is the new, indivisible building blocks of egui (hence their name).
+An `Atom` is an `enum` that can be either `WidgetText`, `Image`, or `Custom`.
+
+The new `AtomLayout` can be used within widgets to do basic layout.
+The initial implementation is as minimal as possible, doing just enough to implement what `Button` could do before.
+There is a new `IntoAtoms` trait that works with tuples of `Atom`s. Each atom can be customized with the `AtomExt` trait
+which works on everything that implements `Into<Atom>`, so e.g. `RichText` or `Image`.
+So to create a `Button` with text and image you can now do:
+```rs
+let image = include_image!("my_icon.png").atom_size(Vec2::splat(12.0));
+ui.button((image, "Click me!"));
+```
+
+Anywhere you see `impl IntoAtoms` you can add any number of images and text, in any order.
+
+As of 0.32, we have ported the `Button`, `Checkbox`, `RadioButton` to use atoms
+(meaning they support adding Atoms and are built on top of `AtomLayout`).
+The `Button` implementation is not only more powerful now, but also much simpler, removing ~130 lines of layout math.
+
+In combination with `ui.read_response`, custom widgets are really simple now, here is a minimal button implementation:
+
+```rs
+pub struct ALButton<'a> {
+    al: AtomLayout<'a>,
+}
+
+impl<'a> ALButton<'a> {
+    pub fn new(content: impl IntoAtoms<'a>) -> Self {
+        Self {
+            al: AtomLayout::new(content.into_atoms()).sense(Sense::click()),
+        }
+    }
+}
+
+impl<'a> Widget for ALButton<'a> {
+    fn ui(mut self, ui: &mut Ui) -> Response {
+        let Self { al } = self;
+        let response = ui.ctx().read_response(ui.next_auto_id());
+
+        let visuals = response.map_or(&ui.style().visuals.widgets.inactive, |response| {
+            ui.style().interact(&response)
+        });
+
+        let al = al.frame(
+            Frame::new()
+                .inner_margin(ui.style().spacing.button_padding)
+                .fill(visuals.bg_fill)
+                .stroke(visuals.bg_stroke)
+                .corner_radius(visuals.corner_radius),
+        );
+
+        al.show(ui).response
+    }
+}
+```
+
+You can even use `Atom::custom` to add custom content to Widgets. Here is a button in a button:
+
+https://github.com/user-attachments/assets/8c649784-dcc5-4979-85f8-e735b9cdd090
+
+```rs
+let custom_button_id = Id::new("custom_button");
+let response = Button::new((
+    Atom::custom(custom_button_id, Vec2::splat(18.0)),
+    "Look at my mini button!",
+))
+.atom_ui(ui);
+if let Some(rect) = response.rect(custom_button_id) {
+    ui.put(rect, Button::new("🔎").frame_when_inactive(false));
+}
+```
+Currently, you need to use `atom_ui` to get a `AtomResponse` which will have the `Rect` to use, but in the future
+this could be streamlined, e.g. by adding a `AtomKind::Callback` or by passing the Rects back with `egui::Response`.
+
+Basing our widgets on `AtomLayout` also allowed us to improve `Response::intrinsic_size`, which will now report the
+correct size even if widgets are truncated. `intrinsic_size` is the size that a non-wrapped, non-truncated,
+non-justified version of the widget would have, and can be useful in advanced layout
+calculations like [egui_flex](https://github.com/lucasmerlin/hello_egui/tree/main/crates/egui_flex).
+
+##### Details
+* Add `AtomLayout`, abstracting layouting within widgets [#5830](https://github.com/emilk/egui/pull/5830) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Add `Galley::intrinsic_size` and use it in `AtomLayout` [#7146](https://github.com/emilk/egui/pull/7146) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+
+### ❕ Improved popups, tooltips, and menus
+
+Introduces a new `egui::Popup` api. Checkout the new demo on https://egui.rs:
+
+https://github.com/user-attachments/assets/74e45243-7d05-4fc3-b446-2387e1412c05
+
+We introduced a new `RectAlign` helper to align a rect relative to an other rect. The `Popup` will by default try to find the best `RectAlign` based on the source widgets position (previously submenus would annoyingly overlap if at the edge of the window):
+
+https://github.com/user-attachments/assets/0c5adb6b-8310-4e0a-b936-646bb4ec02f7
+
+`Tooltip` and `menu` have been rewritten based on the new `Popup` api. They are now compatible with each other, meaning you can just show a `ui.menu_button()` in any `Popup` to get a sub menu. There are now customizable `MenuButton` and `SubMenuButton` structs, to help with customizing your menu buttons. This means menus now also support `PopupCloseBehavior` so you can remove your `close_menu` calls from your click handlers!
+
+The old tooltip and popup apis have been ported to the new api so there should be very little breaking changes. The old menu is still around but deprecated. `ui.menu_button` etc now open the new menu, if you can't update to the new one immediately you can use the old buttons from the deprecated `egui::menu` menu.
+
+We also introduced `ui.close()` which closes the nearest container. So you can now conveniently close `Window`s, `Collapsible`s, `Modal`s and `Popup`s from within. To use this for your own containers, call `UiBuilder::closable` and then check for closing within that ui via `ui.should_close()`.
+
+##### Details
+* Add `Popup` and `Tooltip`, unifying the previous behaviours [#5713](https://github.com/emilk/egui/pull/5713) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Add `Ui::close` and `Response::should_close` [#5729](https://github.com/emilk/egui/pull/5729) by [@lucasmerlin](https://github.com/lucasmerlin)
+* ⚠️ Improved menu based on `egui::Popup` [#5716](https://github.com/emilk/egui/pull/5716) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Add a toggle for the compact menu style [#5777](https://github.com/emilk/egui/pull/5777) by [@s-nie](https://github.com/s-nie)
+* Use the new `Popup` API for the color picker button [#7137](https://github.com/emilk/egui/pull/7137) by [@lucasmerlin](https://github.com/lucasmerlin)
+* ⚠️ Close popup if `Memory::keep_popup_open` isn't called [#5814](https://github.com/emilk/egui/pull/5814) by [@juancampa](https://github.com/juancampa)
+* Fix tooltips sometimes changing position each frame [#7304](https://github.com/emilk/egui/pull/7304) by [@emilk](https://github.com/emilk)
+* Change popup memory to be per-viewport [#6753](https://github.com/emilk/egui/pull/6753) by [@mkalte666](https://github.com/mkalte666)
+* Deprecate `Memory::popup` API in favor of new `Popup` API [#7317](https://github.com/emilk/egui/pull/7317) by [@emilk](https://github.com/emilk)
+
+
+### ▲ Improved SVG support
+You can render SVG in egui with
+
+```rs
+ui.add(egui::Image::new(egui::include_image!("icon.svg"));
+```
+
+(Requires the use of `egui_extras`, with the `svg` feature enabled and a call to [`install_image_loaders`](https://docs.rs/egui_extras/latest/egui_extras/fn.install_image_loaders.html)).
+
+Previously this would sometimes result in a blurry SVG, epecially if the `Image` was set to be dynamically scale based on the size of the `Ui` that contained it. Now SVG:s are always pixel-perfect, for truly scalable graphics.
+
+![svg-scaling](https://github.com/user-attachments/assets/faf63f0c-0ff7-47a0-a4cb-7210efeccb72)
+
+##### Details
+* Support text in SVGs [#5979](https://github.com/emilk/egui/pull/5979) by [@cernec1999](https://github.com/cernec1999)
+* Fix sometimes blurry SVGs [#7071](https://github.com/emilk/egui/pull/7071) by [@emilk](https://github.com/emilk)
+* Fix incorrect color fringe colors on SVG:s [#7069](https://github.com/emilk/egui/pull/7069) by [@emilk](https://github.com/emilk)
+* Make `Image::paint_at` pixel-perfect crisp for SVG images [#7078](https://github.com/emilk/egui/pull/7078) by [@emilk](https://github.com/emilk)
+
+
+### ✨ Crisper graphics
+Non-SVG icons are also rendered better, and text sharpness has been improved, especially in light mode.
+
+![image](https://github.com/user-attachments/assets/7f370aaf-886a-423c-8391-c378849b63ca)
+
+##### Details
+* Improve text sharpness [#5838](https://github.com/emilk/egui/pull/5838) by [@emilk](https://github.com/emilk)
+* Improve text rendering in light mode [#7290](https://github.com/emilk/egui/pull/7290) by [@emilk](https://github.com/emilk)
+* Improve texture filtering by doing it in gamma space [#7311](https://github.com/emilk/egui/pull/7311) by [@emilk](https://github.com/emilk)
+* Make text underline and strikethrough pixel perfect crisp [#5857](https://github.com/emilk/egui/pull/5857) by [@emilk](https://github.com/emilk)
+
+### Migration guide
+We have some silently breaking changes (code compiles fine but behavior changed) that require special care:
+
+#### Menus close on click by default
+- previously menus would only close on click outside
+- either
+    - remove the `ui.close_menu()` calls from button click handlers since they are obsolete
+    - if the menu should stay open on clicks, change the `PopupCloseBehavior`:
+      ```rs
+          // Change this
+        ui.menu_button("Text", |ui| { /* Menu Content */ });
+          // To this:
+        MenuButton::new("Text").config(
+            MenuConfig::default().close_behavior(PopupCloseBehavior::CloseOnClickOutside),
+        ).ui(ui, |ui| { /* Menu Content */ });
+        ```
+      You can also change the behavior only for a single SubMenu by using `SubMenuButton`, but by default it should be passed to any submenus when using `MenuButton`.
+
+#### `Memory::is_popup_open` api now requires calls to `Memory::keep_popup_open`
+- The popup will immediately close if `keep_popup_open` is not called.
+- It's recommended to use the new `Popup` api which handles this for you.
+- If you can't switch to the new api for some reason, update the code to call `keep_popup_open`:
+  ```rs
+      if ui.memory(|mem| mem.is_popup_open(popup_id)) {
+        ui.memory_mut(|mem| mem.keep_popup_open(popup_id)); // <- add this line
+        let area_response = Area::new(popup_id).show(...)
+      }
+  ```
+
+### ⭐ Other improvements
+* Add `Label::show_tooltip_when_elided` [#5710](https://github.com/emilk/egui/pull/5710) by [@bryceberger](https://github.com/bryceberger)
+* Deprecate `Ui::allocate_new_ui` in favor of `Ui::scope_builder` [#5764](https://github.com/emilk/egui/pull/5764) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Add `expand_bg` to customize size of text background [#5365](https://github.com/emilk/egui/pull/5365) by [@MeGaGiGaGon](https://github.com/MeGaGiGaGon)
+* Add assert messages and print bad argument values in asserts [#5216](https://github.com/emilk/egui/pull/5216) by [@bircni](https://github.com/bircni)
+* Use `TextBuffer` for `layouter` in `TextEdit` instead of `&str` [#5712](https://github.com/emilk/egui/pull/5712) by [@kernelkind](https://github.com/kernelkind)
+* Add a `Slider::update_while_editing(bool)` API [#5978](https://github.com/emilk/egui/pull/5978) by [@mbernat](https://github.com/mbernat)
+* Add `Scene::drag_pan_buttons` option. Allows specifying which pointer buttons pan the scene by dragging [#5892](https://github.com/emilk/egui/pull/5892) by [@mitchmindtree](https://github.com/mitchmindtree)
+* Add `Scene::sense` to customize how `Scene` responds to user input [#5893](https://github.com/emilk/egui/pull/5893) by [@mitchmindtree](https://github.com/mitchmindtree)
+* Rework `TextEdit` arrow navigation to handle Unicode graphemes [#5812](https://github.com/emilk/egui/pull/5812) by [@MStarha](https://github.com/MStarha)
+* `ScrollArea` improvements for user configurability [#5443](https://github.com/emilk/egui/pull/5443) by [@MStarha](https://github.com/MStarha)
+* Add `Response::clicked_with_open_in_background` [#7093](https://github.com/emilk/egui/pull/7093) by [@emilk](https://github.com/emilk)
+* Add `Modifiers::matches_any` [#7123](https://github.com/emilk/egui/pull/7123) by [@emilk](https://github.com/emilk)
+* Add `Context::format_modifiers` [#7125](https://github.com/emilk/egui/pull/7125) by [@emilk](https://github.com/emilk)
+* Add `OperatingSystem::is_mac` [#7122](https://github.com/emilk/egui/pull/7122) by [@emilk](https://github.com/emilk)
+* Support vertical-only scrolling by holding down Alt [#7124](https://github.com/emilk/egui/pull/7124) by [@emilk](https://github.com/emilk)
+* Support for back-button on Android [#7073](https://github.com/emilk/egui/pull/7073) by [@ardocrat](https://github.com/ardocrat)
+* Select all text in DragValue when gaining focus via keyboard [#7107](https://github.com/emilk/egui/pull/7107) by [@Azkellas](https://github.com/Azkellas)
+* Add `Context::current_pass_index` [#7276](https://github.com/emilk/egui/pull/7276) by [@emilk](https://github.com/emilk)
+* Add `Context::cumulative_frame_nr` [#7278](https://github.com/emilk/egui/pull/7278) by [@emilk](https://github.com/emilk)
+* Add `Visuals::text_edit_bg_color` [#7283](https://github.com/emilk/egui/pull/7283) by [@emilk](https://github.com/emilk)
+* Add `Visuals::weak_text_alpha` and `weak_text_color` [#7285](https://github.com/emilk/egui/pull/7285) by [@emilk](https://github.com/emilk)
+* Add support for scrolling via accesskit / kittest [#7286](https://github.com/emilk/egui/pull/7286) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Update area struct to allow force resizing [#7114](https://github.com/emilk/egui/pull/7114) by [@blackberryfloat](https://github.com/blackberryfloat)
+* Add `egui::Sides` `shrink_left` / `shrink_right` [#7295](https://github.com/emilk/egui/pull/7295) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Set intrinsic size for Label [#7328](https://github.com/emilk/egui/pull/7328) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+### 🔧 Changed
+* Raise MSRV to 1.85 [#6848](https://github.com/emilk/egui/pull/6848) by [@torokati44](https://github.com/torokati44), [#7279](https://github.com/emilk/egui/pull/7279) by [@emilk](https://github.com/emilk)
+* Set `hint_text` in `WidgetInfo` [#5724](https://github.com/emilk/egui/pull/5724) by [@bircni](https://github.com/bircni)
+* Implement `Default` for `ThemePreference` [#5702](https://github.com/emilk/egui/pull/5702) by [@MichaelGrupp](https://github.com/MichaelGrupp)
+* Align `available_rect` docs with the new reality after #4590 [#5701](https://github.com/emilk/egui/pull/5701) by [@podusowski](https://github.com/podusowski)
+* Clarify platform-specific details for `Viewport` positioning [#5715](https://github.com/emilk/egui/pull/5715) by [@aspiringLich](https://github.com/aspiringLich)
+* Simplify the text cursor API [#5785](https://github.com/emilk/egui/pull/5785) by [@valadaptive](https://github.com/valadaptive)
+* Bump accesskit to 0.19 [#7040](https://github.com/emilk/egui/pull/7040) by [@valadaptive](https://github.com/valadaptive)
+* Better define the meaning of `SizeHint` [#7079](https://github.com/emilk/egui/pull/7079) by [@emilk](https://github.com/emilk)
+* Move all input-related options into `InputOptions` [#7121](https://github.com/emilk/egui/pull/7121) by [@emilk](https://github.com/emilk)
+* `Button` inherits the `alt_text` of the `Image` in it, if any [#7136](https://github.com/emilk/egui/pull/7136) by [@emilk](https://github.com/emilk)
+* Change API of `Tooltip` slightly [#7151](https://github.com/emilk/egui/pull/7151) by [@emilk](https://github.com/emilk)
+* Use Rust edition 2024 [#7280](https://github.com/emilk/egui/pull/7280) by [@emilk](https://github.com/emilk)
+* Change `ui.disable()` to modify opacity [#7282](https://github.com/emilk/egui/pull/7282) by [@emilk](https://github.com/emilk)
+* Make the font atlas use a color image [#7298](https://github.com/emilk/egui/pull/7298) by [@valadaptive](https://github.com/valadaptive)
+* Implement `BitOr` and `BitOrAssign` for `Rect` [#7319](https://github.com/emilk/egui/pull/7319) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+### 🔥 Removed
+* Remove things that have been deprecated for over a year [#7099](https://github.com/emilk/egui/pull/7099) by [@emilk](https://github.com/emilk)
+* Remove `SelectableLabel` [#7277](https://github.com/emilk/egui/pull/7277) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+### 🐛 Fixed
+* `Scene`: make `scene_rect` full size on reset [#5801](https://github.com/emilk/egui/pull/5801) by [@graydenshand](https://github.com/graydenshand)
+* `Scene`: `TextEdit` selection when placed in a `Scene` [#5791](https://github.com/emilk/egui/pull/5791) by [@karhu](https://github.com/karhu)
+* `Scene`: Set transform layer before calling user content [#5884](https://github.com/emilk/egui/pull/5884) by [@mitchmindtree](https://github.com/mitchmindtree)
+* Fix: transform `TextShape` underline width [#5865](https://github.com/emilk/egui/pull/5865) by [@emilk](https://github.com/emilk)
+* Fix missing repaint after `consume_key` [#7134](https://github.com/emilk/egui/pull/7134) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Update `emoji-icon-font` with fix for fullwidth latin characters [#7067](https://github.com/emilk/egui/pull/7067) by [@emilk](https://github.com/emilk)
+* Mark all keys as released if the app loses focus [#5743](https://github.com/emilk/egui/pull/5743) by [@emilk](https://github.com/emilk)
+* Fix scroll handle extending outside of `ScrollArea` [#5286](https://github.com/emilk/egui/pull/5286) by [@gilbertoalexsantos](https://github.com/gilbertoalexsantos)
+* Fix `Response::clicked_elsewhere` not returning `true` sometimes [#5798](https://github.com/emilk/egui/pull/5798) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Fix kinetic scrolling on touch devices [#5778](https://github.com/emilk/egui/pull/5778) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Fix `DragValue` expansion when editing [#5809](https://github.com/emilk/egui/pull/5809) by [@MStarha](https://github.com/MStarha)
+* Fix disabled `DragValue` eating focus, causing focus to reset [#5826](https://github.com/emilk/egui/pull/5826) by [@KonaeAkira](https://github.com/KonaeAkira)
+* Fix semi-transparent colors appearing too bright [#5824](https://github.com/emilk/egui/pull/5824) by [@emilk](https://github.com/emilk)
+* Improve drag-to-select text (add margins) [#5797](https://github.com/emilk/egui/pull/5797) by [@hankjordan](https://github.com/hankjordan)
+* Fix bug in pointer movement detection [#5329](https://github.com/emilk/egui/pull/5329) by [@rustbasic](https://github.com/rustbasic)
+* Protect against NaN in hit-test code [#6851](https://github.com/emilk/egui/pull/6851) by [@Skgland](https://github.com/Skgland)
+* Fix image button panicking with tiny `available_space` [#6900](https://github.com/emilk/egui/pull/6900) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Fix links and text selection in horizontal_wrapped layout [#6905](https://github.com/emilk/egui/pull/6905) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Fix `leading_space` sometimes being ignored during paragraph splitting [#7031](https://github.com/emilk/egui/pull/7031) by [@afishhh](https://github.com/afishhh)
+* Fix typo in deprecation message for `ComboBox::from_id_source` [#7055](https://github.com/emilk/egui/pull/7055) by [@aelmizeb](https://github.com/aelmizeb)
+* Bug fix: make sure `end_pass` is called for all loaders [#7072](https://github.com/emilk/egui/pull/7072) by [@emilk](https://github.com/emilk)
+* Report image alt text as text if widget contains no other text [#7142](https://github.com/emilk/egui/pull/7142) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Slider: move by at least the next increment when using fixed_decimals [#7066](https://github.com/emilk/egui/pull/7066) by [@0x53A](https://github.com/0x53A)
+* Fix crash when using infinite widgets [#7296](https://github.com/emilk/egui/pull/7296) by [@emilk](https://github.com/emilk)
+* Fix `debug_assert` triggered by `menu`/`intersect_ray` [#7299](https://github.com/emilk/egui/pull/7299) by [@emilk](https://github.com/emilk)
+* Change `Rect::area` to return zero for negative rectangles [#7305](https://github.com/emilk/egui/pull/7305) by [@emilk](https://github.com/emilk)
+
+### 🚀 Performance
+* Optimize editing long text by caching each paragraph [#5411](https://github.com/emilk/egui/pull/5411) by [@afishhh](https://github.com/afishhh)
+* Make `WidgetText` smaller and faster [#6903](https://github.com/emilk/egui/pull/6903) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+
 ## 0.31.1 - 2025-03-05
 * Fix sizing bug in `TextEdit::singleline` [#5640](https://github.com/emilk/egui/pull/5640) by [@IaVashik](https://github.com/IaVashik)
 * Fix panic when rendering thin textured rectangles [#5692](https://github.com/emilk/egui/pull/5692) by [@PPakalns](https://github.com/PPakalns)

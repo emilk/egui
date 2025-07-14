@@ -1,8 +1,9 @@
 use egui::{
+    Color32, Context, Pos2, Rect, Ui, Vec2,
     containers::{Frame, Window},
     emath, epaint,
     epaint::PathStroke,
-    hex_color, lerp, pos2, remap, vec2, Color32, Context, Pos2, Rect, Ui, Vec2,
+    hex_color, lerp, pos2, remap, vec2,
 };
 
 #[derive(Default)]

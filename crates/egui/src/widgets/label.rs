@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    epaint, pos2, text_selection::LabelSelectionState, Align, Direction, FontSelection, Galley,
-    Pos2, Response, Sense, Stroke, TextWrapMode, Ui, Widget, WidgetInfo, WidgetText, WidgetType,
+    Align, Direction, FontSelection, Galley, Pos2, Response, Sense, Stroke, TextWrapMode, Ui,
+    Widget, WidgetInfo, WidgetText, WidgetType, epaint, pos2, text_selection::LabelSelectionState,
 };
 
 /// Static text.
@@ -165,7 +165,7 @@ impl Label {
             };
             select_sense -= Sense::FOCUSABLE; // Don't move focus to labels with TAB key.
 
-            sense = sense.union(select_sense);
+            sense |= select_sense;
         }
 
         if let WidgetText::Galley(galley) = self.text {
@@ -219,11 +219,12 @@ impl Label {
             let rect = galley.rows[0]
                 .rect_without_leading_space()
                 .translate(pos.to_vec2());
-            dbg!(galley.desired_size());
-            let mut response = ui.allocate_rect(rect, sense, galley.desired_size());
+            dbg!(galley.intrinsic_size());
+            let mut response = ui.allocate_rect(rect, sense, galley.intrinsic_size());
+            response.intrinsic_size = Some(galley.intrinsic_size());
             for placed_row in galley.rows.iter().skip(1) {
                 let rect = placed_row.rect().translate(pos.to_vec2());
-                response |= ui.allocate_rect(rect, sense, galley.desired_size());
+                response |= ui.allocate_rect(rect, sense, galley.intrinsic_size());
             }
             (pos, galley, response)
         } else {
@@ -253,8 +254,8 @@ impl Label {
             };
 
             let galley = ui.fonts(|fonts| fonts.layout_job(layout_job));
-            let (rect, response) =
-                ui.allocate_at_least(galley.size(), sense, galley.desired_size()); // TODO: Change back to allocate_exact_size
+            let (rect, mut response) = ui.allocate_at_least(galley.size(), sense, galley.intrinsic_size());
+            response.intrinsic_size = Some(galley.intrinsic_size());
             let galley_pos = match galley.job.halign {
                 Align::LEFT => rect.left_top(),
                 Align::Center => rect.center_top(),

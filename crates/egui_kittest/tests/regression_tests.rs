@@ -1,6 +1,8 @@
-use egui::accesskit::Role;
+use egui::accesskit::{self, Role};
 use egui::{Button, ComboBox, Image, Vec2, Widget as _};
-use egui_kittest::{kittest::Queryable as _, Harness, SnapshotResults};
+#[cfg(all(feature = "wgpu", feature = "snapshot"))]
+use egui_kittest::SnapshotResults;
+use egui_kittest::{Harness, kittest::Queryable as _};
 
 #[test]
 pub fn focus_should_skip_over_disabled_buttons() {
@@ -10,19 +12,19 @@ pub fn focus_should_skip_over_disabled_buttons() {
         ui.add(Button::new("Button 3"));
     });
 
-    harness.press_key(egui::Key::Tab);
+    harness.key_press(egui::Key::Tab);
     harness.run();
 
     let button_1 = harness.get_by_label("Button 1");
     assert!(button_1.is_focused());
 
-    harness.press_key(egui::Key::Tab);
+    harness.key_press(egui::Key::Tab);
     harness.run();
 
     let button_3 = harness.get_by_label("Button 3");
     assert!(button_3.is_focused());
 
-    harness.press_key(egui::Key::Tab);
+    harness.key_press(egui::Key::Tab);
     harness.run();
 
     let button_1 = harness.get_by_label("Button 1");
@@ -41,13 +43,13 @@ pub fn focus_should_skip_over_disabled_drag_values() {
         ui.add(egui::DragValue::new(&mut value_3));
     });
 
-    harness.press_key(egui::Key::Tab);
+    harness.key_press(egui::Key::Tab);
     harness.run();
 
     let drag_value_1 = harness.get_by(|node| node.numeric_value() == Some(1.0));
     assert!(drag_value_1.is_focused());
 
-    harness.press_key(egui::Key::Tab);
+    harness.key_press(egui::Key::Tab);
     harness.run();
 
     let drag_value_3 = harness.get_by(|node| node.numeric_value() == Some(3.0));
@@ -89,6 +91,7 @@ fn test_combobox() {
 
     harness.run();
 
+    #[cfg(all(feature = "wgpu", feature = "snapshot"))]
     let mut results = SnapshotResults::new();
 
     #[cfg(all(feature = "wgpu", feature = "snapshot"))]
@@ -103,8 +106,7 @@ fn test_combobox() {
     results.add(harness.try_snapshot("combobox_opened"));
 
     let item_2 = harness.get_by_role_and_label(Role::Button, "Item 2");
-    // Node::click doesn't close the popup, so we use simulate_click
-    item_2.simulate_click();
+    item_2.click();
 
     harness.run();
 
@@ -112,4 +114,46 @@ fn test_combobox() {
 
     // Popup should be closed now
     assert!(harness.query_by_label("Item 2").is_none());
+}
+
+/// `https://github.com/emilk/egui/issues/7065`
+#[test]
+pub fn slider_should_move_with_fixed_decimals() {
+    let mut value: f32 = 1.0;
+
+    let mut harness = Harness::new_ui(|ui| {
+        // Movement on arrow-key is relative to slider width; make the slider wide so the movement becomes small.
+        ui.spacing_mut().slider_width = 2000.0;
+        ui.add(egui::Slider::new(&mut value, 0.1..=10.0).fixed_decimals(2));
+    });
+
+    harness.key_press(egui::Key::Tab);
+    harness.run();
+
+    let actual_slider = harness.get_by_role(accesskit::Role::SpinButton);
+    assert_eq!(actual_slider.value(), Some("1.00".to_owned()));
+
+    harness.key_press(egui::Key::ArrowRight);
+    harness.run();
+
+    let actual_slider = harness.get_by_role(accesskit::Role::SpinButton);
+    assert_eq!(actual_slider.value(), Some("1.01".to_owned()));
+
+    harness.key_press(egui::Key::ArrowRight);
+    harness.run();
+
+    let actual_slider = harness.get_by_role(accesskit::Role::SpinButton);
+    assert_eq!(actual_slider.value(), Some("1.02".to_owned()));
+
+    harness.key_press(egui::Key::ArrowLeft);
+    harness.run();
+
+    let actual_slider = harness.get_by_role(accesskit::Role::SpinButton);
+    assert_eq!(actual_slider.value(), Some("1.01".to_owned()));
+
+    harness.key_press(egui::Key::ArrowLeft);
+    harness.run();
+
+    let actual_slider = harness.get_by_role(accesskit::Role::SpinButton);
+    assert_eq!(actual_slider.value(), Some("1.00".to_owned()));
 }

@@ -2,14 +2,14 @@ use std::sync::Arc;
 
 use emath::GuiRounding as _;
 use epaint::{
-    text::{Fonts, Galley, LayoutJob},
     CircleShape, ClippedShape, CornerRadius, PathStroke, RectShape, Shape, Stroke, StrokeKind,
+    text::{Fonts, Galley, LayoutJob},
 };
 
 use crate::{
+    Color32, Context, FontId,
     emath::{Align2, Pos2, Rangef, Rect, Vec2},
     layers::{LayerId, PaintList, ShapeIdx},
-    Color32, Context, FontId,
 };
 
 /// Helper to paint shapes and text to a specific region on a specific layer.
@@ -83,6 +83,7 @@ impl Painter {
     }
 
     /// If set, colors will be modified to look like this
+    #[deprecated = "Use `multiply_opacity` instead"]
     pub fn set_fade_to_color(&mut self, fade_to_color: Option<Color32>) {
         self.fade_to_color = fade_to_color;
     }

@@ -1,9 +1,19 @@
+//! Popup menus, context menus and menu bars.
+//!
+//! Show menus via
+//! - [`Popup::menu`] and [`Popup::context_menu`]
+//! - [`Ui::menu_button`], [`MenuButton`] and [`SubMenuButton`]
+//! - [`MenuBar`]
+//! - [`Response::context_menu`]
+//!
+//! See [`MenuBar`] for an example.
+
 use crate::style::StyleModifier;
 use crate::{
     Button, Color32, Context, Frame, Id, InnerResponse, IntoAtoms, Layout, Popup,
     PopupCloseBehavior, Response, Style, Ui, UiBuilder, UiKind, UiStack, UiStackInfo, Widget as _,
 };
-use emath::{vec2, Align, RectAlign, Vec2};
+use emath::{Align, RectAlign, Vec2, vec2};
 use epaint::Stroke;
 
 /// Apply a menu style to the [`Style`].
@@ -50,6 +60,7 @@ pub fn is_in_menu(ui: &Ui) -> bool {
     false
 }
 
+/// Configuration and style for menus.
 #[derive(Clone, Debug)]
 pub struct MenuConfig {
     /// Is this a menu bar?
@@ -120,8 +131,10 @@ impl MenuConfig {
     }
 }
 
+/// Holds the state of the menu.
 #[derive(Clone)]
 pub struct MenuState {
+    /// The currently open sub menu in this menu.
     pub open_item: Option<Id>,
     last_visible_pass: u64,
 }
@@ -163,13 +176,29 @@ impl MenuState {
 /// The menu bar goes well in a [`crate::TopBottomPanel::top`],
 /// but can also be placed in a [`crate::Window`].
 /// In the latter case you may want to wrap it in [`Frame`].
+///
+/// ### Example:
+/// ```
+/// # egui::__run_test_ui(|ui| {
+/// egui::MenuBar::new().ui(ui, |ui| {
+///     ui.menu_button("File", |ui| {
+///         if ui.button("Quit").clicked() {
+///             ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+///         }
+///     });
+/// });
+/// # });
+/// ```
 #[derive(Clone, Debug)]
-pub struct Bar {
+pub struct MenuBar {
     config: MenuConfig,
     style: StyleModifier,
 }
 
-impl Default for Bar {
+#[deprecated = "Renamed to `egui::MenuBar`"]
+pub type Bar = MenuBar;
+
+impl Default for MenuBar {
     fn default() -> Self {
         Self {
             config: MenuConfig::default(),
@@ -178,7 +207,7 @@ impl Default for Bar {
     }
 }
 
-impl Bar {
+impl MenuBar {
     pub fn new() -> Self {
         Self::default()
     }
@@ -234,8 +263,8 @@ impl Bar {
 
 /// A thin wrapper around a [`Button`] that shows a [`Popup::menu`] when clicked.
 ///
-/// The only thing this does is search for the current menu config (if set via [`Bar`]).
-/// If your menu button is not in a [`Bar`] it's fine to use [`Ui::button`] and [`Popup::menu`]
+/// The only thing this does is search for the current menu config (if set via [`MenuBar`]).
+/// If your menu button is not in a [`MenuBar`] it's fine to use [`Ui::button`] and [`Popup::menu`]
 /// directly.
 pub struct MenuButton<'a> {
     pub button: Button<'a>,
@@ -341,6 +370,10 @@ impl<'a> SubMenuButton<'a> {
     }
 }
 
+/// Show a submenu in a menu.
+///
+/// Useful if you want to make custom menu buttons.
+/// Usually, just use [`MenuButton`] or [`SubMenuButton`] instead.
 #[derive(Clone, Debug, Default)]
 pub struct SubMenu {
     config: Option<MenuConfig>,

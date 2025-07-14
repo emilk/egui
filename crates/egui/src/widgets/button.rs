@@ -29,6 +29,7 @@ pub struct Button<'a> {
     stroke: Option<Stroke>,
     small: bool,
     frame: Option<bool>,
+    frame_when_inactive: bool,
     min_size: Vec2,
     corner_radius: Option<CornerRadius>,
     selected: bool,
@@ -44,12 +45,34 @@ impl<'a> Button<'a> {
             stroke: None,
             small: false,
             frame: None,
+            frame_when_inactive: true,
             min_size: Vec2::ZERO,
             corner_radius: None,
             selected: false,
             image_tint_follows_text_color: false,
             limit_image_size: false,
         }
+    }
+
+    /// Show a selectable button.
+    ///
+    /// Equivalent to:
+    /// ```rust
+    /// # use egui::{Button, IntoAtoms, __run_test_ui};
+    /// # __run_test_ui(|ui| {
+    /// let selected = true;
+    /// ui.add(Button::new("toggle me").selected(selected).frame_when_inactive(!selected).frame(true));
+    /// # });
+    /// ```
+    ///
+    /// See also:
+    ///   - [`Ui::selectable_value`]
+    ///   - [`Ui::selectable_label`]
+    pub fn selectable(selected: bool, atoms: impl IntoAtoms<'a>) -> Self {
+        Self::new(atoms)
+            .selected(selected)
+            .frame_when_inactive(selected)
+            .frame(true)
     }
 
     /// Creates a button with an image. The size of the image as displayed is defined by the provided size.
@@ -138,6 +161,18 @@ impl<'a> Button<'a> {
         self
     }
 
+    /// If `false`, the button will not have a frame when inactive.
+    ///
+    /// Default: `true`.
+    ///
+    /// Note: When [`Self::frame`] (or `ui.visuals().button_frame`) is `false`, this setting
+    /// has no effect.
+    #[inline]
+    pub fn frame_when_inactive(mut self, frame_when_inactive: bool) -> Self {
+        self.frame_when_inactive = frame_when_inactive;
+        self
+    }
+
     /// By default, buttons senses clicks.
     /// Change this to a drag-button with `Sense::drag()`.
     #[inline]
@@ -220,6 +255,7 @@ impl<'a> Button<'a> {
             stroke,
             small,
             frame,
+            frame_when_inactive,
             mut min_size,
             corner_radius,
             selected,
@@ -243,9 +279,9 @@ impl<'a> Button<'a> {
 
         let text = layout.text().map(String::from);
 
-        let has_frame = frame.unwrap_or_else(|| ui.visuals().button_frame);
+        let has_frame_margin = frame.unwrap_or_else(|| ui.visuals().button_frame);
 
-        let mut button_padding = if has_frame {
+        let mut button_padding = if has_frame_margin {
             ui.spacing().button_padding
         } else {
             Vec2::ZERO
@@ -262,13 +298,22 @@ impl<'a> Button<'a> {
         let response = if ui.is_rect_visible(prepared.response.rect) {
             let visuals = ui.style().interact_selectable(&prepared.response, selected);
 
+            let visible_frame = if frame_when_inactive {
+                has_frame_margin
+            } else {
+                has_frame_margin
+                    && (prepared.response.hovered()
+                        || prepared.response.is_pointer_button_down_on()
+                        || prepared.response.has_focus())
+            };
+
             if image_tint_follows_text_color {
                 prepared.map_images(|image| image.tint(visuals.text_color()));
             }
 
             prepared.fallback_text_color = visuals.text_color();
 
-            if has_frame {
+            if visible_frame {
                 let stroke = stroke.unwrap_or(visuals.bg_stroke);
                 let fill = fill.unwrap_or(visuals.weak_bg_fill);
                 prepared.frame = prepared

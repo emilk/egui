@@ -3,14 +3,14 @@ use std::sync::Arc;
 use emath::TSTransform;
 
 use crate::{
-    layers::ShapeIdx, text::CCursor, text_selection::CCursorRange, Context, CursorIcon, Event,
-    Galley, Id, LayerId, Pos2, Rect, Response, Ui,
+    Context, CursorIcon, Event, Galley, Id, LayerId, Pos2, Rect, Response, Ui, layers::ShapeIdx,
+    text::CCursor, text_selection::CCursorRange,
 };
 
 use super::{
-    text_cursor_state::cursor_rect,
-    visuals::{paint_text_selection, RowVertexIndices},
     TextCursorState,
+    text_cursor_state::cursor_rect,
+    visuals::{RowVertexIndices, paint_text_selection},
 };
 
 /// Turn on to help debug this
@@ -546,7 +546,7 @@ impl LabelSelectionState {
 
         if let Some(mut cursor_range) = cursor_state.range(galley) {
             let galley_rect = global_from_galley * Rect::from_min_size(Pos2::ZERO, galley.size());
-            self.selection_bbox_this_frame = self.selection_bbox_this_frame.union(galley_rect);
+            self.selection_bbox_this_frame |= galley_rect;
 
             if let Some(selection) = &self.selection {
                 if selection.primary.widget_id == response.id {

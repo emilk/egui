@@ -22,8 +22,11 @@ We don't update the MSRV in a patch release, unless we really, really need to.
 
 
 # Release process
-## Patch release
-* [ ] Make a branch off of the latest release
+* [ ] copy this checklist to a new egui issue, called "Release 0.xx.y"
+* [ ] close all issues in the milestone for this release
+
+## Special steps for patch release
+* [ ] make a branch off of the _latest_ release
 * [ ] cherry-pick what you want to release
 * [ ] run `cargo semver-checks`
 
@@ -46,43 +49,30 @@ We don't update the MSRV in a patch release, unless we really, really need to.
 
 ## Preparation
 * [ ] make sure there are no important unmerged PRs
+* [ ] Create a branch called `release-0.xx.0` and open a PR for it
 * [ ] run `scripts/generate_example_screenshots.sh` if needed
 * [ ] write a short release note that fits in a bluesky post
 * [ ] record gif for `CHANGELOG.md` release note (and later bluesky post)
-* [ ] update changelogs using `scripts/generate_changelog.py --version 0.x.0 --write`
-* [ ] bump version numbers in workspace `Cargo.toml`
+* [ ] update changelogs
+  * [ ] run `scripts/generate_changelog.py --version 0.x.0 --write`
+  * [ ] read changelogs and clean them up if needed
+  * [ ] write a good intro with highlight for the main changelog
+* [ ] run `typos`
 
 ## Actual release
-I usually do this all on the `main` branch, but doing it in a release branch is also fine, as long as you remember to merge it into `main` later.
-
-* [ ] Run `typos`
-* [ ] `git commit -m 'Release 0.x.0 - <release title>'`
-* [ ] `cargo publish` (see below)
+* [ ] bump version numbers in workspace `Cargo.toml`
+* [ ] check that CI for the PR is green
+* [ ] publish the crates by running `scripts/publish_crates.sh`
 * [ ] `git tag -a 0.x.0 -m 'Release 0.x.0 - <release title>'`
 * [ ] `git pull --tags ; git tag -d latest && git tag -a latest -m 'Latest release' && git push --tags origin latest --force ; git push --tags`
-* [ ] merge release PR or push to `main`
-* [ ] check that CI is green
+* [ ] merge release PR as `Release 0.x.0 - <release title>`
+* [ ] check that CI for `main` is green
 * [ ] do a GitHub release: https://github.com/emilk/egui/releases/new
-  * Follow the format of the last release
-* [ ] wait for documentation to build: https://docs.rs/releases/queue
+  * follow the format of the last release
+* [ ] wait for  the documentation build to finish: https://docs.rs/releases/queue
+  * [ ] https://docs.rs/egui/ works
+  * [ ] https://docs.rs/eframe/ works
 
-###  `cargo publish`:
-```
-(cd crates/emath                && cargo publish --quiet)  &&  echo "✅ emath"
-(cd crates/ecolor               && cargo publish --quiet)  &&  echo "✅ ecolor"
-(cd crates/epaint_default_fonts && cargo publish --quiet)  &&  echo "✅ epaint_default_fonts"
-(cd crates/epaint               && cargo publish --quiet)  &&  echo "✅ epaint"
-(cd crates/egui                 && cargo publish --quiet)  &&  echo "✅ egui"
-(cd crates/egui-winit           && cargo publish --quiet)  &&  echo "✅ egui-winit"
-(cd crates/egui-wgpu            && cargo publish --quiet)  &&  echo "✅ egui-wgpu"
-(cd crates/eframe               && cargo publish --quiet)  &&  echo "✅ eframe"
-(cd crates/egui_kittest         && cargo publish --quiet)  &&  echo "✅ egui_kittest"
-(cd crates/egui_extras          && cargo publish --quiet)  &&  echo "✅ egui_extras"
-(cd crates/egui_demo_lib        && cargo publish --quiet)  &&  echo "✅ egui_demo_lib"
-(cd crates/egui_glow            && cargo publish --quiet)  &&  echo "✅ egui_glow"
-```
-
-\<continue with the checklist above\>
 
 ## Announcements
 * [ ] [Bluesky](https://bsky.app/profile/ernerfeldt.bsky.social)
@@ -91,10 +81,17 @@ I usually do this all on the `main` branch, but doing it in a release branch is 
 * [ ] [r/programming](https://www.reddit.com/r/programming/comments/1bocsf6/announcing_egui_027_an_easytouse_crossplatform/)
 * [ ] [This Week in Rust](https://github.com/rust-lang/this-week-in-rust/pull/5167)
 
+
 ## After release
-* [ ] publish new `eframe_template`
+* [ ] update `eframe_template`
 * [ ] publish new `egui_plot`
 * [ ] publish new `egui_table`
 * [ ] publish new `egui_tiles`
 * [ ] make a PR to `egui_commonmark`
 * [ ] make a PR to `rerun`
+
+
+## Finally
+* [ ] close the milestone
+* [ ] close this issue
+* [ ] improve `RELEASES.md` with what you learned this time around

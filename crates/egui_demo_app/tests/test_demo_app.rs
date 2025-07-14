@@ -1,8 +1,8 @@
-use egui::accesskit::Role;
 use egui::Vec2;
+use egui::accesskit::Role;
 use egui_demo_app::{Anchor, WrapApp};
-use egui_kittest::kittest::Queryable as _;
 use egui_kittest::SnapshotResults;
+use egui_kittest::kittest::Queryable as _;
 
 #[test]
 fn test_demo_app() {
@@ -55,7 +55,7 @@ fn test_demo_app() {
                 harness
                     .get_by_role_and_label(Role::TextInput, "URI:")
                     .focus();
-                harness.press_key_modifiers(egui::Modifiers::COMMAND, egui::Key::A);
+                harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::A);
 
                 harness
                     .get_by_role_and_label(Role::TextInput, "URI:")
@@ -69,6 +69,6 @@ fn test_demo_app() {
         // Can't use Harness::run because fractal clock keeps requesting repaints
         harness.run_steps(4);
 
-        results.add(harness.try_snapshot(&anchor.to_string()));
+        results.add(harness.try_snapshot(anchor.to_string()));
     }
 }

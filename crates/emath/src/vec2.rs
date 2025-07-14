@@ -170,11 +170,7 @@ impl Vec2 {
     #[inline(always)]
     pub fn normalized(self) -> Self {
         let len = self.length();
-        if len <= 0.0 {
-            self
-        } else {
-            self / len
-        }
+        if len <= 0.0 { self } else { self / len }
     }
 
     /// Checks if `self` has length `1.0` up to a precision of `1e-6`.
