@@ -1752,6 +1752,20 @@ impl Ui {
         .add(widget)
     }
 
+    /// Add a [`Widget`] to this [`Ui`] at a specific location (manual layout) and advance the
+    /// cursor after the widget.
+    ///
+    /// See also [`Self::add`], [`Self::add_sized`], and [`Self::put`].
+    pub fn put_and_advance(&mut self, max_rect: Rect, widget: impl Widget) -> Response {
+        self.scope_builder(
+            UiBuilder::new()
+                .max_rect(max_rect)
+                .layout(Layout::centered_and_justified(Direction::TopDown)),
+            |ui| ui.add(widget),
+        )
+        .inner
+    }
+
     /// Add a single [`Widget`] that is possibly disabled, i.e. greyed out and non-interactive.
     ///
     /// If you call `add_enabled` from within an already disabled [`Ui`],
