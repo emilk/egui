@@ -1415,7 +1415,7 @@ impl Prepared {
             }
         }
 
-        ui.advance_cursor_after_rect(outer_rect);
+        ui.advance_cursor_after_rect(outer_rect, content_ui.placer().intrinsic_size());
 
         if show_scroll_this_frame != state.show_scroll {
             ui.ctx().request_repaint();

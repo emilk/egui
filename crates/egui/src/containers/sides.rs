@@ -1,4 +1,4 @@
-use emath::{Align, NumExt as _};
+use emath::{Align, NumExt as _, Vec2};
 
 use crate::{Layout, Ui, UiBuilder};
 
@@ -165,9 +165,12 @@ impl Sides {
             wrap_mode = None;
         }
 
+        let intrinsic_size =
+            |left: Vec2, right: Vec2| Vec2::new(left.x + spacing + right.x, left.y.max(right.y));
+
         match kind {
             SidesKind::ShrinkLeft => {
-                let (right_rect, result_right) = Self::create_ui(
+                let (right_rect, right_intrinsic, result_right) = Self::create_ui(
                     ui,
                     top_rect,
                     Layout::right_to_left(Align::Center),
@@ -177,7 +180,7 @@ impl Sides {
                 let available_width = top_rect.width() - right_rect.width() - spacing;
                 let left_rect_constraint =
                     top_rect.with_max_x(top_rect.min.x + available_width.at_least(0.0));
-                let (left_rect, result_left) = Self::create_ui(
+                let (left_rect, left_intrinsic, result_left) = Self::create_ui(
                     ui,
                     left_rect_constraint,
                     Layout::left_to_right(Align::Center),
@@ -185,11 +188,13 @@ impl Sides {
                     wrap_mode,
                 );
 
-                ui.advance_cursor_after_rect(left_rect | right_rect);
+                let intrinsic = intrinsic_size(left_intrinsic, right_intrinsic);
+
+                ui.advance_cursor_after_rect(left_rect | right_rect, intrinsic);
                 (result_left, result_right)
             }
             SidesKind::ShrinkRight => {
-                let (left_rect, result_left) = Self::create_ui(
+                let (left_rect, left_intrinsic, result_left) = Self::create_ui(
                     ui,
                     top_rect,
                     Layout::left_to_right(Align::Center),
@@ -197,7 +202,7 @@ impl Sides {
                     None,
                 );
                 let right_rect_constraint = top_rect.with_min_x(left_rect.max.x + spacing);
-                let (right_rect, result_right) = Self::create_ui(
+                let (right_rect, right_intrinsic, result_right) = Self::create_ui(
                     ui,
                     right_rect_constraint,
                     Layout::right_to_left(Align::Center),
@@ -205,11 +210,13 @@ impl Sides {
                     wrap_mode,
                 );
 
-                ui.advance_cursor_after_rect(left_rect | right_rect);
+                let intrinsic_size = intrinsic_size(left_intrinsic, right_intrinsic);
+
+                ui.advance_cursor_after_rect(left_rect | right_rect, intrinsic_size);
                 (result_left, result_right)
             }
             SidesKind::Extend => {
-                let (left_rect, result_left) = Self::create_ui(
+                let (left_rect, left_intrinsic, result_left) = Self::create_ui(
                     ui,
                     top_rect,
                     Layout::left_to_right(Align::Center),
@@ -217,7 +224,7 @@ impl Sides {
                     None,
                 );
                 let right_max_rect = top_rect.with_min_x(left_rect.max.x);
-                let (right_rect, result_right) = Self::create_ui(
+                let (right_rect, right_intrinsic, result_right) = Self::create_ui(
                     ui,
                     right_max_rect,
                     Layout::right_to_left(Align::Center),
@@ -234,7 +241,9 @@ impl Sides {
                     final_rect.max.x = final_rect.max.x.max(left_rect.min.x + min_width);
                 }
 
-                ui.advance_cursor_after_rect(final_rect);
+                let intrinsic = intrinsic_size(left_intrinsic, right_intrinsic);
+
+                ui.advance_cursor_after_rect(final_rect, intrinsic);
                 (result_left, result_right)
             }
         }
@@ -246,12 +255,12 @@ impl Sides {
         layout: Layout,
         add_content: impl FnOnce(&mut Ui) -> Ret,
         wrap_mode: Option<crate::TextWrapMode>,
-    ) -> (emath::Rect, Ret) {
+    ) -> (emath::Rect, emath::Vec2, Ret) {
         let mut child_ui = ui.new_child(UiBuilder::new().max_rect(max_rect).layout(layout));
         if let Some(wrap_mode) = wrap_mode {
             child_ui.style_mut().wrap_mode = Some(wrap_mode);
         }
         let result = add_content(&mut child_ui);
-        (child_ui.min_rect(), result)
+        (child_ui.min_rect(), child_ui.intrinsic_size(), result)
     }
 }
