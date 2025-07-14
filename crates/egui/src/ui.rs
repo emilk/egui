@@ -1744,13 +1744,12 @@ impl Ui {
     ///
     /// See also [`Self::add`] and [`Self::add_sized`].
     pub fn put(&mut self, max_rect: Rect, widget: impl Widget) -> Response {
-        self.scope_builder(
+        self.new_child(
             UiBuilder::new()
                 .max_rect(max_rect)
                 .layout(Layout::centered_and_justified(Direction::TopDown)),
-            |ui| ui.add(widget),
         )
-        .inner
+        .add(widget)
     }
 
     /// Add a single [`Widget`] that is possibly disabled, i.e. greyed out and non-interactive.
