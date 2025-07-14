@@ -237,7 +237,16 @@ impl Resize {
             .at_most(self.max_size)
             .round_ui();
 
-        let mut user_requested_size = state.requested_size.take();
+        let user_requested_size = state.requested_size.take();
+
+        if let Some(user_requested_size) = user_requested_size {
+            state.desired_size = user_requested_size;
+        } else {
+            // We are not being actively resized, so auto-expand to include size of last frame.
+            // This prevents auto-shrinking if the contents contain width-filling widgets (separators etc)
+            // but it makes a lot of interactions with [`Window`]s nicer.
+            state.desired_size = state.desired_size.max(state.last_content_size);
+        }
 
         let corner_id = self.resizable.any().then(|| id.with("__resize_corner"));
 
@@ -245,24 +254,16 @@ impl Resize {
             if let Some(corner_response) = ui.ctx().read_response(corner_id) {
                 if let Some(pointer_pos) = corner_response.interact_pointer_pos() {
                     // Respond to the interaction early to avoid frame delay.
-                    user_requested_size =
-                        Some(pointer_pos - position + 0.5 * corner_response.rect.size());
+                    let corner_size = pointer_pos - position + 0.5 * corner_response.rect.size();
+
+                    if self.resizable.x {
+                        state.desired_size.x = corner_size.x;
+                    }
+                    if self.resizable.y {
+                        state.desired_size.y = corner_size.y;
+                    }
                 }
             }
-        }
-
-        if let Some(user_requested_size) = user_requested_size {
-            if self.resizable.x {
-                state.desired_size.x = user_requested_size.x;
-            }
-            if self.resizable.y {
-                state.desired_size.y = user_requested_size.y;
-            }
-        } else {
-            // We are not being actively resized, so auto-expand to include size of last frame.
-            // This prevents auto-shrinking if the contents contain width-filling widgets (separators etc)
-            // but it makes a lot of interactions with [`Window`]s nicer.
-            state.desired_size = state.desired_size.max(state.last_content_size);
         }
 
         state.desired_size = state
