@@ -747,7 +747,7 @@ impl WidgetText {
                 let mut layout_job = LayoutJob::simple_format(
                     text,
                     TextFormat {
-                        font_id: FontSelection::Default.resolve(style),
+                        font_id: fallback_font.resolve(style),
                         color: crate::Color32::PLACEHOLDER,
                         valign: default_valign,
                         ..Default::default()
