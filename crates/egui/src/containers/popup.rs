@@ -500,6 +500,7 @@ impl<'a> Popup<'a> {
     }
 
     /// Show the popup.
+    ///
     /// Returns `None` if the popup is not open or anchor is `PopupAnchor::Pointer` and there is
     /// no pointer.
     pub fn show<R>(self, content: impl FnOnce(&mut Ui) -> R) -> Option<InnerResponse<R>> {
