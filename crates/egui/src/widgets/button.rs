@@ -1,8 +1,12 @@
+use crate::style::WidgetVisuals;
+use crate::style_trait::{Classes, HasClasses, WidgetName, WidgetStyle};
 use crate::{
     Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Color32, CornerRadius, Frame,
-    Image, IntoAtoms, NumExt as _, Response, Sense, Stroke, TextWrapMode, Ui, Vec2, Widget,
-    WidgetInfo, WidgetText, WidgetType,
+    Image, IntoAtoms, NumExt as _, Response, RichText, Sense, SizedAtomKind, Stroke, TextWrapMode,
+    Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
 };
+use std::mem;
+use std::sync::Arc;
 
 /// Clickable button with text.
 ///
@@ -35,6 +39,17 @@ pub struct Button<'a> {
     selected: bool,
     image_tint_follows_text_color: bool,
     limit_image_size: bool,
+    classes: Classes,
+}
+
+impl HasClasses for Button<'_> {
+    fn classes(&self) -> &Classes {
+        &self.classes
+    }
+
+    fn classes_mut(&mut self) -> &mut Classes {
+        &mut self.classes
+    }
 }
 
 impl<'a> Button<'a> {
@@ -51,6 +66,7 @@ impl<'a> Button<'a> {
             selected: false,
             image_tint_follows_text_color: false,
             limit_image_size: false,
+            classes: Classes::default(),
         }
     }
 
@@ -261,6 +277,7 @@ impl<'a> Button<'a> {
             selected,
             image_tint_follows_text_color,
             limit_image_size,
+            classes,
         } = self;
 
         if !small {
@@ -290,44 +307,57 @@ impl<'a> Button<'a> {
             button_padding.y = 0.0;
         }
 
-        let mut prepared = layout
-            .frame(Frame::new().inner_margin(button_padding))
-            .min_size(min_size)
-            .allocate(ui);
+        let response = ui.ctx().read_response(ui.next_auto_id());
+
+        let style: WidgetStyle = response
+            .map(|r| ui.widget_style(WidgetName::Button, &r, &classes))
+            .unwrap_or_default();
+
+        layout.map_texts(|t| match t {
+            WidgetText::RichText(mut text) => {
+                let mut text_mut = Arc::make_mut(&mut text);
+                *text_mut = mem::take(text_mut).font(style.text.font_id.clone());
+                WidgetText::RichText(text)
+            }
+            WidgetText::Text(text) => {
+                let mut rich_text = RichText::new(text.clone()).font(style.text.font_id.clone());
+                WidgetText::RichText(Arc::new(rich_text))
+            }
+            w => w,
+        });
+
+        let mut prepared = layout.frame(style.frame).min_size(min_size).allocate(ui);
 
         let response = if ui.is_rect_visible(prepared.response.rect) {
-            let visuals = ui.style().interact_selectable(&prepared.response, selected);
+            // let visuals = ui.style().interact_selectable(&prepared.response, selected);
+            let visuals: WidgetStyle = ui.widget_style(
+                WidgetName::Button,
+                &prepared.response,
+                &classes.with_if("selected", selected),
+            );
+            ui.with_visual_transform(visuals.transform, |ui| {
+                let visible_frame = if frame_when_inactive {
+                    has_frame_margin
+                } else {
+                    has_frame_margin
+                        && (prepared.response.hovered()
+                            || prepared.response.is_pointer_button_down_on()
+                            || prepared.response.has_focus())
+                };
 
-            let visible_frame = if frame_when_inactive {
-                has_frame_margin
-            } else {
-                has_frame_margin
-                    && (prepared.response.hovered()
-                        || prepared.response.is_pointer_button_down_on()
-                        || prepared.response.has_focus())
-            };
+                if image_tint_follows_text_color {
+                    prepared.map_images(|image| image.tint(visuals.text.color));
+                }
 
-            if image_tint_follows_text_color {
-                prepared.map_images(|image| image.tint(visuals.text_color()));
-            }
+                prepared.fallback_text_color = visuals.text.color;
 
-            prepared.fallback_text_color = visuals.text_color();
+                if visible_frame {
+                    prepared.frame = visuals.frame;
+                };
 
-            if visible_frame {
-                let stroke = stroke.unwrap_or(visuals.bg_stroke);
-                let fill = fill.unwrap_or(visuals.weak_bg_fill);
-                prepared.frame = prepared
-                    .frame
-                    .inner_margin(
-                        button_padding + Vec2::splat(visuals.expansion) - Vec2::splat(stroke.width),
-                    )
-                    .outer_margin(-Vec2::splat(visuals.expansion))
-                    .fill(fill)
-                    .stroke(stroke)
-                    .corner_radius(corner_radius.unwrap_or(visuals.corner_radius));
-            };
-
-            prepared.paint(ui)
+                prepared.paint(ui)
+            })
+            .inner
         } else {
             AtomLayoutResponse::empty(prepared.response)
         };

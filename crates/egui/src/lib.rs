@@ -446,6 +446,7 @@ mod atomics;
 #[cfg(feature = "callstack")]
 #[cfg(debug_assertions)]
 mod callstack;
+pub mod style_trait;
 
 #[cfg(feature = "accesskit")]
 pub use accesskit;

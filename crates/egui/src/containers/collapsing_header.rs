@@ -1,5 +1,7 @@
 use std::hash::Hash;
 
+use crate::style::WidgetVisuals;
+use crate::style_trait::{Classes, WidgetName};
 use crate::{
     Context, Id, InnerResponse, NumExt as _, Rect, Response, Sense, Stroke, TextStyle,
     TextWrapMode, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetInfo, WidgetText, WidgetType,
@@ -580,7 +582,11 @@ impl CollapsingHeader {
         let openness = state.openness(ui.ctx());
 
         if ui.is_rect_visible(rect) {
-            let visuals = ui.style().interact_selectable(&header_response, selected);
+            let visuals: WidgetVisuals = ui.widget_style(
+                WidgetName::Custom("CollapsingHeader".into()),
+                &header_response,
+                &Classes::default().with_if("selected", selected),
+            );
 
             if ui.visuals().collapsing_header_frame || show_background {
                 ui.painter().add(epaint::RectShape::new(

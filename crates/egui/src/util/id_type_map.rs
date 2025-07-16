@@ -192,6 +192,13 @@ impl Element {
         }
     }
 
+    pub(crate) fn into_temp<T: 'static>(self) -> Option<T> {
+        match self {
+            Self::Value { value, .. } => value.downcast().ok().map(|b| *b),
+            Self::Serialized(_) => None,
+        }
+    }
+
     #[inline]
     pub(crate) fn get_temp_mut_or_insert_with<T: 'static + Any + Clone + Send + Sync>(
         &mut self,
@@ -485,10 +492,10 @@ impl IdTypeMap {
 
     /// Remove and fetch the state of this type and id.
     #[inline]
-    pub fn remove_temp<T: 'static + Default>(&mut self, id: Id) -> Option<T> {
+    pub fn remove_temp<T: 'static>(&mut self, id: Id) -> Option<T> {
         let hash = hash(TypeId::of::<T>(), id);
         let mut element = self.map.remove(&hash)?;
-        Some(std::mem::take(element.get_mut_temp()?))
+        element.into_temp()
     }
 
     /// Note all state of the given type.
