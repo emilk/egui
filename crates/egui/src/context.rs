@@ -2,18 +2,6 @@
 
 use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration};
 
-use emath::{GuiRounding as _, OrderedFloat};
-use epaint::{
-    ClippedPrimitive, ClippedShape, Color32, ImageData, ImageDelta, Pos2, Rect, StrokeKind,
-    TessellationOptions, TextureAtlas, TextureId, Vec2,
-    emath::{self, TSTransform},
-    mutex::RwLock,
-    stats::PaintStats,
-    tessellator,
-    text::{FontInsert, FontPriority, Fonts},
-    vec2,
-};
-
 use crate::{
     Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, Grid, Id, ImmediateViewport,
     ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId, Memory,
@@ -36,6 +24,17 @@ use crate::{
     resize, response, scroll_area,
     util::IdTypeMap,
     viewport::ViewportClass,
+};
+use emath::{GuiRounding as _, OrderedFloat};
+use epaint::{
+    ClippedPrimitive, ClippedShape, Color32, ImageData, ImageDelta, Pos2, Rect, StrokeKind,
+    TessellationOptions, TextureAtlas, TextureId, Vec2,
+    emath::{self, TSTransform},
+    mutex::RwLock,
+    stats::PaintStats,
+    tessellator,
+    text::{FontInsert, FontPriority, Fonts},
+    vec2,
 };
 
 #[cfg(feature = "accesskit")]
@@ -102,32 +101,54 @@ struct NamedContextCallback {
     callback: ContextCallback,
 }
 
+#[allow(unused_variables)]
+pub trait Plugin: Send + Sync {
+    fn name(&self) -> &'static str;
+    fn on_begin_pass(&mut self, ctx: &Context) {}
+    fn on_end_pass(&mut self, ctx: &Context) {}
+    fn output_hook(&mut self, output: &mut FullOutput) {}
+    fn input_hook(&mut self, input: &mut RawInput) {}
+}
+
 /// Callbacks that users can register
 #[derive(Clone, Default)]
 struct Plugins {
-    pub on_begin_pass: Vec<NamedContextCallback>,
-    pub on_end_pass: Vec<NamedContextCallback>,
+    // pub on_begin_pass: Vec<NamedContextCallback>,
+    // pub on_end_pass: Vec<NamedContextCallback>,
+    pub plugins: Arc<crate::mutex::Mutex<Vec<Box<dyn Plugin>>>>,
 }
 
 impl Plugins {
-    fn call(ctx: &Context, _cb_name: &str, callbacks: &[NamedContextCallback]) {
-        profiling::scope!("plugins", _cb_name);
-        for NamedContextCallback {
-            debug_name: _name,
-            callback,
-        } in callbacks
-        {
-            profiling::scope!("plugin", _name);
-            (callback)(ctx);
-        }
-    }
-
     fn on_begin_pass(&self, ctx: &Context) {
-        Self::call(ctx, "on_begin_pass", &self.on_begin_pass);
+        profiling::scope!("plugins", "on_begin_pass");
+        self.plugins.lock().iter_mut().for_each(|plugin| {
+            profiling::scope!("plugin", plugin.name());
+            plugin.on_begin_pass(ctx);
+        });
     }
 
     fn on_end_pass(&self, ctx: &Context) {
-        Self::call(ctx, "on_end_pass", &self.on_end_pass);
+        profiling::scope!("plugins", "on_end_pass");
+        self.plugins.lock().iter_mut().for_each(|plugin| {
+            profiling::scope!("plugin", plugin.name());
+            plugin.on_end_pass(ctx);
+        });
+    }
+
+    fn on_input(&self, input: &mut RawInput) {
+        profiling::scope!("plugins", "on_input");
+        self.plugins.lock().iter_mut().for_each(|plugin| {
+            profiling::scope!("plugin", plugin.name());
+            plugin.input_hook(input);
+        });
+    }
+
+    fn on_output(&self, output: &mut FullOutput) {
+        profiling::scope!("plugins", "on_output");
+        self.plugins.lock().iter_mut().for_each(|plugin| {
+            profiling::scope!("plugin", plugin.name());
+            plugin.output_hook(output);
+        });
     }
 }
 
@@ -907,13 +928,16 @@ impl Context {
     /// let full_output = ctx.end_pass();
     /// // handle full_output
     /// ```
-    pub fn begin_pass(&self, new_input: RawInput) {
+    pub fn begin_pass(&self, mut new_input: RawInput) {
         profiling::function_scope!();
+
+        let plugins = self.read(|ctx| ctx.plugins.clone());
+        plugins.on_input(&mut new_input);
 
         self.write(|ctx| ctx.begin_pass(new_input));
 
         // Plugins run just after the pass starts:
-        self.read(|ctx| ctx.plugins.clone()).on_begin_pass(self);
+        plugins.on_begin_pass(self);
     }
 
     /// See [`Self::begin_pass`].
@@ -1875,11 +1899,26 @@ impl Context {
     /// This can be used for egui _plugins_.
     /// See [`crate::debug_text`] for an example.
     pub fn on_begin_pass(&self, debug_name: &'static str, cb: ContextCallback) {
-        let named_cb = NamedContextCallback {
+        struct OnBeginPass {
+            debug_name: &'static str,
+            callback: ContextCallback,
+        }
+
+        let on_begin_pass = OnBeginPass {
             debug_name,
             callback: cb,
         };
-        self.write(|ctx| ctx.plugins.on_begin_pass.push(named_cb));
+
+        impl Plugin for OnBeginPass {
+            fn name(&self) -> &'static str {
+                self.debug_name
+            }
+            fn on_begin_pass(&mut self, ctx: &Context) {
+                (self.callback)(ctx);
+            }
+        }
+
+        self.add_plugin(on_begin_pass);
     }
 
     /// Call the given callback at the end of each pass of each viewport.
@@ -1887,11 +1926,34 @@ impl Context {
     /// This can be used for egui _plugins_.
     /// See [`crate::debug_text`] for an example.
     pub fn on_end_pass(&self, debug_name: &'static str, cb: ContextCallback) {
-        let named_cb = NamedContextCallback {
+        struct OnEndPass {
+            debug_name: &'static str,
+            callback: ContextCallback,
+        }
+
+        let on_end_pass = OnEndPass {
             debug_name,
             callback: cb,
         };
-        self.write(|ctx| ctx.plugins.on_end_pass.push(named_cb));
+
+        impl Plugin for OnEndPass {
+            fn name(&self) -> &'static str {
+                self.debug_name
+            }
+            fn on_end_pass(&mut self, ctx: &Context) {
+                (self.callback)(ctx);
+            }
+        }
+
+        self.add_plugin(on_end_pass);
+    }
+
+    pub fn add_plugin(&self, plugin: impl Plugin + 'static) {
+        profiling::function_scope!();
+
+        self.write(|ctx| {
+            ctx.plugins.plugins.lock().push(Box::new(plugin));
+        });
     }
 }
 
@@ -2257,12 +2319,15 @@ impl Context {
         }
 
         // Plugins run just before the pass ends.
-        self.read(|ctx| ctx.plugins.clone()).on_end_pass(self);
+        let plugins = self.read(|ctx| ctx.plugins.clone());
+        plugins.on_end_pass(self);
 
         #[cfg(debug_assertions)]
         self.debug_painting();
 
-        self.write(|ctx| ctx.end_pass())
+        let mut output = self.write(|ctx| ctx.end_pass());
+        plugins.on_output(&mut output);
+        output
     }
 
     /// Call at the end of each frame if you called [`Context::begin_pass`].

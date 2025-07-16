@@ -482,7 +482,7 @@ pub mod text {
 pub use self::{
     atomics::*,
     containers::{menu::MenuBar, *},
-    context::{Context, RepaintCause, RequestRepaintInfo},
+    context::{Context, Plugin, RepaintCause, RequestRepaintInfo},
     data::{
         Key, UserData,
         input::*,
