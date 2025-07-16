@@ -17,6 +17,7 @@ pub(crate) fn seconds_since_midnight() -> f64 {
 
 // ----------------------------------------------------------------------------
 
+mod accessibility_inspector;
 #[cfg(target_arch = "wasm32")]
 mod web;
 
