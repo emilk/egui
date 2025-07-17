@@ -38,10 +38,10 @@ use epaint::{
     vec2,
 };
 
+use self::{hit_test::WidgetHits, interaction::InteractionSnapshot};
 #[cfg(feature = "accesskit")]
 use crate::IdMap;
-
-use self::{hit_test::WidgetHits, interaction::InteractionSnapshot};
+use crate::pass_state::AccessKitParentChildren;
 
 /// Information given to the backend about when it is time to repaint the ui.
 ///
@@ -617,7 +617,8 @@ impl ContextImpl {
             nodes.insert(id, root_node);
             viewport.this_pass.accesskit_state = Some(AccessKitPassState {
                 nodes,
-                parent_stack: vec![id],
+                parent_map: IdMap::default(),
+                child_map: IdMap::default(),
             });
         }
 
@@ -709,8 +710,27 @@ impl ContextImpl {
         let builders = &mut state.nodes;
         if let std::collections::hash_map::Entry::Vacant(entry) = builders.entry(id) {
             entry.insert(Default::default());
-            let parent_id = state.parent_stack.last().unwrap();
-            let parent_builder = builders.get_mut(parent_id).unwrap();
+            /// Search the first parent that has an existing accesskit node.
+            fn find_parent_recursively(
+                parent_map: &IdMap<Id>,
+                node_map: &IdMap<accesskit::Node>,
+                id: Id,
+            ) -> Option<Id> {
+                if let Some(parent_id) = parent_map.get(&id) {
+                    if node_map.contains_key(parent_id) {
+                        Some(*parent_id)
+                    } else {
+                        find_parent_recursively(parent_map, node_map, *parent_id)
+                    }
+                } else {
+                    None
+                }
+            }
+
+            let parent_id = find_parent_recursively(&state.parent_map, builders, id)
+                .unwrap_or(crate::accesskit_root_id());
+
+            let parent_builder = builders.get_mut(&parent_id).unwrap();
             parent_builder.push_child(id.accesskit_id());
         }
         builders.get_mut(&id).unwrap()
@@ -2577,8 +2597,76 @@ impl ContextImpl {
         {
             profiling::scope!("accesskit");
             let state = viewport.this_pass.accesskit_state.take();
-            if let Some(state) = state {
+            if let Some(mut state) = state {
                 let root_id = crate::accesskit_root_id().accesskit_id();
+
+                // /// Search the first parent that has an existing accesskit node.
+                // fn find_parent_recursively(
+                //     parent_map: &IdMap<(Id, usize)>,
+                //     node_map: &IdMap<accesskit::Node>,
+                //     id: Id,
+                // ) -> Option<Id> {
+                //     if let Some(parent_id) = parent_map.get(&id) {
+                //         if node_map.contains_key(parent_id) {
+                //             Some(*parent_id)
+                //         } else {
+                //             find_parent_recursively(parent_map, node_map, *parent_id)
+                //         }
+                //     } else {
+                //         None
+                //     }
+                // }
+                //
+                // for id in state.nodes.keys().copied().collect::<Vec<_>>() {
+                //     if id == crate::accesskit_root_id() {
+                //         continue;
+                //     }
+                //     if state.nodes.contains_key(&id) {
+                //         let parent_id =
+                //             find_parent_recursively(&state.parent_map, &state.nodes, id)
+                //                 .unwrap_or(crate::accesskit_root_id());
+                //         state
+                //             .nodes
+                //             .get_mut(&parent_id)
+                //             .unwrap()
+                //             .push_child(id.accesskit_id());
+                //     }
+                // }
+
+                // fn children_recursively(
+                //     id: Id,
+                //     node_map: &IdMap<accesskit::Node>,
+                //     parent_children_map: &IdMap<AccessKitParentChildren>,
+                //     children: &mut Vec<accesskit::NodeId>,
+                //     root_children: &mut Vec<accesskit::NodeId>,
+                // ) {
+                //     if let Some(node) = parent_children_map.get(&id) {
+                //         for child_id in &node.children {
+                //             if node_map.contains_key(child_id) {
+                //                 if !children.contains(&child_id.accesskit_id()) {
+                //                     children.push(child_id.accesskit_id());
+                //                 }
+                //             } else {
+                //                 children_recursively(*child_id, node_map, parent_children_map, children, root_children);
+                //             }
+                //         }
+                //         if node.parent.is_none() || node.parent == Some(crate::accesskit_root_id()) {
+                //             if !root_children.contains(&id.accesskit_id()) {
+                //                 root_children.push(id.accesskit_id());
+                //             }
+                //         }
+                //     }
+                // }
+                // let mut root_children = vec![];
+                //
+                // for id in state.nodes.keys().copied().collect::<Vec<_>>() {
+                //     let mut children = vec![];
+                //     children_recursively(id, &state.nodes, &state.child_map, &mut children, &mut root_children);
+                //     state.nodes.get_mut(&id).unwrap().set_children(children)
+                // }
+                //
+                // state.nodes.get_mut(&crate::accesskit_root_id()).unwrap().set_children(root_children);
+
                 let nodes = {
                     state
                         .nodes
@@ -3553,39 +3641,6 @@ impl Context {
 
 /// ## Accessibility
 impl Context {
-    /// Call the provided function with the given ID pushed on the stack of
-    /// parent IDs for accessibility purposes. If the `accesskit` feature
-    /// is disabled or if AccessKit support is not active for this frame,
-    /// the function is still called, but with no other effect.
-    ///
-    /// No locks are held while the given closure is called.
-    #[allow(clippy::unused_self, clippy::let_and_return, clippy::allow_attributes)]
-    #[inline]
-    pub fn with_accessibility_parent<R>(&self, _id: Id, f: impl FnOnce() -> R) -> R {
-        // TODO(emilk): this isn't thread-safe - another thread can call this function between the push/pop calls
-        #[cfg(feature = "accesskit")]
-        self.pass_state_mut(|fs| {
-            if let Some(state) = fs.accesskit_state.as_mut() {
-                state.parent_stack.push(_id);
-            }
-        });
-
-        let result = f();
-
-        #[cfg(feature = "accesskit")]
-        self.pass_state_mut(|fs| {
-            if let Some(state) = fs.accesskit_state.as_mut() {
-                assert_eq!(
-                    state.parent_stack.pop(),
-                    Some(_id),
-                    "Mismatched push/pop in with_accessibility_parent"
-                );
-            }
-        });
-
-        result
-    }
-
     /// If AccessKit support is active for the current frame, get or create
     /// a node builder with the specified ID and return a mutable reference to it.
     /// For newly created nodes, the parent is the node with the ID at the top
@@ -3609,6 +3664,22 @@ impl Context {
                 .then(|| ctx.accesskit_node_builder(id))
                 .map(writer)
         })
+    }
+
+    #[cfg(feature = "accesskit")]
+    pub(crate) fn register_accesskit_parent(&self, id: Id, parent_id: Id) {
+        self.write(|ctx| {
+            if let Some(state) = ctx.viewport().this_pass.accesskit_state.as_mut() {
+                state.parent_map.insert(id, parent_id);
+                state.child_map.entry(id).or_default().parent = Some(parent_id);
+                state
+                    .child_map
+                    .entry(parent_id)
+                    .or_default()
+                    .children
+                    .push(id);
+            }
+        });
     }
 
     /// Enable generation of AccessKit tree updates in all future frames.

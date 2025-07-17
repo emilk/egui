@@ -118,14 +118,12 @@ impl egui::Plugin for AccessibilityInspectorPlugin {
 
             SidePanel::right(Self::id()).show(ctx, |ui| {
                 ui.style_mut().wrap_mode = Some(TextWrapMode::Truncate);
-                let response = ui.heading("🔎 AccessKit Inspector");
+                ui.heading("🔎 AccessKit Inspector");
                 ui.separator();
-                ctx.with_accessibility_parent(response.id, || {
-                    ScrollArea::vertical().show(ui, |ui| {
-                        if let Some(tree) = &self.tree {
-                            Self::node_ui(ui, &tree.state().root(), &mut self.selected_node);
-                        }
-                    });
+                ScrollArea::vertical().show(ui, |ui| {
+                    if let Some(tree) = &self.tree {
+                        Self::node_ui(ui, &tree.state().root(), &mut self.selected_node);
+                    }
                 });
             });
         }
