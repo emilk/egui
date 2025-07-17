@@ -2,18 +2,6 @@
 
 use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration};
 
-use emath::{GuiRounding as _, OrderedFloat};
-use epaint::{
-    ClippedPrimitive, ClippedShape, Color32, ImageData, ImageDelta, Pos2, Rect, StrokeKind,
-    TessellationOptions, TextureAtlas, TextureId, Vec2,
-    emath::{self, TSTransform},
-    mutex::RwLock,
-    stats::PaintStats,
-    tessellator,
-    text::{FontInsert, FontPriority, Fonts},
-    vec2,
-};
-
 use crate::{
     Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, Grid, Id, ImmediateViewport,
     ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId, Memory,
@@ -37,11 +25,22 @@ use crate::{
     util::IdTypeMap,
     viewport::ViewportClass,
 };
-
-#[cfg(feature = "accesskit")]
-use crate::IdMap;
+use emath::{GuiRounding as _, OrderedFloat};
+use epaint::{
+    ClippedPrimitive, ClippedShape, Color32, ImageData, ImageDelta, Pos2, Rect, StrokeKind,
+    TessellationOptions, TextureAtlas, TextureId, Vec2,
+    emath::{self, TSTransform},
+    mutex::RwLock,
+    stats::PaintStats,
+    tessellator,
+    text::{FontInsert, FontPriority, Fonts},
+    vec2,
+};
 
 use self::{hit_test::WidgetHits, interaction::InteractionSnapshot};
+#[cfg(feature = "accesskit")]
+use crate::IdMap;
+use crate::pass_state::AccessKitParentChildren;
 
 /// Information given to the backend about when it is time to repaint the ui.
 ///
@@ -102,32 +101,54 @@ struct NamedContextCallback {
     callback: ContextCallback,
 }
 
+#[allow(unused_variables)]
+pub trait Plugin: Send + Sync {
+    fn name(&self) -> &'static str;
+    fn on_begin_pass(&mut self, ctx: &Context) {}
+    fn on_end_pass(&mut self, ctx: &Context) {}
+    fn output_hook(&mut self, output: &mut FullOutput) {}
+    fn input_hook(&mut self, input: &mut RawInput) {}
+}
+
 /// Callbacks that users can register
 #[derive(Clone, Default)]
 struct Plugins {
-    pub on_begin_pass: Vec<NamedContextCallback>,
-    pub on_end_pass: Vec<NamedContextCallback>,
+    // pub on_begin_pass: Vec<NamedContextCallback>,
+    // pub on_end_pass: Vec<NamedContextCallback>,
+    pub plugins: Arc<crate::mutex::Mutex<Vec<Box<dyn Plugin>>>>,
 }
 
 impl Plugins {
-    fn call(ctx: &Context, _cb_name: &str, callbacks: &[NamedContextCallback]) {
-        profiling::scope!("plugins", _cb_name);
-        for NamedContextCallback {
-            debug_name: _name,
-            callback,
-        } in callbacks
-        {
-            profiling::scope!("plugin", _name);
-            (callback)(ctx);
-        }
-    }
-
     fn on_begin_pass(&self, ctx: &Context) {
-        Self::call(ctx, "on_begin_pass", &self.on_begin_pass);
+        profiling::scope!("plugins", "on_begin_pass");
+        self.plugins.lock().iter_mut().for_each(|plugin| {
+            profiling::scope!("plugin", plugin.name());
+            plugin.on_begin_pass(ctx);
+        });
     }
 
     fn on_end_pass(&self, ctx: &Context) {
-        Self::call(ctx, "on_end_pass", &self.on_end_pass);
+        profiling::scope!("plugins", "on_end_pass");
+        self.plugins.lock().iter_mut().for_each(|plugin| {
+            profiling::scope!("plugin", plugin.name());
+            plugin.on_end_pass(ctx);
+        });
+    }
+
+    fn on_input(&self, input: &mut RawInput) {
+        profiling::scope!("plugins", "on_input");
+        self.plugins.lock().iter_mut().for_each(|plugin| {
+            profiling::scope!("plugin", plugin.name());
+            plugin.input_hook(input);
+        });
+    }
+
+    fn on_output(&self, output: &mut FullOutput) {
+        profiling::scope!("plugins", "on_output");
+        self.plugins.lock().iter_mut().for_each(|plugin| {
+            profiling::scope!("plugin", plugin.name());
+            plugin.output_hook(output);
+        });
     }
 }
 
@@ -560,7 +581,8 @@ impl ContextImpl {
             nodes.insert(id, root_node);
             viewport.this_pass.accesskit_state = Some(AccessKitPassState {
                 nodes,
-                parent_stack: vec![id],
+                parent_map: IdMap::default(),
+                child_map: IdMap::default(),
             });
         }
 
@@ -652,8 +674,27 @@ impl ContextImpl {
         let builders = &mut state.nodes;
         if let std::collections::hash_map::Entry::Vacant(entry) = builders.entry(id) {
             entry.insert(Default::default());
-            let parent_id = state.parent_stack.last().unwrap();
-            let parent_builder = builders.get_mut(parent_id).unwrap();
+            /// Search the first parent that has an existing accesskit node.
+            fn find_parent_recursively(
+                parent_map: &IdMap<Id>,
+                node_map: &IdMap<accesskit::Node>,
+                id: Id,
+            ) -> Option<Id> {
+                if let Some(parent_id) = parent_map.get(&id) {
+                    if node_map.contains_key(parent_id) {
+                        Some(*parent_id)
+                    } else {
+                        find_parent_recursively(parent_map, node_map, *parent_id)
+                    }
+                } else {
+                    None
+                }
+            }
+
+            let parent_id = find_parent_recursively(&state.parent_map, builders, id)
+                .unwrap_or(crate::accesskit_root_id());
+
+            let parent_builder = builders.get_mut(&parent_id).unwrap();
             parent_builder.push_child(id.accesskit_id());
         }
         builders.get_mut(&id).unwrap()
@@ -907,13 +948,16 @@ impl Context {
     /// let full_output = ctx.end_pass();
     /// // handle full_output
     /// ```
-    pub fn begin_pass(&self, new_input: RawInput) {
+    pub fn begin_pass(&self, mut new_input: RawInput) {
         profiling::function_scope!();
+
+        let plugins = self.read(|ctx| ctx.plugins.clone());
+        plugins.on_input(&mut new_input);
 
         self.write(|ctx| ctx.begin_pass(new_input));
 
         // Plugins run just after the pass starts:
-        self.read(|ctx| ctx.plugins.clone()).on_begin_pass(self);
+        plugins.on_begin_pass(self);
     }
 
     /// See [`Self::begin_pass`].
@@ -1875,11 +1919,26 @@ impl Context {
     /// This can be used for egui _plugins_.
     /// See [`crate::debug_text`] for an example.
     pub fn on_begin_pass(&self, debug_name: &'static str, cb: ContextCallback) {
-        let named_cb = NamedContextCallback {
+        struct OnBeginPass {
+            debug_name: &'static str,
+            callback: ContextCallback,
+        }
+
+        let on_begin_pass = OnBeginPass {
             debug_name,
             callback: cb,
         };
-        self.write(|ctx| ctx.plugins.on_begin_pass.push(named_cb));
+
+        impl Plugin for OnBeginPass {
+            fn name(&self) -> &'static str {
+                self.debug_name
+            }
+            fn on_begin_pass(&mut self, ctx: &Context) {
+                (self.callback)(ctx);
+            }
+        }
+
+        self.add_plugin(on_begin_pass);
     }
 
     /// Call the given callback at the end of each pass of each viewport.
@@ -1887,11 +1946,34 @@ impl Context {
     /// This can be used for egui _plugins_.
     /// See [`crate::debug_text`] for an example.
     pub fn on_end_pass(&self, debug_name: &'static str, cb: ContextCallback) {
-        let named_cb = NamedContextCallback {
+        struct OnEndPass {
+            debug_name: &'static str,
+            callback: ContextCallback,
+        }
+
+        let on_end_pass = OnEndPass {
             debug_name,
             callback: cb,
         };
-        self.write(|ctx| ctx.plugins.on_end_pass.push(named_cb));
+
+        impl Plugin for OnEndPass {
+            fn name(&self) -> &'static str {
+                self.debug_name
+            }
+            fn on_end_pass(&mut self, ctx: &Context) {
+                (self.callback)(ctx);
+            }
+        }
+
+        self.add_plugin(on_end_pass);
+    }
+
+    pub fn add_plugin(&self, plugin: impl Plugin + 'static) {
+        profiling::function_scope!();
+
+        self.write(|ctx| {
+            ctx.plugins.plugins.lock().push(Box::new(plugin));
+        });
     }
 }
 
@@ -2257,12 +2339,15 @@ impl Context {
         }
 
         // Plugins run just before the pass ends.
-        self.read(|ctx| ctx.plugins.clone()).on_end_pass(self);
+        let plugins = self.read(|ctx| ctx.plugins.clone());
+        plugins.on_end_pass(self);
 
         #[cfg(debug_assertions)]
         self.debug_painting();
 
-        self.write(|ctx| ctx.end_pass())
+        let mut output = self.write(|ctx| ctx.end_pass());
+        plugins.on_output(&mut output);
+        output
     }
 
     /// Call at the end of each frame if you called [`Context::begin_pass`].
@@ -2467,8 +2552,76 @@ impl ContextImpl {
         {
             profiling::scope!("accesskit");
             let state = viewport.this_pass.accesskit_state.take();
-            if let Some(state) = state {
+            if let Some(mut state) = state {
                 let root_id = crate::accesskit_root_id().accesskit_id();
+
+                // /// Search the first parent that has an existing accesskit node.
+                // fn find_parent_recursively(
+                //     parent_map: &IdMap<(Id, usize)>,
+                //     node_map: &IdMap<accesskit::Node>,
+                //     id: Id,
+                // ) -> Option<Id> {
+                //     if let Some(parent_id) = parent_map.get(&id) {
+                //         if node_map.contains_key(parent_id) {
+                //             Some(*parent_id)
+                //         } else {
+                //             find_parent_recursively(parent_map, node_map, *parent_id)
+                //         }
+                //     } else {
+                //         None
+                //     }
+                // }
+                //
+                // for id in state.nodes.keys().copied().collect::<Vec<_>>() {
+                //     if id == crate::accesskit_root_id() {
+                //         continue;
+                //     }
+                //     if state.nodes.contains_key(&id) {
+                //         let parent_id =
+                //             find_parent_recursively(&state.parent_map, &state.nodes, id)
+                //                 .unwrap_or(crate::accesskit_root_id());
+                //         state
+                //             .nodes
+                //             .get_mut(&parent_id)
+                //             .unwrap()
+                //             .push_child(id.accesskit_id());
+                //     }
+                // }
+
+                // fn children_recursively(
+                //     id: Id,
+                //     node_map: &IdMap<accesskit::Node>,
+                //     parent_children_map: &IdMap<AccessKitParentChildren>,
+                //     children: &mut Vec<accesskit::NodeId>,
+                //     root_children: &mut Vec<accesskit::NodeId>,
+                // ) {
+                //     if let Some(node) = parent_children_map.get(&id) {
+                //         for child_id in &node.children {
+                //             if node_map.contains_key(child_id) {
+                //                 if !children.contains(&child_id.accesskit_id()) {
+                //                     children.push(child_id.accesskit_id());
+                //                 }
+                //             } else {
+                //                 children_recursively(*child_id, node_map, parent_children_map, children, root_children);
+                //             }
+                //         }
+                //         if node.parent.is_none() || node.parent == Some(crate::accesskit_root_id()) {
+                //             if !root_children.contains(&id.accesskit_id()) {
+                //                 root_children.push(id.accesskit_id());
+                //             }
+                //         }
+                //     }
+                // }
+                // let mut root_children = vec![];
+                //
+                // for id in state.nodes.keys().copied().collect::<Vec<_>>() {
+                //     let mut children = vec![];
+                //     children_recursively(id, &state.nodes, &state.child_map, &mut children, &mut root_children);
+                //     state.nodes.get_mut(&id).unwrap().set_children(children)
+                // }
+                //
+                // state.nodes.get_mut(&crate::accesskit_root_id()).unwrap().set_children(root_children);
+
                 let nodes = {
                     state
                         .nodes
@@ -3443,39 +3596,6 @@ impl Context {
 
 /// ## Accessibility
 impl Context {
-    /// Call the provided function with the given ID pushed on the stack of
-    /// parent IDs for accessibility purposes. If the `accesskit` feature
-    /// is disabled or if AccessKit support is not active for this frame,
-    /// the function is still called, but with no other effect.
-    ///
-    /// No locks are held while the given closure is called.
-    #[allow(clippy::unused_self, clippy::let_and_return, clippy::allow_attributes)]
-    #[inline]
-    pub fn with_accessibility_parent<R>(&self, _id: Id, f: impl FnOnce() -> R) -> R {
-        // TODO(emilk): this isn't thread-safe - another thread can call this function between the push/pop calls
-        #[cfg(feature = "accesskit")]
-        self.pass_state_mut(|fs| {
-            if let Some(state) = fs.accesskit_state.as_mut() {
-                state.parent_stack.push(_id);
-            }
-        });
-
-        let result = f();
-
-        #[cfg(feature = "accesskit")]
-        self.pass_state_mut(|fs| {
-            if let Some(state) = fs.accesskit_state.as_mut() {
-                assert_eq!(
-                    state.parent_stack.pop(),
-                    Some(_id),
-                    "Mismatched push/pop in with_accessibility_parent"
-                );
-            }
-        });
-
-        result
-    }
-
     /// If AccessKit support is active for the current frame, get or create
     /// a node builder with the specified ID and return a mutable reference to it.
     /// For newly created nodes, the parent is the node with the ID at the top
@@ -3499,6 +3619,22 @@ impl Context {
                 .then(|| ctx.accesskit_node_builder(id))
                 .map(writer)
         })
+    }
+
+    #[cfg(feature = "accesskit")]
+    pub(crate) fn register_accesskit_parent(&self, id: Id, parent_id: Id) {
+        self.write(|ctx| {
+            if let Some(state) = ctx.viewport().this_pass.accesskit_state.as_mut() {
+                state.parent_map.insert(id, parent_id);
+                state.child_map.entry(id).or_default().parent = Some(parent_id);
+                state
+                    .child_map
+                    .entry(parent_id)
+                    .or_default()
+                    .children
+                    .push(id);
+            }
+        });
     }
 
     /// Enable generation of AccessKit tree updates in all future frames.

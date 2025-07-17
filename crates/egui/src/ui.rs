@@ -133,6 +133,7 @@ impl Ui {
             sizing_pass,
             style,
             sense,
+            accessibility_parent,
         } = ui_builder;
 
         let layer_id = layer_id.unwrap_or(LayerId::background());
@@ -173,6 +174,12 @@ impl Ui {
             min_rect_already_remembered: false,
         };
 
+        #[cfg(feature = "accesskit")]
+        if let Some(accessibility_parent) = accessibility_parent {
+            ui.ctx()
+                .register_accesskit_parent(ui.unique_id, accessibility_parent);
+        }
+
         // Register in the widget stack early, to ensure we are behind all widgets we contain:
         let start_rect = Rect::NOTHING; // This will be overwritten when `remember_min_rect` is called
         ui.ctx().create_widget(
@@ -193,6 +200,11 @@ impl Ui {
         if invisible {
             ui.set_invisible();
         }
+
+        #[cfg(feature = "accesskit")]
+        ui.ctx().accesskit_node_builder(ui.unique_id, |node| {
+            node.set_role(accesskit::Role::GenericContainer)
+        });
 
         ui
     }
@@ -259,6 +271,7 @@ impl Ui {
             sizing_pass,
             style,
             sense,
+            accessibility_parent,
         } = ui_builder;
 
         let mut painter = self.painter.clone();
@@ -321,6 +334,12 @@ impl Ui {
             child_ui.disable();
         }
 
+        #[cfg(feature = "accesskit")]
+        child_ui.ctx().register_accesskit_parent(
+            child_ui.unique_id,
+            accessibility_parent.unwrap_or(self.unique_id),
+        );
+
         // Register in the widget stack early, to ensure we are behind all widgets we contain:
         let start_rect = Rect::NOTHING; // This will be overwritten when `remember_min_rect` is called
         child_ui.ctx().create_widget(
@@ -334,6 +353,13 @@ impl Ui {
             },
             true,
         );
+
+        #[cfg(feature = "accesskit")]
+        child_ui
+            .ctx()
+            .accesskit_node_builder(child_ui.unique_id, |node| {
+                node.set_role(Role::GenericContainer)
+            });
 
         child_ui
     }
@@ -1064,7 +1090,8 @@ impl Ui {
 impl Ui {
     /// Check for clicks, drags and/or hover on a specific region of this [`Ui`].
     pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> Response {
-        self.ctx().create_widget(
+        self.ctx().register_accesskit_parent(id, self.unique_id);
+        let response = self.ctx().create_widget(
             WidgetRect {
                 id,
                 layer_id: self.layer_id(),
@@ -1074,7 +1101,8 @@ impl Ui {
                 enabled: self.enabled,
             },
             true,
-        )
+        );
+        response
     }
 
     /// Deprecated: use [`Self::interact`] instead.
