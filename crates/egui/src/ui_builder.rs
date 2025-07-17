@@ -23,6 +23,8 @@ pub struct UiBuilder {
     pub sizing_pass: bool,
     pub style: Option<Arc<Style>>,
     pub sense: Option<Sense>,
+    #[cfg(feature = "accesskit")]
+    pub accessibility_parent: Option<Id>,
 }
 
 impl UiBuilder {
@@ -149,6 +151,17 @@ impl UiBuilder {
         self.ui_stack_info
             .tags
             .insert(ClosableTag::NAME, Some(Arc::new(ClosableTag::default())));
+        self
+    }
+
+    /// Set the accessibility parent for this [`Ui`].
+    ///
+    /// This will override the automatic parent assignment for accessibility purposes.
+    /// If not set, the parent [`Ui`]'s ID will be used as the accessibility parent.
+    #[cfg(feature = "accesskit")]
+    #[inline]
+    pub fn accessibility_parent(mut self, parent_id: Id) -> Self {
+        self.accessibility_parent = Some(parent_id);
         self
     }
 }
