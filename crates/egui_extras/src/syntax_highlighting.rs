@@ -333,7 +333,7 @@ impl CodeTheme {
         }
     }
 
-    pub fn is_dark(&self ) -> bool {
+    pub fn is_dark(&self) -> bool {
         self.dark_mode
     }
 
