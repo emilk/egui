@@ -333,6 +333,10 @@ impl CodeTheme {
         }
     }
 
+    pub fn is_dark(&self ) -> bool {
+        self.dark_mode
+    }
+
     /// Show UI for changing the color theme.
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
