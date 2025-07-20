@@ -66,11 +66,11 @@ impl Default for State {
 }
 
 impl State {
-    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
+    pub fn load(ctx: &Context, id: impl Into<Id>) -> Option<Self> {
         ctx.data_mut(|d| d.get_persisted(id))
     }
 
-    pub fn store(self, ctx: &Context, id: Id) {
+    pub fn store(self, ctx: &Context, id: impl Into<Id>) {
         ctx.data_mut(|d| d.insert_persisted(id, self));
     }
 

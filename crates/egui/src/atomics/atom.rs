@@ -55,10 +55,10 @@ impl<'a> Atom<'a> {
     }
 
     /// Create a [`AtomKind::Custom`] with a specific size.
-    pub fn custom(id: Id, size: impl Into<Vec2>) -> Self {
+    pub fn custom(id: impl Into<Id>, size: impl Into<Vec2>) -> Self {
         Atom {
             size: Some(size.into()),
-            kind: AtomKind::Custom(id),
+            kind: AtomKind::Custom(id.into()),
             ..Default::default()
         }
     }

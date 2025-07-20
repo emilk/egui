@@ -31,7 +31,7 @@ use emath::RectAlign;
 pub fn show_tooltip<R>(
     ctx: &Context,
     parent_layer: LayerId,
-    widget_id: Id,
+    widget_id: impl Into<Id>,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
     show_tooltip_at_pointer(ctx, parent_layer, widget_id, add_contents)
@@ -58,7 +58,7 @@ pub fn show_tooltip<R>(
 pub fn show_tooltip_at_pointer<R>(
     ctx: &Context,
     parent_layer: LayerId,
-    widget_id: Id,
+    widget_id: impl Into<Id>,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
     Tooltip::always_open(ctx.clone(), parent_layer, widget_id, PopupAnchor::Pointer)
@@ -118,7 +118,7 @@ pub fn show_tooltip_at<R>(
 pub fn show_tooltip_text(
     ctx: &Context,
     parent_layer: LayerId,
-    widget_id: Id,
+    widget_id: impl Into<Id>,
     text: impl Into<WidgetText>,
 ) -> Option<()> {
     show_tooltip(ctx, parent_layer, widget_id, |ui| {
@@ -128,7 +128,7 @@ pub fn show_tooltip_text(
 
 /// Was this tooltip visible last frame?
 #[deprecated = "Use `Tooltip::was_tooltip_open_last_frame` instead"]
-pub fn was_tooltip_open_last_frame(ctx: &Context, widget_id: Id) -> bool {
+pub fn was_tooltip_open_last_frame(ctx: &Context, widget_id: impl Into<Id>) -> bool {
     Tooltip::was_tooltip_open_last_frame(ctx, widget_id)
 }
 

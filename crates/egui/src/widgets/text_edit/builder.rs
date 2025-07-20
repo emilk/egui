@@ -96,11 +96,11 @@ impl WidgetWithState for TextEdit<'_> {
 }
 
 impl TextEdit<'_> {
-    pub fn load_state(ctx: &Context, id: Id) -> Option<TextEditState> {
+    pub fn load_state(ctx: &Context, id: impl Into<Id>) -> Option<TextEditState> {
         TextEditState::load(ctx, id)
     }
 
-    pub fn store_state(ctx: &Context, id: Id, state: TextEditState) {
+    pub fn store_state(ctx: &Context, id: impl Into<Id>, state: TextEditState) {
         state.store(ctx, id);
     }
 }
@@ -161,8 +161,8 @@ impl<'t> TextEdit<'t> {
 
     /// Use if you want to set an explicit [`Id`] for this widget.
     #[inline]
-    pub fn id(mut self, id: Id) -> Self {
-        self.id = Some(id);
+    pub fn id(mut self, id: impl Into<Id>) -> Self {
+        self.id = Some(id.into());
         self
     }
 
@@ -887,7 +887,7 @@ fn events(
     text: &mut dyn TextBuffer,
     galley: &mut Arc<Galley>,
     layouter: &mut dyn FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<Galley>,
-    id: Id,
+    id: impl Into<Id>,
     wrap_width: f32,
     multiline: bool,
     password: bool,
@@ -896,6 +896,7 @@ fn events(
     event_filter: EventFilter,
     return_key: Option<KeyboardShortcut>,
 ) -> (bool, CCursorRange) {
+    let id = id.into();
     let os = ui.ctx().os();
 
     let mut cursor_range = state.cursor.range(galley).unwrap_or(default_cursor_range);

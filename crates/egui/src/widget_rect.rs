@@ -101,18 +101,20 @@ impl WidgetRects {
     }
 
     #[inline]
-    pub fn get(&self, id: Id) -> Option<&WidgetRect> {
-        self.by_id.get(&id).map(|(_, w)| w)
+    pub fn get(&self, id: impl Into<Id>) -> Option<&WidgetRect> {
+        self.by_id.get(&id.into()).map(|(_, w)| w)
     }
 
     /// In which layer, and in which order in that layer?
-    pub fn order(&self, id: Id) -> Option<(LayerId, usize)> {
-        self.by_id.get(&id).map(|(idx, w)| (w.layer_id, *idx))
+    pub fn order(&self, id: impl Into<Id>) -> Option<(LayerId, usize)> {
+        self.by_id
+            .get(&id.into())
+            .map(|(idx, w)| (w.layer_id, *idx))
     }
 
     #[inline]
-    pub fn contains(&self, id: Id) -> bool {
-        self.by_id.contains_key(&id)
+    pub fn contains(&self, id: impl Into<Id>) -> bool {
+        self.by_id.contains_key(&id.into())
     }
 
     /// All widgets in this layer, sorted back-to-front.
@@ -181,11 +183,11 @@ impl WidgetRects {
         }
     }
 
-    pub fn set_info(&mut self, id: Id, info: WidgetInfo) {
-        self.infos.insert(id, info);
+    pub fn set_info(&mut self, id: impl Into<Id>, info: WidgetInfo) {
+        self.infos.insert(id.into(), info);
     }
 
-    pub fn info(&self, id: Id) -> Option<&WidgetInfo> {
-        self.infos.get(&id)
+    pub fn info(&self, id: impl Into<Id>) -> Option<&WidgetInfo> {
+        self.infos.get(&id.into())
     }
 }

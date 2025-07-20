@@ -503,9 +503,9 @@ struct FocusWidget {
 }
 
 impl FocusWidget {
-    pub fn new(id: Id) -> Self {
+    pub fn new(id: impl Into<Id>) -> Self {
         Self {
-            id,
+            id: id.into(),
             filter: Default::default(),
         }
     }
@@ -605,11 +605,12 @@ impl Focus {
         self.top_modal_layer = self.top_modal_layer_current_frame.take();
     }
 
-    pub(crate) fn had_focus_last_frame(&self, id: Id) -> bool {
-        self.id_previous_frame == Some(id)
+    pub(crate) fn had_focus_last_frame(&self, id: impl Into<Id>) -> bool {
+        self.id_previous_frame == Some(id.into())
     }
 
-    fn interested_in_focus(&mut self, id: Id) {
+    fn interested_in_focus(&mut self, id: impl Into<Id>) {
+        let id = id.into();
         #[cfg(feature = "accesskit")]
         {
             if self.id_requested_by_accesskit == Some(id.accesskit_id()) {
@@ -824,19 +825,21 @@ impl Memory {
 
     /// Check if the layer had focus last frame.
     /// returns `true` if the layer had focus last frame, but not this one.
-    pub fn had_focus_last_frame(&self, id: Id) -> bool {
-        self.focus().and_then(|f| f.id_previous_frame) == Some(id)
+    pub fn had_focus_last_frame(&self, id: impl Into<Id>) -> bool {
+        self.focus().and_then(|f| f.id_previous_frame) == Some(id.into())
     }
 
     /// Check if the layer lost focus last frame.
     /// returns `true` if the layer lost focus last frame, but not this one.
-    pub(crate) fn lost_focus(&self, id: Id) -> bool {
+    pub(crate) fn lost_focus(&self, id: impl Into<Id>) -> bool {
+        let id = id.into();
         self.had_focus_last_frame(id) && !self.has_focus(id)
     }
 
     /// Check if the layer gained focus this frame.
     /// returns `true` if the layer gained focus this frame, but not last one.
-    pub(crate) fn gained_focus(&self, id: Id) -> bool {
+    pub(crate) fn gained_focus(&self, id: impl Into<Id>) -> bool {
+        let id = id.into();
         !self.had_focus_last_frame(id) && self.has_focus(id)
     }
 
@@ -847,8 +850,8 @@ impl Memory {
     /// widget state that should not be disrupted if the user moves away from
     /// the window and back.
     #[inline(always)]
-    pub fn has_focus(&self, id: Id) -> bool {
-        self.focused() == Some(id)
+    pub fn has_focus(&self, id: impl Into<Id>) -> bool {
+        self.focused() == Some(id.into())
     }
 
     /// Which widget has keyboard focus?
@@ -862,7 +865,8 @@ impl Memory {
     /// when the user presses tab, arrow keys, or escape.
     ///
     /// You must first give focus to the widget before calling this.
-    pub fn set_focus_lock_filter(&mut self, id: Id, event_filter: EventFilter) {
+    pub fn set_focus_lock_filter(&mut self, id: impl Into<Id>, event_filter: EventFilter) {
+        let id = id.into();
         if self.had_focus_last_frame(id) && self.has_focus(id) {
             if let Some(focused) = &mut self.focus_mut().focused_widget {
                 if focused.id == id {
@@ -875,16 +879,16 @@ impl Memory {
     /// Give keyboard focus to a specific widget.
     /// See also [`crate::Response::request_focus`].
     #[inline(always)]
-    pub fn request_focus(&mut self, id: Id) {
+    pub fn request_focus(&mut self, id: impl Into<Id>) {
         self.focus_mut().focused_widget = Some(FocusWidget::new(id));
     }
 
     /// Surrender keyboard focus for a specific widget.
     /// See also [`crate::Response::surrender_focus`].
     #[inline(always)]
-    pub fn surrender_focus(&mut self, id: Id) {
+    pub fn surrender_focus(&mut self, id: impl Into<Id>) {
         let focus = self.focus_mut();
-        if focus.focused() == Some(id) {
+        if focus.focused() == Some(id.into()) {
             focus.focused_widget = None;
         }
     }
@@ -923,7 +927,7 @@ impl Memory {
     ///
     /// Pass in the `layer_id` of the layer that the widget is in.
     #[inline(always)]
-    pub fn interested_in_focus(&mut self, id: Id, layer_id: LayerId) {
+    pub fn interested_in_focus(&mut self, id: impl Into<Id>, layer_id: LayerId) {
         if !self.allows_interaction(layer_id) {
             return;
         }
@@ -1003,9 +1007,9 @@ struct OpenPopup {
 
 impl OpenPopup {
     /// Create a new `OpenPopup`.
-    fn new(id: Id, pos: Option<Pos2>) -> Self {
+    fn new(id: impl Into<Id>, pos: Option<Pos2>) -> Self {
         Self {
-            id,
+            id: id.into(),
             pos,
             open_this_frame: true,
         }
@@ -1017,10 +1021,10 @@ impl OpenPopup {
 impl Memory {
     /// Is the given popup open?
     #[deprecated = "Use Popup::is_id_open instead"]
-    pub fn is_popup_open(&self, popup_id: Id) -> bool {
+    pub fn is_popup_open(&self, popup_id: impl Into<Id>) -> bool {
         self.popups
             .get(&self.viewport_id)
-            .is_some_and(|state| state.id == popup_id)
+            .is_some_and(|state| state.id == popup_id.into())
             || self.everything_is_visible()
     }
 
@@ -1034,7 +1038,7 @@ impl Memory {
     ///
     /// Note that you must call `keep_popup_open` on subsequent frames as long as the popup is open.
     #[deprecated = "Use Popup::open_id instead"]
-    pub fn open_popup(&mut self, popup_id: Id) {
+    pub fn open_popup(&mut self, popup_id: impl Into<Id>) {
         self.popups
             .insert(self.viewport_id, OpenPopup::new(popup_id, None));
     }
@@ -1045,9 +1049,9 @@ impl Memory {
     /// called. For example, when a context menu is open and the underlying widget stops
     /// being rendered.
     #[deprecated = "Use Popup::show instead"]
-    pub fn keep_popup_open(&mut self, popup_id: Id) {
+    pub fn keep_popup_open(&mut self, popup_id: impl Into<Id>) {
         if let Some(state) = self.popups.get_mut(&self.viewport_id) {
-            if state.id == popup_id {
+            if state.id == popup_id.into() {
                 state.open_this_frame = true;
             }
         }
@@ -1055,17 +1059,21 @@ impl Memory {
 
     /// Open the popup and remember its position.
     #[deprecated = "Use Popup with PopupAnchor::Position instead"]
-    pub fn open_popup_at(&mut self, popup_id: Id, pos: impl Into<Option<Pos2>>) {
+    pub fn open_popup_at(&mut self, popup_id: impl Into<Id>, pos: impl Into<Option<Pos2>>) {
         self.popups
             .insert(self.viewport_id, OpenPopup::new(popup_id, pos.into()));
     }
 
     /// Get the position for this popup.
     #[deprecated = "Use Popup::position_of_id instead"]
-    pub fn popup_position(&self, id: Id) -> Option<Pos2> {
-        self.popups
-            .get(&self.viewport_id)
-            .and_then(|state| if state.id == id { state.pos } else { None })
+    pub fn popup_position(&self, id: impl Into<Id>) -> Option<Pos2> {
+        self.popups.get(&self.viewport_id).and_then(|state| {
+            if state.id == id.into() {
+                state.pos
+            } else {
+                None
+            }
+        })
     }
 
     /// Close any currently open popup.
@@ -1078,7 +1086,7 @@ impl Memory {
     ///
     /// See also [`Self::close_all_popups`] if you want to close any / all currently open popups.
     #[deprecated = "Use Popup::close_id instead"]
-    pub fn close_popup(&mut self, popup_id: Id) {
+    pub fn close_popup(&mut self, popup_id: impl Into<Id>) {
         #[expect(deprecated)]
         if self.is_popup_open(popup_id) {
             self.popups.remove(&self.viewport_id);
@@ -1089,12 +1097,14 @@ impl Memory {
     ///
     /// Note: At most, only one popup can be open at a time.
     #[deprecated = "Use Popup::toggle_id instead"]
-    pub fn toggle_popup(&mut self, popup_id: Id) {
+    pub fn toggle_popup(&mut self, popup_id: impl Into<Id>) {
+        let id = popup_id.into();
+
         #[expect(deprecated)]
-        if self.is_popup_open(popup_id) {
-            self.close_popup(popup_id);
+        if self.is_popup_open(id) {
+            self.close_popup(id);
         } else {
-            self.open_popup(popup_id);
+            self.open_popup(id);
         }
     }
 }
@@ -1163,8 +1173,8 @@ impl Areas {
         self.areas.len()
     }
 
-    pub(crate) fn get(&self, id: Id) -> Option<&area::AreaState> {
-        self.areas.get(&id)
+    pub(crate) fn get(&self, id: impl Into<Id>) -> Option<&area::AreaState> {
+        self.areas.get(&id.into())
     }
 
     /// All layers back-to-front, top is last.

@@ -22,7 +22,7 @@ use crate::{
     Rect, Sense, Stroke, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, lerp, vec2,
 };
 
-fn animate_expansion(ctx: &Context, id: Id, is_expanded: bool) -> f32 {
+fn animate_expansion(ctx: &Context, id: impl Into<Id>, is_expanded: bool) -> f32 {
     ctx.animate_bool_responsive(id, is_expanded)
 }
 
@@ -34,7 +34,7 @@ pub struct PanelState {
 }
 
 impl PanelState {
-    pub fn load(ctx: &Context, bar_id: Id) -> Option<Self> {
+    pub fn load(ctx: &Context, bar_id: impl Into<Id>) -> Option<Self> {
         ctx.data_mut(|d| d.get_persisted(bar_id))
     }
 
@@ -43,7 +43,7 @@ impl PanelState {
         self.rect.size()
     }
 
-    fn store(self, ctx: &Context, bar_id: Id) {
+    fn store(self, ctx: &Context, bar_id: impl Into<Id>) {
         ctx.data_mut(|d| d.insert_persisted(bar_id, self));
     }
 }

@@ -760,7 +760,12 @@ pub(crate) fn clamp_value_to_range(x: f64, range: RangeInclusive<f64>) -> f64 {
 }
 
 /// Select all text in the `DragValue` text edit widget.
-fn select_all_text(ui: &Ui, widget_id: Id, response_id: Id, value_text: &str) {
+fn select_all_text(
+    ui: &Ui,
+    widget_id: impl Into<Id>,
+    response_id: impl Into<Id>,
+    value_text: &str,
+) {
     let mut state = TextEdit::load_state(ui.ctx(), widget_id).unwrap_or_default();
     state.cursor.set_char_range(Some(text::CCursorRange::two(
         text::CCursor::default(),

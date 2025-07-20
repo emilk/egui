@@ -30,7 +30,8 @@ pub struct CollapsingState {
 }
 
 impl CollapsingState {
-    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
+    pub fn load(ctx: &Context, id: impl Into<Id>) -> Option<Self> {
+        let id = id.into();
         ctx.data_mut(|d| {
             d.get_persisted::<InnerState>(id)
                 .map(|state| Self { id, state })
@@ -49,7 +50,8 @@ impl CollapsingState {
         self.id
     }
 
-    pub fn load_with_default_open(ctx: &Context, id: Id, default_open: bool) -> Self {
+    pub fn load_with_default_open(ctx: &Context, id: impl Into<Id>, default_open: bool) -> Self {
+        let id = id.into();
         Self::load(ctx, id).unwrap_or(Self {
             id,
             state: InnerState {

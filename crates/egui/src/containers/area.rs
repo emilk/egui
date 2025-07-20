@@ -55,9 +55,9 @@ impl Default for AreaState {
 
 impl AreaState {
     /// Load the state of an [`Area`] from memory.
-    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
+    pub fn load(ctx: &Context, id: impl Into<Id>) -> Option<Self> {
         // TODO(emilk): Area state is not currently stored in `Memory::data`, but maybe it should be?
-        ctx.memory(|mem| mem.areas().get(id).copied())
+        ctx.memory(|mem| mem.areas().get(id.into()).copied())
     }
 
     /// The left top positions of the area.
@@ -130,9 +130,9 @@ impl WidgetWithState for Area {
 
 impl Area {
     /// The `id` must be globally unique.
-    pub fn new(id: Id) -> Self {
+    pub fn new(id: impl Into<Id>) -> Self {
         Self {
-            id,
+            id: id.into(),
             info: UiStackInfo::new(UiKind::GenericArea),
             sense: None,
             movable: true,
@@ -156,8 +156,8 @@ impl Area {
     ///
     /// The `id` must be globally unique.
     #[inline]
-    pub fn id(mut self, id: Id) -> Self {
-        self.id = id;
+    pub fn id(mut self, id: impl Into<Id>) -> Self {
+        self.id = id.into();
         self
     }
 

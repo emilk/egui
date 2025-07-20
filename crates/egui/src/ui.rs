@@ -121,7 +121,9 @@ impl Ui {
     ///
     /// Normally you would not use this directly, but instead use
     /// [`crate::SidePanel`], [`crate::TopBottomPanel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
-    pub fn new(ctx: Context, id: Id, ui_builder: UiBuilder) -> Self {
+    pub fn new(ctx: Context, id: impl Into<Id>, ui_builder: UiBuilder) -> Self {
+        let id = id.into();
+
         let UiBuilder {
             id_salt,
             ui_stack_info,
@@ -1063,10 +1065,10 @@ impl Ui {
 /// # Interaction
 impl Ui {
     /// Check for clicks, drags and/or hover on a specific region of this [`Ui`].
-    pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> Response {
+    pub fn interact(&self, rect: Rect, id: impl Into<Id>, sense: Sense) -> Response {
         self.ctx().create_widget(
             WidgetRect {
-                id,
+                id: id.into(),
                 layer_id: self.layer_id(),
                 rect,
                 interact_rect: self.clip_rect().intersect(rect),
@@ -1083,7 +1085,7 @@ impl Ui {
         &self,
         rect: Rect,
         _contains_pointer: bool,
-        id: Id,
+        id: impl Into<Id>,
         sense: Sense,
     ) -> Response {
         self.interact(rect, id, sense)
@@ -2881,13 +2883,14 @@ impl Ui {
     #[doc(alias = "drag and drop")]
     pub fn dnd_drag_source<Payload, R>(
         &mut self,
-        id: Id,
+        id: impl Into<Id>,
         payload: Payload,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R>
     where
         Payload: Any + Send + Sync,
     {
+        let id = id.into();
         let is_being_dragged = self.ctx().is_being_dragged(id);
 
         if is_being_dragged {

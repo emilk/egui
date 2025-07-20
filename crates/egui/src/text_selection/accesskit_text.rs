@@ -7,12 +7,13 @@ use super::{CCursorRange, text_cursor_state::is_word_char};
 /// Update accesskit with the current text state.
 pub fn update_accesskit_for_text_widget(
     ctx: &Context,
-    widget_id: Id,
+    widget_id: impl Into<Id>,
     cursor_range: Option<CCursorRange>,
     role: accesskit::Role,
     global_from_galley: TSTransform,
     galley: &Galley,
 ) {
+    let widget_id = widget_id.into();
     let parent_id = ctx.accesskit_node_builder(widget_id, |builder| {
         let parent_id = widget_id;
 

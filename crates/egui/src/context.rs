@@ -647,7 +647,8 @@ impl ContextImpl {
     }
 
     #[cfg(feature = "accesskit")]
-    fn accesskit_node_builder(&mut self, id: Id) -> &mut accesskit::Node {
+    fn accesskit_node_builder(&mut self, id: impl Into<Id>) -> &mut accesskit::Node {
+        let id = id.into();
         let state = self.viewport().this_pass.accesskit_state.as_mut().unwrap();
         let builders = &mut state.nodes;
         if let std::collections::hash_map::Entry::Vacant(entry) = builders.entry(id) {
@@ -1095,7 +1096,8 @@ impl Context {
     /// The given [`Rect`] should be approximately where the widget will be.
     /// The most important thing is that [`Rect::min`] is approximately correct,
     /// because that's where the warning will be painted. If you don't know what size to pick, just pick [`Vec2::ZERO`].
-    pub fn check_for_id_clash(&self, id: Id, new_rect: Rect, what: &str) {
+    pub fn check_for_id_clash(&self, id: impl Into<Id>, new_rect: Rect, what: &str) {
+        let id = id.into();
         let prev_rect = self.pass_state_mut(move |state| state.used_ids.insert(id, new_rect));
 
         if !self.options(|opt| opt.warn_on_id_clash) {
@@ -1274,7 +1276,8 @@ impl Context {
     /// If the widget was not visible the previous pass (or this pass), this will return `None`.
     ///
     /// If you try to read a [`Ui`]'s response, while still inside, this will return the [`Rect`] from the previous frame.
-    pub fn read_response(&self, id: Id) -> Option<Response> {
+    pub fn read_response(&self, id: impl Into<Id>) -> Option<Response> {
+        let id = id.into();
         self.write(|ctx| {
             let viewport = ctx.viewport();
             let widget_rect = viewport
@@ -1442,7 +1445,11 @@ impl Context {
     ///
     /// With some debug flags it will store the widget info in [`crate::WidgetRects`] for later display.
     #[inline]
-    pub fn register_widget_info(&self, id: Id, make_info: impl Fn() -> crate::WidgetInfo) {
+    pub fn register_widget_info(
+        &self,
+        id: impl Into<Id>,
+        make_info: impl Fn() -> crate::WidgetInfo,
+    ) {
         #[cfg(debug_assertions)]
         self.write(|ctx| {
             if ctx.memory.options.style().debug.show_interactive_widgets {
@@ -2751,8 +2758,8 @@ impl Context {
     /// then it won't be highlighted until the next ui pass.
     ///
     /// See also [`Response::highlight`].
-    pub fn highlight_widget(&self, id: Id) {
-        self.pass_state_mut(|fs| fs.highlight_next_pass.insert(id));
+    pub fn highlight_widget(&self, id: impl Into<Id>) {
+        self.pass_state_mut(|fs| fs.highlight_next_pass.insert(id.into()));
     }
 
     /// Is an egui context menu open?
@@ -2762,7 +2769,7 @@ impl Context {
     #[deprecated = "Use `is_popup_open` instead"]
     pub fn is_context_menu_open(&self) -> bool {
         self.data(|d| {
-            d.get_temp::<crate::menu::BarState>(crate::menu::CONTEXT_MENU_ID_STR.into())
+            d.get_temp::<crate::menu::BarState>(crate::menu::CONTEXT_MENU_ID_STR)
                 .is_some_and(|state| state.has_root())
         })
     }
@@ -2949,7 +2956,7 @@ impl Context {
     ///
     /// The animation time is taken from [`Style::animation_time`].
     #[track_caller] // To track repaint cause
-    pub fn animate_bool(&self, id: Id, value: bool) -> f32 {
+    pub fn animate_bool(&self, id: impl Into<Id>, value: bool) -> f32 {
         let animation_time = self.style().animation_time;
         self.animate_bool_with_time_and_easing(id, value, animation_time, emath::easing::linear)
     }
@@ -2959,20 +2966,30 @@ impl Context {
     ///
     /// The exact easing function may come to change in future versions of egui.
     #[track_caller] // To track repaint cause
-    pub fn animate_bool_responsive(&self, id: Id, value: bool) -> f32 {
+    pub fn animate_bool_responsive(&self, id: impl Into<Id>, value: bool) -> f32 {
         self.animate_bool_with_easing(id, value, emath::easing::cubic_out)
     }
 
     /// Like [`Self::animate_bool`] but allows you to control the easing function.
     #[track_caller] // To track repaint cause
-    pub fn animate_bool_with_easing(&self, id: Id, value: bool, easing: fn(f32) -> f32) -> f32 {
+    pub fn animate_bool_with_easing(
+        &self,
+        id: impl Into<Id>,
+        value: bool,
+        easing: fn(f32) -> f32,
+    ) -> f32 {
         let animation_time = self.style().animation_time;
         self.animate_bool_with_time_and_easing(id, value, animation_time, easing)
     }
 
     /// Like [`Self::animate_bool`] but allows you to control the animation time.
     #[track_caller] // To track repaint cause
-    pub fn animate_bool_with_time(&self, id: Id, target_value: bool, animation_time: f32) -> f32 {
+    pub fn animate_bool_with_time(
+        &self,
+        id: impl Into<Id>,
+        target_value: bool,
+        animation_time: f32,
+    ) -> f32 {
         self.animate_bool_with_time_and_easing(
             id,
             target_value,
@@ -2991,7 +3008,7 @@ impl Context {
     #[track_caller] // To track repaint cause
     pub fn animate_bool_with_time_and_easing(
         &self,
-        id: Id,
+        id: impl Into<Id>,
         target_value: bool,
         animation_time: f32,
         easing: fn(f32) -> f32,
@@ -3022,7 +3039,12 @@ impl Context {
     /// At the first call the value is written to memory.
     /// When it is called with a new value, it linearly interpolates to it in the given time.
     #[track_caller] // To track repaint cause
-    pub fn animate_value_with_time(&self, id: Id, target_value: f32, animation_time: f32) -> f32 {
+    pub fn animate_value_with_time(
+        &self,
+        id: impl Into<Id>,
+        target_value: f32,
+        animation_time: f32,
+    ) -> f32 {
         let animated_value = self.write(|ctx| {
             ctx.animation_manager.animate_value(
                 &ctx.viewports.entry(ctx.viewport_id()).or_default().input,
@@ -3488,7 +3510,7 @@ impl Context {
     #[cfg(feature = "accesskit")]
     pub fn accesskit_node_builder<R>(
         &self,
-        id: Id,
+        id: impl Into<Id>,
         writer: impl FnOnce(&mut accesskit::Node) -> R,
     ) -> Option<R> {
         self.write(|ctx| {
@@ -3996,8 +4018,8 @@ impl Context {
     /// when the mouse has moved a bit
     ///
     /// See also: [`crate::Response::dragged`].
-    pub fn is_being_dragged(&self, id: Id) -> bool {
-        self.dragged_id() == Some(id)
+    pub fn is_being_dragged(&self, id: impl Into<Id>) -> bool {
+        self.dragged_id() == Some(id.into())
     }
 
     /// This widget just started being dragged this pass.
@@ -4013,7 +4035,8 @@ impl Context {
     }
 
     /// Set which widget is being dragged.
-    pub fn set_dragged_id(&self, id: Id) {
+    pub fn set_dragged_id(&self, id: impl Into<Id>) {
+        let id = id.into();
         self.write(|ctx| {
             let vp = ctx.viewport();
             let i = &mut vp.interact_widgets;
@@ -4045,9 +4068,9 @@ impl Context {
     ///
     /// Returns true if we are dragging something, but not the given widget.
     #[inline(always)]
-    pub fn dragging_something_else(&self, not_this: Id) -> bool {
+    pub fn dragging_something_else(&self, not_this: impl Into<Id>) -> bool {
         let dragged = self.dragged_id();
-        dragged.is_some() && dragged != Some(not_this)
+        dragged.is_some() && dragged != Some(not_this.into())
     }
 }
 
