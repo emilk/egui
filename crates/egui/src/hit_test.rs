@@ -474,9 +474,9 @@ mod tests {
 
     use super::*;
 
-    fn wr(id: Id, sense: Sense, rect: Rect) -> WidgetRect {
+    fn wr(id: impl Into<Id>, sense: Sense, rect: Rect) -> WidgetRect {
         WidgetRect {
-            id,
+            id: id.into(),
             layer_id: LayerId::background(),
             rect,
             interact_rect: rect,

@@ -72,8 +72,8 @@ impl<'open> Window<'open> {
 
     /// Assign a unique id to the Window. Required if the title changes, or is shared with another window.
     #[inline]
-    pub fn id(mut self, id: Id) -> Self {
-        self.area = self.area.id(id);
+    pub fn id(mut self, id: impl Into<Id>) -> Self {
+        self.area = self.area.id(id.into());
         self
     }
 
@@ -826,7 +826,7 @@ fn resize_response(
     margins: Vec2,
     area_layer_id: LayerId,
     area: &mut area::Prepared,
-    resize_id: Id,
+    resize_id: impl Into<Id>,
 ) {
     let Some(mut new_rect) = move_and_resize_window(ctx, &resize_interaction) else {
         return;
@@ -839,6 +839,7 @@ fn resize_response(
     // TODO(emilk): add this to a Window state instead as a command "move here next frame"
     area.state_mut().set_left_top_pos(new_rect.left_top());
 
+    let resize_id = resize_id.into();
     if resize_interaction.any_dragged() {
         if let Some(mut state) = resize::State::load(ctx, resize_id) {
             state.requested_size = Some(new_rect.size() - margins);

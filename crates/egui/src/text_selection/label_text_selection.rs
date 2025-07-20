@@ -28,7 +28,7 @@ struct WidgetTextCursor {
 
 impl WidgetTextCursor {
     fn new(
-        widget_id: Id,
+        widget_id: impl Into<Id>,
         cursor: impl Into<CCursor>,
         global_from_galley: TSTransform,
         galley: &Galley,
@@ -36,7 +36,7 @@ impl WidgetTextCursor {
         let ccursor = cursor.into();
         let pos = global_from_galley * pos_in_galley(galley, ccursor);
         Self {
-            widget_id,
+            widget_id: widget_id.into(),
             ccursor,
             pos,
         }
@@ -671,18 +671,19 @@ fn got_copy_event(ctx: &Context) -> bool {
 fn process_selection_key_events(
     ctx: &Context,
     galley: &Galley,
-    widget_id: Id,
+    widget_id: impl Into<Id>,
     cursor_range: &mut CCursorRange,
 ) -> bool {
     let os = ctx.os();
 
     let mut changed = false;
 
+    let id = widget_id.into();
     ctx.input(|i| {
         // NOTE: we have a lock on ui/ctx here,
         // so be careful to not call into `ui` or `ctx` again.
         for event in &i.events {
-            changed |= cursor_range.on_event(os, event, galley, widget_id);
+            changed |= cursor_range.on_event(os, event, galley, id);
         }
     });
 

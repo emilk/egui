@@ -15,11 +15,11 @@ pub(crate) struct State {
 }
 
 impl State {
-    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
+    pub fn load(ctx: &Context, id: impl Into<Id>) -> Option<Self> {
         ctx.data_mut(|d| d.get_temp(id))
     }
 
-    pub fn store(self, ctx: &Context, id: Id) {
+    pub fn store(self, ctx: &Context, id: impl Into<Id>) {
         // We don't persist Grids, because
         // A) there are potentially a lot of them, using up a lot of space (and therefore serialization time)
         // B) if the code changes, the grid _should_ change, and not remember old sizes
@@ -86,7 +86,8 @@ pub(crate) struct GridLayout {
 }
 
 impl GridLayout {
-    pub(crate) fn new(ui: &Ui, id: Id, prev_state: Option<State>) -> Self {
+    pub(crate) fn new(ui: &Ui, id: impl Into<Id>, prev_state: Option<State>) -> Self {
+        let id = id.into();
         let is_first_frame = prev_state.is_none();
         let prev_state = prev_state.unwrap_or_default();
 

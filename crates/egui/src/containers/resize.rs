@@ -20,11 +20,11 @@ pub(crate) struct State {
 }
 
 impl State {
-    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
+    pub fn load(ctx: &Context, id: impl Into<Id>) -> Option<Self> {
         ctx.data_mut(|d| d.get_persisted(id))
     }
 
-    pub fn store(self, ctx: &Context, id: Id) {
+    pub fn store(self, ctx: &Context, id: impl Into<Id>) {
         ctx.data_mut(|d| d.insert_persisted(id, self));
     }
 }
@@ -64,8 +64,8 @@ impl Default for Resize {
 impl Resize {
     /// Assign an explicit and globally unique id.
     #[inline]
-    pub fn id(mut self, id: Id) -> Self {
-        self.id = Some(id);
+    pub fn id(mut self, id: impl Into<Id>) -> Self {
+        self.id = Some(id.into());
         self
     }
 

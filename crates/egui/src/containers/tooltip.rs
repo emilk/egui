@@ -19,11 +19,12 @@ impl Tooltip<'_> {
     /// Show a tooltip that is always open.
     #[deprecated = "Use `Tooltip::always_open` instead."]
     pub fn new(
-        parent_widget: Id,
+        parent_widget: impl Into<Id>,
         ctx: Context,
         anchor: impl Into<PopupAnchor>,
         parent_layer: LayerId,
     ) -> Self {
+        let parent_widget = parent_widget.into();
         Self {
             popup: Popup::new(parent_widget, ctx, anchor.into(), parent_layer)
                 .kind(PopupKind::Tooltip)
@@ -38,9 +39,10 @@ impl Tooltip<'_> {
     pub fn always_open(
         ctx: Context,
         parent_layer: LayerId,
-        parent_widget: Id,
+        parent_widget: impl Into<Id>,
         anchor: impl Into<PopupAnchor>,
     ) -> Self {
+        let parent_widget = parent_widget.into();
         let width = ctx.style().spacing.tooltip_width;
         Self {
             popup: Popup::new(parent_widget, ctx, anchor.into(), parent_layer)
@@ -196,7 +198,8 @@ impl Tooltip<'_> {
     }
 
     /// What is the id of the next tooltip for this widget?
-    pub fn next_tooltip_id(ctx: &Context, widget_id: Id) -> Id {
+    pub fn next_tooltip_id(ctx: &Context, widget_id: impl Into<Id>) -> Id {
+        let widget_id = widget_id.into();
         let tooltip_count = ctx.pass_state(|fs| {
             fs.tooltips
                 .widget_tooltips
@@ -206,8 +209,8 @@ impl Tooltip<'_> {
         Self::tooltip_id(widget_id, tooltip_count)
     }
 
-    pub fn tooltip_id(widget_id: Id, tooltip_count: usize) -> Id {
-        widget_id.with(tooltip_count)
+    pub fn tooltip_id(widget_id: impl Into<Id>, tooltip_count: usize) -> Id {
+        widget_id.into().with(tooltip_count)
     }
 
     /// Should we show a tooltip for this response?
@@ -389,7 +392,7 @@ impl Tooltip<'_> {
     }
 
     /// Was this tooltip visible last frame?
-    pub fn was_tooltip_open_last_frame(ctx: &Context, widget_id: Id) -> bool {
+    pub fn was_tooltip_open_last_frame(ctx: &Context, widget_id: impl Into<Id>) -> bool {
         let primary_tooltip_area_id = Self::tooltip_id(widget_id, 0);
         ctx.memory(|mem| {
             mem.areas()

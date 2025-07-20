@@ -68,8 +68,11 @@ pub struct LayerId {
 }
 
 impl LayerId {
-    pub fn new(order: Order, id: Id) -> Self {
-        Self { order, id }
+    pub fn new(order: Order, id: impl Into<Id>) -> Self {
+        Self {
+            order,
+            id: id.into(),
+        }
     }
 
     pub fn debug() -> Self {

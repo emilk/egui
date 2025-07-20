@@ -64,7 +64,7 @@ impl PopupAnchor {
     /// Get the rect the popup should be shown relative to.
     /// Returns `Rect::from_pos` for [`PopupAnchor::Pointer`], [`PopupAnchor::PointerFixed`]
     /// and [`PopupAnchor::Position`] (so the rect will be zero-sized).
-    pub fn rect(self, popup_id: Id, ctx: &Context) -> Option<Rect> {
+    pub fn rect(self, popup_id: impl Into<Id>, ctx: &Context) -> Option<Rect> {
         match self {
             Self::ParentRect(rect) => Some(rect),
             Self::Pointer => ctx.pointer_hover_pos().map(Rect::from_pos),
@@ -124,7 +124,7 @@ enum OpenKind<'a> {
 
 impl OpenKind<'_> {
     /// Returns `true` if the popup should be open
-    fn is_open(&self, popup_id: Id, ctx: &Context) -> bool {
+    fn is_open(&self, popup_id: impl Into<Id>, ctx: &Context) -> bool {
         match self {
             OpenKind::Open => true,
             OpenKind::Closed => false,
@@ -192,9 +192,14 @@ pub struct Popup<'a> {
 
 impl<'a> Popup<'a> {
     /// Create a new popup
-    pub fn new(id: Id, ctx: Context, anchor: impl Into<PopupAnchor>, layer_id: LayerId) -> Self {
+    pub fn new(
+        id: impl Into<Id>,
+        ctx: Context,
+        anchor: impl Into<PopupAnchor>,
+        layer_id: LayerId,
+    ) -> Self {
         Self {
-            id,
+            id: id.into(),
             ctx,
             anchor: anchor.into(),
             open_kind: OpenKind::Open,
@@ -400,8 +405,8 @@ impl<'a> Popup<'a> {
 
     /// Set the id of the Area.
     #[inline]
-    pub fn id(mut self, id: Id) -> Self {
-        self.id = id;
+    pub fn id(mut self, id: impl Into<Id>) -> Self {
+        self.id = id.into();
         self
     }
 
@@ -648,7 +653,7 @@ impl Popup<'_> {
     ///
     /// The popup id should be the same as either you set with [`Self::id`] or the
     /// default one from [`Self::default_response_id`].
-    pub fn is_id_open(ctx: &Context, popup_id: Id) -> bool {
+    pub fn is_id_open(ctx: &Context, popup_id: impl Into<Id>) -> bool {
         ctx.memory(|mem| mem.is_popup_open(popup_id))
     }
 
@@ -664,14 +669,14 @@ impl Popup<'_> {
     /// If you are NOT using [`Popup::show`], you must
     /// also call [`crate::Memory::keep_popup_open`] as long as
     /// you're showing the popup.
-    pub fn open_id(ctx: &Context, popup_id: Id) {
+    pub fn open_id(ctx: &Context, popup_id: impl Into<Id>) {
         ctx.memory_mut(|mem| mem.open_popup(popup_id));
     }
 
     /// Toggle the given popup between closed and open.
     ///
     /// Note: At most, only one popup can be open at a time.
-    pub fn toggle_id(ctx: &Context, popup_id: Id) {
+    pub fn toggle_id(ctx: &Context, popup_id: impl Into<Id>) {
         ctx.memory_mut(|mem| mem.toggle_popup(popup_id));
     }
 
@@ -683,12 +688,12 @@ impl Popup<'_> {
     /// Close the given popup, if it is open.
     ///
     /// See also [`Self::close_all`] if you want to close any / all currently open popups.
-    pub fn close_id(ctx: &Context, popup_id: Id) {
+    pub fn close_id(ctx: &Context, popup_id: impl Into<Id>) {
         ctx.memory_mut(|mem| mem.close_popup(popup_id));
     }
 
     /// Get the position for this popup, if it is open.
-    pub fn position_of_id(ctx: &Context, popup_id: Id) -> Option<Pos2> {
+    pub fn position_of_id(ctx: &Context, popup_id: impl Into<Id>) -> Option<Pos2> {
         ctx.memory(|mem| mem.popup_position(popup_id))
     }
 }

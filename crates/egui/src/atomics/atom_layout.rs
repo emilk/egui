@@ -106,8 +106,8 @@ impl<'a> AtomLayout<'a> {
 
     /// Set the [`Id`] used to allocate a [`Response`].
     #[inline]
-    pub fn id(mut self, id: Id) -> Self {
-        self.id = Some(id);
+    pub fn id(mut self, id: impl Into<Id>) -> Self {
+        self.id = Some(id.into());
         self
     }
 
@@ -451,7 +451,8 @@ impl AtomLayoutResponse {
     /// Use this together with [`AtomKind::Custom`] to add custom painting / child widgets.
     ///
     /// NOTE: Don't `unwrap` rects, they might be empty when the widget is not visible.
-    pub fn rect(&self, id: Id) -> Option<Rect> {
+    pub fn rect(&self, id: impl Into<Id>) -> Option<Rect> {
+        let id = id.into();
         self.custom_rects
             .iter()
             .find_map(|(i, r)| if *i == id { Some(*r) } else { None })

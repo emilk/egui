@@ -31,9 +31,10 @@ impl AnimationManager {
         &mut self,
         input: &InputState,
         animation_time: f32,
-        id: Id,
+        id: impl Into<Id>,
         value: bool,
     ) -> f32 {
+        let id = id.into();
         let (start, end) = if value { (0.0, 1.0) } else { (1.0, 0.0) };
         match self.bools.get_mut(&id) {
             None => {
@@ -69,9 +70,10 @@ impl AnimationManager {
         &mut self,
         input: &InputState,
         animation_time: f32,
-        id: Id,
+        id: impl Into<Id>,
         value: f32,
     ) -> f32 {
+        let id = id.into();
         match self.values.get_mut(&id) {
             None => {
                 self.values.insert(

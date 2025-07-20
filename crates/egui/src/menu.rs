@@ -35,11 +35,11 @@ pub struct BarState {
 }
 
 impl BarState {
-    pub fn load(ctx: &Context, bar_id: Id) -> Self {
+    pub fn load(ctx: &Context, bar_id: impl Into<Id>) -> Self {
         ctx.data_mut(|d| d.get_temp::<Self>(bar_id).unwrap_or_default())
     }
 
-    pub fn store(self, ctx: &Context, bar_id: Id) {
+    pub fn store(self, ctx: &Context, bar_id: impl Into<Id>) {
         ctx.data_mut(|d| d.insert_temp(bar_id, self));
     }
 
@@ -163,7 +163,7 @@ fn menu_popup<'c, R>(
     ctx: &Context,
     parent_layer: LayerId,
     menu_state_arc: &Arc<RwLock<MenuState>>,
-    menu_id: Id,
+    menu_id: impl Into<Id>,
     add_contents: impl FnOnce(&mut Ui) -> R + 'c,
 ) -> InnerResponse<R> {
     let pos = {
@@ -172,7 +172,7 @@ fn menu_popup<'c, R>(
         menu_state.rect.min
     };
 
-    let area_id = menu_id.with("__menu");
+    let area_id = menu_id.into().with("__menu");
 
     ctx.pass_state_mut(|fs| {
         fs.layers
@@ -317,8 +317,8 @@ impl MenuRootManager {
         }
     }
 
-    fn is_menu_open(&self, id: Id) -> bool {
-        self.inner.as_ref().map(|m| m.id) == Some(id)
+    fn is_menu_open(&self, id: impl Into<Id>) -> bool {
+        self.inner.as_ref().map(|m| m.id) == Some(id.into())
     }
 }
 
@@ -344,10 +344,10 @@ pub struct MenuRoot {
 }
 
 impl MenuRoot {
-    pub fn new(position: Pos2, id: Id) -> Self {
+    pub fn new(position: Pos2, id: impl Into<Id>) -> Self {
         Self {
             menu_state: Arc::new(RwLock::new(MenuState::new(position))),
-            id,
+            id: id.into(),
         }
     }
 
@@ -519,7 +519,7 @@ impl SubMenuButton {
         ui: &'a Ui,
         response: &Response,
         menu_state: &MenuState,
-        sub_id: Id,
+        sub_id: impl Into<Id>,
     ) -> &'a WidgetVisuals {
         if menu_state.is_open(sub_id) && !response.hovered() {
             &ui.style().visuals.widgets.open
@@ -534,7 +534,12 @@ impl SubMenuButton {
         self
     }
 
-    pub(crate) fn show(self, ui: &mut Ui, menu_state: &MenuState, sub_id: Id) -> Response {
+    pub(crate) fn show(
+        self,
+        ui: &mut Ui,
+        menu_state: &MenuState,
+        sub_id: impl Into<Id>,
+    ) -> Response {
         let Self { text, icon, .. } = self;
 
         let text_style = TextStyle::Button;
@@ -668,9 +673,10 @@ impl MenuState {
         &mut self,
         ctx: &Context,
         parent_layer: LayerId,
-        id: Id,
+        id: impl Into<Id>,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<R> {
+        let id = id.into();
         let (sub_response, response) = self.submenu(id).map(|sub| {
             let inner_response = menu_popup(ctx, parent_layer, sub, id, add_contents);
             if inner_response.response.should_close() {
@@ -697,7 +703,8 @@ impl MenuState {
     }
 
     /// Sense button interaction opening and closing submenu.
-    fn submenu_button_interaction(&mut self, ui: &Ui, sub_id: Id, button: &Response) {
+    fn submenu_button_interaction(&mut self, ui: &Ui, sub_id: impl Into<Id>, button: &Response) {
+        let sub_id = sub_id.into();
         let pointer = ui.input(|i| i.pointer.clone());
         let open = self.is_open(sub_id);
         if self.moving_towards_current_submenu(&pointer) {
@@ -753,8 +760,8 @@ impl MenuState {
         }
     }
 
-    fn is_open(&self, id: Id) -> bool {
-        self.sub_id() == Some(id)
+    fn is_open(&self, id: impl Into<Id>) -> bool {
+        self.sub_id() == Some(id.into())
     }
 
     fn sub_id(&self) -> Option<Id> {
@@ -765,14 +772,15 @@ impl MenuState {
         self.sub_menu.as_ref().map(|(_, sub)| sub)
     }
 
-    fn submenu(&self, id: Id) -> Option<&Arc<RwLock<Self>>> {
+    fn submenu(&self, id: impl Into<Id>) -> Option<&Arc<RwLock<Self>>> {
         self.sub_menu
             .as_ref()
-            .and_then(|(k, sub)| if id == *k { Some(sub) } else { None })
+            .and_then(|(k, sub)| if id.into() == *k { Some(sub) } else { None })
     }
 
     /// Open submenu at position, if not already open.
-    fn open_submenu(&mut self, id: Id, pos: Pos2) {
+    fn open_submenu(&mut self, id: impl Into<Id>, pos: Pos2) {
+        let id = id.into();
         if !self.is_open(id) {
             self.sub_menu = Some((id, Arc::new(RwLock::new(Self::new(pos)))));
         }

@@ -180,8 +180,9 @@ impl CCursorRange {
         os: OperatingSystem,
         event: &Event,
         galley: &Galley,
-        _widget_id: Id,
+        _widget_id: impl Into<Id>,
     ) -> bool {
+        let _widget_id = _widget_id.into();
         match event {
             Event::Key {
                 modifiers,
@@ -222,10 +223,11 @@ impl CCursorRange {
 
 #[cfg(feature = "accesskit")]
 fn ccursor_from_accesskit_text_position(
-    id: Id,
+    id: impl Into<Id>,
     galley: &Galley,
     position: &accesskit::TextPosition,
 ) -> Option<CCursor> {
+    let id = id.into();
     let mut total_length = 0usize;
     for (i, row) in galley.rows.iter().enumerate() {
         let row_id = id.with(i);
