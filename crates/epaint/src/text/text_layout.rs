@@ -560,16 +560,15 @@ fn halign_and_justify_row(
         return;
     }
 
-    let num_leading_spaces = row
-        .glyphs
-        .iter()
-        .take_while(|glyph| glyph.chr.is_whitespace())
-        .count();
-
-    let glyph_range = if num_leading_spaces == row.glyphs.len() {
-        // There is only whitespace
-        (0, row.glyphs.len())
-    } else {
+    // When visually justifying text within an alignment, "leading" text in left/right
+    // aligned text is significant and shouldn't be trimmed.
+    // See: https://github.com/emilk/egui/issues/1272
+    let (significant_glyphs, visible_glyphs) = {
+        let num_leading_spaces = row
+            .glyphs
+            .iter()
+            .take_while(|glyph| glyph.chr.is_whitespace())
+            .count();
         let num_trailing_spaces = row
             .glyphs
             .iter()
@@ -577,13 +576,39 @@ fn halign_and_justify_row(
             .take_while(|glyph| glyph.chr.is_whitespace())
             .count();
 
-        (num_leading_spaces, row.glyphs.len() - num_trailing_spaces)
+        // minimum range that contains all non-whitespace glyphs. Extra space added to justify text is added here.
+        let mut visible_glyphs = num_leading_spaces..row.glyphs.len() - num_trailing_spaces;
+
+        // Has visually-insignificant whitespace trimmed. But KEEPS significant whitespaces.
+        let mut significant_glyphs = 0..row.glyphs.len();
+        match halign {
+            Align::LEFT => {
+                // trailing spaces aren't visible in left-aligned.
+                significant_glyphs.end -= num_trailing_spaces;
+            }
+            Align::RIGHT => {
+                significant_glyphs.start += num_leading_spaces;
+            }
+            Align::Center => {
+                significant_glyphs = visible_glyphs.clone();
+            }
+        }
+
+        // Prevent 0-length ranges, which causes assertion errors & overflows below.
+        // (TODO: Can we just return early for these cases?)
+        if significant_glyphs.is_empty() || visible_glyphs.is_empty() {
+            visible_glyphs = 0..row.glyphs.len();
+            significant_glyphs = visible_glyphs.clone();
+        }
+
+        (significant_glyphs, visible_glyphs)
     };
-    let num_glyphs_in_range = glyph_range.1 - glyph_range.0;
+
+    let num_glyphs_in_range = visible_glyphs.len();
     assert!(num_glyphs_in_range > 0, "Should have at least one glyph");
 
-    let original_min_x = row.glyphs[glyph_range.0].logical_rect().min.x;
-    let original_max_x = row.glyphs[glyph_range.1 - 1].logical_rect().max.x;
+    let original_min_x = row.glyphs[significant_glyphs.start].logical_rect().min.x;
+    let original_max_x = row.glyphs[significant_glyphs.end - 1].logical_rect().max.x;
     let original_width = original_max_x - original_min_x;
 
     let target_width = if justify && num_glyphs_in_range > 1 {
@@ -598,7 +623,7 @@ fn halign_and_justify_row(
         Align::RIGHT => (-target_width, 0.0),
     };
 
-    let num_spaces_in_range = row.glyphs[glyph_range.0..glyph_range.1]
+    let num_spaces_in_range = row.glyphs[visible_glyphs.clone()]
         .iter()
         .filter(|glyph| glyph.chr.is_whitespace())
         .count();
@@ -624,14 +649,21 @@ fn halign_and_justify_row(
     }
 
     placed_row.pos.x = point_scale.round_to_pixel(target_min_x);
-    let mut translate_x = -original_min_x - extra_x_per_glyph * glyph_range.0 as f32;
 
-    for glyph in &mut row.glyphs {
-        glyph.pos.x += translate_x;
-        glyph.pos.x = point_scale.round_to_pixel(glyph.pos.x);
-        translate_x += extra_x_per_glyph;
-        if glyph.chr.is_whitespace() {
-            translate_x += extra_x_per_space;
+    // Note: Don't add small floats in a loop. Has compounding precision errors.
+    // Instead, count and multiply:
+    let mut glyphs = 0.0;
+    let mut spaces = 0.0;
+    for (offset, glyph) in row.glyphs.iter_mut().enumerate() {
+        let translate_x =
+            -original_min_x + (glyphs * extra_x_per_glyph) + (spaces * extra_x_per_space);
+
+        glyph.pos.x = point_scale.round_to_pixel(glyph.pos.x + translate_x);
+        if visible_glyphs.contains(&offset) {
+            glyphs += 1.0;
+            if glyph.chr.is_whitespace() {
+                spaces += 1.0;
+            }
         }
     }
 
