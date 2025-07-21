@@ -408,6 +408,17 @@ impl<'open> Window<'open> {
         self.scroll = self.scroll.scroll_bar_visibility(visibility);
         self
     }
+
+    #[inline]
+    pub fn show_with(
+        self,
+        ctx: &Context,
+        ui_builder: impl FnOnce(&mut Ui),
+    ) -> Option<InnerResponse<()>> {
+        self
+            .show(ctx, |ui| ui_builder(ui))
+            .map(|ir| InnerResponse::new((), ir.response))
+    }
 }
 
 impl Window<'_> {

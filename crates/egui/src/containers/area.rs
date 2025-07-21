@@ -412,7 +412,18 @@ impl Area {
         let mut content_ui = prepared.content_ui(ctx);
         let inner = add_contents(&mut content_ui);
         let response = prepared.end(ctx, content_ui);
-        InnerResponse { inner, response }
+        InnerResponse::new(inner, response)
+    }
+
+    /// Show the area with a `UiBuilder`.
+    ///
+    /// This is a convenience method that takes a `UiBuilder` and shows the area.
+    pub fn show_with<R: Default>(
+        self,
+        ctx: &Context,
+        ui_builder: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<R> {
+        self.show(ctx, |ui| ui_builder(ui))
     }
 
     pub(crate) fn begin(self, ctx: &Context) -> Prepared {
@@ -746,4 +757,26 @@ fn automatic_area_position(ctx: &Context, layer_id: LayerId) -> Pos2 {
         }
     }
     best_pos
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{Id, RawInput};
+
+    #[test]
+    fn test_area_with_builder() {
+        let ctx = Context::default();
+
+        let _ = ctx.run(RawInput::default(), |ctx| {
+            let area = Area::new(Id::new("my_area"));
+
+            let response = area.show_with(ctx, |ui| {
+                ui.label("Hello from builder!");
+            });
+
+            assert!(response.response.rect.width() > 0.0);
+            assert!(response.response.rect.height() > 0.0);
+        });
+    }
 }

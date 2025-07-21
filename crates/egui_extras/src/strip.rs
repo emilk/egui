@@ -62,6 +62,14 @@ impl<'a> StripBuilder<'a> {
         }
     }
 
+    /// Convenience constructor that creates a `StripBuilder` and immediately passes it to a closure.
+    ///
+    /// This lets you write `StripBuilder::new_with(ui, |sb| { ... })` instead of
+    /// creating the builder separately.
+    pub fn new_with(ui: &'a mut Ui, builder: impl FnOnce(Self) -> Response) -> Response {
+        builder(Self::new(ui))
+    }
+
     /// Should we clip the contents of each cell? Default: `false`.
     #[inline]
     pub fn clip(mut self, clip: bool) -> Self {

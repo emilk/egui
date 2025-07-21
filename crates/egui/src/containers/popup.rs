@@ -629,6 +629,137 @@ impl<'a> Popup<'a> {
 
         Some(response)
     }
+
+    pub fn show_with<R: Default>(
+        self,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> Option<InnerResponse<R>> {
+        let hover_pos = self.ctx.pointer_hover_pos();
+
+        let id = self.id;
+        if let OpenKind::Memory { set } = self.open_kind {
+            match set {
+                Some(SetOpenCommand::Bool(open)) => {
+                    if open {
+                        match self.anchor {
+                            PopupAnchor::PointerFixed => {
+                                self.ctx.memory_mut(|mem| mem.open_popup_at(id, hover_pos));
+                            }
+                            _ => Popup::open_id(&self.ctx, id),
+                        }
+                    } else {
+                        Self::close_id(&self.ctx, id);
+                    }
+                }
+                Some(SetOpenCommand::Toggle) => {
+                    Self::toggle_id(&self.ctx, id);
+                }
+                None => {
+                    self.ctx.memory_mut(|mem| mem.keep_popup_open(id));
+                }
+            }
+        }
+
+        if !self.open_kind.is_open(self.id, &self.ctx) {
+            return None;
+        }
+
+        let best_align = self.get_best_align();
+
+        let Popup {
+            id,
+            ctx,
+            anchor,
+            open_kind,
+            close_behavior,
+            kind,
+            info,
+            layer_id,
+            rect_align: _,
+            alternative_aligns: _,
+            gap,
+            widget_clicked_elsewhere,
+            width,
+            sense,
+            layout,
+            frame,
+            style,
+        } = self;
+
+        if kind != PopupKind::Tooltip {
+            ctx.pass_state_mut(|fs| {
+                fs.layers
+                    .entry(layer_id)
+                    .or_default()
+                    .open_popups
+                    .insert(id)
+            });
+        }
+
+        let anchor_rect = anchor.rect(id, &ctx)?;
+
+        let (pivot, anchor) = best_align.pivot_pos(&anchor_rect, gap);
+
+        let mut area = Area::new(id)
+            .order(kind.order())
+            .pivot(pivot)
+            .fixed_pos(anchor)
+            .sense(sense)
+            .layout(layout)
+            .info(info.unwrap_or_else(|| {
+                UiStackInfo::new(kind.into()).with_tag_value(
+                    MenuConfig::MENU_CONFIG_TAG,
+                    MenuConfig::new()
+                        .close_behavior(close_behavior)
+                        .style(style.clone()),
+                )
+            }));
+
+        if let Some(width) = width {
+            area = area.default_width(width);
+        }
+
+        let mut response = area.show_with(&ctx, |ui| {
+            style.apply(ui.style_mut());
+            let frame = frame.unwrap_or_else(|| Frame::popup(ui.style()));
+            frame.show(ui, add_contents).inner
+        });
+
+        let closed_by_click = match close_behavior {
+            PopupCloseBehavior::CloseOnClick => widget_clicked_elsewhere,
+            PopupCloseBehavior::CloseOnClickOutside => {
+                widget_clicked_elsewhere && response.response.clicked_elsewhere()
+            }
+            PopupCloseBehavior::IgnoreClicks => false,
+        };
+
+        // If a submenu is open, the CloseBehavior is handled there
+        let is_any_submenu_open = !MenuState::is_deepest_sub_menu(&response.response.ctx, id);
+
+        let should_close = (!is_any_submenu_open && closed_by_click)
+            || ctx.input(|i| i.key_pressed(Key::Escape))
+            || response.response.should_close();
+
+        if should_close {
+            response.response.set_close();
+        }
+
+        match open_kind {
+            OpenKind::Open | OpenKind::Closed => {}
+            OpenKind::Bool(open) => {
+                if should_close {
+                    *open = false;
+                }
+            }
+            OpenKind::Memory { .. } => {
+                if should_close {
+                    ctx.memory_mut(|mem| mem.close_popup(id));
+                }
+            }
+        }
+
+        Some(response)
+    }
 }
 
 /// ## Static methods
