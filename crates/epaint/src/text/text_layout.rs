@@ -595,7 +595,7 @@ fn halign_and_justify_row(
         }
 
         // Prevent 0-length ranges, which causes assertion errors & overflows below.
-        // (TODO: Can we just return early for these cases?)
+        // (Can we just return early for these cases?)
         if significant_glyphs.is_empty() || visible_glyphs.is_empty() {
             visible_glyphs = 0..row.glyphs.len();
             significant_glyphs = visible_glyphs.clone();
