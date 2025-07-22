@@ -153,7 +153,7 @@ impl FontSelection {
     /// Resolve with a final fallback.
     ///
     /// Fallback is resolved on [`Self::Default`] and no override in the style.
-    pub fn resolve_fallback(self, style: &Style, fallback: FontSelection) -> FontId {
+    pub fn resolve_fallback(self, style: &Style, fallback: Self) -> FontId {
         match self {
             Self::Default => {
                 if let Some(override_font_id) = &style.override_font_id {
