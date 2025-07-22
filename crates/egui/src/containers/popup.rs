@@ -180,7 +180,7 @@ pub struct Popup<'a> {
     gap: f32,
 
     /// Used later depending on close behavior
-    widget_clicked_elsewhere: bool,
+    widget_clicked_elsewhere: Option<bool>,
 
     /// Default width passed to the Area
     width: Option<f32>,
@@ -205,7 +205,7 @@ impl<'a> Popup<'a> {
             rect_align: RectAlign::BOTTOM_START,
             alternative_aligns: None,
             gap: 0.0,
-            widget_clicked_elsewhere: false,
+            widget_clicked_elsewhere: None,
             width: None,
             sense: Sense::click(),
             layout: Layout::default(),
@@ -225,7 +225,7 @@ impl<'a> Popup<'a> {
             response,
             response.layer_id,
         );
-        popup.widget_clicked_elsewhere = response.clicked_elsewhere();
+        popup.widget_clicked_elsewhere = Some(response.clicked_elsewhere());
         popup
     }
 
@@ -594,10 +594,13 @@ impl<'a> Popup<'a> {
             frame.show(ui, content).inner
         });
 
+        let close_click =
+            widget_clicked_elsewhere.unwrap_or_else(|| ctx.input(|i| i.pointer.any_click()));
+
         let closed_by_click = match close_behavior {
-            PopupCloseBehavior::CloseOnClick => widget_clicked_elsewhere,
+            PopupCloseBehavior::CloseOnClick => close_click,
             PopupCloseBehavior::CloseOnClickOutside => {
-                widget_clicked_elsewhere && response.response.clicked_elsewhere()
+                close_click && response.response.clicked_elsewhere()
             }
             PopupCloseBehavior::IgnoreClicks => false,
         };
