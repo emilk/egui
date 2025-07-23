@@ -1949,6 +1949,7 @@ impl Context {
             fn name(&self) -> &'static str {
                 self.debug_name
             }
+
             fn on_begin_pass(&mut self, ctx: &Context) {
                 (self.callback)(ctx);
             }
@@ -1976,6 +1977,7 @@ impl Context {
             fn name(&self) -> &'static str {
                 self.debug_name
             }
+
             fn on_end_pass(&mut self, ctx: &Context) {
                 (self.callback)(ctx);
             }
