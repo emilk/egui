@@ -1,12 +1,14 @@
 #![warn(missing_docs)] // Let's keep `Context` well-documented.
 
-use std::any::Any as _;
-use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration};
-
+use self::{hit_test::WidgetHits, interaction::InteractionSnapshot};
+#[cfg(feature = "accesskit")]
+use crate::IdMap;
+use crate::plugin::TypedPluginHandle;
+use crate::text_selection::LabelSelectionState;
 use crate::{
     Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, Grid, Id, ImmediateViewport,
     ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId, Memory,
-    ModifierNames, Modifiers, NumExt as _, Order, Painter, RawInput, Response, RichText,
+    ModifierNames, Modifiers, NumExt as _, Order, Painter, Plugin, RawInput, Response, RichText,
     ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions, Ui, ViewportBuilder,
     ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput,
     Widget as _, WidgetRect, WidgetText,
@@ -22,7 +24,7 @@ use crate::{
     os::OperatingSystem,
     output::FullOutput,
     pass_state::PassState,
-    resize, response, scroll_area,
+    plugin, resize, response, scroll_area,
     util::IdTypeMap,
     viewport::ViewportClass,
 };
@@ -37,11 +39,8 @@ use epaint::{
     text::{FontInsert, FontPriority, Fonts},
     vec2,
 };
-
-#[cfg(feature = "accesskit")]
-use crate::IdMap;
-
-use self::{hit_test::WidgetHits, interaction::InteractionSnapshot};
+use std::any::TypeId;
+use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration};
 
 /// Information given to the backend about when it is time to repaint the ui.
 ///
@@ -88,103 +87,6 @@ impl Default for WrappedTextureManager {
         );
 
         Self(Arc::new(RwLock::new(tex_mngr)))
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-/// Generic event callback.
-pub type ContextCallback = Arc<dyn Fn(&Context) + Send + Sync>;
-
-/// A plugin to extend egui.
-///
-/// Add plugins via [`Context::add_plugin`].
-#[expect(unused_variables)]
-pub trait Plugin: Send + Sync {
-    /// Plugin name.
-    ///
-    /// Used when profiling.
-    fn name(&self) -> &'static str;
-
-    /// Called once, when the plugin is registered.
-    ///
-    /// Useful to e.g. register image loaders.
-    fn setup(&mut self, ctx: &Context) {}
-
-    /// Called at the start of each pass.
-    ///
-    /// Can be used to show ui, e.g. a [`crate::Window`] or [`crate::SidePanel`].
-    fn on_begin_pass(&mut self, ctx: &Context) {}
-
-    /// Called at the end of each pass.
-    ///
-    /// Can be used to show ui, e.g. a [`crate::Window`].
-    fn on_end_pass(&mut self, ctx: &Context) {}
-
-    /// Called just before the output is passed to the backend.
-    ///
-    /// Useful to inspect or modify the output.
-    /// Since this is called outside a pass, don't show ui here.
-    fn output_hook(&mut self, output: &mut FullOutput) {}
-
-    /// Called just before the input is processed.
-    ///
-    /// Useful to inspect or modify the input.
-    /// Since this is called outside a pass, don't show ui here.
-    fn input_hook(&mut self, input: &mut RawInput) {}
-}
-
-/// User-registered plugins.
-#[derive(Clone, Default)]
-struct Plugins {
-    plugins: Arc<crate::mutex::Mutex<Vec<Box<dyn Plugin>>>>,
-}
-
-impl Plugins {
-    fn on_begin_pass(&self, ctx: &Context) {
-        profiling::scope!("plugins", "on_begin_pass");
-        self.plugins.lock().iter_mut().for_each(|plugin| {
-            profiling::scope!("plugin", plugin.name());
-            plugin.on_begin_pass(ctx);
-        });
-    }
-
-    fn on_end_pass(&self, ctx: &Context) {
-        profiling::scope!("plugins", "on_end_pass");
-        self.plugins.lock().iter_mut().for_each(|plugin| {
-            profiling::scope!("plugin", plugin.name());
-            plugin.on_end_pass(ctx);
-        });
-    }
-
-    fn on_input(&self, input: &mut RawInput) {
-        profiling::scope!("plugins", "on_input");
-        self.plugins.lock().iter_mut().for_each(|plugin| {
-            profiling::scope!("plugin", plugin.name());
-            plugin.input_hook(input);
-        });
-    }
-
-    fn on_output(&self, output: &mut FullOutput) {
-        profiling::scope!("plugins", "on_output");
-        self.plugins.lock().iter_mut().for_each(|plugin| {
-            profiling::scope!("plugin", plugin.name());
-            plugin.output_hook(output);
-        });
-    }
-
-    /// Remember to call [`Plugin::setup`] when adding a plugin.
-    ///
-    /// Will not add the plugin if a plugin of the same type already exists.
-    fn add(&self, plugin: Box<dyn Plugin>) {
-        profiling::scope!("plugins", "add");
-        let mut plugins = self.plugins.lock();
-        if !plugins
-            .iter()
-            .any(|p| (**p).type_id() == (*plugin).type_id())
-        {
-            plugins.push(plugin);
-        };
     }
 }
 
@@ -474,7 +376,7 @@ struct ContextImpl {
     memory: Memory,
     animation_manager: AnimationManager,
 
-    plugins: Plugins,
+    plugins: plugin::Plugins,
 
     /// All viewports share the same texture manager and texture namespace.
     ///
@@ -831,10 +733,12 @@ impl Default for Context {
         };
         let ctx = Self(Arc::new(RwLock::new(ctx_impl)));
 
+        ctx.add_plugin(crate::plugin::CallbackPlugin::default());
+
         // Register built-in plugins:
-        crate::debug_text::register(&ctx);
-        crate::text_selection::LabelSelectionState::register(&ctx);
-        crate::DragAndDrop::register(&ctx);
+        ctx.add_plugin(crate::debug_text::DebugTextPlugin::default());
+        ctx.add_plugin(LabelSelectionState::default());
+        ctx.add_plugin(crate::DragAndDrop::default());
 
         ctx
     }
@@ -967,7 +871,7 @@ impl Context {
     pub fn begin_pass(&self, mut new_input: RawInput) {
         profiling::function_scope!();
 
-        let plugins = self.read(|ctx| ctx.plugins.clone());
+        let plugins = self.read(|ctx| ctx.plugins.ordered_plugins());
         plugins.on_input(&mut new_input);
 
         self.write(|ctx| ctx.begin_pass(new_input));
@@ -1934,56 +1838,20 @@ impl Context {
     ///
     /// This can be used for egui _plugins_.
     /// See [`crate::debug_text`] for an example.
-    pub fn on_begin_pass(&self, debug_name: &'static str, cb: ContextCallback) {
-        struct OnBeginPass {
-            debug_name: &'static str,
-            callback: ContextCallback,
-        }
-
-        let on_begin_pass = OnBeginPass {
-            debug_name,
-            callback: cb,
-        };
-
-        impl Plugin for OnBeginPass {
-            fn name(&self) -> &'static str {
-                self.debug_name
-            }
-
-            fn on_begin_pass(&mut self, ctx: &Context) {
-                (self.callback)(ctx);
-            }
-        }
-
-        self.add_plugin(on_begin_pass);
+    pub fn on_begin_pass(&self, debug_name: &'static str, cb: plugin::ContextCallback) {
+        self.with_plugin(|p: &mut crate::plugin::CallbackPlugin| {
+            p.on_begin_plugins.push((debug_name, cb));
+        });
     }
 
     /// Call the given callback at the end of each pass of each viewport.
     ///
     /// This can be used for egui _plugins_.
     /// See [`crate::debug_text`] for an example.
-    pub fn on_end_pass(&self, debug_name: &'static str, cb: ContextCallback) {
-        struct OnEndPass {
-            debug_name: &'static str,
-            callback: ContextCallback,
-        }
-
-        let on_end_pass = OnEndPass {
-            debug_name,
-            callback: cb,
-        };
-
-        impl Plugin for OnEndPass {
-            fn name(&self) -> &'static str {
-                self.debug_name
-            }
-
-            fn on_end_pass(&mut self, ctx: &Context) {
-                (self.callback)(ctx);
-            }
-        }
-
-        self.add_plugin(on_end_pass);
+    pub fn on_end_pass(&self, debug_name: &'static str, cb: plugin::ContextCallback) {
+        self.with_plugin(|p: &mut crate::plugin::CallbackPlugin| {
+            p.on_end_plugins.push((debug_name, cb));
+        });
     }
 
     /// Register a [`Plugin`]
@@ -1992,13 +1860,51 @@ impl Context {
     ///
     /// A plugin of the same type can only be added once (further calls with the same type will be ignored).
     /// This way it's convenient to add plugins in `eframe::run_simple_native`.
-    pub fn add_plugin(&self, mut plugin: impl Plugin + 'static) {
-        profiling::function_scope!();
+    pub fn add_plugin(&self, plugin: impl Plugin + 'static) {
+        let handle = plugin::PluginHandle::new(plugin);
 
-        plugin.setup(self);
-        self.write(|ctx| {
-            ctx.plugins.add(Box::new(plugin));
-        });
+        let added = self.write(|ctx| ctx.plugins.add(handle.clone()));
+
+        if added {
+            handle.lock().dyn_plugin_mut().setup(self);
+        }
+    }
+
+    /// Call the provided closure with the plugin of type `T`, if it was registered.
+    ///
+    /// Returns `None` if the plugin was not registered.
+    pub fn with_plugin<T: Plugin + 'static, R>(&self, f: impl FnOnce(&mut T) -> R) -> Option<R> {
+        let plugin = self.read(|ctx| ctx.plugins.get(TypeId::of::<T>()));
+        plugin.map(|plugin| f(plugin.lock().typed_plugin_mut()))
+    }
+
+    /// Get a handle to the plugin of type `T`.
+    ///
+    /// ## Panics
+    /// If the plugin of type `T` was not registered, this will panic.
+    pub fn plugin<T: Plugin>(&self) -> TypedPluginHandle<T> {
+        if let Some(plugin) = self.plugin_opt() {
+            plugin
+        } else {
+            panic!("Plugin of type {:?} not found", std::any::type_name::<T>());
+        }
+    }
+
+    /// Get a handle to the plugin of type `T`, if it was registered.
+    pub fn plugin_opt<T: Plugin>(&self) -> Option<TypedPluginHandle<T>> {
+        let plugin = self.read(|ctx| ctx.plugins.get(TypeId::of::<T>()));
+        plugin.map(TypedPluginHandle::new)
+    }
+
+    /// Get a handle to the plugin of type `T`, or insert its default.
+    pub fn plugin_or_default<T: Plugin + Default>(&self) -> TypedPluginHandle<T> {
+        if let Some(plugin) = self.plugin_opt() {
+            plugin
+        } else {
+            let default_plugin = T::default();
+            self.add_plugin(default_plugin);
+            self.plugin()
+        }
     }
 }
 
@@ -2364,7 +2270,7 @@ impl Context {
         }
 
         // Plugins run just before the pass ends.
-        let plugins = self.read(|ctx| ctx.plugins.clone());
+        let plugins = self.read(|ctx| ctx.plugins.ordered_plugins());
         plugins.on_end_pass(self);
 
         #[cfg(debug_assertions)]
@@ -3303,7 +3209,7 @@ impl Context {
             .show(ui, |ui| {
                 ui.label(format!(
                     "{:#?}",
-                    crate::text_selection::LabelSelectionState::load(ui.ctx())
+                    *ui.ctx().plugin::<LabelSelectionState>().lock()
                 ));
             });
 
