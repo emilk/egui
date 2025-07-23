@@ -46,7 +46,6 @@ pub trait Plugin: Send + Sync + 'static {
 
 pub(crate) struct PluginHandle {
     plugin: Box<dyn std::any::Any + Send + Sync>,
-    get_plugin: fn(&Self) -> &dyn Plugin,
     get_plugin_mut: fn(&mut Self) -> &mut dyn Plugin,
 }
 
@@ -96,10 +95,6 @@ impl PluginHandle {
     pub fn new<P: Plugin>(plugin: P) -> Arc<Mutex<Self>> {
         Arc::new(Mutex::new(Self {
             plugin: Box::new(plugin),
-            get_plugin: |handle| {
-                let plugin: &P = handle.typed_plugin();
-                plugin as &dyn Plugin
-            },
             get_plugin_mut: |handle| {
                 let plugin: &mut P = handle.typed_plugin_mut();
                 plugin as &mut dyn Plugin
@@ -109,10 +104,6 @@ impl PluginHandle {
 
     fn plugin_type_id(&self) -> std::any::TypeId {
         (*self.plugin).type_id()
-    }
-
-    fn dyn_plugin(&self) -> &dyn Plugin {
-        (self.get_plugin)(self)
     }
 
     pub fn dyn_plugin_mut(&mut self) -> &mut dyn Plugin {
@@ -149,7 +140,7 @@ impl PluginsOrdered {
     {
         for plugin in &self.0 {
             let mut plugin = plugin.lock();
-            profiling::scope!("plugin", plugin.dyn_plugin().name());
+            profiling::scope!("plugin", plugin.dyn_plugin_mut().name());
             f(plugin.dyn_plugin_mut());
         }
     }
@@ -229,8 +220,8 @@ impl Plugin for CallbackPlugin {
     fn on_begin_pass(&mut self, ctx: &Context) {
         profiling::function_scope!();
 
-        for (debug_name, cb) in &self.on_begin_plugins {
-            profiling::scope!(*debug_name);
+        for (_debug_name, cb) in &self.on_begin_plugins {
+            profiling::scope!(*_debug_name);
             (cb)(ctx);
         }
     }
@@ -238,8 +229,8 @@ impl Plugin for CallbackPlugin {
     fn on_end_pass(&mut self, ctx: &Context) {
         profiling::function_scope!();
 
-        for (debug_name, cb) in &self.on_end_plugins {
-            profiling::scope!(*debug_name);
+        for (_debug_name, cb) in &self.on_end_plugins {
+            profiling::scope!(*_debug_name);
             (cb)(ctx);
         }
     }
