@@ -99,6 +99,9 @@ pub type ContextCallback = Arc<dyn Fn(&Context) + Send + Sync>;
 /// A plugin to extend egui.
 ///
 /// Add plugins via [`Context::add_plugin`].
+///
+/// Plugins should not hold a reference to the [`Context`], since this would create a cycle
+/// (which would prevent the [`Context`] from being dropped).
 #[expect(unused_variables)]
 pub trait Plugin: Send + Sync {
     /// Plugin name.
@@ -173,17 +176,18 @@ impl Plugins {
         });
     }
 
-    /// Remember to call [`Plugin::setup`] when adding a plugin.
-    ///
     /// Will not add the plugin if a plugin of the same type already exists.
-    fn add(&self, plugin: Box<dyn Plugin>) {
+    fn add(&self, ctx: &Context, mut plugin: Box<dyn Plugin>) {
         profiling::scope!("plugins", "add");
-        let mut plugins = self.plugins.lock();
-        if !plugins
+        let contains_plugin = self
+            .plugins
+            .lock()
             .iter()
-            .any(|p| (**p).type_id() == (*plugin).type_id())
-        {
-            plugins.push(plugin);
+            .any(|p| (**p).type_id() == (*plugin).type_id());
+        if !contains_plugin {
+            // We don't hold the lock during `setup`, so that a plugin could add more plugins.
+            plugin.setup(ctx);
+            self.plugins.lock().push(plugin);
         };
     }
 }
@@ -1992,13 +1996,11 @@ impl Context {
     ///
     /// A plugin of the same type can only be added once (further calls with the same type will be ignored).
     /// This way it's convenient to add plugins in `eframe::run_simple_native`.
-    pub fn add_plugin(&self, mut plugin: impl Plugin + 'static) {
+    pub fn add_plugin(&self, plugin: impl Plugin + 'static) {
         profiling::function_scope!();
 
-        plugin.setup(self);
-        self.write(|ctx| {
-            ctx.plugins.add(Box::new(plugin));
-        });
+        let plugins = self.write(|ctx| ctx.plugins.clone());
+        plugins.add(self, Box::new(plugin));
     }
 }
 
