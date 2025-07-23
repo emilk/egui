@@ -5,7 +5,7 @@ use crate::IdMap;
 use crate::{
     Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, Grid, Id, ImmediateViewport,
     ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId, Memory,
-    ModifierNames, Modifiers, NumExt as _, Order, Painter, RawInput, Response, RichText,
+    ModifierNames, Modifiers, NumExt as _, Order, Painter, Plugin, RawInput, Response, RichText,
     ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions, Ui, ViewportBuilder,
     ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput,
     Widget as _, WidgetRect, WidgetText,
@@ -21,13 +21,11 @@ use crate::{
     os::OperatingSystem,
     output::FullOutput,
     pass_state::PassState,
-    resize, response, scroll_area,
+    plugin, resize, response, scroll_area,
     util::IdTypeMap,
     viewport::ViewportClass,
 };
-use ahash::HashMap;
 use emath::{GuiRounding as _, OrderedFloat};
-use epaint::mutex::Mutex;
 use epaint::{
     ClippedPrimitive, ClippedShape, Color32, ImageData, ImageDelta, Pos2, Rect, StrokeKind,
     TessellationOptions, TextureAtlas, TextureId, Vec2,
@@ -38,7 +36,7 @@ use epaint::{
     text::{FontInsert, FontPriority, Fonts},
     vec2,
 };
-use std::any::{Any as _, TypeId};
+use std::any::TypeId;
 use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration};
 
 use self::{hit_test::WidgetHits, interaction::InteractionSnapshot};
@@ -88,177 +86,6 @@ impl Default for WrappedTextureManager {
         );
 
         Self(Arc::new(RwLock::new(tex_mngr)))
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-/// Generic event callback.
-pub type ContextCallback = Arc<dyn Fn(&Context) + Send + Sync>;
-
-/// A plugin to extend egui.
-///
-/// Add plugins via [`Context::add_plugin`].
-///
-/// Plugins should not hold a reference to the [`Context`], since this would create a cycle
-/// (which would prevent the [`Context`] from being dropped).
-#[expect(unused_variables)]
-pub trait Plugin: Send + Sync {
-    /// Plugin name.
-    ///
-    /// Used when profiling.
-    fn name(&self) -> &'static str;
-
-    /// Called once, when the plugin is registered.
-    ///
-    /// Useful to e.g. register image loaders.
-    fn setup(&mut self, ctx: &Context) {}
-
-    /// Called at the start of each pass.
-    ///
-    /// Can be used to show ui, e.g. a [`crate::Window`] or [`crate::SidePanel`].
-    fn on_begin_pass(&mut self, ctx: &Context) {}
-
-    /// Called at the end of each pass.
-    ///
-    /// Can be used to show ui, e.g. a [`crate::Window`].
-    fn on_end_pass(&mut self, ctx: &Context) {}
-
-    /// Called just before the output is passed to the backend.
-    ///
-    /// Useful to inspect or modify the output.
-    /// Since this is called outside a pass, don't show ui here.
-    fn output_hook(&mut self, output: &mut FullOutput) {}
-
-    /// Called just before the input is processed.
-    ///
-    /// Useful to inspect or modify the input.
-    /// Since this is called outside a pass, don't show ui here.
-    fn input_hook(&mut self, input: &mut RawInput) {}
-}
-
-struct PluginHandle {
-    plugin: Box<dyn std::any::Any + Send + Sync>,
-    get_plugin: fn(&Self) -> &dyn Plugin,
-    get_plugin_mut: fn(&mut Self) -> &mut dyn Plugin,
-}
-
-impl PluginHandle {
-    fn new<P: Plugin + 'static>(plugin: P) -> Arc<Mutex<Self>> {
-        Arc::new(Mutex::new(Self {
-            plugin: Box::new(plugin),
-            get_plugin: |handle| {
-                let plugin: &P = handle.typed_plugin();
-                plugin as &dyn Plugin
-            },
-            get_plugin_mut: |handle| {
-                let plugin: &mut P = handle.typed_plugin_mut();
-                plugin as &mut dyn Plugin
-            },
-        }))
-    }
-
-    fn plugin_type_id(&self) -> std::any::TypeId {
-        (*self.plugin).type_id()
-    }
-
-    fn dyn_plugin(&self) -> &dyn Plugin {
-        (self.get_plugin)(self)
-    }
-
-    fn dyn_plugin_mut(&mut self) -> &mut dyn Plugin {
-        (self.get_plugin_mut)(self)
-    }
-
-    fn typed_plugin<P: Plugin + 'static>(&self) -> &P {
-        (*self.plugin)
-            .downcast_ref::<P>()
-            .expect("PluginHandle: plugin is not of the expected type")
-    }
-
-    fn typed_plugin_mut<P: Plugin + 'static>(&mut self) -> &mut P {
-        (*self.plugin)
-            .downcast_mut::<P>()
-            .expect("PluginHandle: plugin is not of the expected type")
-    }
-}
-
-/// User-registered plugins.
-#[derive(Clone, Default)]
-struct Plugins {
-    plugins: HashMap<std::any::TypeId, Arc<Mutex<PluginHandle>>>,
-    plugins_ordered: PluginsOrdered,
-}
-
-#[derive(Clone, Default)]
-struct PluginsOrdered(Vec<Arc<Mutex<PluginHandle>>>);
-
-impl PluginsOrdered {
-    fn for_each_dyn<F>(&self, mut f: F)
-    where
-        F: FnMut(&mut dyn Plugin),
-    {
-        for plugin in &self.0 {
-            let mut plugin = plugin.lock();
-            profiling::scope!("plugin", plugin.dyn_plugin().name());
-            f(plugin.dyn_plugin_mut());
-        }
-    }
-
-    fn on_begin_pass(&self, ctx: &Context) {
-        profiling::scope!("plugins", "on_begin_pass");
-        self.for_each_dyn(|p| {
-            p.on_begin_pass(ctx);
-        });
-    }
-
-    fn on_end_pass(&self, ctx: &Context) {
-        profiling::scope!("plugins", "on_end_pass");
-        self.for_each_dyn(|p| {
-            p.on_end_pass(ctx);
-        });
-    }
-
-    fn on_input(&self, input: &mut RawInput) {
-        profiling::scope!("plugins", "on_input");
-        self.for_each_dyn(|plugin| {
-            plugin.input_hook(input);
-        });
-    }
-
-    fn on_output(&self, output: &mut FullOutput) {
-        profiling::scope!("plugins", "on_output");
-        self.for_each_dyn(|plugin| {
-            plugin.output_hook(output);
-        });
-    }
-}
-
-impl Plugins {
-    fn ordered_plugins(&self) -> PluginsOrdered {
-        self.plugins_ordered.clone()
-    }
-
-    /// Will not add the plugin if a plugin of the same type already exists.
-    ///
-    /// Returns `false` if the plugin was not added, `true` if it was added.
-    fn add(&mut self, ctx: &Context, mut handle: Arc<Mutex<PluginHandle>>) -> bool {
-        profiling::scope!("plugins", "add");
-
-        let type_id = handle.lock().plugin_type_id();
-
-        if self.plugins.contains_key(&type_id) {
-            return false;
-        }
-
-        self.plugins.insert(type_id, handle.clone());
-        self.plugins_ordered.0.push(handle);
-
-        true
-    }
-
-    fn get(&self, type_id: std::any::TypeId) -> Option<Arc<Mutex<PluginHandle>>> {
-        self.plugins.get(&type_id).cloned()
     }
 }
 
@@ -548,7 +375,7 @@ struct ContextImpl {
     memory: Memory,
     animation_manager: AnimationManager,
 
-    plugins: Plugins,
+    plugins: plugin::Plugins,
 
     /// All viewports share the same texture manager and texture namespace.
     ///
@@ -904,6 +731,8 @@ impl Default for Context {
             ..Default::default()
         };
         let ctx = Self(Arc::new(RwLock::new(ctx_impl)));
+
+        ctx.add_plugin(crate::plugin::CallbackPlugin::default());
 
         // Register built-in plugins:
         crate::debug_text::register(&ctx);
@@ -2002,46 +1831,14 @@ impl Context {
     }
 }
 
-#[derive(Default)]
-struct CallbackPlugins {
-    on_begin_plugins: Vec<(&'static str, ContextCallback)>,
-    on_end_plugins: Vec<(&'static str, ContextCallback)>,
-}
-
-impl Plugin for CallbackPlugins {
-    fn name(&self) -> &'static str {
-        "CallbackPlugins"
-    }
-
-    fn on_begin_pass(&mut self, ctx: &Context) {
-        profiling::function_scope!();
-
-        for (debug_name, cb) in &self.on_begin_plugins {
-            profiling::scope!(*debug_name);
-            (cb)(ctx);
-        }
-    }
-
-    fn on_end_pass(&mut self, ctx: &Context) {
-        profiling::function_scope!();
-
-        for (debug_name, cb) in &self.on_end_plugins {
-            profiling::scope!(*debug_name);
-            (cb)(ctx);
-        }
-    }
-}
-
 /// Callbacks
 impl Context {
     /// Call the given callback at the start of each pass of each viewport.
     ///
     /// This can be used for egui _plugins_.
     /// See [`crate::debug_text`] for an example.
-    pub fn on_begin_pass(&self, debug_name: &'static str, cb: ContextCallback) {
-        self.add_plugin(CallbackPlugins::default());
-
-        self.with_plugin(|p: &mut CallbackPlugins| {
+    pub fn on_begin_pass(&self, debug_name: &'static str, cb: plugin::ContextCallback) {
+        self.with_plugin(|p: &mut crate::plugin::CallbackPlugin| {
             p.on_begin_plugins.push((debug_name, cb));
         });
     }
@@ -2050,10 +1847,8 @@ impl Context {
     ///
     /// This can be used for egui _plugins_.
     /// See [`crate::debug_text`] for an example.
-    pub fn on_end_pass(&self, debug_name: &'static str, cb: ContextCallback) {
-        self.add_plugin(CallbackPlugins::default());
-
-        self.with_plugin(|p: &mut CallbackPlugins| {
+    pub fn on_end_pass(&self, debug_name: &'static str, cb: plugin::ContextCallback) {
+        self.with_plugin(|p: &mut crate::plugin::CallbackPlugin| {
             p.on_end_plugins.push((debug_name, cb));
         });
     }
@@ -2065,9 +1860,9 @@ impl Context {
     /// A plugin of the same type can only be added once (further calls with the same type will be ignored).
     /// This way it's convenient to add plugins in `eframe::run_simple_native`.
     pub fn add_plugin(&self, plugin: impl Plugin + 'static) {
-        let mut handle = PluginHandle::new(plugin);
+        let handle = plugin::PluginHandle::new(plugin);
 
-        let added = self.write(|ctx| ctx.plugins.add(self, handle.clone()));
+        let added = self.write(|ctx| ctx.plugins.add(handle.clone()));
 
         if added {
             handle.lock().dyn_plugin_mut().setup(self);
@@ -2079,11 +1874,7 @@ impl Context {
     /// Returns `None` if the plugin was not registered.
     pub fn with_plugin<T: Plugin + 'static, R>(&self, f: impl FnOnce(&mut T) -> R) -> Option<R> {
         let plugin = self.read(|ctx| ctx.plugins.get(TypeId::of::<T>()));
-        if let Some(plugin) = plugin {
-            Some(f(plugin.lock().typed_plugin_mut()))
-        } else {
-            None
-        }
+        plugin.map(|plugin| f(plugin.lock().typed_plugin_mut()))
     }
 }
 
