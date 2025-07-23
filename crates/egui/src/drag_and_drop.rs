@@ -33,7 +33,7 @@ impl Plugin for DragAndDrop {
     ///
     /// This needs to happen at frame start so we can properly capture the escape key.
     fn on_begin_pass(&mut self, ctx: &Context) {
-        let has_any_payload = Self::has_any_payload(ctx);
+        let has_any_payload = self.payload.is_some();
 
         if has_any_payload {
             let abort_dnd_due_to_escape_key =
@@ -51,7 +51,7 @@ impl Plugin for DragAndDrop {
     /// This must happen at end-of-frame such that we don't shadow the mouse release event from user
     /// code.
     fn on_end_pass(&mut self, ctx: &Context) {
-        let has_any_payload = Self::has_any_payload(ctx);
+        let has_any_payload = self.payload.is_some();
 
         if has_any_payload {
             let abort_dnd_due_to_mouse_release = ctx.input_mut(|i| i.pointer.any_released());
