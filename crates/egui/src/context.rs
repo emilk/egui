@@ -1,5 +1,6 @@
 #![warn(missing_docs)] // Let's keep `Context` well-documented.
 
+use std::any::Any as _;
 use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration};
 
 use crate::{
@@ -95,27 +96,48 @@ impl Default for WrappedTextureManager {
 /// Generic event callback.
 pub type ContextCallback = Arc<dyn Fn(&Context) + Send + Sync>;
 
-#[derive(Clone)]
-struct NamedContextCallback {
-    debug_name: &'static str,
-    callback: ContextCallback,
-}
-
-#[allow(unused_variables)]
+/// A plugin to extend egui.
+///
+/// Add plugins via [`Context::add_plugin`].
+#[expect(unused_variables)]
 pub trait Plugin: Send + Sync {
+    /// Plugin name.
+    ///
+    /// Used when profiling.
     fn name(&self) -> &'static str;
+
+    /// Called once, when the plugin is registered.
+    ///
+    /// Useful to e.g. register image loaders.
+    fn setup(&mut self, ctx: &Context) {}
+
+    /// Called at the start of each pass.
+    ///
+    /// Can be used to show ui, e.g. a [`crate::Window`] or [`crate::SidePanel`].
     fn on_begin_pass(&mut self, ctx: &Context) {}
+
+    /// Called at the end of each pass.
+    ///
+    /// Can be used to show ui, e.g. a [`crate::Window`].
     fn on_end_pass(&mut self, ctx: &Context) {}
+
+    /// Called just before the output is passed to the backend.
+    ///
+    /// Useful to inspect or modify the output.
+    /// Since this is called outside a pass, don't show ui here.
     fn output_hook(&mut self, output: &mut FullOutput) {}
+
+    /// Called just before the input is processed.
+    ///
+    /// Useful to inspect or modify the input.
+    /// Since this is called outside a pass, don't show ui here.
     fn input_hook(&mut self, input: &mut RawInput) {}
 }
 
-/// Callbacks that users can register
+/// User-registered plugins.
 #[derive(Clone, Default)]
 struct Plugins {
-    // pub on_begin_pass: Vec<NamedContextCallback>,
-    // pub on_end_pass: Vec<NamedContextCallback>,
-    pub plugins: Arc<crate::mutex::Mutex<Vec<Box<dyn Plugin>>>>,
+    plugins: Arc<crate::mutex::Mutex<Vec<Box<dyn Plugin>>>>,
 }
 
 impl Plugins {
@@ -149,6 +171,20 @@ impl Plugins {
             profiling::scope!("plugin", plugin.name());
             plugin.output_hook(output);
         });
+    }
+
+    /// Remember to call [`Plugin::setup`] when adding a plugin.
+    ///
+    /// Will not add the plugin if a plugin of the same type already exists.
+    fn add(&self, plugin: Box<dyn Plugin>) {
+        profiling::scope!("plugins", "add");
+        let mut plugins = self.plugins.lock();
+        if !plugins
+            .iter()
+            .any(|p| (**p).type_id() == (*plugin).type_id())
+        {
+            plugins.push(plugin);
+        };
     }
 }
 
@@ -1948,11 +1984,18 @@ impl Context {
         self.add_plugin(on_end_pass);
     }
 
-    pub fn add_plugin(&self, plugin: impl Plugin + 'static) {
+    /// Register a [`Plugin`]
+    ///
+    /// Plugins are called in the order they are added.
+    ///
+    /// A plugin of the same type can only be added once (further calls with the same type will be ignored).
+    /// This way it's convenient to add plugins in `eframe::run_simple_native`.
+    pub fn add_plugin(&self, mut plugin: impl Plugin + 'static) {
         profiling::function_scope!();
 
+        plugin.setup(self);
         self.write(|ctx| {
-            ctx.plugins.plugins.lock().push(Box::new(plugin));
+            ctx.plugins.add(Box::new(plugin));
         });
     }
 }
