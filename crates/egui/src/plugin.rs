@@ -1,6 +1,6 @@
 use crate::{Context, FullOutput, RawInput};
 use ahash::HashMap;
-use epaint::mutex::Mutex;
+use epaint::mutex::{Mutex, MutexGuard};
 use std::sync::Arc;
 
 /// A plugin to extend egui.
@@ -10,7 +10,7 @@ use std::sync::Arc;
 /// Plugins should not hold a reference to the [`Context`], since this would create a cycle
 /// (which would prevent the [`Context`] from being dropped).
 #[expect(unused_variables)]
-pub trait Plugin: Send + Sync {
+pub trait Plugin: Send + Sync + 'static {
     /// Plugin name.
     ///
     /// Used when profiling.
@@ -50,8 +50,50 @@ pub(crate) struct PluginHandle {
     get_plugin_mut: fn(&mut Self) -> &mut dyn Plugin,
 }
 
+pub struct TypedPluginHandle<P: Plugin> {
+    handle: Arc<Mutex<PluginHandle>>,
+    _type: std::marker::PhantomData<P>,
+}
+
+impl<P: Plugin> TypedPluginHandle<P> {
+    pub(crate) fn new(handle: Arc<Mutex<PluginHandle>>) -> Self {
+        Self {
+            handle,
+            _type: std::marker::PhantomData,
+        }
+    }
+
+    pub fn lock(&self) -> TypedPluginGuard<'_, P> {
+        TypedPluginGuard {
+            guard: self.handle.lock(),
+            _type: std::marker::PhantomData,
+        }
+    }
+}
+
+pub struct TypedPluginGuard<'a, P: Plugin> {
+    guard: MutexGuard<'a, PluginHandle>,
+    _type: std::marker::PhantomData<P>,
+}
+
+impl<P: Plugin> TypedPluginGuard<'_, P> {}
+
+impl<P: Plugin> std::ops::Deref for TypedPluginGuard<'_, P> {
+    type Target = P;
+
+    fn deref(&self) -> &Self::Target {
+        self.guard.typed_plugin()
+    }
+}
+
+impl<P: Plugin> std::ops::DerefMut for TypedPluginGuard<'_, P> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.guard.typed_plugin_mut()
+    }
+}
+
 impl PluginHandle {
-    pub fn new<P: Plugin + 'static>(plugin: P) -> Arc<Mutex<Self>> {
+    pub fn new<P: Plugin>(plugin: P) -> Arc<Mutex<Self>> {
         Arc::new(Mutex::new(Self {
             plugin: Box::new(plugin),
             get_plugin: |handle| {

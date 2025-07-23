@@ -1,7 +1,10 @@
 #![warn(missing_docs)] // Let's keep `Context` well-documented.
 
+use self::{hit_test::WidgetHits, interaction::InteractionSnapshot};
 #[cfg(feature = "accesskit")]
 use crate::IdMap;
+use crate::plugin::TypedPluginHandle;
+use crate::text_selection::LabelSelectionState;
 use crate::{
     Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, Grid, Id, ImmediateViewport,
     ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId, Memory,
@@ -38,8 +41,6 @@ use epaint::{
 };
 use std::any::TypeId;
 use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration};
-
-use self::{hit_test::WidgetHits, interaction::InteractionSnapshot};
 
 /// Information given to the backend about when it is time to repaint the ui.
 ///
@@ -736,7 +737,7 @@ impl Default for Context {
 
         // Register built-in plugins:
         crate::debug_text::register(&ctx);
-        crate::text_selection::LabelSelectionState::register(&ctx);
+        ctx.add_plugin(LabelSelectionState::default());
         crate::DragAndDrop::register(&ctx);
 
         ctx
@@ -1875,6 +1876,35 @@ impl Context {
     pub fn with_plugin<T: Plugin + 'static, R>(&self, f: impl FnOnce(&mut T) -> R) -> Option<R> {
         let plugin = self.read(|ctx| ctx.plugins.get(TypeId::of::<T>()));
         plugin.map(|plugin| f(plugin.lock().typed_plugin_mut()))
+    }
+
+    /// Get a handle to the plugin of type `T`.
+    ///
+    /// ## Panics
+    /// If the plugin of type `T` was not registered, this will panic.
+    pub fn plugin<T: Plugin>(&self) -> TypedPluginHandle<T> {
+        if let Some(plugin) = self.plugin_opt() {
+            plugin
+        } else {
+            panic!("Plugin of type {:?} not found", std::any::type_name::<T>());
+        }
+    }
+
+    /// Get a handle to the plugin of type `T`, if it was registered.
+    pub fn plugin_opt<T: Plugin>(&self) -> Option<TypedPluginHandle<T>> {
+        let plugin = self.read(|ctx| ctx.plugins.get(TypeId::of::<T>()));
+        plugin.map(TypedPluginHandle::new)
+    }
+
+    /// Get a handle to the plugin of type `T`, or insert its default.
+    pub fn plugin_or_default<T: Plugin + Default>(&self) -> TypedPluginHandle<T> {
+        if let Some(plugin) = self.plugin_opt() {
+            plugin
+        } else {
+            let default_plugin = T::default();
+            self.add_plugin(default_plugin);
+            self.plugin()
+        }
     }
 }
 
@@ -3179,7 +3209,7 @@ impl Context {
             .show(ui, |ui| {
                 ui.label(format!(
                     "{:#?}",
-                    crate::text_selection::LabelSelectionState::load(ui.ctx())
+                    *ui.ctx().plugin::<LabelSelectionState>().lock()
                 ));
             });
 
