@@ -736,9 +736,9 @@ impl Default for Context {
         ctx.add_plugin(crate::plugin::CallbackPlugin::default());
 
         // Register built-in plugins:
-        crate::debug_text::register(&ctx);
+        ctx.add_plugin(crate::debug_text::DebugTextPlugin::default());
         ctx.add_plugin(LabelSelectionState::default());
-        crate::DragAndDrop::register(&ctx);
+        ctx.add_plugin(crate::DragAndDrop::default());
 
         ctx
     }
