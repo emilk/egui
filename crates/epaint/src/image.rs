@@ -356,7 +356,7 @@ impl std::fmt::Debug for ColorImage {
 pub enum AlphaFromCoverage {
     /// `alpha = coverage`.
     ///
-    /// Looks good for black-on-white text, i.e. light mode.
+    /// Looks good for white-on-black text, i.e. dark mode.
     ///
     /// Same as [`Self::Gamma`]`(1.0)`, but more efficient.
     Linear,
@@ -366,7 +366,7 @@ pub enum AlphaFromCoverage {
 
     /// `alpha = 2 * coverage - coverage^2`
     ///
-    /// This looks good for white-on-black text, i.e. dark mode.
+    /// This looks good for black-on-white text, i.e. light mode.
     ///
     /// Very similar to a gamma of 0.5, but produces sharper text.
     /// See <https://www.desmos.com/calculator/w0ndf5blmn> for a comparison to gamma=0.5.
@@ -376,18 +376,23 @@ pub enum AlphaFromCoverage {
 
 impl AlphaFromCoverage {
     /// A good-looking default for light mode (black-on-white text).
-    pub const LIGHT_MODE_DEFAULT: Self = Self::Linear;
+    pub const LIGHT_MODE_DEFAULT: Self = Self::TwoCoverageMinusCoverageSq;
 
     /// A good-looking default for dark mode (white-on-black text).
-    pub const DARK_MODE_DEFAULT: Self = Self::TwoCoverageMinusCoverageSq;
+    pub const DARK_MODE_DEFAULT: Self = Self::Linear;
 
     /// Convert coverage to alpha.
     #[inline(always)]
-    pub fn alpha_from_coverage(&self, coverage: f32) -> f32 {
+    pub fn alpha_from_coverage(&self, mut coverage: f32) -> f32 {
         match self {
             Self::Linear => coverage,
             Self::Gamma(gamma) => coverage.powf(*gamma),
-            Self::TwoCoverageMinusCoverageSq => 2.0 * coverage - coverage * coverage,
+            Self::TwoCoverageMinusCoverageSq => {
+                if coverage > 1.0 {
+                    coverage = 1.0
+                }
+                2.0 * coverage - coverage * coverage
+            },
         }
     }
 
