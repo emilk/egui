@@ -1,10 +1,6 @@
 #![warn(missing_docs)] // Let's keep `Ui` well-documented.
 #![allow(clippy::use_self)]
 
-use emath::GuiRounding as _;
-use epaint::mutex::RwLock;
-use std::{any::Any, hash::Hash, sync::Arc};
-
 use crate::ClosableTag;
 #[cfg(debug_assertions)]
 use crate::Stroke;
@@ -30,6 +26,10 @@ use crate::{
         Separator, Spinner, TextEdit, Widget, color_picker,
     },
 };
+use accesskit::Role;
+use emath::GuiRounding as _;
+use epaint::mutex::RwLock;
+use std::{any::Any, hash::Hash, sync::Arc};
 // ----------------------------------------------------------------------------
 
 /// This is what you use to place widgets.

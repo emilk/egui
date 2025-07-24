@@ -24,7 +24,7 @@ use crate::{
     os::OperatingSystem,
     output::FullOutput,
     pass_state::PassState,
-    resize, response, scroll_area,
+    plugin, resize, response, scroll_area,
     util::IdTypeMap,
     viewport::ViewportClass,
 };
