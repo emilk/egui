@@ -158,10 +158,14 @@ impl UiBuilder {
     ///
     /// This will override the automatic parent assignment for accessibility purposes.
     /// If not set, the parent [`Ui`]'s ID will be used as the accessibility parent.
+    ///
+    /// This does nothing if the `accesskit` feature is not enabled.
     #[inline]
     pub fn accessibility_parent(mut self, parent_id: Id) -> Self {
         #[cfg(feature = "accesskit")]
-        self.accessibility_parent = Some(parent_id);
+        {
+            self.accessibility_parent = Some(parent_id);
+        }
         self
     }
 }
