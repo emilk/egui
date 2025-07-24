@@ -39,6 +39,7 @@ persistence = [
 puffin = ["dep:puffin", "dep:puffin_http", "profiling/profile-with-puffin"]
 serde = ["dep:serde", "egui_demo_lib/serde", "egui/serde"]
 syntect = ["egui_demo_lib/syntect"]
+accessibility_inspector = ["dep:accesskit", "dep:accesskit_consumer", "eframe/accesskit"]
 
 glow = ["eframe/glow"]
 wgpu = ["eframe/wgpu", "bytemuck", "dep:wgpu"]
@@ -64,8 +65,8 @@ log.workspace = true
 profiling.workspace = true
 
 # Optional dependencies:
-accesskit = "0.19.0"
-accesskit_consumer = "0.28.0"
+accesskit = { version = "0.19.0", optional = true }
+accesskit_consumer = { version = "0.28.0", optional = true }
 
 bytemuck = { workspace = true, optional = true }
 puffin = { workspace = true, optional = true }

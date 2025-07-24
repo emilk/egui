@@ -1,12 +1,10 @@
 use accesskit::{Action, ActionRequest, NodeId};
 use accesskit_consumer::{Node, Tree, TreeChangeHandler};
-use eframe::emath::Align;
 use eframe::epaint::text::TextWrapMode;
 use egui::collapsing_header::CollapsingState;
 use egui::{
-    Button, CollapsingHeader, Color32, Context, Event, Frame, FullOutput, Id, Key,
-    KeyboardShortcut, Label, Layout, Modifiers, Pos2, RawInput, Rect, RichText, ScrollArea,
-    SidePanel, TopBottomPanel, Ui,
+    Button, Color32, Context, Event, Frame, FullOutput, Id, Key, KeyboardShortcut, Label,
+    Modifiers, RawInput, RichText, ScrollArea, SidePanel, TopBottomPanel, Ui,
 };
 use std::mem;
 
@@ -21,10 +19,10 @@ pub struct AccessibilityInspectorPlugin {
 struct ChangeHandler;
 
 impl TreeChangeHandler for ChangeHandler {
-    fn node_added(&mut self, node: &Node) {}
-    fn node_updated(&mut self, old_node: &Node, new_node: &Node) {}
-    fn focus_moved(&mut self, old_node: Option<&Node>, new_node: Option<&Node>) {}
-    fn node_removed(&mut self, node: &Node) {}
+    fn node_added(&mut self, _node: &Node<'_>) {}
+    fn node_updated(&mut self, _old_node: &Node<'_>, _new_node: &Node<'_>) {}
+    fn focus_moved(&mut self, _old_node: Option<&Node<'_>>, _new_node: Option<&Node<'_>>) {}
+    fn node_removed(&mut self, _node: &Node<'_>) {}
 }
 
 impl egui::Plugin for AccessibilityInspectorPlugin {
@@ -98,7 +96,7 @@ impl egui::Plugin for AccessibilityInspectorPlugin {
                                             ui,
                                             |ui| {
                                                 ui.label("Node ID:");
-                                                ui.strong(format!("{:?}", selected_node));
+                                                ui.strong(format!("{selected_node:?}"));
                                                 ui.end_row();
 
                                                 ui.label("Role:");
@@ -148,16 +146,15 @@ impl egui::Plugin for AccessibilityInspectorPlugin {
                                                 let Some(action) = action else {
                                                     break;
                                                 };
-                                                if node.supports_action(action) {
-                                                    if ui.button(format!("{:?}", action)).clicked()
-                                                    {
-                                                        let action_request = ActionRequest {
-                                                            target: node.id(),
-                                                            action,
-                                                            data: None,
-                                                        };
-                                                        self.queued_action = Some(action_request);
-                                                    }
+                                                if node.supports_action(action)
+                                                    && ui.button(format!("{action:?}")).clicked()
+                                                {
+                                                    let action_request = ActionRequest {
+                                                        target: node.id(),
+                                                        action,
+                                                        data: None,
+                                                    };
+                                                    self.queued_action = Some(action_request);
                                                 }
                                             }
                                         });
@@ -187,7 +184,7 @@ impl AccessibilityInspectorPlugin {
         Id::new("Accessibility Inspector")
     }
 
-    fn node_ui(ui: &mut Ui, node: &Node, selected_node: &mut Option<Id>) {
+    fn node_ui(ui: &mut Ui, node: &Node<'_>, selected_node: &mut Option<Id>) {
         if node.id() == Self::id().value().into()
             || node
                 .value()
@@ -202,7 +199,7 @@ impl AccessibilityInspectorPlugin {
             .unwrap_or(node.id().0.to_string());
         let label = format!("({:?}) {}", node.role(), label);
 
-        let node_id = Id::from_value(node.id().0.try_into().unwrap());
+        let node_id = Id::from_value(node.id().0);
 
         ui.push_id(node.id(), |ui| {
             let child_count = node.children().len();
@@ -244,7 +241,7 @@ impl AccessibilityInspectorPlugin {
                 collapsing.show_body_indented(&header_response.response, ui, |ui| {
                     node.children().for_each(|c| {
                         Self::node_ui(ui, &c, selected_node);
-                    })
+                    });
                 });
             }
 

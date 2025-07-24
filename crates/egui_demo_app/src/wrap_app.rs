@@ -3,7 +3,6 @@ use egui_demo_lib::is_mobile;
 #[cfg(feature = "glow")]
 use eframe::glow;
 
-use crate::accessibility_inspector::AccessibilityInspectorPlugin;
 #[cfg(target_arch = "wasm32")]
 use core::any::Any;
 
@@ -188,8 +187,9 @@ impl WrapApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         // This gives us image support:
         egui_extras::install_image_loaders(&cc.egui_ctx);
+        #[cfg(feature = "accessibility_inspector")]
         cc.egui_ctx
-            .add_plugin(AccessibilityInspectorPlugin::default());
+            .add_plugin(crate::accessibility_inspector::AccessibilityInspectorPlugin::default());
 
         #[allow(unused_mut, clippy::allow_attributes)]
         let mut slf = Self {
