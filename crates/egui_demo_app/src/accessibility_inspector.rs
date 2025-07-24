@@ -5,7 +5,7 @@ use eframe::epaint::text::TextWrapMode;
 use egui::collapsing_header::CollapsingState;
 use egui::{
     Button, CollapsingHeader, Color32, Context, Event, Frame, FullOutput, Id, Key,
-    KeyboardShortcut, Layout, Modifiers, Pos2, RawInput, Rect, ScrollArea, SidePanel,
+    KeyboardShortcut, Label, Layout, Modifiers, Pos2, RawInput, Rect, ScrollArea, SidePanel,
     TopBottomPanel, Ui,
 };
 use std::mem;
@@ -72,7 +72,6 @@ impl egui::Plugin for AccessibilityInspectorPlugin {
 
             SidePanel::right(Self::id()).show(ctx, |ui| {
                 let response = ui.heading("🔎 AccessKit Inspector");
-                ui.style_mut().wrap_mode = Some(TextWrapMode::Truncate);
                 ctx.with_accessibility_parent(response.id, || {
                     if let Some(selected_node) = &self.selected_node {
                         TopBottomPanel::bottom(Self::id().with("details_panel"))
@@ -95,20 +94,36 @@ impl egui::Plugin for AccessibilityInspectorPlugin {
                                             );
                                         }
 
-                                        ui.label(format!("Node ID: {:?}", selected_node));
-                                        ui.label(format!("Role: {:?}", node.role()));
-                                        ui.label(format!(
-                                            "Label: {}",
-                                            node.label().unwrap_or_default()
-                                        ));
-                                        ui.label(format!(
-                                            "Value: {}",
-                                            node.value().unwrap_or_default()
-                                        ));
-                                        ui.label(format!(
-                                            "Children Count: {}",
-                                            node.children().len()
-                                        ));
+                                        egui::Grid::new("node_details_grid").num_columns(2).show(
+                                            ui,
+                                            |ui| {
+                                                ui.label("Node ID:");
+                                                ui.label(format!("{:?}", selected_node));
+                                                ui.end_row();
+
+                                                ui.label("Role:");
+                                                ui.label(format!("{:?}", node.role()));
+                                                ui.end_row();
+
+                                                ui.label("Label:");
+                                                ui.add(
+                                                    Label::new(node.label().unwrap_or_default())
+                                                        .truncate(),
+                                                );
+                                                ui.end_row();
+
+                                                ui.label("Value:");
+                                                ui.add(
+                                                    Label::new(node.value().unwrap_or_default())
+                                                        .truncate(),
+                                                );
+                                                ui.end_row();
+
+                                                ui.label("Children:");
+                                                ui.label(format!("{}", node.children().len()));
+                                                ui.end_row();
+                                            },
+                                        );
 
                                         ui.label("Supported Actions:");
                                         for action_n in 0..50 {
@@ -136,6 +151,7 @@ impl egui::Plugin for AccessibilityInspectorPlugin {
                             });
                     }
 
+                    ui.style_mut().wrap_mode = Some(TextWrapMode::Truncate);
                     ScrollArea::vertical().show(ui, |ui| {
                         if let Some(tree) = &self.tree {
                             Self::node_ui(ui, &tree.state().root(), &mut self.selected_node);
