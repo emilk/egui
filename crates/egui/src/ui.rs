@@ -1,6 +1,10 @@
 #![warn(missing_docs)] // Let's keep `Ui` well-documented.
 #![allow(clippy::use_self)]
 
+use emath::GuiRounding as _;
+use epaint::mutex::RwLock;
+use std::{any::Any, hash::Hash, sync::Arc};
+
 use crate::ClosableTag;
 #[cfg(debug_assertions)]
 use crate::Stroke;
@@ -26,10 +30,6 @@ use crate::{
         Separator, Spinner, TextEdit, Widget, color_picker,
     },
 };
-use accesskit::Role;
-use emath::GuiRounding as _;
-use epaint::mutex::RwLock;
-use std::{any::Any, hash::Hash, sync::Arc};
 // ----------------------------------------------------------------------------
 
 /// This is what you use to place widgets.
@@ -133,6 +133,7 @@ impl Ui {
             sizing_pass,
             style,
             sense,
+            #[cfg(feature = "accesskit")]
             accessibility_parent,
         } = ui_builder;
 
@@ -271,6 +272,7 @@ impl Ui {
             sizing_pass,
             style,
             sense,
+            #[cfg(feature = "accesskit")]
             accessibility_parent,
         } = ui_builder;
 
@@ -358,7 +360,7 @@ impl Ui {
         child_ui
             .ctx()
             .accesskit_node_builder(child_ui.unique_id, |node| {
-                node.set_role(Role::GenericContainer);
+                node.set_role(accesskit::Role::GenericContainer);
             });
 
         child_ui
@@ -1090,6 +1092,7 @@ impl Ui {
 impl Ui {
     /// Check for clicks, drags and/or hover on a specific region of this [`Ui`].
     pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> Response {
+        #[cfg(feature = "accesskit")]
         self.ctx().register_accesskit_parent(id, self.unique_id);
         let response = self.ctx().create_widget(
             WidgetRect {
