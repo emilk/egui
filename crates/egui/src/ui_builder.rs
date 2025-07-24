@@ -161,6 +161,7 @@ impl UiBuilder {
     ///
     /// This does nothing if the `accesskit` feature is not enabled.
     #[inline]
+    #[allow(unused_mut, unused_variables)]
     pub fn accessibility_parent(mut self, parent_id: Id) -> Self {
         #[cfg(feature = "accesskit")]
         {
