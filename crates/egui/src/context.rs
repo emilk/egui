@@ -2503,7 +2503,7 @@ impl ContextImpl {
         {
             profiling::scope!("accesskit");
             let state = viewport.this_pass.accesskit_state.take();
-            if let Some(mut state) = state {
+            if let Some(state) = state {
                 let root_id = crate::accesskit_root_id().accesskit_id();
 
                 // /// Search the first parent that has an existing accesskit node.

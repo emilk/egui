@@ -142,14 +142,14 @@ impl egui::Plugin for AccessibilityInspectorPlugin {
                                                 break;
                                             };
                                             if node.supports_action(action)
-                                                && ui.button(format!("{action:?}")).clicked() {
-                                                    let action_request = ActionRequest {
-                                                        target: node.id(),
-                                                        action,
-                                                        data: None,
-                                                    };
-                                                    self.queued_action = Some(action_request);
-
+                                                && ui.button(format!("{action:?}")).clicked()
+                                            {
+                                                let action_request = ActionRequest {
+                                                    target: node.id(),
+                                                    action,
+                                                    data: None,
+                                                };
+                                                self.queued_action = Some(action_request);
                                             }
                                         }
                                     });

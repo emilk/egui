@@ -203,7 +203,7 @@ impl Ui {
 
         #[cfg(feature = "accesskit")]
         ui.ctx().accesskit_node_builder(ui.unique_id, |node| {
-            node.set_role(accesskit::Role::GenericContainer)
+            node.set_role(accesskit::Role::GenericContainer);
         });
 
         ui
@@ -358,7 +358,7 @@ impl Ui {
         child_ui
             .ctx()
             .accesskit_node_builder(child_ui.unique_id, |node| {
-                node.set_role(Role::GenericContainer)
+                node.set_role(Role::GenericContainer);
             });
 
         child_ui
