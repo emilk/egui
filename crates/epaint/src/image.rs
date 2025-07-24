@@ -388,7 +388,7 @@ impl AlphaFromCoverage {
         match self {
             Self::Linear => coverage,
             Self::Gamma(gamma) => coverage.powf(*gamma),
-            Self::TwoCoverageMinusCoverageSq => 2.0 * coverage - coverage * coverage,
+            Self::TwoCoverageMinusCoverageSq => 1.999 * coverage - coverage * coverage,
         }
     }
 
