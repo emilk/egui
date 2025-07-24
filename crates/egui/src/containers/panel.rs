@@ -19,7 +19,8 @@ use emath::GuiRounding as _;
 
 use crate::{
     Align, Context, CursorIcon, Frame, Id, InnerResponse, LayerId, Layout, NumExt as _, Rangef,
-    Rect, Sense, Stroke, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, lerp, vec2,
+    Rect, Sense, Stroke, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetInfo, WidgetType, lerp,
+    vec2,
 };
 
 fn animate_expansion(ctx: &Context, id: Id, is_expanded: bool) -> f32 {
@@ -389,6 +390,9 @@ impl SidePanel {
                 .max_rect(available_rect),
         );
         panel_ui.set_clip_rect(ctx.screen_rect());
+        panel_ui
+            .response()
+            .widget_info(|| WidgetInfo::new(WidgetType::Panel));
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
         let rect = inner_response.response.rect;

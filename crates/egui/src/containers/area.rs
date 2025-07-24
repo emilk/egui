@@ -594,6 +594,7 @@ impl Prepared {
             .layer_id(self.layer_id)
             .max_rect(max_rect)
             .layout(self.layout)
+            .accessibility_parent(self.move_response.id)
             .closable();
 
         if !self.enabled {
