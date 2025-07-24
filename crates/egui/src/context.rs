@@ -612,6 +612,7 @@ impl ContextImpl {
         let builders = &mut state.nodes;
         if let std::collections::hash_map::Entry::Vacant(entry) = builders.entry(id) {
             entry.insert(Default::default());
+
             /// Search the first parent that has an existing accesskit node.
             fn find_parent_recursively(
                 parent_map: &IdMap<Id>,
