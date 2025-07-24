@@ -356,7 +356,7 @@ impl std::fmt::Debug for ColorImage {
 pub enum AlphaFromCoverage {
     /// `alpha = coverage`.
     ///
-    /// Looks good for black-on-white text, i.e. light mode.
+    /// Looks good for white-on-black text, i.e. dark mode.
     ///
     /// Same as [`Self::Gamma`]`(1.0)`, but more efficient.
     Linear,
@@ -366,7 +366,7 @@ pub enum AlphaFromCoverage {
 
     /// `alpha = 2 * coverage - coverage^2`
     ///
-    /// This looks good for white-on-black text, i.e. dark mode.
+    /// This looks good for black-on-white text, i.e. light mode.
     ///
     /// Very similar to a gamma of 0.5, but produces sharper text.
     /// See <https://www.desmos.com/calculator/w0ndf5blmn> for a comparison to gamma=0.5.
