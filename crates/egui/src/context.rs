@@ -3551,7 +3551,7 @@ impl Context {
     /// If AccessKit support is active for the current frame, get or create
     /// a node builder with the specified ID and return a mutable reference to it.
     /// For newly created nodes, the parent is the parent [`Ui`]s ID.
-    /// And an [`Ui`]s parent can be set with [`UiBuilder::accessibility_parent`].
+    /// And an [`Ui`]s parent can be set with [`crate::UiBuilder::accessibility_parent`].
     ///
     /// The `Context` lock is held while the given closure is called!
     ///
