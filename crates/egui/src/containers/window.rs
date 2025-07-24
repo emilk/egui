@@ -879,7 +879,7 @@ fn move_and_resize_window(ctx: &Context, interaction: &ResizeInteraction) -> Opt
 fn resize_interaction(
     ctx: &Context,
     possible: PossibleInteractions,
-    accessibility_parent: Id,
+    _accessibility_parent: Id,
     layer_id: LayerId,
     outer_rect: Rect,
     window_frame: Frame,
@@ -900,7 +900,7 @@ fn resize_interaction(
 
     let side_response = |rect, id| {
         #[cfg(feature = "accesskit")]
-        ctx.register_accesskit_parent(id, accessibility_parent);
+        ctx.register_accesskit_parent(id, _accessibility_parent);
         let response = ctx.create_widget(
             WidgetRect {
                 layer_id,
