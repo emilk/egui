@@ -385,11 +385,11 @@ impl AlphaFromCoverage {
     #[inline(always)]
     pub fn alpha_from_coverage(&self, mut coverage: f32) -> f32 {
         println!("coverage: {coverage}");
-        if coverage >= 2.0 {
+        if coverage > 1.0 {
             coverage = 1.0
         }
         match self {
-            Self::Linear => coverage,
+            Self::Linear => coverage * coverage,
             Self::Gamma(gamma) => coverage.powf(*gamma),
             Self::TwoCoverageMinusCoverageSq => 2.0 * coverage - coverage * coverage,
         }
