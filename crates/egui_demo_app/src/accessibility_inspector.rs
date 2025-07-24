@@ -5,8 +5,8 @@ use eframe::epaint::text::TextWrapMode;
 use egui::collapsing_header::CollapsingState;
 use egui::{
     Button, CollapsingHeader, Color32, Context, Event, Frame, FullOutput, Id, Key,
-    KeyboardShortcut, Label, Layout, Modifiers, Pos2, RawInput, Rect, ScrollArea, SidePanel,
-    TopBottomPanel, Ui,
+    KeyboardShortcut, Label, Layout, Modifiers, Pos2, RawInput, Rect, RichText, ScrollArea,
+    SidePanel, TopBottomPanel, Ui,
 };
 use std::mem;
 
@@ -98,50 +98,69 @@ impl egui::Plugin for AccessibilityInspectorPlugin {
                                             ui,
                                             |ui| {
                                                 ui.label("Node ID:");
-                                                ui.label(format!("{:?}", selected_node));
+                                                ui.strong(format!("{:?}", selected_node));
                                                 ui.end_row();
 
                                                 ui.label("Role:");
-                                                ui.label(format!("{:?}", node.role()));
+                                                ui.strong(format!("{:?}", node.role()));
                                                 ui.end_row();
 
                                                 ui.label("Label:");
                                                 ui.add(
-                                                    Label::new(node.label().unwrap_or_default())
-                                                        .truncate(),
+                                                    Label::new(
+                                                        RichText::new(
+                                                            node.label().unwrap_or_default(),
+                                                        )
+                                                        .strong(),
+                                                    )
+                                                    .truncate(),
                                                 );
                                                 ui.end_row();
 
                                                 ui.label("Value:");
                                                 ui.add(
-                                                    Label::new(node.value().unwrap_or_default())
-                                                        .truncate(),
+                                                    Label::new(
+                                                        RichText::new(
+                                                            node.value().unwrap_or_default(),
+                                                        )
+                                                        .strong(),
+                                                    )
+                                                    .truncate(),
                                                 );
                                                 ui.end_row();
 
                                                 ui.label("Children:");
-                                                ui.label(format!("{}", node.children().len()));
+                                                ui.label(
+                                                    RichText::new(format!(
+                                                        "{}",
+                                                        node.children().len()
+                                                    ))
+                                                    .strong(),
+                                                );
                                                 ui.end_row();
                                             },
                                         );
 
-                                        ui.label("Supported Actions:");
-                                        for action_n in 0..50 {
-                                            let action = Action::n(action_n);
-                                            let Some(action) = action else {
-                                                break;
-                                            };
-                                            if node.supports_action(action) {
-                                                if ui.button(format!("{:?}", action)).clicked() {
-                                                    let action_request = ActionRequest {
-                                                        target: node.id(),
-                                                        action,
-                                                        data: None,
-                                                    };
-                                                    self.queued_action = Some(action_request);
+                                        ui.label("Actions:");
+                                        ui.horizontal_wrapped(|ui| {
+                                            for action_n in 0..50 {
+                                                let action = Action::n(action_n);
+                                                let Some(action) = action else {
+                                                    break;
+                                                };
+                                                if node.supports_action(action) {
+                                                    if ui.button(format!("{:?}", action)).clicked()
+                                                    {
+                                                        let action_request = ActionRequest {
+                                                            target: node.id(),
+                                                            action,
+                                                            data: None,
+                                                        };
+                                                        self.queued_action = Some(action_request);
+                                                    }
                                                 }
                                             }
-                                        }
+                                        });
                                     } else {
                                         ui.label("Node not found");
                                     }
@@ -214,11 +233,9 @@ impl AccessibilityInspectorPlugin {
                     let widget_response = ui.ctx().read_response(node_id);
 
                     if let Some(widget_response) = widget_response {
-                        ui.ctx().debug_painter().debug_rect(
-                            widget_response.rect,
-                            Color32::RED,
-                            label,
-                        );
+                        ui.ctx()
+                            .debug_painter()
+                            .debug_rect(widget_response.rect, Color32::RED, "");
                     }
                 }
             });
