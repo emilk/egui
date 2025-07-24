@@ -376,10 +376,10 @@ pub enum AlphaFromCoverage {
 
 impl AlphaFromCoverage {
     /// A good-looking default for light mode (black-on-white text).
-    pub const LIGHT_MODE_DEFAULT: Self = Self::Linear;
+    pub const LIGHT_MODE_DEFAULT: Self = Self::TwoCoverageMinusCoverageSq;
 
     /// A good-looking default for dark mode (white-on-black text).
-    pub const DARK_MODE_DEFAULT: Self = Self::TwoCoverageMinusCoverageSq;
+    pub const DARK_MODE_DEFAULT: Self = Self::Linear;
 
     /// Convert coverage to alpha.
     #[inline(always)]
