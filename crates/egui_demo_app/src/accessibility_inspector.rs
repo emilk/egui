@@ -4,8 +4,9 @@ use eframe::emath::Align;
 use eframe::epaint::text::TextWrapMode;
 use egui::collapsing_header::CollapsingState;
 use egui::{
-    Button, CollapsingHeader, Color32, Context, Event, FullOutput, Id, Key, KeyboardShortcut,
-    Layout, Modifiers, Pos2, RawInput, Rect, ScrollArea, SidePanel, Ui,
+    Button, CollapsingHeader, Color32, Context, Event, Frame, FullOutput, Id, Key,
+    KeyboardShortcut, Layout, Modifiers, Pos2, RawInput, Rect, ScrollArea, SidePanel,
+    TopBottomPanel, Ui,
 };
 use std::mem;
 
@@ -68,59 +69,73 @@ impl egui::Plugin for AccessibilityInspectorPlugin {
 
         if self.open {
             ctx.enable_accesskit();
-            if let Some(selected_node) = &self.selected_node {
-                SidePanel::right(Self::id().with("details")).show(ctx, |ui| {
-                    if let Some(tree) = &self.tree {
-                        if let Some(node) =
-                            tree.state().node_by_id(NodeId::from(selected_node.value()))
-                        {
-                            let node_response = ui.ctx().read_response(*selected_node);
-
-                            if let Some(widget_response) = node_response {
-                                ui.ctx().debug_painter().debug_rect(
-                                    widget_response.rect,
-                                    ui.style_mut().visuals.selection.bg_fill,
-                                    "",
-                                );
-                            }
-
-                            ui.label(format!("Node ID: {:?}", selected_node));
-                            ui.label(format!("Role: {:?}", node.role()));
-                            ui.label(format!("Label: {}", node.label().unwrap_or_default()));
-                            ui.label(format!("Value: {}", node.value().unwrap_or_default()));
-                            ui.label(format!("Children Count: {}", node.children().len()));
-
-                            ui.label("Supported Actions:");
-                            for action_n in 0..50 {
-                                let action = Action::n(action_n);
-                                let Some(action) = action else {
-                                    break;
-                                };
-                                if node.supports_action(action) {
-                                    if ui.button(format!("{:?}", action)).clicked() {
-                                        let action_request = ActionRequest {
-                                            target: node.id(),
-                                            action,
-                                            data: None,
-                                        };
-                                        self.queued_action = Some(action_request);
-                                    }
-                                }
-                            }
-                        } else {
-                            ui.label("Node not found");
-                        }
-                    } else {
-                        ui.label("No tree data available");
-                    }
-                });
-            }
 
             SidePanel::right(Self::id()).show(ctx, |ui| {
-                ui.style_mut().wrap_mode = Some(TextWrapMode::Truncate);
                 let response = ui.heading("🔎 AccessKit Inspector");
-                ui.separator();
+                ui.style_mut().wrap_mode = Some(TextWrapMode::Truncate);
                 ctx.with_accessibility_parent(response.id, || {
+                    if let Some(selected_node) = &self.selected_node {
+                        TopBottomPanel::bottom(Self::id().with("details_panel"))
+                            .frame(Frame::new())
+                            .show_separator_line(false)
+                            .show_inside(ui, |ui| {
+                                ui.separator();
+
+                                if let Some(tree) = &self.tree {
+                                    if let Some(node) =
+                                        tree.state().node_by_id(NodeId::from(selected_node.value()))
+                                    {
+                                        let node_response = ui.ctx().read_response(*selected_node);
+
+                                        if let Some(widget_response) = node_response {
+                                            ui.ctx().debug_painter().debug_rect(
+                                                widget_response.rect,
+                                                ui.style_mut().visuals.selection.bg_fill,
+                                                "",
+                                            );
+                                        }
+
+                                        ui.label(format!("Node ID: {:?}", selected_node));
+                                        ui.label(format!("Role: {:?}", node.role()));
+                                        ui.label(format!(
+                                            "Label: {}",
+                                            node.label().unwrap_or_default()
+                                        ));
+                                        ui.label(format!(
+                                            "Value: {}",
+                                            node.value().unwrap_or_default()
+                                        ));
+                                        ui.label(format!(
+                                            "Children Count: {}",
+                                            node.children().len()
+                                        ));
+
+                                        ui.label("Supported Actions:");
+                                        for action_n in 0..50 {
+                                            let action = Action::n(action_n);
+                                            let Some(action) = action else {
+                                                break;
+                                            };
+                                            if node.supports_action(action) {
+                                                if ui.button(format!("{:?}", action)).clicked() {
+                                                    let action_request = ActionRequest {
+                                                        target: node.id(),
+                                                        action,
+                                                        data: None,
+                                                    };
+                                                    self.queued_action = Some(action_request);
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        ui.label("Node not found");
+                                    }
+                                } else {
+                                    ui.label("No tree data available");
+                                }
+                            });
+                    }
+
                     ScrollArea::vertical().show(ui, |ui| {
                         if let Some(tree) = &self.tree {
                             Self::node_ui(ui, &tree.state().root(), &mut self.selected_node);
@@ -155,12 +170,6 @@ impl AccessibilityInspectorPlugin {
         let node_id = Id::from_value(node.id().0.try_into().unwrap());
 
         ui.push_id(node.id(), |ui| {
-            // let response = CollapsingHeader::new(label.clone()).show(ui, |ui| {
-            //     node.children().for_each(|c| {
-            //         Self::node_ui(ui, &c);
-            //     })
-            // });
-
             let child_count = node.children().len();
             let has_children = child_count > 0;
             let default_open = child_count == 1 && node.role() != accesskit::Role::Label;
