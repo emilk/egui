@@ -20,8 +20,11 @@ struct ChangeHandler;
 
 impl TreeChangeHandler for ChangeHandler {
     fn node_added(&mut self, _node: &Node<'_>) {}
+
     fn node_updated(&mut self, _old_node: &Node<'_>, _new_node: &Node<'_>) {}
+
     fn focus_moved(&mut self, _old_node: Option<&Node<'_>>, _new_node: Option<&Node<'_>>) {}
+
     fn node_removed(&mut self, _node: &Node<'_>) {}
 }
 
