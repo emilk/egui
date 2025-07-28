@@ -40,7 +40,7 @@ impl Plugin for DragAndDrop {
                 ctx.input_mut(|i| i.consume_key(crate::Modifiers::NONE, crate::Key::Escape));
 
             if abort_dnd_due_to_escape_key {
-                Self::clear_payload(ctx);
+                self.payload = None;
             }
         }
     }
@@ -57,7 +57,7 @@ impl Plugin for DragAndDrop {
             let abort_dnd_due_to_mouse_release = ctx.input_mut(|i| i.pointer.any_released());
 
             if abort_dnd_due_to_mouse_release {
-                Self::clear_payload(ctx);
+                self.payload = None;
             } else {
                 // We set the cursor icon only if its default, as the user code might have
                 // explicitly set it already.
