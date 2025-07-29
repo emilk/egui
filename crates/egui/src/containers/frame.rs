@@ -46,10 +46,9 @@ use epaint::{Color32, CornerRadius, Margin, MarginF32, Rect, Shadow, Shape, Stro
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
-/// egui::Frame::none()
-///     .fill(egui::Color32::RED)
+/// egui::Frame::NONE
 ///     .show(ui, |ui| {
-///         ui.label("Label with red background");
+///          ui.label("Label with no background, margin, or border");
 ///     });
 /// # });
 /// ```
