@@ -405,7 +405,7 @@ fn install_window_events(runner_ref: &WebRunner, window: &EventTarget) -> Result
 
     // No need to subscribe to "resize": we already subscribe to the canvas
     // size using a ResizeObserver, and we also subscribe to DPR changes of the monitor.
-    for event_name in &["load", "pagehide", "pageshow"] {
+    for event_name in &["load", "pagehide", "pageshow", "popstate"] {
         runner_ref.add_event_listener(window, event_name, move |_: web_sys::Event, runner| {
             if DEBUG_RESIZE {
                 log::debug!("{event_name:?}");
