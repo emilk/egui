@@ -1877,6 +1877,7 @@ impl Ui {
     /// Add extra space before the next widget.
     ///
     /// The direction is dependent on the layout.
+    /// Note that `add_space` isn't supported when in a grid layout.
     ///
     /// This will be in addition to the [`crate::style::Spacing::item_spacing`]
     /// that is always added, but `item_spacing` won't be added _again_ by `add_space`.
@@ -1884,6 +1885,7 @@ impl Ui {
     /// [`Self::min_rect`] will expand to contain the space.
     #[inline]
     pub fn add_space(&mut self, amount: f32) {
+        debug_assert!(!self.is_grid(), "add_space makes no sense in a grid layout");
         self.placer.advance_cursor(amount.round_ui());
     }
 
