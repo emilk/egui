@@ -929,12 +929,10 @@ fn events(
             event if cursor_range.on_event(os, event, galley, id) => None,
 
             Event::Copy => {
-                if cursor_range.is_empty() {
-                    None
-                } else {
+                if !cursor_range.is_empty() {
                     copy_if_not_password(ui, cursor_range.slice_str(text.as_str()).to_owned());
-                    None
                 }
+                None
             }
             Event::Cut => {
                 if cursor_range.is_empty() {

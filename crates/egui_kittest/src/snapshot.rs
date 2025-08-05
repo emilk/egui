@@ -321,6 +321,8 @@ fn try_image_snapshot_options_impl(
     name: String,
     options: &SnapshotOptions,
 ) -> SnapshotResult {
+    #![expect(clippy::print_stdout)]
+
     let SnapshotOptions {
         threshold,
         output_path,
