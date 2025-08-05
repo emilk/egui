@@ -194,11 +194,12 @@ objc2-app-kit = { version = "0.2.0", default-features = false, features = [
 
 # windows:
 [target.'cfg(any(target_os = "windows"))'.dependencies]
-winapi = { version = "0.3.9", features = ["winuser"] }
 windows-sys = { workspace = true, features = [
   "Win32_Foundation",
   "Win32_UI_Shell",
   "Win32_System_Com",
+  "Win32_UI_WindowsAndMessaging",
+  "Win32_UI_Input_KeyboardAndMouse",
 ] }
 
 # -------------------------------------------
