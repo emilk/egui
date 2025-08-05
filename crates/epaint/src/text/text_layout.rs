@@ -554,6 +554,8 @@ fn halign_and_justify_row(
     wrap_width: f32,
     justify: bool,
 ) {
+    #![expect(clippy::useless_let_if_seq)] // False positive
+
     let row = Arc::make_mut(&mut placed_row.row);
 
     if row.glyphs.is_empty() {

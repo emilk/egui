@@ -422,10 +422,12 @@ impl RichText {
             font_id
         };
 
-        let mut background_color = background_color;
-        if code {
-            background_color = style.visuals.code_bg_color;
-        }
+        let background_color = if code {
+            style.visuals.code_bg_color
+        } else {
+            background_color
+        };
+
         let underline = if underline {
             crate::Stroke::new(1.0, line_color)
         } else {

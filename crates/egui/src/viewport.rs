@@ -648,6 +648,8 @@ impl ViewportBuilder {
     /// returning a list of commands and a bool indicating if the window needs to be recreated.
     #[must_use]
     pub fn patch(&mut self, new_vp_builder: Self) -> (Vec<ViewportCommand>, bool) {
+        #![expect(clippy::useless_let_if_seq)] // False positive
+
         let Self {
             title: new_title,
             app_id: new_app_id,
