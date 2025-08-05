@@ -24,6 +24,7 @@ use crate::{Rgba, fast_round, linear_f32_from_linear_u8};
 ///
 /// An `alpha=0` means the color is to be treated as an additive color.
 #[repr(C)]
+#[repr(align(4))]
 #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
