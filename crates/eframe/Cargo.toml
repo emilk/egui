@@ -172,6 +172,7 @@ wgpu = { workspace = true, optional = true, features = [
   # without having to explicitly opt-in to backends
   "metal",
   "webgpu",
+  "vulkan",
 ] }
 
 # mac:
