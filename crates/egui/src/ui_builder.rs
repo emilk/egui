@@ -63,7 +63,7 @@ impl UiBuilder {
     /// This way child widgets can be moved in the ui tree without losing state.
     /// You have to ensure that in a frame the child widgets do not get rendered in multiple places.
     ///
-    /// You should set the same unique `id_salt` at every place in the ui tree where you want the
+    /// You should set the same globally unique `id_salt` at every place in the ui tree where you want the
     /// child widgets to share state.
     #[inline]
     pub fn global_scope(mut self, global_scope: bool) -> Self {
