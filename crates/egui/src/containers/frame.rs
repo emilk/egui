@@ -49,7 +49,7 @@ use epaint::{Color32, CornerRadius, Margin, MarginF32, Rect, Shadow, Shape, Stro
 /// egui::Frame::NONE
 ///     .fill(egui::Color32::RED)
 ///     .show(ui, |ui| {
-///          ui.label("Label with red background");
+///         ui.label("Label with red background");
 ///     });
 /// # });
 /// ```
