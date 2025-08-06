@@ -240,8 +240,7 @@ impl GraphicLayers {
                     if let Some(list) = order_map.get_mut(&layer_id.id) {
                         if let Some(to_global) = to_global.get(layer_id) {
                             for clipped_shape in &mut list.0 {
-                                clipped_shape.clip_rect = *to_global * clipped_shape.clip_rect;
-                                clipped_shape.shape.transform(*to_global);
+                                clipped_shape.transform(*to_global);
                             }
                         }
                         all_shapes.append(&mut list.0);
@@ -255,8 +254,7 @@ impl GraphicLayers {
 
                 if let Some(to_global) = to_global.get(&layer_id) {
                     for clipped_shape in &mut list.0 {
-                        clipped_shape.clip_rect = *to_global * clipped_shape.clip_rect;
-                        clipped_shape.shape.transform(*to_global);
+                        clipped_shape.transform(*to_global);
                     }
                 }
 
