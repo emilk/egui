@@ -23,7 +23,7 @@ use winit::{
     window::{Window, WindowId},
 };
 
-use ahash::{HashMap, HashSet};
+use ahash::HashMap;
 use egui::{
     DeferredViewportUiCallback, ImmediateViewport, OrderedViewportIdMap, ViewportBuilder,
     ViewportClass, ViewportId, ViewportIdPair, ViewportInfo, ViewportOutput,
@@ -107,7 +107,7 @@ struct Viewport {
     builder: ViewportBuilder,
     deferred_commands: Vec<egui::viewport::ViewportCommand>,
     info: ViewportInfo,
-    actions_requested: HashSet<egui_winit::ActionRequested>,
+    actions_requested: Vec<egui_winit::ActionRequested>,
 
     /// The user-callback that shows the ui.
     /// None for immediate viewports.
@@ -671,7 +671,7 @@ impl GlowWinitRunning<'_> {
         );
 
         {
-            for action in viewport.actions_requested.drain() {
+            for action in viewport.actions_requested.drain(..) {
                 match action {
                     ActionRequested::Screenshot(user_data) => {
                         let screenshot = painter.read_screen_rgba(screen_size_in_pixels);

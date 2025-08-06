@@ -15,7 +15,7 @@ use winit::{
     window::{Window, WindowId},
 };
 
-use ahash::{HashMap, HashSet, HashSetExt as _};
+use ahash::HashMap;
 use egui::{
     DeferredViewportUiCallback, FullOutput, ImmediateViewport, OrderedViewportIdMap,
     ViewportBuilder, ViewportClass, ViewportId, ViewportIdPair, ViewportIdSet, ViewportInfo,
@@ -81,7 +81,7 @@ pub struct Viewport {
     builder: ViewportBuilder,
     deferred_commands: Vec<egui::viewport::ViewportCommand>,
     info: ViewportInfo,
-    actions_requested: HashSet<ActionRequested>,
+    actions_requested: Vec<ActionRequested>,
 
     /// `None` for sync viewports.
     viewport_ui_cb: Option<Arc<DeferredViewportUiCallback>>,
@@ -680,7 +680,7 @@ impl WgpuWinitRunning<'_> {
             screenshot_commands,
         );
 
-        for action in viewport.actions_requested.drain() {
+        for action in viewport.actions_requested.drain(..) {
             match action {
                 ActionRequested::Screenshot { .. } => {
                     // already handled above
@@ -1133,7 +1133,7 @@ fn initialize_or_update_viewport<'a>(
                 builder,
                 deferred_commands: vec![],
                 info: Default::default(),
-                actions_requested: HashSet::new(),
+                actions_requested: Vec::new(),
                 viewport_ui_cb,
                 window: None,
                 egui_winit: None,
