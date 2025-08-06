@@ -1,6 +1,6 @@
 //! All the data egui returns to the backend at the end of each frame.
 
-use crate::{RepaintCause, ViewportIdMap, ViewportOutput, WidgetType};
+use crate::{OrderedViewportIdMap, RepaintCause, ViewportOutput, WidgetType};
 
 /// What egui emits each frame from [`crate::Context::run`].
 ///
@@ -32,12 +32,14 @@ pub struct FullOutput {
     ///
     /// It is up to the integration to spawn a native window for each viewport,
     /// and to close any window that no longer has a viewport in this map.
-    pub viewport_output: ViewportIdMap<ViewportOutput>,
+    pub viewport_output: OrderedViewportIdMap<ViewportOutput>,
 }
 
 impl FullOutput {
     /// Add on new output.
     pub fn append(&mut self, newer: Self) {
+        use std::collections::btree_map::Entry;
+
         let Self {
             platform_output,
             textures_delta,
@@ -53,10 +55,10 @@ impl FullOutput {
 
         for (id, new_viewport) in viewport_output {
             match self.viewport_output.entry(id) {
-                std::collections::hash_map::Entry::Vacant(entry) => {
+                Entry::Vacant(entry) => {
                     entry.insert(new_viewport);
                 }
-                std::collections::hash_map::Entry::Occupied(mut entry) => {
+                Entry::Occupied(mut entry) => {
                     entry.get_mut().append(new_viewport);
                 }
             }

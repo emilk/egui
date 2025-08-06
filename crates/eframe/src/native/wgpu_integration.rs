@@ -17,8 +17,9 @@ use winit::{
 
 use ahash::{HashMap, HashSet, HashSetExt as _};
 use egui::{
-    DeferredViewportUiCallback, FullOutput, ImmediateViewport, ViewportBuilder, ViewportClass,
-    ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportInfo, ViewportOutput,
+    DeferredViewportUiCallback, FullOutput, ImmediateViewport, OrderedViewportIdMap,
+    ViewportBuilder, ViewportClass, ViewportId, ViewportIdPair, ViewportIdSet, ViewportInfo,
+    ViewportOutput,
 };
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
@@ -72,7 +73,7 @@ pub struct SharedState {
     focused_viewport: Option<ViewportId>,
 }
 
-pub type Viewports = ViewportIdMap<Viewport>;
+pub type Viewports = egui::OrderedViewportIdMap<Viewport>;
 
 pub struct Viewport {
     ids: ViewportIdPair,
@@ -1034,10 +1035,10 @@ fn render_immediate_viewport(
 }
 
 pub(crate) fn remove_viewports_not_in(
-    viewports: &mut ViewportIdMap<Viewport>,
+    viewports: &mut Viewports,
     painter: &mut egui_wgpu::winit::Painter,
     viewport_from_window: &mut HashMap<WindowId, ViewportId>,
-    viewport_output: &ViewportIdMap<ViewportOutput>,
+    viewport_output: &OrderedViewportIdMap<ViewportOutput>,
 ) {
     let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
 
@@ -1050,8 +1051,8 @@ pub(crate) fn remove_viewports_not_in(
 /// Add new viewports, and update existing ones:
 fn handle_viewport_output(
     egui_ctx: &egui::Context,
-    viewport_output: &ViewportIdMap<ViewportOutput>,
-    viewports: &mut ViewportIdMap<Viewport>,
+    viewport_output: &OrderedViewportIdMap<ViewportOutput>,
+    viewports: &mut Viewports,
     painter: &mut egui_wgpu::winit::Painter,
     viewport_from_window: &mut HashMap<WindowId, ViewportId>,
 ) {
@@ -1111,6 +1112,8 @@ fn initialize_or_update_viewport<'a>(
     viewport_ui_cb: Option<Arc<dyn Fn(&egui::Context) + Send + Sync>>,
     painter: &mut egui_wgpu::winit::Painter,
 ) -> &'a mut Viewport {
+    use std::collections::btree_map::Entry;
+
     profiling::function_scope!();
 
     if builder.icon.is_none() {
@@ -1121,7 +1124,7 @@ fn initialize_or_update_viewport<'a>(
     }
 
     match viewports.entry(ids.this) {
-        std::collections::hash_map::Entry::Vacant(entry) => {
+        Entry::Vacant(entry) => {
             // New viewport:
             log::debug!("Creating new viewport {:?} ({:?})", ids.this, builder.title);
             entry.insert(Viewport {
@@ -1137,7 +1140,7 @@ fn initialize_or_update_viewport<'a>(
             })
         }
 
-        std::collections::hash_map::Entry::Occupied(mut entry) => {
+        Entry::Occupied(mut entry) => {
             // Patch an existing viewport:
             let viewport = entry.get_mut();
 

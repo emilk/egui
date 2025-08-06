@@ -25,8 +25,8 @@ use winit::{
 
 use ahash::{HashMap, HashSet};
 use egui::{
-    DeferredViewportUiCallback, ImmediateViewport, ViewportBuilder, ViewportClass, ViewportId,
-    ViewportIdMap, ViewportIdPair, ViewportInfo, ViewportOutput,
+    DeferredViewportUiCallback, ImmediateViewport, OrderedViewportIdMap, ViewportBuilder,
+    ViewportClass, ViewportId, ViewportIdPair, ViewportInfo, ViewportOutput,
 };
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
@@ -94,9 +94,9 @@ struct GlutinWindowContext {
     current_gl_context: Option<glutin::context::PossiblyCurrentContext>,
     not_current_gl_context: Option<glutin::context::NotCurrentContext>,
 
-    viewports: ViewportIdMap<Viewport>,
+    viewports: OrderedViewportIdMap<Viewport>,
     viewport_from_window: HashMap<WindowId, ViewportId>,
-    window_from_viewport: ViewportIdMap<WindowId>,
+    window_from_viewport: OrderedViewportIdMap<WindowId>,
 
     focused_viewport: Option<ViewportId>,
 }
@@ -1031,7 +1031,7 @@ impl GlutinWindowContext {
         let not_current_gl_context = Some(gl_context);
 
         let mut viewport_from_window = HashMap::default();
-        let mut window_from_viewport = ViewportIdMap::default();
+        let mut window_from_viewport = OrderedViewportIdMap::default();
         let mut info = ViewportInfo::default();
         if let Some(window) = &window {
             viewport_from_window.insert(window.id(), ViewportId::ROOT);
@@ -1039,7 +1039,7 @@ impl GlutinWindowContext {
             egui_winit::update_viewport_info(&mut info, egui_ctx, window, true);
         }
 
-        let mut viewports = ViewportIdMap::default();
+        let mut viewports = OrderedViewportIdMap::default();
         viewports.insert(
             ViewportId::ROOT,
             Viewport {
@@ -1265,7 +1265,7 @@ impl GlutinWindowContext {
 
     pub(crate) fn remove_viewports_not_in(
         &mut self,
-        viewport_output: &ViewportIdMap<ViewportOutput>,
+        viewport_output: &OrderedViewportIdMap<ViewportOutput>,
     ) {
         // GC old viewports
         self.viewports
@@ -1280,7 +1280,7 @@ impl GlutinWindowContext {
         &mut self,
         event_loop: &ActiveEventLoop,
         egui_ctx: &egui::Context,
-        viewport_output: &ViewportIdMap<ViewportOutput>,
+        viewport_output: &OrderedViewportIdMap<ViewportOutput>,
     ) {
         profiling::function_scope!();
 
@@ -1337,13 +1337,15 @@ impl GlutinWindowContext {
 }
 
 fn initialize_or_update_viewport(
-    viewports: &mut ViewportIdMap<Viewport>,
+    viewports: &mut OrderedViewportIdMap<Viewport>,
     ids: ViewportIdPair,
     class: ViewportClass,
     mut builder: ViewportBuilder,
     viewport_ui_cb: Option<Arc<dyn Fn(&egui::Context) + Send + Sync>>,
 ) -> &mut Viewport {
     profiling::function_scope!();
+
+    use std::collections::btree_map::Entry;
 
     if builder.icon.is_none() {
         // Inherit icon from parent
@@ -1353,7 +1355,7 @@ fn initialize_or_update_viewport(
     }
 
     match viewports.entry(ids.this) {
-        std::collections::hash_map::Entry::Vacant(entry) => {
+        Entry::Vacant(entry) => {
             // New viewport:
             log::debug!("Creating new viewport {:?} ({:?})", ids.this, builder.title);
             entry.insert(Viewport {
@@ -1370,7 +1372,7 @@ fn initialize_or_update_viewport(
             })
         }
 
-        std::collections::hash_map::Entry::Occupied(mut entry) => {
+        Entry::Occupied(mut entry) => {
             // Patch an existing viewport:
             let viewport = entry.get_mut();
 
