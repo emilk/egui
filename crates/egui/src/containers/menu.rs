@@ -149,8 +149,9 @@ impl MenuState {
     }
 
     /// Get the state via the menus root [`Ui`] id
-    pub fn from_id<R>(ctx: &Context, id: Id, f: impl FnOnce(&mut Self) -> R) -> R {
+    pub fn from_id<R>(ctx: &Context, id: impl Into<Id>, f: impl FnOnce(&mut Self) -> R) -> R {
         let pass_nr = ctx.cumulative_pass_nr();
+        let id = id.into();
         ctx.data_mut(|data| {
             let state = data.get_temp_mut_or_insert_with(id.with(Self::ID), || Self {
                 open_item: None,
@@ -166,7 +167,7 @@ impl MenuState {
     }
 
     /// Is the menu with this id the deepest sub menu? (-> no child sub menu is open)
-    pub fn is_deepest_sub_menu(ctx: &Context, id: Id) -> bool {
+    pub fn is_deepest_sub_menu(ctx: &Context, id: impl Into<Id>) -> bool {
         Self::from_id(ctx, id, |state| state.open_item.is_none())
     }
 }
@@ -394,8 +395,8 @@ impl SubMenu {
     }
 
     /// Get the id for the submenu from the widget/response id.
-    pub fn id_from_widget_id(widget_id: Id) -> Id {
-        widget_id.with("submenu")
+    pub fn id_from_widget_id(widget_id: impl Into<Id>) -> Id {
+        widget_id.into().with("submenu")
     }
 
     /// Show the submenu.

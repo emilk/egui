@@ -23,7 +23,7 @@ impl Modal {
     /// Create a new Modal.
     ///
     /// The id is passed to the area.
-    pub fn new(id: Id) -> Self {
+    pub fn new(id: impl Into<Id>) -> Self {
         Self {
             area: Self::default_area(id),
             backdrop_color: Color32::from_black_alpha(100),
@@ -37,7 +37,7 @@ impl Modal {
     /// - sense: hover
     /// - anchor: center
     /// - order: foreground
-    pub fn default_area(id: Id) -> Area {
+    pub fn default_area(id: impl Into<Id>) -> Area {
         Area::new(id)
             .kind(UiKind::Modal)
             .sense(Sense::hover())

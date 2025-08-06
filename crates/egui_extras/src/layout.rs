@@ -117,7 +117,7 @@ impl<'l> StripLayout<'l> {
         flags: StripLayoutFlags,
         width: CellSize,
         height: CellSize,
-        child_ui_id_salt: Id,
+        child_ui_id_salt: impl Into<Id>,
         add_cell_contents: impl FnOnce(&mut Ui),
     ) -> (Rect, Response) {
         let max_rect = self.cell_rect(&width, &height);
@@ -201,11 +201,11 @@ impl<'l> StripLayout<'l> {
         &mut self,
         flags: StripLayoutFlags,
         max_rect: Rect,
-        child_ui_id_salt: egui::Id,
+        child_ui_id_salt: impl Into<Id>,
         add_cell_contents: impl FnOnce(&mut Ui),
     ) -> Ui {
         let mut ui_builder = UiBuilder::new()
-            .id_salt(child_ui_id_salt)
+            .id_salt(child_ui_id_salt.into())
             .ui_stack_info(egui::UiStackInfo::new(egui::UiKind::TableCell))
             .max_rect(max_rect)
             .layout(self.cell_layout)

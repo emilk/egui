@@ -366,14 +366,18 @@ impl Default for IdTypeMap {
 impl IdTypeMap {
     /// Insert a value that will not be persisted.
     #[inline]
-    pub fn insert_temp<T: 'static + Any + Clone + Send + Sync>(&mut self, id: Id, value: T) {
+    pub fn insert_temp<T: 'static + Any + Clone + Send + Sync>(
+        &mut self,
+        id: impl Into<Id>,
+        value: T,
+    ) {
         let hash = hash(TypeId::of::<T>(), id);
         self.map.insert(hash, Element::new_temp(value));
     }
 
     /// Insert a value that will be persisted next time you start the app.
     #[inline]
-    pub fn insert_persisted<T: SerializableAny>(&mut self, id: Id, value: T) {
+    pub fn insert_persisted<T: SerializableAny>(&mut self, id: impl Into<Id>, value: T) {
         let hash = hash(TypeId::of::<T>(), id);
         self.map.insert(hash, Element::new_persisted(value));
     }
@@ -382,7 +386,7 @@ impl IdTypeMap {
     ///
     /// The call clones the value (if found), so make sure it is cheap to clone!
     #[inline]
-    pub fn get_temp<T: 'static + Clone>(&self, id: Id) -> Option<T> {
+    pub fn get_temp<T: 'static + Clone>(&self, id: impl Into<Id>) -> Option<T> {
         let hash = hash(TypeId::of::<T>(), id);
         self.map.get(&hash).and_then(|x| x.get_temp()).cloned()
     }
@@ -394,7 +398,7 @@ impl IdTypeMap {
     ///
     /// The call clones the value (if found), so make sure it is cheap to clone!
     #[inline]
-    pub fn get_persisted<T: SerializableAny>(&mut self, id: Id) -> Option<T> {
+    pub fn get_persisted<T: SerializableAny>(&mut self, id: impl Into<Id>) -> Option<T> {
         let hash = hash(TypeId::of::<T>(), id);
         self.map
             .get_mut(&hash)
@@ -405,33 +409,40 @@ impl IdTypeMap {
     #[inline]
     pub fn get_temp_mut_or<T: 'static + Any + Clone + Send + Sync>(
         &mut self,
-        id: Id,
+        id: impl Into<Id>,
         or_insert: T,
     ) -> &mut T {
         self.get_temp_mut_or_insert_with(id, || or_insert)
     }
 
     #[inline]
-    pub fn get_persisted_mut_or<T: SerializableAny>(&mut self, id: Id, or_insert: T) -> &mut T {
+    pub fn get_persisted_mut_or<T: SerializableAny>(
+        &mut self,
+        id: impl Into<Id>,
+        or_insert: T,
+    ) -> &mut T {
         self.get_persisted_mut_or_insert_with(id, || or_insert)
     }
 
     #[inline]
     pub fn get_temp_mut_or_default<T: 'static + Any + Clone + Send + Sync + Default>(
         &mut self,
-        id: Id,
+        id: impl Into<Id>,
     ) -> &mut T {
         self.get_temp_mut_or_insert_with(id, Default::default)
     }
 
     #[inline]
-    pub fn get_persisted_mut_or_default<T: SerializableAny + Default>(&mut self, id: Id) -> &mut T {
+    pub fn get_persisted_mut_or_default<T: SerializableAny + Default>(
+        &mut self,
+        id: impl Into<Id>,
+    ) -> &mut T {
         self.get_persisted_mut_or_insert_with(id, Default::default)
     }
 
     pub fn get_temp_mut_or_insert_with<T: 'static + Any + Clone + Send + Sync>(
         &mut self,
-        id: Id,
+        id: impl Into<Id>,
         insert_with: impl FnOnce() -> T,
     ) -> &mut T {
         let hash = hash(TypeId::of::<T>(), id);
@@ -449,7 +460,7 @@ impl IdTypeMap {
 
     pub fn get_persisted_mut_or_insert_with<T: SerializableAny>(
         &mut self,
-        id: Id,
+        id: impl Into<Id>,
         insert_with: impl FnOnce() -> T,
     ) -> &mut T {
         let hash = hash(TypeId::of::<T>(), id);
@@ -468,7 +479,7 @@ impl IdTypeMap {
     /// For tests
     #[cfg(feature = "persistence")]
     #[allow(unused, clippy::allow_attributes)]
-    fn get_generation<T: SerializableAny>(&self, id: Id) -> Option<usize> {
+    fn get_generation<T: SerializableAny>(&self, id: impl Into<Id>) -> Option<usize> {
         let element = self.map.get(&hash(TypeId::of::<T>(), id))?;
         match element {
             Element::Value { .. } => Some(0),
@@ -478,14 +489,14 @@ impl IdTypeMap {
 
     /// Remove the state of this type and id.
     #[inline]
-    pub fn remove<T: 'static>(&mut self, id: Id) {
+    pub fn remove<T: 'static>(&mut self, id: impl Into<Id>) {
         let hash = hash(TypeId::of::<T>(), id);
         self.map.remove(&hash);
     }
 
     /// Remove and fetch the state of this type and id.
     #[inline]
-    pub fn remove_temp<T: 'static + Default>(&mut self, id: Id) -> Option<T> {
+    pub fn remove_temp<T: 'static + Default>(&mut self, id: impl Into<Id>) -> Option<T> {
         let hash = hash(TypeId::of::<T>(), id);
         let mut element = self.map.remove(&hash)?;
         Some(std::mem::take(element.get_mut_temp()?))
@@ -560,8 +571,8 @@ impl IdTypeMap {
 }
 
 #[inline(always)]
-fn hash(type_id: TypeId, id: Id) -> u64 {
-    type_id.value() ^ id.value()
+fn hash(type_id: TypeId, id: impl Into<Id>) -> u64 {
+    type_id.value() ^ id.into().value()
 }
 
 // ----------------------------------------------------------------------------

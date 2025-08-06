@@ -907,10 +907,10 @@ impl Response {
     /// });
     /// # });
     /// ```
-    pub fn labelled_by(self, id: Id) -> Self {
+    pub fn labelled_by(self, id: impl Into<Id>) -> Self {
         #[cfg(feature = "accesskit")]
         self.ctx.accesskit_node_builder(self.id, |builder| {
-            builder.push_labelled_by(id.accesskit_id());
+            builder.push_labelled_by(id.into().accesskit_id());
         });
         #[cfg(not(feature = "accesskit"))]
         {
