@@ -367,6 +367,7 @@ fn drag_and_drop_test(ui: &mut egui::Ui) {
             assert!(col <= COLS, "The col should be less then: {COLS}");
 
             // Should be a better way to do this!
+            #[expect(clippy::iter_over_hash_type)]
             for container_data in self.containers_data.values_mut() {
                 for ids in container_data {
                     ids.retain(|i| *i != id);

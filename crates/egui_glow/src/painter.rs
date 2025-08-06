@@ -698,6 +698,7 @@ impl Painter {
     unsafe fn destroy_gl(&self) {
         unsafe {
             self.gl.delete_program(self.program);
+            #[expect(clippy::iter_over_hash_type)]
             for tex in self.textures.values() {
                 self.gl.delete_texture(*tex);
             }

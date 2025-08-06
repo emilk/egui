@@ -286,6 +286,8 @@ pub(crate) fn on_keyup(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
         // See https://github.com/emilk/egui/issues/4724
 
         let keys_down = runner.egui_ctx().input(|i| i.keys_down.clone());
+
+        #[expect(clippy::iter_over_hash_type)]
         for key in keys_down {
             let egui_event = egui::Event::Key {
                 key,

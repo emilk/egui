@@ -190,6 +190,7 @@ iter_filter_is_some = "warn"
 iter_not_returning_iterator = "warn"
 iter_on_empty_collections = "warn"
 iter_on_single_items = "warn"
+iter_over_hash_type = "warn"
 iter_without_into_iter = "warn"
 large_digit_groups = "warn"
 large_include_file = "warn"
@@ -296,7 +297,6 @@ zero_sized_map_values = "warn"
 
 
 # TODO(emilk): maybe enable more of these lints?
-iter_over_hash_type = "allow"
 should_panic_without_expect = "allow"
 too_many_lines = "allow"
 unwrap_used = "allow"                 # TODO(emilk): We really wanna warn on this one
