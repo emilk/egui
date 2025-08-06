@@ -2031,7 +2031,7 @@ impl Tessellator {
                 continue;
             }
 
-            let final_row_pos = galley_pos + row.pos.to_vec2();
+            let final_row_pos = galley_pos + rotator * row.pos.to_vec2();
 
             let mut row_rect = row.visuals.mesh_bounds;
             if *angle != 0.0 {

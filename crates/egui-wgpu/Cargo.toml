@@ -31,7 +31,7 @@ all-features = true
 rustdoc-args = ["--generate-link-to-definition"]
 
 [features]
-default = ["fragile-send-sync-non-atomic-wasm"]
+default = ["fragile-send-sync-non-atomic-wasm", "wgpu/default"]
 
 ## Enable [`winit`](https://docs.rs/winit) integration. On Linux, requires either `wayland` or `x11`
 winit = ["dep:winit", "winit/rwh_06"]

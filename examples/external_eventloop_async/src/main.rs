@@ -11,5 +11,6 @@ fn main() -> std::io::Result<()> {
 // Do not check `app` on unsupported platforms when check "--all-features" is used in CI.
 #[cfg(not(target_os = "linux"))]
 fn main() {
+    #![expect(clippy::print_stdout)]
     println!("This example only supports Linux.");
 }

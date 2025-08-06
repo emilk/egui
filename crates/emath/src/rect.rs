@@ -830,6 +830,7 @@ mod tests {
         );
     }
 
+    #[expect(clippy::print_stdout)]
     #[test]
     fn test_ray_intersection() {
         let rect = Rect::from_min_max(pos2(1.0, 1.0), pos2(3.0, 3.0));
