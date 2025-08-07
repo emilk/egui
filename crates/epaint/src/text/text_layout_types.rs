@@ -15,7 +15,7 @@ use emath::{Align, GuiRounding as _, NumExt as _, OrderedFloat, Pos2, Rect, Vec2
 ///
 /// This supports mixing different fonts, color and formats (underline etc).
 ///
-/// Pass this to [`crate::Fonts::layout_job`] or [`crate::text::layout`].
+/// Pass this to [`crate::FontsView::layout_job`] or [`crate::text::layout`].
 ///
 /// ## Example:
 /// ```
@@ -504,7 +504,7 @@ impl TextWrapping {
 
 /// Text that has been laid out, ready for painting.
 ///
-/// You can create a [`Galley`] using [`crate::Fonts::layout_job`];
+/// You can create a [`Galley`] using [`crate::FontsView::layout_job`];
 ///
 /// Needs to be recreated if the underlying font atlas texture changes, which
 /// happens under the following conditions:

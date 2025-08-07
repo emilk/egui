@@ -141,7 +141,7 @@ impl Painter {
         self.pixels_per_point
     }
 
-    /// Read-only access to the shared [`Fonts`].
+    /// Read-only access to the shared [`FontsView`].
     ///
     /// See [`Context`] documentation for how locks work.
     #[inline]
@@ -149,7 +149,7 @@ impl Painter {
         self.ctx.fonts(reader)
     }
 
-    /// Read-write access to the shared [`Fonts`].
+    /// Read-write access to the shared [`FontsView`].
     ///
     /// See [`Context`] documentation for how locks work.
     #[inline]
