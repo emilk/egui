@@ -1,6 +1,6 @@
 use crate::style::WidgetVisuals;
-use crate::{Context, Frame, Id, Response, TextStyle, Ui};
-use emath::TSTransform;
+use crate::{Context, Frame, Id, Painter, Response, TextStyle, Ui};
+use emath::{Rect, TSTransform};
 use epaint::text::TextFormat;
 use epaint::{CornerRadius, Stroke};
 use std::borrow::Cow;
@@ -160,6 +160,27 @@ pub struct WidgetStyle {
 
     pub transform: TSTransform,
 }
+
+/// TODO: Maybe each widget would have its own style struct? Suggested by juancampa
+/// Pros:
+/// - More and expressive flexible per widget (avoids things like the confusing weak_bg_fill we currently have)
+/// - Improved performance, e.g. a checkbox doesn't need a Frame.
+///
+/// Cons:
+/// - Style changes across all widgets would require more code changes.
+///   - Maybe there could be a shared base WidgetStyle though that defines things like strokes and base colors?
+/// - More boilerplate code for each widget.
+///
+pub struct CheckboxStyle {
+    pub text: TextFormat,
+    pub checkmark_stroke: Stroke,
+    box_fill: epaint::Color32,
+    box_rounding: CornerRadius,
+    // Could even define closures for custom painting
+    custom_checkmark_painter: Option<Box<dyn Fn(&Painter, Rect)>>,
+}
+
+pub struct ButtonStyle {}
 
 impl From<WidgetStyle> for WidgetVisuals {
     fn from(value: WidgetStyle) -> Self {
