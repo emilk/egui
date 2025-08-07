@@ -4,8 +4,8 @@ use std::fmt::Formatter;
 use std::{borrow::Cow, sync::Arc};
 
 use crate::{
-    text::{LayoutJob, TextWrapping},
     Align, Color32, FontFamily, FontSelection, Galley, Style, TextStyle, TextWrapMode, Ui, Visuals,
+    text::{LayoutJob, TextWrapping},
 };
 
 /// Text and optional style choices for it.
