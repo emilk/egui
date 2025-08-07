@@ -29,7 +29,7 @@ impl TreeChangeHandler for ChangeHandler {
 }
 
 impl egui::Plugin for AccessibilityInspectorPlugin {
-    fn name(&self) -> &'static str {
+    fn debug_name(&self) -> &'static str {
         "Accessibility Inspector"
     }
 
@@ -202,7 +202,9 @@ impl AccessibilityInspectorPlugin {
             .unwrap_or(node.id().0.to_string());
         let label = format!("({:?}) {}", node.role(), label);
 
-        let node_id = Id::from_value(node.id().0);
+        // Safety: This is safe since the `accesskit::NodeId` was created from an `egui::Id`.
+        #[expect(unsafe_code)]
+        let egui_node_id = unsafe {Id::from_high_entropy_bits(node.id().0)};
 
         ui.push_id(node.id(), |ui| {
             let child_count = node.children().len();
@@ -226,7 +228,7 @@ impl AccessibilityInspectorPlugin {
                 };
                 let label_response = ui.selectable_value(
                     selected_node,
-                    Some(Id::from_value(node.id().0)),
+                    Some(egui_node_id),
                     label.clone(),
                 );
                 if label_response.hovered() {
