@@ -14,7 +14,7 @@ pub trait Plugin: Send + Sync + 'static {
     /// Plugin name.
     ///
     /// Used when profiling.
-    fn name(&self) -> &'static str;
+    fn debug_name(&self) -> &'static str;
 
     /// Called once, when the plugin is registered.
     ///
@@ -31,17 +31,17 @@ pub trait Plugin: Send + Sync + 'static {
     /// Can be used to show ui, e.g. a [`crate::Window`].
     fn on_end_pass(&mut self, ctx: &Context) {}
 
-    /// Called just before the output is passed to the backend.
-    ///
-    /// Useful to inspect or modify the output.
-    /// Since this is called outside a pass, don't show ui here.
-    fn output_hook(&mut self, output: &mut FullOutput) {}
-
     /// Called just before the input is processed.
     ///
     /// Useful to inspect or modify the input.
     /// Since this is called outside a pass, don't show ui here.
     fn input_hook(&mut self, input: &mut RawInput) {}
+
+    /// Called just before the output is passed to the backend.
+    ///
+    /// Useful to inspect or modify the output.
+    /// Since this is called outside a pass, don't show ui here.
+    fn output_hook(&mut self, output: &mut FullOutput) {}
 }
 
 pub(crate) struct PluginHandle {
@@ -140,7 +140,7 @@ impl PluginsOrdered {
     {
         for plugin in &self.0 {
             let mut plugin = plugin.lock();
-            profiling::scope!("plugin", plugin.dyn_plugin_mut().name());
+            profiling::scope!("plugin", plugin.dyn_plugin_mut().debug_name());
             f(plugin.dyn_plugin_mut());
         }
     }
@@ -213,7 +213,7 @@ pub(crate) struct CallbackPlugin {
 }
 
 impl Plugin for CallbackPlugin {
-    fn name(&self) -> &'static str {
+    fn debug_name(&self) -> &'static str {
         "CallbackPlugins"
     }
 

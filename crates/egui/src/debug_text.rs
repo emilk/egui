@@ -53,15 +53,13 @@ pub struct DebugTextPlugin {
 }
 
 impl Plugin for DebugTextPlugin {
-    fn name(&self) -> &'static str {
+    fn debug_name(&self) -> &'static str {
         "DebugTextPlugin"
     }
 
     fn on_end_pass(&mut self, ctx: &Context) {
-        if !self.entries.is_empty() {
-            let entries = std::mem::take(&mut self.entries);
-            Self::paint_entries(ctx, entries);
-        }
+        let entries = std::mem::take(&mut self.entries);
+        Self::paint_entries(ctx, entries);
     }
 }
 
