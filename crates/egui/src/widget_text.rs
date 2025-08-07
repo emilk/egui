@@ -4,8 +4,8 @@ use std::fmt::Formatter;
 use std::{borrow::Cow, sync::Arc};
 
 use crate::{
-    Align, Color32, FontFamily, FontSelection, Galley, Style, TextStyle, TextWrapMode, Ui, Visuals,
     text::{LayoutJob, TextWrapping},
+    Align, Color32, FontFamily, FontSelection, Galley, Style, TextStyle, TextWrapMode, Ui, Visuals,
 };
 
 /// Text and optional style choices for it.
@@ -748,7 +748,8 @@ impl WidgetText {
                     text,
                     TextFormat {
                         // We want the style overrides to take precedence over the fallback font
-                        font_id: FontSelection::default().resolve_fallback(style, fallback_font),
+                        font_id: FontSelection::default()
+                            .resolve_with_fallback(style, fallback_font),
                         color: crate::Color32::PLACEHOLDER,
                         valign: default_valign,
                         ..Default::default()

@@ -3,15 +3,14 @@
 #![allow(clippy::if_same_then_else)]
 
 use emath::Align;
-use epaint::{AlphaFromCoverage, CornerRadius, Shadow, Stroke, text::FontTweak};
+use epaint::{text::FontTweak, AlphaFromCoverage, CornerRadius, Shadow, Stroke};
 use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
 
 use crate::{
-    ComboBox, CursorIcon, FontFamily, FontId, Grid, Margin, Response, RichText, TextWrapMode,
-    WidgetText,
     ecolor::Color32,
-    emath::{Rangef, Rect, Vec2, pos2, vec2},
-    reset_button_with,
+    emath::{pos2, vec2, Rangef, Rect, Vec2},
+    reset_button_with, ComboBox, CursorIcon, FontFamily, FontId, Grid, Margin, Response, RichText,
+    TextWrapMode, WidgetText,
 };
 
 /// How to format numbers in e.g. a [`crate::DragValue`].
@@ -147,13 +146,13 @@ impl FontSelection {
     /// On [`Self::Default`] and no override in the style, this will
     /// resolve to [`TextStyle::Body`].
     pub fn resolve(self, style: &Style) -> FontId {
-        self.resolve_fallback(style, TextStyle::Body.into())
+        self.resolve_with_fallback(style, TextStyle::Body.into())
     }
 
     /// Resolve with a final fallback.
     ///
     /// Fallback is resolved on [`Self::Default`] and no override in the style.
-    pub fn resolve_fallback(self, style: &Style, fallback: Self) -> FontId {
+    pub fn resolve_with_fallback(self, style: &Style, fallback: Self) -> FontId {
         match self {
             Self::Default => {
                 if let Some(override_font_id) = &style.override_font_id {
@@ -1619,8 +1618,8 @@ impl Default for Widgets {
 // ----------------------------------------------------------------------------
 
 use crate::{
+    widgets::{reset_button, DragValue, Slider, Widget},
     Ui,
-    widgets::{DragValue, Slider, Widget, reset_button},
 };
 
 impl Style {
