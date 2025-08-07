@@ -333,10 +333,8 @@ impl WinitApp for WgpuWinitApp<'_> {
             .as_ref()
             .and_then(|r| {
                 let shared = r.shared.borrow();
-                shared
-                    .viewport_from_window
-                    .get(&window_id)
-                    .and_then(|id| shared.viewports.get(id).map(|v| v.window.clone()))
+                let id = shared.viewport_from_window.get(&window_id)?;
+                shared.viewports.get(id).map(|v| v.window.clone())
             })
             .flatten()
     }
@@ -821,17 +819,16 @@ impl WgpuWinitRunning<'_> {
             }
 
             _ => {}
-        };
+        }
 
         let event_response = viewport_id
             .and_then(|viewport_id| {
-                shared.viewports.get_mut(&viewport_id).and_then(|viewport| {
-                    Some(integration.on_window_event(
-                        viewport.window.as_deref()?,
-                        viewport.egui_winit.as_mut()?,
-                        event,
-                    ))
-                })
+                let viewport = shared.viewports.get_mut(&viewport_id)?;
+                Some(integration.on_window_event(
+                    viewport.window.as_deref()?,
+                    viewport.egui_winit.as_mut()?,
+                    event,
+                ))
             })
             .unwrap_or_default();
 

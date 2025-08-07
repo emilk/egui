@@ -232,7 +232,8 @@ impl Display for SnapshotError {
                 let diff_path = std::path::absolute(diff_path).unwrap_or(diff_path.clone());
                 write!(
                     f,
-                    "'{name}' Image did not match snapshot. Diff: {diff}, {diff_path:?}. {HOW_TO_UPDATE_SCREENSHOTS}"
+                    "'{name}' Image did not match snapshot. Diff: {diff}, {}. {HOW_TO_UPDATE_SCREENSHOTS}",
+                    diff_path.display()
                 )
             }
             Self::OpenSnapshot { path, err } => {
@@ -240,19 +241,25 @@ impl Display for SnapshotError {
                 match err {
                     ImageError::IoError(io) => match io.kind() {
                         ErrorKind::NotFound => {
-                            write!(f, "Missing snapshot: {path:?}. {HOW_TO_UPDATE_SCREENSHOTS}")
+                            write!(
+                                f,
+                                "Missing snapshot: {}. {HOW_TO_UPDATE_SCREENSHOTS}",
+                                path.display()
+                            )
                         }
                         err => {
                             write!(
                                 f,
-                                "Error reading snapshot: {err:?}\nAt: {path:?}. {HOW_TO_UPDATE_SCREENSHOTS}"
+                                "Error reading snapshot: {err:?}\nAt: {}. {HOW_TO_UPDATE_SCREENSHOTS}",
+                                path.display()
                             )
                         }
                     },
                     err => {
                         write!(
                             f,
-                            "Error decoding snapshot: {err:?}\nAt: {path:?}. Make sure git-lfs is setup correctly. Read the instructions here: https://github.com/emilk/egui/blob/main/CONTRIBUTING.md#making-a-pr"
+                            "Error decoding snapshot: {err:?}\nAt: {}. Make sure git-lfs is setup correctly. Read the instructions here: https://github.com/emilk/egui/blob/main/CONTRIBUTING.md#making-a-pr",
+                            path.display()
                         )
                     }
                 }
@@ -269,7 +276,7 @@ impl Display for SnapshotError {
             }
             Self::WriteSnapshot { path, err } => {
                 let path = std::path::absolute(path).unwrap_or(path.clone());
-                write!(f, "Error writing snapshot: {err:?}\nAt: {path:?}")
+                write!(f, "Error writing snapshot: {err:?}\nAt: {}", path.display())
             }
             Self::RenderError { err } => {
                 write!(f, "Error rendering image: {err:?}")
@@ -363,7 +370,7 @@ fn try_image_snapshot_options_impl(
         // No need for an explicit `.new` file:
         std::fs::remove_file(&new_path).ok();
 
-        println!("Updated snapshot: {snapshot_path:?}");
+        println!("Updated snapshot: {}", snapshot_path.display());
 
         Ok(())
     };

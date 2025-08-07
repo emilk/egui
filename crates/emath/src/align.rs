@@ -134,7 +134,7 @@ impl Align {
                 if size == f32::INFINITY {
                     Rangef::new(f32::NEG_INFINITY, f32::INFINITY)
                 } else {
-                    let left = (min + max) / 2.0 - size / 2.0;
+                    let left = f32::midpoint(min, max) - size / 2.0;
                     Rangef::new(left, left + size)
                 }
             }

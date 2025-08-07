@@ -458,7 +458,7 @@ impl<'a> Popup<'a> {
 
     /// Get the expected size of the popup.
     pub fn get_expected_size(&self) -> Option<Vec2> {
-        AreaState::load(&self.ctx, self.id).and_then(|area| area.size)
+        AreaState::load(&self.ctx, self.id)?.size
     }
 
     /// Calculate the best alignment for the popup, based on the last size and screen rect.
