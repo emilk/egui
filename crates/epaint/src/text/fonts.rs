@@ -409,6 +409,7 @@ impl FontDefinitions {
 pub(crate) struct FontFaceKey(pub u64);
 
 static KEY_COUNTER: AtomicU64 = AtomicU64::new(1);
+
 impl FontFaceKey {
     fn new() -> Self {
         Self(KEY_COUNTER.fetch_add(1, Ordering::Relaxed))
