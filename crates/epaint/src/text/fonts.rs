@@ -927,7 +927,7 @@ impl GalleyCache {
                     current_section += 1;
                 } else if end < section_range.start {
                     break; // Haven't reached this one yet.
-                } else {
+                } else if section_range.start < section_range.end {
                     // Section range overlaps with paragraph range
                     debug_assert!(
                         section_range.start < section_range.end,
