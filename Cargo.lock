@@ -2069,7 +2069,10 @@ name = "hello_world_simple"
 version = "0.1.0"
 dependencies = [
  "eframe",
+ "egui",
  "env_logger",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

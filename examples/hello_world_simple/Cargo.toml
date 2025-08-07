@@ -14,9 +14,14 @@ workspace = true
 [dependencies]
 eframe = { workspace = true, features = [
     "default",
+    "serde",
     "__screenshot", # __screenshot is so we can dump a screenshot using EFRAME_SCREENSHOT_TO
 ] }
 env_logger = { version = "0.10", default-features = false, features = [
     "auto-color",
     "humantime",
 ] }
+egui = { workspace = true, features = ["serde"] }
+
+serde_json = "1"
+serde = "1"

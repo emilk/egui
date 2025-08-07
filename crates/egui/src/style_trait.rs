@@ -169,7 +169,12 @@ pub struct WidgetStyle {
 /// Cons:
 /// - Style changes across all widgets would require more code changes.
 ///   - Maybe there could be a shared base WidgetStyle though that defines things like strokes and base colors?
+///   - Or these things could keep coming from the `Style` struct
 /// - More boilerplate code for each widget.
+/// - Might make it harder to create a css-like file format since it would need support all the custom types
+///   - Maybe could be possible with serde or a extra trait that allows for some kind of reflection?
+///
+/// ```
 ///
 pub struct CheckboxStyle {
     pub text: TextFormat,
@@ -180,7 +185,15 @@ pub struct CheckboxStyle {
     custom_checkmark_painter: Option<Box<dyn Fn(&Painter, Rect)>>,
 }
 
-pub struct ButtonStyle {}
+pub struct ButtonStyle {
+    /// Background color, stroke, margin, and shadow.
+    pub frame: Frame,
+
+    /// What font to use and at what size.
+    pub text: TextFormat,
+
+    pub transform: TSTransform,
+}
 
 impl From<WidgetStyle> for WidgetVisuals {
     fn from(value: WidgetStyle) -> Self {

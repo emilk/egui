@@ -1,6 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 #![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
+mod ess_style_engine;
+
 use eframe::egui;
 use eframe::egui::style::WidgetVisuals;
 use eframe::egui::style_trait::{
@@ -11,6 +13,8 @@ use eframe::egui::{
 };
 use eframe::emath::TSTransform;
 use std::fmt::Display;
+use std::sync::Arc;
+use crate::ess_style_engine::{EssFile, EssStyleEngine};
 
 fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -24,10 +28,18 @@ fn main() -> eframe::Result {
     let mut name = "Arthur".to_owned();
     let mut age = 42;
 
+    let styles = Arc::new(EssFile::example());
+
+    let mut custom_engine = Some(MyCustomWidgetStyle {
+        default: DefaultWidgetStyle,
+    });
+
     eframe::run_simple_native("My egui App", options, move |ctx, _frame| {
-        ctx.set_style_engine(MyCustomWidgetStyle {
-            default: DefaultWidgetStyle,
-        });
+        if let Some(custom_engine) = custom_engine.take() {
+            // ctx.set_style_engine(custom_engine);
+
+            ctx.set_style_engine(EssStyleEngine::new(custom_engine, styles.clone()));
+        }
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("My egui Application");
@@ -53,6 +65,8 @@ fn main() -> eframe::Result {
                 ui.add(Button::new("Large Secondary").secondary().lg());
                 ui.add(Button::new("Small Normal").sm());
             });
+
+            ui.add(Button::new("Customized via ESS").with_class("blue"));
         });
     })
 }

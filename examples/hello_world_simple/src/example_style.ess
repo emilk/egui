@@ -1,0 +1,22 @@
+// Should style definitions always be scoped to a widget (or rather a stylable type) for type safety?
+Button .blue {
+  :hovered {
+    background_color: "#0000ff",
+    // This should error?
+    font_soze: 20,
+  }
+
+  color: "#ffffff",
+  background_color: "#0000aa",
+}
+
+.list_item {
+  Button {
+    font_size: 10,
+  }
+  // Maybe Image could also be stylable so we could set icon sizes based on context?
+  Image {
+    width: 12,
+    height: 12,
+  }
+}
