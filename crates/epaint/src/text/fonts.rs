@@ -754,7 +754,7 @@ pub struct FontsImpl {
     definitions: FontDefinitions,
     atlas: TextureAtlas,
     fonts_by_id: nohash_hasher::IntMap<FontFaceKey, FontImpl>,
-    font_impls: ahash::HashMap<String, FontFaceKey>,
+    fonts_by_name: ahash::HashMap<String, FontFaceKey>,
     family_cache: ahash::HashMap<FontFamily, CachedFamily>,
 }
 
@@ -786,7 +786,7 @@ impl FontsImpl {
             definitions,
             atlas,
             fonts_by_id,
-            font_impls,
+            fonts_by_name: font_impls,
             family_cache: Default::default(),
         }
     }
@@ -802,7 +802,7 @@ impl FontsImpl {
                 .iter()
                 .map(|font_name| {
                     *self
-                        .font_impls
+                        .fonts_by_name
                         .get(font_name)
                         .unwrap_or_else(|| panic!("No font data found for {font_name:?}"))
                 })
