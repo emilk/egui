@@ -1162,6 +1162,13 @@ mod tests {
 
                 job
             },
+            {
+                // Regression test for <https://github.com/emilk/egui/issues/7378>
+                let mut job = LayoutJob::default();
+                job.append("\n", 0.0, TextFormat::default());
+                job.append("", 0.0, TextFormat::default());
+                job
+            },
         ]
     }
 
