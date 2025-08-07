@@ -1836,8 +1836,7 @@ impl Context {
 impl Context {
     /// Call the given callback at the start of each pass of each viewport.
     ///
-    /// This can be used for egui _plugins_.
-    /// See [`crate::debug_text`] for an example.
+    /// This is a convenience wrapper around [`Self::add_plugin`].
     pub fn on_begin_pass(&self, debug_name: &'static str, cb: plugin::ContextCallback) {
         self.with_plugin(|p: &mut crate::plugin::CallbackPlugin| {
             p.on_begin_plugins.push((debug_name, cb));
@@ -1846,8 +1845,7 @@ impl Context {
 
     /// Call the given callback at the end of each pass of each viewport.
     ///
-    /// This can be used for egui _plugins_.
-    /// See [`crate::debug_text`] for an example.
+    /// This is a convenience wrapper around [`Self::add_plugin`].
     pub fn on_end_pass(&self, debug_name: &'static str, cb: plugin::ContextCallback) {
         self.with_plugin(|p: &mut crate::plugin::CallbackPlugin| {
             p.on_end_plugins.push((debug_name, cb));

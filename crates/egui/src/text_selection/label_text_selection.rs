@@ -124,7 +124,7 @@ impl Default for LabelSelectionState {
 }
 
 impl Plugin for LabelSelectionState {
-    fn name(&self) -> &'static str {
+    fn debug_name(&self) -> &'static str {
         "LabelSelectionState"
     }
 

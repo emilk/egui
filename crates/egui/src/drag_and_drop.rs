@@ -25,7 +25,7 @@ pub struct DragAndDrop {
 }
 
 impl Plugin for DragAndDrop {
-    fn name(&self) -> &'static str {
+    fn debug_name(&self) -> &'static str {
         "DragAndDrop"
     }
 
