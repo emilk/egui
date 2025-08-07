@@ -390,7 +390,12 @@ impl Font<'_> {
     /// Returns a value rounded to [`emath::GUI_ROUNDING`].
     #[inline(always)]
     pub fn row_height(&self, font_size: f32) -> f32 {
-        let Some(first_font) = self.fonts_by_id.get(&self.cached_family.fonts[0]) else {
+        let Some(first_font) = self
+            .cached_family
+            .fonts
+            .first()
+            .and_then(|key| self.fonts_by_id.get(key))
+        else {
             return 0.0;
         };
         first_font.row_height(font_size)
