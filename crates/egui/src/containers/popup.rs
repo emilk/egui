@@ -179,9 +179,6 @@ pub struct Popup<'a> {
     /// Gap between the anchor and the popup
     gap: f32,
 
-    /// Used later depending on close behavior
-    widget_clicked_elsewhere: Option<bool>,
-
     /// Default width passed to the Area
     width: Option<f32>,
     sense: Sense,
@@ -205,7 +202,6 @@ impl<'a> Popup<'a> {
             rect_align: RectAlign::BOTTOM_START,
             alternative_aligns: None,
             gap: 0.0,
-            widget_clicked_elsewhere: None,
             width: None,
             sense: Sense::click(),
             layout: Layout::default(),
@@ -219,14 +215,12 @@ impl<'a> Popup<'a> {
     ///
     /// See [`Self::menu`] and [`Self::context_menu`] for common use cases.
     pub fn from_response(response: &Response) -> Self {
-        let mut popup = Self::new(
+        Self::new(
             Self::default_response_id(response),
             response.ctx.clone(),
             response,
             response.layer_id,
-        );
-        popup.widget_clicked_elsewhere = Some(response.clicked_elsewhere());
-        popup
+        )
     }
 
     /// Show a popup relative to some widget,
@@ -503,9 +497,14 @@ impl<'a> Popup<'a> {
     /// Returns `None` if the popup is not open or anchor is `PopupAnchor::Pointer` and there is
     /// no pointer.
     pub fn show<R>(self, content: impl FnOnce(&mut Ui) -> R) -> Option<InnerResponse<R>> {
-        let hover_pos = self.ctx.pointer_hover_pos();
-
         let id = self.id;
+        // When the popup was just opened with a click we don't want to immediately close it based
+        // on the `PopupCloseBehavior`, so we need to remember if the popup was already open on
+        // last frame. A convenient way to check this is to see if we have a response for the `Area`
+        // from last frame:
+        let was_open_last_frame = self.ctx.read_response(id).is_some();
+
+        let hover_pos = self.ctx.pointer_hover_pos();
         if let OpenKind::Memory { set } = self.open_kind {
             match set {
                 Some(SetOpenCommand::Bool(open)) => {
@@ -547,7 +546,6 @@ impl<'a> Popup<'a> {
             rect_align: _,
             alternative_aligns: _,
             gap,
-            widget_clicked_elsewhere,
             width,
             sense,
             layout,
@@ -594,8 +592,8 @@ impl<'a> Popup<'a> {
             frame.show(ui, content).inner
         });
 
-        let close_click =
-            widget_clicked_elsewhere.unwrap_or_else(|| ctx.input(|i| i.pointer.any_click()));
+        // If the popup was just opened with a click, we don't want to immediately close it again.
+        let close_click = was_open_last_frame && ctx.input(|i| i.pointer.any_click());
 
         let closed_by_click = match close_behavior {
             PopupCloseBehavior::CloseOnClick => close_click,
