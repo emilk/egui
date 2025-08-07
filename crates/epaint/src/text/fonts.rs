@@ -700,7 +700,7 @@ impl FontsView<'_> {
     /// How full is the font atlas?
     ///
     /// This increases as new fonts and/or glyphs are used,
-    /// but can also decrease in a call to [`Self::begin_pass`].
+    /// but can also decrease in a call to [`Fonts::begin_pass`].
     pub fn font_atlas_fill_ratio(&self) -> f32 {
         self.fonts.atlas.fill_ratio()
     }

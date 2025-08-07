@@ -266,7 +266,7 @@ impl<'t> TextEdit<'t> {
     /// let mut layouter = |ui: &egui::Ui, buf: &dyn egui::TextBuffer, wrap_width: f32| {
     ///     let mut layout_job: egui::text::LayoutJob = my_memoized_highlighter(buf.as_str());
     ///     layout_job.wrap.max_width = wrap_width;
-    ///     ui.fonts(|f| f.layout_job(layout_job))
+    ///     ui.fonts_mut(|f| f.layout_job(layout_job))
     /// };
     /// ui.add(egui::TextEdit::multiline(&mut my_code).layouter(&mut layouter));
     /// # });

@@ -66,7 +66,7 @@ impl Paragraph {
 
 /// Layout text into a [`Galley`].
 ///
-/// In most cases you should use [`crate::Fonts::layout_job`] instead
+/// In most cases you should use [`crate::FontsView::layout_job`] instead
 /// since that memoizes the input, making subsequent layouting of the same text much faster.
 pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>, pixels_per_point: f32) -> Galley {
     profiling::function_scope!();
