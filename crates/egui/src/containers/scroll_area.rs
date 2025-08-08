@@ -1059,7 +1059,7 @@ impl Prepared {
 
                     delta += delta_update;
                     animation = animation_update;
-                };
+                }
 
                 if delta != 0.0 {
                     let target_offset = state.offset[d] + delta;
@@ -1090,7 +1090,7 @@ impl Prepared {
             for d in 0..2 {
                 if saved_scroll_target[d].is_some() {
                     state.scroll_target[d] = saved_scroll_target[d].clone();
-                };
+                }
             }
         });
 

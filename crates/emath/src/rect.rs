@@ -331,8 +331,8 @@ impl Rect {
     #[inline(always)]
     pub fn center(&self) -> Pos2 {
         Pos2 {
-            x: (self.min.x + self.max.x) / 2.0,
-            y: (self.min.y + self.max.y) / 2.0,
+            x: f32::midpoint(self.min.x, self.max.x),
+            y: f32::midpoint(self.min.y, self.max.y),
         }
     }
 

@@ -729,7 +729,7 @@ impl WidgetInfo {
                 description = format!("{state} {description}");
             } else {
                 description += if *selected { "selected" } else { "" };
-            };
+            }
         }
 
         if let Some(label) = label {

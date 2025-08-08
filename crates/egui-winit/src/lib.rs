@@ -372,7 +372,7 @@ impl State {
                     winit::event::Ime::Disabled | winit::event::Ime::Preedit(_, None) => {
                         self.ime_event_disable();
                     }
-                };
+                }
 
                 EventResponse {
                     repaint: true,
@@ -583,7 +583,7 @@ impl State {
                             pos,
                             force: None,
                         });
-                    };
+                    }
                 }
             }
         }

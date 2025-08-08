@@ -50,7 +50,7 @@ impl TestMenu {
                                             .clicked()
                                         {
                                             ui.close();
-                                        };
+                                        }
                                     });
                                 });
                         });

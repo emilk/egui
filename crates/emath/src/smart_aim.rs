@@ -43,7 +43,7 @@ pub fn best_in_range_f64(min: f64, max: f64) -> f64 {
 
     if min_exponent.floor() != max_exponent.floor() {
         // pick the geometric center of the two:
-        let exponent = (min_exponent + max_exponent) / 2.0;
+        let exponent = f64::midpoint(min_exponent, max_exponent);
         return 10.0_f64.powi(exponent.round() as i32);
     }
 
