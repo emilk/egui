@@ -676,6 +676,8 @@ pub enum WidgetType {
 
     CollapsingHeader,
 
+    Panel,
+
     ProgressIndicator,
 
     Window,
