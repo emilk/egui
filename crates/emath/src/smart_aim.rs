@@ -1,5 +1,7 @@
 //! Find "simple" numbers is some range. Used by sliders.
 
+use crate::fast_midpoint;
+
 const NUM_DECIMALS: usize = 15;
 
 /// Find the "simplest" number in a closed range [min, max], i.e. the one with the fewest decimal digits.
@@ -43,7 +45,7 @@ pub fn best_in_range_f64(min: f64, max: f64) -> f64 {
 
     if min_exponent.floor() != max_exponent.floor() {
         // pick the geometric center of the two:
-        let exponent = f64::midpoint(min_exponent, max_exponent);
+        let exponent = fast_midpoint(min_exponent, max_exponent);
         return 10.0_f64.powi(exponent.round() as i32);
     }
 
