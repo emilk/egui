@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{Div, Mul, NumExt as _, Pos2, Rangef, Rot2, Vec2, lerp, pos2, vec2};
+use crate::{Div, Mul, NumExt as _, Pos2, Rangef, Rot2, Vec2, fast_midpoint, lerp, pos2, vec2};
 use std::ops::{BitOr, BitOrAssign};
 
 /// A rectangular region of space.
@@ -331,8 +331,8 @@ impl Rect {
     #[inline(always)]
     pub fn center(&self) -> Pos2 {
         Pos2 {
-            x: f32::midpoint(self.min.x, self.max.x),
-            y: f32::midpoint(self.min.y, self.max.y),
+            x: fast_midpoint(self.min.x, self.max.x),
+            y: fast_midpoint(self.min.y, self.max.y),
         }
     }
 
