@@ -662,7 +662,7 @@ impl TextEdit<'_> {
                 _ => 0.0,
             };
 
-            let mut offset_x = state.text_offset[0];
+            let mut offset_x = state.text_offset.x;
             let visible_range = offset_x..=offset_x + desired_inner_size.x;
 
             if !visible_range.contains(&cursor_pos) {
