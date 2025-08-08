@@ -3,6 +3,7 @@
 
 use emath::GuiRounding as _;
 use epaint::mutex::RwLock;
+use epaint::text::FontsView;
 use std::{any::Any, hash::Hash, sync::Arc};
 
 use crate::ClosableTag;
@@ -16,9 +17,7 @@ use crate::{
     WidgetRect, WidgetText,
     containers::{CollapsingHeader, CollapsingResponse, Frame},
     ecolor::Hsva,
-    emath, epaint,
-    epaint::text::Fonts,
-    grid,
+    emath, epaint, grid,
     layout::{Direction, Layout},
     pass_state,
     placer::Placer,
@@ -735,7 +734,7 @@ impl Ui {
     ///
     /// Returns a value rounded to [`emath::GUI_ROUNDING`].
     pub fn text_style_height(&self, style: &TextStyle) -> f32 {
-        self.fonts(|f| f.row_height(&style.resolve(self.style())))
+        self.fonts_mut(|f| f.row_height(&style.resolve(self.style())))
     }
 
     /// Screen-space rectangle for clipping what we paint in this ui.
@@ -847,10 +846,16 @@ impl Ui {
         self.ctx().output_mut(writer)
     }
 
-    /// Read-only access to [`Fonts`].
+    /// Read-only access to [`FontsView`].
     #[inline]
-    pub fn fonts<R>(&self, reader: impl FnOnce(&Fonts) -> R) -> R {
+    pub fn fonts<R>(&self, reader: impl FnOnce(&FontsView<'_>) -> R) -> R {
         self.ctx().fonts(reader)
+    }
+
+    /// Read-write access to [`FontsView`].
+    #[inline]
+    pub fn fonts_mut<R>(&self, reader: impl FnOnce(&mut FontsView<'_>) -> R) -> R {
+        self.ctx().fonts_mut(reader)
     }
 }
 

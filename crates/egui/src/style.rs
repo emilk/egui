@@ -2778,7 +2778,6 @@ impl Widget for &mut FontTweak {
                     scale,
                     y_offset_factor,
                     y_offset,
-                    baseline_offset_factor,
                 } = self;
 
                 ui.label("Scale");
@@ -2792,10 +2791,6 @@ impl Widget for &mut FontTweak {
 
                 ui.label("y_offset");
                 ui.add(DragValue::new(y_offset).speed(-0.02));
-                ui.end_row();
-
-                ui.label("baseline_offset_factor");
-                ui.add(DragValue::new(baseline_offset_factor).speed(-0.0025));
                 ui.end_row();
 
                 if ui.button("Reset").clicked() {
