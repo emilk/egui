@@ -1752,6 +1752,19 @@ impl Ui {
     ///
     /// See also [`Self::add`] and [`Self::add_sized`].
     pub fn put(&mut self, max_rect: Rect, widget: impl Widget) -> Response {
+        self.new_child(
+            UiBuilder::new()
+                .max_rect(max_rect)
+                .layout(Layout::centered_and_justified(Direction::TopDown)),
+        )
+        .add(widget)
+    }
+
+    /// Add a [`Widget`] to this [`Ui`] at a specific location (manual layout) and advance the
+    /// cursor after the widget.
+    ///
+    /// See also [`Self::add`], [`Self::add_sized`], and [`Self::put`].
+    pub fn put_and_advance(&mut self, max_rect: Rect, widget: impl Widget) -> Response {
         self.scope_builder(
             UiBuilder::new()
                 .max_rect(max_rect)
