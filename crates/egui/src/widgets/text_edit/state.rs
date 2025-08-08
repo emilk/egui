@@ -49,7 +49,8 @@ pub struct TextEditState {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) ime_cursor_range: CCursorRange,
 
-    // Visual offset when editing singleline text bigger than the width.
+    // Text offset within the widget area.
+    // Used for sensing and singleline text clipping.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) text_offset: Vec2,
 
