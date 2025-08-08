@@ -81,7 +81,8 @@ pub struct FontImpl {
     ab_glyph_font: ab_glyph::FontArc,
     tweak: FontTweak,
     glyph_info_cache: ahash::HashMap<char, GlyphInfo>,
-    glyph_alloc_cache: ahash::HashMap<(GlyphInfo, OrderedFloat<f32>), GlyphAllocation>,
+    glyph_alloc_cache:
+        ahash::HashMap<(GlyphInfo, OrderedFloat<f32>, OrderedFloat<f32>), GlyphAllocation>,
 }
 
 trait FontExt {
@@ -264,7 +265,11 @@ impl FontImpl {
             .ab_glyph_font
             .pt_scale_factor(font_size * self.tweak.scale * pixels_per_point)
             .round();
-        let entry = match self.glyph_alloc_cache.entry((glyph_info, scale.into())) {
+        let entry = match self.glyph_alloc_cache.entry((
+            glyph_info,
+            font_size.into(),
+            pixels_per_point.into(),
+        )) {
             std::collections::hash_map::Entry::Occupied(glyph_alloc) => {
                 return *glyph_alloc.get();
             }
