@@ -36,6 +36,7 @@ pub enum Event {
     /// Text input, e.g. via keyboard.
     ///
     /// When the user presses enter/return, do not send a [`Text`](Event::Text) (just [`Key::Enter`]).
+    #[deprecated(since = "0.31.1", note = "please use `Event::Key.text` instead")]
     Text(String),
 
     /// A key was pressed or released.
@@ -77,6 +78,15 @@ pub enum Event {
         /// The state of the modifier keys at the time of the event.
         modifiers: Modifiers,
 
+        /// Text representation. This is used either for:
+        /// a) For the attached keyboard is a keyboard mapping configured.
+        ///    So that for the key press Alt+a the german letter "ä" should be
+        ///    written.
+        /// b) Some platforms might send multiple characters/words text inputs
+        ///    in one single event
+        ///
+        /// If you want to create a simple fake [`Event::Key`] event with this field
+        /// filled, check out [`Event::from_text`].
         text: Option<String>,
     },
 
@@ -187,4 +197,20 @@ pub enum Event {
 
     /// An assistive technology (e.g. screen reader) requested an action.
     AccessKitActionRequest(accesskit::ActionRequest),
+}
+
+impl Event {
+    /// Create a valid [`Event::Key`] from text. This fakes
+    /// a Key event if you need to inject some [`Event::Key { text: Some(text), ..}`]
+    /// Helpful if you relied on creating [`Event::Text`] before it's deprecation.
+    pub fn from_text(text: String) -> Self {
+        Self::Key {
+            key: Key::from_name(&text.chars().nth(0).unwrap_or('a').to_string()).unwrap_or(Key::A),
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: Modifiers::NONE,
+            text: Some(text),
+        }
+    }
 }
