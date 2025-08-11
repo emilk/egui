@@ -329,7 +329,7 @@ impl InputState {
                 active_range_chars,
             })
         } else {
-            egui::Event::Text(preedit_text)
+            egui::Event::from_text(preedit_text)
         };
         runner.input.raw.events.push(out_event);
 
@@ -351,7 +351,7 @@ impl InputState {
 
         let text = self.input.value();
 
-        runner.input.raw.events.push(egui::Event::Text(text));
+        runner.input.raw.events.push(egui::Event::from_text(text));
         self.clear();
     }
 
