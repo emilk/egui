@@ -818,6 +818,7 @@ impl State {
                 || self.egui_input.modifiers.mac_cmd;
 
             if pressed && !is_cmd {
+                #[allow(deprecated)]
                 self.egui_input.events.push(egui::Event::Text(text));
             }
         }
