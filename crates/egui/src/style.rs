@@ -2708,7 +2708,7 @@ impl Widget for &mut Stroke {
         let Stroke { width, color } = self;
 
         ui.horizontal(|ui| {
-            ui.add(DragValue::new(width).speed(0.1).range(0.0..=f32::INFINITY))
+            ui.add(DragValue::new(width).speed(0.1).range(0.0..=1e9))
                 .on_hover_text("Width");
             ui.color_edit_button_srgba(color);
 
