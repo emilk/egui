@@ -5,6 +5,7 @@ use eframe::glow;
 
 #[cfg(target_arch = "wasm32")]
 use core::any::Any;
+use std::sync::Arc;
 
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -185,6 +186,11 @@ pub struct WrapApp {
 
 impl WrapApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        {
+            let ctx = cc.egui_ctx.clone();
+            subsecond::register_handler(Arc::new(move || ctx.request_repaint()));
+        }
+
         // This gives us image support:
         egui_extras::install_image_loaders(&cc.egui_ctx);
 
@@ -277,47 +283,49 @@ impl eframe::App for WrapApp {
     }
 
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        #[cfg(target_arch = "wasm32")]
-        if let Some(anchor) = frame
-            .info()
-            .web_info
-            .location
-            .hash
-            .strip_prefix('#')
-            .and_then(Anchor::from_str_case_insensitive)
-        {
-            self.state.selected_anchor = anchor;
-        }
+        subsecond::call(|| {
+            #[cfg(target_arch = "wasm32")]
+            if let Some(anchor) = frame
+                .info()
+                .web_info
+                .location
+                .hash
+                .strip_prefix('#')
+                .and_then(Anchor::from_str_case_insensitive)
+            {
+                self.state.selected_anchor = anchor;
+            }
 
-        #[cfg(not(target_arch = "wasm32"))]
-        if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::F11)) {
-            let fullscreen = ctx.input(|i| i.viewport().fullscreen.unwrap_or(false));
-            ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(!fullscreen));
-        }
+            #[cfg(not(target_arch = "wasm32"))]
+            if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::F11)) {
+                let fullscreen = ctx.input(|i| i.viewport().fullscreen.unwrap_or(false));
+                ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(!fullscreen));
+            }
 
-        let mut cmd = Command::Nothing;
-        egui::TopBottomPanel::top("wrap_app_top_bar")
-            .frame(egui::Frame::new().inner_margin(4))
-            .show(ctx, |ui| {
-                ui.horizontal_wrapped(|ui| {
-                    ui.visuals_mut().button_frame = false;
-                    self.bar_contents(ui, frame, &mut cmd);
+            let mut cmd = Command::Nothing;
+            egui::TopBottomPanel::top("wrap_app_top_bar")
+                .frame(egui::Frame::new().inner_margin(4))
+                .show(ctx, |ui| {
+                    ui.horizontal_wrapped(|ui| {
+                        ui.visuals_mut().button_frame = false;
+                        self.bar_contents(ui, frame, &mut cmd);
+                    });
                 });
-            });
 
-        self.state.backend_panel.update(ctx, frame);
+            self.state.backend_panel.update(ctx, frame);
 
-        if !is_mobile(ctx) {
-            cmd = self.backend_panel(ctx, frame);
-        }
+            if !is_mobile(ctx) {
+                cmd = self.backend_panel(ctx, frame);
+            }
 
-        self.show_selected_app(ctx, frame);
+            self.show_selected_app(ctx, frame);
 
-        self.state.backend_panel.end_of_frame(ctx);
+            self.state.backend_panel.end_of_frame(ctx);
 
-        self.ui_file_drag_and_drop(ctx);
+            self.ui_file_drag_and_drop(ctx);
 
-        self.run_cmd(ctx, cmd);
+            self.run_cmd(ctx, cmd);
+        });
     }
 
     #[cfg(feature = "glow")]
@@ -395,57 +403,61 @@ impl WrapApp {
     }
 
     fn show_selected_app(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        let selected_anchor = self.state.selected_anchor;
-        for (_name, anchor, app) in self.apps_iter_mut() {
-            if anchor == selected_anchor || ctx.memory(|mem| mem.everything_is_visible()) {
-                app.update(ctx, frame);
+        subsecond::call(|| {
+            let selected_anchor = self.state.selected_anchor;
+            for (_name, anchor, app) in self.apps_iter_mut() {
+                if anchor == selected_anchor || ctx.memory(|mem| mem.everything_is_visible()) {
+                    app.update(ctx, frame);
+                }
             }
-        }
+        });
     }
 
     fn bar_contents(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame, cmd: &mut Command) {
-        egui::widgets::global_theme_preference_switch(ui);
+        subsecond::call(|| {
+            egui::widgets::global_theme_preference_switch(ui);
 
-        ui.separator();
+            ui.separator();
 
-        if is_mobile(ui.ctx()) {
-            ui.menu_button("💻 Backend", |ui| {
-                ui.set_style(ui.ctx().style()); // ignore the "menu" style set by `menu_button`.
-                self.backend_panel_contents(ui, frame, cmd);
-            });
-        } else {
-            ui.toggle_value(&mut self.state.backend_panel.open, "💻 Backend");
-        }
-
-        ui.separator();
-
-        let mut selected_anchor = self.state.selected_anchor;
-        for (name, anchor, _app) in self.apps_iter_mut() {
-            if ui
-                .selectable_label(selected_anchor == anchor, name)
-                .clicked()
-            {
-                selected_anchor = anchor;
-                if frame.is_web() {
-                    ui.ctx()
-                        .open_url(egui::OpenUrl::same_tab(format!("#{anchor}")));
-                }
+            if is_mobile(ui.ctx()) {
+                ui.menu_button("💻 Backend 2", |ui| {
+                    ui.set_style(ui.ctx().style()); // ignore the "menu" style set by `menu_button`.
+                    self.backend_panel_contents(ui, frame, cmd);
+                });
+            } else {
+                ui.toggle_value(&mut self.state.backend_panel.open, "💻 Backend");
             }
-        }
-        self.state.selected_anchor = selected_anchor;
 
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            if false {
-                // TODO(emilk): fix the overlap on small screens
-                if clock_button(ui, crate::seconds_since_midnight()).clicked() {
-                    self.state.selected_anchor = Anchor::Clock;
+            ui.separator();
+
+            let mut selected_anchor = self.state.selected_anchor;
+            for (name, anchor, _app) in self.apps_iter_mut() {
+                if ui
+                    .selectable_label(selected_anchor == anchor, name)
+                    .clicked()
+                {
+                    selected_anchor = anchor;
                     if frame.is_web() {
-                        ui.ctx().open_url(egui::OpenUrl::same_tab("#clock"));
+                        ui.ctx()
+                            .open_url(egui::OpenUrl::same_tab(format!("#{anchor}")));
                     }
                 }
             }
+            self.state.selected_anchor = selected_anchor;
 
-            egui::warn_if_debug_build(ui);
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if false {
+                    // TODO(emilk): fix the overlap on small screens
+                    if clock_button(ui, crate::seconds_since_midnight()).clicked() {
+                        self.state.selected_anchor = Anchor::Clock;
+                        if frame.is_web() {
+                            ui.ctx().open_url(egui::OpenUrl::same_tab("#clock"));
+                        }
+                    }
+                }
+
+                egui::warn_if_debug_build(ui);
+            });
         });
     }
 

@@ -73,6 +73,9 @@ impl ImageLoader for GifLoader {
     }
 
     fn load(&self, ctx: &egui::Context, frame_uri: &str, _: SizeHint) -> ImageLoadResult {
+
+        let time = ctx.input(|i| i.time);
+
         let (image_uri, frame_index) =
             decode_animated_image_uri(frame_uri).map_err(|_err| LoadError::NotSupported)?;
         let mut cache = self.cache.lock();

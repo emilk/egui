@@ -79,6 +79,8 @@ poll-promise = { version = "0.3", optional = true, default-features = false }
 # feature "persistence":
 serde = { workspace = true, optional = true }
 
+dioxus-devtools = "0.7.0-rc.0"
+subsecond = "0.7.0-rc.0"
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
@@ -91,7 +93,7 @@ rfd = { version = "0.15.3", optional = true }
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm-bindgen = "=0.2.97"
+wasm-bindgen = "=0.2.100"
 wasm-bindgen-futures.workspace = true
 web-sys.workspace = true
 

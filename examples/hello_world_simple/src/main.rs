@@ -2,6 +2,7 @@
 #![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
 use eframe::egui;
+use eframe::egui::{Align, Color32, TextEdit, vec2};
 
 fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -28,6 +29,15 @@ fn main() -> eframe::Result {
                 age += 1;
             }
             ui.label(format!("Hello '{name}', age {age}"));
+
+            ui.add_sized(
+                vec2(100.0, 100.0),
+                TextEdit::multiline(&mut String::from("Select me!"))
+                    .horizontal_align(Align::Center)
+                    .vertical_align(Align::Max)
+                    .background_color(Color32::WHITE)
+                    .text_color(Color32::BLACK),
+            );
         });
     })
 }

@@ -24,7 +24,8 @@ impl Custom3d {
 
 impl eframe::App for Custom3d {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+        subsecond::call(|| {
+            egui::CentralPanel::default().show(ctx, |ui| {
             egui::ScrollArea::both()
                 .auto_shrink(false)
                 .show(ui, |ui| {
@@ -42,6 +43,7 @@ impl eframe::App for Custom3d {
                     ui.label("Drag to rotate!");
                     ui.add(egui_demo_lib::egui_github_link_file!());
                 });
+        });
         });
     }
 

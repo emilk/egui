@@ -9,23 +9,26 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc; // Much faster allocator
 
 // When compiling natively:
 fn main() -> eframe::Result {
-    for arg in std::env::args().skip(1) {
-        match arg.as_str() {
-            "--profile" => {
-                #[cfg(feature = "puffin")]
-                start_puffin_server();
 
-                #[cfg(not(feature = "puffin"))]
-                panic!(
-                    "Unknown argument: {arg} - you need to enable the 'puffin' feature to use this."
-                );
-            }
+    dioxus_devtools::connect_subsecond();
 
-            _ => {
-                panic!("Unknown argument: {arg}");
-            }
-        }
-    }
+    // for arg in std::env::args().skip(1) {
+    //     match arg.as_str() {
+    //         "--profile" => {
+    //             #[cfg(feature = "puffin")]
+    //             start_puffin_server();
+    //
+    //             #[cfg(not(feature = "puffin"))]
+    //             panic!(
+    //                 "Unknown argument: {arg} - you need to enable the 'puffin' feature to use this."
+    //             );
+    //         }
+    //
+    //         _ => {
+    //             panic!("Unknown argument: {arg}");
+    //         }
+    //     }
+    // }
 
     {
         // Silence wgpu log spam (https://github.com/gfx-rs/wgpu/issues/3206)
@@ -62,11 +65,13 @@ fn main() -> eframe::Result {
         ..Default::default()
     };
 
-    eframe::run_native(
-        "egui demo app",
-        options,
-        Box::new(|cc| Ok(Box::new(egui_demo_app::WrapApp::new(cc)))),
-    )
+    subsecond::call(|| {
+        eframe::run_native(
+            "egui demo app",
+            options.clone(),
+            Box::new(|cc| Ok(Box::new(egui_demo_app::WrapApp::new(cc)))),
+        )
+    })
 }
 
 #[cfg(feature = "puffin")]
