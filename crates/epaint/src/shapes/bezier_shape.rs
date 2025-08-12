@@ -613,6 +613,8 @@ struct FlatteningParameters {
 impl FlatteningParameters {
     // https://raphlinus.github.io/graphics/curves/2019/12/23/flatten-quadbez.html
     pub fn from_curve(curve: &QuadraticBezierShape, tolerance: f32) -> Self {
+        #![expect(clippy::useless_let_if_seq)]
+
         // Map the quadratic bézier segment to y = x^2 parabola.
         let from = curve.points[0];
         let ctrl = curve.points[1];

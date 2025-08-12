@@ -240,8 +240,7 @@ impl GraphicLayers {
                     if let Some(list) = order_map.get_mut(&layer_id.id) {
                         if let Some(to_global) = to_global.get(layer_id) {
                             for clipped_shape in &mut list.0 {
-                                clipped_shape.clip_rect = *to_global * clipped_shape.clip_rect;
-                                clipped_shape.shape.transform(*to_global);
+                                clipped_shape.transform(*to_global);
                             }
                         }
                         all_shapes.append(&mut list.0);
@@ -250,13 +249,15 @@ impl GraphicLayers {
             }
 
             // Also draw areas that are missing in `area_order`:
+            // NOTE: We don't think we end up here in normal situations.
+            // This is just a safety net in case we have some bug somewhere.
+            #[expect(clippy::iter_over_hash_type)]
             for (id, list) in order_map {
                 let layer_id = LayerId::new(order, *id);
 
                 if let Some(to_global) = to_global.get(&layer_id) {
                     for clipped_shape in &mut list.0 {
-                        clipped_shape.clip_rect = *to_global * clipped_shape.clip_rect;
-                        clipped_shape.shape.transform(*to_global);
+                        clipped_shape.transform(*to_global);
                     }
                 }
 

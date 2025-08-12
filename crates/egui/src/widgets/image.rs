@@ -938,11 +938,9 @@ fn animated_image_frame_index(ctx: &Context, uri: &str) -> usize {
                 return index;
             }
         }
-
-        0
-    } else {
-        0
     }
+
+    0
 }
 
 /// Checks if uri is a gif file

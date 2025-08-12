@@ -22,7 +22,6 @@ mod window_settings;
 
 pub use window_settings::WindowSettings;
 
-use ahash::HashSet;
 use raw_window_handle::HasDisplayHandle;
 
 use winit::{
@@ -373,7 +372,7 @@ impl State {
                     winit::event::Ime::Disabled | winit::event::Ime::Preedit(_, None) => {
                         self.ime_event_disable();
                     }
-                };
+                }
 
                 EventResponse {
                     repaint: true,
@@ -584,7 +583,7 @@ impl State {
                             pos,
                             force: None,
                         });
-                    };
+                    }
                 }
             }
         }
@@ -1334,7 +1333,7 @@ pub fn process_viewport_commands(
     info: &mut ViewportInfo,
     commands: impl IntoIterator<Item = ViewportCommand>,
     window: &Window,
-    actions_requested: &mut HashSet<ActionRequested>,
+    actions_requested: &mut Vec<ActionRequested>,
 ) {
     for command in commands {
         process_viewport_command(egui_ctx, window, command, info, actions_requested);
@@ -1346,7 +1345,7 @@ fn process_viewport_command(
     window: &Window,
     command: ViewportCommand,
     info: &mut ViewportInfo,
-    actions_requested: &mut HashSet<ActionRequested>,
+    actions_requested: &mut Vec<ActionRequested>,
 ) {
     profiling::function_scope!();
 
@@ -1539,16 +1538,16 @@ fn process_viewport_command(
             }
         }
         ViewportCommand::Screenshot(user_data) => {
-            actions_requested.insert(ActionRequested::Screenshot(user_data));
+            actions_requested.push(ActionRequested::Screenshot(user_data));
         }
         ViewportCommand::RequestCut => {
-            actions_requested.insert(ActionRequested::Cut);
+            actions_requested.push(ActionRequested::Cut);
         }
         ViewportCommand::RequestCopy => {
-            actions_requested.insert(ActionRequested::Copy);
+            actions_requested.push(ActionRequested::Copy);
         }
         ViewportCommand::RequestPaste => {
-            actions_requested.insert(ActionRequested::Paste);
+            actions_requested.push(ActionRequested::Paste);
         }
     }
 }

@@ -127,6 +127,18 @@ pub struct ClippedShape {
     pub shape: Shape,
 }
 
+impl ClippedShape {
+    /// Transform (move/scale) the shape in-place.
+    ///
+    /// If using a [`PaintCallback`], note that only the rect is scaled as opposed
+    /// to other shapes where the stroke is also scaled.
+    pub fn transform(&mut self, transform: emath::TSTransform) {
+        let Self { clip_rect, shape } = self;
+        *clip_rect = transform * *clip_rect;
+        shape.transform(transform);
+    }
+}
+
 /// A [`Mesh`] or [`PaintCallback`] within a clip rectangle.
 ///
 /// Everything is using logical points.

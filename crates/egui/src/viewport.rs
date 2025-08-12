@@ -113,6 +113,20 @@ pub enum ViewportClass {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ViewportId(pub Id);
 
+// We implement `PartialOrd` and `Ord` so we can use `ViewportId` in a `BTreeMap`,
+// which allows predicatable iteration order, frame-to-frame.
+impl PartialOrd for ViewportId {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for ViewportId {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.value().cmp(&other.0.value())
+    }
+}
+
 impl Default for ViewportId {
     #[inline]
     fn default() -> Self {
@@ -150,6 +164,9 @@ pub type ViewportIdSet = nohash_hasher::IntSet<ViewportId>;
 
 /// A fast hash map from [`ViewportId`] to `T`.
 pub type ViewportIdMap<T> = nohash_hasher::IntMap<ViewportId, T>;
+
+/// An order map from [`ViewportId`] to `T`.
+pub type OrderedViewportIdMap<T> = std::collections::BTreeMap<ViewportId, T>;
 
 // ----------------------------------------------------------------------------
 
@@ -648,6 +665,8 @@ impl ViewportBuilder {
     /// returning a list of commands and a bool indicating if the window needs to be recreated.
     #[must_use]
     pub fn patch(&mut self, new_vp_builder: Self) -> (Vec<ViewportCommand>, bool) {
+        #![expect(clippy::useless_let_if_seq)] // False positive
+
         let Self {
             title: new_title,
             app_id: new_app_id,

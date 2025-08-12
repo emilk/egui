@@ -40,6 +40,9 @@ default = [
   "winit/default",
   "x11",
   "egui-wgpu?/fragile-send-sync-non-atomic-wasm",
+  # Let's enable some backends so that users can use `eframe` out-of-the-box
+  # without having to explicitly opt-in to backends
+  "egui-wgpu?/default"
 ]
 
 ## Enable platform accessibility API implementations through [AccessKit](https://accesskit.dev/).
@@ -167,12 +170,7 @@ glutin-winit = { workspace = true, optional = true, default-features = false, fe
   "wgl",
 ] }
 home = { workspace = true, optional = true }
-wgpu = { workspace = true, optional = true, features = [
-  # Let's enable some backends so that users can use `eframe` out-of-the-box
-  # without having to explicitly opt-in to backends
-  "metal",
-  "webgpu",
-] }
+wgpu = { workspace = true, optional = true }
 
 # mac:
 [target.'cfg(any(target_os = "macos"))'.dependencies]
@@ -194,11 +192,12 @@ objc2-app-kit = { version = "0.2.0", default-features = false, features = [
 
 # windows:
 [target.'cfg(any(target_os = "windows"))'.dependencies]
-winapi = { version = "0.3.9", features = ["winuser"] }
 windows-sys = { workspace = true, features = [
   "Win32_Foundation",
-  "Win32_UI_Shell",
   "Win32_System_Com",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_UI_Shell",
+  "Win32_UI_WindowsAndMessaging",
 ] }
 
 # -------------------------------------------
@@ -268,11 +267,7 @@ web-sys = { workspace = true, features = [
 
 # optional web:
 egui-wgpu = { workspace = true, optional = true } # if wgpu is used, use it without (!) winit
-wgpu = { workspace = true, optional = true, features = [
-  # Let's enable some backends so that users can use `eframe` out-of-the-box
-  # without having to explicitly opt-in to backends
-  "webgpu",
-] }
+wgpu = { workspace = true, optional = true }
 
 # Native dev dependencies for testing
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]

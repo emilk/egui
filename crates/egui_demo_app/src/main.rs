@@ -91,5 +91,5 @@ fn start_puffin_server() {
         Err(err) => {
             log::error!("Failed to start puffin server: {err}");
         }
-    };
+    }
 }
