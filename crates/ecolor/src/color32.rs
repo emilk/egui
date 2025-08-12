@@ -157,6 +157,27 @@ impl Color32 {
         }
     }
 
+    /// Same as [`Self::from_rgba_unmultiplied`], but can be used in a const context.
+    ///
+    /// It is slightly slower when operating on non-const data.
+    #[inline]
+    pub const fn from_rgba_unmultiplied_const(r: u8, g: u8, b: u8, a: u8) -> Self {
+        match a {
+            // common-case optimization:
+            0 => Self::TRANSPARENT,
+
+            // common-case optimization:
+            255 => Self::from_rgb(r, g, b),
+
+            a => {
+                let r = fast_round(r as f32 * linear_f32_from_linear_u8(a));
+                let g = fast_round(g as f32 * linear_f32_from_linear_u8(a));
+                let b = fast_round(b as f32 * linear_f32_from_linear_u8(a));
+                Self::from_rgba_premultiplied(r, g, b, a)
+            }
+        }
+    }
+
     /// Opaque gray.
     #[doc(alias = "from_grey")]
     #[inline]
@@ -502,9 +523,11 @@ mod test {
     fn to_from_rgba() {
         for [r, g, b, a] in test_rgba() {
             let original = Color32::from_rgba_unmultiplied(r, g, b, a);
+            let constfn = Color32::from_rgba_unmultiplied_const(r, g, b, a);
             let rgba = Rgba::from(original);
             let back = Color32::from(rgba);
             assert_eq!(back, original);
+            assert_eq!(constfn, original);
         }
 
         assert_eq!(
