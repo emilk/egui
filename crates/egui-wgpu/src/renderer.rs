@@ -629,9 +629,9 @@ impl Renderer {
                     mip_level_count: 1,
                     sample_count: 1,
                     dimension: wgpu::TextureDimension::D2,
-                    format: wgpu::TextureFormat::Rgba8UnormSrgb, // Minspec for wgpu WebGL emulation is WebGL2, so this should always be supported.
+                    format: wgpu::TextureFormat::Rgba8Unorm,
                     usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-                    view_formats: &[wgpu::TextureFormat::Rgba8UnormSrgb],
+                    view_formats: &[wgpu::TextureFormat::Rgba8Unorm],
                 })
             };
             let origin = wgpu::Origin3d::ZERO;
@@ -690,7 +690,7 @@ impl Renderer {
     ///
     /// This enables the application to reference the texture inside an image ui element.
     /// This effectively enables off-screen rendering inside the egui UI. Texture must have
-    /// the texture format [`wgpu::TextureFormat::Rgba8UnormSrgb`].
+    /// the texture format [`wgpu::TextureFormat::Rgba8Unorm`].
     pub fn register_native_texture(
         &mut self,
         device: &wgpu::Device,
@@ -738,7 +738,7 @@ impl Renderer {
     /// This allows applications to specify individual minification/magnification filters as well as
     /// custom mipmap and tiling options.
     ///
-    /// The texture must have the format [`wgpu::TextureFormat::Rgba8UnormSrgb`].
+    /// The texture must have the format [`wgpu::TextureFormat::Rgba8Unorm`].
     /// Any compare function supplied in the [`wgpu::SamplerDescriptor`] will be ignored.
     #[expect(clippy::needless_pass_by_value)] // false positive
     pub fn register_native_texture_with_sampler_options(
@@ -873,7 +873,7 @@ impl Renderer {
                             callbacks.push(c.0.as_ref());
                         } else {
                             log::warn!("Unknown paint callback: expected `egui_wgpu::Callback`");
-                        };
+                        }
                         acc
                     }
                 }

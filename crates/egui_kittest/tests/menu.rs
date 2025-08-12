@@ -1,4 +1,4 @@
-use egui::containers::menu::{Bar, MenuConfig, SubMenuButton};
+use egui::containers::menu::{MenuBar, MenuConfig, SubMenuButton};
 use egui::{PopupCloseBehavior, Ui, include_image};
 use egui_kittest::{Harness, SnapshotResults};
 use kittest::Queryable as _;
@@ -18,7 +18,7 @@ impl TestMenu {
 
     fn ui(&mut self, ui: &mut Ui) {
         ui.vertical(|ui| {
-            Bar::new().config(self.config.clone()).ui(ui, |ui| {
+            MenuBar::new().config(self.config.clone()).ui(ui, |ui| {
                 egui::Sides::new().show(
                     ui,
                     |ui| {
@@ -50,7 +50,7 @@ impl TestMenu {
                                             .clicked()
                                         {
                                             ui.close();
-                                        };
+                                        }
                                     });
                                 });
                         });

@@ -12,8 +12,8 @@ pub struct SizedAtom<'a> {
     /// size.x + gap.
     pub size: Vec2,
 
-    /// Preferred size of the atom. This is used to calculate `Response::intrinsic_size`.
-    pub preferred_size: Vec2,
+    /// Intrinsic size of the atom. This is used to calculate `Response::intrinsic_size`.
+    pub intrinsic_size: Vec2,
 
     pub kind: SizedAtomKind<'a>,
 }

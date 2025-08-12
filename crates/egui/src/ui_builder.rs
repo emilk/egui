@@ -1,8 +1,8 @@
 use std::{hash::Hash, sync::Arc};
 
+use crate::ClosableTag;
 #[expect(unused_imports)] // Used for doclinks
 use crate::Ui;
-use crate::close_tag::ClosableTag;
 use crate::{Id, LayerId, Layout, Rect, Sense, Style, UiStackInfo};
 
 /// Build a [`Ui`] as the child of another [`Ui`].
@@ -14,6 +14,7 @@ use crate::{Id, LayerId, Layout, Rect, Sense, Style, UiStackInfo};
 #[derive(Clone, Default)]
 pub struct UiBuilder {
     pub id_salt: Option<Id>,
+    pub global_scope: bool,
     pub ui_stack_info: UiStackInfo,
     pub layer_id: Option<LayerId>,
     pub max_rect: Option<Rect>,
@@ -39,6 +40,34 @@ impl UiBuilder {
     #[inline]
     pub fn id_salt(mut self, id_salt: impl Hash) -> Self {
         self.id_salt = Some(Id::new(id_salt));
+        self
+    }
+
+    /// Set an id of the new `Ui` that is independent of the parent `Ui`.
+    /// This way child widgets can be moved in the ui tree without losing state.
+    /// You have to ensure that in a frame the child widgets do not get rendered in multiple places.
+    ///
+    /// You should set the same unique `id` at every place in the ui tree where you want the
+    /// child widgets to share state.
+    /// If the child widgets are not moved in the ui tree, use [`UiBuilder::id_salt`] instead.
+    ///
+    /// This is a shortcut for `.id_salt(my_id).global_scope(true)`.
+    #[inline]
+    pub fn id(mut self, id: impl Hash) -> Self {
+        self.id_salt = Some(Id::new(id));
+        self.global_scope = true;
+        self
+    }
+
+    /// Make the new `Ui` child ids independent of the parent `Ui`.
+    /// This way child widgets can be moved in the ui tree without losing state.
+    /// You have to ensure that in a frame the child widgets do not get rendered in multiple places.
+    ///
+    /// You should set the same globally unique `id_salt` at every place in the ui tree where you want the
+    /// child widgets to share state.
+    #[inline]
+    pub fn global_scope(mut self, global_scope: bool) -> Self {
+        self.global_scope = global_scope;
         self
     }
 

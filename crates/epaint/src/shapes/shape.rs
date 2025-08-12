@@ -363,7 +363,7 @@ impl Shape {
             Self::Vec(shapes) => {
                 let mut rect = Rect::NOTHING;
                 for shape in shapes {
-                    rect = rect.union(shape.visual_bounding_rect());
+                    rect |= shape.visual_bounding_rect();
                 }
                 rect
             }
@@ -416,7 +416,7 @@ impl Shape {
         self.transform(TSTransform::from_translation(delta));
     }
 
-    /// Move the shape by this many points, in-place.
+    /// Transform (move/scale) the shape in-place.
     ///
     /// If using a [`PaintCallback`], note that only the rect is scaled as opposed
     /// to other shapes where the stroke is also scaled.

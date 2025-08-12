@@ -50,8 +50,8 @@ pub(crate) struct Region {
 impl Region {
     /// Expand the `min_rect` and `max_rect` of this ui to include a child at the given rect.
     pub fn expand_to_include_rect(&mut self, rect: Rect) {
-        self.min_rect = self.min_rect.union(rect);
-        self.max_rect = self.max_rect.union(rect);
+        self.min_rect |= rect;
+        self.max_rect |= rect;
     }
 
     /// Ensure we are big enough to contain the given X-coordinate.
@@ -725,7 +725,7 @@ impl Layout {
         if self.main_wrap {
             if cursor.intersects(frame_rect.shrink(1.0)) {
                 // make row/column larger if necessary
-                *cursor = cursor.union(frame_rect);
+                *cursor |= frame_rect;
             } else {
                 // this is a new row or column. We temporarily use NAN for what will be filled in later.
                 match self.main_dir {
@@ -753,7 +753,7 @@ impl Layout {
                             pos2(frame_rect.max.x, f32::NAN),
                         );
                     }
-                };
+                }
             }
         } else {
             // Make sure we also expand where we consider adding things (the cursor):
@@ -779,7 +779,7 @@ impl Layout {
             Direction::BottomUp => {
                 cursor.max.y = widget_rect.min.y - item_spacing.y;
             }
-        };
+        }
     }
 
     /// Move to the next row in a wrapping layout.

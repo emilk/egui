@@ -87,7 +87,7 @@ fn set_menu_style(style: &mut Style) {
 /// The menu bar goes well in a [`crate::TopBottomPanel::top`],
 /// but can also be placed in a [`crate::Window`].
 /// In the latter case you may want to wrap it in [`Frame`].
-#[deprecated = "Use `crate::containers::menu::Bar` instead"]
+#[deprecated = "Use `egui::MenuBar::new().ui(` instead"]
 pub fn bar<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
     ui.horizontal(|ui| {
         set_menu_style(ui.style_mut());
@@ -766,9 +766,8 @@ impl MenuState {
     }
 
     fn submenu(&self, id: Id) -> Option<&Arc<RwLock<Self>>> {
-        self.sub_menu
-            .as_ref()
-            .and_then(|(k, sub)| if id == *k { Some(sub) } else { None })
+        let (k, sub) = self.sub_menu.as_ref()?;
+        if id == *k { Some(sub) } else { None }
     }
 
     /// Open submenu at position, if not already open.

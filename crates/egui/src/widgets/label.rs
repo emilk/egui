@@ -165,7 +165,7 @@ impl Label {
             };
             select_sense -= Sense::FOCUSABLE; // Don't move focus to labels with TAB key.
 
-            sense = sense.union(select_sense);
+            sense |= select_sense;
         }
 
         if let WidgetText::Galley(galley) = self.text {
@@ -220,6 +220,7 @@ impl Label {
                 .rect_without_leading_space()
                 .translate(pos.to_vec2());
             let mut response = ui.allocate_rect(rect, sense);
+            response.intrinsic_size = Some(galley.intrinsic_size());
             for placed_row in galley.rows.iter().skip(1) {
                 let rect = placed_row.rect().translate(pos.to_vec2());
                 response |= ui.allocate_rect(rect, sense);
@@ -249,10 +250,11 @@ impl Label {
             } else {
                 layout_job.halign = self.halign.unwrap_or(ui.layout().horizontal_placement());
                 layout_job.justify = ui.layout().horizontal_justify();
-            };
+            }
 
             let galley = ui.fonts(|fonts| fonts.layout_job(layout_job));
-            let (rect, response) = ui.allocate_exact_size(galley.size(), sense);
+            let (rect, mut response) = ui.allocate_exact_size(galley.size(), sense);
+            response.intrinsic_size = Some(galley.intrinsic_size());
             let galley_pos = match galley.job.halign {
                 Align::LEFT => rect.left_top(),
                 Align::Center => rect.center_top(),

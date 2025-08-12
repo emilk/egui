@@ -179,8 +179,8 @@ impl Keypad {
             )
         });
 
-        let mut is_first_show = false;
-        if ctx.wants_keyboard_input() && state.focus != focus {
+        let is_first_show = ctx.wants_keyboard_input() && state.focus != focus;
+        if is_first_show {
             let y = ctx.style().spacing.interact_size.y * 1.25;
             state.open = true;
             state.start_pos = ctx.input(|i| {
@@ -189,7 +189,6 @@ impl Keypad {
                     .map_or(pos2(100.0, 100.0), |p| p + vec2(0.0, y))
             });
             state.focus = focus;
-            is_first_show = true;
         }
 
         if state.close_on_next_frame {

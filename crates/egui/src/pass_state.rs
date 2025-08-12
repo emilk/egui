@@ -318,7 +318,7 @@ impl PassState {
         );
         self.available_rect.min.x = panel_rect.max.x;
         self.unused_rect.min.x = panel_rect.max.x;
-        self.used_by_panels = self.used_by_panels.union(panel_rect);
+        self.used_by_panels |= panel_rect;
     }
 
     /// Shrink `available_rect`.
@@ -329,7 +329,7 @@ impl PassState {
         );
         self.available_rect.max.x = panel_rect.min.x;
         self.unused_rect.max.x = panel_rect.min.x;
-        self.used_by_panels = self.used_by_panels.union(panel_rect);
+        self.used_by_panels |= panel_rect;
     }
 
     /// Shrink `available_rect`.
@@ -340,7 +340,7 @@ impl PassState {
         );
         self.available_rect.min.y = panel_rect.max.y;
         self.unused_rect.min.y = panel_rect.max.y;
-        self.used_by_panels = self.used_by_panels.union(panel_rect);
+        self.used_by_panels |= panel_rect;
     }
 
     /// Shrink `available_rect`.
@@ -351,13 +351,13 @@ impl PassState {
         );
         self.available_rect.max.y = panel_rect.min.y;
         self.unused_rect.max.y = panel_rect.min.y;
-        self.used_by_panels = self.used_by_panels.union(panel_rect);
+        self.used_by_panels |= panel_rect;
     }
 
     pub(crate) fn allocate_central_panel(&mut self, panel_rect: Rect) {
         // Note: we do not shrink `available_rect`, because
         // we allow windows to cover the CentralPanel.
         self.unused_rect = Rect::NOTHING; // Nothing left unused after this
-        self.used_by_panels = self.used_by_panels.union(panel_rect);
+        self.used_by_panels |= panel_rect;
     }
 }

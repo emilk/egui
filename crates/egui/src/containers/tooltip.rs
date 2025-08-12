@@ -163,7 +163,7 @@ impl Tooltip<'_> {
         // The popup might not be shown on at_pointer if there is no pointer.
         if let Some(response) = &response {
             state.tooltip_count += 1;
-            state.bounding_rect = state.bounding_rect.union(response.response.rect);
+            state.bounding_rect |= response.response.rect;
             response
                 .response
                 .ctx

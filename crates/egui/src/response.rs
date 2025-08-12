@@ -59,8 +59,8 @@ pub struct Response {
 
     /// The intrinsic / desired size of the widget.
     ///
-    /// For a button, this will be the size of the label + the frames padding,
-    /// even if the button is laid out in a justified layout and the actual size will be larger.
+    /// This is the size that a non-wrapped, non-truncated, non-justified version of the widget
+    /// would have.
     ///
     /// If this is `None`, use [`Self::rect`] instead.
     ///

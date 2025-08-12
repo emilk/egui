@@ -71,6 +71,6 @@ fn test_variants(
             harness.fit_contents();
         }
 
-        results.add(harness.try_snapshot(&format!("sides/{name}_{variant_name}")));
+        results.add(harness.try_snapshot(format!("sides/{name}_{variant_name}")));
     }
 }

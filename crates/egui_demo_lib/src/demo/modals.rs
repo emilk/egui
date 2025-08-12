@@ -164,8 +164,8 @@ impl crate::View for Modals {
 mod tests {
     use crate::Demo as _;
     use crate::demo::modals::Modals;
-    use egui::Key;
     use egui::accesskit::Role;
+    use egui::{Key, Popup};
     use egui_kittest::kittest::Queryable as _;
     use egui_kittest::{Harness, SnapshotResults};
 
@@ -187,12 +187,12 @@ mod tests {
 
         // Harness::run would fail because we keep requesting repaints to simulate progress.
         harness.run_ok();
-        assert!(harness.ctx.memory(|mem| mem.any_popup_open()));
+        assert!(Popup::is_any_open(&harness.ctx));
         assert!(harness.state().user_modal_open);
 
         harness.key_press(Key::Escape);
         harness.run_ok();
-        assert!(!harness.ctx.memory(|mem| mem.any_popup_open()));
+        assert!(!Popup::is_any_open(&harness.ctx));
         assert!(harness.state().user_modal_open);
     }
 

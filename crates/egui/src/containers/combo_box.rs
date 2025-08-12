@@ -44,6 +44,7 @@ pub struct ComboBox {
     icon: Option<IconPainter>,
     wrap_mode: Option<TextWrapMode>,
     close_behavior: Option<PopupCloseBehavior>,
+    popup_style: StyleModifier,
 }
 
 impl ComboBox {
@@ -58,6 +59,7 @@ impl ComboBox {
             icon: None,
             wrap_mode: None,
             close_behavior: None,
+            popup_style: StyleModifier::default(),
         }
     }
 
@@ -73,6 +75,7 @@ impl ComboBox {
             icon: None,
             wrap_mode: None,
             close_behavior: None,
+            popup_style: StyleModifier::default(),
         }
     }
 
@@ -87,6 +90,7 @@ impl ComboBox {
             icon: None,
             wrap_mode: None,
             close_behavior: None,
+            popup_style: StyleModifier::default(),
         }
     }
 
@@ -191,6 +195,16 @@ impl ComboBox {
         self
     }
 
+    /// Set the style of the popup menu.
+    ///
+    /// Could for example be used with [`crate::containers::menu::menu_style`] to get the frame-less
+    /// menu button style.
+    #[inline]
+    pub fn popup_style(mut self, popup_style: StyleModifier) -> Self {
+        self.popup_style = popup_style;
+        self
+    }
+
     /// Show the combo box, with the given ui code for the menu contents.
     ///
     /// Returns `InnerResponse { inner: None }` if the combo box is closed.
@@ -216,6 +230,7 @@ impl ComboBox {
             icon,
             wrap_mode,
             close_behavior,
+            popup_style,
         } = self;
 
         let button_id = ui.make_persistent_id(id_salt);
@@ -229,6 +244,7 @@ impl ComboBox {
                 icon,
                 wrap_mode,
                 close_behavior,
+                popup_style,
                 (width, height),
             );
             if let Some(label) = label {
@@ -293,7 +309,7 @@ impl ComboBox {
 
     /// Check if the [`ComboBox`] with the given id has its popup menu currently opened.
     pub fn is_open(ctx: &Context, id: Id) -> bool {
-        ctx.memory(|m| m.is_popup_open(Self::widget_to_popup_id(id)))
+        Popup::is_id_open(ctx, Self::widget_to_popup_id(id))
     }
 
     /// Convert a [`ComboBox`] id to the id used to store it's popup state.
@@ -311,11 +327,12 @@ fn combo_box_dyn<'c, R>(
     icon: Option<IconPainter>,
     wrap_mode: Option<TextWrapMode>,
     close_behavior: Option<PopupCloseBehavior>,
+    popup_style: StyleModifier,
     (width, height): (Option<f32>, Option<f32>),
 ) -> InnerResponse<Option<R>> {
     let popup_id = ComboBox::widget_to_popup_id(button_id);
 
-    let is_popup_open = ui.memory(|m| m.is_popup_open(popup_id));
+    let is_popup_open = Popup::is_id_open(ui.ctx(), popup_id);
 
     let wrap_mode = wrap_mode.unwrap_or_else(|| ui.wrap_mode());
 
@@ -379,9 +396,9 @@ fn combo_box_dyn<'c, R>(
 
     let inner = Popup::menu(&button_response)
         .id(popup_id)
-        .style(StyleModifier::default())
         .width(button_response.rect.width())
         .close_behavior(close_behavior)
+        .style(popup_style)
         .show(|ui| {
             ui.set_min_width(ui.available_width());
 

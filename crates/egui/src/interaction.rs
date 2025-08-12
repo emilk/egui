@@ -293,7 +293,7 @@ pub(crate) fn interact(
         drag_started,
         dragged,
         drag_stopped,
-        contains_pointer,
         hovered,
+        contains_pointer,
     }
 }

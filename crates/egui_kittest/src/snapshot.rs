@@ -232,7 +232,8 @@ impl Display for SnapshotError {
                 let diff_path = std::path::absolute(diff_path).unwrap_or(diff_path.clone());
                 write!(
                     f,
-                    "'{name}' Image did not match snapshot. Diff: {diff}, {diff_path:?}. {HOW_TO_UPDATE_SCREENSHOTS}"
+                    "'{name}' Image did not match snapshot. Diff: {diff}, {}. {HOW_TO_UPDATE_SCREENSHOTS}",
+                    diff_path.display()
                 )
             }
             Self::OpenSnapshot { path, err } => {
@@ -240,19 +241,25 @@ impl Display for SnapshotError {
                 match err {
                     ImageError::IoError(io) => match io.kind() {
                         ErrorKind::NotFound => {
-                            write!(f, "Missing snapshot: {path:?}. {HOW_TO_UPDATE_SCREENSHOTS}")
+                            write!(
+                                f,
+                                "Missing snapshot: {}. {HOW_TO_UPDATE_SCREENSHOTS}",
+                                path.display()
+                            )
                         }
                         err => {
                             write!(
                                 f,
-                                "Error reading snapshot: {err:?}\nAt: {path:?}. {HOW_TO_UPDATE_SCREENSHOTS}"
+                                "Error reading snapshot: {err:?}\nAt: {}. {HOW_TO_UPDATE_SCREENSHOTS}",
+                                path.display()
                             )
                         }
                     },
                     err => {
                         write!(
                             f,
-                            "Error decoding snapshot: {err:?}\nAt: {path:?}. Make sure git-lfs is setup correctly. Read the instructions here: https://github.com/emilk/egui/blob/main/CONTRIBUTING.md#making-a-pr"
+                            "Error decoding snapshot: {err:?}\nAt: {}. Make sure git-lfs is setup correctly. Read the instructions here: https://github.com/emilk/egui/blob/main/CONTRIBUTING.md#making-a-pr",
+                            path.display()
                         )
                     }
                 }
@@ -269,7 +276,7 @@ impl Display for SnapshotError {
             }
             Self::WriteSnapshot { path, err } => {
                 let path = std::path::absolute(path).unwrap_or(path.clone());
-                write!(f, "Error writing snapshot: {err:?}\nAt: {path:?}")
+                write!(f, "Error writing snapshot: {err:?}\nAt: {}", path.display())
             }
             Self::RenderError { err } => {
                 write!(f, "Error rendering image: {err:?}")
@@ -310,16 +317,26 @@ fn should_update_snapshots() -> bool {
 /// reading or writing the snapshot.
 pub fn try_image_snapshot_options(
     new: &image::RgbaImage,
-    name: &str,
+    name: impl Into<String>,
     options: &SnapshotOptions,
 ) -> SnapshotResult {
+    try_image_snapshot_options_impl(new, name.into(), options)
+}
+
+fn try_image_snapshot_options_impl(
+    new: &image::RgbaImage,
+    name: String,
+    options: &SnapshotOptions,
+) -> SnapshotResult {
+    #![expect(clippy::print_stdout)]
+
     let SnapshotOptions {
         threshold,
         output_path,
         failed_pixel_count_threshold,
     } = options;
 
-    let parent_path = if let Some(parent) = PathBuf::from(name).parent() {
+    let parent_path = if let Some(parent) = PathBuf::from(&name).parent() {
         output_path.join(parent)
     } else {
         output_path.clone()
@@ -353,7 +370,7 @@ pub fn try_image_snapshot_options(
         // No need for an explicit `.new` file:
         std::fs::remove_file(&new_path).ok();
 
-        println!("Updated snapshot: {snapshot_path:?}");
+        println!("Updated snapshot: {}", snapshot_path.display());
 
         Ok(())
     };
@@ -385,7 +402,7 @@ pub fn try_image_snapshot_options(
             return update_snapshot();
         } else {
             return Err(SnapshotError::SizeMismatch {
-                name: name.to_owned(),
+                name,
                 expected: previous.dimensions(),
                 actual: new.dimensions(),
             });
@@ -412,7 +429,7 @@ pub fn try_image_snapshot_options(
             }
 
             Err(SnapshotError::Diff {
-                name: name.to_owned(),
+                name,
                 diff: num_wrong_pixels,
                 diff_path,
             })
@@ -435,7 +452,7 @@ pub fn try_image_snapshot_options(
 /// # Errors
 /// Returns a [`SnapshotError`] if the image does not match the snapshot or if there was an error
 /// reading or writing the snapshot.
-pub fn try_image_snapshot(current: &image::RgbaImage, name: &str) -> SnapshotResult {
+pub fn try_image_snapshot(current: &image::RgbaImage, name: impl Into<String>) -> SnapshotResult {
     try_image_snapshot_options(current, name, &SnapshotOptions::default())
 }
 
@@ -456,7 +473,11 @@ pub fn try_image_snapshot(current: &image::RgbaImage, name: &str) -> SnapshotRes
 /// Panics if the image does not match the snapshot or if there was an error reading or writing the
 /// snapshot.
 #[track_caller]
-pub fn image_snapshot_options(current: &image::RgbaImage, name: &str, options: &SnapshotOptions) {
+pub fn image_snapshot_options(
+    current: &image::RgbaImage,
+    name: impl Into<String>,
+    options: &SnapshotOptions,
+) {
     match try_image_snapshot_options(current, name, options) {
         Ok(_) => {}
         Err(err) => {
@@ -475,7 +496,7 @@ pub fn image_snapshot_options(current: &image::RgbaImage, name: &str, options: &
 /// Panics if the image does not match the snapshot or if there was an error reading or writing the
 /// snapshot.
 #[track_caller]
-pub fn image_snapshot(current: &image::RgbaImage, name: &str) {
+pub fn image_snapshot(current: &image::RgbaImage, name: impl Into<String>) {
     match try_image_snapshot(current, name) {
         Ok(_) => {}
         Err(err) => {
@@ -506,13 +527,13 @@ impl<State> Harness<'_, State> {
     /// error reading or writing the snapshot, if the rendering fails or if no default renderer is available.
     pub fn try_snapshot_options(
         &mut self,
-        name: &str,
+        name: impl Into<String>,
         options: &SnapshotOptions,
     ) -> SnapshotResult {
         let image = self
             .render()
             .map_err(|err| SnapshotError::RenderError { err })?;
-        try_image_snapshot_options(&image, name, options)
+        try_image_snapshot_options(&image, name.into(), options)
     }
 
     /// Render an image using the setup [`crate::TestRenderer`] and compare it to the snapshot.
@@ -523,7 +544,7 @@ impl<State> Harness<'_, State> {
     /// # Errors
     /// Returns a [`SnapshotError`] if the image does not match the snapshot, if there was an
     /// error reading or writing the snapshot, if the rendering fails or if no default renderer is available.
-    pub fn try_snapshot(&mut self, name: &str) -> SnapshotResult {
+    pub fn try_snapshot(&mut self, name: impl Into<String>) -> SnapshotResult {
         let image = self
             .render()
             .map_err(|err| SnapshotError::RenderError { err })?;
@@ -549,7 +570,7 @@ impl<State> Harness<'_, State> {
     /// Panics if the image does not match the snapshot, if there was an error reading or writing the
     /// snapshot, if the rendering fails or if no default renderer is available.
     #[track_caller]
-    pub fn snapshot_options(&mut self, name: &str, options: &SnapshotOptions) {
+    pub fn snapshot_options(&mut self, name: impl Into<String>, options: &SnapshotOptions) {
         match self.try_snapshot_options(name, options) {
             Ok(_) => {}
             Err(err) => {
@@ -567,7 +588,7 @@ impl<State> Harness<'_, State> {
     /// Panics if the image does not match the snapshot, if there was an error reading or writing the
     /// snapshot, if the rendering fails or if no default renderer is available.
     #[track_caller]
-    pub fn snapshot(&mut self, name: &str) {
+    pub fn snapshot(&mut self, name: impl Into<String>) {
         match self.try_snapshot(name) {
             Ok(_) => {}
             Err(err) => {
@@ -588,7 +609,7 @@ impl<State> Harness<'_, State> {
     )]
     pub fn try_wgpu_snapshot_options(
         &mut self,
-        name: &str,
+        name: impl Into<String>,
         options: &SnapshotOptions,
     ) -> SnapshotResult {
         self.try_snapshot_options(name, options)
@@ -598,7 +619,7 @@ impl<State> Harness<'_, State> {
         since = "0.31.0",
         note = "Use `try_snapshot` instead. This function will be removed in 0.32"
     )]
-    pub fn try_wgpu_snapshot(&mut self, name: &str) -> SnapshotResult {
+    pub fn try_wgpu_snapshot(&mut self, name: impl Into<String>) -> SnapshotResult {
         self.try_snapshot(name)
     }
 
@@ -606,7 +627,7 @@ impl<State> Harness<'_, State> {
         since = "0.31.0",
         note = "Use `snapshot_options` instead. This function will be removed in 0.32"
     )]
-    pub fn wgpu_snapshot_options(&mut self, name: &str, options: &SnapshotOptions) {
+    pub fn wgpu_snapshot_options(&mut self, name: impl Into<String>, options: &SnapshotOptions) {
         self.snapshot_options(name, options);
     }
 

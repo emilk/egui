@@ -5,6 +5,14 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.32.0 - 2025-07-10
+* Mark all keys as released if the app loses focus [#5743](https://github.com/emilk/egui/pull/5743) by [@emilk](https://github.com/emilk)
+* Fix text input on Android [#5759](https://github.com/emilk/egui/pull/5759) by [@StratusFearMe21](https://github.com/StratusFearMe21)
+* Add macOS-specific `has_shadow` and `with_has_shadow` to ViewportBuilder [#6850](https://github.com/emilk/egui/pull/6850) by [@gaelanmcmillan](https://github.com/gaelanmcmillan)
+* Support for back-button on Android [#7073](https://github.com/emilk/egui/pull/7073) by [@ardocrat](https://github.com/ardocrat)
+* Fix incorrect window sizes for non-resizable windows on Wayland [#7103](https://github.com/emilk/egui/pull/7103) by [@GoldsteinE](https://github.com/GoldsteinE)
+
+
 ## 0.31.1 - 2025-03-05
 Nothing new
 

@@ -93,7 +93,7 @@ fn test_scroll_harness() -> Harness<'static, bool> {
                     }
                     if ui.button("Hidden Button").clicked() {
                         *state = true;
-                    };
+                    }
                 });
             },
             false,

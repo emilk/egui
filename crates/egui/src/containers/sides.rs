@@ -185,7 +185,7 @@ impl Sides {
                     wrap_mode,
                 );
 
-                ui.advance_cursor_after_rect(left_rect.union(right_rect));
+                ui.advance_cursor_after_rect(left_rect | right_rect);
                 (result_left, result_right)
             }
             SidesKind::ShrinkRight => {
@@ -205,7 +205,7 @@ impl Sides {
                     wrap_mode,
                 );
 
-                ui.advance_cursor_after_rect(left_rect.union(right_rect));
+                ui.advance_cursor_after_rect(left_rect | right_rect);
                 (result_left, result_right)
             }
             SidesKind::Extend => {
@@ -225,7 +225,7 @@ impl Sides {
                     None,
                 );
 
-                let mut final_rect = left_rect.union(right_rect);
+                let mut final_rect = left_rect | right_rect;
                 let min_width = left_rect.width() + spacing + right_rect.width();
 
                 if ui.is_sizing_pass() {
