@@ -652,11 +652,10 @@ impl TextEdit<'_> {
             .align_size_within_rect(galley.size(), rect)
             .intersect(rect) // limit pos to the response rect area
             .min;
-        let align_offset_x = rect.left() - galley_pos.x;
-        let align_offset_y = rect.top() - galley_pos.y;
+        let align_offset = rect.left_top() - galley_pos;
 
         // Visual clipping for singleline text editor with text larger than width
-        if clip_text && align_offset_x == 0.0 {
+        if clip_text && align_offset.x == 0.0 {
             let cursor_pos = match (cursor_range, ui.memory(|mem| mem.has_focus(id))) {
                 (Some(cursor_range), true) => galley.pos_from_cursor(cursor_range.primary).min.x,
                 _ => 0.0,
@@ -677,10 +676,10 @@ impl TextEdit<'_> {
                 .at_most(galley.size().x - desired_inner_size.x)
                 .at_least(0.0);
 
-            state.text_offset = vec2(offset_x, align_offset_y);
+            state.text_offset = vec2(offset_x, align_offset.y);
             galley_pos -= vec2(offset_x, 0.0);
         } else {
-            state.text_offset = vec2(align_offset_x, align_offset_y);
+            state.text_offset = align_offset;
         }
 
         let selection_changed = if let (Some(cursor_range), Some(prev_cursor_range)) =
