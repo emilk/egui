@@ -86,6 +86,7 @@ pub struct TextEdit<'t> {
     min_size: Vec2,
     align: Align2,
     clip_text: bool,
+    auto_scroll: bool,
     char_limit: usize,
     return_key: Option<KeyboardShortcut>,
     background_color: Option<Color32>,
@@ -145,6 +146,7 @@ impl<'t> TextEdit<'t> {
             min_size: Vec2::ZERO,
             align: Align2::LEFT_TOP,
             clip_text: false,
+            auto_scroll: false,
             char_limit: usize::MAX,
             return_key: Some(KeyboardShortcut::new(Modifiers::NONE, Key::Enter)),
             background_color: None,
@@ -341,6 +343,18 @@ impl<'t> TextEdit<'t> {
         self
     }
 
+    /// When `true`, move the viewport to the location of the cursor.
+    /// When `false`, do nothing about viewport.
+    ///
+    /// This only works for singleline [`TextEdit`].
+    #[inline]
+    pub fn auto_scroll(mut self, b: bool) -> Self {
+        if !self.multiline {
+            self.auto_scroll = b;
+        }
+        self
+    }
+
     /// When `true` (default), overflowing text will be clipped.
     ///
     /// When `false`, widget width will expand to make all text visible.
@@ -491,6 +505,7 @@ impl TextEdit<'_> {
             align,
             clip_text,
             char_limit,
+            auto_scroll: _,
             return_key,
             background_color: _,
         } = self;
@@ -656,11 +671,12 @@ impl TextEdit<'_> {
         let align_offset = rect.left() - galley_pos.x;
 
         // Visual clipping for singleline text editor with text larger than width
-        if clip_text && align_offset == 0.0 {
-            let cursor_pos = match (cursor_range, ui.memory(|mem| mem.has_focus(id))) {
-                (Some(cursor_range), true) => galley.pos_from_cursor(cursor_range.primary).min.x,
-                _ => 0.0,
-            };
+        let viewport = cursor_range.or(prev_cursor_range);
+        let focused = ui.memory(|mem| mem.has_focus(id));
+        if clip_text && (focused || self.auto_scroll) {
+            let cursor_pos = viewport
+                .map(|cr| galley.pos_from_cursor(cr.primary).min.x)
+                .unwrap_or(0.0);
 
             let mut offset_x = state.singleline_offset;
             let visible_range = offset_x..=offset_x + desired_inner_size.x;
@@ -680,7 +696,11 @@ impl TextEdit<'_> {
             state.singleline_offset = offset_x;
             galley_pos -= vec2(offset_x, 0.0);
         } else {
-            state.singleline_offset = align_offset;
+            state.singleline_offset = if self.auto_scroll {
+                align_offset
+            } else {
+                state.singleline_offset
+            };
         }
 
         let selection_changed = if let (Some(cursor_range), Some(prev_cursor_range)) =
