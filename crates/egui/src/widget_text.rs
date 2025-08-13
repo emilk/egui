@@ -747,7 +747,9 @@ impl WidgetText {
                 let mut layout_job = LayoutJob::simple_format(
                     text,
                     TextFormat {
-                        font_id: FontSelection::Default.resolve(style),
+                        // We want the style overrides to take precedence over the fallback font
+                        font_id: FontSelection::default()
+                            .resolve_with_fallback(style, fallback_font),
                         color: crate::Color32::PLACEHOLDER,
                         valign: default_valign,
                         ..Default::default()
