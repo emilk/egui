@@ -2834,7 +2834,7 @@ impl Context {
         self.input(|i| i.pointer.hover_pos())
     }
 
-    /// If you detect a click or drag and wants to know where it happened, use this.
+    /// If you detect a click or drag and want to know where it happened, use this.
     ///
     /// Latest position of the mouse, but ignoring any [`crate::Event::PointerGone`]
     /// if there were interactions this pass.
@@ -2907,7 +2907,7 @@ impl Context {
 
     /// Moves the given area to the top in its [`Order`].
     ///
-    /// [`crate::Area`]:s and [`crate::Window`]:s also do this automatically when being clicked on or interacted with.
+    /// [`crate::Area`]s and [`crate::Window`]s also do this automatically when being clicked on or interacted with.
     pub fn move_to_top(&self, layer_id: LayerId) {
         self.memory_mut(|mem| mem.areas_mut().move_to_top(layer_id));
     }
@@ -3911,7 +3911,7 @@ impl Context {
     /// Show an immediate viewport, creating a new native window, if possible.
     ///
     /// This is the easier type of viewport to use, but it is less performant
-    /// at it requires both parent and child to repaint if any one of them needs repainting,
+    /// as it requires both parent and child to repaint if any one of them needs repainting,
     /// which effectively produce double work for two viewports, and triple work for three viewports, etc.
     /// To avoid this, use [`Self::show_viewport_deferred`] instead.
     ///
