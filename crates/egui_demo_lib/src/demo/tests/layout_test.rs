@@ -105,6 +105,7 @@ impl crate::View for LayoutTest {
         self.content_ui(ui);
         Resize::default()
             .default_size([150.0, 200.0])
+            .max_size([300.0, 400.0])
             .show(ui, |ui| {
                 if self.layout.main_wrap {
                     if self.layout.main_dir.is_horizontal() {
@@ -174,6 +175,16 @@ impl LayoutTest {
         });
 
         ui.horizontal(|ui| {
+            ui.label("Main Align:");
+            for &align in &[Align::Min, Align::Center, Align::Max] {
+                ui.radio_value(&mut self.layout.main_align, align, format!("{align:?}"));
+            }
+        });
+
+        ui.checkbox(&mut self.layout.main_justify, "Main Justified")
+            .on_hover_text("Try to fill full width/height (e.g. buttons)");
+
+        ui.horizontal(|ui| {
             ui.label("Cross Align:");
             for &align in &[Align::Min, Align::Center, Align::Max] {
                 ui.radio_value(&mut self.layout.cross_align, align, format!("{align:?}"));
@@ -190,5 +201,5 @@ fn demo_ui(ui: &mut Ui) {
     let mut dummy = false;
     ui.checkbox(&mut dummy, "checkbox");
     ui.radio_value(&mut dummy, false, "radio");
-    let _ = ui.button("button");
+    let _ = ui.add(egui::Button::new("button").min_size([100.0, 100.0].into()));
 }
