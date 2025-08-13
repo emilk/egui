@@ -128,7 +128,7 @@ impl Direction {
 /// # });
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-// #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Layout {
     /// Main axis direction
     pub main_dir: Direction,

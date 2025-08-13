@@ -4,7 +4,7 @@ use egui::{Align, Direction, Layout, Resize, Slider, Ui, vec2};
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct LayoutTest {
     // Identical to contents of `egui::Layout`
-    layout: LayoutSettings,
+    layout: Layout,
 
     // Extra for testing wrapping:
     wrap_column_width: f32,
@@ -14,62 +14,10 @@ pub struct LayoutTest {
 impl Default for LayoutTest {
     fn default() -> Self {
         Self {
-            layout: LayoutSettings::top_down(),
+            layout: Layout::default(),
             wrap_column_width: 150.0,
             wrap_row_height: 20.0,
         }
-    }
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
-pub struct LayoutSettings {
-    // Similar to the contents of `egui::Layout`
-    main_dir: Direction,
-    main_wrap: bool,
-    cross_align: Align,
-    cross_justify: bool,
-}
-
-impl Default for LayoutSettings {
-    fn default() -> Self {
-        Self::top_down()
-    }
-}
-
-impl LayoutSettings {
-    fn top_down() -> Self {
-        Self {
-            main_dir: Direction::TopDown,
-            main_wrap: false,
-            cross_align: Align::Min,
-            cross_justify: false,
-        }
-    }
-
-    fn top_down_justified_centered() -> Self {
-        Self {
-            main_dir: Direction::TopDown,
-            main_wrap: false,
-            cross_align: Align::Center,
-            cross_justify: true,
-        }
-    }
-
-    fn horizontal_wrapped() -> Self {
-        Self {
-            main_dir: Direction::LeftToRight,
-            main_wrap: true,
-            cross_align: Align::Center,
-            cross_justify: false,
-        }
-    }
-
-    fn layout(&self) -> Layout {
-        Layout::from_main_dir_and_cross_align(self.main_dir, self.cross_align)
-            .with_main_wrap(self.main_wrap)
-            .with_cross_justify(self.cross_justify)
     }
 }
 
@@ -100,16 +48,16 @@ impl crate::View for LayoutTest {
                     if self.layout.main_dir.is_horizontal() {
                         ui.allocate_ui(
                             vec2(ui.available_size_before_wrap().x, self.wrap_row_height),
-                            |ui| ui.with_layout(self.layout.layout(), demo_ui),
+                            |ui| ui.with_layout(self.layout, demo_ui),
                         );
                     } else {
                         ui.allocate_ui(
                             vec2(self.wrap_column_width, ui.available_size_before_wrap().y),
-                            |ui| ui.with_layout(self.layout.layout(), demo_ui),
+                            |ui| ui.with_layout(self.layout, demo_ui),
                         );
                     }
                 } else {
-                    ui.with_layout(self.layout.layout(), demo_ui);
+                    ui.with_layout(self.layout, demo_ui);
                 }
             });
         ui.label("Resize to see effect");
@@ -123,15 +71,15 @@ impl crate::View for LayoutTest {
 impl LayoutTest {
     pub fn content_ui(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
-            ui.selectable_value(&mut self.layout, LayoutSettings::top_down(), "Top-down");
+            ui.selectable_value(&mut self.layout, Layout::default(), "Top-down");
             ui.selectable_value(
                 &mut self.layout,
-                LayoutSettings::top_down_justified_centered(),
+                Layout::top_down_justified(Align::Center),
                 "Top-down, centered and justified",
             );
             ui.selectable_value(
                 &mut self.layout,
-                LayoutSettings::horizontal_wrapped(),
+                Layout::left_to_right(Align::Center).with_main_wrap(true),
                 "Horizontal wrapped",
             );
         });
