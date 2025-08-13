@@ -3026,7 +3026,7 @@ impl Context {
     /// for a responsive start and a slow end.
     ///
     /// The easing function flips when `target_value` is `false`,
-    /// so that when going back towards 0.0, we get
+    /// so that when going back towards 0.0, we get the reverse behavior.
     #[track_caller] // To track repaint cause
     pub fn animate_bool_with_time_and_easing(
         &self,
