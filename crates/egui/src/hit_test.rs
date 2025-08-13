@@ -65,6 +65,14 @@ pub fn hit_test(
         .filter(|layer| layer.order.allow_interaction())
         .flat_map(|&layer_id| widgets.get_layer(layer_id))
         .filter(|&w| {
+            
+            // Exclude non-interactive, disabled and invisible widgets.
+            // This simplifies the code in `hit_test_on_close` so it doesn't have to check
+            // the `enabled` flag everywhere:
+            if w.interact_rect.is_negative() || w.interact_rect.any_nan() || !w.enabled {
+                return false;
+            }
+            
             if w.interact_rect.is_negative() || w.interact_rect.any_nan() {
                 return false;
             }
@@ -124,16 +132,6 @@ pub fn hit_test(
     }
 
     close.retain(|hit| included_layers.contains(&hit.layer_id));
-
-    // If a widget is disabled, treat it as if it isn't sensing anything.
-    // This simplifies the code in `hit_test_on_close` so it doesn't have to check
-    // the `enabled` flag everywhere:
-    for w in &mut close {
-        if !w.enabled {
-            w.sense -= Sense::CLICK;
-            w.sense -= Sense::DRAG;
-        }
-    }
 
     // Find widgets which are hidden behind another widget and discard them.
     // This is the case when a widget fully contains another widget and is on a different layer.
