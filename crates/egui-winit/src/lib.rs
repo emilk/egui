@@ -492,7 +492,6 @@ impl State {
             WindowEvent::ActivationTokenDone { .. }
             | WindowEvent::AxisMotion { .. }
             | WindowEvent::DoubleTapGesture { .. }
-            | WindowEvent::RotationGesture { .. }
             | WindowEvent::PanGesture { .. } => EventResponse {
                 repaint: false,
                 consumed: false,
@@ -503,6 +502,16 @@ impl State {
                 // Negative delta values indicate shrinking (zooming out).
                 let zoom_factor = (*delta as f32).exp();
                 self.egui_input.events.push(egui::Event::Zoom(zoom_factor));
+                EventResponse {
+                    repaint: true,
+                    consumed: self.egui_ctx.wants_pointer_input(),
+                }
+            }
+
+            WindowEvent::RotationGesture { delta, .. } => {
+                // Positive delta values indicate counterclockwise rotation
+                // Negative delta values indicate clockwise rotation
+                self.egui_input.events.push(egui::Event::Rotate(*delta));
                 EventResponse {
                     repaint: true,
                     consumed: self.egui_ctx.wants_pointer_input(),
