@@ -479,6 +479,12 @@ pub enum Event {
     /// As a user, check [`crate::InputState::smooth_scroll_delta`] to see if the user did any zooming this frame.
     Zoom(f32),
 
+    /// Rotation in radians this frame (e.g. from a rotation gesture).
+    ///
+    /// * `rotation > 0`: rotate counterclockwise
+    /// * `rotation < 0`: rotate clockwise
+    Rotate(f32),
+
     /// IME Event
     Ime(ImeEvent),
 
