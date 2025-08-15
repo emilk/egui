@@ -377,7 +377,7 @@ impl Ui {
     ///
     /// However, it is not necessarily globally unique.
     /// For instance, sibling `Ui`s share the same [`Self::id`]
-    /// unless they where explicitly given different id salts using
+    /// unless they were explicitly given different id salts using
     /// [`UiBuilder::id_salt`].
     #[inline]
     pub fn id(&self) -> Id {
