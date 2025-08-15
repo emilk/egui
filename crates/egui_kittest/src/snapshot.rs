@@ -412,13 +412,13 @@ fn try_image_snapshot_options_impl(
                 err,
             })?;
 
+        if num_wrong_pixels as i64 <= *failed_pixel_count_threshold as i64 {
+            return Ok(());
+        }
+
         if should_update_snapshots() {
             update_snapshot()
         } else {
-            if num_wrong_pixels as i64 <= *failed_pixel_count_threshold as i64 {
-                return Ok(());
-            }
-
             Err(SnapshotError::Diff {
                 name,
                 diff: num_wrong_pixels,
