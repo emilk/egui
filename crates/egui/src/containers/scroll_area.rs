@@ -1315,11 +1315,13 @@ impl Prepared {
                     });
 
                 let new_handle_top = pointer_pos[d] - *scroll_start_offset_from_top_left;
-                state.offset[d] = remap(
-                    new_handle_top,
-                    scroll_bar_rect.min[d]..=(scroll_bar_rect.max[d] - handle_rect.size()[d]),
-                    0.0..=max_offset[d],
-                );
+                let handle_travel =
+                    scroll_bar_rect.min[d]..=(scroll_bar_rect.max[d] - handle_rect.size()[d]);
+                state.offset[d] = if handle_travel.start() == handle_travel.end() {
+                    0.0
+                } else {
+                    remap(new_handle_top, handle_travel, 0.0..=max_offset[d])
+                };
 
                 // some manual action taken, scroll not stuck
                 state.scroll_stuck_to_end[d] = false;

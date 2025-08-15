@@ -157,3 +157,33 @@ pub fn slider_should_move_with_fixed_decimals() {
     let actual_slider = harness.get_by_role(accesskit::Role::SpinButton);
     assert_eq!(actual_slider.value(), Some("1.00".to_owned()));
 }
+
+#[test]
+pub fn override_text_color_affects_interactive_widgets() {
+    use egui::{Color32, RichText};
+
+    let mut harness = Harness::new_ui(|ui| {
+        _ = ui.button("normal");
+        _ = ui.checkbox(&mut true, "normal");
+        _ = ui.radio(true, "normal");
+        ui.visuals_mut().widgets.inactive.fg_stroke.color = Color32::RED;
+        _ = ui.button("red");
+        _ = ui.checkbox(&mut true, "red");
+        _ = ui.radio(true, "red");
+        // override_text_color takes precedence over `WidgetVisuals`, as it docstring claims
+        ui.visuals_mut().override_text_color = Some(Color32::GREEN);
+        _ = ui.button("green");
+        _ = ui.checkbox(&mut true, "green");
+        _ = ui.radio(true, "green");
+        // Setting the color explicitly with `RichText` overrides style
+        _ = ui.button(RichText::new("blue").color(Color32::BLUE));
+        _ = ui.checkbox(&mut true, RichText::new("blue").color(Color32::BLUE));
+        _ = ui.radio(true, RichText::new("blue").color(Color32::BLUE));
+    });
+
+    #[cfg(all(feature = "wgpu", feature = "snapshot"))]
+    let mut results = SnapshotResults::new();
+
+    #[cfg(all(feature = "wgpu", feature = "snapshot"))]
+    results.add(harness.try_snapshot("override_text_color_interactive"));
+}

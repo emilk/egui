@@ -5,6 +5,11 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.32.1 - 2025-08-15
+* Fix multi-line `TextShape` rotation [#7404](https://github.com/emilk/egui/pull/7404) by [@afishhh](https://github.com/afishhh)
+* Fix glyph rendering: clamp coverage to [0, 1] [#7415](https://github.com/emilk/egui/pull/7415) by [@emilk](https://github.com/emilk)
+
+
 ## 0.32.0 - 2025-07-10
 ### ⭐ Added
 * Impl AsRef<[u8]> for FontData [#5757](https://github.com/emilk/egui/pull/5757) by [@StratusFearMe21](https://github.com/StratusFearMe21)

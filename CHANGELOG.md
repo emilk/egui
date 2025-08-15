@@ -14,6 +14,18 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.32.1 - 2025-08-15 - Misc bug fixes
+### ⭐ Added
+* Add `ComboBox::popup_style` [#7360](https://github.com/emilk/egui/pull/7360) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+### 🐛 Fixed
+* Fix glyph rendering: clamp coverage to [0, 1] [#7415](https://github.com/emilk/egui/pull/7415) by [@emilk](https://github.com/emilk)
+* Fix manual `Popup` not closing [#7383](https://github.com/emilk/egui/pull/7383) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Fix `WidgetText::Text` ignoring fallback font and overrides [#7361](https://github.com/emilk/egui/pull/7361) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Fix `override_text_color` priority [#7439](https://github.com/emilk/egui/pull/7439) by [@YgorSouza](https://github.com/YgorSouza)
+* Fix debug-panic in ScrollArea if contents fit without scrolling [#7440](https://github.com/emilk/egui/pull/7440) by [@YgorSouza](https://github.com/YgorSouza)
+
+
 ## 0.32.0 - 2025-07-10 - Atoms, popups, and better SVG support
 This is a big egui release, with several exciting new features!
 
