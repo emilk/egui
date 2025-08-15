@@ -213,7 +213,7 @@ fn label_ui(ui: &mut egui::Ui) {
 
     ui.horizontal_wrapped(|ui| {
             // Trick so we don't have to add spaces in the text below:
-            let width = ui.fonts(|f|f.glyph_width(&TextStyle::Body.resolve(ui.style()), ' '));
+            let width = ui.fonts_mut(|f|f.glyph_width(&TextStyle::Body.resolve(ui.style()), ' '));
             ui.spacing_mut().item_spacing.x = width;
 
             ui.label(RichText::new("Text can have").color(Color32::from_rgb(110, 255, 110)));
@@ -792,7 +792,7 @@ impl TextRotation {
 
             let start_pos = self.size / 2.0;
 
-            let s = ui.ctx().fonts(|f| {
+            let s = ui.ctx().fonts_mut(|f| {
                 let mut t = egui::Shape::text(
                     f,
                     rect.min + start_pos,
