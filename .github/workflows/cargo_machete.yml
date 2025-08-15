@@ -8,7 +8,7 @@ jobs:
     steps:
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.86
+          toolchain: 1.88
       - name: Machete install
         run: cargo install cargo-machete --locked
       - name: Checkout
