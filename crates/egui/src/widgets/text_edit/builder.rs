@@ -944,8 +944,12 @@ fn events(
             Event::Paste(text_to_insert) => {
                 if !text_to_insert.is_empty() {
                     let mut ccursor = text.delete_selected(&cursor_range);
-
-                    text.insert_text_at(&mut ccursor, text_to_insert, char_limit);
+                    if multiline {
+                        text.insert_text_at(&mut ccursor, text_to_insert, char_limit);
+                    } else {
+                        let single_line = text_to_insert.replace(['\r', '\n'], " ");
+                        text.insert_text_at(&mut ccursor, &single_line, char_limit);
+                    }
 
                     Some(CCursorRange::one(ccursor))
                 } else {
