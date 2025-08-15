@@ -84,6 +84,8 @@ pub enum TextStyle {
 
     /// Heading. Probably larger than [`Self::Body`].
     Heading,
+    Heading2,
+    Heading3,
 
     /// A user-chosen style, found in [`Style::text_styles`].
     /// ```
@@ -100,6 +102,8 @@ impl std::fmt::Display for TextStyle {
             Self::Monospace => "Monospace".fmt(f),
             Self::Button => "Button".fmt(f),
             Self::Heading => "Heading".fmt(f),
+            Self::Heading2 => "Heading2".fmt(f),
+            Self::Heading3 => "Heading3".fmt(f),
             Self::Name(name) => (*name).fmt(f),
         }
     }
@@ -1310,6 +1314,8 @@ pub fn default_text_styles() -> BTreeMap<TextStyle, FontId> {
         (TextStyle::Body, FontId::new(12.5, Proportional)),
         (TextStyle::Button, FontId::new(12.5, Proportional)),
         (TextStyle::Heading, FontId::new(18.0, Proportional)),
+        (TextStyle::Heading2, FontId::new(24.0, Proportional)),
+        (TextStyle::Heading3, FontId::new(31.0, Proportional)),
         (TextStyle::Monospace, FontId::new(12.0, Monospace)),
     ]
     .into()
