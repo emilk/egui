@@ -927,7 +927,7 @@ impl GalleyCache {
                     current_section += 1;
                 } else if end < section_range.start {
                     break; // Haven't reached this one yet.
-                } else {
+                } else if section_range.start < section_range.end {
                     // Section range overlaps with paragraph range
                     debug_assert!(
                         section_range.start < section_range.end,
@@ -1160,6 +1160,13 @@ mod tests {
                     },
                 );
 
+                job
+            },
+            {
+                // Regression test for <https://github.com/emilk/egui/issues/7378>
+                let mut job = LayoutJob::default();
+                job.append("\n", 0.0, TextFormat::default());
+                job.append("", 0.0, TextFormat::default());
                 job
             },
         ]
