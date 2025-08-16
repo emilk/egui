@@ -33,7 +33,6 @@ pub enum SurrenderFocusOn {
 }
 
 impl SurrenderFocusOn {
-    /// Show the surrender focus options in the ui.
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         ui.horizontal(|ui| {
             ui.selectable_value(self, SurrenderFocusOn::Presses, "Presses")
