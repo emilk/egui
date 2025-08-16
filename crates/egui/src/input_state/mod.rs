@@ -5,6 +5,7 @@ use crate::data::input::{
     PointerButton, RawInput, TouchDeviceId, ViewportInfo,
 };
 use crate::{
+    RadioButton,
     emath::{NumExt as _, Pos2, Rect, Vec2, vec2},
     util::History,
 };
@@ -29,6 +30,26 @@ pub enum SurrenderFocusOn {
 
     /// Never surrender focus.
     Never,
+}
+
+impl SurrenderFocusOn {
+    /// Show the surrender focus options in the ui.
+    pub fn ui(&mut self, ui: &mut crate::Ui) {
+        ui.horizontal(|ui| {
+            ui.selectable_value(self, SurrenderFocusOn::Presses, "Presses")
+                .on_hover_text(
+                    "Surrender focus if the user presses somewhere outside the focused widget.",
+                );
+            ui.selectable_value(self, SurrenderFocusOn::Clicks, "Clicks")
+                .on_hover_text(
+                    "Surrender focus if the user clicks somewhere outside the focused widget.",
+                );
+            ui.selectable_value(self, SurrenderFocusOn::Never, "Never")
+                .on_hover_text(
+                    "Never surrender focus, even if the user clicks outside the focused widget.",
+                );
+        });
+    }
 }
 
 /// Options for input state handling.
@@ -96,6 +117,7 @@ impl Default for InputOptions {
             zoom_modifier: Modifiers::COMMAND,
             horizontal_scroll_modifier: Modifiers::SHIFT,
             vertical_scroll_modifier: Modifiers::ALT,
+            surrender_focus_on: SurrenderFocusOn::default(),
         }
     }
 }
@@ -112,6 +134,7 @@ impl InputOptions {
             zoom_modifier,
             horizontal_scroll_modifier,
             vertical_scroll_modifier,
+            surrender_focus_on,
         } = self;
         crate::Grid::new("InputOptions")
             .num_columns(2)
@@ -170,6 +193,10 @@ impl InputOptions {
 
                 ui.label("vertical_scroll_modifier");
                 vertical_scroll_modifier.ui(ui);
+                ui.end_row();
+
+                ui.label("surrender_focus_on");
+                surrender_focus_on.ui(ui);
                 ui.end_row();
 
             });

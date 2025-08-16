@@ -1429,7 +1429,7 @@ impl Context {
                 res.flags.set(Flags::HOVERED, false);
             }
 
-            let should_surrender_focus = match ctx.memory.options.input_options.surrender_focus_on {
+            let should_surrender_focus = match memory.options.input_options.surrender_focus_on {
                 SurrenderFocusOn::Presses => any_press,
                 SurrenderFocusOn::Clicks => input.pointer.any_click(),
                 SurrenderFocusOn::Never => false,
