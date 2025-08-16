@@ -38,10 +38,10 @@ use crate::{
     viewport::ViewportClass,
 };
 
+use self::{hit_test::WidgetHits, interaction::InteractionSnapshot};
 #[cfg(feature = "accesskit")]
 use crate::IdMap;
-
-use self::{hit_test::WidgetHits, interaction::InteractionSnapshot};
+use crate::input_state::SurrenderFocusOn;
 
 /// Information given to the backend about when it is time to repaint the ui.
 ///
@@ -1429,8 +1429,14 @@ impl Context {
                 res.flags.set(Flags::HOVERED, false);
             }
 
-            let pointer_pressed_elsewhere = any_press && !res.hovered();
-            if pointer_pressed_elsewhere && memory.has_focus(id) {
+            let should_surrender_focus = match ctx.memory.options.input_options.surrender_focus_on {
+                SurrenderFocusOn::Presses => any_press,
+                SurrenderFocusOn::Clicks => input.pointer.any_click(),
+                SurrenderFocusOn::Never => false,
+            };
+
+            let pointer_clicked_elsewhere = should_surrender_focus && !res.hovered();
+            if pointer_clicked_elsewhere && memory.has_focus(id) {
                 memory.surrender_focus(id);
             }
         });

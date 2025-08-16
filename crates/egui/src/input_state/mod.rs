@@ -17,6 +17,20 @@ pub use crate::Key;
 pub use touch_state::MultiTouchInfo;
 use touch_state::TouchState;
 
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum SurrenderFocusOn {
+    /// Surrender focus if the user presses somewhere outside the focused widget.
+    #[default]
+    Presses,
+
+    /// Surrender focus if the user clicks somewhere outside the focused widget.
+    Clicks,
+
+    /// Never surrender focus.
+    Never,
+}
+
 /// Options for input state handling.
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -58,6 +72,9 @@ pub struct InputOptions {
     /// and when combined with [`Self::zoom_modifier`] it will result in zooming
     /// on only the vertical axis.
     pub vertical_scroll_modifier: Modifiers,
+
+    /// When should we surrender focus from the focused widget?
+    pub surrender_focus_on: SurrenderFocusOn,
 }
 
 impl Default for InputOptions {
