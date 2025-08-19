@@ -227,10 +227,7 @@ pub struct InputState {
     /// * `zoom > 1`: pinch spread
     zoom_factor_delta: f32,
 
-    /// Rotation in radians this frame (e.g. from a rotation gesture).
-    ///
-    /// * `rotation > 0`: rotate counterclockwise
-    /// * `rotation < 0`: rotate clockwise
+    /// Rotation in radians this frame, measuring clockwise (e.g. from a rotation gesture).
     rotation_radians: f32,
 
     // ----------------------------------------------
@@ -603,10 +600,7 @@ impl InputState {
         }
     }
 
-    /// Rotation in radians this frame (e.g. from a rotation gesture).
-    ///
-    /// * `rotation > 0`: rotate counterclockwise
-    /// * `rotation < 0`: rotate clockwise
+    /// Rotation in radians this frame, measuring clockwise (e.g. from a rotation gesture).
     #[inline(always)]
     pub fn rotation_delta(&self) -> f32 {
         self.multi_touch()

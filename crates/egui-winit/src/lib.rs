@@ -511,7 +511,10 @@ impl State {
             WindowEvent::RotationGesture { delta, .. } => {
                 // Positive delta values indicate counterclockwise rotation
                 // Negative delta values indicate clockwise rotation
-                self.egui_input.events.push(egui::Event::Rotate(*delta));
+                // This is opposite of egui's sign convention for angles
+                self.egui_input
+                    .events
+                    .push(egui::Event::Rotate(-delta.to_radians()));
                 EventResponse {
                     repaint: true,
                     consumed: self.egui_ctx.wants_pointer_input(),
