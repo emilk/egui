@@ -178,7 +178,9 @@ jobs:
 
         # Default features disabled to turn off accesskit, which does not work
         # with NativeActivity.
-      - run: cargo check --features wgpu,android-native-activity --target aarch64-linux-android --no-default-features
+      - run: |
+          rustup target add aarch64-linux-android
+          cargo check --features wgpu,android-native-activity --target aarch64-linux-android --no-default-features
         working-directory: crates/eframe
 
   # ---------------------------------------------------------------------------
@@ -198,7 +200,9 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
         # Default features are disabled because glutin doesn't compile for ios.
-      - run: cargo check --features wgpu --target aarch64-apple-ios --no-default-features
+      - run: |
+          rustup target add aarch64-apple-ios
+          cargo check --features wgpu --target aarch64-apple-ios --no-default-features
         working-directory: crates/eframe
 
   # ---------------------------------------------------------------------------
