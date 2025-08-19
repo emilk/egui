@@ -6,6 +6,7 @@ env:
   RUSTFLAGS: -D warnings
   RUSTDOCFLAGS: -D warnings
   NIGHTLY_VERSION: nightly-2025-04-22
+  STABLE_VERSION: 1.88.0
 
 jobs:
   fmt-crank-check-test:
@@ -18,7 +19,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.88.0
+          toolchain: ${{env.STABLE_VERSION}}
 
       - name: Install packages (Linux)
         if: runner.os == 'Linux'
@@ -83,7 +84,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.88.0
+          toolchain: ${{env.STABLE_VERSION}}
           targets: wasm32-unknown-unknown
 
       - run: sudo apt-get update && sudo apt-get install libgtk-3-dev libatk1.0-dev
@@ -170,7 +171,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.88.0
+          toolchain: ${{env.STABLE_VERSION}}
           targets: aarch64-linux-android
 
       - name: Set up cargo cache
@@ -193,7 +194,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.88.0
+          toolchain: ${{env.STABLE_VERSION}}
           targets: aarch64-apple-ios
 
       - name: Set up cargo cache
@@ -214,7 +215,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.88.0
+          toolchain: ${{env.STABLE_VERSION}}
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
@@ -238,7 +239,7 @@ jobs:
           lfs: true
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.88.0
+          toolchain: ${{env.STABLE_VERSION}}
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
