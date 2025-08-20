@@ -156,7 +156,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:
-          rust-version: "1.85.0"
+          rust-version: "1.88.0"
           log-level: error
           command: check
           arguments: --target  ${{ matrix.target }}
