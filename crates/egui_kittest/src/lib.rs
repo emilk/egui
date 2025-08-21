@@ -560,6 +560,8 @@ impl<'a, State> Harness<'a, State> {
     /// Mask something. Useful for snapshot tests.
     ///
     /// Call this _after_ [`Self::run`] and before [`Self::snapshot`].
+    /// This will add a [`RectShape`] to the output shapes, for the current frame.
+    /// Will be overwritten on the next call to [`Self::run`].
     pub fn mask(&mut self, rect: Rect) {
         self.output.shapes.push(ClippedShape {
             clip_rect: Rect::EVERYTHING,

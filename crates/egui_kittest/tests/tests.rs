@@ -142,13 +142,13 @@ fn test_scroll_down() {
 #[test]
 fn test_masking() {
     let mut harness = Harness::new_ui(|ui| {
-        let random = std::time::SystemTime::now()
+        let timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_millis();
 
         ui.label("I should not be masked.");
-        ui.label(format!("Timestamp: {random}"));
+        ui.label(format!("Timestamp: {timestamp}"));
         ui.label("I should also not be masked.");
     });
 
