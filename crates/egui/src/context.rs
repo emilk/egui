@@ -770,6 +770,7 @@ impl Default for Context {
     fn default() -> Self {
         let ctx_impl = ContextImpl {
             embed_viewports: true,
+            viewports: std::iter::once((ViewportId::ROOT, ViewportState::default())).collect(),
             ..Default::default()
         };
         let ctx = Self(Arc::new(RwLock::new(ctx_impl)));
@@ -1623,7 +1624,14 @@ impl Context {
         self.read(|ctx| {
             ctx.viewports
                 .get(&id)
-                .map_or(0, |v| v.repaint.cumulative_frame_nr)
+                .map(|v| v.repaint.cumulative_frame_nr)
+                .unwrap_or_else(|| {
+                    if cfg!(debug_assertions) {
+                        panic!("cumulative_frame_nr_for failed to find the viewport {id:?}");
+                    } else {
+                        0
+                    }
+                })
         })
     }
 
@@ -2522,6 +2530,10 @@ impl ContextImpl {
         self.last_viewport = ended_viewport_id;
 
         self.viewports.retain(|&id, viewport| {
+            if id == ViewportId::ROOT {
+                return true; // never remove the root
+            }
+
             let parent = *self.viewport_parents.entry(id).or_default();
 
             if !all_viewport_ids.contains(&parent) {
@@ -2592,6 +2604,10 @@ impl ContextImpl {
         if is_last {
             // Remove dead viewports:
             self.viewports.retain(|id, _| all_viewport_ids.contains(id));
+            debug_assert!(
+                self.viewports.contains_key(&ViewportId::ROOT),
+                "Bug in egui: we removed the root viewport"
+            );
             self.viewport_parents
                 .retain(|id, _| all_viewport_ids.contains(id));
         } else {
