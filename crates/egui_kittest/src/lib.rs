@@ -565,7 +565,7 @@ impl<'a, State> Harness<'a, State> {
     pub fn mask(&mut self, rect: Rect) {
         self.output.shapes.push(ClippedShape {
             clip_rect: Rect::EVERYTHING,
-            shape: Shape::Rect(RectShape::filled(rect, 0.0, Color32::RED)),
+            shape: Shape::Rect(RectShape::filled(rect, 0.0, Color32::MAGENTA)),
         });
     }
 
