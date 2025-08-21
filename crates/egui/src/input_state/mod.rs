@@ -45,7 +45,7 @@ impl SurrenderFocusOn {
                 );
             ui.selectable_value(self, SurrenderFocusOn::Never, "Never")
                 .on_hover_text(
-                    "Never surrender focus, even if the user clicks outside the focused widget.",
+                    "Never surrender focus.",
                 );
         });
     }
