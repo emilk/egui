@@ -5,7 +5,6 @@ use crate::data::input::{
     PointerButton, RawInput, TouchDeviceId, ViewportInfo,
 };
 use crate::{
-    RadioButton,
     emath::{NumExt as _, Pos2, Rect, Vec2, vec2},
     util::History,
 };
@@ -18,7 +17,7 @@ pub use crate::Key;
 pub use touch_state::MultiTouchInfo;
 use touch_state::TouchState;
 
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum SurrenderFocusOn {
     /// Surrender focus if the user presses somewhere outside the focused widget.
@@ -35,18 +34,16 @@ pub enum SurrenderFocusOn {
 impl SurrenderFocusOn {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         ui.horizontal(|ui| {
-            ui.selectable_value(self, SurrenderFocusOn::Presses, "Presses")
+            ui.selectable_value(self, Self::Presses, "Presses")
                 .on_hover_text(
                     "Surrender focus if the user presses somewhere outside the focused widget.",
                 );
-            ui.selectable_value(self, SurrenderFocusOn::Clicks, "Clicks")
+            ui.selectable_value(self, Self::Clicks, "Clicks")
                 .on_hover_text(
                     "Surrender focus if the user clicks somewhere outside the focused widget.",
                 );
-            ui.selectable_value(self, SurrenderFocusOn::Never, "Never")
-                .on_hover_text(
-                    "Never surrender focus.",
-                );
+            ui.selectable_value(self, Self::Never, "Never")
+                .on_hover_text("Never surrender focus.");
         });
     }
 }
