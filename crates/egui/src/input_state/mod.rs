@@ -20,11 +20,11 @@ use touch_state::TouchState;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum SurrenderFocusOn {
-    /// Surrender focus if the user presses somewhere outside the focused widget.
-    #[default]
+    /// Surrender focus if the user _presses_ somewhere outside the focused widget.
     Presses,
 
-    /// Surrender focus if the user clicks somewhere outside the focused widget.
+    /// Surrender focus if the user _clicks_ somewhere outside the focused widget.
+    #[default]
     Clicks,
 
     /// Never surrender focus.
