@@ -6,6 +6,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.32.1 - 2025-08-15
+* Fix `UPDATE_SNAPSHOTS`: only update if we didn't pass the test [#7455](https://github.com/emilk/egui/pull/7455) by [@emilk](https://github.com/emilk)
+
+
 ## 0.32.0 - 2025-07-10
 ### ⭐ Added
 * Add `ImageLoader::has_pending` and `wait_for_pending_images` [#7030](https://github.com/emilk/egui/pull/7030) by [@lucasmerlin](https://github.com/lucasmerlin)
