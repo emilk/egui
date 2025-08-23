@@ -510,6 +510,7 @@ There also has been several small improvements to the look of egui:
 	* `ui.child_ui`
 	* `ui.child_ui_with_id_source`
 	* `ui.push_stack_info`
+* `egui::plot` is now in its own crate `egui_plot` ([#4828](https://github.com/emilk/egui/pull/4828))
 
 ### ⭐ Added
 * Create a `UiBuilder` for building `Ui`s [#4969](https://github.com/emilk/egui/pull/4969) by [@emilk](https://github.com/emilk)
@@ -554,6 +555,7 @@ There also has been several small improvements to the look of egui:
 * Export module `egui::frame` [#5087](https://github.com/emilk/egui/pull/5087) by [@simgt](https://github.com/simgt)
 * Use `log` crate instead of `eprintln` & remove some unwraps [#5010](https://github.com/emilk/egui/pull/5010) by [@bircni](https://github.com/bircni)
 * Fix: `Event::Copy` and `Event::Cut` behave as if they select the entire text when there is no selection [#5115](https://github.com/emilk/egui/pull/5115) by [@rustbasic](https://github.com/rustbasic)
+* Moved `egui::plot` into its own crate `egui_plot` [#4828](https://github.com/emilk/egui/pull/4828)
 
 ### 🐛 Fixed
 * Prevent text shrinking in tooltips; round wrap-width to integer [#5161](https://github.com/emilk/egui/pull/5161) by [@emilk](https://github.com/emilk)
