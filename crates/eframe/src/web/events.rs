@@ -7,6 +7,7 @@ use super::{
     push_touches, text_from_keyboard_event, translate_key,
 };
 
+use js_sys::Reflect;
 use web_sys::{Document, EventTarget, ShadowRoot};
 
 // TODO(emilk): there are more calls to `prevent_default` and `stop_propagation`
@@ -101,6 +102,7 @@ pub(crate) fn install_event_handlers(runner_ref: &WebRunner) -> Result<(), JsVal
     install_touchcancel(runner_ref, &canvas)?;
 
     install_wheel(runner_ref, &canvas)?;
+    install_gesture(runner_ref, &canvas)?;
     install_drag_and_drop(runner_ref, &canvas)?;
     install_window_events(runner_ref, &window)?;
     install_color_scheme_change_event(runner_ref, &window)?;
@@ -816,7 +818,7 @@ fn install_wheel(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsV
 
         let egui_event = if modifiers.ctrl && !runner.input.raw.modifiers.ctrl {
             // The browser is saying the ctrl key is down, but it isn't _really_.
-            // This happens on pinch-to-zoom on a Mac trackpad.
+            // This happens on pinch-to-zoom on multitouch trackpads
             // egui will treat ctrl+scroll as zoom, so it all works.
             // However, we explicitly handle it here in order to better match the pinch-to-zoom
             // speed of a native app, without being sensitive to egui's `scroll_zoom_speed` setting.
@@ -845,6 +847,72 @@ fn install_wheel(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsV
             event.prevent_default();
         }
     })
+}
+
+fn install_gesture(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
+    runner_ref.add_event_listener(target, "gesturestart", |event: web_sys::Event, runner| {
+        runner.input.accumulated_scale = 1.0;
+        runner.input.accumulated_rotation = 0.0;
+        handle_gesture(event, runner);
+    })?;
+    runner_ref.add_event_listener(target, "gesturechange", handle_gesture)?;
+    runner_ref.add_event_listener(target, "gestureend", |event: web_sys::Event, runner| {
+        handle_gesture(event, runner);
+        runner.input.accumulated_scale = 1.0;
+        runner.input.accumulated_rotation = 0.0;
+    })?;
+
+    Ok(())
+}
+
+fn handle_gesture(event: web_sys::Event, runner: &mut AppRunner) {
+    // GestureEvent is a non-standard API, so this attempts to get the relevant fields if they exist.
+    let new_scale = Reflect::get(&event, &JsValue::from_str("scale"))
+        .ok()
+        .and_then(|scale| scale.as_f64())
+        .map_or(1.0, |scale| scale as f32);
+    let new_rotation = Reflect::get(&event, &JsValue::from_str("rotation"))
+        .ok()
+        .and_then(|rotation| rotation.as_f64())
+        .map_or(0.0, |rotation| rotation as f32);
+
+    let scale_delta = new_scale / runner.input.accumulated_scale;
+    let rotation_delta = new_rotation - runner.input.accumulated_rotation;
+    runner.input.accumulated_scale *= scale_delta;
+    runner.input.accumulated_rotation += rotation_delta;
+
+    let mut should_stop_propagation = true;
+    let mut should_prevent_default = true;
+
+    if scale_delta != 1.0 {
+        let zoom_event = egui::Event::Zoom(scale_delta);
+
+        should_stop_propagation &= (runner.web_options.should_stop_propagation)(&zoom_event);
+        should_prevent_default &= (runner.web_options.should_prevent_default)(&zoom_event);
+        runner.input.raw.events.push(zoom_event);
+    }
+
+    if rotation_delta != 0.0 {
+        let rotate_event = egui::Event::Rotate(rotation_delta);
+
+        should_stop_propagation &= (runner.web_options.should_stop_propagation)(&rotate_event);
+        should_prevent_default &= (runner.web_options.should_prevent_default)(&rotate_event);
+        runner.input.raw.events.push(rotate_event);
+    }
+
+    if scale_delta != 1.0 || rotation_delta != 0.0 {
+        runner.needs_repaint.repaint_asap();
+
+        // Use web options to tell if the web event should be propagated to parent elements based on the egui event.
+        if should_stop_propagation {
+            event.stop_propagation();
+        }
+
+        if should_prevent_default {
+            // Prevents a simulated ctrl-scroll event for zoom
+            event.prevent_default();
+        }
+    }
 }
 
 fn install_drag_and_drop(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
