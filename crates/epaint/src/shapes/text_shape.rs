@@ -15,7 +15,7 @@ pub struct TextShape {
     /// Usually the top left corner of the first character.
     pub pos: Pos2,
 
-    /// The laid out text, from [`Fonts::layout_job`].
+    /// The laid out text, from [`FontsView::layout_job`].
     pub galley: Arc<Galley>,
 
     /// Add this underline to the whole text.
@@ -181,8 +181,7 @@ mod tests {
 
     #[test]
     fn text_bounding_box_under_rotation() {
-        let fonts = Fonts::new(
-            1.0,
+        let mut fonts = Fonts::new(
             1024,
             AlphaFromCoverage::default(),
             FontDefinitions::default(),
@@ -190,7 +189,7 @@ mod tests {
         let font = FontId::monospace(12.0);
 
         let mut t = crate::Shape::text(
-            &fonts,
+            &mut fonts.with_pixels_per_point(1.0),
             Pos2::ZERO,
             emath::Align2::CENTER_CENTER,
             "testing123",

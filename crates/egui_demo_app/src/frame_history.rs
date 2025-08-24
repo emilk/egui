@@ -90,7 +90,7 @@ impl FrameHistory {
             ));
             let cpu_usage = to_screen.inverse().transform_pos(pointer_pos).y;
             let text = format!("{:.1} ms", 1e3 * cpu_usage);
-            shapes.push(ui.fonts(|f| {
+            shapes.push(ui.fonts_mut(|f| {
                 Shape::text(
                     f,
                     pos2(rect.left(), y),
