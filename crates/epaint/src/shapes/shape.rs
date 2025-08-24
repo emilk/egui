@@ -5,7 +5,7 @@ use std::sync::Arc;
 use emath::{Align2, Pos2, Rangef, Rect, TSTransform, Vec2, pos2};
 
 use crate::{
-    Color32, CornerRadius, Mesh, Stroke, StrokeKind, TextureId,
+    Color32, CornerRadius, CornerRadiusF32, Mesh, Stroke, StrokeKind, TextureId,
     stroke::PathStroke,
     text::{FontId, Fonts, Galley},
 };
@@ -283,7 +283,11 @@ impl Shape {
         corner_radius: impl Into<CornerRadius>,
         fill_color: impl Into<Color32>,
     ) -> Self {
-        Self::Rect(RectShape::filled(rect, corner_radius, fill_color))
+        Self::Rect(RectShape::filled(
+            rect,
+            CornerRadiusF32::from(corner_radius.into()),
+            fill_color,
+        ))
     }
 
     /// See also [`Self::rect_filled`].
@@ -294,7 +298,12 @@ impl Shape {
         stroke: impl Into<Stroke>,
         stroke_kind: StrokeKind,
     ) -> Self {
-        Self::Rect(RectShape::stroke(rect, corner_radius, stroke, stroke_kind))
+        Self::Rect(RectShape::stroke(
+            rect,
+            CornerRadiusF32::from(corner_radius.into()),
+            stroke,
+            stroke_kind,
+        ))
     }
 
     #[expect(clippy::needless_pass_by_value)]
