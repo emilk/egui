@@ -160,6 +160,7 @@ impl CaptureState {
                     load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
                     store: StoreOp::Store,
                 },
+                depth_slice: None,
             })],
             depth_stencil_attachment: None,
             occlusion_query_set: None,
