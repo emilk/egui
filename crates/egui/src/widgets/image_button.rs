@@ -84,7 +84,7 @@ impl<'a> ImageButton<'a> {
     }
 }
 
-#[expect(deprecated)]
+#[expect(deprecated, reason = "Deprecated in egui 0.33.0")]
 impl Widget for ImageButton<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         let padding = if self.frame {
