@@ -509,6 +509,10 @@ pub struct WebOptions {
     ///
     /// Defaults to true.
     pub should_prevent_default: Box<dyn Fn(&egui::Event) -> bool>,
+
+    /// Maximum rate at which to repaint. This can be used to artificially reduce the repaint rate below
+    /// vsync in order to save resources.
+    pub repaint_rate_limit: Option<u32>,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -527,6 +531,8 @@ impl Default for WebOptions {
 
             should_stop_propagation: Box::new(|_| true),
             should_prevent_default: Box::new(|_| true),
+
+            repaint_rate_limit: None,
         }
     }
 }
