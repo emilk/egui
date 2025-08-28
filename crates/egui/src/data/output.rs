@@ -713,7 +713,6 @@ impl WidgetInfo {
             WidgetType::Slider => "slider",
             WidgetType::DragValue => "drag value",
             WidgetType::ColorButton => "color button",
-            WidgetType::ImageButton => "image button",
             WidgetType::Image => "image",
             WidgetType::CollapsingHeader => "collapsing header",
             WidgetType::ProgressIndicator => "progress indicator",

@@ -24,6 +24,7 @@ pub mod text_edit;
 
 #[expect(deprecated)]
 pub use self::selected_label::SelectableLabel;
+#[expect(deprecated)]
 pub use self::{
     button::Button,
     checkbox::Checkbox,
