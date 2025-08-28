@@ -53,6 +53,7 @@ impl WebInput {
 pub(crate) struct NeedRepaint {
     /// Time in seconds when the next repaint should happen.
     next_repaint: Mutex<f64>,
+
     /// Rate limit for repaint. 0 means "unlimited". The rate may still be limited by vsync.
     rate: u32,
 }
