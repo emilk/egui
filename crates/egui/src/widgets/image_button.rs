@@ -15,7 +15,7 @@ pub struct ImageButton<'a> {
     alt_text: Option<String>,
 }
 
-#[expect(deprecated)]
+#[expect(deprecated, reason = "Deprecated in egui 0.33.0")]
 impl<'a> ImageButton<'a> {
     pub fn new(image: impl Into<Image<'a>>) -> Self {
         Self {
