@@ -50,11 +50,19 @@ impl WebInput {
 // ----------------------------------------------------------------------------
 
 /// Stores when to do the next repaint.
-pub(crate) struct NeedRepaint(Mutex<f64>);
+pub(crate) struct NeedRepaint {
+    /// Time in seconds when the next repaint should happen.
+    next_repaint: Mutex<f64>,
+    /// Rate limit for repaint. 0 means "unlimited". The rate may still be limited by VSync.
+    rate: u32,
+}
 
-impl Default for NeedRepaint {
-    fn default() -> Self {
-        Self(Mutex::new(f64::NEG_INFINITY)) // start with a repaint
+impl NeedRepaint {
+    pub fn new(rate: Option<u32>) -> Self {
+        Self {
+            next_repaint: Mutex::new(f64::NEG_INFINITY), // start with a repaint
+            rate: rate.unwrap_or(0),
+        }
     }
 }
 
@@ -62,25 +70,43 @@ impl NeedRepaint {
     /// Returns the time (in [`now_sec`] scale) when
     /// we should next repaint.
     pub fn when_to_repaint(&self) -> f64 {
-        *self.0.lock()
+        *self.next_repaint.lock()
     }
 
     /// Unschedule repainting.
     pub fn clear(&self) {
-        *self.0.lock() = f64::INFINITY;
+        *self.next_repaint.lock() = f64::INFINITY;
     }
 
     pub fn repaint_after(&self, num_seconds: f64) {
-        let mut repaint_time = self.0.lock();
-        *repaint_time = repaint_time.min(super::now_sec() + num_seconds);
+        let mut repaint_time = self.next_repaint.lock();
+        let mut time = super::now_sec() + num_seconds;
+        time = Self::round_repaint_time_to_rate(time, self.rate);
+        *repaint_time = repaint_time.min(time);
+    }
+
+    /// Request a repaint. Depending on the presence of rate limiting, this may not be instant.
+    pub fn repaint(&self) {
+        let time = Self::round_repaint_time_to_rate(super::now_sec(), self.rate);
+        let mut repaint_time = self.next_repaint.lock();
+        *repaint_time = repaint_time.min(time)
+    }
+
+    pub fn repaint_asap(&self) {
+        *self.next_repaint.lock() = f64::NEG_INFINITY;
     }
 
     pub fn needs_repaint(&self) -> bool {
         self.when_to_repaint() <= super::now_sec()
     }
 
-    pub fn repaint_asap(&self) {
-        *self.0.lock() = f64::NEG_INFINITY;
+    fn round_repaint_time_to_rate(time: f64, rate: u32) -> f64 {
+        if rate == 0 {
+            f64::NEG_INFINITY
+        } else {
+            let interval = 1.0 / rate as f64;
+            (time / interval).ceil() * interval
+        }
     }
 }
 
