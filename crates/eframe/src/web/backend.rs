@@ -53,7 +53,7 @@ impl WebInput {
 pub(crate) struct NeedRepaint {
     /// Time in seconds when the next repaint should happen.
     next_repaint: Mutex<f64>,
-    /// Rate limit for repaint. 0 means "unlimited". The rate may still be limited by VSync.
+    /// Rate limit for repaint. 0 means "unlimited". The rate may still be limited by vsync.
     rate: u32,
 }
 
@@ -89,7 +89,7 @@ impl NeedRepaint {
     pub fn repaint(&self) {
         let time = Self::round_repaint_time_to_rate(super::now_sec(), self.rate);
         let mut repaint_time = self.next_repaint.lock();
-        *repaint_time = repaint_time.min(time)
+        *repaint_time = repaint_time.min(time);
     }
 
     pub fn repaint_asap(&self) {
