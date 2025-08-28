@@ -668,8 +668,6 @@ pub enum WidgetType {
 
     ColorButton,
 
-    ImageButton,
-
     Image,
 
     CollapsingHeader,
