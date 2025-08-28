@@ -753,7 +753,7 @@ impl Layout {
                             pos2(frame_rect.max.x, f32::NAN),
                         );
                     }
-                };
+                }
             }
         } else {
             // Make sure we also expand where we consider adding things (the cursor):
@@ -779,7 +779,7 @@ impl Layout {
             Direction::BottomUp => {
                 cursor.max.y = widget_rect.min.y - item_spacing.y;
             }
-        };
+        }
     }
 
     /// Move to the next row in a wrapping layout.

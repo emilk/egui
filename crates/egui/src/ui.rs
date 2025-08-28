@@ -124,6 +124,7 @@ impl Ui {
     pub fn new(ctx: Context, id: Id, ui_builder: UiBuilder) -> Self {
         let UiBuilder {
             id_salt,
+            global_scope: _,
             ui_stack_info,
             layer_id,
             max_rect,
@@ -250,6 +251,7 @@ impl Ui {
     pub fn new_child(&mut self, ui_builder: UiBuilder) -> Self {
         let UiBuilder {
             id_salt,
+            global_scope,
             ui_stack_info,
             layer_id,
             max_rect,
@@ -287,8 +289,14 @@ impl Ui {
         }
 
         debug_assert!(!max_rect.any_nan(), "max_rect is NaN: {max_rect:?}");
-        let stable_id = self.id.with(id_salt);
-        let unique_id = stable_id.with(self.next_auto_id_salt);
+        let (stable_id, unique_id) = if global_scope {
+            (id_salt, id_salt)
+        } else {
+            let stable_id = self.id.with(id_salt);
+            let unique_id = stable_id.with(self.next_auto_id_salt);
+
+            (stable_id, unique_id)
+        };
         let next_auto_id_salt = unique_id.value().wrapping_add(1);
 
         self.next_auto_id_salt = self.next_auto_id_salt.wrapping_add(1);
@@ -1877,6 +1885,7 @@ impl Ui {
     /// Add extra space before the next widget.
     ///
     /// The direction is dependent on the layout.
+    /// Note that `add_space` isn't supported when in a grid layout.
     ///
     /// This will be in addition to the [`crate::style::Spacing::item_spacing`]
     /// that is always added, but `item_spacing` won't be added _again_ by `add_space`.
@@ -1884,6 +1893,7 @@ impl Ui {
     /// [`Self::min_rect`] will expand to contain the space.
     #[inline]
     pub fn add_space(&mut self, amount: f32) {
+        debug_assert!(!self.is_grid(), "add_space makes no sense in a grid layout");
         self.placer.advance_cursor(amount.round_ui());
     }
 

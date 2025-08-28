@@ -2,8 +2,8 @@ use crate::rust_view_ui;
 use egui::color_picker::{Alpha, color_picker_color32};
 use egui::containers::menu::{MenuConfig, SubMenuButton};
 use egui::{
-    Align, Align2, ComboBox, Frame, Id, Layout, Popup, PopupCloseBehavior, RectAlign, RichText,
-    Tooltip, Ui, UiBuilder, include_image,
+    Align, Align2, Atom, Button, ComboBox, Frame, Id, Layout, Popup, PopupCloseBehavior, RectAlign,
+    RichText, Tooltip, Ui, UiBuilder, include_image,
 };
 
 /// Showcase [`Popup`].
@@ -53,6 +53,9 @@ impl PopupsDemo {
                 ui.close();
             }
         });
+        ui.add_enabled_ui(false, |ui| {
+            ui.menu_button("SubMenus can be disabled", |_| {});
+        });
         ui.menu_image_text_button(
             include_image!("../../data/icon.png"),
             "I have an icon!",
@@ -79,13 +82,15 @@ impl PopupsDemo {
                 } else {
                     egui::Color32::WHITE
                 };
-                let mut color_button =
-                    SubMenuButton::new(RichText::new("Background").color(text_color));
-                color_button.button = color_button.button.fill(self.color);
-                color_button.button = color_button
-                    .button
-                    .right_text(RichText::new(SubMenuButton::RIGHT_ARROW).color(text_color));
-                color_button.ui(ui, |ui| {
+
+                let button = Button::new((
+                    RichText::new("Background").color(text_color),
+                    Atom::grow(),
+                    RichText::new(SubMenuButton::RIGHT_ARROW).color(text_color),
+                ))
+                .fill(self.color);
+
+                SubMenuButton::from_button(button).ui(ui, |ui| {
                     ui.spacing_mut().slider_width = 200.0;
                     color_picker_color32(ui, &mut self.color, Alpha::Opaque);
                 });

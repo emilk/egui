@@ -129,6 +129,7 @@ impl WidgetRects {
             infos,
         } = self;
 
+        #[expect(clippy::iter_over_hash_type)]
         for rects in by_layer.values_mut() {
             rects.clear();
         }
