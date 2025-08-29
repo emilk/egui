@@ -658,7 +658,7 @@ impl Slider<'_> {
             SliderOrientation::Horizontal => vec2(ui.spacing().slider_width, thickness),
             SliderOrientation::Vertical => vec2(thickness, ui.spacing().slider_width),
         };
-        ui.allocate_response(desired_size, Sense::drag())
+        ui.allocate_response(desired_size, Sense::drag(), desired_size)
     }
 
     /// Just the slider, no text
