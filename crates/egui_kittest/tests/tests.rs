@@ -138,3 +138,24 @@ fn test_scroll_down() {
         "The button was not clicked after scrolling down. (Probably not scrolled enough / at all)"
     );
 }
+
+#[test]
+fn test_masking() {
+    let mut harness = Harness::new_ui(|ui| {
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis();
+
+        ui.label("I should not be masked.");
+        ui.label(format!("Timestamp: {timestamp}"));
+        ui.label("I should also not be masked.");
+    });
+
+    harness.fit_contents();
+
+    let to_be_masked = harness.get_by_label_contains("Timestamp: ");
+    harness.mask(to_be_masked.rect());
+
+    harness.snapshot("test_masking");
+}

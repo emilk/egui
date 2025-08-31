@@ -23,7 +23,13 @@ mod mutex_impl {
 
         #[inline(always)]
         pub fn lock(&self) -> MutexGuard<'_, T> {
-            self.0.lock()
+            if cfg!(debug_assertions) {
+                self.0
+                    .try_lock_for(std::time::Duration::from_secs(30))
+                    .expect("Looks like a deadlock!")
+            } else {
+                self.0.lock()
+            }
         }
     }
 }

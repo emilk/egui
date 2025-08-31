@@ -446,7 +446,9 @@ impl SubMenu {
         let is_hovered = hover_pos.is_some_and(|pos| button_rect.contains(pos));
 
         // The clicked handler is there for accessibility (keyboard navigation)
-        if (!is_any_open && is_hovered) || button_response.clicked() {
+        let should_open =
+            ui.is_enabled() && (button_response.clicked() || (is_hovered && !is_any_open));
+        if should_open {
             set_open = Some(true);
             is_open = true;
             // Ensure that all other sub menus are closed when we open the menu

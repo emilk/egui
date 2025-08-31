@@ -997,7 +997,7 @@ impl ResizeObserverContext {
                     // we rely on the resize observer to trigger the first `request_animation_frame`:
                     if let Err(err) = runner_ref.request_animation_frame() {
                         log::error!("{}", super::string_from_js_value(&err));
-                    };
+                    }
                 } else {
                     log::warn!("ResizeObserverContext callback: failed to lock runner");
                 }

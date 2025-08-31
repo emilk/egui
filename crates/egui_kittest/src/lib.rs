@@ -28,8 +28,9 @@ pub use builder::*;
 pub use node::*;
 pub use renderer::*;
 
+use egui::epaint::{ClippedShape, RectShape};
 use egui::style::ScrollAnimation;
-use egui::{Key, Modifiers, Pos2, Rect, RepaintCause, Vec2, ViewportId};
+use egui::{Color32, Key, Modifiers, Pos2, Rect, RepaintCause, Shape, Vec2, ViewportId};
 use kittest::Queryable;
 
 #[derive(Debug, Clone)]
@@ -554,6 +555,18 @@ impl<'a, State> Harness<'a, State> {
     /// - reset the modifiers
     pub fn key_press_modifiers(&self, modifiers: Modifiers, key: egui::Key) {
         self.key_combination_modifiers(modifiers, &[key]);
+    }
+
+    /// Mask something. Useful for snapshot tests.
+    ///
+    /// Call this _after_ [`Self::run`] and before [`Self::snapshot`].
+    /// This will add a [`RectShape`] to the output shapes, for the current frame.
+    /// Will be overwritten on the next call to [`Self::run`].
+    pub fn mask(&mut self, rect: Rect) {
+        self.output.shapes.push(ClippedShape {
+            clip_rect: Rect::EVERYTHING,
+            shape: Shape::Rect(RectShape::filled(rect, 0.0, Color32::MAGENTA)),
+        });
     }
 
     /// Render the last output to an image.
