@@ -112,6 +112,21 @@ where
     (T::ONE - t) * *range.start() + t * *range.end()
 }
 
+/// This is a faster version of [`f32::midpoint`] which doesn't handle overflow.
+///
+/// ```
+/// # use emath::fast_midpoint;
+/// assert_eq!(fast_midpoint(1.0, 5.0), 3.0);
+/// ```
+#[inline(always)]
+pub fn fast_midpoint<R>(a: R, b: R) -> R
+where
+    R: Copy + Add<R, Output = R> + Div<R, Output = R> + One,
+{
+    let two = R::ONE + R::ONE;
+    (a + b) / two
+}
+
 /// Where in the range is this value? Returns 0-1 if within the range.
 ///
 /// Returns <0 if before and >1 if after.

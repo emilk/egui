@@ -581,9 +581,8 @@ impl TextEdit<'_> {
 
                 // TODO(emilk): drag selected text to either move or clone (ctrl on windows, alt on mac)
 
-                let singleline_offset = vec2(state.singleline_offset, 0.0);
                 let cursor_at_pointer =
-                    galley.cursor_from_pos(pointer_pos - rect.min + singleline_offset);
+                    galley.cursor_from_pos(pointer_pos - rect.min + state.text_offset);
 
                 if ui.visuals().text_cursor.preview
                     && response.hovered()
@@ -653,16 +652,16 @@ impl TextEdit<'_> {
             .align_size_within_rect(galley.size(), rect)
             .intersect(rect) // limit pos to the response rect area
             .min;
-        let align_offset = rect.left() - galley_pos.x;
+        let align_offset = rect.left_top() - galley_pos;
 
         // Visual clipping for singleline text editor with text larger than width
-        if clip_text && align_offset == 0.0 {
+        if clip_text && align_offset.x == 0.0 {
             let cursor_pos = match (cursor_range, ui.memory(|mem| mem.has_focus(id))) {
                 (Some(cursor_range), true) => galley.pos_from_cursor(cursor_range.primary).min.x,
                 _ => 0.0,
             };
 
-            let mut offset_x = state.singleline_offset;
+            let mut offset_x = state.text_offset.x;
             let visible_range = offset_x..=offset_x + desired_inner_size.x;
 
             if !visible_range.contains(&cursor_pos) {
@@ -677,10 +676,10 @@ impl TextEdit<'_> {
                 .at_most(galley.size().x - desired_inner_size.x)
                 .at_least(0.0);
 
-            state.singleline_offset = offset_x;
+            state.text_offset = vec2(offset_x, align_offset.y);
             galley_pos -= vec2(offset_x, 0.0);
         } else {
-            state.singleline_offset = align_offset;
+            state.text_offset = align_offset;
         }
 
         let selection_changed = if let (Some(cursor_range), Some(prev_cursor_range)) =
@@ -929,12 +928,10 @@ fn events(
             event if cursor_range.on_event(os, event, galley, id) => None,
 
             Event::Copy => {
-                if cursor_range.is_empty() {
-                    None
-                } else {
+                if !cursor_range.is_empty() {
                     copy_if_not_password(ui, cursor_range.slice_str(text.as_str()).to_owned());
-                    None
                 }
+                None
             }
             Event::Cut => {
                 if cursor_range.is_empty() {

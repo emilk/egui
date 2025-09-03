@@ -3,7 +3,7 @@
 //! Try the live web demo: <https://www.egui.rs/#demo>. Read more about egui at <https://github.com/emilk/egui>.
 //!
 //! `egui` is in heavy development, with each new version having breaking changes.
-//! You need to have rust 1.85.0 or later to use `egui`.
+//! You need to have rust 1.86.0 or later to use `egui`.
 //!
 //! To quickly get started with egui, you can take a look at [`eframe_template`](https://github.com/emilk/eframe_template)
 //! which uses [`eframe`](https://docs.rs/eframe).
@@ -496,7 +496,7 @@ pub use self::{
     epaint::text::TextWrapMode,
     grid::Grid,
     id::{Id, IdMap},
-    input_state::{InputOptions, InputState, MultiTouchInfo, PointerState},
+    input_state::{InputOptions, InputState, MultiTouchInfo, PointerState, SurrenderFocusOn},
     layers::{LayerId, Order},
     layout::*,
     load::SizeHint,

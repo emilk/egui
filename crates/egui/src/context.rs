@@ -41,6 +41,7 @@ use epaint::{
 };
 use std::any::TypeId;
 use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration};
+use crate::input_state::SurrenderFocusOn;
 
 /// Information given to the backend about when it is time to repaint the ui.
 ///
@@ -729,6 +730,7 @@ impl Default for Context {
     fn default() -> Self {
         let ctx_impl = ContextImpl {
             embed_viewports: true,
+            viewports: std::iter::once((ViewportId::ROOT, ViewportState::default())).collect(),
             ..Default::default()
         };
         let ctx = Self(Arc::new(RwLock::new(ctx_impl)));
@@ -1223,7 +1225,7 @@ impl Context {
                             viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::RIGHT;
                         }
                         _ => return false,
-                    };
+                    }
                     true
                 });
         });
@@ -1393,8 +1395,14 @@ impl Context {
                 res.flags.set(Flags::HOVERED, false);
             }
 
-            let pointer_pressed_elsewhere = any_press && !res.hovered();
-            if pointer_pressed_elsewhere && memory.has_focus(id) {
+            let should_surrender_focus = match memory.options.input_options.surrender_focus_on {
+                SurrenderFocusOn::Presses => any_press,
+                SurrenderFocusOn::Clicks => input.pointer.any_click(),
+                SurrenderFocusOn::Never => false,
+            };
+
+            let pointer_clicked_elsewhere = should_surrender_focus && !res.hovered();
+            if pointer_clicked_elsewhere && memory.has_focus(id) {
                 memory.surrender_focus(id);
             }
         });
@@ -1581,7 +1589,14 @@ impl Context {
         self.read(|ctx| {
             ctx.viewports
                 .get(&id)
-                .map_or(0, |v| v.repaint.cumulative_frame_nr)
+                .map(|v| v.repaint.cumulative_frame_nr)
+                .unwrap_or_else(|| {
+                    if cfg!(debug_assertions) {
+                        panic!("cumulative_frame_nr_for failed to find the viewport {id:?}");
+                    } else {
+                        0
+                    }
+                })
         })
     }
 
@@ -2160,6 +2175,7 @@ impl Context {
         self.write(|ctx| {
             if ctx.memory.options.zoom_factor != zoom_factor {
                 ctx.new_zoom_factor = Some(zoom_factor);
+                #[expect(clippy::iter_over_hash_type)]
                 for viewport_id in ctx.all_viewport_ids() {
                     ctx.request_repaint(viewport_id, cause.clone());
                 }
@@ -2289,6 +2305,8 @@ impl Context {
     /// Called at the end of the pass.
     #[cfg(debug_assertions)]
     fn debug_painting(&self) {
+        #![expect(clippy::iter_over_hash_type)] // ok to be sloppy in debug painting
+
         let paint_widget = |widget: &WidgetRect, text: &str, color: Color32| {
             let rect = widget.interact_rect;
             if rect.is_positive() {
@@ -2527,6 +2545,10 @@ impl ContextImpl {
         self.last_viewport = ended_viewport_id;
 
         self.viewports.retain(|&id, viewport| {
+            if id == ViewportId::ROOT {
+                return true; // never remove the root
+            }
+
             let parent = *self.viewport_parents.entry(id).or_default();
 
             if !all_viewport_ids.contains(&parent) {
@@ -2597,6 +2619,10 @@ impl ContextImpl {
         if is_last {
             // Remove dead viewports:
             self.viewports.retain(|id, _| all_viewport_ids.contains(id));
+            debug_assert!(
+                self.viewports.contains_key(&ViewportId::ROOT),
+                "Bug in egui: we removed the root viewport"
+            );
             self.viewport_parents
                 .retain(|id, _| all_viewport_ids.contains(id));
         } else {

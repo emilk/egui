@@ -286,6 +286,8 @@ pub(crate) fn on_keyup(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
         // See https://github.com/emilk/egui/issues/4724
 
         let keys_down = runner.egui_ctx().input(|i| i.keys_down.clone());
+
+        #[expect(clippy::iter_over_hash_type)]
         for key in keys_down {
             let egui_event = egui::Event::Key {
                 key,
@@ -405,7 +407,7 @@ fn install_window_events(runner_ref: &WebRunner, window: &EventTarget) -> Result
 
     // No need to subscribe to "resize": we already subscribe to the canvas
     // size using a ResizeObserver, and we also subscribe to DPR changes of the monitor.
-    for event_name in &["load", "pagehide", "pageshow"] {
+    for event_name in &["load", "pagehide", "pageshow", "popstate"] {
         runner_ref.add_event_listener(window, event_name, move |_: web_sys::Event, runner| {
             if DEBUG_RESIZE {
                 log::debug!("{event_name:?}");
@@ -995,7 +997,7 @@ impl ResizeObserverContext {
                     // we rely on the resize observer to trigger the first `request_animation_frame`:
                     if let Err(err) = runner_ref.request_animation_frame() {
                         log::error!("{}", super::string_from_js_value(&err));
-                    };
+                    }
                 } else {
                     log::warn!("ResizeObserverContext callback: failed to lock runner");
                 }
