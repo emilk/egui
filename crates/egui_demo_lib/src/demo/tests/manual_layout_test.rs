@@ -76,13 +76,13 @@ impl crate::View for ManualLayoutTest {
         // Showing how to place a widget anywhere in the [`Ui`]:
         match *widget_type {
             WidgetType::Button => {
-                ui.put_and_advance(widget_rect, egui::Button::new("Example button"));
+                ui.put(widget_rect, egui::Button::new("Example button"));
             }
             WidgetType::Label => {
-                ui.put_and_advance(widget_rect, egui::Label::new("Example label"));
+                ui.put(widget_rect, egui::Label::new("Example label"));
             }
             WidgetType::TextEdit => {
-                ui.put_and_advance(widget_rect, egui::TextEdit::multiline(text_edit_contents));
+                ui.put(widget_rect, egui::TextEdit::multiline(text_edit_contents));
             }
         }
     }

@@ -65,7 +65,7 @@ impl crate::View for SceneDemo {
 
                         self.widget_gallery.ui(ui);
 
-                        ui.put_and_advance(
+                        ui.put(
                             Rect::from_min_size(Pos2::new(0.0, -64.0), Vec2::new(200.0, 16.0)),
                             egui::Label::new("You can put a widget anywhere").selectable(false),
                         );
