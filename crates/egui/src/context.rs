@@ -3,6 +3,7 @@
 use self::{hit_test::WidgetHits, interaction::InteractionSnapshot};
 #[cfg(feature = "accesskit")]
 use crate::IdMap;
+use crate::input_state::SurrenderFocusOn;
 use crate::plugin::TypedPluginHandle;
 use crate::text_selection::LabelSelectionState;
 use crate::{
@@ -41,7 +42,6 @@ use epaint::{
 };
 use std::any::TypeId;
 use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration};
-use crate::input_state::SurrenderFocusOn;
 
 /// Information given to the backend about when it is time to repaint the ui.
 ///
