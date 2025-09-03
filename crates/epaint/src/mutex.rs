@@ -4,6 +4,7 @@
 
 const DEADLOCK_DURATION: std::time::Duration = std::time::Duration::from_secs(30);
 
+#[cfg(not(feature = "deadlock_detection"))]
 mod mutex_impl {
     use super::DEADLOCK_DURATION;
 
