@@ -422,10 +422,12 @@ impl RichText {
             font_id
         };
 
-        let mut background_color = background_color;
-        if code {
-            background_color = style.visuals.code_bg_color;
-        }
+        let background_color = if code {
+            style.visuals.code_bg_color
+        } else {
+            background_color
+        };
+
         let underline = if underline {
             crate::Stroke::new(1.0, line_color)
         } else {
@@ -744,11 +746,17 @@ impl WidgetText {
     ) -> Arc<Galley> {
         match self {
             Self::Text(text) => {
+                let color = style
+                    .visuals
+                    .override_text_color
+                    .unwrap_or(crate::Color32::PLACEHOLDER);
                 let mut layout_job = LayoutJob::simple_format(
                     text,
                     TextFormat {
-                        font_id: FontSelection::Default.resolve(style),
-                        color: crate::Color32::PLACEHOLDER,
+                        // We want the style overrides to take precedence over the fallback font
+                        font_id: FontSelection::default()
+                            .resolve_with_fallback(style, fallback_font),
+                        color,
                         valign: default_valign,
                         ..Default::default()
                     },

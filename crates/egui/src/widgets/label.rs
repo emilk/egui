@@ -250,7 +250,7 @@ impl Label {
             } else {
                 layout_job.halign = self.halign.unwrap_or(ui.layout().horizontal_placement());
                 layout_job.justify = ui.layout().horizontal_justify();
-            };
+            }
 
             let galley = ui.fonts(|fonts| fonts.layout_job(layout_job));
             let (rect, mut response) = ui.allocate_exact_size(galley.size(), sense);

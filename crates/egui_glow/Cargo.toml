@@ -53,7 +53,6 @@ x11 = ["winit?/x11"]
 egui = { workspace = true, default-features = false, features = ["bytemuck"] }
 egui-winit = { workspace = true, optional = true, default-features = false }
 
-ahash.workspace = true
 bytemuck.workspace = true
 glow.workspace = true
 log.workspace = true

@@ -711,6 +711,8 @@ impl Focus {
         let mut best_score = f32::INFINITY;
         let mut best_id = None;
 
+        // iteration order should only matter in case of a tie, and that should be very rare
+        #[expect(clippy::iter_over_hash_type)]
         for (candidate_id, candidate_rect) in &self.focus_widgets_cache {
             if *candidate_id == current_focused.id {
                 continue;
@@ -800,15 +802,12 @@ impl Memory {
 
     /// Top-most layer at the given position.
     pub fn layer_id_at(&self, pos: Pos2) -> Option<LayerId> {
-        self.areas()
-            .layer_id_at(pos, &self.to_global)
-            .and_then(|layer_id| {
-                if self.is_above_modal_layer(layer_id) {
-                    Some(layer_id)
-                } else {
-                    self.top_modal_layer()
-                }
-            })
+        let layer_id = self.areas().layer_id_at(pos, &self.to_global)?;
+        if self.is_above_modal_layer(layer_id) {
+            Some(layer_id)
+        } else {
+            self.top_modal_layer()
+        }
     }
 
     /// The currently set transform of a layer.
@@ -853,7 +852,7 @@ impl Memory {
 
     /// Which widget has keyboard focus?
     pub fn focused(&self) -> Option<Id> {
-        self.focus().and_then(|f| f.focused())
+        self.focus()?.focused()
     }
 
     /// Set an event filter for a widget.
@@ -959,6 +958,7 @@ impl Memory {
     /// Forget window positions, sizes etc.
     /// Can be used to auto-layout windows.
     pub fn reset_areas(&mut self) {
+        #[expect(clippy::iter_over_hash_type)]
         for area in self.areas.values_mut() {
             *area = Default::default();
         }
@@ -1063,9 +1063,8 @@ impl Memory {
     /// Get the position for this popup.
     #[deprecated = "Use Popup::position_of_id instead"]
     pub fn popup_position(&self, id: Id) -> Option<Pos2> {
-        self.popups
-            .get(&self.viewport_id)
-            .and_then(|state| if state.id == id { state.pos } else { None })
+        let state = self.popups.get(&self.viewport_id)?;
+        if state.id == id { state.pos } else { None }
     }
 
     /// Close any currently open popup.
@@ -1324,12 +1323,14 @@ impl Areas {
         wants_to_be_on_top.clear();
 
         // For all layers with sublayers, put the sublayers directly after the parent layer:
-        let sublayers = std::mem::take(sublayers);
-        for (parent, children) in sublayers {
-            let mut moved_layers = vec![parent];
+        // (it doesn't matter in which order we replace parents with their children)
+        #[expect(clippy::iter_over_hash_type)]
+        for (parent, children) in std::mem::take(sublayers) {
+            let mut moved_layers = vec![parent]; // parent first…
+
             order.retain(|l| {
                 if children.contains(l) {
-                    moved_layers.push(*l);
+                    moved_layers.push(*l); // …followed by children
                     false
                 } else {
                     true
@@ -1338,7 +1339,7 @@ impl Areas {
             let Some(parent_pos) = order.iter().position(|l| l == &parent) else {
                 continue;
             };
-            order.splice(parent_pos..=parent_pos, moved_layers);
+            order.splice(parent_pos..=parent_pos, moved_layers); // replace the parent with itself and its children
         }
 
         self.order_map = self

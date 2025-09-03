@@ -352,7 +352,7 @@ dependencies = [
  "futures-lite",
  "parking",
  "polling",
- "rustix",
+ "rustix 0.38.38",
  "slab",
  "tracing",
  "windows-sys 0.59.0",
@@ -395,7 +395,7 @@ dependencies = [
  "cfg-if",
  "event-listener",
  "futures-lite",
- "rustix",
+ "rustix 0.38.38",
  "tracing",
 ]
 
@@ -422,7 +422,7 @@ dependencies = [
  "cfg-if",
  "futures-core",
  "futures-io",
- "rustix",
+ "rustix 0.38.38",
  "signal-hook-registry",
  "slab",
  "windows-sys 0.59.0",
@@ -638,18 +638,18 @@ checksum = "79296716171880943b8470b5f8d03aa55eb2e645a4874bdbb28adb49162e012c"
 
 [[package]]
 name = "bytemuck"
-version = "1.22.0"
+version = "1.23.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6b1fc10dbac614ebc03540c9dbd60e83887fda27794998c6528f1782047d540"
+checksum = "3995eaeebcdf32f91f980d360f78732ddc061097ab4e39991ae7a6ace9194677"
 dependencies = [
  "bytemuck_derive",
 ]
 
 [[package]]
 name = "bytemuck_derive"
-version = "1.8.0"
+version = "1.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bcfcc3cd946cb52f0bbfdbbcfa2f4e24f75ebb6c0e1002f7c25904fada18b9ec"
+checksum = "4f154e572231cb6ba2bd1176980827e3d5dc04cc183a75dea38109fbdd672d29"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -683,7 +683,7 @@ dependencies = [
  "bitflags 2.9.0",
  "log",
  "polling",
- "rustix",
+ "rustix 0.38.38",
  "slab",
  "thiserror 1.0.66",
 ]
@@ -695,7 +695,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "95a66a987056935f7efce4ab5668920b5d0dac4a7c99991a67395f13702ddd20"
 dependencies = [
  "calloop",
- "rustix",
+ "rustix 0.38.38",
  "wayland-backend",
  "wayland-client",
 ]
@@ -1197,7 +1197,7 @@ checksum = "f25c0e292a7ca6d6498557ff1df68f32c99850012b6ea401cf8daf771f22ff53"
 
 [[package]]
 name = "ecolor"
-version = "0.32.0"
+version = "0.32.1"
 dependencies = [
  "bytemuck",
  "cint",
@@ -1209,7 +1209,7 @@ dependencies = [
 
 [[package]]
 name = "eframe"
-version = "0.32.0"
+version = "0.32.1"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -1242,14 +1242,13 @@ dependencies = [
  "web-sys",
  "web-time",
  "wgpu",
- "winapi",
  "windows-sys 0.59.0",
  "winit",
 ]
 
 [[package]]
 name = "egui"
-version = "0.32.0"
+version = "0.32.1"
 dependencies = [
  "accesskit",
  "ahash",
@@ -1269,7 +1268,7 @@ dependencies = [
 
 [[package]]
 name = "egui-wgpu"
-version = "0.32.0"
+version = "0.32.1"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -1287,10 +1286,9 @@ dependencies = [
 
 [[package]]
 name = "egui-winit"
-version = "0.32.0"
+version = "0.32.1"
 dependencies = [
  "accesskit_winit",
- "ahash",
  "arboard",
  "bytemuck",
  "document-features",
@@ -1308,7 +1306,7 @@ dependencies = [
 
 [[package]]
 name = "egui_demo_app"
-version = "0.32.0"
+version = "0.32.1"
 dependencies = [
  "bytemuck",
  "chrono",
@@ -1336,7 +1334,7 @@ dependencies = [
 
 [[package]]
 name = "egui_demo_lib"
-version = "0.32.0"
+version = "0.32.1"
 dependencies = [
  "chrono",
  "criterion",
@@ -1353,7 +1351,7 @@ dependencies = [
 
 [[package]]
 name = "egui_extras"
-version = "0.32.0"
+version = "0.32.1"
 dependencies = [
  "ahash",
  "chrono",
@@ -1372,9 +1370,8 @@ dependencies = [
 
 [[package]]
 name = "egui_glow"
-version = "0.32.0"
+version = "0.32.1"
 dependencies = [
- "ahash",
  "bytemuck",
  "document-features",
  "egui",
@@ -1392,7 +1389,7 @@ dependencies = [
 
 [[package]]
 name = "egui_kittest"
-version = "0.32.0"
+version = "0.32.1"
 dependencies = [
  "dify",
  "document-features",
@@ -1408,7 +1405,7 @@ dependencies = [
 
 [[package]]
 name = "egui_tests"
-version = "0.32.0"
+version = "0.32.1"
 dependencies = [
  "egui",
  "egui_extras",
@@ -1438,7 +1435,7 @@ checksum = "60b1af1c220855b6ceac025d3f6ecdd2b7c4894bfe9cd9bda4fbb4bc7c0d4cf0"
 
 [[package]]
 name = "emath"
-version = "0.32.0"
+version = "0.32.1"
 dependencies = [
  "bytemuck",
  "document-features",
@@ -1535,7 +1532,7 @@ dependencies = [
 
 [[package]]
 name = "epaint"
-version = "0.32.0"
+version = "0.32.1"
 dependencies = [
  "ab_glyph",
  "ahash",
@@ -1558,7 +1555,7 @@ dependencies = [
 
 [[package]]
 name = "epaint_default_fonts"
-version = "0.32.0"
+version = "0.32.1"
 
 [[package]]
 name = "equivalent"
@@ -1568,12 +1565,12 @@ checksum = "5443807d6dff69373d433ab9ef5378ad8df50ca6298caf15de6e52e24aaf54d5"
 
 [[package]]
 name = "errno"
-version = "0.3.9"
+version = "0.3.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "534c5cf6194dfab3db3242765c03bbe257cf92f22b38f6bc0c58d59108a820ba"
+checksum = "778e2ac28f6c47af28e4907f13ffd1e1ddbd400980a9abd7c8df189bf578a5ad"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -2502,6 +2499,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "78b3ae25bc7c8c38cec158d1f2757ee79e9b3740fbc7ccf0e59e4b08d793fa89"
 
 [[package]]
+name = "linux-raw-sys"
+version = "0.9.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cd945864f07fe9f5371a27ad7b52a172b4b499999f1d97574c9fa68373937e12"
+
+[[package]]
 name = "litemap"
 version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3223,7 +3226,7 @@ dependencies = [
  "concurrent-queue",
  "hermit-abi",
  "pin-project-lite",
- "rustix",
+ "rustix 0.38.38",
  "tracing",
  "windows-sys 0.59.0",
 ]
@@ -3236,7 +3239,7 @@ checksum = "2f3a9f18d041e6d0e102a0a46750538147e5e8992d3b4873aaafee2520b00ce3"
 
 [[package]]
 name = "popups"
-version = "0.32.0"
+version = "0.32.1"
 dependencies = [
  "eframe",
  "env_logger",
@@ -3372,6 +3375,15 @@ checksum = "f7649a7b4df05aed9ea7ec6f628c67c9953a43869b8bc50929569b2999d443fe"
 dependencies = [
  "memchr",
  "serde",
+]
+
+[[package]]
+name = "quick-xml"
+version = "0.37.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "331e97a1af0bf59823e6eadffe373d7b27f485be8748f71471c662c1f269b7fb"
+dependencies = [
+ "memchr",
 ]
 
 [[package]]
@@ -3616,8 +3628,21 @@ dependencies = [
  "bitflags 2.9.0",
  "errno",
  "libc",
- "linux-raw-sys",
+ "linux-raw-sys 0.4.14",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "rustix"
+version = "1.0.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11181fbabf243db407ef8df94a6ce0b2f9a733bd8be4ad02b4eda9602296cac8"
+dependencies = [
+ "bitflags 2.9.0",
+ "errno",
+ "libc",
+ "linux-raw-sys 0.9.4",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -3870,7 +3895,7 @@ dependencies = [
  "libc",
  "log",
  "memmap2",
- "rustix",
+ "rustix 0.38.38",
  "thiserror 1.0.66",
  "wayland-backend",
  "wayland-client",
@@ -4033,7 +4058,7 @@ dependencies = [
  "cfg-if",
  "fastrand",
  "once_cell",
- "rustix",
+ "rustix 0.38.38",
  "windows-sys 0.59.0",
 ]
 
@@ -4574,13 +4599,13 @@ checksum = "6ee99da9c5ba11bd675621338ef6fa52296b76b83305e9b6e5c77d4c286d6d49"
 
 [[package]]
 name = "wayland-backend"
-version = "0.3.7"
+version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "056535ced7a150d45159d3a8dc30f91a2e2d588ca0b23f70e56033622b8016f6"
+checksum = "673a33c33048a5ade91a6b139580fa174e19fb0d23f396dca9fa15f2e1e49b35"
 dependencies = [
  "cc",
  "downcast-rs",
- "rustix",
+ "rustix 1.0.8",
  "scoped-tls",
  "smallvec",
  "wayland-sys",
@@ -4588,12 +4613,12 @@ dependencies = [
 
 [[package]]
 name = "wayland-client"
-version = "0.31.7"
+version = "0.31.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b66249d3fc69f76fd74c82cc319300faa554e9d865dab1f7cd66cc20db10b280"
+checksum = "c66a47e840dc20793f2264eb4b3e4ecb4b75d91c0dd4af04b456128e0bdd449d"
 dependencies = [
  "bitflags 2.9.0",
- "rustix",
+ "rustix 1.0.8",
  "wayland-backend",
  "wayland-scanner",
 ]
@@ -4615,16 +4640,16 @@ version = "0.31.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32b08bc3aafdb0035e7fe0fdf17ba0c09c268732707dca4ae098f60cb28c9e4c"
 dependencies = [
- "rustix",
+ "rustix 0.38.38",
  "wayland-client",
  "xcursor",
 ]
 
 [[package]]
 name = "wayland-protocols"
-version = "0.32.5"
+version = "0.32.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7cd0ade57c4e6e9a8952741325c30bf82f4246885dca8bf561898b86d0c1f58e"
+checksum = "efa790ed75fbfd71283bd2521a1cfdc022aabcc28bdcff00851f9e4ae88d9901"
 dependencies = [
  "bitflags 2.9.0",
  "wayland-backend",
@@ -4634,9 +4659,9 @@ dependencies = [
 
 [[package]]
 name = "wayland-protocols-plasma"
-version = "0.3.5"
+version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b31cab548ee68c7eb155517f2212049dc151f7cd7910c2b66abfd31c3ee12bd"
+checksum = "a07a14257c077ab3279987c4f8bb987851bf57081b93710381daea94f2c2c032"
 dependencies = [
  "bitflags 2.9.0",
  "wayland-backend",
@@ -4660,20 +4685,20 @@ dependencies = [
 
 [[package]]
 name = "wayland-scanner"
-version = "0.31.5"
+version = "0.31.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "597f2001b2e5fc1121e3d5b9791d3e78f05ba6bfa4641053846248e3a13661c3"
+checksum = "54cb1e9dc49da91950bdfd8b848c49330536d9d1fb03d4bfec8cae50caa50ae3"
 dependencies = [
  "proc-macro2",
- "quick-xml 0.36.2",
+ "quick-xml 0.37.5",
  "quote",
 ]
 
 [[package]]
 name = "wayland-sys"
-version = "0.31.5"
+version = "0.31.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "efa8ac0d8e8ed3e3b5c9fc92c7881406a268e11555abe36493efabe649a29e09"
+checksum = "34949b42822155826b41db8e5d0c1be3a2bd296c747577a43a3e6daefc296142"
 dependencies = [
  "dlib",
  "log",
@@ -4912,7 +4937,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -5311,9 +5336,9 @@ checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
 
 [[package]]
 name = "winit"
-version = "0.30.7"
+version = "0.30.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dba50bc8ef4b6f1a75c9274fb95aa9a8f63fbc66c56f391bd85cf68d51e7b1a3"
+checksum = "c66d4b9ed69c4009f6321f762d6e61ad8a2389cd431b97cb1e146812e9e6c732"
 dependencies = [
  "ahash",
  "android-activity",
@@ -5341,7 +5366,7 @@ dependencies = [
  "pin-project",
  "raw-window-handle 0.6.2",
  "redox_syscall 0.4.1",
- "rustix",
+ "rustix 0.38.38",
  "sctk-adwaita",
  "smithay-client-toolkit",
  "smol_str",
@@ -5422,7 +5447,7 @@ dependencies = [
  "libc",
  "libloading",
  "once_cell",
- "rustix",
+ "rustix 0.38.38",
  "x11rb-protocol",
 ]
 
@@ -5481,7 +5506,7 @@ checksum = "ec7a2a501ed189703dba8b08142f057e887dfc4b2cc4db2d343ac6376ba3e0b9"
 
 [[package]]
 name = "xtask"
-version = "0.32.0"
+version = "0.32.1"
 
 [[package]]
 name = "yaml-rust"

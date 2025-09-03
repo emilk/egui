@@ -100,14 +100,16 @@ impl ImageLoader for ImageCrateLoader {
                         let result = crate::image::load_image_bytes(&bytes)
                             .map(Arc::new)
                             .map_err(|err| err.to_string());
-                        log::trace!("ImageLoader - finished loading {uri:?}");
-                        let prev = cache.lock().insert(uri, Poll::Ready(result));
-                        debug_assert!(
-                            matches!(prev, Some(Poll::Pending)),
-                            "Expected previous state to be Pending"
-                        );
+                        let mut cache = cache.lock();
 
-                        ctx.request_repaint();
+                        if let std::collections::hash_map::Entry::Occupied(mut entry) = cache.entry(uri.clone()) {
+                            let entry = entry.get_mut();
+                            *entry = Poll::Ready(result);
+                            ctx.request_repaint();
+                            log::trace!("ImageLoader - finished loading {uri:?}");
+                        } else {
+                            log::trace!("ImageLoader - canceled loading {uri:?}\nNote: This can happen if `forget_image` is called while the image is still loading.");
+                        }
                     }
                 })
                 .expect("failed to spawn thread");
