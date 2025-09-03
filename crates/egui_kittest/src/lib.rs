@@ -93,6 +93,7 @@ impl<'a, State> Harness<'a, State> {
             screen_rect,
             pixels_per_point,
             theme,
+            os,
             max_steps,
             step_dt,
             state: _,
@@ -101,6 +102,7 @@ impl<'a, State> Harness<'a, State> {
         } = builder;
         let ctx = ctx.unwrap_or_default();
         ctx.set_theme(theme);
+        ctx.set_os(os);
         ctx.enable_accesskit();
         ctx.all_styles_mut(|style| {
             // Disable cursor blinking so it doesn't interfere with snapshots
