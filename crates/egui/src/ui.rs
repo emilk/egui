@@ -1710,7 +1710,7 @@ impl Ui {
     /// The returned [`Response`] can be used to check for interactions,
     /// as well as adding tooltips using [`Response::on_hover_text`].
     ///
-    /// See also [`Self::add_sized`] and [`Self::place`].
+    /// See also [`Self::add_sized`], [`Self::place`] and [`Self::put`].
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
@@ -1729,7 +1729,7 @@ impl Ui {
     ///
     /// To fill all remaining area, use `ui.add_sized(ui.available_size(), widget);`
     ///
-    /// See also [`Self::add`] and [`Self::place`].
+    /// See also [`Self::add`], [`Self::place`] and [`Self::put`].
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
