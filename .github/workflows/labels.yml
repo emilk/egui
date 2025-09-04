@@ -16,6 +16,7 @@ on:
 jobs:
   label:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Check for a "do-not-merge" label
         uses: mheap/github-action-required-labels@v3

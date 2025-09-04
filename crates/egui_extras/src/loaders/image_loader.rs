@@ -100,15 +100,28 @@ impl ImageLoader for ImageCrateLoader {
                         let result = crate::image::load_image_bytes(&bytes)
                             .map(Arc::new)
                             .map_err(|err| err.to_string());
-                        let mut cache = cache.lock();
+                        let repaint = {
+                            let mut cache = cache.lock();
 
-                        if let std::collections::hash_map::Entry::Occupied(mut entry) = cache.entry(uri.clone()) {
-                            let entry = entry.get_mut();
-                            *entry = Poll::Ready(result);
+                            if let std::collections::hash_map::Entry::Occupied(mut entry) = cache.entry(uri.clone()) {
+                                let entry = entry.get_mut();
+                                *entry = Poll::Ready(result);
+                                log::trace!("ImageLoader - finished loading {uri:?}");
+                                true
+                            } else {
+                                log::trace!("ImageLoader - canceled loading {uri:?}\nNote: This can happen if `forget_image` is called while the image is still loading.");
+                                false
+                            }
+                        };
+                        // We may not lock Context while the cache lock is held, since this can
+                        // deadlock.
+                        // Example deadlock scenario:
+                        // - loader thread: lock cache
+                        // - main thread: lock ctx (e.g. in `Context::has_pending_images`)
+                        // - loader thread: try to lock ctx (in `request_repaint`)
+                        // - main thread: try to lock cache (from `Self::has_pending`)
+                        if repaint {
                             ctx.request_repaint();
-                            log::trace!("ImageLoader - finished loading {uri:?}");
-                        } else {
-                            log::trace!("ImageLoader - canceled loading {uri:?}\nNote: This can happen if `forget_image` is called while the image is still loading.");
                         }
                     }
                 })
