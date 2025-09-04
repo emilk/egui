@@ -53,6 +53,9 @@ impl PopupsDemo {
                 ui.close();
             }
         });
+        ui.add_enabled_ui(false, |ui| {
+            ui.menu_button("SubMenus can be disabled", |_| {});
+        });
         ui.menu_image_text_button(
             include_image!("../../data/icon.png"),
             "I have an icon!",

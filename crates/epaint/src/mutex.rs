@@ -3,7 +3,12 @@
 // ----------------------------------------------------------------------------
 
 #[cfg(not(feature = "deadlock_detection"))]
+const DEADLOCK_DURATION: std::time::Duration = std::time::Duration::from_secs(30);
+
+#[cfg(not(feature = "deadlock_detection"))]
 mod mutex_impl {
+    use super::DEADLOCK_DURATION;
+
     /// Provides interior mutability.
     ///
     /// This is a thin wrapper around [`parking_lot::Mutex`], except if
@@ -23,7 +28,13 @@ mod mutex_impl {
 
         #[inline(always)]
         pub fn lock(&self) -> MutexGuard<'_, T> {
-            self.0.lock()
+            if cfg!(debug_assertions) {
+                self.0
+                    .try_lock_for(DEADLOCK_DURATION)
+                    .expect("Looks like a deadlock!")
+            } else {
+                self.0.lock()
+            }
         }
     }
 }
@@ -121,6 +132,8 @@ mod mutex_impl {
 
 #[cfg(not(feature = "deadlock_detection"))]
 mod rw_lock_impl {
+    use super::DEADLOCK_DURATION;
+
     /// The lock you get from [`RwLock::read`].
     pub use parking_lot::MappedRwLockReadGuard as RwLockReadGuard;
 
@@ -145,12 +158,26 @@ mod rw_lock_impl {
     impl<T: ?Sized> RwLock<T> {
         #[inline(always)]
         pub fn read(&self) -> RwLockReadGuard<'_, T> {
-            parking_lot::RwLockReadGuard::map(self.0.read(), |v| v)
+            let guard = if cfg!(debug_assertions) {
+                self.0
+                    .try_read_for(DEADLOCK_DURATION)
+                    .expect("Looks like a deadlock!")
+            } else {
+                self.0.read()
+            };
+            parking_lot::RwLockReadGuard::map(guard, |v| v)
         }
 
         #[inline(always)]
         pub fn write(&self) -> RwLockWriteGuard<'_, T> {
-            parking_lot::RwLockWriteGuard::map(self.0.write(), |v| v)
+            let guard = if cfg!(debug_assertions) {
+                self.0
+                    .try_write_for(DEADLOCK_DURATION)
+                    .expect("Looks like a deadlock!")
+            } else {
+                self.0.write()
+            };
+            parking_lot::RwLockWriteGuard::map(guard, |v| v)
         }
     }
 }

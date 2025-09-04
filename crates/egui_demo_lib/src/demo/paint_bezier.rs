@@ -152,7 +152,7 @@ impl PaintBezier {
             _ => {
                 unreachable!();
             }
-        };
+        }
 
         painter.add(PathShape::line(points_in_screen, self.aux_stroke));
         painter.extend(control_point_shapes);

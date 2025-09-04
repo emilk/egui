@@ -372,7 +372,7 @@ impl State {
                     winit::event::Ime::Disabled | winit::event::Ime::Preedit(_, None) => {
                         self.ime_event_disable();
                     }
-                };
+                }
 
                 EventResponse {
                     repaint: true,
@@ -583,7 +583,7 @@ impl State {
                             pos,
                             force: None,
                         });
-                    };
+                    }
                 }
             }
         }
@@ -1347,7 +1347,7 @@ fn process_viewport_command(
     info: &mut ViewportInfo,
     actions_requested: &mut Vec<ActionRequested>,
 ) {
-    profiling::function_scope!();
+    profiling::function_scope!(format!("{command:?}"));
 
     use winit::window::ResizeDirection;
 
