@@ -41,6 +41,19 @@ impl PopupsDemo {
                 }
                 let _ = ui.button("Item");
                 ui.menu_button("Recursive", |ui| self.nested_menus(ui));
+
+                // if ui.button(if self.checked { "short" } else { "Very long text for this item that should be wrapped" }).clicked() {
+                //     self.checked = !self.checked;
+                // }
+                let checked = self.checked;
+                ui.checkbox(
+                    &mut self.checked,
+                    if checked {
+                        "short"
+                    } else {
+                        "Very long text for this item that should be wrapped"
+                    },
+                );
             });
             ui.menu_button("SubMenu", |ui| {
                 if ui.button("Open…").clicked() {

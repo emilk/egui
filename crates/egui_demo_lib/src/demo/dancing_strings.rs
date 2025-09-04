@@ -1,5 +1,5 @@
 use egui::{
-    Color32, Context, Pos2, Rect, Ui,
+    Color32, Context, Pos2, Rect, Ui, Vec2,
     containers::{Frame, Window},
     emath, epaint,
     epaint::PathStroke,
@@ -44,7 +44,7 @@ impl crate::View for DancingStrings {
             let time = ui.input(|i| i.time);
 
             let desired_size = ui.available_width() * vec2(1.0, 0.35);
-            let (_id, rect) = ui.allocate_space(desired_size);
+            let (_id, rect) = ui.allocate_space(desired_size, Vec2::ZERO); // TODO
 
             let to_screen =
                 emath::RectTransform::from_to(Rect::from_x_y_ranges(0.0..=1.0, -1.0..=1.0), rect);

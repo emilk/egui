@@ -1,3 +1,5 @@
+use egui::Vec2;
+
 pub struct WindowResizeTest {
     text: String,
 }
@@ -91,7 +93,7 @@ impl crate::Demo for WindowResizeTest {
                 ui.vertical_centered(|ui| {
                     ui.add(crate::egui_github_link_file!());
                 });
-                ui.allocate_space(ui.available_size());
+                ui.allocate_space(ui.available_size(), Vec2::ZERO); // TODO
             });
     }
 }

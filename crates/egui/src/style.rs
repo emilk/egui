@@ -2725,7 +2725,7 @@ impl Widget for &mut Stroke {
             ui.color_edit_button_srgba(color);
 
             // stroke preview:
-            let (_id, stroke_rect) = ui.allocate_space(ui.spacing().interact_size);
+            let (_id, stroke_rect) = ui.allocate_space(ui.spacing().interact_size, Vec2::ZERO); // TODO
             let left = stroke_rect.left_center();
             let right = stroke_rect.right_center();
             ui.painter().line_segment([left, right], (*width, *color));

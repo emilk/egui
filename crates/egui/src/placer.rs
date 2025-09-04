@@ -1,4 +1,4 @@
-use crate::{Layout, Painter, Pos2, Rect, Region, Vec2, grid, vec2};
+use crate::{grid, vec2, Direction, Layout, Painter, Pos2, Rect, Region, Vec2};
 
 #[cfg(debug_assertions)]
 use crate::{Align2, Color32, Stroke};
@@ -165,6 +165,7 @@ impl Placer {
         frame_rect: Rect,
         widget_rect: Rect,
         item_spacing: Vec2,
+        intrinsic_size: Vec2,
     ) {
         debug_assert!(!frame_rect.any_nan(), "frame_rect: {frame_rect:?}");
         debug_assert!(
@@ -184,9 +185,35 @@ impl Placer {
             );
         }
 
+        if self.layout.is_horizontal() {
+            if self.region.intrinsic_size.x != 0.0 {
+                self.region.intrinsic_size.x += item_spacing.x;
+            }
+            self.region.intrinsic_size.x += intrinsic_size.x;
+            self.region.intrinsic_size.y = self.region.intrinsic_size.y.max(intrinsic_size.y);
+        } else {
+            if self.region.intrinsic_size.y != 0.0 {
+                self.region.intrinsic_size.y += item_spacing.y;
+            }
+            self.region.intrinsic_size.x = self.region.intrinsic_size.x.max(intrinsic_size.x);
+            self.region.intrinsic_size.y += intrinsic_size.y;
+        }
+
         self.expand_to_include_rect(frame_rect); // e.g. for centered layouts: pretend we used whole frame
 
         self.region.sanity_check();
+    }
+
+    pub(crate) fn intrinsic_size(&self) -> Vec2 {
+        //self.region.intrinsic_size.min(self.max_rect().size())
+        let mut intrinsic = self.region.intrinsic_size;
+        if let Some(max_x) = self.region.max_intrinsic_width {
+            intrinsic.x = intrinsic.x.min(max_x);
+        }
+        if let Some(max_y) = self.region.max_intrinsic_height {
+            intrinsic.y = intrinsic.y.min(max_y);
+        }
+        intrinsic
     }
 
     /// Move to the next row in a grid layout or wrapping layout.
@@ -239,6 +266,8 @@ impl Placer {
         region.cursor.max.x = region.max_rect.max.x;
 
         region.sanity_check();
+
+        region.max_intrinsic_width = Some(width);
     }
 
     /// Set the maximum height of the ui.
@@ -254,6 +283,8 @@ impl Placer {
         region.cursor.max.y = region.max_rect.max.y;
 
         region.sanity_check();
+
+        region.max_intrinsic_height = Some(height);
     }
 
     /// Set the minimum width of the ui.

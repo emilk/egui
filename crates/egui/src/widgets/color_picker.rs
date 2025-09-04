@@ -59,7 +59,7 @@ pub fn show_color(ui: &mut Ui, color: impl Into<Color32>, desired_size: Vec2) ->
 }
 
 fn show_color32(ui: &mut Ui, color: Color32, desired_size: Vec2) -> Response {
-    let (rect, response) = ui.allocate_at_least(desired_size, Sense::hover());
+    let (rect, response) = ui.allocate_at_least(desired_size, Sense::hover(), desired_size);
     if ui.is_rect_visible(rect) {
         show_color_at(ui.painter(), color, rect);
     }
@@ -117,7 +117,8 @@ fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Color
     #![allow(clippy::identity_op)]
 
     let desired_size = vec2(ui.spacing().slider_width, ui.spacing().interact_size.y);
-    let (rect, response) = ui.allocate_at_least(desired_size, Sense::click_and_drag());
+    let (rect, response) =
+        ui.allocate_at_least(desired_size, Sense::click_and_drag(), desired_size);
 
     if let Some(mpos) = response.interact_pointer_pos() {
         *value = remap_clamp(mpos.x, rect.left()..=rect.right(), 0.0..=1.0);
@@ -184,7 +185,8 @@ fn color_slider_2d(
     color_at: impl Fn(f32, f32) -> Color32,
 ) -> Response {
     let desired_size = Vec2::splat(ui.spacing().slider_width);
-    let (rect, response) = ui.allocate_at_least(desired_size, Sense::click_and_drag());
+    let (rect, response) =
+        ui.allocate_at_least(desired_size, Sense::click_and_drag(), desired_size);
 
     if let Some(mpos) = response.interact_pointer_pos() {
         *x_value = remap_clamp(mpos.x, rect.left()..=rect.right(), 0.0..=1.0);

@@ -45,6 +45,10 @@ pub(crate) struct Region {
     /// If something has already been added, this will point to `style.spacing.item_spacing` beyond the latest child.
     /// The cursor can thus be `style.spacing.item_spacing` pixels outside of the `min_rect`.
     pub(crate) cursor: Rect,
+
+    pub(crate) intrinsic_size: Vec2,
+    pub max_intrinsic_width: Option<f32>,
+    pub max_intrinsic_height: Option<f32>,
 }
 
 impl Region {
@@ -434,6 +438,9 @@ impl Layout {
             min_rect: Rect::NOTHING, // temporary
             max_rect,
             cursor: self.initial_cursor(max_rect),
+            intrinsic_size: Vec2::default(),
+            max_intrinsic_width: None,
+            max_intrinsic_height: None,
         };
         let seed = self.next_widget_position(&region);
         region.min_rect = Rect::from_center_size(seed, Vec2::ZERO);
@@ -540,6 +547,9 @@ impl Layout {
                 mut cursor,
                 mut max_rect,
                 min_rect,
+                intrinsic_size: min_item_size,
+                max_intrinsic_width,
+                max_intrinsic_height,
             } = *region;
 
             match self.main_dir {
@@ -601,6 +611,9 @@ impl Layout {
                 min_rect,
                 max_rect,
                 cursor,
+                intrinsic_size: min_item_size,
+                max_intrinsic_width,
+                max_intrinsic_height,
             };
 
             self.next_frame_ignore_wrap(&region, child_size)

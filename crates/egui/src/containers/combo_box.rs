@@ -362,7 +362,7 @@ fn combo_box_dyn<'c, R>(
         let actual_width = (galley.size().x + icon_spacing + icon_size.x).at_least(minimum_width);
         let actual_height = galley.size().y.max(icon_size.y);
 
-        let (_, rect) = ui.allocate_space(Vec2::new(actual_width, actual_height));
+        let (_, rect) = ui.allocate_space(Vec2::new(actual_width, actual_height), Vec2::ZERO); // TODO
         let button_rect = ui.min_rect().expand2(ui.spacing().button_padding);
         let response = ui.interact(button_rect, button_id, Sense::click());
         // response.active |= is_popup_open;
@@ -466,7 +466,7 @@ fn button_frame(
         );
     }
 
-    ui.advance_cursor_after_rect(outer_rect);
+    ui.advance_cursor_after_rect(outer_rect, Vec2::ZERO); // TODO
 
     response
 }
