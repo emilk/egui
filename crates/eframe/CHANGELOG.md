@@ -7,6 +7,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.32.2 - 2025-09-04
+Nothing new
+
+
 ## 0.32.1 - 2025-08-15
 * Enable wgpu default features in eframe / egui_wgpu default features [#7344](https://github.com/emilk/egui/pull/7344) by [@lucasmerlin](https://github.com/lucasmerlin)
 * Request a redraw when the url change through the `popstate` event listener [#7403](https://github.com/emilk/egui/pull/7403) by [@irevoire](https://github.com/irevoire)
