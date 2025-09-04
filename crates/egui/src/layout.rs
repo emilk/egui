@@ -128,7 +128,7 @@ impl Direction {
 /// # });
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-// #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Layout {
     /// Main axis direction
     pub main_dir: Direction,
@@ -138,10 +138,12 @@ pub struct Layout {
     /// wrap to a new row when we reach the right side of the `max_rect`.
     pub main_wrap: bool,
 
-    /// How to align things on the main axis.
+    /// How to align things on the main axis, but not the widgets themselves.
     pub main_align: Align,
 
-    /// Justify the main axis?
+    /// Justify the first widget on the main axis. If `main_wrap` is true,
+    /// additional widgets will be adjacent and justified. Otherwise,
+    /// additional widgets are added below the allocated layout area.
     pub main_justify: bool,
 
     /// How to align things on the cross axis.
