@@ -5,6 +5,7 @@ on: [push, pull_request]
 jobs:
   cargo-machete:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: dtolnay/rust-toolchain@master
         with:
