@@ -1,5 +1,8 @@
 //! Demo app for egui
-#![allow(clippy::missing_errors_doc)]
+#![allow(
+    clippy::missing_errors_doc,
+    reason = "Internal API, errors are self-explanatory"
+)]
 
 mod apps;
 mod backend_panel;

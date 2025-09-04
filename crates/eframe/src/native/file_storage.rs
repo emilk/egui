@@ -42,7 +42,7 @@ pub fn storage_dir(app_id: &str) -> Option<PathBuf> {
 // Adapted from
 // https://github.com/rust-lang/cargo/blob/6e11c77384989726bb4f412a0e23b59c27222c34/crates/home/src/windows.rs#L19-L37
 #[cfg(all(windows, not(target_vendor = "uwp")))]
-#[expect(unsafe_code)]
+#[expect(unsafe_code, reason = "Required for low-level operations")]
 fn roaming_appdata() -> Option<PathBuf> {
     use std::ffi::OsString;
     use std::os::windows::ffi::OsStringExt as _;

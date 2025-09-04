@@ -1,4 +1,7 @@
-#![allow(clippy::derived_hash_with_manual_eq)] // We need to impl Hash for f32, but we don't implement Eq, which is fine
+#![allow(
+    clippy::derived_hash_with_manual_eq,
+    reason = "We need to impl Hash for f32, but we don't implement Eq, which is fine"
+)] // We need to impl Hash for f32, but we don't implement Eq, which is fine
 
 use std::{fmt::Debug, sync::Arc};
 

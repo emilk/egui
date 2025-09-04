@@ -1,8 +1,11 @@
 //! Helper crate for running scripts within the `egui` repo
 
-#![allow(clippy::print_stdout)]
-#![allow(clippy::print_stderr)]
-#![allow(clippy::exit)]
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    clippy::exit,
+    reason = "this is a helper crate which runs in cli"
+)]
 
 mod deny;
 pub(crate) mod utils;

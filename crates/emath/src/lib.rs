@@ -19,7 +19,10 @@
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!
 
-#![allow(clippy::float_cmp)]
+#![allow(
+    clippy::float_cmp,
+    reason = "float_cmp is acceptable in egui for fast approximate operations"
+)]
 
 use std::ops::{Add, Div, Mul, RangeInclusive, Sub};
 
@@ -259,7 +262,7 @@ pub fn almost_equal(a: f32, b: f32, epsilon: f32) -> bool {
     }
 }
 
-#[expect(clippy::approx_constant)]
+#[expect(clippy::approx_constant, reason = "Needed for precision")]
 #[test]
 fn test_format() {
     assert_eq!(format_with_minimum_decimals(1_234_567.0, 0), "1234567");

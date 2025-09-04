@@ -96,7 +96,7 @@ pub struct Hyperlink {
 }
 
 impl Hyperlink {
-    #[expect(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value, reason = "Consistent API design")]
     pub fn new(url: impl ToString) -> Self {
         let url = url.to_string();
         Self {
@@ -106,7 +106,7 @@ impl Hyperlink {
         }
     }
 
-    #[expect(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value, reason = "Consistent API design")]
     pub fn from_label_and_url(text: impl Into<WidgetText>, url: impl ToString) -> Self {
         Self {
             url: url.to_string(),

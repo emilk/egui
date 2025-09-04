@@ -1,4 +1,4 @@
-#![allow(deprecated)]
+#![allow(deprecated, reason = "Maintaining backwards compatibility")]
 //! Deprecated menu API - Use [`crate::containers::menu`] instead.
 //!
 //! Usage:

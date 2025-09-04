@@ -8,8 +8,14 @@
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!
 
-#![allow(clippy::float_cmp)]
-#![allow(clippy::manual_range_contains)]
+#![allow(
+    clippy::float_cmp,
+    reason = "float_cmp is acceptable in egui for fast approximate operations"
+)]
+#![allow(
+    clippy::manual_range_contains,
+    reason = "manual range contains is sometimes clearer than using contains method"
+)]
 
 mod demo;
 pub mod easy_mark;

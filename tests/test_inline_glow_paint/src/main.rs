@@ -1,6 +1,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![allow(rustdoc::missing_crate_level_docs)] // it's an example
-#![allow(clippy::undocumented_unsafe_blocks)]
+#![allow(
+    rustdoc::missing_crate_level_docs,
+    clippy::undocumented_unsafe_blocks,
+    reason = "it's a test"
+)]
 
 // Test that we can paint to the screen using glow directly.
 
@@ -29,7 +32,7 @@ impl eframe::App for MyTestApp {
         use glow::HasContext as _;
         let gl = frame.gl().unwrap();
 
-        #[expect(unsafe_code)]
+        #[expect(unsafe_code, reason = "We are using raw OpenGL calls for testing")]
         unsafe {
             gl.disable(glow::SCISSOR_TEST);
             gl.viewport(0, 0, 100, 100);

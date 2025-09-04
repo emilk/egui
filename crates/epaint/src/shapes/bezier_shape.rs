@@ -1,5 +1,8 @@
-#![allow(clippy::many_single_char_names)]
-#![allow(clippy::wrong_self_convention)] // False positives
+#![allow(
+    clippy::many_single_char_names,
+    reason = "Mathematical code with single letter variables is clearer"
+)]
+#![allow(clippy::wrong_self_convention, reason = "False positives")] // False positives
 
 use std::ops::Range;
 
@@ -613,7 +616,10 @@ struct FlatteningParameters {
 impl FlatteningParameters {
     // https://raphlinus.github.io/graphics/curves/2019/12/23/flatten-quadbez.html
     pub fn from_curve(curve: &QuadraticBezierShape, tolerance: f32) -> Self {
-        #![expect(clippy::useless_let_if_seq)]
+        #![expect(
+            clippy::useless_let_if_seq,
+            reason = "Algorithmic code structure is clearer this way"
+        )]
 
         // Map the quadratic bézier segment to y = x^2 parabola.
         let from = curve.points[0];

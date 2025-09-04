@@ -313,7 +313,7 @@ impl std::fmt::Display for RepaintCause {
 
 impl RepaintCause {
     /// Capture the file and line number of the call site.
-    #[expect(clippy::new_without_default)]
+    #[expect(clippy::new_without_default, reason = "Default may not be meaningful")]
     #[track_caller]
     pub fn new() -> Self {
         let caller = Location::caller();
@@ -1209,7 +1209,11 @@ impl Context {
             self.check_for_id_clash(w.id, w.rect, "widget");
         }
 
-        #[allow(clippy::let_and_return, clippy::allow_attributes)]
+        #[allow(
+            clippy::let_and_return,
+            clippy::allow_attributes,
+            reason = "Clearer to separate the variable assignment from the return for debugging"
+        )]
         let res = self.get_response(w);
 
         #[cfg(feature = "accesskit")]
@@ -2163,7 +2167,10 @@ impl Context {
         self.write(|ctx| {
             if ctx.memory.options.zoom_factor != zoom_factor {
                 ctx.new_zoom_factor = Some(zoom_factor);
-                #[expect(clippy::iter_over_hash_type)]
+                #[expect(
+                    clippy::iter_over_hash_type,
+                    reason = "Iteration order not important here"
+                )]
                 for viewport_id in ctx.all_viewport_ids() {
                     ctx.request_repaint(viewport_id, cause.clone());
                 }
@@ -2290,7 +2297,10 @@ impl Context {
     /// Called at the end of the pass.
     #[cfg(debug_assertions)]
     fn debug_painting(&self) {
-        #![expect(clippy::iter_over_hash_type)] // ok to be sloppy in debug painting
+        #![expect(
+            clippy::iter_over_hash_type,
+            reason = "ok to be sloppy in debug painting"
+        )] // ok to be sloppy in debug painting
 
         let paint_widget = |widget: &WidgetRect, text: &str, color: Color32| {
             let rect = widget.interact_rect;
@@ -2783,7 +2793,7 @@ impl Context {
     /// Is an egui context menu open?
     ///
     /// This only works with the old, deprecated [`crate::menu`] API.
-    #[expect(deprecated)]
+    #[expect(deprecated, reason = "Maintaining backwards compatibility")]
     #[deprecated = "Use `is_popup_open` instead"]
     pub fn is_context_menu_open(&self) -> bool {
         self.data(|d| {
@@ -3416,7 +3426,7 @@ impl Context {
             }
         });
 
-        #[expect(deprecated)]
+        #[expect(deprecated, reason = "Maintaining backwards compatibility")]
         ui.horizontal(|ui| {
             ui.label(format!(
                 "{} menu bars",
@@ -3474,7 +3484,12 @@ impl Context {
     /// the function is still called, but with no other effect.
     ///
     /// No locks are held while the given closure is called.
-    #[allow(clippy::unused_self, clippy::let_and_return, clippy::allow_attributes)]
+    #[allow(
+        clippy::unused_self,
+        clippy::let_and_return,
+        clippy::allow_attributes,
+        reason = "Method signature required for feature consistency, return pattern for debugging"
+    )]
     #[inline]
     pub fn with_accessibility_parent<R>(&self, _id: Id, f: impl FnOnce() -> R) -> R {
         // TODO(emilk): this isn't thread-safe - another thread can call this function between the push/pop calls

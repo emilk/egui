@@ -1,5 +1,11 @@
-#![allow(clippy::derived_hash_with_manual_eq)] // We need to impl Hash for f32, but we don't implement Eq, which is fine
-#![allow(clippy::wrong_self_convention)] // We use `from_` to indicate conversion direction. It's non-diomatic, but makes sense in this context.
+#![allow(
+    clippy::derived_hash_with_manual_eq,
+    reason = "We need to impl Hash for f32, but we don't implement Eq, which is fine"
+)] // We need to impl Hash for f32, but we don't implement Eq, which is fine
+#![allow(
+    clippy::wrong_self_convention,
+    reason = "We use `from_` to indicate conversion direction. It's non-idiomatic, but makes sense in this context"
+)] // We use `from_` to indicate conversion direction. It's non-diomatic, but makes sense in this context.
 
 use std::ops::Range;
 use std::sync::Arc;
@@ -1008,7 +1014,10 @@ impl Galley {
     ///
     /// This is the same as [`CCursor::default`].
     #[inline]
-    #[expect(clippy::unused_self)]
+    #[expect(
+        clippy::unused_self,
+        reason = "Consistent API design even when self is not used"
+    )]
     pub fn begin(&self) -> CCursor {
         CCursor::default()
     }
@@ -1099,7 +1108,10 @@ impl Galley {
 
 /// ## Cursor positions
 impl Galley {
-    #[expect(clippy::unused_self)]
+    #[expect(
+        clippy::unused_self,
+        reason = "Consistent API design even when self is not used"
+    )]
     pub fn cursor_left_one_character(&self, cursor: &CCursor) -> CCursor {
         if cursor.index == 0 {
             Default::default()

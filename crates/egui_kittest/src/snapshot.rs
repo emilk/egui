@@ -328,7 +328,7 @@ fn try_image_snapshot_options_impl(
     name: String,
     options: &SnapshotOptions,
 ) -> SnapshotResult {
-    #![expect(clippy::print_stdout)]
+    #![expect(clippy::print_stdout, reason = "Test utility function")]
 
     let SnapshotOptions {
         threshold,
@@ -600,7 +600,7 @@ impl<State> Harness<'_, State> {
 
 // Deprecated wgpu_snapshot functions
 // TODO(lucasmerlin): Remove in 0.32
-#[expect(clippy::missing_errors_doc)]
+#[expect(clippy::missing_errors_doc, reason = "Will be removed in 0.32")]
 #[cfg(feature = "wgpu")]
 impl<State> Harness<'_, State> {
     #[deprecated(
@@ -701,7 +701,9 @@ impl SnapshotResults {
     }
 
     /// Convert this into a `Result<(), Self>`.
-    #[expect(clippy::missing_errors_doc)]
+    ///
+    /// # Errors
+    /// - If there are any snapshot errors, they will be returned as the error value.
     pub fn into_result(self) -> Result<(), Self> {
         if self.has_errors() { Err(self) } else { Ok(()) }
     }
@@ -711,7 +713,7 @@ impl SnapshotResults {
     }
 
     /// Panics if there are any errors, displaying each.
-    #[expect(clippy::unused_self)]
+    #[expect(clippy::unused_self, reason = "Consistent API design")]
     #[track_caller]
     pub fn unwrap(self) {
         // Panic is handled in drop
@@ -731,7 +733,7 @@ impl Drop for SnapshotResults {
         if std::thread::panicking() {
             return;
         }
-        #[expect(clippy::manual_assert)]
+        #[expect(clippy::manual_assert, reason = "Needed for panic handling")]
         if self.has_errors() {
             panic!("{}", self);
         }

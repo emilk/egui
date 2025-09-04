@@ -157,13 +157,16 @@ fn init_arboard() -> Option<arboard::Clipboard> {
 fn init_smithay_clipboard(
     raw_display_handle: Option<RawDisplayHandle>,
 ) -> Option<smithay_clipboard::Clipboard> {
-    #![allow(clippy::undocumented_unsafe_blocks)]
+    #![allow(
+        clippy::undocumented_unsafe_blocks,
+        reason = "Documenting all unsafe blocks would be verbose"
+    )]
 
     profiling::function_scope!();
 
     if let Some(RawDisplayHandle::Wayland(display)) = raw_display_handle {
         log::trace!("Initializing smithay clipboard…");
-        #[expect(unsafe_code)]
+        #[expect(unsafe_code, reason = "Required for low-level operations")]
         Some(unsafe { smithay_clipboard::Clipboard::new(display.display.as_ptr()) })
     } else {
         #[cfg(feature = "wayland")]

@@ -713,7 +713,10 @@ impl Focus {
         let mut best_id = None;
 
         // iteration order should only matter in case of a tie, and that should be very rare
-        #[expect(clippy::iter_over_hash_type)]
+        #[expect(
+            clippy::iter_over_hash_type,
+            reason = "Iteration order not important here"
+        )]
         for (candidate_id, candidate_rect) in &self.focus_widgets_cache {
             if *candidate_id == current_focused.id {
                 continue;
@@ -964,7 +967,10 @@ impl Memory {
     /// Forget window positions, sizes etc.
     /// Can be used to auto-layout windows.
     pub fn reset_areas(&mut self) {
-        #[expect(clippy::iter_over_hash_type)]
+        #[expect(
+            clippy::iter_over_hash_type,
+            reason = "Iteration order not important here"
+        )]
         for area in self.areas.values_mut() {
             *area = Default::default();
         }
@@ -1084,7 +1090,7 @@ impl Memory {
     /// See also [`Self::close_all_popups`] if you want to close any / all currently open popups.
     #[deprecated = "Use Popup::close_id instead"]
     pub fn close_popup(&mut self, popup_id: Id) {
-        #[expect(deprecated)]
+        #[expect(deprecated, reason = "Maintaining backwards compatibility")]
         if self.is_popup_open(popup_id) {
             self.popups.remove(&self.viewport_id);
         }
@@ -1095,7 +1101,7 @@ impl Memory {
     /// Note: At most, only one popup can be open at a time.
     #[deprecated = "Use Popup::toggle_id instead"]
     pub fn toggle_popup(&mut self, popup_id: Id) {
-        #[expect(deprecated)]
+        #[expect(deprecated, reason = "Maintaining backwards compatibility")]
         if self.is_popup_open(popup_id) {
             self.close_popup(popup_id);
         } else {
@@ -1330,7 +1336,10 @@ impl Areas {
 
         // For all layers with sublayers, put the sublayers directly after the parent layer:
         // (it doesn't matter in which order we replace parents with their children)
-        #[expect(clippy::iter_over_hash_type)]
+        #[expect(
+            clippy::iter_over_hash_type,
+            reason = "Iteration order not important here"
+        )]
         for (parent, children) in std::mem::take(sublayers) {
             let mut moved_layers = vec![parent]; // parent first…
 

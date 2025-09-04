@@ -1,6 +1,9 @@
 //! egui theme (spacing, colors, etc).
 
-#![allow(clippy::if_same_then_else)]
+#![allow(
+    clippy::if_same_then_else,
+    reason = "Theme values with same branches but different semantic meanings"
+)]
 
 use emath::Align;
 use epaint::{AlphaFromCoverage, CornerRadius, Shadow, Stroke, text::FontTweak};
@@ -1317,7 +1320,7 @@ pub fn default_text_styles() -> BTreeMap<TextStyle, FontId> {
 
 impl Default for Style {
     fn default() -> Self {
-        #[expect(deprecated)]
+        #[expect(deprecated, reason = "Maintaining backwards compatibility")]
         Self {
             override_font_id: None,
             override_text_style: None,
@@ -1625,7 +1628,7 @@ use crate::{
 
 impl Style {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
-        #[expect(deprecated)]
+        #[expect(deprecated, reason = "Maintaining backwards compatibility")]
         let Self {
             override_font_id,
             override_text_style,

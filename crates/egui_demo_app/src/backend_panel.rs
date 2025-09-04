@@ -110,7 +110,7 @@ impl BackendPanel {
         if cfg!(debug_assertions) && cfg!(target_arch = "wasm32") {
             ui.separator();
             // For testing panic handling on web:
-            #[expect(clippy::manual_assert)]
+            #[expect(clippy::manual_assert, reason = "Needed for testing panic handling")]
             if ui.button("panic!()").clicked() {
                 panic!("intentional panic!");
             }

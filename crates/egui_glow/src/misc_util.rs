@@ -1,4 +1,4 @@
-#![allow(unsafe_code)]
+#![allow(unsafe_code, reason = "OpenGL requires unsafe code for performance")]
 
 use glow::HasContext as _;
 

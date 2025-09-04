@@ -73,7 +73,10 @@ impl TextEditState {
         self.undoer.lock().clone()
     }
 
-    #[expect(clippy::needless_pass_by_ref_mut)] // Intentionally hide interiority of mutability
+    #[expect(
+        clippy::needless_pass_by_ref_mut,
+        reason = "Intentionally hide interiority of mutability"
+    )]
     pub fn set_undoer(&mut self, undoer: TextEditUndoer) {
         *self.undoer.lock() = undoer;
     }

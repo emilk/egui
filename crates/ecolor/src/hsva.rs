@@ -41,7 +41,10 @@ impl Hsva {
     /// From linear RGBA with premultiplied alpha
     #[inline]
     pub fn from_rgba_premultiplied(r: f32, g: f32, b: f32, a: f32) -> Self {
-        #![allow(clippy::many_single_char_names)]
+        #![allow(
+            clippy::many_single_char_names,
+            reason = "r, g, b, a variables are clear in color context"
+        )]
         if a <= 0.0 {
             if r == 0.0 && b == 0.0 && a == 0.0 {
                 Self::default()
@@ -57,7 +60,10 @@ impl Hsva {
     /// From linear RGBA without premultiplied alpha
     #[inline]
     pub fn from_rgba_unmultiplied(r: f32, g: f32, b: f32, a: f32) -> Self {
-        #![allow(clippy::many_single_char_names)]
+        #![allow(
+            clippy::many_single_char_names,
+            reason = "r, g, b, a variables are clear in color context"
+        )]
         let (h, s, v) = hsv_from_rgb([r, g, b]);
         Self { h, s, v, a }
     }
@@ -189,7 +195,10 @@ impl From<Color32> for Hsva {
 /// All ranges in 0-1, rgb is linear.
 #[inline]
 pub fn hsv_from_rgb([r, g, b]: [f32; 3]) -> (f32, f32, f32) {
-    #![allow(clippy::many_single_char_names)]
+    #![allow(
+        clippy::many_single_char_names,
+        reason = "r, g, b variables are clear in color context"
+    )]
     let min = r.min(g.min(b));
     let max = r.max(g.max(b)); // value
 
@@ -213,7 +222,10 @@ pub fn hsv_from_rgb([r, g, b]: [f32; 3]) -> (f32, f32, f32) {
 /// All ranges in 0-1, rgb is linear.
 #[inline]
 pub fn rgb_from_hsv((h, s, v): (f32, f32, f32)) -> [f32; 3] {
-    #![allow(clippy::many_single_char_names)]
+    #![allow(
+        clippy::many_single_char_names,
+        reason = "h, s, v variables are clear in color context"
+    )]
     let h = (h.fract() + 1.0).fract(); // wrap
     let s = s.clamp(0.0, 1.0);
 

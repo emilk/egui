@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![allow(rustdoc::missing_crate_level_docs)] // it's an example
+#![allow(rustdoc::missing_crate_level_docs, reason = "it's an example")]
 
 use std::sync::Arc;
 
@@ -367,7 +367,10 @@ fn drag_and_drop_test(ui: &mut egui::Ui) {
             assert!(col <= COLS, "The col should be less then: {COLS}");
 
             // Should be a better way to do this!
-            #[expect(clippy::iter_over_hash_type)]
+            #[expect(
+                clippy::iter_over_hash_type,
+                reason = "We need to remove the id from all containers"
+            )]
             for container_data in self.containers_data.values_mut() {
                 for ids in container_data {
                     ids.retain(|i| *i != id);

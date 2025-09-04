@@ -198,8 +198,8 @@ macro_rules! all_the_atoms {
             $($T: IntoAtoms<'a>),*
         {
             fn collect(self, _atoms: &mut Atoms<'a>) {
-                #[allow(clippy::allow_attributes)]
-                #[allow(non_snake_case)]
+                #[allow(clippy::allow_attributes, reason = "Macro-generated code needs to allow attributes")]
+                #[allow(non_snake_case, reason = "Generic type parameters in macro use PascalCase")]
                 let ($($T),*) = self;
                 $($T.collect(_atoms);)*
             }

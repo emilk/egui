@@ -1,4 +1,7 @@
-#![allow(clippy::needless_pass_by_value)] // False positives with `impl ToString`
+#![allow(
+    clippy::needless_pass_by_value,
+    reason = "False positives with impl ToString"
+)] // False positives with `impl ToString`
 
 use std::{cmp::Ordering, ops::RangeInclusive};
 
@@ -550,7 +553,7 @@ impl Widget for DragValue<'_> {
         }
 
         // some clones below are redundant if AccessKit is disabled
-        #[expect(clippy::redundant_clone)]
+        #[expect(clippy::redundant_clone, reason = "Clone needed for ownership")]
         let mut response = if is_kb_editing {
             let mut value_text = ui
                 .data_mut(|data| data.remove_temp::<String>(id))

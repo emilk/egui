@@ -27,7 +27,7 @@ impl Drop for EventLoopGuard {
 }
 
 // Helper function to safely use the current event loop
-#[expect(unsafe_code)]
+#[expect(unsafe_code, reason = "Required for low-level operations")]
 pub fn with_current_event_loop<F, R>(f: F) -> Option<R>
 where
     F: FnOnce(&ActiveEventLoop) -> R,

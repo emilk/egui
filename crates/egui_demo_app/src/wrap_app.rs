@@ -188,7 +188,7 @@ impl WrapApp {
         // This gives us image support:
         egui_extras::install_image_loaders(&cc.egui_ctx);
 
-        #[allow(unused_mut, clippy::allow_attributes)]
+        #[allow(unused_mut, clippy::allow_attributes, reason = "Used for persistence")]
         let mut slf = Self {
             state: State::default(),
 
