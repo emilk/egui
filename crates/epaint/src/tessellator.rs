@@ -21,7 +21,7 @@ use crate::{
 
 #[expect(
     clippy::approx_constant,
-    reason = "Precomputed values are more accurate than approximations"
+    reason = "Value is part of a mixed list where not all constants are defined, so using a named constant would hurt readability"
 )]
 mod precomputed_vertices {
     // fn main() {

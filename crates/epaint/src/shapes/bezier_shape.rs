@@ -2,7 +2,7 @@
     clippy::many_single_char_names,
     reason = "Mathematical code with single letter variables is clearer"
 )]
-#![allow(clippy::wrong_self_convention, reason = "False positives")] // False positives
+#![allow(clippy::wrong_self_convention, reason = "False positives")]
 
 use std::ops::Range;
 

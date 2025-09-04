@@ -600,7 +600,10 @@ impl<State> Harness<'_, State> {
 
 // Deprecated wgpu_snapshot functions
 // TODO(lucasmerlin): Remove in 0.32
-#[expect(clippy::missing_errors_doc, reason = "Will be removed in 0.32")]
+#[expect(
+    clippy::missing_errors_doc,
+    reason = "Will be removed in a future version"
+)]
 #[cfg(feature = "wgpu")]
 impl<State> Harness<'_, State> {
     #[deprecated(

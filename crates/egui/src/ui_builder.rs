@@ -1,7 +1,7 @@
 use std::{hash::Hash, sync::Arc};
 
 use crate::ClosableTag;
-#[expect(unused_imports, reason = "Used for doclinks")] // Used for doclinks
+#[expect(unused_imports, reason = "Used for doclinks")]
 use crate::Ui;
 use crate::{Id, LayerId, Layout, Rect, Sense, Style, UiStackInfo};
 
