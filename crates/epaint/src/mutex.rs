@@ -36,6 +36,11 @@ mod mutex_impl {
                 self.0.lock()
             }
         }
+
+        #[inline(always)]
+        pub fn try_lock(&self) -> Option<MutexGuard<'_, T>> {
+            self.0.try_lock()
+        }
     }
 }
 
@@ -83,8 +88,12 @@ mod mutex_impl {
         }
 
         pub fn lock(&self) -> MutexGuard<'_, T> {
-            // Detect if we are recursively taking out a lock on this mutex.
+            let ptr = self.detect_recursive_lock();
+            MutexGuard(self.0.lock(), ptr)
+        }
 
+        /// Detect if we are recursively taking out a lock on this mutex.
+        fn detect_recursive_lock(&self) -> *const () {
             // use a pointer to the inner data as an id for this lock
             let ptr = std::ptr::from_ref::<parking_lot::Mutex<_>>(&self.0).cast::<()>();
 
@@ -93,7 +102,14 @@ mod mutex_impl {
                 held_locks.borrow_mut().insert(ptr);
             });
 
-            MutexGuard(self.0.lock(), ptr)
+            ptr
+        }
+
+        pub fn try_lock(&self) -> Option<MutexGuard<'_, T>> {
+            self.0.try_lock().map(|guard| {
+                let ptr = self.detect_recursive_lock();
+                MutexGuard(guard, ptr)
+            })
         }
 
         #[inline(always)]
@@ -414,6 +430,16 @@ mod tests {
         let two = Mutex::new(());
         let _a = one.lock();
         let _b = two.lock();
+    }
+
+    #[test]
+    fn try_lock() {
+        let one = Mutex::new(());
+        let _a = one.try_lock().expect("lockable");
+        let _b = one.try_lock();
+        assert!(_b.is_none());
+        drop(_a);
+        let _c = one.try_lock().expect("lockable again");
     }
 
     #[test]
