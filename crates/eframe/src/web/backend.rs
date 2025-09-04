@@ -80,15 +80,15 @@ impl NeedRepaint {
     }
 
     pub fn repaint_after(&self, num_seconds: f64) {
-        let mut repaint_time = self.next_repaint.lock();
         let mut time = super::now_sec() + num_seconds;
-        time = Self::round_repaint_time_to_rate(time, self.max_fps);
+        time = self.round_repaint_time_to_rate(time);
+        let mut repaint_time = self.next_repaint.lock();
         *repaint_time = repaint_time.min(time);
     }
 
     /// Request a repaint. Depending on the presence of rate limiting, this may not be instant.
     pub fn repaint(&self) {
-        let time = Self::round_repaint_time_to_rate(super::now_sec(), self.max_fps);
+        let time = self.round_repaint_time_to_rate(super::now_sec());
         let mut repaint_time = self.next_repaint.lock();
         *repaint_time = repaint_time.min(time);
     }
@@ -101,11 +101,11 @@ impl NeedRepaint {
         self.when_to_repaint() <= super::now_sec()
     }
 
-    fn round_repaint_time_to_rate(time: f64, rate: u32) -> f64 {
-        if rate == 0 {
+    fn round_repaint_time_to_rate(&self, time: f64) -> f64 {
+        if self.max_fps == 0 {
             time
         } else {
-            let interval = 1.0 / rate as f64;
+            let interval = 1.0 / self.max_fps as f64;
             (time / interval).ceil() * interval
         }
     }
