@@ -1,11 +1,11 @@
-//! Wrappers around parking_lot locks, with a simple deadlock detection mechanism.
+//! Wrappers around `parking_lot` locks, with a simple deadlock detection mechanism.
 
 // ----------------------------------------------------------------------------
 
 const DEADLOCK_DURATION: std::time::Duration = std::time::Duration::from_secs(30);
 
 /// Provides interior mutability.
-
+///
 /// It's tailored for internal use in egui should only be used for short locks (as a guideline,
 /// locks should never be held longer than a single frame). In debug builds, when a lock can't
 /// be acquired within 30 seconds, we assume a deadlock and will panic.
@@ -48,7 +48,7 @@ pub use parking_lot::MappedRwLockReadGuard as RwLockReadGuard;
 pub use parking_lot::MappedRwLockWriteGuard as RwLockWriteGuard;
 
 /// Provides interior mutability.
-
+///
 /// It's tailored for internal use in egui should only be used for short locks (as a guideline,
 /// locks should never be held longer than a single frame). In debug builds, when a lock can't
 /// be acquired within 30 seconds, we assume a deadlock and will panic.
@@ -65,7 +65,6 @@ impl<T> RwLock<T> {
 }
 
 impl<T: ?Sized> RwLock<T> {
-
     /// Try to acquire read-access to the lock.
     ///
     /// ## Panics
