@@ -271,4 +271,4 @@ wgpu = { workspace = true, optional = true }
 
 # Native dev dependencies for testing
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-directories = "5"
+directories = "6"
