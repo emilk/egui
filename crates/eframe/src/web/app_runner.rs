@@ -97,7 +97,7 @@ impl AppRunner {
         };
 
         let needs_repaint: std::sync::Arc<NeedRepaint> =
-            std::sync::Arc::new(NeedRepaint::new(web_options.repaint_rate_limit));
+            std::sync::Arc::new(NeedRepaint::new(web_options.max_fps));
         {
             let needs_repaint = needs_repaint.clone();
             egui_ctx.set_request_repaint_callback(move |info| {

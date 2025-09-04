@@ -55,14 +55,14 @@ pub(crate) struct NeedRepaint {
     next_repaint: Mutex<f64>,
 
     /// Rate limit for repaint. 0 means "unlimited". The rate may still be limited by vsync.
-    rate: u32,
+    max_fps: u32,
 }
 
 impl NeedRepaint {
-    pub fn new(rate: Option<u32>) -> Self {
+    pub fn new(max_fps: Option<u32>) -> Self {
         Self {
             next_repaint: Mutex::new(f64::NEG_INFINITY), // start with a repaint
-            rate: rate.unwrap_or(0),
+            max_fps: max_fps.unwrap_or(0),
         }
     }
 }
@@ -82,13 +82,13 @@ impl NeedRepaint {
     pub fn repaint_after(&self, num_seconds: f64) {
         let mut repaint_time = self.next_repaint.lock();
         let mut time = super::now_sec() + num_seconds;
-        time = Self::round_repaint_time_to_rate(time, self.rate);
+        time = Self::round_repaint_time_to_rate(time, self.max_fps);
         *repaint_time = repaint_time.min(time);
     }
 
     /// Request a repaint. Depending on the presence of rate limiting, this may not be instant.
     pub fn repaint(&self) {
-        let time = Self::round_repaint_time_to_rate(super::now_sec(), self.rate);
+        let time = Self::round_repaint_time_to_rate(super::now_sec(), self.max_fps);
         let mut repaint_time = self.next_repaint.lock();
         *repaint_time = repaint_time.min(time);
     }
