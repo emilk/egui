@@ -138,16 +138,12 @@ impl Widget for DatePickerButton<'_> {
             button = button.fill(visuals.weak_bg_fill).stroke(visuals.bg_stroke);
         }
         let mut button_response = ui.add(button);
-        let just_opened = if button_response.clicked() {
+        if button_response.clicked() {
             button_state.picker_visible = true;
             ui.data_mut(|data| data.insert_persisted(id, button_state.clone()));
-            true
-        } else {
-            false
-        };
+        }
 
         if button_state.picker_visible {
-            let ctx = ui.ctx();
             let width = 333.0;
             let mut pos = button_response.rect.left_bottom();
             let width_with_padding = width
@@ -158,17 +154,19 @@ impl Widget for DatePickerButton<'_> {
                 pos.x = button_response.rect.right() - width_with_padding;
             }
 
+            // Check to make sure the calendar never is displayed out of window
             pos.x = pos.x.max(ui.style().spacing.window_margin.leftf());
 
-            let popup_id = ui.make_persistent_id(self.id_salt);
+            //TODO(elwerene): Better positioning
+
             let InnerResponse {
                 inner: saved,
                 response: area_response,
-            } = Area::new(popup_id)
+            } = Area::new(ui.make_persistent_id(self.id_salt))
                 .kind(egui::UiKind::Picker)
                 .order(Order::Foreground)
                 .fixed_pos(pos)
-                .show(ctx, |ui| {
+                .show(ui.ctx(), |ui| {
                     let frame = Frame::popup(ui.style());
                     frame
                         .show(ui, |ui| {
@@ -185,7 +183,7 @@ impl Widget for DatePickerButton<'_> {
                                 highlight_weekends: self.highlight_weekends,
                                 start_end_years: self.start_end_years,
                             }
-                                .draw(ui)
+                            .draw(ui)
                         })
                         .inner
                 });
@@ -194,10 +192,8 @@ impl Widget for DatePickerButton<'_> {
                 button_response.mark_changed();
             }
 
-            let escape_pressed = ctx.input(|i| i.key_pressed(Key::Escape));
-            let pointer_over_popup = ctx.is_pointer_over_area();
-
-            if !just_opened && !pointer_over_popup && (escape_pressed || area_response.clicked_elsewhere())
+            if !button_response.clicked()
+                && (ui.input(|i| i.key_pressed(Key::Escape)) || area_response.clicked_elsewhere())
             {
                 button_state.picker_visible = false;
                 ui.data_mut(|data| data.insert_persisted(id, button_state));
