@@ -1535,7 +1535,6 @@ version = "0.32.1"
 dependencies = [
  "ab_glyph",
  "ahash",
- "backtrace",
  "bytemuck",
  "criterion",
  "document-features",
