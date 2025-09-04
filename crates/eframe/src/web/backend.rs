@@ -103,7 +103,7 @@ impl NeedRepaint {
 
     fn round_repaint_time_to_rate(time: f64, rate: u32) -> f64 {
         if rate == 0 {
-            f64::NEG_INFINITY
+            time
         } else {
             let interval = 1.0 / rate as f64;
             (time / interval).ceil() * interval
