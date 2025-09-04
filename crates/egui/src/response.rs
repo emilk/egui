@@ -847,14 +847,13 @@ impl Response {
             WidgetType::Label => Role::Label,
             WidgetType::Link => Role::Link,
             WidgetType::TextEdit => Role::TextInput,
-            WidgetType::Button | WidgetType::ImageButton | WidgetType::CollapsingHeader => {
+            WidgetType::Button | WidgetType::CollapsingHeader | WidgetType::SelectableLabel => {
                 Role::Button
             }
             WidgetType::Image => Role::Image,
             WidgetType::Checkbox => Role::CheckBox,
             WidgetType::RadioButton => Role::RadioButton,
             WidgetType::RadioGroup => Role::RadioGroup,
-            WidgetType::SelectableLabel => Role::Button,
             WidgetType::ComboBox => Role::ComboBox,
             WidgetType::Slider => Role::Slider,
             WidgetType::DragValue => Role::SpinButton,
