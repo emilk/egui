@@ -2,13 +2,13 @@
 
 // ----------------------------------------------------------------------------
 
-const DEADLOCK_DURATION: std::time::Duration = std::time::Duration::from_secs(30);
+const DEADLOCK_DURATION: std::time::Duration = std::time::Duration::from_secs(10);
 
 /// Provides interior mutability.
 ///
 /// It's tailored for internal use in egui should only be used for short locks (as a guideline,
 /// locks should never be held longer than a single frame). In debug builds, when a lock can't
-/// be acquired within 30 seconds, we assume a deadlock and will panic.
+/// be acquired within 10 seconds, we assume a deadlock and will panic.
 ///
 /// This is a thin wrapper around [`parking_lot::Mutex`].
 #[derive(Default)]
@@ -26,7 +26,7 @@ impl<T> Mutex<T> {
     /// Try to acquire the lock.
     ///
     /// ## Panics
-    /// Will panic in debug builds if the lock can't be acquired within 30 seconds.
+    /// Will panic in debug builds if the lock can't be acquired within 10 seconds.
     #[inline(always)]
     #[cfg_attr(debug_assertions, track_caller)]
     pub fn lock(&self) -> MutexGuard<'_, T> {
@@ -52,7 +52,7 @@ pub use parking_lot::MappedRwLockWriteGuard as RwLockWriteGuard;
 ///
 /// It's tailored for internal use in egui should only be used for short locks (as a guideline,
 /// locks should never be held longer than a single frame). In debug builds, when a lock can't
-/// be acquired within 30 seconds, we assume a deadlock and will panic.
+/// be acquired within 10 seconds, we assume a deadlock and will panic.
 ///
 /// This is a thin wrapper around [`parking_lot::RwLock`].
 #[derive(Default)]
@@ -69,7 +69,7 @@ impl<T: ?Sized> RwLock<T> {
     /// Try to acquire read-access to the lock.
     ///
     /// ## Panics
-    /// Will panic in debug builds if the lock can't be acquired within 30 seconds.
+    /// Will panic in debug builds if the lock can't be acquired within 10 seconds.
     #[inline(always)]
     #[cfg_attr(debug_assertions, track_caller)]
     pub fn read(&self) -> RwLockReadGuard<'_, T> {
@@ -86,7 +86,7 @@ impl<T: ?Sized> RwLock<T> {
     /// Try to acquire write-access to the lock.
     ///
     /// ## Panics
-    /// Will panic in debug builds if the lock can't be acquired within 30 seconds.
+    /// Will panic in debug builds if the lock can't be acquired within 10 seconds.
     #[inline(always)]
     #[cfg_attr(debug_assertions, track_caller)]
     pub fn write(&self) -> RwLockWriteGuard<'_, T> {
