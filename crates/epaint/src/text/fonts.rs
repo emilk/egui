@@ -927,10 +927,10 @@ impl GalleyCache {
                     current_section += 1;
                 } else if end < section_range.start {
                     break; // Haven't reached this one yet.
-                } else if section_range.start < section_range.end {
+                } else {
                     // Section range overlaps with paragraph range
                     debug_assert!(
-                        section_range.start < section_range.end,
+                        section_range.start <= section_range.end,
                         "Bad byte_range: {section_range:?}"
                     );
                     let new_range = section_range.start.saturating_sub(start)
