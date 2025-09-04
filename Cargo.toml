@@ -79,17 +79,23 @@ bitflags = "2.6"
 bytemuck = "1.23.2"
 criterion = { version = "0.7", default-features = false }
 dify = { version = "0.7", default-features = false }
+directories = "6"
 document-features = "0.2.10"
 glow = "0.16"
 glutin = { version = "0.32.0", default-features = false }
 glutin-winit = { version = "0.5.0", default-features = false }
 home = "0.5.9"
 image = { version = "0.25", default-features = false }
+js-sys = "0.3"
 kittest = { version = "0.2.0" }
 log = { version = "0.4", features = ["std"] }
 mimalloc = "0.1.46"
 nohash-hasher = "0.2"
+objc2 = "0.5.1"
+objc2-app-kit = { version = "0.2.0", default-features = false }
+objc2-foundation = { version = "0.2.0", default-features = false }
 parking_lot = "0.12"
+percent-encoding = "2.1"
 pollster = "0.4"
 profiling = { version = "1.0.16", default-features = false }
 puffin = "0.19"
@@ -99,6 +105,7 @@ ron = "0.11"
 serde = { version = "1", features = ["derive"] }
 similar-asserts = "1.4.2"
 smallvec = "1"
+static_assertions = "1.1.0"
 thiserror = "1.0.37"
 type-map = "0.5.0"
 unicode-segmentation = "1.12.0"
