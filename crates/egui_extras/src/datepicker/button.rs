@@ -193,6 +193,7 @@ impl Widget for DatePickerButton<'_> {
             }
 
             if !button_response.clicked()
+                && !ui.ctx().is_popup_open()
                 && (ui.input(|i| i.key_pressed(Key::Escape)) || area_response.clicked_elsewhere())
             {
                 button_state.picker_visible = false;
