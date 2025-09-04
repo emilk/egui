@@ -28,6 +28,7 @@ impl<T> Mutex<T> {
     /// ## Panics
     /// Will panic in debug builds if the lock can't be acquired within 30 seconds.
     #[inline(always)]
+    #[cfg_attr(debug_assertions, track_caller)]
     pub fn lock(&self) -> MutexGuard<'_, T> {
         if cfg!(debug_assertions) {
             self.0
@@ -70,6 +71,7 @@ impl<T: ?Sized> RwLock<T> {
     /// ## Panics
     /// Will panic in debug builds if the lock can't be acquired within 30 seconds.
     #[inline(always)]
+    #[cfg_attr(debug_assertions, track_caller)]
     pub fn read(&self) -> RwLockReadGuard<'_, T> {
         let guard = if cfg!(debug_assertions) {
             self.0
@@ -86,6 +88,7 @@ impl<T: ?Sized> RwLock<T> {
     /// ## Panics
     /// Will panic in debug builds if the lock can't be acquired within 30 seconds.
     #[inline(always)]
+    #[cfg_attr(debug_assertions, track_caller)]
     pub fn write(&self) -> RwLockWriteGuard<'_, T> {
         let guard = if cfg!(debug_assertions) {
             self.0
