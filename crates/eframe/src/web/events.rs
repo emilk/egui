@@ -874,7 +874,7 @@ fn handle_gesture(event: web_sys::Event, runner: &mut AppRunner) {
     let new_rotation = Reflect::get(&event, &JsValue::from_str("rotation"))
         .ok()
         .and_then(|rotation| rotation.as_f64())
-        .map_or(0.0, |rotation| rotation as f32);
+        .map_or(0.0, |rotation| rotation.to_radians() as f32);
 
     let scale_delta = new_scale / runner.input.accumulated_scale;
     let rotation_delta = new_rotation - runner.input.accumulated_rotation;
