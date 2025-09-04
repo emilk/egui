@@ -89,11 +89,6 @@ serde = { workspace = true, optional = true, features = ["derive", "rc"] }
 
 epaint_default_fonts = { workspace = true, optional = true }
 
-# native:
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-backtrace = { workspace = true, optional = true }
-
-
 [dev-dependencies]
 criterion.workspace = true
 mimalloc.workspace = true
