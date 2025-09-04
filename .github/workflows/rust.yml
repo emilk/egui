@@ -11,6 +11,7 @@ jobs:
   fmt-crank-check-test:
     name: Format + check
     runs-on: ubuntu-22.04
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
         with:
@@ -18,7 +19,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.85.0
+          toolchain: 1.86.0
 
       - name: Install packages (Linux)
         if: runner.os == 'Linux'
@@ -79,11 +80,12 @@ jobs:
   check_wasm:
     name: Check wasm32 + wasm-bindgen
     runs-on: ubuntu-22.04
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.85.0
+          toolchain: 1.86.0
           targets: wasm32-unknown-unknown
 
       - run: sudo apt-get update && sudo apt-get install libgtk-3-dev libatk1.0-dev
@@ -114,6 +116,7 @@ jobs:
   check_wasm_atomics:
     name: Check wasm32+atomics
     runs-on: ubuntu-22.04
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - run: sudo apt-get update && sudo apt-get install libgtk-3-dev libatk1.0-dev
@@ -151,11 +154,12 @@ jobs:
 
     name: cargo-deny ${{ matrix.target }}
     runs-on: ubuntu-22.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:
-          rust-version: "1.85.0"
+          rust-version: "1.86.0"
           log-level: error
           command: check
           arguments: --target  ${{ matrix.target }}
@@ -165,12 +169,13 @@ jobs:
   android:
     name: android
     runs-on: ubuntu-22.04
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.85.0
+          toolchain: 1.86.0
           targets: aarch64-linux-android
 
       - name: Set up cargo cache
@@ -186,12 +191,13 @@ jobs:
   ios:
     name: ios
     runs-on: ubuntu-22.04
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.85.0
+          toolchain: 1.86.0
           targets: aarch64-apple-ios
 
       - name: Set up cargo cache
@@ -206,11 +212,12 @@ jobs:
   windows:
     name: Check Windows
     runs-on: windows-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.85.0
+          toolchain: 1.86.0
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
@@ -227,14 +234,14 @@ jobs:
     name: Run tests
     # We run the tests on macOS because it will run with an actual GPU
     runs-on: macos-latest
-
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
         with:
           lfs: true
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.85.0
+          toolchain: 1.86.0
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2

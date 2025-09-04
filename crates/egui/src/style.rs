@@ -121,6 +121,7 @@ impl TextStyle {
 // ----------------------------------------------------------------------------
 
 /// A way to select [`FontId`], either by picking one directly or by using a [`TextStyle`].
+#[derive(Debug, Clone)]
 pub enum FontSelection {
     /// Default text style - will use [`TextStyle::Body`], unless
     /// [`Style::override_font_id`] or [`Style::override_text_style`] is set.
@@ -141,7 +142,18 @@ impl Default for FontSelection {
 }
 
 impl FontSelection {
+    /// Resolve to a [`FontId`].
+    ///
+    /// On [`Self::Default`] and no override in the style, this will
+    /// resolve to [`TextStyle::Body`].
     pub fn resolve(self, style: &Style) -> FontId {
+        self.resolve_with_fallback(style, TextStyle::Body.into())
+    }
+
+    /// Resolve with a final fallback.
+    ///
+    /// Fallback is resolved on [`Self::Default`] and no override in the style.
+    pub fn resolve_with_fallback(self, style: &Style, fallback: Self) -> FontId {
         match self {
             Self::Default => {
                 if let Some(override_font_id) = &style.override_font_id {
@@ -149,7 +161,7 @@ impl FontSelection {
                 } else if let Some(text_style) = &style.override_text_style {
                     text_style.resolve(style)
                 } else {
-                    TextStyle::Body.resolve(style)
+                    fallback.resolve(style)
                 }
             }
             Self::FontId(font_id) => font_id,
@@ -2708,7 +2720,7 @@ impl Widget for &mut Stroke {
         let Stroke { width, color } = self;
 
         ui.horizontal(|ui| {
-            ui.add(DragValue::new(width).speed(0.1).range(0.0..=f32::INFINITY))
+            ui.add(DragValue::new(width).speed(0.1).range(0.0..=1e9))
                 .on_hover_text("Width");
             ui.color_edit_button_srgba(color);
 

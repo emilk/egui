@@ -38,10 +38,10 @@ use crate::{
     viewport::ViewportClass,
 };
 
+use self::{hit_test::WidgetHits, interaction::InteractionSnapshot};
 #[cfg(feature = "accesskit")]
 use crate::IdMap;
-
-use self::{hit_test::WidgetHits, interaction::InteractionSnapshot};
+use crate::input_state::SurrenderFocusOn;
 
 /// Information given to the backend about when it is time to repaint the ui.
 ///
@@ -770,6 +770,7 @@ impl Default for Context {
     fn default() -> Self {
         let ctx_impl = ContextImpl {
             embed_viewports: true,
+            viewports: std::iter::once((ViewportId::ROOT, ViewportState::default())).collect(),
             ..Default::default()
         };
         let ctx = Self(Arc::new(RwLock::new(ctx_impl)));
@@ -1429,8 +1430,14 @@ impl Context {
                 res.flags.set(Flags::HOVERED, false);
             }
 
-            let pointer_pressed_elsewhere = any_press && !res.hovered();
-            if pointer_pressed_elsewhere && memory.has_focus(id) {
+            let should_surrender_focus = match memory.options.input_options.surrender_focus_on {
+                SurrenderFocusOn::Presses => any_press,
+                SurrenderFocusOn::Clicks => input.pointer.any_click(),
+                SurrenderFocusOn::Never => false,
+            };
+
+            let pointer_clicked_elsewhere = should_surrender_focus && !res.hovered();
+            if pointer_clicked_elsewhere && memory.has_focus(id) {
                 memory.surrender_focus(id);
             }
         });
@@ -1617,7 +1624,14 @@ impl Context {
         self.read(|ctx| {
             ctx.viewports
                 .get(&id)
-                .map_or(0, |v| v.repaint.cumulative_frame_nr)
+                .map(|v| v.repaint.cumulative_frame_nr)
+                .unwrap_or_else(|| {
+                    if cfg!(debug_assertions) {
+                        panic!("cumulative_frame_nr_for failed to find the viewport {id:?}");
+                    } else {
+                        0
+                    }
+                })
         })
     }
 
@@ -2516,6 +2530,10 @@ impl ContextImpl {
         self.last_viewport = ended_viewport_id;
 
         self.viewports.retain(|&id, viewport| {
+            if id == ViewportId::ROOT {
+                return true; // never remove the root
+            }
+
             let parent = *self.viewport_parents.entry(id).or_default();
 
             if !all_viewport_ids.contains(&parent) {
@@ -2586,6 +2604,10 @@ impl ContextImpl {
         if is_last {
             // Remove dead viewports:
             self.viewports.retain(|id, _| all_viewport_ids.contains(id));
+            debug_assert!(
+                self.viewports.contains_key(&ViewportId::ROOT),
+                "Bug in egui: we removed the root viewport"
+            );
             self.viewport_parents
                 .retain(|id, _| all_viewport_ids.contains(id));
         } else {

@@ -179,7 +179,7 @@ impl TextAgent {
 
         if let Err(err) = self.input.focus() {
             log::error!("failed to set focus: {}", super::string_from_js_value(&err));
-        };
+        }
     }
 
     pub fn blur(&self) {
@@ -191,7 +191,7 @@ impl TextAgent {
 
         if let Err(err) = self.input.blur() {
             log::error!("failed to set focus: {}", super::string_from_js_value(&err));
-        };
+        }
     }
 }
 

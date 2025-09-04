@@ -274,7 +274,7 @@ impl WebPainter for WebPainterWgpu {
                         &mut encoder,
                     ));
                 }
-            };
+            }
 
             Some((output_frame, capture_buffer))
         };
