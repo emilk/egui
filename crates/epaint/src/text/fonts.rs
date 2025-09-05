@@ -405,17 +405,21 @@ impl FontDefinitions {
 }
 
 /// Unique ID for looking up a single font face/file.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Default)]
-pub(crate) struct FontFaceKey(pub u64);
-
-static KEY_COUNTER: AtomicU64 = AtomicU64::new(1);
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct FontFaceKey(u64);
 
 impl FontFaceKey {
+    const INVALID: Self = Self(0);
+
     fn new() -> Self {
-        Self(KEY_COUNTER.fetch_add(1, Ordering::Relaxed))
+        static KEY_COUNTER: AtomicU64 = AtomicU64::new(1);
+        Self(crate::util::hash(
+            KEY_COUNTER.fetch_add(1, Ordering::Relaxed),
+        ))
     }
 }
 
+// Safe, because we hash the value in the constructor.
 impl nohash_hasher::IsEnabled for FontFaceKey {}
 
 /// Cached data for working with a font family (e.g. doing character lookups).
@@ -440,7 +444,7 @@ impl CachedFamily {
             return Self {
                 fonts,
                 characters: None,
-                replacement_glyph: Default::default(),
+                replacement_glyph: (FontFaceKey::INVALID, Default::default()),
                 glyph_info_cache: Default::default(),
             };
         }
@@ -448,7 +452,7 @@ impl CachedFamily {
         let mut slf = Self {
             fonts,
             characters: None,
-            replacement_glyph: Default::default(),
+            replacement_glyph: (FontFaceKey::INVALID, Default::default()),
             glyph_info_cache: Default::default(),
         };
 
@@ -463,7 +467,7 @@ impl CachedFamily {
                 log::warn!(
                     "Failed to find replacement characters {PRIMARY_REPLACEMENT_CHAR:?} or {FALLBACK_REPLACEMENT_CHAR:?}. Will use empty glyph."
                 );
-                (FontFaceKey::default(), GlyphInfo::default())
+                (FontFaceKey::INVALID, GlyphInfo::default())
             });
         slf.replacement_glyph = replacement_glyph;
 
