@@ -766,9 +766,8 @@ impl MenuState {
     }
 
     fn submenu(&self, id: Id) -> Option<&Arc<RwLock<Self>>> {
-        self.sub_menu
-            .as_ref()
-            .and_then(|(k, sub)| if id == *k { Some(sub) } else { None })
+        let (k, sub) = self.sub_menu.as_ref()?;
+        if id == *k { Some(sub) } else { None }
     }
 
     /// Open submenu at position, if not already open.

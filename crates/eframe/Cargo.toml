@@ -42,7 +42,7 @@ default = [
   "egui-wgpu?/fragile-send-sync-non-atomic-wasm",
   # Let's enable some backends so that users can use `eframe` out-of-the-box
   # without having to explicitly opt-in to backends
-  "egui-wgpu?/default"
+  "egui-wgpu?/default",
 ]
 
 ## Enable platform accessibility API implementations through [AccessKit](https://accesskit.dev/).
@@ -135,7 +135,7 @@ log.workspace = true
 parking_lot.workspace = true
 profiling.workspace = true
 raw-window-handle.workspace = true
-static_assertions = "1.1.0"
+static_assertions.workspace = true
 web-time.workspace = true
 
 # Optional dependencies
@@ -174,14 +174,14 @@ wgpu = { workspace = true, optional = true }
 
 # mac:
 [target.'cfg(any(target_os = "macos"))'.dependencies]
-objc2 = "0.5.1"
-objc2-foundation = { version = "0.2.0", default-features = false, features = [
+objc2.workspace = true
+objc2-foundation = { workspace = true, default-features = false, features = [
   "std",
   "block2",
   "NSData",
   "NSString",
 ] }
-objc2-app-kit = { version = "0.2.0", default-features = false, features = [
+objc2-app-kit = { workspace = true, default-features = false, features = [
   "std",
   "NSApplication",
   "NSImage",
@@ -192,11 +192,12 @@ objc2-app-kit = { version = "0.2.0", default-features = false, features = [
 
 # windows:
 [target.'cfg(any(target_os = "windows"))'.dependencies]
-winapi = { version = "0.3.9", features = ["winuser"] }
 windows-sys = { workspace = true, features = [
   "Win32_Foundation",
-  "Win32_UI_Shell",
   "Win32_System_Com",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_UI_Shell",
+  "Win32_UI_WindowsAndMessaging",
 ] }
 
 # -------------------------------------------
@@ -204,8 +205,8 @@ windows-sys = { workspace = true, features = [
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 bytemuck.workspace = true
 image = { workspace = true, features = ["png"] } # For copying images
-js-sys = "0.3"
-percent-encoding = "2.1"
+js-sys.workspace = true
+percent-encoding.workspace = true
 wasm-bindgen.workspace = true
 wasm-bindgen-futures.workspace = true
 web-sys = { workspace = true, features = [
@@ -270,4 +271,4 @@ wgpu = { workspace = true, optional = true }
 
 # Native dev dependencies for testing
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-directories = "5"
+directories.workspace = true

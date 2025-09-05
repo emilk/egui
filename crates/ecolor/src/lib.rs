@@ -105,7 +105,7 @@ pub fn linear_f32_from_gamma_u8(s: u8) -> f32 {
 /// linear [0, 255] -> linear [0, 1].
 /// Useful for alpha-channel.
 #[inline(always)]
-pub fn linear_f32_from_linear_u8(a: u8) -> f32 {
+pub const fn linear_f32_from_linear_u8(a: u8) -> f32 {
     a as f32 / 255.0
 }
 
@@ -130,7 +130,7 @@ pub fn linear_u8_from_linear_f32(a: f32) -> u8 {
     fast_round(a * 255.0)
 }
 
-fn fast_round(r: f32) -> u8 {
+const fn fast_round(r: f32) -> u8 {
     (r + 0.5) as _ // rust does a saturating cast since 1.45
 }
 

@@ -528,7 +528,7 @@ impl Painter {
 
                 self.upload_texture_srgb(delta.pos, image.size, delta.options, data);
             }
-        };
+        }
     }
 
     fn upload_texture_srgb(

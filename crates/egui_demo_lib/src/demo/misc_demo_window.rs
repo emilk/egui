@@ -805,7 +805,7 @@ impl TextRotation {
                 if let egui::epaint::Shape::Text(ts) = &mut t {
                     let new = ts.clone().with_angle_and_anchor(self.angle, self.align);
                     *ts = new;
-                };
+                }
 
                 t
             });
@@ -814,7 +814,7 @@ impl TextRotation {
                 let align_pt =
                     rect.min + start_pos + self.align.pos_in_rect(&ts.galley.rect).to_vec2();
                 painter.circle(align_pt, 2.0, Color32::RED, (0.0, Color32::RED));
-            };
+            }
 
             painter.rect(
                 rect,

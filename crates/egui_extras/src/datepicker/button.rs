@@ -192,7 +192,11 @@ impl Widget for DatePickerButton<'_> {
                 button_response.mark_changed();
             }
 
+            // We don't want to close our popup if any other popup is open, since other popups would
+            // most likely be the combo boxes in the date picker.
+            let any_popup_open = ui.ctx().is_popup_open();
             if !button_response.clicked()
+                && !any_popup_open
                 && (ui.input(|i| i.key_pressed(Key::Escape)) || area_response.clicked_elsewhere())
             {
                 button_state.picker_visible = false;

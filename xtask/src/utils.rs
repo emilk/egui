@@ -32,7 +32,7 @@ pub fn ask_to_run(mut cmd: Command, ask: bool, reason: &str) -> Result<(), DynEr
             "" | "y" | "yes" => {}
             "n" | "no" => return Err("Aborting as per your request".into()),
             a => return Err(format!("Invalid answer `{a}`").into()),
-        };
+        }
     } else {
         println!("Running `{cmd:?}` to {reason}.");
     }

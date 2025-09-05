@@ -336,7 +336,7 @@ impl DatePickerPopup<'_> {
                                                         if day.month() != popup_state.month {
                                                             text_color =
                                                                 text_color.linear_multiply(0.5);
-                                                        };
+                                                        }
 
                                                         let button_response = ui.add(
                                                             Button::new(

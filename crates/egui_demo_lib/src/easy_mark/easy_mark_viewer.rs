@@ -101,7 +101,7 @@ pub fn item_ui(ui: &mut Ui, item: easy_mark::Item<'_>) {
                 Shape::rect_filled(rect, 1.0, code_bg_color),
             );
         }
-    };
+    }
 }
 
 fn rich_text_from_style(text: &str, style: &easy_mark::Style) -> RichText {

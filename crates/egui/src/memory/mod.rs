@@ -140,8 +140,9 @@ impl Default for Memory {
     }
 }
 
+/// A direction in which to move the keyboard focus.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-enum FocusDirection {
+pub enum FocusDirection {
     /// Select the widget closest above the current focused widget.
     Up,
 
@@ -802,15 +803,12 @@ impl Memory {
 
     /// Top-most layer at the given position.
     pub fn layer_id_at(&self, pos: Pos2) -> Option<LayerId> {
-        self.areas()
-            .layer_id_at(pos, &self.to_global)
-            .and_then(|layer_id| {
-                if self.is_above_modal_layer(layer_id) {
-                    Some(layer_id)
-                } else {
-                    self.top_modal_layer()
-                }
-            })
+        let layer_id = self.areas().layer_id_at(pos, &self.to_global)?;
+        if self.is_above_modal_layer(layer_id) {
+            Some(layer_id)
+        } else {
+            self.top_modal_layer()
+        }
     }
 
     /// The currently set transform of a layer.
@@ -855,7 +853,7 @@ impl Memory {
 
     /// Which widget has keyboard focus?
     pub fn focused(&self) -> Option<Id> {
-        self.focus().and_then(|f| f.focused())
+        self.focus()?.focused()
     }
 
     /// Set an event filter for a widget.
@@ -889,6 +887,11 @@ impl Memory {
         if focus.focused() == Some(id) {
             focus.focused_widget = None;
         }
+    }
+
+    /// Move keyboard focus in a specific direction.
+    pub fn move_focus(&mut self, direction: FocusDirection) {
+        self.focus_mut().focus_direction = direction;
     }
 
     /// Returns true if
@@ -1066,9 +1069,8 @@ impl Memory {
     /// Get the position for this popup.
     #[deprecated = "Use Popup::position_of_id instead"]
     pub fn popup_position(&self, id: Id) -> Option<Pos2> {
-        self.popups
-            .get(&self.viewport_id)
-            .and_then(|state| if state.id == id { state.pos } else { None })
+        let state = self.popups.get(&self.viewport_id)?;
+        if state.id == id { state.pos } else { None }
     }
 
     /// Close any currently open popup.

@@ -873,7 +873,7 @@ impl Renderer {
                             callbacks.push(c.0.as_ref());
                         } else {
                             log::warn!("Unknown paint callback: expected `egui_wgpu::Callback`");
-                        };
+                        }
                         acc
                     }
                 }

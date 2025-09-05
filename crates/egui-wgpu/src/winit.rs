@@ -328,7 +328,7 @@ impl Painter {
                     })
                     .create_view(&wgpu::TextureViewDescriptor::default()),
             );
-        };
+        }
     }
 
     pub fn on_window_resized(

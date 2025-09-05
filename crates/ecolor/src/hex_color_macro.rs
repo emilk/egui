@@ -31,10 +31,11 @@
 /// let _ = ecolor::hex_color!("#20212x");
 /// ```
 ///
-/// The macro cannot be used in a `const` context.
+/// The macro can be used in a `const` context.
 ///
-/// ```compile_fail
+/// ```
 /// const COLOR: ecolor::Color32 = ecolor::hex_color!("#202122");
+/// assert_eq!(COLOR, ecolor::Color32::from_rgb(0x20, 0x21, 0x22));
 /// ```
 #[macro_export]
 macro_rules! hex_color {
@@ -42,7 +43,7 @@ macro_rules! hex_color {
         let array = $crate::color_hex::color_from_hex!($s);
         match array.as_slice() {
             [r, g, b] => $crate::Color32::from_rgb(*r, *g, *b),
-            [r, g, b, a] => $crate::Color32::from_rgba_unmultiplied(*r, *g, *b, *a),
+            [r, g, b, a] => $crate::Color32::from_rgba_unmultiplied_const(*r, *g, *b, *a),
             _ => panic!("Invalid hex color length: expected 3 (RGB) or 4 (RGBA) bytes"),
         }
     }};

@@ -8,6 +8,7 @@ jobs:
     # install and run locally: cargo install typos-cli && typos
     name: typos
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout Actions Repository
         uses: actions/checkout@v4
@@ -18,6 +19,7 @@ jobs:
   lychee:
     name: lychee
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - name: Don't check CHANGELOG.md files

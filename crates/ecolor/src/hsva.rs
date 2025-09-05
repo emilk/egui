@@ -234,7 +234,7 @@ pub fn rgb_from_hsv((h, s, v): (f32, f32, f32)) -> [f32; 3] {
 }
 
 #[test]
-#[ignore] // a bit expensive
+#[ignore = "too expensive"]
 fn test_hsv_roundtrip() {
     for r in 0..=255 {
         for g in 0..=255 {

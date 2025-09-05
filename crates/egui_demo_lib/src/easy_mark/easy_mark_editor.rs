@@ -165,7 +165,7 @@ fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRang
         if ui.input_mut(|i| i.consume_shortcut(&shortcut)) {
             any_change = true;
             toggle_surrounding(code, ccursor_range, surrounding);
-        };
+        }
     }
 
     any_change

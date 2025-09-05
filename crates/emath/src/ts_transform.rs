@@ -36,8 +36,8 @@ impl TSTransform {
     /// `(0, 0)`, then translates them.
     pub fn new(translation: Vec2, scaling: f32) -> Self {
         Self {
-            translation,
             scaling,
+            translation,
         }
     }
 

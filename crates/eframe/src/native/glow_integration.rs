@@ -336,10 +336,10 @@ impl<'app> GlowWinitApp<'app> {
         }
 
         Ok(self.running.insert(GlowWinitRunning {
-            glutin,
-            painter,
             integration,
             app,
+            glutin,
+            painter,
         }))
     }
 }
@@ -362,8 +362,12 @@ impl WinitApp for GlowWinitApp<'_> {
 
     fn window_id_from_viewport_id(&self, id: ViewportId) -> Option<WindowId> {
         self.running
-            .as_ref()
-            .and_then(|r| r.glutin.borrow().window_from_viewport.get(&id).copied())
+            .as_ref()?
+            .glutin
+            .borrow()
+            .window_from_viewport
+            .get(&id)
+            .copied()
     }
 
     fn save(&mut self) {

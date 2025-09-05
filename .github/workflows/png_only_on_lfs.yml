@@ -5,6 +5,7 @@ on: [push, pull_request]
 jobs:
   check-binary-files:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
     - name: Checkout repository
