@@ -11,8 +11,13 @@ use super::percent_decode;
 /// Data gathered between frames.
 #[derive(Default)]
 pub(crate) struct WebInput {
-    /// Required because we don't get a position on touched
+    /// Required because we don't get a position on touchend
     pub primary_touch: Option<egui::TouchId>,
+
+    /// Helps to track the delta scale from gesture events
+    pub accumulated_scale: f32,
+    /// Helps to track the delta rotation from gesture events
+    pub accumulated_rotation: f32,
 
     /// The raw input to `egui`.
     pub raw: egui::RawInput,
