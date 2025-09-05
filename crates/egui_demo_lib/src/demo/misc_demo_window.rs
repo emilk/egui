@@ -2,7 +2,7 @@ use super::{Demo, View};
 
 use egui::{
     Align, Align2, Checkbox, CollapsingHeader, Color32, ComboBox, Context, FontId, Resize,
-    RichText, Sense, Slider, Stroke, TextFormat, TextStyle, Ui, Vec2, Window, vec2,
+    RichText, Sense, Slider, Stroke, TextFormat, TextStyle, Ui, Vec2, Vec2b, Window, vec2,
 };
 
 /// Showcase some ui code
@@ -21,6 +21,8 @@ pub struct MiscDemoWindow {
     dummy_bool: bool,
     dummy_usize: usize,
     checklist: [bool; 3],
+
+    resize: Vec2b,
 }
 
 impl Default for MiscDemoWindow {
@@ -38,6 +40,7 @@ impl Default for MiscDemoWindow {
             dummy_bool: false,
             dummy_usize: 0,
             checklist: std::array::from_fn(|i| i == 0),
+            resize: [true, true].into(),
         }
     }
 }
@@ -158,8 +161,18 @@ impl View for MiscDemoWindow {
         CollapsingHeader::new("Resize")
             .default_open(false)
             .show(ui, |ui| {
-                Resize::default().default_height(100.0).show(ui, |ui| {
-                    ui.label("This ui can be resized!");
+                ui.checkbox(&mut self.resize.x, "Resize X");
+                ui.checkbox(&mut self.resize.y, "Resize Y");
+
+                Resize::default()
+                    .resizable(self.resize)
+                    .default_height(100.0).show(ui, |ui| {
+                    match [self.resize.x, self.resize.y] {
+                        [true, true] => ui.label("This ui can be resized in both directions"),
+                        [true, false] => ui.label("This ui can be resized on the X axis only"),
+                        [false, true] => ui.label("This ui can be resized on the Y axis only"),
+                        [false, false] => ui.label("This ui can't be resized (enable the x/y checkboxes to try it out)"),
+                    };
                     ui.label("Just pull the handle on the bottom right");
                 });
             });
