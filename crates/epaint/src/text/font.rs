@@ -215,10 +215,10 @@ impl FontImpl {
     #[inline]
     pub fn pair_kerning(
         &self,
+        pixels_per_point: f32,
         last_glyph_id: ab_glyph::GlyphId,
         glyph_id: ab_glyph::GlyphId,
         font_size: f32,
-        pixels_per_point: f32,
     ) -> f32 {
         // Round to an even number of physical pixels to get even kerning.
         // See https://github.com/emilk/egui/issues/382
@@ -248,10 +248,10 @@ impl FontImpl {
 
     pub fn allocate_glyph(
         &mut self,
-        glyph_info: GlyphInfo,
         atlas: &mut TextureAtlas,
-        font_size: f32,
         pixels_per_point: f32,
+        glyph_info: GlyphInfo,
+        font_size: f32,
     ) -> GlyphAllocation {
         let Some(glyph_id) = glyph_info.id else {
             // Invisible.
@@ -450,9 +450,9 @@ impl Font<'_> {
     #[inline]
     pub(crate) fn font_impl_and_glyph_alloc(
         &mut self,
+        pixels_per_point: f32,
         c: char,
         font_size: f32,
-        pixels_per_point: f32,
     ) -> (Option<&FontImpl>, GlyphAllocation) {
         if self.cached_family.fonts.is_empty() {
             return (None, Default::default());
@@ -460,7 +460,7 @@ impl Font<'_> {
         let (key, glyph_info) = self.glyph_info(c);
         let font_impl = self.fonts_by_id.get_mut(&key).expect("Nonexistent font ID");
         let allocated_glyph =
-            font_impl.allocate_glyph(glyph_info, self.atlas, font_size, pixels_per_point);
+            font_impl.allocate_glyph(self.atlas, pixels_per_point, glyph_info, font_size);
         (Some(font_impl), allocated_glyph)
     }
 
