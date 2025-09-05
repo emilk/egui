@@ -287,7 +287,7 @@ impl Display for SnapshotError {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Mode {
-    Fail,
+    Test,
     UpdateFailing,
     UpdateAll,
 }
@@ -295,11 +295,11 @@ enum Mode {
 impl Mode {
     fn from_env() -> Self {
         let Ok(value) = std::env::var("UPDATE_SNAPSHOTS") else {
-            return Self::Fail;
+            return Self::Test;
         };
 
         match value.as_str() {
-            "false" | "0" | "no" | "off" => Self::Fail,
+            "false" | "0" | "no" | "off" => Self::Test,
             "true" | "1" | "yes" | "on" => Self::UpdateFailing,
             "force" => Self::UpdateAll,
             unknown => {
@@ -310,7 +310,7 @@ impl Mode {
 
     fn is_update(&self) -> bool {
         match self {
-            Self::Fail => false,
+            Self::Test => false,
             Self::UpdateFailing | Self::UpdateAll => true,
         }
     }
@@ -452,7 +452,7 @@ fn try_image_snapshot_options_impl(
         let is_sameish = num_wrong_pixels as i64 <= *failed_pixel_count_threshold as i64;
 
         match mode {
-            Mode::Fail => {
+            Mode::Test => {
                 if is_sameish {
                     Ok(())
                 } else {
