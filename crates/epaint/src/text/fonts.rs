@@ -444,7 +444,7 @@ impl CachedFamily {
             return Self {
                 fonts,
                 characters: None,
-                replacement_glyph: (FontFaceKey::INVALID, Default::default()),
+                replacement_glyph: (FontFaceKey::INVALID, GlyphInfo::INVISIBLE),
                 glyph_info_cache: Default::default(),
             };
         }
@@ -452,7 +452,7 @@ impl CachedFamily {
         let mut slf = Self {
             fonts,
             characters: None,
-            replacement_glyph: (FontFaceKey::INVALID, Default::default()),
+            replacement_glyph: (FontFaceKey::INVALID, GlyphInfo::INVISIBLE),
             glyph_info_cache: Default::default(),
         };
 
@@ -467,7 +467,7 @@ impl CachedFamily {
                 log::warn!(
                     "Failed to find replacement characters {PRIMARY_REPLACEMENT_CHAR:?} or {FALLBACK_REPLACEMENT_CHAR:?}. Will use empty glyph."
                 );
-                (FontFaceKey::INVALID, GlyphInfo::default())
+                (FontFaceKey::INVALID, GlyphInfo::INVISIBLE)
             });
         slf.replacement_glyph = replacement_glyph;
 

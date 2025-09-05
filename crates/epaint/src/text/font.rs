@@ -41,25 +41,20 @@ pub struct GlyphInfo {
     /// Used for pair-kerning.
     ///
     /// Doesn't need to be unique.
-    /// Use `ab_glyph::GlyphId(0)` if you just want to have an id, and don't care.
-    pub(crate) id: ab_glyph::GlyphId,
+    ///
+    /// Is `None` for a special "invisible" glyph.
+    pub(crate) id: Option<ab_glyph::GlyphId>,
 
     /// In [`ab_glyph`]s "unscaled" coordinate system.
     pub advance_width_unscaled: OrderedFloat<f32>,
-
-    /// Whether this glyph has any outlines.
-    pub visible: bool,
 }
 
-impl Default for GlyphInfo {
-    /// Basically a zero-width space.
-    fn default() -> Self {
-        Self {
-            id: ab_glyph::GlyphId(0),
-            advance_width_unscaled: 0.0.into(),
-            visible: false,
-        }
-    }
+impl GlyphInfo {
+    /// A valid, but invisible, glyph of zero-width.
+    pub const INVISIBLE: Self = Self {
+        id: None,
+        advance_width_unscaled: OrderedFloat(0.0),
+    };
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
@@ -197,7 +192,7 @@ impl FontImpl {
         }
 
         if invisible_char(c) {
-            let glyph_info = GlyphInfo::default();
+            let glyph_info = GlyphInfo::INVISIBLE;
             self.glyph_info_cache.insert(c, glyph_info);
             return Some(glyph_info);
         }
@@ -209,9 +204,8 @@ impl FontImpl {
             None // unsupported character
         } else {
             let glyph_info = GlyphInfo {
-                id: glyph_id,
+                id: Some(glyph_id),
                 advance_width_unscaled: self.ab_glyph_font.h_advance_unscaled(glyph_id).into(),
-                visible: true,
             };
             self.glyph_info_cache.insert(c, glyph_info);
             Some(glyph_info)
@@ -259,9 +253,11 @@ impl FontImpl {
         font_size: f32,
         pixels_per_point: f32,
     ) -> GlyphAllocation {
-        if !glyph_info.visible {
+        let Some(glyph_id) = glyph_info.id else {
+            // Invisible.
             return GlyphAllocation::default();
-        }
+        };
+
         // Round to an even number of physical pixels to get even kerning.
         // See https://github.com/emilk/egui/issues/382
         let scale = self
@@ -275,11 +271,9 @@ impl FontImpl {
             std::collections::hash_map::Entry::Vacant(entry) => entry,
         };
 
-        assert!(glyph_info.id.0 != 0, "Can't allocate glyph for id 0");
+        debug_assert!(glyph_id.0 != 0, "Can't allocate glyph for id 0");
 
-        let glyph = glyph_info
-            .id
-            .with_scale_and_position(scale, ab_glyph::Point { x: 0.0, y: 0.0 });
+        let glyph = glyph_id.with_scale_and_position(scale, ab_glyph::Point { x: 0.0, y: 0.0 });
 
         // Tweak the scale as the user desired
         let y_offset_in_points = {
@@ -334,7 +328,7 @@ impl FontImpl {
         let uv_rect = uv_rect.unwrap_or_default();
 
         let allocation = GlyphAllocation {
-            id: glyph_info.id,
+            id: glyph_id,
             advance_width: (glyph_info.advance_width_unscaled.0 * scale
                 / self.ab_glyph_font.height_unscaled())
                 / pixels_per_point,
