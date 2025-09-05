@@ -44,7 +44,7 @@ pub struct GlyphInfo {
     /// Use `ab_glyph::GlyphId(0)` if you just want to have an id, and don't care.
     pub(crate) id: ab_glyph::GlyphId,
 
-    /// Unscaled.
+    /// In [`ab_glyph`]s "unscaled" coordinate system.
     pub advance_width_unscaled: OrderedFloat<f32>,
 
     /// Whether this glyph has any outlines.
