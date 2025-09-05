@@ -44,7 +44,11 @@ Once enabled, you can call `Harness::snapshot` to render the ui and save the ima
 
 To update the snapshots, run your tests with `UPDATE_SNAPSHOTS=true`, so e.g. `UPDATE_SNAPSHOTS=true cargo test`.
 Running with `UPDATE_SNAPSHOTS=true` will cause the tests to succeed.
-This is so that you can set `UPDATE_SNAPSHOTS=true` and update _all_ tests, without `cargo test` failing on the first failing crate.
+This is so that you can set `UPDATE_SNAPSHOTS=true` and update all tests, without `cargo test` failing on the first failing crate.
+
+`UPDATE_SNAPSHOTS=true` will only update the images of _failing_ tests.
+If you want to update all snapshot images, even those that are within error margins,
+run with `UPDATE_SNAPSHOTS=force`.
 
 If you want to have multiple snapshots in the same test, it makes sense to collect the results in a `Vec`
 ([look here](https://github.com/emilk/egui/blob/70a01138b77f9c5724a35a6ef750b9ae1ab9f2dc/crates/egui_demo_lib/src/demo/demo_app_windows.rs#L388-L427) for an example).
