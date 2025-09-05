@@ -453,12 +453,14 @@ fn replace_last_glyph_with_overflow_character(
         // Kerning:
         x += section.format.extra_letter_spacing;
         if let Some(font_impl) = font_impl {
-            x += font_impl.pair_kerning(
-                last_glyph_info.id,
-                replacement_glyph_alloc.id,
-                section.format.font_id.size,
-                pixels_per_point,
-            );
+            if let Some(last_glyph_id) = last_glyph_info.id {
+                x += font_impl.pair_kerning(
+                    last_glyph_id,
+                    replacement_glyph_alloc.id,
+                    section.format.font_id.size,
+                    pixels_per_point,
+                );
+            }
         }
 
         row.glyphs.push(Glyph {
