@@ -175,14 +175,14 @@ fn layout_section(
             paragraph.empty_paragraph_height = line_height; // TODO(emilk): replace this hack with actually including `\n` in the glyphs?
         } else {
             let (font_impl, glyph_alloc) =
-                font.font_impl_and_glyph_alloc(chr, font_size, pixels_per_point);
+                font.font_impl_and_glyph_alloc(pixels_per_point, chr, font_size);
 
             if let (Some(font_impl), Some(last_glyph_id)) = (font_impl, last_glyph_id) {
                 paragraph.cursor_x += font_impl.pair_kerning(
+                    pixels_per_point,
                     last_glyph_id,
                     glyph_alloc.id,
                     font_size,
-                    pixels_per_point,
                 );
                 paragraph.cursor_x += extra_letter_spacing;
             }
@@ -448,17 +448,17 @@ fn replace_last_glyph_with_overflow_character(
         let mut x = last_glyph.pos.x + last_glyph.advance_width;
 
         let (font_impl, replacement_glyph_alloc) =
-            font.font_impl_and_glyph_alloc(overflow_character, font_size, pixels_per_point);
+            font.font_impl_and_glyph_alloc(pixels_per_point, overflow_character, font_size);
 
         // Kerning:
         x += section.format.extra_letter_spacing;
         if let Some(font_impl) = font_impl {
             if let Some(last_glyph_id) = last_glyph_info.id {
                 x += font_impl.pair_kerning(
+                    pixels_per_point,
                     last_glyph_id,
                     replacement_glyph_alloc.id,
                     section.format.font_id.size,
-                    pixels_per_point,
                 );
             }
         }
@@ -485,7 +485,7 @@ fn replace_last_glyph_with_overflow_character(
         let x = 0.0; // TODO(emilk): heed paragraph leading_space 😬
 
         let (mut font_impl, replacement_glyph_alloc) =
-            font.font_impl_and_glyph_alloc(overflow_character, font_size, pixels_per_point);
+            font.font_impl_and_glyph_alloc(pixels_per_point, overflow_character, font_size);
 
         row.glyphs.push(Glyph {
             chr: overflow_character,
@@ -527,27 +527,27 @@ fn replace_last_glyph_with_overflow_character(
 
         if let Some(prev_glyph) = prev_glyph {
             let prev_glyph_id = font
-                .font_impl_and_glyph_alloc(prev_glyph.chr, font_size, pixels_per_point)
+                .font_impl_and_glyph_alloc(pixels_per_point, prev_glyph.chr, font_size)
                 .1
                 .id;
 
             // Undo kerning with previous glyph:
             let (font_impl, glyph_alloc) =
-                font.font_impl_and_glyph_alloc(last_glyph.chr, font_size, pixels_per_point);
+                font.font_impl_and_glyph_alloc(pixels_per_point, last_glyph.chr, font_size);
             last_glyph.pos.x -= extra_letter_spacing;
             if let Some(font_impl) = font_impl {
                 last_glyph.pos.x -= font_impl.pair_kerning(
+                    pixels_per_point,
                     prev_glyph_id,
                     glyph_alloc.id,
                     font_size,
-                    pixels_per_point,
                 );
             }
 
             // Replace the glyph:
             last_glyph.chr = overflow_character;
             let (font_impl, glyph_alloc) =
-                font.font_impl_and_glyph_alloc(last_glyph.chr, font_size, pixels_per_point);
+                font.font_impl_and_glyph_alloc(pixels_per_point, last_glyph.chr, font_size);
             last_glyph.advance_width = glyph_alloc.advance_width;
             last_glyph.font_impl_ascent = font_impl.map_or(0.0, |f| f.ascent(font_size));
             last_glyph.font_impl_height = font_impl.map_or(0.0, |f| f.row_height(font_size));
@@ -557,10 +557,10 @@ fn replace_last_glyph_with_overflow_character(
             last_glyph.pos.x += extra_letter_spacing;
             if let Some(font_impl) = font_impl {
                 last_glyph.pos.x += font_impl.pair_kerning(
+                    pixels_per_point,
                     prev_glyph_id,
                     glyph_alloc.id,
                     font_size,
-                    pixels_per_point,
                 );
             }
 
@@ -580,7 +580,7 @@ fn replace_last_glyph_with_overflow_character(
             // Just replace and be done with it.
             last_glyph.chr = overflow_character;
             let (font_impl, glyph_alloc) =
-                font.font_impl_and_glyph_alloc(last_glyph.chr, font_size, pixels_per_point);
+                font.font_impl_and_glyph_alloc(pixels_per_point, last_glyph.chr, font_size);
             last_glyph.advance_width = glyph_alloc.advance_width;
             last_glyph.font_impl_ascent = font_impl.map_or(0.0, |f| f.ascent(font_size));
             last_glyph.font_impl_height = font_impl.map_or(0.0, |f| f.row_height(font_size));
