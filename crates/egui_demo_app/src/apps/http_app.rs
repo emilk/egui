@@ -238,7 +238,7 @@ impl ColoredText {
     pub fn ui(&self, ui: &mut egui::Ui) {
         let mut job = self.0.clone();
         job.wrap.max_width = ui.available_width();
-        let galley = ui.fonts(|f| f.layout_job(job));
+        let galley = ui.fonts_mut(|f| f.layout_job(job));
         ui.add(egui::Label::new(galley).selectable(true));
     }
 }
