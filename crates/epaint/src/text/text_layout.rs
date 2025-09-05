@@ -68,7 +68,7 @@ impl Paragraph {
 ///
 /// In most cases you should use [`crate::FontsView::layout_job`] instead
 /// since that memoizes the input, making subsequent layouting of the same text much faster.
-pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>, pixels_per_point: f32) -> Galley {
+pub fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<LayoutJob>) -> Galley {
     profiling::function_scope!();
 
     if job.wrap.max_rows == 0 {
@@ -92,8 +92,8 @@ pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>, pixels_per_point: f32)
     for (section_index, section) in job.sections.iter().enumerate() {
         layout_section(
             fonts,
-            &job,
             pixels_per_point,
+            &job,
             section_index as u32,
             section,
             &mut paragraphs,
@@ -109,7 +109,7 @@ pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>, pixels_per_point: f32)
     if elided {
         if let Some(last_placed) = rows.last_mut() {
             let last_row = Arc::make_mut(&mut last_placed.row);
-            replace_last_glyph_with_overflow_character(fonts, &job, last_row, pixels_per_point);
+            replace_last_glyph_with_overflow_character(fonts, pixels_per_point, &job, last_row);
             if let Some(last) = last_row.glyphs.last() {
                 last_row.size.x = last.max_x();
             }
@@ -140,8 +140,8 @@ pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>, pixels_per_point: f32)
 // Ignores the Y coordinate.
 fn layout_section(
     fonts: &mut FontsImpl,
-    job: &LayoutJob,
     pixels_per_point: f32,
+    job: &LayoutJob,
     section_index: u32,
     section: &LayoutSection,
     out_paragraphs: &mut Vec<Paragraph>,
@@ -412,9 +412,9 @@ fn line_break(
 /// Called before we have any Y coordinates.
 fn replace_last_glyph_with_overflow_character(
     fonts: &mut FontsImpl,
+    pixels_per_point: f32,
     job: &LayoutJob,
     row: &mut Row,
-    pixels_per_point: f32,
 ) {
     fn row_width(row: &Row) -> f32 {
         if let (Some(first), Some(last)) = (row.glyphs.first(), row.glyphs.last()) {
@@ -1122,6 +1122,7 @@ mod tests {
 
     #[test]
     fn test_zero_max_width() {
+        let pixels_per_point = 1.0;
         let mut fonts = FontsImpl::new(
             1024,
             AlphaFromCoverage::default(),
@@ -1129,13 +1130,15 @@ mod tests {
         );
         let mut layout_job = LayoutJob::single_section("W".into(), TextFormat::default());
         layout_job.wrap.max_width = 0.0;
-        let galley = layout(&mut fonts, layout_job.into(), 1.0);
+        let galley = layout(&mut fonts, pixels_per_point, layout_job.into());
         assert_eq!(galley.rows.len(), 1);
     }
 
     #[test]
     fn test_truncate_with_newline() {
         // No matter where we wrap, we should be appending the newline character.
+
+        let pixels_per_point = 1.0;
 
         let mut fonts = FontsImpl::new(
             1024,
@@ -1156,7 +1159,7 @@ mod tests {
                     layout_job.wrap.max_rows = 1;
                     layout_job.wrap.break_anywhere = break_anywhere;
 
-                    let galley = layout(&mut fonts, layout_job.into(), 1.0);
+                    let galley = layout(&mut fonts, pixels_per_point, layout_job.into());
 
                     assert!(galley.elided);
                     assert_eq!(galley.rows.len(), 1);
@@ -1175,7 +1178,7 @@ mod tests {
             layout_job.wrap.max_rows = 1;
             layout_job.wrap.break_anywhere = false;
 
-            let galley = layout(&mut fonts, layout_job.into(), 1.0);
+            let galley = layout(&mut fonts, pixels_per_point, layout_job.into());
 
             assert!(galley.elided);
             assert_eq!(galley.rows.len(), 1);
@@ -1186,6 +1189,7 @@ mod tests {
 
     #[test]
     fn test_cjk() {
+        let pixels_per_point = 1.0;
         let mut fonts = FontsImpl::new(
             1024,
             AlphaFromCoverage::default(),
@@ -1196,7 +1200,7 @@ mod tests {
             TextFormat::default(),
         );
         layout_job.wrap.max_width = 90.0;
-        let galley = layout(&mut fonts, layout_job.into(), 1.0);
+        let galley = layout(&mut fonts, pixels_per_point, layout_job.into());
         assert_eq!(
             galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>(),
             vec!["日本語と", "Englishの混在", "した文章"]
@@ -1205,6 +1209,7 @@ mod tests {
 
     #[test]
     fn test_pre_cjk() {
+        let pixels_per_point = 1.0;
         let mut fonts = FontsImpl::new(
             1024,
             AlphaFromCoverage::default(),
@@ -1215,7 +1220,7 @@ mod tests {
             TextFormat::default(),
         );
         layout_job.wrap.max_width = 110.0;
-        let galley = layout(&mut fonts, layout_job.into(), 1.0);
+        let galley = layout(&mut fonts, pixels_per_point, layout_job.into());
         assert_eq!(
             galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>(),
             vec!["日本語とEnglish", "の混在した文章"]
@@ -1224,6 +1229,7 @@ mod tests {
 
     #[test]
     fn test_truncate_width() {
+        let pixels_per_point = 1.0;
         let mut fonts = FontsImpl::new(
             1024,
             AlphaFromCoverage::default(),
@@ -1234,7 +1240,7 @@ mod tests {
         layout_job.wrap.max_width = f32::INFINITY;
         layout_job.wrap.max_rows = 1;
         layout_job.round_output_to_gui = false;
-        let galley = layout(&mut fonts, layout_job.into(), 1.0);
+        let galley = layout(&mut fonts, pixels_per_point, layout_job.into());
         assert!(galley.elided);
         assert_eq!(
             galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>(),
@@ -1247,6 +1253,7 @@ mod tests {
 
     #[test]
     fn test_empty_row() {
+        let pixels_per_point = 1.0;
         let mut fonts = FontsImpl::new(
             1024,
             AlphaFromCoverage::default(),
@@ -1258,7 +1265,7 @@ mod tests {
 
         let job = LayoutJob::simple(String::new(), font_id, Color32::WHITE, f32::INFINITY);
 
-        let galley = layout(&mut fonts, job.into(), 1.0);
+        let galley = layout(&mut fonts, pixels_per_point, job.into());
 
         assert_eq!(galley.rows.len(), 1, "Expected one row");
         assert_eq!(
@@ -1280,6 +1287,7 @@ mod tests {
 
     #[test]
     fn test_end_with_newline() {
+        let pixels_per_point = 1.0;
         let mut fonts = FontsImpl::new(
             1024,
             AlphaFromCoverage::default(),
@@ -1291,7 +1299,7 @@ mod tests {
 
         let job = LayoutJob::simple("Hi!\n".to_owned(), font_id, Color32::WHITE, f32::INFINITY);
 
-        let galley = layout(&mut fonts, job.into(), 1.0);
+        let galley = layout(&mut fonts, pixels_per_point, job.into());
 
         assert_eq!(galley.rows.len(), 2, "Expected two rows");
         assert_eq!(

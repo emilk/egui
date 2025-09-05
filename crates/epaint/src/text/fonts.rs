@@ -691,8 +691,8 @@ impl FontsView<'_> {
         let allow_split_paragraphs = true; // Optimization for editing text with many paragraphs.
         self.galley_cache.layout(
             self.fonts,
-            job,
             self.pixels_per_point,
+            job,
             allow_split_paragraphs,
         )
     }
@@ -923,7 +923,7 @@ impl GalleyCache {
                     );
                     galley
                 } else {
-                    let galley = super::layout(fonts, job, pixels_per_point);
+                    let galley = super::layout(fonts, pixels_per_point, job);
                     let galley = Arc::new(galley);
                     entry.insert(CachedGalley {
                         last_used: self.generation,
@@ -941,8 +941,8 @@ impl GalleyCache {
     fn layout(
         &mut self,
         fonts: &mut FontsImpl,
-        job: LayoutJob,
         pixels_per_point: f32,
+        job: LayoutJob,
         allow_split_paragraphs: bool,
     ) -> Arc<Galley> {
         self.layout_internal(fonts, job, pixels_per_point, allow_split_paragraphs)
@@ -1201,11 +1201,19 @@ mod tests {
                         job.halign = halign;
                         job.justify = justify;
 
-                        let whole =
-                            GalleyCache::default().layout(&mut fonts, job.clone(), 1., false);
+                        let whole = GalleyCache::default().layout(
+                            &mut fonts,
+                            pixels_per_point,
+                            job.clone(),
+                            false,
+                        );
 
-                        let split =
-                            GalleyCache::default().layout(&mut fonts, job.clone(), 1., true);
+                        let split = GalleyCache::default().layout(
+                            &mut fonts,
+                            pixels_per_point,
+                            job.clone(),
+                            true,
+                        );
 
                         for (i, row) in whole.rows.iter().enumerate() {
                             println!(
@@ -1257,12 +1265,12 @@ mod tests {
                         job.round_output_to_gui = round_output_to_gui;
 
                         let galley_wrapped =
-                            layout(&mut fonts, job.clone().into(), pixels_per_point);
+                            layout(&mut fonts, pixels_per_point, job.clone().into());
 
                         job.wrap = TextWrapping::no_max_width();
 
                         let text = job.text.clone();
-                        let galley_unwrapped = layout(&mut fonts, job.into(), pixels_per_point);
+                        let galley_unwrapped = layout(&mut fonts, pixels_per_point, job.into());
 
                         let intrinsic_size = galley_wrapped.intrinsic_size();
                         let unwrapped_size = galley_unwrapped.size();
