@@ -3,7 +3,10 @@
 //! This module converts lines, circles, text and more represented by [`Shape`]
 //! into textured triangles represented by [`Mesh`].
 
-#![allow(clippy::identity_op)]
+#![allow(
+    clippy::identity_op,
+    reason = "identity operations make mathematical code clearer"
+)]
 
 use emath::{GuiRounding as _, NumExt as _, Pos2, Rect, Rot2, Vec2, pos2, remap, vec2};
 
@@ -16,7 +19,10 @@ use crate::{
 
 // ----------------------------------------------------------------------------
 
-#[expect(clippy::approx_constant)]
+#[expect(
+    clippy::approx_constant,
+    reason = "Value is part of a mixed list where not all constants are defined, so using a named constant would hurt readability"
+)]
 mod precomputed_vertices {
     // fn main() {
     //     let n = 64;
@@ -2208,7 +2214,11 @@ impl Tessellator {
     ///
     /// ## Returns
     /// A list of clip rectangles with matching [`Mesh`].
-    #[allow(unused_mut, clippy::allow_attributes)]
+    #[allow(
+        unused_mut,
+        clippy::allow_attributes,
+        reason = "mut needed for feature-dependent code"
+    )]
     pub fn tessellate_shapes(&mut self, mut shapes: Vec<ClippedShape>) -> Vec<ClippedPrimitive> {
         profiling::function_scope!();
 

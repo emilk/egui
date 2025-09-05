@@ -1,5 +1,8 @@
-#![allow(clippy::collapsible_else_if)]
-#![allow(unsafe_code)]
+#![allow(
+    clippy::collapsible_else_if,
+    reason = "Collapsing would make the logic less clear"
+)]
+#![allow(unsafe_code, reason = "OpenGL requires unsafe code for performance")]
 
 use std::{collections::HashMap, sync::Arc};
 
@@ -290,7 +293,7 @@ impl Painter {
     /// So if in a [`egui::Shape::Callback`] you need to use an offscreen FBO, you should
     /// then restore to this afterwards with
     /// `gl.bind_framebuffer(glow::FRAMEBUFFER, painter.intermediate_fbo());`
-    #[expect(clippy::unused_self)]
+    #[expect(clippy::unused_self, reason = "Consistent API design")]
     pub fn intermediate_fbo(&self) -> Option<glow::Framebuffer> {
         // We don't currently ever render to an offscreen buffer,
         // but we may want to start to in order to do anti-aliasing on web, for instance.
@@ -698,7 +701,10 @@ impl Painter {
     unsafe fn destroy_gl(&self) {
         unsafe {
             self.gl.delete_program(self.program);
-            #[expect(clippy::iter_over_hash_type)]
+            #[expect(
+                clippy::iter_over_hash_type,
+                reason = "Iteration order not important here"
+            )]
             for tex in self.textures.values() {
                 self.gl.delete_texture(*tex);
             }

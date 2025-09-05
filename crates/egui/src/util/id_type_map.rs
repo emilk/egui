@@ -467,7 +467,11 @@ impl IdTypeMap {
 
     /// For tests
     #[cfg(feature = "persistence")]
-    #[allow(unused, clippy::allow_attributes)]
+    #[allow(
+        unused,
+        clippy::allow_attributes,
+        reason = "Test method may be unused in some builds"
+    )]
     fn get_generation<T: SerializableAny>(&self, id: Id) -> Option<usize> {
         let element = self.map.get(&hash(TypeId::of::<T>(), id))?;
         match element {
@@ -574,7 +578,10 @@ struct PersistedMap(Vec<(u64, SerializedElement)>);
 #[cfg(feature = "persistence")]
 impl PersistedMap {
     fn from_map(map: &IdTypeMap) -> Self {
-        #![expect(clippy::iter_over_hash_type)] // the serialized order doesn't matter
+        #![expect(
+            clippy::iter_over_hash_type,
+            reason = "the serialized order doesn't matter"
+        )] // the serialized order doesn't matter
 
         profiling::function_scope!();
 
@@ -707,7 +714,7 @@ fn test_two_id_two_type() {
 
 #[test]
 fn test_two_id_x_two_types() {
-    #![allow(clippy::approx_constant)]
+    #![allow(clippy::approx_constant, reason = "Exact values are intentional")]
 
     let a = Id::new("a");
     let b = Id::new("b");

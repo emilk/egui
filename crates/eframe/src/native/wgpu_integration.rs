@@ -236,7 +236,7 @@ impl<'app> WgpuWinitApp<'app> {
             });
         }
 
-        #[allow(unused_mut, clippy::allow_attributes)] // used for accesskit
+        #[allow(unused_mut, clippy::allow_attributes, reason = "used for accesskit")]
         let mut egui_winit = egui_winit::State::new(
             egui_ctx.clone(),
             ViewportId::ROOT,

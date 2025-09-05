@@ -91,7 +91,7 @@ pub struct CreationContext<'s> {
     pub(crate) raw_display_handle: Result<RawDisplayHandle, HandleError>,
 }
 
-#[expect(unsafe_code)]
+#[expect(unsafe_code, reason = "Required for low-level operations")]
 #[cfg(not(target_arch = "wasm32"))]
 impl HasWindowHandle for CreationContext<'_> {
     fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
@@ -100,7 +100,7 @@ impl HasWindowHandle for CreationContext<'_> {
     }
 }
 
-#[expect(unsafe_code)]
+#[expect(unsafe_code, reason = "Required for low-level operations")]
 #[cfg(not(target_arch = "wasm32"))]
 impl HasDisplayHandle for CreationContext<'_> {
     fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
@@ -666,7 +666,7 @@ pub struct Frame {
 #[cfg(not(target_arch = "wasm32"))]
 assert_not_impl_any!(Frame: Clone);
 
-#[expect(unsafe_code)]
+#[expect(unsafe_code, reason = "Required for low-level operations")]
 #[cfg(not(target_arch = "wasm32"))]
 impl HasWindowHandle for Frame {
     fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
@@ -675,7 +675,7 @@ impl HasWindowHandle for Frame {
     }
 }
 
-#[expect(unsafe_code)]
+#[expect(unsafe_code, reason = "Required for low-level operations")]
 #[cfg(not(target_arch = "wasm32"))]
 impl HasDisplayHandle for Frame {
     fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
@@ -707,7 +707,7 @@ impl Frame {
     /// True if you are in a web environment.
     ///
     /// Equivalent to `cfg!(target_arch = "wasm32")`
-    #[expect(clippy::unused_self)]
+    #[expect(clippy::unused_self, reason = "Consistent API design")]
     pub fn is_web(&self) -> bool {
         cfg!(target_arch = "wasm32")
     }

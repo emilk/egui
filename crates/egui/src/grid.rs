@@ -184,7 +184,7 @@ impl GridLayout {
         Rect::from_min_size(cursor.min, size).round_ui()
     }
 
-    #[expect(clippy::unused_self)]
+    #[expect(clippy::unused_self, reason = "Consistent API design")]
     pub(crate) fn align_size_within_rect(&self, size: Vec2, frame: Rect) -> Rect {
         // TODO(emilk): allow this alignment to be customized
         Align2::LEFT_CENTER

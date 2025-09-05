@@ -879,7 +879,10 @@ fn mask_if_password(is_password: bool, text: &str) -> String {
 // ----------------------------------------------------------------------------
 
 /// Check for (keyboard) events to edit the cursor and/or text.
-#[expect(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Complex widget needs many parameters"
+)]
 fn events(
     ui: &crate::Ui,
     state: &mut TextEditState,

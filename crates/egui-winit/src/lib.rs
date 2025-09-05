@@ -7,7 +7,10 @@
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!
 
-#![allow(clippy::manual_range_contains)]
+#![allow(
+    clippy::manual_range_contains,
+    reason = "manual range contains is sometimes clearer than using contains method"
+)]
 
 #[cfg(feature = "accesskit")]
 pub use accesskit_winit;
@@ -827,7 +830,7 @@ impl State {
         window: &Window,
         platform_output: egui::PlatformOutput,
     ) {
-        #![allow(deprecated)]
+        #![allow(deprecated, reason = "Maintaining backwards compatibility")]
         profiling::function_scope!();
 
         let egui::PlatformOutput {

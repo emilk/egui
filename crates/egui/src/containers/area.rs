@@ -630,7 +630,7 @@ impl Prepared {
         self.move_response.id
     }
 
-    #[expect(clippy::needless_pass_by_value)] // intentional to swallow up `content_ui`.
+    #[expect(clippy::needless_pass_by_value, reason = "Consistent API design")] // intentional to swallow up `content_ui`.
     pub(crate) fn end(self, ctx: &Context, content_ui: Ui) -> Response {
         let Self {
             info: _,

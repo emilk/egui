@@ -48,7 +48,11 @@ impl WgpuSetup {
     pub async fn new_instance(&self) -> wgpu::Instance {
         match self {
             Self::CreateNew(create_new) => {
-                #[allow(unused_mut, clippy::allow_attributes)]
+                #[allow(
+                    unused_mut,
+                    clippy::allow_attributes,
+                    reason = "Mut may not be used in all configurations"
+                )]
                 let mut backends = create_new.instance_descriptor.backends;
 
                 // Don't try WebGPU if we're not in a secure context.

@@ -251,7 +251,10 @@ impl GraphicLayers {
             // Also draw areas that are missing in `area_order`:
             // NOTE: We don't think we end up here in normal situations.
             // This is just a safety net in case we have some bug somewhere.
-            #[expect(clippy::iter_over_hash_type)]
+            #[expect(
+                clippy::iter_over_hash_type,
+                reason = "Iteration order not important here"
+            )]
             for (id, list) in order_map {
                 let layer_id = LayerId::new(order, *id);
 

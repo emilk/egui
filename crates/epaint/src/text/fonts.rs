@@ -1172,7 +1172,7 @@ mod tests {
         ]
     }
 
-    #[expect(clippy::print_stdout)]
+    #[expect(clippy::print_stdout, reason = "Acceptable for test code")]
     #[test]
     fn test_split_paragraphs() {
         for pixels_per_point in [1.0, 2.0_f32.sqrt(), 2.0] {

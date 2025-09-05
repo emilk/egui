@@ -8,9 +8,18 @@
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!
 
-#![allow(clippy::float_cmp)]
-#![allow(clippy::manual_range_contains)]
-#![allow(clippy::undocumented_unsafe_blocks)]
+#![allow(
+    clippy::float_cmp,
+    reason = "float_cmp is acceptable in egui for fast approximate operations"
+)]
+#![allow(
+    clippy::manual_range_contains,
+    reason = "manual range contains is sometimes clearer than using contains method"
+)]
+#![allow(
+    clippy::undocumented_unsafe_blocks,
+    reason = "Documenting all unsafe blocks would be verbose for GL bindings"
+)]
 
 pub mod painter;
 pub use glow;
@@ -69,7 +78,7 @@ macro_rules! check_for_gl_error_even_in_release {
 #[doc(hidden)]
 pub fn check_for_gl_error_impl(gl: &glow::Context, file: &str, line: u32, context: &str) {
     use glow::HasContext as _;
-    #[expect(unsafe_code)]
+    #[expect(unsafe_code, reason = "Required for low-level operations")]
     let error_code = unsafe { gl.get_error() };
     if error_code != glow::NO_ERROR {
         let error_str = match error_code {

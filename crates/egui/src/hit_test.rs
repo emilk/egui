@@ -201,7 +201,10 @@ fn contains_circle(interact_rect: emath::Rect, pos: Pos2, radius: f32) -> bool {
 }
 
 fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
-    #![allow(clippy::collapsible_else_if)]
+    #![allow(
+        clippy::collapsible_else_if,
+        reason = "Separate conditions are clearer"
+    )]
 
     // First find the best direct hits:
     let hit_click = find_closest_within(
@@ -468,7 +471,7 @@ fn should_prioritize_hits_on_back(back: Rect, front: Rect) -> bool {
 
 #[cfg(test)]
 mod tests {
-    #![expect(clippy::print_stdout)]
+    #![expect(clippy::print_stdout, reason = "Test utility function")]
 
     use emath::{Rect, pos2, vec2};
 

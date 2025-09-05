@@ -1,4 +1,4 @@
-#[expect(unused_imports)]
+#[expect(unused_imports, reason = "Used for doclinks")]
 use crate::{Ui, UiBuilder};
 use std::sync::atomic::AtomicBool;
 

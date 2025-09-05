@@ -1,4 +1,7 @@
-#![allow(clippy::needless_pass_by_value)] // False positives with `impl ToString`
+#![allow(
+    clippy::needless_pass_by_value,
+    reason = "False positives with impl ToString"
+)] // False positives with `impl ToString`
 
 use std::ops::RangeInclusive;
 

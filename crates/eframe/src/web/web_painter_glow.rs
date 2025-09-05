@@ -28,7 +28,11 @@ impl WebPainterGlow {
         let (gl, shader_prefix) =
             init_glow_context_from_canvas(&canvas, options.webgl_context_option)?;
 
-        #[allow(clippy::arc_with_non_send_sync, clippy::allow_attributes)] // For wasm
+        #[allow(
+            clippy::arc_with_non_send_sync,
+            clippy::allow_attributes,
+            reason = "For wasm"
+        )] // For wasm
         let gl = std::sync::Arc::new(gl);
 
         let painter = egui_glow::Painter::new(gl, shader_prefix, None, options.dithering)

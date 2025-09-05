@@ -5,7 +5,11 @@ use crate::{App, epi};
 use super::{NeedRepaint, now_sec, text_agent::TextAgent, web_painter::WebPainter as _};
 
 pub struct AppRunner {
-    #[allow(dead_code, clippy::allow_attributes)]
+    #[allow(
+        dead_code,
+        clippy::allow_attributes,
+        reason = "We need to keep this field"
+    )]
     pub(crate) web_options: crate::WebOptions,
     pub(crate) frame: epi::Frame,
     egui_ctx: egui::Context,
@@ -304,7 +308,7 @@ impl AppRunner {
     }
 
     fn handle_platform_output(&self, platform_output: egui::PlatformOutput) {
-        #![allow(deprecated)]
+        #![allow(deprecated, reason = "Maintaining backwards compatibility")]
 
         #[cfg(feature = "web_screen_reader")]
         if self.egui_ctx.options(|o| o.screen_reader) {

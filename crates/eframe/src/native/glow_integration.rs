@@ -5,7 +5,10 @@
 //! There is a bunch of improvements we could do,
 //! like removing a bunch of `unwraps`.
 
-#![allow(clippy::undocumented_unsafe_blocks)]
+#![allow(
+    clippy::undocumented_unsafe_blocks,
+    reason = "Documenting all unsafe blocks would be verbose"
+)]
 
 use std::{cell::RefCell, num::NonZeroU32, rc::Rc, sync::Arc, time::Instant};
 
@@ -139,7 +142,7 @@ impl<'app> GlowWinitApp<'app> {
         }
     }
 
-    #[expect(unsafe_code)]
+    #[expect(unsafe_code, reason = "Required for low-level operations")]
     fn create_glutin_windowed_context(
         egui_ctx: &egui::Context,
         event_loop: &ActiveEventLoop,
@@ -905,7 +908,7 @@ fn change_gl_context(
 }
 
 impl GlutinWindowContext {
-    #[expect(unsafe_code)]
+    #[expect(unsafe_code, reason = "Required for low-level operations")]
     unsafe fn new(
         egui_ctx: &egui::Context,
         viewport_builder: ViewportBuilder,
@@ -1099,7 +1102,7 @@ impl GlutinWindowContext {
     }
 
     /// Create a surface, window, and winit integration for the viewport, if missing.
-    #[expect(unsafe_code)]
+    #[expect(unsafe_code, reason = "Required for low-level operations")]
     pub(crate) fn initialize_window(
         &mut self,
         viewport_id: ViewportId,
@@ -1572,6 +1575,6 @@ fn save_screenshot_and_exit(
     });
     log::info!("Screenshot saved to {path:?}.");
 
-    #[expect(clippy::exit)]
+    #[expect(clippy::exit, reason = "Exiting after screenshot")]
     std::process::exit(0);
 }

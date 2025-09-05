@@ -1,4 +1,8 @@
-#![expect(deprecated, clippy::new_ret_no_self)]
+#![expect(
+    deprecated,
+    clippy::new_ret_no_self,
+    reason = "Legacy API compatibility"
+)]
 
 use crate::WidgetText;
 

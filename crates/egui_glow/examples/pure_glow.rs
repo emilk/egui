@@ -1,9 +1,12 @@
 //! Example how to use pure `egui_glow`.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![allow(rustdoc::missing_crate_level_docs)] // it's an example
-#![allow(clippy::undocumented_unsafe_blocks)]
-#![allow(unsafe_code)]
+#![allow(rustdoc::missing_crate_level_docs, reason = "its an example")] // it's an example
+#![allow(
+    clippy::undocumented_unsafe_blocks,
+    reason = "Documenting all unsafe blocks would be verbose"
+)]
+#![allow(unsafe_code, reason = "Required for low-level operations")]
 
 use std::num::NonZeroU32;
 use std::sync::Arc;
@@ -22,7 +25,7 @@ struct GlutinWindowContext {
 impl GlutinWindowContext {
     // refactor this function to use `glutin-winit` crate eventually.
     // preferably add android support at the same time.
-    #[expect(unsafe_code)]
+    #[expect(unsafe_code, reason = "Required for low-level operations")]
     unsafe fn new(event_loop: &winit::event_loop::ActiveEventLoop) -> Self {
         use glutin::context::NotCurrentGlContext as _;
         use glutin::display::GetGlDisplay as _;

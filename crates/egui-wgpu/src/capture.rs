@@ -126,7 +126,11 @@ impl CaptureState {
         // It would be more efficient to reuse the Buffer, e.g. via some kind of ring buffer, but
         // for most screenshot use cases this should be fine. When taking many screenshots (e.g. for a video)
         // it might make sense to revisit this and implement a more efficient solution.
-        #[allow(clippy::arc_with_non_send_sync, clippy::allow_attributes)] // For wasm
+        #[allow(
+            clippy::arc_with_non_send_sync,
+            clippy::allow_attributes,
+            reason = "For wasm"
+        )] // For wasm
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("egui_screen_capture_buffer"),
             size: (self.padding.padded_bytes_per_row * self.texture.height()) as u64,
@@ -185,7 +189,11 @@ impl CaptureState {
         tx: CaptureSender,
         viewport_id: ViewportId,
     ) {
-        #[allow(clippy::arc_with_non_send_sync, clippy::allow_attributes)] // For wasm
+        #[allow(
+            clippy::arc_with_non_send_sync,
+            clippy::allow_attributes,
+            reason = "For wasm"
+        )] // For wasm
         let buffer = Arc::new(buffer);
         let buffer_clone = buffer.clone();
         let buffer_slice = buffer_clone.slice(..);

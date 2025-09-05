@@ -1,6 +1,9 @@
 //! [`egui`] bindings for web apps (compiling to WASM).
 
-#![allow(clippy::missing_errors_doc)] // So many `-> Result<_, JsValue>`
+#![allow(
+    clippy::missing_errors_doc,
+    reason = "Internal API, errors are self-explanatory"
+)] // So many `-> Result<_, JsValue>`
 
 mod app_runner;
 mod backend;
@@ -289,7 +292,7 @@ fn create_clipboard_item(mime: &str, bytes: &[u8]) -> Result<web_sys::ClipboardI
     let items = js_sys::Object::new();
 
     // SAFETY: I hope so
-    #[expect(unsafe_code, unused_unsafe)] // Weird false positive
+    #[expect(unsafe_code, unused_unsafe, reason = "Weird false positive")]
     unsafe {
         js_sys::Reflect::set(&items, &JsValue::from_str(mime), &blob)?
     };

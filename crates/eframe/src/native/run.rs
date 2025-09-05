@@ -344,7 +344,7 @@ pub fn run_glow(
     mut native_options: epi::NativeOptions,
     app_creator: epi::AppCreator<'_>,
 ) -> Result {
-    #![allow(clippy::needless_return_with_question_mark)] // False positive
+    #![allow(clippy::needless_return_with_question_mark, reason = "False positive")]
 
     use super::glow_integration::GlowWinitApp;
 
@@ -382,7 +382,7 @@ pub fn run_wgpu(
     mut native_options: epi::NativeOptions,
     app_creator: epi::AppCreator<'_>,
 ) -> Result {
-    #![allow(clippy::needless_return_with_question_mark)] // False positive
+    #![allow(clippy::needless_return_with_question_mark, reason = "False positive")]
 
     use super::wgpu_integration::WgpuWinitApp;
 

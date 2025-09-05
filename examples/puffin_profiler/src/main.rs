@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![allow(rustdoc::missing_crate_level_docs)] // it's an example
+#![allow(rustdoc::missing_crate_level_docs, reason = "it's an example")]
 
 use std::sync::{
     Arc,
@@ -12,7 +12,7 @@ fn main() -> eframe::Result {
     let rust_log = std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_owned());
 
     // SAFETY: we call this from the main thread without any other threads running.
-    #[expect(unsafe_code)]
+    #[expect(unsafe_code, reason = "We are setting an environment variable")]
     unsafe {
         std::env::set_var("RUST_LOG", rust_log);
     };
@@ -171,7 +171,7 @@ fn start_puffin_server() {
 
             // We can store the server if we want, but in this case we just want
             // it to keep running. Dropping it closes the server, so let's not drop it!
-            #[expect(clippy::mem_forget)]
+            #[expect(clippy::mem_forget, reason = "We want the server to keep running")]
             std::mem::forget(puffin_server);
         }
         Err(err) => {

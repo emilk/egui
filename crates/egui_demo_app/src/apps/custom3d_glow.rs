@@ -1,4 +1,7 @@
-#![allow(clippy::undocumented_unsafe_blocks)]
+#![allow(
+    clippy::undocumented_unsafe_blocks,
+    reason = "Documenting all unsafe blocks would be verbose"
+)]
 
 use std::sync::Arc;
 
@@ -80,7 +83,7 @@ struct RotatingTriangle {
     vertex_array: glow::VertexArray,
 }
 
-#[expect(unsafe_code)] // we need unsafe code to use glow
+#[expect(unsafe_code, reason = "Required for low-level operations")] // we need unsafe code to use glow
 impl RotatingTriangle {
     fn new(gl: &glow::Context) -> Option<Self> {
         use glow::HasContext as _;

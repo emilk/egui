@@ -1,4 +1,4 @@
-#![allow(unsafe_code)]
+#![allow(unsafe_code, reason = "Required for low-level operations")]
 
 use std::{borrow::Cow, num::NonZeroU64, ops::Range};
 
@@ -740,7 +740,7 @@ impl Renderer {
     ///
     /// The texture must have the format [`wgpu::TextureFormat::Rgba8Unorm`].
     /// Any compare function supplied in the [`wgpu::SamplerDescriptor`] will be ignored.
-    #[expect(clippy::needless_pass_by_value)] // false positive
+    #[expect(clippy::needless_pass_by_value, reason = "Consistent API design")] // false positive
     pub fn register_native_texture_with_sampler_options(
         &mut self,
         device: &wgpu::Device,
@@ -787,7 +787,7 @@ impl Renderer {
     /// [`wgpu::SamplerDescriptor`] options.
     ///
     /// This allows applications to reuse [`epaint::TextureId`]s created with custom sampler options.
-    #[expect(clippy::needless_pass_by_value)] // false positive
+    #[expect(clippy::needless_pass_by_value, reason = "Consistent API design")] // false positive
     pub fn update_egui_texture_from_wgpu_texture_with_sampler_options(
         &mut self,
         device: &wgpu::Device,

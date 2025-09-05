@@ -1,4 +1,7 @@
-#![expect(deprecated)] // This is a new, safe wrapper around the old `Memory::popup` API.
+#![expect(
+    deprecated,
+    reason = "This is a new, safe wrapper around the old Memory::popup API"
+)] // This is a new, safe wrapper around the old `Memory::popup` API.
 
 use std::iter::once;
 
@@ -472,7 +475,10 @@ impl<'a> Popup<'a> {
         };
 
         RectAlign::find_best_align(
-            #[expect(clippy::iter_on_empty_collections)]
+            #[expect(
+                clippy::iter_on_empty_collections,
+                reason = "Cleaner than checking if empty first"
+            )]
             once(self.rect_align).chain(
                 self.alternative_aligns
                     // Need the empty slice so the iters have the same type so we can unwrap_or

@@ -48,7 +48,7 @@ impl Default for WidgetGallery {
 }
 
 impl WidgetGallery {
-    #[allow(unused_mut, clippy::allow_attributes)] // if not chrono
+    #[allow(unused_mut, clippy::allow_attributes, reason = "if not chrono")] // if not chrono
     #[inline]
     pub fn with_date_button(mut self, _with_date_button: bool) -> Self {
         #[cfg(feature = "chrono")]

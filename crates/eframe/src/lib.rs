@@ -69,7 +69,7 @@
 //! #[wasm_bindgen]
 //! impl WebHandle {
 //!     /// Installs a panic hook, then returns.
-//!     #[expect(clippy::new_without_default)]
+//!     #[expect(clippy::new_without_default, reason = "Default may not be meaningful")]
 //!     #[wasm_bindgen(constructor)]
 //!     pub fn new() -> Self {
 //!         // Redirect [`log`] message to `console.log` and friends:
@@ -142,7 +142,10 @@
 //!
 
 #![warn(missing_docs)] // let's keep eframe well-documented
-#![allow(clippy::needless_doctest_main)]
+#![allow(
+    clippy::needless_doctest_main,
+    reason = "We want to correctly explain how to use"
+)]
 
 // Limitation imposed by `accesskit_winit`:
 // https://github.com/AccessKit/accesskit/tree/accesskit-v0.18.0/platforms/winit#android-activity-compatibility`
@@ -253,7 +256,11 @@ pub mod icon_data;
 /// This function can fail if we fail to set up a graphics context.
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu"))]
-#[allow(clippy::needless_pass_by_value, clippy::allow_attributes)]
+#[allow(
+    clippy::needless_pass_by_value,
+    clippy::allow_attributes,
+    reason = "Old convention"
+)]
 pub fn run_native(
     app_name: &str,
     mut native_options: NativeOptions,

@@ -187,7 +187,7 @@ impl PlatformOutput {
 
     /// Add on new output.
     pub fn append(&mut self, newer: Self) {
-        #![allow(deprecated)]
+        #![allow(deprecated, reason = "Maintaining backwards compatibility")]
 
         let Self {
             mut commands,
@@ -254,7 +254,7 @@ pub struct OpenUrl {
 }
 
 impl OpenUrl {
-    #[expect(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value, reason = "Consistent API design")]
     pub fn same_tab(url: impl ToString) -> Self {
         Self {
             url: url.to_string(),
@@ -262,7 +262,7 @@ impl OpenUrl {
         }
     }
 
-    #[expect(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value, reason = "Consistent API design")]
     pub fn new_tab(url: impl ToString) -> Self {
         Self {
             url: url.to_string(),
@@ -609,7 +609,7 @@ impl WidgetInfo {
         }
     }
 
-    #[expect(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value, reason = "Consistent API design")]
     pub fn labeled(typ: WidgetType, enabled: bool, label: impl ToString) -> Self {
         Self {
             enabled,
@@ -619,7 +619,7 @@ impl WidgetInfo {
     }
 
     /// checkboxes, radio-buttons etc
-    #[expect(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value, reason = "Consistent API design")]
     pub fn selected(typ: WidgetType, enabled: bool, selected: bool, label: impl ToString) -> Self {
         Self {
             enabled,
@@ -637,7 +637,7 @@ impl WidgetInfo {
         }
     }
 
-    #[expect(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value, reason = "Consistent API design")]
     pub fn slider(enabled: bool, value: f64, label: impl ToString) -> Self {
         let label = label.to_string();
         Self {
@@ -648,7 +648,7 @@ impl WidgetInfo {
         }
     }
 
-    #[expect(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value, reason = "Consistent API design")]
     pub fn text_edit(
         enabled: bool,
         prev_text_value: impl ToString,
@@ -672,7 +672,7 @@ impl WidgetInfo {
         }
     }
 
-    #[expect(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value, reason = "Consistent API design")]
     pub fn text_selection_changed(
         enabled: bool,
         text_selection: std::ops::RangeInclusive<usize>,

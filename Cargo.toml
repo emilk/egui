@@ -146,6 +146,7 @@ broken_intra_doc_links = "warn"
 all = { level = "warn", priority = -1 }
 
 allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
 as_ptr_cast_mut = "warn"
 await_holding_lock = "warn"
 bool_to_int_with_if = "warn"
