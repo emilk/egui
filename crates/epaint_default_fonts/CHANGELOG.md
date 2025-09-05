@@ -5,6 +5,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.32.2 - 2025-09-04
+Nothing new
+
+
 ## 0.32.1 - 2025-08-15
 Nothing new
 
