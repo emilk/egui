@@ -865,6 +865,7 @@ fn install_gesture(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), J
     Ok(())
 }
 
+#[expect(clippy::needless_pass_by_value)] // So that we can pass it directly to `add_event_listener`
 fn handle_gesture(event: web_sys::Event, runner: &mut AppRunner) {
     // GestureEvent is a non-standard API, so this attempts to get the relevant fields if they exist.
     let new_scale = Reflect::get(&event, &JsValue::from_str("scale"))

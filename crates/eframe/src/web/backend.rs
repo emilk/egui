@@ -16,6 +16,7 @@ pub(crate) struct WebInput {
 
     /// Helps to track the delta scale from gesture events
     pub accumulated_scale: f32,
+
     /// Helps to track the delta rotation from gesture events
     pub accumulated_rotation: f32,
 
