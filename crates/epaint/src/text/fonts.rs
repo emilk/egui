@@ -930,7 +930,7 @@ impl GalleyCache {
                 } else {
                     // Section range overlaps with paragraph range
                     debug_assert!(
-                        section_range.start < section_range.end,
+                        section_range.start <= section_range.end,
                         "Bad byte_range: {section_range:?}"
                     );
                     let new_range = section_range.start.saturating_sub(start)
@@ -1160,6 +1160,13 @@ mod tests {
                     },
                 );
 
+                job
+            },
+            {
+                // Regression test for <https://github.com/emilk/egui/issues/7378>
+                let mut job = LayoutJob::default();
+                job.append("\n", 0.0, TextFormat::default());
+                job.append("", 0.0, TextFormat::default());
                 job
             },
         ]
