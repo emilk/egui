@@ -440,25 +440,12 @@ impl Font<'_> {
     }
 
     #[inline]
-    pub(crate) fn font_impl_and_glyph_info(
-        &mut self,
-        c: char,
-    ) -> (Option<&mut FontImpl>, GlyphInfo) {
-        if self.cached_family.fonts.is_empty() {
-            return (None, self.cached_family.replacement_glyph.1);
-        }
-        let (key, glyph_info) = self.glyph_info(c);
-        let font_impl = self.fonts_by_id.get_mut(&key).expect("Nonexistent font ID");
-        (Some(font_impl), glyph_info)
-    }
-
-    #[inline]
     pub(crate) fn font_impl_and_glyph_alloc(
         &mut self,
         pixels_per_point: f32,
         c: char,
         font_size: f32,
-    ) -> (Option<&FontImpl>, GlyphAllocation) {
+    ) -> (Option<&mut FontImpl>, GlyphAllocation) {
         if self.cached_family.fonts.is_empty() {
             return (None, Default::default());
         }
