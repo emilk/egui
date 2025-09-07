@@ -229,22 +229,14 @@ impl FontImpl {
             / pixels_per_point
     }
 
-    /// Height of one row of text in points.
-    ///
-    /// Returns a value rounded to [`emath::GUI_ROUNDING`].
     #[inline(always)]
-    pub fn row_height(&self, font_size: f32) -> f32 {
+    pub fn scaled_metrics(&self, font_size: f32) -> ScaledMetrics {
         let font = self.ab_glyph_font.pt_scaled(font_size);
-
-        font.ascent().round_ui() - font.descent().round_ui() + font.line_gap().round_ui()
-    }
-
-    /// This is the distance from the top to the baseline.
-    ///
-    /// Unit: points.
-    #[inline(always)]
-    pub fn ascent(&self, font_size: f32) -> f32 {
-        self.ab_glyph_font.pt_scaled(font_size).ascent().round_ui()
+        ScaledMetrics {
+            ascent: font.ascent().round_ui(),
+            row_height: font.ascent().round_ui() - font.descent().round_ui()
+                + font.line_gap().round_ui(),
+        }
     }
 
     pub fn allocate_glyph(
@@ -384,20 +376,13 @@ impl Font<'_> {
         })
     }
 
-    /// Height of one row of text. In points.
-    ///
-    /// Returns a value rounded to [`emath::GUI_ROUNDING`].
-    #[inline(always)]
-    pub fn row_height(&self, font_size: f32) -> f32 {
-        let Some(first_font) = self
-            .cached_family
+    pub fn scaled_metrics(&self, font_size: f32) -> ScaledMetrics {
+        self.cached_family
             .fonts
             .first()
             .and_then(|key| self.fonts_by_id.get(key))
-        else {
-            return 0.0;
-        };
-        first_font.row_height(font_size)
+            .map(|font_impl| font_impl.scaled_metrics(font_size))
+            .unwrap_or_default()
     }
 
     /// Width of this character in points.
@@ -423,7 +408,7 @@ impl Font<'_> {
     }
 
     /// `\n` will (intentionally) show up as the replacement character.
-    fn glyph_info(&mut self, c: char) -> (FontFaceKey, GlyphInfo) {
+    pub(crate) fn glyph_info(&mut self, c: char) -> (FontFaceKey, GlyphInfo) {
         if let Some(font_index_glyph_info) = self.cached_family.glyph_info_cache.get(&c) {
             return *font_index_glyph_info;
         }
@@ -438,32 +423,18 @@ impl Font<'_> {
             .insert(c, font_index_glyph_info);
         font_index_glyph_info
     }
+}
 
-    #[inline]
-    pub(crate) fn font_impl_and_glyph_alloc(
-        &mut self,
-        pixels_per_point: f32,
-        c: char,
-        font_size: f32,
-    ) -> (Option<&mut FontImpl>, GlyphAllocation) {
-        if self.cached_family.fonts.is_empty() {
-            return (None, Default::default());
-        }
-        let (key, glyph_info) = self.glyph_info(c);
-        let font_impl = self.fonts_by_id.get_mut(&key).expect("Nonexistent font ID");
-        let allocated_glyph =
-            font_impl.allocate_glyph(self.atlas, pixels_per_point, glyph_info, font_size);
-        (Some(font_impl), allocated_glyph)
-    }
-
-    pub(crate) fn ascent(&self, font_size: f32) -> f32 {
-        if let Some(first) = self.cached_family.fonts.first() {
-            let first = self.fonts_by_id.get(first).expect("Nonexistent font ID");
-            first.ascent(font_size)
-        } else {
-            self.row_height(font_size)
-        }
-    }
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
+pub struct ScaledMetrics {
+    /// This is the distance from the top to the baseline.
+    ///
+    /// Unit: points.
+    pub ascent: f32,
+    /// Height of one row of text in points.
+    ///
+    /// Returns a value rounded to [`emath::GUI_ROUNDING`].
+    pub row_height: f32,
 }
 
 /// Code points that will always be invisible (zero width).

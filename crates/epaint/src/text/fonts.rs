@@ -671,7 +671,10 @@ impl FontsView<'_> {
     ///
     /// Returns a value rounded to [`emath::GUI_ROUNDING`].
     pub fn row_height(&mut self, font_id: &FontId) -> f32 {
-        self.fonts.font(&font_id.family).row_height(font_id.size)
+        self.fonts
+            .font(&font_id.family)
+            .scaled_metrics(font_id.size)
+            .row_height
     }
 
     /// List of all known font families.
