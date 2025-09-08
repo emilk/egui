@@ -234,10 +234,6 @@ impl FontImpl {
             + self.tweak.y_offset)
             .round_ui();
 
-        // Center scaled glyphs properly:
-        let height = ascent + descent;
-        let y_offset_points = y_offset_points - (1.0 - self.tweak.scale) * 0.5 * height;
-
         // Round to closest pixel:
         let y_offset_in_points = (y_offset_points * pixels_per_point).round() / pixels_per_point;
 
