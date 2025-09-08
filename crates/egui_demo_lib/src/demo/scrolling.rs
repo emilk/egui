@@ -4,20 +4,15 @@ use egui::{
 };
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 enum ScrollDemo {
+    #[default]
     ScrollAppearance,
     ScrollTo,
     ManyLines,
     LargeCanvas,
     StickToEnd,
     Bidirectional,
-}
-
-impl Default for ScrollDemo {
-    fn default() -> Self {
-        Self::ScrollAppearance
-    }
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]

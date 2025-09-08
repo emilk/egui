@@ -357,7 +357,7 @@ impl Options {
             theme_preference,
             fallback_theme: _,
             system_theme: _,
-            zoom_factor: _, // TODO(emilk)
+            zoom_factor,
             zoom_with_keyboard,
             tessellation_options,
             repaint_on_widget_change,
@@ -383,6 +383,11 @@ impl Options {
                     repaint_on_widget_change,
                     "Repaint if any widget moves or changes id",
                 );
+
+                ui.horizontal(|ui| {
+                    ui.label("Zoom factor:");
+                    ui.add(crate::DragValue::new(zoom_factor).range(0.10..=10.0));
+                });
 
                 ui.checkbox(
                     zoom_with_keyboard,
