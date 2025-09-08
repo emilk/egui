@@ -293,7 +293,7 @@ impl FontImpl {
     }
 
     #[inline]
-    pub(super) fn pair_kerning_screen_space(
+    pub(super) fn pair_kerning_pixels(
         &self,
         metrics: &ScaledMetrics,
         last_glyph_id: ab_glyph::GlyphId,
@@ -309,7 +309,7 @@ impl FontImpl {
         last_glyph_id: ab_glyph::GlyphId,
         glyph_id: ab_glyph::GlyphId,
     ) -> f32 {
-        self.pair_kerning_screen_space(metrics, last_glyph_id, glyph_id) / metrics.pixels_per_point
+        self.pair_kerning_pixels(metrics, last_glyph_id, glyph_id) / metrics.pixels_per_point
     }
 
     #[inline(always)]
@@ -534,7 +534,7 @@ pub struct ScaledMetrics {
     /// Translates "unscaled" units to physical (screen) pixels.
     pub px_scale_factor: f32,
 
-    /// Vertical offset, in UI points (not screen-space).
+    /// Vertical offset, in UI points.
     pub y_offset_in_points: f32,
 
     /// This is the distance from the top to the baseline.

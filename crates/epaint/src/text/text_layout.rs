@@ -204,11 +204,10 @@ fn layout_section(
             if let (Some(font_impl), Some(last_glyph_id), Some(glyph_id)) =
                 (&font_impl, last_glyph_id, glyph_info.id)
             {
-                paragraph.cursor_x_px += font_impl.pair_kerning_screen_space(
-                    &font_impl_metrics,
-                    last_glyph_id,
-                    glyph_id,
-                );
+                paragraph.cursor_x_px +=
+                    font_impl.pair_kerning_pixels(&font_impl_metrics, last_glyph_id, glyph_id);
+
+                // Only apply extra_letter_spacing to glyphs after the first one:
                 paragraph.cursor_x_px += extra_letter_spacing * pixels_per_point;
             }
 
