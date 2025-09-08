@@ -133,6 +133,35 @@ pub struct GlyphAllocation {
     pub uv_rect: UvRect,
 }
 
+#[derive(Hash, PartialEq, Eq)]
+struct GlyphCacheKey(u64);
+
+impl nohash_hasher::IsEnabled for GlyphCacheKey {}
+
+impl GlyphCacheKey {
+    fn new(glyph_id: ab_glyph::GlyphId, metrics: &ScaledMetrics, bin: SubpixelBin) -> Self {
+        let ScaledMetrics {
+            pixels_per_point,
+            px_scale_factor,
+            ..
+        } = *metrics;
+        debug_assert!(
+            0.0 < pixels_per_point && pixels_per_point.is_finite(),
+            "Bad pixels_per_point {pixels_per_point}"
+        );
+        debug_assert!(
+            0.0 < px_scale_factor && px_scale_factor.is_finite(),
+            "Bad px_scale_factor: {px_scale_factor}"
+        );
+        Self(crate::util::hash((
+            glyph_id,
+            pixels_per_point.to_bits(),
+            px_scale_factor.to_bits(),
+            bin,
+        )))
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// A specific font face.
@@ -142,7 +171,7 @@ pub struct FontImpl {
     ab_glyph_font: ab_glyph::FontArc,
     tweak: FontTweak,
     glyph_info_cache: ahash::HashMap<char, GlyphInfo>,
-    glyph_alloc_cache: ahash::HashMap<(ab_glyph::GlyphId, SubpixelBin, u64), GlyphAllocation>,
+    glyph_alloc_cache: ahash::HashMap<GlyphCacheKey, GlyphAllocation>,
 }
 
 trait FontExt {
@@ -324,7 +353,7 @@ impl FontImpl {
 
         let entry = match self
             .glyph_alloc_cache
-            .entry((glyph_id, bin, metrics.glyph_cache_key()))
+            .entry(GlyphCacheKey::new(glyph_id, metrics, bin))
         {
             std::collections::hash_map::Entry::Occupied(glyph_alloc) => {
                 return (*glyph_alloc.get(), h_pos_round);
@@ -500,32 +529,6 @@ pub struct ScaledMetrics {
     ///
     /// Returns a value rounded to [`emath::GUI_ROUNDING`].
     pub row_height: f32,
-}
-
-impl ScaledMetrics {
-    fn glyph_cache_key(&self) -> u64 {
-        // This is faster than hashing two `OrderedFloat`s. Neither scale factor should ever be negative-zero or NaN.
-        debug_assert!(
-            self.pixels_per_point.is_finite() && self.pixels_per_point.is_sign_positive(),
-            "pixels_per_point can be safely hashed as raw bits"
-        );
-        debug_assert!(
-            self.px_scale_factor.is_finite() && self.px_scale_factor.is_sign_positive(),
-            "px_scale_factor can be safely hashed as raw bits"
-        );
-        let dpi_bits = self.pixels_per_point.to_le_bytes();
-        let scale_bits = self.px_scale_factor.to_le_bytes();
-        u64::from_le_bytes([
-            dpi_bits[0],
-            dpi_bits[1],
-            dpi_bits[2],
-            dpi_bits[3],
-            scale_bits[0],
-            scale_bits[1],
-            scale_bits[2],
-            scale_bits[3],
-        ])
-    }
 }
 
 /// Code points that will always be invisible (zero width).
