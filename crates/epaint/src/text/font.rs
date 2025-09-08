@@ -343,6 +343,8 @@ impl FontImpl {
         chr: char,
         h_pos: f32,
     ) -> (GlyphAllocation, i32) {
+        let advance_width_px = glyph_info.advance_width_unscaled.0 * metrics.px_scale_factor;
+
         let Some(glyph_id) = glyph_info.id else {
             // Invisible.
             return (GlyphAllocation::default(), h_pos as i32);
@@ -361,7 +363,9 @@ impl FontImpl {
             .entry(GlyphCacheKey::new(glyph_id, metrics, bin))
         {
             std::collections::hash_map::Entry::Occupied(glyph_alloc) => {
-                return (*glyph_alloc.get(), h_pos_round);
+                let mut glyph_alloc = *glyph_alloc.get();
+                glyph_alloc.advance_width_px = advance_width_px; // Hack to get `\t` and thin space to work, since they use the same glyph id as ` ` (space).
+                return (glyph_alloc, h_pos_round);
             }
             std::collections::hash_map::Entry::Vacant(entry) => entry,
         };
@@ -425,7 +429,7 @@ impl FontImpl {
 
         let allocation = GlyphAllocation {
             id: glyph_id,
-            advance_width_px: glyph_info.advance_width_unscaled.0 * metrics.px_scale_factor,
+            advance_width_px,
             uv_rect,
         };
         entry.insert(allocation);
