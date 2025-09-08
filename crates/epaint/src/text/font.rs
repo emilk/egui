@@ -528,14 +528,18 @@ impl Font<'_> {
 pub struct ScaledMetrics {
     /// The DPI part of the screen-space scale.
     pub pixels_per_point: f32,
+
     /// Scale factor, relative to the font's units per em (so, probably much less than 1).
     pub px_scale_factor: f32,
+
     /// Vertical offset, in UI points (not screen-space).
     pub y_offset_in_points: f32,
+
     /// This is the distance from the top to the baseline.
     ///
     /// Unit: points.
     pub ascent: f32,
+
     /// Height of one row of text in points.
     ///
     /// Returns a value rounded to [`emath::GUI_ROUNDING`].
