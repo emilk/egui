@@ -282,7 +282,7 @@ impl Widget for Label {
         if ui.is_rect_visible(response.rect) {
             if show_tooltip_when_elided && galley.elided {
                 // Show the full (non-elided) text on hover:
-                response = response.on_hover_text(galley.text());
+                response = response.on_hover_text(galley.job.clone());
             }
 
             let response_color = if interactive {

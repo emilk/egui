@@ -272,6 +272,7 @@ def main() -> None:
         "egui-wgpu",
         "egui-winit",
         "egui",
+        "emath",
         "epaint",
         "epaint_default_fonts",
     ]
