@@ -119,21 +119,6 @@ impl crate::View for MultiTouch {
             } else {
                 self.slowly_reset(ui);
             }
-            // if let Some(multi_touch) = ui.ctx().multi_touch() {
-            //     // This adjusts the current zoom factor and rotation angle according to the dynamic
-            //     // change (for the current frame) of the touch gesture:
-            //     self.zoom *= multi_touch.zoom_delta;
-            //     self.rotation += multi_touch.rotation_delta;
-            //     // the translation we get from `multi_touch` needs to be scaled down to the
-            //     // normalized coordinates we use as the basis for painting:
-            //     self.translation += to_screen.inverse().scale() * multi_touch.translation_delta;
-            //     // touch pressure will make the arrow thicker (not all touch devices support this):
-            //     stroke_width += 10. * multi_touch.force;
-
-            //     self.last_touch_time = ui.input(|i| i.time);
-            // } else {
-            //     self.slowly_reset(ui);
-            // }
             let zoom_and_rotate = self.zoom * Rot2::from_angle(self.rotation);
             let arrow_start_offset = self.translation + zoom_and_rotate * vec2(-0.5, 0.5);
 
