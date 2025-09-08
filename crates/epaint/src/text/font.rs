@@ -166,7 +166,7 @@ impl GlyphCacheKey {
 
 /// A specific font face.
 /// The interface uses points as the unit for everything.
-pub struct FontImpl {
+pub struct FontFace {
     name: String,
     ab_glyph_font: ab_glyph::FontArc,
     tweak: FontTweak,
@@ -190,7 +190,7 @@ where
     }
 }
 
-impl FontImpl {
+impl FontFace {
     pub fn new(name: String, ab_glyph_font: ab_glyph::FontArc, tweak: FontTweak) -> Self {
         Self {
             name,
@@ -440,7 +440,7 @@ impl FontImpl {
 // TODO(emilk): rename?
 /// Wrapper over multiple [`FontImpl`] (e.g. a primary + fallbacks for emojis)
 pub struct Font<'a> {
-    pub(super) fonts_by_id: &'a mut nohash_hasher::IntMap<FontFaceKey, FontImpl>,
+    pub(super) fonts_by_id: &'a mut nohash_hasher::IntMap<FontFaceKey, FontFace>,
     pub(super) cached_family: &'a mut CachedFamily,
     pub(super) atlas: &'a mut TextureAtlas,
 }

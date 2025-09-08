@@ -10,7 +10,7 @@ use crate::{
     AlphaFromCoverage, TextureAtlas,
     text::{
         Galley, LayoutJob, LayoutSection,
-        font::{Font, FontImpl, GlyphInfo},
+        font::{Font, FontFace, GlyphInfo},
     },
 };
 use emath::{NumExt as _, OrderedFloat};
@@ -438,7 +438,7 @@ pub(super) struct CachedFamily {
 impl CachedFamily {
     fn new(
         fonts: Vec<FontFaceKey>,
-        fonts_by_id: &mut nohash_hasher::IntMap<FontFaceKey, FontImpl>,
+        fonts_by_id: &mut nohash_hasher::IntMap<FontFaceKey, FontFace>,
     ) -> Self {
         if fonts.is_empty() {
             return Self {
@@ -476,7 +476,7 @@ impl CachedFamily {
     pub(crate) fn glyph_info_no_cache_or_fallback(
         &mut self,
         c: char,
-        fonts_by_id: &mut nohash_hasher::IntMap<FontFaceKey, FontImpl>,
+        fonts_by_id: &mut nohash_hasher::IntMap<FontFaceKey, FontFace>,
     ) -> Option<(FontFaceKey, GlyphInfo)> {
         for font_key in &self.fonts {
             let font_impl = fonts_by_id.get_mut(font_key).expect("Nonexistent font ID");
@@ -762,7 +762,7 @@ pub struct FontsImpl {
     max_texture_side: usize,
     definitions: FontDefinitions,
     atlas: TextureAtlas,
-    fonts_by_id: nohash_hasher::IntMap<FontFaceKey, FontImpl>,
+    fonts_by_id: nohash_hasher::IntMap<FontFaceKey, FontFace>,
     fonts_by_name: ahash::HashMap<String, FontFaceKey>,
     family_cache: ahash::HashMap<FontFamily, CachedFamily>,
 }
@@ -779,12 +779,12 @@ impl FontsImpl {
         let initial_height = 32; // Keep initial font atlas small, so it is fast to upload to GPU. This will expand as needed anyways.
         let atlas = TextureAtlas::new([texture_width, initial_height], text_alpha_from_coverage);
 
-        let mut fonts_by_id: nohash_hasher::IntMap<FontFaceKey, FontImpl> = Default::default();
+        let mut fonts_by_id: nohash_hasher::IntMap<FontFaceKey, FontFace> = Default::default();
         let mut font_impls: ahash::HashMap<String, FontFaceKey> = Default::default();
         for (name, font_data) in &definitions.font_data {
             let tweak = font_data.tweak;
             let ab_glyph = ab_glyph_font_from_font_data(name, font_data);
-            let font_impl = FontImpl::new(name.clone(), ab_glyph, tweak);
+            let font_impl = FontFace::new(name.clone(), ab_glyph, tweak);
             let key = FontFaceKey::new();
             fonts_by_id.insert(key, font_impl);
             font_impls.insert(name.clone(), key);
