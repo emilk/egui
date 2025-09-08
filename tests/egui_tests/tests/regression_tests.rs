@@ -31,5 +31,5 @@ fn hovering_should_preserve_text_format() {
 
     harness.run_steps(5);
 
-    harness.snapshot("hovering_should_preserve_text_format")
+    harness.snapshot("hovering_should_preserve_text_format");
 }
