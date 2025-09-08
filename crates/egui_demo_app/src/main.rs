@@ -1,8 +1,8 @@
 //! Demo app for egui
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![allow(rustdoc::missing_crate_level_docs)] // it's an example
-#![allow(clippy::never_loop)] // False positive
+#![allow(rustdoc::missing_crate_level_docs, reason = "its an example")]
+#![allow(clippy::never_loop, reason = "False positive")]
 
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc; // Much faster allocator, can give 20% speedups: https://github.com/emilk/egui/pull/7029
@@ -43,7 +43,7 @@ fn main() -> eframe::Result {
         }
 
         // SAFETY: we call this from the main thread without any other threads running.
-        #[expect(unsafe_code)]
+        #[expect(unsafe_code, reason = "Required for low-level operations")]
         unsafe {
             std::env::set_var("RUST_LOG", rust_log);
         }
@@ -85,7 +85,7 @@ fn start_puffin_server() {
 
             // We can store the server if we want, but in this case we just want
             // it to keep running. Dropping it closes the server, so let's not drop it!
-            #[expect(clippy::mem_forget)]
+            #[expect(clippy::mem_forget, reason = "We want the server to keep running")]
             std::mem::forget(puffin_server);
         }
         Err(err) => {

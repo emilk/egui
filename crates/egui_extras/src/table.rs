@@ -656,7 +656,10 @@ impl TableState {
     }
 
     fn store(self, ui: &egui::Ui, state_id: egui::Id) {
-        #![allow(clippy::needless_return)]
+        #![allow(
+            clippy::needless_return,
+            reason = "Return statement makes code clearer"
+        )]
         #[cfg(feature = "serde")]
         {
             return ui.data_mut(|d| d.insert_persisted(state_id, self));

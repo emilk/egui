@@ -6,7 +6,7 @@ use crate::{
     WidgetText, WidgetType, epaint, style::StyleModifier, style::WidgetVisuals, vec2,
 };
 
-#[expect(unused_imports)] // Documentation
+#[expect(unused_imports, reason = "Used for doclinks")] // Documentation
 use crate::style::Spacing;
 
 /// A function that paints the [`ComboBox`] icon
@@ -318,7 +318,10 @@ impl ComboBox {
     }
 }
 
-#[expect(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Complex widget needs many parameters"
+)]
 fn combo_box_dyn<'c, R>(
     ui: &mut Ui,
     button_id: Id,

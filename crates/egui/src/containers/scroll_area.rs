@@ -1,4 +1,7 @@
-#![allow(clippy::needless_range_loop)]
+#![allow(
+    clippy::needless_range_loop,
+    reason = "Range loop is clearer than iterator here"
+)]
 
 use std::ops::{Add, AddAssign, BitOr, BitOrAssign};
 
@@ -218,7 +221,10 @@ impl BitOr for ScrollSource {
     }
 }
 
-#[expect(clippy::suspicious_arithmetic_impl)]
+#[expect(
+    clippy::suspicious_arithmetic_impl,
+    reason = "Arithmetic implementation is correct for this context"
+)]
 impl Add for ScrollSource {
     type Output = Self;
 

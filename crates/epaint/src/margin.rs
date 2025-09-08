@@ -186,7 +186,10 @@ impl std::ops::Div<f32> for Margin {
 
     #[inline]
     fn div(self, v: f32) -> Self {
-        #![allow(clippy::suspicious_arithmetic_impl)]
+        #![allow(
+            clippy::suspicious_arithmetic_impl,
+            reason = "Using reciprocal multiplication is more efficient than division"
+        )]
         self * v.recip()
     }
 }

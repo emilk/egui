@@ -1,4 +1,4 @@
-#![allow(dead_code)] // not everything is used on wasm
+#![allow(dead_code, reason = "Not all code paths are used on wasm")]
 
 use web_time::Instant;
 

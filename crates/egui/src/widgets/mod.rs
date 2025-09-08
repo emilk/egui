@@ -22,7 +22,7 @@ mod slider;
 mod spinner;
 pub mod text_edit;
 
-#[expect(deprecated)]
+#[expect(deprecated, reason = "Maintaining backwards compatibility")]
 pub use self::selected_label::SelectableLabel;
 #[expect(deprecated, reason = "Deprecated in egui 0.33.0")]
 pub use self::{

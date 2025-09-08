@@ -1,5 +1,8 @@
 #![warn(missing_docs)] // Let's keep `Ui` well-documented.
-#![allow(clippy::use_self)]
+#![allow(
+    clippy::use_self,
+    reason = "Self-referential code is clearer without Self"
+)]
 
 use emath::GuiRounding as _;
 use epaint::mutex::RwLock;
@@ -97,7 +100,7 @@ pub struct Ui {
     sizing_pass: bool,
 
     /// Indicates whether this Ui belongs to a Menu.
-    #[expect(deprecated)]
+    #[expect(deprecated, reason = "Maintaining backwards compatibility")]
     menu_state: Option<Arc<RwLock<crate::menu::MenuState>>>,
 
     /// The [`UiStack`] for this [`Ui`].
@@ -673,7 +676,7 @@ impl Ui {
     ///
     /// This is determined first by [`Style::wrap_mode`], and then by the layout of this [`Ui`].
     pub fn wrap_mode(&self) -> TextWrapMode {
-        #[expect(deprecated)]
+        #[expect(deprecated, reason = "Maintaining backwards compatibility")]
         if let Some(wrap_mode) = self.style.wrap_mode {
             wrap_mode
         }
@@ -3044,7 +3047,7 @@ impl Ui {
         self.close_kind(UiKind::Menu);
     }
 
-    #[expect(deprecated)]
+    #[expect(deprecated, reason = "Maintaining backwards compatibility")]
     pub(crate) fn set_menu_state(
         &mut self,
         menu_state: Option<Arc<RwLock<crate::menu::MenuState>>>,

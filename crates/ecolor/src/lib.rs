@@ -19,7 +19,10 @@
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!
 
-#![allow(clippy::wrong_self_convention)]
+#![allow(
+    clippy::wrong_self_convention,
+    reason = "Color conversion methods don't follow typical self convention but are clearer this way"
+)]
 
 #[cfg(feature = "cint")]
 mod cint_impl;

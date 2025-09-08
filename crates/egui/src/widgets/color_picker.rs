@@ -114,7 +114,7 @@ fn color_button(ui: &mut Ui, color: Color32, open: bool) -> Response {
 }
 
 fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Color32) -> Response {
-    #![allow(clippy::identity_op)]
+    #![allow(clippy::identity_op, reason = "Identity operations make code clearer")]
 
     let desired_size = vec2(ui.spacing().slider_width, ui.spacing().interact_size.y);
     let (rect, response) = ui.allocate_at_least(desired_size, Sense::click_and_drag());

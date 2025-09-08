@@ -168,7 +168,10 @@ fn char_name(chr: char) -> String {
 }
 
 fn special_char_name(chr: char) -> Option<&'static str> {
-    #[expect(clippy::match_same_arms)] // many "flag"
+    #[expect(
+        clippy::match_same_arms,
+        reason = "Match arms handle different cases semantically"
+    )] // many "flag"
     match chr {
         // Special private-use-area extensions found in `emoji-icon-font.ttf`:
         // Private use area extensions:

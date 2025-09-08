@@ -47,7 +47,7 @@ enum AppIconStatus {
     NotSetTryAgain,
 
     /// We successfully set the icon and it should be visible now.
-    #[allow(dead_code, clippy::allow_attributes)] // Not used on Linux
+    #[allow(dead_code, clippy::allow_attributes, reason = "Not used on Linux")]
     Set,
 }
 
@@ -71,13 +71,17 @@ fn set_title_and_icon(_title: &str, _icon_data: Option<&IconData>) -> AppIconSta
     #[cfg(target_os = "macos")]
     return set_title_and_icon_mac(_title, _icon_data);
 
-    #[allow(unreachable_code, clippy::allow_attributes)]
+    #[allow(
+        unreachable_code,
+        clippy::allow_attributes,
+        reason = "Only reachable on Linux"
+    )]
     AppIconStatus::NotSetIgnored
 }
 
 /// Set icon for Windows applications.
 #[cfg(target_os = "windows")]
-#[expect(unsafe_code)]
+#[expect(unsafe_code, reason = "Required for low-level operations")]
 fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
     use crate::icon_data::IconDataExt as _;
     use windows_sys::Win32::UI::Input::KeyboardAndMouse::GetActiveWindow;
@@ -199,7 +203,7 @@ fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
 
 /// Set icon & app title for `MacOS` applications.
 #[cfg(target_os = "macos")]
-#[expect(unsafe_code)]
+#[expect(unsafe_code, reason = "Required for low-level operations")]
 fn set_title_and_icon_mac(title: &str, icon_data: Option<&IconData>) -> AppIconStatus {
     use crate::icon_data::IconDataExt as _;
     profiling::function_scope!();

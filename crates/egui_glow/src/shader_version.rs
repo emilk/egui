@@ -1,5 +1,8 @@
-#![allow(unsafe_code)]
-#![allow(clippy::undocumented_unsafe_blocks)]
+#![allow(unsafe_code, reason = "OpenGL requires unsafe code for performance")]
+#![allow(
+    clippy::undocumented_unsafe_blocks,
+    reason = "Documenting all unsafe blocks would be verbose for GL bindings"
+)]
 
 use std::convert::TryInto as _;
 

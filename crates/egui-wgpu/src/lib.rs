@@ -16,7 +16,7 @@
 #![doc = document_features::document_features!()]
 //!
 
-#![allow(unsafe_code)]
+#![allow(unsafe_code, reason = "Required for low-level operations")]
 
 pub use wgpu;
 
@@ -242,7 +242,11 @@ impl RenderState {
 
         // On wasm, depending on feature flags, wgpu objects may or may not implement sync.
         // It doesn't make sense to switch to Rc for that special usecase, so simply disable the lint.
-        #[allow(clippy::arc_with_non_send_sync, clippy::allow_attributes)] // For wasm
+        #[allow(
+            clippy::arc_with_non_send_sync,
+            clippy::allow_attributes,
+            reason = "For wasm"
+        )] // For wasm
         Ok(Self {
             adapter,
             #[cfg(not(target_arch = "wasm32"))]
