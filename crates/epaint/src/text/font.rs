@@ -74,7 +74,7 @@ pub struct GlyphAllocation {
 
 // ----------------------------------------------------------------------------
 
-/// A specific font with a size.
+/// A specific font face.
 /// The interface uses points as the unit for everything.
 pub struct FontImpl {
     name: String,
