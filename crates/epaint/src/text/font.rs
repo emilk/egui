@@ -209,8 +209,6 @@ impl FontImpl {
         last_glyph_id: ab_glyph::GlyphId,
         glyph_id: ab_glyph::GlyphId,
     ) -> f32 {
-        // Round to an even number of physical pixels to get even kerning.
-        // See https://github.com/emilk/egui/issues/382
         self.ab_glyph_font.kern_unscaled(last_glyph_id, glyph_id) * metrics.px_scale_factor
             / metrics.pixels_per_point
     }
@@ -224,18 +222,12 @@ impl FontImpl {
         let descent = (self.ab_glyph_font.descent_unscaled() * pt_scale_factor).round_ui();
         let line_gap = (self.ab_glyph_font.line_gap_unscaled() * pt_scale_factor).round_ui();
 
-        // Round to an even number of physical pixels to get even kerning.
-        // See https://github.com/emilk/egui/issues/382
-        let px_scale_factor = self
-            .ab_glyph_font
-            .px_scale_factor((font_size * self.tweak.scale * pixels_per_point).round());
+        let scale = font_size * self.tweak.scale * pixels_per_point;
+        let px_scale_factor = self.ab_glyph_font.px_scale_factor(scale);
 
-        let y_offset_points = ((font_size * self.tweak.scale * self.tweak.y_offset_factor)
+        let y_offset_in_points = ((font_size * self.tweak.scale * self.tweak.y_offset_factor)
             + self.tweak.y_offset)
             .round_ui();
-
-        // Round to closest pixel:
-        let y_offset_in_points = (y_offset_points * pixels_per_point).round() / pixels_per_point;
 
         ScaledMetrics {
             pixels_per_point,
