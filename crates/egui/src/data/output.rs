@@ -294,10 +294,11 @@ pub enum UserAttentionType {
 /// egui emits a [`CursorIcon`] in [`PlatformOutput`] each frame as a request to the integration.
 ///
 /// Loosely based on <https://developer.mozilla.org/en-US/docs/Web/CSS/cursor>.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum CursorIcon {
     /// Normal cursor icon, whatever that is.
+    #[default]
     Default,
 
     /// Show no cursor
@@ -455,12 +456,6 @@ impl CursorIcon {
         Self::ZoomIn,
         Self::ZoomOut,
     ];
-}
-
-impl Default for CursorIcon {
-    fn default() -> Self {
-        Self::Default
-    }
 }
 
 /// Things that happened during this frame that the integration may be interested in.
