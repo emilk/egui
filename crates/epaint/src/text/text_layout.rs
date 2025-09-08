@@ -5,7 +5,10 @@ use emath::{Align, GuiRounding as _, NumExt as _, Pos2, Rect, Vec2, pos2, vec2};
 use crate::{
     Color32, Mesh, Stroke, Vertex,
     stroke::PathStroke,
-    text::{font::ScaledMetrics, fonts::FontFaceKey},
+    text::{
+        font::{ScaledMetrics, is_cjk, is_cjk_break_allowed},
+        fonts::FontFaceKey,
+    },
 };
 
 use super::{FontsImpl, Galley, Glyph, LayoutJob, LayoutSection, PlacedRow, Row, RowVisuals};
@@ -214,6 +217,7 @@ fn layout_section(
                     font.atlas,
                     &font_impl_metrics,
                     glyph_info,
+                    chr,
                     paragraph.cursor_x,
                 ),
                 None => Default::default(),
@@ -509,6 +513,7 @@ fn replace_last_glyph_with_overflow_character(
                         font.atlas,
                         &font_impl_metrics,
                         glyph_info,
+                        overflow_character,
                         overflow_glyph_x * pixels_per_point,
                     )
                 })
@@ -1041,31 +1046,6 @@ impl RowBreakCandidates {
             *any = None;
         }
     }
-}
-
-#[inline]
-fn is_cjk_ideograph(c: char) -> bool {
-    ('\u{4E00}' <= c && c <= '\u{9FFF}')
-        || ('\u{3400}' <= c && c <= '\u{4DBF}')
-        || ('\u{2B740}' <= c && c <= '\u{2B81F}')
-}
-
-#[inline]
-fn is_kana(c: char) -> bool {
-    ('\u{3040}' <= c && c <= '\u{309F}') // Hiragana block
-        || ('\u{30A0}' <= c && c <= '\u{30FF}') // Katakana block
-}
-
-#[inline]
-fn is_cjk(c: char) -> bool {
-    // TODO(bigfarts): Add support for Korean Hangul.
-    is_cjk_ideograph(c) || is_kana(c)
-}
-
-#[inline]
-fn is_cjk_break_allowed(c: char) -> bool {
-    // See: https://en.wikipedia.org/wiki/Line_breaking_rules_in_East_Asian_languages#Characters_not_permitted_on_the_start_of_a_line.
-    !")]｝〕〉》」』】〙〗〟'\"｠»ヽヾーァィゥェォッャュョヮヵヶぁぃぅぇぉっゃゅょゎゕゖㇰㇱㇲㇳㇴㇵㇶㇷㇸㇹㇺㇻㇼㇽㇾㇿ々〻‐゠–〜?!‼⁇⁈⁉・、:;,。.".contains(c)
 }
 
 // ----------------------------------------------------------------------------
