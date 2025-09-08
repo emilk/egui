@@ -625,18 +625,6 @@ impl ContextImpl {
             profiling::scope!("Fonts::begin_pass");
             fonts.begin_pass(max_texture_side, text_alpha_from_coverage);
         }
-
-        if is_new && self.memory.options.preload_font_glyphs {
-            profiling::scope!("preload_font_glyphs");
-            // Preload the most common characters for the most common fonts.
-            // This is not very important to do, but may save a few GPU operations.
-            for font_id in self.memory.options.style().text_styles.values() {
-                fonts
-                    .fonts
-                    .font(&font_id.family)
-                    .preload_common_characters();
-            }
-        }
     }
 
     #[cfg(feature = "accesskit")]
