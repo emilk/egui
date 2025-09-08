@@ -61,7 +61,8 @@ _override_unity = []
 emath.workspace = true
 ecolor.workspace = true
 
-ab_glyph.workspace = true
+skrifa.workspace = true
+zeno.workspace = true
 ahash.workspace = true
 log.workspace = true
 nohash-hasher.workspace = true
@@ -80,6 +81,7 @@ rayon = { workspace = true, optional = true }
 serde = { workspace = true, optional = true, features = ["derive", "rc"] }
 
 epaint_default_fonts = { workspace = true, optional = true }
+self_cell = "1.2.0"
 
 [dev-dependencies]
 criterion.workspace = true

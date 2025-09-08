@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     collections::BTreeMap,
     sync::{
         Arc,
@@ -116,7 +117,7 @@ impl std::fmt::Display for FontFamily {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct FontData {
     /// The content of a `.ttf` or `.otf` file.
-    pub font: std::borrow::Cow<'static, [u8]>,
+    pub font: Cow<'static, [u8]>,
 
     /// Which font face in the file to use.
     /// When in doubt, use `0`.
@@ -129,7 +130,7 @@ pub struct FontData {
 impl FontData {
     pub fn from_static(font: &'static [u8]) -> Self {
         Self {
-            font: std::borrow::Cow::Borrowed(font),
+            font: Cow::Borrowed(font),
             index: 0,
             tweak: Default::default(),
         }
@@ -137,7 +138,7 @@ impl FontData {
 
     pub fn from_owned(font: Vec<u8>) -> Self {
         Self {
-            font: std::borrow::Cow::Owned(font),
+            font: Cow::Owned(font),
             index: 0,
             tweak: Default::default(),
         }
@@ -198,18 +199,13 @@ impl Default for FontTweak {
 
 // ----------------------------------------------------------------------------
 
-fn ab_glyph_font_from_font_data(name: &str, data: &FontData) -> ab_glyph::FontArc {
-    match &data.font {
-        std::borrow::Cow::Borrowed(bytes) => {
-            ab_glyph::FontRef::try_from_slice_and_index(bytes, data.index)
-                .map(ab_glyph::FontArc::from)
-        }
-        std::borrow::Cow::Owned(bytes) => {
-            ab_glyph::FontVec::try_from_vec_and_index(bytes.clone(), data.index)
-                .map(ab_glyph::FontArc::from)
-        }
+pub type Blob = Arc<dyn AsRef<[u8]> + Send + Sync>;
+
+fn blob_from_font_data(data: &FontData) -> Blob {
+    match data.clone().font {
+        Cow::Borrowed(bytes) => Arc::new(bytes) as Blob,
+        Cow::Owned(bytes) => Arc::new(bytes) as Blob,
     }
-    .unwrap_or_else(|err| panic!("Error parsing {name:?} TTF/OTF font file: {err}"))
 }
 
 /// Describes the font data and the sizes to use.
@@ -783,8 +779,9 @@ impl FontsImpl {
         let mut font_impls: ahash::HashMap<String, FontFaceKey> = Default::default();
         for (name, font_data) in &definitions.font_data {
             let tweak = font_data.tweak;
-            let ab_glyph = ab_glyph_font_from_font_data(name, font_data);
-            let font_impl = FontFace::new(name.clone(), ab_glyph, tweak);
+            let blob = blob_from_font_data(font_data);
+            let font_impl = FontFace::new(name.clone(), blob, font_data.index, tweak)
+                .unwrap_or_else(|err| panic!("Error parsing {name:?} TTF/OTF font file: {err}"));
             let key = FontFaceKey::new();
             fonts_by_id.insert(key, font_impl);
             font_impls.insert(name.clone(), key);

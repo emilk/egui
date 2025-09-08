@@ -71,7 +71,6 @@ eframe = { version = "0.33.0", path = "crates/eframe", default-features = false 
 accesskit = "0.21.1"
 accesskit_consumer = "0.30.1"
 accesskit_winit = "0.29.1"
-ab_glyph = "0.2.32"
 ahash = { version = "0.8.12", default-features = false, features = [
   "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
   "std",
@@ -124,6 +123,7 @@ rfd = "0.15.4"
 ron = "0.11.0"
 serde = { version = "1.0.228", features = ["derive"] }
 similar-asserts = "1.7.0"
+skrifa = "0.36"
 smallvec = "1.15.1"
 smithay-clipboard = "0.7.2"
 static_assertions = "1.1.0"
@@ -143,6 +143,7 @@ webbrowser = "1.0.5"
 wgpu = { version = "27.0.1", default-features = false, features = ["std"] }
 windows-sys = "0.61.2"
 winit = { version = "0.30.12", default-features = false }
+zeno = "0.3.3"
 
 
 [workspace.lints.rust]

@@ -1,13 +1,19 @@
+#![allow(clippy::mem_forget)]
+
 use std::collections::BTreeMap;
 
-use ab_glyph::{Font as _, OutlinedGlyph, PxScale};
 use emath::{GuiRounding as _, OrderedFloat, Vec2, vec2};
+use self_cell::self_cell;
+use skrifa::{
+    MetadataProvider as _,
+    raw::{TableProvider as _, tables::kern::SubtableKind},
+};
 
 use crate::{
     TextureAtlas,
     text::{
         FontTweak,
-        fonts::{CachedFamily, FontFaceKey},
+        fonts::{Blob, CachedFamily, FontFaceKey},
     },
 };
 
@@ -43,7 +49,7 @@ pub struct GlyphInfo {
     /// Doesn't need to be unique.
     ///
     /// Is `None` for a special "invisible" glyph.
-    pub(crate) id: Option<ab_glyph::GlyphId>,
+    pub(crate) id: Option<skrifa::GlyphId>,
 
     /// In [`ab_glyph`]s "unscaled" coordinate system.
     pub advance_width_unscaled: OrderedFloat<f32>,
@@ -124,7 +130,7 @@ pub struct GlyphAllocation {
     ///
     /// Doesn't need to be unique.
     /// Use `ab_glyph::GlyphId(0)` if you just want to have an id, and don't care.
-    pub(crate) id: ab_glyph::GlyphId,
+    pub(crate) id: skrifa::GlyphId,
 
     /// Unit: screen pixels.
     pub advance_width_px: f32,
@@ -139,7 +145,7 @@ struct GlyphCacheKey(u64);
 impl nohash_hasher::IsEnabled for GlyphCacheKey {}
 
 impl GlyphCacheKey {
-    fn new(glyph_id: ab_glyph::GlyphId, metrics: &ScaledMetrics, bin: SubpixelBin) -> Self {
+    fn new(glyph_id: skrifa::GlyphId, metrics: &ScaledMetrics, bin: SubpixelBin) -> Self {
         let ScaledMetrics {
             pixels_per_point,
             px_scale_factor,
@@ -164,41 +170,183 @@ impl GlyphCacheKey {
 
 // ----------------------------------------------------------------------------
 
+struct DependentFontData<'a> {
+    skrifa: skrifa::FontRef<'a>,
+    charmap: skrifa::charmap::Charmap<'a>,
+    outline_glyphs: skrifa::outline::OutlineGlyphCollection<'a>,
+    metrics: skrifa::metrics::Metrics,
+    glyph_metrics: skrifa::metrics::GlyphMetrics<'a>,
+}
+
+self_cell! {
+    struct FontCell {
+        owner: Blob,
+
+        #[covariant]
+        dependent: DependentFontData,
+    }
+}
+
+impl FontCell {
+    fn px_scale_factor(&self, scale: f32) -> f32 {
+        let units_per_em = self.borrow_dependent().metrics.units_per_em as f32;
+        scale / units_per_em
+    }
+
+    fn allocate_glyph_uncached(
+        &self,
+        atlas: &mut TextureAtlas,
+        metrics: &ScaledMetrics,
+        glyph_info: &GlyphInfo,
+        bin: SubpixelBin,
+    ) -> Option<GlyphAllocation> {
+        let glyph_id = glyph_info.id?;
+
+        debug_assert!(
+            glyph_id != skrifa::GlyphId::NOTDEF,
+            "Can't allocate glyph for id 0"
+        );
+
+        let font_data = self.borrow_dependent();
+        let outline = font_data.outline_glyphs.get(glyph_id)?;
+        let draw_settings = skrifa::outline::DrawSettings::unhinted(
+            skrifa::instance::Size::new(metrics.scale),
+            skrifa::instance::LocationRef::default(),
+        );
+        /*let hinting_instance = skrifa::outline::HintingInstance::new(
+            &font_data.outline_glyphs,
+            skrifa::instance::Size::new(metrics.scale),
+            skrifa::instance::LocationRef::default(),
+            skrifa::outline::Target::default(),
+        )
+        .unwrap();
+        let draw_settings = skrifa::outline::DrawSettings::hinted(&hinting_instance, false);*/
+
+        let mut path_commands = Vec::<zeno::Command>::new();
+        let mut pen = ZenoPen(&mut path_commands);
+        outline.draw(draw_settings, &mut pen).ok()?;
+        let offset = zeno::Vector::new(bin.as_float(), 0.0);
+        let mut mask = zeno::Mask::new(&path_commands);
+        let (alpha_mask, placement) = mask.offset(offset).render_offset(offset).render();
+        let uv_rect = if placement.width == 0 || placement.height == 0 {
+            UvRect::default()
+        } else {
+            let glyph_pos = {
+                let text_alpha_from_coverage = atlas.text_alpha_from_coverage;
+                let (glyph_pos, image) =
+                    atlas.allocate((placement.width as usize, placement.height as usize));
+                for y in 0..placement.height as usize {
+                    for x in 0..placement.width as usize {
+                        image[(x + glyph_pos.0, y + glyph_pos.1)] = text_alpha_from_coverage
+                            .color_from_coverage(
+                                alpha_mask[(y * placement.width as usize) + x] as f32 / 255.0,
+                            );
+                    }
+                }
+                glyph_pos
+            };
+            let offset_in_pixels = vec2(placement.left as f32, placement.top as f32);
+            let offset =
+                offset_in_pixels / metrics.pixels_per_point + metrics.y_offset_in_points * Vec2::Y;
+            UvRect {
+                offset,
+                size: vec2(placement.width as f32, placement.height as f32)
+                    / metrics.pixels_per_point,
+                min: [glyph_pos.0 as u16, glyph_pos.1 as u16],
+                max: [
+                    (glyph_pos.0 + placement.width as usize) as u16,
+                    (glyph_pos.1 + placement.height as usize) as u16,
+                ],
+            }
+        };
+
+        Some(GlyphAllocation {
+            id: glyph_id,
+            advance_width_px: (glyph_info.advance_width_unscaled.0 * metrics.px_scale_factor)
+                / metrics.pixels_per_point,
+            uv_rect,
+        })
+    }
+}
+
+struct ZenoPen<'a>(&'a mut Vec<zeno::Command>);
+
+impl skrifa::outline::OutlinePen for ZenoPen<'_> {
+    fn move_to(&mut self, x: f32, y: f32) {
+        self.0.push(zeno::Command::MoveTo(zeno::Vector::new(x, -y)));
+    }
+
+    fn line_to(&mut self, x: f32, y: f32) {
+        self.0.push(zeno::Command::LineTo(zeno::Vector::new(x, -y)));
+    }
+
+    fn quad_to(&mut self, cx0: f32, cy0: f32, x: f32, y: f32) {
+        self.0.push(zeno::Command::QuadTo(
+            zeno::Vector::new(cx0, -cy0),
+            zeno::Vector::new(x, -y),
+        ));
+    }
+
+    fn curve_to(&mut self, cx0: f32, cy0: f32, cx1: f32, cy1: f32, x: f32, y: f32) {
+        self.0.push(zeno::Command::CurveTo(
+            zeno::Vector::new(cx0, -cy0),
+            zeno::Vector::new(cx1, -cy1),
+            zeno::Vector::new(x, -y),
+        ));
+    }
+
+    fn close(&mut self) {
+        self.0.push(zeno::Command::Close);
+    }
+}
+
 /// A specific font face.
 /// The interface uses points as the unit for everything.
 pub struct FontFace {
     name: String,
-    ab_glyph_font: ab_glyph::FontArc,
+    font: FontCell,
     tweak: FontTweak,
     glyph_info_cache: ahash::HashMap<char, GlyphInfo>,
     glyph_alloc_cache: ahash::HashMap<GlyphCacheKey, GlyphAllocation>,
 }
 
-trait FontExt {
-    fn px_scale_factor(&self, scale: f32) -> f32;
-}
-
-impl<T> FontExt for T
-where
-    T: ab_glyph::Font,
-{
-    fn px_scale_factor(&self, scale: f32) -> f32 {
-        let units_per_em = self.units_per_em().unwrap_or_else(|| {
-            panic!("The font unit size exceeds the expected range (16..=16384)")
-        });
-        scale / units_per_em
-    }
-}
-
 impl FontFace {
-    pub fn new(name: String, ab_glyph_font: ab_glyph::FontArc, tweak: FontTweak) -> Self {
-        Self {
+    pub fn new(
+        name: String,
+        font_data: Blob,
+        index: u32,
+        tweak: FontTweak,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
+        let font = FontCell::try_new(font_data, |font_data| {
+            let skrifa_font =
+                skrifa::FontRef::from_index(AsRef::<[u8]>::as_ref(font_data.as_ref()), index)?;
+
+            let charmap = skrifa_font.charmap();
+            let glyphs = skrifa_font.outline_glyphs();
+            let metrics = skrifa_font.metrics(
+                skrifa::instance::Size::unscaled(),
+                skrifa::instance::LocationRef::default(),
+            );
+            let glyph_metrics = skrifa_font.glyph_metrics(
+                skrifa::instance::Size::unscaled(),
+                skrifa::instance::LocationRef::default(),
+            );
+
+            Ok::<DependentFontData<'_>, Box<dyn std::error::Error>>(DependentFontData {
+                skrifa: skrifa_font,
+                charmap,
+                outline_glyphs: glyphs,
+                metrics,
+                glyph_metrics,
+            })
+        })?;
+        Ok(Self {
             name,
-            ab_glyph_font,
+            font,
             tweak,
             glyph_info_cache: Default::default(),
             glyph_alloc_cache: Default::default(),
-        }
+        })
     }
 
     /// Code points that will always be replaced by the replacement character.
@@ -223,10 +371,11 @@ impl FontFace {
 
     /// An un-ordered iterator over all supported characters.
     fn characters(&self) -> impl Iterator<Item = char> + '_ {
-        self.ab_glyph_font
-            .codepoint_ids()
-            .map(|(_, chr)| chr)
-            .filter(|&chr| !self.ignore_character(chr))
+        self.font
+            .borrow_dependent()
+            .charmap
+            .mappings()
+            .filter_map(|(chr, _)| char::from_u32(chr).filter(|c| !self.ignore_character(*c)))
     }
 
     /// `\n` will result in `None`
@@ -258,7 +407,7 @@ impl FontFace {
             // https://en.wikipedia.org/wiki/Thin_space
 
             if let Some(space) = self.glyph_info(' ') {
-                let em = self.ab_glyph_font.units_per_em().unwrap_or(1.0);
+                let em = self.font.borrow_dependent().metrics.units_per_em as f32;
                 let advance_width = f32::min(em / 6.0, space.advance_width_unscaled.0 * 0.5); // TODO(emilk): make configurable
                 let glyph_info = GlyphInfo {
                     advance_width_unscaled: advance_width.into(),
@@ -275,52 +424,68 @@ impl FontFace {
             return Some(glyph_info);
         }
 
-        // Add new character:
-        let glyph_id = self.ab_glyph_font.glyph_id(c);
+        let font_data = self.font.borrow_dependent();
 
-        if glyph_id.0 == 0 {
-            None // unsupported character
-        } else {
-            let glyph_info = GlyphInfo {
-                id: Some(glyph_id),
-                advance_width_unscaled: self.ab_glyph_font.h_advance_unscaled(glyph_id).into(),
-            };
-            self.glyph_info_cache.insert(c, glyph_info);
-            Some(glyph_info)
-        }
+        // Add new character:
+        let glyph_id = font_data
+            .charmap
+            .map(c)
+            .filter(|id| *id != skrifa::GlyphId::NOTDEF)?;
+
+        let glyph_info = GlyphInfo {
+            id: Some(glyph_id),
+            advance_width_unscaled: font_data
+                .glyph_metrics
+                .advance_width(glyph_id)
+                .unwrap_or_default()
+                .into(),
+        };
+        self.glyph_info_cache.insert(c, glyph_info);
+        Some(glyph_info)
     }
 
     #[inline]
     pub(super) fn pair_kerning_pixels(
         &self,
         metrics: &ScaledMetrics,
-        last_glyph_id: ab_glyph::GlyphId,
-        glyph_id: ab_glyph::GlyphId,
+        last_glyph_id: skrifa::GlyphId,
+        glyph_id: skrifa::GlyphId,
     ) -> f32 {
-        self.ab_glyph_font.kern_unscaled(last_glyph_id, glyph_id) * metrics.px_scale_factor
+        let skrifa_font = &self.font.borrow_dependent().skrifa;
+        let Ok(kern) = skrifa_font.kern() else {
+            return 0.0;
+        };
+        kern.subtables()
+            .find_map(|st| match st.ok()?.kind().ok()? {
+                SubtableKind::Format0(table_ref) => table_ref.kerning(last_glyph_id, glyph_id),
+                SubtableKind::Format1(_) => None,
+                SubtableKind::Format2(subtable2) => subtable2.kerning(last_glyph_id, glyph_id),
+                SubtableKind::Format3(table_ref) => table_ref.kerning(last_glyph_id, glyph_id),
+            })
+            .unwrap_or_default() as f32
+            * metrics.px_scale_factor
     }
 
     #[inline]
     pub fn pair_kerning(
         &self,
         metrics: &ScaledMetrics,
-        last_glyph_id: ab_glyph::GlyphId,
-        glyph_id: ab_glyph::GlyphId,
+        last_glyph_id: skrifa::GlyphId,
+        glyph_id: skrifa::GlyphId,
     ) -> f32 {
         self.pair_kerning_pixels(metrics, last_glyph_id, glyph_id) / metrics.pixels_per_point
     }
 
     #[inline(always)]
     pub fn scaled_metrics(&self, pixels_per_point: f32, font_size: f32) -> ScaledMetrics {
-        let pt_scale_factor = self
-            .ab_glyph_font
-            .px_scale_factor(font_size * self.tweak.scale);
-        let ascent = (self.ab_glyph_font.ascent_unscaled() * pt_scale_factor).round_ui();
-        let descent = (self.ab_glyph_font.descent_unscaled() * pt_scale_factor).round_ui();
-        let line_gap = (self.ab_glyph_font.line_gap_unscaled() * pt_scale_factor).round_ui();
+        let pt_scale_factor = self.font.px_scale_factor(font_size * self.tweak.scale);
+        let font_data = self.font.borrow_dependent();
+        let ascent = (font_data.metrics.ascent * pt_scale_factor).round_ui();
+        let descent = (font_data.metrics.descent * pt_scale_factor).round_ui();
+        let line_gap = (font_data.metrics.leading * pt_scale_factor).round_ui();
 
         let scale = font_size * self.tweak.scale * pixels_per_point;
-        let px_scale_factor = self.ab_glyph_font.px_scale_factor(scale);
+        let px_scale_factor = self.font.px_scale_factor(scale);
 
         let y_offset_in_points = ((font_size * self.tweak.scale * self.tweak.y_offset_factor)
             + self.tweak.y_offset)
@@ -329,6 +494,7 @@ impl FontFace {
         ScaledMetrics {
             pixels_per_point,
             px_scale_factor,
+            scale,
             y_offset_in_points,
             ascent,
             row_height: ascent - descent + line_gap,
@@ -370,68 +536,11 @@ impl FontFace {
             std::collections::hash_map::Entry::Vacant(entry) => entry,
         };
 
-        debug_assert!(glyph_id.0 != 0, "Can't allocate glyph for id 0");
+        let allocation = self
+            .font
+            .allocate_glyph_uncached(atlas, metrics, &glyph_info, bin)
+            .unwrap_or_default();
 
-        let uv_rect = self.ab_glyph_font.outline(glyph_id).map(|outline| {
-            let glyph = ab_glyph::Glyph {
-                id: glyph_id,
-                // We bypass ab-glyph's scaling method because it uses the wrong scale
-                // (https://github.com/alexheretic/ab-glyph/issues/15), and this field is never accessed when
-                // rasterizing. We can just put anything here.
-                scale: PxScale::from(0.0),
-                position: ab_glyph::Point {
-                    x: bin.as_float(),
-                    y: 0.0,
-                },
-            };
-            let outlined = OutlinedGlyph::new(
-                glyph,
-                outline,
-                ab_glyph::PxScaleFactor {
-                    horizontal: metrics.px_scale_factor,
-                    vertical: metrics.px_scale_factor,
-                },
-            );
-            let bb = outlined.px_bounds();
-            let glyph_width = bb.width() as usize;
-            let glyph_height = bb.height() as usize;
-            if glyph_width == 0 || glyph_height == 0 {
-                UvRect::default()
-            } else {
-                let glyph_pos = {
-                    let text_alpha_from_coverage = atlas.text_alpha_from_coverage;
-                    let (glyph_pos, image) = atlas.allocate((glyph_width, glyph_height));
-                    outlined.draw(|x, y, v| {
-                        if 0.0 < v {
-                            let px = glyph_pos.0 + x as usize;
-                            let py = glyph_pos.1 + y as usize;
-                            image[(px, py)] = text_alpha_from_coverage.color_from_coverage(v);
-                        }
-                    });
-                    glyph_pos
-                };
-
-                let offset_in_pixels = vec2(bb.min.x, bb.min.y);
-                let offset = offset_in_pixels / metrics.pixels_per_point
-                    + metrics.y_offset_in_points * Vec2::Y;
-                UvRect {
-                    offset,
-                    size: vec2(glyph_width as f32, glyph_height as f32) / metrics.pixels_per_point,
-                    min: [glyph_pos.0 as u16, glyph_pos.1 as u16],
-                    max: [
-                        (glyph_pos.0 + glyph_width) as u16,
-                        (glyph_pos.1 + glyph_height) as u16,
-                    ],
-                }
-            }
-        });
-        let uv_rect = uv_rect.unwrap_or_default();
-
-        let allocation = GlyphAllocation {
-            id: glyph_id,
-            advance_width_px,
-            uv_rect,
-        };
         entry.insert(allocation);
         (allocation, h_pos_round)
     }
@@ -479,7 +588,7 @@ impl Font<'_> {
     pub fn glyph_width(&mut self, c: char, font_size: f32) -> f32 {
         let (key, glyph_info) = self.glyph_info(c);
         if let Some(font) = &self.fonts_by_id.get(&key) {
-            glyph_info.advance_width_unscaled.0 * font.ab_glyph_font.px_scale_factor(font_size)
+            glyph_info.advance_width_unscaled.0 * font.font.px_scale_factor(font_size)
         } else {
             0.0
         }
@@ -524,7 +633,10 @@ pub struct ScaledMetrics {
     /// Translates "unscaled" units to physical (screen) pixels.
     pub px_scale_factor: f32,
 
-    /// Vertical offset, in UI points.
+    /// Absolute scale in screen pixels, for skrifa.
+    pub scale: f32,
+
+    /// Vertical offset, in UI points (not screen-space).
     pub y_offset_in_points: f32,
 
     /// This is the distance from the top to the baseline.
