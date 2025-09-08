@@ -82,7 +82,7 @@ pub struct FontImpl {
     tweak: FontTweak,
     glyph_info_cache: ahash::HashMap<char, GlyphInfo>,
     glyph_alloc_cache:
-        ahash::HashMap<(GlyphInfo, OrderedFloat<f32>, OrderedFloat<f32>), GlyphAllocation>,
+        ahash::HashMap<(ab_glyph::GlyphId, OrderedFloat<f32>, OrderedFloat<f32>), GlyphAllocation>,
 }
 
 trait FontExt {
@@ -263,7 +263,7 @@ impl FontImpl {
         };
 
         let entry = match self.glyph_alloc_cache.entry((
-            glyph_info,
+            glyph_id,
             metrics.px_scale_factor.into(),
             metrics.pixels_per_point.into(),
         )) {
