@@ -127,7 +127,7 @@ pub struct GlyphAllocation {
     pub(crate) id: ab_glyph::GlyphId,
 
     /// Unit: screen pixels.
-    pub advance_width: f32,
+    pub advance_width_px: f32,
 
     /// UV rectangle for drawing.
     pub uv_rect: UvRect,
@@ -427,7 +427,7 @@ impl FontImpl {
 
         let allocation = GlyphAllocation {
             id: glyph_id,
-            advance_width: glyph_info.advance_width_unscaled.0 * metrics.px_scale_factor,
+            advance_width_px: glyph_info.advance_width_unscaled.0 * metrics.px_scale_factor,
             uv_rect,
         };
         entry.insert(allocation);
@@ -530,6 +530,8 @@ pub struct ScaledMetrics {
     pub pixels_per_point: f32,
 
     /// Scale factor, relative to the font's units per em (so, probably much less than 1).
+    ///
+    /// Translates "unscaled" units to physical (screen) pixels.
     pub px_scale_factor: f32,
 
     /// Vertical offset, in UI points (not screen-space).

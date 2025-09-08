@@ -49,7 +49,7 @@ impl PointScale {
 #[derive(Clone)]
 struct Paragraph {
     /// Start of the next glyph to be added. In screen-space / physical pixels.
-    pub cursor_x: f32,
+    pub cursor_x_px: f32,
 
     /// This is included in case there are no glyphs
     pub section_index_at_start: u32,
@@ -63,7 +63,7 @@ struct Paragraph {
 impl Paragraph {
     pub fn from_section_index(section_index_at_start: u32) -> Self {
         Self {
-            cursor_x: 0.0,
+            cursor_x_px: 0.0,
             section_index_at_start,
             glyphs: vec![],
             empty_paragraph_height: 0.0,
@@ -172,7 +172,7 @@ fn layout_section(
         paragraph.empty_paragraph_height = line_height; // TODO(emilk): replace this hack with actually including `\n` in the glyphs?
     }
 
-    paragraph.cursor_x += leading_space * pixels_per_point;
+    paragraph.cursor_x_px += leading_space * pixels_per_point;
 
     let mut last_glyph_id = None;
 
@@ -204,12 +204,12 @@ fn layout_section(
             if let (Some(font_impl), Some(last_glyph_id), Some(glyph_id)) =
                 (&font_impl, last_glyph_id, glyph_info.id)
             {
-                paragraph.cursor_x += font_impl.pair_kerning_screen_space(
+                paragraph.cursor_x_px += font_impl.pair_kerning_screen_space(
                     &font_impl_metrics,
                     last_glyph_id,
                     glyph_id,
                 );
-                paragraph.cursor_x += extra_letter_spacing * pixels_per_point;
+                paragraph.cursor_x_px += extra_letter_spacing * pixels_per_point;
             }
 
             let (glyph_alloc, physical_x) = match font_impl.as_mut() {
@@ -218,7 +218,7 @@ fn layout_section(
                     &font_impl_metrics,
                     glyph_info,
                     chr,
-                    paragraph.cursor_x,
+                    paragraph.cursor_x_px,
                 ),
                 None => Default::default(),
             };
@@ -226,7 +226,7 @@ fn layout_section(
             paragraph.glyphs.push(Glyph {
                 chr,
                 pos: pos2(physical_x as f32 / pixels_per_point, f32::NAN),
-                advance_width: glyph_alloc.advance_width / pixels_per_point,
+                advance_width: glyph_alloc.advance_width_px / pixels_per_point,
                 line_height,
                 font_impl_height: font_impl_metrics.row_height,
                 font_impl_ascent: font_impl_metrics.ascent,
@@ -236,7 +236,7 @@ fn layout_section(
                 section_index,
             });
 
-            paragraph.cursor_x += glyph_alloc.advance_width;
+            paragraph.cursor_x_px += glyph_alloc.advance_width_px;
             last_glyph_id = Some(glyph_alloc.id);
         }
     }
@@ -528,7 +528,7 @@ fn replace_last_glyph_with_overflow_character(
             row.glyphs.push(Glyph {
                 chr: overflow_character,
                 pos: pos2(physical_x as f32 / pixels_per_point, f32::NAN),
-                advance_width: replacement_glyph_alloc.advance_width,
+                advance_width: replacement_glyph_alloc.advance_width_px / pixels_per_point,
                 line_height,
                 font_impl_height: font_impl_metrics.row_height,
                 font_impl_ascent: font_impl_metrics.ascent,
