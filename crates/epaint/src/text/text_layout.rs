@@ -157,7 +157,7 @@ fn layout_section(
     } = section;
     let mut font = fonts.font(&format.font_id.family);
     let font_size = format.font_id.size;
-    let font_metrics = font.scaled_metrics(font_size);
+    let font_metrics = font.scaled_metrics(pixels_per_point, font_size);
     let line_height = section
         .format
         .line_height
@@ -182,32 +182,29 @@ fn layout_section(
         } else {
             let (font_id, glyph_info) = font.glyph_info(chr);
             let (mut font_impl, font_impl_metrics) = match last_font {
-                Some((last_font_id, last_font_metrics)) if last_font_id == font_id => {
-                    (font.fonts_by_id.get_mut(&font_id), last_font_metrics)
-                }
+                Some((last_font_id, last_font_metrics)) if last_font_id == font_id => (
+                    font.fonts_by_id.get_mut(&font_id),
+                    last_font_metrics.unwrap_or_default(),
+                ),
                 _ => {
                     let font_impl = font.fonts_by_id.get_mut(&font_id);
                     let scaled_metrics = font_impl
                         .as_ref()
-                        .map(|font_impl| font_impl.scaled_metrics(font_size));
+                        .map(|font_impl| font_impl.scaled_metrics(pixels_per_point, font_size));
                     last_font = Some((font_id, scaled_metrics));
-                    (font_impl, scaled_metrics)
+                    (font_impl, scaled_metrics.unwrap_or_default())
                 }
             };
             let glyph_alloc = match font_impl.as_mut() {
                 Some(font_impl) => {
-                    font_impl.allocate_glyph(font.atlas, pixels_per_point, glyph_info, font_size)
+                    font_impl.allocate_glyph(font.atlas, &font_impl_metrics, glyph_info)
                 }
                 None => Default::default(),
             };
 
             if let (Some(font_impl), Some(last_glyph_id)) = (&font_impl, last_glyph_id) {
-                paragraph.cursor_x += font_impl.pair_kerning(
-                    pixels_per_point,
-                    last_glyph_id,
-                    glyph_alloc.id,
-                    font_size,
-                );
+                paragraph.cursor_x +=
+                    font_impl.pair_kerning(&font_impl_metrics, last_glyph_id, glyph_alloc.id);
                 paragraph.cursor_x += extra_letter_spacing;
             }
 
@@ -216,8 +213,8 @@ fn layout_section(
                 pos: pos2(paragraph.cursor_x, f32::NAN),
                 advance_width: glyph_alloc.advance_width,
                 line_height,
-                font_impl_height: font_impl_metrics.map_or(0.0, |m| m.row_height),
-                font_impl_ascent: font_impl_metrics.map_or(0.0, |m| m.ascent),
+                font_impl_height: font_impl_metrics.row_height,
+                font_impl_ascent: font_impl_metrics.ascent,
                 font_height: font_metrics.row_height,
                 font_ascent: font_metrics.ascent,
                 uv_rect: glyph_alloc.uv_rect,
@@ -457,9 +454,17 @@ fn replace_last_glyph_with_overflow_character(
 
         let (font_id, glyph_info) = font.glyph_info(overflow_character);
         let mut font_impl = font.fonts_by_id.get_mut(&font_id);
+        let font_impl_metrics = font_impl
+            .as_ref()
+            .map(|f| f.scaled_metrics(pixels_per_point, font_size))
+            .unwrap_or_default();
         let replacement_glyph_alloc = font_impl
             .as_mut()
-            .map(|f| f.allocate_glyph(font.atlas, pixels_per_point, glyph_info, font_size))
+            .map(|f| f.allocate_glyph(font.atlas, &font_impl_metrics, glyph_info))
+            .unwrap_or_default();
+        let font_impl_metrics = font_impl
+            .as_mut()
+            .map(|f| f.scaled_metrics(pixels_per_point, font_size))
             .unwrap_or_default();
 
         let overflow_glyph_x = if let Some(prev_glyph) = row.glyphs.last() {
@@ -471,12 +476,7 @@ fn replace_last_glyph_with_overflow_character(
                         font_impl.glyph_info(prev_glyph.chr).and_then(|g| g.id),
                         font_impl.glyph_info(overflow_character).and_then(|g| g.id),
                     ) {
-                        font_impl.pair_kerning(
-                            pixels_per_point,
-                            prev_glyph_id,
-                            overflow_glyph_id,
-                            font_size,
-                        )
+                        font_impl.pair_kerning(&font_impl_metrics, prev_glyph_id, overflow_glyph_id)
                     } else {
                         0.0
                     }
@@ -494,13 +494,7 @@ fn replace_last_glyph_with_overflow_character(
         {
             // we are done
 
-            // We need to calculate these first since `font_impl` is mutably borrowed from `font`, which is later used
-            // to calculate the row height
-            let font_impl_metrics = font_impl
-                .as_mut()
-                .map(|f| f.scaled_metrics(font_size))
-                .unwrap_or_default();
-            let font_metrics = font.scaled_metrics(font_size);
+            let font_metrics = font.scaled_metrics(pixels_per_point, font_size);
             let line_height = section
                 .format
                 .line_height
@@ -1205,7 +1199,7 @@ mod tests {
         let font_id = FontId::default();
         let font_height = fonts
             .font(&font_id.family)
-            .scaled_metrics(font_id.size)
+            .scaled_metrics(pixels_per_point, font_id.size)
             .row_height;
 
         let job = LayoutJob::simple(String::new(), font_id, Color32::WHITE, f32::INFINITY);
@@ -1242,7 +1236,7 @@ mod tests {
         let font_id = FontId::default();
         let font_height = fonts
             .font(&font_id.family)
-            .scaled_metrics(font_id.size)
+            .scaled_metrics(pixels_per_point, font_id.size)
             .row_height;
 
         let job = LayoutJob::simple("Hi!\n".to_owned(), font_id, Color32::WHITE, f32::INFINITY);

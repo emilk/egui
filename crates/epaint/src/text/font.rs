@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use ab_glyph::{Font as _, PxScaleFont, ScaleFont as _};
+use ab_glyph::{Font as _, OutlinedGlyph, PxScale};
 use emath::{GuiRounding as _, OrderedFloat, Vec2, vec2};
 
 use crate::{
@@ -86,28 +86,18 @@ pub struct FontImpl {
 }
 
 trait FontExt {
-    fn pt_scaled(&self, scale: f32) -> PxScaleFont<&'_ Self>;
-
-    fn pt_scale_factor(&self, scale: f32) -> f32;
+    fn px_scale_factor(&self, scale: f32) -> f32;
 }
 
 impl<T> FontExt for T
 where
     T: ab_glyph::Font,
 {
-    fn pt_scaled(&self, scale: f32) -> PxScaleFont<&'_ Self> {
-        PxScaleFont {
-            font: self,
-            scale: self.pt_scale_factor(scale).into(),
-        }
-    }
-
-    fn pt_scale_factor(&self, scale: f32) -> f32 {
+    fn px_scale_factor(&self, scale: f32) -> f32 {
         let units_per_em = self.units_per_em().unwrap_or_else(|| {
             panic!("The font unit size exceeds the expected range (16..=16384)")
         });
-        let font_scaling = self.height_unscaled() / units_per_em;
-        scale * font_scaling
+        scale / units_per_em
     }
 }
 
@@ -216,51 +206,66 @@ impl FontImpl {
     #[inline]
     pub fn pair_kerning(
         &self,
-        pixels_per_point: f32,
+        metrics: &ScaledMetrics,
         last_glyph_id: ab_glyph::GlyphId,
         glyph_id: ab_glyph::GlyphId,
-        font_size: f32,
     ) -> f32 {
         // Round to an even number of physical pixels to get even kerning.
         // See https://github.com/emilk/egui/issues/382
-        self.ab_glyph_font
-            .pt_scaled((font_size * self.tweak.scale * pixels_per_point).round())
-            .kern(last_glyph_id, glyph_id)
-            / pixels_per_point
+        self.ab_glyph_font.kern_unscaled(last_glyph_id, glyph_id) * metrics.px_scale_factor
+            / metrics.pixels_per_point
     }
 
     #[inline(always)]
-    pub fn scaled_metrics(&self, font_size: f32) -> ScaledMetrics {
-        let font = self.ab_glyph_font.pt_scaled(font_size);
+    pub fn scaled_metrics(&self, pixels_per_point: f32, font_size: f32) -> ScaledMetrics {
+        let pt_scale_factor = self
+            .ab_glyph_font
+            .px_scale_factor(font_size * self.tweak.scale);
+        let ascent = (self.ab_glyph_font.ascent_unscaled() * pt_scale_factor).round_ui();
+        let descent = (self.ab_glyph_font.descent_unscaled() * pt_scale_factor).round_ui();
+        let line_gap = (self.ab_glyph_font.line_gap_unscaled() * pt_scale_factor).round_ui();
+
+        // Round to an even number of physical pixels to get even kerning.
+        // See https://github.com/emilk/egui/issues/382
+        let px_scale_factor = self
+            .ab_glyph_font
+            .px_scale_factor((font_size * self.tweak.scale * pixels_per_point).round());
+
+        let y_offset_points = ((font_size * self.tweak.scale * self.tweak.y_offset_factor)
+            + self.tweak.y_offset)
+            .round_ui();
+
+        // Center scaled glyphs properly:
+        let height = ascent + descent;
+        let y_offset_points = y_offset_points - (1.0 - self.tweak.scale) * 0.5 * height;
+
+        // Round to closest pixel:
+        let y_offset_in_points = (y_offset_points * pixels_per_point).round() / pixels_per_point;
+
         ScaledMetrics {
-            ascent: font.ascent().round_ui(),
-            row_height: font.ascent().round_ui() - font.descent().round_ui()
-                + font.line_gap().round_ui(),
+            pixels_per_point,
+            px_scale_factor,
+            y_offset_in_points,
+            ascent,
+            row_height: ascent - descent + line_gap,
         }
     }
 
     pub fn allocate_glyph(
         &mut self,
         atlas: &mut TextureAtlas,
-        pixels_per_point: f32,
+        metrics: &ScaledMetrics,
         glyph_info: GlyphInfo,
-        font_size: f32,
     ) -> GlyphAllocation {
         let Some(glyph_id) = glyph_info.id else {
             // Invisible.
             return GlyphAllocation::default();
         };
 
-        // Round to an even number of physical pixels to get even kerning.
-        // See https://github.com/emilk/egui/issues/382
-        let scale = self
-            .ab_glyph_font
-            .pt_scale_factor(font_size * self.tweak.scale * pixels_per_point)
-            .round();
         let entry = match self.glyph_alloc_cache.entry((
             glyph_info,
-            font_size.into(),
-            pixels_per_point.into(),
+            metrics.px_scale_factor.into(),
+            metrics.pixels_per_point.into(),
         )) {
             std::collections::hash_map::Entry::Occupied(glyph_alloc) => {
                 return *glyph_alloc.get();
@@ -270,27 +275,24 @@ impl FontImpl {
 
         debug_assert!(glyph_id.0 != 0, "Can't allocate glyph for id 0");
 
-        let glyph = glyph_id.with_scale_and_position(scale, ab_glyph::Point { x: 0.0, y: 0.0 });
-
-        // Tweak the scale as the user desired
-        let y_offset_in_points = {
-            let logically_scaled = self.ab_glyph_font.pt_scaled(font_size * pixels_per_point);
-            let scale_in_points = scale / pixels_per_point;
-
-            let y_offset_points =
-                ((scale_in_points * self.tweak.y_offset_factor) + self.tweak.y_offset).round_ui();
-
-            // Center scaled glyphs properly:
-            let height = (logically_scaled.ascent() / pixels_per_point).round_ui()
-                + (logically_scaled.descent() / pixels_per_point).round_ui();
-            let y_offset_points = y_offset_points - (1.0 - self.tweak.scale) * 0.5 * height;
-
-            // Round to closest pixel:
-            (y_offset_points * pixels_per_point).round() / pixels_per_point
-        };
-
-        let uv_rect = self.ab_glyph_font.outline_glyph(glyph).map(|glyph| {
-            let bb = glyph.px_bounds();
+        let uv_rect = self.ab_glyph_font.outline(glyph_id).map(|outline| {
+            let glyph = ab_glyph::Glyph {
+                id: glyph_id,
+                // We bypass ab-glyph's scaling method because it uses the wrong scale
+                // (https://github.com/alexheretic/ab-glyph/issues/15), and this field is never accessed when
+                // rasterizing. We can just put anything here.
+                scale: PxScale::from(0.0),
+                position: ab_glyph::Point::default(),
+            };
+            let outlined = OutlinedGlyph::new(
+                glyph,
+                outline,
+                ab_glyph::PxScaleFactor {
+                    horizontal: metrics.px_scale_factor,
+                    vertical: metrics.px_scale_factor,
+                },
+            );
+            let bb = outlined.px_bounds();
             let glyph_width = bb.width() as usize;
             let glyph_height = bb.height() as usize;
             if glyph_width == 0 || glyph_height == 0 {
@@ -299,7 +301,7 @@ impl FontImpl {
                 let glyph_pos = {
                     let text_alpha_from_coverage = atlas.text_alpha_from_coverage;
                     let (glyph_pos, image) = atlas.allocate((glyph_width, glyph_height));
-                    glyph.draw(|x, y, v| {
+                    outlined.draw(|x, y, v| {
                         if 0.0 < v {
                             let px = glyph_pos.0 + x as usize;
                             let py = glyph_pos.1 + y as usize;
@@ -310,10 +312,11 @@ impl FontImpl {
                 };
 
                 let offset_in_pixels = vec2(bb.min.x, bb.min.y);
-                let offset = offset_in_pixels / pixels_per_point + y_offset_in_points * Vec2::Y;
+                let offset = offset_in_pixels / metrics.pixels_per_point
+                    + metrics.y_offset_in_points * Vec2::Y;
                 UvRect {
                     offset,
-                    size: vec2(glyph_width as f32, glyph_height as f32) / pixels_per_point,
+                    size: vec2(glyph_width as f32, glyph_height as f32) / metrics.pixels_per_point,
                     min: [glyph_pos.0 as u16, glyph_pos.1 as u16],
                     max: [
                         (glyph_pos.0 + glyph_width) as u16,
@@ -326,9 +329,8 @@ impl FontImpl {
 
         let allocation = GlyphAllocation {
             id: glyph_id,
-            advance_width: (glyph_info.advance_width_unscaled.0 * scale
-                / self.ab_glyph_font.height_unscaled())
-                / pixels_per_point,
+            advance_width: (glyph_info.advance_width_unscaled.0 * metrics.px_scale_factor)
+                / metrics.pixels_per_point,
             uv_rect,
         };
         entry.insert(allocation);
@@ -376,12 +378,12 @@ impl Font<'_> {
         })
     }
 
-    pub fn scaled_metrics(&self, font_size: f32) -> ScaledMetrics {
+    pub fn scaled_metrics(&self, pixels_per_point: f32, font_size: f32) -> ScaledMetrics {
         self.cached_family
             .fonts
             .first()
             .and_then(|key| self.fonts_by_id.get(key))
-            .map(|font_impl| font_impl.scaled_metrics(font_size))
+            .map(|font_impl| font_impl.scaled_metrics(pixels_per_point, font_size))
             .unwrap_or_default()
     }
 
@@ -393,8 +395,7 @@ impl Font<'_> {
             .get(&key)
             .expect("Nonexistent font ID")
             .ab_glyph_font;
-        glyph_info.advance_width_unscaled.0 * font.pt_scale_factor(font_size)
-            / font.height_unscaled()
+        glyph_info.advance_width_unscaled.0 * font.px_scale_factor(font_size)
     }
 
     /// Can we display this glyph?
@@ -427,6 +428,9 @@ impl Font<'_> {
 
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub struct ScaledMetrics {
+    pub pixels_per_point: f32,
+    pub px_scale_factor: f32,
+    pub y_offset_in_points: f32,
     /// This is the distance from the top to the baseline.
     ///
     /// Unit: points.

@@ -673,7 +673,7 @@ impl FontsView<'_> {
     pub fn row_height(&mut self, font_id: &FontId) -> f32 {
         self.fonts
             .font(&font_id.family)
-            .scaled_metrics(font_id.size)
+            .scaled_metrics(self.pixels_per_point, font_id.size)
             .row_height
     }
 
