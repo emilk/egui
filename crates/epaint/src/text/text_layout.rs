@@ -45,7 +45,7 @@ impl PointScale {
 /// Temporary storage before line-wrapping.
 #[derive(Clone)]
 struct Paragraph {
-    /// Start of the next glyph to be added.
+    /// Start of the next glyph to be added. In screen-space / physical pixels.
     pub cursor_x: f32,
 
     /// This is included in case there are no glyphs
@@ -169,7 +169,7 @@ fn layout_section(
         paragraph.empty_paragraph_height = line_height; // TODO(emilk): replace this hack with actually including `\n` in the glyphs?
     }
 
-    paragraph.cursor_x += leading_space;
+    paragraph.cursor_x += leading_space * pixels_per_point;
 
     let mut last_glyph_id = None;
 
@@ -195,23 +195,32 @@ fn layout_section(
                     (font_impl, scaled_metrics.unwrap_or_default())
                 }
             };
-            let glyph_alloc = match font_impl.as_mut() {
-                Some(font_impl) => {
-                    font_impl.allocate_glyph(font.atlas, &font_impl_metrics, glyph_info)
-                }
+
+            if let (Some(font_impl), Some(last_glyph_id), Some(glyph_id)) =
+                (&font_impl, last_glyph_id, glyph_info.id)
+            {
+                paragraph.cursor_x += font_impl.pair_kerning_screen_space(
+                    &font_impl_metrics,
+                    last_glyph_id,
+                    glyph_id,
+                );
+                paragraph.cursor_x += extra_letter_spacing * pixels_per_point;
+            }
+
+            let (glyph_alloc, physical_x) = match font_impl.as_mut() {
+                Some(font_impl) => font_impl.allocate_glyph(
+                    font.atlas,
+                    &font_impl_metrics,
+                    glyph_info,
+                    paragraph.cursor_x,
+                ),
                 None => Default::default(),
             };
 
-            if let (Some(font_impl), Some(last_glyph_id)) = (&font_impl, last_glyph_id) {
-                paragraph.cursor_x +=
-                    font_impl.pair_kerning(&font_impl_metrics, last_glyph_id, glyph_alloc.id);
-                paragraph.cursor_x += extra_letter_spacing;
-            }
-
             paragraph.glyphs.push(Glyph {
                 chr,
-                pos: pos2(paragraph.cursor_x, f32::NAN),
-                advance_width: glyph_alloc.advance_width,
+                pos: pos2(physical_x as f32 / pixels_per_point, f32::NAN),
+                advance_width: glyph_alloc.advance_width / pixels_per_point,
                 line_height,
                 font_impl_height: font_impl_metrics.row_height,
                 font_impl_ascent: font_impl_metrics.ascent,
@@ -222,7 +231,6 @@ fn layout_section(
             });
 
             paragraph.cursor_x += glyph_alloc.advance_width;
-            paragraph.cursor_x = paragraph.cursor_x.round_to_pixels(pixels_per_point);
             last_glyph_id = Some(glyph_alloc.id);
         }
     }
@@ -455,14 +463,6 @@ fn replace_last_glyph_with_overflow_character(
         let (font_id, glyph_info) = font.glyph_info(overflow_character);
         let mut font_impl = font.fonts_by_id.get_mut(&font_id);
         let font_impl_metrics = font_impl
-            .as_ref()
-            .map(|f| f.scaled_metrics(pixels_per_point, font_size))
-            .unwrap_or_default();
-        let replacement_glyph_alloc = font_impl
-            .as_mut()
-            .map(|f| f.allocate_glyph(font.atlas, &font_impl_metrics, glyph_info))
-            .unwrap_or_default();
-        let font_impl_metrics = font_impl
             .as_mut()
             .map(|f| f.scaled_metrics(pixels_per_point, font_size))
             .unwrap_or_default();
@@ -488,11 +488,29 @@ fn replace_last_glyph_with_overflow_character(
             0.0 // TODO(emilk): heed paragraph leading_space 😬
         };
 
+        let replacement_glyph_width = font_impl
+            .as_mut()
+            .and_then(|f| f.glyph_info(overflow_character))
+            .map(|i| i.advance_width_unscaled.0 * font_impl_metrics.px_scale_factor)
+            .unwrap_or_default();
+
         // Check if we're within width budget:
-        if overflow_glyph_x + replacement_glyph_alloc.advance_width <= job.effective_wrap_width()
+        if overflow_glyph_x + replacement_glyph_width <= job.effective_wrap_width()
             || row.glyphs.is_empty()
         {
             // we are done
+
+            let (replacement_glyph_alloc, physical_x) = font_impl
+                .as_mut()
+                .map(|f| {
+                    f.allocate_glyph(
+                        font.atlas,
+                        &font_impl_metrics,
+                        glyph_info,
+                        overflow_glyph_x * pixels_per_point,
+                    )
+                })
+                .unwrap_or_default();
 
             let font_metrics = font.scaled_metrics(pixels_per_point, font_size);
             let line_height = section
@@ -502,7 +520,7 @@ fn replace_last_glyph_with_overflow_character(
 
             row.glyphs.push(Glyph {
                 chr: overflow_character,
-                pos: pos2(overflow_glyph_x, f32::NAN),
+                pos: pos2(physical_x as f32 / pixels_per_point, f32::NAN),
                 advance_width: replacement_glyph_alloc.advance_width,
                 line_height,
                 font_impl_height: font_impl_metrics.row_height,

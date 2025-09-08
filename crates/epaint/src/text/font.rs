@@ -57,6 +57,67 @@ impl GlyphInfo {
     };
 }
 
+// Subpixel binning, taken from cosmic-text:
+// https://github.com/pop-os/cosmic-text/blob/974ddaed96b334f560b606ebe5d2ca2d2f9f23ef/src/glyph_cache.rs
+
+/// Bin for subpixel positioning of glyphs.
+///
+/// For accurate glyph positioning, we want to render each glyph at a subpixel coordinate. However, we also want to
+/// cache each glyph's bitmap. As a compromise, we bin each subpixel offset into one of four fractional values. This
+/// means one glyph can have up to four subpixel-positioned bitmaps in the cache.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+pub(super) enum SubpixelBin {
+    #[default]
+    Zero,
+    One,
+    Two,
+    Three,
+}
+
+impl SubpixelBin {
+    /// Bin the given position and return the new integral coordinate.
+    fn new(pos: f32) -> (i32, Self) {
+        let trunc = pos as i32;
+        let fract = pos - trunc as f32;
+
+        #[expect(clippy::collapsible_else_if)]
+        if pos.is_sign_negative() {
+            if fract > -0.125 {
+                (trunc, Self::Zero)
+            } else if fract > -0.375 {
+                (trunc - 1, Self::Three)
+            } else if fract > -0.625 {
+                (trunc - 1, Self::Two)
+            } else if fract > -0.875 {
+                (trunc - 1, Self::One)
+            } else {
+                (trunc - 1, Self::Zero)
+            }
+        } else {
+            if fract < 0.125 {
+                (trunc, Self::Zero)
+            } else if fract < 0.375 {
+                (trunc, Self::One)
+            } else if fract < 0.625 {
+                (trunc, Self::Two)
+            } else if fract < 0.875 {
+                (trunc, Self::Three)
+            } else {
+                (trunc + 1, Self::Zero)
+            }
+        }
+    }
+
+    pub fn as_float(&self) -> f32 {
+        match self {
+            Self::Zero => 0.0,
+            Self::One => 0.25,
+            Self::Two => 0.5,
+            Self::Three => 0.75,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub struct GlyphAllocation {
     /// Used for pair-kerning.
@@ -65,7 +126,7 @@ pub struct GlyphAllocation {
     /// Use `ab_glyph::GlyphId(0)` if you just want to have an id, and don't care.
     pub(crate) id: ab_glyph::GlyphId,
 
-    /// Unit: points.
+    /// Unit: screen pixels.
     pub advance_width: f32,
 
     /// UV rectangle for drawing.
@@ -81,7 +142,7 @@ pub struct FontImpl {
     ab_glyph_font: ab_glyph::FontArc,
     tweak: FontTweak,
     glyph_info_cache: ahash::HashMap<char, GlyphInfo>,
-    glyph_alloc_cache: ahash::HashMap<(ab_glyph::GlyphId, u64), GlyphAllocation>,
+    glyph_alloc_cache: ahash::HashMap<(ab_glyph::GlyphId, SubpixelBin, u64), GlyphAllocation>,
 }
 
 trait FontExt {
@@ -203,14 +264,23 @@ impl FontImpl {
     }
 
     #[inline]
-    pub fn pair_kerning(
+    pub(super) fn pair_kerning_screen_space(
         &self,
         metrics: &ScaledMetrics,
         last_glyph_id: ab_glyph::GlyphId,
         glyph_id: ab_glyph::GlyphId,
     ) -> f32 {
         self.ab_glyph_font.kern_unscaled(last_glyph_id, glyph_id) * metrics.px_scale_factor
-            / metrics.pixels_per_point
+    }
+
+    #[inline]
+    pub fn pair_kerning(
+        &self,
+        metrics: &ScaledMetrics,
+        last_glyph_id: ab_glyph::GlyphId,
+        glyph_id: ab_glyph::GlyphId,
+    ) -> f32 {
+        self.pair_kerning_screen_space(metrics, last_glyph_id, glyph_id) / metrics.pixels_per_point
     }
 
     #[inline(always)]
@@ -243,18 +313,21 @@ impl FontImpl {
         atlas: &mut TextureAtlas,
         metrics: &ScaledMetrics,
         glyph_info: GlyphInfo,
-    ) -> GlyphAllocation {
+        h_pos: f32,
+    ) -> (GlyphAllocation, i32) {
         let Some(glyph_id) = glyph_info.id else {
             // Invisible.
-            return GlyphAllocation::default();
+            return (GlyphAllocation::default(), h_pos as i32);
         };
+
+        let (h_pos_round, bin) = SubpixelBin::new(h_pos);
 
         let entry = match self
             .glyph_alloc_cache
-            .entry((glyph_id, metrics.glyph_cache_key()))
+            .entry((glyph_id, bin, metrics.glyph_cache_key()))
         {
             std::collections::hash_map::Entry::Occupied(glyph_alloc) => {
-                return *glyph_alloc.get();
+                return (*glyph_alloc.get(), h_pos_round);
             }
             std::collections::hash_map::Entry::Vacant(entry) => entry,
         };
@@ -268,7 +341,10 @@ impl FontImpl {
                 // (https://github.com/alexheretic/ab-glyph/issues/15), and this field is never accessed when
                 // rasterizing. We can just put anything here.
                 scale: PxScale::from(0.0),
-                position: ab_glyph::Point::default(),
+                position: ab_glyph::Point {
+                    x: bin.as_float(),
+                    y: 0.0,
+                },
             };
             let outlined = OutlinedGlyph::new(
                 glyph,
@@ -315,12 +391,11 @@ impl FontImpl {
 
         let allocation = GlyphAllocation {
             id: glyph_id,
-            advance_width: (glyph_info.advance_width_unscaled.0 * metrics.px_scale_factor)
-                / metrics.pixels_per_point,
+            advance_width: glyph_info.advance_width_unscaled.0 * metrics.px_scale_factor,
             uv_rect,
         };
         entry.insert(allocation);
-        allocation
+        (allocation, h_pos_round)
     }
 }
 
