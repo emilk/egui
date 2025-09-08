@@ -101,7 +101,6 @@ impl BytesLoader for EhttpLoader {
                         {
                             let entry = entry.get_mut();
                             *entry = Poll::Ready(result);
-                            ctx.request_repaint();
                             log::trace!("Finished loading {uri:?}");
                             true
                         } else {
