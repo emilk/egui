@@ -272,14 +272,6 @@ pub struct Options {
     /// which is supported by `eframe`.
     pub screen_reader: bool,
 
-    /// If true, the most common glyphs (ASCII) are pre-rendered to the texture atlas.
-    ///
-    /// Only the fonts in [`Style::text_styles`] will be pre-cached.
-    ///
-    /// This can lead to fewer texture operations, but may use up the texture atlas quicker
-    /// if you are changing [`Style::text_styles`], or have a lot of text styles.
-    pub preload_font_glyphs: bool,
-
     /// Check reusing of [`Id`]s, and show a visual warning on screen when one is found.
     ///
     /// By default this is `true` in debug builds.
@@ -316,7 +308,6 @@ impl Default for Options {
             repaint_on_widget_change: false,
             max_passes: NonZeroUsize::new(2).unwrap(),
             screen_reader: false,
-            preload_font_glyphs: true,
             warn_on_id_clash: cfg!(debug_assertions),
 
             // Input:
@@ -372,7 +363,6 @@ impl Options {
             repaint_on_widget_change,
             max_passes,
             screen_reader: _, // needs to come from the integration
-            preload_font_glyphs: _,
             warn_on_id_clash,
             input_options,
             reduce_texture_memory,
