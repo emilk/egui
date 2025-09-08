@@ -31,9 +31,12 @@ impl<T> Mutex<T> {
     #[cfg_attr(debug_assertions, track_caller)]
     pub fn lock(&self) -> MutexGuard<'_, T> {
         if cfg!(debug_assertions) {
-            self.0
-                .try_lock_for(DEADLOCK_DURATION)
-                .expect("Looks like a deadlock!")
+            self.0.try_lock_for(DEADLOCK_DURATION).unwrap_or_else(|| {
+                panic!(
+                    "DEBUG PANIC: Failed to acquire Mutex after {}s. Deadlock?",
+                    DEADLOCK_DURATION.as_secs()
+                )
+            })
         } else {
             self.0.lock()
         }
@@ -74,9 +77,12 @@ impl<T: ?Sized> RwLock<T> {
     #[cfg_attr(debug_assertions, track_caller)]
     pub fn read(&self) -> RwLockReadGuard<'_, T> {
         let guard = if cfg!(debug_assertions) {
-            self.0
-                .try_read_for(DEADLOCK_DURATION)
-                .expect("Looks like a deadlock!")
+            self.0.try_read_for(DEADLOCK_DURATION).unwrap_or_else(|| {
+                panic!(
+                    "DEBUG PANIC: Failed to acquire RwLock read after {}s. Deadlock?",
+                    DEADLOCK_DURATION.as_secs()
+                )
+            })
         } else {
             self.0.read()
         };
@@ -91,9 +97,12 @@ impl<T: ?Sized> RwLock<T> {
     #[cfg_attr(debug_assertions, track_caller)]
     pub fn write(&self) -> RwLockWriteGuard<'_, T> {
         let guard = if cfg!(debug_assertions) {
-            self.0
-                .try_write_for(DEADLOCK_DURATION)
-                .expect("Looks like a deadlock!")
+            self.0.try_write_for(DEADLOCK_DURATION).unwrap_or_else(|| {
+                panic!(
+                    "DEBUG PANIC: Failed to acquire RwLock write after {}s. Deadlock?",
+                    DEADLOCK_DURATION.as_secs()
+                )
+            })
         } else {
             self.0.write()
         };
