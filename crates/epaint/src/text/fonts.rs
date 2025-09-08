@@ -409,7 +409,7 @@ impl FontDefinitions {
 pub(crate) struct FontFaceKey(u64);
 
 impl FontFaceKey {
-    const INVALID: Self = Self(0);
+    pub const INVALID: Self = Self(0);
 
     fn new() -> Self {
         static KEY_COUNTER: AtomicU64 = AtomicU64::new(1);

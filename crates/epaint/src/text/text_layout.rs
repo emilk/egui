@@ -176,8 +176,9 @@ fn layout_section(
 
     let mut last_glyph_id = None;
 
-    // Optimization: only recompute `ScaledMetrics` when `FontFaceKey` changes.
-    let mut last_font: Option<(FontFaceKey, Option<ScaledMetrics>)> = None;
+    // Optimization: only recompute `ScaledMetrics` when the concrete `FontImpl` changes.
+    let mut current_font = FontFaceKey::INVALID;
+    let mut current_font_impl_metrics = ScaledMetrics::default();
 
     for chr in job.text[byte_range.clone()].chars() {
         if job.break_on_newline && chr == '\n' {
@@ -186,26 +187,23 @@ fn layout_section(
             paragraph.empty_paragraph_height = line_height; // TODO(emilk): replace this hack with actually including `\n` in the glyphs?
         } else {
             let (font_id, glyph_info) = font.glyph_info(chr);
-            let (mut font_impl, font_impl_metrics) = match last_font {
-                Some((last_font_id, last_font_metrics)) if last_font_id == font_id => (
-                    font.fonts_by_id.get_mut(&font_id),
-                    last_font_metrics.unwrap_or_default(),
-                ),
-                _ => {
-                    let font_impl = font.fonts_by_id.get_mut(&font_id);
-                    let scaled_metrics = font_impl
-                        .as_ref()
-                        .map(|font_impl| font_impl.scaled_metrics(pixels_per_point, font_size));
-                    last_font = Some((font_id, scaled_metrics));
-                    (font_impl, scaled_metrics.unwrap_or_default())
-                }
-            };
+            let mut font_impl = font.fonts_by_id.get_mut(&font_id);
+            if current_font != font_id {
+                current_font = font_id;
+                current_font_impl_metrics = font_impl
+                    .as_ref()
+                    .map(|font_impl| font_impl.scaled_metrics(pixels_per_point, font_size))
+                    .unwrap_or_default();
+            }
 
             if let (Some(font_impl), Some(last_glyph_id), Some(glyph_id)) =
                 (&font_impl, last_glyph_id, glyph_info.id)
             {
-                paragraph.cursor_x_px +=
-                    font_impl.pair_kerning_pixels(&font_impl_metrics, last_glyph_id, glyph_id);
+                paragraph.cursor_x_px += font_impl.pair_kerning_pixels(
+                    &current_font_impl_metrics,
+                    last_glyph_id,
+                    glyph_id,
+                );
 
                 // Only apply extra_letter_spacing to glyphs after the first one:
                 paragraph.cursor_x_px += extra_letter_spacing * pixels_per_point;
@@ -214,7 +212,7 @@ fn layout_section(
             let (glyph_alloc, physical_x) = match font_impl.as_mut() {
                 Some(font_impl) => font_impl.allocate_glyph(
                     font.atlas,
-                    &font_impl_metrics,
+                    &current_font_impl_metrics,
                     glyph_info,
                     chr,
                     paragraph.cursor_x_px,
@@ -227,8 +225,8 @@ fn layout_section(
                 pos: pos2(physical_x as f32 / pixels_per_point, f32::NAN),
                 advance_width: glyph_alloc.advance_width_px / pixels_per_point,
                 line_height,
-                font_impl_height: font_impl_metrics.row_height,
-                font_impl_ascent: font_impl_metrics.ascent,
+                font_impl_height: current_font_impl_metrics.row_height,
+                font_impl_ascent: current_font_impl_metrics.ascent,
                 font_height: font_metrics.row_height,
                 font_ascent: font_metrics.ascent,
                 uv_rect: glyph_alloc.uv_rect,
