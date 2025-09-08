@@ -173,7 +173,9 @@ fn layout_section(
 
     let mut last_glyph_id = None;
 
+    // Optimization: only recompute `ScaledMetrics` when `FontFaceKey` changes.
     let mut last_font: Option<(FontFaceKey, Option<ScaledMetrics>)> = None;
+
     for chr in job.text[byte_range.clone()].chars() {
         if job.break_on_newline && chr == '\n' {
             out_paragraphs.push(Paragraph::from_section_index(section_index));

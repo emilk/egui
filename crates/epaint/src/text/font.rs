@@ -516,10 +516,14 @@ impl Font<'_> {
     }
 }
 
+/// Metrics for a font at a specific screen-space scale.
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub struct ScaledMetrics {
+    /// The DPI part of the screen-space scale.
     pub pixels_per_point: f32,
+    /// Scale factor, relative to the font's units per em (so, probably much less than 1).
     pub px_scale_factor: f32,
+    /// Vertical offset, in UI points (not screen-space).
     pub y_offset_in_points: f32,
     /// This is the distance from the top to the baseline.
     ///

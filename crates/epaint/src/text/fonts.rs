@@ -799,7 +799,7 @@ impl FontsImpl {
         }
     }
 
-    /// Get the right font implementation from  [`FontFamily`].
+    /// Get the right font implementation from [`FontFamily`].
     pub fn font(&mut self, family: &FontFamily) -> Font<'_> {
         let cached_family = self.family_cache.entry(family.clone()).or_insert_with(|| {
             let fonts = &self.definitions.families.get(family);
