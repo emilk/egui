@@ -209,15 +209,16 @@ fn layout_section(
                 paragraph.cursor_x_px += extra_letter_spacing * pixels_per_point;
             }
 
-            let (glyph_alloc, physical_x) = match font_impl.as_mut() {
-                Some(font_impl) => font_impl.allocate_glyph(
+            let (glyph_alloc, physical_x) = if let Some(font_impl) = font_impl.as_mut() {
+                font_impl.allocate_glyph(
                     font.atlas,
                     &current_font_impl_metrics,
                     glyph_info,
                     chr,
                     paragraph.cursor_x_px,
-                ),
-                None => Default::default(),
+                )
+            } else {
+                Default::default()
             };
 
             paragraph.glyphs.push(Glyph {

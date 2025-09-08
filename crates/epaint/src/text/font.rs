@@ -231,10 +231,8 @@ impl FontImpl {
 
     /// `\n` will result in `None`
     pub(super) fn glyph_info(&mut self, c: char) -> Option<GlyphInfo> {
-        {
-            if let Some(glyph_info) = self.glyph_info_cache.get(&c) {
-                return Some(*glyph_info);
-            }
+        if let Some(glyph_info) = self.glyph_info_cache.get(&c) {
+            return Some(*glyph_info);
         }
 
         if self.ignore_character(c) {
