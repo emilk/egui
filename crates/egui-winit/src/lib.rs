@@ -827,14 +827,11 @@ impl State {
         window: &Window,
         platform_output: egui::PlatformOutput,
     ) {
-        #![allow(deprecated)]
         profiling::function_scope!();
 
         let egui::PlatformOutput {
             commands,
             cursor_icon,
-            open_url,
-            copied_text,
             events: _,                    // handled elsewhere
             mutable_text_under_cursor: _, // only used in eframe web
             ime,
@@ -859,14 +856,6 @@ impl State {
         }
 
         self.set_cursor_icon(window, cursor_icon);
-
-        if let Some(open_url) = open_url {
-            open_url_in_browser(&open_url.url);
-        }
-
-        if !copied_text.is_empty() {
-            self.clipboard.set_text(copied_text);
-        }
 
         let allow_ime = ime.is_some();
         if self.allow_ime != allow_ime {
