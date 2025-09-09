@@ -698,7 +698,7 @@ impl ContextImpl {
 /// ```
 /// # let ctx = egui::Context::default();
 /// if ctx.input(|i| i.key_pressed(egui::Key::A)) {
-///     ctx.output_mut(|o| o.copied_text = "Hello!".to_string());
+///     ctx.copy_text("Hello!".to_owned());
 /// }
 /// ```
 ///
@@ -1534,7 +1534,7 @@ impl Context {
     /// ```
     /// # let ctx = egui::Context::default();
     /// # let open_url = egui::OpenUrl::same_tab("http://www.example.com");
-    /// ctx.output_mut(|o| o.open_url = Some(open_url));
+    /// ctx.send_cmd(egui::OutputCommand::OpenUrl(open_url));
     /// ```
     pub fn open_url(&self, open_url: crate::OpenUrl) {
         self.send_cmd(crate::OutputCommand::OpenUrl(open_url));
