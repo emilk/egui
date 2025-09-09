@@ -44,11 +44,6 @@ cint = ["epaint/cint"]
 ## Enable the [`hex_color`] macro.
 color-hex = ["epaint/color-hex"]
 
-## This will automatically detect deadlocks due to double-locking on the same thread.
-## If your app freezes, you may want to enable this!
-## Only affects [`epaint::mutex::RwLock`] (which egui uses a lot).
-deadlock_detection = ["epaint/deadlock_detection"]
-
 ## If set, egui will use `include_bytes!` to bundle some fonts.
 ## If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["epaint/default_fonts"]

@@ -3,6 +3,7 @@
 
 use emath::GuiRounding as _;
 use epaint::mutex::RwLock;
+use epaint::text::FontsView;
 use std::{any::Any, hash::Hash, sync::Arc};
 
 use crate::ClosableTag;
@@ -16,9 +17,7 @@ use crate::{
     WidgetRect, WidgetText,
     containers::{CollapsingHeader, CollapsingResponse, Frame},
     ecolor::Hsva,
-    emath, epaint,
-    epaint::text::Fonts,
-    grid,
+    emath, epaint, grid,
     layout::{Direction, Layout},
     pass_state,
     placer::Placer,
@@ -377,7 +376,7 @@ impl Ui {
     ///
     /// However, it is not necessarily globally unique.
     /// For instance, sibling `Ui`s share the same [`Self::id`]
-    /// unless they where explicitly given different id salts using
+    /// unless they were explicitly given different id salts using
     /// [`UiBuilder::id_salt`].
     #[inline]
     pub fn id(&self) -> Id {
@@ -735,7 +734,7 @@ impl Ui {
     ///
     /// Returns a value rounded to [`emath::GUI_ROUNDING`].
     pub fn text_style_height(&self, style: &TextStyle) -> f32 {
-        self.fonts(|f| f.row_height(&style.resolve(self.style())))
+        self.fonts_mut(|f| f.row_height(&style.resolve(self.style())))
     }
 
     /// Screen-space rectangle for clipping what we paint in this ui.
@@ -847,10 +846,16 @@ impl Ui {
         self.ctx().output_mut(writer)
     }
 
-    /// Read-only access to [`Fonts`].
+    /// Read-only access to [`FontsView`].
     #[inline]
-    pub fn fonts<R>(&self, reader: impl FnOnce(&Fonts) -> R) -> R {
+    pub fn fonts<R>(&self, reader: impl FnOnce(&FontsView<'_>) -> R) -> R {
         self.ctx().fonts(reader)
+    }
+
+    /// Read-write access to [`FontsView`].
+    #[inline]
+    pub fn fonts_mut<R>(&self, reader: impl FnOnce(&mut FontsView<'_>) -> R) -> R {
+        self.ctx().fonts_mut(reader)
     }
 }
 
@@ -1710,7 +1715,7 @@ impl Ui {
     /// The returned [`Response`] can be used to check for interactions,
     /// as well as adding tooltips using [`Response::on_hover_text`].
     ///
-    /// See also [`Self::add_sized`] and [`Self::put`].
+    /// See also [`Self::add_sized`], [`Self::place`] and [`Self::put`].
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
@@ -1729,7 +1734,7 @@ impl Ui {
     ///
     /// To fill all remaining area, use `ui.add_sized(ui.available_size(), widget);`
     ///
-    /// See also [`Self::add`] and [`Self::put`].
+    /// See also [`Self::add`], [`Self::place`] and [`Self::put`].
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
@@ -1748,9 +1753,23 @@ impl Ui {
             .inner
     }
 
-    /// Add a [`Widget`] to this [`Ui`] at a specific location (manual layout).
+    /// Add a [`Widget`] to this [`Ui`] at a specific location (manual layout) without
+    /// affecting this [`Ui`]s cursor.
     ///
-    /// See also [`Self::add`] and [`Self::add_sized`].
+    /// See also [`Self::add`] and [`Self::add_sized`] and [`Self::put`].
+    pub fn place(&mut self, max_rect: Rect, widget: impl Widget) -> Response {
+        self.new_child(
+            UiBuilder::new()
+                .max_rect(max_rect)
+                .layout(Layout::centered_and_justified(Direction::TopDown)),
+        )
+        .add(widget)
+    }
+
+    /// Add a [`Widget`] to this [`Ui`] at a specific location (manual layout) and advance the
+    /// cursor after the widget.
+    ///
+    /// See also [`Self::add`], [`Self::add_sized`], and [`Self::place`].
     pub fn put(&mut self, max_rect: Rect, widget: impl Widget) -> Response {
         self.scope_builder(
             UiBuilder::new()

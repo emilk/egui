@@ -1,373 +1,116 @@
-//! Helper module that adds extra checks when the `deadlock_detection` feature is turned on.
+//! Wrappers around `parking_lot` locks, with a simple deadlock detection mechanism.
 
 // ----------------------------------------------------------------------------
 
-#[cfg(not(feature = "deadlock_detection"))]
-mod mutex_impl {
-    /// Provides interior mutability.
+const DEADLOCK_DURATION: std::time::Duration = std::time::Duration::from_secs(10);
+
+/// Provides interior mutability.
+///
+/// It's tailored for internal use in egui should only be used for short locks (as a guideline,
+/// locks should never be held longer than a single frame). In debug builds, when a lock can't
+/// be acquired within 10 seconds, we assume a deadlock and will panic.
+///
+/// This is a thin wrapper around [`parking_lot::Mutex`].
+#[derive(Default)]
+pub struct Mutex<T>(parking_lot::Mutex<T>);
+
+/// The lock you get from [`Mutex`].
+pub use parking_lot::MutexGuard;
+
+impl<T> Mutex<T> {
+    #[inline(always)]
+    pub fn new(val: T) -> Self {
+        Self(parking_lot::Mutex::new(val))
+    }
+
+    /// Try to acquire the lock.
     ///
-    /// This is a thin wrapper around [`parking_lot::Mutex`], except if
-    /// the feature `deadlock_detection` is turned enabled, in which case
-    /// extra checks are added to detect deadlocks.
-    #[derive(Default)]
-    pub struct Mutex<T>(parking_lot::Mutex<T>);
-
-    /// The lock you get from [`Mutex`].
-    pub use parking_lot::MutexGuard;
-
-    impl<T> Mutex<T> {
-        #[inline(always)]
-        pub fn new(val: T) -> Self {
-            Self(parking_lot::Mutex::new(val))
-        }
-
-        #[inline(always)]
-        pub fn lock(&self) -> MutexGuard<'_, T> {
-            if cfg!(debug_assertions) {
-                self.0
-                    .try_lock_for(std::time::Duration::from_secs(30))
-                    .expect("Looks like a deadlock!")
-            } else {
-                self.0.lock()
-            }
-        }
-    }
-}
-
-#[cfg(feature = "deadlock_detection")]
-mod mutex_impl {
-    /// Provides interior mutability.
-    ///
-    /// This is a thin wrapper around [`parking_lot::Mutex`], except if
-    /// the feature `deadlock_detection` is turned enabled, in which case
-    /// extra checks are added to detect deadlocks.
-    #[derive(Default)]
-    pub struct Mutex<T>(parking_lot::Mutex<T>);
-
-    /// The lock you get from [`Mutex`].
-    pub struct MutexGuard<'a, T>(parking_lot::MutexGuard<'a, T>, *const ());
-
-    #[derive(Default)]
-    struct HeldLocks(Vec<*const ()>);
-
-    impl HeldLocks {
-        #[inline(always)]
-        fn insert(&mut self, lock: *const ()) {
-            // Very few locks will ever be held at the same time, so a linear search is fast
-            assert!(
-                !self.0.contains(&lock),
-                "Recursively locking a Mutex in the same thread is not supported"
-            );
-            self.0.push(lock);
-        }
-
-        #[inline(always)]
-        fn remove(&mut self, lock: *const ()) {
-            self.0.retain(|&ptr| ptr != lock);
-        }
-    }
-
-    thread_local! {
-        static HELD_LOCKS_TLS: std::cell::RefCell<HeldLocks> = Default::default();
-    }
-
-    impl<T> Mutex<T> {
-        #[inline(always)]
-        pub fn new(val: T) -> Self {
-            Self(parking_lot::Mutex::new(val))
-        }
-
-        pub fn lock(&self) -> MutexGuard<'_, T> {
-            // Detect if we are recursively taking out a lock on this mutex.
-
-            // use a pointer to the inner data as an id for this lock
-            let ptr = std::ptr::from_ref::<parking_lot::Mutex<_>>(&self.0).cast::<()>();
-
-            // Store it in thread local storage while we have a lock guard taken out
-            HELD_LOCKS_TLS.with(|held_locks| {
-                held_locks.borrow_mut().insert(ptr);
-            });
-
-            MutexGuard(self.0.lock(), ptr)
-        }
-
-        #[inline(always)]
-        pub fn into_inner(self) -> T {
-            self.0.into_inner()
-        }
-    }
-
-    impl<T> Drop for MutexGuard<'_, T> {
-        fn drop(&mut self) {
-            let ptr = self.1;
-            HELD_LOCKS_TLS.with(|held_locks| {
-                held_locks.borrow_mut().remove(ptr);
-            });
-        }
-    }
-
-    impl<T> std::ops::Deref for MutexGuard<'_, T> {
-        type Target = T;
-
-        #[inline(always)]
-        fn deref(&self) -> &Self::Target {
-            &self.0
-        }
-    }
-
-    impl<T> std::ops::DerefMut for MutexGuard<'_, T> {
-        #[inline(always)]
-        fn deref_mut(&mut self) -> &mut Self::Target {
-            &mut self.0
-        }
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-#[cfg(not(feature = "deadlock_detection"))]
-mod rw_lock_impl {
-    /// The lock you get from [`RwLock::read`].
-    pub use parking_lot::MappedRwLockReadGuard as RwLockReadGuard;
-
-    /// The lock you get from [`RwLock::write`].
-    pub use parking_lot::MappedRwLockWriteGuard as RwLockWriteGuard;
-
-    /// Provides interior mutability.
-    ///
-    /// This is a thin wrapper around [`parking_lot::RwLock`], except if
-    /// the feature `deadlock_detection` is turned enabled, in which case
-    /// extra checks are added to detect deadlocks.
-    #[derive(Default)]
-    pub struct RwLock<T: ?Sized>(parking_lot::RwLock<T>);
-
-    impl<T> RwLock<T> {
-        #[inline(always)]
-        pub fn new(val: T) -> Self {
-            Self(parking_lot::RwLock::new(val))
-        }
-    }
-
-    impl<T: ?Sized> RwLock<T> {
-        #[inline(always)]
-        pub fn read(&self) -> RwLockReadGuard<'_, T> {
-            parking_lot::RwLockReadGuard::map(self.0.read(), |v| v)
-        }
-
-        #[inline(always)]
-        pub fn write(&self) -> RwLockWriteGuard<'_, T> {
-            parking_lot::RwLockWriteGuard::map(self.0.write(), |v| v)
-        }
-    }
-}
-
-#[cfg(feature = "deadlock_detection")]
-mod rw_lock_impl {
-    use std::{
-        ops::{Deref, DerefMut},
-        sync::Arc,
-        thread::ThreadId,
-    };
-
-    use ahash::HashMap;
-    use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard};
-
-    /// The lock you get from [`RwLock::read`].
-    pub struct RwLockReadGuard<'a, T> {
-        // The option is used only because we need to `take()` the guard out of self
-        // when doing remappings (`map()`), i.e. it's used as a safe `ManuallyDrop`.
-        guard: Option<MappedRwLockReadGuard<'a, T>>,
-        holders: Arc<parking_lot::Mutex<HashMap<ThreadId, backtrace::Backtrace>>>,
-    }
-
-    impl<'a, T> RwLockReadGuard<'a, T> {
-        #[inline]
-        pub fn map<U, F>(mut s: Self, f: F) -> RwLockReadGuard<'a, U>
-        where
-            F: FnOnce(&T) -> &U,
-        {
-            RwLockReadGuard {
-                guard: s
-                    .guard
-                    .take()
-                    .map(|g| parking_lot::MappedRwLockReadGuard::map(g, f)),
-                holders: Arc::clone(&s.holders),
-            }
-        }
-    }
-
-    impl<T> Deref for RwLockReadGuard<'_, T> {
-        type Target = T;
-
-        fn deref(&self) -> &Self::Target {
-            self.guard.as_ref().unwrap()
-        }
-    }
-
-    impl<T> Drop for RwLockReadGuard<'_, T> {
-        fn drop(&mut self) {
-            let tid = std::thread::current().id();
-            self.holders.lock().remove(&tid);
-        }
-    }
-
-    /// The lock you get from [`RwLock::write`].
-    pub struct RwLockWriteGuard<'a, T> {
-        // The option is used only because we need to `take()` the guard out of self
-        // when doing remappings (`map()`), i.e. it's used as a safe `ManuallyDrop`.
-        guard: Option<MappedRwLockWriteGuard<'a, T>>,
-        holders: Arc<parking_lot::Mutex<HashMap<ThreadId, backtrace::Backtrace>>>,
-    }
-
-    impl<'a, T> RwLockWriteGuard<'a, T> {
-        #[inline]
-        pub fn map<U, F>(mut s: Self, f: F) -> RwLockWriteGuard<'a, U>
-        where
-            F: FnOnce(&mut T) -> &mut U,
-        {
-            RwLockWriteGuard {
-                guard: s
-                    .guard
-                    .take()
-                    .map(|g| parking_lot::MappedRwLockWriteGuard::map(g, f)),
-                holders: Arc::clone(&s.holders),
-            }
-        }
-    }
-
-    impl<T> Deref for RwLockWriteGuard<'_, T> {
-        type Target = T;
-
-        fn deref(&self) -> &Self::Target {
-            self.guard.as_ref().unwrap()
-        }
-    }
-
-    impl<T> DerefMut for RwLockWriteGuard<'_, T> {
-        fn deref_mut(&mut self) -> &mut Self::Target {
-            self.guard.as_mut().unwrap()
-        }
-    }
-
-    impl<T> Drop for RwLockWriteGuard<'_, T> {
-        fn drop(&mut self) {
-            let tid = std::thread::current().id();
-            self.holders.lock().remove(&tid);
-        }
-    }
-
-    /// Provides interior mutability.
-    ///
-    /// This is a thin wrapper around [`parking_lot::RwLock`], except if
-    /// the feature `deadlock_detection` is turned enabled, in which case
-    /// extra checks are added to detect deadlocks.
-    #[derive(Default)]
-    pub struct RwLock<T> {
-        lock: parking_lot::RwLock<T>,
-        // Technically we'd need a list of backtraces per thread-id since parking_lot's
-        // read-locks are reentrant.
-        // In practice it's not that useful to have the whole list though, so we only
-        // keep track of the first backtrace for now.
-        holders: Arc<parking_lot::Mutex<HashMap<ThreadId, backtrace::Backtrace>>>,
-    }
-
-    impl<T> RwLock<T> {
-        pub fn new(val: T) -> Self {
-            Self {
-                lock: parking_lot::RwLock::new(val),
-                holders: Default::default(),
-            }
-        }
-
-        pub fn read(&self) -> RwLockReadGuard<'_, T> {
-            let tid = std::thread::current().id();
-
-            // If it is write-locked, and we locked it (reentrancy deadlock)
-            let would_deadlock =
-                self.lock.is_locked_exclusive() && self.holders.lock().contains_key(&tid);
-            assert!(
-                !would_deadlock,
-                "{} DEAD-LOCK DETECTED ({:?})!\n\
-                    Trying to grab read-lock at:\n{}\n\
-                    which is already exclusively held by current thread at:\n{}\n\n",
-                std::any::type_name::<Self>(),
-                tid,
-                format_backtrace(&mut make_backtrace()),
-                format_backtrace(self.holders.lock().get_mut(&tid).unwrap())
-            );
-
-            self.holders
-                .lock()
-                .entry(tid)
-                .or_insert_with(make_backtrace);
-
-            RwLockReadGuard {
-                guard: parking_lot::RwLockReadGuard::map(self.lock.read(), |v| v).into(),
-                holders: Arc::clone(&self.holders),
-            }
-        }
-
-        pub fn write(&self) -> RwLockWriteGuard<'_, T> {
-            let tid = std::thread::current().id();
-
-            // If it is locked in any way, and we locked it (reentrancy deadlock)
-            let would_deadlock = self.lock.is_locked() && self.holders.lock().contains_key(&tid);
-            assert!(
-                !would_deadlock,
-                "{} DEAD-LOCK DETECTED ({:?})!\n\
-                    Trying to grab write-lock at:\n{}\n\
-                    which is already held by current thread at:\n{}\n\n",
-                std::any::type_name::<Self>(),
-                tid,
-                format_backtrace(&mut make_backtrace()),
-                format_backtrace(self.holders.lock().get_mut(&tid).unwrap())
-            );
-
-            self.holders
-                .lock()
-                .entry(tid)
-                .or_insert_with(make_backtrace);
-
-            RwLockWriteGuard {
-                guard: parking_lot::RwLockWriteGuard::map(self.lock.write(), |v| v).into(),
-                holders: Arc::clone(&self.holders),
-            }
-        }
-
-        #[inline(always)]
-        pub fn into_inner(self) -> T {
-            self.lock.into_inner()
-        }
-    }
-
-    fn make_backtrace() -> backtrace::Backtrace {
-        backtrace::Backtrace::new_unresolved()
-    }
-
-    fn format_backtrace(backtrace: &mut backtrace::Backtrace) -> String {
-        backtrace.resolve();
-
-        let stacktrace = format!("{backtrace:?}");
-
-        // Remove irrelevant parts of the stacktrace:
-        let end_offset = stacktrace
-            .find("std::sys_common::backtrace::__rust_begin_short_backtrace")
-            .unwrap_or(stacktrace.len());
-        let stacktrace = &stacktrace[..end_offset];
-
-        let first_interesting_function = "epaint::mutex::rw_lock_impl::make_backtrace\n";
-        if let Some(start_offset) = stacktrace.find(first_interesting_function) {
-            stacktrace[start_offset + first_interesting_function.len()..].to_owned()
+    /// ## Panics
+    /// Will panic in debug builds if the lock can't be acquired within 10 seconds.
+    #[inline(always)]
+    #[cfg_attr(debug_assertions, track_caller)]
+    pub fn lock(&self) -> MutexGuard<'_, T> {
+        if cfg!(debug_assertions) {
+            self.0.try_lock_for(DEADLOCK_DURATION).unwrap_or_else(|| {
+                panic!(
+                    "DEBUG PANIC: Failed to acquire Mutex after {}s. Deadlock?",
+                    DEADLOCK_DURATION.as_secs()
+                )
+            })
         } else {
-            stacktrace.to_owned()
+            self.0.lock()
         }
     }
 }
 
 // ----------------------------------------------------------------------------
 
-pub use mutex_impl::{Mutex, MutexGuard};
-pub use rw_lock_impl::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+/// The lock you get from [`RwLock::read`].
+pub use parking_lot::MappedRwLockReadGuard as RwLockReadGuard;
+
+/// The lock you get from [`RwLock::write`].
+pub use parking_lot::MappedRwLockWriteGuard as RwLockWriteGuard;
+
+/// Provides interior mutability.
+///
+/// It's tailored for internal use in egui should only be used for short locks (as a guideline,
+/// locks should never be held longer than a single frame). In debug builds, when a lock can't
+/// be acquired within 10 seconds, we assume a deadlock and will panic.
+///
+/// This is a thin wrapper around [`parking_lot::RwLock`].
+#[derive(Default)]
+pub struct RwLock<T: ?Sized>(parking_lot::RwLock<T>);
+
+impl<T> RwLock<T> {
+    #[inline(always)]
+    pub fn new(val: T) -> Self {
+        Self(parking_lot::RwLock::new(val))
+    }
+}
+
+impl<T: ?Sized> RwLock<T> {
+    /// Try to acquire read-access to the lock.
+    ///
+    /// ## Panics
+    /// Will panic in debug builds if the lock can't be acquired within 10 seconds.
+    #[inline(always)]
+    #[cfg_attr(debug_assertions, track_caller)]
+    pub fn read(&self) -> RwLockReadGuard<'_, T> {
+        let guard = if cfg!(debug_assertions) {
+            self.0.try_read_for(DEADLOCK_DURATION).unwrap_or_else(|| {
+                panic!(
+                    "DEBUG PANIC: Failed to acquire RwLock read after {}s. Deadlock?",
+                    DEADLOCK_DURATION.as_secs()
+                )
+            })
+        } else {
+            self.0.read()
+        };
+        parking_lot::RwLockReadGuard::map(guard, |v| v)
+    }
+
+    /// Try to acquire write-access to the lock.
+    ///
+    /// ## Panics
+    /// Will panic in debug builds if the lock can't be acquired within 10 seconds.
+    #[inline(always)]
+    #[cfg_attr(debug_assertions, track_caller)]
+    pub fn write(&self) -> RwLockWriteGuard<'_, T> {
+        let guard = if cfg!(debug_assertions) {
+            self.0.try_write_for(DEADLOCK_DURATION).unwrap_or_else(|| {
+                panic!(
+                    "DEBUG PANIC: Failed to acquire RwLock write after {}s. Deadlock?",
+                    DEADLOCK_DURATION.as_secs()
+                )
+            })
+        } else {
+            self.0.write()
+        };
+        parking_lot::RwLockWriteGuard::map(guard, |v| v)
+    }
+}
+
+// ----------------------------------------------------------------------------
 
 impl<T> Clone for Mutex<T>
 where
@@ -413,7 +156,6 @@ mod tests {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(feature = "deadlock_detection")]
 #[cfg(test)]
 mod tests_rwlock {
     #![allow(clippy::disallowed_methods)] // Ok for tests
