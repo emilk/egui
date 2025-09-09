@@ -640,7 +640,7 @@ fn install_mousemove(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
             let should_stop_propagation = (runner.web_options.should_stop_propagation)(&egui_event);
             let should_prevent_default = (runner.web_options.should_prevent_default)(&egui_event);
             runner.input.raw.events.push(egui_event);
-            runner.needs_repaint.repaint_asap();
+            runner.needs_repaint.repaint();
 
             // Use web options to tell if the web event should be propagated to parent elements based on the egui event.
             if should_stop_propagation {
@@ -723,7 +723,7 @@ fn install_touchmove(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
                 runner.input.raw.events.push(egui_event);
 
                 push_touches(runner, egui::TouchPhase::Move, &event);
-                runner.needs_repaint.repaint_asap();
+                runner.needs_repaint.repaint();
 
                 // Use web options to tell if the web event should be propagated to parent elements based on the egui event.
                 if should_stop_propagation {
@@ -836,7 +836,7 @@ fn install_wheel(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsV
         let should_prevent_default = (runner.web_options.should_prevent_default)(&egui_event);
         runner.input.raw.events.push(egui_event);
 
-        runner.needs_repaint.repaint_asap();
+        runner.needs_repaint.repaint();
 
         // Use web options to tell if the web event should be propagated to parent elements based on the egui event.
         if should_stop_propagation {

@@ -211,7 +211,7 @@ impl Label {
             if let Some(first_section) = layout_job.sections.first_mut() {
                 first_section.leading_space = first_row_indentation;
             }
-            let galley = ui.fonts(|fonts| fonts.layout_job(layout_job));
+            let galley = ui.fonts_mut(|fonts| fonts.layout_job(layout_job));
 
             let pos = pos2(ui.max_rect().left(), ui.cursor().top());
             assert!(!galley.rows.is_empty(), "Galleys are never empty");
@@ -252,7 +252,7 @@ impl Label {
                 layout_job.justify = ui.layout().horizontal_justify();
             }
 
-            let galley = ui.fonts(|fonts| fonts.layout_job(layout_job));
+            let galley = ui.fonts_mut(|fonts| fonts.layout_job(layout_job));
             let (rect, mut response) = ui.allocate_exact_size(galley.size(), sense);
             response.intrinsic_size = Some(galley.intrinsic_size());
             let galley_pos = match galley.job.halign {
@@ -282,7 +282,7 @@ impl Widget for Label {
         if ui.is_rect_visible(response.rect) {
             if show_tooltip_when_elided && galley.elided {
                 // Show the full (non-elided) text on hover:
-                response = response.on_hover_text(galley.text());
+                response = response.on_hover_text(galley.job.clone());
             }
 
             let response_color = if interactive {

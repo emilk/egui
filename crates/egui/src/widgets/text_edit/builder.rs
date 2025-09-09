@@ -266,7 +266,7 @@ impl<'t> TextEdit<'t> {
     /// let mut layouter = |ui: &egui::Ui, buf: &dyn egui::TextBuffer, wrap_width: f32| {
     ///     let mut layout_job: egui::text::LayoutJob = my_memoized_highlighter(buf.as_str());
     ///     layout_job.wrap.max_width = wrap_width;
-    ///     ui.fonts(|f| f.layout_job(layout_job))
+    ///     ui.fonts_mut(|f| f.layout_job(layout_job))
     /// };
     /// ui.add(egui::TextEdit::multiline(&mut my_code).layouter(&mut layouter));
     /// # });
@@ -504,7 +504,7 @@ impl TextEdit<'_> {
         let hint_text_str = hint_text.text().to_owned();
 
         let font_id = font_selection.resolve(ui.style());
-        let row_height = ui.fonts(|f| f.row_height(&font_id));
+        let row_height = ui.fonts_mut(|f| f.row_height(&font_id));
         const MIN_WIDTH: f32 = 24.0; // Never make a [`TextEdit`] more narrow than this.
         let available_width = (ui.available_width() - margin.sum().x).at_least(MIN_WIDTH);
         let desired_width = desired_width.unwrap_or_else(|| ui.spacing().text_edit_width);
@@ -522,7 +522,7 @@ impl TextEdit<'_> {
             } else {
                 LayoutJob::simple_singleline(text, font_id_clone.clone(), text_color)
             };
-            ui.fonts(|f| f.layout_job(layout_job))
+            ui.fonts_mut(|f| f.layout_job(layout_job))
         };
 
         let layouter = layouter.unwrap_or(&mut default_layouter);
@@ -731,10 +731,32 @@ impl TextEdit<'_> {
                 // Condition `!clip_text` is important to avoid breaking layout for `TextEdit::singleline` (PR #5640)
                 let extra_size = galley.size() - rect.size();
                 if extra_size.x > 0.0 || extra_size.y > 0.0 {
-                    ui.allocate_rect(
-                        Rect::from_min_size(outer_rect.max, extra_size),
-                        Sense::hover(),
-                    );
+                    match ui.layout().main_dir() {
+                        crate::Direction::LeftToRight | crate::Direction::TopDown => {
+                            ui.allocate_rect(
+                                Rect::from_min_size(outer_rect.max, extra_size),
+                                Sense::hover(),
+                            );
+                        }
+                        crate::Direction::RightToLeft => {
+                            ui.allocate_rect(
+                                Rect::from_min_size(
+                                    emath::pos2(outer_rect.min.x - extra_size.x, outer_rect.max.y),
+                                    extra_size,
+                                ),
+                                Sense::hover(),
+                            );
+                        }
+                        crate::Direction::BottomUp => {
+                            ui.allocate_rect(
+                                Rect::from_min_size(
+                                    emath::pos2(outer_rect.min.x, outer_rect.max.y - extra_size.y),
+                                    extra_size,
+                                ),
+                                Sense::hover(),
+                            );
+                        }
+                    }
                 }
             }
 
