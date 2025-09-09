@@ -1,6 +1,6 @@
 use crate::{
-    pos2, vec2, Align2, Color32, Context, CursorIcon, Id, NumExt, Rect, Response, Sense, Shape, Ui,
-    UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b,
+    Align2, Color32, Context, CursorIcon, Id, NumExt as _, Rect, Response, Sense, Shape, Ui,
+    UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b, pos2, vec2,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -356,6 +356,7 @@ impl Resize {
                 rect,
                 3.0,
                 ui.visuals().widgets.noninteractive.bg_stroke,
+                epaint::StrokeKind::Inside,
             ));
         }
 

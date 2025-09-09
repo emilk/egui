@@ -1,18 +1,21 @@
 use crate::{
-    widgets, Color32, Image, Rect, Response, Rounding, Sense, Ui, Vec2, Widget, WidgetInfo,
-    WidgetType,
+    Color32, CornerRadius, Image, Rect, Response, Sense, Ui, Vec2, Widget, WidgetInfo, WidgetType,
+    widgets,
 };
 
 /// A clickable image within a frame.
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 #[derive(Clone, Debug)]
+#[deprecated(since = "0.33.0", note = "Use egui::Button::image instead")]
 pub struct ImageButton<'a> {
     pub(crate) image: Image<'a>,
     sense: Sense,
     frame: bool,
     selected: bool,
+    alt_text: Option<String>,
 }
 
+#[expect(deprecated, reason = "Deprecated in egui 0.33.0")]
 impl<'a> ImageButton<'a> {
     pub fn new(image: impl Into<Image<'a>>) -> Self {
         Self {
@@ -20,6 +23,7 @@ impl<'a> ImageButton<'a> {
             sense: Sense::click(),
             frame: true,
             selected: false,
+            alt_text: None,
         }
     }
 
@@ -60,16 +64,28 @@ impl<'a> ImageButton<'a> {
     }
 
     /// Set rounding for the `ImageButton`.
+    ///
     /// If the underlying image already has rounding, this
     /// will override that value.
     #[inline]
-    pub fn rounding(mut self, rounding: impl Into<Rounding>) -> Self {
-        self.image = self.image.rounding(rounding.into());
+    pub fn corner_radius(mut self, corner_radius: impl Into<CornerRadius>) -> Self {
+        self.image = self.image.corner_radius(corner_radius.into());
         self
+    }
+
+    /// Set rounding for the `ImageButton`.
+    ///
+    /// If the underlying image already has rounding, this
+    /// will override that value.
+    #[inline]
+    #[deprecated = "Renamed to `corner_radius`"]
+    pub fn rounding(self, corner_radius: impl Into<CornerRadius>) -> Self {
+        self.corner_radius(corner_radius)
     }
 }
 
-impl<'a> Widget for ImageButton<'a> {
+#[expect(deprecated, reason = "Deprecated in egui 0.33.0")]
+impl Widget for ImageButton<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         let padding = if self.frame {
             // so we can see that it is a button:
@@ -80,21 +96,25 @@ impl<'a> Widget for ImageButton<'a> {
 
         let available_size_for_image = ui.available_size() - 2.0 * padding;
         let tlr = self.image.load_for_size(ui.ctx(), available_size_for_image);
-        let original_image_size = tlr.as_ref().ok().and_then(|t| t.size());
+        let image_source_size = tlr.as_ref().ok().and_then(|t| t.size());
         let image_size = self
             .image
-            .calc_size(available_size_for_image, original_image_size);
+            .calc_size(available_size_for_image, image_source_size);
 
         let padded_size = image_size + 2.0 * padding;
         let (rect, response) = ui.allocate_exact_size(padded_size, self.sense);
-        response.widget_info(|| WidgetInfo::new(WidgetType::ImageButton));
+        response.widget_info(|| {
+            let mut info = WidgetInfo::new(WidgetType::Button);
+            info.label = self.alt_text.clone();
+            info
+        });
 
         if ui.is_rect_visible(rect) {
             let (expansion, rounding, fill, stroke) = if self.selected {
                 let selection = ui.visuals().selection;
                 (
                     Vec2::ZERO,
-                    self.image.image_options().rounding,
+                    self.image.image_options().corner_radius,
                     selection.bg_fill,
                     selection.stroke,
                 )
@@ -103,7 +123,7 @@ impl<'a> Widget for ImageButton<'a> {
                 let expansion = Vec2::splat(visuals.expansion);
                 (
                     expansion,
-                    self.image.image_options().rounding,
+                    self.image.image_options().corner_radius,
                     visuals.weak_bg_fill,
                     visuals.bg_stroke,
                 )
@@ -121,11 +141,22 @@ impl<'a> Widget for ImageButton<'a> {
             // let image_rect = image_rect.expand2(expansion); // can make it blurry, so let's not
             let image_options = self.image.image_options().clone();
 
-            widgets::image::paint_texture_load_result(ui, &tlr, image_rect, None, &image_options);
+            widgets::image::paint_texture_load_result(
+                ui,
+                &tlr,
+                image_rect,
+                None,
+                &image_options,
+                self.alt_text.as_deref(),
+            );
 
             // Draw frame outline:
-            ui.painter()
-                .rect_stroke(rect.expand2(expansion), rounding, stroke);
+            ui.painter().rect_stroke(
+                rect.expand2(expansion),
+                rounding,
+                stroke,
+                epaint::StrokeKind::Inside,
+            );
         }
 
         widgets::image::texture_load_result_response(&self.image.source(ui.ctx()), &tlr, response)

@@ -14,7 +14,11 @@ cargo install \
 Build and run:
 
 ```sh
-cargo apk run -p hello_android
+# Run on android
+cargo apk run -p hello_android --lib
+
+# Run on your desktop
+cargo run -p hello_android
 ```
 
 ![](screenshot.png)

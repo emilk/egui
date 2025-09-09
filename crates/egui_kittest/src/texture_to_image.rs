@@ -23,9 +23,9 @@ pub(crate) fn texture_to_image(device: &Device, queue: &Queue, texture: &Texture
     // Copy the data from the texture to the buffer
     encoder.copy_texture_to_buffer(
         texture.as_image_copy(),
-        wgpu::ImageCopyBuffer {
+        wgpu::TexelCopyBufferInfo {
             buffer: &output_buffer,
-            layout: wgpu::ImageDataLayout {
+            layout: wgpu::TexelCopyBufferLayout {
                 offset: 0,
                 bytes_per_row: Some(buffer_dimensions.padded_bytes_per_row as u32),
                 rows_per_image: None,
@@ -47,7 +47,9 @@ pub(crate) fn texture_to_image(device: &Device, queue: &Queue, texture: &Texture
     buffer_slice.map_async(wgpu::MapMode::Read, move |v| drop(sender.send(v)));
 
     // Poll the device in a blocking manner so that our future resolves.
-    device.poll(wgpu::Maintain::WaitForSubmissionIndex(submission_index));
+    device
+        .poll(wgpu::PollType::WaitForSubmissionIndex(submission_index))
+        .expect("Failed to poll device");
 
     receiver.recv().unwrap().unwrap();
     let buffer_slice = output_buffer.slice(..);

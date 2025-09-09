@@ -1,8 +1,8 @@
 use emath::GuiRounding as _;
 
 use crate::{
-    vec2, Align2, Color32, Context, Id, InnerResponse, NumExt, Painter, Rect, Region, Style, Ui,
-    UiBuilder, Vec2,
+    Align2, Color32, Context, Id, InnerResponse, NumExt as _, Painter, Rect, Region, Style, Ui,
+    UiBuilder, Vec2, vec2,
 };
 
 #[cfg(debug_assertions)]
@@ -184,7 +184,7 @@ impl GridLayout {
         Rect::from_min_size(cursor.min, size).round_ui()
     }
 
-    #[allow(clippy::unused_self)]
+    #[expect(clippy::unused_self)]
     pub(crate) fn align_size_within_rect(&self, size: Vec2, frame: Rect) -> Rect {
         // TODO(emilk): allow this alignment to be customized
         Align2::LEFT_CENTER
@@ -208,7 +208,12 @@ impl GridLayout {
 
                 if (debug_expand_width && too_wide) || (debug_expand_height && too_high) {
                     let painter = self.ctx.debug_painter();
-                    painter.rect_stroke(rect, 0.0, (1.0, Color32::LIGHT_BLUE));
+                    painter.rect_stroke(
+                        rect,
+                        0.0,
+                        (1.0, Color32::LIGHT_BLUE),
+                        crate::StrokeKind::Inside,
+                    );
 
                     let stroke = Stroke::new(2.5, Color32::from_rgb(200, 0, 0));
                     let paint_line_seg = |a, b| painter.line_segment([a, b], stroke);
@@ -451,7 +456,7 @@ impl Grid {
             ui_builder = ui_builder.sizing_pass().invisible();
         }
 
-        ui.allocate_new_ui(ui_builder, |ui| {
+        ui.scope_builder(ui_builder, |ui| {
             ui.horizontal(|ui| {
                 let is_color = color_picker.is_some();
                 let grid = GridLayout {

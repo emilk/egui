@@ -5,6 +5,8 @@ Summarizes recent PRs based on their GitHub labels.
 
 The result can be copy-pasted into CHANGELOG.md,
 though it often needs some manual editing too.
+
+Setup:  pip install GitPython requests tqdm
 """
 
 import argparse
@@ -154,6 +156,8 @@ def changelog_from_prs(pr_infos: List[PrInfo], crate_name: str) -> str:
 
     fixed = []
     added = []
+    performance = []
+    removed = []
     rest = []
     for pr in pr_infos:
         summary = pr_summary(pr, crate_name)
@@ -161,6 +165,10 @@ def changelog_from_prs(pr_infos: List[PrInfo], crate_name: str) -> str:
             fixed.append(pr)
         elif summary.startswith("Add") or "feature" in pr.labels:
             added.append(pr)
+        elif "performance" in pr.labels:
+            performance.append(pr)
+        elif summary.startswith("Remove"):
+            removed.append(pr)
         else:
             rest.append(pr)
 
@@ -168,7 +176,9 @@ def changelog_from_prs(pr_infos: List[PrInfo], crate_name: str) -> str:
 
     result += pr_info_section(added, crate_name=crate_name, heading="⭐ Added")
     result += pr_info_section(rest, crate_name=crate_name, heading="🔧 Changed")
+    result += pr_info_section(removed, crate_name=crate_name, heading="🔥 Removed")
     result += pr_info_section(fixed, crate_name=crate_name, heading="🐛 Fixed")
+    result += pr_info_section(performance, crate_name=crate_name, heading="🚀 Performance")
 
     return result.rstrip()
 
@@ -182,7 +192,9 @@ def remove_prefix(text, prefix):
 def print_section(heading: str, content: str) -> None:
     if content != "":
         print(f"## {heading}")
-        print(content)
+        print(content.strip())
+        print()
+        print()
         print()
 
 
@@ -260,6 +272,7 @@ def main() -> None:
         "egui-wgpu",
         "egui-winit",
         "egui",
+        "emath",
         "epaint",
         "epaint_default_fonts",
     ]
@@ -335,8 +348,7 @@ def main() -> None:
     print()
     for crate in crate_names:
         if crate in crate_sections:
-            prs = crate_sections[crate]
-            print_section(crate, changelog_from_prs(prs, crate))
+            print_section(crate, changelog_from_prs(crate_sections[crate], crate))
     print_section("Unsorted PRs", "\n".join([f"* {item}" for item in unsorted_prs]))
     print_section(
         "Unsorted commits", "\n".join([f"* {item}" for item in unsorted_commits])

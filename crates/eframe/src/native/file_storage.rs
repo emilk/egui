@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    io::Write,
+    io::Write as _,
     path::{Path, PathBuf},
 };
 
@@ -42,43 +42,50 @@ pub fn storage_dir(app_id: &str) -> Option<PathBuf> {
 // Adapted from
 // https://github.com/rust-lang/cargo/blob/6e11c77384989726bb4f412a0e23b59c27222c34/crates/home/src/windows.rs#L19-L37
 #[cfg(all(windows, not(target_vendor = "uwp")))]
-#[allow(unsafe_code)]
+#[expect(unsafe_code)]
 fn roaming_appdata() -> Option<PathBuf> {
     use std::ffi::OsString;
-    use std::os::windows::ffi::OsStringExt;
+    use std::os::windows::ffi::OsStringExt as _;
     use std::ptr;
     use std::slice;
 
     use windows_sys::Win32::Foundation::S_OK;
     use windows_sys::Win32::System::Com::CoTaskMemFree;
     use windows_sys::Win32::UI::Shell::{
-        FOLDERID_RoamingAppData, SHGetKnownFolderPath, KF_FLAG_DONT_VERIFY,
+        FOLDERID_RoamingAppData, KF_FLAG_DONT_VERIFY, SHGetKnownFolderPath,
     };
 
-    extern "C" {
+    unsafe extern "C" {
         fn wcslen(buf: *const u16) -> usize;
     }
-    unsafe {
-        let mut path = ptr::null_mut();
-        match SHGetKnownFolderPath(
+    let mut path_raw = ptr::null_mut();
+
+    // SAFETY: SHGetKnownFolderPath allocates for us, we don't pass any pointers to it.
+    // See https://learn.microsoft.com/en-us/windows/win32/api/shlobj_core/nf-shlobj_core-shgetknownfolderpath
+    let result = unsafe {
+        SHGetKnownFolderPath(
             &FOLDERID_RoamingAppData,
             KF_FLAG_DONT_VERIFY as u32,
             std::ptr::null_mut(),
-            &mut path,
-        ) {
-            S_OK => {
-                let path_slice = slice::from_raw_parts(path, wcslen(path));
-                let s = OsString::from_wide(&path_slice);
-                CoTaskMemFree(path.cast());
-                Some(PathBuf::from(s))
-            }
-            _ => {
-                // Free any allocated memory even on failure. A null ptr is a no-op for `CoTaskMemFree`.
-                CoTaskMemFree(path.cast());
-                None
-            }
-        }
-    }
+            &mut path_raw,
+        )
+    };
+
+    let path = if result == S_OK {
+        // SAFETY: SHGetKnownFolderPath indicated success and is supposed to allocate a null-terminated string for us.
+        let path_slice = unsafe { slice::from_raw_parts(path_raw, wcslen(path_raw)) };
+        Some(PathBuf::from(OsString::from_wide(path_slice)))
+    } else {
+        None
+    };
+
+    // SAFETY:
+    // This memory got allocated by SHGetKnownFolderPath, we didn't touch anything in the process.
+    // A null ptr is a no-op for `CoTaskMemFree`, so in case this failed we're still good.
+    // https://learn.microsoft.com/en-us/windows/win32/api/combaseapi/nf-combaseapi-cotaskmemfree
+    unsafe { CoTaskMemFree(path_raw.cast()) };
+
+    path
 }
 
 #[cfg(any(not(windows), target_vendor = "uwp"))]
@@ -89,7 +96,7 @@ fn roaming_appdata() -> Option<PathBuf> {
 // ----------------------------------------------------------------------------
 
 /// A key-value store backed by a [RON](https://github.com/ron-rs/ron) file on disk.
-/// Used to restore egui state, glium window position/size and app state.
+/// Used to restore egui state, glow window position/size and app state.
 pub struct FileStorage {
     ron_filepath: PathBuf,
     kv: HashMap<String, String>,
@@ -200,7 +207,8 @@ fn save_to_disk(file_path: &PathBuf, kv: &HashMap<String, String>) {
             let config = Default::default();
 
             profiling::scope!("ron::serialize");
-            if let Err(err) = ron::ser::to_writer_pretty(&mut writer, &kv, config)
+            if let Err(err) = ron::Options::default()
+                .to_io_writer_pretty(&mut writer, &kv, config)
                 .and_then(|_| writer.flush().map_err(|err| err.into()))
             {
                 log::warn!("Failed to serialize app state: {}", err);

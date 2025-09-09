@@ -1,16 +1,52 @@
 //! Frame container
 
 use crate::{
-    epaint, layers::ShapeIdx, InnerResponse, Response, Sense, Style, Ui, UiBuilder, UiKind,
-    UiStackInfo,
+    InnerResponse, Response, Sense, Style, Ui, UiBuilder, UiKind, UiStackInfo, epaint,
+    layers::ShapeIdx,
 };
-use epaint::{Color32, Margin, Rect, Rounding, Shadow, Shape, Stroke};
+use epaint::{Color32, CornerRadius, Margin, MarginF32, Rect, Shadow, Shape, Stroke};
 
-/// Add a background, frame and/or margin to a rectangular background of a [`Ui`].
+/// A frame around some content, including margin, colors, etc.
+///
+/// ## Definitions
+/// The total (outer) size of a frame is
+/// `content_size + inner_margin + 2 * stroke.width + outer_margin`.
+///
+/// Everything within the stroke is filled with the fill color (if any).
+///
+/// ```text
+/// +-----------------^-------------------------------------- -+
+/// |                 | outer_margin                           |
+/// |    +------------v----^------------------------------+    |
+/// |    |                 | stroke width                 |    |
+/// |    |    +------------v---^---------------------+    |    |
+/// |    |    |                | inner_margin        |    |    |
+/// |    |    |    +-----------v----------------+    |    |    |
+/// |    |    |    |             ^              |    |    |    |
+/// |    |    |    |             |              |    |    |    |
+/// |    |    |    |<------ content_size ------>|    |    |    |
+/// |    |    |    |             |              |    |    |    |
+/// |    |    |    |             v              |    |    |    |
+/// |    |    |    +------- content_rect -------+    |    |    |
+/// |    |    |                                      |    |    |
+/// |    |    +-------------fill_rect ---------------+    |    |
+/// |    |                                                |    |
+/// |    +----------------- widget_rect ------------------+    |
+/// |                                                          |
+/// +---------------------- outer_rect ------------------------+
+/// ```
+///
+/// The four rectangles, from inside to outside, are:
+/// * `content_rect`: the rectangle that is made available to the inner [`Ui`] or widget.
+/// * `fill_rect`: the rectangle that is filled with the fill color (inside the stroke, if any).
+/// * `widget_rect`: is the interactive part of the widget (what sense clicks etc).
+/// * `outer_rect`: what is allocated in the outer [`Ui`], and is what is returned by [`Response::rect`].
+///
+/// ## Usage
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
-/// egui::Frame::none()
+/// egui::Frame::NONE
 ///     .fill(egui::Color32::RED)
 ///     .show(ui, |ui| {
 ///         ui.label("Label with red background");
@@ -58,83 +94,134 @@ use epaint::{Color32, Margin, Rect, Rounding, Shadow, Shape, Stroke};
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[must_use = "You should call .show()"]
 pub struct Frame {
+    // Fields are ordered inside-out.
+    // TODO(emilk): add `min_content_size: Vec2`
+    //
     /// Margin within the painted frame.
+    ///
+    /// Known as `padding` in CSS.
+    #[doc(alias = "padding")]
     pub inner_margin: Margin,
 
-    /// Margin outside the painted frame.
-    pub outer_margin: Margin,
-
-    pub rounding: Rounding,
-
-    pub shadow: Shadow,
-
+    /// The background fill color of the frame, within the [`Self::stroke`].
+    ///
+    /// Known as `background` in CSS.
+    #[doc(alias = "background")]
     pub fill: Color32,
 
+    /// The width and color of the outline around the frame.
+    ///
+    /// The width of the stroke is part of the total margin/padding of the frame.
+    #[doc(alias = "border")]
     pub stroke: Stroke,
+
+    /// The rounding of the _outer_ corner of the [`Self::stroke`]
+    /// (or, if there is no stroke, the outer corner of [`Self::fill`]).
+    ///
+    /// In other words, this is the corner radius of the _widget rect_.
+    pub corner_radius: CornerRadius,
+
+    /// Margin outside the painted frame.
+    ///
+    /// Similar to what is called `margin` in CSS.
+    /// However, egui does NOT do "Margin Collapse" like in CSS,
+    /// i.e. when placing two frames next to each other,
+    /// the distance between their borders is the SUM
+    /// of their other margins.
+    /// In CSS the distance would be the MAX of their outer margins.
+    /// Supporting margin collapse is difficult, and would
+    /// requires complicating the already complicated egui layout code.
+    ///
+    /// Consider using [`crate::Spacing::item_spacing`]
+    /// for adding space between widgets.
+    pub outer_margin: Margin,
+
+    /// Optional drop-shadow behind the frame.
+    pub shadow: Shadow,
 }
 
+#[test]
+fn frame_size() {
+    assert_eq!(
+        std::mem::size_of::<Frame>(),
+        32,
+        "Frame changed size! If it shrank - good! Update this test. If it grew - bad! Try to find a way to avoid it."
+    );
+    assert!(
+        std::mem::size_of::<Frame>() <= 64,
+        "Frame is getting way too big!"
+    );
+}
+
+/// ## Constructors
 impl Frame {
-    pub fn none() -> Self {
-        Self::default()
+    /// No colors, no margins, no border.
+    ///
+    /// This is also the default.
+    pub const NONE: Self = Self {
+        inner_margin: Margin::ZERO,
+        stroke: Stroke::NONE,
+        fill: Color32::TRANSPARENT,
+        corner_radius: CornerRadius::ZERO,
+        outer_margin: Margin::ZERO,
+        shadow: Shadow::NONE,
+    };
+
+    /// No colors, no margins, no border.
+    ///
+    /// Same as [`Frame::NONE`].
+    pub const fn new() -> Self {
+        Self::NONE
+    }
+
+    #[deprecated = "Use `Frame::NONE` or `Frame::new()` instead."]
+    pub const fn none() -> Self {
+        Self::NONE
     }
 
     /// For when you want to group a few widgets together within a frame.
     pub fn group(style: &Style) -> Self {
-        Self {
-            inner_margin: Margin::same(6.0), // same and symmetric looks best in corners when nesting groups
-            rounding: style.visuals.widgets.noninteractive.rounding,
-            stroke: style.visuals.widgets.noninteractive.bg_stroke,
-            ..Default::default()
-        }
+        Self::new()
+            .inner_margin(6)
+            .corner_radius(style.visuals.widgets.noninteractive.corner_radius)
+            .stroke(style.visuals.widgets.noninteractive.bg_stroke)
     }
 
     pub fn side_top_panel(style: &Style) -> Self {
-        Self {
-            inner_margin: Margin::symmetric(8.0, 2.0),
-            fill: style.visuals.panel_fill,
-            ..Default::default()
-        }
+        Self::new()
+            .inner_margin(Margin::symmetric(8, 2))
+            .fill(style.visuals.panel_fill)
     }
 
     pub fn central_panel(style: &Style) -> Self {
-        Self {
-            inner_margin: Margin::same(8.0),
-            fill: style.visuals.panel_fill,
-            ..Default::default()
-        }
+        Self::new().inner_margin(8).fill(style.visuals.panel_fill)
     }
 
     pub fn window(style: &Style) -> Self {
-        Self {
-            inner_margin: style.spacing.window_margin,
-            rounding: style.visuals.window_rounding,
-            shadow: style.visuals.window_shadow,
-            fill: style.visuals.window_fill(),
-            stroke: style.visuals.window_stroke(),
-            ..Default::default()
-        }
+        Self::new()
+            .inner_margin(style.spacing.window_margin)
+            .corner_radius(style.visuals.window_corner_radius)
+            .shadow(style.visuals.window_shadow)
+            .fill(style.visuals.window_fill())
+            .stroke(style.visuals.window_stroke())
     }
 
     pub fn menu(style: &Style) -> Self {
-        Self {
-            inner_margin: style.spacing.menu_margin,
-            rounding: style.visuals.menu_rounding,
-            shadow: style.visuals.popup_shadow,
-            fill: style.visuals.window_fill(),
-            stroke: style.visuals.window_stroke(),
-            ..Default::default()
-        }
+        Self::new()
+            .inner_margin(style.spacing.menu_margin)
+            .corner_radius(style.visuals.menu_corner_radius)
+            .shadow(style.visuals.popup_shadow)
+            .fill(style.visuals.window_fill())
+            .stroke(style.visuals.window_stroke())
     }
 
     pub fn popup(style: &Style) -> Self {
-        Self {
-            inner_margin: style.spacing.menu_margin,
-            rounding: style.visuals.menu_rounding,
-            shadow: style.visuals.popup_shadow,
-            fill: style.visuals.window_fill(),
-            stroke: style.visuals.window_stroke(),
-            ..Default::default()
-        }
+        Self::new()
+            .inner_margin(style.spacing.menu_margin)
+            .corner_radius(style.visuals.menu_corner_radius)
+            .shadow(style.visuals.popup_shadow)
+            .fill(style.visuals.window_fill())
+            .stroke(style.visuals.window_stroke())
     }
 
     /// A canvas to draw on.
@@ -142,57 +229,90 @@ impl Frame {
     /// In bright mode this will be very bright,
     /// and in dark mode this will be very dark.
     pub fn canvas(style: &Style) -> Self {
-        Self {
-            inner_margin: Margin::same(2.0),
-            rounding: style.visuals.widgets.noninteractive.rounding,
-            fill: style.visuals.extreme_bg_color,
-            stroke: style.visuals.window_stroke(),
-            ..Default::default()
-        }
+        Self::new()
+            .inner_margin(2)
+            .corner_radius(style.visuals.widgets.noninteractive.corner_radius)
+            .fill(style.visuals.extreme_bg_color)
+            .stroke(style.visuals.window_stroke())
     }
 
     /// A dark canvas to draw on.
     pub fn dark_canvas(style: &Style) -> Self {
-        Self {
-            fill: Color32::from_black_alpha(250),
-            ..Self::canvas(style)
-        }
+        Self::canvas(style).fill(Color32::from_black_alpha(250))
     }
 }
 
+/// ## Builders
 impl Frame {
-    #[inline]
-    pub fn fill(mut self, fill: Color32) -> Self {
-        self.fill = fill;
-        self
-    }
-
-    #[inline]
-    pub fn stroke(mut self, stroke: impl Into<Stroke>) -> Self {
-        self.stroke = stroke.into();
-        self
-    }
-
-    #[inline]
-    pub fn rounding(mut self, rounding: impl Into<Rounding>) -> Self {
-        self.rounding = rounding.into();
-        self
-    }
-
     /// Margin within the painted frame.
+    ///
+    /// Known as `padding` in CSS.
+    #[doc(alias = "padding")]
     #[inline]
     pub fn inner_margin(mut self, inner_margin: impl Into<Margin>) -> Self {
         self.inner_margin = inner_margin.into();
         self
     }
 
+    /// The background fill color of the frame, within the [`Self::stroke`].
+    ///
+    /// Known as `background` in CSS.
+    #[doc(alias = "background")]
+    #[inline]
+    pub fn fill(mut self, fill: Color32) -> Self {
+        self.fill = fill;
+        self
+    }
+
+    /// The width and color of the outline around the frame.
+    ///
+    /// The width of the stroke is part of the total margin/padding of the frame.
+    #[inline]
+    pub fn stroke(mut self, stroke: impl Into<Stroke>) -> Self {
+        self.stroke = stroke.into();
+        self
+    }
+
+    /// The rounding of the _outer_ corner of the [`Self::stroke`]
+    /// (or, if there is no stroke, the outer corner of [`Self::fill`]).
+    ///
+    /// In other words, this is the corner radius of the _widget rect_.
+    #[inline]
+    pub fn corner_radius(mut self, corner_radius: impl Into<CornerRadius>) -> Self {
+        self.corner_radius = corner_radius.into();
+        self
+    }
+
+    /// The rounding of the _outer_ corner of the [`Self::stroke`]
+    /// (or, if there is no stroke, the outer corner of [`Self::fill`]).
+    ///
+    /// In other words, this is the corner radius of the _widget rect_.
+    #[inline]
+    #[deprecated = "Renamed to `corner_radius`"]
+    pub fn rounding(self, corner_radius: impl Into<CornerRadius>) -> Self {
+        self.corner_radius(corner_radius)
+    }
+
     /// Margin outside the painted frame.
+    ///
+    /// Similar to what is called `margin` in CSS.
+    /// However, egui does NOT do "Margin Collapse" like in CSS,
+    /// i.e. when placing two frames next to each other,
+    /// the distance between their borders is the SUM
+    /// of their other margins.
+    /// In CSS the distance would be the MAX of their outer margins.
+    /// Supporting margin collapse is difficult, and would
+    /// requires complicating the already complicated egui layout code.
+    ///
+    /// Consider using [`crate::Spacing::item_spacing`]
+    /// for adding space between widgets.
     #[inline]
     pub fn outer_margin(mut self, outer_margin: impl Into<Margin>) -> Self {
         self.outer_margin = outer_margin.into();
         self
     }
 
+    /// Optional drop-shadow behind the frame.
     #[inline]
     pub fn shadow(mut self, shadow: Shadow) -> Self {
         self.shadow = shadow;
@@ -212,11 +332,37 @@ impl Frame {
     }
 }
 
+/// ## Inspectors
 impl Frame {
-    /// inner margin plus outer margin.
+    /// How much extra space the frame uses up compared to the content.
+    ///
+    /// [`Self::inner_margin`] + [`Self.stroke`]`.width` + [`Self::outer_margin`].
     #[inline]
-    pub fn total_margin(&self) -> Margin {
-        self.inner_margin + self.outer_margin
+    pub fn total_margin(&self) -> MarginF32 {
+        MarginF32::from(self.inner_margin)
+            + MarginF32::from(self.stroke.width)
+            + MarginF32::from(self.outer_margin)
+    }
+
+    /// Calculate the `fill_rect` from the `content_rect`.
+    ///
+    /// This is the rectangle that is filled with the fill color (inside the stroke, if any).
+    pub fn fill_rect(&self, content_rect: Rect) -> Rect {
+        content_rect + self.inner_margin
+    }
+
+    /// Calculate the `widget_rect` from the `content_rect`.
+    ///
+    /// This is the visible and interactive rectangle.
+    pub fn widget_rect(&self, content_rect: Rect) -> Rect {
+        content_rect + self.inner_margin + MarginF32::from(self.stroke.width)
+    }
+
+    /// Calculate the `outer_rect` from the `content_rect`.
+    ///
+    /// This is what is allocated in the outer [`Ui`], and is what is returned by [`Response::rect`].
+    pub fn outer_rect(&self, content_rect: Rect) -> Rect {
+        content_rect + self.inner_margin + MarginF32::from(self.stroke.width) + self.outer_margin
     }
 }
 
@@ -247,19 +393,17 @@ impl Frame {
         let where_to_put_background = ui.painter().add(Shape::Noop);
         let outer_rect_bounds = ui.available_rect_before_wrap();
 
-        let mut inner_rect = outer_rect_bounds - self.outer_margin - self.inner_margin;
+        let mut max_content_rect = outer_rect_bounds - self.total_margin();
 
         // Make sure we don't shrink to the negative:
-        inner_rect.max.x = inner_rect.max.x.max(inner_rect.min.x);
-        inner_rect.max.y = inner_rect.max.y.max(inner_rect.min.y);
+        max_content_rect.max.x = max_content_rect.max.x.max(max_content_rect.min.x);
+        max_content_rect.max.y = max_content_rect.max.y.max(max_content_rect.min.y);
 
         let content_ui = ui.new_child(
             UiBuilder::new()
                 .ui_stack_info(UiStackInfo::new(UiKind::Frame).with_frame(self))
-                .max_rect(inner_rect),
+                .max_rect(max_content_rect),
         );
-
-        // content_ui.set_clip_rect(outer_rect_bounds.shrink(self.stroke.width * 0.5)); // Can't do this since we don't know final size yet
 
         Prepared {
             frame: self,
@@ -286,32 +430,42 @@ impl Frame {
     }
 
     /// Paint this frame as a shape.
-    ///
-    /// The margin is ignored.
-    pub fn paint(&self, outer_rect: Rect) -> Shape {
+    pub fn paint(&self, content_rect: Rect) -> Shape {
         let Self {
             inner_margin: _,
-            outer_margin: _,
-            rounding,
-            shadow,
             fill,
             stroke,
+            corner_radius,
+            outer_margin: _,
+            shadow,
         } = *self;
 
-        let frame_shape = Shape::Rect(epaint::RectShape::new(outer_rect, rounding, fill, stroke));
+        let widget_rect = self.widget_rect(content_rect);
+
+        let frame_shape = Shape::Rect(epaint::RectShape::new(
+            widget_rect,
+            corner_radius,
+            fill,
+            stroke,
+            epaint::StrokeKind::Inside,
+        ));
 
         if shadow == Default::default() {
             frame_shape
         } else {
-            let shadow = shadow.as_shape(outer_rect, rounding);
+            let shadow = shadow.as_shape(widget_rect, corner_radius);
             Shape::Vec(vec![Shape::from(shadow), frame_shape])
         }
     }
 }
 
 impl Prepared {
-    fn content_with_margin(&self) -> Rect {
-        self.content_ui.min_rect() + self.frame.inner_margin + self.frame.outer_margin
+    fn outer_rect(&self) -> Rect {
+        let content_rect = self.content_ui.min_rect();
+        content_rect
+            + self.frame.inner_margin
+            + MarginF32::from(self.frame.stroke.width)
+            + self.frame.outer_margin
     }
 
     /// Allocate the space that was used by [`Self::content_ui`].
@@ -320,22 +474,25 @@ impl Prepared {
     ///
     /// This can be called before or after [`Self::paint`].
     pub fn allocate_space(&self, ui: &mut Ui) -> Response {
-        ui.allocate_rect(self.content_with_margin(), Sense::hover())
+        ui.allocate_rect(self.outer_rect(), Sense::hover())
     }
 
     /// Paint the frame.
     ///
     /// This can be called before or after [`Self::allocate_space`].
     pub fn paint(&self, ui: &Ui) {
-        let paint_rect = self.content_ui.min_rect() + self.frame.inner_margin;
+        let content_rect = self.content_ui.min_rect();
+        let widget_rect = self.frame.widget_rect(content_rect);
 
-        if ui.is_rect_visible(paint_rect) {
-            let shape = self.frame.paint(paint_rect);
+        if ui.is_rect_visible(widget_rect) {
+            let shape = self.frame.paint(content_rect);
             ui.painter().set(self.where_to_put_background, shape);
         }
     }
 
     /// Convenience for calling [`Self::allocate_space`] and [`Self::paint`].
+    ///
+    /// Returns the outer rect, i.e. including the outer margin.
     pub fn end(self, ui: &mut Ui) -> Response {
         self.paint(ui);
         self.allocate_space(ui)

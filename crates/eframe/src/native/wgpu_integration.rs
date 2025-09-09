@@ -15,18 +15,19 @@ use winit::{
     window::{Window, WindowId},
 };
 
-use ahash::{HashMap, HashSet, HashSetExt};
+use ahash::HashMap;
 use egui::{
-    DeferredViewportUiCallback, FullOutput, ImmediateViewport, ViewportBuilder, ViewportClass,
-    ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportInfo, ViewportOutput,
+    DeferredViewportUiCallback, FullOutput, ImmediateViewport, OrderedViewportIdMap,
+    ViewportBuilder, ViewportClass, ViewportId, ViewportIdPair, ViewportIdSet, ViewportInfo,
+    ViewportOutput,
 };
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
 use winit_integration::UserEvent;
 
 use crate::{
-    native::{epi_integration::EpiIntegration, winit_integration::EventResult},
     App, AppCreator, CreationContext, NativeOptions, Result, Storage,
+    native::{epi_integration::EpiIntegration, winit_integration::EventResult},
 };
 
 use super::{epi_integration, event_loop_context, winit_integration, winit_integration::WinitApp};
@@ -72,7 +73,7 @@ pub struct SharedState {
     focused_viewport: Option<ViewportId>,
 }
 
-pub type Viewports = ViewportIdMap<Viewport>;
+pub type Viewports = egui::OrderedViewportIdMap<Viewport>;
 
 pub struct Viewport {
     ids: ViewportIdPair,
@@ -80,7 +81,7 @@ pub struct Viewport {
     builder: ViewportBuilder,
     deferred_commands: Vec<egui::viewport::ViewportCommand>,
     info: ViewportInfo,
-    actions_requested: HashSet<ActionRequested>,
+    actions_requested: Vec<ActionRequested>,
 
     /// `None` for sync viewports.
     viewport_ui_cb: Option<Arc<DeferredViewportUiCallback>>,
@@ -182,8 +183,7 @@ impl<'app> WgpuWinitApp<'app> {
         builder: ViewportBuilder,
     ) -> crate::Result<&mut WgpuWinitRunning<'app>> {
         profiling::function_scope!();
-        #[allow(unsafe_code, unused_mut, unused_unsafe)]
-        let mut painter = egui_wgpu::winit::Painter::new(
+        let mut painter = pollster::block_on(egui_wgpu::winit::Painter::new(
             egui_ctx.clone(),
             self.native_options.wgpu_options.clone(),
             self.native_options.multisampling.max(1) as _,
@@ -193,7 +193,7 @@ impl<'app> WgpuWinitApp<'app> {
             ),
             self.native_options.viewport.transparent.unwrap_or(false),
             self.native_options.dithering,
-        );
+        ));
 
         let window = Arc::new(window);
 
@@ -236,7 +236,7 @@ impl<'app> WgpuWinitApp<'app> {
             });
         }
 
-        #[allow(unused_mut)] // used for accesskit
+        #[allow(unused_mut, clippy::allow_attributes)] // used for accesskit
         let mut egui_winit = egui_winit::State::new(
             egui_ctx.clone(),
             ViewportId::ROOT,
@@ -249,7 +249,7 @@ impl<'app> WgpuWinitApp<'app> {
         #[cfg(feature = "accesskit")]
         {
             let event_loop_proxy = self.repaint_proxy.lock().clone();
-            egui_winit.init_accesskit(&window, event_loop_proxy);
+            egui_winit.init_accesskit(event_loop, &window, event_loop_proxy);
         }
 
         let app_creator = std::mem::take(&mut self.app_creator)
@@ -323,7 +323,7 @@ impl<'app> WgpuWinitApp<'app> {
     }
 }
 
-impl<'app> WinitApp for WgpuWinitApp<'app> {
+impl WinitApp for WgpuWinitApp<'_> {
     fn egui_ctx(&self) -> Option<&egui::Context> {
         self.running.as_ref().map(|r| &r.integration.egui_ctx)
     }
@@ -333,10 +333,8 @@ impl<'app> WinitApp for WgpuWinitApp<'app> {
             .as_ref()
             .and_then(|r| {
                 let shared = r.shared.borrow();
-                shared
-                    .viewport_from_window
-                    .get(&window_id)
-                    .and_then(|id| shared.viewports.get(id).map(|v| v.window.clone()))
+                let id = shared.viewport_from_window.get(&window_id)?;
+                shared.viewports.get(id).map(|v| v.window.clone())
             })
             .flatten()
     }
@@ -353,6 +351,13 @@ impl<'app> WinitApp for WgpuWinitApp<'app> {
                 .as_ref()?
                 .id(),
         )
+    }
+
+    fn save(&mut self) {
+        log::debug!("WinitApp::save called");
+        if let Some(running) = self.running.as_mut() {
+            running.save();
+        }
     }
 
     fn save_and_destroy(&mut self) {
@@ -415,7 +420,7 @@ impl<'app> WinitApp for WgpuWinitApp<'app> {
     fn suspended(&mut self, _: &ActiveEventLoop) -> crate::Result<EventResult> {
         #[cfg(target_os = "android")]
         self.drop_window()?;
-        Ok(EventResult::Wait)
+        Ok(EventResult::Save)
     }
 
     fn device_event(
@@ -487,14 +492,24 @@ impl<'app> WinitApp for WgpuWinitApp<'app> {
     }
 }
 
-impl<'app> WgpuWinitRunning<'app> {
+impl WgpuWinitRunning<'_> {
+    /// Saves the application state
+    fn save(&mut self) {
+        let shared = self.shared.borrow();
+        // This is done because of the "save on suspend" logic on Android. Once the application is suspended, there is no window associated to it.
+        let window = if let Some(Viewport { window, .. }) = shared.viewports.get(&ViewportId::ROOT)
+        {
+            window.as_deref()
+        } else {
+            None
+        };
+        self.integration.save(self.app.as_mut(), window);
+    }
+
     fn save_and_destroy(&mut self) {
         profiling::function_scope!();
 
-        let mut shared = self.shared.borrow_mut();
-        if let Some(Viewport { window, .. }) = shared.viewports.get(&ViewportId::ROOT) {
-            self.integration.save(self.app.as_mut(), window.as_deref());
-        }
+        self.save();
 
         #[cfg(feature = "glow")]
         self.app.on_exit(None);
@@ -502,6 +517,7 @@ impl<'app> WgpuWinitRunning<'app> {
         #[cfg(not(feature = "glow"))]
         self.app.on_exit();
 
+        let mut shared = self.shared.borrow_mut();
         shared.painter.destroy();
     }
 
@@ -662,7 +678,7 @@ impl<'app> WgpuWinitRunning<'app> {
             screenshot_commands,
         );
 
-        for action in viewport.actions_requested.drain() {
+        for action in viewport.actions_requested.drain(..) {
             match action {
                 ActionRequested::Screenshot { .. } => {
                     // already handled above
@@ -803,17 +819,16 @@ impl<'app> WgpuWinitRunning<'app> {
             }
 
             _ => {}
-        };
+        }
 
         let event_response = viewport_id
             .and_then(|viewport_id| {
-                shared.viewports.get_mut(&viewport_id).and_then(|viewport| {
-                    Some(integration.on_window_event(
-                        viewport.window.as_deref()?,
-                        viewport.egui_winit.as_mut()?,
-                        event,
-                    ))
-                })
+                let viewport = shared.viewports.get_mut(&viewport_id)?;
+                Some(integration.on_window_event(
+                    viewport.window.as_deref()?,
+                    viewport.egui_winit.as_mut()?,
+                    event,
+                ))
             })
             .unwrap_or_default();
 
@@ -1017,10 +1032,10 @@ fn render_immediate_viewport(
 }
 
 pub(crate) fn remove_viewports_not_in(
-    viewports: &mut ViewportIdMap<Viewport>,
+    viewports: &mut Viewports,
     painter: &mut egui_wgpu::winit::Painter,
     viewport_from_window: &mut HashMap<WindowId, ViewportId>,
-    viewport_output: &ViewportIdMap<ViewportOutput>,
+    viewport_output: &OrderedViewportIdMap<ViewportOutput>,
 ) {
     let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
 
@@ -1033,8 +1048,8 @@ pub(crate) fn remove_viewports_not_in(
 /// Add new viewports, and update existing ones:
 fn handle_viewport_output(
     egui_ctx: &egui::Context,
-    viewport_output: &ViewportIdMap<ViewportOutput>,
-    viewports: &mut ViewportIdMap<Viewport>,
+    viewport_output: &OrderedViewportIdMap<ViewportOutput>,
+    viewports: &mut Viewports,
     painter: &mut egui_wgpu::winit::Painter,
     viewport_from_window: &mut HashMap<WindowId, ViewportId>,
 ) {
@@ -1094,6 +1109,8 @@ fn initialize_or_update_viewport<'a>(
     viewport_ui_cb: Option<Arc<dyn Fn(&egui::Context) + Send + Sync>>,
     painter: &mut egui_wgpu::winit::Painter,
 ) -> &'a mut Viewport {
+    use std::collections::btree_map::Entry;
+
     profiling::function_scope!();
 
     if builder.icon.is_none() {
@@ -1104,7 +1121,7 @@ fn initialize_or_update_viewport<'a>(
     }
 
     match viewports.entry(ids.this) {
-        std::collections::hash_map::Entry::Vacant(entry) => {
+        Entry::Vacant(entry) => {
             // New viewport:
             log::debug!("Creating new viewport {:?} ({:?})", ids.this, builder.title);
             entry.insert(Viewport {
@@ -1113,14 +1130,14 @@ fn initialize_or_update_viewport<'a>(
                 builder,
                 deferred_commands: vec![],
                 info: Default::default(),
-                actions_requested: HashSet::new(),
+                actions_requested: Vec::new(),
                 viewport_ui_cb,
                 window: None,
                 egui_winit: None,
             })
         }
 
-        std::collections::hash_map::Entry::Occupied(mut entry) => {
+        Entry::Occupied(mut entry) => {
             // Patch an existing viewport:
             let viewport = entry.get_mut();
 

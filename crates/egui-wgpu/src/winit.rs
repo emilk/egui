@@ -1,8 +1,8 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::undocumented_unsafe_blocks)]
 
-use crate::capture::{capture_channel, CaptureReceiver, CaptureSender, CaptureState};
-use crate::{renderer, RenderState, SurfaceErrorAction, WgpuConfiguration};
+use crate::capture::{CaptureReceiver, CaptureSender, CaptureState, capture_channel};
+use crate::{RenderState, SurfaceErrorAction, WgpuConfiguration, renderer};
 use egui::{Context, Event, UserData, ViewportId, ViewportIdMap, ViewportIdSet};
 use std::{num::NonZeroU32, sync::Arc};
 
@@ -27,7 +27,7 @@ pub struct Painter {
     depth_format: Option<wgpu::TextureFormat>,
     screen_capture_state: Option<CaptureState>,
 
-    instance: Arc<wgpu::Instance>,
+    instance: wgpu::Instance,
     render_state: Option<RenderState>,
 
     // Per viewport/window:
@@ -51,7 +51,7 @@ impl Painter {
     /// [`set_window()`](Self::set_window) once you have
     /// a [`winit::window::Window`] with a valid `.raw_window_handle()`
     /// associated.
-    pub fn new(
+    pub async fn new(
         context: Context,
         configuration: WgpuConfiguration,
         msaa_samples: u32,
@@ -59,17 +59,8 @@ impl Painter {
         support_transparent_backbuffer: bool,
         dithering: bool,
     ) -> Self {
-        let instance = match &configuration.wgpu_setup {
-            crate::WgpuSetup::CreateNew {
-                supported_backends, ..
-            } => Arc::new(wgpu::Instance::new(wgpu::InstanceDescriptor {
-                backends: *supported_backends,
-                ..Default::default()
-            })),
-            crate::WgpuSetup::Existing { instance, .. } => instance.clone(),
-        };
-
         let (capture_tx, capture_rx) = capture_channel();
+        let instance = configuration.wgpu_setup.new_instance().await;
 
         Self {
             context,
@@ -212,7 +203,7 @@ impl Painter {
             let render_state = RenderState::create(
                 &self.configuration,
                 &self.instance,
-                &surface,
+                Some(&surface),
                 self.depth_format,
                 self.msaa_samples,
                 self.dithering,
@@ -229,7 +220,9 @@ impl Painter {
             } else if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PostMultiplied) {
                 wgpu::CompositeAlphaMode::PostMultiplied
             } else {
-                log::warn!("Transparent window was requested, but the active wgpu surface does not support a `CompositeAlphaMode` with transparency.");
+                log::warn!(
+                    "Transparent window was requested, but the active wgpu surface does not support a `CompositeAlphaMode` with transparency."
+                );
                 wgpu::CompositeAlphaMode::Auto
             }
         } else {
@@ -335,7 +328,7 @@ impl Painter {
                     })
                     .create_view(&wgpu::TextureViewDescriptor::default()),
             );
-        };
+        }
     }
 
     pub fn on_window_resized(
@@ -353,7 +346,9 @@ impl Painter {
                 height_in_pixels,
             );
         } else {
-            log::warn!("Ignoring window resize notification with no surface created via Painter::set_window()");
+            log::warn!(
+                "Ignoring window resize notification with no surface created via Painter::set_window()"
+            );
         }
     }
 
@@ -584,7 +579,7 @@ impl Painter {
             .retain(|id, _| active_viewports.contains(id));
     }
 
-    #[allow(clippy::needless_pass_by_ref_mut, clippy::unused_self)]
+    #[expect(clippy::needless_pass_by_ref_mut, clippy::unused_self)]
     pub fn destroy(&mut self) {
         // TODO(emilk): something here?
     }

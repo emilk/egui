@@ -44,11 +44,6 @@ cint = ["epaint/cint"]
 ## Enable the [`hex_color`] macro.
 color-hex = ["epaint/color-hex"]
 
-## This will automatically detect deadlocks due to double-locking on the same thread.
-## If your app freezes, you may want to enable this!
-## Only affects [`epaint::mutex::RwLock`] (which egui uses a lot).
-deadlock_detection = ["epaint/deadlock_detection"]
-
 ## If set, egui will use `include_bytes!` to bundle some fonts.
 ## If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["epaint/default_fonts"]
@@ -74,17 +69,24 @@ serde = ["dep:serde", "epaint/serde", "accesskit?/serde"]
 ## Change Vertex layout to be compatible with unity
 unity = ["epaint/unity"]
 
+## Override and disable the unity feature
+## This exists, so that when testing with --all-features, snapshots render correctly.
+_override_unity = ["epaint/_override_unity"]
+
 
 [dependencies]
 emath = { workspace = true, default-features = false }
 epaint = { workspace = true, default-features = false }
 
 ahash.workspace = true
+bitflags.workspace = true
 nohash-hasher.workspace = true
 profiling.workspace = true
+smallvec.workspace = true
+unicode-segmentation.workspace = true
 
 #! ### Optional dependencies
-accesskit = { version = "0.17.0", optional = true }
+accesskit = { workspace = true, optional = true }
 
 backtrace = { workspace = true, optional = true }
 

@@ -1,11 +1,11 @@
 use egui::{TexturesDelta, UserData, ViewportCommand};
 
-use crate::{epi, App};
+use crate::{App, epi};
 
-use super::{now_sec, text_agent::TextAgent, web_painter::WebPainter, NeedRepaint};
+use super::{NeedRepaint, now_sec, text_agent::TextAgent, web_painter::WebPainter as _};
 
 pub struct AppRunner {
-    #[allow(dead_code)]
+    #[allow(dead_code, clippy::allow_attributes)]
     pub(crate) web_options: crate::WebOptions,
     pub(crate) frame: epi::Frame,
     egui_ctx: egui::Context,
@@ -59,7 +59,7 @@ impl AppRunner {
 
         egui_ctx.options_mut(|o| {
             // On web by default egui follows the zoom factor of the browser,
-            // and lets the browser handle the zoom shortscuts.
+            // and lets the browser handle the zoom shortcuts.
             // A user can still zoom egui separately by calling [`egui::Context::set_zoom_factor`].
             o.zoom_with_keyboard = false;
             o.zoom_factor = 1.0;
@@ -215,6 +215,18 @@ impl AppRunner {
 
         let canvas_size = super::canvas_size_in_points(self.canvas(), self.egui_ctx());
         let mut raw_input = self.input.new_frame(canvas_size);
+
+        if super::DEBUG_RESIZE {
+            log::info!(
+                "egui running at canvas size: {}x{}, DPR: {}, zoom_factor: {}. egui size: {}x{} points",
+                self.canvas().width(),
+                self.canvas().height(),
+                super::native_pixels_per_point(),
+                self.egui_ctx.zoom_factor(),
+                canvas_size.x,
+                canvas_size.y,
+            );
+        }
 
         self.app.raw_input_hook(&self.egui_ctx, &mut raw_input);
 

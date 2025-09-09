@@ -1,6 +1,7 @@
 use crate::{
-    widgets, Align, Color32, Image, NumExt, Rect, Response, Rounding, Sense, Stroke, TextStyle,
-    TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
+    Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Color32, CornerRadius, Frame,
+    Image, IntoAtoms, NumExt as _, Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2,
+    Widget, WidgetInfo, WidgetText, WidgetType,
 };
 
 /// Clickable button with text.
@@ -23,56 +24,89 @@ use crate::{
 /// ```
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct Button<'a> {
-    image: Option<Image<'a>>,
-    text: Option<WidgetText>,
-    shortcut_text: WidgetText,
-    wrap_mode: Option<TextWrapMode>,
-
-    /// None means default for interact
+    layout: AtomLayout<'a>,
     fill: Option<Color32>,
     stroke: Option<Stroke>,
-    sense: Sense,
     small: bool,
     frame: Option<bool>,
+    frame_when_inactive: bool,
     min_size: Vec2,
-    rounding: Option<Rounding>,
+    corner_radius: Option<CornerRadius>,
     selected: bool,
     image_tint_follows_text_color: bool,
+    limit_image_size: bool,
 }
 
 impl<'a> Button<'a> {
-    pub fn new(text: impl Into<WidgetText>) -> Self {
-        Self::opt_image_and_text(None, Some(text.into()))
+    pub fn new(atoms: impl IntoAtoms<'a>) -> Self {
+        Self {
+            layout: AtomLayout::new(atoms.into_atoms())
+                .sense(Sense::click())
+                .fallback_font(TextStyle::Button),
+            fill: None,
+            stroke: None,
+            small: false,
+            frame: None,
+            frame_when_inactive: true,
+            min_size: Vec2::ZERO,
+            corner_radius: None,
+            selected: false,
+            image_tint_follows_text_color: false,
+            limit_image_size: false,
+        }
+    }
+
+    /// Show a selectable button.
+    ///
+    /// Equivalent to:
+    /// ```rust
+    /// # use egui::{Button, IntoAtoms, __run_test_ui};
+    /// # __run_test_ui(|ui| {
+    /// let selected = true;
+    /// ui.add(Button::new("toggle me").selected(selected).frame_when_inactive(!selected).frame(true));
+    /// # });
+    /// ```
+    ///
+    /// See also:
+    ///   - [`Ui::selectable_value`]
+    ///   - [`Ui::selectable_label`]
+    pub fn selectable(selected: bool, atoms: impl IntoAtoms<'a>) -> Self {
+        Self::new(atoms)
+            .selected(selected)
+            .frame_when_inactive(selected)
+            .frame(true)
     }
 
     /// Creates a button with an image. The size of the image as displayed is defined by the provided size.
-    #[allow(clippy::needless_pass_by_value)]
+    ///
+    /// Note: In contrast to [`Button::new`], this limits the image size to the default font height
+    /// (using [`crate::AtomExt::atom_max_height_font_size`]).
     pub fn image(image: impl Into<Image<'a>>) -> Self {
         Self::opt_image_and_text(Some(image.into()), None)
     }
 
-    /// Creates a button with an image to the left of the text. The size of the image as displayed is defined by the provided size.
-    #[allow(clippy::needless_pass_by_value)]
+    /// Creates a button with an image to the left of the text.
+    ///
+    /// Note: In contrast to [`Button::new`], this limits the image size to the default font height
+    /// (using [`crate::AtomExt::atom_max_height_font_size`]).
     pub fn image_and_text(image: impl Into<Image<'a>>, text: impl Into<WidgetText>) -> Self {
         Self::opt_image_and_text(Some(image.into()), Some(text.into()))
     }
 
+    /// Create a button with an optional image and optional text.
+    ///
+    /// Note: In contrast to [`Button::new`], this limits the image size to the default font height
+    /// (using [`crate::AtomExt::atom_max_height_font_size`]).
     pub fn opt_image_and_text(image: Option<Image<'a>>, text: Option<WidgetText>) -> Self {
-        Self {
-            text,
-            image,
-            shortcut_text: Default::default(),
-            wrap_mode: None,
-            fill: None,
-            stroke: None,
-            sense: Sense::click(),
-            small: false,
-            frame: None,
-            min_size: Vec2::ZERO,
-            rounding: None,
-            selected: false,
-            image_tint_follows_text_color: false,
+        let mut button = Self::new(());
+        if let Some(image) = image {
+            button.layout.push_right(image);
         }
+        if let Some(text) = text {
+            button.layout.push_right(text);
+        }
+        button.limit_image_size = true;
+        button
     }
 
     /// Set the wrap mode for the text.
@@ -82,23 +116,20 @@ impl<'a> Button<'a> {
     /// Note that any `\n` in the text will always produce a new line.
     #[inline]
     pub fn wrap_mode(mut self, wrap_mode: TextWrapMode) -> Self {
-        self.wrap_mode = Some(wrap_mode);
+        self.layout = self.layout.wrap_mode(wrap_mode);
         self
     }
 
     /// Set [`Self::wrap_mode`] to [`TextWrapMode::Wrap`].
     #[inline]
-    pub fn wrap(mut self) -> Self {
-        self.wrap_mode = Some(TextWrapMode::Wrap);
-
-        self
+    pub fn wrap(self) -> Self {
+        self.wrap_mode(TextWrapMode::Wrap)
     }
 
     /// Set [`Self::wrap_mode`] to [`TextWrapMode::Truncate`].
     #[inline]
-    pub fn truncate(mut self) -> Self {
-        self.wrap_mode = Some(TextWrapMode::Truncate);
-        self
+    pub fn truncate(self) -> Self {
+        self.wrap_mode(TextWrapMode::Truncate)
     }
 
     /// Override background fill color. Note that this will override any on-hover effects.
@@ -106,7 +137,6 @@ impl<'a> Button<'a> {
     #[inline]
     pub fn fill(mut self, fill: impl Into<Color32>) -> Self {
         self.fill = Some(fill.into());
-        self.frame = Some(true);
         self
     }
 
@@ -122,9 +152,6 @@ impl<'a> Button<'a> {
     /// Make this a small button, suitable for embedding into text.
     #[inline]
     pub fn small(mut self) -> Self {
-        if let Some(text) = self.text {
-            self.text = Some(text.text_style(TextStyle::Body));
-        }
         self.small = true;
         self
     }
@@ -136,11 +163,23 @@ impl<'a> Button<'a> {
         self
     }
 
+    /// If `false`, the button will not have a frame when inactive.
+    ///
+    /// Default: `true`.
+    ///
+    /// Note: When [`Self::frame`] (or `ui.visuals().button_frame`) is `false`, this setting
+    /// has no effect.
+    #[inline]
+    pub fn frame_when_inactive(mut self, frame_when_inactive: bool) -> Self {
+        self.frame_when_inactive = frame_when_inactive;
+        self
+    }
+
     /// By default, buttons senses clicks.
     /// Change this to a drag-button with `Sense::drag()`.
     #[inline]
     pub fn sense(mut self, sense: Sense) -> Self {
-        self.sense = sense;
+        self.layout = self.layout.sense(sense);
         self
     }
 
@@ -153,9 +192,15 @@ impl<'a> Button<'a> {
 
     /// Set the rounding of the button.
     #[inline]
-    pub fn rounding(mut self, rounding: impl Into<Rounding>) -> Self {
-        self.rounding = Some(rounding.into());
+    pub fn corner_radius(mut self, corner_radius: impl Into<CornerRadius>) -> Self {
+        self.corner_radius = Some(corner_radius.into());
         self
+    }
+
+    #[inline]
+    #[deprecated = "Renamed to `corner_radius`"]
+    pub fn rounding(self, corner_radius: impl Into<CornerRadius>) -> Self {
+        self.corner_radius(corner_radius)
     }
 
     /// If true, the tint of the image is multiplied by the widget text color.
@@ -175,9 +220,25 @@ impl<'a> Button<'a> {
     /// Designed for menu buttons, for setting a keyboard shortcut text (e.g. `Ctrl+S`).
     ///
     /// The text can be created with [`crate::Context::format_shortcut`].
+    ///
+    /// See also [`Self::right_text`].
     #[inline]
-    pub fn shortcut_text(mut self, shortcut_text: impl Into<WidgetText>) -> Self {
-        self.shortcut_text = shortcut_text.into();
+    pub fn shortcut_text(mut self, shortcut_text: impl Into<Atom<'a>>) -> Self {
+        let mut atom = shortcut_text.into();
+        atom.kind = match atom.kind {
+            AtomKind::Text(text) => AtomKind::Text(text.weak()),
+            other => other,
+        };
+        self.layout.push_right(Atom::grow());
+        self.layout.push_right(atom);
+        self
+    }
+
+    /// Show some text on the right side of the button.
+    #[inline]
+    pub fn right_text(mut self, right_text: impl Into<Atom<'a>>) -> Self {
+        self.layout.push_right(Atom::grow());
+        self.layout.push_right(right_text.into());
         self
     }
 
@@ -187,29 +248,42 @@ impl<'a> Button<'a> {
         self.selected = selected;
         self
     }
-}
 
-impl Widget for Button<'_> {
-    fn ui(self, ui: &mut Ui) -> Response {
+    /// Show the button and return a [`AtomLayoutResponse`] for painting custom contents.
+    pub fn atom_ui(self, ui: &mut Ui) -> AtomLayoutResponse {
         let Button {
-            text,
-            image,
-            shortcut_text,
-            wrap_mode,
+            mut layout,
             fill,
             stroke,
-            sense,
             small,
             frame,
-            min_size,
-            rounding,
+            frame_when_inactive,
+            mut min_size,
+            corner_radius,
             selected,
             image_tint_follows_text_color,
+            limit_image_size,
         } = self;
 
-        let frame = frame.unwrap_or_else(|| ui.visuals().button_frame);
+        if !small {
+            min_size.y = min_size.y.at_least(ui.spacing().interact_size.y);
+        }
 
-        let mut button_padding = if frame {
+        if limit_image_size {
+            layout.map_atoms(|atom| {
+                if matches!(&atom.kind, AtomKind::Image(_)) {
+                    atom.atom_max_height_font_size(ui)
+                } else {
+                    atom
+                }
+            });
+        }
+
+        let text = layout.text().map(String::from);
+
+        let has_frame_margin = frame.unwrap_or_else(|| ui.visuals().button_frame);
+
+        let mut button_padding = if has_frame_margin {
             ui.spacing().button_padding
         } else {
             Vec2::ZERO
@@ -218,179 +292,62 @@ impl Widget for Button<'_> {
             button_padding.y = 0.0;
         }
 
-        let space_available_for_image = if let Some(text) = &text {
-            let font_height = ui.fonts(|fonts| text.font_height(fonts, ui.style()));
-            Vec2::splat(font_height) // Reasonable?
+        let mut prepared = layout
+            .frame(Frame::new().inner_margin(button_padding))
+            .min_size(min_size)
+            .allocate(ui);
+
+        let response = if ui.is_rect_visible(prepared.response.rect) {
+            let visuals = ui.style().interact_selectable(&prepared.response, selected);
+
+            let visible_frame = if frame_when_inactive {
+                has_frame_margin
+            } else {
+                has_frame_margin
+                    && (prepared.response.hovered()
+                        || prepared.response.is_pointer_button_down_on()
+                        || prepared.response.has_focus())
+            };
+
+            if image_tint_follows_text_color {
+                prepared.map_images(|image| image.tint(visuals.text_color()));
+            }
+
+            prepared.fallback_text_color = visuals.text_color();
+
+            if visible_frame {
+                let stroke = stroke.unwrap_or(visuals.bg_stroke);
+                let fill = fill.unwrap_or(visuals.weak_bg_fill);
+                prepared.frame = prepared
+                    .frame
+                    .inner_margin(
+                        button_padding + Vec2::splat(visuals.expansion) - Vec2::splat(stroke.width),
+                    )
+                    .outer_margin(-Vec2::splat(visuals.expansion))
+                    .fill(fill)
+                    .stroke(stroke)
+                    .corner_radius(corner_radius.unwrap_or(visuals.corner_radius));
+            }
+
+            prepared.paint(ui)
         } else {
-            ui.available_size() - 2.0 * button_padding
+            AtomLayoutResponse::empty(prepared.response)
         };
 
-        let image_size = if let Some(image) = &image {
-            image
-                .load_and_calc_size(ui, space_available_for_image)
-                .unwrap_or(space_available_for_image)
-        } else {
-            Vec2::ZERO
-        };
-
-        let gap_before_shortcut_text = ui.spacing().item_spacing.x;
-
-        let mut text_wrap_width = ui.available_width() - 2.0 * button_padding.x;
-        if image.is_some() {
-            text_wrap_width -= image_size.x + ui.spacing().icon_spacing;
-        }
-
-        // Note: we don't wrap the shortcut text
-        let shortcut_galley = (!shortcut_text.is_empty()).then(|| {
-            shortcut_text.into_galley(
-                ui,
-                Some(TextWrapMode::Extend),
-                f32::INFINITY,
-                TextStyle::Button,
-            )
-        });
-
-        if let Some(shortcut_galley) = &shortcut_galley {
-            // Leave space for the shortcut text:
-            text_wrap_width -= gap_before_shortcut_text + shortcut_galley.size().x;
-        }
-
-        let galley =
-            text.map(|text| text.into_galley(ui, wrap_mode, text_wrap_width, TextStyle::Button));
-
-        let mut desired_size = Vec2::ZERO;
-        if image.is_some() {
-            desired_size.x += image_size.x;
-            desired_size.y = desired_size.y.max(image_size.y);
-        }
-        if image.is_some() && galley.is_some() {
-            desired_size.x += ui.spacing().icon_spacing;
-        }
-        if let Some(galley) = &galley {
-            desired_size.x += galley.size().x;
-            desired_size.y = desired_size.y.max(galley.size().y);
-        }
-        if let Some(shortcut_galley) = &shortcut_galley {
-            desired_size.x += gap_before_shortcut_text + shortcut_galley.size().x;
-            desired_size.y = desired_size.y.max(shortcut_galley.size().y);
-        }
-        desired_size += 2.0 * button_padding;
-        if !small {
-            desired_size.y = desired_size.y.at_least(ui.spacing().interact_size.y);
-        }
-        desired_size = desired_size.at_least(min_size);
-
-        let (rect, mut response) = ui.allocate_at_least(desired_size, sense);
-        response.widget_info(|| {
-            if let Some(galley) = &galley {
-                WidgetInfo::labeled(WidgetType::Button, ui.is_enabled(), galley.text())
+        response.response.widget_info(|| {
+            if let Some(text) = &text {
+                WidgetInfo::labeled(WidgetType::Button, ui.is_enabled(), text)
             } else {
                 WidgetInfo::new(WidgetType::Button)
             }
         });
 
-        if ui.is_rect_visible(rect) {
-            let visuals = ui.style().interact(&response);
-
-            let (frame_expansion, frame_rounding, frame_fill, frame_stroke) = if selected {
-                let selection = ui.visuals().selection;
-                (
-                    Vec2::ZERO,
-                    Rounding::ZERO,
-                    selection.bg_fill,
-                    selection.stroke,
-                )
-            } else if frame {
-                let expansion = Vec2::splat(visuals.expansion);
-                (
-                    expansion,
-                    visuals.rounding,
-                    visuals.weak_bg_fill,
-                    visuals.bg_stroke,
-                )
-            } else {
-                Default::default()
-            };
-            let frame_rounding = rounding.unwrap_or(frame_rounding);
-            let frame_fill = fill.unwrap_or(frame_fill);
-            let frame_stroke = stroke.unwrap_or(frame_stroke);
-            ui.painter().rect(
-                rect.expand2(frame_expansion),
-                frame_rounding,
-                frame_fill,
-                frame_stroke,
-            );
-
-            let mut cursor_x = rect.min.x + button_padding.x;
-
-            if let Some(image) = &image {
-                let mut image_pos = ui
-                    .layout()
-                    .align_size_within_rect(image_size, rect.shrink2(button_padding))
-                    .min;
-                if galley.is_some() || shortcut_galley.is_some() {
-                    image_pos.x = cursor_x;
-                }
-                let image_rect = Rect::from_min_size(image_pos, image_size);
-                cursor_x += image_size.x;
-                let tlr = image.load_for_size(ui.ctx(), image_size);
-                let mut image_options = image.image_options().clone();
-                if image_tint_follows_text_color {
-                    image_options.tint = image_options.tint * visuals.text_color();
-                }
-                widgets::image::paint_texture_load_result(
-                    ui,
-                    &tlr,
-                    image_rect,
-                    image.show_loading_spinner,
-                    &image_options,
-                );
-                response = widgets::image::texture_load_result_response(
-                    &image.source(ui.ctx()),
-                    &tlr,
-                    response,
-                );
-            }
-
-            if image.is_some() && galley.is_some() {
-                cursor_x += ui.spacing().icon_spacing;
-            }
-
-            if let Some(galley) = galley {
-                let mut text_pos = ui
-                    .layout()
-                    .align_size_within_rect(galley.size(), rect.shrink2(button_padding))
-                    .min;
-                if image.is_some() || shortcut_galley.is_some() {
-                    text_pos.x = cursor_x;
-                }
-                ui.painter().galley(text_pos, galley, visuals.text_color());
-            }
-
-            if let Some(shortcut_galley) = shortcut_galley {
-                // Always align to the right
-                let layout = if ui.layout().is_horizontal() {
-                    ui.layout().with_main_align(Align::Max)
-                } else {
-                    ui.layout().with_cross_align(Align::Max)
-                };
-                let shortcut_text_pos = layout
-                    .align_size_within_rect(shortcut_galley.size(), rect.shrink2(button_padding))
-                    .min;
-                ui.painter().galley(
-                    shortcut_text_pos,
-                    shortcut_galley,
-                    ui.visuals().weak_text_color(),
-                );
-            }
-        }
-
-        if let Some(cursor) = ui.visuals().interact_cursor {
-            if response.hovered {
-                ui.ctx().set_cursor_icon(cursor);
-            }
-        }
-
         response
+    }
+}
+
+impl Widget for Button<'_> {
+    fn ui(self, ui: &mut Ui) -> Response {
+        self.atom_ui(ui).response
     }
 }

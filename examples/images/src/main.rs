@@ -35,7 +35,7 @@ impl eframe::App for MyApp {
                     .on_hover_text_at_pointer("Svg");
 
                 let url = "https://picsum.photos/seed/1.759706314/1024";
-                ui.add(egui::Image::new(url).rounding(10.0))
+                ui.add(egui::Image::new(url).corner_radius(10))
                     .on_hover_text_at_pointer(url);
             });
         });

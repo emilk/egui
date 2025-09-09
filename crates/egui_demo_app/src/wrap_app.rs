@@ -38,15 +38,20 @@ impl eframe::App for DemoApp {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct FractalClockApp {
     fractal_clock: crate::apps::FractalClock,
+    pub mock_time: Option<f64>,
 }
 
 impl eframe::App for FractalClockApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default()
-            .frame(egui::Frame::dark_canvas(&ctx.style()))
+            .frame(
+                egui::Frame::dark_canvas(&ctx.style())
+                    .stroke(egui::Stroke::NONE)
+                    .corner_radius(0),
+            )
             .show(ctx, |ui| {
                 self.fractal_clock
-                    .ui(ui, Some(crate::seconds_since_midnight()));
+                    .ui(ui, self.mock_time.or(Some(crate::seconds_since_midnight())));
             });
     }
 }
@@ -75,9 +80,10 @@ impl eframe::App for ColorTestApp {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-enum Anchor {
+pub enum Anchor {
+    #[default]
     Demo,
 
     EasyMarkEditor,
@@ -129,13 +135,7 @@ impl std::fmt::Display for Anchor {
 
 impl From<Anchor> for egui::WidgetText {
     fn from(value: Anchor) -> Self {
-        Self::RichText(egui::RichText::new(value.to_string()))
-    }
-}
-
-impl Default for Anchor {
-    fn default() -> Self {
-        Self::Demo
+        Self::from(value.to_string())
     }
 }
 
@@ -161,7 +161,7 @@ pub struct State {
     http: crate::apps::HttpApp,
     #[cfg(feature = "image_viewer")]
     image_viewer: crate::apps::ImageViewer,
-    clock: FractalClockApp,
+    pub clock: FractalClockApp,
     rendering_test: ColorTestApp,
 
     selected_anchor: Anchor,
@@ -170,7 +170,7 @@ pub struct State {
 
 /// Wraps many demo/test apps into one.
 pub struct WrapApp {
-    state: State,
+    pub state: State,
 
     #[cfg(any(feature = "glow", feature = "wgpu"))]
     custom3d: Option<crate::apps::Custom3d>,
@@ -183,7 +183,7 @@ impl WrapApp {
         // This gives us image support:
         egui_extras::install_image_loaders(&cc.egui_ctx);
 
-        #[allow(unused_mut)]
+        #[allow(unused_mut, clippy::allow_attributes)]
         let mut slf = Self {
             state: State::default(),
 
@@ -203,7 +203,9 @@ impl WrapApp {
         slf
     }
 
-    fn apps_iter_mut(&mut self) -> impl Iterator<Item = (&str, Anchor, &mut dyn eframe::App)> {
+    pub fn apps_iter_mut(
+        &mut self,
+    ) -> impl Iterator<Item = (&'static str, Anchor, &mut dyn eframe::App)> {
         let mut vec = vec![
             (
                 "✨ Demos",
@@ -290,7 +292,7 @@ impl eframe::App for WrapApp {
 
         let mut cmd = Command::Nothing;
         egui::TopBottomPanel::top("wrap_app_top_bar")
-            .frame(egui::Frame::none().inner_margin(4.0))
+            .frame(egui::Frame::new().inner_margin(4))
             .show(ctx, |ui| {
                 ui.horizontal_wrapped(|ui| {
                     ui.visuals_mut().button_frame = false;
@@ -377,12 +379,12 @@ impl WrapApp {
                 .clicked()
             {
                 ui.ctx().memory_mut(|mem| *mem = Default::default());
-                ui.close_menu();
+                ui.close();
             }
 
             if ui.button("Reset everything").clicked() {
                 *cmd = Command::ResetEverything;
-                ui.close_menu();
+                ui.close();
             }
         });
     }

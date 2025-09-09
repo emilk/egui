@@ -45,13 +45,11 @@ impl eframe::App for MyApp {
 fn custom_window_frame(ctx: &egui::Context, title: &str, add_contents: impl FnOnce(&mut egui::Ui)) {
     use egui::{CentralPanel, UiBuilder};
 
-    let panel_frame = egui::Frame {
-        fill: ctx.style().visuals.window_fill(),
-        rounding: 10.0.into(),
-        stroke: ctx.style().visuals.widgets.noninteractive.fg_stroke,
-        outer_margin: 0.5.into(), // so the stroke is within the bounds
-        ..Default::default()
-    };
+    let panel_frame = egui::Frame::new()
+        .fill(ctx.style().visuals.window_fill())
+        .corner_radius(10)
+        .stroke(ctx.style().visuals.widgets.noninteractive.fg_stroke)
+        .outer_margin(1); // so the stroke is within the bounds
 
     CentralPanel::default().frame(panel_frame).show(ctx, |ui| {
         let app_rect = ui.max_rect();
@@ -77,7 +75,7 @@ fn custom_window_frame(ctx: &egui::Context, title: &str, add_contents: impl FnOn
 }
 
 fn title_bar_ui(ui: &mut egui::Ui, title_bar_rect: eframe::epaint::Rect, title: &str) {
-    use egui::{vec2, Align2, FontId, Id, PointerButton, Sense, UiBuilder};
+    use egui::{Align2, FontId, Id, PointerButton, Sense, UiBuilder, vec2};
 
     let painter = ui.painter();
 
@@ -116,7 +114,7 @@ fn title_bar_ui(ui: &mut egui::Ui, title_bar_rect: eframe::epaint::Rect, title: 
         ui.ctx().send_viewport_cmd(ViewportCommand::StartDrag);
     }
 
-    ui.allocate_new_ui(
+    ui.scope_builder(
         UiBuilder::new()
             .max_rect(title_bar_rect)
             .layout(egui::Layout::right_to_left(egui::Align::Center)),

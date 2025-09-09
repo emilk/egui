@@ -5,17 +5,17 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use super::{
-    cursor::{CCursor, Cursor, PCursor, RCursor},
+    cursor::{CCursor, LayoutCursor},
     font::UvRect,
 };
-use crate::{Color32, FontId, Mesh, Stroke};
-use emath::{pos2, vec2, Align, NumExt, OrderedFloat, Pos2, Rect, Vec2};
+use crate::{Color32, FontId, Mesh, Stroke, text::FontsView};
+use emath::{Align, GuiRounding as _, NumExt as _, OrderedFloat, Pos2, Rect, Vec2, pos2, vec2};
 
 /// Describes the task of laying out text.
 ///
 /// This supports mixing different fonts, color and formats (underline etc).
 ///
-/// Pass this to [`crate::Fonts::layout_job`] or [`crate::text::layout`].
+/// Pass this to [`crate::FontsView::layout_job`] or [`crate::text::layout`].
 ///
 /// ## Example:
 /// ```
@@ -118,6 +118,21 @@ impl LayoutJob {
         }
     }
 
+    /// Break on `\n`
+    #[inline]
+    pub fn simple_format(text: String, format: TextFormat) -> Self {
+        Self {
+            sections: vec![LayoutSection {
+                leading_space: 0.0,
+                byte_range: 0..text.len(),
+                format,
+            }],
+            text,
+            break_on_newline: true,
+            ..Default::default()
+        }
+    }
+
     /// Does not break on `\n`, but shows the replacement character instead.
     #[inline]
     pub fn simple_singleline(text: String, font_id: FontId, color: Color32) -> Self {
@@ -169,7 +184,7 @@ impl LayoutJob {
     /// The height of the tallest font used in the job.
     ///
     /// Returns a value rounded to [`emath::GUI_ROUNDING`].
-    pub fn font_height(&self, fonts: &crate::Fonts) -> f32 {
+    pub fn font_height(&self, fonts: &mut FontsView<'_>) -> f32 {
         let mut max_height = 0.0_f32;
         for section in &self.sections {
             max_height = max_height.max(fonts.row_height(&section.format.font_id));
@@ -254,8 +269,6 @@ pub struct TextFormat {
     /// Extra spacing between letters, in points.
     ///
     /// Default: 0.0.
-    ///
-    /// For even text it is recommended you round this to an even number of _pixels_.
     pub extra_letter_spacing: f32,
 
     /// Explicit line height of the text in points.
@@ -271,6 +284,11 @@ pub struct TextFormat {
     pub color: Color32,
 
     pub background: Color32,
+
+    /// Amount to expand background fill by.
+    ///
+    /// Default: 1.0
+    pub expand_bg: f32,
 
     pub italics: bool,
 
@@ -299,6 +317,7 @@ impl Default for TextFormat {
             line_height: None,
             color: Color32::GRAY,
             background: Color32::TRANSPARENT,
+            expand_bg: 1.0,
             italics: false,
             underline: Stroke::NONE,
             strikethrough: Stroke::NONE,
@@ -316,6 +335,7 @@ impl std::hash::Hash for TextFormat {
             line_height,
             color,
             background,
+            expand_bg,
             italics,
             underline,
             strikethrough,
@@ -328,6 +348,7 @@ impl std::hash::Hash for TextFormat {
         }
         color.hash(state);
         background.hash(state);
+        emath::OrderedFloat(*expand_bg).hash(state);
         italics.hash(state);
         underline.hash(state);
         strikethrough.hash(state);
@@ -481,7 +502,7 @@ impl TextWrapping {
 
 /// Text that has been laid out, ready for painting.
 ///
-/// You can create a [`Galley`] using [`crate::Fonts::layout_job`];
+/// You can create a [`Galley`] using [`crate::FontsView::layout_job`];
 ///
 /// Needs to be recreated if the underlying font atlas texture changes, which
 /// happens under the following conditions:
@@ -500,14 +521,14 @@ pub struct Galley {
     /// Contains the original string and style sections.
     pub job: Arc<LayoutJob>,
 
-    /// Rows of text, from top to bottom.
+    /// Rows of text, from top to bottom, and their offsets.
     ///
     /// The number of characters in all rows sum up to `job.text.chars().count()`
     /// unless [`Self::elided`] is `true`.
     ///
     /// Note that a paragraph (a piece of text separated with `\n`)
     /// can be split up into multiple rows.
-    pub rows: Vec<Row>,
+    pub rows: Vec<PlacedRow>,
 
     /// Set to true the text was truncated due to [`TextWrapping::max_rows`].
     pub elided: bool,
@@ -537,21 +558,62 @@ pub struct Galley {
     /// so that we can warn if this has changed once we get to
     /// tessellation.
     pub pixels_per_point: f32,
+
+    pub(crate) intrinsic_size: Vec2,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct PlacedRow {
+    /// The position of this [`Row`] relative to the galley.
+    ///
+    /// This is rounded to the closest _pixel_ in order to produce crisp, pixel-perfect text.
+    pub pos: Pos2,
+
+    /// The underlying unpositioned [`Row`].
+    pub row: Arc<Row>,
+}
+
+impl PlacedRow {
+    /// Logical bounding rectangle on font heights etc.
+    ///
+    /// This ignores / includes the `LayoutSection::leading_space`.
+    pub fn rect(&self) -> Rect {
+        Rect::from_min_size(self.pos, self.row.size)
+    }
+
+    /// Same as [`Self::rect`] but excluding the `LayoutSection::leading_space`.
+    pub fn rect_without_leading_space(&self) -> Rect {
+        let x = self.glyphs.first().map_or(self.pos.x, |g| g.pos.x);
+        let size_x = self.size.x - x;
+        Rect::from_min_size(Pos2::new(x, self.pos.y), Vec2::new(size_x, self.size.y))
+    }
+}
+
+impl std::ops::Deref for PlacedRow {
+    type Target = Row;
+
+    fn deref(&self) -> &Self::Target {
+        &self.row
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Row {
-    /// This is included in case there are no glyphs
-    pub section_index_at_start: u32,
+    /// This is included in case there are no glyphs.
+    ///
+    /// Only used during layout, then set to an invalid value in order to
+    /// enable the paragraph-concat optimization path without having to
+    /// adjust `section_index` when concatting.
+    pub(crate) section_index_at_start: u32,
 
     /// One for each `char`.
     pub glyphs: Vec<Glyph>,
 
-    /// Logical bounding rectangle based on font heights etc.
-    /// Use this when drawing a selection or similar!
+    /// Logical size based on font heights etc.
     /// Includes leading and trailing whitespace.
-    pub rect: Rect,
+    pub size: Vec2,
 
     /// The mesh, ready to be rendered.
     pub visuals: RowVisuals,
@@ -605,7 +667,7 @@ pub struct Glyph {
     /// The character this glyph represents.
     pub chr: char,
 
-    /// Baseline position, relative to the galley.
+    /// Baseline position, relative to the row.
     /// Logical position: pos.y is the same for all chars of the same [`TextFormat`].
     pub pos: Pos2,
 
@@ -634,7 +696,11 @@ pub struct Glyph {
     pub uv_rect: UvRect,
 
     /// Index into [`LayoutJob::sections`]. Decides color etc.
-    pub section_index: u32,
+    ///
+    /// Only used during layout, then set to an invalid value in order to
+    /// enable the paragraph-concat optimization path without having to
+    /// adjust `section_index` when concatting.
+    pub(crate) section_index: u32,
 }
 
 impl Glyph {
@@ -675,22 +741,7 @@ impl Row {
         self.glyphs.len() + (self.ends_with_newline as usize)
     }
 
-    #[inline]
-    pub fn min_y(&self) -> f32 {
-        self.rect.top()
-    }
-
-    #[inline]
-    pub fn max_y(&self) -> f32 {
-        self.rect.bottom()
-    }
-
-    #[inline]
-    pub fn height(&self) -> f32 {
-        self.rect.height()
-    }
-
-    /// Closest char at the desired x coordinate.
+    /// Closest char at the desired x coordinate in row-relative coordinates.
     /// Returns something in the range `[0, char_count_excluding_newline()]`.
     pub fn char_at(&self, desired_x: f32) -> usize {
         for (i, glyph) in self.glyphs.iter().enumerate() {
@@ -705,8 +756,25 @@ impl Row {
         if let Some(glyph) = self.glyphs.get(column) {
             glyph.pos.x
         } else {
-            self.rect.right()
+            self.size.x
         }
+    }
+
+    #[inline]
+    pub fn height(&self) -> f32 {
+        self.size.y
+    }
+}
+
+impl PlacedRow {
+    #[inline]
+    pub fn min_y(&self) -> f32 {
+        self.rect().top()
+    }
+
+    #[inline]
+    pub fn max_y(&self) -> f32 {
+        self.rect().bottom()
     }
 }
 
@@ -725,6 +793,104 @@ impl Galley {
     #[inline]
     pub fn size(&self) -> Vec2 {
         self.rect.size()
+    }
+
+    /// This is the size that a non-wrapped, non-truncated, non-justified version of the text
+    /// would have.
+    ///
+    /// Useful for advanced layouting.
+    #[inline]
+    pub fn intrinsic_size(&self) -> Vec2 {
+        // We do the rounding here instead of in `round_output_to_gui` so that rounding
+        // errors don't accumulate when concatenating multiple galleys.
+        if self.job.round_output_to_gui {
+            self.intrinsic_size.round_ui()
+        } else {
+            self.intrinsic_size
+        }
+    }
+
+    pub(crate) fn round_output_to_gui(&mut self) {
+        for placed_row in &mut self.rows {
+            // Optimization: only call `make_mut` if necessary (can cause a deep clone)
+            let rounded_size = placed_row.row.size.round_ui();
+            if placed_row.row.size != rounded_size {
+                Arc::make_mut(&mut placed_row.row).size = rounded_size;
+            }
+        }
+
+        let rect = &mut self.rect;
+
+        let did_exceed_wrap_width_by_a_lot = rect.width() > self.job.wrap.max_width + 1.0;
+
+        *rect = rect.round_ui();
+
+        if did_exceed_wrap_width_by_a_lot {
+            // If the user picked a too aggressive wrap width (e.g. more narrow than any individual glyph),
+            // we should let the user know by reporting that our width is wider than the wrap width.
+        } else {
+            // Make sure we don't report being wider than the wrap width the user picked:
+            rect.max.x = rect
+                .max
+                .x
+                .at_most(rect.min.x + self.job.wrap.max_width)
+                .floor_ui();
+        }
+    }
+
+    /// Append each galley under the previous one.
+    pub fn concat(job: Arc<LayoutJob>, galleys: &[Arc<Self>], pixels_per_point: f32) -> Self {
+        profiling::function_scope!();
+
+        let mut merged_galley = Self {
+            job,
+            rows: Vec::new(),
+            elided: false,
+            rect: Rect::ZERO,
+            mesh_bounds: Rect::NOTHING,
+            num_vertices: 0,
+            num_indices: 0,
+            pixels_per_point,
+            intrinsic_size: Vec2::ZERO,
+        };
+
+        for (i, galley) in galleys.iter().enumerate() {
+            let current_y_offset = merged_galley.rect.height();
+            let is_last_galley = i + 1 == galleys.len();
+
+            merged_galley
+                .rows
+                .extend(galley.rows.iter().enumerate().map(|(row_idx, placed_row)| {
+                    let new_pos = placed_row.pos + current_y_offset * Vec2::Y;
+                    let new_pos = new_pos.round_to_pixels(pixels_per_point);
+                    merged_galley.mesh_bounds |=
+                        placed_row.visuals.mesh_bounds.translate(new_pos.to_vec2());
+                    merged_galley.rect |= Rect::from_min_size(new_pos, placed_row.size);
+
+                    let mut row = placed_row.row.clone();
+                    let is_last_row_in_galley = row_idx + 1 == galley.rows.len();
+                    if !is_last_galley && is_last_row_in_galley {
+                        // Since we remove the `\n` when splitting rows, we need to add it back here
+                        Arc::make_mut(&mut row).ends_with_newline = true;
+                    }
+                    super::PlacedRow { pos: new_pos, row }
+                }));
+
+            merged_galley.num_vertices += galley.num_vertices;
+            merged_galley.num_indices += galley.num_indices;
+            // Note that if `galley.elided` is true this will be the last `Galley` in
+            // the vector and the loop will end.
+            merged_galley.elided |= galley.elided;
+            merged_galley.intrinsic_size.x =
+                f32::max(merged_galley.intrinsic_size.x, galley.intrinsic_size.x);
+            merged_galley.intrinsic_size.y += galley.intrinsic_size.y;
+        }
+
+        if merged_galley.job.round_output_to_gui {
+            merged_galley.round_output_to_gui();
+        }
+
+        merged_galley
     }
 }
 
@@ -757,7 +923,7 @@ impl Galley {
     /// Zero-width rect past the last character.
     fn end_pos(&self) -> Rect {
         if let Some(row) = self.rows.last() {
-            let x = row.rect.right();
+            let x = row.rect().right();
             Rect::from_min_max(pos2(x, row.min_y()), pos2(x, row.max_y()))
         } else {
             // Empty galley
@@ -766,53 +932,18 @@ impl Galley {
     }
 
     /// Returns a 0-width Rect.
-    pub fn pos_from_cursor(&self, cursor: &Cursor) -> Rect {
-        self.pos_from_pcursor(cursor.pcursor) // pcursor is what TextEdit stores
+    fn pos_from_layout_cursor(&self, layout_cursor: &LayoutCursor) -> Rect {
+        let Some(row) = self.rows.get(layout_cursor.row) else {
+            return self.end_pos();
+        };
+
+        let x = row.x_offset(layout_cursor.column);
+        Rect::from_min_max(pos2(x, row.min_y()), pos2(x, row.max_y()))
     }
 
     /// Returns a 0-width Rect.
-    pub fn pos_from_pcursor(&self, pcursor: PCursor) -> Rect {
-        let mut it = PCursor::default();
-
-        for row in &self.rows {
-            if it.paragraph == pcursor.paragraph {
-                // Right paragraph, but is it the right row in the paragraph?
-
-                if it.offset <= pcursor.offset
-                    && (pcursor.offset <= it.offset + row.char_count_excluding_newline()
-                        || row.ends_with_newline)
-                {
-                    let column = pcursor.offset - it.offset;
-
-                    let select_next_row_instead = pcursor.prefer_next_row
-                        && !row.ends_with_newline
-                        && column >= row.char_count_excluding_newline();
-                    if !select_next_row_instead {
-                        let x = row.x_offset(column);
-                        return Rect::from_min_max(pos2(x, row.min_y()), pos2(x, row.max_y()));
-                    }
-                }
-            }
-
-            if row.ends_with_newline {
-                it.paragraph += 1;
-                it.offset = 0;
-            } else {
-                it.offset += row.char_count_including_newline();
-            }
-        }
-
-        self.end_pos()
-    }
-
-    /// Returns a 0-width Rect.
-    pub fn pos_from_ccursor(&self, ccursor: CCursor) -> Rect {
-        self.pos_from_cursor(&self.from_ccursor(ccursor))
-    }
-
-    /// Returns a 0-width Rect.
-    pub fn pos_from_rcursor(&self, rcursor: RCursor) -> Rect {
-        self.pos_from_cursor(&self.from_rcursor(rcursor))
+    pub fn pos_from_cursor(&self, cursor: CCursor) -> Rect {
+        self.pos_from_layout_cursor(&self.layout_from_cursor(cursor))
     }
 
     /// Cursor at the given position within the galley.
@@ -822,45 +953,40 @@ impl Galley {
     /// and a cursor below the galley is considered
     /// same as a cursor at the end.
     /// This allows implementing text-selection by dragging above/below the galley.
-    pub fn cursor_from_pos(&self, pos: Vec2) -> Cursor {
+    pub fn cursor_from_pos(&self, pos: Vec2) -> CCursor {
+        // Vertical margin around galley improves text selection UX
+        const VMARGIN: f32 = 5.0;
+
         if let Some(first_row) = self.rows.first() {
-            if pos.y < first_row.min_y() {
+            if pos.y < first_row.min_y() - VMARGIN {
                 return self.begin();
             }
         }
         if let Some(last_row) = self.rows.last() {
-            if last_row.max_y() < pos.y {
+            if last_row.max_y() + VMARGIN < pos.y {
                 return self.end();
             }
         }
 
         let mut best_y_dist = f32::INFINITY;
-        let mut cursor = Cursor::default();
+        let mut cursor = CCursor::default();
 
         let mut ccursor_index = 0;
-        let mut pcursor_it = PCursor::default();
 
-        for (row_nr, row) in self.rows.iter().enumerate() {
-            let is_pos_within_row = row.min_y() <= pos.y && pos.y <= row.max_y();
-            let y_dist = (row.min_y() - pos.y).abs().min((row.max_y() - pos.y).abs());
+        for row in &self.rows {
+            let min_y = row.min_y();
+            let max_y = row.max_y();
+
+            let is_pos_within_row = min_y <= pos.y && pos.y <= max_y;
+            let y_dist = (min_y - pos.y).abs().min((max_y - pos.y).abs());
             if is_pos_within_row || y_dist < best_y_dist {
                 best_y_dist = y_dist;
-                let column = row.char_at(pos.x);
+                // char_at is `Row` not `PlacedRow` relative which means we have to subtract the pos.
+                let column = row.char_at(pos.x - row.pos.x);
                 let prefer_next_row = column < row.char_count_excluding_newline();
-                cursor = Cursor {
-                    ccursor: CCursor {
-                        index: ccursor_index + column,
-                        prefer_next_row,
-                    },
-                    rcursor: RCursor {
-                        row: row_nr,
-                        column,
-                    },
-                    pcursor: PCursor {
-                        paragraph: pcursor_it.paragraph,
-                        offset: pcursor_it.offset + column,
-                        prefer_next_row,
-                    },
+                cursor = CCursor {
+                    index: ccursor_index + column,
+                    prefer_next_row,
                 };
 
                 if is_pos_within_row {
@@ -868,12 +994,6 @@ impl Galley {
                 }
             }
             ccursor_index += row.char_count_including_newline();
-            if row.ends_with_newline {
-                pcursor_it.paragraph += 1;
-                pcursor_it.offset = 0;
-            } else {
-                pcursor_it.offset += row.char_count_including_newline();
-            }
         }
 
         cursor
@@ -884,15 +1004,15 @@ impl Galley {
 impl Galley {
     /// Cursor to the first character.
     ///
-    /// This is the same as [`Cursor::default`].
+    /// This is the same as [`CCursor::default`].
     #[inline]
-    #[allow(clippy::unused_self)]
-    pub fn begin(&self) -> Cursor {
-        Cursor::default()
+    #[expect(clippy::unused_self)]
+    pub fn begin(&self) -> CCursor {
+        CCursor::default()
     }
 
     /// Cursor to one-past last character.
-    pub fn end(&self) -> Cursor {
+    pub fn end(&self) -> CCursor {
         if self.rows.is_empty() {
             return Default::default();
         }
@@ -900,31 +1020,47 @@ impl Galley {
             index: 0,
             prefer_next_row: true,
         };
-        let mut pcursor = PCursor {
-            paragraph: 0,
-            offset: 0,
-            prefer_next_row: true,
-        };
         for row in &self.rows {
             let row_char_count = row.char_count_including_newline();
             ccursor.index += row_char_count;
-            if row.ends_with_newline {
-                pcursor.paragraph += 1;
-                pcursor.offset = 0;
-            } else {
-                pcursor.offset += row_char_count;
-            }
         }
-        Cursor {
-            ccursor,
-            rcursor: self.end_rcursor(),
-            pcursor,
-        }
+        ccursor
     }
+}
 
-    pub fn end_rcursor(&self) -> RCursor {
+/// ## Cursor conversions
+impl Galley {
+    // The returned cursor is clamped.
+    pub fn layout_from_cursor(&self, cursor: CCursor) -> LayoutCursor {
+        let prefer_next_row = cursor.prefer_next_row;
+        let mut ccursor_it = CCursor {
+            index: 0,
+            prefer_next_row,
+        };
+
+        for (row_nr, row) in self.rows.iter().enumerate() {
+            let row_char_count = row.char_count_excluding_newline();
+
+            if ccursor_it.index <= cursor.index && cursor.index <= ccursor_it.index + row_char_count
+            {
+                let column = cursor.index - ccursor_it.index;
+
+                let select_next_row_instead = prefer_next_row
+                    && !row.ends_with_newline
+                    && column >= row.char_count_excluding_newline();
+                if !select_next_row_instead {
+                    return LayoutCursor {
+                        row: row_nr,
+                        column,
+                    };
+                }
+            }
+            ccursor_it.index += row.char_count_including_newline();
+        }
+        debug_assert!(ccursor_it == self.end(), "Cursor out of bounds");
+
         if let Some(last_row) = self.rows.last() {
-            RCursor {
+            LayoutCursor {
                 row: self.rows.len() - 1,
                 column: last_row.char_count_including_newline(),
             }
@@ -932,268 +1068,160 @@ impl Galley {
             Default::default()
         }
     }
-}
 
-/// ## Cursor conversions
-impl Galley {
-    // The returned cursor is clamped.
-    pub fn from_ccursor(&self, ccursor: CCursor) -> Cursor {
-        let prefer_next_row = ccursor.prefer_next_row;
-        let mut ccursor_it = CCursor {
-            index: 0,
-            prefer_next_row,
-        };
-        let mut pcursor_it = PCursor {
-            paragraph: 0,
-            offset: 0,
-            prefer_next_row,
-        };
-
-        for (row_nr, row) in self.rows.iter().enumerate() {
-            let row_char_count = row.char_count_excluding_newline();
-
-            if ccursor_it.index <= ccursor.index
-                && ccursor.index <= ccursor_it.index + row_char_count
-            {
-                let column = ccursor.index - ccursor_it.index;
-
-                let select_next_row_instead = prefer_next_row
-                    && !row.ends_with_newline
-                    && column >= row.char_count_excluding_newline();
-                if !select_next_row_instead {
-                    pcursor_it.offset += column;
-                    return Cursor {
-                        ccursor,
-                        rcursor: RCursor {
-                            row: row_nr,
-                            column,
-                        },
-                        pcursor: pcursor_it,
-                    };
-                }
-            }
-            ccursor_it.index += row.char_count_including_newline();
-            if row.ends_with_newline {
-                pcursor_it.paragraph += 1;
-                pcursor_it.offset = 0;
-            } else {
-                pcursor_it.offset += row.char_count_including_newline();
-            }
-        }
-        debug_assert!(ccursor_it == self.end().ccursor);
-        Cursor {
-            ccursor: ccursor_it, // clamp
-            rcursor: self.end_rcursor(),
-            pcursor: pcursor_it,
-        }
-    }
-
-    pub fn from_rcursor(&self, rcursor: RCursor) -> Cursor {
-        if rcursor.row >= self.rows.len() {
+    fn cursor_from_layout(&self, layout_cursor: LayoutCursor) -> CCursor {
+        if layout_cursor.row >= self.rows.len() {
             return self.end();
         }
 
         let prefer_next_row =
-            rcursor.column < self.rows[rcursor.row].char_count_excluding_newline();
-        let mut ccursor_it = CCursor {
+            layout_cursor.column < self.rows[layout_cursor.row].char_count_excluding_newline();
+        let mut cursor_it = CCursor {
             index: 0,
-            prefer_next_row,
-        };
-        let mut pcursor_it = PCursor {
-            paragraph: 0,
-            offset: 0,
             prefer_next_row,
         };
 
         for (row_nr, row) in self.rows.iter().enumerate() {
-            if row_nr == rcursor.row {
-                ccursor_it.index += rcursor.column.at_most(row.char_count_excluding_newline());
+            if row_nr == layout_cursor.row {
+                cursor_it.index += layout_cursor
+                    .column
+                    .at_most(row.char_count_excluding_newline());
 
-                if row.ends_with_newline {
-                    // Allow offset to go beyond the end of the paragraph
-                    pcursor_it.offset += rcursor.column;
-                } else {
-                    pcursor_it.offset += rcursor.column.at_most(row.char_count_excluding_newline());
-                }
-                return Cursor {
-                    ccursor: ccursor_it,
-                    rcursor,
-                    pcursor: pcursor_it,
-                };
+                return cursor_it;
             }
-            ccursor_it.index += row.char_count_including_newline();
-            if row.ends_with_newline {
-                pcursor_it.paragraph += 1;
-                pcursor_it.offset = 0;
-            } else {
-                pcursor_it.offset += row.char_count_including_newline();
-            }
+            cursor_it.index += row.char_count_including_newline();
         }
-        Cursor {
-            ccursor: ccursor_it,
-            rcursor: self.end_rcursor(),
-            pcursor: pcursor_it,
-        }
-    }
-
-    // TODO(emilk): return identical cursor, or clamp?
-    pub fn from_pcursor(&self, pcursor: PCursor) -> Cursor {
-        let prefer_next_row = pcursor.prefer_next_row;
-        let mut ccursor_it = CCursor {
-            index: 0,
-            prefer_next_row,
-        };
-        let mut pcursor_it = PCursor {
-            paragraph: 0,
-            offset: 0,
-            prefer_next_row,
-        };
-
-        for (row_nr, row) in self.rows.iter().enumerate() {
-            if pcursor_it.paragraph == pcursor.paragraph {
-                // Right paragraph, but is it the right row in the paragraph?
-
-                if pcursor_it.offset <= pcursor.offset
-                    && (pcursor.offset <= pcursor_it.offset + row.char_count_excluding_newline()
-                        || row.ends_with_newline)
-                {
-                    let column = pcursor.offset - pcursor_it.offset;
-
-                    let select_next_row_instead = pcursor.prefer_next_row
-                        && !row.ends_with_newline
-                        && column >= row.char_count_excluding_newline();
-
-                    if !select_next_row_instead {
-                        ccursor_it.index += column.at_most(row.char_count_excluding_newline());
-
-                        return Cursor {
-                            ccursor: ccursor_it,
-                            rcursor: RCursor {
-                                row: row_nr,
-                                column,
-                            },
-                            pcursor,
-                        };
-                    }
-                }
-            }
-
-            ccursor_it.index += row.char_count_including_newline();
-            if row.ends_with_newline {
-                pcursor_it.paragraph += 1;
-                pcursor_it.offset = 0;
-            } else {
-                pcursor_it.offset += row.char_count_including_newline();
-            }
-        }
-        Cursor {
-            ccursor: ccursor_it,
-            rcursor: self.end_rcursor(),
-            pcursor,
-        }
+        cursor_it
     }
 }
 
 /// ## Cursor positions
 impl Galley {
-    pub fn cursor_left_one_character(&self, cursor: &Cursor) -> Cursor {
-        if cursor.ccursor.index == 0 {
+    #[expect(clippy::unused_self)]
+    pub fn cursor_left_one_character(&self, cursor: &CCursor) -> CCursor {
+        if cursor.index == 0 {
             Default::default()
         } else {
-            let ccursor = CCursor {
-                index: cursor.ccursor.index,
-                prefer_next_row: true, // default to this when navigating. It is more often useful to put cursor at the begging of a row than at the end.
-            };
-            self.from_ccursor(ccursor - 1)
+            CCursor {
+                index: cursor.index - 1,
+                prefer_next_row: true, // default to this when navigating. It is more often useful to put cursor at the beginning of a row than at the end.
+            }
         }
     }
 
-    pub fn cursor_right_one_character(&self, cursor: &Cursor) -> Cursor {
-        let ccursor = CCursor {
-            index: cursor.ccursor.index,
-            prefer_next_row: true, // default to this when navigating. It is more often useful to put cursor at the begging of a row than at the end.
-        };
-        self.from_ccursor(ccursor + 1)
+    pub fn cursor_right_one_character(&self, cursor: &CCursor) -> CCursor {
+        CCursor {
+            index: (cursor.index + 1).min(self.end().index),
+            prefer_next_row: true, // default to this when navigating. It is more often useful to put cursor at the beginning of a row than at the end.
+        }
     }
 
-    pub fn cursor_up_one_row(&self, cursor: &Cursor) -> Cursor {
-        if cursor.rcursor.row == 0 {
-            Cursor::default()
+    pub fn clamp_cursor(&self, cursor: &CCursor) -> CCursor {
+        self.cursor_from_layout(self.layout_from_cursor(*cursor))
+    }
+
+    pub fn cursor_up_one_row(
+        &self,
+        cursor: &CCursor,
+        h_pos: Option<f32>,
+    ) -> (CCursor, Option<f32>) {
+        let layout_cursor = self.layout_from_cursor(*cursor);
+        let h_pos = h_pos.unwrap_or_else(|| self.pos_from_layout_cursor(&layout_cursor).center().x);
+        if layout_cursor.row == 0 {
+            (CCursor::default(), None)
         } else {
-            let new_row = cursor.rcursor.row - 1;
+            let new_row = layout_cursor.row - 1;
 
-            let cursor_is_beyond_end_of_current_row = cursor.rcursor.column
-                >= self.rows[cursor.rcursor.row].char_count_excluding_newline();
-
-            let new_rcursor = if cursor_is_beyond_end_of_current_row {
-                // keep same column
-                RCursor {
-                    row: new_row,
-                    column: cursor.rcursor.column,
-                }
-            } else {
+            let new_layout_cursor = {
                 // keep same X coord
-                let x = self.pos_from_cursor(cursor).center().x;
-                let column = if x > self.rows[new_row].rect.right() {
-                    // beyond the end of this row - keep same column
-                    cursor.rcursor.column
-                } else {
-                    self.rows[new_row].char_at(x)
-                };
-                RCursor {
+                let column = self.rows[new_row].char_at(h_pos);
+                LayoutCursor {
                     row: new_row,
                     column,
                 }
             };
-            self.from_rcursor(new_rcursor)
+            (self.cursor_from_layout(new_layout_cursor), Some(h_pos))
         }
     }
 
-    pub fn cursor_down_one_row(&self, cursor: &Cursor) -> Cursor {
-        if cursor.rcursor.row + 1 < self.rows.len() {
-            let new_row = cursor.rcursor.row + 1;
+    pub fn cursor_down_one_row(
+        &self,
+        cursor: &CCursor,
+        h_pos: Option<f32>,
+    ) -> (CCursor, Option<f32>) {
+        let layout_cursor = self.layout_from_cursor(*cursor);
+        let h_pos = h_pos.unwrap_or_else(|| self.pos_from_layout_cursor(&layout_cursor).center().x);
+        if layout_cursor.row + 1 < self.rows.len() {
+            let new_row = layout_cursor.row + 1;
 
-            let cursor_is_beyond_end_of_current_row = cursor.rcursor.column
-                >= self.rows[cursor.rcursor.row].char_count_excluding_newline();
-
-            let new_rcursor = if cursor_is_beyond_end_of_current_row {
-                // keep same column
-                RCursor {
-                    row: new_row,
-                    column: cursor.rcursor.column,
-                }
-            } else {
+            let new_layout_cursor = {
                 // keep same X coord
-                let x = self.pos_from_cursor(cursor).center().x;
-                let column = if x > self.rows[new_row].rect.right() {
-                    // beyond the end of the next row - keep same column
-                    cursor.rcursor.column
-                } else {
-                    self.rows[new_row].char_at(x)
-                };
-                RCursor {
+                let column = self.rows[new_row].char_at(h_pos);
+                LayoutCursor {
                     row: new_row,
                     column,
                 }
             };
 
-            self.from_rcursor(new_rcursor)
+            (self.cursor_from_layout(new_layout_cursor), Some(h_pos))
         } else {
-            self.end()
+            (self.end(), None)
         }
     }
 
-    pub fn cursor_begin_of_row(&self, cursor: &Cursor) -> Cursor {
-        self.from_rcursor(RCursor {
-            row: cursor.rcursor.row,
+    pub fn cursor_begin_of_row(&self, cursor: &CCursor) -> CCursor {
+        let layout_cursor = self.layout_from_cursor(*cursor);
+        self.cursor_from_layout(LayoutCursor {
+            row: layout_cursor.row,
             column: 0,
         })
     }
 
-    pub fn cursor_end_of_row(&self, cursor: &Cursor) -> Cursor {
-        self.from_rcursor(RCursor {
-            row: cursor.rcursor.row,
-            column: self.rows[cursor.rcursor.row].char_count_excluding_newline(),
+    pub fn cursor_end_of_row(&self, cursor: &CCursor) -> CCursor {
+        let layout_cursor = self.layout_from_cursor(*cursor);
+        self.cursor_from_layout(LayoutCursor {
+            row: layout_cursor.row,
+            column: self.rows[layout_cursor.row].char_count_excluding_newline(),
         })
+    }
+
+    pub fn cursor_begin_of_paragraph(&self, cursor: &CCursor) -> CCursor {
+        let mut layout_cursor = self.layout_from_cursor(*cursor);
+        layout_cursor.column = 0;
+
+        loop {
+            let prev_row = layout_cursor
+                .row
+                .checked_sub(1)
+                .and_then(|row| self.rows.get(row));
+
+            let Some(prev_row) = prev_row else {
+                // This is the first row
+                break;
+            };
+
+            if prev_row.ends_with_newline {
+                break;
+            }
+
+            layout_cursor.row -= 1;
+        }
+
+        self.cursor_from_layout(layout_cursor)
+    }
+
+    pub fn cursor_end_of_paragraph(&self, cursor: &CCursor) -> CCursor {
+        let mut layout_cursor = self.layout_from_cursor(*cursor);
+        loop {
+            let row = &self.rows[layout_cursor.row];
+            if row.ends_with_newline || layout_cursor.row == self.rows.len() - 1 {
+                layout_cursor.column = row.char_count_excluding_newline();
+                break;
+            }
+
+            layout_cursor.row += 1;
+        }
+
+        self.cursor_from_layout(layout_cursor)
     }
 }

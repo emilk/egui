@@ -1,7 +1,8 @@
-use egui::epaint::{CubicBezierShape, PathShape, QuadraticBezierShape};
 use egui::{
-    emath, epaint, pos2, Color32, Context, Frame, Grid, Pos2, Rect, Sense, Shape, Stroke, Ui, Vec2,
-    Widget, Window,
+    Color32, Context, Frame, Grid, Pos2, Rect, Sense, Shape, Stroke, StrokeKind, Ui, Vec2,
+    Widget as _, Window, emath,
+    epaint::{self, CubicBezierShape, PathShape, QuadraticBezierShape},
+    pos2,
 };
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -132,6 +133,7 @@ impl PaintBezier {
                     shape.visual_bounding_rect(),
                     0.0,
                     self.bounding_box_stroke,
+                    StrokeKind::Outside,
                 ));
                 painter.add(shape);
             }
@@ -143,13 +145,14 @@ impl PaintBezier {
                     shape.visual_bounding_rect(),
                     0.0,
                     self.bounding_box_stroke,
+                    StrokeKind::Outside,
                 ));
                 painter.add(shape);
             }
             _ => {
                 unreachable!();
             }
-        };
+        }
 
         painter.add(PathShape::line(points_in_screen, self.aux_stroke));
         painter.extend(control_point_shapes);

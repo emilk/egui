@@ -58,9 +58,7 @@ impl crate::View for TextEditDemo {
             }
         });
 
-        let anything_selected = output
-            .cursor_range
-            .map_or(false, |cursor| !cursor.is_empty());
+        let anything_selected = output.cursor_range.is_some_and(|cursor| !cursor.is_empty());
 
         ui.add_enabled(
             anything_selected,
@@ -115,9 +113,9 @@ impl crate::View for TextEditDemo {
 
 #[cfg(test)]
 mod tests {
-    use egui::{accesskit, CentralPanel};
-    use egui_kittest::kittest::{Key, Queryable};
+    use egui::{CentralPanel, Key, Modifiers, accesskit};
     use egui_kittest::Harness;
+    use egui_kittest::kittest::Queryable as _;
 
     #[test]
     pub fn should_type() {
@@ -135,8 +133,9 @@ mod tests {
 
         let text_edit = harness.get_by_role(accesskit::Role::TextInput);
         assert_eq!(text_edit.value().as_deref(), Some("Hello, world!"));
+        text_edit.focus();
 
-        text_edit.key_combination(&[Key::Command, Key::A]);
+        harness.key_press_modifiers(Modifiers::COMMAND, Key::A);
         text_edit.type_text("Hi ");
 
         harness.run();

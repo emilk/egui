@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    color, CircleShape, Color32, ColorMode, CubicBezierShape, EllipseShape, Mesh, PathShape,
-    QuadraticBezierShape, RectShape, Shape, TextShape,
+    CircleShape, Color32, ColorMode, CubicBezierShape, EllipseShape, Mesh, PathShape,
+    QuadraticBezierShape, RectShape, Shape, TextShape, color,
 };
 
 /// Remember to handle [`Color32::PLACEHOLDER`] specially!
@@ -60,12 +60,13 @@ pub fn adjust_colors(
         })
         | Shape::Rect(RectShape {
             rect: _,
-            rounding: _,
+            corner_radius: _,
             fill,
             stroke,
+            stroke_kind: _,
+            round_to_pixels: _,
             blur_width: _,
-            fill_texture_id: _,
-            uv: _,
+            brush: _,
         }) => {
             adjust_color(fill);
             adjust_color(&mut stroke.color);
@@ -87,8 +88,9 @@ pub fn adjust_colors(
             }
 
             if !galley.is_empty() {
-                let galley = std::sync::Arc::make_mut(galley);
-                for row in &mut galley.rows {
+                let galley = Arc::make_mut(galley);
+                for placed_row in &mut galley.rows {
+                    let row = Arc::make_mut(&mut placed_row.row);
                     for vertex in &mut row.visuals.mesh.vertices {
                         adjust_color(&mut vertex.color);
                     }
@@ -96,11 +98,13 @@ pub fn adjust_colors(
             }
         }
 
-        Shape::Mesh(Mesh {
-            indices: _,
-            vertices,
-            texture_id: _,
-        }) => {
+        Shape::Mesh(mesh) => {
+            let Mesh {
+                indices: _,
+                vertices,
+                texture_id: _,
+            } = Arc::make_mut(mesh);
+
             for v in vertices {
                 adjust_color(&mut v.color);
             }

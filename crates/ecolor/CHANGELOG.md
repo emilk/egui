@@ -6,6 +6,28 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.32.2 - 2025-09-04
+Nothing new
+
+
+## 0.32.1 - 2025-08-15
+Nothing new
+
+
+## 0.32.0 - 2025-07-10
+* Fix semi-transparent colors appearing too bright [#5824](https://github.com/emilk/egui/pull/5824) by [@emilk](https://github.com/emilk)
+* Remove things that have been deprecated for over a year [#7099](https://github.com/emilk/egui/pull/7099) by [@emilk](https://github.com/emilk)
+* Make `Hsva` derive serde [#7132](https://github.com/emilk/egui/pull/7132) by [@bircni](https://github.com/bircni)
+
+
+## 0.31.1 - 2025-03-05
+Nothing new
+
+
+## 0.31.0 - 2025-02-04
+* Add `Color32::CYAN` and `Color32::MAGENTA` [#5663](https://github.com/emilk/egui/pull/5663) by [@juancampa](https://github.com/juancampa)
+
+
 ## 0.30.0 - 2024-12-16
 * Use boxed slice for lookup table to avoid stack overflow [#5212](https://github.com/emilk/egui/pull/5212) by [@YgorSouza](https://github.com/YgorSouza)
 * Add `Color32::mul` [#5437](https://github.com/emilk/egui/pull/5437) by [@emilk](https://github.com/emilk)

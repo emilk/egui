@@ -21,10 +21,10 @@ members = [
 ]
 
 [workspace.package]
-edition = "2021"
+edition = "2024"
 license = "MIT OR Apache-2.0"
-rust-version = "1.80"
-version = "0.30.0"
+rust-version = "1.86"
+version = "0.32.2"
 
 
 [profile.release]
@@ -55,53 +55,67 @@ opt-level = 2
 
 
 [workspace.dependencies]
-emath = { version = "0.30.0", path = "crates/emath", default-features = false }
-ecolor = { version = "0.30.0", path = "crates/ecolor", default-features = false }
-epaint = { version = "0.30.0", path = "crates/epaint", default-features = false }
-epaint_default_fonts = { version = "0.30.0", path = "crates/epaint_default_fonts" }
-egui = { version = "0.30.0", path = "crates/egui", default-features = false }
-egui-winit = { version = "0.30.0", path = "crates/egui-winit", default-features = false }
-egui_extras = { version = "0.30.0", path = "crates/egui_extras", default-features = false }
-egui-wgpu = { version = "0.30.0", path = "crates/egui-wgpu", default-features = false }
-egui_demo_lib = { version = "0.30.0", path = "crates/egui_demo_lib", default-features = false }
-egui_glow = { version = "0.30.0", path = "crates/egui_glow", default-features = false }
-egui_kittest = { version = "0.30.0", path = "crates/egui_kittest", default-features = false }
-eframe = { version = "0.30.0", path = "crates/eframe", default-features = false }
+emath = { version = "0.32.2", path = "crates/emath", default-features = false }
+ecolor = { version = "0.32.2", path = "crates/ecolor", default-features = false }
+epaint = { version = "0.32.2", path = "crates/epaint", default-features = false }
+epaint_default_fonts = { version = "0.32.2", path = "crates/epaint_default_fonts" }
+egui = { version = "0.32.2", path = "crates/egui", default-features = false }
+egui-winit = { version = "0.32.2", path = "crates/egui-winit", default-features = false }
+egui_extras = { version = "0.32.2", path = "crates/egui_extras", default-features = false }
+egui-wgpu = { version = "0.32.2", path = "crates/egui-wgpu", default-features = false }
+egui_demo_lib = { version = "0.32.2", path = "crates/egui_demo_lib", default-features = false }
+egui_glow = { version = "0.32.2", path = "crates/egui_glow", default-features = false }
+egui_kittest = { version = "0.32.2", path = "crates/egui_kittest", default-features = false }
+eframe = { version = "0.32.2", path = "crates/eframe", default-features = false }
 
+accesskit = "0.19.0"
+accesskit_winit = "0.27"
 ahash = { version = "0.8.11", default-features = false, features = [
     "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
     "std",
 ] }
 backtrace = "0.3"
-bytemuck = "1.7.2"
-criterion = { version = "0.5.1", default-features = false }
+bitflags = "2.6"
+bytemuck = "1.23.2"
+criterion = { version = "0.7", default-features = false }
 dify = { version = "0.7", default-features = false }
+directories = "6"
 document-features = "0.2.10"
 glow = "0.16"
 glutin = { version = "0.32.0", default-features = false }
 glutin-winit = { version = "0.5.0", default-features = false }
 home = "0.5.9"
 image = { version = "0.25", default-features = false }
-kittest = { version = "0.1" }
+js-sys = "0.3"
+kittest = { version = "0.2.0" }
 log = { version = "0.4", features = ["std"] }
+mimalloc = "0.1.46"
 nohash-hasher = "0.2"
+objc2 = "0.5.1"
+objc2-app-kit = { version = "0.2.0", default-features = false }
+objc2-foundation = { version = "0.2.0", default-features = false }
 parking_lot = "0.12"
+percent-encoding = "2.1"
 pollster = "0.4"
 profiling = { version = "1.0.16", default-features = false }
 puffin = "0.19"
 puffin_http = "0.16"
 raw-window-handle = "0.6.0"
-ron = "0.8"
+ron = "0.11"
 serde = { version = "1", features = ["derive"] }
+similar-asserts = "1.4.2"
+smallvec = "1"
+static_assertions = "1.1.0"
 thiserror = "1.0.37"
 type-map = "0.5.0"
+unicode-segmentation = "1.12.0"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
-web-sys = "0.3.70"
+web-sys = "0.3.73"
 web-time = "1.1.0" # Timekeeping for native and web
-wgpu = { version = "23.0.0", default-features = false }
-windows-sys = "0.59"
-winit = { version = "0.30.7", default-features = false }
+wgpu = { version = "25.0.0", default-features = false }
+windows-sys = "0.60"
+winit = { version = "0.30.12", default-features = false }
 
 [workspace.lints.rust]
 unsafe_code = "deny"
@@ -113,6 +127,7 @@ rust_2018_idioms = { level = "warn", priority = -1 }
 rust_2021_prelude_collisions = "warn"
 semicolon_in_expressions_from_macros = "warn"
 trivial_numeric_casts = "warn"
+unexpected_cfgs = "warn"
 unsafe_op_in_unsafe_fn = "warn"                         # `unsafe_op_in_unsafe_fn` may become the default in future Rust versions: https://github.com/rust-lang/rust/issues/71668
 unused_extern_crates = "warn"
 unused_import_braces = "warn"
@@ -128,15 +143,20 @@ broken_intra_doc_links = "warn"
 
 # See also clippy.toml
 [workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+
+allow_attributes = "warn"
 as_ptr_cast_mut = "warn"
 await_holding_lock = "warn"
 bool_to_int_with_if = "warn"
+branches_sharing_code = "warn"
 char_lit_as_u8 = "warn"
 checked_conversions = "warn"
 clear_with_drain = "warn"
 cloned_instead_of_copied = "warn"
 dbg_macro = "warn"
 debug_assert_with_mut_call = "warn"
+default_union_representation = "warn"
 derive_partial_eq_without_eq = "warn"
 disallowed_macros = "warn"                  # See clippy.toml
 disallowed_methods = "warn"                 # See clippy.toml
@@ -147,6 +167,7 @@ doc_link_with_quotes = "warn"
 doc_markdown = "warn"
 empty_enum = "warn"
 empty_enum_variants_with_brackets = "warn"
+empty_line_after_outer_attr = "warn"
 enum_glob_use = "warn"
 equatable_if_let = "warn"
 exit = "warn"
@@ -166,6 +187,7 @@ if_let_mutex = "warn"
 implicit_clone = "warn"
 implied_bounds_in_impls = "warn"
 imprecise_flops = "warn"
+inconsistent_struct_constructor = "warn"
 index_refutable_slice = "warn"
 inefficient_to_string = "warn"
 infinite_loop = "warn"
@@ -176,6 +198,7 @@ iter_filter_is_some = "warn"
 iter_not_returning_iterator = "warn"
 iter_on_empty_collections = "warn"
 iter_on_single_items = "warn"
+iter_over_hash_type = "warn"
 iter_without_into_iter = "warn"
 large_digit_groups = "warn"
 large_include_file = "warn"
@@ -184,26 +207,27 @@ large_stack_frames = "warn"
 large_types_passed_by_value = "warn"
 let_unit_value = "warn"
 linkedlist = "warn"
+literal_string_with_formatting_args = "warn"
 lossy_float_literal = "warn"
 macro_use_imports = "warn"
 manual_assert = "warn"
 manual_clamp = "warn"
 manual_instant_elapsed = "warn"
+manual_is_power_of_two = "warn"
 manual_is_variant_and = "warn"
 manual_let_else = "warn"
 manual_ok_or = "warn"
 manual_string_new = "warn"
 map_err_ignore = "warn"
 map_flatten = "warn"
-map_unwrap_or = "warn"
 match_bool = "warn"
 match_on_vec_items = "warn"
 match_same_arms = "warn"
 match_wild_err_arm = "warn"
 match_wildcard_for_single_variants = "warn"
 mem_forget = "warn"
-mismatched_target_os = "warn"
 mismatching_type_param_order = "warn"
+missing_assert_message = "warn"
 missing_enforced_import_renames = "warn"
 missing_errors_doc = "warn"
 missing_safety_doc = "warn"
@@ -216,11 +240,16 @@ needless_for_each = "warn"
 needless_pass_by_ref_mut = "warn"
 needless_pass_by_value = "warn"
 negative_feature_names = "warn"
+non_std_lazy_statics = "warn"
+non_zero_suggestions = "warn"
 nonstandard_macro_braces = "warn"
 option_as_ref_cloned = "warn"
 option_option = "warn"
 path_buf_push_overwrite = "warn"
+pathbuf_init_then_push = "warn"
+precedence_bits = "warn"
 print_stderr = "warn"
+print_stdout = "warn"
 ptr_as_ptr = "warn"
 ptr_cast_constness = "warn"
 pub_underscore_fields = "warn"
@@ -232,8 +261,10 @@ ref_as_ptr = "warn"
 ref_option_ref = "warn"
 ref_patterns = "warn"
 rest_pat_in_fully_bound_structs = "warn"
+return_and_then = "warn"
 same_functions_in_if_condition = "warn"
 semicolon_if_nothing_returned = "warn"
+set_contains_or_insert = "warn"
 single_char_pattern = "warn"
 single_match_else = "warn"
 str_split_at_newline = "warn"
@@ -246,8 +277,10 @@ string_to_string = "warn"
 suspicious_command_arg_space = "warn"
 suspicious_xor_used_as_pow = "warn"
 todo = "warn"
+too_long_first_doc_paragraph = "warn"
 trailing_empty_array = "warn"
 trait_duplication_in_bounds = "warn"
+transmute_ptr_to_ptr = "warn"
 tuple_array_conversions = "warn"
 unchecked_duration_subtraction = "warn"
 undocumented_unsafe_blocks = "warn"
@@ -255,24 +288,36 @@ unimplemented = "warn"
 uninhabited_references = "warn"
 uninlined_format_args = "warn"
 unnecessary_box_returns = "warn"
+unnecessary_literal_bound = "warn"
+unnecessary_safety_comment = "warn"
 unnecessary_safety_doc = "warn"
+unnecessary_self_imports = "warn"
+unnecessary_semicolon = "warn"
 unnecessary_struct_initialization = "warn"
 unnecessary_wraps = "warn"
 unnested_or_patterns = "warn"
 unused_peekable = "warn"
 unused_rounding = "warn"
 unused_self = "warn"
+unused_trait_names = "warn"
 use_self = "warn"
+useless_let_if_seq = "warn"
 useless_transmute = "warn"
 verbose_file_reads = "warn"
 wildcard_dependencies = "warn"
-wildcard_imports = "warn"
 zero_sized_map_values = "warn"
 
+# Enable these when we update MSRV:
+# doc_comment_double_space_linebreaks = "warn"
+# elidable_lifetime_names = "warn"
+# ignore_without_reason = "warn"
+# manual_midpoint = "warn" # NOTE `midpoint` is often a lot slower for floats, so we have our own `emath::fast_midpoint` function.
+# single_option_map = "warn"
+# unnecessary_debug_formatting = "warn"
 
-# TODO(emilk): enable more of these lints:
-iter_over_hash_type = "allow"
-missing_assert_message = "allow"
+
+# TODO(emilk): maybe enable more of these lints?
+comparison_chain = "allow"
 should_panic_without_expect = "allow"
 too_many_lines = "allow"
 unwrap_used = "allow"                 # TODO(emilk): We really wanna warn on this one
@@ -282,5 +327,7 @@ assigning_clones = "allow"            # No please
 let_underscore_must_use = "allow"
 let_underscore_untyped = "allow"
 manual_range_contains = "allow"       # this one is just worse imho
+map_unwrap_or = "allow"               # so is this one
 self_named_module_files = "allow"     # Disabled waiting on https://github.com/rust-lang/rust-clippy/issues/9602
 significant_drop_tightening = "allow" # Too many false positives
+wildcard_imports = "allow"            # `use crate::*` is useful to avoid merge conflicts when adding/removing imports

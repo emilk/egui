@@ -1,6 +1,6 @@
 use crate::{
-    epaint, pos2, vec2, NumExt, Response, Sense, TextStyle, Ui, Vec2, Widget, WidgetInfo,
-    WidgetText, WidgetType,
+    Atom, AtomLayout, Atoms, Id, IntoAtoms, NumExt as _, Response, Sense, Ui, Vec2, Widget,
+    WidgetInfo, WidgetType, epaint,
 };
 
 /// One out of several alternatives, either selected or not.
@@ -23,89 +23,84 @@ use crate::{
 /// # });
 /// ```
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
-pub struct RadioButton {
+pub struct RadioButton<'a> {
     checked: bool,
-    text: WidgetText,
+    atoms: Atoms<'a>,
 }
 
-impl RadioButton {
-    pub fn new(checked: bool, text: impl Into<WidgetText>) -> Self {
+impl<'a> RadioButton<'a> {
+    pub fn new(checked: bool, atoms: impl IntoAtoms<'a>) -> Self {
         Self {
             checked,
-            text: text.into(),
+            atoms: atoms.into_atoms(),
         }
     }
 }
 
-impl Widget for RadioButton {
+impl Widget for RadioButton<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
-        let Self { checked, text } = self;
+        let Self { checked, mut atoms } = self;
 
         let spacing = &ui.spacing();
         let icon_width = spacing.icon_width;
-        let icon_spacing = spacing.icon_spacing;
 
-        let (galley, mut desired_size) = if text.is_empty() {
-            (None, vec2(icon_width, 0.0))
-        } else {
-            let total_extra = vec2(icon_width + icon_spacing, 0.0);
+        let mut min_size = Vec2::splat(spacing.interact_size.y);
+        min_size.y = min_size.y.at_least(icon_width);
 
-            let wrap_width = ui.available_width() - total_extra.x;
-            let text = text.into_galley(ui, None, wrap_width, TextStyle::Button);
+        // In order to center the checkbox based on min_size we set the icon height to at least min_size.y
+        let mut icon_size = Vec2::splat(icon_width);
+        icon_size.y = icon_size.y.at_least(min_size.y);
+        let rect_id = Id::new("egui::radio_button");
+        atoms.push_left(Atom::custom(rect_id, icon_size));
 
-            let mut desired_size = total_extra + text.size();
-            desired_size = desired_size.at_least(spacing.interact_size);
+        let text = atoms.text().map(String::from);
 
-            (Some(text), desired_size)
-        };
+        let mut prepared = AtomLayout::new(atoms)
+            .sense(Sense::click())
+            .min_size(min_size)
+            .allocate(ui);
 
-        desired_size = desired_size.at_least(Vec2::splat(spacing.interact_size.y));
-        desired_size.y = desired_size.y.max(icon_width);
-        let (rect, response) = ui.allocate_exact_size(desired_size, Sense::click());
-
-        response.widget_info(|| {
+        prepared.response.widget_info(|| {
             WidgetInfo::selected(
                 WidgetType::RadioButton,
                 ui.is_enabled(),
                 checked,
-                galley.as_ref().map_or("", |x| x.text()),
+                text.as_deref().unwrap_or(""),
             )
         });
 
-        if ui.is_rect_visible(rect) {
+        if ui.is_rect_visible(prepared.response.rect) {
             // let visuals = ui.style().interact_selectable(&response, checked); // too colorful
-            let visuals = ui.style().interact(&response);
+            let visuals = *ui.style().interact(&prepared.response);
 
-            let (small_icon_rect, big_icon_rect) = ui.spacing().icon_rectangles(rect);
+            prepared.fallback_text_color = visuals.text_color();
+            let response = prepared.paint(ui);
 
-            let painter = ui.painter();
+            if let Some(rect) = response.rect(rect_id) {
+                let (small_icon_rect, big_icon_rect) = ui.spacing().icon_rectangles(rect);
 
-            painter.add(epaint::CircleShape {
-                center: big_icon_rect.center(),
-                radius: big_icon_rect.width() / 2.0 + visuals.expansion,
-                fill: visuals.bg_fill,
-                stroke: visuals.bg_stroke,
-            });
+                let painter = ui.painter();
 
-            if checked {
                 painter.add(epaint::CircleShape {
-                    center: small_icon_rect.center(),
-                    radius: small_icon_rect.width() / 3.0,
-                    fill: visuals.fg_stroke.color, // Intentional to use stroke and not fill
-                    // fill: ui.visuals().selection.stroke.color, // too much color
-                    stroke: Default::default(),
+                    center: big_icon_rect.center(),
+                    radius: big_icon_rect.width() / 2.0 + visuals.expansion,
+                    fill: visuals.bg_fill,
+                    stroke: visuals.bg_stroke,
                 });
-            }
 
-            if let Some(galley) = galley {
-                let text_pos = pos2(
-                    rect.min.x + icon_width + icon_spacing,
-                    rect.center().y - 0.5 * galley.size().y,
-                );
-                ui.painter().galley(text_pos, galley, visuals.text_color());
+                if checked {
+                    painter.add(epaint::CircleShape {
+                        center: small_icon_rect.center(),
+                        radius: small_icon_rect.width() / 3.0,
+                        fill: visuals.fg_stroke.color, // Intentional to use stroke and not fill
+                        // fill: ui.visuals().selection.stroke.color, // too much color
+                        stroke: Default::default(),
+                    });
+                }
             }
+            response.response
+        } else {
+            prepared.response
         }
-
-        response
     }
 }

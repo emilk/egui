@@ -4,6 +4,7 @@
 use std::cell::Cell;
 
 use wasm_bindgen::prelude::*;
+use web_sys::{Document, Node};
 
 use super::{AppRunner, WebRunner};
 
@@ -14,15 +15,16 @@ pub struct TextAgent {
 
 impl TextAgent {
     /// Attach the agent to the document.
-    pub fn attach(runner_ref: &WebRunner) -> Result<Self, JsValue> {
+    pub fn attach(runner_ref: &WebRunner, root: Node) -> Result<Self, JsValue> {
         let document = web_sys::window().unwrap().document().unwrap();
 
         // create an `<input>` element
         let input = document
             .create_element("input")?
-            .dyn_into::<web_sys::HtmlInputElement>()?;
+            .dyn_into::<web_sys::HtmlElement>()?;
+        input.set_autofocus(true)?;
+        let input = input.dyn_into::<web_sys::HtmlInputElement>()?;
         input.set_type("text");
-        input.set_autofocus(true);
         input.set_attribute("autocapitalize", "off")?;
 
         // append it to `<body>` and hide it outside of the viewport
@@ -36,7 +38,17 @@ impl TextAgent {
         style.set_property("position", "absolute")?;
         style.set_property("top", "0")?;
         style.set_property("left", "0")?;
-        document.body().unwrap().append_child(&input)?;
+
+        if root.has_type::<Document>() {
+            // root object is a document, append to its body
+            root.dyn_into::<Document>()?
+                .body()
+                .unwrap()
+                .append_child(&input)?;
+        } else {
+            // append input into root directly
+            root.append_child(&input)?;
+        }
 
         // attach event listeners
 
@@ -167,7 +179,7 @@ impl TextAgent {
 
         if let Err(err) = self.input.focus() {
             log::error!("failed to set focus: {}", super::string_from_js_value(&err));
-        };
+        }
     }
 
     pub fn blur(&self) {
@@ -179,7 +191,7 @@ impl TextAgent {
 
         if let Err(err) = self.input.blur() {
             log::error!("failed to set focus: {}", super::string_from_js_value(&err));
-        };
+        }
     }
 }
 

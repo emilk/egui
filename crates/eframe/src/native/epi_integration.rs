@@ -136,7 +136,7 @@ pub fn create_storage(_app_name: &str) -> Option<Box<dyn epi::Storage>> {
     None
 }
 
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 pub fn create_storage_with_file(_file: impl Into<PathBuf>) -> Option<Box<dyn epi::Storage>> {
     #[cfg(feature = "persistence")]
     return Some(Box::new(
@@ -169,7 +169,7 @@ pub struct EpiIntegration {
 }
 
 impl EpiIntegration {
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn new(
         egui_ctx: egui::Context,
         window: &winit::window::Window,
@@ -326,7 +326,7 @@ impl EpiIntegration {
         }
     }
 
-    #[allow(clippy::unused_self)]
+    #[allow(clippy::unused_self, clippy::allow_attributes)]
     pub fn save(&mut self, _app: &mut dyn epi::App, _window: Option<&winit::window::Window>) {
         #[cfg(feature = "persistence")]
         if let Some(storage) = self.frame.storage_mut() {

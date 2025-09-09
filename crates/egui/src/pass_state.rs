@@ -1,9 +1,9 @@
-use ahash::{HashMap, HashSet};
+use ahash::HashMap;
 
-use crate::{id::IdSet, style, Align, Id, IdMap, LayerId, Rangef, Rect, Vec2, WidgetRects};
+use crate::{Align, Id, IdMap, LayerId, Rangef, Rect, Vec2, WidgetRects, id::IdSet, style};
 
 #[cfg(debug_assertions)]
-use crate::{pos2, Align2, Color32, FontId, NumExt, Painter};
+use crate::{Align2, Color32, FontId, NumExt as _, Painter, pos2};
 
 /// Reset at the start of each frame.
 #[derive(Clone, Debug, Default)]
@@ -34,7 +34,7 @@ pub struct PerLayerState {
     /// Is there any open popup (menus, combo-boxes, etc)?
     ///
     /// Does NOT include tooltips.
-    pub open_popups: HashSet<Id>,
+    pub open_popups: IdSet,
 
     /// Which widget is showing a tooltip (if any)?
     ///
@@ -121,7 +121,13 @@ impl DebugRect {
                 Color32::LIGHT_BLUE
             };
             let rect_bg_color = Color32::BLUE.gamma_multiply(0.5);
-            painter.rect(rect, 0.0, rect_bg_color, (1.0, rect_fg_color));
+            painter.rect(
+                rect,
+                0.0,
+                rect_bg_color,
+                (1.0, rect_fg_color),
+                crate::StrokeKind::Outside,
+            );
         }
 
         if !callstack.is_empty() {
@@ -157,7 +163,13 @@ impl DebugRect {
                 text_bg_color
             };
             let text_rect = Rect::from_min_size(text_pos, galley.size());
-            painter.rect(text_rect, 0.0, text_bg_color, (1.0, text_rect_stroke_color));
+            painter.rect(
+                text_rect,
+                0.0,
+                text_bg_color,
+                (1.0, text_rect_stroke_color),
+                crate::StrokeKind::Middle,
+            );
             painter.galley(text_pos, galley, text_color);
 
             if is_clicking {
@@ -190,7 +202,6 @@ pub struct PassState {
 
     /// Starts off as the `screen_rect`, shrinks as panels are added.
     /// The [`crate::CentralPanel`] does not change this.
-    /// This is the area available to Window's.
     pub available_rect: Rect,
 
     /// Starts off as the `screen_rect`, shrinks as panels are added.
@@ -291,8 +302,6 @@ impl PassState {
     }
 
     /// How much space is still available after panels has been added.
-    /// This is the "background" area, what egui doesn't cover with panels (but may cover with windows).
-    /// This is also the area to which windows are constrained.
     pub(crate) fn available_rect(&self) -> Rect {
         debug_assert!(
             self.available_rect.is_finite(),
@@ -309,7 +318,7 @@ impl PassState {
         );
         self.available_rect.min.x = panel_rect.max.x;
         self.unused_rect.min.x = panel_rect.max.x;
-        self.used_by_panels = self.used_by_panels.union(panel_rect);
+        self.used_by_panels |= panel_rect;
     }
 
     /// Shrink `available_rect`.
@@ -320,7 +329,7 @@ impl PassState {
         );
         self.available_rect.max.x = panel_rect.min.x;
         self.unused_rect.max.x = panel_rect.min.x;
-        self.used_by_panels = self.used_by_panels.union(panel_rect);
+        self.used_by_panels |= panel_rect;
     }
 
     /// Shrink `available_rect`.
@@ -331,7 +340,7 @@ impl PassState {
         );
         self.available_rect.min.y = panel_rect.max.y;
         self.unused_rect.min.y = panel_rect.max.y;
-        self.used_by_panels = self.used_by_panels.union(panel_rect);
+        self.used_by_panels |= panel_rect;
     }
 
     /// Shrink `available_rect`.
@@ -342,13 +351,13 @@ impl PassState {
         );
         self.available_rect.max.y = panel_rect.min.y;
         self.unused_rect.max.y = panel_rect.min.y;
-        self.used_by_panels = self.used_by_panels.union(panel_rect);
+        self.used_by_panels |= panel_rect;
     }
 
     pub(crate) fn allocate_central_panel(&mut self, panel_rect: Rect) {
         // Note: we do not shrink `available_rect`, because
         // we allow windows to cover the CentralPanel.
         self.unused_rect = Rect::NOTHING; // Nothing left unused after this
-        self.used_by_panels = self.used_by_panels.union(panel_rect);
+        self.used_by_panels |= panel_rect;
     }
 }

@@ -1,5 +1,5 @@
 use crate::app_kind::AppKind;
-use crate::Harness;
+use crate::{Harness, LazyRenderer, TestRenderer};
 use egui::{Pos2, Rect, Vec2};
 use std::marker::PhantomData;
 
@@ -7,7 +7,12 @@ use std::marker::PhantomData;
 pub struct HarnessBuilder<State = ()> {
     pub(crate) screen_rect: Rect,
     pub(crate) pixels_per_point: f32,
+    pub(crate) theme: egui::Theme,
+    pub(crate) max_steps: u64,
+    pub(crate) step_dt: f32,
     pub(crate) state: PhantomData<State>,
+    pub(crate) renderer: Box<dyn TestRenderer>,
+    pub(crate) wait_for_pending_images: bool,
 }
 
 impl<State> Default for HarnessBuilder<State> {
@@ -15,7 +20,12 @@ impl<State> Default for HarnessBuilder<State> {
         Self {
             screen_rect: Rect::from_min_size(Pos2::ZERO, Vec2::new(800.0, 600.0)),
             pixels_per_point: 1.0,
+            theme: egui::Theme::Dark,
             state: PhantomData,
+            renderer: Box::new(LazyRenderer::default()),
+            max_steps: 4,
+            step_dt: 1.0 / 4.0,
+            wait_for_pending_images: true,
         }
     }
 }
@@ -35,6 +45,69 @@ impl<State> HarnessBuilder<State> {
     pub fn with_pixels_per_point(mut self, pixels_per_point: f32) -> Self {
         self.pixels_per_point = pixels_per_point;
         self
+    }
+
+    /// Set the desired theme (dark or light).
+    #[inline]
+    pub fn with_theme(mut self, theme: egui::Theme) -> Self {
+        self.theme = theme;
+        self
+    }
+
+    /// Set the maximum number of steps to run when calling [`Harness::run`].
+    ///
+    /// Default is 4.
+    /// With the default `step_dt`, this means 1 second of simulation.
+    #[inline]
+    pub fn with_max_steps(mut self, max_steps: u64) -> Self {
+        self.max_steps = max_steps;
+        self
+    }
+
+    /// Set the time delta for a single [`Harness::step`].
+    ///
+    /// Default is 1.0 / 4.0 (4fps).
+    /// The default is low so we don't waste cpu waiting for animations.
+    #[inline]
+    pub fn with_step_dt(mut self, step_dt: f32) -> Self {
+        self.step_dt = step_dt;
+        self
+    }
+
+    /// Should we wait for pending images?
+    ///
+    /// If `true`, [`Harness::run`] and related methods will check if there are pending images
+    /// (via [`egui::Context::has_pending_images`]) and sleep for [`Self::with_step_dt`] up to
+    /// [`Self::with_max_steps`] times.
+    ///
+    /// Default: `true`
+    #[inline]
+    pub fn with_wait_for_pending_images(mut self, wait_for_pending_images: bool) -> Self {
+        self.wait_for_pending_images = wait_for_pending_images;
+        self
+    }
+
+    /// Set the [`TestRenderer`] to use for rendering.
+    ///
+    /// By default, a [`LazyRenderer`] is used.
+    #[inline]
+    pub fn renderer(mut self, renderer: impl TestRenderer + 'static) -> Self {
+        self.renderer = Box::new(renderer);
+        self
+    }
+
+    /// Enable wgpu rendering with a default setup suitable for testing.
+    ///
+    /// This sets up a [`crate::wgpu::WgpuTestRenderer`] with the default setup.
+    #[cfg(feature = "wgpu")]
+    pub fn wgpu(self) -> Self {
+        self.renderer(crate::wgpu::WgpuTestRenderer::default())
+    }
+
+    /// Enable wgpu rendering with the given setup.
+    #[cfg(feature = "wgpu")]
+    pub fn wgpu_setup(self, setup: egui_wgpu::WgpuSetup) -> Self {
+        self.renderer(crate::wgpu::WgpuTestRenderer::from_setup(setup))
     }
 
     /// Create a new Harness with the given app closure and a state.
@@ -66,7 +139,7 @@ impl<State> HarnessBuilder<State> {
         app: impl FnMut(&egui::Context, &mut State) + 'a,
         state: State,
     ) -> Harness<'a, State> {
-        Harness::from_builder(&self, AppKind::ContextState(Box::new(app)), state)
+        Harness::from_builder(self, AppKind::ContextState(Box::new(app)), state, None)
     }
 
     /// Create a new Harness with the given ui closure and a state.
@@ -95,7 +168,30 @@ impl<State> HarnessBuilder<State> {
         app: impl FnMut(&mut egui::Ui, &mut State) + 'a,
         state: State,
     ) -> Harness<'a, State> {
-        Harness::from_builder(&self, AppKind::UiState(Box::new(app)), state)
+        Harness::from_builder(self, AppKind::UiState(Box::new(app)), state, None)
+    }
+
+    /// Create a new [Harness] from the given eframe creation closure.
+    /// The app can be accessed via the [`Harness::state`] / [`Harness::state_mut`] methods.
+    #[cfg(feature = "eframe")]
+    pub fn build_eframe<'a>(
+        self,
+        build: impl FnOnce(&mut eframe::CreationContext<'a>) -> State,
+    ) -> Harness<'a, State>
+    where
+        State: eframe::App,
+    {
+        let ctx = egui::Context::default();
+
+        let mut cc = eframe::CreationContext::_new_kittest(ctx.clone());
+        let mut frame = eframe::Frame::_new_kittest();
+
+        self.renderer.setup_eframe(&mut cc, &mut frame);
+
+        let app = build(&mut cc);
+
+        let kind = AppKind::Eframe((|state| state, frame));
+        Harness::from_builder(self, kind, app, Some(ctx))
     }
 }
 
@@ -118,8 +214,9 @@ impl HarnessBuilder {
     ///         });
     ///     });
     /// ```
+    #[must_use]
     pub fn build<'a>(self, app: impl FnMut(&egui::Context) + 'a) -> Harness<'a> {
-        Harness::from_builder(&self, AppKind::Context(Box::new(app)), ())
+        Harness::from_builder(self, AppKind::Context(Box::new(app)), (), None)
     }
 
     /// Create a new Harness with the given ui closure.
@@ -137,7 +234,8 @@ impl HarnessBuilder {
     ///         ui.label("Hello, world!");
     ///     });
     /// ```
+    #[must_use]
     pub fn build_ui<'a>(self, app: impl FnMut(&mut egui::Ui) + 'a) -> Harness<'a> {
-        Harness::from_builder(&self, AppKind::Ui(Box::new(app)), ())
+        Harness::from_builder(self, AppKind::Ui(Box::new(app)), (), None)
     }
 }

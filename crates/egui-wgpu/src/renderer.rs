@@ -3,7 +3,7 @@
 use std::{borrow::Cow, num::NonZeroU64, ops::Range};
 
 use ahash::HashMap;
-use epaint::{emath::NumExt, PaintCallbackInfo, Primitive, Vertex};
+use epaint::{PaintCallbackInfo, Primitive, Vertex, emath::NumExt as _};
 
 use wgpu::util::DeviceExt as _;
 
@@ -84,7 +84,7 @@ impl Callback {
 ///
 /// # Example
 ///
-/// See the [`custom3d_wgpu`](https://github.com/emilk/egui/blob/master/crates/egui_demo_app/src/apps/custom3d_wgpu.rs) demo source for a detailed usage example.
+/// See the [`custom3d_wgpu`](https://github.com/emilk/egui/blob/main/crates/egui_demo_app/src/apps/custom3d_wgpu.rs) demo source for a detailed usage example.
 pub trait CallbackTrait: Send + Sync {
     fn prepare(
         &self,
@@ -564,29 +564,20 @@ impl Renderer {
                 );
                 Cow::Borrowed(&image.pixels)
             }
-            epaint::ImageData::Font(image) => {
-                assert_eq!(
-                    width as usize * height as usize,
-                    image.pixels.len(),
-                    "Mismatch between texture size and texel count"
-                );
-                profiling::scope!("font -> sRGBA");
-                Cow::Owned(image.srgba_pixels(None).collect::<Vec<epaint::Color32>>())
-            }
         };
         let data_bytes: &[u8] = bytemuck::cast_slice(data_color32.as_slice());
 
         let queue_write_data_to_texture = |texture, origin| {
             profiling::scope!("write_texture");
             queue.write_texture(
-                wgpu::ImageCopyTexture {
+                wgpu::TexelCopyTextureInfo {
                     texture,
                     mip_level: 0,
                     origin,
                     aspect: wgpu::TextureAspect::All,
                 },
                 data_bytes,
-                wgpu::ImageDataLayout {
+                wgpu::TexelCopyBufferLayout {
                     offset: 0,
                     bytes_per_row: Some(4 * width),
                     rows_per_image: Some(height),
@@ -638,9 +629,9 @@ impl Renderer {
                     mip_level_count: 1,
                     sample_count: 1,
                     dimension: wgpu::TextureDimension::D2,
-                    format: wgpu::TextureFormat::Rgba8UnormSrgb, // Minspec for wgpu WebGL emulation is WebGL2, so this should always be supported.
+                    format: wgpu::TextureFormat::Rgba8Unorm,
                     usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-                    view_formats: &[wgpu::TextureFormat::Rgba8UnormSrgb],
+                    view_formats: &[wgpu::TextureFormat::Rgba8Unorm],
                 })
             };
             let origin = wgpu::Origin3d::ZERO;
@@ -699,7 +690,7 @@ impl Renderer {
     ///
     /// This enables the application to reference the texture inside an image ui element.
     /// This effectively enables off-screen rendering inside the egui UI. Texture must have
-    /// the texture format [`wgpu::TextureFormat::Rgba8UnormSrgb`].
+    /// the texture format [`wgpu::TextureFormat::Rgba8Unorm`].
     pub fn register_native_texture(
         &mut self,
         device: &wgpu::Device,
@@ -747,9 +738,9 @@ impl Renderer {
     /// This allows applications to specify individual minification/magnification filters as well as
     /// custom mipmap and tiling options.
     ///
-    /// The texture must have the format [`wgpu::TextureFormat::Rgba8UnormSrgb`].
+    /// The texture must have the format [`wgpu::TextureFormat::Rgba8Unorm`].
     /// Any compare function supplied in the [`wgpu::SamplerDescriptor`] will be ignored.
-    #[allow(clippy::needless_pass_by_value)] // false positive
+    #[expect(clippy::needless_pass_by_value)] // false positive
     pub fn register_native_texture_with_sampler_options(
         &mut self,
         device: &wgpu::Device,
@@ -796,7 +787,7 @@ impl Renderer {
     /// [`wgpu::SamplerDescriptor`] options.
     ///
     /// This allows applications to reuse [`epaint::TextureId`]s created with custom sampler options.
-    #[allow(clippy::needless_pass_by_value)] // false positive
+    #[expect(clippy::needless_pass_by_value)] // false positive
     pub fn update_egui_texture_from_wgpu_texture_with_sampler_options(
         &mut self,
         device: &wgpu::Device,
@@ -882,7 +873,7 @@ impl Renderer {
                             callbacks.push(c.0.as_ref());
                         } else {
                             log::warn!("Unknown paint callback: expected `egui_wgpu::Callback`");
-                        };
+                        }
                         acc
                     }
                 }
@@ -909,7 +900,11 @@ impl Renderer {
             );
 
             let Some(mut index_buffer_staging) = index_buffer_staging else {
-                panic!("Failed to create staging buffer for index data. Index count: {index_count}. Required index buffer size: {required_index_buffer_size}. Actual size {} and capacity: {} (bytes)", self.index_buffer.buffer.size(), self.index_buffer.capacity);
+                panic!(
+                    "Failed to create staging buffer for index data. Index count: {index_count}. Required index buffer size: {required_index_buffer_size}. Actual size {} and capacity: {} (bytes)",
+                    self.index_buffer.buffer.size(),
+                    self.index_buffer.capacity
+                );
             };
 
             let mut index_offset = 0;
@@ -948,7 +943,11 @@ impl Renderer {
             );
 
             let Some(mut vertex_buffer_staging) = vertex_buffer_staging else {
-                panic!("Failed to create staging buffer for vertex data. Vertex count: {vertex_count}. Required vertex buffer size: {required_vertex_buffer_size}. Actual size {} and capacity: {} (bytes)", self.vertex_buffer.buffer.size(), self.vertex_buffer.capacity);
+                panic!(
+                    "Failed to create staging buffer for vertex data. Vertex count: {vertex_count}. Required vertex buffer size: {required_vertex_buffer_size}. Actual size {} and capacity: {} (bytes)",
+                    self.vertex_buffer.buffer.size(),
+                    self.vertex_buffer.capacity
+                );
             };
 
             let mut vertex_offset = 0;

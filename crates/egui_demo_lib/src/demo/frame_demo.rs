@@ -7,19 +7,18 @@ pub struct FrameDemo {
 impl Default for FrameDemo {
     fn default() -> Self {
         Self {
-            frame: egui::Frame {
-                inner_margin: 12.0.into(),
-                outer_margin: 24.0.into(),
-                rounding: 14.0.into(),
-                shadow: egui::Shadow {
-                    offset: [8.0, 12.0].into(),
-                    blur: 16.0,
-                    spread: 0.0,
+            frame: egui::Frame::new()
+                .inner_margin(12)
+                .outer_margin(24)
+                .corner_radius(14)
+                .shadow(egui::Shadow {
+                    offset: [8, 12],
+                    blur: 16,
+                    spread: 0,
                     color: egui::Color32::from_black_alpha(180),
-                },
-                fill: egui::Color32::from_rgba_unmultiplied(97, 0, 255, 128),
-                stroke: egui::Stroke::new(1.0, egui::Color32::GRAY),
-            },
+                })
+                .fill(egui::Color32::from_rgba_unmultiplied(97, 0, 255, 128))
+                .stroke(egui::Stroke::new(1.0, egui::Color32::GRAY)),
         }
     }
 }
@@ -57,7 +56,7 @@ impl crate::View for FrameDemo {
                 // We want to paint a background around the outer margin of the demonstration frame, so we use another frame around it:
                 egui::Frame::default()
                     .stroke(ui.visuals().widgets.noninteractive.bg_stroke)
-                    .rounding(ui.visuals().widgets.noninteractive.rounding)
+                    .corner_radius(ui.visuals().widgets.noninteractive.corner_radius)
                     .show(ui, |ui| {
                         self.frame.show(ui, |ui| {
                             ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);

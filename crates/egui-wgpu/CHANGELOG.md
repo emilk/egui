@@ -6,6 +6,30 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.32.2 - 2025-09-04
+Nothing new
+
+
+## 0.32.1 - 2025-08-15
+* Enable wgpu default features in eframe / egui_wgpu default features [#7344](https://github.com/emilk/egui/pull/7344) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+
+## 0.32.0 - 2025-07-10
+* Update to wgpu 25 [#6744](https://github.com/emilk/egui/pull/6744) by [@torokati44](https://github.com/torokati44)
+* Free textures after submitting queue instead of before with wgpu renderer on Web [#7291](https://github.com/emilk/egui/pull/7291) by [@Wumpf](https://github.com/Wumpf)
+* Improve texture filtering by doing it in gamma space [#7311](https://github.com/emilk/egui/pull/7311) by [@emilk](https://github.com/emilk)
+
+
+## 0.31.1 - 2025-03-05
+Nothing new
+
+
+## 0.31.0 - 2025-02-04
+* Upgrade to wgpu 24 [#5610](https://github.com/emilk/egui/pull/5610) by [@torokati44](https://github.com/torokati44)
+* Extend `WgpuSetup`, `egui_kittest` now prefers software rasterizers for testing [#5506](https://github.com/emilk/egui/pull/5506) by [@Wumpf](https://github.com/Wumpf)
+* Wgpu resources are no longer wrapped in `Arc` (since they are now `Clone`) [#5612](https://github.com/emilk/egui/pull/5612) by [@Wumpf](https://github.com/Wumpf)
+
+
 ## 0.30.0 - 2024-12-16
 * Fix docs.rs build [#5204](https://github.com/emilk/egui/pull/5204) by [@lucasmerlin](https://github.com/lucasmerlin)
 * Free textures after submitting queue instead of before with wgpu renderer [#5226](https://github.com/emilk/egui/pull/5226) by [@Rusty-Cube](https://github.com/Rusty-Cube)

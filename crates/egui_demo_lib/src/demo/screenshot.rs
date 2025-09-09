@@ -1,4 +1,4 @@
-use egui::{Image, UserData, ViewportCommand, Widget};
+use egui::{Image, UserData, ViewportCommand, Widget as _};
 use std::sync::Arc;
 
 /// Showcase [`ViewportCommand::Screenshot`].
@@ -58,7 +58,7 @@ impl crate::View for Screenshot {
                         None
                     }
                 })
-                .last()
+                .next_back()
         });
 
         if let Some(image) = image {

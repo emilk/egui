@@ -30,7 +30,7 @@ rustdoc-args = ["--generate-link-to-definition"]
 [features]
 default = ["dep:mime_guess2"]
 
-## Shorthand for enabling the different types of image loaders (`file`, `http`, `image`, `svg`).
+## Shorthand for enabling all the different types of image loaders.
 all_loaders = ["file", "http", "image", "svg", "gif", "webp"]
 
 ## Enable [`DatePickerButton`] widget.
@@ -57,10 +57,13 @@ http = ["dep:ehttp"]
 image = ["dep:image"]
 
 ## Derive serde Serialize/Deserialize on stateful structs
-serde = ["egui/serde", "dep:serde"]
+serde = ["egui/serde", "enum-map/serde", "dep:serde"]
 
 ## Support loading svg images.
 svg = ["resvg"]
+
+## Support rendering text in svg images.
+svg_text = ["svg", "resvg/text", "resvg/system-fonts"]
 
 ## Enable better syntax highlighting using [`syntect`](https://docs.rs/syntect).
 syntect = ["dep:syntect"]
@@ -70,7 +73,7 @@ syntect = ["dep:syntect"]
 egui = { workspace = true, default-features = false }
 
 ahash.workspace = true
-enum-map = { version = "2", features = ["serde"] }
+enum-map = "2"
 log.workspace = true
 profiling.workspace = true
 
@@ -101,7 +104,7 @@ syntect = { version = "5", optional = true, default-features = false, features =
 ] }
 
 # svg feature
-resvg = { version = "0.37", optional = true, default-features = false }
+resvg = { version = "0.45", optional = true, default-features = false }
 
 # http feature
 ehttp = { version = "0.5", optional = true, default-features = false }

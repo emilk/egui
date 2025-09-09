@@ -5,10 +5,10 @@ authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "egui framework - write GUI apps that compiles to web and/or natively"
 edition.workspace = true
 rust-version.workspace = true
-homepage = "https://github.com/emilk/egui/tree/master/crates/eframe"
+homepage = "https://github.com/emilk/egui/tree/main/crates/eframe"
 license.workspace = true
 readme = "README.md"
-repository = "https://github.com/emilk/egui/tree/master/crates/eframe"
+repository = "https://github.com/emilk/egui/tree/main/crates/eframe"
 categories = ["gui", "game-development"]
 keywords = ["egui", "gui", "gamedev"]
 include = [
@@ -40,6 +40,9 @@ default = [
   "winit/default",
   "x11",
   "egui-wgpu?/fragile-send-sync-non-atomic-wasm",
+  # Let's enable some backends so that users can use `eframe` out-of-the-box
+  # without having to explicitly opt-in to backends
+  "egui-wgpu?/default",
 ]
 
 ## Enable platform accessibility API implementations through [AccessKit](https://accesskit.dev/).
@@ -59,7 +62,7 @@ android-native-activity = ["egui-winit/android-native-activity"]
 ## If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["egui/default_fonts"]
 
-## Use [`glow`](https://github.com/grovesNL/glow) for painting, via [`egui_glow`](https://github.com/emilk/egui/tree/master/crates/egui_glow).
+## Use [`glow`](https://github.com/grovesNL/glow) for painting, via [`egui_glow`](https://github.com/emilk/egui/tree/main/crates/egui_glow).
 glow = ["dep:egui_glow", "dep:glow", "dep:glutin-winit", "dep:glutin"]
 
 ## Enable saving app state to disk.
@@ -90,7 +93,7 @@ web_screen_reader = [
   "web-sys/SpeechSynthesisUtterance",
 ]
 
-## Use [`wgpu`](https://docs.rs/wgpu) for painting (via [`egui-wgpu`](https://github.com/emilk/egui/tree/master/crates/egui-wgpu)).
+## Use [`wgpu`](https://docs.rs/wgpu) for painting (via [`egui-wgpu`](https://github.com/emilk/egui/tree/main/crates/egui-wgpu)).
 ##
 ## This overrides the `glow` feature.
 ##
@@ -132,7 +135,7 @@ log.workspace = true
 parking_lot.workspace = true
 profiling.workspace = true
 raw-window-handle.workspace = true
-static_assertions = "1.1.0"
+static_assertions.workspace = true
 web-time.workspace = true
 
 # Optional dependencies
@@ -167,22 +170,19 @@ glutin-winit = { workspace = true, optional = true, default-features = false, fe
   "wgl",
 ] }
 home = { workspace = true, optional = true }
-wgpu = { workspace = true, optional = true, features = [
-  # Let's enable some backends so that users can use `eframe` out-of-the-box
-  # without having to explicitly opt-in to backends
-  "metal",
-  "webgpu",
-] }
+wgpu = { workspace = true, optional = true }
 
 # mac:
 [target.'cfg(any(target_os = "macos"))'.dependencies]
-objc2 = "0.5.1"
-objc2-foundation = { version = "0.2.0", features = [
+objc2.workspace = true
+objc2-foundation = { workspace = true, default-features = false, features = [
+  "std",
   "block2",
   "NSData",
   "NSString",
 ] }
-objc2-app-kit = { version = "0.2.0", features = [
+objc2-app-kit = { workspace = true, default-features = false, features = [
+  "std",
   "NSApplication",
   "NSImage",
   "NSMenu",
@@ -192,11 +192,12 @@ objc2-app-kit = { version = "0.2.0", features = [
 
 # windows:
 [target.'cfg(any(target_os = "windows"))'.dependencies]
-winapi = { version = "0.3.9", features = ["winuser"] }
 windows-sys = { workspace = true, features = [
   "Win32_Foundation",
-  "Win32_UI_Shell",
   "Win32_System_Com",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_UI_Shell",
+  "Win32_UI_WindowsAndMessaging",
 ] }
 
 # -------------------------------------------
@@ -204,11 +205,12 @@ windows-sys = { workspace = true, features = [
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 bytemuck.workspace = true
 image = { workspace = true, features = ["png"] } # For copying images
-js-sys = "0.3"
-percent-encoding = "2.1"
+js-sys.workspace = true
+percent-encoding.workspace = true
 wasm-bindgen.workspace = true
 wasm-bindgen-futures.workspace = true
 web-sys = { workspace = true, features = [
+  "AddEventListenerOptions",
   "BinaryType",
   "Blob",
   "BlobPropertyBag",
@@ -250,6 +252,7 @@ web-sys = { workspace = true, features = [
   "ResizeObserverEntry",
   "ResizeObserverOptions",
   "ResizeObserverSize",
+  "ShadowRoot",
   "Storage",
   "Touch",
   "TouchEvent",
@@ -264,12 +267,8 @@ web-sys = { workspace = true, features = [
 
 # optional web:
 egui-wgpu = { workspace = true, optional = true } # if wgpu is used, use it without (!) winit
-wgpu = { workspace = true, optional = true, features = [
-  # Let's enable some backends so that users can use `eframe` out-of-the-box
-  # without having to explicitly opt-in to backends
-  "webgpu",
-] }
+wgpu = { workspace = true, optional = true }
 
 # Native dev dependencies for testing
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-directories = "5"
+directories.workspace = true

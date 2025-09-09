@@ -1,6 +1,7 @@
 use super::popup::DatePickerPopup;
 use chrono::NaiveDate;
 use egui::{Area, Button, Frame, InnerResponse, Key, Order, RichText, Ui, Widget};
+use std::ops::RangeInclusive;
 
 #[derive(Default, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -19,6 +20,7 @@ pub struct DatePickerButton<'a> {
     show_icon: bool,
     format: String,
     highlight_weekends: bool,
+    start_end_years: Option<RangeInclusive<i32>>,
 }
 
 impl<'a> DatePickerButton<'a> {
@@ -33,6 +35,7 @@ impl<'a> DatePickerButton<'a> {
             show_icon: true,
             format: "%Y-%m-%d".to_owned(),
             highlight_weekends: true,
+            start_end_years: None,
         }
     }
 
@@ -101,9 +104,20 @@ impl<'a> DatePickerButton<'a> {
         self.highlight_weekends = highlight_weekends;
         self
     }
+
+    /// Set the start and end years for the date picker. (Default: today's year - 100 to today's year + 10)
+    /// This will limit the years you can choose from in the dropdown to the specified range.
+    ///
+    /// For example, if you want to provide the range of years from 2000 to 2035, you can use:
+    /// `start_end_years(2000..=2035)`.
+    #[inline]
+    pub fn start_end_years(mut self, start_end_years: RangeInclusive<i32>) -> Self {
+        self.start_end_years = Some(start_end_years);
+        self
+    }
 }
 
-impl<'a> Widget for DatePickerButton<'a> {
+impl Widget for DatePickerButton<'_> {
     fn ui(self, ui: &mut Ui) -> egui::Response {
         let id = ui.make_persistent_id(self.id_salt);
         let mut button_state = ui
@@ -134,14 +148,14 @@ impl<'a> Widget for DatePickerButton<'a> {
             let mut pos = button_response.rect.left_bottom();
             let width_with_padding = width
                 + ui.style().spacing.item_spacing.x
-                + ui.style().spacing.window_margin.left
-                + ui.style().spacing.window_margin.right;
+                + ui.style().spacing.window_margin.leftf()
+                + ui.style().spacing.window_margin.rightf();
             if pos.x + width_with_padding > ui.clip_rect().right() {
                 pos.x = button_response.rect.right() - width_with_padding;
             }
 
             // Check to make sure the calendar never is displayed out of window
-            pos.x = pos.x.max(ui.style().spacing.window_margin.left);
+            pos.x = pos.x.max(ui.style().spacing.window_margin.leftf());
 
             //TODO(elwerene): Better positioning
 
@@ -167,6 +181,7 @@ impl<'a> Widget for DatePickerButton<'a> {
                                 calendar: self.calendar,
                                 calendar_week: self.calendar_week,
                                 highlight_weekends: self.highlight_weekends,
+                                start_end_years: self.start_end_years,
                             }
                             .draw(ui)
                         })
@@ -177,7 +192,11 @@ impl<'a> Widget for DatePickerButton<'a> {
                 button_response.mark_changed();
             }
 
+            // We don't want to close our popup if any other popup is open, since other popups would
+            // most likely be the combo boxes in the date picker.
+            let any_popup_open = ui.ctx().is_popup_open();
             if !button_response.clicked()
+                && !any_popup_open
                 && (ui.input(|i| i.key_pressed(Key::Escape)) || area_response.clicked_elsewhere())
             {
                 button_state.picker_visible = false;

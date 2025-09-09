@@ -18,33 +18,57 @@ include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[features]
-# Adds a wgpu-based test renderer.
-wgpu = ["dep:egui-wgpu", "dep:pollster", "dep:image"]
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--generate-link-to-definition"]
 
-# Adds a dify-based image snapshot utility.
+[features]
+## Adds a wgpu-based test renderer.
+wgpu = [
+    "dep:egui-wgpu",
+    "dep:pollster",
+    "dep:image",
+    "dep:wgpu",
+    "eframe?/wgpu",
+]
+
+## Adds a dify-based image snapshot utility.
 snapshot = ["dep:dify", "dep:image", "image/png"]
+
+## Allows testing eframe::App
+eframe = ["dep:eframe", "eframe/accesskit"]
+
+# This is just so it compiles with `--all-features` on Linux
+x11 = ["eframe?/x11"]
 
 
 [dependencies]
 kittest.workspace = true
 egui = { workspace = true, features = ["accesskit"] }
+eframe = { workspace = true, optional = true }
 
 # wgpu dependencies
 egui-wgpu = { workspace = true, optional = true }
 pollster = { workspace = true, optional = true }
 image = { workspace = true, optional = true }
+# Enable DX12 because it always comes with a software rasterizer.
+wgpu = { workspace = true, features = [
+    "metal",
+    "dx12",
+    "vulkan",
+    "gles",
+], optional = true }
 
 # snapshot dependencies
 dify = { workspace = true, optional = true }
 
-## Enable this when generating docs.
+# Enable this when generating docs.
 document-features = { workspace = true, optional = true }
 
 [dev-dependencies]
 egui = { workspace = true, features = ["default_fonts"] }
 image = { workspace = true, features = ["png"] }
-wgpu = { workspace = true, features = ["metal"] }
+egui_extras = { workspace = true, features = ["image", "http"] }
 
 [lints]
 workspace = true

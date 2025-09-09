@@ -23,8 +23,10 @@ pub use wgpu;
 /// Low-level painting of [`egui`](https://github.com/emilk/egui) on [`wgpu`].
 mod renderer;
 
+mod setup;
+
 pub use renderer::*;
-use wgpu::{Adapter, Device, Instance, Queue};
+pub use setup::{NativeAdapterSelectorMethod, WgpuSetup, WgpuSetupCreateNew, WgpuSetupExisting};
 
 /// Helpers for capturing screenshots of the UI.
 pub mod capture;
@@ -40,8 +42,11 @@ use epaint::mutex::RwLock;
 /// An error produced by egui-wgpu.
 #[derive(thiserror::Error, Debug)]
 pub enum WgpuError {
-    #[error("Failed to create wgpu adapter, no suitable adapter found.")]
-    NoSuitableAdapterFound,
+    #[error(transparent)]
+    RequestAdapterError(#[from] wgpu::RequestAdapterError),
+
+    #[error("Adapter selection failed: {0}")]
+    CustomNativeAdapterSelectionError(String),
 
     #[error("There was no valid format for the surface at all.")]
     NoSurfaceFormatsAvailable,
@@ -61,26 +66,90 @@ pub enum WgpuError {
 #[derive(Clone)]
 pub struct RenderState {
     /// Wgpu adapter used for rendering.
-    pub adapter: Arc<wgpu::Adapter>,
+    pub adapter: wgpu::Adapter,
 
     /// All the available adapters.
     ///
     /// This is not available on web.
     /// On web, we always select WebGPU is available, then fall back to WebGL if not.
     #[cfg(not(target_arch = "wasm32"))]
-    pub available_adapters: Arc<[wgpu::Adapter]>,
+    pub available_adapters: Vec<wgpu::Adapter>,
 
     /// Wgpu device used for rendering, created from the adapter.
-    pub device: Arc<wgpu::Device>,
+    pub device: wgpu::Device,
 
     /// Wgpu queue used for rendering, created from the adapter.
-    pub queue: Arc<wgpu::Queue>,
+    pub queue: wgpu::Queue,
 
     /// The target texture format used for presenting to the window.
     pub target_format: wgpu::TextureFormat,
 
     /// Egui renderer responsible for drawing the UI.
     pub renderer: Arc<RwLock<Renderer>>,
+}
+
+async fn request_adapter(
+    instance: &wgpu::Instance,
+    power_preference: wgpu::PowerPreference,
+    compatible_surface: Option<&wgpu::Surface<'_>>,
+    _available_adapters: &[wgpu::Adapter],
+) -> Result<wgpu::Adapter, WgpuError> {
+    profiling::function_scope!();
+
+    let adapter = instance
+        .request_adapter(&wgpu::RequestAdapterOptions {
+            power_preference,
+            compatible_surface,
+            // We don't expose this as an option right now since it's fairly rarely useful:
+            // * only has an effect on native
+            // * fails if there's no software rasterizer available
+            // * can achieve the same with `native_adapter_selector`
+            force_fallback_adapter: false,
+        })
+        .await
+        .inspect_err(|_err| {
+            #[cfg(not(target_arch = "wasm32"))]
+            if _available_adapters.is_empty() {
+                log::info!("No wgpu adapters found");
+            } else if _available_adapters.len() == 1 {
+                log::info!(
+                    "The only available wgpu adapter was not suitable: {}",
+                    adapter_info_summary(&_available_adapters[0].get_info())
+                );
+            } else {
+                log::info!(
+                    "No suitable wgpu adapter found out of the {} available ones: {}",
+                    _available_adapters.len(),
+                    describe_adapters(_available_adapters)
+                );
+            }
+        })?;
+
+    #[cfg(target_arch = "wasm32")]
+    log::debug!(
+        "Picked wgpu adapter: {}",
+        adapter_info_summary(&adapter.get_info())
+    );
+
+    #[cfg(not(target_arch = "wasm32"))]
+    if _available_adapters.len() == 1 {
+        log::debug!(
+            "Picked the only available wgpu adapter: {}",
+            adapter_info_summary(&adapter.get_info())
+        );
+    } else {
+        log::info!(
+            "There were {} available wgpu adapters: {}",
+            _available_adapters.len(),
+            describe_adapters(_available_adapters)
+        );
+        log::debug!(
+            "Picked wgpu adapter: {}",
+            adapter_info_summary(&adapter.get_info())
+        );
+    }
+
+    Ok(adapter)
 }
 
 impl RenderState {
@@ -91,7 +160,7 @@ impl RenderState {
     pub async fn create(
         config: &WgpuConfiguration,
         instance: &wgpu::Instance,
-        surface: &wgpu::Surface<'static>,
+        compatible_surface: Option<&wgpu::Surface<'static>>,
         depth_format: Option<wgpu::TextureFormat>,
         msaa_samples: u32,
         dithering: bool,
@@ -100,97 +169,68 @@ impl RenderState {
 
         // This is always an empty list on web.
         #[cfg(not(target_arch = "wasm32"))]
-        let available_adapters = instance.enumerate_adapters(wgpu::Backends::all());
+        let available_adapters = {
+            let backends = if let WgpuSetup::CreateNew(create_new) = &config.wgpu_setup {
+                create_new.instance_descriptor.backends
+            } else {
+                wgpu::Backends::all()
+            };
+
+            instance.enumerate_adapters(backends)
+        };
 
         let (adapter, device, queue) = match config.wgpu_setup.clone() {
-            WgpuSetup::CreateNew {
-                supported_backends: _,
+            WgpuSetup::CreateNew(WgpuSetupCreateNew {
+                instance_descriptor: _,
                 power_preference,
+                native_adapter_selector: _native_adapter_selector,
                 device_descriptor,
-            } => {
+            }) => {
                 let adapter = {
-                    profiling::scope!("request_adapter");
-                    instance
-                        .request_adapter(&wgpu::RequestAdapterOptions {
+                    #[cfg(target_arch = "wasm32")]
+                    {
+                        request_adapter(instance, power_preference, compatible_surface, &[]).await
+                    }
+                    #[cfg(not(target_arch = "wasm32"))]
+                    if let Some(native_adapter_selector) = _native_adapter_selector {
+                        native_adapter_selector(&available_adapters, compatible_surface)
+                            .map_err(WgpuError::CustomNativeAdapterSelectionError)
+                    } else {
+                        request_adapter(
+                            instance,
                             power_preference,
-                            compatible_surface: Some(surface),
-                            force_fallback_adapter: false,
-                        })
+                            compatible_surface,
+                            &available_adapters,
+                        )
                         .await
-                        .ok_or_else(|| {
-                            #[cfg(not(target_arch = "wasm32"))]
-                            if available_adapters.is_empty() {
-                                log::info!("No wgpu adapters found");
-                            } else if available_adapters.len() == 1 {
-                                log::info!(
-                                    "The only available wgpu adapter was not suitable: {}",
-                                    adapter_info_summary(&available_adapters[0].get_info())
-                                );
-                            } else {
-                                log::info!(
-                                    "No suitable wgpu adapter found out of the {} available ones: {}",
-                                    available_adapters.len(),
-                                    describe_adapters(&available_adapters)
-                                );
-                            }
+                    }
+                }?;
 
-                            WgpuError::NoSuitableAdapterFound
-                        })?
-                };
-
-                #[cfg(target_arch = "wasm32")]
-                log::debug!(
-                    "Picked wgpu adapter: {}",
-                    adapter_info_summary(&adapter.get_info())
-                );
-
-                #[cfg(not(target_arch = "wasm32"))]
-                if available_adapters.len() == 1 {
-                    log::debug!(
-                        "Picked the only available wgpu adapter: {}",
-                        adapter_info_summary(&adapter.get_info())
-                    );
-                } else {
-                    log::info!(
-                        "There were {} available wgpu adapters: {}",
-                        available_adapters.len(),
-                        describe_adapters(&available_adapters)
-                    );
-                    log::debug!(
-                        "Picked wgpu adapter: {}",
-                        adapter_info_summary(&adapter.get_info())
-                    );
-                }
-
-                let trace_path = std::env::var("WGPU_TRACE");
                 let (device, queue) = {
                     profiling::scope!("request_device");
                     adapter
-                        .request_device(
-                            &(*device_descriptor)(&adapter),
-                            trace_path.ok().as_ref().map(std::path::Path::new),
-                        )
+                        .request_device(&(*device_descriptor)(&adapter))
                         .await?
                 };
 
-                // On wasm, depending on feature flags, wgpu objects may or may not implement sync.
-                // It doesn't make sense to switch to Rc for that special usecase, so simply disable the lint.
-                #[allow(clippy::arc_with_non_send_sync)]
-                (Arc::new(adapter), Arc::new(device), Arc::new(queue))
+                (adapter, device, queue)
             }
-            WgpuSetup::Existing {
+            WgpuSetup::Existing(WgpuSetupExisting {
                 instance: _,
                 adapter,
                 device,
                 queue,
-            } => (adapter, device, queue),
+            }) => (adapter, device, queue),
         };
 
-        let capabilities = {
+        let surface_formats = {
             profiling::scope!("get_capabilities");
-            surface.get_capabilities(&adapter).formats
+            compatible_surface.map_or_else(
+                || vec![wgpu::TextureFormat::Rgba8Unorm],
+                |s| s.get_capabilities(&adapter).formats,
+            )
         };
-        let target_format = crate::preferred_framebuffer_format(&capabilities)?;
+        let target_format = crate::preferred_framebuffer_format(&surface_formats)?;
 
         let renderer = Renderer::new(
             &device,
@@ -202,11 +242,11 @@ impl RenderState {
 
         // On wasm, depending on feature flags, wgpu objects may or may not implement sync.
         // It doesn't make sense to switch to Rc for that special usecase, so simply disable the lint.
-        #[allow(clippy::arc_with_non_send_sync)]
+        #[allow(clippy::arc_with_non_send_sync, clippy::allow_attributes)] // For wasm
         Ok(Self {
             adapter,
             #[cfg(not(target_arch = "wasm32"))]
-            available_adapters: available_adapters.into(),
+            available_adapters,
             device,
             queue,
             target_format,
@@ -222,14 +262,11 @@ fn describe_adapters(adapters: &[wgpu::Adapter]) -> String {
     } else if adapters.len() == 1 {
         adapter_info_summary(&adapters[0].get_info())
     } else {
-        let mut list_string = String::new();
-        for adapter in adapters {
-            if !list_string.is_empty() {
-                list_string += ", ";
-            }
-            list_string += &format!("{{{}}}", adapter_info_summary(&adapter.get_info()));
-        }
-        list_string
+        adapters
+            .iter()
+            .map(|a| format!("{{{}}}", adapter_info_summary(&a.get_info())))
+            .collect::<Vec<_>>()
+            .join(", ")
     }
 }
 
@@ -240,62 +277,6 @@ pub enum SurfaceErrorAction {
 
     /// Instructs egui to recreate the surface, then skip the current frame.
     RecreateSurface,
-}
-
-#[derive(Clone)]
-pub enum WgpuSetup {
-    /// Construct a wgpu setup using some predefined settings & heuristics.
-    /// This is the default option. You can customize most behaviours overriding the
-    /// supported backends, power preferences, and device description.
-    ///
-    /// This can also be configured with the environment variables:
-    /// * `WGPU_BACKEND`: `vulkan`, `dx11`, `dx12`, `metal`, `opengl`, `webgpu`
-    /// * `WGPU_POWER_PREF`: `low`, `high` or `none`
-    CreateNew {
-        /// Backends that should be supported (wgpu will pick one of these).
-        ///
-        /// For instance, if you only want to support WebGL (and not WebGPU),
-        /// you can set this to [`wgpu::Backends::GL`].
-        ///
-        /// By default on web, WebGPU will be used if available.
-        /// WebGL will only be used as a fallback,
-        /// and only if you have enabled the `webgl` feature of crate `wgpu`.
-        supported_backends: wgpu::Backends,
-
-        /// Power preference for the adapter.
-        power_preference: wgpu::PowerPreference,
-
-        /// Configuration passed on device request, given an adapter
-        device_descriptor:
-            Arc<dyn Fn(&wgpu::Adapter) -> wgpu::DeviceDescriptor<'static> + Send + Sync>,
-    },
-
-    /// Run on an existing wgpu setup.
-    Existing {
-        instance: Arc<Instance>,
-        adapter: Arc<Adapter>,
-        device: Arc<Device>,
-        queue: Arc<Queue>,
-    },
-}
-
-impl std::fmt::Debug for WgpuSetup {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::CreateNew {
-                supported_backends,
-                power_preference,
-                device_descriptor: _,
-            } => f
-                .debug_struct("AdapterSelection::Standard")
-                .field("supported_backends", &supported_backends)
-                .field("power_preference", &power_preference)
-                .finish(),
-            Self::Existing { .. } => f
-                .debug_struct("AdapterSelection::Existing")
-                .finish_non_exhaustive(),
-        }
-    }
 }
 
 /// Configuration for using wgpu with eframe or the egui-wgpu winit feature.
@@ -349,42 +330,8 @@ impl Default for WgpuConfiguration {
     fn default() -> Self {
         Self {
             present_mode: wgpu::PresentMode::AutoVsync,
-
             desired_maximum_frame_latency: None,
-
-            // By default, create a new wgpu setup. This will create a new instance, adapter, device and queue.
-            // This will create an instance for the supported backends (which can be configured by
-            // `WGPU_BACKEND`), and will pick an adapter by iterating adapters based on their power preference. The power
-            // preference can also be configured by `WGPU_POWER_PREF`.
-            wgpu_setup: WgpuSetup::CreateNew {
-                // Add GL backend, primarily because WebGPU is not stable enough yet.
-                // (note however, that the GL backend needs to be opted-in via the wgpu feature flag "webgl")
-                supported_backends: wgpu::util::backend_bits_from_env()
-                    .unwrap_or(wgpu::Backends::PRIMARY | wgpu::Backends::GL),
-
-                power_preference: wgpu::util::power_preference_from_env()
-                    .unwrap_or(wgpu::PowerPreference::HighPerformance),
-                device_descriptor: Arc::new(|adapter| {
-                    let base_limits = if adapter.get_info().backend == wgpu::Backend::Gl {
-                        wgpu::Limits::downlevel_webgl2_defaults()
-                    } else {
-                        wgpu::Limits::default()
-                    };
-
-                    wgpu::DeviceDescriptor {
-                        label: Some("egui wgpu device"),
-                        required_features: wgpu::Features::default(),
-                        required_limits: wgpu::Limits {
-                            // When using a depth buffer, we have to be able to create a texture
-                            // large enough for the entire surface, and we want to support 4k+ displays.
-                            max_texture_dimension_2d: 8192,
-                            ..base_limits
-                        },
-                        memory_hints: wgpu::MemoryHints::default(),
-                    }
-                }),
-            },
-
+            wgpu_setup: Default::default(),
             on_surface_error: Arc::new(|err| {
                 if err == wgpu::SurfaceError::Outdated {
                     // This error occurs when the app is minimized on Windows.
@@ -465,12 +412,35 @@ pub fn adapter_info_summary(info: &wgpu::AdapterInfo) -> String {
         summary += &format!(", driver_info: {driver_info:?}");
     }
     if *vendor != 0 {
-        // TODO(emilk): decode using https://github.com/gfx-rs/wgpu/blob/767ac03245ee937d3dc552edc13fe7ab0a860eec/wgpu-hal/src/auxil/mod.rs#L7
-        summary += &format!(", vendor: 0x{vendor:04X}");
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            summary += &format!(", vendor: {} (0x{vendor:04X})", parse_vendor_id(*vendor));
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            summary += &format!(", vendor: 0x{vendor:04X}");
+        }
     }
     if *device != 0 {
         summary += &format!(", device: 0x{device:02X}");
     }
 
     summary
+}
+
+/// Tries to parse the adapter's vendor ID to a human-readable string.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn parse_vendor_id(vendor_id: u32) -> &'static str {
+    match vendor_id {
+        wgpu::hal::auxil::db::amd::VENDOR => "AMD",
+        wgpu::hal::auxil::db::apple::VENDOR => "Apple",
+        wgpu::hal::auxil::db::arm::VENDOR => "ARM",
+        wgpu::hal::auxil::db::broadcom::VENDOR => "Broadcom",
+        wgpu::hal::auxil::db::imgtec::VENDOR => "Imagination Technologies",
+        wgpu::hal::auxil::db::intel::VENDOR => "Intel",
+        wgpu::hal::auxil::db::mesa::VENDOR => "Mesa",
+        wgpu::hal::auxil::db::nvidia::VENDOR => "NVIDIA",
+        wgpu::hal::auxil::db::qualcomm::VENDOR => "Qualcomm",
+        _ => "Unknown",
+    }
 }

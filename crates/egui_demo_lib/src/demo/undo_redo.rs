@@ -1,4 +1,4 @@
-use egui::{util::undoer::Undoer, Button};
+use egui::{Button, util::undoer::Undoer};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]

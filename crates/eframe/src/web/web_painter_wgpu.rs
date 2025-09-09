@@ -3,8 +3,8 @@ use std::sync::Arc;
 use super::web_painter::WebPainter;
 use crate::WebOptions;
 use egui::{Event, UserData, ViewportId};
-use egui_wgpu::capture::{capture_channel, CaptureReceiver, CaptureSender, CaptureState};
-use egui_wgpu::{RenderState, SurfaceErrorAction, WgpuSetup};
+use egui_wgpu::capture::{CaptureReceiver, CaptureSender, CaptureState, capture_channel};
+use egui_wgpu::{RenderState, SurfaceErrorAction};
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
 
@@ -23,7 +23,7 @@ pub(crate) struct WebPainterWgpu {
 }
 
 impl WebPainterWgpu {
-    #[allow(unused)] // only used if `wgpu` is the only active feature.
+    #[expect(unused)] // only used if `wgpu` is the only active feature.
     pub fn render_state(&self) -> Option<RenderState> {
         self.render_state.clone()
     }
@@ -55,7 +55,7 @@ impl WebPainterWgpu {
         })
     }
 
-    #[allow(unused)] // only used if `wgpu` is the only active feature.
+    #[expect(unused)] // only used if `wgpu` is the only active feature.
     pub async fn new(
         ctx: egui::Context,
         canvas: web_sys::HtmlCanvasElement,
@@ -63,49 +63,7 @@ impl WebPainterWgpu {
     ) -> Result<Self, String> {
         log::debug!("Creating wgpu painter");
 
-        let instance = match &options.wgpu_options.wgpu_setup {
-            WgpuSetup::CreateNew {
-                supported_backends: backends,
-                power_preference,
-                ..
-            } => {
-                let mut backends = *backends;
-
-                // Don't try WebGPU if we're not in a secure context.
-                if backends.contains(wgpu::Backends::BROWSER_WEBGPU) {
-                    let is_secure_context =
-                        web_sys::window().map_or(false, |w| w.is_secure_context());
-                    if !is_secure_context {
-                        log::info!(
-                            "WebGPU is only available in secure contexts, i.e. on HTTPS and on localhost."
-                        );
-
-                        // Don't try WebGPU since we established now that it will fail.
-                        backends.remove(wgpu::Backends::BROWSER_WEBGPU);
-
-                        if backends.is_empty() {
-                            return Err("No available supported graphics backends.".to_owned());
-                        }
-                    }
-                }
-
-                log::debug!("Creating wgpu instance with backends {:?}", backends);
-
-                let instance =
-                    wgpu::util::new_instance_with_webgpu_detection(wgpu::InstanceDescriptor {
-                        backends,
-                        ..Default::default()
-                    })
-                    .await;
-
-                // On wasm, depending on feature flags, wgpu objects may or may not implement sync.
-                // It doesn't make sense to switch to Rc for that special usecase, so simply disable the lint.
-                #[allow(clippy::arc_with_non_send_sync)]
-                Arc::new(instance)
-            }
-            WgpuSetup::Existing { instance, .. } => instance.clone(),
-        };
-
+        let instance = options.wgpu_options.wgpu_setup.new_instance().await;
         let surface = instance
             .create_surface(wgpu::SurfaceTarget::Canvas(canvas.clone()))
             .map_err(|err| format!("failed to create wgpu surface: {err}"))?;
@@ -115,7 +73,7 @@ impl WebPainterWgpu {
         let render_state = RenderState::create(
             &options.wgpu_options,
             &instance,
-            &surface,
+            Some(&surface),
             depth_format,
             1,
             options.dithering,
@@ -316,17 +274,10 @@ impl WebPainter for WebPainterWgpu {
                         &mut encoder,
                     ));
                 }
-            };
+            }
 
             Some((output_frame, capture_buffer))
         };
-
-        {
-            let mut renderer = render_state.renderer.write();
-            for id in &textures_delta.free {
-                renderer.free_texture(id);
-            }
-        }
 
         // Submit the commands: both the main buffer and user-defined ones.
         render_state
@@ -347,6 +298,16 @@ impl WebPainter for WebPainterWgpu {
             }
 
             frame.present();
+        }
+
+        // Free textures marked for destruction **after** queue submit since they might still be used in the current frame.
+        // Calling `wgpu::Texture::destroy` on a texture that is still in use would invalidate the command buffer(s) it is used in.
+        // However, once we called `wgpu::Queue::submit`, it is up for wgpu to determine how long the underlying gpu resource has to live.
+        {
+            let mut renderer = render_state.renderer.write();
+            for id in &textures_delta.free {
+                renderer.free_texture(id);
+            }
         }
 
         Ok(())

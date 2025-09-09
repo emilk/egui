@@ -1,5 +1,5 @@
 use egui::{
-    text::CCursorRange, Key, KeyboardShortcut, Modifiers, ScrollArea, TextBuffer, TextEdit, Ui,
+    Key, KeyboardShortcut, Modifiers, ScrollArea, TextBuffer, TextEdit, Ui, text::CCursorRange,
 };
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -80,10 +80,10 @@ impl EasyMarkEditor {
         } = self;
 
         let response = if self.highlight_editor {
-            let mut layouter = |ui: &egui::Ui, easymark: &str, wrap_width: f32| {
-                let mut layout_job = highlighter.highlight(ui.style(), easymark);
+            let mut layouter = |ui: &egui::Ui, easymark: &dyn TextBuffer, wrap_width: f32| {
+                let mut layout_job = highlighter.highlight(ui.style(), easymark.as_str());
                 layout_job.wrap.max_width = wrap_width;
-                ui.fonts(|f| f.layout_job(layout_job))
+                ui.fonts_mut(|f| f.layout_job(layout_job))
             };
 
             ui.add(
@@ -146,7 +146,7 @@ fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRang
     if ui.input_mut(|i| i.consume_shortcut(&SHORTCUT_INDENT)) {
         // This is a placeholder till we can indent the active line
         any_change = true;
-        let [primary, _secondary] = ccursor_range.sorted();
+        let [primary, _secondary] = ccursor_range.sorted_cursors();
 
         let advance = code.insert_text("  ", primary.index);
         ccursor_range.primary.index += advance;
@@ -165,7 +165,7 @@ fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRang
         if ui.input_mut(|i| i.consume_shortcut(&shortcut)) {
             any_change = true;
             toggle_surrounding(code, ccursor_range, surrounding);
-        };
+        }
     }
 
     any_change
@@ -177,7 +177,7 @@ fn toggle_surrounding(
     ccursor_range: &mut CCursorRange,
     surrounding: &str,
 ) {
-    let [primary, secondary] = ccursor_range.sorted();
+    let [primary, secondary] = ccursor_range.sorted_cursors();
 
     let surrounding_ccount = surrounding.chars().count();
 
@@ -237,7 +237,7 @@ Goals:
 2. easy to learn
 3. similar to markdown
 
-[The reference parser](https://github.com/emilk/egui/blob/master/crates/egui_demo_lib/src/easy_mark/easy_mark_parser.rs) is \~250 lines of code, using only the Rust standard library. The parser uses no look-ahead or recursion.
+[The reference parser](https://github.com/emilk/egui/blob/main/crates/egui_demo_lib/src/easy_mark/easy_mark_parser.rs) is \~250 lines of code, using only the Rust standard library. The parser uses no look-ahead or recursion.
 
 There is never more than one way to accomplish the same thing, and each special character is only used for one thing. For instance `*` is used for *strong* and `-` is used for bullet lists. There is no alternative way to specify the *strong* style or getting a bullet list.
 

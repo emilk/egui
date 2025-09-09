@@ -4,13 +4,13 @@
 //! Takes all available height, so if you want something below the table, put it in a strip.
 
 use egui::{
-    scroll_area::{ScrollAreaOutput, ScrollBarVisibility},
     Align, Id, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui, Vec2, Vec2b,
+    scroll_area::{ScrollAreaOutput, ScrollBarVisibility, ScrollSource},
 };
 
 use crate::{
-    layout::{CellDirection, CellSize, StripLayoutFlags},
     StripLayout,
+    layout::{CellDirection, CellSize, StripLayoutFlags},
 };
 
 // -----------------------------------------------------------------=----------
@@ -39,7 +39,7 @@ pub struct Column {
 
     resizable: Option<bool>,
 
-    /// If set, we should acurately measure the size of this column this frame
+    /// If set, we should accurately measure the size of this column this frame
     /// so that we can correctly auto-size it. This is done as a `sizing_pass`.
     auto_size_this_frame: bool,
 }
@@ -507,6 +507,7 @@ impl<'a> TableBuilder<'a> {
                 striped: false,
                 hovered: false,
                 selected: false,
+                overline: false,
                 response: &mut response,
             });
             layout.allocate_rect();
@@ -698,7 +699,7 @@ pub struct Table<'a> {
     sense: egui::Sense,
 }
 
-impl<'a> Table<'a> {
+impl Table<'_> {
     /// Access the contained [`egui::Ui`].
     ///
     /// You can use this to e.g. modify the [`egui::Style`] with [`egui::Ui::style_mut`].
@@ -744,7 +745,10 @@ impl<'a> Table<'a> {
 
         let mut scroll_area = ScrollArea::new([false, vscroll])
             .id_salt(state_id.with("__scroll_area"))
-            .drag_to_scroll(drag_to_scroll)
+            .scroll_source(ScrollSource {
+                drag: drag_to_scroll,
+                ..Default::default()
+            })
             .stick_to_bottom(stick_to_bottom)
             .min_scrolled_height(min_scrolled_height)
             .max_height(max_scroll_height)
@@ -847,7 +851,7 @@ impl<'a> Table<'a> {
             if column.is_auto() && (is_sizing_pass || !column_is_resizable) {
                 *column_width = width_range.clamp(max_used_widths[i]);
             } else if column_is_resizable {
-                let column_resize_id = ui.id().with("resize_column").with(i);
+                let column_resize_id = state_id.with("resize_column").with(i);
 
                 let mut p0 = egui::pos2(x, table_top);
                 let mut p1 = egui::pos2(x, bottom);
@@ -990,6 +994,7 @@ impl<'a> TableBody<'a> {
             striped: self.striped && self.row_index % 2 == 0,
             hovered: self.hovered_row_index == Some(self.row_index),
             selected: false,
+            overline: false,
             response: &mut response,
         });
         self.capture_hover_state(&response, self.row_index);
@@ -1071,6 +1076,7 @@ impl<'a> TableBody<'a> {
                 striped: self.striped && (row_index + self.row_index) % 2 == 0,
                 hovered: self.hovered_row_index == Some(row_index),
                 selected: false,
+                overline: false,
                 response: &mut response,
             });
             self.capture_hover_state(&response, row_index);
@@ -1152,6 +1158,7 @@ impl<'a> TableBody<'a> {
                     striped: self.striped && (row_index + self.row_index) % 2 == 0,
                     hovered: self.hovered_row_index == Some(row_index),
                     selected: false,
+                    overline: false,
                     response: &mut response,
                 });
                 self.capture_hover_state(&response, row_index);
@@ -1173,6 +1180,7 @@ impl<'a> TableBody<'a> {
                 height: row_height,
                 striped: self.striped && (row_index + self.row_index) % 2 == 0,
                 hovered: self.hovered_row_index == Some(row_index),
+                overline: false,
                 selected: false,
                 response: &mut response,
             });
@@ -1228,7 +1236,7 @@ impl<'a> TableBody<'a> {
     // Capture the hover information for the just created row. This is used in the next render
     // to ensure that the entire row is highlighted.
     fn capture_hover_state(&self, response: &Option<Response>, row_index: usize) {
-        let is_row_hovered = response.as_ref().map_or(false, |r| r.hovered());
+        let is_row_hovered = response.as_ref().is_some_and(|r| r.hovered());
         if is_row_hovered {
             self.layout
                 .ui
@@ -1237,7 +1245,7 @@ impl<'a> TableBody<'a> {
     }
 }
 
-impl<'a> Drop for TableBody<'a> {
+impl Drop for TableBody<'_> {
     fn drop(&mut self) {
         self.layout.allocate_rect();
     }
@@ -1260,11 +1268,12 @@ pub struct TableRow<'a, 'b> {
     striped: bool,
     hovered: bool,
     selected: bool,
+    overline: bool,
 
     response: &'b mut Option<Response>,
 }
 
-impl<'a, 'b> TableRow<'a, 'b> {
+impl TableRow<'_, '_> {
     /// Add the contents of a column on this row (i.e. a cell).
     ///
     /// Returns the used space (`min_rect`) plus the [`Response`] of the whole cell.
@@ -1272,11 +1281,11 @@ impl<'a, 'b> TableRow<'a, 'b> {
     pub fn col(&mut self, add_cell_contents: impl FnOnce(&mut Ui)) -> (Rect, Response) {
         let col_index = self.col_index;
 
-        let clip = self.columns.get(col_index).map_or(false, |c| c.clip);
+        let clip = self.columns.get(col_index).is_some_and(|c| c.clip);
         let auto_size_this_frame = self
             .columns
             .get(col_index)
-            .map_or(false, |c| c.auto_size_this_frame);
+            .is_some_and(|c| c.auto_size_this_frame);
 
         let width = if let Some(width) = self.widths.get(col_index) {
             self.col_index += 1;
@@ -1297,6 +1306,7 @@ impl<'a, 'b> TableRow<'a, 'b> {
             striped: self.striped,
             hovered: self.hovered,
             selected: self.selected,
+            overline: self.overline,
             sizing_pass: auto_size_this_frame || self.layout.ui.is_sizing_pass(),
         };
 
@@ -1333,6 +1343,13 @@ impl<'a, 'b> TableRow<'a, 'b> {
         self.hovered = hovered;
     }
 
+    /// Set the overline state for this row. The overline is a line above the row,
+    /// usable for e.g. visually grouping rows.
+    #[inline]
+    pub fn set_overline(&mut self, overline: bool) {
+        self.overline = overline;
+    }
+
     /// Returns a union of the [`Response`]s of the cells added to the row up to this point.
     ///
     /// You need to add at least one row to the table before calling this function.
@@ -1355,7 +1372,7 @@ impl<'a, 'b> TableRow<'a, 'b> {
     }
 }
 
-impl<'a, 'b> Drop for TableRow<'a, 'b> {
+impl Drop for TableRow<'_, '_> {
     #[inline]
     fn drop(&mut self) {
         self.layout.end_line();

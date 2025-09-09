@@ -1,4 +1,4 @@
-use egui::{ComboBox, Context, Id, Modal, ProgressBar, Ui, Widget, Window};
+use egui::{ComboBox, Context, Id, Modal, ProgressBar, Ui, Widget as _, Window};
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
@@ -96,7 +96,9 @@ impl crate::View for Modals {
                             *save_modal_open = true;
                         }
                         if ui.button("Cancel").clicked() {
-                            *user_modal_open = false;
+                            // You can call `ui.close()` to close the modal.
+                            // (This causes the current modals `should_close` to return true)
+                            ui.close();
                         }
                     },
                 );
@@ -123,7 +125,7 @@ impl crate::View for Modals {
                         }
 
                         if ui.button("No Thanks").clicked() {
-                            *save_modal_open = false;
+                            ui.close();
                         }
                     },
                 );
@@ -160,12 +162,12 @@ impl crate::View for Modals {
 
 #[cfg(test)]
 mod tests {
+    use crate::Demo as _;
     use crate::demo::modals::Modals;
-    use crate::Demo;
     use egui::accesskit::Role;
-    use egui::Key;
-    use egui_kittest::kittest::Queryable;
-    use egui_kittest::Harness;
+    use egui::{Key, Popup};
+    use egui_kittest::kittest::Queryable as _;
+    use egui_kittest::{Harness, SnapshotResults};
 
     #[test]
     fn clicking_escape_when_popup_open_should_not_close_modal() {
@@ -183,13 +185,14 @@ mod tests {
 
         harness.get_by_role(Role::ComboBox).click();
 
-        harness.run();
-        assert!(harness.ctx.memory(|mem| mem.any_popup_open()));
+        // Harness::run would fail because we keep requesting repaints to simulate progress.
+        harness.run_ok();
+        assert!(Popup::is_any_open(&harness.ctx));
         assert!(harness.state().user_modal_open);
 
-        harness.press_key(Key::Escape);
-        harness.run();
-        assert!(!harness.ctx.memory(|mem| mem.any_popup_open()));
+        harness.key_press(Key::Escape);
+        harness.run_ok();
+        assert!(!Popup::is_any_open(&harness.ctx));
         assert!(harness.state().user_modal_open);
     }
 
@@ -211,7 +214,7 @@ mod tests {
         assert!(harness.state().user_modal_open);
         assert!(harness.state().save_modal_open);
 
-        harness.press_key(Key::Escape);
+        harness.key_press(Key::Escape);
         harness.run();
 
         assert!(harness.state().user_modal_open);
@@ -232,28 +235,18 @@ mod tests {
             initial_state,
         );
 
-        let mut results = Vec::new();
+        let mut results = SnapshotResults::new();
 
         harness.run();
-        results.push(harness.try_wgpu_snapshot("modals_1"));
+        results.add(harness.try_snapshot("modals_1"));
 
         harness.get_by_label("Save").click();
-        // TODO(lucasmerlin): Remove these extra runs once run checks for repaint requests
-        harness.run();
-        harness.run();
-        harness.run();
-        results.push(harness.try_wgpu_snapshot("modals_2"));
+        harness.run_ok();
+        results.add(harness.try_snapshot("modals_2"));
 
         harness.get_by_label("Yes Please").click();
-        // TODO(lucasmerlin): Remove these extra runs once run checks for repaint requests
-        harness.run();
-        harness.run();
-        harness.run();
-        results.push(harness.try_wgpu_snapshot("modals_3"));
-
-        for result in results {
-            result.unwrap();
-        }
+        harness.run_ok();
+        results.add(harness.try_snapshot("modals_3"));
     }
 
     // This tests whether the backdrop actually prevents interaction with lower layers.
@@ -272,16 +265,13 @@ mod tests {
             initial_state,
         );
 
-        // TODO(lucasmerlin): Remove these extra runs once run checks for repaint requests
-        harness.run();
-        harness.run();
-        harness.run();
+        harness.run_ok();
 
-        harness.get_by_label("Yes Please").simulate_click();
+        harness.get_by_label("Yes Please").click();
 
-        harness.run();
+        harness.run_ok();
 
         // This snapshots should show the progress bar modal on top of the save modal.
-        harness.wgpu_snapshot("modals_backdrop_should_prevent_focusing_lower_area");
+        harness.snapshot("modals_backdrop_should_prevent_focusing_lower_area");
     }
 }

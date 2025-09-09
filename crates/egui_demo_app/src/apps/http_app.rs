@@ -53,7 +53,7 @@ pub struct HttpApp {
 impl Default for HttpApp {
     fn default() -> Self {
         Self {
-            url: "https://raw.githubusercontent.com/emilk/egui/master/README.md".to_owned(),
+            url: "https://raw.githubusercontent.com/emilk/egui/main/README.md".to_owned(),
             promise: Default::default(),
         }
     }
@@ -133,7 +133,7 @@ fn ui_url(ui: &mut egui::Ui, frame: &eframe::Frame, url: &mut String) -> bool {
     ui.horizontal(|ui| {
         if ui.button("Source code for this example").clicked() {
             *url = format!(
-                "https://raw.githubusercontent.com/emilk/egui/master/{}",
+                "https://raw.githubusercontent.com/emilk/egui/main/{}",
                 file!()
             );
             trigger_fetch = true;
@@ -238,7 +238,7 @@ impl ColoredText {
     pub fn ui(&self, ui: &mut egui::Ui) {
         let mut job = self.0.clone();
         job.wrap.max_width = ui.available_width();
-        let galley = ui.fonts(|f| f.layout_job(job));
+        let galley = ui.fonts_mut(|f| f.layout_job(job));
         ui.add(egui::Label::new(galley).selectable(true));
     }
 }

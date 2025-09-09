@@ -1,4 +1,4 @@
-use crate::{vec2, Response, Sense, Ui, Vec2, Widget};
+use crate::{Response, Sense, Ui, Vec2, Widget, vec2};
 
 /// A visual separator. A horizontal or vertical line (depending on [`crate::Layout`]).
 ///

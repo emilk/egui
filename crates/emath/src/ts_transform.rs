@@ -33,11 +33,11 @@ impl TSTransform {
 
     #[inline]
     /// Creates a new translation that first scales points around
-    /// `(0, 0)`, then translates them.  
+    /// `(0, 0)`, then translates them.
     pub fn new(translation: Vec2, scaling: f32) -> Self {
         Self {
-            translation,
             scaling,
+            translation,
         }
     }
 
@@ -49,6 +49,11 @@ impl TSTransform {
     #[inline]
     pub fn from_scaling(scaling: f32) -> Self {
         Self::new(Vec2::ZERO, scaling)
+    }
+
+    /// Is this a valid, invertible transform?
+    pub fn is_valid(&self) -> bool {
+        self.scaling.is_finite() && self.translation.x.is_finite() && self.scaling != 0.0
     }
 
     /// Inverts the transform.

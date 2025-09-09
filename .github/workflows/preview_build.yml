@@ -15,16 +15,23 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v2
-      - run: rustup toolchain install stable --profile minimal --target wasm32-unknown-unknown
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.86.0
+          targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
         with:
           prefix-key: "pr-preview-"
 
-      - name: "Install wasmopt / binaryen"
-        run: |
-          sudo apt-get update && sudo apt-get install binaryen
+      - name: Install wasm-opt
+        uses: sigoden/install-binary@v1
+        with:
+          repo: WebAssembly/binaryen
+          tag: version_123
+          name: wasm-opt
 
       - run: |
           scripts/build_demo_web.sh --release

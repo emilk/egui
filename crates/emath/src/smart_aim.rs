@@ -1,5 +1,7 @@
 //! Find "simple" numbers is some range. Used by sliders.
 
+use crate::fast_midpoint;
+
 const NUM_DECIMALS: usize = 15;
 
 /// Find the "simplest" number in a closed range [min, max], i.e. the one with the fewest decimal digits.
@@ -33,14 +35,17 @@ pub fn best_in_range_f64(min: f64, max: f64) -> f64 {
     if !max.is_finite() {
         return min;
     }
-    debug_assert!(min.is_finite() && max.is_finite());
+    debug_assert!(
+        min.is_finite() && max.is_finite(),
+        "min: {min:?}, max: {max:?}"
+    );
 
     let min_exponent = min.log10();
     let max_exponent = max.log10();
 
     if min_exponent.floor() != max_exponent.floor() {
         // pick the geometric center of the two:
-        let exponent = (min_exponent + max_exponent) / 2.0;
+        let exponent = fast_midpoint(min_exponent, max_exponent);
         return 10.0_f64.powi(exponent.round() as i32);
     }
 
@@ -101,7 +106,10 @@ fn from_decimal_string(s: &[i32]) -> f64 {
 
 /// Find the simplest integer in the range [min, max]
 fn simplest_digit_closed_range(min: i32, max: i32) -> i32 {
-    debug_assert!(1 <= min && min <= max && max <= 9);
+    debug_assert!(
+        1 <= min && min <= max && max <= 9,
+        "min should be in [1, 9], but was {min:?} and max should be in [min, 9], but was {max:?}"
+    );
     if min <= 5 && 5 <= max {
         5
     } else {
@@ -109,7 +117,7 @@ fn simplest_digit_closed_range(min: i32, max: i32) -> i32 {
     }
 }
 
-#[allow(clippy::approx_constant)]
+#[expect(clippy::approx_constant)]
 #[test]
 fn test_aim() {
     assert_eq!(best_in_range_f64(-0.2, 0.0), 0.0, "Prefer zero");

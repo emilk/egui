@@ -49,11 +49,20 @@ pub enum Key {
     /// `?`
     Questionmark,
 
+    // '!'
+    Exclamationmark,
+
     // `[`
     OpenBracket,
 
     // `]`
     CloseBracket,
+
+    // `{`
+    OpenCurlyBracket,
+
+    // `}`
+    CloseCurlyBracket,
 
     /// Also known as "backquote" or "grave"
     Backtick,
@@ -174,6 +183,11 @@ pub enum Key {
     F33,
     F34,
     F35,
+
+    /// Back navigation key from multimedia keyboard.
+    /// Android sends this key on Back button press.
+    /// Does not work on Web.
+    BrowserBack,
     // When adding keys, remember to also update:
     // * crates/egui-winit/src/lib.rs
     // * Key::ALL
@@ -215,11 +229,14 @@ impl Key {
         Self::Semicolon,
         Self::OpenBracket,
         Self::CloseBracket,
+        Self::OpenCurlyBracket,
+        Self::CloseCurlyBracket,
         Self::Backtick,
         Self::Backslash,
         Self::Slash,
         Self::Pipe,
         Self::Questionmark,
+        Self::Exclamationmark,
         Self::Quote,
         // Digits:
         Self::Num0,
@@ -295,6 +312,8 @@ impl Key {
         Self::F33,
         Self::F34,
         Self::F35,
+        // Navigation keys:
+        Self::BrowserBack,
     ];
 
     /// Converts `"A"` to `Key::A`, `Space` to `Key::Space`, etc.
@@ -341,8 +360,11 @@ impl Key {
             "/" | "Slash" => Self::Slash,
             "|" | "Pipe" => Self::Pipe,
             "?" | "Questionmark" => Self::Questionmark,
+            "!" | "Exclamationmark" => Self::Exclamationmark,
             "[" | "OpenBracket" => Self::OpenBracket,
             "]" | "CloseBracket" => Self::CloseBracket,
+            "{" | "OpenCurlyBracket" => Self::OpenCurlyBracket,
+            "}" | "CloseCurlyBracket" => Self::CloseCurlyBracket,
             "`" | "Backtick" | "Backquote" | "Grave" => Self::Backtick,
             "'" | "Quote" => Self::Quote,
 
@@ -420,6 +442,8 @@ impl Key {
             "F34" => Self::F34,
             "F35" => Self::F35,
 
+            "BrowserBack" => Self::BrowserBack,
+
             _ => return None,
         })
     }
@@ -446,8 +470,11 @@ impl Key {
             Self::Slash => "/",
             Self::Pipe => "|",
             Self::Questionmark => "?",
+            Self::Exclamationmark => "!",
             Self::OpenBracket => "[",
             Self::CloseBracket => "]",
+            Self::OpenCurlyBracket => "{",
+            Self::CloseCurlyBracket => "}",
             Self::Backtick => "`",
 
             _ => self.name(),
@@ -490,8 +517,11 @@ impl Key {
             Self::Slash => "Slash",
             Self::Pipe => "Pipe",
             Self::Questionmark => "Questionmark",
+            Self::Exclamationmark => "Exclamationmark",
             Self::OpenBracket => "OpenBracket",
             Self::CloseBracket => "CloseBracket",
+            Self::OpenCurlyBracket => "OpenCurlyBracket",
+            Self::CloseCurlyBracket => "CloseCurlyBracket",
             Self::Backtick => "Backtick",
             Self::Quote => "Quote",
 
@@ -567,6 +597,8 @@ impl Key {
             Self::F33 => "F33",
             Self::F34 => "F34",
             Self::F35 => "F35",
+
+            Self::BrowserBack => "BrowserBack",
         }
     }
 }
@@ -575,7 +607,7 @@ impl Key {
 fn test_key_from_name() {
     assert_eq!(
         Key::ALL.len(),
-        Key::F35 as usize + 1,
+        Key::BrowserBack as usize + 1,
         "Some keys are missing in Key::ALL"
     );
 

@@ -1,10 +1,58 @@
 # Changelog for eframe
 All notable changes to the `eframe` crate.
 
-NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/CHANGELOG.md), [`egui_glow`](../egui_glow/CHANGELOG.md),and [`egui-wgpu`](../egui-wgpu/CHANGELOG.md) have their own changelogs!
+NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glow`](../egui_glow/CHANGELOG.md),and [`egui-wgpu`](../egui-wgpu/CHANGELOG.md) have their own changelogs!
 
 This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
+
+
+## 0.32.2 - 2025-09-04
+Nothing new
+
+
+## 0.32.1 - 2025-08-15
+* Enable wgpu default features in eframe / egui_wgpu default features [#7344](https://github.com/emilk/egui/pull/7344) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Request a redraw when the url change through the `popstate` event listener [#7403](https://github.com/emilk/egui/pull/7403) by [@irevoire](https://github.com/irevoire)
+
+
+## 0.32.0 - 2025-07-10
+### ⭐ Added
+* Add pointer events and focus handling for apps run in a Shadow DOM [#5627](https://github.com/emilk/egui/pull/5627) by [@xxvvii](https://github.com/xxvvii)
+* MacOS: Add `movable_by_window_background` option to viewport [#5412](https://github.com/emilk/egui/pull/5412) by [@jim-ec](https://github.com/jim-ec)
+* Add macOS-specific `has_shadow` and `with_has_shadow` to ViewportBuilder [#6850](https://github.com/emilk/egui/pull/6850) by [@gaelanmcmillan](https://github.com/gaelanmcmillan)
+* Add external eventloop support [#6750](https://github.com/emilk/egui/pull/6750) by [@wpbrown](https://github.com/wpbrown)
+
+### 🔧 Changed
+* Update MSRV to 1.85 [#7279](https://github.com/emilk/egui/pull/7279) by [@emilk](https://github.com/emilk)
+* Use Rust edition 2024 [#7280](https://github.com/emilk/egui/pull/7280) by [@emilk](https://github.com/emilk)
+* Rename `should_propagate_event` and add `should_prevent_default` [#5779](https://github.com/emilk/egui/pull/5779) by [@th0rex](https://github.com/th0rex)
+* Clarify platform-specific details for `Viewport` positioning [#5715](https://github.com/emilk/egui/pull/5715) by [@aspiringLich](https://github.com/aspiringLich)
+* Enhance stability on Windows [#5723](https://github.com/emilk/egui/pull/5723) by [@rustbasic](https://github.com/rustbasic)
+* Set `web-sys` min version to `0.3.73` [#5862](https://github.com/emilk/egui/pull/5862) by [@wareya](https://github.com/wareya)
+* Bump `ron` to `0.10.1` [#6861](https://github.com/emilk/egui/pull/6861) by [@torokati44](https://github.com/torokati44)
+* Disallow `accesskit` on Android NativeActivity, making `hello_android` working again [#6855](https://github.com/emilk/egui/pull/6855) by [@podusowski](https://github.com/podusowski)
+* Respect and detect `prefers-color-scheme: no-preference` [#7293](https://github.com/emilk/egui/pull/7293) by [@emilk](https://github.com/emilk)
+
+### 🐛 Fixed
+* Mark all keys as up if the app loses focus [#5743](https://github.com/emilk/egui/pull/5743) by [@emilk](https://github.com/emilk)
+* Fix text input on Android [#5759](https://github.com/emilk/egui/pull/5759) by [@StratusFearMe21](https://github.com/StratusFearMe21)
+* Fix text distortion on mobile devices/browsers with `glow` backend [#6893](https://github.com/emilk/egui/pull/6893) by [@wareya](https://github.com/wareya)
+* Workaround libpng crash on macOS by not creating `NSImage` from png data [#7252](https://github.com/emilk/egui/pull/7252) by [@Wumpf](https://github.com/Wumpf)
+* Fix incorrect window sizes for non-resizable windows on Wayland [#7103](https://github.com/emilk/egui/pull/7103) by [@GoldsteinE](https://github.com/GoldsteinE)
+* Web: only consume copy/cut events if the canvas has focus [#7270](https://github.com/emilk/egui/pull/7270) by [@emilk](https://github.com/emilk)
+
+
+## 0.31.1 - 2025-03-05
+Nothing new
+
+
+## 0.31.0 - 2025-02-04
+* Web: Fix incorrect scale when moving to screen with new DPI [#5631](https://github.com/emilk/egui/pull/5631) by [@emilk](https://github.com/emilk)
+* Re-enable IME support on Linux [#5198](https://github.com/emilk/egui/pull/5198) by [@YgorSouza](https://github.com/YgorSouza)
+* Serialize window maximized state in `WindowSettings` [#5554](https://github.com/emilk/egui/pull/5554) by [@landaire](https://github.com/landaire)
+* Save state on suspend on Android and iOS [#5601](https://github.com/emilk/egui/pull/5601) by [@Pandicon](https://github.com/Pandicon)
+* Eframe web: forward cmd-S/O to egui app (stop default browser action) [#5655](https://github.com/emilk/egui/pull/5655) by [@emilk](https://github.com/emilk)
 
 
 ## 0.30.0 - 2024-12-16 - Android support

@@ -53,6 +53,9 @@ pub enum UiKind {
 
     /// An [`crate::Area`] that is not of any other kind.
     GenericArea,
+
+    /// A collapsible container, e.g. a [`crate::CollapsingHeader`].
+    Collapsible,
 }
 
 impl UiKind {
@@ -81,6 +84,7 @@ impl UiKind {
             | Self::Frame
             | Self::ScrollArea
             | Self::Resize
+            | Self::Collapsible
             | Self::TableCell => false,
 
             Self::Window
@@ -229,13 +233,13 @@ impl UiStack {
     /// Is this [`crate::Ui`] a panel?
     #[inline]
     pub fn is_panel_ui(&self) -> bool {
-        self.kind().map_or(false, |kind| kind.is_panel())
+        self.kind().is_some_and(|kind| kind.is_panel())
     }
 
     /// Is this [`crate::Ui`] an [`crate::Area`]?
     #[inline]
     pub fn is_area_ui(&self) -> bool {
-        self.kind().map_or(false, |kind| kind.is_area())
+        self.kind().is_some_and(|kind| kind.is_area())
     }
 
     /// Is this a root [`crate::Ui`], i.e. created with [`crate::Ui::new()`]?
@@ -254,7 +258,7 @@ impl UiStack {
 // these methods act on the entire stack
 impl UiStack {
     /// Return an iterator that walks the stack from this node to the root.
-    #[allow(clippy::iter_without_into_iter)]
+    #[expect(clippy::iter_without_into_iter)]
     pub fn iter(&self) -> UiStackIterator<'_> {
         UiStackIterator { next: Some(self) }
     }
@@ -285,4 +289,4 @@ impl<'a> Iterator for UiStackIterator<'a> {
     }
 }
 
-impl<'a> FusedIterator for UiStackIterator<'a> {}
+impl FusedIterator for UiStackIterator<'_> {}

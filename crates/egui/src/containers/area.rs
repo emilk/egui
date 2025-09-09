@@ -5,8 +5,8 @@
 use emath::GuiRounding as _;
 
 use crate::{
-    emath, pos2, Align2, Context, Id, InnerResponse, LayerId, NumExt, Order, Pos2, Rect, Response,
-    Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetRect, WidgetWithState,
+    Align2, Context, Id, InnerResponse, LayerId, Layout, NumExt as _, Order, Pos2, Rect, Response,
+    Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetRect, WidgetWithState, emath, pos2,
 };
 
 /// State of an [`Area`] that is persisted between frames.
@@ -103,10 +103,10 @@ impl AreaState {
 ///
 /// The previous rectangle used by this area can be obtained through [`crate::Memory::area_rect()`].
 #[must_use = "You should call .show()"]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct Area {
     pub(crate) id: Id,
-    kind: UiKind,
+    info: UiStackInfo,
     sense: Option<Sense>,
     movable: bool,
     interactable: bool,
@@ -120,6 +120,8 @@ pub struct Area {
     anchor: Option<(Align2, Vec2)>,
     new_pos: Option<Pos2>,
     fade_in: bool,
+    layout: Layout,
+    sizing_pass: bool,
 }
 
 impl WidgetWithState for Area {
@@ -131,7 +133,7 @@ impl Area {
     pub fn new(id: Id) -> Self {
         Self {
             id,
-            kind: UiKind::GenericArea,
+            info: UiStackInfo::new(UiKind::GenericArea),
             sense: None,
             movable: true,
             interactable: true,
@@ -145,6 +147,8 @@ impl Area {
             pivot: Align2::LEFT_TOP,
             anchor: None,
             fade_in: true,
+            layout: Layout::default(),
+            sizing_pass: false,
         }
     }
 
@@ -162,7 +166,16 @@ impl Area {
     /// Default to [`UiKind::GenericArea`].
     #[inline]
     pub fn kind(mut self, kind: UiKind) -> Self {
-        self.kind = kind;
+        self.info = UiStackInfo::new(kind);
+        self
+    }
+
+    /// Set the [`UiStackInfo`] of the area's [`Ui`].
+    ///
+    /// Default to [`UiStackInfo::new(UiKind::GenericArea)`].
+    #[inline]
+    pub fn info(mut self, info: UiStackInfo) -> Self {
+        self.info = info;
         self
     }
 
@@ -339,10 +352,38 @@ impl Area {
         self.fade_in = fade_in;
         self
     }
+
+    /// Set the layout for the child Ui.
+    #[inline]
+    pub fn layout(mut self, layout: Layout) -> Self {
+        self.layout = layout;
+        self
+    }
+
+    /// While true, a sizing pass will be done. This means the area will be invisible
+    /// and the contents will be laid out to estimate the proper containing size of the area.
+    /// If false, there will be no change to the default area behavior. This is useful if the
+    /// area contents area dynamic and you need to need to make sure the area adjusts its size
+    /// accordingly.
+    ///
+    /// This should only be set to true during the specific frames you want force a sizing pass.
+    /// Do NOT hard-code this as `.sizing_pass(true)`, as it will cause the area to never be
+    /// visible.
+    ///
+    /// # Arguments
+    /// - resize: If true, the area will be resized to fit its contents. False will keep the
+    ///   default area resizing behavior.
+    ///
+    /// Default: `false`.
+    #[inline]
+    pub fn sizing_pass(mut self, resize: bool) -> Self {
+        self.sizing_pass = resize;
+        self
+    }
 }
 
 pub(crate) struct Prepared {
-    kind: UiKind,
+    info: Option<UiStackInfo>,
     layer_id: LayerId,
     state: AreaState,
     move_response: Response,
@@ -358,6 +399,7 @@ pub(crate) struct Prepared {
     sizing_pass: bool,
 
     fade_in: bool,
+    layout: Layout,
 }
 
 impl Area {
@@ -366,7 +408,7 @@ impl Area {
         ctx: &Context,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        let prepared = self.begin(ctx);
+        let mut prepared = self.begin(ctx);
         let mut content_ui = prepared.content_ui(ctx);
         let inner = add_contents(&mut content_ui);
         let response = prepared.end(ctx, content_ui);
@@ -376,7 +418,7 @@ impl Area {
     pub(crate) fn begin(self, ctx: &Context) -> Prepared {
         let Self {
             id,
-            kind,
+            info,
             sense,
             movable,
             order,
@@ -390,6 +432,8 @@ impl Area {
             constrain,
             constrain_rect,
             fade_in,
+            layout,
+            sizing_pass: force_sizing_pass,
         } = self;
 
         let constrain_rect = constrain_rect.unwrap_or_else(|| ctx.screen_rect());
@@ -405,6 +449,10 @@ impl Area {
             interactable,
             last_became_visible_at: None,
         });
+        if force_sizing_pass {
+            sizing_pass = true;
+            state.size = None;
+        }
         state.pivot = pivot;
         state.interactable = interactable;
         if let Some(new_pos) = new_pos {
@@ -507,7 +555,7 @@ impl Area {
         move_response.interact_rect = state.rect();
 
         Prepared {
-            kind,
+            info: Some(info),
             layer_id,
             state,
             move_response,
@@ -516,6 +564,7 @@ impl Area {
             constrain_rect,
             sizing_pass,
             fade_in,
+            layout,
         }
     }
 }
@@ -537,13 +586,15 @@ impl Prepared {
         self.constrain_rect
     }
 
-    pub(crate) fn content_ui(&self, ctx: &Context) -> Ui {
+    pub(crate) fn content_ui(&mut self, ctx: &Context) -> Ui {
         let max_rect = self.state.rect();
 
         let mut ui_builder = UiBuilder::new()
-            .ui_stack_info(UiStackInfo::new(self.kind))
+            .ui_stack_info(self.info.take().unwrap_or_default())
             .layer_id(self.layer_id)
-            .max_rect(max_rect);
+            .max_rect(max_rect)
+            .layout(self.layout)
+            .closable();
 
         if !self.enabled {
             ui_builder = ui_builder.disabled();
@@ -579,10 +630,10 @@ impl Prepared {
         self.move_response.id
     }
 
-    #[allow(clippy::needless_pass_by_value)] // intentional to swallow up `content_ui`.
+    #[expect(clippy::needless_pass_by_value)] // intentional to swallow up `content_ui`.
     pub(crate) fn end(self, ctx: &Context, content_ui: Ui) -> Response {
         let Self {
-            kind: _,
+            info: _,
             layer_id,
             mut state,
             move_response: mut response,
@@ -597,6 +648,12 @@ impl Prepared {
         let final_rect = state.rect();
         response.rect = final_rect;
         response.interact_rect = final_rect;
+
+        // TODO(lucasmerlin): Can the area response be based on Ui::response? Then this won't be needed
+        // Bubble up the close event
+        if content_ui.should_close() {
+            response.set_close();
+        }
 
         ctx.memory_mut(|m| m.areas_mut().set_state(layer_id, state));
 
@@ -648,7 +705,7 @@ fn automatic_area_position(ctx: &Context, layer_id: LayerId) -> Pos2 {
         let current_column_bb = column_bbs.last_mut().unwrap();
         if rect.left() < current_column_bb.right() {
             // same column
-            *current_column_bb = current_column_bb.union(rect);
+            *current_column_bb |= rect;
         } else {
             // new column
             column_bbs.push(rect);

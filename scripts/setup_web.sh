@@ -9,6 +9,6 @@ set -x
 rustup target add wasm32-unknown-unknown
 
 # For generating JS bindings:
-if ! cargo install --list | grep -q 'wasm-bindgen-cli v0.2.95'; then
-    cargo install --force --quiet wasm-bindgen-cli --version 0.2.95
+if ! cargo install --list | grep -q 'wasm-bindgen-cli v0.2.97'; then
+    cargo install --force --quiet wasm-bindgen-cli --version 0.2.97
 fi
