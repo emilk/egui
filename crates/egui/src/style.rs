@@ -1307,8 +1307,8 @@ pub fn default_text_styles() -> BTreeMap<TextStyle, FontId> {
 
     [
         (TextStyle::Small, FontId::new(9.0, Proportional)),
-        (TextStyle::Body, FontId::new(12.5, Proportional)),
-        (TextStyle::Button, FontId::new(12.5, Proportional)),
+        (TextStyle::Body, FontId::new(13.0, Proportional)),
+        (TextStyle::Button, FontId::new(13.0, Proportional)),
         (TextStyle::Heading, FontId::new(18.0, Proportional)),
         (TextStyle::Monospace, FontId::new(12.0, Monospace)),
     ]
