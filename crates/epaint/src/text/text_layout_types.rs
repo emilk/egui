@@ -269,8 +269,6 @@ pub struct TextFormat {
     /// Extra spacing between letters, in points.
     ///
     /// Default: 0.0.
-    ///
-    /// For even text it is recommended you round this to an even number of _pixels_.
     pub extra_letter_spacing: f32,
 
     /// Explicit line height of the text in points.
