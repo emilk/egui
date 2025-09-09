@@ -732,10 +732,32 @@ impl TextEdit<'_> {
                 // Condition `!clip_text` is important to avoid breaking layout for `TextEdit::singleline` (PR #5640)
                 let extra_size = galley.size() - rect.size();
                 if extra_size.x > 0.0 || extra_size.y > 0.0 {
-                    ui.allocate_rect(
-                        Rect::from_min_size(outer_rect.max, extra_size),
-                        Sense::hover(),
-                    );
+                    match ui.layout().main_dir() {
+                        crate::Direction::LeftToRight | crate::Direction::TopDown => {
+                            ui.allocate_rect(
+                                Rect::from_min_size(outer_rect.max, extra_size),
+                                Sense::hover(),
+                            );
+                        }
+                        crate::Direction::RightToLeft => {
+                            ui.allocate_rect(
+                                Rect::from_min_size(
+                                    emath::pos2(outer_rect.min.x - extra_size.x, outer_rect.max.y),
+                                    extra_size,
+                                ),
+                                Sense::hover(),
+                            );
+                        }
+                        crate::Direction::BottomUp => {
+                            ui.allocate_rect(
+                                Rect::from_min_size(
+                                    emath::pos2(outer_rect.min.x, outer_rect.max.y - extra_size.y),
+                                    extra_size,
+                                ),
+                                Sense::hover(),
+                            );
+                        }
+                    }
                 }
             }
 
