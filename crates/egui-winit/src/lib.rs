@@ -491,8 +491,7 @@ impl State {
             // Things we completely ignore:
             WindowEvent::ActivationTokenDone { .. }
             | WindowEvent::AxisMotion { .. }
-            | WindowEvent::DoubleTapGesture { .. }
-            | WindowEvent::PanGesture { .. } => EventResponse {
+            | WindowEvent::DoubleTapGesture { .. } => EventResponse {
                 repaint: false,
                 consumed: false,
             },
@@ -515,6 +514,20 @@ impl State {
                 self.egui_input
                     .events
                     .push(egui::Event::Rotate(-delta.to_radians()));
+                EventResponse {
+                    repaint: true,
+                    consumed: self.egui_ctx.wants_pointer_input(),
+                }
+            }
+
+            WindowEvent::PanGesture { delta, .. } => {
+                let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
+
+                self.egui_input.events.push(egui::Event::MouseWheel {
+                    unit: egui::MouseWheelUnit::Point,
+                    delta: Vec2::new(delta.x, delta.y) / pixels_per_point,
+                    modifiers: self.egui_input.modifiers,
+                });
                 EventResponse {
                     repaint: true,
                     consumed: self.egui_ctx.wants_pointer_input(),
