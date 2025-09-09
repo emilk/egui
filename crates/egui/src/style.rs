@@ -1437,7 +1437,7 @@ impl Visuals {
             striped: false,
 
             slider_trailing_fill: false,
-            handle_shape: HandleShape::Circle,
+            handle_shape: HandleShape::Rect { aspect_ratio: 0.75 },
 
             interact_cursor: None,
 
