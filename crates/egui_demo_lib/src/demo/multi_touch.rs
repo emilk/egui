@@ -107,10 +107,7 @@ impl crate::View for MultiTouch {
                     // to the dynamic change (for the current frame) of the touch gesture:
                     self.zoom *= input.zoom_delta();
                     self.rotation += input.rotation_delta();
-                    self.translation += to_screen.inverse().scale()
-                        * input
-                            .multi_touch()
-                            .map_or(input.smooth_scroll_delta, |mt| mt.translation_delta);
+                    self.translation += to_screen.inverse().scale() * input.translation_delta();
                     // touch pressure will make the arrow thicker (not all touch devices support this):
                     stroke_width += 10. * input.multi_touch().map_or(0.0, |touch| touch.force);
 

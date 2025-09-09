@@ -647,6 +647,19 @@ impl InputState {
             .map_or(self.rotation_radians, |touch| touch.rotation_delta)
     }
 
+    /// Panning translation in pixels this frame (e.g. from scrolling or a pan gesture)
+    ///
+    /// The delta indicates how the **content** should move.
+    ///
+    /// A positive X-value indicates the content is being moved right, as when swiping right on a touch-screen or track-pad with natural scrolling.
+    ///
+    /// A positive Y-value indicates the content is being moved down, as when swiping down on a touch-screen or track-pad with natural scrolling.
+    #[inline(always)]
+    pub fn translation_delta(&self) -> Vec2 {
+        self.multi_touch()
+            .map_or(self.smooth_scroll_delta, |touch| touch.translation_delta)
+    }
+
     /// How long has it been (in seconds) since the use last scrolled?
     #[inline(always)]
     pub fn time_since_last_scroll(&self) -> f32 {
