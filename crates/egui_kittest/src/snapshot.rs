@@ -636,48 +636,6 @@ impl<State> Harness<'_, State> {
     }
 }
 
-// Deprecated wgpu_snapshot functions
-// TODO(lucasmerlin): Remove in 0.32
-#[expect(clippy::missing_errors_doc)]
-#[cfg(feature = "wgpu")]
-impl<State> Harness<'_, State> {
-    #[deprecated(
-        since = "0.31.0",
-        note = "Use `try_snapshot_options` instead. This function will be removed in 0.32"
-    )]
-    pub fn try_wgpu_snapshot_options(
-        &mut self,
-        name: impl Into<String>,
-        options: &SnapshotOptions,
-    ) -> SnapshotResult {
-        self.try_snapshot_options(name, options)
-    }
-
-    #[deprecated(
-        since = "0.31.0",
-        note = "Use `try_snapshot` instead. This function will be removed in 0.32"
-    )]
-    pub fn try_wgpu_snapshot(&mut self, name: impl Into<String>) -> SnapshotResult {
-        self.try_snapshot(name)
-    }
-
-    #[deprecated(
-        since = "0.31.0",
-        note = "Use `snapshot_options` instead. This function will be removed in 0.32"
-    )]
-    pub fn wgpu_snapshot_options(&mut self, name: impl Into<String>, options: &SnapshotOptions) {
-        self.snapshot_options(name, options);
-    }
-
-    #[deprecated(
-        since = "0.31.0",
-        note = "Use `snapshot` instead. This function will be removed in 0.32"
-    )]
-    pub fn wgpu_snapshot(&mut self, name: &str) {
-        self.snapshot(name);
-    }
-}
-
 /// Utility to collect snapshot errors and display them at the end of the test.
 ///
 /// # Example
