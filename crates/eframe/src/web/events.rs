@@ -834,7 +834,7 @@ fn install_wheel(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsV
         let should_prevent_default = (runner.web_options.should_prevent_default)(&egui_event);
         runner.input.raw.events.push(egui_event);
 
-        runner.needs_repaint.repaint_asap();
+        runner.needs_repaint.repaint();
 
         // Use web options to tell if the web event should be propagated to parent elements based on the egui event.
         if should_stop_propagation {
