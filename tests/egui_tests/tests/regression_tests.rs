@@ -38,7 +38,7 @@ fn hovering_should_preserve_text_format() {
 #[test]
 fn text_edit_rtl() {
     let mut text = "hello ".to_owned();
-    let mut harness = Harness::builder().with_size((300.0, 100.0)).build_ui(|ui| {
+    let mut harness = Harness::builder().with_size((200.0, 50.0)).build_ui(|ui| {
         ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
             _ = ui.button("right");
             ui.add(
