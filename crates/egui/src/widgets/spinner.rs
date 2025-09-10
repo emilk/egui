@@ -2,6 +2,7 @@ use epaint::{Color32, Pos2, Rect, Shape, Stroke, emath::lerp, vec2};
 
 use crate::{Response, Sense, Ui, Widget, WidgetInfo, WidgetType};
 
+
 /// A spinner widget used to indicate loading.
 ///
 /// See also: [`crate::ProgressBar`].
@@ -11,6 +12,8 @@ pub struct Spinner {
     /// Uses the style's `interact_size` if `None`.
     size: Option<f32>,
     color: Option<Color32>,
+    speed: Option<f64>,      // 旋转速度
+    clockwise: Option<bool>, // 是否顺时针
 }
 
 impl Spinner {
@@ -34,8 +37,20 @@ impl Spinner {
         self
     }
 
+    /// Sets the spinner's rotation speed.
+    pub fn speed(mut self, speed: f64) -> Self {
+        self.speed = Some(speed);
+        self
+    }
+
+    /// Sets the spinner's rotation direction. True for clockwise, false for counter-clockwise.
+    pub fn clockwise(mut self, clockwise: bool) -> Self {
+        self.clockwise = Some(clockwise);
+        self
+    }
+
     /// Paint the spinner in the given rectangle.
-    pub fn paint_at(&self, ui: &Ui, rect: Rect) {
+    pub fn paint_at(&self, ui: &Ui, rect: Rect, speed: f64, clockwise: bool) {
         if ui.is_rect_visible(rect) {
             ui.ctx().request_repaint(); // because it is animated
 
@@ -45,7 +60,7 @@ impl Spinner {
             let radius = (rect.height() / 2.0) - 2.0;
             let n_points = (radius.round() as u32).clamp(8, 128);
             let time = ui.input(|i| i.time);
-            let start_angle = time * std::f64::consts::TAU;
+            let start_angle = time * speed * if clockwise { 1.0 } else { -1.0 } * std::f64::consts::TAU;
             let end_angle = start_angle + 240f64.to_radians() * time.sin();
             let points: Vec<Pos2> = (0..n_points)
                 .map(|i| {
@@ -66,8 +81,10 @@ impl Widget for Spinner {
             .size
             .unwrap_or_else(|| ui.style().spacing.interact_size.y);
         let (rect, response) = ui.allocate_exact_size(vec2(size, size), Sense::hover());
+        let speed = self.speed.unwrap_or(1.0);
+        let clockwise = self.clockwise.unwrap_or(true);
         response.widget_info(|| WidgetInfo::new(WidgetType::ProgressIndicator));
-        self.paint_at(ui, rect);
+        self.paint_at(ui, rect, speed, clockwise);
 
         response
     }
