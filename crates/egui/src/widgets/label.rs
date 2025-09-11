@@ -281,8 +281,14 @@ impl Widget for Label {
 
         if ui.is_rect_visible(response.rect) {
             if show_tooltip_when_elided && galley.elided {
+                // Keep the sections and text, but reset everything else (especially wrapping):
+                let job = crate::text::LayoutJob {
+                    sections: galley.job.sections.clone(),
+                    text: galley.job.text.clone(),
+                    ..crate::text::LayoutJob::default()
+                };
                 // Show the full (non-elided) text on hover:
-                response = response.on_hover_text(galley.job.clone());
+                response = response.on_hover_text(job);
             }
 
             let response_color = if interactive {
