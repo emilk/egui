@@ -18,7 +18,7 @@ fn hovering_should_preserve_text_format() {
     let mut harness = Harness::builder().with_size((200.0, 70.0)).build_ui(|ui| {
         ui.add(
             Label::new(
-                RichText::new("Long text that should be elided and has lots of styling")
+                RichText::new("Long text that should be elided and has lots of styling and is long enough to have multiple lines.")
                     .italics()
                     .underline()
                     .color(Color32::LIGHT_BLUE),
