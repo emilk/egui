@@ -75,13 +75,11 @@ impl std::ops::DerefMut for BarState {
 }
 
 fn set_menu_style(style: &mut Style) {
-    if style.compact_menu_style {
-        style.spacing.button_padding = vec2(2.0, 0.0);
-        style.visuals.widgets.active.bg_stroke = Stroke::NONE;
-        style.visuals.widgets.hovered.bg_stroke = Stroke::NONE;
-        style.visuals.widgets.inactive.weak_bg_fill = Color32::TRANSPARENT;
-        style.visuals.widgets.inactive.bg_stroke = Stroke::NONE;
-    }
+    style.spacing.button_padding = vec2(2.0, 0.0);
+    style.visuals.widgets.active.bg_stroke = Stroke::NONE;
+    style.visuals.widgets.hovered.bg_stroke = Stroke::NONE;
+    style.visuals.widgets.inactive.weak_bg_fill = Color32::TRANSPARENT;
+    style.visuals.widgets.inactive.bg_stroke = Stroke::NONE;
 }
 
 /// The menu bar goes well in a [`crate::TopBottomPanel::top`],
