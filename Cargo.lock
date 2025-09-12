@@ -1197,7 +1197,7 @@ checksum = "f25c0e292a7ca6d6498557ff1df68f32c99850012b6ea401cf8daf771f22ff53"
 
 [[package]]
 name = "ecolor"
-version = "0.32.2"
+version = "0.32.3"
 dependencies = [
  "bytemuck",
  "cint",
@@ -1209,7 +1209,7 @@ dependencies = [
 
 [[package]]
 name = "eframe"
-version = "0.32.2"
+version = "0.32.3"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -1249,7 +1249,7 @@ dependencies = [
 
 [[package]]
 name = "egui"
-version = "0.32.2"
+version = "0.32.3"
 dependencies = [
  "accesskit",
  "ahash",
@@ -1269,7 +1269,7 @@ dependencies = [
 
 [[package]]
 name = "egui-wgpu"
-version = "0.32.2"
+version = "0.32.3"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -1287,7 +1287,7 @@ dependencies = [
 
 [[package]]
 name = "egui-winit"
-version = "0.32.2"
+version = "0.32.3"
 dependencies = [
  "accesskit_winit",
  "ahash",
@@ -1308,7 +1308,7 @@ dependencies = [
 
 [[package]]
 name = "egui_demo_app"
-version = "0.32.2"
+version = "0.32.3"
 dependencies = [
  "bytemuck",
  "chrono",
@@ -1336,7 +1336,7 @@ dependencies = [
 
 [[package]]
 name = "egui_demo_lib"
-version = "0.32.2"
+version = "0.32.3"
 dependencies = [
  "chrono",
  "criterion",
@@ -1353,7 +1353,7 @@ dependencies = [
 
 [[package]]
 name = "egui_extras"
-version = "0.32.2"
+version = "0.32.3"
 dependencies = [
  "ahash",
  "chrono",
@@ -1372,7 +1372,7 @@ dependencies = [
 
 [[package]]
 name = "egui_glow"
-version = "0.32.2"
+version = "0.32.3"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -1392,7 +1392,7 @@ dependencies = [
 
 [[package]]
 name = "egui_kittest"
-version = "0.32.2"
+version = "0.32.3"
 dependencies = [
  "dify",
  "document-features",
@@ -1408,7 +1408,7 @@ dependencies = [
 
 [[package]]
 name = "egui_tests"
-version = "0.32.2"
+version = "0.32.3"
 dependencies = [
  "egui",
  "egui_extras",
@@ -1438,7 +1438,7 @@ checksum = "60b1af1c220855b6ceac025d3f6ecdd2b7c4894bfe9cd9bda4fbb4bc7c0d4cf0"
 
 [[package]]
 name = "emath"
-version = "0.32.2"
+version = "0.32.3"
 dependencies = [
  "bytemuck",
  "document-features",
@@ -1535,7 +1535,7 @@ dependencies = [
 
 [[package]]
 name = "epaint"
-version = "0.32.2"
+version = "0.32.3"
 dependencies = [
  "ab_glyph",
  "ahash",
@@ -1558,7 +1558,7 @@ dependencies = [
 
 [[package]]
 name = "epaint_default_fonts"
-version = "0.32.2"
+version = "0.32.3"
 
 [[package]]
 name = "equivalent"
@@ -3242,7 +3242,7 @@ checksum = "2f3a9f18d041e6d0e102a0a46750538147e5e8992d3b4873aaafee2520b00ce3"
 
 [[package]]
 name = "popups"
-version = "0.32.2"
+version = "0.32.3"
 dependencies = [
  "eframe",
  "env_logger",
@@ -5509,7 +5509,7 @@ checksum = "ec7a2a501ed189703dba8b08142f057e887dfc4b2cc4db2d343ac6376ba3e0b9"
 
 [[package]]
 name = "xtask"
-version = "0.32.2"
+version = "0.32.3"
 
 [[package]]
 name = "yaml-rust"
