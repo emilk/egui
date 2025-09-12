@@ -32,10 +32,10 @@ mod mutex_impl {
             if cfg!(debug_assertions) {
                 self.0.try_lock_for(DEADLOCK_DURATION).unwrap_or_else(|| {
                     panic!(
-                    "DEBUG PANIC: Failed to acquire Mutex after {}s. Deadlock?",
-                    DEADLOCK_DURATION.as_secs()
+                        "DEBUG PANIC: Failed to acquire Mutex after {}s. Deadlock?",
+                        DEADLOCK_DURATION.as_secs()
                     )
-            })
+                })
             } else {
                 self.0.lock()
             }
@@ -166,10 +166,10 @@ mod rw_lock_impl {
             let guard = if cfg!(debug_assertions) {
                 self.0.try_read_for(DEADLOCK_DURATION).unwrap_or_else(|| {
                     panic!(
-                    "DEBUG PANIC: Failed to acquire RwLock read after {}s. Deadlock?",
-                    DEADLOCK_DURATION.as_secs()
+                        "DEBUG PANIC: Failed to acquire RwLock read after {}s. Deadlock?",
+                        DEADLOCK_DURATION.as_secs()
                     )
-            })
+                })
             } else {
                 self.0.read()
             };
@@ -182,10 +182,10 @@ mod rw_lock_impl {
             let guard = if cfg!(debug_assertions) {
                 self.0.try_write_for(DEADLOCK_DURATION).unwrap_or_else(|| {
                     panic!(
-                    "DEBUG PANIC: Failed to acquire RwLock write after {}s. Deadlock?",
-                    DEADLOCK_DURATION.as_secs()
+                        "DEBUG PANIC: Failed to acquire RwLock write after {}s. Deadlock?",
+                        DEADLOCK_DURATION.as_secs()
                     )
-            })
+                })
             } else {
                 self.0.write()
             };
