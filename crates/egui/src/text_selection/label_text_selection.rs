@@ -218,6 +218,98 @@ impl LabelSelectionState {
         self.selection = None;
     }
 
+    /// Get the currently selected character range, if any.
+    ///
+    /// Returns `None` if there's no active selection, or `Some((widget_id, char_range))`
+    /// where `char_range` is the range of selected character indices.
+    ///
+    /// Note: This only works for single-widget selections. For multi-widget selections,
+    /// this will return the range within the widget that contains the primary cursor.
+    pub fn selected_char_range(&self) -> Option<(Id, std::ops::Range<usize>)> {
+        let selection = self.selection.as_ref()?;
+
+        // For simplicity, we return the range for the widget containing the primary cursor
+        let widget_id = selection.primary.widget_id;
+
+        // We need to find the galley for this widget to calculate the character range
+        // Since we don't have direct access to the galley here, we return the cursor positions
+        // and let the caller handle the conversion if needed
+        let primary_index = selection.primary.ccursor.index;
+        let secondary_index = selection.secondary.ccursor.index;
+
+        let range = if primary_index <= secondary_index {
+            primary_index..secondary_index
+        } else {
+            secondary_index..primary_index
+        };
+
+        Some((widget_id, range))
+    }
+
+    /// Get the currently selected text from a specific widget, if any.
+    ///
+    /// Returns `None` if there's no active selection or if the provided widget_id
+    /// doesn't match the widget containing the selection.
+    ///
+    /// # Parameters
+    /// - `widget_id`: The ID of the widget to get the selection from
+    /// - `galley`: The galley containing the text
+    pub fn selected_text(&self, widget_id: Id, galley: &Galley) -> Option<String> {
+        let selection = self.selection.as_ref()?;
+        
+        // Check if this widget contains part of the selection
+        let has_primary = selection.primary.widget_id == widget_id;
+        let has_secondary = selection.secondary.widget_id == widget_id;
+        
+        if !has_primary && !has_secondary {
+            return None;
+        }
+        
+        let cursor_range = if has_primary && has_secondary {
+            // This widget contains the entire selection
+            CCursorRange {
+                primary: selection.primary.ccursor,
+                secondary: selection.secondary.ccursor,
+                h_pos: None,
+            }
+        } else if has_primary {
+            // This widget contains only the primary cursor - select to end or beginning
+            let secondary = if self.has_reached_secondary {
+                galley.begin()
+            } else {
+                galley.end()
+            };
+            CCursorRange {
+                primary: selection.primary.ccursor,
+                secondary,
+                h_pos: None,
+            }
+        } else {
+            // This widget contains only the secondary cursor - select to end or beginning  
+            let primary = if self.has_reached_primary {
+                galley.begin()
+            } else {
+                galley.end()
+            };
+            CCursorRange {
+                primary,
+                secondary: selection.secondary.ccursor,
+                h_pos: None,
+            }
+        };
+        
+        Some(selected_text(galley, &cursor_range))
+    }
+
+    /// Check if a specific widget has any text selected.
+    pub fn widget_has_selection(&self, widget_id: Id) -> bool {
+        if let Some(selection) = &self.selection {
+            selection.primary.widget_id == widget_id || selection.secondary.widget_id == widget_id
+        } else {
+            false
+        }
+    }
+
     fn copy_text(&mut self, new_galley_rect: Rect, galley: &Galley, cursor_range: &CCursorRange) {
         let new_text = selected_text(galley, cursor_range);
         if new_text.is_empty() {

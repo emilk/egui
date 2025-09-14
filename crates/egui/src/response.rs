@@ -947,6 +947,77 @@ impl Response {
         Popup::context_menu(self).is_open()
     }
 
+    // ----------------------------------------------------------------------------
+    // Text Selection API for Labels
+
+    /// Get the currently selected character range from this label widget, if any.
+    /// 
+    /// Returns `None` if there's no text selection or if this widget doesn't contain 
+    /// the selection. Returns `Some(char_range)` where `char_range` is the range 
+    /// of selected character indices.
+    /// 
+    /// This is most useful for labels that have text selection enabled.
+    /// 
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// let response = ui.add(egui::Label::new("Some selectable text").selectable(true));
+    /// if let Some(range) = response.selected_char_range() {
+    ///     println!("Selected characters {}-{}", range.start, range.end);
+    /// }
+    /// # });
+    /// ```
+    pub fn selected_char_range(&self) -> Option<std::ops::Range<usize>> {
+        use crate::text_selection::LabelSelectionState;
+        let state = LabelSelectionState::load(&self.ctx);
+        state.selected_char_range().and_then(|(widget_id, range)| {
+            if widget_id == self.id {
+                Some(range)
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Get the currently selected text from this label widget, if any.
+    /// 
+    /// Returns `None` if there's no text selection or if this widget doesn't contain 
+    /// the selection. This method requires a galley to extract the actual text.
+    /// 
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// let galley = ui.fonts(|fonts| fonts.layout_job(egui::text::LayoutJob::simple_singleline("Hello world".to_string(), egui::FontId::default(), egui::Color32::BLACK)));
+    /// let response = ui.add(egui::Label::new("Some selectable text").selectable(true));
+    /// if let Some(selected_text) = response.selected_text(&galley) {
+    ///     println!("Selected text: {}", selected_text);
+    /// }
+    /// # });
+    /// ```
+    pub fn selected_text(&self, galley: &crate::Galley) -> Option<String> {
+        use crate::text_selection::LabelSelectionState;
+        let state = LabelSelectionState::load(&self.ctx);
+        state.selected_text(self.id, galley)
+    }
+
+    /// Check if this label widget has any text selected.
+    /// 
+    /// Returns `true` if this widget contains any part of the current text selection.
+    /// 
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// let response = ui.add(egui::Label::new("Some selectable text").selectable(true));
+    /// if response.has_text_selection() {
+    ///     println!("This label has selected text!");
+    /// }
+    /// # });
+    /// ```
+    pub fn has_text_selection(&self) -> bool {
+        use crate::text_selection::LabelSelectionState;
+        let state = LabelSelectionState::load(&self.ctx);
+        state.widget_has_selection(self.id)
+    }
+
+    // ----------------------------------------------------------------------------
+
     /// Draw a debug rectangle over the response displaying the response's id and whether it is
     /// enabled and/or hovered.
     ///
