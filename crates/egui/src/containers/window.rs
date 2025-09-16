@@ -476,7 +476,7 @@ impl Window<'_> {
         let (title_bar_height_with_margin, title_content_spacing) = if with_title_bar {
             let style = ctx.style();
             let title_bar_inner_height = ctx
-                .fonts(|fonts| title.font_height(fonts, &style))
+                .fonts_mut(|fonts| title.font_height(fonts, &style))
                 .at_least(style.spacing.interact_size.y);
             let title_bar_inner_height = title_bar_inner_height + window_frame.inner_margin.sum().y;
             let half_height = (title_bar_inner_height / 2.0).round() as _;

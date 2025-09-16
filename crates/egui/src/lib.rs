@@ -500,7 +500,7 @@ pub use self::{
     layers::{LayerId, Order},
     layout::*,
     load::SizeHint,
-    memory::{Memory, Options, Theme, ThemePreference},
+    memory::{FocusDirection, Memory, Options, Theme, ThemePreference},
     painter::Painter,
     plugin::Plugin,
     response::{InnerResponse, Response},
@@ -669,8 +669,6 @@ pub enum WidgetType {
     DragValue,
 
     ColorButton,
-
-    ImageButton,
 
     Image,
 

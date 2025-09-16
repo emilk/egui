@@ -30,4 +30,4 @@ jobs:
         with:
           mode: minimum
           count: 1
-          labels: "CI, dependencies, docs and examples, ecolor, eframe, egui_extras, egui_glow, egui_kittest, egui-wgpu, egui-winit, egui, epaint, epaint_default_fonts, exclude from changelog, typo"
+          labels: "CI, dependencies, docs and examples, ecolor, eframe, egui_extras, egui_glow, egui_kittest, egui-wgpu, egui-winit, egui, emath, epaint, epaint_default_fonts, exclude from changelog, typo"

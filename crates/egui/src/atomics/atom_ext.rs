@@ -60,7 +60,7 @@ pub trait AtomExt<'a> {
     {
         let font_selection = FontSelection::default();
         let font_id = font_selection.resolve(ui.style());
-        let height = ui.fonts(|f| f.row_height(&font_id));
+        let height = ui.fonts_mut(|f| f.row_height(&font_id));
         self.atom_max_height(height)
     }
 }

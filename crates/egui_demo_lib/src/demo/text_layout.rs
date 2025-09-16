@@ -5,7 +5,7 @@ pub struct TextLayoutDemo {
     break_anywhere: bool,
     max_rows: usize,
     overflow_character: Option<char>,
-    extra_letter_spacing_pixels: i32,
+    extra_letter_spacing: f32,
     line_height_pixels: u32,
     lorem_ipsum: bool,
 }
@@ -16,7 +16,7 @@ impl Default for TextLayoutDemo {
             max_rows: 6,
             break_anywhere: true,
             overflow_character: Some('…'),
-            extra_letter_spacing_pixels: 0,
+            extra_letter_spacing: 0.0,
             line_height_pixels: 0,
             lorem_ipsum: true,
         }
@@ -45,7 +45,7 @@ impl crate::View for TextLayoutDemo {
             break_anywhere,
             max_rows,
             overflow_character,
-            extra_letter_spacing_pixels,
+            extra_letter_spacing,
             line_height_pixels,
             lorem_ipsum,
         } = self;
@@ -85,7 +85,7 @@ impl crate::View for TextLayoutDemo {
                 ui.end_row();
 
                 ui.label("Extra letter spacing:");
-                ui.add(egui::DragValue::new(extra_letter_spacing_pixels).suffix(" pixels"));
+                ui.add(egui::DragValue::new(extra_letter_spacing).speed(0.1));
                 ui.end_row();
 
                 ui.label("Line height:");
@@ -126,14 +126,13 @@ impl crate::View for TextLayoutDemo {
         egui::ScrollArea::vertical()
             .auto_shrink(false)
             .show(ui, |ui| {
-                let extra_letter_spacing = points_per_pixel * *extra_letter_spacing_pixels as f32;
                 let line_height = (*line_height_pixels != 0)
                     .then_some(points_per_pixel * *line_height_pixels as f32);
 
                 let mut job = LayoutJob::single_section(
                     text.to_owned(),
                     egui::TextFormat {
-                        extra_letter_spacing,
+                        extra_letter_spacing: *extra_letter_spacing,
                         line_height,
                         ..Default::default()
                     },

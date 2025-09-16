@@ -470,6 +470,7 @@ impl CodeTheme {
 // ----------------------------------------------------------------------------
 
 #[cfg(feature = "syntect")]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SyntectSettings {
     pub ps: syntect::parsing::SyntaxSet,
     pub ts: syntect::highlighting::ThemeSet,

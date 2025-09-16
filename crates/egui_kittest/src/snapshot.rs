@@ -285,14 +285,34 @@ impl Display for SnapshotError {
     }
 }
 
-/// If this is set, we update the snapshots (if different),
-/// and _succeed_ the test.
-/// This is so that you can set `UPDATE_SNAPSHOTS=true` and update _all_ tests,
-/// without `cargo test` failing on the first failing crate.
-fn should_update_snapshots() -> bool {
-    match std::env::var("UPDATE_SNAPSHOTS") {
-        Ok(value) => !matches!(value.as_str(), "false" | "0" | "no" | "off"),
-        Err(_) => false,
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Mode {
+    Test,
+    UpdateFailing,
+    UpdateAll,
+}
+
+impl Mode {
+    fn from_env() -> Self {
+        let Ok(value) = std::env::var("UPDATE_SNAPSHOTS") else {
+            return Self::Test;
+        };
+
+        match value.as_str() {
+            "false" | "0" | "no" | "off" => Self::Test,
+            "true" | "1" | "yes" | "on" => Self::UpdateFailing,
+            "force" => Self::UpdateAll,
+            unknown => {
+                panic!("Unsupported value for UPDATE_SNAPSHOTS: {unknown:?}");
+            }
+        }
+    }
+
+    fn is_update(&self) -> bool {
+        match self {
+            Self::Test => false,
+            Self::UpdateFailing | Self::UpdateAll => true,
+        }
     }
 }
 
@@ -329,6 +349,8 @@ fn try_image_snapshot_options_impl(
     options: &SnapshotOptions,
 ) -> SnapshotResult {
     #![expect(clippy::print_stdout)]
+
+    let mode = Mode::from_env();
 
     let SnapshotOptions {
         threshold,
@@ -386,7 +408,7 @@ fn try_image_snapshot_options_impl(
         Ok(image) => image.to_rgba8(),
         Err(err) => {
             // No previous snapshot - probablye a new test.
-            if should_update_snapshots() {
+            if mode.is_update() {
                 return update_snapshot();
             } else {
                 return Err(SnapshotError::OpenSnapshot {
@@ -398,7 +420,7 @@ fn try_image_snapshot_options_impl(
     };
 
     if previous.dimensions() != new.dimensions() {
-        if should_update_snapshots() {
+        if mode.is_update() {
             return update_snapshot();
         } else {
             return Err(SnapshotError::SizeMismatch {
@@ -410,29 +432,45 @@ fn try_image_snapshot_options_impl(
     }
 
     // Compare existing image to the new one:
-    let result =
-        dify::diff::get_results(previous, new.clone(), *threshold, true, None, &None, &None);
+    let threshold = if mode == Mode::UpdateAll {
+        0.0
+    } else {
+        *threshold
+    };
 
-    if let Some((num_wrong_pixels, result_image)) = result {
-        result_image
+    let result =
+        dify::diff::get_results(previous, new.clone(), threshold, true, None, &None, &None);
+
+    if let Some((num_wrong_pixels, diff_image)) = result {
+        diff_image
             .save(diff_path.clone())
             .map_err(|err| SnapshotError::WriteSnapshot {
                 path: diff_path.clone(),
                 err,
             })?;
 
-        if num_wrong_pixels as i64 <= *failed_pixel_count_threshold as i64 {
-            return Ok(());
-        }
+        let is_sameish = num_wrong_pixels as i64 <= *failed_pixel_count_threshold as i64;
 
-        if should_update_snapshots() {
-            update_snapshot()
-        } else {
-            Err(SnapshotError::Diff {
-                name,
-                diff: num_wrong_pixels,
-                diff_path,
-            })
+        match mode {
+            Mode::Test => {
+                if is_sameish {
+                    Ok(())
+                } else {
+                    Err(SnapshotError::Diff {
+                        name,
+                        diff: num_wrong_pixels,
+                        diff_path,
+                    })
+                }
+            }
+            Mode::UpdateFailing => {
+                if is_sameish {
+                    Ok(())
+                } else {
+                    update_snapshot()
+                }
+            }
+            Mode::UpdateAll => update_snapshot(),
         }
     } else {
         Ok(())
@@ -595,48 +633,6 @@ impl<State> Harness<'_, State> {
                 panic!("{}", err);
             }
         }
-    }
-}
-
-// Deprecated wgpu_snapshot functions
-// TODO(lucasmerlin): Remove in 0.32
-#[expect(clippy::missing_errors_doc)]
-#[cfg(feature = "wgpu")]
-impl<State> Harness<'_, State> {
-    #[deprecated(
-        since = "0.31.0",
-        note = "Use `try_snapshot_options` instead. This function will be removed in 0.32"
-    )]
-    pub fn try_wgpu_snapshot_options(
-        &mut self,
-        name: impl Into<String>,
-        options: &SnapshotOptions,
-    ) -> SnapshotResult {
-        self.try_snapshot_options(name, options)
-    }
-
-    #[deprecated(
-        since = "0.31.0",
-        note = "Use `try_snapshot` instead. This function will be removed in 0.32"
-    )]
-    pub fn try_wgpu_snapshot(&mut self, name: impl Into<String>) -> SnapshotResult {
-        self.try_snapshot(name)
-    }
-
-    #[deprecated(
-        since = "0.31.0",
-        note = "Use `snapshot_options` instead. This function will be removed in 0.32"
-    )]
-    pub fn wgpu_snapshot_options(&mut self, name: impl Into<String>, options: &SnapshotOptions) {
-        self.snapshot_options(name, options);
-    }
-
-    #[deprecated(
-        since = "0.31.0",
-        note = "Use `snapshot` instead. This function will be removed in 0.32"
-    )]
-    pub fn wgpu_snapshot(&mut self, name: &str) {
-        self.snapshot(name);
     }
 }
 

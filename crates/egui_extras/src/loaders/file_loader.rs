@@ -100,7 +100,6 @@ impl BytesLoader for FileLoader {
                             if let std::collections::hash_map::Entry::Occupied(mut entry) = cache.entry(uri.clone()) {
                                 let entry = entry.get_mut();
                                 *entry = Poll::Ready(result);
-                                ctx.request_repaint();
                                 log::trace!("Finished loading {uri:?}");
                                 true
                             } else {
