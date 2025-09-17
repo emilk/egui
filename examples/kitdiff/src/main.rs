@@ -2,7 +2,7 @@ mod diff_loader;
 
 use crate::diff_loader::DiffLoader;
 use eframe::egui::panel::Side;
-use eframe::egui::{Context, Image, ScrollArea, SizeHint, Slider};
+use eframe::egui::{Align, Context, Image, ScrollArea, SizeHint, Slider};
 use eframe::{Frame, NativeOptions, egui};
 use egui_extras::install_image_loaders;
 use ignore::WalkBuilder;
@@ -187,6 +187,25 @@ impl eframe::App for App {
             }
         }
 
+        let mut new_index = None;
+        if ctx.input_mut(|i| {
+            i.key_pressed(egui::Key::ArrowRight) || i.key_pressed(egui::Key::ArrowDown)
+        }) {
+            if self.index + 1 < self.snapshots.len() {
+                new_index = Some(self.index + 1);
+            }
+        }
+        if ctx
+            .input_mut(|i| i.key_pressed(egui::Key::ArrowLeft) || i.key_pressed(egui::Key::ArrowUp))
+        {
+            if self.index > 0 {
+                new_index = Some(self.index - 1);
+            }
+        }
+        if let Some(new_index) = new_index {
+            self.index = new_index;
+        }
+
         egui::SidePanel::new(Side::Left, "files").show(ctx, |ui| {
             ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
 
@@ -203,13 +222,16 @@ impl eframe::App for App {
                     }
 
                     ui.indent(&snapshot.path, |ui| {
-                        if ui
-                            .selectable_label(
-                                i == self.index,
-                                snapshot.path.file_name().unwrap().to_str().unwrap(),
-                            )
-                            .clicked()
-                        {
+                        let response = ui.selectable_label(
+                            i == self.index,
+                            snapshot.path.file_name().unwrap().to_str().unwrap(),
+                        );
+
+                        if Some(i) == new_index {
+                            response.scroll_to_me(Some(Align::Center))
+                        }
+
+                        if response.clicked() {
                             self.index = i;
                         }
                     });
@@ -218,21 +240,6 @@ impl eframe::App for App {
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            if ui.input_mut(|i| {
-                i.key_pressed(egui::Key::ArrowRight) || i.key_pressed(egui::Key::ArrowDown)
-            }) {
-                if self.index + 1 < self.snapshots.len() {
-                    self.index += 1;
-                }
-            }
-            if ui.input_mut(|i| {
-                i.key_pressed(egui::Key::ArrowLeft) || i.key_pressed(egui::Key::ArrowUp)
-            }) {
-                if self.index > 0 {
-                    self.index -= 1;
-                }
-            }
-
             ui.horizontal_wrapped(|ui| {
                 ui.add(Slider::new(&mut self.new_opacity, 0.0..=1.0).text("New Opacity"));
                 ui.add(Slider::new(&mut self.diff_opacity, 0.0..=1.0).text("Diff Opacity"));
