@@ -113,7 +113,7 @@ wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 web-sys = "0.3.73"
 web-time = "1.1.0" # Timekeeping for native and web
-wgpu = { version = "25.0.0", default-features = false }
+wgpu = { version = "26.0.1", default-features = false }
 windows-sys = "0.60"
 winit = { version = "0.30.12", default-features = false }
 
