@@ -1,0 +1,13 @@
+[package]
+name = "kitdiff"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+eframe.workspace = true
+egui_extras = { workspace = true, features = ["image", "file"]}
+
+[lints]
+workspace = true
