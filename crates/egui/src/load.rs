@@ -387,7 +387,7 @@ pub type ImageLoadResult = Result<ImagePoll>;
 /// An `ImageLoader` decodes raw bytes into a [`ColorImage`].
 ///
 /// Implementations are expected to cache at least each `URI`.
-pub trait ImageLoader {
+pub trait ImageLoader: std::any::Any {
     /// Unique ID of this loader.
     ///
     /// To reduce the chance of collisions, include `module_path!()` as part of this ID.

@@ -2,11 +2,13 @@ use eframe::egui::load::{ImageLoadResult, ImageLoader, ImagePoll, LoadError};
 use eframe::egui::mutex::Mutex;
 use eframe::egui::{ColorImage, Context, Image, ImageSource, SizeHint};
 use eframe::epaint::ahash::HashMap;
+use egui_extras::loaders::image_loader::ImageCrateLoader;
 use std::sync::Arc;
 use std::time::Duration;
 
 #[derive(Default)]
 pub struct DiffLoader {
+    image_loader: Arc<ImageCrateLoader>,
     diffs: Arc<Mutex<HashMap<String, ImageLoadResult>>>,
 }
 
@@ -27,6 +29,23 @@ impl DiffUri {
     }
 }
 
+impl DiffLoader {
+    pub fn new(ctx: &Context) -> Self {
+        let image_loader = ctx
+            .loaders()
+            .image
+            .lock()
+            .iter()
+            .find_map(|l| Arc::downcast(l.clone()).ok())
+            .expect("egui_extra ImageLoader should be installed");
+
+        Self {
+            image_loader,
+            diffs: Arc::new(Mutex::new(HashMap::default())),
+        }
+    }
+}
+
 impl ImageLoader for DiffLoader {
     fn id(&self) -> &str {
         "DiffLoader"
@@ -40,20 +59,31 @@ impl ImageLoader for DiffLoader {
             image.clone()
         } else {
             if let Some(diff_uri) = DiffUri::from_uri(uri) {
-                let cache = self.diffs.clone();
-                let ctx = ctx.clone();
+                let old_image = self.image_loader.load(ctx, &diff_uri.old, size_hint);
+                let new_image = self.image_loader.load(ctx, &diff_uri.new, size_hint);
 
-                self.diffs.lock().insert(
-                    diff_uri.to_uri(),
-                    ImageLoadResult::Ok(ImagePoll::Pending { size: None }),
-                );
+                let (old_image, new_image) = (old_image?, new_image?);
 
-                let uri = uri.to_string();
-                std::thread::spawn(move || {
-                    ctx.request_repaint();
-                    let result = load_diffs(&ctx, size_hint, diff_uri);
-                    cache.lock().insert(uri, result);
-                });
+                if let (
+                    ImagePoll::Ready { image: old_image },
+                    ImagePoll::Ready { image: new_image },
+                ) = (old_image, new_image)
+                {
+                    let cache = self.diffs.clone();
+                    let ctx = ctx.clone();
+
+                    self.diffs.lock().insert(
+                        diff_uri.to_uri(),
+                        ImageLoadResult::Ok(ImagePoll::Pending { size: None }),
+                    );
+
+                    let uri = uri.to_string();
+                    std::thread::spawn(move || {
+                        ctx.request_repaint();
+                        let result = load_diffs(&ctx, old_image, new_image, size_hint, diff_uri);
+                        cache.lock().insert(uri, result);
+                    });
+                }
                 ImageLoadResult::Ok(ImagePoll::Pending { size: None })
             } else {
                 ImageLoadResult::Err(LoadError::NotSupported)
@@ -74,23 +104,13 @@ impl ImageLoader for DiffLoader {
     }
 }
 
-pub fn load_diffs(ctx: &Context, size_hint: SizeHint, diff_uri: DiffUri) -> ImageLoadResult {
-    let (old_img, new_img) = loop {
-        let old_image = ctx.try_load_image(&diff_uri.old, size_hint);
-        let new_image = ctx.try_load_image(&diff_uri.new, size_hint);
-
-        let old_image = old_image?;
-        let new_image = new_image?;
-
-        if let (ImagePoll::Ready { image: old_image }, ImagePoll::Ready { image: new_image }) =
-            (old_image, new_image)
-        {
-            break (old_image, new_image);
-        }
-
-        std::thread::sleep(Duration::from_millis(10));
-    };
-
+pub fn load_diffs(
+    ctx: &Context,
+    old_img: Arc<ColorImage>,
+    new_img: Arc<ColorImage>,
+    size_hint: SizeHint,
+    diff_uri: DiffUri,
+) -> ImageLoadResult {
     let old = image::RgbaImage::from_vec(
         old_img.width() as u32,
         old_img.height() as u32,
