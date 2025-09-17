@@ -13,7 +13,8 @@ use crate::{Response, Sense, Ui, Vec2, Widget, vec2};
 /// ```
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct Separator {
-    spacing: f32,
+    /// None if inheriting from `Spacing::item_spacing()` (the default)
+    spacing: Option<f32>,
     grow: f32,
     is_horizontal_line: Option<bool>,
 }
@@ -21,7 +22,7 @@ pub struct Separator {
 impl Default for Separator {
     fn default() -> Self {
         Self {
-            spacing: 6.0,
+            spacing: None,
             grow: 0.0,
             is_horizontal_line: None,
         }
@@ -38,7 +39,7 @@ impl Separator {
     /// this is the width of the separator widget.
     #[inline]
     pub fn spacing(mut self, spacing: f32) -> Self {
-        self.spacing = spacing;
+        self.spacing = Some(spacing);
         self
     }
 
@@ -102,10 +103,12 @@ impl Widget for Separator {
             ui.available_size_before_wrap()
         };
 
+        let item_spacing = ui.style().spacing.item_spacing;
+
         let size = if is_horizontal_line {
-            vec2(available_space.x, spacing)
+            vec2(available_space.x, spacing.unwrap_or(item_spacing.y))
         } else {
-            vec2(spacing, available_space.y)
+            vec2(spacing.unwrap_or(item_spacing.x), available_space.y)
         };
 
         let (rect, response) = ui.allocate_at_least(size, Sense::hover());
