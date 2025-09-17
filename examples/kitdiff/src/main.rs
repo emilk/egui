@@ -1,7 +1,8 @@
 mod diff_loader;
 
 use crate::diff_loader::DiffLoader;
-use eframe::egui::{Context, Image, SizeHint, Slider};
+use eframe::egui::panel::Side;
+use eframe::egui::{Context, Image, ScrollArea, SizeHint, Slider};
 use eframe::{Frame, NativeOptions, egui};
 use egui_extras::install_image_loaders;
 use ignore::WalkBuilder;
@@ -19,7 +20,7 @@ fn main() -> eframe::Result<()> {
 
 #[derive(Debug)]
 struct Snapshot {
-    name: String,
+    path: PathBuf,
     old: PathBuf,
     new: PathBuf,
     diff: Option<PathBuf>,
@@ -139,12 +140,11 @@ impl App {
 
         // Determine which files exist and create appropriate snapshot
         let relative_path = png_path.strip_prefix(".").unwrap_or(png_path);
-        let name = relative_path.display().to_string();
 
         if old_path.exists() {
             // old.png exists, use original as new and old.png as old
             Some(Snapshot {
-                name,
+                path: relative_path.to_path_buf(),
                 old: old_path,
                 new: png_path.to_path_buf(),
                 diff: Some(diff_path),
@@ -152,7 +152,7 @@ impl App {
         } else if new_path.exists() {
             // new.png exists, use original as old and new.png as new
             Some(Snapshot {
-                name,
+                path: relative_path.to_path_buf(),
                 old: png_path.to_path_buf(),
                 new: new_path,
                 diff: Some(diff_path),
@@ -187,13 +187,47 @@ impl eframe::App for App {
             }
         }
 
+        egui::SidePanel::new(Side::Left, "files").show(ctx, |ui| {
+            ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
+
+            ScrollArea::vertical().show(ui, |ui| {
+                ui.set_width(ui.available_width());
+                let mut current_prefix = None;
+                for (i, snapshot) in self.snapshots.iter().enumerate() {
+                    let prefix = snapshot.old.parent().and_then(|p| p.to_str());
+                    if prefix != current_prefix {
+                        if let Some(prefix) = prefix {
+                            ui.label(prefix);
+                        }
+                        current_prefix = prefix;
+                    }
+
+                    ui.indent(&snapshot.path, |ui| {
+                        if ui
+                            .selectable_label(
+                                i == self.index,
+                                snapshot.path.file_name().unwrap().to_str().unwrap(),
+                            )
+                            .clicked()
+                        {
+                            self.index = i;
+                        }
+                    });
+                }
+            });
+        });
+
         egui::CentralPanel::default().show(ctx, |ui| {
-            if ui.input_mut(|i| i.key_pressed(egui::Key::ArrowRight)) {
+            if ui.input_mut(|i| {
+                i.key_pressed(egui::Key::ArrowRight) || i.key_pressed(egui::Key::ArrowDown)
+            }) {
                 if self.index + 1 < self.snapshots.len() {
                     self.index += 1;
                 }
             }
-            if ui.input_mut(|i| i.key_pressed(egui::Key::ArrowLeft)) {
+            if ui.input_mut(|i| {
+                i.key_pressed(egui::Key::ArrowLeft) || i.key_pressed(egui::Key::ArrowUp)
+            }) {
                 if self.index > 0 {
                     self.index -= 1;
                 }
