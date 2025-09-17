@@ -1,13 +1,13 @@
 mod diff_loader;
 
 use crate::diff_loader::DiffLoader;
-use eframe::egui::{Context, Image, ImageSource, SizeHint, Slider};
+use eframe::egui::{Context, Image, SizeHint, Slider};
 use eframe::{Frame, NativeOptions, egui};
 use egui_extras::install_image_loaders;
-use jwalk::WalkDir;
-use std::collections::{BTreeMap, HashMap};
-use std::path::PathBuf;
-use std::sync::Arc;
+use ignore::{WalkBuilder, WalkState};
+use ignore::types::TypesBuilder;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 fn main() -> eframe::Result<()> {
     eframe::run_native(
@@ -17,24 +17,8 @@ fn main() -> eframe::Result<()> {
     )
 }
 
-struct SnapshotGroup {
-    current: Option<PathBuf>,
-    old: Option<PathBuf>,
-    new: Option<PathBuf>,
-    diff: Option<PathBuf>,
-}
 
-impl Default for SnapshotGroup {
-    fn default() -> Self {
-        Self {
-            current: None,
-            old: None,
-            new: None,
-            diff: None,
-        }
-    }
-}
-
+#[derive(Debug)]
 struct Snapshot {
     name: String,
     old: PathBuf,
@@ -98,71 +82,84 @@ impl App {
     }
 
     fn discover_snapshots(path: &str) -> Vec<Snapshot> {
-        let mut snapshots = Vec::new();
-        let mut snapshot_groups: HashMap<String, SnapshotGroup> = Default::default();
+        let snapshots = Arc::new(Mutex::new(Vec::new()));
 
-        for entry in WalkDir::new(path)
-            .skip_hidden(true)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
-            if let Some(file_name) = entry.file_name().to_str() {
-                if file_name.ends_with(".png") {
-                    let entry_path = entry.path();
-                    let relative_path = entry_path.strip_prefix(".").unwrap_or(&entry_path);
-                    let key = format!("{}", relative_path.display());
+        // Create type matcher for .png files
+        let mut types_builder = TypesBuilder::new();
+        types_builder.add("png", "*.png").unwrap();
+        types_builder.select("png");
+        let types = types_builder.build().unwrap();
 
-                    if file_name.ends_with(".old.png") {
-                        let base_key = key.strip_suffix(".old.png").unwrap().to_string();
-                        snapshot_groups.entry(base_key).or_default().old =
-                            Some(entry_path.to_path_buf());
-                    } else if file_name.ends_with(".new.png") {
-                        let base_key = key.strip_suffix(".new.png").unwrap().to_string();
-                        snapshot_groups.entry(base_key).or_default().new =
-                            Some(entry_path.to_path_buf());
-                    } else if file_name.ends_with(".diff.png") {
-                        let base_key = key.strip_suffix(".diff.png").unwrap().to_string();
-                        snapshot_groups.entry(base_key).or_default().diff =
-                            Some(entry_path.to_path_buf());
-                    } else {
-                        let base_key = key.strip_suffix(".png").unwrap().to_string();
-                        if !file_name.ends_with(".old.png")
-                            && !file_name.ends_with(".new.png")
-                            && !file_name.ends_with(".diff.png")
-                        {
-                            snapshot_groups.entry(base_key).or_default().current =
-                                Some(entry_path.to_path_buf());
+        // Build parallel walker for .png files only
+        WalkBuilder::new(path)
+            .types(types)
+            .build_parallel()
+            .run(|| {
+                let snapshots = Arc::clone(&snapshots);
+                Box::new(move |result| {
+                    if let Ok(entry) = result {
+                        if entry.file_type().map_or(false, |ft| ft.is_file()) {
+                            if let Some(snapshot) = Self::try_create_snapshot(entry.path()) {
+                                if let Ok(mut snapshots) = snapshots.lock() {
+                                    snapshots.push(snapshot);
+                                }
+                            }
                         }
                     }
-                }
-            }
-        }
+                    WalkState::Continue
+                })
+            });
 
-        for (name, group) in snapshot_groups {
-            if let Some(diff) = group.diff {
-                if let Some(current_path) = group.current {
-                    if let Some(old) = group.old {
-                        snapshots.push(Snapshot {
-                            name,
-                            old: old.clone(),
-                            new: current_path.clone(),
-                            diff: Some(diff.clone()),
-                        });
-                    } else if let Some(new) = group.new {
-                        snapshots.push(Snapshot {
-                            name,
-                            old: current_path.clone(),
-                            new: new.clone(),
-                            diff: Some(diff.clone()),
-                        });
-                    }
-                }
-            }
-        }
-
+        let mut snapshots = Arc::try_unwrap(snapshots).unwrap().into_inner().unwrap();
         snapshots.sort_by(|a, b| a.name.cmp(&b.name));
-
         snapshots
+    }
+
+    fn try_create_snapshot(png_path: &Path) -> Option<Snapshot> {
+        let file_name = png_path.file_name()?.to_str()?;
+
+        // Skip files that are already variants (.old.png, .new.png, .diff.png)
+        if file_name.ends_with(".old.png") ||
+           file_name.ends_with(".new.png") ||
+           file_name.ends_with(".diff.png") {
+            return None;
+        }
+
+        // Get base path without .png extension
+        let base_path = png_path.with_extension("");
+        let old_path = base_path.with_extension("old.png");
+        let new_path = base_path.with_extension("new.png");
+        let diff_path = base_path.with_extension("diff.png");
+
+        // Only create snapshot if diff exists
+        if !diff_path.exists() {
+            return None;
+        }
+
+        // Determine which files exist and create appropriate snapshot
+        let relative_path = png_path.strip_prefix(".").unwrap_or(png_path);
+        let name = relative_path.display().to_string();
+
+        if old_path.exists() {
+            // old.png exists, use original as new and old.png as old
+            Some(Snapshot {
+                name,
+                old: old_path,
+                new: png_path.to_path_buf(),
+                diff: Some(diff_path),
+            })
+        } else if new_path.exists() {
+            // new.png exists, use original as old and new.png as new
+            Some(Snapshot {
+                name,
+                old: png_path.to_path_buf(),
+                new: new_path,
+                diff: Some(diff_path),
+            })
+        } else {
+            // No old or new variant, skip this snapshot
+            None
+        }
     }
 }
 
