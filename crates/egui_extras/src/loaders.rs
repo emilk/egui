@@ -108,16 +108,16 @@ pub fn install_image_loaders(ctx: &egui::Context) {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-mod file_loader;
+pub mod file_loader;
 
 #[cfg(feature = "http")]
-mod ehttp_loader;
+pub mod ehttp_loader;
 
 #[cfg(feature = "gif")]
-mod gif_loader;
+pub mod gif_loader;
 #[cfg(feature = "image")]
-mod image_loader;
+pub mod image_loader;
 #[cfg(feature = "svg")]
-mod svg_loader;
+pub mod svg_loader;
 #[cfg(feature = "webp")]
-mod webp_loader;
+pub mod webp_loader;
