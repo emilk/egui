@@ -227,9 +227,10 @@ fn should_prevent_default_for_key(
 
     // Prevent cmd/ctrl plus these keys from triggering the default browser action:
     let keys = [
-        egui::Key::O, // open
-        egui::Key::P, // print (cmd-P is common for command palette)
-        egui::Key::S, // save
+        egui::Key::Comma, // cmd-, opens options on macOS, which egui apps may wanna "steal"
+        egui::Key::O,     // open
+        egui::Key::P,     // print (cmd-P is common for command palette)
+        egui::Key::S,     // save
     ];
     for key in keys {
         if egui_key == key && (modifiers.ctrl || modifiers.command || modifiers.mac_cmd) {
