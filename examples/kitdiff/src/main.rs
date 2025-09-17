@@ -4,10 +4,10 @@ use crate::diff_loader::DiffLoader;
 use eframe::egui::{Context, Image, SizeHint, Slider};
 use eframe::{Frame, NativeOptions, egui};
 use egui_extras::install_image_loaders;
-use ignore::{WalkBuilder, WalkState};
+use ignore::WalkBuilder;
 use ignore::types::TypesBuilder;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, mpsc};
 
 fn main() -> eframe::Result<()> {
     eframe::run_native(
@@ -16,7 +16,6 @@ fn main() -> eframe::Result<()> {
         Box::new(|cc| Ok(Box::new(App::new(cc)))),
     )
 }
-
 
 #[derive(Debug)]
 struct Snapshot {
@@ -64,6 +63,8 @@ struct App {
     new_opacity: f32,
     diff_opacity: f32,
     mode: ImageMode,
+    receiver: Option<mpsc::Receiver<Snapshot>>,
+    is_loading: bool,
 }
 
 impl App {
@@ -71,57 +72,57 @@ impl App {
         install_image_loaders(&cc.egui_ctx);
         cc.egui_ctx
             .add_image_loader(Arc::new(DiffLoader::default()));
-        let snapshots = Self::discover_snapshots(".");
+
+        let (sender, receiver) = mpsc::channel();
+        let ctx = cc.egui_ctx.clone();
+
+        // Start background discovery
+        Self::start_discovery(".", sender, ctx);
+
         Self {
-            snapshots,
+            snapshots: Vec::new(),
             index: 0,
             new_opacity: 0.5,
             diff_opacity: 0.25,
             mode: ImageMode::Fit,
+            receiver: Some(receiver),
+            is_loading: true,
         }
     }
 
-    fn discover_snapshots(path: &str) -> Vec<Snapshot> {
-        let snapshots = Arc::new(Mutex::new(Vec::new()));
+    fn start_discovery(path: &str, sender: mpsc::Sender<Snapshot>, ctx: Context) {
+        let path = path.to_string();
 
-        // Create type matcher for .png files
-        let mut types_builder = TypesBuilder::new();
-        types_builder.add("png", "*.png").unwrap();
-        types_builder.select("png");
-        let types = types_builder.build().unwrap();
+        std::thread::spawn(move || {
+            // Create type matcher for .png files
+            let mut types_builder = TypesBuilder::new();
+            types_builder.add("png", "*.png").unwrap();
+            types_builder.select("png");
+            let types = types_builder.build().unwrap();
 
-        // Build parallel walker for .png files only
-        WalkBuilder::new(path)
-            .types(types)
-            .build_parallel()
-            .run(|| {
-                let snapshots = Arc::clone(&snapshots);
-                Box::new(move |result| {
-                    if let Ok(entry) = result {
-                        if entry.file_type().map_or(false, |ft| ft.is_file()) {
-                            if let Some(snapshot) = Self::try_create_snapshot(entry.path()) {
-                                if let Ok(mut snapshots) = snapshots.lock() {
-                                    snapshots.push(snapshot);
-                                }
+            // Build sequential walker for .png files only to maintain order
+            for result in WalkBuilder::new(&path).types(types).build() {
+                if let Ok(entry) = result {
+                    if entry.file_type().map_or(false, |ft| ft.is_file()) {
+                        if let Some(snapshot) = Self::try_create_snapshot(entry.path()) {
+                            if sender.send(snapshot).is_ok() {
+                                ctx.request_repaint();
                             }
                         }
                     }
-                    WalkState::Continue
-                })
-            });
-
-        let mut snapshots = Arc::try_unwrap(snapshots).unwrap().into_inner().unwrap();
-        snapshots.sort_by(|a, b| a.name.cmp(&b.name));
-        snapshots
+                }
+            }
+        });
     }
 
     fn try_create_snapshot(png_path: &Path) -> Option<Snapshot> {
         let file_name = png_path.file_name()?.to_str()?;
 
         // Skip files that are already variants (.old.png, .new.png, .diff.png)
-        if file_name.ends_with(".old.png") ||
-           file_name.ends_with(".new.png") ||
-           file_name.ends_with(".diff.png") {
+        if file_name.ends_with(".old.png")
+            || file_name.ends_with(".new.png")
+            || file_name.ends_with(".diff.png")
+        {
             return None;
         }
 
@@ -165,6 +166,27 @@ impl App {
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &Context, frame: &mut Frame) {
+        // Handle incoming snapshots from background discovery
+        if let Some(receiver) = &self.receiver {
+            let mut new_snapshots = Vec::new();
+            while let Ok(snapshot) = receiver.try_recv() {
+                new_snapshots.push(snapshot);
+            }
+
+            if !new_snapshots.is_empty() {
+                // Snapshots should arrive sorted.
+                self.snapshots.extend(new_snapshots);
+            }
+
+            // Check if the channel is disconnected (discovery finished)
+            if receiver.try_recv().is_err() && self.is_loading {
+                // Try one more time to ensure we didn't miss any
+                if matches!(receiver.try_recv(), Err(mpsc::TryRecvError::Disconnected)) {
+                    self.is_loading = false;
+                }
+            }
+        }
+
         egui::CentralPanel::default().show(ctx, |ui| {
             if ui.input_mut(|i| i.key_pressed(egui::Key::ArrowRight)) {
                 if self.index + 1 < self.snapshots.len() {
@@ -187,6 +209,16 @@ impl eframe::App for App {
 
                 ui.selectable_value(&mut self.mode, ImageMode::Pixel, "1:1");
                 ui.selectable_value(&mut self.mode, ImageMode::Fit, "Fit");
+
+                // Show loading status
+                if self.is_loading {
+                    ui.label(format!(
+                        "Loading... {} snapshots found",
+                        self.snapshots.len()
+                    ));
+                } else {
+                    ui.label(format!("{} snapshots total", self.snapshots.len()));
+                }
             });
 
             if let Some(snapshot) = self.snapshots.get(self.index) {
@@ -225,6 +257,8 @@ impl eframe::App for App {
                         }
                     }
                 }
+            } else if self.is_loading {
+                ui.label("Searching for snapshots...");
             } else {
                 ui.label("No snapshots found.");
             }
