@@ -1,8 +1,8 @@
 use std::{any::Any, sync::Arc};
 
 use crate::{
-    Context, CursorIcon, Id, LayerId, PointerButton, Popup, PopupKind, Sense, Tooltip, Ui,
-    WidgetRect, WidgetText,
+    Context, CursorIcon, Id, LayerId, PointerButton, Popup, PopupKind, Sense,
+    Tooltip, Ui, WidgetRect, WidgetText,
     emath::{Align, Pos2, Rect, Vec2},
     pass_state,
 };
@@ -155,7 +155,8 @@ impl Response {
     /// You can use [`Self::interact`] to sense more things *after* adding a widget.
     #[inline(always)]
     pub fn clicked(&self) -> bool {
-        self.flags.contains(Flags::FAKE_PRIMARY_CLICKED) || self.clicked_by(PointerButton::Primary)
+        self.flags.contains(Flags::FAKE_PRIMARY_CLICKED)
+            || self.clicked_by(PointerButton::Primary)
     }
 
     /// Returns true if this widget was clicked this frame by the given mouse button.
@@ -167,8 +168,12 @@ impl Response {
     /// This will likewise ignore the press-and-hold action on touch screens.
     /// Use [`Self::secondary_clicked`] instead to also detect that.
     #[inline]
-    pub fn clicked_by(&self, button: PointerButton) -> bool {
-        self.flags.contains(Flags::CLICKED) && self.ctx.input(|i| i.pointer.button_clicked(button))
+    pub fn clicked_by(
+        &self,
+        button: PointerButton,
+    ) -> bool {
+        self.flags.contains(Flags::CLICKED)
+            && self.ctx.input(|i| i.pointer.button_clicked(button))
     }
 
     /// Returns true if this widget was clicked this frame by the secondary mouse button (e.g. the right mouse button).
@@ -176,7 +181,8 @@ impl Response {
     /// This also returns true if the widget was pressed-and-held on a touch screen.
     #[inline]
     pub fn secondary_clicked(&self) -> bool {
-        self.flags.contains(Flags::LONG_TOUCHED) || self.clicked_by(PointerButton::Secondary)
+        self.flags.contains(Flags::LONG_TOUCHED)
+            || self.clicked_by(PointerButton::Secondary)
     }
 
     /// Was this long-pressed on a touch screen?
@@ -207,14 +213,20 @@ impl Response {
 
     /// Returns true if this widget was double-clicked this frame by the given button.
     #[inline]
-    pub fn double_clicked_by(&self, button: PointerButton) -> bool {
+    pub fn double_clicked_by(
+        &self,
+        button: PointerButton,
+    ) -> bool {
         self.flags.contains(Flags::CLICKED)
             && self.ctx.input(|i| i.pointer.button_double_clicked(button))
     }
 
     /// Returns true if this widget was triple-clicked this frame by the given button.
     #[inline]
-    pub fn triple_clicked_by(&self, button: PointerButton) -> bool {
+    pub fn triple_clicked_by(
+        &self,
+        button: PointerButton,
+    ) -> bool {
         self.flags.contains(Flags::CLICKED)
             && self.ctx.input(|i| i.pointer.button_triple_clicked(button))
     }
@@ -224,7 +236,8 @@ impl Response {
     /// This is used by [`crate::Hyperlink`] to check if a URL should be opened
     /// in a new tab, using [`crate::OpenUrl::new_tab`].
     pub fn clicked_with_open_in_background(&self) -> bool {
-        self.middle_clicked() || self.clicked() && self.ctx.input(|i| i.modifiers.any())
+        self.middle_clicked()
+            || self.clicked() && self.ctx.input(|i| i.modifiers.any())
     }
 
     /// `true` if there was a click *outside* the rect of this widget.
@@ -302,7 +315,8 @@ impl Response {
     /// also has the keyboard focus. That makes this function suitable
     /// for style choices, e.g. a thicker border around focused widgets.
     pub fn has_focus(&self) -> bool {
-        self.ctx.input(|i| i.focused) && self.ctx.memory(|mem| mem.has_focus(self.id))
+        self.ctx.input(|i| i.focused)
+            && self.ctx.memory(|mem| mem.has_focus(self.id))
     }
 
     /// True if this widget has keyboard focus this frame, but didn't last frame.
@@ -356,7 +370,10 @@ impl Response {
     ///
     /// This will only be true for a single frame.
     #[inline]
-    pub fn drag_started_by(&self, button: PointerButton) -> bool {
+    pub fn drag_started_by(
+        &self,
+        button: PointerButton,
+    ) -> bool {
         self.drag_started() && self.ctx.input(|i| i.pointer.button_down(button))
     }
 
@@ -381,7 +398,10 @@ impl Response {
 
     /// See [`Self::dragged`].
     #[inline]
-    pub fn dragged_by(&self, button: PointerButton) -> bool {
+    pub fn dragged_by(
+        &self,
+        button: PointerButton,
+    ) -> bool {
         self.dragged() && self.ctx.input(|i| i.pointer.button_down(button))
     }
 
@@ -392,8 +412,12 @@ impl Response {
     }
 
     /// The widget was being dragged by the button, but now it has been released.
-    pub fn drag_stopped_by(&self, button: PointerButton) -> bool {
-        self.drag_stopped() && self.ctx.input(|i| i.pointer.button_released(button))
+    pub fn drag_stopped_by(
+        &self,
+        button: PointerButton,
+    ) -> bool {
+        self.drag_stopped()
+            && self.ctx.input(|i| i.pointer.button_released(button))
     }
 
     /// If dragged, how many points were we dragged and in what direction?
@@ -401,7 +425,9 @@ impl Response {
     pub fn drag_delta(&self) -> Vec2 {
         if self.dragged() {
             let mut delta = self.ctx.input(|i| i.pointer.delta());
-            if let Some(from_global) = self.ctx.layer_transform_from_global(self.layer_id) {
+            if let Some(from_global) =
+                self.ctx.layer_transform_from_global(self.layer_id)
+            {
                 delta *= from_global.scaling;
             }
             delta
@@ -426,7 +452,10 @@ impl Response {
 
     /// If the user started dragging this widget this frame, store the payload for drag-and-drop.
     #[doc(alias = "drag and drop")]
-    pub fn dnd_set_drag_payload<Payload: Any + Send + Sync>(&self, payload: Payload) {
+    pub fn dnd_set_drag_payload<Payload: Any + Send + Sync>(
+        &self,
+        payload: Payload,
+    ) {
         if self.drag_started() {
             crate::DragAndDrop::set_payload(&self.ctx, payload);
         }
@@ -443,7 +472,9 @@ impl Response {
     /// Only returns something if [`Self::contains_pointer`] is true,
     /// and the user is drag-dropping something of this type.
     #[doc(alias = "drag and drop")]
-    pub fn dnd_hover_payload<Payload: Any + Send + Sync>(&self) -> Option<Arc<Payload>> {
+    pub fn dnd_hover_payload<Payload: Any + Send + Sync>(
+        &self
+    ) -> Option<Arc<Payload>> {
         // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
         // `hovered` is always false when another widget is being dragged.
         if self.contains_pointer() {
@@ -459,10 +490,14 @@ impl Response {
     /// the user is drag-dropping something of this type,
     /// and they released it this frame
     #[doc(alias = "drag and drop")]
-    pub fn dnd_release_payload<Payload: Any + Send + Sync>(&self) -> Option<Arc<Payload>> {
+    pub fn dnd_release_payload<Payload: Any + Send + Sync>(
+        &self
+    ) -> Option<Arc<Payload>> {
         // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
         // `hovered` is always false when another widget is being dragged.
-        if self.contains_pointer() && self.ctx.input(|i| i.pointer.any_released()) {
+        if self.contains_pointer()
+            && self.ctx.input(|i| i.pointer.any_released())
+        {
             crate::DragAndDrop::take_payload::<Payload>(&self.ctx)
         } else {
             None
@@ -484,7 +519,9 @@ impl Response {
     pub fn hover_pos(&self) -> Option<Pos2> {
         if self.hovered() {
             let mut pos = self.ctx.input(|i| i.pointer.hover_pos())?;
-            if let Some(from_global) = self.ctx.layer_transform_from_global(self.layer_id) {
+            if let Some(from_global) =
+                self.ctx.layer_transform_from_global(self.layer_id)
+            {
                 pos = from_global * pos;
             }
             Some(pos)
@@ -570,19 +607,28 @@ impl Response {
     /// # });
     /// ```
     #[doc(alias = "tooltip")]
-    pub fn on_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
+    pub fn on_hover_ui(
+        self,
+        add_contents: impl FnOnce(&mut Ui),
+    ) -> Self {
         Tooltip::for_enabled(&self).show(add_contents);
         self
     }
 
     /// Show this UI when hovering if the widget is disabled.
-    pub fn on_disabled_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
+    pub fn on_disabled_hover_ui(
+        self,
+        add_contents: impl FnOnce(&mut Ui),
+    ) -> Self {
         Tooltip::for_disabled(&self).show(add_contents);
         self
     }
 
     /// Like `on_hover_ui`, but show the ui next to cursor.
-    pub fn on_hover_ui_at_pointer(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
+    pub fn on_hover_ui_at_pointer(
+        self,
+        add_contents: impl FnOnce(&mut Ui),
+    ) -> Self {
         Tooltip::for_enabled(&self)
             .at_pointer()
             .gap(12.0)
@@ -593,7 +639,10 @@ impl Response {
     /// Always show this tooltip, even if disabled and the user isn't hovering it.
     ///
     /// This can be used to give attention to a widget during a tutorial.
-    pub fn show_tooltip_ui(&self, add_contents: impl FnOnce(&mut Ui)) {
+    pub fn show_tooltip_ui(
+        &self,
+        add_contents: impl FnOnce(&mut Ui),
+    ) {
         Popup::from_response(self)
             .kind(PopupKind::Tooltip)
             .show(add_contents);
@@ -602,7 +651,10 @@ impl Response {
     /// Always show this tooltip, even if disabled and the user isn't hovering it.
     ///
     /// This can be used to give attention to a widget during a tutorial.
-    pub fn show_tooltip_text(&self, text: impl Into<WidgetText>) {
+    pub fn show_tooltip_text(
+        &self,
+        text: impl Into<WidgetText>,
+    ) {
         self.show_tooltip_ui(|ui| {
             ui.label(text);
         });
@@ -615,7 +667,10 @@ impl Response {
 
     /// Like `on_hover_text`, but show the text next to cursor.
     #[doc(alias = "tooltip")]
-    pub fn on_hover_text_at_pointer(self, text: impl Into<WidgetText>) -> Self {
+    pub fn on_hover_text_at_pointer(
+        self,
+        text: impl Into<WidgetText>,
+    ) -> Self {
         self.on_hover_ui_at_pointer(|ui| {
             // Prevent `Area` auto-sizing from shrinking tooltips with dynamic content.
             // See https://github.com/emilk/egui/issues/5167
@@ -632,7 +687,10 @@ impl Response {
     ///
     /// If you call this multiple times the tooltips will stack underneath the previous ones.
     #[doc(alias = "tooltip")]
-    pub fn on_hover_text(self, text: impl Into<WidgetText>) -> Self {
+    pub fn on_hover_text(
+        self,
+        text: impl Into<WidgetText>,
+    ) -> Self {
         self.on_hover_ui(|ui| {
             // Prevent `Area` auto-sizing from shrinking tooltips with dynamic content.
             // See https://github.com/emilk/egui/issues/5167
@@ -655,7 +713,10 @@ impl Response {
     }
 
     /// Show this text when hovering if the widget is disabled.
-    pub fn on_disabled_hover_text(self, text: impl Into<WidgetText>) -> Self {
+    pub fn on_disabled_hover_text(
+        self,
+        text: impl Into<WidgetText>,
+    ) -> Self {
         self.on_disabled_hover_ui(|ui| {
             // Prevent `Area` auto-sizing from shrinking tooltips with dynamic content.
             // See https://github.com/emilk/egui/issues/5167
@@ -667,7 +728,10 @@ impl Response {
 
     /// When hovered, use this icon for the mouse cursor.
     #[inline]
-    pub fn on_hover_cursor(self, cursor: CursorIcon) -> Self {
+    pub fn on_hover_cursor(
+        self,
+        cursor: CursorIcon,
+    ) -> Self {
         if self.hovered() {
             self.ctx.set_cursor_icon(cursor);
         }
@@ -676,7 +740,10 @@ impl Response {
 
     /// When hovered or dragged, use this icon for the mouse cursor.
     #[inline]
-    pub fn on_hover_and_drag_cursor(self, cursor: CursorIcon) -> Self {
+    pub fn on_hover_and_drag_cursor(
+        self,
+        cursor: CursorIcon,
+    ) -> Self {
         if self.hovered() || self.dragged() {
             self.ctx.set_cursor_icon(cursor);
         }
@@ -708,7 +775,10 @@ impl Response {
     /// # });
     /// ```
     #[must_use]
-    pub fn interact(&self, sense: Sense) -> Self {
+    pub fn interact(
+        &self,
+        sense: Sense,
+    ) -> Self {
         if (self.sense | sense) == self.sense {
             // Early-out: we already sense everything we need to sense.
             return self.clone();
@@ -746,7 +816,10 @@ impl Response {
     /// });
     /// # });
     /// ```
-    pub fn scroll_to_me(&self, align: Option<Align>) {
+    pub fn scroll_to_me(
+        &self,
+        align: Option<Align>,
+    ) {
         self.scroll_to_me_animation(align, self.ctx.style().scroll_animation);
     }
 
@@ -773,7 +846,10 @@ impl Response {
     /// For accessibility.
     ///
     /// Call after interacting and potential calls to [`Self::mark_changed`].
-    pub fn widget_info(&self, make_info: impl Fn() -> crate::WidgetInfo) {
+    pub fn widget_info(
+        &self,
+        make_info: impl Fn() -> crate::WidgetInfo,
+    ) {
         use crate::output::OutputEvent;
 
         let event = if self.clicked() {
@@ -802,10 +878,16 @@ impl Response {
         }
     }
 
-    pub fn output_event(&self, event: crate::output::OutputEvent) {
+    pub fn output_event(
+        &self,
+        event: crate::output::OutputEvent,
+    ) {
         #[cfg(feature = "accesskit")]
         self.ctx.accesskit_node_builder(self.id, |builder| {
-            self.fill_accesskit_node_from_widget_info(builder, event.widget_info().clone());
+            self.fill_accesskit_node_from_widget_info(
+                builder,
+                event.widget_info().clone(),
+            );
         });
 
         self.ctx
@@ -815,7 +897,10 @@ impl Response {
     }
 
     #[cfg(feature = "accesskit")]
-    pub(crate) fn fill_accesskit_node_common(&self, builder: &mut accesskit::Node) {
+    pub(crate) fn fill_accesskit_node_common(
+        &self,
+        builder: &mut accesskit::Node,
+    ) {
         if !self.enabled() {
             builder.set_disabled();
         }
@@ -847,9 +932,9 @@ impl Response {
             WidgetType::Label => Role::Label,
             WidgetType::Link => Role::Link,
             WidgetType::TextEdit => Role::TextInput,
-            WidgetType::Button | WidgetType::CollapsingHeader | WidgetType::SelectableLabel => {
-                Role::Button
-            }
+            WidgetType::Button
+            | WidgetType::CollapsingHeader
+            | WidgetType::SelectableLabel => Role::Button,
             WidgetType::Image => Role::Image,
             WidgetType::Checkbox => Role::CheckBox,
             WidgetType::RadioButton => Role::RadioButton,
@@ -906,7 +991,10 @@ impl Response {
     /// });
     /// # });
     /// ```
-    pub fn labelled_by(self, id: Id) -> Self {
+    pub fn labelled_by(
+        self,
+        id: Id,
+    ) -> Self {
         #[cfg(feature = "accesskit")]
         self.ctx.accesskit_node_builder(self.id, |builder| {
             builder.push_labelled_by(id.accesskit_id());
@@ -936,7 +1024,10 @@ impl Response {
     /// ```
     ///
     /// See also: [`Ui::menu_button`] and [`Ui::close`].
-    pub fn context_menu(&self, add_contents: impl FnOnce(&mut Ui)) -> Option<InnerResponse<()>> {
+    pub fn context_menu(
+        &self,
+        add_contents: impl FnOnce(&mut Ui),
+    ) -> Option<InnerResponse<()>> {
         Popup::context_menu(self).show(add_contents)
     }
 
@@ -951,13 +1042,13 @@ impl Response {
     // Text Selection API for Labels
 
     /// Get the currently selected character range from this label widget, if any.
-    /// 
-    /// Returns `None` if there's no text selection or if this widget doesn't contain 
-    /// the selection. Returns `Some(char_range)` where `char_range` is the range 
+    ///
+    /// Returns `None` if there's no text selection or if this widget doesn't contain
+    /// the selection. Returns `Some(char_range)` where `char_range` is the range
     /// of selected character indices.
-    /// 
+    ///
     /// This is most useful for labels that have text selection enabled.
-    /// 
+    ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
     /// let response = ui.add(egui::Label::new("Some selectable text").selectable(true));
@@ -968,21 +1059,20 @@ impl Response {
     /// ```
     pub fn selected_char_range(&self) -> Option<std::ops::Range<usize>> {
         use crate::text_selection::LabelSelectionState;
-        let state = LabelSelectionState::load(&self.ctx);
-        state.selected_char_range().and_then(|(widget_id, range)| {
-            if widget_id == self.id {
-                Some(range)
-            } else {
-                None
-            }
-        })
+        let plugin = self.ctx.plugin::<LabelSelectionState>();
+        let (widget_id, range) = plugin.lock().selected_char_range()?;
+        if widget_id == self.id {
+            Some(range)
+        } else {
+            None
+        }
     }
 
     /// Get the currently selected text from this label widget, if any.
-    /// 
-    /// Returns `None` if there's no text selection or if this widget doesn't contain 
+    ///
+    /// Returns `None` if there's no text selection or if this widget doesn't contain
     /// the selection. This method requires a galley to extract the actual text.
-    /// 
+    ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
     /// let galley = ui.fonts(|fonts| fonts.layout_job(egui::text::LayoutJob::simple_singleline("Hello world".to_string(), egui::FontId::default(), egui::Color32::BLACK)));
@@ -992,16 +1082,20 @@ impl Response {
     /// }
     /// # });
     /// ```
-    pub fn selected_text(&self, galley: &crate::Galley) -> Option<String> {
+    pub fn selected_text(
+        &self,
+        galley: &crate::Galley,
+    ) -> Option<String> {
         use crate::text_selection::LabelSelectionState;
-        let state = LabelSelectionState::load(&self.ctx);
-        state.selected_text(self.id, galley)
+
+        let plugin = self.ctx.plugin::<LabelSelectionState>();
+        plugin.lock().selected_text(self.id, galley)
     }
 
     /// Check if this label widget has any text selected.
-    /// 
+    ///
     /// Returns `true` if this widget contains any part of the current text selection.
-    /// 
+    ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
     /// let response = ui.add(egui::Label::new("Some selectable text").selectable(true));
@@ -1012,8 +1106,8 @@ impl Response {
     /// ```
     pub fn has_text_selection(&self) -> bool {
         use crate::text_selection::LabelSelectionState;
-        let state = LabelSelectionState::load(&self.ctx);
-        state.widget_has_selection(self.id)
+        let plugin = self.ctx.plugin::<LabelSelectionState>();
+        plugin.lock().widget_has_selection(self.id)
     }
 
     // ----------------------------------------------------------------------------
@@ -1050,7 +1144,10 @@ impl Response {
     /// The resulting [`Self::id`] will come from the first (`self`) argument.
     ///
     /// You may not call [`Self::interact`] on the resulting `Response`.
-    pub fn union(&self, other: Self) -> Self {
+    pub fn union(
+        &self,
+        other: Self,
+    ) -> Self {
         assert!(
             self.ctx == other.ctx,
             "Responses must be from the same `Context`"
@@ -1067,7 +1164,9 @@ impl Response {
             interact_rect: self.interact_rect.union(other.interact_rect),
             sense: self.sense.union(other.sense),
             flags: self.flags | other.flags,
-            interact_pointer_pos: self.interact_pointer_pos.or(other.interact_pointer_pos),
+            interact_pointer_pos: self
+                .interact_pointer_pos
+                .or(other.interact_pointer_pos),
             intrinsic_size: None,
         }
     }
@@ -1076,7 +1175,10 @@ impl Response {
 impl Response {
     /// Returns a response with a modified [`Self::rect`].
     #[inline]
-    pub fn with_new_rect(self, rect: Rect) -> Self {
+    pub fn with_new_rect(
+        self,
+        rect: Rect,
+    ) -> Self {
         Self { rect, ..self }
     }
 }
@@ -1096,7 +1198,10 @@ impl Response {
 impl std::ops::BitOr for Response {
     type Output = Self;
 
-    fn bitor(self, rhs: Self) -> Self {
+    fn bitor(
+        self,
+        rhs: Self,
+    ) -> Self {
         self.union(rhs)
     }
 }
@@ -1115,7 +1220,10 @@ impl std::ops::BitOr for Response {
 /// # });
 /// ```
 impl std::ops::BitOrAssign for Response {
-    fn bitor_assign(&mut self, rhs: Self) {
+    fn bitor_assign(
+        &mut self,
+        rhs: Self,
+    ) {
         *self = self.union(rhs);
     }
 }
@@ -1146,7 +1254,10 @@ pub struct InnerResponse<R> {
 
 impl<R> InnerResponse<R> {
     #[inline]
-    pub fn new(inner: R, response: Response) -> Self {
+    pub fn new(
+        inner: R,
+        response: Response,
+    ) -> Self {
         Self { inner, response }
     }
 }
