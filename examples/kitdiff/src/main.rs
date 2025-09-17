@@ -17,6 +17,24 @@ fn main() -> eframe::Result<()> {
     )
 }
 
+struct SnapshotGroup {
+    current: Option<PathBuf>,
+    old: Option<PathBuf>,
+    new: Option<PathBuf>,
+    diff: Option<PathBuf>,
+}
+
+impl Default for SnapshotGroup {
+    fn default() -> Self {
+        Self {
+            current: None,
+            old: None,
+            new: None,
+            diff: None,
+        }
+    }
+}
+
 struct Snapshot {
     name: String,
     old: PathBuf,
@@ -46,27 +64,26 @@ impl App {
 
     fn discover_snapshots(path: &str) -> Vec<Snapshot> {
         let mut snapshots = Vec::new();
-        let mut snapshot_groups: BTreeMap<
-            String,
-            (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>),
-        > = Default::default();
+        let mut snapshot_groups: BTreeMap<String, SnapshotGroup> = Default::default();
 
         Self::collect_snapshots_recursive(path, &mut snapshot_groups);
 
-        for (name, (current, old, new)) in snapshot_groups {
-            if let Some(current_path) = current {
-                if let Some(old) = old {
-                    snapshots.push(Snapshot {
-                        name,
-                        old: old.clone(),
-                        new: current_path.clone(),
-                    });
-                } else if let Some(new) = new {
-                    snapshots.push(Snapshot {
-                        name,
-                        old: current_path.clone(),
-                        new: new.clone(),
-                    });
+        for (name, group) in snapshot_groups {
+            if let Some(_diff) = group.diff {
+                if let Some(current_path) = group.current {
+                    if let Some(old) = group.old {
+                        snapshots.push(Snapshot {
+                            name,
+                            old: old.clone(),
+                            new: current_path.clone(),
+                        });
+                    } else if let Some(new) = group.new {
+                        snapshots.push(Snapshot {
+                            name,
+                            old: current_path.clone(),
+                            new: new.clone(),
+                        });
+                    }
                 }
             }
         }
@@ -76,7 +93,7 @@ impl App {
 
     fn collect_snapshots_recursive(
         path: &str,
-        snapshot_groups: &mut BTreeMap<String, (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>)>,
+        snapshot_groups: &mut BTreeMap<String, SnapshotGroup>,
     ) {
         if let Ok(entries) = fs::read_dir(path) {
             for entry in entries.flatten() {
@@ -93,15 +110,18 @@ impl App {
 
                         if file_name.ends_with(".old.png") {
                             let base_key = key.strip_suffix(".old.png").unwrap().to_string();
-                            snapshot_groups.entry(base_key).or_default().1 = Some(entry_path);
+                            snapshot_groups.entry(base_key).or_default().old = Some(entry_path);
                         } else if file_name.ends_with(".new.png") {
                             let base_key = key.strip_suffix(".new.png").unwrap().to_string();
-                            snapshot_groups.entry(base_key).or_default().2 = Some(entry_path);
+                            snapshot_groups.entry(base_key).or_default().new = Some(entry_path);
+                        } else if file_name.ends_with(".diff.png") {
+                            let base_key = key.strip_suffix(".diff.png").unwrap().to_string();
+                            snapshot_groups.entry(base_key).or_default().diff = Some(entry_path);
                         } else {
                             let base_key = key.strip_suffix(".png").unwrap().to_string();
-                            if !file_name.ends_with(".old.png") && !file_name.ends_with(".new.png")
+                            if !file_name.ends_with(".old.png") && !file_name.ends_with(".new.png") && !file_name.ends_with(".diff.png")
                             {
-                                snapshot_groups.entry(base_key).or_default().0 = Some(entry_path);
+                                snapshot_groups.entry(base_key).or_default().current = Some(entry_path);
                             }
                         }
                     }
