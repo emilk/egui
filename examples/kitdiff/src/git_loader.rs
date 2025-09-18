@@ -146,6 +146,17 @@ fn create_git_snapshot(
         }
     };
 
+    // Get the current file from the current branch's tree to compare git objects properly
+    let head_commit = repo.head()?.peel_to_commit()?;
+    let head_tree = head_commit.tree()?;
+
+    // Compare git object content (both should be LFS pointers if using LFS)
+    if let Ok(current_content) = get_file_from_tree(repo, &head_tree, relative_path) {
+        if default_file_content == current_content {
+            return Ok(None);
+        }
+    }
+
     // Check if this is an LFS pointer file
     let default_image_source = if is_lfs_pointer(&default_file_content) {
         // If we have GitHub repo info, create media URL
