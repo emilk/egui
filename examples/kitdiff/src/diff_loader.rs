@@ -152,6 +152,12 @@ pub fn load_diffs(
         "Failed to convert to RgbaImage".to_string(),
     ))?;
 
+    if old.dimensions() != new.dimensions() {
+        return ImageLoadResult::Err(LoadError::Loading(
+            "Images must have the same dimensions".to_string(),
+        ));
+    }
+
     let result = dify::diff::get_results(
         old,
         new,
