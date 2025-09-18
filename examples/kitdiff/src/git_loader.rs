@@ -6,6 +6,7 @@ use ignore::{WalkBuilder, types::TypesBuilder};
 use std::borrow::Cow;
 use std::path::Path;
 use std::sync::mpsc;
+use std::str;
 
 #[derive(Debug)]
 pub enum GitError {
@@ -62,6 +63,10 @@ fn run_git_discovery(sender: mpsc::Sender<Snapshot>, ctx: Context) -> Result<(),
         .resolve_reference_from_short_name(&default_branch)?
         .peel_to_commit()?;
 
+    // Get GitHub repository info for LFS support
+    let github_repo_info = get_github_repo_info(&repo);
+    let commit_sha = default_commit.id().to_string();
+
     // Create type matcher for .png files
     let mut types_builder = TypesBuilder::new();
     types_builder.add("png", "*.png").unwrap();
@@ -72,9 +77,13 @@ fn run_git_discovery(sender: mpsc::Sender<Snapshot>, ctx: Context) -> Result<(),
     for result in WalkBuilder::new(".").types(types).build() {
         if let Ok(entry) = result {
             if entry.file_type().map_or(false, |ft| ft.is_file()) {
-                if let Some(snapshot) =
-                    create_git_snapshot(&repo, &default_commit.tree()?, entry.path())?
-                {
+                if let Some(snapshot) = create_git_snapshot(
+                    &repo,
+                    &default_commit.tree()?,
+                    entry.path(),
+                    &github_repo_info,
+                    &commit_sha,
+                )? {
                     if sender.send(snapshot).is_ok() {
                         ctx.request_repaint();
                     }
@@ -110,6 +119,8 @@ fn create_git_snapshot(
     repo: &Repository,
     default_tree: &git2::Tree,
     current_path: &Path,
+    github_repo_info: &Option<(String, String)>,
+    commit_sha: &str,
 ) -> Result<Option<Snapshot>, GitError> {
     // Skip files that are variants
     let file_name = current_path
@@ -135,10 +146,25 @@ fn create_git_snapshot(
         }
     };
 
-    // Create ImageSource from the git file content
-    let default_image_source = ImageSource::Bytes {
-        uri: Cow::Owned(format!("bytes://{}", relative_path.display())),
-        bytes: Bytes::Shared(default_file_content.into()),
+    // Check if this is an LFS pointer file
+    let default_image_source = if is_lfs_pointer(&default_file_content) {
+        // If we have GitHub repo info, create media URL
+        if let Some((org, repo_name)) = github_repo_info {
+            let media_url = create_lfs_media_url(org, repo_name, commit_sha, relative_path);
+            ImageSource::Uri(Cow::Owned(media_url))
+        } else {
+            // Fallback to bytes (will likely fail to load but better than nothing)
+            ImageSource::Bytes {
+                uri: Cow::Owned(format!("bytes://{}", relative_path.display())),
+                bytes: Bytes::Shared(default_file_content.into()),
+            }
+        }
+    } else {
+        // Regular file content
+        ImageSource::Bytes {
+            uri: Cow::Owned(format!("bytes://{}", relative_path.display())),
+            bytes: Bytes::Shared(default_file_content.into()),
+        }
     };
 
     Ok(Some(Snapshot {
@@ -164,4 +190,98 @@ fn get_file_from_tree(
         }
         _ => Err(GitError::FileNotFound),
     }
+}
+
+fn is_lfs_pointer(content: &[u8]) -> bool {
+    // LFS pointer files must be < 1024 bytes and UTF-8
+    if content.len() >= 1024 {
+        return false;
+    }
+
+    // Try to parse as UTF-8
+    let text = match str::from_utf8(content) {
+        Ok(text) => text,
+        Err(_) => return false,
+    };
+
+    // Check for LFS pointer format
+    // Must start with "version https://git-lfs.github.com/spec/v1"
+    let lines: Vec<&str> = text.trim().split('\n').collect();
+    if lines.is_empty() {
+        return false;
+    }
+
+    // First line must be version
+    if !lines[0].starts_with("version https://git-lfs.github.com/spec/v1") {
+        return false;
+    }
+
+    // Look for required oid and size lines
+    let mut has_oid = false;
+    let mut has_size = false;
+
+    for line in &lines[1..] {
+        if line.starts_with("oid sha256:") {
+            has_oid = true;
+        } else if line.starts_with("size ") {
+            has_size = true;
+        }
+    }
+
+    has_oid && has_size
+}
+
+fn get_github_repo_info(repo: &Repository) -> Option<(String, String)> {
+    // Try to get the origin remote
+    let remote = repo.find_remote("origin").ok()?;
+    let url = remote.url()?;
+
+    // Parse GitHub URLs (both HTTPS and SSH)
+    if let Some(caps) = parse_github_https_url(url) {
+        return Some(caps);
+    }
+
+    if let Some(caps) = parse_github_ssh_url(url) {
+        return Some(caps);
+    }
+
+    None
+}
+
+fn parse_github_https_url(url: &str) -> Option<(String, String)> {
+    // Match: https://github.com/org/repo.git or https://github.com/org/repo
+    if url.starts_with("https://github.com/") {
+        let path = url.strip_prefix("https://github.com/")?;
+        let path = path.strip_suffix(".git").unwrap_or(path);
+
+        let parts: Vec<&str> = path.split('/').collect();
+        if parts.len() >= 2 {
+            return Some((parts[0].to_string(), parts[1].to_string()));
+        }
+    }
+    None
+}
+
+fn parse_github_ssh_url(url: &str) -> Option<(String, String)> {
+    // Match: git@github.com:org/repo.git
+    if url.starts_with("git@github.com:") {
+        let path = url.strip_prefix("git@github.com:")?;
+        let path = path.strip_suffix(".git").unwrap_or(path);
+
+        let parts: Vec<&str> = path.split('/').collect();
+        if parts.len() >= 2 {
+            return Some((parts[0].to_string(), parts[1].to_string()));
+        }
+    }
+    None
+}
+
+fn create_lfs_media_url(org: &str, repo: &str, commit_sha: &str, file_path: &Path) -> String {
+    format!(
+        "https://media.githubusercontent.com/media/{}/{}/{}/{}",
+        org,
+        repo,
+        commit_sha,
+        file_path.display()
+    )
 }
