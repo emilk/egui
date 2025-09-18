@@ -8,8 +8,8 @@ use crate::git_loader::{git_discovery, pr_git_discovery};
 use clap::{Parser, Subcommand};
 use eframe::egui::panel::Side;
 use eframe::egui::{
-    Align, Context, Image, ImageSource, RichText, ScrollArea, SizeHint, Slider, TextEdit,
-    TextureFilter, TextureOptions,
+    Align, Context, Image, ImageSource, Modifiers, RichText, ScrollArea, SizeHint, Slider,
+    TextEdit, TextureFilter, TextureOptions,
 };
 use eframe::{Frame, NativeOptions, egui};
 use egui_extras::install_image_loaders;
@@ -224,19 +224,14 @@ impl eframe::App for App {
             .position(|(i, _)| *i == self.index)
             .unwrap_or(0);
 
-
         let mut new_index = None;
-        if ctx.input_mut(|i| {
-            i.key_pressed(egui::Key::ArrowRight) || i.key_pressed(egui::Key::ArrowDown)
-        }) {
+        if ctx.input_mut(|i| i.consume_key(Modifiers::NONE, egui::Key::ArrowDown)) {
             // Find next snapshot that matches filter
             if current_filtered_index + 1 < filtered.len() {
                 new_index = Some(filtered[current_filtered_index + 1].0);
             }
         }
-        if ctx
-            .input_mut(|i| i.key_pressed(egui::Key::ArrowLeft) || i.key_pressed(egui::Key::ArrowUp))
-        {
+        if ctx.input_mut(|i| i.consume_key(Modifiers::NONE, egui::Key::ArrowUp)) {
             // Find previous snapshot that matches filter
             if current_filtered_index > 0 {
                 new_index = Some(filtered[current_filtered_index - 1].0);
