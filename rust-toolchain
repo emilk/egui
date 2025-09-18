@@ -6,5 +6,5 @@
 
 [toolchain]
 channel = "1.86.0"
-components = ["rustfmt", "clippy", "rust-analyzer"]
+components = ["rustfmt", "clippy"]
 targets = ["wasm32-unknown-unknown"]
