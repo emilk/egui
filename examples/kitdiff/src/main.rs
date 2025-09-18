@@ -25,11 +25,11 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Compare snapshot test files (.png with .old/.new/.diff variants)
+    /// Compare snapshot test files (.png with .old/.new/.diff variants) (default)
     Files,
     /// Compare images between current branch and default branch
     Git,
-    /// Compare images between PR branches from GitHub PR URL
+    /// Compare images between PR branches from GitHub PR URL (needs to be run from within the repo)
     Pr { url: String },
 }
 
