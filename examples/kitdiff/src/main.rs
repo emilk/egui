@@ -2,7 +2,7 @@ mod diff_loader;
 mod file_diff;
 mod git_loader;
 
-use crate::diff_loader::DiffLoader;
+use crate::diff_loader::{DiffLoader, DiffOptions};
 use crate::file_diff::file_discovery;
 use crate::git_loader::{git_discovery, pr_git_discovery};
 use clap::{Parser, Subcommand};
@@ -97,7 +97,7 @@ impl Snapshot {
             .map(|p| format!("file://{}", p.display()))
     }
 
-    fn diff_uri(&self, use_file_if_available: bool) -> String {
+    fn diff_uri(&self, use_file_if_available: bool, options: DiffOptions) -> String {
         use_file_if_available
             .then(|| self.file_diff_uri())
             .flatten()
@@ -105,6 +105,7 @@ impl Snapshot {
                 diff_loader::DiffUri {
                     old: self.old_uri(),
                     new: self.new_uri(),
+                    options,
                 }
                 .to_uri()
             })
@@ -127,6 +128,7 @@ struct App {
     is_loading: bool,
     texture_magnification: TextureFilter,
     use_original_diff: bool,
+    options: DiffOptions,
 }
 
 impl App {
@@ -165,6 +167,7 @@ impl App {
             is_loading: true,
             texture_magnification: TextureFilter::Nearest,
             use_original_diff: comparison_mode == ComparisonMode::Files,
+            options: DiffOptions::default(),
         }
     }
 }
@@ -259,6 +262,7 @@ impl eframe::App for App {
         });
 
         egui::SidePanel::right("options").show(ctx, |ui| {
+            ui.set_width(ui.available_width());
             ui.add(Slider::new(&mut self.new_opacity, 0.0..=1.0).text("New Opacity"));
             ui.add(Slider::new(&mut self.diff_opacity, 0.0..=1.0).text("Diff Opacity"));
             ui.add(
@@ -286,10 +290,20 @@ impl eframe::App for App {
                 );
             });
 
-            ui.checkbox(
-                &mut self.use_original_diff,
-                "Use original diff if available",
-            );
+            ui.group(|ui| {
+                ui.heading("Diff Options");
+                ui.checkbox(
+                    &mut self.use_original_diff,
+                    "Use original diff if available",
+                );
+
+                ui.add(
+                    Slider::new(&mut self.options.threshold, 0.01..=1000.0)
+                        .logarithmic(true)
+                        .text("Diff Threshold"),
+                );
+                ui.checkbox(&mut self.options.detect_aa_pixels, "Detect AA Pixels");
+            });
 
             // Show loading status
             if self.is_loading {
@@ -308,7 +322,7 @@ impl eframe::App for App {
             );
 
             if let Some(snapshot) = self.snapshots.get(self.index) {
-                let diff_uri = snapshot.diff_uri(self.use_original_diff);
+                let diff_uri = snapshot.diff_uri(self.use_original_diff, self.options);
 
                 // ui.label(format!("old: {}", snapshot.old_uri()));
                 // ui.label(format!("new: {}", snapshot.new_uri()));
@@ -372,7 +386,8 @@ impl eframe::App for App {
                                 .ok();
                             ui.ctx()
                                 .try_load_image(
-                                    &surrounding_snapshot.diff_uri(self.use_original_diff),
+                                    &surrounding_snapshot
+                                        .diff_uri(self.use_original_diff, self.options),
                                     SizeHint::default(),
                                 )
                                 .ok();

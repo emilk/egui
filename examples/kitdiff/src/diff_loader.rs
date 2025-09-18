@@ -12,10 +12,26 @@ pub struct DiffLoader {
     diffs: Arc<Mutex<HashMap<String, ImageLoadResult>>>,
 }
 
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+pub struct DiffOptions {
+    pub threshold: f32,
+    pub detect_aa_pixels: bool,
+}
+
+impl Default for DiffOptions {
+    fn default() -> Self {
+        Self {
+            threshold: 1.0,
+            detect_aa_pixels: true,
+        }
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DiffUri {
     pub old: String,
     pub new: String,
+    pub options: DiffOptions,
 }
 
 impl DiffUri {
@@ -92,15 +108,22 @@ impl ImageLoader for DiffLoader {
     }
 
     fn forget(&self, uri: &str) {
-        todo!()
+        self.diffs.lock().remove(uri);
     }
 
     fn forget_all(&self) {
-        todo!()
+        self.diffs.lock().clear();
     }
 
     fn byte_size(&self) -> usize {
-        todo!()
+        self.diffs
+            .lock()
+            .values()
+            .map(|r| match r {
+                ImageLoadResult::Ok(ImagePoll::Ready { image }) => image.as_raw().len(),
+                _ => 0,
+            })
+            .sum()
     }
 }
 
@@ -129,7 +152,15 @@ pub fn load_diffs(
         "Failed to convert to RgbaImage".to_string(),
     ))?;
 
-    let result = dify::diff::get_results(old, new, 1.0, false, None, &None, &None);
+    let result = dify::diff::get_results(
+        old,
+        new,
+        diff_uri.options.threshold,
+        diff_uri.options.detect_aa_pixels,
+        None,
+        &None,
+        &None,
+    );
 
     if let Some((pixels, image)) = result {
         let image = ColorImage::from_rgba_unmultiplied(
