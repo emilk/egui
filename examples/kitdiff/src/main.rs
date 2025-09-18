@@ -2,7 +2,9 @@ mod diff_loader;
 
 use crate::diff_loader::DiffLoader;
 use eframe::egui::panel::Side;
-use eframe::egui::{Align, Context, Image, ScrollArea, SizeHint, Slider};
+use eframe::egui::{
+    Align, Context, Image, ScrollArea, SizeHint, Slider, TextureFilter, TextureOptions,
+};
 use eframe::{Frame, NativeOptions, egui};
 use egui_extras::install_image_loaders;
 use ignore::WalkBuilder;
@@ -66,6 +68,8 @@ struct App {
     mode: ImageMode,
     receiver: Option<mpsc::Receiver<Snapshot>>,
     is_loading: bool,
+    texture_magnification: TextureFilter,
+    use_original_diff: bool,
 }
 
 impl App {
@@ -88,6 +92,8 @@ impl App {
             mode: ImageMode::Fit,
             receiver: Some(receiver),
             is_loading: true,
+            texture_magnification: TextureFilter::Nearest,
+            use_original_diff: false,
         }
     }
 
@@ -206,6 +212,14 @@ impl eframe::App for App {
             self.index = new_index;
         }
 
+        let (show_old, show_new, show_diff) = ctx.input(|i| {
+            let show_old = i.key_down(egui::Key::Num1);
+            let show_new = i.key_down(egui::Key::Num2);
+            let show_diff = i.key_down(egui::Key::Num3);
+            (show_old, show_new, show_diff)
+        });
+        let show_all = !show_old && !show_new && !show_diff;
+
         egui::SidePanel::new(Side::Left, "files").show(ctx, |ui| {
             ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
 
@@ -239,48 +253,95 @@ impl eframe::App for App {
             });
         });
 
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.horizontal_wrapped(|ui| {
-                ui.add(Slider::new(&mut self.new_opacity, 0.0..=1.0).text("New Opacity"));
-                ui.add(Slider::new(&mut self.diff_opacity, 0.0..=1.0).text("Diff Opacity"));
-                ui.add(
-                    Slider::new(&mut self.index, 0..=self.snapshots.len().saturating_sub(1))
-                        .text("Snapshot Index"),
-                );
+        egui::SidePanel::right("options").show(ctx, |ui| {
+            ui.add(Slider::new(&mut self.new_opacity, 0.0..=1.0).text("New Opacity"));
+            ui.add(Slider::new(&mut self.diff_opacity, 0.0..=1.0).text("Diff Opacity"));
+            ui.add(
+                Slider::new(&mut self.index, 0..=self.snapshots.len().saturating_sub(1))
+                    .text("Snapshot Index"),
+            );
 
+            ui.horizontal_wrapped(|ui| {
+                ui.label("Size:");
                 ui.selectable_value(&mut self.mode, ImageMode::Pixel, "1:1");
                 ui.selectable_value(&mut self.mode, ImageMode::Fit, "Fit");
-
-                // Show loading status
-                if self.is_loading {
-                    ui.label(format!(
-                        "Loading... {} snapshots found",
-                        self.snapshots.len()
-                    ));
-                } else {
-                    ui.label(format!("{} snapshots total", self.snapshots.len()));
-                }
             });
+
+            ui.horizontal_wrapped(|ui| {
+                ui.label("Filtering:");
+                ui.selectable_value(
+                    &mut self.texture_magnification,
+                    TextureFilter::Nearest,
+                    "Nearest",
+                );
+                ui.selectable_value(
+                    &mut self.texture_magnification,
+                    TextureFilter::Linear,
+                    "Linear",
+                );
+            });
+
+            ui.checkbox(
+                &mut self.use_original_diff,
+                "Use original diff if available",
+            );
+
+            // Show loading status
+            if self.is_loading {
+                ui.label(format!(
+                    "Loading... {} snapshots found",
+                    self.snapshots.len()
+                ));
+            } else {
+                ui.label(format!("{} snapshots total", self.snapshots.len()));
+            }
+        });
+
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.horizontal_wrapped(|ui| {});
+            ui.label(
+                "Use 1/2/3 to only show old / new / diff at 100% opacity. Arrow keys to navigate.",
+            );
 
             if let Some(snapshot) = self.snapshots.get(self.index) {
                 let rect = ui.available_rect_before_wrap();
 
                 let ppp = ui.pixels_per_point();
                 let make_image = |uri: String| {
-                    let mut img = Image::new(uri);
+                    let mut img = Image::new(uri).texture_options(TextureOptions {
+                        magnification: self.texture_magnification,
+                        ..TextureOptions::default()
+                    });
                     if self.mode == ImageMode::Pixel {
                         img = img.fit_to_original_size(1.0 / ppp);
                     }
                     img
                 };
 
-                ui.place(rect, make_image(snapshot.old_uri()));
+                if show_all || show_old {
+                    ui.place(rect, make_image(snapshot.old_uri()));
+                }
 
-                ui.set_opacity(self.new_opacity);
-                ui.place(rect, make_image(snapshot.new_uri()));
+                if show_all || show_new {
+                    if show_all {
+                        ui.set_opacity(self.new_opacity);
+                    }
+                    ui.place(rect, make_image(snapshot.new_uri()));
+                }
 
-                ui.set_opacity(self.diff_opacity);
-                ui.place(rect, make_image(snapshot.diff_uri()));
+                if show_all || show_diff {
+                    if show_all {
+                        ui.set_opacity(self.diff_opacity);
+                    }
+                    let diff_uri = self
+                        .use_original_diff
+                        .then_some(snapshot.file_diff_uri())
+                        .flatten()
+                        .unwrap_or(snapshot.diff_uri());
+                    ui.place(rect, make_image(diff_uri));
+                }
+
+                ui.set_opacity(1.0);
 
                 // Preload surrounding snapshots
                 for i in -2..=2 {
