@@ -317,7 +317,8 @@ impl eframe::App for App {
                 let rect = ui.available_rect_before_wrap();
 
                 let ppp = ui.pixels_per_point();
-                let make_image = |uri: String| {
+                let mut any_loading = false;
+                let mut make_image = |uri: String| {
                     let mut img = Image::new(uri).texture_options(TextureOptions {
                         magnification: self.texture_magnification,
                         ..TextureOptions::default()
@@ -325,6 +326,9 @@ impl eframe::App for App {
                     if self.mode == ImageMode::Pixel {
                         img = img.fit_to_original_size(1.0 / ppp);
                     }
+                    any_loading |= img
+                        .load_for_size(ctx, rect.size())
+                        .is_ok_and(|poll| poll.is_pending());
                     img
                 };
 
@@ -348,23 +352,31 @@ impl eframe::App for App {
 
                 ui.set_opacity(1.0);
 
-                // Preload surrounding snapshots
-                for i in -2..=2 {
-                    if let Some(surrounding_snapshot) =
-                        self.snapshots.get((self.index as isize + i) as usize)
-                    {
-                        ui.ctx()
-                            .try_load_image(&surrounding_snapshot.old_uri(), SizeHint::default())
-                            .ok();
-                        ui.ctx()
-                            .try_load_image(&surrounding_snapshot.new_uri(), SizeHint::default())
-                            .ok();
-                        ui.ctx()
-                            .try_load_image(
-                                &surrounding_snapshot.diff_uri(self.use_original_diff),
-                                SizeHint::default(),
-                            )
-                            .ok();
+                // Preload surrounding snapshots once our image is loaded
+                if !any_loading {
+                    for i in -10..=10 {
+                        if let Some(surrounding_snapshot) =
+                            self.snapshots.get((self.index as isize + i) as usize)
+                        {
+                            ui.ctx()
+                                .try_load_image(
+                                    &surrounding_snapshot.old_uri(),
+                                    SizeHint::default(),
+                                )
+                                .ok();
+                            ui.ctx()
+                                .try_load_image(
+                                    &surrounding_snapshot.new_uri(),
+                                    SizeHint::default(),
+                                )
+                                .ok();
+                            ui.ctx()
+                                .try_load_image(
+                                    &surrounding_snapshot.diff_uri(self.use_original_diff),
+                                    SizeHint::default(),
+                                )
+                                .ok();
+                        }
                     }
                 }
             } else if self.is_loading {

@@ -517,6 +517,16 @@ impl TexturePoll {
             Self::Ready { texture } => Some(texture.id),
         }
     }
+
+    #[inline]
+    pub fn is_pending(&self) -> bool {
+        matches!(self, Self::Pending { .. })
+    }
+
+    #[inline]
+    pub fn is_ready(&self) -> bool {
+        matches!(self, Self::Ready { .. })
+    }
 }
 
 pub type TextureLoadResult = Result<TexturePoll>;
