@@ -8,8 +8,8 @@ use crate::git_loader::{git_discovery, pr_git_discovery};
 use clap::{Parser, Subcommand};
 use eframe::egui::panel::Side;
 use eframe::egui::{
-    Align, Context, Image, ImageSource, RichText, ScrollArea, SizeHint, Slider, TextureFilter,
-    TextureOptions,
+    Align, Context, Image, ImageSource, RichText, ScrollArea, SizeHint, Slider, TextEdit,
+    TextureFilter, TextureOptions,
 };
 use eframe::{Frame, NativeOptions, egui};
 use egui_extras::install_image_loaders;
@@ -131,6 +131,7 @@ struct App {
     texture_magnification: TextureFilter,
     use_original_diff: bool,
     options: DiffOptions,
+    filter: String,
 }
 
 impl App {
@@ -171,6 +172,7 @@ impl App {
             texture_magnification: TextureFilter::Nearest,
             use_original_diff: comparison_mode == ComparisonMode::Files,
             options: DiffOptions::default(),
+            filter: String::new(),
         }
     }
 }
@@ -204,19 +206,40 @@ impl eframe::App for App {
             }
         }
 
+        let filtered = self
+            .snapshots
+            .iter()
+            .enumerate()
+            .filter(|(_, snapshot)| {
+                self.filter.is_empty()
+                    || snapshot
+                        .path
+                        .to_str()
+                        .map(|p| p.contains(&self.filter))
+                        .unwrap_or(false)
+            })
+            .collect::<Vec<_>>();
+        let current_filtered_index = filtered
+            .iter()
+            .position(|(i, _)| *i == self.index)
+            .unwrap_or(0);
+
+
         let mut new_index = None;
         if ctx.input_mut(|i| {
             i.key_pressed(egui::Key::ArrowRight) || i.key_pressed(egui::Key::ArrowDown)
         }) {
-            if self.index + 1 < self.snapshots.len() {
-                new_index = Some(self.index + 1);
+            // Find next snapshot that matches filter
+            if current_filtered_index + 1 < filtered.len() {
+                new_index = Some(filtered[current_filtered_index + 1].0);
             }
         }
         if ctx
             .input_mut(|i| i.key_pressed(egui::Key::ArrowLeft) || i.key_pressed(egui::Key::ArrowUp))
         {
-            if self.index > 0 {
-                new_index = Some(self.index - 1);
+            // Find previous snapshot that matches filter
+            if current_filtered_index > 0 {
+                new_index = Some(filtered[current_filtered_index - 1].0);
             }
         }
         if let Some(new_index) = new_index {
@@ -236,8 +259,13 @@ impl eframe::App for App {
 
             ScrollArea::vertical().show(ui, |ui| {
                 ui.set_width(ui.available_width());
+
+                TextEdit::singleline(&mut self.filter)
+                    .hint_text("Filter")
+                    .show(ui);
+
                 let mut current_prefix = None;
-                for (i, snapshot) in self.snapshots.iter().enumerate() {
+                for (i, snapshot) in &filtered {
                     let prefix = snapshot.path.parent().and_then(|p| p.to_str());
                     if prefix != current_prefix {
                         if let Some(prefix) = prefix {
@@ -248,16 +276,16 @@ impl eframe::App for App {
 
                     ui.indent(&snapshot.path, |ui| {
                         let response = ui.selectable_label(
-                            i == self.index,
+                            *i == self.index,
                             snapshot.path.file_name().unwrap().to_str().unwrap(),
                         );
 
-                        if Some(i) == new_index {
+                        if Some(*i) == new_index {
                             response.scroll_to_me(Some(Align::Center))
                         }
 
                         if response.clicked() {
-                            self.index = i;
+                            self.index = *i;
                         }
                     });
                 }
@@ -336,6 +364,8 @@ impl eframe::App for App {
                                 .color(ui.visuals().warn_fg_color),
                         );
                     }
+                } else {
+                    ui.label("No diff info yet...");
                 }
 
                 // ui.label(format!("old: {}", snapshot.old_uri()));
