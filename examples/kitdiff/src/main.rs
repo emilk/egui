@@ -221,8 +221,12 @@ impl eframe::App for App {
             .collect::<Vec<_>>();
         let current_filtered_index = filtered
             .iter()
-            .position(|(i, _)| *i == self.index)
-            .unwrap_or(0);
+            .position(|(i, _)| *i == self.index);
+        if current_filtered_index.is_none() && !filtered.is_empty() {
+            // Current index is filtered out, jump to first filtered
+            self.index = filtered[0].0;
+        }
+        let current_filtered_index = current_filtered_index.unwrap_or(0);
 
         let mut new_index = None;
         if ctx.input_mut(|i| i.consume_key(Modifiers::NONE, egui::Key::ArrowDown)) {
