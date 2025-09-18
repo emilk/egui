@@ -1,6 +1,8 @@
 mod diff_loader;
+mod file_diff;
 
 use crate::diff_loader::DiffLoader;
+use crate::file_diff::file_discovery;
 use eframe::egui::panel::Side;
 use eframe::egui::{
     Align, Context, Image, ScrollArea, SizeHint, Slider, TextureFilter, TextureOptions,
@@ -82,7 +84,7 @@ impl App {
         let ctx = cc.egui_ctx.clone();
 
         // Start background discovery
-        Self::start_discovery(".", sender, ctx);
+        file_discovery(".", sender, ctx);
 
         Self {
             snapshots: Vec::new(),
@@ -94,78 +96,6 @@ impl App {
             is_loading: true,
             texture_magnification: TextureFilter::Nearest,
             use_original_diff: false,
-        }
-    }
-
-    fn start_discovery(path: &str, sender: mpsc::Sender<Snapshot>, ctx: Context) {
-        let path = path.to_string();
-
-        std::thread::spawn(move || {
-            // Create type matcher for .png files
-            let mut types_builder = TypesBuilder::new();
-            types_builder.add("png", "*.png").unwrap();
-            types_builder.select("png");
-            let types = types_builder.build().unwrap();
-
-            // Build sequential walker for .png files only to maintain order
-            for result in WalkBuilder::new(&path).types(types).build() {
-                if let Ok(entry) = result {
-                    if entry.file_type().map_or(false, |ft| ft.is_file()) {
-                        if let Some(snapshot) = Self::try_create_snapshot(entry.path()) {
-                            if sender.send(snapshot).is_ok() {
-                                ctx.request_repaint();
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    }
-
-    fn try_create_snapshot(png_path: &Path) -> Option<Snapshot> {
-        let file_name = png_path.file_name()?.to_str()?;
-
-        // Skip files that are already variants (.old.png, .new.png, .diff.png)
-        if file_name.ends_with(".old.png")
-            || file_name.ends_with(".new.png")
-            || file_name.ends_with(".diff.png")
-        {
-            return None;
-        }
-
-        // Get base path without .png extension
-        let base_path = png_path.with_extension("");
-        let old_path = base_path.with_extension("old.png");
-        let new_path = base_path.with_extension("new.png");
-        let diff_path = base_path.with_extension("diff.png");
-
-        // Only create snapshot if diff exists
-        if !diff_path.exists() {
-            return None;
-        }
-
-        // Determine which files exist and create appropriate snapshot
-        let relative_path = png_path.strip_prefix(".").unwrap_or(png_path);
-
-        if old_path.exists() {
-            // old.png exists, use original as new and old.png as old
-            Some(Snapshot {
-                path: relative_path.to_path_buf(),
-                old: old_path,
-                new: png_path.to_path_buf(),
-                diff: Some(diff_path),
-            })
-        } else if new_path.exists() {
-            // new.png exists, use original as old and new.png as new
-            Some(Snapshot {
-                path: relative_path.to_path_buf(),
-                old: png_path.to_path_buf(),
-                new: new_path,
-                diff: Some(diff_path),
-            })
-        } else {
-            // No old or new variant, skip this snapshot
-            None
         }
     }
 }
@@ -298,7 +228,6 @@ impl eframe::App for App {
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.horizontal_wrapped(|ui| {});
             ui.label(
                 "Use 1/2/3 to only show old / new / diff at 100% opacity. Arrow keys to navigate.",
             );
