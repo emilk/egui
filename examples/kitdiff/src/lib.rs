@@ -44,14 +44,13 @@ impl DiffSource {
                 None
             }
             DiffSource::Zip(data) => {
-                // loaders::tar_loader::extract_and_discover_tar_gz(
-                //     data.load_bytes()?.to_vec(),
-                //     tx,
-                //     ctx,
-                // )
-                // .expect("Failed to run zip discovery");
-                // None
-                todo!()
+                loaders::zip_loader::extract_and_discover_zip(
+                    data.load_bytes()?.to_vec(),
+                    tx,
+                    ctx,
+                )
+                .expect("Failed to run zip discovery");
+                None
             }
             DiffSource::TarGz(data) => {
                 loaders::tar_loader::extract_and_discover_tar_gz(

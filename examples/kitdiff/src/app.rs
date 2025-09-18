@@ -30,8 +30,6 @@ pub struct App {
     use_original_diff: bool,
     options: DiffOptions,
     filter: String,
-    #[cfg(feature = "zip_support")]
-    _temp_dir: Option<TempDir>, // Keep temp directory alive for zip mode
     drag_and_drop_enabled: bool,
 }
 
@@ -62,8 +60,6 @@ impl App {
             use_original_diff: true,
             options: DiffOptions::default(),
             filter: String::new(),
-            #[cfg(feature = "zip_support")]
-            _temp_dir: temp_dir,
             drag_and_drop_enabled: true,
         }
     }
@@ -312,12 +308,11 @@ impl eframe::App for App {
                 "Use 1/2/3 to only show old / new / diff at 100% opacity. Arrow keys to navigate.",
             );
 
-            #[cfg(feature = "tar_support")]
             if self.drag_and_drop_enabled && self.snapshots.is_empty() && !self.is_loading {
                 ui.separator();
                 ui.vertical_centered(|ui| {
                     ui.add_space(50.0);
-                    ui.heading("Drop a .tar.gz or .tgz file here");
+                    ui.heading("Drop a .tar.gz, .tgz, or .zip file here");
                     ui.label("The file should contain PNG snapshot files");
                     ui.add_space(20.0);
                 });
