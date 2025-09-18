@@ -4,7 +4,7 @@ mod git_loader;
 
 use crate::diff_loader::DiffLoader;
 use crate::file_diff::file_discovery;
-use crate::git_loader::git_discovery;
+use crate::git_loader::{git_discovery, pr_git_discovery};
 use clap::{Parser, Subcommand};
 use eframe::egui::panel::Side;
 use eframe::egui::{
@@ -29,12 +29,15 @@ enum Commands {
     Files,
     /// Compare images between current branch and default branch
     Git,
+    /// Compare images between PR branches from GitHub PR URL
+    Pr { url: String },
 }
 
 fn main() -> eframe::Result<()> {
     let cli = Cli::parse();
     let mode = match cli.command {
         Some(Commands::Git) => ComparisonMode::Git,
+        Some(Commands::Pr { url }) => ComparisonMode::Pr(url),
         Some(Commands::Files) | None => ComparisonMode::Files,
     };
 
@@ -45,10 +48,11 @@ fn main() -> eframe::Result<()> {
     )
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 enum ComparisonMode {
     Files,
     Git,
+    Pr(String), // Store the PR URL
 }
 
 #[derive(Debug, Clone)]
@@ -139,6 +143,11 @@ impl App {
             ComparisonMode::Git => {
                 if let Err(e) = git_discovery(sender, ctx) {
                     eprintln!("Failed to start git discovery: {:?}", e);
+                }
+            }
+            ComparisonMode::Pr(ref pr_url) => {
+                if let Err(e) = pr_git_discovery(pr_url.clone(), sender, ctx) {
+                    eprintln!("Failed to start PR discovery: {:?}", e);
                 }
             }
         }

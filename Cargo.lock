@@ -2658,6 +2658,7 @@ dependencies = [
  "dify",
  "eframe",
  "egui_extras",
+ "ehttp",
  "git2",
  "ignore",
  "image",

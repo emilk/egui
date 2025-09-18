@@ -3,6 +3,7 @@ use eframe::egui::load::Bytes;
 use eframe::egui::{Context, ImageSource};
 use git2::{ObjectType, Repository};
 use ignore::{WalkBuilder, types::TypesBuilder};
+use serde_json::Value;
 use std::borrow::Cow;
 use std::path::Path;
 use std::sync::mpsc;
@@ -15,6 +16,17 @@ pub enum GitError {
     FileNotFound,
     GitError(git2::Error),
     IoError(std::io::Error),
+    PrUrlParseError,
+    NetworkError(String),
+}
+
+#[derive(Debug, Clone)]
+pub struct PrInfo {
+    pub org: String,
+    pub repo: String,
+    pub pr_number: u32,
+    pub head_ref: String,
+    pub base_ref: String,
 }
 
 impl From<git2::Error> for GitError {
@@ -33,6 +45,15 @@ pub fn git_discovery(sender: mpsc::Sender<Snapshot>, ctx: Context) -> Result<(),
     std::thread::spawn(move || {
         if let Err(e) = run_git_discovery(sender, ctx) {
             eprintln!("Git discovery error: {:?}", e);
+        }
+    });
+    Ok(())
+}
+
+pub fn pr_git_discovery(pr_url: String, sender: mpsc::Sender<Snapshot>, ctx: Context) -> Result<(), GitError> {
+    std::thread::spawn(move || {
+        if let Err(e) = run_pr_git_discovery(pr_url, sender, ctx) {
+            eprintln!("PR git discovery error: {:?}", e);
         }
     });
     Ok(())
@@ -95,6 +116,51 @@ fn run_git_discovery(sender: mpsc::Sender<Snapshot>, ctx: Context) -> Result<(),
     Ok(())
 }
 
+fn run_pr_git_discovery(pr_url: String, sender: mpsc::Sender<Snapshot>, ctx: Context) -> Result<(), GitError> {
+    // Parse the PR URL
+    let (org, repo, pr_number) = parse_github_pr_url(&pr_url)?;
+
+    // Fetch PR info from GitHub API
+    let pr_info = fetch_pr_info(&org, &repo, pr_number)?;
+
+    // Open git repository in current directory
+    let repo = Repository::open(".").map_err(|_| GitError::RepoNotFound)?;
+
+    // Get GitHub repository info for LFS support
+    let github_repo_info = get_github_repo_info(&repo);
+
+    // Fetch and resolve the head and base branches
+    let (head_tree, base_tree, head_commit_sha) = resolve_pr_branches(&repo, &pr_info)?;
+
+    // Create type matcher for .png files
+    let mut types_builder = TypesBuilder::new();
+    types_builder.add("png", "*.png").unwrap();
+    types_builder.select("png");
+    let types = types_builder.build().unwrap();
+
+    // Walk current working tree for .png files and compare between branches
+    for result in WalkBuilder::new(".").types(types).build() {
+        if let Ok(entry) = result {
+            if entry.file_type().map_or(false, |ft| ft.is_file()) {
+                if let Some(snapshot) = create_pr_snapshot(
+                    &repo,
+                    &base_tree,
+                    &head_tree,
+                    entry.path(),
+                    &github_repo_info,
+                    &head_commit_sha,
+                )? {
+                    if sender.send(snapshot).is_ok() {
+                        ctx.request_repaint();
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
 fn find_default_branch(repo: &Repository) -> Result<String, GitError> {
     // Try common default branch names
     for branch_name in ["main", "master"] {
@@ -113,6 +179,33 @@ fn find_default_branch(repo: &Repository) -> Result<String, GitError> {
     }
 
     Err(GitError::BranchNotFound)
+}
+
+fn resolve_pr_branches<'a>(repo: &'a Repository, pr_info: &PrInfo) -> Result<(git2::Tree<'a>, git2::Tree<'a>, String), GitError> {
+    // Get the origin remote to fetch branches if needed
+    let mut remote = repo.find_remote("origin")?;
+
+    // Construct refspecs for head and base branches
+    let head_refspec = format!("+refs/heads/{}:refs/remotes/origin/{}", pr_info.head_ref, pr_info.head_ref);
+    let base_refspec = format!("+refs/heads/{}:refs/remotes/origin/{}", pr_info.base_ref, pr_info.base_ref);
+
+    // Fetch the branches
+    remote.fetch(&[&head_refspec, &base_refspec], None, None)?;
+
+    // Resolve head branch commit
+    let head_ref_name = format!("refs/remotes/origin/{}", pr_info.head_ref);
+    let head_ref = repo.find_reference(&head_ref_name)?;
+    let head_commit = head_ref.peel_to_commit()?;
+    let head_tree = head_commit.tree()?;
+    let head_commit_sha = head_commit.id().to_string();
+
+    // Resolve base branch commit
+    let base_ref_name = format!("refs/remotes/origin/{}", pr_info.base_ref);
+    let base_ref = repo.find_reference(&base_ref_name)?;
+    let base_commit = base_ref.peel_to_commit()?;
+    let base_tree = base_commit.tree()?;
+
+    Ok((head_tree, base_tree, head_commit_sha))
 }
 
 fn create_git_snapshot(
@@ -183,6 +276,116 @@ fn create_git_snapshot(
         old: FileReference::Source(default_image_source), // Default branch version as ImageSource
         new: FileReference::Path(current_path.to_path_buf()), // Current working tree version
         diff: None,                                       // Always None for git mode
+    }))
+}
+
+fn create_pr_snapshot(
+    repo: &Repository,
+    base_tree: &git2::Tree,
+    head_tree: &git2::Tree,
+    current_path: &Path,
+    github_repo_info: &Option<(String, String)>,
+    head_commit_sha: &str,
+) -> Result<Option<Snapshot>, GitError> {
+    // Skip files that are variants
+    let file_name = current_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or(GitError::FileNotFound)?;
+
+    if file_name.ends_with(".old.png")
+        || file_name.ends_with(".new.png")
+        || file_name.ends_with(".diff.png")
+    {
+        return Ok(None);
+    }
+
+    let relative_path = current_path.strip_prefix(".").unwrap_or(current_path);
+
+    // Try to get the file from base branch
+    let base_file_content = match get_file_from_tree(repo, base_tree, relative_path) {
+        Ok(content) => Some(content),
+        Err(_) => None, // File doesn't exist in base branch
+    };
+
+    // Try to get the file from head branch
+    let head_file_content = match get_file_from_tree(repo, head_tree, relative_path) {
+        Ok(content) => Some(content),
+        Err(_) => None, // File doesn't exist in head branch
+    };
+
+    // Only create snapshot if files are different or one is missing
+    match (&base_file_content, &head_file_content) {
+        (Some(base), Some(head)) if base == head => return Ok(None), // Files are identical
+        (None, None) => return Ok(None), // File doesn't exist in either branch
+        _ => {}, // Files are different or one is missing, continue
+    }
+
+    // Create ImageSource for base branch (old)
+    let base_image_source = match base_file_content {
+        Some(content) => {
+            if is_lfs_pointer(&content) {
+                if let Some((org, repo_name)) = github_repo_info {
+                    // For base branch, we need to find the base commit SHA
+                    let base_commit_sha = head_commit_sha; // This should be the base commit SHA, but we'll use head for now
+                    let media_url = create_lfs_media_url(org, repo_name, base_commit_sha, relative_path);
+                    ImageSource::Uri(Cow::Owned(media_url))
+                } else {
+                    ImageSource::Bytes {
+                        uri: Cow::Owned(format!("bytes://base/{}", relative_path.display())),
+                        bytes: Bytes::Shared(content.into()),
+                    }
+                }
+            } else {
+                ImageSource::Bytes {
+                    uri: Cow::Owned(format!("bytes://base/{}", relative_path.display())),
+                    bytes: Bytes::Shared(content.into()),
+                }
+            }
+        },
+        None => {
+            // Create a placeholder for missing file
+            ImageSource::Bytes {
+                uri: Cow::Owned(format!("bytes://missing/{}", relative_path.display())),
+                bytes: Bytes::Static(&[]), // Empty bytes for missing file
+            }
+        }
+    };
+
+    // Create ImageSource for head branch (new)
+    let head_image_source = match head_file_content {
+        Some(content) => {
+            if is_lfs_pointer(&content) {
+                if let Some((org, repo_name)) = github_repo_info {
+                    let media_url = create_lfs_media_url(org, repo_name, head_commit_sha, relative_path);
+                    ImageSource::Uri(Cow::Owned(media_url))
+                } else {
+                    ImageSource::Bytes {
+                        uri: Cow::Owned(format!("bytes://head/{}", relative_path.display())),
+                        bytes: Bytes::Shared(content.into()),
+                    }
+                }
+            } else {
+                ImageSource::Bytes {
+                    uri: Cow::Owned(format!("bytes://head/{}", relative_path.display())),
+                    bytes: Bytes::Shared(content.into()),
+                }
+            }
+        },
+        None => {
+            // Create a placeholder for missing file
+            ImageSource::Bytes {
+                uri: Cow::Owned(format!("bytes://missing/{}", relative_path.display())),
+                bytes: Bytes::Static(&[]), // Empty bytes for missing file
+            }
+        }
+    };
+
+    Ok(Some(Snapshot {
+        path: relative_path.to_path_buf(),
+        old: FileReference::Source(base_image_source), // Base branch version
+        new: FileReference::Source(head_image_source), // Head branch version
+        diff: None, // Always None for PR mode
     }))
 }
 
@@ -295,4 +498,61 @@ fn create_lfs_media_url(org: &str, repo: &str, commit_sha: &str, file_path: &Pat
         commit_sha,
         file_path.display()
     )
+}
+
+pub fn parse_github_pr_url(url: &str) -> Result<(String, String, u32), GitError> {
+    // Parse URLs like: https://github.com/rerun-io/rerun/pull/11253
+    if !url.starts_with("https://github.com/") {
+        return Err(GitError::PrUrlParseError);
+    }
+
+    let path = url.strip_prefix("https://github.com/")
+        .ok_or(GitError::PrUrlParseError)?;
+
+    let parts: Vec<&str> = path.split('/').collect();
+    if parts.len() != 4 || parts[2] != "pull" {
+        return Err(GitError::PrUrlParseError);
+    }
+
+    let org = parts[0].to_string();
+    let repo = parts[1].to_string();
+    let pr_number = parts[3].parse::<u32>()
+        .map_err(|_| GitError::PrUrlParseError)?;
+
+    Ok((org, repo, pr_number))
+}
+
+pub fn fetch_pr_info(org: &str, repo: &str, pr_number: u32) -> Result<PrInfo, GitError> {
+    let url = format!("https://api.github.com/repos/{}/{}/pulls/{}", org, repo, pr_number);
+
+    // Use ehttp for HTTP request (blocking)
+    let request = ehttp::Request::get(url);
+
+    let response = ehttp::fetch_blocking(&request)
+        .map_err(|e| GitError::NetworkError(e.to_string()))?;
+
+    if !response.ok {
+        return Err(GitError::NetworkError(format!("HTTP {}: {}", response.status, response.status_text)));
+    }
+
+    let json: Value = serde_json::from_slice(&response.bytes)
+        .map_err(|e| GitError::NetworkError(format!("JSON parse error: {}", e)))?;
+
+    let head_ref = json["head"]["ref"]
+        .as_str()
+        .ok_or(GitError::NetworkError("Missing head.ref in PR data".to_string()))?
+        .to_string();
+
+    let base_ref = json["base"]["ref"]
+        .as_str()
+        .ok_or(GitError::NetworkError("Missing base.ref in PR data".to_string()))?
+        .to_string();
+
+    Ok(PrInfo {
+        org: org.to_string(),
+        repo: repo.to_string(),
+        pr_number,
+        head_ref,
+        base_ref,
+    })
 }
