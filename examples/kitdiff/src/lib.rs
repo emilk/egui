@@ -6,6 +6,8 @@ use std::sync::mpsc::Sender;
 
 pub mod app;
 pub mod diff_image_loader;
+#[cfg(target_arch = "wasm32")]
+pub mod github_auth;
 pub mod loaders;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod native_loaders;
@@ -44,22 +46,90 @@ impl DiffSource {
                 None
             }
             DiffSource::Zip(data) => {
-                loaders::zip_loader::extract_and_discover_zip(
-                    data.load_bytes()?.to_vec(),
-                    tx,
-                    ctx,
-                )
-                .expect("Failed to run zip discovery");
-                None
+                #[cfg(target_arch = "wasm32")]
+                {
+                    // For URLs in wasm, spawn async task
+                    if matches!(data, PathOrBlob::Url(_, _)) {
+                        let data_clone = data.clone();
+                        let tx_clone = tx.clone();
+                        let ctx_clone = ctx.clone();
+
+                        wasm_bindgen_futures::spawn_local(async move {
+                            if let Some(bytes) = data_clone.load_bytes_async().await {
+                                if let Err(e) = loaders::zip_loader::extract_and_discover_zip(
+                                    bytes.to_vec(),
+                                    tx_clone,
+                                    ctx_clone,
+                                ) {
+                                    eprintln!("Failed to run zip discovery: {:?}", e);
+                                }
+                            }
+                        });
+                        None
+                    } else {
+                        // For blobs, use sync method
+                        loaders::zip_loader::extract_and_discover_zip(
+                            data.load_bytes()?.to_vec(),
+                            tx,
+                            ctx,
+                        )
+                        .expect("Failed to run zip discovery");
+                        None
+                    }
+                }
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    loaders::zip_loader::extract_and_discover_zip(
+                        data.load_bytes()?.to_vec(),
+                        tx,
+                        ctx,
+                    )
+                    .expect("Failed to run zip discovery");
+                    None
+                }
             }
             DiffSource::TarGz(data) => {
-                loaders::tar_loader::extract_and_discover_tar_gz(
-                    data.load_bytes()?.to_vec(),
-                    tx,
-                    ctx,
-                )
-                .expect("Failed to run tar.gz discovery");
-                None
+                #[cfg(target_arch = "wasm32")]
+                {
+                    // For URLs in wasm, spawn async task
+                    if matches!(data, PathOrBlob::Url(_, _)) {
+                        let data_clone = data.clone();
+                        let tx_clone = tx.clone();
+                        let ctx_clone = ctx.clone();
+
+                        wasm_bindgen_futures::spawn_local(async move {
+                            if let Some(bytes) = data_clone.load_bytes_async().await {
+                                if let Err(e) = loaders::tar_loader::extract_and_discover_tar_gz(
+                                    bytes.to_vec(),
+                                    tx_clone,
+                                    ctx_clone,
+                                ) {
+                                    eprintln!("Failed to run tar.gz discovery: {:?}", e);
+                                }
+                            }
+                        });
+                        None
+                    } else {
+                        // For blobs, use sync method
+                        loaders::tar_loader::extract_and_discover_tar_gz(
+                            data.load_bytes()?.to_vec(),
+                            tx,
+                            ctx,
+                        )
+                        .expect("Failed to run tar.gz discovery");
+                        None
+                    }
+                }
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    loaders::tar_loader::extract_and_discover_tar_gz(
+                        data.load_bytes()?.to_vec(),
+                        tx,
+                        ctx,
+                    )
+                    .expect("Failed to run tar.gz discovery");
+                    None
+                }
             }
         }
     }
@@ -71,13 +141,55 @@ struct DropMeLater(Box<dyn Any>);
 pub enum PathOrBlob {
     Path(std::path::PathBuf),
     Blob(Bytes),
+    #[cfg(target_arch = "wasm32")]
+    Url(String, Option<String>), // URL and optional auth token
 }
 
 impl PathOrBlob {
     pub fn load_bytes(&self) -> Option<Bytes> {
         match self {
+            #[cfg(not(target_arch = "wasm32"))]
             PathOrBlob::Path(path) => std::fs::read(path).ok().map(Bytes::from),
             PathOrBlob::Blob(bytes) => Some(bytes.clone()),
+            #[cfg(target_arch = "wasm32")]
+            PathOrBlob::Path(_) => None, // Paths not supported in wasm
+            #[cfg(target_arch = "wasm32")]
+            PathOrBlob::Url(_, _) => None, // URLs require async, handled separately
+        }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub async fn load_bytes_async(&self) -> Option<Bytes> {
+        match self {
+            PathOrBlob::Blob(bytes) => Some(bytes.clone()),
+            PathOrBlob::Url(url, token) => {
+                let auth_header = token.as_ref().map(|t| format!("Bearer {}", t));
+                let mut headers = vec![("User-Agent", "kitdiff")];
+                if let Some(ref auth) = auth_header {
+                    headers.push(("Authorization", auth.as_str()));
+                }
+
+                let request = ehttp::Request {
+                    method: "GET".to_string(),
+                    url: url.clone(),
+                    body: vec![],
+                    headers: ehttp::Headers::new(&headers),
+                    mode: ehttp::Mode::Cors,
+                };
+
+                match ehttp::fetch_async(request).await {
+                    Ok(response) if response.ok => Some(Bytes::from(response.bytes)),
+                    Ok(response) => {
+                        eprintln!("Failed to download {}: HTTP {}", url, response.status);
+                        None
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to download {}: {}", url, e);
+                        None
+                    }
+                }
+            }
+            PathOrBlob::Path(_) => None, // Paths not supported in wasm
         }
     }
 }
