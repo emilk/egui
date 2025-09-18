@@ -1,0 +1,45 @@
+//html {
+//    /* Remove touch delay: */
+//    touch-action: manipulation;
+//}
+//
+//body {
+//    /* Light mode background color for the canvas to blend with the egui visuals */
+//    background: #fafafa;
+//    margin: 0px;
+//    padding: 0px;
+//    width: 100%;
+//    height: 100%;
+//    overflow: hidden; /* Prevent scrollbars */
+//}
+//
+//@media (prefers-color-scheme: dark) {
+//    body {
+//        /* Dark mode background color for the canvas to blend with the egui visuals */
+//        background: #202020;
+//    }
+//}
+//
+///* Allow canvas to fill entire web page: */
+//#the_canvas_id {
+//    width: 100%;
+//    height: 100%;
+//}
+//
+///* Make text sharp on webkit */
+//.egui_text {
+//    -webkit-font-smoothing: antialiased;
+//}
+
+body, html {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+#the_canvas_id {
+  width: 100%;
+  height: 100%;
+}

@@ -116,11 +116,11 @@ impl ImageLoader for DiffLoader {
                         .insert(diff_uri.to_uri(), Ok(Poll::Pending));
 
                     let uri = uri.to_string();
-                    std::thread::spawn(move || {
-                        ctx.request_repaint();
-                        let result = load_diffs(&ctx, old_image, new_image, size_hint, diff_uri);
-                        cache.lock().insert(uri, result.map(Poll::Ready));
-                    });
+                    // std::thread::spawn(move || {
+                    //     ctx.request_repaint();
+                    //     let result = load_diffs(&ctx, old_image, new_image, size_hint, diff_uri);
+                    //     cache.lock().insert(uri, result.map(Poll::Ready));
+                    // });
                 }
                 ImageLoadResult::Ok(ImagePoll::Pending { size: None })
             } else {

@@ -1,4 +1,3 @@
-use crate::{FileReference, Snapshot};
 use eframe::egui::load::Bytes;
 use eframe::egui::{Context, ImageSource};
 use git2::{ObjectType, Repository};
@@ -7,6 +6,7 @@ use std::borrow::Cow;
 use std::path::Path;
 use std::sync::mpsc;
 use std::str;
+use crate::snapshot::{FileReference, Snapshot};
 
 #[derive(Debug)]
 pub enum GitError {
@@ -60,7 +60,7 @@ pub fn pr_git_discovery(pr_url: String, sender: mpsc::Sender<Snapshot>, ctx: Con
 
 fn run_git_discovery(sender: mpsc::Sender<Snapshot>, ctx: Context) -> Result<(), GitError> {
     // Open git repository in current directory
-    let repo = Repository::open(".").map_err(|_| GitError::RepoNotFound)?;
+    let repo = Repository::open("../../../..").map_err(|_| GitError::RepoNotFound)?;
 
     // Get current branch
     let head = repo.head()?;
@@ -136,7 +136,7 @@ fn run_pr_git_discovery(pr_url: String, sender: mpsc::Sender<Snapshot>, ctx: Con
     let pr_info = fetch_pr_info(&org, &repo, pr_number)?;
 
     // Open git repository in current directory
-    let repo = Repository::open(".").map_err(|_| GitError::RepoNotFound)?;
+    let repo = Repository::open("../../../..").map_err(|_| GitError::RepoNotFound)?;
 
     // Get GitHub repository info for LFS support
     let github_repo_info = get_github_repo_info(&repo);
@@ -253,7 +253,7 @@ fn create_git_snapshot(
     }
 
     // Try to get the file from default branch
-    let relative_path = current_path.strip_prefix(".").unwrap_or(current_path);
+    let relative_path = current_path.strip_prefix("../../../..").unwrap_or(current_path);
 
     let default_file_content = match get_file_from_tree(repo, default_tree, relative_path) {
         Ok(content) => content,
@@ -325,7 +325,7 @@ fn create_pr_snapshot(
         return Ok(None);
     }
 
-    let relative_path = current_path.strip_prefix(".").unwrap_or(current_path);
+    let relative_path = current_path.strip_prefix("../../../..").unwrap_or(current_path);
 
     // Try to get the file from base branch
     let base_file_content = match get_file_from_tree(repo, base_tree, relative_path) {

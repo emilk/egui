@@ -1,16 +1,16 @@
-use crate::{Snapshot, FileReference};
+use crate::snapshot::{FileReference, Snapshot};
 use eframe::egui::Context;
 use ignore::WalkBuilder;
 use ignore::types::TypesBuilder;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 
-pub fn file_discovery(path: &str, sender: mpsc::Sender<Snapshot>, ctx: Context) {
-    file_discovery_from_path(Path::new(path), sender, ctx);
-}
-
-pub fn file_discovery_from_path(base_path: &Path, sender: mpsc::Sender<Snapshot>, ctx: Context) {
-    let path = base_path.to_path_buf();
+pub fn file_discovery(
+    base_path: impl Into<PathBuf>,
+    sender: mpsc::Sender<Snapshot>,
+    ctx: Context,
+) {
+    let path = base_path.into();
 
     std::thread::spawn(move || {
         // Create type matcher for .png files

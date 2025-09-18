@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>kitdiff - eGUI snapshot diff viewer</title>
+
+    <!-- config for our rust wasm binary. go to https://trunkrs.dev/#assets for more documentation -->
+    <link data-trunk rel="rust" data-wasm-opt="2" data-bin="kitdiff"/>
+
+    <!-- this is the base url relative to which other urls will be constructed. trunk will insert this automatically -->
+    <base data-trunk-public-url/>
+
+
+    <meta name="description"
+          content="kitdiff - An eGUI-based viewer for snapshot test files with drag and drop support for .tar.gz archives"/>
+
+    <!-- https://developer.mozilla.org/en-US/docs/Web/HTML/Element/meta/name/theme-color -->
+    <meta name="theme-color" content="#404040"/>
+
+    <!-- `data-trunk` blocks will be replaced by trunk. The following will be replaced by the outputs of the `.scss` file -->
+    <link data-trunk rel="scss" href="kitdiff.scss"/>
+</head>
+
+<body>
+<!-- The WASM code will resize the canvas dynamically -->
+<!-- the id is hardcoded in eframe. see https://github.com/emilk/eframe/blob/54ea943c1f9efcf28e2b56b0cafc3c78d2b12e91/crates/eframe/src/web/mod.rs#L118 -->
+<canvas id="the_canvas_id"></canvas>
+
+</body>
+
+</html>
