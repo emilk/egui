@@ -2,7 +2,6 @@ use crate::{FileReference, Snapshot};
 use eframe::egui::load::Bytes;
 use eframe::egui::{Context, ImageSource};
 use git2::{ObjectType, Repository};
-use ignore::{WalkBuilder, types::TypesBuilder};
 use serde_json::Value;
 use std::borrow::Cow;
 use std::path::Path;
@@ -88,30 +87,43 @@ fn run_git_discovery(sender: mpsc::Sender<Snapshot>, ctx: Context) -> Result<(),
     let github_repo_info = get_github_repo_info(&repo);
     let commit_sha = default_commit.id().to_string();
 
-    // Create type matcher for .png files
-    let mut types_builder = TypesBuilder::new();
-    types_builder.add("png", "*.png").unwrap();
-    types_builder.select("png");
-    let types = types_builder.build().unwrap();
+    // Get current HEAD for comparison with default branch
+    let head_commit = repo.head()?.peel_to_commit()?;
+    let head_tree = head_commit.tree()?;
 
-    // Walk current working tree for .png files
-    for result in WalkBuilder::new(".").types(types).build() {
-        if let Ok(entry) = result {
-            if entry.file_type().map_or(false, |ft| ft.is_file()) {
-                if let Some(snapshot) = create_git_snapshot(
-                    &repo,
-                    &default_commit.tree()?,
-                    entry.path(),
-                    &github_repo_info,
-                    &commit_sha,
-                )? {
-                    if sender.send(snapshot).is_ok() {
-                        ctx.request_repaint();
+    // Use git2 diff to find changed PNG files between default branch and current HEAD
+    let diff = repo.diff_tree_to_tree(Some(&default_commit.tree()?), Some(&head_tree), None)?;
+
+    // Process each delta (changed file)
+    diff.foreach(&mut |delta, _progress| {
+        // Check both old and new file paths (handles renames/moves)
+        let files_to_check = [
+            delta.old_file().path(),
+            delta.new_file().path(),
+        ];
+
+        for file_path in files_to_check.into_iter().flatten() {
+            // Check if this is a PNG file
+            if let Some(extension) = file_path.extension() {
+                if extension == "png" {
+                    // Create snapshot for this changed PNG file
+                    if let Ok(Some(snapshot)) = create_git_snapshot(
+                        &repo,
+                        &default_commit.tree().unwrap(),
+                        file_path,
+                        &github_repo_info,
+                        &commit_sha,
+                    ) {
+                        if sender.send(snapshot).is_ok() {
+                            ctx.request_repaint();
+                        }
                     }
+                    break; // Only process once per delta
                 }
             }
         }
-    }
+        true // Continue iteration
+    }, None, None, None)?;
 
     Ok(())
 }
@@ -132,31 +144,40 @@ fn run_pr_git_discovery(pr_url: String, sender: mpsc::Sender<Snapshot>, ctx: Con
     // Fetch and resolve the head and base branches
     let (head_tree, base_tree, head_commit_sha) = resolve_pr_branches(&repo, &pr_info)?;
 
-    // Create type matcher for .png files
-    let mut types_builder = TypesBuilder::new();
-    types_builder.add("png", "*.png").unwrap();
-    types_builder.select("png");
-    let types = types_builder.build().unwrap();
+    // Use git2 diff to find changed PNG files between branches
+    let diff = repo.diff_tree_to_tree(Some(&base_tree), Some(&head_tree), None)?;
 
-    // Walk current working tree for .png files and compare between branches
-    for result in WalkBuilder::new(".").types(types).build() {
-        if let Ok(entry) = result {
-            if entry.file_type().map_or(false, |ft| ft.is_file()) {
-                if let Some(snapshot) = create_pr_snapshot(
-                    &repo,
-                    &base_tree,
-                    &head_tree,
-                    entry.path(),
-                    &github_repo_info,
-                    &head_commit_sha,
-                )? {
-                    if sender.send(snapshot).is_ok() {
-                        ctx.request_repaint();
+    // Process each delta (changed file)
+    diff.foreach(&mut |delta, _progress| {
+        // Check both old and new file paths (handles renames/moves)
+        let files_to_check = [
+            delta.old_file().path(),
+            delta.new_file().path(),
+        ];
+
+        for file_path in files_to_check.into_iter().flatten() {
+            // Check if this is a PNG file
+            if let Some(extension) = file_path.extension() {
+                if extension == "png" {
+                    // Create snapshot for this changed PNG file
+                    if let Ok(Some(snapshot)) = create_pr_snapshot(
+                        &repo,
+                        &base_tree,
+                        &head_tree,
+                        file_path,
+                        &github_repo_info,
+                        &head_commit_sha,
+                    ) {
+                        if sender.send(snapshot).is_ok() {
+                            ctx.request_repaint();
+                        }
                     }
+                    break; // Only process once per delta
                 }
             }
         }
-    }
+        true // Continue iteration
+    }, None, None, None)?;
 
     Ok(())
 }
@@ -314,11 +335,10 @@ fn create_pr_snapshot(
         Err(_) => None, // File doesn't exist in head branch
     };
 
-    // Only create snapshot if files are different or one is missing
-    match (&base_file_content, &head_file_content) {
-        (Some(base), Some(head)) if base == head => return Ok(None), // Files are identical
-        (None, None) => return Ok(None), // File doesn't exist in either branch
-        _ => {}, // Files are different or one is missing, continue
+    // git2 diff already confirmed this file changed, so we can proceed
+    // Handle the case where file exists in only one branch
+    if base_file_content.is_none() && head_file_content.is_none() {
+        return Ok(None); // File doesn't exist in either branch (shouldn't happen with diff)
     }
 
     // Create ImageSource for base branch (old)
