@@ -1,4 +1,4 @@
-use crate::Snapshot;
+use crate::{Snapshot, FileReference};
 use eframe::egui::Context;
 use ignore::WalkBuilder;
 use ignore::types::TypesBuilder;
@@ -59,16 +59,16 @@ fn try_create_snapshot(png_path: &Path) -> Option<Snapshot> {
         // old.png exists, use original as new and old.png as old
         Some(Snapshot {
             path: relative_path.to_path_buf(),
-            old: old_path,
-            new: png_path.to_path_buf(),
+            old: FileReference::Path(old_path),
+            new: FileReference::Path(png_path.to_path_buf()),
             diff: Some(diff_path),
         })
     } else if new_path.exists() {
         // new.png exists, use original as old and new.png as new
         Some(Snapshot {
             path: relative_path.to_path_buf(),
-            old: png_path.to_path_buf(),
-            new: new_path,
+            old: FileReference::Path(png_path.to_path_buf()),
+            new: FileReference::Path(new_path),
             diff: Some(diff_path),
         })
     } else {

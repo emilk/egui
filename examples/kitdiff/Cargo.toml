@@ -13,6 +13,9 @@ serde.workspace = true
 serde_json = "1.0"
 image.workspace = true
 ignore = "0.4"
+clap = { version = "4.0", features = ["derive"] }
+git2 = "0.18"
+tempfile = "3.0"
 
 [lints]
 workspace = true

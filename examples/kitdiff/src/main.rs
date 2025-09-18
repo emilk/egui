@@ -1,42 +1,90 @@
 mod diff_loader;
 mod file_diff;
+mod git_loader;
 
 use crate::diff_loader::DiffLoader;
 use crate::file_diff::file_discovery;
+use crate::git_loader::git_discovery;
+use clap::{Parser, Subcommand};
 use eframe::egui::panel::Side;
 use eframe::egui::{
-    Align, Context, Image, ScrollArea, SizeHint, Slider, TextureFilter, TextureOptions,
+    Align, Context, Image, ImageSource, ScrollArea, SizeHint, Slider, TextureFilter, TextureOptions,
 };
 use eframe::{Frame, NativeOptions, egui};
 use egui_extras::install_image_loaders;
-use ignore::WalkBuilder;
-use ignore::types::TypesBuilder;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::{Arc, mpsc};
 
+#[derive(Parser)]
+#[command(name = "kitdiff")]
+#[command(about = "A viewer for egui kittest snapshot test files")]
+struct Cli {
+    #[command(subcommand)]
+    command: Option<Commands>,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Compare snapshot test files (.png with .old/.new/.diff variants)
+    Files,
+    /// Compare images between current branch and default branch
+    Git,
+}
+
 fn main() -> eframe::Result<()> {
+    let cli = Cli::parse();
+    let mode = match cli.command {
+        Some(Commands::Git) => ComparisonMode::Git,
+        Some(Commands::Files) | None => ComparisonMode::Files,
+    };
+
     eframe::run_native(
         "kitdiff",
         NativeOptions::default(),
-        Box::new(|cc| Ok(Box::new(App::new(cc)))),
+        Box::new(move |cc| Ok(Box::new(App::new(cc, mode)))),
     )
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum ComparisonMode {
+    Files,
+    Git,
+}
+
+#[derive(Debug, Clone)]
+enum FileReference {
+    Path(PathBuf),
+    Source(ImageSource<'static>),
+}
+
+impl FileReference {
+    fn to_uri(&self) -> String {
+        match self {
+            FileReference::Path(path) => format!("file://{}", path.display()),
+            FileReference::Source(source) => match source {
+                ImageSource::Uri(uri) => uri.to_string(),
+                ImageSource::Bytes { uri, .. } => uri.to_string(),
+                _ => "unknown://unknown".to_string(),
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 struct Snapshot {
     path: PathBuf,
-    old: PathBuf,
-    new: PathBuf,
+    old: FileReference,
+    new: FileReference,
     diff: Option<PathBuf>,
 }
 
 impl Snapshot {
     fn old_uri(&self) -> String {
-        format!("file://{}", self.old.display())
+        self.old.to_uri()
     }
 
     fn new_uri(&self) -> String {
-        format!("file://{}", self.new.display())
+        self.new.to_uri()
     }
 
     fn file_diff_uri(&self) -> Option<String> {
@@ -75,7 +123,7 @@ struct App {
 }
 
 impl App {
-    pub fn new(cc: &eframe::CreationContext) -> Self {
+    pub fn new(cc: &eframe::CreationContext, comparison_mode: ComparisonMode) -> Self {
         install_image_loaders(&cc.egui_ctx);
         cc.egui_ctx
             .add_image_loader(Arc::new(DiffLoader::default()));
@@ -83,8 +131,17 @@ impl App {
         let (sender, receiver) = mpsc::channel();
         let ctx = cc.egui_ctx.clone();
 
-        // Start background discovery
-        file_discovery(".", sender, ctx);
+        // Start background discovery based on mode
+        match comparison_mode {
+            ComparisonMode::Files => {
+                file_discovery(".", sender, ctx);
+            }
+            ComparisonMode::Git => {
+                if let Err(e) = git_discovery(sender, ctx) {
+                    eprintln!("Failed to start git discovery: {:?}", e);
+                }
+            }
+        }
 
         Self {
             snapshots: Vec::new(),
@@ -95,7 +152,7 @@ impl App {
             receiver: Some(receiver),
             is_loading: true,
             texture_magnification: TextureFilter::Nearest,
-            use_original_diff: false,
+            use_original_diff: comparison_mode == ComparisonMode::Files,
         }
     }
 }
@@ -106,6 +163,12 @@ impl eframe::App for App {
         if let Some(receiver) = &self.receiver {
             let mut new_snapshots = Vec::new();
             while let Ok(snapshot) = receiver.try_recv() {
+                if let FileReference::Source(ImageSource::Bytes { bytes, uri }) = &snapshot.old {
+                    ctx.include_bytes(uri.clone(), bytes.clone())
+                }
+                if let FileReference::Source(ImageSource::Bytes { bytes, uri }) = &snapshot.new {
+                    ctx.include_bytes(uri.clone(), bytes.clone())
+                }
                 new_snapshots.push(snapshot);
             }
 
@@ -157,7 +220,7 @@ impl eframe::App for App {
                 ui.set_width(ui.available_width());
                 let mut current_prefix = None;
                 for (i, snapshot) in self.snapshots.iter().enumerate() {
-                    let prefix = snapshot.old.parent().and_then(|p| p.to_str());
+                    let prefix = snapshot.path.parent().and_then(|p| p.to_str());
                     if prefix != current_prefix {
                         if let Some(prefix) = prefix {
                             ui.label(prefix);
