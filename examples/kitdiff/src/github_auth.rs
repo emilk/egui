@@ -3,22 +3,19 @@ use ehttp;
 use serde_json;
 use std::fmt;
 use std::sync::mpsc;
-#[cfg(not(target_arch = "wasm32"))]
-use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct AuthState {
-    logged_in: Option<LoggedInState>,
+    pub logged_in: Option<LoggedInState>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LoggedInState {
-    access_token: String,
-    provider_token: Option<String>, // GitHub OAuth token
+    pub access_token: String,
+    pub provider_token: String, // GitHub OAuth token
     expires_at: u64,
     username: String,
 }
-
 
 #[derive(Debug)]
 pub struct GitHubAuth {
@@ -140,7 +137,6 @@ impl GitHubAuth {
         }
     }
 
-
     pub fn check_for_auth_callback(&mut self) {
         #[cfg(target_arch = "wasm32")]
         {
@@ -151,7 +147,9 @@ impl GitHubAuth {
                         // Parse tokens directly from URL fragment
                         let tokens = self.parse_url_fragment(&hash);
 
-                        if let (Some(access_token), Some(provider_token)) = (tokens.get("access_token"), tokens.get("provider_token")) {
+                        if let (Some(access_token), Some(provider_token)) =
+                            (tokens.get("access_token"), tokens.get("provider_token"))
+                        {
                             let sender = self.auth_sender.clone();
                             let github_token = provider_token.clone();
 
@@ -164,7 +162,7 @@ impl GitHubAuth {
 
                                         let logged_in_state = LoggedInState {
                                             access_token: access_token.clone(),
-                                            provider_token: Some(github_token),
+                                            provider_token: github_token,
                                             expires_at,
                                             username,
                                         };
@@ -273,7 +271,7 @@ impl GitHubAuth {
             self.state
                 .logged_in
                 .as_ref()
-                .and_then(|s| s.provider_token.as_deref())
+                .map(|s| s.provider_token.as_str())
         } else {
             None
         }

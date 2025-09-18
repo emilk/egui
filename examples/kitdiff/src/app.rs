@@ -1,4 +1,5 @@
 use crate::diff_image_loader::{DiffLoader, DiffOptions};
+use crate::github_auth::AuthState;
 #[cfg(target_arch = "wasm32")]
 use crate::github_auth::{GitHubAuth, github_artifact_api_url, parse_github_artifact_url};
 use crate::snapshot::{FileReference, Snapshot};
@@ -27,7 +28,7 @@ struct Settings {
     use_original_diff: bool,
     options: DiffOptions,
     #[cfg(target_arch = "wasm32")]
-    auth: Option<crate::github_auth::AuthState>,
+    auth: AuthState,
 }
 
 impl Default for Settings {
@@ -40,7 +41,7 @@ impl Default for Settings {
             use_original_diff: true,
             options: DiffOptions::default(),
             #[cfg(target_arch = "wasm32")]
-            auth: None,
+            auth: Default::default(),
         }
     }
 }
@@ -76,10 +77,10 @@ impl App {
         let ctx = cc.egui_ctx.clone();
 
         #[cfg(target_arch = "wasm32")]
-        let github_auth = GitHubAuth::new(settings.auth.clone().unwrap_or_default());
+        let github_auth = GitHubAuth::new(settings.auth.clone());
 
         if let Some(source) = source {
-            source.load(sender.clone(), ctx);
+            source.load(sender.clone(), ctx, &settings.auth);
         }
 
         Self {
@@ -104,7 +105,7 @@ impl eframe::App for App {
     fn save(&mut self, storage: &mut dyn Storage) {
         #[cfg(target_arch = "wasm32")]
         {
-            self.settings.auth = Some(self.github_auth.get_auth_state().clone());
+            self.settings.auth = self.github_auth.get_auth_state().clone();
         }
         eframe::set_value(storage, eframe::APP_KEY, &self.settings);
     }
@@ -128,8 +129,8 @@ impl eframe::App for App {
             }
 
             if !new_snapshots.is_empty() {
-                // Snapshots should arrive sorted.
                 self.snapshots.extend(new_snapshots);
+                self.snapshots.sort_by_key(|s| s.path.clone());
             }
 
             // Check if the channel is disconnected (discovery finished)
@@ -163,7 +164,7 @@ impl eframe::App for App {
                     self.index = 0;
                     self.is_loading = true;
 
-                    source.load(self.sender.clone(), ctx.clone());
+                    source.load(self.sender.clone(), ctx.clone(), &self.settings.auth);
                 }
             }
 
@@ -392,7 +393,7 @@ impl eframe::App for App {
                         self.index = 0;
                         self.is_loading = true;
 
-                        source.load(self.sender.clone(), ctx.clone());
+                        source.load(self.sender.clone(), ctx.clone(), &self.settings.auth);
                     } else {
                         // Show error for invalid URL
                         eprintln!("Invalid GitHub artifact URL");

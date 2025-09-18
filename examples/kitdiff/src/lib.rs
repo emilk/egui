@@ -1,3 +1,4 @@
+use crate::github_auth::AuthState;
 use crate::snapshot::Snapshot;
 use eframe::egui::Context;
 use eframe::egui::load::Bytes;
@@ -6,7 +7,6 @@ use std::sync::mpsc::Sender;
 
 pub mod app;
 pub mod diff_image_loader;
-#[cfg(target_arch = "wasm32")]
 pub mod github_auth;
 pub mod loaders;
 #[cfg(not(target_arch = "wasm32"))]
@@ -23,10 +23,15 @@ pub enum DiffSource {
     Pr(String), // Store the PR URL
     Zip(PathOrBlob),   // Store the zip source (URL or file path)
     TarGz(PathOrBlob), // Tar.gz files loaded via drag and drop
+    GHArtifact {
+        owner: String,
+        repo: String,
+        artifact_id: String,
+    }, // GitHub artifact
 }
 
 impl DiffSource {
-    pub fn load(self, tx: Sender<Snapshot>, ctx: Context) -> Option<DropMeLater> {
+    pub fn load(self, tx: Sender<Snapshot>, ctx: Context, auth: &AuthState) -> Option<DropMeLater> {
         match self {
             #[cfg(not(target_arch = "wasm32"))]
             DiffSource::Files => {
@@ -128,6 +133,50 @@ impl DiffSource {
                         ctx,
                     )
                     .expect("Failed to run tar.gz discovery");
+                    None
+                }
+            }
+            DiffSource::GHArtifact {
+                owner,
+                repo,
+                artifact_id,
+            } => {
+                #[cfg(target_arch = "wasm32")]
+                {
+                    use crate::github_auth::github_artifact_api_url;
+
+                    // Create GitHub API URL for artifact
+                    let api_url = github_artifact_api_url(&owner, &repo, &artifact_id);
+
+                    // TODO: Get GitHub token from auth state - we'll need to pass this context
+                    // For now, try without token (works for public repos)
+                    let data = PathOrBlob::Url(
+                        api_url,
+                        auth.logged_in.as_ref().map(|l| l.provider_token.clone()),
+                    );
+
+                    // Use async zip loading since it's a URL
+                    let tx_clone = tx.clone();
+                    let ctx_clone = ctx.clone();
+
+                    wasm_bindgen_futures::spawn_local(async move {
+                        if let Some(bytes) = data.load_bytes_async().await {
+                            if let Err(e) = loaders::zip_loader::extract_and_discover_zip(
+                                bytes.to_vec(),
+                                tx_clone,
+                                ctx_clone,
+                            ) {
+                                eprintln!("Failed to run GitHub artifact zip discovery: {:?}", e);
+                            }
+                        }
+                    });
+                    None
+                }
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    eprintln!(
+                        "GitHub artifact loading not supported on native platforms yet. Please download the artifact manually and use the zip command instead."
+                    );
                     None
                 }
             }

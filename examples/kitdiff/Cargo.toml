@@ -8,7 +8,7 @@ version.workspace = true
 [dependencies]
 eframe = { workspace = true, features = ["glow", "default", "persistence", "ron"] }
 egui_extras = { workspace = true, features = ["image", "file", "http"] }
-ehttp = { version = "0.5" }
+ehttp = { version = "0.5", features = ["native-async"] }
 dify = "0.7"
 serde.workspace = true
 serde_json = "1.0"
