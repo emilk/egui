@@ -17,6 +17,7 @@ ignore = "0.4"
 clap = { version = "4.0", features = ["derive"] }
 git2 = "0.18"
 tempfile = "3.0"
+zip = "0.6"
 
 [lints]
 workspace = true

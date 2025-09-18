@@ -6,7 +6,11 @@ use std::path::Path;
 use std::sync::mpsc;
 
 pub fn file_discovery(path: &str, sender: mpsc::Sender<Snapshot>, ctx: Context) {
-    let path = path.to_string();
+    file_discovery_from_path(Path::new(path), sender, ctx);
+}
+
+pub fn file_discovery_from_path(base_path: &Path, sender: mpsc::Sender<Snapshot>, ctx: Context) {
+    let path = base_path.to_path_buf();
 
     std::thread::spawn(move || {
         // Create type matcher for .png files
@@ -19,7 +23,7 @@ pub fn file_discovery(path: &str, sender: mpsc::Sender<Snapshot>, ctx: Context) 
         for result in WalkBuilder::new(&path).types(types).build() {
             if let Ok(entry) = result {
                 if entry.file_type().map_or(false, |ft| ft.is_file()) {
-                    if let Some(snapshot) = try_create_snapshot(entry.path()) {
+                    if let Some(snapshot) = try_create_snapshot(entry.path(), &path) {
                         if sender.send(snapshot).is_ok() {
                             ctx.request_repaint();
                         }
@@ -30,7 +34,7 @@ pub fn file_discovery(path: &str, sender: mpsc::Sender<Snapshot>, ctx: Context) 
     });
 }
 
-fn try_create_snapshot(png_path: &Path) -> Option<Snapshot> {
+fn try_create_snapshot(png_path: &Path, base_path: &Path) -> Option<Snapshot> {
     let file_name = png_path.file_name()?.to_str()?;
 
     // Skip files that are already variants (.old.png, .new.png, .diff.png)
@@ -42,18 +46,18 @@ fn try_create_snapshot(png_path: &Path) -> Option<Snapshot> {
     }
 
     // Get base path without .png extension
-    let base_path = png_path.with_extension("");
-    let old_path = base_path.with_extension("old.png");
-    let new_path = base_path.with_extension("new.png");
-    let diff_path = base_path.with_extension("diff.png");
+    let file_base_path = png_path.with_extension("");
+    let old_path = file_base_path.with_extension("old.png");
+    let new_path = file_base_path.with_extension("new.png");
+    let diff_path = file_base_path.with_extension("diff.png");
 
     // Only create snapshot if diff exists
     if !diff_path.exists() {
         return None;
     }
 
-    // Determine which files exist and create appropriate snapshot
-    let relative_path = png_path.strip_prefix(".").unwrap_or(png_path);
+    // Create relative path from the base directory
+    let relative_path = png_path.strip_prefix(base_path).unwrap_or(png_path);
 
     if old_path.exists() {
         // old.png exists, use original as new and old.png as old

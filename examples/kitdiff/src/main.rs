@@ -1,10 +1,12 @@
 mod diff_loader;
 mod file_diff;
 mod git_loader;
+mod zip_loader;
 
 use crate::diff_loader::{DiffLoader, DiffOptions};
 use crate::file_diff::file_discovery;
 use crate::git_loader::{git_discovery, pr_git_discovery};
+use crate::zip_loader::extract_and_discover_zip;
 use clap::{Parser, Subcommand};
 use eframe::egui::panel::Side;
 use eframe::egui::{
@@ -15,6 +17,7 @@ use eframe::{Frame, NativeOptions, egui};
 use egui_extras::install_image_loaders;
 use std::path::PathBuf;
 use std::sync::{Arc, mpsc};
+use tempfile::TempDir;
 
 #[derive(Parser)]
 #[command(name = "kitdiff")]
@@ -32,6 +35,8 @@ enum Commands {
     Git,
     /// Compare images between PR branches from GitHub PR URL (needs to be run from within the repo)
     Pr { url: String },
+    /// Load and compare snapshot files from a zip archive (URL or local file)
+    Zip { source: String },
 }
 
 fn main() -> eframe::Result<()> {
@@ -39,6 +44,7 @@ fn main() -> eframe::Result<()> {
     let mode = match cli.command {
         Some(Commands::Git) => ComparisonMode::Git,
         Some(Commands::Pr { url }) => ComparisonMode::Pr(url),
+        Some(Commands::Zip { source }) => ComparisonMode::Zip(source),
         Some(Commands::Files) | None => ComparisonMode::Files,
     };
 
@@ -54,6 +60,7 @@ enum ComparisonMode {
     Files,
     Git,
     Pr(String), // Store the PR URL
+    Zip(String), // Store the zip source (URL or file path)
 }
 
 #[derive(Debug, Clone)]
@@ -132,6 +139,7 @@ struct App {
     use_original_diff: bool,
     options: DiffOptions,
     filter: String,
+    _temp_dir: Option<TempDir>, // Keep temp directory alive for zip mode
 }
 
 impl App {
@@ -142,6 +150,19 @@ impl App {
 
         let (sender, receiver) = mpsc::channel();
         let ctx = cc.egui_ctx.clone();
+
+        // Create temp directory for zip mode
+        let temp_dir = if matches!(comparison_mode, ComparisonMode::Zip(_)) {
+            match TempDir::new() {
+                Ok(dir) => Some(dir),
+                Err(e) => {
+                    eprintln!("Failed to create temp directory: {}", e);
+                    None
+                }
+            }
+        } else {
+            None
+        };
 
         // Start background discovery based on mode
         match comparison_mode {
@@ -156,6 +177,15 @@ impl App {
             ComparisonMode::Pr(ref pr_url) => {
                 if let Err(e) = pr_git_discovery(pr_url.clone(), sender, ctx) {
                     eprintln!("Failed to start PR discovery: {:?}", e);
+                }
+            }
+            ComparisonMode::Zip(ref zip_source) => {
+                if let Some(ref temp_dir) = temp_dir {
+                    if let Err(e) = extract_and_discover_zip(zip_source.clone(), temp_dir, sender, ctx) {
+                        eprintln!("Failed to start zip discovery: {:?}", e);
+                    }
+                } else {
+                    eprintln!("Failed to create temp directory for zip extraction");
                 }
             }
         }
@@ -173,6 +203,7 @@ impl App {
             use_original_diff: comparison_mode == ComparisonMode::Files,
             options: DiffOptions::default(),
             filter: String::new(),
+            _temp_dir: temp_dir,
         }
     }
 }
