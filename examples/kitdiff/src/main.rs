@@ -97,14 +97,17 @@ impl Snapshot {
             .map(|p| format!("file://{}", p.display()))
     }
 
-    fn diff_uri(&self) -> String {
-        self.file_diff_uri().unwrap_or_else(|| {
-            diff_loader::DiffUri {
-                old: self.old_uri(),
-                new: self.new_uri(),
-            }
-            .to_uri()
-        })
+    fn diff_uri(&self, use_file_if_available: bool) -> String {
+        use_file_if_available
+            .then(|| self.file_diff_uri())
+            .flatten()
+            .unwrap_or_else(|| {
+                diff_loader::DiffUri {
+                    old: self.old_uri(),
+                    new: self.new_uri(),
+                }
+                .to_uri()
+            })
     }
 }
 
@@ -305,15 +308,11 @@ impl eframe::App for App {
             );
 
             if let Some(snapshot) = self.snapshots.get(self.index) {
-                let diff_uri = self
-                    .use_original_diff
-                    .then_some(snapshot.file_diff_uri())
-                    .flatten()
-                    .unwrap_or(snapshot.diff_uri());
+                let diff_uri = snapshot.diff_uri(self.use_original_diff);
 
-                ui.label(format!("old: {}", snapshot.old_uri()));
-                ui.label(format!("new: {}", snapshot.new_uri()));
-                ui.label(format!("diff: {}", diff_uri));
+                // ui.label(format!("old: {}", snapshot.old_uri()));
+                // ui.label(format!("new: {}", snapshot.new_uri()));
+                // ui.label(format!("diff: {}", diff_uri));
 
                 let rect = ui.available_rect_before_wrap();
 
@@ -360,9 +359,12 @@ impl eframe::App for App {
                         ui.ctx()
                             .try_load_image(&surrounding_snapshot.new_uri(), SizeHint::default())
                             .ok();
-                        if let Some(diff_uri) = surrounding_snapshot.file_diff_uri() {
-                            ui.ctx().try_load_image(&diff_uri, SizeHint::default()).ok();
-                        }
+                        ui.ctx()
+                            .try_load_image(
+                                &surrounding_snapshot.diff_uri(self.use_original_diff),
+                                SizeHint::default(),
+                            )
+                            .ok();
                     }
                 }
             } else if self.is_loading {

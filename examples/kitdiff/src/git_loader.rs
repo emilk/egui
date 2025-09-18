@@ -142,7 +142,7 @@ fn run_pr_git_discovery(pr_url: String, sender: mpsc::Sender<Snapshot>, ctx: Con
     let github_repo_info = get_github_repo_info(&repo);
 
     // Fetch and resolve the head and base branches
-    let (head_tree, base_tree, head_commit_sha) = resolve_pr_branches(&repo, &pr_info)?;
+    let (head_tree, base_tree, head_commit_sha, base_commit_sha) = resolve_pr_branches(&repo, &pr_info)?;
 
     // Use git2 diff to find changed PNG files between branches
     let diff = repo.diff_tree_to_tree(Some(&base_tree), Some(&head_tree), None)?;
@@ -167,6 +167,7 @@ fn run_pr_git_discovery(pr_url: String, sender: mpsc::Sender<Snapshot>, ctx: Con
                         file_path,
                         &github_repo_info,
                         &head_commit_sha,
+                        &base_commit_sha,
                     ) {
                         if sender.send(snapshot).is_ok() {
                             ctx.request_repaint();
@@ -202,7 +203,7 @@ fn find_default_branch(repo: &Repository) -> Result<String, GitError> {
     Err(GitError::BranchNotFound)
 }
 
-fn resolve_pr_branches<'a>(repo: &'a Repository, pr_info: &PrInfo) -> Result<(git2::Tree<'a>, git2::Tree<'a>, String), GitError> {
+fn resolve_pr_branches<'a>(repo: &'a Repository, pr_info: &PrInfo) -> Result<(git2::Tree<'a>, git2::Tree<'a>, String, String), GitError> {
     // Get the origin remote to fetch branches if needed
     let mut remote = repo.find_remote("origin")?;
 
@@ -226,7 +227,9 @@ fn resolve_pr_branches<'a>(repo: &'a Repository, pr_info: &PrInfo) -> Result<(gi
     let base_commit = base_ref.peel_to_commit()?;
     let base_tree = base_commit.tree()?;
 
-    Ok((head_tree, base_tree, head_commit_sha))
+    let base_commit_sha = base_commit.id().to_string();
+
+    Ok((head_tree, base_tree, head_commit_sha, base_commit_sha))
 }
 
 fn create_git_snapshot(
@@ -307,6 +310,7 @@ fn create_pr_snapshot(
     current_path: &Path,
     github_repo_info: &Option<(String, String)>,
     head_commit_sha: &str,
+    base_commit_sha: &str,
 ) -> Result<Option<Snapshot>, GitError> {
     // Skip files that are variants
     let file_name = current_path
@@ -346,8 +350,6 @@ fn create_pr_snapshot(
         Some(content) => {
             if is_lfs_pointer(&content) {
                 if let Some((org, repo_name)) = github_repo_info {
-                    // For base branch, we need to find the base commit SHA
-                    let base_commit_sha = head_commit_sha; // This should be the base commit SHA, but we'll use head for now
                     let media_url = create_lfs_media_url(org, repo_name, base_commit_sha, relative_path);
                     ImageSource::Uri(Cow::Owned(media_url))
                 } else {
