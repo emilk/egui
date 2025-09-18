@@ -8,7 +8,8 @@ use crate::git_loader::{git_discovery, pr_git_discovery};
 use clap::{Parser, Subcommand};
 use eframe::egui::panel::Side;
 use eframe::egui::{
-    Align, Context, Image, ImageSource, ScrollArea, SizeHint, Slider, TextureFilter, TextureOptions,
+    Align, Context, Image, ImageSource, RichText, ScrollArea, SizeHint, Slider, TextureFilter,
+    TextureOptions,
 };
 use eframe::{Frame, NativeOptions, egui};
 use egui_extras::install_image_loaders;
@@ -119,6 +120,7 @@ enum ImageMode {
 }
 
 struct App {
+    diff_loader: Arc<DiffLoader>,
     snapshots: Vec<Snapshot>,
     index: usize,
     new_opacity: f32,
@@ -134,8 +136,8 @@ struct App {
 impl App {
     pub fn new(cc: &eframe::CreationContext, comparison_mode: ComparisonMode) -> Self {
         install_image_loaders(&cc.egui_ctx);
-        cc.egui_ctx
-            .add_image_loader(Arc::new(DiffLoader::default()));
+        let diff_loader = Arc::new(DiffLoader::default());
+        cc.egui_ctx.add_image_loader(diff_loader.clone());
 
         let (sender, receiver) = mpsc::channel();
         let ctx = cc.egui_ctx.clone();
@@ -158,6 +160,7 @@ impl App {
         }
 
         Self {
+            diff_loader,
             snapshots: Vec::new(),
             index: 0,
             new_opacity: 0.5,
@@ -323,6 +326,17 @@ impl eframe::App for App {
 
             if let Some(snapshot) = self.snapshots.get(self.index) {
                 let diff_uri = snapshot.diff_uri(self.use_original_diff, self.options);
+
+                if let Some(info) = self.diff_loader.diff_info(&diff_uri) {
+                    if info.diff == 0 {
+                        ui.strong("All differences below threshold!");
+                    } else {
+                        ui.label(
+                            RichText::new(format!("Diff pixels: {}", info.diff))
+                                .color(ui.visuals().warn_fg_color),
+                        );
+                    }
+                }
 
                 // ui.label(format!("old: {}", snapshot.old_uri()));
                 // ui.label(format!("new: {}", snapshot.new_uri()));

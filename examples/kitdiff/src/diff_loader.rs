@@ -1,15 +1,21 @@
 use eframe::egui::load::{ImageLoadResult, ImageLoader, ImagePoll, LoadError};
 use eframe::egui::mutex::Mutex;
-use eframe::egui::{ColorImage, Context, Image, ImageSource, SizeHint};
+use eframe::egui::{Color32, ColorImage, Context, Image, ImageSource, SizeHint};
 use eframe::epaint::ahash::HashMap;
 use egui_extras::loaders::image_loader::ImageCrateLoader;
 use std::sync::Arc;
-use std::time::Duration;
+use std::task::Poll;
 
 #[derive(Default)]
 pub struct DiffLoader {
     image_loader: Arc<ImageCrateLoader>,
-    diffs: Arc<Mutex<HashMap<String, ImageLoadResult>>>,
+    diffs: Arc<Mutex<HashMap<String, Result<Poll<DiffInfo>, LoadError>>>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct DiffInfo {
+    pub image: Arc<ColorImage>,
+    pub diff: i32,
 }
 
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
@@ -60,6 +66,17 @@ impl DiffLoader {
             diffs: Arc::new(Mutex::new(HashMap::default())),
         }
     }
+
+    pub fn diff_info(&self, uri: &str) -> Option<DiffInfo> {
+        if let Some(image) = self.diffs.lock().get(uri) {
+            match image {
+                Ok(Poll::Ready(result)) => Some(result.clone()),
+                _ => None,
+            }
+        } else {
+            None
+        }
+    }
 }
 
 impl ImageLoader for DiffLoader {
@@ -72,7 +89,13 @@ impl ImageLoader for DiffLoader {
             return ImageLoadResult::Err(LoadError::NotSupported);
         }
         if let Some(image) = self.diffs.lock().get(uri) {
-            image.clone()
+            match image {
+                Ok(Poll::Ready(result)) => ImageLoadResult::Ok(ImagePoll::Ready {
+                    image: result.image.clone(),
+                }),
+                Ok(Poll::Pending) => ImageLoadResult::Ok(ImagePoll::Pending { size: None }),
+                Err(err) => ImageLoadResult::Err(err.clone()),
+            }
         } else {
             if let Some(diff_uri) = DiffUri::from_uri(uri) {
                 let old_image = self.image_loader.load(ctx, &diff_uri.old, size_hint);
@@ -88,16 +111,15 @@ impl ImageLoader for DiffLoader {
                     let cache = self.diffs.clone();
                     let ctx = ctx.clone();
 
-                    self.diffs.lock().insert(
-                        diff_uri.to_uri(),
-                        ImageLoadResult::Ok(ImagePoll::Pending { size: None }),
-                    );
+                    self.diffs
+                        .lock()
+                        .insert(diff_uri.to_uri(), Ok(Poll::Pending));
 
                     let uri = uri.to_string();
                     std::thread::spawn(move || {
                         ctx.request_repaint();
                         let result = load_diffs(&ctx, old_image, new_image, size_hint, diff_uri);
-                        cache.lock().insert(uri, result);
+                        cache.lock().insert(uri, result.map(Poll::Ready));
                     });
                 }
                 ImageLoadResult::Ok(ImagePoll::Pending { size: None })
@@ -120,7 +142,7 @@ impl ImageLoader for DiffLoader {
             .lock()
             .values()
             .map(|r| match r {
-                ImageLoadResult::Ok(ImagePoll::Ready { image }) => image.as_raw().len(),
+                Ok(Poll::Ready(diff)) => diff.image.as_raw().len(),
                 _ => 0,
             })
             .sum()
@@ -133,7 +155,7 @@ pub fn load_diffs(
     new_img: Arc<ColorImage>,
     size_hint: SizeHint,
     diff_uri: DiffUri,
-) -> ImageLoadResult {
+) -> Result<DiffInfo, LoadError> {
     let old = image::RgbaImage::from_vec(
         old_img.width() as u32,
         old_img.height() as u32,
@@ -153,7 +175,7 @@ pub fn load_diffs(
     ))?;
 
     if old.dimensions() != new.dimensions() {
-        return ImageLoadResult::Err(LoadError::Loading(
+        return Err(LoadError::Loading(
             "Images must have the same dimensions".to_string(),
         ));
     }
@@ -175,13 +197,14 @@ pub fn load_diffs(
         );
 
         let arc_image = Arc::new(image);
-        Ok(ImagePoll::Ready { image: arc_image })
+        Ok(DiffInfo {
+            image: arc_image,
+            diff: pixels,
+        })
     } else {
-        Ok(ImagePoll::Ready {
-            image: Arc::new(ColorImage::filled(
-                [1, 1],
-                eframe::egui::Color32::TRANSPARENT,
-            )),
+        Ok(DiffInfo {
+            image: Arc::new(ColorImage::filled([1, 1], Color32::TRANSPARENT)),
+            diff: 0,
         })
     }
 }
