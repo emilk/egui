@@ -305,6 +305,16 @@ impl eframe::App for App {
             );
 
             if let Some(snapshot) = self.snapshots.get(self.index) {
+                let diff_uri = self
+                    .use_original_diff
+                    .then_some(snapshot.file_diff_uri())
+                    .flatten()
+                    .unwrap_or(snapshot.diff_uri());
+
+                ui.label(format!("old: {}", snapshot.old_uri()));
+                ui.label(format!("new: {}", snapshot.new_uri()));
+                ui.label(format!("diff: {}", diff_uri));
+
                 let rect = ui.available_rect_before_wrap();
 
                 let ppp = ui.pixels_per_point();
@@ -334,11 +344,6 @@ impl eframe::App for App {
                     if show_all {
                         ui.set_opacity(self.diff_opacity);
                     }
-                    let diff_uri = self
-                        .use_original_diff
-                        .then_some(snapshot.file_diff_uri())
-                        .flatten()
-                        .unwrap_or(snapshot.diff_uri());
                     ui.place(rect, make_image(diff_uri));
                 }
 
