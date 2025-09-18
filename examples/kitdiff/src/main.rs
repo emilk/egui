@@ -219,9 +219,7 @@ impl eframe::App for App {
                         .unwrap_or(false)
             })
             .collect::<Vec<_>>();
-        let current_filtered_index = filtered
-            .iter()
-            .position(|(i, _)| *i == self.index);
+        let current_filtered_index = filtered.iter().position(|(i, _)| *i == self.index);
         if current_filtered_index.is_none() && !filtered.is_empty() {
             // Current index is filtered out, jump to first filtered
             self.index = filtered[0].0;
@@ -256,12 +254,12 @@ impl eframe::App for App {
         egui::SidePanel::new(Side::Left, "files").show(ctx, |ui| {
             ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
 
+            TextEdit::singleline(&mut self.filter)
+                .hint_text("Filter")
+                .show(ui);
+
             ScrollArea::vertical().show(ui, |ui| {
                 ui.set_width(ui.available_width());
-
-                TextEdit::singleline(&mut self.filter)
-                    .hint_text("Filter")
-                    .show(ui);
 
                 let mut current_prefix = None;
                 for (i, snapshot) in &filtered {
