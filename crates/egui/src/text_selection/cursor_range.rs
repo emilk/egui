@@ -2,7 +2,9 @@ use epaint::{Galley, text::cursor::CCursor};
 
 use crate::{Event, Id, Key, Modifiers, os::OperatingSystem};
 
-use super::text_cursor_state::{ccursor_next_word, ccursor_previous_word, slice_char_range};
+use super::text_cursor_state::{
+    ccursor_next_word, ccursor_previous_word, slice_char_range,
+};
 
 /// A selected text range (could be a range of length zero).
 ///
@@ -35,7 +37,10 @@ impl CCursorRange {
     }
 
     #[inline]
-    pub fn two(min: impl Into<CCursor>, max: impl Into<CCursor>) -> Self {
+    pub fn two(
+        min: impl Into<CCursor>,
+        max: impl Into<CCursor>,
+    ) -> Self {
         Self {
             primary: max.into(),
             secondary: min.into(),
@@ -64,7 +69,10 @@ impl CCursorRange {
     }
 
     /// Is `self` a super-set of the other range?
-    pub fn contains(&self, other: Self) -> bool {
+    pub fn contains(
+        &self,
+        other: Self,
+    ) -> bool {
         let [self_min, self_max] = self.sorted_cursors();
         let [other_min, other_max] = other.sorted_cursors();
         self_min.index <= other_min.index && other_max.index <= self_max.index
@@ -103,7 +111,10 @@ impl CCursorRange {
         self.sorted_cursors()
     }
 
-    pub fn slice_str<'s>(&self, text: &'s str) -> &'s str {
+    pub fn slice_str<'s>(
+        &self,
+        text: &'s str,
+    ) -> &'s str {
         let [min, max] = self.sorted_cursors();
         slice_char_range(text, min.index..max.index)
     }
@@ -122,16 +133,18 @@ impl CCursorRange {
             Key::A if modifiers.command => {
                 *self = Self::select_all(galley);
                 true
-            }
+            },
 
-            Key::ArrowLeft | Key::ArrowRight if modifiers.is_none() && !self.is_empty() => {
+            Key::ArrowLeft | Key::ArrowRight
+                if modifiers.is_none() && !self.is_empty() =>
+            {
                 if key == Key::ArrowLeft {
                     *self = Self::one(self.sorted_cursors()[0]);
                 } else {
                     *self = Self::one(self.sorted_cursors()[1]);
                 }
                 true
-            }
+            },
 
             Key::ArrowLeft
             | Key::ArrowRight
@@ -151,10 +164,12 @@ impl CCursorRange {
                     self.secondary = self.primary;
                 }
                 true
-            }
+            },
 
             Key::P | Key::N | Key::B | Key::F | Key::A | Key::E
-                if os == OperatingSystem::Mac && modifiers.ctrl && !modifiers.shift =>
+                if os == OperatingSystem::Mac
+                    && modifiers.ctrl
+                    && !modifiers.shift =>
             {
                 move_single_cursor(
                     os,
@@ -166,7 +181,7 @@ impl CCursorRange {
                 );
                 self.secondary = self.primary;
                 true
-            }
+            },
 
             _ => false,
         }
@@ -197,11 +212,19 @@ impl CCursorRange {
                 data: Some(accesskit::ActionData::SetTextSelection(selection)),
             }) => {
                 if _widget_id.accesskit_id() == *target {
-                    let primary =
-                        ccursor_from_accesskit_text_position(_widget_id, galley, &selection.focus);
-                    let secondary =
-                        ccursor_from_accesskit_text_position(_widget_id, galley, &selection.anchor);
-                    if let (Some(primary), Some(secondary)) = (primary, secondary) {
+                    let primary = ccursor_from_accesskit_text_position(
+                        _widget_id,
+                        galley,
+                        &selection.focus,
+                    );
+                    let secondary = ccursor_from_accesskit_text_position(
+                        _widget_id,
+                        galley,
+                        &selection.anchor,
+                    );
+                    if let (Some(primary), Some(secondary)) =
+                        (primary, secondary)
+                    {
                         *self = Self {
                             primary,
                             secondary,
@@ -211,7 +234,7 @@ impl CCursorRange {
                     }
                 }
                 false
-            }
+            },
 
             _ => false,
         }
@@ -232,7 +255,8 @@ fn ccursor_from_accesskit_text_position(
         if row_id.accesskit_id() == position.node {
             return Some(CCursor {
                 index: total_length + position.character_index,
-                prefer_next_row: !(position.character_index == row.glyphs.len()
+                prefer_next_row: !(position.character_index
+                    == row.glyphs.len()
                     && !row.ends_with_newline
                     && (i + 1) < galley.rows.len()),
             });
@@ -275,7 +299,7 @@ fn move_single_cursor(
                     } else {
                         (galley.cursor_left_one_character(cursor), None)
                     }
-                }
+                },
                 Key::ArrowRight => {
                     if modifiers.alt || modifiers.ctrl {
                         // alt on mac, ctrl on windows
@@ -285,7 +309,7 @@ fn move_single_cursor(
                     } else {
                         (galley.cursor_right_one_character(cursor), None)
                     }
-                }
+                },
                 Key::ArrowUp => {
                     if modifiers.command {
                         // mac and windows behavior
@@ -293,7 +317,7 @@ fn move_single_cursor(
                     } else {
                         galley.cursor_up_one_row(cursor, *h_pos)
                     }
-                }
+                },
                 Key::ArrowDown => {
                     if modifiers.command {
                         // mac and windows behavior
@@ -301,7 +325,7 @@ fn move_single_cursor(
                     } else {
                         galley.cursor_down_one_row(cursor, *h_pos)
                     }
-                }
+                },
 
                 Key::Home => {
                     if modifiers.ctrl {
@@ -310,7 +334,7 @@ fn move_single_cursor(
                     } else {
                         (galley.cursor_begin_of_row(cursor), None)
                     }
-                }
+                },
                 Key::End => {
                     if modifiers.ctrl {
                         // windows behavior
@@ -318,7 +342,7 @@ fn move_single_cursor(
                     } else {
                         (galley.cursor_end_of_row(cursor), None)
                     }
-                }
+                },
 
                 _ => unreachable!(),
             }

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use emath::TSTransform;
 
 use crate::{
-    Context, CursorIcon, Event, Galley, Id, LayerId, Plugin, Pos2, Rect,
+    Context, CursorIcon, Event, Galley, Id, IdMap, LayerId, Plugin, Pos2, Rect,
     Response, Ui, layers::ShapeIdx, text::CCursor,
     text_selection::CCursorRange,
 };
@@ -128,6 +128,9 @@ pub struct LabelSelectionState {
     ///
     /// Kept so we can undo a bad selection visualization if we don't see both ends of the selection this frame.
     painted_selections: Vec<(ShapeIdx, Vec<RowVertexIndices>)>,
+
+    /// The galleys of widgets that have been drawn this frame.
+    widget_galleys: IdMap<Arc<Galley>>,
 }
 
 impl Default for LabelSelectionState {
@@ -143,6 +146,7 @@ impl Default for LabelSelectionState {
             text_to_copy: Default::default(),
             last_copied_galley_rect: Default::default(),
             painted_selections: Default::default(),
+            widget_galleys: Default::default(),
         }
     }
 }
@@ -249,75 +253,6 @@ impl LabelSelectionState {
         self.selection = None;
     }
 
-    /// Get the currently selected character range, if any.
-    ///
-    /// Returns `None` if there's no active selection, or `Some((widget_id, char_range))`
-    /// where `char_range` is the range of selected character indices.
-    ///
-    /// Note: This only works for single-widget selections. For multi-widget selections,
-    /// this will return the range within the widget that contains the primary cursor.
-    pub fn selected_char_range(&self) -> Option<(Id, std::ops::Range<usize>)> {
-        let selection = self.selection.as_ref()?;
-
-        // For simplicity, we return the range for the widget containing the primary cursor
-        let widget_id = selection.primary.widget_id;
-
-        // We need to find the galley for this widget to calculate the character range
-        // Since we don't have direct access to the galley here, we return the cursor positions
-        // and let the caller handle the conversion if needed
-        let primary_index = selection.primary.ccursor.index;
-        let secondary_index = selection.secondary.ccursor.index;
-
-        let range = if primary_index <= secondary_index {
-            primary_index..secondary_index
-        } else {
-            secondary_index..primary_index
-        };
-
-        Some((widget_id, range))
-    }
-
-    /// Get the character range for a specific widget, if it contains any part of the selection.
-    ///
-    /// Returns `None` if there's no active selection or if the widget doesn't contain
-    /// any part of the selection, or `Some(char_range)` where `char_range` is the range
-    /// of selected character indices within this specific widget.
-    ///
-    /// This method works for both single-widget and multi-widget selections.
-    pub fn widget_char_range(
-        &self,
-        widget_id: Id,
-        galley: &Galley,
-    ) -> Option<std::ops::Range<usize>> {
-        let cursors = self.widget_selection_cursors(widget_id)?;
-        match cursors {
-            WidgetSelectionCursors::Both { primary, secondary } => {
-                // This widget contains the entire selection
-                Some(if primary.index <= secondary.index {
-                    primary.index..secondary.index
-                } else {
-                    secondary.index..primary.index
-                })
-            },
-            WidgetSelectionCursors::PrimaryOnly(primary) => {
-                // This widget contains only the primary cursor - select to end or beginning
-                if self.has_reached_secondary {
-                    Some(0..primary.index)
-                } else {
-                    Some(primary.index..galley.end().index)
-                }
-            },
-            WidgetSelectionCursors::SecondaryOnly(secondary) => {
-                // This widget contains only the secondary cursor - select to end or beginning
-                if self.has_reached_primary {
-                    Some(0..secondary.index)
-                } else {
-                    Some(secondary.index..galley.end().index)
-                }
-            },
-        }
-    }
-
     /// Get the cursors of the selection that are present in the given widget.
     ///
     /// Returns `None` if there's no active selection or if the widget doesn't contain
@@ -354,6 +289,76 @@ impl LabelSelectionState {
             ))
         }
     }
+    /// Get the character range for a specific widget, if it contains any part of the selection.
+    ///
+    /// Returns `None` if there's no active selection or if the widget doesn't contain
+    /// any part of the selection, or `Some(char_range)` where `char_range` is the range
+    /// of selected character indices within this specific widget.
+    ///
+    /// This method works for both single-widget and multi-widget selections.
+    pub fn widget_char_range(
+        &self,
+        widget_id: Id,
+    ) -> Option<std::ops::Range<usize>> {
+        Some(self.widget_cursor_range(widget_id)?.as_sorted_char_range())
+    }
+
+    /// Get the cursor range for a specific widget, if it contains any part of the selection.
+    ///
+    /// Returns `None` if there's no active selection or if the widget doesn't contain
+    /// any part of the selection, or `Some(cursor_range)` where `cursor_range` is the range
+    /// of cursors within this specific widget.
+    ///
+    /// This method works for both single-widget and multi-widget selections.
+    pub fn widget_galley_cursor_range(
+        &self,
+        widget_id: Id,
+        galley: &Galley,
+    ) -> Option<CCursorRange> {
+        let cursors = self.widget_selection_cursors(widget_id)?;
+        Some(match cursors {
+            WidgetSelectionCursors::Both { primary, secondary } => {
+                CCursorRange {
+                    primary,
+                    secondary,
+                    h_pos: None,
+                }
+            },
+            WidgetSelectionCursors::PrimaryOnly(primary) => {
+                // This widget contains only the primary cursor - select to end or beginning
+                let secondary = if self.has_reached_secondary {
+                    galley.begin()
+                } else {
+                    galley.end()
+                };
+                CCursorRange {
+                    primary,
+                    secondary,
+                    h_pos: None,
+                }
+            },
+            WidgetSelectionCursors::SecondaryOnly(secondary) => {
+                // This widget contains only the secondary cursor - select to end or beginning
+                let primary = if self.has_reached_primary {
+                    galley.begin()
+                } else {
+                    galley.end()
+                };
+                CCursorRange {
+                    primary,
+                    secondary,
+                    h_pos: None,
+                }
+            },
+        })
+    }
+    pub fn widget_cursor_range(
+        &self,
+        widget_id: Id,
+    ) -> Option<CCursorRange> {
+        let galley = self.widget_galleys.get(&widget_id)?;
+        self.widget_galley_cursor_range(widget_id, galley)
+    }
 
     /// Get the currently selected text from a specific widget, if any.
     ///
@@ -366,51 +371,10 @@ impl LabelSelectionState {
     pub fn selected_text(
         &self,
         widget_id: Id,
-        galley: &Galley,
     ) -> Option<String> {
-        let selection = self.selection.as_ref()?;
-
-        // Check if this widget contains part of the selection
-        let has_primary = selection.primary.widget_id == widget_id;
-        let has_secondary = selection.secondary.widget_id == widget_id;
-
-        if !has_primary && !has_secondary {
-            return None;
-        }
-
-        let cursor_range = if has_primary && has_secondary {
-            // This widget contains the entire selection
-            CCursorRange {
-                primary: selection.primary.ccursor,
-                secondary: selection.secondary.ccursor,
-                h_pos: None,
-            }
-        } else if has_primary {
-            // This widget contains only the primary cursor - select to end or beginning
-            let secondary = if self.has_reached_secondary {
-                galley.begin()
-            } else {
-                galley.end()
-            };
-            CCursorRange {
-                primary: selection.primary.ccursor,
-                secondary,
-                h_pos: None,
-            }
-        } else {
-            // This widget contains only the secondary cursor - select to end or beginning
-            let primary = if self.has_reached_primary {
-                galley.begin()
-            } else {
-                galley.end()
-            };
-            CCursorRange {
-                primary,
-                secondary: selection.secondary.ccursor,
-                h_pos: None,
-            }
-        };
-
+        let galley = self.widget_galleys.get(&widget_id)?;
+        let cursor_range =
+            self.widget_galley_cursor_range(widget_id, galley)?;
         Some(selected_text(galley, &cursor_range))
     }
 
@@ -495,6 +459,10 @@ impl LabelSelectionState {
     ) {
         let plugin = ui.ctx().plugin::<Self>();
         let mut state = plugin.lock();
+
+        // Store the widget text for galley-free access later
+        state.widget_galleys.insert(response.id, galley.clone());
+
         let new_vertex_indices =
             state.on_label(ui, response, galley_pos, &mut galley);
 

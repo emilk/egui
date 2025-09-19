@@ -5,6 +5,8 @@ use crate::{
     Tooltip, Ui, WidgetRect, WidgetText,
     emath::{Align, Pos2, Rect, Vec2},
     pass_state,
+    text::CCursorRange,
+    text_selection::LabelSelectionState,
 };
 // ----------------------------------------------------------------------------
 
@@ -1058,14 +1060,12 @@ impl Response {
     /// # });
     /// ```
     pub fn selected_char_range(&self) -> Option<std::ops::Range<usize>> {
-        use crate::text_selection::LabelSelectionState;
         let plugin = self.ctx.plugin::<LabelSelectionState>();
-        let (widget_id, range) = plugin.lock().selected_char_range()?;
-        if widget_id == self.id {
-            Some(range)
-        } else {
-            None
-        }
+        plugin.lock().widget_char_range(self.id)
+    }
+    pub fn selected_cursor_range(&self) -> Option<CCursorRange> {
+        let plugin = self.ctx.plugin::<LabelSelectionState>();
+        plugin.lock().widget_cursor_range(self.id)
     }
 
     /// Get the currently selected text from this label widget, if any.
@@ -1082,14 +1082,9 @@ impl Response {
     /// }
     /// # });
     /// ```
-    pub fn selected_text(
-        &self,
-        galley: &crate::Galley,
-    ) -> Option<String> {
-        use crate::text_selection::LabelSelectionState;
-
+    pub fn selected_text(&self) -> Option<String> {
         let plugin = self.ctx.plugin::<LabelSelectionState>();
-        plugin.lock().selected_text(self.id, galley)
+        plugin.lock().selected_text(self.id)
     }
 
     /// Check if this label widget has any text selected.
@@ -1105,7 +1100,6 @@ impl Response {
     /// # });
     /// ```
     pub fn has_text_selection(&self) -> bool {
-        use crate::text_selection::LabelSelectionState;
         let plugin = self.ctx.plugin::<LabelSelectionState>();
         plugin.lock().widget_has_selection(self.id)
     }
