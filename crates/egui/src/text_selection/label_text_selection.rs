@@ -63,6 +63,23 @@ impl std::fmt::Debug for WidgetTextCursor {
     }
 }
 
+/// Represents the cursors present in a specific widget for a text selection.
+///
+/// This is used to determine which cursors (primary, secondary, or both) are
+/// located within a particular widget during multi-widget selections.
+#[derive(Clone, Copy, Debug)]
+pub enum WidgetSelectionCursors {
+    /// The widget contains both the primary and secondary cursors (complete selection within this widget)
+    Both {
+        primary: CCursor,
+        secondary: CCursor,
+    },
+    /// The widget contains only the primary cursor (selection extends from/to other widgets)
+    PrimaryOnly(CCursor),
+    /// The widget contains only the secondary cursor (selection extends from/to other widgets)
+    SecondaryOnly(CCursor),
+}
+
 #[derive(Clone, Copy, Debug)]
 struct CurrentSelection {
     /// The selection is in this layer.
@@ -258,6 +275,84 @@ impl LabelSelectionState {
         };
 
         Some((widget_id, range))
+    }
+
+    /// Get the character range for a specific widget, if it contains any part of the selection.
+    ///
+    /// Returns `None` if there's no active selection or if the widget doesn't contain
+    /// any part of the selection, or `Some(char_range)` where `char_range` is the range
+    /// of selected character indices within this specific widget.
+    ///
+    /// This method works for both single-widget and multi-widget selections.
+    pub fn widget_char_range(
+        &self,
+        widget_id: Id,
+        galley: &Galley,
+    ) -> Option<std::ops::Range<usize>> {
+        let cursors = self.widget_selection_cursors(widget_id)?;
+        match cursors {
+            WidgetSelectionCursors::Both { primary, secondary } => {
+                // This widget contains the entire selection
+                Some(if primary.index <= secondary.index {
+                    primary.index..secondary.index
+                } else {
+                    secondary.index..primary.index
+                })
+            },
+            WidgetSelectionCursors::PrimaryOnly(primary) => {
+                // This widget contains only the primary cursor - select to end or beginning
+                if self.has_reached_secondary {
+                    Some(0..primary.index)
+                } else {
+                    Some(primary.index..galley.end().index)
+                }
+            },
+            WidgetSelectionCursors::SecondaryOnly(secondary) => {
+                // This widget contains only the secondary cursor - select to end or beginning
+                if self.has_reached_primary {
+                    Some(0..secondary.index)
+                } else {
+                    Some(secondary.index..galley.end().index)
+                }
+            },
+        }
+    }
+
+    /// Get the cursors of the selection that are present in the given widget.
+    ///
+    /// Returns `None` if there's no active selection or if the widget doesn't contain
+    /// any part of the selection. Returns the cursors that are actually present in this widget.
+    pub fn widget_selection_cursors(
+        &self,
+        widget_id: Id,
+    ) -> Option<WidgetSelectionCursors> {
+        let selection = self.selection.as_ref()?;
+
+        // Check if this widget contains part of the selection
+        let has_primary = selection.primary.widget_id == widget_id;
+        let has_secondary = selection.secondary.widget_id == widget_id;
+
+        if !has_primary && !has_secondary {
+            return None;
+        }
+
+        if has_primary && has_secondary {
+            // This widget contains both cursors
+            Some(WidgetSelectionCursors::Both {
+                primary: selection.primary.ccursor,
+                secondary: selection.secondary.ccursor,
+            })
+        } else if has_primary {
+            // This widget contains only the primary cursor
+            Some(WidgetSelectionCursors::PrimaryOnly(
+                selection.primary.ccursor,
+            ))
+        } else {
+            // This widget contains only the secondary cursor
+            Some(WidgetSelectionCursors::SecondaryOnly(
+                selection.secondary.ccursor,
+            ))
+        }
     }
 
     /// Get the currently selected text from a specific widget, if any.
