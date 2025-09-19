@@ -9,5 +9,5 @@ pub mod text_cursor_state;
 pub mod visuals;
 
 pub use cursor_range::CCursorRange;
-pub use label_text_selection::LabelSelectionState;
+pub use label_text_selection::{LabelSelectionState, WidgetSelectionCursors};
 pub use text_cursor_state::TextCursorState;
