@@ -387,7 +387,7 @@ pub type ImageLoadResult = Result<ImagePoll>;
 /// An `ImageLoader` decodes raw bytes into a [`ColorImage`].
 ///
 /// Implementations are expected to cache at least each `URI`.
-pub trait ImageLoader {
+pub trait ImageLoader: std::any::Any {
     /// Unique ID of this loader.
     ///
     /// To reduce the chance of collisions, include `module_path!()` as part of this ID.
@@ -516,6 +516,16 @@ impl TexturePoll {
             Self::Pending { .. } => None,
             Self::Ready { texture } => Some(texture.id),
         }
+    }
+
+    #[inline]
+    pub fn is_pending(&self) -> bool {
+        matches!(self, Self::Pending { .. })
+    }
+
+    #[inline]
+    pub fn is_ready(&self) -> bool {
+        matches!(self, Self::Ready { .. })
     }
 }
 
