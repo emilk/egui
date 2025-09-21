@@ -795,7 +795,7 @@ fn fill_closed_path(feathering: f32, path: &mut [PathPoint], fill_color: Color32
         let mut i0 = n - 1;
         for i1 in 0..n {
             let p1 = &path[i1 as usize];
-            let dm = 0.5 * feathering * p1.normal;
+            let dm = 0.5 * feathering * clamp_normal_for_feathering(p1.normal);
 
             let pos_inner = p1.pos - dm;
             let pos_outer = p1.pos + dm;
