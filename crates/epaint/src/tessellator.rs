@@ -757,6 +757,15 @@ fn cw_signed_area(path: &[PathPoint]) -> f64 {
     }
 }
 
+fn clamp_normal_for_feathering(normal: Vec2) -> Vec2 {
+    let max_normal_length = 90.0;
+    if normal.length() > max_normal_length {
+        normal * (max_normal_length / normal.length())
+    } else {
+        normal
+    }
+}
+
 /// Tessellate the given convex area into a polygon.
 ///
 /// Calling this may reverse the vertices in the path if they are wrong winding order.
