@@ -594,9 +594,9 @@ fn blending_and_feathering_test(ui: &mut Ui) {
     painter.rect_filled(bottom_half, 0.0, Color32::WHITE);
     paint_fine_lines_and_text(&painter, bottom_half, Color32::BLACK);
 
-    ui.heading("Sharp edges");
+    ui.heading("Feathering of sharp edges");
     for width in [100.0, 10.0, 5.0, 2.0, 1.0, 0.5, 0.25, 0.1] {
-        let (response, painter) = ui.allocate_painter(vec2(512.0, width + 20.0), Sense::hover());
+        let (response, painter) = ui.allocate_painter(vec2(120.0, width + 20.0), Sense::hover());
         painter.rect_filled(response.rect, 0.0, Color32::BLACK);
         painter.add(Shape::convex_polygon(
             vec![
@@ -607,6 +607,15 @@ fn blending_and_feathering_test(ui: &mut Ui) {
             Color32::WHITE,
             Stroke::NONE,
         ));
+
+        // Helper vertical line:
+        painter.line_segment(
+            [
+                pos2(response.rect.min.x + 100.0, response.rect.top() + 5.0),
+                pos2(response.rect.min.x + 100.0, response.rect.bottom() - 5.0),
+            ],
+            Stroke::new(1.0, Color32::GRAY),
+        );
     }
 }
 
