@@ -53,32 +53,31 @@ impl eframe::App for SelectionCursorDemo {
 
             ui.label("Selection Information:");
 
-            let responses: Option<Vec<_>> = label_texts.iter().map(|text| {
+            let responses: Vec<_> = label_texts.iter().map(|text| {
                     ui.label(*text)
-                }).enumerate()
-                .filter_map(|(i, r)| {
-                    r.has_text_selection().then(|| {
-                        Some((i, r.selected_cursor_range(), r.selected_char_range(), r.selected_text()))
-                    })
                 })
                 .collect();
-            if let Some(responses) = responses {
-                for (i, cursor_range, char_range, selected_text) in responses {
-                    let label_num = i + 1;
-                    ui.label(format!("Label {label_num}:"));
-                    if let Some(cursor_range) = cursor_range {
-                        ui.label(format!("  • Primary cursor: {}, Secondary cursor: {}",
-                            cursor_range.primary.index, cursor_range.secondary.index));
-                    }
+            let any_selected = responses.iter().enumerate().fold(false, |acc, (i, r)| {
+                    if r.has_text_selection() {
+                        let label_num = i + 1;
+                        ui.label(format!("Label {label_num}:"));
+                        if let Some(cursor_range) = r.selected_cursor_range() {
+                            ui.label(format!("  • Primary cursor: {}, Secondary cursor: {}",
+                                cursor_range.primary.index, cursor_range.secondary.index));
+                        }
 
-                    if let Some(char_range) = char_range {
-                        ui.label(format!("  • Character range: {}..{}", char_range.start, char_range.end));
+                        if let Some(char_range) = r.selected_char_range() {
+                            ui.label(format!("  • Character range: {}..{}", char_range.start, char_range.end));
+                        }
+                        if let Some(selected_text) = r.selected_text() {
+                            ui.label(format!("  • Selected text: '{selected_text}'"));
+                        }
+                        true
+                    } else {
+                        acc
                     }
-                    if let Some(selected_text) = selected_text {
-                        ui.label(format!("  • Selected text: '{selected_text}'"));
-                    }
-                }
-            } else {
+                });
+            if !any_selected {
                 ui.label("Select some text to see cursor information");
             }
 
