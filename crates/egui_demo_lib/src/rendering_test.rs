@@ -593,6 +593,21 @@ fn blending_and_feathering_test(ui: &mut Ui) {
     bottom_half.set_top(bottom_half.center().y);
     painter.rect_filled(bottom_half, 0.0, Color32::WHITE);
     paint_fine_lines_and_text(&painter, bottom_half, Color32::BLACK);
+
+    ui.heading("Sharp edges");
+    for width in [100.0, 10.0, 5.0, 2.0, 1.0, 0.5, 0.25, 0.1] {
+        let (response, painter) = ui.allocate_painter(vec2(512.0, width + 20.0), Sense::hover());
+        painter.rect_filled(response.rect, 0.0, Color32::BLACK);
+        painter.add(Shape::convex_polygon(
+            vec![
+                response.rect.min + vec2(10.0, 10.0),
+                response.rect.min + vec2(100.0, 10.0),
+                response.rect.min + vec2(10.0, 10.0 + width),
+            ],
+            Color32::WHITE,
+            Stroke::NONE,
+        ));
+    }
 }
 
 fn text_on_bg(ui: &mut egui::Ui, fg: Color32, bg: Color32) {
