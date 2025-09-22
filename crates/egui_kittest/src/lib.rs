@@ -276,14 +276,41 @@ impl<'a, State> Harness<'a, State> {
         self.output = output;
     }
 
+    /// Calculate the rect that includes all popups and tooltips.
+    fn calculate_used_rect_with_popups(&self) -> Rect {
+        // Start with the standard response rect or the used rect if we have no response
+        let mut used = if let Some(response) = self.response.as_ref() {
+            response.rect
+        } else {
+            self.ctx.used_rect()
+        };
+
+        // Add all visible areas from other orders (popups, tooltips, etc.)
+        self.ctx.memory(|mem| {
+            for layer_id in mem.areas().visible_layer_ids() {
+                if layer_id.order == egui::Order::Background {
+                    continue;
+                }
+
+                if let Some(area_rect) = mem.area_rect(layer_id.id) {
+                    used |= area_rect;
+                }
+            }
+        });
+
+        used
+    }
+
     /// Resize the test harness to fit the contents. This only works when creating the Harness via
     /// [`Harness::new_ui`] / [`Harness::new_ui_state`] or
     /// [`HarnessBuilder::build_ui`] / [`HarnessBuilder::build_ui_state`].
     pub fn fit_contents(&mut self) {
         self._step(true);
-        if let Some(response) = &self.response {
-            self.set_size(response.rect.size());
-        }
+
+        // Calculate size including all content (main UI + popups + tooltips)
+        let used_rect = self.calculate_used_rect_with_popups();
+
+        self.set_size(used_rect.size());
         self.run_ok();
     }
 
