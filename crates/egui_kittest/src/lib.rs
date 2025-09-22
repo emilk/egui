@@ -287,15 +287,12 @@ impl<'a, State> Harness<'a, State> {
 
         // Add all visible areas from other orders (popups, tooltips, etc.)
         self.ctx.memory(|mem| {
-            for layer_id in mem.areas().visible_layer_ids() {
-                if layer_id.order == egui::Order::Background {
-                    continue;
-                }
-
-                if let Some(area_rect) = mem.area_rect(layer_id.id) {
-                    used |= area_rect;
-                }
-            }
+            mem.areas()
+                .visible_layer_ids()
+                .into_iter()
+                .filter(|layer_id| layer_id.order != egui::Order::Background)
+                .filter_map(|layer_id| mem.area_rect(layer_id.id))
+                .for_each(|area_rect| used |= area_rect);
         });
 
         used
