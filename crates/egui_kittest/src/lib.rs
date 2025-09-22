@@ -277,12 +277,12 @@ impl<'a, State> Harness<'a, State> {
     }
 
     /// Calculate the rect that includes all popups and tooltips.
-    fn calculate_used_rect_with_popups(&self) -> Rect {
-        // Start with the standard response rect or the used rect if we have no response
+    fn calculate_used_rect_with_popups(&self) -> Option<Rect> {
+        // Start with the standard response rect
         let mut used = if let Some(response) = self.response.as_ref() {
             response.rect
         } else {
-            self.ctx.used_rect()
+            return None;
         };
 
         // Add all visible areas from other orders (popups, tooltips, etc.)
@@ -295,7 +295,7 @@ impl<'a, State> Harness<'a, State> {
                 .for_each(|area_rect| used |= area_rect);
         });
 
-        used
+        Some(used)
     }
 
     /// Resize the test harness to fit the contents. This only works when creating the Harness via
@@ -305,9 +305,10 @@ impl<'a, State> Harness<'a, State> {
         self._step(true);
 
         // Calculate size including all content (main UI + popups + tooltips)
-        let used_rect = self.calculate_used_rect_with_popups();
+        if let Some(used_rect) = self.calculate_used_rect_with_popups() {
+            self.set_size(used_rect.size());
+        }
 
-        self.set_size(used_rect.size());
         self.run_ok();
     }
 
