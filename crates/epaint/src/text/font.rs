@@ -259,7 +259,7 @@ impl FontImpl {
 
             if let Some(space) = self.glyph_info(' ') {
                 let em = self.ab_glyph_font.units_per_em().unwrap_or(1.0);
-                let advance_width = f32::min(em / 6.0, space.advance_width_unscaled.0 * 0.5);
+                let advance_width = f32::min(em / 6.0, space.advance_width_unscaled.0 * 0.5); // TODO(emilk): make configurable
                 let glyph_info = GlyphInfo {
                     advance_width_unscaled: advance_width.into(),
                     ..space
