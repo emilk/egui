@@ -17,7 +17,7 @@ pub mod syntax_highlighting;
 #[doc(hidden)]
 pub mod image;
 mod layout;
-mod loaders;
+pub mod loaders;
 mod sizing;
 mod strip;
 mod table;
