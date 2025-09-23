@@ -63,9 +63,9 @@ pub fn install_image_loaders(ctx: &egui::Context) {
     }
 
     #[cfg(feature = "http")]
-    if !ctx.is_loader_installed(self::ehttp_loader::EhttpLoader::ID) {
+    if !ctx.is_loader_installed(self::http_loader::EhttpLoader::ID) {
         ctx.add_bytes_loader(std::sync::Arc::new(
-            self::ehttp_loader::EhttpLoader::default(),
+            self::http_loader::EhttpLoader::default(),
         ));
         log::trace!("installed EhttpLoader");
     }
@@ -111,7 +111,7 @@ pub fn install_image_loaders(ctx: &egui::Context) {
 pub mod file_loader;
 
 #[cfg(feature = "http")]
-pub mod ehttp_loader;
+pub mod http_loader;
 
 #[cfg(feature = "gif")]
 pub mod gif_loader;
