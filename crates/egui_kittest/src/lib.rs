@@ -277,7 +277,7 @@ impl<'a, State> Harness<'a, State> {
     }
 
     /// Calculate the rect that includes all popups and tooltips.
-    fn calculate_used_rect_with_popups(&self) -> Option<Rect> {
+    fn compute_total_rect_with_popups(&self) -> Option<Rect> {
         // Start with the standard response rect
         let mut used = if let Some(response) = self.response.as_ref() {
             response.rect
@@ -305,8 +305,8 @@ impl<'a, State> Harness<'a, State> {
         self._step(true);
 
         // Calculate size including all content (main UI + popups + tooltips)
-        if let Some(used_rect) = self.calculate_used_rect_with_popups() {
-            self.set_size(used_rect.size());
+        if let Some(rect) = self.compute_total_rect_with_popups() {
+            self.set_size(rect.size());
         }
 
         self.run_ok();

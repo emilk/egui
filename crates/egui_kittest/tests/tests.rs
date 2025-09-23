@@ -17,6 +17,28 @@ fn test_shrink() {
 }
 
 #[test]
+fn test_tooltip() {
+    let mut harness = Harness::new_ui(|ui| {
+        ui.label("Hello, world!");
+        ui.separator();
+        ui.label("This is a test")
+            .on_hover_text("This is a tooltip");
+    });
+
+    harness.fit_contents();
+
+    #[cfg(all(feature = "snapshot", feature = "wgpu"))]
+    harness.snapshot("test_tooltip_hidden");
+
+    harness.get_by_label("This is a test").hover();
+    harness.run_ok();
+    harness.fit_contents();
+
+    #[cfg(all(feature = "snapshot", feature = "wgpu"))]
+    harness.snapshot("test_tooltip_shown");
+}
+
+#[test]
 fn test_modifiers() {
     #[derive(Default)]
     struct State {
