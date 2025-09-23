@@ -1,4 +1,5 @@
-use egui::{Color32, Image, Label, RichText, TextWrapMode, include_image};
+use egui::accesskit::Role;
+use egui::{Align, Color32, Image, Label, Layout, RichText, TextWrapMode, include_image};
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable as _;
 
@@ -32,4 +33,31 @@ fn hovering_should_preserve_text_format() {
     harness.run_steps(5);
 
     harness.snapshot("hovering_should_preserve_text_format");
+}
+
+#[test]
+fn text_edit_rtl() {
+    let mut text = "hello ".to_owned();
+    let mut harness = Harness::builder().with_size((200.0, 50.0)).build_ui(|ui| {
+        ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
+            _ = ui.button("right");
+            ui.add(
+                egui::TextEdit::singleline(&mut text)
+                    .desired_width(10.0)
+                    .clip_text(false),
+            );
+            _ = ui.button("left");
+        });
+    });
+
+    harness.get_by_role(Role::TextInput).focus();
+    harness.step();
+    harness.snapshot("text_edit_rtl_0");
+
+    harness.get_by_role(Role::TextInput).type_text("world");
+
+    for i in 1..3 {
+        harness.step();
+        harness.snapshot(format!("text_edit_rtl_{i}"));
+    }
 }
