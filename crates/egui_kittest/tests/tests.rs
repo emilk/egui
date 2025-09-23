@@ -22,7 +22,7 @@ fn test_tooltip() {
         ui.label("Hello, world!");
         ui.separator();
         ui.label("This is a test")
-            .on_hover_text("This is a tooltip");
+            .on_hover_text("This\nis\na\nvery\ntall\ntooltip!");
     });
 
     harness.fit_contents();
