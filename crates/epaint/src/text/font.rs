@@ -478,12 +478,15 @@ impl Font<'_> {
     /// Width of this character in points.
     pub fn glyph_width(&mut self, c: char, font_size: f32) -> f32 {
         let (key, glyph_info) = self.glyph_info(c);
-        let font = &self
-            .fonts_by_id
-            .get(&key)
-            .expect("Nonexistent font ID")
-            .ab_glyph_font;
-        glyph_info.advance_width_unscaled.0 * font.px_scale_factor(font_size)
+        if let Some(font) = &self.fonts_by_id.get(&key) {
+            glyph_info.advance_width_unscaled.0 * font.ab_glyph_font.px_scale_factor(font_size)
+        } else {
+            debug_assert_eq!(
+                glyph_info.advance_width_unscaled.0, 0.0,
+                "We had no font, so this should be the zero-width fallback glyph"
+            );
+            0.0
+        }
     }
 
     /// Can we display this glyph?
