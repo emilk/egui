@@ -1,4 +1,4 @@
-use egui::SafeArea;
+use egui::{SafeAreaInsets, epaint::MarginF32};
 use objc::runtime::Object;
 use objc::{class, msg_send, sel, sel_impl};
 
@@ -24,13 +24,13 @@ pub fn get_ios_safe_area_insets() -> UIEdgeInsets {
     }
 }
 
-impl From<UIEdgeInsets> for SafeArea {
+impl From<UIEdgeInsets> for SafeAreaInsets {
     fn from(value: UIEdgeInsets) -> Self {
-        SafeArea {
+        SafeAreaInsets(MarginF32 {
             top: value.top as f32,
             left: value.left as f32,
             bottom: value.bottom as f32,
             right: value.right as f32,
-        }
+        })
     }
 }

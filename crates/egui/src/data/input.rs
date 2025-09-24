@@ -1,32 +1,11 @@
 //! The input needed by egui.
 
-use epaint::ColorImage;
+use epaint::{ColorImage, MarginF32};
 
 use crate::{
     Key, OrderedViewportIdMap, Theme, ViewportId, ViewportIdMap,
     emath::{Pos2, Rect, Vec2},
 };
-
-/// Safe area insets of the screen. I.e., area not covered by the status bar, navigation bar, etc.
-#[derive(Debug, PartialEq, Copy, Clone, Default)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct SafeArea {
-    pub top: f32,
-    pub right: f32,
-    pub bottom: f32,
-    pub left: f32,
-}
-
-impl std::ops::Sub<SafeArea> for Rect {
-    type Output = Self;
-
-    fn sub(self, rhs: SafeArea) -> Self::Output {
-        Self::from_min_max(
-            self.min + emath::vec2(rhs.left, rhs.top),
-            self.max - emath::vec2(rhs.right, rhs.bottom),
-        )
-    }
-}
 
 /// What the integrations provides to egui at the start of each frame.
 ///
@@ -51,7 +30,7 @@ pub struct RawInput {
     /// mobile safe area
     /// 0,0,0,0 on desktop
     /// `None` will be treated as "same as last frame"
-    pub safe_area: Option<SafeArea>,
+    pub safe_area: Option<SafeAreaInsets>,
 
     /// Position and size of the area that egui should use, in points.
     /// Usually you would set this to
@@ -1327,5 +1306,24 @@ impl EventFilter {
         } else {
             true
         }
+    }
+}
+
+/// The 'safe area' insets of the screen
+///
+/// This represents the area of the screen not covered by the status bar, navigation bar,
+/// or other items that would otherwise cover the view.
+#[derive(Debug, PartialEq, Copy, Clone, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct SafeAreaInsets(pub MarginF32);
+
+impl std::ops::Sub<SafeAreaInsets> for Rect {
+    type Output = Self;
+
+    fn sub(self, rhs: SafeAreaInsets) -> Self::Output {
+        Self::from_min_max(
+            self.min + emath::vec2(rhs.0.left, rhs.0.top),
+            self.max - emath::vec2(rhs.0.right, rhs.0.bottom),
+        )
     }
 }
