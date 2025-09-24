@@ -14,25 +14,25 @@ pub struct Spinner {
     speed: Option<f64>,
 }
 impl Spinner {
-	/// Create a new spinner that uses the style's `interact_size` unless changed.
-	pub fn new() -> Self {
-		Self::default()
-	}
+    /// Create a new spinner that uses the style's `interact_size` unless changed.
+    pub fn new() -> Self {
+        Self::default()
+    }
 
-	/// Sets the spinner's size. The size sets both the height and width, as the spinner is always
-	/// square. If the size isn't set explicitly, the active style's `interact_size` is used.
-	#[inline]
-	pub fn size(mut self, size: f32) -> Self {
-		self.size = Some(size);
-		self
-	}
+    /// Sets the spinner's size. The size sets both the height and width, as the spinner is always
+    /// square. If the size isn't set explicitly, the active style's `interact_size` is used.
+    #[inline]
+    pub fn size(mut self, size: f32) -> Self {
+        self.size = Some(size);
+        self
+    }
 
-	/// Sets the spinner's color.
-	#[inline]
-	pub fn color(mut self, color: impl Into<Color32>) -> Self {
-		self.color = Some(color.into());
-		self
-	}
+    /// Sets the spinner's color.
+    #[inline]
+    pub fn color(mut self, color: impl Into<Color32>) -> Self {
+        self.color = Some(color.into());
+        self
+    }
     /// Sets the spinner's rotation speed and direction.
     ///
     /// A `speed` of `1.0` corresponds to one full rotation per second clockwise.
@@ -90,5 +90,4 @@ impl Widget for Spinner {
         self.paint_at(ui, rect, speed);
         response
     }
-
 }
