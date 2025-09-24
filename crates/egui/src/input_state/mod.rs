@@ -5,9 +5,9 @@ use crate::data::input::{
     PointerButton, RawInput, TouchDeviceId, ViewportInfo,
 };
 use crate::{
+    SafeAreaInsets,
     emath::{NumExt as _, Pos2, Rect, Vec2, vec2},
     util::History,
-    SafeArea,
 };
 use std::{
     collections::{BTreeMap, HashSet},
@@ -279,7 +279,7 @@ pub struct InputState {
     screen_rect: Rect,
 
     /// The safe area insets of the screen.
-    safe_area: SafeArea,
+    safe_area: SafeAreaInsets,
 
     /// Also known as device pixel ratio, > 1 for high resolution screens.
     pub pixels_per_point: f32,
@@ -604,7 +604,7 @@ impl InputState {
     }
 
     /// Get the safe area insets.
-    pub fn safe_area(&self) -> SafeArea {
+    pub fn safe_area(&self) -> SafeAreaInsets {
         self.safe_area
     }
 

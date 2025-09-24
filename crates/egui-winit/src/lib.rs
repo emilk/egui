@@ -283,7 +283,7 @@ impl State {
             | WindowEvent::Focused(true)
             | WindowEvent::Occluded(false) => {
                 self.egui_input_mut().safe_area =
-                    Some(egui::SafeArea::from(safe_area::get_ios_safe_area_insets()));
+                    Some(egui::SafeAreaInsets::from(safe_area::get_ios_safe_area_insets()));
             }
             _ => {}
         }

@@ -17,10 +17,10 @@ use epaint::{
 use crate::{
     Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, Grid, Id, ImmediateViewport,
     ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId, Memory,
-    ModifierNames, Modifiers, NumExt as _, Order, Painter, RawInput, Response, RichText, SafeArea,
-    ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions, Ui, ViewportBuilder,
-    ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput,
-    Widget as _, WidgetRect, WidgetText,
+    ModifierNames, Modifiers, NumExt as _, Order, Painter, RawInput, Response, RichText,
+    SafeAreaInsets, ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions, Ui,
+    ViewportBuilder, ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet,
+    ViewportOutput, Widget as _, WidgetRect, WidgetText,
     animation_manager::AnimationManager,
     containers::{self, area::AreaState},
     data::output::PlatformOutput,
@@ -374,7 +374,7 @@ struct ContextImpl {
     animation_manager: AnimationManager,
 
     plugins: plugin::Plugins,
-    safe_area: SafeArea,
+    safe_area: SafeAreaInsets,
 
     /// All viewports share the same texture manager and texture namespace.
     ///
