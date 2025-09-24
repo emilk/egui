@@ -276,18 +276,23 @@ impl State {
         }
 
         use winit::event::WindowEvent;
+
         #[cfg(target_os = "ios")]
         match &event {
             WindowEvent::Resized(_)
             | WindowEvent::ScaleFactorChanged { .. }
             | WindowEvent::Focused(true)
             | WindowEvent::Occluded(false) => {
+                // Once winit v0.31 has been released this can be reworked to get the safe area from
+                // `Window::safe_area`, and updated from a new event which is being discussed in
+                // https://github.com/rust-windowing/winit/issues/3911.
                 self.egui_input_mut().safe_area_insets = Some(egui::SafeAreaInsets::from(
                     safe_area::get_ios_safe_area_insets(),
                 ));
             }
             _ => {}
         }
+
         match event {
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                 let native_pixels_per_point = *scale_factor as f32;
