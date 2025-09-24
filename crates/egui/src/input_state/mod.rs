@@ -274,12 +274,11 @@ pub struct InputState {
     // ----------------------------------------------
     /// Position and size of the egui area.
     ///
-    /// This is including the safe area, in contrast to [`crate::Context::screen_rect`], where the safe
-    /// area has been subtracted.
-    screen_rect: Rect,
+    /// This is including the area that may be covered by the `safe_area_insets`.
+    viewport_rect: Rect,
 
-    /// The safe area insets of the screen.
-    safe_area: SafeAreaInsets,
+    /// The safe area insets, subtracted from the `viewport_rect` in [`Self::content_rect`].
+    safe_area_insets: SafeAreaInsets,
 
     /// Also known as device pixel ratio, > 1 for high resolution screens.
     pub pixels_per_point: f32,
@@ -366,8 +365,8 @@ impl Default for InputState {
             zoom_factor_delta: 1.0,
             rotation_radians: 0.0,
 
-            screen_rect: Rect::from_min_size(Default::default(), vec2(10_000.0, 10_000.0)),
-            safe_area: Default::default(),
+            viewport_rect: Rect::from_min_size(Default::default(), vec2(10_000.0, 10_000.0)),
+            safe_area_insets: Default::default(),
             pixels_per_point: 1.0,
             max_texture_side: 2048,
             time: 0.0,
@@ -405,8 +404,8 @@ impl InputState {
             new.predicted_dt
         };
 
-        let safe_area = new.safe_area.unwrap_or(self.safe_area);
-        let screen_rect = new.screen_rect.unwrap_or(self.screen_rect);
+        let safe_area_insets = new.safe_area_insets.unwrap_or(self.safe_area_insets);
+        let viewport_rect = new.screen_rect.unwrap_or(self.viewport_rect);
         self.create_touch_states_for_new_devices(&new.events);
         for touch_state in self.touch_states.values_mut() {
             touch_state.begin_pass(time, &new, self.pointer.interact_pos);
@@ -446,7 +445,7 @@ impl InputState {
                     let mut delta = match unit {
                         MouseWheelUnit::Point => *delta,
                         MouseWheelUnit::Line => options.line_scroll_speed * *delta,
-                        MouseWheelUnit::Page => screen_rect.height() * *delta,
+                        MouseWheelUnit::Page => viewport_rect.height() * *delta,
                     };
 
                     let is_horizontal = modifiers.matches_any(options.horizontal_scroll_modifier);
@@ -561,8 +560,8 @@ impl InputState {
             zoom_factor_delta,
             rotation_radians,
 
-            screen_rect,
-            safe_area,
+            viewport_rect,
+            safe_area_insets,
             pixels_per_point,
             max_texture_side: new.max_texture_side.unwrap_or(self.max_texture_side),
             time,
@@ -584,28 +583,41 @@ impl InputState {
         self.raw.viewport()
     }
 
-    /// Which part of the screen does egui cover?
+    /// Returns the full area available to egui, including parts that might be partially covered,
+    /// for example, by the OS status bar or notches (see [`Self::safe_area_insets`]).
     ///
-    /// Returns the `RawInput::screen_rect` - [`Self::safe_area`].
-    /// To get the full `screen_rect`, use [`Self::screen_rect_including_unsafe_area`]
+    /// Usually you want to use [`Self::content_rect`] instead.
+    pub fn viewport_rect(&self) -> Rect {
+        self.viewport_rect
+    }
+
+    /// Returns the region of the screen that is safe for content rendering
+    ///
+    /// Returns the `viewport_rect` with the `safe_area_insets` removed.
     #[inline(always)]
-    pub fn screen_rect(&self) -> Rect {
-        self.screen_rect - self.safe_area
+    pub fn content_rect(&self) -> Rect {
+        self.viewport_rect - self.safe_area_insets
     }
 
     /// Returns the full area available to egui, including parts that might be partially
     /// covered, for example, by the OS status bar or notches.
     ///
-    /// Usually you want to use [`Self::screen_rect`] instead.
-    ///
-    /// _Note that the name has nothing to do with rust safety and it's always safe to call this._
-    pub fn screen_rect_including_unsafe_area(&self) -> Rect {
-        self.screen_rect
+    /// Usually you want to use [`Self::content_rect`] instead.
+    #[deprecated(
+        note = "screen_rect has been renamed to viewport_rect. Consider switching to content_rect."
+    )]
+    pub fn screen_rect(&self) -> Rect {
+        self.viewport_rect
     }
 
     /// Get the safe area insets.
-    pub fn safe_area(&self) -> SafeAreaInsets {
-        self.safe_area
+    ///
+    /// This represents the area of the screen covered by status bars, navigation controls, notches,
+    /// or other items that obscure part of the screen.
+    ///
+    /// See [`Self::content_rect`] to get the `viewport_rect` with the safe area insets removed.
+    pub fn safe_area_insets(&self) -> SafeAreaInsets {
+        self.safe_area_insets
     }
 
     /// Uniform zoom scale factor this frame (e.g. from ctrl-scroll or pinch gesture).
@@ -1588,8 +1600,8 @@ impl InputState {
             rotation_radians,
 
             zoom_factor_delta,
-            screen_rect,
-            safe_area,
+            viewport_rect,
+            safe_area_insets,
             pixels_per_point,
             max_texture_side,
             time,
@@ -1642,8 +1654,8 @@ impl InputState {
         ui.label(format!("zoom_factor_delta: {zoom_factor_delta:4.2}x"));
         ui.label(format!("rotation_radians: {rotation_radians:.3} radians"));
 
-        ui.label(format!("screen_rect: {screen_rect:?} points"));
-        ui.label(format!("safe_area: {safe_area:?} points"));
+        ui.label(format!("viewport_rect: {viewport_rect:?} points"));
+        ui.label(format!("safe_area_insets: {safe_area_insets:?} points"));
         ui.label(format!(
             "{pixels_per_point} physical pixels for each logical point"
         ));

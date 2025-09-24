@@ -420,7 +420,7 @@ impl ContextImpl {
             .unwrap_or_default();
         let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent_id);
 
-        if let Some(safe_area) = new_raw_input.safe_area {
+        if let Some(safe_area) = new_raw_input.safe_area_insets {
             self.safe_area = safe_area;
         }
 
@@ -437,7 +437,7 @@ impl ContextImpl {
 
             let input = &viewport.input;
             // This is a bit hacky, but is required to avoid jitter:
-            let mut rect = input.screen_rect();
+            let mut rect = input.content_rect();
             rect.min = (ratio * rect.min.to_vec2()).to_pos2();
             rect.max = (ratio * rect.max.to_vec2()).to_pos2();
             new_raw_input.screen_rect = Some(rect);
@@ -464,9 +464,9 @@ impl ContextImpl {
         );
         let repaint_after = viewport.input.wants_repaint_after();
 
-        let screen_rect = viewport.input.screen_rect();
+        let content_rect = viewport.input.content_rect();
 
-        viewport.this_pass.begin_pass(screen_rect);
+        viewport.this_pass.begin_pass(content_rect);
 
         {
             let mut layers: Vec<LayerId> = viewport.prev_pass.widgets.layer_ids().collect();
@@ -499,9 +499,9 @@ impl ContextImpl {
         self.memory.areas_mut().set_state(
             LayerId::background(),
             AreaState {
-                pivot_pos: Some(screen_rect.left_top()),
+                pivot_pos: Some(content_rect.left_top()),
                 pivot: Align2::LEFT_TOP,
-                size: Some(screen_rect.size()),
+                size: Some(content_rect.size()),
                 interactable: true,
                 last_became_visible_at: None,
             },
@@ -2668,7 +2668,7 @@ impl Context {
 
     /// Position and size of the egui area.
     pub fn screen_rect(&self) -> Rect {
-        self.input(|i| i.screen_rect()).round_ui()
+        self.input(|i| i.content_rect()).round_ui()
     }
 
     /// How much space is still available after panels have been added.

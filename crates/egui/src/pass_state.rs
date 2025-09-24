@@ -258,7 +258,7 @@ impl Default for PassState {
 }
 
 impl PassState {
-    pub(crate) fn begin_pass(&mut self, screen_rect: Rect) {
+    pub(crate) fn begin_pass(&mut self, content_rect: Rect) {
         profiling::function_scope!();
         let Self {
             used_ids,
@@ -282,8 +282,8 @@ impl PassState {
         widgets.clear();
         tooltips.clear();
         layers.clear();
-        *available_rect = screen_rect;
-        *unused_rect = screen_rect;
+        *available_rect = content_rect;
+        *unused_rect = content_rect;
         *used_by_panels = Rect::NOTHING;
         *scroll_target = [None, None];
         *scroll_delta = Default::default();
