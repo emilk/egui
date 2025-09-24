@@ -5,6 +5,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.32.3 - 2025-09-12
+* Optimize `Mesh::add_rect_with_uv` [#7511](https://github.com/emilk/egui/pull/7511) by [@valadaptive](https://github.com/valadaptive)
+
+
 ## 0.32.2 - 2025-09-04
 * Panic mutexes that can't lock for 30 seconds, in debug builds [#7468](https://github.com/emilk/egui/pull/7468) by [@emilk](https://github.com/emilk)
 * Skip zero-length layout job sections [#7430](https://github.com/emilk/egui/pull/7430) by [@HactarCE](https://github.com/HactarCE)

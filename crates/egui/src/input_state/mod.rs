@@ -267,6 +267,9 @@ pub struct InputState {
     /// * `zoom > 1`: pinch spread
     zoom_factor_delta: f32,
 
+    /// Rotation in radians this frame, measuring clockwise (e.g. from a rotation gesture).
+    rotation_radians: f32,
+
     // ----------------------------------------------
     /// Position and size of the egui area.
     pub screen_rect: Rect,
@@ -354,6 +357,7 @@ impl Default for InputState {
             raw_scroll_delta: Vec2::ZERO,
             smooth_scroll_delta: Vec2::ZERO,
             zoom_factor_delta: 1.0,
+            rotation_radians: 0.0,
 
             screen_rect: Rect::from_min_size(Default::default(), vec2(10_000.0, 10_000.0)),
             pixels_per_point: 1.0,
@@ -402,6 +406,7 @@ impl InputState {
 
         let mut keys_down = self.keys_down;
         let mut zoom_factor_delta = 1.0; // TODO(emilk): smoothing for zoom factor
+        let mut rotation_radians = 0.0;
         let mut raw_scroll_delta = Vec2::ZERO;
 
         let mut unprocessed_scroll_delta = self.unprocessed_scroll_delta;
@@ -480,6 +485,9 @@ impl InputState {
                 Event::Zoom(factor) => {
                     zoom_factor_delta *= *factor;
                 }
+                Event::Rotate(radians) => {
+                    rotation_radians += *radians;
+                }
                 Event::WindowFocused(false) => {
                     // Example: pressing `Cmd+S` brings up a save-dialog (e.g. using rfd),
                     // but we get no key-up event for the `S` key (in winit).
@@ -542,6 +550,7 @@ impl InputState {
             raw_scroll_delta,
             smooth_scroll_delta,
             zoom_factor_delta,
+            rotation_radians,
 
             screen_rect,
             pixels_per_point,
@@ -629,6 +638,26 @@ impl InputState {
 
             zoom
         }
+    }
+
+    /// Rotation in radians this frame, measuring clockwise (e.g. from a rotation gesture).
+    #[inline(always)]
+    pub fn rotation_delta(&self) -> f32 {
+        self.multi_touch()
+            .map_or(self.rotation_radians, |touch| touch.rotation_delta)
+    }
+
+    /// Panning translation in pixels this frame (e.g. from scrolling or a pan gesture)
+    ///
+    /// The delta indicates how the **content** should move.
+    ///
+    /// A positive X-value indicates the content is being moved right, as when swiping right on a touch-screen or track-pad with natural scrolling.
+    ///
+    /// A positive Y-value indicates the content is being moved down, as when swiping down on a touch-screen or track-pad with natural scrolling.
+    #[inline(always)]
+    pub fn translation_delta(&self) -> Vec2 {
+        self.multi_touch()
+            .map_or(self.smooth_scroll_delta, |touch| touch.translation_delta)
     }
 
     /// How long has it been (in seconds) since the use last scrolled?
@@ -1526,6 +1555,7 @@ impl InputState {
             unprocessed_scroll_delta_for_zoom,
             raw_scroll_delta,
             smooth_scroll_delta,
+            rotation_radians,
 
             zoom_factor_delta,
             screen_rect,
@@ -1579,6 +1609,7 @@ impl InputState {
             "smooth_scroll_delta: {smooth_scroll_delta:?} points"
         ));
         ui.label(format!("zoom_factor_delta: {zoom_factor_delta:4.2}x"));
+        ui.label(format!("rotation_radians: {rotation_radians:.3} radians"));
 
         ui.label(format!("screen_rect: {screen_rect:?} points"));
         ui.label(format!(
