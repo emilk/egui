@@ -406,10 +406,7 @@ impl InputState {
         };
 
         let safe_area = new.safe_area.unwrap_or(self.safe_area);
-        let screen_rect = new.screen_rect.map_or(self.screen_rect, |rect| {
-            // rect - new.safe_area.unwrap_or_default()
-            rect
-        });
+        let screen_rect = new.screen_rect.unwrap_or(self.screen_rect);
         self.create_touch_states_for_new_devices(&new.events);
         for touch_state in self.touch_states.values_mut() {
             touch_state.begin_pass(time, &new, self.pointer.interact_pos);
