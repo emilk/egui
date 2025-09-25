@@ -28,6 +28,8 @@ jobs:
           lfs: true
 
       - name: Accept snapshots
+        env:
+          RUN_ID: ${{ github.event.inputs.run_id }}
         run: ./scripts/update_snapshots_from_ci.sh
 
       - uses: stefanzweifel/git-auto-commit-action@v6
