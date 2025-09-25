@@ -8,9 +8,12 @@ set -eu
 
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
-RUN_ID=$(gh run list --branch "$BRANCH" --workflow "Rust" --json databaseId -q '.[0].databaseId')
-
-echo "Downloading test results from run $RUN_ID from branch $BRANCH"
+if [ -z "${RUN_ID:-}" ]; then
+    RUN_ID=$(gh run list --branch "$BRANCH" --workflow "Rust" --json databaseId -q '.[0].databaseId')
+    echo "Downloading test results from run $RUN_ID from branch $BRANCH"
+else
+    echo "Using provided RUN_ID: $RUN_ID"
+fi
 
 # remove any existing .new.png that might have been left behind
 find . -type d -path "*/tests/snapshots*" | while read dir; do
