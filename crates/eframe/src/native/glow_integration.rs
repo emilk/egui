@@ -818,21 +818,6 @@ impl GlowWinitRunning<'_> {
                     }
                 }
             }
-
-            // TODO(tye-exe): Do any code-paths reach this event?
-            // As handling of the "CloseRequested" event causes running to be none, which
-            // causes "window_event" to return "Exit" instead of executing this function.
-            winit::event::WindowEvent::Destroyed => {
-                log::debug!(
-                    "Received WindowEvent::Destroyed for viewport {:?}",
-                    viewport_id
-                );
-                if viewport_id == Some(ViewportId::ROOT) {
-                    return EventResult::Exit;
-                } else {
-                    return EventResult::Wait;
-                }
-            }
             _ => {}
         }
 
