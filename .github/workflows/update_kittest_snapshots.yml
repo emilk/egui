@@ -1,0 +1,34 @@
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_id:
+        description: 'The artifact ID to update snapshots from'
+        required: true
+        type: string
+
+name: Update kittest snapshots
+jobs:
+  update-snapshots:
+    name: Update snapshots from artifact
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Download artifact
+        uses: actions/download-artifact@v5
+        with:
+          artifact-ids: ${{ github.event.inputs.artifact_id }}
+
+      - name: Accept snapshots
+        run: ./scripts/accept_snapshots.sh
+
+      - uses: stefanzweifel/git-auto-commit-action@v6
+        with:
+          commit_message: 'Update snapshot images'
+          file_pattern: '**/snapshots/**/*.png'
+
