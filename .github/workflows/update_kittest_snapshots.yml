@@ -26,6 +26,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           lfs: true
+          # We can't use the workflow token since that would prevent our commit to cause further workflows.
+          # See https://github.com/stefanzweifel/git-auto-commit-action#commits-made-by-this-action-do-not-trigger-new-workflow-runs
+          token: '${{ secrets.GITHUB_TOKEN }}'
 
       - name: Accept snapshots
         env:
