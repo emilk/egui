@@ -11,6 +11,9 @@ on:
         required: true
         type: string
 
+permissions:
+  actions: read
+
 name: Update kittest snapshots
 jobs:
   update-snapshots:
@@ -29,6 +32,7 @@ jobs:
         with:
           artifact-ids: ${{ github.event.inputs.artifact_id }}
           run-id: ${{ github.event.inputs.run_id }}
+          github-token: ${{ github.token }}
 
       - name: Accept snapshots
         run: ./scripts/accept_snapshots.sh
