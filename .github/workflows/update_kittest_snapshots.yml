@@ -29,6 +29,7 @@ jobs:
 
       - name: Accept snapshots
         env:
+          GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ github.event.inputs.run_id }}
         run: ./scripts/update_snapshots_from_ci.sh
 
