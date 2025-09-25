@@ -19,13 +19,8 @@ jobs:
         with:
           lfs: true
 
-      - name: Download artifact
-        uses: actions/download-artifact@v5
-        with:
-          artifact-ids: ${{ github.event.inputs.artifact_id }}
-
       - name: Accept snapshots
-        run: ./scripts/accept_snapshots.sh
+        run: ./scripts/update_snapshots_from_ci.sh
 
       - uses: stefanzweifel/git-auto-commit-action@v6
         with:

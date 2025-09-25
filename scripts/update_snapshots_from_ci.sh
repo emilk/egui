@@ -27,11 +27,4 @@ rsync -a tmp_artefacts/ .
 
 rm -r tmp_artefacts
 
-# rename the .new.png files to .png
-find . -type d -path "*/tests/snapshots*" | while read dir; do
-    find "$dir" -type f -name "*.new.png" | while read file; do
-        mv -f "$file" "${file%.new.png}.png"
-    done
-done
-
-echo "Done!"
+./scripts/accept_snapshots.sh
