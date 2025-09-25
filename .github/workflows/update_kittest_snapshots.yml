@@ -6,6 +6,11 @@ on:
         required: true
         type: string
 
+      run_id:
+        description: 'The run ID that produced the artifact'
+        required: true
+        type: string
+
 name: Update kittest snapshots
 jobs:
   update-snapshots:
@@ -23,6 +28,7 @@ jobs:
         uses: actions/download-artifact@v5
         with:
           artifact-ids: ${{ github.event.inputs.artifact_id }}
+          run-id: ${{ github.event.inputs.run_id }}
 
       - name: Accept snapshots
         run: ./scripts/accept_snapshots.sh
