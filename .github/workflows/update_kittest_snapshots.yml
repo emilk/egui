@@ -33,8 +33,10 @@ jobs:
           RUN_ID: ${{ github.event.inputs.run_id }}
         run: ./scripts/update_snapshots_from_ci.sh
 
+      - name: Git status
+        run: git status
+
       - uses: stefanzweifel/git-auto-commit-action@v6
         with:
           commit_message: 'Update snapshot images'
-          file_pattern: '**/snapshots/**/*.png'
 
