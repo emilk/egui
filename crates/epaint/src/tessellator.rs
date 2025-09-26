@@ -727,6 +727,10 @@ pub struct TessellationOptions {
     /// If you use a larger value, edges will appear blurry.
     pub feathering_size_in_pixels: f32,
 
+    /// Clamp the normal length to avoid artifacts in feathering.
+    ///
+    /// Without this, a very sharp corner can lead to a very long normal, which in turn leads to a
+    /// drawing artifact where the feathering extends very far out.
     pub max_feathering_normal_length_sq: f32,
 
     /// If `true` (default) cull certain primitives before tessellating them.
@@ -815,13 +819,10 @@ fn cw_signed_area(path: &[PathPoint]) -> f64 {
     }
 }
 
-/// Clamp the normal length to avoid artifacts in feathering.
-///
-/// Without this, a very sharp corner can lead to a very long normal, which in turn leads to a
-/// drawing artifact where the feathering extends very far out.
-fn clamp_normal_for_feathering(normal: Vec2, max_normal_length_sq: f32) -> Vec2 {
-    if normal.length_sq() > max_normal_length_sq {
-        normal * (max_normal_length_sq / normal.length_sq())
+/// See [`TessellationOptions::max_feathering_normal_length_sq`].
+fn clamp_normal_for_feathering(normal: Vec2, max_feathering_normal_length_sq: f32) -> Vec2 {
+    if normal.length_sq() > max_feathering_normal_length_sq {
+        normal * (max_feathering_normal_length_sq / normal.length_sq())
     } else {
         normal
     }
