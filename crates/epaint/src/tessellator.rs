@@ -758,9 +758,9 @@ fn cw_signed_area(path: &[PathPoint]) -> f64 {
 }
 
 fn clamp_normal_for_feathering(normal: Vec2) -> Vec2 {
-    let max_normal_length = 90.0;
-    if normal.length() > max_normal_length {
-        normal * (max_normal_length / normal.length())
+    let max_normal_length_sq = 1200.0;
+    if normal.length_sq() > max_normal_length_sq {
+        normal * (max_normal_length_sq / normal.length_sq())
     } else {
         normal
     }
