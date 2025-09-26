@@ -757,6 +757,10 @@ fn cw_signed_area(path: &[PathPoint]) -> f64 {
     }
 }
 
+/// Clamp the normal length to avoid artifacts in feathering.
+///
+/// Without this, a very sharp corner can lead to a very long normal, which in turn leads to a
+/// drawing artifact where the feathering extends very far out.
 fn clamp_normal_for_feathering(normal: Vec2) -> Vec2 {
     let max_normal_length_sq = 1200.0;
     if normal.length_sq() > max_normal_length_sq {
