@@ -12,7 +12,7 @@ jobs:
           toolchain: 1.86
       - name: Machete install
         ## The official cargo-machete action
-        uses: bnjbvr/cargo-machete@main
+        uses: bnjbvr/cargo-machete@v0.9.1
       - name: Checkout
         uses: actions/checkout@v4
       - name: Machete Check
