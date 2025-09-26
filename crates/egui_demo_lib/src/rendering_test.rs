@@ -595,27 +595,46 @@ fn blending_and_feathering_test(ui: &mut Ui) {
     paint_fine_lines_and_text(&painter, bottom_half, Color32::BLACK);
 
     ui.heading("Feathering of sharp edges");
-    for width in [100.0, 10.0, 5.0, 2.0, 1.0, 0.5, 0.25, 0.1] {
-        let (response, painter) = ui.allocate_painter(vec2(120.0, width + 20.0), Sense::hover());
-        painter.rect_filled(response.rect, 0.0, Color32::BLACK);
-        painter.add(Shape::convex_polygon(
-            vec![
-                response.rect.min + vec2(10.0, 10.0),
-                response.rect.min + vec2(100.0, 10.0),
-                response.rect.min + vec2(10.0, 10.0 + width),
-            ],
-            Color32::WHITE,
-            Stroke::NONE,
-        ));
+    for height in [100.0, 10.0, 5.0, 2.0, 1.0, 0.5, 0.25, 0.1, 0.01] {
+        ui.horizontal(|ui| {
+            for width in [10.0, 50.0, 200.0] {
+                let (response, painter) =
+                    ui.allocate_painter(vec2(width + 20.0, height + 20.0), Sense::hover());
+                painter.rect_filled(response.rect, 0.0, Color32::BLACK);
+                painter.add(Shape::convex_polygon(
+                    vec![
+                        response.rect.min + vec2(10.0, 10.0),
+                        response.rect.min + vec2(width + 10.0, 10.0),
+                        response.rect.min + vec2(10.0, 10.0 + height),
+                    ],
+                    Color32::WHITE,
+                    Stroke::NONE,
+                ));
 
-        // Helper vertical line:
-        painter.line_segment(
-            [
-                pos2(response.rect.min.x + 100.0, response.rect.top() + 5.0),
-                pos2(response.rect.min.x + 100.0, response.rect.bottom() - 5.0),
-            ],
-            Stroke::new(1.0, Color32::GRAY),
-        );
+                // Helper vertical lines
+                painter.line_segment(
+                    [
+                        pos2(
+                            response.rect.min.x + width + 10.0,
+                            response.rect.top() + 5.0,
+                        ),
+                        pos2(
+                            response.rect.min.x + width + 10.0,
+                            response.rect.bottom() - 5.0,
+                        ),
+                    ],
+                    Stroke::new(1.0, Color32::GRAY),
+                );
+
+                painter.line_segment(
+                    [
+                        pos2(response.rect.min.x + 10.0, response.rect.top() + 5.0),
+                        pos2(response.rect.min.x + 10.0, response.rect.bottom() - 5.0),
+                    ],
+                    Stroke::new(1.0, Color32::GRAY),
+                );
+            }
+        });
     }
 }
 
