@@ -482,39 +482,94 @@ impl Path {
     pub fn fill_and_stroke(
         &mut self,
         feathering: f32,
+        max_feathering_normal_length_sq: f32,
         fill: Color32,
         stroke: &PathStroke,
         out: &mut Mesh,
     ) {
-        stroke_and_fill_path(feathering, &mut self.0, PathType::Closed, stroke, fill, out);
+        stroke_and_fill_path(
+            feathering,
+            max_feathering_normal_length_sq,
+            &mut self.0,
+            PathType::Closed,
+            stroke,
+            fill,
+            out,
+        );
     }
 
     /// Open-ended.
-    pub fn stroke_open(&mut self, feathering: f32, stroke: &PathStroke, out: &mut Mesh) {
-        stroke_path(feathering, &mut self.0, PathType::Open, stroke, out);
+    pub fn stroke_open(
+        &mut self,
+        feathering: f32,
+        max_feathering_normal_length_sq: f32,
+        stroke: &PathStroke,
+        out: &mut Mesh,
+    ) {
+        stroke_path(
+            feathering,
+            max_feathering_normal_length_sq,
+            &mut self.0,
+            PathType::Open,
+            stroke,
+            out,
+        );
     }
 
     /// A closed path (returning to the first point).
-    pub fn stroke_closed(&mut self, feathering: f32, stroke: &PathStroke, out: &mut Mesh) {
-        stroke_path(feathering, &mut self.0, PathType::Closed, stroke, out);
+    pub fn stroke_closed(
+        &mut self,
+        feathering: f32,
+        max_feathering_normal_length_sq: f32,
+        stroke: &PathStroke,
+        out: &mut Mesh,
+    ) {
+        stroke_path(
+            feathering,
+            max_feathering_normal_length_sq,
+            &mut self.0,
+            PathType::Closed,
+            stroke,
+            out,
+        );
     }
 
     pub fn stroke(
         &mut self,
         feathering: f32,
+        max_feathering_normal_length_sq: f32,
         path_type: PathType,
         stroke: &PathStroke,
         out: &mut Mesh,
     ) {
-        stroke_path(feathering, &mut self.0, path_type, stroke, out);
+        stroke_path(
+            feathering,
+            max_feathering_normal_length_sq,
+            &mut self.0,
+            path_type,
+            stroke,
+            out,
+        );
     }
 
     /// The path is taken to be closed (i.e. returning to the start again).
     ///
     /// Calling this may reverse the vertices in the path if they are wrong winding order.
     /// The preferred winding order is clockwise.
-    pub fn fill(&mut self, feathering: f32, color: Color32, out: &mut Mesh) {
-        fill_closed_path(feathering, &mut self.0, color, out);
+    pub fn fill(
+        &mut self,
+        feathering: f32,
+        max_feathering_normal_length_sq: f32,
+        color: Color32,
+        out: &mut Mesh,
+    ) {
+        fill_closed_path(
+            feathering,
+            max_feathering_normal_length_sq,
+            &mut self.0,
+            color,
+            out,
+        );
     }
 
     /// Like [`Self::fill`] but with texturing.
@@ -672,6 +727,8 @@ pub struct TessellationOptions {
     /// If you use a larger value, edges will appear blurry.
     pub feathering_size_in_pixels: f32,
 
+    pub max_feathering_normal_length_sq: f32,
+
     /// If `true` (default) cull certain primitives before tessellating them.
     /// This likely makes
     pub coarse_tessellation_culling: bool,
@@ -727,6 +784,7 @@ impl Default for TessellationOptions {
         Self {
             feathering: true,
             feathering_size_in_pixels: 1.0,
+            max_feathering_normal_length_sq: 1200.0,
             coarse_tessellation_culling: true,
             prerasterized_discs: true,
             round_text_to_pixels: true,
@@ -761,8 +819,7 @@ fn cw_signed_area(path: &[PathPoint]) -> f64 {
 ///
 /// Without this, a very sharp corner can lead to a very long normal, which in turn leads to a
 /// drawing artifact where the feathering extends very far out.
-fn clamp_normal_for_feathering(normal: Vec2) -> Vec2 {
-    let max_normal_length_sq = 1200.0;
+fn clamp_normal_for_feathering(normal: Vec2, max_normal_length_sq: f32) -> Vec2 {
     if normal.length_sq() > max_normal_length_sq {
         normal * (max_normal_length_sq / normal.length_sq())
     } else {
@@ -775,7 +832,13 @@ fn clamp_normal_for_feathering(normal: Vec2) -> Vec2 {
 /// Calling this may reverse the vertices in the path if they are wrong winding order.
 ///
 /// The preferred winding order is clockwise.
-fn fill_closed_path(feathering: f32, path: &mut [PathPoint], fill_color: Color32, out: &mut Mesh) {
+fn fill_closed_path(
+    feathering: f32,
+    max_feathering_normal_length_sq: f32,
+    path: &mut [PathPoint],
+    fill_color: Color32,
+    out: &mut Mesh,
+) {
     if fill_color == Color32::TRANSPARENT {
         return;
     }
@@ -808,7 +871,9 @@ fn fill_closed_path(feathering: f32, path: &mut [PathPoint], fill_color: Color32
         let mut i0 = n - 1;
         for i1 in 0..n {
             let p1 = &path[i1 as usize];
-            let dm = 0.5 * feathering * clamp_normal_for_feathering(p1.normal);
+            let dm = 0.5
+                * feathering
+                * clamp_normal_for_feathering(p1.normal, max_feathering_normal_length_sq);
 
             let pos_inner = p1.pos - dm;
             let pos_outer = p1.pos + dm;
@@ -919,13 +984,22 @@ fn fill_closed_path_with_uv(
 /// Tessellate the given path as a stroke with thickness.
 fn stroke_path(
     feathering: f32,
+    max_feathering_normal_length_sq: f32,
     path: &mut [PathPoint],
     path_type: PathType,
     stroke: &PathStroke,
     out: &mut Mesh,
 ) {
     let fill = Color32::TRANSPARENT;
-    stroke_and_fill_path(feathering, path, path_type, stroke, fill, out);
+    stroke_and_fill_path(
+        feathering,
+        max_feathering_normal_length_sq,
+        path,
+        path_type,
+        stroke,
+        fill,
+        out,
+    );
 }
 
 /// Tessellate the given path as a stroke with thickness, with optional fill color.
@@ -935,6 +1009,7 @@ fn stroke_path(
 /// The preferred winding order is clockwise.
 fn stroke_and_fill_path(
     feathering: f32,
+    max_feathering_normal_length_sq: f32,
     path: &mut [PathPoint],
     path_type: PathType,
     stroke: &PathStroke,
@@ -949,7 +1024,13 @@ fn stroke_and_fill_path(
 
     if stroke.width == 0.0 {
         // Skip the stroke, just fill.
-        return fill_closed_path(feathering, path, color_fill, out);
+        return fill_closed_path(
+            feathering,
+            max_feathering_normal_length_sq,
+            path,
+            color_fill,
+            out,
+        );
     }
 
     if color_fill != Color32::TRANSPARENT && cw_signed_area(path) < 0.0 {
@@ -977,7 +1058,13 @@ fn stroke_and_fill_path(
         }
 
         // Skip the stroke, just fill.
-        return fill_closed_path(feathering, path, color_fill, out);
+        return fill_closed_path(
+            feathering,
+            max_feathering_normal_length_sq,
+            path,
+            color_fill,
+            out,
+        );
     }
 
     let idx = out.vertices.len() as u32;
@@ -1297,7 +1384,13 @@ fn stroke_and_fill_path(
                 point.pos -= 0.5 * stroke.width * point.normal;
             }
             // …then fill:
-            fill_closed_path(feathering, path, color_fill, out);
+            fill_closed_path(
+                feathering,
+                max_feathering_normal_length_sq,
+                path,
+                color_fill,
+                out,
+            );
         }
     }
 }
@@ -1544,8 +1637,13 @@ impl Tessellator {
         let path_stroke = PathStroke::from(stroke).outside();
         self.scratchpad_path.clear();
         self.scratchpad_path.add_circle(center, radius);
-        self.scratchpad_path
-            .fill_and_stroke(self.feathering, fill, &path_stroke, out);
+        self.scratchpad_path.fill_and_stroke(
+            self.feathering,
+            self.options.max_feathering_normal_length_sq,
+            fill,
+            &path_stroke,
+            out,
+        );
     }
 
     /// Tessellate a single [`EllipseShape`] into a [`Mesh`].
@@ -1611,8 +1709,13 @@ impl Tessellator {
         let path_stroke = PathStroke::from(stroke).outside();
         self.scratchpad_path.clear();
         self.scratchpad_path.add_line_loop(&points);
-        self.scratchpad_path
-            .fill_and_stroke(self.feathering, fill, &path_stroke, out);
+        self.scratchpad_path.fill_and_stroke(
+            self.feathering,
+            self.options.max_feathering_normal_length_sq,
+            fill,
+            &path_stroke,
+            out,
+        );
     }
 
     /// Tessellate a single [`Mesh`] into a [`Mesh`].
@@ -1705,8 +1808,12 @@ impl Tessellator {
 
         self.scratchpad_path.clear();
         self.scratchpad_path.add_line_segment(points);
-        self.scratchpad_path
-            .stroke_open(self.feathering, &stroke.into(), out);
+        self.scratchpad_path.stroke_open(
+            self.feathering,
+            self.options.max_feathering_normal_length_sq,
+            &stroke.into(),
+            out,
+        );
     }
 
     #[deprecated = "Use `tessellate_line_segment` instead"]
@@ -1748,8 +1855,13 @@ impl Tessellator {
         if *closed {
             self.scratchpad_path.add_line_loop(points);
 
-            self.scratchpad_path
-                .fill_and_stroke(self.feathering, *fill, stroke, out);
+            self.scratchpad_path.fill_and_stroke(
+                self.feathering,
+                self.options.max_feathering_normal_length_sq,
+                *fill,
+                stroke,
+                out,
+            );
         } else {
             debug_assert_eq!(
                 *fill,
@@ -1759,8 +1871,13 @@ impl Tessellator {
 
             self.scratchpad_path.add_open_points(points);
 
-            self.scratchpad_path
-                .stroke(self.feathering, PathType::Open, stroke, out);
+            self.scratchpad_path.stroke(
+                self.feathering,
+                self.options.max_feathering_normal_length_sq,
+                PathType::Open,
+                stroke,
+                out,
+            );
         }
     }
 
@@ -1980,11 +2097,22 @@ impl Tessellator {
             }
 
             if !stroke.is_empty() {
-                path.stroke_closed(self.feathering, &path_stroke, out);
+                path.stroke_closed(
+                    self.feathering,
+                    self.options.max_feathering_normal_length_sq,
+                    &path_stroke,
+                    out,
+                );
             }
         } else {
             // Stroke and maybe fill
-            path.fill_and_stroke(self.feathering, fill, &path_stroke, out);
+            path.fill_and_stroke(
+                self.feathering,
+                self.options.max_feathering_normal_length_sq,
+                fill,
+                &path_stroke,
+                out,
+            );
         }
 
         self.feathering = old_feathering; // restore
@@ -2188,8 +2316,13 @@ impl Tessellator {
         if closed {
             self.scratchpad_path.add_line_loop(points);
 
-            self.scratchpad_path
-                .fill_and_stroke(self.feathering, fill, stroke, out);
+            self.scratchpad_path.fill_and_stroke(
+                self.feathering,
+                self.options.max_feathering_normal_length_sq,
+                fill,
+                stroke,
+                out,
+            );
         } else {
             debug_assert_eq!(
                 fill,
@@ -2199,8 +2332,13 @@ impl Tessellator {
 
             self.scratchpad_path.add_open_points(points);
 
-            self.scratchpad_path
-                .stroke(self.feathering, PathType::Open, stroke, out);
+            self.scratchpad_path.stroke(
+                self.feathering,
+                self.options.max_feathering_normal_length_sq,
+                PathType::Open,
+                stroke,
+                out,
+            );
         }
     }
 }
