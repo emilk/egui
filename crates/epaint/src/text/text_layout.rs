@@ -913,7 +913,13 @@ fn add_row_hline(
             path.clear();
             path.add_line_segment([start, stop]);
             let feathering = 1.0 / point_scale.pixels_per_point();
-            path.stroke_open(feathering, &PathStroke::from(stroke), mesh);
+            let max_feathering_normal_length_sq = f32::MAX;
+            path.stroke_open(
+                feathering,
+                max_feathering_normal_length_sq,
+                &PathStroke::from(stroke),
+                mesh,
+            );
         }
     };
 
