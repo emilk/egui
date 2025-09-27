@@ -28,6 +28,8 @@ pub struct LayoutSettings {
     // Similar to the contents of `egui::Layout`
     main_dir: Direction,
     main_wrap: bool,
+    main_align: Align,
+    main_justify: bool,
     cross_align: Align,
     cross_justify: bool,
 }
@@ -43,6 +45,8 @@ impl LayoutSettings {
         Self {
             main_dir: Direction::TopDown,
             main_wrap: false,
+            main_align: Align::Center,
+            main_justify: false,
             cross_align: Align::Min,
             cross_justify: false,
         }
@@ -52,6 +56,8 @@ impl LayoutSettings {
         Self {
             main_dir: Direction::TopDown,
             main_wrap: false,
+            main_align: Align::Center,
+            main_justify: false,
             cross_align: Align::Center,
             cross_justify: true,
         }
@@ -61,6 +67,8 @@ impl LayoutSettings {
         Self {
             main_dir: Direction::LeftToRight,
             main_wrap: true,
+            main_align: Align::Center,
+            main_justify: false,
             cross_align: Align::Center,
             cross_justify: false,
         }
@@ -70,6 +78,8 @@ impl LayoutSettings {
         Layout::from_main_dir_and_cross_align(self.main_dir, self.cross_align)
             .with_main_wrap(self.main_wrap)
             .with_cross_justify(self.cross_justify)
+            .with_main_align(self.main_align)
+            .with_main_justify(self.main_justify)
     }
 }
 
