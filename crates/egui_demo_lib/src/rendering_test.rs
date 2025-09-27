@@ -595,16 +595,17 @@ fn blending_and_feathering_test(ui: &mut Ui) {
     paint_fine_lines_and_text(&painter, bottom_half, Color32::BLACK);
 
     ui.heading("Feathering of sharp edges");
-    for height in [10.0, 5.0, 2.0, 1.0, 0.5, 0.25, 0.1, 0.01] {
+    for height in [100.0, 10.0, 5.0, 2.0, 1.0, 0.5, 0.25, 0.1, 0.01] {
         ui.horizontal(|ui| {
             for width in [10.0, 50.0, 200.0] {
                 let (response, painter) =
-                    ui.allocate_painter(vec2(width + 20.0, height + 20.0), Sense::hover());
+                    ui.allocate_painter(vec2(width + 20.0, height + 30.0), Sense::hover());
                 painter.rect_filled(response.rect, 0.0, Color32::BLACK);
                 painter.add(Shape::convex_polygon(
                     vec![
                         response.rect.min + vec2(10.0, 10.0),
-                        response.rect.min + vec2(width + 10.0, 10.0),
+                        // Slightly lower the right bottom corner, so we can see the feathering on the bottom edge as well.
+                        response.rect.min + vec2(width + 10.0, 10.0 + height * 1.1),
                         response.rect.min + vec2(10.0, 10.0 + height),
                     ],
                     Color32::WHITE,
