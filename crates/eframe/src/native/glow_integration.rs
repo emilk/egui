@@ -470,7 +470,7 @@ impl WinitApp for GlowWinitApp<'_> {
         if let Some(running) = &mut self.running {
             Ok(running.on_window_event(window_id, &event))
         } else {
-            Ok(EventResult::Wait)
+            Ok(EventResult::Exit)
         }
     }
 
@@ -747,7 +747,7 @@ impl GlowWinitRunning<'_> {
         }
 
         if integration.should_close() {
-            Ok(EventResult::Exit)
+            Ok(EventResult::CloseRequested)
         } else {
             Ok(EventResult::Wait)
         }
@@ -798,7 +798,7 @@ impl GlowWinitRunning<'_> {
                     log::debug!(
                         "Received WindowEvent::CloseRequested for main viewport - shutting down."
                     );
-                    return EventResult::Exit;
+                    return EventResult::CloseRequested;
                 }
 
                 log::debug!("Received WindowEvent::CloseRequested for viewport {viewport_id:?}");
@@ -818,24 +818,11 @@ impl GlowWinitRunning<'_> {
                     }
                 }
             }
-
-            winit::event::WindowEvent::Destroyed => {
-                log::debug!(
-                    "Received WindowEvent::Destroyed for viewport {:?}",
-                    viewport_id
-                );
-                if viewport_id == Some(ViewportId::ROOT) {
-                    return EventResult::Exit;
-                } else {
-                    return EventResult::Wait;
-                }
-            }
-
             _ => {}
         }
 
         if self.integration.should_close() {
-            return EventResult::Exit;
+            return EventResult::CloseRequested;
         }
 
         let mut event_response = egui_winit::EventResponse {

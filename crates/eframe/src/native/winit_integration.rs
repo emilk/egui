@@ -124,6 +124,25 @@ pub enum EventResult {
     /// Causes a save of the client state when the persistence feature is enabled.
     Save,
 
+    /// Starts the process of ending eframe execution whilst allowing for proper
+    /// clean up of resources.
+    ///
+    /// # Warning
+    /// This event **must** occur before [`Exit`] to correctly exit eframe code.
+    /// If in doubt, return this event.
+    ///
+    /// [`Exit`]: [EventResult::Exit]
+    CloseRequested,
+
+    /// The event loop will exit, now.
+    /// The correct circumstance to return this event is in response to a winit "Destroyed" event.
+    ///
+    /// # Warning
+    /// The [`CloseRequested`] **must** occur before this event to ensure that winit
+    /// is able to remove any open windows. Otherwise the window(s) will remain open
+    /// until the program terminates.
+    ///
+    /// [`CloseRequested`]: EventResult::CloseRequested
     Exit,
 }
 
