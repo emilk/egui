@@ -445,12 +445,13 @@ impl MenuRoot {
         response.ctx.input(|input| {
             let pointer = &input.pointer;
             if let Some(pos) = pointer.interact_pos() {
-                let mut in_old_menu = false;
-                let mut destroy = false;
-                if let Some(root) = root {
-                    in_old_menu = root.menu_state.read().area_contains(pos);
-                    destroy = !in_old_menu && pointer.any_pressed() && root.id == response.id;
-                }
+                let (in_old_menu, destroy) = if let Some(root) = root {
+                    let in_old_menu = root.menu_state.read().area_contains(pos);
+                    let destroy = !in_old_menu && pointer.any_pressed() && root.id == response.id;
+                    (in_old_menu, destroy)
+                } else {
+                    (false, false)
+                };
                 if !in_old_menu {
                     if hovered && secondary_clicked {
                         return MenuResponse::Create(pos, response.id);
