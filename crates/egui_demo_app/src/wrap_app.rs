@@ -80,9 +80,10 @@ impl eframe::App for ColorTestApp {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum Anchor {
+    #[default]
     Demo,
 
     EasyMarkEditor,
@@ -135,12 +136,6 @@ impl std::fmt::Display for Anchor {
 impl From<Anchor> for egui::WidgetText {
     fn from(value: Anchor) -> Self {
         Self::from(value.to_string())
-    }
-}
-
-impl Default for Anchor {
-    fn default() -> Self {
-        Self::Demo
     }
 }
 

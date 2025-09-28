@@ -491,9 +491,7 @@ impl State {
             // Things we completely ignore:
             WindowEvent::ActivationTokenDone { .. }
             | WindowEvent::AxisMotion { .. }
-            | WindowEvent::DoubleTapGesture { .. }
-            | WindowEvent::RotationGesture { .. }
-            | WindowEvent::PanGesture { .. } => EventResponse {
+            | WindowEvent::DoubleTapGesture { .. } => EventResponse {
                 repaint: false,
                 consumed: false,
             },
@@ -503,6 +501,33 @@ impl State {
                 // Negative delta values indicate shrinking (zooming out).
                 let zoom_factor = (*delta as f32).exp();
                 self.egui_input.events.push(egui::Event::Zoom(zoom_factor));
+                EventResponse {
+                    repaint: true,
+                    consumed: self.egui_ctx.wants_pointer_input(),
+                }
+            }
+
+            WindowEvent::RotationGesture { delta, .. } => {
+                // Positive delta values indicate counterclockwise rotation
+                // Negative delta values indicate clockwise rotation
+                // This is opposite of egui's sign convention for angles
+                self.egui_input
+                    .events
+                    .push(egui::Event::Rotate(-delta.to_radians()));
+                EventResponse {
+                    repaint: true,
+                    consumed: self.egui_ctx.wants_pointer_input(),
+                }
+            }
+
+            WindowEvent::PanGesture { delta, .. } => {
+                let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
+
+                self.egui_input.events.push(egui::Event::MouseWheel {
+                    unit: egui::MouseWheelUnit::Point,
+                    delta: Vec2::new(delta.x, delta.y) / pixels_per_point,
+                    modifiers: self.egui_input.modifiers,
+                });
                 EventResponse {
                     repaint: true,
                     consumed: self.egui_ctx.wants_pointer_input(),
@@ -827,14 +852,11 @@ impl State {
         window: &Window,
         platform_output: egui::PlatformOutput,
     ) {
-        #![allow(deprecated)]
         profiling::function_scope!();
 
         let egui::PlatformOutput {
             commands,
             cursor_icon,
-            open_url,
-            copied_text,
             events: _,                    // handled elsewhere
             mutable_text_under_cursor: _, // only used in eframe web
             ime,
@@ -859,14 +881,6 @@ impl State {
         }
 
         self.set_cursor_icon(window, cursor_icon);
-
-        if let Some(open_url) = open_url {
-            open_url_in_browser(&open_url.url);
-        }
-
-        if !copied_text.is_empty() {
-            self.clipboard.set_text(copied_text);
-        }
 
         let allow_ime = ime.is_some();
         if self.allow_ime != allow_ime {
@@ -1347,7 +1361,7 @@ fn process_viewport_command(
     info: &mut ViewportInfo,
     actions_requested: &mut Vec<ActionRequested>,
 ) {
-    profiling::function_scope!(format!("{command:?}"));
+    profiling::function_scope!(&format!("{command:?}"));
 
     use winit::window::ResizeDirection;
 

@@ -406,6 +406,7 @@
 #![allow(clippy::manual_range_contains)]
 
 mod animation_manager;
+mod atomics;
 pub mod cache;
 pub mod containers;
 mod context;
@@ -429,6 +430,7 @@ pub mod os;
 mod painter;
 mod pass_state;
 pub(crate) mod placer;
+mod plugin;
 pub mod response;
 mod sense;
 pub mod style;
@@ -442,7 +444,6 @@ mod widget_rect;
 pub mod widget_text;
 pub mod widgets;
 
-mod atomics;
 #[cfg(feature = "callstack")]
 #[cfg(debug_assertions)]
 mod callstack;
@@ -499,8 +500,9 @@ pub use self::{
     layers::{LayerId, Order},
     layout::*,
     load::SizeHint,
-    memory::{Memory, Options, Theme, ThemePreference},
+    memory::{FocusDirection, Memory, Options, Theme, ThemePreference},
     painter::Painter,
+    plugin::Plugin,
     response::{InnerResponse, Response},
     sense::Sense,
     style::{FontSelection, Spacing, Style, TextStyle, Visuals},
@@ -667,8 +669,6 @@ pub enum WidgetType {
     DragValue,
 
     ColorButton,
-
-    ImageButton,
 
     Image,
 

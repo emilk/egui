@@ -4,20 +4,15 @@ use egui::{
 };
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 enum ScrollDemo {
+    #[default]
     ScrollAppearance,
     ScrollTo,
     ManyLines,
     LargeCanvas,
     StickToEnd,
     Bidirectional,
-}
-
-impl Default for ScrollDemo {
-    fn default() -> Self {
-        Self::ScrollAppearance
-    }
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -191,7 +186,7 @@ fn huge_content_painter(ui: &mut egui::Ui) {
     ui.add_space(4.0);
 
     let font_id = TextStyle::Body.resolve(ui.style());
-    let row_height = ui.fonts(|f| f.row_height(&font_id)) + ui.spacing().item_spacing.y;
+    let row_height = ui.fonts_mut(|f| f.row_height(&font_id)) + ui.spacing().item_spacing.y;
     let num_rows = 10_000;
 
     ScrollArea::vertical()

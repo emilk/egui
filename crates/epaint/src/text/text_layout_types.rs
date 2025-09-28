@@ -8,14 +8,14 @@ use super::{
     cursor::{CCursor, LayoutCursor},
     font::UvRect,
 };
-use crate::{Color32, FontId, Mesh, Stroke};
+use crate::{Color32, FontId, Mesh, Stroke, text::FontsView};
 use emath::{Align, GuiRounding as _, NumExt as _, OrderedFloat, Pos2, Rect, Vec2, pos2, vec2};
 
 /// Describes the task of laying out text.
 ///
 /// This supports mixing different fonts, color and formats (underline etc).
 ///
-/// Pass this to [`crate::Fonts::layout_job`] or [`crate::text::layout`].
+/// Pass this to [`crate::FontsView::layout_job`] or [`crate::text::layout`].
 ///
 /// ## Example:
 /// ```
@@ -184,7 +184,7 @@ impl LayoutJob {
     /// The height of the tallest font used in the job.
     ///
     /// Returns a value rounded to [`emath::GUI_ROUNDING`].
-    pub fn font_height(&self, fonts: &crate::Fonts) -> f32 {
+    pub fn font_height(&self, fonts: &mut FontsView<'_>) -> f32 {
         let mut max_height = 0.0_f32;
         for section in &self.sections {
             max_height = max_height.max(fonts.row_height(&section.format.font_id));
@@ -269,8 +269,6 @@ pub struct TextFormat {
     /// Extra spacing between letters, in points.
     ///
     /// Default: 0.0.
-    ///
-    /// For even text it is recommended you round this to an even number of _pixels_.
     pub extra_letter_spacing: f32,
 
     /// Explicit line height of the text in points.
@@ -504,7 +502,7 @@ impl TextWrapping {
 
 /// Text that has been laid out, ready for painting.
 ///
-/// You can create a [`Galley`] using [`crate::Fonts::layout_job`];
+/// You can create a [`Galley`] using [`crate::FontsView::layout_job`];
 ///
 /// Needs to be recreated if the underlying font atlas texture changes, which
 /// happens under the following conditions:

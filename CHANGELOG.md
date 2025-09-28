@@ -14,6 +14,19 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.32.3 - 2025-09-12
+* Preserve text format in truncated label tooltip [#7514](https://github.com/emilk/egui/pull/7514) [#7535](https://github.com/emilk/egui/pull/7535) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Fix `TextEdit`'s in RTL layouts [#5547](https://github.com/emilk/egui/pull/5547) by [@zakarumych](https://github.com/zakarumych)
+
+
+## 0.32.2 - 2025-09-04
+* Fix: `SubMenu` should not display when ui is disabled [#7428](https://github.com/emilk/egui/pull/7428) by [@ozwaldorf](https://github.com/ozwaldorf)
+* Remove line breaks when pasting into single line TextEdit [#7441](https://github.com/emilk/egui/pull/7441) by [@YgorSouza](https://github.com/YgorSouza)
+* Panic mutexes that can't lock for 30 seconds, in debug builds [#7468](https://github.com/emilk/egui/pull/7468) by [@emilk](https://github.com/emilk)
+* Add `Ui::place`, to place widgets without changing the cursor [#7359](https://github.com/emilk/egui/pull/7359) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Fix: prevent calendar popup from closing on dropdown change [#7409](https://github.com/emilk/egui/pull/7409) by [@AStrizh](https://github.com/AStrizh)
+
+
 ## 0.32.1 - 2025-08-15 - Misc bug fixes
 ### ⭐ Added
 * Add `ComboBox::popup_style` [#7360](https://github.com/emilk/egui/pull/7360) by [@lucasmerlin](https://github.com/lucasmerlin)

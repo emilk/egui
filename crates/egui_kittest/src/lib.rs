@@ -93,6 +93,7 @@ impl<'a, State> Harness<'a, State> {
             screen_rect,
             pixels_per_point,
             theme,
+            os,
             max_steps,
             step_dt,
             state: _,
@@ -101,6 +102,7 @@ impl<'a, State> Harness<'a, State> {
         } = builder;
         let ctx = ctx.unwrap_or_default();
         ctx.set_theme(theme);
+        ctx.set_os(os);
         ctx.enable_accesskit();
         ctx.all_styles_mut(|style| {
             // Disable cursor blinking so it doesn't interfere with snapshots
@@ -274,14 +276,39 @@ impl<'a, State> Harness<'a, State> {
         self.output = output;
     }
 
+    /// Calculate the rect that includes all popups and tooltips.
+    fn compute_total_rect_with_popups(&self) -> Option<Rect> {
+        // Start with the standard response rect
+        let mut used = if let Some(response) = self.response.as_ref() {
+            response.rect
+        } else {
+            return None;
+        };
+
+        // Add all visible areas from other orders (popups, tooltips, etc.)
+        self.ctx.memory(|mem| {
+            mem.areas()
+                .visible_layer_ids()
+                .into_iter()
+                .filter(|layer_id| layer_id.order != egui::Order::Background)
+                .filter_map(|layer_id| mem.area_rect(layer_id.id))
+                .for_each(|area_rect| used |= area_rect);
+        });
+
+        Some(used)
+    }
+
     /// Resize the test harness to fit the contents. This only works when creating the Harness via
     /// [`Harness::new_ui`] / [`Harness::new_ui_state`] or
     /// [`HarnessBuilder::build_ui`] / [`HarnessBuilder::build_ui_state`].
     pub fn fit_contents(&mut self) {
         self._step(true);
-        if let Some(response) = &self.response {
-            self.set_size(response.rect.size());
+
+        // Calculate size including all content (main UI + popups + tooltips)
+        if let Some(rect) = self.compute_total_rect_with_popups() {
+            self.set_size(rect.size());
         }
+
         self.run_ok();
     }
 

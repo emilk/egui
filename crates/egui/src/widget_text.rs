@@ -307,7 +307,7 @@ impl RichText {
     /// Read the font height of the selected text style.
     ///
     /// Returns a value rounded to [`emath::GUI_ROUNDING`].
-    pub fn font_height(&self, fonts: &epaint::Fonts, style: &Style) -> f32 {
+    pub fn font_height(&self, fonts: &mut epaint::FontsView<'_>, style: &Style) -> f32 {
         let mut font_id = self.text_style.as_ref().map_or_else(
             || FontSelection::Default.resolve(style),
             |text_style| text_style.resolve(style),
@@ -404,15 +404,11 @@ impl RichText {
         let text_color = text_color.unwrap_or(crate::Color32::PLACEHOLDER);
 
         let font_id = {
-            let mut font_id = text_style
-                .or_else(|| style.override_text_style.clone())
-                .map_or_else(
-                    || fallback_font.resolve(style),
-                    |text_style| text_style.resolve(style),
-                );
-            if let Some(fid) = style.override_font_id.clone() {
-                font_id = fid;
-            }
+            let mut font_id = style.override_font_id.clone().unwrap_or_else(|| {
+                (text_style.as_ref().or(style.override_text_style.as_ref()))
+                    .map(|text_style| text_style.resolve(style))
+                    .unwrap_or_else(|| fallback_font.resolve(style))
+            });
             if let Some(size) = size {
                 font_id.size = size;
             }
@@ -676,7 +672,7 @@ impl WidgetText {
     }
 
     /// Returns a value rounded to [`emath::GUI_ROUNDING`].
-    pub(crate) fn font_height(&self, fonts: &epaint::Fonts, style: &Style) -> f32 {
+    pub(crate) fn font_height(&self, fonts: &mut epaint::FontsView<'_>, style: &Style) -> f32 {
         match self {
             Self::Text(_) => fonts.row_height(&FontSelection::Default.resolve(style)),
             Self::RichText(text) => text.font_height(fonts, style),
@@ -762,7 +758,7 @@ impl WidgetText {
                     },
                 );
                 layout_job.wrap = text_wrapping;
-                ctx.fonts(|f| f.layout_job(layout_job))
+                ctx.fonts_mut(|f| f.layout_job(layout_job))
             }
             Self::RichText(text) => {
                 let mut layout_job = Arc::unwrap_or_clone(text).into_layout_job(
@@ -771,12 +767,12 @@ impl WidgetText {
                     default_valign,
                 );
                 layout_job.wrap = text_wrapping;
-                ctx.fonts(|f| f.layout_job(layout_job))
+                ctx.fonts_mut(|f| f.layout_job(layout_job))
             }
             Self::LayoutJob(job) => {
                 let mut job = Arc::unwrap_or_clone(job);
                 job.wrap = text_wrapping;
-                ctx.fonts(|f| f.layout_job(job))
+                ctx.fonts_mut(|f| f.layout_job(job))
             }
             Self::Galley(galley) => galley,
         }

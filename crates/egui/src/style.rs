@@ -1307,10 +1307,10 @@ pub fn default_text_styles() -> BTreeMap<TextStyle, FontId> {
 
     [
         (TextStyle::Small, FontId::new(9.0, Proportional)),
-        (TextStyle::Body, FontId::new(12.5, Proportional)),
-        (TextStyle::Button, FontId::new(12.5, Proportional)),
+        (TextStyle::Body, FontId::new(13.0, Proportional)),
+        (TextStyle::Button, FontId::new(13.0, Proportional)),
         (TextStyle::Heading, FontId::new(18.0, Proportional)),
-        (TextStyle::Monospace, FontId::new(12.0, Monospace)),
+        (TextStyle::Monospace, FontId::new(13.0, Monospace)),
     ]
     .into()
 }
@@ -1330,7 +1330,7 @@ impl Default for Style {
             spacing: Spacing::default(),
             interaction: Interaction::default(),
             visuals: Visuals::default(),
-            animation_time: 1.0 / 12.0,
+            animation_time: 6.0 / 60.0, // If we make this too slow, it will be too obvious that our panel animations look like shit :(
             #[cfg(debug_assertions)]
             debug: Default::default(),
             explanation_tooltips: false,
@@ -1437,7 +1437,7 @@ impl Visuals {
             striped: false,
 
             slider_trailing_fill: false,
-            handle_shape: HandleShape::Circle,
+            handle_shape: HandleShape::Rect { aspect_ratio: 0.75 },
 
             interact_cursor: None,
 
@@ -2790,7 +2790,6 @@ impl Widget for &mut FontTweak {
                     scale,
                     y_offset_factor,
                     y_offset,
-                    baseline_offset_factor,
                 } = self;
 
                 ui.label("Scale");
@@ -2804,10 +2803,6 @@ impl Widget for &mut FontTweak {
 
                 ui.label("y_offset");
                 ui.add(DragValue::new(y_offset).speed(-0.02));
-                ui.end_row();
-
-                ui.label("baseline_offset_factor");
-                ui.add(DragValue::new(baseline_offset_factor).speed(-0.0025));
                 ui.end_row();
 
                 if ui.button("Reset").clicked() {
