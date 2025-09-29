@@ -8,7 +8,7 @@
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc; // Much faster allocator, can give 20% speedups: https://github.com/emilk/egui/pull/7029
 
 // When compiling natively:
-fn main() -> eframe::Result {
+fn main() {
     for arg in std::env::args().skip(1) {
         match arg.as_str() {
             "--profile" => {
@@ -62,11 +62,23 @@ fn main() -> eframe::Result {
         ..Default::default()
     };
 
-    eframe::run_native(
+    let result = eframe::run_native(
         "egui demo app",
         options,
         Box::new(|cc| Ok(Box::new(egui_demo_app::WrapApp::new(cc)))),
-    )
+    );
+
+    match result {
+        Ok(()) => {}
+        Err(err) => {
+            #[expect(clippy::print_stderr)]
+            {
+                eprintln!("Error: {err}");
+            }
+
+            std::process::exit(1);
+        }
+    }
 }
 
 #[cfg(feature = "puffin")]
