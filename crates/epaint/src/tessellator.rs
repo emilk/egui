@@ -2543,7 +2543,7 @@ fn path_bounding_box() {
 
         path.stroke(
             1.5,
-            1.0,
+            f32::MAX,
             PathType::Closed,
             &PathStroke::new_uv(width, move |r, p| {
                 assert_eq!(r, expected_rect);

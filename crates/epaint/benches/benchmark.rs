@@ -93,7 +93,12 @@ fn thick_line_solid(c: &mut Criterion) {
 
         b.iter(|| {
             let mut mesh = Mesh::default();
-            path.stroke_closed(1.5, &Stroke::new(2.0, Color32::RED).into(), &mut mesh);
+            path.stroke_closed(
+                1.5,
+                f32::MAX,
+                &Stroke::new(2.0, Color32::RED).into(),
+                &mut mesh,
+            );
 
             black_box(mesh);
         });
@@ -108,7 +113,12 @@ fn thick_large_line_solid(c: &mut Criterion) {
 
         b.iter(|| {
             let mut mesh = Mesh::default();
-            path.stroke_closed(1.5, &Stroke::new(2.0, Color32::RED).into(), &mut mesh);
+            path.stroke_closed(
+                1.5,
+                f32::MAX,
+                &Stroke::new(2.0, Color32::RED).into(),
+                &mut mesh,
+            );
 
             black_box(mesh);
         });
@@ -123,7 +133,12 @@ fn thin_line_solid(c: &mut Criterion) {
 
         b.iter(|| {
             let mut mesh = Mesh::default();
-            path.stroke_closed(1.5, &Stroke::new(0.5, Color32::RED).into(), &mut mesh);
+            path.stroke_closed(
+                1.5,
+                f32::MAX,
+                &Stroke::new(0.5, Color32::RED).into(),
+                &mut mesh,
+            );
 
             black_box(mesh);
         });
@@ -138,7 +153,12 @@ fn thin_large_line_solid(c: &mut Criterion) {
 
         b.iter(|| {
             let mut mesh = Mesh::default();
-            path.stroke_closed(1.5, &Stroke::new(0.5, Color32::RED).into(), &mut mesh);
+            path.stroke_closed(
+                1.5,
+                f32::MAX,
+                &Stroke::new(0.5, Color32::RED).into(),
+                &mut mesh,
+            );
 
             black_box(mesh);
         });
@@ -155,6 +175,7 @@ fn thick_line_uv(c: &mut Criterion) {
             let mut mesh = Mesh::default();
             path.stroke_closed(
                 1.5,
+                f32::MAX,
                 &PathStroke::new_uv(2.0, |_, p| {
                     black_box(p * 2.0);
                     Color32::RED
@@ -177,6 +198,7 @@ fn thick_large_line_uv(c: &mut Criterion) {
             let mut mesh = Mesh::default();
             path.stroke_closed(
                 1.5,
+                f32::MAX,
                 &PathStroke::new_uv(2.0, |_, p| {
                     black_box(p * 2.0);
                     Color32::RED
@@ -199,6 +221,7 @@ fn thin_line_uv(c: &mut Criterion) {
             let mut mesh = Mesh::default();
             path.stroke_closed(
                 1.5,
+                f32::MAX,
                 &PathStroke::new_uv(2.0, |_, p| {
                     black_box(p * 2.0);
                     Color32::RED
@@ -221,6 +244,7 @@ fn thin_large_line_uv(c: &mut Criterion) {
             let mut mesh = Mesh::default();
             path.stroke_closed(
                 1.5,
+                f32::MAX,
                 &PathStroke::new_uv(2.0, |_, p| {
                     black_box(p * 2.0);
                     Color32::RED
