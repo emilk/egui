@@ -71,14 +71,18 @@ fn main() {
     match result {
         Ok(()) => {}
         Err(err) => {
-            #[expect(clippy::print_stderr)]
-            {
-                eprintln!("Error: {err}");
-            }
-
-            std::process::exit(1);
+            // This produces a nicer error message than returning the `Result`:
+            print_error_and_exit(&err);
         }
     }
+}
+
+fn print_error_and_exit(err: &eframe::Error) -> ! {
+    #![expect(clippy::print_stderr)]
+    #![expect(clippy::exit)]
+
+    eprintln!("Error: {err}");
+    std::process::exit(1)
 }
 
 #[cfg(feature = "puffin")]
