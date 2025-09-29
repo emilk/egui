@@ -788,7 +788,7 @@ impl Default for TessellationOptions {
         Self {
             feathering: true,
             feathering_size_in_pixels: 1.0,
-            max_feathering_normal_length_sq: 3000.0,
+            max_feathering_normal_length_sq: 2500.0,
             coarse_tessellation_culling: true,
             prerasterized_discs: true,
             round_text_to_pixels: true,
