@@ -267,7 +267,6 @@ impl RenderState {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn describe_adapters(adapters: &[wgpu::Adapter]) -> String {
     if adapters.is_empty() {
         "(none)".to_owned()
