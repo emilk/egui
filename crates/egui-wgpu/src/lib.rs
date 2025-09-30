@@ -117,7 +117,7 @@ async fn request_adapter(
                     // I don't want to debug this again.
                     // See https://github.com/rerun-io/rerun/issues/11351 for more
                     log::warn!(
-                        "No wgpu adapter found. This could be because of DYLD_LIBRARY_PATH. Try restarting with DYLD_LIBRARY_PATH=''"
+                        "No wgpu adapter found. This could be because DYLD_LIBRARY_PATH causes dylibs to be loaded that interfere with Metal device creation. Try restarting with DYLD_LIBRARY_PATH=''"
                     );
                 } else {
                     log::info!("No wgpu adapter found");
