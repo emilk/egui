@@ -206,7 +206,7 @@ impl crate::TestRenderer for WgpuTestRenderer {
         self.render_state
             .device
             .poll(wgpu::PollType::Wait)
-            .map_err(|e| format!("{e:?}"))?;
+            .map_err(|err| format!("PollError: {err}"))?;
 
         Ok(texture_to_image(
             &self.render_state.device,

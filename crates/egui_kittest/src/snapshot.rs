@@ -250,7 +250,7 @@ impl Display for SnapshotError {
                         err => {
                             write!(
                                 f,
-                                "Error reading snapshot: {err:?}\nAt: {}. {HOW_TO_UPDATE_SCREENSHOTS}",
+                                "Error reading snapshot: {err}\nAt: {}. {HOW_TO_UPDATE_SCREENSHOTS}",
                                 path.display()
                             )
                         }
@@ -258,7 +258,7 @@ impl Display for SnapshotError {
                     err => {
                         write!(
                             f,
-                            "Error decoding snapshot: {err:?}\nAt: {}. Make sure git-lfs is setup correctly. Read the instructions here: https://github.com/emilk/egui/blob/main/CONTRIBUTING.md#making-a-pr",
+                            "Error decoding snapshot: {err}\nAt: {}. Make sure git-lfs is setup correctly. Read the instructions here: https://github.com/emilk/egui/blob/main/CONTRIBUTING.md#making-a-pr",
                             path.display()
                         )
                     }
@@ -276,10 +276,10 @@ impl Display for SnapshotError {
             }
             Self::WriteSnapshot { path, err } => {
                 let path = std::path::absolute(path).unwrap_or(path.clone());
-                write!(f, "Error writing snapshot: {err:?}\nAt: {}", path.display())
+                write!(f, "Error writing snapshot: {err}\nAt: {}", path.display())
             }
             Self::RenderError { err } => {
-                write!(f, "Error rendering image: {err:?}")
+                write!(f, "Error rendering image: {err}")
             }
         }
     }
