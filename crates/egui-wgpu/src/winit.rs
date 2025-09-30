@@ -471,6 +471,7 @@ impl Painter {
                         }),
                         store: wgpu::StoreOp::Store,
                     },
+                    depth_slice: None,
                 })],
                 depth_stencil_attachment: self.depth_texture_view.get(&viewport_id).map(|view| {
                     wgpu::RenderPassDepthStencilAttachment {

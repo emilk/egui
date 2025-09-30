@@ -404,15 +404,11 @@ impl RichText {
         let text_color = text_color.unwrap_or(crate::Color32::PLACEHOLDER);
 
         let font_id = {
-            let mut font_id = text_style
-                .or_else(|| style.override_text_style.clone())
-                .map_or_else(
-                    || fallback_font.resolve(style),
-                    |text_style| text_style.resolve(style),
-                );
-            if let Some(fid) = style.override_font_id.clone() {
-                font_id = fid;
-            }
+            let mut font_id = style.override_font_id.clone().unwrap_or_else(|| {
+                (text_style.as_ref().or(style.override_text_style.as_ref()))
+                    .map(|text_style| text_style.resolve(style))
+                    .unwrap_or_else(|| fallback_font.resolve(style))
+            });
             if let Some(size) = size {
                 font_id.size = size;
             }

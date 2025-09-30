@@ -162,6 +162,7 @@ impl Default for WgpuSetupCreateNew {
                     .unwrap_or(wgpu::Backends::PRIMARY | wgpu::Backends::GL),
                 flags: wgpu::InstanceFlags::from_build_config().with_env(),
                 backend_options: wgpu::BackendOptions::from_env_or_default(),
+                memory_budget_thresholds: wgpu::MemoryBudgetThresholds::default(),
             },
 
             power_preference: wgpu::PowerPreference::from_env()
