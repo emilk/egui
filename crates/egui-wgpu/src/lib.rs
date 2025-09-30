@@ -92,7 +92,7 @@ async fn request_adapter(
     instance: &wgpu::Instance,
     power_preference: wgpu::PowerPreference,
     compatible_surface: Option<&wgpu::Surface<'_>>,
-    _available_adapters: &[wgpu::Adapter],
+    available_adapters: &[wgpu::Adapter],
 ) -> Result<wgpu::Adapter, WgpuError> {
     profiling::function_scope!();
 
@@ -108,45 +108,57 @@ async fn request_adapter(
         })
         .await
         .inspect_err(|_err| {
-            #[cfg(not(target_arch = "wasm32"))]
-            if _available_adapters.is_empty() {
-                log::info!("No wgpu adapters found");
-            } else if _available_adapters.len() == 1 {
+            if cfg!(target_arch = "wasm32") {
+                // Nothing to add here
+            } else if available_adapters.is_empty() {
+                if std::env::var("DYLD_LIBRARY_PATH").is_ok() {
+                    // DYLD_LIBRARY_PATH can sometimes lead to loading dylibs that cause
+                    // us to find zero adapters. Very strange.
+                    // I don't want to debug this again.
+                    // See https://github.com/rerun-io/rerun/issues/11351 for more
+                    log::warn!(
+                        "No wgpu adapter found. This could be because of DYLD_LIBRARY_PATH. Try restarting with DYLD_LIBRARY_PATH=''"
+                    );
+                } else {
+                    log::info!("No wgpu adapter found");
+                }
+            } else if available_adapters.len() == 1 {
                 log::info!(
                     "The only available wgpu adapter was not suitable: {}",
-                    adapter_info_summary(&_available_adapters[0].get_info())
+                    adapter_info_summary(&available_adapters[0].get_info())
                 );
             } else {
                 log::info!(
                     "No suitable wgpu adapter found out of the {} available ones: {}",
-                    _available_adapters.len(),
-                    describe_adapters(_available_adapters)
+                    available_adapters.len(),
+                    describe_adapters(available_adapters)
                 );
             }
         })?;
 
-    #[cfg(target_arch = "wasm32")]
-    log::debug!(
-        "Picked wgpu adapter: {}",
-        adapter_info_summary(&adapter.get_info())
-    );
-
-    #[cfg(not(target_arch = "wasm32"))]
-    if _available_adapters.len() == 1 {
-        log::debug!(
-            "Picked the only available wgpu adapter: {}",
-            adapter_info_summary(&adapter.get_info())
-        );
-    } else {
-        log::info!(
-            "There were {} available wgpu adapters: {}",
-            _available_adapters.len(),
-            describe_adapters(_available_adapters)
-        );
+    if cfg!(target_arch = "wasm32") {
         log::debug!(
             "Picked wgpu adapter: {}",
             adapter_info_summary(&adapter.get_info())
         );
+    } else {
+        // native:
+        if available_adapters.len() == 1 {
+            log::debug!(
+                "Picked the only available wgpu adapter: {}",
+                adapter_info_summary(&adapter.get_info())
+            );
+        } else {
+            log::info!(
+                "There were {} available wgpu adapters: {}",
+                available_adapters.len(),
+                describe_adapters(available_adapters)
+            );
+            log::debug!(
+                "Picked wgpu adapter: {}",
+                adapter_info_summary(&adapter.get_info())
+            );
+        }
     }
 
     Ok(adapter)
