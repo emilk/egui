@@ -944,6 +944,14 @@ impl Ui {
         self.placer.set_min_height(height);
     }
 
+    /// Makes the ui always fill up the available space.
+    ///
+    /// This can be useful to call inside a panel with `resizable == true`
+    /// to make sure the resized space is used.
+    pub fn take_available_space(&mut self) {
+        self.set_min_size(self.available_size());
+    }
+
     // ------------------------------------------------------------------------
 
     /// Helper: shrinks the max width to the current width,
