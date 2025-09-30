@@ -461,7 +461,8 @@ impl WinitApp for WgpuWinitApp<'_> {
         if let Some(running) = &mut self.running {
             Ok(running.on_window_event(window_id, &event))
         } else {
-            Ok(EventResult::Wait)
+            // running is removed to get ready for exiting
+            Ok(EventResult::Exit)
         }
     }
 
@@ -739,7 +740,7 @@ impl WgpuWinitRunning<'_> {
         }
 
         if integration.should_close() {
-            Ok(EventResult::Exit)
+            Ok(EventResult::CloseRequested)
         } else {
             Ok(EventResult::Wait)
         }
@@ -799,7 +800,7 @@ impl WgpuWinitRunning<'_> {
                     log::debug!(
                         "Received WindowEvent::CloseRequested for main viewport - shutting down."
                     );
-                    return EventResult::Exit;
+                    return EventResult::CloseRequested;
                 }
 
                 log::debug!("Received WindowEvent::CloseRequested for viewport {viewport_id:?}");
@@ -833,7 +834,7 @@ impl WgpuWinitRunning<'_> {
             .unwrap_or_default();
 
         if integration.should_close() {
-            EventResult::Exit
+            EventResult::CloseRequested
         } else if event_response.repaint {
             if repaint_asap {
                 EventResult::RepaintNow(window_id)
