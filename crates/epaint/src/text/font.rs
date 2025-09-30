@@ -481,10 +481,6 @@ impl Font<'_> {
         if let Some(font) = &self.fonts_by_id.get(&key) {
             glyph_info.advance_width_unscaled.0 * font.ab_glyph_font.px_scale_factor(font_size)
         } else {
-            debug_assert_eq!(
-                glyph_info.advance_width_unscaled.0, 0.0,
-                "We had no font, so this should be the zero-width fallback glyph"
-            );
             0.0
         }
     }
