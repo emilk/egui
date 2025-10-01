@@ -139,6 +139,11 @@ impl<T: WinitApp> WinitAppWrapper<T> {
                 exit = true;
                 event_result
             }
+            EventResult::CloseRequested => {
+                // The windows need to be dropped whilst the event loop is running to allow for proper cleanup.
+                self.winit_app.save_and_destroy();
+                event_result
+            }
         });
 
         if let Err(err) = combined_result {

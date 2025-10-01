@@ -250,7 +250,7 @@ impl Display for SnapshotError {
                         err => {
                             write!(
                                 f,
-                                "Error reading snapshot: {err:?}\nAt: {}. {HOW_TO_UPDATE_SCREENSHOTS}",
+                                "Error reading snapshot: {err}\nAt: {}. {HOW_TO_UPDATE_SCREENSHOTS}",
                                 path.display()
                             )
                         }
@@ -258,7 +258,7 @@ impl Display for SnapshotError {
                     err => {
                         write!(
                             f,
-                            "Error decoding snapshot: {err:?}\nAt: {}. Make sure git-lfs is setup correctly. Read the instructions here: https://github.com/emilk/egui/blob/main/CONTRIBUTING.md#making-a-pr",
+                            "Error decoding snapshot: {err}\nAt: {}. Make sure git-lfs is setup correctly. Read the instructions here: https://github.com/emilk/egui/blob/main/CONTRIBUTING.md#making-a-pr",
                             path.display()
                         )
                     }
@@ -276,10 +276,10 @@ impl Display for SnapshotError {
             }
             Self::WriteSnapshot { path, err } => {
                 let path = std::path::absolute(path).unwrap_or(path.clone());
-                write!(f, "Error writing snapshot: {err:?}\nAt: {}", path.display())
+                write!(f, "Error writing snapshot: {err}\nAt: {}", path.display())
             }
             Self::RenderError { err } => {
-                write!(f, "Error rendering image: {err:?}")
+                write!(f, "Error rendering image: {err}")
             }
         }
     }
@@ -397,13 +397,6 @@ fn try_image_snapshot_options_impl(
         Ok(())
     };
 
-    // Always write a `.new` file so the user can compare:
-    new.save(&new_path)
-        .map_err(|err| SnapshotError::WriteSnapshot {
-            err,
-            path: new_path.clone(),
-        })?;
-
     let previous = match image::open(&snapshot_path) {
         Ok(image) => image.to_rgba8(),
         Err(err) => {
@@ -433,7 +426,7 @@ fn try_image_snapshot_options_impl(
 
     // Compare existing image to the new one:
     let threshold = if mode == Mode::UpdateAll {
-        0.0
+        0.0 // Produce diff for any error, however small
     } else {
         *threshold
     };
@@ -441,39 +434,47 @@ fn try_image_snapshot_options_impl(
     let result =
         dify::diff::get_results(previous, new.clone(), threshold, true, None, &None, &None);
 
-    if let Some((num_wrong_pixels, diff_image)) = result {
+    let Some((num_wrong_pixels, diff_image)) = result else {
+        return Ok(()); // Difference below threshold
+    };
+
+    let below_threshold = num_wrong_pixels as i64 <= *failed_pixel_count_threshold as i64;
+
+    if !below_threshold {
         diff_image
             .save(diff_path.clone())
             .map_err(|err| SnapshotError::WriteSnapshot {
                 path: diff_path.clone(),
                 err,
             })?;
+    }
 
-        let is_sameish = num_wrong_pixels as i64 <= *failed_pixel_count_threshold as i64;
+    match mode {
+        Mode::Test => {
+            if below_threshold {
+                Ok(())
+            } else {
+                new.save(&new_path)
+                    .map_err(|err| SnapshotError::WriteSnapshot {
+                        err,
+                        path: new_path.clone(),
+                    })?;
 
-        match mode {
-            Mode::Test => {
-                if is_sameish {
-                    Ok(())
-                } else {
-                    Err(SnapshotError::Diff {
-                        name,
-                        diff: num_wrong_pixels,
-                        diff_path,
-                    })
-                }
+                Err(SnapshotError::Diff {
+                    name,
+                    diff: num_wrong_pixels,
+                    diff_path,
+                })
             }
-            Mode::UpdateFailing => {
-                if is_sameish {
-                    Ok(())
-                } else {
-                    update_snapshot()
-                }
-            }
-            Mode::UpdateAll => update_snapshot(),
         }
-    } else {
-        Ok(())
+        Mode::UpdateFailing => {
+            if below_threshold {
+                Ok(())
+            } else {
+                update_snapshot()
+            }
+        }
+        Mode::UpdateAll => update_snapshot(),
     }
 }
 
