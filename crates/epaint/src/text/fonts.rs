@@ -651,6 +651,8 @@ impl FontsView<'_> {
     }
 
     /// Width of this character in points.
+    ///
+    /// If the font doesn't exist, this will return `0.0`.
     pub fn glyph_width(&mut self, font_id: &FontId, c: char) -> f32 {
         self.fonts
             .font(&font_id.family)
@@ -1301,5 +1303,14 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn test_fallback_glyph_width() {
+        let mut fonts = Fonts::new(1024, AlphaFromCoverage::default(), FontDefinitions::empty());
+        let mut view = fonts.with_pixels_per_point(1.0);
+
+        let width = view.glyph_width(&FontId::new(12.0, FontFamily::Proportional), ' ');
+        assert_eq!(width, 0.0);
     }
 }

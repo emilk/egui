@@ -1361,7 +1361,7 @@ fn process_viewport_command(
     info: &mut ViewportInfo,
     actions_requested: &mut Vec<ActionRequested>,
 ) {
-    profiling::function_scope!(format!("{command:?}"));
+    profiling::function_scope!(&format!("{command:?}"));
 
     use winit::window::ResizeDirection;
 
