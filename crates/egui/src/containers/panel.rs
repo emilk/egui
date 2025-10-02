@@ -226,13 +226,14 @@ impl SidePanel {
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.show_inside_dyn(ui, Box::new(add_contents))
+        self.show_inside_dyn(ui, None, Box::new(add_contents))
     }
 
     /// Show the panel inside a [`Ui`].
     fn show_inside_dyn<'c, R>(
         self,
         ui: &mut Ui,
+        is_expanded: Option<&mut bool>,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         let Self {
@@ -260,6 +261,7 @@ impl SidePanel {
         let resize_id = id.with("__resize");
         let mut resize_hover = false;
         let mut is_resizing = false;
+        let mut drag_to_close = false;
         if resizable {
             // First we read the resize interaction results, to avoid frame latency in the resize:
             if let Some(resize_response) = ui.ctx().read_response(resize_id) {
@@ -268,9 +270,15 @@ impl SidePanel {
 
                 if is_resizing {
                     if let Some(pointer) = resize_response.interact_pointer_pos() {
+                        let old_width = width;
+
                         width = (pointer.x - side.side_x(panel_rect)).abs();
                         width = clamp_to_range(width, width_range).at_most(available_rect.width());
                         side.set_rect_width(&mut panel_rect, width);
+
+                        if is_expanded.is_some() && width <= width_range.min && width < old_width {
+                            drag_to_close = true;
+                        }
                     }
                 }
             }
@@ -286,19 +294,20 @@ impl SidePanel {
                     Side::Right => UiKind::RightPanel,
                 }))
                 .max_rect(panel_rect)
-                .layout(Layout::top_down(Align::Min)),
+                .layout(Layout::top_down(Align::Min))
+                .with_closable(is_expanded.is_some()),
         );
         panel_ui.expand_to_include_rect(panel_rect);
         panel_ui.set_clip_rect(panel_rect); // If we overflow, don't do so visibly (#4475)
 
         let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
-        let inner_response = frame.show(&mut panel_ui, |ui| {
+        let mut inner_response = frame.show(&mut panel_ui, |ui| {
             ui.set_min_height(ui.max_rect().height()); // Make sure the frame fills the full height
             ui.set_min_width((width_range.min - frame.inner_margin.sum().x).at_least(0.0));
             add_contents(ui)
         });
 
-        let rect = inner_response.response.rect;
+        let mut rect = inner_response.response.rect;
 
         {
             let mut cursor = ui.cursor();
@@ -343,8 +352,6 @@ impl SidePanel {
             ui.ctx().set_cursor_icon(cursor_icon);
         }
 
-        PanelState { rect }.store(ui.ctx(), id);
-
         {
             let stroke = if is_resizing {
                 ui.style().visuals.widgets.active.fg_stroke // highly visible
@@ -364,6 +371,26 @@ impl SidePanel {
             ui.painter().vline(resize_x, panel_rect.y_range(), stroke);
         }
 
+        if let Some(is_expanded) = is_expanded {
+            if drag_to_close {
+                // Restore the panel back to (approximately) the width it had
+                // before the dragging started:
+                if let Some(pointer) = ui.input(|i| i.pointer.press_origin()) {
+                    width = (pointer.x - side.side_x(panel_rect)).abs();
+                    width = clamp_to_range(width, width_range);
+                    side.set_rect_width(&mut rect, width);
+                }
+
+                inner_response.response.set_close();
+                *is_expanded = false;
+            } else if panel_ui.should_close() {
+                inner_response.response.set_close();
+                *is_expanded = false;
+            }
+        }
+
+        PanelState { rect }.store(ui.ctx(), id);
+
         inner_response
     }
 
@@ -373,13 +400,14 @@ impl SidePanel {
         ctx: &Context,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.show_dyn(ctx, Box::new(add_contents))
+        self.show_dyn(ctx, None, Box::new(add_contents))
     }
 
     /// Show the panel at the top level.
     fn show_dyn<'c, R>(
         self,
         ctx: &Context,
+        is_expanded: Option<&mut bool>,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         let side = self.side;
@@ -393,7 +421,7 @@ impl SidePanel {
         );
         panel_ui.set_clip_rect(ctx.screen_rect());
 
-        let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
+        let inner_response = self.show_inside_dyn(&mut panel_ui, is_expanded, add_contents);
         let rect = inner_response.response.rect;
 
         match side {
@@ -409,13 +437,15 @@ impl SidePanel {
 
     /// Show the panel if `is_expanded` is `true`,
     /// otherwise don't show it, but with a nice animation between collapsed and expanded.
+    ///
+    /// The panel supports drag-to-close, and you can also call [`Ui::close`] from within the panel to close it.
     pub fn show_animated<R>(
         self,
         ctx: &Context,
-        is_expanded: bool,
+        is_expanded: &mut bool,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
-        let how_expanded = animate_expansion(ctx, self.id.with("animation"), is_expanded);
+        let how_expanded = animate_expansion(ctx, self.id.with("animation"), *is_expanded);
 
         if 0.0 == how_expanded {
             None
@@ -436,19 +466,37 @@ impl SidePanel {
             None
         } else {
             // Show the real panel:
-            Some(self.show(ctx, add_contents))
+            Some(self.show_dyn(ctx, Some(is_expanded), Box::new(add_contents)))
         }
     }
 
     /// Show the panel if `is_expanded` is `true`,
     /// otherwise don't show it, but with a nice animation between collapsed and expanded.
+    ///
+    /// The panel supports drag-to-close, and you can also call [`Ui::close`] from within the panel to close it.
     pub fn show_animated_inside<R>(
         self,
         ui: &mut Ui,
-        is_expanded: bool,
+        is_expanded: &mut bool,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
-        let how_expanded = animate_expansion(ui.ctx(), self.id.with("animation"), is_expanded);
+        let how_expanded = animate_expansion(ui.ctx(), self.id.with("animation"), *is_expanded);
+
+        // if !*is_expanded {
+        //     // Drag-to-open:
+        //     let resize_id = self.id.with("__resize");
+        //     if let Some(resize_response) = ui.ctx().read_response(resize_id) {
+        //         if resize_response.dragged() {
+        //             if let Some(pointer) = resize_response.interact_pointer_pos() {
+        //                 let width =
+        //                     (pointer.x - self.side.side_x(ui.available_rect_before_wrap())).abs();
+        //                 *is_expanded = self.width_range.min < width;
+        //             }
+        //         }
+        //     }
+        //     // We must register the widget so we don't loose grip of it…
+        //     // ui.interact(resize_rect, resize_id, Sense::drag())
+        // }
 
         if 0.0 == how_expanded {
             None
@@ -469,19 +517,22 @@ impl SidePanel {
             None
         } else {
             // Show the real panel:
-            Some(self.show_inside(ui, add_contents))
+            Some(self.show_inside_dyn(ui, Some(is_expanded), Box::new(add_contents)))
         }
     }
 
     /// Show either a collapsed or a expanded panel, with a nice animation between.
+    ///
+    /// The panel supports drag-to-close, and you can also call [`Ui::close`] from within the panel to close it.
     pub fn show_animated_between<R>(
         ctx: &Context,
-        is_expanded: bool,
+        is_expanded: &mut bool,
         collapsed_panel: Self,
         expanded_panel: Self,
         add_contents: impl FnOnce(&mut Ui, f32) -> R,
     ) -> Option<InnerResponse<R>> {
-        let how_expanded = animate_expansion(ctx, expanded_panel.id.with("animation"), is_expanded);
+        let how_expanded =
+            animate_expansion(ctx, expanded_panel.id.with("animation"), *is_expanded);
 
         if 0.0 == how_expanded {
             Some(collapsed_panel.show(ctx, |ui| add_contents(ui, how_expanded)))
@@ -501,20 +552,26 @@ impl SidePanel {
             .show(ctx, |ui| add_contents(ui, how_expanded));
             None
         } else {
-            Some(expanded_panel.show(ctx, |ui| add_contents(ui, how_expanded)))
+            Some(expanded_panel.show_dyn(
+                ctx,
+                Some(is_expanded),
+                Box::new(|ui| add_contents(ui, how_expanded)),
+            ))
         }
     }
 
     /// Show either a collapsed or a expanded panel, with a nice animation between.
+    ///
+    /// The panel supports drag-to-close, and you can also call [`Ui::close`] from within the panel to close it.
     pub fn show_animated_between_inside<R>(
         ui: &mut Ui,
-        is_expanded: bool,
+        is_expanded: &mut bool,
         collapsed_panel: Self,
         expanded_panel: Self,
         add_contents: impl FnOnce(&mut Ui, f32) -> R,
     ) -> InnerResponse<R> {
         let how_expanded =
-            animate_expansion(ui.ctx(), expanded_panel.id.with("animation"), is_expanded);
+            animate_expansion(ui.ctx(), expanded_panel.id.with("animation"), *is_expanded);
 
         if 0.0 == how_expanded {
             collapsed_panel.show_inside(ui, |ui| add_contents(ui, how_expanded))
@@ -533,7 +590,11 @@ impl SidePanel {
             .exact_width(fake_width)
             .show_inside(ui, |ui| add_contents(ui, how_expanded))
         } else {
-            expanded_panel.show_inside(ui, |ui| add_contents(ui, how_expanded))
+            expanded_panel.show_inside_dyn(
+                ui,
+                Some(is_expanded),
+                Box::new(|ui| add_contents(ui, how_expanded)),
+            )
         }
     }
 }
@@ -719,13 +780,14 @@ impl TopBottomPanel {
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.show_inside_dyn(ui, Box::new(add_contents))
+        self.show_inside_dyn(ui, None, Box::new(add_contents))
     }
 
     /// Show the panel inside a [`Ui`].
     fn show_inside_dyn<'c, R>(
         self,
         ui: &mut Ui,
+        is_expanded: Option<&mut bool>,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         let Self {
@@ -759,6 +821,7 @@ impl TopBottomPanel {
         let resize_id = id.with("__resize");
         let mut resize_hover = false;
         let mut is_resizing = false;
+        let mut drag_to_close = false;
         if resizable {
             // First we read the resize interaction results, to avoid frame latency in the resize:
             if let Some(resize_response) = ui.ctx().read_response(resize_id) {
@@ -767,10 +830,19 @@ impl TopBottomPanel {
 
                 if is_resizing {
                     if let Some(pointer) = resize_response.interact_pointer_pos() {
+                        let old_height = height;
+
                         height = (pointer.y - side.side_y(panel_rect)).abs();
                         height =
                             clamp_to_range(height, height_range).at_most(available_rect.height());
                         side.set_rect_height(&mut panel_rect, height);
+
+                        if is_expanded.is_some()
+                            && height <= height_range.min
+                            && height < old_height
+                        {
+                            drag_to_close = true;
+                        }
                     }
                 }
             }
@@ -786,18 +858,19 @@ impl TopBottomPanel {
                     TopBottomSide::Bottom => UiKind::BottomPanel,
                 }))
                 .max_rect(panel_rect)
-                .layout(Layout::top_down(Align::Min)),
+                .layout(Layout::top_down(Align::Min))
+                .with_closable(is_expanded.is_some()),
         );
         panel_ui.expand_to_include_rect(panel_rect);
         panel_ui.set_clip_rect(panel_rect); // If we overflow, don't do so visibly (#4475)
 
-        let inner_response = frame.show(&mut panel_ui, |ui| {
+        let mut inner_response = frame.show(&mut panel_ui, |ui| {
             ui.set_min_width(ui.max_rect().width()); // Make the frame fill full width
             ui.set_min_height((height_range.min - frame.inner_margin.sum().y).at_least(0.0));
             add_contents(ui)
         });
 
-        let rect = inner_response.response.rect;
+        let mut rect = inner_response.response.rect;
 
         {
             let mut cursor = ui.cursor();
@@ -843,8 +916,6 @@ impl TopBottomPanel {
             ui.ctx().set_cursor_icon(cursor_icon);
         }
 
-        PanelState { rect }.store(ui.ctx(), id);
-
         {
             let stroke = if is_resizing {
                 ui.style().visuals.widgets.active.fg_stroke // highly visible
@@ -864,6 +935,26 @@ impl TopBottomPanel {
             ui.painter().hline(panel_rect.x_range(), resize_y, stroke);
         }
 
+        if let Some(is_expanded) = is_expanded {
+            if drag_to_close {
+                // Restore the panel back to (approximately) the height it had
+                // before the dragging started:
+                if let Some(pointer) = ui.input(|i| i.pointer.press_origin()) {
+                    height = (pointer.y - side.side_y(panel_rect)).abs();
+                    height = clamp_to_range(height, height_range);
+                    side.set_rect_height(&mut rect, height);
+                }
+
+                inner_response.response.set_close();
+                *is_expanded = false;
+            } else if panel_ui.should_close() {
+                inner_response.response.set_close();
+                *is_expanded = false;
+            }
+        }
+
+        PanelState { rect }.store(ui.ctx(), id);
+
         inner_response
     }
 
@@ -873,13 +964,14 @@ impl TopBottomPanel {
         ctx: &Context,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.show_dyn(ctx, Box::new(add_contents))
+        self.show_dyn(ctx, None, Box::new(add_contents))
     }
 
     /// Show the panel at the top level.
     fn show_dyn<'c, R>(
         self,
         ctx: &Context,
+        is_expanded: Option<&mut bool>,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         let available_rect = ctx.available_rect();
@@ -894,7 +986,7 @@ impl TopBottomPanel {
         );
         panel_ui.set_clip_rect(ctx.screen_rect());
 
-        let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
+        let inner_response = self.show_inside_dyn(&mut panel_ui, is_expanded, add_contents);
         let rect = inner_response.response.rect;
 
         match side {
@@ -915,13 +1007,15 @@ impl TopBottomPanel {
 
     /// Show the panel if `is_expanded` is `true`,
     /// otherwise don't show it, but with a nice animation between collapsed and expanded.
+    ///
+    /// The panel supports drag-to-close, and you can also call [`Ui::close`] from within the panel to close it.
     pub fn show_animated<R>(
         self,
         ctx: &Context,
-        is_expanded: bool,
+        is_expanded: &mut bool,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
-        let how_expanded = animate_expansion(ctx, self.id.with("animation"), is_expanded);
+        let how_expanded = animate_expansion(ctx, self.id.with("animation"), *is_expanded);
 
         if 0.0 == how_expanded {
             None
@@ -944,19 +1038,21 @@ impl TopBottomPanel {
             None
         } else {
             // Show the real panel:
-            Some(self.show(ctx, add_contents))
+            Some(self.show_dyn(ctx, Some(is_expanded), Box::new(add_contents)))
         }
     }
 
     /// Show the panel if `is_expanded` is `true`,
     /// otherwise don't show it, but with a nice animation between collapsed and expanded.
+    ///
+    /// The panel supports drag-to-close, and you can also call [`Ui::close`] from within the panel to close it.
     pub fn show_animated_inside<R>(
         self,
         ui: &mut Ui,
-        is_expanded: bool,
+        is_expanded: &mut bool,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
-        let how_expanded = animate_expansion(ui.ctx(), self.id.with("animation"), is_expanded);
+        let how_expanded = animate_expansion(ui.ctx(), self.id.with("animation"), *is_expanded);
 
         if 0.0 == how_expanded {
             None
@@ -979,19 +1075,22 @@ impl TopBottomPanel {
             None
         } else {
             // Show the real panel:
-            Some(self.show_inside(ui, add_contents))
+            Some(self.show_inside_dyn(ui, Some(is_expanded), Box::new(add_contents)))
         }
     }
 
     /// Show either a collapsed or a expanded panel, with a nice animation between.
+    ///
+    /// The panel supports drag-to-close, and you can also call [`Ui::close`] from within the panel to close it.
     pub fn show_animated_between<R>(
         ctx: &Context,
-        is_expanded: bool,
+        is_expanded: &mut bool,
         collapsed_panel: Self,
         expanded_panel: Self,
         add_contents: impl FnOnce(&mut Ui, f32) -> R,
     ) -> Option<InnerResponse<R>> {
-        let how_expanded = animate_expansion(ctx, expanded_panel.id.with("animation"), is_expanded);
+        let how_expanded =
+            animate_expansion(ctx, expanded_panel.id.with("animation"), *is_expanded);
 
         if 0.0 == how_expanded {
             Some(collapsed_panel.show(ctx, |ui| add_contents(ui, how_expanded)))
@@ -1017,20 +1116,26 @@ impl TopBottomPanel {
             .show(ctx, |ui| add_contents(ui, how_expanded));
             None
         } else {
-            Some(expanded_panel.show(ctx, |ui| add_contents(ui, how_expanded)))
+            Some(expanded_panel.show_dyn(
+                ctx,
+                Some(is_expanded),
+                Box::new(|ui| add_contents(ui, how_expanded)),
+            ))
         }
     }
 
     /// Show either a collapsed or a expanded panel, with a nice animation between.
+    ///
+    /// The panel supports drag-to-close, and you can also call [`Ui::close`] from within the panel to close it.
     pub fn show_animated_between_inside<R>(
         ui: &mut Ui,
-        is_expanded: bool,
+        is_expanded: &mut bool,
         collapsed_panel: Self,
         expanded_panel: Self,
         add_contents: impl FnOnce(&mut Ui, f32) -> R,
     ) -> InnerResponse<R> {
         let how_expanded =
-            animate_expansion(ui.ctx(), expanded_panel.id.with("animation"), is_expanded);
+            animate_expansion(ui.ctx(), expanded_panel.id.with("animation"), *is_expanded);
 
         if 0.0 == how_expanded {
             collapsed_panel.show_inside(ui, |ui| add_contents(ui, how_expanded))
@@ -1055,7 +1160,11 @@ impl TopBottomPanel {
             .exact_height(fake_height)
             .show_inside(ui, |ui| add_contents(ui, how_expanded))
         } else {
-            expanded_panel.show_inside(ui, |ui| add_contents(ui, how_expanded))
+            expanded_panel.show_inside_dyn(
+                ui,
+                Some(is_expanded),
+                Box::new(|ui| add_contents(ui, how_expanded)),
+            )
         }
     }
 }
