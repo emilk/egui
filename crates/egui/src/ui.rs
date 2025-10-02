@@ -1248,7 +1248,7 @@ impl Ui {
         if let Some(tag) = tag {
             tag.set_close();
         } else {
-            #[cfg(feature = "log")]
+
             log::warn!("Called ui.close() on a Ui that has no closable parent.");
         }
     }
@@ -1277,7 +1277,7 @@ impl Ui {
         if let Some(tag) = tag {
             tag.set_close();
         } else {
-            #[cfg(feature = "log")]
+
             log::warn!("Called ui.close_kind({ui_kind:?}) on ui with no such closable parent.");
         }
     }
