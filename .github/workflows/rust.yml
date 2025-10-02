@@ -53,7 +53,7 @@ jobs:
       - run: cargo clippy --locked --no-default-features --lib -p epaint
 
       # Regression test for https://github.com/emilk/egui/issues/4771
-      - run: cargo check -p test_egui_extras_compilation
+      - run: cargo clippy -p test_egui_extras_compilation
 
       - run: cargo doc --lib --no-deps --all-features
 
