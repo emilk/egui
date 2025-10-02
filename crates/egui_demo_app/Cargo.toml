@@ -53,7 +53,7 @@ chrono = { version = "0.4", default-features = false, features = [
 eframe = { workspace = true, default-features = false, features = [
   "web_screen_reader",
 ] }
-egui = { workspace = true, features = ["callstack", "default", "log"] }
+egui = { workspace = true, features = ["callstack", "default"] }
 egui_demo_lib = { workspace = true, features = ["default", "chrono"] }
 egui_extras = { workspace = true, features = ["default", "image"] }
 image = { workspace = true, default-features = false, features = [
@@ -70,7 +70,11 @@ puffin = { workspace = true, optional = true }
 puffin_http = { workspace = true, optional = true }
 # Enable both WebGL & WebGPU when targeting the web (these features have no effect when not targeting wasm32)
 # Also enable the default features so we have a supported backend for every platform.
-wgpu = { workspace = true, features = ["default", "webgpu", "webgl"], optional = true }
+wgpu = { workspace = true, features = [
+  "default",
+  "webgpu",
+  "webgl",
+], optional = true }
 
 
 # feature "http":

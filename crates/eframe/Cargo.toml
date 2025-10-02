@@ -124,10 +124,7 @@ x11 = [
 __screenshot = []
 
 [dependencies]
-egui = { workspace = true, default-features = false, features = [
-  "bytemuck",
-  "log",
-] }
+egui = { workspace = true, default-features = false, features = ["bytemuck"] }
 
 ahash.workspace = true
 document-features.workspace = true
