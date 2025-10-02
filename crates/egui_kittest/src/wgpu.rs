@@ -1,11 +1,14 @@
-use std::iter::once;
 use std::sync::Arc;
+use std::{iter::once, time::Duration};
 
 use egui::TexturesDelta;
 use egui_wgpu::{RenderState, ScreenDescriptor, WgpuSetup, wgpu};
 use image::RgbaImage;
 
 use crate::texture_to_image::texture_to_image;
+
+/// Timeout for waiting on the GPU to finish rendering.
+pub(crate) const WAIT_TIMEOUT: Duration = Duration::from_secs(1);
 
 /// Default wgpu setup used for the wgpu renderer.
 pub fn default_wgpu_setup() -> egui_wgpu::WgpuSetup {
@@ -205,7 +208,10 @@ impl crate::TestRenderer for WgpuTestRenderer {
 
         self.render_state
             .device
-            .poll(wgpu::PollType::Wait)
+            .poll(wgpu::PollType::Wait {
+                submission_index: None,
+                timeout: Some(WAIT_TIMEOUT),
+            })
             .map_err(|err| format!("PollError: {err}"))?;
 
         Ok(texture_to_image(
