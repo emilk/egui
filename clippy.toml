@@ -23,7 +23,7 @@ type-complexity-threshold = 350
 
 # https://rust-lang.github.io/rust-clippy/master/index.html#disallowed_macros
 disallowed-macros = [
-    'dbg',
+    'std::dbg',
     'std::unimplemented',
 
     # TODO(emilk): consider forbidding these to encourage the use of proper log stream, and then explicitly allow legitimate uses
@@ -59,7 +59,8 @@ disallowed-types = [
     "std::sync::Condvar",
     # "std::sync::Once",  # enabled for now as the `log_once` macro uses it internally
 
-    "ring::digest::SHA1_FOR_LEGACY_USE_ONLY", # SHA1 is cryptographically broken
+    # This is a constant and can't be disallowed yet.
+    # "ring::digest::SHA1_FOR_LEGACY_USE_ONLY", # SHA1 is cryptographically broken
 
     "winit::dpi::LogicalSize",     # We do our own pixels<->point conversion, taking `egui_ctx.zoom_factor` into account
     "winit::dpi::LogicalPosition", # We do our own pixels<->point conversion, taking `egui_ctx.zoom_factor` into account
