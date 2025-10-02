@@ -884,10 +884,11 @@ impl InputState {
     ) -> impl Iterator<Item = &accesskit::ActionRequest> {
         let accesskit_id = id.accesskit_id();
         self.events.iter().filter_map(move |event| {
-            if let Event::AccessKitActionRequest(request) = event {
-                if request.target == accesskit_id && request.action == action {
-                    return Some(request);
-                }
+            if let Event::AccessKitActionRequest(request) = event
+                && request.target == accesskit_id
+                && request.action == action
+            {
+                return Some(request);
             }
             None
         })
@@ -901,10 +902,10 @@ impl InputState {
     ) {
         let accesskit_id = id.accesskit_id();
         self.events.retain(|event| {
-            if let Event::AccessKitActionRequest(request) = event {
-                if request.target == accesskit_id {
-                    return !consume(request);
-                }
+            if let Event::AccessKitActionRequest(request) = event
+                && request.target == accesskit_id
+            {
+                return !consume(request);
             }
             true
         });
@@ -1468,10 +1469,10 @@ impl PointerState {
                 return false;
             }
 
-            if let Some(press_start_time) = self.press_start_time {
-                if self.time - press_start_time > self.options.max_click_duration {
-                    return false;
-                }
+            if let Some(press_start_time) = self.press_start_time
+                && self.time - press_start_time > self.options.max_click_duration
+            {
+                return false;
             }
 
             true

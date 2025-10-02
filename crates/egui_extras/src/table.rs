@@ -472,12 +472,12 @@ impl<'a> TableBuilder<'a> {
 
         for (i, column) in columns.iter_mut().enumerate() {
             let column_resize_id = ui.id().with("resize_column").with(i);
-            if let Some(response) = ui.ctx().read_response(column_resize_id) {
-                if response.double_clicked() {
+            if let Some(response) = ui.ctx().read_response(column_resize_id)
+                && response.double_clicked()
+            {
                     column.auto_size_this_frame = true;
                 }
             }
-        }
 
         let striped = striped.unwrap_or(ui.visuals().striped);
 
@@ -864,8 +864,9 @@ impl Table<'_> {
                 if column.auto_size_this_frame {
                     // Auto-size: resize to what is needed.
                     *column_width = width_range.clamp(max_used_widths[i]);
-                } else if resize_response.dragged() {
-                    if let Some(pointer) = ui.ctx().pointer_latest_pos() {
+                } else if resize_response.dragged()
+                    && let Some(pointer) = ui.ctx().pointer_latest_pos()
+                {
                         let mut new_width = *column_width + pointer.x - x;
                         if !column.clip {
                             // Unless we clip we don't want to shrink below the
@@ -885,7 +886,6 @@ impl Table<'_> {
 
                         *column_width = new_width;
                     }
-                }
 
                 let dragging_something_else =
                     ui.input(|i| i.pointer.any_down() || i.pointer.any_pressed());

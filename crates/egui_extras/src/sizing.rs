@@ -144,11 +144,11 @@ impl Sizing {
             let mut remainder_length = length - sum_non_remainder;
             let avg_remainder_length = 0.0f32.max(remainder_length / num_remainders as f32).floor();
             for &size in &self.sizes {
-                if let Size::Remainder { range } = size {
-                    if avg_remainder_length < range.min {
-                        remainder_length -= range.min;
-                        num_remainders -= 1;
-                    }
+                if let Size::Remainder { range } = size
+                    && avg_remainder_length < range.min
+                {
+                    remainder_length -= range.min;
+                    num_remainders -= 1;
                 }
             }
             if num_remainders > 0 {

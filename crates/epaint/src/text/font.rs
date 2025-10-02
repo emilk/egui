@@ -239,17 +239,17 @@ impl FontImpl {
             return None; // these will result in the replacement character when rendering
         }
 
-        if c == '\t' {
-            if let Some(space) = self.glyph_info(' ') {
-                let glyph_info = GlyphInfo {
-                    advance_width_unscaled: (crate::text::TAB_SIZE as f32
-                        * space.advance_width_unscaled.0)
-                        .into(),
-                    ..space
-                };
-                self.glyph_info_cache.insert(c, glyph_info);
-                return Some(glyph_info);
-            }
+        if c == '\t'
+            && let Some(space) = self.glyph_info(' ')
+        {
+            let glyph_info = GlyphInfo {
+                advance_width_unscaled: (crate::text::TAB_SIZE as f32
+                    * space.advance_width_unscaled.0)
+                    .into(),
+                ..space
+            };
+            self.glyph_info_cache.insert(c, glyph_info);
+            return Some(glyph_info);
         }
 
         if c == '\u{2009}' {

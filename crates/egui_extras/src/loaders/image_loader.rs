@@ -161,12 +161,12 @@ impl ImageLoader for ImageCrateLoader {
             match ctx.try_load_bytes(uri) {
                 Ok(BytesPoll::Ready { bytes, mime, .. }) => {
                     // (2)
-                    if let Some(mime) = mime {
-                        if !is_supported_mime(&mime) {
-                            return Err(LoadError::FormatNotSupported {
-                                detected_format: Some(mime),
-                            });
-                        }
+                    if let Some(mime) = mime
+                        && !is_supported_mime(&mime)
+                    {
+                        return Err(LoadError::FormatNotSupported {
+                            detected_format: Some(mime),
+                        });
                     }
                     load_image(ctx, uri, &self.cache, &bytes)
                 }

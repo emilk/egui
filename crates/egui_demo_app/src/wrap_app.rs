@@ -194,10 +194,10 @@ impl WrapApp {
         };
 
         #[cfg(feature = "persistence")]
-        if let Some(storage) = cc.storage {
-            if let Some(state) = eframe::get_value(storage, eframe::APP_KEY) {
-                slf.state = state;
-            }
+        if let Some(storage) = cc.storage
+            && let Some(state) = eframe::get_value(storage, eframe::APP_KEY)
+        {
+            slf.state = state;
         }
 
         slf

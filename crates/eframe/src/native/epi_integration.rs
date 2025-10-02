@@ -52,14 +52,13 @@ pub fn viewport_builder(
             viewport_builder = viewport_builder.with_position(pos);
         }
 
-        if clamp_size_to_monitor_size {
-            if let Some(initial_window_size) = viewport_builder.inner_size {
-                let initial_window_size = egui::NumExt::at_most(
-                    initial_window_size,
-                    largest_monitor_point_size(egui_zoom_factor, event_loop),
-                );
-                viewport_builder = viewport_builder.with_inner_size(initial_window_size);
-            }
+        if clamp_size_to_monitor_size && let Some(initial_window_size) = viewport_builder.inner_size
+        {
+            let initial_window_size = egui::NumExt::at_most(
+                initial_window_size,
+                largest_monitor_point_size(egui_zoom_factor, event_loop),
+            );
+            viewport_builder = viewport_builder.with_inner_size(initial_window_size);
         }
 
         viewport_builder.inner_size
@@ -332,15 +331,15 @@ impl EpiIntegration {
         if let Some(storage) = self.frame.storage_mut() {
             profiling::function_scope!();
 
-            if let Some(window) = _window {
-                if self.persist_window {
-                    profiling::scope!("native_window");
-                    epi::set_value(
-                        storage,
-                        STORAGE_WINDOW_KEY,
-                        &WindowSettings::from_window(self.egui_ctx.zoom_factor(), window),
-                    );
-                }
+            if let Some(window) = _window
+                && self.persist_window
+            {
+                profiling::scope!("native_window");
+                epi::set_value(
+                    storage,
+                    STORAGE_WINDOW_KEY,
+                    &WindowSettings::from_window(self.egui_ctx.zoom_factor(), window),
+                );
             }
             if _app.persist_egui_memory() {
                 profiling::scope!("egui_memory");
