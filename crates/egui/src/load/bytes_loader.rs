@@ -19,7 +19,6 @@ impl DefaultBytesLoader {
             .or_insert_with_key(|_uri| {
                 let bytes: Bytes = bytes.into();
 
-
                 log::trace!("loaded {} bytes for uri {_uri:?}", bytes.len());
 
                 bytes
@@ -53,14 +52,12 @@ impl BytesLoader for DefaultBytesLoader {
     }
 
     fn forget(&self, uri: &str) {
-
         log::trace!("forget {uri:?}");
 
         self.cache.lock().remove(uri);
     }
 
     fn forget_all(&self) {
-
         log::trace!("forget all");
 
         self.cache.lock().clear();

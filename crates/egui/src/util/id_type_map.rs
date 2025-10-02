@@ -291,7 +291,6 @@ fn from_ron_str<T: serde::de::DeserializeOwned>(ron: &str) -> Option<T> {
     match ron::from_str::<T>(ron) {
         Ok(value) => Some(value),
         Err(_err) => {
-
             log::warn!(
                 "egui: Failed to deserialize {} from memory: {}, ron error: {:?}",
                 std::any::type_name::<T>(),
