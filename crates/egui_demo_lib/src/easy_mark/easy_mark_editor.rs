@@ -96,13 +96,13 @@ impl EasyMarkEditor {
             ui.add(egui::TextEdit::multiline(code).desired_width(f32::INFINITY))
         };
 
-        if let Some(mut state) = TextEdit::load_state(ui.ctx(), response.id) {
-            if let Some(mut ccursor_range) = state.cursor.char_range() {
-                let any_change = shortcuts(ui, code, &mut ccursor_range);
-                if any_change {
-                    state.cursor.set_char_range(Some(ccursor_range));
-                    state.store(ui.ctx(), response.id);
-                }
+        if let Some(mut state) = TextEdit::load_state(ui.ctx(), response.id)
+            && let Some(mut ccursor_range) = state.cursor.char_range()
+        {
+            let any_change = shortcuts(ui, code, &mut ccursor_range);
+            if any_change {
+                state.cursor.set_char_range(Some(ccursor_range));
+                state.store(ui.ctx(), response.id);
             }
         }
     }

@@ -115,19 +115,19 @@ pub(crate) fn interact(
 ) -> InteractionSnapshot {
     profiling::function_scope!();
 
-    if let Some(id) = interaction.potential_click_id {
-        if !widgets.contains(id) {
-            // The widget we were interested in clicking is gone.
-            interaction.potential_click_id = None;
-        }
+    if let Some(id) = interaction.potential_click_id
+        && !widgets.contains(id)
+    {
+        // The widget we were interested in clicking is gone.
+        interaction.potential_click_id = None;
     }
-    if let Some(id) = interaction.potential_drag_id {
-        if !widgets.contains(id) {
-            // The widget we were interested in dragging is gone.
-            // This is fine! This could be drag-and-drop,
-            // and the widget being dragged is now "in the air" and thus
-            // not registered in the new frame.
-        }
+    if let Some(id) = interaction.potential_drag_id
+        && !widgets.contains(id)
+    {
+        // The widget we were interested in dragging is gone.
+        // This is fine! This could be drag-and-drop,
+        // and the widget being dragged is now "in the air" and thus
+        // not registered in the new frame.
     }
 
     let mut clicked = None;
@@ -172,13 +172,13 @@ pub(crate) fn interact(
             }
 
             PointerEvent::Released { click, button: _ } => {
-                if click.is_some() && !input.pointer.is_decidedly_dragging() {
-                    if let Some(widget) = interaction
+                if click.is_some()
+                    && !input.pointer.is_decidedly_dragging()
+                    && let Some(widget) = interaction
                         .potential_click_id
                         .and_then(|id| widgets.get(id))
-                    {
-                        clicked = Some(widget.id);
-                    }
+                {
+                    clicked = Some(widget.id);
                 }
 
                 interaction.potential_drag_id = None;
@@ -190,21 +190,21 @@ pub(crate) fn interact(
 
     if dragged.is_none() {
         // Check if we started dragging something new:
-        if let Some(widget) = interaction.potential_drag_id.and_then(|id| widgets.get(id)) {
-            if widget.enabled {
-                let is_dragged = if widget.sense.senses_click() && widget.sense.senses_drag() {
-                    // This widget is sensitive to both clicks and drags.
-                    // When the mouse first is pressed, it could be either,
-                    // so we postpone the decision until we know.
-                    input.pointer.is_decidedly_dragging()
-                } else {
-                    // This widget is just sensitive to drags, so we can mark it as dragged right away:
-                    widget.sense.senses_drag()
-                };
+        if let Some(widget) = interaction.potential_drag_id.and_then(|id| widgets.get(id))
+            && widget.enabled
+        {
+            let is_dragged = if widget.sense.senses_click() && widget.sense.senses_drag() {
+                // This widget is sensitive to both clicks and drags.
+                // When the mouse first is pressed, it could be either,
+                // so we postpone the decision until we know.
+                input.pointer.is_decidedly_dragging()
+            } else {
+                // This widget is just sensitive to drags, so we can mark it as dragged right away:
+                widget.sense.senses_drag()
+            };
 
-                if is_dragged {
-                    dragged = Some(widget.id);
-                }
+            if is_dragged {
+                dragged = Some(widget.id);
             }
         }
     }

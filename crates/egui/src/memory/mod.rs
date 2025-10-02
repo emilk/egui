@@ -535,36 +535,34 @@ impl Focus {
         self.focus_direction = FocusDirection::None;
 
         for event in &new_input.events {
-            if !event_filter.matches(event) {
-                if let crate::Event::Key {
+            if !event_filter.matches(event)
+                && let crate::Event::Key {
                     key,
                     pressed: true,
                     modifiers,
                     ..
                 } = event
-                {
-                    if let Some(cardinality) = match key {
-                        crate::Key::ArrowUp => Some(FocusDirection::Up),
-                        crate::Key::ArrowRight => Some(FocusDirection::Right),
-                        crate::Key::ArrowDown => Some(FocusDirection::Down),
-                        crate::Key::ArrowLeft => Some(FocusDirection::Left),
+                && let Some(cardinality) = match key {
+                    crate::Key::ArrowUp => Some(FocusDirection::Up),
+                    crate::Key::ArrowRight => Some(FocusDirection::Right),
+                    crate::Key::ArrowDown => Some(FocusDirection::Down),
+                    crate::Key::ArrowLeft => Some(FocusDirection::Left),
 
-                        crate::Key::Tab => {
-                            if modifiers.shift {
-                                Some(FocusDirection::Previous)
-                            } else {
-                                Some(FocusDirection::Next)
-                            }
+                    crate::Key::Tab => {
+                        if modifiers.shift {
+                            Some(FocusDirection::Previous)
+                        } else {
+                            Some(FocusDirection::Next)
                         }
-                        crate::Key::Escape => {
-                            self.focused_widget = None;
-                            Some(FocusDirection::None)
-                        }
-                        _ => None,
-                    } {
-                        self.focus_direction = cardinality;
                     }
+                    crate::Key::Escape => {
+                        self.focused_widget = None;
+                        Some(FocusDirection::None)
+                    }
+                    _ => None,
                 }
+            {
+                self.focus_direction = cardinality;
             }
 
             #[cfg(feature = "accesskit")]
@@ -582,10 +580,10 @@ impl Focus {
     }
 
     pub(crate) fn end_pass(&mut self, used_ids: &IdMap<Rect>) {
-        if self.focus_direction.is_cardinal() {
-            if let Some(found_widget) = self.find_widget_in_direction(used_ids) {
-                self.focused_widget = Some(FocusWidget::new(found_widget));
-            }
+        if self.focus_direction.is_cardinal()
+            && let Some(found_widget) = self.find_widget_in_direction(used_ids)
+        {
+            self.focused_widget = Some(FocusWidget::new(found_widget));
         }
 
         if let Some(focused_widget) = self.focused_widget {
@@ -858,12 +856,12 @@ impl Memory {
     ///
     /// You must first give focus to the widget before calling this.
     pub fn set_focus_lock_filter(&mut self, id: Id, event_filter: EventFilter) {
-        if self.had_focus_last_frame(id) && self.has_focus(id) {
-            if let Some(focused) = &mut self.focus_mut().focused_widget {
-                if focused.id == id {
-                    focused.filter = event_filter;
-                }
-            }
+        if self.had_focus_last_frame(id)
+            && self.has_focus(id)
+            && let Some(focused) = &mut self.focus_mut().focused_widget
+            && focused.id == id
+        {
+            focused.filter = event_filter;
         }
     }
 
@@ -933,13 +931,13 @@ impl Memory {
     /// Limit focus to widgets on the given layer and above.
     /// If this is called multiple times per frame, the top layer wins.
     pub fn set_modal_layer(&mut self, layer_id: LayerId) {
-        if let Some(current) = self.focus().and_then(|f| f.top_modal_layer_current_frame) {
-            if matches!(
+        if let Some(current) = self.focus().and_then(|f| f.top_modal_layer_current_frame)
+            && matches!(
                 self.areas().compare_order(layer_id, current),
                 std::cmp::Ordering::Less
-            ) {
-                return;
-            }
+            )
+        {
+            return;
         }
 
         self.focus_mut().set_modal_layer(layer_id);
@@ -1047,10 +1045,10 @@ impl Memory {
     /// being rendered.
     #[deprecated = "Use Popup::show instead"]
     pub fn keep_popup_open(&mut self, popup_id: Id) {
-        if let Some(state) = self.popups.get_mut(&self.viewport_id) {
-            if state.id == popup_id {
-                state.open_this_frame = true;
-            }
+        if let Some(state) = self.popups.get_mut(&self.viewport_id)
+            && state.id == popup_id
+        {
+            state.open_this_frame = true;
         }
     }
 
@@ -1200,17 +1198,17 @@ impl Areas {
         layer_to_global: &HashMap<LayerId, TSTransform>,
     ) -> Option<LayerId> {
         for layer in self.order.iter().rev() {
-            if self.is_visible(layer) {
-                if let Some(state) = self.areas.get(&layer.id) {
-                    let mut rect = state.rect();
-                    if state.interactable {
-                        if let Some(to_global) = layer_to_global.get(layer) {
-                            rect = *to_global * rect;
-                        }
+            if self.is_visible(layer)
+                && let Some(state) = self.areas.get(&layer.id)
+            {
+                let mut rect = state.rect();
+                if state.interactable {
+                    if let Some(to_global) = layer_to_global.get(layer) {
+                        rect = *to_global * rect;
+                    }
 
-                        if rect.contains(pos) {
-                            return Some(*layer);
-                        }
+                    if rect.contains(pos) {
+                        return Some(*layer);
                     }
                 }
             }

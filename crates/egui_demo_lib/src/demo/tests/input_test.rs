@@ -10,11 +10,11 @@ struct DeduplicatedHistory {
 
 impl DeduplicatedHistory {
     fn add(&mut self, text: String) {
-        if let Some(entry) = self.history.back_mut() {
-            if entry.text == text {
-                entry.repeated += 1;
-                return;
-            }
+        if let Some(entry) = self.history.back_mut()
+            && entry.text == text
+        {
+            entry.repeated += 1;
+            return;
         }
         self.history.push_back(HistoryEntry { text, repeated: 1 });
         if self.history.len() > 100 {

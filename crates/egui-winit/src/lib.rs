@@ -574,41 +574,41 @@ impl State {
         state: winit::event::ElementState,
         button: winit::event::MouseButton,
     ) {
-        if let Some(pos) = self.pointer_pos_in_points {
-            if let Some(button) = translate_mouse_button(button) {
-                let pressed = state == winit::event::ElementState::Pressed;
+        if let Some(pos) = self.pointer_pos_in_points
+            && let Some(button) = translate_mouse_button(button)
+        {
+            let pressed = state == winit::event::ElementState::Pressed;
 
-                self.egui_input.events.push(egui::Event::PointerButton {
-                    pos,
-                    button,
-                    pressed,
-                    modifiers: self.egui_input.modifiers,
-                });
+            self.egui_input.events.push(egui::Event::PointerButton {
+                pos,
+                button,
+                pressed,
+                modifiers: self.egui_input.modifiers,
+            });
 
-                if self.simulate_touch_screen {
-                    if pressed {
-                        self.any_pointer_button_down = true;
+            if self.simulate_touch_screen {
+                if pressed {
+                    self.any_pointer_button_down = true;
 
-                        self.egui_input.events.push(egui::Event::Touch {
-                            device_id: egui::TouchDeviceId(0),
-                            id: egui::TouchId(0),
-                            phase: egui::TouchPhase::Start,
-                            pos,
-                            force: None,
-                        });
-                    } else {
-                        self.any_pointer_button_down = false;
+                    self.egui_input.events.push(egui::Event::Touch {
+                        device_id: egui::TouchDeviceId(0),
+                        id: egui::TouchId(0),
+                        phase: egui::TouchPhase::Start,
+                        pos,
+                        force: None,
+                    });
+                } else {
+                    self.any_pointer_button_down = false;
 
-                        self.egui_input.events.push(egui::Event::PointerGone);
+                    self.egui_input.events.push(egui::Event::PointerGone);
 
-                        self.egui_input.events.push(egui::Event::Touch {
-                            device_id: egui::TouchDeviceId(0),
-                            id: egui::TouchId(0),
-                            phase: egui::TouchPhase::End,
-                            pos,
-                            force: None,
-                        });
-                    }
+                    self.egui_input.events.push(egui::Event::Touch {
+                        device_id: egui::TouchDeviceId(0),
+                        id: egui::TouchId(0),
+                        phase: egui::TouchPhase::End,
+                        pos,
+                        force: None,
+                    });
                 }
             }
         }
@@ -913,11 +913,11 @@ impl State {
         }
 
         #[cfg(feature = "accesskit")]
-        if let Some(accesskit) = self.accesskit.as_mut() {
-            if let Some(update) = accesskit_update {
-                profiling::scope!("accesskit");
-                accesskit.update_if_active(|| update);
-            }
+        if let Some(accesskit) = self.accesskit.as_mut()
+            && let Some(update) = accesskit_update
+        {
+            profiling::scope!("accesskit");
+            accesskit.update_if_active(|| update);
         }
     }
 
@@ -1378,10 +1378,10 @@ fn process_viewport_command(
         }
         ViewportCommand::StartDrag => {
             // If `.has_focus()` is not checked on x11 the input will be permanently taken until the app is killed!
-            if window.has_focus() {
-                if let Err(err) = window.drag_window() {
-                    log::warn!("{command:?}: {err}");
-                }
+            if window.has_focus()
+                && let Err(err) = window.drag_window()
+            {
+                log::warn!("{command:?}: {err}");
             }
         }
         ViewportCommand::InnerSize(size) => {
@@ -1795,10 +1795,10 @@ pub fn apply_viewport_builder_to_window(
     window: &Window,
     builder: &ViewportBuilder,
 ) {
-    if let Some(mouse_passthrough) = builder.mouse_passthrough {
-        if let Err(err) = window.set_cursor_hittest(!mouse_passthrough) {
-            log::warn!("set_cursor_hittest failed: {err}");
-        }
+    if let Some(mouse_passthrough) = builder.mouse_passthrough
+        && let Err(err) = window.set_cursor_hittest(!mouse_passthrough)
+    {
+        log::warn!("set_cursor_hittest failed: {err}");
     }
 
     {
@@ -1809,16 +1809,15 @@ pub fn apply_viewport_builder_to_window(
 
         let pixels_per_point = pixels_per_point(egui_ctx, window);
 
-        if let Some(size) = builder.inner_size {
-            if window
+        if let Some(size) = builder.inner_size
+            && window
                 .request_inner_size(PhysicalSize::new(
                     pixels_per_point * size.x,
                     pixels_per_point * size.y,
                 ))
                 .is_some()
-            {
-                log::debug!("Failed to set window size");
-            }
+        {
+            log::debug!("Failed to set window size");
         }
         if let Some(size) = builder.min_inner_size {
             window.set_min_inner_size(Some(PhysicalSize::new(
