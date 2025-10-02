@@ -59,9 +59,6 @@ disallowed-types = [
     "std::sync::Condvar",
     # "std::sync::Once",  # enabled for now as the `log_once` macro uses it internally
 
-    # This is a constant and can't be disallowed yet.
-    # "ring::digest::SHA1_FOR_LEGACY_USE_ONLY", # SHA1 is cryptographically broken
-
     "winit::dpi::LogicalSize",     # We do our own pixels<->point conversion, taking `egui_ctx.zoom_factor` into account
     "winit::dpi::LogicalPosition", # We do our own pixels<->point conversion, taking `egui_ctx.zoom_factor` into account
 ]
