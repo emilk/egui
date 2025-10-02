@@ -38,39 +38,26 @@ jobs:
       - name: Lint vertical spacing
         run: ./scripts/lint.py
 
-      - name: check --all-features
-        run: cargo check --locked --all-features --all-targets
+      - run: cargo clippy --locked --all-features --all-targets
 
-      - name: check egui_extras --all-features
-        run: cargo check --locked --all-features -p egui_extras
+      - run: cargo clippy --locked --all-features -p egui_extras
 
-      - name: check default features
-        run: cargo check --locked --all-targets
+      - run: cargo clippy --locked --all-targets
 
-      - name: check --no-default-features
-        run: cargo check --locked --no-default-features --lib --all-targets
+      - run: cargo clippy --locked --no-default-features --lib --all-targets
 
-      - name: check eframe --no-default-features
-        run: cargo check --locked --no-default-features --features x11 --lib -p eframe
+      - run: cargo clippy --locked --no-default-features --features x11 --lib -p eframe
 
-      - name: check egui_extras --no-default-features
-        run: cargo check --locked --no-default-features --lib -p egui_extras
+      - run: cargo clippy --locked --no-default-features --lib -p egui_extras
 
-      - name: check epaint --no-default-features
-        run: cargo check --locked --no-default-features --lib -p epaint
+      - run: cargo clippy --locked --no-default-features --lib -p epaint
 
       # Regression test for https://github.com/emilk/egui/issues/4771
-      - name: cargo check -p test_egui_extras_compilation
-        run: cargo check -p test_egui_extras_compilation
+      - run: cargo clippy -p test_egui_extras_compilation
 
-      - name: cargo doc --lib
-        run: cargo doc --lib --no-deps --all-features
+      - run: cargo doc --lib --no-deps --all-features
 
-      - name: cargo doc --document-private-items
-        run: cargo doc --document-private-items --no-deps --all-features
-
-      - name: clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+      - run: cargo doc --document-private-items --no-deps --all-features
 
       - name: clippy release
         run: cargo clippy --all-targets --all-features --release -- -D warnings
@@ -93,14 +80,14 @@ jobs:
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
 
-      - name: Check wasm32 egui_demo_app
-        run: cargo check -p egui_demo_app --lib --target wasm32-unknown-unknown
+      - name: clippy wasm32 egui_demo_app
+        run: cargo clippy -p egui_demo_app --lib --target wasm32-unknown-unknown
 
-      - name: Check wasm32 egui_demo_app --all-features
-        run: cargo check -p egui_demo_app --lib --target wasm32-unknown-unknown --all-features
+      - name: clippy wasm32 egui_demo_app --all-features
+        run: cargo clippy -p egui_demo_app --lib --target wasm32-unknown-unknown --all-features
 
-      - name: Check wasm32 eframe
-        run: cargo check -p eframe --lib --no-default-features --features glow,persistence --target wasm32-unknown-unknown
+      - name: clippy wasm32 eframe
+        run: cargo clippy -p eframe --lib --no-default-features --features glow,persistence --target wasm32-unknown-unknown
 
       - name: wasm-bindgen
         uses: jetli/wasm-bindgen-action@v0.1.0
@@ -222,11 +209,9 @@ jobs:
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
 
-      - name: Check all
-        run: cargo check --all-targets --all-features
+      - run: cargo clippy --all-targets --all-features
 
-      - name: Check hello_world
-        run: cargo check -p hello_world
+      - run: cargo clippy -p hello_world
 
   # ---------------------------------------------------------------------------
 

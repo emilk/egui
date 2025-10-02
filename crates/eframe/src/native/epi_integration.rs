@@ -135,7 +135,7 @@ pub fn create_storage(_app_name: &str) -> Option<Box<dyn epi::Storage>> {
     None
 }
 
-#[expect(clippy::unnecessary_wraps)]
+#[allow(clippy::allow_attributes, clippy::unnecessary_wraps)]
 pub fn create_storage_with_file(_file: impl Into<PathBuf>) -> Option<Box<dyn epi::Storage>> {
     #[cfg(feature = "persistence")]
     return Some(Box::new(
@@ -168,7 +168,7 @@ pub struct EpiIntegration {
 }
 
 impl EpiIntegration {
-    #[expect(clippy::too_many_arguments)]
+    #[allow(clippy::allow_attributes, clippy::too_many_arguments)]
     pub fn new(
         egui_ctx: egui::Context,
         window: &winit::window::Window,
@@ -325,13 +325,15 @@ impl EpiIntegration {
         }
     }
 
-    #[allow(clippy::unused_self, clippy::allow_attributes)]
-    pub fn save(&mut self, _app: &mut dyn epi::App, _window: Option<&winit::window::Window>) {
+    pub fn save(&mut self, app: &mut dyn epi::App, window: Option<&winit::window::Window>) {
+        #[cfg(not(feature = "persistence"))]
+        let _ = (self, app, window);
+
         #[cfg(feature = "persistence")]
         if let Some(storage) = self.frame.storage_mut() {
             profiling::function_scope!();
 
-            if let Some(window) = _window
+            if let Some(window) = window
                 && self.persist_window
             {
                 profiling::scope!("native_window");
@@ -341,14 +343,14 @@ impl EpiIntegration {
                     &WindowSettings::from_window(self.egui_ctx.zoom_factor(), window),
                 );
             }
-            if _app.persist_egui_memory() {
+            if app.persist_egui_memory() {
                 profiling::scope!("egui_memory");
                 self.egui_ctx
                     .memory(|mem| epi::set_value(storage, STORAGE_EGUI_MEMORY_KEY, mem));
             }
             {
                 profiling::scope!("App::save");
-                _app.save(storage);
+                app.save(storage);
             }
 
             profiling::scope!("Storage::flush");
