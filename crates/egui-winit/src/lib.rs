@@ -18,7 +18,6 @@ use egui::{Pos2, Rect, Theme, Vec2, ViewportBuilder, ViewportCommand, ViewportId
 pub use winit;
 
 pub mod clipboard;
-#[cfg(target_os = "ios")]
 mod safe_area;
 mod window_settings;
 
@@ -286,9 +285,7 @@ impl State {
                 // Once winit v0.31 has been released this can be reworked to get the safe area from
                 // `Window::safe_area`, and updated from a new event which is being discussed in
                 // https://github.com/rust-windowing/winit/issues/3911.
-                self.egui_input_mut().safe_area_insets = Some(egui::SafeAreaInsets::from(
-                    safe_area::get_ios_safe_area_insets(),
-                ));
+                self.egui_input_mut().safe_area_insets = Some(safe_area::get_safe_area_insets());
             }
             _ => {}
         }
