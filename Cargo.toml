@@ -163,8 +163,10 @@ disallowed_methods = "warn"                 # See clippy.toml
 disallowed_names = "warn"                   # See clippy.toml
 disallowed_script_idents = "warn"           # See clippy.toml
 disallowed_types = "warn"                   # See clippy.toml
+doc_comment_double_space_linebreaks = "warn"
 doc_link_with_quotes = "warn"
 doc_markdown = "warn"
+elidable_lifetime_names = "warn"
 empty_enum = "warn"
 empty_enum_variants_with_brackets = "warn"
 empty_line_after_outer_attr = "warn"
@@ -184,6 +186,7 @@ fn_to_numeric_cast_any = "warn"
 from_iter_instead_of_collect = "warn"
 get_unwrap = "warn"
 if_let_mutex = "warn"
+ignore_without_reason = "warn"
 implicit_clone = "warn"
 implied_bounds_in_impls = "warn"
 imprecise_flops = "warn"
@@ -216,6 +219,7 @@ manual_instant_elapsed = "warn"
 manual_is_power_of_two = "warn"
 manual_is_variant_and = "warn"
 manual_let_else = "warn"
+manual_midpoint = "warn" # NOTE `midpoint` is often a lot slower for floats, so we have our own `emath::fast_midpoint` function.
 manual_ok_or = "warn"
 manual_string_new = "warn"
 map_err_ignore = "warn"
@@ -266,6 +270,7 @@ semicolon_if_nothing_returned = "warn"
 set_contains_or_insert = "warn"
 single_char_pattern = "warn"
 single_match_else = "warn"
+single_option_map = "warn"
 str_split_at_newline = "warn"
 str_to_string = "warn"
 string_add = "warn"
@@ -287,6 +292,7 @@ unimplemented = "warn"
 uninhabited_references = "warn"
 uninlined_format_args = "warn"
 unnecessary_box_returns = "warn"
+unnecessary_debug_formatting = "warn"
 unnecessary_literal_bound = "warn"
 unnecessary_safety_comment = "warn"
 unnecessary_safety_doc = "warn"
@@ -305,14 +311,6 @@ useless_transmute = "warn"
 verbose_file_reads = "warn"
 wildcard_dependencies = "warn"
 zero_sized_map_values = "warn"
-
-# Enable these when we update MSRV:
-# doc_comment_double_space_linebreaks = "warn"
-# elidable_lifetime_names = "warn"
-# ignore_without_reason = "warn"
-# manual_midpoint = "warn" # NOTE `midpoint` is often a lot slower for floats, so we have our own `emath::fast_midpoint` function.
-# single_option_map = "warn"
-# unnecessary_debug_formatting = "warn"
 
 
 # TODO(emilk): maybe enable more of these lints?
