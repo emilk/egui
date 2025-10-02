@@ -324,6 +324,7 @@ impl EpiIntegration {
             self.last_auto_save = now;
         }
     }
+
     pub fn save(&mut self, app: &mut dyn epi::App, window: Option<&winit::window::Window>) {
         #[cfg(not(feature = "persistence"))]
         let _ = (self, app, window);
