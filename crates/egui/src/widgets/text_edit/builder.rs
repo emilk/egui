@@ -136,9 +136,9 @@ impl<'t> TextEdit<'t> {
             desired_height_rows: 4,
             event_filter: EventFilter {
                 // moving the cursor is really important
-                horizontal_arrows: true,
-                vertical_arrows: true,
-                tab: false, // tab is used to change focus, not to insert a tab character
+                horizontal_arrows_focus: true,
+                vertical_arrows_focus: true,
+                tab_focus: false, // tab is used to change focus, not to insert a tab character
                 ..Default::default()
             },
             cursor_at_end: true,
@@ -328,7 +328,7 @@ impl<'t> TextEdit<'t> {
     /// will insert the `'\t'` character.
     #[inline]
     pub fn lock_focus(mut self, tab_will_indent: bool) -> Self {
-        self.event_filter.tab = tab_will_indent;
+        self.event_filter.tab_focus = tab_will_indent;
         self
     }
 
@@ -394,6 +394,15 @@ impl<'t> TextEdit<'t> {
     #[inline]
     pub fn return_key(mut self, return_key: impl Into<Option<KeyboardShortcut>>) -> Self {
         self.return_key = return_key.into();
+        self
+    }
+
+    /// Sets the event filter for this [`TextEdit`] instance.
+    #[inline]
+    pub fn event_filter(mut self, event_filter: EventFilter) -> Self {
+        self.event_filter = event_filter;
+        self.event_filter.horizontal_arrows_focus = true;
+        self.event_filter.vertical_arrows_focus = true;
         self
     }
 }

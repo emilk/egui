@@ -1245,55 +1245,181 @@ impl From<u32> for TouchId {
 /// Any events not covered by the filter are given to the widget, but are not exclusive.
 #[derive(Clone, Copy, Debug)]
 pub struct EventFilter {
-    /// If `true`, pressing tab will act on the widget,
-    /// and NOT move focus away from the focused widget.
+    /// If `true`, a copy action will be handled by the widget.
     ///
-    /// Default: `false`
-    pub tab: bool,
+    /// Default: `true`
+    pub copy: bool,
+
+    /// If `true`, a cut action will be handled by the widget.
+    ///
+    /// Default: `true`
+    pub cut: bool,
+
+    /// If `true`, a paste action will be handled by the widget.
+    ///
+    /// Default: `true`
+    pub paste: bool,
 
     /// If `true`, pressing horizontal arrows will act on the
     /// widget, and NOT move focus away from the focused widget.
     ///
-    /// Default: `false`
-    pub horizontal_arrows: bool,
+    /// Defaults to `false`, but is always `true` in the `TextEdit`.
+    pub horizontal_arrows_focus: bool,
 
     /// If `true`, pressing vertical arrows will act on the
     /// widget, and NOT move focus away from the focused widget.
     ///
-    /// Default: `false`
-    pub vertical_arrows: bool,
+    /// Defaults to `false`, but is always `true` in the `TextEdit`.
+    pub vertical_arrows_focus: bool,
 
     /// If `true`, pressing escape will act on the widget,
     /// and NOT surrender focus from the focused widget.
     ///
     /// Default: `false`
-    pub escape: bool,
+    pub escape_focus: bool,
+
+    /// If `true`, pressing tab will act on the widget,
+    /// and NOT move focus away from the focused widget.
+    ///
+    /// Default: `false`
+    pub tab_focus: bool,
+
+    /// Default: `true`
+    pub tab: bool,
+
+    /// Default: `true`
+    pub home: bool,
+
+    /// Default: `true`
+    pub end: bool,
+
+    /// Default: `true`
+    pub pageup: bool,
+
+    /// Default: `true`
+    pub pagedn: bool,
+
+    /// Default: `true`
+    pub ctrl_home: bool,
+
+    /// Default: `true`
+    pub ctrl_end: bool,
+
+    /// Default: `true`
+    pub ctrl_arrowup: bool,
+
+    /// Default: `true`
+    pub ctrl_arrowdown: bool,
+
+    /// Default: `true`
+    pub ctrl_arrowleft: bool,
+
+    /// Default: `true`
+    pub ctrl_arrowright: bool,
+
+    /// Default: `true`
+    pub ctrl_a: bool,
+
+    /// Default: `true`
+    pub ctrl_h: bool,
+
+    /// Default: `true`
+    pub ctrl_k: bool,
+
+    /// Default: `true`
+    pub ctrl_u: bool,
+
+    /// Default: `true`
+    pub ctrl_w: bool,
+
+    /// Default: `true`
+    pub ctrl_y: bool,
+
+    /// Default: `true`
+    pub ctrl_z: bool,
+
+    /// Default: `true`
+    pub shift_tab: bool,
 }
 
 #[expect(clippy::derivable_impls)] // let's be explicit
 impl Default for EventFilter {
     fn default() -> Self {
         Self {
-            tab: false,
-            horizontal_arrows: false,
-            vertical_arrows: false,
-            escape: false,
+            copy: true,
+            cut: true,
+            paste: true,
+            horizontal_arrows_focus: false,
+            vertical_arrows_focus: false,
+            escape_focus: false,
+            tab_focus: false,
+            tab: true,
+            home: true,
+            end: true,
+            pageup: true,
+            pagedn: true,
+            ctrl_arrowup: true,
+            ctrl_arrowdown: true,
+            ctrl_arrowleft: true,
+            ctrl_arrowright: true,
+            ctrl_home: true,
+            ctrl_end: true,
+            ctrl_a: true,
+            ctrl_h: true,
+            ctrl_k: true,
+            ctrl_u: true,
+            ctrl_w: true,
+            ctrl_y: true,
+            ctrl_z: true,
+            shift_tab: true,
         }
     }
 }
 
 impl EventFilter {
-    pub fn matches(&self, event: &Event) -> bool {
-        if let Event::Key { key, .. } = event {
-            match key {
-                crate::Key::Tab => self.tab,
-                crate::Key::ArrowUp | crate::Key::ArrowDown => self.vertical_arrows,
-                crate::Key::ArrowRight | crate::Key::ArrowLeft => self.horizontal_arrows,
-                crate::Key::Escape => self.escape,
+    pub fn matches_focus(&self, event: &Event) -> bool {
+        match event {
+            Event::Key { key, modifiers, .. } => match key {
+                crate::Key::Escape => self.escape_focus,
+                crate::Key::Tab => self.tab_focus,
+                crate::Key::ArrowUp if modifiers.is_none() => self.vertical_arrows_focus,
+                crate::Key::ArrowDown if modifiers.is_none() => self.vertical_arrows_focus,
+                crate::Key::ArrowLeft if modifiers.is_none() => self.horizontal_arrows_focus,
+                crate::Key::ArrowRight if modifiers.is_none() => self.horizontal_arrows_focus,
                 _ => true,
-            }
-        } else {
-            true
+            },
+            _ => true,
+        }
+    }
+
+    pub fn matches(&self, event: &Event) -> bool {
+        match event {
+            Event::Copy => self.copy,
+            Event::Cut => self.cut,
+            Event::Paste(_) => self.paste,
+            Event::Key { key, modifiers, .. } => match key {
+                crate::Key::Tab if modifiers.is_none() => self.tab,
+                crate::Key::Home if modifiers.is_none() => self.home,
+                crate::Key::End if modifiers.is_none() => self.end,
+                crate::Key::PageUp if modifiers.is_none() => self.pageup,
+                crate::Key::PageDown if modifiers.is_none() => self.pagedn,
+                crate::Key::ArrowUp if modifiers.ctrl => self.ctrl_arrowup,
+                crate::Key::ArrowDown if modifiers.ctrl => self.ctrl_arrowdown,
+                crate::Key::ArrowLeft if modifiers.ctrl => self.ctrl_arrowleft,
+                crate::Key::ArrowRight if modifiers.ctrl => self.ctrl_arrowright,
+                crate::Key::Home if modifiers.ctrl => self.ctrl_home,
+                crate::Key::End if modifiers.ctrl => self.ctrl_end,
+                crate::Key::A if modifiers.ctrl => self.ctrl_a,
+                crate::Key::H if modifiers.ctrl => self.ctrl_h,
+                crate::Key::K if modifiers.ctrl => self.ctrl_k,
+                crate::Key::U if modifiers.ctrl => self.ctrl_u,
+                crate::Key::W if modifiers.ctrl => self.ctrl_w,
+                crate::Key::Y if modifiers.ctrl => self.ctrl_y,
+                crate::Key::Z if modifiers.ctrl => self.ctrl_z,
+                crate::Key::Tab if modifiers.shift => self.shift_tab,
+                _ => true,
+            },
+            _ => true,
         }
     }
 }
