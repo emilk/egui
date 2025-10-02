@@ -4,6 +4,8 @@ use emath::Vec2;
 /// A [`crate::Atom`] which has been sized.
 #[derive(Clone, Debug)]
 pub struct SizedAtom<'a> {
+    pub id: Option<crate::Id>,
+
     pub(crate) grow: bool,
 
     /// The size of the atom.

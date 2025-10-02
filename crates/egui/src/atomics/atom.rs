@@ -14,6 +14,9 @@ use epaint::text::TextWrapMode;
 /// ```
 #[derive(Clone, Debug)]
 pub struct Atom<'a> {
+    /// See [`crate::AtomExt::atom_id`]
+    pub id: Option<Id>,
+
     /// See [`crate::AtomExt::atom_size`]
     pub size: Option<Vec2>,
 
@@ -33,6 +36,7 @@ pub struct Atom<'a> {
 impl Default for Atom<'_> {
     fn default() -> Self {
         Atom {
+            id: None,
             size: None,
             max_size: Vec2::INFINITY,
             grow: false,
@@ -82,6 +86,13 @@ impl<'a> Atom<'a> {
             wrap_mode = Some(TextWrapMode::Truncate);
         }
 
+        let id = match &self.kind {
+            AtomKind::Custom(id) => {
+                Some(self.id.unwrap_or(*id))
+            }
+            _ => self.id,
+        };
+
         let (intrinsic, kind) = self
             .kind
             .into_sized(ui, available_size, wrap_mode, fallback_font);
@@ -91,6 +102,7 @@ impl<'a> Atom<'a> {
             .map_or_else(|| kind.size(), |s| s.at_most(self.max_size));
 
         SizedAtom {
+            id,
             size,
             intrinsic_size: intrinsic.at_least(self.size.unwrap_or_default()),
             grow: self.grow,

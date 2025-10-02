@@ -426,6 +426,14 @@ impl<'atom> AllocatedAtomLayout<'atom> {
             let align = Align2::CENTER_CENTER;
             let rect = align.align_size_within_rect(size, frame);
 
+            if let Some(id) = sized.id {
+                debug_assert!(
+                    !response.custom_rects.iter().any(|(i, _)| *i == id),
+                    "Duplicate custom id"
+                );
+                response.custom_rects.push((id, rect));
+            }
+
             match sized.kind {
                 SizedAtomKind::Text(galley) => {
                     ui.painter().galley(rect.min, galley, fallback_text_color);
@@ -433,14 +441,7 @@ impl<'atom> AllocatedAtomLayout<'atom> {
                 SizedAtomKind::Image(image, _) => {
                     image.paint_at(ui, rect);
                 }
-                SizedAtomKind::Custom(id) => {
-                    debug_assert!(
-                        !response.custom_rects.iter().any(|(i, _)| *i == id),
-                        "Duplicate custom id"
-                    );
-                    response.custom_rects.push((id, rect));
-                }
-                SizedAtomKind::Empty => {}
+                SizedAtomKind::Sized(_) | SizedAtomKind::Empty => {}
             }
         }
 

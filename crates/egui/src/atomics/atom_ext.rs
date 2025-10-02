@@ -1,10 +1,31 @@
-use crate::{Atom, FontSelection, Ui};
+use crate::{Atom, FontSelection, Id, Ui};
 use emath::Vec2;
 
 /// A trait for conveniently building [`Atom`]s.
 ///
 /// The functions are prefixed with `atom_` to avoid conflicts with e.g. [`crate::RichText::size`].
 pub trait AtomExt<'a> {
+    /// Set the [`Id`] custom rendering.
+    ///
+    /// You can get the [`crate::Rect`] with the [`Id`] from [`crate::AtomLayoutResponse`] and use a
+    /// [`crate::Painter`] or [`Ui::place`] to add/draw some custom content.
+    ///
+    /// Example:
+    /// ```
+    /// # use egui::{AtomExt, AtomKind, Atom, Button, Id, __run_test_ui};
+    /// # use emath::Vec2;
+    /// # __run_test_ui(|ui| {
+    /// let id = Id::new("my_button");
+    /// let response = Button::new(("Hi!", Atom::custom(id, Vec2::splat(18.0)))).atom_ui(ui);
+    ///
+    /// let rect = response.rect(id);
+    /// if let Some(rect) = rect {
+    ///     ui.place(rect, Button::new("⏵"));
+    /// }
+    /// # });
+    /// ```
+    fn atom_id(self, id: Id) -> Atom<'a>;
+
     /// Set the atom to a fixed size.
     ///
     /// If [`Atom::grow`] is `true`, this will be the minimum width.
@@ -69,6 +90,12 @@ impl<'a, T> AtomExt<'a> for T
 where
     T: Into<Atom<'a>> + Sized,
 {
+    fn atom_id(self, id: Id) -> Atom<'a> {
+        let mut atom = self.into();
+        atom.id = Some(id);
+        atom
+    }
+
     fn atom_size(self, size: Vec2) -> Atom<'a> {
         let mut atom = self.into();
         atom.size = Some(size);

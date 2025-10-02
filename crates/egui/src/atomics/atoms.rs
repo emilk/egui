@@ -54,6 +54,18 @@ impl<'a> Atoms<'a> {
         string
     }
 
+    /// Extend the list of atoms by appending more atoms to the right side.
+    pub fn extend_right(&mut self, atoms: impl IntoAtoms<'a>) {
+        atoms.collect(self);
+    }
+
+    /// Extend the list of atoms by prepending more atoms to the left side.
+    pub fn extend_left(&mut self, atoms: impl IntoAtoms<'a>) {
+        let mut new_atoms = atoms.into_atoms();
+        std::mem::swap(&mut new_atoms.0, &mut self.0);
+        self.0.extend(new_atoms.0);
+    }
+
     pub fn iter_kinds(&self) -> impl Iterator<Item = &AtomKind<'a>> {
         self.0.iter().map(|atom| &atom.kind)
     }
