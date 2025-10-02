@@ -158,7 +158,7 @@ impl WidgetGallery {
         ui.end_row();
 
         ui.add(doc_link_label("TextEdit", "TextEdit"));
-        ui.add(egui::TextEdit::singleline(string).hint_text("Write something here").prefix("$"));
+        ui.add(egui::TextEdit::singleline(string).hint_text("Write something here").prefix("🔎"));
         ui.end_row();
 
         ui.add(doc_link_label("Button", "button"));

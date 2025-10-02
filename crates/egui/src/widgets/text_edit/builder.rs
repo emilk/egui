@@ -8,9 +8,9 @@ use epaint::{
 
 use crate::{
     Align, Align2, Atom, AtomExt, AtomKind, AtomLayout, Atoms, Color32, Context, CursorIcon, Event,
-    EventFilter, FontSelection, Id, ImeEvent, IntoAtoms, Key, KeyboardShortcut, Margin, Modifiers,
-    NumExt as _, Response, Sense, Shape, SizedAtomKind, TextBuffer, TextStyle, TextWrapMode, Ui,
-    Vec2, Widget, WidgetInfo, WidgetText, WidgetWithState, epaint,
+    EventFilter, FontSelection, Frame, Id, ImeEvent, IntoAtoms, Key, KeyboardShortcut, Margin,
+    Modifiers, NumExt as _, Response, Sense, Shape, SizedAtomKind, TextBuffer, TextStyle,
+    TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetWithState, epaint,
     os::OperatingSystem,
     output::OutputEvent,
     response, text_selection,
@@ -78,7 +78,7 @@ pub struct TextEdit<'t> {
     text_color: Option<Color32>,
     layouter: Option<LayouterFn<'t>>,
     password: bool,
-    frame: bool,
+    frame: Option<Frame>,
     margin: Margin,
     multiline: bool,
     interactive: bool,
@@ -133,7 +133,7 @@ impl<'t> TextEdit<'t> {
             text_color: None,
             layouter: None,
             password: false,
-            frame: true,
+            frame: None,
             margin: Margin::symmetric(4, 2),
             multiline: true,
             interactive: true,
@@ -301,10 +301,10 @@ impl<'t> TextEdit<'t> {
         self
     }
 
-    /// Default is `true`. If set to `false` there will be no frame showing that this is editable text!
+    /// Customize the [`Frame`] around the text edit.
     #[inline]
-    pub fn frame(mut self, frame: bool) -> Self {
-        self.frame = frame;
+    pub fn frame(mut self, frame: Frame) -> Self {
+        self.frame = Some(frame);
         self
     }
 
@@ -442,40 +442,6 @@ impl TextEdit<'_> {
             .unwrap_or_else(|| ui.visuals().text_edit_bg_color());
         let output = self.show_content(ui);
 
-        if frame {
-            let visuals = ui.style().interact(&output.response);
-            let frame_rect = output.response.rect.expand(visuals.expansion);
-            let shape = if is_mutable {
-                if output.response.has_focus() {
-                    epaint::RectShape::new(
-                        frame_rect,
-                        visuals.corner_radius,
-                        background_color,
-                        ui.visuals().selection.stroke,
-                        StrokeKind::Inside,
-                    )
-                } else {
-                    epaint::RectShape::new(
-                        frame_rect,
-                        visuals.corner_radius,
-                        background_color,
-                        visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
-                        StrokeKind::Inside,
-                    )
-                }
-            } else {
-                let visuals = &ui.style().visuals.widgets.inactive;
-                epaint::RectShape::stroke(
-                    frame_rect,
-                    visuals.corner_radius,
-                    visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
-                    StrokeKind::Inside,
-                )
-            };
-
-            ui.painter().set(where_to_put_background, shape);
-        }
-
         output
     }
 
@@ -492,7 +458,7 @@ impl TextEdit<'_> {
             text_color,
             layouter,
             password,
-            frame: _,
+            frame,
             margin,
             multiline,
             interactive,
@@ -505,7 +471,7 @@ impl TextEdit<'_> {
             clip_text,
             char_limit,
             return_key,
-            background_color: _,
+            background_color,
         } = self;
 
         let text_color = text_color
@@ -519,13 +485,15 @@ impl TextEdit<'_> {
         let font_id = font_selection.resolve(ui.style());
         let row_height = ui.fonts_mut(|f| f.row_height(&font_id));
         const MIN_WIDTH: f32 = 24.0; // Never make a [`TextEdit`] more narrow than this.
-        let available_width = (ui.available_width() - margin.sum().x).at_least(MIN_WIDTH);
+        // let available_width = (ui.available_width() - margin.sum().x).at_least(MIN_WIDTH);
+        let available_width = ui.available_width().at_least(MIN_WIDTH);
         let desired_width = desired_width.unwrap_or_else(|| ui.spacing().text_edit_width);
-        let wrap_width = if ui.layout().horizontal_justify() {
-            available_width
-        } else {
-            desired_width.min(available_width)
-        };
+        let allocate_width = desired_width.at_most(available_width);
+        // let wrap_width = if ui.layout().horizontal_justify() {
+        //     available_width
+        // } else {
+        //     desired_width.min(available_width)
+        // };
 
         let font_id_clone = font_id.clone();
         let mut default_layouter = move |ui: &Ui, text: &dyn TextBuffer, wrap_width: f32| {
@@ -547,7 +515,7 @@ impl TextEdit<'_> {
         // } else {
         //     galley.size().x.max(wrap_width)
         // };
-        // let desired_height = (desired_height_rows.at_least(1) as f32) * row_height;
+        let min_inner_height = (desired_height_rows.at_least(1) as f32) * row_height;
         // let desired_inner_size = vec2(desired_inner_width, galley.size().y.max(desired_height));
         // let desired_outer_size = (desired_inner_size + margin.sum()).at_least(min_size);
         // let (auto_id, outer_rect) = ui.allocate_space(desired_outer_size);
@@ -583,35 +551,86 @@ impl TextEdit<'_> {
         let mut get_galley = None;
         let atom_response = {
             let mut atoms: Atoms = Atoms::new(());
-            // atoms.extend_right(prefix);
-            // atoms.push_right("🔎");
+            // TODO(servo/rust-smallvec#146): Use extend_right instead of the loop once we have smallvec 2.0
+            for atom in prefix {
+                atoms.push_right(atom);
+            }
+
+            // TODO: Set width to galley width when not clip
+            atoms.push_right(
+                AtomKind::closure(|ui, available_width: Vec2, wrap_mode, fallback_font| {
+                    let galley = layouter(ui, text, available_width.x);
+                    let intrinsic_size = galley.intrinsic_size();
+                    let mut size = galley.size();
+                    size.y = size.y.at_least(min_inner_height);
+                    if clip_text {
+                        size.x = size.x.at_most(available_width.x);
+                    }
+
+                    // We paint the galley later, so we can do clipping and offsetting
+                    get_galley = Some(galley);
+                    (intrinsic_size, SizedAtomKind::Sized(size))
+                })
+                .atom_id(inner_rect_id)
+                .atom_shrink(clip_text),
+            );
 
             if text.as_str().is_empty() {
-                // atoms.extend_right(hint_text);
-                atoms.push_right(Atom::grow());
-            } else {
+                for atom in hint_text {
+                    atoms.push_right(atom);
+                }
             }
-            // TODO: Set width to galley width when not clip
-            atoms.extend_right(
-                AtomKind::closure(
-                    |ui, available_width: Vec2, wrap_mode, fallback_font| {
-                        let galley = layouter(ui, text, available_width.x);
-                        let intrinsic_size = galley.intrinsic_size();
-                        let size = galley.size();
-                        // We paint the galley later, so we can do clipping and offsetting
-                        get_galley = Some(galley);
-                        (intrinsic_size, SizedAtomKind::Sized(size))
-                    },
-                )
-                .atom_id(inner_rect_id),
-            );
-            // atoms.extend_right(postfix);
+            atoms.push_right(Atom::grow());
+            for atom in postfix {
+                atoms.push_right(atom);
+            }
 
-            let atom_response = AtomLayout::new(atoms)
+            let custom_frame = frame.is_some();
+            let frame = frame.unwrap_or(Frame::new().inner_margin(margin));
+
+            let mut allocated = AtomLayout::new(atoms)
                 .id(id)
-                .min_size(Vec2::new(desired_width, 0.0))
+                .min_size(Vec2::new(allocate_width, 0.0))
                 .sense(sense)
-                .show(ui);
+                .frame(frame)
+                .gap(0.0)
+                .allocate(ui);
+
+            allocated.frame = if !custom_frame {
+                let visuals = ui.style().interact(&allocated.response);
+                let background_color = self
+                    .background_color
+                    .unwrap_or_else(|| ui.visuals().text_edit_bg_color());
+
+                let (corner_radius, background_color, stroke) = if text.is_mutable() {
+                    if allocated.response.has_focus() {
+                        (
+                            visuals.corner_radius,
+                            background_color,
+                            ui.visuals().selection.stroke,
+                        )
+                    } else {
+                        (visuals.corner_radius, background_color, visuals.bg_stroke)
+                    }
+                } else {
+                    let visuals = &ui.style().visuals.widgets.inactive;
+                    (
+                        visuals.corner_radius,
+                        Color32::TRANSPARENT,
+                        visuals.bg_stroke,
+                    )
+                };
+                allocated
+                    .frame
+                    .fill(background_color)
+                    .corner_radius(corner_radius)
+                    .inner_margin(allocated.frame.inner_margin - Margin::same(stroke.width as i8))
+                    .stroke(stroke)
+            } else {
+                allocated.frame
+            };
+
+            let atom_response = allocated.paint(ui);
             atom_response
         };
 
@@ -688,7 +707,7 @@ impl TextEdit<'_> {
                 &mut galley,
                 layouter,
                 id,
-                wrap_width,
+                0.0, // wrap_width,
                 multiline,
                 password,
                 default_cursor_range,
@@ -826,7 +845,7 @@ impl TextEdit<'_> {
 
                     if response.changed() || selection_changed {
                         // Scroll to keep primary cursor in view:
-                        ui.scroll_to_rect(primary_cursor_rect + margin, None);
+                        ui.scroll_to_rect(primary_cursor_rect, None);
                     }
 
                     if text.is_mutable() && interactive {
@@ -1180,7 +1199,7 @@ fn events(
             any_change = true;
 
             // Layout again to avoid frame delay, and to keep `text` and `galley` in sync.
-            *galley = layouter(ui, text, wrap_width);
+            // *galley = layouter(ui, text, wrap_width);
 
             // Set cursor_range using new galley:
             cursor_range = new_ccursor_range;

@@ -1,7 +1,7 @@
-use std::fmt::Debug;
 use crate::{FontSelection, Id, Image, ImageSource, SizedAtomKind, Ui, WidgetText};
 use emath::Vec2;
 use epaint::text::TextWrapMode;
+use std::fmt::Debug;
 
 /// The different kinds of [`crate::Atom`]s.
 #[derive(Default)]
@@ -70,7 +70,19 @@ pub enum AtomKind<'a> {
     /// When cloning, this will be cloned as [`AtomKind::Empty`].
     #[doc(hidden)]
     Closure(
-        Box<dyn FnOnce(&Ui, Vec2, TextWrapMode, FontSelection) -> (Vec2, SizedAtomKind<'a>) + 'a>,
+        Box<
+            dyn FnOnce(
+                    &Ui,
+                    Vec2,
+                    TextWrapMode,
+                    FontSelection,
+                ) -> (
+                    Vec2,
+                    // We need 'static here (or need to introduce another lifetime on the enum).
+                    // Other a single 'static Atom would force the closure to be 'static.
+                    SizedAtomKind<'static>,
+                ) + 'a,
+        >,
     ),
 }
 
@@ -108,7 +120,7 @@ impl<'a> AtomKind<'a> {
     }
 
     pub fn closure(
-        func: impl FnOnce(&Ui, Vec2, TextWrapMode, FontSelection) -> (Vec2, SizedAtomKind<'a>) + 'a,
+        func: impl FnOnce(&Ui, Vec2, TextWrapMode, FontSelection) -> (Vec2, SizedAtomKind<'static>) + 'a,
     ) -> Self {
         AtomKind::Closure(Box::new(func))
     }

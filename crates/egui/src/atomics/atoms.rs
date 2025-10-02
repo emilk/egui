@@ -21,9 +21,24 @@ impl<'a> Atoms<'a> {
         self.0.push(atom.into());
     }
 
+    /// Extend the list of atoms by appending more atoms to the right side.
+    ///
+    /// If you have weird lifetime issues with this, use [`Self::push_right`] in a loop instead.
+    pub fn extend_right(&mut self, atoms: Atoms<'a>) {
+        self.0.extend(atoms.0);
+    }
+
     /// Insert a new [`Atom`] at the beginning of the list (left side).
     pub fn push_left(&mut self, atom: impl Into<Atom<'a>>) {
         self.0.insert(0, atom.into());
+    }
+
+    /// Extend the list of atoms by prepending more atoms to the left side.
+    ///
+    /// If you have weird lifetime issues with this, use [`Self::push_left`] in a loop instead.
+    pub fn extend_left(&mut self, mut atoms: Atoms<'a>) {
+        std::mem::swap(&mut atoms.0, &mut self.0);
+        self.0.extend(atoms.0);
     }
 
     /// Concatenate and return the text contents.
@@ -52,18 +67,6 @@ impl<'a> Atoms<'a> {
         }
 
         string
-    }
-
-    /// Extend the list of atoms by appending more atoms to the right side.
-    pub fn extend_right(&mut self, atoms: impl IntoAtoms<'a>) {
-        atoms.collect(self);
-    }
-
-    /// Extend the list of atoms by prepending more atoms to the left side.
-    pub fn extend_left(&mut self, atoms: impl IntoAtoms<'a>) {
-        let mut new_atoms = atoms.into_atoms();
-        std::mem::swap(&mut new_atoms.0, &mut self.0);
-        self.0.extend(new_atoms.0);
     }
 
     pub fn iter_kinds(&self) -> impl Iterator<Item = &AtomKind<'a>> {
