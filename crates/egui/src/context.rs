@@ -2497,6 +2497,7 @@ impl ContextImpl {
 
         if self.memory.options.repaint_on_widget_change {
             profiling::scope!("compare-widget-rects");
+            #[allow(clippy::allow_attributes, clippy::collapsible_if)] // false positive on wasm
             if viewport.prev_pass.widgets != viewport.this_pass.widgets {
                 repaint_needed = true; // Some widget has moved
             }
