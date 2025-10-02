@@ -475,9 +475,9 @@ impl<'a> TableBuilder<'a> {
             if let Some(response) = ui.ctx().read_response(column_resize_id)
                 && response.double_clicked()
             {
-                    column.auto_size_this_frame = true;
-                }
+                column.auto_size_this_frame = true;
             }
+        }
 
         let striped = striped.unwrap_or(ui.visuals().striped);
 
@@ -867,25 +867,25 @@ impl Table<'_> {
                 } else if resize_response.dragged()
                     && let Some(pointer) = ui.ctx().pointer_latest_pos()
                 {
-                        let mut new_width = *column_width + pointer.x - x;
-                        if !column.clip {
-                            // Unless we clip we don't want to shrink below the
-                            // size that was actually used.
-                            // However, we still want to allow content that shrinks when you try
-                            // to make the column less wide, so we allow some small shrinkage each frame:
-                            // big enough to allow shrinking over time, small enough not to look ugly when
-                            // shrinking fails. This is a bit of a HACK around immediate mode.
-                            let max_shrinkage_per_frame = 8.0;
-                            new_width =
-                                new_width.at_least(max_used_widths[i] - max_shrinkage_per_frame);
-                        }
-                        new_width = width_range.clamp(new_width);
-
-                        let x = x - *column_width + new_width;
-                        (p0.x, p1.x) = (x, x);
-
-                        *column_width = new_width;
+                    let mut new_width = *column_width + pointer.x - x;
+                    if !column.clip {
+                        // Unless we clip we don't want to shrink below the
+                        // size that was actually used.
+                        // However, we still want to allow content that shrinks when you try
+                        // to make the column less wide, so we allow some small shrinkage each frame:
+                        // big enough to allow shrinking over time, small enough not to look ugly when
+                        // shrinking fails. This is a bit of a HACK around immediate mode.
+                        let max_shrinkage_per_frame = 8.0;
+                        new_width =
+                            new_width.at_least(max_used_widths[i] - max_shrinkage_per_frame);
                     }
+                    new_width = width_range.clamp(new_width);
+
+                    let x = x - *column_width + new_width;
+                    (p0.x, p1.x) = (x, x);
+
+                    *column_width = new_width;
+                }
 
                 let dragging_something_else =
                     ui.input(|i| i.pointer.any_down() || i.pointer.any_pressed());
@@ -991,7 +991,7 @@ impl<'a> TableBody<'a> {
             row_index: self.row_index,
             col_index: 0,
             height,
-            striped: self.striped && self.row_index % 2 == 0,
+            striped: self.striped && self.row_index.is_multiple_of(2),
             hovered: self.hovered_row_index == Some(self.row_index),
             selected: false,
             overline: false,
@@ -1073,7 +1073,7 @@ impl<'a> TableBody<'a> {
                 row_index,
                 col_index: 0,
                 height: row_height_sans_spacing,
-                striped: self.striped && (row_index + self.row_index) % 2 == 0,
+                striped: self.striped && (row_index + self.row_index).is_multiple_of(2),
                 hovered: self.hovered_row_index == Some(row_index),
                 selected: false,
                 overline: false,
@@ -1155,7 +1155,7 @@ impl<'a> TableBody<'a> {
                     row_index,
                     col_index: 0,
                     height: row_height,
-                    striped: self.striped && (row_index + self.row_index) % 2 == 0,
+                    striped: self.striped && (row_index + self.row_index).is_multiple_of(2),
                     hovered: self.hovered_row_index == Some(row_index),
                     selected: false,
                     overline: false,
@@ -1178,7 +1178,7 @@ impl<'a> TableBody<'a> {
                 row_index,
                 col_index: 0,
                 height: row_height,
-                striped: self.striped && (row_index + self.row_index) % 2 == 0,
+                striped: self.striped && (row_index + self.row_index).is_multiple_of(2),
                 hovered: self.hovered_row_index == Some(row_index),
                 overline: false,
                 selected: false,
