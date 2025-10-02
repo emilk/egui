@@ -76,6 +76,24 @@ document-features = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 webbrowser = { version = "1.0.0", optional = true }
 
+[target.'cfg(target_os = "ios")'.dependencies]
+objc2 = { workspace = true }
+objc2-foundation = { workspace = true, features = [
+  "std",
+  "NSThread",
+] }
+objc2-ui-kit = { workspace = true, features = [
+  "std",
+  "UIApplication",
+  "UIGeometry",
+  "UIResponder",
+  "UIScene",
+  "UISceneDefinitions",
+  "UIView",
+  "UIWindow",
+  "UIWindowScene",
+] }
+
 [target.'cfg(any(target_os="linux", target_os="dragonfly", target_os="freebsd", target_os="netbsd", target_os="openbsd"))'.dependencies]
 smithay-clipboard = { version = "0.7.2", optional = true }
 

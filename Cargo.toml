@@ -94,6 +94,7 @@ nohash-hasher = "0.2"
 objc2 = "0.5.1"
 objc2-app-kit = { version = "0.2.0", default-features = false }
 objc2-foundation = { version = "0.2.0", default-features = false }
+objc2-ui-kit = { version = "0.2.0", default-features = false }
 parking_lot = "0.12"
 percent-encoding = "2.1"
 pollster = "0.4"
