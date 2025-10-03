@@ -8,7 +8,12 @@ use image::RgbaImage;
 use crate::texture_to_image::texture_to_image;
 
 /// Timeout for waiting on the GPU to finish rendering.
-pub(crate) const WAIT_TIMEOUT: Duration = Duration::from_secs(1);
+///
+/// Windows will reset native drivers after 2 seconds of being stuck (known was TDR - timeout detection & recovery).
+/// However, software rasterizers like lavapipe may not do that and take longer if there's a lot of work in flight.
+/// In the end, what we really want to protect here against is undetected errors that lead to device loss
+/// and therefore infinite waits it happens occasionally on MacOS/Metal as of writing.
+pub(crate) const WAIT_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Default wgpu setup used for the wgpu renderer.
 pub fn default_wgpu_setup() -> egui_wgpu::WgpuSetup {
