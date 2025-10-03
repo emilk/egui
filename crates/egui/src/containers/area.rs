@@ -512,6 +512,8 @@ impl Area {
                     Sense::hover()
                 }
             });
+            
+            let enabled = enabled && interactable;
 
             let move_response = ctx.create_widget(
                 WidgetRect {
@@ -596,7 +598,11 @@ impl Prepared {
             .max_rect(max_rect)
             .layout(self.layout)
             .closable();
-
+        
+        if !self.state.interactable {
+            ui_builder = ui_builder
+                .noninteractive();
+        }
         if !self.enabled {
             ui_builder = ui_builder.disabled();
         }
