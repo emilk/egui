@@ -281,10 +281,9 @@ impl<'app> GlowWinitApp<'app> {
             .viewport
             .mouse_passthrough
             .unwrap_or(false)
+            && let Err(err) = glutin.window(ViewportId::ROOT).set_cursor_hittest(false)
         {
-            if let Err(err) = glutin.window(ViewportId::ROOT).set_cursor_hittest(false) {
-                log::warn!("set_cursor_hittest(false) failed: {err}");
-            }
+            log::warn!("set_cursor_hittest(false) failed: {err}");
         }
 
         let app_creator = std::mem::take(&mut self.app_creator)
@@ -440,20 +439,20 @@ impl WinitApp for GlowWinitApp<'_> {
         _: winit::event::DeviceId,
         event: winit::event::DeviceEvent,
     ) -> crate::Result<EventResult> {
-        if let winit::event::DeviceEvent::MouseMotion { delta } = event {
-            if let Some(running) = &mut self.running {
-                let mut glutin = running.glutin.borrow_mut();
-                if let Some(viewport) = glutin
-                    .focused_viewport
-                    .and_then(|viewport| glutin.viewports.get_mut(&viewport))
-                {
-                    if let Some(egui_winit) = viewport.egui_winit.as_mut() {
-                        egui_winit.on_mouse_motion(delta);
-                    }
+        if let winit::event::DeviceEvent::MouseMotion { delta } = event
+            && let Some(running) = &mut self.running
+        {
+            let mut glutin = running.glutin.borrow_mut();
+            if let Some(viewport) = glutin
+                .focused_viewport
+                .and_then(|viewport| glutin.viewports.get_mut(&viewport))
+            {
+                if let Some(egui_winit) = viewport.egui_winit.as_mut() {
+                    egui_winit.on_mouse_motion(delta);
+                }
 
-                    if let Some(window) = viewport.window.as_ref() {
-                        return Ok(EventResult::RepaintNext(window.id()));
-                    }
+                if let Some(window) = viewport.window.as_ref() {
+                    return Ok(EventResult::RepaintNext(window.id()));
                 }
             }
         }
@@ -470,7 +469,7 @@ impl WinitApp for GlowWinitApp<'_> {
         if let Some(running) = &mut self.running {
             Ok(running.on_window_event(window_id, &event))
         } else {
-            Ok(EventResult::Wait)
+            Ok(EventResult::Exit)
         }
     }
 
@@ -480,16 +479,15 @@ impl WinitApp for GlowWinitApp<'_> {
 
         if let Some(running) = &self.running {
             let mut glutin = running.glutin.borrow_mut();
-            if let Some(viewport_id) = glutin.viewport_from_window.get(&event.window_id).copied() {
-                if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
-                    if let Some(egui_winit) = &mut viewport.egui_winit {
-                        return Ok(winit_integration::on_accesskit_window_event(
-                            egui_winit,
-                            event.window_id,
-                            &event.window_event,
-                        ));
-                    }
-                }
+            if let Some(viewport_id) = glutin.viewport_from_window.get(&event.window_id).copied()
+                && let Some(viewport) = glutin.viewports.get_mut(&viewport_id)
+                && let Some(egui_winit) = &mut viewport.egui_winit
+            {
+                return Ok(winit_integration::on_accesskit_window_event(
+                    egui_winit,
+                    event.window_id,
+                    &event.window_event,
+                ));
             }
         }
 
@@ -527,10 +525,10 @@ impl GlowWinitRunning<'_> {
             if is_immediate && viewport_id != ViewportId::ROOT {
                 // This will only happen if this is an immediate viewport.
                 // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
-                if let Some(parent_viewport) = glutin.viewports.get(&viewport.ids.parent) {
-                    if let Some(window) = parent_viewport.window.as_ref() {
-                        return Ok(EventResult::RepaintNext(window.id()));
-                    }
+                if let Some(parent_viewport) = glutin.viewports.get(&viewport.ids.parent)
+                    && let Some(window) = parent_viewport.window.as_ref()
+                {
+                    return Ok(EventResult::RepaintNext(window.id()));
                 }
                 return Ok(EventResult::Wait);
             }
@@ -727,10 +725,10 @@ impl GlowWinitRunning<'_> {
 
         // give it time to settle:
         #[cfg(feature = "__screenshot")]
-        if integration.egui_ctx.cumulative_pass_nr() == 2 {
-            if let Ok(path) = std::env::var("EFRAME_SCREENSHOT_TO") {
-                save_screenshot_and_exit(&path, &painter, screen_size_in_pixels);
-            }
+        if integration.egui_ctx.cumulative_pass_nr() == 2
+            && let Ok(path) = std::env::var("EFRAME_SCREENSHOT_TO")
+        {
+            save_screenshot_and_exit(&path, &painter, screen_size_in_pixels);
         }
 
         glutin.handle_viewport_output(event_loop, &integration.egui_ctx, &viewport_output);
@@ -747,7 +745,7 @@ impl GlowWinitRunning<'_> {
         }
 
         if integration.should_close() {
-            Ok(EventResult::Exit)
+            Ok(EventResult::CloseRequested)
         } else {
             Ok(EventResult::Wait)
         }
@@ -785,11 +783,12 @@ impl GlowWinitRunning<'_> {
                 // Resize with 0 width and height is used by winit to signal a minimize event on Windows.
                 // See: https://github.com/rust-windowing/winit/issues/208
                 // This solves an issue where the app would panic when minimizing on Windows.
-                if 0 < physical_size.width && 0 < physical_size.height {
-                    if let Some(viewport_id) = viewport_id {
-                        repaint_asap = true;
-                        glutin.resize(viewport_id, *physical_size);
-                    }
+                if 0 < physical_size.width
+                    && 0 < physical_size.height
+                    && let Some(viewport_id) = viewport_id
+                {
+                    repaint_asap = true;
+                    glutin.resize(viewport_id, *physical_size);
                 }
             }
 
@@ -798,44 +797,31 @@ impl GlowWinitRunning<'_> {
                     log::debug!(
                         "Received WindowEvent::CloseRequested for main viewport - shutting down."
                     );
-                    return EventResult::Exit;
+                    return EventResult::CloseRequested;
                 }
 
                 log::debug!("Received WindowEvent::CloseRequested for viewport {viewport_id:?}");
 
-                if let Some(viewport_id) = viewport_id {
-                    if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
-                        // Tell viewport it should close:
-                        viewport.info.events.push(egui::ViewportEvent::Close);
+                if let Some(viewport_id) = viewport_id
+                    && let Some(viewport) = glutin.viewports.get_mut(&viewport_id)
+                {
+                    // Tell viewport it should close:
+                    viewport.info.events.push(egui::ViewportEvent::Close);
 
-                        // We may need to repaint both us and our parent to close the window,
-                        // and perhaps twice (once to notice the close-event, once again to enforce it).
-                        // `request_repaint_of` does a double-repaint though:
-                        self.integration.egui_ctx.request_repaint_of(viewport_id);
-                        self.integration
-                            .egui_ctx
-                            .request_repaint_of(viewport.ids.parent);
-                    }
+                    // We may need to repaint both us and our parent to close the window,
+                    // and perhaps twice (once to notice the close-event, once again to enforce it).
+                    // `request_repaint_of` does a double-repaint though:
+                    self.integration.egui_ctx.request_repaint_of(viewport_id);
+                    self.integration
+                        .egui_ctx
+                        .request_repaint_of(viewport.ids.parent);
                 }
             }
-
-            winit::event::WindowEvent::Destroyed => {
-                log::debug!(
-                    "Received WindowEvent::Destroyed for viewport {:?}",
-                    viewport_id
-                );
-                if viewport_id == Some(ViewportId::ROOT) {
-                    return EventResult::Exit;
-                } else {
-                    return EventResult::Wait;
-                }
-            }
-
             _ => {}
         }
 
         if self.integration.should_close() {
-            return EventResult::Exit;
+            return EventResult::CloseRequested;
         }
 
         let mut event_response = egui_winit::EventResponse {
@@ -1245,21 +1231,21 @@ impl GlutinWindowContext {
         let width_px = NonZeroU32::new(physical_size.width).unwrap_or(NonZeroU32::MIN);
         let height_px = NonZeroU32::new(physical_size.height).unwrap_or(NonZeroU32::MIN);
 
-        if let Some(viewport) = self.viewports.get(&viewport_id) {
-            if let Some(gl_surface) = &viewport.gl_surface {
-                change_gl_context(
-                    &mut self.current_gl_context,
-                    &mut self.not_current_gl_context,
-                    gl_surface,
-                );
-                gl_surface.resize(
-                    self.current_gl_context
-                        .as_ref()
-                        .expect("failed to get current context to resize surface"),
-                    width_px,
-                    height_px,
-                );
-            }
+        if let Some(viewport) = self.viewports.get(&viewport_id)
+            && let Some(gl_surface) = &viewport.gl_surface
+        {
+            change_gl_context(
+                &mut self.current_gl_context,
+                &mut self.not_current_gl_context,
+                gl_surface,
+            );
+            gl_surface.resize(
+                self.current_gl_context
+                    .as_ref()
+                    .expect("failed to get current context to resize surface"),
+                width_px,
+                height_px,
+            );
         }
     }
 

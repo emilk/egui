@@ -645,10 +645,10 @@ impl Window<'_> {
 
         let full_response = area.end(ctx, area_content_ui);
 
-        if full_response.should_close() {
-            if let Some(open) = open {
-                *open = false;
-            }
+        if full_response.should_close()
+            && let Some(open) = open
+        {
+            *open = false;
         }
 
         let inner_response = InnerResponse {
@@ -839,11 +839,11 @@ fn resize_response(
     // TODO(emilk): add this to a Window state instead as a command "move here next frame"
     area.state_mut().set_left_top_pos(new_rect.left_top());
 
-    if resize_interaction.any_dragged() {
-        if let Some(mut state) = resize::State::load(ctx, resize_id) {
-            state.requested_size = Some(new_rect.size() - margins);
-            state.store(ctx, resize_id);
-        }
+    if resize_interaction.any_dragged()
+        && let Some(mut state) = resize::State::load(ctx, resize_id)
+    {
+        state.requested_size = Some(new_rect.size() - margins);
+        state.store(ctx, resize_id);
     }
 
     ctx.memory_mut(|mem| mem.areas_mut().move_to_top(area_layer_id));

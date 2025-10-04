@@ -420,17 +420,14 @@ impl MenuRoot {
         } else if button
             .ctx
             .input(|i| i.pointer.any_pressed() && i.pointer.primary_down())
+            && let Some(pos) = button.ctx.input(|i| i.pointer.interact_pos())
+            && let Some(root) = root.inner.as_mut()
+            && root.id == id
         {
-            if let Some(pos) = button.ctx.input(|i| i.pointer.interact_pos()) {
-                if let Some(root) = root.inner.as_mut() {
-                    if root.id == id {
-                        // pressed somewhere while this menu is open
-                        let in_menu = root.menu_state.read().area_contains(pos);
-                        if !in_menu {
-                            return MenuResponse::Close;
-                        }
-                    }
-                }
+            // pressed somewhere while this menu is open
+            let in_menu = root.menu_state.read().area_contains(pos);
+            if !in_menu {
+                return MenuResponse::Close;
             }
         }
         MenuResponse::Stay
@@ -728,21 +725,21 @@ impl MenuState {
             return false;
         }
 
-        if let Some(sub_menu) = self.current_submenu() {
-            if let Some(pos) = pointer.hover_pos() {
-                let rect = sub_menu.read().rect;
-                return rect.intersects_ray(pos, pointer.direction().normalized());
-            }
+        if let Some(sub_menu) = self.current_submenu()
+            && let Some(pos) = pointer.hover_pos()
+        {
+            let rect = sub_menu.read().rect;
+            return rect.intersects_ray(pos, pointer.direction().normalized());
         }
         false
     }
 
     /// Check if pointer is hovering current submenu.
     fn hovering_current_submenu(&self, pointer: &PointerState) -> bool {
-        if let Some(sub_menu) = self.current_submenu() {
-            if let Some(pos) = pointer.hover_pos() {
-                return sub_menu.read().area_contains(pos);
-            }
+        if let Some(sub_menu) = self.current_submenu()
+            && let Some(pos) = pointer.hover_pos()
+        {
+            return sub_menu.read().area_contains(pos);
         }
         false
     }

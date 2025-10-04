@@ -48,9 +48,6 @@ color-hex = ["epaint/color-hex"]
 ## If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["epaint/default_fonts"]
 
-## Turn on the `log` feature, that makes egui log some errors using the [`log`](https://docs.rs/log) crate.
-log = ["dep:log", "epaint/log"]
-
 ## [`mint`](https://docs.rs/mint) enables interoperability with other math libraries such as [`glam`](https://docs.rs/glam) and [`nalgebra`](https://docs.rs/nalgebra).
 mint = ["epaint/mint"]
 
@@ -80,6 +77,7 @@ epaint = { workspace = true, default-features = false }
 
 ahash.workspace = true
 bitflags.workspace = true
+log.workspace = true
 nohash-hasher.workspace = true
 profiling.workspace = true
 smallvec.workspace = true
@@ -93,6 +91,5 @@ backtrace = { workspace = true, optional = true }
 ## Enable this when generating docs.
 document-features = { workspace = true, optional = true }
 
-log = { workspace = true, optional = true }
 ron = { workspace = true, optional = true }
 serde = { workspace = true, optional = true, features = ["derive", "rc"] }

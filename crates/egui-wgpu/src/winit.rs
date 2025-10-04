@@ -498,14 +498,12 @@ impl Painter {
                 &screen_descriptor,
             );
 
-            if capture {
-                if let Some(capture_state) = &mut self.screen_capture_state {
-                    capture_buffer = Some(capture_state.copy_textures(
-                        &render_state.device,
-                        &output_frame,
-                        &mut encoder,
-                    ));
-                }
+            if capture && let Some(capture_state) = &mut self.screen_capture_state {
+                capture_buffer = Some(capture_state.copy_textures(
+                    &render_state.device,
+                    &output_frame,
+                    &mut encoder,
+                ));
             }
         }
 
@@ -535,16 +533,16 @@ impl Painter {
             }
         }
 
-        if let Some(capture_buffer) = capture_buffer {
-            if let Some(screen_capture_state) = &mut self.screen_capture_state {
-                screen_capture_state.read_screen_rgba(
-                    self.context.clone(),
-                    capture_buffer,
-                    capture_data,
-                    self.capture_tx.clone(),
-                    viewport_id,
-                );
-            }
+        if let Some(capture_buffer) = capture_buffer
+            && let Some(screen_capture_state) = &mut self.screen_capture_state
+        {
+            screen_capture_state.read_screen_rgba(
+                self.context.clone(),
+                capture_buffer,
+                capture_data,
+                self.capture_tx.clone(),
+                viewport_id,
+            );
         }
 
         {

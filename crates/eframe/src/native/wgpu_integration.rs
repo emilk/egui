@@ -429,20 +429,20 @@ impl WinitApp for WgpuWinitApp<'_> {
         _: winit::event::DeviceId,
         event: winit::event::DeviceEvent,
     ) -> crate::Result<EventResult> {
-        if let winit::event::DeviceEvent::MouseMotion { delta } = event {
-            if let Some(running) = &mut self.running {
-                let mut shared = running.shared.borrow_mut();
-                if let Some(viewport) = shared
-                    .focused_viewport
-                    .and_then(|viewport| shared.viewports.get_mut(&viewport))
-                {
-                    if let Some(egui_winit) = viewport.egui_winit.as_mut() {
-                        egui_winit.on_mouse_motion(delta);
-                    }
+        if let winit::event::DeviceEvent::MouseMotion { delta } = event
+            && let Some(running) = &mut self.running
+        {
+            let mut shared = running.shared.borrow_mut();
+            if let Some(viewport) = shared
+                .focused_viewport
+                .and_then(|viewport| shared.viewports.get_mut(&viewport))
+            {
+                if let Some(egui_winit) = viewport.egui_winit.as_mut() {
+                    egui_winit.on_mouse_motion(delta);
+                }
 
-                    if let Some(window) = viewport.window.as_ref() {
-                        return Ok(EventResult::RepaintNext(window.id()));
-                    }
+                if let Some(window) = viewport.window.as_ref() {
+                    return Ok(EventResult::RepaintNext(window.id()));
                 }
             }
         }
@@ -461,7 +461,8 @@ impl WinitApp for WgpuWinitApp<'_> {
         if let Some(running) = &mut self.running {
             Ok(running.on_window_event(window_id, &event))
         } else {
-            Ok(EventResult::Wait)
+            // running is removed to get ready for exiting
+            Ok(EventResult::Exit)
         }
     }
 
@@ -477,14 +478,13 @@ impl WinitApp for WgpuWinitApp<'_> {
             if let Some(viewport) = viewport_from_window
                 .get(&event.window_id)
                 .and_then(|id| viewports.get_mut(id))
+                && let Some(egui_winit) = &mut viewport.egui_winit
             {
-                if let Some(egui_winit) = &mut viewport.egui_winit {
-                    return Ok(winit_integration::on_accesskit_window_event(
-                        egui_winit,
-                        event.window_id,
-                        &event.window_event,
-                    ));
-                }
+                return Ok(winit_integration::on_accesskit_window_event(
+                    egui_winit,
+                    event.window_id,
+                    &event.window_event,
+                ));
             }
         }
 
@@ -562,10 +562,10 @@ impl WgpuWinitRunning<'_> {
                 if viewport.viewport_ui_cb.is_none() {
                     // This will only happen if this is an immediate viewport.
                     // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
-                    if let Some(viewport) = viewports.get(&viewport.ids.parent) {
-                        if let Some(window) = viewport.window.as_ref() {
-                            return Ok(EventResult::RepaintNext(window.id()));
-                        }
+                    if let Some(viewport) = viewports.get(&viewport.ids.parent)
+                        && let Some(window) = viewport.window.as_ref()
+                    {
+                        return Ok(EventResult::RepaintNext(window.id()));
                     }
                     return Ok(EventResult::Wait);
                 }
@@ -729,17 +729,17 @@ impl WgpuWinitRunning<'_> {
 
         integration.maybe_autosave(app.as_mut(), window.map(|w| w.as_ref()));
 
-        if let Some(window) = window {
-            if window.is_minimized() == Some(true) {
-                // On Mac, a minimized Window uses up all CPU:
-                // https://github.com/emilk/egui/issues/325
-                profiling::scope!("minimized_sleep");
-                std::thread::sleep(std::time::Duration::from_millis(10));
-            }
+        if let Some(window) = window
+            && window.is_minimized() == Some(true)
+        {
+            // On Mac, a minimized Window uses up all CPU:
+            // https://github.com/emilk/egui/issues/325
+            profiling::scope!("minimized_sleep");
+            std::thread::sleep(std::time::Duration::from_millis(10));
         }
 
         if integration.should_close() {
-            Ok(EventResult::Exit)
+            Ok(EventResult::CloseRequested)
         } else {
             Ok(EventResult::Wait)
         }
@@ -783,14 +783,14 @@ impl WgpuWinitRunning<'_> {
                 // Resize with 0 width and height is used by winit to signal a minimize event on Windows.
                 // See: https://github.com/rust-windowing/winit/issues/208
                 // This solves an issue where the app would panic when minimizing on Windows.
-                if let Some(viewport_id) = viewport_id {
-                    if let (Some(width), Some(height)) = (
+                if let Some(viewport_id) = viewport_id
+                    && let (Some(width), Some(height)) = (
                         NonZeroU32::new(physical_size.width),
                         NonZeroU32::new(physical_size.height),
-                    ) {
-                        repaint_asap = true;
-                        shared.painter.on_window_resized(viewport_id, width, height);
-                    }
+                    )
+                {
+                    repaint_asap = true;
+                    shared.painter.on_window_resized(viewport_id, width, height);
                 }
             }
 
@@ -799,22 +799,22 @@ impl WgpuWinitRunning<'_> {
                     log::debug!(
                         "Received WindowEvent::CloseRequested for main viewport - shutting down."
                     );
-                    return EventResult::Exit;
+                    return EventResult::CloseRequested;
                 }
 
                 log::debug!("Received WindowEvent::CloseRequested for viewport {viewport_id:?}");
 
-                if let Some(viewport_id) = viewport_id {
-                    if let Some(viewport) = shared.viewports.get_mut(&viewport_id) {
-                        // Tell viewport it should close:
-                        viewport.info.events.push(egui::ViewportEvent::Close);
+                if let Some(viewport_id) = viewport_id
+                    && let Some(viewport) = shared.viewports.get_mut(&viewport_id)
+                {
+                    // Tell viewport it should close:
+                    viewport.info.events.push(egui::ViewportEvent::Close);
 
-                        // We may need to repaint both us and our parent to close the window,
-                        // and perhaps twice (once to notice the close-event, once again to enforce it).
-                        // `request_repaint_of` does a double-repaint though:
-                        integration.egui_ctx.request_repaint_of(viewport_id);
-                        integration.egui_ctx.request_repaint_of(viewport.ids.parent);
-                    }
+                    // We may need to repaint both us and our parent to close the window,
+                    // and perhaps twice (once to notice the close-event, once again to enforce it).
+                    // `request_repaint_of` does a double-repaint though:
+                    integration.egui_ctx.request_repaint_of(viewport_id);
+                    integration.egui_ctx.request_repaint_of(viewport.ids.parent);
                 }
             }
 
@@ -833,7 +833,7 @@ impl WgpuWinitRunning<'_> {
             .unwrap_or_default();
 
         if integration.should_close() {
-            EventResult::Exit
+            EventResult::CloseRequested
         } else if event_response.repaint {
             if repaint_asap {
                 EventResult::RepaintNow(window_id)
@@ -1086,13 +1086,13 @@ fn handle_viewport_output(
             // For Wayland : https://github.com/emilk/egui/issues/4196
             if cfg!(target_os = "linux") {
                 let new_inner_size = window.inner_size();
-                if new_inner_size != old_inner_size {
-                    if let (Some(width), Some(height)) = (
+                if new_inner_size != old_inner_size
+                    && let (Some(width), Some(height)) = (
                         NonZeroU32::new(new_inner_size.width),
                         NonZeroU32::new(new_inner_size.height),
-                    ) {
-                        painter.on_window_resized(viewport_id, width, height);
-                    }
+                    )
+                {
+                    painter.on_window_resized(viewport_id, width, height);
                 }
             }
         }

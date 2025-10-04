@@ -426,20 +426,18 @@ impl ContextImpl {
 
         let viewport = self.viewports.entry(viewport_id).or_default();
 
-        if is_outermost_viewport {
-            if let Some(new_zoom_factor) = self.new_zoom_factor.take() {
-                let ratio = self.memory.options.zoom_factor / new_zoom_factor;
-                self.memory.options.zoom_factor = new_zoom_factor;
+        if is_outermost_viewport && let Some(new_zoom_factor) = self.new_zoom_factor.take() {
+            let ratio = self.memory.options.zoom_factor / new_zoom_factor;
+            self.memory.options.zoom_factor = new_zoom_factor;
 
-                let input = &viewport.input;
-                // This is a bit hacky, but is required to avoid jitter:
-                let mut rect = input.screen_rect;
-                rect.min = (ratio * rect.min.to_vec2()).to_pos2();
-                rect.max = (ratio * rect.max.to_vec2()).to_pos2();
-                new_raw_input.screen_rect = Some(rect);
-                // We should really scale everything else in the input too,
-                // but the `screen_rect` is the most important part.
-            }
+            let input = &viewport.input;
+            // This is a bit hacky, but is required to avoid jitter:
+            let mut rect = input.screen_rect;
+            rect.min = (ratio * rect.min.to_vec2()).to_pos2();
+            rect.max = (ratio * rect.max.to_vec2()).to_pos2();
+            new_raw_input.screen_rect = Some(rect);
+            // We should really scale everything else in the input too,
+            // but the `screen_rect` is the most important part.
         }
         let native_pixels_per_point = new_raw_input
             .viewport()
@@ -537,7 +535,7 @@ impl ContextImpl {
             // New font definition loaded, so we need to reload all fonts.
             self.fonts = None;
             self.font_definitions = font_definitions;
-            #[cfg(feature = "log")]
+
             log::trace!("Loading new font definitions");
         }
 
@@ -561,7 +559,6 @@ impl ContextImpl {
                     .insert(font.name, Arc::new(font.data));
             }
 
-            #[cfg(feature = "log")]
             log::trace!("Adding new fonts");
         }
 
@@ -570,7 +567,6 @@ impl ContextImpl {
         let mut is_new = false;
 
         let fonts = self.fonts.get_or_insert_with(|| {
-            #[cfg(feature = "log")]
             log::trace!("Creating new Fonts");
 
             is_new = true;
@@ -808,7 +804,6 @@ impl Context {
             }
 
             if max_passes <= output.platform_output.num_completed_passes {
-                #[cfg(feature = "log")]
                 log::debug!(
                     "Ignoring call request_discard, because max_passes={max_passes}. Requested from {:?}",
                     output.platform_output.request_discard_reasons
@@ -1105,15 +1100,16 @@ impl Context {
                 )
             };
 
-            if let Some(pointer_pos) = self.pointer_hover_pos() {
-                if text_rect.contains(pointer_pos) {
-                    let tooltip_pos = if below {
-                        text_rect.left_bottom() + vec2(2.0, 4.0)
-                    } else {
-                        text_rect.left_top() + vec2(2.0, -4.0)
-                    };
+            if let Some(pointer_pos) = self.pointer_hover_pos()
+                && text_rect.contains(pointer_pos)
+            {
+                let tooltip_pos = if below {
+                    text_rect.left_bottom() + vec2(2.0, 4.0)
+                } else {
+                    text_rect.left_top() + vec2(2.0, -4.0)
+                };
 
-                    painter.error(
+                painter.error(
                         tooltip_pos,
                         format!("Widget is {} this text.\n\n\
                              ID clashes happens when things like Windows or CollapsingHeaders share names,\n\
@@ -1121,7 +1117,6 @@ impl Context {
                              Sometimes the solution is to use ui.push_id.",
                                 if below { "above" } else { "below" }),
                     );
-                }
             }
         };
 
@@ -1253,10 +1248,10 @@ impl Context {
             widget_rect.map(|mut rect| {
                 // If the Rect is invalid the Ui hasn't registered its final Rect yet.
                 // We return the Rect from last frame instead.
-                if !(rect.rect.is_positive() && rect.rect.is_finite()) {
-                    if let Some(prev_rect) = viewport.prev_pass.widgets.get(id) {
-                        rect.rect = prev_rect.rect;
-                    }
+                if !(rect.rect.is_positive() && rect.rect.is_finite())
+                    && let Some(prev_rect) = viewport.prev_pass.widgets.get(id)
+                {
+                    rect.rect = prev_rect.rect;
                 }
                 rect
             })
@@ -1821,7 +1816,6 @@ impl Context {
         let cause = RepaintCause::new_reason(reason);
         self.output_mut(|o| o.request_discard_reasons.push(cause));
 
-        #[cfg(feature = "log")]
         log::trace!(
             "request_discard: {}",
             if self.will_discard() {
@@ -1961,14 +1955,13 @@ impl Context {
         let mut update_fonts = true;
 
         self.read(|ctx| {
-            if let Some(current_fonts) = ctx.fonts.as_ref() {
-                if current_fonts
+            if let Some(current_fonts) = ctx.fonts.as_ref()
+                && current_fonts
                     .definitions()
                     .font_data
                     .contains_key(&new_font.name)
-                {
-                    update_fonts = false; // no need to update
-                }
+            {
+                update_fonts = false; // no need to update
             }
         });
 
@@ -2504,6 +2497,7 @@ impl ContextImpl {
 
         if self.memory.options.repaint_on_widget_change {
             profiling::scope!("compare-widget-rects");
+            #[allow(clippy::allow_attributes, clippy::collapsible_if)] // false positive on wasm
             if viewport.prev_pass.widgets != viewport.this_pass.widgets {
                 repaint_needed = true; // Some widget has moved
             }
@@ -2528,7 +2522,6 @@ impl ContextImpl {
             let parent = *self.viewport_parents.entry(id).or_default();
 
             if !all_viewport_ids.contains(&parent) {
-                #[cfg(feature = "log")]
                 log::debug!(
                     "Removing viewport {:?} ({:?}): the parent is gone",
                     id,
@@ -2541,7 +2534,6 @@ impl ContextImpl {
             let is_our_child = parent == ended_viewport_id && id != ViewportId::ROOT;
             if is_our_child {
                 if !viewport.used {
-                    #[cfg(feature = "log")]
                     log::debug!(
                         "Removing viewport {:?} ({:?}): it was never used this pass",
                         id,
@@ -2640,7 +2632,6 @@ impl Context {
             let texture_atlas = if let Some(fonts) = ctx.fonts.as_ref() {
                 fonts.texture_atlas()
             } else {
-                #[cfg(feature = "log")]
                 log::warn!("No font size matching {pixels_per_point} pixels per point found.");
                 ctx.fonts
                     .iter()

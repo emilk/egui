@@ -463,7 +463,6 @@ impl CachedFamily {
             .glyph_info_no_cache_or_fallback(PRIMARY_REPLACEMENT_CHAR, fonts_by_id)
             .or_else(|| slf.glyph_info_no_cache_or_fallback(FALLBACK_REPLACEMENT_CHAR, fonts_by_id))
             .unwrap_or_else(|| {
-                #[cfg(feature = "log")]
                 log::warn!(
                     "Failed to find replacement characters {PRIMARY_REPLACEMENT_CHAR:?} or {FALLBACK_REPLACEMENT_CHAR:?}. Will use empty glyph."
                 );
@@ -651,6 +650,8 @@ impl FontsView<'_> {
     }
 
     /// Width of this character in points.
+    ///
+    /// If the font doesn't exist, this will return `0.0`.
     pub fn glyph_width(&mut self, font_id: &FontId, c: char) -> f32 {
         self.fonts
             .font(&font_id.family)
@@ -1301,5 +1302,14 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn test_fallback_glyph_width() {
+        let mut fonts = Fonts::new(1024, AlphaFromCoverage::default(), FontDefinitions::empty());
+        let mut view = fonts.with_pixels_per_point(1.0);
+
+        let width = view.glyph_width(&FontId::new(12.0, FontFamily::Proportional), ' ');
+        assert_eq!(width, 0.0);
     }
 }
