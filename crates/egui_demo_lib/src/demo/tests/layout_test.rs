@@ -9,6 +9,9 @@ pub struct LayoutTest {
     // Extra for testing wrapping:
     wrap_column_width: f32,
     wrap_row_height: f32,
+
+    // Improve UX around `main_justify`
+    restrict_resize: Restriction,
 }
 
 impl Default for LayoutTest {
@@ -17,6 +20,7 @@ impl Default for LayoutTest {
             layout: LayoutSettings::top_down(),
             wrap_column_width: 150.0,
             wrap_row_height: 20.0,
+            restrict_resize: Restriction::MaxSize
         }
     }
 }
@@ -103,26 +107,14 @@ impl crate::View for LayoutTest {
     fn ui(&mut self, ui: &mut Ui) {
         ui.label("Tests and demonstrates the limits of the egui layouts");
         self.content_ui(ui);
-        Resize::default()
-            .default_size([150.0, 200.0])
-            .max_size([300.0, 400.0])
-            .show(ui, |ui| {
-                if self.layout.main_wrap {
-                    if self.layout.main_dir.is_horizontal() {
-                        ui.allocate_ui(
-                            vec2(ui.available_size_before_wrap().x, self.wrap_row_height),
-                            |ui| ui.with_layout(self.layout.layout(), demo_ui),
-                        );
-                    } else {
-                        ui.allocate_ui(
-                            vec2(self.wrap_column_width, ui.available_size_before_wrap().y),
-                            |ui| ui.with_layout(self.layout.layout(), demo_ui),
-                        );
-                    }
-                } else {
-                    ui.with_layout(self.layout.layout(), demo_ui);
-                }
-            });
+        let area = Resize::default().default_size([150.0, 200.0]);
+        match self.restrict_resize {
+            Restriction::None => self.demo_area(ui, area),
+            Restriction::MaxSize => self.demo_area(ui, area.max_size([RESIZE_WIDTH, RESIZE_HEIGHT])),
+            Restriction::AllocateUi => {
+                ui.allocate_ui([RESIZE_WIDTH, RESIZE_HEIGHT].into(), |ui| self.demo_area(ui, area));
+            },
+        }
         ui.label("Resize to see effect");
 
         ui.vertical_centered(|ui| {
@@ -193,6 +185,37 @@ impl LayoutTest {
 
         ui.checkbox(&mut self.layout.cross_justify, "Cross Justified")
             .on_hover_text("Try to fill full width/height (e.g. buttons)");
+
+        ui.add_space(10.0);
+        ui.horizontal(|ui| {
+            ui.label("Limit Resize:");
+            ui.selectable_value(&mut self.restrict_resize, Restriction::None, "None");
+            ui.selectable_value(&mut self.restrict_resize, Restriction::MaxSize, "Max Size")
+                .on_hover_text(format!("Maximum size of {RESIZE_WIDTH}x{RESIZE_HEIGHT}"));
+            ui.selectable_value(&mut self.restrict_resize, Restriction::AllocateUi, "Allocate UI")
+                .on_hover_text(format!("Allocate area of {RESIZE_WIDTH}x{RESIZE_HEIGHT}"));
+        });
+        ui.add_space(10.0);
+    }
+
+    pub fn demo_area(&mut self, ui: &mut Ui, area: Resize) {
+        area.show(ui, |ui| {
+            if self.layout.main_wrap {
+                if self.layout.main_dir.is_horizontal() {
+                    ui.allocate_ui(
+                        vec2(ui.available_size_before_wrap().x, self.wrap_row_height),
+                        |ui| ui.with_layout(self.layout.layout(), demo_ui),
+                    );
+                } else {
+                    ui.allocate_ui(
+                        vec2(self.wrap_column_width, ui.available_size_before_wrap().y),
+                        |ui| ui.with_layout(self.layout.layout(), demo_ui),
+                    );
+                }
+            } else {
+                ui.with_layout(self.layout.layout(), demo_ui);
+            }
+        });
     }
 }
 
@@ -203,3 +226,14 @@ fn demo_ui(ui: &mut Ui) {
     ui.radio_value(&mut dummy, false, "radio");
     let _ = ui.add(egui::Button::new("button").min_size([100.0, 100.0].into()));
 }
+
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[derive(PartialEq)]
+enum Restriction {
+    None,
+    MaxSize,
+    AllocateUi,
+}
+
+const RESIZE_WIDTH: f32 = 500.0;
+const RESIZE_HEIGHT: f32 = 400.0;
