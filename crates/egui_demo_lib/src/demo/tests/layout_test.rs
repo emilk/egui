@@ -188,8 +188,13 @@ impl LayoutTest {
             }
         });
 
-        ui.checkbox(&mut self.layout.main_justify, "Main Justified")
-            .on_hover_text("Try to fill full width/height (e.g. buttons)");
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut self.layout.main_justify, "Main Justified")
+                .on_hover_text("Try to fill full width/height (e.g. buttons)");
+            if !self.layout.main_wrap && (self.restrict_resize.is_none() || self.layout.main_justify) {
+                ui.label(egui::RichText::new("⚠ Unrestricted main justify with multiple elements results in infinite resize").color(egui::Color32::ORANGE));
+            }
+        });
 
         ui.horizontal(|ui| {
             ui.label("Cross Align:");
@@ -248,6 +253,12 @@ enum Restriction {
     None,
     AllocateUi,
     MaximumSize,
+}
+
+impl Restriction {
+    fn is_none(&self) -> bool {
+        self == &Restriction::None
+    }
 }
 
 const RESIZE_WIDTH: f32 = 500.0;
