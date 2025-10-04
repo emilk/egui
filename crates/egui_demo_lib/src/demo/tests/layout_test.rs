@@ -20,7 +20,7 @@ impl Default for LayoutTest {
             layout: LayoutSettings::top_down(),
             wrap_column_width: 150.0,
             wrap_row_height: 20.0,
-            restrict_resize: Restriction::MaxSize
+            restrict_resize: Restriction::None,
         }
     }
 }
@@ -108,12 +108,27 @@ impl crate::View for LayoutTest {
         ui.label("Tests and demonstrates the limits of the egui layouts");
         self.content_ui(ui);
         let area = Resize::default().default_size([150.0, 200.0]);
+        let layout = self.layout.layout();
         match self.restrict_resize {
-            Restriction::None => self.demo_area(ui, area),
-            Restriction::MaxSize => self.demo_area(ui, area.max_size([RESIZE_WIDTH, RESIZE_HEIGHT])),
-            Restriction::AllocateUi => {
-                ui.allocate_ui([RESIZE_WIDTH, RESIZE_HEIGHT].into(), |ui| self.demo_area(ui, area));
-            },
+            Restriction::None => self.demo_area(
+                ui,
+                area,
+                |ui| ui.with_layout(layout, demo_ui),
+            ),
+            Restriction::AllocateUi => self.demo_area(
+                ui,
+                area,
+                |ui| ui.allocate_ui_with_layout(
+                    [RESIZE_WIDTH, RESIZE_HEIGHT].into(),
+                    layout,
+                    demo_ui,
+                ),
+            ),
+            Restriction::MaximumSize => self.demo_area(
+                ui,
+                area.max_size([RESIZE_WIDTH, RESIZE_HEIGHT]),
+                |ui| ui.with_layout(layout, demo_ui),
+            ),
         }
         ui.label("Resize to see effect");
 
@@ -190,30 +205,30 @@ impl LayoutTest {
         ui.horizontal(|ui| {
             ui.label("Limit Resize:");
             ui.selectable_value(&mut self.restrict_resize, Restriction::None, "None");
-            ui.selectable_value(&mut self.restrict_resize, Restriction::MaxSize, "Max Size")
-                .on_hover_text(format!("Maximum size of {RESIZE_WIDTH}x{RESIZE_HEIGHT}"));
-            ui.selectable_value(&mut self.restrict_resize, Restriction::AllocateUi, "Allocate UI")
+            ui.selectable_value(&mut self.restrict_resize, Restriction::AllocateUi, "Allocate")
                 .on_hover_text(format!("Allocate area of {RESIZE_WIDTH}x{RESIZE_HEIGHT}"));
+            ui.selectable_value(&mut self.restrict_resize, Restriction::MaximumSize, "Max size")
+                .on_hover_text(format!("Maximum size of {RESIZE_WIDTH}x{RESIZE_HEIGHT}"));
         });
         ui.add_space(10.0);
     }
 
-    pub fn demo_area(&mut self, ui: &mut Ui, area: Resize) {
+    pub fn demo_area(&mut self, ui: &mut Ui, area: Resize, inner: impl FnOnce(&mut Ui) -> egui::InnerResponse<()>) {
         area.show(ui, |ui| {
             if self.layout.main_wrap {
                 if self.layout.main_dir.is_horizontal() {
                     ui.allocate_ui(
                         vec2(ui.available_size_before_wrap().x, self.wrap_row_height),
-                        |ui| ui.with_layout(self.layout.layout(), demo_ui),
+                        |ui| inner(ui),
                     );
                 } else {
                     ui.allocate_ui(
                         vec2(self.wrap_column_width, ui.available_size_before_wrap().y),
-                        |ui| ui.with_layout(self.layout.layout(), demo_ui),
+                        |ui| inner(ui),
                     );
                 }
             } else {
-                ui.with_layout(self.layout.layout(), demo_ui);
+                inner(ui);
             }
         });
     }
@@ -231,8 +246,8 @@ fn demo_ui(ui: &mut Ui) {
 #[derive(PartialEq)]
 enum Restriction {
     None,
-    MaxSize,
     AllocateUi,
+    MaximumSize,
 }
 
 const RESIZE_WIDTH: f32 = 500.0;
