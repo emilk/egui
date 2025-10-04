@@ -12,6 +12,7 @@ pub struct LayoutTest {
 
     // Improve UX around `main_justify`
     restrict_resize: Restriction,
+    single_element: bool,
 }
 
 impl Default for LayoutTest {
@@ -21,6 +22,7 @@ impl Default for LayoutTest {
             wrap_column_width: 150.0,
             wrap_row_height: 20.0,
             restrict_resize: Restriction::None,
+            single_element: false,
         }
     }
 }
@@ -109,11 +111,12 @@ impl crate::View for LayoutTest {
         self.content_ui(ui);
         let area = Resize::default().default_size([150.0, 200.0]);
         let layout = self.layout.layout();
+        let button_only = self.single_element;
         match self.restrict_resize {
             Restriction::None => self.demo_area(
                 ui,
                 area,
-                |ui| ui.with_layout(layout, demo_ui),
+                |ui| ui.with_layout(layout, |ui| demo_ui(ui, button_only)),
             ),
             Restriction::AllocateUi => self.demo_area(
                 ui,
@@ -121,13 +124,13 @@ impl crate::View for LayoutTest {
                 |ui| ui.allocate_ui_with_layout(
                     [RESIZE_WIDTH, RESIZE_HEIGHT].into(),
                     layout,
-                    demo_ui,
+                    |ui| demo_ui(ui, button_only),
                 ),
             ),
             Restriction::MaximumSize => self.demo_area(
                 ui,
                 area.max_size([RESIZE_WIDTH, RESIZE_HEIGHT]),
-                |ui| ui.with_layout(layout, demo_ui),
+                |ui| ui.with_layout(layout, |ui| demo_ui(ui, button_only)),
             ),
         }
         ui.label("Resize to see effect");
@@ -191,8 +194,14 @@ impl LayoutTest {
         ui.horizontal(|ui| {
             ui.checkbox(&mut self.layout.main_justify, "Main Justified")
                 .on_hover_text("Try to fill full width/height (e.g. buttons)");
-            if !self.layout.main_wrap && (self.restrict_resize.is_none() || self.layout.main_justify) {
-                ui.label(egui::RichText::new("⚠ Unrestricted main justify with multiple elements results in infinite resize").color(egui::Color32::ORANGE));
+            if !self.layout.main_wrap &&
+                !self.single_element &&
+                (self.restrict_resize.is_none() || self.layout.main_justify)
+            {
+                ui.label(
+                    egui::RichText::new(
+                        "⚠ Unrestricted main justify with multiple elements results in infinite resize"
+                    ).color(egui::Color32::ORANGE));
             }
         });
 
@@ -206,7 +215,7 @@ impl LayoutTest {
         ui.checkbox(&mut self.layout.cross_justify, "Cross Justified")
             .on_hover_text("Try to fill full width/height (e.g. buttons)");
 
-        ui.add_space(10.0);
+        ui.add_space(20.0);
         ui.horizontal(|ui| {
             ui.label("Limit Resize:");
             ui.selectable_value(&mut self.restrict_resize, Restriction::None, "None");
@@ -214,6 +223,9 @@ impl LayoutTest {
                 .on_hover_text(format!("Allocate area of {RESIZE_WIDTH}x{RESIZE_HEIGHT}"));
             ui.selectable_value(&mut self.restrict_resize, Restriction::MaximumSize, "Max size")
                 .on_hover_text(format!("Maximum size of {RESIZE_WIDTH}x{RESIZE_HEIGHT}"));
+            ui.separator();
+            ui.checkbox(&mut self.single_element, "Button only")
+                .on_hover_text("Include only the button");
         });
         ui.add_space(10.0);
     }
@@ -239,11 +251,13 @@ impl LayoutTest {
     }
 }
 
-fn demo_ui(ui: &mut Ui) {
-    ui.add(egui::Label::new("Wrapping text followed by example widgets:").wrap());
-    let mut dummy = false;
-    ui.checkbox(&mut dummy, "checkbox");
-    ui.radio_value(&mut dummy, false, "radio");
+fn demo_ui(ui: &mut Ui, single_widget: bool) {
+    if !single_widget {
+        ui.add(egui::Label::new("Wrapping text followed by example widgets:").wrap());
+        let mut dummy = false;
+        ui.checkbox(&mut dummy, "checkbox");
+        ui.radio_value(&mut dummy, false, "radio");
+    }
     let _ = ui.add(egui::Button::new("button").min_size([100.0, 100.0].into()));
 }
 
