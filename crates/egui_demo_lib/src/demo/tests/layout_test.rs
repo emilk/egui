@@ -113,25 +113,19 @@ impl crate::View for LayoutTest {
         let layout = self.layout.layout();
         let button_only = self.single_element;
         match self.restrict_resize {
-            Restriction::None => self.demo_area(
-                ui,
-                area,
-                |ui| ui.with_layout(layout, |ui| demo_ui(ui, button_only)),
-            ),
-            Restriction::AllocateUi => self.demo_area(
-                ui,
-                area,
-                |ui| ui.allocate_ui_with_layout(
-                    [RESIZE_WIDTH, RESIZE_HEIGHT].into(),
-                    layout,
-                    |ui| demo_ui(ui, button_only),
-                ),
-            ),
-            Restriction::MaximumSize => self.demo_area(
-                ui,
-                area.max_size([RESIZE_WIDTH, RESIZE_HEIGHT]),
-                |ui| ui.with_layout(layout, |ui| demo_ui(ui, button_only)),
-            ),
+            Restriction::None => self.demo_area(ui, area, |ui| {
+                ui.with_layout(layout, |ui| demo_ui(ui, button_only))
+            }),
+            Restriction::AllocateUi => self.demo_area(ui, area, |ui| {
+                ui.allocate_ui_with_layout([RESIZE_WIDTH, RESIZE_HEIGHT].into(), layout, |ui| {
+                    demo_ui(ui, button_only);
+                })
+            }),
+            Restriction::MaximumSize => {
+                self.demo_area(ui, area.max_size([RESIZE_WIDTH, RESIZE_HEIGHT]), |ui| {
+                    ui.with_layout(layout, |ui| demo_ui(ui, button_only))
+                });
+            }
         }
         ui.label("Resize to see effect");
 
@@ -219,10 +213,18 @@ impl LayoutTest {
         ui.horizontal(|ui| {
             ui.label("Limit Resize:");
             ui.selectable_value(&mut self.restrict_resize, Restriction::None, "None");
-            ui.selectable_value(&mut self.restrict_resize, Restriction::AllocateUi, "Allocate")
-                .on_hover_text(format!("Allocate area of {RESIZE_WIDTH}x{RESIZE_HEIGHT}"));
-            ui.selectable_value(&mut self.restrict_resize, Restriction::MaximumSize, "Max size")
-                .on_hover_text(format!("Maximum size of {RESIZE_WIDTH}x{RESIZE_HEIGHT}"));
+            ui.selectable_value(
+                &mut self.restrict_resize,
+                Restriction::AllocateUi,
+                "Allocate",
+            )
+            .on_hover_text(format!("Allocate area of {RESIZE_WIDTH}x{RESIZE_HEIGHT}"));
+            ui.selectable_value(
+                &mut self.restrict_resize,
+                Restriction::MaximumSize,
+                "Max size",
+            )
+            .on_hover_text(format!("Maximum size of {RESIZE_WIDTH}x{RESIZE_HEIGHT}"));
             ui.separator();
             ui.checkbox(&mut self.single_element, "Button only")
                 .on_hover_text("Include only the button");
@@ -230,7 +232,12 @@ impl LayoutTest {
         ui.add_space(10.0);
     }
 
-    pub fn demo_area(&mut self, ui: &mut Ui, area: Resize, inner: impl FnOnce(&mut Ui) -> egui::InnerResponse<()>) {
+    pub fn demo_area(
+        &self,
+        ui: &mut Ui,
+        area: Resize,
+        inner: impl FnOnce(&mut Ui) -> egui::InnerResponse<()>,
+    ) {
         area.show(ui, |ui| {
             if self.layout.main_wrap {
                 if self.layout.main_dir.is_horizontal() {
@@ -271,7 +278,7 @@ enum Restriction {
 
 impl Restriction {
     fn is_none(&self) -> bool {
-        self == &Restriction::None
+        self == &Self::None
     }
 }
 
