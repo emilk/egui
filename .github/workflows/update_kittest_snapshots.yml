@@ -1,11 +1,6 @@
 on:
   workflow_dispatch:
     inputs:
-      artifact_id:
-        description: 'The artifact ID to update snapshots from'
-        required: true
-        type: string
-
       run_id:
         description: 'The run ID that produced the artifact'
         required: true
