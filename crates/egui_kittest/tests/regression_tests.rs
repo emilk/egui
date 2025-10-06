@@ -188,7 +188,7 @@ pub fn override_text_color_affects_interactive_widgets() {
     results.add(harness.try_snapshot("override_text_color_interactive"));
 }
 
-/// https://github.com/rerun-io/rerun/issues/11301
+/// <https://github.com/rerun-io/rerun/issues/11301>
 #[test]
 pub fn menus_should_close_even_if_submenu_disappears() {
     const OTHER_BUTTON: &str = "Other button";
@@ -246,7 +246,7 @@ pub fn menus_should_close_even_if_submenu_disappears() {
         // See if we handle it with or without a frame delay
         harness.run_steps(frame_delay);
 
-        /// Actually close the menu by clicking somewhere outside
+        // Actually close the menu by clicking somewhere outside
         harness.input_mut().events.push(egui::Event::PointerButton {
             pos: center,
             button: egui::PointerButton::Primary,

@@ -112,7 +112,7 @@ impl PopupsDemo {
                     ui.menu_button("Only visible when checked", |ui| {
                         if ui.button("Remove myself").clicked() {
                             self.checked = false;
-                        };
+                        }
                     });
                 }
 

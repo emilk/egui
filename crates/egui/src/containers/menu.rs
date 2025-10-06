@@ -153,7 +153,7 @@ impl MenuState {
         let pass_nr = ctx.cumulative_pass_nr();
         ctx.data_mut(|data| {
             let state_id = id.with(Self::ID);
-            let mut state = data.get_temp(state_id).unwrap_or_else(|| Self {
+            let mut state = data.get_temp(state_id).unwrap_or(Self {
                 open_item: None,
                 last_visible_pass: pass_nr,
             });
@@ -191,9 +191,7 @@ impl MenuState {
         let open_item = Self::from_id(ctx, id, |state| state.open_item);
         // If we have some open item, check if that was actually shown this frame
         open_item.is_none_or(|submenu_id| {
-            Self::from_id(ctx, submenu_id, |state| {
-                state.last_visible_pass != pass_nr
-            })
+            Self::from_id(ctx, submenu_id, |state| state.last_visible_pass != pass_nr)
         })
     }
 }
@@ -427,7 +425,7 @@ impl SubMenu {
 
     /// Show the submenu.
     ///
-    /// This does some heuristics to check if the button_response was the last thing in the
+    /// This does some heuristics to check if the `button_response` was the last thing in the
     /// menu that was hovered/clicked, and if so, shows the submenu.
     pub fn show<R>(
         self,
