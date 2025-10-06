@@ -647,7 +647,7 @@ impl<State> Harness<'_, State> {
             .map_err(|err| SnapshotError::RenderError { err })
             .unwrap();
         let temp_file = tempfile::Builder::new()
-            .keep(true) // we keep the file so it's accessible even after the test ends
+            .disable_cleanup(true) // we keep the file so it's accessible even after the test ends
             .prefix("kittest-snapshot")
             .suffix(".png")
             .tempfile()
