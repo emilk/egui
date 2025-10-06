@@ -1,6 +1,6 @@
 #!/bin/sh
 # This script moves all {name}.new.png files to {name}.png.
-# It's main use is in the update_kittest_snapshots CI job, but you can also use it locally.
+# Its main use is in the update_kittest_snapshots CI job, but you can also use it locally.
 
 set -eu
 
