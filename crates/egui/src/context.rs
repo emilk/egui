@@ -1866,7 +1866,7 @@ impl Context {
         });
     }
 
-    /// Register a [`Plugin`]
+    /// Register a [`Plugin`](plugin::Plugin)
     ///
     /// Plugins are called in the order they are added.
     ///
