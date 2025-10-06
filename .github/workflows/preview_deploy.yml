@@ -61,5 +61,7 @@ jobs:
           message: |
             Preview available at https://egui-pr-preview.github.io/pr/${{ env.URL_SLUG }}
             Note that it might take a couple seconds for the update to show up after the preview_build workflow has completed.
+            
+            View snapshot changes at [kitdiff](https://rerun-io.github.io/kitdiff/?url=${{ github.event.pull_request.html_url }})
           pr_number: ${{ env.PR_NUMBER }}
           comment_tag: 'egui-preview'
