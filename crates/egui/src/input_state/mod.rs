@@ -607,7 +607,7 @@ impl InputState {
         note = "screen_rect has been renamed to viewport_rect. Consider switching to content_rect."
     )]
     pub fn screen_rect(&self) -> Rect {
-        self.viewport_rect
+        self.content_rect()
     }
 
     /// Get the safe area insets.
