@@ -35,7 +35,7 @@ disallowed-macros = [
 
 # https://rust-lang.github.io/rust-clippy/master/index.html#disallowed_methods
 disallowed-methods = [
-    "std::env::temp_dir", # Use the tempdir crate instead
+    "std::env::temp_dir", # Use the tempfile crate instead
 
     # There are many things that aren't allowed on wasm,
     # but we cannot disable them all here (because of e.g. https://github.com/rust-lang/rust-clippy/issues/10406)

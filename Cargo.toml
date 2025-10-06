@@ -107,6 +107,7 @@ serde = { version = "1", features = ["derive"] }
 similar-asserts = "1.4.2"
 smallvec = "1"
 static_assertions = "1.1.0"
+tempfile = "3"
 thiserror = "1.0.37"
 type-map = "0.5.0"
 unicode-segmentation = "1.12.0"

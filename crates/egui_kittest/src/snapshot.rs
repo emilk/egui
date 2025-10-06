@@ -646,29 +646,36 @@ impl<State> Harness<'_, State> {
             .render()
             .map_err(|err| SnapshotError::RenderError { err })
             .unwrap();
-        let tmp_dir = std::env::temp_dir().join("egui_kittest");
-        std::fs::create_dir_all(&tmp_dir).ok();
-        let path = tmp_dir.join(format!(
-            "debug-{}.png",
-            std::time::SystemTime::now()
-                .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                .unwrap()
-                .as_millis()
-        ));
+        let temp_file = tempfile::Builder::new()
+            .keep(true) // we keep the file so it's accessible even after the test ends
+            .prefix("kittest-snapshot")
+            .suffix(".png")
+            .tempfile()
+            .expect("Failed to create temp file");
+
+        let path = temp_file.path();
+
         image
-            .save(&path)
+            .save(temp_file.path())
             .map_err(|err| SnapshotError::WriteSnapshot {
                 err,
-                path: path.clone(),
+                path: path.to_path_buf(),
             })
             .unwrap();
-        println!("Wrote debug snapshot to: {}", path.display());
-        let result = open::that(path.clone());
+
+        #[expect(clippy::print_stdout)]
+        {
+            println!("Wrote debug snapshot to: {}", path.display());
+        }
+        let result = open::that(path);
         if let Err(err) = result {
-            eprintln!(
-                "Failed to open image {} in default image viewer: {err}",
-                path.display()
-            )
+            #[expect(clippy::print_stderr)]
+            {
+                eprintln!(
+                    "Failed to open image {} in default image viewer: {err}",
+                    path.display()
+                );
+            }
         }
     }
 }
