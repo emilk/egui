@@ -64,6 +64,7 @@ dify = { workspace = true, optional = true }
 
 # Enable this when generating docs.
 document-features = { workspace = true, optional = true }
+open.workspace = true
 
 [dev-dependencies]
 egui = { workspace = true, features = ["default_fonts"] }

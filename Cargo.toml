@@ -94,6 +94,7 @@ nohash-hasher = "0.2"
 objc2 = "0.5.1"
 objc2-app-kit = { version = "0.2.0", default-features = false }
 objc2-foundation = { version = "0.2.0", default-features = false }
+open = "5"
 parking_lot = "0.12"
 percent-encoding = "2.1"
 pollster = "0.4"
@@ -113,7 +114,7 @@ wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 web-sys = "0.3.73"
 web-time = "1.1.0" # Timekeeping for native and web
-wgpu = { version = "27.0.0", default-features = false }
+wgpu = { version = "27.0.0", default-features = false, features = ["std"] }
 windows-sys = "0.60"
 winit = { version = "0.30.12", default-features = false }
 
