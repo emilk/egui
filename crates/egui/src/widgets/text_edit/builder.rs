@@ -593,7 +593,6 @@ impl TextEdit<'_> {
                 .min_size(Vec2::new(allocate_width, 0.0))
                 .sense(sense)
                 .frame(frame)
-                .gap(0.0)
                 .align2(Align2::LEFT_TOP)
                 .allocate(ui);
 
