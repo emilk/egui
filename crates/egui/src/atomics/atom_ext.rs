@@ -84,6 +84,11 @@ pub trait AtomExt<'a> {
         let height = ui.fonts_mut(|f| f.row_height(&font_id));
         self.atom_max_height(height)
     }
+
+    /// Sets the [`Align2`] of a single atom within its available space.
+    ///
+    /// Defaults to center-center.
+    fn atom_align(self, align: emath::Align2) -> Atom<'a>;
 }
 
 impl<'a, T> AtomExt<'a> for T
@@ -129,6 +134,12 @@ where
     fn atom_max_height(self, max_height: f32) -> Atom<'a> {
         let mut atom = self.into();
         atom.max_size.y = max_height;
+        atom
+    }
+
+    fn atom_align(self, align: emath::Align2) -> Atom<'a> {
+        let mut atom = self.into();
+        atom.align = align;
         atom
     }
 }

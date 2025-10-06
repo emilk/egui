@@ -1,5 +1,5 @@
 use crate::{AtomKind, FontSelection, Id, SizedAtom, Ui};
-use emath::{NumExt as _, Vec2};
+use emath::{Align2, NumExt as _, Vec2};
 use epaint::text::TextWrapMode;
 
 /// A low-level ui building block.
@@ -29,6 +29,9 @@ pub struct Atom<'a> {
     /// See [`crate::AtomExt::atom_shrink`]
     pub shrink: bool,
 
+    /// See [`crate::AtomExt::atom_align`]
+    pub align: Align2,
+
     /// The atom type
     pub kind: AtomKind<'a>,
 }
@@ -41,6 +44,7 @@ impl Default for Atom<'_> {
             max_size: Vec2::INFINITY,
             grow: false,
             shrink: false,
+            align: Align2::CENTER_CENTER,
             kind: AtomKind::Empty,
         }
     }
@@ -106,6 +110,7 @@ impl<'a> Atom<'a> {
             size,
             intrinsic_size: intrinsic.at_least(self.size.unwrap_or_default()),
             grow: self.grow,
+            align: self.align,
             kind,
         }
     }

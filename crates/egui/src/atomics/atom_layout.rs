@@ -422,9 +422,7 @@ impl<'atom> AllocatedAtomLayout<'atom> {
                 .with_min_x(cursor)
                 .with_max_x(cursor + size.x + growth);
             cursor = frame.right() + gap;
-
-            let align = Align2::CENTER_CENTER;
-            let rect = align.align_size_within_rect(size, frame);
+            let rect = sized.align.align_size_within_rect(size, frame);
 
             if let Some(id) = sized.id {
                 debug_assert!(
