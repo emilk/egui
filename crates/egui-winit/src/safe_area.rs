@@ -15,7 +15,7 @@ mod ios {
     /// device’s interactive and display features, like Dynamic Island on iPhone or the camera
     /// housing on some Mac models.
     ///
-    /// Once winit v0.31 has been released this can be removed in favour of
+    /// Once winit v0.31 has been released this can be removed in favor of
     /// `winit::Window::safe_area`.
     pub fn get_safe_area_insets() -> SafeAreaInsets {
         let Some(main_thread_marker) = MainThreadMarker::new() else {
