@@ -577,7 +577,7 @@ impl TextEdit<'_> {
 
             if text.as_str().is_empty() {
                 for atom in hint_text {
-                    atoms.push_right(atom);
+                    atoms.push_right(atom.atom_align(Align2::LEFT_TOP));
                 }
             }
             atoms.push_right(Atom::grow());
@@ -594,6 +594,7 @@ impl TextEdit<'_> {
                 .sense(sense)
                 .frame(frame)
                 .gap(0.0)
+                .align2(Align2::LEFT_TOP)
                 .allocate(ui);
 
             allocated.frame = if !custom_frame {
