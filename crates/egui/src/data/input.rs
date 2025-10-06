@@ -1321,9 +1321,6 @@ impl std::ops::Sub<SafeAreaInsets> for Rect {
     type Output = Self;
 
     fn sub(self, rhs: SafeAreaInsets) -> Self::Output {
-        Self::from_min_max(
-            self.min + emath::vec2(rhs.0.left, rhs.0.top),
-            self.max - emath::vec2(rhs.0.right, rhs.0.bottom),
-        )
+        self - rhs.0
     }
 }
