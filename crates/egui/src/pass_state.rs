@@ -72,7 +72,6 @@ impl ScrollTarget {
 pub struct AccessKitPassState {
     pub nodes: IdMap<accesskit::Node>,
     pub parent_map: IdMap<Id>,
-    pub child_map: IdMap<AccessKitParentChildren>,
 }
 
 #[cfg(feature = "accesskit")]

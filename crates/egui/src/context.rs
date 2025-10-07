@@ -515,7 +515,6 @@ impl ContextImpl {
             viewport.this_pass.accesskit_state = Some(AccessKitPassState {
                 nodes,
                 parent_map: IdMap::default(),
-                child_map: IdMap::default(),
             });
         }
 
@@ -2491,74 +2490,6 @@ impl ContextImpl {
             let state = viewport.this_pass.accesskit_state.take();
             if let Some(state) = state {
                 let root_id = crate::accesskit_root_id().accesskit_id();
-
-                // /// Search the first parent that has an existing accesskit node.
-                // fn find_parent_recursively(
-                //     parent_map: &IdMap<(Id, usize)>,
-                //     node_map: &IdMap<accesskit::Node>,
-                //     id: Id,
-                // ) -> Option<Id> {
-                //     if let Some(parent_id) = parent_map.get(&id) {
-                //         if node_map.contains_key(parent_id) {
-                //             Some(*parent_id)
-                //         } else {
-                //             find_parent_recursively(parent_map, node_map, *parent_id)
-                //         }
-                //     } else {
-                //         None
-                //     }
-                // }
-                //
-                // for id in state.nodes.keys().copied().collect::<Vec<_>>() {
-                //     if id == crate::accesskit_root_id() {
-                //         continue;
-                //     }
-                //     if state.nodes.contains_key(&id) {
-                //         let parent_id =
-                //             find_parent_recursively(&state.parent_map, &state.nodes, id)
-                //                 .unwrap_or(crate::accesskit_root_id());
-                //         state
-                //             .nodes
-                //             .get_mut(&parent_id)
-                //             .unwrap()
-                //             .push_child(id.accesskit_id());
-                //     }
-                // }
-
-                // fn children_recursively(
-                //     id: Id,
-                //     node_map: &IdMap<accesskit::Node>,
-                //     parent_children_map: &IdMap<AccessKitParentChildren>,
-                //     children: &mut Vec<accesskit::NodeId>,
-                //     root_children: &mut Vec<accesskit::NodeId>,
-                // ) {
-                //     if let Some(node) = parent_children_map.get(&id) {
-                //         for child_id in &node.children {
-                //             if node_map.contains_key(child_id) {
-                //                 if !children.contains(&child_id.accesskit_id()) {
-                //                     children.push(child_id.accesskit_id());
-                //                 }
-                //             } else {
-                //                 children_recursively(*child_id, node_map, parent_children_map, children, root_children);
-                //             }
-                //         }
-                //         if node.parent.is_none() || node.parent == Some(crate::accesskit_root_id()) {
-                //             if !root_children.contains(&id.accesskit_id()) {
-                //                 root_children.push(id.accesskit_id());
-                //             }
-                //         }
-                //     }
-                // }
-                // let mut root_children = vec![];
-                //
-                // for id in state.nodes.keys().copied().collect::<Vec<_>>() {
-                //     let mut children = vec![];
-                //     children_recursively(id, &state.nodes, &state.child_map, &mut children, &mut root_children);
-                //     state.nodes.get_mut(&id).unwrap().set_children(children)
-                // }
-                //
-                // state.nodes.get_mut(&crate::accesskit_root_id()).unwrap().set_children(root_children);
-
                 let nodes = {
                     state
                         .nodes
@@ -3548,13 +3479,6 @@ impl Context {
         self.write(|ctx| {
             if let Some(state) = ctx.viewport().this_pass.accesskit_state.as_mut() {
                 state.parent_map.insert(id, parent_id);
-                state.child_map.entry(id).or_default().parent = Some(parent_id);
-                state
-                    .child_map
-                    .entry(parent_id)
-                    .or_default()
-                    .children
-                    .push(id);
             }
         });
     }
