@@ -69,8 +69,7 @@ impl OperatingSystem {
             Self::Nix
         } else {
             log::warn!(
-                "egui: Failed to guess operating system from User-Agent {:?}. Please file an issue at https://github.com/emilk/egui/issues",
-                user_agent
+                "egui: Failed to guess operating system from User-Agent {user_agent:?}. Please file an issue at https://github.com/emilk/egui/issues"
             );
 
             Self::Unknown
