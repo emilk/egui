@@ -70,78 +70,78 @@ eframe = { version = "0.32.3", path = "crates/eframe", default-features = false 
 
 accesskit = "0.21.1"
 accesskit_consumer = "0.30.1"
-accesskit_winit = "0.29"
+accesskit_winit = "0.29.1"
 ab_glyph = "0.2.32"
 ahash = { version = "0.8.12", default-features = false, features = [
     "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
     "std",
 ] }
-android_logger = "0.14"
-arboard = { version = "3.6", default-features = false}
-backtrace = "0.3"
-bitflags = "2.9"
+android_logger = "0.15.1"
+arboard = { version = "3.6.1", default-features = false}
+backtrace = "0.3.76"
+bitflags = "2.9.4"
 bytemuck = "1.24.0"
-chrono = { version = "0.4", default-features = false }
+chrono = { version = "0.4.42", default-features = false }
 cint = "0.3.1"
 color-hex = "0.2.0"
-criterion = { version = "0.7", default-features = false }
-dify = { version = "0.7", default-features = false }
-directories = "6"
+criterion = { version = "0.7.0", default-features = false }
+dify = { version = "0.7.4", default-features = false }
+directories = "6.0.0"
 document-features = "0.2.11"
-ehttp = { version = "0.5", default-features = false }
-enum-map = "2"
-env_logger = { version = "0.10", default-features = false }
-glow = "0.16"
+ehttp = { version = "0.5.0", default-features = false }
+enum-map = "2.7.3"
+env_logger = { version = "0.11.8", default-features = false }
+glow = "0.16.0"
 glutin = { version = "0.32.3", default-features = false }
 glutin-winit = { version = "0.5.0", default-features = false }
 home = "0.5.11"
-image = { version = "0.25", default-features = false }
-js-sys = "0.3"
+image = { version = "0.25.6", default-features = false }
+js-sys = "0.3.81"
 kittest = { version = "0.2.0", git = "https://github.com/rerun-io/kittest.git" }
-log = { version = "0.4", features = ["std"] }
-memoffset = "0.9"
+log = { version = "0.4.28", features = ["std"] }
+memoffset = "0.9.1"
 mimalloc = "0.1.48"
-mime_guess2 = { version = "2", default-features = false }
+mime_guess2 = { version = "2.3.1", default-features = false }
 mint = "0.5.9"
-nohash-hasher = "0.2"
+nohash-hasher = "0.2.0"
 objc2 = "0.5.2"
 objc2-app-kit = { version = "0.2.2", default-features = false }
 objc2-foundation = { version = "0.2.2", default-features = false }
 objc2-ui-kit = { version = "0.2.2", default-features = false }
-open = "5"
-parking_lot = "0.12"
-percent-encoding = "2.3"
-poll-promise = { version = "0.3", default-features = false }
-pollster = "0.4"
+open = "5.3.2"
+parking_lot = "0.12.5"
+percent-encoding = "2.3.2"
+poll-promise = { version = "0.3.0", default-features = false }
+pollster = "0.4.0"
 profiling = { version = "1.0.17", default-features = false }
-puffin = "0.19"
-puffin_http = "0.16"
-rand = "0.9"
+puffin = "0.19.1"
+puffin_http = "0.16.1"
+rand = "0.9.2"
 raw-window-handle = "0.6.2"
-rayon = "1.11"
-resvg = { version = "0.45", default-features = false }
+rayon = "1.11.0"
+resvg = { version = "0.45.1", default-features = false }
 rfd = "0.15.4"
-ron = "0.11"
-serde = { version = "1", features = ["derive"] }
+ron = "0.11.0"
+serde = { version = "1.0.228", features = ["derive"] }
 similar-asserts = "1.7.0"
-smallvec = "1"
+smallvec = "1.15.1"
 smithay-clipboard =  "0.7.2"
 static_assertions = "1.1.0"
-syntect = { version = "5", default-features = false }
-tempfile = "3"
-thiserror = "1.0.69"
-tokio = "1"
+syntect = { version = "5.3.0", default-features = false }
+tempfile = "3.23.0"
+thiserror = "2.0.17"
+tokio = "1.47.1"
 type-map = "0.5.1"
-unicode_names2 = { version = "0.6.0", default-features = false }
+unicode_names2 = { version = "2.0.0", default-features = false }
 unicode-segmentation = "1.12.0"
 wasm-bindgen = "=0.2.104"
-wasm-bindgen-futures = "0.4"
+wasm-bindgen-futures = "0.4.54"
 wayland-cursor = { version = "0.31.11", default-features = false }
 web-sys = "0.3.81"
 web-time = "1.1.0" # Timekeeping for native and web
 webbrowser = "1.0.5"
 wgpu = { version = "27.0.1", default-features = false, features = ["std"] }
-windows-sys = "0.60"
+windows-sys = "0.61.2"
 winit = { version = "0.30.12", default-features = false }
 
 
