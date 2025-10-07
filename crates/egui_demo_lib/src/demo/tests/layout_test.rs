@@ -188,9 +188,10 @@ impl LayoutTest {
         ui.horizontal(|ui| {
             ui.checkbox(&mut self.layout.main_justify, "Main Justified")
                 .on_hover_text("Try to fill full width/height (e.g. buttons)");
-            if !self.layout.main_wrap &&
-                !self.single_element &&
-                (self.restrict_resize.is_none() || self.layout.main_justify)
+            if !self.layout.main_wrap && !self.single_element &&
+                (self.layout.main_justify || self.restrict_resize.is_none())
+            || self.layout.main_justify && self.restrict_resize.is_none() &&
+                (!self.layout.main_wrap || !self.single_element)
             {
                 ui.label(
                     egui::RichText::new(
