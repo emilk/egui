@@ -198,6 +198,12 @@ pub struct RendererOptions {
     ///
     /// Defaults to true.
     pub dithering: bool,
+
+    /// What format to use for the depth and stencil buffers,
+    /// e.g. [`wgpu::TextureFormat::Depth32FloatStencil8`].
+    ///
+    /// egui doesn't need depth/stencil, so the default value is `None` (no depth or stancil buffers).
+    pub depth_stencil_format: Option<wgpu::TextureFormat>,
 }
 
 impl Default for RendererOptions {
@@ -205,6 +211,7 @@ impl Default for RendererOptions {
         Self {
             msaa_samples: 0,
             dithering: true,
+            depth_stencil_format: None,
         }
     }
 }
@@ -244,7 +251,6 @@ impl Renderer {
     pub fn new(
         device: &wgpu::Device,
         output_color_format: wgpu::TextureFormat,
-        output_depth_format: Option<wgpu::TextureFormat>,
         options: RendererOptions,
     ) -> Self {
         profiling::function_scope!();
@@ -332,13 +338,15 @@ impl Renderer {
             push_constant_ranges: &[],
         });
 
-        let depth_stencil = output_depth_format.map(|format| wgpu::DepthStencilState {
-            format,
-            depth_write_enabled: false,
-            depth_compare: wgpu::CompareFunction::Always,
-            stencil: wgpu::StencilState::default(),
-            bias: wgpu::DepthBiasState::default(),
-        });
+        let depth_stencil = options
+            .depth_stencil_format
+            .map(|format| wgpu::DepthStencilState {
+                format,
+                depth_write_enabled: false,
+                depth_compare: wgpu::CompareFunction::Always,
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            });
 
         let pipeline = {
             profiling::scope!("create_render_pipeline");

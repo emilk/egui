@@ -26,7 +26,6 @@ pub struct Painter {
     configuration: WgpuConfiguration,
     options: RendererOptions,
     support_transparent_backbuffer: bool,
-    depth_format: Option<wgpu::TextureFormat>,
     screen_capture_state: Option<CaptureState>,
 
     instance: wgpu::Instance,
@@ -56,7 +55,6 @@ impl Painter {
     pub async fn new(
         context: Context,
         configuration: WgpuConfiguration,
-        depth_format: Option<wgpu::TextureFormat>,
         support_transparent_backbuffer: bool,
         options: RendererOptions,
     ) -> Self {
@@ -68,7 +66,6 @@ impl Painter {
             configuration,
             options,
             support_transparent_backbuffer,
-            depth_format,
             screen_capture_state: None,
 
             instance,
@@ -204,7 +201,6 @@ impl Painter {
                 &self.configuration,
                 &self.instance,
                 Some(&surface),
-                self.depth_format,
                 self.options,
             )
             .await?;
@@ -278,7 +274,7 @@ impl Painter {
 
         Self::configure_surface(surface_state, render_state, &self.configuration);
 
-        if let Some(depth_format) = self.depth_format {
+        if let Some(depth_format) = self.options.depth_stencil_format {
             self.depth_texture_view.insert(
                 viewport_id,
                 render_state
