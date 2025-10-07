@@ -389,7 +389,7 @@ impl SidePanel {
                 .layer_id(LayerId::background())
                 .max_rect(available_rect),
         );
-        panel_ui.set_clip_rect(ctx.screen_rect());
+        panel_ui.set_clip_rect(ctx.content_rect());
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
         let rect = inner_response.response.rect;
@@ -887,7 +887,7 @@ impl TopBottomPanel {
                 .layer_id(LayerId::background())
                 .max_rect(available_rect),
         );
-        panel_ui.set_clip_rect(ctx.screen_rect());
+        panel_ui.set_clip_rect(ctx.content_rect());
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
         let rect = inner_response.response.rect;
@@ -1152,7 +1152,7 @@ impl CentralPanel {
                 .layer_id(LayerId::background())
                 .max_rect(ctx.available_rect().round_ui()),
         );
-        panel_ui.set_clip_rect(ctx.screen_rect());
+        panel_ui.set_clip_rect(ctx.content_rect());
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
 

@@ -436,7 +436,7 @@ impl Area {
             sizing_pass: force_sizing_pass,
         } = self;
 
-        let constrain_rect = constrain_rect.unwrap_or_else(|| ctx.screen_rect());
+        let constrain_rect = constrain_rect.unwrap_or_else(|| ctx.content_rect());
 
         let layer_id = LayerId::new(order, id);
 

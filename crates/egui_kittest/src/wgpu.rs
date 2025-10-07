@@ -151,7 +151,7 @@ impl crate::TestRenderer for WgpuTestRenderer {
                     label: Some("Egui Command Encoder"),
                 });
 
-        let size = ctx.screen_rect().size() * ctx.pixels_per_point();
+        let size = ctx.content_rect().size() * ctx.pixels_per_point();
         let screen = ScreenDescriptor {
             pixels_per_point: ctx.pixels_per_point(),
             size_in_pixels: [size.x.round() as u32, size.y.round() as u32],

@@ -220,7 +220,7 @@ impl Resize {
                 .at_least(self.min_size)
                 .at_most(self.max_size)
                 .at_most(
-                    ui.ctx().screen_rect().size() - ui.spacing().window_margin.sum(), // hack for windows
+                    ui.ctx().content_rect().size() - ui.spacing().window_margin.sum(), // hack for windows
                 )
                 .round_ui();
 
