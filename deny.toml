@@ -53,8 +53,9 @@ skip = [
   { name = "getrandom" },           # ring / rustls (and thus ehttp) still depend on getrandom 0.2
   { name = "quick-xml" },           # old version via wayland-scanner
   { name = "redox_syscall" },       # old version via winit
-  { name = "thiserror" },           # ecosystem is in the process of migrating from 1.x to 2.x
+  { name = "rustc-hash" }           # Small enough
   { name = "thiserror-impl" },      # same as above
+  { name = "thiserror" },           # ecosystem is in the process of migrating from 1.x to 2.x
   { name = "windows-sys" },         # mostly hopeless to avoid
 ]
 skip-tree = [
