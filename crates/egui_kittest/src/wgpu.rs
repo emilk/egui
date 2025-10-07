@@ -67,9 +67,7 @@ pub fn create_render_state(setup: WgpuSetup) -> egui_wgpu::RenderState {
         },
         &instance,
         None,
-        None,
-        1,
-        false,
+        egui_wgpu::RendererOptions::default(),
     ))
     .expect("Failed to create render state")
 }
