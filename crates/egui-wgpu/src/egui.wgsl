@@ -8,10 +8,13 @@ struct VertexOutput {
 
 struct Locals {
     screen_size: vec2<f32>,
-    dithering: u32, // 1 if dithering is enabled, 0 otherwise
-    // Uniform buffers need to be at least 16 bytes in WebGL.
-    // See https://github.com/gfx-rs/wgpu/issues/2072
-    _padding: u32,
+
+    /// 1 if dithering is enabled, 0 otherwise
+    dithering: u32,
+
+    /// 1 to do manual filtering for more predictable kittest snapshot images.
+    /// See also https://github.com/emilk/egui/issues/5295
+    predictable_texture_filtering: u32,
 };
 @group(0) @binding(0) var<uniform> r_locals: Locals;
 
@@ -95,10 +98,35 @@ fn vs_main(
 @group(1) @binding(0) var r_tex_color: texture_2d<f32>;
 @group(1) @binding(1) var r_tex_sampler: sampler;
 
+fn sample_texture(in: VertexOutput) -> vec4<f32> {
+    if r_locals.predictable_texture_filtering == 0 {
+        // Hardware filtering: fast, but varies across GPUs and drivers.
+        return textureSample(r_tex_color, r_tex_sampler, in.tex_coord);
+    } else {
+        // Manual bilinear filtering with four taps at pixel centers
+        let texture_size = vec2<f32>(textureDimensions(r_tex_color, 0));
+        let pixel_coord = in.tex_coord * texture_size - 0.5;
+        let pixel_fract = fract(pixel_coord);
+        let pixel_floor = floor(pixel_coord);
+
+        // Sample at four pixel centers
+        let texel_size = 1.0 / texture_size;
+        let tl = textureSample(r_tex_color, r_tex_sampler, (pixel_floor + vec2<f32>(0.5, 0.5)) * texel_size);
+        let tr = textureSample(r_tex_color, r_tex_sampler, (pixel_floor + vec2<f32>(1.5, 0.5)) * texel_size);
+        let bl = textureSample(r_tex_color, r_tex_sampler, (pixel_floor + vec2<f32>(0.5, 1.5)) * texel_size);
+        let br = textureSample(r_tex_color, r_tex_sampler, (pixel_floor + vec2<f32>(1.5, 1.5)) * texel_size);
+
+        // Manual bilinear interpolation
+        let top = mix(tl, tr, pixel_fract.x);
+        let bottom = mix(bl, br, pixel_fract.x);
+        return mix(top, bottom, pixel_fract.y);
+    }
+}
+
 @fragment
 fn fs_main_linear_framebuffer(in: VertexOutput) -> @location(0) vec4<f32> {
     // We expect "normal" textures that are NOT sRGB-aware.
-    let tex_gamma = textureSample(r_tex_color, r_tex_sampler, in.tex_coord);
+    let tex_gamma = sample_texture(in);
     var out_color_gamma = in.color * tex_gamma;
     // Dither the float color down to eight bits to reduce banding.
     // This step is optional for egui backends.
@@ -115,7 +143,7 @@ fn fs_main_linear_framebuffer(in: VertexOutput) -> @location(0) vec4<f32> {
 @fragment
 fn fs_main_gamma_framebuffer(in: VertexOutput) -> @location(0) vec4<f32> {
     // We expect "normal" textures that are NOT sRGB-aware.
-    let tex_gamma = textureSample(r_tex_color, r_tex_sampler, in.tex_coord);
+    let tex_gamma = sample_texture(in);
     var out_color_gamma = in.color * tex_gamma;
     // Dither the float color down to eight bits to reduce banding.
     // This step is optional for egui backends.
