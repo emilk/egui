@@ -182,6 +182,7 @@ impl WrapApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         // This gives us image support:
         egui_extras::install_image_loaders(&cc.egui_ctx);
+
         #[cfg(feature = "accessibility_inspector")]
         cc.egui_ctx
             .add_plugin(crate::accessibility_inspector::AccessibilityInspectorPlugin::default());

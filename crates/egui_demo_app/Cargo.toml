@@ -28,6 +28,7 @@ default = ["glow", "persistence"]
 # image_viewer adds about 0.9 MB of WASM
 web_app = ["http", "persistence"]
 
+accessibility_inspector = ["dep:accesskit", "dep:accesskit_consumer", "eframe/accesskit"]
 http = ["ehttp", "image/jpeg", "poll-promise", "egui_extras/image"]
 image_viewer = ["image/jpeg", "egui_extras/all_loaders", "rfd"]
 persistence = [
@@ -39,7 +40,6 @@ persistence = [
 puffin = ["dep:puffin", "dep:puffin_http", "profiling/profile-with-puffin"]
 serde = ["dep:serde", "egui_demo_lib/serde", "egui/serde"]
 syntect = ["egui_demo_lib/syntect"]
-accessibility_inspector = ["dep:accesskit", "dep:accesskit_consumer", "eframe/accesskit"]
 
 glow = ["eframe/glow"]
 wgpu = ["eframe/wgpu", "bytemuck", "dep:wgpu"]
@@ -67,7 +67,6 @@ profiling.workspace = true
 # Optional dependencies:
 accesskit = { workspace = true, optional = true }
 accesskit_consumer = { workspace = true, optional = true }
-
 bytemuck = { workspace = true, optional = true }
 puffin = { workspace = true, optional = true }
 puffin_http = { workspace = true, optional = true }

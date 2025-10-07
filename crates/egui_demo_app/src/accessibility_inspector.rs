@@ -142,18 +142,25 @@ impl egui::Plugin for AccessibilityInspectorPlugin {
                                         ui.end_row();
 
                                         ui.label("Children");
-                                        ui.label(RichText::new(node.children().len()).strong());
+                                        ui.label(
+                                            RichText::new(node.children().len().to_string())
+                                                .strong(),
+                                        );
                                         ui.end_row();
                                     },
                                 );
 
                                 ui.label("Actions");
                                 ui.horizontal_wrapped(|ui| {
-                                    for action_n in 0..50 {
-                                        let action = Action::n(action_n);
-                                        let Some(action) = action else {
-                                            break;
-                                        };
+                                    // Iterate through all possible actions via the `Action::n` helper.
+                                    let mut current_action = 0;
+                                    let all_actions = std::iter::from_fn(|| {
+                                        let action = Action::n(current_action);
+                                        current_action += 1;
+                                        action
+                                    });
+
+                                    for action in all_actions {
                                         if node
                                             .supports_action(action, &|_node| FilterResult::Include)
                                             && ui.button(format!("{action:?}")).clicked()
