@@ -149,7 +149,7 @@ impl egui::Plugin for AccessibilityInspectorPlugin {
                                                 let Some(action) = action else {
                                                     break;
                                                 };
-                                                if node.supports_action(action, &|node| {
+                                                if node.supports_action(action, &|_node| {
                                                     FilterResult::Include
                                                 }) && ui.button(format!("{action:?}")).clicked()
                                                 {
@@ -226,7 +226,7 @@ impl AccessibilityInspectorPlugin {
                     .clicked()
                 {
                     collapsing.set_open(!collapsing.is_open());
-                };
+                }
                 let label_response =
                     ui.selectable_value(selected_node, Some(egui_node_id), label.clone());
                 if label_response.hovered() {

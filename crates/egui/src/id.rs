@@ -98,9 +98,9 @@ impl Id {
     /// # Panics
     /// If the value is zero, this will panic.
     #[doc(hidden)]
-    #[allow(unsafe_code)]
+    #[expect(unsafe_code)]
     pub unsafe fn from_high_entropy_bits(value: u64) -> Self {
-        Self(NonZeroU64::new(value).expect("Id must be non-zero."), )
+        Self(NonZeroU64::new(value).expect("Id must be non-zero."))
     }
 }
 
