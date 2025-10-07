@@ -27,9 +27,9 @@ egui_demo_lib = { workspace = true, features = ["chrono"] }
 # For image support:
 egui_extras = { workspace = true, features = ["default", "image"] }
 
-log = { workspace = true }
-winit = { workspace = true }
-android_logger = "0.14"
+android_logger.workspace = true
+log.workspace = true
+winit.workspace = true
 
 [package.metadata.android]
 build_targets = ["armv7-linux-androideabi", "aarch64-linux-android"]

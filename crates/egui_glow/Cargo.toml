@@ -56,7 +56,7 @@ egui-winit = { workspace = true, optional = true, default-features = false }
 bytemuck.workspace = true
 glow.workspace = true
 log.workspace = true
-memoffset = "0.9"
+memoffset.workspace = true
 profiling.workspace = true
 
 #! ### Optional dependencies
