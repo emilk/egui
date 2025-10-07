@@ -137,7 +137,7 @@ impl DebugRect {
             let galley = painter.layout_no_wrap(text, font_id, text_color);
 
             // Position the text either under or above:
-            let screen_rect = ctx.screen_rect();
+            let content_rect = ctx.content_rect();
             let y = if galley.size().y <= rect.top() {
                 // Above
                 rect.top() - galley.size().y - 16.0
@@ -147,12 +147,12 @@ impl DebugRect {
             };
 
             let y = y
-                .at_most(screen_rect.bottom() - galley.size().y)
+                .at_most(content_rect.bottom() - galley.size().y)
                 .at_least(0.0);
 
             let x = rect
                 .left()
-                .at_most(screen_rect.right() - galley.size().x)
+                .at_most(content_rect.right() - galley.size().x)
                 .at_least(0.0);
             let text_pos = pos2(x, y);
 

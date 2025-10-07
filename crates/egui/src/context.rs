@@ -1080,14 +1080,14 @@ impl Context {
         }
 
         let show_error = |widget_rect: Rect, text: String| {
-            let screen_rect = self.screen_rect();
+            let content_rect = self.content_rect();
 
             let text = format!("🔥 {text}");
             let color = self.style().visuals.error_fg_color;
             let painter = self.debug_painter();
             painter.rect_stroke(widget_rect, 0.0, (1.0, color), StrokeKind::Outside);
 
-            let below = widget_rect.bottom() + 32.0 < screen_rect.bottom();
+            let below = widget_rect.bottom() + 32.0 < content_rect.bottom();
 
             let text_rect = if below {
                 painter.debug_text(
@@ -1431,8 +1431,8 @@ impl Context {
 
     /// Get a full-screen painter for a new or existing layer
     pub fn layer_painter(&self, layer_id: LayerId) -> Painter {
-        let screen_rect = self.screen_rect();
-        Painter::new(self.clone(), layer_id, screen_rect)
+        let content_rect = self.content_rect();
+        Painter::new(self.clone(), layer_id, content_rect)
     }
 
     /// Paint on top of everything else
@@ -2666,7 +2666,26 @@ impl Context {
 
     // ---------------------------------------------------------------------
 
+    /// Returns the position and size of the egui area that is safe for content rendering.
+    ///
+    /// Returns [`Self::viewport_rect`] minus areas that might be partially covered by, for example,
+    /// the OS status bar or display notches.
+    pub fn content_rect(&self) -> Rect {
+        self.input(|i| i.content_rect()).round_ui()
+    }
+
+    /// Returns the position and size of the full area available to egui
+    ///
+    /// This includes reas that might be partially covered by, for example, the OS status bar or
+    /// display notches. See [`Self::content_rect`] to get a rect that is safe for content.
+    pub fn viewport_rect(&self) -> Rect {
+        self.input(|i| i.viewport_rect()).round_ui()
+    }
+
     /// Position and size of the egui area.
+    #[deprecated(
+        note = "screen_rect has been renamed to viewport_rect. Consider switching to content_rect."
+    )]
     pub fn screen_rect(&self) -> Rect {
         self.input(|i| i.content_rect()).round_ui()
     }
@@ -3243,7 +3262,7 @@ impl Context {
                                 ui.image(SizedTexture::new(texture_id, size))
                                     .on_hover_ui(|ui| {
                                         // show larger on hover
-                                        let max_size = 0.5 * ui.ctx().screen_rect().size();
+                                        let max_size = 0.5 * ui.ctx().content_rect().size();
                                         let mut size = point_size;
                                         size *= max_size.x / size.x.max(max_size.x);
                                         size *= max_size.y / size.y.max(max_size.y);
