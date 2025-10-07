@@ -1131,7 +1131,8 @@ impl Ui {
     pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> Response {
         #[cfg(feature = "accesskit")]
         self.ctx().register_accesskit_parent(id, self.unique_id);
-        let response = self.ctx().create_widget(
+
+        self.ctx().create_widget(
             WidgetRect {
                 id,
                 layer_id: self.layer_id(),
@@ -1141,8 +1142,7 @@ impl Ui {
                 enabled: self.enabled,
             },
             true,
-        );
-        response
+        )
     }
 
     /// Deprecated: use [`Self::interact`] instead.

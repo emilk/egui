@@ -142,8 +142,8 @@ impl egui::Plugin for AccessibilityInspectorPlugin {
                                                 break;
                                             };
                                             if node.supports_action(action, &|_node| {
-                                                    FilterResult::Include
-                                                })&& ui.button(format!("{action:?}")).clicked()
+                                                FilterResult::Include
+                                            }) && ui.button(format!("{action:?}")).clicked()
                                             {
                                                 let action_request = ActionRequest {
                                                     target: node.id(),
