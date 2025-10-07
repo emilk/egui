@@ -198,15 +198,14 @@ impl CaptureState {
             wgpu::TextureFormat::Bgra8Unorm => [2, 1, 0, 3],
             _ => {
                 log::error!(
-                    "Screen can't be captured unless the surface format is Rgba8Unorm or Bgra8Unorm. Current surface format is {:?}",
-                    format
+                    "Screen can't be captured unless the surface format is Rgba8Unorm or Bgra8Unorm. Current surface format is {format:?}"
                 );
                 return;
             }
         };
         buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
             if let Err(err) = result {
-                log::error!("Failed to map buffer for reading: {:?}", err);
+                log::error!("Failed to map buffer for reading: {err}");
                 return;
             }
             let buffer_slice = buffer.slice(..);
