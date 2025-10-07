@@ -23,10 +23,7 @@ eframe = { workspace = true, default-features = false, features = [
     "x11",
     "wgpu",
 ] }
-env_logger = { version = "0.10", default-features = false, features = [
-    "auto-color",
-    "humantime",
-] }
+env_logger = { workspace = true, features = ["auto-color", "humantime"] }
 # This is normally enabled by eframe/default, which is not being used here
 # because of accesskit, as mentioned above
 winit = { workspace = true, features = ["default"] }

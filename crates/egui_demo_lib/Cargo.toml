@@ -45,10 +45,10 @@ syntect = ["egui_extras/syntect"]
 egui = { workspace = true, default-features = false, features = ["color-hex"] }
 egui_extras = { workspace = true, features = ["image", "svg"] }
 
-unicode_names2 = { version = "0.6.0", default-features = false } # this old version has fewer dependencies
+unicode_names2.workspace = true # this old version has fewer dependencies
 
 #! ### Optional dependencies
-chrono = { version = "0.4", optional = true, features = ["js-sys", "wasmbind"] }
+chrono = { workspace = true, features = ["js-sys", "wasmbind"], optional = true }
 ## Enable this when generating docs.
 document-features = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
@@ -61,7 +61,7 @@ egui_extras = { workspace = true, features = ["image", "svg"] }
 egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }
 image = { workspace = true, features = ["png"] }
 mimalloc.workspace = true                                            # for benchmarks
-rand = "0.9"
+rand.workspace = true
 
 [[bench]]
 name = "benchmark"

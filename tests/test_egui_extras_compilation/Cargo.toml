@@ -17,4 +17,4 @@ ignored = [
 
 [dependencies]
 eframe = { workspace = true, features = ["default", "persistence"] }
-egui_extras = { workspace = true }
+egui_extras.workspace = true

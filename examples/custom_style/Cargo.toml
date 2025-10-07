@@ -19,10 +19,7 @@ eframe = { workspace = true, features = [
     "default",
     "__screenshot", # __screenshot is so we can dump a screenshot using EFRAME_SCREENSHOT_TO
 ] }
-env_logger = { version = "0.10", default-features = false, features = [
-    "auto-color",
-    "humantime",
-] }
+env_logger = { workspace = true, features = ["auto-color", "humantime"] }
 egui_demo_lib.workspace = true
 egui_extras = { workspace = true, features = ["image"] }
 image = { workspace = true, features = ["png"] }

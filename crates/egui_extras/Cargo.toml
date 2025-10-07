@@ -73,7 +73,7 @@ syntect = ["dep:syntect"]
 egui = { workspace = true, default-features = false }
 
 ahash.workspace = true
-enum-map = "2"
+enum-map.workspace = true
 log.workspace = true
 profiling.workspace = true
 
@@ -83,12 +83,12 @@ profiling.workspace = true
 serde = { workspace = true, optional = true }
 
 # Date operations needed for datepicker widget
-chrono = { version = "0.4", optional = true, default-features = false, features = [
+chrono = { workspace = true, features = [
   "clock",
   "js-sys",
   "std",
   "wasmbind",
-] }
+], optional = true }
 
 ## Enable this when generating docs.
 document-features = { workspace = true, optional = true }
@@ -96,15 +96,13 @@ document-features = { workspace = true, optional = true }
 image = { workspace = true, optional = true }
 
 # file feature
-mime_guess2 = { version = "2", optional = true, default-features = false }
+mime_guess2 = { workspace = true, optional = true }
 
 
-syntect = { version = "5", optional = true, default-features = false, features = [
-  "default-fancy",
-] }
+syntect = { workspace = true, features = ["default-fancy"], optional = true }
 
 # svg feature
-resvg = { version = "0.45", optional = true, default-features = false }
+resvg = { workspace = true, optional = true }
 
 # http feature
-ehttp = { version = "0.5", optional = true, default-features = false }
+ehttp = { workspace = true, optional = true }
