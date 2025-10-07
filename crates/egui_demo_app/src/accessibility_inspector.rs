@@ -118,8 +118,7 @@ impl AccessibilityInspectorPlugin {
         ui.separator();
 
         if let Some(tree) = &self.tree
-            && let Some(node) =
-            tree.state().node_by_id(NodeId::from(selected_node.value()))
+            && let Some(node) = tree.state().node_by_id(NodeId::from(selected_node.value()))
         {
             let node_response = ui.ctx().read_response(selected_node);
 
@@ -131,9 +130,9 @@ impl AccessibilityInspectorPlugin {
                 );
             }
 
-            egui::Grid::new("node_details_grid").num_columns(2).show(
-                ui,
-                |ui| {
+            egui::Grid::new("node_details_grid")
+                .num_columns(2)
+                .show(ui, |ui| {
                     ui.label("Node ID");
                     ui.strong(format!("{selected_node:?}"));
                     ui.end_row();
@@ -144,32 +143,22 @@ impl AccessibilityInspectorPlugin {
 
                     ui.label("Label");
                     ui.add(
-                        Label::new(
-                            RichText::new(node.label().unwrap_or_default())
-                                .strong(),
-                        )
+                        Label::new(RichText::new(node.label().unwrap_or_default()).strong())
                             .truncate(),
                     );
                     ui.end_row();
 
                     ui.label("Value");
                     ui.add(
-                        Label::new(
-                            RichText::new(node.value().unwrap_or_default())
-                                .strong(),
-                        )
+                        Label::new(RichText::new(node.value().unwrap_or_default()).strong())
                             .truncate(),
                     );
                     ui.end_row();
 
                     ui.label("Children");
-                    ui.label(
-                        RichText::new(node.children().len().to_string())
-                            .strong(),
-                    );
+                    ui.label(RichText::new(node.children().len().to_string()).strong());
                     ui.end_row();
-                },
-            );
+                });
 
             ui.label("Actions");
             ui.horizontal_wrapped(|ui| {
@@ -182,8 +171,7 @@ impl AccessibilityInspectorPlugin {
                 });
 
                 for action in all_actions {
-                    if node
-                        .supports_action(action, &|_node| FilterResult::Include)
+                    if node.supports_action(action, &|_node| FilterResult::Include)
                         && ui.button(format!("{action:?}")).clicked()
                     {
                         let action_request = ActionRequest {
