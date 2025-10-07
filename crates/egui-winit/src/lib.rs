@@ -407,10 +407,19 @@ impl State {
                 }
             }
             WindowEvent::Focused(focused) => {
-                self.egui_input.focused = *focused;
+                let focused = if cfg!(target_os = "macos") {
+                    // TODO(emilk): remove this work-around once we update winit
+                    // https://github.com/rust-windowing/winit/issues/4371
+                    // https://github.com/emilk/egui/issues/7588
+                    window.has_focus()
+                } else {
+                    *focused
+                };
+
+                self.egui_input.focused = focused;
                 self.egui_input
                     .events
-                    .push(egui::Event::WindowFocused(*focused));
+                    .push(egui::Event::WindowFocused(focused));
                 EventResponse {
                     repaint: true,
                     consumed: false,
