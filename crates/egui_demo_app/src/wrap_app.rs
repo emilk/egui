@@ -183,6 +183,10 @@ impl WrapApp {
         // This gives us image support:
         egui_extras::install_image_loaders(&cc.egui_ctx);
 
+        #[cfg(feature = "accessibility_inspector")]
+        cc.egui_ctx
+            .add_plugin(crate::accessibility_inspector::AccessibilityInspectorPlugin::default());
+
         #[allow(unused_mut, clippy::allow_attributes)]
         let mut slf = Self {
             state: State::default(),

@@ -69,6 +69,7 @@ egui_kittest = { version = "0.32.3", path = "crates/egui_kittest", default-featu
 eframe = { version = "0.32.3", path = "crates/eframe", default-features = false }
 
 accesskit = "0.21.0"
+accesskit_consumer = "0.30.0"
 accesskit_winit = "0.29"
 ahash = { version = "0.8.11", default-features = false, features = [
     "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
