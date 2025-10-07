@@ -162,6 +162,7 @@ impl Default for WgpuSetupCreateNew {
                     .unwrap_or(wgpu::Backends::PRIMARY | wgpu::Backends::GL),
                 flags: wgpu::InstanceFlags::from_build_config().with_env(),
                 backend_options: wgpu::BackendOptions::from_env_or_default(),
+                memory_budget_thresholds: wgpu::MemoryBudgetThresholds::default(),
             },
 
             power_preference: wgpu::PowerPreference::from_env()
@@ -178,15 +179,13 @@ impl Default for WgpuSetupCreateNew {
 
                 wgpu::DeviceDescriptor {
                     label: Some("egui wgpu device"),
-                    required_features: wgpu::Features::default(),
                     required_limits: wgpu::Limits {
                         // When using a depth buffer, we have to be able to create a texture
                         // large enough for the entire surface, and we want to support 4k+ displays.
                         max_texture_dimension_2d: 8192,
                         ..base_limits
                     },
-                    memory_hints: wgpu::MemoryHints::default(),
-                    trace: wgpu::Trace::Off,
+                    ..Default::default()
                 }
             }),
         }

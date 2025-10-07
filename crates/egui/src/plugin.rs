@@ -10,7 +10,7 @@ use std::sync::Arc;
 /// Plugins should not hold a reference to the [`Context`], since this would create a cycle
 /// (which would prevent the [`Context`] from being dropped).
 #[expect(unused_variables)]
-pub trait Plugin: Send + Sync + 'static {
+pub trait Plugin: Send + Sync + std::any::Any + 'static {
     /// Plugin name.
     ///
     /// Used when profiling.
@@ -45,8 +45,7 @@ pub trait Plugin: Send + Sync + 'static {
 }
 
 pub(crate) struct PluginHandle {
-    plugin: Box<dyn std::any::Any + Send + Sync>,
-    get_plugin_mut: fn(&mut Self) -> &mut dyn Plugin,
+    plugin: Box<dyn Plugin>,
 }
 
 pub struct TypedPluginHandle<P: Plugin> {
@@ -95,10 +94,6 @@ impl PluginHandle {
     pub fn new<P: Plugin>(plugin: P) -> Arc<Mutex<Self>> {
         Arc::new(Mutex::new(Self {
             plugin: Box::new(plugin),
-            get_plugin_mut: |handle| {
-                let plugin: &mut P = handle.typed_plugin_mut();
-                plugin as &mut dyn Plugin
-            },
         }))
     }
 
@@ -107,17 +102,17 @@ impl PluginHandle {
     }
 
     pub fn dyn_plugin_mut(&mut self) -> &mut dyn Plugin {
-        (self.get_plugin_mut)(self)
+        &mut *self.plugin
     }
 
     fn typed_plugin<P: Plugin + 'static>(&self) -> &P {
-        (*self.plugin)
+        (&*self.plugin as &dyn std::any::Any)
             .downcast_ref::<P>()
             .expect("PluginHandle: plugin is not of the expected type")
     }
 
     pub fn typed_plugin_mut<P: Plugin + 'static>(&mut self) -> &mut P {
-        (*self.plugin)
+        (&mut *self.plugin as &mut dyn std::any::Any)
             .downcast_mut::<P>()
             .expect("PluginHandle: plugin is not of the expected type")
     }

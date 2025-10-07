@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{Div, Mul, NumExt as _, Pos2, Rangef, Rot2, Vec2, lerp, pos2, vec2};
+use crate::{Div, Mul, NumExt as _, Pos2, Rangef, Rot2, Vec2, fast_midpoint, lerp, pos2, vec2};
 use std::ops::{BitOr, BitOrAssign};
 
 /// A rectangular region of space.
@@ -331,8 +331,8 @@ impl Rect {
     #[inline(always)]
     pub fn center(&self) -> Pos2 {
         Pos2 {
-            x: (self.min.x + self.max.x) / 2.0,
-            y: (self.min.y + self.max.y) / 2.0,
+            x: fast_midpoint(self.min.x, self.max.x),
+            y: fast_midpoint(self.min.y, self.max.y),
         }
     }
 
@@ -830,6 +830,7 @@ mod tests {
         );
     }
 
+    #[expect(clippy::print_stdout)]
     #[test]
     fn test_ray_intersection() {
         let rect = Rect::from_min_max(pos2(1.0, 1.0), pos2(3.0, 3.0));

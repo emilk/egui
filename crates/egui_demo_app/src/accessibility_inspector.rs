@@ -1,5 +1,5 @@
 use accesskit::{Action, ActionRequest, NodeId};
-use accesskit_consumer::{Node, Tree, TreeChangeHandler};
+use accesskit_consumer::{FilterResult, Node, Tree, TreeChangeHandler};
 use eframe::epaint::text::TextWrapMode;
 use egui::collapsing_header::CollapsingState;
 use egui::{
@@ -149,8 +149,9 @@ impl egui::Plugin for AccessibilityInspectorPlugin {
                                                 let Some(action) = action else {
                                                     break;
                                                 };
-                                                if node.supports_action(action)
-                                                    && ui.button(format!("{action:?}")).clicked()
+                                                if node.supports_action(action, &|node| {
+                                                    FilterResult::Include
+                                                }) && ui.button(format!("{action:?}")).clicked()
                                                 {
                                                     let action_request = ActionRequest {
                                                         target: node.id(),
@@ -204,7 +205,7 @@ impl AccessibilityInspectorPlugin {
 
         // Safety: This is safe since the `accesskit::NodeId` was created from an `egui::Id`.
         #[expect(unsafe_code)]
-        let egui_node_id = unsafe {Id::from_high_entropy_bits(node.id().0)};
+        let egui_node_id = unsafe { Id::from_high_entropy_bits(node.id().0) };
 
         ui.push_id(node.id(), |ui| {
             let child_count = node.children().len();
@@ -213,7 +214,7 @@ impl AccessibilityInspectorPlugin {
 
             let mut collapsing = CollapsingState::load_with_default_open(
                 ui.ctx(),
-                node_id.with("ak_collapse"),
+                egui_node_id.with("ak_collapse"),
                 default_open,
             );
 
@@ -226,13 +227,10 @@ impl AccessibilityInspectorPlugin {
                 {
                     collapsing.set_open(!collapsing.is_open());
                 };
-                let label_response = ui.selectable_value(
-                    selected_node,
-                    Some(egui_node_id),
-                    label.clone(),
-                );
+                let label_response =
+                    ui.selectable_value(selected_node, Some(egui_node_id), label.clone());
                 if label_response.hovered() {
-                    let widget_response = ui.ctx().read_response(node_id);
+                    let widget_response = ui.ctx().read_response(egui_node_id);
 
                     if let Some(widget_response) = widget_response {
                         ui.ctx()

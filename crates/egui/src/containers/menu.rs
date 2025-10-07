@@ -152,7 +152,8 @@ impl MenuState {
     pub fn from_id<R>(ctx: &Context, id: Id, f: impl FnOnce(&mut Self) -> R) -> R {
         let pass_nr = ctx.cumulative_pass_nr();
         ctx.data_mut(|data| {
-            let state = data.get_temp_mut_or_insert_with(id.with(Self::ID), || Self {
+            let state_id = id.with(Self::ID);
+            let mut state = data.get_temp(state_id).unwrap_or(Self {
                 open_item: None,
                 last_visible_pass: pass_nr,
             });
@@ -160,14 +161,38 @@ impl MenuState {
             if state.last_visible_pass + 1 < pass_nr {
                 state.open_item = None;
             }
-            state.last_visible_pass = pass_nr;
-            f(state)
+            if let Some(item) = state.open_item {
+                if data
+                    .get_temp(item.with(Self::ID))
+                    .is_none_or(|item: Self| item.last_visible_pass + 1 < pass_nr)
+                {
+                    // If the open item wasn't shown for at least a frame, reset the open item
+                    state.open_item = None;
+                }
+            }
+            let r = f(&mut state);
+            data.insert_temp(state_id, state);
+            r
         })
     }
 
+    pub fn mark_shown(ctx: &Context, id: Id) {
+        let pass_nr = ctx.cumulative_pass_nr();
+        Self::from_id(ctx, id, |state| {
+            state.last_visible_pass = pass_nr;
+        });
+    }
+
     /// Is the menu with this id the deepest sub menu? (-> no child sub menu is open)
-    pub fn is_deepest_sub_menu(ctx: &Context, id: Id) -> bool {
-        Self::from_id(ctx, id, |state| state.open_item.is_none())
+    ///
+    /// Note: This only returns correct results if called after the menu contents were shown.
+    pub fn is_deepest_open_sub_menu(ctx: &Context, id: Id) -> bool {
+        let pass_nr = ctx.cumulative_pass_nr();
+        let open_item = Self::from_id(ctx, id, |state| state.open_item);
+        // If we have some open item, check if that was actually shown this frame
+        open_item.is_none_or(|submenu_id| {
+            Self::from_id(ctx, submenu_id, |state| state.last_visible_pass != pass_nr)
+        })
     }
 }
 
@@ -399,6 +424,9 @@ impl SubMenu {
     }
 
     /// Show the submenu.
+    ///
+    /// This does some heuristics to check if the `button_response` was the last thing in the
+    /// menu that was hovered/clicked, and if so, shows the submenu.
     pub fn show<R>(
         self,
         ui: &Ui,
@@ -409,6 +437,7 @@ impl SubMenu {
 
         let id = Self::id_from_widget_id(button_response.id);
 
+        // Get the state from the parent menu
         let (open_item, menu_id, parent_config) = MenuState::from_ui(ui, |state, stack| {
             (state.open_item, stack.id, MenuConfig::from_stack(stack))
         });
@@ -446,11 +475,13 @@ impl SubMenu {
         let is_hovered = hover_pos.is_some_and(|pos| button_rect.contains(pos));
 
         // The clicked handler is there for accessibility (keyboard navigation)
-        if (!is_any_open && is_hovered) || button_response.clicked() {
+        let should_open =
+            ui.is_enabled() && (button_response.clicked() || (is_hovered && !is_any_open));
+        if should_open {
             set_open = Some(true);
             is_open = true;
             // Ensure that all other sub menus are closed when we open the menu
-            MenuState::from_id(ui.ctx(), id, |state| {
+            MenuState::from_id(ui.ctx(), menu_id, |state| {
                 state.open_item = None;
             });
         }
@@ -486,7 +517,7 @@ impl SubMenu {
 
         if let Some(popup_response) = &popup_response {
             // If no child sub menu is open means we must be the deepest child sub menu.
-            let is_deepest_submenu = MenuState::is_deepest_sub_menu(ui.ctx(), id);
+            let is_deepest_submenu = MenuState::is_deepest_open_sub_menu(ui.ctx(), id);
 
             // If the user clicks and the cursor is not hovering over our menu rect, it's
             // safe to assume they clicked outside the menu, so we close everything.

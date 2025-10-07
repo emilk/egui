@@ -317,19 +317,18 @@ fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
                     pos,
                 );
 
-                if let Some(closest_drag) = closest_drag {
-                    if hit_drag
+                if let Some(closest_drag) = closest_drag
+                    && hit_drag
                         .interact_rect
                         .contains_rect(closest_drag.interact_rect)
-                    {
-                        // `hit_drag` is a big background thing and `closest_drag` is something small on top of it.
-                        // Be helpful and return the small things:
-                        return WidgetHits {
-                            click: None,
-                            drag: Some(closest_drag),
-                            ..Default::default()
-                        };
-                    }
+                {
+                    // `hit_drag` is a big background thing and `closest_drag` is something small on top of it.
+                    // Be helpful and return the small things:
+                    return WidgetHits {
+                        click: None,
+                        drag: Some(closest_drag),
+                        ..Default::default()
+                    };
                 }
 
                 WidgetHits {
@@ -425,13 +424,13 @@ fn find_closest_within(
 
         let dist_sq = widget.interact_rect.distance_sq_to_pos(pos);
 
-        if let Some(closest) = closest {
-            if dist_sq == closest_dist_sq {
-                // It's a tie! Pick the thin candidate over the thick one.
-                // This makes it easier to hit a thin resize-handle, for instance:
-                if should_prioritize_hits_on_back(closest.interact_rect, widget.interact_rect) {
-                    continue;
-                }
+        if let Some(closest) = closest
+            && dist_sq == closest_dist_sq
+        {
+            // It's a tie! Pick the thin candidate over the thick one.
+            // This makes it easier to hit a thin resize-handle, for instance:
+            if should_prioritize_hits_on_back(closest.interact_rect, widget.interact_rect) {
+                continue;
             }
         }
 
@@ -468,6 +467,8 @@ fn should_prioritize_hits_on_back(back: Rect, front: Rect) -> bool {
 
 #[cfg(test)]
 mod tests {
+    #![expect(clippy::print_stdout)]
+
     use emath::{Rect, pos2, vec2};
 
     use crate::{Id, Sense};

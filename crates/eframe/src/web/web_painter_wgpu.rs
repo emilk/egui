@@ -236,6 +236,7 @@ impl WebPainter for WebPainterWgpu {
                             }),
                             store: wgpu::StoreOp::Store,
                         },
+                        depth_slice: None,
                     })],
                     depth_stencil_attachment: self.depth_texture_view.as_ref().map(|view| {
                         wgpu::RenderPassDepthStencilAttachment {
@@ -274,7 +275,7 @@ impl WebPainter for WebPainterWgpu {
                         &mut encoder,
                     ));
                 }
-            };
+            }
 
             Some((output_frame, capture_buffer))
         };

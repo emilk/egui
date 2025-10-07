@@ -62,7 +62,7 @@ pub use self::{
     stats::PaintStats,
     stroke::{PathStroke, Stroke, StrokeKind},
     tessellator::{TessellationOptions, Tessellator},
-    text::{FontFamily, FontId, Fonts, Galley},
+    text::{FontFamily, FontId, Fonts, FontsView, Galley},
     texture_atlas::TextureAtlas,
     texture_handle::TextureHandle,
     textures::TextureManager,
@@ -125,6 +125,18 @@ pub struct ClippedShape {
 
     /// The shape
     pub shape: Shape,
+}
+
+impl ClippedShape {
+    /// Transform (move/scale) the shape in-place.
+    ///
+    /// If using a [`PaintCallback`], note that only the rect is scaled as opposed
+    /// to other shapes where the stroke is also scaled.
+    pub fn transform(&mut self, transform: emath::TSTransform) {
+        let Self { clip_rect, shape } = self;
+        *clip_rect = transform * *clip_rect;
+        shape.transform(transform);
+    }
 }
 
 /// A [`Mesh`] or [`PaintCallback`] within a clip rectangle.

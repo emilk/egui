@@ -5,20 +5,21 @@ name: Rust
 env:
   RUSTFLAGS: -D warnings
   RUSTDOCFLAGS: -D warnings
-  NIGHTLY_VERSION: nightly-2025-04-22
+  NIGHTLY_VERSION: nightly-2025-09-16
 
 jobs:
   fmt-crank-check-test:
     name: Format + check
     runs-on: ubuntu-22.04
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
         with:
           lfs: true
 
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.85.0
+          toolchain: 1.88.0
 
       - name: Install packages (Linux)
         if: runner.os == 'Linux'
@@ -37,39 +38,26 @@ jobs:
       - name: Lint vertical spacing
         run: ./scripts/lint.py
 
-      - name: check --all-features
-        run: cargo check --locked --all-features --all-targets
+      - run: cargo clippy --locked --all-features --all-targets
 
-      - name: check egui_extras --all-features
-        run: cargo check --locked --all-features -p egui_extras
+      - run: cargo clippy --locked --all-features -p egui_extras
 
-      - name: check default features
-        run: cargo check --locked --all-targets
+      - run: cargo clippy --locked --all-targets
 
-      - name: check --no-default-features
-        run: cargo check --locked --no-default-features --lib --all-targets
+      - run: cargo clippy --locked --no-default-features --lib --all-targets
 
-      - name: check eframe --no-default-features
-        run: cargo check --locked --no-default-features --features x11 --lib -p eframe
+      - run: cargo clippy --locked --no-default-features --features x11 --lib -p eframe
 
-      - name: check egui_extras --no-default-features
-        run: cargo check --locked --no-default-features --lib -p egui_extras
+      - run: cargo clippy --locked --no-default-features --lib -p egui_extras
 
-      - name: check epaint --no-default-features
-        run: cargo check --locked --no-default-features --lib -p epaint
+      - run: cargo clippy --locked --no-default-features --lib -p epaint
 
       # Regression test for https://github.com/emilk/egui/issues/4771
-      - name: cargo check -p test_egui_extras_compilation
-        run: cargo check -p test_egui_extras_compilation
+      - run: cargo clippy -p test_egui_extras_compilation
 
-      - name: cargo doc --lib
-        run: cargo doc --lib --no-deps --all-features
+      - run: cargo doc --lib --no-deps --all-features
 
-      - name: cargo doc --document-private-items
-        run: cargo doc --document-private-items --no-deps --all-features
-
-      - name: clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+      - run: cargo doc --document-private-items --no-deps --all-features
 
       - name: clippy release
         run: cargo clippy --all-targets --all-features --release -- -D warnings
@@ -79,11 +67,12 @@ jobs:
   check_wasm:
     name: Check wasm32 + wasm-bindgen
     runs-on: ubuntu-22.04
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.85.0
+          toolchain: 1.88.0
           targets: wasm32-unknown-unknown
 
       - run: sudo apt-get update && sudo apt-get install libgtk-3-dev libatk1.0-dev
@@ -91,19 +80,19 @@ jobs:
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
 
-      - name: Check wasm32 egui_demo_app
-        run: cargo check -p egui_demo_app --lib --target wasm32-unknown-unknown
+      - name: clippy wasm32 egui_demo_app
+        run: cargo clippy -p egui_demo_app --lib --target wasm32-unknown-unknown
 
-      - name: Check wasm32 egui_demo_app --all-features
-        run: cargo check -p egui_demo_app --lib --target wasm32-unknown-unknown --all-features
+      - name: clippy wasm32 egui_demo_app --all-features
+        run: cargo clippy -p egui_demo_app --lib --target wasm32-unknown-unknown --all-features
 
-      - name: Check wasm32 eframe
-        run: cargo check -p eframe --lib --no-default-features --features glow,persistence --target wasm32-unknown-unknown
+      - name: clippy wasm32 eframe
+        run: cargo clippy -p eframe --lib --no-default-features --features glow,persistence --target wasm32-unknown-unknown
 
       - name: wasm-bindgen
         uses: jetli/wasm-bindgen-action@v0.1.0
         with:
-          version: "0.2.97"
+          version: "0.2.100"
 
       - run: ./scripts/wasm_bindgen_check.sh --skip-setup
 
@@ -114,20 +103,21 @@ jobs:
   check_wasm_atomics:
     name: Check wasm32+atomics
     runs-on: ubuntu-22.04
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - run: sudo apt-get update && sudo apt-get install libgtk-3-dev libatk1.0-dev
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{env.NIGHTLY_VERSION}}
           targets: wasm32-unknown-unknown
           components: rust-src
 
       - name: Check wasm32+atomics eframe with wgpu
-        run: RUSTFLAGS='-C target-feature=+atomics' cargo +${{env.NIGHTLY_VERSION}} check -p eframe --lib --no-default-features --features wgpu --target wasm32-unknown-unknown -Z build-std=std,panic_abort
+        run: RUSTFLAGS='-C target-feature=+atomics' cargo +${{env.NIGHTLY_VERSION}} check -p eframe --lib --no-default-features --features wgpu,wgpu/webgpu --target wasm32-unknown-unknown -Z build-std=std,panic_abort
 
   # ---------------------------------------------------------------------------
 
@@ -151,11 +141,12 @@ jobs:
 
     name: cargo-deny ${{ matrix.target }}
     runs-on: ubuntu-22.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:
-          rust-version: "1.85.0"
+          rust-version: "1.88.0"
           log-level: error
           command: check
           arguments: --target  ${{ matrix.target }}
@@ -165,12 +156,13 @@ jobs:
   android:
     name: android
     runs-on: ubuntu-22.04
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.85.0
+          toolchain: 1.88.0
           targets: aarch64-linux-android
 
       - name: Set up cargo cache
@@ -186,12 +178,13 @@ jobs:
   ios:
     name: ios
     runs-on: ubuntu-22.04
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.85.0
+          toolchain: 1.88.0
           targets: aarch64-apple-ios
 
       - name: Set up cargo cache
@@ -206,20 +199,19 @@ jobs:
   windows:
     name: Check Windows
     runs-on: windows-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.85.0
+          toolchain: 1.88.0
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
 
-      - name: Check all
-        run: cargo check --all-targets --all-features
+      - run: cargo clippy --all-targets --all-features
 
-      - name: Check hello_world
-        run: cargo check -p hello_world
+      - run: cargo clippy -p hello_world
 
   # ---------------------------------------------------------------------------
 
@@ -227,14 +219,14 @@ jobs:
     name: Run tests
     # We run the tests on macOS because it will run with an actual GPU
     runs-on: macos-latest
-
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
         with:
           lfs: true
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.85.0
+          toolchain: 1.88.0
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2

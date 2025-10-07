@@ -96,7 +96,8 @@ impl AppRunner {
             wgpu_render_state: None,
         };
 
-        let needs_repaint: std::sync::Arc<NeedRepaint> = Default::default();
+        let needs_repaint: std::sync::Arc<NeedRepaint> =
+            std::sync::Arc::new(NeedRepaint::new(web_options.max_fps));
         {
             let needs_repaint = needs_repaint.clone();
             egui_ctx.set_request_repaint_callback(move |info| {
@@ -304,8 +305,6 @@ impl AppRunner {
     }
 
     fn handle_platform_output(&self, platform_output: egui::PlatformOutput) {
-        #![allow(deprecated)]
-
         #[cfg(feature = "web_screen_reader")]
         if self.egui_ctx.options(|o| o.screen_reader) {
             super::screen_reader::speak(&platform_output.events_description());
@@ -314,8 +313,6 @@ impl AppRunner {
         let egui::PlatformOutput {
             commands,
             cursor_icon,
-            open_url,
-            copied_text,
             events: _,                    // already handled
             mutable_text_under_cursor: _, // TODO(#4569): https://github.com/emilk/egui/issues/4569
             ime,
@@ -340,14 +337,6 @@ impl AppRunner {
         }
 
         super::set_cursor_icon(cursor_icon);
-
-        if let Some(open) = open_url {
-            super::open_url(&open.url, open.new_tab);
-        }
-
-        if !copied_text.is_empty() {
-            super::set_clipboard_text(&copied_text);
-        }
 
         if self.has_focus() {
             // The eframe app has focus.

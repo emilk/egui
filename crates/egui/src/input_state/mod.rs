@@ -17,6 +17,37 @@ pub use crate::Key;
 pub use touch_state::MultiTouchInfo;
 use touch_state::TouchState;
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum SurrenderFocusOn {
+    /// Surrender focus if the user _presses_ somewhere outside the focused widget.
+    Presses,
+
+    /// Surrender focus if the user _clicks_ somewhere outside the focused widget.
+    #[default]
+    Clicks,
+
+    /// Never surrender focus.
+    Never,
+}
+
+impl SurrenderFocusOn {
+    pub fn ui(&mut self, ui: &mut crate::Ui) {
+        ui.horizontal(|ui| {
+            ui.selectable_value(self, Self::Presses, "Presses")
+                .on_hover_text(
+                    "Surrender focus if the user presses somewhere outside the focused widget.",
+                );
+            ui.selectable_value(self, Self::Clicks, "Clicks")
+                .on_hover_text(
+                    "Surrender focus if the user clicks somewhere outside the focused widget.",
+                );
+            ui.selectable_value(self, Self::Never, "Never")
+                .on_hover_text("Never surrender focus.");
+        });
+    }
+}
+
 /// Options for input state handling.
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -58,6 +89,9 @@ pub struct InputOptions {
     /// and when combined with [`Self::zoom_modifier`] it will result in zooming
     /// on only the vertical axis.
     pub vertical_scroll_modifier: Modifiers,
+
+    /// When should we surrender focus from the focused widget?
+    pub surrender_focus_on: SurrenderFocusOn,
 }
 
 impl Default for InputOptions {
@@ -79,6 +113,7 @@ impl Default for InputOptions {
             zoom_modifier: Modifiers::COMMAND,
             horizontal_scroll_modifier: Modifiers::SHIFT,
             vertical_scroll_modifier: Modifiers::ALT,
+            surrender_focus_on: SurrenderFocusOn::default(),
         }
     }
 }
@@ -95,6 +130,7 @@ impl InputOptions {
             zoom_modifier,
             horizontal_scroll_modifier,
             vertical_scroll_modifier,
+            surrender_focus_on,
         } = self;
         crate::Grid::new("InputOptions")
             .num_columns(2)
@@ -153,6 +189,10 @@ impl InputOptions {
 
                 ui.label("vertical_scroll_modifier");
                 vertical_scroll_modifier.ui(ui);
+                ui.end_row();
+
+                ui.label("surrender_focus_on");
+                surrender_focus_on.ui(ui);
                 ui.end_row();
 
             });
@@ -226,6 +266,9 @@ pub struct InputState {
     /// * `zoom < 1`: pinch together
     /// * `zoom > 1`: pinch spread
     zoom_factor_delta: f32,
+
+    /// Rotation in radians this frame, measuring clockwise (e.g. from a rotation gesture).
+    rotation_radians: f32,
 
     // ----------------------------------------------
     /// Position and size of the egui area.
@@ -314,6 +357,7 @@ impl Default for InputState {
             raw_scroll_delta: Vec2::ZERO,
             smooth_scroll_delta: Vec2::ZERO,
             zoom_factor_delta: 1.0,
+            rotation_radians: 0.0,
 
             screen_rect: Rect::from_min_size(Default::default(), vec2(10_000.0, 10_000.0)),
             pixels_per_point: 1.0,
@@ -362,6 +406,7 @@ impl InputState {
 
         let mut keys_down = self.keys_down;
         let mut zoom_factor_delta = 1.0; // TODO(emilk): smoothing for zoom factor
+        let mut rotation_radians = 0.0;
         let mut raw_scroll_delta = Vec2::ZERO;
 
         let mut unprocessed_scroll_delta = self.unprocessed_scroll_delta;
@@ -440,6 +485,9 @@ impl InputState {
                 Event::Zoom(factor) => {
                     zoom_factor_delta *= *factor;
                 }
+                Event::Rotate(radians) => {
+                    rotation_radians += *radians;
+                }
                 Event::WindowFocused(false) => {
                     // Example: pressing `Cmd+S` brings up a save-dialog (e.g. using rfd),
                     // but we get no key-up event for the `S` key (in winit).
@@ -502,6 +550,7 @@ impl InputState {
             raw_scroll_delta,
             smooth_scroll_delta,
             zoom_factor_delta,
+            rotation_radians,
 
             screen_rect,
             pixels_per_point,
@@ -589,6 +638,26 @@ impl InputState {
 
             zoom
         }
+    }
+
+    /// Rotation in radians this frame, measuring clockwise (e.g. from a rotation gesture).
+    #[inline(always)]
+    pub fn rotation_delta(&self) -> f32 {
+        self.multi_touch()
+            .map_or(self.rotation_radians, |touch| touch.rotation_delta)
+    }
+
+    /// Panning translation in pixels this frame (e.g. from scrolling or a pan gesture)
+    ///
+    /// The delta indicates how the **content** should move.
+    ///
+    /// A positive X-value indicates the content is being moved right, as when swiping right on a touch-screen or track-pad with natural scrolling.
+    ///
+    /// A positive Y-value indicates the content is being moved down, as when swiping down on a touch-screen or track-pad with natural scrolling.
+    #[inline(always)]
+    pub fn translation_delta(&self) -> Vec2 {
+        self.multi_touch()
+            .map_or(self.smooth_scroll_delta, |touch| touch.translation_delta)
     }
 
     /// How long has it been (in seconds) since the use last scrolled?
@@ -815,10 +884,11 @@ impl InputState {
     ) -> impl Iterator<Item = &accesskit::ActionRequest> {
         let accesskit_id = id.accesskit_id();
         self.events.iter().filter_map(move |event| {
-            if let Event::AccessKitActionRequest(request) = event {
-                if request.target == accesskit_id && request.action == action {
-                    return Some(request);
-                }
+            if let Event::AccessKitActionRequest(request) = event
+                && request.target == accesskit_id
+                && request.action == action
+            {
+                return Some(request);
             }
             None
         })
@@ -832,10 +902,10 @@ impl InputState {
     ) {
         let accesskit_id = id.accesskit_id();
         self.events.retain(|event| {
-            if let Event::AccessKitActionRequest(request) = event {
-                if request.target == accesskit_id {
-                    return !consume(request);
-                }
+            if let Event::AccessKitActionRequest(request) = event
+                && request.target == accesskit_id
+            {
+                return !consume(request);
             }
             true
         });
@@ -1399,10 +1469,10 @@ impl PointerState {
                 return false;
             }
 
-            if let Some(press_start_time) = self.press_start_time {
-                if self.time - press_start_time > self.options.max_click_duration {
-                    return false;
-                }
+            if let Some(press_start_time) = self.press_start_time
+                && self.time - press_start_time > self.options.max_click_duration
+            {
+                return false;
             }
 
             true
@@ -1486,6 +1556,7 @@ impl InputState {
             unprocessed_scroll_delta_for_zoom,
             raw_scroll_delta,
             smooth_scroll_delta,
+            rotation_radians,
 
             zoom_factor_delta,
             screen_rect,
@@ -1539,6 +1610,7 @@ impl InputState {
             "smooth_scroll_delta: {smooth_scroll_delta:?} points"
         ));
         ui.label(format!("zoom_factor_delta: {zoom_factor_delta:4.2}x"));
+        ui.label(format!("rotation_radians: {rotation_radians:.3} radians"));
 
         ui.label(format!("screen_rect: {screen_rect:?} points"));
         ui.label(format!(

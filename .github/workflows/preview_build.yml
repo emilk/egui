@@ -15,11 +15,26 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
+
+      - name: Comment PR
+        uses: thollander/actions-comment-pull-request@v2
+        env:
+          URL_SLUG: ${{ github.event.number }}-${{ github.head_ref }}
         with:
-          toolchain: 1.85.0
+          message: |
+            Preview is being built...
+            
+            Preview will be available at https://egui-pr-preview.github.io/pr/${{ env.URL_SLUG }}
+            
+            View snapshot changes at [kitdiff](https://rerun-io.github.io/kitdiff/?url=${{ github.event.pull_request.html_url }})
+          comment_tag: 'egui-preview'
+
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.88.0
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
         with:

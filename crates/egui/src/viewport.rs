@@ -113,6 +113,20 @@ pub enum ViewportClass {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ViewportId(pub Id);
 
+// We implement `PartialOrd` and `Ord` so we can use `ViewportId` in a `BTreeMap`,
+// which allows predicatable iteration order, frame-to-frame.
+impl PartialOrd for ViewportId {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for ViewportId {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.value().cmp(&other.0.value())
+    }
+}
+
 impl Default for ViewportId {
     #[inline]
     fn default() -> Self {
@@ -150,6 +164,9 @@ pub type ViewportIdSet = nohash_hasher::IntSet<ViewportId>;
 
 /// A fast hash map from [`ViewportId`] to `T`.
 pub type ViewportIdMap<T> = nohash_hasher::IntMap<ViewportId, T>;
+
+/// An order map from [`ViewportId`] to `T`.
+pub type OrderedViewportIdMap<T> = std::collections::BTreeMap<ViewportId, T>;
 
 // ----------------------------------------------------------------------------
 
@@ -613,6 +630,8 @@ impl ViewportBuilder {
     }
 
     /// Control if window is always-on-top, always-on-bottom, or neither.
+    ///
+    /// For platform compatibility see [`crate::viewport::WindowLevel`] documentation
     #[inline]
     pub fn with_window_level(mut self, level: WindowLevel) -> Self {
         self.window_level = Some(level);
@@ -620,6 +639,8 @@ impl ViewportBuilder {
     }
 
     /// This window is always on top
+    ///
+    /// For platform compatibility see [`crate::viewport::WindowLevel`] documentation
     #[inline]
     pub fn with_always_on_top(self) -> Self {
         self.with_window_level(WindowLevel::AlwaysOnTop)
@@ -648,6 +669,8 @@ impl ViewportBuilder {
     /// returning a list of commands and a bool indicating if the window needs to be recreated.
     #[must_use]
     pub fn patch(&mut self, new_vp_builder: Self) -> (Vec<ViewportCommand>, bool) {
+        #![expect(clippy::useless_let_if_seq)] // False positive
+
         let Self {
             title: new_title,
             app_id: new_app_id,
@@ -682,74 +705,74 @@ impl ViewportBuilder {
 
         let mut commands = Vec::new();
 
-        if let Some(new_title) = new_title {
-            if Some(&new_title) != self.title.as_ref() {
-                self.title = Some(new_title.clone());
-                commands.push(ViewportCommand::Title(new_title));
-            }
+        if let Some(new_title) = new_title
+            && Some(&new_title) != self.title.as_ref()
+        {
+            self.title = Some(new_title.clone());
+            commands.push(ViewportCommand::Title(new_title));
         }
 
-        if let Some(new_position) = new_position {
-            if Some(new_position) != self.position {
-                self.position = Some(new_position);
-                commands.push(ViewportCommand::OuterPosition(new_position));
-            }
+        if let Some(new_position) = new_position
+            && Some(new_position) != self.position
+        {
+            self.position = Some(new_position);
+            commands.push(ViewportCommand::OuterPosition(new_position));
         }
 
-        if let Some(new_inner_size) = new_inner_size {
-            if Some(new_inner_size) != self.inner_size {
-                self.inner_size = Some(new_inner_size);
-                commands.push(ViewportCommand::InnerSize(new_inner_size));
-            }
+        if let Some(new_inner_size) = new_inner_size
+            && Some(new_inner_size) != self.inner_size
+        {
+            self.inner_size = Some(new_inner_size);
+            commands.push(ViewportCommand::InnerSize(new_inner_size));
         }
 
-        if let Some(new_min_inner_size) = new_min_inner_size {
-            if Some(new_min_inner_size) != self.min_inner_size {
-                self.min_inner_size = Some(new_min_inner_size);
-                commands.push(ViewportCommand::MinInnerSize(new_min_inner_size));
-            }
+        if let Some(new_min_inner_size) = new_min_inner_size
+            && Some(new_min_inner_size) != self.min_inner_size
+        {
+            self.min_inner_size = Some(new_min_inner_size);
+            commands.push(ViewportCommand::MinInnerSize(new_min_inner_size));
         }
 
-        if let Some(new_max_inner_size) = new_max_inner_size {
-            if Some(new_max_inner_size) != self.max_inner_size {
-                self.max_inner_size = Some(new_max_inner_size);
-                commands.push(ViewportCommand::MaxInnerSize(new_max_inner_size));
-            }
+        if let Some(new_max_inner_size) = new_max_inner_size
+            && Some(new_max_inner_size) != self.max_inner_size
+        {
+            self.max_inner_size = Some(new_max_inner_size);
+            commands.push(ViewportCommand::MaxInnerSize(new_max_inner_size));
         }
 
-        if let Some(new_fullscreen) = new_fullscreen {
-            if Some(new_fullscreen) != self.fullscreen {
-                self.fullscreen = Some(new_fullscreen);
-                commands.push(ViewportCommand::Fullscreen(new_fullscreen));
-            }
+        if let Some(new_fullscreen) = new_fullscreen
+            && Some(new_fullscreen) != self.fullscreen
+        {
+            self.fullscreen = Some(new_fullscreen);
+            commands.push(ViewportCommand::Fullscreen(new_fullscreen));
         }
 
-        if let Some(new_maximized) = new_maximized {
-            if Some(new_maximized) != self.maximized {
-                self.maximized = Some(new_maximized);
-                commands.push(ViewportCommand::Maximized(new_maximized));
-            }
+        if let Some(new_maximized) = new_maximized
+            && Some(new_maximized) != self.maximized
+        {
+            self.maximized = Some(new_maximized);
+            commands.push(ViewportCommand::Maximized(new_maximized));
         }
 
-        if let Some(new_resizable) = new_resizable {
-            if Some(new_resizable) != self.resizable {
-                self.resizable = Some(new_resizable);
-                commands.push(ViewportCommand::Resizable(new_resizable));
-            }
+        if let Some(new_resizable) = new_resizable
+            && Some(new_resizable) != self.resizable
+        {
+            self.resizable = Some(new_resizable);
+            commands.push(ViewportCommand::Resizable(new_resizable));
         }
 
-        if let Some(new_transparent) = new_transparent {
-            if Some(new_transparent) != self.transparent {
-                self.transparent = Some(new_transparent);
-                commands.push(ViewportCommand::Transparent(new_transparent));
-            }
+        if let Some(new_transparent) = new_transparent
+            && Some(new_transparent) != self.transparent
+        {
+            self.transparent = Some(new_transparent);
+            commands.push(ViewportCommand::Transparent(new_transparent));
         }
 
-        if let Some(new_decorations) = new_decorations {
-            if Some(new_decorations) != self.decorations {
-                self.decorations = Some(new_decorations);
-                commands.push(ViewportCommand::Decorations(new_decorations));
-            }
+        if let Some(new_decorations) = new_decorations
+            && Some(new_decorations) != self.decorations
+        {
+            self.decorations = Some(new_decorations);
+            commands.push(ViewportCommand::Decorations(new_decorations));
         }
 
         if let Some(new_icon) = new_icon {
@@ -764,25 +787,25 @@ impl ViewportBuilder {
             }
         }
 
-        if let Some(new_visible) = new_visible {
-            if Some(new_visible) != self.visible {
-                self.visible = Some(new_visible);
-                commands.push(ViewportCommand::Visible(new_visible));
-            }
+        if let Some(new_visible) = new_visible
+            && Some(new_visible) != self.visible
+        {
+            self.visible = Some(new_visible);
+            commands.push(ViewportCommand::Visible(new_visible));
         }
 
-        if let Some(new_mouse_passthrough) = new_mouse_passthrough {
-            if Some(new_mouse_passthrough) != self.mouse_passthrough {
-                self.mouse_passthrough = Some(new_mouse_passthrough);
-                commands.push(ViewportCommand::MousePassthrough(new_mouse_passthrough));
-            }
+        if let Some(new_mouse_passthrough) = new_mouse_passthrough
+            && Some(new_mouse_passthrough) != self.mouse_passthrough
+        {
+            self.mouse_passthrough = Some(new_mouse_passthrough);
+            commands.push(ViewportCommand::MousePassthrough(new_mouse_passthrough));
         }
 
-        if let Some(new_window_level) = new_window_level {
-            if Some(new_window_level) != self.window_level {
-                self.window_level = Some(new_window_level);
-                commands.push(ViewportCommand::WindowLevel(new_window_level));
-            }
+        if let Some(new_window_level) = new_window_level
+            && Some(new_window_level) != self.window_level
+        {
+            self.window_level = Some(new_window_level);
+            commands.push(ViewportCommand::WindowLevel(new_window_level));
         }
 
         // --------------------------------------------------------------
@@ -879,6 +902,7 @@ impl ViewportBuilder {
     }
 }
 
+/// For winit platform compatibility, see [`winit::WindowLevel` documentation](https://docs.rs/winit/latest/winit/window/enum.WindowLevel.html#platform-specific)
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum WindowLevel {

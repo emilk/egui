@@ -2,7 +2,14 @@ use std::sync::Arc;
 
 use emath::{Align, GuiRounding as _, NumExt as _, Pos2, Rect, Vec2, pos2, vec2};
 
-use crate::{Color32, Mesh, Stroke, Vertex, stroke::PathStroke, text::font::Font};
+use crate::{
+    Color32, Mesh, Stroke, Vertex,
+    stroke::PathStroke,
+    text::{
+        font::{ScaledMetrics, is_cjk, is_cjk_break_allowed},
+        fonts::FontFaceKey,
+    },
+};
 
 use super::{FontsImpl, Galley, Glyph, LayoutJob, LayoutSection, PlacedRow, Row, RowVisuals};
 
@@ -41,8 +48,8 @@ impl PointScale {
 /// Temporary storage before line-wrapping.
 #[derive(Clone)]
 struct Paragraph {
-    /// Start of the next glyph to be added.
-    pub cursor_x: f32,
+    /// Start of the next glyph to be added. In screen-space / physical pixels.
+    pub cursor_x_px: f32,
 
     /// This is included in case there are no glyphs
     pub section_index_at_start: u32,
@@ -56,7 +63,7 @@ struct Paragraph {
 impl Paragraph {
     pub fn from_section_index(section_index_at_start: u32) -> Self {
         Self {
-            cursor_x: 0.0,
+            cursor_x_px: 0.0,
             section_index_at_start,
             glyphs: vec![],
             empty_paragraph_height: 0.0,
@@ -66,9 +73,9 @@ impl Paragraph {
 
 /// Layout text into a [`Galley`].
 ///
-/// In most cases you should use [`crate::Fonts::layout_job`] instead
+/// In most cases you should use [`crate::FontsView::layout_job`] instead
 /// since that memoizes the input, making subsequent layouting of the same text much faster.
-pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>) -> Galley {
+pub fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<LayoutJob>) -> Galley {
     profiling::function_scope!();
 
     if job.wrap.max_rows == 0 {
@@ -80,7 +87,7 @@ pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>) -> Galley {
             mesh_bounds: Rect::NOTHING,
             num_vertices: 0,
             num_indices: 0,
-            pixels_per_point: fonts.pixels_per_point(),
+            pixels_per_point,
             elided: true,
             intrinsic_size: Vec2::ZERO,
         };
@@ -90,22 +97,27 @@ pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>) -> Galley {
 
     let mut paragraphs = vec![Paragraph::from_section_index(0)];
     for (section_index, section) in job.sections.iter().enumerate() {
-        layout_section(fonts, &job, section_index as u32, section, &mut paragraphs);
+        layout_section(
+            fonts,
+            pixels_per_point,
+            &job,
+            section_index as u32,
+            section,
+            &mut paragraphs,
+        );
     }
 
-    let point_scale = PointScale::new(fonts.pixels_per_point());
+    let point_scale = PointScale::new(pixels_per_point);
 
     let intrinsic_size = calculate_intrinsic_size(point_scale, &job, &paragraphs);
 
     let mut elided = false;
     let mut rows = rows_from_paragraphs(paragraphs, &job, &mut elided);
-    if elided {
-        if let Some(last_placed) = rows.last_mut() {
-            let last_row = Arc::make_mut(&mut last_placed.row);
-            replace_last_glyph_with_overflow_character(fonts, &job, last_row);
-            if let Some(last) = last_row.glyphs.last() {
-                last_row.size.x = last.max_x();
-            }
+    if elided && let Some(last_placed) = rows.last_mut() {
+        let last_row = Arc::make_mut(&mut last_placed.row);
+        replace_last_glyph_with_overflow_character(fonts, pixels_per_point, &job, last_row);
+        if let Some(last) = last_row.glyphs.last() {
+            last_row.size.x = last.max_x();
         }
     }
 
@@ -133,6 +145,7 @@ pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>) -> Galley {
 // Ignores the Y coordinate.
 fn layout_section(
     fonts: &mut FontsImpl,
+    pixels_per_point: f32,
     job: &LayoutJob,
     section_index: u32,
     section: &LayoutSection,
@@ -143,11 +156,13 @@ fn layout_section(
         byte_range,
         format,
     } = section;
-    let font = fonts.font(&format.font_id);
+    let mut font = fonts.font(&format.font_id.family);
+    let font_size = format.font_id.size;
+    let font_metrics = font.scaled_metrics(pixels_per_point, font_size);
     let line_height = section
         .format
         .line_height
-        .unwrap_or_else(|| font.row_height());
+        .unwrap_or(font_metrics.row_height);
     let extra_letter_spacing = section.format.extra_letter_spacing;
 
     let mut paragraph = out_paragraphs.last_mut().unwrap();
@@ -155,9 +170,13 @@ fn layout_section(
         paragraph.empty_paragraph_height = line_height; // TODO(emilk): replace this hack with actually including `\n` in the glyphs?
     }
 
-    paragraph.cursor_x += leading_space;
+    paragraph.cursor_x_px += leading_space * pixels_per_point;
 
     let mut last_glyph_id = None;
+
+    // Optimization: only recompute `ScaledMetrics` when the concrete `FontImpl` changes.
+    let mut current_font = FontFaceKey::INVALID;
+    let mut current_font_impl_metrics = ScaledMetrics::default();
 
     for chr in job.text[byte_range.clone()].chars() {
         if job.break_on_newline && chr == '\n' {
@@ -165,30 +184,56 @@ fn layout_section(
             paragraph = out_paragraphs.last_mut().unwrap();
             paragraph.empty_paragraph_height = line_height; // TODO(emilk): replace this hack with actually including `\n` in the glyphs?
         } else {
-            let (font_impl, glyph_info) = font.font_impl_and_glyph_info(chr);
-            if let Some(font_impl) = font_impl {
-                if let Some(last_glyph_id) = last_glyph_id {
-                    paragraph.cursor_x += font_impl.pair_kerning(last_glyph_id, glyph_info.id);
-                    paragraph.cursor_x += extra_letter_spacing;
-                }
+            let (font_id, glyph_info) = font.glyph_info(chr);
+            let mut font_impl = font.fonts_by_id.get_mut(&font_id);
+            if current_font != font_id {
+                current_font = font_id;
+                current_font_impl_metrics = font_impl
+                    .as_ref()
+                    .map(|font_impl| font_impl.scaled_metrics(pixels_per_point, font_size))
+                    .unwrap_or_default();
             }
+
+            if let (Some(font_impl), Some(last_glyph_id), Some(glyph_id)) =
+                (&font_impl, last_glyph_id, glyph_info.id)
+            {
+                paragraph.cursor_x_px += font_impl.pair_kerning_pixels(
+                    &current_font_impl_metrics,
+                    last_glyph_id,
+                    glyph_id,
+                );
+
+                // Only apply extra_letter_spacing to glyphs after the first one:
+                paragraph.cursor_x_px += extra_letter_spacing * pixels_per_point;
+            }
+
+            let (glyph_alloc, physical_x) = if let Some(font_impl) = font_impl.as_mut() {
+                font_impl.allocate_glyph(
+                    font.atlas,
+                    &current_font_impl_metrics,
+                    glyph_info,
+                    chr,
+                    paragraph.cursor_x_px,
+                )
+            } else {
+                Default::default()
+            };
 
             paragraph.glyphs.push(Glyph {
                 chr,
-                pos: pos2(paragraph.cursor_x, f32::NAN),
-                advance_width: glyph_info.advance_width,
+                pos: pos2(physical_x as f32 / pixels_per_point, f32::NAN),
+                advance_width: glyph_alloc.advance_width_px / pixels_per_point,
                 line_height,
-                font_impl_height: font_impl.map_or(0.0, |f| f.row_height()),
-                font_impl_ascent: font_impl.map_or(0.0, |f| f.ascent()),
-                font_height: font.row_height(),
-                font_ascent: font.ascent(),
-                uv_rect: glyph_info.uv_rect,
+                font_impl_height: current_font_impl_metrics.row_height,
+                font_impl_ascent: current_font_impl_metrics.ascent,
+                font_height: font_metrics.row_height,
+                font_ascent: font_metrics.ascent,
+                uv_rect: glyph_alloc.uv_rect,
                 section_index,
             });
 
-            paragraph.cursor_x += glyph_info.advance_width;
-            paragraph.cursor_x = font.round_to_pixel(paragraph.cursor_x);
-            last_glyph_id = Some(glyph_info.id);
+            paragraph.cursor_x_px += glyph_alloc.advance_width_px;
+            last_glyph_id = Some(glyph_alloc.id);
         }
     }
 }
@@ -398,148 +443,104 @@ fn line_break(
 /// Called before we have any Y coordinates.
 fn replace_last_glyph_with_overflow_character(
     fonts: &mut FontsImpl,
+    pixels_per_point: f32,
     job: &LayoutJob,
     row: &mut Row,
 ) {
-    fn row_width(row: &Row) -> f32 {
-        if let (Some(first), Some(last)) = (row.glyphs.first(), row.glyphs.last()) {
-            last.max_x() - first.pos.x
-        } else {
-            0.0
-        }
-    }
-
-    fn row_height(section: &LayoutSection, font: &Font) -> f32 {
-        section
-            .format
-            .line_height
-            .unwrap_or_else(|| font.row_height())
-    }
-
     let Some(overflow_character) = job.wrap.overflow_character else {
         return;
     };
 
-    // We always try to just append the character first:
-    if let Some(last_glyph) = row.glyphs.last() {
-        let section_index = last_glyph.section_index;
-        let section = &job.sections[section_index as usize];
-        let font = fonts.font(&section.format.font_id);
-        let line_height = row_height(section, font);
-
-        let (_, last_glyph_info) = font.font_impl_and_glyph_info(last_glyph.chr);
-
-        let mut x = last_glyph.pos.x + last_glyph.advance_width;
-
-        let (font_impl, replacement_glyph_info) = font.font_impl_and_glyph_info(overflow_character);
-
-        {
-            // Kerning:
-            x += section.format.extra_letter_spacing;
-            if let Some(font_impl) = font_impl {
-                x += font_impl.pair_kerning(last_glyph_info.id, replacement_glyph_info.id);
-            }
-        }
-
-        row.glyphs.push(Glyph {
-            chr: overflow_character,
-            pos: pos2(x, f32::NAN),
-            advance_width: replacement_glyph_info.advance_width,
-            line_height,
-            font_impl_height: font_impl.map_or(0.0, |f| f.row_height()),
-            font_impl_ascent: font_impl.map_or(0.0, |f| f.ascent()),
-            font_height: font.row_height(),
-            font_ascent: font.ascent(),
-            uv_rect: replacement_glyph_info.uv_rect,
-            section_index,
-        });
-    } else {
-        let section_index = row.section_index_at_start;
-        let section = &job.sections[section_index as usize];
-        let font = fonts.font(&section.format.font_id);
-        let line_height = row_height(section, font);
-
-        let x = 0.0; // TODO(emilk): heed paragraph leading_space 😬
-
-        let (font_impl, replacement_glyph_info) = font.font_impl_and_glyph_info(overflow_character);
-
-        row.glyphs.push(Glyph {
-            chr: overflow_character,
-            pos: pos2(x, f32::NAN),
-            advance_width: replacement_glyph_info.advance_width,
-            line_height,
-            font_impl_height: font_impl.map_or(0.0, |f| f.row_height()),
-            font_impl_ascent: font_impl.map_or(0.0, |f| f.ascent()),
-            font_height: font.row_height(),
-            font_ascent: font.ascent(),
-            uv_rect: replacement_glyph_info.uv_rect,
-            section_index,
-        });
-    }
-
-    if row_width(row) <= job.effective_wrap_width() || row.glyphs.len() == 1 {
-        return; // we are done
-    }
-
-    // We didn't fit it. Remove it again…
-    row.glyphs.pop();
-
-    // …then go into a loop where we replace the last character with the overflow character
-    // until we fit within the max_width:
-
+    let mut section_index = row
+        .glyphs
+        .last()
+        .map(|g| g.section_index)
+        .unwrap_or(row.section_index_at_start);
     loop {
-        let (prev_glyph, last_glyph) = match row.glyphs.as_mut_slice() {
-            [.., prev, last] => (Some(prev), last),
-            [.., last] => (None, last),
-            _ => {
-                unreachable!("We've already explicitly handled the empty row");
-            }
+        let section = &job.sections[section_index as usize];
+        let extra_letter_spacing = section.format.extra_letter_spacing;
+        let mut font = fonts.font(&section.format.font_id.family);
+        let font_size = section.format.font_id.size;
+
+        let (font_id, glyph_info) = font.glyph_info(overflow_character);
+        let mut font_impl = font.fonts_by_id.get_mut(&font_id);
+        let font_impl_metrics = font_impl
+            .as_mut()
+            .map(|f| f.scaled_metrics(pixels_per_point, font_size))
+            .unwrap_or_default();
+
+        let overflow_glyph_x = if let Some(prev_glyph) = row.glyphs.last() {
+            // Kern the overflow character properly
+            let pair_kerning = font_impl
+                .as_mut()
+                .map(|font_impl| {
+                    if let (Some(prev_glyph_id), Some(overflow_glyph_id)) = (
+                        font_impl.glyph_info(prev_glyph.chr).and_then(|g| g.id),
+                        font_impl.glyph_info(overflow_character).and_then(|g| g.id),
+                    ) {
+                        font_impl.pair_kerning(&font_impl_metrics, prev_glyph_id, overflow_glyph_id)
+                    } else {
+                        0.0
+                    }
+                })
+                .unwrap_or_default();
+
+            prev_glyph.max_x() + extra_letter_spacing + pair_kerning
+        } else {
+            0.0 // TODO(emilk): heed paragraph leading_space 😬
         };
 
-        let section = &job.sections[last_glyph.section_index as usize];
-        let extra_letter_spacing = section.format.extra_letter_spacing;
-        let font = fonts.font(&section.format.font_id);
+        let replacement_glyph_width = font_impl
+            .as_mut()
+            .and_then(|f| f.glyph_info(overflow_character))
+            .map(|i| i.advance_width_unscaled.0 * font_impl_metrics.px_scale_factor)
+            .unwrap_or_default();
 
-        if let Some(prev_glyph) = prev_glyph {
-            let prev_glyph_id = font.font_impl_and_glyph_info(prev_glyph.chr).1.id;
+        // Check if we're within width budget:
+        if overflow_glyph_x + replacement_glyph_width <= job.effective_wrap_width()
+            || row.glyphs.is_empty()
+        {
+            // we are done
 
-            // Undo kerning with previous glyph:
-            let (font_impl, glyph_info) = font.font_impl_and_glyph_info(last_glyph.chr);
-            last_glyph.pos.x -= extra_letter_spacing;
-            if let Some(font_impl) = font_impl {
-                last_glyph.pos.x -= font_impl.pair_kerning(prev_glyph_id, glyph_info.id);
-            }
+            let (replacement_glyph_alloc, physical_x) = font_impl
+                .as_mut()
+                .map(|f| {
+                    f.allocate_glyph(
+                        font.atlas,
+                        &font_impl_metrics,
+                        glyph_info,
+                        overflow_character,
+                        overflow_glyph_x * pixels_per_point,
+                    )
+                })
+                .unwrap_or_default();
 
-            // Replace the glyph:
-            last_glyph.chr = overflow_character;
-            let (font_impl, glyph_info) = font.font_impl_and_glyph_info(last_glyph.chr);
-            last_glyph.advance_width = glyph_info.advance_width;
-            last_glyph.font_impl_ascent = font_impl.map_or(0.0, |f| f.ascent());
-            last_glyph.font_impl_height = font_impl.map_or(0.0, |f| f.row_height());
-            last_glyph.uv_rect = glyph_info.uv_rect;
+            let font_metrics = font.scaled_metrics(pixels_per_point, font_size);
+            let line_height = section
+                .format
+                .line_height
+                .unwrap_or(font_metrics.row_height);
 
-            // Reapply kerning:
-            last_glyph.pos.x += extra_letter_spacing;
-            if let Some(font_impl) = font_impl {
-                last_glyph.pos.x += font_impl.pair_kerning(prev_glyph_id, glyph_info.id);
-            }
-
-            // Check if we're within width budget:
-            if row_width(row) <= job.effective_wrap_width() || row.glyphs.len() == 1 {
-                return; // We are done
-            }
-
-            // We didn't fit - pop the last glyph and try again.
-            row.glyphs.pop();
-        } else {
-            // Just replace and be done with it.
-            last_glyph.chr = overflow_character;
-            let (font_impl, glyph_info) = font.font_impl_and_glyph_info(last_glyph.chr);
-            last_glyph.advance_width = glyph_info.advance_width;
-            last_glyph.font_impl_ascent = font_impl.map_or(0.0, |f| f.ascent());
-            last_glyph.font_impl_height = font_impl.map_or(0.0, |f| f.row_height());
-            last_glyph.uv_rect = glyph_info.uv_rect;
+            row.glyphs.push(Glyph {
+                chr: overflow_character,
+                pos: pos2(physical_x as f32 / pixels_per_point, f32::NAN),
+                advance_width: replacement_glyph_alloc.advance_width_px / pixels_per_point,
+                line_height,
+                font_impl_height: font_impl_metrics.row_height,
+                font_impl_ascent: font_impl_metrics.ascent,
+                font_height: font_metrics.row_height,
+                font_ascent: font_metrics.ascent,
+                uv_rect: replacement_glyph_alloc.uv_rect,
+                section_index,
+            });
             return;
+        }
+
+        // We didn't fit - pop the last glyph and try again.
+        if let Some(last_glyph) = row.glyphs.pop() {
+            section_index = last_glyph.section_index;
+        } else {
+            section_index = row.section_index_at_start;
         }
     }
 }
@@ -554,6 +555,8 @@ fn halign_and_justify_row(
     wrap_width: f32,
     justify: bool,
 ) {
+    #![expect(clippy::useless_let_if_seq)] // False positive
+
     let row = Arc::make_mut(&mut placed_row.row);
 
     if row.glyphs.is_empty() {
@@ -1041,31 +1044,6 @@ impl RowBreakCandidates {
     }
 }
 
-#[inline]
-fn is_cjk_ideograph(c: char) -> bool {
-    ('\u{4E00}' <= c && c <= '\u{9FFF}')
-        || ('\u{3400}' <= c && c <= '\u{4DBF}')
-        || ('\u{2B740}' <= c && c <= '\u{2B81F}')
-}
-
-#[inline]
-fn is_kana(c: char) -> bool {
-    ('\u{3040}' <= c && c <= '\u{309F}') // Hiragana block
-        || ('\u{30A0}' <= c && c <= '\u{30FF}') // Katakana block
-}
-
-#[inline]
-fn is_cjk(c: char) -> bool {
-    // TODO(bigfarts): Add support for Korean Hangul.
-    is_cjk_ideograph(c) || is_kana(c)
-}
-
-#[inline]
-fn is_cjk_break_allowed(c: char) -> bool {
-    // See: https://en.wikipedia.org/wiki/Line_breaking_rules_in_East_Asian_languages#Characters_not_permitted_on_the_start_of_a_line.
-    !")]｝〕〉》」』】〙〗〟'\"｠»ヽヾーァィゥェォッャュョヮヵヶぁぃぅぇぉっゃゅょゎゕゖㇰㇱㇲㇳㇴㇵㇶㇷㇸㇹㇺㇻㇼㇽㇾㇿ々〻‐゠–〜?!‼⁇⁈⁉・、:;,。.".contains(c)
-}
-
 // ----------------------------------------------------------------------------
 
 #[cfg(test)]
@@ -1076,15 +1054,15 @@ mod tests {
 
     #[test]
     fn test_zero_max_width() {
+        let pixels_per_point = 1.0;
         let mut fonts = FontsImpl::new(
-            1.0,
             1024,
             AlphaFromCoverage::default(),
             FontDefinitions::default(),
         );
         let mut layout_job = LayoutJob::single_section("W".into(), TextFormat::default());
         layout_job.wrap.max_width = 0.0;
-        let galley = layout(&mut fonts, layout_job.into());
+        let galley = layout(&mut fonts, pixels_per_point, layout_job.into());
         assert_eq!(galley.rows.len(), 1);
     }
 
@@ -1092,8 +1070,9 @@ mod tests {
     fn test_truncate_with_newline() {
         // No matter where we wrap, we should be appending the newline character.
 
+        let pixels_per_point = 1.0;
+
         let mut fonts = FontsImpl::new(
-            1.0,
             1024,
             AlphaFromCoverage::default(),
             FontDefinitions::default(),
@@ -1112,7 +1091,7 @@ mod tests {
                     layout_job.wrap.max_rows = 1;
                     layout_job.wrap.break_anywhere = break_anywhere;
 
-                    let galley = layout(&mut fonts, layout_job.into());
+                    let galley = layout(&mut fonts, pixels_per_point, layout_job.into());
 
                     assert!(galley.elided);
                     assert_eq!(galley.rows.len(), 1);
@@ -1131,7 +1110,7 @@ mod tests {
             layout_job.wrap.max_rows = 1;
             layout_job.wrap.break_anywhere = false;
 
-            let galley = layout(&mut fonts, layout_job.into());
+            let galley = layout(&mut fonts, pixels_per_point, layout_job.into());
 
             assert!(galley.elided);
             assert_eq!(galley.rows.len(), 1);
@@ -1142,8 +1121,8 @@ mod tests {
 
     #[test]
     fn test_cjk() {
+        let pixels_per_point = 1.0;
         let mut fonts = FontsImpl::new(
-            1.0,
             1024,
             AlphaFromCoverage::default(),
             FontDefinitions::default(),
@@ -1153,7 +1132,7 @@ mod tests {
             TextFormat::default(),
         );
         layout_job.wrap.max_width = 90.0;
-        let galley = layout(&mut fonts, layout_job.into());
+        let galley = layout(&mut fonts, pixels_per_point, layout_job.into());
         assert_eq!(
             galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>(),
             vec!["日本語と", "Englishの混在", "した文章"]
@@ -1162,8 +1141,8 @@ mod tests {
 
     #[test]
     fn test_pre_cjk() {
+        let pixels_per_point = 1.0;
         let mut fonts = FontsImpl::new(
-            1.0,
             1024,
             AlphaFromCoverage::default(),
             FontDefinitions::default(),
@@ -1173,7 +1152,7 @@ mod tests {
             TextFormat::default(),
         );
         layout_job.wrap.max_width = 110.0;
-        let galley = layout(&mut fonts, layout_job.into());
+        let galley = layout(&mut fonts, pixels_per_point, layout_job.into());
         assert_eq!(
             galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>(),
             vec!["日本語とEnglish", "の混在した文章"]
@@ -1182,8 +1161,8 @@ mod tests {
 
     #[test]
     fn test_truncate_width() {
+        let pixels_per_point = 1.0;
         let mut fonts = FontsImpl::new(
-            1.0,
             1024,
             AlphaFromCoverage::default(),
             FontDefinitions::default(),
@@ -1193,7 +1172,7 @@ mod tests {
         layout_job.wrap.max_width = f32::INFINITY;
         layout_job.wrap.max_rows = 1;
         layout_job.round_output_to_gui = false;
-        let galley = layout(&mut fonts, layout_job.into());
+        let galley = layout(&mut fonts, pixels_per_point, layout_job.into());
         assert!(galley.elided);
         assert_eq!(
             galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>(),
@@ -1206,19 +1185,22 @@ mod tests {
 
     #[test]
     fn test_empty_row() {
+        let pixels_per_point = 1.0;
         let mut fonts = FontsImpl::new(
-            1.0,
             1024,
             AlphaFromCoverage::default(),
             FontDefinitions::default(),
         );
 
         let font_id = FontId::default();
-        let font_height = fonts.font(&font_id).row_height();
+        let font_height = fonts
+            .font(&font_id.family)
+            .scaled_metrics(pixels_per_point, font_id.size)
+            .row_height;
 
         let job = LayoutJob::simple(String::new(), font_id, Color32::WHITE, f32::INFINITY);
 
-        let galley = layout(&mut fonts, job.into());
+        let galley = layout(&mut fonts, pixels_per_point, job.into());
 
         assert_eq!(galley.rows.len(), 1, "Expected one row");
         assert_eq!(
@@ -1240,19 +1222,22 @@ mod tests {
 
     #[test]
     fn test_end_with_newline() {
+        let pixels_per_point = 1.0;
         let mut fonts = FontsImpl::new(
-            1.0,
             1024,
             AlphaFromCoverage::default(),
             FontDefinitions::default(),
         );
 
         let font_id = FontId::default();
-        let font_height = fonts.font(&font_id).row_height();
+        let font_height = fonts
+            .font(&font_id.family)
+            .scaled_metrics(pixels_per_point, font_id.size)
+            .row_height;
 
         let job = LayoutJob::simple("Hi!\n".to_owned(), font_id, Color32::WHITE, f32::INFINITY);
 
-        let galley = layout(&mut fonts, job.into());
+        let galley = layout(&mut fonts, pixels_per_point, job.into());
 
         assert_eq!(galley.rows.len(), 2, "Expected two rows");
         assert_eq!(

@@ -3,7 +3,7 @@
 use epaint::ColorImage;
 
 use crate::{
-    Key, Theme, ViewportId, ViewportIdMap,
+    Key, OrderedViewportIdMap, Theme, ViewportId, ViewportIdMap,
     emath::{Pos2, Rect, Vec2},
 };
 
@@ -478,6 +478,9 @@ pub enum Event {
     ///
     /// As a user, check [`crate::InputState::smooth_scroll_delta`] to see if the user did any zooming this frame.
     Zoom(f32),
+
+    /// Rotation in radians this frame, measuring clockwise (e.g. from a rotation gesture).
+    Rotate(f32),
 
     /// IME Event
     Ime(ImeEvent),
@@ -1132,7 +1135,11 @@ impl RawInput {
         } = self;
 
         ui.label(format!("Active viewport: {viewport_id:?}"));
-        for (id, viewport) in viewports {
+        let ordered_viewports = viewports
+            .iter()
+            .map(|(id, value)| (*id, value))
+            .collect::<OrderedViewportIdMap<_>>();
+        for (id, viewport) in ordered_viewports {
             ui.group(|ui| {
                 ui.label(format!("Viewport {id:?}"));
                 ui.push_id(id, |ui| {

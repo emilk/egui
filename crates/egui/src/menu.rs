@@ -420,17 +420,14 @@ impl MenuRoot {
         } else if button
             .ctx
             .input(|i| i.pointer.any_pressed() && i.pointer.primary_down())
+            && let Some(pos) = button.ctx.input(|i| i.pointer.interact_pos())
+            && let Some(root) = root.inner.as_mut()
+            && root.id == id
         {
-            if let Some(pos) = button.ctx.input(|i| i.pointer.interact_pos()) {
-                if let Some(root) = root.inner.as_mut() {
-                    if root.id == id {
-                        // pressed somewhere while this menu is open
-                        let in_menu = root.menu_state.read().area_contains(pos);
-                        if !in_menu {
-                            return MenuResponse::Close;
-                        }
-                    }
-                }
+            // pressed somewhere while this menu is open
+            let in_menu = root.menu_state.read().area_contains(pos);
+            if !in_menu {
+                return MenuResponse::Close;
             }
         }
         MenuResponse::Stay
@@ -445,12 +442,13 @@ impl MenuRoot {
         response.ctx.input(|input| {
             let pointer = &input.pointer;
             if let Some(pos) = pointer.interact_pos() {
-                let mut in_old_menu = false;
-                let mut destroy = false;
-                if let Some(root) = root {
-                    in_old_menu = root.menu_state.read().area_contains(pos);
-                    destroy = !in_old_menu && pointer.any_pressed() && root.id == response.id;
-                }
+                let (in_old_menu, destroy) = if let Some(root) = root {
+                    let in_old_menu = root.menu_state.read().area_contains(pos);
+                    let destroy = !in_old_menu && pointer.any_pressed() && root.id == response.id;
+                    (in_old_menu, destroy)
+                } else {
+                    (false, false)
+                };
                 if !in_old_menu {
                     if hovered && secondary_clicked {
                         return MenuResponse::Create(pos, response.id);
@@ -727,21 +725,21 @@ impl MenuState {
             return false;
         }
 
-        if let Some(sub_menu) = self.current_submenu() {
-            if let Some(pos) = pointer.hover_pos() {
-                let rect = sub_menu.read().rect;
-                return rect.intersects_ray(pos, pointer.direction().normalized());
-            }
+        if let Some(sub_menu) = self.current_submenu()
+            && let Some(pos) = pointer.hover_pos()
+        {
+            let rect = sub_menu.read().rect;
+            return rect.intersects_ray(pos, pointer.direction().normalized());
         }
         false
     }
 
     /// Check if pointer is hovering current submenu.
     fn hovering_current_submenu(&self, pointer: &PointerState) -> bool {
-        if let Some(sub_menu) = self.current_submenu() {
-            if let Some(pos) = pointer.hover_pos() {
-                return sub_menu.read().area_contains(pos);
-            }
+        if let Some(sub_menu) = self.current_submenu()
+            && let Some(pos) = pointer.hover_pos()
+        {
+            return sub_menu.read().area_contains(pos);
         }
         false
     }
@@ -766,9 +764,8 @@ impl MenuState {
     }
 
     fn submenu(&self, id: Id) -> Option<&Arc<RwLock<Self>>> {
-        self.sub_menu
-            .as_ref()
-            .and_then(|(k, sub)| if id == *k { Some(sub) } else { None })
+        let (k, sub) = self.sub_menu.as_ref()?;
+        if id == *k { Some(sub) } else { None }
     }
 
     /// Open submenu at position, if not already open.

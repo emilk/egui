@@ -94,15 +94,15 @@ impl<T: WinitApp> WinitAppWrapper<T> {
 
         let mut event_result = event_result;
 
-        if cfg!(target_os = "windows") {
-            if let Ok(EventResult::RepaintNow(window_id)) = event_result {
-                log::trace!("RepaintNow of {window_id:?}");
-                self.windows_next_repaint_times
-                    .insert(window_id, Instant::now());
+        if cfg!(target_os = "windows")
+            && let Ok(EventResult::RepaintNow(window_id)) = event_result
+        {
+            log::trace!("RepaintNow of {window_id:?}");
+            self.windows_next_repaint_times
+                .insert(window_id, Instant::now());
 
-                // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
-                event_result = self.winit_app.run_ui_and_paint(event_loop, window_id);
-            }
+            // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
+            event_result = self.winit_app.run_ui_and_paint(event_loop, window_id);
         }
 
         let combined_result = event_result.map(|event_result| match event_result {
@@ -139,13 +139,18 @@ impl<T: WinitApp> WinitAppWrapper<T> {
                 exit = true;
                 event_result
             }
+            EventResult::CloseRequested => {
+                // The windows need to be dropped whilst the event loop is running to allow for proper cleanup.
+                self.winit_app.save_and_destroy();
+                event_result
+            }
         });
 
         if let Err(err) = combined_result {
             log::error!("Exiting because of error: {err}");
             exit = true;
             self.return_result = Err(err);
-        };
+        }
 
         if save {
             log::debug!("Received an EventResult::Save - saving app state");
@@ -176,7 +181,7 @@ impl<T: WinitApp> WinitAppWrapper<T> {
             .retain(|window_id, repaint_time| {
                 if now < *repaint_time {
                     return true; // not yet ready
-                };
+                }
 
                 event_loop.set_control_flow(ControlFlow::Poll);
 
@@ -192,7 +197,7 @@ impl<T: WinitApp> WinitAppWrapper<T> {
         let next_repaint_time = self.windows_next_repaint_times.values().min().copied();
         if let Some(next_repaint_time) = next_repaint_time {
             event_loop.set_control_flow(ControlFlow::WaitUntil(next_repaint_time));
-        };
+        }
     }
 }
 

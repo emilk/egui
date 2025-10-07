@@ -22,7 +22,6 @@ mod window_settings;
 
 pub use window_settings::WindowSettings;
 
-use ahash::HashSet;
 use raw_window_handle::HasDisplayHandle;
 
 use winit::{
@@ -373,7 +372,7 @@ impl State {
                     winit::event::Ime::Disabled | winit::event::Ime::Preedit(_, None) => {
                         self.ime_event_disable();
                     }
-                };
+                }
 
                 EventResponse {
                     repaint: true,
@@ -492,9 +491,7 @@ impl State {
             // Things we completely ignore:
             WindowEvent::ActivationTokenDone { .. }
             | WindowEvent::AxisMotion { .. }
-            | WindowEvent::DoubleTapGesture { .. }
-            | WindowEvent::RotationGesture { .. }
-            | WindowEvent::PanGesture { .. } => EventResponse {
+            | WindowEvent::DoubleTapGesture { .. } => EventResponse {
                 repaint: false,
                 consumed: false,
             },
@@ -504,6 +501,33 @@ impl State {
                 // Negative delta values indicate shrinking (zooming out).
                 let zoom_factor = (*delta as f32).exp();
                 self.egui_input.events.push(egui::Event::Zoom(zoom_factor));
+                EventResponse {
+                    repaint: true,
+                    consumed: self.egui_ctx.wants_pointer_input(),
+                }
+            }
+
+            WindowEvent::RotationGesture { delta, .. } => {
+                // Positive delta values indicate counterclockwise rotation
+                // Negative delta values indicate clockwise rotation
+                // This is opposite of egui's sign convention for angles
+                self.egui_input
+                    .events
+                    .push(egui::Event::Rotate(-delta.to_radians()));
+                EventResponse {
+                    repaint: true,
+                    consumed: self.egui_ctx.wants_pointer_input(),
+                }
+            }
+
+            WindowEvent::PanGesture { delta, .. } => {
+                let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
+
+                self.egui_input.events.push(egui::Event::MouseWheel {
+                    unit: egui::MouseWheelUnit::Point,
+                    delta: Vec2::new(delta.x, delta.y) / pixels_per_point,
+                    modifiers: self.egui_input.modifiers,
+                });
                 EventResponse {
                     repaint: true,
                     consumed: self.egui_ctx.wants_pointer_input(),
@@ -550,41 +574,41 @@ impl State {
         state: winit::event::ElementState,
         button: winit::event::MouseButton,
     ) {
-        if let Some(pos) = self.pointer_pos_in_points {
-            if let Some(button) = translate_mouse_button(button) {
-                let pressed = state == winit::event::ElementState::Pressed;
+        if let Some(pos) = self.pointer_pos_in_points
+            && let Some(button) = translate_mouse_button(button)
+        {
+            let pressed = state == winit::event::ElementState::Pressed;
 
-                self.egui_input.events.push(egui::Event::PointerButton {
-                    pos,
-                    button,
-                    pressed,
-                    modifiers: self.egui_input.modifiers,
-                });
+            self.egui_input.events.push(egui::Event::PointerButton {
+                pos,
+                button,
+                pressed,
+                modifiers: self.egui_input.modifiers,
+            });
 
-                if self.simulate_touch_screen {
-                    if pressed {
-                        self.any_pointer_button_down = true;
+            if self.simulate_touch_screen {
+                if pressed {
+                    self.any_pointer_button_down = true;
 
-                        self.egui_input.events.push(egui::Event::Touch {
-                            device_id: egui::TouchDeviceId(0),
-                            id: egui::TouchId(0),
-                            phase: egui::TouchPhase::Start,
-                            pos,
-                            force: None,
-                        });
-                    } else {
-                        self.any_pointer_button_down = false;
+                    self.egui_input.events.push(egui::Event::Touch {
+                        device_id: egui::TouchDeviceId(0),
+                        id: egui::TouchId(0),
+                        phase: egui::TouchPhase::Start,
+                        pos,
+                        force: None,
+                    });
+                } else {
+                    self.any_pointer_button_down = false;
 
-                        self.egui_input.events.push(egui::Event::PointerGone);
+                    self.egui_input.events.push(egui::Event::PointerGone);
 
-                        self.egui_input.events.push(egui::Event::Touch {
-                            device_id: egui::TouchDeviceId(0),
-                            id: egui::TouchId(0),
-                            phase: egui::TouchPhase::End,
-                            pos,
-                            force: None,
-                        });
-                    };
+                    self.egui_input.events.push(egui::Event::Touch {
+                        device_id: egui::TouchDeviceId(0),
+                        id: egui::TouchId(0),
+                        phase: egui::TouchPhase::End,
+                        pos,
+                        force: None,
+                    });
                 }
             }
         }
@@ -828,14 +852,11 @@ impl State {
         window: &Window,
         platform_output: egui::PlatformOutput,
     ) {
-        #![allow(deprecated)]
         profiling::function_scope!();
 
         let egui::PlatformOutput {
             commands,
             cursor_icon,
-            open_url,
-            copied_text,
             events: _,                    // handled elsewhere
             mutable_text_under_cursor: _, // only used in eframe web
             ime,
@@ -860,14 +881,6 @@ impl State {
         }
 
         self.set_cursor_icon(window, cursor_icon);
-
-        if let Some(open_url) = open_url {
-            open_url_in_browser(&open_url.url);
-        }
-
-        if !copied_text.is_empty() {
-            self.clipboard.set_text(copied_text);
-        }
 
         let allow_ime = ime.is_some();
         if self.allow_ime != allow_ime {
@@ -900,11 +913,11 @@ impl State {
         }
 
         #[cfg(feature = "accesskit")]
-        if let Some(accesskit) = self.accesskit.as_mut() {
-            if let Some(update) = accesskit_update {
-                profiling::scope!("accesskit");
-                accesskit.update_if_active(|| update);
-            }
+        if let Some(accesskit) = self.accesskit.as_mut()
+            && let Some(update) = accesskit_update
+        {
+            profiling::scope!("accesskit");
+            accesskit.update_if_active(|| update);
         }
     }
 
@@ -1334,7 +1347,7 @@ pub fn process_viewport_commands(
     info: &mut ViewportInfo,
     commands: impl IntoIterator<Item = ViewportCommand>,
     window: &Window,
-    actions_requested: &mut HashSet<ActionRequested>,
+    actions_requested: &mut Vec<ActionRequested>,
 ) {
     for command in commands {
         process_viewport_command(egui_ctx, window, command, info, actions_requested);
@@ -1346,9 +1359,9 @@ fn process_viewport_command(
     window: &Window,
     command: ViewportCommand,
     info: &mut ViewportInfo,
-    actions_requested: &mut HashSet<ActionRequested>,
+    actions_requested: &mut Vec<ActionRequested>,
 ) {
-    profiling::function_scope!();
+    profiling::function_scope!(&format!("{command:?}"));
 
     use winit::window::ResizeDirection;
 
@@ -1365,10 +1378,10 @@ fn process_viewport_command(
         }
         ViewportCommand::StartDrag => {
             // If `.has_focus()` is not checked on x11 the input will be permanently taken until the app is killed!
-            if window.has_focus() {
-                if let Err(err) = window.drag_window() {
-                    log::warn!("{command:?}: {err}");
-                }
+            if window.has_focus()
+                && let Err(err) = window.drag_window()
+            {
+                log::warn!("{command:?}: {err}");
             }
         }
         ViewportCommand::InnerSize(size) => {
@@ -1539,16 +1552,16 @@ fn process_viewport_command(
             }
         }
         ViewportCommand::Screenshot(user_data) => {
-            actions_requested.insert(ActionRequested::Screenshot(user_data));
+            actions_requested.push(ActionRequested::Screenshot(user_data));
         }
         ViewportCommand::RequestCut => {
-            actions_requested.insert(ActionRequested::Cut);
+            actions_requested.push(ActionRequested::Cut);
         }
         ViewportCommand::RequestCopy => {
-            actions_requested.insert(ActionRequested::Copy);
+            actions_requested.push(ActionRequested::Copy);
         }
         ViewportCommand::RequestPaste => {
-            actions_requested.insert(ActionRequested::Paste);
+            actions_requested.push(ActionRequested::Paste);
         }
     }
 }
@@ -1782,10 +1795,10 @@ pub fn apply_viewport_builder_to_window(
     window: &Window,
     builder: &ViewportBuilder,
 ) {
-    if let Some(mouse_passthrough) = builder.mouse_passthrough {
-        if let Err(err) = window.set_cursor_hittest(!mouse_passthrough) {
-            log::warn!("set_cursor_hittest failed: {err}");
-        }
+    if let Some(mouse_passthrough) = builder.mouse_passthrough
+        && let Err(err) = window.set_cursor_hittest(!mouse_passthrough)
+    {
+        log::warn!("set_cursor_hittest failed: {err}");
     }
 
     {
@@ -1796,16 +1809,15 @@ pub fn apply_viewport_builder_to_window(
 
         let pixels_per_point = pixels_per_point(egui_ctx, window);
 
-        if let Some(size) = builder.inner_size {
-            if window
+        if let Some(size) = builder.inner_size
+            && window
                 .request_inner_size(PhysicalSize::new(
                     pixels_per_point * size.x,
                     pixels_per_point * size.y,
                 ))
                 .is_some()
-            {
-                log::debug!("Failed to set window size");
-            }
+        {
+            log::debug!("Failed to set window size");
         }
         if let Some(size) = builder.min_inner_size {
             window.set_min_inner_size(Some(PhysicalSize::new(

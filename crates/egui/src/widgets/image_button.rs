@@ -6,6 +6,7 @@ use crate::{
 /// A clickable image within a frame.
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 #[derive(Clone, Debug)]
+#[deprecated(since = "0.33.0", note = "Use egui::Button::image instead")]
 pub struct ImageButton<'a> {
     pub(crate) image: Image<'a>,
     sense: Sense,
@@ -14,6 +15,7 @@ pub struct ImageButton<'a> {
     alt_text: Option<String>,
 }
 
+#[expect(deprecated, reason = "Deprecated in egui 0.33.0")]
 impl<'a> ImageButton<'a> {
     pub fn new(image: impl Into<Image<'a>>) -> Self {
         Self {
@@ -82,6 +84,7 @@ impl<'a> ImageButton<'a> {
     }
 }
 
+#[expect(deprecated, reason = "Deprecated in egui 0.33.0")]
 impl Widget for ImageButton<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         let padding = if self.frame {
@@ -101,7 +104,7 @@ impl Widget for ImageButton<'_> {
         let padded_size = image_size + 2.0 * padding;
         let (rect, response) = ui.allocate_exact_size(padded_size, self.sense);
         response.widget_info(|| {
-            let mut info = WidgetInfo::new(WidgetType::ImageButton);
+            let mut info = WidgetInfo::new(WidgetType::Button);
             info.label = self.alt_text.clone();
             info
         });

@@ -333,9 +333,19 @@ impl CodeTheme {
         }
     }
 
+    pub fn is_dark(&self) -> bool {
+        self.dark_mode
+    }
+
     /// Show UI for changing the color theme.
     pub fn ui(&mut self, ui: &mut egui::Ui) {
-        egui::widgets::global_theme_preference_buttons(ui);
+        ui.horizontal(|ui| {
+            ui.selectable_value(&mut self.dark_mode, true, "🌙 Dark theme")
+                .on_hover_text("Use the dark mode theme");
+
+            ui.selectable_value(&mut self.dark_mode, false, "☀ Light theme")
+                .on_hover_text("Use the light mode theme");
+        });
 
         for theme in SyntectTheme::all() {
             if theme.is_dark() == self.dark_mode {
@@ -460,6 +470,7 @@ impl CodeTheme {
 // ----------------------------------------------------------------------------
 
 #[cfg(feature = "syntect")]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SyntectSettings {
     pub ps: syntect::parsing::SyntaxSet,
     pub ts: syntect::highlighting::ThemeSet,
