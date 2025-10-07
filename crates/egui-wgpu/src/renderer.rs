@@ -344,7 +344,7 @@ impl Renderer {
                 fragment: Some(wgpu::FragmentState {
                     module: &module,
                     entry_point: Some(if output_color_format.is_srgb() {
-                        log::warn!("Detected a linear (sRGBA aware) framebuffer {:?}. egui prefers Rgba8Unorm or Bgra8Unorm", output_color_format);
+                        log::warn!("Detected a linear (sRGBA aware) framebuffer {output_color_format:?}. egui prefers Rgba8Unorm or Bgra8Unorm");
                         "fs_main_linear_framebuffer"
                     } else {
                         "fs_main_gamma_framebuffer" // this is what we prefer

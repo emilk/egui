@@ -168,7 +168,7 @@ impl Painter {
         let shader_version = shader_version.unwrap_or_else(|| ShaderVersion::get(&gl));
         let is_webgl_1 = shader_version == ShaderVersion::Es100;
         let shader_version_declaration = shader_version.version_declaration();
-        log::debug!("Shader header: {:?}.", shader_version_declaration);
+        log::debug!("Shader header: {shader_version_declaration:?}.");
 
         let supported_extensions = gl.supported_extensions();
         log::trace!("OpenGL extensions: {supported_extensions:?}");
@@ -179,7 +179,7 @@ impl Painter {
                 // {GL,GLX,WGL}_ARB_framebuffer_sRGB, …
                 extension.ends_with("ARB_framebuffer_sRGB")
             });
-        log::debug!("SRGB framebuffer Support: {:?}", supports_srgb_framebuffer);
+        log::debug!("SRGB framebuffer Support: {supports_srgb_framebuffer}");
 
         unsafe {
             let vert = compile_shader(

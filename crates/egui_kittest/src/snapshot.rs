@@ -520,7 +520,7 @@ pub fn image_snapshot_options(
     match try_image_snapshot_options(current, name, options) {
         Ok(_) => {}
         Err(err) => {
-            panic!("{}", err);
+            panic!("{err}");
         }
     }
 }
@@ -539,7 +539,7 @@ pub fn image_snapshot(current: &image::RgbaImage, name: impl Into<String>) {
     match try_image_snapshot(current, name) {
         Ok(_) => {}
         Err(err) => {
-            panic!("{}", err);
+            panic!("{err}");
         }
     }
 }
@@ -613,7 +613,7 @@ impl<State> Harness<'_, State> {
         match self.try_snapshot_options(name, options) {
             Ok(_) => {}
             Err(err) => {
-                panic!("{}", err);
+                panic!("{err}");
             }
         }
     }
@@ -631,7 +631,7 @@ impl<State> Harness<'_, State> {
         match self.try_snapshot(name) {
             Ok(_) => {}
             Err(err) => {
-                panic!("{}", err);
+                panic!("{err}");
             }
         }
     }
