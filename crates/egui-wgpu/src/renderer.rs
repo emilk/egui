@@ -183,7 +183,7 @@ pub struct RendererOptions {
     ///
     /// Must be a power-of-two. Higher = more smooth 3D.
     ///
-    /// A value of `0` turns it off (default).
+    /// A value of `0` or `1` turns it off (default).
     ///
     /// `egui` already performs anti-aliasing via "feathering"
     /// (controlled by [`egui::epaint::TessellationOptions`]),
@@ -378,7 +378,7 @@ impl Renderer {
                 depth_stencil,
                 multisample: wgpu::MultisampleState {
                     alpha_to_coverage_enabled: false,
-                    count: options.msaa_samples,
+                    count: options.msaa_samples.max(1),
                     mask: !0,
                 },
 
