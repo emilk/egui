@@ -186,13 +186,15 @@ impl<'app> WgpuWinitApp<'app> {
         let mut painter = pollster::block_on(egui_wgpu::winit::Painter::new(
             egui_ctx.clone(),
             self.native_options.wgpu_options.clone(),
-            self.native_options.multisampling.max(1) as _,
-            egui_wgpu::depth_format_from_bits(
-                self.native_options.depth_buffer,
-                self.native_options.stencil_buffer,
-            ),
             self.native_options.viewport.transparent.unwrap_or(false),
-            self.native_options.dithering,
+            egui_wgpu::RendererOptions {
+                msaa_samples: self.native_options.multisampling as _,
+                depth_stencil_format: egui_wgpu::depth_format_from_bits(
+                    self.native_options.depth_buffer,
+                    self.native_options.stencil_buffer,
+                ),
+                dithering: self.native_options.dithering,
+            },
         ));
 
         let window = Arc::new(window);
