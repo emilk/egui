@@ -206,6 +206,17 @@ pub struct RendererOptions {
     pub dithering: bool,
 }
 
+impl RendererOptions {
+    /// Set options that produce the most predicatable output.
+    ///
+    /// Useful for image snapshot tests.
+    pub const PREDICTABLE: Self = Self {
+        msaa_samples: 1,
+        depth_stencil_format: None,
+        dithering: false,
+    };
+}
+
 impl Default for RendererOptions {
     fn default() -> Self {
         Self {
