@@ -190,6 +190,12 @@ pub struct RendererOptions {
     /// but if you are embedding 3D in egui you may want to turn on multisampling.
     pub msaa_samples: u32,
 
+    /// What format to use for the depth and stencil buffers,
+    /// e.g. [`wgpu::TextureFormat::Depth32FloatStencil8`].
+    ///
+    /// egui doesn't need depth/stencil, so the default value is `None` (no depth or stancil buffers).
+    pub depth_stencil_format: Option<wgpu::TextureFormat>,
+
     /// Controls whether to apply dithering to minimize banding artifacts.
     ///
     /// Dithering assumes an sRGB output and thus will apply noise to any input value that lies between
@@ -198,20 +204,14 @@ pub struct RendererOptions {
     ///
     /// Defaults to true.
     pub dithering: bool,
-
-    /// What format to use for the depth and stencil buffers,
-    /// e.g. [`wgpu::TextureFormat::Depth32FloatStencil8`].
-    ///
-    /// egui doesn't need depth/stencil, so the default value is `None` (no depth or stancil buffers).
-    pub depth_stencil_format: Option<wgpu::TextureFormat>,
 }
 
 impl Default for RendererOptions {
     fn default() -> Self {
         Self {
             msaa_samples: 0,
-            dithering: true,
             depth_stencil_format: None,
+            dithering: true,
         }
     }
 }
