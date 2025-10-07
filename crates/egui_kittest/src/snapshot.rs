@@ -544,7 +544,7 @@ pub fn image_snapshot(current: &image::RgbaImage, name: impl Into<String>) {
     }
 }
 
-#[cfg(feature = "wgpu")]
+#[cfg(any(feature = "wgpu", feature = "snapshot"))]
 impl<State> Harness<'_, State> {
     /// Render an image using the setup [`crate::TestRenderer`] and compare it to the snapshot
     /// with custom options.
@@ -632,6 +632,49 @@ impl<State> Harness<'_, State> {
             Ok(_) => {}
             Err(err) => {
                 panic!("{}", err);
+            }
+        }
+    }
+
+    /// Render a snapshot, save it to a temp file and open it in the default image viewer.
+    ///
+    /// This method is marked as deprecated to trigger errors in CI (so that it's not accidentally
+    /// committed).
+    #[deprecated = "Only for debugging, don't commit this."]
+    pub fn debug_open_snapshot(&mut self) {
+        let image = self
+            .render()
+            .map_err(|err| SnapshotError::RenderError { err })
+            .unwrap();
+        let temp_file = tempfile::Builder::new()
+            .disable_cleanup(true) // we keep the file so it's accessible even after the test ends
+            .prefix("kittest-snapshot")
+            .suffix(".png")
+            .tempfile()
+            .expect("Failed to create temp file");
+
+        let path = temp_file.path();
+
+        image
+            .save(temp_file.path())
+            .map_err(|err| SnapshotError::WriteSnapshot {
+                err,
+                path: path.to_path_buf(),
+            })
+            .unwrap();
+
+        #[expect(clippy::print_stdout)]
+        {
+            println!("Wrote debug snapshot to: {}", path.display());
+        }
+        let result = open::that(path);
+        if let Err(err) = result {
+            #[expect(clippy::print_stderr)]
+            {
+                eprintln!(
+                    "Failed to open image {} in default image viewer: {err}",
+                    path.display()
+                );
             }
         }
     }

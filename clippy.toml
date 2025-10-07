@@ -39,7 +39,7 @@ disallowed-methods = [
     # but we cannot disable them all here (because of e.g. https://github.com/rust-lang/rust-clippy/issues/10406)
     # so we do that in `clipppy_wasm.toml` instead.
 
-    { path = "std::env::temp_dir", readon = "Use the tempdir crate instead" },
+    { path = "std::env::temp_dir", readon = "Use the tempfile crate instead" },
     { path = "std::panic::catch_unwind", reason = "We compile with `panic = abort" },
     { path = "std::thread::spawn", readon = "Use `std::thread::Builder` and name the thread" },
 ]
