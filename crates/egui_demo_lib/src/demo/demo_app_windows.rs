@@ -421,10 +421,11 @@ mod tests {
     }
 
     fn remove_leading_emoji(full_name: &str) -> &str {
-        if let Some((start, name)) = full_name.split_once(' ') {
-            if start.len() <= 4 && start.bytes().next().is_some_and(|byte| byte >= 128) {
-                return name;
-            }
+        if let Some((start, name)) = full_name.split_once(' ')
+            && start.len() <= 4
+            && start.bytes().next().is_some_and(|byte| byte >= 128)
+        {
+            return name;
         }
         full_name
     }

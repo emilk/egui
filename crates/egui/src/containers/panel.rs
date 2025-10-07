@@ -145,8 +145,11 @@ impl SidePanel {
     ///
     /// Default is `true`.
     ///
-    /// If you want your panel to be resizable you also need a widget in it that
-    /// takes up more space as you resize it, such as:
+    /// If you want your panel to be resizable you also need to make the ui use
+    /// the available space.
+    ///
+    /// This can be done by using [`Ui::take_available_space`], or using a
+    /// widget in it that takes up more space as you resize it, such as:
     /// * Wrapping text ([`Ui::horizontal_wrapped`]).
     /// * A [`crate::ScrollArea`].
     /// * A [`crate::Separator`].
@@ -264,12 +267,10 @@ impl SidePanel {
                 resize_hover = resize_response.hovered();
                 is_resizing = resize_response.dragged();
 
-                if is_resizing {
-                    if let Some(pointer) = resize_response.interact_pointer_pos() {
-                        width = (pointer.x - side.side_x(panel_rect)).abs();
-                        width = clamp_to_range(width, width_range).at_most(available_rect.width());
-                        side.set_rect_width(&mut panel_rect, width);
-                    }
+                if is_resizing && let Some(pointer) = resize_response.interact_pointer_pos() {
+                    width = (pointer.x - side.side_x(panel_rect)).abs();
+                    width = clamp_to_range(width, width_range).at_most(available_rect.width());
+                    side.set_rect_width(&mut panel_rect, width);
                 }
             }
         }
@@ -635,8 +636,11 @@ impl TopBottomPanel {
     ///
     /// Default is `false`.
     ///
-    /// If you want your panel to be resizable you also need a widget in it that
-    /// takes up more space as you resize it, such as:
+    /// If you want your panel to be resizable you also need to make the ui use
+    /// the available space.
+    ///
+    /// This can be done by using [`Ui::take_available_space`], or using a
+    /// widget in it that takes up more space as you resize it, such as:
     /// * Wrapping text ([`Ui::horizontal_wrapped`]).
     /// * A [`crate::ScrollArea`].
     /// * A [`crate::Separator`].
@@ -763,13 +767,10 @@ impl TopBottomPanel {
                 resize_hover = resize_response.hovered();
                 is_resizing = resize_response.dragged();
 
-                if is_resizing {
-                    if let Some(pointer) = resize_response.interact_pointer_pos() {
-                        height = (pointer.y - side.side_y(panel_rect)).abs();
-                        height =
-                            clamp_to_range(height, height_range).at_most(available_rect.height());
-                        side.set_rect_height(&mut panel_rect, height);
-                    }
+                if is_resizing && let Some(pointer) = resize_response.interact_pointer_pos() {
+                    height = (pointer.y - side.side_y(panel_rect)).abs();
+                    height = clamp_to_range(height, height_range).at_most(available_rect.height());
+                    side.set_rect_height(&mut panel_rect, height);
                 }
             }
         }

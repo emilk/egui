@@ -10,11 +10,11 @@ use std::sync::Arc;
 /// Plugins should not hold a reference to the [`Context`], since this would create a cycle
 /// (which would prevent the [`Context`] from being dropped).
 #[expect(unused_variables)]
-pub trait Plugin: Send + Sync + 'static {
+pub trait Plugin: Send + Sync + std::any::Any + 'static {
     /// Plugin name.
     ///
     /// Used when profiling.
-    fn name(&self) -> &'static str;
+    fn debug_name(&self) -> &'static str;
 
     /// Called once, when the plugin is registered.
     ///
@@ -31,22 +31,21 @@ pub trait Plugin: Send + Sync + 'static {
     /// Can be used to show ui, e.g. a [`crate::Window`].
     fn on_end_pass(&mut self, ctx: &Context) {}
 
-    /// Called just before the output is passed to the backend.
-    ///
-    /// Useful to inspect or modify the output.
-    /// Since this is called outside a pass, don't show ui here.
-    fn output_hook(&mut self, output: &mut FullOutput) {}
-
     /// Called just before the input is processed.
     ///
     /// Useful to inspect or modify the input.
     /// Since this is called outside a pass, don't show ui here.
     fn input_hook(&mut self, input: &mut RawInput) {}
+
+    /// Called just before the output is passed to the backend.
+    ///
+    /// Useful to inspect or modify the output.
+    /// Since this is called outside a pass, don't show ui here.
+    fn output_hook(&mut self, output: &mut FullOutput) {}
 }
 
 pub(crate) struct PluginHandle {
-    plugin: Box<dyn std::any::Any + Send + Sync>,
-    get_plugin_mut: fn(&mut Self) -> &mut dyn Plugin,
+    plugin: Box<dyn Plugin>,
 }
 
 pub struct TypedPluginHandle<P: Plugin> {
@@ -95,10 +94,6 @@ impl PluginHandle {
     pub fn new<P: Plugin>(plugin: P) -> Arc<Mutex<Self>> {
         Arc::new(Mutex::new(Self {
             plugin: Box::new(plugin),
-            get_plugin_mut: |handle| {
-                let plugin: &mut P = handle.typed_plugin_mut();
-                plugin as &mut dyn Plugin
-            },
         }))
     }
 
@@ -107,17 +102,17 @@ impl PluginHandle {
     }
 
     pub fn dyn_plugin_mut(&mut self) -> &mut dyn Plugin {
-        (self.get_plugin_mut)(self)
+        &mut *self.plugin
     }
 
     fn typed_plugin<P: Plugin + 'static>(&self) -> &P {
-        (*self.plugin)
+        (&*self.plugin as &dyn std::any::Any)
             .downcast_ref::<P>()
             .expect("PluginHandle: plugin is not of the expected type")
     }
 
     pub fn typed_plugin_mut<P: Plugin + 'static>(&mut self) -> &mut P {
-        (*self.plugin)
+        (&mut *self.plugin as &mut dyn std::any::Any)
             .downcast_mut::<P>()
             .expect("PluginHandle: plugin is not of the expected type")
     }
@@ -140,7 +135,7 @@ impl PluginsOrdered {
     {
         for plugin in &self.0 {
             let mut plugin = plugin.lock();
-            profiling::scope!("plugin", plugin.dyn_plugin_mut().name());
+            profiling::scope!("plugin", plugin.dyn_plugin_mut().debug_name());
             f(plugin.dyn_plugin_mut());
         }
     }
@@ -213,7 +208,7 @@ pub(crate) struct CallbackPlugin {
 }
 
 impl Plugin for CallbackPlugin {
-    fn name(&self) -> &'static str {
+    fn debug_name(&self) -> &'static str {
         "CallbackPlugins"
     }
 

@@ -336,5 +336,5 @@ fn long_text(row_index: usize) -> String {
 }
 
 fn thick_row(row_index: usize) -> bool {
-    row_index % 6 == 0
+    row_index.is_multiple_of(6)
 }

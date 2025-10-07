@@ -94,9 +94,27 @@ impl BytesLoader for EhttpLoader {
                             Err(format!("Failed to load {uri:?}"))
                         }
                     };
-                    log::trace!("finished loading {uri:?}");
-                    cache.lock().insert(uri, Poll::Ready(result));
-                    ctx.request_repaint();
+                    let repaint = {
+                        let mut cache = cache.lock();
+                        if let std::collections::hash_map::Entry::Occupied(mut entry) =
+                            cache.entry(uri.clone())
+                        {
+                            let entry = entry.get_mut();
+                            *entry = Poll::Ready(result);
+                            log::trace!("Finished loading {uri:?}");
+                            true
+                        } else {
+                            log::trace!(
+                                "Canceled loading {uri:?}\nNote: This can happen if `forget_image` is called while the image is still loading."
+                            );
+                            false
+                        }
+                    };
+                    // We may not lock Context while the cache lock is held (see ImageLoader::load
+                    // for details).
+                    if repaint {
+                        ctx.request_repaint();
+                    }
                 }
             });
 

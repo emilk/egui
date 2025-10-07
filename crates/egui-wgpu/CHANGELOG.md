@@ -6,6 +6,18 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.32.3 - 2025-09-12
+Nothing new
+
+
+## 0.32.2 - 2025-09-04
+Nothing new
+
+
+## 0.32.1 - 2025-08-15
+* Enable wgpu default features in eframe / egui_wgpu default features [#7344](https://github.com/emilk/egui/pull/7344) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+
 ## 0.32.0 - 2025-07-10
 * Update to wgpu 25 [#6744](https://github.com/emilk/egui/pull/6744) by [@torokati44](https://github.com/torokati44)
 * Free textures after submitting queue instead of before with wgpu renderer on Web [#7291](https://github.com/emilk/egui/pull/7291) by [@Wumpf](https://github.com/Wumpf)

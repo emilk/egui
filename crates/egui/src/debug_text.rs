@@ -53,15 +53,13 @@ pub struct DebugTextPlugin {
 }
 
 impl Plugin for DebugTextPlugin {
-    fn name(&self) -> &'static str {
+    fn debug_name(&self) -> &'static str {
         "DebugTextPlugin"
     }
 
     fn on_end_pass(&mut self, ctx: &Context) {
-        if !self.entries.is_empty() {
-            let entries = std::mem::take(&mut self.entries);
-            Self::paint_entries(ctx, entries);
-        }
+        let entries = std::mem::take(&mut self.entries);
+        Self::paint_entries(ctx, entries);
     }
 }
 
@@ -89,7 +87,7 @@ impl DebugTextPlugin {
             {
                 // Paint location to left of `pos`:
                 let location_galley =
-                    ctx.fonts(|f| f.layout(location, font_id.clone(), color, f32::INFINITY));
+                    ctx.fonts_mut(|f| f.layout(location, font_id.clone(), color, f32::INFINITY));
                 let location_rect =
                     Align2::RIGHT_TOP.anchor_size(pos - 4.0 * Vec2::X, location_galley.size());
                 painter.galley(location_rect.min, location_galley, color);

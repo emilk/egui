@@ -124,7 +124,7 @@ impl Default for LabelSelectionState {
 }
 
 impl Plugin for LabelSelectionState {
-    fn name(&self) -> &'static str {
+    fn debug_name(&self) -> &'static str {
         "LabelSelectionState"
     }
 
@@ -316,74 +316,74 @@ impl LabelSelectionState {
         let may_select_widget =
             multi_widget_text_select || selection.primary.widget_id == response.id;
 
-        if self.is_dragging && may_select_widget {
-            if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
-                let galley_rect =
-                    global_from_galley * Rect::from_min_size(Pos2::ZERO, galley.size());
-                let galley_rect = galley_rect.intersect(ui.clip_rect());
+        if self.is_dragging
+            && may_select_widget
+            && let Some(pointer_pos) = ui.ctx().pointer_interact_pos()
+        {
+            let galley_rect = global_from_galley * Rect::from_min_size(Pos2::ZERO, galley.size());
+            let galley_rect = galley_rect.intersect(ui.clip_rect());
 
-                let is_in_same_column = galley_rect
-                    .x_range()
-                    .intersects(self.selection_bbox_last_frame.x_range());
+            let is_in_same_column = galley_rect
+                .x_range()
+                .intersects(self.selection_bbox_last_frame.x_range());
 
-                let has_reached_primary =
-                    self.has_reached_primary || response.id == selection.primary.widget_id;
-                let has_reached_secondary =
-                    self.has_reached_secondary || response.id == selection.secondary.widget_id;
+            let has_reached_primary =
+                self.has_reached_primary || response.id == selection.primary.widget_id;
+            let has_reached_secondary =
+                self.has_reached_secondary || response.id == selection.secondary.widget_id;
 
-                let new_primary = if response.contains_pointer() {
-                    // Dragging into this widget - easy case:
-                    Some(galley.cursor_from_pos((galley_from_global * pointer_pos).to_vec2()))
-                } else if is_in_same_column
-                    && !self.has_reached_primary
-                    && selection.primary.pos.y <= selection.secondary.pos.y
-                    && pointer_pos.y <= galley_rect.top()
-                    && galley_rect.top() <= selection.secondary.pos.y
-                {
-                    // The user is dragging the text selection upwards, above the first selected widget (this one):
-                    if DEBUG {
-                        ui.ctx()
-                            .debug_text(format!("Upwards drag; include {:?}", response.id));
-                    }
-                    Some(galley.begin())
-                } else if is_in_same_column
-                    && has_reached_secondary
-                    && has_reached_primary
-                    && selection.secondary.pos.y <= selection.primary.pos.y
-                    && selection.secondary.pos.y <= galley_rect.bottom()
-                    && galley_rect.bottom() <= pointer_pos.y
-                {
-                    // The user is dragging the text selection downwards, below this widget.
-                    // We move the cursor to the end of this widget,
-                    // (and we may do the same for the next widget too).
-                    if DEBUG {
-                        ui.ctx()
-                            .debug_text(format!("Downwards drag; include {:?}", response.id));
-                    }
-                    Some(galley.end())
-                } else {
-                    None
-                };
+            let new_primary = if response.contains_pointer() {
+                // Dragging into this widget - easy case:
+                Some(galley.cursor_from_pos((galley_from_global * pointer_pos).to_vec2()))
+            } else if is_in_same_column
+                && !self.has_reached_primary
+                && selection.primary.pos.y <= selection.secondary.pos.y
+                && pointer_pos.y <= galley_rect.top()
+                && galley_rect.top() <= selection.secondary.pos.y
+            {
+                // The user is dragging the text selection upwards, above the first selected widget (this one):
+                if DEBUG {
+                    ui.ctx()
+                        .debug_text(format!("Upwards drag; include {:?}", response.id));
+                }
+                Some(galley.begin())
+            } else if is_in_same_column
+                && has_reached_secondary
+                && has_reached_primary
+                && selection.secondary.pos.y <= selection.primary.pos.y
+                && selection.secondary.pos.y <= galley_rect.bottom()
+                && galley_rect.bottom() <= pointer_pos.y
+            {
+                // The user is dragging the text selection downwards, below this widget.
+                // We move the cursor to the end of this widget,
+                // (and we may do the same for the next widget too).
+                if DEBUG {
+                    ui.ctx()
+                        .debug_text(format!("Downwards drag; include {:?}", response.id));
+                }
+                Some(galley.end())
+            } else {
+                None
+            };
 
-                if let Some(new_primary) = new_primary {
-                    selection.primary =
-                        WidgetTextCursor::new(response.id, new_primary, global_from_galley, galley);
+            if let Some(new_primary) = new_primary {
+                selection.primary =
+                    WidgetTextCursor::new(response.id, new_primary, global_from_galley, galley);
 
-                    // We don't want the latency of `drag_started`.
-                    let drag_started = ui.input(|i| i.pointer.any_pressed());
-                    if drag_started {
-                        if selection.layer_id == response.layer_id {
-                            if ui.input(|i| i.modifiers.shift) {
-                                // A continuation of a previous selection.
-                            } else {
-                                // A new selection in the same layer.
-                                selection.secondary = selection.primary;
-                            }
+                // We don't want the latency of `drag_started`.
+                let drag_started = ui.input(|i| i.pointer.any_pressed());
+                if drag_started {
+                    if selection.layer_id == response.layer_id {
+                        if ui.input(|i| i.modifiers.shift) {
+                            // A continuation of a previous selection.
                         } else {
-                            // A new selection in a new layer.
-                            selection.layer_id = response.layer_id;
+                            // A new selection in the same layer.
                             selection.secondary = selection.primary;
                         }
+                    } else {
+                        // A new selection in a new layer.
+                        selection.layer_id = response.layer_id;
+                        selection.secondary = selection.primary;
                     }
                 }
             }
@@ -511,26 +511,26 @@ impl LabelSelectionState {
 
         let old_range = cursor_state.range(galley);
 
-        if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
-            if response.contains_pointer() {
-                let cursor_at_pointer =
-                    galley.cursor_from_pos((galley_from_global * pointer_pos).to_vec2());
+        if let Some(pointer_pos) = ui.ctx().pointer_interact_pos()
+            && response.contains_pointer()
+        {
+            let cursor_at_pointer =
+                galley.cursor_from_pos((galley_from_global * pointer_pos).to_vec2());
 
-                // This is where we handle start-of-drag and double-click-to-select.
-                // Actual drag-to-select happens elsewhere.
-                let dragged = false;
-                cursor_state.pointer_interaction(ui, response, cursor_at_pointer, galley, dragged);
-            }
+            // This is where we handle start-of-drag and double-click-to-select.
+            // Actual drag-to-select happens elsewhere.
+            let dragged = false;
+            cursor_state.pointer_interaction(ui, response, cursor_at_pointer, galley, dragged);
         }
 
         if let Some(mut cursor_range) = cursor_state.range(galley) {
             let galley_rect = global_from_galley * Rect::from_min_size(Pos2::ZERO, galley.size());
             self.selection_bbox_this_frame |= galley_rect;
 
-            if let Some(selection) = &self.selection {
-                if selection.primary.widget_id == response.id {
-                    process_selection_key_events(ui.ctx(), galley, response.id, &mut cursor_range);
-                }
+            if let Some(selection) = &self.selection
+                && selection.primary.widget_id == response.id
+            {
+                process_selection_key_events(ui.ctx(), galley, response.id, &mut cursor_range);
             }
 
             if got_copy_event(ui.ctx()) {

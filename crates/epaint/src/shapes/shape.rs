@@ -7,7 +7,7 @@ use emath::{Align2, Pos2, Rangef, Rect, TSTransform, Vec2, pos2};
 use crate::{
     Color32, CornerRadius, Mesh, Stroke, StrokeKind, TextureId,
     stroke::PathStroke,
-    text::{FontId, Fonts, Galley},
+    text::{FontId, FontsView, Galley},
 };
 
 use super::{
@@ -299,7 +299,7 @@ impl Shape {
 
     #[expect(clippy::needless_pass_by_value)]
     pub fn text(
-        fonts: &Fonts,
+        fonts: &mut FontsView<'_>,
         pos: Pos2,
         anchor: Align2,
         text: impl ToString,
@@ -416,7 +416,7 @@ impl Shape {
         self.transform(TSTransform::from_translation(delta));
     }
 
-    /// Move the shape by this many points, in-place.
+    /// Transform (move/scale) the shape in-place.
     ///
     /// If using a [`PaintCallback`], note that only the rect is scaled as opposed
     /// to other shapes where the stroke is also scaled.

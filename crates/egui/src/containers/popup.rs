@@ -179,9 +179,6 @@ pub struct Popup<'a> {
     /// Gap between the anchor and the popup
     gap: f32,
 
-    /// Used later depending on close behavior
-    widget_clicked_elsewhere: bool,
-
     /// Default width passed to the Area
     width: Option<f32>,
     sense: Sense,
@@ -205,7 +202,6 @@ impl<'a> Popup<'a> {
             rect_align: RectAlign::BOTTOM_START,
             alternative_aligns: None,
             gap: 0.0,
-            widget_clicked_elsewhere: false,
             width: None,
             sense: Sense::click(),
             layout: Layout::default(),
@@ -219,14 +215,12 @@ impl<'a> Popup<'a> {
     ///
     /// See [`Self::menu`] and [`Self::context_menu`] for common use cases.
     pub fn from_response(response: &Response) -> Self {
-        let mut popup = Self::new(
+        Self::new(
             Self::default_response_id(response),
             response.ctx.clone(),
             response,
             response.layer_id,
-        );
-        popup.widget_clicked_elsewhere = response.clicked_elsewhere();
-        popup
+        )
     }
 
     /// Show a popup relative to some widget,
@@ -464,7 +458,7 @@ impl<'a> Popup<'a> {
 
     /// Get the expected size of the popup.
     pub fn get_expected_size(&self) -> Option<Vec2> {
-        AreaState::load(&self.ctx, self.id).and_then(|area| area.size)
+        AreaState::load(&self.ctx, self.id)?.size
     }
 
     /// Calculate the best alignment for the popup, based on the last size and screen rect.
@@ -500,12 +494,18 @@ impl<'a> Popup<'a> {
     }
 
     /// Show the popup.
+    ///
     /// Returns `None` if the popup is not open or anchor is `PopupAnchor::Pointer` and there is
     /// no pointer.
     pub fn show<R>(self, content: impl FnOnce(&mut Ui) -> R) -> Option<InnerResponse<R>> {
-        let hover_pos = self.ctx.pointer_hover_pos();
-
         let id = self.id;
+        // When the popup was just opened with a click we don't want to immediately close it based
+        // on the `PopupCloseBehavior`, so we need to remember if the popup was already open on
+        // last frame. A convenient way to check this is to see if we have a response for the `Area`
+        // from last frame:
+        let was_open_last_frame = self.ctx.read_response(id).is_some();
+
+        let hover_pos = self.ctx.pointer_hover_pos();
         if let OpenKind::Memory { set } = self.open_kind {
             match set {
                 Some(SetOpenCommand::Bool(open)) => {
@@ -547,7 +547,6 @@ impl<'a> Popup<'a> {
             rect_align: _,
             alternative_aligns: _,
             gap,
-            widget_clicked_elsewhere,
             width,
             sense,
             layout,
@@ -594,16 +593,22 @@ impl<'a> Popup<'a> {
             frame.show(ui, content).inner
         });
 
+        // If the popup was just opened with a click, we don't want to immediately close it again.
+        let close_click = was_open_last_frame && ctx.input(|i| i.pointer.any_click());
+
         let closed_by_click = match close_behavior {
-            PopupCloseBehavior::CloseOnClick => widget_clicked_elsewhere,
+            PopupCloseBehavior::CloseOnClick => close_click,
             PopupCloseBehavior::CloseOnClickOutside => {
-                widget_clicked_elsewhere && response.response.clicked_elsewhere()
+                close_click && response.response.clicked_elsewhere()
             }
             PopupCloseBehavior::IgnoreClicks => false,
         };
 
+        // Mark the menu as shown, so the sub menu open state is not reset
+        MenuState::mark_shown(&ctx, id);
+
         // If a submenu is open, the CloseBehavior is handled there
-        let is_any_submenu_open = !MenuState::is_deepest_sub_menu(&response.response.ctx, id);
+        let is_any_submenu_open = !MenuState::is_deepest_open_sub_menu(&response.response.ctx, id);
 
         let should_close = (!is_any_submenu_open && closed_by_click)
             || ctx.input(|i| i.key_pressed(Key::Escape))

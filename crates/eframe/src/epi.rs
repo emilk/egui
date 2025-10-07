@@ -509,6 +509,10 @@ pub struct WebOptions {
     ///
     /// Defaults to true.
     pub should_prevent_default: Box<dyn Fn(&egui::Event) -> bool>,
+
+    /// Maximum rate at which to repaint. This can be used to artificially reduce the repaint rate below
+    /// vsync in order to save resources.
+    pub max_fps: Option<u32>,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -527,6 +531,8 @@ impl Default for WebOptions {
 
             should_stop_propagation: Box::new(|_| true),
             should_prevent_default: Box::new(|_| true),
+
+            max_fps: None,
         }
     }
 }
@@ -893,16 +899,15 @@ pub trait Storage {
 #[cfg(feature = "ron")]
 pub fn get_value<T: serde::de::DeserializeOwned>(storage: &dyn Storage, key: &str) -> Option<T> {
     profiling::function_scope!(key);
-    storage
-        .get_string(key)
-        .and_then(|value| match ron::from_str(&value) {
-            Ok(value) => Some(value),
-            Err(err) => {
-                // This happens on when we break the format, e.g. when updating egui.
-                log::debug!("Failed to decode RON: {err}");
-                None
-            }
-        })
+    let value = storage.get_string(key)?;
+    match ron::from_str(&value) {
+        Ok(value) => Some(value),
+        Err(err) => {
+            // This happens on when we break the format, e.g. when updating egui.
+            log::debug!("Failed to decode RON: {err}");
+            None
+        }
+    }
 }
 
 /// Serialize the given value as [RON](https://github.com/ron-rs/ron) and store with the given key.

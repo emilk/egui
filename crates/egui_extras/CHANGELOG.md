@@ -5,6 +5,19 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.32.3 - 2025-09-12
+* Fix deadlock in `FileLoader` and `EhttpLoader` [#7515](https://github.com/emilk/egui/pull/7515) by [@emilk](https://github.com/emilk)
+
+
+## 0.32.2 - 2025-09-04
+* Fix memory leak when `forget_image` is called while loading [#7380](https://github.com/emilk/egui/pull/7380) by [@Vanadiae](https://github.com/Vanadiae)
+* Fix deadlock in `ImageLoader`, `FileLoader`, `EhttpLoader` [#7494](https://github.com/emilk/egui/pull/7494) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+
+## 0.32.1 - 2025-08-15
+Nothing new
+
+
 ## 0.32.0 - 2025-07-10 - Improved SVG support
 ### ⭐ Added
 * Allow loading multi-MIME formats using the image_loader [#5769](https://github.com/emilk/egui/pull/5769) by [@MYDIH](https://github.com/MYDIH)

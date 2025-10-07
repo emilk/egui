@@ -57,7 +57,7 @@ impl eframe::App for MyApp {
                             ctx.set_theme(egui::Theme::Dark);
                         } else {
                             ctx.set_theme(egui::Theme::Light);
-                        };
+                        }
                         ctx.send_viewport_cmd(
                             egui::ViewportCommand::Screenshot(Default::default()),
                         );

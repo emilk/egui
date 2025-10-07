@@ -83,7 +83,7 @@ impl EasyMarkEditor {
             let mut layouter = |ui: &egui::Ui, easymark: &dyn TextBuffer, wrap_width: f32| {
                 let mut layout_job = highlighter.highlight(ui.style(), easymark.as_str());
                 layout_job.wrap.max_width = wrap_width;
-                ui.fonts(|f| f.layout_job(layout_job))
+                ui.fonts_mut(|f| f.layout_job(layout_job))
             };
 
             ui.add(
@@ -96,13 +96,13 @@ impl EasyMarkEditor {
             ui.add(egui::TextEdit::multiline(code).desired_width(f32::INFINITY))
         };
 
-        if let Some(mut state) = TextEdit::load_state(ui.ctx(), response.id) {
-            if let Some(mut ccursor_range) = state.cursor.char_range() {
-                let any_change = shortcuts(ui, code, &mut ccursor_range);
-                if any_change {
-                    state.cursor.set_char_range(Some(ccursor_range));
-                    state.store(ui.ctx(), response.id);
-                }
+        if let Some(mut state) = TextEdit::load_state(ui.ctx(), response.id)
+            && let Some(mut ccursor_range) = state.cursor.char_range()
+        {
+            let any_change = shortcuts(ui, code, &mut ccursor_range);
+            if any_change {
+                state.cursor.set_char_range(Some(ccursor_range));
+                state.store(ui.ctx(), response.id);
             }
         }
     }
@@ -165,7 +165,7 @@ fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRang
         if ui.input_mut(|i| i.consume_shortcut(&shortcut)) {
             any_change = true;
             toggle_surrounding(code, ccursor_range, surrounding);
-        };
+        }
     }
 
     any_change

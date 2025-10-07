@@ -140,8 +140,9 @@ impl Default for Memory {
     }
 }
 
+/// A direction in which to move the keyboard focus.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-enum FocusDirection {
+pub enum FocusDirection {
     /// Select the widget closest above the current focused widget.
     Up,
 
@@ -271,14 +272,6 @@ pub struct Options {
     /// which is supported by `eframe`.
     pub screen_reader: bool,
 
-    /// If true, the most common glyphs (ASCII) are pre-rendered to the texture atlas.
-    ///
-    /// Only the fonts in [`Style::text_styles`] will be pre-cached.
-    ///
-    /// This can lead to fewer texture operations, but may use up the texture atlas quicker
-    /// if you are changing [`Style::text_styles`], or have a lot of text styles.
-    pub preload_font_glyphs: bool,
-
     /// Check reusing of [`Id`]s, and show a visual warning on screen when one is found.
     ///
     /// By default this is `true` in debug builds.
@@ -315,7 +308,6 @@ impl Default for Options {
             repaint_on_widget_change: false,
             max_passes: NonZeroUsize::new(2).unwrap(),
             screen_reader: false,
-            preload_font_glyphs: true,
             warn_on_id_clash: cfg!(debug_assertions),
 
             // Input:
@@ -365,13 +357,12 @@ impl Options {
             theme_preference,
             fallback_theme: _,
             system_theme: _,
-            zoom_factor: _, // TODO(emilk)
+            zoom_factor,
             zoom_with_keyboard,
             tessellation_options,
             repaint_on_widget_change,
             max_passes,
             screen_reader: _, // needs to come from the integration
-            preload_font_glyphs: _,
             warn_on_id_clash,
             input_options,
             reduce_texture_memory,
@@ -392,6 +383,11 @@ impl Options {
                     repaint_on_widget_change,
                     "Repaint if any widget moves or changes id",
                 );
+
+                ui.horizontal(|ui| {
+                    ui.label("Zoom factor:");
+                    ui.add(crate::DragValue::new(zoom_factor).range(0.10..=10.0));
+                });
 
                 ui.checkbox(
                     zoom_with_keyboard,
@@ -539,36 +535,34 @@ impl Focus {
         self.focus_direction = FocusDirection::None;
 
         for event in &new_input.events {
-            if !event_filter.matches(event) {
-                if let crate::Event::Key {
+            if !event_filter.matches(event)
+                && let crate::Event::Key {
                     key,
                     pressed: true,
                     modifiers,
                     ..
                 } = event
-                {
-                    if let Some(cardinality) = match key {
-                        crate::Key::ArrowUp => Some(FocusDirection::Up),
-                        crate::Key::ArrowRight => Some(FocusDirection::Right),
-                        crate::Key::ArrowDown => Some(FocusDirection::Down),
-                        crate::Key::ArrowLeft => Some(FocusDirection::Left),
+                && let Some(cardinality) = match key {
+                    crate::Key::ArrowUp => Some(FocusDirection::Up),
+                    crate::Key::ArrowRight => Some(FocusDirection::Right),
+                    crate::Key::ArrowDown => Some(FocusDirection::Down),
+                    crate::Key::ArrowLeft => Some(FocusDirection::Left),
 
-                        crate::Key::Tab => {
-                            if modifiers.shift {
-                                Some(FocusDirection::Previous)
-                            } else {
-                                Some(FocusDirection::Next)
-                            }
+                    crate::Key::Tab => {
+                        if modifiers.shift {
+                            Some(FocusDirection::Previous)
+                        } else {
+                            Some(FocusDirection::Next)
                         }
-                        crate::Key::Escape => {
-                            self.focused_widget = None;
-                            Some(FocusDirection::None)
-                        }
-                        _ => None,
-                    } {
-                        self.focus_direction = cardinality;
                     }
+                    crate::Key::Escape => {
+                        self.focused_widget = None;
+                        Some(FocusDirection::None)
+                    }
+                    _ => None,
                 }
+            {
+                self.focus_direction = cardinality;
             }
 
             #[cfg(feature = "accesskit")]
@@ -586,10 +580,10 @@ impl Focus {
     }
 
     pub(crate) fn end_pass(&mut self, used_ids: &IdMap<Rect>) {
-        if self.focus_direction.is_cardinal() {
-            if let Some(found_widget) = self.find_widget_in_direction(used_ids) {
-                self.focused_widget = Some(FocusWidget::new(found_widget));
-            }
+        if self.focus_direction.is_cardinal()
+            && let Some(found_widget) = self.find_widget_in_direction(used_ids)
+        {
+            self.focused_widget = Some(FocusWidget::new(found_widget));
         }
 
         if let Some(focused_widget) = self.focused_widget {
@@ -711,6 +705,8 @@ impl Focus {
         let mut best_score = f32::INFINITY;
         let mut best_id = None;
 
+        // iteration order should only matter in case of a tie, and that should be very rare
+        #[expect(clippy::iter_over_hash_type)]
         for (candidate_id, candidate_rect) in &self.focus_widgets_cache {
             if *candidate_id == current_focused.id {
                 continue;
@@ -800,15 +796,12 @@ impl Memory {
 
     /// Top-most layer at the given position.
     pub fn layer_id_at(&self, pos: Pos2) -> Option<LayerId> {
-        self.areas()
-            .layer_id_at(pos, &self.to_global)
-            .and_then(|layer_id| {
-                if self.is_above_modal_layer(layer_id) {
-                    Some(layer_id)
-                } else {
-                    self.top_modal_layer()
-                }
-            })
+        let layer_id = self.areas().layer_id_at(pos, &self.to_global)?;
+        if self.is_above_modal_layer(layer_id) {
+            Some(layer_id)
+        } else {
+            self.top_modal_layer()
+        }
     }
 
     /// The currently set transform of a layer.
@@ -853,7 +846,7 @@ impl Memory {
 
     /// Which widget has keyboard focus?
     pub fn focused(&self) -> Option<Id> {
-        self.focus().and_then(|f| f.focused())
+        self.focus()?.focused()
     }
 
     /// Set an event filter for a widget.
@@ -863,12 +856,12 @@ impl Memory {
     ///
     /// You must first give focus to the widget before calling this.
     pub fn set_focus_lock_filter(&mut self, id: Id, event_filter: EventFilter) {
-        if self.had_focus_last_frame(id) && self.has_focus(id) {
-            if let Some(focused) = &mut self.focus_mut().focused_widget {
-                if focused.id == id {
-                    focused.filter = event_filter;
-                }
-            }
+        if self.had_focus_last_frame(id)
+            && self.has_focus(id)
+            && let Some(focused) = &mut self.focus_mut().focused_widget
+            && focused.id == id
+        {
+            focused.filter = event_filter;
         }
     }
 
@@ -887,6 +880,11 @@ impl Memory {
         if focus.focused() == Some(id) {
             focus.focused_widget = None;
         }
+    }
+
+    /// Move keyboard focus in a specific direction.
+    pub fn move_focus(&mut self, direction: FocusDirection) {
+        self.focus_mut().focus_direction = direction;
     }
 
     /// Returns true if
@@ -933,13 +931,13 @@ impl Memory {
     /// Limit focus to widgets on the given layer and above.
     /// If this is called multiple times per frame, the top layer wins.
     pub fn set_modal_layer(&mut self, layer_id: LayerId) {
-        if let Some(current) = self.focus().and_then(|f| f.top_modal_layer_current_frame) {
-            if matches!(
+        if let Some(current) = self.focus().and_then(|f| f.top_modal_layer_current_frame)
+            && matches!(
                 self.areas().compare_order(layer_id, current),
                 std::cmp::Ordering::Less
-            ) {
-                return;
-            }
+            )
+        {
+            return;
         }
 
         self.focus_mut().set_modal_layer(layer_id);
@@ -959,6 +957,7 @@ impl Memory {
     /// Forget window positions, sizes etc.
     /// Can be used to auto-layout windows.
     pub fn reset_areas(&mut self) {
+        #[expect(clippy::iter_over_hash_type)]
         for area in self.areas.values_mut() {
             *area = Default::default();
         }
@@ -1046,10 +1045,10 @@ impl Memory {
     /// being rendered.
     #[deprecated = "Use Popup::show instead"]
     pub fn keep_popup_open(&mut self, popup_id: Id) {
-        if let Some(state) = self.popups.get_mut(&self.viewport_id) {
-            if state.id == popup_id {
-                state.open_this_frame = true;
-            }
+        if let Some(state) = self.popups.get_mut(&self.viewport_id)
+            && state.id == popup_id
+        {
+            state.open_this_frame = true;
         }
     }
 
@@ -1063,9 +1062,8 @@ impl Memory {
     /// Get the position for this popup.
     #[deprecated = "Use Popup::position_of_id instead"]
     pub fn popup_position(&self, id: Id) -> Option<Pos2> {
-        self.popups
-            .get(&self.viewport_id)
-            .and_then(|state| if state.id == id { state.pos } else { None })
+        let state = self.popups.get(&self.viewport_id)?;
+        if state.id == id { state.pos } else { None }
     }
 
     /// Close any currently open popup.
@@ -1200,17 +1198,17 @@ impl Areas {
         layer_to_global: &HashMap<LayerId, TSTransform>,
     ) -> Option<LayerId> {
         for layer in self.order.iter().rev() {
-            if self.is_visible(layer) {
-                if let Some(state) = self.areas.get(&layer.id) {
-                    let mut rect = state.rect();
-                    if state.interactable {
-                        if let Some(to_global) = layer_to_global.get(layer) {
-                            rect = *to_global * rect;
-                        }
+            if self.is_visible(layer)
+                && let Some(state) = self.areas.get(&layer.id)
+            {
+                let mut rect = state.rect();
+                if state.interactable {
+                    if let Some(to_global) = layer_to_global.get(layer) {
+                        rect = *to_global * rect;
+                    }
 
-                        if rect.contains(pos) {
-                            return Some(*layer);
-                        }
+                    if rect.contains(pos) {
+                        return Some(*layer);
                     }
                 }
             }
@@ -1324,12 +1322,14 @@ impl Areas {
         wants_to_be_on_top.clear();
 
         // For all layers with sublayers, put the sublayers directly after the parent layer:
-        let sublayers = std::mem::take(sublayers);
-        for (parent, children) in sublayers {
-            let mut moved_layers = vec![parent];
+        // (it doesn't matter in which order we replace parents with their children)
+        #[expect(clippy::iter_over_hash_type)]
+        for (parent, children) in std::mem::take(sublayers) {
+            let mut moved_layers = vec![parent]; // parent first…
+
             order.retain(|l| {
                 if children.contains(l) {
-                    moved_layers.push(*l);
+                    moved_layers.push(*l); // …followed by children
                     false
                 } else {
                     true
@@ -1338,7 +1338,7 @@ impl Areas {
             let Some(parent_pos) = order.iter().position(|l| l == &parent) else {
                 continue;
             };
-            order.splice(parent_pos..=parent_pos, moved_layers);
+            order.splice(parent_pos..=parent_pos, moved_layers); // replace the parent with itself and its children
         }
 
         self.order_map = self

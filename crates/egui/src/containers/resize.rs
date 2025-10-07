@@ -241,14 +241,12 @@ impl Resize {
 
         let corner_id = self.resizable.any().then(|| id.with("__resize_corner"));
 
-        if let Some(corner_id) = corner_id {
-            if let Some(corner_response) = ui.ctx().read_response(corner_id) {
-                if let Some(pointer_pos) = corner_response.interact_pointer_pos() {
-                    // Respond to the interaction early to avoid frame delay.
-                    user_requested_size =
-                        Some(pointer_pos - position + 0.5 * corner_response.rect.size());
-                }
-            }
+        if let Some(corner_id) = corner_id
+            && let Some(corner_response) = ui.ctx().read_response(corner_id)
+            && let Some(pointer_pos) = corner_response.interact_pointer_pos()
+        {
+            // Respond to the interaction early to avoid frame delay.
+            user_requested_size = Some(pointer_pos - position + 0.5 * corner_response.rect.size());
         }
 
         if let Some(user_requested_size) = user_requested_size {

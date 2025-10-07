@@ -5,6 +5,8 @@ use std::iter;
 use std::mem::size_of;
 use std::sync::mpsc::channel;
 
+use crate::wgpu::WAIT_TIMEOUT;
+
 pub(crate) fn texture_to_image(device: &Device, queue: &Queue, texture: &Texture) -> RgbaImage {
     let buffer_dimensions =
         BufferDimensions::new(texture.width() as usize, texture.height() as usize);
@@ -48,7 +50,10 @@ pub(crate) fn texture_to_image(device: &Device, queue: &Queue, texture: &Texture
 
     // Poll the device in a blocking manner so that our future resolves.
     device
-        .poll(wgpu::PollType::WaitForSubmissionIndex(submission_index))
+        .poll(wgpu::PollType::Wait {
+            submission_index: Some(submission_index),
+            timeout: Some(WAIT_TIMEOUT),
+        })
         .expect("Failed to poll device");
 
     receiver.recv().unwrap().unwrap();

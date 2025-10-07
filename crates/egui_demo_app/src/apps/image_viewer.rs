@@ -61,14 +61,14 @@ impl eframe::App for ImageViewer {
                     ctx.forget_image(&self.current_uri);
                     self.uri_edit_text = self.uri_edit_text.trim().to_owned();
                     self.current_uri = self.uri_edit_text.clone();
-                };
+                }
 
                 #[cfg(not(target_arch = "wasm32"))]
-                if ui.button("file…").clicked() {
-                    if let Some(path) = rfd::FileDialog::new().pick_file() {
-                        self.uri_edit_text = format!("file://{}", path.display());
-                        self.current_uri = self.uri_edit_text.clone();
-                    }
+                if ui.button("file…").clicked()
+                    && let Some(path) = rfd::FileDialog::new().pick_file()
+                {
+                    self.uri_edit_text = format!("file://{}", path.display());
+                    self.current_uri = self.uri_edit_text.clone();
                 }
             });
         });

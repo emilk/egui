@@ -85,7 +85,7 @@ impl CodeExample {
 
         ui.horizontal(|ui| {
             let font_id = egui::TextStyle::Monospace.resolve(ui.style());
-            let indentation = 2.0 * 4.0 * ui.fonts(|f| f.glyph_width(&font_id, ' '));
+            let indentation = 2.0 * 4.0 * ui.fonts_mut(|f| f.glyph_width(&font_id, ' '));
             ui.add_space(indentation);
 
             egui::Grid::new("code_samples")

@@ -72,7 +72,7 @@ impl Tooltip<'_> {
         let mut tooltip = Self::for_widget(response);
         tooltip.popup = tooltip
             .popup
-            .open(response.enabled() && Self::should_show_tooltip(response));
+            .open(response.enabled() && Self::should_show_tooltip(response, true));
         tooltip
     }
 
@@ -81,7 +81,7 @@ impl Tooltip<'_> {
         let mut tooltip = Self::for_widget(response);
         tooltip.popup = tooltip
             .popup
-            .open(!response.enabled() && Self::should_show_tooltip(response));
+            .open(!response.enabled() && Self::should_show_tooltip(response, true));
         tooltip
     }
 
@@ -211,7 +211,10 @@ impl Tooltip<'_> {
     }
 
     /// Should we show a tooltip for this response?
-    pub fn should_show_tooltip(response: &Response) -> bool {
+    ///
+    /// Argument `allow_interactive_tooltip` controls whether mouse can interact with tooltip that
+    /// contains interactive widgets
+    pub fn should_show_tooltip(response: &Response, allow_interactive_tooltip: bool) -> bool {
         if response.ctx.memory(|mem| mem.everything_is_visible()) {
             return true;
         }
@@ -264,12 +267,13 @@ impl Tooltip<'_> {
             let tooltip_id = Self::next_tooltip_id(&response.ctx, response.id);
             let tooltip_layer_id = LayerId::new(Order::Tooltip, tooltip_id);
 
-            let tooltip_has_interactive_widget = response.ctx.viewport(|vp| {
-                vp.prev_pass
-                    .widgets
-                    .get_layer(tooltip_layer_id)
-                    .any(|w| w.enabled && w.sense.interactive())
-            });
+            let tooltip_has_interactive_widget = allow_interactive_tooltip
+                && response.ctx.viewport(|vp| {
+                    vp.prev_pass
+                        .widgets
+                        .get_layer(tooltip_layer_id)
+                        .any(|w| w.enabled && w.sense.interactive())
+                });
 
             if tooltip_has_interactive_widget {
                 // We keep the tooltip open if hovered,
