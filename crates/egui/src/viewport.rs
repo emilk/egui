@@ -1193,7 +1193,7 @@ pub struct ViewportOutput {
     /// since those don't result in real viewports.
     pub class: ViewportClass,
 
-    /// The window attrbiutes such as title, position, size, etc.
+    /// The window attributes such as title, position, size, etc.
     ///
     /// Use this when first constructing the native window.
     /// Also check for changes in it using [`ViewportBuilder::patch`],
