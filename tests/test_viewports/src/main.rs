@@ -247,8 +247,12 @@ fn generic_ui(ui: &mut egui::Ui, children: &[Arc<RwLock<ViewportState>>], close_
         if let Some(monitor_size) = ctx.input(|i| i.viewport().monitor_size) {
             ui.label(format!("monitor_size: {monitor_size:?} (points)"));
         }
-        if let Some(screen_rect) = ui.input(|i| i.raw.screen_rect) {
-            ui.label(format!("Screen rect size: Pos: {:?}", screen_rect.size()));
+        if let Some(viewport_rect) = ui.input(|i| i.raw.screen_rect) {
+            ui.label(format!(
+                "Viewport Rect: Pos: {:?}, Size: {:?} (points)",
+                viewport_rect.min,
+                viewport_rect.size()
+            ));
         }
         if let Some(inner_rect) = ctx.input(|i| i.viewport().inner_rect) {
             ui.label(format!(

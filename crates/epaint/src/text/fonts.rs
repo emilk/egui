@@ -913,7 +913,7 @@ impl GalleyCache {
                     debug_assert_eq!(
                         child_hashes.len(),
                         child_galleys.len(),
-                        "Bug in `layout_each_paragraph_individuallly`"
+                        "Bug in `layout_each_paragraph_individually`"
                     );
                     let galley = Arc::new(Galley::concat(job, &child_galleys, pixels_per_point));
 
