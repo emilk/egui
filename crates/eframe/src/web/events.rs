@@ -998,7 +998,7 @@ fn install_drag_and_drop(runner_ref: &WebRunner, target: &EventTarget) -> Result
                                         }
                                     }
                                     Err(err) => {
-                                        log::error!("Failed to read file: {err:?}");
+                                        log::error!("Failed to read file: {err}");
                                     }
                                 }
                             };
