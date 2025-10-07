@@ -77,6 +77,7 @@ ahash = { version = "0.8.11", default-features = false, features = [
     "std",
 ] }
 android_logger = "0.14"
+arboard = { version = "3.3", default-features = false}
 backtrace = "0.3"
 bitflags = "2.6"
 bytemuck = "1.23.2"
@@ -124,6 +125,7 @@ ron = "0.11"
 serde = { version = "1", features = ["derive"] }
 similar-asserts = "1.4.2"
 smallvec = "1"
+smithay-clipboard =  "0.7.2"
 static_assertions = "1.1.0"
 syntect = { version = "5", default-features = false }
 tempfile = "3"
@@ -134,6 +136,7 @@ unicode_names2 = { version = "0.6.0", default-features = false }
 unicode-segmentation = "1.12.0"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
+wayland-cursor = { version = "0.31.1", default-features = false }
 web-sys = "0.3.73"
 web-time = "1.1.0" # Timekeeping for native and web
 webbrowser = "1.0.0"
