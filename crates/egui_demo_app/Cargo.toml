@@ -86,16 +86,13 @@ serde = { workspace = true, optional = true }
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-env_logger = { version = "0.10", default-features = false, features = [
-  "auto-color",
-  "humantime",
-] }
+env_logger = { workspace = true, features = ["auto-color", "humantime"] }
 mimalloc.workspace = true
-rfd = { version = "0.15.3", optional = true }
+rfd = { workspace = true, optional = true }
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm-bindgen = "=0.2.100"
+wasm-bindgen.workspace = true
 wasm-bindgen-futures.workspace = true
 web-sys.workspace = true
 

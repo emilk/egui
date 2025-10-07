@@ -48,7 +48,7 @@ egui_extras = { workspace = true, features = ["image", "svg"] }
 unicode_names2.workspace = true # this old version has fewer dependencies
 
 #! ### Optional dependencies
-chrono = { workspace = true, features = ["js-sys", "wasmbind"], optional = true }
+chrono = { workspace = true, optional = true, features = ["js-sys", "wasmbind"] }
 ## Enable this when generating docs.
 document-features = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }

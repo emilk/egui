@@ -83,12 +83,12 @@ profiling.workspace = true
 serde = { workspace = true, optional = true }
 
 # Date operations needed for datepicker widget
-chrono = { workspace = true, features = [
+chrono = { workspace = true, optional = true, features = [
   "clock",
   "js-sys",
   "std",
   "wasmbind",
-], optional = true }
+] }
 
 ## Enable this when generating docs.
 document-features = { workspace = true, optional = true }
@@ -98,8 +98,8 @@ image = { workspace = true, optional = true }
 # file feature
 mime_guess2 = { workspace = true, optional = true }
 
-
-syntect = { workspace = true, features = ["default-fancy"], optional = true }
+# syntax highlighting
+syntect = { workspace = true, optional = true, features = ["default-fancy"] }
 
 # svg feature
 resvg = { workspace = true, optional = true }
