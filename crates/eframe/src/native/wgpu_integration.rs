@@ -775,8 +775,21 @@ impl WgpuWinitRunning<'_> {
         let mut repaint_asap = false;
 
         match event {
-            winit::event::WindowEvent::Focused(new_focused) => {
-                shared.focused_viewport = new_focused.then(|| viewport_id).flatten();
+            winit::event::WindowEvent::Focused(focused) => {
+                let focused = if cfg!(target_os = "macos")
+                    && let Some(viewport_id) = viewport_id
+                    && let Some(viewport) = shared.viewports.get(&viewport_id)
+                    && let Some(window) = &viewport.window
+                {
+                    // TODO(emilk): remove this work-around once we update winit
+                    // https://github.com/rust-windowing/winit/issues/4371
+                    // https://github.com/emilk/egui/issues/7588
+                    window.has_focus()
+                } else {
+                    *focused
+                };
+
+                shared.focused_viewport = focused.then_some(viewport_id).flatten();
             }
 
             winit::event::WindowEvent::Resized(physical_size) => {
