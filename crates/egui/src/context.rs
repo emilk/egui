@@ -2683,7 +2683,7 @@ impl Context {
     ///
     /// This rectangle includes e.g. the dynamic island on iOS.
     /// If you want to only render _below_ the that (not behind), then you should use
-    /// [`Self::content_rct`] instead.
+    /// [`Self::content_rect`] instead.
     ///
     /// See also [`RawInput::safe_area_insets`].
     pub fn viewport_rect(&self) -> Rect {
