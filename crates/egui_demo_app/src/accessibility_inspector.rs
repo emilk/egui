@@ -8,6 +8,18 @@ use egui::{
 };
 use std::mem;
 
+/// This [`egui::Plugin`] adds an inspector Panel.
+///
+/// It can be opened with the `(Cmd/Ctrl)+Alt+I`. It shows the current AccessKit tree and details
+/// for the selected node.
+/// Useful when debugging accessibility issues or trying to understand the structure of the Ui.
+///
+/// Add via
+/// ```
+/// # use egui_demo_app::accessibility_inspector::AccessibilityInspectorPlugin;
+/// # let ctx = egui::Context::default();
+/// ctx.add_plugin(AccessibilityInspectorPlugin::default());
+/// ```
 #[derive(Default, Debug)]
 pub struct AccessibilityInspectorPlugin {
     pub open: bool,
@@ -68,115 +80,111 @@ impl egui::Plugin for AccessibilityInspectorPlugin {
             self.open = !self.open;
         }
 
-        if self.open {
-            ctx.enable_accesskit();
-
-            SidePanel::right(Self::id()).show(ctx, |ui| {
-                ui.heading("🔎 AccessKit Inspector");
-                if let Some(selected_node) = &self.selected_node {
-                    TopBottomPanel::bottom(Self::id().with("details_panel"))
-                        .frame(Frame::new())
-                        .show_separator_line(false)
-                        .show_inside(ui, |ui| {
-                            ui.separator();
-
-                            if let Some(tree) = &self.tree {
-                                if let Some(node) =
-                                    tree.state().node_by_id(NodeId::from(selected_node.value()))
-                                {
-                                    let node_response = ui.ctx().read_response(*selected_node);
-
-                                    if let Some(widget_response) = node_response {
-                                        ui.ctx().debug_painter().debug_rect(
-                                            widget_response.rect,
-                                            ui.style_mut().visuals.selection.bg_fill,
-                                            "",
-                                        );
-                                    }
-
-                                    egui::Grid::new("node_details_grid").num_columns(2).show(
-                                        ui,
-                                        |ui| {
-                                            ui.label("Node ID:");
-                                            ui.strong(format!("{selected_node:?}"));
-                                            ui.end_row();
-
-                                            ui.label("Role:");
-                                            ui.strong(format!("{:?}", node.role()));
-                                            ui.end_row();
-
-                                            ui.label("Label:");
-                                            ui.add(
-                                                Label::new(
-                                                    RichText::new(node.label().unwrap_or_default())
-                                                        .strong(),
-                                                )
-                                                .truncate(),
-                                            );
-                                            ui.end_row();
-
-                                            ui.label("Value:");
-                                            ui.add(
-                                                Label::new(
-                                                    RichText::new(node.value().unwrap_or_default())
-                                                        .strong(),
-                                                )
-                                                .truncate(),
-                                            );
-                                            ui.end_row();
-
-                                            ui.label("Children:");
-                                            ui.label(
-                                                RichText::new(format!("{}", node.children().len()))
-                                                    .strong(),
-                                            );
-                                            ui.end_row();
-                                        },
-                                    );
-
-                                    ui.label("Actions:");
-                                    ui.horizontal_wrapped(|ui| {
-                                        for action_n in 0..50 {
-                                            let action = Action::n(action_n);
-                                            let Some(action) = action else {
-                                                break;
-                                            };
-                                            if node.supports_action(action, &|_node| {
-                                                FilterResult::Include
-                                            }) && ui.button(format!("{action:?}")).clicked()
-                                            {
-                                                let action_request = ActionRequest {
-                                                    target: node.id(),
-                                                    action,
-                                                    data: None,
-                                                };
-                                                self.queued_action = Some(action_request);
-                                            }
-                                        }
-                                    });
-                                } else {
-                                    ui.label("Node not found");
-                                }
-                            } else {
-                                ui.label("No tree data available");
-                            }
-                        });
-                }
-
-                ui.style_mut().wrap_mode = Some(TextWrapMode::Truncate);
-                ScrollArea::vertical().show(ui, |ui| {
-                    if let Some(tree) = &self.tree {
-                        Self::node_ui(ui, &tree.state().root(), &mut self.selected_node);
-                    }
-                });
-            });
+        if !self.open {
+            return;
         }
+
+        ctx.enable_accesskit();
+
+        SidePanel::right(Self::id()).show(ctx, |ui| {
+            ui.heading("🔎 AccessKit Inspector");
+            if let Some(selected_node) = self.selected_node {
+                TopBottomPanel::bottom(Self::id().with("details_panel"))
+                    .frame(Frame::new())
+                    .show_separator_line(false)
+                    .show_inside(ui, |ui| {
+                        self.selection_ui(ui, selected_node);
+                    });
+            }
+
+            ui.style_mut().wrap_mode = Some(TextWrapMode::Truncate);
+            ScrollArea::vertical().show(ui, |ui| {
+                if let Some(tree) = &self.tree {
+                    Self::node_ui(ui, &tree.state().root(), &mut self.selected_node);
+                }
+            });
+        });
     }
 }
 
 impl AccessibilityInspectorPlugin {
     fn id() -> Id {
         Id::new("Accessibility Inspector")
+    }
+
+    fn selection_ui(&mut self, ui: &mut Ui, selected_node: Id) {
+        ui.separator();
+
+        if let Some(tree) = &self.tree
+            && let Some(node) = tree.state().node_by_id(NodeId::from(selected_node.value()))
+        {
+            let node_response = ui.ctx().read_response(selected_node);
+
+            if let Some(widget_response) = node_response {
+                ui.ctx().debug_painter().debug_rect(
+                    widget_response.rect,
+                    ui.style_mut().visuals.selection.bg_fill,
+                    "",
+                );
+            }
+
+            egui::Grid::new("node_details_grid")
+                .num_columns(2)
+                .show(ui, |ui| {
+                    ui.label("Node ID");
+                    ui.strong(format!("{selected_node:?}"));
+                    ui.end_row();
+
+                    ui.label("Role");
+                    ui.strong(format!("{:?}", node.role()));
+                    ui.end_row();
+
+                    ui.label("Label");
+                    ui.add(
+                        Label::new(RichText::new(node.label().unwrap_or_default()).strong())
+                            .truncate(),
+                    );
+                    ui.end_row();
+
+                    ui.label("Value");
+                    ui.add(
+                        Label::new(RichText::new(node.value().unwrap_or_default()).strong())
+                            .truncate(),
+                    );
+                    ui.end_row();
+
+                    ui.label("Children");
+                    ui.label(RichText::new(node.children().len().to_string()).strong());
+
+                    ui.end_row();
+                });
+
+            ui.label("Actions");
+            ui.horizontal_wrapped(|ui| {
+                // Iterate through all possible actions via the `Action::n` helper.
+                let mut current_action = 0;
+                let all_actions = std::iter::from_fn(|| {
+                    let action = Action::n(current_action);
+                    current_action += 1;
+                    action
+                });
+
+                for action in all_actions {
+                    if node.supports_action(action, &|_node| FilterResult::Include)
+                        && ui.button(format!("{action:?}")).clicked()
+                    {
+                        let action_request = ActionRequest {
+                            target: node.id(),
+                            action,
+                            data: None,
+                        };
+                        self.queued_action = Some(action_request);
+                    }
+                }
+            });
+        } else {
+            ui.label("Node not found");
+        }
     }
 
     fn node_ui(ui: &mut Ui, node: &Node<'_>, selected_node: &mut Option<Id>) {
