@@ -1,10 +1,10 @@
+use egui::accesskit::Role;
 use egui::load::SizedTexture;
 use egui::{
     Align, AtomExt as _, AtomLayout, Button, Color32, ColorImage, Direction, DragValue, Event,
     Grid, IntoAtoms as _, Layout, PointerButton, Response, Slider, Stroke, StrokeKind,
     TextWrapMode, TextureHandle, TextureOptions, Ui, UiBuilder, Vec2, Widget as _, include_image,
 };
-use egui::accesskit::Role;
 use egui_kittest::kittest::{Queryable as _, by};
 use egui_kittest::{Harness, Node, SnapshotResult, SnapshotResults};
 
@@ -381,6 +381,8 @@ trait HarnessExt {
 
 impl HarnessExt for Harness<'_> {
     fn get_next_widget(&self) -> Node<'_> {
-        self.get_all(by().predicate(|node| node.role() != Role::GenericContainer)).next().unwrap()
+        self.get_all(by().predicate(|node| node.role() != Role::GenericContainer))
+            .next()
+            .unwrap()
     }
 }
