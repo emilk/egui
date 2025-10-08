@@ -4,6 +4,7 @@ use egui::{
     Grid, IntoAtoms as _, Layout, PointerButton, Response, Slider, Stroke, StrokeKind,
     TextWrapMode, TextureHandle, TextureOptions, Ui, UiBuilder, Vec2, Widget as _, include_image,
 };
+use egui::accesskit::Role;
 use egui_kittest::kittest::{Queryable as _, by};
 use egui_kittest::{Harness, Node, SnapshotResult, SnapshotResults};
 
@@ -277,8 +278,8 @@ impl<'a> VisualTests<'a> {
             node.hover();
         });
         self.add("pressed", |harness| {
-            harness.get_next().hover();
-            let rect = harness.get_next().rect();
+            harness.get_next_widget().hover();
+            let rect = harness.get_next_widget().rect();
             harness.input_mut().events.push(Event::PointerButton {
                 button: PointerButton::Primary,
                 pos: rect.center(),
@@ -329,7 +330,7 @@ impl<'a> VisualTests<'a> {
 
     pub fn add_node(&mut self, name: &str, test: impl FnOnce(&Node<'_>)) {
         self.add(name, |harness| {
-            let node = harness.get_next();
+            let node = harness.get_next_widget();
             test(&node);
         });
     }
@@ -375,11 +376,11 @@ impl<'a> VisualTests<'a> {
 }
 
 trait HarnessExt {
-    fn get_next(&self) -> Node<'_>;
+    fn get_next_widget(&self) -> Node<'_>;
 }
 
 impl HarnessExt for Harness<'_> {
-    fn get_next(&self) -> Node<'_> {
-        self.get_all(by()).next().unwrap()
+    fn get_next_widget(&self) -> Node<'_> {
+        self.get_all(by().predicate(|node| node.role() != Role::GenericContainer)).next().unwrap()
     }
 }
