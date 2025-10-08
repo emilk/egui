@@ -61,11 +61,14 @@ wgpu = { workspace = true, features = [
 
 # snapshot dependencies
 dify = { workspace = true, optional = true }
-open = { workspace = true, optional = true }
-tempfile = { workspace = true, optional = true }
 
 # Enable this when generating docs.
 document-features = { workspace = true, optional = true }
+
+# Native dependencies:
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+open = { workspace = true, optional = true }
+tempfile = { workspace = true, optional = true }
 
 [dev-dependencies]
 egui = { workspace = true, features = ["default_fonts"] }

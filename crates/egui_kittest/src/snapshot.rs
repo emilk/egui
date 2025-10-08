@@ -641,6 +641,7 @@ impl<State> Harness<'_, State> {
     /// This method is marked as deprecated to trigger errors in CI (so that it's not accidentally
     /// committed).
     #[deprecated = "Only for debugging, don't commit this."]
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn debug_open_snapshot(&mut self) {
         let image = self
             .render()
