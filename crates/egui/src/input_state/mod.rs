@@ -583,28 +583,35 @@ impl InputState {
         self.raw.viewport()
     }
 
-    /// Returns the full area available to egui, including parts that might be partially covered,
-    /// for example, by the OS status bar or notches (see [`Self::safe_area_insets`]).
-    ///
-    /// Usually you want to use [`Self::content_rect`] instead.
-    pub fn viewport_rect(&self) -> Rect {
-        self.viewport_rect
-    }
-
     /// Returns the region of the screen that is safe for content rendering
     ///
     /// Returns the `viewport_rect` with the `safe_area_insets` removed.
+    ///
+    /// If you want to render behind e.g. the dynamic island on iOS, use [`Self::viewport_rect`].
+    ///
+    /// See also [`RawInput::safe_area_insets`].
     #[inline(always)]
     pub fn content_rect(&self) -> Rect {
         self.viewport_rect - self.safe_area_insets
     }
 
-    /// Returns the full area available to egui, including parts that might be partially
-    /// covered, for example, by the OS status bar or notches.
+    /// Returns the full area available to egui, including parts that might be partially covered,
+    /// for example, by the OS status bar or notches (see [`Self::safe_area_insets`]).
     ///
     /// Usually you want to use [`Self::content_rect`] instead.
+    ///
+    /// This rectangle includes e.g. the dynamic island on iOS.
+    /// If you want to only render _below_ the that (not behind), then you should use
+    /// [`Self::content_rct`] instead.
+    ///
+    /// See also [`RawInput::safe_area_insets`].
+    pub fn viewport_rect(&self) -> Rect {
+        self.viewport_rect
+    }
+
+    /// Position and size of the egui area.
     #[deprecated(
-        note = "screen_rect has been renamed to viewport_rect. Consider switching to content_rect."
+        note = "screen_rect has been split into viewport_rect() and content_rect(). You likely should use content_rect()"
     )]
     pub fn screen_rect(&self) -> Rect {
         self.content_rect()
