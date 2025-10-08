@@ -28,6 +28,7 @@ default = ["glow", "persistence"]
 # image_viewer adds about 0.9 MB of WASM
 web_app = ["http", "persistence"]
 
+accessibility_inspector = ["dep:accesskit", "dep:accesskit_consumer", "eframe/accesskit"]
 http = ["ehttp", "image/jpeg", "poll-promise", "egui_extras/image"]
 image_viewer = ["image/jpeg", "egui_extras/all_loaders", "rfd"]
 persistence = [
@@ -46,14 +47,11 @@ wayland = ["eframe/wayland"]
 x11 = ["eframe/x11"]
 
 [dependencies]
-chrono = { version = "0.4", default-features = false, features = [
-  "js-sys",
-  "wasmbind",
-] }
+chrono = { workspace = true, features = ["js-sys", "wasmbind"] }
 eframe = { workspace = true, default-features = false, features = [
   "web_screen_reader",
 ] }
-egui = { workspace = true, features = ["callstack", "default", "log"] }
+egui = { workspace = true, features = ["callstack", "default"] }
 egui_demo_lib = { workspace = true, features = ["default", "chrono"] }
 egui_extras = { workspace = true, features = ["default", "image"] }
 image = { workspace = true, default-features = false, features = [
@@ -64,18 +62,23 @@ log.workspace = true
 profiling.workspace = true
 
 # Optional dependencies:
-
+accesskit = { workspace = true, optional = true }
+accesskit_consumer = { workspace = true, optional = true }
 bytemuck = { workspace = true, optional = true }
 puffin = { workspace = true, optional = true }
 puffin_http = { workspace = true, optional = true }
 # Enable both WebGL & WebGPU when targeting the web (these features have no effect when not targeting wasm32)
 # Also enable the default features so we have a supported backend for every platform.
-wgpu = { workspace = true, features = ["default", "webgpu", "webgl"], optional = true }
+wgpu = { workspace = true, features = [
+  "default",
+  "webgpu",
+  "webgl",
+], optional = true }
 
 
 # feature "http":
-ehttp = { version = "0.5", optional = true }
-poll-promise = { version = "0.3", optional = true, default-features = false }
+ehttp = { workspace = true, optional = true }
+poll-promise = { workspace = true, optional = true }
 
 # feature "persistence":
 serde = { workspace = true, optional = true }
@@ -83,16 +86,13 @@ serde = { workspace = true, optional = true }
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-env_logger = { version = "0.10", default-features = false, features = [
-  "auto-color",
-  "humantime",
-] }
+env_logger = { workspace = true, features = ["auto-color", "humantime"] }
 mimalloc.workspace = true
-rfd = { version = "0.15.3", optional = true }
+rfd = { workspace = true, optional = true }
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm-bindgen = "=0.2.100"
+wasm-bindgen.workspace = true
 wasm-bindgen-futures.workspace = true
 web-sys.workspace = true
 

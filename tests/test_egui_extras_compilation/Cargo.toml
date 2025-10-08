@@ -3,7 +3,7 @@ name = "test_egui_extras_compilation"
 version = "0.1.0"
 license = "MIT OR Apache-2.0"
 edition = "2024"
-rust-version = "1.86"
+rust-version = "1.88"
 publish = false
 
 [lints]
@@ -17,4 +17,4 @@ ignored = [
 
 [dependencies]
 eframe = { workspace = true, features = ["default", "persistence"] }
-egui_extras = { workspace = true }
+egui_extras.workspace = true

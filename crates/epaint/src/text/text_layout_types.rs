@@ -957,15 +957,15 @@ impl Galley {
         // Vertical margin around galley improves text selection UX
         const VMARGIN: f32 = 5.0;
 
-        if let Some(first_row) = self.rows.first() {
-            if pos.y < first_row.min_y() - VMARGIN {
-                return self.begin();
-            }
+        if let Some(first_row) = self.rows.first()
+            && pos.y < first_row.min_y() - VMARGIN
+        {
+            return self.begin();
         }
-        if let Some(last_row) = self.rows.last() {
-            if last_row.max_y() + VMARGIN < pos.y {
-                return self.end();
-            }
+        if let Some(last_row) = self.rows.last()
+            && last_row.max_y() + VMARGIN < pos.y
+        {
+            return self.end();
         }
 
         let mut best_y_dist = f32::INFINITY;

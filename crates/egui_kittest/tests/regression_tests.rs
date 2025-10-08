@@ -1,5 +1,5 @@
 use egui::accesskit::{self, Role};
-use egui::{Button, ComboBox, Image, Vec2, Widget as _};
+use egui::{Button, ComboBox, Image, Modifiers, Popup, Vec2, Widget as _};
 #[cfg(all(feature = "wgpu", feature = "snapshot"))]
 use egui_kittest::SnapshotResults;
 use egui_kittest::{Harness, kittest::Queryable as _};
@@ -186,4 +186,79 @@ pub fn override_text_color_affects_interactive_widgets() {
 
     #[cfg(all(feature = "wgpu", feature = "snapshot"))]
     results.add(harness.try_snapshot("override_text_color_interactive"));
+}
+
+/// <https://github.com/rerun-io/rerun/issues/11301>
+#[test]
+pub fn menus_should_close_even_if_submenu_disappears() {
+    const OTHER_BUTTON: &str = "Other button";
+    const MENU_BUTTON: &str = "Menu";
+    const SUB_MENU_BUTTON: &str = "Always here";
+    const TOGGLABLE_SUB_MENU_BUTTON: &str = "Maybe here";
+    const INSIDE_SUB_MENU_BUTTON: &str = "Inside submenu";
+
+    for frame_delay in (0..3).rev() {
+        let mut harness = Harness::builder().build_ui_state(
+            |ui, state| {
+                let _ = ui.button(OTHER_BUTTON).clicked();
+                let response = ui.button(MENU_BUTTON);
+
+                Popup::menu(&response).show(|ui| {
+                    let _ = ui.button(SUB_MENU_BUTTON);
+                    if *state {
+                        ui.menu_button(TOGGLABLE_SUB_MENU_BUTTON, |ui| {
+                            let _ = ui.button(INSIDE_SUB_MENU_BUTTON);
+                        });
+                    }
+                });
+            },
+            true,
+        );
+
+        // Open the main menu
+        harness.get_by_label(MENU_BUTTON).click();
+        harness.run();
+
+        // Open the sub menu
+        harness
+            .get_by_label_contains(TOGGLABLE_SUB_MENU_BUTTON)
+            .hover();
+        harness.run();
+
+        // Have we opened the submenu successfully?
+        harness.get_by_label(INSIDE_SUB_MENU_BUTTON).hover();
+        harness.run();
+
+        // We click manually, since we want to precisely time that the sub menu disappears when the
+        // button is released
+        let center = harness.get_by_label(OTHER_BUTTON).rect().center();
+        harness.input_mut().events.push(egui::Event::PointerButton {
+            pos: center,
+            button: egui::PointerButton::Primary,
+            pressed: true,
+            modifiers: Modifiers::default(),
+        });
+        harness.step();
+
+        // Yank the sub menu from under the pointer
+        *harness.state_mut() = false;
+
+        // See if we handle it with or without a frame delay
+        harness.run_steps(frame_delay);
+
+        // Actually close the menu by clicking somewhere outside
+        harness.input_mut().events.push(egui::Event::PointerButton {
+            pos: center,
+            button: egui::PointerButton::Primary,
+            pressed: false,
+            modifiers: Modifiers::default(),
+        });
+
+        harness.run();
+
+        assert!(
+            harness.query_by_label_contains(SUB_MENU_BUTTON).is_none(),
+            "Menu failed to close. frame_delay = {frame_delay}"
+        );
+    }
 }

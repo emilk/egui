@@ -240,38 +240,38 @@ impl Scene {
             resp.mark_changed();
         }
 
-        if let Some(mouse_pos) = ui.input(|i| i.pointer.latest_pos()) {
-            if resp.contains_pointer() {
-                let pointer_in_scene = to_global.inverse() * mouse_pos;
-                let zoom_delta = ui.ctx().input(|i| i.zoom_delta());
-                let pan_delta = ui.ctx().input(|i| i.smooth_scroll_delta);
+        if let Some(mouse_pos) = ui.input(|i| i.pointer.latest_pos())
+            && resp.contains_pointer()
+        {
+            let pointer_in_scene = to_global.inverse() * mouse_pos;
+            let zoom_delta = ui.ctx().input(|i| i.zoom_delta());
+            let pan_delta = ui.ctx().input(|i| i.smooth_scroll_delta);
 
-                // Most of the time we can return early. This is also important to
-                // avoid `ui_from_scene` to change slightly due to floating point errors.
-                if zoom_delta == 1.0 && pan_delta == Vec2::ZERO {
-                    return;
-                }
-
-                if zoom_delta != 1.0 {
-                    // Zoom in on pointer, but only if we are not zoomed in or out too far.
-                    let zoom_delta = zoom_delta.clamp(
-                        self.zoom_range.min / to_global.scaling,
-                        self.zoom_range.max / to_global.scaling,
-                    );
-
-                    *to_global = *to_global
-                        * TSTransform::from_translation(pointer_in_scene.to_vec2())
-                        * TSTransform::from_scaling(zoom_delta)
-                        * TSTransform::from_translation(-pointer_in_scene.to_vec2());
-
-                    // Clamp to exact zoom range.
-                    to_global.scaling = self.zoom_range.clamp(to_global.scaling);
-                }
-
-                // Pan:
-                *to_global = TSTransform::from_translation(pan_delta) * *to_global;
-                resp.mark_changed();
+            // Most of the time we can return early. This is also important to
+            // avoid `ui_from_scene` to change slightly due to floating point errors.
+            if zoom_delta == 1.0 && pan_delta == Vec2::ZERO {
+                return;
             }
+
+            if zoom_delta != 1.0 {
+                // Zoom in on pointer, but only if we are not zoomed in or out too far.
+                let zoom_delta = zoom_delta.clamp(
+                    self.zoom_range.min / to_global.scaling,
+                    self.zoom_range.max / to_global.scaling,
+                );
+
+                *to_global = *to_global
+                    * TSTransform::from_translation(pointer_in_scene.to_vec2())
+                    * TSTransform::from_scaling(zoom_delta)
+                    * TSTransform::from_translation(-pointer_in_scene.to_vec2());
+
+                // Clamp to exact zoom range.
+                to_global.scaling = self.zoom_range.clamp(to_global.scaling);
+            }
+
+            // Pan:
+            *to_global = TSTransform::from_translation(pan_delta) * *to_global;
+            resp.mark_changed();
         }
     }
 }

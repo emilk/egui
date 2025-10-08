@@ -14,7 +14,7 @@ pub(crate) struct WebPainterWgpu {
     surface_configuration: wgpu::SurfaceConfiguration,
     render_state: Option<RenderState>,
     on_surface_error: Arc<dyn Fn(wgpu::SurfaceError) -> SurfaceErrorAction>,
-    depth_format: Option<wgpu::TextureFormat>,
+    depth_stencil_format: Option<wgpu::TextureFormat>,
     depth_texture_view: Option<wgpu::TextureView>,
     screen_capture_state: Option<CaptureState>,
     capture_tx: CaptureSender,
@@ -35,7 +35,7 @@ impl WebPainterWgpu {
         height_in_pixels: u32,
     ) -> Option<wgpu::TextureView> {
         let device = &render_state.device;
-        self.depth_format.map(|depth_format| {
+        self.depth_stencil_format.map(|depth_stencil_format| {
             device
                 .create_texture(&wgpu::TextureDescriptor {
                     label: Some("egui_depth_texture"),
@@ -47,9 +47,9 @@ impl WebPainterWgpu {
                     mip_level_count: 1,
                     sample_count: 1,
                     dimension: wgpu::TextureDimension::D2,
-                    format: depth_format,
+                    format: depth_stencil_format,
                     usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-                    view_formats: &[depth_format],
+                    view_formats: &[depth_stencil_format],
                 })
                 .create_view(&wgpu::TextureViewDescriptor::default())
         })
@@ -68,15 +68,17 @@ impl WebPainterWgpu {
             .create_surface(wgpu::SurfaceTarget::Canvas(canvas.clone()))
             .map_err(|err| format!("failed to create wgpu surface: {err}"))?;
 
-        let depth_format = egui_wgpu::depth_format_from_bits(options.depth_buffer, 0);
+        let depth_stencil_format = egui_wgpu::depth_format_from_bits(options.depth_buffer, 0);
 
         let render_state = RenderState::create(
             &options.wgpu_options,
             &instance,
             Some(&surface),
-            depth_format,
-            1,
-            options.dithering,
+            egui_wgpu::RendererOptions {
+                dithering: options.dithering,
+                depth_stencil_format,
+                ..Default::default()
+            },
         )
         .await
         .map_err(|err| err.to_string())?;
@@ -101,7 +103,7 @@ impl WebPainterWgpu {
             render_state: Some(render_state),
             surface,
             surface_configuration,
-            depth_format,
+            depth_stencil_format,
             depth_texture_view: None,
             on_surface_error: options.wgpu_options.on_surface_error.clone(),
             screen_capture_state: None,

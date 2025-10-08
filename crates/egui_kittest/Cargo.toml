@@ -33,7 +33,7 @@ wgpu = [
 ]
 
 ## Adds a dify-based image snapshot utility.
-snapshot = ["dep:dify", "dep:image", "image/png"]
+snapshot = ["dep:dify", "dep:image", "dep:open", "dep:tempfile", "image/png"]
 
 ## Allows testing eframe::App
 eframe = ["dep:eframe", "eframe/accesskit"]
@@ -64,6 +64,11 @@ dify = { workspace = true, optional = true }
 
 # Enable this when generating docs.
 document-features = { workspace = true, optional = true }
+
+# Native dependencies:
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+open = { workspace = true, optional = true }
+tempfile = { workspace = true, optional = true }
 
 [dev-dependencies]
 egui = { workspace = true, features = ["default_fonts"] }

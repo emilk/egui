@@ -102,14 +102,12 @@ impl TextureLoader for DefaultTextureLoader {
     }
 
     fn forget(&self, uri: &str) {
-        #[cfg(feature = "log")]
         log::trace!("forget {uri:?}");
 
         self.cache.lock().retain(|key, _value| key.uri != uri);
     }
 
     fn forget_all(&self) {
-        #[cfg(feature = "log")]
         log::trace!("forget all");
 
         self.cache.lock().clear();

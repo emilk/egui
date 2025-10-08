@@ -829,10 +829,10 @@ impl ScrollArea {
                     if let Some(cursor) = on_drag_cursor {
                         response.on_hover_cursor(cursor);
                     }
-                } else if response.hovered() {
-                    if let Some(cursor) = on_hover_cursor {
-                        response.on_hover_cursor(cursor);
-                    }
+                } else if response.hovered()
+                    && let Some(cursor) = on_hover_cursor
+                {
+                    response.on_hover_cursor(cursor);
                 }
             }
         }

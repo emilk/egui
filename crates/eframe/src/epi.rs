@@ -916,7 +916,7 @@ pub fn set_value<T: serde::Serialize>(storage: &mut dyn Storage, key: &str, valu
     profiling::function_scope!(key);
     match ron::ser::to_string(value) {
         Ok(string) => storage.set_string(key, string),
-        Err(err) => log::error!("eframe failed to encode data using ron: {}", err),
+        Err(err) => log::error!("eframe failed to encode data using ron: {err}"),
     }
 }
 

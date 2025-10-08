@@ -19,7 +19,8 @@ use emath::GuiRounding as _;
 
 use crate::{
     Align, Context, CursorIcon, Frame, Id, InnerResponse, LayerId, Layout, NumExt as _, Rangef,
-    Rect, Sense, Stroke, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, lerp, vec2,
+    Rect, Sense, Stroke, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetInfo, WidgetType, lerp,
+    vec2,
 };
 
 fn animate_expansion(ctx: &Context, id: Id, is_expanded: bool) -> f32 {
@@ -266,12 +267,10 @@ impl SidePanel {
                 resize_hover = resize_response.hovered();
                 is_resizing = resize_response.dragged();
 
-                if is_resizing {
-                    if let Some(pointer) = resize_response.interact_pointer_pos() {
-                        width = (pointer.x - side.side_x(panel_rect)).abs();
-                        width = clamp_to_range(width, width_range).at_most(available_rect.width());
-                        side.set_rect_width(&mut panel_rect, width);
-                    }
+                if is_resizing && let Some(pointer) = resize_response.interact_pointer_pos() {
+                    width = (pointer.x - side.side_x(panel_rect)).abs();
+                    width = clamp_to_range(width, width_range).at_most(available_rect.width());
+                    side.set_rect_width(&mut panel_rect, width);
                 }
             }
         }
@@ -391,7 +390,10 @@ impl SidePanel {
                 .layer_id(LayerId::background())
                 .max_rect(available_rect),
         );
-        panel_ui.set_clip_rect(ctx.screen_rect());
+        panel_ui.set_clip_rect(ctx.content_rect());
+        panel_ui
+            .response()
+            .widget_info(|| WidgetInfo::new(WidgetType::Panel));
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
         let rect = inner_response.response.rect;
@@ -765,13 +767,10 @@ impl TopBottomPanel {
                 resize_hover = resize_response.hovered();
                 is_resizing = resize_response.dragged();
 
-                if is_resizing {
-                    if let Some(pointer) = resize_response.interact_pointer_pos() {
-                        height = (pointer.y - side.side_y(panel_rect)).abs();
-                        height =
-                            clamp_to_range(height, height_range).at_most(available_rect.height());
-                        side.set_rect_height(&mut panel_rect, height);
-                    }
+                if is_resizing && let Some(pointer) = resize_response.interact_pointer_pos() {
+                    height = (pointer.y - side.side_y(panel_rect)).abs();
+                    height = clamp_to_range(height, height_range).at_most(available_rect.height());
+                    side.set_rect_height(&mut panel_rect, height);
                 }
             }
         }
@@ -892,7 +891,7 @@ impl TopBottomPanel {
                 .layer_id(LayerId::background())
                 .max_rect(available_rect),
         );
-        panel_ui.set_clip_rect(ctx.screen_rect());
+        panel_ui.set_clip_rect(ctx.content_rect());
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
         let rect = inner_response.response.rect;
@@ -1157,7 +1156,7 @@ impl CentralPanel {
                 .layer_id(LayerId::background())
                 .max_rect(ctx.available_rect().round_ui()),
         );
-        panel_ui.set_clip_rect(ctx.screen_rect());
+        panel_ui.set_clip_rect(ctx.content_rect());
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
 
