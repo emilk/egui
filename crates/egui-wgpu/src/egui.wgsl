@@ -103,18 +103,25 @@ fn sample_texture(in: VertexOutput) -> vec4<f32> {
         // Hardware filtering: fast, but varies across GPUs and drivers.
         return textureSample(r_tex_color, r_tex_sampler, in.tex_coord);
     } else {
-        // Manual bilinear filtering with four taps at pixel centers
-        let texture_size = vec2<f32>(textureDimensions(r_tex_color, 0));
-        let pixel_coord = in.tex_coord * texture_size - 0.5;
+        // Manual bilinear filtering with four taps at pixel centers using textureLoad
+        let texture_size = vec2<i32>(textureDimensions(r_tex_color, 0));
+        let texture_size_f = vec2<f32>(texture_size);
+        let pixel_coord = in.tex_coord * texture_size_f - 0.5;
         let pixel_fract = fract(pixel_coord);
-        let pixel_floor = floor(pixel_coord);
+        let pixel_floor = vec2<i32>(floor(pixel_coord));
 
-        // Sample at four pixel centers
-        let texel_size = 1.0 / texture_size;
-        let tl = textureSample(r_tex_color, r_tex_sampler, (pixel_floor + vec2<f32>(0.5, 0.5)) * texel_size);
-        let tr = textureSample(r_tex_color, r_tex_sampler, (pixel_floor + vec2<f32>(1.5, 0.5)) * texel_size);
-        let bl = textureSample(r_tex_color, r_tex_sampler, (pixel_floor + vec2<f32>(0.5, 1.5)) * texel_size);
-        let br = textureSample(r_tex_color, r_tex_sampler, (pixel_floor + vec2<f32>(1.5, 1.5)) * texel_size);
+        // Manual texture clamping
+        let max_coord = texture_size - vec2<i32>(1, 1);
+        let p00 = clamp(pixel_floor + vec2<i32>(0, 0), vec2<i32>(0, 0), max_coord);
+        let p10 = clamp(pixel_floor + vec2<i32>(1, 0), vec2<i32>(0, 0), max_coord);
+        let p01 = clamp(pixel_floor + vec2<i32>(0, 1), vec2<i32>(0, 0), max_coord);
+        let p11 = clamp(pixel_floor + vec2<i32>(1, 1), vec2<i32>(0, 0), max_coord);
+
+        // Load at pixel centers
+        let tl = textureLoad(r_tex_color, p00, 0);
+        let tr = textureLoad(r_tex_color, p10, 0);
+        let bl = textureLoad(r_tex_color, p01, 0);
+        let br = textureLoad(r_tex_color, p11, 0);
 
         // Manual bilinear interpolation
         let top = mix(tl, tr, pixel_fract.x);
