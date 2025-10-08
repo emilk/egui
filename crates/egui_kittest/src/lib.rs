@@ -460,11 +460,15 @@ impl<'a, State> Harness<'a, State> {
         &mut self.state
     }
 
-    fn event(&self, event: egui::Event) {
+    /// Queue an event to be processed in the next frame.
+    pub fn event(&self, event: egui::Event) {
         self.queued_events.lock().push(EventType::Event(event));
     }
 
-    fn event_modifiers(&self, event: egui::Event, modifiers: Modifiers) {
+    /// Queue an event with modifiers.
+    ///
+    /// Queues the modifiers to be pressed, then the event, then the modifiers to be released.
+    pub fn event_modifiers(&self, event: egui::Event, modifiers: Modifiers) {
         let mut queue = self.queued_events.lock();
         queue.push(EventType::Modifiers(modifiers));
         queue.push(EventType::Event(event));
@@ -582,6 +586,16 @@ impl<'a, State> Harness<'a, State> {
     /// - reset the modifiers
     pub fn key_press_modifiers(&self, modifiers: Modifiers, key: egui::Key) {
         self.key_combination_modifiers(modifiers, &[key]);
+    }
+
+    /// Remove the cursor from the screen.
+    ///
+    /// Will fire a [`egui::Event::PointerGone`] event.
+    ///
+    /// If you click a button and then take a snapshot, the button will be shown as hovered.
+    /// If you don't want that, you can call this method after clicking.
+    pub fn remove_cursor(&self) {
+        self.event(egui::Event::PointerGone);
     }
 
     /// Mask something. Useful for snapshot tests.
