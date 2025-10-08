@@ -134,7 +134,7 @@ tokio = "1.47.1"
 type-map = "0.5.1"
 unicode_names2 = { version = "2.0.0", default-features = false }
 unicode-segmentation = "1.12.0"
-wasm-bindgen = "=0.2.104"
+wasm-bindgen = "0.2.104" # Keep wasm-bindgen in sync in: setup_web.sh, Cargo.toml, Cargo.lock, rust.yml
 wasm-bindgen-futures = "0.4.54"
 wayland-cursor = { version = "0.31.11", default-features = false }
 web-sys = "0.3.81"
