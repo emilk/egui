@@ -397,13 +397,24 @@ fn try_image_snapshot_options_impl(
         Ok(())
     };
 
+    let write_new_png = || {
+        new.save(&new_path)
+            .map_err(|err| SnapshotError::WriteSnapshot {
+                err,
+                path: new_path.clone(),
+            })?;
+        Ok(())
+    };
+
     let previous = match image::open(&snapshot_path) {
         Ok(image) => image.to_rgba8(),
         Err(err) => {
-            // No previous snapshot - probablye a new test.
+            // No previous snapshot - probably a new test.
             if mode.is_update() {
                 return update_snapshot();
             } else {
+                write_new_png()?;
+
                 return Err(SnapshotError::OpenSnapshot {
                     path: snapshot_path.clone(),
                     err,
@@ -416,6 +427,8 @@ fn try_image_snapshot_options_impl(
         if mode.is_update() {
             return update_snapshot();
         } else {
+            write_new_png()?;
+
             return Err(SnapshotError::SizeMismatch {
                 name,
                 expected: previous.dimensions(),
@@ -454,11 +467,7 @@ fn try_image_snapshot_options_impl(
             if below_threshold {
                 Ok(())
             } else {
-                new.save(&new_path)
-                    .map_err(|err| SnapshotError::WriteSnapshot {
-                        err,
-                        path: new_path.clone(),
-                    })?;
+                write_new_png()?;
 
                 Err(SnapshotError::Diff {
                     name,
