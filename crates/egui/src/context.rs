@@ -2670,6 +2670,8 @@ impl Context {
     ///
     /// Returns [`Self::viewport_rect`] minus areas that might be partially covered by, for example,
     /// the OS status bar or display notches.
+    ///
+    /// If you want to render behind e.g. the dynamic island on iOS, use [`Self::viewport_rect`].
     pub fn content_rect(&self) -> Rect {
         self.input(|i| i.content_rect()).round_ui()
     }
@@ -2678,13 +2680,19 @@ impl Context {
     ///
     /// This includes reas that might be partially covered by, for example, the OS status bar or
     /// display notches. See [`Self::content_rect`] to get a rect that is safe for content.
+    ///
+    /// This rectangle includes e.g. the dynamic island on iOS.
+    /// If you want to only render _below_ the that (not behind), then you should use
+    /// [`Self::content_rect`] instead.
+    ///
+    /// See also [`RawInput::safe_area_insets`].
     pub fn viewport_rect(&self) -> Rect {
         self.input(|i| i.viewport_rect()).round_ui()
     }
 
     /// Position and size of the egui area.
     #[deprecated(
-        note = "screen_rect has been renamed to viewport_rect. Consider switching to content_rect."
+        note = "screen_rect has been split into viewport_rect() and content_rect(). You likely should use content_rect()"
     )]
     pub fn screen_rect(&self) -> Rect {
         self.input(|i| i.content_rect()).round_ui()
