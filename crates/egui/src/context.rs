@@ -596,8 +596,8 @@ impl ContextImpl {
         if let std::collections::hash_map::Entry::Vacant(entry) = builders.entry(id) {
             entry.insert(Default::default());
 
-            /// Search the first parent that has an existing accesskit node.
-            fn find_parent_recursively(
+            /// Find the first ancestor that already has an accesskit node.
+            fn find_accesskit_parent(
                 parent_map: &IdMap<Id>,
                 node_map: &IdMap<accesskit::Node>,
                 id: Id,
@@ -606,14 +606,14 @@ impl ContextImpl {
                     if node_map.contains_key(parent_id) {
                         Some(*parent_id)
                     } else {
-                        find_parent_recursively(parent_map, node_map, *parent_id)
+                        find_accesskit_parent(parent_map, node_map, *parent_id)
                     }
                 } else {
                     None
                 }
             }
 
-            let parent_id = find_parent_recursively(&state.parent_map, builders, id)
+            let parent_id = find_accesskit_parent(&state.parent_map, builders, id)
                 .unwrap_or(crate::accesskit_root_id());
 
             let parent_builder = builders.get_mut(&parent_id).unwrap();
