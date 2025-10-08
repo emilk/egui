@@ -74,13 +74,6 @@ pub struct AccessKitPassState {
     pub parent_map: IdMap<Id>,
 }
 
-#[cfg(feature = "accesskit")]
-#[derive(Clone, Debug, Default)]
-pub struct AccessKitParentChildren {
-    pub parent: Option<Id>,
-    pub children: Vec<Id>,
-}
-
 #[cfg(debug_assertions)]
 #[derive(Clone)]
 pub struct DebugRect {
