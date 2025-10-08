@@ -17,10 +17,10 @@ use epaint::{
 use crate::{
     Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, Grid, Id, ImmediateViewport,
     ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId, Memory,
-    ModifierNames, Modifiers, NumExt as _, Order, Painter, Plugin, RawInput, Response, RichText,
-    ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions, Ui, ViewportBuilder,
-    ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput,
-    Widget as _, WidgetRect, WidgetText,
+    ModifierNames, Modifiers, NumExt as _, Order, Painter, RawInput, Response, RichText,
+    SafeAreaInsets, ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions, Ui,
+    ViewportBuilder, ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet,
+    ViewportOutput, Widget as _, WidgetRect, WidgetText,
     animation_manager::AnimationManager,
     containers::{self, area::AreaState},
     data::output::PlatformOutput,
@@ -374,6 +374,7 @@ struct ContextImpl {
     animation_manager: AnimationManager,
 
     plugins: plugin::Plugins,
+    safe_area: SafeAreaInsets,
 
     /// All viewports share the same texture manager and texture namespace.
     ///
@@ -419,6 +420,10 @@ impl ContextImpl {
             .unwrap_or_default();
         let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent_id);
 
+        if let Some(safe_area) = new_raw_input.safe_area_insets {
+            self.safe_area = safe_area;
+        }
+
         let is_outermost_viewport = self.viewport_stack.is_empty(); // not necessarily root, just outermost immediate viewport
         self.viewport_stack.push(ids);
 
@@ -432,7 +437,7 @@ impl ContextImpl {
 
             let input = &viewport.input;
             // This is a bit hacky, but is required to avoid jitter:
-            let mut rect = input.screen_rect;
+            let mut rect = input.content_rect();
             rect.min = (ratio * rect.min.to_vec2()).to_pos2();
             rect.max = (ratio * rect.max.to_vec2()).to_pos2();
             new_raw_input.screen_rect = Some(rect);
@@ -459,9 +464,9 @@ impl ContextImpl {
         );
         let repaint_after = viewport.input.wants_repaint_after();
 
-        let screen_rect = viewport.input.screen_rect;
+        let content_rect = viewport.input.content_rect();
 
-        viewport.this_pass.begin_pass(screen_rect);
+        viewport.this_pass.begin_pass(content_rect);
 
         {
             let mut layers: Vec<LayerId> = viewport.prev_pass.widgets.layer_ids().collect();
@@ -494,9 +499,9 @@ impl ContextImpl {
         self.memory.areas_mut().set_state(
             LayerId::background(),
             AreaState {
-                pivot_pos: Some(screen_rect.left_top()),
+                pivot_pos: Some(content_rect.left_top()),
                 pivot: Align2::LEFT_TOP,
-                size: Some(screen_rect.size()),
+                size: Some(content_rect.size()),
                 interactable: true,
                 last_became_visible_at: None,
             },
@@ -1095,14 +1100,14 @@ impl Context {
         }
 
         let show_error = |widget_rect: Rect, text: String| {
-            let screen_rect = self.screen_rect();
+            let content_rect = self.content_rect();
 
             let text = format!("🔥 {text}");
             let color = self.style().visuals.error_fg_color;
             let painter = self.debug_painter();
             painter.rect_stroke(widget_rect, 0.0, (1.0, color), StrokeKind::Outside);
 
-            let below = widget_rect.bottom() + 32.0 < screen_rect.bottom();
+            let below = widget_rect.bottom() + 32.0 < content_rect.bottom();
 
             let text_rect = if below {
                 painter.debug_text(
@@ -1446,8 +1451,8 @@ impl Context {
 
     /// Get a full-screen painter for a new or existing layer
     pub fn layer_painter(&self, layer_id: LayerId) -> Painter {
-        let screen_rect = self.screen_rect();
-        Painter::new(self.clone(), layer_id, screen_rect)
+        let content_rect = self.content_rect();
+        Painter::new(self.clone(), layer_id, content_rect)
     }
 
     /// Paint on top of everything else
@@ -1881,13 +1886,13 @@ impl Context {
         });
     }
 
-    /// Register a [`Plugin`]
+    /// Register a [`Plugin`](plugin::Plugin)
     ///
     /// Plugins are called in the order they are added.
     ///
     /// A plugin of the same type can only be added once (further calls with the same type will be ignored).
     /// This way it's convenient to add plugins in `eframe::run_simple_native`.
-    pub fn add_plugin(&self, plugin: impl Plugin + 'static) {
+    pub fn add_plugin(&self, plugin: impl plugin::Plugin + 'static) {
         let handle = plugin::PluginHandle::new(plugin);
 
         let added = self.write(|ctx| ctx.plugins.add(handle.clone()));
@@ -1900,7 +1905,10 @@ impl Context {
     /// Call the provided closure with the plugin of type `T`, if it was registered.
     ///
     /// Returns `None` if the plugin was not registered.
-    pub fn with_plugin<T: Plugin + 'static, R>(&self, f: impl FnOnce(&mut T) -> R) -> Option<R> {
+    pub fn with_plugin<T: plugin::Plugin + 'static, R>(
+        &self,
+        f: impl FnOnce(&mut T) -> R,
+    ) -> Option<R> {
         let plugin = self.read(|ctx| ctx.plugins.get(std::any::TypeId::of::<T>()));
         plugin.map(|plugin| f(plugin.lock().typed_plugin_mut()))
     }
@@ -1909,7 +1917,7 @@ impl Context {
     ///
     /// ## Panics
     /// If the plugin of type `T` was not registered, this will panic.
-    pub fn plugin<T: Plugin>(&self) -> TypedPluginHandle<T> {
+    pub fn plugin<T: plugin::Plugin>(&self) -> TypedPluginHandle<T> {
         if let Some(plugin) = self.plugin_opt() {
             plugin
         } else {
@@ -1918,13 +1926,13 @@ impl Context {
     }
 
     /// Get a handle to the plugin of type `T`, if it was registered.
-    pub fn plugin_opt<T: Plugin>(&self) -> Option<TypedPluginHandle<T>> {
+    pub fn plugin_opt<T: plugin::Plugin>(&self) -> Option<TypedPluginHandle<T>> {
         let plugin = self.read(|ctx| ctx.plugins.get(std::any::TypeId::of::<T>()));
         plugin.map(TypedPluginHandle::new)
     }
 
     /// Get a handle to the plugin of type `T`, or insert its default.
-    pub fn plugin_or_default<T: Plugin + Default>(&self) -> TypedPluginHandle<T> {
+    pub fn plugin_or_default<T: plugin::Plugin + Default>(&self) -> TypedPluginHandle<T> {
         if let Some(plugin) = self.plugin_opt() {
             plugin
         } else {
@@ -2678,9 +2686,36 @@ impl Context {
 
     // ---------------------------------------------------------------------
 
+    /// Returns the position and size of the egui area that is safe for content rendering.
+    ///
+    /// Returns [`Self::viewport_rect`] minus areas that might be partially covered by, for example,
+    /// the OS status bar or display notches.
+    ///
+    /// If you want to render behind e.g. the dynamic island on iOS, use [`Self::viewport_rect`].
+    pub fn content_rect(&self) -> Rect {
+        self.input(|i| i.content_rect()).round_ui()
+    }
+
+    /// Returns the position and size of the full area available to egui
+    ///
+    /// This includes reas that might be partially covered by, for example, the OS status bar or
+    /// display notches. See [`Self::content_rect`] to get a rect that is safe for content.
+    ///
+    /// This rectangle includes e.g. the dynamic island on iOS.
+    /// If you want to only render _below_ the that (not behind), then you should use
+    /// [`Self::content_rect`] instead.
+    ///
+    /// See also [`RawInput::safe_area_insets`].
+    pub fn viewport_rect(&self) -> Rect {
+        self.input(|i| i.viewport_rect()).round_ui()
+    }
+
     /// Position and size of the egui area.
+    #[deprecated(
+        note = "screen_rect has been split into viewport_rect() and content_rect(). You likely should use content_rect()"
+    )]
     pub fn screen_rect(&self) -> Rect {
-        self.input(|i| i.screen_rect()).round_ui()
+        self.input(|i| i.content_rect()).round_ui()
     }
 
     /// How much space is still available after panels have been added.
@@ -3255,7 +3290,7 @@ impl Context {
                                 ui.image(SizedTexture::new(texture_id, size))
                                     .on_hover_ui(|ui| {
                                         // show larger on hover
-                                        let max_size = 0.5 * ui.ctx().screen_rect().size();
+                                        let max_size = 0.5 * ui.ctx().content_rect().size();
                                         let mut size = point_size;
                                         size *= max_size.x / size.x.max(max_size.x);
                                         size *= max_size.y / size.y.max(max_size.y);

@@ -18,6 +18,7 @@ use egui::{Pos2, Rect, Theme, Vec2, ViewportBuilder, ViewportCommand, ViewportId
 pub use winit;
 
 pub mod clipboard;
+mod safe_area;
 mod window_settings;
 
 pub use window_settings::WindowSettings;
@@ -274,6 +275,21 @@ impl State {
         }
 
         use winit::event::WindowEvent;
+
+        #[cfg(target_os = "ios")]
+        match &event {
+            WindowEvent::Resized(_)
+            | WindowEvent::ScaleFactorChanged { .. }
+            | WindowEvent::Focused(true)
+            | WindowEvent::Occluded(false) => {
+                // Once winit v0.31 has been released this can be reworked to get the safe area from
+                // `Window::safe_area`, and updated from a new event which is being discussed in
+                // https://github.com/rust-windowing/winit/issues/3911.
+                self.egui_input_mut().safe_area_insets = Some(safe_area::get_safe_area_insets());
+            }
+            _ => {}
+        }
+
         match event {
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                 let native_pixels_per_point = *scale_factor as f32;
@@ -407,10 +423,19 @@ impl State {
                 }
             }
             WindowEvent::Focused(focused) => {
-                self.egui_input.focused = *focused;
+                let focused = if cfg!(target_os = "macos") {
+                    // TODO(emilk): remove this work-around once we update winit
+                    // https://github.com/rust-windowing/winit/issues/4371
+                    // https://github.com/emilk/egui/issues/7588
+                    window.has_focus()
+                } else {
+                    *focused
+                };
+
+                self.egui_input.focused = focused;
                 self.egui_input
                     .events
-                    .push(egui::Event::WindowFocused(*focused));
+                    .push(egui::Event::WindowFocused(focused));
                 EventResponse {
                     repaint: true,
                     consumed: false,
@@ -1039,7 +1064,7 @@ pub fn update_viewport_info(
 fn open_url_in_browser(_url: &str) {
     #[cfg(feature = "webbrowser")]
     if let Err(err) = webbrowser::open(_url) {
-        log::warn!("Failed to open url: {}", err);
+        log::warn!("Failed to open url: {err}");
     }
 
     #[cfg(not(feature = "webbrowser"))]

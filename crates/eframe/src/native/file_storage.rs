@@ -118,7 +118,7 @@ impl FileStorage {
     pub(crate) fn from_ron_filepath(ron_filepath: impl Into<PathBuf>) -> Self {
         profiling::function_scope!();
         let ron_filepath: PathBuf = ron_filepath.into();
-        log::debug!("Loading app state from {:?}…", ron_filepath);
+        log::debug!("Loading app state from {}…", ron_filepath.display());
         Self {
             kv: read_ron(&ron_filepath).unwrap_or_default(),
             ron_filepath,
@@ -133,9 +133,8 @@ impl FileStorage {
         if let Some(data_dir) = storage_dir(app_id) {
             if let Err(err) = std::fs::create_dir_all(&data_dir) {
                 log::warn!(
-                    "Saving disabled: Failed to create app path at {:?}: {}",
-                    data_dir,
-                    err
+                    "Saving disabled: Failed to create app path at {}: {err}",
+                    data_dir.display()
                 );
                 None
             } else {
@@ -197,7 +196,7 @@ fn save_to_disk(file_path: &PathBuf, kv: &HashMap<String, String>) {
         && !parent_dir.exists()
         && let Err(err) = std::fs::create_dir_all(parent_dir)
     {
-        log::warn!("Failed to create directory {parent_dir:?}: {err}");
+        log::warn!("Failed to create directory {}: {err}", parent_dir.display());
     }
 
     match std::fs::File::create(file_path) {
@@ -210,13 +209,13 @@ fn save_to_disk(file_path: &PathBuf, kv: &HashMap<String, String>) {
                 .to_io_writer_pretty(&mut writer, &kv, config)
                 .and_then(|_| writer.flush().map_err(|err| err.into()))
             {
-                log::warn!("Failed to serialize app state: {}", err);
+                log::warn!("Failed to serialize app state: {err}");
             } else {
-                log::trace!("Persisted to {:?}", file_path);
+                log::trace!("Persisted to {}", file_path.display());
             }
         }
         Err(err) => {
-            log::warn!("Failed to create file {file_path:?}: {err}");
+            log::warn!("Failed to create file {}: {err}", file_path.display());
         }
     }
 }
@@ -234,7 +233,7 @@ where
             match ron::de::from_reader(reader) {
                 Ok(value) => Some(value),
                 Err(err) => {
-                    log::warn!("Failed to parse RON: {}", err);
+                    log::warn!("Failed to parse RON: {err}");
                     None
                 }
             }

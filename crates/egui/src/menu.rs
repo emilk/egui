@@ -401,14 +401,14 @@ impl MenuRoot {
 
             if let Some(root) = root.inner.as_mut() {
                 let menu_rect = root.menu_state.read().rect;
-                let screen_rect = button.ctx.input(|i| i.screen_rect);
+                let content_rect = button.ctx.input(|i| i.content_rect());
 
-                if pos.y + menu_rect.height() > screen_rect.max.y {
-                    pos.y = screen_rect.max.y - menu_rect.height() - button.rect.height();
+                if pos.y + menu_rect.height() > content_rect.max.y {
+                    pos.y = content_rect.max.y - menu_rect.height() - button.rect.height();
                 }
 
-                if pos.x + menu_rect.width() > screen_rect.max.x {
-                    pos.x = screen_rect.max.x - menu_rect.width();
+                if pos.x + menu_rect.width() > content_rect.max.x {
+                    pos.x = content_rect.max.x - menu_rect.width();
                 }
             }
 

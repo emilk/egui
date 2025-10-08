@@ -485,7 +485,7 @@ impl<'a> Popup<'a> {
                             .chain(RectAlign::MENU_ALIGNS.iter().copied()),
                     ),
             ),
-            self.ctx.screen_rect(),
+            self.ctx.content_rect(),
             anchor_rect,
             self.gap,
             expected_popup_size,

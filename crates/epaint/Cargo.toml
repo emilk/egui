@@ -66,7 +66,7 @@ _override_unity = []
 emath.workspace = true
 ecolor.workspace = true
 
-ab_glyph = "0.2.11"
+ab_glyph.workspace = true
 ahash.workspace = true
 log.workspace = true
 nohash-hasher.workspace = true
@@ -79,7 +79,7 @@ bytemuck = { workspace = true, optional = true, features = ["derive"] }
 ## Enable this when generating docs.
 document-features = { workspace = true, optional = true }
 
-rayon = { version = "1.7", optional = true }
+rayon = { workspace = true, optional = true }
 
 ## Allow serialization using [`serde`](https://docs.rs/serde) .
 serde = { workspace = true, optional = true, features = ["derive", "rc"] }

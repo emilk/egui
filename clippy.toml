@@ -35,17 +35,13 @@ disallowed-macros = [
 
 # https://rust-lang.github.io/rust-clippy/master/index.html#disallowed_methods
 disallowed-methods = [
-    "std::env::temp_dir", # Use the tempdir crate instead
-
-    # There are many things that aren't allowed on wasm,
+    # NOTE: There are many things that aren't allowed on wasm,
     # but we cannot disable them all here (because of e.g. https://github.com/rust-lang/rust-clippy/issues/10406)
     # so we do that in `clipppy_wasm.toml` instead.
 
-    "std::thread::spawn", # Use `std::thread::Builder` and name the thread
-
-    "sha1::Digest::new", # SHA1 is cryptographically broken
-
-    "std::panic::catch_unwind", # We compile with `panic = "abort"`
+    { path = "std::env::temp_dir", readon = "Use the tempfile crate instead" },
+    { path = "std::panic::catch_unwind", reason = "We compile with `panic = abort" },
+    { path = "std::thread::spawn", readon = "Use `std::thread::Builder` and name the thread" },
 ]
 
 # https://rust-lang.github.io/rust-clippy/master/index.html#disallowed_names
@@ -53,14 +49,12 @@ disallowed-names = []
 
 # https://rust-lang.github.io/rust-clippy/master/index.html#disallowed_types
 disallowed-types = [
-    # Use the faster & simpler non-poisonable primitives in `parking_lot` instead
-    "std::sync::Mutex",
-    "std::sync::RwLock",
-    "std::sync::Condvar",
+    { path = "std::sync::Condvar", reason = "Use parking_lot instead" },
+    { path = "std::sync::Mutex", reason = "Use epaint::mutex instead" },
+    { path = "std::sync::RwLock", reason = "Use epaint::mutex instead" },
+    { path = "winit::dpi::LogicalPosition", reason = "We do our own pixels<->point conversion, taking `egui_ctx.zoom_factor` into account" },
+    { path = "winit::dpi::LogicalSize", reason = "We do our own pixels<->point conversion, taking `egui_ctx.zoom_factor` into account" },
     # "std::sync::Once",  # enabled for now as the `log_once` macro uses it internally
-
-    "winit::dpi::LogicalSize",     # We do our own pixels<->point conversion, taking `egui_ctx.zoom_factor` into account
-    "winit::dpi::LogicalPosition", # We do our own pixels<->point conversion, taking `egui_ctx.zoom_factor` into account
 ]
 
 # -----------------------------------------------------------------------------

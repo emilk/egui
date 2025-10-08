@@ -144,7 +144,7 @@ impl Ui {
             "Top-level Ui:s should not have an id_salt"
         );
 
-        let max_rect = max_rect.unwrap_or_else(|| ctx.screen_rect());
+        let max_rect = max_rect.unwrap_or_else(|| ctx.content_rect());
         let clip_rect = max_rect;
         let layout = layout.unwrap_or_default();
         let disabled = disabled || invisible;

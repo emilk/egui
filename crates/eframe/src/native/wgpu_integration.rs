@@ -186,13 +186,15 @@ impl<'app> WgpuWinitApp<'app> {
         let mut painter = pollster::block_on(egui_wgpu::winit::Painter::new(
             egui_ctx.clone(),
             self.native_options.wgpu_options.clone(),
-            self.native_options.multisampling.max(1) as _,
-            egui_wgpu::depth_format_from_bits(
-                self.native_options.depth_buffer,
-                self.native_options.stencil_buffer,
-            ),
             self.native_options.viewport.transparent.unwrap_or(false),
-            self.native_options.dithering,
+            egui_wgpu::RendererOptions {
+                msaa_samples: self.native_options.multisampling as _,
+                depth_stencil_format: egui_wgpu::depth_format_from_bits(
+                    self.native_options.depth_buffer,
+                    self.native_options.stencil_buffer,
+                ),
+                dithering: self.native_options.dithering,
+            },
         ));
 
         let window = Arc::new(window);
@@ -775,8 +777,21 @@ impl WgpuWinitRunning<'_> {
         let mut repaint_asap = false;
 
         match event {
-            winit::event::WindowEvent::Focused(new_focused) => {
-                shared.focused_viewport = new_focused.then(|| viewport_id).flatten();
+            winit::event::WindowEvent::Focused(focused) => {
+                let focused = if cfg!(target_os = "macos")
+                    && let Some(viewport_id) = viewport_id
+                    && let Some(viewport) = shared.viewports.get(&viewport_id)
+                    && let Some(window) = &viewport.window
+                {
+                    // TODO(emilk): remove this work-around once we update winit
+                    // https://github.com/rust-windowing/winit/issues/4371
+                    // https://github.com/emilk/egui/issues/7588
+                    window.has_focus()
+                } else {
+                    *focused
+                };
+
+                shared.focused_viewport = focused.then_some(viewport_id).flatten();
             }
 
             winit::event::WindowEvent::Resized(physical_size) => {

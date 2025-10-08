@@ -64,7 +64,7 @@ impl WgpuSetup {
                     }
                 }
 
-                log::debug!("Creating wgpu instance with backends {:?}", backends);
+                log::debug!("Creating wgpu instance with backends {backends:?}");
                 wgpu::util::new_instance_with_webgpu_detection(&create_new.instance_descriptor)
                     .await
             }

@@ -3,6 +3,7 @@
 use std::{borrow::Cow, num::NonZeroU64, ops::Range};
 
 use ahash::HashMap;
+use bytemuck::Zeroable as _;
 use epaint::{PaintCallbackInfo, Primitive, Vertex, emath::NumExt as _};
 
 use wgpu::util::DeviceExt as _;
@@ -175,6 +176,57 @@ pub struct Texture {
     pub options: Option<epaint::textures::TextureOptions>,
 }
 
+/// Ways to configure [`Renderer`] during creation.
+#[derive(Clone, Copy, Debug)]
+pub struct RendererOptions {
+    /// Set the level of the multisampling anti-aliasing (MSAA).
+    ///
+    /// Must be a power-of-two. Higher = more smooth 3D.
+    ///
+    /// A value of `0` or `1` turns it off (default).
+    ///
+    /// `egui` already performs anti-aliasing via "feathering"
+    /// (controlled by [`egui::epaint::TessellationOptions`]),
+    /// but if you are embedding 3D in egui you may want to turn on multisampling.
+    pub msaa_samples: u32,
+
+    /// What format to use for the depth and stencil buffers,
+    /// e.g. [`wgpu::TextureFormat::Depth32FloatStencil8`].
+    ///
+    /// egui doesn't need depth/stencil, so the default value is `None` (no depth or stancil buffers).
+    pub depth_stencil_format: Option<wgpu::TextureFormat>,
+
+    /// Controls whether to apply dithering to minimize banding artifacts.
+    ///
+    /// Dithering assumes an sRGB output and thus will apply noise to any input value that lies between
+    /// two 8bit values after applying the sRGB OETF function, i.e. if it's not a whole 8bit value in "gamma space".
+    /// This means that only inputs from texture interpolation and vertex colors should be affected in practice.
+    ///
+    /// Defaults to true.
+    pub dithering: bool,
+}
+
+impl RendererOptions {
+    /// Set options that produce the most predicatable output.
+    ///
+    /// Useful for image snapshot tests.
+    pub const PREDICTABLE: Self = Self {
+        msaa_samples: 1,
+        depth_stencil_format: None,
+        dithering: false,
+    };
+}
+
+impl Default for RendererOptions {
+    fn default() -> Self {
+        Self {
+            msaa_samples: 0,
+            depth_stencil_format: None,
+            dithering: true,
+        }
+    }
+}
+
 /// Renderer for a egui based GUI.
 pub struct Renderer {
     pipeline: wgpu::RenderPipeline,
@@ -194,7 +246,7 @@ pub struct Renderer {
     next_user_texture_id: u64,
     samplers: HashMap<epaint::textures::TextureOptions, wgpu::Sampler>,
 
-    dithering: bool,
+    options: RendererOptions,
 
     /// Storage for resources shared with all invocations of [`CallbackTrait`]'s methods.
     ///
@@ -210,9 +262,7 @@ impl Renderer {
     pub fn new(
         device: &wgpu::Device,
         output_color_format: wgpu::TextureFormat,
-        output_depth_format: Option<wgpu::TextureFormat>,
-        msaa_samples: u32,
-        dithering: bool,
+        options: RendererOptions,
     ) -> Self {
         profiling::function_scope!();
 
@@ -229,7 +279,7 @@ impl Renderer {
             label: Some("egui_uniform_buffer"),
             contents: bytemuck::cast_slice(&[UniformBuffer {
                 screen_size_in_points: [0.0, 0.0],
-                dithering: u32::from(dithering),
+                dithering: u32::from(options.dithering),
                 _padding: Default::default(),
             }]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
@@ -299,13 +349,15 @@ impl Renderer {
             push_constant_ranges: &[],
         });
 
-        let depth_stencil = output_depth_format.map(|format| wgpu::DepthStencilState {
-            format,
-            depth_write_enabled: false,
-            depth_compare: wgpu::CompareFunction::Always,
-            stencil: wgpu::StencilState::default(),
-            bias: wgpu::DepthBiasState::default(),
-        });
+        let depth_stencil = options
+            .depth_stencil_format
+            .map(|format| wgpu::DepthStencilState {
+                format,
+                depth_write_enabled: false,
+                depth_compare: wgpu::CompareFunction::Always,
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            });
 
         let pipeline = {
             profiling::scope!("create_render_pipeline");
@@ -337,14 +389,14 @@ impl Renderer {
                 depth_stencil,
                 multisample: wgpu::MultisampleState {
                     alpha_to_coverage_enabled: false,
-                    count: msaa_samples,
+                    count: options.msaa_samples.max(1),
                     mask: !0,
                 },
 
                 fragment: Some(wgpu::FragmentState {
                     module: &module,
                     entry_point: Some(if output_color_format.is_srgb() {
-                        log::warn!("Detected a linear (sRGBA aware) framebuffer {:?}. egui prefers Rgba8Unorm or Bgra8Unorm", output_color_format);
+                        log::warn!("Detected a linear (sRGBA aware) framebuffer {output_color_format:?}. egui prefers Rgba8Unorm or Bgra8Unorm");
                         "fs_main_linear_framebuffer"
                     } else {
                         "fs_main_gamma_framebuffer" // this is what we prefer
@@ -392,17 +444,13 @@ impl Renderer {
             },
             uniform_buffer,
             // Buffers on wgpu are zero initialized, so this is indeed its current state!
-            previous_uniform_buffer_content: UniformBuffer {
-                screen_size_in_points: [0.0, 0.0],
-                dithering: 0,
-                _padding: 0,
-            },
+            previous_uniform_buffer_content: UniformBuffer::zeroed(),
             uniform_bind_group,
             texture_bind_group_layout,
             textures: HashMap::default(),
             next_user_texture_id: 0,
             samplers: HashMap::default(),
-            dithering,
+            options,
             callback_resources: CallbackResources::default(),
         }
     }
@@ -846,7 +894,7 @@ impl Renderer {
 
         let uniform_buffer_content = UniformBuffer {
             screen_size_in_points,
-            dithering: u32::from(self.dithering),
+            dithering: u32::from(self.options.dithering),
             _padding: Default::default(),
         };
         if uniform_buffer_content != self.previous_uniform_buffer_content {
