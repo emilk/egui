@@ -71,7 +71,7 @@ impl ScrollTarget {
 #[derive(Clone)]
 pub struct AccessKitPassState {
     pub nodes: IdMap<accesskit::Node>,
-    pub parent_stack: Vec<Id>,
+    pub parent_map: IdMap<Id>,
 }
 
 #[cfg(debug_assertions)]

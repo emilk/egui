@@ -87,23 +87,21 @@ impl egui::Plugin for AccessibilityInspectorPlugin {
         ctx.enable_accesskit();
 
         SidePanel::right(Self::id()).show(ctx, |ui| {
-            let response = ui.heading("🔎 AccessKit Inspector");
-            ctx.with_accessibility_parent(response.id, || {
-                if let Some(selected_node) = self.selected_node {
-                    TopBottomPanel::bottom(Self::id().with("details_panel"))
-                        .frame(Frame::new())
-                        .show_separator_line(false)
-                        .show_inside(ui, |ui| {
-                            self.selection_ui(ui, selected_node);
-                        });
-                }
+            ui.heading("🔎 AccessKit Inspector");
+            if let Some(selected_node) = self.selected_node {
+                TopBottomPanel::bottom(Self::id().with("details_panel"))
+                    .frame(Frame::new())
+                    .show_separator_line(false)
+                    .show_inside(ui, |ui| {
+                        self.selection_ui(ui, selected_node);
+                    });
+            }
 
-                ui.style_mut().wrap_mode = Some(TextWrapMode::Truncate);
-                ScrollArea::vertical().show(ui, |ui| {
-                    if let Some(tree) = &self.tree {
-                        Self::node_ui(ui, &tree.state().root(), &mut self.selected_node);
-                    }
-                });
+            ui.style_mut().wrap_mode = Some(TextWrapMode::Truncate);
+            ScrollArea::vertical().show(ui, |ui| {
+                if let Some(tree) = &self.tree {
+                    Self::node_ui(ui, &tree.state().root(), &mut self.selected_node);
+                }
             });
         });
     }
@@ -157,6 +155,7 @@ impl AccessibilityInspectorPlugin {
 
                     ui.label("Children");
                     ui.label(RichText::new(node.children().len().to_string()).strong());
+
                     ui.end_row();
                 });
 

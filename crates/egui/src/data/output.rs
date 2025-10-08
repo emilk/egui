@@ -682,6 +682,7 @@ impl WidgetInfo {
             WidgetType::ColorButton => "color button",
             WidgetType::Image => "image",
             WidgetType::CollapsingHeader => "collapsing header",
+            WidgetType::Panel => "panel",
             WidgetType::ProgressIndicator => "progress indicator",
             WidgetType::Window => "window",
             WidgetType::Label | WidgetType::Other => "",

@@ -519,7 +519,7 @@ impl ContextImpl {
             nodes.insert(id, root_node);
             viewport.this_pass.accesskit_state = Some(AccessKitPassState {
                 nodes,
-                parent_stack: vec![id],
+                parent_map: IdMap::default(),
             });
         }
 
@@ -595,8 +595,28 @@ impl ContextImpl {
         let builders = &mut state.nodes;
         if let std::collections::hash_map::Entry::Vacant(entry) = builders.entry(id) {
             entry.insert(Default::default());
-            let parent_id = state.parent_stack.last().unwrap();
-            let parent_builder = builders.get_mut(parent_id).unwrap();
+
+            /// Find the first ancestor that already has an accesskit node.
+            fn find_accesskit_parent(
+                parent_map: &IdMap<Id>,
+                node_map: &IdMap<accesskit::Node>,
+                id: Id,
+            ) -> Option<Id> {
+                if let Some(parent_id) = parent_map.get(&id) {
+                    if node_map.contains_key(parent_id) {
+                        Some(*parent_id)
+                    } else {
+                        find_accesskit_parent(parent_map, node_map, *parent_id)
+                    }
+                } else {
+                    None
+                }
+            }
+
+            let parent_id = find_accesskit_parent(&state.parent_map, builders, id)
+                .unwrap_or(crate::accesskit_root_id());
+
+            let parent_builder = builders.get_mut(&parent_id).unwrap();
             parent_builder.push_child(id.accesskit_id());
         }
         builders.get_mut(&id).unwrap()
@@ -3464,43 +3484,10 @@ impl Context {
 
 /// ## Accessibility
 impl Context {
-    /// Call the provided function with the given ID pushed on the stack of
-    /// parent IDs for accessibility purposes. If the `accesskit` feature
-    /// is disabled or if AccessKit support is not active for this frame,
-    /// the function is still called, but with no other effect.
-    ///
-    /// No locks are held while the given closure is called.
-    #[allow(clippy::unused_self, clippy::let_and_return, clippy::allow_attributes)]
-    #[inline]
-    pub fn with_accessibility_parent<R>(&self, _id: Id, f: impl FnOnce() -> R) -> R {
-        // TODO(emilk): this isn't thread-safe - another thread can call this function between the push/pop calls
-        #[cfg(feature = "accesskit")]
-        self.pass_state_mut(|fs| {
-            if let Some(state) = fs.accesskit_state.as_mut() {
-                state.parent_stack.push(_id);
-            }
-        });
-
-        let result = f();
-
-        #[cfg(feature = "accesskit")]
-        self.pass_state_mut(|fs| {
-            if let Some(state) = fs.accesskit_state.as_mut() {
-                assert_eq!(
-                    state.parent_stack.pop(),
-                    Some(_id),
-                    "Mismatched push/pop in with_accessibility_parent"
-                );
-            }
-        });
-
-        result
-    }
-
     /// If AccessKit support is active for the current frame, get or create
     /// a node builder with the specified ID and return a mutable reference to it.
-    /// For newly created nodes, the parent is the node with the ID at the top
-    /// of the stack managed by [`Context::with_accessibility_parent`].
+    /// For newly created nodes, the parent is the parent [`Ui`]s ID.
+    /// And an [`Ui`]s parent can be set with [`crate::UiBuilder::accessibility_parent`].
     ///
     /// The `Context` lock is held while the given closure is called!
     ///
@@ -3520,6 +3507,15 @@ impl Context {
                 .then(|| ctx.accesskit_node_builder(id))
                 .map(writer)
         })
+    }
+
+    #[cfg(feature = "accesskit")]
+    pub(crate) fn register_accesskit_parent(&self, id: Id, parent_id: Id) {
+        self.write(|ctx| {
+            if let Some(state) = ctx.viewport().this_pass.accesskit_state.as_mut() {
+                state.parent_map.insert(id, parent_id);
+            }
+        });
     }
 
     /// Enable generation of AccessKit tree updates in all future frames.
