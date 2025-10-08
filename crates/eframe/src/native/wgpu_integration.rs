@@ -194,6 +194,7 @@ impl<'app> WgpuWinitApp<'app> {
                     self.native_options.stencil_buffer,
                 ),
                 dithering: self.native_options.dithering,
+                ..Default::default()
             },
         ));
 
