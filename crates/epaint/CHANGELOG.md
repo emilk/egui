@@ -5,6 +5,14 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.33.0 - 2025-10-09
+* Remove the `deadlock_detection` feature [#7497](https://github.com/emilk/egui/pull/7497) by [@lucasmerlin](https://github.com/lucasmerlin)
+* More even text kerning [#7431](https://github.com/emilk/egui/pull/7431) by [@valadaptive](https://github.com/valadaptive)
+* Return `0.0` if font not found in `glyph_width` instead of panic [#7559](https://github.com/emilk/egui/pull/7559) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Update MSRV from 1.86 to 1.88 [#7579](https://github.com/emilk/egui/pull/7579) by [@Wumpf](https://github.com/Wumpf)
+* Remove `log` feature [#7583](https://github.com/emilk/egui/pull/7583) by [@emilk](https://github.com/emilk)
+
+
 ## 0.32.3 - 2025-09-12
 * Optimize `Mesh::add_rect_with_uv` [#7511](https://github.com/emilk/egui/pull/7511) by [@valadaptive](https://github.com/valadaptive)
 
