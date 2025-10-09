@@ -1,15 +1,15 @@
 use egui::{TexturesDelta, UserData, ViewportCommand};
 
-use crate::{App, epi};
+use crate::{App, epi, web::web_painter::WebPainter};
 
-use super::{NeedRepaint, now_sec, text_agent::TextAgent, web_painter::WebPainter as _};
+use super::{NeedRepaint, now_sec, text_agent::TextAgent};
 
 pub struct AppRunner {
     #[allow(dead_code, clippy::allow_attributes)]
     pub(crate) web_options: crate::WebOptions,
     pub(crate) frame: epi::Frame,
     egui_ctx: egui::Context,
-    painter: super::ActiveWebPainter,
+    painter: Box<dyn WebPainter>,
     pub(crate) input: super::WebInput,
     app: Box<dyn epi::App>,
     pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
@@ -41,7 +41,31 @@ impl AppRunner {
         text_agent: TextAgent,
     ) -> Result<Self, String> {
         let egui_ctx = egui::Context::default();
-        let painter = super::ActiveWebPainter::new(egui_ctx.clone(), canvas, &web_options).await?;
+
+        let painter = match web_options.renderer {
+            #[cfg(feature = "glow")]
+            epi::Renderer::Glow => {
+                log::debug!("Using the glow renderer");
+                Box::new(super::web_painter_glow::WebPainterGlow::new(
+                    egui_ctx.clone(),
+                    canvas,
+                    &web_options,
+                )?)
+            }
+
+            #[cfg(feature = "wgpu")]
+            epi::Renderer::Wgpu => {
+                log::debug!("Using the wgpu renderer");
+                Box::new(
+                    super::web_painter_wgpu::WebPainterWgpu::new(
+                        egui_ctx.clone(),
+                        canvas,
+                        &web_options,
+                    )
+                    .await?,
+                )
+            }
+        };
 
         let info = epi::IntegrationInfo {
             web_info: epi::WebInfo {

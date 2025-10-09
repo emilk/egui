@@ -1,12 +1,14 @@
 use std::sync::Arc;
 
-use super::web_painter::WebPainter;
-use crate::WebOptions;
 use egui::{Event, UserData, ViewportId};
-use egui_wgpu::capture::{CaptureReceiver, CaptureSender, CaptureState, capture_channel};
-use egui_wgpu::{RenderState, SurfaceErrorAction};
+use egui_wgpu::{
+    RenderState, SurfaceErrorAction,
+    capture::{CaptureReceiver, CaptureSender, CaptureState},
+};
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
+
+use super::web_painter::WebPainter;
 
 pub(crate) struct WebPainterWgpu {
     canvas: HtmlCanvasElement,
@@ -23,8 +25,6 @@ pub(crate) struct WebPainterWgpu {
 }
 
 impl WebPainterWgpu {
-    #[cfg(feature = "wgpu")]
-    #[cfg(not(feature = "glow"))]
     pub fn render_state(&self) -> Option<RenderState> {
         self.render_state.clone()
     }
@@ -56,12 +56,10 @@ impl WebPainterWgpu {
         })
     }
 
-    #[cfg(feature = "wgpu")]
-    #[cfg(not(feature = "glow"))]
     pub async fn new(
         ctx: egui::Context,
         canvas: web_sys::HtmlCanvasElement,
-        options: &WebOptions,
+        options: &crate::WebOptions,
     ) -> Result<Self, String> {
         log::debug!("Creating wgpu painter");
 
@@ -98,7 +96,7 @@ impl WebPainterWgpu {
 
         log::debug!("wgpu painter initialized.");
 
-        let (capture_tx, capture_rx) = capture_channel();
+        let (capture_tx, capture_rx) = egui_wgpu::capture_channel();
 
         Ok(Self {
             canvas,
