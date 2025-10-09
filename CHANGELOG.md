@@ -14,7 +14,7 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
-## 0.33.0 - 2025-10-09
+## 0.33.0 - 2025-10-09 - `egui::Plugin`, better kerning, kitdiff viewer
 Highlights from this release:
 - `egui::Plugin` a improved way to create and access egui plugins
 - [kitdiff](https://github.com/rerun-io/kitdiff), a viewer for egui_kittest image snapshots (and a general image diff tool)
