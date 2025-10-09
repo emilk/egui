@@ -23,7 +23,8 @@ pub(crate) struct WebPainterWgpu {
 }
 
 impl WebPainterWgpu {
-    #[expect(unused)] // only used if `wgpu` is the only active feature.
+    #[cfg(feature = "wgpu")]
+    #[cfg(not(feature = "glow"))]
     pub fn render_state(&self) -> Option<RenderState> {
         self.render_state.clone()
     }
@@ -55,7 +56,8 @@ impl WebPainterWgpu {
         })
     }
 
-    #[expect(unused)] // only used if `wgpu` is the only active feature.
+    #[cfg(feature = "wgpu")]
+    #[cfg(not(feature = "glow"))]
     pub async fn new(
         ctx: egui::Context,
         canvas: web_sys::HtmlCanvasElement,
