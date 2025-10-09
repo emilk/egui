@@ -11,12 +11,7 @@ readme = "README.md"
 repository = "https://github.com/emilk/egui/tree/main/crates/epaint"
 categories = ["graphics", "gui"]
 keywords = ["graphics", "gui", "egui"]
-include = [
-  "../LICENSE-APACHE",
-  "../LICENSE-MIT",
-  "**/*.rs",
-  "Cargo.toml"
-]
+include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 
 [lints]
 workspace = true
@@ -70,8 +65,8 @@ ab_glyph.workspace = true
 ahash.workspace = true
 log.workspace = true
 nohash-hasher.workspace = true
-parking_lot.workspace = true   # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios.
-profiling = { workspace = true}
+parking_lot.workspace = true # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios.
+profiling = { workspace = true }
 
 #! ### Optional dependencies
 bytemuck = { workspace = true, optional = true, features = ["derive"] }

@@ -10,10 +10,7 @@ publish = false
 workspace = true
 
 [package.metadata.cargo-machete]
-ignored = [
-    "eframe",
-    "egui_extras",
-] # We don't use them, just check that things compile
+ignored = ["eframe", "egui_extras"] # We don't use them, just check that things compile
 
 [dependencies]
 eframe = { workspace = true, features = ["default", "persistence"] }
