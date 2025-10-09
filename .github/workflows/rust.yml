@@ -92,8 +92,7 @@ jobs:
       - name: wasm-bindgen
         uses: jetli/wasm-bindgen-action@v0.1.0
         with:
-          # Keep wasm-bindgen in sync in: setup_web.sh, Cargo.toml, Cargo.lock, rust.yml
-          version: "0.2.104"
+          version: "0.2.100" # Keep wasm-bindgen version in sync in: setup_web.sh, Cargo.toml, Cargo.lock, rust.yml
 
       - run: ./scripts/wasm_bindgen_check.sh --skip-setup
 
