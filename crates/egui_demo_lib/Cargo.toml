@@ -11,13 +11,7 @@ readme = "README.md"
 repository = "https://github.com/emilk/egui/tree/main/crates/egui_demo_lib"
 categories = ["gui", "graphics"]
 keywords = ["glow", "egui", "gui", "gamedev"]
-include = [
-    "../LICENSE-APACHE",
-    "../LICENSE-MIT",
-    "**/*.rs",
-    "Cargo.toml",
-    "data/*",
-]
+include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml", "data/*"]
 
 [lints]
 workspace = true
@@ -60,7 +54,7 @@ egui = { workspace = true, features = ["default_fonts"] }
 egui_extras = { workspace = true, features = ["image", "svg"] }
 egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }
 image = { workspace = true, features = ["png"] }
-mimalloc.workspace = true                                            # for benchmarks
+mimalloc.workspace = true # for benchmarks
 rand.workspace = true
 
 [[bench]]

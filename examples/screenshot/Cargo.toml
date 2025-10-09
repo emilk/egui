@@ -1,10 +1,7 @@
 [package]
 name = "screenshot"
 version = "0.1.0"
-authors = [
-    "René Rössler <rene@freshx.de>",
-    "Andreas Faber <andreas.mfaber@gmail.com",
-]
+authors = ["René Rössler <rene@freshx.de>", "Andreas Faber <andreas.mfaber@gmail.com"]
 license = "MIT OR Apache-2.0"
 edition = "2024"
 rust-version = "1.88"
@@ -16,9 +13,9 @@ workspace = true
 
 [dependencies]
 eframe = { workspace = true, features = [
-    "default",
-    "__screenshot", # __screenshot is so we can dump a screenshot using EFRAME_SCREENSHOT_TO
-    "wgpu",
+  "default",
+  "__screenshot", # __screenshot is so we can dump a screenshot using EFRAME_SCREENSHOT_TO
+  "wgpu",
 ] }
 env_logger = { workspace = true, features = ["auto-color", "humantime"] }
 image = { workspace = true, features = ["png"] }
