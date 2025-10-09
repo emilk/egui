@@ -3,7 +3,7 @@ use std::sync::Arc;
 use egui::{Event, UserData, ViewportId};
 use egui_wgpu::{
     RenderState, SurfaceErrorAction,
-    capture::{CaptureReceiver, CaptureSender, CaptureState},
+    capture::{CaptureReceiver, CaptureSender, CaptureState, capture_channel},
 };
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
@@ -96,7 +96,7 @@ impl WebPainterWgpu {
 
         log::debug!("wgpu painter initialized.");
 
-        let (capture_tx, capture_rx) = egui_wgpu::capture_channel();
+        let (capture_tx, capture_rx) = capture_channel();
 
         Ok(Self {
             canvas,
