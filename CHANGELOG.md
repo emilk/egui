@@ -42,7 +42,7 @@ You can use it locally via
 - `kitdiff git` will compare the current files to the default branch (main/master)
   Or in the browser via
 - going to https://rerun-io.github.io/kitdiff/ and pasting a PR or github artifact url
-- linking to kitdiff via e.g. a github workflow `https://rerun-io.github.io/kitdiff/?url=<link_to_pr_or_artefact>`
+- linking to kitdiff via e.g. a github workflow `https://rerun-io.github.io/kitdiff/?url=<link_to_pr_or_artifact>`
 
 To install kitdiff run `cargo install --git https://github.com/rerun-io/kitdiff`
 
