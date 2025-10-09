@@ -42,9 +42,11 @@ impl AppRunner {
     ) -> Result<Self, String> {
         let egui_ctx = egui::Context::default();
 
+        #[allow(clippy::allow_attributes, unused_assignments)]
         #[cfg(feature = "glow")]
         let mut gl = None;
 
+        #[allow(clippy::allow_attributes, unused_assignments)]
         #[cfg(feature = "wgpu")]
         let mut wgpu_render_state = None;
 
@@ -57,7 +59,7 @@ impl AppRunner {
                     canvas,
                     &web_options,
                 )?;
-                gl = painter.gl().clone();
+                gl = Some(painter.gl().clone());
                 Box::new(painter) as Box<dyn WebPainter>
             }
 
@@ -103,7 +105,7 @@ impl AppRunner {
             storage: Some(&storage),
 
             #[cfg(feature = "glow")]
-            gl: Some(gl.clone()),
+            gl: gl.clone(),
 
             #[cfg(feature = "glow")]
             get_proc_address: None,
@@ -118,7 +120,7 @@ impl AppRunner {
             storage: Some(Box::new(storage)),
 
             #[cfg(feature = "glow")]
-            gl: Some(gl),
+            gl,
 
             #[cfg(feature = "wgpu")]
             wgpu_render_state,
