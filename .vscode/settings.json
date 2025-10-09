@@ -13,7 +13,7 @@
         "target/**": true,
     },
     "rust-analyzer.check.command": "clippy",
-    // Whether `--workspace` should be passed to `cargo check`. If false, `-p <package>` will be passed instead.
+    // Whether `--workspace` should be passed to `cargo clippy`. If false, `-p <package>` will be passed instead.
     "rust-analyzer.check.workspace": false,
     "rust-analyzer.cargo.allTargets": true,
     "rust-analyzer.cargo.features": "all",
