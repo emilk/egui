@@ -592,8 +592,8 @@ impl Default for Renderer {
         #[cfg(feature = "wgpu")]
         return Self::Wgpu;
 
-        // By default, only the `glow` feature is enabled, so if the user added `wgpu` to the feature list
-        // they probably wanted to use wgpu:
+        // It's weird that the user has enabled both glow and wgpu,
+        // but let's pick the better of the two (wgpu):
         #[cfg(feature = "glow")]
         #[cfg(feature = "wgpu")]
         return Self::Wgpu;
