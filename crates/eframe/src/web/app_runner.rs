@@ -42,28 +42,36 @@ impl AppRunner {
     ) -> Result<Self, String> {
         let egui_ctx = egui::Context::default();
 
+        #[cfg(feature = "glow")]
+        let mut gl = None;
+
+        #[cfg(feature = "wgpu")]
+        let mut wgpu_render_state = None;
+
         let painter = match web_options.renderer {
             #[cfg(feature = "glow")]
             epi::Renderer::Glow => {
                 log::debug!("Using the glow renderer");
-                Box::new(super::web_painter_glow::WebPainterGlow::new(
+                let painter = super::web_painter_glow::WebPainterGlow::new(
                     egui_ctx.clone(),
                     canvas,
                     &web_options,
-                )?)
+                )?;
+                gl = painter.gl().clone();
+                Box::new(painter) as Box<dyn WebPainter>
             }
 
             #[cfg(feature = "wgpu")]
             epi::Renderer::Wgpu => {
                 log::debug!("Using the wgpu renderer");
-                Box::new(
-                    super::web_painter_wgpu::WebPainterWgpu::new(
-                        egui_ctx.clone(),
-                        canvas,
-                        &web_options,
-                    )
-                    .await?,
+                let painter = super::web_painter_wgpu::WebPainterWgpu::new(
+                    egui_ctx.clone(),
+                    canvas,
+                    &web_options,
                 )
+                .await?;
+                wgpu_render_state = painter.render_state();
+                Box::new(painter) as Box<dyn WebPainter>
             }
         };
 
@@ -95,15 +103,13 @@ impl AppRunner {
             storage: Some(&storage),
 
             #[cfg(feature = "glow")]
-            gl: Some(painter.gl().clone()),
+            gl: Some(gl.clone()),
 
             #[cfg(feature = "glow")]
             get_proc_address: None,
 
-            #[cfg(all(feature = "wgpu", not(feature = "glow")))]
-            wgpu_render_state: painter.render_state(),
-            #[cfg(all(feature = "wgpu", feature = "glow"))]
-            wgpu_render_state: None,
+            #[cfg(feature = "wgpu")]
+            wgpu_render_state: wgpu_render_state.clone(),
         };
         let app = app_creator(&cc).map_err(|err| err.to_string())?;
 
@@ -112,12 +118,10 @@ impl AppRunner {
             storage: Some(Box::new(storage)),
 
             #[cfg(feature = "glow")]
-            gl: Some(painter.gl().clone()),
+            gl: Some(gl),
 
-            #[cfg(all(feature = "wgpu", not(feature = "glow")))]
-            wgpu_render_state: painter.render_state(),
-            #[cfg(all(feature = "wgpu", feature = "glow"))]
-            wgpu_render_state: None,
+            #[cfg(feature = "wgpu")]
+            wgpu_render_state,
         };
 
         let needs_repaint: std::sync::Arc<NeedRepaint> =
