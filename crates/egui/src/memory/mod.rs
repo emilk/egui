@@ -318,7 +318,9 @@ impl Default for Options {
 }
 
 impl Options {
-    pub(crate) fn begin_pass(&mut self, new_raw_input: &RawInput) {
+    // Needs to be pub because we need to set the system_theme early in the eframe glow renderer.
+    #[doc(hidden)]
+    pub fn begin_pass(&mut self, new_raw_input: &RawInput) {
         self.system_theme = new_raw_input.system_theme;
     }
 

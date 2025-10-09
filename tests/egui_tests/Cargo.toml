@@ -8,7 +8,7 @@ version.workspace = true
 [dev-dependencies]
 egui = { workspace = true, default-features = true }
 egui_kittest = { workspace = true, features = ["snapshot", "wgpu"] }
-egui_extras = { workspace = true, features = ["image"]}
+egui_extras = { workspace = true, features = ["image"] }
 image = { workspace = true, features = ["png"] }
 
 [lints]

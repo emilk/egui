@@ -19,8 +19,8 @@ required-features = ["linux-example"]
 
 [dependencies]
 eframe = { workspace = true, features = [
-    "default",
-    "__screenshot", # __screenshot is so we can dump a screenshot using EFRAME_SCREENSHOT_TO
+  "default",
+  "__screenshot", # __screenshot is so we can dump a screenshot using EFRAME_SCREENSHOT_TO
 ] }
 
 env_logger = { workspace = true, features = ["auto-color", "humantime"] }

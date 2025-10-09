@@ -11,13 +11,7 @@ readme = "README.md"
 repository = "https://github.com/emilk/egui/tree/main/crates/eframe"
 categories = ["gui", "game-development"]
 keywords = ["egui", "gui", "gamedev"]
-include = [
-  "../LICENSE-APACHE",
-  "../LICENSE-MIT",
-  "**/*.rs",
-  "Cargo.toml",
-  "data/icon.png",
-]
+include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml", "data/icon.png"]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -34,7 +28,7 @@ workspace = true
 default = [
   "accesskit",
   "default_fonts",
-  "wayland",                                      # Required for Linux support (including CI!)
+  "wayland", # Required for Linux support (including CI!)
   "web_screen_reader",
   "wgpu",
   "winit/default",
@@ -70,13 +64,7 @@ default_fonts = ["egui/default_fonts"]
 glow = ["dep:egui_glow", "dep:glow", "dep:glutin-winit", "dep:glutin"]
 
 ## Enable saving app state to disk.
-persistence = [
-  "dep:home",
-  "egui-winit/serde",
-  "egui/persistence",
-  "ron",
-  "serde",
-]
+persistence = ["dep:home", "egui-winit/serde", "egui/persistence", "ron", "serde"]
 
 ## Enables wayland support and fixes clipboard issue.
 ##
@@ -92,10 +80,7 @@ wayland = [
 ## Enable screen reader support (requires `ctx.options_mut(|o| o.screen_reader = true);`) on web.
 ##
 ## For other platforms, use the `accesskit` feature instead.
-web_screen_reader = [
-  "web-sys/SpeechSynthesis",
-  "web-sys/SpeechSynthesisUtterance",
-]
+web_screen_reader = ["web-sys/SpeechSynthesis", "web-sys/SpeechSynthesisUtterance"]
 
 ## Enable [`wgpu`](https://docs.rs/wgpu) for painting (via [`egui-wgpu`](https://github.com/emilk/egui/tree/main/crates/egui-wgpu)).
 ##
@@ -155,10 +140,7 @@ serde = { workspace = true, optional = true }
 # -------------------------------------------
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui-winit = { workspace = true, default-features = false, features = [
-  "clipboard",
-  "links",
-] }
+egui-winit = { workspace = true, default-features = false, features = ["clipboard", "links"] }
 image = { workspace = true, features = ["png"] } # Needed for app icon
 winit = { workspace = true, default-features = false, features = ["rwh_06"] }
 
@@ -168,10 +150,7 @@ egui-wgpu = { workspace = true, optional = true, features = [
 ] } # if wgpu is used, use it with winit
 pollster = { workspace = true, optional = true } # needed for wgpu
 
-glutin = { workspace = true, optional = true, default-features = false, features = [
-  "egl",
-  "wgl",
-] }
+glutin = { workspace = true, optional = true, default-features = false, features = ["egl", "wgl"] }
 glutin-winit = { workspace = true, optional = true, default-features = false, features = [
   "egl",
   "wgl",

@@ -26,6 +26,7 @@ pub struct SnapshotOptions {
 }
 
 /// Helper struct to define the number of pixels that can differ before the snapshot is considered a failure.
+///
 /// This is useful if you want to set different thresholds for different operating systems.
 ///
 /// The default values are 0 / 0.0
