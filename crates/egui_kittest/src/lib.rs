@@ -52,6 +52,7 @@ impl Display for ExceededMaxStepsError {
 }
 
 /// The test Harness. This contains everything needed to run the test.
+///
 /// Create a new Harness using [`Harness::new`] or [`Harness::builder`].
 ///
 /// The [Harness] has a optional generic state that can be used to pass data to the app / ui closure.
