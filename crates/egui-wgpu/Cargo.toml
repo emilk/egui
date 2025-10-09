@@ -15,13 +15,7 @@ readme = "README.md"
 repository = "https://github.com/emilk/egui/tree/main/crates/egui-wgpu"
 categories = ["gui", "game-development"]
 keywords = ["wgpu", "egui", "gui", "gamedev"]
-include = [
-  "../LICENSE-APACHE",
-  "../LICENSE-MIT",
-  "**/*.rs",
-  "**/*.wgsl",
-  "Cargo.toml",
-]
+include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "**/*.wgsl", "Cargo.toml"]
 
 [lints]
 workspace = true

@@ -83,12 +83,7 @@ profiling.workspace = true
 serde = { workspace = true, optional = true }
 
 # Date operations needed for datepicker widget
-chrono = { workspace = true, optional = true, features = [
-  "clock",
-  "js-sys",
-  "std",
-  "wasmbind",
-] }
+chrono = { workspace = true, optional = true, features = ["clock", "js-sys", "std", "wasmbind"] }
 
 ## Enable this when generating docs.
 document-features = { workspace = true, optional = true }
