@@ -8,6 +8,8 @@ fn test_kerning() {
                 .with_pixels_per_point(pixels_per_point)
                 .with_theme(theme)
                 .build_ui(|ui| {
+                    ui.label("Hello world!");
+                    ui.label("Repeated characters: iiiiiiiiiiiii lllllllll mmmmmmmmmmmmmmmm");
                     ui.label("Thin spaces: −123 456 789");
                     ui.label("Ligature: fi :)");
                     ui.label("\ttabbed");
@@ -15,7 +17,7 @@ fn test_kerning() {
             harness.run();
             harness.fit_contents();
             harness.snapshot(format!(
-                "image_blending/image_{theme}_x{pixels_per_point}",
+                "image_kerning/image_{theme}_x{pixels_per_point}",
                 theme = match theme {
                     egui::Theme::Dark => "dark",
                     egui::Theme::Light => "light",
