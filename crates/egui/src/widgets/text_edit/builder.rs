@@ -821,7 +821,7 @@ impl<Value: TextType> TextEdit<'_, Value> {
         state.clone().store(ui.ctx(), id);
 
         if response.changed() {
-            match Value::read_from_string(&text) {
+            match Value::read_from_strings(&prev_text, &text) {
                 Some(Ok(var)) => *represents = var,
                 Some(Err(err)) => {
                     // TODO(tye): Is this log useful?
