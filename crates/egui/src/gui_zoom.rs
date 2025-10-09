@@ -1,4 +1,4 @@
-//! Helpers for zooming the whole GUI of an app (changing [`Context::pixels_per_point`].
+//! Helpers for zooming the whole GUI of an app (changing [`Context::pixels_per_point`]).
 //!
 use crate::{Button, Context, Key, KeyboardShortcut, Modifiers, Ui};
 
