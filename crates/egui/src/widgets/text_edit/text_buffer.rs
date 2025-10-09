@@ -18,9 +18,6 @@ use crate::{
 ///
 /// Most likely you will use a [`String`] which implements [`TextBuffer`].
 pub trait TextBuffer {
-    /// Can this text be edited?
-    fn is_mutable(&self) -> bool;
-
     /// Returns this buffer as a `str`.
     fn as_str(&self) -> &str;
 
@@ -212,10 +209,6 @@ pub trait TextBuffer {
 }
 
 impl TextBuffer for String {
-    fn is_mutable(&self) -> bool {
-        true
-    }
-
     fn as_str(&self) -> &str {
         self.as_ref()
     }
@@ -258,60 +251,5 @@ impl TextBuffer for String {
 
     fn type_id(&self) -> std::any::TypeId {
         std::any::TypeId::of::<Self>()
-    }
-}
-
-impl TextBuffer for Cow<'_, str> {
-    fn is_mutable(&self) -> bool {
-        true
-    }
-
-    fn as_str(&self) -> &str {
-        self.as_ref()
-    }
-
-    fn insert_text(&mut self, text: &str, char_index: usize) -> usize {
-        <String as TextBuffer>::insert_text(self.to_mut(), text, char_index)
-    }
-
-    fn delete_char_range(&mut self, char_range: Range<usize>) {
-        <String as TextBuffer>::delete_char_range(self.to_mut(), char_range);
-    }
-
-    fn clear(&mut self) {
-        <String as TextBuffer>::clear(self.to_mut());
-    }
-
-    fn replace_with(&mut self, text: &str) {
-        *self = Cow::Owned(text.to_owned());
-    }
-
-    fn take(&mut self) -> String {
-        std::mem::take(self).into_owned()
-    }
-
-    fn type_id(&self) -> std::any::TypeId {
-        std::any::TypeId::of::<Cow<'_, str>>()
-    }
-}
-
-/// Immutable view of a `&str`!
-impl TextBuffer for &str {
-    fn is_mutable(&self) -> bool {
-        false
-    }
-
-    fn as_str(&self) -> &str {
-        self
-    }
-
-    fn insert_text(&mut self, _text: &str, _ch_idx: usize) -> usize {
-        0
-    }
-
-    fn delete_char_range(&mut self, _ch_range: Range<usize>) {}
-
-    fn type_id(&self) -> std::any::TypeId {
-        std::any::TypeId::of::<&str>()
     }
 }

@@ -2001,7 +2001,7 @@ impl Ui {
     /// No newlines (`\n`) allowed. Pressing enter key will result in the [`TextEdit`] losing focus (`response.lost_focus`).
     ///
     /// See also [`TextEdit`].
-    pub fn text_edit_singleline<S: widgets::text_edit::TextBuffer>(
+    pub fn text_edit_singleline<S: widgets::text_edit::TextType>(
         &mut self,
         text: &mut S,
     ) -> Response {
@@ -2011,7 +2011,7 @@ impl Ui {
     /// A [`TextEdit`] for multiple lines. Pressing enter key will create a new line.
     ///
     /// See also [`TextEdit`].
-    pub fn text_edit_multiline<S: widgets::text_edit::TextBuffer>(
+    pub fn text_edit_multiline<S: widgets::text_edit::TextType>(
         &mut self,
         text: &mut S,
     ) -> Response {
@@ -2023,7 +2023,7 @@ impl Ui {
     /// This will be multiline, monospace, and will insert tabs instead of moving focus.
     ///
     /// See also [`TextEdit::code_editor`].
-    pub fn code_editor<S: widgets::text_edit::TextBuffer>(&mut self, text: &mut S) -> Response {
+    pub fn code_editor<S: widgets::text_edit::TextType>(&mut self, text: &mut S) -> Response {
         self.add(TextEdit::multiline(text).code_editor())
     }
 

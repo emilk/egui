@@ -77,12 +77,12 @@ impl crate::View for CodeEditor {
             });
         });
 
-        let mut layouter = |ui: &egui::Ui, buf: &dyn egui::TextBuffer, wrap_width: f32| {
+        let mut layouter = |ui: &egui::Ui, buf: &str, wrap_width: f32| {
             let mut layout_job = egui_extras::syntax_highlighting::highlight(
                 ui.ctx(),
                 ui.style(),
                 &theme,
-                buf.as_str(),
+                buf,
                 language,
             );
             layout_job.wrap.max_width = wrap_width;

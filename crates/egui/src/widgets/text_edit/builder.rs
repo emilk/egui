@@ -17,9 +17,9 @@ use crate::{
     vec2,
 };
 
-use super::{TextEditOutput, TextEditState};
+use super::{TextEditOutput, TextEditState, backer::TextType};
 
-type LayouterFn<'t> = &'t mut dyn FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<Galley>;
+type LayouterFn<'t> = &'t mut dyn FnMut(&Ui, &str, f32) -> Arc<Galley>;
 
 /// A text region that the user can edit the contents of.
 ///
@@ -65,8 +65,9 @@ type LayouterFn<'t> = &'t mut dyn FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<Galley
 /// ## Other
 /// The background color of a [`crate::TextEdit`] is [`crate::Visuals::text_edit_bg_color`] or can be set with [`crate::TextEdit::background_color`].
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
-pub struct TextEdit<'t> {
-    text: &'t mut dyn TextBuffer,
+pub struct TextEdit<'t, Value: TextType = String> {
+    represents: &'t mut Value,
+    text: String,
     hint_text: WidgetText,
     hint_text_font: Option<FontSelection>,
     id: Option<Id>,
@@ -91,11 +92,13 @@ pub struct TextEdit<'t> {
     background_color: Option<Color32>,
 }
 
-impl WidgetWithState for TextEdit<'_> {
+impl<Value: TextType> WidgetWithState for TextEdit<'_, Value> {
     type State = TextEditState;
 }
 
-impl TextEdit<'_> {
+// This doesn't have to be a string.
+// It's just to prevent having specify the generic type, as it's not used by these functions
+impl TextEdit<'_, String> {
     pub fn load_state(ctx: &Context, id: Id) -> Option<TextEditState> {
         TextEditState::load(ctx, id)
     }
@@ -105,20 +108,22 @@ impl TextEdit<'_> {
     }
 }
 
-impl<'t> TextEdit<'t> {
+impl<'t, Value: TextType> TextEdit<'t, Value> {
     /// No newlines (`\n`) allowed. Pressing enter key will result in the [`TextEdit`] losing focus (`response.lost_focus`).
-    pub fn singleline(text: &'t mut dyn TextBuffer) -> Self {
+    pub fn singleline(value: &'t mut Value) -> Self {
         Self {
             desired_height_rows: 1,
             multiline: false,
             clip_text: true,
-            ..Self::multiline(text)
+            ..Self::multiline(value)
         }
     }
 
     /// A [`TextEdit`] for multiple lines. Pressing enter key will create a new line by default (can be changed with [`return_key`](TextEdit::return_key)).
-    pub fn multiline(text: &'t mut dyn TextBuffer) -> Self {
+    pub fn multiline(value: &'t mut Value) -> Self {
+        let text = value.string_representation();
         Self {
+            represents: value,
             text,
             hint_text: Default::default(),
             hint_text_font: None,
@@ -272,12 +277,8 @@ impl<'t> TextEdit<'t> {
     /// # });
     /// ```
     #[inline]
-    pub fn layouter(
-        mut self,
-        layouter: &'t mut dyn FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<Galley>,
-    ) -> Self {
+    pub fn layouter(mut self, layouter: &'t mut dyn FnMut(&Ui, &str, f32) -> Arc<Galley>) -> Self {
         self.layouter = Some(layouter);
-
         self
     }
 
@@ -400,13 +401,13 @@ impl<'t> TextEdit<'t> {
 
 // ----------------------------------------------------------------------------
 
-impl Widget for TextEdit<'_> {
+impl<Value: TextType> Widget for TextEdit<'_, Value> {
     fn ui(self, ui: &mut Ui) -> Response {
         self.show(ui).response
     }
 }
 
-impl TextEdit<'_> {
+impl<Value: TextType> TextEdit<'_, Value> {
     /// Show the [`TextEdit`], returning a rich [`TextEditOutput`].
     ///
     /// ```
@@ -423,7 +424,7 @@ impl TextEdit<'_> {
     /// # });
     /// ```
     pub fn show(self, ui: &mut Ui) -> TextEditOutput {
-        let is_mutable = self.text.is_mutable();
+        let is_mutable = Value::is_mutable();
         let frame = self.frame;
         let where_to_put_background = ui.painter().add(Shape::Noop);
         let background_color = self
@@ -470,7 +471,8 @@ impl TextEdit<'_> {
 
     fn show_content(self, ui: &mut Ui) -> TextEditOutput {
         let TextEdit {
-            text,
+            represents,
+            mut text,
             hint_text,
             hint_text_font,
             id,
@@ -515,8 +517,8 @@ impl TextEdit<'_> {
         };
 
         let font_id_clone = font_id.clone();
-        let mut default_layouter = move |ui: &Ui, text: &dyn TextBuffer, wrap_width: f32| {
-            let text = mask_if_password(password, text.as_str());
+        let mut default_layouter = move |ui: &Ui, text: &str, wrap_width: f32| {
+            let text = mask_if_password(password, text);
             let layout_job = if multiline {
                 LayoutJob::simple(text, font_id_clone.clone(), text_color, wrap_width)
             } else {
@@ -527,7 +529,7 @@ impl TextEdit<'_> {
 
         let layouter = layouter.unwrap_or(&mut default_layouter);
 
-        let mut galley = layouter(ui, text, wrap_width);
+        let mut galley = layouter(ui, &text, wrap_width);
 
         let desired_inner_width = if clip_text {
             wrap_width // visual clipping with scroll in singleline input.
@@ -574,7 +576,7 @@ impl TextEdit<'_> {
         let painter = ui.painter_at(text_clip_rect.expand(1.0)); // expand to avoid clipping cursor
 
         if interactive && let Some(pointer_pos) = response.interact_pointer_pos() {
-            if response.hovered() && text.is_mutable() {
+            if response.hovered() && Value::is_mutable() {
                 ui.output_mut(|o| o.mutable_text_under_cursor = true);
             }
 
@@ -627,7 +629,7 @@ impl TextEdit<'_> {
             let (changed, new_cursor_range) = events(
                 ui,
                 &mut state,
-                text,
+                &mut text,
                 &mut galley,
                 layouter,
                 id,
@@ -770,8 +772,8 @@ impl TextEdit<'_> {
                     ui.scroll_to_rect(primary_cursor_rect + margin, None);
                 }
 
-                if text.is_mutable() && interactive {
-                    let now = ui.input(|i| i.time);
+                if Value::is_mutable() && interactive {
+                    let now = ui.ctx().input(|i| i.time);
                     if response.changed() || selection_changed {
                         state.last_interaction_time = now;
                     }
@@ -819,6 +821,18 @@ impl TextEdit<'_> {
         state.clone().store(ui.ctx(), id);
 
         if response.changed() {
+            match Value::read_from_string(&text) {
+                Some(Ok(var)) => *represents = var,
+                Some(Err(err)) => {
+                    // TODO(tye): Is this log useful?
+                    log::info!("Failed to parse value for text edit: {err}");
+
+                    text = represents.string_representation()
+                }
+                // Value is immutable
+                None => {}
+            }
+
             response.widget_info(|| {
                 WidgetInfo::text_edit(
                     ui.is_enabled(),
@@ -899,9 +913,9 @@ fn mask_if_password(is_password: bool, text: &str) -> String {
 fn events(
     ui: &crate::Ui,
     state: &mut TextEditState,
-    text: &mut dyn TextBuffer,
+    text: &mut String,
     galley: &mut Arc<Galley>,
-    layouter: &mut dyn FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<Galley>,
+    layouter: &mut dyn FnMut(&Ui, &str, f32) -> Arc<Galley>,
     id: Id,
     wrap_width: f32,
     multiline: bool,
