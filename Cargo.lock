@@ -4438,6 +4438,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "text_validation"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "env_logger",
+]
+
+[[package]]
 name = "thiserror"
 version = "1.0.66"
 source = "registry+https://github.com/rust-lang/crates.io-index"
