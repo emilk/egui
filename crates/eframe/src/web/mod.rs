@@ -30,13 +30,9 @@ mod web_painter;
 
 #[cfg(feature = "glow")]
 mod web_painter_glow;
-#[cfg(feature = "glow")]
-pub(crate) type ActiveWebPainter = web_painter_glow::WebPainterGlow;
 
 #[cfg(feature = "wgpu")]
 mod web_painter_wgpu;
-#[cfg(all(feature = "wgpu", not(feature = "glow")))]
-pub(crate) type ActiveWebPainter = web_painter_wgpu::WebPainterWgpu;
 
 pub use backend::*;
 
