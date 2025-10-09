@@ -563,6 +563,10 @@ impl GlowWinitRunning<'_> {
             (raw_input, viewport_ui_cb)
         };
 
+        // HACK: In order to get the right clear_color, the system theme needs to be set, which
+        // usually only happens in the `update` call. So we call Options::begin_pass early
+        // to set the right theme. Without this there would be a black flash on the first frame.
+        self.integration.egui_ctx.options_mut(|opt| opt.begin_pass(&raw_input));
         let clear_color = self
             .app
             .clear_color(&self.integration.egui_ctx.style().visuals);
