@@ -14,6 +14,41 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.33.0 - 2025-10-09
+### ⭐ Added
+* Add `UiBuilder::global_scope` and `UiBuilder::id` [#7372](https://github.com/emilk/egui/pull/7372) by [@Icekey](https://github.com/Icekey)
+* Add `emath::fast_midpoint` [#7435](https://github.com/emilk/egui/pull/7435) by [@emilk](https://github.com/emilk)
+* Make the `hex_color` macro `const` [#7444](https://github.com/emilk/egui/pull/7444) by [@YgorSouza](https://github.com/YgorSouza)
+* Add `SurrenderFocusOn` option [#7471](https://github.com/emilk/egui/pull/7471) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Add `Memory::move_focus` [#7476](https://github.com/emilk/egui/pull/7476) by [@darkwater](https://github.com/darkwater)
+* Support on hover tooltip that is noninteractable even with interactable content [#5543](https://github.com/emilk/egui/pull/5543) by [@PPakalns](https://github.com/PPakalns)
+* Add rotation gesture support for trackpad sources [#7453](https://github.com/emilk/egui/pull/7453) by [@thatcomputerguy0101](https://github.com/thatcomputerguy0101)
+* New Plugin trait [#7385](https://github.com/emilk/egui/pull/7385) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Add `Ui::take_available_space()` helper function, which sets the Ui's minimum size to the available space [#7573](https://github.com/emilk/egui/pull/7573) by [@IsseW](https://github.com/IsseW)
+* Add support for the safe area on iOS [#7578](https://github.com/emilk/egui/pull/7578) by [@irh](https://github.com/irh)
+
+### 🔧 Changed
+* Document platform compatibility on `viewport::WindowLevel` and dependents [#7432](https://github.com/emilk/egui/pull/7432) by [@lkdm](https://github.com/lkdm)
+* Update MSRV to 1.86 [#7469](https://github.com/emilk/egui/pull/7469) by [@emilk](https://github.com/emilk)
+* Deprecated `ImageButton` and removed `WidgetType::ImageButton` [#7483](https://github.com/emilk/egui/pull/7483) by [@Stelios-Kourlis](https://github.com/Stelios-Kourlis)
+* More even text kerning [#7431](https://github.com/emilk/egui/pull/7431) by [@valadaptive](https://github.com/valadaptive)
+* Increase default text size from 12.5 to 13.0 [#7521](https://github.com/emilk/egui/pull/7521) by [@emilk](https://github.com/emilk)
+* Update accesskit to 0.21.0 [#7550](https://github.com/emilk/egui/pull/7550) by [@fundon](https://github.com/fundon)
+* Update MSRV from 1.86 to 1.88 [#7579](https://github.com/emilk/egui/pull/7579) by [@Wumpf](https://github.com/Wumpf)
+* Group AccessKit nodes by `Ui` [#7386](https://github.com/emilk/egui/pull/7386) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+### 🔥 Removed
+* Remove the `deadlock_detection` feature [#7497](https://github.com/emilk/egui/pull/7497) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Remove deprecated fields from `PlatformOutput` [#7523](https://github.com/emilk/egui/pull/7523) by [@emilk](https://github.com/emilk)
+* Remove `log` feature [#7583](https://github.com/emilk/egui/pull/7583) by [@emilk](https://github.com/emilk)
+
+### 🐛 Fixed
+* Enable `clippy::iter_over_hash_type` lint [#7421](https://github.com/emilk/egui/pull/7421) by [@emilk](https://github.com/emilk)
+* Fixes sense issues in TextEdit when vertical alignment is used [#7436](https://github.com/emilk/egui/pull/7436) by [@RndUsr123](https://github.com/RndUsr123)
+* Fix stuck menu when submenu vanishes [#7589](https://github.com/emilk/egui/pull/7589) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Change Spinner widget to account for width as well as height [#7560](https://github.com/emilk/egui/pull/7560) by [@bryceberger](https://github.com/bryceberger)
+
+
 ## 0.32.3 - 2025-09-12
 * Preserve text format in truncated label tooltip [#7514](https://github.com/emilk/egui/pull/7514) [#7535](https://github.com/emilk/egui/pull/7535) by [@lucasmerlin](https://github.com/lucasmerlin)
 * Fix `TextEdit`'s in RTL layouts [#5547](https://github.com/emilk/egui/pull/5547) by [@zakarumych](https://github.com/zakarumych)
