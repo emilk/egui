@@ -101,6 +101,10 @@ web_screen_reader = [
 ## There is generally no need to enable both the `wgpu` and `glow` features,
 ## but if you do you can pick the renderer to use with [`NativeOptions::renderer`].
 ##
+## Switching from `wgpu (the default)` to `glow` can significantly reduce your binary size
+## (including the .wasm of a web app).
+## See <https://github.com/emilk/egui/issues/5889> for more details.
+##
 ## By default, only WebGPU is enabled on web.
 ## If you want to enable WebGL, you need to turn on the `webgl` feature of crate `wgpu`:
 ##
