@@ -12,32 +12,14 @@
         "target_wasm/**": true,
         "target/**": true,
     },
-    // Tell Rust Analyzer to use its own target directory, so we don't need to wait for it to finish wen we want to `cargo run`
-    "rust-analyzer.check.overrideCommand": [
-        "cargo",
-        "clippy",
-        "--target-dir=target_ra",
-        "--workspace",
-        "--message-format=json",
-        "--all-targets",
-        "--all-features",
-    ],
-    "rust-analyzer.cargo.buildScripts.overrideCommand": [
-        "cargo",
-        "clippy",
-        "--quiet",
-        "--target-dir=target_ra",
-        "--workspace",
-        "--message-format=json",
-        "--all-targets",
-        "--all-features",
-    ],
+    "rust-analyzer.check.command": "clippy",
+    // Whether `--workspace` should be passed to `cargo check`. If false, `-p <package>` will be passed instead.
+    "rust-analyzer.check.workspace": false,
+    "rust-analyzer.cargo.allTargets": true,
+    "rust-analyzer.cargo.features": "all",
+    // Use a separate target directory for Rust Analyzer so it doesn't prevent cargo/clippy from doing things.
+    "rust-analyzer.cargo.targetDir": "target_ra",
     "rust-analyzer.showUnlinkedFileNotification": false,
-    "rust-analyzer.cargo.extraEnv": {
-        // rust-analyzer is only guaranteed to support the latest stable version of Rust. Use it instead of whatever is
-        // specified in rust-toolchain.
-        "RUSTUP_TOOLCHAIN": "stable"
-    },
     // Uncomment the following options and restart rust-analyzer to get it to check code behind `cfg(target_arch=wasm32)`.
     // Don't forget to put it in a comment again before committing.
     // "rust-analyzer.cargo.target": "wasm32-unknown-unknown",
