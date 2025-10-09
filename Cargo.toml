@@ -97,7 +97,7 @@ glutin-winit = { version = "0.5.0", default-features = false }
 home = "0.5.9"
 image = { version = "0.25.6", default-features = false }
 js-sys = "0.3.77"
-kittest = { version = "0.2.0", git = "https://github.com/rerun-io/kittest.git" }
+kittest = { version = "0.3.0" }
 log = { version = "0.4.28", features = ["std"] }
 memoffset = "0.9.1"
 mimalloc = "0.1.48"
