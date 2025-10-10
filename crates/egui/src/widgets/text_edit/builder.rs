@@ -821,6 +821,9 @@ impl<Value: TextType> TextEdit<'_, Value> {
         }
 
         if response.lost_focus() || response.clicked_elsewhere() {
+            // TODO(tye-exe): Parsing can be skipped if the text has not changed
+            // since the value is updated in real time.
+            // However, the reason for parsing failure would not get logged.
             match Value::read_from_strings(&prev_text, &text) {
                 Some(Ok(var)) => *represents = var,
                 // TODO(tye-exe): Is this log useful?
@@ -836,6 +839,11 @@ impl<Value: TextType> TextEdit<'_, Value> {
         }
 
         if response.changed() {
+            // Update represented value if the current state is valid
+            if let Some(Ok(var)) = Value::read_from_strings(&prev_text, &text) {
+                *represents = var
+            };
+
             response.widget_info(|| {
                 WidgetInfo::text_edit(
                     ui.is_enabled(),
