@@ -594,10 +594,7 @@ fn blending_and_feathering_test(ui: &mut Ui) {
     painter.rect_filled(bottom_half, 0.0, Color32::WHITE);
     paint_fine_lines_and_text(&painter, bottom_half, Color32::BLACK);
 
-    // Slight variation between GitHub Actions runners and local machines makes 1.25 to fail.
-    if ui.ctx().pixels_per_point() != 1.25 {
-        feathering_of_sharp_edges_test(ui);
-    }
+    feathering_of_sharp_edges_test(ui);
 }
 
 fn feathering_of_sharp_edges_test(ui: &mut Ui) {
