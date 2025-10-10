@@ -823,7 +823,7 @@ impl<Value: TextType> TextEdit<'_, Value> {
         if response.lost_focus() || response.clicked_elsewhere() {
             match Value::read_from_strings(&prev_text, &text) {
                 Some(Ok(var)) => *represents = var,
-                // TODO(tye): Is this log useful?
+                // TODO(tye-exe): Is this log useful?
                 Some(Err(err)) => {
                     log::info!("Failed to parse value for text edit: {err}");
                 }
