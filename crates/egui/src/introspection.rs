@@ -141,7 +141,7 @@ impl Widget for &mut epaint::TessellationOptions {
             let epaint::TessellationOptions {
                 feathering,
                 feathering_size_in_pixels,
-                max_feathering_normal_length_sq,
+                max_feathering_normal_length,
                 coarse_tessellation_culling,
                 prerasterized_discs,
                 round_text_to_pixels,
@@ -167,7 +167,7 @@ impl Widget for &mut epaint::TessellationOptions {
 
             ui.horizontal(|ui| {
                 ui.label("Max feathering normal length").on_hover_text("Limit the length of the normals used for feathering to avoid artifacts on very sharp corners.");
-                ui.add(crate::DragValue::new(max_feathering_normal_length_sq).range(0.0..=100000.0).speed(10.0).suffix(" px"));
+                ui.add(crate::DragValue::new(max_feathering_normal_length).range(0.0..=1000.0).suffix(" px"));
             });
 
             ui.checkbox(prerasterized_discs, "Speed up filled circles with pre-rasterization");
