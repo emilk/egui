@@ -19,7 +19,7 @@ use crate::{
 
 use super::{TextEditOutput, TextEditState, backer::TextType};
 
-type LayouterFn<'t> = &'t mut dyn FnMut(&Ui, &str, f32) -> Arc<Galley>;
+type LayouterFn<'t> = &'t mut dyn FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<Galley>;
 
 /// A text region that the user can edit the contents of.
 ///
@@ -274,7 +274,10 @@ impl<'t, Value: TextType> TextEdit<'t, Value> {
     /// # });
     /// ```
     #[inline]
-    pub fn layouter(mut self, layouter: &'t mut dyn FnMut(&Ui, &str, f32) -> Arc<Galley>) -> Self {
+    pub fn layouter(
+        mut self,
+        layouter: &'t mut dyn FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<Galley>,
+    ) -> Self {
         self.layouter = Some(layouter);
         self
     }
@@ -528,8 +531,8 @@ impl<Value: TextType> TextEdit<'_, Value> {
         };
 
         let font_id_clone = font_id.clone();
-        let mut default_layouter = move |ui: &Ui, text: &str, wrap_width: f32| {
-            let text = mask_if_password(password, text);
+        let mut default_layouter = move |ui: &Ui, text: &dyn TextBuffer, wrap_width: f32| {
+            let text = mask_if_password(password, text.as_str());
             let layout_job = if multiline {
                 LayoutJob::simple(text, font_id_clone.clone(), text_color, wrap_width)
             } else {
@@ -929,7 +932,7 @@ fn events(
     state: &mut TextEditState,
     text: &mut String,
     galley: &mut Arc<Galley>,
-    layouter: &mut dyn FnMut(&Ui, &str, f32) -> Arc<Galley>,
+    layouter: &mut dyn FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<Galley>,
     id: Id,
     wrap_width: f32,
     multiline: bool,
