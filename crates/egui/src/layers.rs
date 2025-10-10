@@ -154,7 +154,6 @@ impl PaintList {
     #[inline(always)]
     pub fn set(&mut self, idx: ShapeIdx, clip_rect: Rect, shape: Shape) {
         if self.0.len() <= idx.0 {
-            #[cfg(feature = "log")]
             log::warn!("Index {} is out of bounds for PaintList", idx.0);
             return;
         }
@@ -236,15 +235,15 @@ impl GraphicLayers {
 
             // First do the layers part of area_order:
             for layer_id in area_order {
-                if layer_id.order == order {
-                    if let Some(list) = order_map.get_mut(&layer_id.id) {
-                        if let Some(to_global) = to_global.get(layer_id) {
-                            for clipped_shape in &mut list.0 {
-                                clipped_shape.transform(*to_global);
-                            }
+                if layer_id.order == order
+                    && let Some(list) = order_map.get_mut(&layer_id.id)
+                {
+                    if let Some(to_global) = to_global.get(layer_id) {
+                        for clipped_shape in &mut list.0 {
+                            clipped_shape.transform(*to_global);
                         }
-                        all_shapes.append(&mut list.0);
                     }
+                    all_shapes.append(&mut list.0);
                 }
             }
 

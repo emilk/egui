@@ -113,13 +113,11 @@ pub fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<LayoutJob>)
 
     let mut elided = false;
     let mut rows = rows_from_paragraphs(paragraphs, &job, &mut elided);
-    if elided {
-        if let Some(last_placed) = rows.last_mut() {
-            let last_row = Arc::make_mut(&mut last_placed.row);
-            replace_last_glyph_with_overflow_character(fonts, pixels_per_point, &job, last_row);
-            if let Some(last) = last_row.glyphs.last() {
-                last_row.size.x = last.max_x();
-            }
+    if elided && let Some(last_placed) = rows.last_mut() {
+        let last_row = Arc::make_mut(&mut last_placed.row);
+        replace_last_glyph_with_overflow_character(fonts, pixels_per_point, &job, last_row);
+        if let Some(last) = last_row.glyphs.last() {
+            last_row.size.x = last.max_x();
         }
     }
 

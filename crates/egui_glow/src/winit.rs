@@ -89,7 +89,7 @@ impl EguiGlow {
                 &mut actions_requested,
             );
             for action in actions_requested {
-                log::warn!("{:?} not yet supported by EguiGlow", action);
+                log::warn!("{action:?} not yet supported by EguiGlow");
             }
         }
 

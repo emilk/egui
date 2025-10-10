@@ -67,10 +67,9 @@ impl crate::View for ClipboardTest {
 
             if let Ok(egui::load::ImagePoll::Ready { image }) =
                 ui.ctx().try_load_image(&uri, Default::default())
+                && ui.button("📋").clicked()
             {
-                if ui.button("📋").clicked() {
-                    ui.ctx().copy_image((*image).clone());
-                }
+                ui.ctx().copy_image((*image).clone());
             }
         });
 

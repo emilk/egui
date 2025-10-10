@@ -56,24 +56,24 @@ impl Application {
 
 impl eframe::App for Application {
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
-        if let Some(request_at) = self.request_at {
-            if request_at < SystemTime::now() {
-                self.request_at = None;
-                ctx.send_viewport_cmd(egui::ViewportCommand::RequestUserAttention(self.attention));
-                if self.auto_reset {
-                    self.auto_reset = false;
-                    self.reset_at = Some(SystemTime::now() + Self::attention_reset_timeout());
-                }
+        if let Some(request_at) = self.request_at
+            && request_at < SystemTime::now()
+        {
+            self.request_at = None;
+            ctx.send_viewport_cmd(egui::ViewportCommand::RequestUserAttention(self.attention));
+            if self.auto_reset {
+                self.auto_reset = false;
+                self.reset_at = Some(SystemTime::now() + Self::attention_reset_timeout());
             }
         }
 
-        if let Some(reset_at) = self.reset_at {
-            if reset_at < SystemTime::now() {
-                self.reset_at = None;
-                ctx.send_viewport_cmd(egui::ViewportCommand::RequestUserAttention(
-                    UserAttentionType::Reset,
-                ));
-            }
+        if let Some(reset_at) = self.reset_at
+            && reset_at < SystemTime::now()
+        {
+            self.reset_at = None;
+            ctx.send_viewport_cmd(egui::ViewportCommand::RequestUserAttention(
+                UserAttentionType::Reset,
+            ));
         }
 
         CentralPanel::default().show(ctx, |ui| {

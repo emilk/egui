@@ -14,10 +14,10 @@ pub struct AppTitleIconSetter {
 
 impl AppTitleIconSetter {
     pub fn new(title: String, mut icon_data: Option<Arc<IconData>>) -> Self {
-        if let Some(icon) = &icon_data {
-            if **icon == IconData::default() {
-                icon_data = None;
-            }
+        if let Some(icon) = &icon_data
+            && **icon == IconData::default()
+        {
+            icon_data = None;
         }
 
         Self {
@@ -275,13 +275,12 @@ fn set_title_and_icon_mac(title: &str, icon_data: Option<&IconData>) -> AppIconS
         }
 
         // Change the title in the top bar - for python processes this would be again "python" otherwise.
-        if let Some(main_menu) = app.mainMenu() {
-            if let Some(item) = main_menu.itemAtIndex(0) {
-                if let Some(app_menu) = item.submenu() {
-                    profiling::scope!("setTitle_");
-                    app_menu.setTitle(&NSString::from_str(title));
-                }
-            }
+        if let Some(main_menu) = app.mainMenu()
+            && let Some(item) = main_menu.itemAtIndex(0)
+            && let Some(app_menu) = item.submenu()
+        {
+            profiling::scope!("setTitle_");
+            app_menu.setTitle(&NSString::from_str(title));
         }
 
         // The title in the Dock apparently can't be changed.

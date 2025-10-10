@@ -11,13 +11,7 @@ readme = "README.md"
 repository = "https://github.com/emilk/egui/tree/main/crates/egui_glow"
 categories = ["gui", "game-development"]
 keywords = ["glow", "egui", "gui", "gamedev"]
-include = [
-  "../LICENSE-APACHE",
-  "../LICENSE-MIT",
-  "**/*.rs",
-  "Cargo.toml",
-  "src/shader/*.glsl",
-]
+include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml", "src/shader/*.glsl"]
 
 [lints]
 workspace = true
@@ -56,7 +50,7 @@ egui-winit = { workspace = true, optional = true, default-features = false }
 bytemuck.workspace = true
 glow.workspace = true
 log.workspace = true
-memoffset = "0.9"
+memoffset.workspace = true
 profiling.workspace = true
 
 #! ### Optional dependencies
@@ -73,7 +67,7 @@ wasm-bindgen.workspace = true
 
 
 [dev-dependencies]
-glutin = { workspace = true, default-features = true }       # examples/pure_glow
+glutin = { workspace = true, default-features = true } # examples/pure_glow
 glutin-winit = { workspace = true, default-features = true }
 
 [[example]]

@@ -463,7 +463,6 @@ impl CachedFamily {
             .glyph_info_no_cache_or_fallback(PRIMARY_REPLACEMENT_CHAR, fonts_by_id)
             .or_else(|| slf.glyph_info_no_cache_or_fallback(FALLBACK_REPLACEMENT_CHAR, fonts_by_id))
             .unwrap_or_else(|| {
-                #[cfg(feature = "log")]
                 log::warn!(
                     "Failed to find replacement characters {PRIMARY_REPLACEMENT_CHAR:?} or {FALLBACK_REPLACEMENT_CHAR:?}. Will use empty glyph."
                 );
@@ -914,7 +913,7 @@ impl GalleyCache {
                     debug_assert_eq!(
                         child_hashes.len(),
                         child_galleys.len(),
-                        "Bug in `layout_each_paragraph_individuallly`"
+                        "Bug in `layout_each_paragraph_individually`"
                     );
                     let galley = Arc::new(Galley::concat(job, &child_galleys, pixels_per_point));
 

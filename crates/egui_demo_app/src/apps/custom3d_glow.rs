@@ -91,10 +91,7 @@ impl RotatingTriangle {
             let program = gl.create_program().expect("Cannot create program");
 
             if !shader_version.is_new_shader_interface() {
-                log::warn!(
-                    "Custom 3D painting hasn't been ported to {:?}",
-                    shader_version
-                );
+                log::warn!("Custom 3D painting hasn't been ported to {shader_version:?}");
                 return None;
             }
 

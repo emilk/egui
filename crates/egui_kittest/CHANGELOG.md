@@ -6,6 +6,24 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.33.0 - 2025-10-09
+### ⭐ Added
+* Kittest: Add `UPDATE_SNAPSHOTS=force` [#7508](https://github.com/emilk/egui/pull/7508) by [@emilk](https://github.com/emilk)
+* Add `egui_kittest::HarnessBuilder::with_os` and set the default to `Nix` [#7493](https://github.com/emilk/egui/pull/7493) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Add `Harness::debug_open_snapshot` helper [#7590](https://github.com/emilk/egui/pull/7590) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+### 🔧 Changed
+* Include popups and tooltips in `Harness::fit_contents` [#7556](https://github.com/emilk/egui/pull/7556) by [@oxkitsune](https://github.com/oxkitsune)
+* Adjust when we write .diff and .new snapshot images [#7571](https://github.com/emilk/egui/pull/7571) by [@emilk](https://github.com/emilk)
+* Update MSRV from 1.86 to 1.88 [#7579](https://github.com/emilk/egui/pull/7579) by [@Wumpf](https://github.com/Wumpf)
+* `Harness`: Add `remove_cursor`,  `event` and `event_modifiers` [#7607](https://github.com/emilk/egui/pull/7607) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Use software texture filtering in kittest [#7602](https://github.com/emilk/egui/pull/7602) by [@emilk](https://github.com/emilk)
+* Write .new.png file if snapshot is missing [#7610](https://github.com/emilk/egui/pull/7610) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+### 🔥 Removed
+* Remove deprecated `Harness::wgpu_snapshot` and related fns [#7504](https://github.com/emilk/egui/pull/7504) by [@bircni](https://github.com/bircni)
+
+
 ## 0.32.3 - 2025-09-12
 Nothing new
 

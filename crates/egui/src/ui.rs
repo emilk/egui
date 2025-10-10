@@ -133,6 +133,8 @@ impl Ui {
             sizing_pass,
             style,
             sense,
+            #[cfg(feature = "accesskit")]
+            accessibility_parent,
         } = ui_builder;
 
         let layer_id = layer_id.unwrap_or(LayerId::background());
@@ -142,7 +144,7 @@ impl Ui {
             "Top-level Ui:s should not have an id_salt"
         );
 
-        let max_rect = max_rect.unwrap_or_else(|| ctx.screen_rect());
+        let max_rect = max_rect.unwrap_or_else(|| ctx.content_rect());
         let clip_rect = max_rect;
         let layout = layout.unwrap_or_default();
         let disabled = disabled || invisible;
@@ -173,6 +175,12 @@ impl Ui {
             min_rect_already_remembered: false,
         };
 
+        #[cfg(feature = "accesskit")]
+        if let Some(accessibility_parent) = accessibility_parent {
+            ui.ctx()
+                .register_accesskit_parent(ui.unique_id, accessibility_parent);
+        }
+
         // Register in the widget stack early, to ensure we are behind all widgets we contain:
         let start_rect = Rect::NOTHING; // This will be overwritten when `remember_min_rect` is called
         ui.ctx().create_widget(
@@ -193,6 +201,11 @@ impl Ui {
         if invisible {
             ui.set_invisible();
         }
+
+        #[cfg(feature = "accesskit")]
+        ui.ctx().accesskit_node_builder(ui.unique_id, |node| {
+            node.set_role(accesskit::Role::GenericContainer);
+        });
 
         ui
     }
@@ -260,6 +273,8 @@ impl Ui {
             sizing_pass,
             style,
             sense,
+            #[cfg(feature = "accesskit")]
+            accessibility_parent,
         } = ui_builder;
 
         let mut painter = self.painter.clone();
@@ -328,6 +343,12 @@ impl Ui {
             child_ui.disable();
         }
 
+        #[cfg(feature = "accesskit")]
+        child_ui.ctx().register_accesskit_parent(
+            child_ui.unique_id,
+            accessibility_parent.unwrap_or(self.unique_id),
+        );
+
         // Register in the widget stack early, to ensure we are behind all widgets we contain:
         let start_rect = Rect::NOTHING; // This will be overwritten when `remember_min_rect` is called
         child_ui.ctx().create_widget(
@@ -341,6 +362,13 @@ impl Ui {
             },
             true,
         );
+
+        #[cfg(feature = "accesskit")]
+        child_ui
+            .ctx()
+            .accesskit_node_builder(child_ui.unique_id, |node| {
+                node.set_role(accesskit::Role::GenericContainer);
+            });
 
         child_ui
     }
@@ -944,6 +972,30 @@ impl Ui {
         self.placer.set_min_height(height);
     }
 
+    /// Makes the ui always fill up the available space.
+    ///
+    /// This can be useful to call inside a panel with `resizable == true`
+    /// to make sure the resized space is used.
+    pub fn take_available_space(&mut self) {
+        self.set_min_size(self.available_size());
+    }
+
+    /// Makes the ui always fill up the available space in the x axis.
+    ///
+    /// This can be useful to call inside a side panel with
+    /// `resizable == true` to make sure the resized space is used.
+    pub fn take_available_width(&mut self) {
+        self.set_min_width(self.available_width());
+    }
+
+    /// Makes the ui always fill up the available space in the y axis.
+    ///
+    /// This can be useful to call inside a top bottom panel with
+    /// `resizable == true` to make sure the resized space is used.
+    pub fn take_available_height(&mut self) {
+        self.set_min_height(self.available_height());
+    }
+
     // ------------------------------------------------------------------------
 
     /// Helper: shrinks the max width to the current width,
@@ -1077,6 +1129,9 @@ impl Ui {
 impl Ui {
     /// Check for clicks, drags and/or hover on a specific region of this [`Ui`].
     pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> Response {
+        #[cfg(feature = "accesskit")]
+        self.ctx().register_accesskit_parent(id, self.unique_id);
+
         self.ctx().create_widget(
             WidgetRect {
                 id,
@@ -1224,7 +1279,6 @@ impl Ui {
         if let Some(tag) = tag {
             tag.set_close();
         } else {
-            #[cfg(feature = "log")]
             log::warn!("Called ui.close() on a Ui that has no closable parent.");
         }
     }
@@ -1253,7 +1307,6 @@ impl Ui {
         if let Some(tag) = tag {
             tag.set_close();
         } else {
-            #[cfg(feature = "log")]
             log::warn!("Called ui.close_kind({ui_kind:?}) on ui with no such closable parent.");
         }
     }

@@ -72,7 +72,7 @@ impl DebugTextPlugin {
         // Show debug-text next to the cursor.
         let mut pos = ctx
             .input(|i| i.pointer.latest_pos())
-            .unwrap_or_else(|| ctx.screen_rect().center())
+            .unwrap_or_else(|| ctx.content_rect().center())
             + 8.0 * Vec2::Y;
 
         let painter = ctx.debug_painter();
@@ -96,7 +96,7 @@ impl DebugTextPlugin {
 
             {
                 // Paint `text` to right of `pos`:
-                let available_width = ctx.screen_rect().max.x - pos.x;
+                let available_width = ctx.content_rect().max.x - pos.x;
                 let galley = text.into_galley_impl(
                     ctx,
                     &ctx.style(),

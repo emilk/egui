@@ -181,3 +181,36 @@ fn test_masking() {
 
     harness.snapshot("test_masking");
 }
+
+#[test]
+fn test_remove_cursor() {
+    let hovered = false;
+    let mut harness = Harness::new_ui_state(
+        |ui, state| {
+            let response = ui.button("Click me");
+            *state = response.hovered();
+        },
+        hovered,
+    );
+
+    harness.fit_contents();
+
+    harness.get_by_label("Click me").click();
+    harness.run();
+
+    assert!(harness.state(), "The button should be hovered");
+    let hovered_button_snapshot = harness.render().expect("Failed to render");
+
+    harness.remove_cursor();
+    harness.run();
+    assert!(
+        !harness.state(),
+        "The button should not be hovered after removing cursor"
+    );
+
+    let non_hovered_button_snapshot = harness.render().expect("Failed to render");
+    assert_ne!(
+        hovered_button_snapshot, non_hovered_button_snapshot,
+        "The button appearance should change"
+    );
+}

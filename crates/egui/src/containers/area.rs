@@ -436,7 +436,7 @@ impl Area {
             sizing_pass: force_sizing_pass,
         } = self;
 
-        let constrain_rect = constrain_rect.unwrap_or_else(|| ctx.screen_rect());
+        let constrain_rect = constrain_rect.unwrap_or_else(|| ctx.content_rect());
 
         let layer_id = LayerId::new(order, id);
 
@@ -525,10 +525,11 @@ impl Area {
                 true,
             );
 
-            if movable && move_response.dragged() {
-                if let Some(pivot_pos) = &mut state.pivot_pos {
-                    *pivot_pos += move_response.drag_delta();
-                }
+            if movable
+                && move_response.dragged()
+                && let Some(pivot_pos) = &mut state.pivot_pos
+            {
+                *pivot_pos += move_response.drag_delta();
             }
 
             if (move_response.dragged() || move_response.clicked())
@@ -594,6 +595,7 @@ impl Prepared {
             .layer_id(self.layer_id)
             .max_rect(max_rect)
             .layout(self.layout)
+            .accessibility_parent(self.move_response.id)
             .closable();
 
         if !self.enabled {
@@ -606,16 +608,16 @@ impl Prepared {
         let mut ui = Ui::new(ctx.clone(), self.layer_id.id, ui_builder);
         ui.set_clip_rect(self.constrain_rect); // Don't paint outside our bounds
 
-        if self.fade_in {
-            if let Some(last_became_visible_at) = self.state.last_became_visible_at {
-                let age =
-                    ctx.input(|i| (i.time - last_became_visible_at) as f32 + i.predicted_dt / 2.0);
-                let opacity = crate::remap_clamp(age, 0.0..=ctx.style().animation_time, 0.0..=1.0);
-                let opacity = emath::easing::quadratic_out(opacity); // slow fade-out = quick fade-in
-                ui.multiply_opacity(opacity);
-                if opacity < 1.0 {
-                    ctx.request_repaint();
-                }
+        if self.fade_in
+            && let Some(last_became_visible_at) = self.state.last_became_visible_at
+        {
+            let age =
+                ctx.input(|i| (i.time - last_became_visible_at) as f32 + i.predicted_dt / 2.0);
+            let opacity = crate::remap_clamp(age, 0.0..=ctx.style().animation_time, 0.0..=1.0);
+            let opacity = emath::easing::quadratic_out(opacity); // slow fade-out = quick fade-in
+            ui.multiply_opacity(opacity);
+            if opacity < 1.0 {
+                ctx.request_repaint();
             }
         }
 

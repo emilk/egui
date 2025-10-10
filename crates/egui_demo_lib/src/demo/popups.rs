@@ -20,6 +20,19 @@ pub struct PopupsDemo {
     color: egui::Color32,
 }
 
+impl Default for PopupsDemo {
+    fn default() -> Self {
+        Self {
+            align4: RectAlign::default(),
+            gap: 4.0,
+            close_behavior: PopupCloseBehavior::CloseOnClick,
+            popup_open: false,
+            checked: true,
+            color: egui::Color32::RED,
+        }
+    }
+}
+
 impl PopupsDemo {
     fn apply_options<'a>(&self, popup: Popup<'a>) -> Popup<'a> {
         popup
@@ -95,23 +108,18 @@ impl PopupsDemo {
                     color_picker_color32(ui, &mut self.color, Alpha::Opaque);
                 });
 
+                if self.checked {
+                    ui.menu_button("Only visible when checked", |ui| {
+                        if ui.button("Remove myself").clicked() {
+                            self.checked = false;
+                        }
+                    });
+                }
+
                 if ui.button("Open…").clicked() {
                     ui.close();
                 }
             });
-    }
-}
-
-impl Default for PopupsDemo {
-    fn default() -> Self {
-        Self {
-            align4: RectAlign::default(),
-            gap: 4.0,
-            close_behavior: PopupCloseBehavior::CloseOnClick,
-            popup_open: false,
-            checked: false,
-            color: egui::Color32::RED,
-        }
     }
 }
 

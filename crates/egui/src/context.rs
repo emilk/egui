@@ -17,10 +17,10 @@ use epaint::{
 use crate::{
     Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, Grid, Id, ImmediateViewport,
     ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId, Memory,
-    ModifierNames, Modifiers, NumExt as _, Order, Painter, Plugin, RawInput, Response, RichText,
-    ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions, Ui, ViewportBuilder,
-    ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput,
-    Widget as _, WidgetRect, WidgetText,
+    ModifierNames, Modifiers, NumExt as _, Order, Painter, RawInput, Response, RichText,
+    SafeAreaInsets, ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions, Ui,
+    ViewportBuilder, ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet,
+    ViewportOutput, Widget as _, WidgetRect, WidgetText,
     animation_manager::AnimationManager,
     containers::{self, area::AreaState},
     data::output::PlatformOutput,
@@ -374,6 +374,7 @@ struct ContextImpl {
     animation_manager: AnimationManager,
 
     plugins: plugin::Plugins,
+    safe_area: SafeAreaInsets,
 
     /// All viewports share the same texture manager and texture namespace.
     ///
@@ -419,6 +420,10 @@ impl ContextImpl {
             .unwrap_or_default();
         let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent_id);
 
+        if let Some(safe_area) = new_raw_input.safe_area_insets {
+            self.safe_area = safe_area;
+        }
+
         let is_outermost_viewport = self.viewport_stack.is_empty(); // not necessarily root, just outermost immediate viewport
         self.viewport_stack.push(ids);
 
@@ -426,20 +431,18 @@ impl ContextImpl {
 
         let viewport = self.viewports.entry(viewport_id).or_default();
 
-        if is_outermost_viewport {
-            if let Some(new_zoom_factor) = self.new_zoom_factor.take() {
-                let ratio = self.memory.options.zoom_factor / new_zoom_factor;
-                self.memory.options.zoom_factor = new_zoom_factor;
+        if is_outermost_viewport && let Some(new_zoom_factor) = self.new_zoom_factor.take() {
+            let ratio = self.memory.options.zoom_factor / new_zoom_factor;
+            self.memory.options.zoom_factor = new_zoom_factor;
 
-                let input = &viewport.input;
-                // This is a bit hacky, but is required to avoid jitter:
-                let mut rect = input.screen_rect;
-                rect.min = (ratio * rect.min.to_vec2()).to_pos2();
-                rect.max = (ratio * rect.max.to_vec2()).to_pos2();
-                new_raw_input.screen_rect = Some(rect);
-                // We should really scale everything else in the input too,
-                // but the `screen_rect` is the most important part.
-            }
+            let input = &viewport.input;
+            // This is a bit hacky, but is required to avoid jitter:
+            let mut rect = input.content_rect();
+            rect.min = (ratio * rect.min.to_vec2()).to_pos2();
+            rect.max = (ratio * rect.max.to_vec2()).to_pos2();
+            new_raw_input.screen_rect = Some(rect);
+            // We should really scale everything else in the input too,
+            // but the `screen_rect` is the most important part.
         }
         let native_pixels_per_point = new_raw_input
             .viewport()
@@ -461,9 +464,9 @@ impl ContextImpl {
         );
         let repaint_after = viewport.input.wants_repaint_after();
 
-        let screen_rect = viewport.input.screen_rect;
+        let content_rect = viewport.input.content_rect();
 
-        viewport.this_pass.begin_pass(screen_rect);
+        viewport.this_pass.begin_pass(content_rect);
 
         {
             let mut layers: Vec<LayerId> = viewport.prev_pass.widgets.layer_ids().collect();
@@ -496,9 +499,9 @@ impl ContextImpl {
         self.memory.areas_mut().set_state(
             LayerId::background(),
             AreaState {
-                pivot_pos: Some(screen_rect.left_top()),
+                pivot_pos: Some(content_rect.left_top()),
                 pivot: Align2::LEFT_TOP,
-                size: Some(screen_rect.size()),
+                size: Some(content_rect.size()),
                 interactable: true,
                 last_became_visible_at: None,
             },
@@ -516,7 +519,7 @@ impl ContextImpl {
             nodes.insert(id, root_node);
             viewport.this_pass.accesskit_state = Some(AccessKitPassState {
                 nodes,
-                parent_stack: vec![id],
+                parent_map: IdMap::default(),
             });
         }
 
@@ -537,7 +540,7 @@ impl ContextImpl {
             // New font definition loaded, so we need to reload all fonts.
             self.fonts = None;
             self.font_definitions = font_definitions;
-            #[cfg(feature = "log")]
+
             log::trace!("Loading new font definitions");
         }
 
@@ -561,7 +564,6 @@ impl ContextImpl {
                     .insert(font.name, Arc::new(font.data));
             }
 
-            #[cfg(feature = "log")]
             log::trace!("Adding new fonts");
         }
 
@@ -570,7 +572,6 @@ impl ContextImpl {
         let mut is_new = false;
 
         let fonts = self.fonts.get_or_insert_with(|| {
-            #[cfg(feature = "log")]
             log::trace!("Creating new Fonts");
 
             is_new = true;
@@ -594,8 +595,28 @@ impl ContextImpl {
         let builders = &mut state.nodes;
         if let std::collections::hash_map::Entry::Vacant(entry) = builders.entry(id) {
             entry.insert(Default::default());
-            let parent_id = state.parent_stack.last().unwrap();
-            let parent_builder = builders.get_mut(parent_id).unwrap();
+
+            /// Find the first ancestor that already has an accesskit node.
+            fn find_accesskit_parent(
+                parent_map: &IdMap<Id>,
+                node_map: &IdMap<accesskit::Node>,
+                id: Id,
+            ) -> Option<Id> {
+                if let Some(parent_id) = parent_map.get(&id) {
+                    if node_map.contains_key(parent_id) {
+                        Some(*parent_id)
+                    } else {
+                        find_accesskit_parent(parent_map, node_map, *parent_id)
+                    }
+                } else {
+                    None
+                }
+            }
+
+            let parent_id = find_accesskit_parent(&state.parent_map, builders, id)
+                .unwrap_or(crate::accesskit_root_id());
+
+            let parent_builder = builders.get_mut(&parent_id).unwrap();
             parent_builder.push_child(id.accesskit_id());
         }
         builders.get_mut(&id).unwrap()
@@ -808,7 +829,6 @@ impl Context {
             }
 
             if max_passes <= output.platform_output.num_completed_passes {
-                #[cfg(feature = "log")]
                 log::debug!(
                     "Ignoring call request_discard, because max_passes={max_passes}. Requested from {:?}",
                     output.platform_output.request_discard_reasons
@@ -1080,14 +1100,14 @@ impl Context {
         }
 
         let show_error = |widget_rect: Rect, text: String| {
-            let screen_rect = self.screen_rect();
+            let content_rect = self.content_rect();
 
             let text = format!("🔥 {text}");
             let color = self.style().visuals.error_fg_color;
             let painter = self.debug_painter();
             painter.rect_stroke(widget_rect, 0.0, (1.0, color), StrokeKind::Outside);
 
-            let below = widget_rect.bottom() + 32.0 < screen_rect.bottom();
+            let below = widget_rect.bottom() + 32.0 < content_rect.bottom();
 
             let text_rect = if below {
                 painter.debug_text(
@@ -1105,15 +1125,16 @@ impl Context {
                 )
             };
 
-            if let Some(pointer_pos) = self.pointer_hover_pos() {
-                if text_rect.contains(pointer_pos) {
-                    let tooltip_pos = if below {
-                        text_rect.left_bottom() + vec2(2.0, 4.0)
-                    } else {
-                        text_rect.left_top() + vec2(2.0, -4.0)
-                    };
+            if let Some(pointer_pos) = self.pointer_hover_pos()
+                && text_rect.contains(pointer_pos)
+            {
+                let tooltip_pos = if below {
+                    text_rect.left_bottom() + vec2(2.0, 4.0)
+                } else {
+                    text_rect.left_top() + vec2(2.0, -4.0)
+                };
 
-                    painter.error(
+                painter.error(
                         tooltip_pos,
                         format!("Widget is {} this text.\n\n\
                              ID clashes happens when things like Windows or CollapsingHeaders share names,\n\
@@ -1121,7 +1142,6 @@ impl Context {
                              Sometimes the solution is to use ui.push_id.",
                                 if below { "above" } else { "below" }),
                     );
-                }
             }
         };
 
@@ -1253,10 +1273,10 @@ impl Context {
             widget_rect.map(|mut rect| {
                 // If the Rect is invalid the Ui hasn't registered its final Rect yet.
                 // We return the Rect from last frame instead.
-                if !(rect.rect.is_positive() && rect.rect.is_finite()) {
-                    if let Some(prev_rect) = viewport.prev_pass.widgets.get(id) {
-                        rect.rect = prev_rect.rect;
-                    }
+                if !(rect.rect.is_positive() && rect.rect.is_finite())
+                    && let Some(prev_rect) = viewport.prev_pass.widgets.get(id)
+                {
+                    rect.rect = prev_rect.rect;
                 }
                 rect
             })
@@ -1431,8 +1451,8 @@ impl Context {
 
     /// Get a full-screen painter for a new or existing layer
     pub fn layer_painter(&self, layer_id: LayerId) -> Painter {
-        let screen_rect = self.screen_rect();
-        Painter::new(self.clone(), layer_id, screen_rect)
+        let content_rect = self.content_rect();
+        Painter::new(self.clone(), layer_id, content_rect)
     }
 
     /// Paint on top of everything else
@@ -1821,7 +1841,6 @@ impl Context {
         let cause = RepaintCause::new_reason(reason);
         self.output_mut(|o| o.request_discard_reasons.push(cause));
 
-        #[cfg(feature = "log")]
         log::trace!(
             "request_discard: {}",
             if self.will_discard() {
@@ -1867,13 +1886,13 @@ impl Context {
         });
     }
 
-    /// Register a [`Plugin`]
+    /// Register a [`Plugin`](plugin::Plugin)
     ///
     /// Plugins are called in the order they are added.
     ///
     /// A plugin of the same type can only be added once (further calls with the same type will be ignored).
     /// This way it's convenient to add plugins in `eframe::run_simple_native`.
-    pub fn add_plugin(&self, plugin: impl Plugin + 'static) {
+    pub fn add_plugin(&self, plugin: impl plugin::Plugin + 'static) {
         let handle = plugin::PluginHandle::new(plugin);
 
         let added = self.write(|ctx| ctx.plugins.add(handle.clone()));
@@ -1886,7 +1905,10 @@ impl Context {
     /// Call the provided closure with the plugin of type `T`, if it was registered.
     ///
     /// Returns `None` if the plugin was not registered.
-    pub fn with_plugin<T: Plugin + 'static, R>(&self, f: impl FnOnce(&mut T) -> R) -> Option<R> {
+    pub fn with_plugin<T: plugin::Plugin + 'static, R>(
+        &self,
+        f: impl FnOnce(&mut T) -> R,
+    ) -> Option<R> {
         let plugin = self.read(|ctx| ctx.plugins.get(std::any::TypeId::of::<T>()));
         plugin.map(|plugin| f(plugin.lock().typed_plugin_mut()))
     }
@@ -1895,7 +1917,7 @@ impl Context {
     ///
     /// ## Panics
     /// If the plugin of type `T` was not registered, this will panic.
-    pub fn plugin<T: Plugin>(&self) -> TypedPluginHandle<T> {
+    pub fn plugin<T: plugin::Plugin>(&self) -> TypedPluginHandle<T> {
         if let Some(plugin) = self.plugin_opt() {
             plugin
         } else {
@@ -1904,13 +1926,13 @@ impl Context {
     }
 
     /// Get a handle to the plugin of type `T`, if it was registered.
-    pub fn plugin_opt<T: Plugin>(&self) -> Option<TypedPluginHandle<T>> {
+    pub fn plugin_opt<T: plugin::Plugin>(&self) -> Option<TypedPluginHandle<T>> {
         let plugin = self.read(|ctx| ctx.plugins.get(std::any::TypeId::of::<T>()));
         plugin.map(TypedPluginHandle::new)
     }
 
     /// Get a handle to the plugin of type `T`, or insert its default.
-    pub fn plugin_or_default<T: Plugin + Default>(&self) -> TypedPluginHandle<T> {
+    pub fn plugin_or_default<T: plugin::Plugin + Default>(&self) -> TypedPluginHandle<T> {
         if let Some(plugin) = self.plugin_opt() {
             plugin
         } else {
@@ -1961,14 +1983,13 @@ impl Context {
         let mut update_fonts = true;
 
         self.read(|ctx| {
-            if let Some(current_fonts) = ctx.fonts.as_ref() {
-                if current_fonts
+            if let Some(current_fonts) = ctx.fonts.as_ref()
+                && current_fonts
                     .definitions()
                     .font_data
                     .contains_key(&new_font.name)
-                {
-                    update_fonts = false; // no need to update
-                }
+            {
+                update_fonts = false; // no need to update
             }
         });
 
@@ -2504,6 +2525,7 @@ impl ContextImpl {
 
         if self.memory.options.repaint_on_widget_change {
             profiling::scope!("compare-widget-rects");
+            #[allow(clippy::allow_attributes, clippy::collapsible_if)] // false positive on wasm
             if viewport.prev_pass.widgets != viewport.this_pass.widgets {
                 repaint_needed = true; // Some widget has moved
             }
@@ -2528,7 +2550,6 @@ impl ContextImpl {
             let parent = *self.viewport_parents.entry(id).or_default();
 
             if !all_viewport_ids.contains(&parent) {
-                #[cfg(feature = "log")]
                 log::debug!(
                     "Removing viewport {:?} ({:?}): the parent is gone",
                     id,
@@ -2541,7 +2562,6 @@ impl ContextImpl {
             let is_our_child = parent == ended_viewport_id && id != ViewportId::ROOT;
             if is_our_child {
                 if !viewport.used {
-                    #[cfg(feature = "log")]
                     log::debug!(
                         "Removing viewport {:?} ({:?}): it was never used this pass",
                         id,
@@ -2640,7 +2660,6 @@ impl Context {
             let texture_atlas = if let Some(fonts) = ctx.fonts.as_ref() {
                 fonts.texture_atlas()
             } else {
-                #[cfg(feature = "log")]
                 log::warn!("No font size matching {pixels_per_point} pixels per point found.");
                 ctx.fonts
                     .iter()
@@ -2667,9 +2686,36 @@ impl Context {
 
     // ---------------------------------------------------------------------
 
+    /// Returns the position and size of the egui area that is safe for content rendering.
+    ///
+    /// Returns [`Self::viewport_rect`] minus areas that might be partially covered by, for example,
+    /// the OS status bar or display notches.
+    ///
+    /// If you want to render behind e.g. the dynamic island on iOS, use [`Self::viewport_rect`].
+    pub fn content_rect(&self) -> Rect {
+        self.input(|i| i.content_rect()).round_ui()
+    }
+
+    /// Returns the position and size of the full area available to egui
+    ///
+    /// This includes reas that might be partially covered by, for example, the OS status bar or
+    /// display notches. See [`Self::content_rect`] to get a rect that is safe for content.
+    ///
+    /// This rectangle includes e.g. the dynamic island on iOS.
+    /// If you want to only render _below_ the that (not behind), then you should use
+    /// [`Self::content_rect`] instead.
+    ///
+    /// See also [`RawInput::safe_area_insets`].
+    pub fn viewport_rect(&self) -> Rect {
+        self.input(|i| i.viewport_rect()).round_ui()
+    }
+
     /// Position and size of the egui area.
+    #[deprecated(
+        note = "screen_rect has been split into viewport_rect() and content_rect(). You likely should use content_rect()"
+    )]
     pub fn screen_rect(&self) -> Rect {
-        self.input(|i| i.screen_rect()).round_ui()
+        self.input(|i| i.content_rect()).round_ui()
     }
 
     /// How much space is still available after panels have been added.
@@ -3244,7 +3290,7 @@ impl Context {
                                 ui.image(SizedTexture::new(texture_id, size))
                                     .on_hover_ui(|ui| {
                                         // show larger on hover
-                                        let max_size = 0.5 * ui.ctx().screen_rect().size();
+                                        let max_size = 0.5 * ui.ctx().content_rect().size();
                                         let mut size = point_size;
                                         size *= max_size.x / size.x.max(max_size.x);
                                         size *= max_size.y / size.y.max(max_size.y);
@@ -3438,43 +3484,10 @@ impl Context {
 
 /// ## Accessibility
 impl Context {
-    /// Call the provided function with the given ID pushed on the stack of
-    /// parent IDs for accessibility purposes. If the `accesskit` feature
-    /// is disabled or if AccessKit support is not active for this frame,
-    /// the function is still called, but with no other effect.
-    ///
-    /// No locks are held while the given closure is called.
-    #[allow(clippy::unused_self, clippy::let_and_return, clippy::allow_attributes)]
-    #[inline]
-    pub fn with_accessibility_parent<R>(&self, _id: Id, f: impl FnOnce() -> R) -> R {
-        // TODO(emilk): this isn't thread-safe - another thread can call this function between the push/pop calls
-        #[cfg(feature = "accesskit")]
-        self.pass_state_mut(|fs| {
-            if let Some(state) = fs.accesskit_state.as_mut() {
-                state.parent_stack.push(_id);
-            }
-        });
-
-        let result = f();
-
-        #[cfg(feature = "accesskit")]
-        self.pass_state_mut(|fs| {
-            if let Some(state) = fs.accesskit_state.as_mut() {
-                assert_eq!(
-                    state.parent_stack.pop(),
-                    Some(_id),
-                    "Mismatched push/pop in with_accessibility_parent"
-                );
-            }
-        });
-
-        result
-    }
-
     /// If AccessKit support is active for the current frame, get or create
     /// a node builder with the specified ID and return a mutable reference to it.
-    /// For newly created nodes, the parent is the node with the ID at the top
-    /// of the stack managed by [`Context::with_accessibility_parent`].
+    /// For newly created nodes, the parent is the parent [`Ui`]s ID.
+    /// And an [`Ui`]s parent can be set with [`crate::UiBuilder::accessibility_parent`].
     ///
     /// The `Context` lock is held while the given closure is called!
     ///
@@ -3494,6 +3507,15 @@ impl Context {
                 .then(|| ctx.accesskit_node_builder(id))
                 .map(writer)
         })
+    }
+
+    #[cfg(feature = "accesskit")]
+    pub(crate) fn register_accesskit_parent(&self, id: Id, parent_id: Id) {
+        self.write(|ctx| {
+            if let Some(state) = ctx.viewport().this_pass.accesskit_state.as_mut() {
+                state.parent_map.insert(id, parent_id);
+            }
+        });
     }
 
     /// Enable generation of AccessKit tree updates in all future frames.

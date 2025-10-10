@@ -55,7 +55,7 @@ wayland = ["winit/wayland", "bytemuck"]
 x11 = ["winit/x11", "bytemuck"]
 
 [dependencies]
-egui = { workspace = true, default-features = false, features = ["log"] }
+egui = { workspace = true, default-features = false }
 
 log.workspace = true
 profiling.workspace = true
@@ -74,17 +74,30 @@ bytemuck = { workspace = true, optional = true }
 document-features = { workspace = true, optional = true }
 
 serde = { workspace = true, optional = true }
-webbrowser = { version = "1.0.0", optional = true }
+webbrowser = { workspace = true, optional = true }
+
+[target.'cfg(target_os = "ios")'.dependencies]
+objc2.workspace = true
+objc2-foundation = { workspace = true, features = ["std", "NSThread"] }
+objc2-ui-kit = { workspace = true, features = [
+  "std",
+  "UIApplication",
+  "UIGeometry",
+  "UIResponder",
+  "UIScene",
+  "UISceneDefinitions",
+  "UIView",
+  "UIWindow",
+  "UIWindowScene",
+] }
 
 [target.'cfg(any(target_os="linux", target_os="dragonfly", target_os="freebsd", target_os="netbsd", target_os="openbsd"))'.dependencies]
-smithay-clipboard = { version = "0.7.2", optional = true }
+smithay-clipboard = { workspace = true, optional = true }
 
 # The wayland-cursor normally selected doesn't properly enable all the features it uses
 # and thus doesn't compile as it is used in egui-winit. This is fixed upstream, so force
 # a slightly newer version. Remove this when winit upgrades past this version.
-wayland-cursor = { version = "0.31.1", default-features = false, optional = true }
+wayland-cursor = { workspace = true, optional = true }
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
-arboard = { version = "3.3", optional = true, default-features = false, features = [
-    "image-data",
-] }
+arboard = { workspace = true, optional = true, features = ["image-data"] }

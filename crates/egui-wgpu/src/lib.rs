@@ -173,9 +173,7 @@ impl RenderState {
         config: &WgpuConfiguration,
         instance: &wgpu::Instance,
         compatible_surface: Option<&wgpu::Surface<'static>>,
-        depth_format: Option<wgpu::TextureFormat>,
-        msaa_samples: u32,
-        dithering: bool,
+        options: RendererOptions,
     ) -> Result<Self, WgpuError> {
         profiling::scope!("RenderState::create"); // async yield give bad names using `profile_function`
 
@@ -244,13 +242,7 @@ impl RenderState {
         };
         let target_format = crate::preferred_framebuffer_format(&surface_formats)?;
 
-        let renderer = Renderer::new(
-            &device,
-            target_format,
-            depth_format,
-            msaa_samples,
-            dithering,
-        );
+        let renderer = Renderer::new(&device, target_format, options);
 
         // On wasm, depending on feature flags, wgpu objects may or may not implement sync.
         // It doesn't make sense to switch to Rc for that special usecase, so simply disable the lint.

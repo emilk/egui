@@ -113,7 +113,7 @@ fn simplest_digit_closed_range(min: i32, max: i32) -> i32 {
     if min <= 5 && 5 <= max {
         5
     } else {
-        (min + max) / 2
+        min.midpoint(max)
     }
 }
 

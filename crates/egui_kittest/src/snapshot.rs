@@ -26,6 +26,7 @@ pub struct SnapshotOptions {
 }
 
 /// Helper struct to define the number of pixels that can differ before the snapshot is considered a failure.
+///
 /// This is useful if you want to set different thresholds for different operating systems.
 ///
 /// The default values are 0 / 0.0
@@ -397,13 +398,24 @@ fn try_image_snapshot_options_impl(
         Ok(())
     };
 
+    let write_new_png = || {
+        new.save(&new_path)
+            .map_err(|err| SnapshotError::WriteSnapshot {
+                err,
+                path: new_path.clone(),
+            })?;
+        Ok(())
+    };
+
     let previous = match image::open(&snapshot_path) {
         Ok(image) => image.to_rgba8(),
         Err(err) => {
-            // No previous snapshot - probablye a new test.
+            // No previous snapshot - probably a new test.
             if mode.is_update() {
                 return update_snapshot();
             } else {
+                write_new_png()?;
+
                 return Err(SnapshotError::OpenSnapshot {
                     path: snapshot_path.clone(),
                     err,
@@ -416,6 +428,8 @@ fn try_image_snapshot_options_impl(
         if mode.is_update() {
             return update_snapshot();
         } else {
+            write_new_png()?;
+
             return Err(SnapshotError::SizeMismatch {
                 name,
                 expected: previous.dimensions(),
@@ -454,11 +468,7 @@ fn try_image_snapshot_options_impl(
             if below_threshold {
                 Ok(())
             } else {
-                new.save(&new_path)
-                    .map_err(|err| SnapshotError::WriteSnapshot {
-                        err,
-                        path: new_path.clone(),
-                    })?;
+                write_new_png()?;
 
                 Err(SnapshotError::Diff {
                     name,
@@ -520,7 +530,7 @@ pub fn image_snapshot_options(
     match try_image_snapshot_options(current, name, options) {
         Ok(_) => {}
         Err(err) => {
-            panic!("{}", err);
+            panic!("{err}");
         }
     }
 }
@@ -539,12 +549,12 @@ pub fn image_snapshot(current: &image::RgbaImage, name: impl Into<String>) {
     match try_image_snapshot(current, name) {
         Ok(_) => {}
         Err(err) => {
-            panic!("{}", err);
+            panic!("{err}");
         }
     }
 }
 
-#[cfg(feature = "wgpu")]
+#[cfg(any(feature = "wgpu", feature = "snapshot"))]
 impl<State> Harness<'_, State> {
     /// Render an image using the setup [`crate::TestRenderer`] and compare it to the snapshot
     /// with custom options.
@@ -613,7 +623,7 @@ impl<State> Harness<'_, State> {
         match self.try_snapshot_options(name, options) {
             Ok(_) => {}
             Err(err) => {
-                panic!("{}", err);
+                panic!("{err}");
             }
         }
     }
@@ -631,7 +641,51 @@ impl<State> Harness<'_, State> {
         match self.try_snapshot(name) {
             Ok(_) => {}
             Err(err) => {
-                panic!("{}", err);
+                panic!("{err}");
+            }
+        }
+    }
+
+    /// Render a snapshot, save it to a temp file and open it in the default image viewer.
+    ///
+    /// This method is marked as deprecated to trigger errors in CI (so that it's not accidentally
+    /// committed).
+    #[deprecated = "Only for debugging, don't commit this."]
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn debug_open_snapshot(&mut self) {
+        let image = self
+            .render()
+            .map_err(|err| SnapshotError::RenderError { err })
+            .unwrap();
+        let temp_file = tempfile::Builder::new()
+            .disable_cleanup(true) // we keep the file so it's accessible even after the test ends
+            .prefix("kittest-snapshot")
+            .suffix(".png")
+            .tempfile()
+            .expect("Failed to create temp file");
+
+        let path = temp_file.path();
+
+        image
+            .save(temp_file.path())
+            .map_err(|err| SnapshotError::WriteSnapshot {
+                err,
+                path: path.to_path_buf(),
+            })
+            .unwrap();
+
+        #[expect(clippy::print_stdout)]
+        {
+            println!("Wrote debug snapshot to: {}", path.display());
+        }
+        let result = open::that(path);
+        if let Err(err) = result {
+            #[expect(clippy::print_stderr)]
+            {
+                eprintln!(
+                    "Failed to open image {} in default image viewer: {err}",
+                    path.display()
+                );
             }
         }
     }
