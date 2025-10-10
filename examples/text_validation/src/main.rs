@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 #![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
-use eframe::egui::{self};
+use eframe::egui::{self, text_edit::TextType};
 
 fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -21,6 +21,7 @@ struct MyApp {
     age: u8,
     favorite_letter: char,
     ice_cream: String,
+    lowercase: NoCaps,
 }
 
 impl Default for MyApp {
@@ -30,6 +31,7 @@ impl Default for MyApp {
             age: 42,
             favorite_letter: 'H',
             ice_cream: "Raspberry".to_owned(),
+            lowercase: NoCaps("no caps here!".to_owned()),
         }
     }
 }
@@ -69,6 +71,29 @@ impl eframe::App for MyApp {
                 ui.text_edit_singleline(&mut self.ice_cream.as_str())
                     .labelled_by(name_label.id);
             });
+
+            ui.separator();
+            ui.heading("welcome to the no caps zone, where only lowercase is allowed.");
+
+            ui.horizontal(|ui| {
+                let name_label = ui.label("no caps allowed: ");
+                ui.text_edit_singleline(&mut self.lowercase)
+                    .labelled_by(name_label.id);
+            });
         });
+    }
+}
+
+struct NoCaps(String);
+
+impl TextType for NoCaps {
+    type Err = std::convert::Infallible;
+
+    fn read_from_strings(_previous: &str, modified: &str) -> Option<Result<Self, Self::Err>> {
+        Some(Ok(NoCaps(modified.to_lowercase())))
+    }
+
+    fn string_representation(&self) -> String {
+        self.0.clone()
     }
 }
