@@ -67,7 +67,6 @@ type LayouterFn<'t> = &'t mut dyn FnMut(&Ui, &str, f32) -> Arc<Galley>;
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct TextEdit<'t, Value: TextType = String> {
     represents: &'t mut Value,
-    text: String,
     hint_text: WidgetText,
     hint_text_font: Option<FontSelection>,
     id: Option<Id>,
@@ -121,10 +120,8 @@ impl<'t, Value: TextType> TextEdit<'t, Value> {
 
     /// A [`TextEdit`] for multiple lines. Pressing enter key will create a new line by default (can be changed with [`return_key`](TextEdit::return_key)).
     pub fn multiline(value: &'t mut Value) -> Self {
-        let text = value.string_representation();
         Self {
             represents: value,
-            text,
             hint_text: Default::default(),
             hint_text_font: None,
             id: None,
@@ -472,7 +469,6 @@ impl<Value: TextType> TextEdit<'_, Value> {
     fn show_content(self, ui: &mut Ui) -> TextEditOutput {
         let TextEdit {
             represents,
-            mut text,
             hint_text,
             hint_text_font,
             id,
@@ -496,6 +492,21 @@ impl<Value: TextType> TextEdit<'_, Value> {
             return_key,
             background_color: _,
         } = self;
+
+        // An Id is required, as the displayed string is owned by the state.
+        let id = id.unwrap_or_else(|| {
+            if let Some(id_salt) = id_salt {
+                ui.make_persistent_id(id_salt)
+            } else {
+                ui.next_auto_id()
+            }
+        });
+
+        let mut state = TextEditState::load(ui.ctx(), id).unwrap_or_default();
+        let mut text = state
+            .text
+            .clone()
+            .unwrap_or_else(|| represents.string_representation());
 
         let text_color = text_color
             .or_else(|| ui.visuals().override_text_color)
@@ -539,17 +550,8 @@ impl<Value: TextType> TextEdit<'_, Value> {
         let desired_height = (desired_height_rows.at_least(1) as f32) * row_height;
         let desired_inner_size = vec2(desired_inner_width, galley.size().y.max(desired_height));
         let desired_outer_size = (desired_inner_size + margin.sum()).at_least(min_size);
-        let (auto_id, outer_rect) = ui.allocate_space(desired_outer_size);
+        let outer_rect = ui.allocate_space(desired_outer_size).1;
         let rect = outer_rect - margin; // inner rect (excluding frame/margin).
-
-        let id = id.unwrap_or_else(|| {
-            if let Some(id_salt) = id_salt {
-                ui.make_persistent_id(id_salt)
-            } else {
-                auto_id // Since we are only storing the cursor a persistent Id is not super important
-            }
-        });
-        let mut state = TextEditState::load(ui.ctx(), id).unwrap_or_default();
 
         // On touch screens (e.g. mobile in `eframe` web), should
         // dragging select text, or scroll the enclosing [`ScrollArea`] (if any)?
@@ -818,21 +820,22 @@ impl<Value: TextType> TextEdit<'_, Value> {
             ui.input_mut(|i| i.events.retain(|e| !matches!(e, Event::Ime(_))));
         }
 
-        state.clone().store(ui.ctx(), id);
-
-        if response.changed() {
+        if response.lost_focus() || response.clicked_elsewhere() {
             match Value::read_from_strings(&prev_text, &text) {
                 Some(Ok(var)) => *represents = var,
+                // TODO(tye): Is this log useful?
                 Some(Err(err)) => {
-                    // TODO(tye): Is this log useful?
                     log::info!("Failed to parse value for text edit: {err}");
-
-                    text = represents.string_representation()
                 }
                 // Value is immutable
                 None => {}
             }
 
+            // The user might have changed the text
+            text = represents.string_representation()
+        }
+
+        if response.changed() {
             response.widget_info(|| {
                 WidgetInfo::text_edit(
                     ui.is_enabled(),
@@ -878,6 +881,9 @@ impl<Value: TextType> TextEdit<'_, Value> {
                 &galley,
             );
         }
+
+        state.text = Some(text);
+        state.clone().store(ui.ctx(), id);
 
         TextEditOutput {
             response,

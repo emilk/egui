@@ -37,6 +37,11 @@ pub struct TextEditState {
     /// Controls the text selection.
     pub cursor: TextCursorState,
 
+    // TODO(tye): Should this be public?
+    /// Displayed string.
+    /// This may differ from the value represented if the user is actively editing the string.
+    pub text: Option<String>,
+
     /// Wrapped in Arc for cheaper clones.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) undoer: Arc<Mutex<TextEditUndoer>>,
