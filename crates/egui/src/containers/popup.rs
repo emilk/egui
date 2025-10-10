@@ -594,7 +594,7 @@ impl<'a> Popup<'a> {
         });
 
         // If the popup was just opened with a click, we don't want to immediately close it again.
-        let close_click = was_open_last_frame && ctx.input(|i| i.pointer.any_click());
+        let close_click = was_open_last_frame && ctx.input(|i| i.pointer.any_pressed());
 
         let closed_by_click = match close_behavior {
             PopupCloseBehavior::CloseOnClick => close_click,
