@@ -821,8 +821,8 @@ fn cw_signed_area(path: &[PathPoint]) -> f64 {
 
 /// See [`TessellationOptions::max_feathering_normal_length_sq`].
 fn clamp_normal_for_feathering(normal: Vec2, max_feathering_normal_length_sq: f32) -> Vec2 {
-    if normal.length_sq() > max_feathering_normal_length_sq {
-        normal * (max_feathering_normal_length_sq / normal.length_sq())
+    if normal.length_sq() > sqr(max_feathering_normal_length) {
+        max_feathering_normal_length * normal.normalize()
     } else {
         normal
     }
