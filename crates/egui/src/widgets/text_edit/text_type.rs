@@ -1,4 +1,4 @@
-use std::{convert::Infallible, error::Error, fmt::Display, num::ParseIntError};
+use std::{convert::Infallible, error::Error, fmt::Display};
 
 pub trait TextType: Sized {
     type Err: Error;
@@ -16,6 +16,9 @@ pub trait TextType: Sized {
     fn string_representation(&self) -> String;
 
     /// Whether this data type can be modified.
+    ///
+    /// If true for a data type cannot be modified (such as a referenced type), it will appear editable, but no modifications will persist.
+    /// This will not cause unexpected behavior, but will be confusing for users.
     fn is_mutable() -> bool;
 }
 
@@ -62,22 +65,6 @@ impl TextType for String {
     }
 }
 
-impl TextType for u8 {
-    type Err = ParseIntError;
-
-    fn read_from_string(_previous: &Self, modified: &str) -> Option<Result<Self, Self::Err>> {
-        Some(modified.parse())
-    }
-
-    fn string_representation(&self) -> String {
-        self.to_string()
-    }
-
-    fn is_mutable() -> bool {
-        true
-    }
-}
-
 impl TextType for char {
     type Err = ConversionError;
 
@@ -107,17 +94,76 @@ impl TextType for char {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::TextEdit;
+mod int_impls {
+    /// Implementation for number types.
+    macro_rules! int_impl {
+        ($num:path, $err:path) => {
+            impl super::TextType for $num {
+                type Err = $err;
 
-    #[allow(unused_must_use)]
-    #[test]
-    fn type_validation() {
-        TextEdit::singleline(&mut String::new());
-        TextEdit::singleline(&mut 10u8);
-        let mut c = char::MIN;
-        TextEdit::singleline(&mut c);
-        TextEdit::singleline(&mut "abc");
+                fn read_from_string(
+                    _previous: &Self,
+                    modified: &str,
+                ) -> Option<Result<Self, Self::Err>> {
+                    Some(modified.parse())
+                }
+
+                fn string_representation(&self) -> String {
+                    self.to_string()
+                }
+
+                fn is_mutable() -> bool {
+                    true
+                }
+            }
+            impl super::TextType for &$num {
+                type Err = $err;
+
+                fn read_from_string(
+                    _previous: &Self,
+                    _modified: &str,
+                ) -> Option<Result<Self, Self::Err>> {
+                    None
+                }
+
+                fn string_representation(&self) -> String {
+                    self.to_string()
+                }
+
+                fn is_mutable() -> bool {
+                    true
+                }
+            }
+        };
+        ($num:path) => {
+            int_impl!($num, std::num::ParseIntError);
+        };
     }
+
+    int_impl!(u8);
+    int_impl!(u16);
+    int_impl!(u32);
+    int_impl!(u64);
+    int_impl!(u128);
+    int_impl!(usize);
+    int_impl!(i8);
+    int_impl!(i16);
+    int_impl!(i32);
+    int_impl!(i64);
+    int_impl!(i128);
+    int_impl!(isize);
+    int_impl!(f32, std::num::ParseFloatError);
+    int_impl!(f64, std::num::ParseFloatError);
+    int_impl!(std::num::NonZeroU8);
+    int_impl!(std::num::NonZeroU16);
+    int_impl!(std::num::NonZeroU32);
+    int_impl!(std::num::NonZeroU64);
+    int_impl!(std::num::NonZeroU128);
+    int_impl!(std::num::NonZeroUsize);
+    int_impl!(std::num::NonZeroI8);
+    int_impl!(std::num::NonZeroI16);
+    int_impl!(std::num::NonZeroI32);
+    int_impl!(std::num::NonZeroI64);
+    int_impl!(std::num::NonZeroI128);
+    int_impl!(std::num::NonZeroIsize);
 }

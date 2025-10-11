@@ -831,6 +831,7 @@ impl<Value: TextType> TextEdit<'_, Value> {
                 Some(Ok(var)) => *represents = var,
                 // TODO(tye-exe): Is this log useful?
                 Some(Err(err)) => {
+                    #[cfg(feature = "log")]
                     log::info!("Failed to parse value for text edit: {err}");
                 }
                 // Value is immutable
