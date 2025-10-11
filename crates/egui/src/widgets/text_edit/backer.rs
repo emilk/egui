@@ -1,27 +1,22 @@
-use std::{
-    collections::HashSet, convert::Infallible, error::Error, fmt::Display, num::ParseIntError,
-};
+use std::{convert::Infallible, error::Error, fmt::Display, num::ParseIntError};
 
 pub trait TextType: Sized {
     type Err: Error;
 
-    /// The value of represented data type depending on the previous string text and modified
-    /// (by the user) string.
+    /// The value of represented data type depending on the previous valid value and the string modified by the user.
     ///
     /// `None` is output if this type is immutable.
     /// `Some(result)` is the result of parsing.
     ///
     /// This **must** be parse output from [`TextType::string_representation`].
-    fn read_from_strings(previous: &str, modified: &str) -> Option<Result<Self, Self::Err>>;
+    fn read_from_string(previous: &Self, modified: &str) -> Option<Result<Self, Self::Err>>;
     /// Generate the string representation of this type.
     ///
     /// This **must** be parseable by [`TextType::read_from_strings`].
     fn string_representation(&self) -> String;
 
-    /// Can the user change the value of this display type?
-    fn is_mutable() -> bool {
-        !Self::read_from_strings("", "").is_none()
-    }
+    /// Whether this data type can be modified.
+    fn is_mutable() -> bool;
 }
 
 #[derive(Debug)]
@@ -38,64 +33,77 @@ impl Error for ConversionError {}
 impl TextType for &str {
     type Err = Infallible;
 
-    fn read_from_strings(_previous: &str, _modified: &str) -> Option<Result<Self, Self::Err>> {
+    fn read_from_string(_previous: &Self, _modified: &str) -> Option<Result<Self, Self::Err>> {
         None
     }
 
     fn string_representation(&self) -> String {
         self.to_string()
     }
+
+    fn is_mutable() -> bool {
+        false
+    }
 }
 
 impl TextType for String {
     type Err = Infallible;
 
-    fn read_from_strings(_previous: &str, modified: &str) -> Option<Result<Self, Self::Err>> {
+    fn read_from_string(_previous: &Self, modified: &str) -> Option<Result<Self, Self::Err>> {
         Some(Ok(modified.to_string()))
     }
 
     fn string_representation(&self) -> String {
         self.to_string()
     }
+
+    fn is_mutable() -> bool {
+        true
+    }
 }
 
 impl TextType for u8 {
     type Err = ParseIntError;
 
-    fn read_from_strings(_previous: &str, modified: &str) -> Option<Result<Self, Self::Err>> {
+    fn read_from_string(_previous: &Self, modified: &str) -> Option<Result<Self, Self::Err>> {
         Some(modified.parse())
     }
 
     fn string_representation(&self) -> String {
         self.to_string()
     }
+
+    fn is_mutable() -> bool {
+        true
+    }
 }
 
 impl TextType for char {
     type Err = ConversionError;
 
-    fn read_from_strings(previous: &str, modified: &str) -> Option<Result<Self, Self::Err>> {
-        let previous: HashSet<char> = previous.chars().collect();
-        let current_chars: HashSet<char> = modified.chars().collect();
+    fn read_from_string(previous: &Self, modified: &str) -> Option<Result<Self, Self::Err>> {
+        let modified: Vec<char> = modified.chars().collect();
 
-        let mut chars = current_chars.difference(&previous);
-        let diff_character = chars.next();
-        let additional = chars.next().is_some();
-
-        Some(match (diff_character, additional) {
-            (None, _) => match modified.chars().next() {
-                Some(c) => Ok(c),
-                None => Err(ConversionError("Zero characters present".to_owned())),
-            },
-            (Some(_), true) => Err(ConversionError(
-                "More than one character present".to_owned(),
+        Some(match (modified.get(0), modified.get(1), modified.get(2)) {
+            (Some(_), Some(_), Some(_)) => Err(ConversionError(
+                "Three or more characters present".to_string(),
             )),
-            (Some(character), false) => Ok(*character),
+            (Some(first), Some(second), None) if first == previous => Ok(*second),
+            (Some(first), Some(second), None) if first == second => Ok(*first),
+            (Some(_), Some(_), None) => Err(ConversionError(
+                "Two different characters present".to_string(),
+            )),
+            (None, _, _) => Err(ConversionError("Zero characters present".to_string())),
+            (Some(only), _, _) => Ok(*only),
         })
     }
 
     fn string_representation(&self) -> String {
         self.to_string()
+    }
+
+    fn is_mutable() -> bool {
+        true
     }
 }
 

@@ -89,11 +89,15 @@ struct NoCaps(String);
 impl TextType for NoCaps {
     type Err = std::convert::Infallible;
 
-    fn read_from_strings(_previous: &str, modified: &str) -> Option<Result<Self, Self::Err>> {
+    fn read_from_string(_previous: &Self, modified: &str) -> Option<Result<Self, Self::Err>> {
         Some(Ok(NoCaps(modified.to_lowercase())))
     }
 
     fn string_representation(&self) -> String {
         self.0.clone()
+    }
+
+    fn is_mutable() -> bool {
+        true
     }
 }
