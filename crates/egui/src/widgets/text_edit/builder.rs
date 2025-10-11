@@ -17,7 +17,7 @@ use crate::{
     vec2,
 };
 
-use super::{TextEditOutput, TextEditState, backer::TextType};
+use super::{TextEditOutput, TextEditState, text_type::TextType};
 
 type LayouterFn<'t> = &'t mut dyn FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<Galley>;
 
