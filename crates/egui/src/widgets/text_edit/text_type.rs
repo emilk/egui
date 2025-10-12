@@ -94,10 +94,11 @@ impl TextType for char {
     }
 }
 
-mod int_impls {
-    /// Implementation for number types.
-    macro_rules! int_impl {
-        ($num:path, $err:path) => {
+/// Implementation for number types.
+mod num_impls {
+    /// Reduces repetition in implementation and tests for implementing on numeric types.
+    macro_rules! num_impl {
+        ($num:path, $err:path; $test_name:ident, $($init:expr),*) => {
             impl super::TextType for $num {
                 type Err = $err;
 
@@ -117,7 +118,7 @@ mod int_impls {
                 }
             }
             impl super::TextType for &$num {
-                type Err = $err;
+                type Err = std::convert::Infallible;
 
                 fn read_from_string(
                     _previous: &Self,
@@ -131,39 +132,62 @@ mod int_impls {
                 }
 
                 fn is_mutable() -> bool {
-                    true
+                    false
                 }
             }
+            // Requires separate parameter as an "identity" cannot be constructed in a declarative macro
+            #[test]
+            fn $test_name() {
+                use super::TextType;
+                // Test if values can be parsed from it's string representation
+                $(
+                    let string = $init.string_representation();
+                    let parsed_string = TextType::read_from_string(&$init, &string).expect("Can Parse");
+                    assert_eq!(Ok($init), parsed_string, stringify!(Failed parsing $num with value of $init));
+                    assert!(TextType::read_from_string(&(&$init), &string).is_none(), stringify!(Parsing a reference (&$init) must return None));
+                )*
+                // Test mutability
+                assert!(<$num as TextType>::is_mutable(), stringify!($num must be mutable));
+                assert!(!<&$num as TextType>::is_mutable(), stringify!(&$num must not be mutable));
+            }
         };
-        ($num:path) => {
-            int_impl!($num, std::num::ParseIntError);
+        ($num:path; $($tail:tt)*) => {
+            num_impl!($num, std::num::ParseIntError; $($tail)*);
         };
     }
 
-    int_impl!(u8);
-    int_impl!(u16);
-    int_impl!(u32);
-    int_impl!(u64);
-    int_impl!(u128);
-    int_impl!(usize);
-    int_impl!(i8);
-    int_impl!(i16);
-    int_impl!(i32);
-    int_impl!(i64);
-    int_impl!(i128);
-    int_impl!(isize);
-    int_impl!(f32, std::num::ParseFloatError);
-    int_impl!(f64, std::num::ParseFloatError);
-    int_impl!(std::num::NonZeroU8);
-    int_impl!(std::num::NonZeroU16);
-    int_impl!(std::num::NonZeroU32);
-    int_impl!(std::num::NonZeroU64);
-    int_impl!(std::num::NonZeroU128);
-    int_impl!(std::num::NonZeroUsize);
-    int_impl!(std::num::NonZeroI8);
-    int_impl!(std::num::NonZeroI16);
-    int_impl!(std::num::NonZeroI32);
-    int_impl!(std::num::NonZeroI64);
-    int_impl!(std::num::NonZeroI128);
-    int_impl!(std::num::NonZeroIsize);
+    num_impl!(u8; u8_test, 0, 1);
+    num_impl!(u16; u16_test, 0, 1);
+    num_impl!(u32; u32_test, 0, 1);
+    num_impl!(u64; u64_test, 0, 1);
+    num_impl!(u128; u128_test, 0, 1);
+    num_impl!(usize; usize_test, 0, 1);
+    num_impl!(i8; i8_test, -1, 0, 1);
+    num_impl!(i16; i16_test, -1, 0, 1);
+    num_impl!(i32; i32_test, -1, 0, 1);
+    num_impl!(i64; i64_test, -1, 0, 1);
+    num_impl!(i128; i128_test, -1, 0, 1);
+    num_impl!(isize; isize_test, -1, 0, 1);
+
+    // These imports also affect the macro.
+    use std::num::{
+        NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize, NonZeroU8,
+        NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
+    };
+    num_impl!(NonZeroU8; non0u8_test, NonZeroU8::MIN, NonZeroU8::MAX);
+    num_impl!(NonZeroU16; non0u16_test, NonZeroU16::MIN, NonZeroU16::MAX);
+    num_impl!(NonZeroU32; non0u32_test, NonZeroU32::MIN, NonZeroU32::MAX);
+    num_impl!(NonZeroU64; non0u64_test, NonZeroU64::MIN, NonZeroU64::MAX);
+    num_impl!(NonZeroU128; non0u128_test, NonZeroU128::MIN, NonZeroU128::MAX);
+    num_impl!(NonZeroUsize; non0usize_test, NonZeroUsize::MIN, NonZeroUsize::MAX);
+    num_impl!(NonZeroI8; non0i8_test, NonZeroI8::MIN, NonZeroI8::MAX);
+    num_impl!(NonZeroI16; non0i16_test, NonZeroI16::MIN, NonZeroI16::MAX);
+    num_impl!(NonZeroI32; non0i32_test, NonZeroI32::MIN, NonZeroI32::MAX);
+    num_impl!(NonZeroI64; non0i64_test, NonZeroI64::MIN, NonZeroI64::MAX);
+    num_impl!(NonZeroI128; non0i128_test, NonZeroI128::MIN, NonZeroI128::MAX);
+    num_impl!(NonZeroIsize; non0isize_test, NonZeroIsize::MIN, NonZeroIsize::MAX);
+
+    // NAN can be parsed, it just errors since NAN != NAN
+    num_impl!(f32, std::num::ParseFloatError; f32_test, -1.0, 0.0, 1.0, f32::INFINITY, f32::NEG_INFINITY);
+    num_impl!(f64, std::num::ParseFloatError; f64_test, -1.0, 0.0, 1.0, f64::INFINITY, f64::NEG_INFINITY);
 }
