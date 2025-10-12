@@ -5,7 +5,6 @@ use eframe::glow;
 
 #[cfg(target_arch = "wasm32")]
 use core::any::Any;
-use log::info;
 
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]

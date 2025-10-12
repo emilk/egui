@@ -682,7 +682,6 @@ fn install_touchstart(runner_ref: &WebRunner, target: &EventTarget) -> Result<()
         |event: web_sys::TouchEvent, runner| {
             let mut should_stop_propagation = true;
             let mut should_prevent_default = true;
-            push_touches(runner, egui::TouchPhase::Start, &event);
             if let Some((pos, _)) = primary_touch_pos(runner, &event) {
                 let egui_event = egui::Event::PointerButton {
                     pos,
@@ -692,9 +691,10 @@ fn install_touchstart(runner_ref: &WebRunner, target: &EventTarget) -> Result<()
                 };
                 should_stop_propagation = (runner.web_options.should_stop_propagation)(&egui_event);
                 should_prevent_default = (runner.web_options.should_prevent_default)(&egui_event);
-                // runner.input.raw.events.push(egui_event);
+                runner.input.raw.events.push(egui_event);
             }
 
+            push_touches(runner, egui::TouchPhase::Start, &event);
             runner.needs_repaint.repaint_asap();
 
             // Use web options to tell if the web event should be propagated to parent elements based on the egui event.
@@ -721,7 +721,7 @@ fn install_touchmove(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
                     (runner.web_options.should_stop_propagation)(&egui_event);
                 let should_prevent_default =
                     (runner.web_options.should_prevent_default)(&egui_event);
-                // runner.input.raw.events.push(egui_event);
+                runner.input.raw.events.push(egui_event);
 
                 push_touches(runner, egui::TouchPhase::Move, &event);
                 runner.needs_repaint.repaint();
@@ -746,7 +746,6 @@ fn install_touchend(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), 
                 runner,
                 egui::pos2(touch.client_x() as f32, touch.client_y() as f32),
             ) {
-                push_touches(runner, egui::TouchPhase::End, &event);
                 // First release mouse to click:
                 let mut should_stop_propagation = true;
                 let mut should_prevent_default = true;
@@ -759,14 +758,15 @@ fn install_touchend(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), 
                 should_stop_propagation &=
                     (runner.web_options.should_stop_propagation)(&egui_event);
                 should_prevent_default &= (runner.web_options.should_prevent_default)(&egui_event);
-                // runner.input.raw.events.push(egui_event);
+                runner.input.raw.events.push(egui_event);
                 // Then remove hover effect:
                 should_stop_propagation &=
                     (runner.web_options.should_stop_propagation)(&egui::Event::PointerGone);
                 should_prevent_default &=
                     (runner.web_options.should_prevent_default)(&egui::Event::PointerGone);
-                // runner.input.raw.events.push(egui::Event::PointerGone);
+                runner.input.raw.events.push(egui::Event::PointerGone);
 
+                push_touches(runner, egui::TouchPhase::End, &event);
 
                 runner.needs_repaint.repaint_asap();
 
