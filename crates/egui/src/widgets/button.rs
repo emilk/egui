@@ -1,7 +1,9 @@
+use std::{mem, sync::Arc};
+
 use crate::{
     Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Color32, CornerRadius, Frame,
-    Image, IntoAtoms, NumExt as _, Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2,
-    Widget, WidgetInfo, WidgetText, WidgetType,
+    Image, IntoAtoms, NumExt as _, Response, RichText, Sense, Stroke, TextStyle, TextWrapMode, Ui,
+    Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
 };
 
 /// Clickable button with text.
@@ -281,25 +283,30 @@ impl<'a> Button<'a> {
 
         let text = layout.text().map(String::from);
 
+        let id = ui.next_auto_id();
+        let response: Option<Response> = ui.ctx().read_response(id);
+        let state = response.map(|r| r.widget_state()).unwrap_or_default();
+
+        let style = ui.style().button_style(state);
+
         let has_frame_margin = frame.unwrap_or_else(|| ui.visuals().button_frame);
 
-        let mut button_padding = if has_frame_margin {
-            ui.spacing().button_padding
-        } else {
-            Vec2::ZERO
-        };
-        if small {
-            button_padding.y = 0.0;
-        }
+        layout.map_texts(|t| match t {
+            WidgetText::RichText(mut text) => {
+                let text_mut = Arc::make_mut(&mut text);
+                *text_mut = mem::take(text_mut).font(style.text.font_id.clone());
+                WidgetText::RichText(text)
+            }
+            WidgetText::Text(text) => {
+                let rich_text = RichText::new(text.clone()).font(style.text.font_id.clone());
+                WidgetText::RichText(Arc::new(rich_text))
+            }
+            w => w,
+        });
 
-        let mut prepared = layout
-            .frame(Frame::new().inner_margin(button_padding))
-            .min_size(min_size)
-            .allocate(ui);
+        let mut prepared = layout.frame(style.frame).min_size(min_size).allocate(ui);
 
         let response = if ui.is_rect_visible(prepared.response.rect) {
-            let visuals = ui.style().interact_selectable(&prepared.response, selected);
-
             let visible_frame = if frame_when_inactive {
                 has_frame_margin
             } else {
@@ -310,23 +317,13 @@ impl<'a> Button<'a> {
             };
 
             if image_tint_follows_text_color {
-                prepared.map_images(|image| image.tint(visuals.text_color()));
+                prepared.map_images(|image| image.tint(style.text.color));
             }
 
-            prepared.fallback_text_color = visuals.text_color();
+            prepared.fallback_text_color = style.text.color;
 
             if visible_frame {
-                let stroke = stroke.unwrap_or(visuals.bg_stroke);
-                let fill = fill.unwrap_or(visuals.weak_bg_fill);
-                prepared.frame = prepared
-                    .frame
-                    .inner_margin(
-                        button_padding + Vec2::splat(visuals.expansion) - Vec2::splat(stroke.width),
-                    )
-                    .outer_margin(-Vec2::splat(visuals.expansion))
-                    .fill(fill)
-                    .stroke(stroke)
-                    .corner_radius(corner_radius.unwrap_or(visuals.corner_radius));
+                prepared.frame = style.frame;
             }
 
             prepared.paint(ui)
