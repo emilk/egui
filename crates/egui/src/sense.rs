@@ -19,6 +19,14 @@ bitflags::bitflags! {
         /// Anything interactive + labels that can be focused
         /// for the benefit of screen readers.
         const FOCUSABLE = 1<<2;
+
+        /// Sense long clicks
+        ///
+        /// By default, anything that senses clicks also senses long clicks.
+        /// You can remove this flag if you want to sense clicks but not long clicks.
+        ///
+        /// Sensing for long clicks might cause problems when you need to sense precise drags
+        const LONG_CLICK = 1<<3;
     }
 }
 
@@ -53,10 +61,10 @@ impl Sense {
         Self::FOCUSABLE
     }
 
-    /// Sense clicks and hover, but not drags.
+    /// Sense clicks, long clicks and hover, but not drags.
     #[inline]
     pub fn click() -> Self {
-        Self::CLICK | Self::FOCUSABLE
+        Self::CLICK | Self::FOCUSABLE | Self::LONG_CLICK
     }
 
     /// Sense drags and hover, but not clicks.
@@ -75,7 +83,7 @@ impl Sense {
     /// See [`crate::PointerState::is_decidedly_dragging`] for details.
     #[inline]
     pub fn click_and_drag() -> Self {
-        Self::CLICK | Self::FOCUSABLE | Self::DRAG
+        Self::CLICK | Self::LONG_CLICK | Self::FOCUSABLE | Self::DRAG
     }
 
     /// Returns true if we sense either clicks or drags.
@@ -87,6 +95,11 @@ impl Sense {
     #[inline]
     pub fn senses_click(&self) -> bool {
         self.contains(Self::CLICK)
+    }
+
+    #[inline]
+    pub fn senses_long_click(&self) -> bool {
+        self.contains(Self::LONG_CLICK)
     }
 
     #[inline]

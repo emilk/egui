@@ -145,6 +145,7 @@ pub(crate) fn interact(
         if let Some(widget) = interaction
             .potential_click_id
             .and_then(|id| widgets.get(id))
+            && widget.sense.senses_long_click()
         {
             dragged = None;
             clicked = Some(widget.id);
