@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 #![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
-use eframe::egui;
+use eframe::egui::{self, Button};
 
 fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -27,6 +27,14 @@ fn main() -> eframe::Result {
             if ui.button("Increment").clicked() {
                 age += 1;
             }
+
+            ui.add(Button::new("no frame").frame(false));
+            ui.add(Button::new("small").small());
+            ui.add_enabled(
+                false,
+                Button::new("no frame inactive").frame_when_inactive(false),
+            );
+
             ui.label(format!("Hello '{name}', age {age}"));
         });
     })
