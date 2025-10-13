@@ -1,9 +1,9 @@
 use std::{mem, sync::Arc};
 
 use crate::{
-    Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Color32, CornerRadius, Frame,
-    Image, IntoAtoms, NumExt as _, Response, RichText, Sense, Stroke, TextStyle, TextWrapMode, Ui,
-    Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
+    Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Color32, CornerRadius, Image,
+    IntoAtoms, NumExt as _, Response, RichText, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2,
+    Widget, WidgetInfo, WidgetText, WidgetType, style_trait::WidgetState,
 };
 
 /// Clickable button with text.
@@ -255,18 +255,19 @@ impl<'a> Button<'a> {
     pub fn atom_ui(self, ui: &mut Ui) -> AtomLayoutResponse {
         let Button {
             mut layout,
-            fill,
-            stroke,
+            fill: _,
+            stroke: _,
             small,
             frame,
             frame_when_inactive,
             mut min_size,
-            corner_radius,
-            selected,
+            corner_radius: _,
+            selected: _,
             image_tint_follows_text_color,
             limit_image_size,
         } = self;
 
+        // Min size height always equal or greater than interact size if not small
         if !small {
             min_size.y = min_size.y.at_least(ui.spacing().interact_size.y);
         }
@@ -283,14 +284,15 @@ impl<'a> Button<'a> {
 
         let text = layout.text().map(String::from);
 
+        // Get the widget style
         let id = ui.next_auto_id();
         let response: Option<Response> = ui.ctx().read_response(id);
         let state = response.map(|r| r.widget_state()).unwrap_or_default();
-
         let style = ui.style().button_style(state);
 
         let has_frame_margin = frame.unwrap_or_else(|| ui.visuals().button_frame);
 
+        // Apply the correct font on RichText and Text
         layout.map_texts(|t| match t {
             WidgetText::RichText(mut text) => {
                 let text_mut = Arc::make_mut(&mut text);
@@ -304,27 +306,21 @@ impl<'a> Button<'a> {
             w => w,
         });
 
-        let mut prepared = layout.frame(style.frame).min_size(min_size).allocate(ui);
-
-        let response = if ui.is_rect_visible(prepared.response.rect) {
-            let visible_frame = if frame_when_inactive {
-                has_frame_margin
+        // Retrocompatibility with button settings
+        let mut prepared =
+            if has_frame_margin && (frame_when_inactive || state != WidgetState::Inactive) {
+                layout.frame(style.frame).min_size(min_size).allocate(ui)
             } else {
-                has_frame_margin
-                    && (prepared.response.hovered()
-                        || prepared.response.is_pointer_button_down_on()
-                        || prepared.response.has_focus())
+                layout.min_size(min_size).allocate(ui)
             };
 
+        // Get AtomLayoutResponse, empty if not visible
+        let response = if ui.is_rect_visible(prepared.response.rect) {
             if image_tint_follows_text_color {
                 prepared.map_images(|image| image.tint(style.text.color));
             }
 
             prepared.fallback_text_color = style.text.color;
-
-            if visible_frame {
-                prepared.frame = style.frame;
-            }
 
             prepared.paint(ui)
         } else {
