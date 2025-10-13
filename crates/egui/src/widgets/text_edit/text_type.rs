@@ -1,4 +1,4 @@
-use std::{convert::Infallible, error::Error, fmt::Display};
+use std::{borrow::Cow, convert::Infallible, error::Error, fmt::Display};
 
 pub trait TextType: Sized {
     type Err: Error;
@@ -83,6 +83,38 @@ impl TextType for char {
             (None, _, _) => Err(ConversionError("Zero characters present".to_string())),
             (Some(only), _, _) => Ok(*only),
         })
+    }
+
+    fn string_representation(&self) -> String {
+        self.to_string()
+    }
+
+    fn is_mutable() -> bool {
+        true
+    }
+}
+
+impl TextType for &char {
+    type Err = Infallible;
+
+    fn read_from_string(_previous: &Self, _modified: &str) -> Option<Result<Self, Self::Err>> {
+        None
+    }
+
+    fn string_representation(&self) -> String {
+        self.to_string()
+    }
+
+    fn is_mutable() -> bool {
+        false
+    }
+}
+
+impl TextType for Cow<'_, str> {
+    type Err = Infallible;
+
+    fn read_from_string(_previous: &Self, modified: &str) -> Option<Result<Self, Self::Err>> {
+        Some(Ok(Cow::from(modified.to_string())))
     }
 
     fn string_representation(&self) -> String {
