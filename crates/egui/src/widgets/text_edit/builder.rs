@@ -823,19 +823,24 @@ impl<Value: TextType> TextEdit<'_, Value> {
             ui.input_mut(|i| i.events.retain(|e| !matches!(e, Event::Ime(_))));
         }
 
+        // TODO(tye-exe): Simplify once https://github.com/emilk/egui/issues/2142 is fixed
         if response.lost_focus() || response.clicked_elsewhere() {
             // TODO(tye-exe): Parsing can be skipped if the text has not changed
             // since the value is updated in real time.
             // However, the reason for parsing failure would not get logged.
             match Value::read_from_string(&represents, &text) {
                 Some(Ok(var)) => *represents = var,
-                // TODO(tye-exe): Is this log useful?
                 Some(Err(err)) => {
                     #[cfg(feature = "log")]
                     log::info!("Failed to parse value for text edit: {err}");
                 }
-                // Value is immutable
-                None => {}
+                None =>
+                {
+                    #[cfg(feature = "log")]
+                    if Value::is_mutable() {
+                        log::warn!("Incorrectly marked unparsable TextType as mutable.",)
+                    }
+                }
             }
 
             // The user might have changed the text
