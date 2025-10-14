@@ -1,14 +1,91 @@
 use std::{borrow::Cow, convert::Infallible, error::Error, fmt::Display};
 
+/// Any type can be displayed and validated by a [`TextEdit`].
+///
+/// [`TextType`] converts data to its string representation and then attempts to parse any changes the
+/// user made has made. If the modified text is can be parsed, then the [`TextType`] will be updated.
+/// Otherwise the value will be reset to its last valid state.
+///
+/// [`TextType`] is implemented for many of the numeric and string types (including references) within the
+/// standard library. But if custom parsing behavior is needed, or implementation does not exist the
+/// [`New Type`] pattern can be used.
+///
+/// ## Example Implementation
+#[doc = "```
+# use egui::TextType;
+struct NoCaps(String);
+
+impl TextType for NoCaps {
+    type Err = std::convert::Infallible;
+
+    fn read_from_string(_previous: &Self, modified: &str) -> Option<Result<Self, Self::Err>> {
+        Some(Ok(NoCaps(modified.to_lowercase())))
+    }
+
+    fn string_representation(&self) -> String {
+        self.0.clone()
+    }
+
+    fn is_mutable() -> bool {
+        true
+    }
+}
+```"]
+/// This example converts any text the user enters to lowercase.
+///
+/// An alternate implementation may choose to reject user input if it contains any capital letters.
+#[doc = "```
+# use egui::TextType;
+struct NoCaps(String);
+
+impl TextType for NoCaps {
+    // Type implementation hidden for brevity
+    type Err = IncorrectCaseError;
+
+    fn read_from_string(_previous: &Self, modified: &str) -> Option<Result<Self, Self::Err>> {
+        if modified.to_lowercase() == modified {
+            Some(Ok(NoCaps(modified.to_owned())))
+        } else {
+            Some(Err(IncorrectCaseError(
+                \"Contained uppercase letters\".to_owned(),
+            )))
+        }
+    }
+
+    fn string_representation(&self) -> String {
+        self.0.clone()
+    }
+
+    fn is_mutable() -> bool {
+        true
+    }
+}
+# #[derive(Debug)]
+# pub struct IncorrectCaseError(String);
+# impl std::fmt::Display for IncorrectCaseError {
+#     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+#         f.write_str(&self.0)
+#     }
+# }
+# impl std::error::Error for IncorrectCaseError {}
+```"]
+///
+/// [`TextEdit`]: super::TextEdit
+/// [`New Type`]: https://doc.rust-lang.org/rust-by-example/generics/new_types.html
 pub trait TextType: Sized {
+    /// Error returned when [`read_from_string`] parsing fails.
+    /// If this parsing cannot fail, then [`Infallible`] can be used.
+    ///
+    /// [`read_from_string`]: TextType::read_from_string()
+    /// [`Infallible`]: std::convert::Infallible
     type Err: Error;
 
     /// The value of represented data type depending on the previous valid value and the string modified by the user.
     ///
-    /// `None` is output if this type is immutable.
+    /// `None` is output if this type is immutable (such as a reference).
     /// `Some(result)` is the result of parsing.
     ///
-    /// This **must** be parse output from [`TextType::string_representation`].
+    /// This **must** be able to parse output from [`TextType::string_representation`].
     fn read_from_string(previous: &Self, modified: &str) -> Option<Result<Self, Self::Err>>;
     /// Generate the string representation of this type.
     ///
@@ -22,6 +99,7 @@ pub trait TextType: Sized {
     fn is_mutable() -> bool;
 }
 
+/// A generic error that can occur when parsing a type as [`TextType`].
 #[derive(Debug)]
 pub struct ConversionError(String);
 
