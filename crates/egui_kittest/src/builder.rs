@@ -62,7 +62,7 @@ impl<State> HarnessBuilder<State> {
         self
     }
 
-    /// Set the default options used for subsequent snapshot tests.
+    /// Set the default options used for snapshot tests on this harness.
     #[cfg(feature = "snapshot")]
     pub fn with_options(&mut self, options: crate::SnapshotOptions) {
         self.default_snapshot_options = options;
