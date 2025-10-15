@@ -1,6 +1,6 @@
 [package]
 name = "egui_kittest"
-version.workspace = true
+version = "0.33.1"
 authors = ["Lucas Meurer <lucasmeurer96@gmail.com>", "Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Testing library for egui based on kittest and AccessKit"
 edition.workspace = true
