@@ -558,7 +558,7 @@ pub fn image_snapshot(current: &image::RgbaImage, name: impl Into<String>) {
 #[cfg(any(feature = "wgpu", feature = "snapshot"))]
 impl<State> Harness<'_, State> {
     /// The default options used for snapshot tests.
-    /// set by [`HarnessBuilder::with_options`].
+    /// set by [`crate::HarnessBuilder::with_options`].
     pub fn options(&self) -> &SnapshotOptions {
         &self.default_snapshot_options
     }
@@ -566,7 +566,7 @@ impl<State> Harness<'_, State> {
     /// Render an image using the setup [`crate::TestRenderer`] and compare it to the snapshot
     /// with custom options.
     ///
-    /// These options will override the ones set by [`HarnessBuilder::with_options`].
+    /// These options will override the ones set by [`crate::HarnessBuilder::with_options`].
     ///
     /// If you want to change the default options for your whole project, you could create an
     /// [extension trait](http://xion.io/post/code/rust-extension-traits.html) to create a
@@ -596,7 +596,7 @@ impl<State> Harness<'_, State> {
 
     /// Render an image using the setup [`crate::TestRenderer`] and compare it to the snapshot.
     ///
-    /// This is like [`Self::try_snapshot_options`] but will use the options set by [`HarnessBuilder::with_options`].
+    /// This is like [`Self::try_snapshot_options`] but will use the options set by [`crate::HarnessBuilder::with_options`].
     ///
     /// The snapshot will be saved under `tests/snapshots/{name}.png`.
     /// The new image from the last test run will be saved under `tests/snapshots/{name}.new.png`.
@@ -615,7 +615,7 @@ impl<State> Harness<'_, State> {
     /// Render an image using the setup [`crate::TestRenderer`] and compare it to the snapshot
     /// with custom options.
     ///
-    /// These options will override the ones set by [`HarnessBuilder::with_options`].
+    /// These options will override the ones set by [`crate::HarnessBuilder::with_options`].
     ///
     /// If you want to change the default options for your whole project, you could create an
     /// [extension trait](http://xion.io/post/code/rust-extension-traits.html) to create a
@@ -644,7 +644,7 @@ impl<State> Harness<'_, State> {
 
     /// Render an image using the setup [`crate::TestRenderer`] and compare it to the snapshot.
     ///
-    /// This is like [`Self::snapshot_options`] but will use the options set by [`HarnessBuilder::with_options`].
+    /// This is like [`Self::snapshot_options`] but will use the options set by [`crate::HarnessBuilder::with_options`].
     ///
     /// The snapshot will be saved under `tests/snapshots/{name}.png`.
     /// The new image from the last test run will be saved under `tests/snapshots/{name}.new.png`.
