@@ -103,6 +103,9 @@ impl<'a, State> Harness<'a, State> {
             state: _,
             mut renderer,
             wait_for_pending_images,
+
+            #[cfg(feature = "snapshot")]
+            default_snapshot_options,
         } = builder;
         let ctx = ctx.unwrap_or_default();
         ctx.set_theme(theme);
@@ -152,7 +155,7 @@ impl<'a, State> Harness<'a, State> {
             queued_events: Default::default(),
 
             #[cfg(feature = "snapshot")]
-            default_snapshot_options: SnapshotOptions::default(),
+            default_snapshot_options,
         };
         // Run the harness until it is stable, ensuring that all Areas are shown and animations are done
         harness.run_ok();
