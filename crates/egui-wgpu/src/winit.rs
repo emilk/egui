@@ -14,6 +14,7 @@ struct SurfaceState {
     alpha_mode: wgpu::CompositeAlphaMode,
     width: u32,
     height: u32,
+    resizing: bool,
 }
 
 /// Everything you need to paint egui with [`wgpu`] on [`winit`].
@@ -230,6 +231,7 @@ impl Painter {
                 width: size.width,
                 height: size.height,
                 alpha_mode,
+                resizing: false
             },
         );
         let Some(width) = NonZeroU32::new(size.width) else {
@@ -326,6 +328,24 @@ impl Painter {
         }
     }
 
+    pub fn on_window_resize_begin(&mut self, viewport_id: ViewportId) {
+        profiling::function_scope!();
+
+        let Some(state) = self.surfaces.get_mut(&viewport_id) else {
+            return;
+        };
+        if state.resizing {
+            log::debug!(
+                "Painter::on_window_resize_begin() called for a viewport already marked as resizing."
+            );
+            return;
+        }
+        set_surface_tx_sync(&mut state.surface, true);
+        // No need to to re-configure the surface now, as it will be reconfigured in
+        // resize handler right after.
+        state.resizing = true;
+    }
+
     pub fn on_window_resized(
         &mut self,
         viewport_id: ViewportId,
@@ -345,6 +365,27 @@ impl Painter {
                 "Ignoring window resize notification with no surface created via Painter::set_window()"
             );
         }
+    }
+
+    pub fn on_window_resize_end(&mut self, viewport_id: ViewportId) {
+        profiling::function_scope!();
+
+        let Some(state) = self.surfaces.get_mut(&viewport_id) else {
+            return;
+        };
+        if !state.resizing {
+            log::warn!(
+                "Painter::on_window_resize_end() called without a prior call to Painter::on_window_resize_begin()"
+            );
+            return;
+        }
+        set_surface_tx_sync(&mut state.surface, false);
+        Self::configure_surface(
+            state,
+            self.render_state.as_ref().unwrap(),
+            &self.configuration,
+        );
+        state.resizing = false;
     }
 
     /// Returns two things:
@@ -576,5 +617,17 @@ impl Painter {
     #[expect(clippy::needless_pass_by_ref_mut, clippy::unused_self)]
     pub fn destroy(&mut self) {
         // TODO(emilk): something here?
+    }
+}
+
+fn set_surface_tx_sync(surface: &mut wgpu::Surface, present_with_transaction: bool) {
+    // TODO: How to cfg(metal) ? The code will not compile w/o wgpu/metal feature enabled.
+    #[cfg(all(target_os = "macos"))]
+    unsafe {
+        if let Some(hal_surface) = surface.as_hal::<wgpu::hal::api::Metal>() {
+            let raw = (&*hal_surface) as *const wgpu::hal::metal::Surface
+                as *mut wgpu::hal::metal::Surface;
+            (*raw).present_with_transaction = present_with_transaction;
+        }
     }
 }
