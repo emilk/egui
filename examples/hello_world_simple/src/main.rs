@@ -28,12 +28,11 @@ fn main() -> eframe::Result {
                 age += 1;
             }
 
+            // Button test
             ui.add(Button::new("no frame").frame(false));
             ui.add(Button::new("small").small());
-            ui.add_enabled(
-                false,
-                Button::new("no frame inactive").frame_when_inactive(false),
-            );
+            ui.add_enabled(false, Button::new("disabled"));
+            ui.add(Button::new("no frame inactive").frame_when_inactive(false));
 
             ui.label(format!("Hello '{name}', age {age}"));
         });
