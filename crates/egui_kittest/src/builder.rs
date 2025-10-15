@@ -14,6 +14,9 @@ pub struct HarnessBuilder<State = ()> {
     pub(crate) state: PhantomData<State>,
     pub(crate) renderer: Box<dyn TestRenderer>,
     pub(crate) wait_for_pending_images: bool,
+
+    #[cfg(feature = "snapshot")]
+    pub(crate) default_snapshot_options: crate::SnapshotOptions,
 }
 
 impl<State> Default for HarnessBuilder<State> {
@@ -28,6 +31,9 @@ impl<State> Default for HarnessBuilder<State> {
             step_dt: 1.0 / 4.0,
             wait_for_pending_images: true,
             os: egui::os::OperatingSystem::Nix,
+
+            #[cfg(feature = "snapshot")]
+            default_snapshot_options: crate::SnapshotOptions::default(),
         }
     }
 }
@@ -54,6 +60,12 @@ impl<State> HarnessBuilder<State> {
     pub fn with_theme(mut self, theme: egui::Theme) -> Self {
         self.theme = theme;
         self
+    }
+
+    /// Set the default options used for snapshot tests on this harness.
+    #[cfg(feature = "snapshot")]
+    pub fn with_options(&mut self, options: crate::SnapshotOptions) {
+        self.default_snapshot_options = options;
     }
 
     /// Override the [`egui::os::OperatingSystem`] reported to egui.
