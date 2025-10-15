@@ -19,6 +19,7 @@ mod renderer;
 mod texture_to_image;
 #[cfg(feature = "wgpu")]
 pub mod wgpu;
+mod high_level_harness;
 
 pub use kittest;
 
