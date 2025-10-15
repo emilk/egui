@@ -284,23 +284,22 @@ impl<'a> Button<'a> {
 
         let text = layout.text().map(String::from);
 
-        // Get the widget style
+        // Get the widget style by reading the rect from the previous pass
         let id = ui.next_auto_id();
         let response: Option<Response> = ui.ctx().read_response(id);
         let state = response.map(|r| r.widget_state()).unwrap_or_default();
         let style = ui.style().button_style(state);
 
+        //
         let has_frame_margin = frame.unwrap_or_else(|| ui.visuals().button_frame);
 
-        // Apply the correct font on RichText and Text
+        // Apply the correct font and color if Text
+        // We assume that the other WidgetText have already a Fontid and color
         layout.map_texts(|t| match t {
-            WidgetText::RichText(mut text) => {
-                let text_mut = Arc::make_mut(&mut text);
-                *text_mut = mem::take(text_mut).font(style.text.font_id.clone());
-                WidgetText::RichText(text)
-            }
             WidgetText::Text(text) => {
-                let rich_text = RichText::new(text.clone()).font(style.text.font_id.clone());
+                let rich_text = RichText::new(text.clone())
+                    .font(style.text.font_id.clone())
+                    .color(style.text.color);
                 WidgetText::RichText(Arc::new(rich_text))
             }
             w => w,
@@ -308,7 +307,7 @@ impl<'a> Button<'a> {
 
         // Retrocompatibility with button settings
         let mut prepared =
-            if has_frame_margin && (frame_when_inactive || state != WidgetState::Inactive) {
+            if has_frame_margin && (state != WidgetState::Inactive || frame_when_inactive) {
                 layout.frame(style.frame).min_size(min_size).allocate(ui)
             } else {
                 layout.min_size(min_size).allocate(ui)
