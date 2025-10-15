@@ -290,7 +290,6 @@ impl<'a> Button<'a> {
         let state = response.map(|r| r.widget_state()).unwrap_or_default();
         let style = ui.style().button_style(state);
 
-        //
         let has_frame_margin = frame.unwrap_or_else(|| ui.visuals().button_frame);
 
         // Apply the correct font and color if Text

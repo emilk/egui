@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use crate::{
-    Align, Direction, FontSelection, Galley, Pos2, Response, Sense, Stroke, TextWrapMode, Ui,
-    Widget, WidgetInfo, WidgetText, WidgetType, epaint, pos2, text_selection::LabelSelectionState,
+    Align, Direction, FontSelection, Frame, Galley, Pos2, Response, RichText, Sense, Stroke,
+    TextWrapMode, Ui, Widget, WidgetInfo, WidgetText, WidgetType, epaint, pos2,
+    text_selection::LabelSelectionState,
 };
 
 /// Static text.
@@ -179,10 +180,16 @@ impl Label {
             return (pos, galley, response);
         }
 
+        // Get the widget style by reading the rect from the previous pass
+        let id = ui.next_auto_id();
+        let response: Option<Response> = ui.ctx().read_response(id);
+        let state = response.map(|r| r.widget_state()).unwrap_or_default();
+        let style = ui.style().label_style(state);
+
         let valign = ui.text_valign();
         let mut layout_job = Arc::unwrap_or_clone(self.text.into_layout_job(
             ui.style(),
-            FontSelection::Default,
+            style.text.font_id.into(), // Use the style font
             valign,
         ));
 
@@ -266,7 +273,7 @@ impl Label {
 }
 
 impl Widget for Label {
-    fn ui(self, ui: &mut Ui) -> Response {
+    fn ui(mut self, ui: &mut Ui) -> Response {
         // Interactive = the uses asked to sense interaction.
         // We DON'T want to have the color respond just because the text is selectable;
         // the cursor is enough to communicate that.
@@ -274,6 +281,19 @@ impl Widget for Label {
 
         let selectable = self.selectable;
         let show_tooltip_when_elided = self.show_tooltip_when_elided;
+
+        // Get the widget style by reading the rect from the previous pass
+        let id = ui.next_auto_id();
+        let response: Option<Response> = ui.ctx().read_response(id);
+        let state = response.map(|r| r.widget_state()).unwrap_or_default();
+        let style = ui.style().label_style(state);
+
+        // if let WidgetText::Text(text) = self.text {
+        //     let rich_text = RichText::new(text)
+        //         .font(style.text.font_id)
+        //         .color(style.text.color);
+        //     self.text = WidgetText::RichText(Arc::new(rich_text));
+        // }
 
         let (galley_pos, galley, mut response) = self.layout_in_ui(ui);
         response
@@ -292,7 +312,7 @@ impl Widget for Label {
             }
 
             let response_color = if interactive {
-                ui.style().interact(&response).text_color()
+                style.text.color
             } else {
                 ui.style().visuals.text_color()
             };

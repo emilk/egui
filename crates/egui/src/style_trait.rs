@@ -1,8 +1,8 @@
 use emath::Vec2;
-use epaint::{Color32, FontId, Stroke};
+use epaint::{Color32, FontId, Shadow, Stroke, text::TextWrapMode};
 
 use crate::{
-    Frame, Response, Style,
+    Frame, Response, Style, TextStyle,
     style::{WidgetVisuals, Widgets},
 };
 
@@ -66,11 +66,12 @@ pub struct ImageStyle {
 }
 
 pub struct LabelStyle {
+    /// Frame around
     pub frame: Frame,
+    /// Text style
     pub text: TextVisuals,
-    pub size: Vec2,
-    pub checkbox_frame: Frame,
-    pub stroke: Stroke,
+    /// Wrap mode used
+    pub wrap_mode: TextWrapMode,
 }
 
 pub struct RadioButtonStyle {
@@ -149,8 +150,8 @@ impl Style {
             },
             stroke: visuals.fg_stroke,
             text: TextVisuals {
-                color: visuals.fg_stroke.color,
-                font_id: font_id.unwrap_or(FontId::new(13.0, epaint::FontFamily::Proportional)),
+                color: visuals.text_color(),
+                font_id: font_id.unwrap_or(TextStyle::Body.resolve(self)),
             },
         }
     }
@@ -165,7 +166,21 @@ impl Style {
 
     // pub fn checkbox_style(&self, state: WidgetState) -> CheckboxStylee {}
 
-    // pub fn label_style(&self, state: WidgetState) -> LabelStyle {}
+    pub fn label_style(&self, state: WidgetState) -> LabelStyle {
+        let ws = self.widget_style(state);
+        LabelStyle {
+            frame: Frame {
+                fill: ws.frame.fill,
+                inner_margin: 0.0.into(),
+                outer_margin: 0.0.into(),
+                stroke: Stroke::NONE,
+                shadow: Shadow::NONE,
+                corner_radius: 0.into(),
+            },
+            text: ws.text,
+            wrap_mode: TextWrapMode::Wrap,
+        }
+    }
 
     pub fn drag_value_style(&self, state: WidgetState) -> DragValueStyle {
         let ws = self.widget_style(state);
