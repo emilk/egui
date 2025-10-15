@@ -167,6 +167,81 @@ impl WidgetGallery {
         }
         ui.end_row();
 
+        ui.add(doc_link_label("CornerShape", "CornerShape"));
+        ui.horizontal(|ui| {
+            if ui
+                .add(
+                    egui::Button::new("Round").corner_radius(
+                        ui.visuals()
+                            .widgets
+                            .inactive
+                            .corner_radius
+                            .with_shape(egui::epaint::CornerShape::Round),
+                    ),
+                )
+                .clicked()
+            {
+                *boolean = !*boolean;
+            }
+            if ui
+                .add(
+                    egui::Button::new("Squircle").corner_radius(
+                        ui.visuals()
+                            .widgets
+                            .inactive
+                            .corner_radius
+                            .with_shape(egui::epaint::CornerShape::Squircle),
+                    ),
+                )
+                .clicked()
+            {
+                *boolean = !*boolean;
+            }
+            if ui
+                .add(
+                    egui::Button::new("Bevel").corner_radius(
+                        ui.visuals()
+                            .widgets
+                            .inactive
+                            .corner_radius
+                            .with_shape(egui::epaint::CornerShape::Bevel),
+                    ),
+                )
+                .clicked()
+            {
+                *boolean = !*boolean;
+            }
+            if ui
+                .add(
+                    egui::Button::new("Notch").corner_radius(
+                        ui.visuals()
+                            .widgets
+                            .inactive
+                            .corner_radius
+                            .with_shape(egui::epaint::CornerShape::Notch),
+                    ),
+                )
+                .clicked()
+            {
+                *boolean = !*boolean;
+            }
+            if ui
+                .add(
+                    egui::Button::new("Scoop").corner_radius(
+                        ui.visuals()
+                            .widgets
+                            .inactive
+                            .corner_radius
+                            .with_shape(egui::epaint::CornerShape::Scoop),
+                    ),
+                )
+                .clicked()
+            {
+                *boolean = !*boolean;
+            }
+        });
+        ui.end_row();
+
         ui.add(doc_link_label("Link", "link"));
         if ui.link("Click me!").clicked() {
             *boolean = !*boolean;

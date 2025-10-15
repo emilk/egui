@@ -27,6 +27,7 @@ mod brush;
 pub mod color;
 mod corner_radius;
 mod corner_radius_f32;
+pub mod corner_shape;
 pub mod image;
 mod margin;
 mod margin_f32;
@@ -50,6 +51,7 @@ pub use self::{
     color::ColorMode,
     corner_radius::CornerRadius,
     corner_radius_f32::CornerRadiusF32,
+    corner_shape::{CornerExponents, CornerShape},
     image::{AlphaFromCoverage, ColorImage, ImageData, ImageDelta},
     margin::Margin,
     margin_f32::*,
