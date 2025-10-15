@@ -1445,7 +1445,7 @@ dependencies = [
 
 [[package]]
 name = "egui_kittest"
-version = "0.33.0"
+version = "0.33.1"
 dependencies = [
  "dify",
  "document-features",

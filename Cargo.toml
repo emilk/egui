@@ -65,7 +65,7 @@ egui_extras = { version = "0.33.0", path = "crates/egui_extras", default-feature
 egui-wgpu = { version = "0.33.0", path = "crates/egui-wgpu", default-features = false }
 egui_demo_lib = { version = "0.33.0", path = "crates/egui_demo_lib", default-features = false }
 egui_glow = { version = "0.33.0", path = "crates/egui_glow", default-features = false }
-egui_kittest = { version = "0.33.0", path = "crates/egui_kittest", default-features = false }
+egui_kittest = { version = "0.33.1", path = "crates/egui_kittest", default-features = false }
 eframe = { version = "0.33.0", path = "crates/eframe", default-features = false }
 
 accesskit = "0.21.1"
