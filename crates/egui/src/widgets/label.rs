@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    Align, Direction, FontSelection, Frame, Galley, Pos2, Response, RichText, Sense, Stroke,
-    TextWrapMode, Ui, Widget, WidgetInfo, WidgetText, WidgetType, epaint, pos2,
-    text_selection::LabelSelectionState,
+    Align, Direction, Galley, Pos2, Response, Sense, TextWrapMode, Ui, Widget, WidgetInfo,
+    WidgetText, WidgetType, epaint, pos2, text_selection::LabelSelectionState,
 };
 
 /// Static text.
@@ -169,8 +168,8 @@ impl Label {
             sense |= select_sense;
         }
 
+        // If the user said "use this specific galley", then just use it:
         if let WidgetText::Galley(galley) = self.text {
-            // If the user said "use this specific galley", then just use it:
             let (rect, response) = ui.allocate_exact_size(galley.size(), sense);
             let pos = match galley.job.halign {
                 Align::LEFT => rect.left_top(),
@@ -189,7 +188,7 @@ impl Label {
         let valign = ui.text_valign();
         let mut layout_job = Arc::unwrap_or_clone(self.text.into_layout_job(
             ui.style(),
-            style.text.font_id.into(), // Use the style font
+            style.text.font_id.into(), // Use the label style font
             valign,
         ));
 
@@ -203,7 +202,6 @@ impl Label {
         {
             // On a wrapping horizontal layout we want text to start after the previous widget,
             // then continue on the line below! This will take some extra work:
-
             let cursor = ui.cursor();
             let first_row_indentation = available_width - ui.available_size_before_wrap().x;
             debug_assert!(
@@ -273,7 +271,7 @@ impl Label {
 }
 
 impl Widget for Label {
-    fn ui(mut self, ui: &mut Ui) -> Response {
+    fn ui(self, ui: &mut Ui) -> Response {
         // Interactive = the uses asked to sense interaction.
         // We DON'T want to have the color respond just because the text is selectable;
         // the cursor is enough to communicate that.
@@ -283,21 +281,15 @@ impl Widget for Label {
         let show_tooltip_when_elided = self.show_tooltip_when_elided;
 
         // Get the widget style by reading the rect from the previous pass
-        let id = ui.next_auto_id();
-        let response: Option<Response> = ui.ctx().read_response(id);
-        let state = response.map(|r| r.widget_state()).unwrap_or_default();
-        let style = ui.style().label_style(state);
-
-        // if let WidgetText::Text(text) = self.text {
-        //     let rich_text = RichText::new(text)
-        //         .font(style.text.font_id)
-        //         .color(style.text.color);
-        //     self.text = WidgetText::RichText(Arc::new(rich_text));
-        // }
+        // let id = ui.next_auto_id();
+        // let response: Option<Response> = ui.ctx().read_response(id);
 
         let (galley_pos, galley, mut response) = self.layout_in_ui(ui);
         response
             .widget_info(|| WidgetInfo::labeled(WidgetType::Label, ui.is_enabled(), galley.text()));
+
+        let state = response.widget_state();
+        let style = ui.style().label_style(state);
 
         if ui.is_rect_visible(response.rect) {
             if show_tooltip_when_elided && galley.elided {
@@ -317,11 +309,12 @@ impl Widget for Label {
                 ui.style().visuals.text_color()
             };
 
-            let underline = if response.has_focus() || response.highlighted() {
-                Stroke::new(1.0, response_color)
-            } else {
-                Stroke::NONE
-            };
+            // let underline = if response.has_focus() || response.highlighted() {
+            //     Stroke::new(1.0, response_color)
+            // } else {
+            //     Stroke::NONE
+            // };
+            let underline = style.text.underline;
 
             let selectable = selectable.unwrap_or_else(|| ui.style().interaction.selectable_labels);
             if selectable {

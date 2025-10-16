@@ -1,4 +1,4 @@
-use std::{mem, sync::Arc};
+use std::sync::Arc;
 
 use crate::{
     Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Color32, CornerRadius, Image,

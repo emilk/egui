@@ -25,7 +25,7 @@ fn main() -> eframe::Result {
                     ..s.visuals.widgets.inactive
                 };
                 s.visuals.widgets.active = WidgetVisuals {
-                    fg_stroke: Stroke::new(1.0, Color32::BLUE),
+                    fg_stroke: Stroke::new(1.0, Color32::LIGHT_BLUE),
                     ..s.visuals.widgets.inactive
                 };
                 s.visuals.widgets.hovered = WidgetVisuals {
@@ -63,7 +63,9 @@ fn main() -> eframe::Result {
                     .color(Color32::KHAKI),
             );
 
-            ui.add(Label::new("test").sense(Sense::click()))
+            ui.add(Label::new("interaction click").sense(Sense::click()));
+            ui.add(Label::new("focusable").sense(Sense::focusable_noninteractive()))
+                .request_focus();
         });
     })
 }

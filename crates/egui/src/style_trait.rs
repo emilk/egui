@@ -12,6 +12,9 @@ pub struct TextVisuals {
     pub font_id: FontId,
     /// Font color
     pub color: Color32,
+    /// Text decoration
+    pub underline: Stroke,
+    pub strikethrough: Stroke,
 }
 
 /// General widget style
@@ -152,6 +155,8 @@ impl Style {
             text: TextVisuals {
                 color: visuals.text_color(),
                 font_id: font_id.unwrap_or(TextStyle::Body.resolve(self)),
+                strikethrough: Stroke::NONE,
+                underline: Stroke::NONE,
             },
         }
     }
