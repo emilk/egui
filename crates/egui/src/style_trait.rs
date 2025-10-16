@@ -36,8 +36,10 @@ pub struct CheckboxStyle {
     pub frame: Frame,
     /// Text next to it
     pub text: TextVisuals,
-    /// Size
-    pub size: Vec2,
+    /// Box size
+    pub size: f32,
+    /// Check size
+    pub check_size: f32,
     /// Frame of the checkbox itself
     pub checkbox_frame: Frame,
     /// Checkmark stroke
@@ -149,6 +151,7 @@ impl Style {
                 fill: visuals.bg_fill,
                 stroke: visuals.bg_stroke,
                 corner_radius: visuals.corner_radius,
+                inner_margin: self.spacing.button_padding.into(),
                 ..Default::default()
             },
             stroke: visuals.fg_stroke,
@@ -169,7 +172,23 @@ impl Style {
         }
     }
 
-    // pub fn checkbox_style(&self, state: WidgetState) -> CheckboxStylee {}
+    pub fn checkbox_style(&self, state: WidgetState) -> CheckboxStyle {
+        let visuals = self.visuals.widgets.state(state);
+        let ws = self.widget_style(state);
+        CheckboxStyle {
+            frame: ws.frame.fill(Color32::TRANSPARENT),
+            size: self.spacing.icon_width,
+            check_size: self.spacing.icon_width_inner,
+            checkbox_frame: Frame {
+                fill: visuals.weak_bg_fill,
+                corner_radius: visuals.corner_radius,
+                stroke: visuals.bg_stroke,
+                ..Default::default()
+            },
+            text: ws.text,
+            stroke: ws.stroke,
+        }
+    }
 
     pub fn label_style(&self, state: WidgetState) -> LabelStyle {
         let ws = self.widget_style(state);
