@@ -67,7 +67,7 @@ fn load_config() -> Config {
                 std::fs::read_to_string(config_path).expect("Failed to read config file");
             match toml::from_str(&config_str) {
                 Ok(config) => return config,
-                Err(e) => panic!("Failed to parse config file: {e}")
+                Err(e) => panic!("Failed to parse config file: {e}"),
             };
         }
     }
@@ -98,7 +98,10 @@ impl Config {
     pub fn os_failed_pixel_count_threshold(&self) -> OsThreshold<usize> {
         let fallback = self.failed_pixel_count_threshold;
         OsThreshold {
-            windows: self.windows.failed_pixel_count_threshold.unwrap_or(fallback),
+            windows: self
+                .windows
+                .failed_pixel_count_threshold
+                .unwrap_or(fallback),
             macos: self.mac.failed_pixel_count_threshold.unwrap_or(fallback),
             linux: self.linux.failed_pixel_count_threshold.unwrap_or(fallback),
             fallback,
