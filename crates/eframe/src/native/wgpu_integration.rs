@@ -755,7 +755,6 @@ impl WgpuWinitRunning<'_> {
         window_id: WindowId,
         event: &winit::event::WindowEvent,
     ) -> EventResult {
-        println!("on_window_event: {:?}", event);
         let Self {
             integration,
             shared,

@@ -231,7 +231,7 @@ impl Painter {
                 width: size.width,
                 height: size.height,
                 alpha_mode,
-                resizing: false
+                resizing: false,
             },
         );
         let Some(width) = NonZeroU32::new(size.width) else {
