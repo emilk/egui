@@ -1,8 +1,10 @@
-use crate::Harness;
-use image::ImageError;
 use std::fmt::Display;
 use std::io::ErrorKind;
 use std::path::PathBuf;
+
+use image::ImageError;
+
+use crate::{Harness, config};
 
 pub type SnapshotResult = Result<(), SnapshotError>;
 
@@ -10,11 +12,13 @@ pub type SnapshotResult = Result<(), SnapshotError>;
 #[derive(Clone, Debug)]
 pub struct SnapshotOptions {
     /// The threshold for the image comparison.
+    ///
     /// The default is `0.6` (which is enough for most egui tests to pass across different
     /// wgpu backends).
     pub threshold: f32,
 
     /// The number of pixels that can differ before the snapshot is considered a failure.
+    ///
     /// Preferably, you should use `threshold` to control the sensitivity of the image comparison.
     /// As a last resort, you can use this to allow a certain number of pixels to differ.
     /// If `None`, the default is `0` (meaning no pixels can differ).
@@ -22,6 +26,7 @@ pub struct SnapshotOptions {
     pub failed_pixel_count_threshold: usize,
 
     /// The path where the snapshots will be saved.
+    ///
     /// The default is `tests/snapshots`.
     pub output_path: PathBuf,
 }
@@ -30,7 +35,9 @@ pub struct SnapshotOptions {
 ///
 /// This is useful if you want to set different thresholds for different operating systems.
 ///
-/// The default values are 0 / 0.0
+/// [`OsThreshold::default`] gets the default from the config file (`kittest.toml`).
+/// For `usize`, it's the `failed_pixel_count_threshold` value.
+/// For `f32`, it's the `threshold` value.
 ///
 /// Example usage:
 /// ```no_run
@@ -53,8 +60,32 @@ pub struct OsThreshold<T> {
     pub fallback: T,
 }
 
+impl Default for OsThreshold<usize> {
+    /// Returns the default `failed_pixel_count_threshold` as configured in `kittest.toml`
+    ///
+    /// The default is `0`.
+    fn default() -> Self {
+        config().os_failed_pixel_count_threshold()
+    }
+}
+
+impl Default for OsThreshold<f32> {
+    /// Returns the default `threshold` as configured in `kittest.toml`
+    ///
+    /// The default is `0.6`.
+    fn default() -> Self {
+        config().os_threshold()
+    }
+}
+
 impl From<usize> for OsThreshold<usize> {
     fn from(value: usize) -> Self {
+        Self::new(value)
+    }
+}
+
+impl From<f32> for OsThreshold<f32> {
+    fn from(value: f32) -> Self {
         Self::new(value)
     }
 }
@@ -123,9 +154,9 @@ impl From<OsThreshold<Self>> for f32 {
 impl Default for SnapshotOptions {
     fn default() -> Self {
         Self {
-            threshold: 0.6,
-            output_path: PathBuf::from("tests/snapshots"),
-            failed_pixel_count_threshold: 0, // Default is 0, meaning no pixels can differ
+            threshold: config().threshold(),
+            output_path: config().output_path(),
+            failed_pixel_count_threshold: config().failed_pixel_count_threshold(),
         }
     }
 }
