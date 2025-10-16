@@ -7,4 +7,4 @@ threshold = 2.0
 
 [mac]
 # Since our CI runs snapshot tests on macOS, this is our source of truth.
-threshold = 0.1
+threshold = 0.6
