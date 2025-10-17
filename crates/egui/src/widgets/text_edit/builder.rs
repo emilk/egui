@@ -3,6 +3,7 @@ use std::sync::Arc;
 use emath::{Rect, TSTransform};
 use epaint::{
     StrokeKind,
+    mutex::Mutex,
     text::{Galley, LayoutJob, cursor::CCursor},
 };
 
@@ -12,8 +13,11 @@ use crate::{
     TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetWithState, epaint,
     os::OperatingSystem,
     output::OutputEvent,
-    response, text_selection,
-    text_selection::{CCursorRange, text_cursor_state::cursor_rect, visuals::paint_text_selection},
+    response,
+    text_edit::{TextCursorState, state::TextEditUndoer},
+    text_selection::{
+        self, CCursorRange, text_cursor_state::cursor_rect, visuals::paint_text_selection,
+    },
     vec2,
 };
 
@@ -508,8 +512,7 @@ impl<Value: TextType> TextEdit<'_, Value> {
         let mut state = TextEditState::load(ui.ctx(), id).unwrap_or_default();
         let mut text = state
             .text
-            .clone()
-            .unwrap_or_else(|| represents.string_representation());
+            .get_or_insert_with(|| represents.string_representation());
 
         let text_color = text_color
             .or_else(|| ui.visuals().override_text_color)
@@ -543,7 +546,7 @@ impl<Value: TextType> TextEdit<'_, Value> {
 
         let layouter = layouter.unwrap_or(&mut default_layouter);
 
-        let mut galley = layouter(ui, &text, wrap_width);
+        let mut galley = layouter(ui, text, wrap_width);
 
         let desired_inner_width = if clip_text {
             wrap_width // visual clipping with scroll in singleline input.
@@ -633,7 +636,10 @@ impl<Value: TextType> TextEdit<'_, Value> {
 
             let (changed, new_cursor_range) = events(
                 ui,
-                &mut state,
+                &mut state.cursor,
+                &mut state.undoer,
+                &mut state.ime_enabled,
+                &mut state.ime_cursor_range,
                 &mut text,
                 &mut galley,
                 layouter,
@@ -844,7 +850,7 @@ impl<Value: TextType> TextEdit<'_, Value> {
             }
 
             // The user might have changed the text
-            text = represents.string_representation()
+            *text = represents.string_representation()
         }
 
         if response.changed() {
@@ -899,7 +905,6 @@ impl<Value: TextType> TextEdit<'_, Value> {
             );
         }
 
-        state.text = Some(text);
         state.clone().store(ui.ctx(), id);
 
         TextEditOutput {
@@ -935,7 +940,10 @@ fn mask_if_password(is_password: bool, text: &str) -> String {
 #[expect(clippy::too_many_arguments)]
 fn events(
     ui: &crate::Ui,
-    state: &mut TextEditState,
+    cursor: &mut TextCursorState,
+    undoer: &mut Arc<Mutex<TextEditUndoer>>,
+    ime_enabled: &mut bool,
+    ime_cursor_range: &mut CCursorRange,
     text: &mut String,
     galley: &mut Arc<Galley>,
     layouter: &mut dyn FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<Galley>,
@@ -950,11 +958,11 @@ fn events(
 ) -> (bool, CCursorRange) {
     let os = ui.ctx().os();
 
-    let mut cursor_range = state.cursor.range(galley).unwrap_or(default_cursor_range);
+    let mut cursor_range = cursor.range(galley).unwrap_or(default_cursor_range);
 
     // We feed state to the undoer both before and after handling input
     // so that the undoer creates automatic saves even when there are no events for a while.
-    state.undoer.lock().feed_state(
+    undoer.lock().feed_state(
         ui.input(|i| i.time),
         &(cursor_range, text.as_str().to_owned()),
     );
@@ -969,7 +977,7 @@ fn events(
 
     let mut events = ui.input(|i| i.filtered_events(&event_filter));
 
-    if state.ime_enabled {
+    if *ime_enabled {
         remove_ime_incompatible_events(&mut events);
         // Process IME events first:
         events.sort_by_key(|e| !matches!(e, Event::Ime(_)));
@@ -1065,8 +1073,7 @@ fn events(
                 || (modifiers.matches_logically(Modifiers::SHIFT | Modifiers::COMMAND)
                     && *key == Key::Z) =>
             {
-                if let Some((redo_ccursor_range, redo_txt)) = state
-                    .undoer
+                if let Some((redo_ccursor_range, redo_txt)) = undoer
                     .lock()
                     .redo(&(cursor_range, text.as_str().to_owned()))
                 {
@@ -1083,8 +1090,7 @@ fn events(
                 modifiers,
                 ..
             } if modifiers.matches_logically(Modifiers::COMMAND) => {
-                if let Some((undo_ccursor_range, undo_txt)) = state
-                    .undoer
+                if let Some((undo_ccursor_range, undo_txt)) = undoer
                     .lock()
                     .undo(&(cursor_range, text.as_str().to_owned()))
                 {
@@ -1127,21 +1133,22 @@ fn events(
 
                 match ime_event {
                     ImeEvent::Enabled => {
-                        state.ime_enabled = true;
-                        state.ime_cursor_range = cursor_range;
+                        *ime_enabled = true;
+                        *ime_cursor_range = cursor_range;
                         None
                     }
                     ImeEvent::Preedit(text_mark) => {
                         if text_mark == "\n" || text_mark == "\r" {
                             None
                         } else {
-                            let mut ccursor = clear_prediction(text, &cursor_range);
-
+                            // Empty prediction can be produced when user press backspace
+                            // or escape during IME, so we clear current text.
+                            let mut ccursor = text.delete_selected(&cursor_range);
                             let start_cursor = ccursor;
                             if !text_mark.is_empty() {
                                 text.insert_text_at(&mut ccursor, text_mark, char_limit);
                             }
-                            state.ime_cursor_range = cursor_range;
+                            *ime_cursor_range = cursor_range;
                             Some(CCursorRange::two(start_cursor, ccursor))
                         }
                     }
@@ -1149,13 +1156,12 @@ fn events(
                         if prediction == "\n" || prediction == "\r" {
                             None
                         } else {
-                            state.ime_enabled = false;
+                            *ime_enabled = false;
 
                             let mut ccursor = clear_prediction(text, &cursor_range);
 
                             if !prediction.is_empty()
-                                && cursor_range.secondary.index
-                                    == state.ime_cursor_range.secondary.index
+                                && cursor_range.secondary.index == ime_cursor_range.secondary.index
                             {
                                 text.insert_text_at(&mut ccursor, prediction, char_limit);
                             }
@@ -1164,12 +1170,11 @@ fn events(
                         }
                     }
                     ImeEvent::Disabled => {
-                        state.ime_enabled = false;
+                        *ime_enabled = false;
                         None
                     }
                 }
             }
-
             _ => None,
         };
 
@@ -1184,9 +1189,9 @@ fn events(
         }
     }
 
-    state.cursor.set_char_range(Some(cursor_range));
+    cursor.set_char_range(Some(cursor_range));
 
-    state.undoer.lock().feed_state(
+    undoer.lock().feed_state(
         ui.input(|i| i.time),
         &(cursor_range, text.as_str().to_owned()),
     );
