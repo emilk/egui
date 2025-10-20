@@ -1,16 +1,19 @@
 use std::{borrow::Cow, convert::Infallible, error::Error, fmt::Display};
 
-/// Any type can be displayed and validated by a [`TextEdit`].
+/// Represents types can be displayed and validated by a [`TextEdit`].
 ///
-/// [`TextType`] converts data to its string representation and then attempts to parse any changes the
-/// user made has made. If the modified text is can be parsed, then the [`TextType`] will be updated.
-/// Otherwise the value will be reset to its last valid state.
+/// All [`TextType`]s can represent their value as a string, which is displayed by a [`TextEdit`].
+/// If a [`TextType`] can be parsed from a string the [`TextEdit`] will attempt to parse and update
+/// the [`TextType`] value. If parsing fails, the value of the [`TextType`] willnot change.
+/// This ensures that a [`TextType`] can never represent an invalid value.
 ///
-/// [`TextType`] is implemented for many of the numeric and string types (including references) within the
-/// standard library. But if custom parsing behavior is needed, or implementation does not exist the
-/// [`New Type`] pattern can be used.
+/// [`TextType`] is implemented for many of the numeric and string types (including references) within
+/// the standard library. If custom parsing behavior is needed, or an implementation does not exist,
+/// the [`New Type`] pattern can be used.
 ///
 /// ## Example Implementation
+/// These are example for a string that cannot contain any capital letters.
+/// This example converts any text the user enters to lowercase.
 #[doc = "```
 # use egui::TextType;
 struct NoCaps(String);
@@ -31,8 +34,6 @@ impl TextType for NoCaps {
     }
 }
 ```"]
-/// This example converts any text the user enters to lowercase.
-///
 /// An alternate implementation may choose to reject user input if it contains any capital letters.
 #[doc = "```
 # use egui::TextType;
@@ -80,22 +81,62 @@ pub trait TextType: Sized {
     /// [`Infallible`]: std::convert::Infallible
     type Err: Error;
 
-    /// The value of represented data type depending on the previous valid value and the string modified by the user.
-    ///
-    /// `None` is output if this type is immutable (such as a reference).
-    /// `Some(result)` is the result of parsing.
-    ///
+    /// Parses the string representation of the implementing data type.
     /// This **must** be able to parse output from [`TextType::string_representation`].
-    fn read_from_string(previous: &Self, modified: &str) -> Option<Result<Self, Self::Err>>;
-    /// Generate the string representation of this type.
     ///
+    /// Types that cannot be parsed will return `None`.
+    /// ```
+    /// # use egui::TextType;
+    /// assert!(!<&f32 as TextType>::is_mutable());
+    /// assert!(<&f32 as TextType>::read_from_string(&&0.1, "0.11").is_none());
+    /// ```
+    ///
+    /// Types that are parsable will return the result of parsing.
+    /// ```
+    /// # use egui::TextType;
+    /// assert!(f32::is_mutable());
+    ///
+    /// assert_eq!(<f32 as TextType>::read_from_string(&0.1, "0.11"), Some(Ok(0.11)));
+    /// assert!(<f32 as TextType>::read_from_string(&0.1, "0.1a").unwrap().is_err());
+    /// ```
+    fn read_from_string(previous: &Self, modified: &str) -> Option<Result<Self, Self::Err>>;
+
+    /// Generates the string representation of this type.
     /// This **must** be parseable by [`TextType::read_from_strings`].
+    ///
+    /// ## Example
+    /// ```
+    /// # use egui::TextType;
+    /// let age = -42i32;
+    /// let text = age.string_representation();
+    ///
+    /// assert_eq!(text, "-42".to_owned());
+    ///
+    /// // Using unwrap to keep example short
+    /// let parsed = TextType::read_from_string(&age, &text).unwrap().unwrap();
+    /// assert_eq!(age, parsed);
+    /// ```
     fn string_representation(&self) -> String;
 
     /// Whether this data type can be modified.
     ///
     /// If true for a data type cannot be modified (such as a referenced type), it will appear editable, but no modifications will persist.
-    /// This will not cause unexpected behavior, but will be confusing for users.
+    /// This will not cause unexpected behavior but will be confusing for users.
+    ///
+    /// ## Example
+    /// ```
+    /// # use egui::TextType;
+    /// # use std::{borrow::Cow, num::NonZeroI32};
+    /// // These types are mutable since they can modify their data.
+    /// assert!(String::is_mutable());
+    /// assert!(<Cow<'_, str> as TextType>::is_mutable());
+    /// assert!(NonZeroI32::is_mutable());
+    ///
+    /// // These types are immutable since they cannot modify their data.
+    /// assert!(!<&str as TextType>::is_mutable());
+    /// assert!(!<&char as TextType>::is_mutable());
+    /// assert!(!<&f32 as TextType>::is_mutable());
+    /// ```
     fn is_mutable() -> bool;
 }
 
