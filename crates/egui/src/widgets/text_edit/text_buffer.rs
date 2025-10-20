@@ -1,4 +1,4 @@
-use std::{borrow::Cow, ops::Range};
+use std::ops::Range;
 
 use epaint::{
     Galley,
@@ -13,11 +13,12 @@ use crate::{
     },
 };
 
-/// Trait constraining what types [`crate::TextEdit`] may use as
-/// an underlying buffer.
-///
-/// Most likely you will use a [`String`] which implements [`TextBuffer`].
+/// Trait implementing convenient operations to perform on the string data from a [`TextEdit`].
 pub trait TextBuffer {
+    // Original function signature preserved for backwards compatibility.
+    /// Can this text be edited?
+    fn is_mutable(&self) -> bool;
+
     /// Returns this buffer as a `str`.
     fn as_str(&self) -> &str;
 
@@ -209,6 +210,10 @@ pub trait TextBuffer {
 }
 
 impl TextBuffer for String {
+    fn is_mutable(&self) -> bool {
+        true
+    }
+
     fn as_str(&self) -> &str {
         self.as_ref()
     }
