@@ -100,7 +100,8 @@ impl<Value: TextType> WidgetWithState for TextEdit<'_, Value> {
 }
 
 // This doesn't have to be a string.
-// It's just to prevent having specify the generic type, as it's not used by these functions
+// It's just to prevent having specify the generic type when using these functions.
+// Since "self" is not used it does not matter that these are only implemented for the "String" variant
 impl TextEdit<'_, String> {
     pub fn load_state(ctx: &Context, id: Id) -> Option<TextEditState> {
         TextEditState::load(ctx, id)
