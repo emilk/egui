@@ -4,7 +4,7 @@ use std::{cmp::Ordering, ops::RangeInclusive};
 
 use crate::{
     Button, CursorIcon, Id, Key, MINUS_CHAR_STR, Modifiers, NumExt as _, Response, RichText, Sense,
-    TextEdit, TextWrapMode, Ui, Widget, WidgetInfo, emath, grid::State, text,
+    TextEdit, TextWrapMode, Ui, Widget, WidgetInfo, emath, text,
 };
 
 // ----------------------------------------------------------------------------
@@ -447,10 +447,6 @@ impl Widget for DragValue<'_> {
         let id = ui.next_auto_id();
         let is_slow_speed = shift && ui.ctx().is_being_dragged(id);
 
-        let response = ui.ctx().read_response(id);
-        let state = response.map(|r| r.widget_state()).unwrap_or_default();
-        let style = ui.style().drag_value_style(state);
-
         // The following ensures that when a `DragValue` receives focus,
         // it is immediately rendered in edit mode, rather than being rendered
         // in button mode for just one frame. This is important for
@@ -564,14 +560,13 @@ impl Widget for DragValue<'_> {
                     .clip_text(false)
                     .horizontal_align(ui.layout().horizontal_align())
                     .vertical_align(ui.layout().vertical_align())
-                    .margin(style.frame.inner_margin)
-                    .min_size(style.min_size)
+                    .margin(ui.spacing().button_padding)
+                    .min_size(ui.spacing().interact_size)
                     .id(id)
                     .desired_width(
                         ui.spacing().interact_size.x - 2.0 * ui.spacing().button_padding.x,
                     )
-                    .text_color(style.text.color)
-                    .font(style.text.font_id),
+                    .font(text_style),
             );
 
             // Select all text when the edit gains focus.

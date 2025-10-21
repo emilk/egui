@@ -1,4 +1,3 @@
-use emath::Vec2;
 use epaint::{Color32, FontId, Shadow, Stroke, text::TextWrapMode};
 
 use crate::{
@@ -36,37 +35,13 @@ pub struct CheckboxStyle {
     pub frame: Frame,
     /// Text next to it
     pub text: TextVisuals,
-    /// Box size
+    /// Checkbox size
     pub size: f32,
-    /// Check size
+    /// Checkmark size
     pub check_size: f32,
     /// Frame of the checkbox itself
     pub checkbox_frame: Frame,
     /// Checkmark stroke
-    pub stroke: Stroke,
-}
-
-pub struct DragValueStyle {
-    /// Frame around
-    pub frame: Frame,
-    /// Text of the value
-    pub text: TextVisuals,
-    pub min_size: Vec2,
-}
-
-pub struct HyperlinkStyle {
-    pub frame: Frame,
-    pub text: TextVisuals,
-    pub size: Vec2,
-    pub checkbox_frame: Frame,
-    pub stroke: Stroke,
-}
-
-pub struct ImageStyle {
-    pub frame: Frame,
-    pub text: TextVisuals,
-    pub size: Vec2,
-    pub checkbox_frame: Frame,
     pub stroke: Stroke,
 }
 
@@ -79,32 +54,10 @@ pub struct LabelStyle {
     pub wrap_mode: TextWrapMode,
 }
 
-pub struct RadioButtonStyle {
-    pub frame: Frame,
-    pub text: TextVisuals,
-    pub size: Vec2,
-    pub checkbox_frame: Frame,
-    pub stroke: Stroke,
-}
-
 pub struct SeparatorStyle {
-    pub size: f32,
-    pub stroke: Stroke,
-}
-
-pub struct SliderStyle {
-    pub frame: Frame,
-    pub text: TextVisuals,
-    pub size: Vec2,
-    pub checkbox_frame: Frame,
-    pub stroke: Stroke,
-}
-
-pub struct SpinnerStyle {
-    pub frame: Frame,
-    pub text: TextVisuals,
-    pub size: Vec2,
-    pub checkbox_frame: Frame,
+    /// How much space is allocated in the layout direction
+    pub spacing: f32,
+    /// How to paint it
     pub stroke: Stroke,
 }
 
@@ -206,22 +159,11 @@ impl Style {
         }
     }
 
-    pub fn drag_value_style(&self, state: WidgetState) -> DragValueStyle {
-        let ws = self.widget_style(state);
-        DragValueStyle {
-            frame: ws.frame.inner_margin(self.spacing.button_padding),
-            min_size: self.spacing.interact_size,
-            text: ws.text,
+    pub fn separator_style(&self, state: WidgetState) -> SeparatorStyle {
+        let visuals = self.visuals.widgets.state(state);
+        SeparatorStyle {
+            spacing: 0.0,
+            stroke: visuals.fg_stroke,
         }
     }
-
-    // pub fn hyperlink_style(&self, state: WidgetState) -> HyperlinkStyle {}
-
-    // pub fn image_style(&self, state: WidgetState) -> ImageStyle {}
-
-    // pub fn slider_style(&self, state: WidgetState) -> SliderStyle {}
-
-    // pub fn separator_style(&self, state: WidgetState) -> SeparatorStyle {}
-
-    // pub fn spinner_style(&self, state: WidgetState) -> SpinnerStyle {}
 }

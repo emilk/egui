@@ -179,7 +179,7 @@ impl Label {
             return (pos, galley, response);
         }
 
-        // Get the widget style by reading the rect from the previous pass
+        // Get the widget style by reading the response from the previous pass
         let id = ui.next_auto_id();
         let response: Option<Response> = ui.ctx().read_response(id);
         let state = response.map(|r| r.widget_state()).unwrap_or_default();
@@ -280,10 +280,6 @@ impl Widget for Label {
         let selectable = self.selectable;
         let show_tooltip_when_elided = self.show_tooltip_when_elided;
 
-        // Get the widget style by reading the rect from the previous pass
-        // let id = ui.next_auto_id();
-        // let response: Option<Response> = ui.ctx().read_response(id);
-
         let (galley_pos, galley, mut response) = self.layout_in_ui(ui);
         response
             .widget_info(|| WidgetInfo::labeled(WidgetType::Label, ui.is_enabled(), galley.text()));
@@ -309,11 +305,6 @@ impl Widget for Label {
                 ui.style().visuals.text_color()
             };
 
-            // let underline = if response.has_focus() || response.highlighted() {
-            //     Stroke::new(1.0, response_color)
-            // } else {
-            //     Stroke::NONE
-            // };
             let underline = style.text.underline;
 
             let selectable = selectable.unwrap_or_else(|| ui.style().interaction.selectable_labels);

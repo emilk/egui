@@ -88,10 +88,21 @@ impl Separator {
 impl Widget for Separator {
     fn ui(self, ui: &mut Ui) -> Response {
         let Self {
-            spacing,
+            mut spacing,
             grow,
             is_horizontal_line,
         } = self;
+
+        // Get the widget style by reading the response from the previous pass
+        let id = ui.next_auto_id();
+        let response: Option<Response> = ui.ctx().read_response(id);
+        let state = response.map(|r| r.widget_state()).unwrap_or_default();
+        let style = ui.style().separator_style(state);
+
+        // override the spacing if not set
+        if spacing == 0.0 && style.spacing != 0.0 {
+            spacing = style.spacing;
+        }
 
         let is_horizontal_line = is_horizontal_line
             .unwrap_or_else(|| ui.is_grid() || !ui.layout().main_dir().is_horizontal());
@@ -111,7 +122,7 @@ impl Widget for Separator {
         let (rect, response) = ui.allocate_at_least(size, Sense::hover());
 
         if ui.is_rect_visible(response.rect) {
-            let stroke = ui.visuals().widgets.noninteractive.bg_stroke;
+            let stroke = style.stroke;
             let painter = ui.painter();
             if is_horizontal_line {
                 painter.hline(
