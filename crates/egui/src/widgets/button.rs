@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use epaint::Margin;
+
 use crate::{
     Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Color32, CornerRadius, Image,
     IntoAtoms, NumExt as _, Response, RichText, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2,
@@ -255,14 +257,14 @@ impl<'a> Button<'a> {
     pub fn atom_ui(self, ui: &mut Ui) -> AtomLayoutResponse {
         let Button {
             mut layout,
-            fill: _,
-            stroke: _,
+            fill,
+            stroke,
             small,
             frame,
             frame_when_inactive,
             mut min_size,
-            corner_radius: _,
-            selected: _,
+            corner_radius,
+            selected,
             image_tint_follows_text_color,
             limit_image_size,
         } = self;
@@ -284,13 +286,48 @@ impl<'a> Button<'a> {
 
         let text = layout.text().map(String::from);
 
-        // Get the widget style by reading the response from the previous pass
-        let id = ui.next_auto_id();
-        let response: Option<Response> = ui.ctx().read_response(id);
-        let state = response.map(|r| r.widget_state()).unwrap_or_default();
+        let state = if selected {
+            // If selected is true then the state is active
+            WidgetState::Active
+        } else {
+            // Get the widget state by reading the response from the previous pass
+            let id = ui.next_auto_id();
+            let response: Option<Response> = ui.ctx().read_response(id);
+            response.map(|r| r.widget_state()).unwrap_or_default()
+        };
+
         let style = ui.style().button_style(state);
 
         let has_frame_margin = frame.unwrap_or_else(|| ui.visuals().button_frame);
+
+        let mut button_padding = if has_frame_margin {
+            style.frame.inner_margin
+        } else {
+            Margin::ZERO
+        };
+        if small {
+            button_padding.bottom = 0;
+            button_padding.top = 0;
+        }
+
+        // Override global style by local style
+        let mut frame = style.frame;
+        if let Some(fill) = fill {
+            frame = frame.fill(fill);
+        }
+        if let Some(corner_radius) = corner_radius {
+            frame = frame.corner_radius(corner_radius);
+        }
+        if let Some(stroke) = stroke {
+            frame = frame.stroke(stroke);
+        }
+
+        frame = frame.inner_margin(Margin {
+            left: button_padding.left - frame.stroke.width as i16,
+            top: button_padding.top - frame.stroke.width as i16,
+            right: button_padding.right - frame.stroke.width as i16,
+            bottom: button_padding.bottom - frame.stroke.width as i16,
+        });
 
         // Apply the correct font and color if Text
         // We assume that the other WidgetText have already a Fontid and color
@@ -307,7 +344,7 @@ impl<'a> Button<'a> {
         // Retrocompatibility with button settings
         let mut prepared =
             if has_frame_margin && (state != WidgetState::Inactive || frame_when_inactive) {
-                layout.frame(style.frame).min_size(min_size).allocate(ui)
+                layout.frame(frame).min_size(min_size).allocate(ui)
             } else {
                 layout.min_size(min_size).allocate(ui)
             };

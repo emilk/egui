@@ -8,15 +8,15 @@ use emath::{Rect, Vec2, vec2};
 /// Negative margins are possible, but may produce weird behavior.
 /// Use with care.
 ///
-/// All values are stored as [`i8`] to keep the size of [`Margin`] small.
+/// All values are stored as [`i16`] to keep the size of [`Margin`] small.
 /// If you want floats, use [`crate::MarginF32`] instead.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Margin {
-    pub left: i8,
-    pub right: i8,
-    pub top: i8,
-    pub bottom: i8,
+    pub left: i16,
+    pub right: i16,
+    pub top: i16,
+    pub bottom: i16,
 }
 
 impl Margin {
@@ -30,7 +30,7 @@ impl Margin {
     /// The same margin on every side.
     #[doc(alias = "symmetric")]
     #[inline]
-    pub const fn same(margin: i8) -> Self {
+    pub const fn same(margin: i16) -> Self {
         Self {
             left: margin,
             right: margin,
@@ -41,7 +41,7 @@ impl Margin {
 
     /// Margins with the same size on opposing sides
     #[inline]
-    pub const fn symmetric(x: i8, y: i8) -> Self {
+    pub const fn symmetric(x: i16, y: i16) -> Self {
         Self {
             left: x,
             right: x,
@@ -98,9 +98,9 @@ impl Margin {
     }
 }
 
-impl From<i8> for Margin {
+impl From<i16> for Margin {
     #[inline]
-    fn from(v: i8) -> Self {
+    fn from(v: i16) -> Self {
         Self::same(v)
     }
 }
@@ -134,12 +134,12 @@ impl std::ops::Add for Margin {
     }
 }
 
-/// `Margin + i8`
-impl std::ops::Add<i8> for Margin {
+/// `Margin + i16`
+impl std::ops::Add<i16> for Margin {
     type Output = Self;
 
     #[inline]
-    fn add(self, v: i8) -> Self {
+    fn add(self, v: i16) -> Self {
         Self {
             left: self.left.saturating_add(v),
             right: self.right.saturating_add(v),
@@ -149,10 +149,10 @@ impl std::ops::Add<i8> for Margin {
     }
 }
 
-/// `Margin += i8`
-impl std::ops::AddAssign<i8> for Margin {
+/// `Margin += i16`
+impl std::ops::AddAssign<i16> for Margin {
     #[inline]
-    fn add_assign(&mut self, v: i8) {
+    fn add_assign(&mut self, v: i16) {
         *self = *self + v;
     }
 }
@@ -214,12 +214,12 @@ impl std::ops::Sub for Margin {
     }
 }
 
-/// `Margin - i8`
-impl std::ops::Sub<i8> for Margin {
+/// `Margin - i16`
+impl std::ops::Sub<i16> for Margin {
     type Output = Self;
 
     #[inline]
-    fn sub(self, v: i8) -> Self {
+    fn sub(self, v: i16) -> Self {
         Self {
             left: self.left.saturating_sub(v),
             right: self.right.saturating_sub(v),
@@ -229,10 +229,10 @@ impl std::ops::Sub<i8> for Margin {
     }
 }
 
-/// `Margin -= i8`
-impl std::ops::SubAssign<i8> for Margin {
+/// `Margin -= i16`
+impl std::ops::SubAssign<i16> for Margin {
     #[inline]
-    fn sub_assign(&mut self, v: i8) {
+    fn sub_assign(&mut self, v: i16) {
         *self = *self - v;
     }
 }
