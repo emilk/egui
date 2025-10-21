@@ -174,6 +174,7 @@ impl PluginsOrdered {
         });
     }
 
+    #[cfg_attr(not(debug_assertions), expect(dead_code))]
     pub fn on_widget_under_pointer(&self, ctx: &Context, widget: &WidgetRect) {
         profiling::scope!("plugins", "on_widget_under_pointer");
         self.for_each_dyn(|plugin| {
