@@ -1,3 +1,5 @@
+use emath::Rect;
+
 use crate::{
     Atom, AtomLayout, Atoms, Id, IntoAtoms, NumExt as _, Response, Sense, Shape, Ui, Vec2, Widget,
     WidgetInfo, WidgetType, epaint, pos2,
@@ -55,7 +57,7 @@ impl Widget for Checkbox<'_> {
             indeterminate,
         } = self;
 
-        // Get the widget style by reading the rect from the previous pass
+        // Get the widget style by reading the response from the previous pass
         let id = ui.next_auto_id();
         let response: Option<Response> = ui.ctx().read_response(id);
         let state = response.map(|r| r.widget_state()).unwrap_or_default();
@@ -109,7 +111,13 @@ impl Widget for Checkbox<'_> {
             let response = prepared.paint(ui);
 
             if let Some(rect) = response.rect(rect_id) {
-                let (small_icon_rect, big_icon_rect) = ui.spacing().icon_rectangles(rect);
+                let big_icon_rect = Rect::from_center_size(
+                    pos2(rect.left() + icon_width / 2.0, rect.center().y),
+                    Vec2::splat(style.size),
+                );
+                let small_icon_rect =
+                    Rect::from_center_size(big_icon_rect.center(), Vec2::splat(style.check_size));
+
                 ui.painter().add(epaint::RectShape::new(
                     big_icon_rect,
                     style.checkbox_frame.corner_radius,
