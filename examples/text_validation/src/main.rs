@@ -5,14 +5,10 @@ use eframe::egui::{self, text_edit::TextType};
 
 fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
-    let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size([320.0, 240.0]),
-        ..Default::default()
-    };
     eframe::run_native(
         "My egui App",
-        options,
-        Box::new(|cc| Ok(Box::<MyApp>::default())),
+        Default::default(),
+        Box::new(|_cc| Ok(Box::<MyApp>::default())),
     )
 }
 
@@ -87,17 +83,34 @@ impl eframe::App for MyApp {
 struct NoCaps(String);
 
 impl TextType for NoCaps {
-    type Err = std::convert::Infallible;
+    type Err = IncorrectCaseError;
 
     fn read_from_string(_previous: &Self, modified: &str) -> Option<Result<Self, Self::Err>> {
-        Some(Ok(NoCaps(modified.to_lowercase())))
+        if modified.to_lowercase() == modified {
+            Some(Ok(NoCaps(modified.to_owned())))
+        } else {
+            Some(Err(IncorrectCaseError(
+                "Contained uppercase letters".to_owned(),
+            )))
+        }
     }
 
     fn string_representation(&self) -> String {
         self.0.clone()
     }
 
-    fn is_mutable() -> bool {
+    fn is_parsable() -> bool {
         true
     }
 }
+
+#[derive(Debug)]
+pub struct IncorrectCaseError(String);
+
+impl std::fmt::Display for IncorrectCaseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for IncorrectCaseError {}
