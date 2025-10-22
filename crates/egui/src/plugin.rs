@@ -47,6 +47,7 @@ pub trait Plugin: Send + Sync + std::any::Any + 'static {
     ///
     /// Useful for capturing a stack trace so that widgets can be mapped back to their source code.
     /// Since this is called outside a pass, don't show ui here. Using `Context::debug_painter` is fine though.
+    #[cfg(debug_assertions)]
     fn on_widget_under_pointer(&mut self, ctx: &Context, widget: &WidgetRect) {}
 }
 
