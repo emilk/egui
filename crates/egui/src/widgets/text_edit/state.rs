@@ -37,9 +37,10 @@ pub struct TextEditState {
     /// Controls the text selection.
     pub cursor: TextCursorState,
 
-    // TODO(tye-exe): Should this be public?
-    /// Displayed string.
-    /// This may differ from the value represented if the user is actively editing the string.
+    /// The string displayed.
+    /// This may differ from the current value of the [`TextEdit`] if the string is not a valid value.
+    ///
+    /// [`TextEdit`]: crate::TextEdit
     pub text: Option<String>,
 
     /// Wrapped in Arc for cheaper clones.
