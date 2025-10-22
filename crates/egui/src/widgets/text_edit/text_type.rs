@@ -30,7 +30,7 @@ impl TextType for NoCaps {
         self.0.clone()
     }
 
-    fn is_mutable() -> bool {
+    fn is_parsable() -> bool {
         true
     }
 }
@@ -58,7 +58,7 @@ impl TextType for NoCaps {
         self.0.clone()
     }
 
-    fn is_mutable() -> bool {
+    fn is_parsable() -> bool {
         true
     }
 }
@@ -88,14 +88,14 @@ pub trait TextType: Sized {
     /// Types that cannot be parsed will return `None`.
     /// ```
     /// # use egui::TextType;
-    /// assert!(!<&f32 as TextType>::is_mutable());
+    /// assert!(!<&f32 as TextType>::is_parsable());
     /// assert!(<&f32 as TextType>::read_from_string(&&0.1, "0.11").is_none());
     /// ```
     ///
     /// Types that are parsable will return the result of parsing.
     /// ```
     /// # use egui::TextType;
-    /// assert!(f32::is_mutable());
+    /// assert!(f32::is_parsable());
     ///
     /// assert_eq!(<f32 as TextType>::read_from_string(&0.1, "0.11"), Some(Ok(0.11)));
     /// assert!(<f32 as TextType>::read_from_string(&0.1, "0.1a").unwrap().is_err());
@@ -134,16 +134,17 @@ pub trait TextType: Sized {
     /// # use egui::TextType;
     /// # use std::{borrow::Cow, num::NonZeroI32};
     /// // These types are mutable since they can modify their data.
-    /// assert!(String::is_mutable());
-    /// assert!(<Cow<'_, str> as TextType>::is_mutable());
-    /// assert!(NonZeroI32::is_mutable());
+    /// assert!(String::is_parsable());
+    /// assert!(<Cow<'_, str> as TextType>::is_parsable());
+    /// assert!(NonZeroI32::is_parsable());
     ///
     /// // These types are immutable since they cannot modify their data.
-    /// assert!(!<&str as TextType>::is_mutable());
-    /// assert!(!<&char as TextType>::is_mutable());
-    /// assert!(!<&f32 as TextType>::is_mutable());
+    /// assert!(!<&str as TextType>::is_parsable());
+    /// assert!(!<&char as TextType>::is_parsable());
+    /// assert!(!<&f32 as TextType>::is_parsable());
     /// ```
-    fn is_mutable() -> bool;
+    #[doc(alias = "is_parseable")]
+    fn is_parsable() -> bool;
 }
 
 /// A generic error that can occur when parsing a type as [`TextType`].
@@ -169,7 +170,7 @@ impl TextType for &str {
         self.to_string()
     }
 
-    fn is_mutable() -> bool {
+    fn is_parsable() -> bool {
         false
     }
 }
@@ -185,7 +186,7 @@ impl TextType for String {
         self.to_string()
     }
 
-    fn is_mutable() -> bool {
+    fn is_parsable() -> bool {
         true
     }
 }
@@ -214,7 +215,7 @@ impl TextType for char {
         self.to_string()
     }
 
-    fn is_mutable() -> bool {
+    fn is_parsable() -> bool {
         true
     }
 }
@@ -230,7 +231,7 @@ impl TextType for &char {
         self.to_string()
     }
 
-    fn is_mutable() -> bool {
+    fn is_parsable() -> bool {
         false
     }
 }
@@ -246,7 +247,7 @@ impl TextType for Cow<'_, str> {
         self.to_string()
     }
 
-    fn is_mutable() -> bool {
+    fn is_parsable() -> bool {
         true
     }
 }
@@ -270,7 +271,7 @@ mod num_impls {
                     self.to_string()
                 }
 
-                fn is_mutable() -> bool {
+                fn is_parsable() -> bool {
                     true
                 }
             }
@@ -288,7 +289,7 @@ mod num_impls {
                     self.to_string()
                 }
 
-                fn is_mutable() -> bool {
+                fn is_parsable() -> bool {
                     false
                 }
             }
@@ -304,8 +305,8 @@ mod num_impls {
                     assert!(TextType::read_from_string(&(&$init), &string).is_none(), stringify!(Parsing a reference (&$init) must return None));
                 )*
                 // Test mutability
-                assert!(<$num as TextType>::is_mutable(), stringify!($num must be mutable));
-                assert!(!<&$num as TextType>::is_mutable(), stringify!(&$num must not be mutable));
+                assert!(<$num as TextType>::is_parsable(), stringify!($num must be mutable));
+                assert!(!<&$num as TextType>::is_parsable(), stringify!(&$num must not be mutable));
             }
         };
         ($num:path; $($tail:tt)*) => {

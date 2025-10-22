@@ -429,7 +429,7 @@ impl<Value: TextType> TextEdit<'_, Value> {
     /// # });
     /// ```
     pub fn show(self, ui: &mut Ui) -> TextEditOutput {
-        let is_mutable = Value::is_mutable();
+        let is_mutable = Value::is_parsable();
         let frame = self.frame;
         let where_to_put_background = ui.painter().add(Shape::Noop);
         let background_color = self
@@ -586,7 +586,7 @@ impl<Value: TextType> TextEdit<'_, Value> {
 
         if interactive {
             if let Some(pointer_pos) = response.interact_pointer_pos() {
-                if response.hovered() && Value::is_mutable() {
+                if response.hovered() && Value::is_parsable() {
                     ui.output_mut(|o| o.mutable_text_under_cursor = true);
                 }
 
@@ -787,7 +787,7 @@ impl<Value: TextType> TextEdit<'_, Value> {
                         ui.scroll_to_rect(primary_cursor_rect + margin, None);
                     }
 
-                    if Value::is_mutable() && interactive {
+                    if Value::is_parsable() && interactive {
                         let now = ui.ctx().input(|i| i.time);
                         if response.changed() || selection_changed {
                             state.last_interaction_time = now;
@@ -845,7 +845,7 @@ impl<Value: TextType> TextEdit<'_, Value> {
                 None =>
                 {
                     #[cfg(feature = "log")]
-                    if Value::is_mutable() {
+                    if Value::is_parsable() {
                         log::warn!("Incorrectly marked unparsable TextType as mutable.",)
                     }
                 }
