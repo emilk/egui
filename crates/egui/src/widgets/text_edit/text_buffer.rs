@@ -15,7 +15,6 @@ use crate::{
 
 /// Trait implementing convenient operations to perform on the string data from a [`TextEdit`].
 pub trait TextBuffer {
-    // Original function signature preserved for backwards compatibility.
     /// Can this text be edited?
     fn is_mutable(&self) -> bool;
 

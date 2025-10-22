@@ -1,3 +1,4 @@
+//! Contains [`TextType`] alongide its implementations.
 use std::{borrow::Cow, convert::Infallible, error::Error, fmt::Display};
 
 /// Represents types can be displayed and validated by a [`TextEdit`].
@@ -99,6 +100,11 @@ pub trait TextType: Sized {
     /// assert_eq!(<f32 as TextType>::read_from_string(&0.1, "0.11"), Some(Ok(0.11)));
     /// assert!(<f32 as TextType>::read_from_string(&0.1, "0.1a").unwrap().is_err());
     /// ```
+    ///
+    /// ## Example Implementations
+    /// See [`TextType`] documentation and the [`text_type`] module for examples.
+    ///
+    /// [`text_type`]: self
     fn read_from_string(previous: &Self, modified: &str) -> Option<Result<Self, Self::Err>>;
 
     /// Generates the string representation of this type.

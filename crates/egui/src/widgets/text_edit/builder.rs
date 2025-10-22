@@ -55,7 +55,7 @@ type LayouterFn<'t> = &'t mut dyn FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<Galley
 ///
 ///
 /// You can also use [`TextEdit`] to show text that can be selected, but not edited.
-/// To do so, pass in a `&mut` reference to a `&str`, for instance:
+/// To do so, pass in a `&mut` reference to an immutable reference (E.G. `&str`), for instance:
 ///
 /// ```
 /// fn selectable_text(ui: &mut egui::Ui, mut text: &str) {
@@ -501,7 +501,7 @@ impl<Value: TextType> TextEdit<'_, Value> {
             background_color: _,
         } = self;
 
-        // An Id is required, as the displayed string is owned by the state.
+        // An Id is required, as the displayed string is owned by the TextEditState.
         let id = id.unwrap_or_else(|| {
             if let Some(id_salt) = id_salt {
                 ui.make_persistent_id(id_salt)
@@ -832,9 +832,6 @@ impl<Value: TextType> TextEdit<'_, Value> {
 
         // TODO(tye-exe): Simplify once https://github.com/emilk/egui/issues/2142 is fixed
         if response.lost_focus() || response.clicked_elsewhere() {
-            // TODO(tye-exe): Parsing can be skipped if the text has not changed
-            // since the value is updated in real time.
-            // However, the reason for parsing failure would not get logged.
             match Value::read_from_string(&represents, &text) {
                 Some(Ok(var)) => *represents = var,
                 Some(Err(err)) => {
