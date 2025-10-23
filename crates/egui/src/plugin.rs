@@ -216,7 +216,7 @@ impl Plugin for CallbackPlugin {
         profiling::function_scope!();
 
         for (_debug_name, cb) in &self.on_begin_plugins {
-            profiling::scope!(*_debug_name);
+            profiling::scope!("on_begin_pass", *_debug_name);
             (cb)(ctx);
         }
     }
@@ -225,7 +225,7 @@ impl Plugin for CallbackPlugin {
         profiling::function_scope!();
 
         for (_debug_name, cb) in &self.on_end_plugins {
-            profiling::scope!(*_debug_name);
+            profiling::scope!("on_end_pass", *_debug_name);
             (cb)(ctx);
         }
     }
