@@ -1,30 +1,30 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/ecolor",
-    "crates/egui_demo_app",
-    "crates/egui_demo_lib",
-    "crates/egui_extras",
-    "crates/egui_glow",
-    "crates/egui_kittest",
-    "crates/egui-wgpu",
-    "crates/egui-winit",
-    "crates/egui",
-    "crates/emath",
-    "crates/epaint",
-    "crates/epaint_default_fonts",
+  "crates/ecolor",
+  "crates/egui_demo_app",
+  "crates/egui_demo_lib",
+  "crates/egui_extras",
+  "crates/egui_glow",
+  "crates/egui_kittest",
+  "crates/egui-wgpu",
+  "crates/egui-winit",
+  "crates/egui",
+  "crates/emath",
+  "crates/epaint",
+  "crates/epaint_default_fonts",
 
-    "examples/*",
-    "tests/*",
+  "examples/*",
+  "tests/*",
 
-    "xtask",
+  "xtask",
 ]
 
 [workspace.package]
 edition = "2024"
 license = "MIT OR Apache-2.0"
 rust-version = "1.88"
-version = "0.32.3"
+version = "0.33.0"
 
 
 [profile.release]
@@ -55,29 +55,29 @@ opt-level = 2
 
 
 [workspace.dependencies]
-emath = { version = "0.32.3", path = "crates/emath", default-features = false }
-ecolor = { version = "0.32.3", path = "crates/ecolor", default-features = false }
-epaint = { version = "0.32.3", path = "crates/epaint", default-features = false }
-epaint_default_fonts = { version = "0.32.3", path = "crates/epaint_default_fonts" }
-egui = { version = "0.32.3", path = "crates/egui", default-features = false }
-egui-winit = { version = "0.32.3", path = "crates/egui-winit", default-features = false }
-egui_extras = { version = "0.32.3", path = "crates/egui_extras", default-features = false }
-egui-wgpu = { version = "0.32.3", path = "crates/egui-wgpu", default-features = false }
-egui_demo_lib = { version = "0.32.3", path = "crates/egui_demo_lib", default-features = false }
-egui_glow = { version = "0.32.3", path = "crates/egui_glow", default-features = false }
-egui_kittest = { version = "0.32.3", path = "crates/egui_kittest", default-features = false }
-eframe = { version = "0.32.3", path = "crates/eframe", default-features = false }
+emath = { version = "0.33.0", path = "crates/emath", default-features = false }
+ecolor = { version = "0.33.0", path = "crates/ecolor", default-features = false }
+epaint = { version = "0.33.0", path = "crates/epaint", default-features = false }
+epaint_default_fonts = { version = "0.33.0", path = "crates/epaint_default_fonts" }
+egui = { version = "0.33.0", path = "crates/egui", default-features = false }
+egui-winit = { version = "0.33.0", path = "crates/egui-winit", default-features = false }
+egui_extras = { version = "0.33.0", path = "crates/egui_extras", default-features = false }
+egui-wgpu = { version = "0.33.0", path = "crates/egui-wgpu", default-features = false }
+egui_demo_lib = { version = "0.33.0", path = "crates/egui_demo_lib", default-features = false }
+egui_glow = { version = "0.33.0", path = "crates/egui_glow", default-features = false }
+egui_kittest = { version = "0.33.1", path = "crates/egui_kittest", default-features = false }
+eframe = { version = "0.33.0", path = "crates/eframe", default-features = false }
 
 accesskit = "0.21.1"
 accesskit_consumer = "0.30.1"
 accesskit_winit = "0.29.1"
 ab_glyph = "0.2.32"
 ahash = { version = "0.8.12", default-features = false, features = [
-    "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
-    "std",
+  "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
+  "std",
 ] }
 android_logger = "0.15.1"
-arboard = { version = "3.6.1", default-features = false}
+arboard = { version = "3.6.1", default-features = false }
 backtrace = "0.3.76"
 bitflags = "2.9.4"
 bytemuck = "1.24.0"
@@ -97,7 +97,7 @@ glutin-winit = { version = "0.5.0", default-features = false }
 home = "0.5.9"
 image = { version = "0.25.6", default-features = false }
 js-sys = "0.3.77"
-kittest = { version = "0.2.0", git = "https://github.com/rerun-io/kittest.git" }
+kittest = { version = "0.3.0" }
 log = { version = "0.4.28", features = ["std"] }
 memoffset = "0.9.1"
 mimalloc = "0.1.48"
@@ -125,7 +125,7 @@ ron = "0.11.0"
 serde = { version = "1.0.228", features = ["derive"] }
 similar-asserts = "1.7.0"
 smallvec = "1.15.1"
-smithay-clipboard =  "0.7.2"
+smithay-clipboard = "0.7.2"
 static_assertions = "1.1.0"
 syntect = { version = "5.3.0", default-features = false }
 tempfile = "3.23.0"
@@ -134,7 +134,7 @@ tokio = "1.47.1"
 type-map = "0.5.1"
 unicode_names2 = { version = "2.0.0", default-features = false }
 unicode-segmentation = "1.12.0"
-wasm-bindgen = "0.2.100"  # Keep wasm-bindgen version in sync in: setup_web.sh, Cargo.toml, Cargo.lock, rust.yml
+wasm-bindgen = "0.2.100" # Keep wasm-bindgen version in sync in: setup_web.sh, Cargo.toml, Cargo.lock, rust.yml
 wasm-bindgen-futures = "0.4.0"
 wayland-cursor = { version = "0.31.11", default-features = false }
 web-sys = "0.3.77"
@@ -156,7 +156,7 @@ rust_2021_prelude_collisions = "warn"
 semicolon_in_expressions_from_macros = "warn"
 trivial_numeric_casts = "warn"
 unexpected_cfgs = "warn"
-unsafe_op_in_unsafe_fn = "warn"                         # `unsafe_op_in_unsafe_fn` may become the default in future Rust versions: https://github.com/rust-lang/rust/issues/71668
+unsafe_op_in_unsafe_fn = "warn" # `unsafe_op_in_unsafe_fn` may become the default in future Rust versions: https://github.com/rust-lang/rust/issues/71668
 unused_extern_crates = "warn"
 unused_import_braces = "warn"
 unused_lifetimes = "warn"
@@ -186,11 +186,11 @@ dbg_macro = "warn"
 debug_assert_with_mut_call = "warn"
 default_union_representation = "warn"
 derive_partial_eq_without_eq = "warn"
-disallowed_macros = "warn"                  # See clippy.toml
-disallowed_methods = "warn"                 # See clippy.toml
-disallowed_names = "warn"                   # See clippy.toml
-disallowed_script_idents = "warn"           # See clippy.toml
-disallowed_types = "warn"                   # See clippy.toml
+disallowed_macros = "warn" # See clippy.toml
+disallowed_methods = "warn" # See clippy.toml
+disallowed_names = "warn" # See clippy.toml
+disallowed_script_idents = "warn" # See clippy.toml
+disallowed_types = "warn" # See clippy.toml
 doc_comment_double_space_linebreaks = "warn"
 doc_link_with_quotes = "warn"
 doc_markdown = "warn"
@@ -345,14 +345,14 @@ zero_sized_map_values = "warn"
 comparison_chain = "allow"
 should_panic_without_expect = "allow"
 too_many_lines = "allow"
-unwrap_used = "allow"                 # TODO(emilk): We really wanna warn on this one
+unwrap_used = "allow" # TODO(emilk): We really wanna warn on this one
 
 # These are meh:
-assigning_clones = "allow"            # No please
+assigning_clones = "allow" # No please
 let_underscore_must_use = "allow"
 let_underscore_untyped = "allow"
-manual_range_contains = "allow"       # this one is just worse imho
-map_unwrap_or = "allow"               # so is this one
-self_named_module_files = "allow"     # Disabled waiting on https://github.com/rust-lang/rust-clippy/issues/9602
+manual_range_contains = "allow" # this one is just worse imho
+map_unwrap_or = "allow" # so is this one
+self_named_module_files = "allow" # Disabled waiting on https://github.com/rust-lang/rust-clippy/issues/9602
 significant_drop_tightening = "allow" # Too many false positives
-wildcard_imports = "allow"            # `use crate::*` is useful to avoid merge conflicts when adding/removing imports
+wildcard_imports = "allow" # `use crate::*` is useful to avoid merge conflicts when adding/removing imports
