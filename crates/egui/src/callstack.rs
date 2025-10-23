@@ -20,10 +20,10 @@ pub fn capture() -> String {
         backtrace::resolve_frame(frame, |symbol| {
             let mut file_and_line = symbol.filename().map(shorten_source_file_path);
 
-            if let Some(file_and_line) = &mut file_and_line {
-                if let Some(line_nr) = symbol.lineno() {
-                    file_and_line.push_str(&format!(":{line_nr}"));
-                }
+            if let Some(file_and_line) = &mut file_and_line
+                && let Some(line_nr) = symbol.lineno()
+            {
+                file_and_line.push_str(&format!(":{line_nr}"));
             }
             let file_and_line = file_and_line.unwrap_or_default();
 

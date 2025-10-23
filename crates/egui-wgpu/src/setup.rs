@@ -64,7 +64,7 @@ impl WgpuSetup {
                     }
                 }
 
-                log::debug!("Creating wgpu instance with backends {:?}", backends);
+                log::debug!("Creating wgpu instance with backends {backends:?}");
                 wgpu::util::new_instance_with_webgpu_detection(&create_new.instance_descriptor)
                     .await
             }
@@ -179,15 +179,13 @@ impl Default for WgpuSetupCreateNew {
 
                 wgpu::DeviceDescriptor {
                     label: Some("egui wgpu device"),
-                    required_features: wgpu::Features::default(),
                     required_limits: wgpu::Limits {
                         // When using a depth buffer, we have to be able to create a texture
                         // large enough for the entire surface, and we want to support 4k+ displays.
                         max_texture_dimension_2d: 8192,
                         ..base_limits
                     },
-                    memory_hints: wgpu::MemoryHints::default(),
-                    trace: wgpu::Trace::Off,
+                    ..Default::default()
                 }
             }),
         }

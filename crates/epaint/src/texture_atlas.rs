@@ -238,7 +238,6 @@ impl TextureAtlas {
         if required_height > self.max_height() {
             // This is a bad place to be - we need to start reusing space :/
 
-            #[cfg(feature = "log")]
             log::warn!("epaint texture atlas overflowed!");
 
             self.cursor = (0, self.image.height() / 3); // Restart a bit down - the top of the atlas has too many important things in it

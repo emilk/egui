@@ -705,74 +705,74 @@ impl ViewportBuilder {
 
         let mut commands = Vec::new();
 
-        if let Some(new_title) = new_title {
-            if Some(&new_title) != self.title.as_ref() {
-                self.title = Some(new_title.clone());
-                commands.push(ViewportCommand::Title(new_title));
-            }
+        if let Some(new_title) = new_title
+            && Some(&new_title) != self.title.as_ref()
+        {
+            self.title = Some(new_title.clone());
+            commands.push(ViewportCommand::Title(new_title));
         }
 
-        if let Some(new_position) = new_position {
-            if Some(new_position) != self.position {
-                self.position = Some(new_position);
-                commands.push(ViewportCommand::OuterPosition(new_position));
-            }
+        if let Some(new_position) = new_position
+            && Some(new_position) != self.position
+        {
+            self.position = Some(new_position);
+            commands.push(ViewportCommand::OuterPosition(new_position));
         }
 
-        if let Some(new_inner_size) = new_inner_size {
-            if Some(new_inner_size) != self.inner_size {
-                self.inner_size = Some(new_inner_size);
-                commands.push(ViewportCommand::InnerSize(new_inner_size));
-            }
+        if let Some(new_inner_size) = new_inner_size
+            && Some(new_inner_size) != self.inner_size
+        {
+            self.inner_size = Some(new_inner_size);
+            commands.push(ViewportCommand::InnerSize(new_inner_size));
         }
 
-        if let Some(new_min_inner_size) = new_min_inner_size {
-            if Some(new_min_inner_size) != self.min_inner_size {
-                self.min_inner_size = Some(new_min_inner_size);
-                commands.push(ViewportCommand::MinInnerSize(new_min_inner_size));
-            }
+        if let Some(new_min_inner_size) = new_min_inner_size
+            && Some(new_min_inner_size) != self.min_inner_size
+        {
+            self.min_inner_size = Some(new_min_inner_size);
+            commands.push(ViewportCommand::MinInnerSize(new_min_inner_size));
         }
 
-        if let Some(new_max_inner_size) = new_max_inner_size {
-            if Some(new_max_inner_size) != self.max_inner_size {
-                self.max_inner_size = Some(new_max_inner_size);
-                commands.push(ViewportCommand::MaxInnerSize(new_max_inner_size));
-            }
+        if let Some(new_max_inner_size) = new_max_inner_size
+            && Some(new_max_inner_size) != self.max_inner_size
+        {
+            self.max_inner_size = Some(new_max_inner_size);
+            commands.push(ViewportCommand::MaxInnerSize(new_max_inner_size));
         }
 
-        if let Some(new_fullscreen) = new_fullscreen {
-            if Some(new_fullscreen) != self.fullscreen {
-                self.fullscreen = Some(new_fullscreen);
-                commands.push(ViewportCommand::Fullscreen(new_fullscreen));
-            }
+        if let Some(new_fullscreen) = new_fullscreen
+            && Some(new_fullscreen) != self.fullscreen
+        {
+            self.fullscreen = Some(new_fullscreen);
+            commands.push(ViewportCommand::Fullscreen(new_fullscreen));
         }
 
-        if let Some(new_maximized) = new_maximized {
-            if Some(new_maximized) != self.maximized {
-                self.maximized = Some(new_maximized);
-                commands.push(ViewportCommand::Maximized(new_maximized));
-            }
+        if let Some(new_maximized) = new_maximized
+            && Some(new_maximized) != self.maximized
+        {
+            self.maximized = Some(new_maximized);
+            commands.push(ViewportCommand::Maximized(new_maximized));
         }
 
-        if let Some(new_resizable) = new_resizable {
-            if Some(new_resizable) != self.resizable {
-                self.resizable = Some(new_resizable);
-                commands.push(ViewportCommand::Resizable(new_resizable));
-            }
+        if let Some(new_resizable) = new_resizable
+            && Some(new_resizable) != self.resizable
+        {
+            self.resizable = Some(new_resizable);
+            commands.push(ViewportCommand::Resizable(new_resizable));
         }
 
-        if let Some(new_transparent) = new_transparent {
-            if Some(new_transparent) != self.transparent {
-                self.transparent = Some(new_transparent);
-                commands.push(ViewportCommand::Transparent(new_transparent));
-            }
+        if let Some(new_transparent) = new_transparent
+            && Some(new_transparent) != self.transparent
+        {
+            self.transparent = Some(new_transparent);
+            commands.push(ViewportCommand::Transparent(new_transparent));
         }
 
-        if let Some(new_decorations) = new_decorations {
-            if Some(new_decorations) != self.decorations {
-                self.decorations = Some(new_decorations);
-                commands.push(ViewportCommand::Decorations(new_decorations));
-            }
+        if let Some(new_decorations) = new_decorations
+            && Some(new_decorations) != self.decorations
+        {
+            self.decorations = Some(new_decorations);
+            commands.push(ViewportCommand::Decorations(new_decorations));
         }
 
         if let Some(new_icon) = new_icon {
@@ -787,25 +787,25 @@ impl ViewportBuilder {
             }
         }
 
-        if let Some(new_visible) = new_visible {
-            if Some(new_visible) != self.visible {
-                self.visible = Some(new_visible);
-                commands.push(ViewportCommand::Visible(new_visible));
-            }
+        if let Some(new_visible) = new_visible
+            && Some(new_visible) != self.visible
+        {
+            self.visible = Some(new_visible);
+            commands.push(ViewportCommand::Visible(new_visible));
         }
 
-        if let Some(new_mouse_passthrough) = new_mouse_passthrough {
-            if Some(new_mouse_passthrough) != self.mouse_passthrough {
-                self.mouse_passthrough = Some(new_mouse_passthrough);
-                commands.push(ViewportCommand::MousePassthrough(new_mouse_passthrough));
-            }
+        if let Some(new_mouse_passthrough) = new_mouse_passthrough
+            && Some(new_mouse_passthrough) != self.mouse_passthrough
+        {
+            self.mouse_passthrough = Some(new_mouse_passthrough);
+            commands.push(ViewportCommand::MousePassthrough(new_mouse_passthrough));
         }
 
-        if let Some(new_window_level) = new_window_level {
-            if Some(new_window_level) != self.window_level {
-                self.window_level = Some(new_window_level);
-                commands.push(ViewportCommand::WindowLevel(new_window_level));
-            }
+        if let Some(new_window_level) = new_window_level
+            && Some(new_window_level) != self.window_level
+        {
+            self.window_level = Some(new_window_level);
+            commands.push(ViewportCommand::WindowLevel(new_window_level));
         }
 
         // --------------------------------------------------------------
@@ -1193,7 +1193,7 @@ pub struct ViewportOutput {
     /// since those don't result in real viewports.
     pub class: ViewportClass,
 
-    /// The window attrbiutes such as title, position, size, etc.
+    /// The window attributes such as title, position, size, etc.
     ///
     /// Use this when first constructing the native window.
     /// Also check for changes in it using [`ViewportBuilder::patch`],

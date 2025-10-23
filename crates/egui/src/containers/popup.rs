@@ -485,7 +485,7 @@ impl<'a> Popup<'a> {
                             .chain(RectAlign::MENU_ALIGNS.iter().copied()),
                     ),
             ),
-            self.ctx.screen_rect(),
+            self.ctx.content_rect(),
             anchor_rect,
             self.gap,
             expected_popup_size,
@@ -604,8 +604,11 @@ impl<'a> Popup<'a> {
             PopupCloseBehavior::IgnoreClicks => false,
         };
 
+        // Mark the menu as shown, so the sub menu open state is not reset
+        MenuState::mark_shown(&ctx, id);
+
         // If a submenu is open, the CloseBehavior is handled there
-        let is_any_submenu_open = !MenuState::is_deepest_sub_menu(&response.response.ctx, id);
+        let is_any_submenu_open = !MenuState::is_deepest_open_sub_menu(&response.response.ctx, id);
 
         let should_close = (!is_any_submenu_open && closed_by_click)
             || ctx.input(|i| i.key_pressed(Key::Escape))

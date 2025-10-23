@@ -90,7 +90,7 @@ impl Modal {
             inner: (inner, backdrop_response),
             response,
         } = area.show(ctx, |ui| {
-            let bg_rect = ui.ctx().screen_rect();
+            let bg_rect = ui.ctx().content_rect();
             let bg_sense = Sense::CLICK | Sense::DRAG;
             let mut backdrop = ui.new_child(UiBuilder::new().sense(bg_sense).max_rect(bg_rect));
             backdrop.set_min_size(bg_rect.size());

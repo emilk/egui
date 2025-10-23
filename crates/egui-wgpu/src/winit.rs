@@ -1,8 +1,11 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::undocumented_unsafe_blocks)]
 
-use crate::capture::{CaptureReceiver, CaptureSender, CaptureState, capture_channel};
 use crate::{RenderState, SurfaceErrorAction, WgpuConfiguration, renderer};
+use crate::{
+    RendererOptions,
+    capture::{CaptureReceiver, CaptureSender, CaptureState, capture_channel},
+};
 use egui::{Context, Event, UserData, ViewportId, ViewportIdMap, ViewportIdSet};
 use std::{num::NonZeroU32, sync::Arc};
 
@@ -21,10 +24,8 @@ struct SurfaceState {
 pub struct Painter {
     context: Context,
     configuration: WgpuConfiguration,
-    msaa_samples: u32,
+    options: RendererOptions,
     support_transparent_backbuffer: bool,
-    dithering: bool,
-    depth_format: Option<wgpu::TextureFormat>,
     screen_capture_state: Option<CaptureState>,
 
     instance: wgpu::Instance,
@@ -54,10 +55,8 @@ impl Painter {
     pub async fn new(
         context: Context,
         configuration: WgpuConfiguration,
-        msaa_samples: u32,
-        depth_format: Option<wgpu::TextureFormat>,
         support_transparent_backbuffer: bool,
-        dithering: bool,
+        options: RendererOptions,
     ) -> Self {
         let (capture_tx, capture_rx) = capture_channel();
         let instance = configuration.wgpu_setup.new_instance().await;
@@ -65,10 +64,8 @@ impl Painter {
         Self {
             context,
             configuration,
-            msaa_samples,
+            options,
             support_transparent_backbuffer,
-            dithering,
-            depth_format,
             screen_capture_state: None,
 
             instance,
@@ -204,9 +201,7 @@ impl Painter {
                 &self.configuration,
                 &self.instance,
                 Some(&surface),
-                self.depth_format,
-                self.msaa_samples,
-                self.dithering,
+                self.options,
             )
             .await?;
             self.render_state.get_or_insert(render_state)
@@ -279,7 +274,7 @@ impl Painter {
 
         Self::configure_surface(surface_state, render_state, &self.configuration);
 
-        if let Some(depth_format) = self.depth_format {
+        if let Some(depth_format) = self.options.depth_stencil_format {
             self.depth_texture_view.insert(
                 viewport_id,
                 render_state
@@ -292,7 +287,7 @@ impl Painter {
                             depth_or_array_layers: 1,
                         },
                         mip_level_count: 1,
-                        sample_count: self.msaa_samples,
+                        sample_count: self.options.msaa_samples.max(1),
                         dimension: wgpu::TextureDimension::D2,
                         format: depth_format,
                         usage: wgpu::TextureUsages::RENDER_ATTACHMENT
@@ -303,7 +298,7 @@ impl Painter {
             );
         }
 
-        if let Some(render_state) = (self.msaa_samples > 1)
+        if let Some(render_state) = (self.options.msaa_samples > 1)
             .then_some(self.render_state.as_ref())
             .flatten()
         {
@@ -320,7 +315,7 @@ impl Painter {
                             depth_or_array_layers: 1,
                         },
                         mip_level_count: 1,
-                        sample_count: self.msaa_samples,
+                        sample_count: self.options.msaa_samples.max(1),
                         dimension: wgpu::TextureDimension::D2,
                         format: texture_format,
                         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -450,7 +445,7 @@ impl Painter {
             };
             let target_view = target_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
-            let (view, resolve_target) = (self.msaa_samples > 1)
+            let (view, resolve_target) = (self.options.msaa_samples > 1)
                 .then_some(self.msaa_texture_view.get(&viewport_id))
                 .flatten()
                 .map_or((&target_view, None), |texture_view| {
@@ -498,14 +493,12 @@ impl Painter {
                 &screen_descriptor,
             );
 
-            if capture {
-                if let Some(capture_state) = &mut self.screen_capture_state {
-                    capture_buffer = Some(capture_state.copy_textures(
-                        &render_state.device,
-                        &output_frame,
-                        &mut encoder,
-                    ));
-                }
+            if capture && let Some(capture_state) = &mut self.screen_capture_state {
+                capture_buffer = Some(capture_state.copy_textures(
+                    &render_state.device,
+                    &output_frame,
+                    &mut encoder,
+                ));
             }
         }
 
@@ -535,16 +528,16 @@ impl Painter {
             }
         }
 
-        if let Some(capture_buffer) = capture_buffer {
-            if let Some(screen_capture_state) = &mut self.screen_capture_state {
-                screen_capture_state.read_screen_rgba(
-                    self.context.clone(),
-                    capture_buffer,
-                    capture_data,
-                    self.capture_tx.clone(),
-                    viewport_id,
-                );
-            }
+        if let Some(capture_buffer) = capture_buffer
+            && let Some(screen_capture_state) = &mut self.screen_capture_state
+        {
+            screen_capture_state.read_screen_rgba(
+                self.context.clone(),
+                capture_buffer,
+                capture_data,
+                self.capture_tx.clone(),
+                viewport_id,
+            );
         }
 
         {

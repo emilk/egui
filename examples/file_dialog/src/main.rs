@@ -29,10 +29,10 @@ impl eframe::App for MyApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.label("Drag-and-drop files onto the window!");
 
-            if ui.button("Open file…").clicked() {
-                if let Some(path) = rfd::FileDialog::new().pick_file() {
-                    self.picked_path = Some(path.display().to_string());
-                }
+            if ui.button("Open file…").clicked()
+                && let Some(path) = rfd::FileDialog::new().pick_file()
+            {
+                self.picked_path = Some(path.display().to_string());
             }
 
             if let Some(picked_path) = &self.picked_path {
@@ -107,10 +107,10 @@ fn preview_files_being_dropped(ctx: &egui::Context) {
         let painter =
             ctx.layer_painter(LayerId::new(Order::Foreground, Id::new("file_drop_target")));
 
-        let screen_rect = ctx.screen_rect();
-        painter.rect_filled(screen_rect, 0.0, Color32::from_black_alpha(192));
+        let content_rect = ctx.content_rect();
+        painter.rect_filled(content_rect, 0.0, Color32::from_black_alpha(192));
         painter.text(
-            screen_rect.center(),
+            content_rect.center(),
             Align2::CENTER_CENTER,
             text,
             TextStyle::Heading.resolve(&ctx.style()),

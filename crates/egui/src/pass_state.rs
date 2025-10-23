@@ -71,7 +71,7 @@ impl ScrollTarget {
 #[derive(Clone)]
 pub struct AccessKitPassState {
     pub nodes: IdMap<accesskit::Node>,
-    pub parent_stack: Vec<Id>,
+    pub parent_map: IdMap<Id>,
 }
 
 #[cfg(debug_assertions)]
@@ -137,7 +137,7 @@ impl DebugRect {
             let galley = painter.layout_no_wrap(text, font_id, text_color);
 
             // Position the text either under or above:
-            let screen_rect = ctx.screen_rect();
+            let content_rect = ctx.content_rect();
             let y = if galley.size().y <= rect.top() {
                 // Above
                 rect.top() - galley.size().y - 16.0
@@ -147,12 +147,12 @@ impl DebugRect {
             };
 
             let y = y
-                .at_most(screen_rect.bottom() - galley.size().y)
+                .at_most(content_rect.bottom() - galley.size().y)
                 .at_least(0.0);
 
             let x = rect
                 .left()
-                .at_most(screen_rect.right() - galley.size().x)
+                .at_most(content_rect.right() - galley.size().x)
                 .at_least(0.0);
             let text_pos = pos2(x, y);
 
@@ -258,7 +258,7 @@ impl Default for PassState {
 }
 
 impl PassState {
-    pub(crate) fn begin_pass(&mut self, screen_rect: Rect) {
+    pub(crate) fn begin_pass(&mut self, content_rect: Rect) {
         profiling::function_scope!();
         let Self {
             used_ids,
@@ -282,8 +282,8 @@ impl PassState {
         widgets.clear();
         tooltips.clear();
         layers.clear();
-        *available_rect = screen_rect;
-        *unused_rect = screen_rect;
+        *available_rect = content_rect;
+        *unused_rect = content_rect;
         *used_by_panels = Rect::NOTHING;
         *scroll_target = [None, None];
         *scroll_delta = Default::default();
