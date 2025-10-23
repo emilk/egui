@@ -38,6 +38,33 @@ fn main() {
 }
 ```
 
+## Configuration
+
+You can configure test settings via a `kittest.toml` file in your workspace root.
+All possible settings and their defaults:
+```toml
+# path to the snapshot directory
+output_path = "tests/snapshots" 
+
+# default threshold for image comparison tests
+threshold = 0.6
+
+# default failed_pixel_count_threshold
+failed_pixel_count_threshold = 0
+
+[windows]
+threshold = 0.6
+failed_pixel_count_threshold = 0
+
+[macos]
+threshold = 0.6
+failed_pixel_count_threshold = 0
+
+[linux]
+threshold = 0.6
+failed_pixel_count_threshold = 0
+```
+
 ## Snapshot testing
 There is a snapshot testing feature. To create snapshot tests, enable the `snapshot` and `wgpu` features.
 Once enabled, you can call `Harness::snapshot` to render the ui and save the image to the `tests/snapshots` directory.
