@@ -78,6 +78,10 @@ type Serializer = fn(&Box<dyn Any + 'static + Send + Sync>) -> Option<String>;
 enum Element {
     /// A value, maybe serializable.
     Value {
+        /// The data id this value was created with.
+        /// Is equal to `current_data_id` of the `TypeIdMap` at the time of insertion.
+        data_id: Id,
+
         /// The actual value.
         value: Box<dyn Any + 'static + Send + Sync>,
 
@@ -98,11 +102,13 @@ impl Clone for Element {
     fn clone(&self) -> Self {
         match &self {
             Self::Value {
+                data_id,
                 value,
                 clone_fn,
                 #[cfg(feature = "persistence")]
                 serialize_fn,
             } => Self::Value {
+                data_id: *data_id,
                 value: clone_fn(value),
                 clone_fn: *clone_fn,
                 #[cfg(feature = "persistence")]
@@ -138,8 +144,9 @@ impl std::fmt::Debug for Element {
 impl Element {
     /// Create a value that won't be persisted.
     #[inline]
-    pub(crate) fn new_temp<T: 'static + Any + Clone + Send + Sync>(t: T) -> Self {
+    pub(crate) fn new_temp<T: 'static + Any + Clone + Send + Sync>(t: T, data_id: Id) -> Self {
         Self::Value {
+            data_id,
             value: Box::new(t),
             clone_fn: |x| {
                 let x = x.downcast_ref::<T>().unwrap(); // This unwrap will never panic, because we always construct this type using this `new` function and because we return &mut reference only with this type `T`, so type cannot change.
@@ -152,8 +159,9 @@ impl Element {
 
     /// Create a value that will be persisted.
     #[inline]
-    pub(crate) fn new_persisted<T: SerializableAny>(t: T) -> Self {
+    pub(crate) fn new_persisted<T: SerializableAny>(t: T, data_id: Id) -> Self {
         Self::Value {
+            data_id,
             value: Box::new(t),
             clone_fn: |x| {
                 let x = x.downcast_ref::<T>().unwrap(); // This unwrap will never panic, because we always construct this type using this `new` function and because we return &mut reference only with this type `T`, so type cannot change.
@@ -198,13 +206,13 @@ impl Element {
         insert_with: impl FnOnce() -> T,
     ) -> &mut T {
         match self {
-            Self::Value { value, .. } => {
+            Self::Value { value, data_id, .. } => {
                 if !value.is::<T>() {
-                    *self = Self::new_temp(insert_with());
+                    *self = Self::new_temp(insert_with(), *data_id);
                 }
             }
             Self::Serialized(_) => {
-                *self = Self::new_temp(insert_with());
+                *self = Self::new_temp(insert_with(), Id::NULL);
             }
         }
 
@@ -220,20 +228,23 @@ impl Element {
         insert_with: impl FnOnce() -> T,
     ) -> &mut T {
         match self {
-            Self::Value { value, .. } => {
+            Self::Value { value, data_id, .. } => {
                 if !value.is::<T>() {
-                    *self = Self::new_persisted(insert_with());
+                    *self = Self::new_persisted(insert_with(), *data_id);
                 }
             }
 
             #[cfg(feature = "persistence")]
             Self::Serialized(SerializedElement { ron, .. }) => {
-                *self = Self::new_persisted(from_ron_str::<T>(ron).unwrap_or_else(insert_with));
+                *self = Self::new_persisted(
+                    from_ron_str::<T>(ron).unwrap_or_else(insert_with),
+                    Id::NULL,
+                );
             }
 
             #[cfg(not(feature = "persistence"))]
             Self::Serialized(_) => {
-                *self = Self::new_persisted(insert_with());
+                *self = Self::new_persisted(insert_with(), Id::NULL);
             }
         }
 
@@ -249,7 +260,7 @@ impl Element {
 
             #[cfg(feature = "persistence")]
             Self::Serialized(SerializedElement { ron, .. }) => {
-                *self = Self::new_persisted(from_ron_str::<T>(ron)?);
+                *self = Self::new_persisted(from_ron_str::<T>(ron)?, Id::NULL);
 
                 match self {
                     Self::Value { value, .. } => value.downcast_mut(),
@@ -350,6 +361,8 @@ use crate::Id;
 pub struct IdTypeMap {
     map: nohash_hasher::IntMap<u64, Element>,
 
+    current_data_id: Id,
+
     max_bytes_per_type: usize,
 }
 
@@ -357,24 +370,47 @@ impl Default for IdTypeMap {
     fn default() -> Self {
         Self {
             map: Default::default(),
+            current_data_id: Id::NULL,
             max_bytes_per_type: 256 * 1024,
         }
     }
 }
 
 impl IdTypeMap {
+    /// Get the current data id used to insert new elements
+    #[inline]
+    pub fn get_current_data_id(&self) -> Id {
+        self.current_data_id
+    }
+
+    /// Set the current data id used to insert new elements
+    #[inline]
+    pub fn set_current_data_id(&mut self, data_id: impl Into<Id>) {
+        self.current_data_id = data_id.into();
+    }
+
+    /// Removes all temp elements that were created with the given context id.
+    pub fn remove_all_with_data_id(&mut self, data_id_to_remove: Id) {
+        self.map.retain(|_, element| match element {
+            Element::Value { data_id, .. } => *data_id != data_id_to_remove,
+            Element::Serialized(_) => true,
+        });
+    }
+
     /// Insert a value that will not be persisted.
     #[inline]
     pub fn insert_temp<T: 'static + Any + Clone + Send + Sync>(&mut self, id: Id, value: T) {
         let hash = hash(TypeId::of::<T>(), id);
-        self.map.insert(hash, Element::new_temp(value));
+        self.map
+            .insert(hash, Element::new_temp(value, self.current_data_id));
     }
 
     /// Insert a value that will be persisted next time you start the app.
     #[inline]
     pub fn insert_persisted<T: SerializableAny>(&mut self, id: Id, value: T) {
         let hash = hash(TypeId::of::<T>(), id);
-        self.map.insert(hash, Element::new_persisted(value));
+        self.map
+            .insert(hash, Element::new_persisted(value, self.current_data_id));
     }
 
     /// Read a value without trying to deserialize a persisted value.
@@ -437,7 +473,7 @@ impl IdTypeMap {
         use std::collections::hash_map::Entry;
         match self.map.entry(hash) {
             Entry::Vacant(vacant) => vacant
-                .insert(Element::new_temp(insert_with()))
+                .insert(Element::new_temp(insert_with(), self.current_data_id))
                 .get_mut_temp()
                 .unwrap(), // this unwrap will never panic, because we insert correct type right now
             Entry::Occupied(occupied) => {
@@ -455,7 +491,7 @@ impl IdTypeMap {
         use std::collections::hash_map::Entry;
         match self.map.entry(hash) {
             Entry::Vacant(vacant) => vacant
-                .insert(Element::new_persisted(insert_with()))
+                .insert(Element::new_persisted(insert_with(), self.current_data_id))
                 .get_mut_persisted()
                 .unwrap(), // this unwrap will never panic, because we insert correct type right now
             Entry::Occupied(occupied) => occupied
