@@ -296,8 +296,8 @@ fn rows_from_paragraphs(
                     glyphs: vec![],
                     visuals: Default::default(),
                     size: vec2(0.0, paragraph.empty_paragraph_height),
-                    ends_with_newline: !is_last_paragraph,
                 }),
+                ends_with_newline: !is_last_paragraph,
             });
         } else {
             let paragraph_max_x = paragraph.glyphs.last().unwrap().max_x();
@@ -310,14 +310,13 @@ fn rows_from_paragraphs(
                         glyphs: paragraph.glyphs,
                         visuals: Default::default(),
                         size: vec2(paragraph_max_x, 0.0),
-                        ends_with_newline: !is_last_paragraph,
                     }),
+                    ends_with_newline: !is_last_paragraph,
                 });
             } else {
                 line_break(&paragraph, job, &mut rows, elided);
                 let placed_row = rows.last_mut().unwrap();
-                let row = Arc::make_mut(&mut placed_row.row);
-                row.ends_with_newline = !is_last_paragraph;
+                placed_row.ends_with_newline = !is_last_paragraph;
             }
         }
     }
@@ -363,8 +362,8 @@ fn line_break(
                         glyphs: vec![],
                         visuals: Default::default(),
                         size: Vec2::ZERO,
-                        ends_with_newline: false,
                     }),
+                    ends_with_newline: false,
                 });
                 row_start_x += first_row_indentation;
                 first_row_indentation = 0.0;
@@ -389,8 +388,8 @@ fn line_break(
                         glyphs,
                         visuals: Default::default(),
                         size: vec2(paragraph_max_x, 0.0),
-                        ends_with_newline: false,
                     }),
+                    ends_with_newline: false,
                 });
 
                 // Start a new row:
@@ -431,8 +430,8 @@ fn line_break(
                     glyphs,
                     visuals: Default::default(),
                     size: vec2(paragraph_max_x - paragraph_min_x, 0.0),
-                    ends_with_newline: false,
                 }),
+                ends_with_newline: false,
             });
         }
     }
