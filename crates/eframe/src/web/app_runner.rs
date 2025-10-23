@@ -1,15 +1,15 @@
 use egui::{TexturesDelta, UserData, ViewportCommand};
 
-use crate::{App, epi};
+use crate::{App, epi, web::web_painter::WebPainter};
 
-use super::{NeedRepaint, now_sec, text_agent::TextAgent, web_painter::WebPainter as _};
+use super::{NeedRepaint, now_sec, text_agent::TextAgent};
 
 pub struct AppRunner {
     #[allow(dead_code, clippy::allow_attributes)]
     pub(crate) web_options: crate::WebOptions,
     pub(crate) frame: epi::Frame,
     egui_ctx: egui::Context,
-    painter: super::ActiveWebPainter,
+    painter: Box<dyn WebPainter>,
     pub(crate) input: super::WebInput,
     app: Box<dyn epi::App>,
     pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
@@ -41,7 +41,41 @@ impl AppRunner {
         text_agent: TextAgent,
     ) -> Result<Self, String> {
         let egui_ctx = egui::Context::default();
-        let painter = super::ActiveWebPainter::new(egui_ctx.clone(), canvas, &web_options).await?;
+
+        #[allow(clippy::allow_attributes, unused_assignments)]
+        #[cfg(feature = "glow")]
+        let mut gl = None;
+
+        #[allow(clippy::allow_attributes, unused_assignments)]
+        #[cfg(feature = "wgpu")]
+        let mut wgpu_render_state = None;
+
+        let painter = match web_options.renderer {
+            #[cfg(feature = "glow")]
+            epi::Renderer::Glow => {
+                log::debug!("Using the glow renderer");
+                let painter = super::web_painter_glow::WebPainterGlow::new(
+                    egui_ctx.clone(),
+                    canvas,
+                    &web_options,
+                )?;
+                gl = Some(painter.gl().clone());
+                Box::new(painter) as Box<dyn WebPainter>
+            }
+
+            #[cfg(feature = "wgpu")]
+            epi::Renderer::Wgpu => {
+                log::debug!("Using the wgpu renderer");
+                let painter = super::web_painter_wgpu::WebPainterWgpu::new(
+                    egui_ctx.clone(),
+                    canvas,
+                    &web_options,
+                )
+                .await?;
+                wgpu_render_state = painter.render_state();
+                Box::new(painter) as Box<dyn WebPainter>
+            }
+        };
 
         let info = epi::IntegrationInfo {
             web_info: epi::WebInfo {
@@ -71,15 +105,13 @@ impl AppRunner {
             storage: Some(&storage),
 
             #[cfg(feature = "glow")]
-            gl: Some(painter.gl().clone()),
+            gl: gl.clone(),
 
             #[cfg(feature = "glow")]
             get_proc_address: None,
 
-            #[cfg(all(feature = "wgpu", not(feature = "glow")))]
-            wgpu_render_state: painter.render_state(),
-            #[cfg(all(feature = "wgpu", feature = "glow"))]
-            wgpu_render_state: None,
+            #[cfg(feature = "wgpu")]
+            wgpu_render_state: wgpu_render_state.clone(),
         };
         let app = app_creator(&cc).map_err(|err| err.to_string())?;
 
@@ -88,12 +120,10 @@ impl AppRunner {
             storage: Some(Box::new(storage)),
 
             #[cfg(feature = "glow")]
-            gl: Some(painter.gl().clone()),
+            gl,
 
-            #[cfg(all(feature = "wgpu", not(feature = "glow")))]
-            wgpu_render_state: painter.render_state(),
-            #[cfg(all(feature = "wgpu", feature = "glow"))]
-            wgpu_render_state: None,
+            #[cfg(feature = "wgpu")]
+            wgpu_render_state,
         };
 
         let needs_repaint: std::sync::Arc<NeedRepaint> =

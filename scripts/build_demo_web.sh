@@ -13,13 +13,13 @@ OPEN=false
 OPTIMIZE=false
 BUILD=debug
 BUILD_FLAGS=""
-WGPU=false
+GLOW=false
 WASM_OPT_FLAGS="-O2 --fast-math"
 
 while test $# -gt 0; do
   case "$1" in
     -h|--help)
-      echo "build_demo_web.sh [--release] [--wgpu] [--open]"
+      echo "build_demo_web.sh [--release] [--glow] [--open]"
       echo ""
       echo "  -g:        Keep debug symbols even with --release."
       echo "             These are useful profiling and size trimming."
@@ -29,9 +29,7 @@ while test $# -gt 0; do
       echo "  --release: Build with --release, and then run wasm-opt."
       echo "             NOTE: --release also removes debug symbols, unless you also use -g."
       echo ""
-      echo "  --wgpu:    Build a binary using wgpu instead of glow/webgl."
-      echo "             The resulting binary will automatically use WebGPU if available and"
-      echo "             fall back to a WebGL emulation layer otherwise."
+      echo "  --glow:    Build a binary using glow instead of wgpu."
       exit 0
       ;;
 
@@ -52,9 +50,9 @@ while test $# -gt 0; do
       BUILD_FLAGS="--release"
       ;;
 
-    --wgpu)
+    --glow)
       shift
-      WGPU=true
+      GLOW=true
       ;;
 
     *)
@@ -66,10 +64,10 @@ done
 
 OUT_FILE_NAME="egui_demo_app"
 
-if [[ "${WGPU}" == true ]]; then
-  FEATURES="${FEATURES},wgpu"
-else
+if [[ "${GLOW}" == true ]]; then
   FEATURES="${FEATURES},glow"
+else
+  FEATURES="${FEATURES},wgpu"
 fi
 
 FINAL_WASM_PATH=web_demo/${OUT_FILE_NAME}_bg.wasm

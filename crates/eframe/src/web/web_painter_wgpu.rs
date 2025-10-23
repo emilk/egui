@@ -1,12 +1,14 @@
 use std::sync::Arc;
 
-use super::web_painter::WebPainter;
-use crate::WebOptions;
 use egui::{Event, UserData, ViewportId};
-use egui_wgpu::capture::{CaptureReceiver, CaptureSender, CaptureState, capture_channel};
-use egui_wgpu::{RenderState, SurfaceErrorAction};
+use egui_wgpu::{
+    RenderState, SurfaceErrorAction,
+    capture::{CaptureReceiver, CaptureSender, CaptureState, capture_channel},
+};
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
+
+use super::web_painter::WebPainter;
 
 pub(crate) struct WebPainterWgpu {
     canvas: HtmlCanvasElement,
@@ -23,7 +25,6 @@ pub(crate) struct WebPainterWgpu {
 }
 
 impl WebPainterWgpu {
-    #[expect(unused)] // only used if `wgpu` is the only active feature.
     pub fn render_state(&self) -> Option<RenderState> {
         self.render_state.clone()
     }
@@ -55,11 +56,10 @@ impl WebPainterWgpu {
         })
     }
 
-    #[expect(unused)] // only used if `wgpu` is the only active feature.
     pub async fn new(
         ctx: egui::Context,
         canvas: web_sys::HtmlCanvasElement,
-        options: &WebOptions,
+        options: &crate::WebOptions,
     ) -> Result<Self, String> {
         log::debug!("Creating wgpu painter");
 
