@@ -48,6 +48,7 @@ pub struct Scene {
     sense: Sense,
     max_inner_size: Vec2,
     drag_pan_buttons: DragPanButtons,
+    scrolling_zooms: bool,
 }
 
 /// Specifies which pointer buttons can be used to pan the scene by dragging.
@@ -80,6 +81,7 @@ impl Default for Scene {
             sense: Sense::click_and_drag(),
             max_inner_size: Vec2::splat(1000.0),
             drag_pan_buttons: DragPanButtons::all(),
+            scrolling_zooms: false,
         }
     }
 }
@@ -127,6 +129,19 @@ impl Scene {
     #[inline]
     pub fn drag_pan_buttons(mut self, flags: DragPanButtons) -> Self {
         self.drag_pan_buttons = flags;
+        self
+    }
+
+    /// Specify whether scrolling the mousewheel without a modifier pans or
+    /// zooms the Scene. Touch input is not affected by this setting.
+    ///
+    /// Note that scrolling with the mousewheel with the zoom modifier with
+    /// this setting selecting will double the amount of zoom applied.
+    ///
+    /// By default, this is `false`.
+    #[inline]
+    pub fn zooming_scrolls(mut self, bool: zooming_scrolls) -> Self {
+        self.zooming_scrolls = zooming_scrolls;
         self
     }
 
@@ -244,8 +259,18 @@ impl Scene {
             && resp.contains_pointer()
         {
             let pointer_in_scene = to_global.inverse() * mouse_pos;
-            let zoom_delta = ui.ctx().input(|i| i.zoom_delta());
-            let pan_delta = ui.ctx().input(|i| i.smooth_scroll_delta);
+            let mut zoom_delta = ui.ctx().input(|i| i.zoom_delta());
+
+            // If scrolling_zooms is set to true the scroll input will be consumed and 
+            // added to any zoom input. This is required to support both mouse wheel
+            // and touch events. With this option it will also mean that mouse wheel
+            // zoom while holding the zoom modifier will double the amount of zoom
+            // applied.
+            if self.scrolling_zooms {
+                zoom_delta += ui.ctx().input(|i| i.smooth_scroll_delta);
+            } else {
+                let pan_delta = ui.ctx().input(|i| i.smooth_scroll_delta);
+            }
 
             // Most of the time we can return early. This is also important to
             // avoid `ui_from_scene` to change slightly due to floating point errors.
