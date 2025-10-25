@@ -140,8 +140,8 @@ impl Scene {
     ///
     /// By default, this is `false`.
     #[inline]
-    pub fn zooming_scrolls(mut self, bool: zooming_scrolls) -> Self {
-        self.zooming_scrolls = zooming_scrolls;
+    pub fn scrolling_zooms(mut self, scrolling_zooms: bool) -> Self {
+        self.scrolling_zooms = scrolling_zooms;
         self
     }
 
@@ -260,6 +260,7 @@ impl Scene {
         {
             let pointer_in_scene = to_global.inverse() * mouse_pos;
             let mut zoom_delta = ui.ctx().input(|i| i.zoom_delta());
+            let mut pan_delta = Vec2::ZERO;
 
             // If scrolling_zooms is set to true the scroll input will be consumed and 
             // added to any zoom input. This is required to support both mouse wheel
@@ -267,9 +268,9 @@ impl Scene {
             // zoom while holding the zoom modifier will double the amount of zoom
             // applied.
             if self.scrolling_zooms {
-                zoom_delta += ui.ctx().input(|i| i.smooth_scroll_delta);
+                zoom_delta += ui.ctx().input(|i| i.smooth_scroll_delta.x + i.smooth_scroll_delta.y);
             } else {
-                let pan_delta = ui.ctx().input(|i| i.smooth_scroll_delta);
+                pan_delta = ui.ctx().input(|i| i.smooth_scroll_delta);
             }
 
             // Most of the time we can return early. This is also important to
