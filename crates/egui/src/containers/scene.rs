@@ -140,8 +140,8 @@ impl Scene {
     ///
     /// By default, this is `false`.
     #[inline]
-    pub fn zooming_scrolls(mut self, bool: zooming_scrolls) -> Self {
-        self.zooming_scrolls = zooming_scrolls;
+    pub fn scrolling_zooms(mut self, scrolling_zooms: bool) -> Self {
+        self.scrolling_zooms = scrolling_zooms;
         self
     }
 
@@ -267,7 +267,8 @@ impl Scene {
             // zoom while holding the zoom modifier will double the amount of zoom
             // applied.
             if self.scrolling_zooms {
-                zoom_delta += ui.ctx().input(|i| i.smooth_scroll_delta);
+                zoom_delta += ui.ctx().input(|i| i.smooth_scroll_delta.x);
+                let pan_delta = Vec2::ZERO;
             } else {
                 let pan_delta = ui.ctx().input(|i| i.smooth_scroll_delta);
             }
