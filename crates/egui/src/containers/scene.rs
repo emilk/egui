@@ -272,7 +272,7 @@ impl Scene {
                 let scoll_delta = ui
                     .ctx()
                     .input(|i| i.smooth_scroll_delta.x + i.smooth_scroll_delta.y);
-                zoom_delta += (scoll_delta / scroll_zoom_speed);
+                zoom_delta += scoll_delta * scroll_zoom_speed;
             } else {
                 pan_delta = ui.ctx().input(|i| i.smooth_scroll_delta);
             }
