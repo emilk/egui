@@ -135,9 +135,6 @@ impl Scene {
     /// Specify whether scrolling the mousewheel without a modifier pans or
     /// zooms the Scene. Touch input is not affected by this setting.
     ///
-    /// Note that scrolling with the mousewheel with the zoom modifier with
-    /// this setting selecting will double the amount of zoom applied.
-    ///
     /// By default, this is `false`.
     #[inline]
     pub fn scrolling_zooms(mut self, scrolling_zooms: bool) -> Self {
@@ -264,9 +261,7 @@ impl Scene {
 
             // If scrolling_zooms is set to true the scroll input will be consumed and
             // added to any zoom input. This is required to support both mouse wheel
-            // and touch events. With this option it will also mean that mouse wheel
-            // zoom while holding the zoom modifier will double the amount of zoom
-            // applied.
+            // and touch events.
             if self.scrolling_zooms {
                 let scroll_zoom_speed = ui.ctx().options(|opt| opt.input_options.scroll_zoom_speed);
                 let scoll_delta = ui
