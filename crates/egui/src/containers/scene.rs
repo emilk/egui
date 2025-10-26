@@ -268,10 +268,11 @@ impl Scene {
             // zoom while holding the zoom modifier will double the amount of zoom
             // applied.
             if self.scrolling_zooms {
+                let scroll_zoom_speed = ui.ctx().options(|opt| opt.input_options.scroll_zoom_speed);
                 zoom_delta += ui
                     .ctx()
                     .input(|i| i.smooth_scroll_delta.x + i.smooth_scroll_delta.y)
-                    / ui.ctx().options(|opt| opt.input_options.scroll_zoom_speed);
+                    / scroll_zoom_speed;
             } else {
                 pan_delta = ui.ctx().input(|i| i.smooth_scroll_delta);
             }
