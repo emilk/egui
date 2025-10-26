@@ -262,13 +262,17 @@ impl Scene {
             let mut zoom_delta = ui.ctx().input(|i| i.zoom_delta());
             let mut pan_delta = Vec2::ZERO;
 
-            // If scrolling_zooms is set to true the scroll input will be consumed and 
+            // If scrolling_zooms is set to true the scroll input will be consumed and
             // added to any zoom input. This is required to support both mouse wheel
             // and touch events. With this option it will also mean that mouse wheel
             // zoom while holding the zoom modifier will double the amount of zoom
             // applied.
             if self.scrolling_zooms {
-                zoom_delta += ui.ctx().input(|i| i.smooth_scroll_delta.x + i.smooth_scroll_delta.y) / 200.0;
+                let scroll_zoom_speed = ui.ctx().options(|opt| opt.input_options.scroll_zoom_speed);
+                let scoll_delta = ui
+                    .ctx()
+                    .input(|i| i.smooth_scroll_delta.x + i.smooth_scroll_delta.y);
+                zoom_delta += scoll_delta * scroll_zoom_speed;
             } else {
                 pan_delta = ui.ctx().input(|i| i.smooth_scroll_delta);
             }
