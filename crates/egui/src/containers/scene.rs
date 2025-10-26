@@ -269,10 +269,10 @@ impl Scene {
             // applied.
             if self.scrolling_zooms {
                 let scroll_zoom_speed = ui.ctx().options(|opt| opt.input_options.scroll_zoom_speed);
-                zoom_delta += ui
+                let scoll_delta = ui
                     .ctx()
-                    .input(|i| i.smooth_scroll_delta.x + i.smooth_scroll_delta.y)
-                    / scroll_zoom_speed;
+                    .input(|i| i.smooth_scroll_delta.x + i.smooth_scroll_delta.y);
+                zoom_delta += (scoll_delta / scroll_zoom_speed);
             } else {
                 pan_delta = ui.ctx().input(|i| i.smooth_scroll_delta);
             }
