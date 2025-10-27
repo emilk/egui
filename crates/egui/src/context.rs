@@ -1198,6 +1198,12 @@ impl Context {
         #[allow(clippy::let_and_return, clippy::allow_attributes)]
         let res = self.get_response(w);
 
+        #[cfg(debug_assertions)]
+        if res.contains_pointer() {
+            let plugins = self.read(|ctx| ctx.plugins.ordered_plugins());
+            plugins.on_widget_under_pointer(self, &w);
+        }
+
         #[cfg(feature = "accesskit")]
         if allow_focus && w.sense.is_focusable() {
             // Make sure anything that can receive focus has an AccessKit node.

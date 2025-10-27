@@ -34,14 +34,21 @@ pub trait Plugin: Send + Sync + std::any::Any + 'static {
     /// Called just before the input is processed.
     ///
     /// Useful to inspect or modify the input.
-    /// Since this is called outside a pass, don't show ui here.
+    /// Since this is called outside a pass, don't show ui here. Using `Context::debug_painter` is fine though.
     fn input_hook(&mut self, input: &mut RawInput) {}
 
     /// Called just before the output is passed to the backend.
     ///
     /// Useful to inspect or modify the output.
-    /// Since this is called outside a pass, don't show ui here.
+    /// Since this is called outside a pass, don't show ui here. Using `Context::debug_painter` is fine though.
     fn output_hook(&mut self, output: &mut FullOutput) {}
+
+    /// Called when a widget is created and is under the pointer.
+    ///
+    /// Useful for capturing a stack trace so that widgets can be mapped back to their source code.
+    /// Since this is called outside a pass, don't show ui here. Using `Context::debug_painter` is fine though.
+    #[cfg(debug_assertions)]
+    fn on_widget_under_pointer(&mut self, ctx: &Context, widget: &crate::WidgetRect) {}
 }
 
 pub(crate) struct PluginHandle {
@@ -165,6 +172,14 @@ impl PluginsOrdered {
         profiling::scope!("plugins", "on_output");
         self.for_each_dyn(|plugin| {
             plugin.output_hook(output);
+        });
+    }
+
+    #[cfg(debug_assertions)]
+    pub fn on_widget_under_pointer(&self, ctx: &Context, widget: &crate::WidgetRect) {
+        profiling::scope!("plugins", "on_widget_under_pointer");
+        self.for_each_dyn(|plugin| {
+            plugin.on_widget_under_pointer(ctx, widget);
         });
     }
 }
