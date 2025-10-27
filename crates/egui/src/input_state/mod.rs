@@ -225,6 +225,16 @@ pub struct InputState {
     /// Time of the last scroll event.
     last_scroll_time: f64,
 
+    /// If we are currently in a scroll action.
+    ///
+    /// This is not the same as checking if [`Self::smooth_scroll_delta`], or
+    /// [`Self::raw_scroll_delta`] are zero. This instead relies on the
+    /// current touch phase received from the mouse wheel event.
+    ///
+    /// This value is only `Some` if we have ever received a [`crate::TouchPhase::Start`] event and then
+    /// know that the current platform supports it.
+    is_in_scroll_action: Option<bool>,
+
     /// Used for smoothing the scroll delta.
     unprocessed_scroll_delta: Vec2,
 
@@ -357,6 +367,7 @@ impl Default for InputState {
             pointer: Default::default(),
             touch_states: Default::default(),
 
+            is_in_scroll_action: None,
             last_scroll_time: f64::NEG_INFINITY,
             unprocessed_scroll_delta: Vec2::ZERO,
             unprocessed_scroll_delta_for_zoom: 0.0,
@@ -440,53 +451,68 @@ impl InputState {
                 Event::MouseWheel {
                     unit,
                     delta,
+                    phase,
                     modifiers,
                 } => {
-                    let mut delta = match unit {
-                        MouseWheelUnit::Point => *delta,
-                        MouseWheelUnit::Line => options.line_scroll_speed * *delta,
-                        MouseWheelUnit::Page => viewport_rect.height() * *delta,
-                    };
-
-                    let is_horizontal = modifiers.matches_any(options.horizontal_scroll_modifier);
-                    let is_vertical = modifiers.matches_any(options.vertical_scroll_modifier);
-
-                    if is_horizontal && !is_vertical {
-                        // Treat all scrolling as horizontal scrolling.
-                        // Note: one Mac we already get horizontal scroll events when shift is down.
-                        delta = vec2(delta.x + delta.y, 0.0);
-                    }
-                    if !is_horizontal && is_vertical {
-                        // Treat all scrolling as vertical scrolling.
-                        delta = vec2(0.0, delta.x + delta.y);
-                    }
-
-                    raw_scroll_delta += delta;
-
-                    // Mouse wheels often go very large steps.
-                    // A single notch on a logitech mouse wheel connected to a Macbook returns 14.0 raw_scroll_delta.
-                    // So we smooth it out over several frames for a nicer user experience when scrolling in egui.
-                    // BUT: if the user is using a nice smooth mac trackpad, we don't add smoothing,
-                    // because it adds latency.
-                    let is_smooth = match unit {
-                        MouseWheelUnit::Point => delta.length() < 8.0, // a bit arbitrary here
-                        MouseWheelUnit::Line | MouseWheelUnit::Page => false,
-                    };
-
-                    let is_zoom = modifiers.matches_any(options.zoom_modifier);
-
-                    #[expect(clippy::collapsible_else_if)]
-                    if is_zoom {
-                        if is_smooth {
-                            smooth_scroll_delta_for_zoom += delta.x + delta.y;
-                        } else {
-                            unprocessed_scroll_delta_for_zoom += delta.x + delta.y;
+                    match phase {
+                        crate::TouchPhase::Start => {
+                            self.is_in_scroll_action = Some(true);
                         }
-                    } else {
-                        if is_smooth {
-                            smooth_scroll_delta += delta;
-                        } else {
-                            unprocessed_scroll_delta += delta;
+                        crate::TouchPhase::Move => {
+                            let mut delta = match unit {
+                                MouseWheelUnit::Point => *delta,
+                                MouseWheelUnit::Line => options.line_scroll_speed * *delta,
+                                MouseWheelUnit::Page => viewport_rect.height() * *delta,
+                            };
+
+                            let is_horizontal =
+                                modifiers.matches_any(options.horizontal_scroll_modifier);
+                            let is_vertical =
+                                modifiers.matches_any(options.vertical_scroll_modifier);
+
+                            if is_horizontal && !is_vertical {
+                                // Treat all scrolling as horizontal scrolling.
+                                // Note: one Mac we already get horizontal scroll events when shift is down.
+                                delta = vec2(delta.x + delta.y, 0.0);
+                            }
+                            if !is_horizontal && is_vertical {
+                                // Treat all scrolling as vertical scrolling.
+                                delta = vec2(0.0, delta.x + delta.y);
+                            }
+
+                            raw_scroll_delta += delta;
+
+                            // Mouse wheels often go very large steps.
+                            // A single notch on a logitech mouse wheel connected to a Macbook returns 14.0 raw_scroll_delta.
+                            // So we smooth it out over several frames for a nicer user experience when scrolling in egui.
+                            // BUT: if the user is using a nice smooth mac trackpad, we don't add smoothing,
+                            // because it adds latency.
+                            let is_smooth = match unit {
+                                MouseWheelUnit::Point => delta.length() < 8.0, // a bit arbitrary here
+                                MouseWheelUnit::Line | MouseWheelUnit::Page => false,
+                            };
+
+                            let is_zoom = modifiers.matches_any(options.zoom_modifier);
+
+                            #[expect(clippy::collapsible_else_if)]
+                            if is_zoom {
+                                if is_smooth {
+                                    smooth_scroll_delta_for_zoom += delta.x + delta.y;
+                                } else {
+                                    unprocessed_scroll_delta_for_zoom += delta.x + delta.y;
+                                }
+                            } else {
+                                if is_smooth {
+                                    smooth_scroll_delta += delta;
+                                } else {
+                                    unprocessed_scroll_delta += delta;
+                                }
+                            }
+                        }
+                        crate::TouchPhase::End | crate::TouchPhase::Cancel => {
+                            if let Some(is_in_scroll_action) = &mut self.is_in_scroll_action {
+                                *is_in_scroll_action = false;
+                            }
                         }
                     }
                 }
@@ -542,7 +568,7 @@ impl InputState {
         }
 
         let is_scrolling = raw_scroll_delta != Vec2::ZERO || smooth_scroll_delta != Vec2::ZERO;
-        let last_scroll_time = if is_scrolling {
+        let last_scroll_time = if is_scrolling || self.is_in_scroll_action.is_some_and(|b| b) {
             time
         } else {
             self.last_scroll_time
@@ -552,6 +578,7 @@ impl InputState {
             pointer,
             touch_states: self.touch_states,
 
+            is_in_scroll_action: self.is_in_scroll_action,
             last_scroll_time,
             unprocessed_scroll_delta,
             unprocessed_scroll_delta_for_zoom,
@@ -706,6 +733,27 @@ impl InputState {
     pub fn translation_delta(&self) -> Vec2 {
         self.multi_touch()
             .map_or(self.smooth_scroll_delta, |touch| touch.translation_delta)
+    }
+
+    /// True if there is an active scroll action that might scroll more when using [`Self::smooth_scroll_delta`].
+    pub fn is_smooth_scrolling(&self) -> bool {
+        self.is_raw_scrolling() || self.smooth_scroll_delta != Vec2::ZERO
+    }
+
+    /// True if there is an active scroll action that might scroll more.
+    ///
+    /// You probably want to use [`Self::is_smooth_scrolling`].
+    pub fn is_raw_scrolling(&self) -> bool {
+        if let Some(is_in_scroll_action) = self.is_in_scroll_action {
+            is_in_scroll_action
+        } else {
+            // On certain platforms, like web, we don't get the start & stop scrolling events, so
+            // we rely on a timer there.
+            //
+            // Tested on a mac touchpad 2025, where the largest observed gap between scroll events
+            // was 68 ms. So 100 ms should most likely be good here.
+            self.time_since_last_scroll() < 0.1
+        }
     }
 
     /// How long has it been (in seconds) since the use last scrolled?
@@ -1599,6 +1647,7 @@ impl InputState {
             pointer,
             touch_states,
 
+            is_in_scroll_action: _,
             last_scroll_time,
             unprocessed_scroll_delta,
             unprocessed_scroll_delta_for_zoom,
@@ -1642,6 +1691,11 @@ impl InputState {
             });
         }
 
+        ui.label(format!(
+            "is_scrolling: raw: {}, smooth: {}",
+            self.is_raw_scrolling(),
+            self.is_smooth_scrolling()
+        ));
         ui.label(format!(
             "Time since last scroll: {:.1} s",
             time - last_scroll_time
