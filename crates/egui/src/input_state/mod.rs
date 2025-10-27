@@ -229,7 +229,7 @@ pub struct InputState {
     ///
     /// This is not the same as checking if [`Self::smooth_scroll_delta`], or
     /// [`Self::raw_scroll_delta`] are zero. This instead relies on scroll the
-    /// current touch phase recieved from the mouse wheel event.
+    /// current touch phase received from the mouse wheel event.
     ///
     /// As the start & stop touch phase event are not always present this value
     /// will not always be true even if a scroll is active. `Self::is_scrolling` and
