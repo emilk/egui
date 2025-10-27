@@ -642,6 +642,7 @@ impl<Value: TextType> TextEdit<'_, Value> {
                 &mut state.ime_enabled,
                 &mut state.ime_cursor_range,
                 &mut text,
+                Value::is_parsable(),
                 &mut galley,
                 layouter,
                 id,
@@ -943,6 +944,7 @@ fn events(
     ime_enabled: &mut bool,
     ime_cursor_range: &mut CCursorRange,
     text: &mut String,
+    text_parsable: bool,
     galley: &mut Arc<Galley>,
     layouter: &mut dyn FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<Galley>,
     id: Id,
@@ -993,7 +995,7 @@ fn events(
                 None
             }
             Event::Cut => {
-                if cursor_range.is_empty() {
+                if cursor_range.is_empty() || !text_parsable {
                     None
                 } else {
                     copy_if_not_password(ui, cursor_range.slice_str(text.as_str()).to_owned());
@@ -1001,7 +1003,7 @@ fn events(
                 }
             }
             Event::Paste(text_to_insert) => {
-                if !text_to_insert.is_empty() {
+                if !text_to_insert.is_empty() && text_parsable {
                     let mut ccursor = text.delete_selected(&cursor_range);
                     if multiline {
                         text.insert_text_at(&mut ccursor, text_to_insert, char_limit);
@@ -1017,7 +1019,11 @@ fn events(
             }
             Event::Text(text_to_insert) => {
                 // Newlines are handled by `Key::Enter`.
-                if !text_to_insert.is_empty() && text_to_insert != "\n" && text_to_insert != "\r" {
+                if !text_to_insert.is_empty()
+                    && text_to_insert != "\n"
+                    && text_to_insert != "\r"
+                    && text_parsable
+                {
                     let mut ccursor = text.delete_selected(&cursor_range);
 
                     text.insert_text_at(&mut ccursor, text_to_insert, char_limit);
@@ -1032,7 +1038,7 @@ fn events(
                 pressed: true,
                 modifiers,
                 ..
-            } if multiline => {
+            } if multiline && text_parsable => {
                 let mut ccursor = text.delete_selected(&cursor_range);
                 if modifiers.shift {
                     // TODO(emilk): support removing indentation over a selection?
@@ -1051,7 +1057,7 @@ fn events(
                 *key == return_key.logical_key && modifiers.matches_logically(return_key.modifiers)
             }) =>
             {
-                if multiline {
+                if multiline && text_parsable {
                     let mut ccursor = text.delete_selected(&cursor_range);
                     text.insert_text_at(&mut ccursor, "\n", char_limit);
                     // TODO(emilk): if code editor, auto-indent by same leading tabs, + one if the lines end on an opening bracket
@@ -1069,7 +1075,8 @@ fn events(
                 ..
             } if (modifiers.matches_logically(Modifiers::COMMAND) && *key == Key::Y)
                 || (modifiers.matches_logically(Modifiers::SHIFT | Modifiers::COMMAND)
-                    && *key == Key::Z) =>
+                    && *key == Key::Z)
+                    && text_parsable =>
             {
                 if let Some((redo_ccursor_range, redo_txt)) = undoer
                     .lock()
@@ -1087,7 +1094,7 @@ fn events(
                 pressed: true,
                 modifiers,
                 ..
-            } if modifiers.matches_logically(Modifiers::COMMAND) => {
+            } if modifiers.matches_logically(Modifiers::COMMAND) && text_parsable => {
                 if let Some((undo_ccursor_range, undo_txt)) = undoer
                     .lock()
                     .undo(&(cursor_range, text.as_str().to_owned()))
@@ -1104,7 +1111,13 @@ fn events(
                 key,
                 pressed: true,
                 ..
-            } => check_for_mutating_key_press(os, &cursor_range, text, galley, modifiers, *key),
+            } => {
+                if text_parsable {
+                    check_for_mutating_key_press(os, &cursor_range, text, galley, modifiers, *key)
+                } else {
+                    None
+                }
+            }
 
             Event::Ime(ime_event) => {
                 /// Empty prediction can be produced with [`ImeEvent::Preedit`]
@@ -1128,6 +1141,7 @@ fn events(
                 ) -> CCursor {
                     text.delete_selected(cursor_range)
                 }
+                // <<<<<<< HEAD
 
                 match ime_event {
                     ImeEvent::Enabled => {
@@ -1136,7 +1150,7 @@ fn events(
                         None
                     }
                     ImeEvent::Preedit(text_mark) => {
-                        if text_mark == "\n" || text_mark == "\r" {
+                        if text_mark == "\n" || text_mark == "\r" || !text_parsable {
                             None
                         } else {
                             // Empty prediction can be produced when user press backspace
@@ -1151,7 +1165,7 @@ fn events(
                         }
                     }
                     ImeEvent::Commit(prediction) => {
-                        if prediction == "\n" || prediction == "\r" {
+                        if prediction == "\n" || prediction == "\r" || !text_parsable {
                             None
                         } else {
                             *ime_enabled = false;
