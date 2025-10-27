@@ -924,7 +924,7 @@ name = "confirm_exit"
 version = "0.1.0"
 dependencies = [
  "eframe",
- "env_logger 0.11.8",
+ "env_logger",
 ]
 
 [[package]]
@@ -1100,7 +1100,7 @@ name = "custom_3d_glow"
 version = "0.1.0"
 dependencies = [
  "eframe",
- "env_logger 0.11.8",
+ "env_logger",
 ]
 
 [[package]]
@@ -1108,7 +1108,7 @@ name = "custom_font"
 version = "0.1.0"
 dependencies = [
  "eframe",
- "env_logger 0.11.8",
+ "env_logger",
 ]
 
 [[package]]
@@ -1116,7 +1116,7 @@ name = "custom_font_style"
 version = "0.1.0"
 dependencies = [
  "eframe",
- "env_logger 0.11.8",
+ "env_logger",
 ]
 
 [[package]]
@@ -1125,7 +1125,7 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "egui_extras",
- "env_logger 0.11.8",
+ "env_logger",
 ]
 
 [[package]]
@@ -1135,7 +1135,7 @@ dependencies = [
  "eframe",
  "egui_demo_lib",
  "egui_extras",
- "env_logger 0.11.8",
+ "env_logger",
  "image",
 ]
 
@@ -1144,7 +1144,7 @@ name = "custom_window_frame"
 version = "0.1.0"
 dependencies = [
  "eframe",
- "env_logger 0.11.8",
+ "env_logger",
 ]
 
 [[package]]
@@ -1381,7 +1381,7 @@ dependencies = [
  "egui_extras",
  "egui_kittest",
  "ehttp",
- "env_logger 0.11.8",
+ "env_logger",
  "image",
  "log",
  "mimalloc",
@@ -1589,18 +1589,6 @@ dependencies = [
 
 [[package]]
 name = "env_logger"
-version = "0.10.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4cd405aab171cb85d6735e5c8d9db038c17d3ca007a4d2c25f337935c3d90580"
-dependencies = [
- "humantime",
- "is-terminal",
- "log",
- "termcolor",
-]
-
-[[package]]
-name = "env_logger"
 version = "0.11.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13c863f0904021b108aa8b2f55046443e6b1ebde8fd4a15c399893aae4fa069f"
@@ -1697,7 +1685,7 @@ name = "external_eventloop"
 version = "0.1.0"
 dependencies = [
  "eframe",
- "env_logger 0.11.8",
+ "env_logger",
  "winit",
 ]
 
@@ -1706,7 +1694,7 @@ name = "external_eventloop_async"
 version = "0.1.0"
 dependencies = [
  "eframe",
- "env_logger 0.11.8",
+ "env_logger",
  "log",
  "tokio",
  "winit",
@@ -1752,7 +1740,7 @@ name = "file_dialog"
 version = "0.1.0"
 dependencies = [
  "eframe",
- "env_logger 0.11.8",
+ "env_logger",
  "rfd",
 ]
 
@@ -2169,7 +2157,7 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "egui_extras",
- "env_logger 0.11.8",
+ "env_logger",
 ]
 
 [[package]]
@@ -2177,7 +2165,7 @@ name = "hello_world_par"
 version = "0.1.0"
 dependencies = [
  "eframe",
- "env_logger 0.11.8",
+ "env_logger",
  "winit",
 ]
 
@@ -2186,7 +2174,7 @@ name = "hello_world_simple"
 version = "0.1.0"
 dependencies = [
  "eframe",
- "env_logger 0.11.8",
+ "env_logger",
 ]
 
 [[package]]
@@ -2194,12 +2182,6 @@ name = "hermit-abi"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fbf6a919d6cf397374f7dfeeea91d974c7c0a7221d0d0f4f20d859d329e53fcc"
-
-[[package]]
-name = "hermit-abi"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc0fef456e4baa96da950455cd02c081ca953b141298e41db3fc7e36b1da849c"
 
 [[package]]
 name = "hex"
@@ -2221,12 +2203,6 @@ checksum = "e3d1354bf6b7235cb4a0576c2619fd4ed18183f689b12b006a0ee7329eeff9a5"
 dependencies = [
  "windows-sys 0.52.0",
 ]
-
-[[package]]
-name = "humantime"
-version = "2.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "135b12329e5e3ce057a9f972339ea52bc954fe1e9358ef27f95e89716fbc5424"
 
 [[package]]
 name = "iana-time-zone"
@@ -2393,7 +2369,7 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "egui_extras",
- "env_logger 0.11.8",
+ "env_logger",
  "image",
 ]
 
@@ -2431,17 +2407,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "928bae27f42bc99b60d9ac7334e3a21d10ad8f1835a4e12ec3ec0464765ed1b3"
 dependencies = [
  "once_cell",
-]
-
-[[package]]
-name = "is-terminal"
-version = "0.4.17"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3640c1c38b8e4e43584d8df18be5fc6b0aa314ce6ebf51b53313d4306cca8e46"
-dependencies = [
- "hermit-abi 0.5.2",
- "libc",
- "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2560,7 +2525,7 @@ name = "keyboard_events"
 version = "0.1.0"
 dependencies = [
  "eframe",
- "env_logger 0.11.8",
+ "env_logger",
 ]
 
 [[package]]
@@ -2825,7 +2790,7 @@ name = "multiple_viewports"
 version = "0.1.0"
 dependencies = [
  "eframe",
- "env_logger 0.11.8",
+ "env_logger",
 ]
 
 [[package]]
@@ -3515,7 +3480,7 @@ checksum = "cc2790cd301dec6cd3b7a025e4815cf825724a51c98dccfe6a3e55f05ffb6511"
 dependencies = [
  "cfg-if",
  "concurrent-queue",
- "hermit-abi 0.4.0",
+ "hermit-abi",
  "pin-project-lite",
  "rustix 0.38.38",
  "tracing",
@@ -3533,7 +3498,7 @@ name = "popups"
 version = "0.33.3"
 dependencies = [
  "eframe",
- "env_logger 0.11.8",
+ "env_logger",
 ]
 
 [[package]]
@@ -3654,7 +3619,7 @@ name = "puffin_profiler"
 version = "0.1.0"
 dependencies = [
  "eframe",
- "env_logger 0.11.8",
+ "env_logger",
  "log",
  "profiling",
  "puffin",
@@ -4081,7 +4046,7 @@ name = "screenshot"
 version = "0.1.0"
 dependencies = [
  "eframe",
- "env_logger 0.11.8",
+ "env_logger",
  "image",
 ]
 
@@ -4171,7 +4136,7 @@ name = "serial_windows"
 version = "0.1.0"
 dependencies = [
  "eframe",
- "env_logger 0.11.8",
+ "env_logger",
  "log",
 ]
 
@@ -4444,7 +4409,7 @@ name = "test_inline_glow_paint"
 version = "0.1.0"
 dependencies = [
  "eframe",
- "env_logger 0.11.8",
+ "env_logger",
 ]
 
 [[package]]
@@ -4452,7 +4417,7 @@ name = "test_size_pass"
 version = "0.1.0"
 dependencies = [
  "eframe",
- "env_logger 0.11.8",
+ "env_logger",
 ]
 
 [[package]]
@@ -4461,7 +4426,7 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "egui_extras",
- "env_logger 0.11.8",
+ "env_logger",
 ]
 
 [[package]]
@@ -4469,7 +4434,7 @@ name = "test_viewports"
 version = "0.1.0"
 dependencies = [
  "eframe",
- "env_logger 0.11.8",
+ "env_logger",
 ]
 
 [[package]]
@@ -4477,7 +4442,7 @@ name = "text_validation"
 version = "0.1.0"
 dependencies = [
  "eframe",
- "env_logger 0.10.2",
+ "env_logger",
 ]
 
 [[package]]
@@ -4858,7 +4823,7 @@ name = "user_attention"
 version = "0.1.0"
 dependencies = [
  "eframe",
- "env_logger 0.11.8",
+ "env_logger",
 ]
 
 [[package]]

@@ -833,12 +833,6 @@ impl<Value: TextType> TextEdit<'_, Value> {
 
         // TODO(tye-exe): Simplify once https://github.com/emilk/egui/issues/2142 is fixed
         if response.lost_focus() || response.clicked_elsewhere() {
-            #[cfg(not(feature = "log"))]
-            if let Some(Ok(var)) = Value::read_from_string(represents, text) {
-                *represents = var;
-            }
-
-            #[cfg(feature = "log")]
             match Value::read_from_string(represents, text) {
                 Some(Ok(var)) => *represents = var,
                 Some(Err(err)) => {
