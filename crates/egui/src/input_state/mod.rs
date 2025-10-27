@@ -231,10 +231,9 @@ pub struct InputState {
     /// [`Self::raw_scroll_delta`] are zero. This instead relies on the
     /// current touch phase received from the mouse wheel event.
     ///
-    /// As the start & stop touch phase event are not always present this value
-    /// will not always be true even if a scroll is active. `Self::is_scrolling` and
-    /// `Self::is_smooth_scrolling` can be used for that instead.
-    is_in_scroll_action: bool,
+    /// This value is only `Some` if we have ever received a [`crate::TouchPhase::Start`] event and then
+    /// know that the current platform supports it.
+    is_in_scroll_action: Option<bool>,
 
     /// Used for smoothing the scroll delta.
     unprocessed_scroll_delta: Vec2,
@@ -368,7 +367,7 @@ impl Default for InputState {
             pointer: Default::default(),
             touch_states: Default::default(),
 
-            is_in_scroll_action: false,
+            is_in_scroll_action: None,
             last_scroll_time: f64::NEG_INFINITY,
             unprocessed_scroll_delta: Vec2::ZERO,
             unprocessed_scroll_delta_for_zoom: 0.0,
@@ -456,7 +455,9 @@ impl InputState {
                     modifiers,
                 } => {
                     match phase {
-                        crate::TouchPhase::Start => self.is_in_scroll_action = true,
+                        crate::TouchPhase::Start => {
+                            self.is_in_scroll_action = Some(true);
+                        }
                         crate::TouchPhase::Move => {
                             let mut delta = match unit {
                                 MouseWheelUnit::Point => *delta,
@@ -509,7 +510,9 @@ impl InputState {
                             }
                         }
                         crate::TouchPhase::End | crate::TouchPhase::Cancel => {
-                            self.is_in_scroll_action = false;
+                            if let Some(is_in_scroll_action) = &mut self.is_in_scroll_action {
+                                *is_in_scroll_action = false;
+                            }
                         }
                     }
                 }
@@ -565,7 +568,7 @@ impl InputState {
         }
 
         let is_scrolling = raw_scroll_delta != Vec2::ZERO || smooth_scroll_delta != Vec2::ZERO;
-        let last_scroll_time = if is_scrolling || self.is_in_scroll_action {
+        let last_scroll_time = if is_scrolling || self.is_in_scroll_action.is_some_and(|b| b) {
             time
         } else {
             self.last_scroll_time
@@ -732,23 +735,25 @@ impl InputState {
             .map_or(self.smooth_scroll_delta, |touch| touch.translation_delta)
     }
 
+    /// True if there is an active scroll action that might scroll more when using [`Self::smooth_scroll_delta`].
+    pub fn is_smooth_scrolling(&self) -> bool {
+        self.is_raw_scrolling() || self.smooth_scroll_delta != Vec2::ZERO
+    }
+
     /// True if there is an active scroll action that might scroll more.
     ///
     /// You probably want to use [`Self::is_smooth_scrolling`].
-    pub fn is_scrolling(&self) -> bool {
-        // On web we don't get the start & stop scrolling events, so we rely on a timer there.
-        if cfg!(target_arch = "wasm32") {
+    pub fn is_raw_scrolling(&self) -> bool {
+        if let Some(is_in_scroll_action) = self.is_in_scroll_action {
+            is_in_scroll_action
+        } else {
+            // On certain platforms, like web, we don't get the start & stop scrolling events, so
+            // we rely on a timer there.
+            //
             // Tested on a mac touchpad 2025, where the largest observed gap between scroll events
             // was 68 ms. So 100 ms should most likely be good here.
             self.time_since_last_scroll() < 0.1
-        } else {
-            self.is_in_scroll_action
         }
-    }
-
-    /// True if there is an active scroll action that might scroll more when using [`Self::smooth_scroll_delta`].
-    pub fn is_smooth_scrolling(&self) -> bool {
-        self.is_scrolling() || self.smooth_scroll_delta != Vec2::ZERO
     }
 
     /// How long has it been (in seconds) since the use last scrolled?
@@ -1688,7 +1693,7 @@ impl InputState {
 
         ui.label(format!(
             "is_scrolling: raw: {}, smooth: {}",
-            self.is_scrolling(),
+            self.is_raw_scrolling(),
             self.is_smooth_scrolling()
         ));
         ui.label(format!(

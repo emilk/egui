@@ -536,6 +536,8 @@ pub enum Event {
         delta: Vec2,
 
         /// The phase of the scroll, useful for trackpads.
+        ///
+        /// If unknown set this to [`TouchPhase::Move`].
         phase: TouchPhase,
 
         /// The state of the modifier keys at the time of the event.
