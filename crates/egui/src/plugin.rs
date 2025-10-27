@@ -1,4 +1,4 @@
-use crate::{Context, FullOutput, RawInput, WidgetRect};
+use crate::{Context, FullOutput, RawInput};
 use ahash::HashMap;
 use epaint::mutex::{Mutex, MutexGuard};
 use std::sync::Arc;
@@ -48,7 +48,7 @@ pub trait Plugin: Send + Sync + std::any::Any + 'static {
     /// Useful for capturing a stack trace so that widgets can be mapped back to their source code.
     /// Since this is called outside a pass, don't show ui here. Using `Context::debug_painter` is fine though.
     #[cfg(debug_assertions)]
-    fn on_widget_under_pointer(&mut self, ctx: &Context, widget: &WidgetRect) {}
+    fn on_widget_under_pointer(&mut self, ctx: &Context, widget: &crate::WidgetRect) {}
 }
 
 pub(crate) struct PluginHandle {
@@ -176,7 +176,7 @@ impl PluginsOrdered {
     }
 
     #[cfg(debug_assertions)]
-    pub fn on_widget_under_pointer(&self, ctx: &Context, widget: &WidgetRect) {
+    pub fn on_widget_under_pointer(&self, ctx: &Context, widget: &crate::WidgetRect) {
         profiling::scope!("plugins", "on_widget_under_pointer");
         self.for_each_dyn(|plugin| {
             plugin.on_widget_under_pointer(ctx, widget);
