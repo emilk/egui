@@ -225,12 +225,16 @@ pub struct InputState {
     /// Time of the last scroll event.
     last_scroll_time: f64,
 
-    /// If we are currently scrolling.
+    /// If we are currently in a scroll action.
     ///
     /// This is not the same as checking if [`Self::smooth_scroll_delta`], or
     /// [`Self::raw_scroll_delta`] are zero. This instead relies on scroll the
     /// current touch phase recieved from the mouse wheel event.
-    is_scrolling: bool,
+    ///
+    /// As the start & stop touch phase event are not always present this value
+    /// will not always be true even if a scroll is active. `Self::is_scrolling` and
+    /// `Self::is_smooth_scrolling` can be used for that instead.
+    is_in_scroll_action: bool,
 
     /// Used for smoothing the scroll delta.
     unprocessed_scroll_delta: Vec2,
@@ -364,7 +368,7 @@ impl Default for InputState {
             pointer: Default::default(),
             touch_states: Default::default(),
 
-            is_scrolling: false,
+            is_in_scroll_action: false,
             last_scroll_time: f64::NEG_INFINITY,
             unprocessed_scroll_delta: Vec2::ZERO,
             unprocessed_scroll_delta_for_zoom: 0.0,
@@ -452,7 +456,7 @@ impl InputState {
                     modifiers,
                 } => {
                     match phase {
-                        crate::TouchPhase::Start => self.is_scrolling = true,
+                        crate::TouchPhase::Start => self.is_in_scroll_action = true,
                         crate::TouchPhase::Move => {
                             let mut delta = match unit {
                                 MouseWheelUnit::Point => *delta,
@@ -505,7 +509,7 @@ impl InputState {
                             }
                         }
                         crate::TouchPhase::End | crate::TouchPhase::Cancel => {
-                            self.is_scrolling = false;
+                            self.is_in_scroll_action = false;
                         }
                     }
                 }
@@ -561,7 +565,7 @@ impl InputState {
         }
 
         let is_scrolling = raw_scroll_delta != Vec2::ZERO || smooth_scroll_delta != Vec2::ZERO;
-        let last_scroll_time = if is_scrolling || self.is_scrolling {
+        let last_scroll_time = if is_scrolling || self.is_in_scroll_action {
             time
         } else {
             self.last_scroll_time
@@ -571,7 +575,7 @@ impl InputState {
             pointer,
             touch_states: self.touch_states,
 
-            is_scrolling: self.is_scrolling,
+            is_in_scroll_action: self.is_in_scroll_action,
             last_scroll_time,
             unprocessed_scroll_delta,
             unprocessed_scroll_delta_for_zoom,
@@ -732,10 +736,13 @@ impl InputState {
     ///
     /// You probably want to use [`Self::is_smooth_scrolling`].
     pub fn is_scrolling(&self) -> bool {
+        // On web we don't get the start & stop scrolling events, so we rely on a timer there.
         if cfg!(target_arch = "wasm32") {
+            // Tested on a mac touchpad 2025, where the largest observed gap between scroll events
+            // was 68 ms. So 100 ms should most likely be good here.
             self.time_since_last_scroll() < 0.1
         } else {
-            self.is_scrolling
+            self.is_in_scroll_action
         }
     }
 
@@ -1635,7 +1642,7 @@ impl InputState {
             pointer,
             touch_states,
 
-            is_scrolling: _,
+            is_in_scroll_action: _,
             last_scroll_time,
             unprocessed_scroll_delta,
             unprocessed_scroll_delta_for_zoom,
