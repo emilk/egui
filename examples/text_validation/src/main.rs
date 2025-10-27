@@ -35,11 +35,11 @@ impl Default for MyApp {
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.label(&format!(
+            ui.label(format!(
                 "I am {}. I am {} years old. My favorite letter is {}.",
                 self.name, self.age, self.favorite_letter
             ));
-            ui.label(&format!(
+            ui.label(format!(
                 "I know for sure that the best ice cream flaviour is {}!",
                 self.ice_cream
             ));
@@ -87,7 +87,7 @@ impl TextType for NoCaps {
 
     fn read_from_string(_previous: &Self, modified: &str) -> Option<Result<Self, Self::Err>> {
         if modified.to_lowercase() == modified {
-            Some(Ok(NoCaps(modified.to_owned())))
+            Some(Ok(Self(modified.to_owned())))
         } else {
             Some(Err(IncorrectCaseError(
                 "Contained uppercase letters".to_owned(),

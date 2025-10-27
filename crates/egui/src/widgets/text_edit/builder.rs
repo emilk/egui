@@ -511,7 +511,7 @@ impl<Value: TextType> TextEdit<'_, Value> {
         });
 
         let mut state = TextEditState::load(ui.ctx(), id).unwrap_or_default();
-        let mut text = state
+        let text = state
             .text
             .get_or_insert_with(|| represents.string_representation());
 
@@ -638,10 +638,10 @@ impl<Value: TextType> TextEdit<'_, Value> {
             let (changed, new_cursor_range) = events(
                 ui,
                 &mut state.cursor,
-                &mut state.undoer,
+                &state.undoer,
                 &mut state.ime_enabled,
                 &mut state.ime_cursor_range,
-                &mut text,
+                text,
                 Value::is_parsable(),
                 &mut galley,
                 layouter,
@@ -833,30 +833,33 @@ impl<Value: TextType> TextEdit<'_, Value> {
 
         // TODO(tye-exe): Simplify once https://github.com/emilk/egui/issues/2142 is fixed
         if response.lost_focus() || response.clicked_elsewhere() {
-            match Value::read_from_string(&represents, &text) {
+            #[cfg(not(feature = "log"))]
+            if let Some(Ok(var)) = Value::read_from_string(represents, text) {
+                *represents = var;
+            }
+
+            #[cfg(feature = "log")]
+            match Value::read_from_string(represents, text) {
                 Some(Ok(var)) => *represents = var,
                 Some(Err(err)) => {
-                    #[cfg(feature = "log")]
                     log::info!("Failed to parse value for text edit: {err}");
                 }
-                None =>
-                {
-                    #[cfg(feature = "log")]
+                None => {
                     if Value::is_parsable() {
-                        log::warn!("Incorrectly marked unparsable TextType as mutable.",)
+                        log::warn!("Incorrectly marked unparsable TextType as mutable.");
                     }
                 }
             }
 
             // The user might have changed the text
-            *text = represents.string_representation()
+            *text = represents.string_representation();
         }
 
         if response.changed() {
             // Update represented value if the current state is valid
-            if let Some(Ok(var)) = Value::read_from_string(&represents, &text) {
-                *represents = var
-            };
+            if let Some(Ok(var)) = Value::read_from_string(represents, text) {
+                *represents = var;
+            }
 
             response.widget_info(|| {
                 WidgetInfo::text_edit(
@@ -936,11 +939,11 @@ fn mask_if_password(is_password: bool, text: &str) -> String {
 // ----------------------------------------------------------------------------
 
 /// Check for (keyboard) events to edit the cursor and/or text.
-#[expect(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, clippy::fn_params_excessive_bools)]
 fn events(
     ui: &crate::Ui,
     cursor: &mut TextCursorState,
-    undoer: &mut Arc<Mutex<TextEditUndoer>>,
+    undoer: &Arc<Mutex<TextEditUndoer>>,
     ime_enabled: &mut bool,
     ime_cursor_range: &mut CCursorRange,
     text: &mut String,

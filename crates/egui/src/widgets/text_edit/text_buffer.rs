@@ -14,6 +14,8 @@ use crate::{
 };
 
 /// Trait implementing convenient operations to perform on the string data from a [`TextEdit`].
+///
+/// [`TextEdit`]: crate::TextEdit
 pub trait TextBuffer {
     /// Can this text be edited?
     fn is_mutable(&self) -> bool;

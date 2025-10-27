@@ -102,13 +102,11 @@ pub trait TextType: Sized {
     /// ```
     ///
     /// ## Example Implementations
-    /// See [`TextType`] documentation and the [`text_type`] module for examples.
-    ///
-    /// [`text_type`]: self
+    /// See [`TextType`] documentation and its module for examples.
     fn read_from_string(previous: &Self, modified: &str) -> Option<Result<Self, Self::Err>>;
 
     /// Generates the string representation of this type.
-    /// This **must** be parseable by [`TextType::read_from_strings`].
+    /// This **must** be parseable by [`TextType::read_from_string`].
     ///
     /// ## Example
     /// ```
@@ -167,7 +165,7 @@ impl TextType for &str {
     }
 
     fn string_representation(&self) -> String {
-        self.to_string()
+        (*self).to_owned()
     }
 
     fn is_parsable() -> bool {
@@ -179,7 +177,7 @@ impl TextType for String {
     type Err = Infallible;
 
     fn read_from_string(_previous: &Self, modified: &str) -> Option<Result<Self, Self::Err>> {
-        Some(Ok(modified.to_string()))
+        Some(Ok(modified.to_owned()))
     }
 
     fn string_representation(&self) -> String {
@@ -195,18 +193,18 @@ impl TextType for char {
     type Err = ConversionError;
 
     fn read_from_string(previous: &Self, modified: &str) -> Option<Result<Self, Self::Err>> {
-        let modified: Vec<char> = modified.chars().collect();
+        let modified: Vec<Self> = modified.chars().collect();
 
-        Some(match (modified.get(0), modified.get(1), modified.get(2)) {
+        Some(match (modified.first(), modified.get(1), modified.get(2)) {
             (Some(_), Some(_), Some(_)) => Err(ConversionError(
-                "Three or more characters present".to_string(),
+                "Three or more characters present".to_owned(),
             )),
             (Some(first), Some(second), None) if first == previous => Ok(*second),
             (Some(first), Some(second), None) if first == second => Ok(*first),
             (Some(_), Some(_), None) => Err(ConversionError(
-                "Two different characters present".to_string(),
+                "Two different characters present".to_owned(),
             )),
-            (None, _, _) => Err(ConversionError("Zero characters present".to_string())),
+            (None, _, _) => Err(ConversionError("Zero characters present".to_owned())),
             (Some(only), _, _) => Ok(*only),
         })
     }
@@ -240,7 +238,7 @@ impl TextType for Cow<'_, str> {
     type Err = Infallible;
 
     fn read_from_string(_previous: &Self, modified: &str) -> Option<Result<Self, Self::Err>> {
-        Some(Ok(Cow::from(modified.to_string())))
+        Some(Ok(Cow::from(modified.to_owned())))
     }
 
     fn string_representation(&self) -> String {
@@ -275,6 +273,7 @@ mod num_impls {
                     true
                 }
             }
+
             impl super::TextType for &$num {
                 type Err = std::convert::Infallible;
 
