@@ -181,7 +181,7 @@ impl TextType for String {
     }
 
     fn string_representation(&self) -> String {
-        self.to_string()
+        self.clone()
     }
 
     fn is_parsable() -> bool {
