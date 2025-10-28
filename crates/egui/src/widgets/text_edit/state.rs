@@ -7,7 +7,7 @@ use crate::{
     text_selection::{CCursorRange, TextCursorState},
 };
 
-pub type TextEditUndoer = crate::util::undoer::Undoer<(CCursorRange, String)>;
+pub type TextEditUndoer = crate::util::undoer::Undoer<(CCursorRange, Arc<str>)>;
 
 /// The text edit state stored between frames.
 ///
