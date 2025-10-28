@@ -200,6 +200,22 @@ impl InputOptions {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+enum ScrollAction {
+    None,
+    Active { start_modifiers: Modifiers },
+}
+
+impl ScrollAction {
+    fn is_active(&self) -> bool {
+        match self {
+            Self::None => false,
+            Self::Active { .. } => true,
+        }
+    }
+}
+
 /// Input state that egui updates each frame.
 ///
 /// You can access this with [`crate::Context::input`].
@@ -233,7 +249,7 @@ pub struct InputState {
     ///
     /// This value is only `Some` if we have ever received a [`crate::TouchPhase::Start`] event and then
     /// know that the current platform supports it.
-    is_in_scroll_action: Option<bool>,
+    scroll_action: Option<ScrollAction>,
 
     /// Used for smoothing the scroll delta.
     unprocessed_scroll_delta: Vec2,
@@ -367,7 +383,7 @@ impl Default for InputState {
             pointer: Default::default(),
             touch_states: Default::default(),
 
-            is_in_scroll_action: None,
+            scroll_action: None,
             last_scroll_time: f64::NEG_INFINITY,
             unprocessed_scroll_delta: Vec2::ZERO,
             unprocessed_scroll_delta_for_zoom: 0.0,
@@ -456,9 +472,19 @@ impl InputState {
                 } => {
                     match phase {
                         crate::TouchPhase::Start => {
-                            self.is_in_scroll_action = Some(true);
+                            self.scroll_action = Some(ScrollAction::Active {
+                                start_modifiers: *modifiers,
+                            });
                         }
                         crate::TouchPhase::Move => {
+                            let modifiers = if let Some(ScrollAction::Active { start_modifiers }) =
+                                self.scroll_action
+                            {
+                                modifiers.plus(start_modifiers)
+                            } else {
+                                *modifiers
+                            };
+
                             let mut delta = match unit {
                                 MouseWheelUnit::Point => *delta,
                                 MouseWheelUnit::Line => options.line_scroll_speed * *delta,
@@ -510,8 +536,8 @@ impl InputState {
                             }
                         }
                         crate::TouchPhase::End | crate::TouchPhase::Cancel => {
-                            if let Some(is_in_scroll_action) = &mut self.is_in_scroll_action {
-                                *is_in_scroll_action = false;
+                            if let Some(is_in_scroll_action) = &mut self.scroll_action {
+                                *is_in_scroll_action = ScrollAction::None;
                             }
                         }
                     }
@@ -568,7 +594,8 @@ impl InputState {
         }
 
         let is_scrolling = raw_scroll_delta != Vec2::ZERO || smooth_scroll_delta != Vec2::ZERO;
-        let last_scroll_time = if is_scrolling || self.is_in_scroll_action.is_some_and(|b| b) {
+        let last_scroll_time = if is_scrolling || self.scroll_action.is_some_and(|s| s.is_active())
+        {
             time
         } else {
             self.last_scroll_time
@@ -578,7 +605,7 @@ impl InputState {
             pointer,
             touch_states: self.touch_states,
 
-            is_in_scroll_action: self.is_in_scroll_action,
+            scroll_action: self.scroll_action,
             last_scroll_time,
             unprocessed_scroll_delta,
             unprocessed_scroll_delta_for_zoom,
@@ -744,8 +771,8 @@ impl InputState {
     ///
     /// You probably want to use [`Self::is_smooth_scrolling`].
     pub fn is_raw_scrolling(&self) -> bool {
-        if let Some(is_in_scroll_action) = self.is_in_scroll_action {
-            is_in_scroll_action
+        if let Some(scroll_action) = self.scroll_action {
+            scroll_action.is_active()
         } else {
             // On certain platforms, like web, we don't get the start & stop scrolling events, so
             // we rely on a timer there.
@@ -1647,7 +1674,7 @@ impl InputState {
             pointer,
             touch_states,
 
-            is_in_scroll_action: _,
+            scroll_action: _,
             last_scroll_time,
             unprocessed_scroll_delta,
             unprocessed_scroll_delta_for_zoom,
