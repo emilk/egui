@@ -137,7 +137,6 @@ winit = { workspace = true, default-features = false, features = ["rwh_06"] }
 # optional native:
 egui-wgpu = { workspace = true, optional = true, features = [
   "winit",
-  "macos-window-resize-jitter-fix"
 ] } # if wgpu is used, use it with winit
 pollster = { workspace = true, optional = true } # needed for wgpu
 
