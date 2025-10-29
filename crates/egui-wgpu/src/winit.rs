@@ -330,8 +330,8 @@ impl Painter {
 
     /// Handles changes of the resizing state.
     ///
-    /// Should be called prior to the first [Painter::on_window_resized] call and after the last in a chain.
-    /// Used to apply platform-specific logic, e.g. OSX Metal window resize jitter fix.
+    /// Should be called prior to the first [Painter::on_window_resized] call and after the last in
+    /// the chain. Used to apply platform-specific logic, e.g. OSX Metal window resize jitter fix.
     pub fn on_window_resize_state_change(&mut self, viewport_id: ViewportId, resizing: bool) {
         profiling::function_scope!();
 
@@ -351,9 +351,11 @@ impl Painter {
         }
 
         // Resizing is a bit tricky on macOS.
-        // It requires enabling ["present_with_transaction"](https://developer.apple.com/documentation/quartzcore/cametallayer/presentswithtransaction) flag
-        // to avoid jittering during the resize. Even though resize jittering on macOS is common across rendering backends,
-        // solution for wgpu/metal is known. See https://github.com/emilk/egui/issues/903
+        // It requires enabling ["present_with_transaction"](https://developer.apple.com/documentation/quartzcore/cametallayer/presentswithtransaction)
+        // flag to avoid jittering during the resize. Even though resize jittering on macOS
+        // is common across rendering backends, the solution for wgpu/metal is known.
+        //
+        // See https://github.com/emilk/egui/issues/903
         #[cfg(all(target_os = "macos", feature = "macos-window-resize-jitter-fix"))]
         {
             // SAFETY: The cast is checked with if condition. If the used backend is not metal
