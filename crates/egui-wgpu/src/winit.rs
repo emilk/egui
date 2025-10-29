@@ -1,11 +1,11 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::undocumented_unsafe_blocks)]
 
-use crate::{RenderState, SurfaceErrorAction, WgpuConfiguration, renderer};
 use crate::{
+    capture::{capture_channel, CaptureReceiver, CaptureSender, CaptureState},
     RendererOptions,
-    capture::{CaptureReceiver, CaptureSender, CaptureState, capture_channel},
 };
+use crate::{renderer, RenderState, SurfaceErrorAction, WgpuConfiguration};
 use egui::{Context, Event, UserData, ViewportId, ViewportIdMap, ViewportIdSet};
 use std::{num::NonZeroU32, sync::Arc};
 
@@ -328,22 +328,54 @@ impl Painter {
         }
     }
 
-    pub fn on_window_resize_begin(&mut self, viewport_id: ViewportId) {
+    /// Handles changes of the resizing state.
+    ///
+    /// Should be called prior to the first [Painter::on_window_resized] call and after the last in a chain.
+    /// Used to apply platform-specific logic, e.g. OSX Metal window resize jitter fix.
+    pub fn on_window_resize_state_change(&mut self, viewport_id: ViewportId, resizing: bool) {
         profiling::function_scope!();
 
         let Some(state) = self.surfaces.get_mut(&viewport_id) else {
             return;
         };
-        if state.resizing {
-            log::debug!(
-                "Painter::on_window_resize_begin() called for a viewport already marked as resizing."
-            );
+        if state.resizing == resizing {
+            match resizing {
+                true => log::debug!(
+                    "Painter::on_window_resize_state_change() redundant call while resizing"
+                ),
+                false => log::debug!(
+                    "Painter::on_window_resize_state_change() redundant call after resizing"
+                ),
+            }
             return;
         }
-        set_surface_tx_sync(&mut state.surface, true);
-        // No need to to re-configure the surface now, as it will be reconfigured in
-        // resize handler right after.
-        state.resizing = true;
+
+        // Resizing is a bit tricky on macOS.
+        // It requires enabling ["present_with_transaction"](https://developer.apple.com/documentation/quartzcore/cametallayer/presentswithtransaction) flag
+        // to avoid jittering during the resize. Even though resize jittering on macOS is common across rendering backends,
+        // solution for wgpu/metal is known. See https://github.com/emilk/egui/issues/903
+        #[cfg(all(target_os = "macos", feature = "macos-window-resize-jitter-fix"))]
+        {
+            // SAFETY: The cast is checked with if condition. If the used backend is not metal
+            // it gracefully fails. The pointer casts are valid as it's 1-to-1 type mapping.
+            // This is how wgpu currently exposes this backend-specific flag.
+            unsafe {
+                if let Some(hal_surface) = state.surface.as_hal::<wgpu::hal::api::Metal>()  {
+                    let raw = (&*hal_surface) as *const wgpu::hal::metal::Surface
+                        as *mut wgpu::hal::metal::Surface;
+
+                    (*raw).present_with_transaction = resizing;
+
+                    Self::configure_surface(
+                        state,
+                        self.render_state.as_ref().unwrap(),
+                        &self.configuration,
+                    );
+                };
+            }
+        }
+
+        state.resizing = resizing;
     }
 
     pub fn on_window_resized(
@@ -365,27 +397,6 @@ impl Painter {
                 "Ignoring window resize notification with no surface created via Painter::set_window()"
             );
         }
-    }
-
-    pub fn on_window_resize_end(&mut self, viewport_id: ViewportId) {
-        profiling::function_scope!();
-
-        let Some(state) = self.surfaces.get_mut(&viewport_id) else {
-            return;
-        };
-        if !state.resizing {
-            log::warn!(
-                "Painter::on_window_resize_end() called without a prior call to Painter::on_window_resize_begin()"
-            );
-            return;
-        }
-        set_surface_tx_sync(&mut state.surface, false);
-        Self::configure_surface(
-            state,
-            self.render_state.as_ref().unwrap(),
-            &self.configuration,
-        );
-        state.resizing = false;
     }
 
     /// Returns two things:
@@ -617,17 +628,5 @@ impl Painter {
     #[expect(clippy::needless_pass_by_ref_mut, clippy::unused_self)]
     pub fn destroy(&mut self) {
         // TODO(emilk): something here?
-    }
-}
-
-fn set_surface_tx_sync(surface: &mut wgpu::Surface, present_with_transaction: bool) {
-    // TODO: How to cfg(metal) ? The code will not compile w/o wgpu/metal feature enabled.
-    #[cfg(all(target_os = "macos"))]
-    unsafe {
-        if let Some(hal_surface) = surface.as_hal::<wgpu::hal::api::Metal>() {
-            let raw = (&*hal_surface) as *const wgpu::hal::metal::Surface
-                as *mut wgpu::hal::metal::Surface;
-            (*raw).present_with_transaction = present_with_transaction;
-        }
     }
 }

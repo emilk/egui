@@ -26,8 +26,8 @@ use egui_winit::accesskit_winit;
 use winit_integration::UserEvent;
 
 use crate::{
-    App, AppCreator, CreationContext, NativeOptions, Result, Storage,
-    native::{epi_integration::EpiIntegration, winit_integration::EventResult},
+    native::{epi_integration::EpiIntegration, winit_integration::EventResult}, App, AppCreator, CreationContext, NativeOptions, Result,
+    Storage,
 };
 
 use super::{epi_integration, event_loop_context, winit_integration, winit_integration::WinitApp};
@@ -782,11 +782,14 @@ impl WgpuWinitRunning<'_> {
         // resize lifecycle, yet winit does not provide any events for that. To work around,
         // the last resized viewport is tracked until any next non-resize event is received.
         //
+        // Accidental state change during the resize process due to an unexpected event fire
+        // is ok, state will switch back upon next resize event.
+        //
         // See: https://github.com/emilk/egui/issues/903
-        if shared.resized_viewport == viewport_id
-            && let Some(viewport_id) = viewport_id
+        if let Some(id) = viewport_id
+            && shared.resized_viewport == viewport_id
         {
-            shared.painter.on_window_resize_end(viewport_id);
+            shared.painter.on_window_resize_state_change(id, false);
             shared.resized_viewport = None;
         }
 
@@ -812,17 +815,17 @@ impl WgpuWinitRunning<'_> {
                 // Resize with 0 width and height is used by winit to signal a minimize event on Windows.
                 // See: https://github.com/rust-windowing/winit/issues/208
                 // This solves an issue where the app would panic when minimizing on Windows.
-                if let Some(viewport_id) = viewport_id
+                if let Some(id) = viewport_id
                     && let (Some(width), Some(height)) = (
                         NonZeroU32::new(physical_size.width),
                         NonZeroU32::new(physical_size.height),
                     )
                 {
-                    if shared.resized_viewport != Some(viewport_id) {
-                        shared.resized_viewport = Some(viewport_id);
-                        shared.painter.on_window_resize_begin(viewport_id);
+                    if shared.resized_viewport != viewport_id {
+                        shared.resized_viewport = viewport_id;
+                        shared.painter.on_window_resize_state_change(id, true);
                     }
-                    shared.painter.on_window_resized(viewport_id, width, height);
+                    shared.painter.on_window_resized(id, width, height);
                     repaint_asap = true;
                 }
             }
