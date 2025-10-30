@@ -330,7 +330,7 @@ impl Painter {
 
     /// Handles changes of the resizing state.
     ///
-    /// Should be called prior to the first [Painter::on_window_resized] call and after the last in
+    /// Should be called prior to the first [`Painter::on_window_resized`] call and after the last in
     /// the chain. Used to apply platform-specific logic, e.g. OSX Metal window resize jitter fix.
     pub fn on_window_resize_state_change(&mut self, viewport_id: ViewportId, resizing: bool) {
         profiling::function_scope!();
@@ -339,13 +339,14 @@ impl Painter {
             return;
         };
         if state.resizing == resizing {
-            match resizing {
-                true => log::debug!(
+            if resizing {
+                log::debug!(
                     "Painter::on_window_resize_state_change() redundant call while resizing"
-                ),
-                false => log::debug!(
+                );
+            } else {
+                log::debug!(
                     "Painter::on_window_resize_state_change() redundant call after resizing"
-                ),
+                );
             }
             return;
         }
@@ -363,8 +364,8 @@ impl Painter {
             // This is how wgpu currently exposes this backend-specific flag.
             unsafe {
                 if let Some(hal_surface) = state.surface.as_hal::<wgpu::hal::api::Metal>() {
-                    let raw = (&*hal_surface) as *const wgpu::hal::metal::Surface
-                        as *mut wgpu::hal::metal::Surface;
+                    let raw =
+                        std::ptr::from_ref::<wgpu::hal::metal::Surface>(&*hal_surface).cast_mut();
 
                     (*raw).present_with_transaction = resizing;
 
@@ -373,7 +374,7 @@ impl Painter {
                         self.render_state.as_ref().unwrap(),
                         &self.configuration,
                     );
-                };
+                }
             }
         }
 
