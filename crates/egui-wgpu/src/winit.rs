@@ -1,11 +1,11 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::undocumented_unsafe_blocks)]
 
+use crate::{RenderState, SurfaceErrorAction, WgpuConfiguration, renderer};
 use crate::{
-    capture::{capture_channel, CaptureReceiver, CaptureSender, CaptureState},
     RendererOptions,
+    capture::{CaptureReceiver, CaptureSender, CaptureState, capture_channel},
 };
-use crate::{renderer, RenderState, SurfaceErrorAction, WgpuConfiguration};
 use egui::{Context, Event, UserData, ViewportId, ViewportIdMap, ViewportIdSet};
 use std::{num::NonZeroU32, sync::Arc};
 
@@ -362,7 +362,7 @@ impl Painter {
             // it gracefully fails. The pointer casts are valid as it's 1-to-1 type mapping.
             // This is how wgpu currently exposes this backend-specific flag.
             unsafe {
-                if let Some(hal_surface) = state.surface.as_hal::<wgpu::hal::api::Metal>()  {
+                if let Some(hal_surface) = state.surface.as_hal::<wgpu::hal::api::Metal>() {
                     let raw = (&*hal_surface) as *const wgpu::hal::metal::Surface
                         as *mut wgpu::hal::metal::Surface;
 

@@ -26,8 +26,8 @@ use egui_winit::accesskit_winit;
 use winit_integration::UserEvent;
 
 use crate::{
-    native::{epi_integration::EpiIntegration, winit_integration::EventResult}, App, AppCreator, CreationContext, NativeOptions, Result,
-    Storage,
+    App, AppCreator, CreationContext, NativeOptions, Result, Storage,
+    native::{epi_integration::EpiIntegration, winit_integration::EventResult},
 };
 
 use super::{epi_integration, event_loop_context, winit_integration, winit_integration::WinitApp};
