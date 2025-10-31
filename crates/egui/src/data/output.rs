@@ -1,5 +1,7 @@
 //! All the data egui returns to the backend at the end of each frame.
 
+use std::sync::Arc;
+
 use crate::{OrderedViewportIdMap, RepaintCause, ViewportOutput, WidgetType};
 
 /// What egui emits each frame from [`crate::Context::run`].
@@ -495,10 +497,10 @@ pub struct WidgetInfo {
     pub label: Option<String>,
 
     /// The contents of some editable text (for [`TextEdit`](crate::TextEdit) fields).
-    pub current_text_value: Option<String>,
+    pub current_text_value: Option<Arc<str>>,
 
     /// The previous text value.
-    pub prev_text_value: Option<String>,
+    pub prev_text_value: Option<Arc<str>>,
 
     /// The current value of checkboxes and radio buttons.
     pub selected: Option<bool>,
@@ -618,12 +620,12 @@ impl WidgetInfo {
     #[expect(clippy::needless_pass_by_value)]
     pub fn text_edit(
         enabled: bool,
-        prev_text_value: impl ToString,
-        text_value: impl ToString,
+        prev_text_value: impl Into<Arc<str>>,
+        text_value: impl Into<Arc<str>>,
         hint_text: impl ToString,
     ) -> Self {
-        let text_value = text_value.to_string();
-        let prev_text_value = prev_text_value.to_string();
+        let text_value = text_value.into();
+        let prev_text_value = prev_text_value.into();
         let hint_text = hint_text.to_string();
         let prev_text_value = if text_value == prev_text_value {
             None
@@ -639,16 +641,15 @@ impl WidgetInfo {
         }
     }
 
-    #[expect(clippy::needless_pass_by_value)]
     pub fn text_selection_changed(
         enabled: bool,
         text_selection: std::ops::RangeInclusive<usize>,
-        current_text_value: impl ToString,
+        current_text_value: impl Into<Arc<str>>,
     ) -> Self {
         Self {
             enabled,
             text_selection: Some(text_selection),
-            current_text_value: Some(current_text_value.to_string()),
+            current_text_value: Some(current_text_value.into()),
             ..Self::new(WidgetType::TextEdit)
         }
     }
