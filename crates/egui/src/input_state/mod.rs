@@ -436,7 +436,7 @@ impl InputState {
 
         {
             let dt = stable_dt.at_most(0.1);
-            scroll.end_frame(time, dt);
+            scroll.after_events(time, dt);
 
             zoom_factor_delta *=
                 (options.scroll_zoom_speed * scroll.smooth_scroll_delta_for_zoom).exp();

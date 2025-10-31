@@ -86,6 +86,7 @@ impl Default for ScrollState {
 }
 
 impl ScrollState {
+    #[expect(clippy::too_many_arguments)]
     pub fn on_wheel_event(
         &mut self,
         viewport_rect: Rect,
@@ -104,17 +105,12 @@ impl ScrollState {
             }
             crate::TouchPhase::Move => {
                 match self.status {
-                    Status::Static => {
-                        self.modifiers = latest_modifiers;
-                        self.status = Status::Smoothing;
-                    }
-                    Status::Smoothing => {
+                    Status::Static | Status::Smoothing => {
                         self.modifiers = latest_modifiers;
                         self.status = Status::Smoothing;
                     }
                     Status::InTouch => {
-                        // keep same modifiers
-                        self.status = Status::InTouch;
+                        // keep same modifiers and status
                     }
                 }
 
@@ -178,7 +174,7 @@ impl ScrollState {
         }
     }
 
-    pub fn end_frame(&mut self, time: f64, dt: f32) {
+    pub fn after_events(&mut self, time: f64, dt: f32) {
         let t = crate::emath::exponential_smooth_factor(0.90, 0.1, dt); // reach _% in _ seconds. TODO(emilk): parameterize
 
         if self.unprocessed_scroll_delta != Vec2::ZERO {
