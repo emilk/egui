@@ -8,8 +8,8 @@ use crate::{
 };
 use crate::{
     data::input::{
-        Event, EventFilter, KeyboardShortcut, Modifiers, MouseWheelUnit, NUM_POINTER_BUTTONS,
-        PointerButton, RawInput, TouchDeviceId, ViewportInfo,
+        Event, EventFilter, KeyboardShortcut, Modifiers, NUM_POINTER_BUTTONS, PointerButton,
+        RawInput, TouchDeviceId, ViewportInfo,
     },
     input_state::scroll_state::ScrollState,
 };
@@ -225,6 +225,7 @@ pub struct InputState {
 
     // ----------------------------------------------
     // Scrolling:
+    #[cfg_attr(feature = "serde", serde(skip))]
     scroll: ScrollState,
 
     /// Zoom scale factor this frame (e.g. from ctrl-scroll or pinch gesture).
@@ -378,11 +379,10 @@ impl InputState {
         let mut zoom_factor_delta = 1.0; // TODO(emilk): smoothing for zoom factor
         let mut rotation_radians = 0.0;
 
-        let mut smooth_scroll_delta_for_zoom = 0.0;
-
         let mut scroll = ScrollState {
             raw_scroll_delta: Vec2::ZERO,
             smooth_scroll_delta: Vec2::ZERO,
+            smooth_scroll_delta_for_zoom: 0.0,
             ..self.scroll
         };
 
@@ -407,68 +407,15 @@ impl InputState {
                     phase,
                     modifiers,
                 } => {
-                    match phase {
-                        crate::TouchPhase::Start => {
-                            self.scroll.is_in_scroll_action = Some(true);
-                        }
-                        crate::TouchPhase::Move => {
-                            let mut delta = match unit {
-                                MouseWheelUnit::Point => *delta,
-                                MouseWheelUnit::Line => options.line_scroll_speed * *delta,
-                                MouseWheelUnit::Page => viewport_rect.height() * *delta,
-                            };
-
-                            let is_horizontal =
-                                modifiers.matches_any(options.horizontal_scroll_modifier);
-                            let is_vertical =
-                                modifiers.matches_any(options.vertical_scroll_modifier);
-
-                            if is_horizontal && !is_vertical {
-                                // Treat all scrolling as horizontal scrolling.
-                                // Note: one Mac we already get horizontal scroll events when shift is down.
-                                delta = vec2(delta.x + delta.y, 0.0);
-                            }
-                            if !is_horizontal && is_vertical {
-                                // Treat all scrolling as vertical scrolling.
-                                delta = vec2(0.0, delta.x + delta.y);
-                            }
-
-                            scroll.raw_scroll_delta += delta;
-
-                            // Mouse wheels often go very large steps.
-                            // A single notch on a logitech mouse wheel connected to a Macbook returns 14.0 raw_scroll_delta.
-                            // So we smooth it out over several frames for a nicer user experience when scrolling in egui.
-                            // BUT: if the user is using a nice smooth mac trackpad, we don't add smoothing,
-                            // because it adds latency.
-                            let is_smooth = match unit {
-                                MouseWheelUnit::Point => delta.length() < 8.0, // a bit arbitrary here
-                                MouseWheelUnit::Line | MouseWheelUnit::Page => false,
-                            };
-
-                            let is_zoom = modifiers.matches_any(options.zoom_modifier);
-
-                            #[expect(clippy::collapsible_else_if)]
-                            if is_zoom {
-                                if is_smooth {
-                                    smooth_scroll_delta_for_zoom += delta.x + delta.y;
-                                } else {
-                                    scroll.unprocessed_scroll_delta_for_zoom += delta.x + delta.y;
-                                }
-                            } else {
-                                if is_smooth {
-                                    scroll.smooth_scroll_delta += delta;
-                                } else {
-                                    scroll.unprocessed_scroll_delta += delta;
-                                }
-                            }
-                        }
-                        crate::TouchPhase::End | crate::TouchPhase::Cancel => {
-                            if let Some(is_in_scroll_action) = &mut self.scroll.is_in_scroll_action
-                            {
-                                *is_in_scroll_action = false;
-                            }
-                        }
-                    }
+                    scroll.on_wheel_event(
+                        viewport_rect,
+                        &options,
+                        time,
+                        *unit,
+                        *delta,
+                        *phase,
+                        *modifiers,
+                    );
                 }
                 Event::Zoom(factor) => {
                     zoom_factor_delta *= *factor;
@@ -490,42 +437,10 @@ impl InputState {
 
         {
             let dt = stable_dt.at_most(0.1);
-            let t = crate::emath::exponential_smooth_factor(0.90, 0.1, dt); // reach _% in _ seconds. TODO(emilk): parameterize
+            scroll.end_frame(time, dt);
 
-            if scroll.unprocessed_scroll_delta != Vec2::ZERO {
-                for d in 0..2 {
-                    if scroll.unprocessed_scroll_delta[d].abs() < 1.0 {
-                        scroll.smooth_scroll_delta[d] += scroll.unprocessed_scroll_delta[d];
-                        scroll.unprocessed_scroll_delta[d] = 0.0;
-                    } else {
-                        let applied = t * scroll.unprocessed_scroll_delta[d];
-                        scroll.smooth_scroll_delta[d] += applied;
-                        scroll.unprocessed_scroll_delta[d] -= applied;
-                    }
-                }
-            }
-
-            {
-                // Smooth scroll-to-zoom:
-                if scroll.unprocessed_scroll_delta_for_zoom.abs() < 1.0 {
-                    smooth_scroll_delta_for_zoom += scroll.unprocessed_scroll_delta_for_zoom;
-                    scroll.unprocessed_scroll_delta_for_zoom = 0.0;
-                } else {
-                    let applied = t * scroll.unprocessed_scroll_delta_for_zoom;
-                    smooth_scroll_delta_for_zoom += applied;
-                    scroll.unprocessed_scroll_delta_for_zoom -= applied;
-                }
-
-                zoom_factor_delta *=
-                    (options.scroll_zoom_speed * smooth_scroll_delta_for_zoom).exp();
-            }
-        }
-
-        let is_scrolling =
-            scroll.raw_scroll_delta != Vec2::ZERO || scroll.smooth_scroll_delta != Vec2::ZERO;
-
-        if is_scrolling || self.scroll.is_in_scroll_action.is_some_and(|b| b) {
-            scroll.last_scroll_time = time;
+            zoom_factor_delta *=
+                (options.scroll_zoom_speed * scroll.smooth_scroll_delta_for_zoom).exp();
         }
 
         Self {
@@ -702,34 +617,13 @@ impl InputState {
 
     /// True if there is an active scroll action that might scroll more when using [`Self::smooth_scroll_delta`].
     pub fn is_scrolling(&self) -> bool {
-        self.is_smooth_scrolling()
+        self.scroll.is_scrolling()
     }
 
-    /// True if there is an active scroll action that might scroll more when using [`Self::smooth_scroll_delta`].
-    fn is_smooth_scrolling(&self) -> bool {
-        self.is_raw_scrolling() || self.smooth_scroll_delta() != Vec2::ZERO
-    }
-
-    /// True if there is an active scroll action that might scroll more.
-    ///
-    /// You probably want to use [`Self::is_smooth_scrolling`].
-    fn is_raw_scrolling(&self) -> bool {
-        if let Some(is_in_scroll_action) = self.scroll.is_in_scroll_action {
-            is_in_scroll_action
-        } else {
-            // On certain platforms, like web, we don't get the start & stop scrolling events, so
-            // we rely on a timer there.
-            //
-            // Tested on a mac touchpad 2025, where the largest observed gap between scroll events
-            // was 68 ms. So 100 ms should most likely be good here.
-            self.time_since_last_scroll() < 0.1
-        }
-    }
-
-    /// How long has it been (in seconds) since the use last scrolled?
+    /// How long has it been (in seconds) since the last scroll event?
     #[inline(always)]
     pub fn time_since_last_scroll(&self) -> f32 {
-        (self.time - self.scroll.last_scroll_time) as f32
+        (self.time - self.scroll.last_scroll_event) as f32
     }
 
     /// The [`crate::Context`] will call this at the beginning of each frame to see if we need a repaint.
@@ -1654,36 +1548,12 @@ impl InputState {
             });
         }
 
-        let ScrollState {
-            is_in_scroll_action: _,
-            last_scroll_time,
-            unprocessed_scroll_delta,
-            unprocessed_scroll_delta_for_zoom,
-            raw_scroll_delta,
-            smooth_scroll_delta,
-        } = scroll;
+        crate::containers::CollapsingHeader::new("⬍ Scroll")
+            .default_open(false)
+            .show(ui, |ui| {
+                scroll.ui(ui);
+            });
 
-        ui.label(format!(
-            "is_scrolling: raw: {}, smooth: {}",
-            self.is_raw_scrolling(),
-            self.is_smooth_scrolling()
-        ));
-        ui.label(format!(
-            "Time since last scroll: {:.1} s",
-            time - last_scroll_time
-        ));
-        if cfg!(debug_assertions) {
-            ui.label(format!(
-                "unprocessed_scroll_delta: {unprocessed_scroll_delta:?} points"
-            ));
-            ui.label(format!(
-                "unprocessed_scroll_delta_for_zoom: {unprocessed_scroll_delta_for_zoom:?} points"
-            ));
-        }
-        ui.label(format!("raw_scroll_delta: {raw_scroll_delta:?} points"));
-        ui.label(format!(
-            "smooth_scroll_delta: {smooth_scroll_delta:?} points"
-        ));
         ui.label(format!("zoom_factor_delta: {zoom_factor_delta:4.2}x"));
         ui.label(format!("rotation_radians: {rotation_radians:.3} radians"));
 
