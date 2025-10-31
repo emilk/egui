@@ -61,3 +61,17 @@ fn text_edit_rtl() {
         harness.snapshot(format!("text_edit_rtl_{i}"));
     }
 }
+
+#[test]
+fn combobox_should_have_value() {
+    let harness = Harness::new_ui(|ui| {
+        egui::ComboBox::from_label("Select an option")
+            .selected_text("Option 1")
+            .show_ui(ui, |_ui| {});
+    });
+
+    assert_eq!(
+        harness.get_by_label("Select an option").value().as_deref(),
+        Some("Option 1")
+    );
+}
