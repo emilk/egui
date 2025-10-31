@@ -377,12 +377,14 @@ impl InputState {
         let mut keys_down = self.keys_down;
         let mut zoom_factor_delta = 1.0; // TODO(emilk): smoothing for zoom factor
         let mut rotation_radians = 0.0;
-        let mut raw_scroll_delta = Vec2::ZERO;
 
-        let mut unprocessed_scroll_delta = self.scroll.unprocessed_scroll_delta;
-        let mut unprocessed_scroll_delta_for_zoom = self.scroll.unprocessed_scroll_delta_for_zoom;
-        let mut smooth_scroll_delta = Vec2::ZERO;
         let mut smooth_scroll_delta_for_zoom = 0.0;
+
+        let mut scroll = ScrollState {
+            raw_scroll_delta: Vec2::ZERO,
+            smooth_scroll_delta: Vec2::ZERO,
+            ..self.scroll
+        };
 
         for event in &mut new.events {
             match event {
@@ -431,7 +433,7 @@ impl InputState {
                                 delta = vec2(0.0, delta.x + delta.y);
                             }
 
-                            raw_scroll_delta += delta;
+                            scroll.raw_scroll_delta += delta;
 
                             // Mouse wheels often go very large steps.
                             // A single notch on a logitech mouse wheel connected to a Macbook returns 14.0 raw_scroll_delta.
@@ -450,13 +452,13 @@ impl InputState {
                                 if is_smooth {
                                     smooth_scroll_delta_for_zoom += delta.x + delta.y;
                                 } else {
-                                    unprocessed_scroll_delta_for_zoom += delta.x + delta.y;
+                                    scroll.unprocessed_scroll_delta_for_zoom += delta.x + delta.y;
                                 }
                             } else {
                                 if is_smooth {
-                                    smooth_scroll_delta += delta;
+                                    scroll.smooth_scroll_delta += delta;
                                 } else {
-                                    unprocessed_scroll_delta += delta;
+                                    scroll.unprocessed_scroll_delta += delta;
                                 }
                             }
                         }
@@ -490,28 +492,28 @@ impl InputState {
             let dt = stable_dt.at_most(0.1);
             let t = crate::emath::exponential_smooth_factor(0.90, 0.1, dt); // reach _% in _ seconds. TODO(emilk): parameterize
 
-            if unprocessed_scroll_delta != Vec2::ZERO {
+            if scroll.unprocessed_scroll_delta != Vec2::ZERO {
                 for d in 0..2 {
-                    if unprocessed_scroll_delta[d].abs() < 1.0 {
-                        smooth_scroll_delta[d] += unprocessed_scroll_delta[d];
-                        unprocessed_scroll_delta[d] = 0.0;
+                    if scroll.unprocessed_scroll_delta[d].abs() < 1.0 {
+                        scroll.smooth_scroll_delta[d] += scroll.unprocessed_scroll_delta[d];
+                        scroll.unprocessed_scroll_delta[d] = 0.0;
                     } else {
-                        let applied = t * unprocessed_scroll_delta[d];
-                        smooth_scroll_delta[d] += applied;
-                        unprocessed_scroll_delta[d] -= applied;
+                        let applied = t * scroll.unprocessed_scroll_delta[d];
+                        scroll.smooth_scroll_delta[d] += applied;
+                        scroll.unprocessed_scroll_delta[d] -= applied;
                     }
                 }
             }
 
             {
                 // Smooth scroll-to-zoom:
-                if unprocessed_scroll_delta_for_zoom.abs() < 1.0 {
-                    smooth_scroll_delta_for_zoom += unprocessed_scroll_delta_for_zoom;
-                    unprocessed_scroll_delta_for_zoom = 0.0;
+                if scroll.unprocessed_scroll_delta_for_zoom.abs() < 1.0 {
+                    smooth_scroll_delta_for_zoom += scroll.unprocessed_scroll_delta_for_zoom;
+                    scroll.unprocessed_scroll_delta_for_zoom = 0.0;
                 } else {
-                    let applied = t * unprocessed_scroll_delta_for_zoom;
+                    let applied = t * scroll.unprocessed_scroll_delta_for_zoom;
                     smooth_scroll_delta_for_zoom += applied;
-                    unprocessed_scroll_delta_for_zoom -= applied;
+                    scroll.unprocessed_scroll_delta_for_zoom -= applied;
                 }
 
                 zoom_factor_delta *=
@@ -519,26 +521,18 @@ impl InputState {
             }
         }
 
-        let is_scrolling = raw_scroll_delta != Vec2::ZERO || smooth_scroll_delta != Vec2::ZERO;
-        let last_scroll_time = if is_scrolling || self.scroll.is_in_scroll_action.is_some_and(|b| b)
-        {
-            time
-        } else {
-            self.scroll.last_scroll_time
-        };
+        let is_scrolling =
+            scroll.raw_scroll_delta != Vec2::ZERO || scroll.smooth_scroll_delta != Vec2::ZERO;
+
+        if is_scrolling || self.scroll.is_in_scroll_action.is_some_and(|b| b) {
+            scroll.last_scroll_time = time;
+        }
 
         Self {
             pointer,
             touch_states: self.touch_states,
 
-            scroll: ScrollState {
-                is_in_scroll_action: self.scroll.is_in_scroll_action,
-                last_scroll_time,
-                unprocessed_scroll_delta,
-                unprocessed_scroll_delta_for_zoom,
-                raw_scroll_delta,
-                smooth_scroll_delta,
-            },
+            scroll,
             zoom_factor_delta,
             rotation_radians,
 
