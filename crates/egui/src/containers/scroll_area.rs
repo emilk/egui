@@ -1127,9 +1127,9 @@ impl Prepared {
                     let scroll_delta = ui.ctx().input(|input| {
                         if always_scroll_enabled_direction {
                             // no bidirectional scrolling; allow horizontal scrolling without pressing shift
-                            input.smooth_scroll_delta[0] + input.smooth_scroll_delta[1]
+                            input.smooth_scroll_delta()[0] + input.smooth_scroll_delta()[1]
                         } else {
-                            input.smooth_scroll_delta[d]
+                            input.smooth_scroll_delta()[d]
                         }
                     });
                     let scroll_delta = scroll_delta * wheel_scroll_multiplier[d];
@@ -1143,10 +1143,10 @@ impl Prepared {
                         // Clear scroll delta so no parent scroll will use it:
                         ui.ctx().input_mut(|input| {
                             if always_scroll_enabled_direction {
-                                input.smooth_scroll_delta[0] = 0.0;
-                                input.smooth_scroll_delta[1] = 0.0;
+                                input.smooth_scroll_delta()[0] = 0.0;
+                                input.smooth_scroll_delta()[1] = 0.0;
                             } else {
-                                input.smooth_scroll_delta[d] = 0.0;
+                                input.smooth_scroll_delta()[d] = 0.0;
                             }
                         });
 

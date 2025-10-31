@@ -1,13 +1,17 @@
+mod scroll_state;
 mod touch_state;
 
-use crate::data::input::{
-    Event, EventFilter, KeyboardShortcut, Modifiers, MouseWheelUnit, NUM_POINTER_BUTTONS,
-    PointerButton, RawInput, TouchDeviceId, ViewportInfo,
-};
 use crate::{
     SafeAreaInsets,
     emath::{NumExt as _, Pos2, Rect, Vec2, vec2},
     util::History,
+};
+use crate::{
+    data::input::{
+        Event, EventFilter, KeyboardShortcut, Modifiers, MouseWheelUnit, NUM_POINTER_BUTTONS,
+        PointerButton, RawInput, TouchDeviceId, ViewportInfo,
+    },
+    input_state::scroll_state::ScrollState,
 };
 use std::{
     collections::{BTreeMap, HashSet},
@@ -221,55 +225,7 @@ pub struct InputState {
 
     // ----------------------------------------------
     // Scrolling:
-    //
-    /// Time of the last scroll event.
-    last_scroll_time: f64,
-
-    /// If we are currently in a scroll action.
-    ///
-    /// This is not the same as checking if [`Self::smooth_scroll_delta`], or
-    /// [`Self::raw_scroll_delta`] are zero. This instead relies on the
-    /// current touch phase received from the mouse wheel event.
-    ///
-    /// This value is only `Some` if we have ever received a [`crate::TouchPhase::Start`] event and then
-    /// know that the current platform supports it.
-    is_in_scroll_action: Option<bool>,
-
-    /// Used for smoothing the scroll delta.
-    unprocessed_scroll_delta: Vec2,
-
-    /// Used for smoothing the scroll delta when zooming.
-    unprocessed_scroll_delta_for_zoom: f32,
-
-    /// You probably want to use [`Self::smooth_scroll_delta`] instead.
-    ///
-    /// The raw input of how many points the user scrolled.
-    ///
-    /// The delta dictates how the _content_ should move.
-    ///
-    /// A positive X-value indicates the content is being moved right,
-    /// as when swiping right on a touch-screen or track-pad with natural scrolling.
-    ///
-    /// A positive Y-value indicates the content is being moved down,
-    /// as when swiping down on a touch-screen or track-pad with natural scrolling.
-    ///
-    /// When using a notched scroll-wheel this will spike very large for one frame,
-    /// then drop to zero. For a smoother experience, use [`Self::smooth_scroll_delta`].
-    pub raw_scroll_delta: Vec2,
-
-    /// How many points the user scrolled, smoothed over a few frames.
-    ///
-    /// The delta dictates how the _content_ should move.
-    ///
-    /// A positive X-value indicates the content is being moved right,
-    /// as when swiping right on a touch-screen or track-pad with natural scrolling.
-    ///
-    /// A positive Y-value indicates the content is being moved down,
-    /// as when swiping down on a touch-screen or track-pad with natural scrolling.
-    ///
-    /// [`crate::ScrollArea`] will both read and write to this field, so that
-    /// at the end of the frame this will be zero if a scroll-area consumed the delta.
-    pub smooth_scroll_delta: Vec2,
+    scroll: ScrollState,
 
     /// Zoom scale factor this frame (e.g. from ctrl-scroll or pinch gesture).
     ///
@@ -367,12 +323,7 @@ impl Default for InputState {
             pointer: Default::default(),
             touch_states: Default::default(),
 
-            is_in_scroll_action: None,
-            last_scroll_time: f64::NEG_INFINITY,
-            unprocessed_scroll_delta: Vec2::ZERO,
-            unprocessed_scroll_delta_for_zoom: 0.0,
-            raw_scroll_delta: Vec2::ZERO,
-            smooth_scroll_delta: Vec2::ZERO,
+            scroll: Default::default(),
             zoom_factor_delta: 1.0,
             rotation_radians: 0.0,
 
@@ -428,8 +379,8 @@ impl InputState {
         let mut rotation_radians = 0.0;
         let mut raw_scroll_delta = Vec2::ZERO;
 
-        let mut unprocessed_scroll_delta = self.unprocessed_scroll_delta;
-        let mut unprocessed_scroll_delta_for_zoom = self.unprocessed_scroll_delta_for_zoom;
+        let mut unprocessed_scroll_delta = self.scroll.unprocessed_scroll_delta;
+        let mut unprocessed_scroll_delta_for_zoom = self.scroll.unprocessed_scroll_delta_for_zoom;
         let mut smooth_scroll_delta = Vec2::ZERO;
         let mut smooth_scroll_delta_for_zoom = 0.0;
 
@@ -456,7 +407,7 @@ impl InputState {
                 } => {
                     match phase {
                         crate::TouchPhase::Start => {
-                            self.is_in_scroll_action = Some(true);
+                            self.scroll.is_in_scroll_action = Some(true);
                         }
                         crate::TouchPhase::Move => {
                             let mut delta = match unit {
@@ -510,7 +461,8 @@ impl InputState {
                             }
                         }
                         crate::TouchPhase::End | crate::TouchPhase::Cancel => {
-                            if let Some(is_in_scroll_action) = &mut self.is_in_scroll_action {
+                            if let Some(is_in_scroll_action) = &mut self.scroll.is_in_scroll_action
+                            {
                                 *is_in_scroll_action = false;
                             }
                         }
@@ -568,22 +520,25 @@ impl InputState {
         }
 
         let is_scrolling = raw_scroll_delta != Vec2::ZERO || smooth_scroll_delta != Vec2::ZERO;
-        let last_scroll_time = if is_scrolling || self.is_in_scroll_action.is_some_and(|b| b) {
+        let last_scroll_time = if is_scrolling || self.scroll.is_in_scroll_action.is_some_and(|b| b)
+        {
             time
         } else {
-            self.last_scroll_time
+            self.scroll.last_scroll_time
         };
 
         Self {
             pointer,
             touch_states: self.touch_states,
 
-            is_in_scroll_action: self.is_in_scroll_action,
-            last_scroll_time,
-            unprocessed_scroll_delta,
-            unprocessed_scroll_delta_for_zoom,
-            raw_scroll_delta,
-            smooth_scroll_delta,
+            scroll: ScrollState {
+                is_in_scroll_action: self.scroll.is_in_scroll_action,
+                last_scroll_time,
+                unprocessed_scroll_delta,
+                unprocessed_scroll_delta_for_zoom,
+                raw_scroll_delta,
+                smooth_scroll_delta,
+            },
             zoom_factor_delta,
             rotation_radians,
 
@@ -652,6 +607,22 @@ impl InputState {
     /// See [`Self::content_rect`] to get the `viewport_rect` with the safe area insets removed.
     pub fn safe_area_insets(&self) -> SafeAreaInsets {
         self.safe_area_insets
+    }
+
+    /// How many points the user scrolled, smoothed over a few frames.
+    ///
+    /// The delta dictates how the _content_ should move.
+    ///
+    /// A positive X-value indicates the content is being moved right,
+    /// as when swiping right on a touch-screen or track-pad with natural scrolling.
+    ///
+    /// A positive Y-value indicates the content is being moved down,
+    /// as when swiping down on a touch-screen or track-pad with natural scrolling.
+    ///
+    /// [`crate::ScrollArea`] will both read and write to this field, so that
+    /// at the end of the frame this will be zero if a scroll-area consumed the delta.
+    pub fn smooth_scroll_delta(&self) -> Vec2 {
+        self.scroll.smooth_scroll_delta
     }
 
     /// Uniform zoom scale factor this frame (e.g. from ctrl-scroll or pinch gesture).
@@ -732,19 +703,24 @@ impl InputState {
     #[inline(always)]
     pub fn translation_delta(&self) -> Vec2 {
         self.multi_touch()
-            .map_or(self.smooth_scroll_delta, |touch| touch.translation_delta)
+            .map_or(self.smooth_scroll_delta(), |touch| touch.translation_delta)
     }
 
     /// True if there is an active scroll action that might scroll more when using [`Self::smooth_scroll_delta`].
-    pub fn is_smooth_scrolling(&self) -> bool {
-        self.is_raw_scrolling() || self.smooth_scroll_delta != Vec2::ZERO
+    pub fn is_scrolling(&self) -> bool {
+        self.is_smooth_scrolling()
+    }
+
+    /// True if there is an active scroll action that might scroll more when using [`Self::smooth_scroll_delta`].
+    fn is_smooth_scrolling(&self) -> bool {
+        self.is_raw_scrolling() || self.smooth_scroll_delta() != Vec2::ZERO
     }
 
     /// True if there is an active scroll action that might scroll more.
     ///
     /// You probably want to use [`Self::is_smooth_scrolling`].
-    pub fn is_raw_scrolling(&self) -> bool {
-        if let Some(is_in_scroll_action) = self.is_in_scroll_action {
+    fn is_raw_scrolling(&self) -> bool {
+        if let Some(is_in_scroll_action) = self.scroll.is_in_scroll_action {
             is_in_scroll_action
         } else {
             // On certain platforms, like web, we don't get the start & stop scrolling events, so
@@ -759,7 +735,7 @@ impl InputState {
     /// How long has it been (in seconds) since the use last scrolled?
     #[inline(always)]
     pub fn time_since_last_scroll(&self) -> f32 {
-        (self.time - self.last_scroll_time) as f32
+        (self.time - self.scroll.last_scroll_time) as f32
     }
 
     /// The [`crate::Context`] will call this at the beginning of each frame to see if we need a repaint.
@@ -771,8 +747,8 @@ impl InputState {
     /// cause a repaint.
     pub(crate) fn wants_repaint_after(&self) -> Option<Duration> {
         if self.pointer.wants_repaint()
-            || self.unprocessed_scroll_delta.abs().max_elem() > 0.2
-            || self.unprocessed_scroll_delta_for_zoom.abs() > 0.2
+            || self.scroll.unprocessed_scroll_delta.abs().max_elem() > 0.2
+            || self.scroll.unprocessed_scroll_delta_for_zoom.abs() > 0.2
             || !self.events.is_empty()
         {
             // Immediate repaint
@@ -1646,15 +1622,8 @@ impl InputState {
             raw,
             pointer,
             touch_states,
-
-            is_in_scroll_action: _,
-            last_scroll_time,
-            unprocessed_scroll_delta,
-            unprocessed_scroll_delta_for_zoom,
-            raw_scroll_delta,
-            smooth_scroll_delta,
+            scroll,
             rotation_radians,
-
             zoom_factor_delta,
             viewport_rect,
             safe_area_insets,
@@ -1690,6 +1659,15 @@ impl InputState {
                 touch_state.ui(ui);
             });
         }
+
+        let ScrollState {
+            is_in_scroll_action: _,
+            last_scroll_time,
+            unprocessed_scroll_delta,
+            unprocessed_scroll_delta_for_zoom,
+            raw_scroll_delta,
+            smooth_scroll_delta,
+        } = scroll;
 
         ui.label(format!(
             "is_scrolling: raw: {}, smooth: {}",
