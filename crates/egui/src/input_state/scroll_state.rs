@@ -48,22 +48,6 @@ pub struct ScrollState {
     /// Time of the last scroll event.
     pub last_scroll_event: f64,
 
-    /// You probably want to use [`Self::smooth_scroll_delta`] instead.
-    ///
-    /// The raw input of how many points the user scrolled.
-    ///
-    /// The delta dictates how the _content_ should move.
-    ///
-    /// A positive X-value indicates the content is being moved right,
-    /// as when swiping right on a touch-screen or track-pad with natural scrolling.
-    ///
-    /// A positive Y-value indicates the content is being moved down,
-    /// as when swiping down on a touch-screen or track-pad with natural scrolling.
-    ///
-    /// When using a notched scroll-wheel this will spike very large for one frame,
-    /// then drop to zero. For a smoother experience, use [`Self::smooth_scroll_delta`].
-    pub raw_scroll_delta: Vec2,
-
     /// Used for smoothing the scroll delta.
     pub unprocessed_scroll_delta: Vec2,
 
@@ -93,7 +77,6 @@ impl Default for ScrollState {
             status: Status::Static,
             modifiers: Default::default(),
             last_scroll_event: f64::NEG_INFINITY,
-            raw_scroll_delta: Vec2::ZERO,
             unprocessed_scroll_delta: Vec2::ZERO,
             unprocessed_scroll_delta_for_zoom: 0.0,
             smooth_scroll_delta: Vec2::ZERO,
@@ -156,10 +139,8 @@ impl ScrollState {
                     delta = vec2(0.0, delta.x + delta.y);
                 }
 
-                self.raw_scroll_delta += delta;
-
                 // Mouse wheels often go very large steps.
-                // A single notch on a logitech mouse wheel connected to a Macbook returns 14.0 raw_scroll_delta.
+                // A single notch on a logitech mouse wheel connected to a Macbook returns 14.0 raw scroll delta.
                 // So we smooth it out over several frames for a nicer user experience when scrolling in egui.
                 // BUT: if the user is using a nice smooth mac trackpad, we don't add smoothing,
                 // because it adds latency.
@@ -251,7 +232,6 @@ impl ScrollState {
             status,
             modifiers,
             last_scroll_event,
-            raw_scroll_delta,
             unprocessed_scroll_delta,
             unprocessed_scroll_delta_for_zoom,
             smooth_scroll_delta,
@@ -273,10 +253,6 @@ impl ScrollState {
 
                 ui.label("last_scroll_event");
                 ui.monospace(format!("{:.1}s ago", time - *last_scroll_event));
-                ui.end_row();
-
-                ui.label("raw_scroll_delta");
-                ui.monospace(raw_scroll_delta.to_string());
                 ui.end_row();
 
                 ui.label("unprocessed_scroll_delta");

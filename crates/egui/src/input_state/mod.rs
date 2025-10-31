@@ -380,7 +380,6 @@ impl InputState {
         let mut rotation_radians = 0.0;
 
         let mut scroll = ScrollState {
-            raw_scroll_delta: Vec2::ZERO,
             smooth_scroll_delta: Vec2::ZERO,
             smooth_scroll_delta_for_zoom: 0.0,
             ..self.scroll
