@@ -34,8 +34,9 @@ pub enum Status {
     InTouch,
 }
 
+/// Keeps track of wheel (scroll) input.
 #[derive(Clone, Debug)]
-pub struct ScrollState {
+pub struct WheelState {
     /// Are we currently in a scroll action?
     ///
     /// This may be true even if no scroll events came in this frame,
@@ -46,13 +47,10 @@ pub struct ScrollState {
     pub modifiers: Modifiers,
 
     /// Time of the last scroll event.
-    pub last_scroll_event: f64,
+    pub last_wheel_event: f64,
 
     /// Used for smoothing the scroll delta.
-    pub unprocessed_scroll_delta: Vec2,
-
-    /// Used for smoothing the scroll delta when zooming.
-    pub unprocessed_scroll_delta_for_zoom: f32,
+    pub unprocessed_wheel_delta: Vec2,
 
     /// How many points the user scrolled, smoothed over a few frames.
     ///
@@ -66,26 +64,22 @@ pub struct ScrollState {
     ///
     /// [`crate::ScrollArea`] will both read and write to this field, so that
     /// at the end of the frame this will be zero if a scroll-area consumed the delta.
-    pub smooth_scroll_delta: Vec2,
-
-    pub smooth_scroll_delta_for_zoom: f32,
+    pub smooth_wheel_delta: Vec2,
 }
 
-impl Default for ScrollState {
+impl Default for WheelState {
     fn default() -> Self {
         Self {
             status: Status::Static,
             modifiers: Default::default(),
-            last_scroll_event: f64::NEG_INFINITY,
-            unprocessed_scroll_delta: Vec2::ZERO,
-            unprocessed_scroll_delta_for_zoom: 0.0,
-            smooth_scroll_delta: Vec2::ZERO,
-            smooth_scroll_delta_for_zoom: 0.0,
+            last_wheel_event: f64::NEG_INFINITY,
+            unprocessed_wheel_delta: Vec2::ZERO,
+            smooth_wheel_delta: Vec2::ZERO,
         }
     }
 }
 
-impl ScrollState {
+impl WheelState {
     #[expect(clippy::too_many_arguments)]
     pub fn on_wheel_event(
         &mut self,
@@ -97,7 +91,7 @@ impl ScrollState {
         phase: TouchPhase,
         latest_modifiers: Modifiers,
     ) {
-        self.last_scroll_event = time;
+        self.last_wheel_event = time;
         match phase {
             crate::TouchPhase::Start => {
                 self.status = Status::InTouch;
@@ -146,30 +140,17 @@ impl ScrollState {
                         MouseWheelUnit::Line | MouseWheelUnit::Page => false,
                     };
 
-                let is_zoom = self.modifiers.matches_any(options.zoom_modifier);
-
-                #[expect(clippy::collapsible_else_if)]
-                if is_zoom {
-                    if is_smooth {
-                        self.smooth_scroll_delta_for_zoom += delta.x + delta.y;
-                    } else {
-                        self.unprocessed_scroll_delta_for_zoom += delta.x + delta.y;
-                    }
+                if is_smooth {
+                    self.smooth_wheel_delta += delta;
                 } else {
-                    if is_smooth {
-                        self.smooth_scroll_delta += delta;
-                    } else {
-                        self.unprocessed_scroll_delta += delta;
-                    }
+                    self.unprocessed_wheel_delta += delta;
                 }
             }
             crate::TouchPhase::End | crate::TouchPhase::Cancel => {
                 self.status = Status::Static;
                 self.modifiers = Default::default();
-                self.unprocessed_scroll_delta = Default::default();
-                self.unprocessed_scroll_delta_for_zoom = Default::default();
-                self.smooth_scroll_delta = Default::default();
-                self.smooth_scroll_delta_for_zoom = Default::default();
+                self.unprocessed_wheel_delta = Default::default();
+                self.smooth_wheel_delta = Default::default();
             }
         }
     }
@@ -177,35 +158,23 @@ impl ScrollState {
     pub fn after_events(&mut self, time: f64, dt: f32) {
         let t = crate::emath::exponential_smooth_factor(0.90, 0.1, dt); // reach _% in _ seconds. TODO(emilk): parameterize
 
-        if self.unprocessed_scroll_delta != Vec2::ZERO {
+        if self.unprocessed_wheel_delta != Vec2::ZERO {
             for d in 0..2 {
-                if self.unprocessed_scroll_delta[d].abs() < 1.0 {
-                    self.smooth_scroll_delta[d] += self.unprocessed_scroll_delta[d];
-                    self.unprocessed_scroll_delta[d] = 0.0;
+                if self.unprocessed_wheel_delta[d].abs() < 1.0 {
+                    self.smooth_wheel_delta[d] += self.unprocessed_wheel_delta[d];
+                    self.unprocessed_wheel_delta[d] = 0.0;
                 } else {
-                    let applied = t * self.unprocessed_scroll_delta[d];
-                    self.smooth_scroll_delta[d] += applied;
-                    self.unprocessed_scroll_delta[d] -= applied;
+                    let applied = t * self.unprocessed_wheel_delta[d];
+                    self.smooth_wheel_delta[d] += applied;
+                    self.unprocessed_wheel_delta[d] -= applied;
                 }
             }
         }
 
-        {
-            // Smooth scroll-to-zoom:
-            if self.unprocessed_scroll_delta_for_zoom.abs() < 1.0 {
-                self.smooth_scroll_delta_for_zoom += self.unprocessed_scroll_delta_for_zoom;
-                self.unprocessed_scroll_delta_for_zoom = 0.0;
-            } else {
-                let applied = t * self.unprocessed_scroll_delta_for_zoom;
-                self.smooth_scroll_delta_for_zoom += applied;
-                self.unprocessed_scroll_delta_for_zoom -= applied;
-            }
-        }
-
-        let time_since_last_scroll = time - self.last_scroll_event;
+        let time_since_last_scroll = time - self.last_wheel_event;
 
         if self.status == Status::Smoothing
-            && self.smooth_scroll_delta == Vec2::ZERO
+            && self.smooth_wheel_delta == Vec2::ZERO
             && 0.150 < time_since_last_scroll
         {
             // On certain platforms, like web, we don't get the start & stop scrolling events, so
@@ -227,11 +196,9 @@ impl ScrollState {
         let Self {
             status,
             modifiers,
-            last_scroll_event,
-            unprocessed_scroll_delta,
-            unprocessed_scroll_delta_for_zoom,
-            smooth_scroll_delta,
-            smooth_scroll_delta_for_zoom,
+            last_wheel_event,
+            unprocessed_wheel_delta,
+            smooth_wheel_delta,
         } = self;
 
         let time = ui.input(|i| i.time);
@@ -247,24 +214,16 @@ impl ScrollState {
                 ui.monospace(format!("{modifiers:?}"));
                 ui.end_row();
 
-                ui.label("last_scroll_event");
-                ui.monospace(format!("{:.1}s ago", time - *last_scroll_event));
+                ui.label("last_wheel_event");
+                ui.monospace(format!("{:.1}s ago", time - *last_wheel_event));
                 ui.end_row();
 
-                ui.label("unprocessed_scroll_delta");
-                ui.monospace(unprocessed_scroll_delta.to_string());
+                ui.label("unprocessed_wheel_delta");
+                ui.monospace(unprocessed_wheel_delta.to_string());
                 ui.end_row();
 
-                ui.label("unprocessed_scroll_delta_for_zoom");
-                ui.monospace(unprocessed_scroll_delta_for_zoom.to_string());
-                ui.end_row();
-
-                ui.label("smooth_scroll_delta");
-                ui.monospace(smooth_scroll_delta.to_string());
-                ui.end_row();
-
-                ui.label("smooth_scroll_delta_for_zoom");
-                ui.monospace(smooth_scroll_delta_for_zoom.to_string());
+                ui.label("smooth_wheel_delta");
+                ui.monospace(smooth_wheel_delta.to_string());
                 ui.end_row();
             });
     }
