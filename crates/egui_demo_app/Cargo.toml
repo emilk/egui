@@ -23,7 +23,7 @@ crate-type = ["cdylib", "rlib"]
 
 
 [features]
-default = ["glow", "persistence"]
+default = ["wgpu", "persistence"]
 
 # image_viewer adds about 0.9 MB of WASM
 web_app = ["http", "persistence"]
