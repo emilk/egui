@@ -151,10 +151,7 @@ impl TextShape {
             *size *= transform.scaling;
 
             let text::RowVisuals {
-                mesh,
-                mesh_bounds,
-                glyph_index_start: _,
-                glyph_vertex_range: _,
+                mesh, mesh_bounds, ..
             } = visuals;
 
             *mesh_bounds = transform.scaling * *mesh_bounds;

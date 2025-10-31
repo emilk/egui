@@ -648,6 +648,9 @@ pub struct RowVisuals {
     ///
     /// The glyph vertices comes after backgrounds (if any), but before any underlines and strikethrough.
     pub glyph_vertex_range: Range<usize>,
+
+    /// Ranges within `mesh.vertices` that correspond to already-colored glyph quads.
+    pub precolored_vertex_ranges: Vec<Range<usize>>,
 }
 
 impl Default for RowVisuals {
@@ -657,6 +660,7 @@ impl Default for RowVisuals {
             mesh_bounds: Rect::NOTHING,
             glyph_index_start: 0,
             glyph_vertex_range: 0..0,
+            precolored_vertex_ranges: Vec::new(),
         }
     }
 }
@@ -694,6 +698,9 @@ pub struct Glyph {
 
     /// Position and size of the glyph in the font texture, in texels.
     pub uv_rect: UvRect,
+
+    /// True if the glyph texture already encodes its final color.
+    pub precolored: bool,
 
     /// Index into [`LayoutJob::sections`]. Decides color etc.
     ///

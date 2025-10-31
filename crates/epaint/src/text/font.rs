@@ -11,6 +11,23 @@ use crate::{
     },
 };
 
+#[cfg(feature = "emoji_color")]
+use crate::text::FontData;
+#[cfg(feature = "emoji_color")]
+use ecolor::Color32;
+#[cfg(feature = "emoji_color")]
+use std::sync::Arc;
+#[cfg(feature = "emoji_color")]
+use swash::zeno::Vector as SwashVector;
+#[cfg(feature = "emoji_color")]
+use swash::{
+    CacheKey as SwashCacheKey, FontRef as SwashFontRef, GlyphId as SwashGlyphId,
+    scale::{
+        Render as SwashRender, ScaleContext as SwashScaleContext, Source as SwashSource,
+        StrikeWith as SwashStrikeWith, image::Content as SwashContent,
+    },
+};
+
 // ----------------------------------------------------------------------------
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -131,6 +148,9 @@ pub struct GlyphAllocation {
 
     /// UV rectangle for drawing.
     pub uv_rect: UvRect,
+
+    /// Indicates whether the glyph texture already contains color.
+    pub precolored: bool,
 }
 
 #[derive(Hash, PartialEq, Eq)]
@@ -164,6 +184,71 @@ impl GlyphCacheKey {
 
 // ----------------------------------------------------------------------------
 
+#[cfg(feature = "emoji_color")]
+struct ColorFont {
+    data: Arc<FontData>,
+    offset: u32,
+    key: SwashCacheKey,
+    context: SwashScaleContext,
+}
+
+#[cfg(feature = "emoji_color")]
+impl ColorFont {
+    fn new(data: Arc<FontData>) -> Option<Self> {
+        let font_ref = SwashFontRef::from_index(data.font.as_ref(), data.index as usize)?;
+        let has_color =
+            font_ref.color_palettes().next().is_some() || font_ref.color_strikes().next().is_some();
+        if !has_color {
+            return None;
+        }
+
+        let offset = font_ref.offset;
+        let key = font_ref.key;
+        let _ = font_ref;
+
+        Some(Self {
+            data,
+            offset,
+            key,
+            context: SwashScaleContext::new(),
+        })
+    }
+
+    fn render_color_image(
+        &mut self,
+        glyph_id: SwashGlyphId,
+        pixel_size: f32,
+        horizontal_offset: f32,
+    ) -> Option<swash::scale::image::Image> {
+        if !pixel_size.is_finite() || pixel_size <= 0.0 {
+            return None;
+        }
+
+        let data_arc = Arc::clone(&self.data);
+        let font_ref = SwashFontRef {
+            data: data_arc.font.as_ref(),
+            offset: self.offset,
+            key: self.key,
+        };
+        let mut scaler = self.context.builder(font_ref).size(pixel_size).build();
+
+        let mut render = SwashRender::new(&[
+            SwashSource::ColorOutline(0),
+            SwashSource::ColorBitmap(SwashStrikeWith::BestFit),
+        ]);
+        render.offset(SwashVector::new(horizontal_offset, 0.0));
+
+        let image = render.render(&mut scaler, glyph_id)?;
+        if image.content == SwashContent::Color {
+            Some(image)
+        } else {
+            None
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 /// A specific font face.
 /// The interface uses points as the unit for everything.
 pub struct FontImpl {
@@ -172,6 +257,8 @@ pub struct FontImpl {
     tweak: FontTweak,
     glyph_info_cache: ahash::HashMap<char, GlyphInfo>,
     glyph_alloc_cache: ahash::HashMap<GlyphCacheKey, GlyphAllocation>,
+    #[cfg(feature = "emoji_color")]
+    color_font: Option<ColorFont>,
 }
 
 trait FontExt {
@@ -191,13 +278,24 @@ where
 }
 
 impl FontImpl {
-    pub fn new(name: String, ab_glyph_font: ab_glyph::FontArc, tweak: FontTweak) -> Self {
+    #[allow(unused_variables)]
+    pub fn new(
+        name: String,
+        ab_glyph_font: ab_glyph::FontArc,
+        tweak: FontTweak,
+        #[cfg(feature = "emoji_color")] font_data: Arc<FontData>,
+    ) -> Self {
+        #[cfg(feature = "emoji_color")]
+        let color_font = ColorFont::new(font_data);
+
         Self {
             name,
             ab_glyph_font,
             tweak,
             glyph_info_cache: Default::default(),
             glyph_alloc_cache: Default::default(),
+            #[cfg(feature = "emoji_color")]
+            color_font,
         }
     }
 
@@ -358,19 +456,25 @@ impl FontImpl {
             SubpixelBin::new(h_pos)
         };
 
-        let entry = match self
-            .glyph_alloc_cache
-            .entry(GlyphCacheKey::new(glyph_id, metrics, bin))
-        {
-            std::collections::hash_map::Entry::Occupied(glyph_alloc) => {
-                let mut glyph_alloc = *glyph_alloc.get();
-                glyph_alloc.advance_width_px = advance_width_px; // Hack to get `\t` and thin space to work, since they use the same glyph id as ` ` (space).
-                return (glyph_alloc, h_pos_round);
-            }
-            std::collections::hash_map::Entry::Vacant(entry) => entry,
-        };
+        let cache_key = GlyphCacheKey::new(glyph_id, metrics, bin);
+        if let Some(glyph_alloc) = self.glyph_alloc_cache.get_mut(&cache_key) {
+            glyph_alloc.advance_width_px = advance_width_px; // Hack to get `\t` and thin space to work, since they use the same glyph id as ` ` (space).
+            return (*glyph_alloc, h_pos_round);
+        }
 
         debug_assert!(glyph_id.0 != 0, "Can't allocate glyph for id 0");
+
+        #[cfg(feature = "emoji_color")]
+        if let Some(uv_rect) = self.try_allocate_color_glyph(atlas, metrics, glyph_id, bin) {
+            let allocation = GlyphAllocation {
+                id: glyph_id,
+                advance_width_px,
+                uv_rect,
+                precolored: true,
+            };
+            self.glyph_alloc_cache.insert(cache_key, allocation);
+            return (allocation, h_pos_round);
+        }
 
         let uv_rect = self.ab_glyph_font.outline(glyph_id).map(|outline| {
             let glyph = ab_glyph::Glyph {
@@ -431,9 +535,59 @@ impl FontImpl {
             id: glyph_id,
             advance_width_px,
             uv_rect,
+            precolored: false,
         };
-        entry.insert(allocation);
+        self.glyph_alloc_cache.insert(cache_key, allocation);
         (allocation, h_pos_round)
+    }
+
+    #[cfg(feature = "emoji_color")]
+    fn try_allocate_color_glyph(
+        &mut self,
+        atlas: &mut TextureAtlas,
+        metrics: &ScaledMetrics,
+        glyph_id: ab_glyph::GlyphId,
+        bin: SubpixelBin,
+    ) -> Option<UvRect> {
+        let color_font = self.color_font.as_mut()?;
+        let units_per_em = self.ab_glyph_font.units_per_em()?;
+        let pixel_size = metrics.px_scale_factor * units_per_em;
+        if !pixel_size.is_finite() || pixel_size <= 0.0 {
+            return None;
+        }
+
+        let image = color_font.render_color_image(glyph_id.0, pixel_size, bin.as_float())?;
+        let width = usize::try_from(image.placement.width).ok()?;
+        let height = usize::try_from(image.placement.height).ok()?;
+        if width == 0 || height == 0 {
+            return None;
+        }
+
+        let (glyph_pos, atlas_image) = atlas.allocate((width, height));
+        for y in 0..height {
+            let base_y = glyph_pos.1 + y;
+            for x in 0..width {
+                let idx = (y * width + x) * 4;
+                let rgba = Color32::from_rgba_unmultiplied(
+                    image.data[idx],
+                    image.data[idx + 1],
+                    image.data[idx + 2],
+                    image.data[idx + 3],
+                );
+                atlas_image[(glyph_pos.0 + x, base_y)] = rgba;
+            }
+        }
+
+        let offset_in_pixels = vec2(image.placement.left as f32, -(image.placement.top as f32));
+        let offset =
+            offset_in_pixels / metrics.pixels_per_point + metrics.y_offset_in_points * Vec2::Y;
+
+        Some(UvRect {
+            offset,
+            size: vec2(width as f32, height as f32) / metrics.pixels_per_point,
+            min: [glyph_pos.0 as u16, glyph_pos.1 as u16],
+            max: [(glyph_pos.0 + width) as u16, (glyph_pos.1 + height) as u16],
+        })
     }
 }
 

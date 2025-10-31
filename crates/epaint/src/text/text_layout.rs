@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{ops::Range, sync::Arc};
 
 use emath::{Align, GuiRounding as _, NumExt as _, Pos2, Rect, Vec2, pos2, vec2};
 
@@ -229,6 +229,7 @@ fn layout_section(
                 font_height: font_metrics.row_height,
                 font_ascent: font_metrics.ascent,
                 uv_rect: glyph_alloc.uv_rect,
+                precolored: glyph_alloc.precolored,
                 section_index,
             });
 
@@ -531,6 +532,7 @@ fn replace_last_glyph_with_overflow_character(
                 font_height: font_metrics.row_height,
                 font_ascent: font_metrics.ascent,
                 uv_rect: replacement_glyph_alloc.uv_rect,
+                precolored: replacement_glyph_alloc.precolored,
                 section_index,
             });
             return;
@@ -766,7 +768,14 @@ fn tessellate_row(
 
     let glyph_index_start = mesh.indices.len();
     let glyph_vertex_start = mesh.vertices.len();
-    tessellate_glyphs(point_scale, job, row, &mut mesh);
+    let mut precolored_vertex_ranges = Vec::new();
+    tessellate_glyphs(
+        point_scale,
+        job,
+        row,
+        &mut mesh,
+        &mut precolored_vertex_ranges,
+    );
     let glyph_vertex_end = mesh.vertices.len();
 
     if format_summary.any_underline {
@@ -794,6 +803,7 @@ fn tessellate_row(
         mesh_bounds,
         glyph_index_start,
         glyph_vertex_range: glyph_vertex_start..glyph_vertex_end,
+        precolored_vertex_ranges,
     }
 }
 
@@ -844,7 +854,13 @@ fn add_row_backgrounds(point_scale: PointScale, job: &LayoutJob, row: &Row, mesh
     end_run(run_start.take(), last_rect.right());
 }
 
-fn tessellate_glyphs(point_scale: PointScale, job: &LayoutJob, row: &Row, mesh: &mut Mesh) {
+fn tessellate_glyphs(
+    point_scale: PointScale,
+    job: &LayoutJob,
+    row: &Row,
+    mesh: &mut Mesh,
+    precolored_ranges: &mut Vec<Range<usize>>,
+) {
     for glyph in &row.glyphs {
         let uv_rect = glyph.uv_rect;
         if !uv_rect.is_nothing() {
@@ -859,8 +875,12 @@ fn tessellate_glyphs(point_scale: PointScale, job: &LayoutJob, row: &Row, mesh: 
             );
 
             let format = &job.sections[glyph.section_index as usize].format;
-
-            let color = format.color;
+            let color = if glyph.precolored {
+                Color32::WHITE
+            } else {
+                format.color
+            };
+            let vertex_start = mesh.vertices.len();
 
             if format.italics {
                 let idx = mesh.vertices.len() as u32;
@@ -891,6 +911,11 @@ fn tessellate_glyphs(point_scale: PointScale, job: &LayoutJob, row: &Row, mesh: 
                 });
             } else {
                 mesh.add_rect_with_uv(rect, uv, color);
+            }
+
+            let vertex_end = mesh.vertices.len();
+            if glyph.precolored && vertex_start != vertex_end {
+                precolored_ranges.push(vertex_start..vertex_end);
             }
         }
     }

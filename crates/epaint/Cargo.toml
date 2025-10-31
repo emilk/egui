@@ -39,6 +39,9 @@ color-hex = ["ecolor/color-hex"]
 ## If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["epaint_default_fonts"]
 
+## Enable runtime support for color emoji fonts.
+emoji_color = ["dep:swash"]
+
 ## [`mint`](https://docs.rs/mint) enables interoperability with other math libraries such as [`glam`](https://docs.rs/glam) and [`nalgebra`](https://docs.rs/nalgebra).
 mint = ["emath/mint"]
 
@@ -80,6 +83,7 @@ rayon = { workspace = true, optional = true }
 serde = { workspace = true, optional = true, features = ["derive", "rc"] }
 
 epaint_default_fonts = { workspace = true, optional = true }
+swash = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion.workspace = true
