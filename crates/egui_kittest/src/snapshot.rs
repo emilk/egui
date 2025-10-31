@@ -220,8 +220,12 @@ pub enum SnapshotError {
     },
 }
 
+#[cfg(not(target_os = "windows"))]
 const HOW_TO_UPDATE_SCREENSHOTS: &str =
     "Run `UPDATE_SNAPSHOTS=1 cargo test --all-features` to update the snapshots.";
+#[cfg(target_os = "windows")]
+const HOW_TO_UPDATE_SCREENSHOTS: &str =
+    "Run `$env:UPDATE_SNAPSHOTS=1; cargo test --all-features` to update the snapshots.";
 
 impl Display for SnapshotError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
