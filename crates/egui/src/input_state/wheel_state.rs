@@ -187,7 +187,7 @@ impl WheelState {
         }
     }
 
-    /// True if there is an active scroll action that might scroll more when using [`Self::smooth_scroll_delta`].
+    /// True if there is an active scroll action that might scroll more when using [`Self::smooth_wheel_delta`].
     pub fn is_scrolling(&self) -> bool {
         self.status != Status::Static
     }
