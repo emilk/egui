@@ -1,7 +1,11 @@
+use std::sync::Arc;
+
+use epaint::Margin;
+
 use crate::{
-    Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Color32, CornerRadius, Frame,
-    Image, IntoAtoms, NumExt as _, Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2,
-    Widget, WidgetInfo, WidgetText, WidgetType,
+    Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Color32, CornerRadius, Image,
+    IntoAtoms, NumExt as _, Response, RichText, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2,
+    Widget, WidgetInfo, WidgetText, WidgetType, style_trait::WidgetState,
 };
 
 /// Clickable button with text.
@@ -265,6 +269,7 @@ impl<'a> Button<'a> {
             limit_image_size,
         } = self;
 
+        // Min size height always equal or greater than interact size if not small
         if !small {
             min_size.y = min_size.y.at_least(ui.spacing().interact_size.y);
         }
@@ -281,53 +286,76 @@ impl<'a> Button<'a> {
 
         let text = layout.text().map(String::from);
 
+        let state = if selected {
+            // If selected is true then the state is active
+            WidgetState::Active
+        } else {
+            // Get the widget state by reading the response from the previous pass
+            let id = ui.next_auto_id();
+            let response: Option<Response> = ui.ctx().read_response(id);
+            response.map(|r| r.widget_state()).unwrap_or_default()
+        };
+
+        let style = ui.style().button_style(state);
+
         let has_frame_margin = frame.unwrap_or_else(|| ui.visuals().button_frame);
 
         let mut button_padding = if has_frame_margin {
-            ui.spacing().button_padding
+            style.frame.inner_margin
         } else {
-            Vec2::ZERO
+            Margin::ZERO
         };
         if small {
-            button_padding.y = 0.0;
+            button_padding.bottom = 0;
+            button_padding.top = 0;
         }
 
-        let mut prepared = layout
-            .frame(Frame::new().inner_margin(button_padding))
-            .min_size(min_size)
-            .allocate(ui);
+        // Override global style by local style
+        let mut frame = style.frame;
+        if let Some(fill) = fill {
+            frame = frame.fill(fill);
+        }
+        if let Some(corner_radius) = corner_radius {
+            frame = frame.corner_radius(corner_radius);
+        }
+        if let Some(stroke) = stroke {
+            frame = frame.stroke(stroke);
+        }
 
-        let response = if ui.is_rect_visible(prepared.response.rect) {
-            let visuals = ui.style().interact_selectable(&prepared.response, selected);
+        frame = frame.inner_margin(Margin {
+            left: button_padding.left - frame.stroke.width as i16,
+            top: button_padding.top - frame.stroke.width as i16,
+            right: button_padding.right - frame.stroke.width as i16,
+            bottom: button_padding.bottom - frame.stroke.width as i16,
+        });
 
-            let visible_frame = if frame_when_inactive {
-                has_frame_margin
+        // Apply the correct font and color if Text
+        // We assume that the other WidgetText have already a Fontid and color
+        layout.map_texts(|t| match t {
+            WidgetText::Text(text) => {
+                let rich_text = RichText::new(text.clone())
+                    .font(style.text.font_id.clone())
+                    .color(style.text.color);
+                WidgetText::RichText(Arc::new(rich_text))
+            }
+            w => w,
+        });
+
+        // Retrocompatibility with button settings
+        let mut prepared =
+            if has_frame_margin && (state != WidgetState::Inactive || frame_when_inactive) {
+                layout.frame(frame).min_size(min_size).allocate(ui)
             } else {
-                has_frame_margin
-                    && (prepared.response.hovered()
-                        || prepared.response.is_pointer_button_down_on()
-                        || prepared.response.has_focus())
+                layout.min_size(min_size).allocate(ui)
             };
 
+        // Get AtomLayoutResponse, empty if not visible
+        let response = if ui.is_rect_visible(prepared.response.rect) {
             if image_tint_follows_text_color {
-                prepared.map_images(|image| image.tint(visuals.text_color()));
+                prepared.map_images(|image| image.tint(style.text.color));
             }
 
-            prepared.fallback_text_color = visuals.text_color();
-
-            if visible_frame {
-                let stroke = stroke.unwrap_or(visuals.bg_stroke);
-                let fill = fill.unwrap_or(visuals.weak_bg_fill);
-                prepared.frame = prepared
-                    .frame
-                    .inner_margin(
-                        button_padding + Vec2::splat(visuals.expansion) - Vec2::splat(stroke.width),
-                    )
-                    .outer_margin(-Vec2::splat(visuals.expansion))
-                    .fill(fill)
-                    .stroke(stroke)
-                    .corner_radius(corner_radius.unwrap_or(visuals.corner_radius));
-            }
+            prepared.fallback_text_color = style.text.color;
 
             prepared.paint(ui)
         } else {
