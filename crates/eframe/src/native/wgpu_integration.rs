@@ -71,6 +71,7 @@ pub struct SharedState {
     painter: egui_wgpu::winit::Painter,
     viewport_from_window: HashMap<WindowId, ViewportId>,
     focused_viewport: Option<ViewportId>,
+    resized_viewport: Option<ViewportId>,
 }
 
 pub type Viewports = egui::OrderedViewportIdMap<Viewport>;
@@ -302,6 +303,7 @@ impl<'app> WgpuWinitApp<'app> {
             viewports,
             painter,
             focused_viewport: Some(ViewportId::ROOT),
+            resized_viewport: None,
         }));
 
         {
@@ -763,19 +765,33 @@ impl WgpuWinitRunning<'_> {
         let viewport_id = shared.viewport_from_window.get(&window_id).copied();
 
         // On Windows, if a window is resized by the user, it should repaint synchronously, inside the
-        // event handler.
-        //
-        // If this is not done, the compositor will assume that the window does not want to redraw,
-        // and continue ahead.
+        // event handler. If this is not done, the compositor will assume that the window does not want
+        // to redraw and continue ahead.
         //
         // In eframe's case, that causes the window to rapidly flicker, as it struggles to deliver
-        // new frames to the compositor in time.
-        //
-        // The flickering is technically glutin or glow's fault, but we should be responding properly
+        // new frames to the compositor in time. The flickering is technically glutin or glow's fault, but we should be responding properly
         // to resizes anyway, as doing so avoids dropping frames.
         //
         // See: https://github.com/emilk/egui/issues/903
         let mut repaint_asap = false;
+
+        // On MacOS the asap repaint is not enough. The drawn frames must be synchronized with
+        // the CoreAnimation transactions driving the window resize process.
+        //
+        // Thus, Painter, responsible for wgpu surfaces and their resize, has to be notified of the
+        // resize lifecycle, yet winit does not provide any events for that. To work around,
+        // the last resized viewport is tracked until any next non-resize event is received.
+        //
+        // Accidental state change during the resize process due to an unexpected event fire
+        // is ok, state will switch back upon next resize event.
+        //
+        // See: https://github.com/emilk/egui/issues/903
+        if let Some(id) = viewport_id
+            && shared.resized_viewport == viewport_id
+        {
+            shared.painter.on_window_resize_state_change(id, false);
+            shared.resized_viewport = None;
+        }
 
         match event {
             winit::event::WindowEvent::Focused(focused) => {
@@ -799,14 +815,18 @@ impl WgpuWinitRunning<'_> {
                 // Resize with 0 width and height is used by winit to signal a minimize event on Windows.
                 // See: https://github.com/rust-windowing/winit/issues/208
                 // This solves an issue where the app would panic when minimizing on Windows.
-                if let Some(viewport_id) = viewport_id
+                if let Some(id) = viewport_id
                     && let (Some(width), Some(height)) = (
                         NonZeroU32::new(physical_size.width),
                         NonZeroU32::new(physical_size.height),
                     )
                 {
+                    if shared.resized_viewport != viewport_id {
+                        shared.resized_viewport = viewport_id;
+                        shared.painter.on_window_resize_state_change(id, true);
+                    }
+                    shared.painter.on_window_resized(id, width, height);
                     repaint_asap = true;
-                    shared.painter.on_window_resized(viewport_id, width, height);
                 }
             }
 
