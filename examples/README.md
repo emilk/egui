@@ -8,3 +8,7 @@ Also check out the official docs at <https://docs.rs/egui> and <https://docs.rs/
 Note that all the examples on `main` are for the latest `main` version of `egui`.
 
 If you want to look for examples for a specific version of egui, go to that tag, e.g. <https://github.com/emilk/egui/tree/latest/examples>.
+
+To run all the examples one by one, execute:
+* linux/macos: `run_all.sh`
+* windows:  `run_all.ps1`
