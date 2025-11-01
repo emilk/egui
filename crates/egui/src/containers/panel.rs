@@ -155,6 +155,8 @@ impl SidePanel {
     /// * A [`crate::Separator`].
     /// * A [`crate::TextEdit`].
     /// * …
+    /// If you don't provide an expandable widget, the resize behavior is
+    /// undefined.
     #[inline]
     pub fn resizable(mut self, resizable: bool) -> Self {
         self.resizable = resizable;
