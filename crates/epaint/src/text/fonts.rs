@@ -242,6 +242,9 @@ fn ab_glyph_font_from_font_data(name: &str, data: &FontData) -> ab_glyph::FontAr
 ///
 /// egui_ctx.set_fonts(fonts);
 /// ```
+///
+/// To render color emoji glyphs, enable the `emoji_color` cargo feature and provide a font
+/// that includes color tables (for example, `NotoColorEmoji`) via [`Self::font_data`].
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
@@ -784,7 +787,13 @@ impl FontsImpl {
         for (name, font_data) in &definitions.font_data {
             let tweak = font_data.tweak;
             let ab_glyph = ab_glyph_font_from_font_data(name, font_data);
-            let font_impl = FontImpl::new(name.clone(), ab_glyph, tweak);
+            let font_impl = FontImpl::new(
+                name.clone(),
+                ab_glyph,
+                tweak,
+                #[cfg(feature = "emoji_color")]
+                Arc::clone(font_data),
+            );
             let key = FontFaceKey::new();
             fonts_by_id.insert(key, font_impl);
             font_impls.insert(name.clone(), key);

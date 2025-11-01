@@ -2061,13 +2061,18 @@ impl Tessellator {
                     .enumerate()
                     .map(|(i, vertex)| {
                         let Vertex { pos, uv, mut color } = *vertex;
+                        let is_precolored = row
+                            .visuals
+                            .precolored_vertex_ranges
+                            .iter()
+                            .any(|range| range.contains(&i));
 
                         if let Some(override_text_color) = override_text_color {
                             // Only override the glyph color (not background color, strike-through color, etc)
-                            if row.visuals.glyph_vertex_range.contains(&i) {
+                            if row.visuals.glyph_vertex_range.contains(&i) && !is_precolored {
                                 color = *override_text_color;
                             }
-                        } else if color == Color32::PLACEHOLDER {
+                        } else if color == Color32::PLACEHOLDER && !is_precolored {
                             color = *fallback_color;
                         }
 

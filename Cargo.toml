@@ -126,6 +126,7 @@ serde = { version = "1.0.228", features = ["derive"] }
 similar-asserts = "1.7.0"
 smallvec = "1.15.1"
 smithay-clipboard = "0.7.2"
+swash = { version = "0.2.6", default-features = false, features = ["std", "render"] }
 static_assertions = "1.1.0"
 syntect = { version = "5.3.0", default-features = false }
 tempfile = "3.23.0"

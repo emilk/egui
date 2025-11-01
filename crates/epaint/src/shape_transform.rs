@@ -91,8 +91,18 @@ pub fn adjust_colors(
                 let galley = Arc::make_mut(galley);
                 for placed_row in &mut galley.rows {
                     let row = Arc::make_mut(&mut placed_row.row);
-                    for vertex in &mut row.visuals.mesh.vertices {
-                        adjust_color(&mut vertex.color);
+                    let precolored_ranges = &row.visuals.precolored_vertex_ranges;
+                    if precolored_ranges.is_empty() {
+                        for vertex in &mut row.visuals.mesh.vertices {
+                            adjust_color(&mut vertex.color);
+                        }
+                    } else {
+                        for (index, vertex) in row.visuals.mesh.vertices.iter_mut().enumerate() {
+                            if precolored_ranges.iter().any(|range| range.contains(&index)) {
+                                continue;
+                            }
+                            adjust_color(&mut vertex.color);
+                        }
                     }
                 }
             }

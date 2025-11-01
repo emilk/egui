@@ -612,7 +612,7 @@ pub(crate) const MINUS_CHAR_STR: &str = "−";
 /// 🔈🔉🔊🔍🔎🔗🔘
 /// 🕓🖧🖩🖮🖱🖴🖵🖼🗀🗁🗋🗐🗑🗙🚫❓
 ///
-/// NOTE: In egui all emojis are monochrome!
+/// NOTE: Emojis are monochrome unless the optional `emoji_color` feature is enabled and a color font is supplied.
 ///
 /// You can explore them all in the Font Book in [the online demo](https://www.egui.rs/#demo).
 ///
