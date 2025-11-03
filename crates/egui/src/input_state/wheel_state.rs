@@ -104,7 +104,10 @@ impl WheelState {
                         self.status = Status::Smoothing;
                     }
                     Status::InTouch => {
-                        // keep same modifiers and status
+                        // If the user lets go of a modifier - ignore it.
+                        // More kinematic scrolling may arrive.
+                        // But if the users presses down new modifiers - heed it!
+                        self.modifiers |= latest_modifiers;
                     }
                 }
 
