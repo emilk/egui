@@ -161,4 +161,53 @@ fn test_aim() {
     assert_eq!(best_in_range_f64(NEG_INFINITY, NEG_INFINITY), NEG_INFINITY);
     assert_eq!(best_in_range_f64(NEG_INFINITY, INFINITY), 0.0);
     assert_eq!(best_in_range_f64(INFINITY, NEG_INFINITY), 0.0);
+
+    #[track_caller]
+    fn test_f64((min, max): (f64, f64), expected: f64) {
+        let aimed = best_in_range_f64(min, max);
+        assert!(
+            aimed == expected,
+            "smart_aim({min} – {max}) => {aimed}, but expected {expected}"
+        );
+    }
+    #[track_caller]
+    fn test_i64((min, max): (i64, i64), expected: i64) {
+        let aimed = best_in_range_f64(min as _, max as _);
+        assert!(
+            aimed == expected as f64,
+            "smart_aim({min} – {max}) => {aimed}, but expected {expected}"
+        );
+    }
+
+    test_i64((99, 300), 100);
+    test_i64((300, 99), 100);
+    test_i64((-99, -300), -100);
+    test_i64((-99, 123), 0); // Prefer zero
+    test_i64((4, 9), 5); // Prefer ending on 5
+    test_i64((14, 19), 15); // Prefer ending on 5
+    test_i64((12, 65), 50); // Prefer leading 5
+    test_i64((493, 879), 500); // Prefer leading 5
+    test_i64((37, 48), 40);
+    test_i64((100, 123), 100);
+    test_i64((101, 1000), 1000);
+    test_i64((999, 1000), 1000);
+    test_i64((123, 500), 500);
+    test_i64((500, 777), 500);
+    test_i64((500, 999), 500);
+    test_i64((12345, 12780), 12500);
+    test_i64((12371, 12376), 12375);
+    test_i64((12371, 12376), 12375);
+
+    test_f64((7.5, 16.3), 10.0);
+    test_f64((7.5, 76.3), 10.0);
+    test_f64((7.5, 763.3), 100.0);
+    test_f64((7.5, 1_345.0), 1_000.0);
+    test_f64((7.5, 123_456.0), 100_000.0);
+    test_f64((-0.2, 0.0), 0.0); // Prefer zero
+    test_f64((-10_004.23, 4.14), 0.0); // Prefer zero
+    test_f64((-0.2, 100.0), 0.0); // Prefer zero
+    test_f64((0.2, 0.0), 0.0); // Prefer zero
+    test_f64((7.8, 17.8), 10.0);
+    test_f64((14.1, 19.1), 15.0); // Prefer ending on 5
+    test_f64((12.3, 65.9), 50.0); // Prefer leading 5
 }
