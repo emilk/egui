@@ -691,7 +691,7 @@ impl FontsView<'_> {
     ///
     /// The implementation uses memoization so repeated calls are cheap.
     #[inline]
-    pub fn layout_job(&mut self, job: LayoutJob) -> Arc<Galley> {
+    pub fn layout_job(&mut self, job: impl Into<Arc<LayoutJob>>) -> Arc<Galley> {
         let allow_split_paragraphs = true; // Optimization for editing text with many paragraphs.
         self.galley_cache.layout(
             self.fonts,
@@ -852,7 +852,7 @@ impl GalleyCache {
     fn layout_internal(
         &mut self,
         fonts: &mut FontsImpl,
-        mut job: LayoutJob,
+        mut job: Arc<LayoutJob>,
         pixels_per_point: f32,
         allow_split_paragraphs: bool,
     ) -> (u64, Arc<Galley>) {
@@ -878,7 +878,7 @@ impl GalleyCache {
             // * https://github.com/emilk/egui/issues/5084
             // * https://github.com/emilk/egui/issues/5163
 
-            job.wrap.max_width = job.wrap.max_width.round();
+            Arc::make_mut(&mut job).wrap.max_width = job.wrap.max_width.round();
         }
 
         let hash = crate::util::hash((&job, OrderedFloat(pixels_per_point))); // TODO(emilk): even faster hasher?
@@ -906,7 +906,6 @@ impl GalleyCache {
                 galley
             }
             std::collections::hash_map::Entry::Vacant(entry) => {
-                let job = Arc::new(job);
                 if allow_split_paragraphs && should_cache_each_paragraph_individually(&job) {
                     let (child_galleys, child_hashes) =
                         self.layout_each_paragraph_individually(fonts, &job, pixels_per_point);
@@ -946,10 +945,10 @@ impl GalleyCache {
         &mut self,
         fonts: &mut FontsImpl,
         pixels_per_point: f32,
-        job: LayoutJob,
+        job: impl Into<Arc<LayoutJob>>,
         allow_split_paragraphs: bool,
     ) -> Arc<Galley> {
-        self.layout_internal(fonts, job, pixels_per_point, allow_split_paragraphs)
+        self.layout_internal(fonts, job.into(), pixels_per_point, allow_split_paragraphs)
             .1
     }
 
@@ -1039,7 +1038,7 @@ impl GalleyCache {
 
             // TODO(emilk): we could lay out each paragraph in parallel to get a nice speedup on multicore machines.
             let (hash, galley) =
-                self.layout_internal(fonts, paragraph_job, pixels_per_point, false);
+                self.layout_internal(fonts, Arc::new(paragraph_job), pixels_per_point, false);
             child_hashes.push(hash);
 
             // This will prevent us from invalidating cache entries unnecessarily:
