@@ -31,6 +31,8 @@ pub fn best_in_range_f64(min: f64, max: f64) -> f64 {
         return -best_in_range_f64(-max, -min);
     }
 
+    debug_assert!(0.0 < min && min < max, "Logic bug");
+
     // Prefer finite numbers:
     if !max.is_finite() {
         return min;
@@ -57,11 +59,13 @@ pub fn best_in_range_f64(min: f64, max: f64) -> f64 {
         return 10.0_f64.powf(max_exponent);
     }
 
-    let exponent = max_exponent.floor() as i32;
-    let exp_factor = 10.0_f64.powi(exponent);
+    // Find the proper scale, and then convert to integers:
 
-    let min_str = to_decimal_string(min / exp_factor);
-    let max_str = to_decimal_string(max / exp_factor);
+    let scale = NUM_DECIMALS as i32 - max_exponent.floor() as i32 - 1;
+    let scale_factor = 10.0_f64.powi(scale);
+
+    let min_str = to_decimal_string((min * scale_factor).round() as u64);
+    let max_str = to_decimal_string((max * scale_factor).round() as u64);
 
     // We now have two positive integers of the same length.
     // We want to find the first non-matching digit,
@@ -106,7 +110,7 @@ pub fn best_in_range_f64(min: f64, max: f64) -> f64 {
 
             ret_str[i] = deciding_digit;
 
-            return from_decimal_string(&ret_str) * exp_factor;
+            return from_decimal_string(ret_str) as f64 / scale_factor;
         }
     }
 
@@ -117,25 +121,23 @@ fn is_integer(f: f64) -> bool {
     f.round() == f
 }
 
-fn to_decimal_string(v: f64) -> [i32; NUM_DECIMALS] {
-    debug_assert!(v < 10.0, "{v:?}");
-    let mut digits = [0; NUM_DECIMALS];
-    let mut v = v.abs();
-    for r in &mut digits {
-        let digit = v.floor();
-        *r = digit as i32;
-        v -= digit;
-        v *= 10.0;
-    }
-    digits
-}
-
-fn from_decimal_string(s: &[i32]) -> f64 {
-    let mut ret: f64 = 0.0;
-    for (i, &digit) in s.iter().enumerate() {
-        ret += (digit as f64) * 10.0_f64.powi(-(i as i32));
+fn to_decimal_string(v: u64) -> [u8; NUM_DECIMALS] {
+    let mut ret = [0; NUM_DECIMALS];
+    let mut value = v;
+    for i in (0..NUM_DECIMALS).rev() {
+        ret[i] = (value % 10) as u8;
+        value /= 10;
     }
     ret
+}
+
+fn from_decimal_string(s: [u8; NUM_DECIMALS]) -> u64 {
+    let mut value = 0;
+    for &c in &s {
+        debug_assert!(c <= 9, "Bad number");
+        value = value * 10 + c as u64;
+    }
+    value
 }
 
 #[expect(clippy::approx_constant)]
@@ -222,8 +224,8 @@ fn test_aim() {
     test_f64((7.5, 16.3), 10.0);
     test_f64((7.5, 76.3), 10.0);
     test_f64((7.5, 763.3), 100.0);
-    test_f64((7.5, 1_345.0), 1_000.0);
-    test_f64((7.5, 123_456.0), 100_000.0);
+    test_f64((7.5, 1_345.0), 100.0); // Geometric mean
+    test_f64((7.5, 123_456.0), 1_000.0); // Geometric mean
     test_f64((-0.2, 0.0), 0.0); // Prefer zero
     test_f64((-10_004.23, 4.14), 0.0); // Prefer zero
     test_f64((-0.2, 100.0), 0.0); // Prefer zero
