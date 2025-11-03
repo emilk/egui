@@ -44,7 +44,8 @@ pub fn best_in_range_f64(min: f64, max: f64) -> f64 {
     let max_exponent = max.log10();
 
     if min_exponent.floor() != max_exponent.floor() {
-        // pick the geometric center of the two:
+        // Different orders of magnitude.
+        // Pick the geometric center of the two:
         let exponent = fast_midpoint(min_exponent, max_exponent);
         return 10.0_f64.powi(exponent.round() as i32);
     }
@@ -56,27 +57,60 @@ pub fn best_in_range_f64(min: f64, max: f64) -> f64 {
         return 10.0_f64.powf(max_exponent);
     }
 
-    let exp_factor = 10.0_f64.powi(max_exponent.floor() as i32);
+    let exponent = max_exponent.floor() as i32;
+    let exp_factor = 10.0_f64.powi(exponent);
 
     let min_str = to_decimal_string(min / exp_factor);
     let max_str = to_decimal_string(max / exp_factor);
 
+    // We now have two positive integers of the same length.
+    // We want to find the first non-matching digit,
+    // which we will call the "deciding digit".
+    // Everything before it will be the same,
+    // everything after will be zero,
+    // and the deciding digit itself will be picked as a "smart average"
+    // min:    12345
+    // max:    12780
+    // output: 12500
+
     let mut ret_str = [0; NUM_DECIMALS];
 
-    // Select the common prefix:
-    let mut i = 0;
-    while i < NUM_DECIMALS && max_str[i] == min_str[i] {
-        ret_str[i] = max_str[i];
-        i += 1;
+    for i in 0..NUM_DECIMALS {
+        if min_str[i] == max_str[i] {
+            ret_str[i] = min_str[i];
+        } else {
+            // Found the deciding digit at index `i`
+            let mut deciding_digit_min = min_str[i];
+            let deciding_digit_max = max_str[i];
+
+            debug_assert!(
+                deciding_digit_min < deciding_digit_max,
+                "Bug in smart aim code"
+            );
+
+            let rest_of_min_is_zeroes = min_str[i + 1..].iter().all(|&c| c == 0);
+
+            if !rest_of_min_is_zeroes {
+                // There are more digits coming after `deciding_digit_min`, so we cannot pick it.
+                // So the true min of what we can pick is one greater:
+                deciding_digit_min += 1;
+            }
+
+            let deciding_digit = if deciding_digit_min == 0 {
+                0
+            } else if deciding_digit_min <= 5 && 5 <= deciding_digit_max {
+                5 // 5 is the roundest number in the range
+            } else {
+                deciding_digit_min.midpoint(deciding_digit_max)
+            };
+
+            ret_str[i] = deciding_digit;
+
+            return from_decimal_string(&ret_str) * exp_factor;
+        }
     }
 
-    if i < NUM_DECIMALS {
-        // Pick the deciding digit.
-        // Note that "to_decimal_string" rounds down, so we that's why we add 1 here
-        ret_str[i] = simplest_digit_closed_range(min_str[i] + 1, max_str[i]);
-    }
-
-    from_decimal_string(&ret_str) * exp_factor
+    min // All digits are the same. Already handled earlier, but better safe than sorry
 }
 
 fn is_integer(f: f64) -> bool {
@@ -102,19 +136,6 @@ fn from_decimal_string(s: &[i32]) -> f64 {
         ret += (digit as f64) * 10.0_f64.powi(-(i as i32));
     }
     ret
-}
-
-/// Find the simplest integer in the range [min, max]
-fn simplest_digit_closed_range(min: i32, max: i32) -> i32 {
-    debug_assert!(
-        1 <= min && min <= max && max <= 9,
-        "min should be in [1, 9], but was {min:?} and max should be in [min, 9], but was {max:?}"
-    );
-    if min <= 5 && 5 <= max {
-        5
-    } else {
-        min.midpoint(max)
-    }
 }
 
 #[expect(clippy::approx_constant)]
