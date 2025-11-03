@@ -622,6 +622,36 @@ impl ContextImpl {
         builders.get_mut(&id).unwrap()
     }
 
+    #[cfg(feature = "accesskit")]
+    fn add_accesskit_node(&mut self, id: Id, node: accesskit::Node) {
+        let state = self.viewport().this_pass.accesskit_state.as_mut().unwrap();
+        let nodes = &mut state.nodes;
+        assert_eq!(nodes.insert(id, node), None);
+
+        /// Find the first ancestor that already has an accesskit node.
+        fn find_accesskit_parent(
+            parent_map: &IdMap<Id>,
+            node_map: &IdMap<accesskit::Node>,
+            id: Id,
+        ) -> Option<Id> {
+            if let Some(parent_id) = parent_map.get(&id) {
+                if node_map.contains_key(parent_id) {
+                    Some(*parent_id)
+                } else {
+                    find_accesskit_parent(parent_map, node_map, *parent_id)
+                }
+            } else {
+                None
+            }
+        }
+
+        let parent_id = find_accesskit_parent(&state.parent_map, nodes, id)
+            .unwrap_or(crate::accesskit_root_id());
+
+        let parent_builder = nodes.get_mut(&parent_id).unwrap();
+        parent_builder.push_child(id.accesskit_id());
+    }
+
     fn pixels_per_point(&mut self) -> f32 {
         self.viewport().input.pixels_per_point
     }
@@ -3512,6 +3542,31 @@ impl Context {
                 .is_some()
                 .then(|| ctx.accesskit_node_builder(id))
                 .map(writer)
+        })
+    }
+
+    /// If AccessKit support is active for the current frame, build a new node
+    /// with the given ID using `writer`. The writer receives the node and a struct
+    /// that allows it to insert nodes for other descendants as needed.
+    ///
+    /// Returns `None` if acesskit is off.
+    // TODO(emilk): consider making both read-only and read-write versions
+    #[cfg(feature = "accesskit")]
+    pub fn accesskit_subtree_builder<R>(
+        &self,
+        id: Id,
+        writer: impl FnOnce(&mut accesskit::Node, &mut crate::pass_state::AccessKitPassState) -> R,
+    ) -> Option<R> {
+        self.write(|ctx| {
+            let mut node = accesskit::Node::default();
+            let accesskit_state = &mut ctx.viewport().this_pass.accesskit_state;
+            let result = accesskit_state
+                .as_mut()
+                .map(|state| writer(&mut node, state));
+            if accesskit_state.is_some() {
+                ctx.add_accesskit_node(id, node);
+            }
+            result
         })
     }
 
