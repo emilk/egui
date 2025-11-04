@@ -1041,11 +1041,29 @@ impl GlutinWindowContext {
 
         let mut viewport_from_window = HashMap::default();
         let mut window_from_viewport = OrderedViewportIdMap::default();
-        let mut info = ViewportInfo::default();
+        let mut viewport_info = ViewportInfo::default();
         if let Some(window) = &window {
             viewport_from_window.insert(window.id(), ViewportId::ROOT);
             window_from_viewport.insert(ViewportId::ROOT, window.id());
-            egui_winit::update_viewport_info(&mut info, egui_ctx, window, true);
+            egui_winit::update_viewport_info(&mut viewport_info, egui_ctx, window, true);
+        }
+
+        {
+            // Tell egui right away about native_pixels_per_point etc,
+            // so that the app knows about it during app creation:
+            let pixels_per_point = window
+                .as_ref()
+                .map(|window| egui_winit::pixels_per_point(egui_ctx, window));
+
+            egui_ctx.input_mut(|i| {
+                i.raw
+                    .viewports
+                    .insert(ViewportId::ROOT, viewport_info.clone());
+
+                if let Some(pixels_per_point) = pixels_per_point {
+                    i.pixels_per_point = pixels_per_point;
+                }
+            });
         }
 
         let mut viewports = OrderedViewportIdMap::default();
@@ -1056,7 +1074,7 @@ impl GlutinWindowContext {
                 class: ViewportClass::Root,
                 builder: viewport_builder,
                 deferred_commands: vec![],
-                info,
+                info: viewport_info,
                 actions_requested: Default::default(),
                 viewport_ui_cb: None,
                 gl_surface: None,

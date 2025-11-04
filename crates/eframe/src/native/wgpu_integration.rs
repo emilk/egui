@@ -199,6 +199,22 @@ impl<'app> WgpuWinitApp<'app> {
             },
         ));
 
+        let mut viewport_info = ViewportInfo::default();
+        egui_winit::update_viewport_info(&mut viewport_info, &egui_ctx, &window, true);
+
+        {
+            // Tell egui right away about native_pixels_per_point etc,
+            // so that the app knows about it during app creation:
+            let pixels_per_point = egui_winit::pixels_per_point(&egui_ctx, &window);
+
+            egui_ctx.input_mut(|i| {
+                i.raw
+                    .viewports
+                    .insert(ViewportId::ROOT, viewport_info.clone());
+                i.pixels_per_point = pixels_per_point;
+            });
+        }
+
         let window = Arc::new(window);
 
         {
@@ -278,9 +294,6 @@ impl<'app> WgpuWinitApp<'app> {
         let mut viewport_from_window = HashMap::default();
         viewport_from_window.insert(window.id(), ViewportId::ROOT);
 
-        let mut info = ViewportInfo::default();
-        egui_winit::update_viewport_info(&mut info, &egui_ctx, &window, true);
-
         let mut viewports = Viewports::default();
         viewports.insert(
             ViewportId::ROOT,
@@ -289,7 +302,7 @@ impl<'app> WgpuWinitApp<'app> {
                 class: ViewportClass::Root,
                 builder,
                 deferred_commands: vec![],
-                info,
+                info: viewport_info,
                 actions_requested: Default::default(),
                 viewport_ui_cb: None,
                 window: Some(window),
