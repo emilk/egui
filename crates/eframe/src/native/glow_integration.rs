@@ -1046,23 +1046,17 @@ impl GlutinWindowContext {
             viewport_from_window.insert(window.id(), ViewportId::ROOT);
             window_from_viewport.insert(ViewportId::ROOT, window.id());
             egui_winit::update_viewport_info(&mut viewport_info, egui_ctx, window, true);
-        }
 
-        {
             // Tell egui right away about native_pixels_per_point etc,
             // so that the app knows about it during app creation:
-            let pixels_per_point = window
-                .as_ref()
-                .map(|window| egui_winit::pixels_per_point(egui_ctx, window));
+            let pixels_per_point = egui_winit::pixels_per_point(egui_ctx, window);
 
             egui_ctx.input_mut(|i| {
                 i.raw
                     .viewports
                     .insert(ViewportId::ROOT, viewport_info.clone());
 
-                if let Some(pixels_per_point) = pixels_per_point {
-                    i.pixels_per_point = pixels_per_point;
-                }
+                i.pixels_per_point = pixels_per_point;
             });
         }
 
