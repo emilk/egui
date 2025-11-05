@@ -13,6 +13,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::time::Duration;
 
 mod app_kind;
+mod config;
 mod node;
 mod renderer;
 #[cfg(feature = "wgpu")]
@@ -20,6 +21,7 @@ mod texture_to_image;
 #[cfg(feature = "wgpu")]
 pub mod wgpu;
 
+pub(crate) use config::config;
 pub use kittest;
 
 use crate::app_kind::AppKind;
