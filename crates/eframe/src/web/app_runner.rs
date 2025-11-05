@@ -65,6 +65,14 @@ impl AppRunner {
             o.zoom_factor = 1.0;
         });
 
+        // Tell egui right away about native_pixels_per_point
+        // so that the app knows about it during app creation:
+        egui_ctx.input_mut(|i| {
+            let viewport_info = i.raw.viewports.entry(egui::ViewportId::ROOT).or_default();
+            viewport_info.native_pixels_per_point = Some(super::native_pixels_per_point());
+            i.pixels_per_point = super::native_pixels_per_point();
+        });
+
         let cc = epi::CreationContext {
             egui_ctx: egui_ctx.clone(),
             integration_info: info.clone(),
