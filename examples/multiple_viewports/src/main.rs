@@ -44,6 +44,8 @@ struct MyApp {
     /// State and handle for a background thread that refreshes the deferred viewport.
     background_thread_mode: Arc<Mutex<BackgroundThreadMode>>,
     background_thread_handle: Option<thread::JoinHandle<u32>>,
+
+    refresh_after_delay: Option<Duration>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -92,6 +94,8 @@ impl MyApp {
             deferred_viewport_redraw_counter: Default::default(),
             background_thread_mode,
             background_thread_handle: Some(background_thread_handle),
+
+            refresh_after_delay: None,
         }
     }
 }
@@ -148,6 +152,52 @@ impl eframe::App for MyApp {
                         );
                     });
             }
+
+            egui::ComboBox::from_label("Refresh after delay")
+                .selected_text({
+                    match self.refresh_after_delay {
+                        None => "Disabled".to_string(),
+                        Some(duration) => format!("{}", duration.as_millis()),
+                    }
+                })
+                .show_ui(ui, |ui| {
+                    if ui
+                        .selectable_value(&mut self.refresh_after_delay, None, "Disabled")
+                        .clicked()
+                    {
+                        self.refresh_after_delay = None;
+                    }
+                    if ui
+                        .selectable_value(
+                            &mut self.refresh_after_delay,
+                            Some(Duration::from_millis(100)),
+                            "100ms",
+                        )
+                        .clicked()
+                    {
+                        self.refresh_after_delay = Some(Duration::from_millis(100));
+                    }
+                    if ui
+                        .selectable_value(
+                            &mut self.refresh_after_delay,
+                            Some(Duration::from_millis(500)),
+                            "500ms",
+                        )
+                        .clicked()
+                    {
+                        self.refresh_after_delay = Some(Duration::from_millis(500));
+                    }
+                    if ui
+                        .selectable_value(
+                            &mut self.refresh_after_delay,
+                            Some(Duration::from_secs(1)),
+                            "1s",
+                        )
+                        .clicked()
+                    {
+                        self.refresh_after_delay = Some(Duration::from_secs(1));
+                    }
+                });
 
             ui.add_enabled_ui(self.show_deferred_viewport, |ui| {
                 deferred_viewport_refresh_requested =
@@ -268,6 +318,10 @@ impl eframe::App for MyApp {
             self.deferred_viewport_id = Some(deferred_viewport_id);
         } else {
             self.deferred_viewport_id = None;
+        }
+
+        if let Some(duration) = self.refresh_after_delay {
+            ctx.request_repaint_after(duration);
         }
     }
 
