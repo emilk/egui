@@ -5,6 +5,7 @@ pub struct GridTest {
     min_col_width: f32,
     max_col_width: f32,
     text_length: usize,
+    cell_alignment: egui::Align2,
 }
 
 impl Default for GridTest {
@@ -15,6 +16,7 @@ impl Default for GridTest {
             min_col_width: 10.0,
             max_col_width: 200.0,
             text_length: 10,
+            cell_alignment: egui::Align2::LEFT_CENTER,
         }
     }
 }
@@ -43,6 +45,56 @@ impl crate::View for GridTest {
         ui.add(egui::Slider::new(&mut self.num_cols, 0..=5).text("Columns"));
         ui.add(egui::Slider::new(&mut self.num_rows, 0..=20).text("Rows"));
 
+        ui.label("Cell alignment");
+        egui::Grid::new("cell-alignment").show(ui, |ui| {
+            ui.selectable_value(&mut self.cell_alignment, egui::Align2::LEFT_TOP, "LEFT_TOP");
+            ui.selectable_value(
+                &mut self.cell_alignment,
+                egui::Align2::CENTER_TOP,
+                "CENTER_TOP",
+            );
+            ui.selectable_value(
+                &mut self.cell_alignment,
+                egui::Align2::RIGHT_TOP,
+                "RIGHT_TOP",
+            );
+            ui.end_row();
+
+            ui.selectable_value(
+                &mut self.cell_alignment,
+                egui::Align2::LEFT_CENTER,
+                "LEFT_CENTER",
+            );
+            ui.selectable_value(
+                &mut self.cell_alignment,
+                egui::Align2::CENTER_CENTER,
+                "CENTER_CENTER",
+            );
+            ui.selectable_value(
+                &mut self.cell_alignment,
+                egui::Align2::RIGHT_CENTER,
+                "RIGHT_CENTER",
+            );
+            ui.end_row();
+
+            ui.selectable_value(
+                &mut self.cell_alignment,
+                egui::Align2::LEFT_BOTTOM,
+                "LEFT_BOTTOM",
+            );
+            ui.selectable_value(
+                &mut self.cell_alignment,
+                egui::Align2::CENTER_BOTTOM,
+                "CENTER_BOTTOM",
+            );
+            ui.selectable_value(
+                &mut self.cell_alignment,
+                egui::Align2::RIGHT_BOTTOM,
+                "RIGHT_BOTTOM",
+            );
+            ui.end_row();
+        });
+
         ui.separator();
 
         let words = [
@@ -54,6 +106,7 @@ impl crate::View for GridTest {
             .striped(true)
             .min_col_width(self.min_col_width)
             .max_col_width(self.max_col_width)
+            .with_cell_alignment(self.cell_alignment)
             .show(ui, |ui| {
                 for row in 0..self.num_rows {
                     for col in 0..self.num_cols {
