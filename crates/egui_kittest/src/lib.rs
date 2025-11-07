@@ -28,9 +28,12 @@ pub use builder::*;
 pub use node::*;
 pub use renderer::*;
 
-use egui::epaint::{ClippedShape, RectShape};
 use egui::style::ScrollAnimation;
 use egui::{Color32, Key, Modifiers, Pos2, Rect, RepaintCause, Shape, Vec2, ViewportId};
+use egui::{
+    PointerButton,
+    epaint::{ClippedShape, RectShape},
+};
 use kittest::Queryable;
 
 #[derive(Debug, Clone)]
@@ -596,6 +599,32 @@ impl<'a, State> Harness<'a, State> {
     /// - reset the modifiers
     pub fn key_press_modifiers(&self, modifiers: Modifiers, key: egui::Key) {
         self.key_combination_modifiers(modifiers, &[key]);
+    }
+
+    /// Move mouse cursor to this position.
+    pub fn hover_at(&self, pos: egui::Pos2) {
+        self.event(egui::Event::PointerMoved(pos));
+    }
+
+    /// Start dragging from a position.
+    pub fn drag_at(&self, pos: egui::Pos2) {
+        self.event(egui::Event::PointerButton {
+            pos,
+            button: PointerButton::Primary,
+            pressed: true,
+            modifiers: Modifiers::NONE,
+        });
+    }
+
+    /// Stop dragging and remove cursor.
+    pub fn drop_at(&self, pos: egui::Pos2) {
+        self.event(egui::Event::PointerButton {
+            pos,
+            button: PointerButton::Primary,
+            pressed: false,
+            modifiers: Modifiers::NONE,
+        });
+        self.remove_cursor();
     }
 
     /// Remove the cursor from the screen.
