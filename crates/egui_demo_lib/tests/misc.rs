@@ -1,4 +1,4 @@
-use egui::{Color32, accesskit::Role, vec2};
+use egui::{Color32, accesskit::Role};
 use egui_kittest::{Harness, kittest::Queryable as _};
 
 #[test]
@@ -67,8 +67,8 @@ fn test_text_selection() {
 
     // Drag to select text:
     let label = harness.get_by_role(Role::Label);
-    harness.drag_at(label.rect().lerp_inside(vec2(0.2, 0.25)));
-    harness.drop_at(label.rect().lerp_inside(vec2(0.6, 0.75)));
+    harness.drag_at(label.rect().lerp_inside([0.2, 0.25]));
+    harness.drop_at(label.rect().lerp_inside([0.6, 0.75]));
     harness.run();
 
     harness.snapshot("text_selection");
