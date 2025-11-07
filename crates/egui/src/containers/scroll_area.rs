@@ -1118,7 +1118,8 @@ impl Prepared {
         );
 
         let max_offset = content_size - inner_rect.size();
-        let is_hovering_outer_rect = ui.rect_contains_pointer(outer_rect);
+        let is_hovering_outer_rect =
+            ui.rect_contains_pointer(outer_rect) && ui.ctx().dragged_id().is_none();
         if scroll_source.mouse_wheel && ui.is_enabled() && is_hovering_outer_rect {
             let always_scroll_enabled_direction = ui.style().always_scroll_the_only_direction
                 && direction_enabled[0] != direction_enabled[1];
