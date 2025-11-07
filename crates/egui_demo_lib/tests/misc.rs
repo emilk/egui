@@ -42,7 +42,7 @@ fn test_italics() {
             harness.run();
             harness.fit_contents();
             harness.snapshot(format!(
-                "image_blending/image_{theme}_x{pixels_per_point:.2}",
+                "italics/image_{theme}_x{pixels_per_point:.2}",
                 theme = match theme {
                     egui::Theme::Dark => "dark",
                     egui::Theme::Light => "light",
