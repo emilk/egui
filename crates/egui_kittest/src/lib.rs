@@ -8,9 +8,7 @@ mod builder;
 mod snapshot;
 
 #[cfg(feature = "snapshot")]
-pub use snapshot::*;
-use std::fmt::{Debug, Display, Formatter};
-use std::time::Duration;
+pub use crate::snapshot::*;
 
 mod app_kind;
 mod node;
@@ -20,21 +18,25 @@ mod texture_to_image;
 #[cfg(feature = "wgpu")]
 pub mod wgpu;
 
-pub use kittest;
+// re-exports:
+pub use {
+    self::{builder::*, node::*, renderer::*},
+    kittest,
+};
 
-use crate::app_kind::AppKind;
+use std::{
+    fmt::{Debug, Display, Formatter},
+    time::Duration,
+};
 
-pub use builder::*;
-pub use node::*;
-pub use renderer::*;
-
-use egui::style::ScrollAnimation;
-use egui::{Color32, Key, Modifiers, Pos2, Rect, RepaintCause, Shape, Vec2, ViewportId};
 use egui::{
-    PointerButton,
+    Color32, Key, Modifiers, PointerButton, Pos2, Rect, RepaintCause, Shape, Vec2, ViewportId,
     epaint::{ClippedShape, RectShape},
+    style::ScrollAnimation,
 };
 use kittest::Queryable;
+
+use crate::app_kind::AppKind;
 
 #[derive(Debug, Clone)]
 pub struct ExceededMaxStepsError {
