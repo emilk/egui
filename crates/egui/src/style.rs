@@ -2600,8 +2600,8 @@ impl Widget for &mut Margin {
         } else {
             // Make sure it is not same:
             if self.is_same() {
-                if self.right == i16::MAX {
-                    self.right = i16::MAX - 1;
+                if self.right == i8::MAX {
+                    self.right = i8::MAX - 1;
                 } else {
                     self.right += 1;
                 }

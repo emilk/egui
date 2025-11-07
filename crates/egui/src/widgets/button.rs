@@ -323,10 +323,10 @@ impl<'a> Button<'a> {
         }
 
         frame = frame.inner_margin(Margin {
-            left: button_padding.left - frame.stroke.width as i16,
-            top: button_padding.top - frame.stroke.width as i16,
-            right: button_padding.right - frame.stroke.width as i16,
-            bottom: button_padding.bottom - frame.stroke.width as i16,
+            left: button_padding.left - frame.stroke.width as i8,
+            top: button_padding.top - frame.stroke.width as i8,
+            right: button_padding.right - frame.stroke.width as i8,
+            bottom: button_padding.bottom - frame.stroke.width as i8,
         });
 
         // Apply the correct font and color if Text

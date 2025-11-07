@@ -9,8 +9,10 @@ use crate::{
 pub struct TextVisuals {
     /// Font used
     pub font_id: FontId,
+
     /// Font color
     pub color: Color32,
+
     /// Text decoration
     pub underline: Stroke,
     pub strikethrough: Stroke,
@@ -33,14 +35,19 @@ pub struct ButtonStyle {
 pub struct CheckboxStyle {
     /// Frame around
     pub frame: Frame,
+
     /// Text next to it
     pub text: TextVisuals,
+
     /// Checkbox size
     pub size: f32,
+
     /// Checkmark size
     pub check_size: f32,
+
     /// Frame of the checkbox itself
     pub checkbox_frame: Frame,
+
     /// Checkmark stroke
     pub stroke: Stroke,
 }
@@ -48,8 +55,10 @@ pub struct CheckboxStyle {
 pub struct LabelStyle {
     /// Frame around
     pub frame: Frame,
+
     /// Text style
     pub text: TextVisuals,
+
     /// Wrap mode used
     pub wrap_mode: TextWrapMode,
 }
@@ -57,6 +66,7 @@ pub struct LabelStyle {
 pub struct SeparatorStyle {
     /// How much space is allocated in the layout direction
     pub spacing: f32,
+
     /// How to paint it
     pub stroke: Stroke,
 }
