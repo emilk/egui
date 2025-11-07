@@ -701,6 +701,9 @@ pub struct Glyph {
     /// enable the paragraph-concat optimization path without having to
     /// adjust `section_index` when concatting.
     pub(crate) section_index: u32,
+
+    /// Which is our first vertex in [`RowVisuals::mesh`].
+    pub first_vertex: u32,
 }
 
 impl Glyph {

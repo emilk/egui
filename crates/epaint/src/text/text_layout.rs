@@ -230,6 +230,7 @@ fn layout_section(
                 font_ascent: font_metrics.ascent,
                 uv_rect: glyph_alloc.uv_rect,
                 section_index,
+                first_vertex: 0, // filled in later
             });
 
             paragraph.cursor_x_px += glyph_alloc.advance_width_px;
@@ -532,6 +533,7 @@ fn replace_last_glyph_with_overflow_character(
                 font_ascent: font_metrics.ascent,
                 uv_rect: replacement_glyph_alloc.uv_rect,
                 section_index,
+                first_vertex: 0, // filled in later
             });
             return;
         }
@@ -749,7 +751,7 @@ fn tessellate_row(
     point_scale: PointScale,
     job: &LayoutJob,
     format_summary: &FormatSummary,
-    row: &Row,
+    row: &mut Row,
 ) -> RowVisuals {
     if row.glyphs.is_empty() {
         return Default::default();
@@ -844,8 +846,9 @@ fn add_row_backgrounds(point_scale: PointScale, job: &LayoutJob, row: &Row, mesh
     end_run(run_start.take(), last_rect.right());
 }
 
-fn tessellate_glyphs(point_scale: PointScale, job: &LayoutJob, row: &Row, mesh: &mut Mesh) {
-    for glyph in &row.glyphs {
+fn tessellate_glyphs(point_scale: PointScale, job: &LayoutJob, row: &mut Row, mesh: &mut Mesh) {
+    for glyph in &mut row.glyphs {
+        glyph.first_vertex = mesh.vertices.len() as u32;
         let uv_rect = glyph.uv_rect;
         if !uv_rect.is_nothing() {
             let mut left_top = glyph.pos + uv_rect.offset;

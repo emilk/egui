@@ -1,4 +1,5 @@
-use egui_kittest::Harness;
+use egui::{Color32, accesskit::Role};
+use egui_kittest::{Harness, kittest::Queryable as _};
 
 #[test]
 fn test_kerning() {
@@ -45,7 +46,7 @@ fn test_italics() {
             harness.run();
             harness.fit_contents();
             harness.snapshot(format!(
-                "image_blending/image_{theme}_x{pixels_per_point:.2}",
+                "italics/image_{theme}_x{pixels_per_point:.2}",
                 theme = match theme {
                     egui::Theme::Dark => "dark",
                     egui::Theme::Light => "light",
@@ -54,4 +55,25 @@ fn test_italics() {
             results.extend_harness(&mut harness);
         }
     }
+}
+
+#[test]
+fn test_text_selection() {
+    let mut harness = Harness::builder().build_ui(|ui| {
+        let visuals = ui.visuals_mut();
+        visuals.selection.bg_fill = Color32::LIGHT_GREEN;
+        visuals.selection.stroke.color = Color32::DARK_BLUE;
+
+        ui.label("Some varied ☺ text :)\nAnd it has a second line!");
+    });
+    harness.run();
+    harness.fit_contents();
+
+    // Drag to select text:
+    let label = harness.get_by_role(Role::Label);
+    harness.drag_at(label.rect().lerp_inside([0.2, 0.25]));
+    harness.drop_at(label.rect().lerp_inside([0.6, 0.75]));
+    harness.run();
+
+    harness.snapshot("text_selection");
 }
