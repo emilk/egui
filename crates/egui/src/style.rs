@@ -1129,7 +1129,10 @@ impl Visuals {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Selection {
+    /// Background color behind selected text and other selectable buttons.
     pub bg_fill: Color32,
+
+    /// Color of selected text.
     pub stroke: Stroke,
 }
 
