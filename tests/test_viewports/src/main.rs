@@ -339,7 +339,7 @@ fn drag_and_drop_test(ui: &mut egui::Ui) {
         }
 
         fn insert(&mut self, container: Id, col: usize, value: impl Into<String>) {
-            assert!(col <= COLS, "The coll should be less then: {COLS}");
+            assert!(col < COLS, "The coll should be less then: {COLS}");
 
             let value: String = value.into();
             let id = Id::new(format!("%{}% {}", self.counter, &value));
@@ -355,7 +355,7 @@ fn drag_and_drop_test(ui: &mut egui::Ui) {
         }
 
         fn cols(&self, container: Id, col: usize) -> Vec<(Id, String)> {
-            assert!(col <= COLS, "The col should be less then: {COLS}");
+            assert!(col < COLS, "The col should be less then: {COLS}");
             let container_data = &self.containers_data[&container];
             container_data[col]
                 .iter()
@@ -368,7 +368,7 @@ fn drag_and_drop_test(ui: &mut egui::Ui) {
             let Some(id) = self.is_dragged.take() else {
                 return;
             };
-            assert!(col <= COLS, "The col should be less then: {COLS}");
+            assert!(col < COLS, "The col should be less then: {COLS}");
 
             // Should be a better way to do this!
             #[expect(clippy::iter_over_hash_type)]
