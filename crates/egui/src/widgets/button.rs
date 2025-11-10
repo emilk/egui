@@ -299,6 +299,7 @@ impl<'a> Button<'a> {
         } else {
             Margin::ZERO
         };
+
         if small {
             button_padding.bottom = 0;
             button_padding.top = 0;
