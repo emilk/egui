@@ -123,7 +123,7 @@ rfd = "0.15.4"
 ron = "0.11.0"
 serde = { version = "1.0.228", features = ["derive"] }
 similar-asserts = "1.7.0"
-skrifa = "0.36"
+skrifa = "0.37"
 smallvec = "1.15.1"
 smithay-clipboard = "0.7.2"
 static_assertions = "1.1.0"
@@ -134,6 +134,7 @@ tokio = "1.47.1"
 type-map = "0.5.1"
 unicode_names2 = { version = "2.0.0", default-features = false }
 unicode-segmentation = "1.12.0"
+vello_cpu = { version = "0.0.4", default-features = false, features = ["std"] }
 wasm-bindgen = "0.2.100" # Keep wasm-bindgen version in sync in: setup_web.sh, Cargo.toml, Cargo.lock, rust.yml
 wasm-bindgen-futures = "0.4.0"
 wayland-cursor = { version = "0.31.11", default-features = false }
@@ -143,7 +144,6 @@ webbrowser = "1.0.5"
 wgpu = { version = "27.0.1", default-features = false, features = ["std"] }
 windows-sys = "0.61.2"
 winit = { version = "0.30.12", default-features = false }
-zeno = "0.3.3"
 
 
 [workspace.lints.rust]

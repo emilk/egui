@@ -8,6 +8,7 @@ use skrifa::{
     MetadataProvider as _,
     raw::{TableProvider as _, tables::kern::SubtableKind},
 };
+use vello_cpu::{color, kurbo};
 
 use crate::{
     TextureAtlas,
@@ -222,40 +223,49 @@ impl FontCell {
         .unwrap();
         let draw_settings = skrifa::outline::DrawSettings::hinted(&hinting_instance, false);*/
 
-        let mut path_commands = Vec::<zeno::Command>::new();
-        let mut pen = ZenoPen(&mut path_commands);
+        let mut path = kurbo::BezPath::new();
+        let mut pen = VelloPen {
+            path: &mut path,
+            x_offset: bin.as_float() as f64,
+        };
         outline.draw(draw_settings, &mut pen).ok()?;
-        let offset = zeno::Vector::new(bin.as_float(), 0.0);
-        let mut mask = zeno::Mask::new(&path_commands);
-        let (alpha_mask, placement) = mask.offset(offset).render_offset(offset).render();
-        let uv_rect = if placement.width == 0 || placement.height == 0 {
+        let bounds = path.control_box().expand();
+        let width = bounds.width() as u16;
+        let height = bounds.height() as u16;
+
+        let mut ctx = vello_cpu::RenderContext::new(width, height);
+        ctx.set_transform(kurbo::Affine::translate((-bounds.x0, -bounds.y0)));
+        ctx.set_paint(color::OpaqueColor::<color::Srgb>::WHITE);
+        ctx.fill_path(&path);
+        let mut dest = vello_cpu::Pixmap::new(width, height);
+        ctx.render_to_pixmap(&mut dest);
+        let uv_rect = if width == 0 || height == 0 {
             UvRect::default()
         } else {
             let glyph_pos = {
                 let text_alpha_from_coverage = atlas.text_alpha_from_coverage;
-                let (glyph_pos, image) =
-                    atlas.allocate((placement.width as usize, placement.height as usize));
-                for y in 0..placement.height as usize {
-                    for x in 0..placement.width as usize {
+                let (glyph_pos, image) = atlas.allocate((width as usize, height as usize));
+                let pixels = dest.data_as_u8_slice();
+                for y in 0..height as usize {
+                    for x in 0..width as usize {
                         image[(x + glyph_pos.0, y + glyph_pos.1)] = text_alpha_from_coverage
                             .color_from_coverage(
-                                alpha_mask[(y * placement.width as usize) + x] as f32 / 255.0,
+                                pixels[((y * width as usize) + x) * 4 + 3] as f32 / 255.0,
                             );
                     }
                 }
                 glyph_pos
             };
-            let offset_in_pixels = vec2(placement.left as f32, placement.top as f32);
+            let offset_in_pixels = vec2(bounds.x0 as f32, bounds.y0 as f32);
             let offset =
                 offset_in_pixels / metrics.pixels_per_point + metrics.y_offset_in_points * Vec2::Y;
             UvRect {
                 offset,
-                size: vec2(placement.width as f32, placement.height as f32)
-                    / metrics.pixels_per_point,
+                size: vec2(width as f32, height as f32) / metrics.pixels_per_point,
                 min: [glyph_pos.0 as u16, glyph_pos.1 as u16],
                 max: [
-                    (glyph_pos.0 + placement.width as usize) as u16,
-                    (glyph_pos.1 + placement.height as usize) as u16,
+                    (glyph_pos.0 + width as usize) as u16,
+                    (glyph_pos.1 + height as usize) as u16,
                 ],
             }
         };
@@ -269,34 +279,37 @@ impl FontCell {
     }
 }
 
-struct ZenoPen<'a>(&'a mut Vec<zeno::Command>);
+struct VelloPen<'a> {
+    path: &'a mut kurbo::BezPath,
+    x_offset: f64,
+}
 
-impl skrifa::outline::OutlinePen for ZenoPen<'_> {
+impl skrifa::outline::OutlinePen for VelloPen<'_> {
     fn move_to(&mut self, x: f32, y: f32) {
-        self.0.push(zeno::Command::MoveTo(zeno::Vector::new(x, -y)));
+        self.path.move_to((x as f64 + self.x_offset, -y as f64));
     }
 
     fn line_to(&mut self, x: f32, y: f32) {
-        self.0.push(zeno::Command::LineTo(zeno::Vector::new(x, -y)));
+        self.path.line_to((x as f64 + self.x_offset, -y as f64));
     }
 
     fn quad_to(&mut self, cx0: f32, cy0: f32, x: f32, y: f32) {
-        self.0.push(zeno::Command::QuadTo(
-            zeno::Vector::new(cx0, -cy0),
-            zeno::Vector::new(x, -y),
-        ));
+        self.path.quad_to(
+            (cx0 as f64 + self.x_offset, -cy0 as f64),
+            (x as f64 + self.x_offset, -y as f64),
+        );
     }
 
     fn curve_to(&mut self, cx0: f32, cy0: f32, cx1: f32, cy1: f32, x: f32, y: f32) {
-        self.0.push(zeno::Command::CurveTo(
-            zeno::Vector::new(cx0, -cy0),
-            zeno::Vector::new(cx1, -cy1),
-            zeno::Vector::new(x, -y),
-        ));
+        self.path.curve_to(
+            (cx0 as f64 + self.x_offset, -cy0 as f64),
+            (cx1 as f64 + self.x_offset, -cy1 as f64),
+            (x as f64 + self.x_offset, -y as f64),
+        );
     }
 
     fn close(&mut self) {
-        self.0.push(zeno::Command::Close);
+        self.path.close_path();
     }
 }
 
