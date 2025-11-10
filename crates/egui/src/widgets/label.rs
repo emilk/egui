@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    Align, Direction, Galley, Pos2, Response, Sense, TextWrapMode, Ui, Widget, WidgetInfo,
-    WidgetText, WidgetType, epaint, pos2, text_selection::LabelSelectionState,
+    Align, Direction, FontSelection, Galley, Pos2, Response, Sense, Stroke, TextWrapMode, Ui,
+    Widget, WidgetInfo, WidgetText, WidgetType, epaint, pos2, text_selection::LabelSelectionState,
 };
 
 /// Static text.
@@ -168,8 +168,8 @@ impl Label {
             sense |= select_sense;
         }
 
-        // If the user said "use this specific galley", then just use it:
         if let WidgetText::Galley(galley) = self.text {
+            // If the user said "use this specific galley", then just use it:
             let (rect, response) = ui.allocate_exact_size(galley.size(), sense);
             let pos = match galley.job.halign {
                 Align::LEFT => rect.left_top(),
@@ -179,16 +179,10 @@ impl Label {
             return (pos, galley, response);
         }
 
-        // Get the widget style by reading the response from the previous pass
-        let id = ui.next_auto_id();
-        let response: Option<Response> = ui.ctx().read_response(id);
-        let state = response.map(|r| r.widget_state()).unwrap_or_default();
-        let style = ui.style().label_style(state);
-
         let valign = ui.text_valign();
         let mut layout_job = Arc::unwrap_or_clone(self.text.into_layout_job(
             ui.style(),
-            style.text.font_id.into(), // Use the label style font
+            FontSelection::Default,
             valign,
         ));
 
@@ -202,6 +196,7 @@ impl Label {
         {
             // On a wrapping horizontal layout we want text to start after the previous widget,
             // then continue on the line below! This will take some extra work:
+
             let cursor = ui.cursor();
             let first_row_indentation = available_width - ui.available_size_before_wrap().x;
             debug_assert!(
@@ -284,9 +279,6 @@ impl Widget for Label {
         response
             .widget_info(|| WidgetInfo::labeled(WidgetType::Label, ui.is_enabled(), galley.text()));
 
-        let state = response.widget_state();
-        let style = ui.style().label_style(state);
-
         if ui.is_rect_visible(response.rect) {
             if show_tooltip_when_elided && galley.elided {
                 // Keep the sections and text, but reset everything else (especially wrapping):
@@ -300,12 +292,16 @@ impl Widget for Label {
             }
 
             let response_color = if interactive {
-                style.text.color
+                ui.style().interact(&response).text_color()
             } else {
                 ui.style().visuals.text_color()
             };
 
-            let underline = style.text.underline;
+            let underline = if response.has_focus() || response.highlighted() {
+                Stroke::new(1.0, response_color)
+            } else {
+                Stroke::NONE
+            };
 
             let selectable = selectable.unwrap_or_else(|| ui.style().interaction.selectable_labels);
             if selectable {

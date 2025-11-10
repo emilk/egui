@@ -66,8 +66,7 @@ impl Widget for Checkbox<'_> {
         let icon_width = style.size;
 
         // interact_size or size ?
-        // let mut min_size = Vec2::splat(ui.spacing().interact_size.y);
-        let mut min_size = Vec2::splat(style.size);
+        let mut min_size = Vec2::splat(ui.spacing().interact_size.y);
         min_size.y = min_size.y.at_least(icon_width);
 
         // In order to center the checkbox based on min_size we set the icon height to at least min_size.y

@@ -1,3 +1,4 @@
+use emath::Vec2;
 use epaint::{Color32, FontId, Shadow, Stroke, text::TextWrapMode};
 
 use crate::{
@@ -127,10 +128,26 @@ impl Style {
         }
     }
 
-    pub fn button_style(&self, state: WidgetState) -> ButtonStyle {
-        let ws = self.widget_style(state);
+    pub fn button_style(&self, state: WidgetState, selected: bool) -> ButtonStyle {
+        let mut visuals = *self.visuals.widgets.state(state);
+        let mut ws = self.widget_style(state);
+        if selected {
+            visuals.weak_bg_fill = self.visuals.selection.bg_fill;
+            visuals.bg_fill = self.visuals.selection.bg_fill;
+            visuals.fg_stroke = self.visuals.selection.stroke;
+            ws.text.color = self.visuals.selection.stroke.color;
+        }
         ButtonStyle {
-            frame: ws.frame.inner_margin(self.spacing.button_padding),
+            frame: Frame {
+                fill: visuals.weak_bg_fill,
+                stroke: visuals.bg_stroke,
+                corner_radius: visuals.corner_radius,
+                outer_margin: (-Vec2::splat(visuals.expansion)).into(),
+                inner_margin: (self.spacing.button_padding + Vec2::splat(visuals.expansion)
+                    - Vec2::splat(visuals.bg_stroke.width))
+                .into(),
+                ..Default::default()
+            },
             text: ws.text,
         }
     }
@@ -139,7 +156,7 @@ impl Style {
         let visuals = self.visuals.widgets.state(state);
         let ws = self.widget_style(state);
         CheckboxStyle {
-            frame: ws.frame.fill(Color32::TRANSPARENT),
+            frame: Frame::new(),
             size: self.spacing.icon_width,
             check_size: self.spacing.icon_width_inner,
             checkbox_frame: Frame {
@@ -169,11 +186,11 @@ impl Style {
         }
     }
 
-    pub fn separator_style(&self, state: WidgetState) -> SeparatorStyle {
-        let visuals = self.visuals.widgets.state(state);
+    pub fn separator_style(&self, _state: WidgetState) -> SeparatorStyle {
+        let visuals = self.visuals.noninteractive();
         SeparatorStyle {
             spacing: 0.0,
-            stroke: visuals.fg_stroke,
+            stroke: visuals.bg_stroke,
         }
     }
 }

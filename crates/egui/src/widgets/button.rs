@@ -3,9 +3,9 @@ use std::sync::Arc;
 use epaint::Margin;
 
 use crate::{
-    Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Color32, CornerRadius, Image,
-    IntoAtoms, NumExt as _, Response, RichText, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2,
-    Widget, WidgetInfo, WidgetText, WidgetType, style_trait::WidgetState,
+    Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Color32, CornerRadius, Frame,
+    Image, IntoAtoms, NumExt as _, Response, RichText, Sense, Stroke, TextStyle, TextWrapMode, Ui,
+    Vec2, Widget, WidgetInfo, WidgetText, WidgetType, style_trait::WidgetState,
 };
 
 /// Clickable button with text.
@@ -286,17 +286,11 @@ impl<'a> Button<'a> {
 
         let text = layout.text().map(String::from);
 
-        let state = if selected {
-            // If selected is true then the state is active
-            WidgetState::Active
-        } else {
-            // Get the widget state by reading the response from the previous pass
-            let id = ui.next_auto_id();
-            let response: Option<Response> = ui.ctx().read_response(id);
-            response.map(|r| r.widget_state()).unwrap_or_default()
-        };
+        let id = ui.next_auto_id();
+        let response: Option<Response> = ui.ctx().read_response(id);
+        let state = response.map(|r| r.widget_state()).unwrap_or_default();
 
-        let style = ui.style().button_style(state);
+        let style = ui.style().button_style(state, selected);
 
         let has_frame_margin = frame.unwrap_or_else(|| ui.visuals().button_frame);
 
@@ -322,12 +316,7 @@ impl<'a> Button<'a> {
             frame = frame.stroke(stroke);
         }
 
-        frame = frame.inner_margin(Margin {
-            left: button_padding.left - frame.stroke.width as i8,
-            top: button_padding.top - frame.stroke.width as i8,
-            right: button_padding.right - frame.stroke.width as i8,
-            bottom: button_padding.bottom - frame.stroke.width as i8,
-        });
+        frame = frame.inner_margin(button_padding);
 
         // Apply the correct font and color if Text
         // We assume that the other WidgetText have already a Fontid and color
@@ -346,7 +335,10 @@ impl<'a> Button<'a> {
             if has_frame_margin && (state != WidgetState::Inactive || frame_when_inactive) {
                 layout.frame(frame).min_size(min_size).allocate(ui)
             } else {
-                layout.min_size(min_size).allocate(ui)
+                layout
+                    .frame(Frame::new().inner_margin(frame.inner_margin))
+                    .min_size(min_size)
+                    .allocate(ui)
             };
 
         // Get AtomLayoutResponse, empty if not visible
