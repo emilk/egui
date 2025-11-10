@@ -4,6 +4,7 @@ use egui::{Pos2, Rect, Vec2};
 use std::marker::PhantomData;
 
 /// Builder for [`Harness`].
+#[must_use]
 pub struct HarnessBuilder<State = ()> {
     pub(crate) screen_rect: Rect,
     pub(crate) pixels_per_point: f32,
@@ -64,8 +65,10 @@ impl<State> HarnessBuilder<State> {
 
     /// Set the default options used for snapshot tests on this harness.
     #[cfg(feature = "snapshot")]
-    pub fn with_options(&mut self, options: crate::SnapshotOptions) {
+    #[inline]
+    pub fn with_options(mut self, options: crate::SnapshotOptions) -> Self {
         self.default_snapshot_options = options;
+        self
     }
 
     /// Override the [`egui::os::OperatingSystem`] reported to egui.
