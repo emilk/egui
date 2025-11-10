@@ -227,22 +227,29 @@ impl<'a> Button<'a> {
     ///
     /// See also [`Self::right_text`].
     #[inline]
-    pub fn shortcut_text(mut self, shortcut_text: impl Into<Atom<'a>>) -> Self {
-        let mut atom = shortcut_text.into();
-        atom.kind = match atom.kind {
-            AtomKind::Text(text) => AtomKind::Text(text.weak()),
-            other => other,
-        };
+    pub fn shortcut_text(mut self, shortcut_text: impl IntoAtoms<'a>) -> Self {
         self.layout.push_right(Atom::grow());
-        self.layout.push_right(atom);
+
+        for mut atom in shortcut_text.into_atoms() {
+            atom.kind = match atom.kind {
+                AtomKind::Text(text) => AtomKind::Text(text.weak()),
+                other => other,
+            };
+            self.layout.push_right(atom);
+        }
+
         self
     }
 
     /// Show some text on the right side of the button.
     #[inline]
-    pub fn right_text(mut self, right_text: impl Into<Atom<'a>>) -> Self {
+    pub fn right_text(mut self, right_text: impl IntoAtoms<'a>) -> Self {
         self.layout.push_right(Atom::grow());
-        self.layout.push_right(right_text.into());
+
+        for atom in right_text.into_atoms() {
+            self.layout.push_right(atom);
+        }
+
         self
     }
 
