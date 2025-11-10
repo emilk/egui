@@ -27,8 +27,11 @@ rustdoc-args = ["--generate-link-to-definition"]
 [features]
 default = ["fragile-send-sync-non-atomic-wasm", "macos-window-resize-jitter-fix", "wgpu/default"]
 
+## Enables the `capture` module.
+capture = ["dep:egui"]
+
 ## Enable [`winit`](https://docs.rs/winit) integration. On Linux, requires either `wayland` or `x11`
-winit = ["dep:winit", "winit/rwh_06"]
+winit = ["dep:winit", "winit/rwh_06", "dep:egui", "capture"]
 
 ## Enables Wayland support for winit.
 wayland = ["winit?/wayland"]
@@ -47,7 +50,6 @@ fragile-send-sync-non-atomic-wasm = ["wgpu/fragile-send-sync-non-atomic-wasm"]
 macos-window-resize-jitter-fix = ["wgpu/metal"]
 
 [dependencies]
-egui = { workspace = true, default-features = false }
 epaint = { workspace = true, default-features = false, features = ["bytemuck"] }
 
 ahash.workspace = true
@@ -62,4 +64,5 @@ wgpu = { workspace = true, features = ["wgsl"] }
 
 # Optional dependencies:
 
+egui = { workspace = true, optional = true, default-features = false }
 winit = { workspace = true, optional = true, default-features = false }

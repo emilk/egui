@@ -137,6 +137,7 @@ winit = { workspace = true, default-features = false, features = ["rwh_06"] }
 # optional native:
 egui-wgpu = { workspace = true, optional = true, features = [
   "winit",
+  "capture",
 ] } # if wgpu is used, use it with winit
 pollster = { workspace = true, optional = true } # needed for wgpu
 
@@ -242,7 +243,7 @@ web-sys = { workspace = true, features = [
 ] }
 
 # optional web:
-egui-wgpu = { workspace = true, optional = true } # if wgpu is used, use it without (!) winit
+egui-wgpu = { workspace = true, optional = true, features = ["capture"] } # if wgpu is used, use it without (!) winit
 wgpu = { workspace = true, optional = true }
 
 # Native dev dependencies for testing
