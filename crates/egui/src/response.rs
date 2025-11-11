@@ -907,10 +907,6 @@ impl Response {
         self.ctx.accesskit_node_builder(self.id, |builder| {
             builder.push_labelled_by(id.accesskit_id());
         });
-        #[cfg(not(feature = "accesskit"))]
-        {
-            let _ = id;
-        }
 
         self
     }
