@@ -52,6 +52,8 @@ jobs:
 
       - run: cargo clippy --locked --no-default-features --lib -p epaint
 
+      - run: cargo clippy --locked --no-default-features --lib -p eframe --features wgpu_no_default_features
+
       # Regression test for https://github.com/emilk/egui/issues/4771
       - run: cargo clippy -p test_egui_extras_compilation
 

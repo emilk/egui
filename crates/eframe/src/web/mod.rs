@@ -23,7 +23,7 @@ pub use panic_handler::{PanicHandler, PanicSummary};
 pub use web_logger::WebLogger;
 pub use web_runner::WebRunner;
 
-#[cfg(not(any(feature = "glow", feature = "wgpu")))]
+#[cfg(not(any(feature = "glow", feature = "wgpu_no_default_features")))]
 compile_error!("You must enable either the 'glow' or 'wgpu' feature");
 
 mod web_painter;
@@ -33,9 +33,9 @@ mod web_painter_glow;
 #[cfg(feature = "glow")]
 pub(crate) type ActiveWebPainter = web_painter_glow::WebPainterGlow;
 
-#[cfg(feature = "wgpu")]
+#[cfg(feature = "wgpu_no_default_features")]
 mod web_painter_wgpu;
-#[cfg(all(feature = "wgpu", not(feature = "glow")))]
+#[cfg(all(feature = "wgpu_no_default_features", not(feature = "glow")))]
 pub(crate) type ActiveWebPainter = web_painter_wgpu::WebPainterWgpu;
 
 pub use backend::*;
