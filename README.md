@@ -129,7 +129,7 @@ Still, egui can be used to create professional looking applications, like [the R
 * Regions: resizing, vertical scrolling, collapsing headers (sections), panels
 * Rendering: Anti-aliased rendering of lines, circles, text and convex polygons.
 * Tooltips on hover
-* Accessibility via [AccessKit](https://accesskit.dev/)
+* Accessibility via [AccessKit](https://accesskit.dev/) ([guide](docs/accessibility.md))
 * Label text selection
 * And more!
 
@@ -275,7 +275,7 @@ If you call `.await` in your GUI code, the UI will freeze, which is very bad UX.
 The async version of [rfd](https://docs.rs/rfd/latest/rfd/) supports both native and Wasm. See example app here https://github.com/woelper/egui_pick_file which also has a demo available via [gitub pages](https://woelper.github.io/egui_pick_file/).
 
 ### What about accessibility, such as screen readers?
-egui includes optional support for [AccessKit](https://accesskit.dev/), which currently implements the native accessibility APIs on Windows and macOS. This feature is enabled by default in eframe. For platforms that AccessKit doesn't yet support, including web, there is an experimental built-in screen reader; in [the web demo](https://www.egui.rs/#demo) you can enable it in the "Backend" tab.
+egui includes optional support for [AccessKit](https://accesskit.dev/), which currently implements the native accessibility APIs on Windows and macOS. This feature is enabled by default in eframe. For platforms that AccessKit doesn't yet support, including web, there is an experimental built-in screen reader; in [the web demo](https://www.egui.rs/#demo) you can enable it in the "Backend" tab. See the [accessibility guide](docs/accessibility.md) for details on enabling AccessKit, annotating custom widgets, and inspecting the accessibility tree.
 
 The original discussion of accessibility in egui is at <https://github.com/emilk/egui/issues/167>. Now that AccessKit support is merged, providing a strong foundation for future accessibility work, please open new issues on specific accessibility problems.
 
