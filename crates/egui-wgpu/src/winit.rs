@@ -532,7 +532,10 @@ impl Painter {
                             // so no need to store it. (this can improve performance on tiling GPUs like mobile chips or Apple Silicon)
                             store: wgpu::StoreOp::Discard,
                         }),
-                        stencil_ops: None,
+                        stencil_ops: Some(wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(0),
+                            store: wgpu::StoreOp::Discard,
+                        }),
                     }
                 }),
                 timestamp_writes: None,
