@@ -55,7 +55,6 @@ bytemuck.workspace = true
 document-features.workspace = true
 log.workspace = true
 profiling.workspace = true
-thiserror.workspace = true
 type-map.workspace = true
 web-time.workspace = true
 wgpu = { workspace = true, features = ["wgsl"] }

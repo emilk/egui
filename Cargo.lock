@@ -1328,7 +1328,6 @@ dependencies = [
  "epaint",
  "log",
  "profiling",
- "thiserror 2.0.17",
  "type-map",
  "web-time",
  "wgpu",

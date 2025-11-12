@@ -40,26 +40,73 @@ use std::sync::Arc;
 use epaint::mutex::RwLock;
 
 /// An error produced by egui-wgpu.
-#[derive(thiserror::Error, Debug)]
+#[derive(Debug)]
 pub enum WgpuError {
-    #[error(transparent)]
-    RequestAdapterError(#[from] wgpu::RequestAdapterError),
-
-    #[error("Adapter selection failed: {0}")]
+    RequestAdapterError(wgpu::RequestAdapterError),
     CustomNativeAdapterSelectionError(String),
-
-    #[error("There was no valid format for the surface at all.")]
     NoSurfaceFormatsAvailable,
-
-    #[error(transparent)]
-    RequestDeviceError(#[from] wgpu::RequestDeviceError),
-
-    #[error(transparent)]
-    CreateSurfaceError(#[from] wgpu::CreateSurfaceError),
+    RequestDeviceError(wgpu::RequestDeviceError),
+    CreateSurfaceError(wgpu::CreateSurfaceError),
 
     #[cfg(feature = "winit")]
-    #[error(transparent)]
-    HandleError(#[from] ::winit::raw_window_handle::HandleError),
+    HandleError(::winit::raw_window_handle::HandleError),
+}
+
+impl std::fmt::Display for WgpuError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::RequestAdapterError(err) => err.fmt(f),
+            Self::CustomNativeAdapterSelectionError(msg) => {
+                write!(f, "Adapter selection failed: {msg}")
+            }
+            Self::NoSurfaceFormatsAvailable => {
+                f.write_str("There was no valid format for the surface at all.")
+            }
+            Self::RequestDeviceError(err) => err.fmt(f),
+            Self::CreateSurfaceError(err) => err.fmt(f),
+            #[cfg(feature = "winit")]
+            Self::HandleError(err) => err.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for WgpuError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::RequestAdapterError(err) => Some(err),
+            Self::CustomNativeAdapterSelectionError(_) => None,
+            Self::NoSurfaceFormatsAvailable => None,
+            Self::RequestDeviceError(err) => Some(err),
+            Self::CreateSurfaceError(err) => Some(err),
+            #[cfg(feature = "winit")]
+            Self::HandleError(err) => Some(err),
+        }
+    }
+}
+
+impl From<wgpu::RequestAdapterError> for WgpuError {
+    fn from(err: wgpu::RequestAdapterError) -> Self {
+        Self::RequestAdapterError(err)
+    }
+}
+
+impl From<wgpu::RequestDeviceError> for WgpuError {
+    fn from(err: wgpu::RequestDeviceError) -> Self {
+        Self::RequestDeviceError(err)
+    }
+}
+
+impl From<wgpu::CreateSurfaceError> for WgpuError {
+    fn from(err: wgpu::CreateSurfaceError) -> Self {
+        Self::CreateSurfaceError(err)
+    }
+}
+
+#[cfg(feature = "winit")]
+impl From<::winit::raw_window_handle::HandleError> for WgpuError {
+    fn from(err: ::winit::raw_window_handle::HandleError) -> Self {
+        Self::HandleError(err)
+    }
 }
 
 /// Access to the render state for egui.
