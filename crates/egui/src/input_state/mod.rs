@@ -1263,6 +1263,11 @@ impl PointerState {
         self.press_origin
     }
 
+    /// How far has the pointer moved since the start of the drag (if any)?
+    pub fn total_drag_delta(&self) -> Option<Vec2> {
+        Some(self.latest_pos? - self.press_origin?)
+    }
+
     /// When did the current click/drag originate?
     /// `None` if no mouse button is down.
     #[inline(always)]
