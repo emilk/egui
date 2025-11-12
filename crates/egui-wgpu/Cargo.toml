@@ -25,7 +25,7 @@ all-features = true
 rustdoc-args = ["--generate-link-to-definition"]
 
 [features]
-default = ["fragile-send-sync-non-atomic-wasm", "macos-window-resize-jitter-fix", "wgpu/default"]
+default = ["fragile-send-sync-non-atomic-wasm", "macos-window-resize-jitter-fix"]
 
 ## Enable [`winit`](https://docs.rs/winit) integration. On Linux, requires either `wayland` or `x11`
 winit = ["dep:winit", "winit/rwh_06"]
@@ -45,6 +45,9 @@ fragile-send-sync-non-atomic-wasm = ["wgpu/fragile-send-sync-non-atomic-wasm"]
 
 ## Enables `present_with_transaction` surface flag temporary during window resize on MacOS.
 macos-window-resize-jitter-fix = ["wgpu/metal"]
+
+## Opt-in to all `wgpu` backends for parity with the upstream defaults.
+full_wgpu_backends = ["wgpu/default"]
 
 [dependencies]
 egui = { workspace = true, default-features = false }

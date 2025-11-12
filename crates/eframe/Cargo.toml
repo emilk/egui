@@ -31,7 +31,6 @@ default = [
   "glow",
   "wayland", # Required for Linux support (including CI!)
   "web_screen_reader",
-  "winit/default",
   "x11",
   "egui-wgpu?/fragile-send-sync-non-atomic-wasm",
   # Let's enable some backends so that users can use `eframe` out-of-the-box
