@@ -396,7 +396,7 @@ impl Response {
         self.drag_stopped() && self.ctx.input(|i| i.pointer.button_released(button))
     }
 
-    /// If dragged, how many points were we dragged and in what direction?
+    /// If dragged, how many points were we dragged in since last frame?
     #[inline]
     pub fn drag_delta(&self) -> Vec2 {
         if self.dragged() {
@@ -410,7 +410,22 @@ impl Response {
         }
     }
 
-    /// If dragged, how far did the mouse move?
+    /// If dragged, how many points have we been dragged since the start of the drag?
+    #[inline]
+    pub fn total_drag_delta(&self) -> Option<Vec2> {
+        if self.dragged() {
+            let mut delta = self.ctx.input(|i| i.pointer.total_drag_delta())?;
+            if let Some(from_global) = self.ctx.layer_transform_from_global(self.layer_id) {
+                delta *= from_global.scaling;
+            }
+            Some(delta)
+        } else {
+            None
+        }
+    }
+
+    /// If dragged, how far did the mouse move since last frame?
+    ///
     /// This will use raw mouse movement if provided by the integration, otherwise will fall back to [`Response::drag_delta`]
     /// Raw mouse movement is unaccelerated and unclamped by screen boundaries, and does not relate to any position on the screen.
     /// This may be useful in certain situations such as draggable values and 3D cameras, where screen position does not matter.
