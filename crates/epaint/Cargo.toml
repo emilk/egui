@@ -26,6 +26,12 @@ rustdoc-args = ["--generate-link-to-definition"]
 [features]
 default = ["default_fonts"]
 
+## Bundle the low-resolution vibrant emoji atlas instead of the default mid-resolution one.
+emoji_low_res = []
+
+## Bundle the high-resolution vibrant emoji atlas instead of the default mid-resolution one.
+emoji_high_res = []
+
 ## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast [`Vertex`] to `&[u8]`.
 bytemuck = ["dep:bytemuck", "emath/bytemuck", "ecolor/bytemuck"]
 
@@ -67,6 +73,7 @@ log.workspace = true
 nohash-hasher.workspace = true
 parking_lot.workspace = true # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios.
 profiling = { workspace = true }
+png = "0.17"
 
 #! ### Optional dependencies
 bytemuck = { workspace = true, optional = true, features = ["derive"] }

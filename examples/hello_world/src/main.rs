@@ -3,8 +3,7 @@
 
 use eframe::egui;
 use eframe::egui::{
-    Color32, ColorImage, FontFamily, FontId, FontSelection, RichText, TextEdit,
-    global_theme_preference_switch, include_image,
+    FontFamily, FontId, FontSelection, RichText, TextEdit, global_theme_preference_switch,
 };
 
 fn main() -> eframe::Result {
@@ -48,25 +47,13 @@ impl eframe::App for MyApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             global_theme_preference_switch(ui);
 
-            ctx.fonts(|f| {
-                let mut fonts = f.lock();
-                let font = fonts.fonts.font(&font_id());
-                if !font.has_glyph('🦀') {
-                    let image = include_bytes!("../../../crates/egui/assets/ferris.png");
-
-                    let image = egui_extras::image::load_image_bytes(image).unwrap();
-
-                    font.allocate_custom_glyph('🦀', image);
-                }
-            });
-
             TextEdit::singleline(&mut self.name)
                 .font(FontSelection::FontId(font_id()))
-                .text_color(Color32::WHITE)
                 .show(ui);
 
             self.name = self.name.replace(":crab:", "🦀");
 
+            ui.label("Color emojis are now part of the default font data:");
             ui.label(RichText::new(&self.name).font(font_id()).strong());
         });
     }

@@ -11,6 +11,8 @@ use crate::{
     },
 };
 
+use super::emoji::EmojiStore;
+
 // ----------------------------------------------------------------------------
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -36,6 +38,21 @@ impl UvRect {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum GlyphColoring {
+    /// Standard glyphs are monochrome and should be multiplied with the widget's chosen text color.
+    Monochrome,
+    /// Emoji glyphs already contain color data and must bypass tinting.
+    Color,
+}
+
+impl Default for GlyphColoring {
+    fn default() -> Self {
+        Self::Monochrome
+    }
+}
+
 type CustomGlyphIndex = u32;
 
 #[derive(Clone)]
@@ -57,6 +74,9 @@ pub struct GlyphInfo {
 
     /// Optional index into a user-provided color glyph registry.
     pub(crate) custom_glyph: Option<CustomGlyphIndex>,
+
+    /// Whether this glyph carries baked color.
+    pub coloring: GlyphColoring,
 }
 
 impl GlyphInfo {
@@ -65,6 +85,7 @@ impl GlyphInfo {
         id: None,
         advance_width_unscaled: OrderedFloat(0.0),
         custom_glyph: None,
+        coloring: GlyphColoring::Monochrome,
     };
 
     fn cache_hash(&self) -> u64 {
@@ -152,6 +173,9 @@ pub struct GlyphAllocation {
 
     /// UV rectangle for drawing.
     pub uv_rect: UvRect,
+
+    /// Whether the glyph carries baked color.
+    pub coloring: GlyphColoring,
 }
 
 #[derive(Hash, PartialEq, Eq)]
@@ -222,7 +246,7 @@ impl FontImpl {
             glyph_info_cache: Default::default(),
             glyph_alloc_cache: Default::default(),
             custom_glyph_map: Default::default(),
-            custom_glyphs: Vec::new(),
+            custom_glyphs: Default::default(),
         }
     }
 
@@ -252,7 +276,6 @@ impl FontImpl {
             .codepoint_ids()
             .map(|(_, chr)| chr)
             .filter(|&chr| !self.ignore_character(chr))
-            .chain(self.custom_glyph_map.keys().copied())
     }
 
     /// `\n` will result in `None`
@@ -311,26 +334,38 @@ impl FontImpl {
                 id: Some(glyph_id),
                 advance_width_unscaled: self.ab_glyph_font.h_advance_unscaled(glyph_id).into(),
                 custom_glyph: None,
+                coloring: GlyphColoring::Monochrome,
             };
             self.glyph_info_cache.insert(c, glyph_info);
             Some(glyph_info)
         }
     }
 
-    pub fn allocate_custom_glyph(&mut self, chr: char, image: ColorImage) -> GlyphInfo {
-        let image = Arc::new(image);
+    pub fn allocate_custom_glyph(&mut self, chr: char, image: &ColorImage) -> GlyphInfo {
+        self.allocate_custom_glyph_arc(chr, Arc::new(image.clone()))
+    }
+
+    fn allocate_custom_glyph_arc(
+        &mut self,
+        chr: char,
+        image: Arc<ColorImage>,
+    ) -> GlyphInfo {
         let entry = self.custom_glyph_map.entry(chr);
         let index = match entry {
             ahash::hash_map::Entry::Occupied(mut occ) => {
                 let idx = *occ.get();
                 if let Some(slot) = self.custom_glyphs.get_mut(idx as usize) {
-                    *slot = CustomGlyph { image: image.clone() };
+                    *slot = CustomGlyph {
+                        image: image.clone(),
+                    };
                 }
                 idx
             }
             ahash::hash_map::Entry::Vacant(vac) => {
                 let idx = self.custom_glyphs.len() as CustomGlyphIndex;
-                self.custom_glyphs.push(CustomGlyph { image: image.clone() });
+                self.custom_glyphs.push(CustomGlyph {
+                    image: image.clone(),
+                });
                 *vac.insert(idx)
             }
         };
@@ -341,6 +376,7 @@ impl FontImpl {
                 self.ab_glyph_font.units_per_em().unwrap_or(1.0),
             ),
             custom_glyph: Some(index),
+            coloring: GlyphColoring::Color,
         }
     }
 
@@ -508,6 +544,7 @@ impl FontImpl {
             id: glyph_id,
             advance_width_px,
             uv_rect,
+            coloring: GlyphColoring::Monochrome,
         };
         entry.insert(allocation);
         (allocation, h_pos_round)
@@ -555,7 +592,7 @@ impl FontImpl {
 
         let height_points = metrics.row_height;
         let width_points =
-            height_points * (glyph_width as f32 / glyph_height as f32).max(f32::EPSILON);
+            height_points * glyph_width as f32 / glyph_height as f32;
         let advance_width_px = width_points * metrics.pixels_per_point;
         let offset = vec2(0.0, -height_points / 1.3);
 
@@ -571,6 +608,7 @@ impl FontImpl {
                     (glyph_pos.1 + glyph_height) as u16,
                 ],
             },
+            coloring: GlyphColoring::Color,
         };
         entry.insert(allocation);
         (allocation, h_pos.round() as i32)
@@ -593,7 +631,7 @@ impl Font<'_> {
     }
 
     /// Insert a user-provided glyph into the atlas.
-    pub fn allocate_custom_glyph(&mut self, c: char, image: ColorImage) -> GlyphInfo {
+    pub fn allocate_custom_glyph(&mut self, c: char, image: &ColorImage) -> GlyphInfo {
         if let Some(font_key) = self.cached_family.fonts.first().copied() {
             if let Some(font_impl) = self.fonts_by_id.get_mut(&font_key) {
                 let glyph_info = font_impl.allocate_custom_glyph(c, image);
@@ -606,6 +644,27 @@ impl Font<'_> {
         }
 
         GlyphInfo::INVISIBLE
+    }
+
+    pub(crate) fn preload_emojis(&mut self, store: &EmojiStore) {
+        if self.cached_family.fonts.is_empty() || store.is_empty() {
+            return;
+        }
+
+        let font_key = self.cached_family.fonts[0];
+        if let Some(font_impl) = self.fonts_by_id.get_mut(&font_key) {
+            for entry in store.entries() {
+                if self.cached_family.glyph_info_cache.contains_key(&entry.ch) {
+                    continue;
+                }
+                let glyph_info =
+                    font_impl.allocate_custom_glyph_arc(entry.ch, entry.image_arc());
+                self.cached_family
+                    .glyph_info_cache
+                    .insert(entry.ch, (font_key, glyph_info));
+            }
+            self.cached_family.characters = None;
+        }
     }
 
     /// All supported characters, and in which font they are available in.

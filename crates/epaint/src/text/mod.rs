@@ -1,6 +1,7 @@
 //! Everything related to text, fonts, text layout, cursors etc.
 
 pub mod cursor;
+mod emoji;
 mod font;
 mod fonts;
 mod text_layout;
@@ -17,6 +18,10 @@ pub use {
     text_layout::*,
     text_layout_types::*,
 };
+
+pub use font::GlyphColoring;
+
+pub(crate) use emoji::EmojiStore;
 
 /// Suggested character to use to replace those in password text fields.
 pub const PASSWORD_REPLACEMENT_CHAR: char = '•';

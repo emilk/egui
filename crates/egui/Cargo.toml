@@ -26,6 +26,15 @@ rustdoc-args = ["--generate-link-to-definition"]
 [features]
 default = ["default_fonts"]
 
+## Use the bundled low-resolution emoji atlas instead of the default mid-resolution sprites.
+emoji_low_res = ["epaint/emoji_low_res"]
+
+## Use the bundled high-resolution emoji atlas instead of the default mid-resolution sprites.
+emoji_high_res = ["epaint/emoji_high_res"]
+
+## Exposes detailed accessibility implementation required by platform
+## accessibility APIs. Also requires support in the egui integration.
+accesskit = ["dep:accesskit"]
 ## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast [`epaint::Vertex`], [`emath::Vec2`] etc to `&[u8]`.
 bytemuck = ["epaint/bytemuck"]
 

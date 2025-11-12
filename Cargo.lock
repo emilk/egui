@@ -1605,6 +1605,7 @@ dependencies = [
  "mimalloc",
  "nohash-hasher",
  "parking_lot",
+ "png",
  "profiling",
  "rayon",
  "serde",

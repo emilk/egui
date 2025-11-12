@@ -9,7 +9,7 @@ use std::{
 use crate::{
     AlphaFromCoverage, TextureAtlas,
     text::{
-        Galley, LayoutJob, LayoutSection,
+        EmojiStore, Galley, LayoutJob, LayoutSection,
         font::{Font, FontImpl, GlyphInfo},
     },
 };
@@ -765,6 +765,7 @@ pub struct FontsImpl {
     fonts_by_id: nohash_hasher::IntMap<FontFaceKey, FontImpl>,
     fonts_by_name: ahash::HashMap<String, FontFaceKey>,
     family_cache: ahash::HashMap<FontFamily, CachedFamily>,
+    emoji_store: EmojiStore,
 }
 
 impl FontsImpl {
@@ -797,6 +798,7 @@ impl FontsImpl {
             fonts_by_id,
             fonts_by_name: font_impls,
             family_cache: Default::default(),
+            emoji_store: EmojiStore::builtin(),
         }
     }
 
@@ -819,11 +821,13 @@ impl FontsImpl {
 
             CachedFamily::new(fonts, &mut self.fonts_by_id)
         });
-        Font {
+        let mut font = Font {
             fonts_by_id: &mut self.fonts_by_id,
             cached_family,
             atlas: &mut self.atlas,
-        }
+        };
+        font.preload_emojis(&self.emoji_store);
+        font
     }
 }
 

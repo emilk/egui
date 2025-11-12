@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use super::{
     cursor::{CCursor, LayoutCursor},
-    font::UvRect,
+    font::{GlyphColoring, UvRect},
 };
 use crate::{Color32, FontId, Mesh, Stroke, text::FontsView};
 use emath::{Align, GuiRounding as _, NumExt as _, OrderedFloat, Pos2, Rect, Vec2, pos2, vec2};
@@ -694,6 +694,9 @@ pub struct Glyph {
 
     /// Position and size of the glyph in the font texture, in texels.
     pub uv_rect: UvRect,
+
+    /// Whether the glyph carries baked color.
+    pub coloring: GlyphColoring,
 
     /// Index into [`LayoutJob::sections`]. Decides color etc.
     ///
