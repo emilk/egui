@@ -34,6 +34,10 @@ impl Drop for AppRunner {
 impl AppRunner {
     /// # Errors
     /// Failure to initialize WebGL renderer, or failure to create app.
+    #[cfg_attr(
+        not(feature = "wgpu_no_default_features"),
+        expect(clippy::unused_async)
+    )]
     pub async fn new(
         canvas: web_sys::HtmlCanvasElement,
         web_options: crate::WebOptions,
