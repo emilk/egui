@@ -6,6 +6,16 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.33.0 - 2025-10-09
+### 🔧 Changed
+* Update wgpu to 26 and wasm-bindgen to 0.2.100 [#7540](https://github.com/emilk/egui/pull/7540) by [@Kumpelinus](https://github.com/Kumpelinus)
+* Warn if `DYLD_LIBRARY_PATH` is set and we find no wgpu adapter [#7572](https://github.com/emilk/egui/pull/7572) by [@emilk](https://github.com/emilk)
+* Update MSRV from 1.86 to 1.88 [#7579](https://github.com/emilk/egui/pull/7579) by [@Wumpf](https://github.com/Wumpf)
+* Update wgpu to 27.0.0 [#7580](https://github.com/emilk/egui/pull/7580) by [@Wumpf](https://github.com/Wumpf)
+* Create `egui_wgpu::RendererOptions` [#7601](https://github.com/emilk/egui/pull/7601) by [@emilk](https://github.com/emilk)
+* Use software texture filtering in kittest [#7602](https://github.com/emilk/egui/pull/7602) by [@emilk](https://github.com/emilk)
+
+
 ## 0.32.3 - 2025-09-12
 Nothing new
 

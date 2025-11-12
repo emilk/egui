@@ -49,6 +49,7 @@ We don't update the MSRV in a patch release, unless we really, really need to.
 
 ## Preparation
 * [ ] make sure there are no important unmerged PRs
+* [ ] Ensure we don't have any patch/git dependencies (e.g. kittest)
 * [ ] Create a branch called `release-0.xx.0` and open a PR for it
 * [ ] run `scripts/generate_example_screenshots.sh` if needed
 * [ ] write a short release note that fits in a bluesky post

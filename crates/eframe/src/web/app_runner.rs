@@ -47,7 +47,7 @@ impl AppRunner {
         let mut gl = None;
 
         #[allow(clippy::allow_attributes, unused_assignments)]
-        #[cfg(feature = "wgpu")]
+        #[cfg(feature = "wgpu_no_default_features")]
         let mut wgpu_render_state = None;
 
         let painter = match web_options.renderer {
@@ -63,7 +63,7 @@ impl AppRunner {
                 Box::new(painter) as Box<dyn WebPainter>
             }
 
-            #[cfg(feature = "wgpu")]
+            #[cfg(feature = "wgpu_no_default_features")]
             epi::Renderer::Wgpu => {
                 log::debug!("Using the wgpu renderer");
                 let painter = super::web_painter_wgpu::WebPainterWgpu::new(
@@ -99,6 +99,14 @@ impl AppRunner {
             o.zoom_factor = 1.0;
         });
 
+        // Tell egui right away about native_pixels_per_point
+        // so that the app knows about it during app creation:
+        egui_ctx.input_mut(|i| {
+            let viewport_info = i.raw.viewports.entry(egui::ViewportId::ROOT).or_default();
+            viewport_info.native_pixels_per_point = Some(super::native_pixels_per_point());
+            i.pixels_per_point = super::native_pixels_per_point();
+        });
+
         let cc = epi::CreationContext {
             egui_ctx: egui_ctx.clone(),
             integration_info: info.clone(),
@@ -110,7 +118,7 @@ impl AppRunner {
             #[cfg(feature = "glow")]
             get_proc_address: None,
 
-            #[cfg(feature = "wgpu")]
+            #[cfg(feature = "wgpu_no_default_features")]
             wgpu_render_state: wgpu_render_state.clone(),
         };
         let app = app_creator(&cc).map_err(|err| err.to_string())?;
@@ -122,7 +130,7 @@ impl AppRunner {
             #[cfg(feature = "glow")]
             gl,
 
-            #[cfg(feature = "wgpu")]
+            #[cfg(feature = "wgpu_no_default_features")]
             wgpu_render_state,
         };
 
@@ -346,8 +354,7 @@ impl AppRunner {
             events: _,                    // already handled
             mutable_text_under_cursor: _, // TODO(#4569): https://github.com/emilk/egui/issues/4569
             ime,
-            #[cfg(feature = "accesskit")]
-                accesskit_update: _, // not currently implemented
+            accesskit_update: _,        // not currently implemented
             num_completed_passes: _,    // handled by `Context::run`
             request_discard_reasons: _, // handled by `Context::run`
         } = platform_output;

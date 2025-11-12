@@ -381,7 +381,7 @@ pub fn create_glow<'a>(
 
 // ----------------------------------------------------------------------------
 
-#[cfg(feature = "wgpu")]
+#[cfg(feature = "wgpu_no_default_features")]
 pub fn run_wgpu(
     app_name: &str,
     mut native_options: epi::NativeOptions,
@@ -404,7 +404,7 @@ pub fn run_wgpu(
     run_and_exit(event_loop, wgpu_eframe)
 }
 
-#[cfg(feature = "wgpu")]
+#[cfg(feature = "wgpu_no_default_features")]
 pub fn create_wgpu<'a>(
     app_name: &str,
     native_options: epi::NativeOptions,

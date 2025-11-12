@@ -8,9 +8,7 @@ mod builder;
 mod snapshot;
 
 #[cfg(feature = "snapshot")]
-pub use snapshot::*;
-use std::fmt::{Debug, Display, Formatter};
-use std::time::Duration;
+pub use crate::snapshot::*;
 
 mod app_kind;
 mod node;
@@ -20,18 +18,25 @@ mod texture_to_image;
 #[cfg(feature = "wgpu")]
 pub mod wgpu;
 
-pub use kittest;
+// re-exports:
+pub use {
+    self::{builder::*, node::*, renderer::*},
+    kittest,
+};
+
+use std::{
+    fmt::{Debug, Display, Formatter},
+    time::Duration,
+};
+
+use egui::{
+    Color32, Key, Modifiers, PointerButton, Pos2, Rect, RepaintCause, Shape, Vec2, ViewportId,
+    epaint::{ClippedShape, RectShape},
+    style::ScrollAnimation,
+};
+use kittest::Queryable;
 
 use crate::app_kind::AppKind;
-
-pub use builder::*;
-pub use node::*;
-pub use renderer::*;
-
-use egui::epaint::{ClippedShape, RectShape};
-use egui::style::ScrollAnimation;
-use egui::{Color32, Key, Modifiers, Pos2, Rect, RepaintCause, Shape, Vec2, ViewportId};
-use kittest::Queryable;
 
 #[derive(Debug, Clone)]
 pub struct ExceededMaxStepsError {
@@ -75,6 +80,9 @@ pub struct Harness<'a, State = ()> {
     step_dt: f32,
     wait_for_pending_images: bool,
     queued_events: EventQueue,
+
+    #[cfg(feature = "snapshot")]
+    default_snapshot_options: SnapshotOptions,
 }
 
 impl<State> Debug for Harness<'_, State> {
@@ -100,6 +108,9 @@ impl<'a, State> Harness<'a, State> {
             state: _,
             mut renderer,
             wait_for_pending_images,
+
+            #[cfg(feature = "snapshot")]
+            default_snapshot_options,
         } = builder;
         let ctx = ctx.unwrap_or_default();
         ctx.set_theme(theme);
@@ -147,6 +158,9 @@ impl<'a, State> Harness<'a, State> {
             step_dt,
             wait_for_pending_images,
             queued_events: Default::default(),
+
+            #[cfg(feature = "snapshot")]
+            default_snapshot_options,
         };
         // Run the harness until it is stable, ensuring that all Areas are shown and animations are done
         harness.run_ok();
@@ -587,6 +601,32 @@ impl<'a, State> Harness<'a, State> {
     /// - reset the modifiers
     pub fn key_press_modifiers(&self, modifiers: Modifiers, key: egui::Key) {
         self.key_combination_modifiers(modifiers, &[key]);
+    }
+
+    /// Move mouse cursor to this position.
+    pub fn hover_at(&self, pos: egui::Pos2) {
+        self.event(egui::Event::PointerMoved(pos));
+    }
+
+    /// Start dragging from a position.
+    pub fn drag_at(&self, pos: egui::Pos2) {
+        self.event(egui::Event::PointerButton {
+            pos,
+            button: PointerButton::Primary,
+            pressed: true,
+            modifiers: Modifiers::NONE,
+        });
+    }
+
+    /// Stop dragging and remove cursor.
+    pub fn drop_at(&self, pos: egui::Pos2) {
+        self.event(egui::Event::PointerButton {
+            pos,
+            button: PointerButton::Primary,
+            pressed: false,
+            modifiers: Modifiers::NONE,
+        });
+        self.remove_cursor();
     }
 
     /// Remove the cursor from the screen.

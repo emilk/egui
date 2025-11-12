@@ -7,6 +7,7 @@ use std::path::PathBuf;
 pub type SnapshotResult = Result<(), SnapshotError>;
 
 #[non_exhaustive]
+#[derive(Clone, Debug)]
 pub struct SnapshotOptions {
     /// The threshold for the image comparison.
     /// The default is `0.6` (which is enough for most egui tests to pass across different
@@ -556,8 +557,16 @@ pub fn image_snapshot(current: &image::RgbaImage, name: impl Into<String>) {
 
 #[cfg(any(feature = "wgpu", feature = "snapshot"))]
 impl<State> Harness<'_, State> {
+    /// The default options used for snapshot tests.
+    /// set by [`crate::HarnessBuilder::with_options`].
+    pub fn options(&self) -> &SnapshotOptions {
+        &self.default_snapshot_options
+    }
+
     /// Render an image using the setup [`crate::TestRenderer`] and compare it to the snapshot
     /// with custom options.
+    ///
+    /// These options will override the ones set by [`crate::HarnessBuilder::with_options`].
     ///
     /// If you want to change the default options for your whole project, you could create an
     /// [extension trait](http://xion.io/post/code/rust-extension-traits.html) to create a
@@ -586,6 +595,9 @@ impl<State> Harness<'_, State> {
     }
 
     /// Render an image using the setup [`crate::TestRenderer`] and compare it to the snapshot.
+    ///
+    /// This is like [`Self::try_snapshot_options`] but will use the options set by [`crate::HarnessBuilder::with_options`].
+    ///
     /// The snapshot will be saved under `tests/snapshots/{name}.png`.
     /// The new image from the last test run will be saved under `tests/snapshots/{name}.new.png`.
     /// If the new image didn't match the snapshot, a diff image will be saved under `tests/snapshots/{name}.diff.png`.
@@ -597,11 +609,13 @@ impl<State> Harness<'_, State> {
         let image = self
             .render()
             .map_err(|err| SnapshotError::RenderError { err })?;
-        try_image_snapshot(&image, name)
+        try_image_snapshot_options(&image, name.into(), &self.default_snapshot_options)
     }
 
     /// Render an image using the setup [`crate::TestRenderer`] and compare it to the snapshot
     /// with custom options.
+    ///
+    /// These options will override the ones set by [`crate::HarnessBuilder::with_options`].
     ///
     /// If you want to change the default options for your whole project, you could create an
     /// [extension trait](http://xion.io/post/code/rust-extension-traits.html) to create a
@@ -629,6 +643,9 @@ impl<State> Harness<'_, State> {
     }
 
     /// Render an image using the setup [`crate::TestRenderer`] and compare it to the snapshot.
+    ///
+    /// This is like [`Self::snapshot_options`] but will use the options set by [`crate::HarnessBuilder::with_options`].
+    ///
     /// The snapshot will be saved under `tests/snapshots/{name}.png`.
     /// The new image from the last test run will be saved under `tests/snapshots/{name}.new.png`.
     /// If the new image didn't match the snapshot, a diff image will be saved under `tests/snapshots/{name}.diff.png`.

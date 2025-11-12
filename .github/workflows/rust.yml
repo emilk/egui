@@ -46,7 +46,9 @@ jobs:
 
       - run: cargo clippy --locked --no-default-features --lib --all-targets
 
-      - run: cargo clippy --locked --no-default-features --features x11 --lib -p eframe
+      - run: cargo clippy --locked --no-default-features --lib -p eframe --features x11
+
+      - run: cargo clippy --locked --no-default-features --lib -p eframe --features x11,wgpu_no_default_features
 
       - run: cargo clippy --locked --no-default-features --lib -p egui_extras
 

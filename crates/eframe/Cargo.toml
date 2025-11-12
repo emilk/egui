@@ -33,14 +33,10 @@ default = [
   "wgpu",
   "winit/default",
   "x11",
-  "egui-wgpu?/fragile-send-sync-non-atomic-wasm",
-  # Let's enable some backends so that users can use `eframe` out-of-the-box
-  # without having to explicitly opt-in to backends
-  "egui-wgpu?/default",
 ]
 
 ## Enable platform accessibility API implementations through [AccessKit](https://accesskit.dev/).
-accesskit = ["egui/accesskit", "egui-winit/accesskit"]
+accesskit = ["egui-winit/accesskit"]
 
 # Allow crates to choose an android-activity backend via Winit
 # - It's important that most applications should not have to depend on android-activity directly, and can
@@ -92,16 +88,18 @@ web_screen_reader = ["web-sys/SpeechSynthesis", "web-sys/SpeechSynthesisUtteranc
 ## (including the .wasm of a web app).
 ## See <https://github.com/emilk/egui/issues/5889> for more details.
 ##
-## By default, only WebGPU is enabled on web.
-## If you want to enable WebGL, you need to turn on the `webgl` feature of crate `wgpu`:
-##
-## ```toml
-## wgpu = { version = "*", features = ["webgpu", "webgl"] }
-## ```
-##
 ## By default, eframe will prefer WebGPU over WebGL, but
 ## you can configure this at run-time with [`NativeOptions::wgpu_options`].
-wgpu = ["dep:wgpu", "dep:egui-wgpu", "dep:pollster"]
+wgpu = ["wgpu_no_default_features", "egui-wgpu/default"]
+
+## This is exactly like the `wgpu` feature, but does NOT enable the default features of `wgpu` and `egui-wgpu`.
+##
+## This means that no `wgpu` backends are enabled. You will need to enable them yourself, e.g. like this:
+##
+## ```toml
+## wgpu = { version = "*", features = ["dx12", "metal", "webgl"] }
+## ```
+wgpu_no_default_features = ["dep:wgpu", "dep:egui-wgpu", "dep:pollster"]
 
 ## Enables compiling for x11.
 x11 = [
