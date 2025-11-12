@@ -84,9 +84,9 @@ impl AppRunner {
             #[cfg(feature = "glow")]
             get_proc_address: None,
 
-            #[cfg(all(feature = "wgpu", not(feature = "glow")))]
+            #[cfg(all(feature = "wgpu_no_default_features", not(feature = "glow")))]
             wgpu_render_state: painter.render_state(),
-            #[cfg(all(feature = "wgpu", feature = "glow"))]
+            #[cfg(all(feature = "wgpu_no_default_features", feature = "glow"))]
             wgpu_render_state: None,
         };
         let app = app_creator(&cc).map_err(|err| err.to_string())?;
@@ -98,9 +98,9 @@ impl AppRunner {
             #[cfg(feature = "glow")]
             gl: Some(painter.gl().clone()),
 
-            #[cfg(all(feature = "wgpu", not(feature = "glow")))]
+            #[cfg(all(feature = "wgpu_no_default_features", not(feature = "glow")))]
             wgpu_render_state: painter.render_state(),
-            #[cfg(all(feature = "wgpu", feature = "glow"))]
+            #[cfg(all(feature = "wgpu_no_default_features", feature = "glow"))]
             wgpu_render_state: None,
         };
 

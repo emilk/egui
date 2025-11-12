@@ -159,7 +159,7 @@ pub use {egui, egui::emath, egui::epaint};
 #[cfg(feature = "glow")]
 pub use {egui_glow, glow};
 
-#[cfg(feature = "wgpu")]
+#[cfg(feature = "wgpu_no_default_features")]
 pub use {egui_wgpu, wgpu};
 
 mod epi;
@@ -188,19 +188,19 @@ pub use web::{WebLogger, WebRunner};
 // When compiling natively
 
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(any(feature = "glow", feature = "wgpu"))]
+#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 mod native;
 
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(any(feature = "glow", feature = "wgpu"))]
+#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 pub use native::run::EframeWinitApplication;
 
 #[cfg(not(any(target_arch = "wasm32", target_os = "ios")))]
-#[cfg(any(feature = "glow", feature = "wgpu"))]
+#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 pub use native::run::EframePumpStatus;
 
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(any(feature = "glow", feature = "wgpu"))]
+#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 #[cfg(feature = "persistence")]
 pub use native::file_storage::storage_dir;
 
@@ -252,7 +252,7 @@ pub mod icon_data;
 /// # Errors
 /// This function can fail if we fail to set up a graphics context.
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(any(feature = "glow", feature = "wgpu"))]
+#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 #[allow(clippy::needless_pass_by_value, clippy::allow_attributes)]
 pub fn run_native(
     app_name: &str,
@@ -268,7 +268,7 @@ pub fn run_native(
             native::run::run_glow(app_name, native_options, app_creator)
         }
 
-        #[cfg(feature = "wgpu")]
+        #[cfg(feature = "wgpu_no_default_features")]
         Renderer::Wgpu => {
             log::debug!("Using the wgpu renderer");
             native::run::run_wgpu(app_name, native_options, app_creator)
@@ -322,7 +322,7 @@ pub fn run_native(
 ///
 /// See the `external_eventloop` example for a more complete example.
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(any(feature = "glow", feature = "wgpu"))]
+#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 pub fn create_native<'a>(
     app_name: &str,
     mut native_options: NativeOptions,
@@ -343,7 +343,7 @@ pub fn create_native<'a>(
             ))
         }
 
-        #[cfg(feature = "wgpu")]
+        #[cfg(feature = "wgpu_no_default_features")]
         Renderer::Wgpu => {
             log::debug!("Using the wgpu renderer");
             EframeWinitApplication::new(native::run::create_wgpu(
@@ -357,7 +357,7 @@ pub fn create_native<'a>(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(any(feature = "glow", feature = "wgpu"))]
+#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 fn init_native(app_name: &str, native_options: &mut NativeOptions) -> Renderer {
     #[cfg(not(feature = "__screenshot"))]
     assert!(
@@ -371,7 +371,7 @@ fn init_native(app_name: &str, native_options: &mut NativeOptions) -> Renderer {
 
     let renderer = native_options.renderer;
 
-    #[cfg(all(feature = "glow", feature = "wgpu"))]
+    #[cfg(all(feature = "glow", feature = "wgpu_no_default_features"))]
     {
         match native_options.renderer {
             Renderer::Glow => "glow",
@@ -420,7 +420,7 @@ fn init_native(app_name: &str, native_options: &mut NativeOptions) -> Renderer {
 /// # Errors
 /// This function can fail if we fail to set up a graphics context.
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(any(feature = "glow", feature = "wgpu"))]
+#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 pub fn run_simple_native(
     app_name: &str,
     native_options: NativeOptions,
@@ -472,7 +472,7 @@ pub enum Error {
     OpenGL(egui_glow::PainterError),
 
     /// An error from [`wgpu`].
-    #[cfg(feature = "wgpu")]
+    #[cfg(feature = "wgpu_no_default_features")]
     Wgpu(egui_wgpu::WgpuError),
 }
 
@@ -510,7 +510,7 @@ impl From<egui_glow::PainterError> for Error {
     }
 }
 
-#[cfg(feature = "wgpu")]
+#[cfg(feature = "wgpu_no_default_features")]
 impl From<egui_wgpu::WgpuError> for Error {
     #[inline]
     fn from(err: egui_wgpu::WgpuError) -> Self {
@@ -551,7 +551,7 @@ impl std::fmt::Display for Error {
                 write!(f, "egui_glow: {err}")
             }
 
-            #[cfg(feature = "wgpu")]
+            #[cfg(feature = "wgpu_no_default_features")]
             Self::Wgpu(err) => {
                 write!(f, "WGPU error: {err}")
             }
