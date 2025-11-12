@@ -526,16 +526,28 @@ impl Painter {
                 depth_stencil_attachment: self.depth_texture_view.get(&viewport_id).map(|view| {
                     wgpu::RenderPassDepthStencilAttachment {
                         view,
-                        depth_ops: Some(wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(1.0),
-                            // It is very unlikely that the depth buffer is needed after egui finished rendering
-                            // so no need to store it. (this can improve performance on tiling GPUs like mobile chips or Apple Silicon)
-                            store: wgpu::StoreOp::Discard,
-                        }),
-                        stencil_ops: Some(wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(0),
-                            store: wgpu::StoreOp::Discard,
-                        }),
+                        depth_ops: self
+                            .options
+                            .depth_stencil_format
+                            .is_some_and(|depth_stencil_format| {
+                                depth_stencil_format.has_depth_aspect()
+                            })
+                            .then_some(wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(1.0),
+                                // It is very unlikely that the depth buffer is needed after egui finished rendering
+                                // so no need to store it. (this can improve performance on tiling GPUs like mobile chips or Apple Silicon)
+                                store: wgpu::StoreOp::Discard,
+                            }),
+                        stencil_ops: self
+                            .options
+                            .depth_stencil_format
+                            .is_some_and(|depth_stencil_format| {
+                                depth_stencil_format.has_stencil_aspect()
+                            })
+                            .then_some(wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(0),
+                                store: wgpu::StoreOp::Discard,
+                            }),
                     }
                 }),
                 timestamp_writes: None,
