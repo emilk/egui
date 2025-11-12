@@ -7,7 +7,6 @@ use crate::{
     Image, IntoAtoms, NumExt as _, Response, RichText, Sense, Stroke, TextStyle, TextWrapMode, Ui,
     Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
     style_trait::{ButtonStyle, WidgetState},
-    text_selection::visuals,
 };
 
 /// Clickable button with text.
