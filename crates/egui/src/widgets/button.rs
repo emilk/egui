@@ -1,11 +1,12 @@
-use std::sync::Arc;
+use std::{mem, sync::Arc};
 
 use epaint::Margin;
 
 use crate::{
     Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Color32, CornerRadius, Frame,
     Image, IntoAtoms, NumExt as _, Response, RichText, Sense, Stroke, TextStyle, TextWrapMode, Ui,
-    Vec2, Widget, WidgetInfo, WidgetText, WidgetType, style_trait::WidgetState,
+    Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
+    style_trait::{ButtonStyle, WidgetState},
 };
 
 /// Clickable button with text.
@@ -293,16 +294,16 @@ impl<'a> Button<'a> {
 
         let text = layout.text().map(String::from);
 
+        let has_frame_margin = frame.unwrap_or_else(|| ui.visuals().button_frame);
+
         let id = ui.next_auto_id();
         let response: Option<Response> = ui.ctx().read_response(id);
         let state = response.map(|r| r.widget_state()).unwrap_or_default();
 
-        let style = ui.style().button_style(state, selected);
-
-        let has_frame_margin = frame.unwrap_or_else(|| ui.visuals().button_frame);
+        let ButtonStyle { frame, text_style } = ui.style().button_style(state, selected);
 
         let mut button_padding = if has_frame_margin {
-            style.frame.inner_margin
+            frame.inner_margin
         } else {
             Margin::ZERO
         };
@@ -313,7 +314,7 @@ impl<'a> Button<'a> {
         }
 
         // Override global style by local style
-        let mut frame = style.frame;
+        let mut frame = frame;
         if let Some(fill) = fill {
             frame = frame.fill(fill);
         }
@@ -331,31 +332,34 @@ impl<'a> Button<'a> {
         layout.map_texts(|t| match t {
             WidgetText::Text(text) => {
                 let rich_text = RichText::new(text.clone())
-                    .font(style.text.font_id.clone())
-                    .color(style.text.color);
+                    .font(text_style.font_id.clone())
+                    .color(text_style.color);
                 WidgetText::RichText(Arc::new(rich_text))
+            }
+            WidgetText::RichText(mut text) => {
+                let text_mut = Arc::make_mut(&mut text);
+                *text_mut = mem::take(text_mut).font(text_style.font_id.clone());
+                WidgetText::RichText(text)
             }
             w => w,
         });
 
         // Retrocompatibility with button settings
-        let mut prepared =
-            if has_frame_margin && (state != WidgetState::Inactive || frame_when_inactive) {
-                layout.frame(frame).min_size(min_size).allocate(ui)
-            } else {
-                layout
-                    .frame(Frame::new().inner_margin(frame.inner_margin))
-                    .min_size(min_size)
-                    .allocate(ui)
-            };
+        layout = if has_frame_margin && (state != WidgetState::Inactive || frame_when_inactive) {
+            layout.frame(frame)
+        } else {
+            layout.frame(Frame::new().inner_margin(frame.inner_margin))
+        };
+
+        let mut prepared = layout.min_size(min_size).allocate(ui);
 
         // Get AtomLayoutResponse, empty if not visible
         let response = if ui.is_rect_visible(prepared.response.rect) {
             if image_tint_follows_text_color {
-                prepared.map_images(|image| image.tint(style.text.color));
+                prepared.map_images(|image| image.tint(text_style.color));
             }
 
-            prepared.fallback_text_color = style.text.color;
+            prepared.fallback_text_color = text_style.color;
 
             prepared.paint(ui)
         } else {

@@ -30,7 +30,7 @@ pub struct WidgetStyle {
 
 pub struct ButtonStyle {
     pub frame: Frame,
-    pub text: TextVisuals,
+    pub text_style: TextVisuals,
 }
 
 pub struct CheckboxStyle {
@@ -38,10 +38,10 @@ pub struct CheckboxStyle {
     pub frame: Frame,
 
     /// Text next to it
-    pub text: TextVisuals,
+    pub text_style: TextVisuals,
 
     /// Checkbox size
-    pub size: f32,
+    pub checkbox_size: f32,
 
     /// Checkmark size
     pub check_size: f32,
@@ -50,7 +50,7 @@ pub struct CheckboxStyle {
     pub checkbox_frame: Frame,
 
     /// Checkmark stroke
-    pub stroke: Stroke,
+    pub check_stroke: Stroke,
 }
 
 pub struct LabelStyle {
@@ -148,7 +148,7 @@ impl Style {
                 .into(),
                 ..Default::default()
             },
-            text: ws.text,
+            text_style: ws.text,
         }
     }
 
@@ -157,16 +157,16 @@ impl Style {
         let ws = self.widget_style(state);
         CheckboxStyle {
             frame: Frame::new(),
-            size: self.spacing.icon_width,
+            checkbox_size: self.spacing.icon_width,
             check_size: self.spacing.icon_width_inner,
             checkbox_frame: Frame {
-                fill: visuals.weak_bg_fill,
+                fill: visuals.bg_fill,
                 corner_radius: visuals.corner_radius,
                 stroke: visuals.bg_stroke,
                 ..Default::default()
             },
-            text: ws.text,
-            stroke: ws.stroke,
+            text_style: ws.text,
+            check_stroke: ws.stroke,
         }
     }
 
