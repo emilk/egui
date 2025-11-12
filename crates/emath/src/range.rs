@@ -4,7 +4,6 @@ use std::ops::{RangeFrom, RangeFull, RangeInclusive, RangeToInclusive};
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Rangef {
     pub min: f32,
     pub max: f32,
@@ -217,4 +216,16 @@ impl PartialEq<Rangef> for RangeInclusive<f32> {
     fn eq(&self, other: &Rangef) -> bool {
         *self.start() == other.min && *self.end() == other.max
     }
+}
+
+#[cfg(feature = "bytemuck")]
+mod bytemuck_support {
+    #![allow(unsafe_code)]
+
+    use super::*;
+    use bytemuck::{Pod, Zeroable};
+
+    // SAFETY: Rangef is repr(C) with two `f32` fields.
+    unsafe impl Zeroable for Rangef {}
+    unsafe impl Pod for Rangef {}
 }

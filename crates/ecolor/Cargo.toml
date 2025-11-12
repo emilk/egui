@@ -33,7 +33,7 @@ emath.workspace = true
 #! ### Optional dependencies
 
 ## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast `ecolor` types to `&[u8]`.
-bytemuck = { workspace = true, optional = true, features = ["derive"] }
+bytemuck = { workspace = true, optional = true }
 
 ## [`cint`](https://docs.rs/cint) enables interoperability with other color libraries.
 cint = { workspace = true, optional = true }

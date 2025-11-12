@@ -80,7 +80,7 @@ android_logger = "0.15.1"
 arboard = { version = "3.6.1", default-features = false }
 backtrace = "0.3.76"
 bitflags = "2.9.4"
-bytemuck = "1.24.0"
+bytemuck = { version = "1.24.0", default-features = false }
 chrono = { version = "0.4.42", default-features = false }
 cint = "0.3.1"
 color-hex = "0.2.0"

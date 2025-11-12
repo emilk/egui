@@ -12,7 +12,6 @@ use crate::Vec2b;
 #[repr(C)]
 #[derive(Clone, Copy, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Vec2 {
     /// Rightwards. Width.
     pub x: f32,
@@ -498,6 +497,18 @@ impl fmt::Display for Vec2 {
         f.write_str("]")?;
         Ok(())
     }
+}
+
+#[cfg(feature = "bytemuck")]
+mod bytemuck_support {
+    #![allow(unsafe_code)]
+
+    use super::*;
+    use bytemuck::{Pod, Zeroable};
+
+    // SAFETY: Vec2 is repr(C) with two `f32` fields and no drop logic.
+    unsafe impl Zeroable for Vec2 {}
+    unsafe impl Pod for Vec2 {}
 }
 
 #[cfg(test)]

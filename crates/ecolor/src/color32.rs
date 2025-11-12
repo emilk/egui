@@ -27,7 +27,6 @@ use crate::{Rgba, fast_round, linear_f32_from_linear_u8};
 #[repr(align(4))]
 #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Color32(pub(crate) [u8; 4]);
 
 impl std::fmt::Debug for Color32 {
@@ -405,6 +404,18 @@ impl std::ops::Add for Color32 {
             self[3].saturating_add(other[3]),
         ])
     }
+}
+
+#[cfg(feature = "bytemuck")]
+mod bytemuck_support {
+    #![allow(unsafe_code)]
+
+    use super::*;
+    use bytemuck::{Pod, Zeroable};
+
+    // SAFETY: Color32 is repr(C) over `[u8; 4]` with no padding or drop logic.
+    unsafe impl Zeroable for Color32 {}
+    unsafe impl Pod for Color32 {}
 }
 
 #[cfg(test)]

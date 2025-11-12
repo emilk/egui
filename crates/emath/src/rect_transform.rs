@@ -6,7 +6,6 @@ use crate::{Pos2, Rect, Vec2, pos2, remap, remap_clamp};
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct RectTransform {
     from: Rect,
     to: Rect,
@@ -80,4 +79,16 @@ impl std::ops::Mul<Pos2> for &RectTransform {
     fn mul(self, pos: Pos2) -> Pos2 {
         self.transform_pos(pos)
     }
+}
+
+#[cfg(feature = "bytemuck")]
+mod bytemuck_support {
+    #![allow(unsafe_code)]
+
+    use super::*;
+    use bytemuck::{Pod, Zeroable};
+
+    // SAFETY: RectTransform is repr(C) and only stores `Rect` values, which are plain data.
+    unsafe impl Zeroable for RectTransform {}
+    unsafe impl Pod for RectTransform {}
 }

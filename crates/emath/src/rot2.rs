@@ -16,7 +16,6 @@ use super::Vec2;
 #[repr(C)]
 #[derive(Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Rot2 {
     /// `angle.sin()`
     s: f32,
@@ -179,6 +178,18 @@ impl std::ops::Div<f32> for Rot2 {
             s: self.s / r,
         }
     }
+}
+
+#[cfg(feature = "bytemuck")]
+mod bytemuck_support {
+    #![allow(unsafe_code)]
+
+    use super::*;
+    use bytemuck::{Pod, Zeroable};
+
+    // SAFETY: Rot2 is repr(C) over two `f32` fields and has no drop logic.
+    unsafe impl Zeroable for Rot2 {}
+    unsafe impl Pod for Rot2 {}
 }
 
 #[cfg(test)]

@@ -7,7 +7,6 @@ use crate::{Pos2, Rect, Vec2};
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct TSTransform {
     /// Scaling applied first, scaled around (0, 0).
     pub scaling: f32,
@@ -148,4 +147,16 @@ impl std::ops::Mul<Self> for TSTransform {
             translation: self.translation + self.scaling * rhs.translation,
         }
     }
+}
+
+#[cfg(feature = "bytemuck")]
+mod bytemuck_support {
+    #![allow(unsafe_code)]
+
+    use super::*;
+    use bytemuck::{Pod, Zeroable};
+
+    // SAFETY: TSTransform is repr(C) with only `Vec2` and `f32` fields.
+    unsafe impl Zeroable for TSTransform {}
+    unsafe impl Pod for TSTransform {}
 }

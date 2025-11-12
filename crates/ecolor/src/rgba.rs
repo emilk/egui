@@ -6,7 +6,6 @@ use crate::Color32;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Rgba(pub(crate) [f32; 4]);
 
 impl std::ops::Index<usize> for Rgba {
@@ -273,6 +272,18 @@ impl std::ops::Mul<Rgba> for f32 {
             self * rgba[3],
         ])
     }
+}
+
+#[cfg(feature = "bytemuck")]
+mod bytemuck_support {
+    #![allow(unsafe_code)]
+
+    use super::*;
+    use bytemuck::{Pod, Zeroable};
+
+    // SAFETY: Rgba is repr(C) over `[f32; 4]` with no padding or drop logic.
+    unsafe impl Zeroable for Rgba {}
+    unsafe impl Pod for Rgba {}
 }
 
 #[cfg(test)]

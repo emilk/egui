@@ -141,7 +141,7 @@ impl ScreenDescriptor {
 }
 
 /// Uniform buffer used when rendering.
-#[derive(Clone, Copy, Debug, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(C)]
 struct UniformBuffer {
     screen_size_in_points: [f32; 2],
@@ -152,6 +152,12 @@ struct UniformBuffer {
     /// See also <https://github.com/emilk/egui/issues/5295>.
     predictable_texture_filtering: u32,
 }
+
+// SAFETY: UniformBuffer is repr(C) with only plain-old-data fields.
+#[allow(unsafe_code)]
+unsafe impl bytemuck::Zeroable for UniformBuffer {}
+#[allow(unsafe_code)]
+unsafe impl bytemuck::Pod for UniformBuffer {}
 
 struct SlicedBuffer {
     buffer: wgpu::Buffer,

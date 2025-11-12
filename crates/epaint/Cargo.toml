@@ -69,7 +69,7 @@ parking_lot.workspace = true # Using parking_lot over std::sync::Mutex gives 50%
 profiling = { workspace = true }
 
 #! ### Optional dependencies
-bytemuck = { workspace = true, optional = true, features = ["derive"] }
+bytemuck = { workspace = true, optional = true }
 
 ## Enable this when generating docs.
 document-features = { workspace = true, optional = true }

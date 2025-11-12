@@ -14,7 +14,6 @@ use crate::{Div, Mul, Vec2, lerp};
 #[repr(C)]
 #[derive(Clone, Copy, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Pos2 {
     /// How far to the right.
     pub x: f32,
@@ -346,4 +345,16 @@ impl fmt::Display for Pos2 {
         f.write_str("]")?;
         Ok(())
     }
+}
+
+#[cfg(feature = "bytemuck")]
+mod bytemuck_support {
+    #![allow(unsafe_code)]
+
+    use super::*;
+    use bytemuck::{Pod, Zeroable};
+
+    // SAFETY: Pos2 is repr(C) with only `f32` fields and no padding or drop logic.
+    unsafe impl Zeroable for Pos2 {}
+    unsafe impl Pod for Pos2 {}
 }

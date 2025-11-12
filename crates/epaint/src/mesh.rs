@@ -8,7 +8,6 @@ use emath::{Pos2, Rect, Rot2, TSTransform, Vec2};
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg(any(not(feature = "unity"), feature = "_override_unity"))]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Vertex {
     /// Logical pixel coordinates (points).
     /// (0,0) is the top left corner of the screen.
@@ -27,7 +26,6 @@ pub struct Vertex {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg(all(feature = "unity", not(feature = "_override_unity")))]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Vertex {
     /// Logical pixel coordinates (points).
     /// (0,0) is the top left corner of the screen.
@@ -314,6 +312,26 @@ impl Mesh {
             v.pos = origin + rot * (v.pos - origin);
         }
     }
+}
+
+#[cfg(feature = "bytemuck")]
+mod bytemuck_support {
+    #![allow(unsafe_code)]
+
+    use super::*;
+    use bytemuck::{Pod, Zeroable};
+
+    #[cfg(any(not(feature = "unity"), feature = "_override_unity"))]
+    // SAFETY: Vertex is repr(C) with only `Pos2` and `Color32`, all plain data.
+    unsafe impl Zeroable for Vertex {}
+    #[cfg(any(not(feature = "unity"), feature = "_override_unity"))]
+    unsafe impl Pod for Vertex {}
+
+    #[cfg(all(feature = "unity", not(feature = "_override_unity")))]
+    // SAFETY: Unity-compatible Vertex uses the same plain data layout.
+    unsafe impl Zeroable for Vertex {}
+    #[cfg(all(feature = "unity", not(feature = "_override_unity")))]
+    unsafe impl Pod for Vertex {}
 }
 
 // ----------------------------------------------------------------------------

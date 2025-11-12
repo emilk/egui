@@ -21,7 +21,6 @@ use std::ops::{BitOr, BitOrAssign};
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Rect {
     /// One of the corners of the rectangle, usually the left top one.
     pub min: Pos2,
@@ -792,6 +791,18 @@ impl BitOrAssign for Rect {
     fn bitor_assign(&mut self, other: Self) {
         *self = self.union(other);
     }
+}
+
+#[cfg(feature = "bytemuck")]
+mod bytemuck_support {
+    #![allow(unsafe_code)]
+
+    use super::*;
+    use bytemuck::{Pod, Zeroable};
+
+    // SAFETY: Rect is repr(C) with only `Pos2` fields, which are themselves plain data.
+    unsafe impl Zeroable for Rect {}
+    unsafe impl Pod for Rect {}
 }
 
 #[cfg(test)]
