@@ -96,6 +96,81 @@
 //! # });
 //! ```
 //!
+//! ### Layout helpers
+//!
+//! ```
+//! # egui::__run_test_ui(|ui| {
+//! ui.horizontal(|ui| {
+//!     ui.label("Widgets");
+//!     ui.label("share a row");
+//! });
+//!
+//! ui.vertical_centered(|ui| {
+//!     ui.label("These labels");
+//!     ui.label("are centered");
+//! });
+//!
+//! ui.vertical_centered_justified(|ui| {
+//!     ui.label("Justified widgets expand to fill the available width.");
+//! });
+//! # });
+//! ```
+//!
+//! ### Selectable widgets and combo boxes
+//!
+//! ```
+//! # egui::__run_test_ui(|ui| {
+//! #[derive(PartialEq)]
+//! enum Page { Overview, Details, Logs }
+//! # let mut page = Page::Overview;
+//! ui.horizontal(|ui| {
+//!     ui.selectable_value(&mut page, Page::Overview, "Overview");
+//!     ui.selectable_value(&mut page, Page::Details, "Details");
+//!     ui.selectable_value(&mut page, Page::Logs, "Logs");
+//! });
+//!
+//! let mut choice = "Apple";
+//! egui::ComboBox::from_label("Favorite fruit")
+//!     .selected_text(choice)
+//!     .show_ui(ui, |ui| {
+//!         ui.selectable_value(&mut choice, "Apple", "Apple");
+//!         ui.selectable_value(&mut choice, "Banana", "Banana");
+//!         ui.selectable_value(&mut choice, "Kiwi", "Kiwi");
+//!     });
+//! # });
+//! ```
+//!
+//! ### Grids
+//!
+//! Use [`Grid`] when you need tabular layouts with aligned columns:
+//!
+//! ```
+//! # egui::__run_test_ui(|ui| {
+//! egui::Grid::new("stats_grid")
+//!     .num_columns(2)
+//!     .striped(true)
+//!     .show(ui, |ui| {
+//!         ui.label("Downloads");
+//!         ui.label("42_000");
+//!         ui.end_row();
+//!
+//!         ui.label("Open issues");
+//!         ui.label("128");
+//!         ui.end_row();
+//!     });
+//! # });
+//! ```
+//!
+//! ### Tooltips
+//!
+//! ```
+//! # egui::__run_test_ui(|ui| {
+//! ui.button("Hover me")
+//!     .on_hover_text("Short tooltip")
+//!     .on_hover_text_at_pointer("Follow the cursor");
+//! # });
+//! ```
+//!
 //! ## Viewports
 //! Some egui backends support multiple _viewports_, which is what egui calls the native OS windows it resides in.
 //! See [`crate::viewport`] for more information.
