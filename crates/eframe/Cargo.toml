@@ -26,11 +26,8 @@ workspace = true
 
 [features]
 default = [
-  "accesskit",
   "default_fonts",
   "glow",
-  "wayland", # Required for Linux support (including CI!)
-  "web_screen_reader",
   "x11",
   "egui-wgpu?/fragile-send-sync-non-atomic-wasm",
   # Let's enable some backends so that users can use `eframe` out-of-the-box
@@ -64,6 +61,8 @@ persistence = ["dep:home", "egui-winit/serde", "egui/persistence", "ron", "serde
 ## Enables wayland support and fixes clipboard issue.
 ##
 ## If you are compiling for Linux (or want to test on a CI system using Linux), you should enable this feature.
+# Platform integrations are now opt-in to keep default builds lightweight.
+# We keep X11 enabled by default so Linux builds still get a window backend without extra flags.
 wayland = [
   "egui-winit/wayland",
   "egui-wgpu?/wayland",
