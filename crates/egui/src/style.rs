@@ -403,11 +403,23 @@ pub struct Spacing {
     /// Horizontal and vertical margins within a window frame.
     pub window_margin: Margin,
 
+    /// Horizontal and vertical margins within a group frame.
+    pub group_margin: Margin,
+
     /// Button size is text size plus this on each side
     pub button_padding: Vec2,
 
     /// Horizontal and vertical margins within a menu frame.
     pub menu_margin: Margin,
+
+    /// Horizontal and vertical margins within a `SidePanel` or `TopBottomPanel`
+    pub side_top_panel_margin: Margin,
+
+    /// Horizontal and vertical margins within a `CentralPanel`
+    pub central_panel_margin: Margin,
+
+    /// Horizontal and vertical margins within a canvas `Frame`
+    pub canvas_margin: Margin,
 
     /// Indent collapsing regions etc by this much.
     pub indent: f32,
@@ -1350,7 +1362,11 @@ impl Default for Spacing {
         Self {
             item_spacing: vec2(8.0, 3.0),
             window_margin: Margin::same(6),
+            group_margin: Margin::same(6),
             menu_margin: Margin::same(6),
+            side_top_panel_margin: Margin::symmetric(8, 2),
+            central_panel_margin: Margin::same(8),
+            canvas_margin: Margin::same(2),
             button_padding: vec2(4.0, 1.0),
             indent: 18.0, // match checkbox/radio-button with `button_padding.x + icon_width + icon_spacing`
             interact_size: vec2(40.0, 18.0),
@@ -1791,8 +1807,12 @@ impl Spacing {
         let Self {
             item_spacing,
             window_margin,
+            group_margin,
             menu_margin,
             button_padding,
+            canvas_margin,
+            central_panel_margin,
+            side_top_panel_margin,
             indent,
             interact_size,
             slider_width,
@@ -1824,8 +1844,24 @@ impl Spacing {
                 ui.add(window_margin);
                 ui.end_row();
 
+                ui.label("Group margin");
+                ui.add(group_margin);
+                ui.end_row();
+
                 ui.label("Menu margin");
                 ui.add(menu_margin);
+                ui.end_row();
+
+                ui.label("Canvas frame margin");
+                ui.add(canvas_margin);
+                ui.end_row();
+
+                ui.label("SidePanel and TopBottomPanel margin");
+                ui.add(side_top_panel_margin);
+                ui.end_row();
+
+                ui.label("CentralPanel margin");
+                ui.add(central_panel_margin);
                 ui.end_row();
 
                 ui.label("Button padding");
