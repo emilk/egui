@@ -35,7 +35,7 @@ x11 = ["eframe?/x11"]
 
 [dependencies]
 kittest.workspace = true
-egui = { workspace = true, features = ["accesskit"] }
+egui.workspace = true
 eframe = { workspace = true, optional = true }
 
 # wgpu dependencies
