@@ -32,6 +32,9 @@ use winit::{
     window::{CursorGrabMode, Window, WindowButtons, WindowLevel},
 };
 
+use std::sync::Arc;
+use std::sync::RwLock;
+
 pub fn screen_size_in_pixels(window: &Window) -> egui::Vec2 {
     let size = if cfg!(target_os = "ios") {
         // `outer_size` Includes the area behind the "dynamic island".
@@ -102,7 +105,7 @@ pub struct State {
     has_sent_ime_enabled: bool,
 
     #[cfg(feature = "accesskit")]
-    accesskit: Option<accesskit_winit::Adapter>,
+    accesskit: Option<Arc<RwLock<accesskit_winit::Adapter>>>,
 
     allow_ime: bool,
     ime_rect_px: Option<egui::Rect>,
@@ -172,11 +175,14 @@ impl State {
     ) {
         profiling::function_scope!();
 
-        self.accesskit = Some(accesskit_winit::Adapter::with_event_loop_proxy(
-            event_loop,
-            window,
-            event_loop_proxy,
-        ));
+        self.accesskit = Some(Arc::new(RwLock::new(
+            accesskit_winit::Adapter::with_event_loop_proxy(event_loop, window, event_loop_proxy),
+        )));
+    }
+
+    #[cfg(feature = "accesskit")]
+    pub fn init_accesskit_with_adapter(&mut self, adapter: Arc<RwLock<accesskit_winit::Adapter>>) {
+        self.accesskit = Some(adapter);
     }
 
     /// Call this once a graphics context has been created to update the maximum texture dimensions
@@ -270,7 +276,8 @@ impl State {
         profiling::function_scope!(short_window_event_description(event));
 
         #[cfg(feature = "accesskit")]
-        if let Some(accesskit) = self.accesskit.as_mut() {
+        if let Some(accesskit) = self.accesskit.as_ref() {
+            let mut accesskit = accesskit.write().unwrap();
             accesskit.process_event(window, event);
         }
 
@@ -941,9 +948,10 @@ impl State {
         }
 
         #[cfg(feature = "accesskit")]
-        if let Some(accesskit) = self.accesskit.as_mut()
+        if let Some(accesskit) = self.accesskit.as_ref()
             && let Some(update) = accesskit_update
         {
+            let mut accesskit = accesskit.write().unwrap();
             profiling::scope!("accesskit");
             accesskit.update_if_active(|| update);
         }
