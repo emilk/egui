@@ -7,6 +7,7 @@ use crate::{
     Image, IntoAtoms, NumExt as _, Response, RichText, Sense, Stroke, TextStyle, TextWrapMode, Ui,
     Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
     style_trait::{ButtonStyle, WidgetState},
+    text_selection::visuals,
 };
 
 /// Clickable button with text.
@@ -338,7 +339,9 @@ impl<'a> Button<'a> {
             }
             WidgetText::RichText(mut text) => {
                 let text_mut = Arc::make_mut(&mut text);
-                *text_mut = mem::take(text_mut).font(text_style.font_id.clone());
+                *text_mut = mem::take(text_mut)
+                    .font(text_style.font_id.clone())
+                    .color(text_style.color);
                 WidgetText::RichText(text)
             }
             w => w,
@@ -356,10 +359,10 @@ impl<'a> Button<'a> {
         // Get AtomLayoutResponse, empty if not visible
         let response = if ui.is_rect_visible(prepared.response.rect) {
             if image_tint_follows_text_color {
-                prepared.map_images(|image| image.tint(text_style.color));
+                prepared.map_images(|image| image.tint(ui.visuals().text_color()));
             }
 
-            prepared.fallback_text_color = text_style.color;
+            prepared.fallback_text_color = ui.visuals().text_color();
 
             prepared.paint(ui)
         } else {

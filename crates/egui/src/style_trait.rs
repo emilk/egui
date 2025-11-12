@@ -120,7 +120,10 @@ impl Style {
             },
             stroke: visuals.fg_stroke,
             text: TextVisuals {
-                color: visuals.text_color(),
+                color: self
+                    .visuals
+                    .override_text_color
+                    .unwrap_or(visuals.text_color()),
                 font_id: font_id.unwrap_or(TextStyle::Body.resolve(self)),
                 strikethrough: Stroke::NONE,
                 underline: Stroke::NONE,
@@ -131,12 +134,14 @@ impl Style {
     pub fn button_style(&self, state: WidgetState, selected: bool) -> ButtonStyle {
         let mut visuals = *self.visuals.widgets.state(state);
         let mut ws = self.widget_style(state);
+
         if selected {
             visuals.weak_bg_fill = self.visuals.selection.bg_fill;
             visuals.bg_fill = self.visuals.selection.bg_fill;
             visuals.fg_stroke = self.visuals.selection.stroke;
             ws.text.color = self.visuals.selection.stroke.color;
         }
+
         ButtonStyle {
             frame: Frame {
                 fill: visuals.weak_bg_fill,
@@ -189,7 +194,7 @@ impl Style {
     pub fn separator_style(&self, _state: WidgetState) -> SeparatorStyle {
         let visuals = self.visuals.noninteractive();
         SeparatorStyle {
-            spacing: 0.0,
+            spacing: 6.0,
             stroke: visuals.bg_stroke,
         }
     }
