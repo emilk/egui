@@ -1,0 +1,13 @@
+# eframe compile-time findings
+
+1. **`bytemuck_derive` still blocks compilation:** Every core math/color/vertex type (e.g. `ecolor::Color32` at `crates/ecolor/src/color32.rs:26`, `emath::Pos2` at `crates/emath/src/pos2.rs:14`, `epaint::Vertex` at `crates/epaint/src/mesh.rs:7`, plus GPU structs like `UniformBuffer` at `crates/egui-wgpu/src/renderer.rs:143`) derives `bytemuck::Pod/Zeroable`. Each crate enables `features = ["derive"]` for `bytemuck`, so the build waits on the `bytemuck_derive` proc-macro and `syn` before compiling anything downstream. Manually `unsafe impl`-ing `Pod`/`Zeroable` (potentially via a helper macro) would let you drop these derives and remove the proc-macro from the hot path.
+
+2. **`thiserror` derive on `WgpuError`:** `crates/egui-wgpu/src/lib.rs:42` derives `thiserror::Error`, forcing both `thiserror` versions (`1.0.x`, `2.0.x`) and their proc-macro dependencies to compile whenever `wgpu` is enabled. The enum only wraps existing error types and a couple of strings, so implementing `Display`/`Error` manually would remove `thiserror` from `egui-wgpu` and potentially the entire workspace.
+
+3. **Default features pull in unneeded platform crates:** `eframe`’s default feature list re-enables `winit/default` (`crates/eframe/Cargo.toml:27`), which drags in all platform backends, including mac-only `core-graphics` and the `foreign-types` proc-macro chain (`Cargo.lock:960`, `Cargo.lock:1773`) even on non-mac builds. Trimming the default set (and relying on the existing `wayland`, `x11`, `android-*` flags) would keep these compile-time costs disabled unless requested.
+
+4. **`egui-wgpu` defaults to `wgpu/default`:** `crates/egui-wgpu/Cargo.toml:28` turns on every backend feature, pulling large crates such as `objc2-*` regardless of the target platform. Providing a lighter default (e.g., only `wgsl` plus the backends eframe truly needs) and letting consumers opt into additional backends could save ~5–10s on macOS builds.
+
+5. **Residual `bytemuck` usage in web clipboard path:** After removing the derives, the only remaining `bytemuck` call inside `eframe` is the clipboard conversion for wasm (`crates/eframe/src/web/mod.rs:257`), and the wasm dependency entry (`crates/eframe/Cargo.toml:181`). Replacing `bytemuck::cast_slice` there with a small, well-audited `unsafe` block or manual byte copy would let wasm builds avoid pulling `bytemuck` entirely, shortening the dependency queue further.
+
+Suggested follow-up: (a) replace the derives with manual impls, (b) drop `thiserror` in favor of handwritten error types, (c) pare back default features in both `eframe` and `egui-wgpu`, then (d) re-run `cargo clean && cargo build --timings -p eframe` to quantify the improvement.
