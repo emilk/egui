@@ -48,6 +48,12 @@ android-native-activity = ["egui-winit/android-native-activity"]
 ## If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["egui/default_fonts"]
 
+## Enable cut/copy/paste support via egui-winit's clipboard integration.
+clipboard = ["egui-winit/clipboard"]
+
+## Enable opening links in a browser when an egui hyperlink is clicked.
+links = ["egui-winit/links"]
+
 ## Use [`glow`](https://github.com/grovesNL/glow) for painting, via [`egui_glow`](https://github.com/emilk/egui/tree/main/crates/egui_glow).
 glow = ["dep:egui_glow", "dep:glow", "dep:glutin-winit", "dep:glutin"]
 
@@ -124,7 +130,7 @@ serde = { workspace = true, optional = true }
 # -------------------------------------------
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui-winit = { workspace = true, default-features = false, features = ["clipboard", "links"] }
+egui-winit = { workspace = true, default-features = false }
 image = { workspace = true, features = ["png"] } # Needed for app icon
 winit = { workspace = true, default-features = false, features = ["rwh_06"] }
 
