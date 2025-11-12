@@ -525,11 +525,21 @@ impl Area {
                 true,
             );
 
+            // Used to prevent drift
+            let pivot_at_start_of_drag_id = id.with("pivot_at_drag_start");
+
             if movable
                 && move_response.dragged()
                 && let Some(pivot_pos) = &mut state.pivot_pos
             {
-                *pivot_pos += move_response.drag_delta();
+                let pivot_at_start_of_drag = ctx.data_mut(|data| {
+                    *data.get_temp_mut_or::<Pos2>(pivot_at_start_of_drag_id, *pivot_pos)
+                });
+
+                *pivot_pos =
+                    pivot_at_start_of_drag + move_response.total_drag_delta().unwrap_or_default();
+            } else {
+                ctx.data_mut(|data| data.remove::<Pos2>(pivot_at_start_of_drag_id));
             }
 
             if (move_response.dragged() || move_response.clicked())
