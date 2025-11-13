@@ -598,20 +598,9 @@ macro_rules! github_link_file {
 /// The minus character: <https://www.compart.com/en/unicode/U+2212>
 pub(crate) const MINUS_CHAR_STR: &str = "−";
 
-/// The default egui fonts supports around 1216 emojis in total.
-/// Here are some of the most useful:
-/// ∞⊗⎗⎘⎙⏏⏴⏵⏶⏷
-/// ⏩⏪⏭⏮⏸⏹⏺■▶📾🔀🔁🔃
-/// ☀☁★☆☐☑☜☝☞☟⛃⛶✔
-/// ↺↻⟲⟳⬅➡⬆⬇⬈⬉⬊⬋⬌⬍⮨⮩⮪⮫
-/// ♡
-/// 📅📆
-/// 📈📉📊
-/// 📋📌📎📤📥🔆
-/// 🔈🔉🔊🔍🔎🔗🔘
-/// 🕓🖧🖩🖮🖱🖴🖵🖼🗀🗁🗋🗐🗑🗙🚫❓
-///
-/// NOTE: In egui all emojis are monochrome!
+/// egui ships with monochrome glyphs (sourced from Ubuntu/Noto), but no longer bundles a color emoji atlas by default.
+/// Opt into color sprites by adding the `egui_noto_emoji` crate to your project and calling
+/// [`egui_noto_emoji::install`] early during startup.
 ///
 /// You can explore them all in the Font Book in [the online demo](https://www.egui.rs/#demo).
 ///
