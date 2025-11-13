@@ -2,6 +2,8 @@
 
 use std::ops::{Add, AddAssign, BitOr, BitOrAssign};
 
+use emath::GuiRounding as _;
+
 use crate::{
     Context, CursorIcon, Id, NumExt as _, Pos2, Rangef, Rect, Response, Sense, Ui, UiBuilder,
     UiKind, UiStackInfo, Vec2, Vec2b, emath, epaint, lerp, pass_state, pos2, remap, remap_clamp,
@@ -748,6 +750,12 @@ impl ScrollArea {
         }
 
         let content_max_rect = Rect::from_min_size(inner_rect.min - state.offset, content_max_size);
+
+        // Round to pixels to avoid widgets appearing to "float" when scrolling fractional amounts:
+        let content_max_rect = content_max_rect
+            .round_to_pixels(ui.pixels_per_point())
+            .round_ui();
+
         let mut content_ui = ui.new_child(
             UiBuilder::new()
                 .ui_stack_info(UiStackInfo::new(UiKind::ScrollArea))
