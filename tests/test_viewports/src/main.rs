@@ -355,7 +355,7 @@ fn drag_and_drop_test(ui: &mut egui::Ui) {
         }
 
         fn cols(&self, container: Id, col: usize) -> Vec<(Id, String)> {
-            assert!(col < COLS, "The col should be less then: {COLS}");
+            assert!(col < COLS, "The col should be less than: {COLS}");
             let container_data = &self.containers_data[&container];
             container_data[col]
                 .iter()
