@@ -339,7 +339,7 @@ fn drag_and_drop_test(ui: &mut egui::Ui) {
         }
 
         fn insert(&mut self, container: Id, col: usize, value: impl Into<String>) {
-            assert!(col < COLS, "The coll should be less then: {COLS}");
+            assert!(col < COLS, "The coll should be less than: {COLS}");
 
             let value: String = value.into();
             let id = Id::new(format!("%{}% {}", self.counter, &value));
