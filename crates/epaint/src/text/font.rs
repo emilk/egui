@@ -654,6 +654,10 @@ impl Font<'_> {
         let font_key = self.cached_family.fonts[0];
         if let Some(font_impl) = self.fonts_by_id.get_mut(&font_key) {
             for entry in store.entries() {
+                if is_keycap_component(entry.ch) {
+                    continue; // Don't override ASCII digits/#/* with emoji sprites.
+                }
+
                 if self.cached_family.glyph_info_cache.contains_key(&entry.ch) {
                     continue;
                 }
@@ -751,6 +755,12 @@ pub struct ScaledMetrics {
     ///
     /// Returns a value rounded to [`emath::GUI_ROUNDING`].
     pub row_height: f32,
+}
+
+/// Single ASCII characters that are part of the keycap emoji sequences.
+/// Those sequences require multiple code points, so keep the plain glyphs rendered by the base fonts.
+fn is_keycap_component(c: char) -> bool {
+    matches!(c, '#' | '*' | '0'..='9')
 }
 
 /// Code points that will always be invisible (zero width).
