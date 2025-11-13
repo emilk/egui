@@ -368,7 +368,7 @@ fn drag_and_drop_test(ui: &mut egui::Ui) {
             let Some(id) = self.is_dragged.take() else {
                 return;
             };
-            assert!(col < COLS, "The col should be less then: {COLS}");
+            assert!(col < COLS, "The col should be less than: {COLS}");
 
             // Should be a better way to do this!
             #[expect(clippy::iter_over_hash_type)]
