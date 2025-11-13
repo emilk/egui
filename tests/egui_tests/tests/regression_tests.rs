@@ -1,7 +1,7 @@
 use egui::accesskit::Role;
-use egui::{include_image, Align, Color32, Image, Label, Layout, RichText, Sense, TextWrapMode};
-use egui_kittest::kittest::Queryable as _;
+use egui::{Align, Color32, Image, Label, Layout, RichText, Sense, TextWrapMode, include_image};
 use egui_kittest::Harness;
+use egui_kittest::kittest::Queryable as _;
 
 #[test]
 fn image_button_should_have_alt_text() {
@@ -82,7 +82,7 @@ fn combobox_should_have_value() {
 /// which caused the [`Sense`] of the original response to flip-flop between `click` and `hover`
 /// between frames.
 ///
-/// See https://github.com/emilk/egui/pull/7713 for more details.
+/// See <https://github.com/emilk/egui/pull/7713> for more details.
 #[test]
 fn interact_on_ui_response_should_be_stable() {
     let mut first_frame = true;
