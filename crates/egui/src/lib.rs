@@ -317,16 +317,16 @@
 //!
 //! ## FAQ
 //!
-//! **How do I store state between frames?**  
+//! **How do I store state between frames?**\
 //! Keep your own `struct` with the values you mutate (e.g. selected enum variants, slider numbers) and update it inside `App::update`. egui only borrows your data temporarily each frame - it never stores it for you.
 //!
-//! **Why does my layout jitter the first frame?**  
+//! **Why does my layout jitter the first frame?**\
 //! Some widgets (e.g. [`Grid`]) need a frame of measurements before they can allocate perfectly. Call [`Context::request_discard`] or keep the widget alive so the second frame reuses the cached layout.
 //!
-//! **How do I make widgets span the full width?**  
+//! **How do I make widgets span the full width?**\
 //! Use helpers like [`Ui::vertical_centered_justified`] or wrap content with [`Ui::with_layout`] and [`Layout::top_down`]/[`Layout::left_to_right`] to control justification explicitly.
 //!
-//! **Where can I see more complete examples?**  
+//! **Where can I see more complete examples?**\
 //! The live demo at <https://www.egui.rs/#demo> mirrors the code in `crates/egui_demo_app` and `crates/egui_demo_lib`. Each window links back to the relevant source so you can inspect a working reference implementation.
 //!
 //! # Misc
