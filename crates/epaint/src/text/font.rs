@@ -646,28 +646,46 @@ impl Font<'_> {
         GlyphInfo::INVISIBLE
     }
 
-    pub(crate) fn preload_emojis(&mut self, store: &EmojiStore) {
-        if self.cached_family.fonts.is_empty() || store.is_empty() {
+    /// Register a single color glyph (for instance an emoji sprite) in the atlas.
+    ///
+    /// This keeps the font infrastructure agnostic over where the bitmap originated.
+    pub fn register_color_glyph(&mut self, c: char, image: Arc<ColorImage>) {
+        if self.cached_family.fonts.is_empty()
+            || self.cached_family.glyph_info_cache.contains_key(&c)
+        {
             return;
         }
 
         let font_key = self.cached_family.fonts[0];
         if let Some(font_impl) = self.fonts_by_id.get_mut(&font_key) {
-            for entry in store.entries() {
-                if is_keycap_component(entry.ch) {
-                    continue; // Don't override ASCII digits/#/* with emoji sprites.
-                }
-
-                if self.cached_family.glyph_info_cache.contains_key(&entry.ch) {
-                    continue;
-                }
-                let glyph_info =
-                    font_impl.allocate_custom_glyph_arc(entry.ch, entry.image_arc());
-                self.cached_family
-                    .glyph_info_cache
-                    .insert(entry.ch, (font_key, glyph_info));
-            }
+            let glyph_info = font_impl.allocate_custom_glyph_arc(c, image);
+            self.cached_family
+                .glyph_info_cache
+                .insert(c, (font_key, glyph_info));
             self.cached_family.characters = None;
+        }
+    }
+
+    pub(crate) fn install_color_glyphs(
+        &mut self,
+        glyphs: &BTreeMap<char, Arc<ColorImage>>,
+    ) {
+        for (ch, image) in glyphs {
+            self.register_color_glyph(*ch, image.clone());
+        }
+    }
+
+    pub(crate) fn preload_emojis(&mut self, store: &EmojiStore) {
+        if self.cached_family.fonts.is_empty() || store.is_empty() {
+            return;
+        }
+
+        for entry in store.entries() {
+            if is_keycap_component(entry.ch) {
+                continue; // Don't override ASCII digits/#/* with emoji sprites.
+            }
+
+            self.register_color_glyph(entry.ch, entry.image_arc());
         }
     }
 

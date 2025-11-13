@@ -7,7 +7,7 @@ use std::{
 };
 
 use crate::{
-    AlphaFromCoverage, TextureAtlas,
+    AlphaFromCoverage, ColorImage, TextureAtlas,
     text::{
         EmojiStore, Galley, LayoutJob, LayoutSection,
         font::{Font, FontImpl, GlyphInfo},
@@ -573,6 +573,13 @@ impl Fonts {
         &self.fonts.atlas
     }
 
+    /// Register a pre-rendered glyph (with baked colors) so every sized font can render it.
+    ///
+    /// This is the building block for opt-in emoji packs or any other bitmap glyph source.
+    pub fn register_color_glyph(&mut self, character: char, image: Arc<ColorImage>) {
+        self.fonts.register_color_glyph(character, image);
+    }
+
     /// The full font atlas image.
     #[inline]
     pub fn image(&self) -> crate::ColorImage {
@@ -765,6 +772,7 @@ pub struct FontsImpl {
     fonts_by_id: nohash_hasher::IntMap<FontFaceKey, FontImpl>,
     fonts_by_name: ahash::HashMap<String, FontFaceKey>,
     family_cache: ahash::HashMap<FontFamily, CachedFamily>,
+    color_glyphs: BTreeMap<char, Arc<ColorImage>>,
     emoji_store: EmojiStore,
 }
 
@@ -798,6 +806,7 @@ impl FontsImpl {
             fonts_by_id,
             fonts_by_name: font_impls,
             family_cache: Default::default(),
+            color_glyphs: Default::default(),
             emoji_store: EmojiStore::builtin(),
         }
     }
@@ -827,7 +836,21 @@ impl FontsImpl {
             atlas: &mut self.atlas,
         };
         font.preload_emojis(&self.emoji_store);
+        font.install_color_glyphs(&self.color_glyphs);
         font
+    }
+
+    pub fn register_color_glyph(&mut self, character: char, image: Arc<ColorImage>) {
+        self.color_glyphs.insert(character, image.clone());
+
+        for cached_family in self.family_cache.values_mut() {
+            let mut font = Font {
+                fonts_by_id: &mut self.fonts_by_id,
+                cached_family,
+                atlas: &mut self.atlas,
+            };
+            font.register_color_glyph(character, image.clone());
+        }
     }
 }
 
