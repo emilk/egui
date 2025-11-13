@@ -5,7 +5,7 @@
 
 use std::{convert::TryInto, sync::Arc};
 
-use crate::{Color32, ColorImage};
+use egui::{Color32, ColorImage};
 
 struct AtlasBytes {
     png: &'static [u8],
@@ -17,37 +17,42 @@ compile_error!("`emoji_low_res` and `emoji_high_res` are mutually exclusive");
 
 #[cfg(all(feature = "emoji_low_res", not(feature = "emoji_high_res")))]
 const NOTO_ATLAS: AtlasBytes = AtlasBytes {
-    png: include_bytes!("../../assets/emoji/noto_low.atlas"),
-    meta: include_bytes!("../../assets/emoji/noto_low.bin"),
+    png: include_bytes!("../assets/emoji/noto_low.atlas"),
+    meta: include_bytes!("../assets/emoji/noto_low.bin"),
 };
 
 #[cfg(all(feature = "emoji_high_res", not(feature = "emoji_low_res")))]
 const NOTO_ATLAS: AtlasBytes = AtlasBytes {
-    png: include_bytes!("../../assets/emoji/noto_high.atlas"),
-    meta: include_bytes!("../../assets/emoji/noto_high.bin"),
+    png: include_bytes!("../assets/emoji/noto_high.atlas"),
+    meta: include_bytes!("../assets/emoji/noto_high.bin"),
 };
 
 #[cfg(all(not(feature = "emoji_low_res"), not(feature = "emoji_high_res")))]
 const NOTO_ATLAS: AtlasBytes = AtlasBytes {
-    png: include_bytes!("../../assets/emoji/noto_mid.atlas"),
-    meta: include_bytes!("../../assets/emoji/noto_mid.bin"),
+    png: include_bytes!("../assets/emoji/noto_mid.atlas"),
+    meta: include_bytes!("../assets/emoji/noto_mid.bin"),
 };
 
 /// Definition of a single emoji sprite.
 #[derive(Clone)]
-pub(crate) struct EmojiEntry {
+pub struct EmojiEntry {
     pub(crate) ch: char,
     pub(crate) image: Arc<ColorImage>,
 }
 
 impl EmojiEntry {
     #[inline]
-    pub(crate) fn image(&self) -> &ColorImage {
+    pub fn ch(&self) -> char {
+        self.ch
+    }
+
+    #[inline]
+    pub fn image(&self) -> &ColorImage {
         self.image.as_ref()
     }
 
     #[inline]
-    pub(crate) fn image_arc(&self) -> Arc<ColorImage> {
+    pub fn image_arc(&self) -> Arc<ColorImage> {
         self.image.clone()
     }
 }
@@ -55,41 +60,41 @@ impl EmojiEntry {
 /// Simple container that keeps the built-in emoji bitmaps alive so we can re-upload them whenever
 /// the atlas is recreated.
 #[derive(Default)]
-pub(crate) struct EmojiStore {
+pub struct EmojiStore {
     entries: Vec<EmojiEntry>,
 }
 
 impl EmojiStore {
     /// Load the bundled sprites for the current feature configuration.
-    pub(crate) fn builtin() -> Self {
+    pub fn builtin() -> Self {
         Self {
             entries: load_builtin_emojis(),
         }
     }
 
     #[inline]
-    pub(crate) fn entries(&self) -> &[EmojiEntry] {
+    pub fn entries(&self) -> &[EmojiEntry] {
         &self.entries
     }
 
     #[inline]
-    pub(crate) fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
 }
 
 #[cfg(all(feature = "emoji_low_res", not(feature = "emoji_high_res")))]
-const FERRIS_BYTES: &[u8] = include_bytes!("../../assets/emoji/ferris_low.rgba");
+const FERRIS_BYTES: &[u8] = include_bytes!("../assets/emoji/ferris_low.rgba");
 #[cfg(all(feature = "emoji_low_res", not(feature = "emoji_high_res")))]
 const FERRIS_SIZE: [usize; 2] = [48, 32];
 
 #[cfg(all(not(feature = "emoji_low_res"), not(feature = "emoji_high_res")))]
-const FERRIS_BYTES: &[u8] = include_bytes!("../../assets/emoji/ferris_mid.rgba");
+const FERRIS_BYTES: &[u8] = include_bytes!("../assets/emoji/ferris_mid.rgba");
 #[cfg(all(not(feature = "emoji_low_res"), not(feature = "emoji_high_res")))]
 const FERRIS_SIZE: [usize; 2] = [72, 48];
 
 #[cfg(all(feature = "emoji_high_res", not(feature = "emoji_low_res")))]
-const FERRIS_BYTES: &[u8] = include_bytes!("../../assets/emoji/ferris_high.rgba");
+const FERRIS_BYTES: &[u8] = include_bytes!("../assets/emoji/ferris_high.rgba");
 #[cfg(all(feature = "emoji_high_res", not(feature = "emoji_low_res")))]
 const FERRIS_SIZE: [usize; 2] = [144, 96];
 
@@ -103,6 +108,8 @@ fn load_builtin_emojis() -> Vec<EmojiEntry> {
     let mut entries = load_noto_emojis().unwrap_or_else(|err| {
         #[cfg(feature = "log")]
         log::warn!("Failed to load Noto emoji atlas: {err}");
+        #[cfg(not(feature = "log"))]
+        let _ = err;
         Vec::new()
     });
     entries.extend(load_curated_emojis());

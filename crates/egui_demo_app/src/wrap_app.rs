@@ -182,6 +182,8 @@ impl WrapApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         // This gives us image support:
         egui_extras::install_image_loaders(&cc.egui_ctx);
+        // Opt-in emoji support now lives in a separate crate, so demos stay representative.
+        egui_noto_emoji::install(&cc.egui_ctx);
 
         #[cfg(feature = "accessibility_inspector")]
         cc.egui_ctx

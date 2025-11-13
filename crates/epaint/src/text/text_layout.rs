@@ -229,6 +229,7 @@ fn layout_section(
                 font_height: font_metrics.row_height,
                 font_ascent: font_metrics.ascent,
                 uv_rect: glyph_alloc.uv_rect,
+                coloring: glyph_alloc.coloring,
                 section_index,
                 first_vertex: 0, // filled in later
             });
@@ -531,6 +532,7 @@ fn replace_last_glyph_with_overflow_character(
                 font_height: font_metrics.row_height,
                 font_ascent: font_metrics.ascent,
                 uv_rect: replacement_glyph_alloc.uv_rect,
+                coloring: replacement_glyph_alloc.coloring,
                 section_index,
                 first_vertex: 0, // filled in later
             });

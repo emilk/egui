@@ -1,4 +1,7 @@
-use std::{collections::BTreeMap, sync::Arc};
+use std::{
+    collections::{BTreeMap, hash_map::Entry},
+    sync::Arc,
+};
 
 use ab_glyph::{Font as _, OutlinedGlyph, PxScale};
 use emath::{GuiRounding as _, OrderedFloat, Vec2, vec2};
@@ -10,8 +13,6 @@ use crate::{
         fonts::{CachedFamily, FontFaceKey},
     },
 };
-
-use super::emoji::EmojiStore;
 
 // ----------------------------------------------------------------------------
 
@@ -38,7 +39,7 @@ impl UvRect {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum GlyphColoring {
     /// Standard glyphs are monochrome and should be multiplied with the widget's chosen text color.
@@ -352,7 +353,7 @@ impl FontImpl {
     ) -> GlyphInfo {
         let entry = self.custom_glyph_map.entry(chr);
         let index = match entry {
-            ahash::hash_map::Entry::Occupied(mut occ) => {
+            Entry::Occupied(occ) => {
                 let idx = *occ.get();
                 if let Some(slot) = self.custom_glyphs.get_mut(idx as usize) {
                     *slot = CustomGlyph {
@@ -361,7 +362,7 @@ impl FontImpl {
                 }
                 idx
             }
-            ahash::hash_map::Entry::Vacant(vac) => {
+            Entry::Vacant(vac) => {
                 let idx = self.custom_glyphs.len() as CustomGlyphIndex;
                 self.custom_glyphs.push(CustomGlyph {
                     image: image.clone(),
@@ -666,27 +667,21 @@ impl Font<'_> {
         }
     }
 
-    pub(crate) fn install_color_glyphs(
-        &mut self,
-        glyphs: &BTreeMap<char, Arc<ColorImage>>,
-    ) {
+    pub(crate) fn install_color_glyphs(&mut self, glyphs: &BTreeMap<char, Arc<ColorImage>>) {
         for (ch, image) in glyphs {
             self.register_color_glyph(*ch, image.clone());
         }
     }
 
-    pub(crate) fn preload_emojis(&mut self, store: &EmojiStore) {
-        if self.cached_family.fonts.is_empty() || store.is_empty() {
-            return;
+    pub fn preload_common_characters(&mut self) {
+        // Preload the printable ASCII characters [32, 126] (which excludes control codes):
+        const FIRST_ASCII: usize = 32; // 32 == space
+        const LAST_ASCII: usize = 126;
+        for c in (FIRST_ASCII..=LAST_ASCII).map(|c| c as u8 as char) {
+            self.glyph_info(c);
         }
-
-        for entry in store.entries() {
-            if is_keycap_component(entry.ch) {
-                continue; // Don't override ASCII digits/#/* with emoji sprites.
-            }
-
-            self.register_color_glyph(entry.ch, entry.image_arc());
-        }
+        self.glyph_info('°');
+        self.glyph_info(crate::text::PASSWORD_REPLACEMENT_CHAR);
     }
 
     /// All supported characters, and in which font they are available in.
@@ -773,12 +768,6 @@ pub struct ScaledMetrics {
     ///
     /// Returns a value rounded to [`emath::GUI_ROUNDING`].
     pub row_height: f32,
-}
-
-/// Single ASCII characters that are part of the keycap emoji sequences.
-/// Those sequences require multiple code points, so keep the plain glyphs rendered by the base fonts.
-fn is_keycap_component(c: char) -> bool {
-    matches!(c, '#' | '*' | '0'..='9')
 }
 
 /// Code points that will always be invisible (zero width).

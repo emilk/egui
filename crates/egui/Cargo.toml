@@ -26,12 +26,6 @@ rustdoc-args = ["--generate-link-to-definition"]
 [features]
 default = ["default_fonts"]
 
-## Use the bundled low-resolution emoji atlas instead of the default mid-resolution sprites.
-emoji_low_res = ["epaint/emoji_low_res"]
-
-## Use the bundled high-resolution emoji atlas instead of the default mid-resolution sprites.
-emoji_high_res = ["epaint/emoji_high_res"]
-
 ## Exposes detailed accessibility implementation required by platform
 ## accessibility APIs. Also requires support in the egui integration.
 accesskit = ["dep:accesskit"]
@@ -80,7 +74,7 @@ _override_unity = ["epaint/_override_unity"]
 emath = { workspace = true, default-features = false }
 epaint = { workspace = true, default-features = false }
 
-accesskit.workspace = true
+accesskit = { workspace = true, optional = true }
 ahash.workspace = true
 bitflags.workspace = true
 log.workspace = true
