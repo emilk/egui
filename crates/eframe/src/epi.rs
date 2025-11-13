@@ -471,6 +471,10 @@ impl Default for NativeOptions {
 /// Options when using `eframe` in a web page.
 #[cfg(target_arch = "wasm32")]
 pub struct WebOptions {
+    /// What rendering backend to use.
+    #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
+    pub renderer: Renderer,
+
     /// Sets the number of bits in the depth buffer.
     ///
     /// `egui` doesn't need the depth buffer, so the default value is 0.
@@ -519,6 +523,9 @@ pub struct WebOptions {
 impl Default for WebOptions {
     fn default() -> Self {
         Self {
+            #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
+            renderer: Renderer::default(),
+
             depth_buffer: 0,
 
             #[cfg(feature = "glow")]
@@ -592,8 +599,8 @@ impl Default for Renderer {
         #[cfg(feature = "wgpu_no_default_features")]
         return Self::Wgpu;
 
-        // By default, only the `glow` feature is enabled, so if the user added `wgpu` to the feature list
-        // they probably wanted to use wgpu:
+        // It's weird that the user has enabled both glow and wgpu,
+        // but let's pick the better of the two (wgpu):
         #[cfg(feature = "glow")]
         #[cfg(feature = "wgpu_no_default_features")]
         return Self::Wgpu;
