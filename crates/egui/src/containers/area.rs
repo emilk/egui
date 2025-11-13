@@ -553,13 +553,14 @@ impl Area {
             move_response
         };
 
-        if constrain {
-            state.set_left_top_pos(
-                Context::constrain_window_rect_to_area(state.rect(), constrain_rect).min,
-            );
-        }
-
-        state.set_left_top_pos(state.left_top_pos());
+        state.set_left_top_pos(round_area_position(
+            ctx,
+            if constrain {
+                Context::constrain_window_rect_to_area(state.rect(), constrain_rect).min
+            } else {
+                state.left_top_pos()
+            },
+        ));
 
         // Update response with possibly moved/constrained rect:
         move_response.rect = state.rect();
@@ -578,6 +579,16 @@ impl Area {
             layout,
         }
     }
+}
+
+fn round_area_position(ctx: &Context, pos: Pos2) -> Pos2 {
+    // We round a lot of rendering to pixels, so we round the whole
+    // area positions to pixels too, so avoid widgets appearing to float
+    // around independently of each other when the area is dragged.
+    // But just in case pixels_per_point is irrational,
+    // we then also round to ui coordinates:
+
+    pos.round_to_pixels(ctx.pixels_per_point()).round_ui()
 }
 
 impl Prepared {
