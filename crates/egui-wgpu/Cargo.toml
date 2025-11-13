@@ -27,7 +27,7 @@ rustdoc-args = ["--generate-link-to-definition"]
 [features]
 default = ["fragile-send-sync-non-atomic-wasm", "macos-window-resize-jitter-fix", "wgpu/default"]
 
-## Enables the `capture` module.
+## Enables the `capture` module for capturing screenshots.
 capture = ["dep:egui"]
 
 ## Enable [`winit`](https://docs.rs/winit) integration. On Linux, requires either `wayland` or `x11`
