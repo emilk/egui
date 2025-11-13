@@ -82,7 +82,7 @@ fn combobox_should_have_value() {
 /// which caused the [`Sense`] of the original response to flip-flop between `click` and `hover`
 /// between frames.
 ///
-/// See TODO PR:
+/// See https://github.com/emilk/egui/pull/7713 for more details.
 #[test]
 fn interact_on_ui_response_should_be_stable() {
     let mut first_frame = true;

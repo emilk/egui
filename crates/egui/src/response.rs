@@ -726,12 +726,7 @@ impl Response {
     pub fn interact(&self, sense: Sense) -> Self {
         // We could check here if the new Sense equals the old one to avoid the extra create_widget
         // call. But that would break calling `interact` on a response from `Context::read_response`
-        // or `Ui::response`. (See #TODO: PR)
-
-        if (self.sense | sense) == self.sense {
-            // Early-out: we already sense everything we need to sense.
-            return self.clone();
-        }
+        // or `Ui::response`. (See https://github.com/emilk/egui/pull/7713 for more details.)
 
         self.ctx.create_widget(
             WidgetRect {
