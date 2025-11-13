@@ -73,6 +73,7 @@ pub struct TextEdit<'t> {
     id_salt: Option<Id>,
     font_selection: FontSelection,
     text_color: Option<Color32>,
+    hint_text_color: Option<Color32>,
     layouter: Option<LayouterFn<'t>>,
     password: bool,
     frame: bool,
@@ -126,6 +127,7 @@ impl<'t> TextEdit<'t> {
             id_salt: None,
             font_selection: Default::default(),
             text_color: None,
+            hint_text_color: None,
             layouter: None,
             password: false,
             frame: true,
@@ -245,6 +247,18 @@ impl<'t> TextEdit<'t> {
     #[inline]
     pub fn text_color_opt(mut self, text_color: Option<Color32>) -> Self {
         self.text_color = text_color;
+        self
+    }
+
+    #[inline]
+    pub fn hint_text_color(mut self, hint_text_color: Color32) -> Self {
+        self.hint_text_color = Some(hint_text_color);
+        self
+    }
+
+    #[inline]
+    pub fn hint_text_color_opt(mut self, hint_text_color: Option<Color32>) -> Self {
+        self.hint_text_color = hint_text_color;
         self
     }
 
@@ -477,6 +491,7 @@ impl TextEdit<'_> {
             id_salt,
             font_selection,
             text_color,
+            hint_text_color,
             layouter,
             password,
             frame: _,
@@ -690,7 +705,7 @@ impl TextEdit<'_> {
 
         if ui.is_rect_visible(rect) {
             if text.as_str().is_empty() && !hint_text.is_empty() {
-                let hint_text_color = ui.visuals().weak_text_color();
+                let hint_text_color = hint_text_color.unwrap_or(ui.visuals().weak_text_color());
                 let hint_text_font_id = hint_text_font.unwrap_or(font_id.into());
                 let galley = if multiline {
                     hint_text.into_galley(
