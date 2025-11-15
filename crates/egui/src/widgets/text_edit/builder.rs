@@ -306,6 +306,7 @@ impl<'t> TextEdit<'t> {
 
     /// Set to 0.0 to keep as small as possible.
     /// Set to [`f32::INFINITY`] to take up all available space (i.e. disable automatic word wrap).
+    /// Set to a negative value to subtract from the available width (e.g., `-10.0` means `available_width - 10.0`).
     #[inline]
     pub fn desired_width(mut self, desired_width: f32) -> Self {
         self.desired_width = Some(desired_width);
@@ -508,10 +509,14 @@ impl TextEdit<'_> {
         const MIN_WIDTH: f32 = 24.0; // Never make a [`TextEdit`] more narrow than this.
         let available_width = (ui.available_width() - margin.sum().x).at_least(MIN_WIDTH);
         let desired_width = desired_width.unwrap_or_else(|| ui.spacing().text_edit_width);
-        let wrap_width = if ui.layout().horizontal_justify() {
+        let wrap_width = if ui.layout().horizontal_justify() || desired_width.is_infinite() {
             available_width
-        } else {
+        } else if desired_width >= 0.0 {
             desired_width.min(available_width)
+        } else {
+            // Negative desired width: subtract from available width
+            // (e.g., -10.0 means "available_width - 10.0")
+            (available_width + desired_width).max(0.0)
         };
 
         let font_id_clone = font_id.clone();
