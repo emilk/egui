@@ -89,7 +89,7 @@ jobs:
         run: cargo clippy -p egui_demo_app --lib --target wasm32-unknown-unknown --all-features
 
       - name: clippy wasm32 eframe
-        run: cargo clippy -p eframe --lib --no-default-features --features glow,persistence --target wasm32-unknown-unknown
+        run: cargo clippy -p eframe --lib --no-default-features --features wgpu,persistence --target wasm32-unknown-unknown
 
       - name: wasm-bindgen
         uses: jetli/wasm-bindgen-action@v0.1.0
