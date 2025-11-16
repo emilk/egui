@@ -1,4 +1,4 @@
-//! Containers are pieces of the UI which wraps other pieces of UI. Examples: [`Window`], [`ScrollArea`], [`Resize`], [`OldSidePanel`], etc.
+//! Containers are pieces of the UI which wraps other pieces of UI. Examples: [`Window`], [`ScrollArea`], [`Resize`], [`Panel`], etc.
 //!
 //! For instance, a [`Frame`] adds a frame and background to some contained UI.
 
