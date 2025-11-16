@@ -61,7 +61,7 @@ impl<'a> Window<'a> {
                 .with_stroke(false)
                 .min_size([96.0, 32.0])
                 .default_size([340.0, 420.0]), // Default outer size of a window (includes frame margins, stroke, and title bar)
-            scroll: ScrollArea::neither().auto_shrink(false),
+            scroll: ScrollArea::neither().auto_shrink(false).content_margin(0.0),
             collapsible: true,
             default_open: true,
             with_title_bar: true,
@@ -519,6 +519,8 @@ impl Window<'_> {
         let on_top = Some(area_layer_id) == ctx.top_layer_id();
         let mut area = area.begin(ctx);
 
+        let window_margin = style.spacing.window_margin;
+
         area.with_widget_info(|| {
             WidgetInfo::labeled(
                 WidgetType::Window,
@@ -575,9 +577,15 @@ impl Window<'_> {
                     collapsing
                         .show_body_unindented(ui, |ui| {
                             if scroll.is_any_scroll_enabled() {
-                                scroll.show(ui, add_contents).inner
+                                scroll
+                                    .content_margin(window_margin)
+                                    .show(ui, add_contents)
+                                    .inner
                             } else {
-                                add_contents(ui)
+                                crate::Frame::NONE
+                                    .inner_margin(window_margin)
+                                    .show(ui, add_contents)
+                                    .inner
                             }
                         })
                         .map(|inner| inner.inner)
