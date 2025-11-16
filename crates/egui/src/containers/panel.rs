@@ -204,7 +204,7 @@ impl<'a> PanelSizer<'a> {
             .unwrap_or_else(|| Frame::side_top_panel(ui.style()));
         let available_rect = ui.available_rect_before_wrap();
         let size = PanelSizer::get_size_from_state_or_default(panel, ui, frame);
-        let panel_rect = PanelSizer::get_panel_rect(panel, available_rect, size);
+        let panel_rect = PanelSizer::panel_rect(panel, available_rect, size);
 
         Self {
             panel,
@@ -233,7 +233,7 @@ impl<'a> PanelSizer<'a> {
         }
     }
 
-    fn get_panel_rect(panel: &Panel, available_rect: Rect, mut size: f32) -> Rect {
+    fn panel_rect(panel: &Panel, available_rect: Rect, mut size: f32) -> Rect {
         let side = panel.side;
         let size_range = panel.size_range;
 
@@ -660,7 +660,7 @@ impl Panel {
         }
 
         if resize_hover || is_resizing {
-            ui.ctx().set_cursor_icon(self.get_cursor_icon(&panel_sizer));
+            ui.ctx().set_cursor_icon(self.cursor_icon(&panel_sizer));
         }
 
         PanelState { rect }.store(ui.ctx(), id);
@@ -789,7 +789,7 @@ impl Panel {
         (resize_response.hovered(), resize_response.dragged())
     }
 
-    fn get_cursor_icon(&self, panel_sizer: &PanelSizer<'_>) -> CursorIcon {
+    fn cursor_icon(&self, panel_sizer: &PanelSizer<'_>) -> CursorIcon {
         if panel_sizer.size <= self.size_range.min {
             match self.side {
                 PanelSide::Vertical(side) => match side {
@@ -830,7 +830,7 @@ impl Panel {
             // Show a fake panel in this in-between animation state:
             // TODO(emilk): move the panel out-of-screen instead of changing its width.
             // Then we can actually paint it as it animates.
-            let expanded_size = Self::get_animated_size(ctx, &self);
+            let expanded_size = Self::animated_size(ctx, &self);
             let fake_size = how_expanded * expanded_size;
             Some(
                 Self {
@@ -858,8 +858,8 @@ impl Panel {
         if 0.0 == how_expanded {
             collapsed_panel
         } else if how_expanded < 1.0 {
-            let collapsed_size = Self::get_animated_size(ctx, &collapsed_panel);
-            let expanded_size = Self::get_animated_size(ctx, &expanded_panel);
+            let collapsed_size = Self::animated_size(ctx, &collapsed_panel);
+            let expanded_size = Self::animated_size(ctx, &expanded_panel);
 
             let fake_size = lerp(collapsed_size..=expanded_size, how_expanded);
 
@@ -874,7 +874,7 @@ impl Panel {
         }
     }
 
-    fn get_animated_size(ctx: &Context, panel: &Self) -> f32 {
+    fn animated_size(ctx: &Context, panel: &Self) -> f32 {
         let get_rect_state_size = |state: PanelState| match panel.side {
             PanelSide::Vertical(_) => state.rect.width(),
             PanelSide::Horizontal(_) => state.rect.height(),
