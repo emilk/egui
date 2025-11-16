@@ -66,20 +66,6 @@ impl VerticalSide {
         }
     }
 
-    fn sign(self) -> f32 {
-        match self {
-            Self::Left => -1.0,
-            Self::Right => 1.0,
-        }
-    }
-
-    fn x_coord(self, rect: Rect) -> f32 {
-        match self {
-            Self::Left => rect.left(),
-            Self::Right => rect.right(),
-        }
-    }
-
     /// `self` is the _fixed_ side.
     ///
     /// * Left panels are resized on their right side
@@ -88,6 +74,20 @@ impl VerticalSide {
         match self {
             Self::Left => rect.max.x = rect.min.x + width,
             Self::Right => rect.min.x = rect.max.x - width,
+        }
+    }
+
+    fn sign(self) -> f32 {
+        match self {
+            Self::Left => -1.0,
+            Self::Right => 1.0,
+        }
+    }
+
+    fn side_x(self, rect: Rect) -> f32 {
+        match self {
+            Self::Left => rect.left(),
+            Self::Right => rect.right(),
         }
     }
 }
@@ -107,20 +107,6 @@ impl HorizontalSide {
         }
     }
 
-    fn sign(self) -> f32 {
-        match self {
-            Self::Top => -1.0,
-            Self::Bottom => 1.0,
-        }
-    }
-
-    fn y_coord(self, rect: Rect) -> f32 {
-        match self {
-            Self::Top => rect.top(),
-            Self::Bottom => rect.bottom(),
-        }
-    }
-
     /// `self` is the _fixed_ side.
     ///
     /// * Top panels are resized on their bottom side
@@ -129,6 +115,20 @@ impl HorizontalSide {
         match self {
             Self::Top => rect.max.y = rect.min.y + height,
             Self::Bottom => rect.min.y = rect.max.y - height,
+        }
+    }
+
+    fn sign(self) -> f32 {
+        match self {
+            Self::Top => -1.0,
+            Self::Bottom => 1.0,
+        }
+    }
+
+    fn side_y(self, rect: Rect) -> f32 {
+        match self {
+            Self::Top => rect.top(),
+            Self::Bottom => rect.bottom(),
         }
     }
 }
@@ -260,12 +260,12 @@ impl<'a> PanelSizer<'a> {
 
             match side {
                 PanelSide::Vertical(side) => {
-                    self.size = (pointer.x - side.x_coord(self.panel_rect)).abs();
+                    self.size = (pointer.x - side.side_x(self.panel_rect)).abs();
                     self.size =
                         clamp_to_range(self.size, size_range).at_most(self.available_rect.width());
                 }
                 PanelSide::Horizontal(side) => {
-                    self.size = (pointer.y - side.y_coord(self.panel_rect)).abs();
+                    self.size = (pointer.y - side.side_y(self.panel_rect)).abs();
                     self.size =
                         clamp_to_range(self.size, size_range).at_most(self.available_rect.height());
                 }
@@ -679,12 +679,12 @@ impl Panel {
             // TODO(emilk): draw line on top of all panels in this ui when https://github.com/emilk/egui/issues/1516 is done
             match side {
                 PanelSide::Vertical(side) => {
-                    let x = side.opposite().x_coord(rect) + 0.5 * side.sign() * stroke.width;
+                    let x = side.opposite().side_x(rect) + 0.5 * side.sign() * stroke.width;
                     ui.painter()
                         .vline(x, panel_sizer.panel_rect.y_range(), stroke);
                 }
                 PanelSide::Horizontal(side) => {
-                    let y = side.opposite().y_coord(rect) + 0.5 * side.sign() * stroke.width;
+                    let y = side.opposite().side_y(rect) + 0.5 * side.sign() * stroke.width;
                     ui.painter()
                         .hline(panel_sizer.panel_rect.x_range(), y, stroke);
                 }
@@ -763,7 +763,7 @@ impl Panel {
     fn resize_panel(&self, panel_sizer: &PanelSizer<'_>, ui: &Ui) -> (bool, bool) {
         let (resize_x, resize_y, amount): (Rangef, Rangef, Vec2) = match self.side {
             PanelSide::Vertical(side) => {
-                let resize_x = side.opposite().x_coord(panel_sizer.panel_rect);
+                let resize_x = side.opposite().side_x(panel_sizer.panel_rect);
                 let resize_y = panel_sizer.panel_rect.y_range();
                 (
                     Rangef::from(resize_x..=resize_x),
@@ -773,7 +773,7 @@ impl Panel {
             }
             PanelSide::Horizontal(side) => {
                 let resize_x = panel_sizer.panel_rect.x_range();
-                let resize_y = side.opposite().y_coord(panel_sizer.panel_rect);
+                let resize_y = side.opposite().side_y(panel_sizer.panel_rect);
                 (
                     resize_x,
                     Rangef::from(resize_y..=resize_y),
