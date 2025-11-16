@@ -332,15 +332,19 @@ impl Panel {
     /// Create a top panel.
     ///
     /// The id should be globally unique, e.g. `Id::new("my_top_panel")`.
+    ///
+    /// By default this is NOT resizable.
     pub fn top(id: impl Into<Id>) -> Self {
-        Self::new(PanelSide::TOP, id)
+        Self::new(PanelSide::TOP, id).resizable(false)
     }
 
     /// Create a bottom panel.
     ///
     /// The id should be globally unique, e.g. `Id::new("my_bottom_panel")`.
+    ///
+    /// By default this is NOT resizable.
     pub fn bottom(id: impl Into<Id>) -> Self {
-        Self::new(PanelSide::BOTTOM, id)
+        Self::new(PanelSide::BOTTOM, id).resizable(false)
     }
 
     /// Create a panel.
