@@ -19,7 +19,8 @@ use emath::{GuiRounding as _, Pos2};
 
 use crate::{
     Align, Context, CursorIcon, Frame, Id, InnerResponse, LayerId, Layout, NumExt as _, Rangef,
-    Rect, Sense, Stroke, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, lerp, vec2,
+    Rect, Sense, Stroke, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetInfo, WidgetType, lerp,
+    vec2,
 };
 
 fn animate_expansion(ctx: &Context, id: Id, is_expanded: bool) -> f32 {
@@ -339,8 +340,11 @@ impl Panel {
     ///
     /// Default is `true`.
     ///
-    /// If you want your panel to be resizable you also need a widget in it that
-    /// takes up more space as you resize it, such as:
+    /// If you want your panel to be resizable you also need to make the ui use
+    /// the available space.
+    ///
+    /// This can be done by using [`Ui::take_available_space`], or using a
+    /// widget in it that takes up more space as you resize it, such as:
     /// * Wrapping text ([`Ui::horizontal_wrapped`]).
     /// * A [`crate::ScrollArea`].
     /// * A [`crate::Separator`].
@@ -685,6 +689,9 @@ impl Panel {
                 .max_rect(available_rect),
         );
         panel_ui.set_clip_rect(ctx.content_rect());
+        panel_ui
+            .response()
+            .widget_info(|| WidgetInfo::new(WidgetType::Panel));
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
         let rect = inner_response.response.rect;
@@ -962,6 +969,9 @@ impl CentralPanel {
                 .max_rect(ctx.available_rect().round_ui()),
         );
         panel_ui.set_clip_rect(ctx.content_rect());
+        panel_ui
+            .response()
+            .widget_info(|| WidgetInfo::new(WidgetType::Panel));
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
 
