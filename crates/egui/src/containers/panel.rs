@@ -975,9 +975,13 @@ impl CentralPanel {
                 .max_rect(ctx.available_rect().round_ui()),
         );
         panel_ui.set_clip_rect(ctx.content_rect());
+
+        if false {
+            // TODO: @lucasmerlin shouldn't we enable this?
         panel_ui
             .response()
             .widget_info(|| WidgetInfo::new(WidgetType::Panel));
+        }
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
 
