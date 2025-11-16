@@ -18,8 +18,8 @@
 use emath::{GuiRounding as _, Pos2};
 
 use crate::{
-    lerp, vec2, Align, Context, CursorIcon, Frame, Id, InnerResponse, LayerId, Layout, NumExt,
-    Rangef, Rect, Sense, Stroke, Ui, UiBuilder, UiKind, UiStackInfo, Vec2,
+    Align, Context, CursorIcon, Frame, Id, InnerResponse, LayerId, Layout, NumExt as _, Rangef,
+    Rect, Sense, Stroke, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, lerp, vec2,
 };
 
 fn animate_expansion(ctx: &Context, id: Id, is_expanded: bool) -> f32 {
@@ -73,23 +73,23 @@ pub enum PanelSide {
 
 impl PanelSide {
     fn opposite(self) -> Self {
-        let opposite_vertical = |side: VerticalSide| -> PanelSide {
+        let opposite_vertical = |side: VerticalSide| -> Self {
             match side {
-                VerticalSide::Left => PanelSide::Vertical(VerticalSide::Right),
-                VerticalSide::Right => PanelSide::Vertical(VerticalSide::Left),
+                VerticalSide::Left => Self::Vertical(VerticalSide::Right),
+                VerticalSide::Right => Self::Vertical(VerticalSide::Left),
             }
         };
 
-        let opposite_horizontal = |side: HorizontalSide| -> PanelSide {
+        let opposite_horizontal = |side: HorizontalSide| -> Self {
             match side {
-                HorizontalSide::Top => PanelSide::Horizontal(HorizontalSide::Bottom),
-                HorizontalSide::Bottom => PanelSide::Horizontal(HorizontalSide::Top),
+                HorizontalSide::Top => Self::Horizontal(HorizontalSide::Bottom),
+                HorizontalSide::Bottom => Self::Horizontal(HorizontalSide::Top),
             }
         };
 
         match self {
-            PanelSide::Vertical(side) => opposite_vertical(side),
-            PanelSide::Horizontal(side) => opposite_horizontal(side),
+            Self::Vertical(side) => opposite_vertical(side),
+            Self::Horizontal(side) => opposite_horizontal(side),
         }
     }
 
@@ -105,8 +105,8 @@ impl PanelSide {
         };
 
         match self {
-            PanelSide::Vertical(side) => set_rect_size_vertical(side),
-            PanelSide::Horizontal(side) => set_rect_size_horizontal(side),
+            Self::Vertical(side) => set_rect_size_vertical(side),
+            Self::Horizontal(side) => set_rect_size_horizontal(side),
         }
     }
 
@@ -126,8 +126,8 @@ impl PanelSide {
         };
 
         match self {
-            PanelSide::Vertical(side) => side_axe_vertical(side, rect),
-            PanelSide::Horizontal(side) => side_axe_horizontal(side, rect),
+            Self::Vertical(side) => side_axe_vertical(side, rect),
+            Self::Horizontal(side) => side_axe_horizontal(side, rect),
         }
     }
 
@@ -147,8 +147,8 @@ impl PanelSide {
         };
 
         match self {
-            PanelSide::Vertical(side) => sign_vertical(side),
-            PanelSide::Horizontal(side) => sign_horizontal(side),
+            Self::Vertical(side) => sign_vertical(side),
+            Self::Horizontal(side) => sign_horizontal(side),
         }
     }
 }
@@ -619,7 +619,7 @@ impl Panel {
                     HorizontalSide::Top => cursor.min.y = rect.max.y,
                     HorizontalSide::Bottom => cursor.max.y = rect.min.y,
                 },
-            };
+            }
             ui.set_cursor(cursor);
         }
 
@@ -846,7 +846,7 @@ impl Panel {
         }
     }
 
-    fn get_animated_size(ctx: &Context, panel: &Panel) -> f32 {
+    fn get_animated_size(ctx: &Context, panel: &Self) -> f32 {
         let get_rect_state_size = |state: PanelState| match panel.side {
             PanelSide::Vertical(_) => state.rect.width(),
             PanelSide::Horizontal(_) => state.rect.height(),
@@ -976,3 +976,38 @@ fn clamp_to_range(x: f32, range: Rangef) -> f32 {
     let range = range.as_positive();
     x.clamp(range.min, range.max)
 }
+
+// ----------------------------------------------------------------------------
+
+mod legacy {
+    #![expect(deprecated)]
+
+    use super::{Id, Panel};
+
+    #[deprecated = "Use Panel::left or Panel::right instead"]
+    pub struct SidePanel {}
+
+    impl SidePanel {
+        pub fn left(id: impl Into<Id>) -> Panel {
+            Panel::left(id)
+        }
+        pub fn right(id: impl Into<Id>) -> Panel {
+            Panel::right(id)
+        }
+    }
+
+    #[deprecated = "Use Panel::top or Panel::bottom instead"]
+    pub struct TopBottomPanel {}
+
+    impl TopBottomPanel {
+        pub fn top(id: impl Into<Id>) -> Panel {
+            Panel::top(id)
+        }
+        pub fn bottom(id: impl Into<Id>) -> Panel {
+            Panel::bottom(id)
+        }
+    }
+}
+
+#[expect(deprecated)]
+pub use legacy::{SidePanel, TopBottomPanel};

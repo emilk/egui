@@ -27,7 +27,7 @@ pub use {
     frame::Frame,
     modal::{Modal, ModalResponse},
     old_popup::*,
-    panel::{CentralPanel, HorizontalSide, Panel, PanelSide, VerticalSide},
+    panel::*,
     popup::*,
     resize::Resize,
     scene::{DragPanButtons, Scene},
