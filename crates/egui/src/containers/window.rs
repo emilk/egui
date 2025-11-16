@@ -62,7 +62,7 @@ impl<'open> Window<'open> {
                 .with_stroke(false)
                 .min_size([96.0, 32.0])
                 .default_size([340.0, 420.0]), // Default inner size of a window
-            scroll: ScrollArea::neither().auto_shrink(false),
+            scroll: ScrollArea::neither().auto_shrink(false).content_margin(0.0),
             collapsible: true,
             default_open: true,
             with_title_bar: true,
@@ -509,12 +509,15 @@ impl Window<'_> {
 
         area.with_widget_info(|| WidgetInfo::labeled(WidgetType::Window, true, title.text()));
 
+        let window_margin = style.spacing.window_margin;
+
         // Calculate roughly how much larger the full window inner size is compared to the content rect
         let (title_bar_height_with_margin, title_content_spacing) = if with_title_bar {
             let title_bar_inner_height = ctx
                 .fonts_mut(|fonts| title.font_height(fonts, &style))
                 .at_least(style.spacing.interact_size.y);
-            let title_bar_inner_height = title_bar_inner_height + window_frame.inner_margin.sum().y;
+            let title_bar_inner_height =
+                title_bar_inner_height + window_frame.inner_margin.sum().y + window_margin.sum().y;
             let half_height = (title_bar_inner_height / 2.0).round() as _;
             window_frame.corner_radius.ne = window_frame.corner_radius.ne.clamp(0, half_height);
             window_frame.corner_radius.nw = window_frame.corner_radius.nw.clamp(0, half_height);
@@ -613,9 +616,15 @@ impl Window<'_> {
                 .show_body_unindented(&mut frame.content_ui, |ui| {
                     resize.show(ui, |ui| {
                         if scroll.is_any_scroll_enabled() {
-                            scroll.show(ui, add_contents).inner
+                            scroll
+                                .content_margin(window_margin)
+                                .show(ui, add_contents)
+                                .inner
                         } else {
-                            add_contents(ui)
+                            crate::Frame::NONE
+                                .inner_margin(window_margin)
+                                .show(ui, add_contents)
+                                .inner
                         }
                     })
                 })
