@@ -976,15 +976,25 @@ pub struct CentralPanel {
 }
 
 impl CentralPanel {
+    /// A central panel with no margin or background color
+    pub fn no_frame() -> Self {
+        Self {
+            frame: Some(Frame::NONE),
+        }
+    }
+
+    /// A central panel with a background color and some inner margins
+    pub fn default_margins() -> Self {
+        Self { frame: None }
+    }
+
     /// Change the background color, margins, etc.
     #[inline]
     pub fn frame(mut self, frame: Frame) -> Self {
         self.frame = Some(frame);
         self
     }
-}
 
-impl CentralPanel {
     /// Show the panel inside a [`Ui`].
     pub fn show_inside<R>(
         self,
