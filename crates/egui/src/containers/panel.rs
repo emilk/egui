@@ -664,12 +664,12 @@ impl Panel {
             // TODO(emilk): draw line on top of all panels in this ui when https://github.com/emilk/egui/issues/1516 is done
             match side {
                 PanelSide::Vertical(side) => {
-                    let x = side.x_coord(rect) + 0.5 * side.sign() * stroke.width;
+                    let x = side.opposite().x_coord(rect) + 0.5 * side.sign() * stroke.width;
                     ui.painter()
                         .vline(x, panel_sizer.panel_rect.y_range(), stroke);
                 }
                 PanelSide::Horizontal(side) => {
-                    let y = side.y_coord(rect) + 0.5 * side.sign() * stroke.width;
+                    let y = side.opposite().y_coord(rect) + 0.5 * side.sign() * stroke.width;
                     ui.painter()
                         .hline(panel_sizer.panel_rect.x_range(), y, stroke);
                 }
