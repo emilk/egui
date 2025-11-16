@@ -62,7 +62,7 @@ impl<'open> Window<'open> {
                 .with_stroke(false)
                 .min_size([96.0, 32.0])
                 .default_size([340.0, 420.0]), // Default inner size of a window
-            scroll: ScrollArea::neither().auto_shrink(false),
+            scroll: ScrollArea::neither().auto_shrink(false).content_margin(0.0),
             collapsible: true,
             default_open: true,
             with_title_bar: true,
@@ -576,10 +576,17 @@ impl Window<'_> {
             let (content_inner, content_response) = collapsing
                 .show_body_unindented(&mut frame.content_ui, |ui| {
                     resize.show(ui, |ui| {
+                        let add_contents_with_margin = |ui: &mut Ui| {
+                            crate::Frame::NONE
+                                .inner_margin(ui.spacing().window_margin)
+                                .show(ui, add_contents)
+                                .inner
+                        };
+
                         if scroll.is_any_scroll_enabled() {
-                            scroll.show(ui, add_contents).inner
+                            scroll.show(ui, add_contents_with_margin).inner
                         } else {
-                            add_contents(ui)
+                            add_contents_with_margin(ui)
                         }
                     })
                 })
