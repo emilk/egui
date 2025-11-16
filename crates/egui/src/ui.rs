@@ -1,6 +1,7 @@
 #![warn(missing_docs)] // Let's keep `Ui` well-documented.
 #![allow(clippy::use_self)]
 
+use core::ops::{DerefMut, RangeInclusive};
 use emath::GuiRounding as _;
 use epaint::mutex::RwLock;
 use std::{any::Any, hash::Hash, sync::Arc};
@@ -23,7 +24,7 @@ use crate::{
     vec2, widgets,
     widgets::{
         color_picker, Button, Checkbox, DragValue, Hyperlink, Image, ImageSource, Label, Link,
-        RadioButton, SelectableLabel, Separator, Spinner, TextEdit, Widget,
+        RadioButton, SelectableLabel, Separator, Slider, Spinner, TextEdit, Widget,
     },
     Align, Color32, Context, CursorIcon, DragAndDrop, Id, InnerResponse, InputState, LayerId,
     Memory, Order, Painter, PlatformOutput, Pos2, Rangef, Rect, Response, Rgba, RichText, Sense,
@@ -1707,6 +1708,26 @@ impl Ui {
         widget.ui(self)
     }
 
+    /// Add a [`Slider`] backed by a custom mutable state type.
+    #[inline]
+    pub fn slider_state<Num, T>(&mut self, value: T, range: RangeInclusive<Num>) -> Response
+    where
+        Num: emath::Numeric,
+        T: DerefMut<Target = Num>,
+    {
+        Slider::from_state(value, range).ui(self)
+    }
+
+    /// Add a [`DragValue`] backed by a custom mutable state type.
+    #[inline]
+    pub fn drag_value_state<Num, T>(&mut self, value: T) -> Response
+    where
+        Num: emath::Numeric,
+        T: DerefMut<Target = Num>,
+    {
+        DragValue::from_state(value).ui(self)
+    }
+
     /// Add a [`Widget`] to this [`Ui`] with a given size.
     /// The widget will attempt to fit within the given size, but some widgets may overflow.
     ///
@@ -2066,6 +2087,18 @@ impl Ui {
     #[inline]
     pub fn checkbox(&mut self, checked: &mut bool, text: impl Into<WidgetText>) -> Response {
         Checkbox::new(checked, text).ui(self)
+    }
+
+    /// Show a checkbox backed by a custom mutable state type.
+    ///
+    /// Useful when the state wrapper only wants to write when the value changes.
+    #[inline]
+    pub fn checkbox_state(
+        &mut self,
+        checked: impl DerefMut<Target = bool>,
+        text: impl Into<WidgetText>,
+    ) -> Response {
+        Checkbox::from_state(checked, text).ui(self)
     }
 
     /// Acts like a checkbox, but looks like a [`SelectableLabel`].

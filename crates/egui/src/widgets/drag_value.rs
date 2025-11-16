@@ -1,6 +1,9 @@
 #![allow(clippy::needless_pass_by_value)] // False positives with `impl ToString`
 
-use std::{cmp::Ordering, ops::RangeInclusive};
+use std::{
+    cmp::Ordering,
+    ops::{DerefMut, RangeInclusive},
+};
 
 use crate::{
     emath, text, Button, CursorIcon, Key, Modifiers, NumExt, Response, RichText, Sense, TextEdit,
@@ -51,11 +54,22 @@ pub struct DragValue<'a> {
 
 impl<'a> DragValue<'a> {
     pub fn new<Num: emath::Numeric>(value: &'a mut Num) -> Self {
+        Self::from_state(value)
+    }
+
+    pub fn from_state<Num, T>(mut value: T) -> Self
+    where
+        Num: emath::Numeric,
+        T: DerefMut<Target = Num> + 'a,
+    {
         let slf = Self::from_get_set(move |v: Option<f64>| {
             if let Some(v) = v {
-                *value = Num::from_f64(v);
+                let new_value = Num::from_f64(v);
+                if *value != new_value {
+                    *value = new_value;
+                }
             }
-            value.to_f64()
+            (*value).to_f64()
         });
 
         if Num::INTEGRAL {

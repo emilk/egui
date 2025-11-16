@@ -24,8 +24,18 @@ pub struct Checkbox<T: DerefMut<Target = bool>> {
     indeterminate: bool,
 }
 
+impl<'a> Checkbox<&'a mut bool> {
+    pub fn new(checked: &'a mut bool, text: impl Into<WidgetText>) -> Self {
+        Checkbox::from_state(checked, text)
+    }
+
+    pub fn without_text(checked: &'a mut bool) -> Self {
+        Checkbox::from_state(checked, WidgetText::default())
+    }
+}
+
 impl<T: DerefMut<Target = bool>> Checkbox<T> {
-    pub fn new(checked: T, text: impl Into<WidgetText>) -> Self {
+    pub fn from_state(checked: T, text: impl Into<WidgetText>) -> Self {
         Self {
             checked,
             text: text.into(),
@@ -33,8 +43,8 @@ impl<T: DerefMut<Target = bool>> Checkbox<T> {
         }
     }
 
-    pub fn without_text(checked: T) -> Self {
-        Self::new(checked, WidgetText::default())
+    pub fn without_text_state(checked: T) -> Self {
+        Self::from_state(checked, WidgetText::default())
     }
 
     /// Display an indeterminate state (neither checked nor unchecked)
