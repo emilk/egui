@@ -53,13 +53,13 @@ impl PanelState {
 
 /// [`Left`](VerticalSide::Left) or [`Right`](VerticalSide::Right)
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum VerticalSide {
+enum VerticalSide {
     Left,
     Right,
 }
 
 impl VerticalSide {
-    fn opposite(self) -> Self {
+    pub fn opposite(self) -> Self {
         match self {
             Self::Left => Self::Right,
             Self::Right => Self::Left,
@@ -94,13 +94,13 @@ impl VerticalSide {
 
 /// [`Top`](HorizontalSide::Top) or [`Bottom`](HorizontalSide::Bottom)
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum HorizontalSide {
+enum HorizontalSide {
     Top,
     Bottom,
 }
 
 impl HorizontalSide {
-    fn opposite(self) -> Self {
+    pub fn opposite(self) -> Self {
         match self {
             Self::Top => Self::Bottom,
             Self::Bottom => Self::Top,
@@ -133,26 +133,37 @@ impl HorizontalSide {
     }
 }
 
+// Intentionally private because I'm not sure of the naming.
+// TODO(emilk): decide on good names and make public.
+// "VerticalSide" and "HorizontalSide" feels inverted to me.
 /// [`Horizontal`](PanelSide::Horizontal) or [`Vertical`](PanelSide::Vertical)
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PanelSide {
+enum PanelSide {
+    /// Left or right.
     Vertical(VerticalSide),
+
+    /// Top or bottom
     Horizontal(HorizontalSide),
 }
 
 impl From<HorizontalSide> for PanelSide {
-    fn from(h_side: HorizontalSide) -> Self {
-        Self::Horizontal(h_side)
+    fn from(side: HorizontalSide) -> Self {
+        Self::Horizontal(side)
     }
 }
 
 impl From<VerticalSide> for PanelSide {
-    fn from(v_side: VerticalSide) -> Self {
-        Self::Vertical(v_side)
+    fn from(side: VerticalSide) -> Self {
+        Self::Vertical(side)
     }
 }
 
 impl PanelSide {
+    pub const LEFT: Self = Self::Vertical(VerticalSide::Left);
+    pub const RIGHT: Self = Self::Vertical(VerticalSide::Right);
+    pub const TOP: Self = Self::Horizontal(HorizontalSide::Top);
+    pub const BOTTOM: Self = Self::Horizontal(HorizontalSide::Bottom);
+
     /// Resize by keeping the [`self`] side fixed, and moving the opposite side.
     fn set_rect_size(self, rect: &mut Rect, size: f32) {
         match self {
@@ -163,11 +174,11 @@ impl PanelSide {
 
     fn ui_kind(self) -> UiKind {
         match self {
-            Self::Vertical(v_side) => match v_side {
+            Self::Vertical(side) => match side {
                 VerticalSide::Left => UiKind::LeftPanel,
                 VerticalSide::Right => UiKind::RightPanel,
             },
-            Self::Horizontal(h_side) => match h_side {
+            Self::Horizontal(side) => match side {
                 HorizontalSide::Top => UiKind::TopPanel,
                 HorizontalSide::Bottom => UiKind::BottomPanel,
             },
@@ -268,8 +279,8 @@ impl<'a> PanelSizer<'a> {
 // ----------------------------------------------------------------------------
 
 /// A panel that covers an entire side
-/// ([`Left`](VerticalSide::Left), [`Right`](VerticalSide::Right),
-/// [`Top`](HorizontalSide::Top) or [`Bottom`](HorizontalSide::Bottom))
+/// ([`left`](Panel::left), [`right`](Panel::right),
+/// [`top`](Panel::top) or [`bottom`](Panel::bottom))
 /// of a [`Ui`] or screen.
 ///
 /// The order in which you add panels matter!
@@ -308,34 +319,34 @@ impl Panel {
     ///
     /// The id should be globally unique, e.g. `Id::new("my_left_panel")`.
     pub fn left(id: impl Into<Id>) -> Self {
-        Self::new(PanelSide::Vertical(VerticalSide::Left), id)
+        Self::new(PanelSide::LEFT, id)
     }
 
     /// Create a right panel.
     ///
     /// The id should be globally unique, e.g. `Id::new("my_right_panel")`.
     pub fn right(id: impl Into<Id>) -> Self {
-        Self::new(PanelSide::Vertical(VerticalSide::Right), id)
+        Self::new(PanelSide::RIGHT, id)
     }
 
     /// Create a top panel.
     ///
     /// The id should be globally unique, e.g. `Id::new("my_top_panel")`.
     pub fn top(id: impl Into<Id>) -> Self {
-        Self::new(PanelSide::Horizontal(HorizontalSide::Top), id)
+        Self::new(PanelSide::TOP, id)
     }
 
     /// Create a bottom panel.
     ///
     /// The id should be globally unique, e.g. `Id::new("my_bottom_panel")`.
     pub fn bottom(id: impl Into<Id>) -> Self {
-        Self::new(PanelSide::Horizontal(HorizontalSide::Bottom), id)
+        Self::new(PanelSide::BOTTOM, id)
     }
 
     /// Create a panel.
     ///
     /// The id should be globally unique, e.g. `Id::new("my_panel")`.
-    pub fn new(side: PanelSide, id: impl Into<Id>) -> Self {
+    fn new(side: PanelSide, id: impl Into<Id>) -> Self {
         let default_size: Option<f32> = match side {
             PanelSide::Vertical(_) => Some(200.0),
             PanelSide::Horizontal(_) => None,
@@ -621,11 +632,11 @@ impl Panel {
         {
             let mut cursor = ui.cursor();
             match side {
-                PanelSide::Vertical(v_side) => match v_side {
+                PanelSide::Vertical(side) => match side {
                     VerticalSide::Left => cursor.min.x = rect.max.x,
                     VerticalSide::Right => cursor.max.x = rect.min.x,
                 },
-                PanelSide::Horizontal(h_side) => match h_side {
+                PanelSide::Horizontal(side) => match side {
                     HorizontalSide::Top => cursor.min.y = rect.max.y,
                     HorizontalSide::Bottom => cursor.max.y = rect.min.y,
                 },
@@ -703,7 +714,7 @@ impl Panel {
         let rect = inner_response.response.rect;
 
         match side {
-            PanelSide::Vertical(v_side) => match v_side {
+            PanelSide::Vertical(side) => match side {
                 VerticalSide::Left => ctx.pass_state_mut(|state| {
                     state.allocate_left_panel(Rect::from_min_max(available_rect.min, rect.max));
                 }),
@@ -711,7 +722,7 @@ impl Panel {
                     state.allocate_right_panel(Rect::from_min_max(rect.min, available_rect.max));
                 }),
             },
-            PanelSide::Horizontal(h_side) => match h_side {
+            PanelSide::Horizontal(side) => match side {
                 HorizontalSide::Top => {
                     ctx.pass_state_mut(|state| {
                         state.allocate_top_panel(Rect::from_min_max(available_rect.min, rect.max));
@@ -777,11 +788,11 @@ impl Panel {
     fn get_cursor_icon(&self, panel_sizer: &PanelSizer<'_>) -> CursorIcon {
         if panel_sizer.size <= self.size_range.min {
             match self.side {
-                PanelSide::Vertical(v_side) => match v_side {
+                PanelSide::Vertical(side) => match side {
                     VerticalSide::Left => CursorIcon::ResizeEast,
                     VerticalSide::Right => CursorIcon::ResizeWest,
                 },
-                PanelSide::Horizontal(h_side) => match h_side {
+                PanelSide::Horizontal(side) => match side {
                     HorizontalSide::Top => CursorIcon::ResizeSouth,
                     HorizontalSide::Bottom => CursorIcon::ResizeNorth,
                 },
@@ -793,11 +804,11 @@ impl Panel {
             }
         } else {
             match self.side {
-                PanelSide::Vertical(v_side) => match v_side {
+                PanelSide::Vertical(side) => match side {
                     VerticalSide::Left => CursorIcon::ResizeWest,
                     VerticalSide::Right => CursorIcon::ResizeEast,
                 },
-                PanelSide::Horizontal(h_side) => match h_side {
+                PanelSide::Horizontal(side) => match side {
                     HorizontalSide::Top => CursorIcon::ResizeNorth,
                     HorizontalSide::Bottom => CursorIcon::ResizeSouth,
                 },
@@ -978,9 +989,9 @@ impl CentralPanel {
 
         if false {
             // TODO: @lucasmerlin shouldn't we enable this?
-        panel_ui
-            .response()
-            .widget_info(|| WidgetInfo::new(WidgetType::Panel));
+            panel_ui
+                .response()
+                .widget_info(|| WidgetInfo::new(WidgetType::Panel));
         }
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
