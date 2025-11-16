@@ -1,9 +1,10 @@
 use std::{any::Any, sync::Arc};
 
 use crate::{
-    emath::{Align, Pos2, Rect, Vec2},
-    menu, pass_state, AreaState, Context, CursorIcon, Id, LayerId, Order, PointerButton, Sense, Ui,
+    Context, CursorIcon, Id, LayerId, PointerButton, Popup, PopupKind, Sense, Tooltip, Ui,
     WidgetRect, WidgetText,
+    emath::{Align, Pos2, Rect, Vec2},
+    pass_state,
 };
 // ----------------------------------------------------------------------------
 
@@ -58,8 +59,8 @@ pub struct Response {
 
     /// The intrinsic / desired size of the widget.
     ///
-    /// For a button, this will be the size of the label + the frames padding,
-    /// even if the button is laid out in a justified layout and the actual size will be larger.
+    /// This is the size that a non-wrapped, non-truncated, non-justified version of the widget
+    /// would have.
     ///
     /// If this is `None`, use [`Self::rect`] instead.
     ///
@@ -133,6 +134,9 @@ bitflags::bitflags! {
         /// Note that this can be `true` even if the user did not interact with the widget,
         /// for instance if an existing slider value was clamped to the given range.
         const CHANGED = 1<<11;
+
+        /// Should this container be closed?
+        const CLOSE = 1<<12;
     }
 }
 
@@ -215,29 +219,44 @@ impl Response {
             && self.ctx.input(|i| i.pointer.button_triple_clicked(button))
     }
 
+    /// Was this widget middle-clicked or clicked while holding down a modifier key?
+    ///
+    /// This is used by [`crate::Hyperlink`] to check if a URL should be opened
+    /// in a new tab, using [`crate::OpenUrl::new_tab`].
+    pub fn clicked_with_open_in_background(&self) -> bool {
+        self.middle_clicked() || self.clicked() && self.ctx.input(|i| i.modifiers.any())
+    }
+
     /// `true` if there was a click *outside* the rect of this widget.
     ///
     /// Clicks on widgets contained in this one counts as clicks inside this widget,
     /// so that clicking a button in an area will not be considered as clicking "elsewhere" from the area.
+    ///
+    /// Clicks on other layers above this widget *will* be considered as clicking elsewhere.
     pub fn clicked_elsewhere(&self) -> bool {
+        let (pointer_interact_pos, any_click) = self
+            .ctx
+            .input(|i| (i.pointer.interact_pos(), i.pointer.any_click()));
+
         // We do not use self.clicked(), because we want to catch all clicks within our frame,
         // even if we aren't clickable (or even enabled).
         // This is important for windows and such that should close then the user clicks elsewhere.
-        self.ctx.input(|i| {
-            let pointer = &i.pointer;
-
-            if pointer.any_click() {
-                if self.contains_pointer() || self.hovered() {
-                    false
-                } else if let Some(pos) = pointer.interact_pos() {
-                    !self.interact_rect.contains(pos)
+        if any_click {
+            if self.contains_pointer() || self.hovered() {
+                false
+            } else if let Some(pos) = pointer_interact_pos {
+                let layer_under_pointer = self.ctx.layer_id_at(pos);
+                if layer_under_pointer != Some(self.layer_id) {
+                    true
                 } else {
-                    false // clicked without a pointer, weird
+                    !self.interact_rect.contains(pos)
                 }
             } else {
-                false
+                false // clicked without a pointer, weird
             }
-        })
+        } else {
+            false
+        }
     }
 
     /// Was the widget enabled?
@@ -377,20 +396,7 @@ impl Response {
         self.drag_stopped() && self.ctx.input(|i| i.pointer.button_released(button))
     }
 
-    /// The widget was being dragged, but now it has been released.
-    #[inline]
-    #[deprecated = "Renamed 'drag_stopped'"]
-    pub fn drag_released(&self) -> bool {
-        self.drag_stopped()
-    }
-
-    /// The widget was being dragged by the button, but now it has been released.
-    #[deprecated = "Renamed 'drag_stopped_by'"]
-    pub fn drag_released_by(&self, button: PointerButton) -> bool {
-        self.drag_stopped_by(button)
-    }
-
-    /// If dragged, how many points were we dragged and in what direction?
+    /// If dragged, how many points were we dragged in since last frame?
     #[inline]
     pub fn drag_delta(&self) -> Vec2 {
         if self.dragged() {
@@ -404,7 +410,22 @@ impl Response {
         }
     }
 
-    /// If dragged, how far did the mouse move?
+    /// If dragged, how many points have we been dragged since the start of the drag?
+    #[inline]
+    pub fn total_drag_delta(&self) -> Option<Vec2> {
+        if self.dragged() {
+            let mut delta = self.ctx.input(|i| i.pointer.total_drag_delta())?;
+            if let Some(from_global) = self.ctx.layer_transform_from_global(self.layer_id) {
+                delta *= from_global.scaling;
+            }
+            Some(delta)
+        } else {
+            None
+        }
+    }
+
+    /// If dragged, how far did the mouse move since last frame?
+    ///
     /// This will use raw mouse movement if provided by the integration, otherwise will fall back to [`Response::drag_delta`]
     /// Raw mouse movement is unaccelerated and unclamped by screen boundaries, and does not relate to any position on the screen.
     /// This may be useful in certain situations such as draggable values and 3D cameras, where screen position does not matter.
@@ -528,6 +549,21 @@ impl Response {
         self.flags.set(Flags::CHANGED, true);
     }
 
+    /// Should the container be closed?
+    ///
+    /// Will e.g. be set by calling [`Ui::close`] in a child [`Ui`] or by calling
+    /// [`Self::set_close`].
+    pub fn should_close(&self) -> bool {
+        self.flags.contains(Flags::CLOSE)
+    }
+
+    /// Set the [`Flags::CLOSE`] flag.
+    ///
+    /// Can be used to e.g. signal that a container should be closed.
+    pub fn set_close(&mut self) {
+        self.flags.set(Flags::CLOSE, true);
+    }
+
     /// Show this UI if the widget was hovered (i.e. a tooltip).
     ///
     /// The text will not be visible if the widget is not enabled.
@@ -550,36 +586,22 @@ impl Response {
     /// ```
     #[doc(alias = "tooltip")]
     pub fn on_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
-        if self.flags.contains(Flags::ENABLED) && self.should_show_hover_ui() {
-            self.show_tooltip_ui(add_contents);
-        }
+        Tooltip::for_enabled(&self).show(add_contents);
         self
     }
 
     /// Show this UI when hovering if the widget is disabled.
     pub fn on_disabled_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
-        if !self.enabled() && self.should_show_hover_ui() {
-            crate::containers::show_tooltip_for(
-                &self.ctx,
-                self.layer_id,
-                self.id,
-                &self.rect,
-                add_contents,
-            );
-        }
+        Tooltip::for_disabled(&self).show(add_contents);
         self
     }
 
     /// Like `on_hover_ui`, but show the ui next to cursor.
     pub fn on_hover_ui_at_pointer(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
-        if self.enabled() && self.should_show_hover_ui() {
-            crate::containers::show_tooltip_at_pointer(
-                &self.ctx,
-                self.layer_id,
-                self.id,
-                add_contents,
-            );
-        }
+        Tooltip::for_enabled(&self)
+            .at_pointer()
+            .gap(12.0)
+            .show(add_contents);
         self
     }
 
@@ -587,13 +609,9 @@ impl Response {
     ///
     /// This can be used to give attention to a widget during a tutorial.
     pub fn show_tooltip_ui(&self, add_contents: impl FnOnce(&mut Ui)) {
-        crate::containers::show_tooltip_for(
-            &self.ctx,
-            self.layer_id,
-            self.id,
-            &self.rect,
-            add_contents,
-        );
+        Popup::from_response(self)
+            .kind(PopupKind::Tooltip)
+            .show(add_contents);
     }
 
     /// Always show this tooltip, even if disabled and the user isn't hovering it.
@@ -607,180 +625,7 @@ impl Response {
 
     /// Was the tooltip open last frame?
     pub fn is_tooltip_open(&self) -> bool {
-        crate::popup::was_tooltip_open_last_frame(&self.ctx, self.id)
-    }
-
-    fn should_show_hover_ui(&self) -> bool {
-        if self.ctx.memory(|mem| mem.everything_is_visible()) {
-            return true;
-        }
-
-        let any_open_popups = self.ctx.prev_pass_state(|fs| {
-            fs.layers
-                .get(&self.layer_id)
-                .is_some_and(|layer| !layer.open_popups.is_empty())
-        });
-        if any_open_popups {
-            // Hide tooltips if the user opens a popup (menu, combo-box, etc) in the same layer.
-            return false;
-        }
-
-        let style = self.ctx.style();
-
-        let tooltip_delay = style.interaction.tooltip_delay;
-        let tooltip_grace_time = style.interaction.tooltip_grace_time;
-
-        let (
-            time_since_last_scroll,
-            time_since_last_click,
-            time_since_last_pointer_movement,
-            pointer_pos,
-            pointer_dir,
-        ) = self.ctx.input(|i| {
-            (
-                i.time_since_last_scroll(),
-                i.pointer.time_since_last_click(),
-                i.pointer.time_since_last_movement(),
-                i.pointer.hover_pos(),
-                i.pointer.direction(),
-            )
-        });
-
-        if time_since_last_scroll < tooltip_delay {
-            // See https://github.com/emilk/egui/issues/4781
-            // Note that this means we cannot have `ScrollArea`s in a tooltip.
-            self.ctx
-                .request_repaint_after_secs(tooltip_delay - time_since_last_scroll);
-            return false;
-        }
-
-        let is_our_tooltip_open = self.is_tooltip_open();
-
-        if is_our_tooltip_open {
-            // Check if we should automatically stay open:
-
-            let tooltip_id = crate::next_tooltip_id(&self.ctx, self.id);
-            let tooltip_layer_id = LayerId::new(Order::Tooltip, tooltip_id);
-
-            let tooltip_has_interactive_widget = self.ctx.viewport(|vp| {
-                vp.prev_pass
-                    .widgets
-                    .get_layer(tooltip_layer_id)
-                    .any(|w| w.enabled && w.sense.interactive())
-            });
-
-            if tooltip_has_interactive_widget {
-                // We keep the tooltip open if hovered,
-                // or if the pointer is on its way to it,
-                // so that the user can interact with the tooltip
-                // (i.e. click links that are in it).
-                if let Some(area) = AreaState::load(&self.ctx, tooltip_id) {
-                    let rect = area.rect();
-
-                    if let Some(pos) = pointer_pos {
-                        if rect.contains(pos) {
-                            return true; // hovering interactive tooltip
-                        }
-                        if pointer_dir != Vec2::ZERO
-                            && rect.intersects_ray(pos, pointer_dir.normalized())
-                        {
-                            return true; // on the way to interactive tooltip
-                        }
-                    }
-                }
-            }
-        }
-
-        let clicked_more_recently_than_moved =
-            time_since_last_click < time_since_last_pointer_movement + 0.1;
-        if clicked_more_recently_than_moved {
-            // It is common to click a widget and then rest the mouse there.
-            // It would be annoying to then see a tooltip for it immediately.
-            // Similarly, clicking should hide the existing tooltip.
-            // Only hovering should lead to a tooltip, not clicking.
-            // The offset is only to allow small movement just right after the click.
-            return false;
-        }
-
-        if is_our_tooltip_open {
-            // Check if we should automatically stay open:
-
-            if pointer_pos.is_some_and(|pointer_pos| self.rect.contains(pointer_pos)) {
-                // Handle the case of a big tooltip that covers the widget:
-                return true;
-            }
-        }
-
-        let is_other_tooltip_open = self.ctx.prev_pass_state(|fs| {
-            if let Some(already_open_tooltip) = fs
-                .layers
-                .get(&self.layer_id)
-                .and_then(|layer| layer.widget_with_tooltip)
-            {
-                already_open_tooltip != self.id
-            } else {
-                false
-            }
-        });
-        if is_other_tooltip_open {
-            // We only allow one tooltip per layer. First one wins. It is up to that tooltip to close itself.
-            return false;
-        }
-
-        // Fast early-outs:
-        if self.enabled() {
-            if !self.hovered() || !self.ctx.input(|i| i.pointer.has_pointer()) {
-                return false;
-            }
-        } else if !self.ctx.rect_contains_pointer(self.layer_id, self.rect) {
-            return false;
-        }
-
-        // There is a tooltip_delay before showing the first tooltip,
-        // but once one tooltip is show, moving the mouse cursor to
-        // another widget should show the tooltip for that widget right away.
-
-        // Let the user quickly move over some dead space to hover the next thing
-        let tooltip_was_recently_shown =
-            crate::popup::seconds_since_last_tooltip(&self.ctx) < tooltip_grace_time;
-
-        if !tooltip_was_recently_shown && !is_our_tooltip_open {
-            if style.interaction.show_tooltips_only_when_still {
-                // We only show the tooltip when the mouse pointer is still.
-                if !self
-                    .ctx
-                    .input(|i| i.pointer.is_still() && i.smooth_scroll_delta == Vec2::ZERO)
-                {
-                    // wait for mouse to stop
-                    self.ctx.request_repaint();
-                    return false;
-                }
-            }
-
-            let time_since_last_interaction = time_since_last_scroll
-                .min(time_since_last_pointer_movement)
-                .min(time_since_last_click);
-            let time_til_tooltip = tooltip_delay - time_since_last_interaction;
-
-            if 0.0 < time_til_tooltip {
-                // Wait until the mouse has been still for a while
-                self.ctx.request_repaint_after_secs(time_til_tooltip);
-                return false;
-            }
-        }
-
-        // We don't want tooltips of things while we are dragging them,
-        // but we do want tooltips while holding down on an item on a touch screen.
-        if self
-            .ctx
-            .input(|i| i.pointer.any_down() && i.pointer.has_moved_too_much_for_a_click)
-        {
-            return false;
-        }
-
-        // All checks passed: show the tooltip!
-
-        true
+        Tooltip::was_tooltip_open_last_frame(&self.ctx, self.id)
     }
 
     /// Like `on_hover_text`, but show the text next to cursor.
@@ -879,10 +724,9 @@ impl Response {
     /// ```
     #[must_use]
     pub fn interact(&self, sense: Sense) -> Self {
-        if (self.sense | sense) == self.sense {
-            // Early-out: we already sense everything we need to sense.
-            return self.clone();
-        }
+        // We could check here if the new Sense equals the old one to avoid the extra create_widget
+        // call. But that would break calling `interact` on a response from `Context::read_response`
+        // or `Ui::response`. (See https://github.com/emilk/egui/pull/7713 for more details.)
 
         self.ctx.create_widget(
             WidgetRect {
@@ -963,7 +807,6 @@ impl Response {
         if let Some(event) = event {
             self.output_event(event);
         } else {
-            #[cfg(feature = "accesskit")]
             self.ctx.accesskit_node_builder(self.id, |builder| {
                 self.fill_accesskit_node_from_widget_info(builder, make_info());
             });
@@ -973,7 +816,6 @@ impl Response {
     }
 
     pub fn output_event(&self, event: crate::output::OutputEvent) {
-        #[cfg(feature = "accesskit")]
         self.ctx.accesskit_node_builder(self.id, |builder| {
             self.fill_accesskit_node_from_widget_info(builder, event.widget_info().clone());
         });
@@ -984,7 +826,6 @@ impl Response {
         self.ctx.output_mut(|o| o.events.push(event));
     }
 
-    #[cfg(feature = "accesskit")]
     pub(crate) fn fill_accesskit_node_common(&self, builder: &mut accesskit::Node) {
         if !self.enabled() {
             builder.set_disabled();
@@ -1003,7 +844,6 @@ impl Response {
         }
     }
 
-    #[cfg(feature = "accesskit")]
     fn fill_accesskit_node_from_widget_info(
         &self,
         builder: &mut accesskit::Node,
@@ -1017,18 +857,18 @@ impl Response {
             WidgetType::Label => Role::Label,
             WidgetType::Link => Role::Link,
             WidgetType::TextEdit => Role::TextInput,
-            WidgetType::Button | WidgetType::ImageButton | WidgetType::CollapsingHeader => {
+            WidgetType::Button | WidgetType::CollapsingHeader | WidgetType::SelectableLabel => {
                 Role::Button
             }
             WidgetType::Image => Role::Image,
             WidgetType::Checkbox => Role::CheckBox,
             WidgetType::RadioButton => Role::RadioButton,
             WidgetType::RadioGroup => Role::RadioGroup,
-            WidgetType::SelectableLabel => Role::Button,
             WidgetType::ComboBox => Role::ComboBox,
             WidgetType::Slider => Role::Slider,
             WidgetType::DragValue => Role::SpinButton,
             WidgetType::ColorButton => Role::ColorWell,
+            WidgetType::Panel => Role::Pane,
             WidgetType::ProgressIndicator => Role::ProgressIndicator,
             WidgetType::Window => Role::Window,
             WidgetType::Other => Role::Unknown,
@@ -1059,6 +899,9 @@ impl Response {
             // Indeterminate state
             builder.set_toggled(Toggled::Mixed);
         }
+        if let Some(hint_text) = info.hint_text {
+            builder.set_placeholder(hint_text);
+        }
     }
 
     /// Associate a label with a control for accessibility.
@@ -1075,14 +918,9 @@ impl Response {
     /// # });
     /// ```
     pub fn labelled_by(self, id: Id) -> Self {
-        #[cfg(feature = "accesskit")]
         self.ctx.accesskit_node_builder(self.id, |builder| {
             builder.push_labelled_by(id.accesskit_id());
         });
-        #[cfg(not(feature = "accesskit"))]
-        {
-            let _ = id;
-        }
 
         self
     }
@@ -1097,22 +935,22 @@ impl Response {
     /// let response = ui.add(Label::new("Right-click me!").sense(Sense::click()));
     /// response.context_menu(|ui| {
     ///     if ui.button("Close the menu").clicked() {
-    ///         ui.close_menu();
+    ///         ui.close();
     ///     }
     /// });
     /// # });
     /// ```
     ///
-    /// See also: [`Ui::menu_button`] and [`Ui::close_menu`].
+    /// See also: [`Ui::menu_button`] and [`Ui::close`].
     pub fn context_menu(&self, add_contents: impl FnOnce(&mut Ui)) -> Option<InnerResponse<()>> {
-        menu::context_menu(self, add_contents)
+        Popup::context_menu(self).show(add_contents)
     }
 
     /// Returns whether a context menu is currently open for this widget.
     ///
     /// See [`Self::context_menu`].
     pub fn context_menu_opened(&self) -> bool {
-        menu::context_menu_opened(self)
+        Popup::context_menu(self).is_open()
     }
 
     /// Draw a debug rectangle over the response displaying the response's id and whether it is
@@ -1148,7 +986,10 @@ impl Response {
     ///
     /// You may not call [`Self::interact`] on the resulting `Response`.
     pub fn union(&self, other: Self) -> Self {
-        assert!(self.ctx == other.ctx);
+        assert!(
+            self.ctx == other.ctx,
+            "Responses must be from the same `Context`"
+        );
         debug_assert!(
             self.layer_id == other.layer_id,
             "It makes no sense to combine Responses from two different layers"

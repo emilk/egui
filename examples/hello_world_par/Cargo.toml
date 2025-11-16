@@ -3,8 +3,8 @@ name = "hello_world_par"
 version = "0.1.0"
 authors = ["Maxim Osipenko <maxim1999max@gmail.com>"]
 license = "MIT OR Apache-2.0"
-edition = "2021"
-rust-version = "1.81"
+edition = "2024"
+rust-version = "1.88"
 publish = false
 
 [lints]
@@ -17,16 +17,13 @@ ignored = ["winit"] # Just enable some features of it; see below
 
 [dependencies]
 eframe = { workspace = true, default-features = false, features = [
-    # accesskit struggles with threading
-    "default_fonts",
-    "wayland",
-    "x11",
-    "wgpu",
+  # accesskit struggles with threading
+  "default_fonts",
+  "wayland",
+  "x11",
+  "wgpu",
 ] }
-env_logger = { version = "0.10", default-features = false, features = [
-    "auto-color",
-    "humantime",
-] }
+env_logger = { workspace = true, features = ["auto-color", "humantime"] }
 # This is normally enabled by eframe/default, which is not being used here
 # because of accesskit, as mentioned above
 winit = { workspace = true, features = ["default"] }

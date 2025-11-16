@@ -1,8 +1,7 @@
-use ahash::HashSet;
+pub use egui_winit::{self, EventResponse};
+
 use egui::{ViewportId, ViewportOutput};
-pub use egui_winit;
 use egui_winit::winit;
-pub use egui_winit::EventResponse;
 
 use crate::shader_version::ShaderVersion;
 
@@ -81,7 +80,7 @@ impl EguiGlow {
             log::warn!("Multiple viewports not yet supported by EguiGlow");
         }
         for (_, ViewportOutput { commands, .. }) in viewport_output {
-            let mut actions_requested: HashSet<egui_winit::ActionRequested> = Default::default();
+            let mut actions_requested = Default::default();
             egui_winit::process_viewport_commands(
                 &self.egui_ctx,
                 &mut self.viewport_info,
@@ -90,7 +89,7 @@ impl EguiGlow {
                 &mut actions_requested,
             );
             for action in actions_requested {
-                log::warn!("{:?} not yet supported by EguiGlow", action);
+                log::warn!("{action:?} not yet supported by EguiGlow");
             }
         }
 

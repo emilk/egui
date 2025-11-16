@@ -2,12 +2,12 @@ use std::{cell::RefCell, rc::Rc};
 
 use wasm_bindgen::prelude::*;
 
-use crate::{epi, App};
+use crate::{App, epi};
 
 use super::{
+    AppRunner, PanicHandler,
     events::{self, ResizeObserverContext},
     text_agent::TextAgent,
-    AppRunner, PanicHandler,
 };
 
 /// This is how `eframe` runs your web application
@@ -37,7 +37,7 @@ pub struct WebRunner {
 
 impl WebRunner {
     /// Will install a panic handler that will catch and log any panics
-    #[allow(clippy::new_without_default)]
+    #[expect(clippy::new_without_default)]
     pub fn new() -> Self {
         let panic_handler = PanicHandler::install();
 
@@ -73,7 +73,7 @@ impl WebRunner {
 
         {
             // First set up the app runner:
-            let text_agent = TextAgent::attach(self)?;
+            let text_agent = TextAgent::attach(self, canvas.get_root_node())?;
             let app_runner =
                 AppRunner::new(canvas.clone(), web_options, app_creator, text_agent).await?;
             self.app_runner.replace(Some(app_runner));
@@ -280,7 +280,7 @@ struct TargetEvent {
     closure: Closure<dyn FnMut(web_sys::Event)>,
 }
 
-#[allow(unused)]
+#[expect(unused)]
 struct IntervalHandle {
     handle: i32,
     closure: Closure<dyn FnMut()>,
@@ -289,7 +289,7 @@ struct IntervalHandle {
 enum EventToUnsubscribe {
     TargetEvent(TargetEvent),
 
-    #[allow(unused)]
+    #[expect(unused)]
     IntervalHandle(IntervalHandle),
 }
 

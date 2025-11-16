@@ -1,15 +1,15 @@
 use egui::{TexturesDelta, UserData, ViewportCommand};
 
-use crate::{epi, App};
+use crate::{App, epi, web::web_painter::WebPainter};
 
-use super::{now_sec, text_agent::TextAgent, web_painter::WebPainter, NeedRepaint};
+use super::{NeedRepaint, now_sec, text_agent::TextAgent};
 
 pub struct AppRunner {
-    #[allow(dead_code)]
+    #[allow(dead_code, clippy::allow_attributes)]
     pub(crate) web_options: crate::WebOptions,
     pub(crate) frame: epi::Frame,
     egui_ctx: egui::Context,
-    painter: super::ActiveWebPainter,
+    painter: Box<dyn WebPainter>,
     pub(crate) input: super::WebInput,
     app: Box<dyn epi::App>,
     pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
@@ -34,6 +34,10 @@ impl Drop for AppRunner {
 impl AppRunner {
     /// # Errors
     /// Failure to initialize WebGL renderer, or failure to create app.
+    #[cfg_attr(
+        not(feature = "wgpu_no_default_features"),
+        expect(clippy::unused_async)
+    )]
     pub async fn new(
         canvas: web_sys::HtmlCanvasElement,
         web_options: crate::WebOptions,
@@ -41,7 +45,41 @@ impl AppRunner {
         text_agent: TextAgent,
     ) -> Result<Self, String> {
         let egui_ctx = egui::Context::default();
-        let painter = super::ActiveWebPainter::new(egui_ctx.clone(), canvas, &web_options).await?;
+
+        #[allow(clippy::allow_attributes, unused_assignments)]
+        #[cfg(feature = "glow")]
+        let mut gl = None;
+
+        #[allow(clippy::allow_attributes, unused_assignments)]
+        #[cfg(feature = "wgpu_no_default_features")]
+        let mut wgpu_render_state = None;
+
+        let painter = match web_options.renderer {
+            #[cfg(feature = "glow")]
+            epi::Renderer::Glow => {
+                log::debug!("Using the glow renderer");
+                let painter = super::web_painter_glow::WebPainterGlow::new(
+                    egui_ctx.clone(),
+                    canvas,
+                    &web_options,
+                )?;
+                gl = Some(painter.gl().clone());
+                Box::new(painter) as Box<dyn WebPainter>
+            }
+
+            #[cfg(feature = "wgpu_no_default_features")]
+            epi::Renderer::Wgpu => {
+                log::debug!("Using the wgpu renderer");
+                let painter = super::web_painter_wgpu::WebPainterWgpu::new(
+                    egui_ctx.clone(),
+                    canvas,
+                    &web_options,
+                )
+                .await?;
+                wgpu_render_state = painter.render_state();
+                Box::new(painter) as Box<dyn WebPainter>
+            }
+        };
 
         let info = epi::IntegrationInfo {
             web_info: epi::WebInfo {
@@ -65,21 +103,27 @@ impl AppRunner {
             o.zoom_factor = 1.0;
         });
 
+        // Tell egui right away about native_pixels_per_point
+        // so that the app knows about it during app creation:
+        egui_ctx.input_mut(|i| {
+            let viewport_info = i.raw.viewports.entry(egui::ViewportId::ROOT).or_default();
+            viewport_info.native_pixels_per_point = Some(super::native_pixels_per_point());
+            i.pixels_per_point = super::native_pixels_per_point();
+        });
+
         let cc = epi::CreationContext {
             egui_ctx: egui_ctx.clone(),
             integration_info: info.clone(),
             storage: Some(&storage),
 
             #[cfg(feature = "glow")]
-            gl: Some(painter.gl().clone()),
+            gl: gl.clone(),
 
             #[cfg(feature = "glow")]
             get_proc_address: None,
 
-            #[cfg(all(feature = "wgpu", not(feature = "glow")))]
-            wgpu_render_state: painter.render_state(),
-            #[cfg(all(feature = "wgpu", feature = "glow"))]
-            wgpu_render_state: None,
+            #[cfg(feature = "wgpu_no_default_features")]
+            wgpu_render_state: wgpu_render_state.clone(),
         };
         let app = app_creator(&cc).map_err(|err| err.to_string())?;
 
@@ -88,15 +132,14 @@ impl AppRunner {
             storage: Some(Box::new(storage)),
 
             #[cfg(feature = "glow")]
-            gl: Some(painter.gl().clone()),
+            gl,
 
-            #[cfg(all(feature = "wgpu", not(feature = "glow")))]
-            wgpu_render_state: painter.render_state(),
-            #[cfg(all(feature = "wgpu", feature = "glow"))]
-            wgpu_render_state: None,
+            #[cfg(feature = "wgpu_no_default_features")]
+            wgpu_render_state,
         };
 
-        let needs_repaint: std::sync::Arc<NeedRepaint> = Default::default();
+        let needs_repaint: std::sync::Arc<NeedRepaint> =
+            std::sync::Arc::new(NeedRepaint::new(web_options.max_fps));
         {
             let needs_repaint = needs_repaint.clone();
             egui_ctx.set_request_repaint_callback(move |info| {
@@ -304,8 +347,6 @@ impl AppRunner {
     }
 
     fn handle_platform_output(&self, platform_output: egui::PlatformOutput) {
-        #![allow(deprecated)]
-
         #[cfg(feature = "web_screen_reader")]
         if self.egui_ctx.options(|o| o.screen_reader) {
             super::screen_reader::speak(&platform_output.events_description());
@@ -314,13 +355,10 @@ impl AppRunner {
         let egui::PlatformOutput {
             commands,
             cursor_icon,
-            open_url,
-            copied_text,
             events: _,                    // already handled
             mutable_text_under_cursor: _, // TODO(#4569): https://github.com/emilk/egui/issues/4569
             ime,
-            #[cfg(feature = "accesskit")]
-                accesskit_update: _, // not currently implemented
+            accesskit_update: _,        // not currently implemented
             num_completed_passes: _,    // handled by `Context::run`
             request_discard_reasons: _, // handled by `Context::run`
         } = platform_output;
@@ -340,14 +378,6 @@ impl AppRunner {
         }
 
         super::set_cursor_icon(cursor_icon);
-
-        if let Some(open) = open_url {
-            super::open_url(&open.url, open.new_tab);
-        }
-
-        if !copied_text.is_empty() {
-            super::set_clipboard_text(&copied_text);
-        }
 
         if self.has_focus() {
             // The eframe app has focus.

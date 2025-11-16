@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    io::Write,
+    io::Write as _,
     path::{Path, PathBuf},
 };
 
@@ -42,20 +42,20 @@ pub fn storage_dir(app_id: &str) -> Option<PathBuf> {
 // Adapted from
 // https://github.com/rust-lang/cargo/blob/6e11c77384989726bb4f412a0e23b59c27222c34/crates/home/src/windows.rs#L19-L37
 #[cfg(all(windows, not(target_vendor = "uwp")))]
-#[allow(unsafe_code)]
+#[expect(unsafe_code)]
 fn roaming_appdata() -> Option<PathBuf> {
     use std::ffi::OsString;
-    use std::os::windows::ffi::OsStringExt;
+    use std::os::windows::ffi::OsStringExt as _;
     use std::ptr;
     use std::slice;
 
     use windows_sys::Win32::Foundation::S_OK;
     use windows_sys::Win32::System::Com::CoTaskMemFree;
     use windows_sys::Win32::UI::Shell::{
-        FOLDERID_RoamingAppData, SHGetKnownFolderPath, KF_FLAG_DONT_VERIFY,
+        FOLDERID_RoamingAppData, KF_FLAG_DONT_VERIFY, SHGetKnownFolderPath,
     };
 
-    extern "C" {
+    unsafe extern "C" {
         fn wcslen(buf: *const u16) -> usize;
     }
     let mut path_raw = ptr::null_mut();
@@ -72,7 +72,7 @@ fn roaming_appdata() -> Option<PathBuf> {
     };
 
     let path = if result == S_OK {
-        // SAFETY: SHGetKnownFolderPath indicated success and is supposed to allocate a nullterminated string for us.
+        // SAFETY: SHGetKnownFolderPath indicated success and is supposed to allocate a null-terminated string for us.
         let path_slice = unsafe { slice::from_raw_parts(path_raw, wcslen(path_raw)) };
         Some(PathBuf::from(OsString::from_wide(path_slice)))
     } else {
@@ -118,7 +118,7 @@ impl FileStorage {
     pub(crate) fn from_ron_filepath(ron_filepath: impl Into<PathBuf>) -> Self {
         profiling::function_scope!();
         let ron_filepath: PathBuf = ron_filepath.into();
-        log::debug!("Loading app state from {:?}…", ron_filepath);
+        log::debug!("Loading app state from {}…", ron_filepath.display());
         Self {
             kv: read_ron(&ron_filepath).unwrap_or_default(),
             ron_filepath,
@@ -133,9 +133,8 @@ impl FileStorage {
         if let Some(data_dir) = storage_dir(app_id) {
             if let Err(err) = std::fs::create_dir_all(&data_dir) {
                 log::warn!(
-                    "Saving disabled: Failed to create app path at {:?}: {}",
-                    data_dir,
-                    err
+                    "Saving disabled: Failed to create app path at {}: {err}",
+                    data_dir.display()
                 );
                 None
             } else {
@@ -193,12 +192,11 @@ impl crate::Storage for FileStorage {
 fn save_to_disk(file_path: &PathBuf, kv: &HashMap<String, String>) {
     profiling::function_scope!();
 
-    if let Some(parent_dir) = file_path.parent() {
-        if !parent_dir.exists() {
-            if let Err(err) = std::fs::create_dir_all(parent_dir) {
-                log::warn!("Failed to create directory {parent_dir:?}: {err}");
-            }
-        }
+    if let Some(parent_dir) = file_path.parent()
+        && !parent_dir.exists()
+        && let Err(err) = std::fs::create_dir_all(parent_dir)
+    {
+        log::warn!("Failed to create directory {}: {err}", parent_dir.display());
     }
 
     match std::fs::File::create(file_path) {
@@ -207,16 +205,17 @@ fn save_to_disk(file_path: &PathBuf, kv: &HashMap<String, String>) {
             let config = Default::default();
 
             profiling::scope!("ron::serialize");
-            if let Err(err) = ron::ser::to_writer_pretty(&mut writer, &kv, config)
+            if let Err(err) = ron::Options::default()
+                .to_io_writer_pretty(&mut writer, &kv, config)
                 .and_then(|_| writer.flush().map_err(|err| err.into()))
             {
-                log::warn!("Failed to serialize app state: {}", err);
+                log::warn!("Failed to serialize app state: {err}");
             } else {
-                log::trace!("Persisted to {:?}", file_path);
+                log::trace!("Persisted to {}", file_path.display());
             }
         }
         Err(err) => {
-            log::warn!("Failed to create file {file_path:?}: {err}");
+            log::warn!("Failed to create file {}: {err}", file_path.display());
         }
     }
 }
@@ -234,7 +233,7 @@ where
             match ron::de::from_reader(reader) {
                 Ok(value) => Some(value),
                 Err(err) => {
-                    log::warn!("Failed to parse RON: {}", err);
+                    log::warn!("Failed to parse RON: {err}");
                     None
                 }
             }

@@ -1,11 +1,19 @@
-use std::iter::once;
 use std::sync::Arc;
+use std::{iter::once, time::Duration};
 
 use egui::TexturesDelta;
-use egui_wgpu::{wgpu, RenderState, ScreenDescriptor, WgpuSetup};
+use egui_wgpu::{RenderState, ScreenDescriptor, WgpuSetup, wgpu};
 use image::RgbaImage;
 
 use crate::texture_to_image::texture_to_image;
+
+/// Timeout for waiting on the GPU to finish rendering.
+///
+/// Windows will reset native drivers after 2 seconds of being stuck (known was TDR - timeout detection & recovery).
+/// However, software rasterizers like lavapipe may not do that and take longer if there's a lot of work in flight.
+/// In the end, what we really want to protect here against is undetected errors that lead to device loss
+/// and therefore infinite waits it happens occasionally on MacOS/Metal as of writing.
+pub(crate) const WAIT_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Default wgpu setup used for the wgpu renderer.
 pub fn default_wgpu_setup() -> egui_wgpu::WgpuSetup {
@@ -28,7 +36,7 @@ pub fn default_wgpu_setup() -> egui_wgpu::WgpuSetup {
             wgpu::Backend::Dx12 => 2,
             wgpu::Backend::Gl => 4,
             wgpu::Backend::BrowserWebGpu => 6,
-            wgpu::Backend::Empty => 7,
+            wgpu::Backend::Noop => 7,
         });
 
         // Prefer CPU adapters, otherwise if we can't, prefer discrete GPU over integrated GPU.
@@ -59,9 +67,7 @@ pub fn create_render_state(setup: WgpuSetup) -> egui_wgpu::RenderState {
         },
         &instance,
         None,
-        None,
-        1,
-        false,
+        egui_wgpu::RendererOptions::PREDICTABLE,
     ))
     .expect("Failed to create render state")
 }
@@ -143,7 +149,7 @@ impl crate::TestRenderer for WgpuTestRenderer {
                     label: Some("Egui Command Encoder"),
                 });
 
-        let size = ctx.screen_rect().size() * ctx.pixels_per_point();
+        let size = ctx.content_rect().size() * ctx.pixels_per_point();
         let screen = ScreenDescriptor {
             pixels_per_point: ctx.pixels_per_point(),
             size_in_pixels: [size.x.round() as u32, size.y.round() as u32],
@@ -190,6 +196,7 @@ impl crate::TestRenderer for WgpuTestRenderer {
                             load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
                             store: wgpu::StoreOp::Store,
                         },
+                        depth_slice: None,
                     })],
                     ..Default::default()
                 })
@@ -202,7 +209,13 @@ impl crate::TestRenderer for WgpuTestRenderer {
             .queue
             .submit(user_buffers.into_iter().chain(once(encoder.finish())));
 
-        self.render_state.device.poll(wgpu::Maintain::Wait);
+        self.render_state
+            .device
+            .poll(wgpu::PollType::Wait {
+                submission_index: None,
+                timeout: Some(WAIT_TIMEOUT),
+            })
+            .map_err(|err| format!("PollError: {err}"))?;
 
         Ok(texture_to_image(
             &self.render_state.device,

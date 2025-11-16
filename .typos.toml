@@ -3,9 +3,12 @@
 # run:      typos
 
 [default.extend-words]
-ime = "ime"       # Input Method Editor
+ime = "ime" # Input Method Editor
 nknown = "nknown" # part of @55nknown username
-ro = "ro"         # read-only, also part of the username @Phen-Ro
+isse = "isse"     # part of @IsseW username
+tye = "tye"       # part of @tye-exe username
+ro = "ro" # read-only, also part of the username @Phen-Ro
+typ = "typ" # Often used because `type` is a keyword in Rust
 
 # I mistype these so often
 tesalator = "tessellator"
@@ -17,5 +20,133 @@ teselation = "tessellation"
 tessalation = "tessellation"
 tesselation = "tessellation"
 
+
+# Use the more common spelling
+adaptor = "adapter"
+adaptors = "adapters"
+
+# For consistency we prefer American English:
+aeroplane = "airplane"
+analogue = "analog"
+analyse = "analyze"
+appetiser = "appetizer"
+arbour = "arbor"
+ardour = "arbor"
+armour = "armor"
+artefact = "artifact"
+authorise = "authorize"
+behaviour = "behavior"
+behavioural = "behavioral"
+British = "American"
+calibre = "caliber"
+# cancelled = "canceled" # winit uses this :(
+candour = "candor"
+capitalise = "capitalize"
+catalogue = "catalog"
+centre = "center"
+characterise = "characterize"
+chequerboard = "checkerboard"
+chequered = "checkered"
+civilise = "civilize"
+clamour = "clamor"
+colonise = "colonize"
+colour = "color"
+coloured = "colored"
+cosy = "cozy"
+criticise = "criticize"
+defence = "defense"
+demeanour = "demeanor"
+dialogue = "dialog"
+distil = "distill"
+doughnut = "donut"
+dramatise = "dramatize"
+draught = "draft"
+emphasise = "emphasize"
+endeavour = "endeavor"
+enrol = "enroll"
+epilogue = "epilog"
+equalise = "equalize"
+favour = "favor"
+favourite = "favorite"
+fibre = "fiber"
+flavour = "flavor"
+fulfil = "fufill"
+gaol = "jail"
+grey = "gray"
+greys = "grays"
+greyscale = "grayscale"
+harbour = "habor"
+honour = "honor"
+humour = "humor"
+instalment = "installment"
+instil = "instill"
+jewellery = "jewelry"
+kerb = "curb"
+labour = "labor"
+litre = "liter"
+lustre = "luster"
+meagre = "meager"
+metre = "meter"
+mobilise = "mobilize"
+monologue = "monolog"
+naturalise = "naturalize"
+neighbour = "neighbor"
+neighbourhood = "neighborhood"
+normalise = "normalize"
+normalised = "normalized"
+odour = "odor"
+offence = "offense"
+organise = "organize"
+parlour = "parlor"
+plough = "plow"
+popularise = "popularize"
+pretence = "pretense"
+programme = "program"
+prologue = "prolog"
+rancour = "rancor"
+realise = "realize"
+recognise = "recognize"
+recognised = "recognized"
+rigour = "rigor"
+rumour = "rumor"
+sabre = "saber"
+satirise = "satirize"
+saviour = "savior"
+savour = "savor"
+sceptical = "skeptical"
+sceptre = "scepter"
+sepulchre = "sepulcher"
+serialisation = "serialization"
+serialise = "serialize"
+serialised = "serialized"
+skilful = "skillful"
+sombre = "somber"
+specialisation = "specialization"
+specialise = "specialize"
+specialised = "specialized"
+splendour = "splendor"
+standardise = "standardize"
+sulphur = "sulfur"
+symbolise = "symbolize"
+theatre = "theater"
+tonne = "ton"
+travelogue = "travelog"
+tumour = "tumor"
+valour = "valor"
+vaporise = "vaporize"
+vigour = "vigor"
+
+# null-terminated is the name of the wikipedia article!
+# https://en.wikipedia.org/wiki/Null-terminated_string
+nullterminated = "null-terminated"
+zeroterminated = "null-terminated"
+zero-terminated = "null-terminated"
+
+
 [files]
 extend-exclude = ["web_demo/egui_demo_app.js"] # auto-generated
+
+[default]
+extend-ignore-re = [
+  "#\\[doc\\(alias = .*", # We suggest "grey" in some doc
+]

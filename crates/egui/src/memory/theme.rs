@@ -30,11 +30,7 @@ impl Theme {
 
     /// Chooses between [`Self::Dark`] or [`Self::Light`] based on a boolean value.
     pub fn from_dark_mode(dark_mode: bool) -> Self {
-        if dark_mode {
-            Self::Dark
-        } else {
-            Self::Light
-        }
+        if dark_mode { Self::Dark } else { Self::Light }
     }
 }
 
@@ -66,7 +62,7 @@ impl Theme {
 }
 
 /// The user's theme preference.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ThemePreference {
     /// Dark mode: light text on a dark background.
@@ -76,6 +72,7 @@ pub enum ThemePreference {
     Light,
 
     /// Follow the system's theme preference.
+    #[default]
     System,
 }
 
@@ -92,9 +89,32 @@ impl ThemePreference {
     /// Show radio-buttons to switch between light mode, dark mode and following the system theme.
     pub fn radio_buttons(&mut self, ui: &mut crate::Ui) {
         ui.horizontal(|ui| {
-            ui.selectable_value(self, Self::Light, "☀ Light");
-            ui.selectable_value(self, Self::Dark, "🌙 Dark");
-            ui.selectable_value(self, Self::System, "💻 System");
+            let system_theme = ui.ctx().input(|i| i.raw.system_theme);
+
+            ui.selectable_value(self, Self::System, "💻 System")
+                .on_hover_ui(|ui| {
+                    ui.label("Follow the system theme preference.");
+
+                    ui.add_space(4.0);
+
+                    if let Some(system_theme) = system_theme {
+                        ui.label(format!(
+                            "The current system theme is: {}",
+                            match system_theme {
+                                Theme::Dark => "dark",
+                                Theme::Light => "light",
+                            }
+                        ));
+                    } else {
+                        ui.label("The system theme is unknown.");
+                    }
+                });
+
+            ui.selectable_value(self, Self::Dark, "🌙 Dark")
+                .on_hover_text("Use the dark mode theme");
+
+            ui.selectable_value(self, Self::Light, "☀ Light")
+                .on_hover_text("Use the light mode theme");
         });
     }
 }

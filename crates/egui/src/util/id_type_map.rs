@@ -291,7 +291,6 @@ fn from_ron_str<T: serde::de::DeserializeOwned>(ron: &str) -> Option<T> {
     match ron::from_str::<T>(ron) {
         Ok(value) => Some(value),
         Err(_err) => {
-            #[cfg(feature = "log")]
             log::warn!(
                 "egui: Failed to deserialize {} from memory: {}, ron error: {:?}",
                 std::any::type_name::<T>(),
@@ -467,7 +466,7 @@ impl IdTypeMap {
 
     /// For tests
     #[cfg(feature = "persistence")]
-    #[allow(unused)]
+    #[allow(unused, clippy::allow_attributes)]
     fn get_generation<T: SerializableAny>(&self, id: Id) -> Option<usize> {
         let element = self.map.get(&hash(TypeId::of::<T>(), id))?;
         match element {
@@ -574,6 +573,8 @@ struct PersistedMap(Vec<(u64, SerializedElement)>);
 #[cfg(feature = "persistence")]
 impl PersistedMap {
     fn from_map(map: &IdTypeMap) -> Self {
+        #![expect(clippy::iter_over_hash_type)] // the serialized order doesn't matter
+
         profiling::function_scope!();
 
         use std::collections::BTreeMap;

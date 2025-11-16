@@ -35,7 +35,7 @@ macro_rules! egui_github_link_file {
     };
     ($label: expr) => {
         egui::github_link_file!(
-            "https://github.com/emilk/egui/blob/master/",
+            "https://github.com/emilk/egui/blob/main/",
             egui::RichText::new($label).small()
         )
     };
@@ -49,7 +49,7 @@ macro_rules! egui_github_link_file_line {
     };
     ($label: expr) => {
         egui::github_link_file_line!(
-            "https://github.com/emilk/egui/blob/master/",
+            "https://github.com/emilk/egui/blob/main/",
             egui::RichText::new($label).small()
         )
     };
@@ -109,6 +109,6 @@ fn test_egui_zero_window_size() {
 /// Detect narrow screens. This is used to show a simpler UI on mobile devices,
 /// especially for the web demo at <https://egui.rs>.
 pub fn is_mobile(ctx: &egui::Context) -> bool {
-    let screen_size = ctx.screen_rect().size();
+    let screen_size = ctx.content_rect().size();
     screen_size.x < 550.0
 }

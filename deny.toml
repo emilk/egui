@@ -31,7 +31,8 @@ all-features = true
 [advisories]
 version = 2
 ignore = [
-  "RUSTSEC-2024-0320", # unmaintaines yaml-rust pulled in by syntect
+  "RUSTSEC-2024-0320", # unmaintained yaml-rust pulled in by syntect
+  "RUSTSEC-2024-0436", # unmaintained paste pulled via metal/wgpu, see https://github.com/gfx-rs/metal-rs/issues/349
 ]
 
 [bans]
@@ -44,26 +45,24 @@ deny = [
 ]
 
 skip = [
-  { name = "base64" },         # Pretty small
-  { name = "bit-set" },        # wgpu's naga depends on 0.8, syntect's (used by egui_extras) fancy-regex depends on 0.5
-  { name = "bit-vec" },        # dependency of bit-set in turn, different between 0.6 and 0.5
-  { name = "bitflags" },       # old 1.0 version via glutin, png, spirv, …
-  { name = "event-listener" }, # TODO(emilk): rustls pulls in two versions of this 😭
-  { name = "futures-lite" },   # old version via accesskit_unix and zbus
-  { name = "memoffset" },      # tiny dependency
-  { name = "ndk-sys" },        # old version via wgpu, winit uses newer version
-  { name = "quick-xml" },      # old version via wayland-scanner
-  { name = "redox_syscall" },  # old version via winit
-  { name = "thiserror" },      # ecosystem is in the process of migrating from 1.x to 2.x
+  { name = "bit-set" }, # wgpu's naga depends on 0.8, syntect's (used by egui_extras) fancy-regex depends on 0.5
+  { name = "bit-vec" }, # dependency of bit-set in turn, different between 0.6 and 0.5
+  { name = "bitflags" }, # old 1.0 version via glutin, png, spirv, …
+  { name = "core-foundation" }, # version conflict between winit and wgpu ecosystems
+  { name = "core-graphics-types" }, # version conflict between winit and wgpu ecosystems
+  { name = "getrandom" }, # ring / rustls (and thus ehttp) still depend on getrandom 0.2
+  { name = "quick-xml" }, # old version via wayland-scanner
+  { name = "redox_syscall" }, # old version via winit
+  { name = "rustc-hash" }, # Small enough
+  { name = "thiserror" }, # ecosystem is in the process of migrating from 1.x to 2.x
   { name = "thiserror-impl" }, # same as above
-  { name = "time" },           # old version pulled in by unmaintianed crate 'chrono'
-  { name = "windows-core" },   # Chrono pulls in 0.51, accesskit uses 0.58.0
-  { name = "windows-sys" },    # glutin pulls in 0.52.0, accesskit pulls in 0.59.0, rfd pulls 0.48, webbrowser pulls 0.45.0 (via jni)
+  { name = "windows-sys" }, # mostly hopeless to avoid
+  { name = "zerocopy" }, # Small enough
 ]
 skip-tree = [
-  { name = "criterion" },     # dev-dependency
-  { name = "foreign-types" }, # small crate. Old version via core-graphics (winit).
-  { name = "rfd" },           # example dependency
+  { name = "hashbrown" }, # wgpu's naga depends on 0.16, accesskit depends on 0.15
+  { name = "rfd" }, # example dependency
+  { name = "windows" }, # the ecosystem is currently transitioning from 0.58 to 0.61
 ]
 
 
@@ -73,21 +72,21 @@ private = { ignore = true }
 confidence-threshold = 0.93 # We want really high confidence when inferring licenses from text
 allow = [
   "Apache-2.0 WITH LLVM-exception", # https://spdx.org/licenses/LLVM-exception.html
-  "Apache-2.0",                     # https://tldrlegal.com/license/apache-license-2.0-(apache-2.0)
-  "BSD-2-Clause",                   # https://tldrlegal.com/license/bsd-2-clause-license-(freebsd)
-  "BSD-3-Clause",                   # https://tldrlegal.com/license/bsd-3-clause-license-(revised)
-  "BSL-1.0",                        # https://tldrlegal.com/license/boost-software-license-1.0-explained
-  "CC0-1.0",                        # https://creativecommons.org/publicdomain/zero/1.0/
-  "ISC",                            # https://www.tldrlegal.com/license/isc-license
-  "MIT-0",                          # https://choosealicense.com/licenses/mit-0/
-  "MIT",                            # https://tldrlegal.com/license/mit-license
-  "MPL-2.0",                        # https://www.mozilla.org/en-US/MPL/2.0/FAQ/ - see Q11. Used by webpki-roots on Linux.
-  "OFL-1.1",                        # https://spdx.org/licenses/OFL-1.1.html
-  "OpenSSL",                        # https://www.openssl.org/source/license.html - used on Linux
-  "Ubuntu-font-1.0",                # https://ubuntu.com/legal/font-licence
-  "Unicode-3.0",                    # https://www.unicode.org/license.txt
-  "Unicode-DFS-2016",               # https://spdx.org/licenses/Unicode-DFS-2016.html
-  "Zlib",                           # https://tldrlegal.com/license/zlib-libpng-license-(zlib)
+  "Apache-2.0", # https://tldrlegal.com/license/apache-license-2.0-(apache-2.0)
+  "BSD-2-Clause", # https://tldrlegal.com/license/bsd-2-clause-license-(freebsd)
+  "BSD-3-Clause", # https://tldrlegal.com/license/bsd-3-clause-license-(revised)
+  "BSL-1.0", # https://tldrlegal.com/license/boost-software-license-1.0-explained
+  "CC0-1.0", # https://creativecommons.org/publicdomain/zero/1.0/
+  "ISC", # https://www.tldrlegal.com/license/isc-license
+  "MIT-0", # https://choosealicense.com/licenses/mit-0/
+  "MIT", # https://tldrlegal.com/license/mit-license
+  "MPL-2.0", # https://www.mozilla.org/en-US/MPL/2.0/FAQ/ - see Q11. Used by webpki-roots on Linux.
+  "OFL-1.1", # https://spdx.org/licenses/OFL-1.1.html
+  "OpenSSL", # https://www.openssl.org/source/license.html - used on Linux
+  "Ubuntu-font-1.0", # https://ubuntu.com/legal/font-licence
+  "Unicode-3.0", # https://www.unicode.org/license.txt
+  "Unicode-DFS-2016", # https://spdx.org/licenses/Unicode-DFS-2016.html
+  "Zlib", # https://tldrlegal.com/license/zlib-libpng-license-(zlib)
 ]
 exceptions = []
 

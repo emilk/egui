@@ -3,8 +3,8 @@
 use std::{cmp::Ordering, ops::RangeInclusive};
 
 use crate::{
-    emath, text, Button, CursorIcon, Key, Modifiers, NumExt, Response, RichText, Sense, TextEdit,
-    TextWrapMode, Ui, Widget, WidgetInfo, MINUS_CHAR_STR,
+    Button, CursorIcon, Id, Key, MINUS_CHAR_STR, Modifiers, NumExt as _, Response, RichText, Sense,
+    TextEdit, TextWrapMode, Ui, Widget, WidgetInfo, emath, text,
 };
 
 // ----------------------------------------------------------------------------
@@ -451,10 +451,11 @@ impl Widget for DragValue<'_> {
         // it is immediately rendered in edit mode, rather than being rendered
         // in button mode for just one frame. This is important for
         // screen readers.
-        let is_kb_editing = ui.memory_mut(|mem| {
-            mem.interested_in_focus(id, ui.layer_id());
-            mem.has_focus(id)
-        });
+        let is_kb_editing = ui.is_enabled()
+            && ui.memory_mut(|mem| {
+                mem.interested_in_focus(id, ui.layer_id());
+                mem.has_focus(id)
+            });
 
         if ui.memory_mut(|mem| mem.gained_focus(id)) {
             ui.data_mut(|data| data.remove::<String>(id));
@@ -488,27 +489,21 @@ impl Widget for DragValue<'_> {
                     - input.count_and_consume_key(Modifiers::NONE, Key::ArrowDown) as f64;
             }
 
-            #[cfg(feature = "accesskit")]
-            {
-                use accesskit::Action;
-                change += input.num_accesskit_action_requests(id, Action::Increment) as f64
-                    - input.num_accesskit_action_requests(id, Action::Decrement) as f64;
-            }
+            use accesskit::Action;
+            change += input.num_accesskit_action_requests(id, Action::Increment) as f64
+                - input.num_accesskit_action_requests(id, Action::Decrement) as f64;
 
             change
         });
 
-        #[cfg(feature = "accesskit")]
-        {
+        ui.input(|input| {
             use accesskit::{Action, ActionData};
-            ui.input(|input| {
-                for request in input.accesskit_action_requests(id, Action::SetValue) {
-                    if let Some(ActionData::NumericValue(new_value)) = request.data {
-                        value = new_value;
-                    }
+            for request in input.accesskit_action_requests(id, Action::SetValue) {
+                if let Some(ActionData::NumericValue(new_value)) = request.data {
+                    value = new_value;
                 }
-            });
-        }
+            }
+        });
 
         if clamp_existing_to_range {
             value = clamp_value_to_range(value, range.clone());
@@ -549,7 +544,7 @@ impl Widget for DragValue<'_> {
         }
 
         // some clones below are redundant if AccessKit is disabled
-        #[allow(clippy::redundant_clone)]
+        #[expect(clippy::redundant_clone)]
         let mut response = if is_kb_editing {
             let mut value_text = ui
                 .data_mut(|data| data.remove_temp::<String>(id))
@@ -562,9 +557,16 @@ impl Widget for DragValue<'_> {
                     .margin(ui.spacing().button_padding)
                     .min_size(ui.spacing().interact_size)
                     .id(id)
-                    .desired_width(ui.spacing().interact_size.x)
+                    .desired_width(
+                        ui.spacing().interact_size.x - 2.0 * ui.spacing().button_padding.x,
+                    )
                     .font(text_style),
             );
+
+            // Select all text when the edit gains focus.
+            if ui.memory_mut(|mem| mem.gained_focus(id)) {
+                select_all_text(ui, id, response.id, &value_text);
+            }
 
             let update = if update_while_editing {
                 // Update when the edit content has changed.
@@ -620,12 +622,7 @@ impl Widget for DragValue<'_> {
             if response.clicked() {
                 ui.data_mut(|data| data.remove::<String>(id));
                 ui.memory_mut(|mem| mem.request_focus(id));
-                let mut state = TextEdit::load_state(ui.ctx(), id).unwrap_or_default();
-                state.cursor.set_char_range(Some(text::CCursorRange::two(
-                    text::CCursor::default(),
-                    text::CCursor::new(value_text.chars().count()),
-                )));
-                state.store(ui.ctx(), response.id);
+                select_all_text(ui, id, response.id, &value_text);
             } else if response.dragged() {
                 ui.ctx().set_cursor_icon(cursor_icon);
 
@@ -666,7 +663,6 @@ impl Widget for DragValue<'_> {
 
         response.widget_info(|| WidgetInfo::drag_value(ui.is_enabled(), value));
 
-        #[cfg(feature = "accesskit")]
         ui.ctx().accesskit_node_builder(response.id, |builder| {
             use accesskit::Action;
             // If either end of the range is unbounded, it's better
@@ -754,6 +750,16 @@ pub(crate) fn clamp_value_to_range(x: f64, range: RangeInclusive<f64>) -> f64 {
             Ordering::Less => x,
         },
     }
+}
+
+/// Select all text in the `DragValue` text edit widget.
+fn select_all_text(ui: &Ui, widget_id: Id, response_id: Id, value_text: &str) {
+    let mut state = TextEdit::load_state(ui.ctx(), widget_id).unwrap_or_default();
+    state.cursor.set_char_range(Some(text::CCursorRange::two(
+        text::CCursor::default(),
+        text::CCursor::new(value_text.chars().count()),
+    )));
+    state.store(ui.ctx(), response_id);
 }
 
 #[cfg(test)]

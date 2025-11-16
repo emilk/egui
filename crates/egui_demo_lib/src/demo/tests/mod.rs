@@ -6,6 +6,7 @@ mod input_event_history;
 mod input_test;
 mod layout_test;
 mod manual_layout_test;
+mod svg_test;
 mod tessellation_test;
 mod window_resize_test;
 
@@ -17,5 +18,6 @@ pub use input_event_history::InputEventHistory;
 pub use input_test::InputTest;
 pub use layout_test::LayoutTest;
 pub use manual_layout_test::ManualLayoutTest;
+pub use svg_test::SvgTest;
 pub use tessellation_test::TessellationTest;
 pub use window_resize_test::WindowResizeTest;

@@ -23,25 +23,22 @@ pub use panic_handler::{PanicHandler, PanicSummary};
 pub use web_logger::WebLogger;
 pub use web_runner::WebRunner;
 
-#[cfg(not(any(feature = "glow", feature = "wgpu")))]
+#[cfg(not(any(feature = "glow", feature = "wgpu_no_default_features")))]
 compile_error!("You must enable either the 'glow' or 'wgpu' feature");
 
 mod web_painter;
 
 #[cfg(feature = "glow")]
 mod web_painter_glow;
-#[cfg(feature = "glow")]
-pub(crate) type ActiveWebPainter = web_painter_glow::WebPainterGlow;
 
-#[cfg(feature = "wgpu")]
+#[cfg(feature = "wgpu_no_default_features")]
 mod web_painter_wgpu;
-#[cfg(all(feature = "wgpu", not(feature = "glow")))]
-pub(crate) type ActiveWebPainter = web_painter_wgpu::WebPainterWgpu;
 
 pub use backend::*;
 
+use egui::Theme;
 use wasm_bindgen::prelude::*;
-use web_sys::MediaQueryList;
+use web_sys::{Document, MediaQueryList, Node};
 
 use input::{
     button_from_mouse_event, modifiers_from_kb_event, modifiers_from_mouse_event,
@@ -64,18 +61,22 @@ pub(crate) fn string_from_js_value(value: &JsValue) -> String {
 /// - `<a>`/`<area>` with an `href` attribute
 /// - `<input>`/`<select>`/`<textarea>`/`<button>` which aren't `disabled`
 /// - any other element with a `tabindex` attribute
-pub(crate) fn focused_element() -> Option<web_sys::Element> {
-    web_sys::window()?
-        .document()?
-        .active_element()?
-        .dyn_into()
-        .ok()
+pub(crate) fn focused_element(root: &Node) -> Option<web_sys::Element> {
+    if let Some(document) = root.dyn_ref::<Document>() {
+        document.active_element()
+    } else if let Some(shadow) = root.dyn_ref::<web_sys::ShadowRoot>() {
+        shadow.active_element()
+    } else {
+        None
+    }
 }
 
 pub(crate) fn has_focus<T: JsCast>(element: &T) -> bool {
     fn try_has_focus<T: JsCast>(element: &T) -> Option<bool> {
         let element = element.dyn_ref::<web_sys::Element>()?;
-        let focused_element = focused_element()?;
+        let root = element.get_root_node();
+
+        let focused_element = focused_element(&root)?;
         Some(element == &focused_element)
     }
     try_has_focus(element).unwrap_or(false)
@@ -109,22 +110,29 @@ pub fn native_pixels_per_point() -> f32 {
 ///
 /// `None` means unknown.
 pub fn system_theme() -> Option<egui::Theme> {
-    let dark_mode = prefers_color_scheme_dark(&web_sys::window()?)
-        .ok()??
-        .matches();
-    Some(theme_from_dark_mode(dark_mode))
-}
-
-fn prefers_color_scheme_dark(window: &web_sys::Window) -> Result<Option<MediaQueryList>, JsValue> {
-    window.match_media("(prefers-color-scheme: dark)")
-}
-
-fn theme_from_dark_mode(dark_mode: bool) -> egui::Theme {
-    if dark_mode {
-        egui::Theme::Dark
+    let window = web_sys::window()?;
+    if does_prefer_color_scheme(&window, Theme::Dark) == Some(true) {
+        Some(Theme::Dark)
+    } else if does_prefer_color_scheme(&window, Theme::Light) == Some(true) {
+        Some(Theme::Light)
     } else {
-        egui::Theme::Light
+        None
     }
+}
+
+fn does_prefer_color_scheme(window: &web_sys::Window, theme: Theme) -> Option<bool> {
+    Some(prefers_color_scheme(window, theme).ok()??.matches())
+}
+
+fn prefers_color_scheme(
+    window: &web_sys::Window,
+    theme: Theme,
+) -> Result<Option<MediaQueryList>, JsValue> {
+    let theme = match theme {
+        Theme::Dark => "dark",
+        Theme::Light => "light",
+    };
+    window.match_media(format!("(prefers-color-scheme: {theme})").as_str())
 }
 
 /// Returns the canvas in client coordinates.
@@ -277,7 +285,7 @@ fn create_clipboard_item(mime: &str, bytes: &[u8]) -> Result<web_sys::ClipboardI
     let items = js_sys::Object::new();
 
     // SAFETY: I hope so
-    #[allow(unsafe_code, unused_unsafe)] // Weird false positive
+    #[expect(unsafe_code, unused_unsafe)] // Weird false positive
     unsafe {
         js_sys::Reflect::set(&items, &JsValue::from_str(mime), &blob)?
     };

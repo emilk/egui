@@ -5,6 +5,62 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.33.2 - 2025-11-13
+Nothing new
+
+
+## 0.33.0 - 2025-10-09
+* Remove the `deadlock_detection` feature [#7497](https://github.com/emilk/egui/pull/7497) by [@lucasmerlin](https://github.com/lucasmerlin)
+* More even text kerning [#7431](https://github.com/emilk/egui/pull/7431) by [@valadaptive](https://github.com/valadaptive)
+* Return `0.0` if font not found in `glyph_width` instead of panic [#7559](https://github.com/emilk/egui/pull/7559) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Update MSRV from 1.86 to 1.88 [#7579](https://github.com/emilk/egui/pull/7579) by [@Wumpf](https://github.com/Wumpf)
+* Remove `log` feature [#7583](https://github.com/emilk/egui/pull/7583) by [@emilk](https://github.com/emilk)
+
+
+## 0.32.3 - 2025-09-12
+* Optimize `Mesh::add_rect_with_uv` [#7511](https://github.com/emilk/egui/pull/7511) by [@valadaptive](https://github.com/valadaptive)
+
+
+## 0.32.2 - 2025-09-04
+* Panic mutexes that can't lock for 30 seconds, in debug builds [#7468](https://github.com/emilk/egui/pull/7468) by [@emilk](https://github.com/emilk)
+* Skip zero-length layout job sections [#7430](https://github.com/emilk/egui/pull/7430) by [@HactarCE](https://github.com/HactarCE)
+
+
+## 0.32.1 - 2025-08-15
+* Fix multi-line `TextShape` rotation [#7404](https://github.com/emilk/egui/pull/7404) by [@afishhh](https://github.com/afishhh)
+* Fix glyph rendering: clamp coverage to [0, 1] [#7415](https://github.com/emilk/egui/pull/7415) by [@emilk](https://github.com/emilk)
+
+
+## 0.32.0 - 2025-07-10
+### ⭐ Added
+* Impl AsRef<[u8]> for FontData [#5757](https://github.com/emilk/egui/pull/5757) by [@StratusFearMe21](https://github.com/StratusFearMe21)
+* Add `expand_bg` to customize size of text background [#5365](https://github.com/emilk/egui/pull/5365) by [@MeGaGiGaGon](https://github.com/MeGaGiGaGon)
+* Add anchored text rotation method, and clarify related docs [#7130](https://github.com/emilk/egui/pull/7130) by [@pmarks](https://github.com/pmarks)
+* Add `Galley::intrinsic_size` [#7146](https://github.com/emilk/egui/pull/7146) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+### 🔧 Changed
+* Fix semi-transparent colors appearing too bright [#5824](https://github.com/emilk/egui/pull/5824) by [@emilk](https://github.com/emilk)
+* Improve text sharpness [#5838](https://github.com/emilk/egui/pull/5838) by [@emilk](https://github.com/emilk)
+* Improve text rendering in light mode [#7290](https://github.com/emilk/egui/pull/7290) by [@emilk](https://github.com/emilk)
+* Make text underline and strikethrough pixel perfect crisp [#5857](https://github.com/emilk/egui/pull/5857) by [@emilk](https://github.com/emilk)
+* Update `emoji-icon-font` with fix for fullwidth latin characters [#7067](https://github.com/emilk/egui/pull/7067) by [@emilk](https://github.com/emilk)
+* Add assert messages and print bad argument values in asserts [#5216](https://github.com/emilk/egui/pull/5216) by [@bircni](https://github.com/bircni)
+
+### 🔥 Removed
+* Remove things that have been deprecated for over a year [#7099](https://github.com/emilk/egui/pull/7099) by [@emilk](https://github.com/emilk)
+
+### 🐛 Fixed
+* Fix: transform `TextShape` underline width [#5865](https://github.com/emilk/egui/pull/5865) by [@emilk](https://github.com/emilk)
+* Fix `visual_bounding_rect` for rotated text [#7050](https://github.com/emilk/egui/pull/7050) by [@pmarks](https://github.com/pmarks)
+
+### 🚀 Performance
+* Optimize editing long text by caching each paragraph [#5411](https://github.com/emilk/egui/pull/5411) by [@afishhh](https://github.com/afishhh)
+
+
+## 0.31.1 - 2025-03-05
+* Fix panic when rendering thin textured rectangles [#5692](https://github.com/emilk/egui/pull/5692) by [@PPakalns](https://github.com/PPakalns)
+
+
 ## 0.31.0 - 2025-02-04
 ### ⭐ Added
 * Improve tessellation quality [#5669](https://github.com/emilk/egui/pull/5669) by [@emilk](https://github.com/emilk)

@@ -1,4 +1,4 @@
-use egui::Vec2b;
+use egui::{UiKind, Vec2b};
 
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -149,6 +149,16 @@ impl crate::View for WindowOptions {
                 self.disabled_time = ui.input(|i| i.time);
             }
             egui::reset_button(ui, self, "Reset");
+            if ui
+                .button("Close")
+                .on_hover_text("You can collapse / close Windows via Ui::close")
+                .clicked()
+            {
+                // Calling close would close the collapsible within the window
+                // ui.close();
+                // Instead, we close the window itself
+                ui.close_kind(UiKind::Window);
+            }
             ui.add(crate::egui_github_link_file!());
         });
     }

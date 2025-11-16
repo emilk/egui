@@ -1,8 +1,8 @@
 //! Tests the accesskit accessibility output of egui.
 
 use egui::{
-    accesskit::{NodeId, Role, TreeUpdate},
     CentralPanel, Context, RawInput, Window,
+    accesskit::{NodeId, Role, TreeUpdate},
 };
 
 /// Baseline test that asserts there are no spurious nodes in the
@@ -18,9 +18,20 @@ fn empty_ui_should_return_tree_with_only_root_window() {
 
     assert_eq!(
         output.nodes.len(),
-        1,
-        "Empty ui should produce only the root window."
+        4,
+        "Expected the root node and two Uis and a Frame for the panel"
     );
+
+    assert_eq!(
+        output
+            .nodes
+            .iter()
+            .filter(|(_, n)| n.role() == Role::GenericContainer)
+            .count(),
+        3,
+        "Expected two Uis and one Frame as GenericContainer nodes.",
+    );
+
     let (id, root) = &output.nodes[0];
 
     assert_eq!(*id, output.tree.unwrap().root);
@@ -34,12 +45,6 @@ fn button_node() {
     let output = accesskit_output_single_egui_frame(|ctx| {
         CentralPanel::default().show(ctx, |ui| ui.button(button_text));
     });
-
-    assert_eq!(
-        output.nodes.len(),
-        2,
-        "Expected only the root node and the button."
-    );
 
     let (_, button) = output
         .nodes
@@ -61,12 +66,6 @@ fn disabled_button_node() {
         });
     });
 
-    assert_eq!(
-        output.nodes.len(),
-        2,
-        "Expected only the root node and the button."
-    );
-
     let (_, button) = output
         .nodes
         .iter()
@@ -85,12 +84,6 @@ fn toggle_button_node() {
     let output = accesskit_output_single_egui_frame(|ctx| {
         CentralPanel::default().show(ctx, |ui| ui.toggle_value(&mut selected, button_text));
     });
-
-    assert_eq!(
-        output.nodes.len(),
-        2,
-        "Expected only the root node and the button."
-    );
 
     let (_, toggle) = output
         .nodes
@@ -113,12 +106,6 @@ fn multiple_disabled_widgets() {
             })
         });
     });
-
-    assert_eq!(
-        output.nodes.len(),
-        4,
-        "Expected the root node and all the child widgets."
-    );
 
     assert_eq!(
         output
@@ -194,15 +181,25 @@ fn assert_window_exists(tree: &TreeUpdate, title: &str, parent: NodeId) -> NodeI
 }
 
 #[track_caller]
-fn assert_parent_child(tree: &TreeUpdate, parent: NodeId, child: NodeId) {
+fn assert_parent_child(tree: &TreeUpdate, parent_id: NodeId, child: NodeId) {
+    assert!(
+        has_child_recursively(tree, parent_id, child),
+        "Node is not a child of the given parent."
+    );
+}
+
+fn has_child_recursively(tree: &TreeUpdate, parent: NodeId, child: NodeId) -> bool {
     let (_, parent) = tree
         .nodes
         .iter()
         .find(|(id, _)| id == &parent)
         .expect("Parent does not exist.");
 
-    assert!(
-        parent.children().contains(&child),
-        "Node is not a child of the given parent."
-    );
+    for &c in parent.children() {
+        if c == child || has_child_recursively(tree, c, child) {
+            return true;
+        }
+    }
+
+    false
 }

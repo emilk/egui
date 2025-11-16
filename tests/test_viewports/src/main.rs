@@ -4,7 +4,7 @@
 use std::sync::Arc;
 
 use eframe::egui;
-use egui::{mutex::RwLock, Id, InnerResponse, UiBuilder, ViewportBuilder, ViewportId};
+use egui::{Id, InnerResponse, UiBuilder, ViewportBuilder, ViewportId, mutex::RwLock};
 
 // Drag-and-drop between windows is not yet implemented, but if you wanna work on it, enable this:
 pub const DRAG_AND_DROP_TEST: bool = false;
@@ -247,8 +247,12 @@ fn generic_ui(ui: &mut egui::Ui, children: &[Arc<RwLock<ViewportState>>], close_
         if let Some(monitor_size) = ctx.input(|i| i.viewport().monitor_size) {
             ui.label(format!("monitor_size: {monitor_size:?} (points)"));
         }
-        if let Some(screen_rect) = ui.input(|i| i.raw.screen_rect) {
-            ui.label(format!("Screen rect size: Pos: {:?}", screen_rect.size()));
+        if let Some(viewport_rect) = ui.input(|i| i.raw.screen_rect) {
+            ui.label(format!(
+                "Viewport Rect: Pos: {:?}, Size: {:?} (points)",
+                viewport_rect.min,
+                viewport_rect.size()
+            ));
         }
         if let Some(inner_rect) = ctx.input(|i| i.viewport().inner_rect) {
             ui.label(format!(
@@ -367,6 +371,7 @@ fn drag_and_drop_test(ui: &mut egui::Ui) {
             assert!(col <= COLS, "The col should be less then: {COLS}");
 
             // Should be a better way to do this!
+            #[expect(clippy::iter_over_hash_type)]
             for container_data in self.containers_data.values_mut() {
                 for ids in container_data {
                     ids.retain(|i| *i != id);

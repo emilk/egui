@@ -1,4 +1,4 @@
-use emath::{vec2, Rect, Vec2};
+use emath::{Rect, Vec2, vec2};
 
 /// A value for all four sides of a rectangle,
 /// often used to express padding or spacing.
@@ -9,7 +9,7 @@ use emath::{vec2, Rect, Vec2};
 /// Use with care.
 ///
 /// All values are stored as [`i8`] to keep the size of [`Margin`] small.
-/// If you want floats, use [`crate::Marginf`] instead.
+/// If you want floats, use [`crate::MarginF32`] instead.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Margin {
@@ -95,18 +95,6 @@ impl Margin {
     #[inline]
     pub const fn is_same(self) -> bool {
         self.left == self.right && self.left == self.top && self.left == self.bottom
-    }
-
-    #[deprecated = "Use `rect + margin` instead"]
-    #[inline]
-    pub fn expand_rect(self, rect: Rect) -> Rect {
-        Rect::from_min_max(rect.min - self.left_top(), rect.max + self.right_bottom())
-    }
-
-    #[deprecated = "Use `rect - margin` instead"]
-    #[inline]
-    pub fn shrink_rect(self, rect: Rect) -> Rect {
-        Rect::from_min_max(rect.min + self.left_top(), rect.max - self.right_bottom())
     }
 }
 

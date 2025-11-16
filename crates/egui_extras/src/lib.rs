@@ -17,7 +17,7 @@ pub mod syntax_highlighting;
 #[doc(hidden)]
 pub mod image;
 mod layout;
-mod loaders;
+pub mod loaders;
 mod sizing;
 mod strip;
 mod table;
@@ -25,9 +25,6 @@ mod table;
 #[cfg(feature = "chrono")]
 pub use crate::datepicker::DatePickerButton;
 
-#[doc(hidden)]
-#[allow(deprecated)]
-pub use crate::image::RetainedImage;
 pub(crate) use crate::layout::StripLayout;
 pub use crate::sizing::Size;
 pub use crate::strip::*;

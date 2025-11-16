@@ -5,18 +5,18 @@
 
 #![allow(clippy::identity_op)]
 
-use emath::{pos2, remap, vec2, GuiRounding as _, NumExt, Pos2, Rect, Rot2, Vec2};
+use emath::{GuiRounding as _, NumExt as _, Pos2, Rect, Rot2, Vec2, pos2, remap, vec2};
 
 use crate::{
-    color::ColorMode, emath, stroke::PathStroke, texture_atlas::PreparedDisc, CircleShape,
-    ClippedPrimitive, ClippedShape, Color32, CornerRadiusF32, CubicBezierShape, EllipseShape, Mesh,
-    PathShape, Primitive, QuadraticBezierShape, RectShape, Shape, Stroke, StrokeKind, TextShape,
-    TextureId, Vertex, WHITE_UV,
+    CircleShape, ClippedPrimitive, ClippedShape, Color32, CornerRadiusF32, CubicBezierShape,
+    EllipseShape, Mesh, PathShape, Primitive, QuadraticBezierShape, RectShape, Shape, Stroke,
+    StrokeKind, TextShape, TextureId, Vertex, WHITE_UV, color::ColorMode, emath,
+    stroke::PathStroke, texture_atlas::PreparedDisc,
 };
 
 // ----------------------------------------------------------------------------
 
-#[allow(clippy::approx_constant)]
+#[expect(clippy::approx_constant)]
 mod precomputed_vertices {
     // fn main() {
     //     let n = 64;
@@ -28,7 +28,7 @@ mod precomputed_vertices {
     //     println!("];")
     // }
 
-    use emath::{vec2, Vec2};
+    use emath::{Vec2, vec2};
 
     pub const CIRCLE_8: [Vec2; 9] = [
         vec2(1.000000, 0.000000),
@@ -340,7 +340,7 @@ impl Path {
     }
 
     pub fn add_circle(&mut self, center: Pos2, radius: f32) {
-        use precomputed_vertices::{CIRCLE_128, CIRCLE_16, CIRCLE_32, CIRCLE_64, CIRCLE_8};
+        use precomputed_vertices::{CIRCLE_8, CIRCLE_16, CIRCLE_32, CIRCLE_64, CIRCLE_128};
 
         // These cutoffs are based on a high-dpi display. TODO(emilk): use pixels_per_point here?
         // same cutoffs as in add_circle_quadrant
@@ -382,7 +382,7 @@ impl Path {
 
     pub fn add_open_points(&mut self, points: &[Pos2]) {
         let n = points.len();
-        assert!(n >= 2);
+        assert!(n >= 2, "A path needs at least two points, but got {n}");
 
         if n == 2 {
             // Common case optimization:
@@ -428,7 +428,7 @@ impl Path {
 
     pub fn add_line_loop(&mut self, points: &[Pos2]) {
         let n = points.len();
-        assert!(n >= 2);
+        assert!(n >= 2, "A path needs at least two points, but got {n}");
         self.reserve(n);
 
         let mut n0 = (points[0] - points[n - 1]).normalized().rot90();
@@ -535,7 +535,7 @@ impl Path {
 pub mod path {
     //! Helpers for constructing paths
     use crate::CornerRadiusF32;
-    use emath::{pos2, Pos2, Rect};
+    use emath::{Pos2, Rect, pos2};
 
     /// overwrites existing points
     pub fn rounded_rectangle(path: &mut Vec<Pos2>, rect: Rect, cr: CornerRadiusF32) {
@@ -602,7 +602,7 @@ pub mod path {
     //   - quadrant 3: right top
     // * angle 4 * TAU / 4 = right
     pub fn add_circle_quadrant(path: &mut Vec<Pos2>, center: Pos2, radius: f32, quadrant: f32) {
-        use super::precomputed_vertices::{CIRCLE_128, CIRCLE_16, CIRCLE_32, CIRCLE_64, CIRCLE_8};
+        use super::precomputed_vertices::{CIRCLE_8, CIRCLE_16, CIRCLE_32, CIRCLE_64, CIRCLE_128};
 
         // These cutoffs are based on a high-dpi display. TODO(emilk): use pixels_per_point here?
         // same cutoffs as in add_circle
@@ -1300,8 +1300,6 @@ fn mul_color(color: Color32, factor: f32) -> Color32 {
 /// Converts [`Shape`]s into triangles ([`Mesh`]).
 ///
 /// For performance reasons it is smart to reuse the same [`Tessellator`].
-///
-/// See also [`tessellate_shapes`], a convenient wrapper around [`Tessellator`].
 #[derive(Clone)]
 pub struct Tessellator {
     pixels_per_point: f32,
@@ -1656,7 +1654,7 @@ impl Tessellator {
             if a.x == b.x {
                 // Vertical line
                 let mut x = a.x;
-                round_line_segment(&mut x, &stroke, self.pixels_per_point);
+                stroke.round_center_to_pixel(self.pixels_per_point, &mut x);
                 a.x = x;
                 b.x = x;
 
@@ -1677,7 +1675,7 @@ impl Tessellator {
             if a.y == b.y {
                 // Horizontal line
                 let mut y = a.y;
-                round_line_segment(&mut y, &stroke, self.pixels_per_point);
+                stroke.round_center_to_pixel(self.pixels_per_point, &mut y);
                 a.y = y;
                 b.y = y;
 
@@ -1778,7 +1776,6 @@ impl Tessellator {
 
         let mut corner_radius = CornerRadiusF32::from(corner_radius);
         let round_to_pixels = round_to_pixels.unwrap_or(self.options.round_rects_to_pixels);
-        let pixel_size = 1.0 / self.pixels_per_point;
 
         if stroke.width == 0.0 {
             stroke.color = Color32::TRANSPARENT;
@@ -1810,7 +1807,7 @@ impl Tessellator {
             }
         }
 
-        if stroke.is_empty() {
+        if stroke.is_empty() && out.texture_id == TextureId::default() {
             // Approximate thin rectangles with line segments.
             // This is important so that thin rectangles look good.
             if rect.width() <= 2.0 * self.feathering {
@@ -1849,17 +1846,7 @@ impl Tessellator {
                 }
                 StrokeKind::Middle => {
                     // On this path we optimize for crisp and symmetric strokes.
-                    // We put odd-width strokes in the center of pixels.
-                    // To understand why, see `fn round_line_segment`.
-                    if stroke.width <= 0.0 {
-                        rect = rect.round_to_pixels(self.pixels_per_point);
-                    } else if stroke.width <= pixel_size
-                        || is_nearest_integer_odd(self.pixels_per_point * stroke.width)
-                    {
-                        rect = rect.round_to_pixel_center(self.pixels_per_point);
-                    } else {
-                        rect = rect.round_to_pixels(self.pixels_per_point);
-                    }
+                    stroke.round_rect_to_pixel(self.pixels_per_point, &mut rect);
                 }
                 StrokeKind::Outside => {
                     // Put the inside of the stroke on a pixel boundary.
@@ -2013,12 +2000,10 @@ impl Tessellator {
         }
 
         if galley.pixels_per_point != self.pixels_per_point {
-            let warn = "epaint: WARNING: pixels_per_point (dpi scale) have changed between text layout and tessellation. \
-                       You must recreate your text shapes if pixels_per_point changes.";
-            #[cfg(feature = "log")]
-            log::warn!("{warn}");
-            #[cfg(not(feature = "log"))]
-            println!("{warn}");
+            log::warn!(
+                "epaint: WARNING: pixels_per_point (dpi scale) have changed between text layout and tessellation. \
+                       You must recreate your text shapes if pixels_per_point changes."
+            );
         }
 
         out.vertices.reserve(galley.num_vertices);
@@ -2044,11 +2029,13 @@ impl Tessellator {
                 continue;
             }
 
+            let final_row_pos = galley_pos + rotator * row.pos.to_vec2();
+
             let mut row_rect = row.visuals.mesh_bounds;
             if *angle != 0.0 {
                 row_rect = row_rect.rotate_bb(rotator);
             }
-            row_rect = row_rect.translate(galley_pos.to_vec2());
+            row_rect = row_rect.translate(final_row_pos.to_vec2());
 
             if self.options.coarse_tessellation_culling && !self.clip_rect.intersects(row_rect) {
                 // culling individual lines of text is important, since a single `Shape::Text`
@@ -2097,7 +2084,7 @@ impl Tessellator {
                         };
 
                         Vertex {
-                            pos: galley_pos + offset,
+                            pos: final_row_pos + offset,
                             uv: (uv.to_vec2() * uv_normalizer).to_pos2(),
                             color,
                         }
@@ -2203,57 +2190,6 @@ impl Tessellator {
     }
 }
 
-fn round_line_segment(coord: &mut f32, stroke: &Stroke, pixels_per_point: f32) {
-    // If the stroke is an odd number of pixels wide,
-    // we want to round the center of it to the center of a pixel.
-    //
-    // If however it is an even number of pixels wide,
-    // we want to round the center to be between two pixels.
-    //
-    // We also want to treat strokes that are _almost_ odd as it it was odd,
-    // to make it symmetric. Same for strokes that are _almost_ even.
-    //
-    // For strokes less than a pixel wide we also round to the center,
-    // because it will rendered as a single row of pixels by the tessellator.
-
-    let pixel_size = 1.0 / pixels_per_point;
-
-    if stroke.width <= pixel_size || is_nearest_integer_odd(pixels_per_point * stroke.width) {
-        *coord = coord.round_to_pixel_center(pixels_per_point);
-    } else {
-        *coord = coord.round_to_pixels(pixels_per_point);
-    }
-}
-
-fn is_nearest_integer_odd(width: f32) -> bool {
-    (width * 0.5 + 0.25).fract() > 0.5
-}
-
-#[test]
-fn test_is_nearest_integer_odd() {
-    assert!(is_nearest_integer_odd(0.6));
-    assert!(is_nearest_integer_odd(1.0));
-    assert!(is_nearest_integer_odd(1.4));
-    assert!(!is_nearest_integer_odd(1.6));
-    assert!(!is_nearest_integer_odd(2.0));
-    assert!(!is_nearest_integer_odd(2.4));
-    assert!(is_nearest_integer_odd(2.6));
-    assert!(is_nearest_integer_odd(3.0));
-    assert!(is_nearest_integer_odd(3.4));
-}
-
-#[deprecated = "Use `Tessellator::new(…).tessellate_shapes(…)` instead"]
-pub fn tessellate_shapes(
-    pixels_per_point: f32,
-    options: TessellationOptions,
-    font_tex_size: [usize; 2],
-    prepared_discs: Vec<PreparedDisc>,
-    shapes: Vec<ClippedShape>,
-) -> Vec<ClippedPrimitive> {
-    Tessellator::new(pixels_per_point, options, font_tex_size, prepared_discs)
-        .tessellate_shapes(shapes)
-}
-
 impl Tessellator {
     /// Turns [`Shape`]:s into sets of triangles.
     ///
@@ -2270,7 +2206,7 @@ impl Tessellator {
     ///
     /// ## Returns
     /// A list of clip rectangles with matching [`Mesh`].
-    #[allow(unused_mut)]
+    #[allow(unused_mut, clippy::allow_attributes)]
     pub fn tessellate_shapes(&mut self, mut shapes: Vec<ClippedShape>) -> Vec<ClippedPrimitive> {
         profiling::function_scope!();
 

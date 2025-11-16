@@ -1,6 +1,7 @@
 use egui::{
+    Color32, Event, Frame, Pos2, Rect, Sense, Stroke, Vec2,
     emath::{RectTransform, Rot2},
-    vec2, Color32, Frame, Pos2, Rect, Sense, Stroke, Vec2,
+    vec2,
 };
 
 pub struct MultiTouch {
@@ -29,7 +30,7 @@ impl crate::Demo for MultiTouch {
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
-            .default_size(vec2(512.0, 512.0))
+            .default_size(vec2(544.0, 512.0))
             .resizable(true)
             .show(ctx, |ui| {
                 use crate::View as _;
@@ -44,13 +45,31 @@ impl crate::View for MultiTouch {
             ui.add(crate::egui_github_link_file!());
         });
         ui.strong(
-            "This demo only works on devices with multitouch support (e.g. mobiles and tablets).",
+            "This demo only works on devices with multitouch support (e.g. mobiles, tablets, and trackpads).",
         );
         ui.separator();
         ui.label("Try touch gestures Pinch/Stretch, Rotation, and Pressure with 2+ fingers.");
 
+        let relative_pointer_gesture = ui.input(|i| {
+            i.events.iter().any(|event| {
+                matches!(
+                    event,
+                    Event::MouseWheel { .. } | Event::Zoom { .. } | Event::Rotate { .. }
+                )
+            })
+        });
         let num_touches = ui.input(|i| i.multi_touch().map_or(0, |mt| mt.num_touches));
-        ui.label(format!("Current touches: {num_touches}"));
+        let num_touches_str = format!("{num_touches}-finger touch");
+        ui.label(format!(
+            "Input source: {}",
+            if ui.input(|i| i.multi_touch().is_some()) {
+                num_touches_str.as_str()
+            } else if relative_pointer_gesture {
+                "cursor"
+            } else {
+                "none"
+            }
+        ));
 
         let color = if ui.visuals().dark_mode {
             Color32::WHITE
@@ -82,18 +101,18 @@ impl crate::View for MultiTouch {
             // check for touch input (or the lack thereof) and update zoom and scale factors, plus
             // color and width:
             let mut stroke_width = 1.;
-            if let Some(multi_touch) = ui.ctx().multi_touch() {
-                // This adjusts the current zoom factor and rotation angle according to the dynamic
-                // change (for the current frame) of the touch gesture:
-                self.zoom *= multi_touch.zoom_delta;
-                self.rotation += multi_touch.rotation_delta;
-                // the translation we get from `multi_touch` needs to be scaled down to the
-                // normalized coordinates we use as the basis for painting:
-                self.translation += to_screen.inverse().scale() * multi_touch.translation_delta;
-                // touch pressure will make the arrow thicker (not all touch devices support this):
-                stroke_width += 10. * multi_touch.force;
+            if ui.input(|i| i.multi_touch().is_some()) || relative_pointer_gesture {
+                ui.input(|input| {
+                    // This adjusts the current zoom factor, rotation angle, and translation according
+                    // to the dynamic change (for the current frame) of the touch gesture:
+                    self.zoom *= input.zoom_delta();
+                    self.rotation += input.rotation_delta();
+                    self.translation += to_screen.inverse().scale() * input.translation_delta();
+                    // touch pressure will make the arrow thicker (not all touch devices support this):
+                    stroke_width += 10. * input.multi_touch().map_or(0.0, |touch| touch.force);
 
-                self.last_touch_time = ui.input(|i| i.time);
+                    self.last_touch_time = input.time;
+                });
             } else {
                 self.slowly_reset(ui);
             }

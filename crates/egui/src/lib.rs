@@ -3,7 +3,7 @@
 //! Try the live web demo: <https://www.egui.rs/#demo>. Read more about egui at <https://github.com/emilk/egui>.
 //!
 //! `egui` is in heavy development, with each new version having breaking changes.
-//! You need to have rust 1.81.0 or later to use `egui`.
+//! You need to have rust 1.88.0 or later to use `egui`.
 //!
 //! To quickly get started with egui, you can take a look at [`eframe_template`](https://github.com/emilk/eframe_template)
 //! which uses [`eframe`](https://docs.rs/eframe).
@@ -143,7 +143,7 @@
 //! }
 //! ```
 //!
-//! For a reference OpenGL renderer, see [the `egui_glow` painter](https://github.com/emilk/egui/blob/master/crates/egui_glow/src/painter.rs).
+//! For a reference OpenGL renderer, see [the `egui_glow` painter](https://github.com/emilk/egui/blob/main/crates/egui_glow/src/painter.rs).
 //!
 //!
 //! ### Debugging your renderer
@@ -161,12 +161,10 @@
 //!
 //! * egui uses premultiplied alpha, so make sure your blending function is `(ONE, ONE_MINUS_SRC_ALPHA)`.
 //! * Make sure your texture sampler is clamped (`GL_CLAMP_TO_EDGE`).
-//! * egui prefers linear color spaces for all blending so:
-//!   * Use an sRGBA-aware texture if available (e.g. `GL_SRGB8_ALPHA8`).
-//!     * Otherwise: remember to decode gamma in the fragment shader.
-//!   * Decode the gamma of the incoming vertex colors in your vertex shader.
-//!   * Turn on sRGBA/linear framebuffer if available (`GL_FRAMEBUFFER_SRGB`).
-//!     * Otherwise: gamma-encode the colors before you write them again.
+//! * egui prefers gamma color spaces for all blending so:
+//!   * Do NOT use an sRGBA-aware texture (NOT `GL_SRGB8_ALPHA8`).
+//!   * Multiply texture and vertex colors in gamma space
+//!   * Turn OFF sRGBA/gamma framebuffer (NO `GL_FRAMEBUFFER_SRGB`).
 //!
 //!
 //! # Understanding immediate mode
@@ -219,7 +217,7 @@
 //! This means it is responsibility of the egui user to store the state (`value`) so that it persists between frames.
 //!
 //! It can be useful to read the code for the toggle switch example widget to get a better understanding
-//! of how egui works: <https://github.com/emilk/egui/blob/master/crates/egui_demo_lib/src/demo/toggle_switch.rs>.
+//! of how egui works: <https://github.com/emilk/egui/blob/main/crates/egui_demo_lib/src/demo/toggle_switch.rs>.
 //!
 //! Read more about the pros and cons of immediate mode at <https://github.com/emilk/egui#why-immediate-mode>.
 //!
@@ -400,11 +398,15 @@
 //! profile-with-puffin = ["profiling/profile-with-puffin"]
 //! ```
 //!
+//! ## Custom allocator
+//! egui apps can run significantly (~20%) faster by using a custom allocator, like [mimalloc](https://crates.io/crates/mimalloc) or [talc](https://crates.io/crates/talc).
+//!
 
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
 
 mod animation_manager;
+mod atomics;
 pub mod cache;
 pub mod containers;
 mod context;
@@ -422,11 +424,13 @@ pub mod layers;
 mod layout;
 pub mod load;
 mod memory;
+#[deprecated = "Use `egui::containers::menu` instead"]
 pub mod menu;
 pub mod os;
 mod painter;
 mod pass_state;
 pub(crate) mod placer;
+mod plugin;
 pub mod response;
 mod sense;
 pub mod style;
@@ -444,7 +448,6 @@ pub mod widgets;
 #[cfg(debug_assertions)]
 mod callstack;
 
-#[cfg(feature = "accesskit")]
 pub use accesskit;
 
 #[deprecated = "Use the ahash crate directly."]
@@ -458,45 +461,47 @@ pub use epaint::emath;
 pub use ecolor::hex_color;
 pub use ecolor::{Color32, Rgba};
 pub use emath::{
-    lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos2, Rangef, Rect, Vec2, Vec2b,
+    Align, Align2, NumExt, Pos2, Rangef, Rect, RectAlign, Vec2, Vec2b, lerp, pos2, remap,
+    remap_clamp, vec2,
 };
 pub use epaint::{
-    mutex,
+    ClippedPrimitive, ColorImage, CornerRadius, ImageData, Margin, Mesh, PaintCallback,
+    PaintCallbackInfo, Shadow, Shape, Stroke, StrokeKind, TextureHandle, TextureId, mutex,
     text::{FontData, FontDefinitions, FontFamily, FontId, FontTweak},
     textures::{TextureFilter, TextureOptions, TextureWrapMode, TexturesDelta},
-    ClippedPrimitive, ColorImage, CornerRadius, FontImage, ImageData, Margin, Mesh, PaintCallback,
-    PaintCallbackInfo, Shadow, Shape, Stroke, StrokeKind, TextureHandle, TextureId,
 };
 
 pub mod text {
-    pub use crate::text_selection::{CCursorRange, CursorRange};
+    pub use crate::text_selection::CCursorRange;
     pub use epaint::text::{
-        cursor::CCursor, FontData, FontDefinitions, FontFamily, Fonts, Galley, LayoutJob,
-        LayoutSection, TextFormat, TextWrapping, TAB_SIZE,
+        FontData, FontDefinitions, FontFamily, Fonts, Galley, LayoutJob, LayoutSection, TAB_SIZE,
+        TextFormat, TextWrapping, cursor::CCursor,
     };
 }
 
 pub use self::{
-    containers::*,
+    atomics::*,
+    containers::{menu::MenuBar, *},
     context::{Context, RepaintCause, RequestRepaintInfo},
     data::{
+        Key, UserData,
         input::*,
         output::{
             self, CursorIcon, FullOutput, OpenUrl, OutputCommand, PlatformOutput,
             UserAttentionType, WidgetInfo,
         },
-        Key, UserData,
     },
     drag_and_drop::DragAndDrop,
     epaint::text::TextWrapMode,
     grid::Grid,
     id::{Id, IdMap},
-    input_state::{InputState, MultiTouchInfo, PointerState},
+    input_state::{InputOptions, InputState, MultiTouchInfo, PointerState, SurrenderFocusOn},
     layers::{LayerId, Order},
     layout::*,
     load::SizeHint,
-    memory::{Memory, Options, Theme, ThemePreference},
+    memory::{FocusDirection, Memory, Options, Theme, ThemePreference},
     painter::Painter,
+    plugin::Plugin,
     response::{InnerResponse, Response},
     sense::Sense,
     style::{FontSelection, Spacing, Style, TextStyle, Visuals},
@@ -562,7 +567,7 @@ macro_rules! include_image {
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
-/// ui.add(egui::github_link_file_line!("https://github.com/YOUR/PROJECT/blob/master/", "(source code)"));
+/// ui.add(egui::github_link_file_line!("https://github.com/YOUR/PROJECT/blob/main/", "(source code)"));
 /// # });
 /// ```
 #[macro_export]
@@ -577,7 +582,7 @@ macro_rules! github_link_file_line {
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
-/// ui.add(egui::github_link_file!("https://github.com/YOUR/PROJECT/blob/master/", "(source code)"));
+/// ui.add(egui::github_link_file!("https://github.com/YOUR/PROJECT/blob/main/", "(source code)"));
 /// # });
 /// ```
 #[macro_export]
@@ -664,11 +669,11 @@ pub enum WidgetType {
 
     ColorButton,
 
-    ImageButton,
-
     Image,
 
     CollapsingHeader,
+
+    Panel,
 
     ProgressIndicator,
 
@@ -702,7 +707,6 @@ pub fn __run_test_ui(add_contents: impl Fn(&mut Ui)) {
     });
 }
 
-#[cfg(feature = "accesskit")]
 pub fn accesskit_root_id() -> Id {
     Id::new("accesskit_root")
 }

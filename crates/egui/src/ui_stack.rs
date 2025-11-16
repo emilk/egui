@@ -53,6 +53,9 @@ pub enum UiKind {
 
     /// An [`crate::Area`] that is not of any other kind.
     GenericArea,
+
+    /// A collapsible container, e.g. a [`crate::CollapsingHeader`].
+    Collapsible,
 }
 
 impl UiKind {
@@ -81,6 +84,7 @@ impl UiKind {
             | Self::Frame
             | Self::ScrollArea
             | Self::Resize
+            | Self::Collapsible
             | Self::TableCell => false,
 
             Self::Window
@@ -254,7 +258,7 @@ impl UiStack {
 // these methods act on the entire stack
 impl UiStack {
     /// Return an iterator that walks the stack from this node to the root.
-    #[allow(clippy::iter_without_into_iter)]
+    #[expect(clippy::iter_without_into_iter)]
     pub fn iter(&self) -> UiStackIterator<'_> {
         UiStackIterator { next: Some(self) }
     }

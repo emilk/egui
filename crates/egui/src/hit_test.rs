@@ -2,7 +2,7 @@ use ahash::HashMap;
 
 use emath::TSTransform;
 
-use crate::{ahash, emath, id::IdSet, LayerId, Pos2, Rect, Sense, WidgetRect, WidgetRects};
+use crate::{LayerId, Pos2, Rect, Sense, WidgetRect, WidgetRects, ahash, emath, id::IdSet};
 
 /// Result of a hit-test against [`WidgetRects`].
 ///
@@ -65,7 +65,7 @@ pub fn hit_test(
         .filter(|layer| layer.order.allow_interaction())
         .flat_map(|&layer_id| widgets.get_layer(layer_id))
         .filter(|&w| {
-            if w.interact_rect.is_negative() {
+            if w.interact_rect.is_negative() || w.interact_rect.any_nan() {
                 return false;
             }
 
@@ -90,6 +90,8 @@ pub fn hit_test(
             *hit = hit.transform(to_global);
         }
     }
+
+    close.retain(|rect| !rect.interact_rect.any_nan()); // Protect against bad input and transforms
 
     // When using layer transforms it is common to stack layers close to each other.
     // For instance, you may have a resize-separator on a panel, with two
@@ -175,11 +177,17 @@ pub fn hit_test(
             restore_widget_rect(wr);
         }
         if let Some(wr) = &mut hits.drag {
-            debug_assert!(wr.sense.senses_drag());
+            debug_assert!(
+                wr.sense.senses_drag(),
+                "We should only return drag hits if they sense drag"
+            );
             restore_widget_rect(wr);
         }
         if let Some(wr) = &mut hits.click {
-            debug_assert!(wr.sense.senses_click());
+            debug_assert!(
+                wr.sense.senses_click(),
+                "We should only return click hits if they sense click"
+            );
             restore_widget_rect(wr);
         }
     }
@@ -309,19 +317,18 @@ fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
                     pos,
                 );
 
-                if let Some(closest_drag) = closest_drag {
-                    if hit_drag
+                if let Some(closest_drag) = closest_drag
+                    && hit_drag
                         .interact_rect
                         .contains_rect(closest_drag.interact_rect)
-                    {
-                        // `hit_drag` is a big background thing and `closest_drag` is something small on top of it.
-                        // Be helpful and return the small things:
-                        return WidgetHits {
-                            click: None,
-                            drag: Some(closest_drag),
-                            ..Default::default()
-                        };
-                    }
+                {
+                    // `hit_drag` is a big background thing and `closest_drag` is something small on top of it.
+                    // Be helpful and return the small things:
+                    return WidgetHits {
+                        click: None,
+                        drag: Some(closest_drag),
+                        ..Default::default()
+                    };
                 }
 
                 WidgetHits {
@@ -417,13 +424,13 @@ fn find_closest_within(
 
         let dist_sq = widget.interact_rect.distance_sq_to_pos(pos);
 
-        if let Some(closest) = closest {
-            if dist_sq == closest_dist_sq {
-                // It's a tie! Pick the thin candidate over the thick one.
-                // This makes it easier to hit a thin resize-handle, for instance:
-                if should_prioritize_hits_on_back(closest.interact_rect, widget.interact_rect) {
-                    continue;
-                }
+        if let Some(closest) = closest
+            && dist_sq == closest_dist_sq
+        {
+            // It's a tie! Pick the thin candidate over the thick one.
+            // This makes it easier to hit a thin resize-handle, for instance:
+            if should_prioritize_hits_on_back(closest.interact_rect, widget.interact_rect) {
+                continue;
             }
         }
 
@@ -460,7 +467,9 @@ fn should_prioritize_hits_on_back(back: Rect, front: Rect) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use emath::{pos2, vec2, Rect};
+    #![expect(clippy::print_stdout)]
+
+    use emath::{Rect, pos2, vec2};
 
     use crate::{Id, Sense};
 

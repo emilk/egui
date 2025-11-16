@@ -84,7 +84,10 @@ impl Rot2 {
             c: self.c / l,
             s: self.s / l,
         };
-        debug_assert!(ret.is_finite());
+        debug_assert!(
+            ret.is_finite(),
+            "Rot2::normalized produced a non-finite result"
+        );
         ret
     }
 }

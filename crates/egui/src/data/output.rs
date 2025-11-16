@@ -1,6 +1,6 @@
 //! All the data egui returns to the backend at the end of each frame.
 
-use crate::{RepaintCause, ViewportIdMap, ViewportOutput, WidgetType};
+use crate::{OrderedViewportIdMap, RepaintCause, ViewportOutput, WidgetType};
 
 /// What egui emits each frame from [`crate::Context::run`].
 ///
@@ -32,12 +32,14 @@ pub struct FullOutput {
     ///
     /// It is up to the integration to spawn a native window for each viewport,
     /// and to close any window that no longer has a viewport in this map.
-    pub viewport_output: ViewportIdMap<ViewportOutput>,
+    pub viewport_output: OrderedViewportIdMap<ViewportOutput>,
 }
 
 impl FullOutput {
     /// Add on new output.
     pub fn append(&mut self, newer: Self) {
+        use std::collections::btree_map::Entry;
+
         let Self {
             platform_output,
             textures_delta,
@@ -53,10 +55,10 @@ impl FullOutput {
 
         for (id, new_viewport) in viewport_output {
             match self.viewport_output.entry(id) {
-                std::collections::hash_map::Entry::Vacant(entry) => {
+                Entry::Vacant(entry) => {
                     entry.insert(new_viewport);
                 }
-                std::collections::hash_map::Entry::Occupied(mut entry) => {
+                Entry::Occupied(mut entry) => {
                     entry.get_mut().append(new_viewport);
                 }
             }
@@ -111,24 +113,6 @@ pub struct PlatformOutput {
     /// Set the cursor to this icon.
     pub cursor_icon: CursorIcon,
 
-    /// If set, open this url.
-    #[deprecated = "Use `Context::open_url` or `PlatformOutput::commands` instead"]
-    pub open_url: Option<OpenUrl>,
-
-    /// If set, put this text in the system clipboard. Ignore if empty.
-    ///
-    /// This is often a response to [`crate::Event::Copy`] or [`crate::Event::Cut`].
-    ///
-    /// ```
-    /// # egui::__run_test_ui(|ui| {
-    /// if ui.button("📋").clicked() {
-    ///     ui.output_mut(|o| o.copied_text = "some_text".to_string());
-    /// }
-    /// # });
-    /// ```
-    #[deprecated = "Use `Context::copy_text` or `PlatformOutput::commands` instead"]
-    pub copied_text: String,
-
     /// Events that may be useful to e.g. a screen reader.
     pub events: Vec<OutputEvent>,
 
@@ -144,7 +128,6 @@ pub struct PlatformOutput {
     /// The difference in the widget tree since last frame.
     ///
     /// NOTE: this needs to be per-viewport.
-    #[cfg(feature = "accesskit")]
     pub accesskit_update: Option<accesskit::TreeUpdate>,
 
     /// How many ui passes is this the sum of?
@@ -185,17 +168,12 @@ impl PlatformOutput {
 
     /// Add on new output.
     pub fn append(&mut self, newer: Self) {
-        #![allow(deprecated)]
-
         let Self {
             mut commands,
             cursor_icon,
-            open_url,
-            copied_text,
             mut events,
             mutable_text_under_cursor,
             ime,
-            #[cfg(feature = "accesskit")]
             accesskit_update,
             num_completed_passes,
             mut request_discard_reasons,
@@ -203,12 +181,6 @@ impl PlatformOutput {
 
         self.commands.append(&mut commands);
         self.cursor_icon = cursor_icon;
-        if open_url.is_some() {
-            self.open_url = open_url;
-        }
-        if !copied_text.is_empty() {
-            self.copied_text = copied_text;
-        }
         self.events.append(&mut events);
         self.mutable_text_under_cursor = mutable_text_under_cursor;
         self.ime = ime.or(self.ime);
@@ -216,12 +188,8 @@ impl PlatformOutput {
         self.request_discard_reasons
             .append(&mut request_discard_reasons);
 
-        #[cfg(feature = "accesskit")]
-        {
-            // egui produces a complete AccessKit tree for each frame,
-            // so overwrite rather than appending.
-            self.accesskit_update = accesskit_update;
-        }
+        // egui produces a complete AccessKit tree for each frame, so overwrite rather than append:
+        self.accesskit_update = accesskit_update;
     }
 
     /// Take everything ephemeral (everything except `cursor_icon` currently)
@@ -252,7 +220,7 @@ pub struct OpenUrl {
 }
 
 impl OpenUrl {
-    #[allow(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value)]
     pub fn same_tab(url: impl ToString) -> Self {
         Self {
             url: url.to_string(),
@@ -260,7 +228,7 @@ impl OpenUrl {
         }
     }
 
-    #[allow(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value)]
     pub fn new_tab(url: impl ToString) -> Self {
         Self {
             url: url.to_string(),
@@ -292,10 +260,11 @@ pub enum UserAttentionType {
 /// egui emits a [`CursorIcon`] in [`PlatformOutput`] each frame as a request to the integration.
 ///
 /// Loosely based on <https://developer.mozilla.org/en-US/docs/Web/CSS/cursor>.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum CursorIcon {
     /// Normal cursor icon, whatever that is.
+    #[default]
     Default,
 
     /// Show no cursor
@@ -455,12 +424,6 @@ impl CursorIcon {
     ];
 }
 
-impl Default for CursorIcon {
-    fn default() -> Self {
-        Self::Default
-    }
-}
-
 /// Things that happened during this frame that the integration may be interested in.
 ///
 /// In particular, these events may be useful for accessibility, i.e. for screen readers.
@@ -539,6 +502,9 @@ pub struct WidgetInfo {
 
     /// Selected range of characters in [`Self::current_text_value`].
     pub text_selection: Option<std::ops::RangeInclusive<usize>>,
+
+    /// The hint text for text edit fields.
+    pub hint_text: Option<String>,
 }
 
 impl std::fmt::Debug for WidgetInfo {
@@ -552,6 +518,7 @@ impl std::fmt::Debug for WidgetInfo {
             selected,
             value,
             text_selection,
+            hint_text,
         } = self;
 
         let mut s = f.debug_struct("WidgetInfo");
@@ -580,6 +547,9 @@ impl std::fmt::Debug for WidgetInfo {
         if let Some(text_selection) = text_selection {
             s.field("text_selection", text_selection);
         }
+        if let Some(hint_text) = hint_text {
+            s.field("hint_text", hint_text);
+        }
 
         s.finish()
     }
@@ -596,10 +566,11 @@ impl WidgetInfo {
             selected: None,
             value: None,
             text_selection: None,
+            hint_text: None,
         }
     }
 
-    #[allow(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value)]
     pub fn labeled(typ: WidgetType, enabled: bool, label: impl ToString) -> Self {
         Self {
             enabled,
@@ -609,7 +580,7 @@ impl WidgetInfo {
     }
 
     /// checkboxes, radio-buttons etc
-    #[allow(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value)]
     pub fn selected(typ: WidgetType, enabled: bool, selected: bool, label: impl ToString) -> Self {
         Self {
             enabled,
@@ -627,7 +598,7 @@ impl WidgetInfo {
         }
     }
 
-    #[allow(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value)]
     pub fn slider(enabled: bool, value: f64, label: impl ToString) -> Self {
         let label = label.to_string();
         Self {
@@ -638,14 +609,16 @@ impl WidgetInfo {
         }
     }
 
-    #[allow(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value)]
     pub fn text_edit(
         enabled: bool,
         prev_text_value: impl ToString,
         text_value: impl ToString,
+        hint_text: impl ToString,
     ) -> Self {
         let text_value = text_value.to_string();
         let prev_text_value = prev_text_value.to_string();
+        let hint_text = hint_text.to_string();
         let prev_text_value = if text_value == prev_text_value {
             None
         } else {
@@ -655,11 +628,12 @@ impl WidgetInfo {
             enabled,
             current_text_value: Some(text_value),
             prev_text_value,
+            hint_text: Some(hint_text),
             ..Self::new(WidgetType::TextEdit)
         }
     }
 
-    #[allow(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value)]
     pub fn text_selection_changed(
         enabled: bool,
         text_selection: std::ops::RangeInclusive<usize>,
@@ -684,6 +658,7 @@ impl WidgetInfo {
             selected,
             value,
             text_selection: _,
+            hint_text: _,
         } = self;
 
         // TODO(emilk): localization
@@ -699,9 +674,9 @@ impl WidgetInfo {
             WidgetType::Slider => "slider",
             WidgetType::DragValue => "drag value",
             WidgetType::ColorButton => "color button",
-            WidgetType::ImageButton => "image button",
             WidgetType::Image => "image",
             WidgetType::CollapsingHeader => "collapsing header",
+            WidgetType::Panel => "panel",
             WidgetType::ProgressIndicator => "progress indicator",
             WidgetType::Window => "window",
             WidgetType::Label | WidgetType::Other => "",
@@ -715,7 +690,7 @@ impl WidgetInfo {
                 description = format!("{state} {description}");
             } else {
                 description += if *selected { "selected" } else { "" };
-            };
+            }
         }
 
         if let Some(label) = label {
@@ -727,7 +702,7 @@ impl WidgetInfo {
                 if text_value.is_empty() {
                     "blank".into()
                 } else {
-                    text_value.to_string()
+                    text_value.clone()
                 }
             } else {
                 "blank".into()

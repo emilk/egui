@@ -65,20 +65,20 @@ impl crate::View for TextEditDemo {
             egui::Label::new("Press ctrl+Y to toggle the case of selected text (cmd+Y on Mac)"),
         );
 
-        if ui.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::Y)) {
-            if let Some(text_cursor_range) = output.cursor_range {
-                use egui::TextBuffer as _;
-                let selected_chars = text_cursor_range.as_sorted_char_range();
-                let selected_text = text.char_range(selected_chars.clone());
-                let upper_case = selected_text.to_uppercase();
-                let new_text = if selected_text == upper_case {
-                    selected_text.to_lowercase()
-                } else {
-                    upper_case
-                };
-                text.delete_char_range(selected_chars.clone());
-                text.insert_text(&new_text, selected_chars.start);
-            }
+        if ui.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::Y))
+            && let Some(text_cursor_range) = output.cursor_range
+        {
+            use egui::TextBuffer as _;
+            let selected_chars = text_cursor_range.as_sorted_char_range();
+            let selected_text = text.char_range(selected_chars.clone());
+            let upper_case = selected_text.to_uppercase();
+            let new_text = if selected_text == upper_case {
+                selected_text.to_lowercase()
+            } else {
+                upper_case
+            };
+            text.delete_char_range(selected_chars.clone());
+            text.insert_text(&new_text, selected_chars.start);
         }
 
         ui.horizontal(|ui| {
@@ -113,9 +113,9 @@ impl crate::View for TextEditDemo {
 
 #[cfg(test)]
 mod tests {
-    use egui::{accesskit, CentralPanel};
-    use egui_kittest::kittest::{Key, Queryable};
+    use egui::{CentralPanel, Key, Modifiers, accesskit};
     use egui_kittest::Harness;
+    use egui_kittest::kittest::Queryable as _;
 
     #[test]
     pub fn should_type() {
@@ -133,8 +133,9 @@ mod tests {
 
         let text_edit = harness.get_by_role(accesskit::Role::TextInput);
         assert_eq!(text_edit.value().as_deref(), Some("Hello, world!"));
+        text_edit.focus();
 
-        text_edit.key_combination(&[Key::Command, Key::A]);
+        harness.key_press_modifiers(Modifiers::COMMAND, Key::A);
         text_edit.type_text("Hi ");
 
         harness.run();

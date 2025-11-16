@@ -1,4 +1,4 @@
-use crate::{grid, vec2, Layout, Painter, Pos2, Rect, Region, Vec2};
+use crate::{Layout, Painter, Pos2, Rect, Region, Vec2, grid, vec2};
 
 #[cfg(debug_assertions)]
 use crate::{Align2, Color32, Stroke};
@@ -133,8 +133,8 @@ impl Placer {
 
     /// Apply justify or alignment after calling `next_space`.
     pub(crate) fn justify_and_align(&self, rect: Rect, child_size: Vec2) -> Rect {
-        debug_assert!(!rect.any_nan());
-        debug_assert!(!child_size.any_nan());
+        debug_assert!(!rect.any_nan(), "rect: {rect:?}");
+        debug_assert!(!child_size.any_nan(), "child_size is NaN: {child_size:?}");
 
         if let Some(grid) = &self.grid {
             grid.justify_and_align(rect, child_size)
@@ -145,6 +145,8 @@ impl Placer {
 
     /// Advance the cursor by this many points.
     /// [`Self::min_rect`] will expand to contain the cursor.
+    ///
+    /// Note that `advance_cursor` isn't supported when in a grid layout.
     pub(crate) fn advance_cursor(&mut self, amount: f32) {
         debug_assert!(
             self.grid.is_none(),
@@ -164,8 +166,11 @@ impl Placer {
         widget_rect: Rect,
         item_spacing: Vec2,
     ) {
-        debug_assert!(!frame_rect.any_nan());
-        debug_assert!(!widget_rect.any_nan());
+        debug_assert!(!frame_rect.any_nan(), "frame_rect: {frame_rect:?}");
+        debug_assert!(
+            !widget_rect.any_nan(),
+            "widget_rect is NaN: {widget_rect:?}"
+        );
         self.region.sanity_check();
 
         if let Some(grid) = &mut self.grid {
@@ -228,7 +233,7 @@ impl Placer {
         let region = &mut self.region;
         region.max_rect.min.x = rect.min.x;
         region.max_rect.max.x = rect.max.x;
-        region.max_rect = region.max_rect.union(region.min_rect); // make sure we didn't shrink too much
+        region.max_rect |= region.min_rect; // make sure we didn't shrink too much
 
         region.cursor.min.x = region.max_rect.min.x;
         region.cursor.max.x = region.max_rect.max.x;
@@ -243,7 +248,7 @@ impl Placer {
         let region = &mut self.region;
         region.max_rect.min.y = rect.min.y;
         region.max_rect.max.y = rect.max.y;
-        region.max_rect = region.max_rect.union(region.min_rect); // make sure we didn't shrink too much
+        region.max_rect |= region.min_rect; // make sure we didn't shrink too much
 
         region.cursor.min.y = region.max_rect.min.y;
         region.cursor.max.y = region.max_rect.max.y;

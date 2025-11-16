@@ -1,8 +1,8 @@
 use egui::{
+    Color32, Painter, Pos2, Rect, Shape, Stroke, Ui, Vec2,
     containers::{CollapsingHeader, Frame},
     emath, pos2,
     widgets::Slider,
-    Color32, Painter, Pos2, Rect, Shape, Stroke, Ui, Vec2,
 };
 use std::f32::consts::TAU;
 
@@ -73,7 +73,7 @@ impl FractalClock {
             ));
         } else {
             ui.label("The fractal_clock clock is not showing the correct time");
-        };
+        }
         ui.label(format!("Painted line count: {}", self.line_count));
 
         ui.checkbox(&mut self.paused, "Paused");

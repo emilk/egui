@@ -32,7 +32,10 @@ impl Size {
 
     /// Relative size relative to all available space. Values must be in range `0.0..=1.0`.
     pub fn relative(fraction: f32) -> Self {
-        debug_assert!(0.0 <= fraction && fraction <= 1.0);
+        debug_assert!(
+            0.0 <= fraction && fraction <= 1.0,
+            "fraction should be in the range [0, 1], but was {fraction}"
+        );
         Self::Relative {
             fraction,
             range: Rangef::new(0.0, f32::INFINITY),
@@ -121,7 +124,10 @@ impl Sizing {
             .map(|&size| match size {
                 Size::Absolute { initial, .. } => initial,
                 Size::Relative { fraction, range } => {
-                    assert!(0.0 <= fraction && fraction <= 1.0);
+                    assert!(
+                        0.0 <= fraction && fraction <= 1.0,
+                        "fraction should be in the range [0, 1], but was {fraction}"
+                    );
                     range.clamp(length * fraction)
                 }
                 Size::Remainder { .. } => {
@@ -138,11 +144,11 @@ impl Sizing {
             let mut remainder_length = length - sum_non_remainder;
             let avg_remainder_length = 0.0f32.max(remainder_length / num_remainders as f32).floor();
             for &size in &self.sizes {
-                if let Size::Remainder { range } = size {
-                    if avg_remainder_length < range.min {
-                        remainder_length -= range.min;
-                        num_remainders -= 1;
-                    }
+                if let Size::Remainder { range } = size
+                    && avg_remainder_length < range.min
+                {
+                    remainder_length -= range.min;
+                    num_remainders -= 1;
                 }
             }
             if num_remainders > 0 {

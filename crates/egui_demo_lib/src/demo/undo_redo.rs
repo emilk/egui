@@ -1,4 +1,4 @@
-use egui::{util::undoer::Undoer, Button};
+use egui::{Button, util::undoer::Undoer};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -60,15 +60,11 @@ impl crate::View for UndoRedoDemo {
             let undo = ui.add_enabled(can_undo, Button::new("⟲ Undo")).clicked();
             let redo = ui.add_enabled(can_redo, Button::new("⟳ Redo")).clicked();
 
-            if undo {
-                if let Some(undo_text) = self.undoer.undo(&self.state) {
-                    self.state = undo_text.clone();
-                }
+            if undo && let Some(undo_text) = self.undoer.undo(&self.state) {
+                self.state = undo_text.clone();
             }
-            if redo {
-                if let Some(redo_text) = self.undoer.redo(&self.state) {
-                    self.state = redo_text.clone();
-                }
+            if redo && let Some(redo_text) = self.undoer.redo(&self.state) {
+                self.state = redo_text.clone();
             }
         });
 

@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use crate::{pos2, vec2, Galley, Painter, Rect, Ui, Visuals};
+use crate::{Galley, Painter, Rect, Ui, Visuals, pos2, vec2};
 
-use super::CursorRange;
+use super::CCursorRange;
 
 #[derive(Clone, Debug)]
 pub struct RowVertexIndices {
@@ -14,7 +14,7 @@ pub struct RowVertexIndices {
 pub fn paint_text_selection(
     galley: &mut Arc<Galley>,
     visuals: &Visuals,
-    cursor_range: &CursorRange,
+    cursor_range: &CCursorRange,
     mut new_vertex_indices: Option<&mut Vec<RowVertexIndices>>,
 ) {
     if cursor_range.is_empty() {
@@ -25,31 +25,60 @@ pub fn paint_text_selection(
     // and so we need to clone it if it is shared:
     let galley: &mut Galley = Arc::make_mut(galley);
 
-    let color = visuals.selection.bg_fill;
+    let background_color = visuals.selection.bg_fill;
+    let text_color = visuals.selection.stroke.color;
+
     let [min, max] = cursor_range.sorted_cursors();
-    let min = min.rcursor;
-    let max = max.rcursor;
+    let min = galley.layout_from_cursor(min);
+    let max = galley.layout_from_cursor(max);
 
     for ri in min.row..=max.row {
-        let row = &mut galley.rows[ri];
+        let placed_row = &mut galley.rows[ri];
+        let row = Arc::make_mut(&mut placed_row.row);
+
         let left = if ri == min.row {
             row.x_offset(min.column)
         } else {
-            row.rect.left()
+            0.0
         };
         let right = if ri == max.row {
             row.x_offset(max.column)
         } else {
-            let newline_size = if row.ends_with_newline {
+            let newline_size = if placed_row.ends_with_newline {
                 row.height() / 2.0 // visualize that we select the newline
             } else {
                 0.0
             };
-            row.rect.right() + newline_size
+            row.size.x + newline_size
         };
 
-        let rect = Rect::from_min_max(pos2(left, row.min_y()), pos2(right, row.max_y()));
+        let rect = Rect::from_min_max(pos2(left, 0.0), pos2(right, row.size.y));
         let mesh = &mut row.visuals.mesh;
+
+        if !row.glyphs.is_empty() {
+            // Change color of the selected text:
+            let first_glyph_index = if ri == min.row { min.column } else { 0 };
+            let last_glyph_index = if ri == max.row {
+                max.column
+            } else {
+                row.glyphs.len() - 1
+            };
+
+            let first_vertex_index = row
+                .glyphs
+                .get(first_glyph_index)
+                .map_or(row.visuals.glyph_vertex_range.start, |g| {
+                    g.first_vertex as _
+                });
+            let last_vertex_index = row
+                .glyphs
+                .get(last_glyph_index)
+                .map_or(row.visuals.glyph_vertex_range.end, |g| g.first_vertex as _);
+
+            for vi in first_vertex_index..last_vertex_index {
+                mesh.vertices[vi].color = text_color;
+            }
+        }
 
         // Time to insert the selection rectangle into the row mesh.
         // It should be on top (after) of any background in the galley,
@@ -58,8 +87,12 @@ pub fn paint_text_selection(
 
         // Start by appending the selection rectangle to end of the mesh, as two triangles (= 6 indices):
         let num_indices_before = mesh.indices.len();
-        mesh.add_colored_rect(rect, color);
-        assert_eq!(num_indices_before + 6, mesh.indices.len());
+        mesh.add_colored_rect(rect, background_color);
+        assert_eq!(
+            num_indices_before + 6,
+            mesh.indices.len(),
+            "We expect exactly 6 new indices"
+        );
 
         // Copy out the new triangles:
         let selection_triangles = [

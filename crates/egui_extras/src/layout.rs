@@ -1,4 +1,4 @@
-use egui::{emath::GuiRounding, Id, Pos2, Rect, Response, Sense, Ui, UiBuilder};
+use egui::{Id, Pos2, Rect, Response, Sense, Ui, UiBuilder, emath::GuiRounding as _};
 
 #[derive(Clone, Copy)]
 pub(crate) enum CellSize {
@@ -33,8 +33,9 @@ pub(crate) struct StripLayoutFlags {
     pub(crate) striped: bool,
     pub(crate) hovered: bool,
     pub(crate) selected: bool,
+    pub(crate) overline: bool,
 
-    /// Used when we want to accruately measure the size of this cell.
+    /// Used when we want to accurately measure the size of this cell.
     pub(crate) sizing_pass: bool,
 }
 
@@ -161,7 +162,7 @@ impl<'l> StripLayout<'l> {
         } else if flags.clip {
             max_rect
         } else {
-            max_rect.union(used_rect)
+            max_rect | used_rect
         };
 
         self.set_pos(allocation_rect);
@@ -230,6 +231,14 @@ impl<'l> StripLayout<'l> {
         if flags.selected {
             let stroke_color = child_ui.style().visuals.selection.stroke.color;
             child_ui.style_mut().visuals.override_text_color = Some(stroke_color);
+        }
+
+        if flags.overline {
+            child_ui.painter().hline(
+                max_rect.x_range(),
+                max_rect.top(),
+                child_ui.visuals().widgets.noninteractive.bg_stroke,
+            );
         }
 
         add_cell_contents(&mut child_ui);

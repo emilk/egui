@@ -1,14 +1,18 @@
+use emath::{Align2, Vec2};
+
 use crate::{
     Area, Color32, Context, Frame, Id, InnerResponse, Order, Response, Sense, Ui, UiBuilder, UiKind,
 };
-use emath::{Align2, Vec2};
 
 /// A modal dialog.
+///
 /// Similar to a [`crate::Window`] but centered and with a backdrop that
 /// blocks input to the rest of the UI.
 ///
 /// You can show multiple modals on top of each other. The topmost modal will always be
 /// the most recently shown one.
+/// If multiple modals are newly shown in the same frame, the order of the modals is undefined
+/// (either first or second could be top).
 pub struct Modal {
     pub area: Area,
     pub backdrop_color: Color32,
@@ -16,7 +20,9 @@ pub struct Modal {
 }
 
 impl Modal {
-    /// Create a new Modal. The id is passed to the area.
+    /// Create a new Modal.
+    ///
+    /// The id is passed to the area.
     pub fn new(id: Id) -> Self {
         Self {
             area: Self::default_area(id),
@@ -26,6 +32,7 @@ impl Modal {
     }
 
     /// Returns an area customized for a modal.
+    ///
     /// Makes these changes to the default area:
     /// - sense: hover
     /// - anchor: center
@@ -74,18 +81,16 @@ impl Modal {
             frame,
         } = self;
 
-        let (is_top_modal, any_popup_open) = ctx.memory_mut(|mem| {
+        let is_top_modal = ctx.memory_mut(|mem| {
             mem.set_modal_layer(area.layer());
-            (
-                mem.top_modal_layer() == Some(area.layer()),
-                mem.any_popup_open(),
-            )
+            mem.top_modal_layer() == Some(area.layer())
         });
+        let any_popup_open = crate::Popup::is_any_open(ctx);
         let InnerResponse {
             inner: (inner, backdrop_response),
             response,
         } = area.show(ctx, |ui| {
-            let bg_rect = ui.ctx().screen_rect();
+            let bg_rect = ui.ctx().content_rect();
             let bg_sense = Sense::CLICK | Sense::DRAG;
             let mut backdrop = ui.new_child(UiBuilder::new().sense(bg_sense).max_rect(bg_rect));
             backdrop.set_min_size(bg_rect.size());
@@ -150,7 +155,10 @@ impl<T> ModalResponse<T> {
         let escape_clicked =
             || ctx.input_mut(|i| i.consume_key(crate::Modifiers::NONE, crate::Key::Escape));
 
+        let ui_close_called = self.response.should_close();
+
         self.backdrop_response.clicked()
+            || ui_close_called
             || (self.is_top_modal && !self.any_popup_open && escape_clicked())
     }
 }

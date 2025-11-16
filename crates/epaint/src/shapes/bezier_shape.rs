@@ -253,8 +253,8 @@ impl CubicBezierShape {
         if p > 0.0 {
             return None;
         }
-        let r = (-1.0 * (p / 3.0).powi(3)).sqrt();
-        let theta = (-1.0 * q / (2.0 * r)).acos() / 3.0;
+        let r = (-(p / 3.0).powi(3)).sqrt();
+        let theta = (-q / (2.0 * r)).acos() / 3.0;
 
         let t1 = 2.0 * r.cbrt() * theta.cos() + h;
         let t2 = 2.0 * r.cbrt() * (theta + 120.0 * std::f32::consts::PI / 180.0).cos() + h;
@@ -613,6 +613,8 @@ struct FlatteningParameters {
 impl FlatteningParameters {
     // https://raphlinus.github.io/graphics/curves/2019/12/23/flatten-quadbez.html
     pub fn from_curve(curve: &QuadraticBezierShape, tolerance: f32) -> Self {
+        #![expect(clippy::useless_let_if_seq)]
+
         // Map the quadratic bézier segment to y = x^2 parabola.
         let from = curve.points[0];
         let ctrl = curve.points[1];

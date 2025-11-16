@@ -7,6 +7,73 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.33.2 - 2025-11-13
+* Fix jittering during window resize on MacOS for WGPU/Metal [#7641](https://github.com/emilk/egui/pull/7641) by [@aspcartman](https://github.com/aspcartman)
+* Make sure `native_pixels_per_point` is set during app creation [#7683](https://github.com/emilk/egui/pull/7683) by [@emilk](https://github.com/emilk)
+
+
+## 0.33.0 - 2025-10-09
+### ⭐ Added
+* Add an option to limit the repaint rate in the web runner [#7482](https://github.com/emilk/egui/pull/7482) by [@s-nie](https://github.com/s-nie)
+* Add rotation gesture support for trackpad sources [#7453](https://github.com/emilk/egui/pull/7453) by [@thatcomputerguy0101](https://github.com/thatcomputerguy0101)
+* Add support for the safe area on iOS [#7578](https://github.com/emilk/egui/pull/7578) by [@irh](https://github.com/irh)
+
+### 🔧 Changed
+* Replace `winapi` with `windows-sys` crate [#7416](https://github.com/emilk/egui/pull/7416) by [@unlimitedsola](https://github.com/unlimitedsola)
+* Prevent default action on command-comma in eframe web [#7547](https://github.com/emilk/egui/pull/7547) by [@emilk](https://github.com/emilk)
+* Warn if `DYLD_LIBRARY_PATH` is set and we find no wgpu adapter [#7572](https://github.com/emilk/egui/pull/7572) by [@emilk](https://github.com/emilk)
+* Update MSRV from 1.86 to 1.88 [#7579](https://github.com/emilk/egui/pull/7579) by [@Wumpf](https://github.com/Wumpf)
+
+### 🐛 Fixed
+* Properly end winit event loop [#7565](https://github.com/emilk/egui/pull/7565) by [@tye-exe](https://github.com/tye-exe)
+* Fix eframe window not being focused on mac on startup [#7593](https://github.com/emilk/egui/pull/7593) by [@emilk](https://github.com/emilk)
+* Fix black flash on start in glow eframe backend [#7616](https://github.com/emilk/egui/pull/7616) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+
+## 0.32.3 - 2025-09-12
+Nothing new
+
+
+## 0.32.2 - 2025-09-04
+Nothing new
+
+
+## 0.32.1 - 2025-08-15
+* Enable wgpu default features in eframe / egui_wgpu default features [#7344](https://github.com/emilk/egui/pull/7344) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Request a redraw when the url change through the `popstate` event listener [#7403](https://github.com/emilk/egui/pull/7403) by [@irevoire](https://github.com/irevoire)
+
+
+## 0.32.0 - 2025-07-10
+### ⭐ Added
+* Add pointer events and focus handling for apps run in a Shadow DOM [#5627](https://github.com/emilk/egui/pull/5627) by [@xxvvii](https://github.com/xxvvii)
+* MacOS: Add `movable_by_window_background` option to viewport [#5412](https://github.com/emilk/egui/pull/5412) by [@jim-ec](https://github.com/jim-ec)
+* Add macOS-specific `has_shadow` and `with_has_shadow` to ViewportBuilder [#6850](https://github.com/emilk/egui/pull/6850) by [@gaelanmcmillan](https://github.com/gaelanmcmillan)
+* Add external eventloop support [#6750](https://github.com/emilk/egui/pull/6750) by [@wpbrown](https://github.com/wpbrown)
+
+### 🔧 Changed
+* Update MSRV to 1.85 [#7279](https://github.com/emilk/egui/pull/7279) by [@emilk](https://github.com/emilk)
+* Use Rust edition 2024 [#7280](https://github.com/emilk/egui/pull/7280) by [@emilk](https://github.com/emilk)
+* Rename `should_propagate_event` and add `should_prevent_default` [#5779](https://github.com/emilk/egui/pull/5779) by [@th0rex](https://github.com/th0rex)
+* Clarify platform-specific details for `Viewport` positioning [#5715](https://github.com/emilk/egui/pull/5715) by [@aspiringLich](https://github.com/aspiringLich)
+* Enhance stability on Windows [#5723](https://github.com/emilk/egui/pull/5723) by [@rustbasic](https://github.com/rustbasic)
+* Set `web-sys` min version to `0.3.73` [#5862](https://github.com/emilk/egui/pull/5862) by [@wareya](https://github.com/wareya)
+* Bump `ron` to `0.10.1` [#6861](https://github.com/emilk/egui/pull/6861) by [@torokati44](https://github.com/torokati44)
+* Disallow `accesskit` on Android NativeActivity, making `hello_android` working again [#6855](https://github.com/emilk/egui/pull/6855) by [@podusowski](https://github.com/podusowski)
+* Respect and detect `prefers-color-scheme: no-preference` [#7293](https://github.com/emilk/egui/pull/7293) by [@emilk](https://github.com/emilk)
+
+### 🐛 Fixed
+* Mark all keys as up if the app loses focus [#5743](https://github.com/emilk/egui/pull/5743) by [@emilk](https://github.com/emilk)
+* Fix text input on Android [#5759](https://github.com/emilk/egui/pull/5759) by [@StratusFearMe21](https://github.com/StratusFearMe21)
+* Fix text distortion on mobile devices/browsers with `glow` backend [#6893](https://github.com/emilk/egui/pull/6893) by [@wareya](https://github.com/wareya)
+* Workaround libpng crash on macOS by not creating `NSImage` from png data [#7252](https://github.com/emilk/egui/pull/7252) by [@Wumpf](https://github.com/Wumpf)
+* Fix incorrect window sizes for non-resizable windows on Wayland [#7103](https://github.com/emilk/egui/pull/7103) by [@GoldsteinE](https://github.com/GoldsteinE)
+* Web: only consume copy/cut events if the canvas has focus [#7270](https://github.com/emilk/egui/pull/7270) by [@emilk](https://github.com/emilk)
+
+
+## 0.31.1 - 2025-03-05
+Nothing new
+
+
 ## 0.31.0 - 2025-02-04
 * Web: Fix incorrect scale when moving to screen with new DPI [#5631](https://github.com/emilk/egui/pull/5631) by [@emilk](https://github.com/emilk)
 * Re-enable IME support on Linux [#5198](https://github.com/emilk/egui/pull/5198) by [@YgorSouza](https://github.com/YgorSouza)

@@ -1,10 +1,10 @@
 //! Frame container
 
 use crate::{
-    epaint, layers::ShapeIdx, InnerResponse, Response, Sense, Style, Ui, UiBuilder, UiKind,
-    UiStackInfo,
+    InnerResponse, Response, Sense, Style, Ui, UiBuilder, UiKind, UiStackInfo, epaint,
+    layers::ShapeIdx,
 };
-use epaint::{Color32, CornerRadius, Margin, Marginf, Rect, Shadow, Shape, Stroke};
+use epaint::{Color32, CornerRadius, Margin, MarginF32, Rect, Shadow, Shape, Stroke};
 
 /// A frame around some content, including margin, colors, etc.
 ///
@@ -46,7 +46,7 @@ use epaint::{Color32, CornerRadius, Margin, Marginf, Rect, Shadow, Shape, Stroke
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
-/// egui::Frame::none()
+/// egui::Frame::NONE
 ///     .fill(egui::Color32::RED)
 ///     .show(ui, |ui| {
 ///         ui.label("Label with red background");
@@ -143,7 +143,8 @@ pub struct Frame {
 #[test]
 fn frame_size() {
     assert_eq!(
-        std::mem::size_of::<Frame>(), 32,
+        std::mem::size_of::<Frame>(),
+        32,
         "Frame changed size! If it shrank - good! Update this test. If it grew - bad! Try to find a way to avoid it."
     );
     assert!(
@@ -337,10 +338,10 @@ impl Frame {
     ///
     /// [`Self::inner_margin`] + [`Self.stroke`]`.width` + [`Self::outer_margin`].
     #[inline]
-    pub fn total_margin(&self) -> Marginf {
-        Marginf::from(self.inner_margin)
-            + Marginf::from(self.stroke.width)
-            + Marginf::from(self.outer_margin)
+    pub fn total_margin(&self) -> MarginF32 {
+        MarginF32::from(self.inner_margin)
+            + MarginF32::from(self.stroke.width)
+            + MarginF32::from(self.outer_margin)
     }
 
     /// Calculate the `fill_rect` from the `content_rect`.
@@ -354,14 +355,14 @@ impl Frame {
     ///
     /// This is the visible and interactive rectangle.
     pub fn widget_rect(&self, content_rect: Rect) -> Rect {
-        content_rect + self.inner_margin + Marginf::from(self.stroke.width)
+        content_rect + self.inner_margin + MarginF32::from(self.stroke.width)
     }
 
     /// Calculate the `outer_rect` from the `content_rect`.
     ///
     /// This is what is allocated in the outer [`Ui`], and is what is returned by [`Response::rect`].
     pub fn outer_rect(&self, content_rect: Rect) -> Rect {
-        content_rect + self.inner_margin + Marginf::from(self.stroke.width) + self.outer_margin
+        content_rect + self.inner_margin + MarginF32::from(self.stroke.width) + self.outer_margin
     }
 }
 
@@ -463,7 +464,7 @@ impl Prepared {
         let content_rect = self.content_ui.min_rect();
         content_rect
             + self.frame.inner_margin
-            + Marginf::from(self.frame.stroke.width)
+            + MarginF32::from(self.frame.stroke.width)
             + self.frame.outer_margin
     }
 

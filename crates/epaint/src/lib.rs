@@ -2,7 +2,7 @@
 //!
 //! Made for [`egui`](https://github.com/emilk/egui/).
 //!
-//! Create some [`Shape`]:s and pass them to [`tessellate_shapes`] to generate [`Mesh`]:es
+//! Create some [`Shape`]:s and pass them to [`Tessellator::tessellate_shapes`] to generate [`Mesh`]:es
 //! that you can then paint using some graphics API of your choice (e.g. OpenGL).
 //!
 //! ## Coordinate system
@@ -29,7 +29,7 @@ mod corner_radius;
 mod corner_radius_f32;
 pub mod image;
 mod margin;
-mod marginf;
+mod margin_f32;
 mod mesh;
 pub mod mutex;
 mod shadow;
@@ -50,9 +50,9 @@ pub use self::{
     color::ColorMode,
     corner_radius::CornerRadius,
     corner_radius_f32::CornerRadiusF32,
-    image::{ColorImage, FontImage, ImageData, ImageDelta},
+    image::{AlphaFromCoverage, ColorImage, ImageData, ImageDelta},
     margin::Margin,
-    marginf::Marginf,
+    margin_f32::*,
     mesh::{Mesh, Mesh16, Vertex},
     shadow::Shadow,
     shapes::{
@@ -62,7 +62,7 @@ pub use self::{
     stats::PaintStats,
     stroke::{PathStroke, Stroke, StrokeKind},
     tessellator::{TessellationOptions, Tessellator},
-    text::{FontFamily, FontId, Fonts, Galley},
+    text::{FontFamily, FontId, Fonts, FontsView, Galley},
     texture_atlas::TextureAtlas,
     texture_handle::TextureHandle,
     textures::TextureManager,
@@ -72,11 +72,8 @@ pub use self::{
 #[deprecated = "Renamed to CornerRadius"]
 pub type Rounding = CornerRadius;
 
-#[allow(deprecated)]
-pub use tessellator::tessellate_shapes;
-
 pub use ecolor::{Color32, Hsva, HsvaGamma, Rgba};
-pub use emath::{pos2, vec2, Pos2, Rect, Vec2};
+pub use emath::{Pos2, Rect, Vec2, pos2, vec2};
 
 #[deprecated = "Use the ahash crate directly."]
 pub use ahash;
@@ -128,6 +125,18 @@ pub struct ClippedShape {
 
     /// The shape
     pub shape: Shape,
+}
+
+impl ClippedShape {
+    /// Transform (move/scale) the shape in-place.
+    ///
+    /// If using a [`PaintCallback`], note that only the rect is scaled as opposed
+    /// to other shapes where the stroke is also scaled.
+    pub fn transform(&mut self, transform: emath::TSTransform) {
+        let Self { clip_rect, shape } = self;
+        *clip_rect = transform * *clip_rect;
+        shape.transform(transform);
+    }
 }
 
 /// A [`Mesh`] or [`PaintCallback`] within a clip rectangle.

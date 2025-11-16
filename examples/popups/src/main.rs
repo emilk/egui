@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 #![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
-use eframe::egui::{popup_below_widget, CentralPanel, ComboBox, Id, PopupCloseBehavior};
+use eframe::egui::{CentralPanel, ComboBox, Popup, PopupCloseBehavior};
 
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -42,23 +42,14 @@ impl eframe::App for MyApp {
 
             ui.label("PopupCloseBehavior::IgnoreClicks popup");
             let response = ui.button("Open");
-            let popup_id = Id::new("popup_id");
 
-            if response.clicked() {
-                ui.memory_mut(|mem| mem.toggle_popup(popup_id));
-            }
-
-            popup_below_widget(
-                ui,
-                popup_id,
-                &response,
-                PopupCloseBehavior::IgnoreClicks,
-                |ui| {
+            Popup::menu(&response)
+                .close_behavior(PopupCloseBehavior::IgnoreClicks)
+                .show(|ui| {
                     ui.set_min_width(310.0);
                     ui.label("This popup will be open until you press the button again");
                     ui.checkbox(&mut self.checkbox, "Checkbox");
-                },
-            );
+                });
         });
     }
 }
