@@ -160,6 +160,19 @@ impl PanelSide {
             Self::Horizontal(side) => side.set_rect_height(rect, size),
         }
     }
+
+    fn ui_kind(self) -> UiKind {
+        match self {
+            Self::Vertical(v_side) => match v_side {
+                VerticalSide::Left => UiKind::LeftPanel,
+                VerticalSide::Right => UiKind::RightPanel,
+            },
+            Self::Horizontal(h_side) => match h_side {
+                HorizontalSide::Top => UiKind::TopPanel,
+                HorizontalSide::Bottom => UiKind::BottomPanel,
+            },
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -574,21 +587,10 @@ impl Panel {
         // may change and round_ui() uses the size.
         panel_sizer.panel_rect = panel_sizer.panel_rect.round_ui();
 
-        let get_ui_kind = || match side {
-            PanelSide::Vertical(v_side) => match v_side {
-                VerticalSide::Left => UiKind::LeftPanel,
-                VerticalSide::Right => UiKind::RightPanel,
-            },
-            PanelSide::Horizontal(h_side) => match h_side {
-                HorizontalSide::Top => UiKind::TopPanel,
-                HorizontalSide::Bottom => UiKind::BottomPanel,
-            },
-        };
-
         let mut panel_ui = ui.new_child(
             UiBuilder::new()
                 .id_salt(id)
-                .ui_stack_info(UiStackInfo::new(get_ui_kind()))
+                .ui_stack_info(UiStackInfo::new(side.ui_kind()))
                 .max_rect(panel_sizer.panel_rect)
                 .layout(Layout::top_down(Align::Min)),
         );
