@@ -165,7 +165,7 @@ struct PanelSizer<'a> {
 }
 
 impl<'a> PanelSizer<'a> {
-    fn new(panel: &'a Panel, ui: &mut Ui) -> Self {
+    fn new(panel: &'a Panel, ui: &Ui) -> Self {
         let frame = panel
             .frame
             .unwrap_or_else(|| Frame::side_top_panel(ui.style()));
@@ -182,7 +182,7 @@ impl<'a> PanelSizer<'a> {
         }
     }
 
-    fn get_size_from_state_or_default(panel: &Panel, ui: &mut Ui, frame: Frame) -> f32 {
+    fn get_size_from_state_or_default(panel: &Panel, ui: &Ui, frame: Frame) -> f32 {
         if let Some(state) = PanelState::load(ui.ctx(), panel.id) {
             match panel.side {
                 PanelSide::Vertical(_) => state.rect.width(),
@@ -631,7 +631,7 @@ impl Panel {
             // Now we do the actual resize interaction, on top of all the contents,
             // otherwise its input could be eaten by the contents, e.g. a
             // `ScrollArea` on either side of the panel boundary.
-            (resize_hover, is_resizing) = self.resize_panel(&mut panel_sizer, ui);
+            (resize_hover, is_resizing) = self.resize_panel(&panel_sizer, ui);
         }
 
         if resize_hover || is_resizing {
@@ -684,7 +684,7 @@ impl Panel {
                 .layer_id(LayerId::background())
                 .max_rect(available_rect),
         );
-        panel_ui.set_clip_rect(ctx.screen_rect());
+        panel_ui.set_clip_rect(ctx.content_rect());
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
         let rect = inner_response.response.rect;
@@ -717,7 +717,7 @@ impl Panel {
         inner_response
     }
 
-    fn prepare_resizable_panel(&self, panel_sizer: &mut PanelSizer<'_>, ui: &mut Ui) {
+    fn prepare_resizable_panel(&self, panel_sizer: &mut PanelSizer<'_>, ui: &Ui) {
         let resize_id = self.id.with("__resize");
         let resize_response = ui.ctx().read_response(resize_id);
 
@@ -732,7 +732,7 @@ impl Panel {
         }
     }
 
-    fn resize_panel(&self, panel_sizer: &mut PanelSizer<'_>, ui: &mut Ui) -> (bool, bool) {
+    fn resize_panel(&self, panel_sizer: &PanelSizer<'_>, ui: &Ui) -> (bool, bool) {
         let (resize_x, resize_y, amount): (Rangef, Rangef, Vec2) = match self.side {
             PanelSide::Vertical(_) => {
                 let resize_x = self.side.opposite().side_axe(panel_sizer.panel_rect);
@@ -961,7 +961,7 @@ impl CentralPanel {
                 .layer_id(LayerId::background())
                 .max_rect(ctx.available_rect().round_ui()),
         );
-        panel_ui.set_clip_rect(ctx.screen_rect());
+        panel_ui.set_clip_rect(ctx.content_rect());
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
 
