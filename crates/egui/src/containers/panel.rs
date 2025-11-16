@@ -992,7 +992,7 @@ impl CentralPanel {
         panel_ui.set_clip_rect(ctx.content_rect());
 
         if false {
-            // TODO: @lucasmerlin shouldn't we enable this?
+            // TODO(emilk): @lucasmerlin shouldn't we enable this?
             panel_ui
                 .response()
                 .widget_info(|| WidgetInfo::new(WidgetType::Panel));
@@ -1026,6 +1026,7 @@ mod legacy {
         pub fn left(id: impl Into<Id>) -> Panel {
             Panel::left(id)
         }
+
         pub fn right(id: impl Into<Id>) -> Panel {
             Panel::right(id)
         }
@@ -1038,6 +1039,7 @@ mod legacy {
         pub fn top(id: impl Into<Id>) -> Panel {
             Panel::top(id)
         }
+
         pub fn bottom(id: impl Into<Id>) -> Panel {
             Panel::bottom(id)
         }

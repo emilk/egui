@@ -165,10 +165,10 @@ impl MenuState {
                 && data
                     .get_temp(item.with(Self::ID))
                     .is_none_or(|item: Self| item.last_visible_pass + 1 < pass_nr)
-                {
-                    // If the open item wasn't shown for at least a frame, reset the open item
-                    state.open_item = None;
-                }
+            {
+                // If the open item wasn't shown for at least a frame, reset the open item
+                state.open_item = None;
+            }
             let r = f(&mut state);
             data.insert_temp(state_id, state);
             r
