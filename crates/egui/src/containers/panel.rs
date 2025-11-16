@@ -447,17 +447,15 @@ impl Panel {
     ) -> Option<InnerResponse<R>> {
         let how_expanded = animate_expansion(ctx, self.id.with("animation"), is_expanded);
 
-        let animated_panel = self.get_animated_panel(ctx, is_expanded);
+        let animated_panel = self.get_animated_panel(ctx, is_expanded)?;
 
-        if animated_panel.is_none() {
-            None
-        } else if how_expanded < 1.0 {
+        if how_expanded < 1.0 {
             // Show a fake panel in this in-between animation state:
-            animated_panel.unwrap().show(ctx, |_ui| {});
+            animated_panel.show(ctx, |_ui| {});
             None
         } else {
             // Show the real panel:
-            Some(animated_panel.unwrap().show(ctx, add_contents))
+            Some(animated_panel.show(ctx, add_contents))
         }
     }
 
@@ -472,17 +470,15 @@ impl Panel {
         let how_expanded = animate_expansion(ui.ctx(), self.id.with("animation"), is_expanded);
 
         // Get either the fake or the real panel to animate
-        let animated_panel = self.get_animated_panel(ui.ctx(), is_expanded);
+        let animated_panel = self.get_animated_panel(ui.ctx(), is_expanded)?;
 
-        if animated_panel.is_none() {
-            None
-        } else if how_expanded < 1.0 {
+        if how_expanded < 1.0 {
             // Show a fake panel in this in-between animation state:
-            animated_panel.unwrap().show_inside(ui, |_ui| {});
+            animated_panel.show_inside(ui, |_ui| {});
             None
         } else {
             // Show the real panel:
-            Some(animated_panel.unwrap().show_inside(ui, add_contents))
+            Some(animated_panel.show_inside(ui, add_contents))
         }
     }
 
