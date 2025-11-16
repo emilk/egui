@@ -195,11 +195,11 @@ impl Default for DemoWindows {
 
 impl DemoWindows {
     /// Show the app ui (menu bar and windows).
-    pub fn ui(&mut self, ctx: &Context) {
-        if is_mobile(ctx) {
-            self.mobile_ui(ctx);
+    pub fn ui(&mut self, ui: &mut egui::Ui) {
+        if is_mobile(ui.ctx()) {
+            self.mobile_ui(ui);
         } else {
-            self.desktop_ui(ctx);
+            self.desktop_ui(ui);
         }
     }
 
@@ -207,36 +207,36 @@ impl DemoWindows {
         self.open.contains(About::default().name())
     }
 
-    fn mobile_ui(&mut self, ctx: &Context) {
+    fn mobile_ui(&mut self, ui: &mut egui::Ui) {
         if self.about_is_open() {
             let mut close = false;
-            egui::CentralPanel::default().show(ctx, |ui| {
-                egui::ScrollArea::vertical()
-                    .auto_shrink(false)
-                    .show(ui, |ui| {
-                        self.groups.about.ui(ui);
-                        ui.add_space(12.0);
-                        ui.vertical_centered_justified(|ui| {
-                            if ui
-                                .button(egui::RichText::new("Continue to the demo!").size(20.0))
-                                .clicked()
-                            {
-                                close = true;
-                            }
-                        });
+
+            egui::ScrollArea::vertical()
+                .auto_shrink(false)
+                .show(ui, |ui| {
+                    self.groups.about.ui(ui);
+                    ui.add_space(12.0);
+                    ui.vertical_centered_justified(|ui| {
+                        if ui
+                            .button(egui::RichText::new("Continue to the demo!").size(20.0))
+                            .clicked()
+                        {
+                            close = true;
+                        }
                     });
-            });
+                });
+
             if close {
                 set_open(&mut self.open, About::default().name(), false);
             }
         } else {
-            self.mobile_top_bar(ctx);
-            self.groups.windows(ctx, &mut self.open);
+            self.mobile_top_bar(ui);
+            self.groups.windows(ui.ctx(), &mut self.open);
         }
     }
 
-    fn mobile_top_bar(&mut self, ctx: &Context) {
-        egui::Panel::top("menu_bar").show(ctx, |ui| {
+    fn mobile_top_bar(&mut self, ui: &mut egui::Ui) {
+        egui::Panel::top("menu_bar").show_inside(ui, |ui| {
             menu::MenuBar::new()
                 .config(menu::MenuConfig::new().style(StyleModifier::default()))
                 .ui(ui, |ui| {
@@ -261,12 +261,12 @@ impl DemoWindows {
         });
     }
 
-    fn desktop_ui(&mut self, ctx: &Context) {
+    fn desktop_ui(&mut self, ui: &mut egui::Ui) {
         egui::Panel::right("egui_demo_panel")
             .resizable(false)
             .default_size(160.0)
             .min_size(160.0)
-            .show(ctx, |ui| {
+            .show_inside(ui, |ui| {
                 ui.add_space(4.0);
                 ui.vertical_centered(|ui| {
                     ui.heading("✒ egui demos");
@@ -289,13 +289,13 @@ impl DemoWindows {
                 self.demo_list_ui(ui);
             });
 
-        egui::Panel::top("menu_bar").show(ctx, |ui| {
+        egui::Panel::top("menu_bar").show_inside(ui, |ui| {
             menu::MenuBar::new().ui(ui, |ui| {
                 file_menu_button(ui);
             });
         });
 
-        self.groups.windows(ctx, &mut self.open);
+        self.groups.windows(ui.ctx(), &mut self.open);
     }
 
     fn demo_list_ui(&mut self, ui: &mut egui::Ui) {

@@ -41,6 +41,7 @@ impl crate::View for Tooltips {
                  The purpose is to test that the tooltips close when you scroll.",
             )
             .on_hover_text("Try hovering a label below, then scroll!");
+
             egui::ScrollArea::vertical()
                 .auto_shrink(false)
                 .show(ui, |ui| {
@@ -55,9 +56,7 @@ impl crate::View for Tooltips {
                 });
         });
 
-        egui::CentralPanel::default().show_inside(ui, |ui| {
-            self.misc_tests(ui);
-        });
+        self.misc_tests(ui);
     }
 }
 
