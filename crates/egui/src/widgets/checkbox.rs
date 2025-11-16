@@ -2,6 +2,7 @@ use crate::{
     epaint, pos2, vec2, NumExt, Response, Sense, Shape, TextStyle, Ui, Vec2, Widget, WidgetInfo,
     WidgetText, WidgetType,
 };
+use core::ops::DerefMut;
 
 // TODO(emilk): allow checkbox without a text label
 /// Boolean on/off control with text label.
@@ -17,22 +18,22 @@ use crate::{
 /// # });
 /// ```
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
-pub struct Checkbox<'a> {
-    checked: &'a mut bool,
+pub struct Checkbox<T: DerefMut<Target = bool>> {
+    checked: T,
     text: WidgetText,
     indeterminate: bool,
 }
 
-impl<'a> Checkbox<'a> {
-    pub fn new(checked: &'a mut bool, text: impl Into<WidgetText>) -> Self {
-        Checkbox {
+impl<T: DerefMut<Target = bool>> Checkbox<T> {
+    pub fn new(checked: T, text: impl Into<WidgetText>) -> Self {
+        Self {
             checked,
             text: text.into(),
             indeterminate: false,
         }
     }
 
-    pub fn without_text(checked: &'a mut bool) -> Self {
+    pub fn without_text(checked: T) -> Self {
         Self::new(checked, WidgetText::default())
     }
 
@@ -47,13 +48,14 @@ impl<'a> Checkbox<'a> {
     }
 }
 
-impl Widget for Checkbox<'_> {
+impl<T: DerefMut<Target = bool>> Widget for Checkbox<T> {
     fn ui(self, ui: &mut Ui) -> Response {
-        let Checkbox {
-            checked,
+        let Self {
+            mut checked,
             text,
             indeterminate,
         } = self;
+        let mut checked_value = *checked;
 
         let spacing = &ui.spacing();
         let icon_width = spacing.icon_width;
@@ -78,7 +80,8 @@ impl Widget for Checkbox<'_> {
         let (rect, mut response) = ui.allocate_exact_size(desired_size, Sense::click());
 
         if response.clicked() {
-            *checked = !*checked;
+            checked_value = !checked_value;
+            *checked = checked_value;
             response.mark_changed();
         }
         response.widget_info(|| {
@@ -92,7 +95,7 @@ impl Widget for Checkbox<'_> {
                 WidgetInfo::selected(
                     WidgetType::Checkbox,
                     ui.is_enabled(),
-                    *checked,
+                    checked_value,
                     galley.as_ref().map_or("", |x| x.text()),
                 )
             }
@@ -117,7 +120,7 @@ impl Widget for Checkbox<'_> {
                     small_icon_rect.center().y,
                     visuals.fg_stroke,
                 ));
-            } else if *checked {
+            } else if checked_value {
                 // Check mark:
                 ui.painter().add(Shape::line(
                     vec![
