@@ -602,9 +602,9 @@ impl ScrollArea {
     /// Extra margin added around the contents.
     ///
     /// The scroll bars will be either on top of this margin, or outside of it,
-    /// depending on the value of [`crate::ScrollStyle::floating`].
+    /// depending on the value of [`crate::style::ScrollStyle::floating`].
     ///
-    /// Default: [`crate::ScrollStyle::content_margin`].
+    /// Default: [`crate::style::ScrollStyle::content_margin`].
     #[inline]
     pub fn content_margin(mut self, margin: impl Into<Margin>) -> Self {
         self.content_margin = Some(margin.into());

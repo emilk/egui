@@ -508,7 +508,7 @@ pub struct ScrollStyle {
     /// it more promiment.
     pub floating: bool,
 
-    /// Extra margin added around the contents of a [`ScrollArea`].
+    /// Extra margin added around the contents of a [`crate::ScrollArea`].
     ///
     /// The scroll bars will be either on top of this margin, or outside of it,
     /// depending on the value of [`Self::floating`].
