@@ -45,10 +45,15 @@ impl eframe::App for MyApp {
                     .labelled_by(name_label.id);
             });
             ui.add(egui::Slider::new(&mut self.age, 0..=120).text("age"));
-            if ui.button("Increment").clicked() {
+            if ui.button("Increment").is_pointer_button_down_on() {
                 self.age += 1;
+                ui.label(format!("Hello '{}', age {}", self.name, self.age));
             }
-            ui.label(format!("Hello '{}', age {}", self.name, self.age));
+
+            if ui.label("Clickable label").is_pointer_button_down_on() {
+                self.age += 1;
+                ui.label(format!("Hello '{}', age {}", self.name, self.age));
+            }
 
             ui.image(egui::include_image!(
                 "../../../crates/egui/assets/ferris.png"
