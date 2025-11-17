@@ -526,7 +526,7 @@ where
             // .unwrap_or_else(|| ui.style().interact(&response).text_color()); // too bright
             .unwrap_or_else(|| ui.visuals().widgets.inactive.text_color());
 
-        let prev_text = text.as_str().to_owned();
+        let prev_text = text.to_owned();
         let hint_text_str = hint_text.text().to_owned();
 
         let font_id = font_selection.resolve(ui.style());
@@ -553,7 +553,7 @@ where
 
         let layouter = layouter.unwrap_or(&mut default_layouter);
 
-        let mut galley = layouter(ui, text.as_str(), wrap_width);
+        let mut galley = layouter(ui, &text, wrap_width);
 
         let desired_inner_width = if clip_text {
             wrap_width // visual clipping with scroll in singleline input.
@@ -718,7 +718,7 @@ where
         };
 
         if ui.is_rect_visible(rect) {
-            if text.as_str().is_empty() && !hint_text.is_empty() {
+            if text.is_empty() && !hint_text.is_empty() {
                 let hint_text_color = ui.visuals().weak_text_color();
                 let hint_text_font_id = hint_text_font.unwrap_or(font_id.into());
                 let galley = if multiline {
@@ -831,9 +831,9 @@ where
             response.widget_info(|| {
                 WidgetInfo::text_edit(
                     ui.is_enabled(),
-                    mask_if_password(password, prev_text.as_str()),
-                    mask_if_password(password, text.as_str()),
-                    hint_text_str.as_str(),
+                    mask_if_password(password, &prev_text),
+                    mask_if_password(password, &text),
+                    &hint_text_str,
                 )
             });
         } else if selection_changed {
@@ -843,16 +843,16 @@ where
             let info = WidgetInfo::text_selection_changed(
                 ui.is_enabled(),
                 char_range,
-                mask_if_password(password, text.as_str()),
+                mask_if_password(password, &text),
             );
             response.output_event(OutputEvent::TextSelectionChanged(info));
         } else {
             response.widget_info(|| {
                 WidgetInfo::text_edit(
                     ui.is_enabled(),
-                    mask_if_password(password, prev_text.as_str()),
-                    mask_if_password(password, text.as_str()),
-                    hint_text_str.as_str(),
+                    mask_if_password(password, &prev_text),
+                    mask_if_password(password, &text),
+                    &hint_text_str,
                 )
             });
         }
@@ -933,7 +933,7 @@ where
     // so that the undoer creates automatic saves even when there are no events for a while.
     state.undoer.lock().feed_state(
         ui.input(|i| i.time),
-        &(cursor_range.as_ccursor_range(), text.as_str().to_owned()),
+        &(cursor_range.as_ccursor_range(), text.to_owned()),
     );
 
     let copy_if_not_password = |ui: &Ui, text: String| {
@@ -961,7 +961,7 @@ where
                 if cursor_range.is_empty() {
                     None
                 } else {
-                    copy_if_not_password(ui, cursor_range.slice_str(text.as_str()).to_owned());
+                    copy_if_not_password(ui, cursor_range.slice_str(text).to_owned());
                     None
                 }
             }
@@ -969,7 +969,7 @@ where
                 if cursor_range.is_empty() {
                     None
                 } else {
-                    copy_if_not_password(ui, cursor_range.slice_str(text.as_str()).to_owned());
+                    copy_if_not_password(ui, cursor_range.slice_str(text).to_owned());
                     let text = &mut *text;
                     Some(CCursorRange::one(text.delete_selected(&cursor_range)))
                 }
@@ -1048,7 +1048,7 @@ where
                 if let Some((redo_ccursor_range, redo_txt)) = state
                     .undoer
                     .lock()
-                    .redo(&(cursor_range.as_ccursor_range(), text.as_str().to_owned()))
+                    .redo(&(cursor_range.as_ccursor_range(), text.to_owned()))
                 {
                     text.replace_with(redo_txt);
                     Some(*redo_ccursor_range)
@@ -1066,7 +1066,7 @@ where
                 if let Some((undo_ccursor_range, undo_txt)) = state
                     .undoer
                     .lock()
-                    .undo(&(cursor_range.as_ccursor_range(), text.as_str().to_owned()))
+                    .undo(&(cursor_range.as_ccursor_range(), text.to_owned()))
                 {
                     text.replace_with(undo_txt);
                     Some(*undo_ccursor_range)
@@ -1137,7 +1137,7 @@ where
             any_change = true;
 
             // Layout again to avoid frame delay, and to keep `text` and `galley` in sync.
-            *galley = layouter(ui, text.as_str(), wrap_width);
+            *galley = layouter(ui, text, wrap_width);
 
             // Set cursor_range using new galley:
             cursor_range = CursorRange {
@@ -1151,7 +1151,7 @@ where
 
     state.undoer.lock().feed_state(
         ui.input(|i| i.time),
-        &(cursor_range.as_ccursor_range(), text.as_str().to_owned()),
+        &(cursor_range.as_ccursor_range(), text.to_owned()),
     );
 
     (any_change, cursor_range)
