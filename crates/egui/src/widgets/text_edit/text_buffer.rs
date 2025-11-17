@@ -1,4 +1,7 @@
-use std::{borrow::Cow, ops::Range};
+use std::{
+    borrow::Cow,
+    ops::{Deref, Range},
+};
 
 use epaint::{
     text::{
@@ -20,12 +23,14 @@ use crate::text_selection::{
 /// an underlying buffer.
 ///
 /// Most likely you will use a [`String`] which implements [`TextBuffer`].
-pub trait TextBuffer {
+pub trait TextBuffer: Deref<Target = str> {
     /// Can this text be edited?
     fn is_mutable(&self) -> bool;
 
     /// Returns this buffer as a `str`.
-    fn as_str(&self) -> &str;
+    fn as_str(&self) -> &str {
+        &*self
+    }
 
     /// Inserts text `text` into this buffer at character index `char_index`.
     ///
@@ -233,10 +238,6 @@ impl TextBuffer for Cow<'_, str> {
         true
     }
 
-    fn as_str(&self) -> &str {
-        self.as_ref()
-    }
-
     fn insert_text(&mut self, text: &str, char_index: usize) -> usize {
         <String as TextBuffer>::insert_text(self.to_mut(), text, char_index)
     }
@@ -262,10 +263,6 @@ impl TextBuffer for Cow<'_, str> {
 impl TextBuffer for &str {
     fn is_mutable(&self) -> bool {
         false
-    }
-
-    fn as_str(&self) -> &str {
-        self
     }
 
     fn insert_text(&mut self, _text: &str, _ch_idx: usize) -> usize {
