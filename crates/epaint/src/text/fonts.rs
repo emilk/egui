@@ -532,7 +532,7 @@ impl Fonts {
         &mut self,
         max_texture_side: usize,
         text_alpha_from_coverage: AlphaFromCoverage,
-    ) {
+    ) -> bool {
         let max_texture_side_changed = self.fonts.max_texture_side != max_texture_side;
         let text_alpha_from_coverage_changed =
             self.fonts.atlas.text_alpha_from_coverage != text_alpha_from_coverage;
@@ -547,9 +547,11 @@ impl Fonts {
                 fonts: FontsImpl::new(max_texture_side, text_alpha_from_coverage, definitions),
                 galley_cache: Default::default(),
             };
+            true
+        } else {
+            self.galley_cache.flush_cache();
+            false
         }
-
-        self.galley_cache.flush_cache();
     }
 
     /// Call at the end of each frame (before painting) to get the change to the font texture since last call.

@@ -11,7 +11,9 @@ use crate::{
     },
 };
 
-use super::{FontsImpl, Galley, Glyph, LayoutJob, LayoutSection, PlacedRow, Row, RowVisuals};
+use super::{
+    FontsImpl, Galley, Glyph, GlyphColoring, LayoutJob, LayoutSection, PlacedRow, Row, RowVisuals,
+};
 
 // ----------------------------------------------------------------------------
 
@@ -231,7 +233,8 @@ fn layout_section(
                 uv_rect: glyph_alloc.uv_rect,
                 coloring: glyph_alloc.coloring,
                 section_index,
-                first_vertex: 0, // filled in later
+                first_vertex: 0,      // filled in later
+                vertex_count: 0,      // filled in later
             });
 
             paragraph.cursor_x_px += glyph_alloc.advance_width_px;
@@ -534,7 +537,8 @@ fn replace_last_glyph_with_overflow_character(
                 uv_rect: replacement_glyph_alloc.uv_rect,
                 coloring: replacement_glyph_alloc.coloring,
                 section_index,
-                first_vertex: 0, // filled in later
+                first_vertex: 0,      // filled in later
+                vertex_count: 0,      // filled in later
             });
             return;
         }
@@ -864,7 +868,12 @@ fn tessellate_glyphs(point_scale: PointScale, job: &LayoutJob, row: &mut Row, me
 
             let format = &job.sections[glyph.section_index as usize].format;
 
-            let color = format.color;
+            let color = match glyph.coloring {
+                GlyphColoring::Monochrome => format.color,
+                GlyphColoring::Color => {
+                    Color32::from_rgba_premultiplied(255, 255, 255, format.color.a())
+                }
+            };
 
             if format.italics {
                 let idx = mesh.vertices.len() as u32;
@@ -897,6 +906,8 @@ fn tessellate_glyphs(point_scale: PointScale, job: &LayoutJob, row: &mut Row, me
                 mesh.add_rect_with_uv(rect, uv, color);
             }
         }
+
+        glyph.vertex_count = mesh.vertices.len() as u32 - glyph.first_vertex;
     }
 }
 

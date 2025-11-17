@@ -11,7 +11,7 @@ use crate::{
     CircleShape, ClippedPrimitive, ClippedShape, Color32, CornerRadiusF32, CubicBezierShape,
     EllipseShape, Mesh, PathShape, Primitive, QuadraticBezierShape, RectShape, Shape, Stroke,
     StrokeKind, TextShape, TextureId, Vertex, WHITE_UV, color::ColorMode, emath,
-    stroke::PathStroke, texture_atlas::PreparedDisc,
+    stroke::PathStroke, text::GlyphColoring, texture_atlas::PreparedDisc,
 };
 
 // ----------------------------------------------------------------------------
@@ -1990,12 +1990,16 @@ impl Tessellator {
             opacity_factor,
             angle,
         } = text_shape;
+        let override_text_color = *override_text_color;
+        let fallback_color = *fallback_color;
+        let opacity_factor = *opacity_factor;
+        let angle = *angle;
 
         if galley.is_empty() {
             return;
         }
 
-        if *opacity_factor <= 0.0 {
+        if opacity_factor <= 0.0 {
             return;
         }
 
@@ -2022,7 +2026,7 @@ impl Tessellator {
             1.0 / self.font_tex_size[1] as f32,
         );
 
-        let rotator = Rot2::from_angle(*angle);
+        let rotator = Rot2::from_angle(angle);
 
         for row in &galley.rows {
             if row.visuals.mesh.is_empty() {
@@ -2032,7 +2036,7 @@ impl Tessellator {
             let final_row_pos = galley_pos + rotator * row.pos.to_vec2();
 
             let mut row_rect = row.visuals.mesh_bounds;
-            if *angle != 0.0 {
+            if angle != 0.0 {
                 row_rect = row_rect.rotate_bb(rotator);
             }
             row_rect = row_rect.translate(final_row_pos.to_vec2());
@@ -2053,31 +2057,59 @@ impl Tessellator {
                     .map(|index| index + index_offset),
             );
 
+            let glyph_vertex_range = row.visuals.glyph_vertex_range.clone();
+            let mut color_vertex_ranges = row
+                .glyphs
+                .iter()
+                .filter_map(|glyph| {
+                    (glyph.vertex_count > 0 && glyph.coloring == GlyphColoring::Color).then_some(
+                        (glyph.first_vertex as usize)
+                            ..(glyph.first_vertex as usize + glyph.vertex_count as usize),
+                    )
+                })
+                .collect::<Vec<_>>()
+                .into_iter()
+                .peekable();
+
             out.vertices.extend(
                 row.visuals
                     .mesh
                     .vertices
                     .iter()
                     .enumerate()
-                    .map(|(i, vertex)| {
+                    .map(move |(i, vertex)| {
                         let Vertex { pos, uv, mut color } = *vertex;
 
                         if let Some(override_text_color) = override_text_color {
                             // Only override the glyph color (not background color, strike-through color, etc)
-                            if row.visuals.glyph_vertex_range.contains(&i) {
-                                color = *override_text_color;
+                            if glyph_vertex_range.contains(&i) {
+                                while let Some(range) = color_vertex_ranges.peek() {
+                                    if i >= range.end {
+                                        color_vertex_ranges.next();
+                                    } else {
+                                        break;
+                                    }
+                                }
+
+                                let in_color_range = color_vertex_ranges
+                                    .peek()
+                                    .map_or(false, |range| range.contains(&i));
+
+                                if !in_color_range {
+                                    color = override_text_color;
+                                }
                             }
                         } else if color == Color32::PLACEHOLDER {
-                            color = *fallback_color;
+                            color = fallback_color;
                         }
 
-                        if *opacity_factor < 1.0 {
-                            color = color.gamma_multiply(*opacity_factor);
+                        if opacity_factor < 1.0 {
+                            color = color.gamma_multiply(opacity_factor);
                         }
 
                         debug_assert!(color != Color32::PLACEHOLDER, "A placeholder color made it to the tessellator. You forgot to set a fallback color.");
 
-                        let offset = if *angle == 0.0 {
+                        let offset = if angle == 0.0 {
                             pos.to_vec2()
                         } else {
                             rotator * pos.to_vec2()

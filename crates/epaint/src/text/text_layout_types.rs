@@ -707,6 +707,9 @@ pub struct Glyph {
 
     /// Which is our first vertex in [`RowVisuals::mesh`].
     pub first_vertex: u32,
+
+    /// How many vertices belong to this glyph in [`RowVisuals::mesh`].
+    pub vertex_count: u32,
 }
 
 impl Glyph {

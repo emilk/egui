@@ -209,7 +209,10 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
             let mut rng = rand::rng();
             b.iter(|| {
-                fonts.begin_pass(max_texture_side, egui::epaint::AlphaFromCoverage::default());
+                let _ = fonts.begin_pass(
+                    max_texture_side,
+                    egui::epaint::AlphaFromCoverage::default(),
+                );
 
                 // Delete a random character, simulating a user making an edit in a long file:
                 let mut new_string = string.clone();

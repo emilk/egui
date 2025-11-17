@@ -3,6 +3,7 @@ use std::sync::Arc;
 use crate::{
     CircleShape, Color32, ColorMode, CubicBezierShape, EllipseShape, Mesh, PathShape,
     QuadraticBezierShape, RectShape, Shape, TextShape, color,
+    text::GlyphColoring,
 };
 
 /// Remember to handle [`Color32::PLACEHOLDER`] specially!
@@ -87,15 +88,7 @@ pub fn adjust_colors(
                 adjust_color(override_text_color);
             }
 
-            if !galley.is_empty() {
-                let galley = Arc::make_mut(galley);
-                for placed_row in &mut galley.rows {
-                    let row = Arc::make_mut(&mut placed_row.row);
-                    for vertex in &mut row.visuals.mesh.vertices {
-                        adjust_color(&mut vertex.color);
-                    }
-                }
-            }
+            adjust_galley_colors(galley, adjust_color);
         }
 
         Shape::Mesh(mesh) => {
@@ -112,6 +105,51 @@ pub fn adjust_colors(
 
         Shape::Callback(_) => {
             // Can't tint user callback code
+        }
+    }
+}
+
+fn adjust_galley_colors(
+    galley: &mut Arc<crate::Galley>,
+    adjust_color: impl Fn(&mut Color32) + Send + Sync + Copy + 'static,
+) {
+    if galley.is_empty() {
+        return;
+    }
+
+    let galley = Arc::make_mut(galley);
+    for placed_row in &mut galley.rows {
+        let row = Arc::make_mut(&mut placed_row.row);
+
+        let mut color_ranges = row
+            .glyphs
+            .iter()
+            .filter_map(|glyph| {
+                (glyph.vertex_count > 0 && glyph.coloring == GlyphColoring::Color).then_some(
+                    (glyph.first_vertex as usize)
+                        ..(glyph.first_vertex as usize + glyph.vertex_count as usize),
+                )
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
+            .peekable();
+
+        for (i, vertex) in row.visuals.mesh.vertices.iter_mut().enumerate() {
+            while let Some(range) = color_ranges.peek() {
+                if i >= range.end {
+                    color_ranges.next();
+                } else {
+                    break;
+                }
+            }
+
+            let in_color_range = color_ranges
+                .peek()
+                .map_or(false, |range| range.contains(&i));
+
+            if !in_color_range {
+                adjust_color(&mut vertex.color);
+            }
         }
     }
 }

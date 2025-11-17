@@ -591,12 +591,12 @@ impl ContextImpl {
             )
         });
 
-        {
+        let fonts_recreated = {
             profiling::scope!("Fonts::begin_pass");
-            fonts.begin_pass(max_texture_side, text_alpha_from_coverage);
-        }
+            fonts.begin_pass(max_texture_side, text_alpha_from_coverage)
+        };
 
-        if is_new {
+        if is_new || fonts_recreated {
             for (&character, image) in &self.color_glyphs {
                 fonts.register_color_glyph(character, image.clone());
             }
