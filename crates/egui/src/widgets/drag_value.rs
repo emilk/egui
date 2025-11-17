@@ -6,8 +6,8 @@ use std::{
 };
 
 use crate::{
-    emath, text, Button, CursorIcon, Key, Modifiers, NumExt, Response, RichText, Sense, TextEdit,
-    TextWrapMode, Ui, Widget, WidgetInfo, MINUS_CHAR_STR,
+    emath, text, text_edit::TextEditState, Button, CursorIcon, Key, Modifiers, NumExt, Response,
+    RichText, Sense, TextEdit, TextWrapMode, Ui, Widget, WidgetInfo, MINUS_CHAR_STR,
 };
 
 // ----------------------------------------------------------------------------
@@ -634,7 +634,7 @@ impl Widget for DragValue<'_> {
             if response.clicked() {
                 ui.data_mut(|data| data.remove::<String>(id));
                 ui.memory_mut(|mem| mem.request_focus(id));
-                let mut state = TextEdit::load_state(ui.ctx(), id).unwrap_or_default();
+                let mut state = TextEditState::load(ui.ctx(), id).unwrap_or_default();
                 state.cursor.set_char_range(Some(text::CCursorRange::two(
                     text::CCursor::default(),
                     text::CCursor::new(value_text.chars().count()),

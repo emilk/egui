@@ -29,7 +29,7 @@ pub trait TextBuffer: Deref<Target = str> {
 
     /// Returns this buffer as a `str`.
     fn as_str(&self) -> &str {
-        &*self
+        self
     }
 
     /// Inserts text `text` into this buffer at character index `char_index`.
