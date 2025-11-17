@@ -25,10 +25,6 @@ rustdoc-args = ["--generate-link-to-definition"]
 
 [features]
 default = ["default_fonts"]
-
-## Exposes detailed accessibility implementation required by platform
-## accessibility APIs. Also requires support in the egui integration.
-accesskit = ["dep:accesskit"]
 ## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast [`epaint::Vertex`], [`emath::Vec2`] etc to `&[u8]`.
 bytemuck = ["epaint/bytemuck"]
 
@@ -74,7 +70,7 @@ _override_unity = ["epaint/_override_unity"]
 emath = { workspace = true, default-features = false }
 epaint = { workspace = true, default-features = false }
 
-accesskit = { workspace = true, optional = true }
+accesskit.workspace = true
 ahash.workspace = true
 bitflags.workspace = true
 log.workspace = true
