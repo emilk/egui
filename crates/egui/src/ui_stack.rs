@@ -209,7 +209,7 @@ pub struct UiStack {
     pub layout_direction: Direction,
     pub min_rect: Rect,
     pub max_rect: Rect,
-    pub parent: Option<Arc<UiStack>>,
+    pub parent: Option<Arc<Self>>,
 }
 
 // these methods act on this specific node

@@ -634,7 +634,7 @@ impl SubMenu {
 /// Usually you don't need to use it directly.
 pub struct MenuState {
     /// The opened sub-menu and its [`Id`]
-    sub_menu: Option<(Id, Arc<RwLock<MenuState>>)>,
+    sub_menu: Option<(Id, Arc<RwLock<Self>>)>,
 
     /// Bounding box of this menu (without the sub-menu),
     /// including the frame and everything.

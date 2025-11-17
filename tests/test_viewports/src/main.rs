@@ -31,7 +31,7 @@ pub struct ViewportState {
     pub visible: bool,
     pub immediate: bool,
     pub title: String,
-    pub children: Vec<Arc<RwLock<ViewportState>>>,
+    pub children: Vec<Arc<RwLock<Self>>>,
 }
 
 impl ViewportState {
