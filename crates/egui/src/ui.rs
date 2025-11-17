@@ -2028,6 +2028,29 @@ impl Ui {
         TextEdit::singleline(text).ui(self)
     }
 
+    /// [`TextEdit::singleline`] backed by a custom mutable state type.
+    ///
+    /// Useful when the state wrapper only wants to write when the value changes.
+    pub fn text_edit_singleline_state<T>(&mut self, text: T) -> Response
+    where
+        T: DerefMut,
+        T::Target: widgets::text_edit::TextBuffer,
+    {
+        TextEdit::singleline_state(text).ui(self)
+    }
+
+    /// [`TextEdit::singleline`] backed by a custom mutable state type with extra configuration.
+    ///
+    /// Useful when you want to tweak styling (e.g. hint text) before adding the widget.
+    pub fn text_edit_singleline_state_with<T, F>(&mut self, text: T, configure: F) -> Response
+    where
+        T: DerefMut,
+        T::Target: widgets::text_edit::TextBuffer,
+        F: FnOnce(TextEdit<'_, T>) -> TextEdit<'_, T>,
+    {
+        self.add(configure(TextEdit::singleline_state(text)))
+    }
+
     /// A [`TextEdit`] for multiple lines. Pressing enter key will create a new line.
     ///
     /// See also [`TextEdit`].
@@ -2038,6 +2061,29 @@ impl Ui {
         TextEdit::multiline(text).ui(self)
     }
 
+    /// [`TextEdit::multiline_with_state`] backed by a custom mutable state type.
+    ///
+    /// Useful when the state wrapper only wants to write when the value changes.
+    pub fn text_edit_multiline_state<T>(&mut self, text: T) -> Response
+    where
+        T: DerefMut,
+        T::Target: widgets::text_edit::TextBuffer,
+    {
+        TextEdit::multiline_with_state(text).ui(self)
+    }
+
+    /// [`TextEdit::multiline_with_state`] backed by a custom mutable state type with extra configuration.
+    ///
+    /// Useful when you want to tweak styling (e.g. hint text) before adding the widget.
+    pub fn text_edit_multiline_state_with<T, F>(&mut self, text: T, configure: F) -> Response
+    where
+        T: DerefMut,
+        T::Target: widgets::text_edit::TextBuffer,
+        F: FnOnce(TextEdit<'_, T>) -> TextEdit<'_, T>,
+    {
+        self.add(configure(TextEdit::multiline_with_state(text)))
+    }
+
     /// A [`TextEdit`] for code editing.
     ///
     /// This will be multiline, monospace, and will insert tabs instead of moving focus.
@@ -2045,6 +2091,27 @@ impl Ui {
     /// See also [`TextEdit::code_editor`].
     pub fn code_editor<S: widgets::text_edit::TextBuffer>(&mut self, text: &mut S) -> Response {
         self.add(TextEdit::multiline(text).code_editor())
+    }
+
+    /// [`TextEdit::code_editor`] backed by a custom mutable state type.
+    ///
+    /// Useful when the state wrapper only wants to write when the value changes.
+    pub fn code_editor_state<T>(&mut self, text: T) -> Response
+    where
+        T: DerefMut,
+        T::Target: widgets::text_edit::TextBuffer,
+    {
+        self.add(TextEdit::multiline_with_state(text).code_editor())
+    }
+
+    /// [`TextEdit::code_editor`] backed by a custom mutable state type with extra configuration.
+    pub fn code_editor_state_with<T, F>(&mut self, text: T, configure: F) -> Response
+    where
+        T: DerefMut,
+        T::Target: widgets::text_edit::TextBuffer,
+        F: FnOnce(TextEdit<'_, T>) -> TextEdit<'_, T>,
+    {
+        self.add(configure(TextEdit::multiline_with_state(text)).code_editor())
     }
 
     /// Usage: `if ui.button("Click me").clicked() { … }`
