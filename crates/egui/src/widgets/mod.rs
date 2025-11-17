@@ -41,7 +41,7 @@ pub use self::{
     separator::Separator,
     slider::{Slider, SliderClamping, SliderOrientation},
     spinner::Spinner,
-    text_edit::{TextBuffer, TextEdit},
+    text_edit::{TextBuffer, TextEdit, TextType},
 };
 
 // ----------------------------------------------------------------------------
