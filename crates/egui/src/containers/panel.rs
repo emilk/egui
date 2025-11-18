@@ -453,6 +453,59 @@ impl Panel {
     }
 }
 
+// Deprecated
+impl Panel {
+    #[deprecated = "Renamed default_size"]
+    pub fn default_width(self, default_size: f32) -> Self {
+        self.default_size(default_size)
+    }
+
+    #[deprecated = "Renamed min_size"]
+    pub fn min_width(self, min_size: f32) -> Self {
+        self.min_size(min_size)
+    }
+
+    #[deprecated = "Renamed max_size"]
+    pub fn max_width(self, max_size: f32) -> Self {
+        self.max_size(max_size)
+    }
+
+    #[deprecated = "Renamed size_range"]
+    pub fn width_range(self, size_range: impl Into<Rangef>) -> Self {
+        self.size_range(size_range)
+    }
+
+    #[deprecated = "Renamed exact_size"]
+    pub fn exact_width(self, size: f32) -> Self {
+        self.exact_size(size)
+    }
+
+    #[deprecated = "Renamed default_size"]
+    pub fn default_height(self, default_size: f32) -> Self {
+        self.default_size(default_size)
+    }
+
+    #[deprecated = "Renamed min_size"]
+    pub fn min_height(self, min_size: f32) -> Self {
+        self.min_size(min_size)
+    }
+
+    #[deprecated = "Renamed max_size"]
+    pub fn max_height(self, max_size: f32) -> Self {
+        self.max_size(max_size)
+    }
+
+    #[deprecated = "Renamed size_range"]
+    pub fn height_range(self, size_range: impl Into<Rangef>) -> Self {
+        self.size_range(size_range)
+    }
+
+    #[deprecated = "Renamed exact_size"]
+    pub fn exact_height(self, size: f32) -> Self {
+        self.exact_size(size)
+    }
+}
+
 // Public showing methods
 impl Panel {
     /// Show the panel inside a [`Ui`].
