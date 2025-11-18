@@ -63,7 +63,7 @@ ui.image(egui::include_image!("ferris.png"));
 * [Other](#other)
 * [Credits](#credits)
 
-([egui 的中文翻译文档 / chinese translation](https://github.com/Re-Ch-Love/egui-doc-cn/blob/main/README_zh-hans.md))
+([中文 README / Chinese README](https://github.com/Re-Ch-X/egui-doc-cn/blob/main/README_zh-hans.md))
 
 
 ## Quick start
