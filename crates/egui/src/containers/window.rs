@@ -576,17 +576,14 @@ impl Window<'_> {
             let (content_inner, content_response) = collapsing
                 .show_body_unindented(&mut frame.content_ui, |ui| {
                     resize.show(ui, |ui| {
-                        let add_contents_with_margin = |ui: &mut Ui| {
+                        let margin = ui.spacing().window_margin;
+                        if scroll.is_any_scroll_enabled() {
+                            scroll.content_margin(margin).show(ui, add_contents).inner
+                        } else {
                             crate::Frame::NONE
-                                .inner_margin(ui.spacing().window_margin)
+                                .inner_margin(margin)
                                 .show(ui, add_contents)
                                 .inner
-                        };
-
-                        if scroll.is_any_scroll_enabled() {
-                            scroll.show(ui, add_contents_with_margin).inner
-                        } else {
-                            add_contents_with_margin(ui)
                         }
                     })
                 })
