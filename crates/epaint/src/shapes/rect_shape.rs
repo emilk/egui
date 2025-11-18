@@ -54,13 +54,16 @@ pub struct RectShape {
     /// Since most rectangles do not have a texture, this is optional and in an `Arc`,
     /// so that [`RectShape`] is kept small..
     pub brush: Option<Arc<Brush>>,
+
+    /// Rotate rectangle by this many radians clockwise around its center.
+    pub angle: f32,
 }
 
 #[test]
 fn rect_shape_size() {
     assert_eq!(
         std::mem::size_of::<RectShape>(),
-        48,
+        56,
         "RectShape changed size! If it shrank - good! Update this test. If it grew - bad! Try to find a way to avoid it."
     );
     assert!(
@@ -88,6 +91,7 @@ impl RectShape {
             round_to_pixels: None,
             blur_width: 0.0,
             brush: Default::default(),
+            angle: 0.0,
         }
     }
 
@@ -157,6 +161,25 @@ impl RectShape {
         self
     }
 
+    /// Set the rotation of the rectangle (in radians, clockwise).
+    /// The rectangle rotates around its center.
+    #[inline]
+    pub fn with_angle(mut self, angle: f32) -> Self {
+        self.angle = angle;
+        self
+    }
+
+    /// Set the rotation of the rectangle (in radians, clockwise) around a custom pivot point.
+    #[inline]
+    pub fn with_angle_and_pivot(mut self, angle: f32, pivot: Pos2) -> Self {
+        self.angle = angle;
+        let rot = emath::Rot2::from_angle(angle);
+        let center = self.rect.center();
+        let new_center = pivot + rot * (center - pivot);
+        self.rect = self.rect.translate(new_center - center);
+        self
+    }
+
     /// The visual bounding rectangle (includes stroke width)
     #[inline]
     pub fn visual_bounding_rect(&self) -> Rect {
@@ -168,7 +191,17 @@ impl RectShape {
                 StrokeKind::Middle => self.stroke.width / 2.0,
                 StrokeKind::Outside => self.stroke.width,
             };
-            self.rect.expand(expand + self.blur_width / 2.0)
+            let expanded = self.rect.expand(expand + self.blur_width / 2.0);
+            if self.angle == 0.0 {
+                expanded
+            } else {
+                // Rotate around the rectangle's center and compute bounding box
+                let center = self.rect.center();
+                let rect_relative = Rect::from_center_size(Pos2::ZERO, expanded.size());
+                rect_relative
+                    .rotate_bb(emath::Rot2::from_angle(self.angle))
+                    .translate(center.to_vec2())
+            }
         }
     }
 
