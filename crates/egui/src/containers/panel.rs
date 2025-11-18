@@ -1014,37 +1014,8 @@ fn clamp_to_range(x: f32, range: Rangef) -> f32 {
 
 // ----------------------------------------------------------------------------
 
-mod legacy {
-    #![expect(deprecated)]
+#[deprecated = "Use Panel::left or Panel::right instead"]
+pub type SidePanel = super::Panel;
 
-    use super::{Id, Panel};
-
-    #[deprecated = "Use Panel::left or Panel::right instead"]
-    pub struct SidePanel {}
-
-    impl SidePanel {
-        pub fn left(id: impl Into<Id>) -> Panel {
-            Panel::left(id)
-        }
-
-        pub fn right(id: impl Into<Id>) -> Panel {
-            Panel::right(id)
-        }
-    }
-
-    #[deprecated = "Use Panel::top or Panel::bottom instead"]
-    pub struct TopBottomPanel {}
-
-    impl TopBottomPanel {
-        pub fn top(id: impl Into<Id>) -> Panel {
-            Panel::top(id)
-        }
-
-        pub fn bottom(id: impl Into<Id>) -> Panel {
-            Panel::bottom(id)
-        }
-    }
-}
-
-#[expect(deprecated)]
-pub use legacy::{SidePanel, TopBottomPanel};
+#[deprecated = "Use Panel::top or Panel::bottom instead"]
+pub type TopBottomPanel = super::Panel;
