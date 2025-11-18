@@ -261,7 +261,7 @@ impl AddAssign for ScrollSource {
 /// ### Coordinate system
 /// * content: size of contents (generally large; that's why we want scroll bars)
 /// * outer: size of scroll area including scroll bar(s)
-/// * inner: excluding scroll bar(s). The area we clip the contents to.
+/// * inner: excluding scroll bar(s). The area we clip the contents to. Includes `content_margin`.
 ///
 /// If the floating scroll bars settings is turned on then `inner == outer`.
 ///
@@ -662,7 +662,7 @@ struct Prepared {
     scroll_bar_visibility: ScrollBarVisibility,
     scroll_bar_rect: Option<Rect>,
 
-    /// Where on the screen the content is (excludes scroll bars).
+    /// Where on the screen the content is (excludes scroll bars; includes `content_margin`).
     inner_rect: Rect,
 
     content_ui: Ui,
