@@ -909,7 +909,7 @@ impl InputState {
     /// to trigger a secondary click (context menu).
     ///
     /// Returns `true` only on one frame.
-    pub(crate) fn is_long_touch(&self) -> bool {
+    pub fn is_long_touch(&self) -> bool {
         self.any_touches() && self.pointer.is_long_press()
     }
 }
@@ -1481,7 +1481,7 @@ impl PointerState {
     /// to trigger a secondary click (context menu).
     ///
     /// Returns `true` only on one frame.
-    pub(crate) fn is_long_press(&self) -> bool {
+    pub fn is_long_press(&self) -> bool {
         self.started_decidedly_dragging
             && !self.has_moved_too_much_for_a_click
             && self.button_down(PointerButton::Primary)

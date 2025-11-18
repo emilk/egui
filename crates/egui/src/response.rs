@@ -1,10 +1,10 @@
 use std::{any::Any, sync::Arc};
 
 use crate::{
-    Context, CursorIcon, Id, LayerId, PointerButton, Popup, PopupKind, Sense, Tooltip, Ui,
-    WidgetRect, WidgetText,
-    emath::{Align, Pos2, Rect, Vec2},
-    pass_state,
+    emath::{Align, Pos2, Rect, Vec2}, pass_state, Context, CursorIcon, Id, LayerId, PointerButton, Popup, PopupKind, Sense,
+    Tooltip, Ui,
+    WidgetRect,
+    WidgetText,
 };
 // ----------------------------------------------------------------------------
 
@@ -282,11 +282,32 @@ impl Response {
     /// This means it is useful for styling things like drag-and-drop targets.
     /// `contains_pointer` can also be `true` for disabled widgets.
     ///
-    /// This is slightly different from [`Ui::rect_contains_pointer`] and [`Context::rect_contains_pointer`], in that
-    /// [`Self::contains_pointer`] also checks that no other widget is covering this response rectangle.
+    /// This is slightly different from [`Response::container_contains_pointer`],
+    /// [`Ui::rect_contains_pointer`] and [`Context::rect_contains_pointer`], in that
+    /// [`Response::contains_pointer`] also checks that no other widget is covering this response rectangle.
     #[inline(always)]
     pub fn contains_pointer(&self) -> bool {
         self.flags.contains(Flags::CONTAINS_POINTER)
+    }
+
+    /// Is this response or any child widgets hovered?
+    ///
+    /// Will return false if some other area is covering the given layer, or if anything is being
+    /// dragged.
+    ///
+    /// This calls [`Context::rect_contains_pointer`]. See also [`Response::hovered`].
+    pub fn container_hovered(&self) -> bool {
+        self.ctx.dragged_id().is_none() && self.container_contains_pointer()
+    }
+
+    /// Does this response or any child widgets contain the mouse pointer?
+    ///
+    /// Will return false if some other area is covering the given layer.
+    ///
+    /// This calls [`Context::rect_contains_pointer`]. See also [`Response::contains_pointer`].
+    pub fn container_contains_pointer(&self) -> bool {
+        self.ctx
+            .rect_contains_pointer(self.layer_id, self.interact_rect)
     }
 
     /// The widget is highlighted via a call to [`Self::highlight`] or [`Context::highlight_widget`].
@@ -1005,6 +1026,47 @@ impl Response {
             interact_pointer_pos: self.interact_pointer_pos.or(other.interact_pointer_pos),
             intrinsic_size: None,
         }
+    }
+
+    /// Calls [`Self::union`] with all widgets on the same layer fully contained within this
+    /// response's rect.
+    ///
+    /// Note that this is an expensive call if there are many widgets on the same layer.
+    /// Consider using [`Response::container_clicked`] or [`Response::container_secondary_clicked`]
+    /// which are optimized.
+    ///
+    /// This is useful if you e.g. want to sense right clicks on some [`Ui`] that contains
+    /// widgets that also sense for clicks.
+    pub fn union_children(&self) -> Self {
+        let child_widgets = self.ctx.pass_state(|pass| {
+            pass.widgets
+                .get_layer(self.layer_id)
+                .filter(|r| self.rect.contains_rect(r.rect))
+                .copied()
+                .collect::<Vec<_>>()
+        });
+        let mut result = self.clone();
+        for widget in child_widgets {
+            let child_response = self.ctx.get_response(widget);
+            result = result.union(child_response);
+        }
+        result
+    }
+
+    /// Optimized version of `response.union_children().clicked()`.
+    pub fn container_clicked(&self) -> bool {
+        self.container_contains_pointer()
+            && self.ctx.input(|i| i.pointer.primary_clicked())
+            && self.union_children().clicked()
+    }
+
+    /// Optimized version of `response.union_children().secondary_clicked()`.
+    pub fn container_secondary_clicked(&self) -> bool {
+        self.container_contains_pointer()
+            && self
+                .ctx
+                .input(|i| i.pointer.secondary_clicked() || i.is_long_touch())
+            && self.union_children().secondary_clicked()
     }
 }
 
