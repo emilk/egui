@@ -67,6 +67,7 @@ impl ScrollTarget {
     }
 }
 
+#[cfg(feature = "accesskit")]
 #[derive(Clone)]
 pub struct AccessKitPassState {
     pub nodes: IdMap<accesskit::Node>,
@@ -224,6 +225,7 @@ pub struct PassState {
     /// as when swiping down on a touch-screen or track-pad with natural scrolling.
     pub scroll_delta: (Vec2, style::ScrollAnimation),
 
+    #[cfg(feature = "accesskit")]
     pub accesskit_state: Option<AccessKitPassState>,
 
     /// Highlight these widgets the next pass.
@@ -245,6 +247,7 @@ impl Default for PassState {
             used_by_panels: Rect::NAN,
             scroll_target: [None, None],
             scroll_delta: (Vec2::default(), style::ScrollAnimation::none()),
+            #[cfg(feature = "accesskit")]
             accesskit_state: None,
             highlight_next_pass: Default::default(),
 
@@ -267,6 +270,7 @@ impl PassState {
             used_by_panels,
             scroll_target,
             scroll_delta,
+            #[cfg(feature = "accesskit")]
             accesskit_state,
             highlight_next_pass,
 
@@ -289,7 +293,10 @@ impl PassState {
             *debug_rect = None;
         }
 
-        *accesskit_state = None;
+        #[cfg(feature = "accesskit")]
+        {
+            *accesskit_state = None;
+        }
 
         highlight_next_pass.clear();
     }

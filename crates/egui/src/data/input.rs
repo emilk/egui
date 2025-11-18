@@ -548,6 +548,7 @@ pub enum Event {
     WindowFocused(bool),
 
     /// An assistive technology (e.g. screen reader) requested an action.
+    #[cfg(feature = "accesskit")]
     AccessKitActionRequest(accesskit::ActionRequest),
 
     /// The reply of a screenshot requested with [`crate::ViewportCommand::Screenshot`].

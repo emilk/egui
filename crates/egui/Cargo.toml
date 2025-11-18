@@ -26,6 +26,10 @@ rustdoc-args = ["--generate-link-to-definition"]
 [features]
 default = ["default_fonts"]
 
+## Exposes detailed accessibility implementation required by platform
+## accessibility APIs. Also requires support in the egui integration.
+accesskit = ["dep:accesskit"]
+
 ## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast [`epaint::Vertex`], [`emath::Vec2`] etc to `&[u8]`.
 bytemuck = ["epaint/bytemuck"]
 
@@ -57,7 +61,7 @@ persistence = ["serde", "epaint/serde", "ron"]
 rayon = ["epaint/rayon"]
 
 ## Allow serialization using [`serde`](https://docs.rs/serde).
-serde = ["dep:serde", "epaint/serde", "accesskit/serde"]
+serde = ["dep:serde", "epaint/serde", "accesskit?/serde"]
 
 ## Change Vertex layout to be compatible with unity
 unity = ["epaint/unity"]
@@ -71,7 +75,6 @@ _override_unity = ["epaint/_override_unity"]
 emath = { workspace = true, default-features = false }
 epaint = { workspace = true, default-features = false }
 
-accesskit.workspace = true
 ahash.workspace = true
 bitflags.workspace = true
 log.workspace = true
@@ -81,6 +84,7 @@ smallvec.workspace = true
 unicode-segmentation.workspace = true
 
 #! ### Optional dependencies
+accesskit = { workspace = true, optional = true }
 
 backtrace = { workspace = true, optional = true }
 

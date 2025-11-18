@@ -716,11 +716,14 @@ impl Slider<'_> {
             });
         }
 
-        ui.input(|input| {
+        #[cfg(feature = "accesskit")]
+        {
             use accesskit::Action;
-            decrement += input.num_accesskit_action_requests(response.id, Action::Decrement);
-            increment += input.num_accesskit_action_requests(response.id, Action::Increment);
-        });
+            ui.input(|input| {
+                decrement += input.num_accesskit_action_requests(response.id, Action::Decrement);
+                increment += input.num_accesskit_action_requests(response.id, Action::Increment);
+            });
+        }
 
         let kb_step = increment as f32 - decrement as f32;
 
@@ -756,14 +759,17 @@ impl Slider<'_> {
             self.set_value(new_value);
         }
 
-        ui.input(|input| {
+        #[cfg(feature = "accesskit")]
+        {
             use accesskit::{Action, ActionData};
-            for request in input.accesskit_action_requests(response.id, Action::SetValue) {
-                if let Some(ActionData::NumericValue(new_value)) = request.data {
-                    self.set_value(new_value);
+            ui.input(|input| {
+                for request in input.accesskit_action_requests(response.id, Action::SetValue) {
+                    if let Some(ActionData::NumericValue(new_value)) = request.data {
+                        self.set_value(new_value);
+                    }
                 }
-            }
-        });
+            });
+        }
 
         // Paint it:
         if ui.is_rect_visible(response.rect) {
@@ -972,6 +978,7 @@ impl Slider<'_> {
         }
         response.widget_info(|| WidgetInfo::slider(ui.is_enabled(), value, self.text.text()));
 
+        #[cfg(feature = "accesskit")]
         ui.ctx().accesskit_node_builder(response.id, |builder| {
             use accesskit::Action;
             builder.set_min_numeric_value(*self.range.start());

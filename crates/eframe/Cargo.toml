@@ -36,7 +36,7 @@ default = [
 ]
 
 ## Enable platform accessibility API implementations through [AccessKit](https://accesskit.dev/).
-accesskit = ["egui-winit/accesskit"]
+accesskit = ["egui/accesskit", "egui-winit/accesskit"]
 
 # Allow crates to choose an android-activity backend via Winit
 # - It's important that most applications should not have to depend on android-activity directly, and can
