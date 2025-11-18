@@ -764,7 +764,7 @@ impl Context {
     /// and only on the rare occasion that [`Context::request_discard`] is called.
     /// Usually, it `run_ui` will only be called once.
     ///
-    /// Put your widgets into a [`crate::SidePanel`], [`crate::TopBottomPanel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
+    /// Put your widgets into a [`crate::Panel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
     ///
     /// Instead of calling `run`, you can alternatively use [`Self::begin_pass`] and [`Context::end_pass`].
     ///

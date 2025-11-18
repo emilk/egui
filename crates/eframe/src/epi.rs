@@ -137,7 +137,7 @@ impl CreationContext<'_> {
 pub trait App {
     /// Called each time the UI needs repainting, which may be many times per second.
     ///
-    /// Put your widgets into a [`egui::SidePanel`], [`egui::TopBottomPanel`], [`egui::CentralPanel`], [`egui::Window`] or [`egui::Area`].
+    /// Put your widgets into a [`egui::Panel`], [`egui::CentralPanel`], [`egui::Window`] or [`egui::Area`].
     ///
     /// The [`egui::Context`] can be cloned and saved if you like.
     ///

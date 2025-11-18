@@ -84,7 +84,7 @@ fn set_menu_style(style: &mut Style) {
     }
 }
 
-/// The menu bar goes well in a [`crate::TopBottomPanel::top`],
+/// The menu bar goes well in a [`crate::Panel::top`],
 /// but can also be placed in a [`crate::Window`].
 /// In the latter case you may want to wrap it in [`Frame`].
 #[deprecated = "Use `egui::MenuBar::new().ui(` instead"]

@@ -119,7 +119,7 @@ impl Ui {
     /// Create a new top-level [`Ui`].
     ///
     /// Normally you would not use this directly, but instead use
-    /// [`crate::SidePanel`], [`crate::TopBottomPanel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
+    /// [`crate::Panel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
     pub fn new(ctx: Context, id: Id, ui_builder: UiBuilder) -> Self {
         let UiBuilder {
             id_salt,
