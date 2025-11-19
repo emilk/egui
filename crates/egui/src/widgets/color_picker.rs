@@ -1,5 +1,7 @@
 //! Color picker widgets.
 
+use core::ops::DerefMut;
+
 use crate::util::fixed_cache::FixedCache;
 use crate::{
     epaint, lerp, remap_clamp, Area, Context, DragValue, Frame, Id, Key, Order, Painter, Response,
@@ -463,7 +465,11 @@ fn rgba_edit_ui(ui: &mut Ui, [r, g, b, a]: &mut [f32; 4], alpha: Alpha) -> bool 
 /// Shows a color picker where the user can change the given [`Hsva`] color.
 ///
 /// Returns `true` on change.
-pub fn color_picker_hsva_2d(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> bool {
+pub fn color_picker_hsva_2d(
+    ui: &mut Ui,
+    mut hsva: impl DerefMut<Target = Hsva>,
+    alpha: Alpha,
+) -> bool {
     let mut hsvag = HsvaGamma::from(*hsva);
     ui.vertical(|ui| {
         color_picker_hsvag_2d(ui, &mut hsvag, alpha);
@@ -480,7 +486,11 @@ pub fn color_picker_hsva_2d(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> bool 
 /// Shows a color picker where the user can change the given [`Color32`] color.
 ///
 /// Returns `true` on change.
-pub fn color_picker_color32(ui: &mut Ui, srgba: &mut Color32, alpha: Alpha) -> bool {
+pub fn color_picker_color32(
+    ui: &mut Ui,
+    mut srgba: impl DerefMut<Target = Color32>,
+    alpha: Alpha,
+) -> bool {
     let mut hsva = color_cache_get(ui.ctx(), *srgba);
     let changed = color_picker_hsva_2d(ui, &mut hsva, alpha);
     *srgba = Color32::from(hsva);
@@ -488,7 +498,11 @@ pub fn color_picker_color32(ui: &mut Ui, srgba: &mut Color32, alpha: Alpha) -> b
     changed
 }
 
-pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Response {
+pub fn color_edit_button_hsva(
+    ui: &mut Ui,
+    hsva: impl DerefMut<Target = Hsva>,
+    alpha: Alpha,
+) -> Response {
     let popup_id = ui.auto_id_with("popup");
     let open = ui.memory(|mem| mem.is_popup_open(popup_id));
     let mut button_response = color_button(ui, (*hsva).into(), open);
@@ -530,7 +544,11 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
 
 /// Shows a button with the given color.
 /// If the user clicks the button, a full color picker is shown.
-pub fn color_edit_button_srgba(ui: &mut Ui, srgba: &mut Color32, alpha: Alpha) -> Response {
+pub fn color_edit_button_srgba(
+    ui: &mut Ui,
+    mut srgba: impl DerefMut<Target = Color32>,
+    alpha: Alpha,
+) -> Response {
     let mut hsva = color_cache_get(ui.ctx(), *srgba);
     let response = color_edit_button_hsva(ui, &mut hsva, alpha);
     *srgba = Color32::from(hsva);
@@ -541,7 +559,10 @@ pub fn color_edit_button_srgba(ui: &mut Ui, srgba: &mut Color32, alpha: Alpha) -
 /// Shows a button with the given color.
 /// If the user clicks the button, a full color picker is shown.
 /// The given color is in `sRGB` space.
-pub fn color_edit_button_srgb(ui: &mut Ui, srgb: &mut [u8; 3]) -> Response {
+pub fn color_edit_button_srgb(
+    ui: &mut Ui,
+    mut srgb: impl DerefMut<Target = [u8; 3]>,
+) -> Response {
     let mut srgba = Color32::from_rgb(srgb[0], srgb[1], srgb[2]);
     let response = color_edit_button_srgba(ui, &mut srgba, Alpha::Opaque);
     srgb[0] = srgba[0];
@@ -552,7 +573,11 @@ pub fn color_edit_button_srgb(ui: &mut Ui, srgb: &mut [u8; 3]) -> Response {
 
 /// Shows a button with the given color.
 /// If the user clicks the button, a full color picker is shown.
-pub fn color_edit_button_rgba(ui: &mut Ui, rgba: &mut Rgba, alpha: Alpha) -> Response {
+pub fn color_edit_button_rgba(
+    ui: &mut Ui,
+    mut rgba: impl DerefMut<Target = Rgba>,
+    alpha: Alpha,
+) -> Response {
     let mut hsva = color_cache_get(ui.ctx(), *rgba);
     let response = color_edit_button_hsva(ui, &mut hsva, alpha);
     *rgba = Rgba::from(hsva);
@@ -562,7 +587,10 @@ pub fn color_edit_button_rgba(ui: &mut Ui, rgba: &mut Rgba, alpha: Alpha) -> Res
 
 /// Shows a button with the given color.
 /// If the user clicks the button, a full color picker is shown.
-pub fn color_edit_button_rgb(ui: &mut Ui, rgb: &mut [f32; 3]) -> Response {
+pub fn color_edit_button_rgb(
+    ui: &mut Ui,
+    mut rgb: impl DerefMut<Target = [f32; 3]>,
+) -> Response {
     let mut rgba = Rgba::from_rgb(rgb[0], rgb[1], rgb[2]);
     let response = color_edit_button_rgba(ui, &mut rgba, Alpha::Opaque);
     rgb[0] = rgba[0];

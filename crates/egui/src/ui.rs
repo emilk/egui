@@ -2173,7 +2173,11 @@ impl Ui {
     /// Click to toggle to bool.
     ///
     /// See also [`Self::checkbox`].
-    pub fn toggle_value(&mut self, selected: &mut bool, text: impl Into<WidgetText>) -> Response {
+    pub fn toggle_value(
+        &mut self,
+        mut selected: impl DerefMut<Target = bool>,
+        text: impl Into<WidgetText>,
+    ) -> Response {
         let mut response = self.selectable_label(*selected, text);
         if response.clicked() {
             *selected = !*selected;
@@ -2211,7 +2215,7 @@ impl Ui {
     /// ```
     pub fn radio_value<Value: PartialEq>(
         &mut self,
-        current_value: &mut Value,
+        mut current_value: impl DerefMut<Target = Value>,
         alternative: Value,
         text: impl Into<WidgetText>,
     ) -> Response {
@@ -2239,7 +2243,7 @@ impl Ui {
     /// See also [`SelectableLabel`] and [`Self::toggle_value`].
     pub fn selectable_value<Value: PartialEq>(
         &mut self,
-        current_value: &mut Value,
+        mut current_value: impl DerefMut<Target = Value>,
         selected_value: Value,
         text: impl Into<WidgetText>,
     ) -> Response {
@@ -2269,7 +2273,7 @@ impl Ui {
 
     /// Modify an angle. The given angle should be in radians, but is shown to the user in degrees.
     /// The angle is NOT wrapped, so the user may select, for instance 720° = 2𝞃 = 4π
-    pub fn drag_angle(&mut self, radians: &mut f32) -> Response {
+    pub fn drag_angle(&mut self, mut radians: impl DerefMut<Target = f32>) -> Response {
         let mut degrees = radians.to_degrees();
         let mut response = self.add(DragValue::new(&mut degrees).speed(1.0).suffix("°"));
 
@@ -2285,7 +2289,7 @@ impl Ui {
     /// Modify an angle. The given angle should be in radians,
     /// but is shown to the user in fractions of one Tau (i.e. fractions of one turn).
     /// The angle is NOT wrapped, so the user may select, for instance 2𝞃 (720°)
-    pub fn drag_angle_tau(&mut self, radians: &mut f32) -> Response {
+    pub fn drag_angle_tau(&mut self, mut radians: impl DerefMut<Target = f32>) -> Response {
         use std::f32::consts::TAU;
 
         let mut taus = *radians / TAU;
@@ -2341,34 +2345,49 @@ impl Ui {
 impl Ui {
     /// Shows a button with the given color.
     /// If the user clicks the button, a full color picker is shown.
-    pub fn color_edit_button_srgba(&mut self, srgba: &mut Color32) -> Response {
+    pub fn color_edit_button_srgba(
+        &mut self,
+        srgba: impl DerefMut<Target = Color32>,
+    ) -> Response {
         color_picker::color_edit_button_srgba(self, srgba, color_picker::Alpha::BlendOrAdditive)
     }
 
     /// Shows a button with the given color.
     /// If the user clicks the button, a full color picker is shown.
-    pub fn color_edit_button_hsva(&mut self, hsva: &mut Hsva) -> Response {
+    pub fn color_edit_button_hsva(
+        &mut self,
+        hsva: impl DerefMut<Target = Hsva>,
+    ) -> Response {
         color_picker::color_edit_button_hsva(self, hsva, color_picker::Alpha::BlendOrAdditive)
     }
 
     /// Shows a button with the given color.
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in `sRGB` space.
-    pub fn color_edit_button_srgb(&mut self, srgb: &mut [u8; 3]) -> Response {
+    pub fn color_edit_button_srgb(
+        &mut self,
+        srgb: impl DerefMut<Target = [u8; 3]>,
+    ) -> Response {
         color_picker::color_edit_button_srgb(self, srgb)
     }
 
     /// Shows a button with the given color.
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in linear RGB space.
-    pub fn color_edit_button_rgb(&mut self, rgb: &mut [f32; 3]) -> Response {
+    pub fn color_edit_button_rgb(
+        &mut self,
+        rgb: impl DerefMut<Target = [f32; 3]>,
+    ) -> Response {
         color_picker::color_edit_button_rgb(self, rgb)
     }
 
     /// Shows a button with the given color.
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in `sRGBA` space with premultiplied alpha
-    pub fn color_edit_button_srgba_premultiplied(&mut self, srgba: &mut [u8; 4]) -> Response {
+    pub fn color_edit_button_srgba_premultiplied(
+        &mut self,
+        mut srgba: impl DerefMut<Target = [u8; 4]>,
+    ) -> Response {
         let mut color = Color32::from_rgba_premultiplied(srgba[0], srgba[1], srgba[2], srgba[3]);
         let response = self.color_edit_button_srgba(&mut color);
         *srgba = color.to_array();
@@ -2379,7 +2398,10 @@ impl Ui {
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in `sRGBA` space without premultiplied alpha.
     /// If unsure, what "premultiplied alpha" is, then this is probably the function you want to use.
-    pub fn color_edit_button_srgba_unmultiplied(&mut self, srgba: &mut [u8; 4]) -> Response {
+    pub fn color_edit_button_srgba_unmultiplied(
+        &mut self,
+        mut srgba: impl DerefMut<Target = [u8; 4]>,
+    ) -> Response {
         let mut rgba = Rgba::from_srgba_unmultiplied(srgba[0], srgba[1], srgba[2], srgba[3]);
         let response =
             color_picker::color_edit_button_rgba(self, &mut rgba, color_picker::Alpha::OnlyBlend);
@@ -2390,7 +2412,10 @@ impl Ui {
     /// Shows a button with the given color.
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in linear RGBA space with premultiplied alpha
-    pub fn color_edit_button_rgba_premultiplied(&mut self, rgba_premul: &mut [f32; 4]) -> Response {
+    pub fn color_edit_button_rgba_premultiplied(
+        &mut self,
+        mut rgba_premul: impl DerefMut<Target = [f32; 4]>,
+    ) -> Response {
         let mut rgba = Rgba::from_rgba_premultiplied(
             rgba_premul[0],
             rgba_premul[1],
@@ -2410,7 +2435,10 @@ impl Ui {
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in linear RGBA space without premultiplied alpha.
     /// If unsure, what "premultiplied alpha" is, then this is probably the function you want to use.
-    pub fn color_edit_button_rgba_unmultiplied(&mut self, rgba_unmul: &mut [f32; 4]) -> Response {
+    pub fn color_edit_button_rgba_unmultiplied(
+        &mut self,
+        mut rgba_unmul: impl DerefMut<Target = [f32; 4]>,
+    ) -> Response {
         let mut rgba = Rgba::from_rgba_unmultiplied(
             rgba_unmul[0],
             rgba_unmul[1],
