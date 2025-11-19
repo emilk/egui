@@ -4,6 +4,8 @@
 //! * `ui.add(Label::new("Text").text_color(color::red));`
 //! * `if ui.add(Button::new("Click me")).clicked() { … }`
 
+use core::ops::DerefMut;
+
 use crate::{epaint, Response, Ui};
 
 mod button;
@@ -106,14 +108,38 @@ pub trait WidgetWithState {
 ///
 /// The `text` could be something like "Reset foo".
 pub fn reset_button<T: Default + PartialEq>(ui: &mut Ui, value: &mut T, text: &str) {
-    reset_button_with(ui, value, text, T::default());
+    reset_button_state(ui, value, text);
+}
+
+/// Same as [`reset_button`] but accepts a custom mutable state wrapper.
+pub fn reset_button_state<T: Default + PartialEq>(
+    ui: &mut Ui,
+    value: impl DerefMut<Target = T>,
+    text: &str,
+) {
+    reset_button_with_state(ui, value, text, T::default());
 }
 
 /// Show a button to reset a value to its default.
 /// The button is only enabled if the value does not already have its original value.
 ///
 /// The `text` could be something like "Reset foo".
-pub fn reset_button_with<T: PartialEq>(ui: &mut Ui, value: &mut T, text: &str, reset_value: T) {
+pub fn reset_button_with<T: PartialEq>(
+    ui: &mut Ui,
+    value: &mut T,
+    text: &str,
+    reset_value: T,
+) {
+    reset_button_with_state(ui, value, text, reset_value);
+}
+
+/// Same as [`reset_button_with`] but accepts a custom mutable state wrapper.
+pub fn reset_button_with_state<T: PartialEq>(
+    ui: &mut Ui,
+    mut value: impl DerefMut<Target = T>,
+    text: &str,
+    reset_value: T,
+) {
     if ui
         .add_enabled(*value != reset_value, Button::new(text))
         .clicked()
