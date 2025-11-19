@@ -888,7 +888,6 @@ impl State {
             events: _,                    // handled elsewhere
             mutable_text_under_cursor: _, // only used in eframe web
             ime,
-            #[cfg(feature = "accesskit")]
             accesskit_update,
             num_completed_passes: _,    // `egui::Context::run` handles this
             request_discard_reasons: _, // `egui::Context::run` handles this
@@ -947,6 +946,9 @@ impl State {
             profiling::scope!("accesskit");
             accesskit.update_if_active(|| update);
         }
+
+        #[cfg(not(feature = "accesskit"))]
+        let _ = accesskit_update;
     }
 
     fn set_cursor_icon(&mut self, window: &Window, cursor_icon: egui::CursorIcon) {

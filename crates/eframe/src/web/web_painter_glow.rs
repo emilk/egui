@@ -20,7 +20,7 @@ impl WebPainterGlow {
         self.painter.gl()
     }
 
-    pub async fn new(
+    pub fn new(
         _ctx: egui::Context,
         canvas: HtmlCanvasElement,
         options: &WebOptions,

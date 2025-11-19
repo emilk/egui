@@ -855,7 +855,6 @@ impl InputState {
         }
     }
 
-    #[cfg(feature = "accesskit")]
     pub fn accesskit_action_requests(
         &self,
         id: crate::Id,
@@ -873,7 +872,6 @@ impl InputState {
         })
     }
 
-    #[cfg(feature = "accesskit")]
     pub fn consume_accesskit_action_requests(
         &mut self,
         id: crate::Id,
@@ -890,12 +888,10 @@ impl InputState {
         });
     }
 
-    #[cfg(feature = "accesskit")]
     pub fn has_accesskit_action_request(&self, id: crate::Id, action: accesskit::Action) -> bool {
         self.accesskit_action_requests(id, action).next().is_some()
     }
 
-    #[cfg(feature = "accesskit")]
     pub fn num_accesskit_action_requests(&self, id: crate::Id, action: accesskit::Action) -> usize {
         self.accesskit_action_requests(id, action).count()
     }
@@ -1265,6 +1261,11 @@ impl PointerState {
     #[inline(always)]
     pub fn press_origin(&self) -> Option<Pos2> {
         self.press_origin
+    }
+
+    /// How far has the pointer moved since the start of the drag (if any)?
+    pub fn total_drag_delta(&self) -> Option<Vec2> {
+        Some(self.latest_pos? - self.press_origin?)
     }
 
     /// When did the current click/drag originate?
