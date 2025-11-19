@@ -465,7 +465,12 @@ fn rgba_edit_ui(ui: &mut Ui, [r, g, b, a]: &mut [f32; 4], alpha: Alpha) -> bool 
 /// Shows a color picker where the user can change the given [`Hsva`] color.
 ///
 /// Returns `true` on change.
-pub fn color_picker_hsva_2d(
+pub fn color_picker_hsva_2d(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> bool {
+    color_picker_hsva_2d_state(ui, hsva, alpha)
+}
+
+/// Same as [`color_picker_hsva_2d`] but accepts a custom mutable state wrapper.
+pub fn color_picker_hsva_2d_state(
     ui: &mut Ui,
     mut hsva: impl DerefMut<Target = Hsva>,
     alpha: Alpha,
@@ -486,7 +491,12 @@ pub fn color_picker_hsva_2d(
 /// Shows a color picker where the user can change the given [`Color32`] color.
 ///
 /// Returns `true` on change.
-pub fn color_picker_color32(
+pub fn color_picker_color32(ui: &mut Ui, srgba: &mut Color32, alpha: Alpha) -> bool {
+    color_picker_color32_state(ui, srgba, alpha)
+}
+
+/// Same as [`color_picker_color32`] but accepts a custom mutable state wrapper.
+pub fn color_picker_color32_state(
     ui: &mut Ui,
     mut srgba: impl DerefMut<Target = Color32>,
     alpha: Alpha,
@@ -498,7 +508,11 @@ pub fn color_picker_color32(
     changed
 }
 
-pub fn color_edit_button_hsva(
+pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Response {
+    color_edit_button_hsva_state(ui, hsva, alpha)
+}
+
+pub fn color_edit_button_hsva_state(
     ui: &mut Ui,
     hsva: impl DerefMut<Target = Hsva>,
     alpha: Alpha,
@@ -525,7 +539,7 @@ pub fn color_edit_button_hsva(
             .show(ui.ctx(), |ui| {
                 ui.spacing_mut().slider_width = COLOR_SLIDER_WIDTH;
                 Frame::popup(ui.style()).show(ui, |ui| {
-                    if color_picker_hsva_2d(ui, hsva, alpha) {
+                    if color_picker_hsva_2d_state(ui, hsva, alpha) {
                         button_response.mark_changed();
                     }
                 });
@@ -544,13 +558,18 @@ pub fn color_edit_button_hsva(
 
 /// Shows a button with the given color.
 /// If the user clicks the button, a full color picker is shown.
-pub fn color_edit_button_srgba(
+pub fn color_edit_button_srgba(ui: &mut Ui, srgba: &mut Color32, alpha: Alpha) -> Response {
+    color_edit_button_srgba_state(ui, srgba, alpha)
+}
+
+/// Same as [`color_edit_button_srgba`] but accepts a custom mutable state wrapper.
+pub fn color_edit_button_srgba_state(
     ui: &mut Ui,
     mut srgba: impl DerefMut<Target = Color32>,
     alpha: Alpha,
 ) -> Response {
     let mut hsva = color_cache_get(ui.ctx(), *srgba);
-    let response = color_edit_button_hsva(ui, &mut hsva, alpha);
+    let response = color_edit_button_hsva_state(ui, &mut hsva, alpha);
     *srgba = Color32::from(hsva);
     color_cache_set(ui.ctx(), *srgba, hsva);
     response
@@ -559,12 +578,17 @@ pub fn color_edit_button_srgba(
 /// Shows a button with the given color.
 /// If the user clicks the button, a full color picker is shown.
 /// The given color is in `sRGB` space.
-pub fn color_edit_button_srgb(
+pub fn color_edit_button_srgb(ui: &mut Ui, srgb: &mut [u8; 3]) -> Response {
+    color_edit_button_srgb_state(ui, srgb)
+}
+
+/// Same as [`color_edit_button_srgb`] but accepts a custom mutable state wrapper.
+pub fn color_edit_button_srgb_state(
     ui: &mut Ui,
     mut srgb: impl DerefMut<Target = [u8; 3]>,
 ) -> Response {
     let mut srgba = Color32::from_rgb(srgb[0], srgb[1], srgb[2]);
-    let response = color_edit_button_srgba(ui, &mut srgba, Alpha::Opaque);
+    let response = color_edit_button_srgba_state(ui, &mut srgba, Alpha::Opaque);
     srgb[0] = srgba[0];
     srgb[1] = srgba[1];
     srgb[2] = srgba[2];
@@ -573,13 +597,18 @@ pub fn color_edit_button_srgb(
 
 /// Shows a button with the given color.
 /// If the user clicks the button, a full color picker is shown.
-pub fn color_edit_button_rgba(
+pub fn color_edit_button_rgba(ui: &mut Ui, rgba: &mut Rgba, alpha: Alpha) -> Response {
+    color_edit_button_rgba_state(ui, rgba, alpha)
+}
+
+/// Same as [`color_edit_button_rgba`] but accepts a custom mutable state wrapper.
+pub fn color_edit_button_rgba_state(
     ui: &mut Ui,
     mut rgba: impl DerefMut<Target = Rgba>,
     alpha: Alpha,
 ) -> Response {
     let mut hsva = color_cache_get(ui.ctx(), *rgba);
-    let response = color_edit_button_hsva(ui, &mut hsva, alpha);
+    let response = color_edit_button_hsva_state(ui, &mut hsva, alpha);
     *rgba = Rgba::from(hsva);
     color_cache_set(ui.ctx(), *rgba, hsva);
     response
@@ -587,12 +616,17 @@ pub fn color_edit_button_rgba(
 
 /// Shows a button with the given color.
 /// If the user clicks the button, a full color picker is shown.
-pub fn color_edit_button_rgb(
+pub fn color_edit_button_rgb(ui: &mut Ui, rgb: &mut [f32; 3]) -> Response {
+    color_edit_button_rgb_state(ui, rgb)
+}
+
+/// Same as [`color_edit_button_rgb`] but accepts a custom mutable state wrapper.
+pub fn color_edit_button_rgb_state(
     ui: &mut Ui,
     mut rgb: impl DerefMut<Target = [f32; 3]>,
 ) -> Response {
     let mut rgba = Rgba::from_rgb(rgb[0], rgb[1], rgb[2]);
-    let response = color_edit_button_rgba(ui, &mut rgba, Alpha::Opaque);
+    let response = color_edit_button_rgba_state(ui, &mut rgba, Alpha::Opaque);
     rgb[0] = rgba[0];
     rgb[1] = rgba[1];
     rgb[2] = rgba[2];

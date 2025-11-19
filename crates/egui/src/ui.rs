@@ -2175,6 +2175,15 @@ impl Ui {
     /// See also [`Self::checkbox`].
     pub fn toggle_value(
         &mut self,
+        selected: &mut bool,
+        text: impl Into<WidgetText>,
+    ) -> Response {
+        self.toggle_value_state(selected, text)
+    }
+
+    /// Same as [`Self::toggle_value`] but accepts a custom mutable state wrapper.
+    pub fn toggle_value_state(
+        &mut self,
         mut selected: impl DerefMut<Target = bool>,
         text: impl Into<WidgetText>,
     ) -> Response {
@@ -2215,6 +2224,16 @@ impl Ui {
     /// ```
     pub fn radio_value<Value: PartialEq>(
         &mut self,
+        current_value: &mut Value,
+        alternative: Value,
+        text: impl Into<WidgetText>,
+    ) -> Response {
+        self.radio_value_state(current_value, alternative, text)
+    }
+
+    /// Same as [`Self::radio_value`] but accepts a custom mutable state wrapper.
+    pub fn radio_value_state<Value: PartialEq>(
+        &mut self,
         mut current_value: impl DerefMut<Target = Value>,
         alternative: Value,
         text: impl Into<WidgetText>,
@@ -2242,6 +2261,16 @@ impl Ui {
     ///
     /// See also [`SelectableLabel`] and [`Self::toggle_value`].
     pub fn selectable_value<Value: PartialEq>(
+        &mut self,
+        current_value: &mut Value,
+        selected_value: Value,
+        text: impl Into<WidgetText>,
+    ) -> Response {
+        self.selectable_value_state(current_value, selected_value, text)
+    }
+
+    /// Same as [`Self::selectable_value`] but accepts a custom mutable state wrapper.
+    pub fn selectable_value_state<Value: PartialEq>(
         &mut self,
         mut current_value: impl DerefMut<Target = Value>,
         selected_value: Value,
@@ -2273,7 +2302,12 @@ impl Ui {
 
     /// Modify an angle. The given angle should be in radians, but is shown to the user in degrees.
     /// The angle is NOT wrapped, so the user may select, for instance 720° = 2𝞃 = 4π
-    pub fn drag_angle(&mut self, mut radians: impl DerefMut<Target = f32>) -> Response {
+    pub fn drag_angle(&mut self, radians: &mut f32) -> Response {
+        self.drag_angle_state(radians)
+    }
+
+    /// Same as [`Self::drag_angle`] but accepts a custom mutable state wrapper.
+    pub fn drag_angle_state(&mut self, mut radians: impl DerefMut<Target = f32>) -> Response {
         let mut degrees = radians.to_degrees();
         let mut response = self.add(DragValue::new(&mut degrees).speed(1.0).suffix("°"));
 
@@ -2289,7 +2323,12 @@ impl Ui {
     /// Modify an angle. The given angle should be in radians,
     /// but is shown to the user in fractions of one Tau (i.e. fractions of one turn).
     /// The angle is NOT wrapped, so the user may select, for instance 2𝞃 (720°)
-    pub fn drag_angle_tau(&mut self, mut radians: impl DerefMut<Target = f32>) -> Response {
+    pub fn drag_angle_tau(&mut self, radians: &mut f32) -> Response {
+        self.drag_angle_tau_state(radians)
+    }
+
+    /// Same as [`Self::drag_angle_tau`] but accepts a custom mutable state wrapper.
+    pub fn drag_angle_tau_state(&mut self, mut radians: impl DerefMut<Target = f32>) -> Response {
         use std::f32::consts::TAU;
 
         let mut taus = *radians / TAU;
@@ -2345,51 +2384,76 @@ impl Ui {
 impl Ui {
     /// Shows a button with the given color.
     /// If the user clicks the button, a full color picker is shown.
-    pub fn color_edit_button_srgba(
+    pub fn color_edit_button_srgba(&mut self, srgba: &mut Color32) -> Response {
+        self.color_edit_button_srgba_state(srgba)
+    }
+
+    /// Shows a button with the given color using a custom mutable state wrapper.
+    pub fn color_edit_button_srgba_state(
         &mut self,
         srgba: impl DerefMut<Target = Color32>,
     ) -> Response {
-        color_picker::color_edit_button_srgba(self, srgba, color_picker::Alpha::BlendOrAdditive)
+        color_picker::color_edit_button_srgba_state(self, srgba, color_picker::Alpha::BlendOrAdditive)
     }
 
     /// Shows a button with the given color.
     /// If the user clicks the button, a full color picker is shown.
-    pub fn color_edit_button_hsva(
+    pub fn color_edit_button_hsva(&mut self, hsva: &mut Hsva) -> Response {
+        self.color_edit_button_hsva_state(hsva)
+    }
+
+    /// Shows a button with the given color using a custom mutable state wrapper.
+    pub fn color_edit_button_hsva_state(
         &mut self,
         hsva: impl DerefMut<Target = Hsva>,
     ) -> Response {
-        color_picker::color_edit_button_hsva(self, hsva, color_picker::Alpha::BlendOrAdditive)
+        color_picker::color_edit_button_hsva_state(self, hsva, color_picker::Alpha::BlendOrAdditive)
     }
 
     /// Shows a button with the given color.
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in `sRGB` space.
-    pub fn color_edit_button_srgb(
+    pub fn color_edit_button_srgb(&mut self, srgb: &mut [u8; 3]) -> Response {
+        self.color_edit_button_srgb_state(srgb)
+    }
+
+    /// sRGB color picker variant accepting custom mutable state.
+    pub fn color_edit_button_srgb_state(
         &mut self,
         srgb: impl DerefMut<Target = [u8; 3]>,
     ) -> Response {
-        color_picker::color_edit_button_srgb(self, srgb)
+        color_picker::color_edit_button_srgb_state(self, srgb)
     }
 
     /// Shows a button with the given color.
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in linear RGB space.
-    pub fn color_edit_button_rgb(
+    pub fn color_edit_button_rgb(&mut self, rgb: &mut [f32; 3]) -> Response {
+        self.color_edit_button_rgb_state(rgb)
+    }
+
+    /// Linear RGB color picker variant accepting custom mutable state.
+    pub fn color_edit_button_rgb_state(
         &mut self,
         rgb: impl DerefMut<Target = [f32; 3]>,
     ) -> Response {
-        color_picker::color_edit_button_rgb(self, rgb)
+        color_picker::color_edit_button_rgb_state(self, rgb)
     }
 
     /// Shows a button with the given color.
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in `sRGBA` space with premultiplied alpha
-    pub fn color_edit_button_srgba_premultiplied(
+    pub fn color_edit_button_srgba_premultiplied(&mut self, srgba: &mut [u8; 4]) -> Response {
+        self.color_edit_button_srgba_premultiplied_state(srgba)
+    }
+
+    /// Same as [`Self::color_edit_button_srgba_premultiplied`] but accepts a custom mutable state wrapper.
+    pub fn color_edit_button_srgba_premultiplied_state(
         &mut self,
         mut srgba: impl DerefMut<Target = [u8; 4]>,
     ) -> Response {
         let mut color = Color32::from_rgba_premultiplied(srgba[0], srgba[1], srgba[2], srgba[3]);
-        let response = self.color_edit_button_srgba(&mut color);
+        let response = self.color_edit_button_srgba_state(&mut color);
         *srgba = color.to_array();
         response
     }
@@ -2398,13 +2462,18 @@ impl Ui {
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in `sRGBA` space without premultiplied alpha.
     /// If unsure, what "premultiplied alpha" is, then this is probably the function you want to use.
-    pub fn color_edit_button_srgba_unmultiplied(
+    pub fn color_edit_button_srgba_unmultiplied(&mut self, srgba: &mut [u8; 4]) -> Response {
+        self.color_edit_button_srgba_unmultiplied_state(srgba)
+    }
+
+    /// Same as [`Self::color_edit_button_srgba_unmultiplied`] but accepts a custom mutable state wrapper.
+    pub fn color_edit_button_srgba_unmultiplied_state(
         &mut self,
         mut srgba: impl DerefMut<Target = [u8; 4]>,
     ) -> Response {
         let mut rgba = Rgba::from_srgba_unmultiplied(srgba[0], srgba[1], srgba[2], srgba[3]);
         let response =
-            color_picker::color_edit_button_rgba(self, &mut rgba, color_picker::Alpha::OnlyBlend);
+            color_picker::color_edit_button_rgba_state(self, &mut rgba, color_picker::Alpha::OnlyBlend);
         *srgba = rgba.to_srgba_unmultiplied();
         response
     }
@@ -2412,7 +2481,12 @@ impl Ui {
     /// Shows a button with the given color.
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in linear RGBA space with premultiplied alpha
-    pub fn color_edit_button_rgba_premultiplied(
+    pub fn color_edit_button_rgba_premultiplied(&mut self, rgba_premul: &mut [f32; 4]) -> Response {
+        self.color_edit_button_rgba_premultiplied_state(rgba_premul)
+    }
+
+    /// Same as [`Self::color_edit_button_rgba_premultiplied`] but accepts a custom mutable state wrapper.
+    pub fn color_edit_button_rgba_premultiplied_state(
         &mut self,
         mut rgba_premul: impl DerefMut<Target = [f32; 4]>,
     ) -> Response {
@@ -2422,7 +2496,7 @@ impl Ui {
             rgba_premul[2],
             rgba_premul[3],
         );
-        let response = color_picker::color_edit_button_rgba(
+        let response = color_picker::color_edit_button_rgba_state(
             self,
             &mut rgba,
             color_picker::Alpha::BlendOrAdditive,
@@ -2435,7 +2509,12 @@ impl Ui {
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in linear RGBA space without premultiplied alpha.
     /// If unsure, what "premultiplied alpha" is, then this is probably the function you want to use.
-    pub fn color_edit_button_rgba_unmultiplied(
+    pub fn color_edit_button_rgba_unmultiplied(&mut self, rgba_unmul: &mut [f32; 4]) -> Response {
+        self.color_edit_button_rgba_unmultiplied_state(rgba_unmul)
+    }
+
+    /// Same as [`Self::color_edit_button_rgba_unmultiplied`] but accepts a custom mutable state wrapper.
+    pub fn color_edit_button_rgba_unmultiplied_state(
         &mut self,
         mut rgba_unmul: impl DerefMut<Target = [f32; 4]>,
     ) -> Response {
@@ -2446,7 +2525,7 @@ impl Ui {
             rgba_unmul[3],
         );
         let response =
-            color_picker::color_edit_button_rgba(self, &mut rgba, color_picker::Alpha::OnlyBlend);
+            color_picker::color_edit_button_rgba_state(self, &mut rgba, color_picker::Alpha::OnlyBlend);
         *rgba_unmul = rgba.to_rgba_unmultiplied();
         response
     }
