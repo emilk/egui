@@ -61,7 +61,7 @@ persistence = ["serde", "epaint/serde", "ron"]
 rayon = ["epaint/rayon"]
 
 ## Allow serialization using [`serde`](https://docs.rs/serde).
-serde = ["dep:serde", "epaint/serde", "accesskit?/serde"]
+serde = ["dep:serde", "epaint/serde", "accesskit?/serde", "cursor-icon/serde"]
 
 ## Change Vertex layout to be compatible with unity
 unity = ["epaint/unity"]
@@ -77,6 +77,7 @@ epaint = { workspace = true, default-features = false }
 
 ahash.workspace = true
 bitflags.workspace = true
+cursor-icon.workspace = true
 log.workspace = true
 nohash-hasher.workspace = true
 profiling.workspace = true

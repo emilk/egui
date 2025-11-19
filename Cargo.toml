@@ -85,9 +85,11 @@ chrono = { version = "0.4.42", default-features = false }
 cint = "0.3.1"
 color-hex = "0.2.0"
 criterion = { version = "0.7.0", default-features = false }
+cursor-icon = "1"
 dify = { version = "0.7.4", default-features = false }
 directories = "6.0.0"
 document-features = "0.2.11"
+dpi = "0.1"
 ehttp = { version = "0.5.0", default-features = false }
 enum-map = "2.7.3"
 env_logger = { version = "0.11.8", default-features = false }
@@ -142,7 +144,8 @@ web-time = "1.1.0" # Timekeeping for native and web
 webbrowser = "1.0.5"
 wgpu = { version = "27.0.1", default-features = false, features = ["std"] }
 windows-sys = "0.61.2"
-winit = { version = "0.30.12", default-features = false }
+winit = { version = "0.31.0-beta.2", default-features = false }
+winit-core = { version = "0.31.0-beta.2", default-features = false }
 
 
 [workspace.lints.rust]

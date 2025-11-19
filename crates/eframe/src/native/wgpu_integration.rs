@@ -6,7 +6,7 @@
 //! like removing a bunch of `unwraps`.
 
 use std::{cell::RefCell, num::NonZeroU32, rc::Rc, sync::Arc, time::Instant};
-
+use std::ops::Deref;
 use egui_winit::ActionRequested;
 use parking_lot::Mutex;
 use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
@@ -36,7 +36,7 @@ use super::{epi_integration, event_loop_context, winit_integration, winit_integr
 // Types:
 
 pub struct WgpuWinitApp<'app> {
-    repaint_proxy: Arc<Mutex<EventLoopProxy<UserEvent>>>,
+    repaint_proxy: Arc<Mutex<EventLoopProxy>>,
     app_name: String,
     native_options: NativeOptions,
 
@@ -89,7 +89,7 @@ pub struct Viewport {
 
     /// Window surface state that's initialized when the app starts running via a Resumed event
     /// and on Android will also be destroyed if the application is paused.
-    window: Option<Arc<Window>>,
+    window: Option<Arc<dyn Window>>,
 
     /// `window` and `egui_winit` are initialized together.
     egui_winit: Option<egui_winit::State>,
@@ -99,7 +99,7 @@ pub struct Viewport {
 
 impl<'app> WgpuWinitApp<'app> {
     pub fn new(
-        event_loop: &EventLoop<UserEvent>,
+        event_loop: &EventLoop,
         app_name: &str,
         native_options: NativeOptions,
         app_creator: AppCreator<'app>,
@@ -122,7 +122,7 @@ impl<'app> WgpuWinitApp<'app> {
     }
 
     /// Create a window for all viewports lacking one.
-    fn initialized_all_windows(&mut self, event_loop: &ActiveEventLoop) {
+    fn initialized_all_windows(&mut self, event_loop: &dyn ActiveEventLoop) {
         let Some(running) = &mut self.running else {
             return;
         };
@@ -178,9 +178,9 @@ impl<'app> WgpuWinitApp<'app> {
     fn init_run_state(
         &mut self,
         egui_ctx: egui::Context,
-        event_loop: &ActiveEventLoop,
+        event_loop: &dyn ActiveEventLoop,
         storage: Option<Box<dyn Storage>>,
-        window: Window,
+        window: Box<dyn Window>,
         builder: ViewportBuilder,
     ) -> crate::Result<&mut WgpuWinitRunning<'app>> {
         profiling::function_scope!();
@@ -200,12 +200,12 @@ impl<'app> WgpuWinitApp<'app> {
         ));
 
         let mut viewport_info = ViewportInfo::default();
-        egui_winit::update_viewport_info(&mut viewport_info, &egui_ctx, &window, true);
+        egui_winit::update_viewport_info(&mut viewport_info, &egui_ctx, window.deref(), true);
 
         {
             // Tell egui right away about native_pixels_per_point etc,
             // so that the app knows about it during app creation:
-            let pixels_per_point = egui_winit::pixels_per_point(&egui_ctx, &window);
+            let pixels_per_point = egui_winit::pixels_per_point(&egui_ctx, window.deref());
 
             egui_ctx.input_mut(|i| {
                 i.raw
@@ -215,7 +215,7 @@ impl<'app> WgpuWinitApp<'app> {
             });
         }
 
-        let window = Arc::new(window);
+        let window: Arc<dyn Window> = Arc::from(window);
 
         {
             profiling::scope!("set_window");
@@ -226,7 +226,7 @@ impl<'app> WgpuWinitApp<'app> {
 
         let integration = EpiIntegration::new(
             egui_ctx.clone(),
-            &window,
+            window.deref(),
             &self.app_name,
             &self.native_options,
             storage,
@@ -247,12 +247,14 @@ impl<'app> WgpuWinitApp<'app> {
 
                 event_loop_proxy
                     .lock()
-                    .send_event(UserEvent::RequestRepaint {
-                        when,
-                        cumulative_pass_nr,
-                        viewport_id: info.viewport_id,
-                    })
-                    .ok();
+                    .wake_up();
+                // TODO: Pass user info somehow
+                    // .send_event(UserEvent::RequestRepaint {
+                    //     when,
+                    //     cumulative_pass_nr,
+                    //     viewport_id: info.viewport_id,
+                    // })
+                    // .ok();
             });
         }
 
@@ -260,7 +262,7 @@ impl<'app> WgpuWinitApp<'app> {
         let mut egui_winit = egui_winit::State::new(
             egui_ctx.clone(),
             ViewportId::ROOT,
-            event_loop,
+            &event_loop,
             Some(window.scale_factor() as f32),
             event_loop.system_theme(),
             painter.max_texture_side(),
@@ -346,7 +348,7 @@ impl WinitApp for WgpuWinitApp<'_> {
         self.running.as_ref().map(|r| &r.integration.egui_ctx)
     }
 
-    fn window(&self, window_id: WindowId) -> Option<Arc<Window>> {
+    fn window(&self, window_id: WindowId) -> Option<Arc<dyn Window>> {
         self.running
             .as_ref()
             .and_then(|r| {
@@ -386,7 +388,7 @@ impl WinitApp for WgpuWinitApp<'_> {
 
     fn run_ui_and_paint(
         &mut self,
-        event_loop: &ActiveEventLoop,
+        event_loop: &dyn ActiveEventLoop,
         window_id: WindowId,
     ) -> Result<EventResult> {
         self.initialized_all_windows(event_loop);
@@ -398,7 +400,7 @@ impl WinitApp for WgpuWinitApp<'_> {
         }
     }
 
-    fn resumed(&mut self, event_loop: &ActiveEventLoop) -> crate::Result<EventResult> {
+    fn resumed(&mut self, event_loop: &dyn ActiveEventLoop) -> crate::Result<EventResult> {
         log::debug!("Event::Resumed");
 
         let running = if let Some(running) = &self.running {
@@ -435,7 +437,7 @@ impl WinitApp for WgpuWinitApp<'_> {
         }
     }
 
-    fn suspended(&mut self, _: &ActiveEventLoop) -> crate::Result<EventResult> {
+    fn suspended(&mut self, _: &dyn ActiveEventLoop) -> crate::Result<EventResult> {
         #[cfg(target_os = "android")]
         self.drop_window()?;
         Ok(EventResult::Save)
@@ -443,34 +445,35 @@ impl WinitApp for WgpuWinitApp<'_> {
 
     fn device_event(
         &mut self,
-        _: &ActiveEventLoop,
-        _: winit::event::DeviceId,
+        _: &dyn ActiveEventLoop,
+        _: Option<winit::event::DeviceId>,
         event: winit::event::DeviceEvent,
     ) -> crate::Result<EventResult> {
-        if let winit::event::DeviceEvent::MouseMotion { delta } = event
-            && let Some(running) = &mut self.running
-        {
-            let mut shared = running.shared.borrow_mut();
-            if let Some(viewport) = shared
-                .focused_viewport
-                .and_then(|viewport| shared.viewports.get_mut(&viewport))
-            {
-                if let Some(egui_winit) = viewport.egui_winit.as_mut() {
-                    egui_winit.on_mouse_motion(delta);
-                }
-
-                if let Some(window) = viewport.window.as_ref() {
-                    return Ok(EventResult::RepaintNext(window.id()));
-                }
-            }
-        }
+        // TODO
+        // if let winit::event::DeviceEvent::MouseMotion { delta } = event
+        //     && let Some(running) = &mut self.running
+        // {
+        //     let mut shared = running.shared.borrow_mut();
+        //     if let Some(viewport) = shared
+        //         .focused_viewport
+        //         .and_then(|viewport| shared.viewports.get_mut(&viewport))
+        //     {
+        //         if let Some(egui_winit) = viewport.egui_winit.as_mut() {
+        //             egui_winit.on_mouse_motion(delta);
+        //         }
+        //
+        //         if let Some(window) = viewport.window.as_ref() {
+        //             return Ok(EventResult::RepaintNext(window.id()));
+        //         }
+        //     }
+        // }
 
         Ok(EventResult::Wait)
     }
 
     fn window_event(
         &mut self,
-        event_loop: &ActiveEventLoop,
+        event_loop: &dyn ActiveEventLoop,
         window_id: WindowId,
         event: winit::event::WindowEvent,
     ) -> crate::Result<EventResult> {
@@ -606,7 +609,7 @@ impl WgpuWinitRunning<'_> {
             let Some(window) = window else {
                 return Ok(EventResult::Wait);
             };
-            egui_winit::update_viewport_info(info, &integration.egui_ctx, window, false);
+            egui_winit::update_viewport_info(info, &integration.egui_ctx, window.deref().deref(), false);
 
             {
                 profiling::scope!("set_window");
@@ -616,7 +619,7 @@ impl WgpuWinitRunning<'_> {
             let Some(egui_winit) = egui_winit.as_mut() else {
                 return Ok(EventResult::Wait);
             };
-            let mut raw_input = egui_winit.take_egui_input(window);
+            let mut raw_input = egui_winit.take_egui_input(window.deref().deref());
 
             integration.pre_update();
 
@@ -674,7 +677,7 @@ impl WgpuWinitRunning<'_> {
             return Ok(EventResult::Wait);
         };
 
-        egui_winit.handle_platform_output(window, platform_output);
+        egui_winit.handle_platform_output(&**window, platform_output);
 
         let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
 
@@ -721,7 +724,7 @@ impl WgpuWinitRunning<'_> {
             }
         }
 
-        integration.post_rendering(window);
+        integration.post_rendering(&**window);
 
         let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
 
@@ -824,24 +827,25 @@ impl WgpuWinitRunning<'_> {
                 shared.focused_viewport = focused.then_some(viewport_id).flatten();
             }
 
-            winit::event::WindowEvent::Resized(physical_size) => {
-                // Resize with 0 width and height is used by winit to signal a minimize event on Windows.
-                // See: https://github.com/rust-windowing/winit/issues/208
-                // This solves an issue where the app would panic when minimizing on Windows.
-                if let Some(id) = viewport_id
-                    && let (Some(width), Some(height)) = (
-                        NonZeroU32::new(physical_size.width),
-                        NonZeroU32::new(physical_size.height),
-                    )
-                {
-                    if shared.resized_viewport != viewport_id {
-                        shared.resized_viewport = viewport_id;
-                        shared.painter.on_window_resize_state_change(id, true);
-                    }
-                    shared.painter.on_window_resized(id, width, height);
-                    repaint_asap = true;
-                }
-            }
+            // TODO
+            // winit::event::WindowEvent::Resized(physical_size) => {
+            //     // Resize with 0 width and height is used by winit to signal a minimize event on Windows.
+            //     // See: https://github.com/rust-windowing/winit/issues/208
+            //     // This solves an issue where the app would panic when minimizing on Windows.
+            //     if let Some(id) = viewport_id
+            //         && let (Some(width), Some(height)) = (
+            //             NonZeroU32::new(physical_size.width),
+            //             NonZeroU32::new(physical_size.height),
+            //         )
+            //     {
+            //         if shared.resized_viewport != viewport_id {
+            //             shared.resized_viewport = viewport_id;
+            //             shared.painter.on_window_resize_state_change(id, true);
+            //         }
+            //         shared.painter.on_window_resized(id, width, height);
+            //         repaint_asap = true;
+            //     }
+            // }
 
             winit::event::WindowEvent::CloseRequested => {
                 if viewport_id == Some(ViewportId::ROOT) && integration.should_close() {
@@ -899,7 +903,7 @@ impl Viewport {
     /// Create winit window, if needed.
     fn initialize_window(
         &mut self,
-        event_loop: &ActiveEventLoop,
+        event_loop: &dyn ActiveEventLoop,
         egui_ctx: &egui::Context,
         windows_id: &mut HashMap<WindowId, ViewportId>,
         painter: &mut egui_wgpu::winit::Painter,
@@ -916,7 +920,7 @@ impl Viewport {
             Ok(window) => {
                 windows_id.insert(window.id(), viewport_id);
 
-                let window = Arc::new(window);
+                let window: Arc<dyn Window> = Arc::from(window);
 
                 if let Err(err) =
                     pollster::block_on(painter.set_window(viewport_id, Some(window.clone())))
@@ -927,13 +931,13 @@ impl Viewport {
                 self.egui_winit = Some(egui_winit::State::new(
                     egui_ctx.clone(),
                     viewport_id,
-                    event_loop,
+                    &event_loop,
                     Some(window.scale_factor() as f32),
                     event_loop.system_theme(),
                     painter.max_texture_side(),
                 ));
 
-                egui_winit::update_viewport_info(&mut self.info, egui_ctx, &window, true);
+                egui_winit::update_viewport_info(&mut self.info, egui_ctx, &*window, true);
                 self.window = Some(window);
             }
             Err(err) => {
@@ -945,10 +949,10 @@ impl Viewport {
 
 fn create_window(
     egui_ctx: &egui::Context,
-    event_loop: &ActiveEventLoop,
+    event_loop: &dyn ActiveEventLoop,
     storage: Option<&dyn Storage>,
     native_options: &mut NativeOptions,
-) -> Result<(Window, ViewportBuilder), winit::error::OsError> {
+) -> Result<(Box<dyn Window>, ViewportBuilder), winit::error::RequestError> {
     profiling::function_scope!();
 
     let window_settings = epi_integration::load_window_settings(storage);
@@ -961,7 +965,7 @@ fn create_window(
     .with_visible(false); // Start hidden until we render the first frame to fix white flash on startup (https://github.com/emilk/egui/pull/3631)
 
     let window = egui_winit::create_window(egui_ctx, event_loop, &viewport_builder)?;
-    epi_integration::apply_window_settings(&window, window_settings);
+    epi_integration::apply_window_settings(&*window, window_settings);
     Ok((window, viewport_builder))
 }
 
@@ -1004,9 +1008,9 @@ fn render_immediate_viewport(
         let (Some(window), Some(egui_winit)) = (&viewport.window, &mut viewport.egui_winit) else {
             return;
         };
-        egui_winit::update_viewport_info(&mut viewport.info, egui_ctx, window, false);
+        egui_winit::update_viewport_info(&mut viewport.info, egui_ctx, &**window, false);
 
-        let mut input = egui_winit.take_egui_input(window);
+        let mut input = egui_winit.take_egui_input(&**window);
         input.viewports = viewports
             .iter()
             .map(|(id, viewport)| (*id, viewport.info.clone()))
@@ -1069,7 +1073,7 @@ fn render_immediate_viewport(
         vec![],
     );
 
-    egui_winit.handle_platform_output(window, platform_output);
+    egui_winit.handle_platform_output(&**window, platform_output);
 
     handle_viewport_output(
         &egui_ctx,
@@ -1120,7 +1124,7 @@ fn handle_viewport_output(
             initialize_or_update_viewport(viewports, ids, class, builder, viewport_ui_cb, painter);
 
         if let Some(window) = viewport.window.as_ref() {
-            let old_inner_size = window.inner_size();
+            let old_inner_size = window.surface_size();
 
             viewport.deferred_commands.append(&mut commands);
 
@@ -1128,13 +1132,13 @@ fn handle_viewport_output(
                 egui_ctx,
                 &mut viewport.info,
                 std::mem::take(&mut viewport.deferred_commands),
-                window,
+                &**window,
                 &mut viewport.actions_requested,
             );
 
             // For Wayland : https://github.com/emilk/egui/issues/4196
             if cfg!(target_os = "linux") {
-                let new_inner_size = window.inner_size();
+                let new_inner_size = window.surface_size();
                 if new_inner_size != old_inner_size
                     && let (Some(width), Some(height)) = (
                         NonZeroU32::new(new_inner_size.width),

@@ -2,19 +2,19 @@ use std::cell::Cell;
 use winit::event_loop::ActiveEventLoop;
 
 thread_local! {
-    static CURRENT_EVENT_LOOP: Cell<Option<*const ActiveEventLoop>> = const { Cell::new(None) };
+    static CURRENT_EVENT_LOOP: Cell<Option<*const dyn ActiveEventLoop>> = const { Cell::new(None) };
 }
 
 struct EventLoopGuard;
 
 impl EventLoopGuard {
-    fn new(event_loop: &ActiveEventLoop) -> Self {
+    fn new(event_loop: &dyn ActiveEventLoop) -> Self {
         CURRENT_EVENT_LOOP.with(|cell| {
             assert!(
                 cell.get().is_none(),
                 "Attempted to set a new event loop while one is already set"
             );
-            cell.set(Some(std::ptr::from_ref::<ActiveEventLoop>(event_loop)));
+            cell.set(Some(std::ptr::from_ref::<dyn ActiveEventLoop>(event_loop)));
         });
         Self
     }
@@ -30,7 +30,7 @@ impl Drop for EventLoopGuard {
 #[expect(unsafe_code)]
 pub fn with_current_event_loop<F, R>(f: F) -> Option<R>
 where
-    F: FnOnce(&ActiveEventLoop) -> R,
+    F: FnOnce(&dyn ActiveEventLoop) -> R,
 {
     CURRENT_EVENT_LOOP.with(|cell| {
         cell.get().map(|ptr| {
@@ -47,7 +47,7 @@ where
 }
 
 // The only public interface to use the event loop
-pub fn with_event_loop_context(event_loop: &ActiveEventLoop, f: impl FnOnce()) {
+pub fn with_event_loop_context(event_loop: &dyn ActiveEventLoop, f: impl FnOnce()) {
     // NOTE: For safety, this guard must NOT be leaked.
     let _guard = EventLoopGuard::new(event_loop);
     f();

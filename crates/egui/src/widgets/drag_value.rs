@@ -601,11 +601,11 @@ impl Widget for DragValue<'_> {
             .min_size(ui.spacing().interact_size); // TODO(emilk): find some more generic solution to `min_size`
 
             let cursor_icon = if value <= *range.start() {
-                CursorIcon::ResizeEast
+                CursorIcon::EResize
             } else if value < *range.end() {
-                CursorIcon::ResizeHorizontal
+                CursorIcon::RowResize
             } else {
-                CursorIcon::ResizeWest
+                CursorIcon::WResize
             };
 
             let response = ui.add(button);

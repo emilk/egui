@@ -57,11 +57,13 @@ x11 = ["winit/x11", "bytemuck"]
 [dependencies]
 egui = { workspace = true, default-features = false }
 
+dpi.workspace = true
 log.workspace = true
 profiling.workspace = true
 raw-window-handle.workspace = true
 web-time.workspace = true
 winit = { workspace = true, default-features = false }
+winit-core.workspace = true
 
 #! ### Optional dependencies
 

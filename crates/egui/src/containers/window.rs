@@ -798,13 +798,13 @@ impl ResizeInteraction {
 
         // TODO(emilk): use one-sided cursors for when we reached the min/max size.
         if (left && top) || (right && bottom) {
-            ctx.set_cursor_icon(CursorIcon::ResizeNwSe);
+            ctx.set_cursor_icon(CursorIcon::NwseResize);
         } else if (right && top) || (left && bottom) {
-            ctx.set_cursor_icon(CursorIcon::ResizeNeSw);
+            ctx.set_cursor_icon(CursorIcon::NwseResize);
         } else if left || right {
-            ctx.set_cursor_icon(CursorIcon::ResizeHorizontal);
+            ctx.set_cursor_icon(CursorIcon::ColResize);
         } else if bottom || top {
-            ctx.set_cursor_icon(CursorIcon::ResizeVertical);
+            ctx.set_cursor_icon(CursorIcon::RowResize);
         }
     }
 

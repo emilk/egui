@@ -58,7 +58,7 @@ profiling.workspace = true
 document-features = { workspace = true, optional = true }
 
 # Native:
-winit = { workspace = true, optional = true, default-features = false, features = ["rwh_06"] }
+winit = { workspace = true, optional = true, default-features = false }
 
 # Web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
