@@ -2,7 +2,7 @@ use emath::Rect;
 
 use crate::{
     Atom, AtomLayout, Atoms, Id, IntoAtoms, NumExt as _, Response, Sense, Shape, Ui, Vec2, Widget,
-    WidgetInfo, WidgetType, epaint, pos2, style_trait::CheckboxStyle,
+    WidgetInfo, WidgetType, epaint, pos2, widget_style::CheckboxStyle,
 };
 
 // TODO(emilk): allow checkbox without a text label

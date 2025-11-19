@@ -1,12 +1,10 @@
-use std::{mem, sync::Arc};
-
 use epaint::Margin;
 
 use crate::{
     Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Color32, CornerRadius, Frame,
-    Image, IntoAtoms, NumExt as _, Response, RichText, Sense, Stroke, TextStyle, TextWrapMode, Ui,
-    Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
-    style_trait::{ButtonStyle, WidgetState},
+    Image, IntoAtoms, NumExt as _, Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2,
+    Widget, WidgetInfo, WidgetText, WidgetType,
+    widget_style::{ButtonStyle, WidgetState},
 };
 
 /// Clickable button with text.
@@ -327,24 +325,10 @@ impl<'a> Button<'a> {
 
         frame = frame.inner_margin(button_padding);
 
-        // Apply the correct font and color if Text
-        // We assume that the other WidgetText have already a Fontid and color
-        layout.map_texts(|t| match t {
-            WidgetText::Text(text) => {
-                let rich_text = RichText::new(text.clone())
-                    .font(text_style.font_id.clone())
-                    .color(text_style.color);
-                WidgetText::RichText(Arc::new(rich_text))
-            }
-            WidgetText::RichText(mut text) => {
-                let text_mut = Arc::make_mut(&mut text);
-                *text_mut = mem::take(text_mut)
-                    .font(text_style.font_id.clone())
-                    .color(text_style.color);
-                WidgetText::RichText(text)
-            }
-            w => w,
-        });
+        // Apply the style font and color as fallback
+        layout = layout
+            .fallback_font(text_style.font_id.clone())
+            .fallback_text_color(text_style.color);
 
         // Retrocompatibility with button settings
         layout = if has_frame_margin && (state != WidgetState::Inactive || frame_when_inactive) {

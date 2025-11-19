@@ -1,4 +1,4 @@
-use crate::{Response, Sense, Ui, Vec2, Widget, vec2};
+use crate::{Response, Sense, Ui, Vec2, Widget, vec2, widget_style::SeparatorStyle};
 
 /// A visual separator. A horizontal or vertical line (depending on [`crate::Layout`]).
 ///
@@ -97,10 +97,13 @@ impl Widget for Separator {
         let id = ui.next_auto_id();
         let response: Option<Response> = ui.ctx().read_response(id);
         let state = response.map(|r| r.widget_state()).unwrap_or_default();
-        let style = ui.style().separator_style(state);
+        let SeparatorStyle {
+            spacing: spacing_style,
+            stroke,
+        } = ui.style().separator_style(state);
 
         // override the spacing if not set
-        let spacing = spacing.unwrap_or(style.spacing);
+        let spacing = spacing.unwrap_or(spacing_style);
 
         let is_horizontal_line = is_horizontal_line
             .unwrap_or_else(|| ui.is_grid() || !ui.layout().main_dir().is_horizontal());
@@ -120,7 +123,6 @@ impl Widget for Separator {
         let (rect, response) = ui.allocate_at_least(size, Sense::hover());
 
         if ui.is_rect_visible(response.rect) {
-            let stroke = style.stroke;
             let painter = ui.painter();
             if is_horizontal_line {
                 painter.hline(

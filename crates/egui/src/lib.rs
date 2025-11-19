@@ -434,7 +434,6 @@ mod plugin;
 pub mod response;
 mod sense;
 pub mod style;
-pub mod style_trait;
 pub mod text_selection;
 mod ui;
 mod ui_builder;
@@ -442,6 +441,7 @@ mod ui_stack;
 pub mod util;
 pub mod viewport;
 mod widget_rect;
+pub mod widget_style;
 pub mod widget_text;
 pub mod widgets;
 
