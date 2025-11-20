@@ -1244,16 +1244,19 @@ impl Prepared {
             // Margin on either side of the scroll bar:
             let inner_margin = show_factor * scroll_style.bar_inner_margin;
             let outer_margin = show_factor * scroll_style.bar_outer_margin;
+            let clip_max = ui.clip_rect().max[1 - d] - ui.spacing().item_spacing[1 - d];
 
             // top/bottom of a horizontal scroll (d==0).
             // left/rigth of a vertical scroll (d==1).
-            let mut cross = if scroll_style.floating {
+            let cross = if scroll_style.floating {
+                let max_cross = outer_rect.max[1 - d].at_most(clip_max) - outer_margin;
+
                 // The bounding rect of a fully visible bar.
                 // When we hover this area, we should show the full bar:
                 let max_bar_rect = if d == 0 {
-                    outer_rect.with_min_y(outer_rect.max.y - outer_margin - scroll_style.bar_width)
+                    outer_rect.with_min_y(max_cross - scroll_style.bar_width)
                 } else {
-                    outer_rect.with_min_x(outer_rect.max.x - outer_margin - scroll_style.bar_width)
+                    outer_rect.with_min_x(max_cross - scroll_style.bar_width)
                 };
 
                 let is_hovering_bar_area = is_hovering_outer_rect
@@ -1271,39 +1274,23 @@ impl Prepared {
                         is_hovering_bar_area_t,
                     );
 
-                let max_cross = outer_rect.max[1 - d] - outer_margin;
                 let min_cross = max_cross - width;
                 Rangef::new(min_cross, max_cross)
             } else {
                 let min_cross = inner_rect.max[1 - d] + inner_margin;
-                let max_cross = outer_rect.max[1 - d] - outer_margin;
+                let max_cross = outer_rect.max[1 - d].at_most(clip_max) - outer_margin;
                 Rangef::new(min_cross, max_cross)
             };
-
-            if ui.clip_rect().max[1 - d] < cross.max + outer_margin {
-                // Move the scrollbar so it is visible. This is needed in some cases.
-                // For instance:
-                // * When we have a vertical-only scroll area in a top level panel,
-                //   and that panel is not wide enough for the contents.
-                // * When one ScrollArea is nested inside another, and the outer
-                //   is scrolled so that the scroll-bars of the inner ScrollArea (us)
-                //   is outside the clip rectangle.
-                // Really this should use the tighter clip_rect that ignores clip_rect_margin, but we don't store that.
-                // clip_rect_margin is quite a hack. It would be nice to get rid of it.
-                let width = cross.max - cross.min;
-                cross.max = ui.clip_rect().max[1 - d] - outer_margin;
-                cross.min = cross.max - width;
-            }
 
             let outer_scroll_bar_rect = if d == 0 {
                 Rect::from_min_max(
                     pos2(scroll_bar_rect.left(), cross.min),
-                    pos2(scroll_bar_rect.right(), cross.max),
+                    pos2(scroll_bar_rect.right(), cross.max + outer_margin),
                 )
             } else {
                 Rect::from_min_max(
                     pos2(cross.min, scroll_bar_rect.top()),
-                    pos2(cross.max, scroll_bar_rect.bottom()),
+                    pos2(cross.max + outer_margin, scroll_bar_rect.bottom()),
                 )
             };
 
