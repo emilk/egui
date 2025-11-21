@@ -1,4 +1,4 @@
-use egui_demo_lib::is_mobile;
+use egui_demo_lib::{DemoWindows, is_mobile};
 
 #[cfg(feature = "glow")]
 use eframe::glow;
@@ -6,29 +6,25 @@ use eframe::glow;
 #[cfg(target_arch = "wasm32")]
 use core::any::Any;
 
+use crate::DemoApp;
+
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 struct EasyMarkApp {
     editor: egui_demo_lib::easy_mark::EasyMarkEditor,
 }
 
-impl eframe::App for EasyMarkApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        self.editor.panels(ctx);
+impl DemoApp for EasyMarkApp {
+    fn demo_ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        self.editor.panels(ui);
     }
 }
 
 // ----------------------------------------------------------------------------
 
-#[derive(Default)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct DemoApp {
-    demo_windows: egui_demo_lib::DemoWindows,
-}
-
-impl eframe::App for DemoApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        self.demo_windows.ui(ctx);
+impl DemoApp for DemoWindows {
+    fn demo_ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        self.ui(ui);
     }
 }
 
@@ -41,15 +37,12 @@ pub struct FractalClockApp {
     pub mock_time: Option<f64>,
 }
 
-impl eframe::App for FractalClockApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default()
-            .frame(
-                egui::Frame::dark_canvas(&ctx.style())
-                    .stroke(egui::Stroke::NONE)
-                    .corner_radius(0),
-            )
-            .show(ctx, |ui| {
+impl DemoApp for FractalClockApp {
+    fn demo_ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::Frame::dark_canvas(ui.style())
+            .stroke(egui::Stroke::NONE)
+            .corner_radius(0)
+            .show(ui, |ui| {
                 self.fractal_clock
                     .ui(ui, self.mock_time.or(Some(crate::seconds_since_midnight())));
             });
@@ -64,13 +57,13 @@ pub struct ColorTestApp {
     color_test: egui_demo_lib::ColorTest,
 }
 
-impl eframe::App for ColorTestApp {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+impl DemoApp for ColorTestApp {
+    fn demo_ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             if frame.is_web() {
                 ui.label(
-                    "NOTE: Some old browsers stuck on WebGL1 without sRGB support will not pass the color test.",
-                );
+                        "NOTE: Some old browsers stuck on WebGL1 without sRGB support will not pass the color test.",
+                    );
                 ui.separator();
             }
             egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
@@ -155,7 +148,7 @@ enum Command {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct State {
-    demo: DemoApp,
+    demo: DemoWindows,
     easy_mark_editor: EasyMarkApp,
     #[cfg(feature = "http")]
     http: crate::apps::HttpApp,
@@ -209,34 +202,34 @@ impl WrapApp {
 
     pub fn apps_iter_mut(
         &mut self,
-    ) -> impl Iterator<Item = (&'static str, Anchor, &mut dyn eframe::App)> {
+    ) -> impl Iterator<Item = (&'static str, Anchor, &mut dyn DemoApp)> {
         let mut vec = vec![
             (
                 "✨ Demos",
                 Anchor::Demo,
-                &mut self.state.demo as &mut dyn eframe::App,
+                &mut self.state.demo as &mut dyn DemoApp,
             ),
             (
                 "🖹 EasyMark editor",
                 Anchor::EasyMarkEditor,
-                &mut self.state.easy_mark_editor as &mut dyn eframe::App,
+                &mut self.state.easy_mark_editor as &mut dyn DemoApp,
             ),
             #[cfg(feature = "http")]
             (
                 "⬇ HTTP",
                 Anchor::Http,
-                &mut self.state.http as &mut dyn eframe::App,
+                &mut self.state.http as &mut dyn DemoApp,
             ),
             (
                 "🕑 Fractal Clock",
                 Anchor::Clock,
-                &mut self.state.clock as &mut dyn eframe::App,
+                &mut self.state.clock as &mut dyn DemoApp,
             ),
             #[cfg(feature = "image_viewer")]
             (
                 "🖼 Image Viewer",
                 Anchor::ImageViewer,
-                &mut self.state.image_viewer as &mut dyn eframe::App,
+                &mut self.state.image_viewer as &mut dyn DemoApp,
             ),
         ];
 
@@ -245,14 +238,14 @@ impl WrapApp {
             vec.push((
                 "🔺 3D painting",
                 Anchor::Custom3d,
-                custom3d as &mut dyn eframe::App,
+                custom3d as &mut dyn DemoApp,
             ));
         }
 
         vec.push((
             "🎨 Rendering test",
             Anchor::Rendering,
-            &mut self.state.rendering_test as &mut dyn eframe::App,
+            &mut self.state.rendering_test as &mut dyn DemoApp,
         ));
 
         vec.into_iter()
@@ -306,11 +299,13 @@ impl eframe::App for WrapApp {
 
         self.state.backend_panel.update(ctx, frame);
 
-        if !is_mobile(ctx) {
-            cmd = self.backend_panel(ctx, frame);
-        }
+        egui::CentralPanel::no_frame().show(ctx, |ui| {
+            if !is_mobile(ctx) {
+                cmd = self.backend_panel(ui, frame);
+            }
 
-        self.show_selected_app(ctx, frame);
+            self.show_selected_app(ui, frame);
+        });
 
         self.state.backend_panel.end_of_frame(ctx);
 
@@ -333,17 +328,16 @@ impl eframe::App for WrapApp {
 }
 
 impl WrapApp {
-    fn backend_panel(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) -> Command {
+    fn backend_panel(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) -> Command {
         // The backend-panel can be toggled on/off.
         // We show a little animation when the user switches it.
-        let is_open =
-            self.state.backend_panel.open || ctx.memory(|mem| mem.everything_is_visible());
+        let is_open = self.state.backend_panel.open || ui.memory(|mem| mem.everything_is_visible());
 
         let mut cmd = Command::Nothing;
 
         egui::Panel::left("backend_panel")
             .resizable(false)
-            .show_animated(ctx, is_open, |ui| {
+            .show_animated_inside(ui, is_open, |ui| {
                 ui.add_space(4.0);
                 ui.vertical_centered(|ui| {
                     ui.heading("💻 Backend");
@@ -393,11 +387,11 @@ impl WrapApp {
         });
     }
 
-    fn show_selected_app(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn show_selected_app(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         let selected_anchor = self.state.selected_anchor;
         for (_name, anchor, app) in self.apps_iter_mut() {
-            if anchor == selected_anchor || ctx.memory(|mem| mem.everything_is_visible()) {
-                app.update(ctx, frame);
+            if anchor == selected_anchor || ui.memory(|mem| mem.everything_is_visible()) {
+                app.demo_ui(ui, frame);
             }
         }
     }

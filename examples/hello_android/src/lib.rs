@@ -45,6 +45,8 @@ impl eframe::App for MyApp {
             ui.set_height(32.0);
         });
 
-        self.demo.ui(ctx);
+        egui::CentralPanel::default().show(ctx, |ui| {
+            self.demo.ui(ui);
+        });
     }
 }

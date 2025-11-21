@@ -32,15 +32,15 @@ impl Default for EasyMarkEditor {
 }
 
 impl EasyMarkEditor {
-    pub fn panels(&mut self, ctx: &egui::Context) {
-        egui::Panel::bottom("easy_mark_bottom").show(ctx, |ui| {
+    pub fn panels(&mut self, ui: &mut egui::Ui) {
+        egui::Panel::bottom("easy_mark_bottom").show_inside(ui, |ui| {
             let layout = egui::Layout::top_down(egui::Align::Center).with_main_justify(true);
             ui.allocate_ui_with_layout(ui.available_size(), layout, |ui| {
                 ui.add(crate::egui_github_link_file!())
             })
         });
 
-        egui::CentralPanel::default().show(ctx, |ui| {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             self.ui(ui);
         });
     }
