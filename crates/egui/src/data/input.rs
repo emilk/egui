@@ -535,6 +535,11 @@ pub enum Event {
         /// as when swiping down on a touch-screen or track-pad with natural scrolling.
         delta: Vec2,
 
+        /// The phase of the scroll, useful for trackpads.
+        ///
+        /// If unknown set this to [`TouchPhase::Move`].
+        phase: TouchPhase,
+
         /// The state of the modifier keys at the time of the event.
         modifiers: Modifiers,
     },
@@ -543,7 +548,6 @@ pub enum Event {
     WindowFocused(bool),
 
     /// An assistive technology (e.g. screen reader) requested an action.
-    #[cfg(feature = "accesskit")]
     AccessKitActionRequest(accesskit::ActionRequest),
 
     /// The reply of a screenshot requested with [`crate::ViewportCommand::Screenshot`].

@@ -449,7 +449,8 @@ impl Rect {
     /// Linearly interpolate so that `[0, 0]` is [`Self::min`] and
     /// `[1, 1]` is [`Self::max`].
     #[inline]
-    pub fn lerp_inside(&self, t: Vec2) -> Pos2 {
+    pub fn lerp_inside(&self, t: impl Into<Vec2>) -> Pos2 {
+        let t = t.into();
         Pos2 {
             x: lerp(self.min.x..=self.max.x, t.x),
             y: lerp(self.min.y..=self.max.y, t.y),

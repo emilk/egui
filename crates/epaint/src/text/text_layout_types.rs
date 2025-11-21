@@ -572,6 +572,13 @@ pub struct PlacedRow {
 
     /// The underlying unpositioned [`Row`].
     pub row: Arc<Row>,
+
+    /// If true, this [`PlacedRow`] came from a paragraph ending with a `\n`.
+    /// The `\n` itself is omitted from row's [`Row::glyphs`].
+    /// A `\n` in the input text always creates a new [`PlacedRow`] below it,
+    /// so that text that ends with `\n` has an empty [`PlacedRow`] last.
+    /// This also implies that the last [`PlacedRow`] in a [`Galley`] always has `ends_with_newline == false`.
+    pub ends_with_newline: bool,
 }
 
 impl PlacedRow {
@@ -617,13 +624,6 @@ pub struct Row {
 
     /// The mesh, ready to be rendered.
     pub visuals: RowVisuals,
-
-    /// If true, this [`Row`] came from a paragraph ending with a `\n`.
-    /// The `\n` itself is omitted from [`Self::glyphs`].
-    /// A `\n` in the input text always creates a new [`Row`] below it,
-    /// so that text that ends with `\n` has an empty [`Row`] last.
-    /// This also implies that the last [`Row`] in a [`Galley`] always has `ends_with_newline == false`.
-    pub ends_with_newline: bool,
 }
 
 /// The tessellated output of a row.
@@ -701,6 +701,9 @@ pub struct Glyph {
     /// enable the paragraph-concat optimization path without having to
     /// adjust `section_index` when concatting.
     pub(crate) section_index: u32,
+
+    /// Which is our first vertex in [`RowVisuals::mesh`].
+    pub first_vertex: u32,
 }
 
 impl Glyph {
@@ -733,12 +736,6 @@ impl Row {
     #[inline]
     pub fn char_count_excluding_newline(&self) -> usize {
         self.glyphs.len()
-    }
-
-    /// Includes the implicit `\n` after the [`Row`], if any.
-    #[inline]
-    pub fn char_count_including_newline(&self) -> usize {
-        self.glyphs.len() + (self.ends_with_newline as usize)
     }
 
     /// Closest char at the desired x coordinate in row-relative coordinates.
@@ -775,6 +772,12 @@ impl PlacedRow {
     #[inline]
     pub fn max_y(&self) -> f32 {
         self.rect().bottom()
+    }
+
+    /// Includes the implicit `\n` after the [`PlacedRow`], if any.
+    #[inline]
+    pub fn char_count_including_newline(&self) -> usize {
+        self.row.glyphs.len() + (self.ends_with_newline as usize)
     }
 }
 
@@ -867,13 +870,15 @@ impl Galley {
                         placed_row.visuals.mesh_bounds.translate(new_pos.to_vec2());
                     merged_galley.rect |= Rect::from_min_size(new_pos, placed_row.size);
 
-                    let mut row = placed_row.row.clone();
+                    let mut ends_with_newline = placed_row.ends_with_newline;
                     let is_last_row_in_galley = row_idx + 1 == galley.rows.len();
-                    if !is_last_galley && is_last_row_in_galley {
-                        // Since we remove the `\n` when splitting rows, we need to add it back here
-                        Arc::make_mut(&mut row).ends_with_newline = true;
+                    // Since we remove the `\n` when splitting rows, we need to add it back here
+                    ends_with_newline |= !is_last_galley && is_last_row_in_galley;
+                    super::PlacedRow {
+                        pos: new_pos,
+                        row: placed_row.row.clone(),
+                        ends_with_newline,
                     }
-                    super::PlacedRow { pos: new_pos, row }
                 }));
 
             merged_galley.num_vertices += galley.num_vertices;
