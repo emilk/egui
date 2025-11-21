@@ -6,6 +6,7 @@ use super::widget_gallery;
 pub struct SceneDemo {
     widget_gallery: widget_gallery::WidgetGallery,
     scene_rect: Rect,
+    scroll_zooms: bool,
 }
 
 impl Default for SceneDemo {
@@ -13,6 +14,7 @@ impl Default for SceneDemo {
         Self {
             widget_gallery: widget_gallery::WidgetGallery::default().with_date_button(false), // disable date button so that we don't fail the snapshot test
             scene_rect: Rect::ZERO, // `egui::Scene` will initialize this to something valid
+            scroll_zooms: false,
         }
     }
 }
@@ -39,6 +41,10 @@ impl crate::View for SceneDemo {
             "You can pan by scrolling, and zoom using cmd-scroll. \
             Double click on the background to reset view.",
         );
+        ui.checkbox(
+            &mut self.scroll_zooms,
+            "Change mousewheel behaviour to zoom instead of scroll",
+        );
         ui.vertical_centered(|ui| {
             ui.add(crate::egui_github_link_file!());
         });
@@ -53,6 +59,7 @@ impl crate::View for SceneDemo {
             .show(ui, |ui| {
                 let scene = Scene::new()
                     .max_inner_size([350.0, 1000.0])
+                    .scroll_zooms(self.scroll_zooms)
                     .zoom_range(0.1..=2.0);
 
                 let mut reset_view = false;

@@ -295,7 +295,7 @@ impl eframe::App for WrapApp {
         }
 
         let mut cmd = Command::Nothing;
-        egui::TopBottomPanel::top("wrap_app_top_bar")
+        egui::Panel::top("wrap_app_top_bar")
             .frame(egui::Frame::new().inner_margin(4))
             .show(ctx, |ui| {
                 ui.horizontal_wrapped(|ui| {
@@ -341,7 +341,7 @@ impl WrapApp {
 
         let mut cmd = Command::Nothing;
 
-        egui::SidePanel::left("backend_panel")
+        egui::Panel::left("backend_panel")
             .resizable(false)
             .show_animated(ctx, is_open, |ui| {
                 ui.add_space(4.0);

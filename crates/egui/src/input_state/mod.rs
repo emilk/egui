@@ -1,13 +1,17 @@
 mod touch_state;
+mod wheel_state;
 
-use crate::data::input::{
-    Event, EventFilter, KeyboardShortcut, Modifiers, MouseWheelUnit, NUM_POINTER_BUTTONS,
-    PointerButton, RawInput, TouchDeviceId, ViewportInfo,
-};
 use crate::{
     SafeAreaInsets,
     emath::{NumExt as _, Pos2, Rect, Vec2, vec2},
     util::History,
+};
+use crate::{
+    data::input::{
+        Event, EventFilter, KeyboardShortcut, Modifiers, NUM_POINTER_BUTTONS, PointerButton,
+        RawInput, TouchDeviceId, ViewportInfo,
+    },
+    input_state::wheel_state::WheelState,
 };
 use std::{
     collections::{BTreeMap, HashSet},
@@ -426,12 +430,8 @@ impl InputState {
         let mut keys_down = self.keys_down;
         let mut zoom_factor_delta = 1.0; // TODO(emilk): smoothing for zoom factor
         let mut rotation_radians = 0.0;
-        let mut raw_scroll_delta = Vec2::ZERO;
 
-        let mut unprocessed_scroll_delta = self.unprocessed_scroll_delta;
-        let mut unprocessed_scroll_delta_for_zoom = self.unprocessed_scroll_delta_for_zoom;
-        let mut smooth_scroll_delta = Vec2::ZERO;
-        let mut smooth_scroll_delta_for_zoom = 0.0;
+        self.wheel.smooth_wheel_delta = Vec2::ZERO;
 
         for event in &mut new.events {
             match event {
@@ -534,36 +534,20 @@ impl InputState {
             }
         }
 
+        let mut smooth_scroll_delta = Vec2::ZERO;
+
         {
             let dt = stable_dt.at_most(0.1);
-            let t = crate::emath::exponential_smooth_factor(0.90, 0.1, dt); // reach _% in _ seconds. TODO(emilk): parameterize
+            self.wheel.after_events(time, dt);
 
-            if unprocessed_scroll_delta != Vec2::ZERO {
-                for d in 0..2 {
-                    if unprocessed_scroll_delta[d].abs() < 1.0 {
-                        smooth_scroll_delta[d] += unprocessed_scroll_delta[d];
-                        unprocessed_scroll_delta[d] = 0.0;
-                    } else {
-                        let applied = t * unprocessed_scroll_delta[d];
-                        smooth_scroll_delta[d] += applied;
-                        unprocessed_scroll_delta[d] -= applied;
-                    }
-                }
-            }
+            let is_zoom = self.wheel.modifiers.matches_any(options.zoom_modifier);
 
-            {
-                // Smooth scroll-to-zoom:
-                if unprocessed_scroll_delta_for_zoom.abs() < 1.0 {
-                    smooth_scroll_delta_for_zoom += unprocessed_scroll_delta_for_zoom;
-                    unprocessed_scroll_delta_for_zoom = 0.0;
-                } else {
-                    let applied = t * unprocessed_scroll_delta_for_zoom;
-                    smooth_scroll_delta_for_zoom += applied;
-                    unprocessed_scroll_delta_for_zoom -= applied;
-                }
-
-                zoom_factor_delta *=
-                    (options.scroll_zoom_speed * smooth_scroll_delta_for_zoom).exp();
+            if is_zoom {
+                zoom_factor_delta *= (options.scroll_zoom_speed
+                    * (self.wheel.smooth_wheel_delta.x + self.wheel.smooth_wheel_delta.y))
+                    .exp();
+            } else {
+                smooth_scroll_delta = self.wheel.smooth_wheel_delta;
             }
         }
 
@@ -654,6 +638,22 @@ impl InputState {
         self.safe_area_insets
     }
 
+    /// How many points the user scrolled, smoothed over a few frames.
+    ///
+    /// The delta dictates how the _content_ should move.
+    ///
+    /// A positive X-value indicates the content is being moved right,
+    /// as when swiping right on a touch-screen or track-pad with natural scrolling.
+    ///
+    /// A positive Y-value indicates the content is being moved down,
+    /// as when swiping down on a touch-screen or track-pad with natural scrolling.
+    ///
+    /// [`crate::ScrollArea`] will both read and write to this field, so that
+    /// at the end of the frame this will be zero if a scroll-area consumed the delta.
+    pub fn smooth_scroll_delta(&self) -> Vec2 {
+        self.smooth_scroll_delta
+    }
+
     /// Uniform zoom scale factor this frame (e.g. from ctrl-scroll or pinch gesture).
     /// * `zoom = 1`: no change
     /// * `zoom < 1`: pinch together
@@ -732,7 +732,7 @@ impl InputState {
     #[inline(always)]
     pub fn translation_delta(&self) -> Vec2 {
         self.multi_touch()
-            .map_or(self.smooth_scroll_delta, |touch| touch.translation_delta)
+            .map_or(self.smooth_scroll_delta(), |touch| touch.translation_delta)
     }
 
     /// True if there is an active scroll action that might scroll more when using [`Self::smooth_scroll_delta`].
@@ -759,7 +759,7 @@ impl InputState {
     /// How long has it been (in seconds) since the use last scrolled?
     #[inline(always)]
     pub fn time_since_last_scroll(&self) -> f32 {
-        (self.time - self.last_scroll_time) as f32
+        (self.time - self.wheel.last_wheel_event) as f32
     }
 
     /// The [`crate::Context`] will call this at the beginning of each frame to see if we need a repaint.
@@ -771,8 +771,7 @@ impl InputState {
     /// cause a repaint.
     pub(crate) fn wants_repaint_after(&self) -> Option<Duration> {
         if self.pointer.wants_repaint()
-            || self.unprocessed_scroll_delta.abs().max_elem() > 0.2
-            || self.unprocessed_scroll_delta_for_zoom.abs() > 0.2
+            || self.wheel.unprocessed_wheel_delta.abs().max_elem() > 0.2
             || !self.events.is_empty()
         {
             // Immediate repaint
@@ -972,7 +971,6 @@ impl InputState {
         }
     }
 
-    #[cfg(feature = "accesskit")]
     pub fn accesskit_action_requests(
         &self,
         id: crate::Id,
@@ -990,7 +988,6 @@ impl InputState {
         })
     }
 
-    #[cfg(feature = "accesskit")]
     pub fn consume_accesskit_action_requests(
         &mut self,
         id: crate::Id,
@@ -1007,12 +1004,10 @@ impl InputState {
         });
     }
 
-    #[cfg(feature = "accesskit")]
     pub fn has_accesskit_action_request(&self, id: crate::Id, action: accesskit::Action) -> bool {
         self.accesskit_action_requests(id, action).next().is_some()
     }
 
-    #[cfg(feature = "accesskit")]
     pub fn num_accesskit_action_requests(&self, id: crate::Id, action: accesskit::Action) -> usize {
         self.accesskit_action_requests(id, action).count()
     }
@@ -1384,6 +1379,11 @@ impl PointerState {
         self.press_origin
     }
 
+    /// How far has the pointer moved since the start of the drag (if any)?
+    pub fn total_drag_delta(&self) -> Option<Vec2> {
+        Some(self.latest_pos? - self.press_origin?)
+    }
+
     /// When did the current click/drag originate?
     /// `None` if no mouse button is down.
     #[inline(always)]
@@ -1654,7 +1654,6 @@ impl InputState {
             raw_scroll_delta,
             smooth_scroll_delta,
             rotation_radians,
-
             zoom_factor_delta,
             viewport_rect,
             safe_area_insets,

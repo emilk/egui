@@ -239,7 +239,7 @@ impl ComboBox {
             let mut ir = combo_box_dyn(
                 ui,
                 button_id,
-                selected_text,
+                selected_text.clone(),
                 menu_contents,
                 icon,
                 wrap_mode,
@@ -247,14 +247,16 @@ impl ComboBox {
                 popup_style,
                 (width, height),
             );
+            ir.response.widget_info(|| {
+                let mut info = WidgetInfo::new(WidgetType::ComboBox);
+                info.enabled = ui.is_enabled();
+                info.current_text_value = Some(selected_text.text().to_owned());
+                info
+            });
             if let Some(label) = label {
-                ir.response.widget_info(|| {
-                    WidgetInfo::labeled(WidgetType::ComboBox, ui.is_enabled(), label.text())
-                });
-                ir.response |= ui.label(label);
-            } else {
-                ir.response
-                    .widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, ui.is_enabled(), ""));
+                let label_response = ui.label(label);
+                ir.response = ir.response.labelled_by(label_response.id);
+                ir.response |= label_response;
             }
             ir
         })

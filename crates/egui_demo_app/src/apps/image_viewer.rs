@@ -2,8 +2,6 @@ use egui::ImageFit;
 use egui::Slider;
 use egui::Vec2;
 use egui::emath::Rot2;
-use egui::panel::Side;
-use egui::panel::TopBottomSide;
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ImageViewer {
@@ -52,7 +50,7 @@ impl Default for ImageViewer {
 
 impl eframe::App for ImageViewer {
     fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
-        egui::TopBottomPanel::new(TopBottomSide::Top, "url bar").show(ctx, |ui| {
+        egui::Panel::top("url bar").show(ctx, |ui| {
             ui.horizontal_centered(|ui| {
                 let label = ui.label("URI:");
                 ui.text_edit_singleline(&mut self.uri_edit_text)
@@ -73,7 +71,7 @@ impl eframe::App for ImageViewer {
             });
         });
 
-        egui::SidePanel::new(Side::Left, "controls").show(ctx, |ui| {
+        egui::Panel::left("controls").show(ctx, |ui| {
             // uv
             ui.label("UV");
             ui.add(Slider::new(&mut self.image_options.uv.min.x, 0.0..=1.0).text("min x"));
