@@ -24,7 +24,7 @@ impl Custom3d {
 
 impl DemoAppTrait for Custom3d {
     fn update(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        // TODO(emilk): Add `ScrollArea::inner_margin` helper.
+        // TODO(emilk): Use `ScrollArea::inner_margin`
         egui::CentralPanel::default().show_inside(ui, |ui| {
             egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
                 ui.horizontal(|ui| {
