@@ -781,8 +781,14 @@ impl Context {
     /// });
     /// // handle full_output
     /// ```
+    ///
     #[must_use]
-    pub fn run(&self, mut new_input: RawInput, mut run_ui: impl FnMut(&Self)) -> FullOutput {
+    pub fn run(&self, new_input: RawInput, mut run_ui: impl FnMut(&Self)) -> FullOutput {
+        self.run_dyn(new_input, &mut run_ui)
+    }
+
+    #[must_use]
+    fn run_dyn(&self, mut new_input: RawInput, run_ui: &mut dyn FnMut(&Self)) -> FullOutput {
         profiling::function_scope!();
         let viewport_id = new_input.viewport_id;
         let max_passes = self.write(|ctx| ctx.memory.options.max_passes.get());
