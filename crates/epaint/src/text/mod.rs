@@ -18,5 +18,7 @@ pub use {
     text_layout_types::*,
 };
 
+pub use font::GlyphColoring;
+
 /// Suggested character to use to replace those in password text fields.
 pub const PASSWORD_REPLACEMENT_CHAR: char = '•';

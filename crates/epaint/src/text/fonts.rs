@@ -7,7 +7,7 @@ use std::{
 };
 
 use crate::{
-    AlphaFromCoverage, TextureAtlas,
+    AlphaFromCoverage, ColorImage, TextureAtlas,
     text::{
         Galley, LayoutJob, LayoutSection,
         font::{Font, FontImpl, GlyphInfo},
@@ -532,7 +532,7 @@ impl Fonts {
         &mut self,
         max_texture_side: usize,
         text_alpha_from_coverage: AlphaFromCoverage,
-    ) {
+    ) -> bool {
         let max_texture_side_changed = self.fonts.max_texture_side != max_texture_side;
         let text_alpha_from_coverage_changed =
             self.fonts.atlas.text_alpha_from_coverage != text_alpha_from_coverage;
@@ -547,9 +547,11 @@ impl Fonts {
                 fonts: FontsImpl::new(max_texture_side, text_alpha_from_coverage, definitions),
                 galley_cache: Default::default(),
             };
+            true
+        } else {
+            self.galley_cache.flush_cache();
+            false
         }
-
-        self.galley_cache.flush_cache();
     }
 
     /// Call at the end of each frame (before painting) to get the change to the font texture since last call.
@@ -571,6 +573,13 @@ impl Fonts {
     /// Pass this to [`crate::Tessellator`].
     pub fn texture_atlas(&self) -> &TextureAtlas {
         &self.fonts.atlas
+    }
+
+    /// Register a pre-rendered glyph (with baked colors) so every sized font can render it.
+    ///
+    /// This is the building block for opt-in emoji packs or any other bitmap glyph source.
+    pub fn register_color_glyph(&mut self, character: char, image: Arc<ColorImage>) {
+        self.fonts.register_color_glyph(character, image);
     }
 
     /// The full font atlas image.
@@ -765,6 +774,7 @@ pub struct FontsImpl {
     fonts_by_id: nohash_hasher::IntMap<FontFaceKey, FontImpl>,
     fonts_by_name: ahash::HashMap<String, FontFaceKey>,
     family_cache: ahash::HashMap<FontFamily, CachedFamily>,
+    color_glyphs: BTreeMap<char, Arc<ColorImage>>,
 }
 
 impl FontsImpl {
@@ -797,6 +807,7 @@ impl FontsImpl {
             fonts_by_id,
             fonts_by_name: font_impls,
             family_cache: Default::default(),
+            color_glyphs: Default::default(),
         }
     }
 
@@ -819,10 +830,25 @@ impl FontsImpl {
 
             CachedFamily::new(fonts, &mut self.fonts_by_id)
         });
-        Font {
+        let mut font = Font {
             fonts_by_id: &mut self.fonts_by_id,
             cached_family,
             atlas: &mut self.atlas,
+        };
+        font.install_color_glyphs(&self.color_glyphs);
+        font
+    }
+
+    pub fn register_color_glyph(&mut self, character: char, image: Arc<ColorImage>) {
+        self.color_glyphs.insert(character, image.clone());
+
+        for cached_family in self.family_cache.values_mut() {
+            let mut font = Font {
+                fonts_by_id: &mut self.fonts_by_id,
+                cached_family,
+                atlas: &mut self.atlas,
+            };
+            font.register_color_glyph(character, image.clone());
         }
     }
 }
