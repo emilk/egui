@@ -342,10 +342,10 @@ impl<'a> Button<'a> {
         // Get AtomLayoutResponse, empty if not visible
         let response = if ui.is_rect_visible(prepared.response.rect) {
             if image_tint_follows_text_color {
-                prepared.map_images(|image| image.tint(ui.visuals().text_color()));
+                prepared.map_images(|image| image.tint(text_style.color));
             }
 
-            prepared.fallback_text_color = ui.visuals().text_color();
+            prepared.fallback_text_color = text_style.color;
 
             prepared.paint(ui)
         } else {
