@@ -197,30 +197,32 @@ impl crate::DemoApp for ImageViewer {
             }
         });
 
-        egui::ScrollArea::both().show(ui, |ui| {
-            let mut image = egui::Image::from_uri(&self.current_uri);
-            image = image.uv(self.image_options.uv);
-            image = image.bg_fill(self.image_options.bg_fill);
-            image = image.tint(self.image_options.tint);
-            let (angle, origin) = self
-                .image_options
-                .rotation
-                .map_or((0.0, Vec2::splat(0.5)), |(rot, origin)| {
-                    (rot.angle(), origin)
-                });
-            image = image.rotate(angle, origin);
-            match self.fit {
-                ImageFit::Original { scale } => image = image.fit_to_original_size(scale),
-                ImageFit::Fraction(fract) => image = image.fit_to_fraction(fract),
-                ImageFit::Exact(size) => image = image.fit_to_exact_size(size),
-            }
-            image = image.maintain_aspect_ratio(self.maintain_aspect_ratio);
-            image = image.max_size(self.max_size);
-            if !self.alt_text.is_empty() {
-                image = image.alt_text(&self.alt_text);
-            }
+        egui::CentralPanel::default().show_inside(ui, |ui| {
+            egui::ScrollArea::both().show(ui, |ui| {
+                let mut image = egui::Image::from_uri(&self.current_uri);
+                image = image.uv(self.image_options.uv);
+                image = image.bg_fill(self.image_options.bg_fill);
+                image = image.tint(self.image_options.tint);
+                let (angle, origin) = self
+                    .image_options
+                    .rotation
+                    .map_or((0.0, Vec2::splat(0.5)), |(rot, origin)| {
+                        (rot.angle(), origin)
+                    });
+                image = image.rotate(angle, origin);
+                match self.fit {
+                    ImageFit::Original { scale } => image = image.fit_to_original_size(scale),
+                    ImageFit::Fraction(fract) => image = image.fit_to_fraction(fract),
+                    ImageFit::Exact(size) => image = image.fit_to_exact_size(size),
+                }
+                image = image.maintain_aspect_ratio(self.maintain_aspect_ratio);
+                image = image.max_size(self.max_size);
+                if !self.alt_text.is_empty() {
+                    image = image.alt_text(&self.alt_text);
+                }
 
-            ui.add_sized(ui.available_size(), image);
+                ui.add_sized(ui.available_size(), image);
+            });
         });
     }
 }

@@ -39,10 +39,13 @@ pub struct FractalClockApp {
 
 impl DemoApp for FractalClockApp {
     fn demo_ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        egui::Frame::dark_canvas(ui.style()).show(ui, |ui| {
-            self.fractal_clock
-                .ui(ui, self.mock_time.or(Some(crate::seconds_since_midnight())));
-        });
+        egui::Frame::dark_canvas(ui.style())
+            .stroke(egui::Stroke::NONE)
+            .corner_radius(0)
+            .show(ui, |ui| {
+                self.fractal_clock
+                    .ui(ui, self.mock_time.or(Some(crate::seconds_since_midnight())));
+            });
     }
 }
 
