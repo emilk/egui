@@ -48,7 +48,7 @@ pub struct Scene {
     sense: Sense,
     max_inner_size: Vec2,
     drag_pan_buttons: DragPanButtons,
-    scrolling_zooms: bool,
+    scroll_zooms: bool,
 }
 
 /// Specifies which pointer buttons can be used to pan the scene by dragging.
@@ -81,7 +81,7 @@ impl Default for Scene {
             sense: Sense::click_and_drag(),
             max_inner_size: Vec2::splat(1000.0),
             drag_pan_buttons: DragPanButtons::all(),
-            scrolling_zooms: false,
+            scroll_zooms: false,
         }
     }
 }
@@ -137,8 +137,8 @@ impl Scene {
     ///
     /// By default, this is `false`.
     #[inline]
-    pub fn scrolling_zooms(mut self, scrolling_zooms: bool) -> Self {
-        self.scrolling_zooms = scrolling_zooms;
+    pub fn scroll_zooms(mut self, scroll_zooms: bool) -> Self {
+        self.scroll_zooms = scroll_zooms;
         self
     }
 
@@ -262,12 +262,12 @@ impl Scene {
             // If scrolling_zooms is set to true the scroll input will be consumed and
             // added to any zoom input. This is required to support both mouse wheel
             // and touch events.
-            if self.scrolling_zooms {
+            if self.scroll_zooms {
                 let scroll_zoom_speed = ui.ctx().options(|opt| opt.input_options.scroll_zoom_speed);
-                let scoll_delta = ui
+                let scroll_delta = ui
                     .ctx()
                     .input(|i| i.smooth_scroll_delta.x + i.smooth_scroll_delta.y);
-                zoom_delta += scoll_delta * scroll_zoom_speed;
+                zoom_delta += scroll_delta * scroll_zoom_speed;
             } else {
                 pan_delta = ui.ctx().input(|i| i.smooth_scroll_delta);
             }
