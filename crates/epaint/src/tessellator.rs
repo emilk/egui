@@ -8,10 +8,10 @@
 use emath::{GuiRounding as _, NumExt as _, Pos2, Rect, Rot2, Vec2, pos2, remap, vec2};
 
 use crate::{
-    CircleShape, ClippedPrimitive, ClippedShape, Color32, CornerRadiusF32, CubicBezierShape,
-    EllipseShape, Mesh, PathShape, Primitive, QuadraticBezierShape, RectShape, Shape, Stroke,
-    StrokeKind, TextShape, TextureId, Vertex, WHITE_UV, color::ColorMode, emath,
-    stroke::PathStroke, texture_atlas::PreparedDisc,
+    CircleShape, ClippedPrimitive, ClippedShape, Color32, CubicBezierShape, EllipseShape, Mesh,
+    PathShape, Primitive, QuadraticBezierShape, RectShape, Shape, Stroke, StrokeKind, TextShape,
+    TextureId, Vertex, WHITE_UV, color::ColorMode, emath, stroke::PathStroke,
+    texture_atlas::PreparedDisc,
 };
 
 // ----------------------------------------------------------------------------
@@ -1774,7 +1774,7 @@ impl Tessellator {
             brush: _, // brush is extracted on its own, because it is not Copy
         } = *rect_shape;
 
-        let mut corner_radius = CornerRadiusF32::from(corner_radius);
+        let mut corner_radius = corner_radius; // we need mutable access here
         let round_to_pixels = round_to_pixels.unwrap_or(self.options.round_rects_to_pixels);
 
         if stroke.width == 0.0 {
