@@ -42,9 +42,8 @@ pub fn update_accesskit_for_text_widget(
 
     for (row_index, row) in galley.rows.iter().enumerate() {
         let row_id = parent_id.with(row_index);
-
+        #[cfg(feature = "accesskit")]
         ctx.register_accesskit_parent(row_id, parent_id);
-
         ctx.accesskit_node_builder(row_id, |builder| {
             builder.set_role(accesskit::Role::TextRun);
             let rect = global_from_galley * row.rect_without_leading_space();

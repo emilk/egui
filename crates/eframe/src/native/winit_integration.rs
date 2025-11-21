@@ -66,7 +66,7 @@ impl From<accesskit_winit::Event> for UserEvent {
 pub trait WinitApp {
     fn egui_ctx(&self) -> Option<&egui::Context>;
 
-    fn window(&self, window_id: WindowId) -> Option<Arc<Window>>;
+    fn window(&self, window_id: WindowId) -> Option<Arc<dyn Window>>;
 
     fn window_id_from_viewport_id(&self, id: ViewportId) -> Option<WindowId>;
 
@@ -76,24 +76,24 @@ pub trait WinitApp {
 
     fn run_ui_and_paint(
         &mut self,
-        event_loop: &ActiveEventLoop,
+        event_loop: &dyn ActiveEventLoop,
         window_id: WindowId,
     ) -> crate::Result<EventResult>;
 
-    fn suspended(&mut self, event_loop: &ActiveEventLoop) -> crate::Result<EventResult>;
+    fn suspended(&mut self, event_loop: &dyn ActiveEventLoop) -> crate::Result<EventResult>;
 
-    fn resumed(&mut self, event_loop: &ActiveEventLoop) -> crate::Result<EventResult>;
+    fn resumed(&mut self, event_loop: &dyn ActiveEventLoop) -> crate::Result<EventResult>;
 
     fn device_event(
         &mut self,
-        event_loop: &ActiveEventLoop,
-        device_id: winit::event::DeviceId,
+        event_loop: &dyn ActiveEventLoop,
+        device_id: Option<winit::event::DeviceId>,
         event: winit::event::DeviceEvent,
     ) -> crate::Result<EventResult>;
 
     fn window_event(
         &mut self,
-        event_loop: &ActiveEventLoop,
+        event_loop: &dyn ActiveEventLoop,
         window_id: WindowId,
         event: winit::event::WindowEvent,
     ) -> crate::Result<EventResult>;

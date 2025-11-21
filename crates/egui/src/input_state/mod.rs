@@ -855,6 +855,7 @@ impl InputState {
         }
     }
 
+    #[cfg(feature = "accesskit")]
     pub fn accesskit_action_requests(
         &self,
         id: crate::Id,
@@ -872,6 +873,7 @@ impl InputState {
         })
     }
 
+    #[cfg(feature = "accesskit")]
     pub fn consume_accesskit_action_requests(
         &mut self,
         id: crate::Id,
@@ -888,10 +890,12 @@ impl InputState {
         });
     }
 
+    #[cfg(feature = "accesskit")]
     pub fn has_accesskit_action_request(&self, id: crate::Id, action: accesskit::Action) -> bool {
         self.accesskit_action_requests(id, action).next().is_some()
     }
 
+    #[cfg(feature = "accesskit")]
     pub fn num_accesskit_action_requests(&self, id: crate::Id, action: accesskit::Action) -> usize {
         self.accesskit_action_requests(id, action).count()
     }

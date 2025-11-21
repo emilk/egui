@@ -327,7 +327,7 @@ pub fn create_native<'a>(
     app_name: &str,
     mut native_options: NativeOptions,
     app_creator: AppCreator<'a>,
-    event_loop: &winit::event_loop::EventLoop<UserEvent>,
+    event_loop: &winit::event_loop::EventLoop,
 ) -> EframeWinitApplication<'a> {
     let renderer = init_native(app_name, &mut native_options);
 
@@ -455,6 +455,10 @@ pub enum Error {
     #[cfg(not(target_arch = "wasm32"))]
     Winit(winit::error::OsError),
 
+    /// An request error from [`winit`].
+    #[cfg(not(target_arch = "wasm32"))]
+    WinitRequest(winit::error::RequestError),
+
     /// An error from [`winit::event_loop::EventLoop`].
     #[cfg(not(target_arch = "wasm32"))]
     WinitEventLoop(winit::error::EventLoopError),
@@ -483,6 +487,14 @@ impl From<winit::error::OsError> for Error {
     #[inline]
     fn from(err: winit::error::OsError) -> Self {
         Self::Winit(err)
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl From<winit::error::RequestError> for Error {
+    #[inline]
+    fn from(err: winit::error::RequestError) -> Self {
+        Self::WinitRequest(err)
     }
 }
 
@@ -554,6 +566,9 @@ impl std::fmt::Display for Error {
             #[cfg(feature = "wgpu_no_default_features")]
             Self::Wgpu(err) => {
                 write!(f, "WGPU error: {err}")
+            }
+            Error::WinitRequest(err) => {
+                write!(f, "winit request error: {err}")
             }
         }
     }

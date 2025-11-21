@@ -36,7 +36,7 @@ default = [
 ]
 
 ## Enable platform accessibility API implementations through [AccessKit](https://accesskit.dev/).
-accesskit = ["egui-winit/accesskit"]
+accesskit = ["egui/accesskit", "egui-winit/accesskit"]
 
 # Allow crates to choose an android-activity backend via Winit
 # - It's important that most applications should not have to depend on android-activity directly, and can
@@ -140,7 +140,8 @@ serde = { workspace = true, optional = true }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 egui-winit = { workspace = true, default-features = false, features = ["clipboard", "links"] }
 image = { workspace = true, features = ["png"] } # Needed for app icon
-winit = { workspace = true, default-features = false, features = ["rwh_06"] }
+winit = { workspace = true, default-features = false }
+winit-core.workspace = true
 
 # optional native:
 egui-wgpu = { workspace = true, optional = true, features = [
@@ -169,7 +170,10 @@ objc2-foundation = { workspace = true, default-features = false, features = [
 objc2-app-kit = { workspace = true, default-features = false, features = [
   "std",
   "NSApplication",
+  "NSBitmapImageRep",
+    "NSGraphics",
   "NSImage",
+  "NSImageRep",
   "NSMenu",
   "NSMenuItem",
   "NSResponder",

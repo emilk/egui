@@ -6,13 +6,7 @@ use emath::Align;
 use epaint::{AlphaFromCoverage, CornerRadius, Shadow, Stroke, text::FontTweak};
 use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
 
-use crate::{
-    ComboBox, CursorIcon, FontFamily, FontId, Grid, Margin, Response, RichText, TextWrapMode,
-    WidgetText,
-    ecolor::Color32,
-    emath::{Rangef, Rect, Vec2, pos2, vec2},
-    reset_button_with,
-};
+use crate::{ComboBox, CursorIcon, FontFamily, FontId, Grid, Margin, Response, RichText, TextWrapMode, WidgetText, ecolor::Color32, emath::{Rangef, Rect, Vec2, pos2, vec2}, reset_button_with, output};
 
 /// How to format numbers in e.g. a [`crate::DragValue`].
 #[derive(Clone)]
@@ -2335,7 +2329,7 @@ impl Visuals {
                 .show_ui(ui, |ui| {
                     ui.selectable_value(interact_cursor, None, "-");
 
-                    for cursor in CursorIcon::ALL {
+                    for cursor in output::ALL_CURSOR_ICONS {
                         ui.selectable_value(interact_cursor, Some(cursor), format!("{cursor:?}"))
                             .on_hover_cursor(cursor);
                     }

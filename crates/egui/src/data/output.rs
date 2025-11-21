@@ -128,6 +128,7 @@ pub struct PlatformOutput {
     /// The difference in the widget tree since last frame.
     ///
     /// NOTE: this needs to be per-viewport.
+    #[cfg(feature = "accesskit")]
     pub accesskit_update: Option<accesskit::TreeUpdate>,
 
     /// How many ui passes is this the sum of?
@@ -174,6 +175,7 @@ impl PlatformOutput {
             mut events,
             mutable_text_under_cursor,
             ime,
+            #[cfg(feature = "accesskit")]
             accesskit_update,
             num_completed_passes,
             mut request_discard_reasons,
@@ -188,8 +190,12 @@ impl PlatformOutput {
         self.request_discard_reasons
             .append(&mut request_discard_reasons);
 
-        // egui produces a complete AccessKit tree for each frame, so overwrite rather than append:
-        self.accesskit_update = accesskit_update;
+        #[cfg(feature = "accesskit")]
+        {
+            // egui produces a complete AccessKit tree for each frame,
+            // so overwrite rather than appending.
+            self.accesskit_update = accesskit_update;
+        }
     }
 
     /// Take everything ephemeral (everything except `cursor_icon` currently)
@@ -255,174 +261,46 @@ pub enum UserAttentionType {
     Reset,
 }
 
-/// A mouse cursor icon.
-///
-/// egui emits a [`CursorIcon`] in [`PlatformOutput`] each frame as a request to the integration.
-///
-/// Loosely based on <https://developer.mozilla.org/en-US/docs/Web/CSS/cursor>.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub enum CursorIcon {
-    /// Normal cursor icon, whatever that is.
-    #[default]
-    Default,
+pub use cursor_icon::CursorIcon;
 
-    /// Show no cursor
-    None,
-
-    // ------------------------------------
-    // Links and status:
-    /// A context menu is available
-    ContextMenu,
-
-    /// Question mark
-    Help,
-
-    /// Pointing hand, used for e.g. web links
-    PointingHand,
-
-    /// Shows that processing is being done, but that the program is still interactive.
-    Progress,
-
-    /// Not yet ready, try later.
-    Wait,
-
-    // ------------------------------------
-    // Selection:
-    /// Hover a cell in a table
-    Cell,
-
-    /// For precision work
-    Crosshair,
-
-    /// Text caret, e.g. "Click here to edit text"
-    Text,
-
-    /// Vertical text caret, e.g. "Click here to edit vertical text"
-    VerticalText,
-
-    // ------------------------------------
-    // Drag-and-drop:
-    /// Indicated an alias, e.g. a shortcut
-    Alias,
-
-    /// Indicate that a copy will be made
-    Copy,
-
-    /// Omnidirectional move icon (e.g. arrows in all cardinal directions)
-    Move,
-
-    /// Can't drop here
-    NoDrop,
-
-    /// Forbidden
-    NotAllowed,
-
-    /// The thing you are hovering can be grabbed
-    Grab,
-
-    /// You are grabbing the thing you are hovering
-    Grabbing,
-
-    // ------------------------------------
-    /// Something can be scrolled in any direction (panned).
-    AllScroll,
-
-    // ------------------------------------
-    // Resizing in two directions:
-    /// Horizontal resize `-` to make something wider or more narrow (left to/from right)
-    ResizeHorizontal,
-
-    /// Diagonal resize `/` (right-up to/from left-down)
-    ResizeNeSw,
-
-    /// Diagonal resize `\` (left-up to/from right-down)
-    ResizeNwSe,
-
-    /// Vertical resize `|` (up-down or down-up)
-    ResizeVertical,
-
-    // ------------------------------------
-    // Resizing in one direction:
-    /// Resize something rightwards (e.g. when dragging the right-most edge of something)
-    ResizeEast,
-
-    /// Resize something down and right (e.g. when dragging the bottom-right corner of something)
-    ResizeSouthEast,
-
-    /// Resize something downwards (e.g. when dragging the bottom edge of something)
-    ResizeSouth,
-
-    /// Resize something down and left (e.g. when dragging the bottom-left corner of something)
-    ResizeSouthWest,
-
-    /// Resize something leftwards (e.g. when dragging the left edge of something)
-    ResizeWest,
-
-    /// Resize something up and left (e.g. when dragging the top-left corner of something)
-    ResizeNorthWest,
-
-    /// Resize something up (e.g. when dragging the top edge of something)
-    ResizeNorth,
-
-    /// Resize something up and right (e.g. when dragging the top-right corner of something)
-    ResizeNorthEast,
-
-    // ------------------------------------
-    /// Resize a column
-    ResizeColumn,
-
-    /// Resize a row
-    ResizeRow,
-
-    // ------------------------------------
-    // Zooming:
-    /// Enhance!
-    ZoomIn,
-
-    /// Let's get a better overview
-    ZoomOut,
-}
-
-impl CursorIcon {
-    pub const ALL: [Self; 35] = [
-        Self::Default,
-        Self::None,
-        Self::ContextMenu,
-        Self::Help,
-        Self::PointingHand,
-        Self::Progress,
-        Self::Wait,
-        Self::Cell,
-        Self::Crosshair,
-        Self::Text,
-        Self::VerticalText,
-        Self::Alias,
-        Self::Copy,
-        Self::Move,
-        Self::NoDrop,
-        Self::NotAllowed,
-        Self::Grab,
-        Self::Grabbing,
-        Self::AllScroll,
-        Self::ResizeHorizontal,
-        Self::ResizeNeSw,
-        Self::ResizeNwSe,
-        Self::ResizeVertical,
-        Self::ResizeEast,
-        Self::ResizeSouthEast,
-        Self::ResizeSouth,
-        Self::ResizeSouthWest,
-        Self::ResizeWest,
-        Self::ResizeNorthWest,
-        Self::ResizeNorth,
-        Self::ResizeNorthEast,
-        Self::ResizeColumn,
-        Self::ResizeRow,
-        Self::ZoomIn,
-        Self::ZoomOut,
-    ];
-}
+pub const ALL_CURSOR_ICONS: [CursorIcon; 36] = [
+    CursorIcon::Default,
+    CursorIcon::ContextMenu,
+    CursorIcon::Help,
+    CursorIcon::Pointer,
+    CursorIcon::Progress,
+    CursorIcon::Wait,
+    CursorIcon::Cell,
+    CursorIcon::Crosshair,
+    CursorIcon::Text,
+    CursorIcon::VerticalText,
+    CursorIcon::Alias,
+    CursorIcon::Copy,
+    CursorIcon::Move,
+    CursorIcon::NoDrop,
+    CursorIcon::NotAllowed,
+    CursorIcon::Grab,
+    CursorIcon::Grabbing,
+    CursorIcon::EResize,
+    CursorIcon::NResize,
+    CursorIcon::NeResize,
+    CursorIcon::NwResize,
+    CursorIcon::SResize,
+    CursorIcon::SeResize,
+    CursorIcon::SwResize,
+    CursorIcon::WResize,
+    CursorIcon::EwResize,
+    CursorIcon::NsResize,
+    CursorIcon::NeswResize,
+    CursorIcon::NwseResize,
+    CursorIcon::ColResize,
+    CursorIcon::RowResize,
+    CursorIcon::AllScroll,
+    CursorIcon::ZoomIn,
+    CursorIcon::ZoomOut,
+    CursorIcon::DndAsk,
+    CursorIcon::AllResize,
+];
 
 /// Things that happened during this frame that the integration may be interested in.
 ///

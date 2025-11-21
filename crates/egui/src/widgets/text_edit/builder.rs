@@ -844,6 +844,7 @@ impl TextEdit<'_> {
             });
         }
 
+        #[cfg(feature = "accesskit")]
         {
             let role = if password {
                 accesskit::Role::PasswordInput
