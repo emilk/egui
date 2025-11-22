@@ -29,7 +29,9 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         c.bench_function("demo_with_tessellate__realistic", |b| {
             b.iter(|| {
                 let full_output = ctx.run(RawInput::default(), |ctx| {
-                    demo_windows.ui(ctx);
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        demo_windows.ui(ui);
+                    });
                 });
                 ctx.tessellate(full_output.shapes, full_output.pixels_per_point)
             });
@@ -38,13 +40,17 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         c.bench_function("demo_no_tessellate", |b| {
             b.iter(|| {
                 ctx.run(RawInput::default(), |ctx| {
-                    demo_windows.ui(ctx);
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        demo_windows.ui(ui);
+                    });
                 })
             });
         });
 
         let full_output = ctx.run(RawInput::default(), |ctx| {
-            demo_windows.ui(ctx);
+            egui::CentralPanel::default().show(ctx, |ui| {
+                demo_windows.ui(ui);
+            });
         });
         c.bench_function("demo_only_tessellate", |b| {
             b.iter(|| ctx.tessellate(full_output.shapes.clone(), full_output.pixels_per_point));
@@ -58,7 +64,9 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         c.bench_function("demo_full_no_tessellate", |b| {
             b.iter(|| {
                 ctx.run(RawInput::default(), |ctx| {
-                    demo_windows.ui(ctx);
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        demo_windows.ui(ui);
+                    });
                 })
             });
         });

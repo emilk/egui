@@ -218,7 +218,7 @@ impl winit::application::ApplicationHandler<UserEvent> for GlowApp {
             self.egui_glow.as_mut().unwrap().run(
                 self.gl_window.as_mut().unwrap().window(),
                 |egui_ctx| {
-                    egui::SidePanel::left("my_side_panel").show(egui_ctx, |ui| {
+                    egui::Panel::left("my_side_panel").show(egui_ctx, |ui| {
                         ui.heading("Hello World!");
                         if ui.button("Quit").clicked() {
                             quit = true;

@@ -84,7 +84,7 @@ fn set_menu_style(style: &mut Style) {
     }
 }
 
-/// The menu bar goes well in a [`crate::TopBottomPanel::top`],
+/// The menu bar goes well in a [`crate::Panel::top`],
 /// but can also be placed in a [`crate::Window`].
 /// In the latter case you may want to wrap it in [`Frame`].
 #[deprecated = "Use `egui::MenuBar::new().ui(` instead"]
@@ -634,7 +634,7 @@ impl SubMenu {
 /// Usually you don't need to use it directly.
 pub struct MenuState {
     /// The opened sub-menu and its [`Id`]
-    sub_menu: Option<(Id, Arc<RwLock<MenuState>>)>,
+    sub_menu: Option<(Id, Arc<RwLock<Self>>)>,
 
     /// Bounding box of this menu (without the sub-menu),
     /// including the frame and everything.
