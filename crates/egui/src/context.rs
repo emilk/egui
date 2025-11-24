@@ -765,9 +765,9 @@ impl Context {
     /// Usually, it `run_ui` will only be called once.
     ///
     /// The [`Ui`] given to the callback will cover the entire [`Self::content_rect`],
-    /// with no margin or background color. Use [`Frame`] to add that.
+    /// with no margin or background color. Use [`crate::Frame`] to add that.
     ///
-    /// You can organize your GUI using [`Panel`].
+    /// You can organize your GUI using [`crate::Panel`].
     ///
     /// Instead of calling `run_ui`, you can alternatively use [`Self::begin_pass`] and [`Context::end_pass`].
     ///
