@@ -8,9 +8,19 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
+    /// The output path for image snapshots.
+    ///
+    /// Default is "tests/snapshots" (relative to the working directory / crate root).
     output_path: PathBuf,
 
+    /// The per-pixel threshold.
+    ///
+    /// Default is 0.6.
     threshold: f32,
+
+    /// The number of pixels that can differ before the test is considered failed.
+    ///
+    /// Default is 0.
     failed_pixel_count_threshold: usize,
 
     windows: OsConfig,
@@ -33,7 +43,10 @@ impl Default for Config {
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct OsConfig {
+    /// Override the per-pixel threshold for this OS.
     threshold: Option<f32>,
+
+    /// Override the failed pixel count threshold for this OS.
     failed_pixel_count_threshold: Option<usize>,
 }
 
@@ -83,8 +96,8 @@ impl Config {
     ///
     /// This is either
     ///  - Based on a `kittest.toml`, found by searching from the current working directory
-    /// (for tests that is the crate root) upwards.
-    ///  - The default configuration, if no `kittest.toml` is found.
+    ///    (for tests that is the crate root) upwards.
+    ///  - The default [Config], if no `kittest.toml` is found.
     pub fn global() -> &'static Self {
         static INSTANCE: std::sync::LazyLock<Config> = std::sync::LazyLock::new(load_config);
         &INSTANCE
