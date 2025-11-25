@@ -358,7 +358,7 @@ impl Tooltip<'_> {
                 // We only show the tooltip when the mouse pointer is still.
                 if !response
                     .ctx
-                    .input(|i| i.pointer.is_still() && i.smooth_scroll_delta == Vec2::ZERO)
+                    .input(|i| i.pointer.is_still() && !i.is_scrolling())
                 {
                     // wait for mouse to stop
                     response.ctx.request_repaint();

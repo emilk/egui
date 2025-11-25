@@ -8,9 +8,7 @@ mod builder;
 mod snapshot;
 
 #[cfg(feature = "snapshot")]
-pub use snapshot::*;
-use std::fmt::{Debug, Display, Formatter};
-use std::time::Duration;
+pub use crate::snapshot::*;
 
 mod app_kind;
 mod config;
@@ -21,19 +19,25 @@ mod texture_to_image;
 #[cfg(feature = "wgpu")]
 pub mod wgpu;
 
-pub(crate) use config::config;
-pub use kittest;
+// re-exports:
+pub use {
+    self::{builder::*, node::*, renderer::*},
+    kittest,
+};
+
+use std::{
+    fmt::{Debug, Display, Formatter},
+    time::Duration,
+};
+
+use egui::{
+    Color32, Key, Modifiers, PointerButton, Pos2, Rect, RepaintCause, Shape, Vec2, ViewportId,
+    epaint::{ClippedShape, RectShape},
+    style::ScrollAnimation,
+};
+use kittest::Queryable;
 
 use crate::app_kind::AppKind;
-
-pub use builder::*;
-pub use node::*;
-pub use renderer::*;
-
-use egui::epaint::{ClippedShape, RectShape};
-use egui::style::ScrollAnimation;
-use egui::{Color32, Key, Modifiers, Pos2, Rect, RepaintCause, Shape, Vec2, ViewportId};
-use kittest::Queryable;
 
 #[derive(Debug, Clone)]
 pub struct ExceededMaxStepsError {
@@ -600,6 +604,32 @@ impl<'a, State> Harness<'a, State> {
         self.key_combination_modifiers(modifiers, &[key]);
     }
 
+    /// Move mouse cursor to this position.
+    pub fn hover_at(&self, pos: egui::Pos2) {
+        self.event(egui::Event::PointerMoved(pos));
+    }
+
+    /// Start dragging from a position.
+    pub fn drag_at(&self, pos: egui::Pos2) {
+        self.event(egui::Event::PointerButton {
+            pos,
+            button: PointerButton::Primary,
+            pressed: true,
+            modifiers: Modifiers::NONE,
+        });
+    }
+
+    /// Stop dragging and remove cursor.
+    pub fn drop_at(&self, pos: egui::Pos2) {
+        self.event(egui::Event::PointerButton {
+            pos,
+            button: PointerButton::Primary,
+            pressed: false,
+            modifiers: Modifiers::NONE,
+        });
+        self.remove_cursor();
+    }
+
     /// Remove the cursor from the screen.
     ///
     /// Will fire a [`egui::Event::PointerGone`] event.
@@ -628,7 +658,28 @@ impl<'a, State> Harness<'a, State> {
     /// Returns an error if the rendering fails.
     #[cfg(any(feature = "wgpu", feature = "snapshot"))]
     pub fn render(&mut self) -> Result<image::RgbaImage, String> {
-        self.renderer.render(&self.ctx, &self.output)
+        let mut output = self.output.clone();
+
+        if let Some(mouse_pos) = self.ctx.input(|i| i.pointer.hover_pos()) {
+            // Paint a mouse cursor:
+            let triangle = vec![
+                mouse_pos,
+                mouse_pos + egui::vec2(16.0, 8.0),
+                mouse_pos + egui::vec2(8.0, 16.0),
+            ];
+
+            output.shapes.push(ClippedShape {
+                clip_rect: self.ctx.content_rect(),
+                shape: egui::epaint::PathShape::convex_polygon(
+                    triangle,
+                    Color32::WHITE,
+                    egui::Stroke::new(1.0, Color32::BLACK),
+                )
+                .into(),
+            });
+        }
+
+        self.renderer.render(&self.ctx, &output)
     }
 
     /// Get the root viewport output

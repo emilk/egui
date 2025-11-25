@@ -1,5 +1,5 @@
 use egui::accesskit::Role;
-use egui::{Align, Color32, Image, Label, Layout, RichText, TextWrapMode, include_image};
+use egui::{Align, Color32, Image, Label, Layout, RichText, Sense, TextWrapMode, include_image};
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable as _;
 
@@ -60,4 +60,61 @@ fn text_edit_rtl() {
         harness.step();
         harness.snapshot(format!("text_edit_rtl_{i}"));
     }
+}
+
+#[test]
+fn combobox_should_have_value() {
+    let harness = Harness::new_ui(|ui| {
+        egui::ComboBox::from_label("Select an option")
+            .selected_text("Option 1")
+            .show_ui(ui, |_ui| {});
+    });
+
+    assert_eq!(
+        harness.get_by_label("Select an option").value().as_deref(),
+        Some("Option 1")
+    );
+}
+
+/// This test ensures that `ui.response().interact(...)` works correctly.
+///
+/// This was broken, because there was an optimization in [`egui::Response::interact`]
+/// which caused the [`Sense`] of the original response to flip-flop between `click` and `hover`
+/// between frames.
+///
+/// See <https://github.com/emilk/egui/pull/7713> for more details.
+#[test]
+fn interact_on_ui_response_should_be_stable() {
+    let mut first_frame = true;
+    let mut click_count = 0;
+    let mut harness = Harness::new_ui(|ui| {
+        let ui_response = ui.response();
+        if !first_frame {
+            assert!(
+                ui_response.sense.contains(Sense::click()),
+                "ui.response() didn't have click sense even though we called interact(Sense::click()) last frame"
+            );
+        }
+
+        // Add a label so we have something to click with kittest
+        ui.add(
+            Label::new("senseless label")
+                .sense(Sense::hover())
+                .selectable(false),
+        );
+
+        let click_response = ui_response.interact(Sense::click());
+        if click_response.clicked() {
+            click_count += 1;
+        }
+        first_frame = false;
+    });
+
+    for i in 0..=10 {
+        harness.run_steps(i);
+        harness.get_by_label("senseless label").click();
+    }
+
+    drop(harness);
+    assert_eq!(click_count, 10, "We missed some clicks!");
 }

@@ -1,6 +1,6 @@
 [package]
 name = "egui_kittest"
-version = "0.33.1"
+version.workspace = true
 authors = ["Lucas Meurer <lucasmeurer96@gmail.com>", "Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Testing library for egui based on kittest and AccessKit"
 edition.workspace = true
@@ -34,8 +34,8 @@ x11 = ["eframe?/x11"]
 
 
 [dependencies]
+egui.workspace = true
 eframe = { workspace = true, optional = true }
-egui = { workspace = true, features = ["accesskit"] }
 kittest.workspace = true
 serde.workspace = true
 toml.workspace = true
