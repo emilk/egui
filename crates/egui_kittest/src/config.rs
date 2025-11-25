@@ -88,7 +88,7 @@ fn load_config() -> Config {
 
 /// Get the global configuration.
 ///
-/// See [Config::global] for details.
+/// See [`Config::global`] for details.
 pub fn config() -> &'static Config {
     Config::global()
 }
