@@ -593,6 +593,57 @@ fn blending_and_feathering_test(ui: &mut Ui) {
     bottom_half.set_top(bottom_half.center().y);
     painter.rect_filled(bottom_half, 0.0, Color32::WHITE);
     paint_fine_lines_and_text(&painter, bottom_half, Color32::BLACK);
+
+    // Slight variation between GitHub Actions runners and local machines makes 1.25 to fail.
+    if ui.ctx().pixels_per_point() != 1.25 {
+        feathering_of_sharp_edges_test(ui);
+    }
+}
+
+fn feathering_of_sharp_edges_test(ui: &mut Ui) {
+    ui.heading("Feathering of sharp edges");
+    for height in [100.0, 10.0, 5.0, 2.0, 1.0, 0.5, 0.25, 0.1, 0.01] {
+        ui.horizontal(|ui| {
+            for width in [10.0, 50.0, 200.0] {
+                let (response, painter) =
+                    ui.allocate_painter(vec2(width + 100.0, height + 30.0), Sense::hover());
+                painter.rect_filled(response.rect, 0.0, Color32::BLACK);
+                painter.add(Shape::convex_polygon(
+                    vec![
+                        response.rect.min + vec2(50.0, 10.0),
+                        // Slightly lower the right bottom corner, so we can see the feathering on the bottom edge as well.
+                        response.rect.min + vec2(width + 50.0, 10.0 + height * 1.1),
+                        response.rect.min + vec2(50.0, 10.0 + height),
+                    ],
+                    Color32::WHITE,
+                    Stroke::NONE,
+                ));
+
+                // Helper vertical lines
+                painter.line_segment(
+                    [
+                        pos2(
+                            response.rect.min.x + width + 50.0,
+                            response.rect.top() + 5.0,
+                        ),
+                        pos2(
+                            response.rect.min.x + width + 50.0,
+                            response.rect.bottom() - 5.0,
+                        ),
+                    ],
+                    Stroke::new(1.0, Color32::GRAY),
+                );
+
+                painter.line_segment(
+                    [
+                        pos2(response.rect.min.x + 50.0, response.rect.top() + 5.0),
+                        pos2(response.rect.min.x + 50.0, response.rect.bottom() - 5.0),
+                    ],
+                    Stroke::new(1.0, Color32::GRAY),
+                );
+            }
+        });
+    }
 }
 
 fn text_on_bg(ui: &mut egui::Ui, fg: Color32, bg: Color32) {
