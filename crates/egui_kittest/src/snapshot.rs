@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use image::ImageError;
 
-use crate::{Harness, config};
+use crate::{Harness, config::config};
 
 pub type SnapshotResult = Result<(), SnapshotError>;
 
@@ -13,21 +13,23 @@ pub type SnapshotResult = Result<(), SnapshotError>;
 pub struct SnapshotOptions {
     /// The threshold for the image comparison.
     ///
-    /// The default is `0.6` (which is enough for most egui tests to pass across different
-    /// wgpu backends).
+    /// Can be configured via kittest.toml. The fallback is `0.6` (which is enough for most egui
+    /// tests to pass across different wgpu backends).
     pub threshold: f32,
 
     /// The number of pixels that can differ before the snapshot is considered a failure.
     ///
     /// Preferably, you should use `threshold` to control the sensitivity of the image comparison.
     /// As a last resort, you can use this to allow a certain number of pixels to differ.
-    /// If `None`, the default is `0` (meaning no pixels can differ).
-    /// If `Some`, the value can be set per OS
+    /// Can be configured via kittest.toml. The fallback is `0` (meaning no pixels can differ).
     pub failed_pixel_count_threshold: usize,
 
     /// The path where the snapshots will be saved.
     ///
-    /// The default is `tests/snapshots`.
+    /// This is relative to the current working directory (usually the crate root when
+    /// running tests).
+    ///
+    /// Can be configured via kittest.toml. The fallback is `tests/snapshots`.
     pub output_path: PathBuf,
 }
 
@@ -63,7 +65,7 @@ pub struct OsThreshold<T> {
 impl Default for OsThreshold<usize> {
     /// Returns the default `failed_pixel_count_threshold` as configured in `kittest.toml`
     ///
-    /// The default is `0`.
+    /// The fallback is `0`.
     fn default() -> Self {
         config().os_failed_pixel_count_threshold()
     }
@@ -72,7 +74,7 @@ impl Default for OsThreshold<usize> {
 impl Default for OsThreshold<f32> {
     /// Returns the default `threshold` as configured in `kittest.toml`
     ///
-    /// The default is `0.6`.
+    /// The fallback is `0.6`.
     fn default() -> Self {
         config().os_threshold()
     }

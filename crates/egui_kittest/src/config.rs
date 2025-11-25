@@ -1,4 +1,3 @@
-use crate::OsThreshold;
 use std::io;
 use std::path::PathBuf;
 
@@ -38,56 +37,72 @@ pub struct OsConfig {
     failed_pixel_count_threshold: Option<usize>,
 }
 
-fn find_project_root() -> io::Result<std::path::PathBuf> {
+fn find_kittest_toml() -> io::Result<std::path::PathBuf> {
     let mut current_dir = std::env::current_dir()?;
 
     loop {
+        let current_kittest = current_dir.join("kittest.toml");
         // Check if Cargo.toml exists in this directory
-        if current_dir.join("Cargo.lock").exists() {
-            return Ok(current_dir);
+        if current_kittest.exists() {
+            return Ok(current_kittest);
         }
 
         // Move up one directory
         if !current_dir.pop() {
             return Err(io::Error::new(
                 io::ErrorKind::NotFound,
-                "Project root not found",
+                "kittest.toml not found",
             ));
         }
     }
 }
 
 fn load_config() -> Config {
-    let project_root = find_project_root();
-
-    if let Ok(project_root) = project_root {
-        let config_path = project_root.join("kittest.toml");
-        if config_path.exists() {
-            let config_str =
-                std::fs::read_to_string(config_path).expect("Failed to read config file");
-            match toml::from_str(&config_str) {
-                Ok(config) => return config,
-                Err(e) => panic!("Failed to parse config file: {e}"),
-            };
+    if let Ok(config_path) = find_kittest_toml() {
+        match std::fs::read_to_string(&config_path) {
+            Ok(config_str) => match toml::from_str(&config_str) {
+                Ok(config) => config,
+                Err(e) => panic!("Failed to parse {}: {e}", &config_path.display()),
+            },
+            Err(err) => {
+                panic!("Failed to read {}: {}", config_path.display(), err);
+            }
         }
+    } else {
+        Config::default()
     }
-
-    Config::default()
 }
 
+/// Get the
 pub fn config() -> &'static Config {
-    Config::get()
+    Config::global()
 }
 
 impl Config {
-    pub fn get() -> &'static Self {
+    /// Get or load the global configuration.
+    ///
+    /// This is either
+    ///  - Based on a `kittest.toml`, found by searching from the current working directory
+    /// (for tests that is the crate root) upwards.
+    ///  - The default configuration, if no `kittest.toml` is found.
+    pub fn global() -> &'static Self {
         static INSTANCE: std::sync::LazyLock<Config> = std::sync::LazyLock::new(load_config);
         &INSTANCE
     }
 
-    pub fn os_threshold(&self) -> OsThreshold<f32> {
+    /// The output path for image snapshots.
+    ///
+    /// Default is "tests/snapshots".
+    pub fn output_path(&self) -> PathBuf {
+        self.output_path.clone()
+    }
+}
+
+#[cfg(feature = "snapshot")]
+impl Config {
+    pub fn os_threshold(&self) -> crate::OsThreshold<f32> {
         let fallback = self.threshold;
-        OsThreshold {
+        crate::OsThreshold {
             windows: self.windows.threshold.unwrap_or(fallback),
             macos: self.mac.threshold.unwrap_or(fallback),
             linux: self.linux.threshold.unwrap_or(fallback),
@@ -95,9 +110,9 @@ impl Config {
         }
     }
 
-    pub fn os_failed_pixel_count_threshold(&self) -> OsThreshold<usize> {
+    pub fn os_failed_pixel_count_threshold(&self) -> crate::OsThreshold<usize> {
         let fallback = self.failed_pixel_count_threshold;
-        OsThreshold {
+        crate::OsThreshold {
             windows: self
                 .windows
                 .failed_pixel_count_threshold
@@ -120,12 +135,5 @@ impl Config {
     /// Default is 0.
     pub fn failed_pixel_count_threshold(&self) -> usize {
         self.os_failed_pixel_count_threshold().threshold()
-    }
-
-    /// The output path for image snapshots.
-    ///
-    /// Default is "tests/snapshots".
-    pub fn output_path(&self) -> PathBuf {
-        self.output_path.clone()
     }
 }
