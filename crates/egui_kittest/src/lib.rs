@@ -11,6 +11,7 @@ mod snapshot;
 pub use crate::snapshot::*;
 
 mod app_kind;
+mod config;
 mod node;
 mod renderer;
 #[cfg(feature = "wgpu")]
