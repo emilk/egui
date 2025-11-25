@@ -764,6 +764,47 @@ impl Context {
     /// and only on the rare occasion that [`Context::request_discard`] is called.
     /// Usually, it `run_ui` will only be called once.
     ///
+    /// The [`Ui`] given to the callback will cover the entire [`Self::content_rect`],
+    /// with no margin or background color. Use [`crate::Frame`] to add that.
+    ///
+    /// You can organize your GUI using [`crate::Panel`].
+    ///
+    /// Instead of calling `run_ui`, you can alternatively use [`Self::begin_pass`] and [`Context::end_pass`].
+    ///
+    /// ```
+    /// // One egui context that you keep reusing:
+    /// let mut ctx = egui::Context::default();
+    ///
+    /// // Each frame:
+    /// let input = egui::RawInput::default();
+    /// let full_output = ctx.run_ui(input, |ui| {
+    ///     ui.label("Hello egui!");
+    /// });
+    /// // handle full_output
+    /// ```
+    ///
+    /// ## See also
+    /// * [`Self::run`]
+    #[must_use]
+    pub fn run_ui(&self, new_input: RawInput, mut run_ui: impl FnMut(&mut Ui)) -> FullOutput {
+        self.run_ui_dyn(new_input, &mut run_ui)
+    }
+
+    #[must_use]
+    fn run_ui_dyn(&self, new_input: RawInput, run_ui: &mut dyn FnMut(&mut Ui)) -> FullOutput {
+        self.run(new_input, |ctx| {
+            crate::CentralPanel::no_frame().show(ctx, |ui| {
+                run_ui(ui);
+            });
+        })
+    }
+
+    /// Run the ui code for one frame.
+    ///
+    /// At most [`Options::max_passes`] calls will be issued to `run_ui`,
+    /// and only on the rare occasion that [`Context::request_discard`] is called.
+    /// Usually, it `run_ui` will only be called once.
+    ///
     /// Put your widgets into a [`crate::Panel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
     ///
     /// Instead of calling `run`, you can alternatively use [`Self::begin_pass`] and [`Context::end_pass`].
@@ -781,8 +822,16 @@ impl Context {
     /// });
     /// // handle full_output
     /// ```
+    ///
+    /// ## See also
+    /// * [`Self::run_ui`]
     #[must_use]
-    pub fn run(&self, mut new_input: RawInput, mut run_ui: impl FnMut(&Self)) -> FullOutput {
+    pub fn run(&self, new_input: RawInput, mut run_ui: impl FnMut(&Self)) -> FullOutput {
+        self.run_dyn(new_input, &mut run_ui)
+    }
+
+    #[must_use]
+    fn run_dyn(&self, mut new_input: RawInput, run_ui: &mut dyn FnMut(&Self)) -> FullOutput {
         profiling::function_scope!();
         let viewport_id = new_input.viewport_id;
         let max_passes = self.write(|ctx| ctx.memory.options.max_passes.get());
