@@ -846,28 +846,28 @@ impl Panel {
         if panel_sizer.size <= self.size_range.min {
             match self.side {
                 PanelSide::Vertical(side) => match side {
-                    VerticalSide::Left => CursorIcon::ResizeEast,
-                    VerticalSide::Right => CursorIcon::ResizeWest,
+                    VerticalSide::Left => CursorIcon::EResize,
+                    VerticalSide::Right => CursorIcon::WResize,
                 },
                 PanelSide::Horizontal(side) => match side {
-                    HorizontalSide::Top => CursorIcon::ResizeSouth,
-                    HorizontalSide::Bottom => CursorIcon::ResizeNorth,
+                    HorizontalSide::Top => CursorIcon::SResize,
+                    HorizontalSide::Bottom => CursorIcon::NResize,
                 },
             }
         } else if panel_sizer.size < self.size_range.max {
             match self.side {
-                PanelSide::Vertical(_) => CursorIcon::ResizeHorizontal,
-                PanelSide::Horizontal(_) => CursorIcon::ResizeVertical,
+                PanelSide::Vertical(_) => CursorIcon::ColResize,
+                PanelSide::Horizontal(_) => CursorIcon::RowResize,
             }
         } else {
             match self.side {
                 PanelSide::Vertical(side) => match side {
-                    VerticalSide::Left => CursorIcon::ResizeWest,
-                    VerticalSide::Right => CursorIcon::ResizeEast,
+                    VerticalSide::Left => CursorIcon::WResize,
+                    VerticalSide::Right => CursorIcon::EResize,
                 },
                 PanelSide::Horizontal(side) => match side {
-                    HorizontalSide::Top => CursorIcon::ResizeNorth,
-                    HorizontalSide::Bottom => CursorIcon::ResizeSouth,
+                    HorizontalSide::Top => CursorIcon::NResize,
+                    HorizontalSide::Bottom => CursorIcon::SResize,
                 },
             }
         }

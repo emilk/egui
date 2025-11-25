@@ -807,6 +807,7 @@ impl Response {
         if let Some(event) = event {
             self.output_event(event);
         } else {
+            #[cfg(feature = "accesskit")]
             self.ctx.accesskit_node_builder(self.id, |builder| {
                 self.fill_accesskit_node_from_widget_info(builder, make_info());
             });
@@ -816,6 +817,7 @@ impl Response {
     }
 
     pub fn output_event(&self, event: crate::output::OutputEvent) {
+        #[cfg(feature = "accesskit")]
         self.ctx.accesskit_node_builder(self.id, |builder| {
             self.fill_accesskit_node_from_widget_info(builder, event.widget_info().clone());
         });
@@ -826,6 +828,7 @@ impl Response {
         self.ctx.output_mut(|o| o.events.push(event));
     }
 
+    #[cfg(feature = "accesskit")]
     pub(crate) fn fill_accesskit_node_common(&self, builder: &mut accesskit::Node) {
         if !self.enabled() {
             builder.set_disabled();
@@ -844,6 +847,7 @@ impl Response {
         }
     }
 
+    #[cfg(feature = "accesskit")]
     fn fill_accesskit_node_from_widget_info(
         &self,
         builder: &mut accesskit::Node,
@@ -918,9 +922,14 @@ impl Response {
     /// # });
     /// ```
     pub fn labelled_by(self, id: Id) -> Self {
+        #[cfg(feature = "accesskit")]
         self.ctx.accesskit_node_builder(self.id, |builder| {
             builder.push_labelled_by(id.accesskit_id());
         });
+        #[cfg(not(feature = "accesskit"))]
+        {
+            let _ = id;
+        }
 
         self
     }

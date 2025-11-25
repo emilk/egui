@@ -133,6 +133,7 @@ impl Ui {
             sizing_pass,
             style,
             sense,
+            #[cfg(feature = "accesskit")]
             accessibility_parent,
         } = ui_builder;
 
@@ -174,6 +175,7 @@ impl Ui {
             min_rect_already_remembered: false,
         };
 
+        #[cfg(feature = "accesskit")]
         if let Some(accessibility_parent) = accessibility_parent {
             ui.ctx()
                 .register_accesskit_parent(ui.unique_id, accessibility_parent);
@@ -200,6 +202,7 @@ impl Ui {
             ui.set_invisible();
         }
 
+        #[cfg(feature = "accesskit")]
         ui.ctx().accesskit_node_builder(ui.unique_id, |node| {
             node.set_role(accesskit::Role::GenericContainer);
         });
@@ -270,6 +273,7 @@ impl Ui {
             sizing_pass,
             style,
             sense,
+            #[cfg(feature = "accesskit")]
             accessibility_parent,
         } = ui_builder;
 
@@ -339,6 +343,7 @@ impl Ui {
             child_ui.disable();
         }
 
+        #[cfg(feature = "accesskit")]
         child_ui.ctx().register_accesskit_parent(
             child_ui.unique_id,
             accessibility_parent.unwrap_or(self.unique_id),
@@ -358,6 +363,7 @@ impl Ui {
             true,
         );
 
+        #[cfg(feature = "accesskit")]
         child_ui
             .ctx()
             .accesskit_node_builder(child_ui.unique_id, |node| {
@@ -1123,6 +1129,7 @@ impl Ui {
 impl Ui {
     /// Check for clicks, drags and/or hover on a specific region of this [`Ui`].
     pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> Response {
+        #[cfg(feature = "accesskit")]
         self.ctx().register_accesskit_parent(id, self.unique_id);
 
         self.ctx().create_widget(

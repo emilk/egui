@@ -624,6 +624,7 @@ impl LabelSelectionState {
             );
         }
 
+        #[cfg(feature = "accesskit")]
         super::accesskit_text::update_accesskit_for_text_widget(
             ui.ctx(),
             response.id,
