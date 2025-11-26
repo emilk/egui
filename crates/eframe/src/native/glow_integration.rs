@@ -906,7 +906,7 @@ fn change_gl_context(
     };
 
     profiling::scope!("make_current");
-    *current_gl_context = Some(not_current.make_current(gl_surface).unwrap());
+    *current_gl_context = not_current.make_current(gl_surface).ok();
 }
 
 impl GlutinWindowContext {
