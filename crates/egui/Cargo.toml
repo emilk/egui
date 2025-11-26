@@ -25,7 +25,6 @@ rustdoc-args = ["--generate-link-to-definition"]
 
 [features]
 default = ["default_fonts"]
-
 ## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast [`epaint::Vertex`], [`emath::Vec2`] etc to `&[u8]`.
 bytemuck = ["epaint/bytemuck"]
 

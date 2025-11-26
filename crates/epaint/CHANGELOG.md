@@ -4,6 +4,10 @@ All notable changes to the epaint crate will be documented in this file.
 This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
+## Unreleased
+### 🔧 Changed
+* Removed the built-in emoji atlas and the `emoji_*` features. Emoji sprites now live in the `egui_noto_emoji` crate which registers glyphs through `egui::Context::register_color_glyph`.
+
 
 ## 0.33.2 - 2025-11-13
 Nothing new
