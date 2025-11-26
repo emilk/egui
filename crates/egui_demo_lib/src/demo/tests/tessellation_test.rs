@@ -1,8 +1,8 @@
 use egui::{
-    Color32, Pos2, Rect, Sense, StrokeKind, Vec2,
-    emath::{GuiRounding as _, TSTransform},
-    epaint::{self, RectShape},
-    vec2,
+    emath::{GuiRounding as _, TSTransform}, epaint::{self, RectShape}, vec2, Color32, Pos2, Rect,
+    Sense,
+    StrokeKind,
+    Vec2,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -357,11 +357,13 @@ fn rect_shape_ui(ui: &mut egui::Ui, shape: &mut RectShape) {
 #[cfg(test)]
 mod tests {
     use crate::View as _;
+    use egui_kittest::SnapshotResults;
 
     use super::*;
 
     #[test]
     fn snapshot_tessellation_test() {
+        let mut snapshot_results = SnapshotResults::new();
         for (name, shape) in TessellationTest::interesting_shapes() {
             let mut test = TessellationTest {
                 shape,
@@ -375,6 +377,7 @@ mod tests {
             harness.run();
 
             harness.snapshot(format!("tessellation_test/{name}"));
+            snapshot_results.extend(harness.take_snapshot_results());
         }
     }
 }
