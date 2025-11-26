@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     collections::BTreeMap,
     sync::{
         Arc,
@@ -10,7 +11,7 @@ use crate::{
     AlphaFromCoverage, TextureAtlas,
     text::{
         Galley, LayoutJob, LayoutSection,
-        font::{Font, FontImpl, GlyphInfo},
+        font::{Font, FontFace, GlyphInfo},
     },
 };
 use emath::{NumExt as _, OrderedFloat};
@@ -116,7 +117,7 @@ impl std::fmt::Display for FontFamily {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct FontData {
     /// The content of a `.ttf` or `.otf` file.
-    pub font: std::borrow::Cow<'static, [u8]>,
+    pub font: Cow<'static, [u8]>,
 
     /// Which font face in the file to use.
     /// When in doubt, use `0`.
@@ -129,7 +130,7 @@ pub struct FontData {
 impl FontData {
     pub fn from_static(font: &'static [u8]) -> Self {
         Self {
-            font: std::borrow::Cow::Borrowed(font),
+            font: Cow::Borrowed(font),
             index: 0,
             tweak: Default::default(),
         }
@@ -137,7 +138,7 @@ impl FontData {
 
     pub fn from_owned(font: Vec<u8>) -> Self {
         Self {
-            font: std::borrow::Cow::Owned(font),
+            font: Cow::Owned(font),
             index: 0,
             tweak: Default::default(),
         }
@@ -184,6 +185,11 @@ pub struct FontTweak {
     ///
     /// Example value: `2.0`.
     pub y_offset: f32,
+
+    /// Override the global font hinting setting for this specific font.
+    ///
+    /// `None` means use the global setting.
+    pub hinting_override: Option<bool>,
 }
 
 impl Default for FontTweak {
@@ -192,24 +198,20 @@ impl Default for FontTweak {
             scale: 1.0,
             y_offset_factor: 0.0,
             y_offset: 0.0,
+            hinting_override: None,
         }
     }
 }
 
 // ----------------------------------------------------------------------------
 
-fn ab_glyph_font_from_font_data(name: &str, data: &FontData) -> ab_glyph::FontArc {
-    match &data.font {
-        std::borrow::Cow::Borrowed(bytes) => {
-            ab_glyph::FontRef::try_from_slice_and_index(bytes, data.index)
-                .map(ab_glyph::FontArc::from)
-        }
-        std::borrow::Cow::Owned(bytes) => {
-            ab_glyph::FontVec::try_from_vec_and_index(bytes.clone(), data.index)
-                .map(ab_glyph::FontArc::from)
-        }
+pub type Blob = Arc<dyn AsRef<[u8]> + Send + Sync>;
+
+fn blob_from_font_data(data: &FontData) -> Blob {
+    match data.clone().font {
+        Cow::Borrowed(bytes) => Arc::new(bytes) as Blob,
+        Cow::Owned(bytes) => Arc::new(bytes) as Blob,
     }
-    .unwrap_or_else(|err| panic!("Error parsing {name:?} TTF/OTF font file: {err}"))
 }
 
 /// Describes the font data and the sizes to use.
@@ -438,7 +440,7 @@ pub(super) struct CachedFamily {
 impl CachedFamily {
     fn new(
         fonts: Vec<FontFaceKey>,
-        fonts_by_id: &mut nohash_hasher::IntMap<FontFaceKey, FontImpl>,
+        fonts_by_id: &mut nohash_hasher::IntMap<FontFaceKey, FontFace>,
     ) -> Self {
         if fonts.is_empty() {
             return Self {
@@ -476,7 +478,7 @@ impl CachedFamily {
     pub(crate) fn glyph_info_no_cache_or_fallback(
         &mut self,
         c: char,
-        fonts_by_id: &mut nohash_hasher::IntMap<FontFaceKey, FontImpl>,
+        fonts_by_id: &mut nohash_hasher::IntMap<FontFaceKey, FontFace>,
     ) -> Option<(FontFaceKey, GlyphInfo)> {
         for font_key in &self.fonts {
             let font_impl = fonts_by_id.get_mut(font_key).expect("Nonexistent font ID");
@@ -513,10 +515,16 @@ impl Fonts {
     pub fn new(
         max_texture_side: usize,
         text_alpha_from_coverage: AlphaFromCoverage,
+        hinting_enabled: bool,
         definitions: FontDefinitions,
     ) -> Self {
         Self {
-            fonts: FontsImpl::new(max_texture_side, text_alpha_from_coverage, definitions),
+            fonts: FontsImpl::new(
+                max_texture_side,
+                text_alpha_from_coverage,
+                hinting_enabled,
+                definitions,
+            ),
             galley_cache: Default::default(),
         }
     }
@@ -532,19 +540,28 @@ impl Fonts {
         &mut self,
         max_texture_side: usize,
         text_alpha_from_coverage: AlphaFromCoverage,
+        hinting_enabled: bool,
     ) {
         let max_texture_side_changed = self.fonts.max_texture_side != max_texture_side;
         let text_alpha_from_coverage_changed =
             self.fonts.atlas.text_alpha_from_coverage != text_alpha_from_coverage;
+        let hinting_enabled_changed = self.fonts.hinting_enabled != hinting_enabled;
         let font_atlas_almost_full = self.fonts.atlas.fill_ratio() > 0.8;
-        let needs_recreate =
-            max_texture_side_changed || text_alpha_from_coverage_changed || font_atlas_almost_full;
+        let needs_recreate = max_texture_side_changed
+            || text_alpha_from_coverage_changed
+            || hinting_enabled_changed
+            || font_atlas_almost_full;
 
         if needs_recreate {
             let definitions = self.fonts.definitions.clone();
 
             *self = Self {
-                fonts: FontsImpl::new(max_texture_side, text_alpha_from_coverage, definitions),
+                fonts: FontsImpl::new(
+                    max_texture_side,
+                    text_alpha_from_coverage,
+                    hinting_enabled,
+                    definitions,
+                ),
                 galley_cache: Default::default(),
             };
         }
@@ -583,6 +600,12 @@ impl Fonts {
     /// Pass this to [`crate::Tessellator`].
     pub fn font_image_size(&self) -> [usize; 2] {
         self.fonts.atlas.size()
+    }
+
+    /// Whether font hinting is currently enabled.
+    #[inline]
+    pub fn hinting_enabled(&self) -> bool {
+        self.fonts.hinting_enabled
     }
 
     /// Can we display this glyph?
@@ -649,6 +672,12 @@ impl FontsView<'_> {
         self.fonts.atlas.size()
     }
 
+    /// Whether font hinting is currently enabled.
+    #[inline]
+    pub fn hinting_enabled(&self) -> bool {
+        self.fonts.hinting_enabled
+    }
+
     /// Width of this character in points.
     ///
     /// If the font doesn't exist, this will return `0.0`.
@@ -671,6 +700,7 @@ impl FontsView<'_> {
     /// Height of one row of text in points.
     ///
     /// Returns a value rounded to [`emath::GUI_ROUNDING`].
+    #[inline]
     pub fn row_height(&mut self, font_id: &FontId) -> f32 {
         self.fonts
             .font(&font_id.family)
@@ -716,6 +746,7 @@ impl FontsView<'_> {
     /// Will wrap text at the given width and line break at `\n`.
     ///
     /// The implementation uses memoization so repeated calls are cheap.
+    #[inline]
     pub fn layout(
         &mut self,
         text: String,
@@ -730,6 +761,7 @@ impl FontsView<'_> {
     /// Will line break at `\n`.
     ///
     /// The implementation uses memoization so repeated calls are cheap.
+    #[inline]
     pub fn layout_no_wrap(
         &mut self,
         text: String,
@@ -743,6 +775,7 @@ impl FontsView<'_> {
     /// Like [`Self::layout`], made for when you want to pick a color for the text later.
     ///
     /// The implementation uses memoization so repeated calls are cheap.
+    #[inline]
     pub fn layout_delayed_color(
         &mut self,
         text: String,
@@ -762,7 +795,8 @@ pub struct FontsImpl {
     max_texture_side: usize,
     definitions: FontDefinitions,
     atlas: TextureAtlas,
-    fonts_by_id: nohash_hasher::IntMap<FontFaceKey, FontImpl>,
+    hinting_enabled: bool,
+    fonts_by_id: nohash_hasher::IntMap<FontFaceKey, FontFace>,
     fonts_by_name: ahash::HashMap<String, FontFaceKey>,
     family_cache: ahash::HashMap<FontFamily, CachedFamily>,
 }
@@ -773,18 +807,23 @@ impl FontsImpl {
     pub fn new(
         max_texture_side: usize,
         text_alpha_from_coverage: AlphaFromCoverage,
+        hinting_enabled: bool,
         definitions: FontDefinitions,
     ) -> Self {
         let texture_width = max_texture_side.at_most(16 * 1024);
         let initial_height = 32; // Keep initial font atlas small, so it is fast to upload to GPU. This will expand as needed anyways.
         let atlas = TextureAtlas::new([texture_width, initial_height], text_alpha_from_coverage);
 
-        let mut fonts_by_id: nohash_hasher::IntMap<FontFaceKey, FontImpl> = Default::default();
+        let mut fonts_by_id: nohash_hasher::IntMap<FontFaceKey, FontFace> = Default::default();
         let mut font_impls: ahash::HashMap<String, FontFaceKey> = Default::default();
         for (name, font_data) in &definitions.font_data {
             let tweak = font_data.tweak;
-            let ab_glyph = ab_glyph_font_from_font_data(name, font_data);
-            let font_impl = FontImpl::new(name.clone(), ab_glyph, tweak);
+            let blob = blob_from_font_data(font_data);
+            let font_impl =
+                FontFace::new(name.clone(), blob, font_data.index, hinting_enabled, tweak)
+                    .unwrap_or_else(|err| {
+                        panic!("Error parsing {name:?} TTF/OTF font file: {err}")
+                    });
             let key = FontFaceKey::new();
             fonts_by_id.insert(key, font_impl);
             font_impls.insert(name.clone(), key);
@@ -794,6 +833,7 @@ impl FontsImpl {
             max_texture_side,
             definitions,
             atlas,
+            hinting_enabled,
             fonts_by_id,
             fonts_by_name: font_impls,
             family_cache: Default::default(),
@@ -1196,6 +1236,7 @@ mod tests {
             let mut fonts = FontsImpl::new(
                 max_texture_side,
                 AlphaFromCoverage::default(),
+                true,
                 FontDefinitions::default(),
             );
 
@@ -1258,6 +1299,7 @@ mod tests {
             let mut fonts = FontsImpl::new(
                 1024,
                 AlphaFromCoverage::default(),
+                true,
                 FontDefinitions::default(),
             );
 
@@ -1306,7 +1348,12 @@ mod tests {
 
     #[test]
     fn test_fallback_glyph_width() {
-        let mut fonts = Fonts::new(1024, AlphaFromCoverage::default(), FontDefinitions::empty());
+        let mut fonts = Fonts::new(
+            1024,
+            AlphaFromCoverage::default(),
+            true,
+            FontDefinitions::empty(),
+        );
         let mut view = fonts.with_pixels_per_point(1.0);
 
         let width = view.glyph_width(&FontId::new(12.0, FontFamily::Proportional), ' ');

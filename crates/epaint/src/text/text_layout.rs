@@ -1060,6 +1060,7 @@ mod tests {
         let mut fonts = FontsImpl::new(
             1024,
             AlphaFromCoverage::default(),
+            true,
             FontDefinitions::default(),
         );
         let mut layout_job = LayoutJob::single_section("W".into(), TextFormat::default());
@@ -1077,6 +1078,7 @@ mod tests {
         let mut fonts = FontsImpl::new(
             1024,
             AlphaFromCoverage::default(),
+            true,
             FontDefinitions::default(),
         );
         let text_format = TextFormat {
@@ -1127,6 +1129,7 @@ mod tests {
         let mut fonts = FontsImpl::new(
             1024,
             AlphaFromCoverage::default(),
+            true,
             FontDefinitions::default(),
         );
         let mut layout_job = LayoutJob::single_section(
@@ -1147,6 +1150,7 @@ mod tests {
         let mut fonts = FontsImpl::new(
             1024,
             AlphaFromCoverage::default(),
+            true,
             FontDefinitions::default(),
         );
         let mut layout_job = LayoutJob::single_section(
@@ -1167,6 +1171,7 @@ mod tests {
         let mut fonts = FontsImpl::new(
             1024,
             AlphaFromCoverage::default(),
+            true,
             FontDefinitions::default(),
         );
         let mut layout_job =
@@ -1191,6 +1196,7 @@ mod tests {
         let mut fonts = FontsImpl::new(
             1024,
             AlphaFromCoverage::default(),
+            true,
             FontDefinitions::default(),
         );
 
@@ -1228,6 +1234,7 @@ mod tests {
         let mut fonts = FontsImpl::new(
             1024,
             AlphaFromCoverage::default(),
+            true,
             FontDefinitions::default(),
         );
 
