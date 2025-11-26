@@ -2,6 +2,26 @@ use crate::{
     Atom, AtomLayout, Atoms, Id, IntoAtoms, NumExt as _, Response, Sense, Shape, Ui, Vec2, Widget,
     WidgetInfo, WidgetType, epaint, pos2,
 };
+use bytemuck::TransparentWrapper;
+use std::ops::{Deref, DerefMut};
+
+#[repr(transparent)]
+#[derive(Debug, TransparentWrapper)]
+struct BoolWrapper(bool);
+
+impl Deref for BoolWrapper {
+    type Target = bool;
+
+    fn deref(&self) -> &bool {
+        &self.0
+    }
+}
+
+impl DerefMut for BoolWrapper {
+    fn deref_mut(&mut self) -> &mut bool {
+        &mut self.0
+    }
+}
 
 // TODO(emilk): allow checkbox without a text label
 /// Boolean on/off control with text label.
@@ -18,18 +38,25 @@ use crate::{
 /// ```
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct Checkbox<'a> {
-    checked: &'a mut bool,
+    checked: &'a mut dyn DerefMut<Target = bool>,
     atoms: Atoms<'a>,
     indeterminate: bool,
 }
 
 impl<'a> Checkbox<'a> {
-    pub fn new(checked: &'a mut bool, atoms: impl IntoAtoms<'a>) -> Self {
+    pub fn new_ref(
+        checked: &'a mut dyn DerefMut<Target = bool>,
+        atoms: impl IntoAtoms<'a>,
+    ) -> Self {
         Checkbox {
             checked,
             atoms: atoms.into_atoms(),
             indeterminate: false,
         }
+    }
+
+    pub fn new(checked: &'a mut bool, atoms: impl IntoAtoms<'a>) -> Self {
+        Self::new_ref(BoolWrapper::wrap_mut(checked), atoms)
     }
 
     pub fn without_text(checked: &'a mut bool) -> Self {
@@ -75,7 +102,7 @@ impl Widget for Checkbox<'_> {
             .allocate(ui);
 
         if prepared.response.clicked() {
-            *checked = !*checked;
+            **checked = !**checked;
             prepared.response.mark_changed();
         }
         prepared.response.widget_info(|| {
@@ -89,7 +116,7 @@ impl Widget for Checkbox<'_> {
                 WidgetInfo::selected(
                     WidgetType::Checkbox,
                     ui.is_enabled(),
-                    *checked,
+                    **checked,
                     text.as_deref().unwrap_or(""),
                 )
             }
@@ -118,7 +145,7 @@ impl Widget for Checkbox<'_> {
                         small_icon_rect.center().y,
                         visuals.fg_stroke,
                     ));
-                } else if *checked {
+                } else if **checked {
                     // Check mark:
                     ui.painter().add(Shape::line(
                         vec![
