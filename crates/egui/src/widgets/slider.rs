@@ -1,6 +1,6 @@
 #![allow(clippy::needless_pass_by_value)] // False positives with `impl ToString`
 
-use std::ops::RangeInclusive;
+use std::ops::{DerefMut, RangeInclusive};
 
 use crate::{
     Color32, DragValue, EventFilter, Key, Label, MINUS_CHAR_STR, NumExt as _, Pos2, Rangef, Rect,
@@ -130,6 +130,21 @@ impl<'a> Slider<'a> {
         let slf = Self::from_get_set(range_f64, move |v: Option<f64>| {
             if let Some(v) = v {
                 *value = Num::from_f64(v);
+            }
+            value.to_f64()
+        });
+
+        if Num::INTEGRAL { slf.integer() } else { slf }
+    }
+
+    pub fn new_ref<Num: emath::Numeric>(
+        value: &'a mut dyn DerefMut<Target = Num>,
+        range: RangeInclusive<Num>,
+    ) -> Self {
+        let range_f64 = range.start().to_f64()..=range.end().to_f64();
+        let slf = Self::from_get_set(range_f64, move |v: Option<f64>| {
+            if let Some(v) = v {
+                **value = Num::from_f64(v);
             }
             value.to_f64()
         });
