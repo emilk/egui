@@ -363,7 +363,7 @@ mod tests {
 
     #[test]
     fn snapshot_tessellation_test() {
-        let mut snapshot_results = SnapshotResults::new();
+        let mut results = SnapshotResults::new();
         for (name, shape) in TessellationTest::interesting_shapes() {
             let mut test = TessellationTest {
                 shape,
@@ -377,7 +377,7 @@ mod tests {
             harness.run();
 
             harness.snapshot(format!("tessellation_test/{name}"));
-            snapshot_results.extend(harness.take_snapshot_results());
+            results.extend_harness(&mut harness);
         }
     }
 }

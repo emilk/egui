@@ -341,7 +341,7 @@ mod tests {
                 };
                 let image_name = format!("widget_gallery_{theme_name}_x{pixels_per_point}");
                 harness.snapshot(&image_name);
-                results.extend(harness.take_snapshot_results());
+                results.extend_harness(&mut harness);
             }
         }
     }
