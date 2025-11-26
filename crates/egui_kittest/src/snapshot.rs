@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use image::ImageError;
 
-use crate::{config::config, Harness};
+use crate::{Harness, config::config};
 
 pub type SnapshotResult = Result<(), SnapshotError>;
 
@@ -814,7 +814,7 @@ impl SnapshotResults {
     }
 
     /// Add all errors from another `SnapshotResults`.
-    pub fn extend(&mut self, other: SnapshotResults) {
+    pub fn extend(&mut self, other: Self) {
         self.handled = false;
         self.errors.extend(other.into_inner());
     }
@@ -866,7 +866,7 @@ impl Drop for SnapshotResults {
         }
 
         thread_local! {
-            static UNHANDLED_SNAPSHOT_RESULTS_COUNTER: std::cell::RefCell<usize> = std::cell::RefCell::new(0);
+            static UNHANDLED_SNAPSHOT_RESULTS_COUNTER: std::cell::RefCell<usize> = const { std::cell::RefCell::new(0) };
         }
 
         if !self.handled {
@@ -875,6 +875,8 @@ impl Drop for SnapshotResults {
                 *count += 1;
                 *count
             });
+
+            #[expect(clippy::manual_assert)]
             if count >= 2 {
                 panic!(
                     r#"
