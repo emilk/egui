@@ -78,6 +78,8 @@ pub struct Harness<'a, State = ()> {
 
     #[cfg(feature = "snapshot")]
     default_snapshot_options: SnapshotOptions,
+    #[cfg(feature = "snapshot")]
+    snapshot_results: SnapshotResults,
 }
 
 impl<State> Debug for Harness<'_, State> {
@@ -87,6 +89,7 @@ impl<State> Debug for Harness<'_, State> {
 }
 
 impl<'a, State> Harness<'a, State> {
+    #[track_caller]
     pub(crate) fn from_builder(
         builder: HarnessBuilder<State>,
         mut app: AppKind<'a, State>,
@@ -156,6 +159,9 @@ impl<'a, State> Harness<'a, State> {
 
             #[cfg(feature = "snapshot")]
             default_snapshot_options,
+
+            #[cfg(feature = "snapshot")]
+            snapshot_results: SnapshotResults::default(),
         };
         // Run the harness until it is stable, ensuring that all Areas are shown and animations are done
         harness.run_ok();
@@ -191,6 +197,7 @@ impl<'a, State> Harness<'a, State> {
     ///
     /// assert_eq!(*harness.state(), true);
     /// ```
+    #[track_caller]
     pub fn new_state(app: impl FnMut(&egui::Context, &mut State) + 'a, state: State) -> Self {
         Self::builder().build_state(app, state)
     }
@@ -216,12 +223,14 @@ impl<'a, State> Harness<'a, State> {
     ///
     /// assert_eq!(*harness.state(), true);
     /// ```
+    #[track_caller]
     pub fn new_ui_state(app: impl FnMut(&mut egui::Ui, &mut State) + 'a, state: State) -> Self {
         Self::builder().build_ui_state(app, state)
     }
 
     /// Create a new [Harness] from the given eframe creation closure.
     #[cfg(feature = "eframe")]
+    #[track_caller]
     pub fn new_eframe(builder: impl FnOnce(&mut eframe::CreationContext<'a>) -> State) -> Self
     where
         State: eframe::App,
@@ -672,6 +681,7 @@ impl<'a> Harness<'a> {
     ///     });
     /// });
     /// ```
+    #[track_caller]
     pub fn new(app: impl FnMut(&egui::Context) + 'a) -> Self {
         Self::builder().build(app)
     }
@@ -692,6 +702,7 @@ impl<'a> Harness<'a> {
     ///     ui.label("Hello, world!");
     /// });
     /// ```
+    #[track_caller]
     pub fn new_ui(app: impl FnMut(&mut egui::Ui) + 'a) -> Self {
         Self::builder().build_ui(app)
     }

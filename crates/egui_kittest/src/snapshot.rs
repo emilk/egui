@@ -630,16 +630,16 @@ impl<State> Harness<'_, State> {
     /// If the new image didn't match the snapshot, a diff image will be saved under `{output_path}/{name}.diff.png`.
     ///
     /// # Panics
-    /// Panics if the image does not match the snapshot, if there was an error reading or writing the
+    /// The result is added to the [`Harness`]'s internal [`SnapshotResults`].
+    ///
+    /// The harness will panic when dropped if there were any snapshot errors.
+    ///
+    /// Errors happen if the image does not match the snapshot, if there was an error reading or writing the
     /// snapshot, if the rendering fails or if no default renderer is available.
     #[track_caller]
     pub fn snapshot_options(&mut self, name: impl Into<String>, options: &SnapshotOptions) {
-        match self.try_snapshot_options(name, options) {
-            Ok(_) => {}
-            Err(err) => {
-                panic!("{err}");
-            }
-        }
+        let result = self.try_snapshot_options(name, options);
+        self.snapshot_results.add(result);
     }
 
     /// Render an image using the setup [`crate::TestRenderer`] and compare it to the snapshot.
@@ -655,12 +655,8 @@ impl<State> Harness<'_, State> {
     /// snapshot, if the rendering fails or if no default renderer is available.
     #[track_caller]
     pub fn snapshot(&mut self, name: impl Into<String>) {
-        match self.try_snapshot(name) {
-            Ok(_) => {}
-            Err(err) => {
-                panic!("{err}");
-            }
-        }
+        let result = self.try_snapshot(name);
+        self.snapshot_results.add(result);
     }
 
     /// Render a snapshot, save it to a temp file and open it in the default image viewer.
@@ -706,6 +702,12 @@ impl<State> Harness<'_, State> {
             }
         }
     }
+
+    /// This removes the snapshot results from the harness. Useful if you e.g. want to merge it
+    /// with the results from another harness (using [`SnapshotResults::add`]).
+    pub fn take_snapshot_results(&mut self) -> SnapshotResults {
+        std::mem::take(&mut self.snapshot_results)
+    }
 }
 
 /// Utility to collect snapshot errors and display them at the end of the test.
@@ -732,9 +734,22 @@ impl<State> Harness<'_, State> {
 /// Panics if there are any errors when dropped (this way it is impossible to forget to call `unwrap`).
 /// If you don't want to panic, you can use [`SnapshotResults::into_result`] or [`SnapshotResults::into_inner`].
 /// If you want to panic early, you can use [`SnapshotResults::unwrap`].
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct SnapshotResults {
     errors: Vec<SnapshotError>,
+    handled: bool,
+    location: std::panic::Location<'static>,
+}
+
+impl Default for SnapshotResults {
+    #[track_caller]
+    fn default() -> Self {
+        Self {
+            errors: Vec::new(),
+            handled: true, // If no snapshots were added, we should consider this handled.
+            location: *std::panic::Location::caller(),
+        }
+    }
 }
 
 impl Display for SnapshotResults {
@@ -752,15 +767,28 @@ impl Display for SnapshotResults {
 }
 
 impl SnapshotResults {
+    #[track_caller]
     pub fn new() -> Self {
         Default::default()
     }
 
     /// Check if the result is an error and add it to the list of errors.
     pub fn add(&mut self, result: SnapshotResult) {
+        self.handled = false;
         if let Err(err) = result {
             self.errors.push(err);
         }
+    }
+
+    /// Add all errors from another `SnapshotResults`.
+    pub fn extend(&mut self, other: Self) {
+        self.handled = false;
+        self.errors.extend(other.into_inner());
+    }
+
+    /// Add all errors from a [`Harness`].
+    pub fn extend_harness<T>(&mut self, harness: &mut Harness<'_, T>) {
+        self.extend(harness.take_snapshot_results());
     }
 
     /// Check if there are any errors.
@@ -774,13 +802,14 @@ impl SnapshotResults {
         if self.has_errors() { Err(self) } else { Ok(()) }
     }
 
+    /// Consume this and return the list of errors.
     pub fn into_inner(mut self) -> Vec<SnapshotError> {
+        self.handled = true;
         std::mem::take(&mut self.errors)
     }
 
     /// Panics if there are any errors, displaying each.
     #[expect(clippy::unused_self)]
-    #[track_caller]
     pub fn unwrap(self) {
         // Panic is handled in drop
     }
@@ -793,7 +822,6 @@ impl From<SnapshotResults> for Vec<SnapshotError> {
 }
 
 impl Drop for SnapshotResults {
-    #[track_caller]
     fn drop(&mut self) {
         // Don't panic if we are already panicking (the test probably failed for another reason)
         if std::thread::panicking() {
@@ -802,6 +830,33 @@ impl Drop for SnapshotResults {
         #[expect(clippy::manual_assert)]
         if self.has_errors() {
             panic!("{}", self);
+        }
+
+        thread_local! {
+            static UNHANDLED_SNAPSHOT_RESULTS_COUNTER: std::cell::RefCell<usize> = const { std::cell::RefCell::new(0) };
+        }
+
+        if !self.handled {
+            let count = UNHANDLED_SNAPSHOT_RESULTS_COUNTER.with(|counter| {
+                let mut count = counter.borrow_mut();
+                *count += 1;
+                *count
+            });
+
+            #[expect(clippy::manual_assert)]
+            if count >= 2 {
+                panic!(
+                    r#"
+Multiple SnapshotResults were dropped without being handled.
+
+In order to allow consistent snapshot updates, all snapshot results within a test should be merged in a single SnapshotResults instance.
+Usually this is handled internally in a harness. If you have multiple harnesses, you can merge the results using `Harness::take_snapshot_results` and `SnapshotResults::extend`.
+
+The SnapshotResult was constructed at {}
+                    "#,
+                    self.location
+                );
+            }
         }
     }
 }
