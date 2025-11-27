@@ -10,7 +10,7 @@ pub enum SizedAtomKind<'a> {
     Empty,
     Text(Arc<Galley>),
     Image(Image<'a>, Vec2),
-    Custom(Id),
+    Sized(Vec2),
 }
 
 impl SizedAtomKind<'_> {
@@ -19,7 +19,8 @@ impl SizedAtomKind<'_> {
         match self {
             SizedAtomKind::Text(galley) => galley.size(),
             SizedAtomKind::Image(_, size) => *size,
-            SizedAtomKind::Empty | SizedAtomKind::Custom(_) => Vec2::ZERO,
+            SizedAtomKind::Sized(size) => *size,
+            SizedAtomKind::Empty => Vec2::ZERO,
         }
     }
 }
