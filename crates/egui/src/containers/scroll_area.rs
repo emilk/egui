@@ -1,10 +1,15 @@
+//! See [`ScrollArea`] for docs.
+
 #![allow(clippy::needless_range_loop)]
 
 use std::ops::{Add, AddAssign, BitOr, BitOrAssign};
 
+use emath::GuiRounding as _;
+use epaint::Margin;
+
 use crate::{
-    Context, CursorIcon, Id, NumExt as _, Pos2, Rangef, Rect, Sense, Ui, UiBuilder, UiKind,
-    UiStackInfo, Vec2, Vec2b, emath, epaint, lerp, pass_state, pos2, remap, remap_clamp,
+    Context, CursorIcon, Id, NumExt as _, Pos2, Rangef, Rect, Response, Sense, Ui, UiBuilder,
+    UiKind, UiStackInfo, Vec2, Vec2b, emath, epaint, lerp, pass_state, pos2, remap, remap_clamp,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -256,7 +261,7 @@ impl AddAssign for ScrollSource {
 /// ### Coordinate system
 /// * content: size of contents (generally large; that's why we want scroll bars)
 /// * outer: size of scroll area including scroll bar(s)
-/// * inner: excluding scroll bar(s). The area we clip the contents to.
+/// * inner: excluding scroll bar(s). The area we clip the contents to. Includes `content_margin`.
 ///
 /// If the floating scroll bars settings is turned on then `inner == outer`.
 ///
@@ -291,6 +296,8 @@ pub struct ScrollArea {
     on_drag_cursor: Option<CursorIcon>,
     scroll_source: ScrollSource,
     wheel_scroll_multiplier: Vec2,
+
+    content_margin: Option<Margin>,
 
     /// If true for vertical or horizontal the scroll wheel will stick to the
     /// end position until user manually changes position. It will become true
@@ -344,6 +351,7 @@ impl ScrollArea {
             on_drag_cursor: None,
             scroll_source: ScrollSource::default(),
             wheel_scroll_multiplier: Vec2::splat(1.0),
+            content_margin: None,
             stick_to_end: Vec2b::FALSE,
             animated: true,
         }
@@ -591,6 +599,18 @@ impl ScrollArea {
         self.direction_enabled[0] || self.direction_enabled[1]
     }
 
+    /// Extra margin added around the contents.
+    ///
+    /// The scroll bars will be either on top of this margin, or outside of it,
+    /// depending on the value of [`crate::style::ScrollStyle::floating`].
+    ///
+    /// Default: [`crate::style::ScrollStyle::content_margin`].
+    #[inline]
+    pub fn content_margin(mut self, margin: impl Into<Margin>) -> Self {
+        self.content_margin = Some(margin.into());
+        self
+    }
+
     /// The scroll handle will stick to the rightmost position even while the content size
     /// changes dynamically. This can be useful to simulate text scrollers coming in from right
     /// hand side. The scroll handle remains stuck until user manually changes position. Once "unstuck"
@@ -642,7 +662,7 @@ struct Prepared {
     scroll_bar_visibility: ScrollBarVisibility,
     scroll_bar_rect: Option<Rect>,
 
-    /// Where on the screen the content is (excludes scroll bars).
+    /// Where on the screen the content is (excludes scroll bars; includes `content_margin`).
     inner_rect: Rect,
 
     content_ui: Ui,
@@ -658,6 +678,9 @@ struct Prepared {
     /// If there was a scroll target before the [`ScrollArea`] was added this frame, it's
     /// not for us to handle so we save it and restore it after this [`ScrollArea`] is done.
     saved_scroll_target: [Option<pass_state::ScrollTarget>; 2],
+
+    /// The response from dragging the background (if enabled)
+    background_drag_response: Option<Response>,
 
     animated: bool,
 }
@@ -678,6 +701,7 @@ impl ScrollArea {
             on_drag_cursor,
             scroll_source,
             wheel_scroll_multiplier,
+            content_margin: _, // Used elsewhere
             stick_to_end,
             animated,
         } = self;
@@ -745,6 +769,12 @@ impl ScrollArea {
         }
 
         let content_max_rect = Rect::from_min_size(inner_rect.min - state.offset, content_max_size);
+
+        // Round to pixels to avoid widgets appearing to "float" when scrolling fractional amounts:
+        let content_max_rect = content_max_rect
+            .round_to_pixels(ui.pixels_per_point())
+            .round_ui();
+
         let mut content_ui = ui.new_child(
             UiBuilder::new()
                 .ui_stack_info(UiStackInfo::new(UiKind::ScrollArea))
@@ -772,70 +802,72 @@ impl ScrollArea {
         let viewport = Rect::from_min_size(Pos2::ZERO + state.offset, inner_size);
         let dt = ui.input(|i| i.stable_dt).at_most(0.1);
 
-        if scroll_source.drag
-            && ui.is_enabled()
-            && (state.content_is_too_large[0] || state.content_is_too_large[1])
-        {
-            // Drag contents to scroll (for touch screens mostly).
-            // We must do this BEFORE adding content to the `ScrollArea`,
-            // or we will steal input from the widgets we contain.
-            let content_response_option = state
-                .interact_rect
-                .map(|rect| ui.interact(rect, id.with("area"), Sense::drag()));
+        let background_drag_response =
+            if scroll_source.drag && ui.is_enabled() && state.content_is_too_large.any() {
+                // Drag contents to scroll (for touch screens mostly).
+                // We must do this BEFORE adding content to the `ScrollArea`,
+                // or we will steal input from the widgets we contain.
+                let content_response_option = state
+                    .interact_rect
+                    .map(|rect| ui.interact(rect, id.with("area"), Sense::drag()));
 
-            if content_response_option
-                .as_ref()
-                .is_some_and(|response| response.dragged())
-            {
-                for d in 0..2 {
-                    if direction_enabled[d] {
-                        ui.input(|input| {
-                            state.offset[d] -= input.pointer.delta()[d];
-                        });
-                        state.scroll_stuck_to_end[d] = false;
-                        state.offset_target[d] = None;
-                    }
-                }
-            } else {
-                // Apply the cursor velocity to the scroll area when the user releases the drag.
                 if content_response_option
                     .as_ref()
-                    .is_some_and(|response| response.drag_stopped())
+                    .is_some_and(|response| response.dragged())
                 {
-                    state.vel =
-                        direction_enabled.to_vec2() * ui.input(|input| input.pointer.velocity());
-                }
-                for d in 0..2 {
-                    // Kinetic scrolling
-                    let stop_speed = 20.0; // Pixels per second.
-                    let friction_coeff = 1000.0; // Pixels per second squared.
+                    for d in 0..2 {
+                        if direction_enabled[d] {
+                            ui.input(|input| {
+                                state.offset[d] -= input.pointer.delta()[d];
+                            });
+                            state.scroll_stuck_to_end[d] = false;
+                            state.offset_target[d] = None;
+                        }
+                    }
+                } else {
+                    // Apply the cursor velocity to the scroll area when the user releases the drag.
+                    if content_response_option
+                        .as_ref()
+                        .is_some_and(|response| response.drag_stopped())
+                    {
+                        state.vel = direction_enabled.to_vec2()
+                            * ui.input(|input| input.pointer.velocity());
+                    }
+                    for d in 0..2 {
+                        // Kinetic scrolling
+                        let stop_speed = 20.0; // Pixels per second.
+                        let friction_coeff = 1000.0; // Pixels per second squared.
 
-                    let friction = friction_coeff * dt;
-                    if friction > state.vel[d].abs() || state.vel[d].abs() < stop_speed {
-                        state.vel[d] = 0.0;
-                    } else {
-                        state.vel[d] -= friction * state.vel[d].signum();
-                        // Offset has an inverted coordinate system compared to
-                        // the velocity, so we subtract it instead of adding it
-                        state.offset[d] -= state.vel[d] * dt;
-                        ctx.request_repaint();
+                        let friction = friction_coeff * dt;
+                        if friction > state.vel[d].abs() || state.vel[d].abs() < stop_speed {
+                            state.vel[d] = 0.0;
+                        } else {
+                            state.vel[d] -= friction * state.vel[d].signum();
+                            // Offset has an inverted coordinate system compared to
+                            // the velocity, so we subtract it instead of adding it
+                            state.offset[d] -= state.vel[d] * dt;
+                            ctx.request_repaint();
+                        }
                     }
                 }
-            }
 
-            // Set the desired mouse cursors.
-            if let Some(response) = content_response_option {
-                if response.dragged() {
-                    if let Some(cursor) = on_drag_cursor {
-                        response.on_hover_cursor(cursor);
+                // Set the desired mouse cursors.
+                if let Some(response) = &content_response_option {
+                    if response.dragged()
+                        && let Some(cursor) = on_drag_cursor
+                    {
+                        ui.ctx().set_cursor_icon(cursor);
+                    } else if response.hovered()
+                        && let Some(cursor) = on_hover_cursor
+                    {
+                        ui.ctx().set_cursor_icon(cursor);
                     }
-                } else if response.hovered()
-                    && let Some(cursor) = on_hover_cursor
-                {
-                    response.on_hover_cursor(cursor);
                 }
-            }
-        }
+
+                content_response_option
+            } else {
+                None
+            };
 
         // Scroll with an animation if we have a target offset (that hasn't been cleared by the code
         // above).
@@ -888,6 +920,7 @@ impl ScrollArea {
             wheel_scroll_multiplier,
             stick_to_end,
             saved_scroll_target,
+            background_drag_response,
             animated,
         }
     }
@@ -969,10 +1002,21 @@ impl ScrollArea {
         ui: &mut Ui,
         add_contents: Box<dyn FnOnce(&mut Ui, Rect) -> R + 'c>,
     ) -> ScrollAreaOutput<R> {
+        let margin = self
+            .content_margin
+            .unwrap_or_else(|| ui.spacing().scroll.content_margin);
+
         let mut prepared = self.begin(ui);
         let id = prepared.id;
         let inner_rect = prepared.inner_rect;
-        let inner = add_contents(&mut prepared.content_ui, prepared.viewport);
+
+        let inner = crate::Frame::NONE
+            .inner_margin(margin)
+            .show(&mut prepared.content_ui, |ui| {
+                add_contents(ui, prepared.viewport)
+            })
+            .inner;
+
         let (content_size, state) = prepared.end(ui);
         ScrollAreaOutput {
             inner,
@@ -1003,6 +1047,7 @@ impl Prepared {
             wheel_scroll_multiplier,
             stick_to_end,
             saved_scroll_target,
+            background_drag_response,
             animated,
         } = self;
 
@@ -1118,7 +1163,16 @@ impl Prepared {
         );
 
         let max_offset = content_size - inner_rect.size();
-        let is_hovering_outer_rect = ui.rect_contains_pointer(outer_rect);
+
+        // Drag-to-scroll?
+        let is_dragging_background = background_drag_response
+            .as_ref()
+            .is_some_and(|r| r.dragged());
+
+        let is_hovering_outer_rect = ui.rect_contains_pointer(outer_rect)
+            && ui.ctx().dragged_id().is_none()
+            || is_dragging_background;
+
         if scroll_source.mouse_wheel && ui.is_enabled() && is_hovering_outer_rect {
             let always_scroll_enabled_direction = ui.style().always_scroll_the_only_direction
                 && direction_enabled[0] != direction_enabled[1];
@@ -1127,9 +1181,9 @@ impl Prepared {
                     let scroll_delta = ui.ctx().input(|input| {
                         if always_scroll_enabled_direction {
                             // no bidirectional scrolling; allow horizontal scrolling without pressing shift
-                            input.smooth_scroll_delta[0] + input.smooth_scroll_delta[1]
+                            input.smooth_scroll_delta()[0] + input.smooth_scroll_delta()[1]
                         } else {
-                            input.smooth_scroll_delta[d]
+                            input.smooth_scroll_delta()[d]
                         }
                     });
                     let scroll_delta = scroll_delta * wheel_scroll_multiplier[d];
@@ -1143,10 +1197,10 @@ impl Prepared {
                         // Clear scroll delta so no parent scroll will use it:
                         ui.ctx().input_mut(|input| {
                             if always_scroll_enabled_direction {
-                                input.smooth_scroll_delta[0] = 0.0;
-                                input.smooth_scroll_delta[1] = 0.0;
+                                input.smooth_scroll_delta()[0] = 0.0;
+                                input.smooth_scroll_delta()[1] = 0.0;
                             } else {
-                                input.smooth_scroll_delta[d] = 0.0;
+                                input.smooth_scroll_delta()[d] = 0.0;
                             }
                         });
 
@@ -1204,6 +1258,7 @@ impl Prepared {
 
                 let is_hovering_bar_area = is_hovering_outer_rect
                     && ui.rect_contains_pointer(max_bar_rect)
+                    && !is_dragging_background
                     || state.scroll_bar_interaction[d];
 
                 let is_hovering_bar_area_t = ui

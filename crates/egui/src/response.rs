@@ -396,7 +396,7 @@ impl Response {
         self.drag_stopped() && self.ctx.input(|i| i.pointer.button_released(button))
     }
 
-    /// If dragged, how many points were we dragged and in what direction?
+    /// If dragged, how many points were we dragged in since last frame?
     #[inline]
     pub fn drag_delta(&self) -> Vec2 {
         if self.dragged() {
@@ -410,7 +410,22 @@ impl Response {
         }
     }
 
-    /// If dragged, how far did the mouse move?
+    /// If dragged, how many points have we been dragged since the start of the drag?
+    #[inline]
+    pub fn total_drag_delta(&self) -> Option<Vec2> {
+        if self.dragged() {
+            let mut delta = self.ctx.input(|i| i.pointer.total_drag_delta())?;
+            if let Some(from_global) = self.ctx.layer_transform_from_global(self.layer_id) {
+                delta *= from_global.scaling;
+            }
+            Some(delta)
+        } else {
+            None
+        }
+    }
+
+    /// If dragged, how far did the mouse move since last frame?
+    ///
     /// This will use raw mouse movement if provided by the integration, otherwise will fall back to [`Response::drag_delta`]
     /// Raw mouse movement is unaccelerated and unclamped by screen boundaries, and does not relate to any position on the screen.
     /// This may be useful in certain situations such as draggable values and 3D cameras, where screen position does not matter.
@@ -709,10 +724,9 @@ impl Response {
     /// ```
     #[must_use]
     pub fn interact(&self, sense: Sense) -> Self {
-        if (self.sense | sense) == self.sense {
-            // Early-out: we already sense everything we need to sense.
-            return self.clone();
-        }
+        // We could check here if the new Sense equals the old one to avoid the extra create_widget
+        // call. But that would break calling `interact` on a response from `Context::read_response`
+        // or `Ui::response`. (See https://github.com/emilk/egui/pull/7713 for more details.)
 
         self.ctx.create_widget(
             WidgetRect {
@@ -793,7 +807,6 @@ impl Response {
         if let Some(event) = event {
             self.output_event(event);
         } else {
-            #[cfg(feature = "accesskit")]
             self.ctx.accesskit_node_builder(self.id, |builder| {
                 self.fill_accesskit_node_from_widget_info(builder, make_info());
             });
@@ -803,7 +816,6 @@ impl Response {
     }
 
     pub fn output_event(&self, event: crate::output::OutputEvent) {
-        #[cfg(feature = "accesskit")]
         self.ctx.accesskit_node_builder(self.id, |builder| {
             self.fill_accesskit_node_from_widget_info(builder, event.widget_info().clone());
         });
@@ -814,7 +826,6 @@ impl Response {
         self.ctx.output_mut(|o| o.events.push(event));
     }
 
-    #[cfg(feature = "accesskit")]
     pub(crate) fn fill_accesskit_node_common(&self, builder: &mut accesskit::Node) {
         if !self.enabled() {
             builder.set_disabled();
@@ -833,7 +844,6 @@ impl Response {
         }
     }
 
-    #[cfg(feature = "accesskit")]
     fn fill_accesskit_node_from_widget_info(
         &self,
         builder: &mut accesskit::Node,
@@ -908,14 +918,9 @@ impl Response {
     /// # });
     /// ```
     pub fn labelled_by(self, id: Id) -> Self {
-        #[cfg(feature = "accesskit")]
         self.ctx.accesskit_node_builder(self.id, |builder| {
             builder.push_labelled_by(id.accesskit_id());
         });
-        #[cfg(not(feature = "accesskit"))]
-        {
-            let _ = id;
-        }
 
         self
     }

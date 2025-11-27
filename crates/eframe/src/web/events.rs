@@ -831,6 +831,7 @@ fn install_wheel(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsV
                 unit,
                 delta,
                 modifiers,
+                phase: egui::TouchPhase::Move,
             }
         };
         let should_stop_propagation = (runner.web_options.should_stop_propagation)(&egui_event);

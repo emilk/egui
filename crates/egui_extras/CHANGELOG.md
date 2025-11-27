@@ -5,6 +5,17 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.33.2 - 2025-11-13
+Nothing new
+
+
+## 0.33.0 - 2025-10-09
+* Fix: use unique id for resize columns in `Table` [#7414](https://github.com/emilk/egui/pull/7414) by [@zezic](https://github.com/zezic)
+* Feat: Add serde serialization to SyntectSettings [#7506](https://github.com/emilk/egui/pull/7506) by [@bircni](https://github.com/bircni)
+* Make individual egui_extras image loaders public [#7551](https://github.com/emilk/egui/pull/7551) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Update MSRV from 1.86 to 1.88 [#7579](https://github.com/emilk/egui/pull/7579) by [@Wumpf](https://github.com/Wumpf)
+
+
 ## 0.32.3 - 2025-09-12
 * Fix deadlock in `FileLoader` and `EhttpLoader` [#7515](https://github.com/emilk/egui/pull/7515) by [@emilk](https://github.com/emilk)
 

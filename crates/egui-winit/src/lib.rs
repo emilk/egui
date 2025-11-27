@@ -312,8 +312,8 @@ impl State {
                     consumed: self.egui_ctx.wants_pointer_input(),
                 }
             }
-            WindowEvent::MouseWheel { delta, .. } => {
-                self.on_mouse_wheel(window, *delta);
+            WindowEvent::MouseWheel { delta, phase, .. } => {
+                self.on_mouse_wheel(window, *delta, *phase);
                 EventResponse {
                     repaint: true,
                     consumed: self.egui_ctx.wants_pointer_input(),
@@ -545,12 +545,13 @@ impl State {
                 }
             }
 
-            WindowEvent::PanGesture { delta, .. } => {
+            WindowEvent::PanGesture { delta, phase, .. } => {
                 let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
 
                 self.egui_input.events.push(egui::Event::MouseWheel {
                     unit: egui::MouseWheelUnit::Point,
                     delta: Vec2::new(delta.x, delta.y) / pixels_per_point,
+                    phase: to_egui_touch_phase(*phase),
                     modifiers: self.egui_input.modifiers,
                 });
                 EventResponse {
@@ -680,12 +681,7 @@ impl State {
         self.egui_input.events.push(egui::Event::Touch {
             device_id: egui::TouchDeviceId(egui::epaint::util::hash(touch.device_id)),
             id: egui::TouchId::from(touch.id),
-            phase: match touch.phase {
-                winit::event::TouchPhase::Started => egui::TouchPhase::Start,
-                winit::event::TouchPhase::Moved => egui::TouchPhase::Move,
-                winit::event::TouchPhase::Ended => egui::TouchPhase::End,
-                winit::event::TouchPhase::Cancelled => egui::TouchPhase::Cancel,
-            },
+            phase: to_egui_touch_phase(touch.phase),
             pos: egui::pos2(
                 touch.location.x as f32 / pixels_per_point,
                 touch.location.y as f32 / pixels_per_point,
@@ -738,7 +734,12 @@ impl State {
         }
     }
 
-    fn on_mouse_wheel(&mut self, window: &Window, delta: winit::event::MouseScrollDelta) {
+    fn on_mouse_wheel(
+        &mut self,
+        window: &Window,
+        delta: winit::event::MouseScrollDelta,
+        phase: winit::event::TouchPhase,
+    ) {
         let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
 
         {
@@ -754,10 +755,12 @@ impl State {
                     egui::vec2(x as f32, y as f32) / pixels_per_point,
                 ),
             };
+            let phase = to_egui_touch_phase(phase);
             let modifiers = self.egui_input.modifiers;
             self.egui_input.events.push(egui::Event::MouseWheel {
                 unit,
                 delta,
+                phase,
                 modifiers,
             });
         }
@@ -885,7 +888,6 @@ impl State {
             events: _,                    // handled elsewhere
             mutable_text_under_cursor: _, // only used in eframe web
             ime,
-            #[cfg(feature = "accesskit")]
             accesskit_update,
             num_completed_passes: _,    // `egui::Context::run` handles this
             request_discard_reasons: _, // `egui::Context::run` handles this
@@ -944,6 +946,9 @@ impl State {
             profiling::scope!("accesskit");
             accesskit.update_if_active(|| update);
         }
+
+        #[cfg(not(feature = "accesskit"))]
+        let _ = accesskit_update;
     }
 
     fn set_cursor_icon(&mut self, window: &Window, cursor_icon: egui::CursorIcon) {
@@ -967,6 +972,15 @@ impl State {
             // Remember to set the cursor again once the cursor returns to the screen:
             self.current_cursor_icon = None;
         }
+    }
+}
+
+fn to_egui_touch_phase(phase: winit::event::TouchPhase) -> egui::TouchPhase {
+    match phase {
+        winit::event::TouchPhase::Started => egui::TouchPhase::Start,
+        winit::event::TouchPhase::Moved => egui::TouchPhase::Move,
+        winit::event::TouchPhase::Ended => egui::TouchPhase::End,
+        winit::event::TouchPhase::Cancelled => egui::TouchPhase::Cancel,
     }
 }
 

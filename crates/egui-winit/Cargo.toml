@@ -24,7 +24,7 @@ rustdoc-args = ["--generate-link-to-definition"]
 default = ["clipboard", "links", "wayland", "winit/default", "x11"]
 
 ## Enable platform accessibility API implementations through [AccessKit](https://accesskit.dev/).
-accesskit = ["dep:accesskit_winit", "egui/accesskit"]
+accesskit = ["dep:accesskit_winit"]
 
 # Allow crates to choose an android-activity backend via Winit
 # - It's important that most applications should not have to depend on android-activity directly, and can
@@ -100,6 +100,4 @@ smithay-clipboard = { workspace = true, optional = true }
 wayland-cursor = { workspace = true, optional = true }
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
-arboard = { workspace = true, optional = true, features = [
-  "image-data",
-] }
+arboard = { workspace = true, optional = true, features = ["image-data"] }

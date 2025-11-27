@@ -8,11 +8,10 @@ mod builder;
 mod snapshot;
 
 #[cfg(feature = "snapshot")]
-pub use snapshot::*;
-use std::fmt::{Debug, Display, Formatter};
-use std::time::Duration;
+pub use crate::snapshot::*;
 
 mod app_kind;
+mod config;
 mod node;
 mod renderer;
 #[cfg(feature = "wgpu")]
@@ -20,18 +19,25 @@ mod texture_to_image;
 #[cfg(feature = "wgpu")]
 pub mod wgpu;
 
-pub use kittest;
+// re-exports:
+pub use {
+    self::{builder::*, node::*, renderer::*},
+    kittest,
+};
+
+use std::{
+    fmt::{Debug, Display, Formatter},
+    time::Duration,
+};
+
+use egui::{
+    Color32, Key, Modifiers, PointerButton, Pos2, Rect, RepaintCause, Shape, Vec2, ViewportId,
+    epaint::{ClippedShape, RectShape},
+    style::ScrollAnimation,
+};
+use kittest::Queryable;
 
 use crate::app_kind::AppKind;
-
-pub use builder::*;
-pub use node::*;
-pub use renderer::*;
-
-use egui::epaint::{ClippedShape, RectShape};
-use egui::style::ScrollAnimation;
-use egui::{Color32, Key, Modifiers, Pos2, Rect, RepaintCause, Shape, Vec2, ViewportId};
-use kittest::Queryable;
 
 #[derive(Debug, Clone)]
 pub struct ExceededMaxStepsError {
@@ -52,6 +58,7 @@ impl Display for ExceededMaxStepsError {
 }
 
 /// The test Harness. This contains everything needed to run the test.
+///
 /// Create a new Harness using [`Harness::new`] or [`Harness::builder`].
 ///
 /// The [Harness] has a optional generic state that can be used to pass data to the app / ui closure.
@@ -74,6 +81,11 @@ pub struct Harness<'a, State = ()> {
     step_dt: f32,
     wait_for_pending_images: bool,
     queued_events: EventQueue,
+
+    #[cfg(feature = "snapshot")]
+    default_snapshot_options: SnapshotOptions,
+    #[cfg(feature = "snapshot")]
+    snapshot_results: SnapshotResults,
 }
 
 impl<State> Debug for Harness<'_, State> {
@@ -83,6 +95,7 @@ impl<State> Debug for Harness<'_, State> {
 }
 
 impl<'a, State> Harness<'a, State> {
+    #[track_caller]
     pub(crate) fn from_builder(
         builder: HarnessBuilder<State>,
         mut app: AppKind<'a, State>,
@@ -99,6 +112,9 @@ impl<'a, State> Harness<'a, State> {
             state: _,
             mut renderer,
             wait_for_pending_images,
+
+            #[cfg(feature = "snapshot")]
+            default_snapshot_options,
         } = builder;
         let ctx = ctx.unwrap_or_default();
         ctx.set_theme(theme);
@@ -146,6 +162,12 @@ impl<'a, State> Harness<'a, State> {
             step_dt,
             wait_for_pending_images,
             queued_events: Default::default(),
+
+            #[cfg(feature = "snapshot")]
+            default_snapshot_options,
+
+            #[cfg(feature = "snapshot")]
+            snapshot_results: SnapshotResults::default(),
         };
         // Run the harness until it is stable, ensuring that all Areas are shown and animations are done
         harness.run_ok();
@@ -181,6 +203,7 @@ impl<'a, State> Harness<'a, State> {
     ///
     /// assert_eq!(*harness.state(), true);
     /// ```
+    #[track_caller]
     pub fn new_state(app: impl FnMut(&egui::Context, &mut State) + 'a, state: State) -> Self {
         Self::builder().build_state(app, state)
     }
@@ -206,12 +229,14 @@ impl<'a, State> Harness<'a, State> {
     ///
     /// assert_eq!(*harness.state(), true);
     /// ```
+    #[track_caller]
     pub fn new_ui_state(app: impl FnMut(&mut egui::Ui, &mut State) + 'a, state: State) -> Self {
         Self::builder().build_ui_state(app, state)
     }
 
     /// Create a new [Harness] from the given eframe creation closure.
     #[cfg(feature = "eframe")]
+    #[track_caller]
     pub fn new_eframe(builder: impl FnOnce(&mut eframe::CreationContext<'a>) -> State) -> Self
     where
         State: eframe::App,
@@ -588,6 +613,32 @@ impl<'a, State> Harness<'a, State> {
         self.key_combination_modifiers(modifiers, &[key]);
     }
 
+    /// Move mouse cursor to this position.
+    pub fn hover_at(&self, pos: egui::Pos2) {
+        self.event(egui::Event::PointerMoved(pos));
+    }
+
+    /// Start dragging from a position.
+    pub fn drag_at(&self, pos: egui::Pos2) {
+        self.event(egui::Event::PointerButton {
+            pos,
+            button: PointerButton::Primary,
+            pressed: true,
+            modifiers: Modifiers::NONE,
+        });
+    }
+
+    /// Stop dragging and remove cursor.
+    pub fn drop_at(&self, pos: egui::Pos2) {
+        self.event(egui::Event::PointerButton {
+            pos,
+            button: PointerButton::Primary,
+            pressed: false,
+            modifiers: Modifiers::NONE,
+        });
+        self.remove_cursor();
+    }
+
     /// Remove the cursor from the screen.
     ///
     /// Will fire a [`egui::Event::PointerGone`] event.
@@ -616,7 +667,28 @@ impl<'a, State> Harness<'a, State> {
     /// Returns an error if the rendering fails.
     #[cfg(any(feature = "wgpu", feature = "snapshot"))]
     pub fn render(&mut self) -> Result<image::RgbaImage, String> {
-        self.renderer.render(&self.ctx, &self.output)
+        let mut output = self.output.clone();
+
+        if let Some(mouse_pos) = self.ctx.input(|i| i.pointer.hover_pos()) {
+            // Paint a mouse cursor:
+            let triangle = vec![
+                mouse_pos,
+                mouse_pos + egui::vec2(16.0, 8.0),
+                mouse_pos + egui::vec2(8.0, 16.0),
+            ];
+
+            output.shapes.push(ClippedShape {
+                clip_rect: self.ctx.content_rect(),
+                shape: egui::epaint::PathShape::convex_polygon(
+                    triangle,
+                    Color32::WHITE,
+                    egui::Stroke::new(1.0, Color32::BLACK),
+                )
+                .into(),
+            });
+        }
+
+        self.renderer.render(&self.ctx, &output)
     }
 
     /// Get the root viewport output
@@ -662,6 +734,7 @@ impl<'a> Harness<'a> {
     ///     });
     /// });
     /// ```
+    #[track_caller]
     pub fn new(app: impl FnMut(&egui::Context) + 'a) -> Self {
         Self::builder().build(app)
     }
@@ -682,6 +755,7 @@ impl<'a> Harness<'a> {
     ///     ui.label("Hello, world!");
     /// });
     /// ```
+    #[track_caller]
     pub fn new_ui(app: impl FnMut(&mut egui::Ui) + 'a) -> Self {
         Self::builder().build_ui(app)
     }

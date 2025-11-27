@@ -5,6 +5,25 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.33.2 - 2025-11-13
+* Don't enable `arboard` on iOS [#7663](https://github.com/emilk/egui/pull/7663) by [@irh](https://github.com/irh)
+
+
+## 0.33.0 - 2025-10-09
+### ⭐ Added
+* Add rotation gesture support for trackpad sources [#7453](https://github.com/emilk/egui/pull/7453) by [@thatcomputerguy0101](https://github.com/thatcomputerguy0101)
+* Add support for the safe area on iOS [#7578](https://github.com/emilk/egui/pull/7578) by [@irh](https://github.com/irh)
+
+### 🔧 Changed
+* Update MSRV from 1.86 to 1.88 [#7579](https://github.com/emilk/egui/pull/7579) by [@Wumpf](https://github.com/Wumpf)
+* Create `egui_wgpu::RendererOptions` [#7601](https://github.com/emilk/egui/pull/7601) by [@emilk](https://github.com/emilk)
+
+### 🐛 Fixed
+* Fix build error in egui-winit with profiling enabled [#7557](https://github.com/emilk/egui/pull/7557) by [@torokati44](https://github.com/torokati44)
+* Properly end winit event loop [#7565](https://github.com/emilk/egui/pull/7565) by [@tye-exe](https://github.com/tye-exe)
+* Fix eframe window not being focused on mac on startup [#7593](https://github.com/emilk/egui/pull/7593) by [@emilk](https://github.com/emilk)
+
+
 ## 0.32.3 - 2025-09-12
 Nothing new
 

@@ -23,25 +23,25 @@ type-complexity-threshold = 350
 
 # https://rust-lang.github.io/rust-clippy/master/index.html#disallowed_macros
 disallowed-macros = [
-    'std::dbg',
-    'std::unimplemented',
+  'std::dbg',
+  'std::unimplemented',
 
-    # TODO(emilk): consider forbidding these to encourage the use of proper log stream, and then explicitly allow legitimate uses
-    # 'std::eprint',
-    # 'std::eprintln',
-    # 'std::print',
-    # 'std::println',
+  # TODO(emilk): consider forbidding these to encourage the use of proper log stream, and then explicitly allow legitimate uses
+  # 'std::eprint',
+  # 'std::eprintln',
+  # 'std::print',
+  # 'std::println',
 ]
 
 # https://rust-lang.github.io/rust-clippy/master/index.html#disallowed_methods
 disallowed-methods = [
-    # NOTE: There are many things that aren't allowed on wasm,
-    # but we cannot disable them all here (because of e.g. https://github.com/rust-lang/rust-clippy/issues/10406)
-    # so we do that in `clipppy_wasm.toml` instead.
+  # NOTE: There are many things that aren't allowed on wasm,
+  # but we cannot disable them all here (because of e.g. https://github.com/rust-lang/rust-clippy/issues/10406)
+  # so we do that in `clipppy_wasm.toml` instead.
 
-    { path = "std::env::temp_dir", readon = "Use the tempfile crate instead" },
-    { path = "std::panic::catch_unwind", reason = "We compile with `panic = abort" },
-    { path = "std::thread::spawn", readon = "Use `std::thread::Builder` and name the thread" },
+  { path = "std::env::temp_dir", readon = "Use the tempfile crate instead" },
+  { path = "std::panic::catch_unwind", reason = "We compile with `panic = abort" },
+  { path = "std::thread::spawn", readon = "Use `std::thread::Builder` and name the thread" },
 ]
 
 # https://rust-lang.github.io/rust-clippy/master/index.html#disallowed_names
@@ -49,24 +49,24 @@ disallowed-names = []
 
 # https://rust-lang.github.io/rust-clippy/master/index.html#disallowed_types
 disallowed-types = [
-    { path = "std::sync::Condvar", reason = "Use parking_lot instead" },
-    { path = "std::sync::Mutex", reason = "Use epaint::mutex instead" },
-    { path = "std::sync::RwLock", reason = "Use epaint::mutex instead" },
-    { path = "winit::dpi::LogicalPosition", reason = "We do our own pixels<->point conversion, taking `egui_ctx.zoom_factor` into account" },
-    { path = "winit::dpi::LogicalSize", reason = "We do our own pixels<->point conversion, taking `egui_ctx.zoom_factor` into account" },
-    # "std::sync::Once",  # enabled for now as the `log_once` macro uses it internally
+  { path = "std::sync::Condvar", reason = "Use parking_lot instead" },
+  { path = "std::sync::Mutex", reason = "Use epaint::mutex instead" },
+  { path = "std::sync::RwLock", reason = "Use epaint::mutex instead" },
+  { path = "winit::dpi::LogicalPosition", reason = "We do our own pixels<->point conversion, taking `egui_ctx.zoom_factor` into account" },
+  { path = "winit::dpi::LogicalSize", reason = "We do our own pixels<->point conversion, taking `egui_ctx.zoom_factor` into account" },
+  # "std::sync::Once",  # enabled for now as the `log_once` macro uses it internally
 ]
 
 # -----------------------------------------------------------------------------
 
 # Allow-list of words for markdown in docstrings https://rust-lang.github.io/rust-clippy/master/index.html#doc_markdown
 doc-valid-idents = [
-    # You must also update the same list in `scripts/clippy_wasm/clippy.toml`!
-    "AccessKit",
-    "WebGL",
-    "WebGL1",
-    "WebGL2",
-    "WebGPU",
-    "VirtualBox",
-    "..",
+  # You must also update the same list in `scripts/clippy_wasm/clippy.toml`!
+  "AccessKit",
+  "WebGL",
+  "WebGL1",
+  "WebGL2",
+  "WebGPU",
+  "VirtualBox",
+  "..",
 ]

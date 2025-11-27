@@ -137,7 +137,12 @@ impl TextShape {
         *mesh_bounds = transform.scaling * *mesh_bounds;
         *intrinsic_size = transform.scaling * *intrinsic_size;
 
-        for text::PlacedRow { pos, row } in rows {
+        for text::PlacedRow {
+            pos,
+            row,
+            ends_with_newline: _,
+        } in rows
+        {
             *pos *= transform.scaling;
 
             let text::Row {
@@ -145,7 +150,6 @@ impl TextShape {
                 glyphs: _, // TODO(emilk): would it make sense to transform these?
                 size,
                 visuals,
-                ends_with_newline: _,
             } = Arc::make_mut(row);
 
             *size *= transform.scaling;

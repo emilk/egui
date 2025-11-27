@@ -14,6 +14,99 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.33.2 - 2025-11-13
+### ⭐ Added
+* Add `Plugin::on_widget_under_pointer` to support widget inspector [#7652](https://github.com/emilk/egui/pull/7652) by [@juancampa](https://github.com/juancampa)
+* Add `Response::total_drag_delta` and `PointerState::total_drag_delta` [#7708](https://github.com/emilk/egui/pull/7708) by [@emilk](https://github.com/emilk)
+
+### 🔧 Changed
+* Improve accessibility and testability of `ComboBox` [#7658](https://github.com/emilk/egui/pull/7658) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+### 🐛 Fixed
+* Fix `profiling::scope` compile error when profiling using `tracing` backend [#7646](https://github.com/emilk/egui/pull/7646) by [@PPakalns](https://github.com/PPakalns)
+* Fix edge cases in "smart aiming" in sliders [#7680](https://github.com/emilk/egui/pull/7680) by [@emilk](https://github.com/emilk)
+* Hide scroll bars when dragging other things [#7689](https://github.com/emilk/egui/pull/7689) by [@emilk](https://github.com/emilk)
+* Prevent widgets sometimes appearing to move relative to each other [#7710](https://github.com/emilk/egui/pull/7710) by [@emilk](https://github.com/emilk)
+* Fix `ui.response().interact(Sense::click())` being flakey [#7713](https://github.com/emilk/egui/pull/7713) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+
+## 0.33.0 - 2025-10-09 - `egui::Plugin`, better kerning, kitdiff viewer
+Highlights from this release:
+- `egui::Plugin` a improved way to create and access egui plugins
+- [kitdiff](https://github.com/rerun-io/kitdiff), a viewer for egui_kittest image snapshots (and a general image diff tool)
+- better kerning
+
+
+### Improved kerning
+As a step towards using [parley](https://github.com/linebender/parley) for font rendering, @valadaptive has refactored the font loading and rendering code. A result of this (next to the font rendering code being much nicer now) is improved kerning.
+Notice how the c moved away from the k:
+
+![Oct-09-2025 16-21-58](https://github.com/user-attachments/assets/d4a17e87-5e98-40db-a85a-fa77fa77aceb)
+
+
+### `egui::Plugin` trait
+We've added a new trait-based plugin api, meant to replace `Context::on_begin_pass` and `Context::on_end_pass`.
+This makes it a lot easier to handle state in your plugins. Instead of having to write to egui memory it can live right on your plugin struct.
+The trait based api also makes easier to add new hooks that plugins can use. In addition to `on_begin_pass` and `on_end_pass`, the `Plugin` trait now has a `input_hook` and `output_hook` which you can use to inspect / modify the `RawInput` / `FullOutput`.
+
+### kitdiff, a image diff viewer
+At rerun we have a ton of snapshots. Some PRs will change most of them (e.g. [the](https://github.com/rerun-io/rerun/pull/11253/files) [one](https://rerun-io.github.io/kitdiff/?url=https://github.com/rerun-io/rerun/pull/11253/files) that updated egui and introduced the kerning improvements, ~500 snapshots changed!).
+If you really want to look at every changed snapshot it better be as efficient as possible, and the experience on github, fiddeling with the sliders, is kind of frustrating.
+In order to fix this, we've made [kitdiff](https://rerun-io.github.io/kitdiff/).
+You can use it locally via
+- `kitdiff files .` will search for .new.png and .diff.png files
+- `kitdiff git` will compare the current files to the default branch (main/master)
+  Or in the browser via
+- going to https://rerun-io.github.io/kitdiff/ and pasting a PR or github artifact url
+- linking to kitdiff via e.g. a github workflow `https://rerun-io.github.io/kitdiff/?url=<link_to_pr_or_artifact>`
+
+To install kitdiff run `cargo install --git https://github.com/rerun-io/kitdiff`
+
+Here is a video showing the kerning changes in kitdiff ([try it yourself](https://rerun-io.github.io/kitdiff/?url=https://github.com/rerun-io/rerun/pull/11253/files)):
+
+https://github.com/user-attachments/assets/74640af1-09ba-435a-9d0c-2cbeee140c8f
+
+###  Migration guide
+- `egui::Mutex` now has a timeout as a simple deadlock detection
+    - If you use a `egui::Mutex` in some place where it's held for longer than a single frame, you should switch to the std mutex or parking_lot instead (egui mutexes are wrappers around parking lot)
+- `screen_rect` is deprecated
+    - In order to support safe areas, egui now has `viewport_rect` and `content_rect`.
+    - Update all usages of `screen_rect` to `content_rect`, unless you are sure that you want to draw outside the `safe area` (which would mean your Ui may be covered by notches, system ui, etc.)
+
+
+### ⭐ Added
+* New Plugin trait [#7385](https://github.com/emilk/egui/pull/7385) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Add `Ui::take_available_space()` helper function, which sets the Ui's minimum size to the available space [#7573](https://github.com/emilk/egui/pull/7573) by [@IsseW](https://github.com/IsseW)
+* Add support for the safe area on iOS [#7578](https://github.com/emilk/egui/pull/7578) by [@irh](https://github.com/irh)
+* Add `UiBuilder::global_scope` and `UiBuilder::id` [#7372](https://github.com/emilk/egui/pull/7372) by [@Icekey](https://github.com/Icekey)
+* Add `emath::fast_midpoint` [#7435](https://github.com/emilk/egui/pull/7435) by [@emilk](https://github.com/emilk)
+* Make the `hex_color` macro `const` [#7444](https://github.com/emilk/egui/pull/7444) by [@YgorSouza](https://github.com/YgorSouza)
+* Add `SurrenderFocusOn` option [#7471](https://github.com/emilk/egui/pull/7471) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Add `Memory::move_focus` [#7476](https://github.com/emilk/egui/pull/7476) by [@darkwater](https://github.com/darkwater)
+* Support on hover tooltip that is noninteractable even with interactable content [#5543](https://github.com/emilk/egui/pull/5543) by [@PPakalns](https://github.com/PPakalns)
+* Add rotation gesture support for trackpad sources [#7453](https://github.com/emilk/egui/pull/7453) by [@thatcomputerguy0101](https://github.com/thatcomputerguy0101)
+
+### 🔧 Changed
+* Document platform compatibility on `viewport::WindowLevel` and dependents [#7432](https://github.com/emilk/egui/pull/7432) by [@lkdm](https://github.com/lkdm)
+* Deprecated `ImageButton` and removed `WidgetType::ImageButton` [#7483](https://github.com/emilk/egui/pull/7483) by [@Stelios-Kourlis](https://github.com/Stelios-Kourlis)
+* More even text kerning [#7431](https://github.com/emilk/egui/pull/7431) by [@valadaptive](https://github.com/valadaptive)
+* Increase default text size from 12.5 to 13.0 [#7521](https://github.com/emilk/egui/pull/7521) by [@emilk](https://github.com/emilk)
+* Update accesskit to 0.21.0 [#7550](https://github.com/emilk/egui/pull/7550) by [@fundon](https://github.com/fundon)
+* Update MSRV from 1.86 to 1.88 [#7579](https://github.com/emilk/egui/pull/7579) by [@Wumpf](https://github.com/Wumpf)
+* Group AccessKit nodes by `Ui` [#7386](https://github.com/emilk/egui/pull/7386) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+### 🔥 Removed
+* Remove the `deadlock_detection` feature [#7497](https://github.com/emilk/egui/pull/7497) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Remove deprecated fields from `PlatformOutput` [#7523](https://github.com/emilk/egui/pull/7523) by [@emilk](https://github.com/emilk)
+* Remove `log` feature [#7583](https://github.com/emilk/egui/pull/7583) by [@emilk](https://github.com/emilk)
+
+### 🐛 Fixed
+* Enable `clippy::iter_over_hash_type` lint [#7421](https://github.com/emilk/egui/pull/7421) by [@emilk](https://github.com/emilk)
+* Fixes sense issues in TextEdit when vertical alignment is used [#7436](https://github.com/emilk/egui/pull/7436) by [@RndUsr123](https://github.com/RndUsr123)
+* Fix stuck menu when submenu vanishes [#7589](https://github.com/emilk/egui/pull/7589) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Change Spinner widget to account for width as well as height [#7560](https://github.com/emilk/egui/pull/7560) by [@bryceberger](https://github.com/bryceberger)
+
+
 ## 0.32.3 - 2025-09-12
 * Preserve text format in truncated label tooltip [#7514](https://github.com/emilk/egui/pull/7514) [#7535](https://github.com/emilk/egui/pull/7535) by [@lucasmerlin](https://github.com/lucasmerlin)
 * Fix `TextEdit`'s in RTL layouts [#5547](https://github.com/emilk/egui/pull/5547) by [@zakarumych](https://github.com/zakarumych)
