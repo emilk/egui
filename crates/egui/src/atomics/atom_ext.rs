@@ -5,7 +5,7 @@ use emath::Vec2;
 ///
 /// The functions are prefixed with `atom_` to avoid conflicts with e.g. [`crate::RichText::size`].
 pub trait AtomExt<'a> {
-    /// Set the [`Id`] custom rendering.
+    /// Set the [`Id`] for custom rendering.
     ///
     /// You can get the [`crate::Rect`] with the [`Id`] from [`crate::AtomLayoutResponse`] and use a
     /// [`crate::Painter`] or [`Ui::place`] to add/draw some custom content.

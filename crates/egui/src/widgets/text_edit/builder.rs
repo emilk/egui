@@ -1,21 +1,18 @@
 use std::sync::Arc;
 
 use emath::{Rect, TSTransform};
-use epaint::{
-    StrokeKind,
-    text::{Galley, LayoutJob, cursor::CCursor},
-};
+use epaint::text::{cursor::CCursor, Galley, LayoutJob, TextWrapMode};
 
 use crate::{
-    Align, Align2, Atom, AtomExt, AtomKind, AtomLayout, Atoms, Color32, Context, CursorIcon, Event,
-    EventFilter, FontSelection, Frame, Id, ImeEvent, IntoAtoms, Key, KeyboardShortcut, Margin,
-    Modifiers, NumExt as _, Response, Sense, Shape, SizedAtomKind, TextBuffer, TextStyle,
-    TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetWithState, epaint,
-    os::OperatingSystem,
-    output::OutputEvent,
-    response, text_selection,
-    text_selection::{CCursorRange, text_cursor_state::cursor_rect, visuals::paint_text_selection},
-    vec2,
+    epaint, os::OperatingSystem, output::OutputEvent, response, text_selection, text_selection::{text_cursor_state::cursor_rect, visuals::paint_text_selection, CCursorRange}, vec2, Align, Align2, Atom, AtomExt,
+    AtomKind, AtomLayout, Atoms, Color32, Context, CursorIcon, Event, EventFilter, FontSelection,
+    Frame, Id, ImeEvent, IntoAtoms, Key, KeyboardShortcut, Margin, Modifiers, NumExt as _, Response,
+    Sense, Shape, SizedAtomKind, TextBuffer, TextStyle,
+    Ui,
+    Vec2,
+    Widget, WidgetInfo,
+    WidgetText,
+    WidgetWithState,
 };
 
 use super::{TextEditOutput, TextEditState};
@@ -212,9 +209,17 @@ impl<'t> TextEdit<'t> {
         self
     }
 
+    /// Add a prefix to the text edit. This will always be shown before the editable text.
     #[inline]
     pub fn prefix(mut self, prefix: impl IntoAtoms<'static>) -> Self {
         self.prefix = prefix.into_atoms();
+        self
+    }
+
+    /// Add a postfix to the text edit. This will always be shown after the editable text.
+    #[inline]
+    pub fn postfix(mut self, postfix: impl IntoAtoms<'static>) -> Self {
+        self.postfix = postfix.into_atoms();
         self
     }
 
@@ -551,36 +556,53 @@ impl TextEdit<'_> {
         let mut get_galley = None;
         let atom_response = {
             let mut atoms: Atoms = Atoms::new(());
+
+            let any_shrink = hint_text.iter().any(|a| a.shrink);
+
             // TODO(servo/rust-smallvec#146): Use extend_right instead of the loop once we have smallvec 2.0
             for atom in prefix {
                 atoms.push_right(atom);
             }
 
-            // TODO: Set width to galley width when not clip
-            atoms.push_right(
-                AtomKind::closure(|ui, available_width: Vec2, wrap_mode, fallback_font| {
-                    let galley = layouter(ui, text, available_width.x);
-                    let intrinsic_size = galley.intrinsic_size();
-                    let mut size = galley.size();
-                    size.y = size.y.at_least(min_inner_height);
-                    if clip_text {
-                        size.x = size.x.at_most(available_width.x);
-                    }
-
-                    // We paint the galley later, so we can do clipping and offsetting
-                    get_galley = Some(galley);
-                    (intrinsic_size, SizedAtomKind::Sized(size))
-                })
-                .atom_id(inner_rect_id)
-                .atom_shrink(clip_text),
-            );
-
             if text.as_str().is_empty() {
-                for atom in hint_text {
+                let mut shrunk = any_shrink;
+                let mut first = true;
+                for mut atom in hint_text {
+                    if !shrunk && matches!(atom.kind, AtomKind::Text(_)) {
+                        atom = atom.atom_shrink(true);
+                        shrunk = true;
+                    }
+                    if first {
+                        atom = atom.atom_id(inner_rect_id);
+                    }
                     atoms.push_right(atom.atom_align(Align2::LEFT_TOP));
                 }
+                let gallery = layouter(ui, text, allocate_width - margin.sum().x);
+                get_galley = Some(gallery);
+            } else {
+                // TODO: Set width to galley width when not clip
+                atoms.push_right(
+                    AtomKind::closure(|ui, available_width: Vec2, wrap_mode, fallback_font| {
+                        let galley = layouter(ui, text, available_width.x);
+                        let intrinsic_size = galley.intrinsic_size();
+                        let mut size = galley.size();
+                        size.y = size.y.at_least(min_inner_height);
+                        if clip_text {
+                            size.x = size.x.at_most(available_width.x);
+                        }
+
+                        // We paint the galley later, so we can do clipping and offsetting
+                        get_galley = Some(galley);
+                        (intrinsic_size, SizedAtomKind::Sized(size))
+                    })
+                    .atom_id(inner_rect_id)
+                    .atom_shrink(clip_text),
+                );
             }
-            atoms.push_right(Atom::grow());
+
+            if !postfix.is_empty() {
+                atoms.push_right(Atom::grow());
+            }
             for atom in postfix {
                 atoms.push_right(atom);
             }
@@ -594,6 +616,7 @@ impl TextEdit<'_> {
                 .sense(sense)
                 .frame(frame)
                 .align2(Align2::LEFT_TOP)
+                .wrap_mode(TextWrapMode::Truncate)
                 .allocate(ui);
 
             allocated.frame = if !custom_frame {

@@ -79,7 +79,7 @@ pub enum AtomKind<'a> {
                 ) -> (
                     Vec2,
                     // We need 'static here (or need to introduce another lifetime on the enum).
-                    // Other a single 'static Atom would force the closure to be 'static.
+                    // Otherwise, a single 'static Atom would force the closure to be 'static.
                     SizedAtomKind<'static>,
                 ) + 'a,
         >,
