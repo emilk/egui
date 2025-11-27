@@ -17,6 +17,12 @@ pub struct CornerRadiusF32 {
 
     /// Radius of the rounding of the South-East (right bottom) corner.
     pub se: f32,
+
+    /// The shape of the corners.
+    ///
+    /// If `None`, defaults to [`crate::CornerShape::Round`] for backward compatibility.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub shape: Option<crate::CornerShape>,
 }
 
 impl From<CornerRadius> for CornerRadiusF32 {
@@ -27,6 +33,7 @@ impl From<CornerRadius> for CornerRadiusF32 {
             ne: cr.ne as f32,
             sw: cr.sw as f32,
             se: cr.se as f32,
+            shape: cr.shape,
         }
     }
 }
@@ -39,6 +46,7 @@ impl From<CornerRadiusF32> for CornerRadius {
             ne: cr.ne.round() as u8,
             sw: cr.sw.round() as u8,
             se: cr.se.round() as u8,
+            shape: cr.shape,
         }
     }
 }
@@ -58,6 +66,7 @@ impl From<f32> for CornerRadiusF32 {
             ne: radius,
             sw: radius,
             se: radius,
+            shape: None,
         }
     }
 }
@@ -69,6 +78,7 @@ impl CornerRadiusF32 {
         ne: 0.0,
         sw: 0.0,
         se: 0.0,
+        shape: None,
     };
 
     /// Same rounding on all four corners.
@@ -79,7 +89,21 @@ impl CornerRadiusF32 {
             ne: radius,
             sw: radius,
             se: radius,
+            shape: None,
         }
+    }
+
+    /// Set the shape of the corners.
+    #[inline]
+    pub const fn with_shape(mut self, shape: crate::CornerShape) -> Self {
+        self.shape = Some(shape);
+        self
+    }
+
+    /// Get the actual shape to use, defaulting to Round if not specified.
+    #[inline]
+    pub fn shape(&self) -> crate::CornerShape {
+        self.shape.unwrap_or(crate::CornerShape::Round)
     }
 
     /// Do all corners have the same rounding?
@@ -96,6 +120,7 @@ impl CornerRadiusF32 {
             ne: self.ne.max(min),
             sw: self.sw.max(min),
             se: self.se.max(min),
+            shape: self.shape,
         }
     }
 
@@ -107,6 +132,7 @@ impl CornerRadiusF32 {
             ne: self.ne.min(max),
             sw: self.sw.min(max),
             se: self.se.min(max),
+            shape: self.shape,
         }
     }
 }
@@ -120,6 +146,7 @@ impl std::ops::Add for CornerRadiusF32 {
             ne: self.ne + rhs.ne,
             sw: self.sw + rhs.sw,
             se: self.se + rhs.se,
+            shape: self.shape,
         }
     }
 }
@@ -132,6 +159,7 @@ impl std::ops::AddAssign for CornerRadiusF32 {
             ne: self.ne + rhs.ne,
             sw: self.sw + rhs.sw,
             se: self.se + rhs.se,
+            shape: self.shape,
         };
     }
 }
@@ -144,6 +172,7 @@ impl std::ops::AddAssign<f32> for CornerRadiusF32 {
             ne: self.ne + rhs,
             sw: self.sw + rhs,
             se: self.se + rhs,
+            shape: self.shape,
         };
     }
 }
@@ -157,6 +186,7 @@ impl std::ops::Sub for CornerRadiusF32 {
             ne: self.ne - rhs.ne,
             sw: self.sw - rhs.sw,
             se: self.se - rhs.se,
+            shape: self.shape,
         }
     }
 }
@@ -169,6 +199,7 @@ impl std::ops::SubAssign for CornerRadiusF32 {
             ne: self.ne - rhs.ne,
             sw: self.sw - rhs.sw,
             se: self.se - rhs.se,
+            shape: self.shape,
         };
     }
 }
@@ -181,6 +212,7 @@ impl std::ops::SubAssign<f32> for CornerRadiusF32 {
             ne: self.ne - rhs,
             sw: self.sw - rhs,
             se: self.se - rhs,
+            shape: self.shape,
         };
     }
 }
@@ -194,6 +226,7 @@ impl std::ops::Div<f32> for CornerRadiusF32 {
             ne: self.ne / rhs,
             sw: self.sw / rhs,
             se: self.se / rhs,
+            shape: self.shape,
         }
     }
 }
@@ -206,6 +239,7 @@ impl std::ops::DivAssign<f32> for CornerRadiusF32 {
             ne: self.ne / rhs,
             sw: self.sw / rhs,
             se: self.se / rhs,
+            shape: self.shape,
         };
     }
 }
@@ -219,6 +253,7 @@ impl std::ops::Mul<f32> for CornerRadiusF32 {
             ne: self.ne * rhs,
             sw: self.sw * rhs,
             se: self.se * rhs,
+            shape: self.shape,
         }
     }
 }
@@ -231,6 +266,7 @@ impl std::ops::MulAssign<f32> for CornerRadiusF32 {
             ne: self.ne * rhs,
             sw: self.sw * rhs,
             se: self.se * rhs,
+            shape: self.shape,
         };
     }
 }
