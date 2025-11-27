@@ -294,6 +294,7 @@ fn rect_shape_ui(ui: &mut egui::Ui, shape: &mut RectShape) {
         blur_width,
         round_to_pixels,
         brush: _,
+        angle: _,
     } = shape;
 
     let round_to_pixels = round_to_pixels.get_or_insert(true);
