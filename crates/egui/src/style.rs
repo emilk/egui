@@ -508,6 +508,12 @@ pub struct ScrollStyle {
     /// it more promiment.
     pub floating: bool,
 
+    /// Extra margin added around the contents of a [`crate::ScrollArea`].
+    ///
+    /// The scroll bars will be either on top of this margin, or outside of it,
+    /// depending on the value of [`Self::floating`].
+    pub content_margin: Margin,
+
     /// The width of the scroll bars at it largest.
     pub bar_width: f32,
 
@@ -591,6 +597,7 @@ impl ScrollStyle {
     pub fn solid() -> Self {
         Self {
             floating: false,
+            content_margin: Margin::ZERO,
             bar_width: 6.0,
             handle_min_length: 12.0,
             bar_inner_margin: 4.0,
@@ -672,6 +679,9 @@ impl ScrollStyle {
     pub fn details_ui(&mut self, ui: &mut Ui) {
         let Self {
             floating,
+
+            content_margin,
+
             bar_width,
             handle_min_length,
             bar_inner_margin,
@@ -693,6 +703,11 @@ impl ScrollStyle {
             ui.label("Type:");
             ui.selectable_value(floating, false, "Solid");
             ui.selectable_value(floating, true, "Floating");
+        });
+
+        ui.horizontal(|ui| {
+            ui.label("Content margin:");
+            content_margin.ui(ui);
         });
 
         ui.horizontal(|ui| {
@@ -1822,6 +1837,10 @@ impl Spacing {
 
                 ui.label("Window margin");
                 ui.add(window_margin);
+                ui.end_row();
+
+                ui.label("ScrollArea margin");
+                scroll.content_margin.ui(ui);
                 ui.end_row();
 
                 ui.label("Menu margin");

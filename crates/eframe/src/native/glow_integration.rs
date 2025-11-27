@@ -239,7 +239,7 @@ impl<'app> GlowWinitApp<'app> {
                 let painter = painter.clone();
                 move |native| painter.borrow_mut().register_native_texture(native)
             })),
-            #[cfg(feature = "wgpu")]
+            #[cfg(feature = "wgpu_no_default_features")]
             None,
         );
 
@@ -301,7 +301,7 @@ impl<'app> GlowWinitApp<'app> {
                 storage: integration.frame.storage(),
                 gl: Some(gl),
                 get_proc_address: Some(&get_proc_address),
-                #[cfg(feature = "wgpu")]
+                #[cfg(feature = "wgpu_no_default_features")]
                 wgpu_render_state: None,
                 raw_display_handle: window.display_handle().map(|h| h.as_raw()),
                 raw_window_handle: window.window_handle().map(|h| h.as_raw()),

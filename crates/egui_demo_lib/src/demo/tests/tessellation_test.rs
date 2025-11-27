@@ -357,11 +357,13 @@ fn rect_shape_ui(ui: &mut egui::Ui, shape: &mut RectShape) {
 #[cfg(test)]
 mod tests {
     use crate::View as _;
+    use egui_kittest::SnapshotResults;
 
     use super::*;
 
     #[test]
     fn snapshot_tessellation_test() {
+        let mut results = SnapshotResults::new();
         for (name, shape) in TessellationTest::interesting_shapes() {
             let mut test = TessellationTest {
                 shape,
@@ -375,6 +377,7 @@ mod tests {
             harness.run();
 
             harness.snapshot(format!("tessellation_test/{name}"));
+            results.extend_harness(&mut harness);
         }
     }
 }

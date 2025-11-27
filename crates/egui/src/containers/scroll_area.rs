@@ -1,6 +1,11 @@
+//! See [`ScrollArea`] for docs.
+
 #![allow(clippy::needless_range_loop)]
 
 use std::ops::{Add, AddAssign, BitOr, BitOrAssign};
+
+use emath::GuiRounding as _;
+use epaint::Margin;
 
 use crate::{
     Context, CursorIcon, Id, NumExt as _, Pos2, Rangef, Rect, Response, Sense, Ui, UiBuilder,
@@ -256,7 +261,7 @@ impl AddAssign for ScrollSource {
 /// ### Coordinate system
 /// * content: size of contents (generally large; that's why we want scroll bars)
 /// * outer: size of scroll area including scroll bar(s)
-/// * inner: excluding scroll bar(s). The area we clip the contents to.
+/// * inner: excluding scroll bar(s). The area we clip the contents to. Includes `content_margin`.
 ///
 /// If the floating scroll bars settings is turned on then `inner == outer`.
 ///
@@ -291,6 +296,8 @@ pub struct ScrollArea {
     on_drag_cursor: Option<CursorIcon>,
     scroll_source: ScrollSource,
     wheel_scroll_multiplier: Vec2,
+
+    content_margin: Option<Margin>,
 
     /// If true for vertical or horizontal the scroll wheel will stick to the
     /// end position until user manually changes position. It will become true
@@ -344,6 +351,7 @@ impl ScrollArea {
             on_drag_cursor: None,
             scroll_source: ScrollSource::default(),
             wheel_scroll_multiplier: Vec2::splat(1.0),
+            content_margin: None,
             stick_to_end: Vec2b::FALSE,
             animated: true,
         }
@@ -591,6 +599,18 @@ impl ScrollArea {
         self.direction_enabled[0] || self.direction_enabled[1]
     }
 
+    /// Extra margin added around the contents.
+    ///
+    /// The scroll bars will be either on top of this margin, or outside of it,
+    /// depending on the value of [`crate::style::ScrollStyle::floating`].
+    ///
+    /// Default: [`crate::style::ScrollStyle::content_margin`].
+    #[inline]
+    pub fn content_margin(mut self, margin: impl Into<Margin>) -> Self {
+        self.content_margin = Some(margin.into());
+        self
+    }
+
     /// The scroll handle will stick to the rightmost position even while the content size
     /// changes dynamically. This can be useful to simulate text scrollers coming in from right
     /// hand side. The scroll handle remains stuck until user manually changes position. Once "unstuck"
@@ -642,7 +662,7 @@ struct Prepared {
     scroll_bar_visibility: ScrollBarVisibility,
     scroll_bar_rect: Option<Rect>,
 
-    /// Where on the screen the content is (excludes scroll bars).
+    /// Where on the screen the content is (excludes scroll bars; includes `content_margin`).
     inner_rect: Rect,
 
     content_ui: Ui,
@@ -681,6 +701,7 @@ impl ScrollArea {
             on_drag_cursor,
             scroll_source,
             wheel_scroll_multiplier,
+            content_margin: _, // Used elsewhere
             stick_to_end,
             animated,
         } = self;
@@ -748,6 +769,12 @@ impl ScrollArea {
         }
 
         let content_max_rect = Rect::from_min_size(inner_rect.min - state.offset, content_max_size);
+
+        // Round to pixels to avoid widgets appearing to "float" when scrolling fractional amounts:
+        let content_max_rect = content_max_rect
+            .round_to_pixels(ui.pixels_per_point())
+            .round_ui();
+
         let mut content_ui = ui.new_child(
             UiBuilder::new()
                 .ui_stack_info(UiStackInfo::new(UiKind::ScrollArea))
@@ -975,10 +1002,21 @@ impl ScrollArea {
         ui: &mut Ui,
         add_contents: Box<dyn FnOnce(&mut Ui, Rect) -> R + 'c>,
     ) -> ScrollAreaOutput<R> {
+        let margin = self
+            .content_margin
+            .unwrap_or_else(|| ui.spacing().scroll.content_margin);
+
         let mut prepared = self.begin(ui);
         let id = prepared.id;
         let inner_rect = prepared.inner_rect;
-        let inner = add_contents(&mut prepared.content_ui, prepared.viewport);
+
+        let inner = crate::Frame::NONE
+            .inner_margin(margin)
+            .show(&mut prepared.content_ui, |ui| {
+                add_contents(ui, prepared.viewport)
+            })
+            .inner;
+
         let (content_size, state) = prepared.end(ui);
         ScrollAreaOutput {
             inner,
