@@ -410,15 +410,27 @@ impl State {
                         consumed: false,
                     }
                 } else {
-                    self.on_keyboard_input(event);
+                    let function = event.logical_key
+                        == winit::keyboard::Key::Named(winit::keyboard::NamedKey::Fn);
 
-                    // When pressing the Tab key, egui focuses the first focusable element, hence Tab always consumes.
-                    let consumed = self.egui_ctx.wants_keyboard_input()
-                        || event.logical_key
-                            == winit::keyboard::Key::Named(winit::keyboard::NamedKey::Tab);
-                    EventResponse {
-                        repaint: true,
-                        consumed,
+                    self.egui_input.modifiers.function = function;
+
+                    if function {
+                        EventResponse {
+                            repaint: true,
+                            consumed: false,
+                        }
+                    } else {
+                        self.on_keyboard_input(event);
+
+                        // When pressing the Tab key, egui focuses the first focusable element, hence Tab always consumes.
+                        let consumed = self.egui_ctx.wants_keyboard_input()
+                            || event.logical_key
+                                == winit::keyboard::Key::Named(winit::keyboard::NamedKey::Tab);
+                        EventResponse {
+                            repaint: true,
+                            consumed,
+                        }
                     }
                 }
             }
