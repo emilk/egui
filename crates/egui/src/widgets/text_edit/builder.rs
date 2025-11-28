@@ -1,5 +1,6 @@
-use std::sync::Arc;
+use std::{ops::DerefMut, sync::Arc};
 
+use bytemuck::TransparentWrapper as _;
 use emath::{Rect, TSTransform};
 use epaint::{
     StrokeKind,
@@ -12,8 +13,11 @@ use crate::{
     TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetWithState, epaint,
     os::OperatingSystem,
     output::OutputEvent,
-    response, text_selection,
-    text_selection::{CCursorRange, text_cursor_state::cursor_rect, visuals::paint_text_selection},
+    response,
+    text_edit::text_buffer::TextBufferRef,
+    text_selection::{
+        self, CCursorRange, text_cursor_state::cursor_rect, visuals::paint_text_selection,
+    },
     vec2,
 };
 
@@ -116,6 +120,14 @@ impl<'t> TextEdit<'t> {
         }
     }
 
+    pub fn singleline_ref<T>(smart_ptr: &'t mut T) -> Self
+    where
+        T: DerefMut,
+        T::Target: TextBuffer,
+    {
+        Self::singleline(TextBufferRef::wrap_mut(smart_ptr))
+    }
+
     /// A [`TextEdit`] for multiple lines. Pressing enter key will create a new line by default (can be changed with [`return_key`](TextEdit::return_key)).
     pub fn multiline(text: &'t mut dyn TextBuffer) -> Self {
         Self {
@@ -149,6 +161,14 @@ impl<'t> TextEdit<'t> {
             return_key: Some(KeyboardShortcut::new(Modifiers::NONE, Key::Enter)),
             background_color: None,
         }
+    }
+
+    pub fn multilne_ref<T>(smart_ptr: &'t mut T) -> Self
+    where
+        T: DerefMut,
+        T::Target: TextBuffer,
+    {
+        Self::multiline(TextBufferRef::wrap_mut(smart_ptr))
     }
 
     /// Build a [`TextEdit`] focused on code editing.
