@@ -1305,6 +1305,7 @@ dependencies = [
  "ahash",
  "backtrace",
  "bitflags 2.9.4",
+ "bytemuck",
  "document-features",
  "emath",
  "epaint",

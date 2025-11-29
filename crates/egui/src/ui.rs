@@ -4,7 +4,7 @@
 use emath::GuiRounding as _;
 use epaint::mutex::RwLock;
 use epaint::text::FontsView;
-use std::{any::Any, hash::Hash, sync::Arc};
+use std::{any::Any, hash::Hash, ops::DerefMut, sync::Arc};
 
 use crate::ClosableTag;
 #[cfg(debug_assertions)]
@@ -2150,6 +2150,18 @@ impl Ui {
     #[inline]
     pub fn checkbox<'a>(&mut self, checked: &'a mut bool, atoms: impl IntoAtoms<'a>) -> Response {
         Checkbox::new(checked, atoms).ui(self)
+    }
+
+    /// Show a checkbox backed by a custom mutable state type.
+    ///
+    /// Useful when the state wrapper only wants to write when the value changes.
+    #[inline]
+    pub fn checkbox_ref<'a>(
+        &mut self,
+        checked: &'a mut dyn DerefMut<Target = bool>,
+        atoms: impl IntoAtoms<'a>,
+    ) -> Response {
+        Checkbox::new_ref(checked, atoms).ui(self)
     }
 
     /// Acts like a checkbox, but looks like a [`Button::selectable`].
