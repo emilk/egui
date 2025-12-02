@@ -168,6 +168,8 @@ impl Style {
                 fill: visuals.bg_fill,
                 corner_radius: visuals.corner_radius,
                 stroke: visuals.bg_stroke,
+                // Use the inner_margin for the expansion
+                inner_margin: visuals.expansion.into(),
                 ..Default::default()
             },
             text_style: ws.text,

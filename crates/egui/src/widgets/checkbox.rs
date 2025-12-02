@@ -71,7 +71,6 @@ impl Widget for Checkbox<'_> {
             text_style,
         } = ui.style().checkbox_style(state);
 
-        // interact_size or size ?
         let mut min_size = Vec2::splat(ui.spacing().interact_size.y);
         min_size.y = min_size.y.at_least(checkbox_size);
 
@@ -121,9 +120,8 @@ impl Widget for Checkbox<'_> {
                 );
                 let small_icon_rect =
                     Rect::from_center_size(big_icon_rect.center(), Vec2::splat(check_size));
-
                 ui.painter().add(epaint::RectShape::new(
-                    big_icon_rect,
+                    big_icon_rect.expand(checkbox_frame.inner_margin.left.into()),
                     checkbox_frame.corner_radius,
                     checkbox_frame.fill,
                     checkbox_frame.stroke,
