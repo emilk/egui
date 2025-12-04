@@ -1,0 +1,6 @@
+# Enable these if you want to run `cargo +nightly fmt`:
+#group_imports = "StdExternalCrate"
+#imports_granularity = "Module"
+
+# To apply these, uncomment the above lines, then run `cargo +nightly fmt`.
+# Then comment them again, and run `cargo fmt`
