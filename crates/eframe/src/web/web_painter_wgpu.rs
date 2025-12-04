@@ -244,7 +244,6 @@ impl WebPainter for WebPainterWgpu {
                         wgpu::RenderPassDepthStencilAttachment {
                             view,
                             depth_ops: self
-                                .options
                                 .depth_stencil_format
                                 .is_some_and(|depth_stencil_format| {
                                     depth_stencil_format.has_depth_aspect()
@@ -256,7 +255,6 @@ impl WebPainter for WebPainterWgpu {
                                     store: wgpu::StoreOp::Discard,
                                 }),
                             stencil_ops: self
-                                .options
                                 .depth_stencil_format
                                 .is_some_and(|depth_stencil_format| {
                                     depth_stencil_format.has_stencil_aspect()
