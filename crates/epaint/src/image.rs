@@ -1,7 +1,9 @@
+use std::sync::Arc;
+
 use emath::Vec2;
 
-use crate::{Color32, textures::TextureOptions};
-use std::sync::Arc;
+use crate::Color32;
+use crate::textures::TextureOptions;
 
 /// An image stored in RAM.
 ///

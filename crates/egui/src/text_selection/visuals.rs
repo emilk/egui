@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
-use crate::{Galley, Painter, Rect, Ui, Visuals, pos2, vec2};
-
 use super::CCursorRange;
+use crate::{Galley, Painter, Rect, Ui, Visuals, pos2, vec2};
 
 #[derive(Clone, Debug)]
 pub struct RowVertexIndices {

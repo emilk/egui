@@ -1,5 +1,6 @@
+use std::iter::once;
 use std::sync::Arc;
-use std::{iter::once, time::Duration};
+use std::time::Duration;
 
 use egui::TexturesDelta;
 use egui_wgpu::{RenderState, ScreenDescriptor, WgpuSetup, wgpu};

@@ -20,23 +20,20 @@ mod texture_to_image;
 pub mod wgpu;
 
 // re-exports:
-pub use {
-    self::{builder::*, node::*, renderer::*},
-    kittest,
-};
+use std::fmt::{Debug, Display, Formatter};
+use std::time::Duration;
 
-use std::{
-    fmt::{Debug, Display, Formatter},
-    time::Duration,
-};
-
+use egui::epaint::{ClippedShape, RectShape};
+use egui::style::ScrollAnimation;
 use egui::{
     Color32, Key, Modifiers, PointerButton, Pos2, Rect, RepaintCause, Shape, Vec2, ViewportId,
-    epaint::{ClippedShape, RectShape},
-    style::ScrollAnimation,
 };
+pub use kittest;
 use kittest::Queryable;
 
+pub use self::builder::*;
+pub use self::node::*;
+pub use self::renderer::*;
 use crate::app_kind::AppKind;
 
 #[derive(Debug, Clone)]

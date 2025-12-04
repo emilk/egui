@@ -1,9 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 #![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
-use eframe::egui::{
-    self, Color32, Stroke, Style, Theme, global_theme_preference_buttons, style::Selection,
-};
+use eframe::egui::style::Selection;
+use eframe::egui::{self, Color32, Stroke, Style, Theme, global_theme_preference_buttons};
 use egui_demo_lib::{View as _, WidgetGallery};
 
 fn main() -> eframe::Result {

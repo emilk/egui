@@ -1,14 +1,12 @@
 //! Common tools used by [`super::glow_integration`] and [`super::wgpu_integration`].
 
-use web_time::Instant;
-
 use std::path::PathBuf;
-use winit::event_loop::ActiveEventLoop;
-
-use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
 
 use egui::{DeferredViewportUiCallback, ViewportBuilder, ViewportId};
 use egui_winit::{EventResponse, WindowSettings};
+use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
+use web_time::Instant;
+use winit::event_loop::ActiveEventLoop;
 
 use crate::epi;
 

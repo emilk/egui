@@ -1,8 +1,6 @@
-use std::{
-    collections::HashMap,
-    io::Write as _,
-    path::{Path, PathBuf},
-};
+use std::collections::HashMap;
+use std::io::Write as _;
+use std::path::{Path, PathBuf};
 
 /// The folder where `eframe` will store its state.
 ///
@@ -15,8 +13,9 @@ use std::{
 /// * macOS:   `/Users/UserName/Library/Application Support/APP_ID`
 /// * Windows: `C:\Users\UserName\AppData\Roaming\APP_ID\data`
 pub fn storage_dir(app_id: &str) -> Option<PathBuf> {
-    use egui::os::OperatingSystem as OS;
     use std::env::var_os;
+
+    use egui::os::OperatingSystem as OS;
     match OS::from_target_os() {
         OS::Nix => var_os("XDG_DATA_HOME")
             .map(PathBuf::from)
@@ -46,8 +45,7 @@ pub fn storage_dir(app_id: &str) -> Option<PathBuf> {
 fn roaming_appdata() -> Option<PathBuf> {
     use std::ffi::OsString;
     use std::os::windows::ffi::OsStringExt as _;
-    use std::ptr;
-    use std::slice;
+    use std::{ptr, slice};
 
     use windows_sys::Win32::Foundation::S_OK;
     use windows_sys::Win32::System::Com::CoTaskMemFree;

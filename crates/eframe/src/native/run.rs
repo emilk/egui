@@ -1,18 +1,14 @@
 use std::time::Instant;
 
-use winit::{
-    application::ApplicationHandler,
-    event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
-    window::WindowId,
-};
-
 use ahash::HashMap;
+use winit::application::ApplicationHandler;
+use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
+use winit::window::WindowId;
 
 use super::winit_integration::{UserEvent, WinitApp};
-use crate::{
-    Result, epi,
-    native::{event_loop_context, winit_integration::EventResult},
-};
+use crate::native::event_loop_context;
+use crate::native::winit_integration::EventResult;
+use crate::{Result, epi};
 
 // ----------------------------------------------------------------------------
 fn create_event_loop(native_options: &mut epi::NativeOptions) -> Result<EventLoop<UserEvent>> {

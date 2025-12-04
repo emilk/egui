@@ -1,14 +1,12 @@
-use std::{cell::RefCell, rc::Rc};
+use std::cell::RefCell;
+use std::rc::Rc;
 
 use wasm_bindgen::prelude::*;
 
+use super::events::{self, ResizeObserverContext};
+use super::text_agent::TextAgent;
+use super::{AppRunner, PanicHandler};
 use crate::{App, epi};
-
-use super::{
-    AppRunner, PanicHandler,
-    events::{self, ResizeObserverContext},
-    text_agent::TextAgent,
-};
 
 /// This is how `eframe` runs your web application
 ///

@@ -1,11 +1,11 @@
 //! Text cursor changes/interaction, without modifying the text.
 
-use epaint::text::{Galley, cursor::CCursor};
+use epaint::text::Galley;
+use epaint::text::cursor::CCursor;
 use unicode_segmentation::UnicodeSegmentation as _;
 
-use crate::{NumExt as _, Rect, Response, Ui, epaint};
-
 use super::CCursorRange;
+use crate::{NumExt as _, Rect, Response, Ui, epaint};
 
 /// The state of a text cursor selection.
 ///

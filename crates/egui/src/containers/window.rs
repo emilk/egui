@@ -5,11 +5,10 @@ use std::sync::Arc;
 use emath::GuiRounding as _;
 use epaint::{CornerRadiusF32, RectShape};
 
-use crate::collapsing_header::CollapsingState;
-use crate::*;
-
 use super::scroll_area::{ScrollBarVisibility, ScrollSource};
 use super::{Area, Frame, Resize, ScrollArea, area, resize};
+use crate::collapsing_header::CollapsingState;
+use crate::*;
 
 /// Builder for a floating window which can be dragged, closed, collapsed, resized and scrolled (off by default).
 ///

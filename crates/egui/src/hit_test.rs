@@ -1,8 +1,8 @@
 use ahash::HashMap;
-
 use emath::TSTransform;
 
-use crate::{LayerId, Pos2, Rect, Sense, WidgetRect, WidgetRects, ahash, emath, id::IdSet};
+use crate::id::IdSet;
+use crate::{LayerId, Pos2, Rect, Sense, WidgetRect, WidgetRects, ahash, emath};
 
 /// Result of a hit-test against [`WidgetRects`].
 ///
@@ -471,9 +471,8 @@ mod tests {
 
     use emath::{Rect, pos2, vec2};
 
-    use crate::{Id, Sense};
-
     use super::*;
+    use crate::{Id, Sense};
 
     fn wr(id: Id, sense: Sense, rect: Rect) -> WidgetRect {
         WidgetRect {

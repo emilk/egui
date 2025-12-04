@@ -1,14 +1,16 @@
+use std::ops::{Deref, DerefMut};
+use std::sync::Arc;
+
+use emath::{Align2, GuiRounding as _, NumExt as _, Rect, Vec2};
+use epaint::text::TextWrapMode;
+use epaint::{Color32, Galley};
+use smallvec::SmallVec;
+
 use crate::atomics::ATOMS_SMALL_VEC_SIZE;
 use crate::{
     AtomKind, Atoms, FontSelection, Frame, Id, Image, IntoAtoms, Response, Sense, SizedAtom,
     SizedAtomKind, Ui, Widget,
 };
-use emath::{Align2, GuiRounding as _, NumExt as _, Rect, Vec2};
-use epaint::text::TextWrapMode;
-use epaint::{Color32, Galley};
-use smallvec::SmallVec;
-use std::ops::{Deref, DerefMut};
-use std::sync::Arc;
 
 /// Intra-widget layout utility.
 ///

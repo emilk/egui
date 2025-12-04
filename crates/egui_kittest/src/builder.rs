@@ -1,7 +1,9 @@
+use std::marker::PhantomData;
+
+use egui::{Pos2, Rect, Vec2};
+
 use crate::app_kind::AppKind;
 use crate::{Harness, LazyRenderer, TestRenderer};
-use egui::{Pos2, Rect, Vec2};
-use std::marker::PhantomData;
 
 /// Builder for [`Harness`].
 #[must_use]

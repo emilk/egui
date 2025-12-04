@@ -4,7 +4,8 @@ use std::path::PathBuf;
 
 use image::ImageError;
 
-use crate::{Harness, config::config};
+use crate::Harness;
+use crate::config::config;
 
 pub type SnapshotResult = Result<(), SnapshotError>;
 

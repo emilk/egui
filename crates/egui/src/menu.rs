@@ -16,17 +16,20 @@
 //! }
 //! ```
 
+use std::sync::Arc;
+
+use epaint::mutex::RwLock;
+
+use super::style::WidgetVisuals;
 use super::{
     Align, Context, Id, InnerResponse, PointerState, Pos2, Rect, Response, Sense, TextStyle, Ui,
-    Vec2, style::WidgetVisuals,
+    Vec2,
 };
+use crate::widgets::{Button, ImageButton};
 use crate::{
     Align2, Area, Color32, Frame, Key, LayerId, Layout, NumExt as _, Order, Stroke, Style,
     TextWrapMode, UiKind, WidgetText, epaint, vec2,
-    widgets::{Button, ImageButton},
 };
-use epaint::mutex::RwLock;
-use std::sync::Arc;
 
 /// What is saved between frames.
 #[derive(Clone, Default)]

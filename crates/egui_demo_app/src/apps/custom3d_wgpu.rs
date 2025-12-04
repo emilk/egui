@@ -1,9 +1,7 @@
 use std::num::NonZeroU64;
 
-use eframe::{
-    egui_wgpu::wgpu::util::DeviceExt as _,
-    egui_wgpu::{self, wgpu},
-};
+use eframe::egui_wgpu::wgpu::util::DeviceExt as _;
+use eframe::egui_wgpu::{self, wgpu};
 
 pub struct Custom3d {
     angle: f32,

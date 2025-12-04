@@ -1,26 +1,21 @@
 mod touch_state;
 mod wheel_state;
 
-use crate::{
-    SafeAreaInsets,
-    emath::{NumExt as _, Pos2, Rect, Vec2, vec2},
-    util::History,
-};
-use crate::{
-    data::input::{
-        Event, EventFilter, KeyboardShortcut, Modifiers, NUM_POINTER_BUTTONS, PointerButton,
-        RawInput, TouchDeviceId, ViewportInfo,
-    },
-    input_state::wheel_state::WheelState,
-};
-use std::{
-    collections::{BTreeMap, HashSet},
-    time::Duration,
-};
+use std::collections::{BTreeMap, HashSet};
+use std::time::Duration;
 
-pub use crate::Key;
 pub use touch_state::MultiTouchInfo;
 use touch_state::TouchState;
+
+pub use crate::Key;
+use crate::SafeAreaInsets;
+use crate::data::input::{
+    Event, EventFilter, KeyboardShortcut, Modifiers, NUM_POINTER_BUTTONS, PointerButton, RawInput,
+    TouchDeviceId, ViewportInfo,
+};
+use crate::emath::{NumExt as _, Pos2, Rect, Vec2, vec2};
+use crate::input_state::wheel_state::WheelState;
+use crate::util::History;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]

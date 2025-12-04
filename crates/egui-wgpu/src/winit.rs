@@ -1,13 +1,13 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::undocumented_unsafe_blocks)]
 
-use crate::{RenderState, SurfaceErrorAction, WgpuConfiguration, renderer};
-use crate::{
-    RendererOptions,
-    capture::{CaptureReceiver, CaptureSender, CaptureState, capture_channel},
-};
+use std::num::NonZeroU32;
+use std::sync::Arc;
+
 use egui::{Context, Event, UserData, ViewportId, ViewportIdMap, ViewportIdSet};
-use std::{num::NonZeroU32, sync::Arc};
+
+use crate::capture::{CaptureReceiver, CaptureSender, CaptureState, capture_channel};
+use crate::{RenderState, RendererOptions, SurfaceErrorAction, WgpuConfiguration, renderer};
 
 struct SurfaceState {
     surface: wgpu::Surface<'static>,

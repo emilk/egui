@@ -45,44 +45,38 @@ pub mod textures;
 pub mod util;
 mod viewport;
 
-pub use self::{
-    brush::Brush,
-    color::ColorMode,
-    corner_radius::CornerRadius,
-    corner_radius_f32::CornerRadiusF32,
-    image::{AlphaFromCoverage, ColorImage, ImageData, ImageDelta},
-    margin::Margin,
-    margin_f32::*,
-    mesh::{Mesh, Mesh16, Vertex},
-    shadow::Shadow,
-    shapes::{
-        CircleShape, CubicBezierShape, EllipseShape, PaintCallback, PaintCallbackInfo, PathShape,
-        QuadraticBezierShape, RectShape, Shape, TextShape,
-    },
-    stats::PaintStats,
-    stroke::{PathStroke, Stroke, StrokeKind},
-    tessellator::{TessellationOptions, Tessellator},
-    text::{FontFamily, FontId, Fonts, FontsView, Galley},
-    texture_atlas::TextureAtlas,
-    texture_handle::TextureHandle,
-    textures::TextureManager,
-    viewport::ViewportInPixels,
+pub use self::brush::Brush;
+pub use self::color::ColorMode;
+pub use self::corner_radius::CornerRadius;
+pub use self::corner_radius_f32::CornerRadiusF32;
+pub use self::image::{AlphaFromCoverage, ColorImage, ImageData, ImageDelta};
+pub use self::margin::Margin;
+pub use self::margin_f32::*;
+pub use self::mesh::{Mesh, Mesh16, Vertex};
+pub use self::shadow::Shadow;
+pub use self::shapes::{
+    CircleShape, CubicBezierShape, EllipseShape, PaintCallback, PaintCallbackInfo, PathShape,
+    QuadraticBezierShape, RectShape, Shape, TextShape,
 };
+pub use self::stats::PaintStats;
+pub use self::stroke::{PathStroke, Stroke, StrokeKind};
+pub use self::tessellator::{TessellationOptions, Tessellator};
+pub use self::text::{FontFamily, FontId, Fonts, FontsView, Galley};
+pub use self::texture_atlas::TextureAtlas;
+pub use self::texture_handle::TextureHandle;
+pub use self::textures::TextureManager;
+pub use self::viewport::ViewportInPixels;
 
 #[deprecated = "Renamed to CornerRadius"]
 pub type Rounding = CornerRadius;
 
-pub use ecolor::{Color32, Hsva, HsvaGamma, Rgba};
-pub use emath::{Pos2, Rect, Vec2, pos2, vec2};
-
 #[deprecated = "Use the ahash crate directly."]
 pub use ahash;
-
-pub use ecolor;
-pub use emath;
-
 #[cfg(feature = "color-hex")]
 pub use ecolor::hex_color;
+pub use ecolor::{Color32, Hsva, HsvaGamma, Rgba};
+pub use emath::{Pos2, Rect, Vec2, pos2, vec2};
+pub use {ecolor, emath};
 
 /// The UV coordinate of a white region of the texture mesh.
 ///

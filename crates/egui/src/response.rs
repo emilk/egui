@@ -1,10 +1,10 @@
-use std::{any::Any, sync::Arc};
+use std::any::Any;
+use std::sync::Arc;
 
+use crate::emath::{Align, Pos2, Rect, Vec2};
 use crate::{
     Context, CursorIcon, Id, LayerId, PointerButton, Popup, PopupKind, Sense, Tooltip, Ui,
-    WidgetRect, WidgetText,
-    emath::{Align, Pos2, Rect, Vec2},
-    pass_state,
+    WidgetRect, WidgetText, pass_state,
 };
 // ----------------------------------------------------------------------------
 
@@ -849,8 +849,9 @@ impl Response {
         builder: &mut accesskit::Node,
         info: crate::WidgetInfo,
     ) {
-        use crate::WidgetType;
         use accesskit::{Role, Toggled};
+
+        use crate::WidgetType;
 
         self.fill_accesskit_node_common(builder);
         builder.set_role(match info.typ {

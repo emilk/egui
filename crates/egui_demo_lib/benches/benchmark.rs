@@ -1,7 +1,6 @@
 use std::fmt::Write as _;
 
 use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
-
 use egui::epaint::TextShape;
 use egui::load::SizedTexture;
 use egui::{Button, Id, RichText, TextureId, Ui, UiBuilder, Vec2};

@@ -79,12 +79,13 @@ fn set_title_and_icon(_title: &str, _icon_data: Option<&IconData>) -> AppIconSta
 #[cfg(target_os = "windows")]
 #[expect(unsafe_code)]
 fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
-    use crate::icon_data::IconDataExt as _;
     use windows_sys::Win32::UI::Input::KeyboardAndMouse::GetActiveWindow;
     use windows_sys::Win32::UI::WindowsAndMessaging::{
         CreateIconFromResourceEx, GetSystemMetrics, HICON, ICON_BIG, ICON_SMALL, LR_DEFAULTCOLOR,
         SM_CXICON, SM_CXSMICON, SendMessageW, WM_SETICON,
     };
+
+    use crate::icon_data::IconDataExt as _;
 
     // We would get fairly far already with winit's `set_window_icon` (which is exposed to eframe) actually!
     // However, it only sets ICON_SMALL, i.e. doesn't allow us to set a higher resolution icon for the task bar.

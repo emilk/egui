@@ -1,18 +1,12 @@
-use std::{
-    mem::size_of,
-    sync::{
-        Arc,
-        atomic::{AtomicU64, Ordering::Relaxed},
-    },
-};
+use std::mem::size_of;
+use std::sync::Arc;
+use std::sync::atomic::AtomicU64;
+use std::sync::atomic::Ordering::Relaxed;
 
 use ahash::HashMap;
-
-use egui::{
-    ColorImage,
-    load::{BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
-    mutex::Mutex,
-};
+use egui::ColorImage;
+use egui::load::{BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint};
+use egui::mutex::Mutex;
 
 struct Entry {
     last_used: AtomicU64,

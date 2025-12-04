@@ -448,15 +448,8 @@ pub mod widgets;
 #[cfg(debug_assertions)]
 mod callstack;
 
-pub use accesskit;
-
 #[deprecated = "Use the ahash crate directly."]
 pub use ahash;
-
-pub use epaint;
-pub use epaint::ecolor;
-pub use epaint::emath;
-
 #[cfg(feature = "color-hex")]
 pub use ecolor::hex_color;
 pub use ecolor::{Color32, Rgba};
@@ -464,56 +457,59 @@ pub use emath::{
     Align, Align2, NumExt, Pos2, Rangef, Rect, RectAlign, Vec2, Vec2b, lerp, pos2, remap,
     remap_clamp, vec2,
 };
+pub use epaint::text::{FontData, FontDefinitions, FontFamily, FontId, FontTweak};
+pub use epaint::textures::{TextureFilter, TextureOptions, TextureWrapMode, TexturesDelta};
 pub use epaint::{
     ClippedPrimitive, ColorImage, CornerRadius, ImageData, Margin, Mesh, PaintCallback,
-    PaintCallbackInfo, Shadow, Shape, Stroke, StrokeKind, TextureHandle, TextureId, mutex,
-    text::{FontData, FontDefinitions, FontFamily, FontId, FontTweak},
-    textures::{TextureFilter, TextureOptions, TextureWrapMode, TexturesDelta},
+    PaintCallbackInfo, Shadow, Shape, Stroke, StrokeKind, TextureHandle, TextureId, ecolor, emath,
+    mutex,
 };
+pub use {accesskit, epaint};
 
 pub mod text {
-    pub use crate::text_selection::CCursorRange;
+    pub use epaint::text::cursor::CCursor;
     pub use epaint::text::{
         FontData, FontDefinitions, FontFamily, Fonts, Galley, LayoutJob, LayoutSection, TAB_SIZE,
-        TextFormat, TextWrapping, cursor::CCursor,
+        TextFormat, TextWrapping,
     };
+
+    pub use crate::text_selection::CCursorRange;
 }
 
-pub use self::{
-    atomics::*,
-    containers::{menu::MenuBar, *},
-    context::{Context, RepaintCause, RequestRepaintInfo},
-    data::{
-        Key, UserData,
-        input::*,
-        output::{
-            self, CursorIcon, FullOutput, OpenUrl, OutputCommand, PlatformOutput,
-            UserAttentionType, WidgetInfo,
-        },
-    },
-    drag_and_drop::DragAndDrop,
-    epaint::text::TextWrapMode,
-    grid::Grid,
-    id::{Id, IdMap},
-    input_state::{InputOptions, InputState, MultiTouchInfo, PointerState, SurrenderFocusOn},
-    layers::{LayerId, Order},
-    layout::*,
-    load::SizeHint,
-    memory::{FocusDirection, Memory, Options, Theme, ThemePreference},
-    painter::Painter,
-    plugin::Plugin,
-    response::{InnerResponse, Response},
-    sense::Sense,
-    style::{FontSelection, Spacing, Style, TextStyle, Visuals},
-    text::{Galley, TextFormat},
-    ui::Ui,
-    ui_builder::UiBuilder,
-    ui_stack::*,
-    viewport::*,
-    widget_rect::{WidgetRect, WidgetRects},
-    widget_text::{RichText, WidgetText},
-    widgets::*,
+pub use self::atomics::*;
+pub use self::containers::menu::MenuBar;
+pub use self::containers::*;
+pub use self::context::{Context, RepaintCause, RequestRepaintInfo};
+pub use self::data::input::*;
+pub use self::data::output::{
+    self, CursorIcon, FullOutput, OpenUrl, OutputCommand, PlatformOutput, UserAttentionType,
+    WidgetInfo,
 };
+pub use self::data::{Key, UserData};
+pub use self::drag_and_drop::DragAndDrop;
+pub use self::epaint::text::TextWrapMode;
+pub use self::grid::Grid;
+pub use self::id::{Id, IdMap};
+pub use self::input_state::{
+    InputOptions, InputState, MultiTouchInfo, PointerState, SurrenderFocusOn,
+};
+pub use self::layers::{LayerId, Order};
+pub use self::layout::*;
+pub use self::load::SizeHint;
+pub use self::memory::{FocusDirection, Memory, Options, Theme, ThemePreference};
+pub use self::painter::Painter;
+pub use self::plugin::Plugin;
+pub use self::response::{InnerResponse, Response};
+pub use self::sense::Sense;
+pub use self::style::{FontSelection, Spacing, Style, TextStyle, Visuals};
+pub use self::text::{Galley, TextFormat};
+pub use self::ui::Ui;
+pub use self::ui_builder::UiBuilder;
+pub use self::ui_stack::*;
+pub use self::viewport::*;
+pub use self::widget_rect::{WidgetRect, WidgetRects};
+pub use self::widget_text::{RichText, WidgetText};
+pub use self::widgets::*;
 
 #[deprecated = "Renamed to CornerRadius"]
 pub type Rounding = CornerRadius;

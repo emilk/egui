@@ -2,9 +2,8 @@ use std::collections::BTreeMap;
 
 use egui::mutex::Mutex;
 
-use crate::epi;
-
 use super::percent_decode;
+use crate::epi;
 
 // ----------------------------------------------------------------------------
 

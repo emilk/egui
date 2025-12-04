@@ -1,7 +1,5 @@
-use std::{
-    fmt,
-    ops::{Add, AddAssign, MulAssign, Sub, SubAssign},
-};
+use std::fmt;
+use std::ops::{Add, AddAssign, MulAssign, Sub, SubAssign};
 
 use crate::{Div, Mul, Vec2, lerp};
 

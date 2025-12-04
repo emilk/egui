@@ -1,9 +1,6 @@
-use egui::{
-    Color32, Pos2, Rect, Sense, StrokeKind, Vec2,
-    emath::{GuiRounding as _, TSTransform},
-    epaint::{self, RectShape},
-    vec2,
-};
+use egui::emath::{GuiRounding as _, TSTransform};
+use egui::epaint::{self, RectShape};
+use egui::{Color32, Pos2, Rect, Sense, StrokeKind, Vec2, vec2};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TessellationTest {
@@ -356,10 +353,10 @@ fn rect_shape_ui(ui: &mut egui::Ui, shape: &mut RectShape) {
 
 #[cfg(test)]
 mod tests {
-    use crate::View as _;
     use egui_kittest::SnapshotResults;
 
     use super::*;
+    use crate::View as _;
 
     #[test]
     fn snapshot_tessellation_test() {

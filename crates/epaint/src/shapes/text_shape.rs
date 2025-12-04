@@ -179,9 +179,11 @@ impl From<TextShape> for Shape {
 
 #[cfg(test)]
 mod tests {
-    use super::{super::*, *};
-    use crate::text::FontDefinitions;
     use emath::almost_equal;
+
+    use super::super::*;
+    use super::*;
+    use crate::text::FontDefinitions;
 
     #[test]
     fn text_bounding_box_under_rotation() {

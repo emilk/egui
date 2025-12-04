@@ -1,13 +1,11 @@
-use std::{sync::Arc, time::Instant};
-
-use winit::{
-    event_loop::ActiveEventLoop,
-    window::{Window, WindowId},
-};
+use std::sync::Arc;
+use std::time::Instant;
 
 use egui::ViewportId;
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
+use winit::event_loop::ActiveEventLoop;
+use winit::window::{Window, WindowId};
 
 /// Create an egui context, restoring it from storage if possible.
 pub fn create_egui_context(storage: Option<&dyn crate::Storage>) -> egui::Context {

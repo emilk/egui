@@ -154,11 +154,10 @@
 compile_error!("`accesskit` feature is only available with `android-game-activity`");
 
 // Re-export all useful libraries:
-pub use {egui, egui::emath, egui::epaint};
-
+pub use egui;
+pub use egui::{emath, epaint};
 #[cfg(feature = "glow")]
 pub use {egui_glow, glow};
-
 #[cfg(feature = "wgpu_no_default_features")]
 pub use {egui_wgpu, wgpu};
 
@@ -174,7 +173,6 @@ pub(crate) mod stopwatch;
 
 #[cfg(target_arch = "wasm32")]
 pub use wasm_bindgen;
-
 #[cfg(target_arch = "wasm32")]
 pub use web_sys;
 
@@ -193,16 +191,14 @@ mod native;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
-pub use native::run::EframeWinitApplication;
-
+#[cfg(feature = "persistence")]
+pub use native::file_storage::storage_dir;
 #[cfg(not(any(target_arch = "wasm32", target_os = "ios")))]
 #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 pub use native::run::EframePumpStatus;
-
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
-#[cfg(feature = "persistence")]
-pub use native::file_storage::storage_dir;
+pub use native::run::EframeWinitApplication;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod icon_data;

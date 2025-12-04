@@ -3,13 +3,9 @@ use std::collections::BTreeMap;
 use ab_glyph::{Font as _, OutlinedGlyph, PxScale};
 use emath::{GuiRounding as _, OrderedFloat, Vec2, vec2};
 
-use crate::{
-    TextureAtlas,
-    text::{
-        FontTweak,
-        fonts::{CachedFamily, FontFaceKey},
-    },
-};
+use crate::TextureAtlas;
+use crate::text::FontTweak;
+use crate::text::fonts::{CachedFamily, FontFaceKey};
 
 // ----------------------------------------------------------------------------
 

@@ -1,9 +1,9 @@
-use std::{hash::Hash, sync::Arc};
+use std::hash::Hash;
+use std::sync::Arc;
 
-use crate::ClosableTag;
 #[expect(unused_imports)] // Used for doclinks
 use crate::Ui;
-use crate::{Id, LayerId, Layout, Rect, Sense, Style, UiStackInfo};
+use crate::{ClosableTag, Id, LayerId, Layout, Rect, Sense, Style, UiStackInfo};
 
 /// Build a [`Ui`] as the child of another [`Ui`].
 ///

@@ -64,10 +64,8 @@ pub fn load_svg_bytes_with_size(
     options: &resvg::usvg::Options<'_>,
 ) -> Result<egui::ColorImage, String> {
     use egui::Vec2;
-    use resvg::{
-        tiny_skia::Pixmap,
-        usvg::{Transform, Tree},
-    };
+    use resvg::tiny_skia::Pixmap;
+    use resvg::usvg::{Transform, Tree};
 
     profiling::function_scope!();
 

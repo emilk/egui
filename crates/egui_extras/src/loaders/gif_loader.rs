@@ -1,11 +1,13 @@
+use std::io::Cursor;
+use std::mem::size_of;
+use std::sync::Arc;
+use std::time::Duration;
+
 use ahash::HashMap;
-use egui::{
-    ColorImage, FrameDurations, Id, decode_animated_image_uri, has_gif_magic_header,
-    load::{BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
-    mutex::Mutex,
-};
+use egui::load::{BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint};
+use egui::mutex::Mutex;
+use egui::{ColorImage, FrameDurations, Id, decode_animated_image_uri, has_gif_magic_header};
 use image::AnimationDecoder as _;
-use std::{io::Cursor, mem::size_of, sync::Arc, time::Duration};
 
 /// Array of Frames and the duration for how long each frame should be shown
 #[derive(Debug, Clone)]

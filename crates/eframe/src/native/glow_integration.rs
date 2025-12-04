@@ -7,39 +7,33 @@
 
 #![allow(clippy::undocumented_unsafe_blocks)]
 
-use std::{cell::RefCell, num::NonZeroU32, rc::Rc, sync::Arc, time::Instant};
-
-use egui_winit::ActionRequested;
-use glutin::{
-    config::GlConfig as _,
-    context::NotCurrentGlContext as _,
-    display::GetGlDisplay as _,
-    prelude::{GlDisplay as _, PossiblyCurrentGlContext as _},
-    surface::GlSurface as _,
-};
-use raw_window_handle::HasWindowHandle as _;
-use winit::{
-    event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
-    window::{Window, WindowId},
-};
+use std::cell::RefCell;
+use std::num::NonZeroU32;
+use std::rc::Rc;
+use std::sync::Arc;
+use std::time::Instant;
 
 use ahash::HashMap;
 use egui::{
     DeferredViewportUiCallback, ImmediateViewport, OrderedViewportIdMap, ViewportBuilder,
     ViewportClass, ViewportId, ViewportIdPair, ViewportInfo, ViewportOutput,
 };
+use egui_winit::ActionRequested;
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
+use glutin::config::GlConfig as _;
+use glutin::context::NotCurrentGlContext as _;
+use glutin::display::GetGlDisplay as _;
+use glutin::prelude::{GlDisplay as _, PossiblyCurrentGlContext as _};
+use glutin::surface::GlSurface as _;
+use raw_window_handle::HasWindowHandle as _;
+use winit::event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy};
+use winit::window::{Window, WindowId};
 
-use crate::{
-    App, AppCreator, CreationContext, NativeOptions, Result, Storage,
-    native::epi_integration::EpiIntegration,
-};
-
-use super::{
-    epi_integration, event_loop_context,
-    winit_integration::{EventResult, UserEvent, WinitApp, create_egui_context},
-};
+use super::winit_integration::{EventResult, UserEvent, WinitApp, create_egui_context};
+use super::{epi_integration, event_loop_context};
+use crate::native::epi_integration::EpiIntegration;
+use crate::{App, AppCreator, CreationContext, NativeOptions, Result, Storage};
 
 // ----------------------------------------------------------------------------
 // Types:

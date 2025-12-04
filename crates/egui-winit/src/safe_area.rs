@@ -3,8 +3,10 @@ pub use ios::get_safe_area_insets;
 
 #[cfg(target_os = "ios")]
 mod ios {
-    use egui::{SafeAreaInsets, epaint::MarginF32};
-    use objc2::{ClassType, rc::Retained};
+    use egui::SafeAreaInsets;
+    use egui::epaint::MarginF32;
+    use objc2::ClassType;
+    use objc2::rc::Retained;
     use objc2_foundation::{MainThreadMarker, NSObjectProtocol};
     use objc2_ui_kit::{UIApplication, UISceneActivationState, UIWindowScene};
 

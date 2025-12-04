@@ -1,6 +1,7 @@
+use std::sync::atomic::AtomicBool;
+
 #[expect(unused_imports)]
 use crate::{Ui, UiBuilder};
-use std::sync::atomic::AtomicBool;
 
 /// A tag to mark a container as closable.
 ///

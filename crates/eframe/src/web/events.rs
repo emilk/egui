@@ -1,4 +1,5 @@
-use crate::web::string_from_js_value;
+use js_sys::Reflect;
+use web_sys::{Document, EventTarget, ShadowRoot};
 
 use super::{
     AppRunner, Closure, DEBUG_RESIZE, JsCast as _, JsValue, WebRunner, button_from_mouse_event,
@@ -6,9 +7,7 @@ use super::{
     native_pixels_per_point, pos_from_mouse_event, prefers_color_scheme, primary_touch_pos,
     push_touches, text_from_keyboard_event, translate_key,
 };
-
-use js_sys::Reflect;
-use web_sys::{Document, EventTarget, ShadowRoot};
+use crate::web::string_from_js_value;
 
 // TODO(emilk): there are more calls to `prevent_default` and `stop_propagation`
 // than what is probably needed.

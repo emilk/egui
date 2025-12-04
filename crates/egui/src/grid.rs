@@ -1,12 +1,11 @@
 use emath::GuiRounding as _;
 
+#[cfg(debug_assertions)]
+use crate::Stroke;
 use crate::{
     Align2, Color32, Context, Id, InnerResponse, NumExt as _, Painter, Rect, Region, Style, Ui,
     UiBuilder, Vec2, vec2,
 };
-
-#[cfg(debug_assertions)]
-use crate::Stroke;
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct State {

@@ -1,10 +1,6 @@
-use egui::{
-    Color32, Context, Pos2, Rect, Ui,
-    containers::{Frame, Window},
-    emath, epaint,
-    epaint::PathStroke,
-    hex_color, lerp, pos2, remap, vec2,
-};
+use egui::containers::{Frame, Window};
+use egui::epaint::PathStroke;
+use egui::{Color32, Context, Pos2, Rect, Ui, emath, epaint, hex_color, lerp, pos2, remap, vec2};
 
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]

@@ -127,8 +127,9 @@ where
 mod tests {
     #![allow(clippy::disallowed_methods)] // Ok for tests
 
-    use crate::mutex::Mutex;
     use std::time::Duration;
+
+    use crate::mutex::Mutex;
 
     #[test]
     fn lock_two_different_mutexes_single_thread() {
@@ -160,8 +161,9 @@ mod tests {
 mod tests_rwlock {
     #![allow(clippy::disallowed_methods)] // Ok for tests
 
-    use crate::mutex::RwLock;
     use std::time::Duration;
+
+    use crate::mutex::RwLock;
 
     #[test]
     fn lock_two_different_rwlocks_single_thread() {

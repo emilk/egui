@@ -5,15 +5,11 @@
 //! There is a bunch of improvements we could do,
 //! like removing a bunch of `unwraps`.
 
-use std::{cell::RefCell, num::NonZeroU32, rc::Rc, sync::Arc, time::Instant};
-
-use egui_winit::ActionRequested;
-use parking_lot::Mutex;
-use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
-use winit::{
-    event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
-    window::{Window, WindowId},
-};
+use std::cell::RefCell;
+use std::num::NonZeroU32;
+use std::rc::Rc;
+use std::sync::Arc;
+use std::time::Instant;
 
 use ahash::HashMap;
 use egui::{
@@ -21,16 +17,20 @@ use egui::{
     ViewportBuilder, ViewportClass, ViewportId, ViewportIdPair, ViewportIdSet, ViewportInfo,
     ViewportOutput,
 };
+use egui_winit::ActionRequested;
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
+use parking_lot::Mutex;
+use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
+use winit::event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy};
+use winit::window::{Window, WindowId};
 use winit_integration::UserEvent;
 
-use crate::{
-    App, AppCreator, CreationContext, NativeOptions, Result, Storage,
-    native::{epi_integration::EpiIntegration, winit_integration::EventResult},
-};
-
-use super::{epi_integration, event_loop_context, winit_integration, winit_integration::WinitApp};
+use super::winit_integration::WinitApp;
+use super::{epi_integration, event_loop_context, winit_integration};
+use crate::native::epi_integration::EpiIntegration;
+use crate::native::winit_integration::EventResult;
+use crate::{App, AppCreator, CreationContext, NativeOptions, Result, Storage};
 
 // ----------------------------------------------------------------------------
 // Types:

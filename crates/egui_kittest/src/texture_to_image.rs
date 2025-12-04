@@ -1,9 +1,10 @@
-use egui_wgpu::wgpu;
-use egui_wgpu::wgpu::{Device, Extent3d, Queue, Texture};
-use image::RgbaImage;
 use std::iter;
 use std::mem::size_of;
 use std::sync::mpsc::channel;
+
+use egui_wgpu::wgpu;
+use egui_wgpu::wgpu::{Device, Extent3d, Queue, Texture};
+use image::RgbaImage;
 
 use crate::wgpu::WAIT_TIMEOUT;
 

@@ -1,13 +1,12 @@
+use std::sync::Arc;
+
 use egui::{Event, UserData, ViewportId};
 use egui_glow::glow;
-use std::sync::Arc;
-use wasm_bindgen::JsCast as _;
-use wasm_bindgen::JsValue;
+use wasm_bindgen::{JsCast as _, JsValue};
 use web_sys::HtmlCanvasElement;
 
-use crate::{WebGlContextOption, WebOptions};
-
 use super::web_painter::WebPainter;
+use crate::{WebGlContextOption, WebOptions};
 
 pub(crate) struct WebPainterGlow {
     canvas: HtmlCanvasElement,

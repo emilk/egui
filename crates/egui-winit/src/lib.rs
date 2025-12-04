@@ -11,26 +11,21 @@
 
 #[cfg(feature = "accesskit")]
 pub use accesskit_winit;
-pub use egui;
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
 use egui::{Pos2, Rect, Theme, Vec2, ViewportBuilder, ViewportCommand, ViewportId, ViewportInfo};
-pub use winit;
+pub use {egui, winit};
 
 pub mod clipboard;
 mod safe_area;
 mod window_settings;
 
-pub use window_settings::WindowSettings;
-
 use raw_window_handle::HasDisplayHandle;
-
-use winit::{
-    dpi::{PhysicalPosition, PhysicalSize},
-    event::ElementState,
-    event_loop::ActiveEventLoop,
-    window::{CursorGrabMode, Window, WindowButtons, WindowLevel},
-};
+pub use window_settings::WindowSettings;
+use winit::dpi::{PhysicalPosition, PhysicalSize};
+use winit::event::ElementState;
+use winit::event_loop::ActiveEventLoop;
+use winit::window::{CursorGrabMode, Window, WindowButtons, WindowLevel};
 
 pub fn screen_size_in_pixels(window: &Window) -> egui::Vec2 {
     let size = if cfg!(target_os = "ios") {
@@ -1766,8 +1761,7 @@ pub fn create_winit_window_attributes(
     #[cfg(all(feature = "x11", target_os = "linux"))]
     {
         if let Some(window_type) = _window_type {
-            use winit::platform::x11::WindowAttributesExtX11 as _;
-            use winit::platform::x11::WindowType;
+            use winit::platform::x11::{WindowAttributesExtX11 as _, WindowType};
             window_attributes = window_attributes.with_x11_window_type(vec![match window_type {
                 egui::X11WindowType::Normal => WindowType::Normal,
                 egui::X11WindowType::Utility => WindowType::Utility,

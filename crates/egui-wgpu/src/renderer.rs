@@ -1,11 +1,13 @@
 #![allow(unsafe_code)]
 
-use std::{borrow::Cow, num::NonZeroU64, ops::Range};
+use std::borrow::Cow;
+use std::num::NonZeroU64;
+use std::ops::Range;
 
 use ahash::HashMap;
 use bytemuck::Zeroable as _;
-use epaint::{PaintCallbackInfo, Primitive, Vertex, emath::NumExt as _};
-
+use epaint::emath::NumExt as _;
+use epaint::{PaintCallbackInfo, Primitive, Vertex};
 use wgpu::util::DeviceExt as _;
 
 // Only implements Send + Sync on wasm32 in order to allow storing wgpu resources on the type map.

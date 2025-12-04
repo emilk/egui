@@ -1,22 +1,14 @@
-use std::{
-    collections::BTreeMap,
-    sync::{
-        Arc,
-        atomic::{AtomicU64, Ordering},
-    },
-};
+use std::collections::BTreeMap;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
-use crate::{
-    AlphaFromCoverage, TextureAtlas,
-    text::{
-        Galley, LayoutJob, LayoutSection,
-        font::{Font, FontImpl, GlyphInfo},
-    },
-};
 use emath::{NumExt as _, OrderedFloat};
-
 #[cfg(feature = "default_fonts")]
 use epaint_default_fonts::{EMOJI_ICON, HACK_REGULAR, NOTO_EMOJI_REGULAR, UBUNTU_LIGHT};
+
+use crate::text::font::{Font, FontImpl, GlyphInfo};
+use crate::text::{Galley, LayoutJob, LayoutSection};
+use crate::{AlphaFromCoverage, TextureAtlas};
 
 // ----------------------------------------------------------------------------
 
@@ -1088,11 +1080,12 @@ fn should_cache_each_paragraph_individually(job: &LayoutJob) -> bool {
 mod tests {
     use core::f32;
 
-    use super::*;
-    use crate::text::{TextWrapping, layout};
-    use crate::{Stroke, text::TextFormat};
     use ecolor::Color32;
     use emath::Align;
+
+    use super::*;
+    use crate::Stroke;
+    use crate::text::{TextFormat, TextWrapping, layout};
 
     fn jobs() -> Vec<LayoutJob> {
         vec![

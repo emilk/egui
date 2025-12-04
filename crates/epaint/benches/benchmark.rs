@@ -1,11 +1,11 @@
-use criterion::{Criterion, criterion_group, criterion_main};
+use std::hint::black_box;
 
+use criterion::{Criterion, criterion_group, criterion_main};
+use epaint::tessellator::Path;
 use epaint::{
     AlphaFromCoverage, ClippedShape, Color32, Mesh, PathStroke, Pos2, Rect, Shape, Stroke,
-    TessellationOptions, Tessellator, TextureAtlas, Vec2, pos2, tessellator::Path,
+    TessellationOptions, Tessellator, TextureAtlas, Vec2, pos2,
 };
-
-use std::hint::black_box;
 
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc; // Much faster allocator

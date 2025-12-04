@@ -2,10 +2,8 @@
 
 use epaint::{ColorImage, MarginF32};
 
-use crate::{
-    Key, OrderedViewportIdMap, Theme, ViewportId, ViewportIdMap,
-    emath::{Pos2, Rect, Vec2},
-};
+use crate::emath::{Pos2, Rect, Vec2};
+use crate::{Key, OrderedViewportIdMap, Theme, ViewportId, ViewportIdMap};
 
 /// What the integrations provides to egui at the start of each frame.
 ///

@@ -2,16 +2,13 @@ use std::sync::Arc;
 
 use emath::TSTransform;
 
-use crate::{
-    Context, CursorIcon, Event, Galley, Id, LayerId, Plugin, Pos2, Rect, Response, Ui,
-    layers::ShapeIdx, text::CCursor, text_selection::CCursorRange,
-};
-
-use super::{
-    TextCursorState,
-    text_cursor_state::cursor_rect,
-    visuals::{RowVertexIndices, paint_text_selection},
-};
+use super::TextCursorState;
+use super::text_cursor_state::cursor_rect;
+use super::visuals::{RowVertexIndices, paint_text_selection};
+use crate::layers::ShapeIdx;
+use crate::text::CCursor;
+use crate::text_selection::CCursorRange;
+use crate::{Context, CursorIcon, Event, Galley, Id, LayerId, Plugin, Pos2, Rect, Response, Ui};
 
 /// Turn on to help debug this
 const DEBUG: bool = false; // Don't merge `true`!

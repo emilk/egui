@@ -1,5 +1,10 @@
+use std::cell::Cell;
+use std::io;
+use std::os::fd::AsRawFd as _;
+use std::rc::Rc;
+use std::time::Duration;
+
 use eframe::{EframePumpStatus, UserEvent, egui};
-use std::{cell::Cell, io, os::fd::AsRawFd as _, rc::Rc, time::Duration};
 use tokio::task::LocalSet;
 use winit::event_loop::{ControlFlow, EventLoop};
 

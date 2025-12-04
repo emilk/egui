@@ -1,10 +1,8 @@
-use egui::{
-    Color32, Painter, Pos2, Rect, Shape, Stroke, Ui, Vec2,
-    containers::{CollapsingHeader, Frame},
-    emath, pos2,
-    widgets::Slider,
-};
 use std::f32::consts::TAU;
+
+use egui::containers::{CollapsingHeader, Frame};
+use egui::widgets::Slider;
+use egui::{Color32, Painter, Pos2, Rect, Shape, Stroke, Ui, Vec2, emath, pos2};
 
 #[derive(PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
