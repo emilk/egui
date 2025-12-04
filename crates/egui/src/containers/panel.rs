@@ -1012,20 +1012,20 @@ impl CentralPanel {
     ) -> InnerResponse<R> {
         let Self { frame } = self;
 
-        let panel_rect = ui.available_rect_before_wrap();
-        let mut panel_ui = ui.new_child(
+        ui.scope_builder(
             UiBuilder::new()
                 .ui_stack_info(UiStackInfo::new(UiKind::CentralPanel))
-                .max_rect(panel_rect)
                 .layout(Layout::top_down(Align::Min)),
-        );
-        panel_ui.set_clip_rect(panel_rect); // If we overflow, don't do so visibly (#4475)
+            |ui| {
+                let frame = frame.unwrap_or_else(|| Frame::central_panel(ui.style()));
 
-        let frame = frame.unwrap_or_else(|| Frame::central_panel(ui.style()));
-        frame.show(&mut panel_ui, |ui| {
-            ui.expand_to_include_rect(ui.max_rect()); // Expand frame to include it all
-            add_contents(ui)
-        })
+                frame.show(ui, |ui| {
+                    ui.expand_to_include_rect(ui.max_rect()); // Expand frame to include it all
+                    add_contents(ui)
+                })
+            },
+        )
+        .inner
     }
 
     /// Show the panel at the top level.
