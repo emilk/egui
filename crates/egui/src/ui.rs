@@ -3011,7 +3011,7 @@ impl Ui {
     ///
     /// Returns the dropped item, if it was released this frame.
     ///
-    /// The given frame is used for its margins, but it color is ignored.
+    /// The given frame is used for its margins, but the color is ignored.
     #[doc(alias = "drag and drop")]
     pub fn dnd_drop_zone<Payload, R>(
         &mut self,

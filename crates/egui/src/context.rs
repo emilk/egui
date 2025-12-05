@@ -4016,7 +4016,7 @@ impl Context {
     /// Is this specific widget being dragged?
     ///
     /// A widget that sense both clicks and drags is only marked as "dragged"
-    /// when the mouse has moved a bit
+    /// when the mouse has moved a bit.
     ///
     /// See also: [`crate::Response::dragged`].
     pub fn is_being_dragged(&self, id: Id) -> bool {
@@ -4030,7 +4030,7 @@ impl Context {
         self.interaction_snapshot(|i| i.drag_started)
     }
 
-    /// This widget was being dragged, but was released this pass
+    /// This widget was being dragged, but was released this pass.
     pub fn drag_stopped_id(&self) -> Option<Id> {
         self.interaction_snapshot(|i| i.drag_stopped)
     }
