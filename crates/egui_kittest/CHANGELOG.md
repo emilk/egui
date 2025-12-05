@@ -6,6 +6,14 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.33.2 - 2025-11-13
+Nothing new
+
+
+## 0.33.1 - 2025-10-15
+* Add `egui_kittest::HarnessBuilder::with_options` [#7638](https://github.com/emilk/egui/pull/7638) by [@emilk](https://github.com/emilk)
+
+
 ## 0.33.0 - 2025-10-09
 ### ⭐ Added
 * Kittest: Add `UPDATE_SNAPSHOTS=force` [#7508](https://github.com/emilk/egui/pull/7508) by [@emilk](https://github.com/emilk)

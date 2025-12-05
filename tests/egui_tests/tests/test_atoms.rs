@@ -108,3 +108,14 @@ fn test_intrinsic_size() {
         }
     }
 }
+
+#[test]
+fn test_button_shortcut_text() {
+    let mut harness = HarnessBuilder::default().build_ui(|ui| {
+        ui.add(egui::Button::new("Click me").shortcut_text(("1", "2", "3")));
+    });
+    harness.run();
+    harness.fit_contents();
+
+    harness.snapshot("button_shortcut");
+}

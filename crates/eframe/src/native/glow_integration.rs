@@ -239,7 +239,7 @@ impl<'app> GlowWinitApp<'app> {
                 let painter = painter.clone();
                 move |native| painter.borrow_mut().register_native_texture(native)
             })),
-            #[cfg(feature = "wgpu")]
+            #[cfg(feature = "wgpu_no_default_features")]
             None,
         );
 
@@ -301,7 +301,7 @@ impl<'app> GlowWinitApp<'app> {
                 storage: integration.frame.storage(),
                 gl: Some(gl),
                 get_proc_address: Some(&get_proc_address),
-                #[cfg(feature = "wgpu")]
+                #[cfg(feature = "wgpu_no_default_features")]
                 wgpu_render_state: None,
                 raw_display_handle: window.display_handle().map(|h| h.as_raw()),
                 raw_window_handle: window.window_handle().map(|h| h.as_raw()),
@@ -719,11 +719,11 @@ impl GlowWinitRunning<'_> {
             // vsync - don't count as frame-time:
             frame_timer.pause();
             profiling::scope!("swap_buffers");
-            let context = current_gl_context
-                .as_ref()
-                .ok_or(egui_glow::PainterError::from(
+            let context = current_gl_context.as_ref().ok_or_else(|| {
+                egui_glow::PainterError::from(
                     "failed to get current context to swap buffers".to_owned(),
-                ))?;
+                )
+            })?;
 
             gl_surface.swap_buffers(context)?;
             frame_timer.resume();
@@ -1041,11 +1041,23 @@ impl GlutinWindowContext {
 
         let mut viewport_from_window = HashMap::default();
         let mut window_from_viewport = OrderedViewportIdMap::default();
-        let mut info = ViewportInfo::default();
+        let mut viewport_info = ViewportInfo::default();
         if let Some(window) = &window {
             viewport_from_window.insert(window.id(), ViewportId::ROOT);
             window_from_viewport.insert(ViewportId::ROOT, window.id());
-            egui_winit::update_viewport_info(&mut info, egui_ctx, window, true);
+            egui_winit::update_viewport_info(&mut viewport_info, egui_ctx, window, true);
+
+            // Tell egui right away about native_pixels_per_point etc,
+            // so that the app knows about it during app creation:
+            let pixels_per_point = egui_winit::pixels_per_point(egui_ctx, window);
+
+            egui_ctx.input_mut(|i| {
+                i.raw
+                    .viewports
+                    .insert(ViewportId::ROOT, viewport_info.clone());
+
+                i.pixels_per_point = pixels_per_point;
+            });
         }
 
         let mut viewports = OrderedViewportIdMap::default();
@@ -1056,7 +1068,7 @@ impl GlutinWindowContext {
                 class: ViewportClass::Root,
                 builder: viewport_builder,
                 deferred_commands: vec![],
-                info,
+                info: viewport_info,
                 actions_requested: Default::default(),
                 viewport_ui_cb: None,
                 gl_surface: None,

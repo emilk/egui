@@ -24,7 +24,7 @@ members = [
 edition = "2024"
 license = "MIT OR Apache-2.0"
 rust-version = "1.88"
-version = "0.33.0"
+version = "0.33.2"
 
 
 [profile.release]
@@ -55,18 +55,18 @@ opt-level = 2
 
 
 [workspace.dependencies]
-emath = { version = "0.33.0", path = "crates/emath", default-features = false }
-ecolor = { version = "0.33.0", path = "crates/ecolor", default-features = false }
-epaint = { version = "0.33.0", path = "crates/epaint", default-features = false }
-epaint_default_fonts = { version = "0.33.0", path = "crates/epaint_default_fonts" }
-egui = { version = "0.33.0", path = "crates/egui", default-features = false }
-egui-winit = { version = "0.33.0", path = "crates/egui-winit", default-features = false }
-egui_extras = { version = "0.33.0", path = "crates/egui_extras", default-features = false }
-egui-wgpu = { version = "0.33.0", path = "crates/egui-wgpu", default-features = false }
-egui_demo_lib = { version = "0.33.0", path = "crates/egui_demo_lib", default-features = false }
-egui_glow = { version = "0.33.0", path = "crates/egui_glow", default-features = false }
-egui_kittest = { version = "0.33.0", path = "crates/egui_kittest", default-features = false }
-eframe = { version = "0.33.0", path = "crates/eframe", default-features = false }
+emath = { version = "0.33.2", path = "crates/emath", default-features = false }
+ecolor = { version = "0.33.2", path = "crates/ecolor", default-features = false }
+epaint = { version = "0.33.2", path = "crates/epaint", default-features = false }
+epaint_default_fonts = { version = "0.33.2", path = "crates/epaint_default_fonts" }
+egui = { version = "0.33.2", path = "crates/egui", default-features = false }
+egui-winit = { version = "0.33.2", path = "crates/egui-winit", default-features = false }
+egui_extras = { version = "0.33.2", path = "crates/egui_extras", default-features = false }
+egui-wgpu = { version = "0.33.2", path = "crates/egui-wgpu", default-features = false }
+egui_demo_lib = { version = "0.33.2", path = "crates/egui_demo_lib", default-features = false }
+egui_glow = { version = "0.33.2", path = "crates/egui_glow", default-features = false }
+egui_kittest = { version = "0.33.2", path = "crates/egui_kittest", default-features = false }
+eframe = { version = "0.33.2", path = "crates/eframe", default-features = false }
 
 accesskit = "0.21.1"
 accesskit_consumer = "0.30.1"
@@ -131,6 +131,7 @@ syntect = { version = "5.3.0", default-features = false }
 tempfile = "3.23.0"
 thiserror = "2.0.17"
 tokio = "1.47.1"
+toml = "0.8"
 type-map = "0.5.1"
 unicode_names2 = { version = "2.0.0", default-features = false }
 unicode-segmentation = "1.12.0"
@@ -232,6 +233,7 @@ iter_on_single_items = "warn"
 iter_over_hash_type = "warn"
 iter_without_into_iter = "warn"
 large_digit_groups = "warn"
+large_futures = "warn"
 large_include_file = "warn"
 large_stack_arrays = "warn"
 large_stack_frames = "warn"
@@ -276,6 +278,7 @@ non_zero_suggestions = "warn"
 nonstandard_macro_braces = "warn"
 option_as_ref_cloned = "warn"
 option_option = "warn"
+or_fun_call = "warn"
 path_buf_push_overwrite = "warn"
 pathbuf_init_then_push = "warn"
 precedence_bits = "warn"
@@ -329,6 +332,7 @@ unnecessary_semicolon = "warn"
 unnecessary_struct_initialization = "warn"
 unnecessary_wraps = "warn"
 unnested_or_patterns = "warn"
+unused_async = "warn"
 unused_peekable = "warn"
 unused_rounding = "warn"
 unused_self = "warn"

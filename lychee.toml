@@ -42,4 +42,5 @@ accept = [
 # Exclude URLs and mail addresses from checking (supports regex).
 exclude = [
   "https://creativecommons.org/.*", # They don't like bots
+  "https://www.unicode.org/.*",
 ]
