@@ -230,6 +230,10 @@ impl Default for CodeTheme {
 }
 
 impl CodeTheme {
+    pub fn is_dark(&self) -> bool {
+        self.dark_mode
+    }
+
     /// Selects either dark or light theme based on the given style.
     pub fn from_style(style: &egui::Style) -> Self {
         let font_id = style
@@ -317,6 +321,24 @@ impl CodeTheme {
 
 #[cfg(feature = "syntect")]
 impl CodeTheme {
+    /// Change the font size
+    pub fn with_font_size(&self, font_size: f32) -> Self {
+        Self {
+            dark_mode: self.dark_mode,
+            syntect_theme: self.syntect_theme,
+            font_id: egui::FontId::monospace(font_size),
+        }
+    }
+
+    /// Change the `font_id` of the theme
+    pub fn with_font_id(&self, font_id: egui::FontId) -> Self {
+        Self {
+            dark_mode: self.dark_mode,
+            syntect_theme: self.syntect_theme,
+            font_id,
+        }
+    }
+
     fn dark_with_font_id(font_id: egui::FontId) -> Self {
         Self {
             dark_mode: true,
@@ -333,10 +355,6 @@ impl CodeTheme {
         }
     }
 
-    pub fn is_dark(&self) -> bool {
-        self.dark_mode
-    }
-
     /// Show UI for changing the color theme.
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
@@ -346,11 +364,9 @@ impl CodeTheme {
             ui.selectable_value(&mut self.dark_mode, false, "☀ Light theme")
                 .on_hover_text("Use the light mode theme");
         });
-
-        for theme in SyntectTheme::all() {
-            if theme.is_dark() == self.dark_mode {
-                ui.radio_value(&mut self.syntect_theme, theme, theme.name());
-            }
+        let current_theme_is_dark = self.is_dark();
+        for theme in SyntectTheme::all().filter(|t| t.is_dark() == current_theme_is_dark) {
+            ui.radio_value(&mut self.syntect_theme, theme, theme.name());
         }
     }
 }
@@ -408,12 +424,13 @@ impl CodeTheme {
 
             ui.vertical(|ui| {
                 ui.set_width(150.0);
-                egui::widgets::global_theme_preference_buttons(ui);
+                ui.horizontal(|ui| {
+                    ui.selectable_value(&mut self.dark_mode, true, "🌙 Dark theme")
+                        .on_hover_text("Use the dark mode theme");
 
-                ui.add_space(8.0);
-                ui.separator();
-                ui.add_space(8.0);
-
+                    ui.selectable_value(&mut self.dark_mode, false, "☀ Light theme")
+                        .on_hover_text("Use the light mode theme");
+                });
                 ui.scope(|ui| {
                     for (tt, tt_name) in [
                         (TokenType::Comment, "// comment"),
