@@ -3,7 +3,7 @@
 #![allow(clippy::if_same_then_else)]
 
 use emath::Align;
-use epaint::{AlphaFromCoverage, CornerRadius, Shadow, Stroke, text::FontTweak};
+use epaint::{AlphaFromCoverage, CornerRadius, CornerRadiusF32, Shadow, Stroke, text::FontTweak};
 use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
 
 use crate::{
@@ -2684,6 +2684,64 @@ impl Widget for &mut CornerRadius {
                     self.se = 1;
                 } else {
                     self.se -= 1;
+                }
+            }
+        }
+
+        response
+    }
+}
+
+impl Widget for &mut CornerRadiusF32 {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let mut same = self.is_same();
+
+        let response = if same {
+            ui.horizontal(|ui| {
+                ui.checkbox(&mut same, "same");
+
+                let mut cr = self.nw;
+                ui.add(DragValue::new(&mut cr).range(0.0..=f32::INFINITY));
+                *self = CornerRadiusF32::same(cr);
+            })
+            .response
+        } else {
+            ui.vertical(|ui| {
+                ui.checkbox(&mut same, "same");
+
+                crate::Grid::new("Corner radius")
+                    .num_columns(2)
+                    .show(ui, |ui| {
+                        ui.label("NW");
+                        ui.add(DragValue::new(&mut self.nw).range(0.0..=f32::INFINITY));
+                        ui.end_row();
+
+                        ui.label("NE");
+                        ui.add(DragValue::new(&mut self.ne).range(0.0..=f32::INFINITY));
+                        ui.end_row();
+
+                        ui.label("SW");
+                        ui.add(DragValue::new(&mut self.sw).range(0.0..=f32::INFINITY));
+                        ui.end_row();
+
+                        ui.label("SE");
+                        ui.add(DragValue::new(&mut self.se).range(0.0..=f32::INFINITY));
+                        ui.end_row();
+                    });
+            })
+            .response
+        };
+
+        // Apply the checkbox:
+        if same {
+            *self = CornerRadiusF32::from(self.average());
+        } else {
+            // Make sure we aren't same:
+            if self.is_same() {
+                if self.average() == 0.0 {
+                    self.se = 1.0;
+                } else {
+                    self.se -= 1.0;
                 }
             }
         }

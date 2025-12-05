@@ -10,7 +10,7 @@ pub struct RectShape {
 
     /// How rounded the corners of the rectangle are.
     ///
-    /// Use [`CornerRadius::ZERO`] for for sharp corners.
+    /// Use [`CornerRadiusF32::ZERO`] for for sharp corners.
     ///
     /// This is the corner radii of the rectangle.
     /// If there is a stroke, then the stroke will have an inner and outer corner radius,
@@ -18,7 +18,7 @@ pub struct RectShape {
     ///
     /// For [`StrokeKind::Inside`], the outside of the stroke coincides with the rectangle,
     /// so the rounding will in this case specify the outer corner radius.
-    pub corner_radius: CornerRadius,
+    pub corner_radius: CornerRadiusF32,
 
     /// How to fill the rectangle.
     pub fill: Color32,
@@ -81,7 +81,7 @@ impl RectShape {
     ) -> Self {
         Self {
             rect,
-            corner_radius: corner_radius.into(),
+            corner_radius: CornerRadiusF32::from(corner_radius.into()),
             fill: fill_color.into(),
             stroke: stroke.into(),
             stroke_kind,
@@ -99,7 +99,7 @@ impl RectShape {
     ) -> Self {
         Self::new(
             rect,
-            corner_radius,
+            CornerRadiusF32::from(corner_radius.into()),
             fill_color,
             Stroke::NONE,
             StrokeKind::Outside, // doesn't matter
@@ -114,7 +114,13 @@ impl RectShape {
         stroke_kind: StrokeKind,
     ) -> Self {
         let fill = Color32::TRANSPARENT;
-        Self::new(rect, corner_radius, fill, stroke, stroke_kind)
+        Self::new(
+            rect,
+            CornerRadiusF32::from(corner_radius.into()),
+            fill,
+            stroke,
+            stroke_kind,
+        )
     }
 
     /// Set if the stroke is on the inside, outside, or centered on the rectangle.

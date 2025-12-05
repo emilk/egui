@@ -109,6 +109,11 @@ impl CornerRadiusF32 {
             se: self.se.min(max),
         }
     }
+
+    /// Average rounding of the corners.
+    pub fn average(&self) -> f32 {
+        (self.nw + self.ne + self.sw + self.se) / 4.0
+    }
 }
 
 impl std::ops::Add for CornerRadiusF32 {
