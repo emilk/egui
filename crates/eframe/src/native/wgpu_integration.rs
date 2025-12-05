@@ -25,12 +25,12 @@ use egui::{
 use egui_winit::accesskit_winit;
 use winit_integration::UserEvent;
 
+use super::{epi_integration, event_loop_context, winit_integration, winit_integration::WinitApp};
+use crate::native::epi_integration::should_start_visible;
 use crate::{
     App, AppCreator, CreationContext, NativeOptions, Result, Storage,
     native::{epi_integration::EpiIntegration, winit_integration::EventResult},
 };
-
-use super::{epi_integration, event_loop_context, winit_integration, winit_integration::WinitApp};
 
 // ----------------------------------------------------------------------------
 // Types:
@@ -958,7 +958,7 @@ fn create_window(
         native_options,
         window_settings,
     )
-    .with_visible(false); // Start hidden until we render the first frame to fix white flash on startup (https://github.com/emilk/egui/pull/3631)
+    .with_visible(should_start_visible());
 
     let window = egui_winit::create_window(egui_ctx, event_loop, &viewport_builder)?;
     epi_integration::apply_window_settings(&window, window_settings);
