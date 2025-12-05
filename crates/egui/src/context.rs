@@ -611,7 +611,7 @@ impl ContextImpl {
             }
 
             let parent_id = find_accesskit_parent(&state.parent_map, builders, id)
-                .unwrap_or(crate::accesskit_root_id());
+                .unwrap_or_else(crate::accesskit_root_id);
 
             let parent_builder = builders.get_mut(&parent_id).unwrap();
             parent_builder.push_child(id.accesskit_id());
@@ -4057,7 +4057,7 @@ impl Context {
     /// Is this specific widget being dragged?
     ///
     /// A widget that sense both clicks and drags is only marked as "dragged"
-    /// when the mouse has moved a bit
+    /// when the mouse has moved a bit.
     ///
     /// See also: [`crate::Response::dragged`].
     pub fn is_being_dragged(&self, id: Id) -> bool {
@@ -4071,7 +4071,7 @@ impl Context {
         self.interaction_snapshot(|i| i.drag_started)
     }
 
-    /// This widget was being dragged, but was released this pass
+    /// This widget was being dragged, but was released this pass.
     pub fn drag_stopped_id(&self) -> Option<Id> {
         self.interaction_snapshot(|i| i.drag_stopped)
     }

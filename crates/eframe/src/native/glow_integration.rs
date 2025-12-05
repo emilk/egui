@@ -719,11 +719,11 @@ impl GlowWinitRunning<'_> {
             // vsync - don't count as frame-time:
             frame_timer.pause();
             profiling::scope!("swap_buffers");
-            let context = current_gl_context
-                .as_ref()
-                .ok_or(egui_glow::PainterError::from(
+            let context = current_gl_context.as_ref().ok_or_else(|| {
+                egui_glow::PainterError::from(
                     "failed to get current context to swap buffers".to_owned(),
-                ))?;
+                )
+            })?;
 
             gl_surface.swap_buffers(context)?;
             frame_timer.resume();

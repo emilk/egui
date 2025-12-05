@@ -43,8 +43,11 @@ impl DemoApp for FractalClockApp {
             .stroke(egui::Stroke::NONE)
             .corner_radius(0)
             .show(ui, |ui| {
-                self.fractal_clock
-                    .ui(ui, self.mock_time.or(Some(crate::seconds_since_midnight())));
+                self.fractal_clock.ui(
+                    ui,
+                    self.mock_time
+                        .or_else(|| Some(crate::seconds_since_midnight())),
+                );
             });
     }
 }
