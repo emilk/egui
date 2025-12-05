@@ -124,7 +124,7 @@ Still, egui can be used to create professional looking applications, like [the R
 * Widgets: label, text button, hyperlink, checkbox, radio button, slider, draggable value, text editing, color picker, spinner
 * Images
 * Layouts: horizontal, vertical, columns, automatic wrapping
-* Text editing: multiline, copy/paste, undo, emoji supports
+* Text editing: multiline, copy/paste, undo, emoji via opt-in glyph packs
 * Windows: move, resize, name, minimize and close. Automatically sized and positioned.
 * Regions: resizing, vertical scrolling, collapsing headers (sections), panels
 * Rendering: Anti-aliased rendering of lines, circles, text and convex polygons.
@@ -365,6 +365,15 @@ Default fonts:
 * `Hack-Regular.ttf`: <https://github.com/source-foundry/Hack>, [MIT Licence](https://github.com/source-foundry/Hack/blob/master/LICENSE.md)
 * `NotoEmoji-Regular.ttf`: [google.com/get/noto](https://google.com/get/noto), [SIL Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL)
 * `Ubuntu-Light.ttf` by [Dalton Maag](http://www.daltonmaag.com/): [Ubuntu font licence](https://ubuntu.com/legal/font-licence)
+
+Color emoji sprites now live in the separate [`egui_noto_emoji`](crates/egui_noto_emoji) crate so that core egui stays lean.
+Opt in by adding the crate to your project and calling:
+
+```rust
+egui_noto_emoji::install(&ctx);
+```
+
+You can also iterate over `egui_noto_emoji::EmojiStore::builtin()` yourself if you need finer control over which glyphs are registered.
 
 ---
 

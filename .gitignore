@@ -9,3 +9,5 @@
 /.vscode
 /media/*
 .idea/
+/noto-emoji-*.zip
+multi-codepoint-emoji-support-plan.md

@@ -65,7 +65,7 @@ ab_glyph.workspace = true
 ahash.workspace = true
 log.workspace = true
 nohash-hasher.workspace = true
-parking_lot.workspace = true # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios.
+parking_lot.workspace = true   # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios.
 profiling = { workspace = true }
 
 #! ### Optional dependencies
