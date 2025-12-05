@@ -59,16 +59,16 @@ impl Default for HttpApp {
     }
 }
 
-impl eframe::App for HttpApp {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        egui::TopBottomPanel::bottom("http_bottom").show(ctx, |ui| {
+impl crate::DemoApp for HttpApp {
+    fn demo_ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+        egui::Panel::bottom("http_bottom").show_inside(ui, |ui| {
             let layout = egui::Layout::top_down(egui::Align::Center).with_main_justify(true);
             ui.allocate_ui_with_layout(ui.available_size(), layout, |ui| {
                 ui.add(egui_demo_lib::egui_github_link_file!())
             })
         });
 
-        egui::CentralPanel::default().show(ctx, |ui| {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             let prev_url = self.url.clone();
             let trigger_fetch = ui_url(ui, frame, &mut self.url);
 
@@ -80,7 +80,7 @@ impl eframe::App for HttpApp {
             });
 
             if trigger_fetch {
-                let ctx = ctx.clone();
+                let ctx = ui.ctx().clone();
                 let (sender, promise) = Promise::new();
                 let request = ehttp::Request::get(&self.url);
                 ehttp::fetch(request, move |response| {

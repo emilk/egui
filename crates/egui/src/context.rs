@@ -41,7 +41,6 @@ use crate::{
     viewport::ViewportClass,
 };
 
-#[cfg(feature = "accesskit")]
 use crate::IdMap;
 
 /// Information given to the backend about when it is time to repaint the ui.
@@ -404,7 +403,6 @@ struct ContextImpl {
 
     embed_viewports: bool,
 
-    #[cfg(feature = "accesskit")]
     is_accesskit_enabled: bool,
 
     loaders: Arc<Loaders>,
@@ -507,7 +505,6 @@ impl ContextImpl {
             },
         );
 
-        #[cfg(feature = "accesskit")]
         if self.is_accesskit_enabled {
             profiling::scope!("accesskit");
             use crate::pass_state::AccessKitPassState;
@@ -589,10 +586,10 @@ impl ContextImpl {
         }
     }
 
-    #[cfg(feature = "accesskit")]
     fn accesskit_node_builder(&mut self, id: Id) -> &mut accesskit::Node {
         let state = self.viewport().this_pass.accesskit_state.as_mut().unwrap();
         let builders = &mut state.nodes;
+
         if let std::collections::hash_map::Entry::Vacant(entry) = builders.entry(id) {
             entry.insert(Default::default());
 
@@ -614,11 +611,12 @@ impl ContextImpl {
             }
 
             let parent_id = find_accesskit_parent(&state.parent_map, builders, id)
-                .unwrap_or(crate::accesskit_root_id());
+                .unwrap_or_else(crate::accesskit_root_id);
 
             let parent_builder = builders.get_mut(&parent_id).unwrap();
             parent_builder.push_child(id.accesskit_id());
         }
+
         builders.get_mut(&id).unwrap()
     }
 
@@ -766,7 +764,48 @@ impl Context {
     /// and only on the rare occasion that [`Context::request_discard`] is called.
     /// Usually, it `run_ui` will only be called once.
     ///
-    /// Put your widgets into a [`crate::SidePanel`], [`crate::TopBottomPanel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
+    /// The [`Ui`] given to the callback will cover the entire [`Self::content_rect`],
+    /// with no margin or background color. Use [`crate::Frame`] to add that.
+    ///
+    /// You can organize your GUI using [`crate::Panel`].
+    ///
+    /// Instead of calling `run_ui`, you can alternatively use [`Self::begin_pass`] and [`Context::end_pass`].
+    ///
+    /// ```
+    /// // One egui context that you keep reusing:
+    /// let mut ctx = egui::Context::default();
+    ///
+    /// // Each frame:
+    /// let input = egui::RawInput::default();
+    /// let full_output = ctx.run_ui(input, |ui| {
+    ///     ui.label("Hello egui!");
+    /// });
+    /// // handle full_output
+    /// ```
+    ///
+    /// ## See also
+    /// * [`Self::run`]
+    #[must_use]
+    pub fn run_ui(&self, new_input: RawInput, mut run_ui: impl FnMut(&mut Ui)) -> FullOutput {
+        self.run_ui_dyn(new_input, &mut run_ui)
+    }
+
+    #[must_use]
+    fn run_ui_dyn(&self, new_input: RawInput, run_ui: &mut dyn FnMut(&mut Ui)) -> FullOutput {
+        self.run(new_input, |ctx| {
+            crate::CentralPanel::no_frame().show(ctx, |ui| {
+                run_ui(ui);
+            });
+        })
+    }
+
+    /// Run the ui code for one frame.
+    ///
+    /// At most [`Options::max_passes`] calls will be issued to `run_ui`,
+    /// and only on the rare occasion that [`Context::request_discard`] is called.
+    /// Usually, it `run_ui` will only be called once.
+    ///
+    /// Put your widgets into a [`crate::Panel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
     ///
     /// Instead of calling `run`, you can alternatively use [`Self::begin_pass`] and [`Context::end_pass`].
     ///
@@ -783,8 +822,16 @@ impl Context {
     /// });
     /// // handle full_output
     /// ```
+    ///
+    /// ## See also
+    /// * [`Self::run_ui`]
     #[must_use]
-    pub fn run(&self, mut new_input: RawInput, mut run_ui: impl FnMut(&Self)) -> FullOutput {
+    pub fn run(&self, new_input: RawInput, mut run_ui: impl FnMut(&Self)) -> FullOutput {
+        self.run_dyn(new_input, &mut run_ui)
+    }
+
+    #[must_use]
+    fn run_dyn(&self, mut new_input: RawInput, run_ui: &mut dyn FnMut(&Self)) -> FullOutput {
         profiling::function_scope!();
         let viewport_id = new_input.viewport_id;
         let max_passes = self.write(|ctx| ctx.memory.options.max_passes.get());
@@ -1198,7 +1245,12 @@ impl Context {
         #[allow(clippy::let_and_return, clippy::allow_attributes)]
         let res = self.get_response(w);
 
-        #[cfg(feature = "accesskit")]
+        #[cfg(debug_assertions)]
+        if res.contains_pointer() {
+            let plugins = self.read(|ctx| ctx.plugins.ordered_plugins());
+            plugins.on_widget_under_pointer(self, &w);
+        }
+
         if allow_focus && w.sense.is_focusable() {
             // Make sure anything that can receive focus has an AccessKit node.
             // TODO(mwcampbell): For nodes that are filled from widget info,
@@ -1206,7 +1258,6 @@ impl Context {
             self.accesskit_node_builder(w.id, |builder| res.fill_accesskit_node_common(builder));
         }
 
-        #[cfg(feature = "accesskit")]
         self.write(|ctx| {
             use crate::{Align, pass_state::ScrollTarget, style::ScrollAnimation};
             let viewport = ctx.viewport_for(ctx.viewport_id());
@@ -1214,12 +1265,14 @@ impl Context {
             viewport
                 .input
                 .consume_accesskit_action_requests(res.id, |request| {
+                    use accesskit::Action;
+
                     // TODO(lucasmerlin): Correctly handle the scroll unit:
                     // https://github.com/AccessKit/accesskit/blob/e639c0e0d8ccbfd9dff302d972fa06f9766d608e/common/src/lib.rs#L2621
                     const DISTANCE: f32 = 100.0;
 
                     match &request.action {
-                        accesskit::Action::ScrollIntoView => {
+                        Action::ScrollIntoView => {
                             viewport.this_pass.scroll_target = [
                                 Some(ScrollTarget::new(
                                     res.rect.x_range(),
@@ -1233,16 +1286,16 @@ impl Context {
                                 )),
                             ];
                         }
-                        accesskit::Action::ScrollDown => {
+                        Action::ScrollDown => {
                             viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::UP;
                         }
-                        accesskit::Action::ScrollUp => {
+                        Action::ScrollUp => {
                             viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::DOWN;
                         }
-                        accesskit::Action::ScrollLeft => {
+                        Action::ScrollLeft => {
                             viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::LEFT;
                         }
-                        accesskit::Action::ScrollRight => {
+                        Action::ScrollRight => {
                             viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::RIGHT;
                         }
                         _ => return false,
@@ -1335,7 +1388,6 @@ impl Context {
                 res.flags.set(Flags::FAKE_PRIMARY_CLICKED, true);
             }
 
-            #[cfg(feature = "accesskit")]
             if enabled
                 && sense.senses_click()
                 && input.has_accesskit_action_request(id, accesskit::Action::Click)
@@ -2492,7 +2544,6 @@ impl ContextImpl {
 
         let mut platform_output: PlatformOutput = std::mem::take(&mut viewport.output);
 
-        #[cfg(feature = "accesskit")]
         {
             profiling::scope!("accesskit");
             let state = viewport.this_pass.accesskit_state.take();
@@ -3491,9 +3542,8 @@ impl Context {
     ///
     /// The `Context` lock is held while the given closure is called!
     ///
-    /// Returns `None` if acesskit is off.
+    /// Returns `None` if accesskit is off.
     // TODO(emilk): consider making both read-only and read-write versions
-    #[cfg(feature = "accesskit")]
     pub fn accesskit_node_builder<R>(
         &self,
         id: Id,
@@ -3509,7 +3559,6 @@ impl Context {
         })
     }
 
-    #[cfg(feature = "accesskit")]
     pub(crate) fn register_accesskit_parent(&self, id: Id, parent_id: Id) {
         self.write(|ctx| {
             if let Some(state) = ctx.viewport().this_pass.accesskit_state.as_mut() {
@@ -3519,13 +3568,11 @@ impl Context {
     }
 
     /// Enable generation of AccessKit tree updates in all future frames.
-    #[cfg(feature = "accesskit")]
     pub fn enable_accesskit(&self) {
         self.write(|ctx| ctx.is_accesskit_enabled = true);
     }
 
     /// Disable generation of AccessKit tree updates in all future frames.
-    #[cfg(feature = "accesskit")]
     pub fn disable_accesskit(&self) {
         self.write(|ctx| ctx.is_accesskit_enabled = false);
     }
@@ -4010,7 +4057,7 @@ impl Context {
     /// Is this specific widget being dragged?
     ///
     /// A widget that sense both clicks and drags is only marked as "dragged"
-    /// when the mouse has moved a bit
+    /// when the mouse has moved a bit.
     ///
     /// See also: [`crate::Response::dragged`].
     pub fn is_being_dragged(&self, id: Id) -> bool {
@@ -4024,7 +4071,7 @@ impl Context {
         self.interaction_snapshot(|i| i.drag_started)
     }
 
-    /// This widget was being dragged, but was released this pass
+    /// This widget was being dragged, but was released this pass.
     pub fn drag_stopped_id(&self) -> Option<Id> {
         self.interaction_snapshot(|i| i.drag_stopped)
     }

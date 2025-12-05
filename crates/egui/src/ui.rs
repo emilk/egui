@@ -119,7 +119,7 @@ impl Ui {
     /// Create a new top-level [`Ui`].
     ///
     /// Normally you would not use this directly, but instead use
-    /// [`crate::SidePanel`], [`crate::TopBottomPanel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
+    /// [`crate::Panel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
     pub fn new(ctx: Context, id: Id, ui_builder: UiBuilder) -> Self {
         let UiBuilder {
             id_salt,
@@ -133,11 +133,10 @@ impl Ui {
             sizing_pass,
             style,
             sense,
-            #[cfg(feature = "accesskit")]
             accessibility_parent,
         } = ui_builder;
 
-        let layer_id = layer_id.unwrap_or(LayerId::background());
+        let layer_id = layer_id.unwrap_or_else(LayerId::background);
 
         debug_assert!(
             id_salt.is_none(),
@@ -149,7 +148,7 @@ impl Ui {
         let layout = layout.unwrap_or_default();
         let disabled = disabled || invisible;
         let style = style.unwrap_or_else(|| ctx.style());
-        let sense = sense.unwrap_or(Sense::hover());
+        let sense = sense.unwrap_or_else(Sense::hover);
 
         let placer = Placer::new(max_rect, layout);
         let ui_stack = UiStack {
@@ -175,7 +174,6 @@ impl Ui {
             min_rect_already_remembered: false,
         };
 
-        #[cfg(feature = "accesskit")]
         if let Some(accessibility_parent) = accessibility_parent {
             ui.ctx()
                 .register_accesskit_parent(ui.unique_id, accessibility_parent);
@@ -202,7 +200,6 @@ impl Ui {
             ui.set_invisible();
         }
 
-        #[cfg(feature = "accesskit")]
         ui.ctx().accesskit_node_builder(ui.unique_id, |node| {
             node.set_role(accesskit::Role::GenericContainer);
         });
@@ -273,7 +270,6 @@ impl Ui {
             sizing_pass,
             style,
             sense,
-            #[cfg(feature = "accesskit")]
             accessibility_parent,
         } = ui_builder;
 
@@ -281,7 +277,7 @@ impl Ui {
 
         let id_salt = id_salt.unwrap_or_else(|| Id::from("child"));
         let max_rect = max_rect.unwrap_or_else(|| self.available_rect_before_wrap());
-        let mut layout = layout.unwrap_or(*self.layout());
+        let mut layout = layout.unwrap_or_else(|| *self.layout());
         let enabled = self.enabled && !disabled && !invisible;
         if let Some(layer_id) = layer_id {
             painter.set_layer_id(layer_id);
@@ -291,7 +287,7 @@ impl Ui {
         }
         let sizing_pass = self.sizing_pass || sizing_pass;
         let style = style.unwrap_or_else(|| self.style.clone());
-        let sense = sense.unwrap_or(Sense::hover());
+        let sense = sense.unwrap_or_else(Sense::hover);
 
         if sizing_pass {
             // During the sizing pass we want widgets to use up as little space as possible,
@@ -343,7 +339,6 @@ impl Ui {
             child_ui.disable();
         }
 
-        #[cfg(feature = "accesskit")]
         child_ui.ctx().register_accesskit_parent(
             child_ui.unique_id,
             accessibility_parent.unwrap_or(self.unique_id),
@@ -363,7 +358,6 @@ impl Ui {
             true,
         );
 
-        #[cfg(feature = "accesskit")]
         child_ui
             .ctx()
             .accesskit_node_builder(child_ui.unique_id, |node| {
@@ -1129,7 +1123,6 @@ impl Ui {
 impl Ui {
     /// Check for clicks, drags and/or hover on a specific region of this [`Ui`].
     pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> Response {
-        #[cfg(feature = "accesskit")]
         self.ctx().register_accesskit_parent(id, self.unique_id);
 
         self.ctx().create_widget(
@@ -3011,7 +3004,7 @@ impl Ui {
     ///
     /// Returns the dropped item, if it was released this frame.
     ///
-    /// The given frame is used for its margins, but it color is ignored.
+    /// The given frame is used for its margins, but the color is ignored.
     #[doc(alias = "drag and drop")]
     pub fn dnd_drop_zone<Payload, R>(
         &mut self,
