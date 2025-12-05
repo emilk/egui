@@ -941,7 +941,7 @@ impl Panel {
         PanelState::load(ctx, panel.id)
             .map(get_rect_state_size)
             .or(panel.default_size)
-            .unwrap_or(get_spacing_size())
+            .unwrap_or_else(get_spacing_size)
     }
 }
 
