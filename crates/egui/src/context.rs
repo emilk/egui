@@ -611,7 +611,7 @@ impl ContextImpl {
             }
 
             let parent_id = find_accesskit_parent(&state.parent_map, builders, id)
-                .unwrap_or(crate::accesskit_root_id());
+                .unwrap_or_else(crate::accesskit_root_id);
 
             let parent_builder = builders.get_mut(&parent_id).unwrap();
             parent_builder.push_child(id.accesskit_id());

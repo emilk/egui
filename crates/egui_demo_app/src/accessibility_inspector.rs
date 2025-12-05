@@ -199,8 +199,8 @@ impl AccessibilityInspectorPlugin {
         }
         let label = node
             .label()
-            .or(node.value())
-            .unwrap_or(node.id().0.to_string());
+            .or_else(|| node.value())
+            .unwrap_or_else(|| node.id().0.to_string());
         let label = format!("({:?}) {}", node.role(), label);
 
         // Safety: This is safe since the `accesskit::NodeId` was created from an `egui::Id`.

@@ -433,7 +433,7 @@ impl Response {
     pub fn drag_motion(&self) -> Vec2 {
         if self.dragged() {
             self.ctx
-                .input(|i| i.pointer.motion().unwrap_or(i.pointer.delta()))
+                .input(|i| i.pointer.motion().unwrap_or_else(|| i.pointer.delta()))
         } else {
             Vec2::ZERO
         }

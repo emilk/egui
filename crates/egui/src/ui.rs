@@ -136,7 +136,7 @@ impl Ui {
             accessibility_parent,
         } = ui_builder;
 
-        let layer_id = layer_id.unwrap_or(LayerId::background());
+        let layer_id = layer_id.unwrap_or_else(LayerId::background);
 
         debug_assert!(
             id_salt.is_none(),
@@ -148,7 +148,7 @@ impl Ui {
         let layout = layout.unwrap_or_default();
         let disabled = disabled || invisible;
         let style = style.unwrap_or_else(|| ctx.style());
-        let sense = sense.unwrap_or(Sense::hover());
+        let sense = sense.unwrap_or_else(Sense::hover);
 
         let placer = Placer::new(max_rect, layout);
         let ui_stack = UiStack {
@@ -277,7 +277,7 @@ impl Ui {
 
         let id_salt = id_salt.unwrap_or_else(|| Id::from("child"));
         let max_rect = max_rect.unwrap_or_else(|| self.available_rect_before_wrap());
-        let mut layout = layout.unwrap_or(*self.layout());
+        let mut layout = layout.unwrap_or_else(|| *self.layout());
         let enabled = self.enabled && !disabled && !invisible;
         if let Some(layer_id) = layer_id {
             painter.set_layer_id(layer_id);
@@ -287,7 +287,7 @@ impl Ui {
         }
         let sizing_pass = self.sizing_pass || sizing_pass;
         let style = style.unwrap_or_else(|| self.style.clone());
-        let sense = sense.unwrap_or(Sense::hover());
+        let sense = sense.unwrap_or_else(Sense::hover);
 
         if sizing_pass {
             // During the sizing pass we want widgets to use up as little space as possible,
