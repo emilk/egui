@@ -4,8 +4,7 @@
 
 // Test that we can paint to the screen using glow directly.
 
-use eframe::egui;
-use eframe::glow;
+use eframe::{egui, glow};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).

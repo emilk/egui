@@ -1,9 +1,8 @@
-use crate::{
-    Size,
-    layout::{CellDirection, CellSize, StripLayout, StripLayoutFlags},
-    sizing::Sizing,
-};
 use egui::{Response, Ui};
+
+use crate::Size;
+use crate::layout::{CellDirection, CellSize, StripLayout, StripLayoutFlags};
+use crate::sizing::Sizing;
 
 /// Builder for creating a new [`Strip`].
 ///

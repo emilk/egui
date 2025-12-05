@@ -1,8 +1,5 @@
-use egui::{
-    Color32, Event, Frame, Pos2, Rect, Sense, Stroke, Vec2,
-    emath::{RectTransform, Rot2},
-    vec2,
-};
+use egui::emath::{RectTransform, Rot2};
+use egui::{Color32, Event, Frame, Pos2, Rect, Sense, Stroke, Vec2, vec2};
 
 pub struct MultiTouch {
     rotation: f32,

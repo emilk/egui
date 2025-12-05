@@ -1,33 +1,30 @@
 #![warn(missing_docs)] // Let's keep `Ui` well-documented.
 #![allow(clippy::use_self)]
 
+use std::any::Any;
+use std::hash::Hash;
+use std::sync::Arc;
+
 use emath::GuiRounding as _;
 use epaint::mutex::RwLock;
 use epaint::text::FontsView;
-use std::{any::Any, hash::Hash, sync::Arc};
 
-use crate::ClosableTag;
 #[cfg(debug_assertions)]
 use crate::Stroke;
-use crate::containers::menu;
+use crate::containers::{CollapsingHeader, CollapsingResponse, Frame, menu};
+use crate::ecolor::Hsva;
+use crate::layout::{Direction, Layout};
+use crate::placer::Placer;
+use crate::util::IdTypeMap;
+use crate::widgets::{
+    Button, Checkbox, DragValue, Hyperlink, Image, ImageSource, Label, Link, RadioButton,
+    Separator, Spinner, TextEdit, Widget, color_picker,
+};
 use crate::{
-    Align, Color32, Context, CursorIcon, DragAndDrop, Id, InnerResponse, InputState, IntoAtoms,
-    LayerId, Memory, Order, Painter, PlatformOutput, Pos2, Rangef, Rect, Response, Rgba, RichText,
-    Sense, Style, TextStyle, TextWrapMode, UiBuilder, UiKind, UiStack, UiStackInfo, Vec2,
-    WidgetRect, WidgetText,
-    containers::{CollapsingHeader, CollapsingResponse, Frame},
-    ecolor::Hsva,
-    emath, epaint, grid,
-    layout::{Direction, Layout},
-    pass_state,
-    placer::Placer,
-    pos2, style,
-    util::IdTypeMap,
-    vec2, widgets,
-    widgets::{
-        Button, Checkbox, DragValue, Hyperlink, Image, ImageSource, Label, Link, RadioButton,
-        Separator, Spinner, TextEdit, Widget, color_picker,
-    },
+    Align, ClosableTag, Color32, Context, CursorIcon, DragAndDrop, Id, InnerResponse, InputState,
+    IntoAtoms, LayerId, Memory, Order, Painter, PlatformOutput, Pos2, Rangef, Rect, Response, Rgba,
+    RichText, Sense, Style, TextStyle, TextWrapMode, UiBuilder, UiKind, UiStack, UiStackInfo, Vec2,
+    WidgetRect, WidgetText, emath, epaint, grid, pass_state, pos2, style, vec2, widgets,
 };
 // ----------------------------------------------------------------------------
 

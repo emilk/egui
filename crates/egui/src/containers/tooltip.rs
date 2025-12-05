@@ -1,9 +1,10 @@
+use emath::Vec2;
+
 use crate::pass_state::PerWidgetTooltipState;
 use crate::{
     AreaState, Context, Id, InnerResponse, LayerId, Layout, Order, Popup, PopupAnchor, PopupKind,
     Response, Sense,
 };
-use emath::Vec2;
 
 pub struct Tooltip<'a> {
     pub popup: Popup<'a>,

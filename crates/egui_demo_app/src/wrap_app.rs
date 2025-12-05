@@ -1,10 +1,9 @@
-use egui_demo_lib::{DemoWindows, is_mobile};
+#[cfg(target_arch = "wasm32")]
+use core::any::Any;
 
 #[cfg(feature = "glow")]
 use eframe::glow;
-
-#[cfg(target_arch = "wasm32")]
-use core::any::Any;
+use egui_demo_lib::{DemoWindows, is_mobile};
 
 use crate::DemoApp;
 
@@ -446,8 +445,9 @@ impl WrapApp {
     }
 
     fn ui_file_drag_and_drop(&mut self, ctx: &egui::Context) {
-        use egui::{Align2, Color32, Id, LayerId, Order, TextStyle};
         use std::fmt::Write as _;
+
+        use egui::{Align2, Color32, Id, LayerId, Order, TextStyle};
 
         // Preview hovering files:
         if !ctx.input(|i| i.raw.hovered_files.is_empty()) {

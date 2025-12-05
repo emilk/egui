@@ -1,7 +1,7 @@
 use ahash::HashMap;
 
-use crate::{Align, Id, IdMap, LayerId, Rangef, Rect, Vec2, WidgetRects, id::IdSet, style};
-
+use crate::id::IdSet;
+use crate::{Align, Id, IdMap, LayerId, Rangef, Rect, Vec2, WidgetRects, style};
 #[cfg(debug_assertions)]
 use crate::{Align2, Color32, FontId, NumExt as _, Painter, pos2};
 

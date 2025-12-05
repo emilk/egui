@@ -1,5 +1,6 @@
+use std::any::Any;
+use std::iter::FusedIterator;
 use std::sync::Arc;
-use std::{any::Any, iter::FusedIterator};
 
 use crate::{Direction, Frame, Id, Rect};
 

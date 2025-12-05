@@ -1,4 +1,5 @@
-use std::{fmt::Debug, sync::Arc};
+use std::fmt::Debug;
+use std::sync::Arc;
 
 use ecolor::Color32;
 use emath::{Pos2, Rect};

@@ -4,7 +4,8 @@
 use std::sync::Arc;
 
 use eframe::egui;
-use egui::{Id, InnerResponse, UiBuilder, ViewportBuilder, ViewportId, mutex::RwLock};
+use egui::mutex::RwLock;
+use egui::{Id, InnerResponse, UiBuilder, ViewportBuilder, ViewportId};
 
 // Drag-and-drop between windows is not yet implemented, but if you wanna work on it, enable this:
 pub const DRAG_AND_DROP_TEST: bool = false;

@@ -1,16 +1,14 @@
-use std::{borrow::Cow, ops::Range};
+use std::borrow::Cow;
+use std::ops::Range;
 
-use epaint::{
-    Galley,
-    text::{TAB_SIZE, cursor::CCursor},
-};
+use epaint::Galley;
+use epaint::text::TAB_SIZE;
+use epaint::text::cursor::CCursor;
 
-use crate::{
-    text::CCursorRange,
-    text_selection::text_cursor_state::{
-        byte_index_from_char_index, ccursor_next_word, ccursor_previous_word,
-        char_index_from_byte_index, find_line_start, slice_char_range,
-    },
+use crate::text::CCursorRange;
+use crate::text_selection::text_cursor_state::{
+    byte_index_from_char_index, ccursor_next_word, ccursor_previous_word,
+    char_index_from_byte_index, find_line_start, slice_char_range,
 };
 
 /// Trait constraining what types [`crate::TextEdit`] may use as

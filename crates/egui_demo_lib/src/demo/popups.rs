@@ -1,10 +1,11 @@
-use crate::rust_view_ui;
 use egui::color_picker::{Alpha, color_picker_color32};
 use egui::containers::menu::{MenuConfig, SubMenuButton};
 use egui::{
     Align, Align2, Atom, Button, ComboBox, Frame, Id, Layout, Popup, PopupCloseBehavior, RectAlign,
     RichText, Tooltip, Ui, UiBuilder, include_image,
 };
+
+use crate::rust_view_ui;
 
 /// Showcase [`Popup`].
 #[derive(Clone, PartialEq)]

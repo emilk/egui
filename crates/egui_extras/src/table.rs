@@ -3,15 +3,11 @@
 //! | fixed size | all available space/minimum | 30% of available width | fixed size |
 //! Takes all available height, so if you want something below the table, put it in a strip.
 
-use egui::{
-    Align, Id, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui, Vec2, Vec2b,
-    scroll_area::{ScrollAreaOutput, ScrollBarVisibility, ScrollSource},
-};
+use egui::scroll_area::{ScrollAreaOutput, ScrollBarVisibility, ScrollSource};
+use egui::{Align, Id, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui, Vec2, Vec2b};
 
-use crate::{
-    StripLayout,
-    layout::{CellDirection, CellSize, StripLayoutFlags},
-};
+use crate::StripLayout;
+use crate::layout::{CellDirection, CellSize, StripLayoutFlags};
 
 // -----------------------------------------------------------------=----------
 

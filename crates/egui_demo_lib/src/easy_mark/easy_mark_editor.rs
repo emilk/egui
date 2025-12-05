@@ -1,6 +1,5 @@
-use egui::{
-    Key, KeyboardShortcut, Modifiers, ScrollArea, TextBuffer, TextEdit, Ui, text::CCursorRange,
-};
+use egui::text::CCursorRange;
+use egui::{Key, KeyboardShortcut, Modifiers, ScrollArea, TextBuffer, TextEdit, Ui};
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]

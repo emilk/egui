@@ -10,20 +10,19 @@
 use std::any::Any;
 
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
-pub use crate::native::winit_integration::UserEvent;
-
-#[cfg(not(target_arch = "wasm32"))]
 use raw_window_handle::{
     DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle, RawDisplayHandle,
     RawWindowHandle, WindowHandle,
 };
 #[cfg(not(target_arch = "wasm32"))]
 use static_assertions::assert_not_impl_any;
-
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 pub use winit::{event_loop::EventLoopBuilder, window::WindowAttributes};
+
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
+pub use crate::native::winit_integration::UserEvent;
 
 /// Hook into the building of an event loop before it is run
 ///

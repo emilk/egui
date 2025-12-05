@@ -1,7 +1,7 @@
 use std::fmt;
+use std::ops::{BitOr, BitOrAssign};
 
 use crate::{Div, Mul, NumExt as _, Pos2, Rangef, Rot2, Vec2, fast_midpoint, lerp, pos2, vec2};
-use std::ops::{BitOr, BitOrAssign};
 
 /// A rectangular region of space.
 ///

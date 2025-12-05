@@ -1,6 +1,7 @@
-use crate::{AtomKind, FontSelection, Id, SizedAtom, Ui};
 use emath::{NumExt as _, Vec2};
 use epaint::text::TextWrapMode;
+
+use crate::{AtomKind, FontSelection, Id, SizedAtom, Ui};
 
 /// A low-level ui building block.
 ///

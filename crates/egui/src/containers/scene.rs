@@ -2,9 +2,9 @@ use core::f32;
 
 use emath::{GuiRounding as _, Pos2};
 
+use crate::emath::TSTransform;
 use crate::{
     InnerResponse, LayerId, PointerButton, Rangef, Rect, Response, Sense, Ui, UiBuilder, Vec2,
-    emath::TSTransform,
 };
 
 /// Creates a transformation that fits a given scene rectangle into the available screen size.

@@ -42,22 +42,20 @@ mod ts_transform;
 mod vec2;
 mod vec2b;
 
-pub use self::{
-    align::{Align, Align2},
-    gui_rounding::{GUI_ROUNDING, GuiRounding},
-    history::History,
-    numeric::*,
-    ordered_float::*,
-    pos2::*,
-    range::Rangef,
-    rect::*,
-    rect_align::RectAlign,
-    rect_transform::*,
-    rot2::*,
-    ts_transform::*,
-    vec2::*,
-    vec2b::*,
-};
+pub use self::align::{Align, Align2};
+pub use self::gui_rounding::{GUI_ROUNDING, GuiRounding};
+pub use self::history::History;
+pub use self::numeric::*;
+pub use self::ordered_float::*;
+pub use self::pos2::*;
+pub use self::range::Rangef;
+pub use self::rect::*;
+pub use self::rect_align::RectAlign;
+pub use self::rect_transform::*;
+pub use self::rot2::*;
+pub use self::ts_transform::*;
+pub use self::vec2::*;
+pub use self::vec2b::*;
 
 // ----------------------------------------------------------------------------
 

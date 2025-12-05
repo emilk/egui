@@ -1,13 +1,13 @@
 use epaint::Shape;
 
+#[expect(unused_imports)] // Documentation
+use crate::style::Spacing;
+use crate::style::{StyleModifier, WidgetVisuals};
 use crate::{
     Align2, Context, Id, InnerResponse, NumExt as _, Painter, Popup, PopupCloseBehavior, Rect,
     Response, ScrollArea, Sense, Stroke, TextStyle, TextWrapMode, Ui, UiBuilder, Vec2, WidgetInfo,
-    WidgetText, WidgetType, epaint, style::StyleModifier, style::WidgetVisuals, vec2,
+    WidgetText, WidgetType, epaint, vec2,
 };
-
-#[expect(unused_imports)] // Documentation
-use crate::style::Spacing;
 
 /// A function that paints the [`ComboBox`] icon
 pub type IconPainter = Box<dyn FnOnce(&Ui, Rect, &WidgetVisuals, bool)>;

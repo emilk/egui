@@ -25,8 +25,7 @@ impl GlutinWindowContext {
     #[expect(unsafe_code)]
     unsafe fn new(event_loop: &winit::event_loop::ActiveEventLoop) -> Self {
         use glutin::context::NotCurrentGlContext as _;
-        use glutin::display::GetGlDisplay as _;
-        use glutin::display::GlDisplay as _;
+        use glutin::display::{GetGlDisplay as _, GlDisplay as _};
         use glutin::prelude::GlSurface as _;
         let winit_window_builder = winit::window::WindowAttributes::default()
             .with_resizable(true)

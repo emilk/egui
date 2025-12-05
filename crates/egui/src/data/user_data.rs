@@ -1,4 +1,5 @@
-use std::{any::Any, sync::Arc};
+use std::any::Any;
+use std::sync::Arc;
 
 /// A wrapper around `dyn Any`, used for passing custom user data
 /// to [`crate::ViewportCommand::Screenshot`].

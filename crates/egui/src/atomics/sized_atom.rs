@@ -1,5 +1,6 @@
-use crate::SizedAtomKind;
 use emath::Vec2;
+
+use crate::SizedAtomKind;
 
 /// A [`crate::Atom`] which has been sized.
 #[derive(Clone, Debug)]

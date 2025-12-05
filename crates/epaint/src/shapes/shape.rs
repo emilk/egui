@@ -4,16 +4,13 @@ use std::sync::Arc;
 
 use emath::{Align2, Pos2, Rangef, Rect, TSTransform, Vec2, pos2};
 
-use crate::{
-    Color32, CornerRadius, Mesh, Stroke, StrokeKind, TextureId,
-    stroke::PathStroke,
-    text::{FontId, FontsView, Galley},
-};
-
 use super::{
     CircleShape, CubicBezierShape, EllipseShape, PaintCallback, PathShape, QuadraticBezierShape,
     RectShape, TextShape,
 };
+use crate::stroke::PathStroke;
+use crate::text::{FontId, FontsView, Galley};
+use crate::{Color32, CornerRadius, Mesh, Stroke, StrokeKind, TextureId};
 
 /// A paint primitive such as a circle or a piece of text.
 /// Coordinates are all screen space points (not physical pixels).

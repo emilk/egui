@@ -1,7 +1,6 @@
-pub use egui_winit::{self, EventResponse};
-
 use egui::{ViewportId, ViewportOutput};
 use egui_winit::winit;
+pub use egui_winit::{self, EventResponse};
 
 use crate::shader_version::ShaderVersion;
 

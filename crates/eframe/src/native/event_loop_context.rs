@@ -1,4 +1,5 @@
 use std::cell::Cell;
+
 use winit::event_loop::ActiveEventLoop;
 
 thread_local! {

@@ -3,7 +3,8 @@
 //! Supports the 3, 4, 6, and 8-digit formats, according to the specification in
 //! <https://drafts.csswg.org/css-color-4/#hex-color>
 
-use std::{fmt::Display, str::FromStr};
+use std::fmt::Display;
+use std::str::FromStr;
 
 use crate::Color32;
 
@@ -170,8 +171,7 @@ mod tests {
 
     #[test]
     fn hex_string_formats() {
-        use Color32 as C;
-        use HexColor as H;
+        use {Color32 as C, HexColor as H};
         let cases = [
             (H::Hex3(C::RED), "#f00"),
             (H::Hex4(C::RED), "#f00f"),

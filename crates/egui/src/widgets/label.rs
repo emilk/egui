@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
+use crate::text_selection::LabelSelectionState;
 use crate::{
     Align, Direction, FontSelection, Galley, Pos2, Response, Sense, Stroke, TextWrapMode, Ui,
-    Widget, WidgetInfo, WidgetText, WidgetType, epaint, pos2, text_selection::LabelSelectionState,
+    Widget, WidgetInfo, WidgetText, WidgetType, epaint, pos2,
 };
 
 /// Static text.

@@ -1,7 +1,9 @@
-use crate::{Atom, AtomKind, Image, WidgetText};
-use smallvec::SmallVec;
 use std::borrow::Cow;
 use std::ops::{Deref, DerefMut};
+
+use smallvec::SmallVec;
+
+use crate::{Atom, AtomKind, Image, WidgetText};
 
 // Rarely there should be more than 2 atoms in one Widget.
 // I guess it could happen in a menu button with Image and right text...

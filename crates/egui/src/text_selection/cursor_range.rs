@@ -1,8 +1,9 @@
-use epaint::{Galley, text::cursor::CCursor};
-
-use crate::{Event, Id, Key, Modifiers, os::OperatingSystem};
+use epaint::Galley;
+use epaint::text::cursor::CCursor;
 
 use super::text_cursor_state::{ccursor_next_word, ccursor_previous_word, slice_char_range};
+use crate::os::OperatingSystem;
+use crate::{Event, Id, Key, Modifiers};
 
 /// A selected text range (could be a range of length zero).
 ///

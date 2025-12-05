@@ -1,12 +1,13 @@
 //! Old and deprecated API for popups. Use [`Popup`] instead.
 #![allow(deprecated)]
 
+use emath::RectAlign;
+
 use crate::containers::tooltip::Tooltip;
 use crate::{
     Align, Context, Id, LayerId, Layout, Popup, PopupAnchor, PopupCloseBehavior, Pos2, Rect,
     Response, Ui, Widget as _, WidgetText,
 };
-use emath::RectAlign;
 // ----------------------------------------------------------------------------
 
 /// Show a tooltip at the current pointer position (if any).

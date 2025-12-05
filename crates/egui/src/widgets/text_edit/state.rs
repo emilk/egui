@@ -1,11 +1,8 @@
 use std::sync::Arc;
 
 use crate::mutex::Mutex;
-
-use crate::{
-    Context, Id, Vec2,
-    text_selection::{CCursorRange, TextCursorState},
-};
+use crate::text_selection::{CCursorRange, TextCursorState};
+use crate::{Context, Id, Vec2};
 
 pub type TextEditUndoer = crate::util::undoer::Undoer<(CCursorRange, String)>;
 

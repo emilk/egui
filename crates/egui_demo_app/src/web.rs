@@ -1,6 +1,7 @@
 #![allow(clippy::mem_forget)] // False positives from #[wasm_bindgen] macro
 
-use eframe::wasm_bindgen::{self, prelude::*};
+use eframe::wasm_bindgen;
+use eframe::wasm_bindgen::prelude::*;
 
 use crate::WrapApp;
 

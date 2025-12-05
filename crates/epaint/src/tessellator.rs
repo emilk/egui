@@ -7,11 +7,13 @@
 
 use emath::{GuiRounding as _, NumExt as _, Pos2, Rect, Rot2, Vec2, pos2, remap, vec2};
 
+use crate::color::ColorMode;
+use crate::stroke::PathStroke;
+use crate::texture_atlas::PreparedDisc;
 use crate::{
     CircleShape, ClippedPrimitive, ClippedShape, Color32, CornerRadiusF32, CubicBezierShape,
     EllipseShape, Mesh, PathShape, Primitive, QuadraticBezierShape, RectShape, Shape, Stroke,
-    StrokeKind, TextShape, TextureId, Vertex, WHITE_UV, color::ColorMode, emath,
-    stroke::PathStroke, texture_atlas::PreparedDisc,
+    StrokeKind, TextShape, TextureId, Vertex, WHITE_UV, emath,
 };
 
 // ----------------------------------------------------------------------------
@@ -534,8 +536,9 @@ impl Path {
 
 pub mod path {
     //! Helpers for constructing paths
-    use crate::CornerRadiusF32;
     use emath::{Pos2, Rect, pos2};
+
+    use crate::CornerRadiusF32;
 
     /// overwrites existing points
     pub fn rounded_rectangle(path: &mut Vec<Pos2>, rect: Rect, cr: CornerRadiusF32) {

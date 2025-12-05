@@ -55,21 +55,20 @@
 mod bytes_loader;
 mod texture_loader;
 
-use std::{
-    borrow::Cow,
-    fmt::{Debug, Display},
-    ops::Deref,
-    sync::Arc,
-};
+use std::borrow::Cow;
+use std::fmt::{Debug, Display};
+use std::ops::Deref;
+use std::sync::Arc;
 
 use ahash::HashMap;
-
 use emath::{Float as _, OrderedFloat};
-use epaint::{ColorImage, TextureHandle, TextureId, Vec2, mutex::Mutex, textures::TextureOptions};
+use epaint::mutex::Mutex;
+use epaint::textures::TextureOptions;
+use epaint::{ColorImage, TextureHandle, TextureId, Vec2};
 
+pub use self::bytes_loader::DefaultBytesLoader;
+pub use self::texture_loader::DefaultTextureLoader;
 use crate::Context;
-
-pub use self::{bytes_loader::DefaultBytesLoader, texture_loader::DefaultTextureLoader};
 
 /// Represents a failed attempt at loading an image.
 #[derive(Clone, Debug)]

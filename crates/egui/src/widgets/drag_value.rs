@@ -1,6 +1,7 @@
 #![allow(clippy::needless_pass_by_value)] // False positives with `impl ToString`
 
-use std::{cmp::Ordering, ops::RangeInclusive};
+use std::cmp::Ordering;
+use std::ops::RangeInclusive;
 
 use crate::{
     Button, CursorIcon, Id, Key, MINUS_CHAR_STR, Modifiers, NumExt as _, Response, RichText, Sense,

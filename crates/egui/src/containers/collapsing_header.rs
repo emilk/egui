@@ -1,12 +1,13 @@
 use std::hash::Hash;
 
+use emath::GuiRounding as _;
+use epaint::{Shape, StrokeKind};
+
 use crate::{
     Context, Id, InnerResponse, NumExt as _, Rect, Response, Sense, Stroke, TextStyle,
     TextWrapMode, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetInfo, WidgetText, WidgetType,
     emath, epaint, pos2, remap, remap_clamp, vec2,
 };
-use emath::GuiRounding as _;
-use epaint::{Shape, StrokeKind};
 
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]

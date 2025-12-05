@@ -1,8 +1,7 @@
+use egui::epaint::{self, CubicBezierShape, PathShape, QuadraticBezierShape};
 use egui::{
     Color32, Context, Frame, Grid, Pos2, Rect, Sense, Shape, Stroke, StrokeKind, Ui, Vec2,
-    Widget as _, Window, emath,
-    epaint::{self, CubicBezierShape, PathShape, QuadraticBezierShape},
-    pos2,
+    Widget as _, Window, emath, pos2,
 };
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]

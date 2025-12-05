@@ -3,10 +3,10 @@
 #![allow(unsafe_code)]
 #![allow(clippy::undocumented_unsafe_blocks)]
 
-use eframe::{egui, egui_glow, glow};
-
-use egui::mutex::Mutex;
 use std::sync::Arc;
+
+use eframe::{egui, egui_glow, glow};
+use egui::mutex::Mutex;
 
 fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).

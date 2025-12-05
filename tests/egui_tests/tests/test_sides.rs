@@ -1,4 +1,5 @@
-use egui::{TextWrapMode, Vec2, containers::Sides};
+use egui::containers::Sides;
+use egui::{TextWrapMode, Vec2};
 use egui_kittest::{Harness, SnapshotResults};
 
 #[test]

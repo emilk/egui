@@ -7,13 +7,11 @@ mod rect_shape;
 mod shape;
 mod text_shape;
 
-pub use self::{
-    bezier_shape::{CubicBezierShape, QuadraticBezierShape},
-    circle_shape::CircleShape,
-    ellipse_shape::EllipseShape,
-    paint_callback::{PaintCallback, PaintCallbackInfo},
-    path_shape::PathShape,
-    rect_shape::RectShape,
-    shape::Shape,
-    text_shape::TextShape,
-};
+pub use self::bezier_shape::{CubicBezierShape, QuadraticBezierShape};
+pub use self::circle_shape::CircleShape;
+pub use self::ellipse_shape::EllipseShape;
+pub use self::paint_callback::{PaintCallback, PaintCallbackInfo};
+pub use self::path_shape::PathShape;
+pub use self::rect_shape::RectShape;
+pub use self::shape::Shape;
+pub use self::text_shape::TextShape;

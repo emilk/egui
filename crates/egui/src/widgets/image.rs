@@ -1,16 +1,16 @@
-use std::{borrow::Cow, slice::Iter, sync::Arc, time::Duration};
+use std::borrow::Cow;
+use std::slice::Iter;
+use std::sync::Arc;
+use std::time::Duration;
 
 use emath::{Align, Float as _, GuiRounding as _, NumExt as _, Rot2};
-use epaint::{
-    RectShape,
-    text::{LayoutJob, TextFormat, TextWrapping},
-};
+use epaint::RectShape;
+use epaint::text::{LayoutJob, TextFormat, TextWrapping};
 
+use crate::load::{Bytes, SizeHint, SizedTexture, TextureLoadResult, TexturePoll};
 use crate::{
     Color32, Context, CornerRadius, Id, Mesh, Painter, Rect, Response, Sense, Shape, Spinner,
-    TextStyle, TextureOptions, Ui, Vec2, Widget, WidgetInfo, WidgetType,
-    load::{Bytes, SizeHint, SizedTexture, TextureLoadResult, TexturePoll},
-    pos2,
+    TextStyle, TextureOptions, Ui, Vec2, Widget, WidgetInfo, WidgetType, pos2,
 };
 
 /// A widget which displays an image.

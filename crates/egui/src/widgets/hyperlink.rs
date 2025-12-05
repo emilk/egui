@@ -1,9 +1,8 @@
+use self::text_selection::LabelSelectionState;
 use crate::{
     CursorIcon, Label, Response, Sense, Stroke, Ui, Widget, WidgetInfo, WidgetText, WidgetType,
     epaint, text_selection,
 };
-
-use self::text_selection::LabelSelectionState;
 
 /// Clickable text, that looks like a hyperlink.
 ///

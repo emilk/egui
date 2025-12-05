@@ -3,7 +3,8 @@
 // For non-serializable types, these simply return `None`.
 // This will also allow users to pick their own serialization format per type.
 
-use std::{any::Any, sync::Arc};
+use std::any::Any;
+use std::sync::Arc;
 
 // -----------------------------------------------------------------------------------------------
 

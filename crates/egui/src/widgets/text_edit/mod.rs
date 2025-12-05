@@ -3,7 +3,9 @@ mod output;
 mod state;
 mod text_buffer;
 
-pub use {
-    crate::text_selection::TextCursorState, builder::TextEdit, output::TextEditOutput,
-    state::TextEditState, text_buffer::TextBuffer,
-};
+pub use builder::TextEdit;
+pub use output::TextEditOutput;
+pub use state::TextEditState;
+pub use text_buffer::TextBuffer;
+
+pub use crate::text_selection::TextCursorState;

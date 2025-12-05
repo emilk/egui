@@ -1,23 +1,22 @@
 use std::sync::Arc;
 
 use emath::{Rect, TSTransform};
-use epaint::{
-    StrokeKind,
-    text::{Galley, LayoutJob, cursor::CCursor},
-};
+use epaint::StrokeKind;
+use epaint::text::cursor::CCursor;
+use epaint::text::{Galley, LayoutJob};
 
+use super::{TextEditOutput, TextEditState};
+use crate::os::OperatingSystem;
+use crate::output::OutputEvent;
+use crate::text_selection::CCursorRange;
+use crate::text_selection::text_cursor_state::cursor_rect;
+use crate::text_selection::visuals::paint_text_selection;
 use crate::{
     Align, Align2, Color32, Context, CursorIcon, Event, EventFilter, FontSelection, Id, ImeEvent,
     Key, KeyboardShortcut, Margin, Modifiers, NumExt as _, Response, Sense, Shape, TextBuffer,
     TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetWithState, epaint,
-    os::OperatingSystem,
-    output::OutputEvent,
-    response, text_selection,
-    text_selection::{CCursorRange, text_cursor_state::cursor_rect, visuals::paint_text_selection},
-    vec2,
+    response, text_selection, vec2,
 };
-
-use super::{TextEditOutput, TextEditState};
 
 type LayouterFn<'t> = &'t mut dyn FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<Galley>;
 

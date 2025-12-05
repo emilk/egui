@@ -22,15 +22,14 @@ mod sizing;
 mod strip;
 mod table;
 
+pub use loaders::install_image_loaders;
+
 #[cfg(feature = "chrono")]
 pub use crate::datepicker::DatePickerButton;
-
 pub(crate) use crate::layout::StripLayout;
 pub use crate::sizing::Size;
 pub use crate::strip::*;
 pub use crate::table::*;
-
-pub use loaders::install_image_loaders;
 
 // ---------------------------------------------------------------------------
 

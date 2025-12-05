@@ -2,16 +2,11 @@ use std::sync::Arc;
 
 use emath::{Align, GuiRounding as _, NumExt as _, Pos2, Rect, Vec2, pos2, vec2};
 
-use crate::{
-    Color32, Mesh, Stroke, Vertex,
-    stroke::PathStroke,
-    text::{
-        font::{ScaledMetrics, is_cjk, is_cjk_break_allowed},
-        fonts::FontFaceKey,
-    },
-};
-
 use super::{FontsImpl, Galley, Glyph, LayoutJob, LayoutSection, PlacedRow, Row, RowVisuals};
+use crate::stroke::PathStroke;
+use crate::text::font::{ScaledMetrics, is_cjk, is_cjk_break_allowed};
+use crate::text::fonts::FontFaceKey;
+use crate::{Color32, Mesh, Stroke, Vertex};
 
 // ----------------------------------------------------------------------------
 
@@ -1050,9 +1045,9 @@ impl RowBreakCandidates {
 
 #[cfg(test)]
 mod tests {
+    use super::super::*;
+    use super::*;
     use crate::AlphaFromCoverage;
-
-    use super::{super::*, *};
 
     #[test]
     fn test_zero_max_width() {

@@ -1,5 +1,7 @@
-use egui::{Color32, accesskit::Role};
-use egui_kittest::{Harness, kittest::Queryable as _};
+use egui::Color32;
+use egui::accesskit::Role;
+use egui_kittest::Harness;
+use egui_kittest::kittest::Queryable as _;
 
 #[test]
 fn test_kerning() {

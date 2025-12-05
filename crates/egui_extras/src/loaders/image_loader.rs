@@ -1,14 +1,15 @@
-use ahash::HashMap;
-use egui::{
-    ColorImage, decode_animated_image_uri,
-    load::{Bytes, BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
-    mutex::Mutex,
-};
-use image::ImageFormat;
-use std::{mem::size_of, path::Path, sync::Arc, task::Poll};
-
+use std::mem::size_of;
+use std::path::Path;
+use std::sync::Arc;
+use std::task::Poll;
 #[cfg(not(target_arch = "wasm32"))]
 use std::thread;
+
+use ahash::HashMap;
+use egui::load::{Bytes, BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint};
+use egui::mutex::Mutex;
+use egui::{ColorImage, decode_animated_image_uri};
+use image::ImageFormat;
 
 type Entry = Poll<Result<Arc<ColorImage>, String>>;
 

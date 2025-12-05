@@ -1,6 +1,7 @@
+use std::sync::{Arc, mpsc};
+
 use egui::{UserData, ViewportId};
 use epaint::ColorImage;
-use std::sync::{Arc, mpsc};
 use wgpu::{BindGroupLayout, MultisampleState, StoreOp};
 
 /// A texture and a buffer for reading the rendered frame back to the cpu.

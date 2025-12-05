@@ -1,10 +1,8 @@
 use std::sync::Arc;
 
 use egui::{Event, UserData, ViewportId};
-use egui_wgpu::{
-    RenderState, SurfaceErrorAction,
-    capture::{CaptureReceiver, CaptureSender, CaptureState, capture_channel},
-};
+use egui_wgpu::capture::{CaptureReceiver, CaptureSender, CaptureState, capture_channel};
+use egui_wgpu::{RenderState, SurfaceErrorAction};
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
 

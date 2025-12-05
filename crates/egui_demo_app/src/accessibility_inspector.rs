@@ -2,11 +2,11 @@ use std::mem;
 
 use accesskit::{Action, ActionRequest, NodeId};
 use accesskit_consumer::{FilterResult, Node, Tree, TreeChangeHandler};
-
 use eframe::epaint::text::TextWrapMode;
+use egui::collapsing_header::CollapsingState;
 use egui::{
     Button, Color32, Context, Event, Frame, FullOutput, Id, Key, KeyboardShortcut, Label,
-    Modifiers, Panel, RawInput, RichText, ScrollArea, Ui, collapsing_header::CollapsingState,
+    Modifiers, Panel, RawInput, RichText, ScrollArea, Ui,
 };
 
 /// This [`egui::Plugin`] adds an inspector Panel.

@@ -86,8 +86,9 @@ impl eframe::App for MyApp {
 
 /// Preview hovering files:
 fn preview_files_being_dropped(ctx: &egui::Context) {
-    use egui::{Align2, Color32, Id, LayerId, Order, TextStyle};
     use std::fmt::Write as _;
+
+    use egui::{Align2, Color32, Id, LayerId, Order, TextStyle};
 
     if !ctx.input(|i| i.raw.hovered_files.is_empty()) {
         let text = ctx.input(|i| {

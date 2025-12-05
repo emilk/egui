@@ -35,16 +35,14 @@ mod web_painter_glow;
 mod web_painter_wgpu;
 
 pub use backend::*;
-
 use egui::Theme;
-use wasm_bindgen::prelude::*;
-use web_sys::{Document, MediaQueryList, Node};
-
 use input::{
     button_from_mouse_event, modifiers_from_kb_event, modifiers_from_mouse_event,
     modifiers_from_wheel_event, pos_from_mouse_event, primary_touch_pos, push_touches,
     text_from_keyboard_event, translate_key,
 };
+use wasm_bindgen::prelude::*;
+use web_sys::{Document, MediaQueryList, Node};
 
 // ----------------------------------------------------------------------------
 

@@ -1,14 +1,12 @@
 //! Color picker widgets.
 
+use epaint::ecolor::{Color32, Hsva, HsvaGamma, Rgba};
+use epaint::{Mesh, Rect, Shape, Stroke, StrokeKind, Vec2, pos2, vec2};
+
 use crate::util::fixed_cache::FixedCache;
 use crate::{
     Context, DragValue, Id, Painter, Popup, PopupCloseBehavior, Response, Sense, Ui, Widget as _,
     WidgetInfo, WidgetType, epaint, lerp, remap_clamp,
-};
-use epaint::{
-    Mesh, Rect, Shape, Stroke, StrokeKind, Vec2,
-    ecolor::{Color32, Hsva, HsvaGamma, Rgba},
-    pos2, vec2,
 };
 
 fn contrast_color(color: impl Into<Rgba>) -> Color32 {

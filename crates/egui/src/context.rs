@@ -1,47 +1,46 @@
 #![warn(missing_docs)] // Let's keep `Context` well-documented.
 
-use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration};
+use std::borrow::Cow;
+use std::cell::RefCell;
+use std::panic::Location;
+use std::sync::Arc;
+use std::time::Duration;
 
 use emath::GuiRounding as _;
+use epaint::emath::{self, TSTransform};
+use epaint::mutex::RwLock;
+use epaint::stats::PaintStats;
+use epaint::text::{FontInsert, FontPriority, Fonts, FontsView};
 use epaint::{
     ClippedPrimitive, ClippedShape, Color32, ImageData, Pos2, Rect, StrokeKind,
-    TessellationOptions, TextureId, Vec2,
-    emath::{self, TSTransform},
-    mutex::RwLock,
-    stats::PaintStats,
-    tessellator,
-    text::{FontInsert, FontPriority, Fonts, FontsView},
-    vec2,
+    TessellationOptions, TextureId, Vec2, tessellator, vec2,
 };
 
+use crate::animation_manager::AnimationManager;
+use crate::containers;
+use crate::containers::area::AreaState;
+use crate::data::output::PlatformOutput;
+use crate::hit_test::WidgetHits;
+use crate::input_state::{InputState, MultiTouchInfo, PointerEvent, SurrenderFocusOn};
+use crate::interaction::InteractionSnapshot;
+use crate::layers::GraphicLayers;
+use crate::load::{self, Bytes, Loaders, SizedTexture};
+use crate::memory::{Options, Theme};
+use crate::os::OperatingSystem;
+use crate::output::FullOutput;
+use crate::pass_state::PassState;
+use crate::plugin::TypedPluginHandle;
+use crate::util::IdTypeMap;
+use crate::viewport::ViewportClass;
 use crate::{
-    Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, Grid, Id, ImmediateViewport,
-    ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId, Memory,
-    ModifierNames, Modifiers, NumExt as _, Order, Painter, RawInput, Response, RichText,
+    Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, Grid, Id, IdMap,
+    ImmediateViewport, ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId,
+    Memory, ModifierNames, Modifiers, NumExt as _, Order, Painter, RawInput, Response, RichText,
     SafeAreaInsets, ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions, Ui,
     ViewportBuilder, ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet,
-    ViewportOutput, Widget as _, WidgetRect, WidgetText,
-    animation_manager::AnimationManager,
-    containers::{self, area::AreaState},
-    data::output::PlatformOutput,
-    epaint,
-    hit_test::WidgetHits,
-    input_state::{InputState, MultiTouchInfo, PointerEvent, SurrenderFocusOn},
-    interaction::InteractionSnapshot,
-    layers::GraphicLayers,
-    load::{self, Bytes, Loaders, SizedTexture},
-    memory::{Options, Theme},
-    os::OperatingSystem,
-    output::FullOutput,
-    pass_state::PassState,
-    plugin,
-    plugin::TypedPluginHandle,
-    resize, response, scroll_area,
-    util::IdTypeMap,
-    viewport::ViewportClass,
+    ViewportOutput, Widget as _, WidgetRect, WidgetText, epaint, plugin, resize, response,
+    scroll_area,
 };
-
-use crate::IdMap;
 
 /// Information given to the backend about when it is time to repaint the ui.
 ///
@@ -1259,7 +1258,9 @@ impl Context {
         }
 
         self.write(|ctx| {
-            use crate::{Align, pass_state::ScrollTarget, style::ScrollAnimation};
+            use crate::Align;
+            use crate::pass_state::ScrollTarget;
+            use crate::style::ScrollAnimation;
             let viewport = ctx.viewport_for(ctx.viewport_id());
 
             viewport

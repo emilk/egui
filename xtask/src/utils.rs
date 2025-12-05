@@ -1,8 +1,6 @@
-use std::{
-    env,
-    io::{self, Write as _},
-    process::Command,
-};
+use std::env;
+use std::io::{self, Write as _};
+use std::process::Command;
 
 use super::DynError;
 

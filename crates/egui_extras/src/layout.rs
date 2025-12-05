@@ -1,4 +1,5 @@
-use egui::{Id, Pos2, Rect, Response, Sense, Ui, UiBuilder, emath::GuiRounding as _};
+use egui::emath::GuiRounding as _;
+use egui::{Id, Pos2, Rect, Response, Sense, Ui, UiBuilder};
 
 #[derive(Clone, Copy)]
 pub(crate) enum CellSize {

@@ -1,10 +1,9 @@
 //! Frame container
 
-use crate::{
-    InnerResponse, Response, Sense, Style, Ui, UiBuilder, UiKind, UiStackInfo, epaint,
-    layers::ShapeIdx,
-};
 use epaint::{Color32, CornerRadius, Margin, MarginF32, Rect, Shadow, Shape, Stroke};
+
+use crate::layers::ShapeIdx;
+use crate::{InnerResponse, Response, Sense, Style, Ui, UiBuilder, UiKind, UiStackInfo, epaint};
 
 /// A frame around some content, including margin, colors, etc.
 ///

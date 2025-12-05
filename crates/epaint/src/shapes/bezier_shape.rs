@@ -3,8 +3,9 @@
 
 use std::ops::Range;
 
-use crate::{Color32, PathShape, PathStroke, Shape};
 use emath::{Pos2, Rect, RectTransform};
+
+use crate::{Color32, PathShape, PathStroke, Shape};
 
 // ----------------------------------------------------------------------------
 

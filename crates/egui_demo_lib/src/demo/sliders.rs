@@ -1,4 +1,5 @@
-use egui::{Slider, SliderClamping, SliderOrientation, Ui, style::HandleShape};
+use egui::style::HandleShape;
+use egui::{Slider, SliderClamping, SliderOrientation, Ui};
 
 /// Showcase sliders
 #[derive(PartialEq)]

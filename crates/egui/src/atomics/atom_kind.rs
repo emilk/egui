@@ -1,6 +1,7 @@
-use crate::{FontSelection, Id, Image, ImageSource, SizedAtomKind, Ui, WidgetText};
 use emath::Vec2;
 use epaint::text::TextWrapMode;
+
+use crate::{FontSelection, Id, Image, ImageSource, SizedAtomKind, Ui, WidgetText};
 
 /// The different kinds of [`crate::Atom`]s.
 #[derive(Clone, Default, Debug)]

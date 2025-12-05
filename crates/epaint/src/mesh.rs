@@ -1,5 +1,6 @@
-use crate::{Color32, TextureId, WHITE_UV, emath};
 use emath::{Pos2, Rect, Rot2, TSTransform, Vec2};
+
+use crate::{Color32, TextureId, WHITE_UV, emath};
 
 /// The 2D vertex type.
 ///

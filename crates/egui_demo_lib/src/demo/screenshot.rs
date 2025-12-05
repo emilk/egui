@@ -1,5 +1,6 @@
-use egui::{Image, UserData, ViewportCommand, Widget as _};
 use std::sync::Arc;
+
+use egui::{Image, UserData, ViewportCommand, Widget as _};
 
 /// Showcase [`ViewportCommand::Screenshot`].
 #[derive(PartialEq, Eq, Default)]

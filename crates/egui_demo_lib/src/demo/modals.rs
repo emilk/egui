@@ -162,12 +162,13 @@ impl crate::View for Modals {
 
 #[cfg(test)]
 mod tests {
-    use crate::Demo as _;
-    use crate::demo::modals::Modals;
     use egui::accesskit::Role;
     use egui::{Key, Popup};
     use egui_kittest::kittest::Queryable as _;
     use egui_kittest::{Harness, SnapshotResults};
+
+    use crate::Demo as _;
+    use crate::demo::modals::Modals;
 
     #[test]
     fn clicking_escape_when_popup_open_should_not_close_modal() {

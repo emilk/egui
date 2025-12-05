@@ -2,16 +2,19 @@
 
 #![allow(clippy::if_same_then_else)]
 
-use emath::Align;
-use epaint::{AlphaFromCoverage, CornerRadius, Shadow, Stroke, text::FontTweak};
-use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
+use std::collections::BTreeMap;
+use std::ops::RangeInclusive;
+use std::sync::Arc;
 
+use emath::Align;
+use epaint::text::FontTweak;
+use epaint::{AlphaFromCoverage, CornerRadius, Shadow, Stroke};
+
+use crate::ecolor::Color32;
+use crate::emath::{Rangef, Rect, Vec2, pos2, vec2};
 use crate::{
     ComboBox, CursorIcon, FontFamily, FontId, Grid, Margin, Response, RichText, TextWrapMode,
-    WidgetText,
-    ecolor::Color32,
-    emath::{Rangef, Rect, Vec2, pos2, vec2},
-    reset_button_with,
+    WidgetText, reset_button_with,
 };
 
 /// How to format numbers in e.g. a [`crate::DragValue`].
@@ -1636,10 +1639,8 @@ impl Default for Widgets {
 
 // ----------------------------------------------------------------------------
 
-use crate::{
-    Ui,
-    widgets::{DragValue, Slider, Widget, reset_button},
-};
+use crate::Ui;
+use crate::widgets::{DragValue, Slider, Widget, reset_button};
 
 impl Style {
     pub fn ui(&mut self, ui: &mut crate::Ui) {

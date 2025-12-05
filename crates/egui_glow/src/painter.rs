@@ -1,22 +1,20 @@
 #![allow(clippy::collapsible_else_if)]
 #![allow(unsafe_code)]
 
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
+use std::sync::Arc;
 
-use egui::{
-    emath::Rect,
-    epaint::{Mesh, PaintCallbackInfo, Primitive, Vertex},
-};
-use glow::HasContext as _;
-use memoffset::offset_of;
-
-use crate::check_for_gl_error;
-use crate::misc_util::{compile_shader, link_program};
-use crate::shader_version::ShaderVersion;
-use crate::vao;
+use egui::emath::Rect;
+use egui::epaint::{Mesh, PaintCallbackInfo, Primitive, Vertex};
 
 /// Re-exported [`glow::Context`].
 pub use glow::Context;
+use glow::HasContext as _;
+use memoffset::offset_of;
+
+use crate::misc_util::{compile_shader, link_program};
+use crate::shader_version::ShaderVersion;
+use crate::{check_for_gl_error, vao};
 
 const VERT_SRC: &str = include_str!("shader/vertex.glsl");
 const FRAG_SRC: &str = include_str!("shader/fragment.glsl");
