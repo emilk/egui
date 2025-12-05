@@ -1,6 +1,9 @@
 #![allow(clippy::needless_pass_by_value)] // False positives with `impl ToString`
 
-use std::{cmp::Ordering, ops::RangeInclusive};
+use std::{
+    cmp::Ordering,
+    ops::{DerefMut, RangeInclusive},
+};
 
 use crate::{
     Button, CursorIcon, Id, Key, MINUS_CHAR_STR, Modifiers, NumExt as _, Response, RichText, Sense,
@@ -51,17 +54,30 @@ pub struct DragValue<'a> {
 
 impl<'a> DragValue<'a> {
     pub fn new<Num: emath::Numeric>(value: &'a mut Num) -> Self {
-        let slf = Self::from_get_set(move |v: Option<f64>| {
+        Self::from_get_set(move |v: Option<f64>| {
             if let Some(v) = v {
                 *value = Num::from_f64(v);
             }
             value.to_f64()
-        });
+        })
+        .with_integer_behavior::<Num>()
+    }
 
+    pub fn new_ref<Num: emath::Numeric>(value: &'a mut dyn DerefMut<Target = Num>) -> Self {
+        Self::from_get_set(move |v: Option<f64>| {
+            if let Some(v) = v {
+                **value = Num::from_f64(v);
+            }
+            value.to_f64()
+        })
+        .with_integer_behavior::<Num>()
+    }
+
+    fn with_integer_behavior<Num: emath::Numeric>(self) -> Self {
         if Num::INTEGRAL {
-            slf.max_decimals(0).range(Num::MIN..=Num::MAX).speed(0.25)
+            self.max_decimals(0).range(Num::MIN..=Num::MAX).speed(0.25)
         } else {
-            slf
+            self
         }
     }
 

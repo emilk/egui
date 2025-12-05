@@ -74,6 +74,7 @@ epaint = { workspace = true, default-features = false }
 accesskit.workspace = true
 ahash.workspace = true
 bitflags.workspace = true
+bytemuck.workspace = true
 log.workspace = true
 nohash-hasher.workspace = true
 profiling.workspace = true
