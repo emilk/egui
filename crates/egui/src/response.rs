@@ -472,7 +472,7 @@ impl Response {
     ///
     /// Only returns something if [`Self::contains_pointer`] is true,
     /// the user is drag-dropping something of this type,
-    /// and they released it this frame
+    /// and they released it this frame.
     #[doc(alias = "drag and drop")]
     pub fn dnd_release_payload<Payload: Any + Send + Sync>(&self) -> Option<Arc<Payload>> {
         // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
