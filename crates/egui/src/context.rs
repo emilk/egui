@@ -20,7 +20,7 @@ use crate::{
     ModifierNames, Modifiers, NumExt as _, Order, Painter, RawInput, Response, RichText,
     SafeAreaInsets, ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions, Ui,
     ViewportBuilder, ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet,
-    ViewportOutput, Widget as _, WidgetRect, WidgetText,
+    ViewportOutput, Visuals, Widget as _, WidgetRect, WidgetText,
     animation_manager::AnimationManager,
     containers::{self, area::AreaState},
     data::output::PlatformOutput,
@@ -34,8 +34,7 @@ use crate::{
     os::OperatingSystem,
     output::FullOutput,
     pass_state::PassState,
-    plugin,
-    plugin::TypedPluginHandle,
+    plugin::{self, TypedPluginHandle},
     resize, response, scroll_area,
     util::IdTypeMap,
     viewport::ViewportClass,
@@ -564,7 +563,10 @@ impl ContextImpl {
             log::trace!("Adding new fonts");
         }
 
-        let text_alpha_from_coverage = self.memory.options.style().visuals.text_alpha_from_coverage;
+        let Visuals {
+            mut text_options, ..
+        } = self.memory.options.style().visuals;
+        text_options.max_texture_side = max_texture_side;
 
         let mut is_new = false;
 
@@ -573,16 +575,12 @@ impl ContextImpl {
 
             is_new = true;
             profiling::scope!("Fonts::new");
-            Fonts::new(
-                max_texture_side,
-                text_alpha_from_coverage,
-                self.font_definitions.clone(),
-            )
+            Fonts::new(text_options, self.font_definitions.clone())
         });
 
         {
             profiling::scope!("Fonts::begin_pass");
-            fonts.begin_pass(max_texture_side, text_alpha_from_coverage);
+            fonts.begin_pass(text_options);
         }
     }
 
@@ -2006,15 +2004,12 @@ impl Context {
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
         profiling::function_scope!();
 
-        let mut update_fonts = true;
-
-        self.read(|ctx| {
-            if let Some(current_fonts) = ctx.fonts.as_ref() {
-                // NOTE: this comparison is expensive since it checks TTF data for equality
-                if current_fonts.definitions() == &font_definitions {
-                    update_fonts = false; // no need to update
-                }
-            }
+        let update_fonts = self.read(|ctx| {
+            // NOTE: this comparison is expensive since it checks TTF data for equality
+            // TODO(valadaptive): add_font only checks the *names* for equality. Change this?
+            ctx.fonts
+                .as_ref()
+                .is_none_or(|fonts| fonts.definitions() != &font_definitions)
         });
 
         if update_fonts {
