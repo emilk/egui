@@ -517,12 +517,11 @@ impl Fonts {
         }
     }
 
-    /// Call at the start of each frame with the latest known
-    /// `pixels_per_point`, `max_texture_side`, and `text_alpha_from_coverage`.
+    /// Call at the start of each frame with the latest known [`TextOptions`].
     ///
     /// Call after painting the previous frame, but before using [`Fonts`] for the new frame.
     ///
-    /// This function will react to changes in `pixels_per_point`, `max_texture_side`, and `text_alpha_from_coverage`,
+    /// This function will react to changes in [`TextOptions`],
     /// as well as notice when the font atlas is getting full, and handle that.
     pub fn begin_pass(&mut self, options: TextOptions) {
         let text_options_changed = self.fonts.options() != &options;

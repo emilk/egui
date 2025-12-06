@@ -42,7 +42,7 @@ pub struct TextOptions {
 impl Default for TextOptions {
     fn default() -> Self {
         Self {
-            max_texture_side: 2048,
+            max_texture_side: 2048, // Small but portable
             alpha_from_coverage: crate::AlphaFromCoverage::default(),
             font_hinting: true,
         }

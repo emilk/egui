@@ -949,6 +949,9 @@ pub struct Visuals {
     pub dark_mode: bool,
 
     /// Controls how we render text.
+    ///
+    /// The [`TextOptions::max_texture_side`] is ignored and overruled by
+    /// [`crate::RawInput::max_texture_side`].
     pub text_options: TextOptions,
 
     /// Override default text color for all text.
@@ -2384,9 +2387,9 @@ impl Visuals {
     }
 }
 
-fn text_alpha_from_coverage_ui(ui: &mut Ui, text_alpha_from_coverage: &mut AlphaFromCoverage) {
+fn text_alpha_from_coverage_ui(ui: &mut Ui, alpha_from_coverage: &mut AlphaFromCoverage) {
     let mut dark_mode_special =
-        *text_alpha_from_coverage == AlphaFromCoverage::TwoCoverageMinusCoverageSq;
+        *alpha_from_coverage == AlphaFromCoverage::TwoCoverageMinusCoverageSq;
 
     ui.horizontal(|ui| {
         ui.label("Text rendering:");
@@ -2394,9 +2397,9 @@ fn text_alpha_from_coverage_ui(ui: &mut Ui, text_alpha_from_coverage: &mut Alpha
         ui.checkbox(&mut dark_mode_special, "Dark-mode special");
 
         if dark_mode_special {
-            *text_alpha_from_coverage = AlphaFromCoverage::TwoCoverageMinusCoverageSq;
+            *alpha_from_coverage = AlphaFromCoverage::DARK_MODE_DEFAULT;
         } else {
-            let mut gamma = match text_alpha_from_coverage {
+            let mut gamma = match alpha_from_coverage {
                 AlphaFromCoverage::Linear => 1.0,
                 AlphaFromCoverage::Gamma(gamma) => *gamma,
                 AlphaFromCoverage::TwoCoverageMinusCoverageSq => 0.5, // approximately the same
@@ -2410,9 +2413,9 @@ fn text_alpha_from_coverage_ui(ui: &mut Ui, text_alpha_from_coverage: &mut Alpha
             );
 
             if gamma == 1.0 {
-                *text_alpha_from_coverage = AlphaFromCoverage::Linear;
+                *alpha_from_coverage = AlphaFromCoverage::Linear;
             } else {
-                *text_alpha_from_coverage = AlphaFromCoverage::Gamma(gamma);
+                *alpha_from_coverage = AlphaFromCoverage::Gamma(gamma);
             }
         }
     });

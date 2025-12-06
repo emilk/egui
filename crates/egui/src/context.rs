@@ -566,7 +566,7 @@ impl ContextImpl {
         let Visuals {
             mut text_options, ..
         } = self.memory.options.style().visuals;
-        text_options.max_texture_side = max_texture_side; // TODO: how should we source this?
+        text_options.max_texture_side = max_texture_side;
 
         let mut is_new = false;
 

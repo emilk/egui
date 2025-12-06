@@ -130,7 +130,7 @@ pub struct GlyphAllocation {
     /// Used for pair-kerning.
     ///
     /// Doesn't need to be unique.
-    /// Use `ab_glyph::GlyphId(0)` if you just want to have an id, and don't care.
+    /// Use [`skrifa::GlyphId::NOTDEF`] if you just want to have an id, and don't care.
     pub(crate) id: skrifa::GlyphId,
 
     /// Unit: screen pixels.
