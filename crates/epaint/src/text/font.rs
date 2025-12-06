@@ -52,7 +52,7 @@ pub struct GlyphInfo {
     /// Is `None` for a special "invisible" glyph.
     pub(crate) id: Option<skrifa::GlyphId>,
 
-    /// In [`ab_glyph`]s "unscaled" coordinate system.
+    /// In [`skrifa`]s "unscaled" coordinate system.
     pub advance_width_unscaled: OrderedFloat<f32>,
 }
 
@@ -595,7 +595,7 @@ impl FontFace {
 }
 
 // TODO(emilk): rename?
-/// Wrapper over multiple [`FontImpl`] (e.g. a primary + fallbacks for emojis)
+/// Wrapper over multiple [`FontFace`] (e.g. a primary + fallbacks for emojis)
 pub struct Font<'a> {
     pub(super) fonts_by_id: &'a mut nohash_hasher::IntMap<FontFaceKey, FontFace>,
     pub(super) cached_family: &'a mut CachedFamily,
@@ -700,7 +700,7 @@ pub struct ScaledMetrics {
 
 /// Code points that will always be invisible (zero width).
 ///
-/// See also [`FontImpl::ignore_character`].
+/// See also [`FontFace::ignore_character`].
 #[inline]
 fn invisible_char(c: char) -> bool {
     if c == '\r' {
