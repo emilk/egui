@@ -564,10 +564,9 @@ impl ContextImpl {
         }
 
         let Visuals {
-            text_alpha_from_coverage,
-            font_hinting_enabled,
-            ..
+            mut text_options, ..
         } = self.memory.options.style().visuals;
+        text_options.max_texture_side = max_texture_side; // TODO: how should we source this?
 
         let mut is_new = false;
 
@@ -576,21 +575,12 @@ impl ContextImpl {
 
             is_new = true;
             profiling::scope!("Fonts::new");
-            Fonts::new(
-                max_texture_side,
-                text_alpha_from_coverage,
-                font_hinting_enabled,
-                self.font_definitions.clone(),
-            )
+            Fonts::new(text_options, self.font_definitions.clone())
         });
 
         {
             profiling::scope!("Fonts::begin_pass");
-            fonts.begin_pass(
-                max_texture_side,
-                text_alpha_from_coverage,
-                font_hinting_enabled,
-            );
+            fonts.begin_pass(text_options);
         }
     }
 

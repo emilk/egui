@@ -11,7 +11,7 @@ use skrifa::{
 use vello_cpu::{color, kurbo};
 
 use crate::{
-    TextureAtlas,
+    TextOptions, TextureAtlas,
     text::{
         FontTweak,
         fonts::{Blob, CachedFamily, FontFaceKey},
@@ -261,12 +261,12 @@ impl FontCell {
             UvRect::default()
         } else {
             let glyph_pos = {
-                let text_alpha_from_coverage = atlas.text_alpha_from_coverage;
+                let alpha_from_coverage = atlas.options().alpha_from_coverage;
                 let (glyph_pos, image) = atlas.allocate((width as usize, height as usize));
                 let pixels = dest.data_as_u8_slice();
                 for y in 0..height as usize {
                     for x in 0..width as usize {
-                        image[(x + glyph_pos.0, y + glyph_pos.1)] = text_alpha_from_coverage
+                        image[(x + glyph_pos.0, y + glyph_pos.1)] = alpha_from_coverage
                             .color_from_coverage(
                                 pixels[((y * width as usize) + x) * 4 + 3] as f32 / 255.0,
                             );
@@ -343,10 +343,10 @@ pub struct FontFace {
 
 impl FontFace {
     pub fn new(
+        options: TextOptions,
         name: String,
         font_data: Blob,
         index: u32,
-        hinting_enabled: bool,
         tweak: FontTweak,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let font = FontCell::try_new(font_data, |font_data| {
@@ -364,7 +364,7 @@ impl FontFace {
                 skrifa::instance::LocationRef::default(),
             );
 
-            let hinting_enabled = tweak.hinting_override.unwrap_or(hinting_enabled);
+            let hinting_enabled = tweak.hinting_override.unwrap_or(options.font_hinting);
             let hinting_instance = hinting_enabled
                 .then(|| {
                     // It doesn't really matter what we put here for options. Since the size is `unscaled()`, we will

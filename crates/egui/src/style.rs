@@ -3,7 +3,7 @@
 #![allow(clippy::if_same_then_else)]
 
 use emath::Align;
-use epaint::{AlphaFromCoverage, CornerRadius, Shadow, Stroke, text::FontTweak};
+use epaint::{AlphaFromCoverage, CornerRadius, Shadow, Stroke, TextOptions, text::FontTweak};
 use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
 
 use crate::{
@@ -948,11 +948,8 @@ pub struct Visuals {
     /// this is more to provide a convenient summary of the rest of the settings.
     pub dark_mode: bool,
 
-    /// ADVANCED: Controls how we render text.
-    pub text_alpha_from_coverage: AlphaFromCoverage,
-
-    /// Whether to enable font hinting (round some font coordinates to pixels for sharper text).
-    pub font_hinting_enabled: bool,
+    /// Controls how we render text.
+    pub text_options: TextOptions,
 
     /// Override default text color for all text.
     ///
@@ -1410,8 +1407,10 @@ impl Visuals {
     pub fn dark() -> Self {
         Self {
             dark_mode: true,
-            text_alpha_from_coverage: AlphaFromCoverage::DARK_MODE_DEFAULT,
-            font_hinting_enabled: true,
+            text_options: TextOptions {
+                alpha_from_coverage: AlphaFromCoverage::DARK_MODE_DEFAULT,
+                ..Default::default()
+            },
             override_text_color: None,
             weak_text_alpha: 0.6,
             weak_text_color: None,
@@ -1474,7 +1473,10 @@ impl Visuals {
     pub fn light() -> Self {
         Self {
             dark_mode: false,
-            text_alpha_from_coverage: AlphaFromCoverage::LIGHT_MODE_DEFAULT,
+            text_options: TextOptions {
+                alpha_from_coverage: AlphaFromCoverage::LIGHT_MODE_DEFAULT,
+                ..Default::default()
+            },
             widgets: Widgets::light(),
             selection: Selection::light(),
             hyperlink_color: Color32::from_rgb(0, 155, 255),
@@ -2111,8 +2113,7 @@ impl Visuals {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
             dark_mode,
-            text_alpha_from_coverage,
-            font_hinting_enabled,
+            text_options,
             override_text_color: _,
             weak_text_alpha,
             weak_text_color,
@@ -2264,9 +2265,15 @@ impl Visuals {
 
             ui.add_space(4.0);
 
-            text_alpha_from_coverage_ui(ui, text_alpha_from_coverage);
+            let TextOptions {
+                max_texture_side: _,
+                alpha_from_coverage,
+                font_hinting,
+            } = text_options;
 
-            ui.checkbox(font_hinting_enabled, "Enable font hinting");
+            text_alpha_from_coverage_ui(ui, alpha_from_coverage);
+
+            ui.checkbox(font_hinting, "Enable font hinting");
         });
 
         ui.collapsing("Text cursor", |ui| {

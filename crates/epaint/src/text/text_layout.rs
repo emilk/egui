@@ -1050,19 +1050,13 @@ impl RowBreakCandidates {
 
 #[cfg(test)]
 mod tests {
-    use crate::AlphaFromCoverage;
 
     use super::{super::*, *};
 
     #[test]
     fn test_zero_max_width() {
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(
-            1024,
-            AlphaFromCoverage::default(),
-            true,
-            FontDefinitions::default(),
-        );
+        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
         let mut layout_job = LayoutJob::single_section("W".into(), TextFormat::default());
         layout_job.wrap.max_width = 0.0;
         let galley = layout(&mut fonts, pixels_per_point, layout_job.into());
@@ -1075,12 +1069,7 @@ mod tests {
 
         let pixels_per_point = 1.0;
 
-        let mut fonts = FontsImpl::new(
-            1024,
-            AlphaFromCoverage::default(),
-            true,
-            FontDefinitions::default(),
-        );
+        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
         let text_format = TextFormat {
             font_id: FontId::monospace(12.0),
             ..Default::default()
@@ -1126,12 +1115,7 @@ mod tests {
     #[test]
     fn test_cjk() {
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(
-            1024,
-            AlphaFromCoverage::default(),
-            true,
-            FontDefinitions::default(),
-        );
+        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
         let mut layout_job = LayoutJob::single_section(
             "日本語とEnglishの混在した文章".into(),
             TextFormat::default(),
@@ -1147,12 +1131,7 @@ mod tests {
     #[test]
     fn test_pre_cjk() {
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(
-            1024,
-            AlphaFromCoverage::default(),
-            true,
-            FontDefinitions::default(),
-        );
+        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
         let mut layout_job = LayoutJob::single_section(
             "日本語とEnglishの混在した文章".into(),
             TextFormat::default(),
@@ -1168,12 +1147,7 @@ mod tests {
     #[test]
     fn test_truncate_width() {
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(
-            1024,
-            AlphaFromCoverage::default(),
-            true,
-            FontDefinitions::default(),
-        );
+        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
         let mut layout_job =
             LayoutJob::single_section("# DNA\nMore text".into(), TextFormat::default());
         layout_job.wrap.max_width = f32::INFINITY;
@@ -1193,12 +1167,7 @@ mod tests {
     #[test]
     fn test_empty_row() {
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(
-            1024,
-            AlphaFromCoverage::default(),
-            true,
-            FontDefinitions::default(),
-        );
+        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
 
         let font_id = FontId::default();
         let font_height = fonts
@@ -1231,12 +1200,7 @@ mod tests {
     #[test]
     fn test_end_with_newline() {
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(
-            1024,
-            AlphaFromCoverage::default(),
-            true,
-            FontDefinitions::default(),
-        );
+        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
 
         let font_id = FontId::default();
         let font_height = fonts
