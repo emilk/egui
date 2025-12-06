@@ -290,8 +290,7 @@ impl FontCell {
 
         Some(GlyphAllocation {
             id: glyph_id,
-            advance_width_px: (glyph_info.advance_width_unscaled.0 * metrics.px_scale_factor)
-                / metrics.pixels_per_point,
+            advance_width_px: glyph_info.advance_width_unscaled.0 * metrics.px_scale_factor,
             uv_rect,
         })
     }
