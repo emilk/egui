@@ -627,7 +627,7 @@ impl Font<'_> {
             .fonts
             .first()
             .and_then(|key| self.fonts_by_id.get(key))
-            .map(|font_impl| font_impl.scaled_metrics(pixels_per_point, font_size))
+            .map(|font_face| font_face.scaled_metrics(pixels_per_point, font_size))
             .unwrap_or_default()
     }
 

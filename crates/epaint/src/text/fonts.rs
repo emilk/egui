@@ -481,8 +481,8 @@ impl CachedFamily {
         fonts_by_id: &mut nohash_hasher::IntMap<FontFaceKey, FontFace>,
     ) -> Option<(FontFaceKey, GlyphInfo)> {
         for font_key in &self.fonts {
-            let font_impl = fonts_by_id.get_mut(font_key).expect("Nonexistent font ID");
-            if let Some(glyph_info) = font_impl.glyph_info(c) {
+            let font_face = fonts_by_id.get_mut(font_key).expect("Nonexistent font ID");
+            if let Some(glyph_info) = font_face.glyph_info(c) {
                 self.glyph_info_cache.insert(c, (*font_key, glyph_info));
                 return Some((*font_key, glyph_info));
             }
@@ -771,10 +771,10 @@ impl FontsImpl {
         for (name, font_data) in &definitions.font_data {
             let tweak = font_data.tweak;
             let blob = blob_from_font_data(font_data);
-            let font_impl = FontFace::new(options, name.clone(), blob, font_data.index, tweak)
+            let font_face = FontFace::new(options, name.clone(), blob, font_data.index, tweak)
                 .unwrap_or_else(|err| panic!("Error parsing {name:?} TTF/OTF font file: {err}"));
             let key = FontFaceKey::new();
-            fonts_by_id.insert(key, font_impl);
+            fonts_by_id.insert(key, font_face);
             font_impls.insert(name.clone(), key);
         }
 

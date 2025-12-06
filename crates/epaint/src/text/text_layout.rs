@@ -185,19 +185,19 @@ fn layout_section(
             paragraph.empty_paragraph_height = line_height; // TODO(emilk): replace this hack with actually including `\n` in the glyphs?
         } else {
             let (font_id, glyph_info) = font.glyph_info(chr);
-            let mut font_impl = font.fonts_by_id.get_mut(&font_id);
+            let mut font_face = font.fonts_by_id.get_mut(&font_id);
             if current_font != font_id {
                 current_font = font_id;
-                current_font_impl_metrics = font_impl
+                current_font_impl_metrics = font_face
                     .as_ref()
-                    .map(|font_impl| font_impl.scaled_metrics(pixels_per_point, font_size))
+                    .map(|font_face| font_face.scaled_metrics(pixels_per_point, font_size))
                     .unwrap_or_default();
             }
 
-            if let (Some(font_impl), Some(last_glyph_id), Some(glyph_id)) =
-                (&font_impl, last_glyph_id, glyph_info.id)
+            if let (Some(font_face), Some(last_glyph_id), Some(glyph_id)) =
+                (&font_face, last_glyph_id, glyph_info.id)
             {
-                paragraph.cursor_x_px += font_impl.pair_kerning_pixels(
+                paragraph.cursor_x_px += font_face.pair_kerning_pixels(
                     &current_font_impl_metrics,
                     last_glyph_id,
                     glyph_id,
@@ -207,8 +207,8 @@ fn layout_section(
                 paragraph.cursor_x_px += extra_letter_spacing * pixels_per_point;
             }
 
-            let (glyph_alloc, physical_x) = if let Some(font_impl) = font_impl.as_mut() {
-                font_impl.allocate_glyph(
+            let (glyph_alloc, physical_x) = if let Some(font_face) = font_face.as_mut() {
+                font_face.allocate_glyph(
                     font.atlas,
                     &current_font_impl_metrics,
                     glyph_info,
@@ -463,22 +463,22 @@ fn replace_last_glyph_with_overflow_character(
         let font_size = section.format.font_id.size;
 
         let (font_id, glyph_info) = font.glyph_info(overflow_character);
-        let mut font_impl = font.fonts_by_id.get_mut(&font_id);
-        let font_impl_metrics = font_impl
+        let mut font_face = font.fonts_by_id.get_mut(&font_id);
+        let font_impl_metrics = font_face
             .as_mut()
             .map(|f| f.scaled_metrics(pixels_per_point, font_size))
             .unwrap_or_default();
 
         let overflow_glyph_x = if let Some(prev_glyph) = row.glyphs.last() {
             // Kern the overflow character properly
-            let pair_kerning = font_impl
+            let pair_kerning = font_face
                 .as_mut()
-                .map(|font_impl| {
+                .map(|font_face| {
                     if let (Some(prev_glyph_id), Some(overflow_glyph_id)) = (
-                        font_impl.glyph_info(prev_glyph.chr).and_then(|g| g.id),
-                        font_impl.glyph_info(overflow_character).and_then(|g| g.id),
+                        font_face.glyph_info(prev_glyph.chr).and_then(|g| g.id),
+                        font_face.glyph_info(overflow_character).and_then(|g| g.id),
                     ) {
-                        font_impl.pair_kerning(&font_impl_metrics, prev_glyph_id, overflow_glyph_id)
+                        font_face.pair_kerning(&font_impl_metrics, prev_glyph_id, overflow_glyph_id)
                     } else {
                         0.0
                     }
@@ -490,7 +490,7 @@ fn replace_last_glyph_with_overflow_character(
             0.0 // TODO(emilk): heed paragraph leading_space 😬
         };
 
-        let replacement_glyph_width = font_impl
+        let replacement_glyph_width = font_face
             .as_mut()
             .and_then(|f| f.glyph_info(overflow_character))
             .map(|i| i.advance_width_unscaled.0 * font_impl_metrics.px_scale_factor)
@@ -502,7 +502,7 @@ fn replace_last_glyph_with_overflow_character(
         {
             // we are done
 
-            let (replacement_glyph_alloc, physical_x) = font_impl
+            let (replacement_glyph_alloc, physical_x) = font_face
                 .as_mut()
                 .map(|f| {
                     f.allocate_glyph(
