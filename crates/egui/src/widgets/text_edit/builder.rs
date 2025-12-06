@@ -721,39 +721,42 @@ impl TextEdit<'_> {
                 paint_text_selection(&mut galley, ui.visuals(), &cursor_range, None);
             }
 
-            if !clip_text {
-                // Allocate additional space if edits were made this frame that changed the size. This is important so that,
-                // if there's a ScrollArea, it can properly scroll to the cursor.
-                // Condition `!clip_text` is important to avoid breaking layout for `TextEdit::singleline` (PR #5640)
-                let extra_size = galley.size() - rect.size();
-                if extra_size.x > 0.0 || extra_size.y > 0.0 {
-                    match ui.layout().main_dir() {
-                        crate::Direction::LeftToRight | crate::Direction::TopDown => {
-                            ui.allocate_rect(
-                                Rect::from_min_size(outer_rect.max, extra_size),
-                                Sense::hover(),
-                            );
-                        }
-                        crate::Direction::RightToLeft => {
-                            ui.allocate_rect(
-                                Rect::from_min_size(
-                                    emath::pos2(outer_rect.min.x - extra_size.x, outer_rect.max.y),
-                                    extra_size,
-                                ),
-                                Sense::hover(),
-                            );
-                        }
-                        crate::Direction::BottomUp => {
-                            ui.allocate_rect(
-                                Rect::from_min_size(
-                                    emath::pos2(outer_rect.min.x, outer_rect.max.y - extra_size.y),
-                                    extra_size,
-                                ),
-                                Sense::hover(),
-                            );
-                        }
+            // Allocate additional space if edits were made this frame that changed the size. This is important so that,
+            // if there's a ScrollArea, it can properly scroll to the cursor.
+            // Condition `!clip_text` is important to avoid breaking layout for `TextEdit::singleline` (PR #5640)
+            if !clip_text
+                && let extra_size = galley.size() - rect.size()
+                && (extra_size.x > 0.0 || extra_size.y > 0.0)
+            {
+                match ui.layout().main_dir() {
+                    crate::Direction::LeftToRight | crate::Direction::TopDown => {
+                        ui.allocate_rect(
+                            Rect::from_min_size(outer_rect.max, extra_size),
+                            Sense::hover(),
+                        );
+                    }
+                    crate::Direction::RightToLeft => {
+                        ui.allocate_rect(
+                            Rect::from_min_size(
+                                emath::pos2(outer_rect.min.x - extra_size.x, outer_rect.max.y),
+                                extra_size,
+                            ),
+                            Sense::hover(),
+                        );
+                    }
+                    crate::Direction::BottomUp => {
+                        ui.allocate_rect(
+                            Rect::from_min_size(
+                                emath::pos2(outer_rect.min.x, outer_rect.max.y - extra_size.y),
+                                extra_size,
+                            ),
+                            Sense::hover(),
+                        );
                     }
                 }
+            } else {
+                // Avoid an ID shift during this pass if the textedit grow
+                ui.skip_ahead_auto_ids(1);
             }
 
             painter.galley(galley_pos, galley.clone(), text_color);

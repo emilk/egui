@@ -339,7 +339,7 @@ impl<'a> VisualTests<'a> {
 
         f(&mut harness);
 
-        harness.step();
+        harness.run();
 
         let image = harness.render().expect("Failed to render harness");
 
