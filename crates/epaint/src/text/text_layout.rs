@@ -176,7 +176,7 @@ fn layout_section(
 
     // Optimization: only recompute `ScaledMetrics` when the concrete `FontImpl` changes.
     let mut current_font = FontFaceKey::INVALID;
-    let mut current_font_impl_metrics = ScaledMetrics::default();
+    let mut current_font_face_metrics = ScaledMetrics::default();
 
     for chr in job.text[byte_range.clone()].chars() {
         if job.break_on_newline && chr == '\n' {
@@ -188,7 +188,7 @@ fn layout_section(
             let mut font_face = font.fonts_by_id.get_mut(&font_id);
             if current_font != font_id {
                 current_font = font_id;
-                current_font_impl_metrics = font_face
+                current_font_face_metrics = font_face
                     .as_ref()
                     .map(|font_face| font_face.scaled_metrics(pixels_per_point, font_size))
                     .unwrap_or_default();
@@ -198,7 +198,7 @@ fn layout_section(
                 (&font_face, last_glyph_id, glyph_info.id)
             {
                 paragraph.cursor_x_px += font_face.pair_kerning_pixels(
-                    &current_font_impl_metrics,
+                    &current_font_face_metrics,
                     last_glyph_id,
                     glyph_id,
                 );
@@ -210,7 +210,7 @@ fn layout_section(
             let (glyph_alloc, physical_x) = if let Some(font_face) = font_face.as_mut() {
                 font_face.allocate_glyph(
                     font.atlas,
-                    &current_font_impl_metrics,
+                    &current_font_face_metrics,
                     glyph_info,
                     chr,
                     paragraph.cursor_x_px,
@@ -224,8 +224,8 @@ fn layout_section(
                 pos: pos2(physical_x as f32 / pixels_per_point, f32::NAN),
                 advance_width: glyph_alloc.advance_width_px / pixels_per_point,
                 line_height,
-                font_impl_height: current_font_impl_metrics.row_height,
-                font_impl_ascent: current_font_impl_metrics.ascent,
+                font_face_height: current_font_face_metrics.row_height,
+                font_face_ascent: current_font_face_metrics.ascent,
                 font_height: font_metrics.row_height,
                 font_ascent: font_metrics.ascent,
                 uv_rect: glyph_alloc.uv_rect,
@@ -464,7 +464,7 @@ fn replace_last_glyph_with_overflow_character(
 
         let (font_id, glyph_info) = font.glyph_info(overflow_character);
         let mut font_face = font.fonts_by_id.get_mut(&font_id);
-        let font_impl_metrics = font_face
+        let font_face_metrics = font_face
             .as_mut()
             .map(|f| f.scaled_metrics(pixels_per_point, font_size))
             .unwrap_or_default();
@@ -478,7 +478,7 @@ fn replace_last_glyph_with_overflow_character(
                         font_face.glyph_info(prev_glyph.chr).and_then(|g| g.id),
                         font_face.glyph_info(overflow_character).and_then(|g| g.id),
                     ) {
-                        font_face.pair_kerning(&font_impl_metrics, prev_glyph_id, overflow_glyph_id)
+                        font_face.pair_kerning(&font_face_metrics, prev_glyph_id, overflow_glyph_id)
                     } else {
                         0.0
                     }
@@ -493,7 +493,7 @@ fn replace_last_glyph_with_overflow_character(
         let replacement_glyph_width = font_face
             .as_mut()
             .and_then(|f| f.glyph_info(overflow_character))
-            .map(|i| i.advance_width_unscaled.0 * font_impl_metrics.px_scale_factor)
+            .map(|i| i.advance_width_unscaled.0 * font_face_metrics.px_scale_factor)
             .unwrap_or_default();
 
         // Check if we're within width budget:
@@ -507,7 +507,7 @@ fn replace_last_glyph_with_overflow_character(
                 .map(|f| {
                     f.allocate_glyph(
                         font.atlas,
-                        &font_impl_metrics,
+                        &font_face_metrics,
                         glyph_info,
                         overflow_character,
                         overflow_glyph_x * pixels_per_point,
@@ -526,8 +526,8 @@ fn replace_last_glyph_with_overflow_character(
                 pos: pos2(physical_x as f32 / pixels_per_point, f32::NAN),
                 advance_width: replacement_glyph_alloc.advance_width_px / pixels_per_point,
                 line_height,
-                font_impl_height: font_impl_metrics.row_height,
-                font_impl_ascent: font_impl_metrics.ascent,
+                font_face_height: font_face_metrics.row_height,
+                font_face_ascent: font_face_metrics.ascent,
                 font_height: font_metrics.row_height,
                 font_ascent: font_metrics.ascent,
                 uv_rect: replacement_glyph_alloc.uv_rect,
@@ -668,14 +668,14 @@ fn galley_from_rows(
         for glyph in &mut row.glyphs {
             let format = &job.sections[glyph.section_index as usize].format;
 
-            glyph.pos.y = glyph.font_impl_ascent
+            glyph.pos.y = glyph.font_face_ascent
 
                 // Apply valign to the different in height of the entire row, and the height of this `Font`:
                 + format.valign.to_factor() * (max_row_height - glyph.line_height)
 
                 // When mixing different `FontImpl` (e.g. latin and emojis),
                 // we always center the difference:
-                + 0.5 * (glyph.font_height - glyph.font_impl_height);
+                + 0.5 * (glyph.font_height - glyph.font_face_height);
 
             glyph.pos.y = point_scale.round_to_pixel(glyph.pos.y);
         }

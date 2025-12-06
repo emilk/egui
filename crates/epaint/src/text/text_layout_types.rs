@@ -686,11 +686,11 @@ pub struct Glyph {
     /// The row/line height of this font.
     pub font_height: f32,
 
-    /// The ascent of the sub-font within the font (`FontImpl`).
-    pub font_impl_ascent: f32,
+    /// The ascent of the sub-font within the font (`FontFace`).
+    pub font_face_ascent: f32,
 
-    /// The row/line height of the sub-font within the font (`FontImpl`).
-    pub font_impl_height: f32,
+    /// The row/line height of the sub-font within the font (`FontFace`).
+    pub font_face_height: f32,
 
     /// Position and size of the glyph in the font texture, in texels.
     pub uv_rect: UvRect,

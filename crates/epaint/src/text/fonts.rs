@@ -767,7 +767,7 @@ impl FontsImpl {
         let atlas = TextureAtlas::new([texture_width, initial_height], options);
 
         let mut fonts_by_id: nohash_hasher::IntMap<FontFaceKey, FontFace> = Default::default();
-        let mut font_impls: ahash::HashMap<String, FontFaceKey> = Default::default();
+        let mut fonts_by_name: ahash::HashMap<String, FontFaceKey> = Default::default();
         for (name, font_data) in &definitions.font_data {
             let tweak = font_data.tweak;
             let blob = blob_from_font_data(font_data);
@@ -775,14 +775,14 @@ impl FontsImpl {
                 .unwrap_or_else(|err| panic!("Error parsing {name:?} TTF/OTF font file: {err}"));
             let key = FontFaceKey::new();
             fonts_by_id.insert(key, font_face);
-            font_impls.insert(name.clone(), key);
+            fonts_by_name.insert(name.clone(), key);
         }
 
         Self {
             definitions,
             atlas,
             fonts_by_id,
-            fonts_by_name: font_impls,
+            fonts_by_name,
             family_cache: Default::default(),
         }
     }
