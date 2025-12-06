@@ -124,7 +124,7 @@ ron = "0.11.0"
 self_cell = "1.2.1"
 serde = { version = "1.0.228", features = ["derive"] }
 similar-asserts = "1.7.0"
-skrifa = "0.37.0"
+skrifa = { version = "0.37.0", default-features = false, features = ["std", "autohint_shaping"] }
 smallvec = "1.15.1"
 smithay-clipboard = "0.7.2"
 static_assertions = "1.1.0"
