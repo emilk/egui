@@ -71,7 +71,6 @@ eframe = { version = "0.33.2", path = "crates/eframe", default-features = false 
 accesskit = "0.21.1"
 accesskit_consumer = "0.30.1"
 accesskit_winit = "0.29.1"
-ab_glyph = "0.2.32"
 ahash = { version = "0.8.12", default-features = false, features = [
   "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
   "std",
@@ -122,8 +121,10 @@ rayon = "1.11.0"
 resvg = { version = "0.45.1", default-features = false }
 rfd = "0.15.4"
 ron = "0.11.0"
+self_cell = "1.2.1"
 serde = { version = "1.0.228", features = ["derive"] }
 similar-asserts = "1.7.0"
+skrifa = "0.37.0"
 smallvec = "1.15.1"
 smithay-clipboard = "0.7.2"
 static_assertions = "1.1.0"
@@ -135,6 +136,7 @@ toml = "0.8"
 type-map = "0.5.1"
 unicode_names2 = { version = "2.0.0", default-features = false }
 unicode-segmentation = "1.12.0"
+vello_cpu = { version = "0.0.4", default-features = false, features = ["std"] }
 wasm-bindgen = "0.2.100" # Keep wasm-bindgen version in sync in: setup_web.sh, Cargo.toml, Cargo.lock, rust.yml
 wasm-bindgen-futures = "0.4.0"
 wayland-cursor = { version = "0.31.11", default-features = false }

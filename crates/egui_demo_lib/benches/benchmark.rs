@@ -161,15 +161,11 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     {
         let pixels_per_point = 1.0;
-        let max_texture_side = 8 * 1024;
         let wrap_width = 512.0;
         let font_id = egui::FontId::default();
         let text_color = egui::Color32::WHITE;
-        let mut fonts = egui::epaint::text::Fonts::new(
-            max_texture_side,
-            egui::epaint::AlphaFromCoverage::default(),
-            egui::FontDefinitions::default(),
-        );
+        let mut fonts =
+            egui::epaint::text::Fonts::new(Default::default(), egui::FontDefinitions::default());
         {
             c.bench_function("text_layout_uncached", |b| {
                 b.iter(|| {
@@ -209,7 +205,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
             let mut rng = rand::rng();
             b.iter(|| {
-                fonts.begin_pass(max_texture_side, egui::epaint::AlphaFromCoverage::default());
+                fonts.begin_pass(egui::epaint::TextOptions::default());
 
                 // Delete a random character, simulating a user making an edit in a long file:
                 let mut new_string = string.clone();
