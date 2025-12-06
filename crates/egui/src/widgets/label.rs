@@ -248,7 +248,9 @@ impl Label {
                 layout_job.halign = Align::LEFT;
                 layout_job.justify = false;
             } else {
-                layout_job.halign = self.halign.unwrap_or(ui.layout().horizontal_placement());
+                layout_job.halign = self
+                    .halign
+                    .unwrap_or_else(|| ui.layout().horizontal_placement());
                 layout_job.justify = ui.layout().horizontal_justify();
             }
 
