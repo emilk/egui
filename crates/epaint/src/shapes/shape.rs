@@ -30,7 +30,7 @@ pub enum Shape {
 
     /// Recursively nest more shapes - sometimes a convenience to be able to do.
     /// For performance reasons it is better to avoid it.
-    Vec(Vec<Shape>),
+    Vec(Vec<Self>),
 
     /// Circle with optional outline and fill.
     Circle(CircleShape),

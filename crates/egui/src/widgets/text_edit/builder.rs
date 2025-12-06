@@ -496,7 +496,7 @@ impl TextEdit<'_> {
         } = self;
 
         let text_color = text_color
-            .or(ui.visuals().override_text_color)
+            .or_else(|| ui.visuals().override_text_color)
             // .unwrap_or_else(|| ui.style().interact(&response).text_color()); // too bright
             .unwrap_or_else(|| ui.visuals().widgets.inactive.text_color());
 
@@ -691,7 +691,7 @@ impl TextEdit<'_> {
         if ui.is_rect_visible(rect) {
             if text.as_str().is_empty() && !hint_text.is_empty() {
                 let hint_text_color = ui.visuals().weak_text_color();
-                let hint_text_font_id = hint_text_font.unwrap_or(font_id.into());
+                let hint_text_font_id = hint_text_font.unwrap_or_else(|| font_id.into());
                 let galley = if multiline {
                     hint_text.into_galley(
                         ui,
@@ -844,7 +844,6 @@ impl TextEdit<'_> {
             });
         }
 
-        #[cfg(feature = "accesskit")]
         {
             let role = if password {
                 accesskit::Role::PasswordInput

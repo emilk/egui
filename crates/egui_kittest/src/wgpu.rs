@@ -51,7 +51,7 @@ pub fn default_wgpu_setup() -> egui_wgpu::WgpuSetup {
         adapters
             .first()
             .map(|a| (*a).clone())
-            .ok_or("No adapter found".to_owned())
+            .ok_or_else(|| "No adapter found".to_owned())
     }));
 
     egui_wgpu::WgpuSetup::CreateNew(setup)

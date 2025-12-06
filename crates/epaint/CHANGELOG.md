@@ -5,6 +5,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.33.2 - 2025-11-13
+Nothing new
+
+
 ## 0.33.0 - 2025-10-09
 * Remove the `deadlock_detection` feature [#7497](https://github.com/emilk/egui/pull/7497) by [@lucasmerlin](https://github.com/lucasmerlin)
 * More even text kerning [#7431](https://github.com/emilk/egui/pull/7431) by [@valadaptive](https://github.com/valadaptive)

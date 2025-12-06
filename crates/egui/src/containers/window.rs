@@ -825,7 +825,7 @@ fn resize_response(
     area: &mut area::Prepared,
     resize_id: Id,
 ) {
-    let Some(mut new_rect) = move_and_resize_window(ctx, &resize_interaction) else {
+    let Some(mut new_rect) = move_and_resize_window(ctx, resize_id, &resize_interaction) else {
         return;
     };
 
@@ -847,27 +847,38 @@ fn resize_response(
 }
 
 /// Acts on outer rect (outside the stroke)
-fn move_and_resize_window(ctx: &Context, interaction: &ResizeInteraction) -> Option<Rect> {
+fn move_and_resize_window(ctx: &Context, id: Id, interaction: &ResizeInteraction) -> Option<Rect> {
+    // Used to prevent drift
+    let rect_at_start_of_drag_id = id.with("window_rect_at_drag_start");
+
     if !interaction.any_dragged() {
+        ctx.data_mut(|data| {
+            data.remove::<Rect>(rect_at_start_of_drag_id);
+        });
         return None;
     }
 
-    let pointer_pos = ctx.input(|i| i.pointer.interact_pos())?;
-    let mut rect = interaction.outer_rect; // prevent drift
+    let total_drag_delta = ctx.input(|i| i.pointer.total_drag_delta())?;
+
+    let rect_at_start_of_drag = ctx.data_mut(|data| {
+        *data.get_temp_mut_or::<Rect>(rect_at_start_of_drag_id, interaction.outer_rect)
+    });
+
+    let mut rect = rect_at_start_of_drag; // prevent drift
 
     // Put the rect in the center of the stroke:
     rect = rect.shrink(interaction.window_frame.stroke.width / 2.0);
 
     if interaction.left.drag {
-        rect.min.x = pointer_pos.x;
+        rect.min.x += total_drag_delta.x;
     } else if interaction.right.drag {
-        rect.max.x = pointer_pos.x;
+        rect.max.x += total_drag_delta.x;
     }
 
     if interaction.top.drag {
-        rect.min.y = pointer_pos.y;
+        rect.min.y += total_drag_delta.y;
     } else if interaction.bottom.drag {
-        rect.max.y = pointer_pos.y;
+        rect.max.y += total_drag_delta.y;
     }
 
     // Return to having the rect outside the stroke:
@@ -899,7 +910,6 @@ fn resize_interaction(
     let rect = outer_rect.shrink(window_frame.stroke.width / 2.0);
 
     let side_response = |rect, id| {
-        #[cfg(feature = "accesskit")]
         ctx.register_accesskit_parent(id, _accessibility_parent);
         let response = ctx.create_widget(
             WidgetRect {

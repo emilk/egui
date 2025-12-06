@@ -298,7 +298,8 @@ impl CubicBezierShape {
     /// the number of points is determined by the tolerance.
     /// the points may not be evenly distributed in the range [0.0,1.0] (t value)
     pub fn flatten(&self, tolerance: Option<f32>) -> Vec<Pos2> {
-        let tolerance = tolerance.unwrap_or((self.points[0].x - self.points[3].x).abs() * 0.001);
+        let tolerance =
+            tolerance.unwrap_or_else(|| (self.points[0].x - self.points[3].x).abs() * 0.001);
         let mut result = vec![self.points[0]];
         self.for_each_flattened_with_t(tolerance, &mut |p, _t| {
             result.push(p);
@@ -313,7 +314,8 @@ impl CubicBezierShape {
     /// The result will be a vec of vec of Pos2. it will store two closed aren in different vec.
     /// The epsilon is used to compare a float value.
     pub fn flatten_closed(&self, tolerance: Option<f32>, epsilon: Option<f32>) -> Vec<Vec<Pos2>> {
-        let tolerance = tolerance.unwrap_or((self.points[0].x - self.points[3].x).abs() * 0.001);
+        let tolerance =
+            tolerance.unwrap_or_else(|| (self.points[0].x - self.points[3].x).abs() * 0.001);
         let epsilon = epsilon.unwrap_or(1.0e-5);
         let mut result = Vec::new();
         let mut first_half = Vec::new();
@@ -519,7 +521,8 @@ impl QuadraticBezierShape {
     /// the number of points is determined by the tolerance.
     /// the points may not be evenly distributed in the range [0.0,1.0] (t value)
     pub fn flatten(&self, tolerance: Option<f32>) -> Vec<Pos2> {
-        let tolerance = tolerance.unwrap_or((self.points[0].x - self.points[2].x).abs() * 0.001);
+        let tolerance =
+            tolerance.unwrap_or_else(|| (self.points[0].x - self.points[2].x).abs() * 0.001);
         let mut result = vec![self.points[0]];
         self.for_each_flattened_with_t(tolerance, &mut |p, _t| {
             result.push(p);

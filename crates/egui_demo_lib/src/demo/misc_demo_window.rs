@@ -451,7 +451,7 @@ enum Action {
 
 #[derive(Clone, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-struct Tree(Vec<Tree>);
+struct Tree(Vec<Self>);
 
 impl Tree {
     pub fn demo() -> Self {

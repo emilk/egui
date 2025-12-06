@@ -168,7 +168,7 @@ impl<'a> AtomLayout<'a> {
 
         let fallback_font = fallback_font.unwrap_or_default();
 
-        let wrap_mode = wrap_mode.unwrap_or(ui.wrap_mode());
+        let wrap_mode = wrap_mode.unwrap_or_else(|| ui.wrap_mode());
 
         // If the TextWrapMode is not Extend, ensure there is some item marked as `shrink`.
         // If none is found, mark the first text item as `shrink`.
@@ -188,7 +188,7 @@ impl<'a> AtomLayout<'a> {
 
         let fallback_text_color =
             fallback_text_color.unwrap_or_else(|| ui.style().visuals.text_color());
-        let gap = gap.unwrap_or(ui.spacing().icon_spacing);
+        let gap = gap.unwrap_or_else(|| ui.spacing().icon_spacing);
 
         // The size available for the content
         let available_inner_size = ui.available_size() - frame.total_margin().sum();

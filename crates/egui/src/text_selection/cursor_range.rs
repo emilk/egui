@@ -190,7 +190,6 @@ impl CCursorRange {
                 ..
             } => self.on_key_press(os, galley, modifiers, *key),
 
-            #[cfg(feature = "accesskit")]
             Event::AccessKitActionRequest(accesskit::ActionRequest {
                 action: accesskit::Action::SetTextSelection,
                 target,
@@ -220,7 +219,6 @@ impl CCursorRange {
 
 // ----------------------------------------------------------------------------
 
-#[cfg(feature = "accesskit")]
 fn ccursor_from_accesskit_text_position(
     id: Id,
     galley: &Galley,

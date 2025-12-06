@@ -12,7 +12,7 @@ else
 fi
 
 CRATE_NAME="egui_demo_app"
-FEATURES="glow,http,persistence"
+FEATURES="wgpu,http,persistence"
 
 echo "Building rust…"
 BUILD=debug # debug builds are faster

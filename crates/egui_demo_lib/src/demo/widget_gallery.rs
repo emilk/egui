@@ -310,7 +310,7 @@ mod tests {
     use super::*;
     use crate::View as _;
     use egui::Vec2;
-    use egui_kittest::Harness;
+    use egui_kittest::{Harness, SnapshotResults};
 
     #[test]
     pub fn should_match_screenshot() {
@@ -319,6 +319,8 @@ mod tests {
             date: Some(chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()),
             ..Default::default()
         };
+
+        let mut results = SnapshotResults::new();
 
         for pixels_per_point in [1, 2] {
             for theme in [egui::Theme::Light, egui::Theme::Dark] {
@@ -339,6 +341,7 @@ mod tests {
                 };
                 let image_name = format!("widget_gallery_{theme_name}_x{pixels_per_point}");
                 harness.snapshot(&image_name);
+                results.extend_harness(&mut harness);
             }
         }
     }

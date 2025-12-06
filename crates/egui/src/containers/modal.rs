@@ -11,7 +11,7 @@ use crate::{
 ///
 /// You can show multiple modals on top of each other. The topmost modal will always be
 /// the most recently shown one.
-/// If multiple modals are newly shown in the same frame, the order of the modals not undefined
+/// If multiple modals are newly shown in the same frame, the order of the modals is undefined
 /// (either first or second could be top).
 pub struct Modal {
     pub area: Area,

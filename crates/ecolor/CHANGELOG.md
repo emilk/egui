@@ -6,6 +6,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.33.2 - 2025-11-13
+Nothing new
+
+
 ## 0.33.0 - 2025-10-09
 * Align `Color32` to 4 bytes [#7318](https://github.com/emilk/egui/pull/7318) by [@anti-social](https://github.com/anti-social)
 * Make the `hex_color` macro `const` [#7444](https://github.com/emilk/egui/pull/7444) by [@YgorSouza](https://github.com/YgorSouza)

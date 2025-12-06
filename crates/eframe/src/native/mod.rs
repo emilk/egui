@@ -12,5 +12,5 @@ pub(crate) mod winit_integration;
 #[cfg(feature = "glow")]
 mod glow_integration;
 
-#[cfg(feature = "wgpu")]
+#[cfg(feature = "wgpu_no_default_features")]
 mod wgpu_integration;

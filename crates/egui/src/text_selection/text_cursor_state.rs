@@ -208,25 +208,33 @@ fn ccursor_previous_line(text: &str, ccursor: CCursor) -> CCursor {
     }
 }
 
-fn next_word_boundary_char_index(text: &str, index: usize) -> usize {
-    for word in text.split_word_bound_indices() {
+fn next_word_boundary_char_index(text: &str, cursor_ci: usize) -> usize {
+    for (word_byte_index, word) in text.split_word_bound_indices() {
+        let word_ci = char_index_from_byte_index(text, word_byte_index);
+
+        // We consider `.` a word boundary.
+        // At least that's how Mac works when navigating something like `www.example.com`.
+        for (dot_ci_offset, chr) in word.chars().enumerate() {
+            let dot_ci = word_ci + dot_ci_offset;
+            if chr == '.' && cursor_ci < dot_ci {
+                return dot_ci;
+            }
+        }
+
         // Splitting considers contiguous whitespace as one word, such words must be skipped,
         // this handles cases for example ' abc' (a space and a word), the cursor is at the beginning
         // (before space) - this jumps at the end of 'abc' (this is consistent with text editors
         // or browsers)
-        let ci = char_index_from_byte_index(text, word.0);
-        if ci > index && !skip_word(word.1) {
-            return ci;
+        if cursor_ci < word_ci && !all_word_chars(word) {
+            return word_ci;
         }
     }
 
     char_index_from_byte_index(text, text.len())
 }
 
-fn skip_word(text: &str) -> bool {
-    // skip words that contain anything other than alphanumeric characters and underscore
-    // (i.e. whitespace, dashes, etc.)
-    !text.chars().any(|c| !is_word_char(c))
+fn all_word_chars(text: &str) -> bool {
+    text.chars().all(is_word_char)
 }
 
 fn next_line_boundary_char_index(it: impl Iterator<Item = char>, mut index: usize) -> usize {
@@ -336,6 +344,12 @@ mod test {
 
         assert_eq!(next_word_boundary_char_index("", 0), 0);
         assert_eq!(next_word_boundary_char_index("", 1), 0);
+
+        // ASCII only
+        let text = "abc.def.ghi";
+        assert_eq!(next_word_boundary_char_index(text, 1), 3);
+        assert_eq!(next_word_boundary_char_index(text, 3), 7);
+        assert_eq!(next_word_boundary_char_index(text, 7), 11);
 
         // Unicode graphemes, some of which consist of multiple Unicode characters,
         // !!! Unicode character is not always what is tranditionally considered a character,

@@ -1,12 +1,13 @@
+use std::mem;
+
 use accesskit::{Action, ActionRequest, NodeId};
 use accesskit_consumer::{FilterResult, Node, Tree, TreeChangeHandler};
+
 use eframe::epaint::text::TextWrapMode;
-use egui::collapsing_header::CollapsingState;
 use egui::{
     Button, Color32, Context, Event, Frame, FullOutput, Id, Key, KeyboardShortcut, Label,
-    Modifiers, RawInput, RichText, ScrollArea, SidePanel, TopBottomPanel, Ui,
+    Modifiers, Panel, RawInput, RichText, ScrollArea, Ui, collapsing_header::CollapsingState,
 };
-use std::mem;
 
 /// This [`egui::Plugin`] adds an inspector Panel.
 ///
@@ -86,10 +87,10 @@ impl egui::Plugin for AccessibilityInspectorPlugin {
 
         ctx.enable_accesskit();
 
-        SidePanel::right(Self::id()).show(ctx, |ui| {
+        Panel::right(Self::id()).show(ctx, |ui| {
             ui.heading("🔎 AccessKit Inspector");
             if let Some(selected_node) = self.selected_node {
-                TopBottomPanel::bottom(Self::id().with("details_panel"))
+                Panel::bottom(Self::id().with("details_panel"))
                     .frame(Frame::new())
                     .show_separator_line(false)
                     .show_inside(ui, |ui| {
@@ -198,8 +199,8 @@ impl AccessibilityInspectorPlugin {
         }
         let label = node
             .label()
-            .or(node.value())
-            .unwrap_or(node.id().0.to_string());
+            .or_else(|| node.value())
+            .unwrap_or_else(|| node.id().0.to_string());
         let label = format!("({:?}) {}", node.role(), label);
 
         // Safety: This is safe since the `accesskit::NodeId` was created from an `egui::Id`.

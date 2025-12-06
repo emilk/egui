@@ -179,7 +179,9 @@ impl EpiIntegration {
         #[cfg(feature = "glow")] glow_register_native_texture: Option<
             Box<dyn FnMut(glow::Texture) -> egui::TextureId>,
         >,
-        #[cfg(feature = "wgpu")] wgpu_render_state: Option<egui_wgpu::RenderState>,
+        #[cfg(feature = "wgpu_no_default_features")] wgpu_render_state: Option<
+            egui_wgpu::RenderState,
+        >,
     ) -> Self {
         let frame = epi::Frame {
             info: epi::IntegrationInfo { cpu_usage: None },
@@ -188,7 +190,7 @@ impl EpiIntegration {
             gl,
             #[cfg(feature = "glow")]
             glow_register_native_texture,
-            #[cfg(feature = "wgpu")]
+            #[cfg(feature = "wgpu_no_default_features")]
             wgpu_render_state,
             raw_display_handle: window.display_handle().map(|h| h.as_raw()),
             raw_window_handle: window.window_handle().map(|h| h.as_raw()),

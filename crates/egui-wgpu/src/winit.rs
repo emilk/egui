@@ -14,6 +14,7 @@ struct SurfaceState {
     alpha_mode: wgpu::CompositeAlphaMode,
     width: u32,
     height: u32,
+    resizing: bool,
 }
 
 /// Everything you need to paint egui with [`wgpu`] on [`winit`].
@@ -230,6 +231,7 @@ impl Painter {
                 width: size.width,
                 height: size.height,
                 alpha_mode,
+                resizing: false,
             },
         );
         let Some(width) = NonZeroU32::new(size.width) else {
@@ -324,6 +326,59 @@ impl Painter {
                     .create_view(&wgpu::TextureViewDescriptor::default()),
             );
         }
+    }
+
+    /// Handles changes of the resizing state.
+    ///
+    /// Should be called prior to the first [`Painter::on_window_resized`] call and after the last in
+    /// the chain. Used to apply platform-specific logic, e.g. OSX Metal window resize jitter fix.
+    pub fn on_window_resize_state_change(&mut self, viewport_id: ViewportId, resizing: bool) {
+        profiling::function_scope!();
+
+        let Some(state) = self.surfaces.get_mut(&viewport_id) else {
+            return;
+        };
+        if state.resizing == resizing {
+            if resizing {
+                log::debug!(
+                    "Painter::on_window_resize_state_change() redundant call while resizing"
+                );
+            } else {
+                log::debug!(
+                    "Painter::on_window_resize_state_change() redundant call after resizing"
+                );
+            }
+            return;
+        }
+
+        // Resizing is a bit tricky on macOS.
+        // It requires enabling ["present_with_transaction"](https://developer.apple.com/documentation/quartzcore/cametallayer/presentswithtransaction)
+        // flag to avoid jittering during the resize. Even though resize jittering on macOS
+        // is common across rendering backends, the solution for wgpu/metal is known.
+        //
+        // See https://github.com/emilk/egui/issues/903
+        #[cfg(all(target_os = "macos", feature = "macos-window-resize-jitter-fix"))]
+        {
+            // SAFETY: The cast is checked with if condition. If the used backend is not metal
+            // it gracefully fails. The pointer casts are valid as it's 1-to-1 type mapping.
+            // This is how wgpu currently exposes this backend-specific flag.
+            unsafe {
+                if let Some(hal_surface) = state.surface.as_hal::<wgpu::hal::api::Metal>() {
+                    let raw =
+                        std::ptr::from_ref::<wgpu::hal::metal::Surface>(&*hal_surface).cast_mut();
+
+                    (*raw).present_with_transaction = resizing;
+
+                    Self::configure_surface(
+                        state,
+                        self.render_state.as_ref().unwrap(),
+                        &self.configuration,
+                    );
+                }
+            }
+        }
+
+        state.resizing = resizing;
     }
 
     pub fn on_window_resized(
