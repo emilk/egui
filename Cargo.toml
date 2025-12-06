@@ -121,6 +121,7 @@ rayon = "1.11.0"
 resvg = { version = "0.45.1", default-features = false }
 rfd = "0.15.4"
 ron = "0.11.0"
+self_cell = "1.2.1"
 serde = { version = "1.0.228", features = ["derive"] }
 similar-asserts = "1.7.0"
 skrifa = "0.37"
