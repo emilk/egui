@@ -123,8 +123,8 @@ impl Style {
                 color: self
                     .visuals
                     .override_text_color
-                    .unwrap_or(visuals.text_color()),
-                font_id: font_id.unwrap_or(TextStyle::Body.resolve(self)),
+                    .unwrap_or_else(|| visuals.text_color()),
+                font_id: font_id.unwrap_or_else(|| TextStyle::Body.resolve(self)),
                 strikethrough: Stroke::NONE,
                 underline: Stroke::NONE,
             },
