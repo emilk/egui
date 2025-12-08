@@ -255,9 +255,7 @@ impl<'a> PanelSizer<'a> {
         let side = self.panel.side;
         let size_range = self.panel.size_range;
 
-        if is_resizing && pointer.is_some() {
-            let pointer = pointer.unwrap();
-
+        if is_resizing && let Some(pointer) = pointer {
             match side {
                 PanelSide::Vertical(side) => {
                     self.size = (pointer.x - side.side_x(self.panel_rect)).abs();
@@ -802,9 +800,7 @@ impl Panel {
         let resize_id = self.id.with("__resize");
         let resize_response = ui.ctx().read_response(resize_id);
 
-        if resize_response.is_some() {
-            let resize_response = resize_response.unwrap();
-
+        if let Some(resize_response) = resize_response {
             // NOTE(sharky98): The original code was initializing to
             // false first, but it doesn't seem necessary.
             let is_resizing = resize_response.dragged();
