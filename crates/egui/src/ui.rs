@@ -128,7 +128,7 @@ impl Ui {
             layer_id,
             max_rect,
             layout,
-			noninteractive,
+            noninteractive,
             disabled,
             invisible,
             sizing_pass,
@@ -147,7 +147,7 @@ impl Ui {
         let max_rect = max_rect.unwrap_or_else(|| ctx.content_rect());
         let clip_rect = max_rect;
         let layout = layout.unwrap_or_default();
-		let enabled = !disabled && !invisible && !noninteractive;
+        let enabled = !disabled && !invisible && !noninteractive;
         let disabled = disabled || invisible;
         let style = style.unwrap_or_else(|| ctx.style());
         let sense = sense.unwrap_or_else(Sense::hover);
@@ -267,7 +267,7 @@ impl Ui {
             layer_id,
             max_rect,
             layout,
-			noninteractive,
+            noninteractive,
             disabled,
             invisible,
             sizing_pass,
