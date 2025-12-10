@@ -618,7 +618,7 @@ impl Prepared {
             .layout(self.layout)
             .accessibility_parent(self.move_response.id)
             .closable();
-		if !self.state.interactable {
+        if !self.state.interactable {
             ui_builder = ui_builder.noninteractive();
         }
         if !self.enabled {
