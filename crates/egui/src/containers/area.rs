@@ -512,7 +512,7 @@ impl Area {
                     Sense::hover()
                 }
             });
-
+			
             let move_response = ctx.create_widget(
                 WidgetRect {
                     id: interact_id,
@@ -520,7 +520,7 @@ impl Area {
                     rect: state.rect(),
                     interact_rect: state.rect().intersect(constrain_rect),
                     sense,
-                    enabled,
+                    enabled: enabled && interactable,
                 },
                 true,
             );
@@ -618,7 +618,9 @@ impl Prepared {
             .layout(self.layout)
             .accessibility_parent(self.move_response.id)
             .closable();
-
+		if !self.state.interactable {
+            ui_builder = ui_builder.noninteractive();
+        }
         if !self.enabled {
             ui_builder = ui_builder.disabled();
         }
