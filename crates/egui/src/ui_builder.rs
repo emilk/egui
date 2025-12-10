@@ -19,6 +19,7 @@ pub struct UiBuilder {
     pub layer_id: Option<LayerId>,
     pub max_rect: Option<Rect>,
     pub layout: Option<Layout>,
+	pub noninteractive: bool,
     pub disabled: bool,
     pub invisible: bool,
     pub sizing_pass: bool,
@@ -112,13 +113,23 @@ impl UiBuilder {
         self.layout = Some(layout);
         self
     }
-
+	
+	/// Make the new `Ui` non-interactive, i.e. passthrough. no visual changes.
+    ///
+    /// Note that if the parent `Ui` is non-interactive, the child will always be non-interactive.
+    #[inline]
+    pub fn noninteractive(mut self) -> Self {
+        self.noninteractive = true;
+        self
+    }
+	
     /// Make the new `Ui` disabled, i.e. grayed-out and non-interactive.
     ///
     /// Note that if the parent `Ui` is disabled, the child will always be disabled.
     #[inline]
     pub fn disabled(mut self) -> Self {
         self.disabled = true;
+		self.noninteractive = true;
         self
     }
 
@@ -131,6 +142,7 @@ impl UiBuilder {
     pub fn invisible(mut self) -> Self {
         self.invisible = true;
         self.disabled = true;
+		self.noninteractive = true;
         self
     }
 
