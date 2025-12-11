@@ -151,6 +151,7 @@ pub fn translate_key(key: &str) -> Option<egui::Key> {
 
 pub fn modifiers_from_kb_event(event: &web_sys::KeyboardEvent) -> egui::Modifiers {
     egui::Modifiers {
+        function: event.key() == "Fn",
         alt: event.alt_key(),
         ctrl: event.ctrl_key(),
         shift: event.shift_key(),
@@ -167,6 +168,7 @@ pub fn modifiers_from_kb_event(event: &web_sys::KeyboardEvent) -> egui::Modifier
 
 pub fn modifiers_from_mouse_event(event: &web_sys::MouseEvent) -> egui::Modifiers {
     egui::Modifiers {
+        function: event.get_modifier_state("Fn"),
         alt: event.alt_key(),
         ctrl: event.ctrl_key(),
         shift: event.shift_key(),
@@ -183,6 +185,7 @@ pub fn modifiers_from_mouse_event(event: &web_sys::MouseEvent) -> egui::Modifier
 
 pub fn modifiers_from_wheel_event(event: &web_sys::WheelEvent) -> egui::Modifiers {
     egui::Modifiers {
+        function: event.get_modifier_state("Fn"),
         alt: event.alt_key(),
         ctrl: event.ctrl_key(),
         shift: event.shift_key(),
