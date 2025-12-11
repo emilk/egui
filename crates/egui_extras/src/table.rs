@@ -1325,7 +1325,7 @@ impl TableRow<'_, '_> {
         *self.response = Some(
             self.response
                 .as_ref()
-                .map_or(response.clone(), |r| r.union(response.clone())),
+                .map_or_else(|| response.clone(), |r| r.union(response.clone())),
         );
 
         (used_rect, response)

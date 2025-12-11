@@ -548,7 +548,7 @@ impl GlowWinitRunning<'_> {
             let Some(egui_winit) = viewport.egui_winit.as_mut() else {
                 return Ok(EventResult::Wait);
             };
-            let mut raw_input = egui_winit.take_egui_input(window);
+            let mut raw_input = egui_winit.take_egui_input();
             let viewport_ui_cb = viewport.viewport_ui_cb.clone();
 
             self.integration.pre_update();
@@ -1049,6 +1049,7 @@ impl GlutinWindowContext {
 
             // Tell egui right away about native_pixels_per_point etc,
             // so that the app knows about it during app creation:
+            // TODO: update_viewport_info could take care of this right?
             let pixels_per_point = egui_winit::pixels_per_point(egui_ctx, window);
 
             egui_ctx.input_mut(|i| {
@@ -1474,7 +1475,7 @@ fn render_immediate_viewport(
         };
         egui_winit::update_viewport_info(&mut viewport.info, egui_ctx, window, false);
 
-        let mut raw_input = egui_winit.take_egui_input(window);
+        let mut raw_input = egui_winit.take_egui_input();
         raw_input.viewports = glutin
             .viewports
             .iter()
