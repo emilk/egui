@@ -57,6 +57,7 @@ pub fn adjust_colors(
             radius: _,
             fill,
             stroke,
+            angle: _,
         })
         | Shape::Rect(RectShape {
             rect: _,
@@ -67,6 +68,7 @@ pub fn adjust_colors(
             round_to_pixels: _,
             blur_width: _,
             brush: _,
+            angle: _,
         }) => {
             adjust_color(fill);
             adjust_color(&mut stroke.color);
