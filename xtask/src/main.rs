@@ -5,6 +5,7 @@
 #![allow(clippy::exit)]
 
 mod deny;
+mod ios;
 pub(crate) mod utils;
 
 type DynError = Box<dyn std::error::Error>;
@@ -23,6 +24,7 @@ fn try_main() -> Result<(), DynError> {
     match args.as_slice() {
         &[] | &["-h"] | &["--help"] => print_help(),
         &["deny", ..] => deny::deny(&args[1..])?,
+        &["bundle-ios", ..] => ios::bundle_ios(&args[1..])?,
         c => Err(format!("Invalid arguments {c:?}"))?,
     }
     Ok(())
@@ -33,7 +35,8 @@ fn print_help() {
     xtask help
 
     Subcommands
-    deny: Run cargo-deny for all targets
+    deny:       Run cargo-deny for all targets
+    bundle-ios: Build and bundle an iOS app for simulator or device
 
     Options
     -h, --help: print help and exit

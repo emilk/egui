@@ -5,6 +5,7 @@ This is just the changelog for the core `egui` crate. Every crate in this reposi
 * [`epaint` changelog](crates/epaint/CHANGELOG.md)
 * [`egui-winit` changelog](crates/egui-winit/CHANGELOG.md)
 * [`egui-wgpu` changelog](crates/egui-wgpu/CHANGELOG.md)
+* [`egui-ios` changelog](crates/egui-ios/CHANGELOG.md)
 * [`egui_kittest` changelog](crates/egui_kittest/CHANGELOG.md)
 * [`egui_glow` changelog](crates/egui_glow/CHANGELOG.md)
 * [`ecolor` changelog](crates/ecolor/CHANGELOG.md)

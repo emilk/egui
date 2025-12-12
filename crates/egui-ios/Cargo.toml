@@ -1,0 +1,25 @@
+[package]
+name = "egui-ios"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "iOS FFI bindings for egui via swift-bridge"
+repository = "https://github.com/emilk/egui"
+keywords = ["egui", "ios", "swift", "ffi"]
+categories = ["gui", "rendering"]
+readme = "README.md"
+
+[dependencies]
+egui.workspace = true
+swift-bridge = "0.1"
+
+[build-dependencies]
+swift-bridge-build = "0.1"
+
+# Override workspace lints - FFI code requires unsafe
+[lints.rust]
+unsafe_code = "allow"
+
+[features]
+default = []
