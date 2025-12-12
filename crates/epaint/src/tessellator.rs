@@ -1715,6 +1715,10 @@ impl Tessellator {
             return;
         }
 
+        if path_shape.closed && path_shape.points.iter().any(|p| p.any_nan()) {
+            return;
+        }
+
         if self.options.coarse_tessellation_culling
             && !path_shape.visual_bounding_rect().intersects(self.clip_rect)
         {
@@ -1744,10 +1748,25 @@ impl Tessellator {
                 "You asked to fill a path that is not closed. That makes no sense."
             );
 
-            self.scratchpad_path.add_open_points(points);
+            let mut start = 0;
+            while start < points.len() {
+                while start < points.len() && points[start].any_nan() {
+                    start += 1;
+                }
+                let mut end = start;
+                while end < points.len() && !points[end].any_nan() {
+                    end += 1;
+                }
+                if end - start > 1 {
+                    self.scratchpad_path.add_open_points(&points[start..end]);
 
-            self.scratchpad_path
-                .stroke(self.feathering, PathType::Open, stroke, out);
+                    self.scratchpad_path
+                        .stroke(self.feathering, PathType::Open, stroke, out);
+
+                    self.scratchpad_path.clear();
+                }
+                start = end;
+            }
         }
     }
 
