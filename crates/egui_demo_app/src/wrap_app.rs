@@ -379,7 +379,7 @@ impl WrapApp {
                 .on_hover_text("Forget scroll, positions, sizes etc")
                 .clicked()
             {
-                ui.ctx().memory_mut(|mem| *mem = Default::default());
+                ui.memory_mut(|mem| *mem = Default::default());
                 ui.close();
             }
 
@@ -423,8 +423,7 @@ impl WrapApp {
             {
                 selected_anchor = anchor;
                 if frame.is_web() {
-                    ui.ctx()
-                        .open_url(egui::OpenUrl::same_tab(format!("#{anchor}")));
+                    ui.open_url(egui::OpenUrl::same_tab(format!("#{anchor}")));
                 }
             }
         }
@@ -436,7 +435,7 @@ impl WrapApp {
                 if clock_button(ui, crate::seconds_since_midnight()).clicked() {
                     self.state.selected_anchor = Anchor::Clock;
                     if frame.is_web() {
-                        ui.ctx().open_url(egui::OpenUrl::same_tab("#clock"));
+                        ui.open_url(egui::OpenUrl::same_tab("#clock"));
                     }
                 }
             }

@@ -51,7 +51,7 @@ impl eframe::App for MyApp {
                         if ui.button("Yes").clicked() {
                             self.show_confirmation_dialog = false;
                             self.allowed_to_close = true;
-                            ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+                            ui.send_viewport_cmd(egui::ViewportCommand::Close);
                         }
                     });
                 });

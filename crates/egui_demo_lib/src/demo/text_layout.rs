@@ -52,7 +52,7 @@ impl crate::View for TextLayoutDemo {
 
         use egui::text::LayoutJob;
 
-        let pixels_per_point = ui.ctx().pixels_per_point();
+        let pixels_per_point = ui.pixels_per_point();
         let points_per_pixel = 1.0 / pixels_per_point;
 
         ui.vertical_centered(|ui| {

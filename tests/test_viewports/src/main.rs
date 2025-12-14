@@ -199,7 +199,7 @@ fn generic_child_ui(ui: &mut egui::Ui, vp_state: &mut ViewportState, close_butto
         ui.label("Title:");
         if ui.text_edit_singleline(&mut vp_state.title).changed() {
             // Title changes
-            ui.ctx().send_viewport_cmd_to(
+            ui.send_viewport_cmd_to(
                 vp_state.id,
                 egui::ViewportCommand::Title(vp_state.title.clone()),
             );
@@ -430,11 +430,11 @@ fn drag_source<R>(
         // Check for drags:
         let response = ui.interact(res.response.rect, id, egui::Sense::drag());
         if response.hovered() {
-            ui.ctx().set_cursor_icon(egui::CursorIcon::Grab);
+            ui.set_cursor_icon(egui::CursorIcon::Grab);
         }
         res
     } else {
-        ui.ctx().set_cursor_icon(egui::CursorIcon::Grabbing);
+        ui.set_cursor_icon(egui::CursorIcon::Grabbing);
 
         // Paint the body to a new layer:
         let layer_id = egui::LayerId::new(egui::Order::Tooltip, id);

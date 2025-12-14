@@ -449,7 +449,7 @@ impl Grid {
 
             if ui.is_visible() {
                 // Try to cover up the glitchy initial frame:
-                ui.ctx().request_discard("new Grid");
+                ui.request_discard("new Grid");
             }
 
             // Hide the ui this frame, and make things as narrow as possible:

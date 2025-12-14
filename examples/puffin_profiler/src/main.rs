@@ -65,7 +65,7 @@ impl eframe::App for MyApp {
             ui.horizontal(|ui| {
                 ui.monospace(cmd);
                 if ui.small_button("📋").clicked() {
-                    ui.ctx().copy_text(cmd.into());
+                    ui.copy_text(cmd.into());
                 }
             });
 
@@ -75,7 +75,7 @@ impl eframe::App for MyApp {
                 ui.checkbox(&mut self.keep_repainting, "Keep repainting");
                 if self.keep_repainting {
                     ui.spinner();
-                    ui.ctx().request_repaint();
+                    ui.request_repaint();
                 } else {
                     ui.label("Repainting on events (e.g. mouse movement)");
                 }

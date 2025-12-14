@@ -149,7 +149,7 @@ impl crate::View for Modals {
                     *user_modal_open = false;
                 } else {
                     *save_progress = Some(progress + 0.003);
-                    ui.ctx().request_repaint();
+                    ui.request_repaint();
                 }
             });
         }

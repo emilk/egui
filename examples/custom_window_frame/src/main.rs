@@ -106,12 +106,11 @@ fn title_bar_ui(ui: &mut egui::Ui, title_bar_rect: eframe::epaint::Rect, title: 
     // Interact with the title bar (drag to move window):
     if title_bar_response.double_clicked() {
         let is_maximized = ui.input(|i| i.viewport().maximized.unwrap_or(false));
-        ui.ctx()
-            .send_viewport_cmd(ViewportCommand::Maximized(!is_maximized));
+        ui.send_viewport_cmd(ViewportCommand::Maximized(!is_maximized));
     }
 
     if title_bar_response.drag_started_by(PointerButton::Primary) {
-        ui.ctx().send_viewport_cmd(ViewportCommand::StartDrag);
+        ui.send_viewport_cmd(ViewportCommand::StartDrag);
     }
 
     ui.scope_builder(
@@ -137,7 +136,7 @@ fn close_maximize_minimize(ui: &mut egui::Ui) {
         .add(Button::new(RichText::new("❌").size(button_height)))
         .on_hover_text("Close the window");
     if close_response.clicked() {
-        ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+        ui.send_viewport_cmd(egui::ViewportCommand::Close);
     }
 
     let is_maximized = ui.input(|i| i.viewport().maximized.unwrap_or(false));
@@ -146,15 +145,14 @@ fn close_maximize_minimize(ui: &mut egui::Ui) {
             .add(Button::new(RichText::new("🗗").size(button_height)))
             .on_hover_text("Restore window");
         if maximized_response.clicked() {
-            ui.ctx()
-                .send_viewport_cmd(ViewportCommand::Maximized(false));
+            ui.send_viewport_cmd(ViewportCommand::Maximized(false));
         }
     } else {
         let maximized_response = ui
             .add(Button::new(RichText::new("🗗").size(button_height)))
             .on_hover_text("Maximize window");
         if maximized_response.clicked() {
-            ui.ctx().send_viewport_cmd(ViewportCommand::Maximized(true));
+            ui.send_viewport_cmd(ViewportCommand::Maximized(true));
         }
     }
 
@@ -162,6 +160,6 @@ fn close_maximize_minimize(ui: &mut egui::Ui) {
         .add(Button::new(RichText::new("🗕").size(button_height)))
         .on_hover_text("Minimize the window");
     if minimized_response.clicked() {
-        ui.ctx().send_viewport_cmd(ViewportCommand::Minimized(true));
+        ui.send_viewport_cmd(ViewportCommand::Minimized(true));
     }
 }

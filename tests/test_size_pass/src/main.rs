@@ -95,8 +95,7 @@ fn main() -> eframe::Result {
                 .selected_text("ComboBox")
                 .width(100.0)
                 .show_ui(ui, |ui| {
-                    ui.ctx()
-                        .debug_painter()
+                    ui.debug_painter()
                         .debug_rect(ui.max_rect(), egui::Color32::RED, "");
 
                     ui.label("Hello");

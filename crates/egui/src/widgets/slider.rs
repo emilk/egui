@@ -687,7 +687,7 @@ impl Slider<'_> {
         let mut increment = 0usize;
 
         if response.has_focus() {
-            ui.ctx().memory_mut(|m| {
+            ui.memory_mut(|m| {
                 m.set_focus_lock_filter(
                     response.id,
                     EventFilter {

@@ -69,7 +69,7 @@ impl CollapsingState {
 
     pub fn toggle(&mut self, ui: &Ui) {
         self.state.open = !self.state.open;
-        ui.ctx().request_repaint();
+        ui.request_repaint();
     }
 
     /// 0 for closed, 1 for open, with tweening

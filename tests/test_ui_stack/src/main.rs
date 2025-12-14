@@ -297,12 +297,12 @@ fn stack_ui_impl(ui: &mut egui::Ui, stack: &egui::UiStack) {
                         body.row(20.0, |mut row| {
                             row.col(|ui| {
                                 if ui.label(format!("{:?}", node.id)).hovered() {
-                                    ui.ctx().debug_painter().debug_rect(
+                                    ui.debug_painter().debug_rect(
                                         node.max_rect,
                                         egui::Color32::GREEN,
                                         "max",
                                     );
-                                    ui.ctx().debug_painter().circle_filled(
+                                    ui.debug_painter().circle_filled(
                                         node.min_rect.min,
                                         2.0,
                                         egui::Color32::RED,

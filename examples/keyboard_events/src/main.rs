@@ -38,7 +38,7 @@ impl eframe::App for Content {
             }
             if ctx.input(|i| i.key_down(Key::A)) {
                 self.text.push_str("\nHeld");
-                ui.ctx().request_repaint(); // make sure we note the holding.
+                ui.request_repaint(); // make sure we note the holding.
             }
             if ctx.input(|i| i.key_released(Key::A)) {
                 self.text.push_str("\nReleased");

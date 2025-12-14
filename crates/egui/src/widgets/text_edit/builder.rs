@@ -605,12 +605,12 @@ impl TextEdit<'_> {
             if did_interact || response.clicked() {
                 ui.memory_mut(|mem| mem.request_focus(response.id));
 
-                state.last_interaction_time = ui.ctx().input(|i| i.time);
+                state.last_interaction_time = ui.input(|i| i.time);
             }
         }
 
         if interactive && response.hovered() {
-            ui.ctx().set_cursor_icon(CursorIcon::Text);
+            ui.set_cursor_icon(CursorIcon::Text);
         }
 
         let mut cursor_range = None;
@@ -768,7 +768,7 @@ impl TextEdit<'_> {
                 }
 
                 if text.is_mutable() && interactive {
-                    let now = ui.ctx().input(|i| i.time);
+                    let now = ui.input(|i| i.time);
                     if response.changed() || selection_changed {
                         state.last_interaction_time = now;
                     }
@@ -777,7 +777,7 @@ impl TextEdit<'_> {
                     // This is for two reasons:
                     // * Don't give the impression that the user can type into a window without focus
                     // * Don't repaint the ui because of a blinking cursor in an app that is not in focus
-                    let viewport_has_focus = ui.ctx().input(|i| i.focused);
+                    let viewport_has_focus = ui.input(|i| i.focused);
                     if viewport_has_focus {
                         text_selection::visuals::paint_text_cursor(
                             ui,
@@ -922,7 +922,7 @@ fn events(
 
     let copy_if_not_password = |ui: &Ui, text: String| {
         if !password {
-            ui.ctx().copy_text(text);
+            ui.copy_text(text);
         }
     };
 

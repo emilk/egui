@@ -1505,7 +1505,7 @@ impl Context {
         Painter::new(self.clone(), layer_id, content_rect)
     }
 
-    /// Paint on top of everything else
+    /// Paint on top of _everything_ else (even on top of tooltips and popups).
     pub fn debug_painter(&self) -> Painter {
         Self::layer_painter(self, LayerId::debug())
     }
@@ -3554,9 +3554,7 @@ impl Context {
                     let response =
                         ui.add(Label::new(RichText::new(text).monospace()).sense(Sense::click()));
                     if response.hovered() && is_visible {
-                        ui.ctx()
-                            .debug_painter()
-                            .debug_rect(area.rect(), Color32::RED, "");
+                        ui.debug_painter().debug_rect(area.rect(), Color32::RED, "");
                     }
                 } else {
                     ui.monospace(layer_id.short_debug_format());

@@ -69,6 +69,6 @@ impl crate::View for UndoRedoDemo {
         });
 
         self.undoer
-            .feed_state(ui.ctx().input(|input| input.time), &self.state);
+            .feed_state(ui.input(|input| input.time), &self.state);
     }
 }
