@@ -42,7 +42,16 @@ impl<State> AppKind<'_, State> {
             #[cfg(feature = "eframe")]
             AppKind::Eframe((get_app, frame)) => {
                 let app = get_app(state);
+
+                app.logic(ctx, frame);
+
+                #[expect(deprecated)]
                 app.update(ctx, frame);
+
+                egui::CentralPanel::no_frame().show(ctx, |ui| {
+                    app.ui(ui, frame);
+                });
+
                 None
             }
             kind_ui => Some(kind_ui.run_ui(ctx, state, sizing_pass)),
