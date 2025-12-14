@@ -73,8 +73,7 @@ impl PaintBezier {
         ui.collapsing("Global tessellation options", |ui| {
             let mut tessellation_options = ui.ctx().tessellation_options(|to| *to);
             tessellation_options.ui(ui);
-            ui.ctx()
-                .tessellation_options_mut(|to| *to = tessellation_options);
+            ui.tessellation_options_mut(|to| *to = tessellation_options);
         });
 
         ui.radio_value(&mut self.degree, 3, "Quadratic Bézier");

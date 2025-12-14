@@ -445,8 +445,7 @@ fn rgba_edit_ui(ui: &mut Ui, [r, g, b, a]: &mut [f32; 4], alpha: Alpha) -> bool 
             if alpha == Alpha::Opaque {
                 ui.copy_text(format!("{r:.03}, {g:.03}, {b:.03}"));
             } else {
-                ui.ctx()
-                    .copy_text(format!("{r:.03}, {g:.03}, {b:.03}, {a:.03}"));
+                ui.copy_text(format!("{r:.03}, {g:.03}, {b:.03}, {a:.03}"));
             }
         }
 

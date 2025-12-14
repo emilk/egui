@@ -233,8 +233,7 @@ impl AccessibilityInspectorPlugin {
                     let widget_response = ui.ctx().read_response(egui_node_id);
 
                     if let Some(widget_response) = widget_response {
-                        ui.ctx()
-                            .debug_painter()
+                        ui.debug_painter()
                             .debug_rect(widget_response.rect, Color32::RED, "");
                     }
                 }

@@ -305,8 +305,7 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
                     .on_hover_text("Fullscreen the window")
                     .changed()
                 {
-                    ui.ctx()
-                        .send_viewport_cmd(egui::ViewportCommand::Fullscreen(fullscreen));
+                    ui..send_viewport_cmd(egui::ViewportCommand::Fullscreen(fullscreen));
                 }
             }
 
@@ -333,10 +332,8 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
                 });
 
             if let Some(size) = size {
-                ui.ctx()
-                    .send_viewport_cmd(egui::ViewportCommand::InnerSize(size));
-                ui.ctx()
-                    .send_viewport_cmd(egui::ViewportCommand::Fullscreen(false));
+                ui.send_viewport_cmd(egui::ViewportCommand::InnerSize(size));
+                ui.send_viewport_cmd(egui::ViewportCommand::Fullscreen(false));
                 ui.close();
             }
         });

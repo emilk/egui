@@ -43,8 +43,7 @@ impl crate::View for Screenshot {
             let capture = ui.button("📷 Take Screenshot").clicked();
             ui.checkbox(&mut self.continuous, "Capture continuously");
             if capture || self.continuous {
-                ui.ctx()
-                    .send_viewport_cmd(ViewportCommand::Screenshot(UserData::default()));
+                ui.send_viewport_cmd(ViewportCommand::Screenshot(UserData::default()));
             }
         });
 
