@@ -379,7 +379,7 @@ impl WrapApp {
                 .on_hover_text("Forget scroll, positions, sizes etc")
                 .clicked()
             {
-                ui.ctx().memory_mut(|mem| *mem = Default::default());
+                ui.memory_mut(|mem| *mem = Default::default());
                 ui.close();
             }
 

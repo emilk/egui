@@ -304,7 +304,7 @@ impl DemoWindows {
                 self.groups.checkboxes(ui, &mut self.open);
                 ui.separator();
                 if ui.button("Organize windows").clicked() {
-                    ui.ctx().memory_mut(|mem| mem.reset_areas());
+                    ui.memory_mut(|mem| mem.reset_areas());
                 }
             });
         });
@@ -323,11 +323,11 @@ fn file_menu_button(ui: &mut Ui) {
     // or else they would only be checked if the "File" menu was actually open!
 
     if ui.input_mut(|i| i.consume_shortcut(&organize_shortcut)) {
-        ui.ctx().memory_mut(|mem| mem.reset_areas());
+        ui.memory_mut(|mem| mem.reset_areas());
     }
 
     if ui.input_mut(|i| i.consume_shortcut(&reset_shortcut)) {
-        ui.ctx().memory_mut(|mem| *mem = Default::default());
+        ui.memory_mut(|mem| *mem = Default::default());
     }
 
     ui.menu_button("File", |ui| {
@@ -352,7 +352,7 @@ fn file_menu_button(ui: &mut Ui) {
             )
             .clicked()
         {
-            ui.ctx().memory_mut(|mem| mem.reset_areas());
+            ui.memory_mut(|mem| mem.reset_areas());
         }
 
         if ui
@@ -363,7 +363,7 @@ fn file_menu_button(ui: &mut Ui) {
             .on_hover_text("Forget scroll, positions, sizes etc")
             .clicked()
         {
-            ui.ctx().memory_mut(|mem| *mem = Default::default());
+            ui.memory_mut(|mem| *mem = Default::default());
         }
     });
 }
