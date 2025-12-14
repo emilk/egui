@@ -150,9 +150,9 @@ pub trait App {
     /// Called each time the UI needs repainting, which may be many times per second.
     ///
     /// The given [`egui::Ui`] has no margin or background color.
-    /// You can wrap your UI code in [`egui::CentralPanel`] or a [`Frame::central_panel`] to remedy this.
+    /// You can wrap your UI code in [`egui::CentralPanel`] or a [`egui::Frame::central_panel`] to remedy this.
     ///
-    /// The [`Ui::context`] can be cloned and saved if you like.
+    /// The [`egui::Ui::ctx`] can be cloned and saved if you like.
     /// To force a repaint, call [`egui::Context::request_repaint`] at any time (e.g. from another thread).
     ///
     /// This is called for the root viewport ([`egui::ViewportId::ROOT`]).

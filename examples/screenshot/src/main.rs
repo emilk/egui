@@ -58,13 +58,9 @@ impl eframe::App for MyApp {
                         } else {
                             ui.ctx().set_theme(egui::Theme::Light);
                         }
-                        ui.send_viewport_cmd(
-                            egui::ViewportCommand::Screenshot(Default::default()),
-                        );
+                        ui.send_viewport_cmd(egui::ViewportCommand::Screenshot(Default::default()));
                     } else if ui.button("take screenshot!").clicked() {
-                        ui.send_viewport_cmd(
-                            egui::ViewportCommand::Screenshot(Default::default()),
-                        );
+                        ui.send_viewport_cmd(egui::ViewportCommand::Screenshot(Default::default()));
                     }
                 });
             });
