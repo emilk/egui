@@ -3,11 +3,9 @@
 
 use std::{any::Any, hash::Hash, ops::Deref, sync::Arc};
 
+use emath::GuiRounding as _;
 use epaint::mutex::RwLock;
 
-use emath::GuiRounding as _;
-
-use crate::ClosableTag;
 use crate::containers::menu;
 use crate::{containers::*, ecolor::*, layout::*, placer::Placer, widgets::*, *};
 // ----------------------------------------------------------------------------
