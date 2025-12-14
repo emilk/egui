@@ -48,7 +48,7 @@ impl crate::View for Screenshot {
             }
         });
 
-        let image = ui.ctx().input(|i| {
+        let image = ui.input(|i| {
             i.events
                 .iter()
                 .filter_map(|e| {

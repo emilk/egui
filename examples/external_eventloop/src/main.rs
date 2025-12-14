@@ -68,7 +68,7 @@ impl eframe::App for MyApp {
             }
 
             if self.blinky {
-                let now = ui.ctx().input(|i| i.time);
+                let now = ui.input(|i| i.time);
                 let blink = now % 1.0 < 0.5;
                 egui::Frame::new()
                     .inner_margin(3)
