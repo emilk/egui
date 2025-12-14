@@ -2798,12 +2798,18 @@ impl Context {
     }
 
     /// How much space is still available after panels have been added.
-    pub fn available_rect(&self) -> Rect {
+    pub fn globally_available_rect(&self) -> Rect {
         self.pass_state(|s| s.available_rect()).round_ui()
     }
 
+    /// How much space is still available after panels have been added.
+    #[deprecated = "Renamed to globally_available_rect"]
+    pub fn available_rect(&self) -> Rect {
+        self.globally_available_rect()
+    }
+
     /// How much space is used by panels and windows.
-    pub fn used_rect(&self) -> Rect {
+    pub fn globally_used_rect(&self) -> Rect {
         self.write(|ctx| {
             let mut used = ctx.viewport().this_pass.used_by_panels;
             for (_id, window) in ctx.memory.areas().visible_windows() {
@@ -2814,16 +2820,30 @@ impl Context {
     }
 
     /// How much space is used by panels and windows.
+    #[deprecated = "Renamed to globally_used_rect"]
+    pub fn used_rect(&self) -> Rect {
+        self.globally_used_rect()
+    }
+
+    /// How much space is used by panels and windows.
     ///
     /// You can shrink your egui area to this size and still fit all egui components.
+    pub fn globally_used_size(&self) -> Vec2 {
+        (self.globally_used_rect().max - Pos2::ZERO).round_ui()
+    }
+
+    /// How much space is used by panels and windows.
+    ///
+    /// You can shrink your egui area to this size and still fit all egui components.
+    #[deprecated = "Renamed to globally_used_size"]
     pub fn used_size(&self) -> Vec2 {
-        (self.used_rect().max - Pos2::ZERO).round_ui()
+        (self.globally_used_rect().max - Pos2::ZERO).round_ui()
     }
 
     // ---------------------------------------------------------------------
 
     /// Is the pointer (mouse/touch) over any egui area?
-    pub fn is_pointer_over_area(&self) -> bool {
+    pub fn is_pointer_over_egui(&self) -> bool {
         let pointer_pos = self.input(|i| i.pointer.interact_pos());
         if let Some(pointer_pos) = pointer_pos {
             if let Some(layer) = self.layer_id_at(pointer_pos) {
@@ -2840,27 +2860,58 @@ impl Context {
         }
     }
 
+    /// Is the pointer (mouse/touch) over any egui area?
+    #[deprecated = "Renamed to is_pointer_over_egui"]
+    pub fn is_pointer_over_area(&self) -> bool {
+        self.is_pointer_over_egui()
+    }
+
     /// True if egui is currently interested in the pointer (mouse or touch).
     ///
     /// Could be the pointer is hovering over a [`crate::Window`] or the user is dragging a widget.
     /// If `false`, the pointer is outside of any egui area and so
     /// you may be interested in what it is doing (e.g. controlling your game).
     /// Returns `false` if a drag started outside of egui and then moved over an egui area.
+    pub fn egui_wants_pointer_input(&self) -> bool {
+        self.egui_is_using_pointer()
+            || (self.is_pointer_over_egui() && !self.input(|i| i.pointer.any_down()))
+    }
+
+    /// True if egui is currently interested in the pointer (mouse or touch).
+    ///
+    /// Could be the pointer is hovering over a [`crate::Window`] or the user is dragging a widget.
+    /// If `false`, the pointer is outside of any egui area and so
+    /// you may be interested in what it is doing (e.g. controlling your game).
+    /// Returns `false` if a drag started outside of egui and then moved over an egui area.
+    #[deprecated = "Renamed to egui_wants_pointer_input"]
     pub fn wants_pointer_input(&self) -> bool {
-        self.is_using_pointer()
-            || (self.is_pointer_over_area() && !self.input(|i| i.pointer.any_down()))
+        self.egui_wants_pointer_input()
     }
 
     /// Is egui currently using the pointer position (e.g. dragging a slider)?
     ///
     /// NOTE: this will return `false` if the pointer is just hovering over an egui area.
-    pub fn is_using_pointer(&self) -> bool {
+    pub fn egui_is_using_pointer(&self) -> bool {
         self.memory(|m| m.interaction().is_using_pointer())
     }
 
+    /// Is egui currently using the pointer position (e.g. dragging a slider)?
+    ///
+    /// NOTE: this will return `false` if the pointer is just hovering over an egui area.
+    #[deprecated = "Renamed to egui_is_using_pointer"]
+    pub fn is_using_pointer(&self) -> bool {
+        self.egui_is_using_pointer()
+    }
+
     /// If `true`, egui is currently listening on text input (e.g. typing text in a [`crate::TextEdit`]).
-    pub fn wants_keyboard_input(&self) -> bool {
+    pub fn egui_wants_keyboard_input(&self) -> bool {
         self.memory(|m| m.focused().is_some())
+    }
+
+    /// If `true`, egui is currently listening on text input (e.g. typing text in a [`crate::TextEdit`]).
+    #[deprecated = "Renamed to egui_wants_keyboard_input"]
+    pub fn wants_keyboard_input(&self) -> bool {
+        self.egui_wants_keyboard_input()
     }
 
     /// Highlight this widget, to make it look like it is hovered, even if it isn't.
@@ -2877,7 +2928,7 @@ impl Context {
     ///
     /// This only works with the old, deprecated [`crate::menu`] API.
     #[expect(deprecated)]
-    #[deprecated = "Use `is_popup_open` instead"]
+    #[deprecated = "Use `any_popup_open` instead"]
     pub fn is_context_menu_open(&self) -> bool {
         self.data(|d| {
             d.get_temp::<crate::menu::BarState>(crate::menu::CONTEXT_MENU_ID_STR.into())
@@ -2888,6 +2939,18 @@ impl Context {
     /// Is a popup or (context) menu open?
     ///
     /// Will return false for [`crate::Tooltip`]s (which are technically popups as well).
+    pub fn any_popup_open(&self) -> bool {
+        self.pass_state_mut(|fs| {
+            fs.layers
+                .values()
+                .any(|layer| !layer.open_popups.is_empty())
+        })
+    }
+
+    /// Is a popup or (context) menu open?
+    ///
+    /// Will return false for [`crate::Tooltip`]s (which are technically popups as well).
+    #[deprecated = "Renamed to any_popup_open"]
     pub fn is_popup_open(&self) -> bool {
         self.pass_state_mut(|fs| {
             fs.layers
@@ -3217,16 +3280,16 @@ impl Context {
 
                 ui.label("Is using pointer")
                     .on_hover_text("Is egui currently using the pointer actively (e.g. dragging a slider)?");
-                ui.monospace(self.is_using_pointer().to_string());
+                ui.monospace(self.egui_is_using_pointer().to_string());
                 ui.end_row();
 
                 ui.label("Wants pointer input")
                     .on_hover_text("Is egui currently interested in the location of the pointer (either because it is in use, or because it is hovering over a window).");
-                ui.monospace(self.wants_pointer_input().to_string());
+                ui.monospace(self.egui_wants_pointer_input().to_string());
                 ui.end_row();
 
                 ui.label("Wants keyboard input").on_hover_text("Is egui currently listening for text input?");
-                ui.monospace(self.wants_keyboard_input().to_string());
+                ui.monospace(self.egui_wants_keyboard_input().to_string());
                 ui.end_row();
 
                 ui.label("Keyboard focus widget").on_hover_text("Is egui currently listening for text input?");

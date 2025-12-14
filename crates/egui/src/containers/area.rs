@@ -712,7 +712,7 @@ fn automatic_area_position(ctx: &Context, layer_id: LayerId) -> Pos2 {
 
     // NOTE: for the benefit of the egui demo, we position the windows so they don't
     // cover the side panels, which means we use `available_rect` here instead of `constrain_rect` or `screen_rect`.
-    let available_rect = ctx.available_rect();
+    let available_rect = ctx.globally_available_rect();
 
     let spacing = 16.0;
     let left = available_rect.left() + spacing;
