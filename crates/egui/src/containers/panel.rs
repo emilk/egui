@@ -291,7 +291,7 @@ impl<'a> PanelSizer<'a> {
 /// See the [module level docs](crate::containers::panel) for more details.
 ///
 /// ```
-/// # egui::__run_test_ctx(|ui| {
+/// # egui::__run_test_ui(|ui| {
 /// egui::Panel::left("my_left_panel").show_inside(ui, |ui| {
 ///    ui.label("Hello World!");
 /// });
