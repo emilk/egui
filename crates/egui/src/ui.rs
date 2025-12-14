@@ -1,34 +1,13 @@
 #![warn(missing_docs)] // Let's keep `Ui` well-documented.
 #![allow(clippy::use_self)]
 
+use std::{any::Any, hash::Hash, ops::Deref, sync::Arc};
+
 use emath::GuiRounding as _;
 use epaint::mutex::RwLock;
-use epaint::text::FontsView;
-use std::{any::Any, hash::Hash, sync::Arc};
 
-use crate::ClosableTag;
-#[cfg(debug_assertions)]
-use crate::Stroke;
 use crate::containers::menu;
-use crate::{
-    Align, Color32, Context, CursorIcon, DragAndDrop, Id, InnerResponse, InputState, IntoAtoms,
-    LayerId, Memory, Order, Painter, PlatformOutput, Pos2, Rangef, Rect, Response, Rgba, RichText,
-    Sense, Style, TextStyle, TextWrapMode, UiBuilder, UiKind, UiStack, UiStackInfo, Vec2,
-    WidgetRect, WidgetText,
-    containers::{CollapsingHeader, CollapsingResponse, Frame},
-    ecolor::Hsva,
-    emath, epaint, grid,
-    layout::{Direction, Layout},
-    pass_state,
-    placer::Placer,
-    pos2, style,
-    util::IdTypeMap,
-    vec2, widgets,
-    widgets::{
-        Button, Checkbox, DragValue, Hyperlink, Image, ImageSource, Label, Link, RadioButton,
-        Separator, Spinner, TextEdit, Widget, color_picker,
-    },
-};
+use crate::{containers::*, ecolor::*, layout::*, placer::Placer, widgets::*, *};
 // ----------------------------------------------------------------------------
 
 /// This is what you use to place widgets.
@@ -110,6 +89,16 @@ pub struct Ui {
     /// This is an optimization, so we don't call [`Ui::remember_min_rect`] multiple times at the
     /// end of a [`Ui::scope`].
     min_rect_already_remembered: bool,
+}
+
+/// Allow using [`Ui`] like a [`Context`].
+impl Deref for Ui {
+    type Target = Context;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        self.ctx()
+    }
 }
 
 impl Ui {
@@ -459,7 +448,7 @@ impl Ui {
         &self.style.spacing
     }
 
-    /// Mutably borrow internal [`Spacing`](crate::style::Spacing).
+    /// Mutably borrow internal [`Spacing`].
     /// Changes apply to this [`Ui`] and its subsequent children.
     ///
     /// Example:
@@ -791,93 +780,6 @@ impl Ui {
     /// or if [`Context::will_discard`] is true.
     pub fn is_rect_visible(&self, rect: Rect) -> bool {
         self.is_visible() && rect.intersects(self.clip_rect())
-    }
-}
-
-/// # Helpers for accessing the underlying [`Context`].
-/// These functions all lock the [`Context`] owned by this [`Ui`].
-/// Please see the documentation of [`Context`] for how locking works!
-impl Ui {
-    /// Read-only access to the shared [`InputState`].
-    ///
-    /// ```
-    /// # egui::__run_test_ui(|ui| {
-    /// if ui.input(|i| i.key_pressed(egui::Key::A)) {
-    ///     // …
-    /// }
-    /// # });
-    /// ```
-    #[inline]
-    pub fn input<R>(&self, reader: impl FnOnce(&InputState) -> R) -> R {
-        self.ctx().input(reader)
-    }
-
-    /// Read-write access to the shared [`InputState`].
-    #[inline]
-    pub fn input_mut<R>(&self, writer: impl FnOnce(&mut InputState) -> R) -> R {
-        self.ctx().input_mut(writer)
-    }
-
-    /// Read-only access to the shared [`Memory`].
-    #[inline]
-    pub fn memory<R>(&self, reader: impl FnOnce(&Memory) -> R) -> R {
-        self.ctx().memory(reader)
-    }
-
-    /// Read-write access to the shared [`Memory`].
-    #[inline]
-    pub fn memory_mut<R>(&self, writer: impl FnOnce(&mut Memory) -> R) -> R {
-        self.ctx().memory_mut(writer)
-    }
-
-    /// Read-only access to the shared [`IdTypeMap`], which stores superficial widget state.
-    #[inline]
-    pub fn data<R>(&self, reader: impl FnOnce(&IdTypeMap) -> R) -> R {
-        self.ctx().data(reader)
-    }
-
-    /// Read-write access to the shared [`IdTypeMap`], which stores superficial widget state.
-    #[inline]
-    pub fn data_mut<R>(&self, writer: impl FnOnce(&mut IdTypeMap) -> R) -> R {
-        self.ctx().data_mut(writer)
-    }
-
-    /// Read-only access to the shared [`PlatformOutput`].
-    ///
-    /// This is what egui outputs each frame.
-    ///
-    /// ```
-    /// # let mut ctx = egui::Context::default();
-    /// ctx.output_mut(|o| o.cursor_icon = egui::CursorIcon::Progress);
-    /// ```
-    #[inline]
-    pub fn output<R>(&self, reader: impl FnOnce(&PlatformOutput) -> R) -> R {
-        self.ctx().output(reader)
-    }
-
-    /// Read-write access to the shared [`PlatformOutput`].
-    ///
-    /// This is what egui outputs each frame.
-    ///
-    /// ```
-    /// # let mut ctx = egui::Context::default();
-    /// ctx.output_mut(|o| o.cursor_icon = egui::CursorIcon::Progress);
-    /// ```
-    #[inline]
-    pub fn output_mut<R>(&self, writer: impl FnOnce(&mut PlatformOutput) -> R) -> R {
-        self.ctx().output_mut(writer)
-    }
-
-    /// Read-only access to [`FontsView`].
-    #[inline]
-    pub fn fonts<R>(&self, reader: impl FnOnce(&FontsView<'_>) -> R) -> R {
-        self.ctx().fonts(reader)
-    }
-
-    /// Read-write access to [`FontsView`].
-    #[inline]
-    pub fn fonts_mut<R>(&self, reader: impl FnOnce(&mut FontsView<'_>) -> R) -> R {
-        self.ctx().fonts_mut(reader)
     }
 }
 
@@ -1432,7 +1334,7 @@ impl Ui {
                     crate::StrokeKind::Inside,
                 );
 
-                let stroke = Stroke::new(2.5, Color32::from_rgb(200, 0, 0));
+                let stroke = crate::Stroke::new(2.5, Color32::from_rgb(200, 0, 0));
                 let paint_line_seg = |a, b| self.painter().line_segment([a, b], stroke);
 
                 if debug_expand_width && too_wide {
