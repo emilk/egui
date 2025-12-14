@@ -378,7 +378,7 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
 }
 
 fn input_type_button_ui(ui: &mut Ui) {
-    let mut input_type = ui.ctx().style().visuals.numeric_color_space;
+    let mut input_type = ui.global_style().visuals.numeric_color_space;
     if input_type.toggle_button_ui(ui).changed() {
         ui.ctx().all_styles_mut(|s| {
             s.visuals.numeric_color_space = input_type;

@@ -406,7 +406,7 @@ impl WrapApp {
 
         if is_mobile(ui.ctx()) {
             ui.menu_button("💻 Backend", |ui| {
-                ui.set_style(ui.ctx().style()); // ignore the "menu" style set by `menu_button`.
+                ui.set_style(ui.global_style()); // ignore the "menu" style set by `menu_button`.
                 self.backend_panel_contents(ui, frame, cmd);
             });
         } else {
@@ -474,7 +474,7 @@ impl WrapApp {
                 content_rect.center(),
                 Align2::CENTER_CENTER,
                 text,
-                TextStyle::Heading.resolve(&ctx.style()),
+                TextStyle::Heading.resolve(&ctx.global_style()),
                 Color32::WHITE,
             );
         }

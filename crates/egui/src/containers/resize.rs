@@ -369,7 +369,7 @@ impl Resize {
         state.store(ui.ctx(), id);
 
         #[cfg(debug_assertions)]
-        if ui.ctx().style().debug.show_resize {
+        if ui.global_style().debug.show_resize {
             ui.ctx().debug_painter().debug_rect(
                 Rect::from_min_size(content_ui.min_rect().left_top(), state.desired_size),
                 Color32::GREEN,

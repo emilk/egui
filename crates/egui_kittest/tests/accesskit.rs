@@ -141,7 +141,7 @@ fn window_children() {
 fn accesskit_output_single_egui_frame(run_ui: impl FnMut(&Context)) -> TreeUpdate {
     let ctx = Context::default();
     // Disable animations, so we do not need to wait for animations to end to see the result.
-    ctx.style_mut(|style| style.animation_time = 0.0);
+    ctx.global_style_mut(|style| style.animation_time = 0.0);
     ctx.enable_accesskit();
 
     let output = ctx.run(RawInput::default(), run_ui);

@@ -690,7 +690,7 @@ impl WgpuWinitRunning<'_> {
         let vsync_secs = painter.paint_and_update_textures(
             viewport_id,
             pixels_per_point,
-            app.clear_color(&egui_ctx.style().visuals),
+            app.clear_color(&egui_ctx.global_style().visuals),
             &clipped_primitives,
             &textures_delta,
             screenshot_commands,

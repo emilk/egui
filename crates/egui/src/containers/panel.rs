@@ -934,8 +934,8 @@ impl Panel {
         };
 
         let get_spacing_size = || match panel.side {
-            PanelSide::Vertical(_) => ctx.style().spacing.interact_size.x,
-            PanelSide::Horizontal(_) => ctx.style().spacing.interact_size.y,
+            PanelSide::Vertical(_) => ctx.global_style().spacing.interact_size.x,
+            PanelSide::Horizontal(_) => ctx.global_style().spacing.interact_size.y,
         };
 
         PanelState::load(ctx, panel.id)

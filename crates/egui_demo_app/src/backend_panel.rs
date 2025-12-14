@@ -94,7 +94,7 @@ impl BackendPanel {
         self.egui_windows.checkboxes(ui);
 
         #[cfg(debug_assertions)]
-        if ui.ctx().style().debug.debug_on_hover_with_all_modifiers {
+        if ui.global_style().debug.debug_on_hover_with_all_modifiers {
             ui.separator();
             ui.label("Press down all modifiers and hover a widget to see a callstack for it");
         }
