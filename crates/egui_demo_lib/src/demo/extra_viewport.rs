@@ -1,7 +1,7 @@
 #[derive(Default)]
 pub struct ExtraViewport {}
 
-impl super::Demo for ExtraViewport {
+impl crate::Demo for ExtraViewport {
     fn is_enabled(&self, ctx: &egui::Context) -> bool {
         !ctx.embed_viewports()
     }
@@ -54,7 +54,11 @@ fn viewport_content(ui: &mut egui::Ui, ctx: &egui::Context, open: &mut bool) {
 
     egui::ScrollArea::vertical().show(ui, |ui| {
         let viewports = ui.input(|i| i.raw.viewports.clone());
-        for (id, viewport) in viewports {
+        let ordered_viewports = viewports
+            .iter()
+            .map(|(id, viewport)| (*id, viewport.clone()))
+            .collect::<egui::OrderedViewportIdMap<_>>();
+        for (id, viewport) in ordered_viewports {
             ui.group(|ui| {
                 ui.label(format!("viewport {id:?}"));
                 ui.push_id(id, |ui| {

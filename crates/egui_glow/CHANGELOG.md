@@ -6,6 +6,79 @@ Changes since the last release can be found at <https://github.com/emilk/egui/co
 
 
 
+## 0.33.3 - 2025-12-11
+Nothing new
+
+
+## 0.33.2 - 2025-11-13
+Nothing new
+
+
+## 0.33.0 - 2025-10-09
+* Update MSRV from 1.86 to 1.88 [#7579](https://github.com/emilk/egui/pull/7579) by [@Wumpf](https://github.com/Wumpf)
+
+
+## 0.32.3 - 2025-09-12
+Nothing new
+
+
+## 0.32.2 - 2025-09-04
+Nothing new
+
+
+## 0.32.1 - 2025-08-15
+Nothing new
+
+
+## 0.32.0 - 2025-07-10
+* Fix text distortion on mobile devices/browsers with `glow` backend [#6893](https://github.com/emilk/egui/pull/6893) by [@wareya](https://github.com/wareya)
+* Improve texture filtering by doing it in gamma space [#7311](https://github.com/emilk/egui/pull/7311) by [@emilk](https://github.com/emilk)
+
+
+## 0.31.1 - 2025-03-05
+Nothing new
+
+
+## 0.31.0 - 2025-02-04
+Nothing new
+
+
+## 0.30.0 - 2024-12-16
+* Update glow to 0.16 [#5395](https://github.com/emilk/egui/pull/5395) by [@sagudev](https://github.com/sagudev)
+
+
+## 0.29.1 - 2024-10-01
+Nothing new
+
+
+## 0.29.0 - 2024-09-26 - `glow` 0.14
+* Update `glow` to 0.14 [#4952](https://github.com/emilk/egui/pull/4952) by [@bircni](https://github.com/bircni)
+* Introduce dithering to reduce banding [#4497](https://github.com/emilk/egui/pull/4497) by [@jwagner](https://github.com/jwagner)
+* Fix missing `winit` feature in `egui_glow` [#4916](https://github.com/emilk/egui/pull/4916) by [@bash](https://github.com/bash)
+* Add support for mipmap textures [#5146](https://github.com/emilk/egui/pull/5146) by [@nolanderc](https://github.com/nolanderc)
+
+
+## 0.28.1 - 2024-07-05
+Nothing new
+
+
+## 0.28.0 - 2024-07-03
+* Enable `egui_glow`'s `winit` feature on Wasm (#4420) [#4421](https://github.com/emilk/egui/pull/4421) by [@simon-frankau](https://github.com/simon-frankau)
+
+
+## 0.27.2 - 2024-04-02
+* Nothing new
+
+
+## 0.27.1 - 2024-03-29
+* Nothing new
+
+
+## 0.27.0 - 2024-03-26
+* Only disable sRGB framebuffer on supported platforms [#3994](https://github.com/emilk/egui/pull/3994) (thanks [@Nopey](https://github.com/Nopey)!)
+* Update memoffset to 0.9.0, arboard to 3.3.1, and remove egui_glow's needless dependency on pure_glow's deps  [#4036](https://github.com/emilk/egui/pull/4036) (thanks [@Nopey](https://github.com/Nopey)!)
+
+
 ## 0.26.2 - 2024-02-14
 * Update memoffset to 0.9.0, arboard to 3.3.1, and remove egui_glow's needless dependency on pure_glow's deps  [#4036](https://github.com/emilk/egui/pull/4036) (thanks [@Nopey](https://github.com/Nopey)!)
 

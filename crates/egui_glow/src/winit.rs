@@ -1,5 +1,4 @@
-pub use egui_winit;
-pub use egui_winit::EventResponse;
+pub use egui_winit::{self, EventResponse};
 
 use egui::{ViewportId, ViewportOutput};
 use egui_winit::winit;
@@ -22,13 +21,14 @@ pub struct EguiGlow {
 
 impl EguiGlow {
     /// For automatic shader version detection set `shader_version` to `None`.
-    pub fn new<E>(
-        event_loop: &winit::event_loop::EventLoopWindowTarget<E>,
+    pub fn new(
+        event_loop: &winit::event_loop::ActiveEventLoop,
         gl: std::sync::Arc<glow::Context>,
         shader_version: Option<ShaderVersion>,
         native_pixels_per_point: Option<f32>,
+        dithering: bool,
     ) -> Self {
-        let painter = crate::Painter::new(gl, "", shader_version)
+        let painter = crate::Painter::new(gl, "", shader_version, dithering)
             .map_err(|err| {
                 log::error!("error occurred in initializing painter:\n{err}");
             })
@@ -41,6 +41,7 @@ impl EguiGlow {
             ViewportId::ROOT,
             event_loop,
             native_pixels_per_point,
+            event_loop.system_theme(),
             Some(painter.max_texture_side()),
         );
 
@@ -79,17 +80,16 @@ impl EguiGlow {
             log::warn!("Multiple viewports not yet supported by EguiGlow");
         }
         for (_, ViewportOutput { commands, .. }) in viewport_output {
-            let mut screenshot_requested = false;
+            let mut actions_requested = Default::default();
             egui_winit::process_viewport_commands(
                 &self.egui_ctx,
                 &mut self.viewport_info,
                 commands,
                 window,
-                true,
-                &mut screenshot_requested,
+                &mut actions_requested,
             );
-            if screenshot_requested {
-                log::warn!("Screenshot not yet supported by EguiGlow");
+            for action in actions_requested {
+                log::warn!("{action:?} not yet supported by EguiGlow");
             }
         }
 

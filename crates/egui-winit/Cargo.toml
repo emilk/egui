@@ -5,23 +5,26 @@ authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui with winit"
 edition.workspace = true
 rust-version.workspace = true
-homepage = "https://github.com/emilk/egui/tree/master/crates/egui-winit"
+homepage = "https://github.com/emilk/egui/tree/main/crates/egui-winit"
 license.workspace = true
 readme = "README.md"
-repository = "https://github.com/emilk/egui/tree/master/crates/egui-winit"
+repository = "https://github.com/emilk/egui/tree/main/crates/egui-winit"
 categories = ["gui", "game-development"]
 keywords = ["winit", "egui", "gui", "gamedev"]
 include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 
+[lints]
+workspace = true
+
 [package.metadata.docs.rs]
 all-features = true
-
+rustdoc-args = ["--generate-link-to-definition"]
 
 [features]
 default = ["clipboard", "links", "wayland", "winit/default", "x11"]
 
 ## Enable platform accessibility API implementations through [AccessKit](https://accesskit.dev/).
-accesskit = ["accesskit_winit", "egui/accesskit"]
+accesskit = ["dep:accesskit_winit"]
 
 # Allow crates to choose an android-activity backend via Winit
 # - It's important that most applications should not have to depend on android-activity directly, and can
@@ -33,17 +36,14 @@ android-game-activity = ["winit/android-game-activity"]
 android-native-activity = ["winit/android-native-activity"]
 
 ## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast [`egui::epaint::Vertex`], [`egui::Vec2`] etc to `&[u8]`.
-bytemuck = ["egui/bytemuck"]
+bytemuck = ["egui/bytemuck", "dep:bytemuck"]
 
 ## Enable cut/copy/paste to OS clipboard.
 ## If disabled a clipboard will be simulated so you can still copy/paste within the egui app.
-clipboard = ["arboard", "smithay-clipboard"]
+clipboard = ["arboard", "bytemuck", "smithay-clipboard"]
 
 ## Enable opening links in a browser when an egui hyperlink is clicked.
 links = ["webbrowser"]
-
-## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
-puffin = ["dep:puffin", "egui/puffin"]
 
 ## Allow serialization of [`WindowSettings`] using [`serde`](https://docs.rs/serde).
 serde = ["egui/serde", "dep:serde"]
@@ -55,26 +55,49 @@ wayland = ["winit/wayland", "bytemuck"]
 x11 = ["winit/x11", "bytemuck"]
 
 [dependencies]
-egui = { workspace = true, default-features = false, features = ["log"] }
+egui = { workspace = true, default-features = false }
+
 log.workspace = true
+profiling.workspace = true
 raw-window-handle.workspace = true
 web-time.workspace = true
-winit = { workspace = true, default-features = false, features = ["rwh_06"] }
+winit = { workspace = true, default-features = false }
 
 #! ### Optional dependencies
 
 # feature accesskit
-accesskit_winit = { version = "0.16.0", optional = true }
+accesskit_winit = { workspace = true, optional = true }
+
+bytemuck = { workspace = true, optional = true }
 
 ## Enable this when generating docs.
 document-features = { workspace = true, optional = true }
 
-puffin = { workspace = true, optional = true }
-serde = { version = "1.0", optional = true, features = ["derive"] }
-webbrowser = { version = "0.8.3", optional = true }
+serde = { workspace = true, optional = true }
+webbrowser = { workspace = true, optional = true }
+
+[target.'cfg(target_os = "ios")'.dependencies]
+objc2.workspace = true
+objc2-foundation = { workspace = true, features = ["std", "NSThread"] }
+objc2-ui-kit = { workspace = true, features = [
+  "std",
+  "UIApplication",
+  "UIGeometry",
+  "UIResponder",
+  "UIScene",
+  "UISceneDefinitions",
+  "UIView",
+  "UIWindow",
+  "UIWindowScene",
+] }
 
 [target.'cfg(any(target_os="linux", target_os="dragonfly", target_os="freebsd", target_os="netbsd", target_os="openbsd"))'.dependencies]
-smithay-clipboard = { version = "0.7.0", optional = true }
+smithay-clipboard = { workspace = true, optional = true }
+
+# The wayland-cursor normally selected doesn't properly enable all the features it uses
+# and thus doesn't compile as it is used in egui-winit. This is fixed upstream, so force
+# a slightly newer version. Remove this when winit upgrades past this version.
+wayland-cursor = { workspace = true, optional = true }
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
-arboard = { version = "3.3", optional = true, default-features = false }
+arboard = { workspace = true, optional = true, features = ["image-data"] }

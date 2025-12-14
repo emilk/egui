@@ -1,6 +1,7 @@
-use emath::{remap_clamp, Rect};
+use ecolor::Color32;
+use emath::{Rect, remap_clamp};
 
-use crate::{FontImage, ImageDelta};
+use crate::{ColorImage, ImageDelta, TextOptions};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct Rectu {
@@ -57,7 +58,7 @@ pub struct PreparedDisc {
 /// More characters can be added, possibly expanding the texture.
 #[derive(Clone)]
 pub struct TextureAtlas {
-    image: FontImage,
+    image: ColorImage,
 
     /// What part of the image that is dirty
     dirty: Rectu,
@@ -72,24 +73,32 @@ pub struct TextureAtlas {
 
     /// pre-rasterized discs of radii `2^i`, where `i` is the index.
     discs: Vec<PrerasterizedDisc>,
+
+    /// Controls how to convert glyph coverage to alpha.
+    options: TextOptions,
 }
 
 impl TextureAtlas {
-    pub fn new(size: [usize; 2]) -> Self {
+    pub fn new(size: [usize; 2], options: TextOptions) -> Self {
         assert!(size[0] >= 1024, "Tiny texture atlas");
         let mut atlas = Self {
-            image: FontImage::new(size),
+            image: ColorImage::filled(size, Color32::TRANSPARENT),
             dirty: Rectu::EVERYTHING,
             cursor: (0, 0),
             row_height: 0,
             overflowed: false,
             discs: vec![], // will be filled in below
+            options,
         };
 
         // Make the top left pixel fully white for `WHITE_UV`, i.e. painting something with solid color:
         let (pos, image) = atlas.allocate((1, 1));
-        assert_eq!(pos, (0, 0));
-        image[pos] = 1.0;
+        assert_eq!(
+            pos,
+            (0, 0),
+            "Expected the first allocation to be at (0, 0), but was at {pos:?}"
+        );
+        image[pos] = Color32::WHITE;
 
         // Allocate a series of anti-aliased discs used to render small filled circles:
         // TODO(emilk): these circles can be packed A LOT better.
@@ -112,7 +121,7 @@ impl TextureAtlas {
                     let coverage =
                         remap_clamp(distance_to_center, (r - 0.5)..=(r + 0.5), 1.0..=0.0);
                     image[((x as i32 + hw + dx) as usize, (y as i32 + hw + dy) as usize)] =
-                        coverage;
+                        options.alpha_from_coverage.color_from_coverage(coverage);
                 }
             }
             atlas.discs.push(PrerasterizedDisc {
@@ -127,6 +136,10 @@ impl TextureAtlas {
         }
 
         atlas
+    }
+
+    pub fn options(&self) -> &TextOptions {
+        &self.options
     }
 
     pub fn size(&self) -> [usize; 2] {
@@ -159,8 +172,8 @@ impl TextureAtlas {
     }
 
     fn max_height(&self) -> usize {
-        // the initial width is likely the max texture side size
-        self.image.width()
+        // the initial width is set to the max size
+        self.image.height().max(self.image.width())
     }
 
     /// When this get high, it might be time to clear and start over!
@@ -180,7 +193,7 @@ impl TextureAtlas {
 
     /// The full font atlas image.
     #[inline]
-    pub fn image(&self) -> &FontImage {
+    pub fn image(&self) -> &ColorImage {
         &self.image
     }
 
@@ -196,14 +209,14 @@ impl TextureAtlas {
         } else {
             let pos = [dirty.min_x, dirty.min_y];
             let size = [dirty.max_x - dirty.min_x, dirty.max_y - dirty.min_y];
-            let region = self.image.region(pos, size);
+            let region = self.image.region_by_pixels(pos, size);
             Some(ImageDelta::partial(pos, region, texture_options))
         }
     }
 
     /// Returns the coordinates of where the rect ended up,
     /// and invalidates the region.
-    pub fn allocate(&mut self, (w, h): (usize, usize)) -> ((usize, usize), &mut FontImage) {
+    pub fn allocate(&mut self, (w, h): (usize, usize)) -> ((usize, usize), &mut ColorImage) {
         /// On some low-precision GPUs (my old iPad) characters get muddled up
         /// if we don't add some empty pixels between the characters.
         /// On modern high-precision GPUs this is not needed.
@@ -229,7 +242,6 @@ impl TextureAtlas {
         if required_height > self.max_height() {
             // This is a bad place to be - we need to start reusing space :/
 
-            #[cfg(feature = "log")]
             log::warn!("epaint texture atlas overflowed!");
 
             self.cursor = (0, self.image.height() / 3); // Restart a bit down - the top of the atlas has too many important things in it
@@ -250,13 +262,15 @@ impl TextureAtlas {
     }
 }
 
-fn resize_to_min_height(image: &mut FontImage, required_height: usize) -> bool {
+fn resize_to_min_height(image: &mut ColorImage, required_height: usize) -> bool {
     while required_height >= image.height() {
         image.size[1] *= 2; // double the height
     }
 
     if image.width() * image.height() > image.pixels.len() {
-        image.pixels.resize(image.width() * image.height(), 0.0);
+        image
+            .pixels
+            .resize(image.width() * image.height(), Color32::TRANSPARENT);
         true
     } else {
         false

@@ -1,17 +1,25 @@
-use egui::{containers::*, *};
+use egui::{
+    Color32, Context, Pos2, Rect, Ui,
+    containers::{Frame, Window},
+    emath, epaint,
+    epaint::PathStroke,
+    hex_color, lerp, pos2, remap, vec2,
+};
 
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
-pub struct DancingStrings {}
+pub struct DancingStrings {
+    colors: bool,
+}
 
-impl super::Demo for DancingStrings {
+impl crate::Demo for DancingStrings {
     fn name(&self) -> &'static str {
         "♫ Dancing Strings"
     }
 
     fn show(&mut self, ctx: &Context, open: &mut bool) {
-        use super::View as _;
+        use crate::View as _;
         Window::new(self.name())
             .open(open)
             .default_size(vec2(512.0, 256.0))
@@ -20,13 +28,16 @@ impl super::Demo for DancingStrings {
     }
 }
 
-impl super::View for DancingStrings {
+impl crate::View for DancingStrings {
     fn ui(&mut self, ui: &mut Ui) {
         let color = if ui.visuals().dark_mode {
             Color32::from_additive_luminance(196)
         } else {
             Color32::from_black_alpha(240)
         };
+
+        ui.checkbox(&mut self.colors, "Colored")
+            .on_hover_text("Demonstrates how a path can have varying color across its length.");
 
         Frame::canvas(ui.style()).show(ui, |ui| {
             ui.ctx().request_repaint();
@@ -55,7 +66,24 @@ impl super::View for DancingStrings {
                     .collect();
 
                 let thickness = 10.0 / mode as f32;
-                shapes.push(epaint::Shape::line(points, Stroke::new(thickness, color)));
+                shapes.push(epaint::Shape::line(
+                    points,
+                    if self.colors {
+                        PathStroke::new_uv(thickness, move |rect, p| {
+                            let t = remap(p.x, rect.x_range(), -1.0..=1.0).abs();
+                            let center_color = hex_color!("#5BCEFA");
+                            let outer_color = hex_color!("#F5A9B8");
+
+                            Color32::from_rgb(
+                                lerp(center_color.r() as f32..=outer_color.r() as f32, t) as u8,
+                                lerp(center_color.g() as f32..=outer_color.g() as f32, t) as u8,
+                                lerp(center_color.b() as f32..=outer_color.b() as f32, t) as u8,
+                            )
+                        })
+                    } else {
+                        PathStroke::new(thickness, color)
+                    },
+                ));
             }
 
             ui.painter().extend(shapes);

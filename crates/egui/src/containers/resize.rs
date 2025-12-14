@@ -1,4 +1,7 @@
-use crate::*;
+use crate::{
+    Align2, Color32, Context, CursorIcon, Id, NumExt as _, Rect, Response, Sense, Shape, Ui,
+    UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b, pos2, vec2,
+};
 
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -31,7 +34,7 @@ impl State {
 #[must_use = "You should call .show()"]
 pub struct Resize {
     id: Option<Id>,
-    id_source: Option<Id>,
+    id_salt: Option<Id>,
 
     /// If false, we are no enabled
     resizable: Vec2b,
@@ -48,7 +51,7 @@ impl Default for Resize {
     fn default() -> Self {
         Self {
             id: None,
-            id_source: None,
+            id_salt: None,
             resizable: Vec2b::TRUE,
             min_size: Vec2::splat(16.0),
             max_size: Vec2::splat(f32::INFINITY),
@@ -68,8 +71,15 @@ impl Resize {
 
     /// A source for the unique [`Id`], e.g. `.id_source("second_resize_area")` or `.id_source(loop_index)`.
     #[inline]
-    pub fn id_source(mut self, id_source: impl std::hash::Hash) -> Self {
-        self.id_source = Some(Id::new(id_source));
+    #[deprecated = "Renamed id_salt"]
+    pub fn id_source(self, id_salt: impl std::hash::Hash) -> Self {
+        self.id_salt(id_salt)
+    }
+
+    /// A source for the unique [`Id`], e.g. `.id_salt("second_resize_area")` or `.id_salt(loop_index)`.
+    #[inline]
+    pub fn id_salt(mut self, id_salt: impl std::hash::Hash) -> Self {
+        self.id_salt = Some(Id::new(id_salt));
         self
     }
 
@@ -88,7 +98,7 @@ impl Resize {
     /// Preferred / suggested height. Actual height will depend on contents.
     ///
     /// Examples:
-    /// * if the contents is a [`ScrollArea`] then this decides the maximum size.
+    /// * if the contents is a [`crate::ScrollArea`] then this decides the maximum size.
     /// * if the contents is a canvas, this decides the height of it,
     /// * if the contents is text and buttons, then the `default_height` is ignored
     ///   and the height is picked automatically..
@@ -195,11 +205,11 @@ struct Prepared {
 }
 
 impl Resize {
-    fn begin(&mut self, ui: &mut Ui) -> Prepared {
+    fn begin(&self, ui: &mut Ui) -> Prepared {
         let position = ui.available_rect_before_wrap().min;
         let id = self.id.unwrap_or_else(|| {
-            let id_source = self.id_source.unwrap_or_else(|| Id::new("resize"));
-            ui.make_persistent_id(id_source)
+            let id_salt = self.id_salt.unwrap_or_else(|| Id::new("resize"));
+            ui.make_persistent_id(id_salt)
         });
 
         let mut state = State::load(ui.ctx(), id).unwrap_or_else(|| {
@@ -210,8 +220,9 @@ impl Resize {
                 .at_least(self.min_size)
                 .at_most(self.max_size)
                 .at_most(
-                    ui.ctx().screen_rect().size() - ui.spacing().window_margin.sum(), // hack for windows
-                );
+                    ui.ctx().content_rect().size() - ui.spacing().window_margin.sum(), // hack for windows
+                )
+                .round_ui();
 
             State {
                 desired_size: default_size,
@@ -223,20 +234,19 @@ impl Resize {
         state.desired_size = state
             .desired_size
             .at_least(self.min_size)
-            .at_most(self.max_size);
+            .at_most(self.max_size)
+            .round_ui();
 
         let mut user_requested_size = state.requested_size.take();
 
         let corner_id = self.resizable.any().then(|| id.with("__resize_corner"));
 
-        if let Some(corner_id) = corner_id {
-            if let Some(corner_response) = ui.ctx().read_response(corner_id) {
-                if let Some(pointer_pos) = corner_response.interact_pointer_pos() {
-                    // Respond to the interaction early to avoid frame delay.
-                    user_requested_size =
-                        Some(pointer_pos - position + 0.5 * corner_response.rect.size());
-                }
-            }
+        if let Some(corner_id) = corner_id
+            && let Some(corner_response) = ui.ctx().read_response(corner_id)
+            && let Some(pointer_pos) = corner_response.interact_pointer_pos()
+        {
+            // Respond to the interaction early to avoid frame delay.
+            user_requested_size = Some(pointer_pos - position + 0.5 * corner_response.rect.size());
         }
 
         if let Some(user_requested_size) = user_requested_size {
@@ -270,7 +280,11 @@ impl Resize {
 
         content_clip_rect = content_clip_rect.intersect(ui.clip_rect()); // Respect parent region
 
-        let mut content_ui = ui.child_ui(inner_rect, *ui.layout());
+        let mut content_ui = ui.new_child(
+            UiBuilder::new()
+                .ui_stack_info(UiStackInfo::new(UiKind::Resize))
+                .max_rect(inner_rect),
+        );
         content_ui.set_clip_rect(content_clip_rect);
 
         Prepared {
@@ -281,7 +295,7 @@ impl Resize {
         }
     }
 
-    pub fn show<R>(mut self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
+    pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
         let mut prepared = self.begin(ui);
         let ret = add_contents(&mut prepared.content_ui);
         self.end(ui, prepared);
@@ -340,6 +354,7 @@ impl Resize {
                 rect,
                 3.0,
                 ui.visuals().widgets.noninteractive.bg_stroke,
+                epaint::StrokeKind::Inside,
             ));
         }
 
@@ -369,6 +384,7 @@ impl Resize {
     }
 }
 
+use emath::GuiRounding as _;
 use epaint::Stroke;
 
 pub fn paint_resize_corner(ui: &Ui, response: &Response) {
@@ -383,7 +399,9 @@ pub fn paint_resize_corner_with_style(
     corner: Align2,
 ) {
     let painter = ui.painter();
-    let cp = painter.round_pos_to_pixels(corner.pos_in_rect(rect));
+    let cp = corner
+        .pos_in_rect(rect)
+        .round_to_pixels(ui.pixels_per_point());
     let mut w = 2.0;
     let stroke = Stroke {
         width: 1.0, // Set width to 1.0 to prevent overlapping

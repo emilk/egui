@@ -22,6 +22,9 @@ pub struct WidgetGallery {
     #[cfg(feature = "chrono")]
     #[cfg_attr(feature = "serde", serde(skip))]
     date: Option<chrono::NaiveDate>,
+
+    #[cfg(feature = "chrono")]
+    with_date_button: bool,
 }
 
 impl Default for WidgetGallery {
@@ -38,11 +41,25 @@ impl Default for WidgetGallery {
             animate_progress_bar: false,
             #[cfg(feature = "chrono")]
             date: None,
+            #[cfg(feature = "chrono")]
+            with_date_button: true,
         }
     }
 }
 
-impl super::Demo for WidgetGallery {
+impl WidgetGallery {
+    #[allow(unused_mut, clippy::allow_attributes)] // if not chrono
+    #[inline]
+    pub fn with_date_button(mut self, _with_date_button: bool) -> Self {
+        #[cfg(feature = "chrono")]
+        {
+            self.with_date_button = _with_date_button;
+        }
+        self
+    }
+}
+
+impl crate::Demo for WidgetGallery {
     fn name(&self) -> &'static str {
         "🗄 Widget Gallery"
     }
@@ -50,20 +67,27 @@ impl super::Demo for WidgetGallery {
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
-            .resizable([true, false])
+            .resizable([true, false]) // resizable so we can shrink if the text edit grows
             .default_width(280.0)
             .show(ctx, |ui| {
-                use super::View as _;
+                use crate::View as _;
                 self.ui(ui);
             });
     }
 }
 
-impl super::View for WidgetGallery {
+impl crate::View for WidgetGallery {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.add_enabled_ui(self.enabled, |ui| {
-            ui.set_visible(self.visible);
-            ui.set_opacity(self.opacity);
+        let mut ui_builder = egui::UiBuilder::new();
+        if !self.enabled {
+            ui_builder = ui_builder.disabled();
+        }
+        if !self.visible {
+            ui_builder = ui_builder.invisible();
+        }
+
+        ui.scope_builder(ui_builder, |ui| {
+            ui.multiply_opacity(self.opacity);
 
             egui::Grid::new("my_grid")
                 .num_columns(2)
@@ -85,7 +109,7 @@ impl super::View for WidgetGallery {
                 (ui.add(
                     egui::DragValue::new(&mut self.opacity)
                         .speed(0.01)
-                        .clamp_range(0.0..=1.0),
+                        .range(0.0..=1.0),
                 ) | ui.label("Opacity"))
                 .on_hover_text("Reduce this value to make widgets semi-transparent");
             }
@@ -117,6 +141,8 @@ impl WidgetGallery {
             animate_progress_bar,
             #[cfg(feature = "chrono")]
             date,
+            #[cfg(feature = "chrono")]
+            with_date_button,
         } = self;
 
         ui.add(doc_link_label("Label", "label"));
@@ -172,8 +198,6 @@ impl WidgetGallery {
         egui::ComboBox::from_label("Take your pick")
             .selected_text(format!("{radio:?}"))
             .show_ui(ui, |ui| {
-                ui.style_mut().wrap = Some(false);
-                ui.set_min_width(60.0);
                 ui.selectable_value(radio, Enum::First, "First");
                 ui.selectable_value(radio, Enum::Second, "Second");
                 ui.selectable_value(radio, Enum::Third, "Third");
@@ -221,7 +245,7 @@ impl WidgetGallery {
         ui.end_row();
 
         #[cfg(feature = "chrono")]
-        {
+        if *with_date_button {
             let date = date.get_or_insert_with(|| chrono::offset::Utc::now().date_naive());
             ui.add(doc_link_label_with_crate(
                 "egui_extras",
@@ -248,12 +272,8 @@ impl WidgetGallery {
         });
         ui.end_row();
 
-        ui.add(doc_link_label_with_crate("egui_plot", "Plot", "plot"));
-        example_plot(ui);
-        ui.end_row();
-
         ui.hyperlink_to(
-            "Custom widget:",
+            "Custom widget",
             super::toggle_switch::url_to_file_source_code(),
         );
         ui.add(super::toggle_switch::toggle(boolean)).on_hover_text(
@@ -262,25 +282,6 @@ impl WidgetGallery {
         );
         ui.end_row();
     }
-}
-
-fn example_plot(ui: &mut egui::Ui) -> egui::Response {
-    use egui_plot::{Line, PlotPoints};
-    let n = 128;
-    let line_points: PlotPoints = (0..=n)
-        .map(|i| {
-            use std::f64::consts::TAU;
-            let x = egui::remap(i as f64, 0.0..=n as f64, -TAU..=TAU);
-            [x, x.sin()]
-        })
-        .collect();
-    let line = Line::new(line_points);
-    egui_plot::Plot::new("example_plot")
-        .height(32.0)
-        .show_axes(false)
-        .data_aspect(1.0)
-        .show(ui, |plot_ui| plot_ui.line(line))
-        .response
 }
 
 fn doc_link_label<'a>(title: &'a str, search_term: &'a str) -> impl egui::Widget + 'a {
@@ -292,14 +293,56 @@ fn doc_link_label_with_crate<'a>(
     title: &'a str,
     search_term: &'a str,
 ) -> impl egui::Widget + 'a {
-    let label = format!("{title}:");
     let url = format!("https://docs.rs/{crate_name}?search={search_term}");
     move |ui: &mut egui::Ui| {
-        ui.hyperlink_to(label, url).on_hover_ui(|ui| {
+        ui.hyperlink_to(title, url).on_hover_ui(|ui| {
             ui.horizontal_wrapped(|ui| {
                 ui.label("Search egui docs for");
                 ui.code(search_term);
             });
         })
+    }
+}
+
+#[cfg(feature = "chrono")]
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::View as _;
+    use egui::Vec2;
+    use egui_kittest::{Harness, SnapshotResults};
+
+    #[test]
+    pub fn should_match_screenshot() {
+        let mut demo = WidgetGallery {
+            // If we don't set a fixed date, the snapshot test will fail.
+            date: Some(chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()),
+            ..Default::default()
+        };
+
+        let mut results = SnapshotResults::new();
+
+        for pixels_per_point in [1, 2] {
+            for theme in [egui::Theme::Light, egui::Theme::Dark] {
+                let mut harness = Harness::builder()
+                    .with_pixels_per_point(pixels_per_point as f32)
+                    .with_theme(theme)
+                    .with_size(Vec2::new(380.0, 550.0))
+                    .build_ui(|ui| {
+                        egui_extras::install_image_loaders(ui.ctx());
+                        demo.ui(ui);
+                    });
+
+                harness.fit_contents();
+
+                let theme_name = match theme {
+                    egui::Theme::Light => "light",
+                    egui::Theme::Dark => "dark",
+                };
+                let image_name = format!("widget_gallery_{theme_name}_x{pixels_per_point}");
+                harness.snapshot(&image_name);
+                results.extend_harness(&mut harness);
+            }
+        }
     }
 }

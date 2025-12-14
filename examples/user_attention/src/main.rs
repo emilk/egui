@@ -1,9 +1,12 @@
-use eframe::{egui, CreationContext, NativeOptions};
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
+#![allow(rustdoc::missing_crate_level_docs)] // it's an example
+
+use eframe::{CreationContext, NativeOptions, egui};
 use egui::{Button, CentralPanel, Context, UserAttentionType};
 
 use std::time::{Duration, SystemTime};
 
-fn main() -> eframe::Result<()> {
+fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let native_options = NativeOptions {
         viewport: egui::ViewportBuilder::default().with_inner_size([400., 200.]),
@@ -12,7 +15,7 @@ fn main() -> eframe::Result<()> {
     eframe::run_native(
         "User attention test",
         native_options,
-        Box::new(|cc| Box::new(Application::new(cc))),
+        Box::new(|cc| Ok(Box::new(Application::new(cc)))),
     )
 }
 
@@ -53,24 +56,24 @@ impl Application {
 
 impl eframe::App for Application {
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
-        if let Some(request_at) = self.request_at {
-            if request_at < SystemTime::now() {
-                self.request_at = None;
-                ctx.send_viewport_cmd(egui::ViewportCommand::RequestUserAttention(self.attention));
-                if self.auto_reset {
-                    self.auto_reset = false;
-                    self.reset_at = Some(SystemTime::now() + Self::attention_reset_timeout());
-                }
+        if let Some(request_at) = self.request_at
+            && request_at < SystemTime::now()
+        {
+            self.request_at = None;
+            ctx.send_viewport_cmd(egui::ViewportCommand::RequestUserAttention(self.attention));
+            if self.auto_reset {
+                self.auto_reset = false;
+                self.reset_at = Some(SystemTime::now() + Self::attention_reset_timeout());
             }
         }
 
-        if let Some(reset_at) = self.reset_at {
-            if reset_at < SystemTime::now() {
-                self.reset_at = None;
-                ctx.send_viewport_cmd(egui::ViewportCommand::RequestUserAttention(
-                    UserAttentionType::Reset,
-                ));
-            }
+        if let Some(reset_at) = self.reset_at
+            && reset_at < SystemTime::now()
+        {
+            self.reset_at = None;
+            ctx.send_viewport_cmd(egui::ViewportCommand::RequestUserAttention(
+                UserAttentionType::Reset,
+            ));
         }
 
         CentralPanel::default().show(ctx, |ui| {
@@ -100,9 +103,9 @@ impl eframe::App for Application {
                         None => "Unfocus the window, fast!".to_owned(),
                         Some(t) => {
                             if let Ok(elapsed) = t.duration_since(SystemTime::now()) {
-                                format!("Resetting attention in {} s...", elapsed.as_secs())
+                                format!("Resetting attention in {} s…", elapsed.as_secs())
                             } else {
-                                "Resetting attention...".to_owned()
+                                "Resetting attention…".to_owned()
                             }
                         }
                     }

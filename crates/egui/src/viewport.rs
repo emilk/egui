@@ -19,7 +19,7 @@
 //! ### Deferred viewports
 //! These are created with [`Context::show_viewport_deferred`].
 //! Deferred viewports take a closure that is called by the integration at a later time, perhaps multiple times.
-//! Deferred viewports are repainted independenantly of the parent viewport.
+//! Deferred viewports are repainted independently of the parent viewport.
 //! This means communication with them needs to be done via channels, or `Arc/Mutex`.
 //!
 //! This is the most performant type of child viewport, though a bit more cumbersome to work with compared to immediate viewports.
@@ -42,7 +42,7 @@
 //! a [`ViewportCommand`] to it using [`Context::send_viewport_cmd`].
 //! You can interact with other viewports using [`Context::send_viewport_cmd_to`].
 //!
-//! There is an example in <https://github.com/emilk/egui/tree/master/examples/multiple_viewports/src/main.rs>.
+//! There is an example in <https://github.com/emilk/egui/tree/main/examples/multiple_viewports/src/main.rs>.
 //!
 //! You can find all available viewports in [`crate::RawInput::viewports`] and the active viewport in
 //! [`crate::InputState::viewport`]:
@@ -113,6 +113,20 @@ pub enum ViewportClass {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ViewportId(pub Id);
 
+// We implement `PartialOrd` and `Ord` so we can use `ViewportId` in a `BTreeMap`,
+// which allows predicatable iteration order, frame-to-frame.
+impl PartialOrd for ViewportId {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for ViewportId {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.value().cmp(&other.0.value())
+    }
+}
+
 impl Default for ViewportId {
     #[inline]
     fn default() -> Self {
@@ -151,6 +165,9 @@ pub type ViewportIdSet = nohash_hasher::IntSet<ViewportId>;
 /// A fast hash map from [`ViewportId`] to `T`.
 pub type ViewportIdMap<T> = nohash_hasher::IntMap<ViewportId, T>;
 
+/// An order map from [`ViewportId`] to `T`.
+pub type OrderedViewportIdMap<T> = std::collections::BTreeMap<ViewportId, T>;
+
 // ----------------------------------------------------------------------------
 
 /// Image data for an application icon.
@@ -188,7 +205,7 @@ impl std::fmt::Debug for IconData {
 
 impl From<IconData> for epaint::ColorImage {
     fn from(icon: IconData) -> Self {
-        crate::profile_function!();
+        profiling::function_scope!();
         let IconData {
             rgba,
             width,
@@ -200,7 +217,7 @@ impl From<IconData> for epaint::ColorImage {
 
 impl From<&IconData> for epaint::ColorImage {
     fn from(icon: &IconData) -> Self {
-        crate::profile_function!();
+        profiling::function_scope!();
         let IconData {
             rgba,
             width,
@@ -260,7 +277,6 @@ pub type ImmediateViewportRendererCallback = dyn for<'a> Fn(&Context, ImmediateV
 /// The default values are implementation defined, so you may want to explicitly
 /// configure the size of the window, and what buttons are shown.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
-#[allow(clippy::option_option)]
 pub struct ViewportBuilder {
     /// The title of the viewport.
     /// `eframe` will use this as the title of the native window.
@@ -275,6 +291,11 @@ pub struct ViewportBuilder {
     pub min_inner_size: Option<Vec2>,
     pub max_inner_size: Option<Vec2>,
 
+    /// Whether clamp the window's size to monitor's size. The default is `true` on linux, otherwise it is `false`.
+    ///
+    /// Note: On some Linux systems, a window size larger than the monitor causes crashes
+    pub clamp_size_to_monitor_size: Option<bool>,
+
     pub fullscreen: Option<bool>,
     pub maximized: Option<bool>,
     pub resizable: Option<bool>,
@@ -286,9 +307,11 @@ pub struct ViewportBuilder {
 
     // macOS:
     pub fullsize_content_view: Option<bool>,
+    pub movable_by_window_background: Option<bool>,
     pub title_shown: Option<bool>,
     pub titlebar_buttons_shown: Option<bool>,
     pub titlebar_shown: Option<bool>,
+    pub has_shadow: Option<bool>,
 
     // windows:
     pub drag_and_drop: Option<bool>,
@@ -375,6 +398,10 @@ impl ViewportBuilder {
     /// The default is `false`.
     /// If this is not working, it's because the graphic context doesn't support transparency,
     /// you will need to set the transparency in the eframe!
+    ///
+    /// ## Platform-specific
+    ///
+    /// **macOS:** When using this feature to create an overlay-like UI, you likely want to combine this with [`Self::with_has_shadow`] set to `false` in order to avoid ghosting artifacts.
     #[inline]
     pub fn with_transparent(mut self, transparent: bool) -> Self {
         self.transparent = Some(transparent);
@@ -384,7 +411,7 @@ impl ViewportBuilder {
     /// The application icon, e.g. in the Windows task bar or the alt-tab menu.
     ///
     /// The default icon is a white `e` on a black background (for "egui" or "eframe").
-    /// If you prefer the OS default, set this to `None`.
+    /// If you prefer the OS default, set this to `IconData::default()`.
     #[inline]
     pub fn with_icon(mut self, icon: impl Into<Arc<IconData>>) -> Self {
         self.icon = Some(icon.into());
@@ -427,6 +454,14 @@ impl ViewportBuilder {
         self
     }
 
+    /// macOS: Set to `true` to allow the window to be moved by dragging the background.
+    /// Enabling this feature can result in unexpected behavior with draggable UI widgets such as sliders.
+    #[inline]
+    pub fn with_movable_by_background(mut self, value: bool) -> Self {
+        self.movable_by_window_background = Some(value);
+        self
+    }
+
     /// macOS: Set to `false` to hide the window title.
     #[inline]
     pub fn with_title_shown(mut self, title_shown: bool) -> Self {
@@ -445,6 +480,19 @@ impl ViewportBuilder {
     #[inline]
     pub fn with_titlebar_shown(mut self, shown: bool) -> Self {
         self.titlebar_shown = Some(shown);
+        self
+    }
+
+    /// macOS: Set to `false` to make the window render without a drop shadow.
+    ///
+    /// The default is `true`.
+    ///
+    /// Disabling this feature can solve ghosting issues experienced if using [`Self::with_transparent`].
+    ///
+    /// Look at winit for more details
+    #[inline]
+    pub fn with_has_shadow(mut self, has_shadow: bool) -> Self {
+        self.has_shadow = Some(has_shadow);
         self
     }
 
@@ -493,6 +541,15 @@ impl ViewportBuilder {
         self
     }
 
+    /// Sets whether clamp the window's size to monitor's size. The default is `true` on linux, otherwise it is `false`.
+    ///
+    /// Note: On some Linux systems, a window size larger than the monitor causes crashes
+    #[inline]
+    pub fn with_clamp_size_to_monitor_size(mut self, value: bool) -> Self {
+        self.clamp_size_to_monitor_size = Some(value);
+        self
+    }
+
     /// Does not work on X11.
     #[inline]
     pub fn with_close_button(mut self, value: bool) -> Self {
@@ -520,7 +577,7 @@ impl ViewportBuilder {
     /// See [winit's documentation][drag_and_drop] for information on why you
     /// might want to disable this on windows.
     ///
-    /// [drag_and_drop]: https://docs.rs/winit/latest/x86_64-pc-windows-msvc/winit/platform/windows/trait.WindowBuilderExtWindows.html#tymethod.with_drag_and_drop
+    /// [drag_and_drop]: https://docs.rs/winit/latest/x86_64-pc-windows-msvc/winit/platform/windows/trait.WindowAttributesExtWindows.html#tymethod.with_drag_and_drop
     #[inline]
     pub fn with_drag_and_drop(mut self, value: bool) -> Self {
         self.drag_and_drop = Some(value);
@@ -529,6 +586,15 @@ impl ViewportBuilder {
 
     /// The initial "outer" position of the window,
     /// i.e. where the top-left corner of the frame/chrome should be.
+    ///
+    /// **`eframe` notes**:
+    ///
+    /// - **iOS:** Sets the top left coordinates of the window in the screen space coordinate system.
+    /// - **Web:** Sets the top-left coordinates relative to the viewport. Doesn't account for CSS
+    ///   [`transform`].
+    /// - **Android / Wayland:** Unsupported.
+    ///
+    /// [`transform`]: https://developer.mozilla.org/en-US/docs/Web/CSS/transform
     #[inline]
     pub fn with_position(mut self, pos: impl Into<Pos2>) -> Self {
         self.position = Some(pos.into());
@@ -564,6 +630,8 @@ impl ViewportBuilder {
     }
 
     /// Control if window is always-on-top, always-on-bottom, or neither.
+    ///
+    /// For platform compatibility see [`crate::viewport::WindowLevel`] documentation
     #[inline]
     pub fn with_window_level(mut self, level: WindowLevel) -> Self {
         self.window_level = Some(level);
@@ -571,6 +639,8 @@ impl ViewportBuilder {
     }
 
     /// This window is always on top
+    ///
+    /// For platform compatibility see [`crate::viewport::WindowLevel`] documentation
     #[inline]
     pub fn with_always_on_top(self) -> Self {
         self.with_window_level(WindowLevel::AlwaysOnTop)
@@ -599,6 +669,8 @@ impl ViewportBuilder {
     /// returning a list of commands and a bool indicating if the window needs to be recreated.
     #[must_use]
     pub fn patch(&mut self, new_vp_builder: Self) -> (Vec<ViewportCommand>, bool) {
+        #![expect(clippy::useless_let_if_seq)] // False positive
+
         let Self {
             title: new_title,
             app_id: new_app_id,
@@ -606,6 +678,7 @@ impl ViewportBuilder {
             inner_size: new_inner_size,
             min_inner_size: new_min_inner_size,
             max_inner_size: new_max_inner_size,
+            clamp_size_to_monitor_size: new_clamp_size_to_monitor_size,
             fullscreen: new_fullscreen,
             maximized: new_maximized,
             resizable: new_resizable,
@@ -616,9 +689,11 @@ impl ViewportBuilder {
             visible: new_visible,
             drag_and_drop: new_drag_and_drop,
             fullsize_content_view: new_fullsize_content_view,
+            movable_by_window_background: new_movable_by_window_background,
             title_shown: new_title_shown,
             titlebar_buttons_shown: new_titlebar_buttons_shown,
             titlebar_shown: new_titlebar_shown,
+            has_shadow: new_has_shadow,
             close_button: new_close_button,
             minimize_button: new_minimize_button,
             maximize_button: new_maximize_button,
@@ -630,74 +705,74 @@ impl ViewportBuilder {
 
         let mut commands = Vec::new();
 
-        if let Some(new_title) = new_title {
-            if Some(&new_title) != self.title.as_ref() {
-                self.title = Some(new_title.clone());
-                commands.push(ViewportCommand::Title(new_title));
-            }
+        if let Some(new_title) = new_title
+            && Some(&new_title) != self.title.as_ref()
+        {
+            self.title = Some(new_title.clone());
+            commands.push(ViewportCommand::Title(new_title));
         }
 
-        if let Some(new_position) = new_position {
-            if Some(new_position) != self.position {
-                self.position = Some(new_position);
-                commands.push(ViewportCommand::OuterPosition(new_position));
-            }
+        if let Some(new_position) = new_position
+            && Some(new_position) != self.position
+        {
+            self.position = Some(new_position);
+            commands.push(ViewportCommand::OuterPosition(new_position));
         }
 
-        if let Some(new_inner_size) = new_inner_size {
-            if Some(new_inner_size) != self.inner_size {
-                self.inner_size = Some(new_inner_size);
-                commands.push(ViewportCommand::InnerSize(new_inner_size));
-            }
+        if let Some(new_inner_size) = new_inner_size
+            && Some(new_inner_size) != self.inner_size
+        {
+            self.inner_size = Some(new_inner_size);
+            commands.push(ViewportCommand::InnerSize(new_inner_size));
         }
 
-        if let Some(new_min_inner_size) = new_min_inner_size {
-            if Some(new_min_inner_size) != self.min_inner_size {
-                self.min_inner_size = Some(new_min_inner_size);
-                commands.push(ViewportCommand::MinInnerSize(new_min_inner_size));
-            }
+        if let Some(new_min_inner_size) = new_min_inner_size
+            && Some(new_min_inner_size) != self.min_inner_size
+        {
+            self.min_inner_size = Some(new_min_inner_size);
+            commands.push(ViewportCommand::MinInnerSize(new_min_inner_size));
         }
 
-        if let Some(new_max_inner_size) = new_max_inner_size {
-            if Some(new_max_inner_size) != self.max_inner_size {
-                self.max_inner_size = Some(new_max_inner_size);
-                commands.push(ViewportCommand::MaxInnerSize(new_max_inner_size));
-            }
+        if let Some(new_max_inner_size) = new_max_inner_size
+            && Some(new_max_inner_size) != self.max_inner_size
+        {
+            self.max_inner_size = Some(new_max_inner_size);
+            commands.push(ViewportCommand::MaxInnerSize(new_max_inner_size));
         }
 
-        if let Some(new_fullscreen) = new_fullscreen {
-            if Some(new_fullscreen) != self.fullscreen {
-                self.fullscreen = Some(new_fullscreen);
-                commands.push(ViewportCommand::Fullscreen(new_fullscreen));
-            }
+        if let Some(new_fullscreen) = new_fullscreen
+            && Some(new_fullscreen) != self.fullscreen
+        {
+            self.fullscreen = Some(new_fullscreen);
+            commands.push(ViewportCommand::Fullscreen(new_fullscreen));
         }
 
-        if let Some(new_maximized) = new_maximized {
-            if Some(new_maximized) != self.maximized {
-                self.maximized = Some(new_maximized);
-                commands.push(ViewportCommand::Maximized(new_maximized));
-            }
+        if let Some(new_maximized) = new_maximized
+            && Some(new_maximized) != self.maximized
+        {
+            self.maximized = Some(new_maximized);
+            commands.push(ViewportCommand::Maximized(new_maximized));
         }
 
-        if let Some(new_resizable) = new_resizable {
-            if Some(new_resizable) != self.resizable {
-                self.resizable = Some(new_resizable);
-                commands.push(ViewportCommand::Resizable(new_resizable));
-            }
+        if let Some(new_resizable) = new_resizable
+            && Some(new_resizable) != self.resizable
+        {
+            self.resizable = Some(new_resizable);
+            commands.push(ViewportCommand::Resizable(new_resizable));
         }
 
-        if let Some(new_transparent) = new_transparent {
-            if Some(new_transparent) != self.transparent {
-                self.transparent = Some(new_transparent);
-                commands.push(ViewportCommand::Transparent(new_transparent));
-            }
+        if let Some(new_transparent) = new_transparent
+            && Some(new_transparent) != self.transparent
+        {
+            self.transparent = Some(new_transparent);
+            commands.push(ViewportCommand::Transparent(new_transparent));
         }
 
-        if let Some(new_decorations) = new_decorations {
-            if Some(new_decorations) != self.decorations {
-                self.decorations = Some(new_decorations);
-                commands.push(ViewportCommand::Decorations(new_decorations));
-            }
+        if let Some(new_decorations) = new_decorations
+            && Some(new_decorations) != self.decorations
+        {
+            self.decorations = Some(new_decorations);
+            commands.push(ViewportCommand::Decorations(new_decorations));
         }
 
         if let Some(new_icon) = new_icon {
@@ -712,25 +787,25 @@ impl ViewportBuilder {
             }
         }
 
-        if let Some(new_visible) = new_visible {
-            if Some(new_visible) != self.active {
-                self.visible = Some(new_visible);
-                commands.push(ViewportCommand::Visible(new_visible));
-            }
+        if let Some(new_visible) = new_visible
+            && Some(new_visible) != self.visible
+        {
+            self.visible = Some(new_visible);
+            commands.push(ViewportCommand::Visible(new_visible));
         }
 
-        if let Some(new_mouse_passthrough) = new_mouse_passthrough {
-            if Some(new_mouse_passthrough) != self.mouse_passthrough {
-                self.mouse_passthrough = Some(new_mouse_passthrough);
-                commands.push(ViewportCommand::MousePassthrough(new_mouse_passthrough));
-            }
+        if let Some(new_mouse_passthrough) = new_mouse_passthrough
+            && Some(new_mouse_passthrough) != self.mouse_passthrough
+        {
+            self.mouse_passthrough = Some(new_mouse_passthrough);
+            commands.push(ViewportCommand::MousePassthrough(new_mouse_passthrough));
         }
 
-        if let Some(new_window_level) = new_window_level {
-            if Some(new_window_level) != self.window_level {
-                self.window_level = Some(new_window_level);
-                commands.push(ViewportCommand::WindowLevel(new_window_level));
-            }
+        if let Some(new_window_level) = new_window_level
+            && Some(new_window_level) != self.window_level
+        {
+            self.window_level = Some(new_window_level);
+            commands.push(ViewportCommand::WindowLevel(new_window_level));
         }
 
         // --------------------------------------------------------------
@@ -739,6 +814,13 @@ impl ViewportBuilder {
         // changing them without recreating the window.
 
         let mut recreate_window = false;
+
+        if new_clamp_size_to_monitor_size.is_some()
+            && self.clamp_size_to_monitor_size != new_clamp_size_to_monitor_size
+        {
+            self.clamp_size_to_monitor_size = new_clamp_size_to_monitor_size;
+            recreate_window = true;
+        }
 
         if new_active.is_some() && self.active != new_active {
             self.active = new_active;
@@ -782,6 +864,11 @@ impl ViewportBuilder {
             recreate_window = true;
         }
 
+        if new_has_shadow.is_some() && self.has_shadow != new_has_shadow {
+            self.has_shadow = new_has_shadow;
+            recreate_window = true;
+        }
+
         if new_taskbar.is_some() && self.taskbar != new_taskbar {
             self.taskbar = new_taskbar;
             recreate_window = true;
@@ -791,6 +878,13 @@ impl ViewportBuilder {
             && self.fullsize_content_view != new_fullsize_content_view
         {
             self.fullsize_content_view = new_fullsize_content_view;
+            recreate_window = true;
+        }
+
+        if new_movable_by_window_background.is_some()
+            && self.movable_by_window_background != new_movable_by_window_background
+        {
+            self.movable_by_window_background = new_movable_by_window_background;
             recreate_window = true;
         }
 
@@ -808,6 +902,7 @@ impl ViewportBuilder {
     }
 }
 
+/// For winit platform compatibility, see [`winit::WindowLevel` documentation](https://docs.rs/winit/latest/winit/window/enum.WindowLevel.html#platform-specific)
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum WindowLevel {
@@ -867,7 +962,7 @@ pub enum X11WindowType {
     /// This property is typically used on override-redirect windows.
     Combo,
 
-    /// This indicates the the window is being dragged.
+    /// This indicates the window is being dragged.
     /// This property is typically used on override-redirect windows.
     Dnd,
 }
@@ -914,13 +1009,16 @@ pub enum ResizeDirection {
 
 /// An output [viewport](crate::viewport)-command from egui to the backend, e.g. to change the window title or size.
 ///
-///  You can send a [`ViewportCommand`] to the viewport with [`Context::send_viewport_cmd`].
+/// You can send a [`ViewportCommand`] to the viewport with [`Context::send_viewport_cmd`].
 ///
 /// See [`crate::viewport`] for how to build new viewports (native windows).
 ///
 /// All coordinates are in logical points.
 ///
-/// This is essentially a way to diff [`ViewportBuilder`].
+/// [`ViewportCommand`] is essentially a way to diff [`ViewportBuilder`]s.
+///
+/// Only commands specific to a viewport are part of [`ViewportCommand`].
+/// Other commands should be put in [`crate::OutputCommand`].
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ViewportCommand {
@@ -993,7 +1091,7 @@ pub enum ViewportCommand {
     /// Set window to be always-on-top, always-on-bottom, or neither.
     WindowLevel(WindowLevel),
 
-    /// The the window icon.
+    /// The window icon.
     Icon(Option<Arc<IconData>>),
 
     /// Set the IME cursor editing area.
@@ -1034,10 +1132,25 @@ pub enum ViewportCommand {
     /// Enable mouse pass-through: mouse clicks pass through the window, used for non-interactable overlays.
     MousePassthrough(bool),
 
-    /// Take a screenshot.
+    /// Take a screenshot of the next frame after this.
     ///
-    /// The results are returned in `crate::Event::Screenshot`.
-    Screenshot,
+    /// The results are returned in [`crate::Event::Screenshot`].
+    Screenshot(crate::UserData),
+
+    /// Request cut of the current selection
+    ///
+    /// This is equivalent to the system keyboard shortcut for cut (e.g. CTRL + X).
+    RequestCut,
+
+    /// Request a copy of the current selection.
+    ///
+    /// This is equivalent to the system keyboard shortcut for copy (e.g. CTRL + C).
+    RequestCopy,
+
+    /// Request a paste from the clipboard to the current focused `TextEdit` if any.
+    ///
+    /// This is equivalent to the system keyboard shortcut for paste (e.g. CTRL + V).
+    RequestPaste,
 }
 
 impl ViewportCommand {
@@ -1063,6 +1176,8 @@ impl ViewportCommand {
     }
 }
 
+// ----------------------------------------------------------------------------
+
 /// Describes a viewport, i.e. a native window.
 ///
 /// This is returned by [`crate::Context::run`] on each frame, and should be applied
@@ -1078,7 +1193,7 @@ pub struct ViewportOutput {
     /// since those don't result in real viewports.
     pub class: ViewportClass,
 
-    /// The window attrbiutes such as title, position, size, etc.
+    /// The window attributes such as title, position, size, etc.
     ///
     /// Use this when first constructing the native window.
     /// Also check for changes in it using [`ViewportBuilder::patch`],
@@ -1131,5 +1246,5 @@ pub struct ImmediateViewport<'a> {
     pub builder: ViewportBuilder,
 
     /// The user-code that shows the GUI.
-    pub viewport_ui_cb: Box<dyn FnOnce(&Context) + 'a>,
+    pub viewport_ui_cb: Box<dyn FnMut(&Context) + 'a>,
 }

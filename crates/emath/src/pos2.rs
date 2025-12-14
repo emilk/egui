@@ -1,6 +1,9 @@
-use std::ops::{Add, AddAssign, Sub, SubAssign};
+use std::{
+    fmt,
+    ops::{Add, AddAssign, MulAssign, Sub, SubAssign},
+};
 
-use crate::*;
+use crate::{Div, Mul, Vec2, lerp};
 
 /// A position on screen.
 ///
@@ -304,6 +307,14 @@ impl Mul<Pos2> for f32 {
     }
 }
 
+impl MulAssign<f32> for Pos2 {
+    #[inline(always)]
+    fn mul_assign(&mut self, rhs: f32) {
+        self.x *= rhs;
+        self.y *= rhs;
+    }
+}
+
 impl Div<f32> for Pos2 {
     type Output = Self;
 
@@ -316,8 +327,23 @@ impl Div<f32> for Pos2 {
     }
 }
 
-impl std::fmt::Debug for Pos2 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{:.1} {:.1}]", self.x, self.y)
+impl fmt::Debug for Pos2 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(precision) = f.precision() {
+            write!(f, "[{1:.0$} {2:.0$}]", precision, self.x, self.y)
+        } else {
+            write!(f, "[{:.1} {:.1}]", self.x, self.y)
+        }
+    }
+}
+
+impl fmt::Display for Pos2 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("[")?;
+        self.x.fmt(f)?;
+        f.write_str(" ")?;
+        self.y.fmt(f)?;
+        f.write_str("]")?;
+        Ok(())
     }
 }

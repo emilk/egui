@@ -1,11 +1,11 @@
-use epaint::{emath::lerp, vec2, Color32, Pos2, Rect, Shape, Stroke};
+use epaint::{Color32, Pos2, Rect, Shape, Stroke, emath::lerp, vec2};
 
 use crate::{Response, Sense, Ui, Widget, WidgetInfo, WidgetType};
 
 /// A spinner widget used to indicate loading.
 ///
 /// See also: [`crate::ProgressBar`].
-#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+#[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 #[derive(Default)]
 pub struct Spinner {
     /// Uses the style's `interact_size` if `None`.
@@ -42,8 +42,8 @@ impl Spinner {
             let color = self
                 .color
                 .unwrap_or_else(|| ui.visuals().strong_text_color());
-            let radius = (rect.height() / 2.0) - 2.0;
-            let n_points = 20;
+            let radius = (rect.height().min(rect.width()) / 2.0) - 2.0;
+            let n_points = (radius.round() as u32).clamp(8, 128);
             let time = ui.input(|i| i.time);
             let start_angle = time * std::f64::consts::TAU;
             let end_angle = start_angle + 240f64.to_radians() * time.sin();

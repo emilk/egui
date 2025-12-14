@@ -1,5 +1,9 @@
-use super::*;
-use egui::*;
+use super::{Demo, View};
+
+use egui::{
+    Align, Align2, Checkbox, CollapsingHeader, Color32, ComboBox, Context, FontId, Resize,
+    RichText, Sense, Slider, Stroke, TextFormat, TextStyle, Ui, Vec2, Window, vec2,
+};
 
 /// Showcase some ui code
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -12,6 +16,7 @@ pub struct MiscDemoWindow {
     custom_collapsing_header: CustomCollapsingHeader,
     tree: Tree,
     box_painting: BoxPainting,
+    text_rotation: TextRotation,
 
     dummy_bool: bool,
     dummy_usize: usize,
@@ -28,6 +33,7 @@ impl Default for MiscDemoWindow {
             custom_collapsing_header: Default::default(),
             tree: Tree::demo(),
             box_painting: Default::default(),
+            text_rotation: Default::default(),
 
             dummy_bool: false,
             dummy_usize: 0,
@@ -75,6 +81,10 @@ impl View for MiscDemoWindow {
                 });
             });
 
+        CollapsingHeader::new("Text rotation")
+            .default_open(false)
+            .show(ui, |ui| self.text_rotation.ui(ui));
+
         CollapsingHeader::new("Colors")
             .default_open(false)
             .show(ui, |ui| {
@@ -120,9 +130,9 @@ impl View for MiscDemoWindow {
                     )
                     .changed()
                 {
-                    self.checklist
-                        .iter_mut()
-                        .for_each(|checked| *checked = all_checked);
+                    for check in &mut self.checklist {
+                        *check = all_checked;
+                    }
                 }
                 for (i, checked) in self.checklist.iter_mut().enumerate() {
                     ui.checkbox(checked, format!("Item {}", i + 1));
@@ -153,6 +163,10 @@ impl View for MiscDemoWindow {
                     ui.label("Just pull the handle on the bottom right");
                 });
             });
+
+        CollapsingHeader::new("Ui Stack")
+            .default_open(false)
+            .show(ui, ui_stack_demo);
 
         CollapsingHeader::new("Misc")
             .default_open(false)
@@ -199,7 +213,7 @@ fn label_ui(ui: &mut egui::Ui) {
 
     ui.horizontal_wrapped(|ui| {
             // Trick so we don't have to add spaces in the text below:
-            let width = ui.fonts(|f|f.glyph_width(&TextStyle::Body.resolve(ui.style()), ' '));
+            let width = ui.fonts_mut(|f|f.glyph_width(&TextStyle::Body.resolve(ui.style()), ' '));
             ui.spacing_mut().item_spacing.x = width;
 
             ui.label(RichText::new("Text can have").color(Color32::from_rgb(110, 255, 110)));
@@ -221,9 +235,9 @@ fn label_ui(ui: &mut egui::Ui) {
 
     ui.add(
         egui::Label::new(
-            "Labels containing long text can be set to elide the text that doesn't fit on a single line using `Label::elide`. When hovered, the label will show the full text.",
+            "Labels containing long text can be set to elide the text that doesn't fit on a single line using `Label::truncate`. When hovered, the label will show the full text.",
         )
-        .truncate(true),
+        .truncate(),
     );
 }
 
@@ -233,7 +247,6 @@ fn label_ui(ui: &mut egui::Ui) {
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Widgets {
     angle: f32,
-    enabled: bool,
     password: String,
 }
 
@@ -241,7 +254,6 @@ impl Default for Widgets {
     fn default() -> Self {
         Self {
             angle: std::f32::consts::TAU / 3.0,
-            enabled: true,
             password: "hunter2".to_owned(),
         }
     }
@@ -249,37 +261,10 @@ impl Default for Widgets {
 
 impl Widgets {
     pub fn ui(&mut self, ui: &mut Ui) {
-        let Self {
-            angle,
-            enabled,
-            password,
-        } = self;
+        let Self { angle, password } = self;
         ui.vertical_centered(|ui| {
             ui.add(crate::egui_github_link_file_line!());
         });
-
-        let tooltip_ui = |ui: &mut Ui| {
-            ui.heading("The name of the tooltip");
-            ui.horizontal(|ui| {
-                ui.label("This tooltip was created with");
-                ui.monospace(".on_hover_ui(…)");
-            });
-            let _ = ui.button("A button you can never press");
-        };
-        let disabled_tooltip_ui = |ui: &mut Ui| {
-            ui.heading("Different tooltip when widget is disabled");
-            ui.horizontal(|ui| {
-                ui.label("This tooltip was created with");
-                ui.monospace(".on_disabled_hover_ui(…)");
-            });
-        };
-        ui.checkbox(enabled, "Enabled");
-        ui.add_enabled(
-            *enabled,
-            egui::Label::new("Tooltips can be more than just simple text."),
-        )
-        .on_hover_ui(tooltip_ui)
-        .on_disabled_hover_ui(disabled_tooltip_ui);
 
         ui.separator();
 
@@ -328,7 +313,7 @@ impl Default for ColorWidgets {
 
 impl ColorWidgets {
     fn ui(&mut self, ui: &mut Ui) {
-        egui::reset_button(ui, self);
+        egui::reset_button(ui, self, "Reset");
 
         ui.label("egui lets you edit colors stored as either sRGBA or linear RGBA and with or without premultiplied alpha");
 
@@ -379,7 +364,7 @@ impl ColorWidgets {
 #[cfg_attr(feature = "serde", serde(default))]
 struct BoxPainting {
     size: Vec2,
-    rounding: f32,
+    corner_radius: f32,
     stroke_width: f32,
     num_boxes: usize,
 }
@@ -388,7 +373,7 @@ impl Default for BoxPainting {
     fn default() -> Self {
         Self {
             size: vec2(64.0, 32.0),
-            rounding: 5.0,
+            corner_radius: 5.0,
             stroke_width: 2.0,
             num_boxes: 1,
         }
@@ -399,7 +384,7 @@ impl BoxPainting {
     pub fn ui(&mut self, ui: &mut Ui) {
         ui.add(Slider::new(&mut self.size.x, 0.0..=500.0).text("width"));
         ui.add(Slider::new(&mut self.size.y, 0.0..=500.0).text("height"));
-        ui.add(Slider::new(&mut self.rounding, 0.0..=50.0).text("rounding"));
+        ui.add(Slider::new(&mut self.corner_radius, 0.0..=50.0).text("corner_radius"));
         ui.add(Slider::new(&mut self.stroke_width, 0.0..=10.0).text("stroke_width"));
         ui.add(Slider::new(&mut self.num_boxes, 0..=8).text("num_boxes"));
 
@@ -408,9 +393,10 @@ impl BoxPainting {
                 let (rect, _response) = ui.allocate_at_least(self.size, Sense::hover());
                 ui.painter().rect(
                     rect,
-                    self.rounding,
+                    self.corner_radius,
                     ui.visuals().text_color().gamma_multiply(0.5),
                     Stroke::new(self.stroke_width, Color32::WHITE),
+                    egui::StrokeKind::Inside,
                 );
             }
         });
@@ -465,7 +451,7 @@ enum Action {
 
 #[derive(Clone, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-struct Tree(Vec<Tree>);
+struct Tree(Vec<Self>);
 
 impl Tree {
     pub fn demo() -> Self {
@@ -521,6 +507,70 @@ impl Tree {
 
 // ----------------------------------------------------------------------------
 
+fn ui_stack_demo(ui: &mut Ui) {
+    ui.horizontal_wrapped(|ui| {
+        ui.label("The");
+        ui.code("egui::Ui");
+        ui.label("core type is typically deeply nested in");
+        ui.code("egui");
+        ui.label(
+            "applications. To provide context to nested code, it maintains a stack \
+                        with various information.\n\nThis is how the stack looks like here:",
+        );
+    });
+    let stack = ui.stack().clone();
+    egui::Frame::new()
+        .inner_margin(ui.spacing().menu_margin)
+        .stroke(ui.visuals().widgets.noninteractive.bg_stroke)
+        .show(ui, |ui| {
+            egui_extras::TableBuilder::new(ui)
+                .column(egui_extras::Column::auto())
+                .column(egui_extras::Column::auto())
+                .header(18.0, |mut header| {
+                    header.col(|ui| {
+                        ui.strong("id");
+                    });
+                    header.col(|ui| {
+                        ui.strong("kind");
+                    });
+                })
+                .body(|mut body| {
+                    for node in stack.iter() {
+                        body.row(18.0, |mut row| {
+                            row.col(|ui| {
+                                let response = ui.label(format!("{:?}", node.id));
+
+                                if response.hovered() {
+                                    ui.ctx().debug_painter().debug_rect(
+                                        node.max_rect,
+                                        Color32::GREEN,
+                                        "max_rect",
+                                    );
+                                    ui.ctx().debug_painter().circle_filled(
+                                        node.min_rect.min,
+                                        2.0,
+                                        Color32::RED,
+                                    );
+                                }
+                            });
+
+                            row.col(|ui| {
+                                ui.label(if let Some(kind) = node.kind() {
+                                    format!("{kind:?}")
+                                } else {
+                                    "-".to_owned()
+                                });
+                            });
+                        });
+                    }
+                });
+        });
+
+    ui.small("Hover on UI's ids to display their origin and max rect.");
+}
+
+// ----------------------------------------------------------------------------
+
 fn text_layout_demo(ui: &mut Ui) {
     use egui::text::LayoutJob;
 
@@ -535,8 +585,17 @@ fn text_layout_demo(ui: &mut Ui) {
     };
 
     job.append(
-        "This is a demonstration of ",
+        "This",
         first_row_indentation,
+        TextFormat {
+            color: default_color,
+            font_id: FontId::proportional(20.0),
+            ..Default::default()
+        },
+    );
+    job.append(
+        " is a demonstration of ",
+        0.0,
         TextFormat {
             color: default_color,
             ..Default::default()
@@ -587,7 +646,7 @@ fn text_layout_demo(ui: &mut Ui) {
         "mixing ",
         0.0,
         TextFormat {
-            font_id: FontId::proportional(17.0),
+            font_id: FontId::proportional(20.0),
             color: default_color,
             ..Default::default()
         },
@@ -675,4 +734,96 @@ fn text_layout_demo(ui: &mut Ui) {
     );
 
     ui.label(job);
+}
+
+// ----------------------------------------------------------------------------
+
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+struct TextRotation {
+    size: Vec2,
+    angle: f32,
+    align: egui::Align2,
+}
+
+impl Default for TextRotation {
+    fn default() -> Self {
+        Self {
+            size: vec2(200.0, 200.0),
+            angle: 0.0,
+            align: egui::Align2::LEFT_TOP,
+        }
+    }
+}
+
+impl TextRotation {
+    pub fn ui(&mut self, ui: &mut Ui) {
+        ui.add(Slider::new(&mut self.angle, 0.0..=2.0 * std::f32::consts::PI).text("angle"));
+
+        let default_color = if ui.visuals().dark_mode {
+            Color32::LIGHT_GRAY
+        } else {
+            Color32::DARK_GRAY
+        };
+
+        let aligns = [
+            (Align2::LEFT_TOP, "LEFT_TOP"),
+            (Align2::LEFT_CENTER, "LEFT_CENTER"),
+            (Align2::LEFT_BOTTOM, "LEFT_BOTTOM"),
+            (Align2::CENTER_TOP, "CENTER_TOP"),
+            (Align2::CENTER_CENTER, "CENTER_CENTER"),
+            (Align2::CENTER_BOTTOM, "CENTER_BOTTOM"),
+            (Align2::RIGHT_TOP, "RIGHT_TOP"),
+            (Align2::RIGHT_CENTER, "RIGHT_CENTER"),
+            (Align2::RIGHT_BOTTOM, "RIGHT_BOTTOM"),
+        ];
+
+        ComboBox::new("anchor", "Anchor")
+            .selected_text(aligns.iter().find(|(a, _)| *a == self.align).unwrap().1)
+            .show_ui(ui, |ui| {
+                for (align2, name) in &aligns {
+                    ui.selectable_value(&mut self.align, *align2, *name);
+                }
+            });
+
+        ui.horizontal_wrapped(|ui| {
+            let (response, painter) = ui.allocate_painter(self.size, Sense::empty());
+            let rect = response.rect;
+
+            let start_pos = self.size / 2.0;
+
+            let s = ui.ctx().fonts_mut(|f| {
+                let mut t = egui::Shape::text(
+                    f,
+                    rect.min + start_pos,
+                    egui::Align2::LEFT_TOP,
+                    "sample_text",
+                    egui::FontId::new(12.0, egui::FontFamily::Proportional),
+                    default_color,
+                );
+
+                if let egui::epaint::Shape::Text(ts) = &mut t {
+                    let new = ts.clone().with_angle_and_anchor(self.angle, self.align);
+                    *ts = new;
+                }
+
+                t
+            });
+
+            if let egui::epaint::Shape::Text(ts) = &s {
+                let align_pt =
+                    rect.min + start_pos + self.align.pos_in_rect(&ts.galley.rect).to_vec2();
+                painter.circle(align_pt, 2.0, Color32::RED, (0.0, Color32::RED));
+            }
+
+            painter.rect(
+                rect,
+                0.0,
+                default_color.gamma_multiply(0.3),
+                (0.0, Color32::BLACK),
+                egui::StrokeKind::Middle,
+            );
+            painter.add(s);
+        });
+    }
 }

@@ -4,32 +4,45 @@
 //! * `ui.add(Label::new("Text").text_color(color::red));`
 //! * `if ui.add(Button::new("Click me")).clicked() { … }`
 
-use crate::*;
+use crate::{Response, Ui, epaint};
 
 mod button;
+mod checkbox;
 pub mod color_picker;
 pub(crate) mod drag_value;
 mod hyperlink;
 mod image;
+mod image_button;
 mod label;
 mod progress_bar;
+mod radio_button;
 mod selected_label;
 mod separator;
 mod slider;
 mod spinner;
 pub mod text_edit;
 
-pub use button::*;
-pub use drag_value::DragValue;
-pub use hyperlink::*;
-pub use image::{paint_texture_at, Image, ImageFit, ImageOptions, ImageSize, ImageSource};
-pub use label::*;
-pub use progress_bar::ProgressBar;
-pub use selected_label::SelectableLabel;
-pub use separator::Separator;
-pub use slider::*;
-pub use spinner::*;
-pub use text_edit::{TextBuffer, TextEdit};
+#[expect(deprecated)]
+pub use self::selected_label::SelectableLabel;
+#[expect(deprecated, reason = "Deprecated in egui 0.33.0")]
+pub use self::{
+    button::Button,
+    checkbox::Checkbox,
+    drag_value::DragValue,
+    hyperlink::{Hyperlink, Link},
+    image::{
+        FrameDurations, Image, ImageFit, ImageOptions, ImageSize, ImageSource,
+        decode_animated_image_uri, has_gif_magic_header, has_webp_header, paint_texture_at,
+    },
+    image_button::ImageButton,
+    label::Label,
+    progress_bar::ProgressBar,
+    radio_button::RadioButton,
+    separator::Separator,
+    slider::{Slider, SliderClamping, SliderOrientation},
+    spinner::Spinner,
+    text_edit::{TextBuffer, TextEdit},
+};
 
 // ----------------------------------------------------------------------------
 
@@ -46,7 +59,7 @@ pub use text_edit::{TextBuffer, TextEdit};
 /// Tip: you can `impl Widget for &mut YourThing { }`.
 ///
 /// `|ui: &mut Ui| -> Response { … }` also implements [`Widget`].
-#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+#[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub trait Widget {
     /// Allocate space, interact, paint, and return a [`Response`].
     ///
@@ -83,7 +96,7 @@ where
     }
 }
 
-/// Helper so that you can do `TextEdit::State::read…`
+/// Helper so that you can do e.g. `TextEdit::State::load`.
 pub trait WidgetWithState {
     type State;
 }
@@ -92,15 +105,19 @@ pub trait WidgetWithState {
 
 /// Show a button to reset a value to its default.
 /// The button is only enabled if the value does not already have its original value.
-pub fn reset_button<T: Default + PartialEq>(ui: &mut Ui, value: &mut T) {
-    reset_button_with(ui, value, T::default());
+///
+/// The `text` could be something like "Reset foo".
+pub fn reset_button<T: Default + PartialEq>(ui: &mut Ui, value: &mut T, text: &str) {
+    reset_button_with(ui, value, text, T::default());
 }
 
 /// Show a button to reset a value to its default.
 /// The button is only enabled if the value does not already have its original value.
-pub fn reset_button_with<T: PartialEq>(ui: &mut Ui, value: &mut T, reset_value: T) {
+///
+/// The `text` could be something like "Reset foo".
+pub fn reset_button_with<T: PartialEq>(ui: &mut Ui, value: &mut T, text: &str, reset_value: T) {
     if ui
-        .add_enabled(*value != reset_value, Button::new("Reset"))
+        .add_enabled(*value != reset_value, Button::new(text))
         .clicked()
     {
         *value = reset_value;
@@ -109,48 +126,36 @@ pub fn reset_button_with<T: PartialEq>(ui: &mut Ui, value: &mut T, reset_value: 
 
 // ----------------------------------------------------------------------------
 
+#[deprecated = "Use `ui.add(&mut stroke)` instead"]
 pub fn stroke_ui(ui: &mut crate::Ui, stroke: &mut epaint::Stroke, text: &str) {
-    let epaint::Stroke { width, color } = stroke;
-    ui.horizontal(|ui| {
-        ui.add(DragValue::new(width).speed(0.1).clamp_range(0.0..=5.0))
-            .on_hover_text("Width");
-        ui.color_edit_button_srgba(color);
-        ui.label(text);
-
-        // stroke preview:
-        let (_id, stroke_rect) = ui.allocate_space(ui.spacing().interact_size);
-        let left = stroke_rect.left_center();
-        let right = stroke_rect.right_center();
-        ui.painter().line_segment([left, right], (*width, *color));
-    });
-}
-
-pub(crate) fn shadow_ui(ui: &mut Ui, shadow: &mut epaint::Shadow, text: &str) {
-    let epaint::Shadow { extrusion, color } = shadow;
     ui.horizontal(|ui| {
         ui.label(text);
-        ui.add(
-            DragValue::new(extrusion)
-                .speed(1.0)
-                .clamp_range(0.0..=100.0),
-        )
-        .on_hover_text("Extrusion");
-        ui.color_edit_button_srgba(color);
+        ui.add(stroke);
     });
 }
 
 /// Show a small button to switch to/from dark/light mode (globally).
-pub fn global_dark_light_mode_switch(ui: &mut Ui) {
-    let style: crate::Style = (*ui.ctx().style()).clone();
-    let new_visuals = style.visuals.light_dark_small_toggle_button(ui);
-    if let Some(visuals) = new_visuals {
-        ui.ctx().set_visuals(visuals);
+pub fn global_theme_preference_switch(ui: &mut Ui) {
+    if let Some(new_theme) = ui.ctx().theme().small_toggle_button(ui) {
+        ui.ctx().set_theme(new_theme);
     }
 }
 
 /// Show larger buttons for switching between light and dark mode (globally).
+pub fn global_theme_preference_buttons(ui: &mut Ui) {
+    let mut theme_preference = ui.ctx().options(|opt| opt.theme_preference);
+    theme_preference.radio_buttons(ui);
+    ui.ctx().set_theme(theme_preference);
+}
+
+/// Show a small button to switch to/from dark/light mode (globally).
+#[deprecated = "Use global_theme_preference_switch instead"]
+pub fn global_dark_light_mode_switch(ui: &mut Ui) {
+    global_theme_preference_switch(ui);
+}
+
+/// Show larger buttons for switching between light and dark mode (globally).
+#[deprecated = "Use global_theme_preference_buttons instead"]
 pub fn global_dark_light_mode_buttons(ui: &mut Ui) {
-    let mut visuals = ui.ctx().style().visuals.clone();
-    visuals.light_dark_radio_buttons(ui);
-    ui.ctx().set_visuals(visuals);
+    global_theme_preference_buttons(ui);
 }

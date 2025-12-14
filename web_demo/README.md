@@ -3,7 +3,7 @@ This folder contains the files required for the egui web demo hosted at <https:/
 ## Testing locally
 * Build with `scripts/build_demo_web.sh`
 * Host with `scripts/start_server.sh`
-* Open <http://localhost:8888/index.html>
+* Open <http://localhost:8765/index.html>
 
 ## Deploying egui.rs
-Each merge into `master` will trigger a new deploy
+Each merge into `main` will trigger a new deploy

@@ -1,4 +1,4 @@
-use egui::{Id, Pos2, Rect, Response, Sense, Ui};
+use egui::{Id, Pos2, Rect, Response, Sense, Ui, UiBuilder, emath::GuiRounding as _};
 
 #[derive(Clone, Copy)]
 pub(crate) enum CellSize {
@@ -33,6 +33,10 @@ pub(crate) struct StripLayoutFlags {
     pub(crate) striped: bool,
     pub(crate) hovered: bool,
     pub(crate) selected: bool,
+    pub(crate) overline: bool,
+
+    /// Used when we want to accurately measure the size of this cell.
+    pub(crate) sizing_pass: bool,
 }
 
 /// Positions cells in [`CellDirection`] and starts a new line on [`StripLayout::end_line`]
@@ -113,19 +117,19 @@ impl<'l> StripLayout<'l> {
         flags: StripLayoutFlags,
         width: CellSize,
         height: CellSize,
-        child_ui_id_source: Id,
+        child_ui_id_salt: Id,
         add_cell_contents: impl FnOnce(&mut Ui),
     ) -> (Rect, Response) {
         let max_rect = self.cell_rect(&width, &height);
 
         // Make sure we don't have a gap in the stripe/frame/selection background:
         let item_spacing = self.ui.spacing().item_spacing;
-        let gapless_rect = max_rect.expand2(0.5 * item_spacing);
+        let gapless_rect = max_rect.expand2(0.5 * item_spacing).round_ui();
 
         if flags.striped {
             self.ui.painter().rect_filled(
                 gapless_rect,
-                egui::Rounding::ZERO,
+                egui::CornerRadius::ZERO,
                 self.ui.visuals().faint_bg_color,
             );
         }
@@ -133,7 +137,7 @@ impl<'l> StripLayout<'l> {
         if flags.selected {
             self.ui.painter().rect_filled(
                 gapless_rect,
-                egui::Rounding::ZERO,
+                egui::CornerRadius::ZERO,
                 self.ui.visuals().selection.bg_fill,
             );
         }
@@ -141,26 +145,31 @@ impl<'l> StripLayout<'l> {
         if flags.hovered && !flags.selected && self.sense.interactive() {
             self.ui.painter().rect_filled(
                 gapless_rect,
-                egui::Rounding::ZERO,
+                egui::CornerRadius::ZERO,
                 self.ui.visuals().widgets.hovered.bg_fill,
             );
         }
 
-        let child_ui = self.cell(flags, max_rect, child_ui_id_source, add_cell_contents);
+        let mut child_ui = self.cell(flags, max_rect, child_ui_id_salt, add_cell_contents);
 
         let used_rect = child_ui.min_rect();
 
-        self.set_pos(max_rect);
+        // Make sure we catch clicks etc on the _whole_ cell:
+        child_ui.set_min_size(max_rect.size());
 
-        let allocation_rect = if flags.clip {
+        let allocation_rect = if self.ui.is_sizing_pass() {
+            used_rect
+        } else if flags.clip {
             max_rect
         } else {
-            max_rect.union(used_rect)
+            max_rect | used_rect
         };
+
+        self.set_pos(allocation_rect);
 
         self.ui.advance_cursor_after_rect(allocation_rect);
 
-        let response = child_ui.interact(max_rect, child_ui.id(), self.sense);
+        let response = child_ui.response();
 
         (used_rect, response)
     }
@@ -191,24 +200,45 @@ impl<'l> StripLayout<'l> {
     fn cell(
         &mut self,
         flags: StripLayoutFlags,
-        rect: Rect,
-        child_ui_id_source: egui::Id,
+        max_rect: Rect,
+        child_ui_id_salt: egui::Id,
         add_cell_contents: impl FnOnce(&mut Ui),
     ) -> Ui {
-        let mut child_ui =
-            self.ui
-                .child_ui_with_id_source(rect, self.cell_layout, child_ui_id_source);
+        let mut ui_builder = UiBuilder::new()
+            .id_salt(child_ui_id_salt)
+            .ui_stack_info(egui::UiStackInfo::new(egui::UiKind::TableCell))
+            .max_rect(max_rect)
+            .layout(self.cell_layout)
+            .sense(self.sense);
+        if flags.sizing_pass {
+            ui_builder = ui_builder.sizing_pass();
+        }
+
+        let mut child_ui = self.ui.new_child(ui_builder);
 
         if flags.clip {
             let margin = egui::Vec2::splat(self.ui.visuals().clip_rect_margin);
             let margin = margin.min(0.5 * self.ui.spacing().item_spacing);
-            let clip_rect = rect.expand2(margin);
-            child_ui.set_clip_rect(clip_rect.intersect(child_ui.clip_rect()));
+            let clip_rect = max_rect.expand2(margin);
+            child_ui.shrink_clip_rect(clip_rect);
+
+            if !child_ui.is_sizing_pass() {
+                // Better to truncate (if we can), rather than hard clipping:
+                child_ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
+            }
         }
 
         if flags.selected {
             let stroke_color = child_ui.style().visuals.selection.stroke.color;
             child_ui.style_mut().visuals.override_text_color = Some(stroke_color);
+        }
+
+        if flags.overline {
+            child_ui.painter().hline(
+                max_rect.x_range(),
+                max_rect.top(),
+                child_ui.visuals().widgets.noninteractive.bg_stroke,
+            );
         }
 
         add_cell_contents(&mut child_ui);

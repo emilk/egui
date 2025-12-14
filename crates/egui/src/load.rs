@@ -55,23 +55,21 @@
 mod bytes_loader;
 mod texture_loader;
 
-use std::borrow::Cow;
-use std::fmt::Debug;
-use std::ops::Deref;
-use std::{fmt::Display, sync::Arc};
+use std::{
+    borrow::Cow,
+    fmt::{Debug, Display},
+    ops::Deref,
+    sync::Arc,
+};
 
 use ahash::HashMap;
 
-use epaint::mutex::Mutex;
-use epaint::util::FloatOrd;
-use epaint::util::OrderedFloat;
-use epaint::TextureHandle;
-use epaint::{textures::TextureOptions, ColorImage, TextureId, Vec2};
+use emath::{Float as _, OrderedFloat};
+use epaint::{ColorImage, TextureHandle, TextureId, Vec2, mutex::Mutex, textures::TextureOptions};
 
 use crate::Context;
 
-pub use self::bytes_loader::DefaultBytesLoader;
-pub use self::texture_loader::DefaultTextureLoader;
+pub use self::{bytes_loader::DefaultBytesLoader, texture_loader::DefaultTextureLoader};
 
 /// Represents a failed attempt at loading an image.
 #[derive(Clone, Debug)]
@@ -79,16 +77,19 @@ pub enum LoadError {
     /// Programmer error: There are no image loaders installed.
     NoImageLoaders,
 
-    /// A specific loader does not support this scheme, protocol or image format.
+    /// A specific loader does not support this scheme or protocol.
     NotSupported,
+
+    /// A specific loader does not support the format of the image.
+    FormatNotSupported { detected_format: Option<String> },
 
     /// Programmer error: Failed to find the bytes for this image because
     /// there was no [`BytesLoader`] supporting the scheme.
     NoMatchingBytesLoader,
 
     /// Programmer error: Failed to parse the bytes as an image because
-    /// there was no [`ImageLoader`] supporting the scheme.
-    NoMatchingImageLoader,
+    /// there was no [`ImageLoader`] supporting the format.
+    NoMatchingImageLoader { detected_format: Option<String> },
 
     /// Programmer error: no matching [`TextureLoader`].
     /// Because of the [`DefaultTextureLoader`], this error should never happen.
@@ -96,6 +97,20 @@ pub enum LoadError {
 
     /// Runtime error: Loading was attempted, but failed (e.g. "File not found").
     Loading(String),
+}
+
+impl LoadError {
+    /// Returns the (approximate) size of the error message in bytes.
+    pub fn byte_size(&self) -> usize {
+        match self {
+            Self::FormatNotSupported { detected_format }
+            | Self::NoMatchingImageLoader { detected_format } => {
+                detected_format.as_ref().map_or(0, |s| s.len())
+            }
+            Self::Loading(message) => message.len(),
+            _ => std::mem::size_of::<Self>(),
+        }
+    }
 }
 
 impl Display for LoadError {
@@ -107,11 +122,14 @@ impl Display for LoadError {
 
             Self::NoMatchingBytesLoader => f.write_str("No matching BytesLoader. Either you need to call Context::include_bytes, or install some more bytes loaders, e.g. using egui_extras."),
 
-            Self::NoMatchingImageLoader => f.write_str("No matching ImageLoader. Either you need to call Context::include_bytes, or install some more bytes loaders, e.g. using egui_extras."),
+            Self::NoMatchingImageLoader { detected_format: None } => f.write_str("No matching ImageLoader. Either no ImageLoader is installed or the image is corrupted / has an unsupported format."),
+            Self::NoMatchingImageLoader { detected_format: Some(detected_format) } => write!(f, "No matching ImageLoader for format: {detected_format:?}. Make sure you enabled the necessary features on the image crate."),
 
             Self::NoMatchingTextureLoader => f.write_str("No matching TextureLoader. Did you remove the default one?"),
 
             Self::NotSupported => f.write_str("Image scheme or URI not supported by this loader"),
+
+            Self::FormatNotSupported { detected_format } => write!(f, "Image format not supported by this loader: {detected_format:?}"),
 
             Self::Loading(message) => f.write_str(message),
         }
@@ -125,34 +143,59 @@ pub type Result<T, E = LoadError> = std::result::Result<T, E>;
 /// Given as a hint for image loading requests.
 ///
 /// Used mostly for rendering SVG:s to a good size.
-///
-/// All variants will preserve the original aspect ratio.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// The [`SizeHint`] determines at what resolution the image should be rasterized.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum SizeHint {
-    /// Scale original size by some factor.
+    /// Scale original size by some factor, keeping the original aspect ratio.
+    ///
+    /// The original size of the image is usually its texel resolution,
+    /// but for an SVG it's the point size of the SVG.
+    ///
+    /// For instance, setting `Scale(2.0)` will rasterize SVG:s to twice their original size,
+    /// which is useful for high-DPI displays.
     Scale(OrderedFloat<f32>),
 
-    /// Scale to width.
+    /// Scale to exactly this pixel width, keeping the original aspect ratio.
     Width(u32),
 
-    /// Scale to height.
+    /// Scale to exactly this pixel height, keeping the original aspect ratio.
     Height(u32),
 
-    /// Scale to size.
-    Size(u32, u32),
+    /// Scale to this pixel size.
+    Size {
+        width: u32,
+        height: u32,
+
+        /// If true, the image will be as large as possible
+        /// while still fitting within the given width/height.
+        maintain_aspect_ratio: bool,
+    },
+}
+
+impl SizeHint {
+    /// Multiply size hint by a factor.
+    pub fn scale_by(self, factor: f32) -> Self {
+        match self {
+            Self::Scale(scale) => Self::Scale(OrderedFloat(factor * scale.0)),
+            Self::Width(width) => Self::Width((factor * width as f32).round() as _),
+            Self::Height(height) => Self::Height((factor * height as f32).round() as _),
+            Self::Size {
+                width,
+                height,
+                maintain_aspect_ratio,
+            } => Self::Size {
+                width: (factor * width as f32).round() as _,
+                height: (factor * height as f32).round() as _,
+                maintain_aspect_ratio,
+            },
+        }
+    }
 }
 
 impl Default for SizeHint {
     #[inline]
     fn default() -> Self {
         Self::Scale(1.0.ord())
-    }
-}
-
-impl From<Vec2> for SizeHint {
-    #[inline]
-    fn from(value: Vec2) -> Self {
-        Self::Size(value.x.round() as u32, value.y.round() as u32)
     }
 }
 
@@ -230,12 +273,16 @@ impl Deref for Bytes {
 pub enum BytesPoll {
     /// Bytes are being loaded.
     Pending {
+        /// Point size of the image.
+        ///
         /// Set if known (e.g. from a HTTP header, or by parsing the image file header).
         size: Option<Vec2>,
     },
 
     /// Bytes are loaded.
     Ready {
+        /// Point size of the image.
+        ///
         /// Set if known (e.g. from a HTTP header, or by parsing the image file header).
         size: Option<Vec2>,
 
@@ -303,12 +350,17 @@ pub trait BytesLoader {
 
     /// Implementations may use this to perform work at the end of a frame,
     /// such as evicting unused entries from a cache.
-    fn end_frame(&self, frame_index: usize) {
-        let _ = frame_index;
+    fn end_pass(&self, pass_index: u64) {
+        let _ = pass_index;
     }
 
     /// If the loader caches any data, this should return the size of that cache.
     fn byte_size(&self) -> usize;
+
+    /// Returns `true` if some data is currently being loaded.
+    fn has_pending(&self) -> bool {
+        false
+    }
 }
 
 /// Represents an image which is currently being loaded.
@@ -320,6 +372,8 @@ pub trait BytesLoader {
 pub enum ImagePoll {
     /// Image is loading.
     Pending {
+        /// Point size of the image.
+        ///
         /// Set if known (e.g. from a HTTP header, or by parsing the image file header).
         size: Option<Vec2>,
     },
@@ -333,7 +387,7 @@ pub type ImageLoadResult = Result<ImagePoll>;
 /// An `ImageLoader` decodes raw bytes into a [`ColorImage`].
 ///
 /// Implementations are expected to cache at least each `URI`.
-pub trait ImageLoader {
+pub trait ImageLoader: std::any::Any {
     /// Unique ID of this loader.
     ///
     /// To reduce the chance of collisions, include `module_path!()` as part of this ID.
@@ -368,20 +422,29 @@ pub trait ImageLoader {
     /// so that all of them may be fully reloaded.
     fn forget_all(&self);
 
-    /// Implementations may use this to perform work at the end of a frame,
+    /// Implementations may use this to perform work at the end of a pass,
     /// such as evicting unused entries from a cache.
-    fn end_frame(&self, frame_index: usize) {
-        let _ = frame_index;
+    fn end_pass(&self, pass_index: u64) {
+        let _ = pass_index;
     }
 
     /// If the loader caches any data, this should return the size of that cache.
     fn byte_size(&self) -> usize;
+
+    /// Returns `true` if some image is currently being loaded.
+    ///
+    /// NOTE: You probably also want to check [`BytesLoader::has_pending`].
+    fn has_pending(&self) -> bool {
+        false
+    }
 }
 
 /// A texture with a known size.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SizedTexture {
     pub id: TextureId,
+
+    /// Point size of the original SVG, or the size of the image in texels.
     pub size: Vec2,
 }
 
@@ -427,6 +490,8 @@ impl<'a> From<&'a TextureHandle> for SizedTexture {
 pub enum TexturePoll {
     /// Texture is loading.
     Pending {
+        /// Point size of the image.
+        ///
         /// Set if known (e.g. from a HTTP header, or by parsing the image file header).
         size: Option<Vec2>,
     },
@@ -436,6 +501,7 @@ pub enum TexturePoll {
 }
 
 impl TexturePoll {
+    /// Point size of the original SVG, or the size of the image in texels.
     #[inline]
     pub fn size(&self) -> Option<Vec2> {
         match self {
@@ -450,6 +516,16 @@ impl TexturePoll {
             Self::Pending { .. } => None,
             Self::Ready { texture } => Some(texture.id),
         }
+    }
+
+    #[inline]
+    pub fn is_pending(&self) -> bool {
+        matches!(self, Self::Pending { .. })
+    }
+
+    #[inline]
+    pub fn is_ready(&self) -> bool {
+        matches!(self, Self::Ready { .. })
     }
 }
 
@@ -506,10 +582,10 @@ pub trait TextureLoader {
     /// so that all of them may be fully reloaded.
     fn forget_all(&self);
 
-    /// Implementations may use this to perform work at the end of a frame,
+    /// Implementations may use this to perform work at the end of a pass,
     /// such as evicting unused entries from a cache.
-    fn end_frame(&self, frame_index: usize) {
-        let _ = frame_index;
+    fn end_pass(&self, pass_index: u64) {
+        let _ = pass_index;
     }
 
     /// If the loader caches any data, this should return the size of that cache.
@@ -538,6 +614,29 @@ impl Default for Loaders {
             // By default we only include `DefaultTextureLoader`.
             texture: Mutex::new(vec![Arc::new(DefaultTextureLoader::default())]),
             include,
+        }
+    }
+}
+
+impl Loaders {
+    /// The given pass has just ended.
+    pub fn end_pass(&self, pass_index: u64) {
+        let Self {
+            include,
+            bytes,
+            image,
+            texture,
+        } = self;
+
+        include.end_pass(pass_index);
+        for loader in bytes.lock().iter() {
+            loader.end_pass(pass_index);
+        }
+        for loader in image.lock().iter() {
+            loader.end_pass(pass_index);
+        }
+        for loader in texture.lock().iter() {
+            loader.end_pass(pass_index);
         }
     }
 }

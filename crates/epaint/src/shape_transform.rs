@@ -1,17 +1,49 @@
-use crate::*;
+use std::sync::Arc;
+
+use crate::{
+    CircleShape, Color32, ColorMode, CubicBezierShape, EllipseShape, Mesh, PathShape,
+    QuadraticBezierShape, RectShape, Shape, TextShape, color,
+};
 
 /// Remember to handle [`Color32::PLACEHOLDER`] specially!
-pub fn adjust_colors(shape: &mut Shape, adjust_color: &impl Fn(&mut Color32)) {
+pub fn adjust_colors(
+    shape: &mut Shape,
+    adjust_color: impl Fn(&mut Color32) + Send + Sync + Copy + 'static,
+) {
     #![allow(clippy::match_same_arms)]
     match shape {
         Shape::Noop => {}
+
         Shape::Vec(shapes) => {
             for shape in shapes {
                 adjust_colors(shape, adjust_color);
             }
         }
+
         Shape::LineSegment { stroke, points: _ } => {
             adjust_color(&mut stroke.color);
+        }
+
+        Shape::Path(PathShape {
+            points: _,
+            closed: _,
+            fill,
+            stroke,
+        })
+        | Shape::QuadraticBezier(QuadraticBezierShape {
+            points: _,
+            closed: _,
+            fill,
+            stroke,
+        })
+        | Shape::CubicBezier(CubicBezierShape {
+            points: _,
+            closed: _,
+            fill,
+            stroke,
+        }) => {
+            adjust_color(fill);
+            adjust_color_mode(&mut stroke.color, adjust_color);
         }
 
         Shape::Circle(CircleShape {
@@ -26,31 +58,15 @@ pub fn adjust_colors(shape: &mut Shape, adjust_color: &impl Fn(&mut Color32)) {
             fill,
             stroke,
         })
-        | Shape::Path(PathShape {
-            points: _,
-            closed: _,
-            fill,
-            stroke,
-        })
         | Shape::Rect(RectShape {
             rect: _,
-            rounding: _,
+            corner_radius: _,
             fill,
             stroke,
-            fill_texture_id: _,
-            uv: _,
-        })
-        | Shape::QuadraticBezier(QuadraticBezierShape {
-            points: _,
-            closed: _,
-            fill,
-            stroke,
-        })
-        | Shape::CubicBezier(CubicBezierShape {
-            points: _,
-            closed: _,
-            fill,
-            stroke,
+            stroke_kind: _,
+            round_to_pixels: _,
+            blur_width: _,
+            brush: _,
         }) => {
             adjust_color(fill);
             adjust_color(&mut stroke.color);
@@ -72,8 +88,9 @@ pub fn adjust_colors(shape: &mut Shape, adjust_color: &impl Fn(&mut Color32)) {
             }
 
             if !galley.is_empty() {
-                let galley = std::sync::Arc::make_mut(galley);
-                for row in &mut galley.rows {
+                let galley = Arc::make_mut(galley);
+                for placed_row in &mut galley.rows {
+                    let row = Arc::make_mut(&mut placed_row.row);
                     for vertex in &mut row.visuals.mesh.vertices {
                         adjust_color(&mut vertex.color);
                     }
@@ -81,11 +98,13 @@ pub fn adjust_colors(shape: &mut Shape, adjust_color: &impl Fn(&mut Color32)) {
             }
         }
 
-        Shape::Mesh(Mesh {
-            indices: _,
-            vertices,
-            texture_id: _,
-        }) => {
+        Shape::Mesh(mesh) => {
+            let Mesh {
+                indices: _,
+                vertices,
+                texture_id: _,
+            } = Arc::make_mut(mesh);
+
             for v in vertices {
                 adjust_color(&mut v.color);
             }
@@ -93,6 +112,23 @@ pub fn adjust_colors(shape: &mut Shape, adjust_color: &impl Fn(&mut Color32)) {
 
         Shape::Callback(_) => {
             // Can't tint user callback code
+        }
+    }
+}
+
+fn adjust_color_mode(
+    color_mode: &mut ColorMode,
+    adjust_color: impl Fn(&mut Color32) + Send + Sync + Copy + 'static,
+) {
+    match color_mode {
+        color::ColorMode::Solid(color) => adjust_color(color),
+        color::ColorMode::UV(callback) => {
+            let callback = callback.clone();
+            *color_mode = color::ColorMode::UV(Arc::new(Box::new(move |rect, pos| {
+                let mut color = callback(rect, pos);
+                adjust_color(&mut color);
+                color
+            })));
         }
     }
 }

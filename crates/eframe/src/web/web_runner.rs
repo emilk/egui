@@ -1,15 +1,16 @@
-use std::{
-    cell::{Cell, RefCell},
-    rc::Rc,
-};
+use std::{cell::RefCell, rc::Rc};
 
 use wasm_bindgen::prelude::*;
 
-use crate::{epi, App};
+use crate::{App, epi};
 
-use super::{events, AppRunner, PanicHandler};
+use super::{
+    AppRunner, PanicHandler,
+    events::{self, ResizeObserverContext},
+    text_agent::TextAgent,
+};
 
-/// This is how `eframe` runs your wepp application
+/// This is how `eframe` runs your web application
 ///
 /// This is cheap to clone.
 ///
@@ -19,67 +20,77 @@ pub struct WebRunner {
     /// Have we ever panicked?
     panic_handler: PanicHandler,
 
-    /// If we ever panic during running, this RefCell is poisoned.
+    /// If we ever panic during running, this `RefCell` is poisoned.
     /// So before we use it, we need to check [`Self::panic_handler`].
-    runner: Rc<RefCell<Option<AppRunner>>>,
+    app_runner: Rc<RefCell<Option<AppRunner>>>,
 
     /// In case of a panic, unsubscribe these.
     /// They have to be in a separate `Rc` so that we don't need to pass them to
     /// the panic handler, since they aren't `Send`.
     events_to_unsubscribe: Rc<RefCell<Vec<EventToUnsubscribe>>>,
 
-    /// Used in `destroy` to cancel a pending frame.
-    request_animation_frame_id: Cell<Option<i32>>,
+    /// Current animation frame in flight.
+    frame: Rc<RefCell<Option<AnimationFrameRequest>>>,
+
+    resize_observer: Rc<RefCell<Option<ResizeObserverContext>>>,
 }
 
 impl WebRunner {
     /// Will install a panic handler that will catch and log any panics
-    #[allow(clippy::new_without_default)]
+    #[expect(clippy::new_without_default)]
     pub fn new() -> Self {
-        #[cfg(not(web_sys_unstable_apis))]
-        log::warn!(
-            "eframe compiled without RUSTFLAGS='--cfg=web_sys_unstable_apis'. Copying text won't work."
-        );
-
         let panic_handler = PanicHandler::install();
 
         Self {
             panic_handler,
-            runner: Rc::new(RefCell::new(None)),
+            app_runner: Rc::new(RefCell::new(None)),
             events_to_unsubscribe: Rc::new(RefCell::new(Default::default())),
-            request_animation_frame_id: Cell::new(None),
+            frame: Default::default(),
+            resize_observer: Default::default(),
         }
     }
 
     /// Create the application, install callbacks, and start running the app.
     ///
     /// # Errors
-    /// Failing to initialize graphics.
+    /// Failing to initialize graphics, or failure to create app.
     pub async fn start(
         &self,
-        canvas_id: &str,
+        canvas: web_sys::HtmlCanvasElement,
         web_options: crate::WebOptions,
-        app_creator: epi::AppCreator,
+        app_creator: epi::AppCreator<'static>,
     ) -> Result<(), JsValue> {
         self.destroy();
 
-        let follow_system_theme = web_options.follow_system_theme;
+        {
+            // Make sure the canvas can be given focus.
+            // https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/tabindex
+            canvas.set_tab_index(0);
 
-        let runner = AppRunner::new(canvas_id, web_options, app_creator).await?;
-        self.runner.replace(Some(runner));
+            // Don't outline the canvas when it has focus:
+            canvas.style().set_property("outline", "none")?;
+        }
 
         {
-            events::install_canvas_events(self)?;
-            events::install_document_events(self)?;
-            events::install_window_events(self)?;
-            super::text_agent::install_text_agent(self)?;
-
-            if follow_system_theme {
-                events::install_color_scheme_change_event(self)?;
-            }
-
-            self.request_animation_frame()?;
+            // First set up the app runner:
+            let text_agent = TextAgent::attach(self, canvas.get_root_node())?;
+            let app_runner =
+                AppRunner::new(canvas.clone(), web_options, app_creator, text_agent).await?;
+            self.app_runner.replace(Some(app_runner));
         }
+
+        {
+            let resize_observer = events::ResizeObserverContext::new(self)?;
+
+            // Properly size the canvas. Will also call `self.request_animation_frame()` (eventually)
+            resize_observer.observe(&canvas);
+
+            self.resize_observer.replace(Some(resize_observer));
+        }
+
+        events::install_event_handlers(self)?;
+
+        log::info!("event handlers installed.");
 
         Ok(())
     }
@@ -109,18 +120,20 @@ impl WebRunner {
                 }
             }
         }
+
+        self.resize_observer.replace(None);
     }
 
     /// Shut down eframe and clean up resources.
     pub fn destroy(&self) {
         self.unsubscribe_from_all_events();
 
-        if let Some(id) = self.request_animation_frame_id.get() {
+        if let Some(frame) = self.frame.take() {
             let window = web_sys::window().unwrap();
-            window.cancel_animation_frame(id).ok();
+            window.cancel_animation_frame(frame.id).ok();
         }
 
-        if let Some(runner) = self.runner.replace(None) {
+        if let Some(runner) = self.app_runner.replace(None) {
             runner.destroy();
         }
     }
@@ -134,7 +147,7 @@ impl WebRunner {
             self.unsubscribe_from_all_events();
             None
         } else {
-            let lock = self.runner.try_borrow_mut().ok()?;
+            let lock = self.app_runner.try_borrow_mut().ok()?;
             std::cell::RefMut::filter_map(lock, |lock| -> Option<&mut AppRunner> { lock.as_mut() })
                 .ok()
         }
@@ -162,20 +175,45 @@ impl WebRunner {
         event_name: &'static str,
         mut closure: impl FnMut(E, &mut AppRunner) + 'static,
     ) -> Result<(), wasm_bindgen::JsValue> {
-        let runner_ref = self.clone();
+        let options = web_sys::AddEventListenerOptions::default();
+        self.add_event_listener_ex(
+            target,
+            event_name,
+            &options,
+            move |event, app_runner, _web_runner| closure(event, app_runner),
+        )
+    }
+
+    /// Convenience function to reduce boilerplate and ensure that all event handlers
+    /// are dealt with in the same way.
+    ///
+    /// All events added with this method will automatically be unsubscribed on panic,
+    /// or when [`Self::destroy`] is called.
+    pub fn add_event_listener_ex<E: wasm_bindgen::JsCast>(
+        &self,
+        target: &web_sys::EventTarget,
+        event_name: &'static str,
+        options: &web_sys::AddEventListenerOptions,
+        mut closure: impl FnMut(E, &mut AppRunner, &Self) + 'static,
+    ) -> Result<(), wasm_bindgen::JsValue> {
+        let web_runner = self.clone();
 
         // Create a JS closure based on the FnMut provided
         let closure = Closure::wrap(Box::new(move |event: web_sys::Event| {
             // Only call the wrapped closure if the egui code has not panicked
-            if let Some(mut runner_lock) = runner_ref.try_lock() {
+            if let Some(mut runner_lock) = web_runner.try_lock() {
                 // Cast the event to the expected event type
                 let event = event.unchecked_into::<E>();
-                closure(event, &mut runner_lock);
+                closure(event, &mut runner_lock, &web_runner);
             }
         }) as Box<dyn FnMut(web_sys::Event)>);
 
         // Add the event listener to the target
-        target.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
+        target.add_event_listener_with_callback_and_add_event_listener_options(
+            event_name,
+            closure.as_ref().unchecked_ref(),
+            options,
+        )?;
 
         let handle = TargetEvent {
             target: target.clone(),
@@ -192,20 +230,49 @@ impl WebRunner {
         Ok(())
     }
 
+    /// Request an animation frame from the browser in which we can perform a paint.
+    ///
+    /// It is safe to call `request_animation_frame` multiple times in quick succession,
+    /// this function guarantees that only one animation frame is scheduled at a time.
     pub(crate) fn request_animation_frame(&self) -> Result<(), wasm_bindgen::JsValue> {
+        if self.frame.borrow().is_some() {
+            // there is already an animation frame in flight
+            return Ok(());
+        }
+
         let window = web_sys::window().unwrap();
         let closure = Closure::once({
-            let runner_ref = self.clone();
-            move || events::paint_and_schedule(&runner_ref)
+            let web_runner = self.clone();
+            move || {
+                // We can paint now, so clear the animation frame.
+                // This drops the `closure` and allows another
+                // animation frame to be scheduled
+                let _ = web_runner.frame.take();
+                events::paint_and_schedule(&web_runner)
+            }
         });
+
         let id = window.request_animation_frame(closure.as_ref().unchecked_ref())?;
-        self.request_animation_frame_id.set(Some(id));
-        closure.forget(); // We must forget it, or else the callback is canceled on drop
+        self.frame.borrow_mut().replace(AnimationFrameRequest {
+            id,
+            _closure: closure,
+        });
+
         Ok(())
     }
 }
 
 // ----------------------------------------------------------------------------
+
+// https://rustwasm.github.io/wasm-bindgen/api/wasm_bindgen/closure/struct.Closure.html#using-fnonce-and-closureonce-with-requestanimationframe
+struct AnimationFrameRequest {
+    /// Represents the ID of a frame in flight.
+    id: i32,
+
+    /// The callback given to `request_animation_frame`, stored here both to prevent it
+    /// from being canceled, and from having to `.forget()` it.
+    _closure: Closure<dyn FnMut() -> Result<(), JsValue>>,
+}
 
 struct TargetEvent {
     target: web_sys::EventTarget,
@@ -213,7 +280,7 @@ struct TargetEvent {
     closure: Closure<dyn FnMut(web_sys::Event)>,
 }
 
-#[allow(unused)]
+#[expect(unused)]
 struct IntervalHandle {
     handle: i32,
     closure: Closure<dyn FnMut()>,
@@ -222,7 +289,7 @@ struct IntervalHandle {
 enum EventToUnsubscribe {
     TargetEvent(TargetEvent),
 
-    #[allow(unused)]
+    #[expect(unused)]
     IntervalHandle(IntervalHandle),
 }
 

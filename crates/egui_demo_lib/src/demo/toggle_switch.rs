@@ -38,7 +38,9 @@ pub fn toggle_ui(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
     }
 
     // Attach some meta-data to the response which can be used by screen readers:
-    response.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::Checkbox, *on, ""));
+    response.widget_info(|| {
+        egui::WidgetInfo::selected(egui::WidgetType::Checkbox, ui.is_enabled(), *on, "")
+    });
 
     // 4. Paint!
     // Make sure we need to paint:
@@ -46,7 +48,7 @@ pub fn toggle_ui(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
         // Let's ask for a simple animation from egui.
         // egui keeps track of changes in the boolean associated with the id and
         // returns an animated value in the 0-1 range for how much "on" we are.
-        let how_on = ui.ctx().animate_bool(response.id, *on);
+        let how_on = ui.ctx().animate_bool_responsive(response.id, *on);
         // We will follow the current style by asking
         // "how should something that is being interacted with be painted?".
         // This will, for instance, give us different colors when the widget is hovered or clicked.
@@ -54,8 +56,13 @@ pub fn toggle_ui(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
         // All coordinates are in absolute screen coordinates so we use `rect` to place the elements.
         let rect = rect.expand(visuals.expansion);
         let radius = 0.5 * rect.height();
-        ui.painter()
-            .rect(rect, radius, visuals.bg_fill, visuals.bg_stroke);
+        ui.painter().rect(
+            rect,
+            radius,
+            visuals.bg_fill,
+            visuals.bg_stroke,
+            egui::StrokeKind::Inside,
+        );
         // Paint the circle, animating it from left to right with `how_on`:
         let circle_x = egui::lerp((rect.left() + radius)..=(rect.right() - radius), how_on);
         let center = egui::pos2(circle_x, rect.center().y);
@@ -69,7 +76,7 @@ pub fn toggle_ui(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
 }
 
 /// Here is the same code again, but a bit more compact:
-#[allow(dead_code)]
+#[expect(dead_code)]
 fn toggle_ui_compact(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
     let desired_size = ui.spacing().interact_size.y * egui::vec2(2.0, 1.0);
     let (rect, mut response) = ui.allocate_exact_size(desired_size, egui::Sense::click());
@@ -77,15 +84,22 @@ fn toggle_ui_compact(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
         *on = !*on;
         response.mark_changed();
     }
-    response.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::Checkbox, *on, ""));
+    response.widget_info(|| {
+        egui::WidgetInfo::selected(egui::WidgetType::Checkbox, ui.is_enabled(), *on, "")
+    });
 
     if ui.is_rect_visible(rect) {
-        let how_on = ui.ctx().animate_bool(response.id, *on);
+        let how_on = ui.ctx().animate_bool_responsive(response.id, *on);
         let visuals = ui.style().interact_selectable(&response, *on);
         let rect = rect.expand(visuals.expansion);
         let radius = 0.5 * rect.height();
-        ui.painter()
-            .rect(rect, radius, visuals.bg_fill, visuals.bg_stroke);
+        ui.painter().rect(
+            rect,
+            radius,
+            visuals.bg_fill,
+            visuals.bg_stroke,
+            egui::StrokeKind::Inside,
+        );
         let circle_x = egui::lerp((rect.left() + radius)..=(rect.right() - radius), how_on);
         let center = egui::pos2(circle_x, rect.center().y);
         ui.painter()
@@ -107,5 +121,5 @@ pub fn toggle(on: &mut bool) -> impl egui::Widget + '_ {
 }
 
 pub fn url_to_file_source_code() -> String {
-    format!("https://github.com/emilk/egui/blob/master/{}", file!())
+    format!("https://github.com/emilk/egui/blob/main/{}", file!())
 }

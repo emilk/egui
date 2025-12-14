@@ -56,7 +56,7 @@ struct PanicHandlerInner {
 
 /// Contains a summary about a panics.
 ///
-/// This is basically a human-readable version of [`std::panic::PanicInfo`]
+/// This is basically a human-readable version of [`std::panic::PanicHookInfo`]
 /// with an added callstack.
 #[derive(Clone, Debug)]
 pub struct PanicSummary {
@@ -66,7 +66,7 @@ pub struct PanicSummary {
 
 impl PanicSummary {
     /// Construct a summary from a panic.
-    pub fn new(info: &std::panic::PanicInfo<'_>) -> Self {
+    pub fn new(info: &std::panic::PanicHookInfo<'_>) -> Self {
         let message = info.to_string();
         let callstack = Error::new().stack();
         Self { message, callstack }

@@ -9,12 +9,9 @@ set -x
 # Checks all tests, lints etc.
 # Basically does what the CI does.
 
-cargo install --quiet cargo-cranky # Uses lints defined in Cranky.toml. See https://github.com/ericseppanen/cargo-cranky
-cargo +1.75.0 install --quiet typos-cli
+# cargo +1.88.0 install --quiet typos-cli
 
-# web_sys_unstable_apis is required to enable the web_sys clipboard API which eframe web uses,
-# as well as by the wasm32-backend of the wgpu crate.
-export RUSTFLAGS="--cfg=web_sys_unstable_apis -D warnings"
+export RUSTFLAGS="-D warnings"
 export RUSTDOCFLAGS="-D warnings" # https://github.com/emilk/egui/pull/1454
 
 # Fast checks first:
@@ -23,33 +20,35 @@ typos
 cargo fmt --all -- --check
 cargo doc --quiet --lib --no-deps --all-features
 cargo doc --quiet --document-private-items --no-deps --all-features
+cargo clippy --quiet --all-targets --all-features -- -D warnings
+cargo clippy --quiet --all-targets --all-features --release -- -D warnings # we need to check release mode too
 
-cargo cranky --quiet --all-targets --all-features -- -D warnings
 ./scripts/clippy_wasm.sh
 
 cargo check --quiet  --all-targets
 cargo check --quiet  --all-targets --all-features
 cargo check --quiet  -p egui_demo_app --lib --target wasm32-unknown-unknown
 cargo check --quiet  -p egui_demo_app --lib --target wasm32-unknown-unknown --all-features
+# TODO(#5297) re-enable --all-features once the tests work with the unity feature
 cargo test  --quiet --all-targets --all-features
 cargo test  --quiet --doc # slow - checks all doc-tests
 
 cargo check --quiet -p eframe --no-default-features --features "glow"
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-  cargo check --quiet -p eframe --no-default-features --features "wgpu","x11"
-  cargo check --quiet -p eframe --no-default-features --features "wgpu","wayland"
+    cargo check --quiet -p eframe --no-default-features --features "wgpu","x11"
+    cargo check --quiet -p eframe --no-default-features --features "wgpu","wayland"
 else
-  cargo check --quiet -p eframe --no-default-features --features "wgpu"
+    cargo check --quiet -p eframe --no-default-features --features "wgpu"
 fi
 
 cargo check --quiet -p egui --no-default-features --features "serde"
 cargo check --quiet -p egui_demo_app --no-default-features --features "glow"
 
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-  cargo check --quiet -p egui_demo_app --no-default-features --features "wgpu","x11"
-  cargo check --quiet -p egui_demo_app --no-default-features --features "wgpu","wayland"
+    cargo check --quiet -p egui_demo_app --no-default-features --features "wgpu","x11"
+    cargo check --quiet -p egui_demo_app --no-default-features --features "wgpu","wayland"
 else
-  cargo check --quiet -p egui_demo_app --no-default-features --features "wgpu"
+    cargo check --quiet -p egui_demo_app --no-default-features --features "wgpu"
 fi
 
 cargo check --quiet -p egui_demo_lib --no-default-features

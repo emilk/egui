@@ -1,6 +1,6 @@
 //! How mouse and touch interzcts with widgets.
 
-use crate::*;
+use crate::{Id, InputState, Key, WidgetRects, hit_test, id, input_state, memory};
 
 use self::{hit_test::WidgetHits, id::IdSet, input_state::PointerEvent, memory::InteractionState};
 
@@ -28,7 +28,7 @@ pub struct InteractionSnapshot {
     /// Set the same frame a drag starts,
     /// but unset the frame a drag ends.
     ///
-    /// NOTE: this may not have a corresponding [`WidgetRect`],
+    /// NOTE: this may not have a corresponding [`crate::WidgetRect`],
     /// if this for instance is a drag-and-drop widget which
     /// isn't painted whilst being dragged
     pub dragged: Option<Id>,
@@ -113,26 +113,32 @@ pub(crate) fn interact(
     input: &InputState,
     interaction: &mut InteractionState,
 ) -> InteractionSnapshot {
-    crate::profile_function!();
+    profiling::function_scope!();
 
-    if let Some(id) = interaction.potential_click_id {
-        if !widgets.contains(id) {
-            // The widget we were interested in clicking is gone.
-            interaction.potential_click_id = None;
-        }
+    if let Some(id) = interaction.potential_click_id
+        && !widgets.contains(id)
+    {
+        // The widget we were interested in clicking is gone.
+        interaction.potential_click_id = None;
     }
-    if let Some(id) = interaction.potential_drag_id {
-        if !widgets.contains(id) {
-            // The widget we were interested in dragging is gone.
-            // This is fine! This could be drag-and-drop,
-            // and the widget being dragged is now "in the air" and thus
-            // not registered in the new frame.
-        }
+    if let Some(id) = interaction.potential_drag_id
+        && !widgets.contains(id)
+    {
+        // The widget we were interested in dragging is gone.
+        // This is fine! This could be drag-and-drop,
+        // and the widget being dragged is now "in the air" and thus
+        // not registered in the new frame.
     }
 
     let mut clicked = None;
     let mut dragged = prev_snapshot.dragged;
     let mut long_touched = None;
+
+    if input.key_pressed(Key::Escape) {
+        // Abort dragging on escape
+        dragged = None;
+        interaction.potential_drag_id = None;
+    }
 
     if input.is_long_touch() {
         // We implement "press-and-hold for context menu" on touch screens here
@@ -166,13 +172,13 @@ pub(crate) fn interact(
             }
 
             PointerEvent::Released { click, button: _ } => {
-                if click.is_some() && !input.pointer.is_decidedly_dragging() {
-                    if let Some(widget) = interaction
+                if click.is_some()
+                    && !input.pointer.is_decidedly_dragging()
+                    && let Some(widget) = interaction
                         .potential_click_id
                         .and_then(|id| widgets.get(id))
-                    {
-                        clicked = Some(widget.id);
-                    }
+                {
+                    clicked = Some(widget.id);
                 }
 
                 interaction.potential_drag_id = None;
@@ -184,21 +190,21 @@ pub(crate) fn interact(
 
     if dragged.is_none() {
         // Check if we started dragging something new:
-        if let Some(widget) = interaction.potential_drag_id.and_then(|id| widgets.get(id)) {
-            if widget.enabled {
-                let is_dragged = if widget.sense.click && widget.sense.drag {
-                    // This widget is sensitive to both clicks and drags.
-                    // When the mouse first is pressed, it could be either,
-                    // so we postpone the decision until we know.
-                    input.pointer.is_decidedly_dragging()
-                } else {
-                    // This widget is just sensitive to drags, so we can mark it as dragged right away:
-                    widget.sense.drag
-                };
+        if let Some(widget) = interaction.potential_drag_id.and_then(|id| widgets.get(id))
+            && widget.enabled
+        {
+            let is_dragged = if widget.sense.senses_click() && widget.sense.senses_drag() {
+                // This widget is sensitive to both clicks and drags.
+                // When the mouse first is pressed, it could be either,
+                // so we postpone the decision until we know.
+                input.pointer.is_decidedly_dragging()
+            } else {
+                // This widget is just sensitive to drags, so we can mark it as dragged right away:
+                widget.sense.senses_drag()
+            };
 
-                if is_dragged {
-                    dragged = Some(widget.id);
-                }
+            if is_dragged {
+                dragged = Some(widget.id);
             }
         }
     }
@@ -242,18 +248,43 @@ pub(crate) fn interact(
             .chain(&long_touched)
             .copied()
             .collect()
-    } else if hits.click.is_some() || hits.drag.is_some() {
-        // We are hovering over an interactive widget or two.
-        hits.click.iter().chain(&hits.drag).map(|w| w.id).collect()
     } else {
-        // Whatever is topmost is what we are hovering.
-        // TODO: consider handle hovering over multiple top-most widgets?
-        // TODO: allow hovering close widgets?
-        hits.contains_pointer
-            .last()
-            .map(|w| w.id)
-            .into_iter()
-            .collect()
+        // We may be hovering an interactive widget or two.
+        // We must also consider the case where non-interactive widgets
+        // are _on top_ of an interactive widget.
+        // For instance: a label in a draggable window.
+        // In that case we want to hover _both_ widgets,
+        // otherwise we won't see tooltips for the label.
+        //
+        // So: we want to hover _all_ widgets above the interactive widget (if any),
+        // but none below it (an interactive widget stops the hover search).
+        //
+        // To know when to stop we need to first know the order of the widgets,
+        // which luckily we already have in `hits.close`.
+
+        let order = |id| hits.close.iter().position(|w| w.id == id);
+
+        let click_order = hits.click.and_then(|w| order(w.id)).unwrap_or(0);
+        let drag_order = hits.drag.and_then(|w| order(w.id)).unwrap_or(0);
+        let top_interactive_order = click_order.max(drag_order);
+
+        let mut hovered: IdSet = hits.click.iter().chain(&hits.drag).map(|w| w.id).collect();
+
+        for w in &hits.contains_pointer {
+            let is_interactive = w.sense.senses_click() || w.sense.senses_drag();
+            if is_interactive {
+                // The only interactive widgets we mark as hovered are the ones
+                // in `hits.click` and `hits.drag`!
+            } else {
+                let is_on_top_of_the_interactive_widget =
+                    top_interactive_order <= order(w.id).unwrap_or(0);
+                if is_on_top_of_the_interactive_widget {
+                    hovered.insert(w.id);
+                }
+            }
+        }
+
+        hovered
     };
 
     InteractionSnapshot {
@@ -262,7 +293,7 @@ pub(crate) fn interact(
         drag_started,
         dragged,
         drag_stopped,
-        contains_pointer,
         hovered,
+        contains_pointer,
     }
 }

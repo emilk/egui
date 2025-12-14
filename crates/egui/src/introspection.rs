@@ -1,5 +1,8 @@
 //! Showing UI:s for egui/epaint types.
-use crate::*;
+use crate::{
+    Color32, CursorIcon, FontFamily, FontId, Label, Mesh, NumExt as _, Rect, Response, Sense,
+    Shape, Slider, TextStyle, TextWrapMode, Ui, Widget, epaint, memory, pos2, remap_clamp, vec2,
+};
 
 pub fn font_family_ui(ui: &mut Ui, font_family: &mut FontFamily) {
     let families = ui.fonts(|f| f.families());
@@ -129,7 +132,7 @@ impl Widget for &epaint::stats::PaintStats {
 }
 
 fn label(ui: &mut Ui, alloc_info: &epaint::stats::AllocInfo, what: &str) -> Response {
-    ui.add(Label::new(alloc_info.format(what)).wrap(false))
+    ui.add(Label::new(alloc_info.format(what)).wrap_mode(TextWrapMode::Extend))
 }
 
 impl Widget for &mut epaint::TessellationOptions {
@@ -141,6 +144,8 @@ impl Widget for &mut epaint::TessellationOptions {
                 coarse_tessellation_culling,
                 prerasterized_discs,
                 round_text_to_pixels,
+                round_line_segments_to_pixels,
+                round_rects_to_pixels,
                 debug_paint_clip_rects,
                 debug_paint_text_rects,
                 debug_ignore_clip_rects,
@@ -150,33 +155,24 @@ impl Widget for &mut epaint::TessellationOptions {
                 validate_meshes,
             } = self;
 
-            ui.checkbox(feathering, "Feathering (antialias)")
-                .on_hover_text("Apply feathering to smooth out the edges of shapes. Turn off for small performance gain.");
-            let feathering_slider = crate::Slider::new(feathering_size_in_pixels, 0.0..=10.0)
-                .smallest_positive(0.1)
-                .logarithmic(true)
-                .text("Feathering size in pixels");
-            ui.add_enabled(*feathering, feathering_slider);
+            ui.horizontal(|ui| {
+                ui.checkbox(feathering, "Feathering (antialias)")
+                    .on_hover_text("Apply feathering to smooth out the edges of shapes. Turn off for small performance gain.");
+
+                if *feathering {
+                    ui.add(crate::DragValue::new(feathering_size_in_pixels).range(0.0..=10.0).speed(0.025).suffix(" px"));
+                }
+            });
 
             ui.checkbox(prerasterized_discs, "Speed up filled circles with pre-rasterization");
 
-            ui.add(
-                crate::widgets::Slider::new(bezier_tolerance, 0.0001..=10.0)
-                    .logarithmic(true)
-                    .show_value(true)
-                    .text("Spline Tolerance"),
-            );
-            ui.collapsing("debug", |ui| {
-                ui.checkbox(
-                    coarse_tessellation_culling,
-                    "Do coarse culling in the tessellator",
+            ui.horizontal(|ui| {
+                ui.label("Spline tolerance");
+                let speed = 0.01 * *bezier_tolerance;
+                ui.add(
+                    crate::DragValue::new(bezier_tolerance).range(0.0001..=10.0)
+                        .speed(speed)
                 );
-                ui.checkbox(round_text_to_pixels, "Align text positions to pixel grid")
-                    .on_hover_text("Most text already is, so don't expect to see a large change.");
-
-                ui.checkbox(debug_ignore_clip_rects, "Ignore clip rectangles");
-                ui.checkbox(debug_paint_clip_rects, "Paint clip rectangles");
-                ui.checkbox(debug_paint_text_rects, "Paint text bounds");
             });
 
             ui.add_enabled(epaint::HAS_RAYON, crate::Checkbox::new(parallel_tessellation, "Parallelize tessellation")
@@ -184,6 +180,28 @@ impl Widget for &mut epaint::TessellationOptions {
                 .on_disabled_hover_text("epaint was not compiled with the rayon feature");
 
             ui.checkbox(validate_meshes, "Validate meshes").on_hover_text("Check that incoming meshes are valid, i.e. that all indices are in range, etc.");
+
+            ui.collapsing("Align to pixel grid", |ui| {
+                ui.checkbox(round_text_to_pixels, "Text")
+                    .on_hover_text("Most text already is, so don't expect to see a large change.");
+
+                ui.checkbox(round_line_segments_to_pixels, "Line segments")
+                    .on_hover_text("Makes line segments appear crisp on any display.");
+
+                ui.checkbox(round_rects_to_pixels, "Rectangles")
+                    .on_hover_text("Makes line segments appear crisp on any display.");
+            });
+
+            ui.collapsing("Debug", |ui| {
+                ui.checkbox(
+                    coarse_tessellation_culling,
+                    "Do coarse culling in the tessellator",
+                );
+
+                ui.checkbox(debug_ignore_clip_rects, "Ignore clip rectangles");
+                ui.checkbox(debug_paint_clip_rects, "Paint clip rectangles");
+                ui.checkbox(debug_paint_text_rects, "Paint text bounds");
+            });
         })
         .response
     }

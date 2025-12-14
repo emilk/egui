@@ -22,14 +22,18 @@ const VERT_SRC: &str = include_str!("shader/vertex.glsl");
 const FRAG_SRC: &str = include_str!("shader/fragment.glsl");
 
 trait TextureFilterExt {
-    fn glow_code(&self) -> u32;
+    fn glow_code(&self, mipmap: Option<egui::TextureFilter>) -> u32;
 }
 
 impl TextureFilterExt for egui::TextureFilter {
-    fn glow_code(&self) -> u32 {
-        match self {
-            Self::Linear => glow::LINEAR,
-            Self::Nearest => glow::NEAREST,
+    fn glow_code(&self, mipmap: Option<egui::TextureFilter>) -> u32 {
+        match (self, mipmap) {
+            (Self::Linear, None) => glow::LINEAR,
+            (Self::Nearest, None) => glow::NEAREST,
+            (Self::Linear, Some(Self::Linear)) => glow::LINEAR_MIPMAP_LINEAR,
+            (Self::Nearest, Some(Self::Linear)) => glow::NEAREST_MIPMAP_LINEAR,
+            (Self::Linear, Some(Self::Nearest)) => glow::LINEAR_MIPMAP_NEAREST,
+            (Self::Nearest, Some(Self::Nearest)) => glow::NEAREST_MIPMAP_NEAREST,
         }
     }
 }
@@ -109,7 +113,7 @@ pub struct Painter {
 ///
 /// # Example
 ///
-/// See the [`custom3d_glow`](https://github.com/emilk/egui/blob/master/crates/egui_demo_app/src/apps/custom3d_wgpu.rs) demo source for a detailed usage example.
+/// See the [`custom3d_glow`](https://github.com/emilk/egui/blob/main/crates/egui_demo_app/src/apps/custom3d_wgpu.rs) demo source for a detailed usage example.
 pub struct CallbackFn {
     f: Box<dyn Fn(PaintCallbackInfo, &Painter) + Sync + Send>,
 }
@@ -138,8 +142,9 @@ impl Painter {
         gl: Arc<glow::Context>,
         shader_prefix: &str,
         shader_version: Option<ShaderVersion>,
+        dithering: bool,
     ) -> Result<Self, PainterError> {
-        crate::profile_function!();
+        profiling::function_scope!();
         crate::check_for_gl_error_even_in_release!(&gl, "before Painter::new");
 
         // some useful debug info. all three of them are present in gl 1.1.
@@ -163,23 +168,18 @@ impl Painter {
         let shader_version = shader_version.unwrap_or_else(|| ShaderVersion::get(&gl));
         let is_webgl_1 = shader_version == ShaderVersion::Es100;
         let shader_version_declaration = shader_version.version_declaration();
-        log::debug!("Shader header: {:?}.", shader_version_declaration);
+        log::debug!("Shader header: {shader_version_declaration:?}.");
 
         let supported_extensions = gl.supported_extensions();
         log::trace!("OpenGL extensions: {supported_extensions:?}");
-        let srgb_textures = shader_version == ShaderVersion::Es300 // WebGL2 always support sRGB
-            || supported_extensions.iter().any(|extension| {
-                // EXT_sRGB, GL_ARB_framebuffer_sRGB, GL_EXT_sRGB, GL_EXT_texture_sRGB_decode, …
-                extension.contains("sRGB")
-            });
-        log::debug!("SRGB texture Support: {:?}", srgb_textures);
+        let srgb_textures = false; // egui wants normal sRGB-unaware textures
 
         let supports_srgb_framebuffer = !cfg!(target_arch = "wasm32")
             && supported_extensions.iter().any(|extension| {
                 // {GL,GLX,WGL}_ARB_framebuffer_sRGB, …
                 extension.ends_with("ARB_framebuffer_sRGB")
             });
-        log::debug!("SRGB framebuffer Support: {:?}", supports_srgb_framebuffer);
+        log::debug!("SRGB framebuffer Support: {supports_srgb_framebuffer}");
 
         unsafe {
             let vert = compile_shader(
@@ -197,10 +197,10 @@ impl Painter {
                 &gl,
                 glow::FRAGMENT_SHADER,
                 &format!(
-                    "{}\n#define NEW_SHADER_INTERFACE {}\n#define SRGB_TEXTURES {}\n{}\n{}",
+                    "{}\n#define NEW_SHADER_INTERFACE {}\n#define DITHERING {}\n{}\n{}",
                     shader_version_declaration,
                     shader_version.is_new_shader_interface() as i32,
-                    srgb_textures as i32,
+                    dithering as i32,
                     shader_prefix,
                     FRAG_SRC
                 ),
@@ -290,7 +290,7 @@ impl Painter {
     /// So if in a [`egui::Shape::Callback`] you need to use an offscreen FBO, you should
     /// then restore to this afterwards with
     /// `gl.bind_framebuffer(glow::FRAMEBUFFER, painter.intermediate_fbo());`
-    #[allow(clippy::unused_self)]
+    #[expect(clippy::unused_self)]
     pub fn intermediate_fbo(&self) -> Option<glow::Framebuffer> {
         // We don't currently ever render to an offscreen buffer,
         // but we may want to start to in order to do anti-aliasing on web, for instance.
@@ -360,7 +360,7 @@ impl Painter {
         clipped_primitives: &[egui::ClippedPrimitive],
         textures_delta: &egui::TexturesDelta,
     ) {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         for (id, image_delta) in &textures_delta.set {
             self.set_texture(*id, image_delta);
@@ -399,7 +399,7 @@ impl Painter {
         pixels_per_point: f32,
         clipped_primitives: &[egui::ClippedPrimitive],
     ) {
-        crate::profile_function!();
+        profiling::function_scope!();
         self.assert_not_destroyed();
 
         unsafe { self.prepare_painting(screen_size_px, pixels_per_point) };
@@ -417,7 +417,7 @@ impl Painter {
                 }
                 Primitive::Callback(callback) => {
                     if callback.rect.is_positive() {
-                        crate::profile_scope!("callback");
+                        profiling::scope!("callback");
 
                         let info = egui::PaintCallbackInfo {
                             viewport: callback.rect,
@@ -439,7 +439,9 @@ impl Painter {
                         if let Some(callback) = callback.callback.downcast_ref::<CallbackFn>() {
                             (callback.f)(info, self);
                         } else {
-                            log::warn!("Warning: Unsupported render callback. Expected egui_glow::CallbackFn");
+                            log::warn!(
+                                "Warning: Unsupported render callback. Expected egui_glow::CallbackFn"
+                            );
                         }
 
                         check_for_gl_error!(&self.gl, "callback");
@@ -463,7 +465,7 @@ impl Painter {
 
     #[inline(never)] // Easier profiling
     fn paint_mesh(&mut self, mesh: &Mesh) {
-        debug_assert!(mesh.is_valid());
+        debug_assert!(mesh.is_valid(), "Mesh is not valid");
         if let Some(texture) = self.texture(mesh.texture_id) {
             unsafe {
                 self.gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.vbo));
@@ -502,7 +504,7 @@ impl Painter {
     // ------------------------------------------------------------------------
 
     pub fn set_texture(&mut self, tex_id: egui::TextureId, delta: &egui::epaint::ImageDelta) {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         self.assert_not_destroyed();
 
@@ -526,24 +528,7 @@ impl Painter {
 
                 self.upload_texture_srgb(delta.pos, image.size, delta.options, data);
             }
-            egui::ImageData::Font(image) => {
-                assert_eq!(
-                    image.width() * image.height(),
-                    image.pixels.len(),
-                    "Mismatch between texture size and texel count"
-                );
-
-                let data: Vec<u8> = {
-                    crate::profile_scope!("font -> sRGBA");
-                    image
-                        .srgba_pixels(None)
-                        .flat_map(|a| a.to_array())
-                        .collect()
-                };
-
-                self.upload_texture_srgb(delta.pos, image.size, delta.options, &data);
-            }
-        };
+        }
     }
 
     fn upload_texture_srgb(
@@ -553,8 +538,13 @@ impl Painter {
         options: egui::TextureOptions,
         data: &[u8],
     ) {
-        crate::profile_function!();
-        assert_eq!(data.len(), w * h * 4);
+        profiling::function_scope!();
+        assert_eq!(
+            data.len(),
+            w * h * 4,
+            "Mismatch between texture size and texel count, by {}",
+            data.len() % (w * h * 4)
+        );
         assert!(
             w <= self.max_texture_side && h <= self.max_texture_side,
             "Got a texture image of size {}x{}, but the maximum supported texture side is only {}",
@@ -567,12 +557,12 @@ impl Painter {
             self.gl.tex_parameter_i32(
                 glow::TEXTURE_2D,
                 glow::TEXTURE_MAG_FILTER,
-                options.magnification.glow_code() as i32,
+                options.magnification.glow_code(None) as i32,
             );
             self.gl.tex_parameter_i32(
                 glow::TEXTURE_2D,
                 glow::TEXTURE_MIN_FILTER,
-                options.minification.glow_code() as i32,
+                options.minification.glow_code(options.mipmap_mode) as i32,
             );
 
             self.gl.tex_parameter_i32(
@@ -604,7 +594,7 @@ impl Painter {
 
             let level = 0;
             if let Some([x, y]) = pos {
-                crate::profile_scope!("gl.tex_sub_image_2d");
+                profiling::scope!("gl.tex_sub_image_2d");
                 self.gl.tex_sub_image_2d(
                     glow::TEXTURE_2D,
                     level,
@@ -614,12 +604,12 @@ impl Painter {
                     h as _,
                     src_format,
                     glow::UNSIGNED_BYTE,
-                    glow::PixelUnpackData::Slice(data),
+                    glow::PixelUnpackData::Slice(Some(data)),
                 );
                 check_for_gl_error!(&self.gl, "tex_sub_image_2d");
             } else {
                 let border = 0;
-                crate::profile_scope!("gl.tex_image_2d");
+                profiling::scope!("gl.tex_image_2d");
                 self.gl.tex_image_2d(
                     glow::TEXTURE_2D,
                     level,
@@ -629,9 +619,14 @@ impl Painter {
                     border,
                     src_format,
                     glow::UNSIGNED_BYTE,
-                    Some(data),
+                    glow::PixelUnpackData::Slice(Some(data)),
                 );
                 check_for_gl_error!(&self.gl, "tex_image_2d");
+            }
+
+            if options.mipmap_mode.is_some() {
+                self.gl.generate_mipmap(glow::TEXTURE_2D);
+                check_for_gl_error!(&self.gl, "generate_mipmap");
             }
         }
     }
@@ -647,7 +642,6 @@ impl Painter {
         self.textures.get(&texture_id).copied()
     }
 
-    #[allow(clippy::needless_pass_by_value)] // False positive
     pub fn register_native_texture(&mut self, native: glow::Texture) -> egui::TextureId {
         self.assert_not_destroyed();
         let id = egui::TextureId::User(self.next_native_tex_id);
@@ -656,7 +650,6 @@ impl Painter {
         id
     }
 
-    #[allow(clippy::needless_pass_by_value)] // False positive
     pub fn replace_native_texture(&mut self, id: egui::TextureId, replacing: glow::Texture) {
         if let Some(old_tex) = self.textures.insert(id, replacing) {
             self.textures_to_destroy.push(old_tex);
@@ -664,7 +657,7 @@ impl Painter {
     }
 
     pub fn read_screen_rgba(&self, [w, h]: [u32; 2]) -> egui::ColorImage {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         let mut pixels = vec![0_u8; (w * h * 4) as usize];
         unsafe {
@@ -675,22 +668,18 @@ impl Painter {
                 h as _,
                 glow::RGBA,
                 glow::UNSIGNED_BYTE,
-                glow::PixelPackData::Slice(&mut pixels),
+                glow::PixelPackData::Slice(Some(&mut pixels)),
             );
         }
         let mut flipped = Vec::with_capacity((w * h * 4) as usize);
         for row in pixels.chunks_exact((w * 4) as usize).rev() {
             flipped.extend_from_slice(bytemuck::cast_slice(row));
         }
-        egui::ColorImage {
-            size: [w as usize, h as usize],
-            pixels: flipped,
-        }
+        egui::ColorImage::new([w as usize, h as usize], flipped)
     }
 
     pub fn read_screen_rgb(&self, [w, h]: [u32; 2]) -> Vec<u8> {
-        crate::profile_function!();
-
+        profiling::function_scope!();
         let mut pixels = vec![0_u8; (w * h * 3) as usize];
         unsafe {
             self.gl.read_pixels(
@@ -700,7 +689,7 @@ impl Painter {
                 h as _,
                 glow::RGB,
                 glow::UNSIGNED_BYTE,
-                glow::PixelPackData::Slice(&mut pixels),
+                glow::PixelPackData::Slice(Some(&mut pixels)),
             );
         }
         pixels
@@ -709,6 +698,7 @@ impl Painter {
     unsafe fn destroy_gl(&self) {
         unsafe {
             self.gl.delete_program(self.program);
+            #[expect(clippy::iter_over_hash_type)]
             for tex in self.textures.values() {
                 self.gl.delete_texture(*tex);
             }
@@ -737,7 +727,7 @@ impl Painter {
 }
 
 pub fn clear(gl: &glow::Context, screen_size_in_pixels: [u32; 2], clear_color: [f32; 4]) {
-    crate::profile_function!();
+    profiling::function_scope!();
     unsafe {
         gl.disable(glow::SCISSOR_TEST);
 

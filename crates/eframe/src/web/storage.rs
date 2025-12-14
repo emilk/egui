@@ -31,7 +31,7 @@ pub(crate) fn load_memory(_: &egui::Context) {}
 
 #[cfg(feature = "persistence")]
 pub(crate) fn save_memory(ctx: &egui::Context) {
-    match ctx.memory(|mem| ron::to_string(mem)) {
+    match ctx.memory(ron::to_string) {
         Ok(ron) => {
             local_storage_set("egui_memory_ron", &ron);
         }

@@ -38,6 +38,8 @@ impl log::Log for WebLogger {
     }
 
     fn log(&self, record: &log::Record<'_>) {
+        #![allow(clippy::match_same_arms)]
+
         if !self.enabled(record.metadata()) {
             return;
         }
@@ -50,7 +52,9 @@ impl log::Log for WebLogger {
         };
 
         match record.level() {
-            log::Level::Trace => console::trace(&msg),
+            // NOTE: the `console::trace` includes a stack trace, which is super-noisy.
+            log::Level::Trace => console::debug(&msg),
+
             log::Level::Debug => console::debug(&msg),
             log::Level::Info => console::info(&msg),
             log::Level::Warn => console::warn(&msg),
@@ -106,7 +110,7 @@ mod console {
 /// * `tokio-1.24.1/src/runtime/runtime.rs`
 /// * `rerun/src/main.rs`
 /// * `core/src/ops/function.rs`
-#[allow(dead_code)] // only used on web and in tests
+#[allow(dead_code, clippy::allow_attributes)] // only used on web and in tests
 fn shorten_file_path(file_path: &str) -> &str {
     if let Some(i) = file_path.rfind("/src/") {
         if let Some(prev_slash) = file_path[..i].rfind('/') {
@@ -122,12 +126,17 @@ fn shorten_file_path(file_path: &str) -> &str {
 #[test]
 fn test_shorten_file_path() {
     for (before, after) in [
-        ("/Users/emilk/.cargo/registry/src/github.com-1ecc6299db9ec823/tokio-1.24.1/src/runtime/runtime.rs", "tokio-1.24.1/src/runtime/runtime.rs"),
+        (
+            "/Users/emilk/.cargo/registry/src/github.com-1ecc6299db9ec823/tokio-1.24.1/src/runtime/runtime.rs",
+            "tokio-1.24.1/src/runtime/runtime.rs",
+        ),
         ("crates/rerun/src/main.rs", "rerun/src/main.rs"),
-        ("/rustc/d5a82bbd26e1ad8b7401f6a718a9c57c96905483/library/core/src/ops/function.rs", "core/src/ops/function.rs"),
+        (
+            "/rustc/d5a82bbd26e1ad8b7401f6a718a9c57c96905483/library/core/src/ops/function.rs",
+            "core/src/ops/function.rs",
+        ),
         ("/weird/path/file.rs", "/weird/path/file.rs"),
-        ]
-    {
+    ] {
         assert_eq!(shorten_file_path(before), after);
     }
 }

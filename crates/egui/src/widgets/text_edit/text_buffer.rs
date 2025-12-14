@@ -1,19 +1,16 @@
 use std::{borrow::Cow, ops::Range};
 
 use epaint::{
-    text::{
-        cursor::{CCursor, PCursor},
-        TAB_SIZE,
-    },
     Galley,
+    text::{TAB_SIZE, cursor::CCursor},
 };
 
-use crate::text_selection::{
-    text_cursor_state::{
-        byte_index_from_char_index, ccursor_next_word, ccursor_previous_word, find_line_start,
-        slice_char_range,
+use crate::{
+    text::CCursorRange,
+    text_selection::text_cursor_state::{
+        byte_index_from_char_index, ccursor_next_word, ccursor_previous_word,
+        char_index_from_byte_index, find_line_start, slice_char_range,
     },
-    CursorRange,
 };
 
 /// Trait constraining what types [`crate::TextEdit`] may use as
@@ -49,6 +46,10 @@ pub trait TextBuffer {
 
     fn byte_index_from_char_index(&self, char_index: usize) -> usize {
         byte_index_from_char_index(self.as_str(), char_index)
+    }
+
+    fn char_index_from_byte_index(&self, char_index: usize) -> usize {
+        char_index_from_byte_index(self.as_str(), char_index)
     }
 
     /// Clears all characters in this buffer
@@ -111,9 +112,9 @@ pub trait TextBuffer {
         }
     }
 
-    fn delete_selected(&mut self, cursor_range: &CursorRange) -> CCursor {
+    fn delete_selected(&mut self, cursor_range: &CCursorRange) -> CCursor {
         let [min, max] = cursor_range.sorted_cursors();
-        self.delete_selected_ccursor_range([min.ccursor, max.ccursor])
+        self.delete_selected_ccursor_range([min, max])
     }
 
     fn delete_selected_ccursor_range(&mut self, [min, max]: [CCursor; 2]) -> CCursor {
@@ -151,38 +152,63 @@ pub trait TextBuffer {
     fn delete_paragraph_before_cursor(
         &mut self,
         galley: &Galley,
-        cursor_range: &CursorRange,
+        cursor_range: &CCursorRange,
     ) -> CCursor {
         let [min, max] = cursor_range.sorted_cursors();
-        let min = galley.from_pcursor(PCursor {
-            paragraph: min.pcursor.paragraph,
-            offset: 0,
-            prefer_next_row: true,
-        });
-        if min.ccursor == max.ccursor {
-            self.delete_previous_char(min.ccursor)
+        let min = galley.cursor_begin_of_paragraph(&min);
+        if min == max {
+            self.delete_previous_char(min)
         } else {
-            self.delete_selected(&CursorRange::two(min, max))
+            self.delete_selected(&CCursorRange::two(min, max))
         }
     }
 
     fn delete_paragraph_after_cursor(
         &mut self,
         galley: &Galley,
-        cursor_range: &CursorRange,
+        cursor_range: &CCursorRange,
     ) -> CCursor {
         let [min, max] = cursor_range.sorted_cursors();
-        let max = galley.from_pcursor(PCursor {
-            paragraph: max.pcursor.paragraph,
-            offset: usize::MAX, // end of paragraph
-            prefer_next_row: false,
-        });
-        if min.ccursor == max.ccursor {
-            self.delete_next_char(min.ccursor)
+        let max = galley.cursor_end_of_paragraph(&max);
+        if min == max {
+            self.delete_next_char(min)
         } else {
-            self.delete_selected(&CursorRange::two(min, max))
+            self.delete_selected(&CCursorRange::two(min, max))
         }
     }
+
+    /// Returns a unique identifier for the implementing type.
+    ///
+    /// This is useful for downcasting from this trait to the implementing type.
+    /// Here is an example usage:
+    /// ```
+    /// use egui::TextBuffer;
+    /// use std::any::TypeId;
+    ///
+    /// struct ExampleBuffer {}
+    ///
+    /// impl TextBuffer for ExampleBuffer {
+    ///     fn is_mutable(&self) -> bool { unimplemented!() }
+    ///     fn as_str(&self) -> &str { unimplemented!() }
+    ///     fn insert_text(&mut self, text: &str, char_index: usize) -> usize { unimplemented!() }
+    ///     fn delete_char_range(&mut self, char_range: std::ops::Range<usize>) { unimplemented!() }
+    ///
+    ///     // Implement it like the following:
+    ///     fn type_id(&self) -> TypeId {
+    ///         TypeId::of::<Self>()
+    ///     }
+    /// }
+    ///
+    /// // Example downcast:
+    /// pub fn downcast_example(buffer: &dyn TextBuffer) -> Option<&ExampleBuffer> {
+    ///     if buffer.type_id() == TypeId::of::<ExampleBuffer>() {
+    ///         unsafe { Some(&*(buffer as *const dyn TextBuffer as *const ExampleBuffer)) }
+    ///     } else {
+    ///         None
+    ///     }
+    /// }
+    /// ```
+    fn type_id(&self) -> std::any::TypeId;
 }
 
 impl TextBuffer for String {
@@ -205,7 +231,10 @@ impl TextBuffer for String {
     }
 
     fn delete_char_range(&mut self, char_range: Range<usize>) {
-        assert!(char_range.start <= char_range.end);
+        assert!(
+            char_range.start <= char_range.end,
+            "start must be <= end, but got {char_range:?}"
+        );
 
         // Get both byte indices
         let byte_start = byte_index_from_char_index(self.as_str(), char_range.start);
@@ -220,15 +249,19 @@ impl TextBuffer for String {
     }
 
     fn replace_with(&mut self, text: &str) {
-        *self = text.to_owned();
+        text.clone_into(self);
     }
 
     fn take(&mut self) -> String {
         std::mem::take(self)
     }
+
+    fn type_id(&self) -> std::any::TypeId {
+        std::any::TypeId::of::<Self>()
+    }
 }
 
-impl<'a> TextBuffer for Cow<'a, str> {
+impl TextBuffer for Cow<'_, str> {
     fn is_mutable(&self) -> bool {
         true
     }
@@ -256,10 +289,14 @@ impl<'a> TextBuffer for Cow<'a, str> {
     fn take(&mut self) -> String {
         std::mem::take(self).into_owned()
     }
+
+    fn type_id(&self) -> std::any::TypeId {
+        std::any::TypeId::of::<Cow<'_, str>>()
+    }
 }
 
 /// Immutable view of a `&str`!
-impl<'a> TextBuffer for &'a str {
+impl TextBuffer for &str {
     fn is_mutable(&self) -> bool {
         false
     }
@@ -273,4 +310,8 @@ impl<'a> TextBuffer for &'a str {
     }
 
     fn delete_char_range(&mut self, _ch_range: Range<usize>) {}
+
+    fn type_id(&self) -> std::any::TypeId {
+        std::any::TypeId::of::<&str>()
+    }
 }

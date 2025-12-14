@@ -1,0 +1,37 @@
+name: Preview Cleanup
+
+permissions:
+  contents: write
+
+on:
+  pull_request_target:
+    types:
+      - closed
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - run: mkdir -p empty_dir
+      - name: Generate URL_SLUG
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          URL_SLUG: ${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.ref }}
+        run: |
+          # Sanitize the URL_SLUG to only contain alphanumeric characters and dashes
+          URL_SLUG=$(echo $URL_SLUG | tr -cd '[:alnum:]-')
+          echo "URL_SLUG=$URL_SLUG" >> $GITHUB_ENV
+      - name: Deploy
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: empty_dir
+          repository-name: egui-pr-preview/pr
+          branch: 'main'
+          clean: true
+          target-folder: ${{ env.URL_SLUG }}
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
+          commit-message: "Remove preview for PR ${{ env.URL_SLUG }}"
+          single-commit: true

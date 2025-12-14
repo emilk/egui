@@ -1,8 +1,10 @@
 use super::popup::DatePickerPopup;
 use chrono::NaiveDate;
 use egui::{Area, Button, Frame, InnerResponse, Key, Order, RichText, Ui, Widget};
+use std::ops::RangeInclusive;
 
-#[derive(Default, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Default, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct DatePickerButtonState {
     pub picker_visible: bool,
 }
@@ -10,7 +12,7 @@ pub(crate) struct DatePickerButtonState {
 /// Shows a date, and will open a date picker popup when clicked.
 pub struct DatePickerButton<'a> {
     selection: &'a mut NaiveDate,
-    id_source: Option<&'a str>,
+    id_salt: Option<&'a str>,
     combo_boxes: bool,
     arrows: bool,
     calendar: bool,
@@ -18,13 +20,14 @@ pub struct DatePickerButton<'a> {
     show_icon: bool,
     format: String,
     highlight_weekends: bool,
+    start_end_years: Option<RangeInclusive<i32>>,
 }
 
 impl<'a> DatePickerButton<'a> {
     pub fn new(selection: &'a mut NaiveDate) -> Self {
         Self {
             selection,
-            id_source: None,
+            id_salt: None,
             combo_boxes: true,
             arrows: true,
             calendar: true,
@@ -32,15 +35,24 @@ impl<'a> DatePickerButton<'a> {
             show_icon: true,
             format: "%Y-%m-%d".to_owned(),
             highlight_weekends: true,
+            start_end_years: None,
         }
     }
 
     /// Add id source.
     /// Must be set if multiple date picker buttons are in the same Ui.
     #[inline]
-    pub fn id_source(mut self, id_source: &'a str) -> Self {
-        self.id_source = Some(id_source);
+    pub fn id_salt(mut self, id_salt: &'a str) -> Self {
+        self.id_salt = Some(id_salt);
         self
+    }
+
+    /// Add id source.
+    /// Must be set if multiple date picker buttons are in the same Ui.
+    #[inline]
+    #[deprecated = "Renamed id_salt"]
+    pub fn id_source(self, id_salt: &'a str) -> Self {
+        self.id_salt(id_salt)
     }
 
     /// Show combo boxes in date picker popup. (Default: true)
@@ -92,11 +104,22 @@ impl<'a> DatePickerButton<'a> {
         self.highlight_weekends = highlight_weekends;
         self
     }
+
+    /// Set the start and end years for the date picker. (Default: today's year - 100 to today's year + 10)
+    /// This will limit the years you can choose from in the dropdown to the specified range.
+    ///
+    /// For example, if you want to provide the range of years from 2000 to 2035, you can use:
+    /// `start_end_years(2000..=2035)`.
+    #[inline]
+    pub fn start_end_years(mut self, start_end_years: RangeInclusive<i32>) -> Self {
+        self.start_end_years = Some(start_end_years);
+        self
+    }
 }
 
-impl<'a> Widget for DatePickerButton<'a> {
+impl Widget for DatePickerButton<'_> {
     fn ui(self, ui: &mut Ui) -> egui::Response {
-        let id = ui.make_persistent_id(self.id_source);
+        let id = ui.make_persistent_id(self.id_salt);
         let mut button_state = ui
             .data_mut(|data| data.get_persisted::<DatePickerButtonState>(id))
             .unwrap_or_default();
@@ -125,24 +148,24 @@ impl<'a> Widget for DatePickerButton<'a> {
             let mut pos = button_response.rect.left_bottom();
             let width_with_padding = width
                 + ui.style().spacing.item_spacing.x
-                + ui.style().spacing.window_margin.left
-                + ui.style().spacing.window_margin.right;
+                + ui.style().spacing.window_margin.leftf()
+                + ui.style().spacing.window_margin.rightf();
             if pos.x + width_with_padding > ui.clip_rect().right() {
                 pos.x = button_response.rect.right() - width_with_padding;
             }
 
             // Check to make sure the calendar never is displayed out of window
-            pos.x = pos.x.max(ui.style().spacing.window_margin.left);
+            pos.x = pos.x.max(ui.style().spacing.window_margin.leftf());
 
             //TODO(elwerene): Better positioning
 
             let InnerResponse {
                 inner: saved,
                 response: area_response,
-            } = Area::new(ui.make_persistent_id(self.id_source))
+            } = Area::new(ui.make_persistent_id(self.id_salt))
+                .kind(egui::UiKind::Picker)
                 .order(Order::Foreground)
                 .fixed_pos(pos)
-                .constrain_to(ui.ctx().screen_rect())
                 .show(ui.ctx(), |ui| {
                     let frame = Frame::popup(ui.style());
                     frame
@@ -158,6 +181,7 @@ impl<'a> Widget for DatePickerButton<'a> {
                                 calendar: self.calendar,
                                 calendar_week: self.calendar_week,
                                 highlight_weekends: self.highlight_weekends,
+                                start_end_years: self.start_end_years,
                             }
                             .draw(ui)
                         })
@@ -168,7 +192,11 @@ impl<'a> Widget for DatePickerButton<'a> {
                 button_response.mark_changed();
             }
 
+            // We don't want to close our popup if any other popup is open, since other popups would
+            // most likely be the combo boxes in the date picker.
+            let any_popup_open = ui.ctx().is_popup_open();
             if !button_response.clicked()
+                && !any_popup_open
                 && (ui.input(|i| i.key_pressed(Key::Escape)) || area_response.clicked_elsewhere())
             {
                 button_state.picker_visible = false;

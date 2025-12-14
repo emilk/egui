@@ -3,9 +3,15 @@ name = "puffin_profiler"
 version = "0.1.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 license = "MIT OR Apache-2.0"
-edition = "2021"
-rust-version = "1.72"
+edition = "2024"
+rust-version = "1.88"
 publish = false
+
+[package.metadata.cargo-machete]
+ignored = ["profiling"]
+
+[lints]
+workspace = true
 
 
 [features]
@@ -14,13 +20,11 @@ wgpu = ["eframe/wgpu"]
 
 [dependencies]
 eframe = { workspace = true, features = [
-    "default",
-    "puffin",
-    "__screenshot", # __screenshot is so we can dump a screenshot using EFRAME_SCREENSHOT_TO
+  "default",
+  "__screenshot", # __screenshot is so we can dump a screenshot using EFRAME_SCREENSHOT_TO
 ] }
-env_logger = { version = "0.10", default-features = false, features = [
-    "auto-color",
-    "humantime",
-] }
-puffin = "0.19"
-puffin_http = "0.16"
+env_logger = { workspace = true, features = ["auto-color", "humantime"] }
+log.workspace = true
+puffin.workspace = true
+puffin_http.workspace = true
+profiling = { workspace = true, features = ["profile-with-puffin"] }

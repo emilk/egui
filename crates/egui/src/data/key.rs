@@ -1,10 +1,12 @@
 /// Keyboard keys.
 ///
-/// egui usually uses logical keys, i.e. after applying any user keymap.
-// TODO(emilk): split into `LogicalKey` and `PhysicalKey`
+/// egui usually uses logical keys, i.e. after applying any user keymap.\
+// See comment at the end of `Key { … }` on how to add new keys.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum Key {
+    // ----------------------------------------------
+    // Commands:
     ArrowDown,
     ArrowLeft,
     ArrowRight,
@@ -35,25 +37,34 @@ pub enum Key {
     /// `,`
     Comma,
 
-    /// '\\'
+    /// `\`
     Backslash,
 
-    /// '/'
+    /// `/`
     Slash,
 
-    /// '|', a vertical bar
+    /// `|`, a vertical bar
     Pipe,
 
     /// `?`
     Questionmark,
 
-    // '['
+    // '!'
+    Exclamationmark,
+
+    // `[`
     OpenBracket,
 
-    // ']'
+    // `]`
     CloseBracket,
 
-    /// '`', also known as "backquote" or "grave"
+    // `{`
+    OpenCurlyBracket,
+
+    // `}`
+    CloseCurlyBracket,
+
+    /// Also known as "backquote" or "grave"
     Backtick,
 
     /// `-`
@@ -71,36 +82,39 @@ pub enum Key {
     /// `;`
     Semicolon,
 
+    /// `'`
+    Quote,
+
     // ----------------------------------------------
     // Digits:
-    /// Either from the main row or from the numpad.
+    /// `0` (from main row or numpad)
     Num0,
 
-    /// Either from the main row or from the numpad.
+    /// `1` (from main row or numpad)
     Num1,
 
-    /// Either from the main row or from the numpad.
+    /// `2` (from main row or numpad)
     Num2,
 
-    /// Either from the main row or from the numpad.
+    /// `3` (from main row or numpad)
     Num3,
 
-    /// Either from the main row or from the numpad.
+    /// `4` (from main row or numpad)
     Num4,
 
-    /// Either from the main row or from the numpad.
+    /// `5` (from main row or numpad)
     Num5,
 
-    /// Either from the main row or from the numpad.
+    /// `6` (from main row or numpad)
     Num6,
 
-    /// Either from the main row or from the numpad.
+    /// `7` (from main row or numpad)
     Num7,
 
-    /// Either from the main row or from the numpad.
+    /// `8` (from main row or numpad)
     Num8,
 
-    /// Either from the main row or from the numpad.
+    /// `9` (from main row or numpad)
     Num9,
 
     // ----------------------------------------------
@@ -169,14 +183,24 @@ pub enum Key {
     F33,
     F34,
     F35,
-    // When adding keys, remember to also update `crates/egui-winit/src/lib.rs`
-    // and [`Self::ALL`].
+
+    /// Back navigation key from multimedia keyboard.
+    /// Android sends this key on Back button press.
+    /// Does not work on Web.
+    BrowserBack,
+    // When adding keys, remember to also update:
+    // * crates/egui-winit/src/lib.rs
+    // * Key::ALL
+    // * Key::from_name
+    // You should test that it works using the "Input Event History" window in the egui demo app.
+    // Make sure to test both natively and on web!
     // Also: don't add keys last; add them to the group they best belong to.
 }
 
 impl Key {
     /// All egui keys
     pub const ALL: &'static [Self] = &[
+        // Commands:
         Self::ArrowDown,
         Self::ArrowLeft,
         Self::ArrowRight,
@@ -205,11 +229,15 @@ impl Key {
         Self::Semicolon,
         Self::OpenBracket,
         Self::CloseBracket,
+        Self::OpenCurlyBracket,
+        Self::CloseCurlyBracket,
         Self::Backtick,
         Self::Backslash,
         Self::Slash,
         Self::Pipe,
         Self::Questionmark,
+        Self::Exclamationmark,
+        Self::Quote,
         // Digits:
         Self::Num0,
         Self::Num1,
@@ -284,6 +312,8 @@ impl Key {
         Self::F33,
         Self::F34,
         Self::F35,
+        // Navigation keys:
+        Self::BrowserBack,
     ];
 
     /// Converts `"A"` to `Key::A`, `Space` to `Key::Space`, etc.
@@ -330,9 +360,13 @@ impl Key {
             "/" | "Slash" => Self::Slash,
             "|" | "Pipe" => Self::Pipe,
             "?" | "Questionmark" => Self::Questionmark,
+            "!" | "Exclamationmark" => Self::Exclamationmark,
             "[" | "OpenBracket" => Self::OpenBracket,
             "]" | "CloseBracket" => Self::CloseBracket,
+            "{" | "OpenCurlyBracket" => Self::OpenCurlyBracket,
+            "}" | "CloseCurlyBracket" => Self::CloseCurlyBracket,
             "`" | "Backtick" | "Backquote" | "Grave" => Self::Backtick,
+            "'" | "Quote" => Self::Quote,
 
             "0" | "Digit0" | "Numpad0" => Self::Num0,
             "1" | "Digit1" | "Numpad1" => Self::Num1,
@@ -408,6 +442,8 @@ impl Key {
             "F34" => Self::F34,
             "F35" => Self::F35,
 
+            "BrowserBack" => Self::BrowserBack,
+
             _ => return None,
         })
     }
@@ -434,8 +470,11 @@ impl Key {
             Self::Slash => "/",
             Self::Pipe => "|",
             Self::Questionmark => "?",
+            Self::Exclamationmark => "!",
             Self::OpenBracket => "[",
             Self::CloseBracket => "]",
+            Self::OpenCurlyBracket => "{",
+            Self::CloseCurlyBracket => "}",
             Self::Backtick => "`",
 
             _ => self.name(),
@@ -478,9 +517,13 @@ impl Key {
             Self::Slash => "Slash",
             Self::Pipe => "Pipe",
             Self::Questionmark => "Questionmark",
+            Self::Exclamationmark => "Exclamationmark",
             Self::OpenBracket => "OpenBracket",
             Self::CloseBracket => "CloseBracket",
+            Self::OpenCurlyBracket => "OpenCurlyBracket",
+            Self::CloseCurlyBracket => "CloseCurlyBracket",
             Self::Backtick => "Backtick",
+            Self::Quote => "Quote",
 
             Self::Num0 => "0",
             Self::Num1 => "1",
@@ -554,6 +597,8 @@ impl Key {
             Self::F33 => "F33",
             Self::F34 => "F34",
             Self::F35 => "F35",
+
+            Self::BrowserBack => "BrowserBack",
         }
     }
 }
@@ -562,7 +607,7 @@ impl Key {
 fn test_key_from_name() {
     assert_eq!(
         Key::ALL.len(),
-        Key::F35 as usize + 1,
+        Key::BrowserBack as usize + 1,
         "Some keys are missing in Key::ALL"
     );
 

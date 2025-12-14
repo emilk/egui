@@ -21,13 +21,13 @@ fn main() {\n\
     }
 }
 
-impl super::Demo for CodeEditor {
+impl crate::Demo for CodeEditor {
     fn name(&self) -> &'static str {
         "🖮 Code Editor"
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        use super::View as _;
+        use crate::View as _;
         egui::Window::new(self.name())
             .open(open)
             .default_height(500.0)
@@ -35,7 +35,7 @@ impl super::Demo for CodeEditor {
     }
 }
 
-impl super::View for CodeEditor {
+impl crate::View for CodeEditor {
     fn ui(&mut self, ui: &mut egui::Ui) {
         let Self { language, code } = self;
 
@@ -67,7 +67,8 @@ impl super::View for CodeEditor {
             });
         }
 
-        let mut theme = egui_extras::syntax_highlighting::CodeTheme::from_memory(ui.ctx());
+        let mut theme =
+            egui_extras::syntax_highlighting::CodeTheme::from_memory(ui.ctx(), ui.style());
         ui.collapsing("Theme", |ui| {
             ui.group(|ui| {
                 theme.ui(ui);
@@ -75,11 +76,16 @@ impl super::View for CodeEditor {
             });
         });
 
-        let mut layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
-            let mut layout_job =
-                egui_extras::syntax_highlighting::highlight(ui.ctx(), &theme, string, language);
+        let mut layouter = |ui: &egui::Ui, buf: &dyn egui::TextBuffer, wrap_width: f32| {
+            let mut layout_job = egui_extras::syntax_highlighting::highlight(
+                ui.ctx(),
+                ui.style(),
+                &theme,
+                buf.as_str(),
+                language,
+            );
             layout_job.wrap.max_width = wrap_width;
-            ui.fonts(|f| f.layout_job(layout_job))
+            ui.fonts_mut(|f| f.layout_job(layout_job))
         };
 
         egui::ScrollArea::vertical().show(ui, |ui| {

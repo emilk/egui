@@ -1,4 +1,4 @@
-use egui::Vec2b;
+use egui::{UiKind, Vec2b};
 
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -35,7 +35,7 @@ impl Default for WindowOptions {
     }
 }
 
-impl super::Demo for WindowOptions {
+impl crate::Demo for WindowOptions {
     fn name(&self) -> &'static str {
         "🗖 Window Options"
     }
@@ -60,14 +60,14 @@ impl super::Demo for WindowOptions {
             ctx.request_repaint();
         }
 
-        use super::View as _;
+        use crate::View as _;
         let mut window = egui::Window::new(title)
             .id(egui::Id::new("demo_window_options")) // required since we change the title
             .resizable(resizable)
             .constrain(constrain)
             .collapsible(collapsible)
             .title_bar(title_bar)
-            .scroll2(scroll2)
+            .scroll(scroll2)
             .enabled(enabled);
         if closable {
             window = window.open(open);
@@ -79,7 +79,7 @@ impl super::Demo for WindowOptions {
     }
 }
 
-impl super::View for WindowOptions {
+impl crate::View for WindowOptions {
     fn ui(&mut self, ui: &mut egui::Ui) {
         let Self {
             title,
@@ -115,7 +115,9 @@ impl super::View for WindowOptions {
             ui.group(|ui| {
                 ui.vertical(|ui| {
                     ui.checkbox(anchored, "anchored");
-                    ui.set_enabled(*anchored);
+                    if !*anchored {
+                        ui.disable();
+                    }
                     ui.horizontal(|ui| {
                         ui.label("x:");
                         ui.selectable_value(&mut anchor[0], egui::Align::LEFT, "Left");
@@ -146,7 +148,17 @@ impl super::View for WindowOptions {
             if ui.button("Disable for 2 seconds").clicked() {
                 self.disabled_time = ui.input(|i| i.time);
             }
-            egui::reset_button(ui, self);
+            egui::reset_button(ui, self, "Reset");
+            if ui
+                .button("Close")
+                .on_hover_text("You can collapse / close Windows via Ui::close")
+                .clicked()
+            {
+                // Calling close would close the collapsible within the window
+                // ui.close();
+                // Instead, we close the window itself
+                ui.close_kind(UiKind::Window);
+            }
             ui.add(crate::egui_github_link_file!());
         });
     }

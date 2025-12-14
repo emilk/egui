@@ -1,5 +1,5 @@
+use ahash::HashMap;
 use egui::{
-    ahash::HashMap,
     load::{Bytes, BytesLoadResult, BytesLoader, BytesPoll, LoadError},
     mutex::Mutex,
 };
@@ -80,12 +80,12 @@ impl BytesLoader for FileLoader {
                     move || {
                         let result = match std::fs::read(&path) {
                             Ok(bytes) => {
-                                #[cfg(feature = "mime_guess")]
+                                #[cfg(feature = "file")]
                                 let mime = mime_guess2::from_path(&path)
                                     .first_raw()
                                     .map(|v| v.to_owned());
 
-                                #[cfg(not(feature = "mime_guess"))]
+                                #[cfg(not(feature = "file"))]
                                 let mime = None;
 
                                 Ok(File {
@@ -95,10 +95,23 @@ impl BytesLoader for FileLoader {
                             }
                             Err(err) => Err(err.to_string()),
                         };
-                        let prev = cache.lock().insert(uri.clone(), Poll::Ready(result));
-                        assert!(matches!(prev, Some(Poll::Pending)));
-                        ctx.request_repaint();
-                        log::trace!("finished loading {uri:?}");
+                        let repaint = {
+                            let mut cache = cache.lock();
+                            if let std::collections::hash_map::Entry::Occupied(mut entry) = cache.entry(uri.clone()) {
+                                let entry = entry.get_mut();
+                                *entry = Poll::Ready(result);
+                                log::trace!("Finished loading {uri:?}");
+                                true
+                            } else {
+                                log::trace!("Canceled loading {uri:?}\nNote: This can happen if `forget_image` is called while the image is still loading.");
+                                false
+                            }
+                        };
+                        // We may not lock Context while the cache lock is held (see ImageLoader::load
+                        // for details).
+                        if repaint {
+                            ctx.request_repaint();
+                        }
                     }
                 })
                 .expect("failed to spawn thread");
@@ -127,5 +140,9 @@ impl BytesLoader for FileLoader {
                 _ => 0,
             })
             .sum()
+    }
+
+    fn has_pending(&self) -> bool {
+        self.cache.lock().values().any(|entry| entry.is_pending())
     }
 }

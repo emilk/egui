@@ -10,6 +10,7 @@ struct Frame {
 ///
 /// In particular: slips everything before `egui::Context::run`,
 /// and skipping all frames in the `egui::` namespace.
+#[inline(never)]
 pub fn capture() -> String {
     let mut frames = vec![];
     let mut depth = 0;
@@ -19,16 +20,16 @@ pub fn capture() -> String {
         backtrace::resolve_frame(frame, |symbol| {
             let mut file_and_line = symbol.filename().map(shorten_source_file_path);
 
-            if let Some(file_and_line) = &mut file_and_line {
-                if let Some(line_nr) = symbol.lineno() {
-                    file_and_line.push_str(&format!(":{line_nr}"));
-                }
+            if let Some(file_and_line) = &mut file_and_line
+                && let Some(line_nr) = symbol.lineno()
+            {
+                file_and_line.push_str(&format!(":{line_nr}"));
             }
             let file_and_line = file_and_line.unwrap_or_default();
 
             let name = symbol
                 .name()
-                .map(|name| name.to_string())
+                .map(|name| clean_symbol_name(name.to_string()))
                 .unwrap_or_default();
 
             frames.push(Frame {
@@ -44,12 +45,13 @@ pub fn capture() -> String {
     });
 
     if frames.is_empty() {
-        return Default::default();
+        return
+            "Failed to capture a backtrace. A common cause of this is compiling with panic=\"abort\" (https://github.com/rust-lang/backtrace-rs/issues/397)".to_owned();
     }
 
     // Inclusive:
     let mut min_depth = 0;
-    let mut max_depth = frames.len() - 1;
+    let mut max_depth = usize::MAX;
 
     for frame in &frames {
         if frame.name.starts_with("egui::callstack::capture") {
@@ -60,14 +62,23 @@ pub fn capture() -> String {
         }
     }
 
+    /// Is this the name of some sort of useful entry point?
+    fn is_start_name(name: &str) -> bool {
+        name == "main"
+            || name == "_main"
+            || name.starts_with("eframe::run_native")
+            || name.starts_with("egui::context::Context::run")
+    }
+
+    let mut has_kept_any_start_names = false;
+
+    frames.reverse(); // main on top, i.e. chronological order. Same as Python.
+
     // Remove frames that are uninteresting:
     frames.retain(|frame| {
-        // Keep some special frames to give the user a sense of chronology:
-        if frame.name == "main"
-            || frame.name == "_main"
-            || frame.name.starts_with("egui::context::Context::run")
-            || frame.name.starts_with("eframe::run_native")
-        {
+        // Keep the first "start" frame we can detect (e.g. `main`) to give the user a sense of chronology:
+        if is_start_name(&frame.name) && !has_kept_any_start_names {
+            has_kept_any_start_names = true;
             return true;
         }
 
@@ -77,13 +88,13 @@ pub fn capture() -> String {
 
         // Remove stuff that isn't user calls:
         let skip_prefixes = [
-            // "backtrace::", // not needed, since we cut at at egui::callstack::capture
+            // "backtrace::", // not needed, since we cut at egui::callstack::capture
             "egui::",
             "<egui::",
             "<F as egui::widgets::Widget>",
             "egui_plot::",
             "egui_extras::",
-            "core::ptr::drop_in_place<egui::ui::Ui>::",
+            "core::ptr::drop_in_place<egui::ui::Ui>",
             "eframe::",
             "core::ops::function::FnOnce::call_once",
             "<alloc::boxed::Box<F,A> as core::ops::function::FnOnce<Args>>::call_once",
@@ -95,8 +106,6 @@ pub fn capture() -> String {
         }
         true
     });
-
-    frames.reverse(); // main on top, i.e. chronological order. Same as Python.
 
     let mut deepest_depth = 0;
     let mut widest_file_line = 0;
@@ -133,6 +142,28 @@ pub fn capture() -> String {
     }
 
     formatted
+}
+
+fn clean_symbol_name(mut s: String) -> String {
+    // We get a hex suffix (at least on macOS) which is quite unhelpful,
+    // e.g. `my_crate::my_function::h3bedd97b1e03baa5`.
+    // Let's strip that.
+    if let Some(h) = s.rfind("::h") {
+        let hex = &s[h + 3..];
+        if hex.len() == 16 && hex.chars().all(|c| c.is_ascii_hexdigit()) {
+            s.truncate(h);
+        }
+    }
+
+    s
+}
+
+#[test]
+fn test_clean_symbol_name() {
+    assert_eq!(
+        clean_symbol_name("my_crate::my_function::h3bedd97b1e03baa5".to_owned()),
+        "my_crate::my_function"
+    );
 }
 
 /// Shorten a path to a Rust source file from a callstack.
@@ -173,12 +204,17 @@ fn shorten_source_file_path(path: &std::path::Path) -> String {
 #[test]
 fn test_shorten_path() {
     for (before, after) in [
-        ("/Users/emilk/.cargo/registry/src/github.com-1ecc6299db9ec823/tokio-1.24.1/src/runtime/runtime.rs", "tokio-1.24.1/src/runtime/runtime.rs"),
+        (
+            "/Users/emilk/.cargo/registry/src/github.com-1ecc6299db9ec823/tokio-1.24.1/src/runtime/runtime.rs",
+            "tokio-1.24.1/src/runtime/runtime.rs",
+        ),
         ("crates/rerun/src/main.rs", "rerun/src/main.rs"),
-        ("/rustc/d5a82bbd26e1ad8b7401f6a718a9c57c96905483/library/core/src/ops/function.rs", "core/src/ops/function.rs"),
+        (
+            "/rustc/d5a82bbd26e1ad8b7401f6a718a9c57c96905483/library/core/src/ops/function.rs",
+            "core/src/ops/function.rs",
+        ),
         ("/weird/path/file.rs", "/weird/path/file.rs"),
-        ]
-        {
+    ] {
         use std::str::FromStr as _;
         let before = std::path::PathBuf::from_str(before).unwrap();
         assert_eq!(shorten_source_file_path(&before), after);

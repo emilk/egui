@@ -1,4 +1,4 @@
-// TODO: automatic cache eviction
+// TODO(jprochazk): automatic cache eviction
 
 /// Installs a set of image loaders.
 ///
@@ -16,11 +16,11 @@
 ///
 /// - If you just want to be able to load `file://` and `http://` URIs, enable the `all_loaders` feature.
 /// - The supported set of image formats is configured by adding the [`image`](https://crates.io/crates/image)
-/// crate as your direct dependency, and enabling features on it:
+///   crate as your direct dependency, and enabling features on it:
 ///
 /// ```toml,ignore
 /// egui_extras = { version = "*", features = ["all_loaders"] }
-/// image = { version = "0.24", features = ["jpeg", "png"] } # Add the types you want support for
+/// image = { version = "0.25", features = ["jpeg", "png"] } # Add the types you want support for
 /// ```
 ///
 /// ⚠ You have to configure both the supported loaders in `egui_extras` _and_ the supported image formats
@@ -63,9 +63,9 @@ pub fn install_image_loaders(ctx: &egui::Context) {
     }
 
     #[cfg(feature = "http")]
-    if !ctx.is_loader_installed(self::ehttp_loader::EhttpLoader::ID) {
+    if !ctx.is_loader_installed(self::http_loader::EhttpLoader::ID) {
         ctx.add_bytes_loader(std::sync::Arc::new(
-            self::ehttp_loader::EhttpLoader::default(),
+            self::http_loader::EhttpLoader::default(),
         ));
         log::trace!("installed EhttpLoader");
     }
@@ -76,6 +76,18 @@ pub fn install_image_loaders(ctx: &egui::Context) {
             self::image_loader::ImageCrateLoader::default(),
         ));
         log::trace!("installed ImageCrateLoader");
+    }
+
+    #[cfg(feature = "gif")]
+    if !ctx.is_loader_installed(self::gif_loader::GifLoader::ID) {
+        ctx.add_image_loader(std::sync::Arc::new(self::gif_loader::GifLoader::default()));
+        log::trace!("installed GifLoader");
+    }
+
+    #[cfg(feature = "webp")]
+    if !ctx.is_loader_installed(self::webp_loader::WebPLoader::ID) {
+        ctx.add_image_loader(std::sync::Arc::new(self::webp_loader::WebPLoader::default()));
+        log::trace!("installed WebPLoader");
     }
 
     #[cfg(feature = "svg")]
@@ -96,13 +108,16 @@ pub fn install_image_loaders(ctx: &egui::Context) {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-mod file_loader;
+pub mod file_loader;
 
 #[cfg(feature = "http")]
-mod ehttp_loader;
+pub mod http_loader;
 
+#[cfg(feature = "gif")]
+pub mod gif_loader;
 #[cfg(feature = "image")]
-mod image_loader;
-
+pub mod image_loader;
 #[cfg(feature = "svg")]
-mod svg_loader;
+pub mod svg_loader;
+#[cfg(feature = "webp")]
+pub mod webp_loader;

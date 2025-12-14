@@ -1,8 +1,12 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
+#![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
-use eframe::egui;
+use eframe::{
+    egui,
+    epaint::text::{FontInsert, InsertFontFamily},
+};
 
-fn main() -> Result<(), eframe::Error> {
+fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_inner_size([320.0, 240.0]),
@@ -11,11 +15,32 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "egui example: custom font",
         options,
-        Box::new(|cc| Box::new(MyApp::new(cc))),
+        Box::new(|cc| Ok(Box::new(MyApp::new(cc)))),
     )
 }
 
-fn setup_custom_fonts(ctx: &egui::Context) {
+// Demonstrates how to add a font to the existing ones
+fn add_font(ctx: &egui::Context) {
+    ctx.add_font(FontInsert::new(
+        "my_font",
+        egui::FontData::from_static(include_bytes!(
+            "../../../crates/epaint_default_fonts/fonts/Hack-Regular.ttf"
+        )),
+        vec![
+            InsertFontFamily {
+                family: egui::FontFamily::Proportional,
+                priority: egui::epaint::text::FontPriority::Highest,
+            },
+            InsertFontFamily {
+                family: egui::FontFamily::Monospace,
+                priority: egui::epaint::text::FontPriority::Lowest,
+            },
+        ],
+    ));
+}
+
+// Demonstrates how to replace all fonts.
+fn replace_fonts(ctx: &egui::Context) {
     // Start with the default fonts (we will be adding to them rather than replacing them).
     let mut fonts = egui::FontDefinitions::default();
 
@@ -23,9 +48,9 @@ fn setup_custom_fonts(ctx: &egui::Context) {
     // .ttf and .otf files supported.
     fonts.font_data.insert(
         "my_font".to_owned(),
-        egui::FontData::from_static(include_bytes!(
-            "../../../crates/epaint/fonts/Hack-Regular.ttf"
-        )),
+        std::sync::Arc::new(egui::FontData::from_static(include_bytes!(
+            "../../../crates/epaint_default_fonts/fonts/Hack-Regular.ttf"
+        ))),
     );
 
     // Put my font first (highest priority) for proportional text:
@@ -52,7 +77,8 @@ struct MyApp {
 
 impl MyApp {
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        setup_custom_fonts(&cc.egui_ctx);
+        replace_fonts(&cc.egui_ctx);
+        add_font(&cc.egui_ctx);
         Self {
             text: "Edit this text field if you want".to_owned(),
         }

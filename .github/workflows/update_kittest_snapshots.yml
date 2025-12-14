@@ -1,0 +1,42 @@
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'The run ID that produced the artifact'
+        required: true
+        type: string
+
+permissions:
+  actions: read
+
+name: Update kittest snapshots
+jobs:
+  update-snapshots:
+    name: Update snapshots from artifact
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+          # We can't use the workflow token since that would prevent our commit to cause further workflows.
+          # See https://github.com/stefanzweifel/git-auto-commit-action#commits-made-by-this-action-do-not-trigger-new-workflow-runs
+          # This token should be a personal access token with at least Read and write permission to `Contents`.
+          # The commit action below will use the token this the code was checked out with.
+          token: '${{ secrets.SNAPSHOT_COMMIT_GITHUB_TOKEN }}'
+
+      - name: Accept snapshots
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.inputs.run_id }}
+        run: ./scripts/update_snapshots_from_ci.sh
+
+      - name: Git status
+        run: git status
+
+      - uses: stefanzweifel/git-auto-commit-action@v6
+        with:
+          commit_message: 'Update snapshot images'
+

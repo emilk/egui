@@ -1,13 +1,22 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
+#![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
     Arc,
+    atomic::{AtomicBool, Ordering},
 };
 
 use eframe::egui;
 
-fn main() -> Result<(), eframe::Error> {
+fn main() -> eframe::Result {
+    let rust_log = std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_owned());
+
+    // SAFETY: we call this from the main thread without any other threads running.
+    #[expect(unsafe_code)]
+    unsafe {
+        std::env::set_var("RUST_LOG", rust_log);
+    };
+
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     start_puffin_server(); // NOTE: you may only want to call this if the users specifies some flag or clicks a button!
 
@@ -21,14 +30,14 @@ fn main() -> Result<(), eframe::Error> {
 
             ..Default::default()
         },
-        Box::new(|_cc| Box::<MyApp>::default()),
+        Box::new(|_cc| Ok(Box::<MyApp>::default())),
     )
 }
 
 struct MyApp {
     keep_repainting: bool,
 
-    // It is useful to be able t oinspect how eframe acts with multiple viewport
+    // It is useful to be able to inspect how eframe acts with multiple viewport
     // so we have two viewports here that we can toggle on/off.
     show_immediate_viewport: bool,
     show_deferred_viewport: Arc<AtomicBool>,
@@ -152,7 +161,7 @@ fn start_puffin_server() {
 
     match puffin_http::Server::new("127.0.0.1:8585") {
         Ok(puffin_server) => {
-            eprintln!("Run:  cargo install puffin_viewer && puffin_viewer --url 127.0.0.1:8585");
+            log::info!("Run:  cargo install puffin_viewer && puffin_viewer --url 127.0.0.1:8585");
 
             std::process::Command::new("puffin_viewer")
                 .arg("--url")
@@ -162,11 +171,11 @@ fn start_puffin_server() {
 
             // We can store the server if we want, but in this case we just want
             // it to keep running. Dropping it closes the server, so let's not drop it!
-            #[allow(clippy::mem_forget)]
+            #[expect(clippy::mem_forget)]
             std::mem::forget(puffin_server);
         }
         Err(err) => {
-            eprintln!("Failed to start puffin server: {err}");
+            log::error!("Failed to start puffin server: {err}");
         }
-    };
+    }
 }

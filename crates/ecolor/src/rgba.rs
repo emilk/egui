@@ -1,9 +1,8 @@
-use crate::{
-    gamma_u8_from_linear_f32, linear_f32_from_gamma_u8, linear_f32_from_linear_u8,
-    linear_u8_from_linear_f32,
-};
+use crate::Color32;
 
 /// 0-1 linear space `RGBA` color with premultiplied alpha.
+///
+/// See [`crate::Color32`] for explanation of what "premultiplied alpha" means.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -26,6 +25,7 @@ impl std::ops::IndexMut<usize> for Rgba {
     }
 }
 
+/// Deterministically hash an `f32`, treating all NANs as equal, and ignoring the sign of zero.
 #[inline]
 pub(crate) fn f32_hash<H: std::hash::Hasher>(state: &mut H, f: f32) {
     if f == 0.0 {
@@ -33,12 +33,11 @@ pub(crate) fn f32_hash<H: std::hash::Hasher>(state: &mut H, f: f32) {
     } else if f.is_nan() {
         state.write_u8(1);
     } else {
-        use std::hash::Hash;
+        use std::hash::Hash as _;
         f.to_bits().hash(state);
     }
 }
 
-#[allow(clippy::derived_hash_with_manual_eq)]
 impl std::hash::Hash for Rgba {
     #[inline]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -69,20 +68,12 @@ impl Rgba {
 
     #[inline]
     pub fn from_srgba_premultiplied(r: u8, g: u8, b: u8, a: u8) -> Self {
-        let r = linear_f32_from_gamma_u8(r);
-        let g = linear_f32_from_gamma_u8(g);
-        let b = linear_f32_from_gamma_u8(b);
-        let a = linear_f32_from_linear_u8(a);
-        Self::from_rgba_premultiplied(r, g, b, a)
+        Self::from(Color32::from_rgba_premultiplied(r, g, b, a))
     }
 
     #[inline]
     pub fn from_srgba_unmultiplied(r: u8, g: u8, b: u8, a: u8) -> Self {
-        let r = linear_f32_from_gamma_u8(r);
-        let g = linear_f32_from_gamma_u8(g);
-        let b = linear_f32_from_gamma_u8(b);
-        let a = linear_f32_from_linear_u8(a);
-        Self::from_rgba_premultiplied(r * a, g * a, b * a, a)
+        Self::from(Color32::from_rgba_unmultiplied(r, g, b, a))
     }
 
     #[inline]
@@ -90,6 +81,7 @@ impl Rgba {
         Self([r, g, b, 1.0])
     }
 
+    #[doc(alias = "from_grey")]
     #[inline]
     pub const fn from_gray(l: f32) -> Self {
         Self([l, l, l, 1.0])
@@ -97,22 +89,31 @@ impl Rgba {
 
     #[inline]
     pub fn from_luminance_alpha(l: f32, a: f32) -> Self {
-        crate::ecolor_assert!(0.0 <= l && l <= 1.0);
-        crate::ecolor_assert!(0.0 <= a && a <= 1.0);
+        debug_assert!(
+            0.0 <= l && l <= 1.0,
+            "l should be in the range [0, 1], but was {l}"
+        );
+        debug_assert!(
+            0.0 <= a && a <= 1.0,
+            "a should be in the range [0, 1], but was {a}"
+        );
         Self([l * a, l * a, l * a, a])
     }
 
     /// Transparent black
     #[inline]
     pub fn from_black_alpha(a: f32) -> Self {
-        crate::ecolor_assert!(0.0 <= a && a <= 1.0);
+        debug_assert!(
+            0.0 <= a && a <= 1.0,
+            "a should be in the range [0, 1], but was {a}"
+        );
         Self([0.0, 0.0, 0.0, a])
     }
 
     /// Transparent white
     #[inline]
     pub fn from_white_alpha(a: f32) -> Self {
-        crate::ecolor_assert!(0.0 <= a && a <= 1.0, "a: {}", a);
+        debug_assert!(0.0 <= a && a <= 1.0, "a: {a}");
         Self([a, a, a, a])
     }
 
@@ -209,13 +210,12 @@ impl Rgba {
     /// unmultiply the alpha
     #[inline]
     pub fn to_srgba_unmultiplied(&self) -> [u8; 4] {
-        let [r, g, b, a] = self.to_rgba_unmultiplied();
-        [
-            gamma_u8_from_linear_f32(r),
-            gamma_u8_from_linear_f32(g),
-            gamma_u8_from_linear_f32(b),
-            linear_u8_from_linear_f32(a.abs()),
-        ]
+        crate::Color32::from(*self).to_srgba_unmultiplied()
+    }
+
+    /// Blend two colors in linear space, so that `self` is behind the argument.
+    pub fn blend(self, on_top: Self) -> Self {
+        self.multiply(1.0 - on_top.a()) + on_top
     }
 }
 
@@ -272,5 +272,74 @@ impl std::ops::Mul<Rgba> for f32 {
             self * rgba[2],
             self * rgba[3],
         ])
+    }
+}
+
+#[cfg(test)]
+mod test {
+
+    use super::*;
+
+    fn test_rgba() -> impl Iterator<Item = [u8; 4]> {
+        [
+            [0, 0, 0, 0],
+            [0, 0, 0, 255],
+            [10, 0, 30, 0],
+            [10, 0, 30, 40],
+            [10, 100, 200, 0],
+            [10, 100, 200, 100],
+            [10, 100, 200, 200],
+            [10, 100, 200, 255],
+            [10, 100, 200, 40],
+            [10, 20, 0, 0],
+            [10, 20, 0, 255],
+            [10, 20, 30, 255],
+            [10, 20, 30, 40],
+            [255, 255, 255, 0],
+            [255, 255, 255, 255],
+        ]
+        .into_iter()
+    }
+
+    #[test]
+    fn test_rgba_blend() {
+        let opaque = Rgba::from_rgb(0.4, 0.5, 0.6);
+        let transparent = Rgba::from_rgb(1.0, 0.5, 0.0).multiply(0.3);
+        assert_eq!(
+            transparent.blend(opaque),
+            opaque,
+            "Opaque on top of transparent"
+        );
+        assert_eq!(
+            opaque.blend(transparent),
+            Rgba::from_rgb(
+                0.7 * 0.4 + 0.3 * 1.0,
+                0.7 * 0.5 + 0.3 * 0.5,
+                0.7 * 0.6 + 0.3 * 0.0
+            ),
+            "Transparent on top of opaque"
+        );
+    }
+
+    #[test]
+    fn test_rgba_roundtrip() {
+        for in_rgba in test_rgba() {
+            let [r, g, b, a] = in_rgba;
+            if a == 0 {
+                continue;
+            }
+            let rgba = Rgba::from_srgba_unmultiplied(r, g, b, a);
+            let out_rgba = rgba.to_srgba_unmultiplied();
+
+            if a == 255 {
+                assert_eq!(in_rgba, out_rgba);
+            } else {
+                // There will be small rounding errors whenever the alpha is not 0 or 255,
+                // because we multiply and then unmultiply the alpha.
+                for (&a, &b) in in_rgba.iter().zip(out_rgba.iter()) {
+                    assert!(a.abs_diff(b) <= 3, "{in_rgba:?} != {out_rgba:?}");
+                }
+            }
+        }
     }
 }

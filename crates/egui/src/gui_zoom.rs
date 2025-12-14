@@ -1,10 +1,10 @@
-//! Helpers for zooming the whole GUI of an app (changing [`Context::pixels_per_point`].
+//! Helpers for zooming the whole GUI of an app (changing [`Context::pixels_per_point`]).
 //!
-use crate::*;
+use crate::{Button, Context, Key, KeyboardShortcut, Modifiers, Ui};
 
 /// The suggested keyboard shortcuts for global gui zooming.
 pub mod kb_shortcuts {
-    use super::*;
+    use super::{Key, KeyboardShortcut, Modifiers};
 
     /// Primary keyboard shortcut for zooming in (`Cmd` + `+`).
     pub const ZOOM_IN: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::Plus);
@@ -70,38 +70,43 @@ pub fn zoom_out(ctx: &Context) {
 ///
 /// This is meant to be called from within a menu (See [`Ui::menu_button`]).
 pub fn zoom_menu_buttons(ui: &mut Ui) {
+    fn button(ctx: &Context, text: &str, shortcut: &KeyboardShortcut) -> Button<'static> {
+        let btn = Button::new(text);
+        let zoom_with_keyboard = ctx.options(|o| o.zoom_with_keyboard);
+        if zoom_with_keyboard {
+            btn.shortcut_text(ctx.format_shortcut(shortcut))
+        } else {
+            btn
+        }
+    }
+
     if ui
         .add_enabled(
             ui.ctx().zoom_factor() < MAX_ZOOM_FACTOR,
-            Button::new("Zoom In").shortcut_text(ui.ctx().format_shortcut(&kb_shortcuts::ZOOM_IN)),
+            button(ui.ctx(), "Zoom In", &kb_shortcuts::ZOOM_IN),
         )
         .clicked()
     {
         zoom_in(ui.ctx());
-        ui.close_menu();
     }
 
     if ui
         .add_enabled(
             ui.ctx().zoom_factor() > MIN_ZOOM_FACTOR,
-            Button::new("Zoom Out")
-                .shortcut_text(ui.ctx().format_shortcut(&kb_shortcuts::ZOOM_OUT)),
+            button(ui.ctx(), "Zoom Out", &kb_shortcuts::ZOOM_OUT),
         )
         .clicked()
     {
         zoom_out(ui.ctx());
-        ui.close_menu();
     }
 
     if ui
         .add_enabled(
             ui.ctx().zoom_factor() != 1.0,
-            Button::new("Reset Zoom")
-                .shortcut_text(ui.ctx().format_shortcut(&kb_shortcuts::ZOOM_RESET)),
+            button(ui.ctx(), "Reset Zoom", &kb_shortcuts::ZOOM_RESET),
         )
         .clicked()
     {
         ui.ctx().set_zoom_factor(1.0);
-        ui.close_menu();
     }
 }

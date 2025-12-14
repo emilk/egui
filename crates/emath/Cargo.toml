@@ -5,16 +5,20 @@ authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Minimal 2D math library for GUI work"
 edition.workspace = true
 rust-version.workspace = true
-homepage = "https://github.com/emilk/egui/tree/master/crates/emath"
+homepage = "https://github.com/emilk/egui/tree/main/crates/emath"
 license.workspace = true
 readme = "README.md"
-repository = "https://github.com/emilk/egui/tree/master/crates/emath"
+repository = "https://github.com/emilk/egui/tree/main/crates/emath"
 categories = ["mathematics", "gui"]
 keywords = ["math", "gui"]
 include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 
+[lints]
+workspace = true
+
 [package.metadata.docs.rs]
 all-features = true
+rustdoc-args = ["--generate-link-to-definition"]
 
 [lib]
 
@@ -22,24 +26,18 @@ all-features = true
 [features]
 default = []
 
-## Enable additional checks if debug assertions are enabled (debug builds).
-extra_debug_asserts = []
-
-## Always enable additional checks.
-extra_asserts = []
-
 
 [dependencies]
 #! ### Optional dependencies
 
 ## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast `emath` types to `&[u8]`.
-bytemuck = { version = "1.7.2", optional = true, features = ["derive"] }
+bytemuck = { workspace = true, optional = true, features = ["derive"] }
 
 ## Enable this when generating docs.
 document-features = { workspace = true, optional = true }
 
 ## [`mint`](https://docs.rs/mint) enables interoperability with other math libraries such as [`glam`](https://docs.rs/glam) and [`nalgebra`](https://docs.rs/nalgebra).
-mint = { version = "0.5.6", optional = true }
+mint = { workspace = true, optional = true }
 
 ## Allow serialization using [`serde`](https://docs.rs/serde).
-serde = { version = "1", optional = true, features = ["derive"] }
+serde = { workspace = true, optional = true }

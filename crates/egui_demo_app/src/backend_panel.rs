@@ -110,7 +110,7 @@ impl BackendPanel {
         if cfg!(debug_assertions) && cfg!(target_arch = "wasm32") {
             ui.separator();
             // For testing panic handling on web:
-            #[allow(clippy::manual_assert)]
+            #[expect(clippy::manual_assert)]
             if ui.button("panic!()").clicked() {
                 panic!("intentional panic!");
             }
@@ -147,20 +147,34 @@ impl BackendPanel {
             if cfg!(debug_assertions) {
                 ui.collapsing("More…", |ui| {
                     ui.horizontal(|ui| {
-                        ui.label("Frame number:");
-                        ui.monospace(ui.ctx().frame_nr().to_string());
+                        ui.label("Total ui frames:");
+                        ui.monospace(ui.ctx().cumulative_frame_nr().to_string());
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("Total ui passes:");
+                        ui.monospace(ui.ctx().cumulative_pass_nr().to_string());
                     });
                     if ui
                         .button("Wait 2s, then request repaint after another 3s")
                         .clicked()
                     {
-                        log::info!("Waiting 2s before requesting repaint...");
+                        log::info!("Waiting 2s before requesting repaint…");
                         let ctx = ui.ctx().clone();
                         call_after_delay(std::time::Duration::from_secs(2), move || {
-                            log::info!("Request a repaint in 3s...");
+                            log::info!("Request a repaint in 3s…");
                             ctx.request_repaint_after(std::time::Duration::from_secs(3));
                         });
                     }
+
+                    ui.horizontal(|ui| {
+                        if ui.button("Request discard").clicked() {
+                            ui.ctx().request_discard("Manual button click");
+
+                            if !ui.ctx().will_discard() {
+                                ui.label("Discard denied!");
+                            }
+                        }
+                    });
                 });
             }
         }
@@ -173,14 +187,14 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         ui.label("egui running inside ");
         ui.hyperlink_to(
             "eframe",
-            "https://github.com/emilk/egui/tree/master/crates/eframe",
+            "https://github.com/emilk/egui/tree/main/crates/eframe",
         );
         ui.label(".");
     });
 
     #[cfg(target_arch = "wasm32")]
     ui.collapsing("Web info (location)", |ui| {
-        ui.style_mut().wrap = Some(false);
+        ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
         ui.monospace(format!("{:#?}", _frame.info().web_info.location));
     });
 
@@ -296,19 +310,34 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
                 }
             }
 
-            if ui
-                .button("📱 Phone Size")
-                .on_hover_text("Resize the window to be small like a phone.")
-                .clicked()
-            {
-                // let size = egui::vec2(375.0, 812.0); // iPhone 12 mini
-                let size = egui::vec2(375.0, 667.0); //  iPhone SE 2nd gen
+            let mut size = None;
+            egui::ComboBox::from_id_salt("viewport-size-combo")
+                .selected_text("Resize to…")
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(
+                        &mut size,
+                        Some(egui::vec2(375.0, 667.0)),
+                        "📱 iPhone SE 2nd Gen",
+                    );
+                    ui.selectable_value(&mut size, Some(egui::vec2(393.0, 852.0)), "📱 iPhone 15");
+                    ui.selectable_value(
+                        &mut size,
+                        Some(egui::vec2(1280.0, 720.0)),
+                        "🖥 Desktop 720p",
+                    );
+                    ui.selectable_value(
+                        &mut size,
+                        Some(egui::vec2(1920.0, 1080.0)),
+                        "🖥 Desktop 1080p",
+                    );
+                });
 
+            if let Some(size) = size {
                 ui.ctx()
                     .send_viewport_cmd(egui::ViewportCommand::InnerSize(size));
                 ui.ctx()
                     .send_viewport_cmd(egui::ViewportCommand::Fullscreen(false));
-                ui.close_menu();
+                ui.close();
             }
         });
     }

@@ -1,9 +1,9 @@
-# There is also a scripts/clippy_wasm/clippy.toml which forbids some mthods that are not available in wasm.
+# There is also a scripts/clippy_wasm/clippy.toml which forbids some methods that are not available in wasm.
 
 # -----------------------------------------------------------------------------
 # Section identical to scripts/clippy_wasm/clippy.toml:
 
-msrv = "1.72"
+msrv = "1.88"
 
 allow-unwrap-in-tests = true
 
@@ -23,29 +23,25 @@ type-complexity-threshold = 350
 
 # https://rust-lang.github.io/rust-clippy/master/index.html#disallowed_macros
 disallowed-macros = [
-    'dbg',
-    'std::unimplemented',
+  'std::dbg',
+  'std::unimplemented',
 
-    # TODO(emilk): consider forbidding these to encourage the use of proper log stream, and then explicitly allow legitimate uses
-    # 'std::eprint',
-    # 'std::eprintln',
-    # 'std::print',
-    # 'std::println',
+  # TODO(emilk): consider forbidding these to encourage the use of proper log stream, and then explicitly allow legitimate uses
+  # 'std::eprint',
+  # 'std::eprintln',
+  # 'std::print',
+  # 'std::println',
 ]
 
 # https://rust-lang.github.io/rust-clippy/master/index.html#disallowed_methods
 disallowed-methods = [
-    "std::env::temp_dir", # Use the tempdir crate instead
+  # NOTE: There are many things that aren't allowed on wasm,
+  # but we cannot disable them all here (because of e.g. https://github.com/rust-lang/rust-clippy/issues/10406)
+  # so we do that in `clipppy_wasm.toml` instead.
 
-    # There are many things that aren't allowed on wasm,
-    # but we cannot disable them all here (because of e.g. https://github.com/rust-lang/rust-clippy/issues/10406)
-    # so we do that in `clipppy_wasm.toml` instead.
-
-    "std::thread::spawn", # Use `std::thread::Builder` and name the thread
-
-    "sha1::Digest::new", # SHA1 is cryptographically broken
-
-    "std::panic::catch_unwind", # We compile with `panic = "abort"`
+  { path = "std::env::temp_dir", readon = "Use the tempfile crate instead" },
+  { path = "std::panic::catch_unwind", reason = "We compile with `panic = abort" },
+  { path = "std::thread::spawn", readon = "Use `std::thread::Builder` and name the thread" },
 ]
 
 # https://rust-lang.github.io/rust-clippy/master/index.html#disallowed_names
@@ -53,25 +49,24 @@ disallowed-names = []
 
 # https://rust-lang.github.io/rust-clippy/master/index.html#disallowed_types
 disallowed-types = [
-    # Use the faster & simpler non-poisonable primitives in `parking_lot` instead
-    "std::sync::Mutex",
-    "std::sync::RwLock",
-    "std::sync::Condvar",
-    # "std::sync::Once",  # enabled for now as the `log_once` macro uses it internally
-
-    "ring::digest::SHA1_FOR_LEGACY_USE_ONLY", # SHA1 is cryptographically broken
-
-    "winit::dpi::LogicalSize",     # We do our own pixels<->point conversion, taking `egui_ctx.zoom_factor` into account
-    "winit::dpi::LogicalPosition", # We do our own pixels<->point conversion, taking `egui_ctx.zoom_factor` into account
+  { path = "std::sync::Condvar", reason = "Use parking_lot instead" },
+  { path = "std::sync::Mutex", reason = "Use epaint::mutex instead" },
+  { path = "std::sync::RwLock", reason = "Use epaint::mutex instead" },
+  { path = "winit::dpi::LogicalPosition", reason = "We do our own pixels<->point conversion, taking `egui_ctx.zoom_factor` into account" },
+  { path = "winit::dpi::LogicalSize", reason = "We do our own pixels<->point conversion, taking `egui_ctx.zoom_factor` into account" },
+  # "std::sync::Once",  # enabled for now as the `log_once` macro uses it internally
 ]
 
 # -----------------------------------------------------------------------------
 
-# Allow-list of words for markdown in dosctrings https://rust-lang.github.io/rust-clippy/master/index.html#doc_markdown
+# Allow-list of words for markdown in docstrings https://rust-lang.github.io/rust-clippy/master/index.html#doc_markdown
 doc-valid-idents = [
-    # You must also update the same list in the root `clippy.toml`!
-    "AccessKit",
-    "WebGL",
-    "WebGPU",
-    "..",
+  # You must also update the same list in `scripts/clippy_wasm/clippy.toml`!
+  "AccessKit",
+  "WebGL",
+  "WebGL1",
+  "WebGL2",
+  "WebGPU",
+  "VirtualBox",
+  "..",
 ]

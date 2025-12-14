@@ -90,14 +90,15 @@ impl HexColor {
                 let [r, gb] = u16::from_str_radix(s, 16)
                     .map_err(ParseHexColorError::InvalidInt)?
                     .to_be_bytes();
-                let [r, g, b] = [r, gb >> 4, gb & 0x0f].map(|u| u << 4 | u);
+                let [r, g, b] = [r, gb >> 4, gb & 0x0f].map(|u| (u << 4) | u);
                 Ok(Self::Hex3(Color32::from_rgb(r, g, b)))
             }
             4 => {
                 let [r_g, b_a] = u16::from_str_radix(s, 16)
                     .map_err(ParseHexColorError::InvalidInt)?
                     .to_be_bytes();
-                let [r, g, b, a] = [r_g >> 4, r_g & 0x0f, b_a >> 4, b_a & 0x0f].map(|u| u << 4 | u);
+                let [r, g, b, a] =
+                    [r_g >> 4, r_g & 0x0f, b_a >> 4, b_a & 0x0f].map(|u| (u << 4) | u);
                 Ok(Self::Hex4(Color32::from_rgba_unmultiplied(r, g, b, a)))
             }
             6 => {
@@ -123,8 +124,8 @@ impl Color32 {
     /// Supports the 3, 4, 6, and 8-digit formats, according to the specification in
     /// <https://drafts.csswg.org/css-color-4/#hex-color>
     ///
-    /// To parse hex colors at compile-time (e.g. for use in `const` contexts)
-    /// use the macro [`crate::hex_color!`] instead.
+    /// To parse hex colors from string literals with compile-time checking, use the macro
+    /// [`crate::hex_color!`] instead.
     ///
     /// # Example
     /// ```rust
@@ -207,17 +208,22 @@ mod tests {
 
     #[test]
     fn hex_string_round_trip() {
-        use Color32 as C;
         let cases = [
-            C::from_rgba_unmultiplied(10, 20, 30, 0),
-            C::from_rgba_unmultiplied(10, 20, 30, 40),
-            C::from_rgba_unmultiplied(10, 20, 30, 255),
-            C::from_rgba_unmultiplied(0, 20, 30, 0),
-            C::from_rgba_unmultiplied(10, 0, 30, 40),
-            C::from_rgba_unmultiplied(10, 20, 0, 255),
+            [0, 20, 30, 0],
+            [10, 0, 30, 40],
+            [10, 100, 200, 0],
+            [10, 100, 200, 100],
+            [10, 100, 200, 200],
+            [10, 100, 200, 255],
+            [10, 100, 200, 40],
+            [10, 20, 0, 255],
+            [10, 20, 30, 0],
+            [10, 20, 30, 255],
+            [10, 20, 30, 40],
         ];
-        for color in cases {
-            assert_eq!(C::from_hex(color.to_hex().as_str()), Ok(color));
+        for [r, g, b, a] in cases {
+            let color = Color32::from_rgba_unmultiplied(r, g, b, a);
+            assert_eq!(Color32::from_hex(color.to_hex().as_str()), Ok(color));
         }
     }
 }

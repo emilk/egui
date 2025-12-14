@@ -14,11 +14,16 @@ pub struct WebHandle {
 #[wasm_bindgen]
 impl WebHandle {
     /// Installs a panic hook, then returns.
-    #[allow(clippy::new_without_default)]
+    #[allow(clippy::new_without_default, clippy::allow_attributes)]
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
         // Redirect [`log`] message to `console.log` and friends:
-        eframe::WebLogger::init(log::LevelFilter::Debug).ok();
+        let log_level = if cfg!(debug_assertions) {
+            log::LevelFilter::Trace
+        } else {
+            log::LevelFilter::Debug
+        };
+        eframe::WebLogger::init(log_level).ok();
 
         Self {
             runner: eframe::WebRunner::new(),
@@ -27,12 +32,15 @@ impl WebHandle {
 
     /// Call this once from JavaScript to start your app.
     #[wasm_bindgen]
-    pub async fn start(&self, canvas_id: &str) -> Result<(), wasm_bindgen::JsValue> {
+    pub async fn start(
+        &self,
+        canvas: web_sys::HtmlCanvasElement,
+    ) -> Result<(), wasm_bindgen::JsValue> {
         self.runner
             .start(
-                canvas_id,
+                canvas,
                 eframe::WebOptions::default(),
-                Box::new(|cc| Box::new(WrapApp::new(cc))),
+                Box::new(|cc| Ok(Box::new(WrapApp::new(cc)))),
             )
             .await
     }

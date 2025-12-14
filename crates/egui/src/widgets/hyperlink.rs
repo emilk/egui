@@ -1,4 +1,7 @@
-use crate::*;
+use crate::{
+    CursorIcon, Label, Response, Sense, Stroke, Ui, Widget, WidgetInfo, WidgetText, WidgetType,
+    epaint, text_selection,
+};
 
 use self::text_selection::LabelSelectionState;
 
@@ -20,7 +23,7 @@ use self::text_selection::LabelSelectionState;
 /// }
 /// # });
 /// ```
-#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+#[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct Link {
     text: WidgetText,
 }
@@ -37,7 +40,8 @@ impl Widget for Link {
         let label = Label::new(text).sense(Sense::click());
 
         let (galley_pos, galley, response) = label.layout_in_ui(ui);
-        response.widget_info(|| WidgetInfo::labeled(WidgetType::Link, galley.text()));
+        response
+            .widget_info(|| WidgetInfo::labeled(WidgetType::Link, ui.is_enabled(), galley.text()));
 
         if ui.is_rect_visible(response.rect) {
             let color = ui.visuals().hyperlink_color;
@@ -49,13 +53,15 @@ impl Widget for Link {
                 Stroke::NONE
             };
 
-            ui.painter().add(
-                epaint::TextShape::new(galley_pos, galley.clone(), color).with_underline(underline),
-            );
-
             let selectable = ui.style().interaction.selectable_labels;
             if selectable {
-                LabelSelectionState::label_text_selection(ui, &response, galley_pos, &galley);
+                LabelSelectionState::label_text_selection(
+                    ui, &response, galley_pos, galley, color, underline,
+                );
+            } else {
+                ui.painter().add(
+                    epaint::TextShape::new(galley_pos, galley, color).with_underline(underline),
+                );
             }
 
             if response.hovered() {
@@ -82,7 +88,7 @@ impl Widget for Link {
 /// ui.add(egui::Hyperlink::from_label_and_url("My favorite repo", "https://github.com/emilk/egui"));
 /// # });
 /// ```
-#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+#[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct Hyperlink {
     url: String,
     text: WidgetText,
@@ -90,7 +96,7 @@ pub struct Hyperlink {
 }
 
 impl Hyperlink {
-    #[allow(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value)]
     pub fn new(url: impl ToString) -> Self {
         let url = url.to_string();
         Self {
@@ -100,7 +106,7 @@ impl Hyperlink {
         }
     }
 
-    #[allow(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value)]
     pub fn from_label_and_url(text: impl Into<WidgetText>, url: impl ToString) -> Self {
         Self {
             url: url.to_string(),
@@ -123,19 +129,22 @@ impl Widget for Hyperlink {
 
         let response = ui.add(Link::new(text));
 
-        if response.clicked() {
-            let modifiers = ui.ctx().input(|i| i.modifiers);
-            ui.ctx().open_url(crate::OpenUrl {
-                url: url.clone(),
-                new_tab: new_tab || modifiers.any(),
-            });
-        }
-        if response.middle_clicked() {
+        if response.clicked_with_open_in_background() {
             ui.ctx().open_url(crate::OpenUrl {
                 url: url.clone(),
                 new_tab: true,
             });
+        } else if response.clicked() {
+            ui.ctx().open_url(crate::OpenUrl {
+                url: url.clone(),
+                new_tab,
+            });
         }
-        response.on_hover_text(url)
+
+        if ui.style().url_in_tooltip {
+            response.on_hover_text(url)
+        } else {
+            response
+        }
     }
 }

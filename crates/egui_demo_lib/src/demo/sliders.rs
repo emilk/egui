@@ -1,5 +1,4 @@
-use egui::{style::HandleShape, *};
-use std::f64::INFINITY;
+use egui::{Slider, SliderClamping, SliderOrientation, Ui, style::HandleShape};
 
 /// Showcase sliders
 #[derive(PartialEq)]
@@ -9,7 +8,7 @@ pub struct Sliders {
     pub min: f64,
     pub max: f64,
     pub logarithmic: bool,
-    pub clamp_to_range: bool,
+    pub clamping: SliderClamping,
     pub smart_aim: bool,
     pub step: f64,
     pub use_steps: bool,
@@ -26,7 +25,7 @@ impl Default for Sliders {
             min: 0.0,
             max: 10000.0,
             logarithmic: true,
-            clamp_to_range: false,
+            clamping: SliderClamping::Always,
             smart_aim: true,
             step: 10.0,
             use_steps: false,
@@ -39,7 +38,7 @@ impl Default for Sliders {
     }
 }
 
-impl super::Demo for Sliders {
+impl crate::Demo for Sliders {
     fn name(&self) -> &'static str {
         "⬌ Sliders"
     }
@@ -49,19 +48,19 @@ impl super::Demo for Sliders {
             .open(open)
             .resizable(false)
             .show(ctx, |ui| {
-                use super::View as _;
+                use crate::View as _;
                 self.ui(ui);
             });
     }
 }
 
-impl super::View for Sliders {
+impl crate::View for Sliders {
     fn ui(&mut self, ui: &mut Ui) {
         let Self {
             min,
             max,
             logarithmic,
-            clamp_to_range,
+            clamping,
             smart_aim,
             step,
             use_steps,
@@ -77,7 +76,7 @@ impl super::View for Sliders {
         let (type_min, type_max) = if *integer {
             ((i32::MIN as f64), (i32::MAX as f64))
         } else if *logarithmic {
-            (-INFINITY, INFINITY)
+            (-f64::INFINITY, f64::INFINITY)
         } else {
             (-1e5, 1e5) // linear sliders make little sense with huge numbers
         };
@@ -97,7 +96,7 @@ impl super::View for Sliders {
             ui.add(
                 Slider::new(&mut value_i32, (*min as i32)..=(*max as i32))
                     .logarithmic(*logarithmic)
-                    .clamp_to_range(*clamp_to_range)
+                    .clamping(*clamping)
                     .smart_aim(*smart_aim)
                     .orientation(orientation)
                     .text("i32 demo slider")
@@ -110,7 +109,7 @@ impl super::View for Sliders {
             ui.add(
                 Slider::new(value, (*min)..=(*max))
                     .logarithmic(*logarithmic)
-                    .clamp_to_range(*clamp_to_range)
+                    .clamping(*clamping)
                     .smart_aim(*smart_aim)
                     .orientation(orientation)
                     .text("f64 demo slider")
@@ -188,9 +187,14 @@ impl super::View for Sliders {
         ui.label("Logarithmic sliders can include infinity and zero.");
         ui.add_space(8.0);
 
-        ui.checkbox(clamp_to_range, "Clamp to range");
+        ui.horizontal(|ui| {
+            ui.label("Clamping:");
+            ui.selectable_value(clamping, SliderClamping::Never, "Never");
+            ui.selectable_value(clamping, SliderClamping::Edits, "Edits");
+            ui.selectable_value(clamping, SliderClamping::Always, "Always");
+        });
         ui.label("If true, the slider will clamp incoming and outgoing values to the given range.");
-        ui.label("If false, the slider can shows values outside its range, and you can manually enter values outside the range.");
+        ui.label("If false, the slider can show values outside its range, and you cannot enter new values outside the range.");
         ui.add_space(8.0);
 
         ui.checkbox(smart_aim, "Smart Aim");
@@ -198,7 +202,7 @@ impl super::View for Sliders {
         ui.add_space(8.0);
 
         ui.vertical_centered(|ui| {
-            egui::reset_button(ui, self);
+            egui::reset_button(ui, self, "Reset");
             ui.add(crate::egui_github_link_file!());
         });
     }

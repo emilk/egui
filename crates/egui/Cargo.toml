@@ -13,18 +13,18 @@ categories = ["gui", "game-development"]
 keywords = ["gui", "imgui", "immediate", "portable", "gamedev"]
 include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 
+[lints]
+workspace = true
+
 [package.metadata.docs.rs]
 all-features = true
+rustdoc-args = ["--generate-link-to-definition"]
 
 [lib]
 
 
 [features]
 default = ["default_fonts"]
-
-## Exposes detailed accessibility implementation required by platform
-## accessibility APIs. Also requires support in the egui integration.
-accesskit = ["dep:accesskit"]
 
 ## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast [`epaint::Vertex`], [`emath::Vec2`] etc to `&[u8]`.
 bytemuck = ["epaint/bytemuck"]
@@ -40,22 +40,9 @@ cint = ["epaint/cint"]
 ## Enable the [`hex_color`] macro.
 color-hex = ["epaint/color-hex"]
 
-## This will automatically detect deadlocks due to double-locking on the same thread.
-## If your app freezes, you may want to enable this!
-## Only affects [`epaint::mutex::RwLock`] (which egui uses a lot).
-deadlock_detection = ["epaint/deadlock_detection"]
-
 ## If set, egui will use `include_bytes!` to bundle some fonts.
 ## If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["epaint/default_fonts"]
-
-## Enable additional checks if debug assertions are enabled (debug builds).
-extra_debug_asserts = ["epaint/extra_debug_asserts"]
-## Always enable additional checks.
-extra_asserts = ["epaint/extra_asserts"]
-
-## Turn on the `log` feature, that makes egui log some errors using the [`log`](https://docs.rs/log) crate.
-log = ["dep:log", "epaint/log"]
 
 ## [`mint`](https://docs.rs/mint) enables interoperability with other math libraries such as [`glam`](https://docs.rs/glam) and [`nalgebra`](https://docs.rs/nalgebra).
 mint = ["epaint/mint"]
@@ -63,10 +50,6 @@ mint = ["epaint/mint"]
 ## Enable persistence of memory (window positions etc).
 persistence = ["serde", "epaint/serde", "ron"]
 
-## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
-##
-## Only enabled on native, because of the low resolution (1ms) of clocks in browsers.
-puffin = ["dep:puffin", "epaint/puffin"]
 
 ## Enable parallel tessellation using [`rayon`](https://docs.rs/rayon).
 ##
@@ -74,27 +57,35 @@ puffin = ["dep:puffin", "epaint/puffin"]
 rayon = ["epaint/rayon"]
 
 ## Allow serialization using [`serde`](https://docs.rs/serde).
-serde = ["dep:serde", "epaint/serde", "accesskit?/serde"]
+serde = ["dep:serde", "epaint/serde", "accesskit/serde"]
 
 ## Change Vertex layout to be compatible with unity
 unity = ["epaint/unity"]
 
+## Override and disable the unity feature
+## This exists, so that when testing with --all-features, snapshots render correctly.
+_override_unity = ["epaint/_override_unity"]
+
 
 [dependencies]
+emath = { workspace = true, default-features = false }
 epaint = { workspace = true, default-features = false }
 
+accesskit.workspace = true
 ahash.workspace = true
+bitflags.workspace = true
+log.workspace = true
 nohash-hasher.workspace = true
+profiling.workspace = true
+smallvec.workspace = true
+unicode-segmentation.workspace = true
 
 #! ### Optional dependencies
-accesskit = { version = "0.12", optional = true }
 
 backtrace = { workspace = true, optional = true }
 
 ## Enable this when generating docs.
 document-features = { workspace = true, optional = true }
 
-log = { workspace = true, optional = true }
-puffin = { workspace = true, optional = true }
-ron = { version = "0.8", optional = true }
-serde = { version = "1", optional = true, features = ["derive", "rc"] }
+ron = { workspace = true, optional = true }
+serde = { workspace = true, optional = true, features = ["derive", "rc"] }

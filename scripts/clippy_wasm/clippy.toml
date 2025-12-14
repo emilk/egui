@@ -6,7 +6,7 @@
 # -----------------------------------------------------------------------------
 # Section identical to the root clippy.toml:
 
-msrv = "1.72"
+msrv = "1.88"
 
 allow-unwrap-in-tests = true
 
@@ -26,26 +26,29 @@ type-complexity-threshold = 350
 
 # https://rust-lang.github.io/rust-clippy/master/index.html#disallowed_methods
 disallowed-methods = [
-  "std::time::Instant::now",      # use `instant` crate instead for wasm/web compatibility
-  "std::time::Duration::elapsed", # use `instant` crate instead for wasm/web compatibility
-  "std::time::SystemTime::now",   # use `instant` or `time` crates instead for wasm/web compatibility
+  { path = "std::time::Instant::elapsed", reason = "use `instant` crate instead for wasm/web compatibility" },
+  { path = "std::time::Instant::now", reason = "use `instant` crate instead for wasm/web compatibility" },
+  { path = "std::time::SystemTime::now", reason = "use `instant` or `time` crates instead for wasm/web compatibility" },
 
-  # Cannot spawn threads on wasm:
-  "std::thread::spawn",
+  { path = "std::thread::spawn", reason = "Cannot spawn threads on wasm" },
 ]
 
 # https://rust-lang.github.io/rust-clippy/master/index.html#disallowed_types
 disallowed-types = [
   { path = "instant::SystemTime", reason = "Known bugs. Use web-time." },
   { path = "std::thread::Builder", reason = "Cannot spawn threads on wasm" },
+  { path = "std::time::Instant", reason = "Use web-time instead." },
   # { path = "std::path::PathBuf", reason = "Can't read/write files on web" }, // TODO(emilk): consider banning Path on wasm
 ]
 
-# Allow-list of words for markdown in dosctrings https://rust-lang.github.io/rust-clippy/master/index.html#doc_markdown
+# Allow-list of words for markdown in docstrings https://rust-lang.github.io/rust-clippy/master/index.html#doc_markdown
 doc-valid-idents = [
   # You must also update the same list in the root `clippy.toml`!
   "AccessKit",
   "WebGL",
+  "WebGL1",
+  "WebGL2",
   "WebGPU",
+  "VirtualBox",
   "..",
 ]

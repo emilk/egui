@@ -1,6 +1,6 @@
 use crate::{
-    emath::{remap_clamp, NumExt as _},
     Id, IdMap, InputState,
+    emath::{NumExt as _, remap_clamp},
 };
 
 #[derive(Clone, Default)]
@@ -87,8 +87,8 @@ impl AnimationManager {
             Some(anim) => {
                 let time_since_toggle = (input.time - anim.toggle_time) as f32;
                 // On the frame we toggle we don't want to return the old value,
-                // so we extrapolate forwards:
-                let time_since_toggle = time_since_toggle + input.predicted_dt;
+                // so we extrapolate forwards by half a frame:
+                let time_since_toggle = time_since_toggle + input.predicted_dt / 2.0;
                 let current_value = remap_clamp(
                     time_since_toggle,
                     0.0..=animation_time,

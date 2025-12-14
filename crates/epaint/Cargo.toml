@@ -5,25 +5,20 @@ authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Minimal 2D graphics library for GUI work"
 edition.workspace = true
 rust-version.workspace = true
-homepage = "https://github.com/emilk/egui/tree/master/crates/epaint"
-license = "(MIT OR Apache-2.0) AND OFL-1.1 AND LicenseRef-UFL-1.0" # OFL and UFL used by default_fonts. See https://github.com/emilk/egui/issues/2321
+homepage = "https://github.com/emilk/egui/tree/main/crates/epaint"
+license = "MIT OR Apache-2.0"
 readme = "README.md"
-repository = "https://github.com/emilk/egui/tree/master/crates/epaint"
+repository = "https://github.com/emilk/egui/tree/main/crates/epaint"
 categories = ["graphics", "gui"]
 keywords = ["graphics", "gui", "egui"]
-include = [
-  "../LICENSE-APACHE",
-  "../LICENSE-MIT",
-  "**/*.rs",
-  "Cargo.toml",
-  "fonts/*.ttf",
-  "fonts/*.txt",
-  "fonts/OFL.txt",
-  "fonts/UFL.txt",
-]
+include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
+
+[lints]
+workspace = true
 
 [package.metadata.docs.rs]
 all-features = true
+rustdoc-args = ["--generate-link-to-definition"]
 
 [lib]
 
@@ -40,33 +35,12 @@ cint = ["ecolor/cint"]
 ## Enable the [`hex_color`] macro.
 color-hex = ["ecolor/color-hex"]
 
-## This will automatically detect deadlocks due to double-locking on the same thread.
-## If your app freezes, you may want to enable this!
-## Only affects [`mutex::RwLock`] (which epaint and egui uses a lot).
-deadlock_detection = ["dep:backtrace"]
-
 ## If set, epaint will use `include_bytes!` to bundle some fonts.
 ## If you plan on specifying your own fonts you may disable this feature.
-default_fonts = []
-
-## Enable additional checks if debug assertions are enabled (debug builds).
-extra_debug_asserts = [
-  "emath/extra_debug_asserts",
-  "ecolor/extra_debug_asserts",
-]
-## Always enable additional checks.
-extra_asserts = ["emath/extra_asserts", "ecolor/extra_asserts"]
-
-## Turn on the `log` feature, that makes egui log some errors using the [`log`](https://docs.rs/log) crate.
-log = ["dep:log"]
+default_fonts = ["epaint_default_fonts"]
 
 ## [`mint`](https://docs.rs/mint) enables interoperability with other math libraries such as [`glam`](https://docs.rs/glam) and [`nalgebra`](https://docs.rs/nalgebra).
 mint = ["emath/mint"]
-
-## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
-##
-## Only enabled on native, because of the low resolution (1ms) of clocks in browsers.
-puffin = ["dep:puffin"]
 
 ## Enable parallel tessellation using [`rayon`](https://docs.rs/rayon).
 ##
@@ -79,35 +53,40 @@ serde = ["dep:serde", "ahash/serde", "emath/serde", "ecolor/serde"]
 ## Change Vertex layout to be compatible with unity
 unity = []
 
+## Override and disable the unity feature
+## This exists, so that when testing with --all-features, snapshots render correctly.
+_override_unity = []
+
 [dependencies]
 emath.workspace = true
 ecolor.workspace = true
 
-ab_glyph = "0.2.11"
 ahash.workspace = true
+log.workspace = true
 nohash-hasher.workspace = true
-parking_lot.workspace = true   # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios.
+parking_lot.workspace = true # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios.
+profiling.workspace = true
+self_cell.workspace = true
+skrifa.workspace = true
+vello_cpu.workspace = true
 
 #! ### Optional dependencies
-bytemuck = { version = "1.7.2", optional = true, features = ["derive"] }
+bytemuck = { workspace = true, optional = true, features = ["derive"] }
 
 ## Enable this when generating docs.
 document-features = { workspace = true, optional = true }
 
-log = { workspace = true, optional = true }
-puffin = { workspace = true, optional = true }
-rayon = { version = "1.7", optional = true }
+rayon = { workspace = true, optional = true }
 
 ## Allow serialization using [`serde`](https://docs.rs/serde) .
-serde = { version = "1", optional = true, features = ["derive", "rc"] }
+serde = { workspace = true, optional = true, features = ["derive", "rc"] }
 
-# native:
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-backtrace = { workspace = true, optional = true }
-
+epaint_default_fonts = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion.workspace = true
+mimalloc.workspace = true
+similar-asserts.workspace = true
 
 
 [[bench]]

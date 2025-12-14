@@ -8,9 +8,9 @@ use super::Vec2;
 // `vec2(c,s)` represents where the X axis will end up after rotation.
 //
 /// Represents a rotation in the 2D plane.
-//
+///
 /// A rotation of 𝞃/4 = 90° rotates the X axis to the Y axis.
-//
+///
 /// Normally a [`Rot2`] is normalized (unit-length).
 /// If not, it will also scale vectors.
 #[repr(C)]
@@ -18,10 +18,10 @@ use super::Vec2;
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Rot2 {
-    /// angle.sin()
+    /// `angle.sin()`
     s: f32,
 
-    /// angle.cos()
+    /// `angle.cos()`
     c: f32,
 }
 
@@ -84,19 +84,32 @@ impl Rot2 {
             c: self.c / l,
             s: self.s / l,
         };
-        crate::emath_assert!(ret.is_finite());
+        debug_assert!(
+            ret.is_finite(),
+            "Rot2::normalized produced a non-finite result"
+        );
         ret
     }
 }
 
 impl std::fmt::Debug for Rot2 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Rot2 {{ angle: {:.1}°, length: {} }}",
-            self.angle().to_degrees(),
-            self.length()
-        )
+        if let Some(precision) = f.precision() {
+            write!(
+                f,
+                "Rot2 {{ angle: {:.2$}°, length: {} }}",
+                self.angle().to_degrees(),
+                self.length(),
+                precision
+            )
+        } else {
+            write!(
+                f,
+                "Rot2 {{ angle: {:.1}°, length: {} }}",
+                self.angle().to_degrees(),
+                self.length(),
+            )
+        }
     }
 }
 

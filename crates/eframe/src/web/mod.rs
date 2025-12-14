@@ -23,35 +23,63 @@ pub use panic_handler::{PanicHandler, PanicSummary};
 pub use web_logger::WebLogger;
 pub use web_runner::WebRunner;
 
-#[cfg(not(any(feature = "glow", feature = "wgpu")))]
+#[cfg(not(any(feature = "glow", feature = "wgpu_no_default_features")))]
 compile_error!("You must enable either the 'glow' or 'wgpu' feature");
 
 mod web_painter;
 
 #[cfg(feature = "glow")]
 mod web_painter_glow;
-#[cfg(feature = "glow")]
-pub(crate) type ActiveWebPainter = web_painter_glow::WebPainterGlow;
 
-#[cfg(feature = "wgpu")]
+#[cfg(feature = "wgpu_no_default_features")]
 mod web_painter_wgpu;
-#[cfg(all(feature = "wgpu", not(feature = "glow")))]
-pub(crate) type ActiveWebPainter = web_painter_wgpu::WebPainterWgpu;
 
 pub use backend::*;
 
-use egui::Vec2;
+use egui::Theme;
 use wasm_bindgen::prelude::*;
-use web_sys::MediaQueryList;
+use web_sys::{Document, MediaQueryList, Node};
 
-use input::*;
-
-use crate::Theme;
+use input::{
+    button_from_mouse_event, modifiers_from_kb_event, modifiers_from_mouse_event,
+    modifiers_from_wheel_event, pos_from_mouse_event, primary_touch_pos, push_touches,
+    text_from_keyboard_event, translate_key,
+};
 
 // ----------------------------------------------------------------------------
 
+/// Debug browser resizing?
+const DEBUG_RESIZE: bool = false;
+
 pub(crate) fn string_from_js_value(value: &JsValue) -> String {
     value.as_string().unwrap_or_else(|| format!("{value:#?}"))
+}
+
+/// Returns the `Element` with active focus.
+///
+/// Elements can only be focused if they are:
+/// - `<a>`/`<area>` with an `href` attribute
+/// - `<input>`/`<select>`/`<textarea>`/`<button>` which aren't `disabled`
+/// - any other element with a `tabindex` attribute
+pub(crate) fn focused_element(root: &Node) -> Option<web_sys::Element> {
+    if let Some(document) = root.dyn_ref::<Document>() {
+        document.active_element()
+    } else if let Some(shadow) = root.dyn_ref::<web_sys::ShadowRoot>() {
+        shadow.active_element()
+    } else {
+        None
+    }
+}
+
+pub(crate) fn has_focus<T: JsCast>(element: &T) -> bool {
+    fn try_has_focus<T: JsCast>(element: &T) -> Option<bool> {
+        let element = element.dyn_ref::<web_sys::Element>()?;
+        let root = element.get_root_node();
+
+        let focused_element = focused_element(&root)?;
+        Some(element == &focused_element)
+    }
+    try_has_focus(element).unwrap_or(false)
 }
 
 /// Current time in seconds (since undefined point in time).
@@ -81,102 +109,68 @@ pub fn native_pixels_per_point() -> f32 {
 /// Ask the browser about the preferred system theme.
 ///
 /// `None` means unknown.
-pub fn system_theme() -> Option<Theme> {
-    let dark_mode = prefers_color_scheme_dark(&web_sys::window()?)
-        .ok()??
-        .matches();
-    Some(theme_from_dark_mode(dark_mode))
-}
-
-fn prefers_color_scheme_dark(window: &web_sys::Window) -> Result<Option<MediaQueryList>, JsValue> {
-    window.match_media("(prefers-color-scheme: dark)")
-}
-
-fn theme_from_dark_mode(dark_mode: bool) -> Theme {
-    if dark_mode {
-        Theme::Dark
+pub fn system_theme() -> Option<egui::Theme> {
+    let window = web_sys::window()?;
+    if does_prefer_color_scheme(&window, Theme::Dark) == Some(true) {
+        Some(Theme::Dark)
+    } else if does_prefer_color_scheme(&window, Theme::Light) == Some(true) {
+        Some(Theme::Light)
     } else {
-        Theme::Light
+        None
     }
 }
 
-fn get_canvas_element_by_id(canvas_id: &str) -> Option<web_sys::HtmlCanvasElement> {
-    let document = web_sys::window()?.document()?;
-    let canvas = document.get_element_by_id(canvas_id)?;
-    canvas.dyn_into::<web_sys::HtmlCanvasElement>().ok()
+fn does_prefer_color_scheme(window: &web_sys::Window, theme: Theme) -> Option<bool> {
+    Some(prefers_color_scheme(window, theme).ok()??.matches())
 }
 
-fn get_canvas_element_by_id_or_die(canvas_id: &str) -> web_sys::HtmlCanvasElement {
-    get_canvas_element_by_id(canvas_id)
-        .unwrap_or_else(|| panic!("Failed to find canvas with id {canvas_id:?}"))
+fn prefers_color_scheme(
+    window: &web_sys::Window,
+    theme: Theme,
+) -> Result<Option<MediaQueryList>, JsValue> {
+    let theme = match theme {
+        Theme::Dark => "dark",
+        Theme::Light => "light",
+    };
+    window.match_media(format!("(prefers-color-scheme: {theme})").as_str())
 }
 
-fn canvas_origin(canvas: &web_sys::HtmlCanvasElement) -> egui::Pos2 {
-    let rect = canvas.get_bounding_client_rect();
-    egui::pos2(rect.left() as f32, rect.top() as f32)
+/// Returns the canvas in client coordinates.
+fn canvas_content_rect(canvas: &web_sys::HtmlCanvasElement) -> egui::Rect {
+    let bounding_rect = canvas.get_bounding_client_rect();
+
+    let mut rect = egui::Rect::from_min_max(
+        egui::pos2(bounding_rect.left() as f32, bounding_rect.top() as f32),
+        egui::pos2(bounding_rect.right() as f32, bounding_rect.bottom() as f32),
+    );
+
+    // We need to subtract padding and border:
+    if let Some(window) = web_sys::window() {
+        if let Ok(Some(style)) = window.get_computed_style(canvas) {
+            let get_property = |name: &str| -> Option<f32> {
+                let property = style.get_property_value(name).ok()?;
+                property.trim_end_matches("px").parse::<f32>().ok()
+            };
+
+            rect.min.x += get_property("padding-left").unwrap_or_default();
+            rect.min.y += get_property("padding-top").unwrap_or_default();
+            rect.max.x -= get_property("padding-right").unwrap_or_default();
+            rect.max.y -= get_property("padding-bottom").unwrap_or_default();
+        }
+    }
+
+    rect
 }
 
-fn canvas_size_in_points(canvas: &web_sys::HtmlCanvasElement) -> egui::Vec2 {
-    let pixels_per_point = native_pixels_per_point();
+fn canvas_size_in_points(canvas: &web_sys::HtmlCanvasElement, ctx: &egui::Context) -> egui::Vec2 {
+    // ctx.pixels_per_point can be outdated
+
+    let pixels_per_point = ctx.zoom_factor() * native_pixels_per_point();
+
     egui::vec2(
         canvas.width() as f32 / pixels_per_point,
         canvas.height() as f32 / pixels_per_point,
     )
-}
-
-fn resize_canvas_to_screen_size(
-    canvas: &web_sys::HtmlCanvasElement,
-    max_size_points: egui::Vec2,
-) -> Option<()> {
-    let parent = canvas.parent_element()?;
-
-    // Prefer the client width and height so that if the parent
-    // element is resized that the egui canvas resizes appropriately.
-    let width = parent.client_width();
-    let height = parent.client_height();
-
-    let canvas_real_size = Vec2 {
-        x: width as f32,
-        y: height as f32,
-    };
-
-    if width <= 0 || height <= 0 {
-        log::error!("egui canvas parent size is {}x{}. Try adding `html, body {{ height: 100%; width: 100% }}` to your CSS!", width, height);
-    }
-
-    let pixels_per_point = native_pixels_per_point();
-
-    let max_size_pixels = pixels_per_point * max_size_points;
-
-    let canvas_size_pixels = pixels_per_point * canvas_real_size;
-    let canvas_size_pixels = canvas_size_pixels.min(max_size_pixels);
-    let canvas_size_points = canvas_size_pixels / pixels_per_point;
-
-    // Make sure that the height and width are always even numbers.
-    // otherwise, the page renders blurry on some platforms.
-    // See https://github.com/emilk/egui/issues/103
-    fn round_to_even(v: f32) -> f32 {
-        (v / 2.0).round() * 2.0
-    }
-
-    canvas
-        .style()
-        .set_property(
-            "width",
-            &format!("{}px", round_to_even(canvas_size_points.x)),
-        )
-        .ok()?;
-    canvas
-        .style()
-        .set_property(
-            "height",
-            &format!("{}px", round_to_even(canvas_size_points.y)),
-        )
-        .ok()?;
-    canvas.set_width(round_to_even(canvas_size_pixels.x) as u32);
-    canvas.set_height(round_to_even(canvas_size_pixels.y) as u32);
-
-    Some(())
 }
 
 // ----------------------------------------------------------------------------
@@ -192,20 +186,113 @@ fn set_cursor_icon(cursor: egui::CursorIcon) -> Option<()> {
 }
 
 /// Set the clipboard text.
-#[cfg(web_sys_unstable_apis)]
 fn set_clipboard_text(s: &str) {
     if let Some(window) = web_sys::window() {
-        if let Some(clipboard) = window.navigator().clipboard() {
-            let promise = clipboard.write_text(s);
-            let future = wasm_bindgen_futures::JsFuture::from(promise);
-            let future = async move {
-                if let Err(err) = future.await {
-                    log::error!("Copy/cut action failed: {}", string_from_js_value(&err));
-                }
-            };
-            wasm_bindgen_futures::spawn_local(future);
+        if !window.is_secure_context() {
+            log::error!(
+                "Clipboard is not available because we are not in a secure context. \
+                See https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts"
+            );
+            return;
         }
+        let promise = window.navigator().clipboard().write_text(s);
+        let future = wasm_bindgen_futures::JsFuture::from(promise);
+        let future = async move {
+            if let Err(err) = future.await {
+                log::error!("Copy/cut action failed: {}", string_from_js_value(&err));
+            }
+        };
+        wasm_bindgen_futures::spawn_local(future);
     }
+}
+
+/// Set the clipboard image.
+fn set_clipboard_image(image: &egui::ColorImage) {
+    if let Some(window) = web_sys::window() {
+        if !window.is_secure_context() {
+            log::error!(
+                "Clipboard is not available because we are not in a secure context. \
+                See https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts"
+            );
+            return;
+        }
+
+        let png_bytes = to_image(image).and_then(|image| to_png_bytes(&image));
+        let png_bytes = match png_bytes {
+            Ok(png_bytes) => png_bytes,
+            Err(err) => {
+                log::error!("Failed to encode image to png: {err}");
+                return;
+            }
+        };
+
+        let mime = "image/png";
+
+        let item = match create_clipboard_item(mime, &png_bytes) {
+            Ok(item) => item,
+            Err(err) => {
+                log::error!("Failed to copy image: {}", string_from_js_value(&err));
+                return;
+            }
+        };
+        let items = js_sys::Array::of1(&item);
+        let promise = window.navigator().clipboard().write(&items);
+        let future = wasm_bindgen_futures::JsFuture::from(promise);
+        let future = async move {
+            if let Err(err) = future.await {
+                log::error!(
+                    "Copy/cut image action failed: {}",
+                    string_from_js_value(&err)
+                );
+            }
+        };
+        wasm_bindgen_futures::spawn_local(future);
+    }
+}
+
+fn to_image(image: &egui::ColorImage) -> Result<image::RgbaImage, String> {
+    profiling::function_scope!();
+    image::RgbaImage::from_raw(
+        image.width() as _,
+        image.height() as _,
+        bytemuck::cast_slice(&image.pixels).to_vec(),
+    )
+    .ok_or_else(|| "Invalid IconData".to_owned())
+}
+
+fn to_png_bytes(image: &image::RgbaImage) -> Result<Vec<u8>, String> {
+    profiling::function_scope!();
+    let mut png_bytes: Vec<u8> = Vec::new();
+    image
+        .write_to(
+            &mut std::io::Cursor::new(&mut png_bytes),
+            image::ImageFormat::Png,
+        )
+        .map_err(|err| err.to_string())?;
+    Ok(png_bytes)
+}
+
+fn create_clipboard_item(mime: &str, bytes: &[u8]) -> Result<web_sys::ClipboardItem, JsValue> {
+    let array = js_sys::Uint8Array::from(bytes);
+    let blob_parts = js_sys::Array::new();
+    blob_parts.push(&array);
+
+    let options = web_sys::BlobPropertyBag::new();
+    options.set_type(mime);
+
+    let blob = web_sys::Blob::new_with_u8_array_sequence_and_options(&blob_parts, &options)?;
+
+    let items = js_sys::Object::new();
+
+    // SAFETY: I hope so
+    #[expect(unsafe_code, unused_unsafe)] // Weird false positive
+    unsafe {
+        js_sys::Reflect::set(&items, &JsValue::from_str(mime), &blob)?
+    };
+
+    let clipboard_item = web_sys::ClipboardItem::new_with_record_from_str_to_blob_promise(&items)?;
+
+    Ok(clipboard_item)
 }
 
 fn cursor_web_name(cursor: egui::CursorIcon) -> &'static str {
@@ -278,4 +365,9 @@ pub fn percent_decode(s: &str) -> String {
     percent_encoding::percent_decode_str(s)
         .decode_utf8_lossy()
         .to_string()
+}
+
+/// Are we running inside the Safari browser?
+pub fn is_safari_browser() -> bool {
+    web_sys::window().is_some_and(|window| window.has_own_property(&JsValue::from("safari")))
 }

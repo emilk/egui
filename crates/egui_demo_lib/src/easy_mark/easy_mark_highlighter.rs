@@ -14,7 +14,7 @@ impl MemoizedEasymarkHighlighter {
     pub fn highlight(&mut self, egui_style: &egui::Style, code: &str) -> egui::text::LayoutJob {
         if (&self.style, self.code.as_str()) != (egui_style, code) {
             self.style = egui_style.clone();
-            self.code = code.to_owned();
+            code.clone_into(&mut self.code);
             self.output = highlight_easymark(egui_style, code);
         }
         self.output.clone()
@@ -108,7 +108,7 @@ pub fn highlight_easymark(egui_style: &egui::Style, mut text: &str) -> egui::tex
         // Swallow everything up to the next special character:
         let line_end = text[skip..]
             .find('\n')
-            .map_or_else(|| text.len(), |i| (skip + i + 1));
+            .map_or_else(|| text.len(), |i| skip + i + 1);
         let end = text[skip..]
             .find(&['*', '`', '~', '_', '/', '$', '^', '\\', '<', '['][..])
             .map_or_else(|| text.len(), |i| (skip + i).max(1));

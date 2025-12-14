@@ -1,4 +1,9 @@
-use egui::{containers::*, widgets::*, *};
+use egui::{
+    Color32, Painter, Pos2, Rect, Shape, Stroke, Ui, Vec2,
+    containers::{CollapsingHeader, Frame},
+    emath, pos2,
+    widgets::Slider,
+};
 use std::f32::consts::TAU;
 
 #[derive(PartialEq)]
@@ -68,7 +73,7 @@ impl FractalClock {
             ));
         } else {
             ui.label("The fractal_clock clock is not showing the correct time");
-        };
+        }
         ui.label(format!("Painted line count: {}", self.line_count));
 
         ui.checkbox(&mut self.paused, "Paused");
@@ -79,7 +84,7 @@ impl FractalClock {
         ui.add(Slider::new(&mut self.luminance_factor, 0.0..=1.0).text("luminance factor"));
         ui.add(Slider::new(&mut self.width_factor, 0.0..=1.0).text("width factor"));
 
-        egui::reset_button(ui, self);
+        egui::reset_button(ui, self, "Reset");
 
         ui.hyperlink_to(
             "Inspired by a screensaver by Rob Mayoff",

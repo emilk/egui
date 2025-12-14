@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::text::CursorRange;
+use crate::text::CCursorRange;
 
 /// The output from a [`TextEdit`](crate::TextEdit).
 pub struct TextEditOutput {
@@ -20,14 +20,7 @@ pub struct TextEditOutput {
     pub state: super::TextEditState,
 
     /// Where the text cursor is.
-    pub cursor_range: Option<CursorRange>,
-}
-
-impl TextEditOutput {
-    #[deprecated = "Renamed `self.galley_pos`"]
-    pub fn text_draw_pos(&self) -> crate::Pos2 {
-        self.galley_pos
-    }
+    pub cursor_range: Option<CCursorRange>,
 }
 
 // TODO(emilk): add `output.paint` and `output.store` and split out that code from `TextEdit::show`.

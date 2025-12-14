@@ -49,7 +49,7 @@ impl TextureManager {
     pub fn set(&mut self, id: TextureId, delta: ImageDelta) {
         if let Some(meta) = self.metas.get_mut(&id) {
             if let Some(pos) = delta.pos {
-                crate::epaint_assert!(
+                debug_assert!(
                     pos[0] + delta.image.width() <= meta.size[0]
                         && pos[1] + delta.image.height() <= meta.size[1],
                     "Partial texture update is outside the bounds of texture {id:?}",
@@ -63,7 +63,7 @@ impl TextureManager {
             }
             self.delta.set.push((id, delta));
         } else {
-            crate::epaint_assert!(false, "Tried setting texture {id:?} which is not allocated");
+            debug_assert!(false, "Tried setting texture {id:?} which is not allocated");
         }
     }
 
@@ -77,7 +77,7 @@ impl TextureManager {
                 self.delta.free.push(id);
             }
         } else {
-            crate::epaint_assert!(false, "Tried freeing texture {id:?} which is not allocated");
+            debug_assert!(false, "Tried freeing texture {id:?} which is not allocated");
         }
     }
 
@@ -88,7 +88,7 @@ impl TextureManager {
         if let Some(meta) = self.metas.get_mut(&id) {
             meta.retain_count += 1;
         } else {
-            crate::epaint_assert!(
+            debug_assert!(
                 false,
                 "Tried retaining texture {id:?} which is not allocated",
             );
@@ -159,6 +159,16 @@ pub struct TextureOptions {
 
     /// How to wrap the texture when the texture coordinates are outside the [0, 1] range.
     pub wrap_mode: TextureWrapMode,
+
+    /// How to filter between texture mipmaps.
+    ///
+    /// Mipmaps ensures textures look smooth even when the texture is very small and pixels are much
+    /// larger than individual texels.
+    ///
+    /// # Notes
+    ///
+    /// - This may not be available on all backends (currently only `egui_glow`).
+    pub mipmap_mode: Option<TextureFilter>,
 }
 
 impl TextureOptions {
@@ -167,6 +177,7 @@ impl TextureOptions {
         magnification: TextureFilter::Linear,
         minification: TextureFilter::Linear,
         wrap_mode: TextureWrapMode::ClampToEdge,
+        mipmap_mode: None,
     };
 
     /// Nearest magnification and minification.
@@ -174,6 +185,7 @@ impl TextureOptions {
         magnification: TextureFilter::Nearest,
         minification: TextureFilter::Nearest,
         wrap_mode: TextureWrapMode::ClampToEdge,
+        mipmap_mode: None,
     };
 
     /// Linear magnification and minification, but with the texture repeated.
@@ -181,6 +193,7 @@ impl TextureOptions {
         magnification: TextureFilter::Linear,
         minification: TextureFilter::Linear,
         wrap_mode: TextureWrapMode::Repeat,
+        mipmap_mode: None,
     };
 
     /// Linear magnification and minification, but with the texture mirrored and repeated.
@@ -188,6 +201,7 @@ impl TextureOptions {
         magnification: TextureFilter::Linear,
         minification: TextureFilter::Linear,
         wrap_mode: TextureWrapMode::MirroredRepeat,
+        mipmap_mode: None,
     };
 
     /// Nearest magnification and minification, but with the texture repeated.
@@ -195,6 +209,7 @@ impl TextureOptions {
         magnification: TextureFilter::Nearest,
         minification: TextureFilter::Nearest,
         wrap_mode: TextureWrapMode::Repeat,
+        mipmap_mode: None,
     };
 
     /// Nearest magnification and minification, but with the texture mirrored and repeated.
@@ -202,7 +217,15 @@ impl TextureOptions {
         magnification: TextureFilter::Nearest,
         minification: TextureFilter::Nearest,
         wrap_mode: TextureWrapMode::MirroredRepeat,
+        mipmap_mode: None,
     };
+
+    pub const fn with_mipmap_mode(self, mipmap_mode: Option<TextureFilter>) -> Self {
+        Self {
+            mipmap_mode,
+            ..self
+        }
+    }
 }
 
 impl Default for TextureOptions {
@@ -248,7 +271,7 @@ pub enum TextureWrapMode {
 /// What has been allocated and freed during the last period.
 ///
 /// These are commands given to the integration painter.
-#[derive(Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[must_use = "The painter must take care of this"]
 pub struct TexturesDelta {

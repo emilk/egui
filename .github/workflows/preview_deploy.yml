@@ -1,0 +1,67 @@
+name: Preview Deploy
+
+permissions:
+  contents: write
+  pull-requests: write
+
+on:
+  workflow_run:
+    workflows:
+      - "Preview Build"
+    types:
+      - completed
+
+# Since we use single_commit and force on the deploy action, only one deploy action can run at a time.
+# Should this create a bottleneck we might have to set single_commit and force to false which should allow
+# for the deployments to run in parallel.
+concurrency:
+  group: preview_deploy
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: 'Download build artifact'
+        uses: actions/download-artifact@v4
+        with:
+          name: web_demo
+          path: web_demo_artifact
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+      - name: 'Download build meta'
+        uses: actions/download-artifact@v4
+        with:
+          name: meta.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Parse meta.json
+        run: |
+          echo "PR_NUMBER=$(jq -r .pr_number meta.json)" >> $GITHUB_ENV
+          echo "URL_SLUG=$(jq -r .url_slug meta.json)" >> $GITHUB_ENV
+
+      - name: Deploy
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: web_demo_artifact
+          repository-name: egui-pr-preview/pr
+          branch: 'main'
+          clean: true
+          target-folder: ${{ env.URL_SLUG }}
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
+          commit-message: "Update preview for PR ${{ env.URL_SLUG }}"
+          single-commit: true
+
+      - name: Comment PR
+        uses: thollander/actions-comment-pull-request@v2
+        with:
+          message: |
+            Preview available at https://egui-pr-preview.github.io/pr/${{ env.URL_SLUG }}
+            Note that it might take a couple seconds for the update to show up after the preview_build workflow has completed.
+            
+            View snapshot changes at [kitdiff](https://rerun-io.github.io/kitdiff/?url=https://github.com/emilk/egui/pull/${{ env.PR_NUMBER }})
+          pr_number: ${{ env.PR_NUMBER }}
+          comment_tag: 'egui-preview'

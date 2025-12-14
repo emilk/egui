@@ -5,24 +5,21 @@ authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "egui framework - write GUI apps that compiles to web and/or natively"
 edition.workspace = true
 rust-version.workspace = true
-homepage = "https://github.com/emilk/egui/tree/master/crates/eframe"
+homepage = "https://github.com/emilk/egui/tree/main/crates/eframe"
 license.workspace = true
 readme = "README.md"
-repository = "https://github.com/emilk/egui/tree/master/crates/eframe"
+repository = "https://github.com/emilk/egui/tree/main/crates/eframe"
 categories = ["gui", "game-development"]
 keywords = ["egui", "gui", "gamedev"]
-include = [
-  "../LICENSE-APACHE",
-  "../LICENSE-MIT",
-  "**/*.rs",
-  "Cargo.toml",
-  "data/icon.png",
-]
+include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml", "data/icon.png"]
 
 [package.metadata.docs.rs]
 all-features = true
-rustc-args = ["--cfg=web_sys_unstable_apis"]
 targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
+rustdoc-args = ["--generate-link-to-definition"]
+
+[lints]
+workspace = true
 
 [lib]
 
@@ -31,15 +28,15 @@ targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
 default = [
   "accesskit",
   "default_fonts",
-  "glow",
-  "wayland",
+  "wayland", # Required for Linux support (including CI!)
   "web_screen_reader",
+  "wgpu",
   "winit/default",
   "x11",
 ]
 
 ## Enable platform accessibility API implementations through [AccessKit](https://accesskit.dev/).
-accesskit = ["egui/accesskit", "egui-winit/accesskit"]
+accesskit = ["egui-winit/accesskit"]
 
 # Allow crates to choose an android-activity backend via Winit
 # - It's important that most applications should not have to depend on android-activity directly, and can
@@ -55,149 +52,156 @@ android-native-activity = ["egui-winit/android-native-activity"]
 ## If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["egui/default_fonts"]
 
-## Use [`glow`](https://github.com/grovesNL/glow) for painting, via [`egui_glow`](https://github.com/emilk/egui/tree/master/crates/egui_glow).
-glow = [
-  "dep:egui_glow",
-  "dep:glow",
-  "dep:glutin-winit",
-  "dep:glutin",
-  "dep:rwh_05",
-  "winit/rwh_05",
-]
+## Enable [`glow`](https://github.com/grovesNL/glow) for painting, via [`egui_glow`](https://github.com/emilk/egui/tree/main/crates/egui_glow).
+##
+## There is generally no need to enable both the `wgpu` and `glow` features,
+## but if you do you can pick the renderer to use with [`NativeOptions::renderer`]
+## and `WebOptions::renderer`.
+glow = ["dep:egui_glow", "dep:glow", "dep:glutin-winit", "dep:glutin"]
 
 ## Enable saving app state to disk.
-persistence = [
-  "directories-next",
-  "egui-winit/serde",
-  "egui/persistence",
-  "ron",
-  "serde",
-]
-
-## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
-##
-## `eframe` will call `puffin::GlobalProfiler::lock().new_frame()` for you
-##
-## Only enabled on native, because of the low resolution (1ms) of clocks in browsers.
-puffin = [
-  "dep:puffin",
-  "egui/puffin",
-  "egui_glow?/puffin",
-  "egui-wgpu?/puffin",
-  "egui-winit/puffin",
-]
+persistence = ["dep:home", "egui-winit/serde", "egui/persistence", "ron", "serde"]
 
 ## Enables wayland support and fixes clipboard issue.
-wayland = ["egui-winit/wayland", "egui-wgpu?/wayland", "egui_glow?/wayland"]
+##
+## If you are compiling for Linux (or want to test on a CI system using Linux), you should enable this feature.
+wayland = [
+  "egui-winit/wayland",
+  "egui-wgpu?/wayland",
+  "egui_glow?/wayland",
+  "glutin?/wayland",
+  "glutin-winit?/wayland",
+]
 
 ## Enable screen reader support (requires `ctx.options_mut(|o| o.screen_reader = true);`) on web.
 ##
 ## For other platforms, use the `accesskit` feature instead.
-web_screen_reader = [
-  "web-sys/SpeechSynthesis",
-  "web-sys/SpeechSynthesisUtterance",
-]
+web_screen_reader = ["web-sys/SpeechSynthesis", "web-sys/SpeechSynthesisUtterance"]
 
-## Use [`wgpu`](https://docs.rs/wgpu) for painting (via [`egui-wgpu`](https://github.com/emilk/egui/tree/master/crates/egui-wgpu)).
+## Enable [`wgpu`](https://docs.rs/wgpu) for painting (via [`egui-wgpu`](https://github.com/emilk/egui/tree/main/crates/egui-wgpu)).
 ##
-## This overrides the `glow` feature.
+## There is generally no need to enable both the `wgpu` and `glow` features,
+## but if you do you can pick the renderer to use with [`NativeOptions::renderer`]
+## and `WebOptions::renderer`.
 ##
-## By default, only WebGPU is enabled on web.
-## If you want to enable WebGL, you need to turn on the `webgl` feature of crate `wgpu`:
-##
-## ```toml
-## wgpu = { version = "*", features = ["webgpu", "webgl"] }
-## ```
+## Switching from `wgpu (the default)` to `glow` can significantly reduce your binary size
+## (including the .wasm of a web app).
+## See <https://github.com/emilk/egui/issues/5889> for more details.
 ##
 ## By default, eframe will prefer WebGPU over WebGL, but
 ## you can configure this at run-time with [`NativeOptions::wgpu_options`].
-wgpu = ["dep:wgpu", "dep:egui-wgpu", "dep:pollster"]
+wgpu = ["wgpu_no_default_features", "egui-wgpu/default"]
+
+## This is exactly like the `wgpu` feature, but does NOT enable the default features of `wgpu` and `egui-wgpu`.
+##
+## This means that no `wgpu` backends are enabled. You will need to enable them yourself, e.g. like this:
+##
+## ```toml
+## wgpu = { version = "*", features = ["dx12", "metal", "webgl"] }
+## ```
+wgpu_no_default_features = ["dep:wgpu", "dep:egui-wgpu", "dep:pollster"]
 
 ## Enables compiling for x11.
-x11 = ["egui-winit/x11", "egui-wgpu?/x11", "egui_glow?/x11"]
+x11 = [
+  "egui-winit/x11",
+  "egui-wgpu?/x11",
+  "egui_glow?/x11",
+  "glutin?/x11",
+  "glutin?/glx",
+  "glutin-winit?/x11",
+  "glutin-winit?/glx",
+]
 
 ## If set, eframe will look for the env-var `EFRAME_SCREENSHOT_TO` and write a screenshot to that location, and then quit.
 ## This is used to generate images for examples.
 __screenshot = []
 
 [dependencies]
-egui = { workspace = true, default-features = false, features = [
-  "bytemuck",
-  "log",
-] }
+egui = { workspace = true, default-features = false, features = ["bytemuck"] }
 
+ahash.workspace = true
 document-features.workspace = true
 log.workspace = true
 parking_lot.workspace = true
+profiling.workspace = true
 raw-window-handle.workspace = true
-static_assertions = "1.1.0"
-thiserror.workspace = true
+static_assertions.workspace = true
 web-time.workspace = true
 
 # Optional dependencies
 
 egui_glow = { workspace = true, optional = true, default-features = false }
 glow = { workspace = true, optional = true }
-# glutin stuck on old version of raw-window-handle:
-rwh_05 = { package = "raw-window-handle", version = "0.5.2", optional = true, features = [
-  "std",
-] }
-ron = { version = "0.8", optional = true, features = ["integer128"] }
-serde = { version = "1", optional = true, features = ["derive"] }
+ron = { workspace = true, optional = true, features = ["integer128"] }
+serde = { workspace = true, optional = true }
 
 # -------------------------------------------
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui-winit = { workspace = true, default-features = false, features = [
-  "clipboard",
-  "links",
-] }
-image = { version = "0.24", default-features = false, features = [
-  "png",
-] } # Needed for app icon
+egui-winit = { workspace = true, default-features = false, features = ["clipboard", "links"] }
+image = { workspace = true, features = ["png"] } # Needed for app icon
 winit = { workspace = true, default-features = false, features = ["rwh_06"] }
 
 # optional native:
-directories-next = { version = "2", optional = true }
 egui-wgpu = { workspace = true, optional = true, features = [
   "winit",
+  "capture",
 ] } # if wgpu is used, use it with winit
-pollster = { version = "0.3", optional = true } # needed for wgpu
+pollster = { workspace = true, optional = true } # needed for wgpu
 
-# we can expose these to user so that they can select which backends they want to enable to avoid compiling useless deps.
-# this can be done at the same time we expose x11/wayland features of winit crate.
-glutin = { version = "0.31", optional = true }
-glutin-winit = { version = "0.4", optional = true }
-puffin = { workspace = true, optional = true }
-wgpu = { workspace = true, optional = true, features = [
-  # Let's enable some backends so that users can use `eframe` out-of-the-box
-  # without having to explicitly opt-in to backends
-  "metal",
-  "webgpu",
+glutin = { workspace = true, optional = true, default-features = false, features = ["egl", "wgl"] }
+glutin-winit = { workspace = true, optional = true, default-features = false, features = [
+  "egl",
+  "wgl",
 ] }
+home = { workspace = true, optional = true }
+wgpu = { workspace = true, optional = true }
 
 # mac:
 [target.'cfg(any(target_os = "macos"))'.dependencies]
-cocoa = "0.25.0"
-objc = "0.2.7"
+objc2.workspace = true
+objc2-foundation = { workspace = true, default-features = false, features = [
+  "std",
+  "block2",
+  "NSData",
+  "NSString",
+] }
+objc2-app-kit = { workspace = true, default-features = false, features = [
+  "std",
+  "NSApplication",
+  "NSImage",
+  "NSMenu",
+  "NSMenuItem",
+  "NSResponder",
+] }
 
 # windows:
 [target.'cfg(any(target_os = "windows"))'.dependencies]
-winapi = { version = "0.3.9", features = ["winuser"] }
+windows-sys = { workspace = true, features = [
+  "Win32_Foundation",
+  "Win32_System_Com",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_UI_Shell",
+  "Win32_UI_WindowsAndMessaging",
+] }
 
 # -------------------------------------------
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-bytemuck = "1.7"
-js-sys = "0.3"
-percent-encoding = "2.1"
-wasm-bindgen = "0.2"
-wasm-bindgen-futures = "0.4"
-web-sys = { version = "0.3.58", features = [
+bytemuck.workspace = true
+image = { workspace = true, features = ["png"] } # For copying images
+js-sys.workspace = true
+percent-encoding.workspace = true
+wasm-bindgen.workspace = true
+wasm-bindgen-futures.workspace = true
+web-sys = { workspace = true, features = [
+  "AddEventListenerOptions",
   "BinaryType",
   "Blob",
+  "BlobPropertyBag",
   "Clipboard",
   "ClipboardEvent",
+  "ClipboardItem",
   "CompositionEvent",
   "console",
   "CssStyleDeclaration",
@@ -225,10 +229,19 @@ web-sys = { version = "0.3.58", features = [
   "MediaQueryListEvent",
   "MouseEvent",
   "Navigator",
+  "Node",
+  "NodeList",
   "Performance",
+  "ResizeObserver",
+  "ResizeObserverBoxOptions",
+  "ResizeObserverEntry",
+  "ResizeObserverOptions",
+  "ResizeObserverSize",
+  "ShadowRoot",
   "Storage",
   "Touch",
   "TouchEvent",
+  "PointerEvent",
   "TouchList",
   "WebGl2RenderingContext",
   "WebglDebugRendererInfo",
@@ -238,9 +251,9 @@ web-sys = { version = "0.3.58", features = [
 ] }
 
 # optional web:
-egui-wgpu = { workspace = true, optional = true } # if wgpu is used, use it without (!) winit
-wgpu = { workspace = true, optional = true, features = [
-  # Let's enable some backends so that users can use `eframe` out-of-the-box
-  # without having to explicitly opt-in to backends
-  "webgpu",
-] }
+egui-wgpu = { workspace = true, optional = true, features = ["capture"] } # if wgpu is used, use it without (!) winit
+wgpu = { workspace = true, optional = true }
+
+# Native dev dependencies for testing
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+directories.workspace = true

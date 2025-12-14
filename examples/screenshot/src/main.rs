@@ -1,10 +1,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
+#![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
 use std::sync::Arc;
 
 use eframe::egui::{self, ColorImage};
 
-fn main() -> Result<(), eframe::Error> {
+fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let options = eframe::NativeOptions {
         renderer: eframe::Renderer::Wgpu,
@@ -13,7 +14,7 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "Take screenshots and display with eframe/egui",
         options,
-        Box::new(|_cc| Box::<MyApp>::default()),
+        Box::new(|_cc| Ok(Box::<MyApp>::default())),
     )
 }
 
@@ -44,7 +45,7 @@ impl eframe::App for MyApp {
 
                 if ui.button("save to 'top_left.png'").clicked() {
                     self.save_to_file = true;
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot);
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(Default::default()));
                 }
 
                 ui.with_layout(egui::Layout::top_down(egui::Align::RIGHT), |ui| {
@@ -53,13 +54,17 @@ impl eframe::App for MyApp {
                             .add(egui::Label::new("hover me!").sense(egui::Sense::hover()))
                             .hovered()
                         {
-                            ctx.set_visuals(egui::Visuals::dark());
+                            ctx.set_theme(egui::Theme::Dark);
                         } else {
-                            ctx.set_visuals(egui::Visuals::light());
-                        };
-                        ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot);
+                            ctx.set_theme(egui::Theme::Light);
+                        }
+                        ctx.send_viewport_cmd(
+                            egui::ViewportCommand::Screenshot(Default::default()),
+                        );
                     } else if ui.button("take screenshot!").clicked() {
-                        ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot);
+                        ctx.send_viewport_cmd(
+                            egui::ViewportCommand::Screenshot(Default::default()),
+                        );
                     }
                 });
             });

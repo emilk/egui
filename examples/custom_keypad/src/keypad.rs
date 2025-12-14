@@ -1,4 +1,4 @@
-use eframe::egui::{self, pos2, vec2, Button, Ui, Vec2};
+use eframe::egui::{self, Button, Ui, Vec2, pos2, vec2};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 enum Transition {
@@ -92,10 +92,10 @@ impl Keypad {
         ui.vertical(|ui| {
             let window_margin = ui.spacing().window_margin;
             let size_1x1 = vec2(32.0, 26.0);
-            let _size_1x2 = vec2(32.0, 52.0 + window_margin.top);
-            let _size_2x1 = vec2(64.0 + window_margin.left, 26.0);
+            let _size_1x2 = vec2(32.0, 52.0 + window_margin.topf());
+            let _size_2x1 = vec2(64.0 + window_margin.leftf(), 26.0);
 
-            ui.spacing_mut().item_spacing = Vec2::splat(window_margin.left);
+            ui.spacing_mut().item_spacing = Vec2::splat(window_margin.leftf());
 
             ui.horizontal(|ui| {
                 if ui.add_sized(size_1x1, Button::new("1")).clicked() {
@@ -179,8 +179,8 @@ impl Keypad {
             )
         });
 
-        let mut is_first_show = false;
-        if ctx.wants_keyboard_input() && state.focus != focus {
+        let is_first_show = ctx.wants_keyboard_input() && state.focus != focus;
+        if is_first_show {
             let y = ctx.style().spacing.interact_size.y * 1.25;
             state.open = true;
             state.start_pos = ctx.input(|i| {
@@ -189,7 +189,6 @@ impl Keypad {
                     .map_or(pos2(100.0, 100.0), |p| p + vec2(0.0, y))
             });
             state.focus = focus;
-            is_first_show = true;
         }
 
         if state.close_on_next_frame {

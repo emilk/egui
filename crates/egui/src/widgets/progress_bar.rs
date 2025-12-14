@@ -1,4 +1,7 @@
-use crate::*;
+use crate::{
+    Color32, CornerRadius, NumExt as _, Pos2, Rect, Response, Rgba, Sense, Shape, Stroke,
+    TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetType, lerp, vec2,
+};
 
 enum ProgressBarText {
     Custom(WidgetText),
@@ -8,7 +11,7 @@ enum ProgressBarText {
 /// A simple progress bar.
 ///
 /// See also: [`crate::Spinner`].
-#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+#[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct ProgressBar {
     progress: f32,
     desired_width: Option<f32>,
@@ -16,7 +19,7 @@ pub struct ProgressBar {
     text: Option<ProgressBarText>,
     fill: Option<Color32>,
     animate: bool,
-    rounding: Option<Rounding>,
+    corner_radius: Option<CornerRadius>,
 }
 
 impl ProgressBar {
@@ -29,7 +32,7 @@ impl ProgressBar {
             text: None,
             fill: None,
             animate: false,
-            rounding: None,
+            corner_radius: None,
         }
     }
 
@@ -72,7 +75,7 @@ impl ProgressBar {
     /// Note that this will cause the UI to be redrawn.
     /// Defaults to `false`.
     ///
-    /// If [`Self::rounding`] and [`Self::animate`] are used simultaneously, the animation is not
+    /// If [`Self::corner_radius`] and [`Self::animate`] are used simultaneously, the animation is not
     /// rendered, since it requires a perfect circle to render correctly. However, the UI is still
     /// redrawn.
     #[inline]
@@ -83,13 +86,19 @@ impl ProgressBar {
 
     /// Set the rounding of the progress bar.
     ///
-    /// If [`Self::rounding`] and [`Self::animate`] are used simultaneously, the animation is not
+    /// If [`Self::corner_radius`] and [`Self::animate`] are used simultaneously, the animation is not
     /// rendered, since it requires a perfect circle to render correctly. However, the UI is still
     /// redrawn.
     #[inline]
-    pub fn rounding(mut self, rounding: impl Into<Rounding>) -> Self {
-        self.rounding = Some(rounding.into());
+    pub fn corner_radius(mut self, corner_radius: impl Into<CornerRadius>) -> Self {
+        self.corner_radius = Some(corner_radius.into());
         self
+    }
+
+    #[inline]
+    #[deprecated = "Renamed to `corner_radius`"]
+    pub fn rounding(self, corner_radius: impl Into<CornerRadius>) -> Self {
+        self.corner_radius(corner_radius)
     }
 }
 
@@ -102,20 +111,20 @@ impl Widget for ProgressBar {
             text,
             fill,
             animate,
-            rounding,
+            corner_radius,
         } = self;
 
         let animate = animate && progress < 1.0;
 
         let desired_width =
             desired_width.unwrap_or_else(|| ui.available_size_before_wrap().x.at_least(96.0));
-        let height = desired_height.unwrap_or(ui.spacing().interact_size.y);
+        let height = desired_height.unwrap_or_else(|| ui.spacing().interact_size.y);
         let (outer_rect, response) =
             ui.allocate_exact_size(vec2(desired_width, height), Sense::hover());
 
         response.widget_info(|| {
             let mut info = if let Some(ProgressBarText::Custom(text)) = &text {
-                WidgetInfo::labeled(WidgetType::ProgressIndicator, text.text())
+                WidgetInfo::labeled(WidgetType::ProgressIndicator, ui.is_enabled(), text.text())
             } else {
                 WidgetInfo::new(WidgetType::ProgressIndicator)
             };
@@ -130,12 +139,13 @@ impl Widget for ProgressBar {
             }
 
             let visuals = ui.style().visuals.clone();
-            let is_custom_rounding = rounding.is_some();
-            let corner_radius = outer_rect.height() / 2.0;
-            let rounding = rounding.unwrap_or_else(|| corner_radius.into());
+            let has_custom_cr = corner_radius.is_some();
+            let half_height = outer_rect.height() / 2.0;
+            let corner_radius = corner_radius.unwrap_or_else(|| half_height.into());
             ui.painter()
-                .rect(outer_rect, rounding, visuals.extreme_bg_color, Stroke::NONE);
-            let min_width = 2.0 * rounding.sw.at_least(rounding.nw).at_most(corner_radius);
+                .rect_filled(outer_rect, corner_radius, visuals.extreme_bg_color);
+            let min_width =
+                2.0 * f32::max(corner_radius.sw as _, corner_radius.nw as _).at_most(half_height);
             let filled_width = (outer_rect.width() * progress).at_least(min_width);
             let inner_rect =
                 Rect::from_min_size(outer_rect.min, vec2(filled_width, outer_rect.height()));
@@ -148,28 +158,27 @@ impl Widget for ProgressBar {
                 bright
             };
 
-            ui.painter().rect(
+            ui.painter().rect_filled(
                 inner_rect,
-                rounding,
+                corner_radius,
                 Color32::from(
                     Rgba::from(fill.unwrap_or(visuals.selection.bg_fill)) * color_factor as f32,
                 ),
-                Stroke::NONE,
             );
 
-            if animate && !is_custom_rounding {
+            if animate && !has_custom_cr {
                 let n_points = 20;
                 let time = ui.input(|i| i.time);
                 let start_angle = time * std::f64::consts::TAU;
                 let end_angle = start_angle + 240f64.to_radians() * time.sin();
-                let circle_radius = corner_radius - 2.0;
+                let circle_radius = half_height - 2.0;
                 let points: Vec<Pos2> = (0..n_points)
                     .map(|i| {
                         let angle = lerp(start_angle..=end_angle, i as f64 / n_points as f64);
                         let (sin, cos) = angle.sin_cos();
                         inner_rect.right_center()
                             + circle_radius * vec2(cos as f32, sin as f32)
-                            + vec2(-corner_radius, 0.0)
+                            + vec2(-half_height, 0.0)
                     })
                     .collect();
                 ui.painter()
@@ -183,7 +192,12 @@ impl Widget for ProgressBar {
                         format!("{}%", (progress * 100.0) as usize).into()
                     }
                 };
-                let galley = text.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Button);
+                let galley = text.into_galley(
+                    ui,
+                    Some(TextWrapMode::Extend),
+                    f32::INFINITY,
+                    TextStyle::Button,
+                );
                 let text_pos = outer_rect.left_center() - Vec2::new(0.0, galley.size().y / 2.0)
                     + vec2(ui.spacing().item_spacing.x, 0.0);
                 let text_color = visuals

@@ -18,12 +18,12 @@ macro_rules! impl_numeric_float {
     ($t: ident) => {
         impl Numeric for $t {
             const INTEGRAL: bool = false;
-            const MIN: Self = std::$t::MIN;
-            const MAX: Self = std::$t::MAX;
+            const MIN: Self = $t::MIN;
+            const MAX: Self = $t::MAX;
 
             #[inline(always)]
             fn to_f64(self) -> f64 {
-                #[allow(trivial_numeric_casts)]
+                #[allow(trivial_numeric_casts, clippy::allow_attributes)]
                 {
                     self as f64
                 }
@@ -31,7 +31,7 @@ macro_rules! impl_numeric_float {
 
             #[inline(always)]
             fn from_f64(num: f64) -> Self {
-                #[allow(trivial_numeric_casts)]
+                #[allow(trivial_numeric_casts, clippy::allow_attributes)]
                 {
                     num as Self
                 }
@@ -44,8 +44,8 @@ macro_rules! impl_numeric_integer {
     ($t: ident) => {
         impl Numeric for $t {
             const INTEGRAL: bool = true;
-            const MIN: Self = std::$t::MIN;
-            const MAX: Self = std::$t::MAX;
+            const MIN: Self = $t::MIN;
+            const MAX: Self = $t::MAX;
 
             #[inline(always)]
             fn to_f64(self) -> f64 {
@@ -55,6 +55,26 @@ macro_rules! impl_numeric_integer {
             #[inline(always)]
             fn from_f64(num: f64) -> Self {
                 num as Self
+            }
+        }
+    };
+}
+
+macro_rules! impl_numeric_non_zero_unsigned {
+    ($t: path) => {
+        impl Numeric for $t {
+            const INTEGRAL: bool = true;
+            const MIN: Self = Self::MIN;
+            const MAX: Self = Self::MAX;
+
+            #[inline(always)]
+            fn to_f64(self) -> f64 {
+                self.get() as f64
+            }
+
+            #[inline(always)]
+            fn from_f64(num: f64) -> Self {
+                Self::new(num.round().max(1.0) as _).unwrap_or(Self::MIN)
             }
         }
     };
@@ -72,3 +92,9 @@ impl_numeric_integer!(i64);
 impl_numeric_integer!(u64);
 impl_numeric_integer!(isize);
 impl_numeric_integer!(usize);
+impl_numeric_non_zero_unsigned!(std::num::NonZeroU8);
+impl_numeric_non_zero_unsigned!(std::num::NonZeroU16);
+impl_numeric_non_zero_unsigned!(std::num::NonZeroU32);
+impl_numeric_non_zero_unsigned!(std::num::NonZeroU64);
+impl_numeric_non_zero_unsigned!(std::num::NonZeroU128);
+impl_numeric_non_zero_unsigned!(std::num::NonZeroUsize);
