@@ -754,7 +754,7 @@ impl Panel {
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         let side = self.side;
-        let available_rect = ctx.available_rect();
+        let available_rect = ctx.globally_available_rect();
         let mut panel_ui = Ui::new(
             ctx.clone(),
             self.id,
@@ -1050,7 +1050,7 @@ impl CentralPanel {
             id,
             UiBuilder::new()
                 .layer_id(LayerId::background())
-                .max_rect(ctx.available_rect().round_ui()),
+                .max_rect(ctx.globally_available_rect().round_ui()),
         );
         panel_ui.set_clip_rect(ctx.content_rect());
 

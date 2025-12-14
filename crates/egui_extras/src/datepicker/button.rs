@@ -194,7 +194,7 @@ impl Widget for DatePickerButton<'_> {
 
             // We don't want to close our popup if any other popup is open, since other popups would
             // most likely be the combo boxes in the date picker.
-            let any_popup_open = ui.ctx().is_popup_open();
+            let any_popup_open = ui.any_popup_open();
             if !button_response.clicked()
                 && !any_popup_open
                 && (ui.input(|i| i.key_pressed(Key::Escape)) || area_response.clicked_elsewhere())
