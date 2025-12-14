@@ -273,15 +273,13 @@ impl AppRunner {
 
         self.app.raw_input_hook(&self.egui_ctx, &mut raw_input);
 
-        let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
-            self.app.logic(egui_ctx, &mut self.frame);
+        let full_output = self.egui_ctx.run_ui(raw_input, |ui| {
+            self.app.logic(ui.ctx(), &mut self.frame);
 
             #[expect(deprecated)]
-            self.app.update(egui_ctx, &mut self.frame);
+            self.app.update(ui.ctx(), &mut self.frame);
 
-            egui::CentralPanel::no_frame().show(egui_ctx, |ui| {
-                self.app.ui(ui, &mut self.frame);
-            });
+            self.app.ui(ui, &mut self.frame);
         });
         let egui::FullOutput {
             platform_output,
