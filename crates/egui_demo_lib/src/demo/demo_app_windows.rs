@@ -372,7 +372,7 @@ fn file_menu_button(ui: &mut Ui) {
 mod tests {
     use crate::{Demo as _, demo::demo_app_windows::DemoGroups};
 
-    use egui_kittest::kittest::{NodeT as _, Queryable as _};
+    use egui_kittest::kittest::Queryable as _;
     use egui_kittest::{Harness, OsThreshold, SnapshotOptions, SnapshotResults};
 
     #[test]
@@ -399,7 +399,10 @@ mod tests {
                 demo.show(ctx, &mut true);
             });
 
-            let window = harness.queryable_node().children().next().unwrap();
+            let window = harness
+                .get_all_by_role(egui::accesskit::Role::Window)
+                .next()
+                .unwrap();
             // TODO(lucasmerlin): Windows should probably have a label?
             //let window = harness.get_by_label(name);
 
