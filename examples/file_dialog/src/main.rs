@@ -113,7 +113,7 @@ fn preview_files_being_dropped(ctx: &egui::Context) {
             content_rect.center(),
             Align2::CENTER_CENTER,
             text,
-            TextStyle::Heading.resolve(&ctx.style()),
+            TextStyle::Heading.resolve(&ctx.global_style()),
             Color32::WHITE,
         );
     }

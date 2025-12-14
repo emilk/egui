@@ -1148,7 +1148,7 @@ impl Context {
             let content_rect = self.content_rect();
 
             let text = format!("🔥 {text}");
-            let color = self.style().visuals.error_fg_color;
+            let color = self.global_style().visuals.error_fg_color;
             let painter = self.debug_painter();
             painter.rect_stroke(widget_rect, 0.0, (1.0, color), StrokeKind::Outside);
 
@@ -1603,7 +1603,7 @@ impl Context {
             ..
         } = ModifierNames::SYMBOLS;
 
-        let font_id = TextStyle::Body.resolve(&self.style());
+        let font_id = TextStyle::Body.resolve(&self.global_style());
         self.fonts_mut(|f| {
             let mut font = f.fonts.font(&font_id.family);
             font.has_glyphs(alt)
@@ -2052,13 +2052,13 @@ impl Context {
     }
 
     /// The [`Theme`] used to select the appropriate [`Style`] (dark or light)
-    /// used by all subsequent windows, panels etc.
+    /// used by all subsequent popups, menus, etc.
     pub fn theme(&self) -> Theme {
         self.options(|opt| opt.theme())
     }
 
     /// The [`Theme`] used to select between dark and light [`Self::style`]
-    /// as the active style used by all subsequent windows, panels etc.
+    /// as the active style used by all subsequent popups, menus, etc.
     ///
     /// Example:
     /// ```
@@ -2069,37 +2069,70 @@ impl Context {
         self.options_mut(|opt| opt.theme_preference = theme_preference.into());
     }
 
-    /// The currently active [`Style`] used by all subsequent windows, panels etc.
+    /// The currently active [`Style`] used by all subsequent popups, menus, etc.
+    pub fn global_style(&self) -> Arc<Style> {
+        self.options(|opt| opt.style().clone())
+    }
+
+    /// The currently active [`Style`] used by all subsequent popups, menus, etc.
+    #[deprecated = "Renamed to `global_style` to avoid confusion with `ui.style()`"]
     pub fn style(&self) -> Arc<Style> {
         self.options(|opt| opt.style().clone())
     }
 
-    /// Mutate the currently active [`Style`] used by all subsequent windows, panels etc.
+    /// Mutate the currently active [`Style`] used by all subsequent popups, menus, etc.
     /// Use [`Self::all_styles_mut`] to mutate both dark and light mode styles.
     ///
     /// Example:
     /// ```
     /// # let mut ctx = egui::Context::default();
-    /// ctx.style_mut(|style| {
+    /// ctx.global_style_mut(|style| {
     ///     style.spacing.item_spacing = egui::vec2(10.0, 20.0);
     /// });
     /// ```
+    pub fn global_style_mut(&self, mutate_style: impl FnOnce(&mut Style)) {
+        self.options_mut(|opt| mutate_style(Arc::make_mut(opt.style_mut())));
+    }
+
+    /// Mutate the currently active [`Style`] used by all subsequent popups, menus, etc.
+    /// Use [`Self::all_styles_mut`] to mutate both dark and light mode styles.
+    ///
+    /// Example:
+    /// ```
+    /// # let mut ctx = egui::Context::default();
+    /// ctx.global_style_mut(|style| {
+    ///     style.spacing.item_spacing = egui::vec2(10.0, 20.0);
+    /// });
+    /// ```
+    #[deprecated = "Renamed to `global_style_mut` to avoid confusion with `ui.style_mut()`"]
     pub fn style_mut(&self, mutate_style: impl FnOnce(&mut Style)) {
         self.options_mut(|opt| mutate_style(Arc::make_mut(opt.style_mut())));
     }
 
-    /// The currently active [`Style`] used by all new windows, panels etc.
+    /// The currently active [`Style`] used by all new popups, menus, etc.
+    ///
+    /// Use [`Self::all_styles_mut`] to mutate both dark and light mode styles.
+    ///
+    /// You can also change this using [`Self::global_style_mut`].
+    ///
+    /// You can use [`Ui::style_mut`] to change the style of a single [`Ui`].
+    pub fn set_global_style(&self, style: impl Into<Arc<Style>>) {
+        self.options_mut(|opt| *opt.style_mut() = style.into());
+    }
+
+    /// The currently active [`Style`] used by all new popups, menus, etc.
     ///
     /// Use [`Self::all_styles_mut`] to mutate both dark and light mode styles.
     ///
     /// You can also change this using [`Self::style_mut`].
     ///
     /// You can use [`Ui::style_mut`] to change the style of a single [`Ui`].
+    #[deprecated = "Renamed to `set_global_style` to avoid confusion with `ui.set_style()`"]
     pub fn set_style(&self, style: impl Into<Arc<Style>>) {
         self.options_mut(|opt| *opt.style_mut() = style.into());
     }
 
-    /// Mutate the [`Style`]s used by all subsequent windows, panels etc. in both dark and light mode.
+    /// Mutate the [`Style`]s used by all subsequent popups, menus, etc. in both dark and light mode.
     ///
     /// Example:
     /// ```
@@ -2115,7 +2148,7 @@ impl Context {
         });
     }
 
-    /// The [`Style`] used by all subsequent windows, panels etc.
+    /// The [`Style`] used by all subsequent popups, menus, etc.
     pub fn style_of(&self, theme: Theme) -> Arc<Style> {
         self.options(|opt| match theme {
             Theme::Dark => opt.dark_style.clone(),
@@ -2123,7 +2156,7 @@ impl Context {
         })
     }
 
-    /// Mutate the [`Style`] used by all subsequent windows, panels etc.
+    /// Mutate the [`Style`] used by all subsequent popups, menus, etc.
     ///
     /// Example:
     /// ```
@@ -2139,7 +2172,7 @@ impl Context {
         });
     }
 
-    /// The [`Style`] used by all new windows, panels etc.
+    /// The [`Style`] used by all new popups, menus, etc.
     /// Use [`Self::set_theme`] to choose between dark and light mode.
     ///
     /// You can also change this using [`Self::style_mut_of`].
@@ -2153,7 +2186,7 @@ impl Context {
         });
     }
 
-    /// The [`crate::Visuals`] used by all subsequent windows, panels etc.
+    /// The [`crate::Visuals`] used by all subsequent popups, menus, etc.
     ///
     /// You can also use [`Ui::visuals_mut`] to change the visuals of a single [`Ui`].
     ///
@@ -2166,7 +2199,7 @@ impl Context {
         self.style_mut_of(theme, |style| style.visuals = visuals);
     }
 
-    /// The [`crate::Visuals`] used by all subsequent windows, panels etc.
+    /// The [`crate::Visuals`] used by all subsequent popups, menus, etc.
     ///
     /// You can also use [`Ui::visuals_mut`] to change the visuals of a single [`Ui`].
     ///
@@ -2385,7 +2418,7 @@ impl Context {
             }
         };
 
-        if self.style().debug.show_interactive_widgets {
+        if self.global_style().debug.show_interactive_widgets {
             // Show all interactive widgets:
             let rects = self.write(|ctx| ctx.viewport().this_pass.widgets.clone());
             for (layer_id, rects) in rects.layers() {
@@ -2463,7 +2496,7 @@ impl Context {
             }
         }
 
-        if self.style().debug.show_widget_hits {
+        if self.global_style().debug.show_widget_hits {
             let hits = self.write(|ctx| ctx.viewport().hits.clone());
             let WidgetHits {
                 close,
@@ -3035,7 +3068,7 @@ impl Context {
     /// The animation time is taken from [`Style::animation_time`].
     #[track_caller] // To track repaint cause
     pub fn animate_bool(&self, id: Id, value: bool) -> f32 {
-        let animation_time = self.style().animation_time;
+        let animation_time = self.global_style().animation_time;
         self.animate_bool_with_time_and_easing(id, value, animation_time, emath::easing::linear)
     }
 
@@ -3051,7 +3084,7 @@ impl Context {
     /// Like [`Self::animate_bool`] but allows you to control the easing function.
     #[track_caller] // To track repaint cause
     pub fn animate_bool_with_easing(&self, id: Id, value: bool, easing: fn(f32) -> f32) -> f32 {
-        let animation_time = self.style().animation_time;
+        let animation_time = self.global_style().animation_time;
         self.animate_bool_with_time_and_easing(id, value, animation_time, easing)
     }
 

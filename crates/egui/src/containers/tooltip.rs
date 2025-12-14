@@ -41,7 +41,7 @@ impl Tooltip<'_> {
         parent_widget: Id,
         anchor: impl Into<PopupAnchor>,
     ) -> Self {
-        let width = ctx.style().spacing.tooltip_width;
+        let width = ctx.global_style().spacing.tooltip_width;
         Self {
             popup: Popup::new(parent_widget, ctx, anchor.into(), parent_layer)
                 .kind(PopupKind::Tooltip)
@@ -58,7 +58,7 @@ impl Tooltip<'_> {
         let popup = Popup::from_response(response)
             .kind(PopupKind::Tooltip)
             .gap(4.0)
-            .width(response.ctx.style().spacing.tooltip_width)
+            .width(response.ctx.global_style().spacing.tooltip_width)
             .sense(Sense::hover());
         Self {
             popup,
@@ -229,7 +229,7 @@ impl Tooltip<'_> {
             return false;
         }
 
-        let style = response.ctx.style();
+        let style = response.ctx.global_style();
 
         let tooltip_delay = style.interaction.tooltip_delay;
         let tooltip_grace_time = style.interaction.tooltip_grace_time;

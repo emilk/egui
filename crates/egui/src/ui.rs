@@ -136,7 +136,7 @@ impl Ui {
         let clip_rect = max_rect;
         let layout = layout.unwrap_or_default();
         let disabled = disabled || invisible;
-        let style = style.unwrap_or_else(|| ctx.style());
+        let style = style.unwrap_or_else(|| ctx.global_style());
         let sense = sense.unwrap_or_else(Sense::hover);
 
         let placer = Placer::new(max_rect, layout);
@@ -438,7 +438,7 @@ impl Ui {
 
     /// Reset to the default style set in [`Context`].
     pub fn reset_style(&mut self) {
-        self.style = self.ctx().style();
+        self.style = self.ctx().global_style();
     }
 
     /// The current spacing options for this [`Ui`].

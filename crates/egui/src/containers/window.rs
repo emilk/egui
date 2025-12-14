@@ -440,9 +440,11 @@ impl Window<'_> {
             fade_out,
         } = self;
 
-        let header_color =
-            frame.map_or_else(|| ctx.style().visuals.widgets.open.weak_bg_fill, |f| f.fill);
-        let mut window_frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
+        let header_color = frame.map_or_else(
+            || ctx.global_style().visuals.widgets.open.weak_bg_fill,
+            |f| f.fill,
+        );
+        let mut window_frame = frame.unwrap_or_else(|| Frame::window(&ctx.global_style()));
 
         let is_explicitly_closed = matches!(open, Some(false));
         let is_open = !is_explicitly_closed || ctx.memory(|mem| mem.everything_is_visible());
@@ -474,7 +476,7 @@ impl Window<'_> {
 
         // Calculate roughly how much larger the full window inner size is compared to the content rect
         let (title_bar_height_with_margin, title_content_spacing) = if with_title_bar {
-            let style = ctx.style();
+            let style = ctx.global_style();
             let title_bar_inner_height = ctx
                 .fonts_mut(|fonts| title.font_height(fonts, &style))
                 .at_least(style.spacing.interact_size.y);
@@ -930,8 +932,8 @@ fn resize_interaction(
 
     let id = Id::new(layer_id).with("edge_drag");
 
-    let side_grab_radius = ctx.style().interaction.resize_grab_radius_side;
-    let corner_grab_radius = ctx.style().interaction.resize_grab_radius_corner;
+    let side_grab_radius = ctx.global_style().interaction.resize_grab_radius_side;
+    let corner_grab_radius = ctx.global_style().interaction.resize_grab_radius_corner;
 
     let vetrtical_rect = |a: Pos2, b: Pos2| {
         Rect::from_min_max(a, b).expand2(vec2(side_grab_radius, -corner_grab_radius))

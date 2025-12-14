@@ -46,9 +46,9 @@ fn custom_window_frame(ctx: &egui::Context, title: &str, add_contents: impl FnOn
     use egui::{CentralPanel, UiBuilder};
 
     let panel_frame = egui::Frame::new()
-        .fill(ctx.style().visuals.window_fill())
+        .fill(ctx.global_style().visuals.window_fill())
         .corner_radius(10)
-        .stroke(ctx.style().visuals.widgets.noninteractive.fg_stroke)
+        .stroke(ctx.global_style().visuals.widgets.noninteractive.fg_stroke)
         .outer_margin(1); // so the stroke is within the bounds
 
     CentralPanel::default().frame(panel_frame).show(ctx, |ui| {
