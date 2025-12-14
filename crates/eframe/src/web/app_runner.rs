@@ -276,6 +276,7 @@ impl AppRunner {
         let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
             self.app.logic(egui_ctx, &mut self.frame);
 
+            #[expect(deprecated)]
             self.app.update(egui_ctx, &mut self.frame);
 
             egui::CentralPanel::no_frame().show(egui_ctx, |ui| {

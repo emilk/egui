@@ -158,9 +158,7 @@ pub trait App {
     /// This is called for the root viewport ([`egui::ViewportId::ROOT`]).
     /// Use [`egui::Context::show_viewport_deferred`] to spawn additional viewports (windows).
     /// (A "viewport" in egui means an native OS window).
-    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut Frame) {
-        _ = (ui, frame); // TODO make function non-optional
-    }
+    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut Frame);
 
     /// Called each time the UI needs repainting, which may be many times per second.
     ///
@@ -173,7 +171,7 @@ pub trait App {
     /// This is called for the root viewport ([`egui::ViewportId::ROOT`]).
     /// Use [`egui::Context::show_viewport_deferred`] to spawn additional viewports (windows).
     /// (A "viewport" in egui means an native OS window).
-    // #[deprecated = "Use Self::ui instead"] // TODO
+    #[deprecated = "Use Self::ui instead"]
     fn update(&mut self, ctx: &egui::Context, frame: &mut Frame) {
         _ = (ctx, frame);
     }
