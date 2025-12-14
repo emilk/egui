@@ -1,4 +1,7 @@
-use std::{borrow::Cow, ops::Range};
+use std::{
+    borrow::Cow,
+    ops::{Deref, DerefMut, Range},
+};
 
 use epaint::{
     Galley,
@@ -313,5 +316,47 @@ impl TextBuffer for &str {
 
     fn type_id(&self) -> std::any::TypeId {
         std::any::TypeId::of::<&str>()
+    }
+}
+
+#[repr(transparent)]
+#[derive(bytemuck::TransparentWrapper)]
+pub struct TextBufferRef<T: ?Sized>(pub T);
+
+impl<T> TextBuffer for TextBufferRef<T>
+where
+    T: DerefMut + ?Sized,
+    <T as Deref>::Target: TextBuffer,
+{
+    fn is_mutable(&self) -> bool {
+        self.0.is_mutable()
+    }
+
+    fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+
+    fn insert_text(&mut self, text: &str, char_index: usize) -> usize {
+        self.0.insert_text(text, char_index)
+    }
+
+    fn delete_char_range(&mut self, char_range: Range<usize>) {
+        self.0.delete_char_range(char_range);
+    }
+
+    fn clear(&mut self) {
+        self.0.clear();
+    }
+
+    fn replace_with(&mut self, text: &str) {
+        self.0.replace_with(text);
+    }
+
+    fn take(&mut self) -> String {
+        self.0.take()
+    }
+
+    fn type_id(&self) -> std::any::TypeId {
+        std::any::TypeId::of::<()>()
     }
 }
