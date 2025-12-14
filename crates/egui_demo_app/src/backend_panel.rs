@@ -305,7 +305,7 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
                     .on_hover_text("Fullscreen the window")
                     .changed()
                 {
-                    ui..send_viewport_cmd(egui::ViewportCommand::Fullscreen(fullscreen));
+                    ui.send_viewport_cmd(egui::ViewportCommand::Fullscreen(fullscreen));
                 }
             }
 
