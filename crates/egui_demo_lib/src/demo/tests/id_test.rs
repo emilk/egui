@@ -17,7 +17,7 @@ impl crate::Demo for IdTest {
 impl crate::View for IdTest {
     fn ui(&mut self, ui: &mut egui::Ui) {
         // Make sure the warnings are on (by default they are only on in debug builds).
-        ui.ctx().options_mut(|opt| opt.warn_on_id_clash = true);
+        ui.options_mut(|opt| opt.warn_on_id_clash = true);
 
         ui.heading("Name collision example");
 

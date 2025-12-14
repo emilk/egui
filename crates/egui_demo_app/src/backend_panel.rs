@@ -102,9 +102,9 @@ impl BackendPanel {
         #[cfg(target_arch = "wasm32")]
         {
             ui.separator();
-            let mut screen_reader = ui.ctx().options(|o| o.screen_reader);
+            let mut screen_reader = ui.options(|o| o.screen_reader);
             ui.checkbox(&mut screen_reader, "🔈 Screen reader").on_hover_text("Experimental feature: checking this will turn on the screen reader on supported platforms");
-            ui.ctx().options_mut(|o| o.screen_reader = screen_reader);
+            ui.options_mut(|o| o.screen_reader = screen_reader);
         }
 
         if cfg!(debug_assertions) && cfg!(target_arch = "wasm32") {
