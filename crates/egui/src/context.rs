@@ -1505,7 +1505,7 @@ impl Context {
         Painter::new(self.clone(), layer_id, content_rect)
     }
 
-    /// Paint on top of everything else
+    /// Paint on top of _everything_ else (even on top of tooltips and popups).
     pub fn debug_painter(&self) -> Painter {
         Self::layer_painter(self, LayerId::debug())
     }
