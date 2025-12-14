@@ -54,7 +54,7 @@ impl eframe::App for MyApp {
 
             if ui.button("Close").clicked() {
                 log::info!("Pressed Close button");
-                ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+                ui.send_viewport_cmdviewport_cmd(egui::ViewportCommand::Close);
             }
         });
     }

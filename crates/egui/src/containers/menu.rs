@@ -207,7 +207,7 @@ impl MenuState {
 /// egui::MenuBar::new().ui(ui, |ui| {
 ///     ui.menu_button("File", |ui| {
 ///         if ui.button("Quit").clicked() {
-///             ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+///             ui.send_viewport_cmdviewport_cmd(egui::ViewportCommand::Close);
 ///         }
 ///     });
 /// });
