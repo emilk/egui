@@ -3207,7 +3207,7 @@ fn register_rect(ui: &Ui, rect: Rect) {
 
     // Use the debug-painter to avoid clip rect,
     // otherwise the content of the widget may cover what we paint here!
-    let painter = ui.ctx().debug_painter();
+    let painter = ui.debug_painter();
 
     if debug.hover_shows_next {
         ui.placer.debug_paint_cursor(&painter, "next");

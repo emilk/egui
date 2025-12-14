@@ -1265,11 +1265,8 @@ impl TitleBar {
         let double_click_rect = title_inner_rect.shrink2(vec2(32.0, 0.0));
 
         if false {
-            ui.ctx().debug_painter().debug_rect(
-                double_click_rect,
-                Color32::GREEN,
-                "double_click_rect",
-            );
+            ui.debug_painter()
+                .debug_rect(double_click_rect, Color32::GREEN, "double_click_rect");
         }
 
         let id = ui.unique_id().with("__window_title_bar");
