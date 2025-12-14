@@ -66,10 +66,10 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     {
         let ctx = egui::Context::default();
-        let _ = ctx.run(RawInput::default(), |ctx| {
+        let _ = ctx.run_ui(RawInput::default(), |ui| {
             c.bench_function("label &str", |b| {
                 b.iter_batched_ref(
-                    || create_benchmark_ui(ctx),
+                    || create_benchmark_ui(ui),
                     |ui| {
                         ui.label("the quick brown fox jumps over the lazy dog");
                     },
@@ -78,7 +78,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             });
             c.bench_function("label format!", |b| {
                 b.iter_batched_ref(
-                    || create_benchmark_ui(ctx),
+                    || create_benchmark_ui(ui),
                     |ui| {
                         ui.label("the quick brown fox jumps over the lazy dog".to_owned());
                     },
@@ -90,7 +90,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     {
         let ctx = egui::Context::default();
-        let _ = ctx.run(RawInput::default(), |ctx| {
+        let _ = ctx.run_ui(RawInput::default(), |ui| {
             let mut group = c.benchmark_group("button");
 
             // To ensure we have a valid image, let's use the font texture. The size
@@ -99,7 +99,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
             group.bench_function("1_button_text", |b| {
                 b.iter_batched_ref(
-                    || create_benchmark_ui(ctx),
+                    || create_benchmark_ui(ui),
                     |ui| {
                         ui.add(Button::new("Hello World"));
                     },
@@ -108,7 +108,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             });
             group.bench_function("2_button_text_image", |b| {
                 b.iter_batched_ref(
-                    || create_benchmark_ui(ctx),
+                    || create_benchmark_ui(ui),
                     |ui| {
                         ui.add(Button::image_and_text(image, "Hello World"));
                     },
@@ -117,7 +117,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             });
             group.bench_function("3_button_text_image_right_text", |b| {
                 b.iter_batched_ref(
-                    || create_benchmark_ui(ctx),
+                    || create_benchmark_ui(ui),
                     |ui| {
                         ui.add(Button::image_and_text(image, "Hello World").right_text("⏵"));
                     },
@@ -126,7 +126,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             });
             group.bench_function("4_button_italic", |b| {
                 b.iter_batched_ref(
-                    || create_benchmark_ui(ctx),
+                    || create_benchmark_ui(ui),
                     |ui| {
                         ui.add(Button::new(RichText::new("Hello World").italics()));
                     },

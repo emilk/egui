@@ -4246,11 +4246,11 @@ mod test {
         // A single call, no request to discard:
         {
             let mut num_calls = 0;
-            let output = ctx.run(Default::default(), |ctx| {
+            let output = ctx.run_ui(Default::default(), |ui| {
                 num_calls += 1;
-                assert_eq!(ctx.output(|o| o.num_completed_passes), 0);
-                assert!(!ctx.output(|o| o.requested_discard()));
-                assert!(!ctx.will_discard());
+                assert_eq!(ui.output(|o| o.num_completed_passes), 0);
+                assert!(!ui.output(|o| o.requested_discard()));
+                assert!(!ui.will_discard());
             });
             assert_eq!(num_calls, 1);
             assert_eq!(output.platform_output.num_completed_passes, 1);
@@ -4260,10 +4260,10 @@ mod test {
         // A single call, with a denied request to discard:
         {
             let mut num_calls = 0;
-            let output = ctx.run(Default::default(), |ctx| {
+            let output = ctx.run_ui(Default::default(), |ui| {
                 num_calls += 1;
-                ctx.request_discard("test");
-                assert!(!ctx.will_discard(), "The request should have been denied");
+                ui.request_discard("test");
+                assert!(!ui.will_discard(), "The request should have been denied");
             });
             assert_eq!(num_calls, 1);
             assert_eq!(output.platform_output.num_completed_passes, 1);
@@ -4291,10 +4291,10 @@ mod test {
         // Normal single pass:
         {
             let mut num_calls = 0;
-            let output = ctx.run(Default::default(), |ctx| {
-                assert_eq!(ctx.output(|o| o.num_completed_passes), 0);
-                assert!(!ctx.output(|o| o.requested_discard()));
-                assert!(!ctx.will_discard());
+            let output = ctx.run_ui(Default::default(), |ui| {
+                assert_eq!(ui.output(|o| o.num_completed_passes), 0);
+                assert!(!ui.output(|o| o.requested_discard()));
+                assert!(!ui.will_discard());
                 num_calls += 1;
             });
             assert_eq!(num_calls, 1);
@@ -4305,13 +4305,13 @@ mod test {
         // Request discard once:
         {
             let mut num_calls = 0;
-            let output = ctx.run(Default::default(), |ctx| {
-                assert_eq!(ctx.output(|o| o.num_completed_passes), num_calls);
+            let output = ctx.run_ui(Default::default(), |ui| {
+                assert_eq!(ui.output(|o| o.num_completed_passes), num_calls);
 
-                assert!(!ctx.will_discard());
+                assert!(!ui.will_discard());
                 if num_calls == 0 {
-                    ctx.request_discard("test");
-                    assert!(ctx.will_discard());
+                    ui.request_discard("test");
+                    assert!(ui.will_discard());
                 }
 
                 num_calls += 1;
@@ -4327,15 +4327,15 @@ mod test {
         // Request discard twice:
         {
             let mut num_calls = 0;
-            let output = ctx.run(Default::default(), |ctx| {
-                assert_eq!(ctx.output(|o| o.num_completed_passes), num_calls);
+            let output = ctx.run_ui(Default::default(), |ui| {
+                assert_eq!(ui.output(|o| o.num_completed_passes), num_calls);
 
-                assert!(!ctx.will_discard());
-                ctx.request_discard("test");
+                assert!(!ui.will_discard());
+                ui.request_discard("test");
                 if num_calls == 0 {
-                    assert!(ctx.will_discard(), "First request granted");
+                    assert!(ui.will_discard(), "First request granted");
                 } else {
-                    assert!(!ctx.will_discard(), "Second request should be denied");
+                    assert!(!ui.will_discard(), "Second request should be denied");
                 }
 
                 num_calls += 1;
@@ -4357,13 +4357,13 @@ mod test {
         // Request discard three times:
         {
             let mut num_calls = 0;
-            let output = ctx.run(Default::default(), |ctx| {
-                assert_eq!(ctx.output(|o| o.num_completed_passes), num_calls);
+            let output = ctx.run_ui(Default::default(), |ui| {
+                assert_eq!(ui.output(|o| o.num_completed_passes), num_calls);
 
-                assert!(!ctx.will_discard());
+                assert!(!ui.will_discard());
                 if num_calls <= 2 {
-                    ctx.request_discard("test");
-                    assert!(ctx.will_discard());
+                    ui.request_discard("test");
+                    assert!(ui.will_discard());
                 }
 
                 num_calls += 1;

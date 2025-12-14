@@ -24,37 +24,35 @@ pub(crate) enum AppKind<'a, State> {
 impl<State> AppKind<'_, State> {
     pub fn run(
         &mut self,
-        ctx: &egui::Context,
+        ui: &mut egui::Ui,
         state: &mut State,
         sizing_pass: bool,
     ) -> Option<egui::Response> {
         match self {
             AppKind::Context(f) => {
                 debug_assert!(!sizing_pass, "Context closures cannot do a sizing pass");
-                f(ctx);
+                f(ui);
                 None
             }
             AppKind::ContextState(f) => {
                 debug_assert!(!sizing_pass, "Context closures cannot do a sizing pass");
-                f(ctx, state);
+                f(ui, state);
                 None
             }
             #[cfg(feature = "eframe")]
             AppKind::Eframe((get_app, frame)) => {
                 let app = get_app(state);
 
-                app.logic(ctx, frame);
+                app.logic(ui, frame);
 
                 #[expect(deprecated)]
-                app.update(ctx, frame);
+                app.update(ui, frame);
 
-                egui::CentralPanel::no_frame().show(ctx, |ui| {
-                    app.ui(ui, frame);
-                });
+                app.ui(ui, frame);
 
                 None
             }
-            kind_ui => Some(kind_ui.run_ui(ctx, state, sizing_pass)),
+            kind_ui => Some(kind_ui.run_ui(ui, state, sizing_pass)),
         }
     }
 
