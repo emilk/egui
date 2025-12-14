@@ -790,10 +790,13 @@ impl Context {
 
     #[must_use]
     fn run_ui_dyn(&self, new_input: RawInput, run_ui: &mut dyn FnMut(&mut Ui)) -> FullOutput {
+        let plugins = self.read(|ctx| ctx.plugins.ordered_plugins());
         #[expect(deprecated)]
         self.run(new_input, |ctx| {
             crate::CentralPanel::no_frame().show(ctx, |ui| {
+                plugins.on_begin_pass(ui);
                 run_ui(ui);
+                plugins.on_end_pass(ui);
             });
         })
     }
@@ -926,9 +929,6 @@ impl Context {
         plugins.on_input(&mut new_input);
 
         self.write(|ctx| ctx.begin_pass(new_input));
-
-        // Plugins run just after the pass starts:
-        plugins.on_begin_pass(self);
     }
 
     /// See [`Self::begin_pass`].
@@ -2380,15 +2380,14 @@ impl Context {
             crate::gui_zoom::zoom_with_keyboard(self);
         }
 
-        // Plugins run just before the pass ends.
-        let plugins = self.read(|ctx| ctx.plugins.ordered_plugins());
-        plugins.on_end_pass(self);
-
         #[cfg(debug_assertions)]
         self.debug_painting();
 
         let mut output = self.write(|ctx| ctx.end_pass());
+
+        let plugins = self.read(|ctx| ctx.plugins.ordered_plugins());
         plugins.on_output(&mut output);
+
         output
     }
 
