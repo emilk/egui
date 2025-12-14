@@ -1,3 +1,5 @@
+#![cfg(feature = "snapshot")]
+
 use std::io;
 use std::path::PathBuf;
 
