@@ -610,7 +610,7 @@ impl TextEdit<'_> {
         }
 
         if interactive && response.hovered() {
-            ui.ctx().set_cursor_icon(CursorIcon::Text);
+            ui.set_cursor_icon(CursorIcon::Text);
         }
 
         let mut cursor_range = None;

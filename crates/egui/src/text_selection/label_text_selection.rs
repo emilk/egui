@@ -499,7 +499,7 @@ impl LabelSelectionState {
         let global_from_galley = global_from_layer * layer_from_galley;
 
         if response.hovered() {
-            ui.ctx().set_cursor_icon(CursorIcon::Text);
+            ui.set_cursor_icon(CursorIcon::Text);
         }
 
         self.any_hovered |= response.hovered();

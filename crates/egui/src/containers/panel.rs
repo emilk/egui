@@ -713,7 +713,7 @@ impl Panel {
         }
 
         if resize_hover || is_resizing {
-            ui.ctx().set_cursor_icon(self.cursor_icon(&panel_sizer));
+            ui.set_cursor_icon(self.cursor_icon(&panel_sizer));
         }
 
         PanelState { rect }.store(ui.ctx(), id);

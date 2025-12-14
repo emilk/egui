@@ -856,11 +856,11 @@ impl ScrollArea {
                     if response.dragged()
                         && let Some(cursor) = on_drag_cursor
                     {
-                        ui.ctx().set_cursor_icon(cursor);
+                        ui.set_cursor_icon(cursor);
                     } else if response.hovered()
                         && let Some(cursor) = on_hover_cursor
                     {
-                        ui.ctx().set_cursor_icon(cursor);
+                        ui.set_cursor_icon(cursor);
                     }
                 }
 

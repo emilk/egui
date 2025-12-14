@@ -65,7 +65,7 @@ impl Widget for Link {
             }
 
             if response.hovered() {
-                ui.ctx().set_cursor_icon(CursorIcon::PointingHand);
+                ui.set_cursor_icon(CursorIcon::PointingHand);
             }
         }
 
