@@ -32,7 +32,7 @@ impl crate::View for ClipboardTest {
             .horizontal(|ui| {
                 let text_edit_response = ui.text_edit_singleline(&mut self.text);
                 if ui.button("📋").clicked() {
-                    ui.ctx().copy_text(self.text.clone());
+                    ui.copy_text(self.text.clone());
                 }
                 text_edit_response
             })
@@ -69,7 +69,7 @@ impl crate::View for ClipboardTest {
                 ui.ctx().try_load_image(&uri, Default::default())
                 && ui.button("📋").clicked()
             {
-                ui.ctx().copy_image((*image).clone());
+                ui.copy_image((*image).clone());
             }
         });
 

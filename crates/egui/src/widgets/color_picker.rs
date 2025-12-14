@@ -402,9 +402,9 @@ fn srgba_edit_ui(ui: &mut Ui, [r, g, b, a]: &mut [u8; 4], alpha: Alpha) -> bool 
             .clicked()
         {
             if alpha == Alpha::Opaque {
-                ui.ctx().copy_text(format!("{r}, {g}, {b}"));
+                ui.copy_text(format!("{r}, {g}, {b}"));
             } else {
-                ui.ctx().copy_text(format!("{r}, {g}, {b}, {a}"));
+                ui.copy_text(format!("{r}, {g}, {b}, {a}"));
             }
         }
         edited |= DragValue::new(r).speed(0.5).prefix("R ").ui(ui).changed();
@@ -443,7 +443,7 @@ fn rgba_edit_ui(ui: &mut Ui, [r, g, b, a]: &mut [f32; 4], alpha: Alpha) -> bool 
             .clicked()
         {
             if alpha == Alpha::Opaque {
-                ui.ctx().copy_text(format!("{r:.03}, {g:.03}, {b:.03}"));
+                ui.copy_text(format!("{r:.03}, {g:.03}, {b:.03}"));
             } else {
                 ui.ctx()
                     .copy_text(format!("{r:.03}, {g:.03}, {b:.03}, {a:.03}"));

@@ -922,7 +922,7 @@ fn events(
 
     let copy_if_not_password = |ui: &Ui, text: String| {
         if !password {
-            ui.ctx().copy_text(text);
+            ui.copy_text(text);
         }
     };
 
