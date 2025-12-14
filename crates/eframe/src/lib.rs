@@ -44,7 +44,7 @@
 //! }
 //!
 //! impl eframe::App for MyEguiApp {
-//!    fn ui(&mut self, u: &mut egui::Ui, frame: &mut eframe::Frame) {
+//!    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
 //!        egui::CentralPanel::default().show_inside(ui, |ui| {
 //!            ui.heading("Hello World!");
 //!        });
@@ -241,7 +241,7 @@ pub mod icon_data;
 /// }
 ///
 /// impl eframe::App for MyEguiApp {
-///    fn ui(&mut self, u: &mut egui::Ui, frame: &mut eframe::Frame) {
+///    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
 ///        egui::CentralPanel::default().show_inside(ui, |ui| {
 ///            ui.heading("Hello World!");
 ///        });
@@ -312,7 +312,7 @@ pub fn run_native(
 /// }
 ///
 /// impl eframe::App for MyEguiApp {
-///    fn ui(&mut self, ui: &mut egui::Context, frame: &mut eframe::Frame) {
+///    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
 ///        egui::CentralPanel::default().show_inside(ui, |ui| {
 ///            ui.heading("Hello World!");
 ///        });
