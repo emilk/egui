@@ -195,7 +195,7 @@
 //! * lays out the letters `click me` in order to figure out the size of the button
 //! * decides where on screen to place the button
 //! * check if the mouse is hovering or clicking that location
-//! * chose button colors based on if it is being hovered or clicked
+//! * choose button colors based on if it is being hovered or clicked
 //! * add a [`Shape::Rect`] and [`Shape::Text`] to the list of shapes to be painted later this frame
 //! * return a [`Response`] with the [`clicked`](`Response::clicked`) member so the user can check for interactions
 //!
