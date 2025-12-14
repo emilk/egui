@@ -119,7 +119,7 @@ impl BackendPanel {
         if !cfg!(target_arch = "wasm32") {
             ui.separator();
             if ui.button("Quit").clicked() {
-                ui.send_viewport_cmdviewport_cmd(egui::ViewportCommand::Close);
+                ui.send_viewport_cmd(egui::ViewportCommand::Close);
             }
         }
     }

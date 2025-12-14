@@ -48,7 +48,7 @@ impl crate::View for ClipboardTest {
                 ] {
                     if ui.button(name).clicked() {
                         // Next frame we should get a copy/cut/paste-event…
-                        ui.send_viewport_cmdviewport_cmd(cmd);
+                        ui.send_viewport_cmd(cmd);
 
                         // …that should en up here:
                         text_edit_response.request_focus();
