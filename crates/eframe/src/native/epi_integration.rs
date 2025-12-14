@@ -272,14 +272,27 @@ impl EpiIntegration {
 
         app.raw_input_hook(&self.egui_ctx, &mut raw_input);
 
+        // TODO: run_ui
         let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
             if let Some(viewport_ui_cb) = viewport_ui_cb {
                 // Child viewport
                 profiling::scope!("viewport_callback");
                 viewport_ui_cb(egui_ctx);
             } else {
-                profiling::scope!("App::update");
-                app.update(egui_ctx, &mut self.frame);
+                {
+                    profiling::scope!("App::logic");
+                    app.logic(egui_ctx, &mut self.frame);
+                }
+
+                {
+                    profiling::scope!("App::update");
+                    app.update(egui_ctx, &mut self.frame);
+                }
+
+                egui::CentralPanel::no_frame().show(egui_ctx, |ui| {
+                    profiling::scope!("App::ui");
+                    app.ui(ui, &mut self.frame);
+                });
             }
         });
 

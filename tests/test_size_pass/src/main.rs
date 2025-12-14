@@ -7,9 +7,9 @@ fn main() -> eframe::Result {
     env_logger::init(); // Use `RUST_LOG=debug` to see logs.
 
     let options = eframe::NativeOptions::default();
-    eframe::run_simple_native("My egui App", options, move |ctx, _frame| {
+    eframe::run_ui_native("My egui App", options, move |ui, _frame| {
         // A bottom panel to force the tooltips to consider if the fit below or under the widget:
-        egui::Panel::bottom("bottom").show(ctx, |ui| {
+        egui::Panel::bottom("bottom").show_inside(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.vertical(|ui| {
                     ui.label("Single tooltips:");
@@ -33,10 +33,10 @@ fn main() -> eframe::Result {
             });
         });
 
-        egui::CentralPanel::default().show(ctx, |ui| {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             ui.horizontal(|ui| {
                 if ui.button("Reset egui memory").clicked() {
-                    ctx.memory_mut(|mem| *mem = Default::default());
+                    ui.memory_mut(|mem| *mem = Default::default());
                 }
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::BOTTOM), |ui| {
