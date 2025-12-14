@@ -790,6 +790,7 @@ impl Context {
 
     #[must_use]
     fn run_ui_dyn(&self, new_input: RawInput, run_ui: &mut dyn FnMut(&mut Ui)) -> FullOutput {
+        #[expect(deprecated)]
         self.run(new_input, |ctx| {
             crate::CentralPanel::no_frame().show(ctx, |ui| {
                 run_ui(ui);
@@ -824,6 +825,7 @@ impl Context {
     /// ## See also
     /// * [`Self::run_ui`]
     #[must_use]
+    #[deprecated = "Call run_ui instead"]
     pub fn run(&self, new_input: RawInput, mut run_ui: impl FnMut(&Self)) -> FullOutput {
         self.run_dyn(new_input, &mut run_ui)
     }
