@@ -271,7 +271,7 @@ impl eframe::App for WrapApp {
         color.to_normalized_gamma_f32()
     }
 
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         #[cfg(target_arch = "wasm32")]
         if let Some(anchor) = frame
             .info()
@@ -285,36 +285,36 @@ impl eframe::App for WrapApp {
         }
 
         #[cfg(not(target_arch = "wasm32"))]
-        if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::F11)) {
-            let fullscreen = ctx.input(|i| i.viewport().fullscreen.unwrap_or(false));
-            ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(!fullscreen));
+        if ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::F11)) {
+            let fullscreen = ui.input(|i| i.viewport().fullscreen.unwrap_or(false));
+            ui.send_viewport_cmd(egui::ViewportCommand::Fullscreen(!fullscreen));
         }
 
         let mut cmd = Command::Nothing;
         egui::Panel::top("wrap_app_top_bar")
             .frame(egui::Frame::new().inner_margin(4))
-            .show(ctx, |ui| {
+            .show_inside(ui, |ui| {
                 ui.horizontal_wrapped(|ui| {
                     ui.visuals_mut().button_frame = false;
                     self.bar_contents(ui, frame, &mut cmd);
                 });
             });
 
-        self.state.backend_panel.update(ctx, frame);
+        self.state.backend_panel.update(ui.ctx(), frame);
 
-        egui::CentralPanel::no_frame().show(ctx, |ui| {
-            if !is_mobile(ctx) {
+        egui::CentralPanel::no_frame().show_inside(ui, |ui| {
+            if !is_mobile(ui.ctx()) {
                 cmd = self.backend_panel(ui, frame);
             }
 
             self.show_selected_app(ui, frame);
         });
 
-        self.state.backend_panel.end_of_frame(ctx);
+        self.state.backend_panel.end_of_frame(ui.ctx());
 
-        self.ui_file_drag_and_drop(ctx);
+        self.ui_file_drag_and_drop(ui.ctx());
 
-        self.run_cmd(ctx, cmd);
+        self.run_cmd(ui.ctx(), cmd);
     }
 
     #[cfg(feature = "glow")]
