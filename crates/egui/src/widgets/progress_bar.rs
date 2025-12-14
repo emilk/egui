@@ -135,7 +135,7 @@ impl Widget for ProgressBar {
 
         if ui.is_rect_visible(response.rect) {
             if animate {
-                ui.ctx().request_repaint();
+                ui.request_repaint();
             }
 
             let visuals = ui.style().visuals.clone();

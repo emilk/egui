@@ -40,7 +40,7 @@ impl crate::View for DancingStrings {
             .on_hover_text("Demonstrates how a path can have varying color across its length.");
 
         Frame::canvas(ui.style()).show(ui, |ui| {
-            ui.ctx().request_repaint();
+            ui.request_repaint();
             let time = ui.input(|i| i.time);
 
             let desired_size = ui.available_width() * vec2(1.0, 0.35);

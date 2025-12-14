@@ -213,7 +213,7 @@ impl Resize {
         });
 
         let mut state = State::load(ui.ctx(), id).unwrap_or_else(|| {
-            ui.ctx().request_repaint(); // counter frame delay
+            ui.request_repaint(); // counter frame delay
 
             let default_size = self
                 .default_size

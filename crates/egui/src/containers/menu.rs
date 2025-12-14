@@ -556,7 +556,7 @@ impl SubMenu {
             if is_moving_towards_rect {
                 // We need to repaint while this is true, so we can detect when
                 // the pointer is no longer moving towards the rect
-                ui.ctx().request_repaint();
+                ui.request_repaint();
             }
             let hovering_other_menu_entry = is_open
                 && !is_hovered

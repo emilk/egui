@@ -1125,7 +1125,7 @@ impl Prepared {
                             target_offset,
                         });
                     }
-                    ui.ctx().request_repaint();
+                    ui.request_repaint();
                 }
             }
         }
@@ -1475,7 +1475,7 @@ impl Prepared {
         ui.advance_cursor_after_rect(outer_rect);
 
         if show_scroll_this_frame != state.show_scroll {
-            ui.ctx().request_repaint();
+            ui.request_repaint();
         }
 
         let available_offset = content_size - inner_rect.size();
