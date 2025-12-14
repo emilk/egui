@@ -1516,7 +1516,7 @@ impl Ui {
     /// let c = rect.center();
     /// let r = rect.width() / 2.0 - 1.0;
     /// let color = Color32::from_gray(128);
-    /// let stroke = crate::Stroke::new(1.0, color);
+    /// let stroke = Stroke::new(1.0, color);
     /// painter.circle_stroke(c, r, stroke);
     /// painter.line_segment([c - vec2(0.0, r), c + vec2(0.0, r)], stroke);
     /// painter.line_segment([c, c + r * Vec2::angled(TAU * 1.0 / 8.0)], stroke);
