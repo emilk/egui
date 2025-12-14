@@ -25,8 +25,8 @@ struct MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             ui.label("Drag-and-drop files onto the window!");
 
             if ui.button("Open file…").clicked()
@@ -73,10 +73,10 @@ impl eframe::App for MyApp {
             }
         });
 
-        preview_files_being_dropped(ctx);
+        preview_files_being_dropped(ui.ctx());
 
         // Collect dropped files:
-        ctx.input(|i| {
+        ui.input(|i| {
             if !i.raw.dropped_files.is_empty() {
                 self.dropped_files.clone_from(&i.raw.dropped_files);
             }

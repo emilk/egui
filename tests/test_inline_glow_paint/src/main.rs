@@ -25,7 +25,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 struct MyTestApp {}
 
 impl eframe::App for MyTestApp {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         use glow::HasContext as _;
         let gl = frame.gl().unwrap();
 
@@ -37,7 +37,7 @@ impl eframe::App for MyTestApp {
             gl.clear(glow::COLOR_BUFFER_BIT);
         }
 
-        egui::Window::new("Floating Window").show(ctx, |ui| {
+        egui::Window::new("Floating Window").show(ui.ctx(), |ui| {
             ui.label("The background should be purple.");
         });
     }

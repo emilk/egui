@@ -18,8 +18,8 @@ struct MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
-        CentralPanel::default().show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut eframe::egui::Ui, _frame: &mut eframe::Frame) {
+        CentralPanel::default().show_inside(ui, |ui| {
             ui.label("PopupCloseBehavior::CloseOnClick popup");
             ComboBox::from_label("ComboBox")
                 .selected_text(format!("{}", self.number))

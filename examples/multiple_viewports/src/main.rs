@@ -35,8 +35,8 @@ struct MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             ui.label("Hello from the root viewport");
 
             ui.checkbox(
@@ -61,7 +61,7 @@ impl eframe::App for MyApp {
         });
 
         if self.show_immediate_viewport {
-            ctx.show_viewport_immediate(
+            ui.ctx().show_viewport_immediate(
                 egui::ViewportId::from_hash_of("immediate_viewport"),
                 egui::ViewportBuilder::default()
                     .with_title("Immediate Viewport")
@@ -87,7 +87,7 @@ impl eframe::App for MyApp {
 
         if self.show_deferred_viewport.load(Ordering::Relaxed) {
             let show_deferred_viewport = self.show_deferred_viewport.clone();
-            ctx.show_viewport_deferred(
+            ui.ctx().show_viewport_deferred(
                 egui::ViewportId::from_hash_of("deferred_viewport"),
                 egui::ViewportBuilder::default()
                     .with_title("Deferred Viewport")

@@ -76,8 +76,8 @@ impl Default for MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             ui.heading("My External Eventloop Application");
 
             ui.horizontal(|ui| {
@@ -86,7 +86,7 @@ impl eframe::App for MyApp {
                 }
                 if ui.button("Increment Later").clicked() {
                     let value = self.value.clone();
-                    let ctx = ctx.clone();
+                    let ctx = ui.ctx().clone();
                     tokio::task::spawn_local(async move {
                         tokio::time::sleep(Duration::from_secs(1)).await;
                         value.set(value.get() + 1);
@@ -123,7 +123,7 @@ impl eframe::App for MyApp {
                         ui.label("Blinky!");
                     });
 
-                ctx.request_repaint_after_secs((0.5 - (now % 0.5)) as f32);
+                ui.request_repaint_after_secs((0.5 - (now % 0.5)) as f32);
             }
         });
     }
