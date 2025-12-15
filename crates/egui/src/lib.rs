@@ -413,7 +413,7 @@ pub mod os;
 mod painter;
 mod pass_state;
 pub(crate) mod placer;
-mod plugin;
+pub mod plugin;
 pub mod response;
 mod sense;
 pub mod style;

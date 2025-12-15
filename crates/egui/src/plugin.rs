@@ -55,6 +55,9 @@ pub(crate) struct PluginHandle {
     plugin: Box<dyn Plugin>,
 }
 
+/// A typed handle to a registered [`Plugin`].
+///
+/// Use [`Self::lock`] to access the plugin.
 pub struct TypedPluginHandle<P: Plugin> {
     handle: Arc<Mutex<PluginHandle>>,
     _type: std::marker::PhantomData<P>,
@@ -68,6 +71,9 @@ impl<P: Plugin> TypedPluginHandle<P> {
         }
     }
 
+    /// Lock the plugin for access.
+    ///
+    /// Returns a guard that dereferences to the plugin.
     pub fn lock(&self) -> TypedPluginGuard<'_, P> {
         TypedPluginGuard {
             guard: self.handle.lock(),
@@ -76,6 +82,7 @@ impl<P: Plugin> TypedPluginHandle<P> {
     }
 }
 
+/// A guard that provides access to a [`Plugin`].
 pub struct TypedPluginGuard<'a, P: Plugin> {
     guard: MutexGuard<'a, PluginHandle>,
     _type: std::marker::PhantomData<P>,
