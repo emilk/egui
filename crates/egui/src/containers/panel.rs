@@ -950,6 +950,9 @@ impl Panel {
 /// A panel that covers the remainder of the screen,
 /// i.e. whatever area is left after adding other panels.
 ///
+/// This acts very similar to [`Frame::central_panel`], but always expands
+/// to use up all available space.
+///
 /// The order in which you add panels matter!
 /// The first panel you add will always be the outermost, and the last you add will always be the innermost.
 ///
@@ -1022,10 +1025,15 @@ impl CentralPanel {
         panel_ui.set_clip_rect(panel_rect); // If we overflow, don't do so visibly (#4475)
 
         let frame = frame.unwrap_or_else(|| Frame::central_panel(ui.style()));
-        frame.show(&mut panel_ui, |ui| {
+        let response = frame.show(&mut panel_ui, |ui| {
             ui.expand_to_include_rect(ui.max_rect()); // Expand frame to include it all
             add_contents(ui)
-        })
+        });
+
+        // Use up space in the parent:
+        ui.advance_cursor_after_rect(response.response.rect);
+
+        response
     }
 
     /// Show the panel at the top level.
