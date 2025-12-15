@@ -54,9 +54,9 @@ impl eframe::App for MyApp {
 
             ui.add_space(16.0);
             {
-                let mut embedded = ctx.embed_viewports();
+                let mut embedded = ui.embed_viewports();
                 ui.checkbox(&mut embedded, "Embed all viewports");
-                ctx.set_embed_viewports(embedded);
+                ui.set_embed_viewports(embedded);
             }
         });
 

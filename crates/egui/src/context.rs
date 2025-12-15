@@ -4027,8 +4027,8 @@ impl Context {
         profiling::function_scope!();
 
         if self.embed_viewports() {
-            crate::Window::from_viewport(new_viewport_id, viewport_builder).show(self, |ctx| {
-                viewport_ui_cb(ctx, ViewportClass::EmbeddedWindow);
+            crate::Window::from_viewport(new_viewport_id, viewport_builder).show(self, |ui| {
+                viewport_ui_cb(ui, ViewportClass::EmbeddedWindow);
             });
         } else {
             self.write(|ctx| {
