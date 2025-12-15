@@ -58,31 +58,26 @@ impl<State> AppKind<'_, State> {
 
     fn run_ui(
         &mut self,
-        ctx: &egui::Context,
+        ui: &mut egui::Ui,
         state: &mut State,
         sizing_pass: bool,
     ) -> egui::Response {
-        egui::CentralPanel::default()
-            .frame(Frame::NONE)
-            .show(ctx, |ui| {
-                let mut builder = egui::UiBuilder::new();
-                if sizing_pass {
-                    builder.sizing_pass = true;
-                }
-                ui.scope_builder(builder, |ui| {
-                    Frame::central_panel(ui.style())
-                        .outer_margin(8.0)
-                        .inner_margin(0.0)
-                        .show(ui, |ui| match self {
-                            AppKind::Ui(f) => f(ui),
-                            AppKind::UiState(f) => f(ui, state),
-                            _ => unreachable!(
-                                "run_ui should only be called with AppKind::Ui or AppKind UiState"
-                            ),
-                        });
-                })
-                .response
-            })
-            .inner
+        let mut builder = egui::UiBuilder::new();
+        if sizing_pass {
+            builder.sizing_pass = true;
+        }
+        ui.scope_builder(builder, |ui| {
+            Frame::central_panel(ui.style())
+                .outer_margin(8.0)
+                .inner_margin(0.0)
+                .show(ui, |ui| match self {
+                    AppKind::Ui(f) => f(ui),
+                    AppKind::UiState(f) => f(ui, state),
+                    _ => unreachable!(
+                        "run_ui should only be called with AppKind::Ui or AppKind UiState"
+                    ),
+                });
+        })
+        .response
     }
 }
