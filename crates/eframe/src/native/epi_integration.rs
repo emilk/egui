@@ -276,7 +276,7 @@ impl EpiIntegration {
             if let Some(viewport_ui_cb) = viewport_ui_cb {
                 // Child viewport
                 profiling::scope!("viewport_callback");
-                viewport_ui_cb(ui.ctx());
+                viewport_ui_cb(ui);
             } else {
                 {
                     profiling::scope!("App::logic");

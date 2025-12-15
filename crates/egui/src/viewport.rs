@@ -73,7 +73,7 @@ use std::sync::Arc;
 
 use epaint::{Pos2, Vec2};
 
-use crate::{Context, Id};
+use crate::{Context, Id, Ui};
 
 // ----------------------------------------------------------------------------
 
@@ -263,7 +263,7 @@ impl ViewportIdPair {
 }
 
 /// The user-code that shows the ui in the viewport, used for deferred viewports.
-pub type DeferredViewportUiCallback = dyn Fn(&Context) + Sync + Send;
+pub type DeferredViewportUiCallback = dyn Fn(&mut Ui) + Sync + Send;
 
 /// Render the given viewport, calling the given ui callback.
 pub type ImmediateViewportRendererCallback = dyn for<'a> Fn(&Context, ImmediateViewport<'a>);
@@ -1251,5 +1251,5 @@ pub struct ImmediateViewport<'a> {
     pub builder: ViewportBuilder,
 
     /// The user-code that shows the GUI.
-    pub viewport_ui_cb: Box<dyn FnMut(&Context) + 'a>,
+    pub viewport_ui_cb: Box<dyn FnMut(&mut Ui) + 'a>,
 }

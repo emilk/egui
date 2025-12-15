@@ -1362,7 +1362,7 @@ fn initialize_or_update_viewport(
     ids: ViewportIdPair,
     class: ViewportClass,
     mut builder: ViewportBuilder,
-    viewport_ui_cb: Option<Arc<dyn Fn(&egui::Context) + Send + Sync>>,
+    viewport_ui_cb: Option<Arc<dyn Fn(&mut egui::Ui) + Send + Sync>>,
 ) -> &mut Viewport {
     profiling::function_scope!();
 

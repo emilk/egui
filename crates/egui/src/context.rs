@@ -4040,10 +4040,8 @@ impl Context {
                 viewport.class = ViewportClass::Deferred;
                 viewport.builder = viewport_builder;
                 viewport.used = true;
-                viewport.viewport_ui_cb = Some(Arc::new(move |ctx| {
-                    crate::CentralPanel::no_frame().show(ctx, |ui| {
-                        (viewport_ui_cb)(ui, ViewportClass::Deferred);
-                    });
+                viewport.viewport_ui_cb = Some(Arc::new(move |ui| {
+                    (viewport_ui_cb)(ui, ViewportClass::Deferred);
                 }));
             });
         }
@@ -4119,10 +4117,8 @@ impl Context {
                 let viewport = ImmediateViewport {
                     ids,
                     builder,
-                    viewport_ui_cb: Box::new(move |ctx| {
-                        crate::CentralPanel::no_frame().show(ctx, |ui| {
-                            *out = Some((viewport_ui_cb)(ui, ViewportClass::Immediate));
-                        });
+                    viewport_ui_cb: Box::new(move |ui| {
+                        *out = Some((viewport_ui_cb)(ui, ViewportClass::Immediate));
                     }),
                 };
 
