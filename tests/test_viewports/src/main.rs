@@ -76,35 +76,29 @@ impl ViewportState {
 
         if immediate {
             let mut vp_state = vp_state.write();
-            ctx.show_viewport_immediate(vp_id, viewport, move |ctx, class| {
-                if ctx.input(|i| i.viewport().close_requested()) {
+            ctx.show_viewport_immediate(vp_id, viewport, move |ui, class| {
+                if ui.input(|i| i.viewport().close_requested()) {
                     vp_state.visible = false;
                 }
-                show_as_popup(ctx, class, &title, vp_id.into(), |ui: &mut egui::Ui| {
+                show_as_popup(ui, class, |ui: &mut egui::Ui| {
                     generic_child_ui(ui, &mut vp_state, close_button);
                 });
             });
         } else {
             let count = Arc::new(RwLock::new(0));
-            ctx.show_viewport_deferred(vp_id, viewport, move |ctx, class| {
+            ctx.show_viewport_deferred(vp_id, viewport, move |ui, class| {
                 let mut vp_state = vp_state.write();
-                if ctx.input(|i| i.viewport().close_requested()) {
+                if ui.input(|i| i.viewport().close_requested()) {
                     vp_state.visible = false;
                 }
                 let count = count.clone();
-                show_as_popup(
-                    ctx,
-                    class,
-                    &title,
-                    vp_id.into(),
-                    move |ui: &mut egui::Ui| {
-                        let current_count = *count.read();
-                        ui.label(format!("Callback has been reused {current_count} times"));
-                        *count.write() += 1;
+                show_as_popup(ui, class, move |ui: &mut egui::Ui| {
+                    let current_count = *count.read();
+                    ui.label(format!("Callback has been reused {current_count} times"));
+                    *count.write() += 1;
 
-                        generic_child_ui(ui, &mut vp_state, close_button);
-                    },
-                );
+                    generic_child_ui(ui, &mut vp_state, close_button);
+                });
             });
         }
     }
@@ -180,17 +174,15 @@ impl eframe::App for App {
 
 /// This will make the content as a popup if cannot has his own native window
 fn show_as_popup(
-    ctx: &egui::Context,
+    ui: &mut egui::Ui,
     class: egui::ViewportClass,
-    title: &str,
-    id: Id,
     content: impl FnOnce(&mut egui::Ui),
 ) {
-    if class == egui::ViewportClass::Embedded {
-        // Not a real viewport
-        egui::Window::new(title).id(id).show(ctx, content);
+    if class == egui::ViewportClass::EmbeddedWindow {
+        // Not a real viewport - already has a frame
+        content(ui);
     } else {
-        egui::CentralPanel::default().show(ctx, content);
+        egui::CentralPanel::default().show_inside(ui, content);
     }
 }
 

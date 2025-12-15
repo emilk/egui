@@ -101,7 +101,10 @@ pub enum ViewportClass {
 
     /// The fallback, when the egui integration doesn't support viewports,
     /// or [`crate::Context::embed_viewports`] is set to `true`.
-    Embedded,
+    ///
+    /// If you get this, it is because you are already wrapped in a [`crate::Window`]
+    /// inside of the parent viewport.
+    EmbeddedWindow,
 }
 
 // ----------------------------------------------------------------------------
