@@ -32,19 +32,9 @@ use winit::{
     window::{CursorGrabMode, Window, WindowButtons, WindowLevel},
 };
 
-pub fn screen_size_in_pixels(window: &Window) -> egui::Vec2 {
-    let size = if cfg!(target_os = "ios") {
-        // `outer_size` Includes the area behind the "dynamic island".
-        // It is up to the eframe user to make sure the dynamic island doesn't cover anything important.
-        // That will be easier once https://github.com/rust-windowing/winit/pull/3890 lands
-        window.outer_size()
-    } else {
-        window.inner_size()
-    };
-    egui::vec2(size.width as f32, size.height as f32)
-}
-
 /// Calculate the `pixels_per_point` for a given window, given the current egui zoom factor
+///
+/// Only use this during startup when a [`WindowEvent::ScaleFactorChanged`] was not yet delivered!
 pub fn pixels_per_point(egui_ctx: &egui::Context, window: &Window) -> f32 {
     let native_pixels_per_point = window.scale_factor() as f32;
     let egui_zoom_factor = egui_ctx.zoom_factor();
@@ -231,30 +221,30 @@ impl State {
     /// You need to set [`egui::RawInput::viewports`] yourself though.
     /// Use [`update_viewport_info`] to update the info for each
     /// viewport.
-    pub fn take_egui_input(&mut self, window: &Window) -> egui::RawInput {
+    pub fn take_egui_input(&mut self) -> egui::RawInput {
         profiling::function_scope!();
 
         self.egui_input.time = Some(self.start_time.elapsed().as_secs_f64());
 
-        // On Windows, a minimized window will have 0 width and height.
-        // See: https://github.com/rust-windowing/winit/issues/208
-        // This solves an issue where egui window positions would be changed when minimizing on Windows.
-        let screen_size_in_pixels = screen_size_in_pixels(window);
-        let screen_size_in_points =
-            screen_size_in_pixels / pixels_per_point(&self.egui_ctx, window);
+        // // On Windows, a minimized window will have 0 width and height.
+        // // See: https://github.com/rust-windowing/winit/issues/208
+        // // This solves an issue where egui window positions would be changed when minimizing on Windows.
+        // let screen_size_in_pixels = screen_size_in_pixels(window);
+        // let screen_size_in_points =
+        //     screen_size_in_pixels / pixels_per_point(&self.egui_ctx, window);
 
-        self.egui_input.screen_rect = (screen_size_in_points.x > 0.0
-            && screen_size_in_points.y > 0.0)
-            .then(|| Rect::from_min_size(Pos2::ZERO, screen_size_in_points));
+        // self.egui_input.screen_rect = (screen_size_in_points.x > 0.0
+        //     && screen_size_in_points.y > 0.0)
+        //     .then(|| Rect::from_min_size(Pos2::ZERO, screen_size_in_points));
 
         // Tell egui which viewport is now active:
         self.egui_input.viewport_id = self.viewport_id;
 
-        self.egui_input
-            .viewports
-            .entry(self.viewport_id)
-            .or_default()
-            .native_pixels_per_point = Some(window.scale_factor() as f32);
+        // self.egui_input
+        //     .viewports
+        //     .entry(self.viewport_id)
+        //     .or_default()
+        //     .native_pixels_per_point = Some(window.scale_factor() as f32);
 
         self.egui_input.take()
     }
@@ -300,6 +290,33 @@ impl State {
                     .or_default()
                     .native_pixels_per_point = Some(native_pixels_per_point);
 
+                // TODO: Also update screen_rect!
+
+                EventResponse {
+                    repaint: true,
+                    consumed: false,
+                }
+            }
+            WindowEvent::Resized(size) => {
+                // TODO: This event doesn't deliver outer size
+                // let size = if cfg!(target_os = "ios") {
+                //     // `outer_size` Includes the area behind the "dynamic island".
+                //     // It is up to the eframe user to make sure the dynamic island doesn't cover anything important.
+                //     // That will be easier once https://github.com/rust-windowing/winit/pull/3890 lands
+                //     window.outer_size()
+                // } else {
+                //     window.inner_size()
+                // };
+                let screen_size_in_pixels = egui::vec2(size.width as f32, size.height as f32);
+                let screen_size_in_points = screen_size_in_pixels / self.pixels_per_point();
+
+                // On Windows, a minimized window will have 0 width and height.
+                // See: https://github.com/rust-windowing/winit/issues/208
+                // This solves an issue where egui window positions would be changed when minimizing on Windows.
+                self.egui_input.screen_rect = (screen_size_in_points.x > 0.0
+                    && screen_size_in_points.y > 0.0)
+                    .then(|| Rect::from_min_size(Pos2::ZERO, screen_size_in_points));
+
                 EventResponse {
                     repaint: true,
                     consumed: false,
@@ -313,14 +330,14 @@ impl State {
                 }
             }
             WindowEvent::MouseWheel { delta, phase, .. } => {
-                self.on_mouse_wheel(window, *delta, *phase);
+                self.on_mouse_wheel(*delta, *phase);
                 EventResponse {
                     repaint: true,
                     consumed: self.egui_ctx.egui_wants_pointer_input(),
                 }
             }
             WindowEvent::CursorMoved { position, .. } => {
-                self.on_cursor_moved(window, *position);
+                self.on_cursor_moved(*position);
                 EventResponse {
                     repaint: true,
                     consumed: self.egui_ctx.egui_is_using_pointer(),
@@ -336,7 +353,7 @@ impl State {
             }
             // WindowEvent::TouchpadPressure {device_id, pressure, stage, ..  } => {} // TODO(emilk)
             WindowEvent::Touch(touch) => {
-                self.on_touch(window, touch);
+                self.on_touch(touch);
                 let consumed = match touch.phase {
                     winit::event::TouchPhase::Started
                     | winit::event::TouchPhase::Ended
@@ -507,7 +524,6 @@ impl State {
             | WindowEvent::CursorEntered { .. }
             | WindowEvent::Destroyed
             | WindowEvent::Occluded(_)
-            | WindowEvent::Resized(_)
             | WindowEvent::Moved(_)
             | WindowEvent::TouchpadPressure { .. }
             | WindowEvent::CloseRequested => EventResponse {
@@ -548,11 +564,9 @@ impl State {
             }
 
             WindowEvent::PanGesture { delta, phase, .. } => {
-                let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
-
                 self.egui_input.events.push(egui::Event::MouseWheel {
                     unit: egui::MouseWheelUnit::Point,
-                    delta: Vec2::new(delta.x, delta.y) / pixels_per_point,
+                    delta: Vec2::new(delta.x, delta.y) / self.pixels_per_point(),
                     phase: to_egui_touch_phase(*phase),
                     modifiers: self.egui_input.modifiers,
                 });
@@ -642,17 +656,9 @@ impl State {
         }
     }
 
-    fn on_cursor_moved(
-        &mut self,
-        window: &Window,
-        pos_in_pixels: winit::dpi::PhysicalPosition<f64>,
-    ) {
-        let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
-
-        let pos_in_points = egui::pos2(
-            pos_in_pixels.x as f32 / pixels_per_point,
-            pos_in_pixels.y as f32 / pixels_per_point,
-        );
+    fn on_cursor_moved(&mut self, pos_in_pixels: winit::dpi::PhysicalPosition<f64>) {
+        let pos_in_points =
+            egui::pos2(pos_in_pixels.x as f32, pos_in_pixels.y as f32) / self.pixels_per_point();
         self.pointer_pos_in_points = Some(pos_in_points);
 
         if self.simulate_touch_screen {
@@ -676,18 +682,14 @@ impl State {
         }
     }
 
-    fn on_touch(&mut self, window: &Window, touch: &winit::event::Touch) {
-        let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
-
+    fn on_touch(&mut self, touch: &winit::event::Touch) {
         // Emit touch event
         self.egui_input.events.push(egui::Event::Touch {
             device_id: egui::TouchDeviceId(egui::epaint::util::hash(touch.device_id)),
             id: egui::TouchId::from(touch.id),
             phase: to_egui_touch_phase(touch.phase),
-            pos: egui::pos2(
-                touch.location.x as f32 / pixels_per_point,
-                touch.location.y as f32 / pixels_per_point,
-            ),
+            pos: egui::pos2(touch.location.x as f32, touch.location.y as f32)
+                / self.pixels_per_point(),
             force: match touch.force {
                 Some(winit::event::Force::Normalized(force)) => Some(force as f32),
                 Some(winit::event::Force::Calibrated {
@@ -707,14 +709,14 @@ impl State {
                 winit::event::TouchPhase::Started => {
                     self.pointer_touch_id = Some(touch.id);
                     // First move the pointer to the right location
-                    self.on_cursor_moved(window, touch.location);
+                    self.on_cursor_moved(touch.location);
                     self.on_mouse_button_input(
                         winit::event::ElementState::Pressed,
                         winit::event::MouseButton::Left,
                     );
                 }
                 winit::event::TouchPhase::Moved => {
-                    self.on_cursor_moved(window, touch.location);
+                    self.on_cursor_moved(touch.location);
                 }
                 winit::event::TouchPhase::Ended => {
                     self.pointer_touch_id = None;
@@ -738,34 +740,26 @@ impl State {
 
     fn on_mouse_wheel(
         &mut self,
-        window: &Window,
         delta: winit::event::MouseScrollDelta,
         phase: winit::event::TouchPhase,
     ) {
-        let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
-
-        {
-            let (unit, delta) = match delta {
-                winit::event::MouseScrollDelta::LineDelta(x, y) => {
-                    (egui::MouseWheelUnit::Line, egui::vec2(x, y))
-                }
-                winit::event::MouseScrollDelta::PixelDelta(winit::dpi::PhysicalPosition {
-                    x,
-                    y,
-                }) => (
-                    egui::MouseWheelUnit::Point,
-                    egui::vec2(x as f32, y as f32) / pixels_per_point,
-                ),
-            };
-            let phase = to_egui_touch_phase(phase);
-            let modifiers = self.egui_input.modifiers;
-            self.egui_input.events.push(egui::Event::MouseWheel {
-                unit,
-                delta,
-                phase,
-                modifiers,
-            });
-        }
+        let (unit, delta) = match delta {
+            winit::event::MouseScrollDelta::LineDelta(x, y) => {
+                (egui::MouseWheelUnit::Line, egui::vec2(x, y))
+            }
+            winit::event::MouseScrollDelta::PixelDelta(winit::dpi::PhysicalPosition { x, y }) => (
+                egui::MouseWheelUnit::Point,
+                egui::vec2(x as f32, y as f32) / self.pixels_per_point(),
+            ),
+        };
+        let phase = to_egui_touch_phase(phase);
+        let modifiers = self.egui_input.modifiers;
+        self.egui_input.events.push(egui::Event::MouseWheel {
+            unit,
+            delta,
+            phase,
+            modifiers,
+        });
     }
 
     fn on_keyboard_input(&mut self, event: &winit::event::KeyEvent) {
@@ -919,8 +913,7 @@ impl State {
         }
 
         if let Some(ime) = ime {
-            let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
-            let ime_rect_px = pixels_per_point * ime.rect;
+            let ime_rect_px = self.pixels_per_point() * ime.rect;
             if self.ime_rect_px != Some(ime_rect_px)
                 || self.egui_ctx.input(|i| !i.events.is_empty())
             {
@@ -974,6 +967,18 @@ impl State {
             // Remember to set the cursor again once the cursor returns to the screen:
             self.current_cursor_icon = None;
         }
+    }
+
+    /// Calculate the `pixels_per_point` for a given window, given the current egui zoom factor
+    fn pixels_per_point(&self) -> f32 {
+        self.egui_input
+            .viewports
+            .get(&self.viewport_id)
+            .expect("No viewport")
+            .native_pixels_per_point
+            // .expect("ScaleFactorChanged must have been raised")
+            .unwrap_or(1f32)
+            * self.egui_ctx.zoom_factor()
     }
 }
 
@@ -1029,6 +1034,7 @@ pub fn update_viewport_info(
     is_init: bool,
 ) {
     profiling::function_scope!();
+    // TODO: Keep size and scale consistent with the event loop?
     let pixels_per_point = pixels_per_point(egui_ctx, window);
 
     let has_a_position = match window.is_minimized() {
@@ -1408,6 +1414,7 @@ fn process_viewport_command(
 
     log::trace!("Processing ViewportCommand::{command:?}");
 
+    // TODO: keep this consistent with the event loop instead of requerying it from the window
     let pixels_per_point = pixels_per_point(egui_ctx, window);
 
     match command {
@@ -1443,6 +1450,7 @@ fn process_viewport_command(
                 // because the linux backend converts physical to logical and back again.
                 // So let's just assume it worked:
 
+                // TODO: Don't call inner_size(), but use the returned size
                 info.inner_rect = inner_rect_in_points(window, pixels_per_point);
                 info.outer_rect = outer_rect_in_points(window, pixels_per_point);
             } else {

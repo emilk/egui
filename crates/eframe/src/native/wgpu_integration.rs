@@ -205,6 +205,7 @@ impl<'app> WgpuWinitApp<'app> {
         {
             // Tell egui right away about native_pixels_per_point etc,
             // so that the app knows about it during app creation:
+            // TODO: update_viewport_info could take care of this right?
             let pixels_per_point = egui_winit::pixels_per_point(&egui_ctx, &window);
 
             egui_ctx.input_mut(|i| {
@@ -616,7 +617,7 @@ impl WgpuWinitRunning<'_> {
             let Some(egui_winit) = egui_winit.as_mut() else {
                 return Ok(EventResult::Wait);
             };
-            let mut raw_input = egui_winit.take_egui_input(window);
+            let mut raw_input = egui_winit.take_egui_input();
 
             integration.pre_update();
 
@@ -1006,7 +1007,7 @@ fn render_immediate_viewport(
         };
         egui_winit::update_viewport_info(&mut viewport.info, egui_ctx, window, false);
 
-        let mut input = egui_winit.take_egui_input(window);
+        let mut input = egui_winit.take_egui_input();
         input.viewports = viewports
             .iter()
             .map(|(id, viewport)| (*id, viewport.info.clone()))
