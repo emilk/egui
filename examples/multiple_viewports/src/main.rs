@@ -44,10 +44,20 @@ impl eframe::App for MyApp {
                 "Show immediate child viewport",
             );
 
-            let mut show_deferred_viewport = self.show_deferred_viewport.load(Ordering::Relaxed);
-            ui.checkbox(&mut show_deferred_viewport, "Show deferred child viewport");
-            self.show_deferred_viewport
-                .store(show_deferred_viewport, Ordering::Relaxed);
+            {
+                let mut show_deferred_viewport =
+                    self.show_deferred_viewport.load(Ordering::Relaxed);
+                ui.checkbox(&mut show_deferred_viewport, "Show deferred child viewport");
+                self.show_deferred_viewport
+                    .store(show_deferred_viewport, Ordering::Relaxed);
+            }
+
+            ui.add_space(16.0);
+            {
+                let mut embedded = ui.embed_viewports();
+                ui.checkbox(&mut embedded, "Embed all viewports");
+                ui.set_embed_viewports(embedded);
+            }
         });
 
         if self.show_immediate_viewport {
@@ -56,19 +66,20 @@ impl eframe::App for MyApp {
                 egui::ViewportBuilder::default()
                     .with_title("Immediate Viewport")
                     .with_inner_size([200.0, 100.0]),
-                |ctx, class| {
-                    assert!(
-                        class == egui::ViewportClass::Immediate,
-                        "This egui backend doesn't support multiple viewports"
-                    );
+                |ui, class| {
+                    if class == egui::ViewportClass::EmbeddedWindow {
+                        ui.label(
+                            "This viewport is embedded in the parent window, and cannot be moved outside of it.",
+                        );
+                    } else {
+                        egui::CentralPanel::default().show_inside(ui, |ui| {
+                            ui.label("Hello from immediate viewport");
 
-                    egui::CentralPanel::default().show(ctx, |ui| {
-                        ui.label("Hello from immediate viewport");
-                    });
-
-                    if ctx.input(|i| i.viewport().close_requested()) {
-                        // Tell parent viewport that we should not show next frame:
-                        self.show_immediate_viewport = false;
+                            if ui.input(|i| i.viewport().close_requested()) {
+                                // Tell parent viewport that we should not show next frame:
+                                self.show_immediate_viewport = false;
+                            }
+                        });
                     }
                 },
             );
@@ -81,18 +92,20 @@ impl eframe::App for MyApp {
                 egui::ViewportBuilder::default()
                     .with_title("Deferred Viewport")
                     .with_inner_size([200.0, 100.0]),
-                move |ctx, class| {
-                    assert!(
-                        class == egui::ViewportClass::Deferred,
-                        "This egui backend doesn't support multiple viewports"
-                    );
+                move |ui, class| {
+                    if class == egui::ViewportClass::EmbeddedWindow {
+                        ui.label(
+                            "This viewport is embedded in the parent window, and cannot be moved outside of it.",
+                        );
+                    } else {
+                        egui::CentralPanel::default().show_inside(ui, |ui| {
+                            ui.label("Hello from deferred viewport");
 
-                    egui::CentralPanel::default().show(ctx, |ui| {
-                        ui.label("Hello from deferred viewport");
-                    });
-                    if ctx.input(|i| i.viewport().close_requested()) {
-                        // Tell parent to close us.
-                        show_deferred_viewport.store(false, Ordering::Relaxed);
+                            if ui.input(|i| i.viewport().close_requested()) {
+                                // Tell parent to close us.
+                                show_deferred_viewport.store(false, Ordering::Relaxed);
+                            }
+                        });
                     }
                 },
             );

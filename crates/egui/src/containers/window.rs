@@ -70,6 +70,41 @@ impl<'open> Window<'open> {
         }
     }
 
+    /// Construct a [`Window`] that follows the given viewport.
+    pub fn from_viewport(id: ViewportId, viewport: ViewportBuilder) -> Self {
+        let ViewportBuilder {
+            title,
+            app_id,
+            inner_size,
+            min_inner_size,
+            max_inner_size,
+            resizable,
+            decorations,
+            title_shown,
+            minimize_button,
+            .. // A lot of things not implemented yet
+        } = viewport;
+
+        let mut window = Self::new(title.or(app_id).unwrap_or_else(String::new)).id(Id::new(id));
+
+        if let Some(inner_size) = inner_size {
+            window = window.default_size(inner_size);
+        }
+        if let Some(min_inner_size) = min_inner_size {
+            window = window.min_size(min_inner_size);
+        }
+        if let Some(max_inner_size) = max_inner_size {
+            window = window.max_size(max_inner_size);
+        }
+        if let Some(resizable) = resizable {
+            window = window.resizable(resizable);
+        }
+        window = window.title_bar(decorations.unwrap_or(true) && title_shown.unwrap_or(true));
+        window = window.collapsible(minimize_button.unwrap_or(true));
+
+        window
+    }
+
     /// Assign a unique id to the Window. Required if the title changes, or is shared with another window.
     #[inline]
     pub fn id(mut self, id: Id) -> Self {
