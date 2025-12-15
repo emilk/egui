@@ -204,7 +204,9 @@ impl<'a, State> Harness<'a, State> {
     /// assert_eq!(*harness.state(), true);
     /// ```
     #[track_caller]
+    #[deprecated = "use `new_ui_state` instead"]
     pub fn new_state(app: impl FnMut(&egui::Context, &mut State) + 'a, state: State) -> Self {
+        #[expect(deprecated)]
         Self::builder().build_state(app, state)
     }
 
@@ -735,7 +737,9 @@ impl<'a> Harness<'a> {
     /// });
     /// ```
     #[track_caller]
+    #[deprecated = "use `new_ui` instead"]
     pub fn new(app: impl FnMut(&egui::Context) + 'a) -> Self {
+        #[expect(deprecated)]
         Self::builder().build(app)
     }
 
