@@ -193,7 +193,7 @@ impl ContextImpl {
 pub struct ViewportState {
     /// The type of viewport.
     ///
-    /// This will never be [`ViewportClass::Embedded`],
+    /// This will never be [`ViewportClass::EmbeddedWindow`],
     /// since those don't result in real viewports.
     pub class: ViewportClass,
 
@@ -4013,9 +4013,9 @@ impl Context {
     ///
     /// If [`Context::embed_viewports`] is `true` (e.g. if the current egui
     /// backend does not support multiple viewports), the given callback
-    /// will be called immediately, embedding the new viewport in the current one.
-    /// You can check this with the [`ViewportClass`] given in the callback.
-    /// If you find [`ViewportClass::Embedded`], you need to create a new [`crate::Window`] for you content.
+    /// will be called immediately, embedding the new viewport in the current one,
+    /// inside of a [`crate::Window`].
+    /// You can know by checking for [`ViewportClass::EmbeddedWindow`].
     ///
     /// See [`crate::viewport`] for more information about viewports.
     pub fn show_viewport_deferred(
@@ -4069,9 +4069,9 @@ impl Context {
     ///
     /// If [`Context::embed_viewports`] is `true` (e.g. if the current egui
     /// backend does not support multiple viewports), the given callback
-    /// will be called immediately, embedding the new viewport in the current one.
-    /// You can check this with the [`ViewportClass`] given in the callback.
-    /// If you find [`ViewportClass::Embedded`], you need to create a new [`crate::Window`] for you content.
+    /// will be called immediately, embedding the new viewport in the current one,
+    /// inside of a [`crate::Window`].
+    /// You can know by checking for [`ViewportClass::EmbeddedWindow`].
     ///
     /// See [`crate::viewport`] for more information about viewports.
     pub fn show_viewport_immediate<T>(
