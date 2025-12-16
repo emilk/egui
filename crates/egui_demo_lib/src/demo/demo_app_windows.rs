@@ -372,7 +372,7 @@ fn file_menu_button(ui: &mut Ui) {
 mod tests {
     use crate::{Demo as _, demo::demo_app_windows::DemoGroups};
 
-    use egui_kittest::kittest::{NodeT as _, Queryable as _};
+    use egui_kittest::kittest::Queryable as _;
     use egui_kittest::{Harness, OsThreshold, SnapshotOptions, SnapshotResults};
 
     #[test]
@@ -394,12 +394,15 @@ mod tests {
 
             let name = remove_leading_emoji(demo.name());
 
-            let mut harness = Harness::new(|ctx| {
-                egui_extras::install_image_loaders(ctx);
-                demo.show(ctx, &mut true);
+            let mut harness = Harness::new_ui(|ui| {
+                egui_extras::install_image_loaders(ui);
+                demo.show(ui, &mut true);
             });
 
-            let window = harness.queryable_node().children().next().unwrap();
+            let window = harness
+                .get_all_by_role(egui::accesskit::Role::Window)
+                .next()
+                .unwrap();
             // TODO(lucasmerlin): Windows should probably have a label?
             //let window = harness.get_by_label(name);
 

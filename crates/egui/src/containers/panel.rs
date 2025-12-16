@@ -291,13 +291,13 @@ impl<'a> PanelSizer<'a> {
 /// See the [module level docs](crate::containers::panel) for more details.
 ///
 /// ```
-/// # egui::__run_test_ctx(|ctx| {
-/// egui::Panel::left("my_left_panel").show(ctx, |ui| {
+/// # egui::__run_test_ui(|ui| {
+/// egui::Panel::left("my_left_panel").show_inside(ui, |ui| {
 ///    ui.label("Hello World!");
 /// });
 /// # });
 /// ```
-#[must_use = "You should call .show()"]
+#[must_use = "You should call .show_inside()"]
 pub struct Panel {
     side: PanelSide,
     id: Id,
@@ -963,16 +963,16 @@ impl Panel {
 /// See the [module level docs](crate::containers::panel) for more details.
 ///
 /// ```
-/// # egui::__run_test_ctx(|ctx| {
-/// egui::Panel::top("my_panel").show(ctx, |ui| {
+/// # egui::__run_test_ui(|ui| {
+/// egui::Panel::top("my_panel").show_inside(ui, |ui| {
 ///    ui.label("Hello World! From `Panel`, that must be before `CentralPanel`!");
 /// });
-/// egui::CentralPanel::default().show(ctx, |ui| {
+/// egui::CentralPanel::default().show_inside(ui, |ui| {
 ///    ui.label("Hello World!");
 /// });
 /// # });
 /// ```
-#[must_use = "You should call .show()"]
+#[must_use = "You should call .show_inside()"]
 #[derive(Default)]
 pub struct CentralPanel {
     frame: Option<Frame>,

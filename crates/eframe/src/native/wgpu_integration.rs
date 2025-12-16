@@ -1027,8 +1027,8 @@ fn render_immediate_viewport(
         shapes,
         pixels_per_point,
         viewport_output,
-    } = egui_ctx.run(input, |ctx| {
-        viewport_ui_cb(ctx);
+    } = egui_ctx.run_ui(input, |ui| {
+        viewport_ui_cb(ui);
     });
 
     // ------------------------------------------
@@ -1155,7 +1155,7 @@ fn initialize_or_update_viewport<'a>(
     ids: ViewportIdPair,
     class: ViewportClass,
     mut builder: ViewportBuilder,
-    viewport_ui_cb: Option<Arc<dyn Fn(&egui::Context) + Send + Sync>>,
+    viewport_ui_cb: Option<Arc<dyn Fn(&mut egui::Ui) + Send + Sync>>,
     painter: &mut egui_wgpu::winit::Painter,
 ) -> &'a mut Viewport {
     use std::collections::btree_map::Entry;

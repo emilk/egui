@@ -153,18 +153,18 @@ impl Default for App {
 }
 
 impl eframe::App for App {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             ui.heading("Root viewport");
             {
-                let mut embed_viewports = ctx.embed_viewports();
+                let mut embed_viewports = ui.embed_viewports();
                 ui.checkbox(&mut embed_viewports, "Embed all viewports");
                 if ui.button("Open all viewports").clicked() {
                     for viewport in &self.top {
                         viewport.write().set_visible_recursive(true);
                     }
                 }
-                ctx.set_embed_viewports(embed_viewports);
+                ui.set_embed_viewports(embed_viewports);
             }
             ui.checkbox(&mut self.close_button, "with close button");
             generic_ui(ui, &self.top, self.close_button);

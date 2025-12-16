@@ -5,7 +5,7 @@
 //! to get callbacks on certain events ([`Plugin::on_begin_pass`], [`Plugin::on_end_pass`]).
 
 use crate::{
-    Align, Align2, Color32, Context, FontFamily, FontId, Plugin, Rect, Shape, Vec2, WidgetText,
+    Align, Align2, Color32, Context, FontFamily, FontId, Plugin, Rect, Shape, Ui, Vec2, WidgetText,
     text,
 };
 
@@ -57,9 +57,9 @@ impl Plugin for DebugTextPlugin {
         "DebugTextPlugin"
     }
 
-    fn on_end_pass(&mut self, ctx: &Context) {
+    fn on_end_pass(&mut self, ui: &mut Ui) {
         let entries = std::mem::take(&mut self.entries);
-        Self::paint_entries(ctx, entries);
+        Self::paint_entries(ui, entries);
     }
 }
 

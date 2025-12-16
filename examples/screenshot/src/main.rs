@@ -27,8 +27,8 @@ struct MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             if let Some(screenshot) = self.screenshot.take() {
                 self.texture = Some(ui.ctx().load_texture(
                     "screenshot",
@@ -45,7 +45,7 @@ impl eframe::App for MyApp {
 
                 if ui.button("save to 'top_left.png'").clicked() {
                     self.save_to_file = true;
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(Default::default()));
+                    ui.send_viewport_cmd(egui::ViewportCommand::Screenshot(Default::default()));
                 }
 
                 ui.with_layout(egui::Layout::top_down(egui::Align::RIGHT), |ui| {
@@ -54,17 +54,13 @@ impl eframe::App for MyApp {
                             .add(egui::Label::new("hover me!").sense(egui::Sense::hover()))
                             .hovered()
                         {
-                            ctx.set_theme(egui::Theme::Dark);
+                            ui.ctx().set_theme(egui::Theme::Dark);
                         } else {
-                            ctx.set_theme(egui::Theme::Light);
+                            ui.ctx().set_theme(egui::Theme::Light);
                         }
-                        ctx.send_viewport_cmd(
-                            egui::ViewportCommand::Screenshot(Default::default()),
-                        );
+                        ui.send_viewport_cmd(egui::ViewportCommand::Screenshot(Default::default()));
                     } else if ui.button("take screenshot!").clicked() {
-                        ctx.send_viewport_cmd(
-                            egui::ViewportCommand::Screenshot(Default::default()),
-                        );
+                        ui.send_viewport_cmd(egui::ViewportCommand::Screenshot(Default::default()));
                     }
                 });
             });
@@ -101,7 +97,7 @@ impl eframe::App for MyApp {
                 }
             });
 
-            ctx.request_repaint();
+            ui.request_repaint();
         });
     }
 }

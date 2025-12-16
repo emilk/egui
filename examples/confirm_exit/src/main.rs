@@ -23,16 +23,16 @@ struct MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             ui.heading("Try to close the window");
         });
 
-        if ctx.input(|i| i.viewport().close_requested()) {
+        if ui.input(|i| i.viewport().close_requested()) {
             if self.allowed_to_close {
                 // do nothing - we will close
             } else {
-                ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+                ui.send_viewport_cmd(egui::ViewportCommand::CancelClose);
                 self.show_confirmation_dialog = true;
             }
         }
@@ -41,7 +41,7 @@ impl eframe::App for MyApp {
             egui::Window::new("Do you want to quit?")
                 .collapsible(false)
                 .resizable(false)
-                .show(ctx, |ui| {
+                .show(ui.ctx(), |ui| {
                     ui.horizontal(|ui| {
                         if ui.button("No").clicked() {
                             self.show_confirmation_dialog = false;

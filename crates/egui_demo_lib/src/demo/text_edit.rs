@@ -120,9 +120,9 @@ mod tests {
     #[test]
     pub fn should_type() {
         let text = "Hello, world!".to_owned();
-        let mut harness = Harness::new_state(
-            move |ctx, text| {
-                CentralPanel::default().show(ctx, |ui| {
+        let mut harness = Harness::new_ui_state(
+            move |ui, text| {
+                CentralPanel::default().show_inside(ui, |ui| {
                     ui.text_edit_singleline(text);
                 });
             },

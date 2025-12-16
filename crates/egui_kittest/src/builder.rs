@@ -167,6 +167,7 @@ impl<State> HarnessBuilder<State> {
     /// assert_eq!(*harness.state(), true);
     /// ```
     #[track_caller]
+    #[deprecated = "use `build_ui_state` instead"]
     pub fn build_state<'a>(
         self,
         app: impl FnMut(&egui::Context, &mut State) + 'a,
@@ -251,6 +252,7 @@ impl HarnessBuilder {
     /// ```
     #[must_use]
     #[track_caller]
+    #[deprecated = "use `build_ui` instead"]
     pub fn build<'a>(self, app: impl FnMut(&egui::Context) + 'a) -> Harness<'a> {
         Harness::from_builder(self, AppKind::Context(Box::new(app)), (), None)
     }

@@ -5,11 +5,11 @@ use accesskit_consumer::{FilterResult, Node, Tree, TreeChangeHandler};
 
 use eframe::epaint::text::TextWrapMode;
 use egui::{
-    Button, Color32, Context, Event, Frame, FullOutput, Id, Key, KeyboardShortcut, Label,
-    Modifiers, Panel, RawInput, RichText, ScrollArea, Ui, collapsing_header::CollapsingState,
+    Button, Color32, Event, Frame, FullOutput, Id, Key, KeyboardShortcut, Label, Modifiers, Panel,
+    RawInput, RichText, ScrollArea, Ui, collapsing_header::CollapsingState,
 };
 
-/// This [`egui::Plugin`] adds an inspector Panel.
+/// This [`egui::Plugin`] adds an inspector panel.
 ///
 /// It can be opened with the `(Cmd/Ctrl)+Alt+I`. It shows the current AccessKit tree and details
 /// for the selected node.
@@ -71,8 +71,8 @@ impl egui::Plugin for AccessibilityInspectorPlugin {
         }
     }
 
-    fn on_begin_pass(&mut self, ctx: &Context) {
-        if ctx.input_mut(|i| {
+    fn on_begin_pass(&mut self, ui: &mut Ui) {
+        if ui.input_mut(|i| {
             i.consume_shortcut(&KeyboardShortcut::new(
                 Modifiers::COMMAND | Modifiers::ALT,
                 Key::I,
@@ -85,9 +85,9 @@ impl egui::Plugin for AccessibilityInspectorPlugin {
             return;
         }
 
-        ctx.enable_accesskit();
+        ui.enable_accesskit();
 
-        Panel::right(Self::id()).show(ctx, |ui| {
+        Panel::right(Self::id()).show_inside(ui, |ui| {
             ui.heading("🔎 AccessKit Inspector");
             if let Some(selected_node) = self.selected_node {
                 Panel::bottom(Self::id().with("details_panel"))
