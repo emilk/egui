@@ -108,7 +108,7 @@ impl eframe::App for MyApp {
                 egui::ViewportBuilder::default()
                     .with_title("Immediate Viewport")
                     .with_inner_size([200.0, 100.0]),
-                |ctx, class| {
+                |ui, class| {
                     puffin::profile_scope!("immediate_viewport");
 
                     assert!(
@@ -116,11 +116,11 @@ impl eframe::App for MyApp {
                         "This egui backend doesn't support multiple viewports"
                     );
 
-                    egui::CentralPanel::default().show(ctx, |ui| {
+                    egui::CentralPanel::default().show_inside(ui, |ui| {
                         ui.label("Hello from immediate viewport");
                     });
 
-                    if ctx.input(|i| i.viewport().close_requested()) {
+                    if ui.input(|i| i.viewport().close_requested()) {
                         // Tell parent viewport that we should not show next frame:
                         self.show_immediate_viewport = false;
                     }
@@ -135,7 +135,7 @@ impl eframe::App for MyApp {
                 egui::ViewportBuilder::default()
                     .with_title("Deferred Viewport")
                     .with_inner_size([200.0, 100.0]),
-                move |ctx, class| {
+                move |ui, class| {
                     puffin::profile_scope!("deferred_viewport");
 
                     assert!(
@@ -143,10 +143,10 @@ impl eframe::App for MyApp {
                         "This egui backend doesn't support multiple viewports"
                     );
 
-                    egui::CentralPanel::default().show(ctx, |ui| {
+                    egui::CentralPanel::default().show_inside(ui, |ui| {
                         ui.label("Hello from deferred viewport");
                     });
-                    if ctx.input(|i| i.viewport().close_requested()) {
+                    if ui.input(|i| i.viewport().close_requested()) {
                         // Tell parent to close us.
                         show_deferred_viewport.store(false, Ordering::Relaxed);
                     }
