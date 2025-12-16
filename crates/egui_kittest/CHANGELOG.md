@@ -6,6 +6,11 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.33.3 - 2025-12-11
+* Enforce consistent snapshot updates [#7744](https://github.com/emilk/egui/pull/7744) by [@lucasmerlin](https://github.com/lucasmerlin)
+* `kittest`: add drag-and-drop helpers [#7690](https://github.com/emilk/egui/pull/7690) by [@emilk](https://github.com/emilk)
+
+
 ## 0.33.2 - 2025-11-13
 Nothing new
 

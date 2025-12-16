@@ -66,7 +66,7 @@ fn highlight_inner(
     settings: Option<HighlightSettings<'_>>,
 ) -> LayoutJob {
     // We take in both context and style so that in situations where ui is not available such as when
-    // performing it at a separate thread (ctx, ctx.style()) can be used and when ui is available
+    // performing it at a separate thread (ctx, ctx.global_style()) can be used and when ui is available
     // (ui.ctx(), ui.style()) can be used
 
     #[expect(non_local_definitions)]
@@ -301,7 +301,7 @@ impl CodeTheme {
     ///
     /// There is one dark and one light theme stored at any one time.
     pub fn store_in_memory(self, ctx: &egui::Context) {
-        let id = if ctx.style().visuals.dark_mode {
+        let id = if ctx.global_style().visuals.dark_mode {
             egui::Id::new("dark")
         } else {
             egui::Id::new("light")

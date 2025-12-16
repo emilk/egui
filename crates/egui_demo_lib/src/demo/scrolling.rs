@@ -114,7 +114,7 @@ impl ScrollAppearance {
             visibility,
         } = self;
 
-        let mut scroll = ui.ctx().style().spacing.scroll;
+        let mut scroll = ui.global_style().spacing.scroll;
 
         scroll.ui(ui);
 
@@ -388,6 +388,6 @@ impl crate::View for ScrollStickTo {
         );
 
         self.n_items += 1;
-        ui.ctx().request_repaint();
+        ui.request_repaint();
     }
 }

@@ -92,7 +92,7 @@ impl crate::View for TextEditDemo {
                         .cursor
                         .set_char_range(Some(egui::text::CCursorRange::one(ccursor)));
                     state.store(ui.ctx(), text_edit_id);
-                    ui.ctx().memory_mut(|mem| mem.request_focus(text_edit_id)); // give focus back to the [`TextEdit`].
+                    ui.memory_mut(|mem| mem.request_focus(text_edit_id)); // give focus back to the [`TextEdit`].
                 }
             }
 
@@ -104,7 +104,7 @@ impl crate::View for TextEditDemo {
                         .cursor
                         .set_char_range(Some(egui::text::CCursorRange::one(ccursor)));
                     state.store(ui.ctx(), text_edit_id);
-                    ui.ctx().memory_mut(|mem| mem.request_focus(text_edit_id)); // give focus back to the [`TextEdit`].
+                    ui.memory_mut(|mem| mem.request_focus(text_edit_id)); // give focus back to the [`TextEdit`].
                 }
             }
         });
@@ -120,9 +120,9 @@ mod tests {
     #[test]
     pub fn should_type() {
         let text = "Hello, world!".to_owned();
-        let mut harness = Harness::new_state(
-            move |ctx, text| {
-                CentralPanel::default().show(ctx, |ui| {
+        let mut harness = Harness::new_ui_state(
+            move |ui, text| {
+                CentralPanel::default().show_inside(ui, |ui| {
                     ui.text_edit_singleline(text);
                 });
             },

@@ -571,7 +571,7 @@ impl GlowWinitRunning<'_> {
             .options_mut(|opt| opt.begin_pass(&raw_input));
         let clear_color = self
             .app
-            .clear_color(&self.integration.egui_ctx.style().visuals);
+            .clear_color(&self.integration.egui_ctx.global_style().visuals);
 
         let has_many_viewports = self.glutin.borrow().viewports.len() > 1;
         let clear_before_update = !has_many_viewports; // HACK: for some reason, an early clear doesn't "take" on Mac with multiple viewports.
@@ -1362,7 +1362,7 @@ fn initialize_or_update_viewport(
     ids: ViewportIdPair,
     class: ViewportClass,
     mut builder: ViewportBuilder,
-    viewport_ui_cb: Option<Arc<dyn Fn(&egui::Context) + Send + Sync>>,
+    viewport_ui_cb: Option<Arc<dyn Fn(&mut egui::Ui) + Send + Sync>>,
 ) -> &mut Viewport {
     profiling::function_scope!();
 
@@ -1494,8 +1494,8 @@ fn render_immediate_viewport(
         shapes,
         pixels_per_point,
         viewport_output,
-    } = egui_ctx.run(input, |ctx| {
-        viewport_ui_cb(ctx);
+    } = egui_ctx.run_ui(input, |ui| {
+        viewport_ui_cb(ui);
     });
 
     // ---------------------------------------------------

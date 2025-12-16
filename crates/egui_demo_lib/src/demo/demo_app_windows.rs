@@ -304,7 +304,7 @@ impl DemoWindows {
                 self.groups.checkboxes(ui, &mut self.open);
                 ui.separator();
                 if ui.button("Organize windows").clicked() {
-                    ui.ctx().memory_mut(|mem| mem.reset_areas());
+                    ui.memory_mut(|mem| mem.reset_areas());
                 }
             });
         });
@@ -323,11 +323,11 @@ fn file_menu_button(ui: &mut Ui) {
     // or else they would only be checked if the "File" menu was actually open!
 
     if ui.input_mut(|i| i.consume_shortcut(&organize_shortcut)) {
-        ui.ctx().memory_mut(|mem| mem.reset_areas());
+        ui.memory_mut(|mem| mem.reset_areas());
     }
 
     if ui.input_mut(|i| i.consume_shortcut(&reset_shortcut)) {
-        ui.ctx().memory_mut(|mem| *mem = Default::default());
+        ui.memory_mut(|mem| *mem = Default::default());
     }
 
     ui.menu_button("File", |ui| {
@@ -352,7 +352,7 @@ fn file_menu_button(ui: &mut Ui) {
             )
             .clicked()
         {
-            ui.ctx().memory_mut(|mem| mem.reset_areas());
+            ui.memory_mut(|mem| mem.reset_areas());
         }
 
         if ui
@@ -363,7 +363,7 @@ fn file_menu_button(ui: &mut Ui) {
             .on_hover_text("Forget scroll, positions, sizes etc")
             .clicked()
         {
-            ui.ctx().memory_mut(|mem| *mem = Default::default());
+            ui.memory_mut(|mem| *mem = Default::default());
         }
     });
 }
@@ -372,7 +372,7 @@ fn file_menu_button(ui: &mut Ui) {
 mod tests {
     use crate::{Demo as _, demo::demo_app_windows::DemoGroups};
 
-    use egui_kittest::kittest::{NodeT as _, Queryable as _};
+    use egui_kittest::kittest::Queryable as _;
     use egui_kittest::{Harness, OsThreshold, SnapshotOptions, SnapshotResults};
 
     #[test]
@@ -394,12 +394,15 @@ mod tests {
 
             let name = remove_leading_emoji(demo.name());
 
-            let mut harness = Harness::new(|ctx| {
-                egui_extras::install_image_loaders(ctx);
-                demo.show(ctx, &mut true);
+            let mut harness = Harness::new_ui(|ui| {
+                egui_extras::install_image_loaders(ui);
+                demo.show(ui, &mut true);
             });
 
-            let window = harness.queryable_node().children().next().unwrap();
+            let window = harness
+                .get_all_by_role(egui::accesskit::Role::Window)
+                .next()
+                .unwrap();
             // TODO(lucasmerlin): Windows should probably have a label?
             //let window = harness.get_by_label(name);
 

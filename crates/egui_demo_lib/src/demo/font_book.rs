@@ -102,7 +102,7 @@ impl crate::View for FontBook {
                         };
 
                         if ui.add(button).on_hover_ui(tooltip_ui).clicked() {
-                            ui.ctx().copy_text(chr.to_string());
+                            ui.copy_text(chr.to_string());
                         }
                     }
                 }

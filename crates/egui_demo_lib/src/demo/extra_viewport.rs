@@ -22,17 +22,12 @@ impl crate::Demo for ExtraViewport {
             egui::ViewportBuilder::default()
                 .with_title(self.name())
                 .with_inner_size([400.0, 512.0]),
-            |ctx, class| {
-                if class == egui::ViewportClass::Embedded {
+            |ui, class| {
+                if class == egui::ViewportClass::EmbeddedWindow {
                     // Not a real viewport
-                    egui::Window::new(self.name())
-                        .id(id)
-                        .open(open)
-                        .show(ctx, |ui| {
-                            ui.label("This egui integration does not support multiple viewports");
-                        });
+                    ui.label("This egui integration does not support multiple viewports");
                 } else {
-                    egui::CentralPanel::default().show(ctx, |ui| {
+                    egui::CentralPanel::default().show_inside(ui, |ui| {
                         viewport_content(ui, ctx, open);
                     });
                 }

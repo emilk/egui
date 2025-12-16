@@ -196,11 +196,13 @@ pub(crate) fn on_keydown(event: web_sys::KeyboardEvent, runner: &mut AppRunner) 
 
         let prevent_default = should_prevent_default_for_key(runner, &modifiers, egui_key);
 
-        // log::debug!(
-        //     "On keydown {:?} {egui_key:?}, has_focus: {has_focus}, egui_wants_keyboard: {}, prevent_default: {prevent_default}",
-        //     event.key().as_str(),
-        //     runner.egui_ctx().wants_keyboard_input()
-        // );
+        if false {
+            log::debug!(
+                "On keydown {:?} {egui_key:?}, has_focus: {has_focus}, egui_wants_keyboard: {}, prevent_default: {prevent_default}",
+                event.key().as_str(),
+                runner.egui_ctx().egui_wants_keyboard_input()
+            );
+        }
 
         if prevent_default {
             event.prevent_default();

@@ -143,7 +143,7 @@ pub fn global_theme_preference_switch(ui: &mut Ui) {
 
 /// Show larger buttons for switching between light and dark mode (globally).
 pub fn global_theme_preference_buttons(ui: &mut Ui) {
-    let mut theme_preference = ui.ctx().options(|opt| opt.theme_preference);
+    let mut theme_preference = ui.options(|opt| opt.theme_preference);
     theme_preference.radio_buttons(ui);
     ui.ctx().set_theme(theme_preference);
 }

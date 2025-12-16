@@ -309,21 +309,21 @@ impl State {
                 self.on_mouse_button_input(*state, *button);
                 EventResponse {
                     repaint: true,
-                    consumed: self.egui_ctx.wants_pointer_input(),
+                    consumed: self.egui_ctx.egui_wants_pointer_input(),
                 }
             }
             WindowEvent::MouseWheel { delta, phase, .. } => {
                 self.on_mouse_wheel(window, *delta, *phase);
                 EventResponse {
                     repaint: true,
-                    consumed: self.egui_ctx.wants_pointer_input(),
+                    consumed: self.egui_ctx.egui_wants_pointer_input(),
                 }
             }
             WindowEvent::CursorMoved { position, .. } => {
                 self.on_cursor_moved(window, *position);
                 EventResponse {
                     repaint: true,
-                    consumed: self.egui_ctx.is_using_pointer(),
+                    consumed: self.egui_ctx.egui_is_using_pointer(),
                 }
             }
             WindowEvent::CursorLeft { .. } => {
@@ -340,8 +340,10 @@ impl State {
                 let consumed = match touch.phase {
                     winit::event::TouchPhase::Started
                     | winit::event::TouchPhase::Ended
-                    | winit::event::TouchPhase::Cancelled => self.egui_ctx.wants_pointer_input(),
-                    winit::event::TouchPhase::Moved => self.egui_ctx.is_using_pointer(),
+                    | winit::event::TouchPhase::Cancelled => {
+                        self.egui_ctx.egui_wants_pointer_input()
+                    }
+                    winit::event::TouchPhase::Moved => self.egui_ctx.egui_is_using_pointer(),
                 };
                 EventResponse {
                     repaint: true,
@@ -392,7 +394,7 @@ impl State {
 
                 EventResponse {
                     repaint: true,
-                    consumed: self.egui_ctx.wants_keyboard_input(),
+                    consumed: self.egui_ctx.egui_wants_keyboard_input(),
                 }
             }
             WindowEvent::KeyboardInput {
@@ -413,7 +415,7 @@ impl State {
                     self.on_keyboard_input(event);
 
                     // When pressing the Tab key, egui focuses the first focusable element, hence Tab always consumes.
-                    let consumed = self.egui_ctx.wants_keyboard_input()
+                    let consumed = self.egui_ctx.egui_wants_keyboard_input()
                         || event.logical_key
                             == winit::keyboard::Key::Named(winit::keyboard::NamedKey::Tab);
                     EventResponse {
@@ -528,7 +530,7 @@ impl State {
                 self.egui_input.events.push(egui::Event::Zoom(zoom_factor));
                 EventResponse {
                     repaint: true,
-                    consumed: self.egui_ctx.wants_pointer_input(),
+                    consumed: self.egui_ctx.egui_wants_pointer_input(),
                 }
             }
 
@@ -541,7 +543,7 @@ impl State {
                     .push(egui::Event::Rotate(-delta.to_radians()));
                 EventResponse {
                     repaint: true,
-                    consumed: self.egui_ctx.wants_pointer_input(),
+                    consumed: self.egui_ctx.egui_wants_pointer_input(),
                 }
             }
 
@@ -556,7 +558,7 @@ impl State {
                 });
                 EventResponse {
                     repaint: true,
-                    consumed: self.egui_ctx.wants_pointer_input(),
+                    consumed: self.egui_ctx.egui_wants_pointer_input(),
                 }
             }
         }
