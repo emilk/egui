@@ -518,6 +518,7 @@ impl Panel {
     }
 
     /// Show the panel at the top level.
+    #[deprecated = "Use show_inside() instead"]
     pub fn show<R>(
         self,
         ctx: &Context,
@@ -528,12 +529,15 @@ impl Panel {
 
     /// Show the panel if `is_expanded` is `true`,
     /// otherwise don't show it, but with a nice animation between collapsed and expanded.
+    #[deprecated = "Use show_animated_inside() instead"]
     pub fn show_animated<R>(
         self,
         ctx: &Context,
         is_expanded: bool,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
+        #![expect(deprecated)]
+
         let how_expanded = animate_expansion(ctx, self.id.with("animation"), is_expanded);
 
         let animated_panel = self.get_animated_panel(ctx, is_expanded)?;
@@ -572,6 +576,7 @@ impl Panel {
     }
 
     /// Show either a collapsed or a expanded panel, with a nice animation between.
+    #[deprecated = "Use show_animated_between_inside() instead"]
     pub fn show_animated_between<R>(
         ctx: &Context,
         is_expanded: bool,
@@ -579,6 +584,8 @@ impl Panel {
         expanded_panel: Self,
         add_contents: impl FnOnce(&mut Ui, f32) -> R,
     ) -> Option<InnerResponse<R>> {
+        #![expect(deprecated)]
+
         let how_expanded = animate_expansion(ctx, expanded_panel.id.with("animation"), is_expanded);
 
         // Get either the fake or the real panel to animate
