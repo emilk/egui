@@ -11,7 +11,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout Actions Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Check spelling of entire workspace
         uses: crate-ci/typos@v1.38.0
@@ -21,16 +21,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - name: Don't check CHANGELOG.md files
-        # This is really stupid but lychee doesn't have a way of excluding files via GLOB:
-        # https://github.com/lycheeverse/lychee/issues/1608
-
-        # We need to exclude CHANGELOG.md since we don't want to have a CI failure everytime some contributor decides
-        # to change their username.
-        run: rm -r  */**/CHANGELOG.md CHANGELOG.md
+      - uses: actions/checkout@v5
       - name: Link Checker
-        uses: lycheeverse/lychee-action@v2
+        uses: lycheeverse/lychee-action@885c65f3dc543b57c898c8099f4e08c8afd178a2 # v2.6.1
         with:
-          args: "'**/*.md' '**/*.toml' --exclude localhost --exclude reddit.com" # I guess reddit doesn't like github action IPs
-
+          # I guess reddit doesn't like github action IPs
+          # We need to exclude CHANGELOG.md since we don't want to have a CI failure everytime some contributor decides
+          # to change their username.
+          args: >-
+            --exclude localhost
+            --exclude reddit.com
+            --exclude-path "CHANGELOG\.md$"
+            "**/*.md"
+            "**/*.toml"
