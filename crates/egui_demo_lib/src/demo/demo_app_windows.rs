@@ -6,7 +6,7 @@ use crate::View as _;
 use crate::is_mobile;
 use egui::containers::menu;
 use egui::style::StyleModifier;
-use egui::{Context, Modifiers, ScrollArea, Ui};
+use egui::{ Modifiers, ScrollArea, Ui};
 // ----------------------------------------------------------------------------
 
 struct DemoGroup {
@@ -39,11 +39,11 @@ impl DemoGroup {
         }
     }
 
-    pub fn windows(&mut self, ctx: &Context, open: &mut BTreeSet<String>) {
+    pub fn windows(&mut self, ui: &mut Ui, open: &mut BTreeSet<String>) {
         let Self { demos } = self;
         for demo in demos {
             let mut is_open = open.contains(demo.name());
-            demo.show(ctx, &mut is_open);
+            demo.show(ui, &mut is_open);
             set_open(open, demo.name(), is_open);
         }
     }
@@ -137,7 +137,7 @@ impl DemoGroups {
         tests.checkboxes(ui, open);
     }
 
-    pub fn windows(&mut self, ctx: &Context, open: &mut BTreeSet<String>) {
+    pub fn windows(&mut self, ui: &mut Ui, open: &mut BTreeSet<String>) {
         let Self {
             about,
             demos,
@@ -145,11 +145,11 @@ impl DemoGroups {
         } = self;
         {
             let mut is_open = open.contains(about.name());
-            about.show(ctx, &mut is_open);
+            about.show(ui, &mut is_open);
             set_open(open, about.name(), is_open);
         }
-        demos.windows(ctx, open);
-        tests.windows(ctx, open);
+        demos.windows(ui, open);
+        tests.windows(ui, open);
     }
 }
 
@@ -231,7 +231,7 @@ impl DemoWindows {
             }
         } else {
             self.mobile_top_bar(ui);
-            self.groups.windows(ui.ctx(), &mut self.open);
+            self.groups.windows(ui, &mut self.open);
         }
     }
 
@@ -295,7 +295,7 @@ impl DemoWindows {
             });
         });
 
-        self.groups.windows(ui.ctx(), &mut self.open);
+        self.groups.windows(ui, &mut self.open);
     }
 
     fn demo_list_ui(&mut self, ui: &mut egui::Ui) {

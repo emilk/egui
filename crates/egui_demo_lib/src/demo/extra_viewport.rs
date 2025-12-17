@@ -10,14 +10,14 @@ impl crate::Demo for ExtraViewport {
         "🗖 Extra Viewport"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         if !*open {
             return;
         }
 
         let id = egui::Id::new(self.name());
 
-        ctx.show_viewport_immediate(
+        ui.show_viewport_immediate(
             egui::ViewportId(id),
             egui::ViewportBuilder::default()
                 .with_title(self.name())
@@ -28,7 +28,7 @@ impl crate::Demo for ExtraViewport {
                     ui.label("This egui integration does not support multiple viewports");
                 } else {
                     egui::CentralPanel::default().show_inside(ui, |ui| {
-                        viewport_content(ui, ctx, open);
+                        viewport_content(ui, open);
                     });
                 }
             },
@@ -36,13 +36,13 @@ impl crate::Demo for ExtraViewport {
     }
 }
 
-fn viewport_content(ui: &mut egui::Ui, ctx: &egui::Context, open: &mut bool) {
+fn viewport_content(ui: &mut egui::Ui, open: &mut bool) {
     ui.label("egui and eframe supports having multiple native windows like this, which egui calls 'viewports'.");
 
     ui.label(format!(
         "This viewport has id: {:?}, child of viewport {:?}",
-        ctx.viewport_id(),
-        ctx.parent_viewport_id()
+        ui.viewport_id(),
+        ui.parent_viewport_id()
     ));
 
     ui.label("Here you can see all the open viewports:");

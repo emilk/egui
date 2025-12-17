@@ -40,7 +40,7 @@ impl crate::Demo for WindowOptions {
         "🗖 Window Options"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         let Self {
             title,
             title_bar,
@@ -55,9 +55,9 @@ impl crate::Demo for WindowOptions {
             anchor_offset,
         } = self.clone();
 
-        let enabled = ctx.input(|i| i.time) - disabled_time > 2.0;
+        let enabled = ui.input(|i| i.time) - disabled_time > 2.0;
         if !enabled {
-            ctx.request_repaint();
+            ui.request_repaint();
         }
 
         use crate::View as _;
@@ -68,6 +68,7 @@ impl crate::Demo for WindowOptions {
             .collapsible(collapsible)
             .title_bar(title_bar)
             .scroll(scroll2)
+            .constrain_to(ui.available_rect_before_wrap())
             .enabled(enabled);
         if closable {
             window = window.open(open);
@@ -75,7 +76,7 @@ impl crate::Demo for WindowOptions {
         if anchored {
             window = window.anchor(anchor, anchor_offset);
         }
-        window.show(ctx, |ui| self.ui(ui));
+        window.show(ui, |ui| self.ui(ui));
     }
 }
 
