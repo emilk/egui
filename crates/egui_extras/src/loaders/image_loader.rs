@@ -94,7 +94,7 @@ impl ImageLoader for ImageCrateLoader {
                 .name(format!("egui_extras::ImageLoader::load({uri:?})"))
                 .spawn({
                     let ctx = ctx.clone();
-                    let cache = cache.clone();
+                    let cache = Arc::clone(cache);
 
                     let uri = uri.clone();
                     let bytes = bytes.clone();

@@ -75,7 +75,7 @@ impl MyApp {
 
         // Clone locals so we can move them into the paint callback:
         let angle = self.angle;
-        let rotating_triangle = self.rotating_triangle.clone();
+        let rotating_triangle = Arc::clone(&self.rotating_triangle);
 
         let callback = egui::PaintCallback {
             rect,

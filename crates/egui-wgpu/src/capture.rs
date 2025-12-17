@@ -188,7 +188,7 @@ impl CaptureState {
     ) {
         #[allow(clippy::arc_with_non_send_sync, clippy::allow_attributes)] // For wasm
         let buffer = Arc::new(buffer);
-        let buffer_clone = buffer.clone();
+        let buffer_clone = Arc::clone(&buffer);
         let buffer_slice = buffer_clone.slice(..);
         let format = self.texture.format();
         let tex_extent = self.texture.size();

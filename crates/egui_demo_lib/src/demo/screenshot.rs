@@ -52,7 +52,7 @@ impl crate::View for Screenshot {
                 .iter()
                 .filter_map(|e| {
                     if let egui::Event::Screenshot { image, .. } = e {
-                        Some(image.clone())
+                        Some(Arc::clone(image))
                     } else {
                         None
                     }
@@ -62,7 +62,7 @@ impl crate::View for Screenshot {
 
         if let Some(image) = image {
             self.image = Some((
-                image.clone(),
+                Arc::clone(&image),
                 ui.ctx()
                     .load_texture("screenshot_demo", image, Default::default()),
             ));

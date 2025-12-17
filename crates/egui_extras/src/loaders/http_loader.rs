@@ -84,7 +84,7 @@ impl BytesLoader for EhttpLoader {
 
             ehttp::fetch(ehttp::Request::get(uri.clone()), {
                 let ctx = ctx.clone();
-                let cache = self.cache.clone();
+                let cache = Arc::clone(&self.cache);
                 move |response| {
                     let result = match response {
                         Ok(response) => File::from_response(&uri, response),

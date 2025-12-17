@@ -629,7 +629,7 @@ impl Painter {
                 events.push(Event::Screenshot {
                     viewport_id,
                     user_data: data,
-                    image: screenshot.clone(),
+                    image: Arc::clone(&screenshot),
                 });
             }
         }

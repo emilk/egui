@@ -787,7 +787,7 @@ impl ViewportBuilder {
             };
 
             if is_new {
-                commands.push(ViewportCommand::Icon(Some(new_icon.clone())));
+                commands.push(ViewportCommand::Icon(Some(Arc::clone(&new_icon))));
                 self.icon = Some(new_icon);
             }
         }

@@ -202,7 +202,7 @@ impl Plugins {
             return false;
         }
 
-        self.plugins.insert(type_id, handle.clone());
+        self.plugins.insert(type_id, Arc::clone(&handle));
         self.plugins_ordered.0.push(handle);
 
         true

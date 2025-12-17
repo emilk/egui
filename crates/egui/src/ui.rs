@@ -275,7 +275,7 @@ impl Ui {
             painter.set_invisible();
         }
         let sizing_pass = self.sizing_pass || sizing_pass;
-        let style = style.unwrap_or_else(|| self.style.clone());
+        let style = style.unwrap_or_else(|| Arc::clone(&self.style));
         let sense = sense.unwrap_or_else(Sense::hover);
 
         if sizing_pass {
@@ -305,7 +305,7 @@ impl Ui {
             id: unique_id,
             layout_direction: layout.main_dir,
             info: ui_stack_info,
-            parent: Some(self.stack.clone()),
+            parent: Some(Arc::clone(&self.stack)),
             min_rect: placer.min_rect(),
             max_rect: placer.max_rect(),
         };

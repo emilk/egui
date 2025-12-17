@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use emath::GuiRounding as _;
 
 use crate::{
@@ -102,7 +104,7 @@ impl GridLayout {
 
         Self {
             ctx: ui.ctx().clone(),
-            style: ui.style().clone(),
+            style: Arc::clone(ui.style()),
             id,
             is_first_frame,
             prev_state,

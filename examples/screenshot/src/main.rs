@@ -92,7 +92,7 @@ impl eframe::App for MyApp {
                             .unwrap();
                             self.save_to_file = false;
                         }
-                        self.screenshot = Some(image.clone());
+                        self.screenshot = Some(Arc::clone(image));
                     }
                 }
             });

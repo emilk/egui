@@ -1959,7 +1959,7 @@ impl Context {
     pub fn add_plugin(&self, plugin: impl plugin::Plugin + 'static) {
         let handle = plugin::PluginHandle::new(plugin);
 
-        let added = self.write(|ctx| ctx.plugins.add(handle.clone()));
+        let added = self.write(|ctx| ctx.plugins.add(Arc::clone(&handle)));
 
         if added {
             handle.lock().dyn_plugin_mut().setup(self);
@@ -2085,13 +2085,13 @@ impl Context {
 
     /// The currently active [`Style`] used by all subsequent popups, menus, etc.
     pub fn global_style(&self) -> Arc<Style> {
-        self.options(|opt| opt.style().clone())
+        self.options(|opt| Arc::clone(opt.style()))
     }
 
     /// The currently active [`Style`] used by all subsequent popups, menus, etc.
     #[deprecated = "Renamed to `global_style` to avoid confusion with `ui.style()`"]
     pub fn style(&self) -> Arc<Style> {
-        self.options(|opt| opt.style().clone())
+        self.options(|opt| Arc::clone(opt.style()))
     }
 
     /// Mutate the currently active [`Style`] used by all subsequent popups, menus, etc.
@@ -2165,8 +2165,8 @@ impl Context {
     /// The [`Style`] used by all subsequent popups, menus, etc.
     pub fn style_of(&self, theme: Theme) -> Arc<Style> {
         self.options(|opt| match theme {
-            Theme::Dark => opt.dark_style.clone(),
-            Theme::Light => opt.light_style.clone(),
+            Theme::Dark => Arc::clone(&opt.dark_style),
+            Theme::Light => Arc::clone(&opt.light_style),
         })
     }
 
@@ -2360,7 +2360,7 @@ impl Context {
     ///
     /// You can show stats about the allocated textures using [`Self::texture_ui`].
     pub fn tex_manager(&self) -> Arc<RwLock<epaint::textures::TextureManager>> {
-        self.read(|ctx| ctx.tex_manager.0.clone())
+        self.read(|ctx| Arc::clone(&ctx.tex_manager.0))
     }
 
     // ---------------------------------------------------------------------
@@ -3899,7 +3899,7 @@ impl Context {
 
     /// The loaders of bytes, images, and textures.
     pub fn loaders(&self) -> Arc<Loaders> {
-        self.read(|this| this.loaders.clone())
+        self.read(|this| Arc::clone(&this.loaders))
     }
 
     /// Returns `true` if any image is currently being loaded.
