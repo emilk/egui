@@ -1,7 +1,9 @@
-use eframe::{EframePumpStatus, UserEvent, egui};
 use std::{cell::Cell, io, os::fd::AsRawFd as _, rc::Rc, time::Duration};
+
 use tokio::task::LocalSet;
 use winit::event_loop::{ControlFlow, EventLoop};
+
+use eframe::{EframePumpStatus, UserEvent, egui};
 
 pub fn run() -> io::Result<()> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -85,7 +87,7 @@ impl eframe::App for MyApp {
                     self.value.set(self.value.get() + 1);
                 }
                 if ui.button("Increment Later").clicked() {
-                    let value = self.value.clone();
+                    let value = Rc::clone(&self.value);
                     let ctx = ui.ctx().clone();
                     tokio::task::spawn_local(async move {
                         tokio::time::sleep(Duration::from_secs(1)).await;
