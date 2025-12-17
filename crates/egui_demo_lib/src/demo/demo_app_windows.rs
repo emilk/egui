@@ -6,7 +6,7 @@ use crate::View as _;
 use crate::is_mobile;
 use egui::containers::menu;
 use egui::style::StyleModifier;
-use egui::{ Modifiers, ScrollArea, Ui};
+use egui::{Modifiers, ScrollArea, Ui};
 // ----------------------------------------------------------------------------
 
 struct DemoGroup {
