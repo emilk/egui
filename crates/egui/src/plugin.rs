@@ -1,4 +1,4 @@
-use crate::{Context, FullOutput, RawInput};
+use crate::{Context, FullOutput, RawInput, Ui};
 use ahash::HashMap;
 use epaint::mutex::{Mutex, MutexGuard};
 use std::sync::Arc;
@@ -23,13 +23,13 @@ pub trait Plugin: Send + Sync + std::any::Any + 'static {
 
     /// Called at the start of each pass.
     ///
-    /// Can be used to show ui, e.g. a [`crate::Window`] or [`crate::SidePanel`].
-    fn on_begin_pass(&mut self, ctx: &Context) {}
+    /// Can be used to show ui, e.g. a [`crate::Window`] or [`crate::Panel`].
+    fn on_begin_pass(&mut self, ui: &mut Ui) {}
 
     /// Called at the end of each pass.
     ///
     /// Can be used to show ui, e.g. a [`crate::Window`].
-    fn on_end_pass(&mut self, ctx: &Context) {}
+    fn on_end_pass(&mut self, ui: &mut Ui) {}
 
     /// Called just before the input is processed.
     ///
@@ -147,17 +147,17 @@ impl PluginsOrdered {
         }
     }
 
-    pub fn on_begin_pass(&self, ctx: &Context) {
+    pub fn on_begin_pass(&self, ui: &mut Ui) {
         profiling::scope!("plugins", "on_begin_pass");
         self.for_each_dyn(|p| {
-            p.on_begin_pass(ctx);
+            p.on_begin_pass(ui);
         });
     }
 
-    pub fn on_end_pass(&self, ctx: &Context) {
+    pub fn on_end_pass(&self, ui: &mut Ui) {
         profiling::scope!("plugins", "on_end_pass");
         self.for_each_dyn(|p| {
-            p.on_end_pass(ctx);
+            p.on_end_pass(ui);
         });
     }
 
@@ -214,7 +214,7 @@ impl Plugins {
 }
 
 /// Generic event callback.
-pub type ContextCallback = Arc<dyn Fn(&Context) + Send + Sync>;
+pub type ContextCallback = Arc<dyn Fn(&mut Ui) + Send + Sync>;
 
 #[derive(Default)]
 pub(crate) struct CallbackPlugin {
@@ -227,21 +227,21 @@ impl Plugin for CallbackPlugin {
         "CallbackPlugins"
     }
 
-    fn on_begin_pass(&mut self, ctx: &Context) {
+    fn on_begin_pass(&mut self, ui: &mut Ui) {
         profiling::function_scope!();
 
         for (_debug_name, cb) in &self.on_begin_plugins {
             profiling::scope!("on_begin_pass", *_debug_name);
-            (cb)(ctx);
+            (cb)(ui);
         }
     }
 
-    fn on_end_pass(&mut self, ctx: &Context) {
+    fn on_end_pass(&mut self, ui: &mut Ui) {
         profiling::function_scope!();
 
         for (_debug_name, cb) in &self.on_end_plugins {
             profiling::scope!("on_end_pass", *_debug_name);
-            (cb)(ctx);
+            (cb)(ui);
         }
     }
 }

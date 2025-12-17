@@ -72,6 +72,7 @@ impl crate::View for Panels {
                 });
             });
 
+        // TODO(emilk): This extra panel is superfluous - just use what's left of `ui` instead
         egui::CentralPanel::default().show_inside(ui, |ui| {
             ui.vertical_centered(|ui| {
                 ui.heading("Central Panel");

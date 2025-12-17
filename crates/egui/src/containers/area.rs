@@ -469,7 +469,7 @@ impl Area {
             // during the sizing pass we will use this as the max size
             let mut size = default_size;
 
-            let default_area_size = ctx.style().spacing.default_area_size;
+            let default_area_size = ctx.global_style().spacing.default_area_size;
             if size.x.is_nan() {
                 size.x = default_area_size.x;
             }
@@ -634,7 +634,8 @@ impl Prepared {
         {
             let age =
                 ctx.input(|i| (i.time - last_became_visible_at) as f32 + i.predicted_dt / 2.0);
-            let opacity = crate::remap_clamp(age, 0.0..=ctx.style().animation_time, 0.0..=1.0);
+            let opacity =
+                crate::remap_clamp(age, 0.0..=ctx.global_style().animation_time, 0.0..=1.0);
             let opacity = emath::easing::quadratic_out(opacity); // slow fade-out = quick fade-in
             ui.multiply_opacity(opacity);
             if opacity < 1.0 {
@@ -711,7 +712,7 @@ fn automatic_area_position(ctx: &Context, layer_id: LayerId) -> Pos2 {
 
     // NOTE: for the benefit of the egui demo, we position the windows so they don't
     // cover the side panels, which means we use `available_rect` here instead of `constrain_rect` or `screen_rect`.
-    let available_rect = ctx.available_rect();
+    let available_rect = ctx.globally_available_rect();
 
     let spacing = 16.0;
     let left = available_rect.left() + spacing;

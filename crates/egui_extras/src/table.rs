@@ -479,7 +479,7 @@ impl<'a> TableBuilder<'a> {
             }
         }
 
-        let striped = striped.unwrap_or(ui.visuals().striped);
+        let striped = striped.unwrap_or_else(|| ui.visuals().striped);
 
         let state_id = ui.id().with(id_salt);
 
@@ -548,7 +548,7 @@ impl<'a> TableBuilder<'a> {
             sense,
         } = self;
 
-        let striped = striped.unwrap_or(ui.visuals().striped);
+        let striped = striped.unwrap_or_else(|| ui.visuals().striped);
 
         let state_id = ui.id().with(id_salt);
 
@@ -892,7 +892,7 @@ impl Table<'_> {
                 let resize_hover = resize_response.hovered() && !dragging_something_else;
 
                 if resize_hover || resize_response.dragged() {
-                    ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeColumn);
+                    ui.set_cursor_icon(egui::CursorIcon::ResizeColumn);
                 }
 
                 let stroke = if resize_response.dragged() {

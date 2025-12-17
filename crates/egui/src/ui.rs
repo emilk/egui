@@ -1,34 +1,13 @@
 #![warn(missing_docs)] // Let's keep `Ui` well-documented.
 #![allow(clippy::use_self)]
 
+use std::{any::Any, hash::Hash, ops::Deref, sync::Arc};
+
 use emath::GuiRounding as _;
 use epaint::mutex::RwLock;
-use epaint::text::FontsView;
-use std::{any::Any, hash::Hash, sync::Arc};
 
-use crate::ClosableTag;
-#[cfg(debug_assertions)]
-use crate::Stroke;
 use crate::containers::menu;
-use crate::{
-    Align, Color32, Context, CursorIcon, DragAndDrop, Id, InnerResponse, InputState, IntoAtoms,
-    LayerId, Memory, Order, Painter, PlatformOutput, Pos2, Rangef, Rect, Response, Rgba, RichText,
-    Sense, Style, TextStyle, TextWrapMode, UiBuilder, UiKind, UiStack, UiStackInfo, Vec2,
-    WidgetRect, WidgetText,
-    containers::{CollapsingHeader, CollapsingResponse, Frame},
-    ecolor::Hsva,
-    emath, epaint, grid,
-    layout::{Direction, Layout},
-    pass_state,
-    placer::Placer,
-    pos2, style,
-    util::IdTypeMap,
-    vec2, widgets,
-    widgets::{
-        Button, Checkbox, DragValue, Hyperlink, Image, ImageSource, Label, Link, RadioButton,
-        Separator, Spinner, TextEdit, Widget, color_picker,
-    },
-};
+use crate::{containers::*, ecolor::*, layout::*, placer::Placer, widgets::*, *};
 // ----------------------------------------------------------------------------
 
 /// This is what you use to place widgets.
@@ -74,14 +53,14 @@ pub struct Ui {
     /// This value is based on where in the hierarchy of widgets this Ui is in,
     /// and the value is increment with each added child widget.
     /// This works as an Id source only as long as new widgets aren't added or removed.
-    /// They are therefore only good for Id:s that has no state.
+    /// They are therefore only good for Id:s that have no state.
     next_auto_id_salt: u64,
 
     /// Specifies paint layer, clip rectangle and a reference to [`Context`].
     painter: Painter,
 
     /// The [`Style`] (visuals, spacing, etc) of this ui.
-    /// Commonly many [`Ui`]:s share the same [`Style`].
+    /// Commonly many [`Ui`]s share the same [`Style`].
     /// The [`Ui`] implements copy-on-write for this.
     style: Arc<Style>,
 
@@ -112,6 +91,16 @@ pub struct Ui {
     min_rect_already_remembered: bool,
 }
 
+/// Allow using [`Ui`] like a [`Context`].
+impl Deref for Ui {
+    type Target = Context;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        self.ctx()
+    }
+}
+
 impl Ui {
     // ------------------------------------------------------------------------
     // Creation:
@@ -136,7 +125,7 @@ impl Ui {
             accessibility_parent,
         } = ui_builder;
 
-        let layer_id = layer_id.unwrap_or(LayerId::background());
+        let layer_id = layer_id.unwrap_or_else(LayerId::background);
 
         debug_assert!(
             id_salt.is_none(),
@@ -147,8 +136,8 @@ impl Ui {
         let clip_rect = max_rect;
         let layout = layout.unwrap_or_default();
         let disabled = disabled || invisible;
-        let style = style.unwrap_or_else(|| ctx.style());
-        let sense = sense.unwrap_or(Sense::hover());
+        let style = style.unwrap_or_else(|| ctx.global_style());
+        let sense = sense.unwrap_or_else(Sense::hover);
 
         let placer = Placer::new(max_rect, layout);
         let ui_stack = UiStack {
@@ -277,7 +266,7 @@ impl Ui {
 
         let id_salt = id_salt.unwrap_or_else(|| Id::from("child"));
         let max_rect = max_rect.unwrap_or_else(|| self.available_rect_before_wrap());
-        let mut layout = layout.unwrap_or(*self.layout());
+        let mut layout = layout.unwrap_or_else(|| *self.layout());
         let enabled = self.enabled && !disabled && !invisible;
         if let Some(layer_id) = layer_id {
             painter.set_layer_id(layer_id);
@@ -287,7 +276,7 @@ impl Ui {
         }
         let sizing_pass = self.sizing_pass || sizing_pass;
         let style = style.unwrap_or_else(|| self.style.clone());
-        let sense = sense.unwrap_or(Sense::hover());
+        let sense = sense.unwrap_or_else(Sense::hover);
 
         if sizing_pass {
             // During the sizing pass we want widgets to use up as little space as possible,
@@ -428,7 +417,7 @@ impl Ui {
     /// Mutably borrow internal [`Style`].
     /// Changes apply to this [`Ui`] and its subsequent children.
     ///
-    /// To set the style of all [`Ui`]:s, use [`Context::set_style_of`].
+    /// To set the style of all [`Ui`]s, use [`Context::set_style_of`].
     ///
     /// Example:
     /// ```
@@ -442,14 +431,14 @@ impl Ui {
 
     /// Changes apply to this [`Ui`] and its subsequent children.
     ///
-    /// To set the visuals of all [`Ui`]:s, use [`Context::set_visuals_of`].
+    /// To set the style of all [`Ui`]s, use [`Context::set_style_of`].
     pub fn set_style(&mut self, style: impl Into<Arc<Style>>) {
         self.style = style.into();
     }
 
     /// Reset to the default style set in [`Context`].
     pub fn reset_style(&mut self) {
-        self.style = self.ctx().style();
+        self.style = self.ctx().global_style();
     }
 
     /// The current spacing options for this [`Ui`].
@@ -459,7 +448,7 @@ impl Ui {
         &self.style.spacing
     }
 
-    /// Mutably borrow internal [`Spacing`](crate::style::Spacing).
+    /// Mutably borrow internal [`Spacing`].
     /// Changes apply to this [`Ui`] and its subsequent children.
     ///
     /// Example:
@@ -482,7 +471,7 @@ impl Ui {
     /// Mutably borrow internal `visuals`.
     /// Changes apply to this [`Ui`] and its subsequent children.
     ///
-    /// To set the visuals of all [`Ui`]:s, use [`Context::set_visuals_of`].
+    /// To set the visuals of all [`Ui`]s, use [`Context::set_visuals_of`].
     ///
     /// Example:
     /// ```
@@ -794,93 +783,6 @@ impl Ui {
     }
 }
 
-/// # Helpers for accessing the underlying [`Context`].
-/// These functions all lock the [`Context`] owned by this [`Ui`].
-/// Please see the documentation of [`Context`] for how locking works!
-impl Ui {
-    /// Read-only access to the shared [`InputState`].
-    ///
-    /// ```
-    /// # egui::__run_test_ui(|ui| {
-    /// if ui.input(|i| i.key_pressed(egui::Key::A)) {
-    ///     // …
-    /// }
-    /// # });
-    /// ```
-    #[inline]
-    pub fn input<R>(&self, reader: impl FnOnce(&InputState) -> R) -> R {
-        self.ctx().input(reader)
-    }
-
-    /// Read-write access to the shared [`InputState`].
-    #[inline]
-    pub fn input_mut<R>(&self, writer: impl FnOnce(&mut InputState) -> R) -> R {
-        self.ctx().input_mut(writer)
-    }
-
-    /// Read-only access to the shared [`Memory`].
-    #[inline]
-    pub fn memory<R>(&self, reader: impl FnOnce(&Memory) -> R) -> R {
-        self.ctx().memory(reader)
-    }
-
-    /// Read-write access to the shared [`Memory`].
-    #[inline]
-    pub fn memory_mut<R>(&self, writer: impl FnOnce(&mut Memory) -> R) -> R {
-        self.ctx().memory_mut(writer)
-    }
-
-    /// Read-only access to the shared [`IdTypeMap`], which stores superficial widget state.
-    #[inline]
-    pub fn data<R>(&self, reader: impl FnOnce(&IdTypeMap) -> R) -> R {
-        self.ctx().data(reader)
-    }
-
-    /// Read-write access to the shared [`IdTypeMap`], which stores superficial widget state.
-    #[inline]
-    pub fn data_mut<R>(&self, writer: impl FnOnce(&mut IdTypeMap) -> R) -> R {
-        self.ctx().data_mut(writer)
-    }
-
-    /// Read-only access to the shared [`PlatformOutput`].
-    ///
-    /// This is what egui outputs each frame.
-    ///
-    /// ```
-    /// # let mut ctx = egui::Context::default();
-    /// ctx.output_mut(|o| o.cursor_icon = egui::CursorIcon::Progress);
-    /// ```
-    #[inline]
-    pub fn output<R>(&self, reader: impl FnOnce(&PlatformOutput) -> R) -> R {
-        self.ctx().output(reader)
-    }
-
-    /// Read-write access to the shared [`PlatformOutput`].
-    ///
-    /// This is what egui outputs each frame.
-    ///
-    /// ```
-    /// # let mut ctx = egui::Context::default();
-    /// ctx.output_mut(|o| o.cursor_icon = egui::CursorIcon::Progress);
-    /// ```
-    #[inline]
-    pub fn output_mut<R>(&self, writer: impl FnOnce(&mut PlatformOutput) -> R) -> R {
-        self.ctx().output_mut(writer)
-    }
-
-    /// Read-only access to [`FontsView`].
-    #[inline]
-    pub fn fonts<R>(&self, reader: impl FnOnce(&FontsView<'_>) -> R) -> R {
-        self.ctx().fonts(reader)
-    }
-
-    /// Read-write access to [`FontsView`].
-    #[inline]
-    pub fn fonts_mut<R>(&self, reader: impl FnOnce(&mut FontsView<'_>) -> R) -> R {
-        self.ctx().fonts_mut(reader)
-    }
-}
-
 // ------------------------------------------------------------------------
 
 /// # Sizes etc
@@ -1150,8 +1052,8 @@ impl Ui {
         self.interact(rect, id, sense)
     }
 
-    /// Read the [`Ui`]s background [`Response`].
-    /// It's [`Sense`] will be based on the [`UiBuilder::sense`] used to create this [`Ui`].
+    /// Read the [`Ui`]'s background [`Response`].
+    /// Its [`Sense`] will be based on the [`UiBuilder::sense`] used to create this [`Ui`].
     ///
     /// The rectangle of the [`Response`] (and interactive area) will be [`Self::min_rect`]
     /// of the last pass.
@@ -1251,7 +1153,7 @@ impl Ui {
     /// [`crate::Area`], [`crate::Window`], [`crate::CollapsingHeader`], etc.
     ///
     /// What exactly happens when you close a container depends on the container implementation.
-    /// [`crate::Area`] e.g. will return true from it's [`Response::should_close`] method.
+    /// [`crate::Area`] e.g. will return true from its [`Response::should_close`] method.
     ///
     /// If you want to close a specific kind of container, use [`Ui::close_kind`] instead.
     ///
@@ -1432,7 +1334,7 @@ impl Ui {
                     crate::StrokeKind::Inside,
                 );
 
-                let stroke = Stroke::new(2.5, Color32::from_rgb(200, 0, 0));
+                let stroke = crate::Stroke::new(2.5, Color32::from_rgb(200, 0, 0));
                 let paint_line_seg = |a, b| self.painter().line_segment([a, b], stroke);
 
                 if debug_expand_width && too_wide {
@@ -2292,7 +2194,7 @@ impl Ui {
     /// Show an image available at the given `uri`.
     ///
     /// ⚠ This will do nothing unless you install some image loaders first!
-    /// The easiest way to do this is via [`egui_extras::install_image_loaders`](https://docs.rs/egui_extras/latest/egui_extras/fn.install_image_loaders.html).
+    /// The easiest way to do this is via [`egui_extras::install_image_loaders`](https://docs.rs/egui_extras/latest/egui_extras/loaders/fn.install_image_loaders.html).
     ///
     /// The loaders handle caching image data, sampled textures, etc. across frames, so calling this is immediate-mode safe.
     ///
@@ -2368,7 +2270,7 @@ impl Ui {
     ///
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in `sRGBA` space without premultiplied alpha.
-    /// If unsure, what "premultiplied alpha" is, then this is probably the function you want to use.
+    /// If unsure what "premultiplied alpha" is, then this is probably the function you want to use.
     pub fn color_edit_button_srgba_unmultiplied(&mut self, srgba: &mut [u8; 4]) -> Response {
         let mut rgba = Rgba::from_srgba_unmultiplied(srgba[0], srgba[1], srgba[2], srgba[3]);
         let response =
@@ -3004,7 +2906,7 @@ impl Ui {
     ///
     /// Returns the dropped item, if it was released this frame.
     ///
-    /// The given frame is used for its margins, but it color is ignored.
+    /// The given frame is used for its margins, but the color is ignored.
     #[doc(alias = "drag and drop")]
     pub fn dnd_drop_zone<Payload, R>(
         &mut self,
@@ -3305,7 +3207,7 @@ fn register_rect(ui: &Ui, rect: Rect) {
 
     // Use the debug-painter to avoid clip rect,
     // otherwise the content of the widget may cover what we paint here!
-    let painter = ui.ctx().debug_painter();
+    let painter = ui.debug_painter();
 
     if debug.hover_shows_next {
         ui.placer.debug_paint_cursor(&painter, "next");

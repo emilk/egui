@@ -256,7 +256,7 @@ impl<'t> TextEdit<'t> {
     /// so it is strongly suggested that you cache the results of any syntax highlighter
     /// so as not to waste CPU highlighting the same string every frame.
     ///
-    /// The arguments is the enclosing [`Ui`] (so you can access e.g. [`Ui::fonts`]),
+    /// The arguments is the enclosing [`Ui`] (so you can access e.g. [`Context::fonts`]),
     /// the text and the wrap width.
     ///
     /// ```
@@ -496,7 +496,7 @@ impl TextEdit<'_> {
         } = self;
 
         let text_color = text_color
-            .or(ui.visuals().override_text_color)
+            .or_else(|| ui.visuals().override_text_color)
             // .unwrap_or_else(|| ui.style().interact(&response).text_color()); // too bright
             .unwrap_or_else(|| ui.visuals().widgets.inactive.text_color());
 
@@ -605,12 +605,12 @@ impl TextEdit<'_> {
             if did_interact || response.clicked() {
                 ui.memory_mut(|mem| mem.request_focus(response.id));
 
-                state.last_interaction_time = ui.ctx().input(|i| i.time);
+                state.last_interaction_time = ui.input(|i| i.time);
             }
         }
 
         if interactive && response.hovered() {
-            ui.ctx().set_cursor_icon(CursorIcon::Text);
+            ui.set_cursor_icon(CursorIcon::Text);
         }
 
         let mut cursor_range = None;
@@ -691,7 +691,7 @@ impl TextEdit<'_> {
         if ui.is_rect_visible(rect) {
             if text.as_str().is_empty() && !hint_text.is_empty() {
                 let hint_text_color = ui.visuals().weak_text_color();
-                let hint_text_font_id = hint_text_font.unwrap_or(font_id.into());
+                let hint_text_font_id = hint_text_font.unwrap_or_else(|| font_id.into());
                 let galley = if multiline {
                     hint_text.into_galley(
                         ui,
@@ -721,39 +721,42 @@ impl TextEdit<'_> {
                 paint_text_selection(&mut galley, ui.visuals(), &cursor_range, None);
             }
 
-            if !clip_text {
-                // Allocate additional space if edits were made this frame that changed the size. This is important so that,
-                // if there's a ScrollArea, it can properly scroll to the cursor.
-                // Condition `!clip_text` is important to avoid breaking layout for `TextEdit::singleline` (PR #5640)
-                let extra_size = galley.size() - rect.size();
-                if extra_size.x > 0.0 || extra_size.y > 0.0 {
-                    match ui.layout().main_dir() {
-                        crate::Direction::LeftToRight | crate::Direction::TopDown => {
-                            ui.allocate_rect(
-                                Rect::from_min_size(outer_rect.max, extra_size),
-                                Sense::hover(),
-                            );
-                        }
-                        crate::Direction::RightToLeft => {
-                            ui.allocate_rect(
-                                Rect::from_min_size(
-                                    emath::pos2(outer_rect.min.x - extra_size.x, outer_rect.max.y),
-                                    extra_size,
-                                ),
-                                Sense::hover(),
-                            );
-                        }
-                        crate::Direction::BottomUp => {
-                            ui.allocate_rect(
-                                Rect::from_min_size(
-                                    emath::pos2(outer_rect.min.x, outer_rect.max.y - extra_size.y),
-                                    extra_size,
-                                ),
-                                Sense::hover(),
-                            );
-                        }
+            // Allocate additional space if edits were made this frame that changed the size. This is important so that,
+            // if there's a ScrollArea, it can properly scroll to the cursor.
+            // Condition `!clip_text` is important to avoid breaking layout for `TextEdit::singleline` (PR #5640)
+            if !clip_text
+                && let extra_size = galley.size() - rect.size()
+                && (extra_size.x > 0.0 || extra_size.y > 0.0)
+            {
+                match ui.layout().main_dir() {
+                    crate::Direction::LeftToRight | crate::Direction::TopDown => {
+                        ui.allocate_rect(
+                            Rect::from_min_size(outer_rect.max, extra_size),
+                            Sense::hover(),
+                        );
+                    }
+                    crate::Direction::RightToLeft => {
+                        ui.allocate_rect(
+                            Rect::from_min_size(
+                                emath::pos2(outer_rect.min.x - extra_size.x, outer_rect.max.y),
+                                extra_size,
+                            ),
+                            Sense::hover(),
+                        );
+                    }
+                    crate::Direction::BottomUp => {
+                        ui.allocate_rect(
+                            Rect::from_min_size(
+                                emath::pos2(outer_rect.min.x, outer_rect.max.y - extra_size.y),
+                                extra_size,
+                            ),
+                            Sense::hover(),
+                        );
                     }
                 }
+            } else {
+                // Avoid an ID shift during this pass if the textedit grow
+                ui.skip_ahead_auto_ids(1);
             }
 
             painter.galley(galley_pos, galley.clone(), text_color);
@@ -768,7 +771,7 @@ impl TextEdit<'_> {
                 }
 
                 if text.is_mutable() && interactive {
-                    let now = ui.ctx().input(|i| i.time);
+                    let now = ui.input(|i| i.time);
                     if response.changed() || selection_changed {
                         state.last_interaction_time = now;
                     }
@@ -777,7 +780,7 @@ impl TextEdit<'_> {
                     // This is for two reasons:
                     // * Don't give the impression that the user can type into a window without focus
                     // * Don't repaint the ui because of a blinking cursor in an app that is not in focus
-                    let viewport_has_focus = ui.ctx().input(|i| i.focused);
+                    let viewport_has_focus = ui.input(|i| i.focused);
                     if viewport_has_focus {
                         text_selection::visuals::paint_text_cursor(
                             ui,
@@ -922,7 +925,7 @@ fn events(
 
     let copy_if_not_password = |ui: &Ui, text: String| {
         if !password {
-            ui.ctx().copy_text(text);
+            ui.copy_text(text);
         }
     };
 

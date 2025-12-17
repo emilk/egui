@@ -65,7 +65,7 @@ impl Widget for Link {
             }
 
             if response.hovered() {
-                ui.ctx().set_cursor_icon(CursorIcon::PointingHand);
+                ui.set_cursor_icon(CursorIcon::PointingHand);
             }
         }
 
@@ -130,12 +130,12 @@ impl Widget for Hyperlink {
         let response = ui.add(Link::new(text));
 
         if response.clicked_with_open_in_background() {
-            ui.ctx().open_url(crate::OpenUrl {
+            ui.open_url(crate::OpenUrl {
                 url: url.clone(),
                 new_tab: true,
             });
         } else if response.clicked() {
-            ui.ctx().open_url(crate::OpenUrl {
+            ui.open_url(crate::OpenUrl {
                 url: url.clone(),
                 new_tab,
             });

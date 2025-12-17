@@ -856,11 +856,11 @@ impl ScrollArea {
                     if response.dragged()
                         && let Some(cursor) = on_drag_cursor
                     {
-                        ui.ctx().set_cursor_icon(cursor);
+                        ui.set_cursor_icon(cursor);
                     } else if response.hovered()
                         && let Some(cursor) = on_hover_cursor
                     {
-                        ui.ctx().set_cursor_icon(cursor);
+                        ui.set_cursor_icon(cursor);
                     }
                 }
 
@@ -1125,7 +1125,7 @@ impl Prepared {
                             target_offset,
                         });
                     }
-                    ui.ctx().request_repaint();
+                    ui.request_repaint();
                 }
             }
         }
@@ -1178,7 +1178,7 @@ impl Prepared {
                 && direction_enabled[0] != direction_enabled[1];
             for d in 0..2 {
                 if direction_enabled[d] {
-                    let scroll_delta = ui.ctx().input(|input| {
+                    let scroll_delta = ui.input(|input| {
                         if always_scroll_enabled_direction {
                             // no bidirectional scrolling; allow horizontal scrolling without pressing shift
                             input.smooth_scroll_delta()[0] + input.smooth_scroll_delta()[1]
@@ -1195,7 +1195,7 @@ impl Prepared {
                         state.offset[d] -= scroll_delta;
 
                         // Clear scroll delta so no parent scroll will use it:
-                        ui.ctx().input_mut(|input| {
+                        ui.input_mut(|input| {
                             if always_scroll_enabled_direction {
                                 input.smooth_scroll_delta()[0] = 0.0;
                                 input.smooth_scroll_delta()[1] = 0.0;
@@ -1475,7 +1475,7 @@ impl Prepared {
         ui.advance_cursor_after_rect(outer_rect);
 
         if show_scroll_this_frame != state.show_scroll {
-            ui.ctx().request_repaint();
+            ui.request_repaint();
         }
 
         let available_offset = content_size - inner_rect.size();
