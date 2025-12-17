@@ -798,7 +798,7 @@ impl Context {
                 Id::new((ctx.viewport_id(), "__top_ui")),
                 UiBuilder::new()
                     .layer_id(LayerId::background())
-                    .max_rect(ctx.globally_available_rect().round_ui()),
+                    .max_rect(ctx.available_rect().round_ui()),
             );
 
             {
@@ -2811,17 +2811,12 @@ impl Context {
     }
 
     /// How much space is still available after panels have been added.
-    pub fn globally_available_rect(&self) -> Rect {
+    #[deprecated = "Use content_rect (or viewport_rect) instead"]
+    pub fn available_rect(&self) -> Rect {
         self.pass_state(|s| s.available_rect()).round_ui()
     }
 
-    /// How much space is still available after panels have been added.
-    #[deprecated = "Renamed to globally_available_rect"]
-    pub fn available_rect(&self) -> Rect {
-        self.globally_available_rect()
-    }
-
-    /// How much space is used by panels and windows.
+    /// How much space is used by windows and the top-level [`Ui`].
     pub fn globally_used_rect(&self) -> Rect {
         self.write(|ctx| {
             let mut used = ctx.viewport().this_pass.used_by_panels;
@@ -2832,23 +2827,16 @@ impl Context {
         })
     }
 
-    /// How much space is used by panels and windows.
+    /// How much space is used by windows and the top-level [`Ui`].
     #[deprecated = "Renamed to globally_used_rect"]
     pub fn used_rect(&self) -> Rect {
         self.globally_used_rect()
     }
 
-    /// How much space is used by panels and windows.
+    /// How much space is used by windows and the top-level [`Ui`].
     ///
     /// You can shrink your egui area to this size and still fit all egui components.
-    pub fn globally_used_size(&self) -> Vec2 {
-        (self.globally_used_rect().max - Pos2::ZERO).round_ui()
-    }
-
-    /// How much space is used by panels and windows.
-    ///
-    /// You can shrink your egui area to this size and still fit all egui components.
-    #[deprecated = "Renamed to globally_used_size"]
+    #[deprecated = "Use globally_used_rect instead"]
     pub fn used_size(&self) -> Vec2 {
         (self.globally_used_rect().max - Pos2::ZERO).round_ui()
     }

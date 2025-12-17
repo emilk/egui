@@ -760,8 +760,10 @@ impl Panel {
         ctx: &Context,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
+        #![expect(deprecated)]
+
         let side = self.side;
-        let available_rect = ctx.globally_available_rect();
+        let available_rect = ctx.available_rect();
         let mut panel_ui = Ui::new(
             ctx.clone(),
             self.id,
@@ -1059,6 +1061,8 @@ impl CentralPanel {
         ctx: &Context,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
+        #![expect(deprecated)]
+
         let id = Id::new((ctx.viewport_id(), "central_panel"));
 
         let mut panel_ui = Ui::new(
@@ -1066,7 +1070,7 @@ impl CentralPanel {
             id,
             UiBuilder::new()
                 .layer_id(LayerId::background())
-                .max_rect(ctx.globally_available_rect().round_ui()),
+                .max_rect(ctx.available_rect().round_ui()),
         );
         panel_ui.set_clip_rect(ctx.content_rect());
 
