@@ -373,9 +373,7 @@ mod tests {
     use crate::{Demo as _, demo::demo_app_windows::DemoGroups};
 
     use egui::Vec2;
-    use egui_kittest::{
-        HarnessBuilder, OsThreshold, SnapshotOptions, SnapshotResults, kittest::Queryable as _,
-    };
+    use egui_kittest::{HarnessBuilder, OsThreshold, SnapshotOptions, SnapshotResults};
 
     #[test]
     fn demos_should_match_snapshot() {
