@@ -19,8 +19,8 @@ use crate::{
     ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId, Memory,
     ModifierNames, Modifiers, NumExt as _, Order, Painter, RawInput, Response, RichText,
     SafeAreaInsets, ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions, Ui,
-    ViewportBuilder, ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet,
-    ViewportOutput, Visuals, Widget as _, WidgetRect, WidgetText,
+    UiBuilder, ViewportBuilder, ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair,
+    ViewportIdSet, ViewportOutput, Visuals, Widget as _, WidgetRect, WidgetText,
     animation_manager::AnimationManager,
     containers::{self, area::AreaState},
     data::output::PlatformOutput,
@@ -793,11 +793,23 @@ impl Context {
         let plugins = self.read(|ctx| ctx.plugins.ordered_plugins());
         #[expect(deprecated)]
         self.run(new_input, |ctx| {
-            crate::CentralPanel::no_frame().show(ctx, |ui| {
-                plugins.on_begin_pass(ui);
-                run_ui(ui);
-                plugins.on_end_pass(ui);
-            });
+            let mut top_ui = Ui::new(
+                ctx.clone(),
+                Id::new((ctx.viewport_id(), "__top_ui")),
+                UiBuilder::new()
+                    .layer_id(LayerId::background())
+                    .max_rect(ctx.globally_available_rect().round_ui()),
+            );
+
+            {
+                plugins.on_begin_pass(&mut top_ui);
+                run_ui(&mut top_ui);
+                plugins.on_end_pass(&mut top_ui);
+            }
+
+            // Inform ctx about what we actually used, so we can shrink the native window to fit.
+            // TODO(emilk): make better use of this somehow
+            ctx.pass_state_mut(|state| state.allocate_central_panel(top_ui.min_rect()));
         })
     }
 
@@ -3628,7 +3640,7 @@ impl Context {
     /// If AccessKit support is active for the current frame, get or create
     /// a node builder with the specified ID and return a mutable reference to it.
     /// For newly created nodes, the parent is the parent [`Ui`]s ID.
-    /// And an [`Ui`]s parent can be set with [`crate::UiBuilder::accessibility_parent`].
+    /// And an [`Ui`]s parent can be set with [`UiBuilder::accessibility_parent`].
     ///
     /// The `Context` lock is held while the given closure is called!
     ///

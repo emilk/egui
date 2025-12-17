@@ -140,19 +140,19 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let ctx = egui::Context::default();
         ctx.begin_pass(RawInput::default());
 
-        egui::CentralPanel::default().show(&ctx, |ui| {
-            c.bench_function("Painter::rect", |b| {
-                let painter = ui.painter();
-                let rect = ui.max_rect();
-                b.iter(|| {
-                    painter.rect(
-                        rect,
-                        2.0,
-                        egui::Color32::RED,
-                        (1.0, egui::Color32::WHITE),
-                        egui::StrokeKind::Inside,
-                    );
-                });
+        let painter =
+            egui::Painter::new(ctx.clone(), egui::LayerId::background(), ctx.content_rect());
+
+        c.bench_function("Painter::rect", |b| {
+            let rect = painter.clip_rect();
+            b.iter(|| {
+                painter.rect(
+                    rect,
+                    2.0,
+                    egui::Color32::RED,
+                    (1.0, egui::Color32::WHITE),
+                    egui::StrokeKind::Inside,
+                );
             });
         });
 

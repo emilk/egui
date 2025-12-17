@@ -1044,6 +1044,7 @@ impl CentralPanel {
     }
 
     /// Show the panel at the top level.
+    #[deprecated = "Use show_inside() instead"]
     pub fn show<R>(
         self,
         ctx: &Context,
