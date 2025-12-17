@@ -134,7 +134,7 @@ impl Clone for WgpuSetupCreateNew {
             instance_descriptor: self.instance_descriptor.clone(),
             power_preference: self.power_preference,
             native_adapter_selector: self.native_adapter_selector.clone(),
-            device_descriptor: self.device_descriptor.clone(),
+            device_descriptor: Arc::clone(&self.device_descriptor),
         }
     }
 }

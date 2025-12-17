@@ -123,7 +123,7 @@ fn adjust_color_mode(
     match color_mode {
         color::ColorMode::Solid(color) => adjust_color(color),
         color::ColorMode::UV(callback) => {
-            let callback = callback.clone();
+            let callback = Arc::clone(callback);
             *color_mode = color::ColorMode::UV(Arc::new(Box::new(move |rect, pos| {
                 let mut color = callback(rect, pos);
                 adjust_color(&mut color);

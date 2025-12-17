@@ -880,14 +880,14 @@ impl GalleyCache {
                 let cached = entry.into_mut();
                 cached.last_used = self.generation;
 
-                let galley = cached.galley.clone();
+                let galley = Arc::clone(&cached.galley);
                 if let Some(children) = &cached.children {
                     // The point of `allow_split_paragraphs` is to split large jobs into paragraph,
                     // and then cache each paragraph individually.
                     // That way, if we edit a single paragraph, only that paragraph will be re-layouted.
                     // For that to work we need to keep all the child/paragraph
                     // galleys alive while the parent galley is alive:
-                    for child_hash in children.clone().iter() {
+                    for child_hash in Arc::clone(children).iter() {
                         if let Some(cached_child) = self.cache.get_mut(child_hash) {
                             cached_child.last_used = self.generation;
                         }
@@ -913,7 +913,7 @@ impl GalleyCache {
                         CachedGalley {
                             last_used: self.generation,
                             children: Some(child_hashes.into()),
-                            galley: galley.clone(),
+                            galley: Arc::clone(&galley),
                         },
                     );
                     galley
@@ -923,7 +923,7 @@ impl GalleyCache {
                     entry.insert(CachedGalley {
                         last_used: self.generation,
                         children: None,
-                        galley: galley.clone(),
+                        galley: Arc::clone(&galley),
                     });
                     galley
                 }

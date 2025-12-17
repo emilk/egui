@@ -876,7 +876,7 @@ impl Galley {
                     ends_with_newline |= !is_last_galley && is_last_row_in_galley;
                     super::PlacedRow {
                         pos: new_pos,
-                        row: placed_row.row.clone(),
+                        row: Arc::clone(&placed_row.row),
                         ends_with_newline,
                     }
                 }));

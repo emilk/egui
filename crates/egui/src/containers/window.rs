@@ -1274,7 +1274,7 @@ impl TitleBar {
         let text_pos = text_pos - self.title_galley.rect.min.to_vec2();
         ui.painter().galley(
             text_pos,
-            self.title_galley.clone(),
+            Arc::clone(&self.title_galley),
             ui.visuals().text_color(),
         );
 

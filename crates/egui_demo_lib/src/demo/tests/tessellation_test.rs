@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use egui::{
     Color32, Pos2, Rect, Sense, StrokeKind, Vec2,
     emath::{GuiRounding as _, TSTransform},
@@ -229,8 +231,8 @@ impl crate::View for TessellationTest {
                     TSTransform::from_translation(canvas.center().to_vec2())
                         * TSTransform::from_scaling(magnification_pixel_size),
                 );
-                let mesh = std::sync::Arc::new(mesh);
-                painter.add(epaint::Shape::mesh(mesh.clone()));
+                let mesh = Arc::new(mesh);
+                painter.add(epaint::Shape::mesh(Arc::clone(&mesh)));
 
                 if self.paint_edges {
                     let stroke = epaint::Stroke::new(0.5, Color32::MAGENTA);

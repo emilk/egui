@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use egui::{TexturesDelta, UserData, ViewportCommand};
 
 use crate::{App, epi, web::web_painter::WebPainter};
@@ -12,7 +14,7 @@ pub struct AppRunner {
     painter: Box<dyn WebPainter>,
     pub(crate) input: super::WebInput,
     app: Box<dyn epi::App>,
-    pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
+    pub(crate) needs_repaint: Arc<NeedRepaint>,
     last_save_time: f64,
     pub(crate) text_agent: TextAgent,
 
@@ -63,7 +65,7 @@ impl AppRunner {
                     canvas,
                     &web_options,
                 )?;
-                gl = Some(painter.gl().clone());
+                gl = Some(Arc::clone(painter.gl()));
                 Box::new(painter) as Box<dyn WebPainter>
             }
 
@@ -138,10 +140,9 @@ impl AppRunner {
             wgpu_render_state,
         };
 
-        let needs_repaint: std::sync::Arc<NeedRepaint> =
-            std::sync::Arc::new(NeedRepaint::new(web_options.max_fps));
+        let needs_repaint: Arc<NeedRepaint> = Arc::new(NeedRepaint::new(web_options.max_fps));
         {
-            let needs_repaint = needs_repaint.clone();
+            let needs_repaint = Arc::clone(&needs_repaint);
             egui_ctx.set_request_repaint_callback(move |info| {
                 needs_repaint.repaint_after(info.delay.as_secs_f64());
             });

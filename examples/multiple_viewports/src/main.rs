@@ -86,7 +86,7 @@ impl eframe::App for MyApp {
         }
 
         if self.show_deferred_viewport.load(Ordering::Relaxed) {
-            let show_deferred_viewport = self.show_deferred_viewport.clone();
+            let show_deferred_viewport = Arc::clone(&self.show_deferred_viewport);
             ui.ctx().show_viewport_deferred(
                 egui::ViewportId::from_hash_of("deferred_viewport"),
                 egui::ViewportBuilder::default()
