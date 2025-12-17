@@ -105,7 +105,7 @@ impl WebPainterWgpu {
             surface_configuration,
             depth_stencil_format,
             depth_texture_view: None,
-            on_surface_error: options.wgpu_options.on_surface_error.clone(),
+            on_surface_error: Arc::clone(&options.wgpu_options.on_surface_error) as _,
             screen_capture_state: None,
             capture_tx,
             capture_rx,
@@ -336,7 +336,7 @@ impl WebPainter for WebPainterWgpu {
                 events.push(Event::Screenshot {
                     viewport_id,
                     user_data: data,
-                    image: screenshot.clone(),
+                    image: Arc::clone(&screenshot),
                 });
             }
         }
