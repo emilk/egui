@@ -84,7 +84,7 @@ fn set_menu_style(style: &mut Style) {
     }
 }
 
-/// The menu bar goes well in a [`crate::TopBottomPanel::top`],
+/// The menu bar goes well in a [`crate::Panel::top`],
 /// but can also be placed in a [`crate::Window`].
 /// In the latter case you may want to wrap it in [`Frame`].
 #[deprecated = "Use `egui::MenuBar::new().ui(` instead"]
@@ -186,7 +186,7 @@ fn menu_popup<'c, R>(
         .kind(UiKind::Menu)
         .order(Order::Foreground)
         .fixed_pos(pos)
-        .default_width(ctx.style().spacing.menu_width)
+        .default_width(ctx.global_style().spacing.menu_width)
         .sense(Sense::hover());
 
     let mut sizing_pass = false;
@@ -395,9 +395,9 @@ impl MenuRoot {
             // or button hovered while other menu is open
             let mut pos = button.rect.left_bottom();
 
-            let menu_frame = Frame::menu(&button.ctx.style());
+            let menu_frame = Frame::menu(&button.ctx.global_style());
             pos.x -= menu_frame.total_margin().left; // Make fist button in menu align with the parent button
-            pos.y += button.ctx.style().spacing.menu_spacing;
+            pos.y += button.ctx.global_style().spacing.menu_spacing;
 
             if let Some(root) = root.inner.as_mut() {
                 let menu_rect = root.menu_state.read().rect;
@@ -634,7 +634,7 @@ impl SubMenu {
 /// Usually you don't need to use it directly.
 pub struct MenuState {
     /// The opened sub-menu and its [`Id`]
-    sub_menu: Option<(Id, Arc<RwLock<MenuState>>)>,
+    sub_menu: Option<(Id, Arc<RwLock<Self>>)>,
 
     /// Bounding box of this menu (without the sub-menu),
     /// including the frame and everything.
@@ -701,7 +701,7 @@ impl MenuState {
         if self.moving_towards_current_submenu(&pointer) {
             // We don't close the submenu if the pointer is on its way to hover it.
             // ensure to repaint once even when pointer is not moving
-            ui.ctx().request_repaint();
+            ui.request_repaint();
         } else if !open && button.hovered() {
             // TODO(emilk): open menu to the left if there isn't enough space to the right
             let mut pos = button.rect.right_top();

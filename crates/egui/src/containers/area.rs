@@ -469,7 +469,7 @@ impl Area {
             // during the sizing pass we will use this as the max size
             let mut size = default_size;
 
-            let default_area_size = ctx.style().spacing.default_area_size;
+            let default_area_size = ctx.global_style().spacing.default_area_size;
             if size.x.is_nan() {
                 size.x = default_area_size.x;
             }
@@ -525,11 +525,21 @@ impl Area {
                 true,
             );
 
+            // Used to prevent drift
+            let pivot_at_start_of_drag_id = id.with("pivot_at_drag_start");
+
             if movable
                 && move_response.dragged()
                 && let Some(pivot_pos) = &mut state.pivot_pos
             {
-                *pivot_pos += move_response.drag_delta();
+                let pivot_at_start_of_drag = ctx.data_mut(|data| {
+                    *data.get_temp_mut_or::<Pos2>(pivot_at_start_of_drag_id, *pivot_pos)
+                });
+
+                *pivot_pos =
+                    pivot_at_start_of_drag + move_response.total_drag_delta().unwrap_or_default();
+            } else {
+                ctx.data_mut(|data| data.remove::<Pos2>(pivot_at_start_of_drag_id));
             }
 
             if (move_response.dragged() || move_response.clicked())
@@ -543,13 +553,14 @@ impl Area {
             move_response
         };
 
-        if constrain {
-            state.set_left_top_pos(
-                Context::constrain_window_rect_to_area(state.rect(), constrain_rect).min,
-            );
-        }
-
-        state.set_left_top_pos(state.left_top_pos());
+        state.set_left_top_pos(round_area_position(
+            ctx,
+            if constrain {
+                Context::constrain_window_rect_to_area(state.rect(), constrain_rect).min
+            } else {
+                state.left_top_pos()
+            },
+        ));
 
         // Update response with possibly moved/constrained rect:
         move_response.rect = state.rect();
@@ -568,6 +579,16 @@ impl Area {
             layout,
         }
     }
+}
+
+fn round_area_position(ctx: &Context, pos: Pos2) -> Pos2 {
+    // We round a lot of rendering to pixels, so we round the whole
+    // area positions to pixels too, so avoid widgets appearing to float
+    // around independently of each other when the area is dragged.
+    // But just in case pixels_per_point is irrational,
+    // we then also round to ui coordinates:
+
+    pos.round_to_pixels(ctx.pixels_per_point()).round_ui()
 }
 
 impl Prepared {
@@ -613,7 +634,8 @@ impl Prepared {
         {
             let age =
                 ctx.input(|i| (i.time - last_became_visible_at) as f32 + i.predicted_dt / 2.0);
-            let opacity = crate::remap_clamp(age, 0.0..=ctx.style().animation_time, 0.0..=1.0);
+            let opacity =
+                crate::remap_clamp(age, 0.0..=ctx.global_style().animation_time, 0.0..=1.0);
             let opacity = emath::easing::quadratic_out(opacity); // slow fade-out = quick fade-in
             ui.multiply_opacity(opacity);
             if opacity < 1.0 {
@@ -690,7 +712,7 @@ fn automatic_area_position(ctx: &Context, layer_id: LayerId) -> Pos2 {
 
     // NOTE: for the benefit of the egui demo, we position the windows so they don't
     // cover the side panels, which means we use `available_rect` here instead of `constrain_rect` or `screen_rect`.
-    let available_rect = ctx.available_rect();
+    let available_rect = ctx.globally_available_rect();
 
     let spacing = 16.0;
     let left = available_rect.left() + spacing;

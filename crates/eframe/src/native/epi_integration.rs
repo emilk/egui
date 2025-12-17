@@ -179,7 +179,9 @@ impl EpiIntegration {
         #[cfg(feature = "glow")] glow_register_native_texture: Option<
             Box<dyn FnMut(glow::Texture) -> egui::TextureId>,
         >,
-        #[cfg(feature = "wgpu")] wgpu_render_state: Option<egui_wgpu::RenderState>,
+        #[cfg(feature = "wgpu_no_default_features")] wgpu_render_state: Option<
+            egui_wgpu::RenderState,
+        >,
     ) -> Self {
         let frame = epi::Frame {
             info: epi::IntegrationInfo { cpu_usage: None },
@@ -188,7 +190,7 @@ impl EpiIntegration {
             gl,
             #[cfg(feature = "glow")]
             glow_register_native_texture,
-            #[cfg(feature = "wgpu")]
+            #[cfg(feature = "wgpu_no_default_features")]
             wgpu_render_state,
             raw_display_handle: window.display_handle().map(|h| h.as_raw()),
             raw_window_handle: window.window_handle().map(|h| h.as_raw()),
@@ -270,14 +272,27 @@ impl EpiIntegration {
 
         app.raw_input_hook(&self.egui_ctx, &mut raw_input);
 
-        let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
+        let full_output = self.egui_ctx.run_ui(raw_input, |ui| {
             if let Some(viewport_ui_cb) = viewport_ui_cb {
                 // Child viewport
                 profiling::scope!("viewport_callback");
-                viewport_ui_cb(egui_ctx);
+                viewport_ui_cb(ui);
             } else {
-                profiling::scope!("App::update");
-                app.update(egui_ctx, &mut self.frame);
+                {
+                    profiling::scope!("App::logic");
+                    app.logic(ui.ctx(), &mut self.frame);
+                }
+
+                {
+                    profiling::scope!("App::update");
+                    #[expect(deprecated)]
+                    app.update(ui.ctx(), &mut self.frame);
+                }
+
+                {
+                    profiling::scope!("App::ui");
+                    app.ui(ui, &mut self.frame);
+                }
             }
         });
 

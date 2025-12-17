@@ -239,7 +239,7 @@ impl<'app> GlowWinitApp<'app> {
                 let painter = painter.clone();
                 move |native| painter.borrow_mut().register_native_texture(native)
             })),
-            #[cfg(feature = "wgpu")]
+            #[cfg(feature = "wgpu_no_default_features")]
             None,
         );
 
@@ -301,7 +301,7 @@ impl<'app> GlowWinitApp<'app> {
                 storage: integration.frame.storage(),
                 gl: Some(gl),
                 get_proc_address: Some(&get_proc_address),
-                #[cfg(feature = "wgpu")]
+                #[cfg(feature = "wgpu_no_default_features")]
                 wgpu_render_state: None,
                 raw_display_handle: window.display_handle().map(|h| h.as_raw()),
                 raw_window_handle: window.window_handle().map(|h| h.as_raw()),
@@ -571,7 +571,7 @@ impl GlowWinitRunning<'_> {
             .options_mut(|opt| opt.begin_pass(&raw_input));
         let clear_color = self
             .app
-            .clear_color(&self.integration.egui_ctx.style().visuals);
+            .clear_color(&self.integration.egui_ctx.global_style().visuals);
 
         let has_many_viewports = self.glutin.borrow().viewports.len() > 1;
         let clear_before_update = !has_many_viewports; // HACK: for some reason, an early clear doesn't "take" on Mac with multiple viewports.
@@ -719,11 +719,11 @@ impl GlowWinitRunning<'_> {
             // vsync - don't count as frame-time:
             frame_timer.pause();
             profiling::scope!("swap_buffers");
-            let context = current_gl_context
-                .as_ref()
-                .ok_or(egui_glow::PainterError::from(
+            let context = current_gl_context.as_ref().ok_or_else(|| {
+                egui_glow::PainterError::from(
                     "failed to get current context to swap buffers".to_owned(),
-                ))?;
+                )
+            })?;
 
             gl_surface.swap_buffers(context)?;
             frame_timer.resume();
@@ -1362,7 +1362,7 @@ fn initialize_or_update_viewport(
     ids: ViewportIdPair,
     class: ViewportClass,
     mut builder: ViewportBuilder,
-    viewport_ui_cb: Option<Arc<dyn Fn(&egui::Context) + Send + Sync>>,
+    viewport_ui_cb: Option<Arc<dyn Fn(&mut egui::Ui) + Send + Sync>>,
 ) -> &mut Viewport {
     profiling::function_scope!();
 
@@ -1494,8 +1494,8 @@ fn render_immediate_viewport(
         shapes,
         pixels_per_point,
         viewport_output,
-    } = egui_ctx.run(input, |ctx| {
-        viewport_ui_cb(ctx);
+    } = egui_ctx.run_ui(input, |ui| {
+        viewport_ui_cb(ui);
     });
 
     // ---------------------------------------------------

@@ -82,7 +82,7 @@ impl<'a> AtomKind<'a> {
     ) -> (Vec2, SizedAtomKind<'a>) {
         match self {
             AtomKind::Text(text) => {
-                let wrap_mode = wrap_mode.unwrap_or(ui.wrap_mode());
+                let wrap_mode = wrap_mode.unwrap_or_else(|| ui.wrap_mode());
                 let galley = text.into_galley(ui, Some(wrap_mode), available_size.x, fallback_font);
                 (galley.intrinsic_size(), SizedAtomKind::Text(galley))
             }

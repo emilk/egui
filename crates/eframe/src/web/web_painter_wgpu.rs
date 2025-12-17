@@ -1,12 +1,14 @@
 use std::sync::Arc;
 
-use super::web_painter::WebPainter;
-use crate::WebOptions;
 use egui::{Event, UserData, ViewportId};
-use egui_wgpu::capture::{CaptureReceiver, CaptureSender, CaptureState, capture_channel};
-use egui_wgpu::{RenderState, SurfaceErrorAction};
+use egui_wgpu::{
+    RenderState, SurfaceErrorAction,
+    capture::{CaptureReceiver, CaptureSender, CaptureState, capture_channel},
+};
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
+
+use super::web_painter::WebPainter;
 
 pub(crate) struct WebPainterWgpu {
     canvas: HtmlCanvasElement,
@@ -23,7 +25,6 @@ pub(crate) struct WebPainterWgpu {
 }
 
 impl WebPainterWgpu {
-    #[expect(unused)] // only used if `wgpu` is the only active feature.
     pub fn render_state(&self) -> Option<RenderState> {
         self.render_state.clone()
     }
@@ -55,11 +56,10 @@ impl WebPainterWgpu {
         })
     }
 
-    #[expect(unused)] // only used if `wgpu` is the only active feature.
     pub async fn new(
         ctx: egui::Context,
         canvas: web_sys::HtmlCanvasElement,
-        options: &WebOptions,
+        options: &crate::WebOptions,
     ) -> Result<Self, String> {
         log::debug!("Creating wgpu painter");
 
@@ -243,13 +243,26 @@ impl WebPainter for WebPainterWgpu {
                     depth_stencil_attachment: self.depth_texture_view.as_ref().map(|view| {
                         wgpu::RenderPassDepthStencilAttachment {
                             view,
-                            depth_ops: Some(wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(1.0),
-                                // It is very unlikely that the depth buffer is needed after egui finished rendering
-                                // so no need to store it. (this can improve performance on tiling GPUs like mobile chips or Apple Silicon)
-                                store: wgpu::StoreOp::Discard,
-                            }),
-                            stencil_ops: None,
+                            depth_ops: self
+                                .depth_stencil_format
+                                .is_some_and(|depth_stencil_format| {
+                                    depth_stencil_format.has_depth_aspect()
+                                })
+                                .then_some(wgpu::Operations {
+                                    load: wgpu::LoadOp::Clear(1.0),
+                                    // It is very unlikely that the depth buffer is needed after egui finished rendering
+                                    // so no need to store it. (this can improve performance on tiling GPUs like mobile chips or Apple Silicon)
+                                    store: wgpu::StoreOp::Discard,
+                                }),
+                            stencil_ops: self
+                                .depth_stencil_format
+                                .is_some_and(|depth_stencil_format| {
+                                    depth_stencil_format.has_stencil_aspect()
+                                })
+                                .then_some(wgpu::Operations {
+                                    load: wgpu::LoadOp::Clear(0),
+                                    store: wgpu::StoreOp::Discard,
+                                }),
                         }
                     }),
                     label: Some("egui_render"),

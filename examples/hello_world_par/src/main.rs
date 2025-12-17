@@ -116,15 +116,15 @@ impl std::ops::Drop for MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::Window::new("Main thread").show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::Window::new("Main thread").show(ui.ctx(), |ui| {
             if ui.button("Spawn another thread").clicked() {
                 self.spawn_thread();
             }
         });
 
         for (_handle, show_tx) in &self.threads {
-            let _ = show_tx.send(ctx.clone());
+            let _ = show_tx.send(ui.ctx().clone());
         }
 
         for _ in 0..self.threads.len() {

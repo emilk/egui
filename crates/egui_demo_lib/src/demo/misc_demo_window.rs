@@ -451,7 +451,7 @@ enum Action {
 
 #[derive(Clone, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-struct Tree(Vec<Tree>);
+struct Tree(Vec<Self>);
 
 impl Tree {
     pub fn demo() -> Self {
@@ -541,12 +541,12 @@ fn ui_stack_demo(ui: &mut Ui) {
                                 let response = ui.label(format!("{:?}", node.id));
 
                                 if response.hovered() {
-                                    ui.ctx().debug_painter().debug_rect(
+                                    ui.debug_painter().debug_rect(
                                         node.max_rect,
                                         Color32::GREEN,
                                         "max_rect",
                                     );
-                                    ui.ctx().debug_painter().circle_filled(
+                                    ui.debug_painter().circle_filled(
                                         node.min_rect.min,
                                         2.0,
                                         Color32::RED,

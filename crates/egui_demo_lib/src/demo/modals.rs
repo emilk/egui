@@ -149,7 +149,7 @@ impl crate::View for Modals {
                     *user_modal_open = false;
                 } else {
                     *save_progress = Some(progress + 0.003);
-                    ui.ctx().request_repaint();
+                    ui.request_repaint();
                 }
             });
         }
@@ -176,9 +176,9 @@ mod tests {
             ..Modals::default()
         };
 
-        let mut harness = Harness::new_state(
-            |ctx, modals| {
-                modals.show(ctx, &mut true);
+        let mut harness = Harness::new_ui_state(
+            |ui, modals| {
+                modals.show(ui, &mut true);
             },
             initial_state,
         );
@@ -204,9 +204,9 @@ mod tests {
             ..Modals::default()
         };
 
-        let mut harness = Harness::new_state(
-            |ctx, modals| {
-                modals.show(ctx, &mut true);
+        let mut harness = Harness::new_ui_state(
+            |ui, modals| {
+                modals.show(ui, &mut true);
             },
             initial_state,
         );
@@ -228,9 +228,9 @@ mod tests {
             ..Modals::default()
         };
 
-        let mut harness = Harness::new_state(
-            |ctx, modals| {
-                modals.show(ctx, &mut true);
+        let mut harness = Harness::new_ui_state(
+            |ui, modals| {
+                modals.show(ui, &mut true);
             },
             initial_state,
         );
@@ -258,9 +258,9 @@ mod tests {
             ..Modals::default()
         };
 
-        let mut harness = Harness::new_state(
-            |ctx, modals| {
-                modals.show(ctx, &mut true);
+        let mut harness = Harness::new_ui_state(
+            |ui, modals| {
+                modals.show(ui, &mut true);
             },
             initial_state,
         );

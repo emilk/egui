@@ -35,7 +35,7 @@
 //!
 //! impl MyEguiApp {
 //!     fn new(cc: &eframe::CreationContext<'_>) -> Self {
-//!         // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_visuals.
+//!         // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_global_style.
 //!         // Restore app state using cc.storage (requires the "persistence" feature).
 //!         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
 //!         // for e.g. egui::PaintCallback.
@@ -44,8 +44,8 @@
 //! }
 //!
 //! impl eframe::App for MyEguiApp {
-//!    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-//!        egui::CentralPanel::default().show(ctx, |ui| {
+//!    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+//!        egui::CentralPanel::default().show_inside(ui, |ui| {
 //!            ui.heading("Hello World!");
 //!        });
 //!    }
@@ -159,7 +159,7 @@ pub use {egui, egui::emath, egui::epaint};
 #[cfg(feature = "glow")]
 pub use {egui_glow, glow};
 
-#[cfg(feature = "wgpu")]
+#[cfg(feature = "wgpu_no_default_features")]
 pub use {egui_wgpu, wgpu};
 
 mod epi;
@@ -188,19 +188,19 @@ pub use web::{WebLogger, WebRunner};
 // When compiling natively
 
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(any(feature = "glow", feature = "wgpu"))]
+#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 mod native;
 
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(any(feature = "glow", feature = "wgpu"))]
+#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 pub use native::run::EframeWinitApplication;
 
 #[cfg(not(any(target_arch = "wasm32", target_os = "ios")))]
-#[cfg(any(feature = "glow", feature = "wgpu"))]
+#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 pub use native::run::EframePumpStatus;
 
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(any(feature = "glow", feature = "wgpu"))]
+#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 #[cfg(feature = "persistence")]
 pub use native::file_storage::storage_dir;
 
@@ -232,7 +232,7 @@ pub mod icon_data;
 ///
 /// impl MyEguiApp {
 ///     fn new(cc: &eframe::CreationContext<'_>) -> Self {
-///         // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_visuals.
+///         // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_global_style.
 ///         // Restore app state using cc.storage (requires the "persistence" feature).
 ///         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
 ///         // for e.g. egui::PaintCallback.
@@ -241,8 +241,8 @@ pub mod icon_data;
 /// }
 ///
 /// impl eframe::App for MyEguiApp {
-///    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-///        egui::CentralPanel::default().show(ctx, |ui| {
+///    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+///        egui::CentralPanel::default().show_inside(ui, |ui| {
 ///            ui.heading("Hello World!");
 ///        });
 ///    }
@@ -252,7 +252,7 @@ pub mod icon_data;
 /// # Errors
 /// This function can fail if we fail to set up a graphics context.
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(any(feature = "glow", feature = "wgpu"))]
+#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 #[allow(clippy::needless_pass_by_value, clippy::allow_attributes)]
 pub fn run_native(
     app_name: &str,
@@ -268,7 +268,7 @@ pub fn run_native(
             native::run::run_glow(app_name, native_options, app_creator)
         }
 
-        #[cfg(feature = "wgpu")]
+        #[cfg(feature = "wgpu_no_default_features")]
         Renderer::Wgpu => {
             log::debug!("Using the wgpu renderer");
             native::run::run_wgpu(app_name, native_options, app_creator)
@@ -312,8 +312,8 @@ pub fn run_native(
 /// }
 ///
 /// impl eframe::App for MyEguiApp {
-///    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-///        egui::CentralPanel::default().show(ctx, |ui| {
+///    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+///        egui::CentralPanel::default().show_inside(ui, |ui| {
 ///            ui.heading("Hello World!");
 ///        });
 ///    }
@@ -322,7 +322,7 @@ pub fn run_native(
 ///
 /// See the `external_eventloop` example for a more complete example.
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(any(feature = "glow", feature = "wgpu"))]
+#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 pub fn create_native<'a>(
     app_name: &str,
     mut native_options: NativeOptions,
@@ -343,7 +343,7 @@ pub fn create_native<'a>(
             ))
         }
 
-        #[cfg(feature = "wgpu")]
+        #[cfg(feature = "wgpu_no_default_features")]
         Renderer::Wgpu => {
             log::debug!("Using the wgpu renderer");
             EframeWinitApplication::new(native::run::create_wgpu(
@@ -357,7 +357,7 @@ pub fn create_native<'a>(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(any(feature = "glow", feature = "wgpu"))]
+#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 fn init_native(app_name: &str, native_options: &mut NativeOptions) -> Renderer {
     #[cfg(not(feature = "__screenshot"))]
     assert!(
@@ -371,7 +371,7 @@ fn init_native(app_name: &str, native_options: &mut NativeOptions) -> Renderer {
 
     let renderer = native_options.renderer;
 
-    #[cfg(all(feature = "glow", feature = "wgpu"))]
+    #[cfg(all(feature = "glow", feature = "wgpu_no_default_features"))]
     {
         match native_options.renderer {
             Renderer::Glow => "glow",
@@ -384,6 +384,65 @@ fn init_native(app_name: &str, native_options: &mut NativeOptions) -> Renderer {
 }
 
 // ----------------------------------------------------------------------------
+
+/// The simplest way to get started when writing a native app.
+///
+/// This does NOT support persistence of custom user data. For that you need to use [`run_native`].
+/// However, it DOES support persistence of egui data (window positions and sizes, how far the user has scrolled in a
+/// [`ScrollArea`](egui::ScrollArea), etc.) if the persistence feature is enabled.
+///
+/// # Example
+/// ``` no_run
+/// fn main() -> eframe::Result {
+///     // Our application state:
+///     let mut name = "Arthur".to_owned();
+///     let mut age = 42;
+///
+///     let options = eframe::NativeOptions::default();
+///     eframe::run_ui_native("My egui App", options, move |ui, _frame| {
+///         // Wrap everything in a CentralPanel so we get some margins and a background color:
+///         egui::CentralPanel::default().show_inside(ui, |ui| {
+///             ui.heading("My egui Application");
+///             ui.horizontal(|ui| {
+///                 let name_label = ui.label("Your name: ");
+///                 ui.text_edit_singleline(&mut name)
+///                     .labelled_by(name_label.id);
+///             });
+///             ui.add(egui::Slider::new(&mut age, 0..=120).text("age"));
+///             if ui.button("Increment").clicked() {
+///                 age += 1;
+///             }
+///             ui.label(format!("Hello '{name}', age {age}"));
+///         });
+///     })
+/// }
+/// ```
+///
+/// # Errors
+/// This function can fail if we fail to set up a graphics context.
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
+pub fn run_ui_native(
+    app_name: &str,
+    native_options: NativeOptions,
+    ui_fun: impl FnMut(&mut egui::Ui, &mut Frame) + 'static,
+) -> Result {
+    struct SimpleApp<U> {
+        ui_fun: U,
+    }
+
+    impl<U: FnMut(&mut egui::Ui, &mut Frame) + 'static> App for SimpleApp<U> {
+        fn ui(&mut self, ui: &mut egui::Ui, frame: &mut Frame) {
+            (self.ui_fun)(ui, frame);
+        }
+    }
+
+    run_native(
+        app_name,
+        native_options,
+        Box::new(|_cc| Ok(Box::new(SimpleApp { ui_fun }))),
+    )
+}
 
 /// The simplest way to get started when writing a native app.
 ///
@@ -419,8 +478,9 @@ fn init_native(app_name: &str, native_options: &mut NativeOptions) -> Renderer {
 ///
 /// # Errors
 /// This function can fail if we fail to set up a graphics context.
+#[deprecated = "Use run_ui_native instead"]
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(any(feature = "glow", feature = "wgpu"))]
+#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 pub fn run_simple_native(
     app_name: &str,
     native_options: NativeOptions,
@@ -431,6 +491,8 @@ pub fn run_simple_native(
     }
 
     impl<U: FnMut(&egui::Context, &mut Frame) + 'static> App for SimpleApp<U> {
+        fn ui(&mut self, _ui: &mut egui::Ui, _frame: &mut Frame) {}
+
         fn update(&mut self, ctx: &egui::Context, frame: &mut Frame) {
             (self.update_fun)(ctx, frame);
         }
@@ -472,7 +534,7 @@ pub enum Error {
     OpenGL(egui_glow::PainterError),
 
     /// An error from [`wgpu`].
-    #[cfg(feature = "wgpu")]
+    #[cfg(feature = "wgpu_no_default_features")]
     Wgpu(egui_wgpu::WgpuError),
 }
 
@@ -510,7 +572,7 @@ impl From<egui_glow::PainterError> for Error {
     }
 }
 
-#[cfg(feature = "wgpu")]
+#[cfg(feature = "wgpu_no_default_features")]
 impl From<egui_wgpu::WgpuError> for Error {
     #[inline]
     fn from(err: egui_wgpu::WgpuError) -> Self {
@@ -551,7 +613,7 @@ impl std::fmt::Display for Error {
                 write!(f, "egui_glow: {err}")
             }
 
-            #[cfg(feature = "wgpu")]
+            #[cfg(feature = "wgpu_no_default_features")]
             Self::Wgpu(err) => {
                 write!(f, "WGPU error: {err}")
             }

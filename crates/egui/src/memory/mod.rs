@@ -21,7 +21,7 @@ pub use theme::{Theme, ThemePreference};
 /// how far the user has scrolled in a [`ScrollArea`](crate::ScrollArea) etc.
 ///
 /// If you want this to persist when closing your app, you should serialize [`Memory`] and store it.
-/// For this you need to enable the `persistence`.
+/// For this you need to enable the `persistence` feature.
 ///
 /// If you want to store data for your widgets, you should look at [`Memory::data`]
 #[derive(Clone, Debug)]
@@ -470,7 +470,6 @@ pub(crate) struct Focus {
     /// The ID of a widget to give the focus to in the next frame.
     id_next_frame: Option<Id>,
 
-    #[cfg(feature = "accesskit")]
     id_requested_by_accesskit: Option<accesskit::NodeId>,
 
     /// If set, the next widget that is interested in focus will automatically get it.
@@ -529,10 +528,7 @@ impl Focus {
         }
         let event_filter = self.focused_widget.map(|w| w.filter).unwrap_or_default();
 
-        #[cfg(feature = "accesskit")]
-        {
-            self.id_requested_by_accesskit = None;
-        }
+        self.id_requested_by_accesskit = None;
 
         self.focus_direction = FocusDirection::None;
 
@@ -567,16 +563,13 @@ impl Focus {
                 self.focus_direction = cardinality;
             }
 
-            #[cfg(feature = "accesskit")]
+            if let crate::Event::AccessKitActionRequest(accesskit::ActionRequest {
+                action: accesskit::Action::Focus,
+                target,
+                data: None,
+            }) = event
             {
-                if let crate::Event::AccessKitActionRequest(accesskit::ActionRequest {
-                    action: accesskit::Action::Focus,
-                    target,
-                    data: None,
-                }) = event
-                {
-                    self.id_requested_by_accesskit = Some(*target);
-                }
+                self.id_requested_by_accesskit = Some(*target);
             }
         }
     }
@@ -606,14 +599,11 @@ impl Focus {
     }
 
     fn interested_in_focus(&mut self, id: Id) {
-        #[cfg(feature = "accesskit")]
-        {
-            if self.id_requested_by_accesskit == Some(id.accesskit_id()) {
-                self.focused_widget = Some(FocusWidget::new(id));
-                self.id_requested_by_accesskit = None;
-                self.give_to_next = false;
-                self.reset_focus();
-            }
+        if self.id_requested_by_accesskit == Some(id.accesskit_id()) {
+            self.focused_widget = Some(FocusWidget::new(id));
+            self.id_requested_by_accesskit = None;
+            self.give_to_next = false;
+            self.reset_focus();
         }
 
         // The rect is updated at the end of the frame.
@@ -1282,8 +1272,7 @@ impl Areas {
     pub fn top_layer_id(&self, order: Order) -> Option<LayerId> {
         self.order
             .iter()
-            .filter(|layer| layer.order == order && !self.is_sublayer(layer))
-            .next_back()
+            .rfind(|layer| layer.order == order && !self.is_sublayer(layer))
             .copied()
     }
 

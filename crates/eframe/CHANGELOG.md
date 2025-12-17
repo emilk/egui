@@ -7,6 +7,15 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.33.3 - 2025-12-11
+Nothing new
+
+
+## 0.33.2 - 2025-11-13
+* Fix jittering during window resize on MacOS for WGPU/Metal [#7641](https://github.com/emilk/egui/pull/7641) by [@aspcartman](https://github.com/aspcartman)
+* Make sure `native_pixels_per_point` is set during app creation [#7683](https://github.com/emilk/egui/pull/7683) by [@emilk](https://github.com/emilk)
+
+
 ## 0.33.0 - 2025-10-09
 ### ⭐ Added
 * Add an option to limit the repaint rate in the web runner [#7482](https://github.com/emilk/egui/pull/7482) by [@s-nie](https://github.com/s-nie)

@@ -20,8 +20,8 @@ struct Content {
 }
 
 impl eframe::App for Content {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             ui.heading("Press/Hold/Release example. Press A to test.");
             if ui.button("Clear").clicked() {
                 self.text.clear();
@@ -33,14 +33,14 @@ impl eframe::App for Content {
                     ui.label(&self.text);
                 });
 
-            if ctx.input(|i| i.key_pressed(Key::A)) {
+            if ui.input(|i| i.key_pressed(Key::A)) {
                 self.text.push_str("\nPressed");
             }
-            if ctx.input(|i| i.key_down(Key::A)) {
+            if ui.input(|i| i.key_down(Key::A)) {
                 self.text.push_str("\nHeld");
-                ui.ctx().request_repaint(); // make sure we note the holding.
+                ui.request_repaint(); // make sure we note the holding.
             }
-            if ctx.input(|i| i.key_released(Key::A)) {
+            if ui.input(|i| i.key_released(Key::A)) {
                 self.text.push_str("\nReleased");
             }
         });

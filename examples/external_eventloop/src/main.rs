@@ -44,8 +44,8 @@ impl Default for MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             ui.heading("My External Eventloop Application");
 
             ui.horizontal(|ui| {
@@ -68,7 +68,7 @@ impl eframe::App for MyApp {
             }
 
             if self.blinky {
-                let now = ui.ctx().input(|i| i.time);
+                let now = ui.input(|i| i.time);
                 let blink = now % 1.0 < 0.5;
                 egui::Frame::new()
                     .inner_margin(3)
@@ -82,7 +82,7 @@ impl eframe::App for MyApp {
                         ui.label("Blinky!");
                     });
 
-                ctx.request_repaint_after_secs((0.5 - (now % 0.5)) as f32);
+                ui.request_repaint_after_secs((0.5 - (now % 0.5)) as f32);
             }
         });
     }

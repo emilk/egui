@@ -161,14 +161,13 @@ impl MenuState {
             if state.last_visible_pass + 1 < pass_nr {
                 state.open_item = None;
             }
-            if let Some(item) = state.open_item {
-                if data
+            if let Some(item) = state.open_item
+                && data
                     .get_temp(item.with(Self::ID))
                     .is_none_or(|item: Self| item.last_visible_pass + 1 < pass_nr)
-                {
-                    // If the open item wasn't shown for at least a frame, reset the open item
-                    state.open_item = None;
-                }
+            {
+                // If the open item wasn't shown for at least a frame, reset the open item
+                state.open_item = None;
             }
             let r = f(&mut state);
             data.insert_temp(state_id, state);
@@ -208,7 +207,7 @@ impl MenuState {
 /// egui::MenuBar::new().ui(ui, |ui| {
 ///     ui.menu_button("File", |ui| {
 ///         if ui.button("Quit").clicked() {
-///             ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+///             ui.send_viewport_cmd(egui::ViewportCommand::Close);
 ///         }
 ///     });
 /// });
@@ -557,7 +556,7 @@ impl SubMenu {
             if is_moving_towards_rect {
                 // We need to repaint while this is true, so we can detect when
                 // the pointer is no longer moving towards the rect
-                ui.ctx().request_repaint();
+                ui.request_repaint();
             }
             let hovering_other_menu_entry = is_open
                 && !is_hovered

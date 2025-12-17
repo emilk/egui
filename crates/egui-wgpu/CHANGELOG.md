@@ -6,6 +6,14 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.33.3 - 2025-12-11
+Nothing new
+
+
+## 0.33.2 - 2025-11-13
+* Fix jittering during window resize on MacOS for WGPU/Metal [#7641](https://github.com/emilk/egui/pull/7641) by [@aspcartman](https://github.com/aspcartman)
+
+
 ## 0.33.0 - 2025-10-09
 ### 🔧 Changed
 * Update wgpu to 26 and wasm-bindgen to 0.2.100 [#7540](https://github.com/emilk/egui/pull/7540) by [@Kumpelinus](https://github.com/Kumpelinus)

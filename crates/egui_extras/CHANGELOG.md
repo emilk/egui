@@ -5,6 +5,14 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.33.3 - 2025-12-11
+* Bump `ehttp` to 0.6.0 [#7757](https://github.com/emilk/egui/pull/7757) by [@jprochazk](https://github.com/jprochazk)
+
+
+## 0.33.2 - 2025-11-13
+Nothing new
+
+
 ## 0.33.0 - 2025-10-09
 * Fix: use unique id for resize columns in `Table` [#7414](https://github.com/emilk/egui/pull/7414) by [@zezic](https://github.com/zezic)
 * Feat: Add serde serialization to SyntectSettings [#7506](https://github.com/emilk/egui/pull/7506) by [@bircni](https://github.com/bircni)

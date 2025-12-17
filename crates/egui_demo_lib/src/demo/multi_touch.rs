@@ -141,7 +141,7 @@ impl MultiTouch {
 
         let delay = 0.5;
         if time_since_last_touch < delay {
-            ui.ctx().request_repaint();
+            ui.request_repaint();
         } else {
             // seconds after which half the amount of zoom/rotation will be reverted:
             let half_life =
@@ -157,7 +157,7 @@ impl MultiTouch {
                 self.zoom = 1. + ((self.zoom - 1.) * half_life_factor);
                 self.rotation *= half_life_factor;
                 self.translation *= half_life_factor;
-                ui.ctx().request_repaint();
+                ui.request_repaint();
             }
         }
     }

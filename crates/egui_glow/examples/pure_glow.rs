@@ -215,10 +215,11 @@ impl winit::application::ApplicationHandler<UserEvent> for GlowApp {
         let mut redraw = || {
             let mut quit = false;
 
-            self.egui_glow.as_mut().unwrap().run(
-                self.gl_window.as_mut().unwrap().window(),
-                |egui_ctx| {
-                    egui::SidePanel::left("my_side_panel").show(egui_ctx, |ui| {
+            self.egui_glow
+                .as_mut()
+                .unwrap()
+                .run(self.gl_window.as_mut().unwrap().window(), |ui| {
+                    egui::Panel::left("my_side_panel").show_inside(ui, |ui| {
                         ui.heading("Hello World!");
                         if ui.button("Quit").clicked() {
                             quit = true;
@@ -226,8 +227,7 @@ impl winit::application::ApplicationHandler<UserEvent> for GlowApp {
 
                         ui.color_edit_button_rgb(self.clear_color.as_mut().try_into().unwrap());
                     });
-                },
-            );
+                });
 
             if quit {
                 event_loop.exit();

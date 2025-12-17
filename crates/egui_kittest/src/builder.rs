@@ -4,6 +4,7 @@ use egui::{Pos2, Rect, Vec2};
 use std::marker::PhantomData;
 
 /// Builder for [`Harness`].
+#[must_use]
 pub struct HarnessBuilder<State = ()> {
     pub(crate) screen_rect: Rect,
     pub(crate) pixels_per_point: f32,
@@ -64,8 +65,10 @@ impl<State> HarnessBuilder<State> {
 
     /// Set the default options used for snapshot tests on this harness.
     #[cfg(feature = "snapshot")]
-    pub fn with_options(&mut self, options: crate::SnapshotOptions) {
+    #[inline]
+    pub fn with_options(mut self, options: crate::SnapshotOptions) -> Self {
         self.default_snapshot_options = options;
+        self
     }
 
     /// Override the [`egui::os::OperatingSystem`] reported to egui.
@@ -163,6 +166,8 @@ impl<State> HarnessBuilder<State> {
     ///
     /// assert_eq!(*harness.state(), true);
     /// ```
+    #[track_caller]
+    #[deprecated = "use `build_ui_state` instead"]
     pub fn build_state<'a>(
         self,
         app: impl FnMut(&egui::Context, &mut State) + 'a,
@@ -192,6 +197,7 @@ impl<State> HarnessBuilder<State> {
     ///
     /// assert_eq!(*harness.state(), true);
     /// ```
+    #[track_caller]
     pub fn build_ui_state<'a>(
         self,
         app: impl FnMut(&mut egui::Ui, &mut State) + 'a,
@@ -203,6 +209,7 @@ impl<State> HarnessBuilder<State> {
     /// Create a new [Harness] from the given eframe creation closure.
     /// The app can be accessed via the [`Harness::state`] / [`Harness::state_mut`] methods.
     #[cfg(feature = "eframe")]
+    #[track_caller]
     pub fn build_eframe<'a>(
         self,
         build: impl FnOnce(&mut eframe::CreationContext<'a>) -> State,
@@ -244,6 +251,8 @@ impl HarnessBuilder {
     ///     });
     /// ```
     #[must_use]
+    #[track_caller]
+    #[deprecated = "use `build_ui` instead"]
     pub fn build<'a>(self, app: impl FnMut(&egui::Context) + 'a) -> Harness<'a> {
         Harness::from_builder(self, AppKind::Context(Box::new(app)), (), None)
     }
@@ -264,6 +273,7 @@ impl HarnessBuilder {
     ///     });
     /// ```
     #[must_use]
+    #[track_caller]
     pub fn build_ui<'a>(self, app: impl FnMut(&mut egui::Ui) + 'a) -> Harness<'a> {
         Harness::from_builder(self, AppKind::Ui(Box::new(app)), (), None)
     }

@@ -9,7 +9,7 @@
 //! which uses [`eframe`](https://docs.rs/eframe).
 //!
 //! To create a GUI using egui you first need a [`Context`] (by convention referred to by `ctx`).
-//! Then you add a [`Window`] or a [`SidePanel`] to get a [`Ui`], which is what you'll be using to add all the buttons and labels that you need.
+//! Then you add a [`Window`] or a [`Panel`] to get a [`Ui`], which is what you'll be using to add all the buttons and labels that you need.
 //!
 //!
 //! ## Feature flags
@@ -42,23 +42,6 @@
 //!
 //! In some GUI frameworks this would require defining multiple types and functions with callbacks or message handlers,
 //! but thanks to `egui` being immediate mode everything is one self-contained function!
-//!
-//! ### Getting a [`Ui`]
-//!
-//! Use one of [`SidePanel`], [`TopBottomPanel`], [`CentralPanel`], [`Window`] or [`Area`] to
-//! get access to an [`Ui`] where you can put widgets. For example:
-//!
-//! ```
-//! # egui::__run_test_ctx(|ctx| {
-//! egui::CentralPanel::default().show(&ctx, |ui| {
-//!     ui.add(egui::Label::new("Hello World!"));
-//!     ui.label("A shorter and more convenient way to add a label.");
-//!     if ui.button("Click me").clicked() {
-//!         // take some action here
-//!     }
-//! });
-//! # });
-//! ```
 //!
 //! ### Quick start
 //!
@@ -195,7 +178,7 @@
 //! * lays out the letters `click me` in order to figure out the size of the button
 //! * decides where on screen to place the button
 //! * check if the mouse is hovering or clicking that location
-//! * chose button colors based on if it is being hovered or clicked
+//! * choose button colors based on if it is being hovered or clicked
 //! * add a [`Shape::Rect`] and [`Shape::Text`] to the list of shapes to be painted later this frame
 //! * return a [`Response`] with the [`clicked`](`Response::clicked`) member so the user can check for interactions
 //!
@@ -322,7 +305,7 @@
 //! when you release the panel/window shrinks again.
 //! This is an artifact of immediate mode, and here are some alternatives on how to avoid it:
 //!
-//! 1. Turn off resizing with [`Window::resizable`], [`SidePanel::resizable`], [`TopBottomPanel::resizable`].
+//! 1. Turn off resizing with [`Window::resizable`], [`Panel::resizable`].
 //! 2. Wrap your panel contents in a [`ScrollArea`], or use [`Window::vscroll`] and [`Window::hscroll`].
 //! 3. Use a justified layout:
 //!
@@ -441,6 +424,7 @@ mod ui_stack;
 pub mod util;
 pub mod viewport;
 mod widget_rect;
+pub mod widget_style;
 pub mod widget_text;
 pub mod widgets;
 
@@ -448,7 +432,6 @@ pub mod widgets;
 #[cfg(debug_assertions)]
 mod callstack;
 
-#[cfg(feature = "accesskit")]
 pub use accesskit;
 
 #[deprecated = "Use the ahash crate directly."]
@@ -692,8 +675,8 @@ pub enum WidgetType {
 pub fn __run_test_ctx(mut run_ui: impl FnMut(&Context)) {
     let ctx = Context::default();
     ctx.set_fonts(FontDefinitions::empty()); // prevent fonts from being loaded (save CPU time)
-    let _ = ctx.run(Default::default(), |ctx| {
-        run_ui(ctx);
+    let _ = ctx.run_ui(Default::default(), |ui| {
+        run_ui(ui.ctx());
     });
 }
 
@@ -701,14 +684,11 @@ pub fn __run_test_ctx(mut run_ui: impl FnMut(&Context)) {
 pub fn __run_test_ui(add_contents: impl Fn(&mut Ui)) {
     let ctx = Context::default();
     ctx.set_fonts(FontDefinitions::empty()); // prevent fonts from being loaded (save CPU time)
-    let _ = ctx.run(Default::default(), |ctx| {
-        crate::CentralPanel::default().show(ctx, |ui| {
-            add_contents(ui);
-        });
+    let _ = ctx.run_ui(Default::default(), |ui| {
+        add_contents(ui);
     });
 }
 
-#[cfg(feature = "accesskit")]
 pub fn accesskit_root_id() -> Id {
     Id::new("accesskit_root")
 }
