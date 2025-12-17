@@ -91,7 +91,7 @@ impl WebPainter for WebPainterGlow {
             for data in data {
                 events.push(Event::Screenshot {
                     viewport_id: ViewportId::default(),
-                    image: image.clone(),
+                    image: Arc::clone(&image),
                     user_data: data,
                 });
             }

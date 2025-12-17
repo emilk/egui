@@ -65,7 +65,7 @@ impl AppRunner {
                     canvas,
                     &web_options,
                 )?;
-                gl = Some(painter.gl().clone());
+                gl = Some(Arc::clone(painter.gl()));
                 Box::new(painter) as Box<dyn WebPainter>
             }
 
