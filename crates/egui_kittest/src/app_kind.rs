@@ -68,7 +68,7 @@ impl<State> AppKind<'_, State> {
         }
         ui.scope_builder(builder, |ui| {
             Frame::central_panel(ui.style())
-                .outer_margin(8.0)
+                .outer_margin(8.0) // TODO(emilk): make this frame configurable
                 .inner_margin(0.0)
                 .show(ui, |ui| match self {
                     AppKind::Ui(f) => f(ui),
