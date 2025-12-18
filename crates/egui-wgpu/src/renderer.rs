@@ -353,7 +353,7 @@ impl Renderer {
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("egui_pipeline_layout"),
             bind_group_layouts: &[&uniform_bind_group_layout, &texture_bind_group_layout],
-            push_constant_ranges: &[],
+            immediate_size: 0,
         });
 
         let depth_stencil = options
@@ -426,7 +426,7 @@ impl Renderer {
                     })],
                     compilation_options: wgpu::PipelineCompilationOptions::default()
                 }),
-                multiview: None,
+                multiview_mask: None,
                 cache: None,
             }
         )
