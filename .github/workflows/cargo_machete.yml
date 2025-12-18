@@ -3,17 +3,17 @@ name: Cargo Machete
 on: [push, pull_request]
 
 jobs:
-  cargo-machete:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: 1.88
-      - name: Machete install
-        ## The official cargo-machete action
-        uses: bnjbvr/cargo-machete@v0.9.1
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Machete Check
-        run: cargo machete
+    cargo-machete:
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        steps:
+            - uses: dtolnay/rust-toolchain@stable
+              with:
+                  toolchain: 1.92
+            - name: Machete install
+              ## The official cargo-machete action
+              uses: bnjbvr/cargo-machete@v0.9.1
+            - name: Checkout
+              uses: actions/checkout@v4
+            - name: Machete Check
+              run: cargo machete
