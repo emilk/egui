@@ -38,7 +38,7 @@ impl log::Log for WebLogger {
     }
 
     fn log(&self, record: &log::Record<'_>) {
-        #![allow(clippy::match_same_arms)]
+        #![expect(clippy::match_same_arms)]
 
         if !self.enabled(record.metadata()) {
             return;

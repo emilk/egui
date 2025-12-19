@@ -724,7 +724,7 @@ fn test_two_id_two_type() {
 
 #[test]
 fn test_two_id_x_two_types() {
-    #![allow(clippy::approx_constant)]
+    #![expect(clippy::approx_constant)]
 
     let a = Id::new("a");
     let b = Id::new("b");

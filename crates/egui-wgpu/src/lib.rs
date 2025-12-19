@@ -16,7 +16,7 @@
 #![doc = document_features::document_features!()]
 //!
 
-#![allow(unsafe_code)]
+#![expect(unsafe_code)]
 
 pub use wgpu;
 

@@ -1,4 +1,4 @@
-#![allow(clippy::mem_forget)] // False positives from #[wasm_bindgen] macro
+#![expect(clippy::mem_forget)] // False positives from #[wasm_bindgen] macro
 
 use eframe::wasm_bindgen::{self, prelude::*};
 

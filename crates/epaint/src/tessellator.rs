@@ -3,7 +3,7 @@
 //! This module converts lines, circles, text and more represented by [`Shape`]
 //! into textured triangles represented by [`Mesh`].
 
-#![allow(clippy::identity_op)]
+#![expect(clippy::identity_op)]
 
 use emath::{GuiRounding as _, NumExt as _, Pos2, Rect, Rot2, Vec2, pos2, remap, vec2};
 

@@ -19,7 +19,7 @@
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!
 
-#![allow(clippy::float_cmp)]
+#![expect(clippy::float_cmp)]
 
 use std::ops::{Add, Div, Mul, RangeInclusive, Sub};
 

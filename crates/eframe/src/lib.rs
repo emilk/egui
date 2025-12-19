@@ -142,7 +142,6 @@
 //!
 
 #![warn(missing_docs)] // let's keep eframe well-documented
-#![allow(clippy::needless_doctest_main)]
 
 // Limitation imposed by `accesskit_winit`:
 // https://github.com/AccessKit/accesskit/tree/accesskit-v0.18.0/platforms/winit#android-activity-compatibility`

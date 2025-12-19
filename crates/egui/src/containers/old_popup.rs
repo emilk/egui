@@ -1,5 +1,5 @@
 //! Old and deprecated API for popups. Use [`Popup`] instead.
-#![allow(deprecated)]
+#![expect(deprecated)]
 
 use crate::containers::tooltip::Tooltip;
 use crate::{

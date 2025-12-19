@@ -1,4 +1,4 @@
-#![allow(dead_code)] // not everything is used on wasm
+#![cfg_attr(target_arch = "wasm32", expect(dead_code))] // not everything is used on wasm
 
 use web_time::Instant;
 
