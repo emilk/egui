@@ -47,7 +47,7 @@ enum AppIconStatus {
     NotSetTryAgain,
 
     /// We successfully set the icon and it should be visible now.
-    #[allow(dead_code, clippy::allow_attributes)] // Not used on Linux
+    #[allow(clippy::allow_attributes, dead_code)] // Not used on Linux
     Set,
 }
 
@@ -71,7 +71,7 @@ fn set_title_and_icon(_title: &str, _icon_data: Option<&IconData>) -> AppIconSta
     #[cfg(target_os = "macos")]
     return set_title_and_icon_mac(_title, _icon_data);
 
-    #[allow(unreachable_code, clippy::allow_attributes)]
+    #[allow(clippy::allow_attributes, unreachable_code)]
     AppIconStatus::NotSetIgnored
 }
 
