@@ -584,8 +584,8 @@ impl ContextImpl {
         }
     }
 
-    fn accesskit_node_builder(&mut self, id: Id) -> &mut accesskit::Node {
-        let state = self.viewport().this_pass.accesskit_state.as_mut().unwrap();
+    fn accesskit_node_builder(&mut self, id: Id) -> Option<&mut accesskit::Node> {
+        let state = self.viewport().this_pass.accesskit_state.as_mut()?;
         let builders = &mut state.nodes;
 
         if let std::collections::hash_map::Entry::Vacant(entry) = builders.entry(id) {
@@ -611,11 +611,11 @@ impl ContextImpl {
             let parent_id = find_accesskit_parent(&state.parent_map, builders, id)
                 .unwrap_or_else(crate::accesskit_root_id);
 
-            let parent_builder = builders.get_mut(&parent_id).unwrap();
+            let parent_builder = builders.get_mut(&parent_id)?;
             parent_builder.push_child(id.accesskit_id());
         }
 
-        builders.get_mut(&id).unwrap()
+        builders.get_mut(&id)
     }
 
     fn pixels_per_point(&mut self) -> f32 {
@@ -3639,14 +3639,7 @@ impl Context {
         id: Id,
         writer: impl FnOnce(&mut accesskit::Node) -> R,
     ) -> Option<R> {
-        self.write(|ctx| {
-            ctx.viewport()
-                .this_pass
-                .accesskit_state
-                .is_some()
-                .then(|| ctx.accesskit_node_builder(id))
-                .map(writer)
-        })
+        self.write(|ctx| ctx.accesskit_node_builder(id).map(writer))
     }
 
     pub(crate) fn register_accesskit_parent(&self, id: Id, parent_id: Id) {

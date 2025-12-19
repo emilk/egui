@@ -1,4 +1,5 @@
 #![allow(clippy::collapsible_else_if)]
+#![allow(clippy::unwrap_used)]
 #![allow(unsafe_code)]
 
 use std::{collections::HashMap, sync::Arc};

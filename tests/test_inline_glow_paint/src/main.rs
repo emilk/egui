@@ -1,6 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![allow(rustdoc::missing_crate_level_docs)] // it's an example
-#![allow(clippy::undocumented_unsafe_blocks)]
+#![expect(
+    // it's a test:
+    clippy::undocumented_unsafe_blocks,
+    clippy::unwrap_used,
+    rustdoc::missing_crate_level_docs
+)]
 
 // Test that we can paint to the screen using glow directly.
 

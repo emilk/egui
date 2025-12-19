@@ -281,7 +281,12 @@ impl Mesh {
             let mesh = Mesh16 {
                 indices: self.indices[span_start..index_cursor]
                     .iter()
-                    .map(|vi| u16::try_from(vi - min_vindex).unwrap())
+                    .map(|vi| {
+                        #[expect(clippy::unwrap_used)]
+                        {
+                            u16::try_from(vi - min_vindex).unwrap()
+                        }
+                    })
                     .collect(),
                 vertices: self.vertices[(min_vindex as usize)..=(max_vindex as usize)].to_vec(),
                 texture_id: self.texture_id,

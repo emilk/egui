@@ -1,5 +1,4 @@
 //! Demo app for egui
-#![allow(clippy::missing_errors_doc)]
 
 mod apps;
 mod backend_panel;

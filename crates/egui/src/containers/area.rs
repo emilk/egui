@@ -722,6 +722,7 @@ fn automatic_area_position(ctx: &Context, constrain_rect: Rect, layer_id: LayerI
     let mut column_bbs = vec![existing[0]];
 
     for &rect in &existing {
+        #[expect(clippy::unwrap_used)]
         let current_column_bb = column_bbs.last_mut().unwrap();
         if rect.left() < current_column_bb.right() {
             // same column
@@ -752,6 +753,7 @@ fn automatic_area_position(ctx: &Context, constrain_rect: Rect, layer_id: LayerI
     }
 
     // Maybe we can fit a new column?
+    #[expect(clippy::unwrap_used)]
     let rightmost = column_bbs.last().unwrap().right();
     if rightmost + 200.0 < constrain_rect.right() {
         return pos2(rightmost + spacing, top);
