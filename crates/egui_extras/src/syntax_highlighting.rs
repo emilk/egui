@@ -359,6 +359,7 @@ impl CodeTheme {
     // function, but at the cost of more code duplication.
     #[expect(clippy::needless_pass_by_value)]
     fn dark_with_font_id(font_id: egui::FontId) -> Self {
+        #![expect(clippy::mem_forget)]
         use egui::{Color32, TextFormat};
         Self {
             dark_mode: true,
@@ -376,6 +377,7 @@ impl CodeTheme {
     // The syntect version takes it by value
     #[expect(clippy::needless_pass_by_value)]
     fn light_with_font_id(font_id: egui::FontId) -> Self {
+        #![expect(clippy::mem_forget)]
         use egui::{Color32, TextFormat};
         Self {
             dark_mode: false,
