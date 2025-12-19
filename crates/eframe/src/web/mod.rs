@@ -145,18 +145,18 @@ fn canvas_content_rect(canvas: &web_sys::HtmlCanvasElement) -> egui::Rect {
     );
 
     // We need to subtract padding and border:
-    if let Some(window) = web_sys::window() {
-        if let Ok(Some(style)) = window.get_computed_style(canvas) {
-            let get_property = |name: &str| -> Option<f32> {
-                let property = style.get_property_value(name).ok()?;
-                property.trim_end_matches("px").parse::<f32>().ok()
-            };
+    if let Some(window) = web_sys::window()
+        && let Ok(Some(style)) = window.get_computed_style(canvas)
+    {
+        let get_property = |name: &str| -> Option<f32> {
+            let property = style.get_property_value(name).ok()?;
+            property.trim_end_matches("px").parse::<f32>().ok()
+        };
 
-            rect.min.x += get_property("padding-left").unwrap_or_default();
-            rect.min.y += get_property("padding-top").unwrap_or_default();
-            rect.max.x -= get_property("padding-right").unwrap_or_default();
-            rect.max.y -= get_property("padding-bottom").unwrap_or_default();
-        }
+        rect.min.x += get_property("padding-left").unwrap_or_default();
+        rect.min.y += get_property("padding-top").unwrap_or_default();
+        rect.max.x -= get_property("padding-right").unwrap_or_default();
+        rect.max.y -= get_property("padding-bottom").unwrap_or_default();
     }
 
     rect
