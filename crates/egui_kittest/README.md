@@ -42,7 +42,7 @@ You can configure test settings via a `kittest.toml` file in your workspace root
 All possible settings and their defaults:
 ```toml
 # path to the snapshot directory
-output_path = "tests/snapshots" 
+output_path = "tests/snapshots"
 
 # default threshold for image comparison tests
 threshold = 0.6
