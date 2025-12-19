@@ -192,16 +192,12 @@ fn is_safari_and_webkit_gtk(gl: &web_sys::WebGlRenderingContext) -> bool {
         .get_extension("WEBGL_debug_renderer_info")
         .unwrap()
         .is_some()
-    {
-        if let Ok(renderer) =
+        && let Ok(renderer) =
             gl.get_parameter(web_sys::WebglDebugRendererInfo::UNMASKED_RENDERER_WEBGL)
-        {
-            if let Some(renderer) = renderer.as_string() {
-                if renderer.contains("Apple") {
-                    return true;
-                }
-            }
-        }
+        && let Some(renderer) = renderer.as_string()
+        && renderer.contains("Apple")
+    {
+        return true;
     }
 
     false
