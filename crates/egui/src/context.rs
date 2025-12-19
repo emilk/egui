@@ -1015,6 +1015,24 @@ impl Context {
         self.write(move |ctx| writer(&mut ctx.memory.data))
     }
 
+    /// Sets the `data_id` used to create new elements in the [`IdTypeMap`].
+    /// This id can later be used to remove all temporary data created for the part of the ui created inside the closure.
+    pub fn push_data_id<R>(
+        &self,
+        context_id: impl Into<Id>,
+        closure: impl FnOnce(&Self) -> R,
+    ) -> R {
+        let context_id = context_id.into();
+        let old_id = self.data_mut(|data_map| {
+            let old_id = data_map.get_current_data_id();
+            data_map.set_current_data_id(context_id);
+            old_id
+        });
+        let result = closure(self);
+        self.data_mut(|data_map| data_map.set_current_data_id(old_id));
+        result
+    }
+
     /// Read-write access to [`GraphicLayers`], where painted [`crate::Shape`]s are written to.
     #[inline]
     pub fn graphics_mut<R>(&self, writer: impl FnOnce(&mut GraphicLayers) -> R) -> R {
