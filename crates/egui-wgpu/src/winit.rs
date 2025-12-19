@@ -1,6 +1,7 @@
 #![expect(clippy::missing_errors_doc)]
 #![expect(clippy::undocumented_unsafe_blocks)]
 #![expect(clippy::unwrap_used)] // TODO(emilk): avoid unwraps
+#![expect(unsafe_code)]
 
 use crate::{RenderState, SurfaceErrorAction, WgpuConfiguration, renderer};
 use crate::{

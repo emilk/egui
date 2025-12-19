@@ -1,6 +1,6 @@
 //! See [`ScrollArea`] for docs.
 
-#![allow(clippy::needless_range_loop)]
+#![expect(clippy::needless_range_loop)]
 
 use std::ops::{Add, AddAssign, BitOr, BitOrAssign};
 

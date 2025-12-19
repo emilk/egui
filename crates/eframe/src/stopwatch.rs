@@ -1,4 +1,4 @@
-#![allow(dead_code)] // not everything is used on wasm
+#![allow(clippy::allow_attributes, dead_code)] // not used on all platforms
 
 use web_time::Instant;
 

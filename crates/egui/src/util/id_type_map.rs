@@ -484,7 +484,7 @@ impl IdTypeMap {
 
     /// For tests
     #[cfg(feature = "persistence")]
-    #[allow(unused, clippy::allow_attributes)]
+    #[allow(clippy::allow_attributes, unused)]
     fn get_generation<T: SerializableAny>(&self, id: Id) -> Option<usize> {
         let element = self.map.get(&hash(TypeId::of::<T>(), id))?;
         match element {
@@ -724,7 +724,7 @@ fn test_two_id_two_type() {
 
 #[test]
 fn test_two_id_x_two_types() {
-    #![allow(clippy::approx_constant)]
+    #![expect(clippy::approx_constant)]
 
     let a = Id::new("a");
     let b = Id::new("b");

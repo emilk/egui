@@ -189,7 +189,7 @@ impl Mesh {
     /// Rectangle with a texture and color.
     #[inline(always)]
     pub fn add_rect_with_uv(&mut self, rect: Rect, uv: Rect, color: Color32) {
-        #![allow(clippy::identity_op)]
+        #![expect(clippy::identity_op)]
         let idx = self.vertices.len() as u32;
         self.indices
             .extend_from_slice(&[idx + 0, idx + 1, idx + 2, idx + 2, idx + 1, idx + 3]);

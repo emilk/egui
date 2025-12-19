@@ -1254,7 +1254,7 @@ impl Context {
             self.check_for_id_clash(w.id, w.rect, "widget");
         }
 
-        #[allow(clippy::let_and_return, clippy::allow_attributes)]
+        #[allow(clippy::allow_attributes, clippy::let_and_return)]
         let res = self.get_response(w);
 
         #[cfg(debug_assertions)]

@@ -10,7 +10,7 @@ pub fn adjust_colors(
     shape: &mut Shape,
     adjust_color: impl Fn(&mut Color32) + Send + Sync + Copy + 'static,
 ) {
-    #![allow(clippy::match_same_arms)]
+    #![expect(clippy::match_same_arms)]
     match shape {
         Shape::Noop => {}
 

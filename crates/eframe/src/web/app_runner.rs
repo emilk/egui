@@ -7,7 +7,7 @@ use crate::{App, epi, web::web_painter::WebPainter};
 use super::{NeedRepaint, now_sec, text_agent::TextAgent};
 
 pub struct AppRunner {
-    #[allow(dead_code, clippy::allow_attributes)]
+    #[allow(clippy::allow_attributes, dead_code)]
     pub(crate) web_options: crate::WebOptions,
     pub(crate) frame: epi::Frame,
     egui_ctx: egui::Context,

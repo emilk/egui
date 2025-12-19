@@ -39,7 +39,7 @@ impl Theme {
     /// This is not the best design as it doesn't allow switching back to "follow system".
     #[must_use]
     pub(crate) fn small_toggle_button(self, ui: &mut crate::Ui) -> Option<Self> {
-        #![allow(clippy::collapsible_else_if)]
+        #![expect(clippy::collapsible_else_if)]
         if self == Self::Dark {
             if ui
                 .add(Button::new("☀").frame(false))
