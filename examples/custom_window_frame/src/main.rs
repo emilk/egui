@@ -1,7 +1,7 @@
 //! Show a custom window frame instead of the default OS window chrome decorations.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![expect(rustdoc::missing_crate_level_docs)] // it's an example
+#![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
 use eframe::egui::{self, ViewportCommand};
 
