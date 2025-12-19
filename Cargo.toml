@@ -340,6 +340,7 @@ unused_peekable = "warn"
 unused_rounding = "warn"
 unused_self = "warn"
 unused_trait_names = "warn"
+unwrap_used = "warn"
 use_self = "warn"
 useless_let_if_seq = "warn"
 useless_transmute = "warn"
@@ -352,7 +353,6 @@ zero_sized_map_values = "warn"
 comparison_chain = "allow"
 should_panic_without_expect = "allow"
 too_many_lines = "allow"
-unwrap_used = "allow" # TODO(emilk): We really wanna warn on this one
 
 # These are meh:
 assigning_clones = "allow" # No please

@@ -459,7 +459,7 @@ fn call_after_delay(delay: std::time::Duration, f: impl FnOnce() + Send + 'stati
             std::thread::sleep(delay);
             f();
         })
-        .unwrap();
+        .expect("Failed to spawn a thread");
 }
 
 #[cfg(target_arch = "wasm32")]

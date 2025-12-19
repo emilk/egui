@@ -361,7 +361,10 @@ fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
 
         (Some(hit_click), Some(hit_drag)) => {
             // We have a perfect hit on both click and drag. Which is the topmost?
+            #[expect(clippy::unwrap_used)]
             let click_idx = close.iter().position(|w| *w == hit_click).unwrap();
+
+            #[expect(clippy::unwrap_used)]
             let drag_idx = close.iter().position(|w| *w == hit_drag).unwrap();
 
             let click_is_on_top_of_drag = drag_idx < click_idx;

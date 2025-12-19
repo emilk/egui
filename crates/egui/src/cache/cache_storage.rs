@@ -28,6 +28,7 @@ pub struct CacheStorage {
 
 impl CacheStorage {
     pub fn cache<Cache: CacheTrait + Default>(&mut self) -> &mut Cache {
+        #[expect(clippy::unwrap_used)]
         self.caches
             .entry(std::any::TypeId::of::<Cache>())
             .or_insert_with(|| Box::<Cache>::default())

@@ -306,6 +306,8 @@ impl Default for Options {
             zoom_with_keyboard: true,
             tessellation_options: Default::default(),
             repaint_on_widget_change: false,
+
+            #[expect(clippy::unwrap_used)]
             max_passes: NonZeroUsize::new(2).unwrap(),
             screen_reader: false,
             warn_on_id_clash: cfg!(debug_assertions),

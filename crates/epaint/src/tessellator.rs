@@ -1403,6 +1403,7 @@ impl Tessellator {
             });
         }
 
+        #[expect(clippy::unwrap_used)] // it's never empty
         let out = out_primitives.last_mut().unwrap();
 
         if let Primitive::Mesh(out_mesh) = &mut out.primitive {

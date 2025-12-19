@@ -1,5 +1,5 @@
 //! Demo app for egui
-#![allow(clippy::missing_errors_doc)]
+#![expect(clippy::unwrap_used)] // TODO(emilk): avoid unwraps
 
 mod apps;
 mod backend_panel;
