@@ -31,6 +31,9 @@ impl WebHandle {
     }
 
     /// Call this once from JavaScript to start your app.
+    ///
+    /// # Errors
+    /// Returns an error if the app could not start.
     #[wasm_bindgen]
     pub async fn start(
         &self,
