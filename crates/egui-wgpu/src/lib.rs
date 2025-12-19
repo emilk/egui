@@ -16,8 +16,6 @@
 #![doc = document_features::document_features!()]
 //!
 
-#![expect(unsafe_code)]
-
 pub use wgpu;
 
 /// Low-level painting of [`egui`](https://github.com/emilk/egui) on [`wgpu`].
