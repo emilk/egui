@@ -631,8 +631,10 @@ impl InputState {
     /// A positive Y-value indicates the content is being moved down, as when swiping down on a touch-screen or track-pad with natural scrolling.
     #[inline(always)]
     pub fn translation_delta(&self) -> Vec2 {
-        self.multi_touch()
-            .map_or(self.smooth_scroll_delta(), |touch| touch.translation_delta)
+        self.multi_touch().map_or_else(
+            || self.smooth_scroll_delta(),
+            |touch| touch.translation_delta,
+        )
     }
 
     /// True if there is an active scroll action that might scroll more when using [`Self::smooth_scroll_delta`].
