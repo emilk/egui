@@ -282,14 +282,12 @@ impl WebPainter for WebPainterWgpu {
 
             let mut capture_buffer = None;
 
-            if capture {
-                if let Some(capture_state) = &mut self.screen_capture_state {
-                    capture_buffer = Some(capture_state.copy_textures(
-                        &render_state.device,
-                        &output_frame,
-                        &mut encoder,
-                    ));
-                }
+            if capture && let Some(capture_state) = &mut self.screen_capture_state {
+                capture_buffer = Some(capture_state.copy_textures(
+                    &render_state.device,
+                    &output_frame,
+                    &mut encoder,
+                ));
             }
 
             Some((output_frame, capture_buffer))
@@ -301,16 +299,16 @@ impl WebPainter for WebPainterWgpu {
             .submit(user_cmd_bufs.into_iter().chain([encoder.finish()]));
 
         if let Some((frame, capture_buffer)) = frame_and_capture_buffer {
-            if let Some(capture_buffer) = capture_buffer {
-                if let Some(capture_state) = &self.screen_capture_state {
-                    capture_state.read_screen_rgba(
-                        self.ctx.clone(),
-                        capture_buffer,
-                        capture_data,
-                        self.capture_tx.clone(),
-                        ViewportId::ROOT,
-                    );
-                }
+            if let Some(capture_buffer) = capture_buffer
+                && let Some(capture_state) = &self.screen_capture_state
+            {
+                capture_state.read_screen_rgba(
+                    self.ctx.clone(),
+                    capture_buffer,
+                    capture_data,
+                    self.capture_tx.clone(),
+                    ViewportId::ROOT,
+                );
             }
 
             frame.present();
