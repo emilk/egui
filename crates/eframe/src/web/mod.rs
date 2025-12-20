@@ -285,8 +285,8 @@ fn create_clipboard_item(mime: &str, bytes: &[u8]) -> Result<web_sys::ClipboardI
 
     let items = js_sys::Object::new();
 
-    // SAFETY: I hope so
     #[expect(unsafe_code, unused_unsafe)] // Weird false positive
+    // SAFETY: I hope so
     unsafe {
         js_sys::Reflect::set(&items, &JsValue::from_str(mime), &blob)?
     };

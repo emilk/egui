@@ -172,7 +172,7 @@ impl Area {
 
     /// Set the [`UiStackInfo`] of the area's [`Ui`].
     ///
-    /// Default to [`UiStackInfo::new(UiKind::GenericArea)`].
+    /// Default to [`UiStackInfo`] with kind [`UiKind::GenericArea`].
     #[inline]
     pub fn info(mut self, info: UiStackInfo) -> Self {
         self.info = info;
