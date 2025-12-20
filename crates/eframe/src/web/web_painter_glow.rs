@@ -197,8 +197,8 @@ fn is_safari_and_webkit_gtk(gl: &web_sys::WebGlRenderingContext) -> bool {
         && let Some(renderer) = renderer.as_string()
         && renderer.contains("Apple")
     {
-        return true;
+        true
+    } else {
+        false
     }
-
-    false
 }
