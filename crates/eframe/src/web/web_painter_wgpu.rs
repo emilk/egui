@@ -268,6 +268,7 @@ impl WebPainter for WebPainterWgpu {
                     label: Some("egui_render"),
                     occlusion_query_set: None,
                     timestamp_writes: None,
+                    multiview_mask: None,
                 });
 
                 // Forgetting the pass' lifetime means that we are no longer compile-time protected from
