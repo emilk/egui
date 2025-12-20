@@ -198,6 +198,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             let mut string = String::new();
             for _ in 0..NUM_LINES {
                 for i in 0..30_u8 {
+                    #[expect(clippy::unwrap_used)]
                     write!(string, "{i:02X} ").unwrap();
                 }
                 string.push('\n');
