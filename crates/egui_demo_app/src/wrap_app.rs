@@ -183,7 +183,7 @@ impl WrapApp {
         cc.egui_ctx
             .add_plugin(crate::accessibility_inspector::AccessibilityInspectorPlugin::default());
 
-        #[allow(unused_mut, clippy::allow_attributes)]
+        #[allow(clippy::allow_attributes, unused_mut)]
         let mut slf = Self {
             state: State::default(),
 

@@ -28,6 +28,7 @@ impl EguiGlow {
         native_pixels_per_point: Option<f32>,
         dithering: bool,
     ) -> Self {
+        #[expect(clippy::unwrap_used)] // TODO(emilk): return error instead of unwrap
         let painter = crate::Painter::new(gl, "", shader_version, dithering)
             .map_err(|err| {
                 log::error!("error occurred in initializing painter:\n{err}");

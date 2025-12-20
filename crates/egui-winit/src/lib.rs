@@ -7,7 +7,7 @@
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!
 
-#![allow(clippy::manual_range_contains)]
+#![expect(clippy::manual_range_contains)]
 
 #[cfg(feature = "accesskit")]
 pub use accesskit_winit;

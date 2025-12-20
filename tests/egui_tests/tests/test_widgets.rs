@@ -1,3 +1,5 @@
+#![expect(clippy::unwrap_used)] // it's a test
+
 use egui::accesskit::Role;
 use egui::load::SizedTexture;
 use egui::{

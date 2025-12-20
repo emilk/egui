@@ -1,6 +1,7 @@
 //! [`egui`] bindings for web apps (compiling to WASM).
 
-#![allow(clippy::missing_errors_doc)] // So many `-> Result<_, JsValue>`
+#![expect(clippy::missing_errors_doc)] // So many `-> Result<_, JsValue>`
+#![expect(clippy::unwrap_used)] // TODO(emilk): remove unwraps
 
 mod app_runner;
 mod backend;

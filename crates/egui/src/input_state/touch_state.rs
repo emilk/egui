@@ -288,6 +288,7 @@ impl TouchState {
             // touch individually, and then calculate the average of all individual changes in
             // direction. But this approach cannot be implemented locally in this method, making
             // everything a bit more complicated.
+            #[expect(clippy::unwrap_used)] // guarded against already
             let first_touch = self.active_touches.values().next().unwrap();
             state.heading = (state.avg_pos - first_touch.pos).angle();
 
@@ -323,13 +324,14 @@ enum PinchType {
 
 impl PinchType {
     fn classify(touches: &BTreeMap<TouchId, ActiveTouch>) -> Self {
+        #![expect(clippy::unwrap_used)]
+
         // For non-proportional 2d zooming:
         // If the user is pinching with two fingers that have roughly the same Y coord,
         // then the Y zoom is unstable and should be 1.
         // Similarly, if the fingers are directly above/below each other,
         // we should only zoom on the Y axis.
         // If the fingers are roughly on a diagonal, we revert to the proportional zooming.
-
         if touches.len() == 2 {
             let mut touches = touches.values();
             let t0 = touches.next().unwrap().pos;

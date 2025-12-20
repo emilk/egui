@@ -1,4 +1,4 @@
-#![allow(clippy::undocumented_unsafe_blocks)]
+#![expect(clippy::undocumented_unsafe_blocks)]
 
 use std::sync::Arc;
 

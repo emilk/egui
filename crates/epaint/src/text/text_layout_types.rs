@@ -1,6 +1,3 @@
-#![allow(clippy::derived_hash_with_manual_eq)] // We need to impl Hash for f32, but we don't implement Eq, which is fine
-#![allow(clippy::wrong_self_convention)] // We use `from_` to indicate conversion direction. It's non-diomatic, but makes sense in this context.
-
 use std::ops::Range;
 use std::sync::Arc;
 
