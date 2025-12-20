@@ -10,52 +10,52 @@
 name: Preview Build
 
 on:
-    - pull_request
+  - pull_request
 
 jobs:
-    build:
-        runs-on: ubuntu-latest
-        timeout-minutes: 60
-        steps:
-            - uses: actions/checkout@v4
-            - uses: dtolnay/rust-toolchain@stable
-              with:
-                  toolchain: 1.92.0
-                  targets: wasm32-unknown-unknown
-            - uses: Swatinem/rust-cache@v2
-              with:
-                  prefix-key: "pr-preview-"
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.92.0
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: "pr-preview-"
 
-            - name: Install wasm-opt
-              uses: sigoden/install-binary@v1
-              with:
-                  repo: WebAssembly/binaryen
-                  tag: version_123
-                  name: wasm-opt
+      - name: Install wasm-opt
+        uses: sigoden/install-binary@v1
+        with:
+          repo: WebAssembly/binaryen
+          tag: version_123
+          name: wasm-opt
 
-            - run: |
-                  scripts/build_demo_web.sh --release
+      - run: |
+          scripts/build_demo_web.sh --release
 
-            - name: Remove gitignore file
-              # We need to remove the .gitignore, otherwise the deploy via git will not include the js and wasm files
-              run: |
-                  rm -rf web_demo/.gitignore
+      - name: Remove gitignore file
+        # We need to remove the .gitignore, otherwise the deploy via git will not include the js and wasm files
+        run: |
+          rm -rf web_demo/.gitignore
 
-            - uses: actions/upload-artifact@v4
-              with:
-                  name: web_demo
-                  path: web_demo
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web_demo
+          path: web_demo
 
-            - name: Generate meta.json
-              env:
-                  PR_NUMBER: ${{ github.event.number }}
-                  URL_SLUG: ${{ github.event.number }}-${{ github.head_ref }}
-              run: |
-                  # Sanitize the URL_SLUG to only contain alphanumeric characters and dashes
-                  URL_SLUG=$(echo $URL_SLUG | tr -cd '[:alnum:]-')
-                  echo "{\"pr_number\": \"$PR_NUMBER\", \"url_slug\": \"$URL_SLUG\"}" > meta.json
+      - name: Generate meta.json
+        env:
+          PR_NUMBER: ${{ github.event.number }}
+          URL_SLUG: ${{ github.event.number }}-${{ github.head_ref }}
+        run: |
+          # Sanitize the URL_SLUG to only contain alphanumeric characters and dashes
+          URL_SLUG=$(echo $URL_SLUG | tr -cd '[:alnum:]-')
+          echo "{\"pr_number\": \"$PR_NUMBER\", \"url_slug\": \"$URL_SLUG\"}" > meta.json
 
-            - uses: actions/upload-artifact@v4
-              with:
-                  name: meta.json
-                  path: meta.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: meta.json
+          path: meta.json
