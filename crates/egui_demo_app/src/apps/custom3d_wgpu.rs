@@ -1,3 +1,5 @@
+#![expect(clippy::unwrap_used)] // TODO(emilk): avoid unwraps
+
 use std::num::NonZeroU64;
 
 use eframe::{

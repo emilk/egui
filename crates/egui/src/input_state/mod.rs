@@ -1551,11 +1551,9 @@ impl InputState {
             options: _,
         } = self;
 
-        ui.style_mut()
-            .text_styles
-            .get_mut(&crate::TextStyle::Body)
-            .unwrap()
-            .family = crate::FontFamily::Monospace;
+        if let Some(style) = ui.style_mut().text_styles.get_mut(&crate::TextStyle::Body) {
+            style.family = crate::FontFamily::Monospace;
+        }
 
         ui.collapsing("Raw Input", |ui| raw.ui(ui));
 

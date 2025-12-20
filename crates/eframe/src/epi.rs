@@ -791,6 +791,7 @@ impl Frame {
     /// This function will take the ownership of your [`glow::Texture`], so please do not delete your [`glow::Texture`] after registering.
     #[cfg(all(feature = "glow", not(target_arch = "wasm32")))]
     pub fn register_native_glow_texture(&mut self, native: glow::Texture) -> egui::TextureId {
+        #[expect(clippy::unwrap_used)]
         self.glow_register_native_texture.as_mut().unwrap()(native)
     }
 

@@ -385,8 +385,8 @@
 //! egui apps can run significantly (~20%) faster by using a custom allocator, like [mimalloc](https://crates.io/crates/mimalloc) or [talc](https://crates.io/crates/talc).
 //!
 
-#![allow(clippy::float_cmp)]
-#![allow(clippy::manual_range_contains)]
+#![expect(clippy::float_cmp)]
+#![expect(clippy::manual_range_contains)]
 
 mod animation_manager;
 mod atomics;

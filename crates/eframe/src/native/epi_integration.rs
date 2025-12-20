@@ -376,6 +376,7 @@ impl EpiIntegration {
 
 fn load_default_egui_icon() -> egui::IconData {
     profiling::function_scope!();
+    #[expect(clippy::unwrap_used)]
     crate::icon_data::from_png_bytes(&include_bytes!("../../data/icon.png")[..]).unwrap()
 }
 

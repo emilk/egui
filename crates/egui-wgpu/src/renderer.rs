@@ -1,4 +1,4 @@
-#![allow(unsafe_code)]
+#![expect(clippy::unwrap_used)] // TODO(emilk): avoid unwraps
 
 use std::{borrow::Cow, num::NonZeroU64, ops::Range};
 
