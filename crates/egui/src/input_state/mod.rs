@@ -970,6 +970,12 @@ impl PointerEvent {
 }
 
 /// Mouse or touch state.
+/// To access the [`PointerState`] you can use the [`crate::Context::input`] function
+///
+/// ```no_run
+/// let pointer_state = ui.ctx().input(|i| i.pointer);
+/// ```
+///
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct PointerState {
