@@ -970,6 +970,7 @@ impl PointerEvent {
 }
 
 /// Mouse or touch state.
+///
 /// To access the [`PointerState`] you can use the [`crate::Context::input`] function
 ///
 /// ```no_run
