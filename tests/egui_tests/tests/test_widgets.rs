@@ -1,3 +1,5 @@
+#![expect(clippy::unwrap_used)] // it's a test
+
 use egui::accesskit::Role;
 use egui::load::SizedTexture;
 use egui::{
@@ -339,7 +341,7 @@ impl<'a> VisualTests<'a> {
 
         f(&mut harness);
 
-        harness.step();
+        harness.run();
 
         let image = harness.render().expect("Failed to render harness");
 

@@ -23,8 +23,8 @@ members = [
 [workspace.package]
 edition = "2024"
 license = "MIT OR Apache-2.0"
-rust-version = "1.88"
-version = "0.33.2"
+rust-version = "1.92"
+version = "0.33.3"
 
 
 [profile.release]
@@ -55,18 +55,18 @@ opt-level = 2
 
 
 [workspace.dependencies]
-emath = { version = "0.33.2", path = "crates/emath", default-features = false }
-ecolor = { version = "0.33.2", path = "crates/ecolor", default-features = false }
-epaint = { version = "0.33.2", path = "crates/epaint", default-features = false }
-epaint_default_fonts = { version = "0.33.2", path = "crates/epaint_default_fonts" }
-egui = { version = "0.33.2", path = "crates/egui", default-features = false }
-egui-winit = { version = "0.33.2", path = "crates/egui-winit", default-features = false }
-egui_extras = { version = "0.33.2", path = "crates/egui_extras", default-features = false }
-egui-wgpu = { version = "0.33.2", path = "crates/egui-wgpu", default-features = false }
-egui_demo_lib = { version = "0.33.2", path = "crates/egui_demo_lib", default-features = false }
-egui_glow = { version = "0.33.2", path = "crates/egui_glow", default-features = false }
-egui_kittest = { version = "0.33.2", path = "crates/egui_kittest", default-features = false }
-eframe = { version = "0.33.2", path = "crates/eframe", default-features = false }
+emath = { version = "0.33.3", path = "crates/emath", default-features = false }
+ecolor = { version = "0.33.3", path = "crates/ecolor", default-features = false }
+epaint = { version = "0.33.3", path = "crates/epaint", default-features = false }
+epaint_default_fonts = { version = "0.33.3", path = "crates/epaint_default_fonts" }
+egui = { version = "0.33.3", path = "crates/egui", default-features = false }
+egui-winit = { version = "0.33.3", path = "crates/egui-winit", default-features = false }
+egui_extras = { version = "0.33.3", path = "crates/egui_extras", default-features = false }
+egui-wgpu = { version = "0.33.3", path = "crates/egui-wgpu", default-features = false }
+egui_demo_lib = { version = "0.33.3", path = "crates/egui_demo_lib", default-features = false }
+egui_glow = { version = "0.33.3", path = "crates/egui_glow", default-features = false }
+egui_kittest = { version = "0.33.3", path = "crates/egui_kittest", default-features = false }
+eframe = { version = "0.33.3", path = "crates/eframe", default-features = false }
 
 accesskit = "0.21.1"
 accesskit_consumer = "0.30.1"
@@ -184,6 +184,7 @@ branches_sharing_code = "warn"
 char_lit_as_u8 = "warn"
 checked_conversions = "warn"
 clear_with_drain = "warn"
+clone_on_ref_ptr = "warn"
 cloned_instead_of_copied = "warn"
 dbg_macro = "warn"
 debug_assert_with_mut_call = "warn"
@@ -310,7 +311,6 @@ string_add = "warn"
 string_add_assign = "warn"
 string_lit_as_bytes = "warn"
 string_lit_chars_any = "warn"
-string_to_string = "warn"
 suspicious_command_arg_space = "warn"
 suspicious_xor_used_as_pow = "warn"
 todo = "warn"
@@ -319,7 +319,7 @@ trailing_empty_array = "warn"
 trait_duplication_in_bounds = "warn"
 transmute_ptr_to_ptr = "warn"
 tuple_array_conversions = "warn"
-unchecked_duration_subtraction = "warn"
+unchecked_time_subtraction = "warn"
 undocumented_unsafe_blocks = "warn"
 unimplemented = "warn"
 uninhabited_references = "warn"
@@ -339,6 +339,7 @@ unused_peekable = "warn"
 unused_rounding = "warn"
 unused_self = "warn"
 unused_trait_names = "warn"
+unwrap_used = "warn"
 use_self = "warn"
 useless_let_if_seq = "warn"
 useless_transmute = "warn"
@@ -351,7 +352,6 @@ zero_sized_map_values = "warn"
 comparison_chain = "allow"
 should_panic_without_expect = "allow"
 too_many_lines = "allow"
-unwrap_used = "allow" # TODO(emilk): We really wanna warn on this one
 
 # These are meh:
 assigning_clones = "allow" # No please

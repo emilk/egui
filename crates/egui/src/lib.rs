@@ -3,7 +3,7 @@
 //! Try the live web demo: <https://www.egui.rs/#demo>. Read more about egui at <https://github.com/emilk/egui>.
 //!
 //! `egui` is in heavy development, with each new version having breaking changes.
-//! You need to have rust 1.88.0 or later to use `egui`.
+//! You need to have rust 1.92.0 or later to use `egui`.
 //!
 //! To quickly get started with egui, you can take a look at [`eframe_template`](https://github.com/emilk/eframe_template)
 //! which uses [`eframe`](https://docs.rs/eframe).
@@ -42,23 +42,6 @@
 //!
 //! In some GUI frameworks this would require defining multiple types and functions with callbacks or message handlers,
 //! but thanks to `egui` being immediate mode everything is one self-contained function!
-//!
-//! ### Getting a [`Ui`]
-//!
-//! Use one of [`Panel`], [`CentralPanel`], [`Window`] or [`Area`] to
-//! get access to an [`Ui`] where you can put widgets. For example:
-//!
-//! ```
-//! # egui::__run_test_ctx(|ctx| {
-//! egui::CentralPanel::default().show(&ctx, |ui| {
-//!     ui.add(egui::Label::new("Hello World!"));
-//!     ui.label("A shorter and more convenient way to add a label.");
-//!     if ui.button("Click me").clicked() {
-//!         // take some action here
-//!     }
-//! });
-//! # });
-//! ```
 //!
 //! ### Quick start
 //!
@@ -195,7 +178,7 @@
 //! * lays out the letters `click me` in order to figure out the size of the button
 //! * decides where on screen to place the button
 //! * check if the mouse is hovering or clicking that location
-//! * chose button colors based on if it is being hovered or clicked
+//! * choose button colors based on if it is being hovered or clicked
 //! * add a [`Shape::Rect`] and [`Shape::Text`] to the list of shapes to be painted later this frame
 //! * return a [`Response`] with the [`clicked`](`Response::clicked`) member so the user can check for interactions
 //!
@@ -402,8 +385,8 @@
 //! egui apps can run significantly (~20%) faster by using a custom allocator, like [mimalloc](https://crates.io/crates/mimalloc) or [talc](https://crates.io/crates/talc).
 //!
 
-#![allow(clippy::float_cmp)]
-#![allow(clippy::manual_range_contains)]
+#![expect(clippy::float_cmp)]
+#![expect(clippy::manual_range_contains)]
 
 mod animation_manager;
 mod atomics;
@@ -441,6 +424,7 @@ mod ui_stack;
 pub mod util;
 pub mod viewport;
 mod widget_rect;
+pub mod widget_style;
 pub mod widget_text;
 pub mod widgets;
 

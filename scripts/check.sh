@@ -9,7 +9,7 @@ set -x
 # Checks all tests, lints etc.
 # Basically does what the CI does.
 
-# cargo +1.88.0 install --quiet typos-cli
+# cargo +1.92.0 install --quiet typos-cli
 
 export RUSTFLAGS="-D warnings"
 export RUSTDOCFLAGS="-D warnings" # https://github.com/emilk/egui/pull/1454
@@ -33,21 +33,25 @@ cargo check --quiet  -p egui_demo_app --lib --target wasm32-unknown-unknown --al
 cargo test  --quiet --all-targets --all-features
 cargo test  --quiet --doc # slow - checks all doc-tests
 
-cargo check --quiet -p eframe --no-default-features --features "glow"
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    cargo check --quiet -p eframe --no-default-features --features "glow","x11"
+    cargo check --quiet -p eframe --no-default-features --features "glow","wayland"
     cargo check --quiet -p eframe --no-default-features --features "wgpu","x11"
     cargo check --quiet -p eframe --no-default-features --features "wgpu","wayland"
 else
+    cargo check --quiet -p eframe --no-default-features --features "glow"
     cargo check --quiet -p eframe --no-default-features --features "wgpu"
 fi
 
 cargo check --quiet -p egui --no-default-features --features "serde"
-cargo check --quiet -p egui_demo_app --no-default-features --features "glow"
 
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    cargo check --quiet -p egui_demo_app --no-default-features --features "glow","x11"
+    cargo check --quiet -p egui_demo_app --no-default-features --features "glow","wayland"
     cargo check --quiet -p egui_demo_app --no-default-features --features "wgpu","x11"
     cargo check --quiet -p egui_demo_app --no-default-features --features "wgpu","wayland"
 else
+    cargo check --quiet -p egui_demo_app --no-default-features --features "glow"
     cargo check --quiet -p egui_demo_app --no-default-features --features "wgpu"
 fi
 

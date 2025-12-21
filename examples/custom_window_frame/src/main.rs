@@ -31,8 +31,8 @@ impl eframe::App for MyApp {
         egui::Rgba::TRANSPARENT.to_array() // Make sure we don't paint anything behind the rounded corners
     }
 
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        custom_window_frame(ctx, "egui with custom frame", |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        custom_window_frame(ui, "egui with custom frame", |ui| {
             ui.label("This is just the contents of the window.");
             ui.horizontal(|ui| {
                 ui.label("egui theme:");
@@ -42,17 +42,19 @@ impl eframe::App for MyApp {
     }
 }
 
-fn custom_window_frame(ctx: &egui::Context, title: &str, add_contents: impl FnOnce(&mut egui::Ui)) {
-    use egui::{CentralPanel, UiBuilder};
+fn custom_window_frame(ui: &mut egui::Ui, title: &str, add_contents: impl FnOnce(&mut egui::Ui)) {
+    use egui::UiBuilder;
 
     let panel_frame = egui::Frame::new()
-        .fill(ctx.style().visuals.window_fill())
+        .fill(ui.global_style().visuals.window_fill())
         .corner_radius(10)
-        .stroke(ctx.style().visuals.widgets.noninteractive.fg_stroke)
+        .stroke(ui.global_style().visuals.widgets.noninteractive.fg_stroke)
         .outer_margin(1); // so the stroke is within the bounds
 
-    CentralPanel::default().frame(panel_frame).show(ctx, |ui| {
+    panel_frame.show(ui, |ui| {
         let app_rect = ui.max_rect();
+
+        ui.expand_to_include_rect(app_rect); // Expand frame to include it all
 
         let title_bar_height = 32.0;
         let title_bar_rect = {
@@ -106,12 +108,11 @@ fn title_bar_ui(ui: &mut egui::Ui, title_bar_rect: eframe::epaint::Rect, title: 
     // Interact with the title bar (drag to move window):
     if title_bar_response.double_clicked() {
         let is_maximized = ui.input(|i| i.viewport().maximized.unwrap_or(false));
-        ui.ctx()
-            .send_viewport_cmd(ViewportCommand::Maximized(!is_maximized));
+        ui.send_viewport_cmd(ViewportCommand::Maximized(!is_maximized));
     }
 
     if title_bar_response.drag_started_by(PointerButton::Primary) {
-        ui.ctx().send_viewport_cmd(ViewportCommand::StartDrag);
+        ui.send_viewport_cmd(ViewportCommand::StartDrag);
     }
 
     ui.scope_builder(
@@ -137,7 +138,7 @@ fn close_maximize_minimize(ui: &mut egui::Ui) {
         .add(Button::new(RichText::new("❌").size(button_height)))
         .on_hover_text("Close the window");
     if close_response.clicked() {
-        ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+        ui.send_viewport_cmd(egui::ViewportCommand::Close);
     }
 
     let is_maximized = ui.input(|i| i.viewport().maximized.unwrap_or(false));
@@ -146,15 +147,14 @@ fn close_maximize_minimize(ui: &mut egui::Ui) {
             .add(Button::new(RichText::new("🗗").size(button_height)))
             .on_hover_text("Restore window");
         if maximized_response.clicked() {
-            ui.ctx()
-                .send_viewport_cmd(ViewportCommand::Maximized(false));
+            ui.send_viewport_cmd(ViewportCommand::Maximized(false));
         }
     } else {
         let maximized_response = ui
             .add(Button::new(RichText::new("🗗").size(button_height)))
             .on_hover_text("Maximize window");
         if maximized_response.clicked() {
-            ui.ctx().send_viewport_cmd(ViewportCommand::Maximized(true));
+            ui.send_viewport_cmd(ViewportCommand::Maximized(true));
         }
     }
 
@@ -162,6 +162,6 @@ fn close_maximize_minimize(ui: &mut egui::Ui) {
         .add(Button::new(RichText::new("🗕").size(button_height)))
         .on_hover_text("Minimize the window");
     if minimized_response.clicked() {
-        ui.ctx().send_viewport_cmd(ViewportCommand::Minimized(true));
+        ui.send_viewport_cmd(ViewportCommand::Minimized(true));
     }
 }

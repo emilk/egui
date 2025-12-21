@@ -70,6 +70,41 @@ impl<'open> Window<'open> {
         }
     }
 
+    /// Construct a [`Window`] that follows the given viewport.
+    pub fn from_viewport(id: ViewportId, viewport: ViewportBuilder) -> Self {
+        let ViewportBuilder {
+            title,
+            app_id,
+            inner_size,
+            min_inner_size,
+            max_inner_size,
+            resizable,
+            decorations,
+            title_shown,
+            minimize_button,
+            .. // A lot of things not implemented yet
+        } = viewport;
+
+        let mut window = Self::new(title.or(app_id).unwrap_or_else(String::new)).id(Id::new(id));
+
+        if let Some(inner_size) = inner_size {
+            window = window.default_size(inner_size);
+        }
+        if let Some(min_inner_size) = min_inner_size {
+            window = window.min_size(min_inner_size);
+        }
+        if let Some(max_inner_size) = max_inner_size {
+            window = window.max_size(max_inner_size);
+        }
+        if let Some(resizable) = resizable {
+            window = window.resizable(resizable);
+        }
+        window = window.title_bar(decorations.unwrap_or(true) && title_shown.unwrap_or(true));
+        window = window.collapsible(minimize_button.unwrap_or(true));
+
+        window
+    }
+
     /// Assign a unique id to the Window. Required if the title changes, or is shared with another window.
     #[inline]
     pub fn id(mut self, id: Id) -> Self {
@@ -440,9 +475,11 @@ impl Window<'_> {
             fade_out,
         } = self;
 
-        let header_color =
-            frame.map_or_else(|| ctx.style().visuals.widgets.open.weak_bg_fill, |f| f.fill);
-        let mut window_frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
+        let header_color = frame.map_or_else(
+            || ctx.global_style().visuals.widgets.open.weak_bg_fill,
+            |f| f.fill,
+        );
+        let mut window_frame = frame.unwrap_or_else(|| Frame::window(&ctx.global_style()));
 
         let is_explicitly_closed = matches!(open, Some(false));
         let is_open = !is_explicitly_closed || ctx.memory(|mem| mem.everything_is_visible());
@@ -474,7 +511,7 @@ impl Window<'_> {
 
         // Calculate roughly how much larger the full window inner size is compared to the content rect
         let (title_bar_height_with_margin, title_content_spacing) = if with_title_bar {
-            let style = ctx.style();
+            let style = ctx.global_style();
             let title_bar_inner_height = ctx
                 .fonts_mut(|fonts| title.font_height(fonts, &style))
                 .at_least(style.spacing.interact_size.y);
@@ -930,8 +967,8 @@ fn resize_interaction(
 
     let id = Id::new(layer_id).with("edge_drag");
 
-    let side_grab_radius = ctx.style().interaction.resize_grab_radius_side;
-    let corner_grab_radius = ctx.style().interaction.resize_grab_radius_corner;
+    let side_grab_radius = ctx.global_style().interaction.resize_grab_radius_side;
+    let corner_grab_radius = ctx.global_style().interaction.resize_grab_radius_corner;
 
     let vetrtical_rect = |a: Pos2, b: Pos2| {
         Rect::from_min_max(a, b).expand2(vec2(side_grab_radius, -corner_grab_radius))
@@ -1141,8 +1178,7 @@ impl TitleBar {
         title_bar_height_with_margin: f32,
     ) -> Self {
         if false {
-            ui.ctx()
-                .debug_painter()
+            ui.debug_painter()
                 .debug_rect(ui.min_rect(), Color32::GREEN, "outer_min_rect");
         }
 
@@ -1170,8 +1206,7 @@ impl TitleBar {
         let min_rect = Rect::from_min_size(ui.min_rect().min, min_inner_size);
 
         if false {
-            ui.ctx()
-                .debug_painter()
+            ui.debug_painter()
                 .debug_rect(min_rect, Color32::LIGHT_BLUE, "min_rect");
         }
 
@@ -1208,8 +1243,7 @@ impl TitleBar {
         let title_inner_rect = self.inner_rect;
 
         if false {
-            ui.ctx()
-                .debug_painter()
+            ui.debug_painter()
                 .debug_rect(self.inner_rect, Color32::RED, "TitleBar");
         }
 
@@ -1240,7 +1274,7 @@ impl TitleBar {
         let text_pos = text_pos - self.title_galley.rect.min.to_vec2();
         ui.painter().galley(
             text_pos,
-            self.title_galley.clone(),
+            Arc::clone(&self.title_galley),
             ui.visuals().text_color(),
         );
 
@@ -1248,8 +1282,7 @@ impl TitleBar {
             // Paint separator between title and content:
             let content_rect = content_response.rect;
             if false {
-                ui.ctx()
-                    .debug_painter()
+                ui.debug_painter()
                     .debug_rect(content_rect, Color32::RED, "content_rect");
             }
             let y = title_inner_rect.bottom() + window_frame.stroke.width / 2.0;
@@ -1263,11 +1296,8 @@ impl TitleBar {
         let double_click_rect = title_inner_rect.shrink2(vec2(32.0, 0.0));
 
         if false {
-            ui.ctx().debug_painter().debug_rect(
-                double_click_rect,
-                Color32::GREEN,
-                "double_click_rect",
-            );
+            ui.debug_painter()
+                .debug_rect(double_click_rect, Color32::GREEN, "double_click_rect");
         }
 
         let id = ui.unique_id().with("__window_title_bar");

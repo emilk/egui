@@ -114,7 +114,7 @@ fn color_button(ui: &mut Ui, color: Color32, open: bool) -> Response {
 }
 
 fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Color32) -> Response {
-    #![allow(clippy::identity_op)]
+    #![expect(clippy::identity_op)]
 
     let desired_size = vec2(ui.spacing().slider_width, ui.spacing().interact_size.y);
     let (rect, response) = ui.allocate_at_least(desired_size, Sense::click_and_drag());
@@ -378,7 +378,7 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
 }
 
 fn input_type_button_ui(ui: &mut Ui) {
-    let mut input_type = ui.ctx().style().visuals.numeric_color_space;
+    let mut input_type = ui.global_style().visuals.numeric_color_space;
     if input_type.toggle_button_ui(ui).changed() {
         ui.ctx().all_styles_mut(|s| {
             s.visuals.numeric_color_space = input_type;
@@ -402,9 +402,9 @@ fn srgba_edit_ui(ui: &mut Ui, [r, g, b, a]: &mut [u8; 4], alpha: Alpha) -> bool 
             .clicked()
         {
             if alpha == Alpha::Opaque {
-                ui.ctx().copy_text(format!("{r}, {g}, {b}"));
+                ui.copy_text(format!("{r}, {g}, {b}"));
             } else {
-                ui.ctx().copy_text(format!("{r}, {g}, {b}, {a}"));
+                ui.copy_text(format!("{r}, {g}, {b}, {a}"));
             }
         }
         edited |= DragValue::new(r).speed(0.5).prefix("R ").ui(ui).changed();
@@ -443,10 +443,9 @@ fn rgba_edit_ui(ui: &mut Ui, [r, g, b, a]: &mut [f32; 4], alpha: Alpha) -> bool 
             .clicked()
         {
             if alpha == Alpha::Opaque {
-                ui.ctx().copy_text(format!("{r:.03}, {g:.03}, {b:.03}"));
+                ui.copy_text(format!("{r:.03}, {g:.03}, {b:.03}"));
             } else {
-                ui.ctx()
-                    .copy_text(format!("{r:.03}, {g:.03}, {b:.03}, {a:.03}"));
+                ui.copy_text(format!("{r:.03}, {g:.03}, {b:.03}, {a:.03}"));
             }
         }
 

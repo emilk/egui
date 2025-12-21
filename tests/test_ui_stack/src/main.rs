@@ -1,5 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![allow(rustdoc::missing_crate_level_docs)] // it's an example
+#![expect(rustdoc::missing_crate_level_docs)] // it's an example
+
+use std::sync::Arc;
 
 use eframe::egui;
 use eframe::egui::{Rangef, Shape, UiKind};
@@ -31,10 +33,10 @@ struct MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        ctx.all_styles_mut(|style| style.interaction.tooltip_delay = 0.0);
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        ui.all_styles_mut(|style| style.interaction.tooltip_delay = 0.0);
 
-        egui::Panel::left("side_panel_left").show(ctx, |ui| {
+        egui::Panel::left("side_panel_left").show_inside(ui, |ui| {
             ui.heading("Information");
             ui.label(
                 "This is a demo/test environment of the `UiStack` feature. The tables display \
@@ -49,7 +51,7 @@ impl eframe::App for MyApp {
             ui.checkbox(&mut self.show_memory, "📝 Memory");
             ui.add_space(10.0);
             if ui.button("Reset egui memory").clicked() {
-                ctx.memory_mut(|mem| *mem = Default::default());
+                ui.memory_mut(|mem| *mem = Default::default());
             }
             ui.add_space(20.0);
 
@@ -82,7 +84,7 @@ impl eframe::App for MyApp {
             });
         });
 
-        egui::Panel::right("side_panel_right").show(ctx, |ui| {
+        egui::Panel::right("side_panel_right").show_inside(ui, |ui| {
             egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
                 stack_ui(ui);
 
@@ -92,7 +94,7 @@ impl eframe::App for MyApp {
             });
         });
 
-        egui::CentralPanel::default().show(ctx, |ui| {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
                 ui.label("stack here:");
                 stack_ui(ui);
@@ -158,7 +160,7 @@ impl eframe::App for MyApp {
                             row.col(|ui| {
                                 ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
                                 ui.label("See stack below");
-                                cell_stack = Some(ui.stack().clone());
+                                cell_stack = Some(Arc::clone(ui.stack()));
                             });
                         });
                     });
@@ -172,7 +174,7 @@ impl eframe::App for MyApp {
 
         egui::Panel::bottom("bottom_panel")
             .resizable(true)
-            .show(ctx, |ui| {
+            .show_inside(ui, |ui| {
                 egui::ScrollArea::vertical()
                     .auto_shrink(false)
                     .show(ui, |ui| {
@@ -186,30 +188,31 @@ impl eframe::App for MyApp {
 
         egui::Window::new("Window")
             .pivot(egui::Align2::RIGHT_TOP)
-            .show(ctx, |ui| {
+            .show(ui.ctx(), |ui| {
                 full_span_widget(ui, false);
                 ui.add_space(20.0);
                 stack_ui(ui);
             });
 
+        let ctx = ui.ctx().clone();
         egui::Window::new("🔧 Settings")
             .open(&mut self.show_settings)
             .vscroll(true)
-            .show(ctx, |ui| {
+            .show(&ctx, |ui| {
                 ctx.settings_ui(ui);
             });
 
         egui::Window::new("🔍 Inspection")
             .open(&mut self.show_inspection)
             .vscroll(true)
-            .show(ctx, |ui| {
+            .show(&ctx, |ui| {
                 ctx.inspection_ui(ui);
             });
 
         egui::Window::new("📝 Memory")
             .open(&mut self.show_memory)
             .resizable(false)
-            .show(ctx, |ui| {
+            .show(&ctx, |ui| {
                 ctx.memory_ui(ui);
             });
     }
@@ -252,7 +255,7 @@ fn full_span_horizontal_range(ui_stack: &egui::UiStack) -> Rangef {
 }
 
 fn stack_ui(ui: &mut egui::Ui) {
-    let ui_stack = ui.stack().clone();
+    let ui_stack = Arc::clone(ui.stack());
     ui.scope(|ui| {
         stack_ui_impl(ui, &ui_stack);
     });
@@ -297,12 +300,12 @@ fn stack_ui_impl(ui: &mut egui::Ui, stack: &egui::UiStack) {
                         body.row(20.0, |mut row| {
                             row.col(|ui| {
                                 if ui.label(format!("{:?}", node.id)).hovered() {
-                                    ui.ctx().debug_painter().debug_rect(
+                                    ui.debug_painter().debug_rect(
                                         node.max_rect,
                                         egui::Color32::GREEN,
                                         "max",
                                     );
-                                    ui.ctx().debug_painter().circle_filled(
+                                    ui.debug_painter().circle_filled(
                                         node.min_rect.min,
                                         2.0,
                                         egui::Color32::RED,

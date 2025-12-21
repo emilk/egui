@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![allow(rustdoc::missing_crate_level_docs)] // it's an example
+#![expect(rustdoc::missing_crate_level_docs)] // it's an example
 
 use eframe::egui;
 
@@ -25,8 +25,8 @@ struct MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             ui.label("Drag-and-drop files onto the window!");
 
             if ui.button("Open file…").clicked()
@@ -73,10 +73,10 @@ impl eframe::App for MyApp {
             }
         });
 
-        preview_files_being_dropped(ctx);
+        preview_files_being_dropped(ui.ctx());
 
         // Collect dropped files:
-        ctx.input(|i| {
+        ui.input(|i| {
             if !i.raw.dropped_files.is_empty() {
                 self.dropped_files.clone_from(&i.raw.dropped_files);
             }
@@ -113,7 +113,7 @@ fn preview_files_being_dropped(ctx: &egui::Context) {
             content_rect.center(),
             Align2::CENTER_CENTER,
             text,
-            TextStyle::Heading.resolve(&ctx.style()),
+            TextStyle::Heading.resolve(&ctx.global_style()),
             Color32::WHITE,
         );
     }

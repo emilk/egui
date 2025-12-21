@@ -195,7 +195,7 @@ fn ui_resource(ui: &mut egui::Ui, resource: &Resource) {
             if let Some(text) = &text {
                 let tooltip = "Click to copy the response body";
                 if ui.button("📋").on_hover_text(tooltip).clicked() {
-                    ui.ctx().copy_text(text.clone());
+                    ui.copy_text(text.clone());
                 }
                 ui.separator();
             }
@@ -222,10 +222,10 @@ fn syntax_highlighting(
 ) -> Option<ColoredText> {
     let extension_and_rest: Vec<&str> = response.url.rsplitn(2, '.').collect();
     let extension = extension_and_rest.first()?;
-    let theme = egui_extras::syntax_highlighting::CodeTheme::from_style(&ctx.style());
+    let theme = egui_extras::syntax_highlighting::CodeTheme::from_style(&ctx.global_style());
     Some(ColoredText(egui_extras::syntax_highlighting::highlight(
         ctx,
-        &ctx.style(),
+        &ctx.global_style(),
         &theme,
         text,
         extension,

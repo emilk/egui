@@ -14,7 +14,7 @@ use crate::{
 /// It also lets you easily show a tooltip on hover.
 ///
 /// Whenever something gets added to a [`Ui`], a [`Response`] object is returned.
-/// [`ui.add`] returns a [`Response`], as does [`ui.button`], and all similar shortcuts.
+/// [`Ui::add`] returns a [`Response`], as does [`Ui::button`], and all similar shortcuts.
 ///
 /// ⚠️ The `Response` contains a clone of [`Context`], and many methods lock the `Context`.
 /// It can therefore be a deadlock to use `Context` from within a context-locking closures,
@@ -761,7 +761,7 @@ impl Response {
     /// # });
     /// ```
     pub fn scroll_to_me(&self, align: Option<Align>) {
-        self.scroll_to_me_animation(align, self.ctx.style().scroll_animation);
+        self.scroll_to_me_animation(align, self.ctx.global_style().scroll_animation);
     }
 
     /// Like [`Self::scroll_to_me`], but allows you to specify the [`crate::style::ScrollAnimation`].

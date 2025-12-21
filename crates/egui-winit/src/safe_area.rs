@@ -25,7 +25,7 @@ mod ios {
 
         let app = UIApplication::sharedApplication(main_thread_marker);
 
-        #[allow(unsafe_code)]
+        #[expect(unsafe_code)]
         unsafe {
             // Look for the first window scene that's in the foreground
             for scene in app.connectedScenes() {

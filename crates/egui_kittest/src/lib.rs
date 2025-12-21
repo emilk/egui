@@ -2,6 +2,7 @@
 //!
 //! ## Feature flags
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
+#![expect(clippy::unwrap_used)] // TODO(emilk): avoid unwraps
 
 mod builder;
 #[cfg(feature = "snapshot")]
@@ -137,8 +138,8 @@ impl<'a, State> Harness<'a, State> {
 
         // We need to run egui for a single frame so that the AccessKit state can be initialized
         // and users can immediately start querying for widgets.
-        let mut output = ctx.run(input.clone(), |ctx| {
-            response = app.run(ctx, &mut state, false);
+        let mut output = ctx.run_ui(input.clone(), |ui| {
+            response = app.run(ui, &mut state, false);
         });
 
         renderer.handle_delta(&output.textures_delta);
@@ -204,7 +205,9 @@ impl<'a, State> Harness<'a, State> {
     /// assert_eq!(*harness.state(), true);
     /// ```
     #[track_caller]
+    #[deprecated = "use `new_ui_state` instead"]
     pub fn new_state(app: impl FnMut(&egui::Context, &mut State) + 'a, state: State) -> Self {
+        #[expect(deprecated)]
         Self::builder().build_state(app, state)
     }
 
@@ -287,8 +290,8 @@ impl<'a, State> Harness<'a, State> {
     fn _step(&mut self, sizing_pass: bool) {
         self.input.predicted_dt = self.step_dt;
 
-        let mut output = self.ctx.run(self.input.take(), |ctx| {
-            self.response = self.app.run(ctx, &mut self.state, sizing_pass);
+        let mut output = self.ctx.run_ui(self.input.take(), |ui| {
+            self.response = self.app.run(ui, &mut self.state, sizing_pass);
         });
         self.kittest.update(
             output
@@ -735,7 +738,9 @@ impl<'a> Harness<'a> {
     /// });
     /// ```
     #[track_caller]
+    #[deprecated = "use `new_ui` instead"]
     pub fn new(app: impl FnMut(&egui::Context) + 'a) -> Self {
+        #[expect(deprecated)]
         Self::builder().build(app)
     }
 

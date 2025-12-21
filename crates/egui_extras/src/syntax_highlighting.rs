@@ -3,8 +3,6 @@
 //! Turn on the `syntect` feature for great syntax highlighting of any language.
 //! Otherwise, a very simple fallback will be used, that works okish for C, C++, Rust, and Python.
 
-#![allow(clippy::mem_forget)] // False positive from enum_map macro
-
 use egui::TextStyle;
 use egui::text::LayoutJob;
 
@@ -66,7 +64,7 @@ fn highlight_inner(
     settings: Option<HighlightSettings<'_>>,
 ) -> LayoutJob {
     // We take in both context and style so that in situations where ui is not available such as when
-    // performing it at a separate thread (ctx, ctx.style()) can be used and when ui is available
+    // performing it at a separate thread (ctx, ctx.global_style()) can be used and when ui is available
     // (ui.ctx(), ui.style()) can be used
 
     #[expect(non_local_definitions)]
@@ -272,7 +270,7 @@ impl CodeTheme {
     ///
     /// There is one dark and one light theme stored at any one time.
     pub fn from_memory(ctx: &egui::Context, style: &egui::Style) -> Self {
-        #![allow(clippy::needless_return)]
+        #![expect(clippy::needless_return)]
 
         let (id, default) = if style.visuals.dark_mode {
             (egui::Id::new("dark"), Self::dark as fn(f32) -> Self)
@@ -301,7 +299,7 @@ impl CodeTheme {
     ///
     /// There is one dark and one light theme stored at any one time.
     pub fn store_in_memory(self, ctx: &egui::Context) {
-        let id = if ctx.style().visuals.dark_mode {
+        let id = if ctx.global_style().visuals.dark_mode {
             egui::Id::new("dark")
         } else {
             egui::Id::new("light")
@@ -361,6 +359,7 @@ impl CodeTheme {
     // function, but at the cost of more code duplication.
     #[expect(clippy::needless_pass_by_value)]
     fn dark_with_font_id(font_id: egui::FontId) -> Self {
+        #![expect(clippy::mem_forget)]
         use egui::{Color32, TextFormat};
         Self {
             dark_mode: true,
@@ -378,6 +377,7 @@ impl CodeTheme {
     // The syntect version takes it by value
     #[expect(clippy::needless_pass_by_value)]
     fn light_with_font_id(font_id: egui::FontId) -> Self {
+        #![expect(clippy::mem_forget)]
         use egui::{Color32, TextFormat};
         Self {
             dark_mode: false,

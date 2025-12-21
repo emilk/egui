@@ -1,4 +1,4 @@
-#![allow(clippy::needless_pass_by_value)] // False positives with `impl ToString`
+#![expect(clippy::needless_pass_by_value)] // False positives with `impl ToString`
 
 use std::{cmp::Ordering, ops::RangeInclusive};
 
@@ -624,7 +624,7 @@ impl Widget for DragValue<'_> {
                 ui.memory_mut(|mem| mem.request_focus(id));
                 select_all_text(ui, id, response.id, &value_text);
             } else if response.dragged() {
-                ui.ctx().set_cursor_icon(cursor_icon);
+                ui.set_cursor_icon(cursor_icon);
 
                 let mdelta = response.drag_delta();
                 let delta_points = mdelta.x - mdelta.y; // Increase to the right and up

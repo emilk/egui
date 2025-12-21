@@ -194,7 +194,7 @@ pub fn menus_should_close_even_if_submenu_disappears() {
     const OTHER_BUTTON: &str = "Other button";
     const MENU_BUTTON: &str = "Menu";
     const SUB_MENU_BUTTON: &str = "Always here";
-    const TOGGLABLE_SUB_MENU_BUTTON: &str = "Maybe here";
+    const TOGGLEABLE_SUB_MENU_BUTTON: &str = "Maybe here";
     const INSIDE_SUB_MENU_BUTTON: &str = "Inside submenu";
 
     for frame_delay in (0..3).rev() {
@@ -206,7 +206,7 @@ pub fn menus_should_close_even_if_submenu_disappears() {
                 Popup::menu(&response).show(|ui| {
                     let _ = ui.button(SUB_MENU_BUTTON);
                     if *state {
-                        ui.menu_button(TOGGLABLE_SUB_MENU_BUTTON, |ui| {
+                        ui.menu_button(TOGGLEABLE_SUB_MENU_BUTTON, |ui| {
                             let _ = ui.button(INSIDE_SUB_MENU_BUTTON);
                         });
                     }
@@ -221,7 +221,7 @@ pub fn menus_should_close_even_if_submenu_disappears() {
 
         // Open the sub menu
         harness
-            .get_by_label_contains(TOGGLABLE_SUB_MENU_BUTTON)
+            .get_by_label_contains(TOGGLEABLE_SUB_MENU_BUTTON)
             .hover();
         harness.run();
 

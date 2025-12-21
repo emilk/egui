@@ -219,7 +219,7 @@ impl<'app> WgpuWinitApp<'app> {
 
         {
             profiling::scope!("set_window");
-            pollster::block_on(painter.set_window(ViewportId::ROOT, Some(window.clone())))?;
+            pollster::block_on(painter.set_window(ViewportId::ROOT, Some(Arc::clone(&window))))?;
         }
 
         let wgpu_render_state = painter.render_state();
@@ -238,7 +238,7 @@ impl<'app> WgpuWinitApp<'app> {
         );
 
         {
-            let event_loop_proxy = self.repaint_proxy.clone();
+            let event_loop_proxy = Arc::clone(&self.repaint_proxy);
 
             egui_ctx.set_request_repaint_callback(move |info| {
                 log::trace!("request_repaint_callback: {info:?}");
@@ -256,7 +256,7 @@ impl<'app> WgpuWinitApp<'app> {
             });
         }
 
-        #[allow(unused_mut, clippy::allow_attributes)] // used for accesskit
+        #[allow(clippy::allow_attributes, unused_mut)] // used for accesskit
         let mut egui_winit = egui_winit::State::new(
             egui_ctx.clone(),
             ViewportId::ROOT,
@@ -610,7 +610,7 @@ impl WgpuWinitRunning<'_> {
 
             {
                 profiling::scope!("set_window");
-                pollster::block_on(painter.set_window(viewport_id, Some(window.clone())))?;
+                pollster::block_on(painter.set_window(viewport_id, Some(Arc::clone(window))))?;
             }
 
             let Some(egui_winit) = egui_winit.as_mut() else {
@@ -690,7 +690,7 @@ impl WgpuWinitRunning<'_> {
         let vsync_secs = painter.paint_and_update_textures(
             viewport_id,
             pixels_per_point,
-            app.clear_color(&egui_ctx.style().visuals),
+            app.clear_color(&egui_ctx.global_style().visuals),
             &clipped_primitives,
             &textures_delta,
             screenshot_commands,
@@ -919,7 +919,7 @@ impl Viewport {
                 let window = Arc::new(window);
 
                 if let Err(err) =
-                    pollster::block_on(painter.set_window(viewport_id, Some(window.clone())))
+                    pollster::block_on(painter.set_window(viewport_id, Some(Arc::clone(&window))))
                 {
                     log::error!("on set_window: viewport_id {viewport_id:?} {err}");
                 }
@@ -1027,8 +1027,8 @@ fn render_immediate_viewport(
         shapes,
         pixels_per_point,
         viewport_output,
-    } = egui_ctx.run(input, |ctx| {
-        viewport_ui_cb(ctx);
+    } = egui_ctx.run_ui(input, |ui| {
+        viewport_ui_cb(ui);
     });
 
     // ------------------------------------------
@@ -1051,7 +1051,8 @@ fn render_immediate_viewport(
 
     {
         profiling::scope!("set_window");
-        if let Err(err) = pollster::block_on(painter.set_window(ids.this, Some(window.clone()))) {
+        if let Err(err) = pollster::block_on(painter.set_window(ids.this, Some(Arc::clone(window))))
+        {
             log::error!(
                 "when rendering viewport_id={:?}, set_window Error {err}",
                 ids.this
@@ -1155,7 +1156,7 @@ fn initialize_or_update_viewport<'a>(
     ids: ViewportIdPair,
     class: ViewportClass,
     mut builder: ViewportBuilder,
-    viewport_ui_cb: Option<Arc<dyn Fn(&egui::Context) + Send + Sync>>,
+    viewport_ui_cb: Option<Arc<dyn Fn(&mut egui::Ui) + Send + Sync>>,
     painter: &mut egui_wgpu::winit::Painter,
 ) -> &'a mut Viewport {
     use std::collections::btree_map::Entry;

@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![allow(rustdoc::missing_crate_level_docs)] // it's an example
-#![allow(unsafe_code)]
-#![allow(clippy::undocumented_unsafe_blocks)]
+#![expect(rustdoc::missing_crate_level_docs)] // it's an example
+#![expect(unsafe_code)]
+#![expect(clippy::undocumented_unsafe_blocks)]
 
 use eframe::{egui, egui_glow, glow};
 
@@ -43,8 +43,8 @@ impl MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 0.0;
                 ui.label("The triangle is being painted using ");
@@ -75,7 +75,7 @@ impl MyApp {
 
         // Clone locals so we can move them into the paint callback:
         let angle = self.angle;
-        let rotating_triangle = self.rotating_triangle.clone();
+        let rotating_triangle = Arc::clone(&self.rotating_triangle);
 
         let callback = egui::PaintCallback {
             rect,

@@ -1,7 +1,5 @@
 //! egui theme (spacing, colors, etc).
 
-#![allow(clippy::if_same_then_else)]
-
 use emath::Align;
 use epaint::{AlphaFromCoverage, CornerRadius, Shadow, Stroke, TextOptions, text::FontTweak};
 use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};

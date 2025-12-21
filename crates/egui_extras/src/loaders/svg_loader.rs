@@ -36,7 +36,7 @@ fn is_supported(uri: &str) -> bool {
 impl Default for SvgLoader {
     fn default() -> Self {
         // opt is mutated when `svg_text` feature flag is enabled
-        #[allow(unused_mut, clippy::allow_attributes)]
+        #[allow(clippy::allow_attributes, unused_mut)]
         let mut options = resvg::usvg::Options::default();
 
         #[cfg(feature = "svg_text")]

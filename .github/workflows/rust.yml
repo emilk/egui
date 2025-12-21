@@ -19,7 +19,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.88.0
+          toolchain: 1.92.0
 
       - name: Install packages (Linux)
         if: runner.os == 'Linux'
@@ -74,7 +74,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.88.0
+          toolchain: 1.92.0
           targets: wasm32-unknown-unknown
 
       - run: sudo apt-get update && sudo apt-get install libgtk-3-dev libatk1.0-dev
@@ -148,7 +148,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:
-          rust-version: "1.88.0"
+          rust-version: "1.92.0"
           log-level: error
           command: check
           arguments: --target  ${{ matrix.target }}
@@ -164,7 +164,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.88.0
+          toolchain: 1.92.0
           targets: aarch64-linux-android
 
       - name: Set up cargo cache
@@ -186,7 +186,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.88.0
+          toolchain: 1.92.0
           targets: aarch64-apple-ios
 
       - name: Set up cargo cache
@@ -206,7 +206,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.88.0
+          toolchain: 1.92.0
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
@@ -228,7 +228,7 @@ jobs:
           lfs: true
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.88.0
+          toolchain: 1.92.0
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2

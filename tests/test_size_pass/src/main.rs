@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![allow(rustdoc::missing_crate_level_docs)] // it's a test
+#![expect(rustdoc::missing_crate_level_docs)] // it's a test
 
 use eframe::egui;
 
@@ -7,9 +7,9 @@ fn main() -> eframe::Result {
     env_logger::init(); // Use `RUST_LOG=debug` to see logs.
 
     let options = eframe::NativeOptions::default();
-    eframe::run_simple_native("My egui App", options, move |ctx, _frame| {
+    eframe::run_ui_native("My egui App", options, move |ui, _frame| {
         // A bottom panel to force the tooltips to consider if the fit below or under the widget:
-        egui::Panel::bottom("bottom").show(ctx, |ui| {
+        egui::Panel::bottom("bottom").show_inside(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.vertical(|ui| {
                     ui.label("Single tooltips:");
@@ -33,10 +33,10 @@ fn main() -> eframe::Result {
             });
         });
 
-        egui::CentralPanel::default().show(ctx, |ui| {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             ui.horizontal(|ui| {
                 if ui.button("Reset egui memory").clicked() {
-                    ctx.memory_mut(|mem| *mem = Default::default());
+                    ui.memory_mut(|mem| *mem = Default::default());
                 }
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::BOTTOM), |ui| {
@@ -95,8 +95,7 @@ fn main() -> eframe::Result {
                 .selected_text("ComboBox")
                 .width(100.0)
                 .show_ui(ui, |ui| {
-                    ui.ctx()
-                        .debug_painter()
+                    ui.debug_painter()
                         .debug_rect(ui.max_rect(), egui::Color32::RED, "");
 
                     ui.label("Hello");

@@ -14,6 +14,11 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.33.3 - 2025-12-11
+* Treat `.` as a word-splitter in text navigation [#7741](https://github.com/emilk/egui/pull/7741) by [@emilk](https://github.com/emilk)
+* Change text color of selected text [#7691](https://github.com/emilk/egui/pull/7691) by [@emilk](https://github.com/emilk)
+
+
 ## 0.33.2 - 2025-11-13
 ### ⭐ Added
 * Add `Plugin::on_widget_under_pointer` to support widget inspector [#7652](https://github.com/emilk/egui/pull/7652) by [@juancampa](https://github.com/juancampa)

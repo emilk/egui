@@ -32,7 +32,7 @@ impl Clone for TextureHandle {
     fn clone(&self) -> Self {
         self.tex_mngr.write().retain(self.id);
         Self {
-            tex_mngr: self.tex_mngr.clone(),
+            tex_mngr: Arc::clone(&self.tex_mngr),
             id: self.id,
         }
     }

@@ -1,5 +1,6 @@
-#![allow(unsafe_code)]
-#![allow(clippy::undocumented_unsafe_blocks)]
+#![expect(clippy::undocumented_unsafe_blocks)]
+#![expect(clippy::unwrap_used)] // TODO(emilk): avoid unwraps
+#![expect(unsafe_code)]
 
 use std::convert::TryInto as _;
 
