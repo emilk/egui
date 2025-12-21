@@ -610,8 +610,9 @@ pub const NUM_POINTER_BUTTONS: usize = 5;
 ///
 /// To access the [`Modifiers`] you can use the [`crate::Context::input`] function
 ///
-/// ```no_run
-/// let modifiers = ui.ctx().input(|i| i.modifiers);
+/// ```rust
+/// # let ctx = egui::Context::default();
+/// let modifiers = ctx.input(|i| i.modifiers);
 /// ```
 ///
 /// NOTE: For cross-platform uses, ALT+SHIFT is a bad combination of modifiers

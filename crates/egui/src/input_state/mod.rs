@@ -971,10 +971,12 @@ impl PointerEvent {
 
 /// Mouse or touch state.
 ///
-/// To access the [`PointerState`] you can use the [`crate::Context::input`] function
+/// To access the methods of [`PointerState`] you can use the [`crate::Context::input`] function
 ///
-/// ```no_run
-/// let pointer_state = ui.ctx().input(|i| i.pointer);
+/// ```rust
+/// # let ctx = egui::Context::default();
+/// let latest_pos = ctx.input(|i| i.pointer.latest_pos());
+/// let is_pointer_down = ctx.input(|i| i.pointer.any_down());
 /// ```
 ///
 #[derive(Clone, Debug)]
