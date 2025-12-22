@@ -1392,7 +1392,7 @@ impl Default for Interaction {
     fn default() -> Self {
         Self {
             interact_radius: 5.0,
-            resize_grab_radius_side: 5.0,
+            resize_grab_radius_side: 3.0,
             resize_grab_radius_corner: 10.0,
             show_tooltips_only_when_still: true,
             tooltip_delay: 0.5,
