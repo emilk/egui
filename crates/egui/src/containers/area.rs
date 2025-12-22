@@ -523,6 +523,7 @@ impl Area {
                     enabled,
                 },
                 true,
+                Default::default(),
             );
 
             // Used to prevent drift

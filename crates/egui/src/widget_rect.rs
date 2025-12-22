@@ -63,6 +63,21 @@ impl WidgetRect {
     }
 }
 
+/// How to handle multiple calls to [`Response::interact`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct InteractOptions {
+    /// If we call interact on the same widget multiple times,
+    /// should we move it to the top on subsequent calls?
+    pub move_to_top: bool,
+}
+
+#[expect(clippy::derivable_impls)] // Nice to be explicit
+impl Default for InteractOptions {
+    fn default() -> Self {
+        Self { move_to_top: false }
+    }
+}
+
 /// Stores the [`WidgetRect`]s of all widgets generated during a single egui update/frame.
 ///
 /// All [`crate::Ui`]s have a [`WidgetRect`]. It is created in [`crate::Ui::new`] with [`Rect::NOTHING`]
@@ -140,12 +155,14 @@ impl WidgetRects {
     }
 
     /// Insert the given widget rect in the given layer.
-    pub fn insert(&mut self, layer_id: LayerId, widget_rect: WidgetRect) {
+    pub fn insert(&mut self, layer_id: LayerId, widget_rect: WidgetRect, options: InteractOptions) {
         let Self {
             by_layer,
             by_id,
             infos: _,
         } = self;
+
+        let InteractOptions { move_to_top } = options;
 
         let layer_widgets = by_layer.entry(layer_id).or_default();
 
@@ -176,7 +193,13 @@ impl WidgetRects {
                 existing.enabled |= widget_rect.enabled;
 
                 if existing.layer_id == widget_rect.layer_id {
-                    layer_widgets[*idx_in_layer] = *existing;
+                    if move_to_top {
+                        layer_widgets.remove(*idx_in_layer);
+                        *idx_in_layer = layer_widgets.len();
+                        layer_widgets.push(*existing);
+                    } else {
+                        layer_widgets[*idx_in_layer] = *existing;
+                    }
                 }
             }
         }
