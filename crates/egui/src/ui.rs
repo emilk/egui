@@ -180,6 +180,7 @@ impl Ui {
                 enabled: ui.enabled,
             },
             true,
+            Default::default(),
         );
 
         if disabled {
@@ -345,6 +346,7 @@ impl Ui {
                 enabled: child_ui.enabled,
             },
             true,
+            Default::default(),
         );
 
         child_ui
@@ -1025,6 +1027,17 @@ impl Ui {
 impl Ui {
     /// Check for clicks, drags and/or hover on a specific region of this [`Ui`].
     pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> Response {
+        self.interact_opt(rect, id, sense, Default::default())
+    }
+
+    /// Check for clicks, drags and/or hover on a specific region of this [`Ui`].
+    pub fn interact_opt(
+        &self,
+        rect: Rect,
+        id: Id,
+        sense: Sense,
+        options: crate::InteractOptions,
+    ) -> Response {
         self.ctx().register_accesskit_parent(id, self.unique_id);
 
         self.ctx().create_widget(
@@ -1037,6 +1050,7 @@ impl Ui {
                 enabled: self.enabled,
             },
             true,
+            options,
         )
     }
 
@@ -1105,6 +1119,7 @@ impl Ui {
                 enabled: self.enabled,
             },
             false,
+            Default::default(),
         );
         if self.should_close() {
             response.set_close();

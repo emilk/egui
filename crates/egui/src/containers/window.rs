@@ -958,6 +958,12 @@ fn resize_interaction(
                 enabled: true,
             },
             true,
+            InteractOptions {
+                // We call this multiple times.
+                // First to read the result (to avoid frame delay)
+                // and the second time to move it to the top, above the window contents.
+                move_to_top: true,
+            },
         );
 
         response.widget_info(|| WidgetInfo::new(crate::WidgetType::ResizeHandle));
