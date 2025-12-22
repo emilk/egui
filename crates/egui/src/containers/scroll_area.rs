@@ -9,7 +9,8 @@ use epaint::Margin;
 
 use crate::{
     Context, CursorIcon, Id, NumExt as _, Pos2, Rangef, Rect, Response, Sense, Ui, UiBuilder,
-    UiKind, UiStackInfo, Vec2, Vec2b, emath, epaint, lerp, pass_state, pos2, remap, remap_clamp,
+    UiKind, UiStackInfo, Vec2, Vec2b, WidgetInfo, emath, epaint, lerp, pass_state, pos2, remap,
+    remap_clamp,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -1285,6 +1286,8 @@ impl Prepared {
             // and to avoid producing jitter in "thin widget" heuristics there.
             // Also: it make sense to detect any hover where the scroll bar _will_ be.
             let response = ui.interact(max_bar_rect, interact_id, sense);
+
+            response.widget_info(|| WidgetInfo::new(crate::WidgetType::ScrollBar));
 
             // top/bottom of a horizontal scroll (d==0).
             // left/rigth of a vertical scroll (d==1).
