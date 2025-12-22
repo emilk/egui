@@ -871,6 +871,10 @@ impl Response {
             WidgetType::Panel => Role::Pane,
             WidgetType::ProgressIndicator => Role::ProgressIndicator,
             WidgetType::Window => Role::Window,
+
+            WidgetType::ResizeHandle => Role::Splitter,
+            WidgetType::ScrollBar => Role::ScrollBar,
+
             WidgetType::Other => Role::Unknown,
         });
         if !info.enabled {
