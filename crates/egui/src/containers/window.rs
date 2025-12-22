@@ -542,7 +542,7 @@ impl Window<'_> {
 
         // First check for resize to avoid frame delay:
         let last_frame_outer_rect = area.state().rect();
-        let resize_interaction = resize_interaction(
+        let resize_interaction = do_resize_interaction(
             ctx,
             possible,
             area.id(),
@@ -623,6 +623,17 @@ impl Window<'_> {
                 .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
 
             let outer_rect = frame.end(&mut area_content_ui).rect;
+
+            // Do resize interaction _again_, to move their widget rectangles on TOP of the rest of the window.
+            let resize_interaction = do_resize_interaction(
+                ctx,
+                possible,
+                area.id(),
+                area_layer_id,
+                last_frame_outer_rect,
+                window_frame,
+            );
+
             paint_resize_corner(
                 &area_content_ui,
                 &possible,
@@ -924,7 +935,7 @@ fn move_and_resize_window(ctx: &Context, id: Id, interaction: &ResizeInteraction
     Some(rect.round_ui())
 }
 
-fn resize_interaction(
+fn do_resize_interaction(
     ctx: &Context,
     possible: PossibleInteractions,
     _accessibility_parent: Id,
