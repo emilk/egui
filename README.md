@@ -27,7 +27,7 @@ egui aims to be the easiest-to-use Rust GUI library, and the simplest way to mak
 
 egui can be used anywhere you can draw textured triangles, which means you can easily integrate it into your game engine of choice.
 
-[`eframe`](https://github.com/emilk/egui/tree/main/crates/eframe) is the official egui framework, which supports writing apps for Web, Linux, Mac, Windows, and Android.
+[`eframe`](https://github.com/emilk/egui/tree/main/crates/eframe) is the official egui framework, which supports writing apps for Web, Linux, Mac, Windows, Android, and iOS.
 
 
 ## Example
