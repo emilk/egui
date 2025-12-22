@@ -1234,6 +1234,11 @@ pub struct WidgetVisuals {
     pub fg_stroke: Stroke,
 
     /// Make the frame this much larger.
+    ///
+    /// The problem with "expanding" widgets is that they now want to paint outside their own bounds,
+    /// which then requires all parent UIs to have proper margins.
+    ///
+    /// It also means hovered things are no longer properly aligned with every other widget.
     pub expansion: f32,
 }
 
