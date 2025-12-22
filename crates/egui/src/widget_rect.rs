@@ -63,7 +63,7 @@ impl WidgetRect {
     }
 }
 
-/// How to handle multiple calls to [`Response::interact`].
+/// How to handle multiple calls to [`crate::Response::interact`] and [`crate::Ui::interact_opt`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct InteractOptions {
     /// If we call interact on the same widget multiple times,
