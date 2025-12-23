@@ -889,7 +889,7 @@ impl Response {
             }
         }
         if let Some(value) = info.current_text_value {
-            builder.set_value(value);
+            builder.set_value((*value).to_owned());
         }
         if let Some(value) = info.value {
             builder.set_numeric_value(value);
