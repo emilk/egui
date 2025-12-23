@@ -100,10 +100,10 @@ You should add the following to your `.gitignore`:
 ### What do do when CI / another computer produces a different image?
 
 The default tolerance settings should be fine for almost all gui comparison tests.
-However, especially when you're using custom rendering, you may observe images difference with different setups leading to unexpected test failures.
+However, especially when you're using custom rendering, you may observe image differences with different setups leading to unexpected test failures.
 
-First check whether the difference is due to a change in enabled rendering features, potentially due to difference in hardware (/software renderer) capabilitites.
-Generally you should carefully enforcing the same set of features for all test runs, but this may happen nonetheless.
+First check whether the difference is due to a change in enabled rendering features, potentially due to differences in hardware (/software renderer) capabilitites.
+Generally you should carefully enforce the same set of features for all test runs, but this may happen nonetheless.
 
 Once you validated that the differences are miniscule and hard to avoid, you can try to _carefully_ adjust the comparison tolerance setting (`SnapshotOptions::threshold`, TODO([#5683](https://github.com/emilk/egui/issues/5683)): as well as number of pixels allowed to differ) for the specific test.
 
@@ -120,7 +120,7 @@ Discrepancies can be caused by a variety of implementation details that depend o
 Common issues include:
 * multi-sample anti-aliasing
   * sample placement and sample resolve steps are implementation defined
-  * alpha-to-coverage algorithm/pattern can wary wildly between implementations
+  * alpha-to-coverage algorithm/pattern can vary wildly between implementations
 * texture filtering
   * different implementations may apply different optimizations *even* for simple linear texture filtering
 * out of bounds texture access (via `textureLoad`)
@@ -132,8 +132,8 @@ Common issues include:
   * floating point denormal flush
     * even on modern implementations, denormal float values may be flushed to zero
   * `NaN`/`Inf` handling
-    * whenever the result of a function should yield `NaN`/`Inf`, implementations may free to yield an indeterminate value instead
-  * builtin-function function precision & error handling (trigonometric functions and others)
+    * whenever the result of a function should yield `NaN`/`Inf`, implementations are free to yield an indeterminate value instead
+  * builtin-function precision & error handling (trigonometric functions and others)
 * [partial derivatives (dpdx/dpdx)](https://www.w3.org/TR/WGSL/#dpdx-builtin)
   * implementations are free to use either `dpdxFine` or `dpdxCoarse`
 * [...]
