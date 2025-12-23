@@ -100,7 +100,8 @@ impl Node<'_> {
     pub fn click_accesskit(&self) {
         self.event(egui::Event::AccessKitActionRequest(
             accesskit::ActionRequest {
-                target: self.accesskit_node.id(),
+                target_node: self.accesskit_node.id(),
+                target_tree: accesskit::TreeId::ROOT,
                 action: accesskit::Action::Click,
                 data: None,
             },
@@ -121,7 +122,8 @@ impl Node<'_> {
     pub fn focus(&self) {
         self.event(egui::Event::AccessKitActionRequest(ActionRequest {
             action: accesskit::Action::Focus,
-            target: self.accesskit_node.id(),
+            target_node: self.accesskit_node.id(),
+            target_tree: accesskit::TreeId::ROOT,
             data: None,
         }));
     }
@@ -164,7 +166,8 @@ impl Node<'_> {
     pub fn scroll_to_me(&self) {
         self.event(egui::Event::AccessKitActionRequest(ActionRequest {
             action: accesskit::Action::ScrollIntoView,
-            target: self.accesskit_node.id(),
+            target_node: self.accesskit_node.id(),
+            target_tree: accesskit::TreeId::ROOT,
             data: None,
         }));
     }
@@ -173,7 +176,8 @@ impl Node<'_> {
     pub fn scroll_down(&self) {
         self.event(egui::Event::AccessKitActionRequest(ActionRequest {
             action: accesskit::Action::ScrollDown,
-            target: self.accesskit_node.id(),
+            target_node: self.accesskit_node.id(),
+            target_tree: accesskit::TreeId::ROOT,
             data: None,
         }));
     }
@@ -182,7 +186,8 @@ impl Node<'_> {
     pub fn scroll_up(&self) {
         self.event(egui::Event::AccessKitActionRequest(ActionRequest {
             action: accesskit::Action::ScrollUp,
-            target: self.accesskit_node.id(),
+            target_node: self.accesskit_node.id(),
+            target_tree: accesskit::TreeId::ROOT,
             data: None,
         }));
     }
@@ -191,7 +196,8 @@ impl Node<'_> {
     pub fn scroll_left(&self) {
         self.event(egui::Event::AccessKitActionRequest(ActionRequest {
             action: accesskit::Action::ScrollLeft,
-            target: self.accesskit_node.id(),
+            target_node: self.accesskit_node.id(),
+            target_tree: accesskit::TreeId::ROOT,
             data: None,
         }));
     }
@@ -200,7 +206,8 @@ impl Node<'_> {
     pub fn scroll_right(&self) {
         self.event(egui::Event::AccessKitActionRequest(ActionRequest {
             action: accesskit::Action::ScrollRight,
-            target: self.accesskit_node.id(),
+            target_node: self.accesskit_node.id(),
+            target_tree: accesskit::TreeId::ROOT,
             data: None,
         }));
     }
