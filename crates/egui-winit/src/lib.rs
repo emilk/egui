@@ -352,45 +352,7 @@ impl State {
             }
 
             WindowEvent::Ime(ime) => {
-                // on Mac even Cmd-C is pressed during ime, a `c` is pushed to Preedit.
-                // So no need to check is_mac_cmd.
-                //
-                // How winit produce `Ime::Enabled` and `Ime::Disabled` differs in MacOS
-                // and Windows.
-                //
-                // - On Windows, before and after each Commit will produce an Enable/Disabled
-                // event.
-                // - On MacOS, only when user explicit enable/disable ime. No Disabled
-                // after Commit.
-                //
-                // We use input_method_editor_started to manually insert CompositionStart
-                // between Commits.
-                match ime {
-                    winit::event::Ime::Enabled => {
-                        if cfg!(target_os = "linux") {
-                            // This event means different things in X11 and Wayland, but we can just
-                            // ignore it and enable IME on the preedit event.
-                            // See <https://github.com/rust-windowing/winit/issues/2498>
-                        } else {
-                            self.ime_event_enable();
-                        }
-                    }
-                    winit::event::Ime::Preedit(text, Some(_cursor)) => {
-                        self.ime_event_enable();
-                        self.egui_input
-                            .events
-                            .push(egui::Event::Ime(egui::ImeEvent::Preedit(text.clone())));
-                    }
-                    winit::event::Ime::Commit(text) => {
-                        self.egui_input
-                            .events
-                            .push(egui::Event::Ime(egui::ImeEvent::Commit(text.clone())));
-                        self.ime_event_disable();
-                    }
-                    winit::event::Ime::Disabled | winit::event::Ime::Preedit(_, None) => {
-                        self.ime_event_disable();
-                    }
-                }
+                self.on_ime(ime);
 
                 EventResponse {
                     repaint: true,
@@ -560,6 +522,49 @@ impl State {
                     repaint: true,
                     consumed: self.egui_ctx.egui_wants_pointer_input(),
                 }
+            }
+        }
+    }
+
+    /// on macOS even Cmd-C is pressed during ime, a `c` is pushed to Preedit.
+    /// So no need to check `is_mac_cmd`.
+    ///
+    /// How winit produce [`winit::event::Ime::Enabled`] and
+    /// [`winit::event::Ime::Disabled`]  differs in macOS
+    /// and Windows.
+    ///
+    /// - On Windows, before and after each Commit will produce an
+    ///   [`winit::event::Ime::Enabled`]/[`winit::event::Ime::Disabled`] event.
+    /// - On macOS, only when user explicit enable/disable ime. No Disabled
+    ///   after Commit.
+    ///
+    /// We use `input_method_editor_started` to manually insert
+    /// `CompositionStart` between Commits.
+    fn on_ime(&mut self, ime: &winit::event::Ime) {
+        match ime {
+            winit::event::Ime::Enabled => {
+                if cfg!(target_os = "linux") {
+                    // This event means different things in X11 and Wayland, but we can just
+                    // ignore it and enable IME on the preedit event.
+                    // See <https://github.com/rust-windowing/winit/issues/2498>
+                } else {
+                    self.ime_event_enable();
+                }
+            }
+            winit::event::Ime::Preedit(text, Some(_cursor)) => {
+                self.ime_event_enable();
+                self.egui_input
+                    .events
+                    .push(egui::Event::Ime(egui::ImeEvent::Preedit(text.clone())));
+            }
+            winit::event::Ime::Commit(text) => {
+                self.egui_input
+                    .events
+                    .push(egui::Event::Ime(egui::ImeEvent::Commit(text.clone())));
+                self.ime_event_disable();
+            }
+            winit::event::Ime::Disabled | winit::event::Ime::Preedit(_, None) => {
+                self.ime_event_disable();
             }
         }
     }
