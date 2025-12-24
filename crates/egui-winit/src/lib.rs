@@ -526,21 +526,64 @@ impl State {
         }
     }
 
-    /// on macOS even Cmd-C is pressed during ime, a `c` is pushed to Preedit.
+    /// ## NOTE
+    ///
+    /// on Mac even Cmd-C is pressed during ime, a `c` is pushed to Preedit.
     /// So no need to check `is_mac_cmd`.
     ///
-    /// How winit produce [`winit::event::Ime::Enabled`] and
-    /// [`winit::event::Ime::Disabled`]  differs in macOS
-    /// and Windows.
+    /// ### How events are emitted by [`winit`] across different setups in various situations
     ///
-    /// - On Windows, before and after each Commit will produce an
-    ///   [`winit::event::Ime::Enabled`]/[`winit::event::Ime::Disabled`] event.
-    /// - On macOS, only when user explicit enable/disable ime. No Disabled
-    ///   after Commit.
+    /// This is done by uncommenting the code block at the top of this method
+    /// and checking console outputs.
     ///
-    /// We use `input_method_editor_started` to manually insert
-    /// `CompositionStart` between Commits.
+    /// winit version: 0.30.12.
+    ///
+    /// #### Setups
+    ///
+    /// - `a-macos15-apple_shuangpin`: macOS 15.7.3 `aarch64`, IME: builtin Chinese Shuangpin - Simplified. (Demo app shows: renderer: `wgpu`, backend: `Metal`.)
+    /// - `b-debian13_gnome48_wayland-fcitx5_shuangpin`: Debian 13 `aarch64`, Gnome 48, Wayland, IME: Fcitx5 with fcitx5-chinese-addons's Shuangpin. (Demo app shows: renderer: `wgpu`, backend: `Gl`.)
+    /// - `c-windows11-ms_pinyin`: Windows11 23H2 `x86_64`, IME: builtin Microsoft Pinyin. (Demo app shows: renderer: `wgpu`, backend: `Vulkan` & `Dx12`, others: `Dx12` & `Gl`.)
+    ///
+    /// #### Situation: pressed space to select the first candidate "测试"
+    ///
+    /// | Setup                                       | Events in Order                                                                                                                  |
+    /// | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+    /// | a-macos15-apple_shuangpin                   | `Predict("", None)` -> `Commit("测试")`                                                                                          |
+    /// | b-debian13_gnome48_wayland-fcitx5_shuangpin | `Predict("", None)` -> `Commit("测试")` -> `Predict("", Some(0, 0))` -> `Predict("", None)` (duplicate until `TextEdit` blurred) |
+    /// | c-windows11-ms_pinyin                       | `Predict("测试", Some(…))` -> `Predict("", None)` -> `Commit("测试")` -> `Disabled`                                              |
+    ///
+    /// #### Situation: pressed backspace to delete the last character in the prediction
+    ///
+    /// | Setup                                       | Events in Order                                                                       |
+    /// | a-macos15-apple_shuangpin                   | `Predict("", None)`                                                                   |
+    /// | b-debian13_gnome48_wayland-fcitx5_shuangpin | `Predict("", Some(0, 0))` -> `Predict("", None)` (duplicate until `TextEdit` blurred) |
+    /// | c-windows11-ms_pinyin                       | `Predict("", Some(0, 0))` -> `Predict("", None)` -> `Commit("")` -> `Disabled`        |
+    ///
+    /// #### Situation: clicked somewhere else while there is an active composition with the prediction "ce"
+    ///
+    /// | Setup                                       | Events in Order                                                                                   |
+    /// | ------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+    /// | a-macos15-apple_shuangpin                   | nothing emitted                                                                                   |
+    /// | b-debian13_gnome48_wayland-fcitx5_shuangpin | `Predict("", Some(0, 0))` (duplicate) -> `Predict("", None)` (duplicate until `TextEdit` blurred) |
+    /// | c-windows11-ms_pinyin                       | nothing emitted                                                                                   |
     fn on_ime(&mut self, ime: &winit::event::Ime) {
+        // // code for inspecting ime events emitted by winit:
+        // {
+        //     static LAST_IME: std::sync::Mutex<Option<winit::event::Ime>> =
+        //         std::sync::Mutex::new(None);
+        //     static IS_LAST_DUPLICATE: std::sync::atomic::AtomicBool =
+        //         std::sync::atomic::AtomicBool::new(false);
+        //     let mut last_ime_guard = LAST_IME.lock().unwrap();
+        //     if { last_ime_guard.as_ref().cloned() }.as_ref() != Some(ime) {
+        //         println!("IME={ime:?}");
+        //         *last_ime_guard = Some(ime.clone());
+        //         IS_LAST_DUPLICATE.store(false, std::sync::atomic::Ordering::Relaxed);
+        //     } else if !IS_LAST_DUPLICATE.load(std::sync::atomic::Ordering::Relaxed) {
+        //         println!("IME=(duplicate)");
+        //         IS_LAST_DUPLICATE.store(true, std::sync::atomic::Ordering::Relaxed);
+        //     }
+        // }
+
         match ime {
             winit::event::Ime::Enabled => {
                 if cfg!(target_os = "linux") {
