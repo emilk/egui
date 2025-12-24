@@ -606,7 +606,19 @@ impl State {
                     .push(egui::Event::Ime(egui::ImeEvent::Commit(text.clone())));
                 self.ime_event_disable();
             }
-            winit::event::Ime::Disabled | winit::event::Ime::Preedit(_, None) => {
+            winit::event::Ime::Disabled => {
+                self.ime_event_disable();
+            }
+            winit::event::Ime::Preedit(_, None) => {
+                // we need to emit this on macOS, since winit doesn't emit
+                // `Predict("", Some(0, 0))` before this event on macOS when the
+                // user deletes the last character in the prediction with the
+                // backspace key. Without this, only `egui::ImeEvent::Disabled`
+                // is emitted here, leading to the last character being left in
+                // TextEdit in such situation.
+                self.egui_input
+                    .events
+                    .push(egui::Event::Ime(egui::ImeEvent::Preedit(String::new())));
                 self.ime_event_disable();
             }
         }
