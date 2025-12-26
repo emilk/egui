@@ -337,9 +337,6 @@ pub struct FontFace {
     font: FontCell,
     tweak: FontTweak,
 
-    /// The font weight (100-900) if available from the font file.
-    weight: Option<u16>,
-
     /// Variable font location (for weight axis, etc.)
     location: skrifa::instance::Location,
     glyph_info_cache: ahash::HashMap<char, GlyphInfo>,
@@ -436,16 +433,10 @@ impl FontFace {
             name,
             font,
             tweak,
-            weight,
             location,
             glyph_info_cache: Default::default(),
             glyph_alloc_cache: Default::default(),
         })
-    }
-
-    /// Get the font weight (100-900) if available from the font file.
-    pub fn weight(&self) -> Option<u16> {
-        self.weight
     }
 
     /// Code points that will always be replaced by the replacement character.

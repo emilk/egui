@@ -861,26 +861,6 @@ impl FontsImpl {
             atlas: &mut self.atlas,
         }
     }
-
-    /// Get the weight of a font by name, if available.
-    ///
-    /// Returns the weight value (100-900) read from the font file's OS/2 table,
-    /// or `None` if the font is not found or doesn't contain weight information.
-    ///
-    /// # Example
-    /// ```
-    /// # use epaint::text::{FontDefinitions, FontsImpl};
-    /// # use epaint::TextOptions;
-    /// let fonts_impl = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
-    /// if let Some(weight) = fonts_impl.font_weight("Hack") {
-    ///     println!("Hack font weight: {}", weight);
-    /// }
-    /// ```
-    pub fn font_weight(&self, font_name: &str) -> Option<u16> {
-        let key = self.fonts_by_name.get(font_name)?;
-        let font_face = self.fonts_by_id.get(key)?;
-        font_face.weight()
-    }
 }
 
 // ----------------------------------------------------------------------------
