@@ -1160,19 +1160,21 @@ impl PointerState {
                         let clicked = self.could_any_button_be_click();
 
                         let click = if clicked {
-                            let click_dist_sq = self.last_click_pos.map_or(0.0, |origin| origin.distance_sq(pos));
+                            let click_dist_sq = self
+                                .last_click_pos
+                                .map_or(0.0, |origin| origin.distance_sq(pos));
                             self.last_click_pos = Some(pos);
 
                             let double_click = (time - self.last_click_time)
                                 < self.options.max_double_click_delay
                                 && click_dist_sq
-                                < self.options.max_multiple_click_dist
-                                * self.options.max_multiple_click_dist;
+                                    < self.options.max_multiple_click_dist
+                                        * self.options.max_multiple_click_dist;
                             let triple_click = (time - self.last_last_click_time)
                                 < (self.options.max_double_click_delay * 2.0)
                                 && click_dist_sq
-                                < self.options.max_multiple_click_dist
-                                * self.options.max_multiple_click_dist;
+                                    < self.options.max_multiple_click_dist
+                                        * self.options.max_multiple_click_dist;
                             let count = if triple_click {
                                 3
                             } else if double_click {
@@ -1517,8 +1519,8 @@ impl PointerState {
             && !self.has_moved_too_much_for_a_click
             && self.button_down(PointerButton::Primary)
             && self.press_start_time.is_some_and(|press_start_time| {
-            self.time - press_start_time > self.options.max_click_duration
-        })
+                self.time - press_start_time > self.options.max_click_duration
+            })
     }
 
     /// Is the primary button currently down?
