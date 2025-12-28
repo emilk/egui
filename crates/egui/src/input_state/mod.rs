@@ -78,6 +78,10 @@ pub struct InputOptions {
     /// for double click (or when this value is doubled, triple click) to count.
     pub max_double_click_delay: f64,
 
+    /// If the pointer moves for more than this it will no longer register as a
+    /// double or a triple click.
+    pub max_multiple_click_dist: f32,
+
     /// When this modifier is down, all scroll events are treated as zoom events.
     ///
     /// The default is CTRL/CMD, and it is STRONGLY recommended to NOT change this.
@@ -115,6 +119,7 @@ impl Default for InputOptions {
             max_click_dist: 6.0,
             max_click_duration: 0.8,
             max_double_click_delay: 0.3,
+            max_multiple_click_dist: 6.0,
             zoom_modifier: Modifiers::COMMAND,
             horizontal_scroll_modifier: Modifiers::SHIFT,
             vertical_scroll_modifier: Modifiers::ALT,
@@ -132,6 +137,7 @@ impl InputOptions {
             max_click_dist,
             max_click_duration,
             max_double_click_delay,
+            max_multiple_click_dist,
             zoom_modifier,
             horizontal_scroll_modifier,
             vertical_scroll_modifier,
@@ -154,7 +160,7 @@ impl InputOptions {
                         .range(0.0..=f32::INFINITY)
                         .speed(0.001),
                 )
-                .on_hover_text("How fast to zoom with ctrl/cmd + scroll");
+                    .on_hover_text("How fast to zoom with ctrl/cmd + scroll");
                 ui.end_row();
 
                 ui.label("Max click distance");
@@ -169,7 +175,7 @@ impl InputOptions {
                     crate::DragValue::new(max_click_duration)
                         .range(0.1..=f64::INFINITY)
                         .speed(0.1),
-                    )
+                )
                     .on_hover_text(
                         "If the pointer is down for longer than this it will no longer register as a click",
                     );
@@ -181,7 +187,16 @@ impl InputOptions {
                         .range(0.01..=f64::INFINITY)
                         .speed(0.1),
                 )
-                .on_hover_text("Max time interval for double click to count");
+                    .on_hover_text("Max time interval for double click to count");
+                ui.end_row();
+
+                ui.label("Max distance for double/triple click");
+                ui.add(
+                    crate::DragValue::new(max_multiple_click_dist)
+                        .range(0.01..=f64::INFINITY)
+                        .speed(0.1),
+                )
+                    .on_hover_text("Max distance for double/triple click to count");
                 ui.end_row();
 
                 ui.label("zoom_modifier");
@@ -1028,6 +1043,10 @@ pub struct PointerState {
     /// This could also be the trigger point for a long-touch.
     pub(crate) started_decidedly_dragging: bool,
 
+    /// Where did the last click originate?
+    /// `None` if no mouse click occured.
+    last_click_pos: Option<Pos2>,
+
     /// When did the pointer get click last?
     /// Used to check for double-clicks.
     last_click_time: f64,
@@ -1065,6 +1084,7 @@ impl Default for PointerState {
             press_start_time: None,
             has_moved_too_much_for_a_click: false,
             started_decidedly_dragging: false,
+            last_click_pos: None,
             last_click_time: f64::NEG_INFINITY,
             last_last_click_time: f64::NEG_INFINITY,
             last_move_time: f64::NEG_INFINITY,
@@ -1140,10 +1160,19 @@ impl PointerState {
                         let clicked = self.could_any_button_be_click();
 
                         let click = if clicked {
-                            let double_click =
-                                (time - self.last_click_time) < self.options.max_double_click_delay;
+                            let click_dist_sq = self.last_click_pos.map_or(0.0, |origin| origin.distance_sq(pos));
+                            self.last_click_pos = Some(pos);
+
+                            let double_click = (time - self.last_click_time)
+                                < self.options.max_double_click_delay
+                                && click_dist_sq
+                                < self.options.max_multiple_click_dist
+                                * self.options.max_multiple_click_dist;
                             let triple_click = (time - self.last_last_click_time)
-                                < (self.options.max_double_click_delay * 2.0);
+                                < (self.options.max_double_click_delay * 2.0)
+                                && click_dist_sq
+                                < self.options.max_multiple_click_dist
+                                * self.options.max_multiple_click_dist;
                             let count = if triple_click {
                                 3
                             } else if double_click {
@@ -1488,8 +1517,8 @@ impl PointerState {
             && !self.has_moved_too_much_for_a_click
             && self.button_down(PointerButton::Primary)
             && self.press_start_time.is_some_and(|press_start_time| {
-                self.time - press_start_time > self.options.max_click_duration
-            })
+            self.time - press_start_time > self.options.max_click_duration
+        })
     }
 
     /// Is the primary button currently down?
@@ -1621,6 +1650,7 @@ impl PointerState {
             press_start_time,
             has_moved_too_much_for_a_click,
             started_decidedly_dragging,
+            last_click_pos,
             last_click_time,
             last_last_click_time,
             pointer_events,
@@ -1646,6 +1676,7 @@ impl PointerState {
         ui.label(format!(
             "started_decidedly_dragging: {started_decidedly_dragging}"
         ));
+        ui.label(format!("last_click_pos: {last_click_pos:#?}"));
         ui.label(format!("last_click_time: {last_click_time:#?}"));
         ui.label(format!("last_last_click_time: {last_last_click_time:#?}"));
         ui.label(format!("last_move_time: {last_move_time:#?}"));
