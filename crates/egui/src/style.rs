@@ -1029,7 +1029,9 @@ pub struct Visuals {
     /// How the text cursor acts.
     pub text_cursor: TextCursorStyle,
 
-    /// Allow child widgets to be just on the border and still have a stroke with some thickness
+    /// Allow widgets to paint this much outside the scroll area rect.
+    ///
+    /// Legacy. Should not be used anymore.
     pub clip_rect_margin: f32,
 
     /// Show a background behind buttons.
