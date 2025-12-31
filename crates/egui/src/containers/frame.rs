@@ -197,7 +197,7 @@ impl Frame {
         Self::new().inner_margin(8).fill(style.visuals.panel_fill)
     }
 
-    /// Does NOT include margin ([`Window`] applies that manually).
+    /// Does NOT include margin ([`crate::Window`] applies that manually).
     pub fn window(style: &Style) -> Self {
         Self::new()
             .corner_radius(style.visuals.window_corner_radius)
