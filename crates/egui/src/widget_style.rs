@@ -2,7 +2,7 @@ use emath::Vec2;
 use epaint::{Color32, FontId, Shadow, Stroke, text::TextWrapMode};
 
 use crate::{
-    Frame, Response, Style, TextStyle,
+    Frame, Id, Response, Style, TextStyle, Theme, Ui,
     style::{WidgetVisuals, Widgets},
 };
 
@@ -197,5 +197,119 @@ impl Style {
             spacing: 6.0,
             stroke: visuals.bg_stroke,
         }
+    }
+}
+
+#[derive(PartialEq, Eq, Clone)]
+pub enum StyleModifier {
+    /// Widget type should be a modifier or a separate information ?
+    /// Could have the trait [`HasClasses`] force to implement a method "name"
+    /// or "`widget_type`"
+    Button,
+    Label,
+    Separator,
+    Checkbox,
+    /// Classes and Id are string
+    Class(String),
+    Id(String),
+    /// Theme can be useful
+    Theme(Theme),
+}
+
+/// Text modifiers affect only the text of the widgets
+pub enum TextModifier {
+    Header,
+    Small,
+    Weak,
+    Strong,
+    Code,
+}
+
+impl From<&str> for StyleModifier {
+    fn from(class: &str) -> Self {
+        match class {
+            "dark" => Self::Theme(Theme::Dark),
+            "light" => Self::Theme(Theme::Light),
+            "button" => Self::Button,
+            "label" => Self::Label,
+            "separator" => Self::Separator,
+            "checkbox" => Self::Checkbox,
+            // Maybe add a prefix for class and ID ?
+            _ => Self::Class(class.to_owned()),
+        }
+    }
+}
+
+pub(crate) const CLASSES_SMALL_VEC_SIZE: usize = 5;
+
+/// Small vec for performance
+#[derive(Default)]
+pub struct Modifiers {
+    pub modifiers: Vec<StyleModifier>,
+    text: Option<TextModifier>,
+    parent: Option<Id>,
+}
+
+impl Modifiers {
+    pub fn with_classes(mut self, classes: &[StyleModifier]) -> Self {
+        // debug_assert!(
+        //     classes.len() <= CLASSES_SMALL_VEC_SIZE - self.modifiers.len(),
+        //     "Too many modifiers !"
+        // );
+        self.modifiers.append(&mut classes.to_vec());
+        self
+    }
+
+    pub fn with_class(mut self, class: impl Into<StyleModifier>) -> Self {
+        self.modifiers.push(class.into());
+        self
+    }
+
+    pub fn with_parent(mut self, parent: &Ui) -> Self {
+        self.parent = Some(parent.id());
+        self
+    }
+
+    /// Add a class to the list
+    pub fn add_if(&mut self, class: impl Into<StyleModifier>, condition: bool) {
+        if condition {
+            self.modifiers.push(class.into());
+        }
+    }
+    /// Add a class to the list and return the list, for method chaining
+    pub fn with_if(mut self, class: impl Into<StyleModifier>, condition: bool) -> Self {
+        self.add_if(class.into(), condition);
+        self
+    }
+    pub fn has(&self, class: impl Into<StyleModifier>) -> bool {
+        self.modifiers.contains(&class.into())
+    }
+}
+
+/// Any widgets supporting classes must implement this trait
+pub trait HasModifier {
+    fn classes(&self) -> &Modifiers;
+
+    fn classes_mut(&mut self) -> &mut Modifiers;
+
+    fn add_class(&mut self, class: impl Into<StyleModifier>) -> &Self {
+        self.classes_mut().add_if(class.into(), true);
+        self
+    }
+
+    fn with_class(mut self, class: impl Into<StyleModifier>) -> Self
+    where
+        Self: Sized,
+    {
+        self.classes_mut().add_if(class.into(), true);
+        self
+    }
+
+    fn with_class_if(mut self, class: impl Into<StyleModifier>, condition: bool) -> Self
+    where
+        Self: Sized,
+    {
+        self.classes_mut().add_if(class.into(), condition);
+        self
     }
 }
