@@ -75,7 +75,7 @@ impl BytesLoader for FileLoader {
                 .name(format!("egui_extras::FileLoader::load({uri:?})"))
                 .spawn({
                     let ctx = ctx.clone();
-                    let cache = self.cache.clone();
+                    let cache = Arc::clone(&self.cache);
                     let uri = uri.to_owned();
                     move || {
                         let result = match std::fs::read(&path) {

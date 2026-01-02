@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![allow(rustdoc::missing_crate_level_docs)] // it's an example
+#![expect(clippy::unwrap_used, rustdoc::missing_crate_level_docs)] // it's a test
 
 use std::sync::Arc;
 
@@ -91,7 +91,7 @@ impl ViewportState {
                 if ui.input(|i| i.viewport().close_requested()) {
                     vp_state.visible = false;
                 }
-                let count = count.clone();
+                let count = Arc::clone(&count);
                 show_as_popup(ui, class, move |ui: &mut egui::Ui| {
                     let current_count = *count.read();
                     ui.label(format!("Callback has been reused {current_count} times"));
@@ -289,7 +289,7 @@ fn generic_ui(ui: &mut egui::Ui, children: &[Arc<RwLock<ViewportState>>], close_
                 *visible
             };
             if visible {
-                ViewportState::show(child.clone(), &ctx, close_button);
+                ViewportState::show(Arc::clone(child), &ctx, close_button);
             }
         }
     }

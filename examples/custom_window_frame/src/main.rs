@@ -32,7 +32,7 @@ impl eframe::App for MyApp {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        custom_window_frame(ui.ctx(), "egui with custom frame", |ui| {
+        custom_window_frame(ui, "egui with custom frame", |ui| {
             ui.label("This is just the contents of the window.");
             ui.horizontal(|ui| {
                 ui.label("egui theme:");
@@ -42,17 +42,19 @@ impl eframe::App for MyApp {
     }
 }
 
-fn custom_window_frame(ctx: &egui::Context, title: &str, add_contents: impl FnOnce(&mut egui::Ui)) {
-    use egui::{CentralPanel, UiBuilder};
+fn custom_window_frame(ui: &mut egui::Ui, title: &str, add_contents: impl FnOnce(&mut egui::Ui)) {
+    use egui::UiBuilder;
 
     let panel_frame = egui::Frame::new()
-        .fill(ctx.global_style().visuals.window_fill())
+        .fill(ui.global_style().visuals.window_fill())
         .corner_radius(10)
-        .stroke(ctx.global_style().visuals.widgets.noninteractive.fg_stroke)
+        .stroke(ui.global_style().visuals.widgets.noninteractive.fg_stroke)
         .outer_margin(1); // so the stroke is within the bounds
 
-    CentralPanel::default().frame(panel_frame).show(ctx, |ui| {
+    panel_frame.show(ui, |ui| {
         let app_rect = ui.max_rect();
+
+        ui.expand_to_include_rect(app_rect); // Expand frame to include it all
 
         let title_bar_height = 32.0;
         let title_bar_rect = {

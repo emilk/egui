@@ -1,3 +1,5 @@
+#![expect(clippy::unwrap_used)] // TODO(emilk): avoid unwraps
+
 mod button;
 mod popup;
 

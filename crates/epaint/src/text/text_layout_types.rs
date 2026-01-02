@@ -1,6 +1,3 @@
-#![allow(clippy::derived_hash_with_manual_eq)] // We need to impl Hash for f32, but we don't implement Eq, which is fine
-#![allow(clippy::wrong_self_convention)] // We use `from_` to indicate conversion direction. It's non-diomatic, but makes sense in this context.
-
 use std::ops::Range;
 use std::sync::Arc;
 
@@ -876,7 +873,7 @@ impl Galley {
                     ends_with_newline |= !is_last_galley && is_last_row_in_galley;
                     super::PlacedRow {
                         pos: new_pos,
-                        row: placed_row.row.clone(),
+                        row: Arc::clone(&placed_row.row),
                         ends_with_newline,
                     }
                 }));

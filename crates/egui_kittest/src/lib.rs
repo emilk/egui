@@ -1,7 +1,8 @@
-#![doc = include_str!("../README.md")]
+#![cfg_attr(doc, doc = include_str!("../README.md"))]
 //!
 //! ## Feature flags
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
+#![expect(clippy::unwrap_used)] // TODO(emilk): avoid unwraps
 
 mod builder;
 #[cfg(feature = "snapshot")]

@@ -1,5 +1,4 @@
-#![allow(clippy::many_single_char_names)]
-#![allow(clippy::wrong_self_convention)] // False positives
+#![expect(clippy::many_single_char_names)]
 
 use std::ops::Range;
 

@@ -709,7 +709,7 @@ impl WidgetText {
                 default_valign,
             )),
             Self::LayoutJob(job) => job,
-            Self::Galley(galley) => galley.job.clone(),
+            Self::Galley(galley) => Arc::clone(&galley.job),
         }
     }
 

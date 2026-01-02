@@ -198,8 +198,7 @@ macro_rules! all_the_atoms {
             $($T: IntoAtoms<'a>),*
         {
             fn collect(self, _atoms: &mut Atoms<'a>) {
-                #[allow(clippy::allow_attributes)]
-                #[allow(non_snake_case)]
+                #[allow(clippy::allow_attributes, non_snake_case)]
                 let ($($T),*) = self;
                 $($T.collect(_atoms);)*
             }

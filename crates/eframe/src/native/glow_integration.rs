@@ -5,7 +5,8 @@
 //! There is a bunch of improvements we could do,
 //! like removing a bunch of `unwraps`.
 
-#![allow(clippy::undocumented_unsafe_blocks)]
+#![expect(clippy::undocumented_unsafe_blocks)]
+#![expect(clippy::unwrap_used)]
 
 use std::{cell::RefCell, num::NonZeroU32, rc::Rc, sync::Arc, time::Instant};
 
@@ -216,7 +217,7 @@ impl<'app> GlowWinitApp<'app> {
             storage.as_deref(),
             &mut self.native_options,
         )?;
-        let gl = painter.gl().clone();
+        let gl = Arc::clone(painter.gl());
 
         let max_texture_side = painter.max_texture_side();
         glutin.max_texture_side = Some(max_texture_side);
@@ -234,9 +235,9 @@ impl<'app> GlowWinitApp<'app> {
             &self.app_name,
             &self.native_options,
             storage,
-            Some(gl.clone()),
+            Some(Arc::clone(&gl)),
             Some(Box::new({
-                let painter = painter.clone();
+                let painter = Rc::clone(&painter);
                 move |native| painter.borrow_mut().register_native_texture(native)
             })),
             #[cfg(feature = "wgpu_no_default_features")]
@@ -244,7 +245,7 @@ impl<'app> GlowWinitApp<'app> {
         );
 
         {
-            let event_loop_proxy = self.repaint_proxy.clone();
+            let event_loop_proxy = Arc::clone(&self.repaint_proxy);
             integration
                 .egui_ctx
                 .set_request_repaint_callback(move |info| {

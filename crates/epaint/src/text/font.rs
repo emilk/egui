@@ -1,6 +1,4 @@
-#![allow(clippy::mem_forget)]
-
-use std::collections::BTreeMap;
+#![expect(clippy::mem_forget)]
 
 use emath::{GuiRounding as _, OrderedFloat, Vec2, vec2};
 use self_cell::self_cell;
@@ -8,6 +6,7 @@ use skrifa::{
     MetadataProvider as _,
     raw::{TableProvider as _, tables::kern::SubtableKind},
 };
+use std::collections::BTreeMap;
 use vello_cpu::{color, kurbo};
 
 use crate::{
@@ -201,6 +200,7 @@ impl FontCell {
         metrics: &ScaledMetrics,
         glyph_info: &GlyphInfo,
         bin: SubpixelBin,
+        location: &skrifa::instance::Location,
     ) -> Option<GlyphAllocation> {
         let glyph_id = glyph_info.id?;
 
@@ -225,7 +225,7 @@ impl FontCell {
                         .reconfigure(
                             &font_data.outline_glyphs,
                             size,
-                            skrifa::instance::LocationRef::default(),
+                            location,
                             skrifa::outline::Target::Smooth {
                                 mode: skrifa::outline::SmoothMode::Normal,
                                 symmetric_rendering: true,
@@ -239,7 +239,7 @@ impl FontCell {
             } else {
                 let draw_settings = skrifa::outline::DrawSettings::unhinted(
                     skrifa::instance::Size::new(metrics.scale),
-                    skrifa::instance::LocationRef::default(),
+                    location,
                 );
                 outline.draw(draw_settings, &mut pen).ok()?;
             }
@@ -336,6 +336,12 @@ pub struct FontFace {
     name: String,
     font: FontCell,
     tweak: FontTweak,
+
+    /// The font weight (100-900) if available from the font file.
+    weight: Option<u16>,
+
+    /// Variable font location (for weight axis, etc.)
+    location: skrifa::instance::Location,
     glyph_info_cache: ahash::HashMap<char, GlyphInfo>,
     glyph_alloc_cache: ahash::HashMap<GlyphCacheKey, GlyphAllocation>,
 }
@@ -347,6 +353,7 @@ impl FontFace {
         font_data: Blob,
         index: u32,
         tweak: FontTweak,
+        preferred_weight: Option<u16>,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let font = FontCell::try_new(font_data, |font_data| {
             let skrifa_font =
@@ -354,6 +361,10 @@ impl FontFace {
 
             let charmap = skrifa_font.charmap();
             let glyphs = skrifa_font.outline_glyphs();
+
+            // Note: We use default location here during initialization because
+            // the actual weight will be applied via the stored location during rendering.
+            // The metrics won't be significantly different at this unscaled size.
             let metrics = skrifa_font.metrics(
                 skrifa::instance::Size::unscaled(),
                 skrifa::instance::LocationRef::default(),
@@ -387,13 +398,54 @@ impl FontFace {
                 hinting_instance,
             })
         })?;
+
+        // Use preferred_weight if provided, otherwise try to read from the OS/2 table or fvar default
+        let weight = preferred_weight.or_else(|| {
+            // First try OS/2 table
+            if let Some(w) = font
+                .borrow_dependent()
+                .skrifa
+                .os2()
+                .ok()
+                .map(|os2| os2.us_weight_class())
+            {
+                return Some(w);
+            }
+            // If no OS/2 or preferred_weight, try to get default from variable font's fvar table
+            font.borrow_dependent()
+                .skrifa
+                .axes()
+                .iter()
+                .find(|axis| axis.tag() == skrifa::raw::types::Tag::new(b"wght"))
+                .map(|axis| axis.default_value() as u16)
+        });
+
+        // Create location for variable font with weight axis
+        // If weight is provided (either from preferred_weight, OS/2, or fvar default), use it
+        // Otherwise fall back to Location::default() which uses all axis defaults
+        let location = if let Some(w) = weight {
+            font.borrow_dependent()
+                .skrifa
+                .axes()
+                .location([("wght", w as f32)])
+        } else {
+            skrifa::instance::Location::default()
+        };
+
         Ok(Self {
             name,
             font,
             tweak,
+            weight,
+            location,
             glyph_info_cache: Default::default(),
             glyph_alloc_cache: Default::default(),
         })
+    }
+
+    /// Get the font weight (100-900) if available from the font file.
+    pub fn weight(&self) -> Option<u16> {
+        self.weight
     }
 
     /// Code points that will always be replaced by the replacement character.
@@ -585,7 +637,7 @@ impl FontFace {
 
         let allocation = self
             .font
-            .allocate_glyph_uncached(atlas, metrics, &glyph_info, bin)
+            .allocate_glyph_uncached(atlas, metrics, &glyph_info, bin, &self.location)
             .unwrap_or_default();
 
         entry.insert(allocation);

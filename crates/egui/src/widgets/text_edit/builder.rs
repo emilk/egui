@@ -759,7 +759,7 @@ impl TextEdit<'_> {
                 ui.skip_ahead_auto_ids(1);
             }
 
-            painter.galley(galley_pos, galley.clone(), text_color);
+            painter.galley(galley_pos, Arc::clone(&galley), text_color);
 
             if has_focus && let Some(cursor_range) = state.cursor.range(&galley) {
                 let primary_cursor_rect = cursor_rect(&galley, &cursor_range.primary, row_height)
@@ -827,8 +827,7 @@ impl TextEdit<'_> {
                     hint_text_str.as_str(),
                 )
             });
-        } else if selection_changed {
-            let cursor_range = cursor_range.unwrap();
+        } else if selection_changed && let Some(cursor_range) = cursor_range {
             let char_range = cursor_range.primary.index..=cursor_range.secondary.index;
             let info = WidgetInfo::text_selection_changed(
                 ui.is_enabled(),

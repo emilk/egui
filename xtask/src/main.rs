@@ -1,7 +1,6 @@
 //! Helper crate for running scripts within the `egui` repo
 
-#![allow(clippy::print_stdout)]
-#![allow(clippy::print_stderr)]
+#![expect(clippy::print_stderr, clippy::print_stdout)]
 #![allow(clippy::exit)]
 
 mod deny;

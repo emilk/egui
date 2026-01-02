@@ -15,15 +15,16 @@ impl crate::Demo for Tooltips {
         "🗖 Tooltips"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         use crate::View as _;
-        let window = egui::Window::new("Tooltips")
+        egui::Window::new("Tooltips")
             .constrain(false) // So we can test how tooltips behave close to the screen edge
             .resizable(true)
             .default_size([450.0, 300.0])
             .scroll(false)
-            .open(open);
-        window.show(ctx, |ui| self.ui(ui));
+            .open(open)
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| self.ui(ui));
     }
 }
 

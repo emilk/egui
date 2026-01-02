@@ -68,6 +68,7 @@ impl<State> AppKind<'_, State> {
         }
         ui.scope_builder(builder, |ui| {
             Frame::central_panel(ui.style())
+                // Only set outer margin, so we show no frame for tests with only free-floating windows/popups:
                 .outer_margin(8.0)
                 .inner_margin(0.0)
                 .show(ui, |ui| match self {

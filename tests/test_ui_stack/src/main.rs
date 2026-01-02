@@ -1,5 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![allow(rustdoc::missing_crate_level_docs)] // it's an example
+#![expect(rustdoc::missing_crate_level_docs)] // it's an example
+
+use std::sync::Arc;
 
 use eframe::egui;
 use eframe::egui::{Rangef, Shape, UiKind};
@@ -158,7 +160,7 @@ impl eframe::App for MyApp {
                             row.col(|ui| {
                                 ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
                                 ui.label("See stack below");
-                                cell_stack = Some(ui.stack().clone());
+                                cell_stack = Some(Arc::clone(ui.stack()));
                             });
                         });
                     });
@@ -253,7 +255,7 @@ fn full_span_horizontal_range(ui_stack: &egui::UiStack) -> Rangef {
 }
 
 fn stack_ui(ui: &mut egui::Ui) {
-    let ui_stack = ui.stack().clone();
+    let ui_stack = Arc::clone(ui.stack());
     ui.scope(|ui| {
         stack_ui_impl(ui, &ui_stack);
     });

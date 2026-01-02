@@ -1,5 +1,5 @@
 #![warn(missing_docs)] // Let's keep `Ui` well-documented.
-#![allow(clippy::use_self)]
+#![expect(clippy::use_self)]
 
 use std::{any::Any, hash::Hash, ops::Deref, sync::Arc};
 
@@ -180,6 +180,7 @@ impl Ui {
                 enabled: ui.enabled,
             },
             true,
+            Default::default(),
         );
 
         if disabled {
@@ -275,7 +276,7 @@ impl Ui {
             painter.set_invisible();
         }
         let sizing_pass = self.sizing_pass || sizing_pass;
-        let style = style.unwrap_or_else(|| self.style.clone());
+        let style = style.unwrap_or_else(|| Arc::clone(&self.style));
         let sense = sense.unwrap_or_else(Sense::hover);
 
         if sizing_pass {
@@ -305,7 +306,7 @@ impl Ui {
             id: unique_id,
             layout_direction: layout.main_dir,
             info: ui_stack_info,
-            parent: Some(self.stack.clone()),
+            parent: Some(Arc::clone(&self.stack)),
             min_rect: placer.min_rect(),
             max_rect: placer.max_rect(),
         };
@@ -345,6 +346,7 @@ impl Ui {
                 enabled: child_ui.enabled,
             },
             true,
+            Default::default(),
         );
 
         child_ui
@@ -1025,6 +1027,17 @@ impl Ui {
 impl Ui {
     /// Check for clicks, drags and/or hover on a specific region of this [`Ui`].
     pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> Response {
+        self.interact_opt(rect, id, sense, Default::default())
+    }
+
+    /// Check for clicks, drags and/or hover on a specific region of this [`Ui`].
+    pub fn interact_opt(
+        &self,
+        rect: Rect,
+        id: Id,
+        sense: Sense,
+        options: crate::InteractOptions,
+    ) -> Response {
         self.ctx().register_accesskit_parent(id, self.unique_id);
 
         self.ctx().create_widget(
@@ -1037,6 +1050,7 @@ impl Ui {
                 enabled: self.enabled,
             },
             true,
+            options,
         )
     }
 
@@ -1105,6 +1119,7 @@ impl Ui {
                 enabled: self.enabled,
             },
             false,
+            Default::default(),
         );
         if self.should_close() {
             response.set_close();
