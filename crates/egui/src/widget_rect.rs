@@ -190,7 +190,7 @@ impl WidgetRects {
                     if move_to_top {
                         layer_widgets.remove(*idx_in_layer);
                         shift_layer_index_after = Some(*idx_in_layer);
-                        *idx_in_layer = layer_widgets.len() - 1;
+                        *idx_in_layer = layer_widgets.len();
                         layer_widgets.push(*existing);
                     } else {
                         layer_widgets[*idx_in_layer] = *existing;
