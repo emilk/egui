@@ -205,6 +205,7 @@ impl WidgetRects {
         }
 
         if let Some(shift_start) = shift_layer_index_after {
+            #[expect(clippy::needless_range_loop)]
             for i in shift_start..layer_widgets.len() {
                 let w = &layer_widgets[i];
                 if let Some((idx_in_by_id, _)) = by_id.get_mut(&w.id) {
