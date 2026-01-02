@@ -937,7 +937,7 @@ fn move_and_resize_window(ctx: &Context, id: Id, interaction: &ResizeInteraction
 fn do_resize_interaction(
     ctx: &Context,
     possible: PossibleInteractions,
-    _accessibility_parent: Id,
+    accessibility_parent: Id,
     layer_id: LayerId,
     outer_rect: Rect,
     window_frame: Frame,
@@ -957,14 +957,14 @@ fn do_resize_interaction(
     let rect = outer_rect.shrink(window_frame.stroke.width / 2.0);
 
     let side_response = |rect, id| {
-        ctx.register_accesskit_parent(id, _accessibility_parent);
+        ctx.register_accesskit_parent(id, accessibility_parent);
         let response = ctx.create_widget(
             WidgetRect {
                 layer_id,
                 id,
                 rect,
                 interact_rect: rect,
-                sense: Sense::drag(),
+                sense: Sense::DRAG, // Don't use Sense::drag() since we don't want these to be focusable
                 enabled: true,
             },
             true,
@@ -1324,7 +1324,7 @@ impl TitleBar {
         let id = ui.unique_id().with("__window_title_bar");
 
         if ui
-            .interact(double_click_rect, id, Sense::click())
+            .interact(double_click_rect, id, Sense::CLICK)
             .double_clicked()
             && collapsible
         {
