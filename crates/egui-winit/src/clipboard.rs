@@ -28,8 +28,14 @@ pub struct Clipboard {
 }
 
 impl Clipboard {
-    /// Construct a new instance
-    pub fn new(_raw_display_handle: Option<RawDisplayHandle>) -> Self {
+    /// Construct a new instance.
+    ///
+    /// # Safety
+    ///
+    /// If `raw_display_handle` is `Some`, the display handle must remain valid for the
+    /// entire lifetime of the returned `Clipboard` instance.
+    #[expect(unsafe_code)]
+    pub unsafe fn new(_raw_display_handle: Option<RawDisplayHandle>) -> Self {
         Self {
             #[cfg(all(
                 not(any(target_os = "android", target_os = "ios")),
