@@ -19,7 +19,7 @@
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!
 
-#![allow(clippy::float_cmp)]
+#![expect(clippy::float_cmp)]
 
 use std::ops::{Add, Div, Mul, RangeInclusive, Sub};
 
@@ -233,7 +233,9 @@ pub fn format_with_decimals_in_range(value: f64, decimal_range: RangeInclusive<u
         for decimals in min_decimals..max_decimals {
             let text = format!("{value:.decimals$}");
             let epsilon = 16.0 * f32::EPSILON; // margin large enough to handle most peoples round-tripping needs
-            if almost_equal(text.parse::<f32>().unwrap(), value as f32, epsilon) {
+            if let Ok(parsed_value) = text.parse::<f32>()
+                && almost_equal(parsed_value, value as f32, epsilon)
+            {
                 // Enough precision to show the value accurately - good!
                 return text;
             }

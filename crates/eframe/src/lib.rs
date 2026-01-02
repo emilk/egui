@@ -142,7 +142,6 @@
 //!
 
 #![warn(missing_docs)] // let's keep eframe well-documented
-#![allow(clippy::needless_doctest_main)]
 
 // Limitation imposed by `accesskit_winit`:
 // https://github.com/AccessKit/accesskit/tree/accesskit-v0.18.0/platforms/winit#android-activity-compatibility`
@@ -253,7 +252,7 @@ pub mod icon_data;
 /// This function can fail if we fail to set up a graphics context.
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
-#[allow(clippy::needless_pass_by_value, clippy::allow_attributes)]
+#[allow(clippy::allow_attributes, clippy::needless_pass_by_value)]
 pub fn run_native(
     app_name: &str,
     mut native_options: NativeOptions,

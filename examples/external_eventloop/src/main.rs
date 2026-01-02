@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![allow(rustdoc::missing_crate_level_docs)] // it's an example
+#![expect(rustdoc::missing_crate_level_docs, clippy::unwrap_used)] // it's an example
 
 use eframe::{UserEvent, egui};
 use std::{cell::Cell, rc::Rc};

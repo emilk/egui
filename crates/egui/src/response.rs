@@ -14,7 +14,7 @@ use crate::{
 /// It also lets you easily show a tooltip on hover.
 ///
 /// Whenever something gets added to a [`Ui`], a [`Response`] object is returned.
-/// [`ui.add`] returns a [`Response`], as does [`ui.button`], and all similar shortcuts.
+/// [`Ui::add`] returns a [`Response`], as does [`Ui::button`], and all similar shortcuts.
 ///
 /// ⚠️ The `Response` contains a clone of [`Context`], and many methods lock the `Context`.
 /// It can therefore be a deadlock to use `Context` from within a context-locking closures,
@@ -738,6 +738,7 @@ impl Response {
                 enabled: self.enabled(),
             },
             true,
+            Default::default(),
         )
     }
 
@@ -871,6 +872,10 @@ impl Response {
             WidgetType::Panel => Role::Pane,
             WidgetType::ProgressIndicator => Role::ProgressIndicator,
             WidgetType::Window => Role::Window,
+
+            WidgetType::ResizeHandle => Role::Splitter,
+            WidgetType::ScrollBar => Role::ScrollBar,
+
             WidgetType::Other => Role::Unknown,
         });
         if !info.enabled {

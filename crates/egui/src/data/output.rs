@@ -679,6 +679,8 @@ impl WidgetInfo {
             WidgetType::Panel => "panel",
             WidgetType::ProgressIndicator => "progress indicator",
             WidgetType::Window => "window",
+            WidgetType::ScrollBar => "scroll bar",
+            WidgetType::ResizeHandle => "resize handle",
             WidgetType::Label | WidgetType::Other => "",
         };
 

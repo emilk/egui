@@ -1,8 +1,10 @@
+use std::sync::Arc;
+
 use super::{Demo, View};
 
 use egui::{
-    Align, Align2, Checkbox, CollapsingHeader, Color32, ComboBox, Context, FontId, Resize,
-    RichText, Sense, Slider, Stroke, TextFormat, TextStyle, Ui, Vec2, Window, vec2,
+    Align, Align2, Checkbox, CollapsingHeader, Color32, ComboBox, FontId, Resize, RichText, Sense,
+    Slider, Stroke, TextFormat, TextStyle, Ui, Vec2, Window, vec2,
 };
 
 /// Showcase some ui code
@@ -47,12 +49,13 @@ impl Demo for MiscDemoWindow {
         "✨ Misc Demos"
     }
 
-    fn show(&mut self, ctx: &Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         Window::new(self.name())
             .open(open)
             .vscroll(true)
             .hscroll(true)
-            .show(ctx, |ui| self.ui(ui));
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| self.ui(ui));
     }
 }
 
@@ -518,7 +521,7 @@ fn ui_stack_demo(ui: &mut Ui) {
                         with various information.\n\nThis is how the stack looks like here:",
         );
     });
-    let stack = ui.stack().clone();
+    let stack = Arc::clone(ui.stack());
     egui::Frame::new()
         .inner_margin(ui.spacing().menu_margin)
         .stroke(ui.visuals().widgets.noninteractive.bg_stroke)

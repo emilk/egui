@@ -26,12 +26,13 @@ impl crate::Demo for CodeEditor {
         "🖮 Code Editor"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         use crate::View as _;
         egui::Window::new(self.name())
             .open(open)
             .default_height(500.0)
-            .show(ctx, |ui| self.ui(ui));
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| self.ui(ui));
     }
 }
 

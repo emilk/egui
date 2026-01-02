@@ -48,7 +48,7 @@ impl Default for WidgetGallery {
 }
 
 impl WidgetGallery {
-    #[allow(unused_mut, clippy::allow_attributes)] // if not chrono
+    #[allow(clippy::allow_attributes, unused_mut)] // if not chrono
     #[inline]
     pub fn with_date_button(mut self, _with_date_button: bool) -> Self {
         #[cfg(feature = "chrono")]
@@ -64,12 +64,13 @@ impl crate::Demo for WidgetGallery {
         "🗄 Widget Gallery"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
             .resizable([true, false]) // resizable so we can shrink if the text edit grows
             .default_width(280.0)
-            .show(ctx, |ui| {
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| {
                 use crate::View as _;
                 self.ui(ui);
             });

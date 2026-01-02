@@ -1,4 +1,4 @@
-#![allow(deprecated)]
+#![expect(deprecated)]
 //! Deprecated menu API - Use [`crate::containers::menu`] instead.
 //!
 //! Usage:
@@ -198,7 +198,7 @@ fn menu_popup<'c, R>(
 
         Frame::menu(ui.style())
             .show(ui, |ui| {
-                ui.set_menu_state(Some(menu_state_arc.clone()));
+                ui.set_menu_state(Some(Arc::clone(menu_state_arc)));
                 ui.with_layout(Layout::top_down_justified(Align::LEFT), add_contents)
                     .inner
             })

@@ -9,7 +9,7 @@ jobs:
     steps:
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.88
+          toolchain: 1.92
       - name: Machete install
         ## The official cargo-machete action
         uses: bnjbvr/cargo-machete@v0.9.1

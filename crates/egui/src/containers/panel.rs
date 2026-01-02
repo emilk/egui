@@ -255,9 +255,7 @@ impl<'a> PanelSizer<'a> {
         let side = self.panel.side;
         let size_range = self.panel.size_range;
 
-        if is_resizing && pointer.is_some() {
-            let pointer = pointer.unwrap();
-
+        if is_resizing && let Some(pointer) = pointer {
             match side {
                 PanelSide::Vertical(side) => {
                     self.size = (pointer.x - side.side_x(self.panel_rect)).abs();
@@ -760,8 +758,10 @@ impl Panel {
         ctx: &Context,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
+        #![expect(deprecated)]
+
         let side = self.side;
-        let available_rect = ctx.globally_available_rect();
+        let available_rect = ctx.available_rect();
         let mut panel_ui = Ui::new(
             ctx.clone(),
             self.id,
@@ -809,9 +809,7 @@ impl Panel {
         let resize_id = self.id.with("__resize");
         let resize_response = ui.ctx().read_response(resize_id);
 
-        if resize_response.is_some() {
-            let resize_response = resize_response.unwrap();
-
+        if let Some(resize_response) = resize_response {
             // NOTE(sharky98): The original code was initializing to
             // false first, but it doesn't seem necessary.
             let is_resizing = resize_response.dragged();
@@ -1044,6 +1042,7 @@ impl CentralPanel {
     }
 
     /// Show the panel at the top level.
+    #[deprecated = "Use show_inside() instead"]
     pub fn show<R>(
         self,
         ctx: &Context,
@@ -1058,6 +1057,8 @@ impl CentralPanel {
         ctx: &Context,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
+        #![expect(deprecated)]
+
         let id = Id::new((ctx.viewport_id(), "central_panel"));
 
         let mut panel_ui = Ui::new(
@@ -1065,7 +1066,7 @@ impl CentralPanel {
             id,
             UiBuilder::new()
                 .layer_id(LayerId::background())
-                .max_rect(ctx.globally_available_rect().round_ui()),
+                .max_rect(ctx.available_rect().round_ui()),
         );
         panel_ui.set_clip_rect(ctx.content_rect());
 

@@ -19,8 +19,8 @@ use crate::{
     ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId, Memory,
     ModifierNames, Modifiers, NumExt as _, Order, Painter, RawInput, Response, RichText,
     SafeAreaInsets, ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions, Ui,
-    ViewportBuilder, ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet,
-    ViewportOutput, Visuals, Widget as _, WidgetRect, WidgetText,
+    UiBuilder, ViewportBuilder, ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair,
+    ViewportIdSet, ViewportOutput, Visuals, Widget as _, WidgetRect, WidgetText,
     animation_manager::AnimationManager,
     containers::{self, area::AreaState},
     data::output::PlatformOutput,
@@ -584,8 +584,8 @@ impl ContextImpl {
         }
     }
 
-    fn accesskit_node_builder(&mut self, id: Id) -> &mut accesskit::Node {
-        let state = self.viewport().this_pass.accesskit_state.as_mut().unwrap();
+    fn accesskit_node_builder(&mut self, id: Id) -> Option<&mut accesskit::Node> {
+        let state = self.viewport().this_pass.accesskit_state.as_mut()?;
         let builders = &mut state.nodes;
 
         if let std::collections::hash_map::Entry::Vacant(entry) = builders.entry(id) {
@@ -611,11 +611,11 @@ impl ContextImpl {
             let parent_id = find_accesskit_parent(&state.parent_map, builders, id)
                 .unwrap_or_else(crate::accesskit_root_id);
 
-            let parent_builder = builders.get_mut(&parent_id).unwrap();
+            let parent_builder = builders.get_mut(&parent_id)?;
             parent_builder.push_child(id.accesskit_id());
         }
 
-        builders.get_mut(&id).unwrap()
+        builders.get_mut(&id)
     }
 
     fn pixels_per_point(&mut self) -> f32 {
@@ -793,11 +793,23 @@ impl Context {
         let plugins = self.read(|ctx| ctx.plugins.ordered_plugins());
         #[expect(deprecated)]
         self.run(new_input, |ctx| {
-            crate::CentralPanel::no_frame().show(ctx, |ui| {
-                plugins.on_begin_pass(ui);
-                run_ui(ui);
-                plugins.on_end_pass(ui);
-            });
+            let mut top_ui = Ui::new(
+                ctx.clone(),
+                Id::new((ctx.viewport_id(), "__top_ui")),
+                UiBuilder::new()
+                    .layer_id(LayerId::background())
+                    .max_rect(ctx.available_rect().round_ui()),
+            );
+
+            {
+                plugins.on_begin_pass(&mut top_ui);
+                run_ui(&mut top_ui);
+                plugins.on_end_pass(&mut top_ui);
+            }
+
+            // Inform ctx about what we actually used, so we can shrink the native window to fit.
+            // TODO(emilk): make better use of this somehow
+            ctx.pass_state_mut(|state| state.allocate_central_panel(top_ui.min_rect()));
         })
     }
 
@@ -1214,7 +1226,12 @@ impl Context {
     ///
     /// `allow_focus` should usually be true, unless you call this function multiple times with the
     /// same widget, then `allow_focus` should only be true once (like in [`Ui::new`] (true) and [`Ui::remember_min_rect`] (false)).
-    pub(crate) fn create_widget(&self, w: WidgetRect, allow_focus: bool) -> Response {
+    pub(crate) fn create_widget(
+        &self,
+        w: WidgetRect,
+        allow_focus: bool,
+        options: crate::InteractOptions,
+    ) -> Response {
         let interested_in_focus = w.enabled
             && w.sense.is_focusable()
             && self.memory(|mem| mem.allows_interaction(w.layer_id));
@@ -1226,7 +1243,7 @@ impl Context {
             // We add all widgets here, even non-interactive ones,
             // because we need this list not only for checking for blocking widgets,
             // but also to know when we have reached the widget we are checking for cover.
-            viewport.this_pass.widgets.insert(w.layer_id, w);
+            viewport.this_pass.widgets.insert(w.layer_id, w, options);
 
             if allow_focus && interested_in_focus {
                 ctx.memory.interested_in_focus(w.id, w.layer_id);
@@ -1242,7 +1259,7 @@ impl Context {
             self.check_for_id_clash(w.id, w.rect, "widget");
         }
 
-        #[allow(clippy::let_and_return, clippy::allow_attributes)]
+        #[allow(clippy::allow_attributes, clippy::let_and_return)]
         let res = self.get_response(w);
 
         #[cfg(debug_assertions)]
@@ -1947,7 +1964,7 @@ impl Context {
     pub fn add_plugin(&self, plugin: impl plugin::Plugin + 'static) {
         let handle = plugin::PluginHandle::new(plugin);
 
-        let added = self.write(|ctx| ctx.plugins.add(handle.clone()));
+        let added = self.write(|ctx| ctx.plugins.add(Arc::clone(&handle)));
 
         if added {
             handle.lock().dyn_plugin_mut().setup(self);
@@ -2073,13 +2090,13 @@ impl Context {
 
     /// The currently active [`Style`] used by all subsequent popups, menus, etc.
     pub fn global_style(&self) -> Arc<Style> {
-        self.options(|opt| opt.style().clone())
+        self.options(|opt| Arc::clone(opt.style()))
     }
 
     /// The currently active [`Style`] used by all subsequent popups, menus, etc.
     #[deprecated = "Renamed to `global_style` to avoid confusion with `ui.style()`"]
     pub fn style(&self) -> Arc<Style> {
-        self.options(|opt| opt.style().clone())
+        self.options(|opt| Arc::clone(opt.style()))
     }
 
     /// Mutate the currently active [`Style`] used by all subsequent popups, menus, etc.
@@ -2153,8 +2170,8 @@ impl Context {
     /// The [`Style`] used by all subsequent popups, menus, etc.
     pub fn style_of(&self, theme: Theme) -> Arc<Style> {
         self.options(|opt| match theme {
-            Theme::Dark => opt.dark_style.clone(),
-            Theme::Light => opt.light_style.clone(),
+            Theme::Dark => Arc::clone(&opt.dark_style),
+            Theme::Light => Arc::clone(&opt.light_style),
         })
     }
 
@@ -2348,7 +2365,7 @@ impl Context {
     ///
     /// You can show stats about the allocated textures using [`Self::texture_ui`].
     pub fn tex_manager(&self) -> Arc<RwLock<epaint::textures::TextureManager>> {
-        self.read(|ctx| ctx.tex_manager.0.clone())
+        self.read(|ctx| Arc::clone(&ctx.tex_manager.0))
     }
 
     // ---------------------------------------------------------------------
@@ -2799,17 +2816,12 @@ impl Context {
     }
 
     /// How much space is still available after panels have been added.
-    pub fn globally_available_rect(&self) -> Rect {
+    #[deprecated = "Use content_rect (or viewport_rect) instead"]
+    pub fn available_rect(&self) -> Rect {
         self.pass_state(|s| s.available_rect()).round_ui()
     }
 
-    /// How much space is still available after panels have been added.
-    #[deprecated = "Renamed to globally_available_rect"]
-    pub fn available_rect(&self) -> Rect {
-        self.globally_available_rect()
-    }
-
-    /// How much space is used by panels and windows.
+    /// How much space is used by windows and the top-level [`Ui`].
     pub fn globally_used_rect(&self) -> Rect {
         self.write(|ctx| {
             let mut used = ctx.viewport().this_pass.used_by_panels;
@@ -2820,23 +2832,16 @@ impl Context {
         })
     }
 
-    /// How much space is used by panels and windows.
+    /// How much space is used by windows and the top-level [`Ui`].
     #[deprecated = "Renamed to globally_used_rect"]
     pub fn used_rect(&self) -> Rect {
         self.globally_used_rect()
     }
 
-    /// How much space is used by panels and windows.
+    /// How much space is used by windows and the top-level [`Ui`].
     ///
     /// You can shrink your egui area to this size and still fit all egui components.
-    pub fn globally_used_size(&self) -> Vec2 {
-        (self.globally_used_rect().max - Pos2::ZERO).round_ui()
-    }
-
-    /// How much space is used by panels and windows.
-    ///
-    /// You can shrink your egui area to this size and still fit all egui components.
-    #[deprecated = "Renamed to globally_used_size"]
+    #[deprecated = "Use globally_used_rect instead"]
     pub fn used_size(&self) -> Vec2 {
         (self.globally_used_rect().max - Pos2::ZERO).round_ui()
     }
@@ -3628,7 +3633,7 @@ impl Context {
     /// If AccessKit support is active for the current frame, get or create
     /// a node builder with the specified ID and return a mutable reference to it.
     /// For newly created nodes, the parent is the parent [`Ui`]s ID.
-    /// And an [`Ui`]s parent can be set with [`crate::UiBuilder::accessibility_parent`].
+    /// And an [`Ui`]s parent can be set with [`UiBuilder::accessibility_parent`].
     ///
     /// The `Context` lock is held while the given closure is called!
     ///
@@ -3639,14 +3644,7 @@ impl Context {
         id: Id,
         writer: impl FnOnce(&mut accesskit::Node) -> R,
     ) -> Option<R> {
-        self.write(|ctx| {
-            ctx.viewport()
-                .this_pass
-                .accesskit_state
-                .is_some()
-                .then(|| ctx.accesskit_node_builder(id))
-                .map(writer)
-        })
+        self.write(|ctx| ctx.accesskit_node_builder(id).map(writer))
     }
 
     pub(crate) fn register_accesskit_parent(&self, id: Id, parent_id: Id) {
@@ -3887,7 +3885,7 @@ impl Context {
 
     /// The loaders of bytes, images, and textures.
     pub fn loaders(&self) -> Arc<Loaders> {
-        self.read(|this| this.loaders.clone())
+        self.read(|this| Arc::clone(&this.loaders))
     }
 
     /// Returns `true` if any image is currently being loaded.

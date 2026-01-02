@@ -142,7 +142,9 @@ impl Element {
         Self::Value {
             value: Box::new(t),
             clone_fn: |x| {
-                let x = x.downcast_ref::<T>().unwrap(); // This unwrap will never panic, because we always construct this type using this `new` function and because we return &mut reference only with this type `T`, so type cannot change.
+                // This unwrap will never panic, because we always construct this type using this `new` function and because we return &mut reference only with this type `T`, so type cannot change.
+                #[expect(clippy::unwrap_used)]
+                let x = x.downcast_ref::<T>().unwrap();
                 Box::new(x.clone())
             },
             #[cfg(feature = "persistence")]
@@ -156,12 +158,16 @@ impl Element {
         Self::Value {
             value: Box::new(t),
             clone_fn: |x| {
-                let x = x.downcast_ref::<T>().unwrap(); // This unwrap will never panic, because we always construct this type using this `new` function and because we return &mut reference only with this type `T`, so type cannot change.
+                // This unwrap will never panic, because we always construct this type using this `new` function and because we return &mut reference only with this type `T`, so type cannot change.
+                #[expect(clippy::unwrap_used)]
+                let x = x.downcast_ref::<T>().unwrap();
                 Box::new(x.clone())
             },
             #[cfg(feature = "persistence")]
             serialize_fn: Some(|x| {
-                let x = x.downcast_ref::<T>().unwrap(); // This will never panic too, for same reason.
+                // This will never panic too, for same reason.
+                #[expect(clippy::unwrap_used)]
+                let x = x.downcast_ref::<T>().unwrap();
                 ron::to_string(x).ok()
             }),
         }
@@ -209,7 +215,9 @@ impl Element {
         }
 
         match self {
-            Self::Value { value, .. } => value.downcast_mut().unwrap(), // This unwrap will never panic because we already converted object to required type
+            // This unwrap will never panic because we already converted object to required type
+            #[expect(clippy::unwrap_used)]
+            Self::Value { value, .. } => value.downcast_mut().unwrap(),
             Self::Serialized(_) => unreachable!(),
         }
     }
@@ -238,7 +246,9 @@ impl Element {
         }
 
         match self {
-            Self::Value { value, .. } => value.downcast_mut().unwrap(), // This unwrap will never panic because we already converted object to required type
+            // This unwrap will never panic because we already converted object to required type
+            #[expect(clippy::unwrap_used)]
+            Self::Value { value, .. } => value.downcast_mut().unwrap(),
             Self::Serialized(_) => unreachable!(),
         }
     }
@@ -436,10 +446,14 @@ impl IdTypeMap {
         let hash = hash(TypeId::of::<T>(), id);
         use std::collections::hash_map::Entry;
         match self.map.entry(hash) {
-            Entry::Vacant(vacant) => vacant
-                .insert(Element::new_temp(insert_with()))
-                .get_mut_temp()
-                .unwrap(), // this unwrap will never panic, because we insert correct type right now
+            Entry::Vacant(vacant) => {
+                // this unwrap will never panic, because we insert correct type right now
+                #[expect(clippy::unwrap_used)]
+                vacant
+                    .insert(Element::new_temp(insert_with()))
+                    .get_mut_temp()
+                    .unwrap()
+            }
             Entry::Occupied(occupied) => {
                 occupied.into_mut().get_temp_mut_or_insert_with(insert_with)
             }
@@ -454,10 +468,14 @@ impl IdTypeMap {
         let hash = hash(TypeId::of::<T>(), id);
         use std::collections::hash_map::Entry;
         match self.map.entry(hash) {
-            Entry::Vacant(vacant) => vacant
-                .insert(Element::new_persisted(insert_with()))
-                .get_mut_persisted()
-                .unwrap(), // this unwrap will never panic, because we insert correct type right now
+            Entry::Vacant(vacant) => {
+                // this unwrap will never panic, because we insert correct type right now
+                #[expect(clippy::unwrap_used)]
+                vacant
+                    .insert(Element::new_persisted(insert_with()))
+                    .get_mut_persisted()
+                    .unwrap()
+            }
             Entry::Occupied(occupied) => occupied
                 .into_mut()
                 .get_persisted_mut_or_insert_with(insert_with),
@@ -466,7 +484,7 @@ impl IdTypeMap {
 
     /// For tests
     #[cfg(feature = "persistence")]
-    #[allow(unused, clippy::allow_attributes)]
+    #[allow(clippy::allow_attributes, unused)]
     fn get_generation<T: SerializableAny>(&self, id: Id) -> Option<usize> {
         let element = self.map.get(&hash(TypeId::of::<T>(), id))?;
         match element {
@@ -706,7 +724,7 @@ fn test_two_id_two_type() {
 
 #[test]
 fn test_two_id_x_two_types() {
-    #![allow(clippy::approx_constant)]
+    #![expect(clippy::approx_constant)]
 
     let a = Id::new("a");
     let b = Id::new("b");

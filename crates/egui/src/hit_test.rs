@@ -2,7 +2,7 @@ use ahash::HashMap;
 
 use emath::TSTransform;
 
-use crate::{LayerId, Pos2, Rect, Sense, WidgetRect, WidgetRects, ahash, emath, id::IdSet};
+use crate::{LayerId, Pos2, Sense, WidgetRect, WidgetRects, ahash, emath, id::IdSet};
 
 /// Result of a hit-test against [`WidgetRects`].
 ///
@@ -201,7 +201,7 @@ fn contains_circle(interact_rect: emath::Rect, pos: Pos2, radius: f32) -> bool {
 }
 
 fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
-    #![allow(clippy::collapsible_else_if)]
+    #![expect(clippy::collapsible_else_if)]
 
     // First find the best direct hits:
     let hit_click = find_closest_within(
@@ -361,7 +361,10 @@ fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
 
         (Some(hit_click), Some(hit_drag)) => {
             // We have a perfect hit on both click and drag. Which is the topmost?
+            #[expect(clippy::unwrap_used)]
             let click_idx = close.iter().position(|w| *w == hit_click).unwrap();
+
+            #[expect(clippy::unwrap_used)]
             let drag_idx = close.iter().position(|w| *w == hit_drag).unwrap();
 
             let click_is_on_top_of_drag = drag_idx < click_idx;
@@ -424,16 +427,6 @@ fn find_closest_within(
 
         let dist_sq = widget.interact_rect.distance_sq_to_pos(pos);
 
-        if let Some(closest) = closest
-            && dist_sq == closest_dist_sq
-        {
-            // It's a tie! Pick the thin candidate over the thick one.
-            // This makes it easier to hit a thin resize-handle, for instance:
-            if should_prioritize_hits_on_back(closest.interact_rect, widget.interact_rect) {
-                continue;
-            }
-        }
-
         // In case of a tie, take the last one = the one on top.
         if dist_sq <= closest_dist_sq {
             closest_dist_sq = dist_sq;
@@ -442,27 +435,6 @@ fn find_closest_within(
     }
 
     closest
-}
-
-/// Should we prioritize hits on `back` over those on `front`?
-///
-/// `back` should be behind the `front` widget.
-///
-/// Returns true if `back` is a small hit-target and `front` is not.
-fn should_prioritize_hits_on_back(back: Rect, front: Rect) -> bool {
-    if front.contains_rect(back) {
-        return false; // back widget is fully occluded; no way to hit it
-    }
-
-    // Reduce each rect to its width or height, whichever is smaller:
-    let back = back.width().min(back.height());
-    let front = front.width().min(front.height());
-
-    // These are hard-coded heuristics that could surely be improved.
-    let back_is_much_thinner = back <= 0.5 * front;
-    let back_is_thin = back <= 16.0;
-
-    back_is_much_thinner && back_is_thin
 }
 
 #[cfg(test)]

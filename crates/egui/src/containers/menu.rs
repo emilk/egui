@@ -444,11 +444,8 @@ impl SubMenu {
         let mut menu_config = self.config.unwrap_or_else(|| parent_config.clone());
         menu_config.bar = false;
 
-        let menu_root_response = ui
-            .ctx()
-            .read_response(menu_id)
-            // Since we are a child of that ui, this should always exist
-            .unwrap();
+        #[expect(clippy::unwrap_used)] // Since we are a child of that ui, this should always exist
+        let menu_root_response = ui.ctx().read_response(menu_id).unwrap();
 
         let hover_pos = ui.ctx().pointer_hover_pos();
 

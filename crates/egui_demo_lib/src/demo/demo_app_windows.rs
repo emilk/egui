@@ -6,7 +6,7 @@ use crate::View as _;
 use crate::is_mobile;
 use egui::containers::menu;
 use egui::style::StyleModifier;
-use egui::{Context, Modifiers, ScrollArea, Ui};
+use egui::{Modifiers, ScrollArea, Ui};
 // ----------------------------------------------------------------------------
 
 struct DemoGroup {
@@ -39,11 +39,11 @@ impl DemoGroup {
         }
     }
 
-    pub fn windows(&mut self, ctx: &Context, open: &mut BTreeSet<String>) {
+    pub fn windows(&mut self, ui: &mut Ui, open: &mut BTreeSet<String>) {
         let Self { demos } = self;
         for demo in demos {
             let mut is_open = open.contains(demo.name());
-            demo.show(ctx, &mut is_open);
+            demo.show(ui, &mut is_open);
             set_open(open, demo.name(), is_open);
         }
     }
@@ -137,7 +137,7 @@ impl DemoGroups {
         tests.checkboxes(ui, open);
     }
 
-    pub fn windows(&mut self, ctx: &Context, open: &mut BTreeSet<String>) {
+    pub fn windows(&mut self, ui: &mut Ui, open: &mut BTreeSet<String>) {
         let Self {
             about,
             demos,
@@ -145,11 +145,11 @@ impl DemoGroups {
         } = self;
         {
             let mut is_open = open.contains(about.name());
-            about.show(ctx, &mut is_open);
+            about.show(ui, &mut is_open);
             set_open(open, about.name(), is_open);
         }
-        demos.windows(ctx, open);
-        tests.windows(ctx, open);
+        demos.windows(ui, open);
+        tests.windows(ui, open);
     }
 }
 
@@ -231,7 +231,7 @@ impl DemoWindows {
             }
         } else {
             self.mobile_top_bar(ui);
-            self.groups.windows(ui.ctx(), &mut self.open);
+            self.groups.windows(ui, &mut self.open);
         }
     }
 
@@ -295,7 +295,7 @@ impl DemoWindows {
             });
         });
 
-        self.groups.windows(ui.ctx(), &mut self.open);
+        self.groups.windows(ui, &mut self.open);
     }
 
     fn demo_list_ui(&mut self, ui: &mut egui::Ui) {
@@ -372,8 +372,8 @@ fn file_menu_button(ui: &mut Ui) {
 mod tests {
     use crate::{Demo as _, demo::demo_app_windows::DemoGroups};
 
-    use egui_kittest::kittest::Queryable as _;
-    use egui_kittest::{Harness, OsThreshold, SnapshotOptions, SnapshotResults};
+    use egui::Vec2;
+    use egui_kittest::{HarnessBuilder, OsThreshold, SnapshotOptions, SnapshotResults};
 
     #[test]
     fn demos_should_match_snapshot() {
@@ -394,20 +394,15 @@ mod tests {
 
             let name = remove_leading_emoji(demo.name());
 
-            let mut harness = Harness::new_ui(|ui| {
-                egui_extras::install_image_loaders(ui);
-                demo.show(ui, &mut true);
-            });
+            let mut harness = HarnessBuilder::default()
+                .with_size(Vec2::splat(2048.0))
+                .build_ui(|ui| {
+                    egui_extras::install_image_loaders(ui);
+                    demo.show(ui, &mut true);
+                });
 
-            let window = harness
-                .get_all_by_role(egui::accesskit::Role::Window)
-                .next()
-                .unwrap();
-            // TODO(lucasmerlin): Windows should probably have a label?
-            //let window = harness.get_by_label(name);
-
-            let size = window.rect().size();
-            harness.set_size(size);
+            // Resize to fit every window, plus some margin:
+            harness.set_size(harness.ctx.globally_used_rect().max.to_vec2() + Vec2::splat(16.0));
 
             // Run the app for some more frames...
             harness.run_ok();

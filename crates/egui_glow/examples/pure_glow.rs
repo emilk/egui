@@ -1,9 +1,9 @@
 //! Example how to use pure `egui_glow`.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![allow(rustdoc::missing_crate_level_docs)] // it's an example
-#![allow(clippy::undocumented_unsafe_blocks)]
-#![allow(unsafe_code)]
+#![expect(rustdoc::missing_crate_level_docs, clippy::unwrap_used)] // it's an example
+#![expect(clippy::undocumented_unsafe_blocks)]
+#![expect(unsafe_code)]
 
 use std::num::NonZeroU32;
 use std::sync::Arc;
@@ -190,7 +190,7 @@ impl winit::application::ApplicationHandler<UserEvent> for GlowApp {
         let gl = std::sync::Arc::new(gl);
         gl_window.window().set_visible(true);
 
-        let egui_glow = egui_glow::EguiGlow::new(event_loop, gl.clone(), None, None, true);
+        let egui_glow = egui_glow::EguiGlow::new(event_loop, Arc::clone(&gl), None, None, true);
 
         let event_loop_proxy = egui::mutex::Mutex::new(self.proxy.clone());
         egui_glow

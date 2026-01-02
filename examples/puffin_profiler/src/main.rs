@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![allow(rustdoc::missing_crate_level_docs)] // it's an example
+#![expect(rustdoc::missing_crate_level_docs)] // it's an example
 
 use std::sync::{
     Arc,
@@ -129,7 +129,7 @@ impl eframe::App for MyApp {
         }
 
         if self.show_deferred_viewport.load(Ordering::Relaxed) {
-            let show_deferred_viewport = self.show_deferred_viewport.clone();
+            let show_deferred_viewport = Arc::clone(&self.show_deferred_viewport);
             ui.ctx().show_viewport_deferred(
                 egui::ViewportId::from_hash_of("deferred_viewport"),
                 egui::ViewportBuilder::default()

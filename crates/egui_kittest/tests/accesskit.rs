@@ -18,8 +18,8 @@ fn empty_ui_should_return_tree_with_only_root_window() {
 
     assert_eq!(
         output.nodes.len(),
-        4,
-        "Expected the root node and two Uis and a Frame for the panel"
+        2,
+        "Expected the root node and the top level Ui; found: {output:#?}",
     );
 
     assert_eq!(
@@ -28,8 +28,8 @@ fn empty_ui_should_return_tree_with_only_root_window() {
             .iter()
             .filter(|(_, n)| n.role() == Role::GenericContainer)
             .count(),
-        3,
-        "Expected two Uis and one Frame as GenericContainer nodes.",
+        1,
+        "Expected a single Ui as a GenericContainer node.",
     );
 
     let (id, root) = &output.nodes[0];

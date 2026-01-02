@@ -125,6 +125,12 @@ pub struct FontData {
 
     /// Extra scale and vertical tweak to apply to all text of this font.
     pub tweak: FontTweak,
+
+    /// The font weight (100-900), if available.
+    /// Standard values: 100 (Thin), 200 (Extra Light), 300 (Light), 400 (Regular),
+    /// 500 (Medium), 600 (Semi Bold), 700 (Bold), 800 (Extra Bold), 900 (Black).
+    /// `None` if the weight could not be determined.
+    pub weight: Option<u16>,
 }
 
 impl FontData {
@@ -133,6 +139,7 @@ impl FontData {
             font: Cow::Borrowed(font),
             index: 0,
             tweak: Default::default(),
+            weight: None,
         }
     }
 
@@ -141,11 +148,42 @@ impl FontData {
             font: Cow::Owned(font),
             index: 0,
             tweak: Default::default(),
+            weight: None,
         }
     }
 
     pub fn tweak(self, tweak: FontTweak) -> Self {
         Self { tweak, ..self }
+    }
+
+    /// Set the font weight (100-900).
+    ///
+    /// This is typically read automatically from the font file when loaded,
+    /// but can be overridden manually if needed.
+    ///
+    /// Standard weight values:
+    /// - 100: Thin
+    /// - 200: Extra Light
+    /// - 300: Light
+    /// - 400: Regular/Normal
+    /// - 500: Medium
+    /// - 600: Semi Bold
+    /// - 700: Bold
+    /// - 800: Extra Bold
+    /// - 900: Black
+    ///
+    /// # Example
+    /// ```
+    /// # use epaint::text::FontData;
+    /// let font_data = FontData::from_static(include_bytes!("../../../epaint_default_fonts/fonts/Ubuntu-Light.ttf"))
+    ///     .weight(300); // Override to Light weight
+    /// assert_eq!(font_data.weight, Some(300));
+    /// ```
+    pub fn weight(self, weight: u16) -> Self {
+        Self {
+            weight: Some(weight),
+            ..self
+        }
     }
 }
 
@@ -771,8 +809,15 @@ impl FontsImpl {
         for (name, font_data) in &definitions.font_data {
             let tweak = font_data.tweak;
             let blob = blob_from_font_data(font_data);
-            let font_face = FontFace::new(options, name.clone(), blob, font_data.index, tweak)
-                .unwrap_or_else(|err| panic!("Error parsing {name:?} TTF/OTF font file: {err}"));
+            let font_face = FontFace::new(
+                options,
+                name.clone(),
+                blob,
+                font_data.index,
+                tweak,
+                font_data.weight,
+            )
+            .unwrap_or_else(|err| panic!("Error parsing {name:?} TTF/OTF font file: {err}"));
             let key = FontFaceKey::new();
             fonts_by_id.insert(key, font_face);
             fonts_by_name.insert(name.clone(), key);
@@ -815,6 +860,26 @@ impl FontsImpl {
             cached_family,
             atlas: &mut self.atlas,
         }
+    }
+
+    /// Get the weight of a font by name, if available.
+    ///
+    /// Returns the weight value (100-900) read from the font file's OS/2 table,
+    /// or `None` if the font is not found or doesn't contain weight information.
+    ///
+    /// # Example
+    /// ```
+    /// # use epaint::text::{FontDefinitions, FontsImpl};
+    /// # use epaint::TextOptions;
+    /// let fonts_impl = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+    /// if let Some(weight) = fonts_impl.font_weight("Hack") {
+    ///     println!("Hack font weight: {}", weight);
+    /// }
+    /// ```
+    pub fn font_weight(&self, font_name: &str) -> Option<u16> {
+        let key = self.fonts_by_name.get(font_name)?;
+        let font_face = self.fonts_by_id.get(key)?;
+        font_face.weight()
     }
 }
 
@@ -880,14 +945,14 @@ impl GalleyCache {
                 let cached = entry.into_mut();
                 cached.last_used = self.generation;
 
-                let galley = cached.galley.clone();
+                let galley = Arc::clone(&cached.galley);
                 if let Some(children) = &cached.children {
                     // The point of `allow_split_paragraphs` is to split large jobs into paragraph,
                     // and then cache each paragraph individually.
                     // That way, if we edit a single paragraph, only that paragraph will be re-layouted.
                     // For that to work we need to keep all the child/paragraph
                     // galleys alive while the parent galley is alive:
-                    for child_hash in children.clone().iter() {
+                    for child_hash in Arc::clone(children).iter() {
                         if let Some(cached_child) = self.cache.get_mut(child_hash) {
                             cached_child.last_used = self.generation;
                         }
@@ -913,7 +978,7 @@ impl GalleyCache {
                         CachedGalley {
                             last_used: self.generation,
                             children: Some(child_hashes.into()),
-                            galley: galley.clone(),
+                            galley: Arc::clone(&galley),
                         },
                     );
                     galley
@@ -923,7 +988,7 @@ impl GalleyCache {
                     entry.insert(CachedGalley {
                         last_used: self.generation,
                         children: None,
-                        galley: galley.clone(),
+                        galley: Arc::clone(&galley),
                     });
                     galley
                 }
