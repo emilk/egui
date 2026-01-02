@@ -2542,10 +2542,10 @@ impl Context {
             }
         }
 
-        if self.global_style().debug.show_focused_widget {
-            if let Some(focused_id) = self.memory(|mem| mem.focused()) {
-                paint_widget_id(focused_id, "focused", Color32::PURPLE);
-            }
+        if self.global_style().debug.show_focused_widget
+            && let Some(focused_id) = self.memory(|mem| mem.focused())
+        {
+            paint_widget_id(focused_id, "focused", Color32::PURPLE);
         }
 
         if let Some(debug_rect) = self.pass_state_mut(|fs| fs.debug_rect.take()) {

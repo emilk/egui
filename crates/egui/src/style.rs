@@ -2523,7 +2523,10 @@ impl DebugOptions {
             "Show rectangles not aligned to integer point coordinates",
         );
 
-        ui.checkbox(show_focused_widget, "Highlight which widget has keyboard focus");
+        ui.checkbox(
+            show_focused_widget,
+            "Highlight which widget has keyboard focus",
+        );
 
         ui.vertical_centered(|ui| reset_button(ui, self, "Reset debug options"));
     }
