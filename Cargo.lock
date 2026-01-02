@@ -1388,7 +1388,7 @@ name = "egui_demo_app"
 version = "0.33.3"
 dependencies = [
  "accesskit",
- "accesskit_consumer 0.30.1",
+ "accesskit_consumer 0.31.0",
  "bytemuck",
  "chrono",
  "eframe",
