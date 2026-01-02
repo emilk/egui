@@ -207,7 +207,7 @@ impl MenuState {
 /// egui::MenuBar::new().ui(ui, |ui| {
 ///     ui.menu_button("File", |ui| {
 ///         if ui.button("Quit").clicked() {
-///             ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+///             ui.send_viewport_cmd(egui::ViewportCommand::Close);
 ///         }
 ///     });
 /// });
@@ -444,11 +444,8 @@ impl SubMenu {
         let mut menu_config = self.config.unwrap_or_else(|| parent_config.clone());
         menu_config.bar = false;
 
-        let menu_root_response = ui
-            .ctx()
-            .read_response(menu_id)
-            // Since we are a child of that ui, this should always exist
-            .unwrap();
+        #[expect(clippy::unwrap_used)] // Since we are a child of that ui, this should always exist
+        let menu_root_response = ui.ctx().read_response(menu_id).unwrap();
 
         let hover_pos = ui.ctx().pointer_hover_pos();
 
@@ -556,7 +553,7 @@ impl SubMenu {
             if is_moving_towards_rect {
                 // We need to repaint while this is true, so we can detect when
                 // the pointer is no longer moving towards the rect
-                ui.ctx().request_repaint();
+                ui.request_repaint();
             }
             let hovering_other_menu_entry = is_open
                 && !is_hovered

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use egui::{
     Color32, Pos2, Rect, Sense, StrokeKind, Vec2,
     emath::{GuiRounding as _, TSTransform},
@@ -122,11 +124,12 @@ impl crate::Demo for TessellationTest {
         "Tessellation Test"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         egui::Window::new(self.name())
             .resizable(false)
             .open(open)
-            .show(ctx, |ui| {
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| {
                 use crate::View as _;
                 self.ui(ui);
             });
@@ -229,8 +232,8 @@ impl crate::View for TessellationTest {
                     TSTransform::from_translation(canvas.center().to_vec2())
                         * TSTransform::from_scaling(magnification_pixel_size),
                 );
-                let mesh = std::sync::Arc::new(mesh);
-                painter.add(epaint::Shape::mesh(mesh.clone()));
+                let mesh = Arc::new(mesh);
+                painter.add(epaint::Shape::mesh(Arc::clone(&mesh)));
 
                 if self.paint_edges {
                     let stroke = epaint::Stroke::new(0.5, Color32::MAGENTA);
@@ -357,11 +360,13 @@ fn rect_shape_ui(ui: &mut egui::Ui, shape: &mut RectShape) {
 #[cfg(test)]
 mod tests {
     use crate::View as _;
+    use egui_kittest::SnapshotResults;
 
     use super::*;
 
     #[test]
     fn snapshot_tessellation_test() {
+        let mut results = SnapshotResults::new();
         for (name, shape) in TessellationTest::interesting_shapes() {
             let mut test = TessellationTest {
                 shape,
@@ -375,6 +380,7 @@ mod tests {
             harness.run();
 
             harness.snapshot(format!("tessellation_test/{name}"));
+            results.extend_harness(&mut harness);
         }
     }
 }

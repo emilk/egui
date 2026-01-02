@@ -3,6 +3,7 @@ use egui_kittest::{Harness, kittest::Queryable as _};
 
 #[test]
 fn test_kerning() {
+    let mut results = egui_kittest::SnapshotResults::new();
     for pixels_per_point in [1.0, 2.0] {
         for theme in [egui::Theme::Dark, egui::Theme::Light] {
             let mut harness = Harness::builder()
@@ -24,12 +25,14 @@ fn test_kerning() {
                     egui::Theme::Light => "light",
                 }
             ));
+            results.extend_harness(&mut harness);
         }
     }
 }
 
 #[test]
 fn test_italics() {
+    let mut results = egui_kittest::SnapshotResults::new();
     for pixels_per_point in [1.0, 2.0_f32.sqrt(), 2.0] {
         for theme in [egui::Theme::Dark, egui::Theme::Light] {
             let mut harness = Harness::builder()
@@ -49,6 +52,7 @@ fn test_italics() {
                     egui::Theme::Light => "light",
                 }
             ));
+            results.extend_harness(&mut harness);
         }
     }
 }

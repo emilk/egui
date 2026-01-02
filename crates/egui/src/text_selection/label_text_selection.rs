@@ -128,8 +128,8 @@ impl Plugin for LabelSelectionState {
         "LabelSelectionState"
     }
 
-    fn on_begin_pass(&mut self, ctx: &Context) {
-        if ctx.input(|i| i.pointer.any_pressed() && !i.modifiers.shift) {
+    fn on_begin_pass(&mut self, ui: &mut Ui) {
+        if ui.input(|i| i.pointer.any_pressed() && !i.modifiers.shift) {
             // Maybe a new selection is about to begin, but the old one is over:
             // state.selection = None; // TODO(emilk): this makes sense, but doesn't work as expected.
         }
@@ -145,9 +145,9 @@ impl Plugin for LabelSelectionState {
         self.painted_selections.clear();
     }
 
-    fn on_end_pass(&mut self, ctx: &Context) {
+    fn on_end_pass(&mut self, ui: &mut Ui) {
         if self.is_dragging {
-            ctx.set_cursor_icon(CursorIcon::Text);
+            ui.set_cursor_icon(CursorIcon::Text);
         }
 
         if !self.has_reached_primary || !self.has_reached_secondary {
@@ -159,7 +159,7 @@ impl Plugin for LabelSelectionState {
             if let Some(selection) = prev_selection {
                 // This was the first frame of glitch, so hide the
                 // glitching by removing all painted selections:
-                ctx.graphics_mut(|layers| {
+                ui.graphics_mut(|layers| {
                     if let Some(list) = layers.get_mut(selection.layer_id) {
                         for (shape_idx, row_selections) in self.painted_selections.drain(..) {
                             list.mutate_shape(shape_idx, |shape| {
@@ -190,21 +190,21 @@ impl Plugin for LabelSelectionState {
             }
         }
 
-        let pressed_escape = ctx.input(|i| i.key_pressed(crate::Key::Escape));
-        let clicked_something_else = ctx.input(|i| i.pointer.any_pressed()) && !self.any_hovered;
+        let pressed_escape = ui.input(|i| i.key_pressed(crate::Key::Escape));
+        let clicked_something_else = ui.input(|i| i.pointer.any_pressed()) && !self.any_hovered;
         let delected_everything = pressed_escape || clicked_something_else;
 
         if delected_everything {
             self.selection = None;
         }
 
-        if ctx.input(|i| i.pointer.any_released()) {
+        if ui.input(|i| i.pointer.any_released()) {
             self.is_dragging = false;
         }
 
         let text_to_copy = std::mem::take(&mut self.text_to_copy);
         if !text_to_copy.is_empty() {
-            ctx.copy_text(text_to_copy);
+            ui.copy_text(text_to_copy);
         }
     }
 }
@@ -499,7 +499,7 @@ impl LabelSelectionState {
         let global_from_galley = global_from_layer * layer_from_galley;
 
         if response.hovered() {
-            ui.ctx().set_cursor_icon(CursorIcon::Text);
+            ui.set_cursor_icon(CursorIcon::Text);
         }
 
         self.any_hovered |= response.hovered();

@@ -7,14 +7,15 @@ impl crate::Demo for Panels {
         "🗖 Panels"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         use crate::View as _;
-        let window = egui::Window::new("Panels")
+        egui::Window::new("Panels")
             .default_width(600.0)
             .default_height(400.0)
             .vscroll(false)
-            .open(open);
-        window.show(ctx, |ui| self.ui(ui));
+            .open(open)
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| self.ui(ui));
     }
 }
 
@@ -72,6 +73,7 @@ impl crate::View for Panels {
                 });
             });
 
+        // TODO(emilk): This extra panel is superfluous - just use what's left of `ui` instead
         egui::CentralPanel::default().show_inside(ui, |ui| {
             ui.vertical_centered(|ui| {
                 ui.heading("Central Panel");

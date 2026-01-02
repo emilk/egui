@@ -1,9 +1,7 @@
 //! egui theme (spacing, colors, etc).
 
-#![allow(clippy::if_same_then_else)]
-
 use emath::Align;
-use epaint::{AlphaFromCoverage, CornerRadius, Shadow, Stroke, text::FontTweak};
+use epaint::{AlphaFromCoverage, CornerRadius, Shadow, Stroke, TextOptions, text::FontTweak};
 use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
 
 use crate::{
@@ -948,8 +946,11 @@ pub struct Visuals {
     /// this is more to provide a convenient summary of the rest of the settings.
     pub dark_mode: bool,
 
-    /// ADVANCED: Controls how we render text.
-    pub text_alpha_from_coverage: AlphaFromCoverage,
+    /// Controls how we render text.
+    ///
+    /// The [`TextOptions::max_texture_side`] is ignored and overruled by
+    /// [`crate::RawInput::max_texture_side`].
+    pub text_options: TextOptions,
 
     /// Override default text color for all text.
     ///
@@ -1233,6 +1234,11 @@ pub struct WidgetVisuals {
     pub fg_stroke: Stroke,
 
     /// Make the frame this much larger.
+    ///
+    /// The problem with "expanding" widgets is that they now want to paint outside their own bounds,
+    /// which then requires all parent UIs to have proper margins.
+    ///
+    /// It also means hovered things are no longer properly aligned with every other widget.
     pub expansion: f32,
 }
 
@@ -1391,7 +1397,7 @@ impl Default for Interaction {
     fn default() -> Self {
         Self {
             interact_radius: 5.0,
-            resize_grab_radius_side: 5.0,
+            resize_grab_radius_side: 3.0,
             resize_grab_radius_corner: 10.0,
             show_tooltips_only_when_still: true,
             tooltip_delay: 0.5,
@@ -1407,7 +1413,10 @@ impl Visuals {
     pub fn dark() -> Self {
         Self {
             dark_mode: true,
-            text_alpha_from_coverage: AlphaFromCoverage::DARK_MODE_DEFAULT,
+            text_options: TextOptions {
+                alpha_from_coverage: AlphaFromCoverage::DARK_MODE_DEFAULT,
+                ..Default::default()
+            },
             override_text_color: None,
             weak_text_alpha: 0.6,
             weak_text_color: None,
@@ -1470,7 +1479,10 @@ impl Visuals {
     pub fn light() -> Self {
         Self {
             dark_mode: false,
-            text_alpha_from_coverage: AlphaFromCoverage::LIGHT_MODE_DEFAULT,
+            text_options: TextOptions {
+                alpha_from_coverage: AlphaFromCoverage::LIGHT_MODE_DEFAULT,
+                ..Default::default()
+            },
             widgets: Widgets::light(),
             selection: Selection::light(),
             hyperlink_color: Color32::from_rgb(0, 155, 255),
@@ -1561,7 +1573,7 @@ impl Widgets {
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(150)), // e.g. hover over window edge or button
                 fg_stroke: Stroke::new(1.5, Color32::from_gray(240)),
                 corner_radius: CornerRadius::same(3),
-                expansion: 1.0,
+                expansion: 0.0,
             },
             active: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(55),
@@ -1569,7 +1581,7 @@ impl Widgets {
                 bg_stroke: Stroke::new(1.0, Color32::WHITE),
                 fg_stroke: Stroke::new(2.0, Color32::WHITE),
                 corner_radius: CornerRadius::same(2),
-                expansion: 1.0,
+                expansion: 0.0,
             },
             open: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(45),
@@ -1606,7 +1618,7 @@ impl Widgets {
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(105)), // e.g. hover over window edge or button
                 fg_stroke: Stroke::new(1.5, Color32::BLACK),
                 corner_radius: CornerRadius::same(3),
-                expansion: 1.0,
+                expansion: 0.0,
             },
             active: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(165),
@@ -1614,7 +1626,7 @@ impl Widgets {
                 bg_stroke: Stroke::new(1.0, Color32::BLACK),
                 fg_stroke: Stroke::new(2.0, Color32::BLACK),
                 corner_radius: CornerRadius::same(2),
-                expansion: 1.0,
+                expansion: 0.0,
             },
             open: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(220),
@@ -2107,7 +2119,7 @@ impl Visuals {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
             dark_mode,
-            text_alpha_from_coverage,
+            text_options,
             override_text_color: _,
             weak_text_alpha,
             weak_text_color,
@@ -2207,7 +2219,7 @@ impl Visuals {
                 });
         });
 
-        ui.collapsing("Text color", |ui| {
+        ui.collapsing("Text rendering", |ui| {
             fn ui_text_color(ui: &mut Ui, color: &mut Color32, label: impl Into<RichText>) {
                 ui.label(label.into().color(*color));
                 ui.color_edit_button_srgba(color);
@@ -2259,7 +2271,15 @@ impl Visuals {
 
             ui.add_space(4.0);
 
-            text_alpha_from_coverage_ui(ui, text_alpha_from_coverage);
+            let TextOptions {
+                max_texture_side: _,
+                alpha_from_coverage,
+                font_hinting,
+            } = text_options;
+
+            text_alpha_from_coverage_ui(ui, alpha_from_coverage);
+
+            ui.checkbox(font_hinting, "Enable font hinting");
         });
 
         ui.collapsing("Text cursor", |ui| {
@@ -2370,9 +2390,9 @@ impl Visuals {
     }
 }
 
-fn text_alpha_from_coverage_ui(ui: &mut Ui, text_alpha_from_coverage: &mut AlphaFromCoverage) {
+fn text_alpha_from_coverage_ui(ui: &mut Ui, alpha_from_coverage: &mut AlphaFromCoverage) {
     let mut dark_mode_special =
-        *text_alpha_from_coverage == AlphaFromCoverage::TwoCoverageMinusCoverageSq;
+        *alpha_from_coverage == AlphaFromCoverage::TwoCoverageMinusCoverageSq;
 
     ui.horizontal(|ui| {
         ui.label("Text rendering:");
@@ -2380,9 +2400,9 @@ fn text_alpha_from_coverage_ui(ui: &mut Ui, text_alpha_from_coverage: &mut Alpha
         ui.checkbox(&mut dark_mode_special, "Dark-mode special");
 
         if dark_mode_special {
-            *text_alpha_from_coverage = AlphaFromCoverage::TwoCoverageMinusCoverageSq;
+            *alpha_from_coverage = AlphaFromCoverage::DARK_MODE_DEFAULT;
         } else {
-            let mut gamma = match text_alpha_from_coverage {
+            let mut gamma = match alpha_from_coverage {
                 AlphaFromCoverage::Linear => 1.0,
                 AlphaFromCoverage::Gamma(gamma) => *gamma,
                 AlphaFromCoverage::TwoCoverageMinusCoverageSq => 0.5, // approximately the same
@@ -2396,9 +2416,9 @@ fn text_alpha_from_coverage_ui(ui: &mut Ui, text_alpha_from_coverage: &mut Alpha
             );
 
             if gamma == 1.0 {
-                *text_alpha_from_coverage = AlphaFromCoverage::Linear;
+                *alpha_from_coverage = AlphaFromCoverage::Linear;
             } else {
-                *text_alpha_from_coverage = AlphaFromCoverage::Gamma(gamma);
+                *alpha_from_coverage = AlphaFromCoverage::Gamma(gamma);
             }
         }
     });
@@ -2812,6 +2832,7 @@ impl Widget for &mut FontTweak {
                     scale,
                     y_offset_factor,
                     y_offset,
+                    hinting_override,
                 } = self;
 
                 ui.label("Scale");
@@ -2826,6 +2847,19 @@ impl Widget for &mut FontTweak {
                 ui.label("y_offset");
                 ui.add(DragValue::new(y_offset).speed(-0.02));
                 ui.end_row();
+
+                ui.label("hinting_override");
+                ComboBox::from_id_salt("hinting_override")
+                    .selected_text(match hinting_override {
+                        None => "None",
+                        Some(true) => "Enable",
+                        Some(false) => "Disable",
+                    })
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(hinting_override, None, "None");
+                        ui.selectable_value(hinting_override, Some(true), "Enable");
+                        ui.selectable_value(hinting_override, Some(false), "Disable");
+                    });
 
                 if ui.button("Reset").clicked() {
                     *self = Default::default();

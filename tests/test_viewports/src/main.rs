@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![allow(rustdoc::missing_crate_level_docs)] // it's an example
+#![expect(clippy::unwrap_used, rustdoc::missing_crate_level_docs)] // it's a test
 
 use std::sync::Arc;
 
@@ -76,35 +76,29 @@ impl ViewportState {
 
         if immediate {
             let mut vp_state = vp_state.write();
-            ctx.show_viewport_immediate(vp_id, viewport, move |ctx, class| {
-                if ctx.input(|i| i.viewport().close_requested()) {
+            ctx.show_viewport_immediate(vp_id, viewport, move |ui, class| {
+                if ui.input(|i| i.viewport().close_requested()) {
                     vp_state.visible = false;
                 }
-                show_as_popup(ctx, class, &title, vp_id.into(), |ui: &mut egui::Ui| {
+                show_as_popup(ui, class, |ui: &mut egui::Ui| {
                     generic_child_ui(ui, &mut vp_state, close_button);
                 });
             });
         } else {
             let count = Arc::new(RwLock::new(0));
-            ctx.show_viewport_deferred(vp_id, viewport, move |ctx, class| {
+            ctx.show_viewport_deferred(vp_id, viewport, move |ui, class| {
                 let mut vp_state = vp_state.write();
-                if ctx.input(|i| i.viewport().close_requested()) {
+                if ui.input(|i| i.viewport().close_requested()) {
                     vp_state.visible = false;
                 }
-                let count = count.clone();
-                show_as_popup(
-                    ctx,
-                    class,
-                    &title,
-                    vp_id.into(),
-                    move |ui: &mut egui::Ui| {
-                        let current_count = *count.read();
-                        ui.label(format!("Callback has been reused {current_count} times"));
-                        *count.write() += 1;
+                let count = Arc::clone(&count);
+                show_as_popup(ui, class, move |ui: &mut egui::Ui| {
+                    let current_count = *count.read();
+                    ui.label(format!("Callback has been reused {current_count} times"));
+                    *count.write() += 1;
 
-                        generic_child_ui(ui, &mut vp_state, close_button);
-                    },
-                );
+                    generic_child_ui(ui, &mut vp_state, close_button);
+                });
             });
         }
     }
@@ -159,18 +153,18 @@ impl Default for App {
 }
 
 impl eframe::App for App {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             ui.heading("Root viewport");
             {
-                let mut embed_viewports = ctx.embed_viewports();
+                let mut embed_viewports = ui.embed_viewports();
                 ui.checkbox(&mut embed_viewports, "Embed all viewports");
                 if ui.button("Open all viewports").clicked() {
                     for viewport in &self.top {
                         viewport.write().set_visible_recursive(true);
                     }
                 }
-                ctx.set_embed_viewports(embed_viewports);
+                ui.set_embed_viewports(embed_viewports);
             }
             ui.checkbox(&mut self.close_button, "with close button");
             generic_ui(ui, &self.top, self.close_button);
@@ -180,17 +174,15 @@ impl eframe::App for App {
 
 /// This will make the content as a popup if cannot has his own native window
 fn show_as_popup(
-    ctx: &egui::Context,
+    ui: &mut egui::Ui,
     class: egui::ViewportClass,
-    title: &str,
-    id: Id,
     content: impl FnOnce(&mut egui::Ui),
 ) {
-    if class == egui::ViewportClass::Embedded {
-        // Not a real viewport
-        egui::Window::new(title).id(id).show(ctx, content);
+    if class == egui::ViewportClass::EmbeddedWindow {
+        // Not a real viewport - already has a frame
+        content(ui);
     } else {
-        egui::CentralPanel::default().show(ctx, content);
+        egui::CentralPanel::default().show_inside(ui, content);
     }
 }
 
@@ -199,7 +191,7 @@ fn generic_child_ui(ui: &mut egui::Ui, vp_state: &mut ViewportState, close_butto
         ui.label("Title:");
         if ui.text_edit_singleline(&mut vp_state.title).changed() {
             // Title changes
-            ui.ctx().send_viewport_cmd_to(
+            ui.send_viewport_cmd_to(
                 vp_state.id,
                 egui::ViewportCommand::Title(vp_state.title.clone()),
             );
@@ -297,7 +289,7 @@ fn generic_ui(ui: &mut egui::Ui, children: &[Arc<RwLock<ViewportState>>], close_
                 *visible
             };
             if visible {
-                ViewportState::show(child.clone(), &ctx, close_button);
+                ViewportState::show(Arc::clone(child), &ctx, close_button);
             }
         }
     }
@@ -339,7 +331,7 @@ fn drag_and_drop_test(ui: &mut egui::Ui) {
         }
 
         fn insert(&mut self, container: Id, col: usize, value: impl Into<String>) {
-            assert!(col <= COLS, "The coll should be less then: {COLS}");
+            assert!(col < COLS, "The coll should be less than: {COLS}");
 
             let value: String = value.into();
             let id = Id::new(format!("%{}% {}", self.counter, &value));
@@ -355,7 +347,7 @@ fn drag_and_drop_test(ui: &mut egui::Ui) {
         }
 
         fn cols(&self, container: Id, col: usize) -> Vec<(Id, String)> {
-            assert!(col <= COLS, "The col should be less then: {COLS}");
+            assert!(col < COLS, "The col should be less than: {COLS}");
             let container_data = &self.containers_data[&container];
             container_data[col]
                 .iter()
@@ -368,7 +360,7 @@ fn drag_and_drop_test(ui: &mut egui::Ui) {
             let Some(id) = self.is_dragged.take() else {
                 return;
             };
-            assert!(col <= COLS, "The col should be less then: {COLS}");
+            assert!(col < COLS, "The col should be less than: {COLS}");
 
             // Should be a better way to do this!
             #[expect(clippy::iter_over_hash_type)]
@@ -430,11 +422,11 @@ fn drag_source<R>(
         // Check for drags:
         let response = ui.interact(res.response.rect, id, egui::Sense::drag());
         if response.hovered() {
-            ui.ctx().set_cursor_icon(egui::CursorIcon::Grab);
+            ui.set_cursor_icon(egui::CursorIcon::Grab);
         }
         res
     } else {
-        ui.ctx().set_cursor_icon(egui::CursorIcon::Grabbing);
+        ui.set_cursor_icon(egui::CursorIcon::Grabbing);
 
         // Paint the body to a new layer:
         let layer_id = egui::LayerId::new(egui::Order::Tooltip, id);

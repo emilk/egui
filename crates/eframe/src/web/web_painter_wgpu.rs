@@ -105,7 +105,7 @@ impl WebPainterWgpu {
             surface_configuration,
             depth_stencil_format,
             depth_texture_view: None,
-            on_surface_error: options.wgpu_options.on_surface_error.clone(),
+            on_surface_error: Arc::clone(&options.wgpu_options.on_surface_error) as _,
             screen_capture_state: None,
             capture_tx,
             capture_rx,
@@ -243,13 +243,26 @@ impl WebPainter for WebPainterWgpu {
                     depth_stencil_attachment: self.depth_texture_view.as_ref().map(|view| {
                         wgpu::RenderPassDepthStencilAttachment {
                             view,
-                            depth_ops: Some(wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(1.0),
-                                // It is very unlikely that the depth buffer is needed after egui finished rendering
-                                // so no need to store it. (this can improve performance on tiling GPUs like mobile chips or Apple Silicon)
-                                store: wgpu::StoreOp::Discard,
-                            }),
-                            stencil_ops: None,
+                            depth_ops: self
+                                .depth_stencil_format
+                                .is_some_and(|depth_stencil_format| {
+                                    depth_stencil_format.has_depth_aspect()
+                                })
+                                .then_some(wgpu::Operations {
+                                    load: wgpu::LoadOp::Clear(1.0),
+                                    // It is very unlikely that the depth buffer is needed after egui finished rendering
+                                    // so no need to store it. (this can improve performance on tiling GPUs like mobile chips or Apple Silicon)
+                                    store: wgpu::StoreOp::Discard,
+                                }),
+                            stencil_ops: self
+                                .depth_stencil_format
+                                .is_some_and(|depth_stencil_format| {
+                                    depth_stencil_format.has_stencil_aspect()
+                                })
+                                .then_some(wgpu::Operations {
+                                    load: wgpu::LoadOp::Clear(0),
+                                    store: wgpu::StoreOp::Discard,
+                                }),
                         }
                     }),
                     label: Some("egui_render"),
@@ -269,14 +282,12 @@ impl WebPainter for WebPainterWgpu {
 
             let mut capture_buffer = None;
 
-            if capture {
-                if let Some(capture_state) = &mut self.screen_capture_state {
-                    capture_buffer = Some(capture_state.copy_textures(
-                        &render_state.device,
-                        &output_frame,
-                        &mut encoder,
-                    ));
-                }
+            if capture && let Some(capture_state) = &mut self.screen_capture_state {
+                capture_buffer = Some(capture_state.copy_textures(
+                    &render_state.device,
+                    &output_frame,
+                    &mut encoder,
+                ));
             }
 
             Some((output_frame, capture_buffer))
@@ -288,16 +299,16 @@ impl WebPainter for WebPainterWgpu {
             .submit(user_cmd_bufs.into_iter().chain([encoder.finish()]));
 
         if let Some((frame, capture_buffer)) = frame_and_capture_buffer {
-            if let Some(capture_buffer) = capture_buffer {
-                if let Some(capture_state) = &self.screen_capture_state {
-                    capture_state.read_screen_rgba(
-                        self.ctx.clone(),
-                        capture_buffer,
-                        capture_data,
-                        self.capture_tx.clone(),
-                        ViewportId::ROOT,
-                    );
-                }
+            if let Some(capture_buffer) = capture_buffer
+                && let Some(capture_state) = &self.screen_capture_state
+            {
+                capture_state.read_screen_rgba(
+                    self.ctx.clone(),
+                    capture_buffer,
+                    capture_data,
+                    self.capture_tx.clone(),
+                    ViewportId::ROOT,
+                );
             }
 
             frame.present();
@@ -323,7 +334,7 @@ impl WebPainter for WebPainterWgpu {
                 events.push(Event::Screenshot {
                     viewport_id,
                     user_data: data,
-                    image: screenshot.clone(),
+                    image: Arc::clone(&screenshot),
                 });
             }
         }

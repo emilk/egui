@@ -1,3 +1,5 @@
+#![expect(clippy::unwrap_used)] // TODO(emilk): avoid unwraps
+
 use std::num::NonZeroU64;
 
 use eframe::{
@@ -98,26 +100,27 @@ impl Custom3d {
     }
 }
 
-impl eframe::App for Custom3d {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            egui::ScrollArea::both()
-                .auto_shrink(false)
-                .show(ui, |ui| {
-                    ui.horizontal(|ui| {
-                        ui.spacing_mut().item_spacing.x = 0.0;
-                        ui.label("The triangle is being painted using ");
-                        ui.hyperlink_to("WGPU", "https://wgpu.rs");
-                        ui.label(" (Portable Rust graphics API awesomeness)");
-                    });
-                    ui.label("It's not a very impressive demo, but it shows you can embed 3D inside of egui.");
-
-                    egui::Frame::canvas(ui.style()).show(ui, |ui| {
-                        self.custom_painting(ui);
-                    });
-                    ui.label("Drag to rotate!");
-                    ui.add(egui_demo_lib::egui_github_link_file!());
+impl crate::DemoApp for Custom3d {
+    fn demo_ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        // TODO(emilk): Use `ScrollArea::inner_margin`
+        egui::CentralPanel::default().show_inside(ui, |ui| {
+            egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = 0.0;
+                    ui.label("The triangle is being painted using ");
+                    ui.hyperlink_to("WGPU", "https://wgpu.rs");
+                    ui.label(" (Portable Rust graphics API awesomeness)");
                 });
+                ui.label(
+                    "It's not a very impressive demo, but it shows you can embed 3D inside of egui.",
+                );
+
+                egui::Frame::canvas(ui.style()).show(ui, |ui| {
+                    self.custom_painting(ui);
+                });
+                ui.label("Drag to rotate!");
+                ui.add(egui_demo_lib::egui_github_link_file!());
+            });
         });
     }
 }

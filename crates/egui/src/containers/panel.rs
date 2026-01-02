@@ -255,9 +255,7 @@ impl<'a> PanelSizer<'a> {
         let side = self.panel.side;
         let size_range = self.panel.size_range;
 
-        if is_resizing && pointer.is_some() {
-            let pointer = pointer.unwrap();
-
+        if is_resizing && let Some(pointer) = pointer {
             match side {
                 PanelSide::Vertical(side) => {
                     self.size = (pointer.x - side.side_x(self.panel_rect)).abs();
@@ -291,13 +289,13 @@ impl<'a> PanelSizer<'a> {
 /// See the [module level docs](crate::containers::panel) for more details.
 ///
 /// ```
-/// # egui::__run_test_ctx(|ctx| {
-/// egui::Panel::left("my_left_panel").show(ctx, |ui| {
+/// # egui::__run_test_ui(|ui| {
+/// egui::Panel::left("my_left_panel").show_inside(ui, |ui| {
 ///    ui.label("Hello World!");
 /// });
 /// # });
 /// ```
-#[must_use = "You should call .show()"]
+#[must_use = "You should call .show_inside()"]
 pub struct Panel {
     side: PanelSide,
     id: Id,
@@ -518,6 +516,7 @@ impl Panel {
     }
 
     /// Show the panel at the top level.
+    #[deprecated = "Use show_inside() instead"]
     pub fn show<R>(
         self,
         ctx: &Context,
@@ -528,12 +527,15 @@ impl Panel {
 
     /// Show the panel if `is_expanded` is `true`,
     /// otherwise don't show it, but with a nice animation between collapsed and expanded.
+    #[deprecated = "Use show_animated_inside() instead"]
     pub fn show_animated<R>(
         self,
         ctx: &Context,
         is_expanded: bool,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
+        #![expect(deprecated)]
+
         let how_expanded = animate_expansion(ctx, self.id.with("animation"), is_expanded);
 
         let animated_panel = self.get_animated_panel(ctx, is_expanded)?;
@@ -572,6 +574,7 @@ impl Panel {
     }
 
     /// Show either a collapsed or a expanded panel, with a nice animation between.
+    #[deprecated = "Use show_animated_between_inside() instead"]
     pub fn show_animated_between<R>(
         ctx: &Context,
         is_expanded: bool,
@@ -579,6 +582,8 @@ impl Panel {
         expanded_panel: Self,
         add_contents: impl FnOnce(&mut Ui, f32) -> R,
     ) -> Option<InnerResponse<R>> {
+        #![expect(deprecated)]
+
         let how_expanded = animate_expansion(ctx, expanded_panel.id.with("animation"), is_expanded);
 
         // Get either the fake or the real panel to animate
@@ -713,7 +718,7 @@ impl Panel {
         }
 
         if resize_hover || is_resizing {
-            ui.ctx().set_cursor_icon(self.cursor_icon(&panel_sizer));
+            ui.set_cursor_icon(self.cursor_icon(&panel_sizer));
         }
 
         PanelState { rect }.store(ui.ctx(), id);
@@ -753,6 +758,8 @@ impl Panel {
         ctx: &Context,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
+        #![expect(deprecated)]
+
         let side = self.side;
         let available_rect = ctx.available_rect();
         let mut panel_ui = Ui::new(
@@ -802,9 +809,7 @@ impl Panel {
         let resize_id = self.id.with("__resize");
         let resize_response = ui.ctx().read_response(resize_id);
 
-        if resize_response.is_some() {
-            let resize_response = resize_response.unwrap();
-
+        if let Some(resize_response) = resize_response {
             // NOTE(sharky98): The original code was initializing to
             // false first, but it doesn't seem necessary.
             let is_resizing = resize_response.dragged();
@@ -934,14 +939,14 @@ impl Panel {
         };
 
         let get_spacing_size = || match panel.side {
-            PanelSide::Vertical(_) => ctx.style().spacing.interact_size.x,
-            PanelSide::Horizontal(_) => ctx.style().spacing.interact_size.y,
+            PanelSide::Vertical(_) => ctx.global_style().spacing.interact_size.x,
+            PanelSide::Horizontal(_) => ctx.global_style().spacing.interact_size.y,
         };
 
         PanelState::load(ctx, panel.id)
             .map(get_rect_state_size)
             .or(panel.default_size)
-            .unwrap_or(get_spacing_size())
+            .unwrap_or_else(get_spacing_size)
     }
 }
 
@@ -949,6 +954,9 @@ impl Panel {
 
 /// A panel that covers the remainder of the screen,
 /// i.e. whatever area is left after adding other panels.
+///
+/// This acts very similar to [`Frame::central_panel`], but always expands
+/// to use up all available space.
 ///
 /// The order in which you add panels matter!
 /// The first panel you add will always be the outermost, and the last you add will always be the innermost.
@@ -960,31 +968,41 @@ impl Panel {
 /// See the [module level docs](crate::containers::panel) for more details.
 ///
 /// ```
-/// # egui::__run_test_ctx(|ctx| {
-/// egui::Panel::top("my_panel").show(ctx, |ui| {
+/// # egui::__run_test_ui(|ui| {
+/// egui::Panel::top("my_panel").show_inside(ui, |ui| {
 ///    ui.label("Hello World! From `Panel`, that must be before `CentralPanel`!");
 /// });
-/// egui::CentralPanel::default().show(ctx, |ui| {
+/// egui::CentralPanel::default().show_inside(ui, |ui| {
 ///    ui.label("Hello World!");
 /// });
 /// # });
 /// ```
-#[must_use = "You should call .show()"]
+#[must_use = "You should call .show_inside()"]
 #[derive(Default)]
 pub struct CentralPanel {
     frame: Option<Frame>,
 }
 
 impl CentralPanel {
+    /// A central panel with no margin or background color
+    pub fn no_frame() -> Self {
+        Self {
+            frame: Some(Frame::NONE),
+        }
+    }
+
+    /// A central panel with a background color and some inner margins
+    pub fn default_margins() -> Self {
+        Self { frame: None }
+    }
+
     /// Change the background color, margins, etc.
     #[inline]
     pub fn frame(mut self, frame: Frame) -> Self {
         self.frame = Some(frame);
         self
     }
-}
 
-impl CentralPanel {
     /// Show the panel inside a [`Ui`].
     pub fn show_inside<R>(
         self,
@@ -1012,13 +1030,19 @@ impl CentralPanel {
         panel_ui.set_clip_rect(panel_rect); // If we overflow, don't do so visibly (#4475)
 
         let frame = frame.unwrap_or_else(|| Frame::central_panel(ui.style()));
-        frame.show(&mut panel_ui, |ui| {
+        let response = frame.show(&mut panel_ui, |ui| {
             ui.expand_to_include_rect(ui.max_rect()); // Expand frame to include it all
             add_contents(ui)
-        })
+        });
+
+        // Use up space in the parent:
+        ui.advance_cursor_after_rect(response.response.rect);
+
+        response
     }
 
     /// Show the panel at the top level.
+    #[deprecated = "Use show_inside() instead"]
     pub fn show<R>(
         self,
         ctx: &Context,
@@ -1033,6 +1057,8 @@ impl CentralPanel {
         ctx: &Context,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
+        #![expect(deprecated)]
+
         let id = Id::new((ctx.viewport_id(), "central_panel"));
 
         let mut panel_ui = Ui::new(

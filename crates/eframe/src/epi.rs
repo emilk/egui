@@ -135,6 +135,31 @@ impl CreationContext<'_> {
 
 /// Implement this trait to write apps that can be compiled for both web/wasm and desktop/native using [`eframe`](https://github.com/emilk/egui/tree/main/crates/eframe).
 pub trait App {
+    /// Called once before each call to [`Self::ui`],
+    /// and additionally also called when the UI is hidden, but [`egui::Context::request_repaint`] was called.
+    ///
+    /// You may NOT show any ui or do any painting during the call to [`Self::logic`].
+    ///
+    /// The [`egui::Context`] can be cloned and saved if you like.
+    ///
+    /// To force another call to [`Self::logic`], call [`egui::Context::request_repaint`] at any time (e.g. from another thread).
+    fn logic(&mut self, ctx: &egui::Context, frame: &mut Frame) {
+        _ = (ctx, frame);
+    }
+
+    /// Called each time the UI needs repainting, which may be many times per second.
+    ///
+    /// The given [`egui::Ui`] has no margin or background color.
+    /// You can wrap your UI code in [`egui::CentralPanel`] or a [`egui::Frame::central_panel`] to remedy this.
+    ///
+    /// The [`egui::Ui::ctx`] can be cloned and saved if you like.
+    /// To force a repaint, call [`egui::Context::request_repaint`] at any time (e.g. from another thread).
+    ///
+    /// This is called for the root viewport ([`egui::ViewportId::ROOT`]).
+    /// Use [`egui::Context::show_viewport_deferred`] to spawn additional viewports (windows).
+    /// (A "viewport" in egui means an native OS window).
+    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut Frame);
+
     /// Called each time the UI needs repainting, which may be many times per second.
     ///
     /// Put your widgets into a [`egui::Panel`], [`egui::CentralPanel`], [`egui::Window`] or [`egui::Area`].
@@ -146,7 +171,10 @@ pub trait App {
     /// This is called for the root viewport ([`egui::ViewportId::ROOT`]).
     /// Use [`egui::Context::show_viewport_deferred`] to spawn additional viewports (windows).
     /// (A "viewport" in egui means an native OS window).
-    fn update(&mut self, ctx: &egui::Context, frame: &mut Frame);
+    #[deprecated = "Use Self::ui instead"]
+    fn update(&mut self, ctx: &egui::Context, frame: &mut Frame) {
+        _ = (ctx, frame);
+    }
 
     /// Get a handle to the app.
     ///
@@ -763,6 +791,7 @@ impl Frame {
     /// This function will take the ownership of your [`glow::Texture`], so please do not delete your [`glow::Texture`] after registering.
     #[cfg(all(feature = "glow", not(target_arch = "wasm32")))]
     pub fn register_native_glow_texture(&mut self, native: glow::Texture) -> egui::TextureId {
+        #[expect(clippy::unwrap_used)]
         self.glow_register_native_texture.as_mut().unwrap()(native)
     }
 

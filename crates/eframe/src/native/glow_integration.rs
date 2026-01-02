@@ -5,7 +5,8 @@
 //! There is a bunch of improvements we could do,
 //! like removing a bunch of `unwraps`.
 
-#![allow(clippy::undocumented_unsafe_blocks)]
+#![expect(clippy::undocumented_unsafe_blocks)]
+#![expect(clippy::unwrap_used)]
 
 use std::{cell::RefCell, num::NonZeroU32, rc::Rc, sync::Arc, time::Instant};
 
@@ -216,7 +217,7 @@ impl<'app> GlowWinitApp<'app> {
             storage.as_deref(),
             &mut self.native_options,
         )?;
-        let gl = painter.gl().clone();
+        let gl = Arc::clone(painter.gl());
 
         let max_texture_side = painter.max_texture_side();
         glutin.max_texture_side = Some(max_texture_side);
@@ -234,9 +235,9 @@ impl<'app> GlowWinitApp<'app> {
             &self.app_name,
             &self.native_options,
             storage,
-            Some(gl.clone()),
+            Some(Arc::clone(&gl)),
             Some(Box::new({
-                let painter = painter.clone();
+                let painter = Rc::clone(&painter);
                 move |native| painter.borrow_mut().register_native_texture(native)
             })),
             #[cfg(feature = "wgpu_no_default_features")]
@@ -244,7 +245,7 @@ impl<'app> GlowWinitApp<'app> {
         );
 
         {
-            let event_loop_proxy = self.repaint_proxy.clone();
+            let event_loop_proxy = Arc::clone(&self.repaint_proxy);
             integration
                 .egui_ctx
                 .set_request_repaint_callback(move |info| {
@@ -571,7 +572,7 @@ impl GlowWinitRunning<'_> {
             .options_mut(|opt| opt.begin_pass(&raw_input));
         let clear_color = self
             .app
-            .clear_color(&self.integration.egui_ctx.style().visuals);
+            .clear_color(&self.integration.egui_ctx.global_style().visuals);
 
         let has_many_viewports = self.glutin.borrow().viewports.len() > 1;
         let clear_before_update = !has_many_viewports; // HACK: for some reason, an early clear doesn't "take" on Mac with multiple viewports.
@@ -719,11 +720,11 @@ impl GlowWinitRunning<'_> {
             // vsync - don't count as frame-time:
             frame_timer.pause();
             profiling::scope!("swap_buffers");
-            let context = current_gl_context
-                .as_ref()
-                .ok_or(egui_glow::PainterError::from(
+            let context = current_gl_context.as_ref().ok_or_else(|| {
+                egui_glow::PainterError::from(
                     "failed to get current context to swap buffers".to_owned(),
-                ))?;
+                )
+            })?;
 
             gl_surface.swap_buffers(context)?;
             frame_timer.resume();
@@ -1362,7 +1363,7 @@ fn initialize_or_update_viewport(
     ids: ViewportIdPair,
     class: ViewportClass,
     mut builder: ViewportBuilder,
-    viewport_ui_cb: Option<Arc<dyn Fn(&egui::Context) + Send + Sync>>,
+    viewport_ui_cb: Option<Arc<dyn Fn(&mut egui::Ui) + Send + Sync>>,
 ) -> &mut Viewport {
     profiling::function_scope!();
 
@@ -1494,8 +1495,8 @@ fn render_immediate_viewport(
         shapes,
         pixels_per_point,
         viewport_output,
-    } = egui_ctx.run(input, |ctx| {
-        viewport_ui_cb(ctx);
+    } = egui_ctx.run_ui(input, |ui| {
+        viewport_ui_cb(ui);
     });
 
     // ---------------------------------------------------

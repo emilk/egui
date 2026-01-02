@@ -1,4 +1,4 @@
-use egui::{ComboBox, Context, Id, Modal, ProgressBar, Ui, Widget as _, Window};
+use egui::{ComboBox, Id, Modal, ProgressBar, Ui, Widget as _, Window};
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
@@ -32,13 +32,14 @@ impl crate::Demo for Modals {
         "🗖 Modals"
     }
 
-    fn show(&mut self, ctx: &Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         use crate::View as _;
         Window::new(self.name())
             .open(open)
             .vscroll(false)
             .resizable(false)
-            .show(ctx, |ui| self.ui(ui));
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| self.ui(ui));
     }
 }
 
@@ -149,7 +150,7 @@ impl crate::View for Modals {
                     *user_modal_open = false;
                 } else {
                     *save_progress = Some(progress + 0.003);
-                    ui.ctx().request_repaint();
+                    ui.request_repaint();
                 }
             });
         }
@@ -176,9 +177,9 @@ mod tests {
             ..Modals::default()
         };
 
-        let mut harness = Harness::new_state(
-            |ctx, modals| {
-                modals.show(ctx, &mut true);
+        let mut harness = Harness::new_ui_state(
+            |ui, modals| {
+                modals.show(ui, &mut true);
             },
             initial_state,
         );
@@ -204,9 +205,9 @@ mod tests {
             ..Modals::default()
         };
 
-        let mut harness = Harness::new_state(
-            |ctx, modals| {
-                modals.show(ctx, &mut true);
+        let mut harness = Harness::new_ui_state(
+            |ui, modals| {
+                modals.show(ui, &mut true);
             },
             initial_state,
         );
@@ -228,9 +229,9 @@ mod tests {
             ..Modals::default()
         };
 
-        let mut harness = Harness::new_state(
-            |ctx, modals| {
-                modals.show(ctx, &mut true);
+        let mut harness = Harness::new_ui_state(
+            |ui, modals| {
+                modals.show(ui, &mut true);
             },
             initial_state,
         );
@@ -258,9 +259,9 @@ mod tests {
             ..Modals::default()
         };
 
-        let mut harness = Harness::new_state(
-            |ctx, modals| {
-                modals.show(ctx, &mut true);
+        let mut harness = Harness::new_ui_state(
+            |ui, modals| {
+                modals.show(ui, &mut true);
             },
             initial_state,
         );

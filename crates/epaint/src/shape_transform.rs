@@ -10,7 +10,7 @@ pub fn adjust_colors(
     shape: &mut Shape,
     adjust_color: impl Fn(&mut Color32) + Send + Sync + Copy + 'static,
 ) {
-    #![allow(clippy::match_same_arms)]
+    #![expect(clippy::match_same_arms)]
     match shape {
         Shape::Noop => {}
 
@@ -123,7 +123,7 @@ fn adjust_color_mode(
     match color_mode {
         color::ColorMode::Solid(color) => adjust_color(color),
         color::ColorMode::UV(callback) => {
-            let callback = callback.clone();
+            let callback = Arc::clone(callback);
             *color_mode = color::ColorMode::UV(Arc::new(Box::new(move |rect, pos| {
                 let mut color = callback(rect, pos);
                 adjust_color(&mut color);

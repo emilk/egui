@@ -23,8 +23,8 @@ members = [
 [workspace.package]
 edition = "2024"
 license = "MIT OR Apache-2.0"
-rust-version = "1.88"
-version = "0.33.2"
+rust-version = "1.92"
+version = "0.33.3"
 
 
 [profile.release]
@@ -55,23 +55,22 @@ opt-level = 2
 
 
 [workspace.dependencies]
-emath = { version = "0.33.2", path = "crates/emath", default-features = false }
-ecolor = { version = "0.33.2", path = "crates/ecolor", default-features = false }
-epaint = { version = "0.33.2", path = "crates/epaint", default-features = false }
-epaint_default_fonts = { version = "0.33.2", path = "crates/epaint_default_fonts" }
-egui = { version = "0.33.2", path = "crates/egui", default-features = false }
-egui-winit = { version = "0.33.2", path = "crates/egui-winit", default-features = false }
-egui_extras = { version = "0.33.2", path = "crates/egui_extras", default-features = false }
-egui-wgpu = { version = "0.33.2", path = "crates/egui-wgpu", default-features = false }
-egui_demo_lib = { version = "0.33.2", path = "crates/egui_demo_lib", default-features = false }
-egui_glow = { version = "0.33.2", path = "crates/egui_glow", default-features = false }
-egui_kittest = { version = "0.33.2", path = "crates/egui_kittest", default-features = false }
-eframe = { version = "0.33.2", path = "crates/eframe", default-features = false }
+emath = { version = "0.33.3", path = "crates/emath", default-features = false }
+ecolor = { version = "0.33.3", path = "crates/ecolor", default-features = false }
+epaint = { version = "0.33.3", path = "crates/epaint", default-features = false }
+epaint_default_fonts = { version = "0.33.3", path = "crates/epaint_default_fonts" }
+egui = { version = "0.33.3", path = "crates/egui", default-features = false }
+egui-winit = { version = "0.33.3", path = "crates/egui-winit", default-features = false }
+egui_extras = { version = "0.33.3", path = "crates/egui_extras", default-features = false }
+egui-wgpu = { version = "0.33.3", path = "crates/egui-wgpu", default-features = false }
+egui_demo_lib = { version = "0.33.3", path = "crates/egui_demo_lib", default-features = false }
+egui_glow = { version = "0.33.3", path = "crates/egui_glow", default-features = false }
+egui_kittest = { version = "0.33.3", path = "crates/egui_kittest", default-features = false }
+eframe = { version = "0.33.3", path = "crates/eframe", default-features = false }
 
 accesskit = "0.21.1"
 accesskit_consumer = "0.30.1"
 accesskit_winit = "0.29.1"
-ab_glyph = "0.2.32"
 ahash = { version = "0.8.12", default-features = false, features = [
   "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
   "std",
@@ -88,7 +87,7 @@ criterion = { version = "0.7.0", default-features = false }
 dify = { version = "0.7.4", default-features = false }
 directories = "6.0.0"
 document-features = "0.2.11"
-ehttp = { version = "0.5.0", default-features = false }
+ehttp = { version = "0.6.0", default-features = false }
 enum-map = "2.7.3"
 env_logger = { version = "0.11.8", default-features = false }
 glow = "0.16.0"
@@ -122,8 +121,10 @@ rayon = "1.11.0"
 resvg = { version = "0.45.1", default-features = false }
 rfd = "0.15.4"
 ron = "0.11.0"
+self_cell = "1.2.1"
 serde = { version = "1.0.228", features = ["derive"] }
 similar-asserts = "1.7.0"
+skrifa = { version = "0.37.0", default-features = false, features = ["std", "autohint_shaping"] }
 smallvec = "1.15.1"
 smithay-clipboard = "0.7.2"
 static_assertions = "1.1.0"
@@ -131,9 +132,11 @@ syntect = { version = "5.3.0", default-features = false }
 tempfile = "3.23.0"
 thiserror = "2.0.17"
 tokio = "1.47.1"
+toml = "0.8"
 type-map = "0.5.1"
 unicode_names2 = { version = "2.0.0", default-features = false }
 unicode-segmentation = "1.12.0"
+vello_cpu = { version = "0.0.4", default-features = false, features = ["std"] }
 wasm-bindgen = "0.2.100" # Keep wasm-bindgen version in sync in: setup_web.sh, Cargo.toml, Cargo.lock, rust.yml
 wasm-bindgen-futures = "0.4.0"
 wayland-cursor = { version = "0.31.11", default-features = false }
@@ -181,7 +184,9 @@ branches_sharing_code = "warn"
 char_lit_as_u8 = "warn"
 checked_conversions = "warn"
 clear_with_drain = "warn"
+clone_on_ref_ptr = "warn"
 cloned_instead_of_copied = "warn"
+coerce_container_to_any = "warn"
 dbg_macro = "warn"
 debug_assert_with_mut_call = "warn"
 default_union_representation = "warn"
@@ -191,7 +196,9 @@ disallowed_methods = "warn" # See clippy.toml
 disallowed_names = "warn" # See clippy.toml
 disallowed_script_idents = "warn" # See clippy.toml
 disallowed_types = "warn" # See clippy.toml
+doc_broken_link = "warn"
 doc_comment_double_space_linebreaks = "warn"
+doc_include_without_cfg = "warn"
 doc_link_with_quotes = "warn"
 doc_markdown = "warn"
 elidable_lifetime_names = "warn"
@@ -224,6 +231,7 @@ inefficient_to_string = "warn"
 infinite_loop = "warn"
 into_iter_without_iter = "warn"
 invalid_upcast_comparisons = "warn"
+ip_constant = "warn"
 iter_filter_is_ok = "warn"
 iter_filter_is_some = "warn"
 iter_not_returning_iterator = "warn"
@@ -277,6 +285,7 @@ non_zero_suggestions = "warn"
 nonstandard_macro_braces = "warn"
 option_as_ref_cloned = "warn"
 option_option = "warn"
+or_fun_call = "warn"
 path_buf_push_overwrite = "warn"
 pathbuf_init_then_push = "warn"
 precedence_bits = "warn"
@@ -295,6 +304,7 @@ ref_patterns = "warn"
 rest_pat_in_fully_bound_structs = "warn"
 return_and_then = "warn"
 same_functions_in_if_condition = "warn"
+self_only_used_in_recursion = "warn"
 semicolon_if_nothing_returned = "warn"
 set_contains_or_insert = "warn"
 single_char_pattern = "warn"
@@ -306,7 +316,6 @@ string_add = "warn"
 string_add_assign = "warn"
 string_lit_as_bytes = "warn"
 string_lit_chars_any = "warn"
-string_to_string = "warn"
 suspicious_command_arg_space = "warn"
 suspicious_xor_used_as_pow = "warn"
 todo = "warn"
@@ -315,7 +324,7 @@ trailing_empty_array = "warn"
 trait_duplication_in_bounds = "warn"
 transmute_ptr_to_ptr = "warn"
 tuple_array_conversions = "warn"
-unchecked_duration_subtraction = "warn"
+unchecked_time_subtraction = "warn"
 undocumented_unsafe_blocks = "warn"
 unimplemented = "warn"
 uninhabited_references = "warn"
@@ -335,6 +344,7 @@ unused_peekable = "warn"
 unused_rounding = "warn"
 unused_self = "warn"
 unused_trait_names = "warn"
+unwrap_used = "warn"
 use_self = "warn"
 useless_let_if_seq = "warn"
 useless_transmute = "warn"
@@ -344,10 +354,10 @@ zero_sized_map_values = "warn"
 
 
 # TODO(emilk): maybe enable more of these lints?
+cast_possible_wrap = "allow"
 comparison_chain = "allow"
 should_panic_without_expect = "allow"
 too_many_lines = "allow"
-unwrap_used = "allow" # TODO(emilk): We really wanna warn on this one
 
 # These are meh:
 assigning_clones = "allow" # No please

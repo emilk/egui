@@ -37,7 +37,7 @@ impl Spinner {
     /// Paint the spinner in the given rectangle.
     pub fn paint_at(&self, ui: &Ui, rect: Rect) {
         if ui.is_rect_visible(rect) {
-            ui.ctx().request_repaint(); // because it is animated
+            ui.request_repaint(); // because it is animated
 
             let color = self
                 .color

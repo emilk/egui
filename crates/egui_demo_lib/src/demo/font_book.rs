@@ -28,11 +28,14 @@ impl crate::Demo for FontBook {
         "🔤 Font Book"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        egui::Window::new(self.name()).open(open).show(ctx, |ui| {
-            use crate::View as _;
-            self.ui(ui);
-        });
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
+        egui::Window::new(self.name())
+            .open(open)
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| {
+                use crate::View as _;
+                self.ui(ui);
+            });
     }
 }
 
@@ -102,7 +105,7 @@ impl crate::View for FontBook {
                         };
 
                         if ui.add(button).on_hover_ui(tooltip_ui).clicked() {
-                            ui.ctx().copy_text(chr.to_string());
+                            ui.copy_text(chr.to_string());
                         }
                     }
                 }

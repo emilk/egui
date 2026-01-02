@@ -1,8 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![allow(rustdoc::missing_crate_level_docs)] // it's an example
+#![expect(rustdoc::missing_crate_level_docs)] // it's an example
 
 use eframe::{CreationContext, NativeOptions, egui};
-use egui::{Button, CentralPanel, Context, UserAttentionType};
+use egui::{Button, CentralPanel, UserAttentionType};
 
 use std::time::{Duration, SystemTime};
 
@@ -55,12 +55,12 @@ impl Application {
 }
 
 impl eframe::App for Application {
-    fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         if let Some(request_at) = self.request_at
             && request_at < SystemTime::now()
         {
             self.request_at = None;
-            ctx.send_viewport_cmd(egui::ViewportCommand::RequestUserAttention(self.attention));
+            ui.send_viewport_cmd(egui::ViewportCommand::RequestUserAttention(self.attention));
             if self.auto_reset {
                 self.auto_reset = false;
                 self.reset_at = Some(SystemTime::now() + Self::attention_reset_timeout());
@@ -71,12 +71,12 @@ impl eframe::App for Application {
             && reset_at < SystemTime::now()
         {
             self.reset_at = None;
-            ctx.send_viewport_cmd(egui::ViewportCommand::RequestUserAttention(
+            ui.send_viewport_cmd(egui::ViewportCommand::RequestUserAttention(
                 UserAttentionType::Reset,
             ));
         }
 
-        CentralPanel::default().show(ctx, |ui| {
+        CentralPanel::default().show_inside(ui, |ui| {
             ui.vertical(|ui| {
                 ui.horizontal(|ui| {
                     ui.label("Attention type:");
@@ -131,6 +131,6 @@ impl eframe::App for Application {
             });
         });
 
-        ctx.request_repaint_after(Self::repaint_max_timeout());
+        ui.request_repaint_after(Self::repaint_max_timeout());
     }
 }

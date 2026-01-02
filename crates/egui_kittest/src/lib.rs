@@ -1,7 +1,8 @@
-#![doc = include_str!("../README.md")]
+#![cfg_attr(doc, doc = include_str!("../README.md"))]
 //!
 //! ## Feature flags
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
+#![expect(clippy::unwrap_used)] // TODO(emilk): avoid unwraps
 
 mod builder;
 #[cfg(feature = "snapshot")]
@@ -11,6 +12,7 @@ mod snapshot;
 pub use crate::snapshot::*;
 
 mod app_kind;
+mod config;
 mod node;
 mod renderer;
 #[cfg(feature = "wgpu")]
@@ -83,6 +85,8 @@ pub struct Harness<'a, State = ()> {
 
     #[cfg(feature = "snapshot")]
     default_snapshot_options: SnapshotOptions,
+    #[cfg(feature = "snapshot")]
+    snapshot_results: SnapshotResults,
 }
 
 impl<State> Debug for Harness<'_, State> {
@@ -92,6 +96,7 @@ impl<State> Debug for Harness<'_, State> {
 }
 
 impl<'a, State> Harness<'a, State> {
+    #[track_caller]
     pub(crate) fn from_builder(
         builder: HarnessBuilder<State>,
         mut app: AppKind<'a, State>,
@@ -133,8 +138,8 @@ impl<'a, State> Harness<'a, State> {
 
         // We need to run egui for a single frame so that the AccessKit state can be initialized
         // and users can immediately start querying for widgets.
-        let mut output = ctx.run(input.clone(), |ctx| {
-            response = app.run(ctx, &mut state, false);
+        let mut output = ctx.run_ui(input.clone(), |ui| {
+            response = app.run(ui, &mut state, false);
         });
 
         renderer.handle_delta(&output.textures_delta);
@@ -161,6 +166,9 @@ impl<'a, State> Harness<'a, State> {
 
             #[cfg(feature = "snapshot")]
             default_snapshot_options,
+
+            #[cfg(feature = "snapshot")]
+            snapshot_results: SnapshotResults::default(),
         };
         // Run the harness until it is stable, ensuring that all Areas are shown and animations are done
         harness.run_ok();
@@ -196,7 +204,10 @@ impl<'a, State> Harness<'a, State> {
     ///
     /// assert_eq!(*harness.state(), true);
     /// ```
+    #[track_caller]
+    #[deprecated = "use `new_ui_state` instead"]
     pub fn new_state(app: impl FnMut(&egui::Context, &mut State) + 'a, state: State) -> Self {
+        #[expect(deprecated)]
         Self::builder().build_state(app, state)
     }
 
@@ -221,12 +232,14 @@ impl<'a, State> Harness<'a, State> {
     ///
     /// assert_eq!(*harness.state(), true);
     /// ```
+    #[track_caller]
     pub fn new_ui_state(app: impl FnMut(&mut egui::Ui, &mut State) + 'a, state: State) -> Self {
         Self::builder().build_ui_state(app, state)
     }
 
     /// Create a new [Harness] from the given eframe creation closure.
     #[cfg(feature = "eframe")]
+    #[track_caller]
     pub fn new_eframe(builder: impl FnOnce(&mut eframe::CreationContext<'a>) -> State) -> Self
     where
         State: eframe::App,
@@ -277,8 +290,8 @@ impl<'a, State> Harness<'a, State> {
     fn _step(&mut self, sizing_pass: bool) {
         self.input.predicted_dt = self.step_dt;
 
-        let mut output = self.ctx.run(self.input.take(), |ctx| {
-            self.response = self.app.run(ctx, &mut self.state, sizing_pass);
+        let mut output = self.ctx.run_ui(self.input.take(), |ui| {
+            self.response = self.app.run(ui, &mut self.state, sizing_pass);
         });
         self.kittest.update(
             output
@@ -724,7 +737,10 @@ impl<'a> Harness<'a> {
     ///     });
     /// });
     /// ```
+    #[track_caller]
+    #[deprecated = "use `new_ui` instead"]
     pub fn new(app: impl FnMut(&egui::Context) + 'a) -> Self {
+        #[expect(deprecated)]
         Self::builder().build(app)
     }
 
@@ -744,6 +760,7 @@ impl<'a> Harness<'a> {
     ///     ui.label("Hello, world!");
     /// });
     /// ```
+    #[track_caller]
     pub fn new_ui(app: impl FnMut(&mut egui::Ui) + 'a) -> Self {
         Self::builder().build_ui(app)
     }
