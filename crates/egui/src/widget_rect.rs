@@ -164,6 +164,8 @@ impl WidgetRects {
 
         let InteractOptions { move_to_top } = options;
 
+        let mut shift_layer_index_after = None;
+
         let layer_widgets = by_layer.entry(layer_id).or_default();
 
         match by_id.entry(widget_rect.id) {
@@ -187,7 +189,8 @@ impl WidgetRects {
                 if existing.layer_id == widget_rect.layer_id {
                     if move_to_top {
                         layer_widgets.remove(*idx_in_layer);
-                        *idx_in_layer = layer_widgets.len();
+                        shift_layer_index_after = Some(*idx_in_layer);
+                        *idx_in_layer = layer_widgets.len() - 1;
                         layer_widgets.push(*existing);
                     } else {
                         layer_widgets[*idx_in_layer] = *existing;
@@ -197,6 +200,15 @@ impl WidgetRects {
                         "DEBUG ASSERT: Widget {:?} changed layer_id during the frame from {:?} to {:?}",
                         widget_rect.id, existing.layer_id, widget_rect.layer_id
                     );
+                }
+            }
+        }
+
+        if let Some(shift_start) = shift_layer_index_after {
+            for i in shift_start..layer_widgets.len() {
+                let w = &layer_widgets[i];
+                if let Some((idx_in_by_id, _)) = by_id.get_mut(&w.id) {
+                    *idx_in_by_id = i;
                 }
             }
         }
