@@ -1668,6 +1668,7 @@ pub fn create_winit_window_attributes(
 
         // x11
         window_type: _window_type,
+        override_redirect: _override_redirect,
 
         mouse_passthrough: _, // handled in `apply_viewport_builder_to_window`
         clamp_size_to_monitor_size: _, // Handled in `viewport_builder` in `epi_integration.rs`
@@ -1767,8 +1768,8 @@ pub fn create_winit_window_attributes(
 
     #[cfg(all(feature = "x11", target_os = "linux"))]
     {
+        use winit::platform::x11::WindowAttributesExtX11 as _;
         if let Some(window_type) = _window_type {
-            use winit::platform::x11::WindowAttributesExtX11 as _;
             use winit::platform::x11::WindowType;
             window_attributes = window_attributes.with_x11_window_type(vec![match window_type {
                 egui::X11WindowType::Normal => WindowType::Normal,
@@ -1786,6 +1787,9 @@ pub fn create_winit_window_attributes(
                 egui::X11WindowType::Combo => WindowType::Combo,
                 egui::X11WindowType::Dnd => WindowType::Dnd,
             }]);
+        }
+        if let Some(override_redirect) = _override_redirect {
+            window_attributes = window_attributes.with_override_redirect(override_redirect);
         }
     }
 

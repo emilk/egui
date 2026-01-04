@@ -332,6 +332,7 @@ pub struct ViewportBuilder {
 
     // X11
     pub window_type: Option<X11WindowType>,
+    pub override_redirect: Option<bool>,
 }
 
 impl ViewportBuilder {
@@ -663,10 +664,19 @@ impl ViewportBuilder {
 
     /// ### On X11
     /// This sets the window type.
-    /// Maps directly to [`_NET_WM_WINDOW_TYPE`](https://specifications.freedesktop.org/wm-spec/wm-spec-1.5.html).
+    /// Maps directly to [`_NET_WM_WINDOW_TYPE`](https://specifications.freedesktop.org/wm/1.5/ar01s05.html#id-1.6.7).
     #[inline]
     pub fn with_window_type(mut self, value: X11WindowType) -> Self {
         self.window_type = Some(value);
+        self
+    }
+
+    /// ### On X11
+    /// This sets the override-redirect flag. When this is set to true the window type should be specified.
+    /// Maps directly to [`Override-redirect windows`](https://specifications.freedesktop.org/wm/1.5/ar01s02.html#id-1.3.13).
+    #[inline]
+    pub fn with_override_redirect(mut self, value: bool) -> Self {
+        self.override_redirect = Some(value);
         self
     }
 
@@ -706,6 +716,7 @@ impl ViewportBuilder {
             mouse_passthrough: new_mouse_passthrough,
             taskbar: new_taskbar,
             window_type: new_window_type,
+            override_redirect: new_override_redirect,
         } = new_vp_builder;
 
         let mut commands = Vec::new();
@@ -900,6 +911,11 @@ impl ViewportBuilder {
 
         if new_window_type.is_some() && self.window_type != new_window_type {
             self.window_type = new_window_type;
+            recreate_window = true;
+        }
+
+        if new_override_redirect.is_some() && self.override_redirect != new_override_redirect {
+            self.override_redirect = new_override_redirect;
             recreate_window = true;
         }
 
