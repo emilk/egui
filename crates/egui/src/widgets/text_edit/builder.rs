@@ -762,7 +762,7 @@ impl TextEdit<'_> {
             painter.galley(
                 galley_pos - vec2(galley.rect.left(), 0.0),
                 Arc::clone(&galley),
-                text_color
+                text_color,
             );
 
             if has_focus && let Some(cursor_range) = state.cursor.range(&galley) {
