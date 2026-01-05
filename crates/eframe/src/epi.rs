@@ -6,9 +6,6 @@
 
 #![warn(missing_docs)] // Let's keep `epi` well-documented.
 
-#[cfg(target_arch = "wasm32")]
-use std::any::Any;
-
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 pub use crate::native::winit_integration::UserEvent;
@@ -174,26 +171,6 @@ pub trait App {
     #[deprecated = "Use Self::ui instead"]
     fn update(&mut self, ctx: &egui::Context, frame: &mut Frame) {
         _ = (ctx, frame);
-    }
-
-    /// Get a handle to the app.
-    ///
-    /// Can be used from web to interact or other external context.
-    ///
-    /// You need to implement this if you want to be able to access the application from JS using [`crate::WebRunner::app_mut`].
-    ///
-    /// This is needed because downcasting `Box<dyn App>` -> `Box<dyn Any>` to get &`ConcreteApp` is not simple in current rust.
-    ///
-    /// Just copy-paste this as your implementation:
-    /// ```ignore
-    /// #[cfg(target_arch = "wasm32")]
-    /// fn as_any_mut(&mut self) -> Option<&mut dyn std::any::Any> {
-    ///     Some(&mut *self)
-    /// }
-    /// ```
-    #[cfg(target_arch = "wasm32")]
-    fn as_any_mut(&mut self) -> Option<&mut dyn Any> {
-        None
     }
 
     /// Called on shutdown, and perhaps at regular intervals. Allows you to save state.
