@@ -96,7 +96,9 @@ impl crate::View for CodeEditor {
                 .lock_focus(true)
                 .desired_width(f32::INFINITY)
                 .layouter(&mut layouter);
-            let editor = if !cfg!(feature = "syntect") {
+            let editor = if cfg!(feature = "syntect") {
+                editor
+            } else {
                 use egui::Color32;
                 let background_color = if theme.is_dark() {
                     Color32::BLACK
@@ -104,8 +106,6 @@ impl crate::View for CodeEditor {
                     Color32::WHITE
                 };
                 editor.background_color(background_color)
-            } else {
-                editor
             };
             ui.add(editor);
         });
