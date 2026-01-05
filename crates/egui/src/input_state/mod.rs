@@ -970,6 +970,15 @@ impl PointerEvent {
 }
 
 /// Mouse or touch state.
+///
+/// To access the methods of [`PointerState`] you can use the [`crate::Context::input`] function
+///
+/// ```rust
+/// # let ctx = egui::Context::default();
+/// let latest_pos = ctx.input(|i| i.pointer.latest_pos());
+/// let is_pointer_down = ctx.input(|i| i.pointer.any_down());
+/// ```
+///
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct PointerState {
