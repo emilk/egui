@@ -78,10 +78,6 @@ pub struct InputOptions {
     /// for double click (or when this value is doubled, triple click) to count.
     pub max_double_click_delay: f64,
 
-    /// If the pointer moves for more than this it will no longer register as a
-    /// double or a triple click.
-    pub max_multiple_click_dist: f32,
-
     /// When this modifier is down, all scroll events are treated as zoom events.
     ///
     /// The default is CTRL/CMD, and it is STRONGLY recommended to NOT change this.
@@ -119,7 +115,6 @@ impl Default for InputOptions {
             max_click_dist: 6.0,
             max_click_duration: 0.8,
             max_double_click_delay: 0.3,
-            max_multiple_click_dist: 6.0,
             zoom_modifier: Modifiers::COMMAND,
             horizontal_scroll_modifier: Modifiers::SHIFT,
             vertical_scroll_modifier: Modifiers::ALT,
@@ -137,7 +132,6 @@ impl InputOptions {
             max_click_dist,
             max_click_duration,
             max_double_click_delay,
-            max_multiple_click_dist,
             zoom_modifier,
             horizontal_scroll_modifier,
             vertical_scroll_modifier,
@@ -188,15 +182,6 @@ impl InputOptions {
                         .speed(0.1),
                 )
                 .on_hover_text("Max time interval for double click to count");
-                ui.end_row();
-
-                ui.label("Max double/triple click distance");
-                ui.add(
-                    crate::DragValue::new(max_multiple_click_dist)
-                        .range(0.0..=f32::INFINITY)
-                        .speed(0.1),
-                )
-                    .on_hover_text("Max distance interval for double/triple click to count");
                 ui.end_row();
 
                 ui.label("zoom_modifier");
@@ -1172,18 +1157,15 @@ impl PointerState {
                             let click_dist_sq = self
                                 .last_click_pos
                                 .map_or(0.0, |last_pos| last_pos.distance_sq(pos));
-                            self.last_click_pos = Some(pos);
 
                             let double_click = (time - self.last_click_time)
                                 < self.options.max_double_click_delay
                                 && click_dist_sq
-                                    < self.options.max_multiple_click_dist
-                                        * self.options.max_multiple_click_dist;
+                                    < self.options.max_click_dist * self.options.max_click_dist;
                             let triple_click = (time - self.last_last_click_time)
                                 < (self.options.max_double_click_delay * 2.0)
                                 && click_dist_sq
-                                    < self.options.max_multiple_click_dist
-                                        * self.options.max_multiple_click_dist;
+                                    < self.options.max_click_dist * self.options.max_click_dist;
                             let count = if triple_click {
                                 3
                             } else if double_click {
@@ -1194,6 +1176,7 @@ impl PointerState {
 
                             self.last_last_click_time = self.last_click_time;
                             self.last_click_time = time;
+                            self.last_click_pos = Some(pos);
 
                             Some(Click {
                                 pos,
