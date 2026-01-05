@@ -759,7 +759,11 @@ impl TextEdit<'_> {
                 ui.skip_ahead_auto_ids(1);
             }
 
-            painter.galley(galley_pos - vec2(galley.rect.left(), 0.0), Arc::clone(&galley), text_color);
+            painter.galley(
+                galley_pos - vec2(galley.rect.left(), 0.0),
+                Arc::clone(&galley),
+                text_color
+            );
 
             if has_focus && let Some(cursor_range) = state.cursor.range(&galley) {
                 let primary_cursor_rect = cursor_rect(&galley, &cursor_range.primary, row_height)
