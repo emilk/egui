@@ -43,8 +43,7 @@ type DynError = Box<dyn std::error::Error + Send + Sync>;
 /// This is how your app is created.
 ///
 /// You can use the [`CreationContext`] to setup egui, restore state, setup OpenGL things, etc.
-pub type AppCreator<'app> =
-    Box<dyn 'app + FnOnce(&CreationContext<'_>) -> Result<Box<dyn 'app + App>, DynError>>;
+pub type AppCreator = Box<dyn FnOnce(&CreationContext<'_>) -> Result<Box<dyn App>, DynError>>;
 
 /// Data that is passed to [`AppCreator`] that can be used to setup and initialize your app.
 pub struct CreationContext<'s> {
@@ -131,7 +130,7 @@ impl CreationContext<'_> {
 // ----------------------------------------------------------------------------
 
 /// Implement this trait to write apps that can be compiled for both web/wasm and desktop/native using [`eframe`](https://github.com/emilk/egui/tree/main/crates/eframe).
-pub trait App {
+pub trait App: std::any::Any {
     /// Called once before each call to [`Self::ui`],
     /// and additionally also called when the UI is hidden, but [`egui::Context::request_repaint`] was called.
     ///

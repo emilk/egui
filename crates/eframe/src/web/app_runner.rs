@@ -43,7 +43,7 @@ impl AppRunner {
     pub async fn new(
         canvas: web_sys::HtmlCanvasElement,
         web_options: crate::WebOptions,
-        app_creator: epi::AppCreator<'static>,
+        app_creator: epi::AppCreator,
         text_agent: TextAgent,
     ) -> Result<Self, String> {
         let egui_ctx = egui::Context::default();
