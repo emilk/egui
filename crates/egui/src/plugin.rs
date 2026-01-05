@@ -120,13 +120,13 @@ impl PluginHandle {
     }
 
     fn typed_plugin<P: Plugin + 'static>(&self) -> &P {
-        (&*self.plugin as &dyn std::any::Any)
+        (self.plugin.as_ref() as &dyn std::any::Any)
             .downcast_ref::<P>()
             .expect("PluginHandle: plugin is not of the expected type")
     }
 
     pub fn typed_plugin_mut<P: Plugin + 'static>(&mut self) -> &mut P {
-        (&mut *self.plugin as &mut dyn std::any::Any)
+        (self.plugin.as_mut() as &mut dyn std::any::Any)
             .downcast_mut::<P>()
             .expect("PluginHandle: plugin is not of the expected type")
     }
