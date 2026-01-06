@@ -34,7 +34,7 @@ fn rotated_rect() {
                     paint_case(ui, label, |offset| {
                         let rect = cell_rect.translate(offset);
                         let pivot = pivot.map(|p| p + offset);
-                        let pivot_pos = pivot.unwrap_or(rect.center());
+                        let pivot_pos = pivot.unwrap_or_else(|| rect.center());
 
                         let ghost = RectShape::stroke(rect, 0.0, ghost_stroke, StrokeKind::Outside);
                         let shape = RectShape::new(
@@ -83,7 +83,7 @@ fn rotated_ellipse() {
                     paint_case(ui, label, |offset| {
                         let center = cell_center + offset;
                         let pivot = pivot.map(|p| p + offset);
-                        let pivot_pos = pivot.unwrap_or(center);
+                        let pivot_pos = pivot.unwrap_or_else(|| center);
 
                         let ghost = EllipseShape::stroke(center, radius, ghost_stroke);
                         let mut shape = EllipseShape::filled(center, radius, SHAPE_COLOR);
