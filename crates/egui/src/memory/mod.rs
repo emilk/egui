@@ -68,7 +68,7 @@ pub struct Memory {
     /// # let mut ctx = egui::Context::default();
     /// ctx.memory_mut(|mem| {
     ///     let cache = mem.caches.cache::<CharCountCache<'_>>();
-    ///     assert_eq!(cache.get("hello"), 5);
+    ///     assert_eq!(*cache.get("hello"), 5);
     /// });
     /// ```
     #[cfg_attr(feature = "persistence", serde(skip))]
