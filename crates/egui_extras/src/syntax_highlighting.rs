@@ -116,6 +116,7 @@ fn highlight_inner(
         mem.caches
             .cache::<HighlightCache>()
             .get((&font_id, theme, code, language, settings))
+            .clone()
     })
 }
 
