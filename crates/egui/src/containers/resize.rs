@@ -213,7 +213,7 @@ impl Resize {
         });
 
         let mut state = State::load(ui.ctx(), id).unwrap_or_else(|| {
-            ui.ctx().request_repaint(); // counter frame delay
+            ui.request_repaint(); // counter frame delay
 
             let default_size = self
                 .default_size
@@ -362,20 +362,20 @@ impl Resize {
             paint_resize_corner(ui, &corner_response);
 
             if corner_response.hovered() || corner_response.dragged() {
-                ui.ctx().set_cursor_icon(CursorIcon::ResizeNwSe);
+                ui.set_cursor_icon(CursorIcon::ResizeNwSe);
             }
         }
 
         state.store(ui.ctx(), id);
 
         #[cfg(debug_assertions)]
-        if ui.ctx().style().debug.show_resize {
-            ui.ctx().debug_painter().debug_rect(
+        if ui.global_style().debug.show_resize {
+            ui.debug_painter().debug_rect(
                 Rect::from_min_size(content_ui.min_rect().left_top(), state.desired_size),
                 Color32::GREEN,
                 "desired_size",
             );
-            ui.ctx().debug_painter().debug_rect(
+            ui.debug_painter().debug_rect(
                 Rect::from_min_size(content_ui.min_rect().left_top(), state.last_content_size),
                 Color32::LIGHT_BLUE,
                 "last_content_size",

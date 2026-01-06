@@ -479,7 +479,7 @@ impl<'a> TableBuilder<'a> {
             }
         }
 
-        let striped = striped.unwrap_or(ui.visuals().striped);
+        let striped = striped.unwrap_or_else(|| ui.visuals().striped);
 
         let state_id = ui.id().with(id_salt);
 
@@ -548,7 +548,7 @@ impl<'a> TableBuilder<'a> {
             sense,
         } = self;
 
-        let striped = striped.unwrap_or(ui.visuals().striped);
+        let striped = striped.unwrap_or_else(|| ui.visuals().striped);
 
         let state_id = ui.id().with(id_salt);
 
@@ -656,7 +656,7 @@ impl TableState {
     }
 
     fn store(self, ui: &egui::Ui, state_id: egui::Id) {
-        #![allow(clippy::needless_return)]
+        #![expect(clippy::needless_return)]
         #[cfg(feature = "serde")]
         {
             return ui.data_mut(|d| d.insert_persisted(state_id, self));
@@ -892,7 +892,7 @@ impl Table<'_> {
                 let resize_hover = resize_response.hovered() && !dragging_something_else;
 
                 if resize_hover || resize_response.dragged() {
-                    ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeColumn);
+                    ui.set_cursor_icon(egui::CursorIcon::ResizeColumn);
                 }
 
                 let stroke = if resize_response.dragged() {
@@ -1325,7 +1325,7 @@ impl TableRow<'_, '_> {
         *self.response = Some(
             self.response
                 .as_ref()
-                .map_or(response.clone(), |r| r.union(response.clone())),
+                .map_or_else(|| response.clone(), |r| r.union(response.clone())),
         );
 
         (used_rect, response)

@@ -1,7 +1,11 @@
-use eframe::{EframePumpStatus, UserEvent, egui};
+#![expect(clippy::unwrap_used)] // It's an example
+
 use std::{cell::Cell, io, os::fd::AsRawFd as _, rc::Rc, time::Duration};
+
 use tokio::task::LocalSet;
 use winit::event_loop::{ControlFlow, EventLoop};
+
+use eframe::{EframePumpStatus, UserEvent, egui};
 
 pub fn run() -> io::Result<()> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -76,8 +80,8 @@ impl Default for MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             ui.heading("My External Eventloop Application");
 
             ui.horizontal(|ui| {
@@ -85,8 +89,8 @@ impl eframe::App for MyApp {
                     self.value.set(self.value.get() + 1);
                 }
                 if ui.button("Increment Later").clicked() {
-                    let value = self.value.clone();
-                    let ctx = ctx.clone();
+                    let value = Rc::clone(&self.value);
+                    let ctx = ui.ctx().clone();
                     tokio::task::spawn_local(async move {
                         tokio::time::sleep(Duration::from_secs(1)).await;
                         value.set(value.get() + 1);
@@ -109,7 +113,7 @@ impl eframe::App for MyApp {
             }
 
             if self.blinky {
-                let now = ui.ctx().input(|i| i.time);
+                let now = ui.input(|i| i.time);
                 let blink = now % 1.0 < 0.5;
                 egui::Frame::new()
                     .inner_margin(3)
@@ -123,7 +127,7 @@ impl eframe::App for MyApp {
                         ui.label("Blinky!");
                     });
 
-                ctx.request_repaint_after_secs((0.5 - (now % 0.5)) as f32);
+                ui.request_repaint_after_secs((0.5 - (now % 0.5)) as f32);
             }
         });
     }

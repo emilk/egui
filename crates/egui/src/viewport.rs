@@ -33,7 +33,9 @@
 //! In short: immediate viewports are simpler to use, but can waste a lot of CPU time.
 //!
 //! ### Embedded viewports
-//! These are not real, independent viewports, but is a fallback mode for when the integration does not support real viewports. In your callback is called with [`ViewportClass::Embedded`] it means you need to create a [`crate::Window`] to wrap your ui in, which will then be embedded in the parent viewport, unable to escape it.
+//! These are not real, independent viewports, but is a fallback mode for when the integration does not support real viewports.
+//! In your callback is called with [`ViewportClass::EmbeddedWindow`] it means the viewport is embedded inside of
+//! a regular [`crate::Window`], trapped in the parent viewport.
 //!
 //!
 //! ## Using the viewports
@@ -71,7 +73,7 @@ use std::sync::Arc;
 
 use epaint::{Pos2, Vec2};
 
-use crate::{Context, Id};
+use crate::{Context, Id, Ui};
 
 // ----------------------------------------------------------------------------
 
@@ -101,7 +103,10 @@ pub enum ViewportClass {
 
     /// The fallback, when the egui integration doesn't support viewports,
     /// or [`crate::Context::embed_viewports`] is set to `true`.
-    Embedded,
+    ///
+    /// If you get this, it is because you are already wrapped in a [`crate::Window`]
+    /// inside of the parent viewport.
+    EmbeddedWindow,
 }
 
 // ----------------------------------------------------------------------------
@@ -258,7 +263,7 @@ impl ViewportIdPair {
 }
 
 /// The user-code that shows the ui in the viewport, used for deferred viewports.
-pub type DeferredViewportUiCallback = dyn Fn(&Context) + Sync + Send;
+pub type DeferredViewportUiCallback = dyn Fn(&mut Ui) + Sync + Send;
 
 /// Render the given viewport, calling the given ui callback.
 pub type ImmediateViewportRendererCallback = dyn for<'a> Fn(&Context, ImmediateViewport<'a>);
@@ -327,6 +332,7 @@ pub struct ViewportBuilder {
 
     // X11
     pub window_type: Option<X11WindowType>,
+    pub override_redirect: Option<bool>,
 }
 
 impl ViewportBuilder {
@@ -658,10 +664,19 @@ impl ViewportBuilder {
 
     /// ### On X11
     /// This sets the window type.
-    /// Maps directly to [`_NET_WM_WINDOW_TYPE`](https://specifications.freedesktop.org/wm-spec/wm-spec-1.5.html).
+    /// Maps directly to [`_NET_WM_WINDOW_TYPE`](https://specifications.freedesktop.org/wm/1.5/ar01s05.html#id-1.6.7).
     #[inline]
     pub fn with_window_type(mut self, value: X11WindowType) -> Self {
         self.window_type = Some(value);
+        self
+    }
+
+    /// ### On X11
+    /// This sets the override-redirect flag. When this is set to true the window type should be specified.
+    /// Maps directly to [`Override-redirect windows`](https://specifications.freedesktop.org/wm/1.5/ar01s02.html#id-1.3.13).
+    #[inline]
+    pub fn with_override_redirect(mut self, value: bool) -> Self {
+        self.override_redirect = Some(value);
         self
     }
 
@@ -701,6 +716,7 @@ impl ViewportBuilder {
             mouse_passthrough: new_mouse_passthrough,
             taskbar: new_taskbar,
             window_type: new_window_type,
+            override_redirect: new_override_redirect,
         } = new_vp_builder;
 
         let mut commands = Vec::new();
@@ -782,7 +798,7 @@ impl ViewportBuilder {
             };
 
             if is_new {
-                commands.push(ViewportCommand::Icon(Some(new_icon.clone())));
+                commands.push(ViewportCommand::Icon(Some(Arc::clone(&new_icon))));
                 self.icon = Some(new_icon);
             }
         }
@@ -895,6 +911,11 @@ impl ViewportBuilder {
 
         if new_window_type.is_some() && self.window_type != new_window_type {
             self.window_type = new_window_type;
+            recreate_window = true;
+        }
+
+        if new_override_redirect.is_some() && self.override_redirect != new_override_redirect {
+            self.override_redirect = new_override_redirect;
             recreate_window = true;
         }
 
@@ -1189,7 +1210,7 @@ pub struct ViewportOutput {
 
     /// What type of viewport are we?
     ///
-    /// This will never be [`ViewportClass::Embedded`],
+    /// This will never be [`ViewportClass::EmbeddedWindow`],
     /// since those don't result in real viewports.
     pub class: ViewportClass,
 
@@ -1246,5 +1267,5 @@ pub struct ImmediateViewport<'a> {
     pub builder: ViewportBuilder,
 
     /// The user-code that shows the GUI.
-    pub viewport_ui_cb: Box<dyn FnMut(&Context) + 'a>,
+    pub viewport_ui_cb: Box<dyn FnMut(&mut Ui) + 'a>,
 }

@@ -1,4 +1,4 @@
-use crate::{Response, Sense, Ui, Vec2, Widget, vec2};
+use crate::{Response, Sense, Ui, Vec2, Widget, vec2, widget_style::SeparatorStyle};
 
 /// A visual separator. A horizontal or vertical line (depending on [`crate::Layout`]).
 ///
@@ -13,7 +13,7 @@ use crate::{Response, Sense, Ui, Vec2, Widget, vec2};
 /// ```
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct Separator {
-    spacing: f32,
+    spacing: Option<f32>,
     grow: f32,
     is_horizontal_line: Option<bool>,
 }
@@ -21,7 +21,7 @@ pub struct Separator {
 impl Default for Separator {
     fn default() -> Self {
         Self {
-            spacing: 6.0,
+            spacing: None,
             grow: 0.0,
             is_horizontal_line: None,
         }
@@ -38,7 +38,7 @@ impl Separator {
     /// this is the width of the separator widget.
     #[inline]
     pub fn spacing(mut self, spacing: f32) -> Self {
-        self.spacing = spacing;
+        self.spacing = Some(spacing);
         self
     }
 
@@ -93,6 +93,18 @@ impl Widget for Separator {
             is_horizontal_line,
         } = self;
 
+        // Get the widget style by reading the response from the previous pass
+        let id = ui.next_auto_id();
+        let response: Option<Response> = ui.ctx().read_response(id);
+        let state = response.map(|r| r.widget_state()).unwrap_or_default();
+        let SeparatorStyle {
+            spacing: spacing_style,
+            stroke,
+        } = ui.style().separator_style(state);
+
+        // override the spacing if not set
+        let spacing = spacing.unwrap_or(spacing_style);
+
         let is_horizontal_line = is_horizontal_line
             .unwrap_or_else(|| ui.is_grid() || !ui.layout().main_dir().is_horizontal());
 
@@ -111,7 +123,6 @@ impl Widget for Separator {
         let (rect, response) = ui.allocate_at_least(size, Sense::hover());
 
         if ui.is_rect_visible(response.rect) {
-            let stroke = ui.visuals().widgets.noninteractive.bg_stroke;
             let painter = ui.painter();
             if is_horizontal_line {
                 painter.hline(

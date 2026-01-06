@@ -172,7 +172,7 @@ impl Area {
 
     /// Set the [`UiStackInfo`] of the area's [`Ui`].
     ///
-    /// Default to [`UiStackInfo::new(UiKind::GenericArea)`].
+    /// Default to [`UiStackInfo`] with kind [`UiKind::GenericArea`].
     #[inline]
     pub fn info(mut self, info: UiStackInfo) -> Self {
         self.info = info;
@@ -459,7 +459,7 @@ impl Area {
             state.pivot_pos = Some(new_pos);
         }
         state.pivot_pos.get_or_insert_with(|| {
-            default_pos.unwrap_or_else(|| automatic_area_position(ctx, layer_id))
+            default_pos.unwrap_or_else(|| automatic_area_position(ctx, constrain_rect, layer_id))
         });
         state.interactable = interactable;
 
@@ -469,7 +469,7 @@ impl Area {
             // during the sizing pass we will use this as the max size
             let mut size = default_size;
 
-            let default_area_size = ctx.style().spacing.default_area_size;
+            let default_area_size = ctx.global_style().spacing.default_area_size;
             if size.x.is_nan() {
                 size.x = default_area_size.x;
             }
@@ -505,9 +505,9 @@ impl Area {
             let interact_id = layer_id.id.with("move");
             let sense = sense.unwrap_or_else(|| {
                 if movable {
-                    Sense::drag()
+                    Sense::DRAG
                 } else if interactable {
-                    Sense::click() // allow clicks to bring to front
+                    Sense::CLICK // allow clicks to bring to front
                 } else {
                     Sense::hover()
                 }
@@ -523,6 +523,7 @@ impl Area {
                     enabled,
                 },
                 true,
+                Default::default(),
             );
 
             // Used to prevent drift
@@ -634,7 +635,8 @@ impl Prepared {
         {
             let age =
                 ctx.input(|i| (i.time - last_became_visible_at) as f32 + i.predicted_dt / 2.0);
-            let opacity = crate::remap_clamp(age, 0.0..=ctx.style().animation_time, 0.0..=1.0);
+            let opacity =
+                crate::remap_clamp(age, 0.0..=ctx.global_style().animation_time, 0.0..=1.0);
             let opacity = emath::easing::quadratic_out(opacity); // slow fade-out = quick fade-in
             ui.multiply_opacity(opacity);
             if opacity < 1.0 {
@@ -698,7 +700,7 @@ fn pointer_pressed_on_area(ctx: &Context, layer_id: LayerId) -> bool {
     }
 }
 
-fn automatic_area_position(ctx: &Context, layer_id: LayerId) -> Pos2 {
+fn automatic_area_position(ctx: &Context, constrain_rect: Rect, layer_id: LayerId) -> Pos2 {
     let mut existing: Vec<Rect> = ctx.memory(|mem| {
         mem.areas()
             .visible_windows()
@@ -709,13 +711,9 @@ fn automatic_area_position(ctx: &Context, layer_id: LayerId) -> Pos2 {
     });
     existing.sort_by_key(|r| r.left().round() as i32);
 
-    // NOTE: for the benefit of the egui demo, we position the windows so they don't
-    // cover the side panels, which means we use `available_rect` here instead of `constrain_rect` or `screen_rect`.
-    let available_rect = ctx.available_rect();
-
     let spacing = 16.0;
-    let left = available_rect.left() + spacing;
-    let top = available_rect.top() + spacing;
+    let left = constrain_rect.left() + spacing;
+    let top = constrain_rect.top() + spacing;
 
     if existing.is_empty() {
         return pos2(left, top);
@@ -725,6 +723,7 @@ fn automatic_area_position(ctx: &Context, layer_id: LayerId) -> Pos2 {
     let mut column_bbs = vec![existing[0]];
 
     for &rect in &existing {
+        #[expect(clippy::unwrap_used)]
         let current_column_bb = column_bbs.last_mut().unwrap();
         if rect.left() < current_column_bb.right() {
             // same column
@@ -749,14 +748,15 @@ fn automatic_area_position(ctx: &Context, layer_id: LayerId) -> Pos2 {
 
     // Find first column with some available space at the bottom of it:
     for col_bb in &column_bbs {
-        if col_bb.bottom() < available_rect.center().y {
+        if col_bb.bottom() < constrain_rect.center().y {
             return pos2(col_bb.left(), col_bb.bottom() + spacing);
         }
     }
 
     // Maybe we can fit a new column?
+    #[expect(clippy::unwrap_used)]
     let rightmost = column_bbs.last().unwrap().right();
-    if rightmost + 200.0 < available_rect.right() {
+    if rightmost + 200.0 < constrain_rect.right() {
         return pos2(rightmost + spacing, top);
     }
 

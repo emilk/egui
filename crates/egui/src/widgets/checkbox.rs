@@ -1,6 +1,8 @@
+use emath::Rect;
+
 use crate::{
     Atom, AtomLayout, Atoms, Id, IntoAtoms, NumExt as _, Response, Sense, Shape, Ui, Vec2, Widget,
-    WidgetInfo, WidgetType, epaint, pos2,
+    WidgetInfo, WidgetType, epaint, pos2, widget_style::CheckboxStyle,
 };
 
 // TODO(emilk): allow checkbox without a text label
@@ -55,14 +57,25 @@ impl Widget for Checkbox<'_> {
             indeterminate,
         } = self;
 
-        let spacing = &ui.spacing();
-        let icon_width = spacing.icon_width;
+        // Get the widget style by reading the response from the previous pass
+        let id = ui.next_auto_id();
+        let response: Option<Response> = ui.ctx().read_response(id);
+        let state = response.map(|r| r.widget_state()).unwrap_or_default();
 
-        let mut min_size = Vec2::splat(spacing.interact_size.y);
-        min_size.y = min_size.y.at_least(icon_width);
+        let CheckboxStyle {
+            check_size,
+            checkbox_frame,
+            checkbox_size,
+            frame,
+            check_stroke,
+            text_style,
+        } = ui.style().checkbox_style(state);
+
+        let mut min_size = Vec2::splat(ui.spacing().interact_size.y);
+        min_size.y = min_size.y.at_least(checkbox_size);
 
         // In order to center the checkbox based on min_size we set the icon height to at least min_size.y
-        let mut icon_size = Vec2::splat(icon_width);
+        let mut icon_size = Vec2::splat(checkbox_size);
         icon_size.y = icon_size.y.at_least(min_size.y);
         let rect_id = Id::new("egui::checkbox");
         atoms.push_left(Atom::custom(rect_id, icon_size));
@@ -72,6 +85,7 @@ impl Widget for Checkbox<'_> {
         let mut prepared = AtomLayout::new(atoms)
             .sense(Sense::click())
             .min_size(min_size)
+            .frame(frame)
             .allocate(ui);
 
         if prepared.response.clicked() {
@@ -96,18 +110,21 @@ impl Widget for Checkbox<'_> {
         });
 
         if ui.is_rect_visible(prepared.response.rect) {
-            // let visuals = ui.style().interact_selectable(&response, *checked); // too colorful
-            let visuals = *ui.style().interact(&prepared.response);
-            prepared.fallback_text_color = visuals.text_color();
+            prepared.fallback_text_color = text_style.color;
             let response = prepared.paint(ui);
 
             if let Some(rect) = response.rect(rect_id) {
-                let (small_icon_rect, big_icon_rect) = ui.spacing().icon_rectangles(rect);
+                let big_icon_rect = Rect::from_center_size(
+                    pos2(rect.left() + checkbox_size / 2.0, rect.center().y),
+                    Vec2::splat(checkbox_size),
+                );
+                let small_icon_rect =
+                    Rect::from_center_size(big_icon_rect.center(), Vec2::splat(check_size));
                 ui.painter().add(epaint::RectShape::new(
-                    big_icon_rect.expand(visuals.expansion),
-                    visuals.corner_radius,
-                    visuals.bg_fill,
-                    visuals.bg_stroke,
+                    big_icon_rect.expand(checkbox_frame.inner_margin.left.into()),
+                    checkbox_frame.corner_radius,
+                    checkbox_frame.fill,
+                    checkbox_frame.stroke,
                     epaint::StrokeKind::Inside,
                 ));
 
@@ -116,7 +133,7 @@ impl Widget for Checkbox<'_> {
                     ui.painter().add(Shape::hline(
                         small_icon_rect.x_range(),
                         small_icon_rect.center().y,
-                        visuals.fg_stroke,
+                        check_stroke,
                     ));
                 } else if *checked {
                     // Check mark:
@@ -126,7 +143,7 @@ impl Widget for Checkbox<'_> {
                             pos2(small_icon_rect.center().x, small_icon_rect.bottom()),
                             pos2(small_icon_rect.right(), small_icon_rect.top()),
                         ],
-                        visuals.fg_stroke,
+                        check_stroke,
                     ));
                 }
             }

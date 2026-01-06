@@ -8,8 +8,7 @@
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!
 
-#![allow(clippy::float_cmp)]
-#![allow(clippy::manual_range_contains)]
+#![expect(clippy::unwrap_used)] // TODO(emilk): avoid unwraps
 
 mod demo;
 pub mod easy_mark;
@@ -73,8 +72,8 @@ fn test_egui_e2e() {
 
     const NUM_FRAMES: usize = 5;
     for _ in 0..NUM_FRAMES {
-        let full_output = ctx.run(raw_input.clone(), |ctx| {
-            demo_windows.ui(ctx);
+        let full_output = ctx.run_ui(raw_input.clone(), |ui| {
+            demo_windows.ui(ui);
         });
         let clipped_primitives = ctx.tessellate(full_output.shapes, full_output.pixels_per_point);
         assert!(!clipped_primitives.is_empty());
@@ -92,8 +91,8 @@ fn test_egui_zero_window_size() {
 
     const NUM_FRAMES: usize = 5;
     for _ in 0..NUM_FRAMES {
-        let full_output = ctx.run(raw_input.clone(), |ctx| {
-            demo_windows.ui(ctx);
+        let full_output = ctx.run_ui(raw_input.clone(), |ui| {
+            demo_windows.ui(ui);
         });
         let clipped_primitives = ctx.tessellate(full_output.shapes, full_output.pixels_per_point);
         assert!(

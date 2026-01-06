@@ -20,8 +20,8 @@
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!
 
-#![allow(clippy::float_cmp)]
-#![allow(clippy::manual_range_contains)]
+#![expect(clippy::float_cmp)]
+#![expect(clippy::manual_range_contains)]
 
 mod brush;
 pub mod color;
@@ -62,7 +62,7 @@ pub use self::{
     stats::PaintStats,
     stroke::{PathStroke, Stroke, StrokeKind},
     tessellator::{TessellationOptions, Tessellator},
-    text::{FontFamily, FontId, Fonts, FontsView, Galley},
+    text::{FontFamily, FontId, Fonts, FontsView, Galley, TextOptions},
     texture_atlas::TextureAtlas,
     texture_handle::TextureHandle,
     textures::TextureManager,

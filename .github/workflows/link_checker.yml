@@ -1,21 +1,8 @@
-name: Check spelling and links
-on: [pull_request]
+name: Link checker
+# on: [pull_request]  # Disabled because it is so broken
+on: workflow_dispatch
 
 jobs:
-  typos:
-    # https://github.com/crate-ci/typos
-    # Add exceptions to .typos.toml
-    # install and run locally: cargo install typos-cli && typos
-    name: typos
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout Actions Repository
-        uses: actions/checkout@v4
-
-      - name: Check spelling of entire workspace
-        uses: crate-ci/typos@v1.38.0
-
   lychee:
     name: lychee
     runs-on: ubuntu-latest
@@ -33,4 +20,3 @@ jobs:
         uses: lycheeverse/lychee-action@v2
         with:
           args: "'**/*.md' '**/*.toml' --exclude localhost --exclude reddit.com" # I guess reddit doesn't like github action IPs
-

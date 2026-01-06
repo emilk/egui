@@ -1,4 +1,4 @@
-use crate::{Context, FullOutput, RawInput};
+use crate::{Context, FullOutput, RawInput, Ui};
 use ahash::HashMap;
 use epaint::mutex::{Mutex, MutexGuard};
 use std::sync::Arc;
@@ -23,13 +23,13 @@ pub trait Plugin: Send + Sync + std::any::Any + 'static {
 
     /// Called at the start of each pass.
     ///
-    /// Can be used to show ui, e.g. a [`crate::Window`] or [`crate::SidePanel`].
-    fn on_begin_pass(&mut self, ctx: &Context) {}
+    /// Can be used to show ui, e.g. a [`crate::Window`] or [`crate::Panel`].
+    fn on_begin_pass(&mut self, ui: &mut Ui) {}
 
     /// Called at the end of each pass.
     ///
     /// Can be used to show ui, e.g. a [`crate::Window`].
-    fn on_end_pass(&mut self, ctx: &Context) {}
+    fn on_end_pass(&mut self, ui: &mut Ui) {}
 
     /// Called just before the input is processed.
     ///
@@ -55,6 +55,9 @@ pub(crate) struct PluginHandle {
     plugin: Box<dyn Plugin>,
 }
 
+/// A typed handle to a registered [`Plugin`].
+///
+/// Use [`Self::lock`] to access the plugin.
 pub struct TypedPluginHandle<P: Plugin> {
     handle: Arc<Mutex<PluginHandle>>,
     _type: std::marker::PhantomData<P>,
@@ -68,6 +71,9 @@ impl<P: Plugin> TypedPluginHandle<P> {
         }
     }
 
+    /// Lock the plugin for access.
+    ///
+    /// Returns a guard that dereferences to the plugin.
     pub fn lock(&self) -> TypedPluginGuard<'_, P> {
         TypedPluginGuard {
             guard: self.handle.lock(),
@@ -76,6 +82,7 @@ impl<P: Plugin> TypedPluginHandle<P> {
     }
 }
 
+/// A guard that provides access to a [`Plugin`].
 pub struct TypedPluginGuard<'a, P: Plugin> {
     guard: MutexGuard<'a, PluginHandle>,
     _type: std::marker::PhantomData<P>,
@@ -113,13 +120,13 @@ impl PluginHandle {
     }
 
     fn typed_plugin<P: Plugin + 'static>(&self) -> &P {
-        (&*self.plugin as &dyn std::any::Any)
+        (self.plugin.as_ref() as &dyn std::any::Any)
             .downcast_ref::<P>()
             .expect("PluginHandle: plugin is not of the expected type")
     }
 
     pub fn typed_plugin_mut<P: Plugin + 'static>(&mut self) -> &mut P {
-        (&mut *self.plugin as &mut dyn std::any::Any)
+        (self.plugin.as_mut() as &mut dyn std::any::Any)
             .downcast_mut::<P>()
             .expect("PluginHandle: plugin is not of the expected type")
     }
@@ -147,17 +154,17 @@ impl PluginsOrdered {
         }
     }
 
-    pub fn on_begin_pass(&self, ctx: &Context) {
+    pub fn on_begin_pass(&self, ui: &mut Ui) {
         profiling::scope!("plugins", "on_begin_pass");
         self.for_each_dyn(|p| {
-            p.on_begin_pass(ctx);
+            p.on_begin_pass(ui);
         });
     }
 
-    pub fn on_end_pass(&self, ctx: &Context) {
+    pub fn on_end_pass(&self, ui: &mut Ui) {
         profiling::scope!("plugins", "on_end_pass");
         self.for_each_dyn(|p| {
-            p.on_end_pass(ctx);
+            p.on_end_pass(ui);
         });
     }
 
@@ -202,7 +209,7 @@ impl Plugins {
             return false;
         }
 
-        self.plugins.insert(type_id, handle.clone());
+        self.plugins.insert(type_id, Arc::clone(&handle));
         self.plugins_ordered.0.push(handle);
 
         true
@@ -214,7 +221,7 @@ impl Plugins {
 }
 
 /// Generic event callback.
-pub type ContextCallback = Arc<dyn Fn(&Context) + Send + Sync>;
+pub type ContextCallback = Arc<dyn Fn(&mut Ui) + Send + Sync>;
 
 #[derive(Default)]
 pub(crate) struct CallbackPlugin {
@@ -227,21 +234,21 @@ impl Plugin for CallbackPlugin {
         "CallbackPlugins"
     }
 
-    fn on_begin_pass(&mut self, ctx: &Context) {
+    fn on_begin_pass(&mut self, ui: &mut Ui) {
         profiling::function_scope!();
 
         for (_debug_name, cb) in &self.on_begin_plugins {
             profiling::scope!("on_begin_pass", *_debug_name);
-            (cb)(ctx);
+            (cb)(ui);
         }
     }
 
-    fn on_end_pass(&mut self, ctx: &Context) {
+    fn on_end_pass(&mut self, ui: &mut Ui) {
         profiling::function_scope!();
 
         for (_debug_name, cb) in &self.on_end_plugins {
             profiling::scope!("on_end_pass", *_debug_name);
-            (cb)(ctx);
+            (cb)(ui);
         }
     }
 }

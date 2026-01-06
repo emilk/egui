@@ -24,58 +24,61 @@ pub(crate) enum AppKind<'a, State> {
 impl<State> AppKind<'_, State> {
     pub fn run(
         &mut self,
-        ctx: &egui::Context,
+        ui: &mut egui::Ui,
         state: &mut State,
         sizing_pass: bool,
     ) -> Option<egui::Response> {
         match self {
             AppKind::Context(f) => {
                 debug_assert!(!sizing_pass, "Context closures cannot do a sizing pass");
-                f(ctx);
+                f(ui);
                 None
             }
             AppKind::ContextState(f) => {
                 debug_assert!(!sizing_pass, "Context closures cannot do a sizing pass");
-                f(ctx, state);
+                f(ui, state);
                 None
             }
             #[cfg(feature = "eframe")]
             AppKind::Eframe((get_app, frame)) => {
                 let app = get_app(state);
-                app.update(ctx, frame);
+
+                app.logic(ui, frame);
+
+                #[expect(deprecated)]
+                app.update(ui, frame);
+
+                app.ui(ui, frame);
+
                 None
             }
-            kind_ui => Some(kind_ui.run_ui(ctx, state, sizing_pass)),
+            kind_ui => Some(kind_ui.run_ui(ui, state, sizing_pass)),
         }
     }
 
     fn run_ui(
         &mut self,
-        ctx: &egui::Context,
+        ui: &mut egui::Ui,
         state: &mut State,
         sizing_pass: bool,
     ) -> egui::Response {
-        egui::CentralPanel::default()
-            .frame(Frame::NONE)
-            .show(ctx, |ui| {
-                let mut builder = egui::UiBuilder::new();
-                if sizing_pass {
-                    builder.sizing_pass = true;
-                }
-                ui.scope_builder(builder, |ui| {
-                    Frame::central_panel(ui.style())
-                        .outer_margin(8.0)
-                        .inner_margin(0.0)
-                        .show(ui, |ui| match self {
-                            AppKind::Ui(f) => f(ui),
-                            AppKind::UiState(f) => f(ui, state),
-                            _ => unreachable!(
-                                "run_ui should only be called with AppKind::Ui or AppKind UiState"
-                            ),
-                        });
-                })
-                .response
-            })
-            .inner
+        let mut builder = egui::UiBuilder::new();
+        if sizing_pass {
+            builder.sizing_pass = true;
+        }
+        ui.scope_builder(builder, |ui| {
+            Frame::central_panel(ui.style())
+                // Only set outer margin, so we show no frame for tests with only free-floating windows/popups:
+                .outer_margin(8.0)
+                .inner_margin(0.0)
+                .show(ui, |ui| match self {
+                    AppKind::Ui(f) => f(ui),
+                    AppKind::UiState(f) => f(ui, state),
+                    _ => unreachable!(
+                        "run_ui should only be called with AppKind::Ui or AppKind UiState"
+                    ),
+                });
+        })
+        .response
     }
 }

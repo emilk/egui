@@ -1,6 +1,6 @@
 use std::{any::Any, sync::Arc};
 
-use crate::{Context, CursorIcon, Plugin};
+use crate::{Context, CursorIcon, Plugin, Ui};
 
 /// Plugin for tracking drag-and-drop payload.
 ///
@@ -32,12 +32,12 @@ impl Plugin for DragAndDrop {
     /// Interrupt drag-and-drop if the user presses the escape key.
     ///
     /// This needs to happen at frame start so we can properly capture the escape key.
-    fn on_begin_pass(&mut self, ctx: &Context) {
+    fn on_begin_pass(&mut self, ui: &mut Ui) {
         let has_any_payload = self.payload.is_some();
 
         if has_any_payload {
             let abort_dnd_due_to_escape_key =
-                ctx.input_mut(|i| i.consume_key(crate::Modifiers::NONE, crate::Key::Escape));
+                ui.input_mut(|i| i.consume_key(crate::Modifiers::NONE, crate::Key::Escape));
 
             if abort_dnd_due_to_escape_key {
                 self.payload = None;
@@ -50,18 +50,18 @@ impl Plugin for DragAndDrop {
     /// This is a catch-all safety net in case user code doesn't capture the drag payload itself.
     /// This must happen at end-of-frame such that we don't shadow the mouse release event from user
     /// code.
-    fn on_end_pass(&mut self, ctx: &Context) {
+    fn on_end_pass(&mut self, ui: &mut Ui) {
         let has_any_payload = self.payload.is_some();
 
         if has_any_payload {
-            let abort_dnd_due_to_mouse_release = ctx.input_mut(|i| i.pointer.any_released());
+            let abort_dnd_due_to_mouse_release = ui.input_mut(|i| i.pointer.any_released());
 
             if abort_dnd_due_to_mouse_release {
                 self.payload = None;
             } else {
                 // We set the cursor icon only if its default, as the user code might have
                 // explicitly set it already.
-                ctx.output_mut(|o| {
+                ui.output_mut(|o| {
                     if o.cursor_icon == CursorIcon::Default {
                         o.cursor_icon = CursorIcon::Grabbing;
                     }
@@ -97,11 +97,7 @@ impl DragAndDrop {
     where
         Payload: Any + Send + Sync,
     {
-        ctx.plugin::<Self>()
-            .lock()
-            .payload
-            .as_ref()?
-            .clone()
+        Arc::clone(ctx.plugin::<Self>().lock().payload.as_ref()?)
             .downcast()
             .ok()
     }

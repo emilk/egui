@@ -3,7 +3,7 @@
 //! If you just want to display some images, [`egui_extras`](https://crates.io/crates/egui_extras/)
 //! will get you up and running quickly with its reasonable default implementations of the traits described below.
 //!
-//! 1. Add [`egui_extras`](https://crates.io/crates/egui_extras/) as a dependency with the `all_loaders` feature.
+//! 1. Add [`egui_extras`](https://crates.io/crates/egui_extras/) as a dependency with the `all_loaders` feature (`cargo add egui_extras -F all_loaders`).
 //! 2. Add a call to [`egui_extras::install_image_loaders`](https://docs.rs/egui_extras/latest/egui_extras/fn.install_image_loaders.html)
 //!    in your app's setup code.
 //! 3. Use [`Ui::image`][`crate::ui::Ui::image`] with some [`ImageSource`][`crate::ImageSource`].
@@ -609,7 +609,7 @@ impl Default for Loaders {
     fn default() -> Self {
         let include = Arc::new(DefaultBytesLoader::default());
         Self {
-            bytes: Mutex::new(vec![include.clone()]),
+            bytes: Mutex::new(vec![Arc::clone(&include) as _]),
             image: Mutex::new(Vec::new()),
             // By default we only include `DefaultTextureLoader`.
             texture: Mutex::new(vec![Arc::new(DefaultTextureLoader::default())]),

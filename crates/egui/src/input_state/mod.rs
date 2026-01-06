@@ -631,8 +631,10 @@ impl InputState {
     /// A positive Y-value indicates the content is being moved down, as when swiping down on a touch-screen or track-pad with natural scrolling.
     #[inline(always)]
     pub fn translation_delta(&self) -> Vec2 {
-        self.multi_touch()
-            .map_or(self.smooth_scroll_delta(), |touch| touch.translation_delta)
+        self.multi_touch().map_or_else(
+            || self.smooth_scroll_delta(),
+            |touch| touch.translation_delta,
+        )
     }
 
     /// True if there is an active scroll action that might scroll more when using [`Self::smooth_scroll_delta`].
@@ -968,6 +970,15 @@ impl PointerEvent {
 }
 
 /// Mouse or touch state.
+///
+/// To access the methods of [`PointerState`] you can use the [`crate::Context::input`] function
+///
+/// ```rust
+/// # let ctx = egui::Context::default();
+/// let latest_pos = ctx.input(|i| i.pointer.latest_pos());
+/// let is_pointer_down = ctx.input(|i| i.pointer.any_down());
+/// ```
+///
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct PointerState {
@@ -1549,11 +1560,9 @@ impl InputState {
             options: _,
         } = self;
 
-        ui.style_mut()
-            .text_styles
-            .get_mut(&crate::TextStyle::Body)
-            .unwrap()
-            .family = crate::FontFamily::Monospace;
+        if let Some(style) = ui.style_mut().text_styles.get_mut(&crate::TextStyle::Body) {
+            style.family = crate::FontFamily::Monospace;
+        }
 
         ui.collapsing("Raw Input", |ui| raw.ui(ui));
 

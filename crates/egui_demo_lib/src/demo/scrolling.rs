@@ -30,13 +30,14 @@ impl crate::Demo for Scrolling {
         "↕ Scrolling"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
             .resizable(true)
             .hscroll(false)
             .vscroll(false)
-            .show(ctx, |ui| {
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| {
                 use crate::View as _;
                 self.ui(ui);
             });
@@ -114,7 +115,7 @@ impl ScrollAppearance {
             visibility,
         } = self;
 
-        let mut scroll = ui.ctx().style().spacing.scroll;
+        let mut scroll = ui.global_style().spacing.scroll;
 
         scroll.ui(ui);
 
@@ -388,6 +389,6 @@ impl crate::View for ScrollStickTo {
         );
 
         self.n_items += 1;
-        ui.ctx().request_repaint();
+        ui.request_repaint();
     }
 }

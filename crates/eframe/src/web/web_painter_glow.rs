@@ -28,7 +28,7 @@ impl WebPainterGlow {
         let (gl, shader_prefix) =
             init_glow_context_from_canvas(&canvas, options.webgl_context_option)?;
 
-        #[allow(clippy::arc_with_non_send_sync, clippy::allow_attributes)] // For wasm
+        #[allow(clippy::allow_attributes, clippy::arc_with_non_send_sync)] // For wasm
         let gl = std::sync::Arc::new(gl);
 
         let painter = egui_glow::Painter::new(gl, shader_prefix, None, options.dithering)
@@ -91,7 +91,7 @@ impl WebPainter for WebPainterGlow {
             for data in data {
                 events.push(Event::Screenshot {
                     viewport_id: ViewportId::default(),
-                    image: image.clone(),
+                    image: Arc::clone(&image),
                     user_data: data,
                 });
             }
@@ -192,17 +192,13 @@ fn is_safari_and_webkit_gtk(gl: &web_sys::WebGlRenderingContext) -> bool {
         .get_extension("WEBGL_debug_renderer_info")
         .unwrap()
         .is_some()
-    {
-        if let Ok(renderer) =
+        && let Ok(renderer) =
             gl.get_parameter(web_sys::WebglDebugRendererInfo::UNMASKED_RENDERER_WEBGL)
-        {
-            if let Some(renderer) = renderer.as_string() {
-                if renderer.contains("Apple") {
-                    return true;
-                }
-            }
-        }
+        && let Some(renderer) = renderer.as_string()
+        && renderer.contains("Apple")
+    {
+        true
+    } else {
+        false
     }
-
-    false
 }

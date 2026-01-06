@@ -251,7 +251,10 @@ web-sys = { workspace = true, features = [
 ] }
 
 # optional web:
-egui-wgpu = { workspace = true, optional = true, features = ["capture"] } # if wgpu is used, use it without (!) winit
+egui-wgpu = { workspace = true, optional = true, features = [
+  # if wgpu is used, use it without (!) winit:
+  "capture",
+] }
 wgpu = { workspace = true, optional = true }
 
 # Native dev dependencies for testing

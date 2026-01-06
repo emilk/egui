@@ -7,14 +7,15 @@ impl crate::Demo for Panels {
         "🗖 Panels"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         use crate::View as _;
-        let window = egui::Window::new("Panels")
+        egui::Window::new("Panels")
             .default_width(600.0)
             .default_height(400.0)
             .vscroll(false)
-            .open(open);
-        window.show(ctx, |ui| self.ui(ui));
+            .open(open)
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| self.ui(ui));
     }
 }
 
@@ -22,9 +23,9 @@ impl crate::View for Panels {
     fn ui(&mut self, ui: &mut egui::Ui) {
         // Note that the order we add the panels is very important!
 
-        egui::TopBottomPanel::top("top_panel")
+        egui::Panel::top("top_panel")
             .resizable(true)
-            .min_height(32.0)
+            .min_size(32.0)
             .show_inside(ui, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     ui.vertical_centered(|ui| {
@@ -34,10 +35,10 @@ impl crate::View for Panels {
                 });
             });
 
-        egui::SidePanel::left("left_panel")
+        egui::Panel::left("left_panel")
             .resizable(true)
-            .default_width(150.0)
-            .width_range(80.0..=200.0)
+            .default_size(150.0)
+            .size_range(80.0..=200.0)
             .show_inside(ui, |ui| {
                 ui.vertical_centered(|ui| {
                     ui.heading("Left Panel");
@@ -47,10 +48,10 @@ impl crate::View for Panels {
                 });
             });
 
-        egui::SidePanel::right("right_panel")
+        egui::Panel::right("right_panel")
             .resizable(true)
-            .default_width(150.0)
-            .width_range(80.0..=200.0)
+            .default_size(150.0)
+            .size_range(80.0..=200.0)
             .show_inside(ui, |ui| {
                 ui.vertical_centered(|ui| {
                     ui.heading("Right Panel");
@@ -60,9 +61,9 @@ impl crate::View for Panels {
                 });
             });
 
-        egui::TopBottomPanel::bottom("bottom_panel")
+        egui::Panel::bottom("bottom_panel")
             .resizable(false)
-            .min_height(0.0)
+            .min_size(0.0)
             .show_inside(ui, |ui| {
                 ui.vertical_centered(|ui| {
                     ui.heading("Bottom Panel");
@@ -72,6 +73,7 @@ impl crate::View for Panels {
                 });
             });
 
+        // TODO(emilk): This extra panel is superfluous - just use what's left of `ui` instead
         egui::CentralPanel::default().show_inside(ui, |ui| {
             ui.vertical_centered(|ui| {
                 ui.heading("Central Panel");

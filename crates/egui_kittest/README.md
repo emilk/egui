@@ -12,30 +12,55 @@ Ui testing library for egui, based on [kittest](https://github.com/rerun-io/kitt
 use egui::accesskit::Toggled;
 use egui_kittest::{Harness, kittest::{Queryable, NodeT}};
 
-fn main() {
-    let mut checked = false;
-    let app = |ui: &mut egui::Ui| {
-        ui.checkbox(&mut checked, "Check me!");
-    };
+let mut checked = false;
+let app = |ui: &mut egui::Ui| {
+    ui.checkbox(&mut checked, "Check me!");
+};
 
-    let mut harness = Harness::new_ui(app);
+let mut harness = Harness::new_ui(app);
 
-    let checkbox = harness.get_by_label("Check me!");
-    assert_eq!(checkbox.accesskit_node().toggled(), Some(Toggled::False));
-    checkbox.click();
+let checkbox = harness.get_by_label("Check me!");
+assert_eq!(checkbox.accesskit_node().toggled(), Some(Toggled::False));
+checkbox.click();
 
-    harness.run();
+harness.run();
 
-    let checkbox = harness.get_by_label("Check me!");
-    assert_eq!(checkbox.accesskit_node().toggled(), Some(Toggled::True));
+let checkbox = harness.get_by_label("Check me!");
+assert_eq!(checkbox.accesskit_node().toggled(), Some(Toggled::True));
 
-    // Shrink the window size to the smallest size possible
-    harness.fit_contents();
+// Shrink the window size to the smallest size possible
+harness.fit_contents();
 
-    // You can even render the ui and do image snapshot tests
-    #[cfg(all(feature = "wgpu", feature = "snapshot"))]
-    harness.snapshot("readme_example");
-}
+// You can even render the ui and do image snapshot tests
+#[cfg(all(feature = "wgpu", feature = "snapshot"))]
+harness.snapshot("readme_example");
+```
+
+## Configuration
+
+You can configure test settings via a `kittest.toml` file in your workspace root.
+All possible settings and their defaults:
+```toml
+# path to the snapshot directory
+output_path = "tests/snapshots"
+
+# default threshold for image comparison tests
+threshold = 0.6
+
+# default failed_pixel_count_threshold
+failed_pixel_count_threshold = 0
+
+[windows]
+threshold = 0.6
+failed_pixel_count_threshold = 0
+
+[macos]
+threshold = 0.6
+failed_pixel_count_threshold = 0
+
+[linux]
+threshold = 0.6
+failed_pixel_count_threshold = 0
 ```
 
 ## Snapshot testing
