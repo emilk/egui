@@ -17,6 +17,14 @@ pub struct Node<'tree> {
     pub(crate) queue: &'tree EventQueue,
 }
 
+impl PartialEq for Node<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.accesskit_node.id() == other.accesskit_node.id()
+    }
+}
+
+impl Eq for Node<'_> {}
+
 impl Debug for Node<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         debug_fmt_node(self, f)

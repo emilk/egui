@@ -6,8 +6,8 @@ use ahash::{HashMap, HashSet};
 use epaint::emath::TSTransform;
 
 use crate::{
-    EventFilter, Id, IdMap, LayerId, Order, Pos2, Rangef, RawInput, Rect, Style, Vec2, ViewportId,
-    ViewportIdMap, ViewportIdSet, area, vec2,
+    area, vec2, EventFilter, Id, IdMap, LayerId, Order, Pos2, Rangef, RawInput, Rect, Style,
+    Vec2, ViewportId, ViewportIdMap, ViewportIdSet,
 };
 
 mod theme;
@@ -115,7 +115,7 @@ pub struct Memory {
     /// If position is [`None`], the popup position will be calculated based on some configuration
     /// (e.g. relative to some other widget).
     #[cfg_attr(feature = "persistence", serde(skip))]
-    popups: ViewportIdMap<OpenPopup>,
+    popups: ViewportIdMap<HashMap<LayerId, OpenPopup>>,
 }
 
 impl Default for Memory {
@@ -743,7 +743,7 @@ impl Memory {
         // Cleanup
         self.interactions.retain(|id, _| viewports.contains(id));
         self.areas.retain(|id, _| viewports.contains(id));
-        self.popups.retain(|id, _| viewports.contains(id));
+        // self.popups.retain(|id, _| viewports.contains(id)); TODO
 
         self.areas.entry(self.viewport_id).or_default();
 
@@ -763,12 +763,12 @@ impl Memory {
         self.focus_mut().end_pass(used_ids);
 
         // Clean up abandoned popups.
-        if let Some(popup) = self.popups.get_mut(&self.viewport_id) {
-            if popup.open_this_frame {
+        if let Some(popups) = self.popups.get_mut(&self.viewport_id) {
+            popups.retain(|_, popup| {
+                let open_this_frame = popup.open_this_frame;
                 popup.open_this_frame = false;
-            } else {
-                self.popups.remove(&self.viewport_id);
-            }
+                open_this_frame
+            })
         }
     }
 
@@ -1013,23 +1013,31 @@ impl Memory {
     pub fn is_popup_open(&self, popup_id: Id) -> bool {
         self.popups
             .get(&self.viewport_id)
-            .is_some_and(|state| state.id == popup_id)
+            .is_some_and(|state| {
+                state.values().any(|popup| popup.id == popup_id)
+            })
             || self.everything_is_visible()
     }
 
     /// Is any popup open?
     #[deprecated = "Use Popup::is_any_open instead"]
     pub fn any_popup_open(&self) -> bool {
-        self.popups.contains_key(&self.viewport_id) || self.everything_is_visible()
+        self.popups
+            .get(&self.viewport_id)
+            .is_some_and(|state| !state.is_empty())
+            || self.everything_is_visible()
     }
 
     /// Open the given popup and close all others.
     ///
     /// Note that you must call `keep_popup_open` on subsequent frames as long as the popup is open.
     #[deprecated = "Use Popup::open_id instead"]
-    pub fn open_popup(&mut self, popup_id: Id) {
+    pub fn open_popup(&mut self, layer: LayerId, popup_id: Id) {
+        // TODO: Close non-parent popups
         self.popups
-            .insert(self.viewport_id, OpenPopup::new(popup_id, None));
+            .entry(self.viewport_id)
+            .or_default()
+            .insert(layer, OpenPopup::new(popup_id, None));
     }
 
     /// Popups must call this every frame while open.
@@ -1038,26 +1046,34 @@ impl Memory {
     /// called. For example, when a context menu is open and the underlying widget stops
     /// being rendered.
     #[deprecated = "Use Popup::show instead"]
-    pub fn keep_popup_open(&mut self, popup_id: Id) {
-        if let Some(state) = self.popups.get_mut(&self.viewport_id)
-            && state.id == popup_id
-        {
-            state.open_this_frame = true;
+    pub fn keep_popup_open(&mut self, layer_id: LayerId, popup_id: Id) {
+        if let Some(state) = self.popups.get_mut(&self.viewport_id) {
+            if let Some(popup) = state.get_mut(&layer_id) {
+                if popup.id == popup_id {
+                    popup.open_this_frame = true;
+                }
+            }
         }
     }
 
     /// Open the popup and remember its position.
     #[deprecated = "Use Popup with PopupAnchor::Position instead"]
-    pub fn open_popup_at(&mut self, popup_id: Id, pos: impl Into<Option<Pos2>>) {
+    pub fn open_popup_at(&mut self, layer_id: LayerId, popup_id: Id, pos: impl Into<Option<Pos2>>) {
         self.popups
-            .insert(self.viewport_id, OpenPopup::new(popup_id, pos.into()));
+            .entry(self.viewport_id)
+            .or_default()
+            .insert(layer_id, OpenPopup::new(popup_id, pos.into()));
     }
 
     /// Get the position for this popup.
     #[deprecated = "Use Popup::position_of_id instead"]
     pub fn popup_position(&self, id: Id) -> Option<Pos2> {
-        let state = self.popups.get(&self.viewport_id)?;
-        if state.id == id { state.pos } else { None }
+        self.popups.get(&self.viewport_id).and_then(|state| {
+            state
+                .values()
+                .find(|popup| popup.id == id)
+                .and_then(|popup| popup.pos)
+        })
     }
 
     /// Close any currently open popup.
@@ -1071,9 +1087,8 @@ impl Memory {
     /// See also [`Self::close_all_popups`] if you want to close any / all currently open popups.
     #[deprecated = "Use Popup::close_id instead"]
     pub fn close_popup(&mut self, popup_id: Id) {
-        #[expect(deprecated)]
-        if self.is_popup_open(popup_id) {
-            self.popups.remove(&self.viewport_id);
+        if let Some(state) = self.popups.get_mut(&self.viewport_id) {
+            state.retain(|_, popup| popup.id != popup_id);
         }
     }
 
@@ -1081,12 +1096,11 @@ impl Memory {
     ///
     /// Note: At most, only one popup can be open at a time.
     #[deprecated = "Use Popup::toggle_id instead"]
-    pub fn toggle_popup(&mut self, popup_id: Id) {
-        #[expect(deprecated)]
+    pub fn toggle_popup(&mut self, layer_id: LayerId, popup_id: Id) {
         if self.is_popup_open(popup_id) {
             self.close_popup(popup_id);
         } else {
-            self.open_popup(popup_id);
+            self.open_popup(layer_id, popup_id);
         }
     }
 }
@@ -1292,6 +1306,17 @@ impl Areas {
     /// All the child layers of this layer.
     pub fn child_layers(&self, layer_id: LayerId) -> impl Iterator<Item = LayerId> + '_ {
         self.sublayers.get(&layer_id).into_iter().flatten().copied()
+    }
+
+    pub fn is_child_recursive(&self, parent: LayerId, child: LayerId) -> bool {
+        if let Some(children) = self.sublayers.get(&parent) {
+            for &c in children {
+                if c == child || self.is_child_recursive(c, child) {
+                    return true;
+                }
+            }
+        }
+        false
     }
 
     pub(crate) fn is_sublayer(&self, layer: &LayerId) -> bool {

@@ -513,19 +513,19 @@ impl<'a> Popup<'a> {
                     if open {
                         match self.anchor {
                             PopupAnchor::PointerFixed => {
-                                self.ctx.memory_mut(|mem| mem.open_popup_at(id, hover_pos));
+                                self.ctx.memory_mut(|mem| mem.open_popup_at(self.layer_id, id, hover_pos));
                             }
-                            _ => Popup::open_id(&self.ctx, id),
+                            _ => Popup::open_id(&self.ctx, self.layer_id, id),
                         }
                     } else {
                         Self::close_id(&self.ctx, id);
                     }
                 }
                 Some(SetOpenCommand::Toggle) => {
-                    Self::toggle_id(&self.ctx, id);
+                    Self::toggle_id(&self.ctx, self.layer_id, id);
                 }
                 None => {
-                    self.ctx.memory_mut(|mem| mem.keep_popup_open(id));
+                    self.ctx.memory_mut(|mem| mem.keep_popup_open(self.layer_id, id));
                 }
             }
         }
@@ -570,7 +570,7 @@ impl<'a> Popup<'a> {
         let (pivot, anchor) = best_align.pivot_pos(&anchor_rect, gap);
 
         let mut area = Area::new(id)
-            .order(kind.order())
+            .order(layer_id.order)
             .pivot(pivot)
             .fixed_pos(anchor)
             .sense(sense)
@@ -589,6 +589,7 @@ impl<'a> Popup<'a> {
         }
 
         let mut response = area.show(&ctx, |ui| {
+            ui.set_sublayer(layer_id, ui.layer_id());
             style.apply(ui.style_mut());
             let frame = frame.unwrap_or_else(|| Frame::popup(ui.style()));
             frame.show(ui, content).inner
@@ -600,7 +601,7 @@ impl<'a> Popup<'a> {
         let closed_by_click = match close_behavior {
             PopupCloseBehavior::CloseOnClick => close_click,
             PopupCloseBehavior::CloseOnClickOutside => {
-                close_click && response.response.clicked_elsewhere()
+                close_click && response.response.clicked_elsewhere_excluding_child_layers()
             }
             PopupCloseBehavior::IgnoreClicks => false,
         };
@@ -670,15 +671,15 @@ impl Popup<'_> {
     /// If you are NOT using [`Popup::show`], you must
     /// also call [`crate::Memory::keep_popup_open`] as long as
     /// you're showing the popup.
-    pub fn open_id(ctx: &Context, popup_id: Id) {
-        ctx.memory_mut(|mem| mem.open_popup(popup_id));
+    pub fn open_id(ctx: &Context, layer_id: LayerId, popup_id: Id) {
+        ctx.memory_mut(|mem| mem.open_popup(layer_id, popup_id));
     }
 
     /// Toggle the given popup between closed and open.
     ///
     /// Note: At most, only one popup can be open at a time.
-    pub fn toggle_id(ctx: &Context, popup_id: Id) {
-        ctx.memory_mut(|mem| mem.toggle_popup(popup_id));
+    pub fn toggle_id(ctx: &Context, layer_id: LayerId, popup_id: Id) {
+        ctx.memory_mut(|mem| mem.toggle_popup(layer_id, popup_id));
     }
 
     /// Close all currently open popups.

@@ -521,8 +521,8 @@ impl SubMenu {
             // Only edge case is the user hovering this submenu's button, so we also check
             // if we clicked outside the parent menu (which we luckily have access to here).
             let clicked_outside = is_deepest_submenu
-                && popup_response.response.clicked_elsewhere()
-                && menu_root_response.clicked_elsewhere();
+                && popup_response.response.clicked_elsewhere_excluding_child_layers()
+                && menu_root_response.clicked_elsewhere_excluding_child_layers();
 
             // We never automatically close when a submenu button is clicked, (so menus work
             // on touch devices)

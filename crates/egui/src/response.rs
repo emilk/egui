@@ -1,10 +1,10 @@
 use std::{any::Any, sync::Arc};
 
 use crate::{
-    Context, CursorIcon, Id, LayerId, PointerButton, Popup, PopupKind, Sense, Tooltip, Ui,
-    WidgetRect, WidgetText,
-    emath::{Align, Pos2, Rect, Vec2},
-    pass_state,
+    emath::{Align, Pos2, Rect, Vec2}, pass_state, Context, CursorIcon, Id, LayerId, PointerButton, Popup, PopupKind, Sense,
+    Tooltip, Ui,
+    WidgetRect,
+    WidgetText,
 };
 // ----------------------------------------------------------------------------
 
@@ -256,6 +256,28 @@ impl Response {
             }
         } else {
             false
+        }
+    }
+
+    pub fn clicked_elsewhere_excluding_child_layers(&self) -> bool {
+        let clicked_elsewhere = self.clicked_elsewhere();
+        if !clicked_elsewhere {
+            return false;
+        }
+
+        if let Some(pos) = self.ctx.input(|i| i.pointer.interact_pos()) {
+            let layer_under_pointer = self.ctx.layer_id_at(pos);
+            if let Some(layer_under_pointer) = layer_under_pointer {
+                let child_clicked = self.ctx.memory(|mem| {
+                    mem.areas()
+                        .is_child_recursive(self.layer_id, layer_under_pointer)
+                });
+                !child_clicked
+            } else {
+                clicked_elsewhere
+            }
+        } else {
+            clicked_elsewhere
         }
     }
 

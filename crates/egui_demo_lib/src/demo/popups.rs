@@ -1,9 +1,9 @@
 use crate::rust_view_ui;
-use egui::color_picker::{Alpha, color_picker_color32};
+use egui::color_picker::{color_picker_color32, Alpha};
 use egui::containers::menu::{MenuConfig, SubMenuButton};
 use egui::{
-    Align, Align2, Atom, Button, ComboBox, Frame, Id, Layout, Popup, PopupCloseBehavior, RectAlign,
-    RichText, Tooltip, Ui, UiBuilder, include_image,
+    include_image, Align, Align2, Atom, Button, ComboBox, Frame, Id, Layout, Popup, PopupCloseBehavior,
+    RectAlign, RichText, Tooltip, Ui, UiBuilder,
 };
 
 /// Showcase [`Popup`].
@@ -119,6 +119,13 @@ impl PopupsDemo {
                 if ui.button("Open…").clicked() {
                     ui.close();
                 }
+
+                ComboBox::new("Combobox in menu", "")
+                    .selected_text(if self.checked { "Option 1" } else { "Option 2" })
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut self.checked, true, "Option 1");
+                        ui.selectable_value(&mut self.checked, false, "Option 2");
+                    });
             });
     }
 }
