@@ -721,11 +721,14 @@ impl<State> Harness<'_, State> {
             })
             .unwrap();
 
+        // Close temp file so it isn't locked when `open` tries to launch it (on Windows)
+        let path = temp_file.into_temp_path();
+
         #[expect(clippy::print_stdout)]
         {
             println!("Wrote debug snapshot to: {}", path.display());
         }
-        let result = open::that(path);
+        let result = open::that(&path);
         if let Err(err) = result {
             #[expect(clippy::print_stderr)]
             {
