@@ -19,7 +19,7 @@ use super::CacheTrait;
 ///
 /// # let mut cache_storage = CacheStorage::default();
 /// let mut cache = cache_storage.cache::<CharCountCache<'_>>();
-/// assert_eq!(cache.get("hello"), 5);
+/// assert_eq!(*cache.get("hello"), 5);
 /// ```
 #[derive(Default)]
 pub struct CacheStorage {
