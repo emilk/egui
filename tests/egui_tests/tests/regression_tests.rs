@@ -99,8 +99,7 @@ fn text_edit_halign() {
                     ui.add_sized(
                         vec2(64.0, 64.0),
                         egui::TextEdit::multiline(&mut format!(
-                            "{:?}\n+\n{:?}",
-                            widget_alignment, text_alignment,
+                            "{widget_alignment:?}\n+\n{text_alignment:?}",
                         ))
                         .layouter(&mut layouter(text_alignment))
                         .vertical_align(widget_alignment)
