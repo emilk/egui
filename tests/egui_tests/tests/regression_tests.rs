@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use egui::accesskit::Role;
+use egui::text::{LayoutJob, TextWrapping};
 use egui::{
     Align, Color32, FontFamily, FontId, Image, Label, Layout, RichText, Sense, TextBuffer,
     TextFormat, TextWrapMode, Ui, include_image, vec2,
 };
-use egui::text::{LayoutJob, TextWrapping};
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable as _;
 
