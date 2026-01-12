@@ -72,6 +72,7 @@ fn text_edit_rtl() {
 fn text_edit_halign() {
     let mut harness = Harness::builder().with_size((212.0, 212.0)).build_ui(|ui| {
         ui.spacing_mut().item_spacing = vec2(2.0, 2.0);
+
         fn layouter(halign: Align) -> impl FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<egui::Galley> {
             move |ui: &egui::Ui, buf: &dyn egui::TextBuffer, wrap_width: f32| {
                 let mut job = LayoutJob {
