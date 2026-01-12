@@ -1,5 +1,6 @@
 use egui::accesskit::Role;
-use egui::{Align, Color32, Image, Label, Layout, RichText, Sense, TextWrapMode, include_image};
+use egui::{Align, Color32, Image, Label, Layout, RichText, Sense, TextWrapMode, include_image, vec2, TextBuffer, TextFormat, FontId, FontFamily, Ui};
+use egui::text::{LayoutJob, TextWrapping};
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable as _;
 
@@ -80,34 +81,30 @@ fn text_edit_halign() {
                 job.append(
                     buf.as_str(),
                     0.0,
-                    TextFormat::simple(
-                        FontId::new(13.0, FontFamily::Proportional),
-                        Color32::GRAY,
-                    ),
+                    TextFormat::simple(FontId::new(13.0, FontFamily::Proportional), Color32::GRAY),
                 );
                 ui.fonts_mut(|f| f.layout_job(job))
             }
         }
-        
+
         for widget_alignment in [Align::Min, Align::Center, Align::Max] {
             ui.horizontal(|ui| {
                 for text_alignment in [Align::LEFT, Align::Center, Align::RIGHT] {
                     ui.add_sized(
                         vec2(64.0, 64.0),
                         egui::TextEdit::multiline(&mut format!(
-                                "{:?}\n+\n{:?}",
-                                widget_alignment,
-                                text_alignment,
-                            ))
-                            .layouter(&mut layouter(text_alignment))
-                            .vertical_align(widget_alignment)
-                            .horizontal_align(widget_alignment)
+                            "{:?}\n+\n{:?}",
+                            widget_alignment, text_alignment,
+                        ))
+                        .layouter(&mut layouter(text_alignment))
+                        .vertical_align(widget_alignment)
+                        .horizontal_align(widget_alignment),
                     );
                 }
             });
         }
     });
-    
+
     harness.get_by_value("Center\n+\nCenter").focus();
     harness.step();
     harness.snapshot("text_edit_halign");
