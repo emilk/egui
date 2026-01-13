@@ -1,7 +1,7 @@
 use crate::{Context, FullOutput, RawInput, Ui};
 use ahash::HashMap;
 use epaint::mutex::{Mutex, MutexGuard};
-use std::sync::{Arc, atomic::AtomicUsize};
+use std::sync::Arc;
 
 /// A plugin to extend egui.
 ///
@@ -147,7 +147,7 @@ impl PluginsOrdered {
     where
         F: FnMut(&mut dyn Plugin),
     {
-        for plugin in self.0.iter() {
+        for plugin in &self.0 {
             let mut plugin = if skip_locked_plugins {
                 // Prevent deadlock if a plugin is called recursively. Currently only possible for
                 // plugins that create widgets (which trigger on_widget_under_pointer).
@@ -220,7 +220,7 @@ impl Plugins {
         }
 
         self.plugins.insert(type_id, Arc::clone(&handle));
-        self.plugins_ordered.0.push(Arc::clone(&handle));
+        self.plugins_ordered.0.push(handle);
 
         true
     }
