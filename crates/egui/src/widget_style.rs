@@ -2,7 +2,7 @@ use emath::Vec2;
 use epaint::{Color32, FontId, Shadow, Stroke, text::TextWrapMode};
 
 use crate::{
-    Frame, Id, Response, Style, TextStyle, Theme, Ui,
+    Frame, Response, Style, TextStyle, Theme,
     style::{WidgetVisuals, Widgets},
 };
 
@@ -107,8 +107,8 @@ impl Response {
 }
 
 impl Style {
-    pub fn widget_style(&self, state: WidgetState) -> WidgetStyle {
-        let visuals = self.visuals.widgets.state(state);
+    pub fn widget_style(&self, modifier: &StyleModifiers) -> WidgetStyle {
+        let visuals = self.visuals.widgets.state(modifier.state);
         let font_id = self.override_font_id.clone();
         WidgetStyle {
             frame: Frame {
@@ -123,19 +123,19 @@ impl Style {
                 color: self
                     .visuals
                     .override_text_color
-                    .unwrap_or(visuals.text_color()),
-                font_id: font_id.unwrap_or(TextStyle::Body.resolve(self)),
+                    .unwrap_or_else(|| visuals.text_color()),
+                font_id: font_id.unwrap_or_else(|| TextStyle::Body.resolve(self)),
                 strikethrough: Stroke::NONE,
                 underline: Stroke::NONE,
             },
         }
     }
 
-    pub fn button_style(&self, state: WidgetState, selected: bool) -> ButtonStyle {
-        let mut visuals = *self.visuals.widgets.state(state);
-        let mut ws = self.widget_style(state);
+    pub fn button_style(&self, modifier: &StyleModifiers) -> ButtonStyle {
+        let mut visuals = *self.visuals.widgets.state(modifier.state);
+        let mut ws = self.widget_style(modifier);
 
-        if selected {
+        if modifier.has("selected") {
             visuals.weak_bg_fill = self.visuals.selection.bg_fill;
             visuals.bg_fill = self.visuals.selection.bg_fill;
             visuals.fg_stroke = self.visuals.selection.stroke;
@@ -157,9 +157,9 @@ impl Style {
         }
     }
 
-    pub fn checkbox_style(&self, state: WidgetState) -> CheckboxStyle {
-        let visuals = self.visuals.widgets.state(state);
-        let ws = self.widget_style(state);
+    pub fn checkbox_style(&self, modifier: &StyleModifiers) -> CheckboxStyle {
+        let visuals = self.visuals.widgets.state(modifier.state);
+        let ws = self.widget_style(modifier);
         CheckboxStyle {
             frame: Frame::new(),
             checkbox_size: self.spacing.icon_width,
@@ -175,8 +175,8 @@ impl Style {
         }
     }
 
-    pub fn label_style(&self, state: WidgetState) -> LabelStyle {
-        let ws = self.widget_style(state);
+    pub fn label_style(&self, modifier: &StyleModifiers) -> LabelStyle {
+        let ws = self.widget_style(modifier);
         LabelStyle {
             frame: Frame {
                 fill: ws.frame.fill,
@@ -191,7 +191,7 @@ impl Style {
         }
     }
 
-    pub fn separator_style(&self, _state: WidgetState) -> SeparatorStyle {
+    pub fn separator_style(&self, _modifier: &StyleModifiers) -> SeparatorStyle {
         let visuals = self.visuals.noninteractive();
         SeparatorStyle {
             spacing: 6.0,
@@ -200,116 +200,109 @@ impl Style {
     }
 }
 
-#[derive(PartialEq, Eq, Clone)]
-pub enum StyleModifier {
-    /// Widget type should be a modifier or a separate information ?
-    /// Could have the trait [`HasClasses`] force to implement a method "name"
-    /// or "`widget_type`"
-    Button,
-    Label,
-    Separator,
-    Checkbox,
-    /// Classes and Id are string
-    Class(String),
-    Id(String),
-    /// Theme can be useful
-    Theme(Theme),
-}
+pub type WidgetStyleModifier = String;
 
-/// Text modifiers affect only the text of the widgets
-pub enum TextModifier {
-    Header,
-    Small,
-    Weak,
-    Strong,
-    Code,
-}
-
-impl From<&str> for StyleModifier {
-    fn from(class: &str) -> Self {
-        match class {
-            "dark" => Self::Theme(Theme::Dark),
-            "light" => Self::Theme(Theme::Light),
-            "button" => Self::Button,
-            "label" => Self::Label,
-            "separator" => Self::Separator,
-            "checkbox" => Self::Checkbox,
-            // Maybe add a prefix for class and ID ?
-            _ => Self::Class(class.to_owned()),
-        }
-    }
-}
-
-pub(crate) const CLASSES_SMALL_VEC_SIZE: usize = 5;
-
-/// Small vec for performance
+/// For now we use [`Vec`] but later we could use [`SmallVec`] for performance
 #[derive(Default)]
-pub struct Modifiers {
-    pub modifiers: Vec<StyleModifier>,
-    text: Option<TextModifier>,
-    parent: Option<Id>,
+pub struct StyleModifiers {
+    modifiers: Vec<WidgetStyleModifier>,
+    theme: Option<Theme>,
+    state: WidgetState,
 }
 
-impl Modifiers {
-    pub fn with_classes(mut self, classes: &[StyleModifier]) -> Self {
-        // debug_assert!(
-        //     classes.len() <= CLASSES_SMALL_VEC_SIZE - self.modifiers.len(),
-        //     "Too many modifiers !"
-        // );
+impl StyleModifiers {
+    /// Add multiples modifiers in one method and return the list for method chaining
+    pub fn with_modifiers(mut self, classes: &[WidgetStyleModifier]) -> Self {
         self.modifiers.append(&mut classes.to_vec());
         self
     }
 
-    pub fn with_class(mut self, class: impl Into<StyleModifier>) -> Self {
+    /// Add a single modifier and return the list for method chaining
+    pub fn with_modifier(mut self, class: impl Into<WidgetStyleModifier>) -> Self {
         self.modifiers.push(class.into());
         self
     }
 
-    pub fn with_parent(mut self, parent: &Ui) -> Self {
-        self.parent = Some(parent.id());
+    /// Add a class to the list if the condition is true
+    pub fn add_if(&mut self, modifier: impl Into<WidgetStyleModifier>, condition: bool) {
+        if condition {
+            self.modifiers.push(modifier.into());
+        }
+    }
+    /// Add a class to the list and return the list for method chaining
+    pub fn with_if(mut self, modifier: impl Into<WidgetStyleModifier>, condition: bool) -> Self {
+        self.add_if(modifier.into(), condition);
         self
     }
 
-    /// Add a class to the list
-    pub fn add_if(&mut self, class: impl Into<StyleModifier>, condition: bool) {
-        if condition {
-            self.modifiers.push(class.into());
-        }
+    /// Return true if the modifier is present in the list
+    pub fn has(&self, modifier: impl Into<WidgetStyleModifier>) -> bool {
+        self.modifiers.contains(&modifier.into())
     }
-    /// Add a class to the list and return the list, for method chaining
-    pub fn with_if(mut self, class: impl Into<StyleModifier>, condition: bool) -> Self {
-        self.add_if(class.into(), condition);
-        self
+
+    pub fn with_theme(&mut self, theme: Theme) {
+        self.theme = Some(theme);
     }
-    pub fn has(&self, class: impl Into<StyleModifier>) -> bool {
-        self.modifiers.contains(&class.into())
+
+    pub fn with_state(&mut self, state: WidgetState) {
+        self.state = state;
     }
 }
 
-/// Any widgets supporting classes must implement this trait
-pub trait HasModifier {
-    fn classes(&self) -> &Modifiers;
+/// Any widgets supporting [`StyleModifiers`] must implement this trait
+pub trait HasModifiers {
+    fn modifiers(&self) -> &StyleModifiers;
 
-    fn classes_mut(&mut self) -> &mut Modifiers;
+    fn modifiers_mut(&mut self) -> &mut StyleModifiers;
 
-    fn add_class(&mut self, class: impl Into<StyleModifier>) -> &Self {
-        self.classes_mut().add_if(class.into(), true);
+    fn add_class(&mut self, modifier: impl Into<WidgetStyleModifier>) -> &Self {
+        self.modifiers_mut().add_if(modifier.into(), true);
         self
     }
 
-    fn with_class(mut self, class: impl Into<StyleModifier>) -> Self
+    fn with_modifier(mut self, modifier: impl Into<WidgetStyleModifier>) -> Self
     where
         Self: Sized,
     {
-        self.classes_mut().add_if(class.into(), true);
+        self.modifiers_mut().add_if(modifier.into(), true);
         self
     }
 
-    fn with_class_if(mut self, class: impl Into<StyleModifier>, condition: bool) -> Self
+    fn with_modifier_if(mut self, modifier: impl Into<WidgetStyleModifier>, condition: bool) -> Self
     where
         Self: Sized,
     {
-        self.classes_mut().add_if(class.into(), condition);
+        self.modifiers_mut().add_if(modifier.into(), condition);
         self
     }
+
+    fn theme(mut self, theme: Theme) -> Self
+    where
+        Self: Sized,
+    {
+        self.modifiers_mut().with_theme(theme);
+        self
+    }
+}
+
+/// Add a shortcut to add modifiers. The syntax is add_modifiers!([Name]: (modifier1, modifier2, modifier3,)) for any number of modifiers
+#[macro_export]
+macro_rules! add_modifiers {
+    ($trait_name:ident: ($( $name:ident )+),?) => {
+
+        pub trait $trait_name {
+            $(
+                fn $name(self) -> Self;
+            )*
+        }
+
+        impl<T> $trait_name for T
+        where
+            T: HasModifiers,
+        {
+                $(fn $name(mut self) -> Self {
+                    self.with_modifier(stringify!($name))
+                })?
+        }
+    };
 }

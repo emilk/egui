@@ -7,6 +7,7 @@ use emath::GuiRounding as _;
 use epaint::mutex::RwLock;
 
 use crate::containers::menu;
+use crate::widget_style::{HasModifiers, StyleModifiers};
 use crate::{containers::*, ecolor::*, layout::*, placer::Placer, widgets::*, *};
 // ----------------------------------------------------------------------------
 
@@ -89,6 +90,9 @@ pub struct Ui {
     /// This is an optimization, so we don't call [`Ui::remember_min_rect`] multiple times at the
     /// end of a [`Ui::scope`].
     min_rect_already_remembered: bool,
+
+    /// Modifiers for style purpose
+    modifiers: StyleModifiers,
 }
 
 /// Allow using [`Ui`] like a [`Context`].
@@ -161,6 +165,7 @@ impl Ui {
             stack: Arc::new(ui_stack),
             sense,
             min_rect_already_remembered: false,
+            modifiers: StyleModifiers::default(),
         };
 
         if let Some(accessibility_parent) = accessibility_parent {
@@ -323,6 +328,7 @@ impl Ui {
             stack: Arc::new(ui_stack),
             sense,
             min_rect_already_remembered: false,
+            modifiers: StyleModifiers::default(),
         };
 
         if disabled {
@@ -3142,6 +3148,16 @@ impl Drop for Ui {
         }
         #[cfg(debug_assertions)]
         register_rect(self, self.min_rect());
+    }
+}
+
+impl HasModifiers for Ui {
+    fn modifiers(&self) -> &StyleModifiers {
+        &self.modifiers
+    }
+
+    fn modifiers_mut(&mut self) -> &mut StyleModifiers {
+        &mut self.modifiers
     }
 }
 

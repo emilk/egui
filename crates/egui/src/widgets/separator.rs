@@ -1,4 +1,7 @@
-use crate::{Response, Sense, Ui, Vec2, Widget, vec2, widget_style::SeparatorStyle};
+use crate::{
+    Response, Sense, Ui, Vec2, Widget, vec2,
+    widget_style::{HasModifiers, SeparatorStyle, StyleModifiers},
+};
 
 /// A visual separator. A horizontal or vertical line (depending on [`crate::Layout`]).
 ///
@@ -16,6 +19,7 @@ pub struct Separator {
     spacing: Option<f32>,
     grow: f32,
     is_horizontal_line: Option<bool>,
+    modifier: StyleModifiers,
 }
 
 impl Default for Separator {
@@ -24,6 +28,7 @@ impl Default for Separator {
             spacing: None,
             grow: 0.0,
             is_horizontal_line: None,
+            modifier: StyleModifiers::default(),
         }
     }
 }
@@ -91,16 +96,18 @@ impl Widget for Separator {
             spacing,
             grow,
             is_horizontal_line,
+            mut modifier,
         } = self;
 
         // Get the widget style by reading the response from the previous pass
         let id = ui.next_auto_id();
         let response: Option<Response> = ui.ctx().read_response(id);
         let state = response.map(|r| r.widget_state()).unwrap_or_default();
+        modifier.with_state(state);
         let SeparatorStyle {
             spacing: spacing_style,
             stroke,
-        } = ui.style().separator_style(state);
+        } = ui.style().separator_style(&modifier);
 
         // override the spacing if not set
         let spacing = spacing.unwrap_or(spacing_style);
@@ -140,5 +147,15 @@ impl Widget for Separator {
         }
 
         response
+    }
+}
+
+impl HasModifiers for Separator {
+    fn modifiers(&self) -> &crate::widget_style::StyleModifiers {
+        &self.modifier
+    }
+
+    fn modifiers_mut(&mut self) -> &mut crate::widget_style::StyleModifiers {
+        &mut self.modifier
     }
 }

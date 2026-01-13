@@ -2,7 +2,8 @@ use emath::Rect;
 
 use crate::{
     Atom, AtomLayout, Atoms, Id, IntoAtoms, NumExt as _, Response, Sense, Shape, Ui, Vec2, Widget,
-    WidgetInfo, WidgetType, epaint, pos2, widget_style::CheckboxStyle,
+    WidgetInfo, WidgetType, epaint, pos2,
+    widget_style::{CheckboxStyle, HasModifiers, StyleModifiers},
 };
 
 // TODO(emilk): allow checkbox without a text label
@@ -23,6 +24,7 @@ pub struct Checkbox<'a> {
     checked: &'a mut bool,
     atoms: Atoms<'a>,
     indeterminate: bool,
+    modifier: StyleModifiers,
 }
 
 impl<'a> Checkbox<'a> {
@@ -31,6 +33,7 @@ impl<'a> Checkbox<'a> {
             checked,
             atoms: atoms.into_atoms(),
             indeterminate: false,
+            modifier: StyleModifiers::default(),
         }
     }
 
@@ -55,12 +58,14 @@ impl Widget for Checkbox<'_> {
             checked,
             mut atoms,
             indeterminate,
+            mut modifier,
         } = self;
 
         // Get the widget style by reading the response from the previous pass
         let id = ui.next_auto_id();
         let response: Option<Response> = ui.ctx().read_response(id);
         let state = response.map(|r| r.widget_state()).unwrap_or_default();
+        modifier.with_state(state);
 
         let CheckboxStyle {
             check_size,
@@ -69,7 +74,7 @@ impl Widget for Checkbox<'_> {
             frame,
             check_stroke,
             text_style,
-        } = ui.style().checkbox_style(state);
+        } = ui.style().checkbox_style(&modifier);
 
         let mut min_size = Vec2::splat(ui.spacing().interact_size.y);
         min_size.y = min_size.y.at_least(checkbox_size);
@@ -151,5 +156,15 @@ impl Widget for Checkbox<'_> {
         } else {
             prepared.response
         }
+    }
+}
+
+impl HasModifiers for Checkbox<'_> {
+    fn modifiers(&self) -> &crate::widget_style::StyleModifiers {
+        &self.modifier
+    }
+
+    fn modifiers_mut(&mut self) -> &mut crate::widget_style::StyleModifiers {
+        &mut self.modifier
     }
 }
