@@ -66,7 +66,8 @@ impl crate::View for TextEditDemo {
             egui::Label::new("Press ctrl+Y to toggle the case of selected text (cmd+Y on Mac)"),
         );
 
-        if ui.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::Y))
+        if output.response.has_focus()
+            && ui.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::Y))
             && let Some(text_cursor_range) = output.cursor_range
         {
             use egui::TextBuffer as _;
