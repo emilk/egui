@@ -1,7 +1,7 @@
 use crate::{Context, FullOutput, RawInput, Ui};
 use ahash::HashMap;
 use epaint::mutex::{Mutex, MutexGuard};
-use std::sync::Arc;
+use std::sync::{Arc, atomic::AtomicUsize};
 
 /// A plugin to extend egui.
 ///
@@ -143,12 +143,22 @@ pub(crate) struct Plugins {
 pub(crate) struct PluginsOrdered(Vec<Arc<Mutex<PluginHandle>>>);
 
 impl PluginsOrdered {
-    fn for_each_dyn<F>(&self, mut f: F)
+    fn for_each_dyn<F>(&self, skip_locked_plugins: bool, mut f: F)
     where
         F: FnMut(&mut dyn Plugin),
     {
-        for plugin in &self.0 {
-            let mut plugin = plugin.lock();
+        for plugin in self.0.iter() {
+            let mut plugin = if skip_locked_plugins {
+                // Prevent deadlock if a plugin is called recursively. Currently only possible for
+                // plugins that create widgets (which trigger on_widget_under_pointer).
+                let Some(plugin) = plugin.try_lock() else {
+                    continue;
+                };
+                plugin
+            } else {
+                plugin.lock()
+            };
+
             profiling::scope!("plugin", plugin.dyn_plugin_mut().debug_name());
             f(plugin.dyn_plugin_mut());
         }
@@ -156,28 +166,28 @@ impl PluginsOrdered {
 
     pub fn on_begin_pass(&self, ui: &mut Ui) {
         profiling::scope!("plugins", "on_begin_pass");
-        self.for_each_dyn(|p| {
+        self.for_each_dyn(false, |p| {
             p.on_begin_pass(ui);
         });
     }
 
     pub fn on_end_pass(&self, ui: &mut Ui) {
         profiling::scope!("plugins", "on_end_pass");
-        self.for_each_dyn(|p| {
+        self.for_each_dyn(false, |p| {
             p.on_end_pass(ui);
         });
     }
 
     pub fn on_input(&self, input: &mut RawInput) {
         profiling::scope!("plugins", "on_input");
-        self.for_each_dyn(|plugin| {
+        self.for_each_dyn(false, |plugin| {
             plugin.input_hook(input);
         });
     }
 
     pub fn on_output(&self, output: &mut FullOutput) {
         profiling::scope!("plugins", "on_output");
-        self.for_each_dyn(|plugin| {
+        self.for_each_dyn(false, |plugin| {
             plugin.output_hook(output);
         });
     }
@@ -185,7 +195,7 @@ impl PluginsOrdered {
     #[cfg(debug_assertions)]
     pub fn on_widget_under_pointer(&self, ctx: &Context, widget: &crate::WidgetRect) {
         profiling::scope!("plugins", "on_widget_under_pointer");
-        self.for_each_dyn(|plugin| {
+        self.for_each_dyn(true, |plugin| {
             plugin.on_widget_under_pointer(ctx, widget);
         });
     }
@@ -210,7 +220,7 @@ impl Plugins {
         }
 
         self.plugins.insert(type_id, Arc::clone(&handle));
-        self.plugins_ordered.0.push(handle);
+        self.plugins_ordered.0.push(Arc::clone(&handle));
 
         true
     }
