@@ -608,6 +608,13 @@ pub const NUM_POINTER_BUTTONS: usize = 5;
 ///
 /// The best way to compare [`Modifiers`] is by using [`Modifiers::matches_logically`] or [`Modifiers::matches_exact`].
 ///
+/// To access the [`Modifiers`] you can use the [`crate::Context::input`] function
+///
+/// ```rust
+/// # let ctx = egui::Context::default();
+/// let modifiers = ctx.input(|i| i.modifiers);
+/// ```
+///
 /// NOTE: For cross-platform uses, ALT+SHIFT is a bad combination of modifiers
 /// as on mac that is how you type special characters,
 /// so those key presses are usually not reported to egui.
