@@ -1303,6 +1303,13 @@ pub struct DebugOptions {
     ///
     /// See [`emath::GuiRounding`] for more.
     pub show_unaligned: bool,
+
+    /// Highlight the currently focused widget.
+    ///
+    /// This is useful when some widget has a invisible focus (e.g. when a widget is using
+    /// `Sense::click()` when it should be using `Sense::CLICK`) and you need to find which one it
+    /// is.
+    pub show_focused_widget: bool,
 }
 
 #[cfg(debug_assertions)]
@@ -1319,6 +1326,7 @@ impl Default for DebugOptions {
             show_interactive_widgets: false,
             show_widget_hits: false,
             show_unaligned: cfg!(debug_assertions),
+            show_focused_widget: false,
         }
     }
 }
@@ -2480,6 +2488,7 @@ impl DebugOptions {
             show_interactive_widgets,
             show_widget_hits,
             show_unaligned,
+            show_focused_widget,
         } = self;
 
         {
@@ -2512,6 +2521,11 @@ impl DebugOptions {
         ui.checkbox(
             show_unaligned,
             "Show rectangles not aligned to integer point coordinates",
+        );
+
+        ui.checkbox(
+            show_focused_widget,
+            "Highlight which widget has keyboard focus",
         );
 
         ui.vertical_centered(|ui| reset_button(ui, self, "Reset debug options"));
