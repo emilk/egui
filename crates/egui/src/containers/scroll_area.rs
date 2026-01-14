@@ -810,7 +810,7 @@ impl ScrollArea {
                 // or we will steal input from the widgets we contain.
                 let content_response_option = state
                     .interact_rect
-                    .map(|rect| ui.interact(rect, id.with("area"), Sense::drag()));
+                    .map(|rect| ui.interact(rect, id.with("area"), Sense::DRAG));
 
                 if content_response_option
                     .as_ref()
@@ -1276,7 +1276,7 @@ impl Prepared {
             };
 
             let sense = if scroll_source.scroll_bar && ui.is_enabled() {
-                Sense::click_and_drag()
+                Sense::CLICK | Sense::DRAG
             } else {
                 Sense::hover()
             };

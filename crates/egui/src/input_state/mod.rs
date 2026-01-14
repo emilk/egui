@@ -970,6 +970,15 @@ impl PointerEvent {
 }
 
 /// Mouse or touch state.
+///
+/// To access the methods of [`PointerState`] you can use the [`crate::Context::input`] function
+///
+/// ```rust
+/// # let ctx = egui::Context::default();
+/// let latest_pos = ctx.input(|i| i.pointer.latest_pos());
+/// let is_pointer_down = ctx.input(|i| i.pointer.any_down());
+/// ```
+///
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct PointerState {
@@ -1028,6 +1037,10 @@ pub struct PointerState {
     /// This could also be the trigger point for a long-touch.
     pub(crate) started_decidedly_dragging: bool,
 
+    /// Where did the last click originate?
+    /// `None` if no mouse click occurred.
+    last_click_pos: Option<Pos2>,
+
     /// When did the pointer get click last?
     /// Used to check for double-clicks.
     last_click_time: f64,
@@ -1065,6 +1078,7 @@ impl Default for PointerState {
             press_start_time: None,
             has_moved_too_much_for_a_click: false,
             started_decidedly_dragging: false,
+            last_click_pos: None,
             last_click_time: f64::NEG_INFINITY,
             last_last_click_time: f64::NEG_INFINITY,
             last_move_time: f64::NEG_INFINITY,
@@ -1140,10 +1154,18 @@ impl PointerState {
                         let clicked = self.could_any_button_be_click();
 
                         let click = if clicked {
-                            let double_click =
-                                (time - self.last_click_time) < self.options.max_double_click_delay;
+                            let click_dist_sq = self
+                                .last_click_pos
+                                .map_or(0.0, |last_pos| last_pos.distance_sq(pos));
+
+                            let double_click = (time - self.last_click_time)
+                                < self.options.max_double_click_delay
+                                && click_dist_sq
+                                    < self.options.max_click_dist * self.options.max_click_dist;
                             let triple_click = (time - self.last_last_click_time)
-                                < (self.options.max_double_click_delay * 2.0);
+                                < (self.options.max_double_click_delay * 2.0)
+                                && click_dist_sq
+                                    < self.options.max_click_dist * self.options.max_click_dist;
                             let count = if triple_click {
                                 3
                             } else if double_click {
@@ -1154,6 +1176,7 @@ impl PointerState {
 
                             self.last_last_click_time = self.last_click_time;
                             self.last_click_time = time;
+                            self.last_click_pos = Some(pos);
 
                             Some(Click {
                                 pos,
@@ -1621,6 +1644,7 @@ impl PointerState {
             press_start_time,
             has_moved_too_much_for_a_click,
             started_decidedly_dragging,
+            last_click_pos,
             last_click_time,
             last_last_click_time,
             pointer_events,
@@ -1646,6 +1670,7 @@ impl PointerState {
         ui.label(format!(
             "started_decidedly_dragging: {started_decidedly_dragging}"
         ));
+        ui.label(format!("last_click_pos: {last_click_pos:#?}"));
         ui.label(format!("last_click_time: {last_click_time:#?}"));
         ui.label(format!("last_last_click_time: {last_last_click_time:#?}"));
         ui.label(format!("last_move_time: {last_move_time:#?}"));

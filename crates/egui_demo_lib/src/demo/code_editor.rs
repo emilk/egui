@@ -90,15 +90,25 @@ impl crate::View for CodeEditor {
         };
 
         egui::ScrollArea::vertical().show(ui, |ui| {
-            ui.add(
-                egui::TextEdit::multiline(code)
-                    .font(egui::TextStyle::Monospace) // for cursor height
-                    .code_editor()
-                    .desired_rows(10)
-                    .lock_focus(true)
-                    .desired_width(f32::INFINITY)
-                    .layouter(&mut layouter),
-            );
+            let editor = egui::TextEdit::multiline(code)
+                .font(egui::TextStyle::Monospace) // for cursor height
+                .code_editor()
+                .desired_rows(10)
+                .lock_focus(true)
+                .desired_width(f32::INFINITY)
+                .layouter(&mut layouter);
+            let editor = if cfg!(feature = "syntect") {
+                editor
+            } else {
+                use egui::Color32;
+                let background_color = if theme.is_dark() {
+                    Color32::BLACK
+                } else {
+                    Color32::WHITE
+                };
+                editor.background_color(background_color)
+            };
+            ui.add(editor);
         });
     }
 }
