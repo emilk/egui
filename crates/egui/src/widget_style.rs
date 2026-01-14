@@ -202,7 +202,7 @@ impl Style {
 
 pub type WidgetStyleModifier = String;
 
-/// For now we use [`Vec`] but later we could use [`SmallVec`] for performance
+/// For now we use Vec for the modifiers but later we could use `SmallVev` for performance
 #[derive(Default)]
 pub struct StyleModifiers {
     modifiers: Vec<WidgetStyleModifier>,
@@ -212,24 +212,29 @@ pub struct StyleModifiers {
 
 impl StyleModifiers {
     /// Add multiples modifiers in one method and return the list for method chaining
+    #[inline]
     pub fn with_modifiers(mut self, classes: &[WidgetStyleModifier]) -> Self {
         self.modifiers.append(&mut classes.to_vec());
         self
     }
 
     /// Add a single modifier and return the list for method chaining
+    #[inline]
     pub fn with_modifier(mut self, class: impl Into<WidgetStyleModifier>) -> Self {
         self.modifiers.push(class.into());
         self
     }
 
     /// Add a class to the list if the condition is true
+    #[inline]
     pub fn add_if(&mut self, modifier: impl Into<WidgetStyleModifier>, condition: bool) {
         if condition {
             self.modifiers.push(modifier.into());
         }
     }
+
     /// Add a class to the list and return the list for method chaining
+    #[inline]
     pub fn with_if(mut self, modifier: impl Into<WidgetStyleModifier>, condition: bool) -> Self {
         self.add_if(modifier.into(), condition);
         self
@@ -260,6 +265,7 @@ pub trait HasModifiers {
         self
     }
 
+    #[inline]
     fn with_modifier(mut self, modifier: impl Into<WidgetStyleModifier>) -> Self
     where
         Self: Sized,
@@ -268,6 +274,7 @@ pub trait HasModifiers {
         self
     }
 
+    #[inline]
     fn with_modifier_if(mut self, modifier: impl Into<WidgetStyleModifier>, condition: bool) -> Self
     where
         Self: Sized,
@@ -276,6 +283,7 @@ pub trait HasModifiers {
         self
     }
 
+    #[inline]
     fn theme(mut self, theme: Theme) -> Self
     where
         Self: Sized,
@@ -285,7 +293,7 @@ pub trait HasModifiers {
     }
 }
 
-/// Add a shortcut to add modifiers. The syntax is add_modifiers!([Name]: (modifier1, modifier2, modifier3,)) for any number of modifiers
+/// Add a shortcut to add modifiers. The syntax is `add_modifiers`!(Name: (modifier1, modifier2, modifier3,)) for any number of modifiers
 #[macro_export]
 macro_rules! add_modifiers {
     ($trait_name:ident: ($( $name:ident )+),?) => {
@@ -300,6 +308,7 @@ macro_rules! add_modifiers {
         where
             T: HasModifiers,
         {
+                #[inline]
                 $(fn $name(mut self) -> Self {
                     self.with_modifier(stringify!($name))
                 })?
