@@ -83,7 +83,7 @@ fn rotated_ellipse() {
                     paint_case(ui, label, |offset| {
                         let center = cell_center + offset;
                         let pivot = pivot.map(|p| p + offset);
-                        let pivot_pos = pivot.unwrap_or_else(|| center);
+                        let pivot_pos = pivot.unwrap_or(center);
 
                         let ghost = EllipseShape::stroke(center, radius, ghost_stroke);
                         let mut shape = EllipseShape::filled(center, radius, SHAPE_COLOR);
