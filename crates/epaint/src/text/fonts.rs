@@ -525,6 +525,23 @@ impl CachedFamily {
                 return Some((*font_key, glyph_info));
             }
         }
+
+        // Try canvas fallback for WASM
+        #[cfg(target_arch = "wasm32")]
+        {
+            // Use a special GlyphInfo to indicate canvas rendering is needed
+            // We use NOTDEF as the glyph ID to mark this as a canvas glyph
+            // The advance width will be filled in when we actually render it
+            let canvas_glyph_info = GlyphInfo {
+                id: Some(skrifa::GlyphId::NOTDEF),
+                advance_width_unscaled: OrderedFloat(0.0), // Will be filled in during rendering
+            };
+            // Use first font key as placeholder (the actual font family list will be used during rendering)
+            if let Some(&first_font_key) = self.fonts.first() {
+                return Some((first_font_key, canvas_glyph_info));
+            }
+        }
+
         None
     }
 }

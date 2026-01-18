@@ -6,6 +6,9 @@ mod fonts;
 mod text_layout;
 mod text_layout_types;
 
+#[cfg(target_arch = "wasm32")]
+mod canvas_renderer;
+
 /// One `\t` character is this many spaces wide.
 pub const TAB_SIZE: usize = 4;
 
