@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 #![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
-use eframe::egui::{self, text_edit::TextType};
+use eframe::egui::{self, Ui, text_edit::TextType};
 
 fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -33,8 +33,8 @@ impl Default for MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    fn ui(&mut self, ctx: &mut Ui, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show_inside(ctx, |ui| {
             ui.label(format!(
                 "I am {}. I am {} years old. My favorite letter is {}.",
                 self.name, self.age, self.favorite_letter
