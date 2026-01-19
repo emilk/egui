@@ -175,7 +175,8 @@ impl AccessibilityInspectorPlugin {
                         && ui.button(format!("{action:?}")).clicked()
                     {
                         let action_request = ActionRequest {
-                            target: node.id(),
+                            target_node: node.id(),
+                            target_tree: accesskit::TreeId::ROOT,
                             action,
                             data: None,
                         };
@@ -205,6 +206,9 @@ impl AccessibilityInspectorPlugin {
 
         // Safety: This is safe since the `accesskit::NodeId` was created from an `egui::Id`.
         #[expect(unsafe_code)]
+        // FIXME: accesskit_consumer::Node::id() returns a new type now
+        // <https://docs.rs/accesskit_consumer/0.30.1/accesskit_consumer/struct.Node.html#method.id>
+        // <https://docs.rs/accesskit_consumer/0.33.0/accesskit_consumer/struct.Node.html#method.id>
         let egui_node_id = unsafe { Id::from_high_entropy_bits(node.id().0) };
 
         ui.push_id(node.id(), |ui| {
