@@ -1,4 +1,4 @@
-use std::{borrow::Cow, ops::Range};
+use std::{borrow::Cow, ops::Range, sync::Arc};
 
 use epaint::{
     Galley,
@@ -23,6 +23,17 @@ pub trait TextBuffer {
 
     /// Returns this buffer as a `str`.
     fn as_str(&self) -> &str;
+
+    /// Clone this buffer to an [`Arc<str>`].
+    ///
+    /// By default this is implemented by creating a new [`Arc`] from the result
+    /// of [`as_str`]. However, if the buffer is already managed by an [`Arc`],
+    /// this can be implemented more efficiently and avoid some cloning.
+    ///
+    /// [`as_str`]: Self::as_str
+    fn clone_to_arc(&self) -> Arc<str> {
+        Arc::from(self.as_str())
+    }
 
     /// Inserts text `text` into this buffer at character index `char_index`.
     ///
@@ -313,5 +324,30 @@ impl TextBuffer for &str {
 
     fn type_id(&self) -> std::any::TypeId {
         std::any::TypeId::of::<&str>()
+    }
+}
+
+/// Immutable view of an [`Arc<str>`]
+impl TextBuffer for Arc<str> {
+    fn is_mutable(&self) -> bool {
+        false
+    }
+
+    fn as_str(&self) -> &str {
+        self
+    }
+
+    fn clone_to_arc(&self) -> Arc<str> {
+        self.clone()
+    }
+
+    fn insert_text(&mut self, _text: &str, _ch_idx: usize) -> usize {
+        0
+    }
+
+    fn delete_char_range(&mut self, _ch_range: Range<usize>) {}
+
+    fn type_id(&self) -> std::any::TypeId {
+        std::any::TypeId::of::<Self>()
     }
 }
