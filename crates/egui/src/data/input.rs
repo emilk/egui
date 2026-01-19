@@ -631,7 +631,7 @@ pub struct Modifiers {
     /// Either of the shift keys are down.
     pub shift: bool,
 
-    /// The Mac ⌘ Command key. Should always be set to `false` on other platforms.
+    /// The Mac ⌘ Command key. Is the super key on other platforms.
     pub mac_cmd: bool,
 
     /// On Windows and Linux, set this to the same value as `ctrl`.
@@ -765,16 +765,40 @@ impl Modifiers {
         self.alt && self.ctrl && self.shift && self.command
     }
 
+    /// Is alt the only pressed button?
+    #[inline]
+    pub fn alt_only(&self) -> bool {
+        self.alt && !(self.ctrl || self.shift || self.command)
+    }
+
+    /// Is ctrl the only pressed button?
+    #[inline]
+    pub fn ctrl_only(&self) -> bool {
+        self.ctrl && !(self.alt || self.shift || self.command)
+    }
+
     /// Is shift the only pressed button?
     #[inline]
     pub fn shift_only(&self) -> bool {
-        self.shift && !(self.alt || self.command)
+        self.shift && !(self.alt || self.ctrl || self.command)
+    }
+
+    /// Is super the only pressed button?
+    #[inline]
+    pub fn super_only(&self) -> bool {
+        self.mac_cmd && !(self.alt || self.ctrl || self.shift)
+    }
+
+    /// true if only [`Self::mac_cmd`] is pressed on `MacOs`.
+    #[inline]
+    pub fn mac_cmd_only(&self) -> bool {
+        self.super_only()
     }
 
     /// true if only [`Self::ctrl`] or only [`Self::mac_cmd`] is pressed.
     #[inline]
     pub fn command_only(&self) -> bool {
-        !self.alt && !self.shift && self.command
+        self.command && !(self.alt || self.shift)
     }
 
     /// Checks that the `ctrl/cmd` matches, and that the `shift/alt` of the argument is a subset
