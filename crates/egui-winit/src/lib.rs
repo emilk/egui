@@ -125,6 +125,14 @@ impl State {
             ..Default::default()
         };
 
+        // SAFETY: The display handle is obtained from `display_target` which the caller
+        // is responsible for keeping alive. Winit display handles remain valid for the
+        // duration of the event loop, which outlives any `State` instance.
+        #[expect(unsafe_code)]
+        let clipboard = unsafe {
+            clipboard::Clipboard::new(display_target.display_handle().ok().map(|h| h.as_raw()))
+        };
+
         let mut slf = Self {
             egui_ctx,
             viewport_id,
@@ -133,10 +141,7 @@ impl State {
             pointer_pos_in_points: None,
             any_pointer_button_down: false,
             current_cursor_icon: None,
-
-            clipboard: clipboard::Clipboard::new(
-                display_target.display_handle().ok().map(|h| h.as_raw()),
-            ),
+            clipboard,
 
             simulate_touch_screen: false,
             pointer_touch_id: None,
