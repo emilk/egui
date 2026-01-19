@@ -35,26 +35,26 @@ use super::{epi_integration, event_loop_context, winit_integration, winit_integr
 // ----------------------------------------------------------------------------
 // Types:
 
-pub struct WgpuWinitApp<'app> {
+pub struct WgpuWinitApp {
     repaint_proxy: Arc<Mutex<EventLoopProxy<UserEvent>>>,
     app_name: String,
     native_options: NativeOptions,
 
     /// Set at initialization, then taken and set to `None` in `init_run_state`.
-    app_creator: Option<AppCreator<'app>>,
+    app_creator: Option<AppCreator>,
 
     /// Set when we are actually up and running.
-    running: Option<WgpuWinitRunning<'app>>,
+    running: Option<WgpuWinitRunning>,
 }
 
 /// State that is initialized when the application is first starts running via
 /// a Resumed event. On Android this ensures that any graphics state is only
 /// initialized once the application has an associated `SurfaceView`.
-struct WgpuWinitRunning<'app> {
+struct WgpuWinitRunning {
     integration: EpiIntegration,
 
     /// The users application.
-    app: Box<dyn 'app + App>,
+    app: Box<dyn App>,
 
     /// Wrapped in an `Rc<RefCell<…>>` so it can be re-entrantly shared via a weak-pointer.
     shared: Rc<RefCell<SharedState>>,
@@ -97,12 +97,12 @@ pub struct Viewport {
 
 // ----------------------------------------------------------------------------
 
-impl<'app> WgpuWinitApp<'app> {
+impl WgpuWinitApp {
     pub fn new(
         event_loop: &EventLoop<UserEvent>,
         app_name: &str,
         native_options: NativeOptions,
-        app_creator: AppCreator<'app>,
+        app_creator: AppCreator,
     ) -> Self {
         profiling::function_scope!();
 
@@ -182,7 +182,7 @@ impl<'app> WgpuWinitApp<'app> {
         storage: Option<Box<dyn Storage>>,
         window: Window,
         builder: ViewportBuilder,
-    ) -> crate::Result<&mut WgpuWinitRunning<'app>> {
+    ) -> crate::Result<&mut WgpuWinitRunning> {
         profiling::function_scope!();
         let mut painter = pollster::block_on(egui_wgpu::winit::Painter::new(
             egui_ctx.clone(),
@@ -341,7 +341,7 @@ impl<'app> WgpuWinitApp<'app> {
     }
 }
 
-impl WinitApp for WgpuWinitApp<'_> {
+impl WinitApp for WgpuWinitApp {
     fn egui_ctx(&self) -> Option<&egui::Context> {
         self.running.as_ref().map(|r| &r.integration.egui_ctx)
     }
@@ -510,7 +510,7 @@ impl WinitApp for WgpuWinitApp<'_> {
     }
 }
 
-impl WgpuWinitRunning<'_> {
+impl WgpuWinitRunning {
     /// Saves the application state
     fn save(&mut self) {
         let shared = self.shared.borrow();

@@ -3,9 +3,6 @@ use egui_demo_lib::{DemoWindows, is_mobile};
 #[cfg(feature = "glow")]
 use eframe::glow;
 
-#[cfg(target_arch = "wasm32")]
-use core::any::Any;
-
 use crate::DemoApp;
 
 #[derive(Default)]
@@ -322,11 +319,6 @@ impl eframe::App for WrapApp {
         if let Some(custom3d) = &mut self.custom3d {
             custom3d.on_exit(gl);
         }
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    fn as_any_mut(&mut self) -> Option<&mut dyn Any> {
-        Some(&mut *self)
     }
 }
 
