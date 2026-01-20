@@ -33,6 +33,7 @@ version = 2
 ignore = [
   "RUSTSEC-2024-0320", # unmaintained yaml-rust pulled in by syntect
   "RUSTSEC-2024-0436", # unmaintained paste pulled via metal/wgpu, see https://github.com/gfx-rs/metal-rs/issues/349
+  "RUSTSEC-2025-0141", # bincode pulled in by wgpu; team considers 1.3.3 complete and not in need of updates
 ]
 
 [bans]
