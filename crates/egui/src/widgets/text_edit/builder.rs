@@ -523,6 +523,8 @@ impl<Value: TextType> TextEdit<'_, Value> {
         let prev_text = text.as_str().to_owned();
         let hint_text_str = hint_text.text().to_owned();
 
+        let mut text_parsed = None;
+
         let font_id = font_selection.resolve(ui.style());
         let row_height = ui.fonts_mut(|f| f.row_height(&font_id));
         const MIN_WIDTH: f32 = 24.0; // Never make a [`TextEdit`] more narrow than this.
@@ -834,8 +836,12 @@ impl<Value: TextType> TextEdit<'_, Value> {
         // TODO(tye-exe): Simplify once https://github.com/emilk/egui/issues/2142 is fixed
         if response.lost_focus() || response.clicked_elsewhere() {
             match Value::read_from_string(represents, text) {
-                Some(Ok(var)) => *represents = var,
+                Some(Ok(var)) => {
+                    text_parsed = Some(true);
+                    *represents = var
+                }
                 Some(Err(err)) => {
+                    text_parsed = Some(false);
                     log::info!("Failed to parse value for text edit: {err}");
                 }
                 None => {
@@ -851,8 +857,15 @@ impl<Value: TextType> TextEdit<'_, Value> {
 
         if response.changed() {
             // Update represented value if the current state is valid
-            if let Some(Ok(var)) = Value::read_from_string(represents, text) {
-                *represents = var;
+            match Value::read_from_string(represents, text) {
+                Some(Ok(var)) => {
+                    text_parsed = Some(true);
+                    *represents = var;
+                }
+                Some(Err(_)) => {
+                    text_parsed = Some(false);
+                }
+                _ => {}
             }
 
             response.widget_info(|| {
@@ -910,6 +923,7 @@ impl<Value: TextType> TextEdit<'_, Value> {
             text_clip_rect,
             state,
             cursor_range,
+            text_parsed,
         }
     }
 }
