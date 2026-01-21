@@ -21,6 +21,9 @@ pub struct TextEditOutput {
 
     /// Where the text cursor is.
     pub cursor_range: Option<CCursorRange>,
+
+    /// If the user changed the text is it valid for the displayed type.
+    pub text_parsed: Option<bool>,
 }
 
 // TODO(emilk): add `output.paint` and `output.store` and split out that code from `TextEdit::show`.

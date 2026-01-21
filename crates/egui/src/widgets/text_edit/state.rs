@@ -37,6 +37,12 @@ pub struct TextEditState {
     /// Controls the text selection.
     pub cursor: TextCursorState,
 
+    /// The string displayed.
+    /// This may differ from the current value of the [`TextEdit`] if the string is not a valid value.
+    ///
+    /// [`TextEdit`]: crate::TextEdit
+    pub text: Option<String>,
+
     /// Wrapped in Arc for cheaper clones.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) undoer: Arc<Mutex<TextEditUndoer>>,
