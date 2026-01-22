@@ -683,7 +683,7 @@ pub fn paint_texture_load_result(
             let show_loading_spinner =
                 show_loading_spinner.unwrap_or_else(|| ui.visuals().image_loading_spinners);
             if show_loading_spinner {
-                Spinner::new().paint_at(ui, rect);
+                Spinner::new().paint_at(ui, rect, 1.0);
             }
         }
         Err(_) => {
