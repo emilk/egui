@@ -409,6 +409,7 @@ pub mod load;
 mod memory;
 #[deprecated = "Use `egui::containers::menu` instead"]
 pub mod menu;
+pub mod new_menu;
 pub mod os;
 mod painter;
 mod pass_state;
