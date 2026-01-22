@@ -290,6 +290,21 @@ pub enum HardwareAcceleration {
     Off,
 }
 
+/// Specifies how the app will create a storage provider
+#[derive(Default, Clone)]
+pub enum StorageProvider {
+    #[default]
+    /// eframe will use a default
+    /// data storage path for each target system.
+    Default,
+    /// `eframe` will store the app state in the specified file in the ron format.
+    /// On web builds, this will behave the same as [`Self::Default`].
+    AtPath(std::path::PathBuf),
+    /// Custom storage provider.
+    /// It allows specifying function that will be called during context creation to provide
+    Custom(fn(&str) -> Option<Box<dyn Storage>>),
+}
+
 /// Options controlling the behavior of a native window.
 ///
 /// Additional windows can be opened using (egui viewports)[`egui::viewport`].
@@ -402,9 +417,9 @@ pub struct NativeOptions {
     /// persisted (only if the "persistence" feature is enabled).
     pub persist_window: bool,
 
-    /// The folder where `eframe` will store the app state. If not set, eframe will use a default
-    /// data storage path for each target system.
-    pub persistence_path: Option<std::path::PathBuf>,
+    /// Specified how the `eframe` would attempt to create a persistent storage where `eframe` will store the app state.
+    /// If not set, eframe will use a default data storage path for each target system.
+    pub storage_build: StorageProvider,
 
     /// Controls whether to apply dithering to minimize banding artifacts.
     ///
@@ -441,7 +456,7 @@ impl Clone for NativeOptions {
             #[cfg(feature = "wgpu_no_default_features")]
             wgpu_options: self.wgpu_options.clone(),
 
-            persistence_path: self.persistence_path.clone(),
+            storage_build: self.storage_build.clone(),
 
             #[cfg(target_os = "android")]
             android_app: self.android_app.clone(),
@@ -484,7 +499,7 @@ impl Default for NativeOptions {
 
             persist_window: true,
 
-            persistence_path: None,
+            storage_build: StorageProviderBuild::Default,
 
             dithering: true,
 
@@ -545,6 +560,10 @@ pub struct WebOptions {
     /// Maximum rate at which to repaint. This can be used to artificially reduce the repaint rate below
     /// vsync in order to save resources.
     pub max_fps: Option<u32>,
+
+    /// Specified how the `eframe` would attempt to create a persistent storage where `eframe` will store the app state.
+    /// If not set, eframe will use a default data storage path for each target system.
+    pub storage_build: StorageProvider,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -568,6 +587,7 @@ impl Default for WebOptions {
             should_prevent_default: Box::new(|_| true),
 
             max_fps: None,
+            storage_build: StorageProviderBuild::Default,
         }
     }
 }

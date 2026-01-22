@@ -1129,6 +1129,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "custom_storage"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "egui_demo_lib",
+ "egui_extras",
+ "env_logger",
+ "image",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "custom_style"
 version = "0.1.0"
 dependencies = [

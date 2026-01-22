@@ -90,7 +90,7 @@ impl AppRunner {
             },
             cpu_usage: None,
         };
-        let storage = LocalStorage::default();
+        let storage = web_options.storage_build.try_create_storage_web("app_name");
 
         egui_ctx.set_os(egui::os::OperatingSystem::from_user_agent(
             &super::user_agent().unwrap_or_default(),
@@ -116,7 +116,7 @@ impl AppRunner {
         let cc = epi::CreationContext {
             egui_ctx: egui_ctx.clone(),
             integration_info: info.clone(),
-            storage: Some(&storage),
+            storage: storage.as_deref(),
 
             #[cfg(feature = "glow")]
             gl: gl.clone(),
@@ -131,7 +131,7 @@ impl AppRunner {
 
         let frame = epi::Frame {
             info,
-            storage: Some(Box::new(storage)),
+            storage: storage,
 
             #[cfg(feature = "glow")]
             gl,
@@ -424,4 +424,16 @@ impl epi::Storage for LocalStorage {
     }
 
     fn flush(&mut self) {}
+}
+
+impl epi::StorageProvider {
+    /// For loading/saving app state and/or egui memory to disk.
+    pub fn try_create_storage_web(&self, app_name: &str) -> Option<Box<dyn epi::Storage>> {
+        match self {
+            epi::StorageProviderBuild::Default | epi::StorageProviderBuild::AtPath(_) => {
+                Some(Box::new(LocalStorage::default()))
+            }
+            epi::StorageProviderBuild::Custom(f) => f(app_name),
+        }
+    }
 }
