@@ -185,7 +185,7 @@ impl RenderState {
                 wgpu::Backends::all()
             };
 
-            instance.enumerate_adapters(backends)
+            instance.enumerate_adapters(backends).await
         };
 
         let (adapter, device, queue) = match config.wgpu_setup.clone() {
@@ -395,6 +395,10 @@ pub fn adapter_info_summary(info: &wgpu::AdapterInfo) -> String {
         driver,
         driver_info,
         backend,
+        device_pci_bus_id,
+        subgroup_min_size,
+        subgroup_max_size,
+        transient_saves_memory,
     } = &info;
 
     // Example values:
@@ -426,6 +430,13 @@ pub fn adapter_info_summary(info: &wgpu::AdapterInfo) -> String {
     if *device != 0 {
         summary += &format!(", device: 0x{device:02X}");
     }
+    if !device_pci_bus_id.is_empty() {
+        summary += &format!(", pci_bus_id: {device_pci_bus_id:?}");
+    }
+    if *subgroup_min_size != 0 || *subgroup_max_size != 0 {
+        summary += &format!(", subgroup_size: {subgroup_min_size}..={subgroup_max_size}");
+    }
+    summary += &format!(", transient_saves_memory: {transient_saves_memory}");
 
     summary
 }

@@ -362,14 +362,13 @@ impl Painter {
         #[cfg(all(target_os = "macos", feature = "macos-window-resize-jitter-fix"))]
         {
             // SAFETY: The cast is checked with if condition. If the used backend is not metal
-            // it gracefully fails. The pointer casts are valid as it's 1-to-1 type mapping.
-            // This is how wgpu currently exposes this backend-specific flag.
+            // it gracefully fails.
             unsafe {
                 if let Some(hal_surface) = state.surface.as_hal::<wgpu::hal::api::Metal>() {
-                    let raw =
-                        std::ptr::from_ref::<wgpu::hal::metal::Surface>(&*hal_surface).cast_mut();
-
-                    (*raw).present_with_transaction = resizing;
+                    hal_surface
+                        .render_layer()
+                        .lock()
+                        .set_presents_with_transaction(resizing);
 
                     Self::configure_surface(
                         state,
@@ -554,6 +553,7 @@ impl Painter {
                 }),
                 timestamp_writes: None,
                 occlusion_query_set: None,
+                multiview_mask: None,
             });
 
             // Forgetting the pass' lifetime means that we are no longer compile-time protected from
