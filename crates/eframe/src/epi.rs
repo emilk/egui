@@ -202,8 +202,8 @@ pub trait App {
     ///
     /// On web the state is stored to "Local Storage".
     ///
-    /// On native the path is picked using [`crate::storage_dir`].
-    /// The path can be customized via [`NativeOptions::persistence_path`].
+    /// On native by default the path is picked using [`crate::storage_dir`].
+    /// The path can be customized via [`NativeOptions::storage_build`].
     fn save(&mut self, _storage: &mut dyn Storage) {}
 
     /// Called once on shutdown, after [`Self::save`].
@@ -294,12 +294,15 @@ pub enum HardwareAcceleration {
 #[derive(Default, Clone)]
 pub enum StorageProvider {
     #[default]
-    /// eframe will use a default
+    /// `eframe` will use a default
     /// data storage path for each target system.
+    /// The path is picked using [`crate::storage_dir`].
     Default,
+
     /// `eframe` will store the app state in the specified file in the ron format.
     /// On web builds, this will behave the same as [`Self::Default`].
     AtPath(std::path::PathBuf),
+
     /// Custom storage provider.
     /// It allows specifying function that will be called during context creation to provide
     Custom(fn(&str) -> Option<Box<dyn Storage>>),
@@ -499,7 +502,7 @@ impl Default for NativeOptions {
 
             persist_window: true,
 
-            storage_build: StorageProviderBuild::Default,
+            storage_build: StorageProvider::Default,
 
             dithering: true,
 
@@ -587,7 +590,7 @@ impl Default for WebOptions {
             should_prevent_default: Box::new(|_| true),
 
             max_fps: None,
-            storage_build: StorageProviderBuild::Default,
+            storage_build: StorageProvider::Default,
         }
     }
 }

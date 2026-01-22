@@ -151,9 +151,9 @@ impl epi::StorageProvider {
     /// Not available on wasm32. For web, use `try_create_storage_web`.
     pub fn try_create_storage(&self, app_name: &str) -> Option<Box<dyn epi::Storage>> {
         match self {
-            epi::StorageProviderBuild::Default => create_storage(app_name),
-            epi::StorageProviderBuild::AtPath(path) => create_storage_with_file(path),
-            epi::StorageProviderBuild::Custom(f) => f(app_name),
+            epi::StorageProvider::Default => create_storage(app_name),
+            epi::StorageProvider::AtPath(path) => create_storage_with_file(path),
+            epi::StorageProvider::Custom(f) => f(app_name),
         }
     }
 }

@@ -430,10 +430,10 @@ impl epi::StorageProvider {
     /// For loading/saving app state and/or egui memory to disk.
     pub fn try_create_storage_web(&self, app_name: &str) -> Option<Box<dyn epi::Storage>> {
         match self {
-            epi::StorageProviderBuild::Default | epi::StorageProviderBuild::AtPath(_) => {
+            epi::StorageProvider::Default | epi::StorageProvider::AtPath(_) => {
                 Some(Box::new(LocalStorage::default()))
             }
-            epi::StorageProviderBuild::Custom(f) => f(app_name),
+            epi::StorageProvider::Custom(f) => f(app_name),
         }
     }
 }

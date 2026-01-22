@@ -4,7 +4,7 @@
 use std::path::PathBuf;
 
 use eframe::{
-    Storage, StorageProviderBuild,
+    Storage, StorageProvider,
     egui::{self, ahash::HashMap},
 };
 
@@ -12,7 +12,7 @@ fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_inner_size([350.0, 590.0]),
-        storage_build: StorageProviderBuild::Custom(custom_storage),
+        storage_build: StorageProvider::Custom(custom_storage),
         ..Default::default()
     };
     eframe::run_native(
