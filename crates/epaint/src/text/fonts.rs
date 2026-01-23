@@ -670,7 +670,7 @@ impl FontsView<'_> {
             .styled_metrics(
                 self.pixels_per_point,
                 font_id.size,
-                // TODO: use font variation coords when calculating row height
+                // TODO(valadaptive): use font variation coords when calculating row height
                 &VariationCoords::default(),
             )
             .row_height

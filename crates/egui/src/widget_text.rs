@@ -199,12 +199,14 @@ impl RichText {
     }
 
     /// Add a variation coordinate.
+    #[inline]
     pub fn variation(mut self, tag: impl IntoTag, coord: f32) -> Self {
         self.coords.push(tag, coord);
         self
     }
 
     /// Override the variation coordinates completely.
+    #[inline]
     pub fn variations<T: IntoTag>(
         mut self,
         variations: impl IntoIterator<Item = (T, f32)>,
