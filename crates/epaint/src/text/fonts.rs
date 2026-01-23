@@ -10,7 +10,7 @@ use std::{
 use crate::{
     TextureAtlas,
     text::{
-        Galley, LayoutJob, LayoutSection, TextOptions,
+        Galley, LayoutJob, LayoutSection, TextOptions, VariationCoords,
         font::{Font, FontFace, GlyphInfo},
     },
 };
@@ -125,12 +125,6 @@ pub struct FontData {
 
     /// Extra scale and vertical tweak to apply to all text of this font.
     pub tweak: FontTweak,
-
-    /// The font weight (100-900), if available.
-    /// Standard values: 100 (Thin), 200 (Extra Light), 300 (Light), 400 (Regular),
-    /// 500 (Medium), 600 (Semi Bold), 700 (Bold), 800 (Extra Bold), 900 (Black).
-    /// `None` if the weight could not be determined.
-    pub weight: Option<u16>,
 }
 
 impl FontData {
@@ -139,7 +133,6 @@ impl FontData {
             font: Cow::Borrowed(font),
             index: 0,
             tweak: Default::default(),
-            weight: None,
         }
     }
 
@@ -148,42 +141,11 @@ impl FontData {
             font: Cow::Owned(font),
             index: 0,
             tweak: Default::default(),
-            weight: None,
         }
     }
 
     pub fn tweak(self, tweak: FontTweak) -> Self {
         Self { tweak, ..self }
-    }
-
-    /// Set the font weight (100-900).
-    ///
-    /// This is typically read automatically from the font file when loaded,
-    /// but can be overridden manually if needed.
-    ///
-    /// Standard weight values:
-    /// - 100: Thin
-    /// - 200: Extra Light
-    /// - 300: Light
-    /// - 400: Regular/Normal
-    /// - 500: Medium
-    /// - 600: Semi Bold
-    /// - 700: Bold
-    /// - 800: Extra Bold
-    /// - 900: Black
-    ///
-    /// # Example
-    /// ```
-    /// # use epaint::text::FontData;
-    /// let font_data = FontData::from_static(include_bytes!("../../../epaint_default_fonts/fonts/Ubuntu-Light.ttf"))
-    ///     .weight(300); // Override to Light weight
-    /// assert_eq!(font_data.weight, Some(300));
-    /// ```
-    pub fn weight(self, weight: u16) -> Self {
-        Self {
-            weight: Some(weight),
-            ..self
-        }
     }
 }
 
@@ -196,7 +158,7 @@ impl AsRef<[u8]> for FontData {
 // ----------------------------------------------------------------------------
 
 /// Extra scale and vertical tweak to apply to all text of a certain font.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct FontTweak {
     /// Scale the font's glyphs by this much.
@@ -228,6 +190,9 @@ pub struct FontTweak {
     ///
     /// `None` means use the global setting.
     pub hinting_override: Option<bool>,
+
+    /// Override the font's default variation coordinates.
+    pub coords: VariationCoords,
 }
 
 impl Default for FontTweak {
@@ -237,6 +202,7 @@ impl Default for FontTweak {
             y_offset_factor: 0.0,
             y_offset: 0.0,
             hinting_override: None,
+            coords: VariationCoords::default(),
         }
     }
 }
@@ -701,7 +667,12 @@ impl FontsView<'_> {
     pub fn row_height(&mut self, font_id: &FontId) -> f32 {
         self.fonts
             .font(&font_id.family)
-            .scaled_metrics(self.pixels_per_point, font_id.size)
+            .styled_metrics(
+                self.pixels_per_point,
+                font_id.size,
+                // TODO: use font variation coords when calculating row height
+                &VariationCoords::default(),
+            )
             .row_height
     }
 
@@ -807,15 +778,13 @@ impl FontsImpl {
         let mut fonts_by_id: nohash_hasher::IntMap<FontFaceKey, FontFace> = Default::default();
         let mut fonts_by_name: ahash::HashMap<String, FontFaceKey> = Default::default();
         for (name, font_data) in &definitions.font_data {
-            let tweak = font_data.tweak;
             let blob = blob_from_font_data(font_data);
             let font_face = FontFace::new(
                 options,
                 name.clone(),
                 blob,
                 font_data.index,
-                tweak,
-                font_data.weight,
+                font_data.tweak.clone(),
             )
             .unwrap_or_else(|err| panic!("Error parsing {name:?} TTF/OTF font file: {err}"));
             let key = FontFaceKey::new();

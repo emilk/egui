@@ -8,7 +8,7 @@ use crate::{
     Color32, Mesh, Stroke, Vertex,
     stroke::PathStroke,
     text::{
-        font::{ScaledMetrics, is_cjk, is_cjk_break_allowed},
+        font::{StyledMetrics, is_cjk, is_cjk_break_allowed},
         fonts::FontFaceKey,
     },
 };
@@ -160,7 +160,7 @@ fn layout_section(
     } = section;
     let mut font = fonts.font(&format.font_id.family);
     let font_size = format.font_id.size;
-    let font_metrics = font.scaled_metrics(pixels_per_point, font_size);
+    let font_metrics = font.styled_metrics(pixels_per_point, font_size, &format.coords);
     let line_height = section
         .format
         .line_height
@@ -178,7 +178,7 @@ fn layout_section(
 
     // Optimization: only recompute `ScaledMetrics` when the concrete `FontImpl` changes.
     let mut current_font = FontFaceKey::INVALID;
-    let mut current_font_face_metrics = ScaledMetrics::default();
+    let mut current_font_face_metrics = StyledMetrics::default();
 
     for chr in job.text[byte_range.clone()].chars() {
         if job.break_on_newline && chr == '\n' {
@@ -192,7 +192,9 @@ fn layout_section(
                 current_font = font_id;
                 current_font_face_metrics = font_face
                     .as_ref()
-                    .map(|font_face| font_face.scaled_metrics(pixels_per_point, font_size))
+                    .map(|font_face| {
+                        font_face.styled_metrics(pixels_per_point, font_size, &format.coords)
+                    })
                     .unwrap_or_default();
             }
 
@@ -468,7 +470,7 @@ fn replace_last_glyph_with_overflow_character(
         let mut font_face = font.fonts_by_id.get_mut(&font_id);
         let font_face_metrics = font_face
             .as_mut()
-            .map(|f| f.scaled_metrics(pixels_per_point, font_size))
+            .map(|f| f.styled_metrics(pixels_per_point, font_size, &section.format.coords))
             .unwrap_or_default();
 
         let overflow_glyph_x = if let Some(prev_glyph) = row.glyphs.last() {
@@ -517,7 +519,8 @@ fn replace_last_glyph_with_overflow_character(
                 })
                 .unwrap_or_default();
 
-            let font_metrics = font.scaled_metrics(pixels_per_point, font_size);
+            let font_metrics =
+                font.styled_metrics(pixels_per_point, font_size, &section.format.coords);
             let line_height = section
                 .format
                 .line_height
@@ -1174,7 +1177,7 @@ mod tests {
         let font_id = FontId::default();
         let font_height = fonts
             .font(&font_id.family)
-            .scaled_metrics(pixels_per_point, font_id.size)
+            .styled_metrics(pixels_per_point, font_id.size, &VariationCoords::default())
             .row_height;
 
         let job = LayoutJob::simple(String::new(), font_id, Color32::WHITE, f32::INFINITY);
@@ -1207,7 +1210,7 @@ mod tests {
         let font_id = FontId::default();
         let font_height = fonts
             .font(&font_id.family)
-            .scaled_metrics(pixels_per_point, font_id.size)
+            .styled_metrics(pixels_per_point, font_id.size, &VariationCoords::default())
             .row_height;
 
         let job = LayoutJob::simple("Hi!\n".to_owned(), font_id, Color32::WHITE, f32::INFINITY);
