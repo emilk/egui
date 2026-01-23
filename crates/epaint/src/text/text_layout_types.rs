@@ -939,7 +939,7 @@ impl Galley {
             return self.end_pos();
         };
 
-        let x = row.x_offset(layout_cursor.column);
+        let x = row.x_offset(layout_cursor.column) + row.pos.x - self.rect.left();
         Rect::from_min_max(pos2(x, row.min_y()), pos2(x, row.max_y()))
     }
 
@@ -984,7 +984,7 @@ impl Galley {
             if is_pos_within_row || y_dist < best_y_dist {
                 best_y_dist = y_dist;
                 // char_at is `Row` not `PlacedRow` relative which means we have to subtract the pos.
-                let column = row.char_at(pos.x - row.pos.x);
+                let column = row.char_at(pos.x - row.pos.x + self.rect.left());
                 let prefer_next_row = column < row.char_count_excluding_newline();
                 cursor = CCursor {
                     index: ccursor_index + column,
