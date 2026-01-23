@@ -9,6 +9,7 @@ isse = "isse" # part of @IsseW username
 tye = "tye" # part of @tye-exe username
 ro = "ro" # read-only, also part of the username @Phen-Ro
 typ = "typ" # Often used because `type` is a keyword in Rust
+wdth = "wdth" # The `wdth` tag is used in variable fonts
 
 # I mistype these so often
 tesalator = "tessellator"

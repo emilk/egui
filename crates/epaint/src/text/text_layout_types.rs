@@ -1,5 +1,5 @@
-use std::ops::Range;
 use std::sync::Arc;
+use std::{ops::Range, str::FromStr as _};
 
 use super::{
     cursor::{CCursor, LayoutCursor},
@@ -7,6 +7,8 @@ use super::{
 };
 use crate::{Color32, FontId, Mesh, Stroke, text::FontsView};
 use emath::{Align, GuiRounding as _, NumExt as _, OrderedFloat, Pos2, Rect, Vec2, pos2, vec2};
+pub use font_types::Tag;
+use smallvec::SmallVec;
 
 /// Describes the task of laying out text.
 ///
@@ -257,6 +259,98 @@ impl std::hash::Hash for LayoutSection {
 
 // ----------------------------------------------------------------------------
 
+/// Helper trait for all types that can be parsed as a [`font_types::Tag`].
+pub trait IntoTag {
+    fn into_tag(self) -> font_types::Tag;
+}
+
+impl IntoTag for font_types::Tag {
+    #[inline(always)]
+    fn into_tag(self) -> font_types::Tag {
+        self
+    }
+}
+
+impl IntoTag for u32 {
+    #[inline(always)]
+    fn into_tag(self) -> font_types::Tag {
+        font_types::Tag::from_u32(self)
+    }
+}
+
+impl IntoTag for [u8; 4] {
+    #[inline(always)]
+    fn into_tag(self) -> font_types::Tag {
+        font_types::Tag::new_checked(&self).expect("Invalid variation axis tag")
+    }
+}
+
+impl IntoTag for &[u8; 4] {
+    #[inline(always)]
+    fn into_tag(self) -> font_types::Tag {
+        font_types::Tag::new_checked(self).expect("Invalid variation axis tag")
+    }
+}
+
+impl IntoTag for &str {
+    #[inline(always)]
+    fn into_tag(self) -> font_types::Tag {
+        font_types::Tag::from_str(self).expect("Invalid variation axis tag")
+    }
+}
+
+/// List of font variation coordinates by axis tag. If more than one coordinate for a given axis is provided, the last
+/// one added is used.
+#[derive(Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct VariationCoords(SmallVec<[(font_types::Tag, f32); 2]>);
+
+impl VariationCoords {
+    /// Create a list of variation coordinates from a sequence of (tag, value) pairs.
+    ///
+    /// ## Example:
+    /// ```
+    /// use epaint::text::VariationCoords;
+    ///
+    /// let coords = VariationCoords::new([
+    ///     (b"wght", 500.0),
+    ///     (b"wdth", 75.0),
+    /// ]);
+    /// ```
+    pub fn new<T: IntoTag>(values: impl IntoIterator<Item = (T, f32)>) -> Self {
+        Self(values.into_iter().map(|(t, c)| (t.into_tag(), c)).collect())
+    }
+
+    /// Add a variation coordinate to the list.
+    #[inline(always)]
+    pub fn push(&mut self, tag: impl IntoTag, coord: f32) {
+        self.0.push((tag.into_tag(), coord));
+    }
+}
+
+impl AsRef<[(font_types::Tag, f32)]> for VariationCoords {
+    #[inline(always)]
+    fn as_ref(&self) -> &[(font_types::Tag, f32)] {
+        &self.0
+    }
+}
+
+impl AsMut<[(font_types::Tag, f32)]> for VariationCoords {
+    fn as_mut(&mut self) -> &mut [(font_types::Tag, f32)] {
+        &mut self.0
+    }
+}
+
+impl std::hash::Hash for VariationCoords {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.len().hash(state);
+        for (tag, coord) in &self.0 {
+            tag.hash(state);
+            OrderedFloat(*coord).hash(state);
+        }
+    }
+}
+
 /// Formatting option for a section of text.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -287,6 +381,8 @@ pub struct TextFormat {
     /// Default: 1.0
     pub expand_bg: f32,
 
+    pub coords: VariationCoords,
+
     pub italics: bool,
 
     pub underline: Stroke,
@@ -315,6 +411,7 @@ impl Default for TextFormat {
             color: Color32::GRAY,
             background: Color32::TRANSPARENT,
             expand_bg: 1.0,
+            coords: VariationCoords::default(),
             italics: false,
             underline: Stroke::NONE,
             strikethrough: Stroke::NONE,
@@ -333,6 +430,7 @@ impl std::hash::Hash for TextFormat {
             color,
             background,
             expand_bg,
+            coords,
             italics,
             underline,
             strikethrough,
@@ -346,6 +444,7 @@ impl std::hash::Hash for TextFormat {
         color.hash(state);
         background.hash(state);
         emath::OrderedFloat(*expand_bg).hash(state);
+        coords.hash(state);
         italics.hash(state);
         underline.hash(state);
         strikethrough.hash(state);

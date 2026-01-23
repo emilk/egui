@@ -1,7 +1,11 @@
 //! egui theme (spacing, colors, etc).
 
 use emath::Align;
-use epaint::{AlphaFromCoverage, CornerRadius, Shadow, Stroke, TextOptions, text::FontTweak};
+use epaint::{
+    AlphaFromCoverage, CornerRadius, Shadow, Stroke, TextOptions,
+    mutex::Mutex,
+    text::{FontTweak, Tag},
+};
 use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
 
 use crate::{
@@ -2837,7 +2841,7 @@ impl Widget for &mut crate::Frame {
 
 impl Widget for &mut FontTweak {
     fn ui(self, ui: &mut Ui) -> Response {
-        let original: FontTweak = *self;
+        let original: FontTweak = self.clone();
 
         let mut response = Grid::new("font_tweak")
             .num_columns(2)
@@ -2847,6 +2851,7 @@ impl Widget for &mut FontTweak {
                     y_offset_factor,
                     y_offset,
                     hinting_override,
+                    coords,
                 } = self;
 
                 ui.label("Scale");
@@ -2874,6 +2879,35 @@ impl Widget for &mut FontTweak {
                         ui.selectable_value(hinting_override, Some(true), "Enable");
                         ui.selectable_value(hinting_override, Some(false), "Disable");
                     });
+                ui.end_row();
+
+                ui.label("coords");
+                ui.end_row();
+                for (i, (tag, value)) in coords.as_mut().iter_mut().enumerate() {
+                    let tag_text = ui.ctx().data_mut(|data| {
+                        let tag = *tag;
+                        Arc::clone(data.get_temp_mut_or_insert_with(ui.id().with(i), move || {
+                            Arc::new(Mutex::new(tag.to_string()))
+                        }))
+                    });
+
+                    let tag_text = &mut *tag_text.lock();
+                    if ui.text_edit_singleline(tag_text).changed()
+                        && let Ok(new_tag) = Tag::new_checked(tag_text.as_bytes())
+                    {
+                        *tag = new_tag;
+                    }
+
+                    ui.add(DragValue::new(value));
+                    ui.end_row();
+                }
+                if ui.button("Add coord").clicked() {
+                    coords.push(b"zzzz", 0.0);
+                }
+                if ui.button("Clear coords").clicked() {
+                    *coords = Default::default();
+                }
+                ui.end_row();
 
                 if ui.button("Reset").clicked() {
                     *self = Default::default();

@@ -90,6 +90,7 @@ document-features = "0.2.11"
 ehttp = { version = "0.6.0", default-features = false }
 enum-map = "2.7.3"
 env_logger = { version = "0.11.8", default-features = false }
+font-types = { version = "0.10.0", default-features = false, features = ["std"] }
 glow = "0.16.0"
 glutin = { version = "0.32.3", default-features = false }
 glutin-winit = { version = "0.5.0", default-features = false }
