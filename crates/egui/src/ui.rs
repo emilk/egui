@@ -2981,13 +2981,13 @@ impl Ui {
         &mut self,
         transform: emath::TSTransform,
         add_contents: impl FnOnce(&mut Self) -> R,
-    ) -> InnerResponse<R> {
+    ) -> R {
         let start_idx = self.ctx().graphics(|gx| {
             gx.get(self.layer_id())
                 .map_or(crate::layers::ShapeIdx(0), |l| l.next_idx())
         });
 
-        add_contents(self);
+        let r = add_contents(self);
 
         self.ctx().graphics_mut(|g| {
             let list = g.entry(self.layer_id());
