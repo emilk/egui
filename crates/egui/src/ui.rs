@@ -2969,9 +2969,11 @@ impl Ui {
         (InnerResponse { inner, response }, payload)
     }
 
-    /// Create a new Scope and transform its contents via a [`emath::TSTransform`].
+    /// Transform the contents of this closure via a [`emath::TSTransform`].
     /// This only affects visuals, inputs will not be transformed. So this is mostly useful
     /// to create visual effects on interactions, e.g. scaling a button on hover / click.
+    ///
+    /// This doesn't create a new scope, so it'll work fine within horizontal_wrapped layouts.
     ///
     /// Check out [`Context::set_transform_layer`] for a persistent transform that also affects
     /// inputs.
@@ -2985,7 +2987,7 @@ impl Ui {
                 .map_or(crate::layers::ShapeIdx(0), |l| l.next_idx())
         });
 
-        let r = self.scope_dyn(UiBuilder::new(), Box::new(add_contents));
+        add_contents(self);
 
         self.ctx().graphics_mut(|g| {
             let list = g.entry(self.layer_id());
