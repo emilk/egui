@@ -1546,6 +1546,7 @@ impl Tessellator {
             radius,
             fill,
             stroke,
+            angle,
         } = shape;
 
         if radius.x <= 0.0 || radius.y <= 0.0 {
@@ -1595,6 +1596,14 @@ impl Tessellator {
         points.extend(quarter.iter().map(|p| center - *p));
         points.push(center + Vec2::new(0.0, -radius.y));
         points.extend(quarter.iter().rev().map(|p| center + Vec2::new(p.x, -p.y)));
+
+        // Apply rotation if angle is non-zero
+        if angle != 0.0 {
+            let rot = emath::Rot2::from_angle(angle);
+            for point in &mut points {
+                *point = center + rot * (*point - center);
+            }
+        }
 
         let path_stroke = PathStroke::from(stroke).outside();
         self.scratchpad_path.clear();
@@ -1773,6 +1782,7 @@ impl Tessellator {
             round_to_pixels,
             mut blur_width,
             brush: _, // brush is extracted on its own, because it is not Copy
+            angle,
         } = *rect_shape;
 
         let mut corner_radius = CornerRadiusF32::from(corner_radius);
@@ -1940,6 +1950,16 @@ impl Tessellator {
         let path = &mut self.scratchpad_path;
         path.clear();
         path::rounded_rectangle(&mut self.scratchpad_points, rect, corner_radius);
+
+        // Apply rotation if angle is non-zero
+        if angle != 0.0 {
+            let rot = emath::Rot2::from_angle(angle);
+            let center = rect.center();
+            for point in &mut self.scratchpad_points {
+                *point = center + rot * (*point - center);
+            }
+        }
+
         path.add_line_loop(&self.scratchpad_points);
 
         let path_stroke = PathStroke::from(stroke).with_kind(stroke_kind);
