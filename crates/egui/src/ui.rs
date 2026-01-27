@@ -3183,10 +3183,6 @@ impl Ui {
     /// Example:
     /// ```
     /// # egui::__run_test_ui(|ui| {
-    /// // Check if the parent has the "test" modifier
-    /// ui.style_stack().parent.is_some_and(|parent| parent.modifiers.has("test"));
-    ///
-    /// // Same but shorter
     /// ui.style_stack().parent_has("test");
     /// # });
     /// ```
