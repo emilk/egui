@@ -448,11 +448,25 @@ impl WinitApp for GlowWinitApp<'_> {
                 .focused_viewport
                 .and_then(|viewport| glutin.viewports.get_mut(&viewport))
             {
-                if let Some(egui_winit) = viewport.egui_winit.as_mut() {
-                    egui_winit.on_mouse_motion(delta);
-                }
-
                 if let Some(window) = viewport.window.as_ref() {
+                    if !window.has_focus() {
+                        return Ok(EventResult::Wait);
+                    }
+
+                    let pointer_in_window = viewport
+                        .egui_winit
+                        .as_ref()
+                        .map(|state| state.is_pointer_in_window())
+                        .unwrap_or(false);
+
+                    if !pointer_in_window {
+                        return Ok(EventResult::Wait);
+                    }
+
+                    if let Some(egui_winit) = viewport.egui_winit.as_mut() {
+                        egui_winit.on_mouse_motion(delta);
+                    }
+
                     return Ok(EventResult::RepaintNext(window.id()));
                 }
             }

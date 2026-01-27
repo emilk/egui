@@ -647,6 +647,11 @@ impl State {
         }));
     }
 
+    /// Returns true when the pointer is currently inside the window.
+    pub fn is_pointer_in_window(&self) -> bool {
+        self.pointer_pos_in_points.is_some()
+    }
+
     /// Call this when there is a new [`accesskit::ActionRequest`].
     ///
     /// The result can be found in [`Self::egui_input`] and be extracted with [`Self::take_egui_input`].
