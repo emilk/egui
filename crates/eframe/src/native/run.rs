@@ -19,6 +19,9 @@ fn create_event_loop(native_options: &mut epi::NativeOptions) -> Result<EventLoo
     #[cfg(target_os = "android")]
     use winit::platform::android::EventLoopBuilderExtAndroid as _;
 
+    #[cfg(target_env = "ohos")]
+    use winit::platform::ohos::EventLoopBuilderExtOpenHarmony as _;
+
     profiling::function_scope!();
     let mut builder = winit::event_loop::EventLoop::with_user_event();
 
@@ -27,6 +30,14 @@ fn create_event_loop(native_options: &mut epi::NativeOptions) -> Result<EventLoo
         builder.with_android_app(native_options.android_app.take().ok_or_else(|| {
             crate::Error::AppCreation(Box::from(
                 "`NativeOptions` is missing required `android_app`",
+            ))
+        })?);
+
+    #[cfg(target_env = "ohos")]
+    let mut builder =
+        builder.with_openharmony_app(native_options.openharmony_app.take().ok_or_else(|| {
+            crate::Error::AppCreation(Box::from(
+                "`NativeOptions` is missing required `openharmony_app`",
             ))
         })?);
 
@@ -318,7 +329,7 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
     }
 }
 
-#[cfg(not(target_os = "ios"))]
+#[cfg(not(any(target_os = "ios", target_env = "ohos")))]
 fn run_and_return(event_loop: &mut EventLoop<UserEvent>, winit_app: impl WinitApp) -> Result {
     use winit::platform::run_on_demand::EventLoopExtRunOnDemand as _;
 
@@ -333,9 +344,20 @@ fn run_and_return(event_loop: &mut EventLoop<UserEvent>, winit_app: impl WinitAp
 fn run_and_exit(event_loop: EventLoop<UserEvent>, winit_app: impl WinitApp) -> Result {
     log::trace!("Entering the winit event loop (run_app)…");
 
-    // When to repaint what window
-    let mut app = WinitAppWrapper::new(winit_app, false);
-    event_loop.run_app(&mut app)?;
+    #[cfg(not(target_env = "ohos"))]
+    {
+        // When to repaint what window
+        let mut app = WinitAppWrapper::new(winit_app, false);
+        event_loop.run_app(&mut app)?;
+    }
+
+    #[cfg(target_env = "ohos")]
+    {
+        // When to repaint what window
+        let app = WinitAppWrapper::new(winit_app, true);
+        let render_app = Box::leak(Box::new(app));
+        let _ = event_loop.run_app(render_app);
+    }
 
     log::debug!("winit event loop unexpectedly returned");
     Ok(())
@@ -351,7 +373,7 @@ pub fn run_glow(
 ) -> Result {
     use super::glow_integration::GlowWinitApp;
 
-    #[cfg(not(target_os = "ios"))]
+    #[cfg(not(any(target_os = "ios", target_env = "ohos")))]
     if native_options.run_and_return {
         return with_event_loop(native_options, |event_loop, native_options| {
             let glow_eframe = GlowWinitApp::new(event_loop, app_name, native_options, app_creator);
@@ -387,7 +409,7 @@ pub fn run_wgpu(
 ) -> Result {
     use super::wgpu_integration::WgpuWinitApp;
 
-    #[cfg(not(target_os = "ios"))]
+    #[cfg(not(any(target_os = "ios", target_env = "ohos")))]
     if native_options.run_and_return {
         return with_event_loop(native_options, |event_loop, native_options| {
             let wgpu_eframe = WgpuWinitApp::new(event_loop, app_name, native_options, app_creator);

@@ -32,7 +32,7 @@ log.workspace = true
 winit.workspace = true
 
 [package.metadata.android]
-build_targets = ["armv7-linux-androideabi", "aarch64-linux-android"]
+build_targets = ["aarch64-linux-android"]
 
 [package.metadata.android.sdk]
 min_sdk_version = 23

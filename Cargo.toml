@@ -91,8 +91,8 @@ ehttp = { version = "0.6.0", default-features = false }
 enum-map = "2.7.3"
 env_logger = { version = "0.11.8", default-features = false }
 glow = "0.16.0"
-glutin = { version = "0.32.3", default-features = false }
-glutin-winit = { version = "0.5.0", default-features = false }
+glutin = { git = "https://github.com/richerfu/glutin.git",branch = "master", default-features = false }
+glutin-winit = { git = "https://github.com/richerfu/glutin.git",branch = "master", default-features = false }
 home = "0.5.9"
 image = { version = "0.25.6", default-features = false }
 js-sys = "0.3.77"
@@ -145,7 +145,11 @@ web-time = "1.1.0" # Timekeeping for native and web
 webbrowser = "1.0.5"
 wgpu = { version = "27.0.1", default-features = false, features = ["std"] }
 windows-sys = "0.61.2"
-winit = { version = "0.30.12", default-features = false }
+
+winit = { git = "https://github.com/richerfu/winit.git", branch = "feat-ohos-3x", default-features = false }
+
+openharmony-ability = { git = "https://github.com/harmony-contrib/openharmony-ability.git" }
+openharmony-ability-derive = { git = "https://github.com/harmony-contrib/openharmony-ability.git" }
 
 
 [workspace.lints.rust]
@@ -368,3 +372,4 @@ map_unwrap_or = "allow" # so is this one
 self_named_module_files = "allow" # Disabled waiting on https://github.com/rust-lang/rust-clippy/issues/9602
 significant_drop_tightening = "allow" # Too many false positives
 wildcard_imports = "allow" # `use crate::*` is useful to avoid merge conflicts when adding/removing imports
+

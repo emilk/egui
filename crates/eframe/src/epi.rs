@@ -424,6 +424,16 @@ pub struct NativeOptions {
     /// [`with_android_app`]: winit::platform::android::EventLoopBuilderExtAndroid::with_android_app
     #[cfg(target_os = "android")]
     pub android_app: Option<winit::platform::android::activity::AndroidApp>,
+
+    /// OpenHarmony application for `winit`'s event loop.
+    ///
+    /// This value is required on OpenHarmony to correctly create the event loop. See
+    /// [`EventLoopBuilder::build`] and [`with_openharmony_app`] for details.
+    ///
+    /// [`EventLoopBuilder::build`]: winit::event_loop::EventLoopBuilder::build
+    /// [`with_openharmony_app`]: winit::platform::android::EventLoopBuilderExtOhos::with_openharmony_app
+    #[cfg(target_env = "ohos")]
+    pub openharmony_app: Option<winit::platform::ohos::ability::OpenHarmonyApp>,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -445,6 +455,9 @@ impl Clone for NativeOptions {
 
             #[cfg(target_os = "android")]
             android_app: self.android_app.clone(),
+
+            #[cfg(target_env = "ohos")]
+            openharmony_app: self.openharmony_app.clone(),
 
             ..*self
         }
@@ -490,6 +503,9 @@ impl Default for NativeOptions {
 
             #[cfg(target_os = "android")]
             android_app: None,
+
+            #[cfg(target_env = "ohos")]
+            openharmony_app: None,
         }
     }
 }

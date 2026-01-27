@@ -1820,13 +1820,13 @@ pub fn create_winit_window_attributes(
         window_attributes = window_attributes.with_window_icon(winit_icon);
     }
 
-    #[cfg(all(feature = "wayland", target_os = "linux"))]
+    #[cfg(all(feature = "wayland", target_os = "linux", not(target_env = "ohos")))]
     if let Some(app_id) = _app_id {
         use winit::platform::wayland::WindowAttributesExtWayland as _;
         window_attributes = window_attributes.with_name(app_id, "");
     }
 
-    #[cfg(all(feature = "x11", target_os = "linux"))]
+    #[cfg(all(feature = "x11", target_os = "linux", not(target_env = "ohos")))]
     {
         use winit::platform::x11::WindowAttributesExtX11 as _;
         if let Some(window_type) = _window_type {

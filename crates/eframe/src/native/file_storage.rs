@@ -35,7 +35,7 @@ pub fn storage_dir(app_id: &str) -> Option<PathBuf> {
                 .join(app_id.replace(|c: char| c.is_ascii_whitespace(), "-"))
         }),
         OS::Windows => roaming_appdata().map(|p| p.join(app_id).join("data")),
-        OS::Unknown | OS::Android | OS::IOS => None,
+        OS::Unknown | OS::Android | OS::IOS | OS::OpenHarmony => None,
     }
 }
 

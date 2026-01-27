@@ -1,0 +1,30 @@
+[package]
+name = "hello_openharmony"
+version = "0.1.0"
+authors = ["richerfu <southorange0929@foxmail.com>"]
+license = "MIT OR Apache-2.0"
+edition = "2021"
+rust-version = "1.81"
+publish = false
+
+# `unsafe_code` is required for `#[no_mangle]`, disable workspace lints to workaround lint error.
+# [lints]
+# workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+
+[dependencies]
+eframe = { workspace = true, features = ["default"] }
+egui_demo_lib = { workspace = true, features = ["chrono"] }
+
+# For image support:
+egui_extras = { workspace = true, features = ["default", "image"] }
+
+log = { workspace = true }
+winit = { workspace = true }
+openharmony-ability = { workspace = true }
+openharmony-ability-derive = { workspace = true }
+napi-ohos = { version = "1.1.6" }
+napi-derive-ohos = { version = "1.1.6" }

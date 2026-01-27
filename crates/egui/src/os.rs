@@ -19,6 +19,9 @@ pub enum OperatingSystem {
 
     /// Windows
     Windows,
+
+    /// Openharmony OS
+    OpenHarmony,
 }
 
 impl Default for OperatingSystem {
@@ -40,6 +43,8 @@ impl OperatingSystem {
             Self::Mac
         } else if cfg!(target_os = "windows") {
             Self::Windows
+        } else if cfg!(target_env = "ohos") {
+            Self::OpenHarmony
         } else if cfg!(target_os = "linux")
             || cfg!(target_os = "dragonfly")
             || cfg!(target_os = "freebsd")
@@ -62,6 +67,8 @@ impl OperatingSystem {
             Self::Windows
         } else if user_agent.contains("Mac") {
             Self::Mac
+        } else if user_agent.contains("Openharmony") {
+            Self::OpenHarmony
         } else if user_agent.contains("Linux")
             || user_agent.contains("X11")
             || user_agent.contains("Unix")

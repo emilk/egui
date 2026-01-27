@@ -26,7 +26,6 @@ workspace = true
 
 [features]
 default = [
-  "accesskit",
   "default_fonts",
   "wayland", # Required for Linux support (including CI!)
   "web_screen_reader",
