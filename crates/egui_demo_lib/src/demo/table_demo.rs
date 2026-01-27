@@ -13,6 +13,7 @@ enum DemoType {
 pub struct TableDemo {
     demo: DemoType,
     striped: bool,
+    overline: bool,
     resizable: bool,
     clickable: bool,
     num_rows: usize,
@@ -28,6 +29,7 @@ impl Default for TableDemo {
         Self {
             demo: DemoType::Manual,
             striped: true,
+            overline: true,
             resizable: true,
             clickable: true,
             num_rows: 10_000,
@@ -45,11 +47,12 @@ impl crate::Demo for TableDemo {
         "☰ Table"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
             .default_width(400.0)
-            .show(ctx, |ui| {
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| {
                 use crate::View as _;
                 self.ui(ui);
             });
@@ -65,6 +68,7 @@ impl crate::View for TableDemo {
         ui.vertical(|ui| {
             ui.horizontal(|ui| {
                 ui.checkbox(&mut self.striped, "Striped");
+                ui.checkbox(&mut self.overline, "Overline some rows");
                 ui.checkbox(&mut self.resizable, "Resizable columns");
                 ui.checkbox(&mut self.clickable, "Clickable rows");
             });
@@ -212,6 +216,7 @@ impl TableDemo {
                         let row_height = if is_thick { 30.0 } else { 18.0 };
                         body.row(row_height, |mut row| {
                             row.set_selected(self.selection.contains(&row_index));
+                            row.set_overline(self.overline && row_index % 7 == 3);
 
                             row.col(|ui| {
                                 ui.label(row_index.to_string());
@@ -247,6 +252,7 @@ impl TableDemo {
                         };
 
                         row.set_selected(self.selection.contains(&row_index));
+                        row.set_overline(self.overline && row_index % 7 == 3);
 
                         row.col(|ui| {
                             ui.label(row_index.to_string());
@@ -280,6 +286,7 @@ impl TableDemo {
                         };
 
                         row.set_selected(self.selection.contains(&row_index));
+                        row.set_overline(self.overline && row_index % 7 == 3);
 
                         row.col(|ui| {
                             ui.label(row_index.to_string());
@@ -324,9 +331,11 @@ fn expanding_content(ui: &mut egui::Ui) {
 }
 
 fn long_text(row_index: usize) -> String {
-    format!("Row {row_index} has some long text that you may want to clip, or it will take up too much horizontal space!")
+    format!(
+        "Row {row_index} has some long text that you may want to clip, or it will take up too much horizontal space!"
+    )
 }
 
 fn thick_row(row_index: usize) -> bool {
-    row_index % 6 == 0
+    row_index.is_multiple_of(6)
 }

@@ -1,5 +1,5 @@
 use egui::{
-    text::CCursorRange, Key, KeyboardShortcut, Modifiers, ScrollArea, TextBuffer, TextEdit, Ui,
+    Key, KeyboardShortcut, Modifiers, ScrollArea, TextBuffer, TextEdit, Ui, text::CCursorRange,
 };
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -32,15 +32,15 @@ impl Default for EasyMarkEditor {
 }
 
 impl EasyMarkEditor {
-    pub fn panels(&mut self, ctx: &egui::Context) {
-        egui::TopBottomPanel::bottom("easy_mark_bottom").show(ctx, |ui| {
+    pub fn panels(&mut self, ui: &mut egui::Ui) {
+        egui::Panel::bottom("easy_mark_bottom").show_inside(ui, |ui| {
             let layout = egui::Layout::top_down(egui::Align::Center).with_main_justify(true);
             ui.allocate_ui_with_layout(ui.available_size(), layout, |ui| {
                 ui.add(crate::egui_github_link_file!())
             })
         });
 
-        egui::CentralPanel::default().show(ctx, |ui| {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             self.ui(ui);
         });
     }
@@ -80,10 +80,10 @@ impl EasyMarkEditor {
         } = self;
 
         let response = if self.highlight_editor {
-            let mut layouter = |ui: &egui::Ui, easymark: &str, wrap_width: f32| {
-                let mut layout_job = highlighter.highlight(ui.style(), easymark);
+            let mut layouter = |ui: &egui::Ui, easymark: &dyn TextBuffer, wrap_width: f32| {
+                let mut layout_job = highlighter.highlight(ui.style(), easymark.as_str());
                 layout_job.wrap.max_width = wrap_width;
-                ui.fonts(|f| f.layout_job(layout_job))
+                ui.fonts_mut(|f| f.layout_job(layout_job))
             };
 
             ui.add(
@@ -96,13 +96,13 @@ impl EasyMarkEditor {
             ui.add(egui::TextEdit::multiline(code).desired_width(f32::INFINITY))
         };
 
-        if let Some(mut state) = TextEdit::load_state(ui.ctx(), response.id) {
-            if let Some(mut ccursor_range) = state.cursor.char_range() {
-                let any_change = shortcuts(ui, code, &mut ccursor_range);
-                if any_change {
-                    state.cursor.set_char_range(Some(ccursor_range));
-                    state.store(ui.ctx(), response.id);
-                }
+        if let Some(mut state) = TextEdit::load_state(ui.ctx(), response.id)
+            && let Some(mut ccursor_range) = state.cursor.char_range()
+        {
+            let any_change = shortcuts(ui, code, &mut ccursor_range);
+            if any_change {
+                state.cursor.set_char_range(Some(ccursor_range));
+                state.store(ui.ctx(), response.id);
             }
         }
     }
@@ -165,7 +165,7 @@ fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRang
         if ui.input_mut(|i| i.consume_shortcut(&shortcut)) {
             any_change = true;
             toggle_surrounding(code, ccursor_range, surrounding);
-        };
+        }
     }
 
     any_change
@@ -237,7 +237,7 @@ Goals:
 2. easy to learn
 3. similar to markdown
 
-[The reference parser](https://github.com/emilk/egui/blob/master/crates/egui_demo_lib/src/easy_mark/easy_mark_parser.rs) is \~250 lines of code, using only the Rust standard library. The parser uses no look-ahead or recursion.
+[The reference parser](https://github.com/emilk/egui/blob/main/crates/egui_demo_lib/src/easy_mark/easy_mark_parser.rs) is \~250 lines of code, using only the Rust standard library. The parser uses no look-ahead or recursion.
 
 There is never more than one way to accomplish the same thing, and each special character is only used for one thing. For instance `*` is used for *strong* and `-` is used for bullet lists. There is no alternative way to specify the *strong* style or getting a bullet list.
 

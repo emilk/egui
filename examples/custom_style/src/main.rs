@@ -1,10 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![allow(rustdoc::missing_crate_level_docs)] // it's an example
+#![expect(rustdoc::missing_crate_level_docs)] // it's an example
 
 use eframe::egui::{
-    self, global_theme_preference_buttons, style::Selection, Color32, Stroke, Style, Theme,
+    self, Color32, Stroke, Style, Theme, global_theme_preference_buttons, style::Selection,
 };
-use egui_demo_lib::{View, WidgetGallery};
+use egui_demo_lib::{View as _, WidgetGallery};
 
 fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -57,8 +57,8 @@ impl MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             ui.heading("egui using a customized style");
             ui.label("Switch between dark and light mode to see the different styles in action.");
             global_theme_preference_buttons(ui);

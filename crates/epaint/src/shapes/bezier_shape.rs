@@ -1,5 +1,4 @@
-#![allow(clippy::many_single_char_names)]
-#![allow(clippy::wrong_self_convention)] // False positives
+#![expect(clippy::many_single_char_names)]
 
 use std::ops::Range;
 
@@ -253,8 +252,8 @@ impl CubicBezierShape {
         if p > 0.0 {
             return None;
         }
-        let r = (-1.0 * (p / 3.0).powi(3)).sqrt();
-        let theta = (-1.0 * q / (2.0 * r)).acos() / 3.0;
+        let r = (-(p / 3.0).powi(3)).sqrt();
+        let theta = (-q / (2.0 * r)).acos() / 3.0;
 
         let t1 = 2.0 * r.cbrt() * theta.cos() + h;
         let t2 = 2.0 * r.cbrt() * (theta + 120.0 * std::f32::consts::PI / 180.0).cos() + h;
@@ -298,7 +297,8 @@ impl CubicBezierShape {
     /// the number of points is determined by the tolerance.
     /// the points may not be evenly distributed in the range [0.0,1.0] (t value)
     pub fn flatten(&self, tolerance: Option<f32>) -> Vec<Pos2> {
-        let tolerance = tolerance.unwrap_or((self.points[0].x - self.points[3].x).abs() * 0.001);
+        let tolerance =
+            tolerance.unwrap_or_else(|| (self.points[0].x - self.points[3].x).abs() * 0.001);
         let mut result = vec![self.points[0]];
         self.for_each_flattened_with_t(tolerance, &mut |p, _t| {
             result.push(p);
@@ -313,7 +313,8 @@ impl CubicBezierShape {
     /// The result will be a vec of vec of Pos2. it will store two closed aren in different vec.
     /// The epsilon is used to compare a float value.
     pub fn flatten_closed(&self, tolerance: Option<f32>, epsilon: Option<f32>) -> Vec<Vec<Pos2>> {
-        let tolerance = tolerance.unwrap_or((self.points[0].x - self.points[3].x).abs() * 0.001);
+        let tolerance =
+            tolerance.unwrap_or_else(|| (self.points[0].x - self.points[3].x).abs() * 0.001);
         let epsilon = epsilon.unwrap_or(1.0e-5);
         let mut result = Vec::new();
         let mut first_half = Vec::new();
@@ -519,7 +520,8 @@ impl QuadraticBezierShape {
     /// the number of points is determined by the tolerance.
     /// the points may not be evenly distributed in the range [0.0,1.0] (t value)
     pub fn flatten(&self, tolerance: Option<f32>) -> Vec<Pos2> {
-        let tolerance = tolerance.unwrap_or((self.points[0].x - self.points[2].x).abs() * 0.001);
+        let tolerance =
+            tolerance.unwrap_or_else(|| (self.points[0].x - self.points[2].x).abs() * 0.001);
         let mut result = vec![self.points[0]];
         self.for_each_flattened_with_t(tolerance, &mut |p, _t| {
             result.push(p);
@@ -613,6 +615,8 @@ struct FlatteningParameters {
 impl FlatteningParameters {
     // https://raphlinus.github.io/graphics/curves/2019/12/23/flatten-quadbez.html
     pub fn from_curve(curve: &QuadraticBezierShape, tolerance: f32) -> Self {
+        #![expect(clippy::useless_let_if_seq)]
+
         // Map the quadratic bézier segment to y = x^2 parabola.
         let from = curve.points[0];
         let ctrl = curve.points[1];

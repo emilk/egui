@@ -6,7 +6,7 @@
 # -----------------------------------------------------------------------------
 # Section identical to the root clippy.toml:
 
-msrv = "1.81"
+msrv = "1.92"
 
 allow-unwrap-in-tests = true
 
@@ -26,12 +26,11 @@ type-complexity-threshold = 350
 
 # https://rust-lang.github.io/rust-clippy/master/index.html#disallowed_methods
 disallowed-methods = [
-  "std::time::Instant::now",      # use `instant` crate instead for wasm/web compatibility
-  "std::time::Duration::elapsed", # use `instant` crate instead for wasm/web compatibility
-  "std::time::SystemTime::now",   # use `instant` or `time` crates instead for wasm/web compatibility
+  { path = "std::time::Instant::elapsed", reason = "use `instant` crate instead for wasm/web compatibility" },
+  { path = "std::time::Instant::now", reason = "use `instant` crate instead for wasm/web compatibility" },
+  { path = "std::time::SystemTime::now", reason = "use `instant` or `time` crates instead for wasm/web compatibility" },
 
-  # Cannot spawn threads on wasm:
-  "std::thread::spawn",
+  { path = "std::thread::spawn", reason = "Cannot spawn threads on wasm" },
 ]
 
 # https://rust-lang.github.io/rust-clippy/master/index.html#disallowed_types

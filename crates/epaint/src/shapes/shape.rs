@@ -2,12 +2,12 @@
 
 use std::sync::Arc;
 
-use emath::{pos2, Align2, Pos2, Rangef, Rect, TSTransform, Vec2};
+use emath::{Align2, Pos2, Rangef, Rect, TSTransform, Vec2, pos2};
 
 use crate::{
-    stroke::PathStroke,
-    text::{FontId, Fonts, Galley},
     Color32, CornerRadius, Mesh, Stroke, StrokeKind, TextureId,
+    stroke::PathStroke,
+    text::{FontId, FontsView, Galley},
 };
 
 use super::{
@@ -30,7 +30,7 @@ pub enum Shape {
 
     /// Recursively nest more shapes - sometimes a convenience to be able to do.
     /// For performance reasons it is better to avoid it.
-    Vec(Vec<Shape>),
+    Vec(Vec<Self>),
 
     /// Circle with optional outline and fill.
     Circle(CircleShape),
@@ -73,7 +73,8 @@ pub enum Shape {
 #[test]
 fn shape_size() {
     assert_eq!(
-        std::mem::size_of::<Shape>(), 64,
+        std::mem::size_of::<Shape>(),
+        64,
         "Shape changed size! If it shrank - good! Update this test. If it grew - bad! Try to find a way to avoid it."
     );
     assert!(
@@ -296,9 +297,9 @@ impl Shape {
         Self::Rect(RectShape::stroke(rect, corner_radius, stroke, stroke_kind))
     }
 
-    #[allow(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value)]
     pub fn text(
-        fonts: &Fonts,
+        fonts: &mut FontsView<'_>,
         pos: Pos2,
         anchor: Align2,
         text: impl ToString,
@@ -362,7 +363,7 @@ impl Shape {
             Self::Vec(shapes) => {
                 let mut rect = Rect::NOTHING;
                 for shape in shapes {
-                    rect = rect.union(shape.visual_bounding_rect());
+                    rect |= shape.visual_bounding_rect();
                 }
                 rect
             }
@@ -415,7 +416,7 @@ impl Shape {
         self.transform(TSTransform::from_translation(delta));
     }
 
-    /// Move the shape by this many points, in-place.
+    /// Transform (move/scale) the shape in-place.
     ///
     /// If using a [`PaintCallback`], note that only the rect is scaled as opposed
     /// to other shapes where the stroke is also scaled.
@@ -456,19 +457,7 @@ impl Shape {
                 rect_shape.blur_width *= transform.scaling;
             }
             Self::Text(text_shape) => {
-                text_shape.pos = transform * text_shape.pos;
-
-                // Scale text:
-                let galley = Arc::make_mut(&mut text_shape.galley);
-                for row in &mut galley.rows {
-                    row.visuals.mesh_bounds = transform.scaling * row.visuals.mesh_bounds;
-                    for v in &mut row.visuals.mesh.vertices {
-                        v.pos = Pos2::new(transform.scaling * v.pos.x, transform.scaling * v.pos.y);
-                    }
-                }
-
-                galley.mesh_bounds = transform.scaling * galley.mesh_bounds;
-                galley.rect = transform.scaling * galley.rect;
+                text_shape.transform(transform);
             }
             Self::Mesh(mesh) => {
                 Arc::make_mut(mesh).transform(transform);

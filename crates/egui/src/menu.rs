@@ -1,5 +1,5 @@
-#![allow(deprecated)]
-//! Menu bar functionality (very basic so far).
+#![expect(deprecated)]
+//! Deprecated menu API - Use [`crate::containers::menu`] instead.
 //!
 //! Usage:
 //! ```
@@ -17,14 +17,13 @@
 //! ```
 
 use super::{
-    style::WidgetVisuals, Align, Context, Id, InnerResponse, PointerState, Pos2, Rect, Response,
-    Sense, TextStyle, Ui, Vec2,
+    Align, Context, Id, InnerResponse, PointerState, Pos2, Rect, Response, Sense, TextStyle, Ui,
+    Vec2, style::WidgetVisuals,
 };
 use crate::{
-    epaint, vec2,
+    Align2, Area, Color32, Frame, Key, LayerId, Layout, NumExt as _, Order, Stroke, Style,
+    TextWrapMode, UiKind, WidgetText, epaint, vec2,
     widgets::{Button, ImageButton},
-    Align2, Area, Color32, Frame, Key, LayerId, Layout, NumExt, Order, Stroke, Style, TextWrapMode,
-    UiKind, WidgetText,
 };
 use epaint::mutex::RwLock;
 use std::sync::Arc;
@@ -85,9 +84,10 @@ fn set_menu_style(style: &mut Style) {
     }
 }
 
-/// The menu bar goes well in a [`crate::TopBottomPanel::top`],
+/// The menu bar goes well in a [`crate::Panel::top`],
 /// but can also be placed in a [`crate::Window`].
 /// In the latter case you may want to wrap it in [`Frame`].
+#[deprecated = "Use `egui::MenuBar::new().ui(` instead"]
 pub fn bar<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
     ui.horizontal(|ui| {
         set_menu_style(ui.style_mut());
@@ -186,7 +186,7 @@ fn menu_popup<'c, R>(
         .kind(UiKind::Menu)
         .order(Order::Foreground)
         .fixed_pos(pos)
-        .default_width(ctx.style().spacing.menu_width)
+        .default_width(ctx.global_style().spacing.menu_width)
         .sense(Sense::hover());
 
     let mut sizing_pass = false;
@@ -198,7 +198,7 @@ fn menu_popup<'c, R>(
 
         Frame::menu(ui.style())
             .show(ui, |ui| {
-                ui.set_menu_state(Some(menu_state_arc.clone()));
+                ui.set_menu_state(Some(Arc::clone(menu_state_arc)));
                 ui.with_layout(Layout::top_down_justified(Align::LEFT), add_contents)
                     .inner
             })
@@ -395,20 +395,20 @@ impl MenuRoot {
             // or button hovered while other menu is open
             let mut pos = button.rect.left_bottom();
 
-            let menu_frame = Frame::menu(&button.ctx.style());
+            let menu_frame = Frame::menu(&button.ctx.global_style());
             pos.x -= menu_frame.total_margin().left; // Make fist button in menu align with the parent button
-            pos.y += button.ctx.style().spacing.menu_spacing;
+            pos.y += button.ctx.global_style().spacing.menu_spacing;
 
             if let Some(root) = root.inner.as_mut() {
                 let menu_rect = root.menu_state.read().rect;
-                let screen_rect = button.ctx.input(|i| i.screen_rect);
+                let content_rect = button.ctx.input(|i| i.content_rect());
 
-                if pos.y + menu_rect.height() > screen_rect.max.y {
-                    pos.y = screen_rect.max.y - menu_rect.height() - button.rect.height();
+                if pos.y + menu_rect.height() > content_rect.max.y {
+                    pos.y = content_rect.max.y - menu_rect.height() - button.rect.height();
                 }
 
-                if pos.x + menu_rect.width() > screen_rect.max.x {
-                    pos.x = screen_rect.max.x - menu_rect.width();
+                if pos.x + menu_rect.width() > content_rect.max.x {
+                    pos.x = content_rect.max.x - menu_rect.width();
                 }
             }
 
@@ -420,17 +420,14 @@ impl MenuRoot {
         } else if button
             .ctx
             .input(|i| i.pointer.any_pressed() && i.pointer.primary_down())
+            && let Some(pos) = button.ctx.input(|i| i.pointer.interact_pos())
+            && let Some(root) = root.inner.as_mut()
+            && root.id == id
         {
-            if let Some(pos) = button.ctx.input(|i| i.pointer.interact_pos()) {
-                if let Some(root) = root.inner.as_mut() {
-                    if root.id == id {
-                        // pressed somewhere while this menu is open
-                        let in_menu = root.menu_state.read().area_contains(pos);
-                        if !in_menu {
-                            return MenuResponse::Close;
-                        }
-                    }
-                }
+            // pressed somewhere while this menu is open
+            let in_menu = root.menu_state.read().area_contains(pos);
+            if !in_menu {
+                return MenuResponse::Close;
             }
         }
         MenuResponse::Stay
@@ -445,12 +442,13 @@ impl MenuRoot {
         response.ctx.input(|input| {
             let pointer = &input.pointer;
             if let Some(pos) = pointer.interact_pos() {
-                let mut in_old_menu = false;
-                let mut destroy = false;
-                if let Some(root) = root {
-                    in_old_menu = root.menu_state.read().area_contains(pos);
-                    destroy = !in_old_menu && pointer.any_pressed() && root.id == response.id;
-                }
+                let (in_old_menu, destroy) = if let Some(root) = root {
+                    let in_old_menu = root.menu_state.read().area_contains(pos);
+                    let destroy = !in_old_menu && pointer.any_pressed() && root.id == response.id;
+                    (in_old_menu, destroy)
+                } else {
+                    (false, false)
+                };
                 if !in_old_menu {
                     if hovered && secondary_clicked {
                         return MenuResponse::Create(pos, response.id);
@@ -636,7 +634,7 @@ impl SubMenu {
 /// Usually you don't need to use it directly.
 pub struct MenuState {
     /// The opened sub-menu and its [`Id`]
-    sub_menu: Option<(Id, Arc<RwLock<MenuState>>)>,
+    sub_menu: Option<(Id, Arc<RwLock<Self>>)>,
 
     /// Bounding box of this menu (without the sub-menu),
     /// including the frame and everything.
@@ -703,7 +701,7 @@ impl MenuState {
         if self.moving_towards_current_submenu(&pointer) {
             // We don't close the submenu if the pointer is on its way to hover it.
             // ensure to repaint once even when pointer is not moving
-            ui.ctx().request_repaint();
+            ui.request_repaint();
         } else if !open && button.hovered() {
             // TODO(emilk): open menu to the left if there isn't enough space to the right
             let mut pos = button.rect.right_top();
@@ -727,21 +725,21 @@ impl MenuState {
             return false;
         }
 
-        if let Some(sub_menu) = self.current_submenu() {
-            if let Some(pos) = pointer.hover_pos() {
-                let rect = sub_menu.read().rect;
-                return rect.intersects_ray(pos, pointer.direction().normalized());
-            }
+        if let Some(sub_menu) = self.current_submenu()
+            && let Some(pos) = pointer.hover_pos()
+        {
+            let rect = sub_menu.read().rect;
+            return rect.intersects_ray(pos, pointer.direction().normalized());
         }
         false
     }
 
     /// Check if pointer is hovering current submenu.
     fn hovering_current_submenu(&self, pointer: &PointerState) -> bool {
-        if let Some(sub_menu) = self.current_submenu() {
-            if let Some(pos) = pointer.hover_pos() {
-                return sub_menu.read().area_contains(pos);
-            }
+        if let Some(sub_menu) = self.current_submenu()
+            && let Some(pos) = pointer.hover_pos()
+        {
+            return sub_menu.read().area_contains(pos);
         }
         false
     }
@@ -766,9 +764,8 @@ impl MenuState {
     }
 
     fn submenu(&self, id: Id) -> Option<&Arc<RwLock<Self>>> {
-        self.sub_menu
-            .as_ref()
-            .and_then(|(k, sub)| if id == *k { Some(sub) } else { None })
+        let (k, sub) = self.sub_menu.as_ref()?;
+        if id == *k { Some(sub) } else { None }
     }
 
     /// Open submenu at position, if not already open.

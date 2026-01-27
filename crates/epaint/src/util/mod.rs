@@ -1,6 +1,3 @@
-#[deprecated = "Use emath::OrderedFloat instead"]
-pub use emath::OrderedFloat;
-
 /// Hash the given value with a predictable hasher.
 #[inline]
 pub fn hash(value: impl std::hash::Hash) -> u64 {

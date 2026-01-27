@@ -94,7 +94,7 @@ impl BackendPanel {
         self.egui_windows.checkboxes(ui);
 
         #[cfg(debug_assertions)]
-        if ui.ctx().style().debug.debug_on_hover_with_all_modifiers {
+        if ui.global_style().debug.debug_on_hover_with_all_modifiers {
             ui.separator();
             ui.label("Press down all modifiers and hover a widget to see a callstack for it");
         }
@@ -102,15 +102,15 @@ impl BackendPanel {
         #[cfg(target_arch = "wasm32")]
         {
             ui.separator();
-            let mut screen_reader = ui.ctx().options(|o| o.screen_reader);
+            let mut screen_reader = ui.options(|o| o.screen_reader);
             ui.checkbox(&mut screen_reader, "🔈 Screen reader").on_hover_text("Experimental feature: checking this will turn on the screen reader on supported platforms");
-            ui.ctx().options_mut(|o| o.screen_reader = screen_reader);
+            ui.options_mut(|o| o.screen_reader = screen_reader);
         }
 
         if cfg!(debug_assertions) && cfg!(target_arch = "wasm32") {
             ui.separator();
             // For testing panic handling on web:
-            #[allow(clippy::manual_assert)]
+            #[expect(clippy::manual_assert)]
             if ui.button("panic!()").clicked() {
                 panic!("intentional panic!");
             }
@@ -119,7 +119,7 @@ impl BackendPanel {
         if !cfg!(target_arch = "wasm32") {
             ui.separator();
             if ui.button("Quit").clicked() {
-                ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+                ui.send_viewport_cmd(egui::ViewportCommand::Close);
             }
         }
     }
@@ -147,6 +147,10 @@ impl BackendPanel {
             if cfg!(debug_assertions) {
                 ui.collapsing("More…", |ui| {
                     ui.horizontal(|ui| {
+                        ui.label("Total ui frames:");
+                        ui.monospace(ui.ctx().cumulative_frame_nr().to_string());
+                    });
+                    ui.horizontal(|ui| {
                         ui.label("Total ui passes:");
                         ui.monospace(ui.ctx().cumulative_pass_nr().to_string());
                     });
@@ -164,7 +168,7 @@ impl BackendPanel {
 
                     ui.horizontal(|ui| {
                         if ui.button("Request discard").clicked() {
-                            ui.ctx().request_discard("Manual button click");
+                            ui.request_discard("Manual button click");
 
                             if !ui.ctx().will_discard() {
                                 ui.label("Discard denied!");
@@ -183,7 +187,7 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         ui.label("egui running inside ");
         ui.hyperlink_to(
             "eframe",
-            "https://github.com/emilk/egui/tree/master/crates/eframe",
+            "https://github.com/emilk/egui/tree/main/crates/eframe",
         );
         ui.label(".");
     });
@@ -301,8 +305,7 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
                     .on_hover_text("Fullscreen the window")
                     .changed()
                 {
-                    ui.ctx()
-                        .send_viewport_cmd(egui::ViewportCommand::Fullscreen(fullscreen));
+                    ui.send_viewport_cmd(egui::ViewportCommand::Fullscreen(fullscreen));
                 }
             }
 
@@ -329,10 +332,8 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
                 });
 
             if let Some(size) = size {
-                ui.ctx()
-                    .send_viewport_cmd(egui::ViewportCommand::InnerSize(size));
-                ui.ctx()
-                    .send_viewport_cmd(egui::ViewportCommand::Fullscreen(false));
+                ui.send_viewport_cmd(egui::ViewportCommand::InnerSize(size));
+                ui.send_viewport_cmd(egui::ViewportCommand::Fullscreen(false));
                 ui.close();
             }
         });
@@ -458,11 +459,13 @@ fn call_after_delay(delay: std::time::Duration, f: impl FnOnce() + Send + 'stati
             std::thread::sleep(delay);
             f();
         })
-        .unwrap();
+        .expect("Failed to spawn a thread");
 }
 
 #[cfg(target_arch = "wasm32")]
 fn call_after_delay(delay: std::time::Duration, f: impl FnOnce() + Send + 'static) {
+    #![expect(clippy::unwrap_used)]
+
     use wasm_bindgen::prelude::*;
     let window = web_sys::window().unwrap();
     let closure = Closure::once(f);

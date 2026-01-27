@@ -48,7 +48,7 @@ impl WgpuSetup {
     pub async fn new_instance(&self) -> wgpu::Instance {
         match self {
             Self::CreateNew(create_new) => {
-                #[allow(unused_mut)]
+                #[allow(clippy::allow_attributes, unused_mut)]
                 let mut backends = create_new.instance_descriptor.backends;
 
                 // Don't try WebGPU if we're not in a secure context.
@@ -64,7 +64,7 @@ impl WgpuSetup {
                     }
                 }
 
-                log::debug!("Creating wgpu instance with backends {:?}", backends);
+                log::debug!("Creating wgpu instance with backends {backends:?}");
                 wgpu::util::new_instance_with_webgpu_detection(&create_new.instance_descriptor)
                     .await
             }
@@ -126,13 +126,6 @@ pub struct WgpuSetupCreateNew {
     /// Configuration passed on device request, given an adapter
     pub device_descriptor:
         Arc<dyn Fn(&wgpu::Adapter) -> wgpu::DeviceDescriptor<'static> + Send + Sync>,
-
-    /// Option path to output a wgpu trace file.
-    ///
-    /// This only works if this feature is enabled in `wgpu-core`.
-    /// Does not work when running with WebGPU.
-    /// Defaults to the path set in the `WGPU_TRACE` environment variable.
-    pub trace_path: Option<std::path::PathBuf>,
 }
 
 impl Clone for WgpuSetupCreateNew {
@@ -141,8 +134,7 @@ impl Clone for WgpuSetupCreateNew {
             instance_descriptor: self.instance_descriptor.clone(),
             power_preference: self.power_preference,
             native_adapter_selector: self.native_adapter_selector.clone(),
-            device_descriptor: self.device_descriptor.clone(),
-            trace_path: self.trace_path.clone(),
+            device_descriptor: Arc::clone(&self.device_descriptor),
         }
     }
 }
@@ -156,7 +148,6 @@ impl std::fmt::Debug for WgpuSetupCreateNew {
                 "native_adapter_selector",
                 &self.native_adapter_selector.is_some(),
             )
-            .field("trace_path", &self.trace_path)
             .finish()
     }
 }
@@ -171,6 +162,7 @@ impl Default for WgpuSetupCreateNew {
                     .unwrap_or(wgpu::Backends::PRIMARY | wgpu::Backends::GL),
                 flags: wgpu::InstanceFlags::from_build_config().with_env(),
                 backend_options: wgpu::BackendOptions::from_env_or_default(),
+                memory_budget_thresholds: wgpu::MemoryBudgetThresholds::default(),
             },
 
             power_preference: wgpu::PowerPreference::from_env()
@@ -187,20 +179,15 @@ impl Default for WgpuSetupCreateNew {
 
                 wgpu::DeviceDescriptor {
                     label: Some("egui wgpu device"),
-                    required_features: wgpu::Features::default(),
                     required_limits: wgpu::Limits {
                         // When using a depth buffer, we have to be able to create a texture
                         // large enough for the entire surface, and we want to support 4k+ displays.
                         max_texture_dimension_2d: 8192,
                         ..base_limits
                     },
-                    memory_hints: wgpu::MemoryHints::default(),
+                    ..Default::default()
                 }
             }),
-
-            trace_path: std::env::var("WGPU_TRACE")
-                .ok()
-                .map(std::path::PathBuf::from),
         }
     }
 }

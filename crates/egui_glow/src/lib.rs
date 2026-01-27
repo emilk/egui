@@ -8,9 +8,7 @@
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!
 
-#![allow(clippy::float_cmp)]
-#![allow(clippy::manual_range_contains)]
-#![allow(clippy::undocumented_unsafe_blocks)]
+#![expect(clippy::undocumented_unsafe_blocks)]
 
 pub mod painter;
 pub use glow;
@@ -62,18 +60,14 @@ macro_rules! check_for_gl_error {
 /// ```
 #[macro_export]
 macro_rules! check_for_gl_error_even_in_release {
-    ($gl: expr) => {{
-        $crate::check_for_gl_error_impl($gl, file!(), line!(), "")
-    }};
-    ($gl: expr, $context: literal) => {{
-        $crate::check_for_gl_error_impl($gl, file!(), line!(), $context)
-    }};
+    ($gl: expr) => {{ $crate::check_for_gl_error_impl($gl, file!(), line!(), "") }};
+    ($gl: expr, $context: literal) => {{ $crate::check_for_gl_error_impl($gl, file!(), line!(), $context) }};
 }
 
 #[doc(hidden)]
 pub fn check_for_gl_error_impl(gl: &glow::Context, file: &str, line: u32, context: &str) {
     use glow::HasContext as _;
-    #[allow(unsafe_code)]
+    #[expect(unsafe_code)]
     let error_code = unsafe { gl.get_error() };
     if error_code != glow::NO_ERROR {
         let error_str = match error_code {
@@ -92,20 +86,11 @@ pub fn check_for_gl_error_impl(gl: &glow::Context, file: &str, line: u32, contex
 
         if context.is_empty() {
             log::error!(
-                "GL error, at {}:{}: {} (0x{:X}). Please file a bug at https://github.com/emilk/egui/issues",
-                file,
-                line,
-                error_str,
-                error_code,
+                "GL error, at {file}:{line}: {error_str} (0x{error_code:X}). Please file a bug at https://github.com/emilk/egui/issues"
             );
         } else {
             log::error!(
-                "GL error, at {}:{} ({}): {} (0x{:X}). Please file a bug at https://github.com/emilk/egui/issues",
-                file,
-                line,
-                context,
-                error_str,
-                error_code,
+                "GL error, at {file}:{line} ({context}): {error_str} (0x{error_code:X}). Please file a bug at https://github.com/emilk/egui/issues"
             );
         }
     }

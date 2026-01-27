@@ -14,3 +14,19 @@ The demo library is a separate crate for three reasons:
 * To remove the amount of code in `egui` proper.
 * To make it easy for 3rd party egui integrations to use it for tests.
   - See for instance https://github.com/not-fl3/egui-miniquad/blob/master/examples/demo.rs
+
+This crate also contains benchmarks for egui. 
+Run them with 
+```bash
+# Run all benchmarks
+cargo bench -p egui_demo_lib 
+
+# Run a single benchmark
+cargo bench -p egui_demo_lib "benchmark name"
+
+# Profile benchmarks with cargo-flamegraph (--root flag is necessary for MacOS)
+CARGO_PROFILE_BENCH_DEBUG=true cargo flamegraph --bench benchmark --root -p egui_demo_lib  -- --bench "benchmark name"
+
+# Profile with cargo-instruments
+CARGO_PROFILE_BENCH_DEBUG=true cargo instruments --profile bench --bench benchmark -p egui_demo_lib -t time -- --bench "benchmark name" 
+```

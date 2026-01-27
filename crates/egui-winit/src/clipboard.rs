@@ -5,7 +5,10 @@ use raw_window_handle::RawDisplayHandle;
 /// If the "clipboard" feature is off, or we cannot connect to the OS clipboard,
 /// then a fallback clipboard that just works within the same app is used instead.
 pub struct Clipboard {
-    #[cfg(all(feature = "arboard", not(target_os = "android")))]
+    #[cfg(all(
+        not(any(target_os = "android", target_os = "ios")),
+        feature = "arboard",
+    ))]
     arboard: Option<arboard::Clipboard>,
 
     #[cfg(all(
@@ -28,7 +31,10 @@ impl Clipboard {
     /// Construct a new instance
     pub fn new(_raw_display_handle: Option<RawDisplayHandle>) -> Self {
         Self {
-            #[cfg(all(feature = "arboard", not(target_os = "android")))]
+            #[cfg(all(
+                not(any(target_os = "android", target_os = "ios")),
+                feature = "arboard",
+            ))]
             arboard: init_arboard(),
 
             #[cfg(all(
@@ -68,7 +74,10 @@ impl Clipboard {
             };
         }
 
-        #[cfg(all(feature = "arboard", not(target_os = "android")))]
+        #[cfg(all(
+            not(any(target_os = "android", target_os = "ios")),
+            feature = "arboard",
+        ))]
         if let Some(clipboard) = &mut self.arboard {
             return match clipboard.get_text() {
                 Ok(text) => Some(text),
@@ -98,7 +107,10 @@ impl Clipboard {
             return;
         }
 
-        #[cfg(all(feature = "arboard", not(target_os = "android")))]
+        #[cfg(all(
+            not(any(target_os = "android", target_os = "ios")),
+            feature = "arboard",
+        ))]
         if let Some(clipboard) = &mut self.arboard {
             if let Err(err) = clipboard.set_text(text) {
                 log::error!("arboard copy/cut error: {err}");
@@ -110,7 +122,10 @@ impl Clipboard {
     }
 
     pub fn set_image(&mut self, image: &egui::ColorImage) {
-        #[cfg(all(feature = "arboard", not(target_os = "android")))]
+        #[cfg(all(
+            not(any(target_os = "android", target_os = "ios")),
+            feature = "arboard",
+        ))]
         if let Some(clipboard) = &mut self.arboard {
             if let Err(err) = clipboard.set_image(arboard::ImageData {
                 width: image.width(),
@@ -123,12 +138,17 @@ impl Clipboard {
             return;
         }
 
-        log::error!("Copying images is not supported. Enable the 'clipboard' feature of `egui-winit` to enable it.");
+        log::error!(
+            "Copying images is not supported. Enable the 'clipboard' feature of `egui-winit` to enable it."
+        );
         _ = image;
     }
 }
 
-#[cfg(all(feature = "arboard", not(target_os = "android")))]
+#[cfg(all(
+    not(any(target_os = "android", target_os = "ios")),
+    feature = "arboard",
+))]
 fn init_arboard() -> Option<arboard::Clipboard> {
     profiling::function_scope!();
 
@@ -155,13 +175,13 @@ fn init_arboard() -> Option<arboard::Clipboard> {
 fn init_smithay_clipboard(
     raw_display_handle: Option<RawDisplayHandle>,
 ) -> Option<smithay_clipboard::Clipboard> {
-    #![allow(clippy::undocumented_unsafe_blocks)]
+    #![expect(clippy::undocumented_unsafe_blocks)]
 
     profiling::function_scope!();
 
     if let Some(RawDisplayHandle::Wayland(display)) = raw_display_handle {
         log::trace!("Initializing smithay clipboard…");
-        #[allow(unsafe_code)]
+        #[expect(unsafe_code)]
         Some(unsafe { smithay_clipboard::Clipboard::new(display.display.as_ptr()) })
     } else {
         #[cfg(feature = "wayland")]

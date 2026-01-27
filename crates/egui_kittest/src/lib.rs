@@ -1,36 +1,46 @@
-#![doc = include_str!("../README.md")]
+#![cfg_attr(doc, doc = include_str!("../README.md"))]
 //!
 //! ## Feature flags
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
+#![expect(clippy::unwrap_used)] // TODO(emilk): avoid unwraps
 
 mod builder;
-mod event;
 #[cfg(feature = "snapshot")]
 mod snapshot;
 
 #[cfg(feature = "snapshot")]
-pub use snapshot::*;
-use std::fmt::{Debug, Display, Formatter};
-use std::time::Duration;
+pub use crate::snapshot::*;
 
 mod app_kind;
+mod config;
+mod node;
 mod renderer;
 #[cfg(feature = "wgpu")]
 mod texture_to_image;
 #[cfg(feature = "wgpu")]
 pub mod wgpu;
 
-pub use kittest;
+// re-exports:
+pub use {
+    self::{builder::*, node::*, renderer::*},
+    kittest,
+};
+
+use std::{
+    fmt::{Debug, Display, Formatter},
+    time::Duration,
+};
+
+use egui::{
+    Color32, Key, Modifiers, PointerButton, Pos2, Rect, RepaintCause, Shape, Vec2, ViewportId,
+    epaint::{ClippedShape, RectShape},
+    style::ScrollAnimation,
+};
+use kittest::Queryable;
 
 use crate::app_kind::AppKind;
-use crate::event::EventState;
 
-pub use builder::*;
-pub use renderer::*;
-
-use egui::{Modifiers, Pos2, Rect, RepaintCause, Vec2, ViewportId};
-use kittest::{Node, Queryable};
-
+#[derive(Debug, Clone)]
 pub struct ExceededMaxStepsError {
     pub max_steps: u64,
     pub repaint_causes: Vec<RepaintCause>,
@@ -49,23 +59,34 @@ impl Display for ExceededMaxStepsError {
 }
 
 /// The test Harness. This contains everything needed to run the test.
+///
 /// Create a new Harness using [`Harness::new`] or [`Harness::builder`].
 ///
 /// The [Harness] has a optional generic state that can be used to pass data to the app / ui closure.
 /// In _most cases_ it should be fine to just store the state in the closure itself.
 /// The state functions are useful if you need to access the state after the harness has been created.
+///
+/// Some egui style options are changed from the defaults:
+/// - The cursor blinking is disabled
+/// - The scroll animation is disabled
 pub struct Harness<'a, State = ()> {
     pub ctx: egui::Context,
     input: egui::RawInput,
     kittest: kittest::State,
     output: egui::FullOutput,
     app: AppKind<'a, State>,
-    event_state: EventState,
     response: Option<egui::Response>,
     state: State,
     renderer: Box<dyn TestRenderer>,
     max_steps: u64,
     step_dt: f32,
+    wait_for_pending_images: bool,
+    queued_events: EventQueue,
+
+    #[cfg(feature = "snapshot")]
+    default_snapshot_options: SnapshotOptions,
+    #[cfg(feature = "snapshot")]
+    snapshot_results: SnapshotResults,
 }
 
 impl<State> Debug for Harness<'_, State> {
@@ -75,6 +96,7 @@ impl<State> Debug for Harness<'_, State> {
 }
 
 impl<'a, State> Harness<'a, State> {
+    #[track_caller]
     pub(crate) fn from_builder(
         builder: HarnessBuilder<State>,
         mut app: AppKind<'a, State>,
@@ -84,15 +106,27 @@ impl<'a, State> Harness<'a, State> {
         let HarnessBuilder {
             screen_rect,
             pixels_per_point,
+            theme,
+            os,
             max_steps,
             step_dt,
             state: _,
             mut renderer,
+            wait_for_pending_images,
+
+            #[cfg(feature = "snapshot")]
+            default_snapshot_options,
         } = builder;
         let ctx = ctx.unwrap_or_default();
+        ctx.set_theme(theme);
+        ctx.set_os(os);
         ctx.enable_accesskit();
-        // Disable cursor blinking so it doesn't interfere with snapshots
-        ctx.all_styles_mut(|style| style.visuals.text_cursor.blink = false);
+        ctx.all_styles_mut(|style| {
+            // Disable cursor blinking so it doesn't interfere with snapshots
+            style.visuals.text_cursor.blink = false;
+            style.scroll_animation = ScrollAnimation::none();
+            style.animation_time = 0.0;
+        });
         let mut input = egui::RawInput {
             screen_rect: Some(screen_rect),
             ..Default::default()
@@ -104,8 +138,8 @@ impl<'a, State> Harness<'a, State> {
 
         // We need to run egui for a single frame so that the AccessKit state can be initialized
         // and users can immediately start querying for widgets.
-        let mut output = ctx.run(input.clone(), |ctx| {
-            response = app.run(ctx, &mut state, false);
+        let mut output = ctx.run_ui(input.clone(), |ui| {
+            response = app.run(ui, &mut state, false);
         });
 
         renderer.handle_delta(&output.textures_delta);
@@ -123,11 +157,18 @@ impl<'a, State> Harness<'a, State> {
             ),
             output,
             response,
-            event_state: EventState::default(),
             state,
             renderer,
             max_steps,
             step_dt,
+            wait_for_pending_images,
+            queued_events: Default::default(),
+
+            #[cfg(feature = "snapshot")]
+            default_snapshot_options,
+
+            #[cfg(feature = "snapshot")]
+            snapshot_results: SnapshotResults::default(),
         };
         // Run the harness until it is stable, ensuring that all Areas are shown and animations are done
         harness.run_ok();
@@ -163,7 +204,10 @@ impl<'a, State> Harness<'a, State> {
     ///
     /// assert_eq!(*harness.state(), true);
     /// ```
+    #[track_caller]
+    #[deprecated = "use `new_ui_state` instead"]
     pub fn new_state(app: impl FnMut(&egui::Context, &mut State) + 'a, state: State) -> Self {
+        #[expect(deprecated)]
         Self::builder().build_state(app, state)
     }
 
@@ -188,12 +232,14 @@ impl<'a, State> Harness<'a, State> {
     ///
     /// assert_eq!(*harness.state(), true);
     /// ```
+    #[track_caller]
     pub fn new_ui_state(app: impl FnMut(&mut egui::Ui, &mut State) + 'a, state: State) -> Self {
         Self::builder().build_ui_state(app, state)
     }
 
     /// Create a new [Harness] from the given eframe creation closure.
     #[cfg(feature = "eframe")]
+    #[track_caller]
     pub fn new_eframe(builder: impl FnOnce(&mut eframe::CreationContext<'a>) -> State) -> Self
     where
         State: eframe::App,
@@ -223,12 +269,19 @@ impl<'a, State> Harness<'a, State> {
     /// This will call the app closure with each queued event and
     /// update the Harness.
     pub fn step(&mut self) {
-        let events = self.kittest.take_events();
+        let events = std::mem::take(&mut *self.queued_events.lock());
         if events.is_empty() {
             self._step(false);
         }
         for event in events {
-            self.event_state.update(event, &mut self.input);
+            match event {
+                EventType::Event(event) => {
+                    self.input.events.push(event);
+                }
+                EventType::Modifiers(modifiers) => {
+                    self.input.modifiers = modifiers;
+                }
+            }
             self._step(false);
         }
     }
@@ -237,8 +290,8 @@ impl<'a, State> Harness<'a, State> {
     fn _step(&mut self, sizing_pass: bool) {
         self.input.predicted_dt = self.step_dt;
 
-        let mut output = self.ctx.run(self.input.take(), |ctx| {
-            self.response = self.app.run(ctx, &mut self.state, sizing_pass);
+        let mut output = self.ctx.run_ui(self.input.take(), |ui| {
+            self.response = self.app.run(ui, &mut self.state, sizing_pass);
         });
         self.kittest.update(
             output
@@ -251,14 +304,39 @@ impl<'a, State> Harness<'a, State> {
         self.output = output;
     }
 
+    /// Calculate the rect that includes all popups and tooltips.
+    fn compute_total_rect_with_popups(&self) -> Option<Rect> {
+        // Start with the standard response rect
+        let mut used = if let Some(response) = self.response.as_ref() {
+            response.rect
+        } else {
+            return None;
+        };
+
+        // Add all visible areas from other orders (popups, tooltips, etc.)
+        self.ctx.memory(|mem| {
+            mem.areas()
+                .visible_layer_ids()
+                .into_iter()
+                .filter(|layer_id| layer_id.order != egui::Order::Background)
+                .filter_map(|layer_id| mem.area_rect(layer_id.id))
+                .for_each(|area_rect| used |= area_rect);
+        });
+
+        Some(used)
+    }
+
     /// Resize the test harness to fit the contents. This only works when creating the Harness via
     /// [`Harness::new_ui`] / [`Harness::new_ui_state`] or
     /// [`HarnessBuilder::build_ui`] / [`HarnessBuilder::build_ui_state`].
     pub fn fit_contents(&mut self) {
         self._step(true);
-        if let Some(response) = &self.response {
-            self.set_size(response.rect.size());
+
+        // Calculate size including all content (main UI + popups + tooltips)
+        if let Some(rect) = self.compute_total_rect_with_popups() {
+            self.set_size(rect.size());
         }
+
         self.run_ok();
     }
 
@@ -274,6 +352,7 @@ impl<'a, State> Harness<'a, State> {
     ///
     /// See also:
     /// - [`Harness::try_run`].
+    /// - [`Harness::try_run_realtime`].
     /// - [`Harness::run_ok`].
     /// - [`Harness::step`].
     /// - [`Harness::run_steps`].
@@ -285,6 +364,30 @@ impl<'a, State> Harness<'a, State> {
                 panic!("{err}");
             }
         }
+    }
+
+    fn _try_run(&mut self, sleep: bool) -> Result<u64, ExceededMaxStepsError> {
+        let mut steps = 0;
+        loop {
+            steps += 1;
+            self.step();
+
+            let wait_for_images = self.wait_for_pending_images && self.ctx.has_pending_images();
+
+            // We only care about immediate repaints
+            if self.root_viewport_output().repaint_delay != Duration::ZERO && !wait_for_images {
+                break;
+            } else if sleep || wait_for_images {
+                std::thread::sleep(Duration::from_secs_f32(self.step_dt));
+            }
+            if steps > self.max_steps {
+                return Err(ExceededMaxStepsError {
+                    max_steps: self.max_steps,
+                    repaint_causes: self.ctx.repaint_causes(),
+                });
+            }
+        }
+        Ok(steps)
     }
 
     /// Run until
@@ -302,23 +405,9 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::run_ok`].
     /// - [`Harness::step`].
     /// - [`Harness::run_steps`].
+    /// - [`Harness::try_run_realtime`].
     pub fn try_run(&mut self) -> Result<u64, ExceededMaxStepsError> {
-        let mut steps = 0;
-        loop {
-            steps += 1;
-            self.step();
-            // We only care about immediate repaints
-            if self.root_viewport_output().repaint_delay != Duration::ZERO {
-                break;
-            }
-            if steps > self.max_steps {
-                return Err(ExceededMaxStepsError {
-                    max_steps: self.max_steps,
-                    repaint_causes: self.ctx.repaint_causes(),
-                });
-            }
-        }
-        Ok(steps)
+        self._try_run(false)
     }
 
     /// Run until
@@ -333,8 +422,32 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::try_run`].
     /// - [`Harness::step`].
     /// - [`Harness::run_steps`].
+    /// - [`Harness::try_run_realtime`].
     pub fn run_ok(&mut self) -> Option<u64> {
         self.try_run().ok()
+    }
+
+    /// Run multiple frames, sleeping for [`HarnessBuilder::with_step_dt`] between frames.
+    ///
+    /// This is useful to e.g. wait for an async operation to complete (e.g. loading of images).
+    /// Runs until
+    /// - all animations are done
+    /// - no more repaints are requested
+    /// - the maximum number of steps is reached (See [`HarnessBuilder::with_max_steps`])
+    ///
+    /// Returns the number of steps that were run.
+    ///
+    /// # Errors
+    /// Returns an error if the maximum number of steps is exceeded.
+    ///
+    /// See also:
+    /// - [`Harness::run`].
+    /// - [`Harness::run_ok`].
+    /// - [`Harness::step`].
+    /// - [`Harness::run_steps`].
+    /// - [`Harness::try_run`].
+    pub fn try_run_realtime(&mut self) -> Result<u64, ExceededMaxStepsError> {
+        self._try_run(true)
     }
 
     /// Run a number of steps.
@@ -375,52 +488,180 @@ impl<'a, State> Harness<'a, State> {
         &mut self.state
     }
 
-    /// Press a key.
-    /// This will create a key down event and a key up event.
-    pub fn press_key(&mut self, key: egui::Key) {
-        self.input.events.push(egui::Event::Key {
+    /// Queue an event to be processed in the next frame.
+    pub fn event(&self, event: egui::Event) {
+        self.queued_events.lock().push(EventType::Event(event));
+    }
+
+    /// Queue an event with modifiers.
+    ///
+    /// Queues the modifiers to be pressed, then the event, then the modifiers to be released.
+    pub fn event_modifiers(&self, event: egui::Event, modifiers: Modifiers) {
+        let mut queue = self.queued_events.lock();
+        queue.push(EventType::Modifiers(modifiers));
+        queue.push(EventType::Event(event));
+        queue.push(EventType::Modifiers(Modifiers::default()));
+    }
+
+    fn modifiers(&self, modifiers: Modifiers) {
+        self.queued_events
+            .lock()
+            .push(EventType::Modifiers(modifiers));
+    }
+
+    pub fn key_down(&self, key: egui::Key) {
+        self.event(egui::Event::Key {
             key,
             pressed: true,
-            modifiers: self.input.modifiers,
-            repeat: false,
-            physical_key: None,
-        });
-        self.input.events.push(egui::Event::Key {
-            key,
-            pressed: false,
-            modifiers: self.input.modifiers,
+            modifiers: Modifiers::default(),
             repeat: false,
             physical_key: None,
         });
     }
 
-    /// Press a key with modifiers.
-    /// This will create a key-down event, a key-up event, and update the modifiers.
-    ///
-    /// NOTE: In contrast to the event fns on [`Node`], this will call [`Harness::step`], in
-    /// order to properly update modifiers.
-    pub fn press_key_modifiers(&mut self, modifiers: Modifiers, key: egui::Key) {
-        // Combine the modifiers with the current modifiers
-        let previous_modifiers = self.input.modifiers;
-        self.input.modifiers |= modifiers;
-
-        self.input.events.push(egui::Event::Key {
-            key,
-            pressed: true,
+    pub fn key_down_modifiers(&self, modifiers: Modifiers, key: egui::Key) {
+        self.event_modifiers(
+            egui::Event::Key {
+                key,
+                pressed: true,
+                modifiers,
+                repeat: false,
+                physical_key: None,
+            },
             modifiers,
-            repeat: false,
-            physical_key: None,
-        });
-        self.step();
-        self.input.events.push(egui::Event::Key {
+        );
+    }
+
+    pub fn key_up(&self, key: egui::Key) {
+        self.event(egui::Event::Key {
             key,
             pressed: false,
-            modifiers,
+            modifiers: Modifiers::default(),
             repeat: false,
             physical_key: None,
         });
+    }
 
-        self.input.modifiers = previous_modifiers;
+    pub fn key_up_modifiers(&self, modifiers: Modifiers, key: egui::Key) {
+        self.event_modifiers(
+            egui::Event::Key {
+                key,
+                pressed: false,
+                modifiers,
+                repeat: false,
+                physical_key: None,
+            },
+            modifiers,
+        );
+    }
+
+    /// Press the given keys in combination.
+    ///
+    /// For e.g. [`Key::A`] + [`Key::B`] this would generate:
+    /// - Press [`Key::A`]
+    /// - Press [`Key::B`]
+    /// - Release [`Key::B`]
+    /// - Release [`Key::A`]
+    pub fn key_combination(&self, keys: &[Key]) {
+        for key in keys {
+            self.key_down(*key);
+        }
+        for key in keys.iter().rev() {
+            self.key_up(*key);
+        }
+    }
+
+    /// Press the given keys in combination, with modifiers.
+    ///
+    /// For e.g. [`Modifiers::COMMAND`] + [`Key::A`] + [`Key::B`] this would generate:
+    /// - Press [`Modifiers::COMMAND`]
+    /// - Press [`Key::A`]
+    /// - Press [`Key::B`]
+    /// - Release [`Key::B`]
+    /// - Release [`Key::A`]
+    /// - Release [`Modifiers::COMMAND`]
+    pub fn key_combination_modifiers(&self, modifiers: Modifiers, keys: &[Key]) {
+        self.modifiers(modifiers);
+
+        for pressed in [true, false] {
+            for key in keys {
+                self.event(egui::Event::Key {
+                    key: *key,
+                    pressed,
+                    modifiers,
+                    repeat: false,
+                    physical_key: None,
+                });
+            }
+        }
+
+        self.modifiers(Modifiers::default());
+    }
+
+    /// Press a key.
+    ///
+    /// This will create a key down event and a key up event.
+    pub fn key_press(&self, key: egui::Key) {
+        self.key_combination(&[key]);
+    }
+
+    /// Press a key with modifiers.
+    ///
+    /// This will
+    /// - set the modifiers
+    /// - create a key down event
+    /// - create a key up event
+    /// - reset the modifiers
+    pub fn key_press_modifiers(&self, modifiers: Modifiers, key: egui::Key) {
+        self.key_combination_modifiers(modifiers, &[key]);
+    }
+
+    /// Move mouse cursor to this position.
+    pub fn hover_at(&self, pos: egui::Pos2) {
+        self.event(egui::Event::PointerMoved(pos));
+    }
+
+    /// Start dragging from a position.
+    pub fn drag_at(&self, pos: egui::Pos2) {
+        self.event(egui::Event::PointerButton {
+            pos,
+            button: PointerButton::Primary,
+            pressed: true,
+            modifiers: Modifiers::NONE,
+        });
+    }
+
+    /// Stop dragging and remove cursor.
+    pub fn drop_at(&self, pos: egui::Pos2) {
+        self.event(egui::Event::PointerButton {
+            pos,
+            button: PointerButton::Primary,
+            pressed: false,
+            modifiers: Modifiers::NONE,
+        });
+        self.remove_cursor();
+    }
+
+    /// Remove the cursor from the screen.
+    ///
+    /// Will fire a [`egui::Event::PointerGone`] event.
+    ///
+    /// If you click a button and then take a snapshot, the button will be shown as hovered.
+    /// If you don't want that, you can call this method after clicking.
+    pub fn remove_cursor(&self) {
+        self.event(egui::Event::PointerGone);
+    }
+
+    /// Mask something. Useful for snapshot tests.
+    ///
+    /// Call this _after_ [`Self::run`] and before [`Self::snapshot`].
+    /// This will add a [`RectShape`] to the output shapes, for the current frame.
+    /// Will be overwritten on the next call to [`Self::run`].
+    pub fn mask(&mut self, rect: Rect) {
+        self.output.shapes.push(ClippedShape {
+            clip_rect: Rect::EVERYTHING,
+            shape: Shape::Rect(RectShape::filled(rect, 0.0, Color32::MAGENTA)),
+        });
     }
 
     /// Render the last output to an image.
@@ -429,7 +670,28 @@ impl<'a, State> Harness<'a, State> {
     /// Returns an error if the rendering fails.
     #[cfg(any(feature = "wgpu", feature = "snapshot"))]
     pub fn render(&mut self) -> Result<image::RgbaImage, String> {
-        self.renderer.render(&self.ctx, &self.output)
+        let mut output = self.output.clone();
+
+        if let Some(mouse_pos) = self.ctx.input(|i| i.pointer.hover_pos()) {
+            // Paint a mouse cursor:
+            let triangle = vec![
+                mouse_pos,
+                mouse_pos + egui::vec2(16.0, 8.0),
+                mouse_pos + egui::vec2(8.0, 16.0),
+            ];
+
+            output.shapes.push(ClippedShape {
+                clip_rect: self.ctx.content_rect(),
+                shape: egui::epaint::PathShape::convex_polygon(
+                    triangle,
+                    Color32::WHITE,
+                    egui::Stroke::new(1.0, Color32::BLACK),
+                )
+                .into(),
+            });
+        }
+
+        self.renderer.render(&self.ctx, &output)
     }
 
     /// Get the root viewport output
@@ -438,6 +700,19 @@ impl<'a, State> Harness<'a, State> {
             .viewport_output
             .get(&ViewportId::ROOT)
             .expect("Missing root viewport")
+    }
+
+    /// The root node of the test harness.
+    pub fn root(&self) -> Node<'_> {
+        Node {
+            accesskit_node: self.kittest.root(),
+            queue: &self.queued_events,
+        }
+    }
+
+    #[deprecated = "Use `Harness::root` instead."]
+    pub fn node(&self) -> Node<'_> {
+        self.root()
     }
 }
 
@@ -462,7 +737,10 @@ impl<'a> Harness<'a> {
     ///     });
     /// });
     /// ```
+    #[track_caller]
+    #[deprecated = "use `new_ui` instead"]
     pub fn new(app: impl FnMut(&egui::Context) + 'a) -> Self {
+        #[expect(deprecated)]
         Self::builder().build(app)
     }
 
@@ -482,16 +760,17 @@ impl<'a> Harness<'a> {
     ///     ui.label("Hello, world!");
     /// });
     /// ```
+    #[track_caller]
     pub fn new_ui(app: impl FnMut(&mut egui::Ui) + 'a) -> Self {
         Self::builder().build_ui(app)
     }
 }
 
-impl<'t, 'n, State> Queryable<'t, 'n> for Harness<'_, State>
+impl<'tree, 'node, State> Queryable<'tree, 'node, Node<'tree>> for Harness<'_, State>
 where
-    'n: 't,
+    'node: 'tree,
 {
-    fn node(&'n self) -> Node<'t> {
-        self.kittest_state().node()
+    fn queryable_node(&'node self) -> Node<'tree> {
+        self.root()
     }
 }

@@ -10,7 +10,7 @@
 use std::any::Any;
 
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(any(feature = "glow", feature = "wgpu"))]
+#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 pub use crate::native::winit_integration::UserEvent;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -22,7 +22,7 @@ use raw_window_handle::{
 use static_assertions::assert_not_impl_any;
 
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(any(feature = "glow", feature = "wgpu"))]
+#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 pub use winit::{event_loop::EventLoopBuilder, window::WindowAttributes};
 
 /// Hook into the building of an event loop before it is run
@@ -30,7 +30,7 @@ pub use winit::{event_loop::EventLoopBuilder, window::WindowAttributes};
 /// You can configure any platform specific details required on top of the default configuration
 /// done by `EFrame`.
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(any(feature = "glow", feature = "wgpu"))]
+#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 pub type EventLoopBuilderHook = Box<dyn FnOnce(&mut EventLoopBuilder<UserEvent>)>;
 
 /// Hook into the building of a the native window.
@@ -38,7 +38,7 @@ pub type EventLoopBuilderHook = Box<dyn FnOnce(&mut EventLoopBuilder<UserEvent>)
 /// You can configure any platform specific details required on top of the default configuration
 /// done by `eframe`.
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(any(feature = "glow", feature = "wgpu"))]
+#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 pub type WindowBuilderHook = Box<dyn FnOnce(egui::ViewportBuilder) -> egui::ViewportBuilder>;
 
 type DynError = Box<dyn std::error::Error + Send + Sync>;
@@ -79,7 +79,7 @@ pub struct CreationContext<'s> {
     /// Only available when compiling with the `wgpu` feature and using [`Renderer::Wgpu`].
     ///
     /// Can be used to manage GPU resources for custom rendering with WGPU using [`egui::PaintCallback`]s.
-    #[cfg(feature = "wgpu")]
+    #[cfg(feature = "wgpu_no_default_features")]
     pub wgpu_render_state: Option<egui_wgpu::RenderState>,
 
     /// Raw platform window handle
@@ -91,7 +91,7 @@ pub struct CreationContext<'s> {
     pub(crate) raw_display_handle: Result<RawDisplayHandle, HandleError>,
 }
 
-#[allow(unsafe_code)]
+#[expect(unsafe_code)]
 #[cfg(not(target_arch = "wasm32"))]
 impl HasWindowHandle for CreationContext<'_> {
     fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
@@ -100,7 +100,7 @@ impl HasWindowHandle for CreationContext<'_> {
     }
 }
 
-#[allow(unsafe_code)]
+#[expect(unsafe_code)]
 #[cfg(not(target_arch = "wasm32"))]
 impl HasDisplayHandle for CreationContext<'_> {
     fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
@@ -121,7 +121,7 @@ impl CreationContext<'_> {
             gl: None,
             #[cfg(feature = "glow")]
             get_proc_address: None,
-            #[cfg(feature = "wgpu")]
+            #[cfg(feature = "wgpu_no_default_features")]
             wgpu_render_state: None,
             #[cfg(not(target_arch = "wasm32"))]
             raw_window_handle: Err(HandleError::NotSupported),
@@ -133,11 +133,36 @@ impl CreationContext<'_> {
 
 // ----------------------------------------------------------------------------
 
-/// Implement this trait to write apps that can be compiled for both web/wasm and desktop/native using [`eframe`](https://github.com/emilk/egui/tree/master/crates/eframe).
+/// Implement this trait to write apps that can be compiled for both web/wasm and desktop/native using [`eframe`](https://github.com/emilk/egui/tree/main/crates/eframe).
 pub trait App {
+    /// Called once before each call to [`Self::ui`],
+    /// and additionally also called when the UI is hidden, but [`egui::Context::request_repaint`] was called.
+    ///
+    /// You may NOT show any ui or do any painting during the call to [`Self::logic`].
+    ///
+    /// The [`egui::Context`] can be cloned and saved if you like.
+    ///
+    /// To force another call to [`Self::logic`], call [`egui::Context::request_repaint`] at any time (e.g. from another thread).
+    fn logic(&mut self, ctx: &egui::Context, frame: &mut Frame) {
+        _ = (ctx, frame);
+    }
+
     /// Called each time the UI needs repainting, which may be many times per second.
     ///
-    /// Put your widgets into a [`egui::SidePanel`], [`egui::TopBottomPanel`], [`egui::CentralPanel`], [`egui::Window`] or [`egui::Area`].
+    /// The given [`egui::Ui`] has no margin or background color.
+    /// You can wrap your UI code in [`egui::CentralPanel`] or a [`egui::Frame::central_panel`] to remedy this.
+    ///
+    /// The [`egui::Ui::ctx`] can be cloned and saved if you like.
+    /// To force a repaint, call [`egui::Context::request_repaint`] at any time (e.g. from another thread).
+    ///
+    /// This is called for the root viewport ([`egui::ViewportId::ROOT`]).
+    /// Use [`egui::Context::show_viewport_deferred`] to spawn additional viewports (windows).
+    /// (A "viewport" in egui means an native OS window).
+    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut Frame);
+
+    /// Called each time the UI needs repainting, which may be many times per second.
+    ///
+    /// Put your widgets into a [`egui::Panel`], [`egui::CentralPanel`], [`egui::Window`] or [`egui::Area`].
     ///
     /// The [`egui::Context`] can be cloned and saved if you like.
     ///
@@ -146,7 +171,10 @@ pub trait App {
     /// This is called for the root viewport ([`egui::ViewportId::ROOT`]).
     /// Use [`egui::Context::show_viewport_deferred`] to spawn additional viewports (windows).
     /// (A "viewport" in egui means an native OS window).
-    fn update(&mut self, ctx: &egui::Context, frame: &mut Frame);
+    #[deprecated = "Use Self::ui instead"]
+    fn update(&mut self, ctx: &egui::Context, frame: &mut Frame) {
+        _ = (ctx, frame);
+    }
 
     /// Get a handle to the app.
     ///
@@ -317,7 +345,7 @@ pub struct NativeOptions {
     pub hardware_acceleration: HardwareAcceleration,
 
     /// What rendering backend to use.
-    #[cfg(any(feature = "glow", feature = "wgpu"))]
+    #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
     pub renderer: Renderer,
 
     /// This controls what happens when you close the main eframe window.
@@ -340,7 +368,7 @@ pub struct NativeOptions {
     /// event loop before it is run.
     ///
     /// Note: A [`NativeOptions`] clone will not include any `event_loop_builder` hook.
-    #[cfg(any(feature = "glow", feature = "wgpu"))]
+    #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
     pub event_loop_builder: Option<EventLoopBuilderHook>,
 
     /// Hook into the building of a window.
@@ -349,7 +377,7 @@ pub struct NativeOptions {
     /// window appearance.
     ///
     /// Note: A [`NativeOptions`] clone will not include any `window_builder` hook.
-    #[cfg(any(feature = "glow", feature = "wgpu"))]
+    #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
     pub window_builder: Option<WindowBuilderHook>,
 
     #[cfg(feature = "glow")]
@@ -367,7 +395,7 @@ pub struct NativeOptions {
     pub centered: bool,
 
     /// Configures wgpu instance/device/adapter/surface creation and renderloop.
-    #[cfg(feature = "wgpu")]
+    #[cfg(feature = "wgpu_no_default_features")]
     pub wgpu_options: egui_wgpu::WgpuConfiguration,
 
     /// Controls whether or not the native window position and size will be
@@ -414,13 +442,13 @@ impl Clone for NativeOptions {
         Self {
             viewport: self.viewport.clone(),
 
-            #[cfg(any(feature = "glow", feature = "wgpu"))]
+            #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
             event_loop_builder: None, // Skip any builder callbacks if cloning
 
-            #[cfg(any(feature = "glow", feature = "wgpu"))]
+            #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
             window_builder: None, // Skip any builder callbacks if cloning
 
-            #[cfg(feature = "wgpu")]
+            #[cfg(feature = "wgpu_no_default_features")]
             wgpu_options: self.wgpu_options.clone(),
 
             persistence_path: self.persistence_path.clone(),
@@ -448,15 +476,15 @@ impl Default for NativeOptions {
             stencil_buffer: 0,
             hardware_acceleration: HardwareAcceleration::Preferred,
 
-            #[cfg(any(feature = "glow", feature = "wgpu"))]
+            #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
             renderer: Renderer::default(),
 
             run_and_return: true,
 
-            #[cfg(any(feature = "glow", feature = "wgpu"))]
+            #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
             event_loop_builder: None,
 
-            #[cfg(any(feature = "glow", feature = "wgpu"))]
+            #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
             window_builder: None,
 
             #[cfg(feature = "glow")]
@@ -464,7 +492,7 @@ impl Default for NativeOptions {
 
             centered: false,
 
-            #[cfg(feature = "wgpu")]
+            #[cfg(feature = "wgpu_no_default_features")]
             wgpu_options: egui_wgpu::WgpuConfiguration::default(),
 
             persist_window: true,
@@ -487,6 +515,10 @@ impl Default for NativeOptions {
 /// Options when using `eframe` in a web page.
 #[cfg(target_arch = "wasm32")]
 pub struct WebOptions {
+    /// What rendering backend to use.
+    #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
+    pub renderer: Renderer,
+
     /// Sets the number of bits in the depth buffer.
     ///
     /// `egui` doesn't need the depth buffer, so the default value is 0.
@@ -500,7 +532,7 @@ pub struct WebOptions {
     pub webgl_context_option: WebGlContextOption,
 
     /// Configures wgpu instance/device/adapter/surface creation and renderloop.
-    #[cfg(feature = "wgpu")]
+    #[cfg(feature = "wgpu_no_default_features")]
     pub wgpu_options: egui_wgpu::WgpuConfiguration,
 
     /// Controls whether to apply dithering to minimize banding artifacts.
@@ -515,27 +547,43 @@ pub struct WebOptions {
     /// If the web event corresponding to an egui event should be propagated
     /// to the rest of the web page.
     ///
-    /// The default is `false`, meaning
+    /// The default is `true`, meaning
     /// [`stopPropagation`](https://developer.mozilla.org/en-US/docs/Web/API/Event/stopPropagation)
-    /// is called on every event.
-    pub should_propagate_event: Box<dyn Fn(&egui::Event) -> bool>,
+    /// is called on every event, and the event is not propagated to the rest of the web page.
+    pub should_stop_propagation: Box<dyn Fn(&egui::Event) -> bool>,
+
+    /// Whether the web event corresponding to an egui event should have `prevent_default` called
+    /// on it or not.
+    ///
+    /// Defaults to true.
+    pub should_prevent_default: Box<dyn Fn(&egui::Event) -> bool>,
+
+    /// Maximum rate at which to repaint. This can be used to artificially reduce the repaint rate below
+    /// vsync in order to save resources.
+    pub max_fps: Option<u32>,
 }
 
 #[cfg(target_arch = "wasm32")]
 impl Default for WebOptions {
     fn default() -> Self {
         Self {
+            #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
+            renderer: Renderer::default(),
+
             depth_buffer: 0,
 
             #[cfg(feature = "glow")]
             webgl_context_option: WebGlContextOption::BestFirst,
 
-            #[cfg(feature = "wgpu")]
+            #[cfg(feature = "wgpu_no_default_features")]
             wgpu_options: egui_wgpu::WgpuConfiguration::default(),
 
             dithering: true,
 
-            should_propagate_event: Box::new(|_| false),
+            should_stop_propagation: Box::new(|_| true),
+            should_prevent_default: Box::new(|_| true),
+
+            max_fps: None,
         }
     }
 }
@@ -564,7 +612,7 @@ pub enum WebGlContextOption {
 /// What rendering backend to use.
 ///
 /// You need to enable the "glow" and "wgpu" features to have a choice.
-#[cfg(any(feature = "glow", feature = "wgpu"))]
+#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
@@ -574,47 +622,49 @@ pub enum Renderer {
     Glow,
 
     /// Use [`egui_wgpu`] renderer for [`wgpu`](https://github.com/gfx-rs/wgpu).
-    #[cfg(feature = "wgpu")]
+    #[cfg(feature = "wgpu_no_default_features")]
     Wgpu,
 }
 
-#[cfg(any(feature = "glow", feature = "wgpu"))]
+#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 impl Default for Renderer {
     fn default() -> Self {
         #[cfg(not(feature = "glow"))]
-        #[cfg(not(feature = "wgpu"))]
-        compile_error!("eframe: you must enable at least one of the rendering backend features: 'glow' or 'wgpu'");
+        #[cfg(not(feature = "wgpu_no_default_features"))]
+        compile_error!(
+            "eframe: you must enable at least one of the rendering backend features: 'glow' or 'wgpu'"
+        );
 
         #[cfg(feature = "glow")]
-        #[cfg(not(feature = "wgpu"))]
+        #[cfg(not(feature = "wgpu_no_default_features"))]
         return Self::Glow;
 
         #[cfg(not(feature = "glow"))]
-        #[cfg(feature = "wgpu")]
+        #[cfg(feature = "wgpu_no_default_features")]
         return Self::Wgpu;
 
-        // By default, only the `glow` feature is enabled, so if the user added `wgpu` to the feature list
-        // they probably wanted to use wgpu:
+        // It's weird that the user has enabled both glow and wgpu,
+        // but let's pick the better of the two (wgpu):
         #[cfg(feature = "glow")]
-        #[cfg(feature = "wgpu")]
+        #[cfg(feature = "wgpu_no_default_features")]
         return Self::Wgpu;
     }
 }
 
-#[cfg(any(feature = "glow", feature = "wgpu"))]
+#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 impl std::fmt::Display for Renderer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             #[cfg(feature = "glow")]
             Self::Glow => "glow".fmt(f),
 
-            #[cfg(feature = "wgpu")]
+            #[cfg(feature = "wgpu_no_default_features")]
             Self::Wgpu => "wgpu".fmt(f),
         }
     }
 }
 
-#[cfg(any(feature = "glow", feature = "wgpu"))]
+#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 impl std::str::FromStr for Renderer {
     type Err = String;
 
@@ -623,10 +673,12 @@ impl std::str::FromStr for Renderer {
             #[cfg(feature = "glow")]
             "glow" => Ok(Self::Glow),
 
-            #[cfg(feature = "wgpu")]
+            #[cfg(feature = "wgpu_no_default_features")]
             "wgpu" => Ok(Self::Wgpu),
 
-            _ => Err(format!("eframe renderer {name:?} is not available. Make sure that the corresponding eframe feature is enabled."))
+            _ => Err(format!(
+                "eframe renderer {name:?} is not available. Make sure that the corresponding eframe feature is enabled."
+            )),
         }
     }
 }
@@ -654,7 +706,7 @@ pub struct Frame {
         Option<Box<dyn FnMut(glow::Texture) -> egui::TextureId>>,
 
     /// Can be used to manage GPU resources for custom rendering with WGPU using [`egui::PaintCallback`]s.
-    #[cfg(feature = "wgpu")]
+    #[cfg(feature = "wgpu_no_default_features")]
     #[doc(hidden)]
     pub wgpu_render_state: Option<egui_wgpu::RenderState>,
 
@@ -671,7 +723,7 @@ pub struct Frame {
 #[cfg(not(target_arch = "wasm32"))]
 assert_not_impl_any!(Frame: Clone);
 
-#[allow(unsafe_code)]
+#[expect(unsafe_code)]
 #[cfg(not(target_arch = "wasm32"))]
 impl HasWindowHandle for Frame {
     fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
@@ -680,7 +732,7 @@ impl HasWindowHandle for Frame {
     }
 }
 
-#[allow(unsafe_code)]
+#[expect(unsafe_code)]
 #[cfg(not(target_arch = "wasm32"))]
 impl HasDisplayHandle for Frame {
     fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
@@ -704,7 +756,7 @@ impl Frame {
             #[cfg(not(target_arch = "wasm32"))]
             raw_window_handle: Err(HandleError::NotSupported),
             storage: None,
-            #[cfg(feature = "wgpu")]
+            #[cfg(feature = "wgpu_no_default_features")]
             wgpu_render_state: None,
         }
     }
@@ -712,7 +764,7 @@ impl Frame {
     /// True if you are in a web environment.
     ///
     /// Equivalent to `cfg!(target_arch = "wasm32")`
-    #[allow(clippy::unused_self)]
+    #[expect(clippy::unused_self)]
     pub fn is_web(&self) -> bool {
         cfg!(target_arch = "wasm32")
     }
@@ -755,6 +807,7 @@ impl Frame {
     /// This function will take the ownership of your [`glow::Texture`], so please do not delete your [`glow::Texture`] after registering.
     #[cfg(all(feature = "glow", not(target_arch = "wasm32")))]
     pub fn register_native_glow_texture(&mut self, native: glow::Texture) -> egui::TextureId {
+        #[expect(clippy::unwrap_used)]
         self.glow_register_native_texture.as_mut().unwrap()(native)
     }
 
@@ -763,7 +816,7 @@ impl Frame {
     /// Only available when compiling with the `wgpu` feature and using [`Renderer::Wgpu`].
     ///
     /// Can be used to manage GPU resources for custom rendering with WGPU using [`egui::PaintCallback`]s.
-    #[cfg(feature = "wgpu")]
+    #[cfg(feature = "wgpu_no_default_features")]
     pub fn wgpu_render_state(&self) -> Option<&egui_wgpu::RenderState> {
         self.wgpu_render_state.as_ref()
     }
@@ -898,16 +951,15 @@ pub trait Storage {
 #[cfg(feature = "ron")]
 pub fn get_value<T: serde::de::DeserializeOwned>(storage: &dyn Storage, key: &str) -> Option<T> {
     profiling::function_scope!(key);
-    storage
-        .get_string(key)
-        .and_then(|value| match ron::from_str(&value) {
-            Ok(value) => Some(value),
-            Err(err) => {
-                // This happens on when we break the format, e.g. when updating egui.
-                log::debug!("Failed to decode RON: {err}");
-                None
-            }
-        })
+    let value = storage.get_string(key)?;
+    match ron::from_str(&value) {
+        Ok(value) => Some(value),
+        Err(err) => {
+            // This happens on when we break the format, e.g. when updating egui.
+            log::debug!("Failed to decode RON: {err}");
+            None
+        }
+    }
 }
 
 /// Serialize the given value as [RON](https://github.com/ron-rs/ron) and store with the given key.
@@ -916,7 +968,7 @@ pub fn set_value<T: serde::Serialize>(storage: &mut dyn Storage, key: &str, valu
     profiling::function_scope!(key);
     match ron::ser::to_string(value) {
         Ok(string) => storage.set_string(key, string),
-        Err(err) => log::error!("eframe failed to encode data using ron: {}", err),
+        Err(err) => log::error!("eframe failed to encode data using ron: {err}"),
     }
 }
 

@@ -1,0 +1,22 @@
+name: Link checker
+# on: [pull_request]  # Disabled because it is so broken
+on: workflow_dispatch
+
+jobs:
+  lychee:
+    name: lychee
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Don't check CHANGELOG.md files
+        # This is really stupid but lychee doesn't have a way of excluding files via GLOB:
+        # https://github.com/lycheeverse/lychee/issues/1608
+
+        # We need to exclude CHANGELOG.md since we don't want to have a CI failure everytime some contributor decides
+        # to change their username.
+        run: rm -r  */**/CHANGELOG.md CHANGELOG.md
+      - name: Link Checker
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: "'**/*.md' '**/*.toml' --exclude localhost --exclude reddit.com" # I guess reddit doesn't like github action IPs

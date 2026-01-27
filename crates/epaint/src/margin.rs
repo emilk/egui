@@ -1,4 +1,4 @@
-use emath::{vec2, Rect, Vec2};
+use emath::{Rect, Vec2, vec2};
 
 /// A value for all four sides of a rectangle,
 /// often used to express padding or spacing.
@@ -96,18 +96,6 @@ impl Margin {
     pub const fn is_same(self) -> bool {
         self.left == self.right && self.left == self.top && self.left == self.bottom
     }
-
-    #[deprecated = "Use `rect + margin` instead"]
-    #[inline]
-    pub fn expand_rect(self, rect: Rect) -> Rect {
-        Rect::from_min_max(rect.min - self.left_top(), rect.max + self.right_bottom())
-    }
-
-    #[deprecated = "Use `rect - margin` instead"]
-    #[inline]
-    pub fn shrink_rect(self, rect: Rect) -> Rect {
-        Rect::from_min_max(rect.min + self.left_top(), rect.max - self.right_bottom())
-    }
 }
 
 impl From<i8> for Margin {
@@ -198,7 +186,7 @@ impl std::ops::Div<f32> for Margin {
 
     #[inline]
     fn div(self, v: f32) -> Self {
-        #![allow(clippy::suspicious_arithmetic_impl)]
+        #![expect(clippy::suspicious_arithmetic_impl)]
         self * v.recip()
     }
 }

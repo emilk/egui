@@ -1,7 +1,8 @@
+use emath::{Align2, Vec2};
+
 use crate::{
     Area, Color32, Context, Frame, Id, InnerResponse, Order, Response, Sense, Ui, UiBuilder, UiKind,
 };
-use emath::{Align2, Vec2};
 
 /// A modal dialog.
 ///
@@ -10,7 +11,7 @@ use emath::{Align2, Vec2};
 ///
 /// You can show multiple modals on top of each other. The topmost modal will always be
 /// the most recently shown one.
-/// If multiple modals are newly shown in the same frame, the order of the modals not undefined
+/// If multiple modals are newly shown in the same frame, the order of the modals is undefined
 /// (either first or second could be top).
 pub struct Modal {
     pub area: Area,
@@ -80,18 +81,16 @@ impl Modal {
             frame,
         } = self;
 
-        let (is_top_modal, any_popup_open) = ctx.memory_mut(|mem| {
+        let is_top_modal = ctx.memory_mut(|mem| {
             mem.set_modal_layer(area.layer());
-            (
-                mem.top_modal_layer() == Some(area.layer()),
-                mem.any_popup_open(),
-            )
+            mem.top_modal_layer() == Some(area.layer())
         });
+        let any_popup_open = crate::Popup::is_any_open(ctx);
         let InnerResponse {
             inner: (inner, backdrop_response),
             response,
         } = area.show(ctx, |ui| {
-            let bg_rect = ui.ctx().screen_rect();
+            let bg_rect = ui.ctx().content_rect();
             let bg_sense = Sense::CLICK | Sense::DRAG;
             let mut backdrop = ui.new_child(UiBuilder::new().sense(bg_sense).max_rect(bg_rect));
             backdrop.set_min_size(bg_rect.size());

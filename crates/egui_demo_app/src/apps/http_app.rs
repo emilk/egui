@@ -53,22 +53,22 @@ pub struct HttpApp {
 impl Default for HttpApp {
     fn default() -> Self {
         Self {
-            url: "https://raw.githubusercontent.com/emilk/egui/master/README.md".to_owned(),
+            url: "https://raw.githubusercontent.com/emilk/egui/main/README.md".to_owned(),
             promise: Default::default(),
         }
     }
 }
 
-impl eframe::App for HttpApp {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        egui::TopBottomPanel::bottom("http_bottom").show(ctx, |ui| {
+impl crate::DemoApp for HttpApp {
+    fn demo_ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+        egui::Panel::bottom("http_bottom").show_inside(ui, |ui| {
             let layout = egui::Layout::top_down(egui::Align::Center).with_main_justify(true);
             ui.allocate_ui_with_layout(ui.available_size(), layout, |ui| {
                 ui.add(egui_demo_lib::egui_github_link_file!())
             })
         });
 
-        egui::CentralPanel::default().show(ctx, |ui| {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             let prev_url = self.url.clone();
             let trigger_fetch = ui_url(ui, frame, &mut self.url);
 
@@ -80,7 +80,7 @@ impl eframe::App for HttpApp {
             });
 
             if trigger_fetch {
-                let ctx = ctx.clone();
+                let ctx = ui.ctx().clone();
                 let (sender, promise) = Promise::new();
                 let request = ehttp::Request::get(&self.url);
                 ehttp::fetch(request, move |response| {
@@ -133,7 +133,7 @@ fn ui_url(ui: &mut egui::Ui, frame: &eframe::Frame, url: &mut String) -> bool {
     ui.horizontal(|ui| {
         if ui.button("Source code for this example").clicked() {
             *url = format!(
-                "https://raw.githubusercontent.com/emilk/egui/master/{}",
+                "https://raw.githubusercontent.com/emilk/egui/main/{}",
                 file!()
             );
             trigger_fetch = true;
@@ -195,7 +195,7 @@ fn ui_resource(ui: &mut egui::Ui, resource: &Resource) {
             if let Some(text) = &text {
                 let tooltip = "Click to copy the response body";
                 if ui.button("📋").on_hover_text(tooltip).clicked() {
-                    ui.ctx().copy_text(text.clone());
+                    ui.copy_text(text.clone());
                 }
                 ui.separator();
             }
@@ -222,10 +222,10 @@ fn syntax_highlighting(
 ) -> Option<ColoredText> {
     let extension_and_rest: Vec<&str> = response.url.rsplitn(2, '.').collect();
     let extension = extension_and_rest.first()?;
-    let theme = egui_extras::syntax_highlighting::CodeTheme::from_style(&ctx.style());
+    let theme = egui_extras::syntax_highlighting::CodeTheme::from_style(&ctx.global_style());
     Some(ColoredText(egui_extras::syntax_highlighting::highlight(
         ctx,
-        &ctx.style(),
+        &ctx.global_style(),
         &theme,
         text,
         extension,
@@ -238,7 +238,7 @@ impl ColoredText {
     pub fn ui(&self, ui: &mut egui::Ui) {
         let mut job = self.0.clone();
         job.wrap.max_width = ui.available_width();
-        let galley = ui.fonts(|f| f.layout_job(job));
+        let galley = ui.fonts_mut(|f| f.layout_job(job));
         ui.add(egui::Label::new(galley).selectable(true));
     }
 }

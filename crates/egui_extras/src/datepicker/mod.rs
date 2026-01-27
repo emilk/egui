@@ -1,8 +1,10 @@
+#![expect(clippy::unwrap_used)] // TODO(emilk): avoid unwraps
+
 mod button;
 mod popup;
 
 pub use button::DatePickerButton;
-use chrono::{Datelike, Duration, NaiveDate, Weekday};
+use chrono::{Datelike as _, Duration, NaiveDate, Weekday};
 
 #[derive(Debug)]
 struct Week {

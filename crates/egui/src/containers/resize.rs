@@ -1,6 +1,6 @@
 use crate::{
-    pos2, vec2, Align2, Color32, Context, CursorIcon, Id, NumExt, Rect, Response, Sense, Shape, Ui,
-    UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b,
+    Align2, Color32, Context, CursorIcon, Id, NumExt as _, Rect, Response, Sense, Shape, Ui,
+    UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b, pos2, vec2,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -213,14 +213,14 @@ impl Resize {
         });
 
         let mut state = State::load(ui.ctx(), id).unwrap_or_else(|| {
-            ui.ctx().request_repaint(); // counter frame delay
+            ui.request_repaint(); // counter frame delay
 
             let default_size = self
                 .default_size
                 .at_least(self.min_size)
                 .at_most(self.max_size)
                 .at_most(
-                    ui.ctx().screen_rect().size() - ui.spacing().window_margin.sum(), // hack for windows
+                    ui.ctx().content_rect().size() - ui.spacing().window_margin.sum(), // hack for windows
                 )
                 .round_ui();
 
@@ -241,14 +241,12 @@ impl Resize {
 
         let corner_id = self.resizable.any().then(|| id.with("__resize_corner"));
 
-        if let Some(corner_id) = corner_id {
-            if let Some(corner_response) = ui.ctx().read_response(corner_id) {
-                if let Some(pointer_pos) = corner_response.interact_pointer_pos() {
-                    // Respond to the interaction early to avoid frame delay.
-                    user_requested_size =
-                        Some(pointer_pos - position + 0.5 * corner_response.rect.size());
-                }
-            }
+        if let Some(corner_id) = corner_id
+            && let Some(corner_response) = ui.ctx().read_response(corner_id)
+            && let Some(pointer_pos) = corner_response.interact_pointer_pos()
+        {
+            // Respond to the interaction early to avoid frame delay.
+            user_requested_size = Some(pointer_pos - position + 0.5 * corner_response.rect.size());
         }
 
         if let Some(user_requested_size) = user_requested_size {
@@ -364,20 +362,20 @@ impl Resize {
             paint_resize_corner(ui, &corner_response);
 
             if corner_response.hovered() || corner_response.dragged() {
-                ui.ctx().set_cursor_icon(CursorIcon::ResizeNwSe);
+                ui.set_cursor_icon(CursorIcon::ResizeNwSe);
             }
         }
 
         state.store(ui.ctx(), id);
 
         #[cfg(debug_assertions)]
-        if ui.ctx().style().debug.show_resize {
-            ui.ctx().debug_painter().debug_rect(
+        if ui.global_style().debug.show_resize {
+            ui.debug_painter().debug_rect(
                 Rect::from_min_size(content_ui.min_rect().left_top(), state.desired_size),
                 Color32::GREEN,
                 "desired_size",
             );
-            ui.ctx().debug_painter().debug_rect(
+            ui.debug_painter().debug_rect(
                 Rect::from_min_size(content_ui.min_rect().left_top(), state.last_content_size),
                 Color32::LIGHT_BLUE,
                 "last_content_size",

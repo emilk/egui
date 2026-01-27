@@ -1,23 +1,18 @@
 use egui::{
-    pos2, scroll_area::ScrollBarVisibility, Align, Align2, Color32, DragValue, NumExt, Rect,
-    ScrollArea, Sense, Slider, TextStyle, TextWrapMode, Ui, Vec2, Widget,
+    Align, Align2, Color32, DragValue, NumExt as _, Rect, ScrollArea, Sense, Slider, TextStyle,
+    TextWrapMode, Ui, Vec2, Widget as _, pos2, scroll_area::ScrollBarVisibility,
 };
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 enum ScrollDemo {
+    #[default]
     ScrollAppearance,
     ScrollTo,
     ManyLines,
     LargeCanvas,
     StickToEnd,
     Bidirectional,
-}
-
-impl Default for ScrollDemo {
-    fn default() -> Self {
-        Self::ScrollAppearance
-    }
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -35,13 +30,14 @@ impl crate::Demo for Scrolling {
         "↕ Scrolling"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
             .resizable(true)
             .hscroll(false)
             .vscroll(false)
-            .show(ctx, |ui| {
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| {
                 use crate::View as _;
                 self.ui(ui);
             });
@@ -119,7 +115,7 @@ impl ScrollAppearance {
             visibility,
         } = self;
 
-        let mut scroll = ui.ctx().style().spacing.scroll;
+        let mut scroll = ui.global_style().spacing.scroll;
 
         scroll.ui(ui);
 
@@ -191,7 +187,7 @@ fn huge_content_painter(ui: &mut egui::Ui) {
     ui.add_space(4.0);
 
     let font_id = TextStyle::Body.resolve(ui.style());
-    let row_height = ui.fonts(|f| f.row_height(&font_id)) + ui.spacing().item_spacing.y;
+    let row_height = ui.fonts_mut(|f| f.row_height(&font_id)) + ui.spacing().item_spacing.y;
     let num_rows = 10_000;
 
     ScrollArea::vertical()
@@ -222,7 +218,7 @@ fn huge_content_painter(ui: &mut egui::Ui) {
                     font_id.clone(),
                     ui.visuals().text_color(),
                 );
-                used_rect = used_rect.union(text_rect);
+                used_rect |= text_rect;
             }
 
             ui.allocate_rect(used_rect, Sense::hover()); // make sure it is visible!
@@ -393,6 +389,6 @@ impl crate::View for ScrollStickTo {
         );
 
         self.n_items += 1;
-        ui.ctx().request_repaint();
+        ui.request_repaint();
     }
 }

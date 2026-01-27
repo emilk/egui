@@ -1,11 +1,15 @@
-use crate::containers::menu::{menu_style, MenuConfig, MenuState};
-use crate::style::StyleModifier;
+#![expect(deprecated)] // This is a new, safe wrapper around the old `Memory::popup` API.
+
+use std::iter::once;
+
+use emath::{Align, Pos2, Rect, RectAlign, Vec2, vec2};
+
 use crate::{
     Area, AreaState, Context, Frame, Id, InnerResponse, Key, LayerId, Layout, Order, Response,
     Sense, Ui, UiKind, UiStackInfo,
+    containers::menu::{MenuConfig, MenuState, menu_style},
+    style::StyleModifier,
 };
-use emath::{vec2, Align, Pos2, Rect, RectAlign, Vec2};
-use std::iter::once;
 
 /// What should we anchor the popup to?
 ///
@@ -64,9 +68,7 @@ impl PopupAnchor {
         match self {
             Self::ParentRect(rect) => Some(rect),
             Self::Pointer => ctx.pointer_hover_pos().map(Rect::from_pos),
-            Self::PointerFixed => ctx
-                .memory(|mem| mem.popup_position(popup_id))
-                .map(Rect::from_pos),
+            Self::PointerFixed => Popup::position_of_id(ctx, popup_id).map(Rect::from_pos),
             Self::Position(pos) => Some(Rect::from_pos(pos)),
         }
     }
@@ -122,12 +124,12 @@ enum OpenKind<'a> {
 
 impl OpenKind<'_> {
     /// Returns `true` if the popup should be open
-    fn is_open(&self, id: Id, ctx: &Context) -> bool {
+    fn is_open(&self, popup_id: Id, ctx: &Context) -> bool {
         match self {
             OpenKind::Open => true,
             OpenKind::Closed => false,
             OpenKind::Bool(open) => **open,
-            OpenKind::Memory { .. } => ctx.memory(|mem| mem.is_popup_open(id)),
+            OpenKind::Memory { .. } => Popup::is_id_open(ctx, popup_id),
         }
     }
 }
@@ -160,6 +162,8 @@ impl From<PopupKind> for UiKind {
     }
 }
 
+/// A popup container.
+#[must_use = "Call `.show()` to actually display the popup"]
 pub struct Popup<'a> {
     id: Id,
     ctx: Context,
@@ -174,9 +178,6 @@ pub struct Popup<'a> {
 
     /// Gap between the anchor and the popup
     gap: f32,
-
-    /// Used later depending on close behavior
-    widget_clicked_elsewhere: bool,
 
     /// Default width passed to the Area
     width: Option<f32>,
@@ -201,13 +202,61 @@ impl<'a> Popup<'a> {
             rect_align: RectAlign::BOTTOM_START,
             alternative_aligns: None,
             gap: 0.0,
-            widget_clicked_elsewhere: false,
             width: None,
             sense: Sense::click(),
             layout: Layout::default(),
             frame: None,
             style: StyleModifier::default(),
         }
+    }
+
+    /// Show a popup relative to some widget.
+    /// The popup will be always open.
+    ///
+    /// See [`Self::menu`] and [`Self::context_menu`] for common use cases.
+    pub fn from_response(response: &Response) -> Self {
+        Self::new(
+            Self::default_response_id(response),
+            response.ctx.clone(),
+            response,
+            response.layer_id,
+        )
+    }
+
+    /// Show a popup relative to some widget,
+    /// toggling the open state based on the widget's click state.
+    ///
+    /// See [`Self::menu`] and [`Self::context_menu`] for common use cases.
+    pub fn from_toggle_button_response(button_response: &Response) -> Self {
+        Self::from_response(button_response)
+            .open_memory(button_response.clicked().then_some(SetOpenCommand::Toggle))
+    }
+
+    /// Show a popup when the widget was clicked.
+    /// Sets the layout to `Layout::top_down_justified(Align::Min)`.
+    pub fn menu(button_response: &Response) -> Self {
+        Self::from_toggle_button_response(button_response)
+            .kind(PopupKind::Menu)
+            .layout(Layout::top_down_justified(Align::Min))
+            .style(menu_style)
+            .gap(0.0)
+    }
+
+    /// Show a context menu when the widget was secondary clicked.
+    /// Sets the layout to `Layout::top_down_justified(Align::Min)`.
+    /// In contrast to [`Self::menu`], this will open at the pointer position.
+    pub fn context_menu(response: &Response) -> Self {
+        Self::menu(response)
+            .open_memory(if response.secondary_clicked() {
+                Some(SetOpenCommand::Bool(true))
+            } else if response.clicked() {
+                // Explicitly close the menu if the widget was clicked
+                // Without this, the context menu would stay open if the user clicks the widget
+                Some(SetOpenCommand::Bool(false))
+            } else {
+                None
+            })
+            .at_pointer_fixed()
     }
 
     /// Set the kind of the popup. Used for [`Area::kind`] and [`Area::order`].
@@ -240,49 +289,6 @@ impl<'a> Popup<'a> {
     pub fn align_alternatives(mut self, alternatives: &'a [RectAlign]) -> Self {
         self.alternative_aligns = Some(alternatives);
         self
-    }
-
-    /// Show a popup relative to some widget.
-    /// The popup will be always open.
-    ///
-    /// See [`Self::menu`] and [`Self::context_menu`] for common use cases.
-    pub fn from_response(response: &Response) -> Self {
-        let mut popup = Self::new(
-            response.id.with("popup"),
-            response.ctx.clone(),
-            response,
-            response.layer_id,
-        );
-        popup.widget_clicked_elsewhere = response.clicked_elsewhere();
-        popup
-    }
-
-    /// Show a popup when the widget was clicked.
-    /// Sets the layout to `Layout::top_down_justified(Align::Min)`.
-    pub fn menu(response: &Response) -> Self {
-        Self::from_response(response)
-            .open_memory(response.clicked().then_some(SetOpenCommand::Toggle))
-            .kind(PopupKind::Menu)
-            .layout(Layout::top_down_justified(Align::Min))
-            .style(menu_style)
-            .gap(0.0)
-    }
-
-    /// Show a context menu when the widget was secondary clicked.
-    /// Sets the layout to `Layout::top_down_justified(Align::Min)`.
-    /// In contrast to [`Self::menu`], this will open at the pointer position.
-    pub fn context_menu(response: &Response) -> Self {
-        Self::menu(response)
-            .open_memory(if response.secondary_clicked() {
-                Some(SetOpenCommand::Bool(true))
-            } else if response.clicked() {
-                // Explicitly close the menu if the widget was clicked
-                // Without this, the context menu would stay open if the user clicks the widget
-                Some(SetOpenCommand::Bool(false))
-            } else {
-                None
-            })
-            .at_pointer_fixed()
     }
 
     /// Force the popup to be open or closed.
@@ -446,27 +452,28 @@ impl<'a> Popup<'a> {
             OpenKind::Open => true,
             OpenKind::Closed => false,
             OpenKind::Bool(open) => **open,
-            OpenKind::Memory { .. } => self.ctx.memory(|mem| mem.is_popup_open(self.id)),
+            OpenKind::Memory { .. } => Self::is_id_open(&self.ctx, self.id),
         }
     }
 
     /// Get the expected size of the popup.
     pub fn get_expected_size(&self) -> Option<Vec2> {
-        AreaState::load(&self.ctx, self.id).and_then(|area| area.size)
+        AreaState::load(&self.ctx, self.id)?.size
     }
 
     /// Calculate the best alignment for the popup, based on the last size and screen rect.
     pub fn get_best_align(&self) -> RectAlign {
         let expected_popup_size = self
             .get_expected_size()
-            .unwrap_or(vec2(self.width.unwrap_or(0.0), 0.0));
+            .unwrap_or_else(|| vec2(self.width.unwrap_or(0.0), 0.0));
 
         let Some(anchor_rect) = self.anchor.rect(self.id, &self.ctx) else {
             return self.rect_align;
         };
 
         RectAlign::find_best_align(
-            #[allow(clippy::iter_on_empty_collections)]
+            #[expect(clippy::iter_on_empty_collections)]
+            #[expect(clippy::or_fun_call)]
             once(self.rect_align).chain(
                 self.alternative_aligns
                     // Need the empty slice so the iters have the same type so we can unwrap_or
@@ -479,17 +486,54 @@ impl<'a> Popup<'a> {
                             .chain(RectAlign::MENU_ALIGNS.iter().copied()),
                     ),
             ),
-            self.ctx.screen_rect(),
+            self.ctx.content_rect(),
             anchor_rect,
             self.gap,
             expected_popup_size,
         )
+        .unwrap_or_default()
     }
 
     /// Show the popup.
+    ///
     /// Returns `None` if the popup is not open or anchor is `PopupAnchor::Pointer` and there is
     /// no pointer.
     pub fn show<R>(self, content: impl FnOnce(&mut Ui) -> R) -> Option<InnerResponse<R>> {
+        let id = self.id;
+        // When the popup was just opened with a click we don't want to immediately close it based
+        // on the `PopupCloseBehavior`, so we need to remember if the popup was already open on
+        // last frame. A convenient way to check this is to see if we have a response for the `Area`
+        // from last frame:
+        let was_open_last_frame = self.ctx.read_response(id).is_some();
+
+        let hover_pos = self.ctx.pointer_hover_pos();
+        if let OpenKind::Memory { set } = self.open_kind {
+            match set {
+                Some(SetOpenCommand::Bool(open)) => {
+                    if open {
+                        match self.anchor {
+                            PopupAnchor::PointerFixed => {
+                                self.ctx.memory_mut(|mem| mem.open_popup_at(id, hover_pos));
+                            }
+                            _ => Popup::open_id(&self.ctx, id),
+                        }
+                    } else {
+                        Self::close_id(&self.ctx, id);
+                    }
+                }
+                Some(SetOpenCommand::Toggle) => {
+                    Self::toggle_id(&self.ctx, id);
+                }
+                None => {
+                    self.ctx.memory_mut(|mem| mem.keep_popup_open(id));
+                }
+            }
+        }
+
+        if !self.open_kind.is_open(self.id, &self.ctx) {
+            return None;
+        }
+
         let best_align = self.get_best_align();
 
         let Popup {
@@ -504,41 +548,12 @@ impl<'a> Popup<'a> {
             rect_align: _,
             alternative_aligns: _,
             gap,
-            widget_clicked_elsewhere,
             width,
             sense,
             layout,
             frame,
             style,
         } = self;
-
-        let hover_pos = ctx.pointer_hover_pos();
-        if let OpenKind::Memory { set, .. } = open_kind {
-            ctx.memory_mut(|mem| match set {
-                Some(SetOpenCommand::Bool(open)) => {
-                    if open {
-                        match self.anchor {
-                            PopupAnchor::PointerFixed => {
-                                mem.open_popup_at(id, hover_pos);
-                            }
-                            _ => mem.open_popup(id),
-                        }
-                    } else {
-                        mem.close_popup(id);
-                    }
-                }
-                Some(SetOpenCommand::Toggle) => {
-                    mem.toggle_popup(id);
-                }
-                None => {
-                    mem.keep_popup_open(id);
-                }
-            });
-        }
-
-        if !open_kind.is_open(id, &ctx) {
-            return None;
-        }
 
         if kind != PopupKind::Tooltip {
             ctx.pass_state_mut(|fs| {
@@ -573,23 +588,28 @@ impl<'a> Popup<'a> {
             area = area.default_width(width);
         }
 
-        let frame = frame.unwrap_or_else(|| Frame::popup(&ctx.style()));
-
         let mut response = area.show(&ctx, |ui| {
             style.apply(ui.style_mut());
+            let frame = frame.unwrap_or_else(|| Frame::popup(ui.style()));
             frame.show(ui, content).inner
         });
 
+        // If the popup was just opened with a click, we don't want to immediately close it again.
+        let close_click = was_open_last_frame && ctx.input(|i| i.pointer.any_click());
+
         let closed_by_click = match close_behavior {
-            PopupCloseBehavior::CloseOnClick => widget_clicked_elsewhere,
+            PopupCloseBehavior::CloseOnClick => close_click,
             PopupCloseBehavior::CloseOnClickOutside => {
-                widget_clicked_elsewhere && response.response.clicked_elsewhere()
+                close_click && response.response.clicked_elsewhere()
             }
             PopupCloseBehavior::IgnoreClicks => false,
         };
 
+        // Mark the menu as shown, so the sub menu open state is not reset
+        MenuState::mark_shown(&ctx, id);
+
         // If a submenu is open, the CloseBehavior is handled there
-        let is_any_submenu_open = !MenuState::is_deepest_sub_menu(&response.response.ctx, id);
+        let is_any_submenu_open = !MenuState::is_deepest_open_sub_menu(&response.response.ctx, id);
 
         let should_close = (!is_any_submenu_open && closed_by_click)
             || ctx.input(|i| i.key_pressed(Key::Escape))
@@ -614,5 +634,67 @@ impl<'a> Popup<'a> {
         }
 
         Some(response)
+    }
+}
+
+/// ## Static methods
+impl Popup<'_> {
+    /// The default ID when constructing a popup from the [`Response`] of e.g. a button.
+    pub fn default_response_id(response: &Response) -> Id {
+        response.id.with("popup")
+    }
+
+    /// Is the given popup open?
+    ///
+    /// This assumes the use of either:
+    /// * [`Self::open_memory`]
+    /// * [`Self::from_toggle_button_response`]
+    /// * [`Self::menu`]
+    /// * [`Self::context_menu`]
+    ///
+    /// The popup id should be the same as either you set with [`Self::id`] or the
+    /// default one from [`Self::default_response_id`].
+    pub fn is_id_open(ctx: &Context, popup_id: Id) -> bool {
+        ctx.memory(|mem| mem.is_popup_open(popup_id))
+    }
+
+    /// Is any popup open?
+    ///
+    /// This assumes the egui memory is being used to track the open state of popups.
+    pub fn is_any_open(ctx: &Context) -> bool {
+        ctx.memory(|mem| mem.any_popup_open())
+    }
+
+    /// Open the given popup and close all others.
+    ///
+    /// If you are NOT using [`Popup::show`], you must
+    /// also call [`crate::Memory::keep_popup_open`] as long as
+    /// you're showing the popup.
+    pub fn open_id(ctx: &Context, popup_id: Id) {
+        ctx.memory_mut(|mem| mem.open_popup(popup_id));
+    }
+
+    /// Toggle the given popup between closed and open.
+    ///
+    /// Note: At most, only one popup can be open at a time.
+    pub fn toggle_id(ctx: &Context, popup_id: Id) {
+        ctx.memory_mut(|mem| mem.toggle_popup(popup_id));
+    }
+
+    /// Close all currently open popups.
+    pub fn close_all(ctx: &Context) {
+        ctx.memory_mut(|mem| mem.close_all_popups());
+    }
+
+    /// Close the given popup, if it is open.
+    ///
+    /// See also [`Self::close_all`] if you want to close any / all currently open popups.
+    pub fn close_id(ctx: &Context, popup_id: Id) {
+        ctx.memory_mut(|mem| mem.close_popup(popup_id));
+    }
+
+    /// Get the position for this popup, if it is open.
+    pub fn position_of_id(ctx: &Context, popup_id: Id) -> Option<Pos2> {
+        ctx.memory(|mem| mem.popup_position(popup_id))
     }
 }

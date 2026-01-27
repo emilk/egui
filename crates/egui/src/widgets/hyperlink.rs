@@ -1,6 +1,6 @@
 use crate::{
-    epaint, text_selection, CursorIcon, Label, Response, Sense, Stroke, Ui, Widget, WidgetInfo,
-    WidgetText, WidgetType,
+    CursorIcon, Label, Response, Sense, Stroke, Ui, Widget, WidgetInfo, WidgetText, WidgetType,
+    epaint, text_selection,
 };
 
 use self::text_selection::LabelSelectionState;
@@ -65,7 +65,7 @@ impl Widget for Link {
             }
 
             if response.hovered() {
-                ui.ctx().set_cursor_icon(CursorIcon::PointingHand);
+                ui.set_cursor_icon(CursorIcon::PointingHand);
             }
         }
 
@@ -96,7 +96,7 @@ pub struct Hyperlink {
 }
 
 impl Hyperlink {
-    #[allow(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value)]
     pub fn new(url: impl ToString) -> Self {
         let url = url.to_string();
         Self {
@@ -106,7 +106,7 @@ impl Hyperlink {
         }
     }
 
-    #[allow(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value)]
     pub fn from_label_and_url(text: impl Into<WidgetText>, url: impl ToString) -> Self {
         Self {
             url: url.to_string(),
@@ -129,17 +129,15 @@ impl Widget for Hyperlink {
 
         let response = ui.add(Link::new(text));
 
-        if response.clicked() {
-            let modifiers = ui.ctx().input(|i| i.modifiers);
-            ui.ctx().open_url(crate::OpenUrl {
-                url: url.clone(),
-                new_tab: new_tab || modifiers.any(),
-            });
-        }
-        if response.middle_clicked() {
-            ui.ctx().open_url(crate::OpenUrl {
+        if response.clicked_with_open_in_background() {
+            ui.open_url(crate::OpenUrl {
                 url: url.clone(),
                 new_tab: true,
+            });
+        } else if response.clicked() {
+            ui.open_url(crate::OpenUrl {
+                url: url.clone(),
+                new_tab,
             });
         }
 

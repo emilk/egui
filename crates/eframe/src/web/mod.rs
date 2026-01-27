@@ -1,6 +1,7 @@
 //! [`egui`] bindings for web apps (compiling to WASM).
 
-#![allow(clippy::missing_errors_doc)] // So many `-> Result<_, JsValue>`
+#![expect(clippy::missing_errors_doc)] // So many `-> Result<_, JsValue>`
+#![expect(clippy::unwrap_used)] // TODO(emilk): remove unwraps
 
 mod app_runner;
 mod backend;
@@ -23,23 +24,20 @@ pub use panic_handler::{PanicHandler, PanicSummary};
 pub use web_logger::WebLogger;
 pub use web_runner::WebRunner;
 
-#[cfg(not(any(feature = "glow", feature = "wgpu")))]
+#[cfg(not(any(feature = "glow", feature = "wgpu_no_default_features")))]
 compile_error!("You must enable either the 'glow' or 'wgpu' feature");
 
 mod web_painter;
 
 #[cfg(feature = "glow")]
 mod web_painter_glow;
-#[cfg(feature = "glow")]
-pub(crate) type ActiveWebPainter = web_painter_glow::WebPainterGlow;
 
-#[cfg(feature = "wgpu")]
+#[cfg(feature = "wgpu_no_default_features")]
 mod web_painter_wgpu;
-#[cfg(all(feature = "wgpu", not(feature = "glow")))]
-pub(crate) type ActiveWebPainter = web_painter_wgpu::WebPainterWgpu;
 
 pub use backend::*;
 
+use egui::Theme;
 use wasm_bindgen::prelude::*;
 use web_sys::{Document, MediaQueryList, Node};
 
@@ -113,22 +111,29 @@ pub fn native_pixels_per_point() -> f32 {
 ///
 /// `None` means unknown.
 pub fn system_theme() -> Option<egui::Theme> {
-    let dark_mode = prefers_color_scheme_dark(&web_sys::window()?)
-        .ok()??
-        .matches();
-    Some(theme_from_dark_mode(dark_mode))
-}
-
-fn prefers_color_scheme_dark(window: &web_sys::Window) -> Result<Option<MediaQueryList>, JsValue> {
-    window.match_media("(prefers-color-scheme: dark)")
-}
-
-fn theme_from_dark_mode(dark_mode: bool) -> egui::Theme {
-    if dark_mode {
-        egui::Theme::Dark
+    let window = web_sys::window()?;
+    if does_prefer_color_scheme(&window, Theme::Dark) == Some(true) {
+        Some(Theme::Dark)
+    } else if does_prefer_color_scheme(&window, Theme::Light) == Some(true) {
+        Some(Theme::Light)
     } else {
-        egui::Theme::Light
+        None
     }
+}
+
+fn does_prefer_color_scheme(window: &web_sys::Window, theme: Theme) -> Option<bool> {
+    Some(prefers_color_scheme(window, theme).ok()??.matches())
+}
+
+fn prefers_color_scheme(
+    window: &web_sys::Window,
+    theme: Theme,
+) -> Result<Option<MediaQueryList>, JsValue> {
+    let theme = match theme {
+        Theme::Dark => "dark",
+        Theme::Light => "light",
+    };
+    window.match_media(format!("(prefers-color-scheme: {theme})").as_str())
 }
 
 /// Returns the canvas in client coordinates.
@@ -141,18 +146,18 @@ fn canvas_content_rect(canvas: &web_sys::HtmlCanvasElement) -> egui::Rect {
     );
 
     // We need to subtract padding and border:
-    if let Some(window) = web_sys::window() {
-        if let Ok(Some(style)) = window.get_computed_style(canvas) {
-            let get_property = |name: &str| -> Option<f32> {
-                let property = style.get_property_value(name).ok()?;
-                property.trim_end_matches("px").parse::<f32>().ok()
-            };
+    if let Some(window) = web_sys::window()
+        && let Ok(Some(style)) = window.get_computed_style(canvas)
+    {
+        let get_property = |name: &str| -> Option<f32> {
+            let property = style.get_property_value(name).ok()?;
+            property.trim_end_matches("px").parse::<f32>().ok()
+        };
 
-            rect.min.x += get_property("padding-left").unwrap_or_default();
-            rect.min.y += get_property("padding-top").unwrap_or_default();
-            rect.max.x -= get_property("padding-right").unwrap_or_default();
-            rect.max.y -= get_property("padding-bottom").unwrap_or_default();
-        }
+        rect.min.x += get_property("padding-left").unwrap_or_default();
+        rect.min.y += get_property("padding-top").unwrap_or_default();
+        rect.max.x -= get_property("padding-right").unwrap_or_default();
+        rect.max.y -= get_property("padding-bottom").unwrap_or_default();
     }
 
     rect
@@ -280,8 +285,8 @@ fn create_clipboard_item(mime: &str, bytes: &[u8]) -> Result<web_sys::ClipboardI
 
     let items = js_sys::Object::new();
 
+    #[expect(unsafe_code, unused_unsafe)] // Weird false positive
     // SAFETY: I hope so
-    #[allow(unsafe_code, unused_unsafe)] // Weird false positive
     unsafe {
         js_sys::Reflect::set(&items, &JsValue::from_str(mime), &blob)?
     };

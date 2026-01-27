@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
 use egui::{
-    emath::GuiRounding as _, epaint, lerp, pos2, vec2, widgets::color_picker::show_color, Align2,
-    Color32, FontId, Image, Mesh, Pos2, Rect, Response, Rgba, RichText, Sense, Shape, Stroke,
-    TextureHandle, TextureOptions, Ui, Vec2,
+    Align2, Color32, FontId, Image, Mesh, Pos2, Rect, Response, Rgba, RichText, Sense, Shape,
+    Stroke, TextureHandle, TextureOptions, Ui, Vec2, emath::GuiRounding as _, epaint, lerp, pos2,
+    vec2, widgets::color_picker::show_color,
 };
 
 const GRADIENT_SIZE: Vec2 = vec2(256.0, 18.0);
@@ -159,7 +159,7 @@ impl ColorTest {
         ui.separator();
 
         // TODO(emilk): test color multiplication (image tint),
-        // to make sure vertex and texture color multiplication is done in linear space.
+        // to make sure vertex and texture color multiplication is done in gamma space.
 
         ui.label("Gamma interpolation:");
         self.show_gradients(ui, WHITE, (RED, GREEN), Interpolation::Gamma);
@@ -191,8 +191,8 @@ impl ColorTest {
 
         ui.separator();
 
-        ui.label("Linear interpolation (texture sampling):");
-        self.show_gradients(ui, WHITE, (RED, GREEN), Interpolation::Linear);
+        ui.label("Texture interpolation (texture sampling) should be in gamma space:");
+        self.show_gradients(ui, WHITE, (RED, GREEN), Interpolation::Gamma);
     }
 
     fn show_gradients(
@@ -245,11 +245,10 @@ impl ColorTest {
             let g = Gradient::endpoints(left, right);
 
             match interpolation {
-                Interpolation::Linear => {
-                    // texture sampler is sRGBA aware, and should therefore be linear
-                    self.tex_gradient(ui, "Texture of width 2 (test texture sampler)", bg_fill, &g);
-                }
+                Interpolation::Linear => {}
                 Interpolation::Gamma => {
+                    self.tex_gradient(ui, "Texture of width 2 (test texture sampler)", bg_fill, &g);
+
                     // vertex shader uses gamma
                     self.vertex_gradient(
                         ui,
@@ -330,7 +329,10 @@ fn vertex_gradient(ui: &mut Ui, bg_fill: Color32, gradient: &Gradient) -> Respon
 
 #[derive(Clone, Copy)]
 enum Interpolation {
+    /// egui used to want Linear interpolation for some things, but now we're always in gamma space.
+    #[expect(unused)]
     Linear,
+
     Gamma,
 }
 
@@ -419,10 +421,7 @@ impl TextureManager {
             let height = 1;
             ctx.load_texture(
                 "color_test_gradient",
-                epaint::ColorImage {
-                    size: [width, height],
-                    pixels,
-                },
+                epaint::ColorImage::new([width, height], pixels),
                 TextureOptions::LINEAR,
             )
         })
@@ -462,14 +461,14 @@ fn pixel_test_strokes(ui: &mut Ui) {
         egui::Color32::BLACK
     };
 
-    let pixels_per_point = ui.ctx().pixels_per_point();
+    let pixels_per_point = ui.pixels_per_point();
 
     for thickness_pixels in 1..=3 {
         let thickness_pixels = thickness_pixels as f32;
         let thickness_points = thickness_pixels / pixels_per_point;
         let num_squares = (pixels_per_point * 10.0).round().max(10.0) as u32;
         let size_pixels = vec2(ui.min_size().x, num_squares as f32 + thickness_pixels * 2.0);
-        let size_points = size_pixels / pixels_per_point + Vec2::splat(2.0);
+        let size_points = size_pixels / pixels_per_point;
         let (response, painter) = ui.allocate_painter(size_points, Sense::hover());
 
         let mut cursor_pixel = Pos2::new(
@@ -507,7 +506,7 @@ fn pixel_test_squares(ui: &mut Ui) {
         egui::Color32::BLACK
     };
 
-    let pixels_per_point = ui.ctx().pixels_per_point();
+    let pixels_per_point = ui.pixels_per_point();
 
     let num_squares = (pixels_per_point * 10.0).round().max(10.0) as u32;
     let size_pixels = vec2(
@@ -533,7 +532,7 @@ fn pixel_test_squares(ui: &mut Ui) {
 }
 
 fn pixel_test_lines(ui: &mut Ui) {
-    let pixels_per_point = ui.ctx().pixels_per_point();
+    let pixels_per_point = ui.pixels_per_point();
     let n = (96.0 * pixels_per_point) as usize;
 
     ui.label("The lines should be exactly one physical pixel wide, one physical pixel apart.");
@@ -725,8 +724,8 @@ fn mul_color_gamma(left: Color32, right: Color32) -> Color32 {
 #[cfg(test)]
 mod tests {
     use crate::ColorTest;
-    use egui_kittest::kittest::Queryable as _;
     use egui_kittest::SnapshotResults;
+    use egui_kittest::kittest::Queryable as _;
 
     #[test]
     pub fn rendering_test() {
@@ -740,14 +739,15 @@ mod tests {
                 });
 
             {
-                // Expand color-test collapsing header
-                harness.get_by_label("Color test").click();
+                // Expand color-test collapsing header. We accesskit-click since collapsing header
+                // might not be on screen at this point.
+                harness.get_by_label("Color test").click_accesskit();
                 harness.run();
             }
 
             harness.fit_contents();
 
-            results.add(harness.try_snapshot(&format!("rendering_test/dpi_{dpi:.2}")));
+            results.add(harness.try_snapshot(format!("rendering_test/dpi_{dpi:.2}")));
         }
     }
 }

@@ -1,9 +1,10 @@
 use egui::{UserData, ViewportId};
 use epaint::ColorImage;
-use std::sync::{mpsc, Arc};
+use std::sync::{Arc, mpsc};
 use wgpu::{BindGroupLayout, MultisampleState, StoreOp};
 
 /// A texture and a buffer for reading the rendered frame back to the cpu.
+///
 /// The texture is required since [`wgpu::TextureUsages::COPY_SRC`] is not an allowed
 /// flag for the surface texture on all platforms. This means that anytime we want to
 /// capture the frame, we first render it to this texture, and then we can copy it to
@@ -125,7 +126,7 @@ impl CaptureState {
         // It would be more efficient to reuse the Buffer, e.g. via some kind of ring buffer, but
         // for most screenshot use cases this should be fine. When taking many screenshots (e.g. for a video)
         // it might make sense to revisit this and implement a more efficient solution.
-        #[allow(clippy::arc_with_non_send_sync)]
+        #[allow(clippy::allow_attributes, clippy::arc_with_non_send_sync)] // For wasm
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("egui_screen_capture_buffer"),
             size: (self.padding.padded_bytes_per_row * self.texture.height()) as u64,
@@ -159,6 +160,7 @@ impl CaptureState {
                     load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
                     store: StoreOp::Store,
                 },
+                depth_slice: None,
             })],
             depth_stencil_attachment: None,
             occlusion_query_set: None,
@@ -184,9 +186,9 @@ impl CaptureState {
         tx: CaptureSender,
         viewport_id: ViewportId,
     ) {
-        #[allow(clippy::arc_with_non_send_sync)]
+        #[allow(clippy::allow_attributes, clippy::arc_with_non_send_sync)] // For wasm
         let buffer = Arc::new(buffer);
-        let buffer_clone = buffer.clone();
+        let buffer_clone = Arc::clone(&buffer);
         let buffer_slice = buffer_clone.slice(..);
         let format = self.texture.format();
         let tex_extent = self.texture.size();
@@ -195,13 +197,15 @@ impl CaptureState {
             wgpu::TextureFormat::Rgba8Unorm => [0, 1, 2, 3],
             wgpu::TextureFormat::Bgra8Unorm => [2, 1, 0, 3],
             _ => {
-                log::error!("Screen can't be captured unless the surface format is Rgba8Unorm or Bgra8Unorm. Current surface format is {:?}", format);
+                log::error!(
+                    "Screen can't be captured unless the surface format is Rgba8Unorm or Bgra8Unorm. Current surface format is {format:?}"
+                );
                 return;
             }
         };
         buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
             if let Err(err) = result {
-                log::error!("Failed to map buffer for reading: {:?}", err);
+                log::error!("Failed to map buffer for reading: {err}");
                 return;
             }
             let buffer_slice = buffer.slice(..);
@@ -226,10 +230,10 @@ impl CaptureState {
             tx.send((
                 viewport_id,
                 data,
-                ColorImage {
-                    size: [tex_extent.width as usize, tex_extent.height as usize],
+                ColorImage::new(
+                    [tex_extent.width as usize, tex_extent.height as usize],
                     pixels,
-                },
+                ),
             ))
             .ok();
             ctx.request_repaint();

@@ -1,5 +1,5 @@
 // #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![allow(rustdoc::missing_crate_level_docs)] // it's an example
+#![expect(rustdoc::missing_crate_level_docs)] // it's an example
 use eframe::egui;
 
 mod keypad;
@@ -44,11 +44,11 @@ impl Default for MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         egui::Window::new("Custom Keypad")
             .default_pos([100.0, 100.0])
             .title_bar(true)
-            .show(ctx, |ui| {
+            .show(ui.ctx(), |ui| {
                 ui.horizontal(|ui| {
                     ui.label("Your name: ");
                     ui.text_edit_singleline(&mut self.name);
@@ -60,7 +60,7 @@ impl eframe::App for MyApp {
                 ui.label(format!("Hello '{}', age {}", self.name, self.age));
             });
 
-        self.keypad.show(ctx);
+        self.keypad.show(ui.ctx());
     }
 
     fn raw_input_hook(&mut self, ctx: &egui::Context, raw_input: &mut egui::RawInput) {

@@ -14,10 +14,10 @@ pub struct AppTitleIconSetter {
 
 impl AppTitleIconSetter {
     pub fn new(title: String, mut icon_data: Option<Arc<IconData>>) -> Self {
-        if let Some(icon) = &icon_data {
-            if **icon == IconData::default() {
-                icon_data = None;
-            }
+        if let Some(icon) = &icon_data
+            && **icon == IconData::default()
+        {
+            icon_data = None;
         }
 
         Self {
@@ -47,7 +47,7 @@ enum AppIconStatus {
     NotSetTryAgain,
 
     /// We successfully set the icon and it should be visible now.
-    #[allow(dead_code)] // Not used on Linux
+    #[allow(clippy::allow_attributes, dead_code)] // Not used on Linux
     Set,
 }
 
@@ -71,16 +71,20 @@ fn set_title_and_icon(_title: &str, _icon_data: Option<&IconData>) -> AppIconSta
     #[cfg(target_os = "macos")]
     return set_title_and_icon_mac(_title, _icon_data);
 
-    #[allow(unreachable_code)]
+    #[allow(clippy::allow_attributes, unreachable_code)]
     AppIconStatus::NotSetIgnored
 }
 
 /// Set icon for Windows applications.
 #[cfg(target_os = "windows")]
-#[allow(unsafe_code)]
+#[expect(unsafe_code)]
 fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
     use crate::icon_data::IconDataExt as _;
-    use winapi::um::winuser;
+    use windows_sys::Win32::UI::Input::KeyboardAndMouse::GetActiveWindow;
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        CreateIconFromResourceEx, GetSystemMetrics, HICON, ICON_BIG, ICON_SMALL, LR_DEFAULTCOLOR,
+        SM_CXICON, SM_CXSMICON, SendMessageW, WM_SETICON,
+    };
 
     // We would get fairly far already with winit's `set_window_icon` (which is exposed to eframe) actually!
     // However, it only sets ICON_SMALL, i.e. doesn't allow us to set a higher resolution icon for the task bar.
@@ -92,16 +96,13 @@ fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
     //      * using undocumented SetConsoleIcon method (successfully queried via GetProcAddress)
 
     // SAFETY: WinApi function without side-effects.
-    let window_handle = unsafe { winuser::GetActiveWindow() };
+    let window_handle = unsafe { GetActiveWindow() };
     if window_handle.is_null() {
         // The Window isn't available yet. Try again later!
         return AppIconStatus::NotSetTryAgain;
     }
 
-    fn create_hicon_with_scale(
-        unscaled_image: &image::RgbaImage,
-        target_size: i32,
-    ) -> winapi::shared::windef::HICON {
+    fn create_hicon_with_scale(unscaled_image: &image::RgbaImage, target_size: i32) -> HICON {
         let image_scaled = image::imageops::resize(
             unscaled_image,
             target_size as _,
@@ -127,14 +128,14 @@ fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
 
         // SAFETY: Creating an HICON which should be readonly on our data.
         unsafe {
-            winuser::CreateIconFromResourceEx(
+            CreateIconFromResourceEx(
                 image_scaled_bytes.as_mut_ptr(),
                 image_scaled_bytes.len() as u32,
                 1,           // Means this is an icon, not a cursor.
                 0x00030000,  // Version number of the HICON
                 target_size, // Note that this method can scale, but it does so *very* poorly. So let's avoid that!
                 target_size,
-                winuser::LR_DEFAULTCOLOR,
+                LR_DEFAULTCOLOR,
             )
         }
     }
@@ -155,7 +156,7 @@ fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
     // Note that ICON_SMALL may be used even if we don't render a title bar as it may be used in alt+tab!
     {
         // SAFETY: WinAPI getter function with no known side effects.
-        let icon_size_big = unsafe { winuser::GetSystemMetrics(winuser::SM_CXICON) };
+        let icon_size_big = unsafe { GetSystemMetrics(SM_CXICON) };
         let icon_big = create_hicon_with_scale(&unscaled_image, icon_size_big);
         if icon_big.is_null() {
             log::warn!("Failed to create HICON (for big icon) from embedded png data.");
@@ -163,10 +164,10 @@ fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
         } else {
             // SAFETY: Unsafe WinApi function, takes objects previously created with WinAPI, all checked for null prior.
             unsafe {
-                winuser::SendMessageW(
+                SendMessageW(
                     window_handle,
-                    winuser::WM_SETICON,
-                    winuser::ICON_BIG as usize,
+                    WM_SETICON,
+                    ICON_BIG as usize,
                     icon_big as isize,
                 );
             }
@@ -174,7 +175,7 @@ fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
     }
     {
         // SAFETY: WinAPI getter function with no known side effects.
-        let icon_size_small = unsafe { winuser::GetSystemMetrics(winuser::SM_CXSMICON) };
+        let icon_size_small = unsafe { GetSystemMetrics(SM_CXSMICON) };
         let icon_small = create_hicon_with_scale(&unscaled_image, icon_size_small);
         if icon_small.is_null() {
             log::warn!("Failed to create HICON (for small icon) from embedded png data.");
@@ -182,10 +183,10 @@ fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
         } else {
             // SAFETY: Unsafe WinApi function, takes objects previously created with WinAPI, all checked for null prior.
             unsafe {
-                winuser::SendMessageW(
+                SendMessageW(
                     window_handle,
-                    winuser::WM_SETICON,
-                    winuser::ICON_SMALL as usize,
+                    WM_SETICON,
+                    ICON_SMALL as usize,
                     icon_small as isize,
                 );
             }
@@ -198,20 +199,25 @@ fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
 
 /// Set icon & app title for `MacOS` applications.
 #[cfg(target_os = "macos")]
-#[allow(unsafe_code)]
+#[expect(unsafe_code)]
 fn set_title_and_icon_mac(title: &str, icon_data: Option<&IconData>) -> AppIconStatus {
     use crate::icon_data::IconDataExt as _;
     profiling::function_scope!();
 
-    use objc2::ClassType;
+    use objc2::ClassType as _;
     use objc2_app_kit::{NSApplication, NSImage};
-    use objc2_foundation::{NSData, NSString};
+    use objc2_foundation::NSString;
 
-    let png_bytes = if let Some(icon_data) = icon_data {
-        match icon_data.to_png_bytes() {
-            Ok(png_bytes) => Some(png_bytes),
+    // Do NOT use png even though creating `NSImage` from it is much easier than from raw images data!
+    //
+    // Some MacOS versions have a bug where creating an `NSImage` from a png will cause it to load an arbitrary `libpng.dylib`.
+    // If this dylib isn't the right version, the application will crash with SIGBUS.
+    // For details see https://github.com/emilk/egui/issues/7155
+    let image = if let Some(icon_data) = icon_data {
+        match icon_data.to_image() {
+            Ok(image) => Some(image),
             Err(err) => {
-                log::warn!("Failed to convert IconData to png: {err}");
+                log::warn!("Failed to read icon data: {err}");
                 return AppIconStatus::NotSetIgnored;
             }
         }
@@ -220,7 +226,7 @@ fn set_title_and_icon_mac(title: &str, icon_data: Option<&IconData>) -> AppIconS
     };
 
     // TODO(madsmtm): Move this into `objc2-app-kit`
-    extern "C" {
+    unsafe extern "C" {
         static NSApp: Option<&'static NSApplication>;
     }
 
@@ -231,25 +237,50 @@ fn set_title_and_icon_mac(title: &str, icon_data: Option<&IconData>) -> AppIconS
             return AppIconStatus::NotSetIgnored;
         };
 
-        if let Some(png_bytes) = png_bytes {
-            let data = NSData::from_vec(png_bytes);
+        if let Some(image) = image {
+            use objc2_app_kit::{NSBitmapImageRep, NSDeviceRGBColorSpace};
+            use objc2_foundation::NSSize;
 
-            log::trace!("NSImage::initWithData…");
-            let app_icon = NSImage::initWithData(NSImage::alloc(), &data);
+            log::trace!(
+                "NSBitmapImageRep::initWithBitmapDataPlanes_pixelsWide_pixelsHigh_bitsPerSample_samplesPerPixel_hasAlpha_isPlanar_colorSpaceName_bytesPerRow_bitsPerPixel"
+            );
+            let Some(image_rep) = NSBitmapImageRep::initWithBitmapDataPlanes_pixelsWide_pixelsHigh_bitsPerSample_samplesPerPixel_hasAlpha_isPlanar_colorSpaceName_bytesPerRow_bitsPerPixel(
+                NSBitmapImageRep::alloc(),
+                [image.as_raw().as_ptr().cast_mut()].as_mut_ptr(),
+                image.width() as isize,
+                image.height() as isize,
+                8, // bits per sample
+                4, // samples per pixel
+                true, // has alpha
+                false, // is not planar
+                NSDeviceRGBColorSpace,
+                (image.width() * 4) as isize, // bytes per row
+                32 // bits per pixel
+            ) else {
+                log::warn!("Failed to create NSBitmapImageRep from app icon data.");
+                return AppIconStatus::NotSetIgnored;
+            };
+
+            log::trace!("NSImage::initWithSize");
+            let app_icon = NSImage::initWithSize(
+                NSImage::alloc(),
+                NSSize::new(image.width() as f64, image.height() as f64),
+            );
+            log::trace!("NSImage::addRepresentation");
+            app_icon.addRepresentation(&image_rep);
 
             profiling::scope!("setApplicationIconImage_");
             log::trace!("setApplicationIconImage…");
-            app.setApplicationIconImage(app_icon.as_deref());
+            app.setApplicationIconImage(Some(&app_icon));
         }
 
         // Change the title in the top bar - for python processes this would be again "python" otherwise.
-        if let Some(main_menu) = app.mainMenu() {
-            if let Some(item) = main_menu.itemAtIndex(0) {
-                if let Some(app_menu) = item.submenu() {
-                    profiling::scope!("setTitle_");
-                    app_menu.setTitle(&NSString::from_str(title));
-                }
-            }
+        if let Some(main_menu) = app.mainMenu()
+            && let Some(item) = main_menu.itemAtIndex(0)
+            && let Some(app_menu) = item.submenu()
+        {
+            profiling::scope!("setTitle_");
+            app_menu.setTitle(&NSString::from_str(title));
         }
 
         // The title in the Dock apparently can't be changed.

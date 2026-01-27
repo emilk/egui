@@ -3,8 +3,8 @@ use std::sync::Arc;
 use crate::mutex::Mutex;
 
 use crate::{
+    Context, Id, Vec2,
     text_selection::{CCursorRange, TextCursorState},
-    Context, Id,
 };
 
 pub type TextEditUndoer = crate::util::undoer::Undoer<(CCursorRange, String)>;
@@ -49,9 +49,10 @@ pub struct TextEditState {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) ime_cursor_range: CCursorRange,
 
-    // Visual offset when editing singleline text bigger than the width.
+    // Text offset within the widget area.
+    // Used for sensing and singleline text clipping.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) singleline_offset: f32,
+    pub(crate) text_offset: Vec2,
 
     /// When did the user last press a key or click on the `TextEdit`.
     /// Used to pause the cursor animation when typing.
@@ -72,7 +73,7 @@ impl TextEditState {
         self.undoer.lock().clone()
     }
 
-    #[allow(clippy::needless_pass_by_ref_mut)] // Intentionally hide interiority of mutability
+    #[expect(clippy::needless_pass_by_ref_mut)] // Intentionally hide interiority of mutability
     pub fn set_undoer(&mut self, undoer: TextEditUndoer) {
         *self.undoer.lock() = undoer;
     }

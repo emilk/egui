@@ -1,4 +1,4 @@
-use epaint::{emath::lerp, vec2, Color32, Pos2, Rect, Shape, Stroke};
+use epaint::{Color32, Pos2, Rect, Shape, Stroke, emath::lerp, vec2};
 
 use crate::{Response, Sense, Ui, Widget, WidgetInfo, WidgetType};
 
@@ -37,13 +37,13 @@ impl Spinner {
     /// Paint the spinner in the given rectangle.
     pub fn paint_at(&self, ui: &Ui, rect: Rect) {
         if ui.is_rect_visible(rect) {
-            ui.ctx().request_repaint(); // because it is animated
+            ui.request_repaint(); // because it is animated
 
             let color = self
                 .color
                 .unwrap_or_else(|| ui.visuals().strong_text_color());
-            let radius = (rect.height() / 2.0) - 2.0;
-            let n_points = 20;
+            let radius = (rect.height().min(rect.width()) / 2.0) - 2.0;
+            let n_points = (radius.round() as u32).clamp(8, 128);
             let time = ui.input(|i| i.time);
             let start_angle = time * std::f64::consts::TAU;
             let end_angle = start_angle + 240f64.to_radians() * time.sin();

@@ -16,8 +16,6 @@
 #![doc = document_features::document_features!()]
 //!
 
-#![allow(unsafe_code)]
-
 pub use wgpu;
 
 /// Low-level painting of [`egui`](https://github.com/emilk/egui) on [`wgpu`].
@@ -29,6 +27,7 @@ pub use renderer::*;
 pub use setup::{NativeAdapterSelectorMethod, WgpuSetup, WgpuSetupCreateNew, WgpuSetupExisting};
 
 /// Helpers for capturing screenshots of the UI.
+#[cfg(feature = "capture")]
 pub mod capture;
 
 /// Module for painting [`egui`](https://github.com/emilk/egui) with [`wgpu`] on [`winit`].
@@ -42,8 +41,11 @@ use epaint::mutex::RwLock;
 /// An error produced by egui-wgpu.
 #[derive(thiserror::Error, Debug)]
 pub enum WgpuError {
-    #[error("Failed to create wgpu adapter, no suitable adapter found: {0}")]
-    NoSuitableAdapterFound(String),
+    #[error(transparent)]
+    RequestAdapterError(#[from] wgpu::RequestAdapterError),
+
+    #[error("Adapter selection failed: {0}")]
+    CustomNativeAdapterSelectionError(String),
 
     #[error("There was no valid format for the surface at all.")]
     NoSurfaceFormatsAvailable,
@@ -89,7 +91,7 @@ async fn request_adapter(
     instance: &wgpu::Instance,
     power_preference: wgpu::PowerPreference,
     compatible_surface: Option<&wgpu::Surface<'_>>,
-    _available_adapters: &[wgpu::Adapter],
+    available_adapters: &[wgpu::Adapter],
 ) -> Result<wgpu::Adapter, WgpuError> {
     profiling::function_scope!();
 
@@ -104,48 +106,58 @@ async fn request_adapter(
             force_fallback_adapter: false,
         })
         .await
-        .ok_or_else(|| {
-            #[cfg(not(target_arch = "wasm32"))]
-            if _available_adapters.is_empty() {
-                log::info!("No wgpu adapters found");
-            } else if _available_adapters.len() == 1 {
+        .inspect_err(|_err| {
+            if cfg!(target_arch = "wasm32") {
+                // Nothing to add here
+            } else if available_adapters.is_empty() {
+                if std::env::var("DYLD_LIBRARY_PATH").is_ok() {
+                    // DYLD_LIBRARY_PATH can sometimes lead to loading dylibs that cause
+                    // us to find zero adapters. Very strange.
+                    // I don't want to debug this again.
+                    // See https://github.com/rerun-io/rerun/issues/11351 for more
+                    log::warn!(
+                        "No wgpu adapter found. This could be because DYLD_LIBRARY_PATH causes dylibs to be loaded that interfere with Metal device creation. Try restarting with DYLD_LIBRARY_PATH=''"
+                    );
+                } else {
+                    log::info!("No wgpu adapter found");
+                }
+            } else if available_adapters.len() == 1 {
                 log::info!(
                     "The only available wgpu adapter was not suitable: {}",
-                    adapter_info_summary(&_available_adapters[0].get_info())
+                    adapter_info_summary(&available_adapters[0].get_info())
                 );
             } else {
                 log::info!(
                     "No suitable wgpu adapter found out of the {} available ones: {}",
-                    _available_adapters.len(),
-                    describe_adapters(_available_adapters)
+                    available_adapters.len(),
+                    describe_adapters(available_adapters)
                 );
             }
-
-            WgpuError::NoSuitableAdapterFound("`request_adapters` returned `None`".to_owned())
         })?;
 
-    #[cfg(target_arch = "wasm32")]
-    log::debug!(
-        "Picked wgpu adapter: {}",
-        adapter_info_summary(&adapter.get_info())
-    );
-
-    #[cfg(not(target_arch = "wasm32"))]
-    if _available_adapters.len() == 1 {
-        log::debug!(
-            "Picked the only available wgpu adapter: {}",
-            adapter_info_summary(&adapter.get_info())
-        );
-    } else {
-        log::info!(
-            "There were {} available wgpu adapters: {}",
-            _available_adapters.len(),
-            describe_adapters(_available_adapters)
-        );
+    if cfg!(target_arch = "wasm32") {
         log::debug!(
             "Picked wgpu adapter: {}",
             adapter_info_summary(&adapter.get_info())
         );
+    } else {
+        // native:
+        if available_adapters.len() == 1 {
+            log::debug!(
+                "Picked the only available wgpu adapter: {}",
+                adapter_info_summary(&adapter.get_info())
+            );
+        } else {
+            log::info!(
+                "There were {} available wgpu adapters: {}",
+                available_adapters.len(),
+                describe_adapters(available_adapters)
+            );
+            log::debug!(
+                "Picked wgpu adapter: {}",
+                adapter_info_summary(&adapter.get_info())
+            );
+        }
     }
 
     Ok(adapter)
@@ -160,9 +172,7 @@ impl RenderState {
         config: &WgpuConfiguration,
         instance: &wgpu::Instance,
         compatible_surface: Option<&wgpu::Surface<'static>>,
-        depth_format: Option<wgpu::TextureFormat>,
-        msaa_samples: u32,
-        dithering: bool,
+        options: RendererOptions,
     ) -> Result<Self, WgpuError> {
         profiling::scope!("RenderState::create"); // async yield give bad names using `profile_function`
 
@@ -184,7 +194,6 @@ impl RenderState {
                 power_preference,
                 native_adapter_selector: _native_adapter_selector,
                 device_descriptor,
-                trace_path,
             }) => {
                 let adapter = {
                     #[cfg(target_arch = "wasm32")]
@@ -194,7 +203,7 @@ impl RenderState {
                     #[cfg(not(target_arch = "wasm32"))]
                     if let Some(native_adapter_selector) = _native_adapter_selector {
                         native_adapter_selector(&available_adapters, compatible_surface)
-                            .map_err(WgpuError::NoSuitableAdapterFound)
+                            .map_err(WgpuError::CustomNativeAdapterSelectionError)
                     } else {
                         request_adapter(
                             instance,
@@ -209,7 +218,7 @@ impl RenderState {
                 let (device, queue) = {
                     profiling::scope!("request_device");
                     adapter
-                        .request_device(&(*device_descriptor)(&adapter), trace_path.as_deref())
+                        .request_device(&(*device_descriptor)(&adapter))
                         .await?
                 };
 
@@ -232,17 +241,11 @@ impl RenderState {
         };
         let target_format = crate::preferred_framebuffer_format(&surface_formats)?;
 
-        let renderer = Renderer::new(
-            &device,
-            target_format,
-            depth_format,
-            msaa_samples,
-            dithering,
-        );
+        let renderer = Renderer::new(&device, target_format, options);
 
         // On wasm, depending on feature flags, wgpu objects may or may not implement sync.
         // It doesn't make sense to switch to Rc for that special usecase, so simply disable the lint.
-        #[allow(clippy::arc_with_non_send_sync)]
+        #[allow(clippy::allow_attributes, clippy::arc_with_non_send_sync)] // For wasm
         Ok(Self {
             adapter,
             #[cfg(not(target_arch = "wasm32"))]
@@ -255,7 +258,6 @@ impl RenderState {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn describe_adapters(adapters: &[wgpu::Adapter]) -> String {
     if adapters.is_empty() {
         "(none)".to_owned()

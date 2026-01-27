@@ -1,4 +1,4 @@
-use crate::{fast_round, linear_f32_from_linear_u8, Rgba};
+use crate::{Rgba, fast_round, linear_f32_from_linear_u8};
 
 /// This format is used for space-efficient color representation (32 bits).
 ///
@@ -24,6 +24,7 @@ use crate::{fast_round, linear_f32_from_linear_u8, Rgba};
 ///
 /// An `alpha=0` means the color is to be treated as an additive color.
 #[repr(C)]
+#[repr(align(4))]
 #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
@@ -102,9 +103,6 @@ impl Color32 {
     /// i.e. often taken to mean "no color".
     pub const PLACEHOLDER: Self = Self::from_rgba_premultiplied(64, 254, 0, 128);
 
-    #[deprecated = "Renamed to PLACEHOLDER"]
-    pub const TEMPORARY_COLOR: Self = Self::PLACEHOLDER;
-
     /// From RGB with alpha of 255 (opaque).
     #[inline]
     pub const fn from_rgb(r: u8, g: u8, b: u8) -> Self {
@@ -154,6 +152,27 @@ impl Color32 {
 
                 let [r, g, b] =
                     [r, g, b].map(|value| lut[usize::from(u16::from_ne_bytes([value, a]))]);
+                Self::from_rgba_premultiplied(r, g, b, a)
+            }
+        }
+    }
+
+    /// Same as [`Self::from_rgba_unmultiplied`], but can be used in a const context.
+    ///
+    /// It is slightly slower when operating on non-const data.
+    #[inline]
+    pub const fn from_rgba_unmultiplied_const(r: u8, g: u8, b: u8, a: u8) -> Self {
+        match a {
+            // common-case optimization:
+            0 => Self::TRANSPARENT,
+
+            // common-case optimization:
+            255 => Self::from_rgb(r, g, b),
+
+            a => {
+                let r = fast_round(r as f32 * linear_f32_from_linear_u8(a));
+                let g = fast_round(g as f32 * linear_f32_from_linear_u8(a));
+                let b = fast_round(b as f32 * linear_f32_from_linear_u8(a));
                 Self::from_rgba_premultiplied(r, g, b, a)
             }
         }
@@ -504,9 +523,11 @@ mod test {
     fn to_from_rgba() {
         for [r, g, b, a] in test_rgba() {
             let original = Color32::from_rgba_unmultiplied(r, g, b, a);
+            let constfn = Color32::from_rgba_unmultiplied_const(r, g, b, a);
             let rgba = Rgba::from(original);
             let back = Color32::from(rgba);
             assert_eq!(back, original);
+            assert_eq!(constfn, original);
         }
 
         assert_eq!(

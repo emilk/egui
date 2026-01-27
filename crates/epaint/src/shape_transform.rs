@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    color, CircleShape, Color32, ColorMode, CubicBezierShape, EllipseShape, Mesh, PathShape,
-    QuadraticBezierShape, RectShape, Shape, TextShape,
+    CircleShape, Color32, ColorMode, CubicBezierShape, EllipseShape, Mesh, PathShape,
+    QuadraticBezierShape, RectShape, Shape, TextShape, color,
 };
 
 /// Remember to handle [`Color32::PLACEHOLDER`] specially!
@@ -10,7 +10,7 @@ pub fn adjust_colors(
     shape: &mut Shape,
     adjust_color: impl Fn(&mut Color32) + Send + Sync + Copy + 'static,
 ) {
-    #![allow(clippy::match_same_arms)]
+    #![expect(clippy::match_same_arms)]
     match shape {
         Shape::Noop => {}
 
@@ -89,7 +89,8 @@ pub fn adjust_colors(
 
             if !galley.is_empty() {
                 let galley = Arc::make_mut(galley);
-                for row in &mut galley.rows {
+                for placed_row in &mut galley.rows {
+                    let row = Arc::make_mut(&mut placed_row.row);
                     for vertex in &mut row.visuals.mesh.vertices {
                         adjust_color(&mut vertex.color);
                     }
@@ -122,7 +123,7 @@ fn adjust_color_mode(
     match color_mode {
         color::ColorMode::Solid(color) => adjust_color(color),
         color::ColorMode::UV(callback) => {
-            let callback = callback.clone();
+            let callback = Arc::clone(callback);
             *color_mode = color::ColorMode::UV(Arc::new(Box::new(move |rect, pos| {
                 let mut color = callback(rect, pos);
                 adjust_color(&mut color);

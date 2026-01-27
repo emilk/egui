@@ -1,4 +1,4 @@
-use egui::{util::undoer::Undoer, Button};
+use egui::{Button, util::undoer::Undoer};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -31,11 +31,12 @@ impl crate::Demo for UndoRedoDemo {
         "⟲ Undo Redo"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
             .resizable(false)
-            .show(ctx, |ui| {
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| {
                 use crate::View as _;
                 self.ui(ui);
             });
@@ -60,19 +61,15 @@ impl crate::View for UndoRedoDemo {
             let undo = ui.add_enabled(can_undo, Button::new("⟲ Undo")).clicked();
             let redo = ui.add_enabled(can_redo, Button::new("⟳ Redo")).clicked();
 
-            if undo {
-                if let Some(undo_text) = self.undoer.undo(&self.state) {
-                    self.state = undo_text.clone();
-                }
+            if undo && let Some(undo_text) = self.undoer.undo(&self.state) {
+                self.state = undo_text.clone();
             }
-            if redo {
-                if let Some(redo_text) = self.undoer.redo(&self.state) {
-                    self.state = redo_text.clone();
-                }
+            if redo && let Some(redo_text) = self.undoer.redo(&self.state) {
+                self.state = redo_text.clone();
             }
         });
 
         self.undoer
-            .feed_state(ui.ctx().input(|input| input.time), &self.state);
+            .feed_state(ui.input(|input| input.time), &self.state);
     }
 }
