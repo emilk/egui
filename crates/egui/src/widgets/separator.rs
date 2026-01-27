@@ -19,7 +19,7 @@ pub struct Separator {
     spacing: Option<f32>,
     grow: f32,
     is_horizontal_line: Option<bool>,
-    modifier: StyleModifiers,
+    modifiers: StyleModifiers,
 }
 
 impl Default for Separator {
@@ -28,7 +28,7 @@ impl Default for Separator {
             spacing: None,
             grow: 0.0,
             is_horizontal_line: None,
-            modifier: StyleModifiers::default(),
+            modifiers: StyleModifiers::default(),
         }
     }
 }
@@ -96,7 +96,7 @@ impl Widget for Separator {
             spacing,
             grow,
             is_horizontal_line,
-            mut modifier,
+            modifiers: mut modifier,
         } = self;
 
         // Get the widget style by reading the response from the previous pass
@@ -152,10 +152,10 @@ impl Widget for Separator {
 
 impl HasModifiers for Separator {
     fn modifiers(&self) -> &crate::widget_style::StyleModifiers {
-        &self.modifier
+        &self.modifiers
     }
 
     fn modifiers_mut(&mut self) -> &mut crate::widget_style::StyleModifiers {
-        &mut self.modifier
+        &mut self.modifiers
     }
 }

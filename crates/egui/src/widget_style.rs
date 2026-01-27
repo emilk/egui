@@ -1,3 +1,5 @@
+use std::{iter::FusedIterator, sync::Arc};
+
 use emath::Vec2;
 use epaint::{Color32, FontId, Shadow, Stroke, text::TextWrapMode};
 
@@ -203,7 +205,7 @@ impl Style {
 pub type WidgetStyleModifier = String;
 
 /// For now we use Vec for the modifiers but later we could use `SmallVev` for performance
-#[derive(Default)]
+#[derive(Debug, Default, Clone)]
 pub struct StyleModifiers {
     modifiers: Vec<WidgetStyleModifier>,
     theme: Option<Theme>,
@@ -213,15 +215,15 @@ pub struct StyleModifiers {
 impl StyleModifiers {
     /// Add multiples modifiers in one method and return the list for method chaining
     #[inline]
-    pub fn with_modifiers(mut self, classes: &[WidgetStyleModifier]) -> Self {
-        self.modifiers.append(&mut classes.to_vec());
+    pub fn with_modifiers(mut self, modifiers: &[WidgetStyleModifier]) -> Self {
+        self.modifiers.append(&mut modifiers.to_vec());
         self
     }
 
     /// Add a single modifier and return the list for method chaining
     #[inline]
-    pub fn with_modifier(mut self, class: impl Into<WidgetStyleModifier>) -> Self {
-        self.modifiers.push(class.into());
+    pub fn with_modifier(mut self, modifier: impl Into<WidgetStyleModifier>) -> Self {
+        self.modifiers.push(modifier.into());
         self
     }
 
@@ -252,6 +254,10 @@ impl StyleModifiers {
     pub fn with_state(&mut self, state: WidgetState) {
         self.state = state;
     }
+
+    pub fn list(&self) -> Vec<WidgetStyleModifier> {
+        self.modifiers.clone()
+    }
 }
 
 /// Any widgets supporting [`StyleModifiers`] must implement this trait
@@ -259,11 +265,6 @@ pub trait HasModifiers {
     fn modifiers(&self) -> &StyleModifiers;
 
     fn modifiers_mut(&mut self) -> &mut StyleModifiers;
-
-    fn add_class(&mut self, modifier: impl Into<WidgetStyleModifier>) -> &Self {
-        self.modifiers_mut().add_if(modifier.into(), true);
-        self
-    }
 
     #[inline]
     fn with_modifier(mut self, modifier: impl Into<WidgetStyleModifier>) -> Self
@@ -276,6 +277,28 @@ pub trait HasModifiers {
 
     #[inline]
     fn with_modifier_if(mut self, modifier: impl Into<WidgetStyleModifier>, condition: bool) -> Self
+    where
+        Self: Sized,
+    {
+        self.modifiers_mut().add_if(modifier.into(), condition);
+        self
+    }
+
+    #[inline]
+    fn add_modifier(&mut self, modifier: impl Into<WidgetStyleModifier>) -> &mut Self
+    where
+        Self: Sized,
+    {
+        self.modifiers_mut().add_if(modifier.into(), true);
+        self
+    }
+
+    #[inline]
+    fn add_modifier_if(
+        &mut self,
+        modifier: impl Into<WidgetStyleModifier>,
+        condition: bool,
+    ) -> &mut Self
     where
         Self: Sized,
     {
@@ -315,3 +338,62 @@ macro_rules! add_modifiers {
         }
     };
 }
+
+#[derive(Debug, Clone)]
+pub struct StyleStack {
+    pub modifiers: StyleModifiers,
+    pub parent: Option<Arc<Self>>,
+}
+
+// these methods act on the entire stack
+impl StyleStack {
+    /// Return an iterator that walks the stack from this node to the root.
+    #[expect(clippy::iter_without_into_iter)]
+    pub fn iter(&self) -> StyleStackIterator<'_> {
+        StyleStackIterator { next: Some(self) }
+    }
+
+    /// Check if any of the ancestor has the modifiers
+    pub fn ancestors_have(&self, modifier: impl Into<WidgetStyleModifier>) -> bool {
+        let modifier = modifier.into();
+        self.iter()
+            .any(|parent| parent.modifiers.has(modifier.clone()))
+    }
+
+    /// Check if the direct parent has the modifiers
+    pub fn parent_has(&self, modifier: impl Into<WidgetStyleModifier>) -> bool {
+        if let Some(parent) = &self.parent {
+            parent.modifiers.has(modifier)
+        } else {
+            false
+        }
+    }
+
+    pub fn parent_modifiers(&self) -> Option<&StyleModifiers> {
+        self.parent.as_ref().map(|parent| &parent.modifiers)
+    }
+
+    pub fn ancestors_modifiers(&self) -> Vec<&StyleModifiers> {
+        self.iter().map(|f| &f.modifiers).collect()
+    }
+}
+
+/// Iterator that walks up a stack of `StackFrame`s.
+///
+/// See [`StyleStack::iter`].
+pub struct StyleStackIterator<'a> {
+    next: Option<&'a StyleStack>,
+}
+
+impl<'a> Iterator for StyleStackIterator<'a> {
+    type Item = &'a StyleStack;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        let current = self.next;
+        self.next = current.and_then(|style| style.parent.as_deref());
+        current
+    }
+}
+
+impl FusedIterator for StyleStackIterator<'_> {}

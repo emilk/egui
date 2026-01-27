@@ -24,7 +24,7 @@ pub struct Checkbox<'a> {
     checked: &'a mut bool,
     atoms: Atoms<'a>,
     indeterminate: bool,
-    modifier: StyleModifiers,
+    modifiers: StyleModifiers,
 }
 
 impl<'a> Checkbox<'a> {
@@ -33,7 +33,7 @@ impl<'a> Checkbox<'a> {
             checked,
             atoms: atoms.into_atoms(),
             indeterminate: false,
-            modifier: StyleModifiers::default(),
+            modifiers: StyleModifiers::default(),
         }
     }
 
@@ -58,7 +58,7 @@ impl Widget for Checkbox<'_> {
             checked,
             mut atoms,
             indeterminate,
-            mut modifier,
+            modifiers: mut modifier,
         } = self;
 
         // Get the widget style by reading the response from the previous pass
@@ -161,10 +161,10 @@ impl Widget for Checkbox<'_> {
 
 impl HasModifiers for Checkbox<'_> {
     fn modifiers(&self) -> &crate::widget_style::StyleModifiers {
-        &self.modifier
+        &self.modifiers
     }
 
     fn modifiers_mut(&mut self) -> &mut crate::widget_style::StyleModifiers {
-        &mut self.modifier
+        &mut self.modifiers
     }
 }

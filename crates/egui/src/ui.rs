@@ -7,7 +7,7 @@ use emath::GuiRounding as _;
 use epaint::mutex::RwLock;
 
 use crate::containers::menu;
-use crate::widget_style::{HasModifiers, StyleModifiers};
+use crate::widget_style::{HasModifiers, StyleModifiers, StyleStack};
 use crate::{containers::*, ecolor::*, layout::*, placer::Placer, widgets::*, *};
 // ----------------------------------------------------------------------------
 
@@ -91,8 +91,8 @@ pub struct Ui {
     /// end of a [`Ui::scope`].
     min_rect_already_remembered: bool,
 
-    /// Modifiers for style purpose
-    modifiers: StyleModifiers,
+    /// test
+    style_stack: Arc<StyleStack>,
 }
 
 /// Allow using [`Ui`] like a [`Context`].
@@ -117,7 +117,7 @@ impl Ui {
         let UiBuilder {
             id_salt,
             global_scope: _,
-            ui_stack_info,
+            mut ui_stack_info,
             layer_id,
             max_rect,
             layout,
@@ -143,6 +143,9 @@ impl Ui {
         let style = style.unwrap_or_else(|| ctx.global_style());
         let sense = sense.unwrap_or_else(Sense::hover);
 
+        // Temporary use of user tags as proof of concept
+        ui_stack_info = ui_stack_info.with_tag("root");
+
         let placer = Placer::new(max_rect, layout);
         let ui_stack = UiStack {
             id,
@@ -152,6 +155,12 @@ impl Ui {
             min_rect: placer.min_rect(),
             max_rect: placer.max_rect(),
         };
+
+        let style_stack = StyleStack {
+            modifiers: StyleModifiers::default(),
+            parent: None,
+        };
+
         let mut ui = Ui {
             id,
             unique_id: id,
@@ -165,7 +174,7 @@ impl Ui {
             stack: Arc::new(ui_stack),
             sense,
             min_rect_already_remembered: false,
-            modifiers: StyleModifiers::default(),
+            style_stack: Arc::new(style_stack),
         };
 
         if let Some(accessibility_parent) = accessibility_parent {
@@ -315,6 +324,12 @@ impl Ui {
             min_rect: placer.min_rect(),
             max_rect: placer.max_rect(),
         };
+
+        let style_stack = StyleStack {
+            modifiers: StyleModifiers::default(),
+            parent: Some(Arc::clone(&self.style_stack)),
+        };
+
         let mut child_ui = Ui {
             id: stable_id,
             unique_id,
@@ -328,7 +343,7 @@ impl Ui {
             stack: Arc::new(ui_stack),
             sense,
             min_rect_already_remembered: false,
-            modifiers: StyleModifiers::default(),
+            style_stack: Arc::new(style_stack),
         };
 
         if disabled {
@@ -3153,11 +3168,34 @@ impl Drop for Ui {
 
 impl HasModifiers for Ui {
     fn modifiers(&self) -> &StyleModifiers {
-        &self.modifiers
+        &self.style_stack.modifiers
     }
 
     fn modifiers_mut(&mut self) -> &mut StyleModifiers {
-        &mut self.modifiers
+        &mut self.style_stack_mut().modifiers
+    }
+}
+
+impl Ui {
+    /// borrow internal [`StyleStack`].
+    /// Allow the access to the modifiers of the ui's ancestors
+    ///
+    /// Example:
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// // Check if the parent has the "test" modifier
+    /// ui.style_stack().parent.is_some_and(|parent| parent.modifiers.has("test"));
+    ///
+    /// // Same but shorter
+    /// ui.style_stack().parent_has("test");
+    /// # });
+    /// ```
+    pub fn style_stack(&self) -> &StyleStack {
+        &self.style_stack
+    }
+
+    pub(crate) fn style_stack_mut(&mut self) -> &mut StyleStack {
+        Arc::make_mut(&mut self.style_stack)
     }
 }
 
