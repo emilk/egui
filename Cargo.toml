@@ -105,10 +105,11 @@ web-sys = "0.3.70"
 web-time = "1.1.0" # Timekeeping for native and web
 wgpu = { version = "24.0.3", default-features = false }
 windows-sys = "0.59"
-winit = { git = "https://github.com/richerfu/winit.git", branch = "feat-ohos-30", default-features = false }
+winit = { git = "https://github.com/richerfu/winit.git", branch = "feat-ohos-3x", default-features = false }
 
-openharmony-ability = {version = "0.1"}
-openharmony-ability-derive = {version = "0.1"}
+openharmony-ability = { git = "https://github.com/harmony-contrib/openharmony-ability.git" }
+openharmony-ability-derive = { git = "https://github.com/harmony-contrib/openharmony-ability.git" }
+
 
 [workspace.lints.rust]
 unsafe_code = "deny"
@@ -128,6 +129,10 @@ unused_lifetimes = "warn"
 
 trivial_casts = "allow"
 unused_qualifications = "allow"
+
+[patch.crates-io]
+ohos-arkui-binding = { git = "https://github.com/ohos-rs/ohos-native-bindings.git" }
+ohos-xcomponent-binding = { git = "https://github.com/ohos-rs/ohos-native-bindings.git" }
 
 [workspace.lints.rustdoc]
 all = "warn"

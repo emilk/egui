@@ -285,7 +285,7 @@ version = "0.38.0+1.3.281"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0bb44936d800fea8f016d7f2311c6a4f97aebd5dc86f09906139ec848cf3a46f"
 dependencies = [
- "libloading",
+ "libloading 0.8.6",
 ]
 
 [[package]]
@@ -766,7 +766,7 @@ dependencies = [
  "js-sys",
  "num-traits",
  "wasm-bindgen",
- "windows-link",
+ "windows-link 0.1.1",
 ]
 
 [[package]]
@@ -906,9 +906,9 @@ dependencies = [
 
 [[package]]
 name = "convert_case"
-version = "0.7.1"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb402b8d4c85569410425650ce3eddc7d698ed96d39a73f941b08fb63082f1e7"
+checksum = "633458d4ef8c78b72454de2d54fd6ab2e60f9e02be22f3c6104cdc8a4e0fceb9"
 dependencies = [
  "unicode-segmentation",
 ]
@@ -1048,13 +1048,19 @@ checksum = "43da5946c66ffcc7745f48db692ffbb10a83bfe0afd96235c5c2a4fb23994929"
 
 [[package]]
 name = "ctor"
-version = "0.2.9"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "32a2785755761f3ddc1492979ce1e48d2c00d09311c39e4466429188f3dd6501"
+checksum = "3ffc71fcdcdb40d6f087edddf7f8f1f8f79e6cf922f555a9ee8779752d4819bd"
 dependencies = [
- "quote",
- "syn",
+ "ctor-proc-macro",
+ "dtor",
 ]
+
+[[package]]
+name = "ctor-proc-macro"
+version = "0.0.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "52560adf09603e58c9a7ee1fe1dcb95a16927b17c127f0ac02d6e768a0e25bc1"
 
 [[package]]
 name = "cursor-icon"
@@ -1112,6 +1118,41 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "env_logger",
+]
+
+[[package]]
+name = "darling"
+version = "0.21.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9cdf337090841a411e2a7f3deb9187445851f91b309c0c0a29e05f74a00a48c0"
+dependencies = [
+ "darling_core",
+ "darling_macro",
+]
+
+[[package]]
+name = "darling_core"
+version = "0.21.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1247195ecd7e3c85f83c8d2a366e4210d588e802133e1e355180a9870b517ea4"
+dependencies = [
+ "fnv",
+ "ident_case",
+ "proc-macro2",
+ "quote",
+ "strsim",
+ "syn",
+]
+
+[[package]]
+name = "darling_macro"
+version = "0.21.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d38308df82d1080de0afee5d069fa14b0326a88c14f15c5ccda35b4a6c414c81"
+dependencies = [
+ "darling_core",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -1198,7 +1239,7 @@ version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "330c60081dcc4c72131f8eb70510f1ac07223e5d4163db481a04a0befcffa412"
 dependencies = [
- "libloading",
+ "libloading 0.8.6",
 ]
 
 [[package]]
@@ -1219,13 +1260,28 @@ checksum = "75b325c5dbd37f80359721ad39aca5a29fb04c89279657cffdda8736d0c0b9d2"
 [[package]]
 name = "dpi"
 version = "0.1.1"
-source = "git+https://github.com/richerfu/winit.git?branch=feat-ohos-30#962de41c1ff5bbc0dfeca744f1cff5e3479817e5"
+source = "git+https://github.com/richerfu/winit.git?branch=feat-ohos-3x#bffd081ee553be52b0fe00024fdbd2814990bd9e"
 
 [[package]]
 name = "dpi"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d8b14ccef22fc6f5a8f4d7d768562a182c04ce9a3b3157b91390b52ddfdf1a76"
+
+[[package]]
+name = "dtor"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "404d02eeb088a82cfd873006cb713fe411306c7d182c344905e101fb1167d301"
+dependencies = [
+ "dtor-proc-macro",
+]
+
+[[package]]
+name = "dtor-proc-macro"
+version = "0.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f678cf4a922c215c63e0de95eb1ff08a958a81d47e485cf9da1e27bf6305cfa5"
 
 [[package]]
 name = "ecolor"
@@ -1710,12 +1766,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "futures"
+version = "0.3.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "65bc07b1a8bc7c85c5f2e110c476c7389b4554ba72af57d8445ea63a576b0876"
+dependencies = [
+ "futures-channel",
+ "futures-core",
+ "futures-executor",
+ "futures-io",
+ "futures-sink",
+ "futures-task",
+ "futures-util",
+]
+
+[[package]]
 name = "futures-channel"
 version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2dff15bf788c671c1934e366d07e30c1814a8ef514e1af724a602e8a2fbe1b10"
 dependencies = [
  "futures-core",
+ "futures-sink",
 ]
 
 [[package]]
@@ -1723,6 +1795,17 @@ name = "futures-core"
 version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05f29059c0c2090612e8d742178b0580d2dc940c837851ad723096f87af6663e"
+
+[[package]]
+name = "futures-executor"
+version = "0.3.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e28d1d997f585e54aebc3f97d39e72338912123a67330d723fdbb564d646c9f"
+dependencies = [
+ "futures-core",
+ "futures-task",
+ "futures-util",
+]
 
 [[package]]
 name = "futures-io"
@@ -1755,6 +1838,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "futures-sink"
+version = "0.3.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e575fab7d1e0dcb8d0c7bcf9a63ee213816ab51902e6d244a95819acacf1d4f7"
+
+[[package]]
 name = "futures-task"
 version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1766,9 +1855,11 @@ version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9fa08315bb612088cc391249efdc3bc77536f16c91f6cf495e6fbe85b20a4a81"
 dependencies = [
+ "futures-channel",
  "futures-core",
  "futures-io",
  "futures-macro",
+ "futures-sink",
  "futures-task",
  "memchr",
  "pin-project-lite",
@@ -1860,7 +1951,7 @@ dependencies = [
 [[package]]
 name = "glutin"
 version = "0.32.2"
-source = "git+https://github.com/richerfu/glutin.git?branch=master#e3471549f2d50584223fb3e0317caa382ee4bc81"
+source = "git+https://github.com/richerfu/glutin.git?branch=master#68efe277ce951adebceeac67cbbf0514933d29ff"
 dependencies = [
  "bitflags 2.9.0",
  "cfg_aliases",
@@ -1870,7 +1961,7 @@ dependencies = [
  "glutin_egl_sys",
  "glutin_glx_sys",
  "glutin_wgl_sys 0.6.1 (git+https://github.com/richerfu/glutin.git?branch=master)",
- "libloading",
+ "libloading 0.8.6",
  "objc2 0.5.2",
  "objc2-app-kit 0.2.2",
  "objc2-foundation 0.2.2",
@@ -1884,7 +1975,7 @@ dependencies = [
 [[package]]
 name = "glutin-winit"
 version = "0.5.0"
-source = "git+https://github.com/richerfu/glutin.git?branch=master#e3471549f2d50584223fb3e0317caa382ee4bc81"
+source = "git+https://github.com/richerfu/glutin.git?branch=master#68efe277ce951adebceeac67cbbf0514933d29ff"
 dependencies = [
  "cfg_aliases",
  "glutin",
@@ -1895,7 +1986,7 @@ dependencies = [
 [[package]]
 name = "glutin_egl_sys"
 version = "0.7.1"
-source = "git+https://github.com/richerfu/glutin.git?branch=master#e3471549f2d50584223fb3e0317caa382ee4bc81"
+source = "git+https://github.com/richerfu/glutin.git?branch=master#68efe277ce951adebceeac67cbbf0514933d29ff"
 dependencies = [
  "gl_generator",
  "windows-sys 0.52.0",
@@ -1904,7 +1995,7 @@ dependencies = [
 [[package]]
 name = "glutin_glx_sys"
 version = "0.6.1"
-source = "git+https://github.com/richerfu/glutin.git?branch=master#e3471549f2d50584223fb3e0317caa382ee4bc81"
+source = "git+https://github.com/richerfu/glutin.git?branch=master#68efe277ce951adebceeac67cbbf0514933d29ff"
 dependencies = [
  "gl_generator",
  "x11-dl",
@@ -1922,7 +2013,7 @@ dependencies = [
 [[package]]
 name = "glutin_wgl_sys"
 version = "0.6.1"
-source = "git+https://github.com/richerfu/glutin.git?branch=master#e3471549f2d50584223fb3e0317caa382ee4bc81"
+source = "git+https://github.com/richerfu/glutin.git?branch=master#68efe277ce951adebceeac67cbbf0514933d29ff"
 dependencies = [
  "gl_generator",
 ]
@@ -2023,8 +2114,10 @@ dependencies = [
  "egui_demo_lib",
  "egui_extras",
  "log",
- "openharmony-ability",
- "openharmony-ability-derive",
+ "napi-derive-ohos",
+ "napi-ohos",
+ "openharmony-ability 0.3.0",
+ "openharmony-ability-derive 0.3.0",
  "winit 0.30.9",
 ]
 
@@ -2236,6 +2329,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ident_case"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
+
+[[package]]
 name = "idna"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2407,7 +2506,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6aae1df220ece3c0ada96b8153459b67eebe9ae9212258bb0134ae60416fdf76"
 dependencies = [
  "libc",
- "libloading",
+ "libloading 0.8.6",
  "pkg-config",
 ]
 
@@ -2455,7 +2554,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc2f4eb4bc735547cfed7c0a4922cbd04a4655978c09b54f1f7b228750664c34"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.6",
+]
+
+[[package]]
+name = "libloading"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "754ca22de805bb5744484a5b151a9e1a8e837d5dc232c2d7d8c2e3492edc8b60"
+dependencies = [
+ "cfg-if",
+ "windows-link 0.2.1",
 ]
 
 [[package]]
@@ -2623,7 +2732,7 @@ dependencies = [
  "hexf-parse",
  "indexmap",
  "log",
- "rustc-hash",
+ "rustc-hash 1.1.0",
  "spirv",
  "strum",
  "termcolor",
@@ -2632,13 +2741,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "napi-derive-backend-ohos"
-version = "1.0.4"
+name = "napi-build-ohos"
+version = "1.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd974d6316c670078fa15276c6134e5b45142b393db350b24682ae613733cdac"
+checksum = "bcd28e4f8ae2bebf45f0a051bc2396259cb7b7b27d3f4c8c5058c9ee2942d9bf"
+
+[[package]]
+name = "napi-derive-backend-ohos"
+version = "1.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2cea8c5fcecd200491cb05ec15c205e5b408d6ce51ccd6e80c098022b87c2eed"
 dependencies = [
- "convert_case 0.7.1",
- "once_cell",
+ "convert_case 0.10.0",
  "proc-macro2",
  "quote",
  "semver",
@@ -2647,11 +2761,12 @@ dependencies = [
 
 [[package]]
 name = "napi-derive-ohos"
-version = "1.0.4"
+version = "1.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a3a8b89bbc39f81c472e76813dcd837f311aae7850a24a01d0bf5858221b1fd2"
+checksum = "c62e951b5919c4e8572e78d0e101c461ea445c777637cde66b0c273cf9f5d7f3"
 dependencies = [
- "convert_case 0.7.1",
+ "convert_case 0.10.0",
+ "ctor",
  "napi-derive-backend-ohos",
  "proc-macro2",
  "quote",
@@ -2660,23 +2775,27 @@ dependencies = [
 
 [[package]]
 name = "napi-ohos"
-version = "1.0.4"
+version = "1.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "32036ede4ef064610304337831e9d49dac23e7edc4e9efd076c8259eab6d19a9"
+checksum = "300401a6c16e3a166bfb43d196e3bafe98362332e918377e18c8443bd7318e40"
 dependencies = [
  "bitflags 2.9.0",
  "ctor",
+ "futures",
+ "napi-build-ohos",
  "napi-sys-ohos",
+ "nohash-hasher",
+ "rustc-hash 2.1.1",
  "tokio",
 ]
 
 [[package]]
 name = "napi-sys-ohos"
-version = "1.0.4"
+version = "1.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e18642400316f886a6f153b2fbc48f5652d0e117803057005f89f0e48217d64"
+checksum = "c26511521495f458de78601477e42455e3d5553e96163be6f8725882497aa383"
 dependencies = [
- "libloading",
+ "libloading 0.9.0",
 ]
 
 [[package]]
@@ -3037,18 +3156,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "ohos-accessibility-sys"
+version = "0.0.1"
+source = "git+https://github.com/ohos-rs/ohos-native-bindings.git#b3f3627aef6e59d47c1f68358672351f16775d97"
+
+[[package]]
 name = "ohos-arkui-binding"
-version = "0.0.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad3fc8816b14ea8edbb3a64d0e91bbff5b71751bff811b47b6a97b2e48d8f593"
+version = "0.0.5"
+source = "git+https://github.com/ohos-rs/ohos-native-bindings.git#b3f3627aef6e59d47c1f68358672351f16775d97"
 dependencies = [
  "bitflags 2.9.0",
  "napi-ohos",
  "napi-sys-ohos",
- "ohos-arkui-sys",
- "ohos-xcomponent-binding",
- "ohos-xcomponent-sys",
- "ohos_enum_macro",
+ "ohos-arkui-sys 0.0.1 (git+https://github.com/ohos-rs/ohos-native-bindings.git)",
+ "ohos-xcomponent-binding 0.1.0",
+ "ohos-xcomponent-sys 0.0.2 (git+https://github.com/ohos-rs/ohos-native-bindings.git)",
+ "ohos_enum_macro 0.0.2 (git+https://github.com/ohos-rs/ohos-native-bindings.git)",
+]
+
+[[package]]
+name = "ohos-arkui-binding"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9352f0db69271fc23fb565ad1f034c2118a9ea9c727ece344834b451fe2c2865"
+dependencies = [
+ "bitflags 2.9.0",
+ "napi-ohos",
+ "napi-sys-ohos",
+ "ohos-arkui-sys 0.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ohos-xcomponent-binding 0.2.0",
+ "ohos-xcomponent-sys 0.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ohos_enum_macro 0.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -3061,13 +3199,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "ohos-arkui-sys"
+version = "0.0.1"
+source = "git+https://github.com/ohos-rs/ohos-native-bindings.git#b3f3627aef6e59d47c1f68358672351f16775d97"
+dependencies = [
+ "napi-sys-ohos",
+]
+
+[[package]]
 name = "ohos-display-binding"
 version = "0.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "157fe09232fd0af55ed9207d30b47a5f5ff7f84a0673a3b47f65acb7bbc9b8a9"
 dependencies = [
- "ohos-display-sys",
- "ohos_enum_macro",
+ "ohos-display-sys 0.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ohos_enum_macro 0.0.1",
+]
+
+[[package]]
+name = "ohos-display-binding"
+version = "0.0.1"
+source = "git+https://github.com/ohos-rs/ohos-native-bindings.git#b3f3627aef6e59d47c1f68358672351f16775d97"
+dependencies = [
+ "ohos-display-sys 0.0.1 (git+https://github.com/ohos-rs/ohos-native-bindings.git)",
+ "ohos_enum_macro 0.0.2 (git+https://github.com/ohos-rs/ohos-native-bindings.git)",
 ]
 
 [[package]]
@@ -3077,13 +3232,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fe9e1bba4d94159d0a65f1b4e748c148d4bce7930912c424522693f1837dad77"
 
 [[package]]
+name = "ohos-display-sys"
+version = "0.0.1"
+source = "git+https://github.com/ohos-rs/ohos-native-bindings.git#b3f3627aef6e59d47c1f68358672351f16775d97"
+
+[[package]]
 name = "ohos-ime-binding"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bed52a087eacd3ea07de5258ca7574276431b17d4c0464ed7f7f57a5fa99bd48"
 dependencies = [
  "ohos-input-method-sys",
- "ohos_enum_macro",
+ "ohos_enum_macro 0.0.1",
 ]
 
 [[package]]
@@ -3094,16 +3254,29 @@ checksum = "e95bb83d997b0d7f1d04e9b2ba8874a1bd8e89dc5e88d0852a4390f8b44b0703"
 
 [[package]]
 name = "ohos-xcomponent-binding"
-version = "0.0.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "402d6ebb4cffb6220af238720aa0544335812c78f7de1818caace355ada5a046"
+version = "0.1.0"
+source = "git+https://github.com/ohos-rs/ohos-native-bindings.git#b3f3627aef6e59d47c1f68358672351f16775d97"
 dependencies = [
  "napi-derive-ohos",
  "napi-ohos",
  "napi-sys-ohos",
- "ohos-display-binding",
- "ohos-xcomponent-sys",
- "ohos_enum_macro",
+ "ohos-display-binding 0.0.1 (git+https://github.com/ohos-rs/ohos-native-bindings.git)",
+ "ohos-xcomponent-sys 0.0.2 (git+https://github.com/ohos-rs/ohos-native-bindings.git)",
+ "ohos_enum_macro 0.0.2 (git+https://github.com/ohos-rs/ohos-native-bindings.git)",
+ "raw-window-handle",
+]
+
+[[package]]
+name = "ohos-xcomponent-binding"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c5a9bb0fd157dc702863fe6b5e15b91a4ffdc08b4c47d57d080adcc73c36fa8"
+dependencies = [
+ "napi-derive-ohos",
+ "napi-ohos",
+ "napi-sys-ohos",
+ "ohos-xcomponent-sys 0.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ohos_enum_macro 0.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "raw-window-handle",
 ]
 
@@ -3113,7 +3286,16 @@ version = "0.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5613209329ff61bc8695871ef985d57fc59ea4d55263e2c2395d8810d063575e"
 dependencies = [
- "ohos-arkui-sys",
+ "ohos-arkui-sys 0.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "ohos-xcomponent-sys"
+version = "0.0.2"
+source = "git+https://github.com/ohos-rs/ohos-native-bindings.git#b3f3627aef6e59d47c1f68358672351f16775d97"
+dependencies = [
+ "ohos-accessibility-sys",
+ "ohos-arkui-sys 0.0.1 (git+https://github.com/ohos-rs/ohos-native-bindings.git)",
 ]
 
 [[package]]
@@ -3121,6 +3303,31 @@ name = "ohos_enum_macro"
 version = "0.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b0ee769776099c824423d1686e21b5fd13b464d374d60f7cc25c48c1c836ede1"
+dependencies = [
+ "convert_case 0.6.0",
+ "proc-macro2",
+ "quote",
+ "regex",
+ "syn",
+]
+
+[[package]]
+name = "ohos_enum_macro"
+version = "0.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4bacd60b52be93024c446f27645d795ab71eb2243bb4c5d87b6238a35341fbd"
+dependencies = [
+ "convert_case 0.6.0",
+ "proc-macro2",
+ "quote",
+ "regex",
+ "syn",
+]
+
+[[package]]
+name = "ohos_enum_macro"
+version = "0.0.2"
+source = "git+https://github.com/ohos-rs/ohos-native-bindings.git#b3f3627aef6e59d47c1f68358672351f16775d97"
 dependencies = [
  "convert_case 0.6.0",
  "proc-macro2",
@@ -3143,23 +3350,47 @@ checksum = "d6790f58c7ff633d8771f42965289203411a5e5c68388703c06e14f24770b41e"
 
 [[package]]
 name = "openharmony-ability"
-version = "0.1.4"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87a7b7ab209042f6f3240c0ff0547d4ce11011aee637e39c679a9c836ada5226"
+checksum = "093954c2aac0c1d403d321aa76db7943539a461a78aab91954bd0cbd0449b4a8"
 dependencies = [
  "napi-derive-ohos",
  "napi-ohos",
- "ohos-arkui-binding",
- "ohos-display-binding",
+ "ohos-arkui-binding 0.0.5",
+ "ohos-display-binding 0.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ohos-ime-binding",
- "ohos-xcomponent-binding",
+ "ohos-xcomponent-binding 0.1.0",
+]
+
+[[package]]
+name = "openharmony-ability"
+version = "0.3.0"
+source = "git+https://github.com/harmony-contrib/openharmony-ability.git#6dd10cdf4e6afd4f8fbe4ac4f82dc26a66ab8be2"
+dependencies = [
+ "napi-derive-ohos",
+ "napi-ohos",
+ "ohos-arkui-binding 0.1.0",
+ "ohos-display-binding 0.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ohos-ime-binding",
+ "ohos-xcomponent-binding 0.2.0",
 ]
 
 [[package]]
 name = "openharmony-ability-derive"
-version = "0.1.4"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "864323f29ff79375b1e43da99abfe877cd34db6769c24bcec4fdfa045cb9543f"
+checksum = "b1a491cb7715f066faf375cb66156961466611824ddfa11556a384b1383d77d5"
+dependencies = [
+ "darling",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "openharmony-ability-derive"
+version = "0.3.0"
+source = "git+https://github.com/harmony-contrib/openharmony-ability.git#6dd10cdf4e6afd4f8fbe4ac4f82dc26a66ab8be2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3744,6 +3975,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 
 [[package]]
+name = "rustc-hash"
+version = "2.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "357703d41365b4b27c590e3ed91eabb1b663f07c4c084095e60cbed4362dff0d"
+
+[[package]]
 name = "rustix"
 version = "0.38.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4048,6 +4285,12 @@ checksum = "6637bab7722d379c8b41ba849228d680cc12d0a45ba1fa2b48f2a30577a06731"
 dependencies = [
  "float-cmp",
 ]
+
+[[package]]
+name = "strsim"
+version = "0.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "strum"
@@ -4392,7 +4635,7 @@ version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "deb68604048ff8fa93347f02441e4487594adc20bb8a084f9e564d2b827a0a9f"
 dependencies = [
- "rustc-hash",
+ "rustc-hash 1.1.0",
 ]
 
 [[package]]
@@ -4850,7 +5093,7 @@ dependencies = [
  "parking_lot",
  "profiling",
  "raw-window-handle",
- "rustc-hash",
+ "rustc-hash 1.1.0",
  "smallvec",
  "thiserror 2.0.12",
  "wgpu-hal",
@@ -4880,7 +5123,7 @@ dependencies = [
  "js-sys",
  "khronos-egl",
  "libc",
- "libloading",
+ "libloading 0.8.6",
  "log",
  "metal",
  "naga",
@@ -4893,7 +5136,7 @@ dependencies = [
  "range-alloc",
  "raw-window-handle",
  "renderdoc-sys",
- "rustc-hash",
+ "rustc-hash 1.1.0",
  "smallvec",
  "thiserror 2.0.12",
  "wasm-bindgen",
@@ -5005,6 +5248,12 @@ name = "windows-link"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "76840935b766e1b0a05c0066835fb9ec80071d4c09a16f6bd5f7e655e3c14c38"
+
+[[package]]
+name = "windows-link"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f0805222e57f7521d6a62e36fa9163bc891acd422f971defe97d64e70d0a4fe5"
 
 [[package]]
 name = "windows-result"
@@ -5242,7 +5491,7 @@ checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
 [[package]]
 name = "winit"
 version = "0.30.9"
-source = "git+https://github.com/richerfu/winit.git?branch=feat-ohos-30#962de41c1ff5bbc0dfeca744f1cff5e3479817e5"
+source = "git+https://github.com/richerfu/winit.git?branch=feat-ohos-3x#bffd081ee553be52b0fe00024fdbd2814990bd9e"
 dependencies = [
  "ahash",
  "android-activity",
@@ -5265,8 +5514,8 @@ dependencies = [
  "objc2-app-kit 0.2.2",
  "objc2-foundation 0.2.2",
  "objc2-ui-kit",
- "openharmony-ability",
- "openharmony-ability-derive",
+ "openharmony-ability 0.2.2",
+ "openharmony-ability-derive 0.2.2",
  "orbclient",
  "percent-encoding",
  "pin-project",
@@ -5393,7 +5642,7 @@ dependencies = [
  "as-raw-xcb-connection",
  "gethostname",
  "libc",
- "libloading",
+ "libloading 0.8.6",
  "once_cell",
  "rustix 0.38.44",
  "x11rb-protocol",
