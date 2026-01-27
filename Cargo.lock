@@ -1217,41 +1217,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "darling"
-version = "0.21.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9cdf337090841a411e2a7f3deb9187445851f91b309c0c0a29e05f74a00a48c0"
-dependencies = [
- "darling_core",
- "darling_macro",
-]
-
-[[package]]
-name = "darling_core"
-version = "0.21.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1247195ecd7e3c85f83c8d2a366e4210d588e802133e1e355180a9870b517ea4"
-dependencies = [
- "fnv",
- "ident_case",
- "proc-macro2",
- "quote",
- "strsim",
- "syn",
-]
-
-[[package]]
-name = "darling_macro"
-version = "0.21.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d38308df82d1080de0afee5d069fa14b0326a88c14f15c5ccda35b4a6c414c81"
-dependencies = [
- "darling_core",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "data-url"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1356,7 +1321,7 @@ checksum = "75b325c5dbd37f80359721ad39aca5a29fb04c89279657cffdda8736d0c0b9d2"
 [[package]]
 name = "dpi"
 version = "0.1.1"
-source = "git+https://github.com/richerfu/winit.git?branch=feat-ohos-3x#21f89eb278c418948ba3c68c504d833e88c4aeab"
+source = "git+https://github.com/richerfu/winit.git?branch=feat-ohos-3x#e45bd9274c6d5cec62b2d8e4daefce9f33c60488"
 
 [[package]]
 name = "dpi"
@@ -2351,8 +2316,8 @@ dependencies = [
  "log",
  "napi-derive-ohos",
  "napi-ohos",
- "openharmony-ability 0.3.0 (git+https://github.com/harmony-contrib/openharmony-ability.git)",
- "openharmony-ability-derive 0.3.0 (git+https://github.com/harmony-contrib/openharmony-ability.git)",
+ "openharmony-ability",
+ "openharmony-ability-derive",
  "winit 0.30.9",
 ]
 
@@ -2513,12 +2478,6 @@ dependencies = [
  "zerotrie",
  "zerovec",
 ]
-
-[[package]]
-name = "ident_case"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
 
 [[package]]
 name = "idna"
@@ -3452,37 +3411,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "ohos-accessibility-sys"
-version = "0.0.1"
-source = "git+https://github.com/ohos-rs/ohos-native-bindings.git#e477f98f08cd723c62930adcfb9a744553d0e1bb"
-
-[[package]]
-name = "ohos-arkui-binding"
-version = "0.0.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "731d879cf95234bbd12e525bdce7da6475a6786a86dd2362fac0f3cfca760373"
-dependencies = [
- "bitflags 2.10.0",
- "napi-ohos",
- "napi-sys-ohos",
- "ohos-arkui-sys 0.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "ohos-xcomponent-binding 0.1.0",
- "ohos-xcomponent-sys 0.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "ohos_enum_macro 0.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "ohos-arkui-binding"
 version = "0.1.0"
-source = "git+https://github.com/ohos-rs/ohos-native-bindings.git#e477f98f08cd723c62930adcfb9a744553d0e1bb"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9352f0db69271fc23fb565ad1f034c2118a9ea9c727ece344834b451fe2c2865"
 dependencies = [
  "bitflags 2.10.0",
  "napi-ohos",
  "napi-sys-ohos",
- "ohos-arkui-sys 0.0.1 (git+https://github.com/ohos-rs/ohos-native-bindings.git)",
- "ohos-xcomponent-binding 0.2.0",
- "ohos-xcomponent-sys 0.0.2 (git+https://github.com/ohos-rs/ohos-native-bindings.git)",
- "ohos_enum_macro 0.0.2 (git+https://github.com/ohos-rs/ohos-native-bindings.git)",
+ "ohos-arkui-sys",
+ "ohos-xcomponent-binding",
+ "ohos-xcomponent-sys",
+ "ohos_enum_macro 0.0.2",
 ]
 
 [[package]]
@@ -3490,14 +3430,6 @@ name = "ohos-arkui-sys"
 version = "0.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1a19176486bbe46d33830aca4213b07bb46c745200118e57106639db4962e1c3"
-dependencies = [
- "napi-sys-ohos",
-]
-
-[[package]]
-name = "ohos-arkui-sys"
-version = "0.0.1"
-source = "git+https://github.com/ohos-rs/ohos-native-bindings.git#e477f98f08cd723c62930adcfb9a744553d0e1bb"
 dependencies = [
  "napi-sys-ohos",
 ]
@@ -3536,29 +3468,15 @@ checksum = "e95bb83d997b0d7f1d04e9b2ba8874a1bd8e89dc5e88d0852a4390f8b44b0703"
 
 [[package]]
 name = "ohos-xcomponent-binding"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8f99c43b17408bb43ae53832a7b929dc6a359685f914624e82fec0a52e9d6ac"
-dependencies = [
- "napi-derive-ohos",
- "napi-ohos",
- "napi-sys-ohos",
- "ohos-display-binding",
- "ohos-xcomponent-sys 0.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "ohos_enum_macro 0.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "raw-window-handle",
-]
-
-[[package]]
-name = "ohos-xcomponent-binding"
 version = "0.2.0"
-source = "git+https://github.com/ohos-rs/ohos-native-bindings.git#e477f98f08cd723c62930adcfb9a744553d0e1bb"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c5a9bb0fd157dc702863fe6b5e15b91a4ffdc08b4c47d57d080adcc73c36fa8"
 dependencies = [
  "napi-derive-ohos",
  "napi-ohos",
  "napi-sys-ohos",
- "ohos-xcomponent-sys 0.0.2 (git+https://github.com/ohos-rs/ohos-native-bindings.git)",
- "ohos_enum_macro 0.0.2 (git+https://github.com/ohos-rs/ohos-native-bindings.git)",
+ "ohos-xcomponent-sys",
+ "ohos_enum_macro 0.0.2",
  "raw-window-handle",
 ]
 
@@ -3568,16 +3486,7 @@ version = "0.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5613209329ff61bc8695871ef985d57fc59ea4d55263e2c2395d8810d063575e"
 dependencies = [
- "ohos-arkui-sys 0.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "ohos-xcomponent-sys"
-version = "0.0.2"
-source = "git+https://github.com/ohos-rs/ohos-native-bindings.git#e477f98f08cd723c62930adcfb9a744553d0e1bb"
-dependencies = [
- "ohos-accessibility-sys",
- "ohos-arkui-sys 0.0.1 (git+https://github.com/ohos-rs/ohos-native-bindings.git)",
+ "ohos-arkui-sys",
 ]
 
 [[package]]
@@ -3598,18 +3507,6 @@ name = "ohos_enum_macro"
 version = "0.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4bacd60b52be93024c446f27645d795ab71eb2243bb4c5d87b6238a35341fbd"
-dependencies = [
- "convert_case 0.6.0",
- "proc-macro2",
- "quote",
- "regex",
- "syn",
-]
-
-[[package]]
-name = "ohos_enum_macro"
-version = "0.0.2"
-source = "git+https://github.com/ohos-rs/ohos-native-bindings.git#e477f98f08cd723c62930adcfb9a744553d0e1bb"
 dependencies = [
  "convert_case 0.6.0",
  "proc-macro2",
@@ -3650,40 +3547,14 @@ dependencies = [
 [[package]]
 name = "openharmony-ability"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b68b0a56a8968f31a85024951451a2bb084ecdf08814e77011b47fb957478c7e"
-dependencies = [
- "napi-derive-ohos",
- "napi-ohos",
- "ohos-arkui-binding 0.0.5",
- "ohos-display-binding",
- "ohos-ime-binding",
- "ohos-xcomponent-binding 0.1.0",
-]
-
-[[package]]
-name = "openharmony-ability"
-version = "0.3.0"
 source = "git+https://github.com/harmony-contrib/openharmony-ability.git#6dd10cdf4e6afd4f8fbe4ac4f82dc26a66ab8be2"
 dependencies = [
  "napi-derive-ohos",
  "napi-ohos",
- "ohos-arkui-binding 0.1.0",
+ "ohos-arkui-binding",
  "ohos-display-binding",
  "ohos-ime-binding",
- "ohos-xcomponent-binding 0.2.0",
-]
-
-[[package]]
-name = "openharmony-ability-derive"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da80e8fd70a5f6ebf88a804f969e299672ec6f39b259afcd5d39d23c12f12227"
-dependencies = [
- "darling",
- "proc-macro2",
- "quote",
- "syn",
+ "ohos-xcomponent-binding",
 ]
 
 [[package]]
@@ -4834,12 +4705,6 @@ checksum = "6637bab7722d379c8b41ba849228d680cc12d0a45ba1fa2b48f2a30577a06731"
 dependencies = [
  "float-cmp",
 ]
-
-[[package]]
-name = "strsim"
-version = "0.11.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "subtle"
@@ -6380,7 +6245,7 @@ checksum = "d6bbff5f0aada427a1e5a6da5f1f98158182f26556f345ac9e04d36d0ebed650"
 [[package]]
 name = "winit"
 version = "0.30.9"
-source = "git+https://github.com/richerfu/winit.git?branch=feat-ohos-3x#21f89eb278c418948ba3c68c504d833e88c4aeab"
+source = "git+https://github.com/richerfu/winit.git?branch=feat-ohos-3x#e45bd9274c6d5cec62b2d8e4daefce9f33c60488"
 dependencies = [
  "ahash",
  "android-activity",
@@ -6403,8 +6268,8 @@ dependencies = [
  "objc2-app-kit 0.2.2",
  "objc2-foundation 0.2.2",
  "objc2-ui-kit",
- "openharmony-ability 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "openharmony-ability-derive 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "openharmony-ability",
+ "openharmony-ability-derive",
  "orbclient",
  "percent-encoding",
  "pin-project",

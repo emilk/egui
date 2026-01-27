@@ -171,10 +171,6 @@ unused_lifetimes = "warn"
 trivial_casts = "allow"
 unused_qualifications = "allow"
 
-[patch.crates-io]
-ohos-arkui-binding = { git = "https://github.com/ohos-rs/ohos-native-bindings.git" }
-ohos-xcomponent-binding = { git = "https://github.com/ohos-rs/ohos-native-bindings.git" }
-
 [workspace.lints.rustdoc]
 all = "warn"
 missing_crate_level_docs = "warn"
@@ -376,3 +372,4 @@ map_unwrap_or = "allow" # so is this one
 self_named_module_files = "allow" # Disabled waiting on https://github.com/rust-lang/rust-clippy/issues/9602
 significant_drop_tightening = "allow" # Too many false positives
 wildcard_imports = "allow" # `use crate::*` is useful to avoid merge conflicts when adding/removing imports
+
