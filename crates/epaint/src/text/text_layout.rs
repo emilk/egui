@@ -496,7 +496,7 @@ fn replace_last_glyph_with_overflow_character(
             .as_mut()
             .and_then(|f| f.glyph_info(overflow_character))
             .map(|i| {
-                 i.advance_width_unscaled.0 * font_face_metrics.px_scale_factor / pixels_per_point
+                i.advance_width_unscaled.0 * font_face_metrics.px_scale_factor / pixels_per_point
             })
             .unwrap_or_default();
 
