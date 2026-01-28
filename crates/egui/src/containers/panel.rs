@@ -1020,7 +1020,7 @@ impl CentralPanel {
     ) -> InnerResponse<R> {
         let Self { frame } = self;
 
-        let panel_rect = ui.available_rect_before_wrap();
+        let panel_rect = ui.available_rect_before_wrap().round_ui();
         let mut panel_ui = ui.new_child(
             UiBuilder::new()
                 .ui_stack_info(UiStackInfo::new(UiKind::CentralPanel))
