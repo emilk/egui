@@ -587,8 +587,8 @@ impl ContextImpl {
         if !self.memory.pending_color_glyphs.is_empty() {
             let pending = std::mem::take(&mut self.memory.pending_color_glyphs);
             log::trace!("Applying {} pending color glyphs", pending.len());
-            for (character, image) in pending {
-                fonts.register_color_glyph(character, image);
+            for (character, image) in &pending {
+                fonts.register_color_glyph(*character, image);
             }
         }
     }
@@ -1137,7 +1137,7 @@ impl Context {
     ) {
         self.write(move |ctx| {
             if let Some(fonts) = ctx.fonts.as_mut() {
-                fonts.register_color_glyph(character, image);
+                fonts.register_color_glyph(character, &image);
             } else {
                 // Fonts not initialized yet, queue for later
                 ctx.memory.pending_color_glyphs.push((character, image));

@@ -50,6 +50,7 @@ pub enum GlyphColoring {
     /// Standard glyphs are monochrome and should be multiplied with the widget's chosen text color.
     #[default]
     Monochrome,
+
     /// Color glyphs (e.g., emoji) already contain color data and must bypass tinting.
     Color,
 }
@@ -842,7 +843,7 @@ impl Font<'_> {
     /// Register a color glyph (e.g., an emoji sprite) in the atlas.
     ///
     /// This keeps the font infrastructure agnostic of where the bitmap originated.
-    pub fn register_color_glyph(&mut self, c: char, image: Arc<ColorImage>) {
+    pub fn register_color_glyph(&mut self, c: char, image: &Arc<ColorImage>) {
         if self.cached_family.fonts.is_empty() {
             return;
         }
@@ -856,7 +857,7 @@ impl Font<'_> {
 
         let font_key = self.cached_family.fonts[0];
         if let Some(font_impl) = self.fonts_by_id.get_mut(&font_key) {
-            let glyph_info = font_impl.allocate_custom_glyph_arc(c, &image);
+            let glyph_info = font_impl.allocate_custom_glyph_arc(c, image);
             self.cached_family
                 .glyph_info_cache
                 .insert(c, (font_key, glyph_info));

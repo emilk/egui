@@ -12,21 +12,33 @@ struct AtlasBytes {
     meta: &'static [u8],
 }
 
-#[cfg(all(feature = "emoji_low_res", feature = "emoji_high_res"))]
-compile_error!("`emoji_low_res` and `emoji_high_res` are mutually exclusive");
+// When both features are enabled (e.g., --all-features), prefer high_res.
+// When only one is enabled, use that one. Otherwise use mid resolution.
+// The emoji atlas files are necessarily large (contain full emoji set).
+#[expect(
+    clippy::large_include_file,
+    reason = "emoji atlas is intentionally large"
+)]
+#[cfg(feature = "emoji_high_res")]
+const NOTO_ATLAS: AtlasBytes = AtlasBytes {
+    png: include_bytes!("../assets/emoji/noto_high.atlas"),
+    meta: include_bytes!("../assets/emoji/noto_high.bin"),
+};
 
+#[expect(
+    clippy::large_include_file,
+    reason = "emoji atlas is intentionally large"
+)]
 #[cfg(all(feature = "emoji_low_res", not(feature = "emoji_high_res")))]
 const NOTO_ATLAS: AtlasBytes = AtlasBytes {
     png: include_bytes!("../assets/emoji/noto_low.atlas"),
     meta: include_bytes!("../assets/emoji/noto_low.bin"),
 };
 
-#[cfg(all(feature = "emoji_high_res", not(feature = "emoji_low_res")))]
-const NOTO_ATLAS: AtlasBytes = AtlasBytes {
-    png: include_bytes!("../assets/emoji/noto_high.atlas"),
-    meta: include_bytes!("../assets/emoji/noto_high.bin"),
-};
-
+#[expect(
+    clippy::large_include_file,
+    reason = "emoji atlas is intentionally large"
+)]
 #[cfg(all(not(feature = "emoji_low_res"), not(feature = "emoji_high_res")))]
 const NOTO_ATLAS: AtlasBytes = AtlasBytes {
     png: include_bytes!("../assets/emoji/noto_mid.atlas"),
@@ -83,6 +95,12 @@ impl EmojiStore {
     }
 }
 
+// When both features are enabled (e.g., --all-features), prefer high_res.
+#[cfg(feature = "emoji_high_res")]
+const FERRIS_BYTES: &[u8] = include_bytes!("../assets/emoji/ferris_high.rgba");
+#[cfg(feature = "emoji_high_res")]
+const FERRIS_SIZE: [usize; 2] = [144, 96];
+
 #[cfg(all(feature = "emoji_low_res", not(feature = "emoji_high_res")))]
 const FERRIS_BYTES: &[u8] = include_bytes!("../assets/emoji/ferris_low.rgba");
 #[cfg(all(feature = "emoji_low_res", not(feature = "emoji_high_res")))]
@@ -92,11 +110,6 @@ const FERRIS_SIZE: [usize; 2] = [48, 32];
 const FERRIS_BYTES: &[u8] = include_bytes!("../assets/emoji/ferris_mid.rgba");
 #[cfg(all(not(feature = "emoji_low_res"), not(feature = "emoji_high_res")))]
 const FERRIS_SIZE: [usize; 2] = [72, 48];
-
-#[cfg(all(feature = "emoji_high_res", not(feature = "emoji_low_res")))]
-const FERRIS_BYTES: &[u8] = include_bytes!("../assets/emoji/ferris_high.rgba");
-#[cfg(all(feature = "emoji_high_res", not(feature = "emoji_low_res")))]
-const FERRIS_SIZE: [usize; 2] = [144, 96];
 
 struct RawEmoji {
     ch: char,

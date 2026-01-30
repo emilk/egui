@@ -584,8 +584,8 @@ impl Fonts {
             };
 
             // Re-register color glyphs after recreation
-            for (chr, image) in color_glyphs {
-                self.register_color_glyph(chr, image);
+            for (chr, image) in &color_glyphs {
+                self.register_color_glyph(*chr, image);
             }
         }
 
@@ -662,11 +662,11 @@ impl Fonts {
     /// Color glyphs bypass text tinting and render with their original colors.
     ///
     /// The glyph will be preserved across font atlas rebuilds.
-    pub fn register_color_glyph(&mut self, character: char, image: Arc<crate::ColorImage>) {
+    pub fn register_color_glyph(&mut self, character: char, image: &Arc<crate::ColorImage>) {
         // Store for persistence across atlas rebuilds
-        self.color_glyphs.insert(character, Arc::clone(&image));
+        self.color_glyphs.insert(character, Arc::clone(image));
         // Register in the current fonts
-        self.fonts.register_color_glyph(character, &image);
+        self.fonts.register_color_glyph(character, image);
     }
 }
 
@@ -892,6 +892,10 @@ impl FontsImpl {
     /// Register a color glyph (e.g., an emoji sprite) for a character.
     ///
     /// Registers the glyph in all font families so it's available everywhere.
+    #[expect(
+        clippy::iter_over_hash_type,
+        reason = "order doesn't matter for glyph registration"
+    )]
     pub fn register_color_glyph(&mut self, character: char, image: &Arc<crate::ColorImage>) {
         // Register directly on all FontFace objects so they're available
         // even for font families that haven't been used yet
