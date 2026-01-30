@@ -217,9 +217,28 @@ struct GlyphMetadata {
     height: u16,
 }
 
+/// Binary metadata format (version 1):
+/// - Bytes 0-3: Magic number (0x00001000)
+/// - Bytes 4-7: Atlas height in pixels (u32 LE) - used for sanity checking
+/// - Bytes 8-11: Glyph count (u32 LE)
+/// - Bytes 12+: Glyph entries (12 bytes each: codepoint u32, x u16, y u16, w u16, h u16)
+const METADATA_MAGIC: [u8; 4] = [0x00, 0x10, 0x00, 0x00];
+
+/// Maximum reasonable atlas height (16K pixels should be more than enough)
+const MAX_ATLAS_HEIGHT: u32 = 16384;
+
 fn parse_metadata(bytes: &[u8]) -> Result<Vec<GlyphMetadata>, String> {
     if bytes.len() < 12 {
         return Err("Emoji metadata is truncated".to_owned());
+    }
+
+    // Validate magic number (bytes 0-3)
+    if bytes[0..4] != METADATA_MAGIC {
+        return Err(format!(
+            "Invalid emoji metadata magic: expected {:02x?}, got {:02x?}",
+            METADATA_MAGIC,
+            &bytes[0..4]
+        ));
     }
 
     let read_u32 = |slice: &[u8]| -> Result<u32, String> {
@@ -235,6 +254,14 @@ fn parse_metadata(bytes: &[u8]) -> Result<Vec<GlyphMetadata>, String> {
             .map_err(|_err| "Failed to read u16 from metadata".to_owned())?;
         Ok(u16::from_le_bytes(arr))
     };
+
+    // Validate atlas height (bytes 4-7) - sanity check for corrupted files
+    let atlas_height = read_u32(&bytes[4..8])?;
+    if atlas_height == 0 || atlas_height > MAX_ATLAS_HEIGHT {
+        return Err(format!(
+            "Invalid atlas height in emoji metadata: {atlas_height} (expected 1-{MAX_ATLAS_HEIGHT})"
+        ));
+    }
 
     let count_offset = 8;
     let glyph_count = read_u32(&bytes[count_offset..count_offset + 4])? as usize;
