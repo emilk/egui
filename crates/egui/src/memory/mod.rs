@@ -83,6 +83,10 @@ pub struct Memory {
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) add_fonts: Vec<epaint::text::FontInsert>,
 
+    /// Pending color glyphs to register when fonts become available
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    pub(crate) pending_color_glyphs: Vec<(char, std::sync::Arc<epaint::ColorImage>)>,
+
     // Current active viewport
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) viewport_id: ViewportId,
@@ -133,6 +137,7 @@ impl Default for Memory {
             popups: Default::default(),
             everything_is_visible: Default::default(),
             add_fonts: Default::default(),
+            pending_color_glyphs: Default::default(),
         };
         slf.interactions.entry(slf.viewport_id).or_default();
         slf.areas.entry(slf.viewport_id).or_default();

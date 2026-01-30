@@ -1380,6 +1380,7 @@ dependencies = [
  "egui_demo_lib",
  "egui_extras",
  "egui_kittest",
+ "egui_noto_emoji",
  "ehttp",
  "env_logger",
  "image",
@@ -1470,6 +1471,15 @@ dependencies = [
  "tempfile",
  "toml",
  "wgpu",
+]
+
+[[package]]
+name = "egui_noto_emoji"
+version = "0.33.3"
+dependencies = [
+ "egui",
+ "log",
+ "png",
 ]
 
 [[package]]

@@ -231,6 +231,7 @@ fn layout_section(
                 font_height: font_metrics.row_height,
                 font_ascent: font_metrics.ascent,
                 uv_rect: glyph_alloc.uv_rect,
+                coloring: glyph_alloc.coloring,
                 section_index,
                 first_vertex: 0, // filled in later
             });
@@ -533,6 +534,7 @@ fn replace_last_glyph_with_overflow_character(
                 font_height: font_metrics.row_height,
                 font_ascent: font_metrics.ascent,
                 uv_rect: replacement_glyph_alloc.uv_rect,
+                coloring: replacement_glyph_alloc.coloring,
                 section_index,
                 first_vertex: 0, // filled in later
             });
@@ -769,7 +771,7 @@ fn tessellate_row(
 
     let glyph_index_start = mesh.indices.len();
     let glyph_vertex_start = mesh.vertices.len();
-    tessellate_glyphs(point_scale, job, row, &mut mesh);
+    let color_glyph_vertex_ranges = tessellate_glyphs(point_scale, job, row, &mut mesh);
     let glyph_vertex_end = mesh.vertices.len();
 
     if format_summary.any_underline {
@@ -797,6 +799,7 @@ fn tessellate_row(
         mesh_bounds,
         glyph_index_start,
         glyph_vertex_range: glyph_vertex_start..glyph_vertex_end,
+        color_glyph_vertex_ranges,
     }
 }
 
@@ -847,11 +850,23 @@ fn add_row_backgrounds(point_scale: PointScale, job: &LayoutJob, row: &Row, mesh
     end_run(run_start.take(), last_rect.right());
 }
 
-fn tessellate_glyphs(point_scale: PointScale, job: &LayoutJob, row: &mut Row, mesh: &mut Mesh) {
+/// Tessellate glyphs and return the ranges of vertices that belong to color glyphs.
+fn tessellate_glyphs(
+    point_scale: PointScale,
+    job: &LayoutJob,
+    row: &mut Row,
+    mesh: &mut Mesh,
+) -> Vec<std::ops::Range<usize>> {
+    use super::font::GlyphColoring;
+
+    let mut color_glyph_ranges = Vec::new();
+
     for glyph in &mut row.glyphs {
         glyph.first_vertex = mesh.vertices.len() as u32;
         let uv_rect = glyph.uv_rect;
         if !uv_rect.is_nothing() {
+            let vertex_start = mesh.vertices.len();
+
             let mut left_top = glyph.pos + uv_rect.offset;
             left_top.x = point_scale.round_to_pixel(left_top.x);
             left_top.y = point_scale.round_to_pixel(left_top.y);
@@ -864,7 +879,12 @@ fn tessellate_glyphs(point_scale: PointScale, job: &LayoutJob, row: &mut Row, me
 
             let format = &job.sections[glyph.section_index as usize].format;
 
-            let color = format.color;
+            // Color glyphs (e.g., emoji) use white so the texture colors come through.
+            // Monochrome glyphs use the text format's color.
+            let color = match glyph.coloring {
+                GlyphColoring::Color => Color32::WHITE,
+                GlyphColoring::Monochrome => format.color,
+            };
 
             if format.italics {
                 let idx = mesh.vertices.len() as u32;
@@ -896,8 +916,16 @@ fn tessellate_glyphs(point_scale: PointScale, job: &LayoutJob, row: &mut Row, me
             } else {
                 mesh.add_rect_with_uv(rect, uv, color);
             }
+
+            // Track color glyph vertex ranges
+            if matches!(glyph.coloring, GlyphColoring::Color) {
+                let vertex_end = mesh.vertices.len();
+                color_glyph_ranges.push(vertex_start..vertex_end);
+            }
         }
     }
+
+    color_glyph_ranges
 }
 
 /// Add a horizontal line over a row of glyphs with a stroke and y decided by a callback.

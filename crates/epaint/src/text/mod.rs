@@ -10,6 +10,7 @@ mod text_layout_types;
 pub const TAB_SIZE: usize = 4;
 
 pub use {
+    font::GlyphColoring,
     fonts::{
         FontData, FontDefinitions, FontFamily, FontId, FontInsert, FontPriority, FontTweak, Fonts,
         FontsImpl, FontsView, InsertFontFamily,

@@ -543,6 +543,12 @@ impl CachedFamily {
 pub struct Fonts {
     pub fonts: FontsImpl,
     galley_cache: GalleyCache,
+
+    /// Registered color glyphs that should survive atlas recreation.
+    ///
+    /// When the font atlas is rebuilt (e.g., when it gets too full),
+    /// these glyphs are re-registered automatically.
+    color_glyphs: BTreeMap<char, Arc<crate::ColorImage>>,
 }
 
 impl Fonts {
@@ -552,6 +558,7 @@ impl Fonts {
         Self {
             fonts: FontsImpl::new(options, definitions),
             galley_cache: Default::default(),
+            color_glyphs: BTreeMap::new(),
         }
     }
 
@@ -568,11 +575,18 @@ impl Fonts {
 
         if needs_recreate {
             let definitions = self.fonts.definitions.clone();
+            let color_glyphs = std::mem::take(&mut self.color_glyphs);
 
             *self = Self {
                 fonts: FontsImpl::new(options, definitions),
                 galley_cache: Default::default(),
+                color_glyphs: BTreeMap::new(),
             };
+
+            // Re-register color glyphs after recreation
+            for (chr, image) in color_glyphs {
+                self.register_color_glyph(chr, image);
+            }
         }
 
         self.galley_cache.flush_cache();
@@ -640,6 +654,19 @@ impl Fonts {
             galley_cache: &mut self.galley_cache,
             pixels_per_point,
         }
+    }
+
+    /// Register a color glyph (e.g., an emoji sprite) for a character.
+    ///
+    /// The image will be used instead of the font's glyph for this character.
+    /// Color glyphs bypass text tinting and render with their original colors.
+    ///
+    /// The glyph will be preserved across font atlas rebuilds.
+    pub fn register_color_glyph(&mut self, character: char, image: Arc<crate::ColorImage>) {
+        // Store for persistence across atlas rebuilds
+        self.color_glyphs.insert(character, Arc::clone(&image));
+        // Register in the current fonts
+        self.fonts.register_color_glyph(character, &image);
     }
 }
 
@@ -859,6 +886,23 @@ impl FontsImpl {
             fonts_by_id: &mut self.fonts_by_id,
             cached_family,
             atlas: &mut self.atlas,
+        }
+    }
+
+    /// Register a color glyph (e.g., an emoji sprite) for a character.
+    ///
+    /// Registers the glyph in all font families so it's available everywhere.
+    pub fn register_color_glyph(&mut self, character: char, image: &Arc<crate::ColorImage>) {
+        // Register directly on all FontFace objects so they're available
+        // even for font families that haven't been used yet
+        for font_face in self.fonts_by_id.values_mut() {
+            font_face.allocate_custom_glyph_arc(character, image);
+        }
+
+        // Also update any existing cached family glyph_info_caches
+        for cached_family in self.family_cache.values_mut() {
+            // Invalidate the cache entry so it gets re-queried from FontFace
+            cached_family.glyph_info_cache.remove(&character);
         }
     }
 }

@@ -582,6 +582,15 @@ impl ContextImpl {
             profiling::scope!("Fonts::begin_pass");
             fonts.begin_pass(text_options);
         }
+
+        // Apply any pending color glyph registrations
+        if !self.memory.pending_color_glyphs.is_empty() {
+            let pending = std::mem::take(&mut self.memory.pending_color_glyphs);
+            log::trace!("Applying {} pending color glyphs", pending.len());
+            for (character, image) in pending {
+                fonts.register_color_glyph(character, image);
+            }
+        }
     }
 
     fn accesskit_node_builder(&mut self, id: Id) -> Option<&mut accesskit::Node> {
@@ -1103,6 +1112,37 @@ impl Context {
                     .with_pixels_per_point(pixels_per_point),
             )
         })
+    }
+
+    /// Register a color glyph (e.g., an emoji sprite) for a character.
+    ///
+    /// The image will be used instead of the font's glyph for this character.
+    /// Color glyphs bypass text tinting and render with their original colors.
+    ///
+    /// This is useful for adding emoji support or other custom colored glyphs.
+    ///
+    /// Not valid until first call to [`Context::run()`].
+    pub fn register_color_glyph(&self, character: char, image: crate::ColorImage) {
+        self.register_color_glyph_arc(character, std::sync::Arc::new(image));
+    }
+
+    /// Same as [`Self::register_color_glyph`], but lets you share the underlying image allocation.
+    ///
+    /// If fonts are not yet initialized (before first call to [`Context::run()`]),
+    /// the registration will be queued and applied when fonts become available.
+    pub fn register_color_glyph_arc(
+        &self,
+        character: char,
+        image: std::sync::Arc<crate::ColorImage>,
+    ) {
+        self.write(move |ctx| {
+            if let Some(fonts) = ctx.fonts.as_mut() {
+                fonts.register_color_glyph(character, image);
+            } else {
+                // Fonts not initialized yet, queue for later
+                ctx.memory.pending_color_glyphs.push((character, image));
+            }
+        });
     }
 
     /// Read-only access to [`Options`].

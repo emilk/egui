@@ -179,6 +179,9 @@ impl WrapApp {
         // This gives us image support:
         egui_extras::install_image_loaders(&cc.egui_ctx);
 
+        // This gives us color emoji support:
+        egui_noto_emoji::install(&cc.egui_ctx);
+
         #[cfg(feature = "accessibility_inspector")]
         cc.egui_ctx
             .add_plugin(crate::accessibility_inspector::AccessibilityInspectorPlugin::default());

@@ -2065,8 +2065,16 @@ impl Tessellator {
 
                         if let Some(override_text_color) = override_text_color {
                             // Only override the glyph color (not background color, strike-through color, etc)
+                            // But skip color glyphs (e.g., emoji) which should keep their original colors
                             if row.visuals.glyph_vertex_range.contains(&i) {
-                                color = *override_text_color;
+                                let is_color_glyph = row
+                                    .visuals
+                                    .color_glyph_vertex_ranges
+                                    .iter()
+                                    .any(|range| range.contains(&i));
+                                if !is_color_glyph {
+                                    color = *override_text_color;
+                                }
                             }
                         } else if color == Color32::PLACEHOLDER {
                             color = *fallback_color;

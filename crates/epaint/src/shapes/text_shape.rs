@@ -159,6 +159,7 @@ impl TextShape {
                 mesh_bounds,
                 glyph_index_start: _,
                 glyph_vertex_range: _,
+                color_glyph_vertex_ranges: _,
             } = visuals;
 
             *mesh_bounds = transform.scaling * *mesh_bounds;

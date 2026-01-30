@@ -1,0 +1,30 @@
+[package]
+name = "egui_noto_emoji"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
+description = "Optional Noto emoji bundle for egui"
+homepage = "https://github.com/emilk/egui/tree/main/crates/egui_noto_emoji"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/emilk/egui/tree/main/crates/egui_noto_emoji"
+
+[lints]
+workspace = true
+
+[features]
+default = []
+
+## Bundle the low-resolution vibrant emoji atlas instead of the default mid-resolution one.
+emoji_low_res = []
+
+## Bundle the high-resolution vibrant emoji atlas instead of the default mid-resolution one.
+emoji_high_res = []
+
+## Turn on the `log` feature, so we can log texture loading failures.
+log = ["dep:log"]
+
+[dependencies]
+egui = { workspace = true }
+png = "0.17"
+log = { workspace = true, optional = true }

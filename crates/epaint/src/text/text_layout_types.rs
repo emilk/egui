@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use super::{
     cursor::{CCursor, LayoutCursor},
-    font::UvRect,
+    font::{GlyphColoring, UvRect},
 };
 use crate::{Color32, FontId, Mesh, Stroke, text::FontsView};
 use emath::{Align, GuiRounding as _, NumExt as _, OrderedFloat, Pos2, Rect, Vec2, pos2, vec2};
@@ -645,6 +645,11 @@ pub struct RowVisuals {
     ///
     /// The glyph vertices comes after backgrounds (if any), but before any underlines and strikethrough.
     pub glyph_vertex_range: Range<usize>,
+
+    /// Ranges of vertices that belong to color glyphs (e.g., emoji).
+    ///
+    /// These should NOT have their color overridden by `override_text_color`.
+    pub color_glyph_vertex_ranges: Vec<Range<usize>>,
 }
 
 impl Default for RowVisuals {
@@ -654,6 +659,7 @@ impl Default for RowVisuals {
             mesh_bounds: Rect::NOTHING,
             glyph_index_start: 0,
             glyph_vertex_range: 0..0,
+            color_glyph_vertex_ranges: Vec::new(),
         }
     }
 }
@@ -691,6 +697,11 @@ pub struct Glyph {
 
     /// Position and size of the glyph in the font texture, in texels.
     pub uv_rect: UvRect,
+
+    /// Whether this glyph carries baked color (e.g., color emoji).
+    ///
+    /// Color glyphs should not be tinted with the text color.
+    pub coloring: GlyphColoring,
 
     /// Index into [`LayoutJob::sections`]. Decides color etc.
     ///
