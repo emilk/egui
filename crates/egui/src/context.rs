@@ -1121,7 +1121,8 @@ impl Context {
     ///
     /// This is useful for adding emoji support or other custom colored glyphs.
     ///
-    /// Not valid until first call to [`Context::run()`].
+    /// If fonts are not yet initialized (before first call to [`Context::run()`]),
+    /// the registration will be queued and applied when fonts become available.
     pub fn register_color_glyph(&self, character: char, image: crate::ColorImage) {
         self.register_color_glyph_arc(character, std::sync::Arc::new(image));
     }

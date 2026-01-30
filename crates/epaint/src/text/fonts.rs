@@ -948,9 +948,10 @@ impl FontsImpl {
             },
         );
 
-        // Invalidate any cached glyph info for this character
+        // Invalidate any cached glyph info and characters map for this character
         for cached_family in self.family_cache.values_mut() {
             cached_family.glyph_info_cache.remove(&character);
+            cached_family.characters = None;
         }
     }
 }

@@ -610,7 +610,7 @@ impl FontFace {
 
     /// Register a color glyph image, sharing the underlying allocation.
     pub fn allocate_custom_glyph_arc(&mut self, chr: char, image: &Arc<ColorImage>) -> GlyphInfo {
-        let index = match self.custom_glyph_map.entry(chr) {
+        let (index, is_update) = match self.custom_glyph_map.entry(chr) {
             std::collections::hash_map::Entry::Occupied(occ) => {
                 let idx = *occ.get();
                 if let Some(slot) = self.custom_glyphs.get_mut(idx as usize) {
@@ -618,21 +618,25 @@ impl FontFace {
                         image: Arc::clone(image),
                     };
                 }
-                idx
+                (idx, true)
             }
             std::collections::hash_map::Entry::Vacant(vac) => {
                 let idx = self.custom_glyphs.len() as CustomGlyphIndex;
                 self.custom_glyphs.push(CustomGlyph {
                     image: Arc::clone(image),
                 });
-                *vac.insert(idx)
+                (*vac.insert(idx), false)
             }
         };
 
         // Invalidate cached glyph info if it exists (may have been monochrome fallback)
         self.glyph_info_cache.remove(&chr);
-        // Also invalidate allocation cache for this glyph
-        // (we can't easily remove specific entries, but they'll be regenerated)
+
+        // When re-registering a glyph with a new image, clear allocation cache to ensure
+        // stale atlas allocations aren't reused. The cache will be repopulated on demand.
+        if is_update {
+            self.glyph_alloc_cache.clear();
+        }
 
         GlyphInfo {
             id: None,

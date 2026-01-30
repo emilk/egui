@@ -159,16 +159,28 @@ fn load_noto_emojis() -> Result<Vec<EmojiEntry>, String> {
 
     let mut entries = Vec::with_capacity(glyphs.len());
     for glyph in glyphs {
-        let image = Arc::new(copy_sub_image(
+        let Some(image) = copy_sub_image(
             &atlas,
             glyph.x as usize,
             glyph.y as usize,
             glyph.width as usize,
             glyph.height as usize,
-        ));
+        ) else {
+            return Err(format!(
+                "Emoji glyph {:?} (U+{:04X}) has invalid bounds: x={}, y={}, w={}, h={} (atlas: {}x{})",
+                glyph.ch,
+                glyph.ch as u32,
+                glyph.x,
+                glyph.y,
+                glyph.width,
+                glyph.height,
+                atlas.width(),
+                atlas.height()
+            ));
+        };
         entries.push(EmojiEntry {
             ch: glyph.ch,
-            image,
+            image: Arc::new(image),
         });
     }
     Ok(entries)
@@ -256,7 +268,17 @@ fn copy_sub_image(
     y: usize,
     width: usize,
     height: usize,
-) -> ColorImage {
+) -> Option<ColorImage> {
+    // Bounds validation to prevent panic on corrupted metadata
+    if width == 0 || height == 0 {
+        return None;
+    }
+    let x_end = x.checked_add(width)?;
+    let y_end = y.checked_add(height)?;
+    if x_end > source.width() || y_end > source.height() {
+        return None;
+    }
+
     let mut out = ColorImage::filled([width, height], Color32::TRANSPARENT);
     let src_width = source.width();
     for row in 0..height {
@@ -266,5 +288,5 @@ fn copy_sub_image(
         out.pixels[dst_start..dst_start + width]
             .copy_from_slice(&source.pixels[src_start..src_end]);
     }
-    out
+    Some(out)
 }
