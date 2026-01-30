@@ -47,7 +47,7 @@ eframe = { workspace = true, default-features = false, features = ["web_screen_r
 egui = { workspace = true, features = ["callstack", "default"] }
 egui_demo_lib = { workspace = true, features = ["default", "chrono"] }
 egui_extras = { workspace = true, features = ["default", "image"] }
-egui_noto_emoji = { path = "../egui_noto_emoji", features = ["log"] }
+egui_noto_emoji = { version = "0.33.3", path = "../egui_noto_emoji", features = ["log", "emoji_high_res"] }
 image = { workspace = true, default-features = false, features = [
   # Ensure we can display the test images
   "png",

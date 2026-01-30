@@ -587,8 +587,8 @@ impl ContextImpl {
         if !self.memory.pending_color_glyphs.is_empty() {
             let pending = std::mem::take(&mut self.memory.pending_color_glyphs);
             log::trace!("Applying {} pending color glyphs", pending.len());
-            for (character, image) in &pending {
-                fonts.register_color_glyph(*character, image);
+            for (character, images) in pending {
+                fonts.register_color_glyph_multi(character, images);
             }
         }
     }
@@ -1141,7 +1141,38 @@ impl Context {
                 fonts.register_color_glyph(character, &image);
             } else {
                 // Fonts not initialized yet, queue for later
-                ctx.memory.pending_color_glyphs.push((character, image));
+                ctx.memory
+                    .pending_color_glyphs
+                    .push((character, vec![(image.height() as u16, image)]));
+            }
+        });
+    }
+
+    /// Register a color glyph with multiple resolutions for sharp rendering at all sizes.
+    ///
+    /// Each entry in `images` is (`size_px`, image) where `size_px` is the native pixel height.
+    /// The system will automatically select the best resolution based on render size:
+    /// - Prefer the smallest resolution >= target size (slight downscale looks sharp)
+    /// - Fall back to largest resolution if all are smaller (minimize upscale blur)
+    ///
+    /// Example resolutions: 96px for large text, 48px for medium, 24px for small.
+    ///
+    /// If fonts are not yet initialized (before first call to [`Context::run()`]),
+    /// the registration will be queued and applied when fonts become available.
+    pub fn register_color_glyph_multi(
+        &self,
+        character: char,
+        images: Vec<(u16, std::sync::Arc<crate::ColorImage>)>,
+    ) {
+        if images.is_empty() {
+            return;
+        }
+        self.write(move |ctx| {
+            if let Some(fonts) = ctx.fonts.as_mut() {
+                fonts.register_color_glyph_multi(character, images);
+            } else {
+                // Fonts not initialized yet, queue for later
+                ctx.memory.pending_color_glyphs.push((character, images));
             }
         });
     }

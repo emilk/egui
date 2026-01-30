@@ -4,7 +4,7 @@
 
 mod store;
 
-pub use store::{EmojiEntry, EmojiStore};
+pub use store::{EmojiEntry, EmojiResolution, EmojiStore};
 
 use egui::Context;
 
@@ -22,13 +22,16 @@ pub fn register_store(ctx: &Context, store: &EmojiStore) {
     }
 }
 
-/// Register a single emoji sprite, keeping ASCII digits/#/* rendered by the base fonts.
+/// Register a single emoji sprite with all its resolutions.
+///
+/// ASCII digits/#/* are kept rendered by the base fonts (keycap emoji components).
 pub fn register_entry(ctx: &Context, entry: &EmojiEntry) {
     if is_keycap_component(entry.ch()) {
         return;
     }
 
-    ctx.register_color_glyph_arc(entry.ch(), entry.image_arc());
+    // Use multi-resolution registration for sharp rendering at all sizes
+    ctx.register_color_glyph_multi(entry.ch(), entry.resolutions());
 }
 
 /// Single ASCII characters that are part of the keycap emoji sequences.

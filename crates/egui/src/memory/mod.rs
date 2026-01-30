@@ -83,9 +83,10 @@ pub struct Memory {
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) add_fonts: Vec<epaint::text::FontInsert>,
 
-    /// Pending color glyphs to register when fonts become available
+    /// Pending color glyphs to register when fonts become available.
+    /// Each entry is (character, resolutions) where resolutions is `Vec<(size_px, image)>`.
     #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) pending_color_glyphs: Vec<(char, std::sync::Arc<epaint::ColorImage>)>,
+    pub(crate) pending_color_glyphs: Vec<(char, Vec<(u16, std::sync::Arc<epaint::ColorImage>)>)>,
 
     // Current active viewport
     #[cfg_attr(feature = "persistence", serde(skip))]

@@ -869,7 +869,9 @@ impl FontFace {
         custom_data: &super::fonts::CustomGlyphData,
         h_pos: f32,
     ) -> (GlyphAllocation, i32) {
-        let image = custom_data.image();
+        // Compute target pixel size for resolution selection
+        let target_px = (metrics.row_height * metrics.pixels_per_point).round() as u16;
+        let image = custom_data.select_image(target_px);
         let glyph_width = image.width();
         let glyph_height = image.height();
         if glyph_width == 0 || glyph_height == 0 {

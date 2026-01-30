@@ -77,6 +77,7 @@ impl Default for DemoGroups {
                 Box::<super::code_example::CodeExample>::default(),
                 Box::<super::dancing_strings::DancingStrings>::default(),
                 Box::<super::drag_and_drop::DragAndDropDemo>::default(),
+                Box::<super::emoji::EmojiDemo>::default(),
                 Box::<super::extra_viewport::ExtraViewport>::default(),
                 Box::<super::font_book::FontBook>::default(),
                 Box::<super::frame_demo::FrameDemo>::default(),

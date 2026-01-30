@@ -2,8 +2,11 @@
 //!
 //! The default emoji bundle is packed into atlas PNG files that we decode at startup.
 //! Smaller curated sprites (like Ferris) still use raw RGBA blobs.
+//!
+//! When `emoji_high_res` feature is enabled, all three resolutions (low/mid/high) are loaded
+//! for better rendering at all font sizes.
 
-use std::{convert::TryInto as _, sync::Arc};
+use std::{collections::HashMap, convert::TryInto as _, sync::Arc};
 
 use egui::{Color32, ColorImage};
 
@@ -12,19 +15,38 @@ struct AtlasBytes {
     meta: &'static [u8],
 }
 
-// When both features are enabled (e.g., --all-features), prefer high_res.
-// When only one is enabled, use that one. Otherwise use mid resolution.
-// The emoji atlas files are necessarily large (contain full emoji set).
+// Load all three atlases when high_res is enabled for multi-resolution support.
 #[expect(
     clippy::large_include_file,
     reason = "emoji atlas is intentionally large"
 )]
 #[cfg(feature = "emoji_high_res")]
-const NOTO_ATLAS: AtlasBytes = AtlasBytes {
+const NOTO_ATLAS_LOW: AtlasBytes = AtlasBytes {
+    png: include_bytes!("../assets/emoji/noto_low.atlas"),
+    meta: include_bytes!("../assets/emoji/noto_low.bin"),
+};
+
+#[expect(
+    clippy::large_include_file,
+    reason = "emoji atlas is intentionally large"
+)]
+#[cfg(feature = "emoji_high_res")]
+const NOTO_ATLAS_MID: AtlasBytes = AtlasBytes {
+    png: include_bytes!("../assets/emoji/noto_mid.atlas"),
+    meta: include_bytes!("../assets/emoji/noto_mid.bin"),
+};
+
+#[expect(
+    clippy::large_include_file,
+    reason = "emoji atlas is intentionally large"
+)]
+#[cfg(feature = "emoji_high_res")]
+const NOTO_ATLAS_HIGH: AtlasBytes = AtlasBytes {
     png: include_bytes!("../assets/emoji/noto_high.atlas"),
     meta: include_bytes!("../assets/emoji/noto_high.bin"),
 };
 
+// Single atlas when not using high_res
 #[expect(
     clippy::large_include_file,
     reason = "emoji atlas is intentionally large"
@@ -45,11 +67,23 @@ const NOTO_ATLAS: AtlasBytes = AtlasBytes {
     meta: include_bytes!("../assets/emoji/noto_mid.bin"),
 };
 
-/// Definition of a single emoji sprite.
+/// A single resolution image for an emoji.
+#[derive(Clone)]
+pub struct EmojiResolution {
+    /// The native pixel height of this image.
+    pub size_px: u16,
+
+    /// The image data.
+    pub image: Arc<ColorImage>,
+}
+
+/// Definition of a single emoji with potentially multiple resolutions.
 #[derive(Clone)]
 pub struct EmojiEntry {
     pub(crate) ch: char,
-    pub(crate) image: Arc<ColorImage>,
+
+    /// Available resolutions, sorted by size (smallest first).
+    pub(crate) resolutions: Vec<EmojiResolution>,
 }
 
 impl EmojiEntry {
@@ -59,18 +93,33 @@ impl EmojiEntry {
         self.ch
     }
 
-    /// Returns a reference to the emoji's color image.
+    /// Returns the resolutions as (`size_px`, image) tuples for registration.
     #[inline]
-    pub fn image(&self) -> &ColorImage {
-        self.image.as_ref()
+    pub fn resolutions(&self) -> Vec<(u16, Arc<ColorImage>)> {
+        self.resolutions
+            .iter()
+            .map(|r| (r.size_px, Arc::clone(&r.image)))
+            .collect()
     }
 
-    /// Returns a shared reference to the emoji's color image.
-    ///
-    /// Useful when you need to pass ownership without cloning the pixel data.
+    /// Returns a reference to the largest resolution emoji image.
+    /// For backwards compatibility.
+    #[inline]
+    pub fn image(&self) -> &ColorImage {
+        self.resolutions
+            .last()
+            .map(|r| r.image.as_ref())
+            .unwrap_or_else(|| self.resolutions[0].image.as_ref())
+    }
+
+    /// Returns a shared reference to the largest resolution emoji image.
+    /// For backwards compatibility.
     #[inline]
     pub fn image_arc(&self) -> Arc<ColorImage> {
-        Arc::clone(&self.image)
+        self.resolutions
+            .last()
+            .map(|r| Arc::clone(&r.image))
+            .unwrap_or_else(|| Arc::clone(&self.resolutions[0].image))
     }
 }
 
@@ -102,27 +151,27 @@ impl EmojiStore {
     }
 }
 
-// When both features are enabled (e.g., --all-features), prefer high_res.
+// Ferris emoji at all resolutions (when high_res enabled)
 #[cfg(feature = "emoji_high_res")]
-const FERRIS_BYTES: &[u8] = include_bytes!("../assets/emoji/ferris_high.rgba");
+const FERRIS_LOW: (&[u8], [usize; 2]) =
+    (include_bytes!("../assets/emoji/ferris_low.rgba"), [48, 32]);
 #[cfg(feature = "emoji_high_res")]
-const FERRIS_SIZE: [usize; 2] = [144, 96];
+const FERRIS_MID: (&[u8], [usize; 2]) =
+    (include_bytes!("../assets/emoji/ferris_mid.rgba"), [72, 48]);
+#[cfg(feature = "emoji_high_res")]
+const FERRIS_HIGH: (&[u8], [usize; 2]) = (
+    include_bytes!("../assets/emoji/ferris_high.rgba"),
+    [144, 96],
+);
 
+// Single Ferris resolution when not using high_res
 #[cfg(all(feature = "emoji_low_res", not(feature = "emoji_high_res")))]
-const FERRIS_BYTES: &[u8] = include_bytes!("../assets/emoji/ferris_low.rgba");
-#[cfg(all(feature = "emoji_low_res", not(feature = "emoji_high_res")))]
-const FERRIS_SIZE: [usize; 2] = [48, 32];
+const FERRIS_SINGLE: (&[u8], [usize; 2]) =
+    (include_bytes!("../assets/emoji/ferris_low.rgba"), [48, 32]);
 
 #[cfg(all(not(feature = "emoji_low_res"), not(feature = "emoji_high_res")))]
-const FERRIS_BYTES: &[u8] = include_bytes!("../assets/emoji/ferris_mid.rgba");
-#[cfg(all(not(feature = "emoji_low_res"), not(feature = "emoji_high_res")))]
-const FERRIS_SIZE: [usize; 2] = [72, 48];
-
-struct RawEmoji {
-    ch: char,
-    size: [usize; 2],
-    bytes: &'static [u8],
-}
+const FERRIS_SINGLE: (&[u8], [usize; 2]) =
+    (include_bytes!("../assets/emoji/ferris_mid.rgba"), [72, 48]);
 
 fn load_builtin_emojis() -> Vec<EmojiEntry> {
     let mut entries = load_noto_emojis().unwrap_or_else(|err| {
@@ -136,23 +185,149 @@ fn load_builtin_emojis() -> Vec<EmojiEntry> {
     entries
 }
 
+#[cfg(feature = "emoji_high_res")]
 fn load_curated_emojis() -> Vec<EmojiEntry> {
-    // Keeping the list data-driven makes it trivial to append more sprites later.
-    const RAW_EMOJIS: &[RawEmoji] = &[RawEmoji {
-        ch: '🦀',
-        size: FERRIS_SIZE,
-        bytes: FERRIS_BYTES,
-    }];
+    // Ferris with all three resolutions for sharp rendering at all sizes
+    let ferris_resolutions = vec![
+        EmojiResolution {
+            size_px: FERRIS_LOW.1[1] as u16,
+            image: Arc::new(ColorImage::from_rgba_unmultiplied(
+                FERRIS_LOW.1,
+                FERRIS_LOW.0,
+            )),
+        },
+        EmojiResolution {
+            size_px: FERRIS_MID.1[1] as u16,
+            image: Arc::new(ColorImage::from_rgba_unmultiplied(
+                FERRIS_MID.1,
+                FERRIS_MID.0,
+            )),
+        },
+        EmojiResolution {
+            size_px: FERRIS_HIGH.1[1] as u16,
+            image: Arc::new(ColorImage::from_rgba_unmultiplied(
+                FERRIS_HIGH.1,
+                FERRIS_HIGH.0,
+            )),
+        },
+    ];
 
-    RAW_EMOJIS
-        .iter()
-        .map(|raw| EmojiEntry {
-            ch: raw.ch,
-            image: Arc::new(ColorImage::from_rgba_unmultiplied(raw.size, raw.bytes)),
-        })
-        .collect()
+    vec![EmojiEntry {
+        ch: '🦀',
+        resolutions: ferris_resolutions,
+    }]
 }
 
+#[cfg(not(feature = "emoji_high_res"))]
+fn load_curated_emojis() -> Vec<EmojiEntry> {
+    // Single resolution Ferris
+    vec![EmojiEntry {
+        ch: '🦀',
+        resolutions: vec![EmojiResolution {
+            size_px: FERRIS_SINGLE.1[1] as u16,
+            image: Arc::new(ColorImage::from_rgba_unmultiplied(
+                FERRIS_SINGLE.1,
+                FERRIS_SINGLE.0,
+            )),
+        }],
+    }]
+}
+
+/// Load Noto emojis with multi-resolution support when `emoji_high_res` is enabled.
+#[cfg(feature = "emoji_high_res")]
+#[expect(
+    clippy::iter_over_hash_type,
+    reason = "order doesn't matter for emoji entries"
+)]
+fn load_noto_emojis() -> Result<Vec<EmojiEntry>, String> {
+    // Load all three atlases
+    let atlas_low = decode_png(NOTO_ATLAS_LOW.png)?;
+    let glyphs_low = parse_metadata(NOTO_ATLAS_LOW.meta)?;
+
+    let atlas_mid = decode_png(NOTO_ATLAS_MID.png)?;
+    let glyphs_mid = parse_metadata(NOTO_ATLAS_MID.meta)?;
+
+    let atlas_high = decode_png(NOTO_ATLAS_HIGH.png)?;
+    let glyphs_high = parse_metadata(NOTO_ATLAS_HIGH.meta)?;
+
+    // Build a map: char -> Vec<(size_px, image)>
+    let mut char_to_resolutions: HashMap<char, Vec<EmojiResolution>> = HashMap::new();
+
+    // Add low resolution sprites
+    for glyph in &glyphs_low {
+        if let Some(image) = copy_sub_image(
+            &atlas_low,
+            glyph.x as usize,
+            glyph.y as usize,
+            glyph.width as usize,
+            glyph.height as usize,
+        ) {
+            char_to_resolutions
+                .entry(glyph.ch)
+                .or_default()
+                .push(EmojiResolution {
+                    size_px: glyph.height,
+                    image: Arc::new(image),
+                });
+        }
+    }
+
+    // Add mid resolution sprites
+    for glyph in &glyphs_mid {
+        if let Some(image) = copy_sub_image(
+            &atlas_mid,
+            glyph.x as usize,
+            glyph.y as usize,
+            glyph.width as usize,
+            glyph.height as usize,
+        ) {
+            char_to_resolutions
+                .entry(glyph.ch)
+                .or_default()
+                .push(EmojiResolution {
+                    size_px: glyph.height,
+                    image: Arc::new(image),
+                });
+        }
+    }
+
+    // Add high resolution sprites
+    for glyph in &glyphs_high {
+        if let Some(image) = copy_sub_image(
+            &atlas_high,
+            glyph.x as usize,
+            glyph.y as usize,
+            glyph.width as usize,
+            glyph.height as usize,
+        ) {
+            char_to_resolutions
+                .entry(glyph.ch)
+                .or_default()
+                .push(EmojiResolution {
+                    size_px: glyph.height,
+                    image: Arc::new(image),
+                });
+        }
+    }
+
+    // Convert to entries, sorting resolutions by size
+    let mut entries = Vec::with_capacity(char_to_resolutions.len());
+    for (ch, mut resolutions) in char_to_resolutions {
+        resolutions.sort_by_key(|r| r.size_px);
+        entries.push(EmojiEntry { ch, resolutions });
+    }
+
+    #[cfg(feature = "log")]
+    log::info!(
+        "Loaded {} emoji with multi-resolution support (low/mid/high)",
+        entries.len()
+    );
+
+    Ok(entries)
+}
+
+/// Load Noto emojis from single atlas (non-high_res mode).
+#[cfg(not(feature = "emoji_high_res"))]
 fn load_noto_emojis() -> Result<Vec<EmojiEntry>, String> {
     let atlas = decode_png(NOTO_ATLAS.png)?;
     let glyphs = parse_metadata(NOTO_ATLAS.meta)?;
@@ -166,25 +341,20 @@ fn load_noto_emojis() -> Result<Vec<EmojiEntry>, String> {
             glyph.width as usize,
             glyph.height as usize,
         ) else {
-            // Skip glyphs with invalid bounds (corrupted metadata) rather than
-            // failing the entire atlas load
             #[cfg(feature = "log")]
             log::warn!(
-                "Skipping emoji glyph {:?} (U+{:04X}) with invalid bounds: x={}, y={}, w={}, h={} (atlas: {}x{})",
+                "Skipping emoji glyph {:?} (U+{:04X}) with invalid bounds",
                 glyph.ch,
                 glyph.ch as u32,
-                glyph.x,
-                glyph.y,
-                glyph.width,
-                glyph.height,
-                atlas.width(),
-                atlas.height()
             );
             continue;
         };
         entries.push(EmojiEntry {
             ch: glyph.ch,
-            image: Arc::new(image),
+            resolutions: vec![EmojiResolution {
+                size_px: glyph.height,
+                image: Arc::new(image),
+            }],
         });
     }
     Ok(entries)
