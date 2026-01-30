@@ -939,13 +939,6 @@ impl FontsImpl {
             1.0
         };
 
-        log::debug!(
-            "FontsImpl::register_color_glyph: storing {:?} (U+{:04X}) centrally, aspect_ratio={}",
-            character,
-            character as u32,
-            aspect_ratio
-        );
-
         // Store in central storage (O(1) instead of O(N) per FontFace)
         self.custom_glyphs.insert(
             character,

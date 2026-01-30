@@ -883,13 +883,6 @@ fn tessellate_glyphs(
 
             // Color glyphs (e.g., emoji) use white so the texture colors come through.
             // Monochrome glyphs use the text format's color.
-            if matches!(glyph.coloring, GlyphColoring::Color) {
-                log::debug!(
-                    "tessellate_glyphs: color glyph {:?} (U+{:04X})",
-                    glyph.chr,
-                    glyph.chr as u32
-                );
-            }
             let color = match glyph.coloring {
                 GlyphColoring::Color => Color32::WHITE,
                 GlyphColoring::Monochrome => format.color,

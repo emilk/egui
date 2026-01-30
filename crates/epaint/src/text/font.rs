@@ -574,12 +574,6 @@ impl FontFace {
 
         // Check for custom glyph (e.g., color emoji)
         if let Some(&custom_index) = self.custom_glyph_map.get(&c) {
-            log::debug!(
-                "FontFace::glyph_info: found custom glyph for {:?} (U+{:04X}), index={}",
-                c,
-                c as u32,
-                custom_index
-            );
             let glyph_info = GlyphInfo {
                 id: None,
                 advance_width_unscaled: OrderedFloat(
@@ -616,13 +610,6 @@ impl FontFace {
 
     /// Register a color glyph image, sharing the underlying allocation.
     pub fn allocate_custom_glyph_arc(&mut self, chr: char, image: &Arc<ColorImage>) -> GlyphInfo {
-        log::debug!(
-            "FontFace::allocate_custom_glyph_arc: registering {:?} (U+{:04X}) image={}x{}",
-            chr,
-            chr as u32,
-            image.width(),
-            image.height()
-        );
         let index = match self.custom_glyph_map.entry(chr) {
             std::collections::hash_map::Entry::Occupied(occ) => {
                 let idx = *occ.get();
@@ -801,7 +788,6 @@ impl FontFace {
         custom_index: CustomGlyphIndex,
         h_pos: f32,
     ) -> (GlyphAllocation, i32) {
-        log::debug!("FontFace::allocate_registered_color_glyph: index={custom_index}");
         let Some(custom) = self.custom_glyphs.get(custom_index as usize) else {
             log::warn!(
                 "FontFace::allocate_registered_color_glyph: index {custom_index} not found!"
@@ -858,10 +844,6 @@ impl FontFace {
             },
             coloring: GlyphColoring::Color,
         };
-        log::debug!(
-            "FontFace::allocate_registered_color_glyph: allocated with coloring={:?}",
-            allocation.coloring
-        );
         entry.insert(allocation);
         (allocation, h_pos.round() as i32)
     }
@@ -927,12 +909,6 @@ impl FontFace {
             },
             coloring: GlyphColoring::Color,
         };
-        log::debug!(
-            "FontFace::allocate_central_color_glyph: {:?} (U+{:04X}) allocated with coloring={:?}",
-            chr,
-            chr as u32,
-            allocation.coloring
-        );
         entry.insert(allocation);
         (allocation, h_pos.round() as i32)
     }
@@ -1072,12 +1048,6 @@ impl Font<'_> {
                 custom_glyph: None, // Not using per-face index for central storage
                 coloring: GlyphColoring::Color,
             };
-            log::debug!(
-                "Font::glyph_info: found central custom glyph {:?} (U+{:04X}), coloring={:?}",
-                c,
-                c as u32,
-                glyph_info.coloring
-            );
             let result = (font_key, glyph_info);
             self.cached_family.glyph_info_cache.insert(c, result);
             return result;
