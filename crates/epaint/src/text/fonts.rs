@@ -936,10 +936,11 @@ impl FontsImpl {
         let is_update = self.custom_glyphs.contains_key(&character);
 
         // Calculate aspect ratio for proper advance width
-        let aspect_ratio = if image.height() > 0 {
+        // Use 0.0 for zero-sized images to avoid layout gaps for unrenderable glyphs
+        let aspect_ratio = if image.height() > 0 && image.width() > 0 {
             image.width() as f32 / image.height() as f32
         } else {
-            1.0
+            0.0
         };
 
         // Store in central storage (O(1) instead of O(N) per FontFace)
