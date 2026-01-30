@@ -496,6 +496,14 @@ impl FontFace {
         })
     }
 
+    /// Clear the glyph allocation cache.
+    ///
+    /// Called when central custom glyphs are re-registered to ensure stale
+    /// atlas allocations aren't reused.
+    pub(super) fn clear_glyph_alloc_cache(&mut self) {
+        self.glyph_alloc_cache.clear();
+    }
+
     /// Code points that will always be replaced by the replacement character.
     ///
     /// See also [`invisible_char`].

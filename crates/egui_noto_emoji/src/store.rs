@@ -166,8 +166,10 @@ fn load_noto_emojis() -> Result<Vec<EmojiEntry>, String> {
             glyph.width as usize,
             glyph.height as usize,
         ) else {
-            return Err(format!(
-                "Emoji glyph {:?} (U+{:04X}) has invalid bounds: x={}, y={}, w={}, h={} (atlas: {}x{})",
+            // Skip glyphs with invalid bounds (corrupted metadata) rather than
+            // failing the entire atlas load
+            log::warn!(
+                "Skipping emoji glyph {:?} (U+{:04X}) with invalid bounds: x={}, y={}, w={}, h={} (atlas: {}x{})",
                 glyph.ch,
                 glyph.ch as u32,
                 glyph.x,
@@ -176,7 +178,8 @@ fn load_noto_emojis() -> Result<Vec<EmojiEntry>, String> {
                 glyph.height,
                 atlas.width(),
                 atlas.height()
-            ));
+            );
+            continue;
         };
         entries.push(EmojiEntry {
             ch: glyph.ch,

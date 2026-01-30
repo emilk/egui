@@ -932,6 +932,9 @@ impl FontsImpl {
         character: char,
         image: &std::sync::Arc<crate::ColorImage>,
     ) {
+        // Check if this is a re-registration (character already exists)
+        let is_update = self.custom_glyphs.contains_key(&character);
+
         // Calculate aspect ratio for proper advance width
         let aspect_ratio = if image.height() > 0 {
             image.width() as f32 / image.height() as f32
@@ -952,6 +955,14 @@ impl FontsImpl {
         for cached_family in self.family_cache.values_mut() {
             cached_family.glyph_info_cache.remove(&character);
             cached_family.characters = None;
+        }
+
+        // When re-registering a glyph with a new image, clear allocation caches
+        // to ensure stale atlas allocations aren't reused
+        if is_update {
+            for font_face in self.fonts_by_id.values_mut() {
+                font_face.clear_glyph_alloc_cache();
+            }
         }
     }
 }
