@@ -216,6 +216,7 @@ fn layout_section(
                     glyph_info,
                     chr,
                     paragraph.cursor_x_px,
+                    font.custom_glyphs.get(&chr),
                 )
             } else {
                 Default::default()
@@ -514,6 +515,7 @@ fn replace_last_glyph_with_overflow_character(
                         glyph_info,
                         overflow_character,
                         overflow_glyph_x * pixels_per_point,
+                        font.custom_glyphs.get(&overflow_character),
                     )
                 })
                 .unwrap_or_default();
@@ -881,6 +883,13 @@ fn tessellate_glyphs(
 
             // Color glyphs (e.g., emoji) use white so the texture colors come through.
             // Monochrome glyphs use the text format's color.
+            if matches!(glyph.coloring, GlyphColoring::Color) {
+                log::debug!(
+                    "tessellate_glyphs: color glyph {:?} (U+{:04X})",
+                    glyph.chr,
+                    glyph.chr as u32
+                );
+            }
             let color = match glyph.coloring {
                 GlyphColoring::Color => Color32::WHITE,
                 GlyphColoring::Monochrome => format.color,

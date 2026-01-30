@@ -821,6 +821,34 @@ pub struct FontsImpl {
     fonts_by_id: nohash_hasher::IntMap<FontFaceKey, FontFace>,
     fonts_by_name: ahash::HashMap<String, FontFaceKey>,
     family_cache: ahash::HashMap<FontFamily, CachedFamily>,
+
+    /// Central storage for custom color glyphs (e.g., emoji sprites).
+    ///
+    /// Stored here rather than per-FontFace to avoid duplication and enable O(1) registration.
+    custom_glyphs: ahash::HashMap<char, CustomGlyphData>,
+}
+
+/// Data for a custom color glyph stored in central storage.
+#[derive(Clone)]
+pub(crate) struct CustomGlyphData {
+    image: std::sync::Arc<crate::ColorImage>,
+
+    /// Aspect ratio (width/height) for advance width calculation.
+    aspect_ratio: f32,
+}
+
+impl CustomGlyphData {
+    /// Returns a reference to the glyph's color image.
+    #[inline]
+    pub(crate) fn image(&self) -> &std::sync::Arc<crate::ColorImage> {
+        &self.image
+    }
+
+    /// Returns the aspect ratio (width/height) for advance width calculation.
+    #[inline]
+    pub(crate) fn aspect_ratio(&self) -> f32 {
+        self.aspect_ratio
+    }
 }
 
 impl FontsImpl {
@@ -856,6 +884,7 @@ impl FontsImpl {
             fonts_by_id,
             fonts_by_name,
             family_cache: Default::default(),
+            custom_glyphs: Default::default(),
         }
     }
 
@@ -886,26 +915,48 @@ impl FontsImpl {
             fonts_by_id: &mut self.fonts_by_id,
             cached_family,
             atlas: &mut self.atlas,
+            custom_glyphs: &self.custom_glyphs,
         }
     }
 
     /// Register a color glyph (e.g., an emoji sprite) for a character.
     ///
-    /// Registers the glyph in all font families so it's available everywhere.
+    /// The glyph is stored centrally and available to all font families.
+    /// This is O(1) per glyph, regardless of how many fonts are loaded.
     #[expect(
         clippy::iter_over_hash_type,
-        reason = "order doesn't matter for glyph registration"
+        reason = "order doesn't matter for cache invalidation"
     )]
-    pub fn register_color_glyph(&mut self, character: char, image: &Arc<crate::ColorImage>) {
-        // Register directly on all FontFace objects so they're available
-        // even for font families that haven't been used yet
-        for font_face in self.fonts_by_id.values_mut() {
-            font_face.allocate_custom_glyph_arc(character, image);
-        }
+    pub fn register_color_glyph(
+        &mut self,
+        character: char,
+        image: &std::sync::Arc<crate::ColorImage>,
+    ) {
+        // Calculate aspect ratio for proper advance width
+        let aspect_ratio = if image.height() > 0 {
+            image.width() as f32 / image.height() as f32
+        } else {
+            1.0
+        };
 
-        // Also update any existing cached family glyph_info_caches
+        log::debug!(
+            "FontsImpl::register_color_glyph: storing {:?} (U+{:04X}) centrally, aspect_ratio={}",
+            character,
+            character as u32,
+            aspect_ratio
+        );
+
+        // Store in central storage (O(1) instead of O(N) per FontFace)
+        self.custom_glyphs.insert(
+            character,
+            CustomGlyphData {
+                image: std::sync::Arc::clone(image),
+                aspect_ratio,
+            },
+        );
+
+        // Invalidate any cached glyph info for this character
         for cached_family in self.family_cache.values_mut() {
-            // Invalidate the cache entry so it gets re-queried from FontFace
             cached_family.glyph_info_cache.remove(&character);
         }
     }
