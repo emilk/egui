@@ -168,6 +168,7 @@ fn load_noto_emojis() -> Result<Vec<EmojiEntry>, String> {
         ) else {
             // Skip glyphs with invalid bounds (corrupted metadata) rather than
             // failing the entire atlas load
+            #[cfg(feature = "log")]
             log::warn!(
                 "Skipping emoji glyph {:?} (U+{:04X}) with invalid bounds: x={}, y={}, w={}, h={} (atlas: {}x{})",
                 glyph.ch,
