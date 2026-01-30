@@ -53,16 +53,21 @@ pub struct EmojiEntry {
 }
 
 impl EmojiEntry {
+    /// The character (codepoint) this emoji represents.
     #[inline]
     pub fn ch(&self) -> char {
         self.ch
     }
 
+    /// Returns a reference to the emoji's color image.
     #[inline]
     pub fn image(&self) -> &ColorImage {
         self.image.as_ref()
     }
 
+    /// Returns a shared reference to the emoji's color image.
+    ///
+    /// Useful when you need to pass ownership without cloning the pixel data.
     #[inline]
     pub fn image_arc(&self) -> Arc<ColorImage> {
         Arc::clone(&self.image)
@@ -84,11 +89,13 @@ impl EmojiStore {
         }
     }
 
+    /// Returns all emoji entries in this store.
     #[inline]
     pub fn entries(&self) -> &[EmojiEntry] {
         &self.entries
     }
 
+    /// Returns `true` if this store contains no emoji entries.
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
