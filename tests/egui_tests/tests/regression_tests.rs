@@ -76,6 +76,40 @@ fn combobox_should_have_value() {
     );
 }
 
+#[test]
+fn truncate_for_scaling() {
+    let mut harness = Harness::new_ui(|ui| {
+        ui.add_sized(
+            vec2(60.0, 0.0),
+            Button::new("WWWWWWWWWWWWWWWWWWWW").truncate(),
+        );
+        ui.add_sized(
+            vec2(60.0, 0.0),
+            Button::new("AAAAAAAAAAAAAAAAAAAA").truncate(),
+        );
+        ui.add_sized(
+            vec2(60.0, 0.0),
+            Button::new("nnnnnnnnnnnnnnnnnnnn").truncate(),
+        );
+        ui.add_sized(
+            vec2(60.0, 0.0),
+            Button::new("tttttttttttttttttttt").truncate(),
+        );
+        ui.add_sized(
+            vec2(60.0, 0.0),
+            Button::new("iiiiiiiiiiiiiiiiiiii").truncate(),
+        );
+    });
+
+    for scale in [0.5, 1.0, 2.0] {
+        harness.set_pixels_per_point(scale);
+        harness.step();
+        harness.set_size(vec2(76.0, 120.0));
+        harness.step();
+        harness.snapshot(format!("truncate_for_scaling_{scale}"));
+    }
+}
+
 /// This test ensures that `ui.response().interact(...)` works correctly.
 ///
 /// This was broken, because there was an optimization in [`egui::Response::interact`]
