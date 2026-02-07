@@ -7,7 +7,7 @@ use emath::{Align2, Pos2, Rangef, Rect, TSTransform, Vec2, pos2};
 use crate::{
     Color32, CornerRadius, Mesh, Stroke, StrokeKind, TextureId,
     stroke::PathStroke,
-    text::{FontId, Fonts, Galley},
+    text::{FontId, FontsView, Galley},
 };
 
 use super::{
@@ -30,7 +30,7 @@ pub enum Shape {
 
     /// Recursively nest more shapes - sometimes a convenience to be able to do.
     /// For performance reasons it is better to avoid it.
-    Vec(Vec<Shape>),
+    Vec(Vec<Self>),
 
     /// Circle with optional outline and fill.
     Circle(CircleShape),
@@ -299,7 +299,7 @@ impl Shape {
 
     #[expect(clippy::needless_pass_by_value)]
     pub fn text(
-        fonts: &Fonts,
+        fonts: &mut FontsView<'_>,
         pos: Pos2,
         anchor: Align2,
         text: impl ToString,

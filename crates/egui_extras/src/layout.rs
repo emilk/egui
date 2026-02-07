@@ -35,7 +35,7 @@ pub(crate) struct StripLayoutFlags {
     pub(crate) selected: bool,
     pub(crate) overline: bool,
 
-    /// Used when we want to accruately measure the size of this cell.
+    /// Used when we want to accurately measure the size of this cell.
     pub(crate) sizing_pass: bool,
 }
 

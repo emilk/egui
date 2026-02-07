@@ -336,7 +336,7 @@ impl Frame {
 impl Frame {
     /// How much extra space the frame uses up compared to the content.
     ///
-    /// [`Self::inner_margin`] + [`Self.stroke`]`.width` + [`Self::outer_margin`].
+    /// [`Self::inner_margin`] + [`Self::stroke`]`.width` + [`Self::outer_margin`].
     #[inline]
     pub fn total_margin(&self) -> MarginF32 {
         MarginF32::from(self.inner_margin)

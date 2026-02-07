@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![allow(rustdoc::missing_crate_level_docs)] // it's an example
+#![expect(rustdoc::missing_crate_level_docs)] // it's an example
 
 use eframe::egui;
 
@@ -36,8 +36,8 @@ impl Default for MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             ui.heading("My egui Application");
             ui.horizontal(|ui| {
                 let name_label = ui.label("Your name: ");

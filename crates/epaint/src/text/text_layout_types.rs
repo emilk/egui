@@ -1,6 +1,3 @@
-#![allow(clippy::derived_hash_with_manual_eq)] // We need to impl Hash for f32, but we don't implement Eq, which is fine
-#![allow(clippy::wrong_self_convention)] // We use `from_` to indicate conversion direction. It's non-diomatic, but makes sense in this context.
-
 use std::ops::Range;
 use std::sync::Arc;
 
@@ -8,14 +5,14 @@ use super::{
     cursor::{CCursor, LayoutCursor},
     font::UvRect,
 };
-use crate::{Color32, FontId, Mesh, Stroke};
+use crate::{Color32, FontId, Mesh, Stroke, text::FontsView};
 use emath::{Align, GuiRounding as _, NumExt as _, OrderedFloat, Pos2, Rect, Vec2, pos2, vec2};
 
 /// Describes the task of laying out text.
 ///
 /// This supports mixing different fonts, color and formats (underline etc).
 ///
-/// Pass this to [`crate::Fonts::layout_job`] or [`crate::text::layout`].
+/// Pass this to [`crate::FontsView::layout_job`] or [`crate::text::layout`].
 ///
 /// ## Example:
 /// ```
@@ -184,7 +181,7 @@ impl LayoutJob {
     /// The height of the tallest font used in the job.
     ///
     /// Returns a value rounded to [`emath::GUI_ROUNDING`].
-    pub fn font_height(&self, fonts: &crate::Fonts) -> f32 {
+    pub fn font_height(&self, fonts: &mut FontsView<'_>) -> f32 {
         let mut max_height = 0.0_f32;
         for section in &self.sections {
             max_height = max_height.max(fonts.row_height(&section.format.font_id));
@@ -269,8 +266,6 @@ pub struct TextFormat {
     /// Extra spacing between letters, in points.
     ///
     /// Default: 0.0.
-    ///
-    /// For even text it is recommended you round this to an even number of _pixels_.
     pub extra_letter_spacing: f32,
 
     /// Explicit line height of the text in points.
@@ -504,7 +499,7 @@ impl TextWrapping {
 
 /// Text that has been laid out, ready for painting.
 ///
-/// You can create a [`Galley`] using [`crate::Fonts::layout_job`];
+/// You can create a [`Galley`] using [`crate::FontsView::layout_job`];
 ///
 /// Needs to be recreated if the underlying font atlas texture changes, which
 /// happens under the following conditions:
@@ -574,6 +569,13 @@ pub struct PlacedRow {
 
     /// The underlying unpositioned [`Row`].
     pub row: Arc<Row>,
+
+    /// If true, this [`PlacedRow`] came from a paragraph ending with a `\n`.
+    /// The `\n` itself is omitted from row's [`Row::glyphs`].
+    /// A `\n` in the input text always creates a new [`PlacedRow`] below it,
+    /// so that text that ends with `\n` has an empty [`PlacedRow`] last.
+    /// This also implies that the last [`PlacedRow`] in a [`Galley`] always has `ends_with_newline == false`.
+    pub ends_with_newline: bool,
 }
 
 impl PlacedRow {
@@ -619,13 +621,6 @@ pub struct Row {
 
     /// The mesh, ready to be rendered.
     pub visuals: RowVisuals,
-
-    /// If true, this [`Row`] came from a paragraph ending with a `\n`.
-    /// The `\n` itself is omitted from [`Self::glyphs`].
-    /// A `\n` in the input text always creates a new [`Row`] below it,
-    /// so that text that ends with `\n` has an empty [`Row`] last.
-    /// This also implies that the last [`Row`] in a [`Galley`] always has `ends_with_newline == false`.
-    pub ends_with_newline: bool,
 }
 
 /// The tessellated output of a row.
@@ -688,11 +683,11 @@ pub struct Glyph {
     /// The row/line height of this font.
     pub font_height: f32,
 
-    /// The ascent of the sub-font within the font (`FontImpl`).
-    pub font_impl_ascent: f32,
+    /// The ascent of the sub-font within the font (`FontFace`).
+    pub font_face_ascent: f32,
 
-    /// The row/line height of the sub-font within the font (`FontImpl`).
-    pub font_impl_height: f32,
+    /// The row/line height of the sub-font within the font (`FontFace`).
+    pub font_face_height: f32,
 
     /// Position and size of the glyph in the font texture, in texels.
     pub uv_rect: UvRect,
@@ -703,6 +698,9 @@ pub struct Glyph {
     /// enable the paragraph-concat optimization path without having to
     /// adjust `section_index` when concatting.
     pub(crate) section_index: u32,
+
+    /// Which is our first vertex in [`RowVisuals::mesh`].
+    pub first_vertex: u32,
 }
 
 impl Glyph {
@@ -735,12 +733,6 @@ impl Row {
     #[inline]
     pub fn char_count_excluding_newline(&self) -> usize {
         self.glyphs.len()
-    }
-
-    /// Includes the implicit `\n` after the [`Row`], if any.
-    #[inline]
-    pub fn char_count_including_newline(&self) -> usize {
-        self.glyphs.len() + (self.ends_with_newline as usize)
     }
 
     /// Closest char at the desired x coordinate in row-relative coordinates.
@@ -777,6 +769,12 @@ impl PlacedRow {
     #[inline]
     pub fn max_y(&self) -> f32 {
         self.rect().bottom()
+    }
+
+    /// Includes the implicit `\n` after the [`PlacedRow`], if any.
+    #[inline]
+    pub fn char_count_including_newline(&self) -> usize {
+        self.row.glyphs.len() + (self.ends_with_newline as usize)
     }
 }
 
@@ -869,13 +867,15 @@ impl Galley {
                         placed_row.visuals.mesh_bounds.translate(new_pos.to_vec2());
                     merged_galley.rect |= Rect::from_min_size(new_pos, placed_row.size);
 
-                    let mut row = placed_row.row.clone();
+                    let mut ends_with_newline = placed_row.ends_with_newline;
                     let is_last_row_in_galley = row_idx + 1 == galley.rows.len();
-                    if !is_last_galley && is_last_row_in_galley {
-                        // Since we remove the `\n` when splitting rows, we need to add it back here
-                        Arc::make_mut(&mut row).ends_with_newline = true;
+                    // Since we remove the `\n` when splitting rows, we need to add it back here
+                    ends_with_newline |= !is_last_galley && is_last_row_in_galley;
+                    super::PlacedRow {
+                        pos: new_pos,
+                        row: Arc::clone(&placed_row.row),
+                        ends_with_newline,
                     }
-                    super::PlacedRow { pos: new_pos, row }
                 }));
 
             merged_galley.num_vertices += galley.num_vertices;
@@ -959,15 +959,15 @@ impl Galley {
         // Vertical margin around galley improves text selection UX
         const VMARGIN: f32 = 5.0;
 
-        if let Some(first_row) = self.rows.first() {
-            if pos.y < first_row.min_y() - VMARGIN {
-                return self.begin();
-            }
+        if let Some(first_row) = self.rows.first()
+            && pos.y < first_row.min_y() - VMARGIN
+        {
+            return self.begin();
         }
-        if let Some(last_row) = self.rows.last() {
-            if last_row.max_y() + VMARGIN < pos.y {
-                return self.end();
-            }
+        if let Some(last_row) = self.rows.last()
+            && last_row.max_y() + VMARGIN < pos.y
+        {
+            return self.end();
         }
 
         let mut best_y_dist = f32::INFINITY;

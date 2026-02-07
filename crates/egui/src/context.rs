@@ -2,15 +2,15 @@
 
 use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration};
 
-use emath::{GuiRounding as _, OrderedFloat};
+use emath::GuiRounding as _;
 use epaint::{
-    ClippedPrimitive, ClippedShape, Color32, ImageData, ImageDelta, Pos2, Rect, StrokeKind,
-    TessellationOptions, TextureAtlas, TextureId, Vec2,
+    ClippedPrimitive, ClippedShape, Color32, ImageData, Pos2, Rect, StrokeKind,
+    TessellationOptions, TextureId, Vec2,
     emath::{self, TSTransform},
     mutex::RwLock,
     stats::PaintStats,
     tessellator,
-    text::{FontInsert, FontPriority, Fonts},
+    text::{FontInsert, FontPriority, Fonts, FontsView},
     vec2,
 };
 
@@ -18,30 +18,29 @@ use crate::{
     Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, Grid, Id, ImmediateViewport,
     ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId, Memory,
     ModifierNames, Modifiers, NumExt as _, Order, Painter, RawInput, Response, RichText,
-    ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions, Ui, ViewportBuilder,
-    ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput,
-    Widget as _, WidgetRect, WidgetText,
+    SafeAreaInsets, ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions, Ui,
+    UiBuilder, ViewportBuilder, ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair,
+    ViewportIdSet, ViewportOutput, Visuals, Widget as _, WidgetRect, WidgetText,
     animation_manager::AnimationManager,
     containers::{self, area::AreaState},
     data::output::PlatformOutput,
-    epaint, hit_test,
-    input_state::{InputState, MultiTouchInfo, PointerEvent},
-    interaction,
+    epaint,
+    hit_test::WidgetHits,
+    input_state::{InputState, MultiTouchInfo, PointerEvent, SurrenderFocusOn},
+    interaction::InteractionSnapshot,
     layers::GraphicLayers,
     load::{self, Bytes, Loaders, SizedTexture},
     memory::{Options, Theme},
     os::OperatingSystem,
     output::FullOutput,
     pass_state::PassState,
+    plugin::{self, TypedPluginHandle},
     resize, response, scroll_area,
     util::IdTypeMap,
     viewport::ViewportClass,
 };
 
-#[cfg(feature = "accesskit")]
 use crate::IdMap;
-
-use self::{hit_test::WidgetHits, interaction::InteractionSnapshot};
 
 /// Information given to the backend about when it is time to repaint the ui.
 ///
@@ -88,46 +87,6 @@ impl Default for WrappedTextureManager {
         );
 
         Self(Arc::new(RwLock::new(tex_mngr)))
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-/// Generic event callback.
-pub type ContextCallback = Arc<dyn Fn(&Context) + Send + Sync>;
-
-#[derive(Clone)]
-struct NamedContextCallback {
-    debug_name: &'static str,
-    callback: ContextCallback,
-}
-
-/// Callbacks that users can register
-#[derive(Clone, Default)]
-struct Plugins {
-    pub on_begin_pass: Vec<NamedContextCallback>,
-    pub on_end_pass: Vec<NamedContextCallback>,
-}
-
-impl Plugins {
-    fn call(ctx: &Context, _cb_name: &str, callbacks: &[NamedContextCallback]) {
-        profiling::scope!("plugins", _cb_name);
-        for NamedContextCallback {
-            debug_name: _name,
-            callback,
-        } in callbacks
-        {
-            profiling::scope!("plugin", _name);
-            (callback)(ctx);
-        }
-    }
-
-    fn on_begin_pass(&self, ctx: &Context) {
-        Self::call(ctx, "on_begin_pass", &self.on_begin_pass);
-    }
-
-    fn on_end_pass(&self, ctx: &Context) {
-        Self::call(ctx, "on_end_pass", &self.on_end_pass);
     }
 }
 
@@ -234,7 +193,7 @@ impl ContextImpl {
 pub struct ViewportState {
     /// The type of viewport.
     ///
-    /// This will never be [`ViewportClass::Embedded`],
+    /// This will never be [`ViewportClass::EmbeddedWindow`],
     /// since those don't result in real viewports.
     pub class: ViewportClass,
 
@@ -406,18 +365,14 @@ impl ViewportRepaintInfo {
 
 #[derive(Default)]
 struct ContextImpl {
-    /// Since we could have multiple viewports across multiple monitors with
-    /// different `pixels_per_point`, we need a `Fonts` instance for each unique
-    /// `pixels_per_point`.
-    /// This is because the `Fonts` depend on `pixels_per_point` for the font atlas
-    /// as well as kerning, font sizes, etc.
-    fonts: std::collections::BTreeMap<OrderedFloat<f32>, Fonts>,
+    fonts: Option<Fonts>,
     font_definitions: FontDefinitions,
 
     memory: Memory,
     animation_manager: AnimationManager,
 
-    plugins: Plugins,
+    plugins: plugin::Plugins,
+    safe_area: SafeAreaInsets,
 
     /// All viewports share the same texture manager and texture namespace.
     ///
@@ -447,7 +402,6 @@ struct ContextImpl {
 
     embed_viewports: bool,
 
-    #[cfg(feature = "accesskit")]
     is_accesskit_enabled: bool,
 
     loaders: Arc<Loaders>,
@@ -463,6 +417,10 @@ impl ContextImpl {
             .unwrap_or_default();
         let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent_id);
 
+        if let Some(safe_area) = new_raw_input.safe_area_insets {
+            self.safe_area = safe_area;
+        }
+
         let is_outermost_viewport = self.viewport_stack.is_empty(); // not necessarily root, just outermost immediate viewport
         self.viewport_stack.push(ids);
 
@@ -470,20 +428,18 @@ impl ContextImpl {
 
         let viewport = self.viewports.entry(viewport_id).or_default();
 
-        if is_outermost_viewport {
-            if let Some(new_zoom_factor) = self.new_zoom_factor.take() {
-                let ratio = self.memory.options.zoom_factor / new_zoom_factor;
-                self.memory.options.zoom_factor = new_zoom_factor;
+        if is_outermost_viewport && let Some(new_zoom_factor) = self.new_zoom_factor.take() {
+            let ratio = self.memory.options.zoom_factor / new_zoom_factor;
+            self.memory.options.zoom_factor = new_zoom_factor;
 
-                let input = &viewport.input;
-                // This is a bit hacky, but is required to avoid jitter:
-                let mut rect = input.screen_rect;
-                rect.min = (ratio * rect.min.to_vec2()).to_pos2();
-                rect.max = (ratio * rect.max.to_vec2()).to_pos2();
-                new_raw_input.screen_rect = Some(rect);
-                // We should really scale everything else in the input too,
-                // but the `screen_rect` is the most important part.
-            }
+            let input = &viewport.input;
+            // This is a bit hacky, but is required to avoid jitter:
+            let mut rect = input.content_rect();
+            rect.min = (ratio * rect.min.to_vec2()).to_pos2();
+            rect.max = (ratio * rect.max.to_vec2()).to_pos2();
+            new_raw_input.screen_rect = Some(rect);
+            // We should really scale everything else in the input too,
+            // but the `screen_rect` is the most important part.
         }
         let native_pixels_per_point = new_raw_input
             .viewport()
@@ -505,9 +461,9 @@ impl ContextImpl {
         );
         let repaint_after = viewport.input.wants_repaint_after();
 
-        let screen_rect = viewport.input.screen_rect;
+        let content_rect = viewport.input.content_rect();
 
-        viewport.this_pass.begin_pass(screen_rect);
+        viewport.this_pass.begin_pass(content_rect);
 
         {
             let mut layers: Vec<LayerId> = viewport.prev_pass.widgets.layer_ids().collect();
@@ -540,15 +496,14 @@ impl ContextImpl {
         self.memory.areas_mut().set_state(
             LayerId::background(),
             AreaState {
-                pivot_pos: Some(screen_rect.left_top()),
+                pivot_pos: Some(content_rect.left_top()),
                 pivot: Align2::LEFT_TOP,
-                size: Some(screen_rect.size()),
+                size: Some(content_rect.size()),
                 interactable: true,
                 last_became_visible_at: None,
             },
         );
 
-        #[cfg(feature = "accesskit")]
         if self.is_accesskit_enabled {
             profiling::scope!("accesskit");
             use crate::pass_state::AccessKitPassState;
@@ -560,7 +515,7 @@ impl ContextImpl {
             nodes.insert(id, root_node);
             viewport.this_pass.accesskit_state = Some(AccessKitPassState {
                 nodes,
-                parent_stack: vec![id],
+                parent_map: IdMap::default(),
             });
         }
 
@@ -575,21 +530,20 @@ impl ContextImpl {
     fn update_fonts_mut(&mut self) {
         profiling::function_scope!();
         let input = &self.viewport().input;
-        let pixels_per_point = input.pixels_per_point();
         let max_texture_side = input.max_texture_side;
 
         if let Some(font_definitions) = self.memory.new_font_definitions.take() {
             // New font definition loaded, so we need to reload all fonts.
-            self.fonts.clear();
+            self.fonts = None;
             self.font_definitions = font_definitions;
-            #[cfg(feature = "log")]
+
             log::trace!("Loading new font definitions");
         }
 
         if !self.memory.add_fonts.is_empty() {
             let fonts = self.memory.add_fonts.drain(..);
             for font in fonts {
-                self.fonts.clear(); // recreate all the fonts
+                self.fonts = None; // recreate all the fonts
                 for family in font.families {
                     let fam = self
                         .font_definitions
@@ -606,57 +560,62 @@ impl ContextImpl {
                     .insert(font.name, Arc::new(font.data));
             }
 
-            #[cfg(feature = "log")]
             log::trace!("Adding new fonts");
         }
 
-        let text_alpha_from_coverage = self.memory.options.style().visuals.text_alpha_from_coverage;
+        let Visuals {
+            mut text_options, ..
+        } = self.memory.options.style().visuals;
+        text_options.max_texture_side = max_texture_side;
 
         let mut is_new = false;
 
-        let fonts = self
-            .fonts
-            .entry(pixels_per_point.into())
-            .or_insert_with(|| {
-                #[cfg(feature = "log")]
-                log::trace!("Creating new Fonts for pixels_per_point={pixels_per_point}");
+        let fonts = self.fonts.get_or_insert_with(|| {
+            log::trace!("Creating new Fonts");
 
-                is_new = true;
-                profiling::scope!("Fonts::new");
-                Fonts::new(
-                    pixels_per_point,
-                    max_texture_side,
-                    text_alpha_from_coverage,
-                    self.font_definitions.clone(),
-                )
-            });
+            is_new = true;
+            profiling::scope!("Fonts::new");
+            Fonts::new(text_options, self.font_definitions.clone())
+        });
 
         {
             profiling::scope!("Fonts::begin_pass");
-            fonts.begin_pass(pixels_per_point, max_texture_side, text_alpha_from_coverage);
-        }
-
-        if is_new && self.memory.options.preload_font_glyphs {
-            profiling::scope!("preload_font_glyphs");
-            // Preload the most common characters for the most common fonts.
-            // This is not very important to do, but may save a few GPU operations.
-            for font_id in self.memory.options.style().text_styles.values() {
-                fonts.lock().fonts.font(font_id).preload_common_characters();
-            }
+            fonts.begin_pass(text_options);
         }
     }
 
-    #[cfg(feature = "accesskit")]
-    fn accesskit_node_builder(&mut self, id: Id) -> &mut accesskit::Node {
-        let state = self.viewport().this_pass.accesskit_state.as_mut().unwrap();
+    fn accesskit_node_builder(&mut self, id: Id) -> Option<&mut accesskit::Node> {
+        let state = self.viewport().this_pass.accesskit_state.as_mut()?;
         let builders = &mut state.nodes;
+
         if let std::collections::hash_map::Entry::Vacant(entry) = builders.entry(id) {
             entry.insert(Default::default());
-            let parent_id = state.parent_stack.last().unwrap();
-            let parent_builder = builders.get_mut(parent_id).unwrap();
+
+            /// Find the first ancestor that already has an accesskit node.
+            fn find_accesskit_parent(
+                parent_map: &IdMap<Id>,
+                node_map: &IdMap<accesskit::Node>,
+                id: Id,
+            ) -> Option<Id> {
+                if let Some(parent_id) = parent_map.get(&id) {
+                    if node_map.contains_key(parent_id) {
+                        Some(*parent_id)
+                    } else {
+                        find_accesskit_parent(parent_map, node_map, *parent_id)
+                    }
+                } else {
+                    None
+                }
+            }
+
+            let parent_id = find_accesskit_parent(&state.parent_map, builders, id)
+                .unwrap_or_else(crate::accesskit_root_id);
+
+            let parent_builder = builders.get_mut(&parent_id)?;
             parent_builder.push_child(id.accesskit_id());
         }
-        builders.get_mut(&id).unwrap()
+
+        builders.get_mut(&id)
     }
 
     fn pixels_per_point(&mut self) -> f32 {
@@ -717,7 +676,7 @@ impl ContextImpl {
 /// ```
 /// # let ctx = egui::Context::default();
 /// if ctx.input(|i| i.key_pressed(egui::Key::A)) {
-///     ctx.output_mut(|o| o.copied_text = "Hello!".to_string());
+///     ctx.copy_text("Hello!".to_owned());
 /// }
 /// ```
 ///
@@ -770,14 +729,17 @@ impl Default for Context {
     fn default() -> Self {
         let ctx_impl = ContextImpl {
             embed_viewports: true,
+            viewports: std::iter::once((ViewportId::ROOT, ViewportState::default())).collect(),
             ..Default::default()
         };
         let ctx = Self(Arc::new(RwLock::new(ctx_impl)));
 
+        ctx.add_plugin(plugin::CallbackPlugin::default());
+
         // Register built-in plugins:
-        crate::debug_text::register(&ctx);
-        crate::text_selection::LabelSelectionState::register(&ctx);
-        crate::DragAndDrop::register(&ctx);
+        ctx.add_plugin(crate::debug_text::DebugTextPlugin::default());
+        ctx.add_plugin(crate::text_selection::LabelSelectionState::default());
+        ctx.add_plugin(crate::DragAndDrop::default());
 
         ctx
     }
@@ -800,7 +762,64 @@ impl Context {
     /// and only on the rare occasion that [`Context::request_discard`] is called.
     /// Usually, it `run_ui` will only be called once.
     ///
-    /// Put your widgets into a [`crate::SidePanel`], [`crate::TopBottomPanel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
+    /// The [`Ui`] given to the callback will cover the entire [`Self::content_rect`],
+    /// with no margin or background color. Use [`crate::Frame`] to add that.
+    ///
+    /// You can organize your GUI using [`crate::Panel`].
+    ///
+    /// Instead of calling `run_ui`, you can alternatively use [`Self::begin_pass`] and [`Context::end_pass`].
+    ///
+    /// ```
+    /// // One egui context that you keep reusing:
+    /// let mut ctx = egui::Context::default();
+    ///
+    /// // Each frame:
+    /// let input = egui::RawInput::default();
+    /// let full_output = ctx.run_ui(input, |ui| {
+    ///     ui.label("Hello egui!");
+    /// });
+    /// // handle full_output
+    /// ```
+    ///
+    /// ## See also
+    /// * [`Self::run`]
+    #[must_use]
+    pub fn run_ui(&self, new_input: RawInput, mut run_ui: impl FnMut(&mut Ui)) -> FullOutput {
+        self.run_ui_dyn(new_input, &mut run_ui)
+    }
+
+    #[must_use]
+    fn run_ui_dyn(&self, new_input: RawInput, run_ui: &mut dyn FnMut(&mut Ui)) -> FullOutput {
+        let plugins = self.read(|ctx| ctx.plugins.ordered_plugins());
+        #[expect(deprecated)]
+        self.run(new_input, |ctx| {
+            let mut top_ui = Ui::new(
+                ctx.clone(),
+                Id::new((ctx.viewport_id(), "__top_ui")),
+                UiBuilder::new()
+                    .layer_id(LayerId::background())
+                    .max_rect(ctx.available_rect()),
+            );
+
+            {
+                plugins.on_begin_pass(&mut top_ui);
+                run_ui(&mut top_ui);
+                plugins.on_end_pass(&mut top_ui);
+            }
+
+            // Inform ctx about what we actually used, so we can shrink the native window to fit.
+            // TODO(emilk): make better use of this somehow
+            ctx.pass_state_mut(|state| state.allocate_central_panel(top_ui.min_rect()));
+        })
+    }
+
+    /// Run the ui code for one frame.
+    ///
+    /// At most [`Options::max_passes`] calls will be issued to `run_ui`,
+    /// and only on the rare occasion that [`Context::request_discard`] is called.
+    /// Usually, it `run_ui` will only be called once.
+    ///
+    /// Put your widgets into a [`crate::Panel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
     ///
     /// Instead of calling `run`, you can alternatively use [`Self::begin_pass`] and [`Context::end_pass`].
     ///
@@ -817,8 +836,17 @@ impl Context {
     /// });
     /// // handle full_output
     /// ```
+    ///
+    /// ## See also
+    /// * [`Self::run_ui`]
     #[must_use]
-    pub fn run(&self, mut new_input: RawInput, mut run_ui: impl FnMut(&Self)) -> FullOutput {
+    #[deprecated = "Call run_ui instead"]
+    pub fn run(&self, new_input: RawInput, mut run_ui: impl FnMut(&Self)) -> FullOutput {
+        self.run_dyn(new_input, &mut run_ui)
+    }
+
+    #[must_use]
+    fn run_dyn(&self, mut new_input: RawInput, run_ui: &mut dyn FnMut(&Self)) -> FullOutput {
         profiling::function_scope!();
         let viewport_id = new_input.viewport_id;
         let max_passes = self.write(|ctx| ctx.memory.options.max_passes.get());
@@ -863,7 +891,6 @@ impl Context {
             }
 
             if max_passes <= output.platform_output.num_completed_passes {
-                #[cfg(feature = "log")]
                 log::debug!(
                     "Ignoring call request_discard, because max_passes={max_passes}. Requested from {:?}",
                     output.platform_output.request_discard_reasons
@@ -907,13 +934,13 @@ impl Context {
     /// let full_output = ctx.end_pass();
     /// // handle full_output
     /// ```
-    pub fn begin_pass(&self, new_input: RawInput) {
+    pub fn begin_pass(&self, mut new_input: RawInput) {
         profiling::function_scope!();
 
-        self.write(|ctx| ctx.begin_pass(new_input));
+        let plugins = self.read(|ctx| ctx.plugins.ordered_plugins());
+        plugins.on_input(&mut new_input);
 
-        // Plugins run just after the pass starts:
-        self.read(|ctx| ctx.plugins.clone()).on_begin_pass(self);
+        self.write(|ctx| ctx.begin_pass(new_input));
     }
 
     /// See [`Self::begin_pass`].
@@ -1048,13 +1075,32 @@ impl Context {
     /// Not valid until first call to [`Context::run()`].
     /// That's because since we don't know the proper `pixels_per_point` until then.
     #[inline]
-    pub fn fonts<R>(&self, reader: impl FnOnce(&Fonts) -> R) -> R {
+    pub fn fonts<R>(&self, reader: impl FnOnce(&FontsView<'_>) -> R) -> R {
         self.write(move |ctx| {
             let pixels_per_point = ctx.pixels_per_point();
             reader(
-                ctx.fonts
-                    .get(&pixels_per_point.into())
-                    .expect("No fonts available until first call to Context::run()"),
+                &ctx.fonts
+                    .as_mut()
+                    .expect("No fonts available until first call to Context::run()")
+                    .with_pixels_per_point(pixels_per_point),
+            )
+        })
+    }
+
+    /// Read-write access to [`Fonts`].
+    ///
+    /// Not valid until first call to [`Context::run()`].
+    /// That's because since we don't know the proper `pixels_per_point` until then.
+    #[inline]
+    pub fn fonts_mut<R>(&self, reader: impl FnOnce(&mut FontsView<'_>) -> R) -> R {
+        self.write(move |ctx| {
+            let pixels_per_point = ctx.pixels_per_point();
+            reader(
+                &mut ctx
+                    .fonts
+                    .as_mut()
+                    .expect("No fonts available until first call to Context::run()")
+                    .with_pixels_per_point(pixels_per_point),
             )
         })
     }
@@ -1113,14 +1159,14 @@ impl Context {
         }
 
         let show_error = |widget_rect: Rect, text: String| {
-            let screen_rect = self.screen_rect();
+            let content_rect = self.content_rect();
 
             let text = format!("🔥 {text}");
-            let color = self.style().visuals.error_fg_color;
+            let color = self.global_style().visuals.error_fg_color;
             let painter = self.debug_painter();
             painter.rect_stroke(widget_rect, 0.0, (1.0, color), StrokeKind::Outside);
 
-            let below = widget_rect.bottom() + 32.0 < screen_rect.bottom();
+            let below = widget_rect.bottom() + 32.0 < content_rect.bottom();
 
             let text_rect = if below {
                 painter.debug_text(
@@ -1138,15 +1184,16 @@ impl Context {
                 )
             };
 
-            if let Some(pointer_pos) = self.pointer_hover_pos() {
-                if text_rect.contains(pointer_pos) {
-                    let tooltip_pos = if below {
-                        text_rect.left_bottom() + vec2(2.0, 4.0)
-                    } else {
-                        text_rect.left_top() + vec2(2.0, -4.0)
-                    };
+            if let Some(pointer_pos) = self.pointer_hover_pos()
+                && text_rect.contains(pointer_pos)
+            {
+                let tooltip_pos = if below {
+                    text_rect.left_bottom() + vec2(2.0, 4.0)
+                } else {
+                    text_rect.left_top() + vec2(2.0, -4.0)
+                };
 
-                    painter.error(
+                painter.error(
                         tooltip_pos,
                         format!("Widget is {} this text.\n\n\
                              ID clashes happens when things like Windows or CollapsingHeaders share names,\n\
@@ -1154,7 +1201,6 @@ impl Context {
                              Sometimes the solution is to use ui.push_id.",
                                 if below { "above" } else { "below" }),
                     );
-                }
             }
         };
 
@@ -1180,7 +1226,12 @@ impl Context {
     ///
     /// `allow_focus` should usually be true, unless you call this function multiple times with the
     /// same widget, then `allow_focus` should only be true once (like in [`Ui::new`] (true) and [`Ui::remember_min_rect`] (false)).
-    pub(crate) fn create_widget(&self, w: WidgetRect, allow_focus: bool) -> Response {
+    pub(crate) fn create_widget(
+        &self,
+        w: WidgetRect,
+        allow_focus: bool,
+        options: crate::InteractOptions,
+    ) -> Response {
         let interested_in_focus = w.enabled
             && w.sense.is_focusable()
             && self.memory(|mem| mem.allows_interaction(w.layer_id));
@@ -1192,7 +1243,7 @@ impl Context {
             // We add all widgets here, even non-interactive ones,
             // because we need this list not only for checking for blocking widgets,
             // but also to know when we have reached the widget we are checking for cover.
-            viewport.this_pass.widgets.insert(w.layer_id, w);
+            viewport.this_pass.widgets.insert(w.layer_id, w, options);
 
             if allow_focus && interested_in_focus {
                 ctx.memory.interested_in_focus(w.id, w.layer_id);
@@ -1208,10 +1259,15 @@ impl Context {
             self.check_for_id_clash(w.id, w.rect, "widget");
         }
 
-        #[allow(clippy::let_and_return, clippy::allow_attributes)]
+        #[allow(clippy::allow_attributes, clippy::let_and_return)]
         let res = self.get_response(w);
 
-        #[cfg(feature = "accesskit")]
+        #[cfg(debug_assertions)]
+        if res.contains_pointer() {
+            let plugins = self.read(|ctx| ctx.plugins.ordered_plugins());
+            plugins.on_widget_under_pointer(self, &w);
+        }
+
         if allow_focus && w.sense.is_focusable() {
             // Make sure anything that can receive focus has an AccessKit node.
             // TODO(mwcampbell): For nodes that are filled from widget info,
@@ -1219,7 +1275,6 @@ impl Context {
             self.accesskit_node_builder(w.id, |builder| res.fill_accesskit_node_common(builder));
         }
 
-        #[cfg(feature = "accesskit")]
         self.write(|ctx| {
             use crate::{Align, pass_state::ScrollTarget, style::ScrollAnimation};
             let viewport = ctx.viewport_for(ctx.viewport_id());
@@ -1227,12 +1282,14 @@ impl Context {
             viewport
                 .input
                 .consume_accesskit_action_requests(res.id, |request| {
+                    use accesskit::Action;
+
                     // TODO(lucasmerlin): Correctly handle the scroll unit:
                     // https://github.com/AccessKit/accesskit/blob/e639c0e0d8ccbfd9dff302d972fa06f9766d608e/common/src/lib.rs#L2621
                     const DISTANCE: f32 = 100.0;
 
                     match &request.action {
-                        accesskit::Action::ScrollIntoView => {
+                        Action::ScrollIntoView => {
                             viewport.this_pass.scroll_target = [
                                 Some(ScrollTarget::new(
                                     res.rect.x_range(),
@@ -1246,16 +1303,16 @@ impl Context {
                                 )),
                             ];
                         }
-                        accesskit::Action::ScrollDown => {
+                        Action::ScrollDown => {
                             viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::UP;
                         }
-                        accesskit::Action::ScrollUp => {
+                        Action::ScrollUp => {
                             viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::DOWN;
                         }
-                        accesskit::Action::ScrollLeft => {
+                        Action::ScrollLeft => {
                             viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::LEFT;
                         }
-                        accesskit::Action::ScrollRight => {
+                        Action::ScrollRight => {
                             viewport.this_pass.scroll_delta.0 += DISTANCE * Vec2::RIGHT;
                         }
                         _ => return false,
@@ -1286,10 +1343,10 @@ impl Context {
             widget_rect.map(|mut rect| {
                 // If the Rect is invalid the Ui hasn't registered its final Rect yet.
                 // We return the Rect from last frame instead.
-                if !(rect.rect.is_positive() && rect.rect.is_finite()) {
-                    if let Some(prev_rect) = viewport.prev_pass.widgets.get(id) {
-                        rect.rect = prev_rect.rect;
-                    }
+                if !(rect.rect.is_positive() && rect.rect.is_finite())
+                    && let Some(prev_rect) = viewport.prev_pass.widgets.get(id)
+                {
+                    rect.rect = prev_rect.rect;
                 }
                 rect
             })
@@ -1348,7 +1405,6 @@ impl Context {
                 res.flags.set(Flags::FAKE_PRIMARY_CLICKED, true);
             }
 
-            #[cfg(feature = "accesskit")]
             if enabled
                 && sense.senses_click()
                 && input.has_accesskit_action_request(id, accesskit::Action::Click)
@@ -1429,8 +1485,14 @@ impl Context {
                 res.flags.set(Flags::HOVERED, false);
             }
 
-            let pointer_pressed_elsewhere = any_press && !res.hovered();
-            if pointer_pressed_elsewhere && memory.has_focus(id) {
+            let should_surrender_focus = match memory.options.input_options.surrender_focus_on {
+                SurrenderFocusOn::Presses => any_press,
+                SurrenderFocusOn::Clicks => input.pointer.any_click(),
+                SurrenderFocusOn::Never => false,
+            };
+
+            let pointer_clicked_elsewhere = should_surrender_focus && !res.hovered();
+            if pointer_clicked_elsewhere && memory.has_focus(id) {
                 memory.surrender_focus(id);
             }
         });
@@ -1458,11 +1520,11 @@ impl Context {
 
     /// Get a full-screen painter for a new or existing layer
     pub fn layer_painter(&self, layer_id: LayerId) -> Painter {
-        let screen_rect = self.screen_rect();
-        Painter::new(self.clone(), layer_id, screen_rect)
+        let content_rect = self.content_rect();
+        Painter::new(self.clone(), layer_id, content_rect)
     }
 
-    /// Paint on top of everything else
+    /// Paint on top of _everything_ else (even on top of tooltips and popups).
     pub fn debug_painter(&self) -> Painter {
         Self::layer_painter(self, LayerId::debug())
     }
@@ -1527,7 +1589,7 @@ impl Context {
     /// ```
     /// # let ctx = egui::Context::default();
     /// # let open_url = egui::OpenUrl::same_tab("http://www.example.com");
-    /// ctx.output_mut(|o| o.open_url = Some(open_url));
+    /// ctx.send_cmd(egui::OutputCommand::OpenUrl(open_url));
     /// ```
     pub fn open_url(&self, open_url: crate::OpenUrl) {
         self.send_cmd(crate::OutputCommand::OpenUrl(open_url));
@@ -1560,10 +1622,9 @@ impl Context {
             ..
         } = ModifierNames::SYMBOLS;
 
-        let font_id = TextStyle::Body.resolve(&self.style());
-        self.fonts(|f| {
-            let mut lock = f.lock();
-            let font = lock.fonts.font(&font_id);
+        let font_id = TextStyle::Body.resolve(&self.global_style());
+        self.fonts_mut(|f| {
+            let mut font = f.fonts.font(&font_id.family);
             font.has_glyphs(alt)
                 && font.has_glyphs(ctrl)
                 && font.has_glyphs(shift)
@@ -1617,7 +1678,14 @@ impl Context {
         self.read(|ctx| {
             ctx.viewports
                 .get(&id)
-                .map_or(0, |v| v.repaint.cumulative_frame_nr)
+                .map(|v| v.repaint.cumulative_frame_nr)
+                .unwrap_or_else(|| {
+                    if cfg!(debug_assertions) {
+                        panic!("cumulative_frame_nr_for failed to find the viewport {id:?}");
+                    } else {
+                        0
+                    }
+                })
         })
     }
 
@@ -1842,7 +1910,6 @@ impl Context {
         let cause = RepaintCause::new_reason(reason);
         self.output_mut(|o| o.request_discard_reasons.push(cause));
 
-        #[cfg(feature = "log")]
         log::trace!(
             "request_discard: {}",
             if self.will_discard() {
@@ -1872,26 +1939,76 @@ impl Context {
 impl Context {
     /// Call the given callback at the start of each pass of each viewport.
     ///
-    /// This can be used for egui _plugins_.
-    /// See [`crate::debug_text`] for an example.
-    pub fn on_begin_pass(&self, debug_name: &'static str, cb: ContextCallback) {
-        let named_cb = NamedContextCallback {
-            debug_name,
-            callback: cb,
-        };
-        self.write(|ctx| ctx.plugins.on_begin_pass.push(named_cb));
+    /// This is a convenience wrapper around [`Self::add_plugin`].
+    pub fn on_begin_pass(&self, debug_name: &'static str, cb: plugin::ContextCallback) {
+        self.with_plugin(|p: &mut crate::plugin::CallbackPlugin| {
+            p.on_begin_plugins.push((debug_name, cb));
+        });
     }
 
     /// Call the given callback at the end of each pass of each viewport.
     ///
-    /// This can be used for egui _plugins_.
-    /// See [`crate::debug_text`] for an example.
-    pub fn on_end_pass(&self, debug_name: &'static str, cb: ContextCallback) {
-        let named_cb = NamedContextCallback {
-            debug_name,
-            callback: cb,
-        };
-        self.write(|ctx| ctx.plugins.on_end_pass.push(named_cb));
+    /// This is a convenience wrapper around [`Self::add_plugin`].
+    pub fn on_end_pass(&self, debug_name: &'static str, cb: plugin::ContextCallback) {
+        self.with_plugin(|p: &mut crate::plugin::CallbackPlugin| {
+            p.on_end_plugins.push((debug_name, cb));
+        });
+    }
+
+    /// Register a [`Plugin`](plugin::Plugin)
+    ///
+    /// Plugins are called in the order they are added.
+    ///
+    /// A plugin of the same type can only be added once (further calls with the same type will be ignored).
+    /// This way it's convenient to add plugins in `eframe::run_simple_native`.
+    pub fn add_plugin(&self, plugin: impl plugin::Plugin + 'static) {
+        let handle = plugin::PluginHandle::new(plugin);
+
+        let added = self.write(|ctx| ctx.plugins.add(Arc::clone(&handle)));
+
+        if added {
+            handle.lock().dyn_plugin_mut().setup(self);
+        }
+    }
+
+    /// Call the provided closure with the plugin of type `T`, if it was registered.
+    ///
+    /// Returns `None` if the plugin was not registered.
+    pub fn with_plugin<T: plugin::Plugin + 'static, R>(
+        &self,
+        f: impl FnOnce(&mut T) -> R,
+    ) -> Option<R> {
+        let plugin = self.read(|ctx| ctx.plugins.get(std::any::TypeId::of::<T>()));
+        plugin.map(|plugin| f(plugin.lock().typed_plugin_mut()))
+    }
+
+    /// Get a handle to the plugin of type `T`.
+    ///
+    /// ## Panics
+    /// If the plugin of type `T` was not registered, this will panic.
+    pub fn plugin<T: plugin::Plugin>(&self) -> TypedPluginHandle<T> {
+        if let Some(plugin) = self.plugin_opt() {
+            plugin
+        } else {
+            panic!("Plugin of type {:?} not found", std::any::type_name::<T>());
+        }
+    }
+
+    /// Get a handle to the plugin of type `T`, if it was registered.
+    pub fn plugin_opt<T: plugin::Plugin>(&self) -> Option<TypedPluginHandle<T>> {
+        let plugin = self.read(|ctx| ctx.plugins.get(std::any::TypeId::of::<T>()));
+        plugin.map(TypedPluginHandle::new)
+    }
+
+    /// Get a handle to the plugin of type `T`, or insert its default.
+    pub fn plugin_or_default<T: plugin::Plugin + Default>(&self) -> TypedPluginHandle<T> {
+        if let Some(plugin) = self.plugin_opt() {
+            plugin
+        } else {
+            let default_plugin = T::default();
+            self.add_plugin(default_plugin);
+            self.plugin()
+        }
     }
 }
 
@@ -1906,17 +2023,12 @@ impl Context {
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
         profiling::function_scope!();
 
-        let pixels_per_point = self.pixels_per_point();
-
-        let mut update_fonts = true;
-
-        self.read(|ctx| {
-            if let Some(current_fonts) = ctx.fonts.get(&pixels_per_point.into()) {
-                // NOTE: this comparison is expensive since it checks TTF data for equality
-                if current_fonts.lock().fonts.definitions() == &font_definitions {
-                    update_fonts = false; // no need to update
-                }
-            }
+        let update_fonts = self.read(|ctx| {
+            // NOTE: this comparison is expensive since it checks TTF data for equality
+            // TODO(valadaptive): add_font only checks the *names* for equality. Change this?
+            ctx.fonts
+                .as_ref()
+                .is_none_or(|fonts| fonts.definitions() != &font_definitions)
         });
 
         if update_fonts {
@@ -1934,21 +2046,16 @@ impl Context {
     pub fn add_font(&self, new_font: FontInsert) {
         profiling::function_scope!();
 
-        let pixels_per_point = self.pixels_per_point();
-
         let mut update_fonts = true;
 
         self.read(|ctx| {
-            if let Some(current_fonts) = ctx.fonts.get(&pixels_per_point.into()) {
-                if current_fonts
-                    .lock()
-                    .fonts
+            if let Some(current_fonts) = ctx.fonts.as_ref()
+                && current_fonts
                     .definitions()
                     .font_data
                     .contains_key(&new_font.name)
-                {
-                    update_fonts = false; // no need to update
-                }
+            {
+                update_fonts = false; // no need to update
             }
         });
 
@@ -1964,13 +2071,13 @@ impl Context {
     }
 
     /// The [`Theme`] used to select the appropriate [`Style`] (dark or light)
-    /// used by all subsequent windows, panels etc.
+    /// used by all subsequent popups, menus, etc.
     pub fn theme(&self) -> Theme {
         self.options(|opt| opt.theme())
     }
 
     /// The [`Theme`] used to select between dark and light [`Self::style`]
-    /// as the active style used by all subsequent windows, panels etc.
+    /// as the active style used by all subsequent popups, menus, etc.
     ///
     /// Example:
     /// ```
@@ -1981,37 +2088,70 @@ impl Context {
         self.options_mut(|opt| opt.theme_preference = theme_preference.into());
     }
 
-    /// The currently active [`Style`] used by all subsequent windows, panels etc.
-    pub fn style(&self) -> Arc<Style> {
-        self.options(|opt| opt.style().clone())
+    /// The currently active [`Style`] used by all subsequent popups, menus, etc.
+    pub fn global_style(&self) -> Arc<Style> {
+        self.options(|opt| Arc::clone(opt.style()))
     }
 
-    /// Mutate the currently active [`Style`] used by all subsequent windows, panels etc.
+    /// The currently active [`Style`] used by all subsequent popups, menus, etc.
+    #[deprecated = "Renamed to `global_style` to avoid confusion with `ui.style()`"]
+    pub fn style(&self) -> Arc<Style> {
+        self.options(|opt| Arc::clone(opt.style()))
+    }
+
+    /// Mutate the currently active [`Style`] used by all subsequent popups, menus, etc.
     /// Use [`Self::all_styles_mut`] to mutate both dark and light mode styles.
     ///
     /// Example:
     /// ```
     /// # let mut ctx = egui::Context::default();
-    /// ctx.style_mut(|style| {
+    /// ctx.global_style_mut(|style| {
     ///     style.spacing.item_spacing = egui::vec2(10.0, 20.0);
     /// });
     /// ```
+    pub fn global_style_mut(&self, mutate_style: impl FnOnce(&mut Style)) {
+        self.options_mut(|opt| mutate_style(Arc::make_mut(opt.style_mut())));
+    }
+
+    /// Mutate the currently active [`Style`] used by all subsequent popups, menus, etc.
+    /// Use [`Self::all_styles_mut`] to mutate both dark and light mode styles.
+    ///
+    /// Example:
+    /// ```
+    /// # let mut ctx = egui::Context::default();
+    /// ctx.global_style_mut(|style| {
+    ///     style.spacing.item_spacing = egui::vec2(10.0, 20.0);
+    /// });
+    /// ```
+    #[deprecated = "Renamed to `global_style_mut` to avoid confusion with `ui.style_mut()`"]
     pub fn style_mut(&self, mutate_style: impl FnOnce(&mut Style)) {
         self.options_mut(|opt| mutate_style(Arc::make_mut(opt.style_mut())));
     }
 
-    /// The currently active [`Style`] used by all new windows, panels etc.
+    /// The currently active [`Style`] used by all new popups, menus, etc.
+    ///
+    /// Use [`Self::all_styles_mut`] to mutate both dark and light mode styles.
+    ///
+    /// You can also change this using [`Self::global_style_mut`].
+    ///
+    /// You can use [`Ui::style_mut`] to change the style of a single [`Ui`].
+    pub fn set_global_style(&self, style: impl Into<Arc<Style>>) {
+        self.options_mut(|opt| *opt.style_mut() = style.into());
+    }
+
+    /// The currently active [`Style`] used by all new popups, menus, etc.
     ///
     /// Use [`Self::all_styles_mut`] to mutate both dark and light mode styles.
     ///
     /// You can also change this using [`Self::style_mut`].
     ///
     /// You can use [`Ui::style_mut`] to change the style of a single [`Ui`].
+    #[deprecated = "Renamed to `set_global_style` to avoid confusion with `ui.set_style()`"]
     pub fn set_style(&self, style: impl Into<Arc<Style>>) {
         self.options_mut(|opt| *opt.style_mut() = style.into());
     }
 
-    /// Mutate the [`Style`]s used by all subsequent windows, panels etc. in both dark and light mode.
+    /// Mutate the [`Style`]s used by all subsequent popups, menus, etc. in both dark and light mode.
     ///
     /// Example:
     /// ```
@@ -2027,15 +2167,15 @@ impl Context {
         });
     }
 
-    /// The [`Style`] used by all subsequent windows, panels etc.
+    /// The [`Style`] used by all subsequent popups, menus, etc.
     pub fn style_of(&self, theme: Theme) -> Arc<Style> {
         self.options(|opt| match theme {
-            Theme::Dark => opt.dark_style.clone(),
-            Theme::Light => opt.light_style.clone(),
+            Theme::Dark => Arc::clone(&opt.dark_style),
+            Theme::Light => Arc::clone(&opt.light_style),
         })
     }
 
-    /// Mutate the [`Style`] used by all subsequent windows, panels etc.
+    /// Mutate the [`Style`] used by all subsequent popups, menus, etc.
     ///
     /// Example:
     /// ```
@@ -2051,7 +2191,7 @@ impl Context {
         });
     }
 
-    /// The [`Style`] used by all new windows, panels etc.
+    /// The [`Style`] used by all new popups, menus, etc.
     /// Use [`Self::set_theme`] to choose between dark and light mode.
     ///
     /// You can also change this using [`Self::style_mut_of`].
@@ -2065,7 +2205,7 @@ impl Context {
         });
     }
 
-    /// The [`crate::Visuals`] used by all subsequent windows, panels etc.
+    /// The [`crate::Visuals`] used by all subsequent popups, menus, etc.
     ///
     /// You can also use [`Ui::visuals_mut`] to change the visuals of a single [`Ui`].
     ///
@@ -2078,7 +2218,7 @@ impl Context {
         self.style_mut_of(theme, |style| style.visuals = visuals);
     }
 
-    /// The [`crate::Visuals`] used by all subsequent windows, panels etc.
+    /// The [`crate::Visuals`] used by all subsequent popups, menus, etc.
     ///
     /// You can also use [`Ui::visuals_mut`] to change the visuals of a single [`Ui`].
     ///
@@ -2225,7 +2365,7 @@ impl Context {
     ///
     /// You can show stats about the allocated textures using [`Self::texture_ui`].
     pub fn tex_manager(&self) -> Arc<RwLock<epaint::textures::TextureManager>> {
-        self.read(|ctx| ctx.tex_manager.0.clone())
+        self.read(|ctx| Arc::clone(&ctx.tex_manager.0))
     }
 
     // ---------------------------------------------------------------------
@@ -2257,13 +2397,15 @@ impl Context {
             crate::gui_zoom::zoom_with_keyboard(self);
         }
 
-        // Plugins run just before the pass ends.
-        self.read(|ctx| ctx.plugins.clone()).on_end_pass(self);
-
         #[cfg(debug_assertions)]
         self.debug_painting();
 
-        self.write(|ctx| ctx.end_pass())
+        let mut output = self.write(|ctx| ctx.end_pass());
+
+        let plugins = self.read(|ctx| ctx.plugins.ordered_plugins());
+        plugins.on_output(&mut output);
+
+        output
     }
 
     /// Call at the end of each frame if you called [`Context::begin_pass`].
@@ -2290,11 +2432,12 @@ impl Context {
             if let Some(widget) =
                 self.write(|ctx| ctx.viewport().this_pass.widgets.get(id).copied())
             {
-                paint_widget(&widget, text, color);
+                let text = format!("{text} - {id:?}");
+                paint_widget(&widget, &text, color);
             }
         };
 
-        if self.style().debug.show_interactive_widgets {
+        if self.global_style().debug.show_interactive_widgets {
             // Show all interactive widgets:
             let rects = self.write(|ctx| ctx.viewport().this_pass.widgets.clone());
             for (layer_id, rects) in rects.layers() {
@@ -2372,7 +2515,7 @@ impl Context {
             }
         }
 
-        if self.style().debug.show_widget_hits {
+        if self.global_style().debug.show_widget_hits {
             let hits = self.write(|ctx| ctx.viewport().hits.clone());
             let WidgetHits {
                 close,
@@ -2397,6 +2540,12 @@ impl Context {
             if let Some(widget) = &drag {
                 paint_widget(widget, "drag", Color32::GREEN);
             }
+        }
+
+        if self.global_style().debug.show_focused_widget
+            && let Some(focused_id) = self.memory(|mem| mem.focused())
+        {
+            paint_widget_id(focused_id, "focused", Color32::PURPLE);
         }
 
         if let Some(debug_rect) = self.pass_state_mut(|fs| fs.debug_rect.take()) {
@@ -2435,29 +2584,11 @@ impl ContextImpl {
 
         self.memory.end_pass(&viewport.this_pass.used_ids);
 
-        if let Some(fonts) = self.fonts.get(&pixels_per_point.into()) {
+        if let Some(fonts) = self.fonts.as_mut() {
             let tex_mngr = &mut self.tex_manager.0.write();
             if let Some(font_image_delta) = fonts.font_image_delta() {
                 // A partial font atlas update, e.g. a new glyph has been entered.
                 tex_mngr.set(TextureId::default(), font_image_delta);
-            }
-
-            if 1 < self.fonts.len() {
-                // We have multiple different `pixels_per_point`,
-                // e.g. because we have many viewports spread across
-                // monitors with different DPI scaling.
-                // All viewports share the same texture namespace and renderer,
-                // so the all use `TextureId::default()` for the font texture.
-                // This is a problem.
-                // We solve this with a hack: we always upload the full font atlas
-                // every frame, for all viewports.
-                // This ensures it is up-to-date, solving
-                // https://github.com/emilk/egui/issues/3664
-                // at the cost of a lot of performance.
-                // (This will override any smaller delta that was uploaded above.)
-                profiling::scope!("full_font_atlas_update");
-                let full_delta = ImageDelta::full(fonts.image(), TextureAtlas::texture_options());
-                tex_mngr.set(TextureId::default(), full_delta);
             }
         }
 
@@ -2466,7 +2597,6 @@ impl ContextImpl {
 
         let mut platform_output: PlatformOutput = std::mem::take(&mut viewport.output);
 
-        #[cfg(feature = "accesskit")]
         {
             profiling::scope!("accesskit");
             let state = viewport.this_pass.accesskit_state.take();
@@ -2499,6 +2629,7 @@ impl ContextImpl {
 
         if self.memory.options.repaint_on_widget_change {
             profiling::scope!("compare-widget-rects");
+            #[allow(clippy::allow_attributes, clippy::collapsible_if)] // false positive on wasm
             if viewport.prev_pass.widgets != viewport.this_pass.widgets {
                 repaint_needed = true; // Some widget has moved
             }
@@ -2516,10 +2647,13 @@ impl ContextImpl {
         self.last_viewport = ended_viewport_id;
 
         self.viewports.retain(|&id, viewport| {
+            if id == ViewportId::ROOT {
+                return true; // never remove the root
+            }
+
             let parent = *self.viewport_parents.entry(id).or_default();
 
             if !all_viewport_ids.contains(&parent) {
-                #[cfg(feature = "log")]
                 log::debug!(
                     "Removing viewport {:?} ({:?}): the parent is gone",
                     id,
@@ -2532,7 +2666,6 @@ impl ContextImpl {
             let is_our_child = parent == ended_viewport_id && id != ViewportId::ROOT;
             if is_our_child {
                 if !viewport.used {
-                    #[cfg(feature = "log")]
                     log::debug!(
                         "Removing viewport {:?} ({:?}): it was never used this pass",
                         id,
@@ -2586,30 +2719,16 @@ impl ContextImpl {
         if is_last {
             // Remove dead viewports:
             self.viewports.retain(|id, _| all_viewport_ids.contains(id));
+            debug_assert!(
+                self.viewports.contains_key(&ViewportId::ROOT),
+                "Bug in egui: we removed the root viewport"
+            );
             self.viewport_parents
                 .retain(|id, _| all_viewport_ids.contains(id));
         } else {
             let viewport_id = self.viewport_id();
             self.memory.set_viewport_id(viewport_id);
         }
-
-        let active_pixels_per_point: std::collections::BTreeSet<OrderedFloat<f32>> = self
-            .viewports
-            .values()
-            .map(|v| v.input.pixels_per_point.into())
-            .collect();
-        self.fonts.retain(|pixels_per_point, _| {
-            if active_pixels_per_point.contains(pixels_per_point) {
-                true
-            } else {
-                #[cfg(feature = "log")]
-                log::trace!(
-                    "Freeing Fonts with pixels_per_point={} because it is no longer needed",
-                    pixels_per_point.into_inner()
-                );
-                false
-            }
-        });
 
         platform_output.num_completed_passes += 1;
 
@@ -2642,21 +2761,15 @@ impl Context {
 
         self.write(|ctx| {
             let tessellation_options = ctx.memory.options.tessellation_options;
-            let texture_atlas = if let Some(fonts) = ctx.fonts.get(&pixels_per_point.into()) {
+            let texture_atlas = if let Some(fonts) = ctx.fonts.as_ref() {
                 fonts.texture_atlas()
             } else {
-                #[cfg(feature = "log")]
                 log::warn!("No font size matching {pixels_per_point} pixels per point found.");
                 ctx.fonts
                     .iter()
                     .next()
                     .expect("No fonts loaded")
-                    .1
                     .texture_atlas()
-            };
-            let (font_tex_size, prepared_discs) = {
-                let atlas = texture_atlas.lock();
-                (atlas.size(), atlas.prepared_discs())
             };
 
             let paint_stats = PaintStats::from_shapes(&shapes);
@@ -2665,8 +2778,8 @@ impl Context {
                 tessellator::Tessellator::new(
                     pixels_per_point,
                     tessellation_options,
-                    font_tex_size,
-                    prepared_discs,
+                    texture_atlas.size(),
+                    texture_atlas.prepared_discs(),
                 )
                 .tessellate_shapes(shapes)
             };
@@ -2677,18 +2790,46 @@ impl Context {
 
     // ---------------------------------------------------------------------
 
+    /// Returns the position and size of the egui area that is safe for content rendering.
+    ///
+    /// Returns [`Self::viewport_rect`] minus areas that might be partially covered by, for example,
+    /// the OS status bar or display notches.
+    ///
+    /// If you want to render behind e.g. the dynamic island on iOS, use [`Self::viewport_rect`].
+    pub fn content_rect(&self) -> Rect {
+        self.input(|i| i.content_rect()).round_ui()
+    }
+
+    /// Returns the position and size of the full area available to egui
+    ///
+    /// This includes reas that might be partially covered by, for example, the OS status bar or
+    /// display notches. See [`Self::content_rect`] to get a rect that is safe for content.
+    ///
+    /// This rectangle includes e.g. the dynamic island on iOS.
+    /// If you want to only render _below_ the that (not behind), then you should use
+    /// [`Self::content_rect`] instead.
+    ///
+    /// See also [`RawInput::safe_area_insets`].
+    pub fn viewport_rect(&self) -> Rect {
+        self.input(|i| i.viewport_rect()).round_ui()
+    }
+
     /// Position and size of the egui area.
+    #[deprecated(
+        note = "screen_rect has been split into viewport_rect() and content_rect(). You likely should use content_rect()"
+    )]
     pub fn screen_rect(&self) -> Rect {
-        self.input(|i| i.screen_rect()).round_ui()
+        self.input(|i| i.content_rect()).round_ui()
     }
 
     /// How much space is still available after panels have been added.
+    #[deprecated = "Use content_rect (or viewport_rect) instead"]
     pub fn available_rect(&self) -> Rect {
         self.pass_state(|s| s.available_rect()).round_ui()
     }
 
-    /// How much space is used by panels and windows.
-    pub fn used_rect(&self) -> Rect {
+    /// How much space is used by windows and the top-level [`Ui`].
+    pub fn globally_used_rect(&self) -> Rect {
         self.write(|ctx| {
             let mut used = ctx.viewport().this_pass.used_by_panels;
             for (_id, window) in ctx.memory.areas().visible_windows() {
@@ -2698,17 +2839,24 @@ impl Context {
         })
     }
 
-    /// How much space is used by panels and windows.
+    /// How much space is used by windows and the top-level [`Ui`].
+    #[deprecated = "Renamed to globally_used_rect"]
+    pub fn used_rect(&self) -> Rect {
+        self.globally_used_rect()
+    }
+
+    /// How much space is used by windows and the top-level [`Ui`].
     ///
     /// You can shrink your egui area to this size and still fit all egui components.
+    #[deprecated = "Use globally_used_rect instead"]
     pub fn used_size(&self) -> Vec2 {
-        (self.used_rect().max - Pos2::ZERO).round_ui()
+        (self.globally_used_rect().max - Pos2::ZERO).round_ui()
     }
 
     // ---------------------------------------------------------------------
 
     /// Is the pointer (mouse/touch) over any egui area?
-    pub fn is_pointer_over_area(&self) -> bool {
+    pub fn is_pointer_over_egui(&self) -> bool {
         let pointer_pos = self.input(|i| i.pointer.interact_pos());
         if let Some(pointer_pos) = pointer_pos {
             if let Some(layer) = self.layer_id_at(pointer_pos) {
@@ -2725,27 +2873,58 @@ impl Context {
         }
     }
 
+    /// Is the pointer (mouse/touch) over any egui area?
+    #[deprecated = "Renamed to is_pointer_over_egui"]
+    pub fn is_pointer_over_area(&self) -> bool {
+        self.is_pointer_over_egui()
+    }
+
     /// True if egui is currently interested in the pointer (mouse or touch).
     ///
     /// Could be the pointer is hovering over a [`crate::Window`] or the user is dragging a widget.
     /// If `false`, the pointer is outside of any egui area and so
     /// you may be interested in what it is doing (e.g. controlling your game).
     /// Returns `false` if a drag started outside of egui and then moved over an egui area.
+    pub fn egui_wants_pointer_input(&self) -> bool {
+        self.egui_is_using_pointer()
+            || (self.is_pointer_over_egui() && !self.input(|i| i.pointer.any_down()))
+    }
+
+    /// True if egui is currently interested in the pointer (mouse or touch).
+    ///
+    /// Could be the pointer is hovering over a [`crate::Window`] or the user is dragging a widget.
+    /// If `false`, the pointer is outside of any egui area and so
+    /// you may be interested in what it is doing (e.g. controlling your game).
+    /// Returns `false` if a drag started outside of egui and then moved over an egui area.
+    #[deprecated = "Renamed to egui_wants_pointer_input"]
     pub fn wants_pointer_input(&self) -> bool {
-        self.is_using_pointer()
-            || (self.is_pointer_over_area() && !self.input(|i| i.pointer.any_down()))
+        self.egui_wants_pointer_input()
     }
 
     /// Is egui currently using the pointer position (e.g. dragging a slider)?
     ///
     /// NOTE: this will return `false` if the pointer is just hovering over an egui area.
-    pub fn is_using_pointer(&self) -> bool {
+    pub fn egui_is_using_pointer(&self) -> bool {
         self.memory(|m| m.interaction().is_using_pointer())
     }
 
+    /// Is egui currently using the pointer position (e.g. dragging a slider)?
+    ///
+    /// NOTE: this will return `false` if the pointer is just hovering over an egui area.
+    #[deprecated = "Renamed to egui_is_using_pointer"]
+    pub fn is_using_pointer(&self) -> bool {
+        self.egui_is_using_pointer()
+    }
+
     /// If `true`, egui is currently listening on text input (e.g. typing text in a [`crate::TextEdit`]).
-    pub fn wants_keyboard_input(&self) -> bool {
+    pub fn egui_wants_keyboard_input(&self) -> bool {
         self.memory(|m| m.focused().is_some())
+    }
+
+    /// If `true`, egui is currently listening on text input (e.g. typing text in a [`crate::TextEdit`]).
+    #[deprecated = "Renamed to egui_wants_keyboard_input"]
+    pub fn wants_keyboard_input(&self) -> bool {
+        self.egui_wants_keyboard_input()
     }
 
     /// Highlight this widget, to make it look like it is hovered, even if it isn't.
@@ -2762,7 +2941,7 @@ impl Context {
     ///
     /// This only works with the old, deprecated [`crate::menu`] API.
     #[expect(deprecated)]
-    #[deprecated = "Use `is_popup_open` instead"]
+    #[deprecated = "Use `any_popup_open` instead"]
     pub fn is_context_menu_open(&self) -> bool {
         self.data(|d| {
             d.get_temp::<crate::menu::BarState>(crate::menu::CONTEXT_MENU_ID_STR.into())
@@ -2773,6 +2952,18 @@ impl Context {
     /// Is a popup or (context) menu open?
     ///
     /// Will return false for [`crate::Tooltip`]s (which are technically popups as well).
+    pub fn any_popup_open(&self) -> bool {
+        self.pass_state_mut(|fs| {
+            fs.layers
+                .values()
+                .any(|layer| !layer.open_popups.is_empty())
+        })
+    }
+
+    /// Is a popup or (context) menu open?
+    ///
+    /// Will return false for [`crate::Tooltip`]s (which are technically popups as well).
+    #[deprecated = "Renamed to any_popup_open"]
     pub fn is_popup_open(&self) -> bool {
         self.pass_state_mut(|fs| {
             fs.layers
@@ -2798,7 +2989,7 @@ impl Context {
         self.input(|i| i.pointer.hover_pos())
     }
 
-    /// If you detect a click or drag and wants to know where it happened, use this.
+    /// If you detect a click or drag and want to know where it happened, use this.
     ///
     /// Latest position of the mouse, but ignoring any [`crate::Event::PointerGone`]
     /// if there were interactions this pass.
@@ -2871,7 +3062,7 @@ impl Context {
 
     /// Moves the given area to the top in its [`Order`].
     ///
-    /// [`crate::Area`]:s and [`crate::Window`]:s also do this automatically when being clicked on or interacted with.
+    /// [`crate::Area`]s and [`crate::Window`]s also do this automatically when being clicked on or interacted with.
     pub fn move_to_top(&self, layer_id: LayerId) {
         self.memory_mut(|mem| mem.areas_mut().move_to_top(layer_id));
     }
@@ -2953,7 +3144,7 @@ impl Context {
     /// The animation time is taken from [`Style::animation_time`].
     #[track_caller] // To track repaint cause
     pub fn animate_bool(&self, id: Id, value: bool) -> f32 {
-        let animation_time = self.style().animation_time;
+        let animation_time = self.global_style().animation_time;
         self.animate_bool_with_time_and_easing(id, value, animation_time, emath::easing::linear)
     }
 
@@ -2969,7 +3160,7 @@ impl Context {
     /// Like [`Self::animate_bool`] but allows you to control the easing function.
     #[track_caller] // To track repaint cause
     pub fn animate_bool_with_easing(&self, id: Id, value: bool, easing: fn(f32) -> f32) -> f32 {
-        let animation_time = self.style().animation_time;
+        let animation_time = self.global_style().animation_time;
         self.animate_bool_with_time_and_easing(id, value, animation_time, easing)
     }
 
@@ -2990,7 +3181,7 @@ impl Context {
     /// for a responsive start and a slow end.
     ///
     /// The easing function flips when `target_value` is `false`,
-    /// so that when going back towards 0.0, we get
+    /// so that when going back towards 0.0, we get the reverse behavior.
     #[track_caller] // To track repaint cause
     pub fn animate_bool_with_time_and_easing(
         &self,
@@ -3102,16 +3293,16 @@ impl Context {
 
                 ui.label("Is using pointer")
                     .on_hover_text("Is egui currently using the pointer actively (e.g. dragging a slider)?");
-                ui.monospace(self.is_using_pointer().to_string());
+                ui.monospace(self.egui_is_using_pointer().to_string());
                 ui.end_row();
 
                 ui.label("Wants pointer input")
                     .on_hover_text("Is egui currently interested in the location of the pointer (either because it is in use, or because it is hovering over a window).");
-                ui.monospace(self.wants_pointer_input().to_string());
+                ui.monospace(self.egui_wants_pointer_input().to_string());
                 ui.end_row();
 
                 ui.label("Wants keyboard input").on_hover_text("Is egui currently listening for text input?");
-                ui.monospace(self.wants_keyboard_input().to_string());
+                ui.monospace(self.egui_wants_keyboard_input().to_string());
                 ui.end_row();
 
                 ui.label("Keyboard focus widget").on_hover_text("Is egui currently listening for text input?");
@@ -3196,7 +3387,9 @@ impl Context {
             .show(ui, |ui| {
                 ui.label(format!(
                     "{:#?}",
-                    crate::text_selection::LabelSelectionState::load(ui.ctx())
+                    *ui.ctx()
+                        .plugin::<crate::text_selection::LabelSelectionState>()
+                        .lock()
                 ));
             });
 
@@ -3252,7 +3445,7 @@ impl Context {
                                 ui.image(SizedTexture::new(texture_id, size))
                                     .on_hover_ui(|ui| {
                                         // show larger on hover
-                                        let max_size = 0.5 * ui.ctx().screen_rect().size();
+                                        let max_size = 0.5 * ui.ctx().content_rect().size();
                                         let mut size = point_size;
                                         size *= max_size.x / size.x.max(max_size.x);
                                         size *= max_size.y / size.y.max(max_size.y);
@@ -3374,9 +3567,7 @@ impl Context {
                     let response =
                         ui.add(Label::new(RichText::new(text).monospace()).sense(Sense::click()));
                     if response.hovered() && is_visible {
-                        ui.ctx()
-                            .debug_painter()
-                            .debug_rect(area.rect(), Color32::RED, "");
+                        ui.debug_painter().debug_rect(area.rect(), Color32::RED, "");
                     }
                 } else {
                     ui.monospace(layer_id.short_debug_format());
@@ -3446,72 +3637,37 @@ impl Context {
 
 /// ## Accessibility
 impl Context {
-    /// Call the provided function with the given ID pushed on the stack of
-    /// parent IDs for accessibility purposes. If the `accesskit` feature
-    /// is disabled or if AccessKit support is not active for this frame,
-    /// the function is still called, but with no other effect.
-    ///
-    /// No locks are held while the given closure is called.
-    #[allow(clippy::unused_self, clippy::let_and_return, clippy::allow_attributes)]
-    #[inline]
-    pub fn with_accessibility_parent<R>(&self, _id: Id, f: impl FnOnce() -> R) -> R {
-        // TODO(emilk): this isn't thread-safe - another thread can call this function between the push/pop calls
-        #[cfg(feature = "accesskit")]
-        self.pass_state_mut(|fs| {
-            if let Some(state) = fs.accesskit_state.as_mut() {
-                state.parent_stack.push(_id);
-            }
-        });
-
-        let result = f();
-
-        #[cfg(feature = "accesskit")]
-        self.pass_state_mut(|fs| {
-            if let Some(state) = fs.accesskit_state.as_mut() {
-                assert_eq!(
-                    state.parent_stack.pop(),
-                    Some(_id),
-                    "Mismatched push/pop in with_accessibility_parent"
-                );
-            }
-        });
-
-        result
-    }
-
     /// If AccessKit support is active for the current frame, get or create
     /// a node builder with the specified ID and return a mutable reference to it.
-    /// For newly created nodes, the parent is the node with the ID at the top
-    /// of the stack managed by [`Context::with_accessibility_parent`].
+    /// For newly created nodes, the parent is the parent [`Ui`]s ID.
+    /// And an [`Ui`]s parent can be set with [`UiBuilder::accessibility_parent`].
     ///
     /// The `Context` lock is held while the given closure is called!
     ///
-    /// Returns `None` if acesskit is off.
+    /// Returns `None` if accesskit is off.
     // TODO(emilk): consider making both read-only and read-write versions
-    #[cfg(feature = "accesskit")]
     pub fn accesskit_node_builder<R>(
         &self,
         id: Id,
         writer: impl FnOnce(&mut accesskit::Node) -> R,
     ) -> Option<R> {
+        self.write(|ctx| ctx.accesskit_node_builder(id).map(writer))
+    }
+
+    pub(crate) fn register_accesskit_parent(&self, id: Id, parent_id: Id) {
         self.write(|ctx| {
-            ctx.viewport()
-                .this_pass
-                .accesskit_state
-                .is_some()
-                .then(|| ctx.accesskit_node_builder(id))
-                .map(writer)
-        })
+            if let Some(state) = ctx.viewport().this_pass.accesskit_state.as_mut() {
+                state.parent_map.insert(id, parent_id);
+            }
+        });
     }
 
     /// Enable generation of AccessKit tree updates in all future frames.
-    #[cfg(feature = "accesskit")]
     pub fn enable_accesskit(&self) {
         self.write(|ctx| ctx.is_accesskit_enabled = true);
     }
 
     /// Disable generation of AccessKit tree updates in all future frames.
-    #[cfg(feature = "accesskit")]
     pub fn disable_accesskit(&self) {
         self.write(|ctx| ctx.is_accesskit_enabled = false);
     }
@@ -3736,7 +3892,7 @@ impl Context {
 
     /// The loaders of bytes, images, and textures.
     pub fn loaders(&self) -> Arc<Loaders> {
-        self.read(|this| this.loaders.clone())
+        self.read(|this| Arc::clone(&this.loaders))
     }
 
     /// Returns `true` if any image is currently being loaded.
@@ -3863,21 +4019,23 @@ impl Context {
     ///
     /// If [`Context::embed_viewports`] is `true` (e.g. if the current egui
     /// backend does not support multiple viewports), the given callback
-    /// will be called immediately, embedding the new viewport in the current one.
-    /// You can check this with the [`ViewportClass`] given in the callback.
-    /// If you find [`ViewportClass::Embedded`], you need to create a new [`crate::Window`] for you content.
+    /// will be called immediately, embedding the new viewport in the current one,
+    /// inside of a [`crate::Window`].
+    /// You can know by checking for [`ViewportClass::EmbeddedWindow`].
     ///
     /// See [`crate::viewport`] for more information about viewports.
     pub fn show_viewport_deferred(
         &self,
         new_viewport_id: ViewportId,
         viewport_builder: ViewportBuilder,
-        viewport_ui_cb: impl Fn(&Self, ViewportClass) + Send + Sync + 'static,
+        viewport_ui_cb: impl Fn(&mut Ui, ViewportClass) + Send + Sync + 'static,
     ) {
         profiling::function_scope!();
 
         if self.embed_viewports() {
-            viewport_ui_cb(self, ViewportClass::Embedded);
+            crate::Window::from_viewport(new_viewport_id, viewport_builder).show(self, |ui| {
+                viewport_ui_cb(ui, ViewportClass::EmbeddedWindow);
+            });
         } else {
             self.write(|ctx| {
                 ctx.viewport_parents
@@ -3887,8 +4045,8 @@ impl Context {
                 viewport.class = ViewportClass::Deferred;
                 viewport.builder = viewport_builder;
                 viewport.used = true;
-                viewport.viewport_ui_cb = Some(Arc::new(move |ctx| {
-                    (viewport_ui_cb)(ctx, ViewportClass::Deferred);
+                viewport.viewport_ui_cb = Some(Arc::new(move |ui| {
+                    (viewport_ui_cb)(ui, ViewportClass::Deferred);
                 }));
             });
         }
@@ -3897,7 +4055,7 @@ impl Context {
     /// Show an immediate viewport, creating a new native window, if possible.
     ///
     /// This is the easier type of viewport to use, but it is less performant
-    /// at it requires both parent and child to repaint if any one of them needs repainting,
+    /// as it requires both parent and child to repaint if any one of them needs repainting,
     /// which effectively produce double work for two viewports, and triple work for three viewports, etc.
     /// To avoid this, use [`Self::show_viewport_deferred`] instead.
     ///
@@ -3915,28 +4073,32 @@ impl Context {
     ///
     /// If [`Context::embed_viewports`] is `true` (e.g. if the current egui
     /// backend does not support multiple viewports), the given callback
-    /// will be called immediately, embedding the new viewport in the current one.
-    /// You can check this with the [`ViewportClass`] given in the callback.
-    /// If you find [`ViewportClass::Embedded`], you need to create a new [`crate::Window`] for you content.
+    /// will be called immediately, embedding the new viewport in the current one,
+    /// inside of a [`crate::Window`].
+    /// You can know by checking for [`ViewportClass::EmbeddedWindow`].
     ///
     /// See [`crate::viewport`] for more information about viewports.
     pub fn show_viewport_immediate<T>(
         &self,
         new_viewport_id: ViewportId,
         builder: ViewportBuilder,
-        mut viewport_ui_cb: impl FnMut(&Self, ViewportClass) -> T,
+        mut viewport_ui_cb: impl FnMut(&mut Ui, ViewportClass) -> T,
     ) -> T {
         profiling::function_scope!();
 
         if self.embed_viewports() {
-            return viewport_ui_cb(self, ViewportClass::Embedded);
+            return self.show_embedded_viewport(new_viewport_id, builder, |ui| {
+                viewport_ui_cb(ui, ViewportClass::EmbeddedWindow)
+            });
         }
 
         IMMEDIATE_VIEWPORT_RENDERER.with(|immediate_viewport_renderer| {
             let immediate_viewport_renderer = immediate_viewport_renderer.borrow();
             let Some(immediate_viewport_renderer) = immediate_viewport_renderer.as_ref() else {
                 // This egui backend does not support multiple viewports.
-                return viewport_ui_cb(self, ViewportClass::Embedded);
+                return self.show_embedded_viewport(new_viewport_id, builder, |ui| {
+                    viewport_ui_cb(ui, ViewportClass::EmbeddedWindow)
+                });
             };
 
             let ids = self.write(|ctx| {
@@ -3960,8 +4122,8 @@ impl Context {
                 let viewport = ImmediateViewport {
                     ids,
                     builder,
-                    viewport_ui_cb: Box::new(move |context| {
-                        *out = Some(viewport_ui_cb(context, ViewportClass::Immediate));
+                    viewport_ui_cb: Box::new(move |ui| {
+                        *out = Some((viewport_ui_cb)(ui, ViewportClass::Immediate));
                     }),
                 };
 
@@ -3972,6 +4134,20 @@ impl Context {
                 "egui backend is implemented incorrectly - the user callback was never called",
             )
         })
+    }
+
+    fn show_embedded_viewport<T>(
+        &self,
+        new_viewport_id: ViewportId,
+        builder: ViewportBuilder,
+        viewport_ui_cb: impl FnOnce(&mut Ui) -> T,
+    ) -> T {
+        crate::Window::from_viewport(new_viewport_id, builder)
+            .collapsible(false)
+            .show(self, |ui| viewport_ui_cb(ui))
+            .unwrap_or_else(|| panic!("Window did not show"))
+            .inner
+            .unwrap_or_else(|| panic!("Window was collapsed"))
     }
 }
 
@@ -3996,7 +4172,7 @@ impl Context {
     /// Is this specific widget being dragged?
     ///
     /// A widget that sense both clicks and drags is only marked as "dragged"
-    /// when the mouse has moved a bit
+    /// when the mouse has moved a bit.
     ///
     /// See also: [`crate::Response::dragged`].
     pub fn is_being_dragged(&self, id: Id) -> bool {
@@ -4010,7 +4186,7 @@ impl Context {
         self.interaction_snapshot(|i| i.drag_started)
     }
 
-    /// This widget was being dragged, but was released this pass
+    /// This widget was being dragged, but was released this pass.
     pub fn drag_stopped_id(&self) -> Option<Id> {
         self.interaction_snapshot(|i| i.drag_stopped)
     }
@@ -4072,11 +4248,11 @@ mod test {
         // A single call, no request to discard:
         {
             let mut num_calls = 0;
-            let output = ctx.run(Default::default(), |ctx| {
+            let output = ctx.run_ui(Default::default(), |ui| {
                 num_calls += 1;
-                assert_eq!(ctx.output(|o| o.num_completed_passes), 0);
-                assert!(!ctx.output(|o| o.requested_discard()));
-                assert!(!ctx.will_discard());
+                assert_eq!(ui.output(|o| o.num_completed_passes), 0);
+                assert!(!ui.output(|o| o.requested_discard()));
+                assert!(!ui.will_discard());
             });
             assert_eq!(num_calls, 1);
             assert_eq!(output.platform_output.num_completed_passes, 1);
@@ -4086,10 +4262,10 @@ mod test {
         // A single call, with a denied request to discard:
         {
             let mut num_calls = 0;
-            let output = ctx.run(Default::default(), |ctx| {
+            let output = ctx.run_ui(Default::default(), |ui| {
                 num_calls += 1;
-                ctx.request_discard("test");
-                assert!(!ctx.will_discard(), "The request should have been denied");
+                ui.request_discard("test");
+                assert!(!ui.will_discard(), "The request should have been denied");
             });
             assert_eq!(num_calls, 1);
             assert_eq!(output.platform_output.num_completed_passes, 1);
@@ -4117,10 +4293,10 @@ mod test {
         // Normal single pass:
         {
             let mut num_calls = 0;
-            let output = ctx.run(Default::default(), |ctx| {
-                assert_eq!(ctx.output(|o| o.num_completed_passes), 0);
-                assert!(!ctx.output(|o| o.requested_discard()));
-                assert!(!ctx.will_discard());
+            let output = ctx.run_ui(Default::default(), |ui| {
+                assert_eq!(ui.output(|o| o.num_completed_passes), 0);
+                assert!(!ui.output(|o| o.requested_discard()));
+                assert!(!ui.will_discard());
                 num_calls += 1;
             });
             assert_eq!(num_calls, 1);
@@ -4131,13 +4307,13 @@ mod test {
         // Request discard once:
         {
             let mut num_calls = 0;
-            let output = ctx.run(Default::default(), |ctx| {
-                assert_eq!(ctx.output(|o| o.num_completed_passes), num_calls);
+            let output = ctx.run_ui(Default::default(), |ui| {
+                assert_eq!(ui.output(|o| o.num_completed_passes), num_calls);
 
-                assert!(!ctx.will_discard());
+                assert!(!ui.will_discard());
                 if num_calls == 0 {
-                    ctx.request_discard("test");
-                    assert!(ctx.will_discard());
+                    ui.request_discard("test");
+                    assert!(ui.will_discard());
                 }
 
                 num_calls += 1;
@@ -4153,15 +4329,15 @@ mod test {
         // Request discard twice:
         {
             let mut num_calls = 0;
-            let output = ctx.run(Default::default(), |ctx| {
-                assert_eq!(ctx.output(|o| o.num_completed_passes), num_calls);
+            let output = ctx.run_ui(Default::default(), |ui| {
+                assert_eq!(ui.output(|o| o.num_completed_passes), num_calls);
 
-                assert!(!ctx.will_discard());
-                ctx.request_discard("test");
+                assert!(!ui.will_discard());
+                ui.request_discard("test");
                 if num_calls == 0 {
-                    assert!(ctx.will_discard(), "First request granted");
+                    assert!(ui.will_discard(), "First request granted");
                 } else {
-                    assert!(!ctx.will_discard(), "Second request should be denied");
+                    assert!(!ui.will_discard(), "Second request should be denied");
                 }
 
                 num_calls += 1;
@@ -4183,13 +4359,13 @@ mod test {
         // Request discard three times:
         {
             let mut num_calls = 0;
-            let output = ctx.run(Default::default(), |ctx| {
-                assert_eq!(ctx.output(|o| o.num_completed_passes), num_calls);
+            let output = ctx.run_ui(Default::default(), |ui| {
+                assert_eq!(ui.output(|o| o.num_completed_passes), num_calls);
 
-                assert!(!ctx.will_discard());
+                assert!(!ui.will_discard());
                 if num_calls <= 2 {
-                    ctx.request_discard("test");
-                    assert!(ctx.will_discard());
+                    ui.request_discard("test");
+                    assert!(ui.will_discard());
                 }
 
                 num_calls += 1;

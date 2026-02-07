@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![allow(rustdoc::missing_crate_level_docs)] // it's an example
+#![expect(rustdoc::missing_crate_level_docs)] // it's an example
 
 use std::sync::{
     Arc,
@@ -54,8 +54,8 @@ impl Default for MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             ui.heading("Example of how to use the puffin profiler with egui");
             ui.separator();
 
@@ -65,7 +65,7 @@ impl eframe::App for MyApp {
             ui.horizontal(|ui| {
                 ui.monospace(cmd);
                 if ui.small_button("📋").clicked() {
-                    ui.ctx().copy_text(cmd.into());
+                    ui.copy_text(cmd.into());
                 }
             });
 
@@ -75,7 +75,7 @@ impl eframe::App for MyApp {
                 ui.checkbox(&mut self.keep_repainting, "Keep repainting");
                 if self.keep_repainting {
                     ui.spinner();
-                    ui.ctx().request_repaint();
+                    ui.request_repaint();
                 } else {
                     ui.label("Repainting on events (e.g. mouse movement)");
                 }
@@ -103,12 +103,12 @@ impl eframe::App for MyApp {
         });
 
         if self.show_immediate_viewport {
-            ctx.show_viewport_immediate(
+            ui.ctx().show_viewport_immediate(
                 egui::ViewportId::from_hash_of("immediate_viewport"),
                 egui::ViewportBuilder::default()
                     .with_title("Immediate Viewport")
                     .with_inner_size([200.0, 100.0]),
-                |ctx, class| {
+                |ui, class| {
                     puffin::profile_scope!("immediate_viewport");
 
                     assert!(
@@ -116,11 +116,11 @@ impl eframe::App for MyApp {
                         "This egui backend doesn't support multiple viewports"
                     );
 
-                    egui::CentralPanel::default().show(ctx, |ui| {
+                    egui::CentralPanel::default().show_inside(ui, |ui| {
                         ui.label("Hello from immediate viewport");
                     });
 
-                    if ctx.input(|i| i.viewport().close_requested()) {
+                    if ui.input(|i| i.viewport().close_requested()) {
                         // Tell parent viewport that we should not show next frame:
                         self.show_immediate_viewport = false;
                     }
@@ -129,13 +129,13 @@ impl eframe::App for MyApp {
         }
 
         if self.show_deferred_viewport.load(Ordering::Relaxed) {
-            let show_deferred_viewport = self.show_deferred_viewport.clone();
-            ctx.show_viewport_deferred(
+            let show_deferred_viewport = Arc::clone(&self.show_deferred_viewport);
+            ui.ctx().show_viewport_deferred(
                 egui::ViewportId::from_hash_of("deferred_viewport"),
                 egui::ViewportBuilder::default()
                     .with_title("Deferred Viewport")
                     .with_inner_size([200.0, 100.0]),
-                move |ctx, class| {
+                move |ui, class| {
                     puffin::profile_scope!("deferred_viewport");
 
                     assert!(
@@ -143,10 +143,10 @@ impl eframe::App for MyApp {
                         "This egui backend doesn't support multiple viewports"
                     );
 
-                    egui::CentralPanel::default().show(ctx, |ui| {
+                    egui::CentralPanel::default().show_inside(ui, |ui| {
                         ui.label("Hello from deferred viewport");
                     });
-                    if ctx.input(|i| i.viewport().close_requested()) {
+                    if ui.input(|i| i.viewport().close_requested()) {
                         // Tell parent to close us.
                         show_deferred_viewport.store(false, Ordering::Relaxed);
                     }

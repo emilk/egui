@@ -3,7 +3,7 @@ use std::sync::Arc;
 use emath::GuiRounding as _;
 use epaint::{
     CircleShape, ClippedShape, CornerRadius, PathStroke, RectShape, Shape, Stroke, StrokeKind,
-    text::{Fonts, Galley, LayoutJob},
+    text::{FontsView, Galley, LayoutJob},
 };
 
 use crate::{
@@ -141,12 +141,20 @@ impl Painter {
         self.pixels_per_point
     }
 
-    /// Read-only access to the shared [`Fonts`].
+    /// Read-only access to the shared [`FontsView`].
     ///
     /// See [`Context`] documentation for how locks work.
     #[inline]
-    pub fn fonts<R>(&self, reader: impl FnOnce(&Fonts) -> R) -> R {
+    pub fn fonts<R>(&self, reader: impl FnOnce(&FontsView<'_>) -> R) -> R {
         self.ctx.fonts(reader)
+    }
+
+    /// Read-write access to the shared [`FontsView`].
+    ///
+    /// See [`Context`] documentation for how locks work.
+    #[inline]
+    pub fn fonts_mut<R>(&self, reader: impl FnOnce(&mut FontsView<'_>) -> R) -> R {
+        self.ctx.fonts_mut(reader)
     }
 
     /// Where we paint
@@ -314,7 +322,7 @@ impl Painter {
     }
 
     pub fn error(&self, pos: Pos2, text: impl std::fmt::Display) -> Rect {
-        let color = self.ctx.style().visuals.error_fg_color;
+        let color = self.ctx.global_style().visuals.error_fg_color;
         self.debug_text(pos, Align2::LEFT_TOP, color, format!("🔥 {text}"))
     }
 
@@ -525,7 +533,7 @@ impl Painter {
         color: crate::Color32,
         wrap_width: f32,
     ) -> Arc<Galley> {
-        self.fonts(|f| f.layout(text, font_id, color, wrap_width))
+        self.fonts_mut(|f| f.layout(text, font_id, color, wrap_width))
     }
 
     /// Will line break at `\n`.
@@ -539,7 +547,7 @@ impl Painter {
         font_id: FontId,
         color: crate::Color32,
     ) -> Arc<Galley> {
-        self.fonts(|f| f.layout(text, font_id, color, f32::INFINITY))
+        self.fonts_mut(|f| f.layout(text, font_id, color, f32::INFINITY))
     }
 
     /// Lay out this text layut job in a galley.
@@ -548,7 +556,7 @@ impl Painter {
     #[inline]
     #[must_use]
     pub fn layout_job(&self, layout_job: LayoutJob) -> Arc<Galley> {
-        self.fonts(|f| f.layout_job(layout_job))
+        self.fonts_mut(|f| f.layout_job(layout_job))
     }
 
     /// Paint text that has already been laid out in a [`Galley`].

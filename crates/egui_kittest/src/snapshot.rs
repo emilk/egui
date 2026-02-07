@@ -1,34 +1,45 @@
-use crate::Harness;
-use image::ImageError;
 use std::fmt::Display;
 use std::io::ErrorKind;
 use std::path::PathBuf;
 
+use image::ImageError;
+
+use crate::{Harness, config::config};
+
 pub type SnapshotResult = Result<(), SnapshotError>;
 
 #[non_exhaustive]
+#[derive(Clone, Debug)]
 pub struct SnapshotOptions {
     /// The threshold for the image comparison.
-    /// The default is `0.6` (which is enough for most egui tests to pass across different
-    /// wgpu backends).
+    ///
+    /// Can be configured via kittest.toml. The fallback is `0.6` (which is enough for most egui
+    /// tests to pass across different wgpu backends).
     pub threshold: f32,
 
     /// The number of pixels that can differ before the snapshot is considered a failure.
+    ///
     /// Preferably, you should use `threshold` to control the sensitivity of the image comparison.
     /// As a last resort, you can use this to allow a certain number of pixels to differ.
-    /// If `None`, the default is `0` (meaning no pixels can differ).
-    /// If `Some`, the value can be set per OS
+    /// Can be configured via kittest.toml. The fallback is `0` (meaning no pixels can differ).
     pub failed_pixel_count_threshold: usize,
 
     /// The path where the snapshots will be saved.
-    /// The default is `tests/snapshots`.
+    ///
+    /// This is relative to the current working directory (usually the crate root when
+    /// running tests).
+    ///
+    /// Can be configured via kittest.toml. The fallback is `tests/snapshots`.
     pub output_path: PathBuf,
 }
 
 /// Helper struct to define the number of pixels that can differ before the snapshot is considered a failure.
+///
 /// This is useful if you want to set different thresholds for different operating systems.
 ///
-/// The default values are 0 / 0.0
+/// [`OsThreshold::default`] gets the default from the config file (`kittest.toml`).
+/// For `usize`, it's the `failed_pixel_count_threshold` value.
+/// For `f32`, it's the `threshold` value.
 ///
 /// Example usage:
 /// ```no_run
@@ -51,8 +62,32 @@ pub struct OsThreshold<T> {
     pub fallback: T,
 }
 
+impl Default for OsThreshold<usize> {
+    /// Returns the default `failed_pixel_count_threshold` as configured in `kittest.toml`
+    ///
+    /// The fallback is `0`.
+    fn default() -> Self {
+        config().os_failed_pixel_count_threshold()
+    }
+}
+
+impl Default for OsThreshold<f32> {
+    /// Returns the default `threshold` as configured in `kittest.toml`
+    ///
+    /// The fallback is `0.6`.
+    fn default() -> Self {
+        config().os_threshold()
+    }
+}
+
 impl From<usize> for OsThreshold<usize> {
     fn from(value: usize) -> Self {
+        Self::new(value)
+    }
+}
+
+impl From<f32> for OsThreshold<f32> {
+    fn from(value: f32) -> Self {
         Self::new(value)
     }
 }
@@ -121,9 +156,9 @@ impl From<OsThreshold<Self>> for f32 {
 impl Default for SnapshotOptions {
     fn default() -> Self {
         Self {
-            threshold: 0.6,
-            output_path: PathBuf::from("tests/snapshots"),
-            failed_pixel_count_threshold: 0, // Default is 0, meaning no pixels can differ
+            threshold: config().threshold(),
+            output_path: config().output_path(),
+            failed_pixel_count_threshold: config().failed_pixel_count_threshold(),
         }
     }
 }
@@ -229,7 +264,8 @@ impl Display for SnapshotError {
                 diff,
                 diff_path,
             } => {
-                let diff_path = std::path::absolute(diff_path).unwrap_or(diff_path.clone());
+                let diff_path =
+                    std::path::absolute(diff_path).unwrap_or_else(|_| diff_path.clone());
                 write!(
                     f,
                     "'{name}' Image did not match snapshot. Diff: {diff}, {}. {HOW_TO_UPDATE_SCREENSHOTS}",
@@ -237,7 +273,7 @@ impl Display for SnapshotError {
                 )
             }
             Self::OpenSnapshot { path, err } => {
-                let path = std::path::absolute(path).unwrap_or(path.clone());
+                let path = std::path::absolute(path).unwrap_or_else(|_| path.clone());
                 match err {
                     ImageError::IoError(io) => match io.kind() {
                         ErrorKind::NotFound => {
@@ -250,7 +286,7 @@ impl Display for SnapshotError {
                         err => {
                             write!(
                                 f,
-                                "Error reading snapshot: {err:?}\nAt: {}. {HOW_TO_UPDATE_SCREENSHOTS}",
+                                "Error reading snapshot: {err}\nAt: {}. {HOW_TO_UPDATE_SCREENSHOTS}",
                                 path.display()
                             )
                         }
@@ -258,7 +294,7 @@ impl Display for SnapshotError {
                     err => {
                         write!(
                             f,
-                            "Error decoding snapshot: {err:?}\nAt: {}. Make sure git-lfs is setup correctly. Read the instructions here: https://github.com/emilk/egui/blob/main/CONTRIBUTING.md#making-a-pr",
+                            "Error decoding snapshot: {err}\nAt: {}. Make sure git-lfs is setup correctly. Read the instructions here: https://github.com/emilk/egui/blob/main/CONTRIBUTING.md#making-a-pr",
                             path.display()
                         )
                     }
@@ -275,24 +311,44 @@ impl Display for SnapshotError {
                 )
             }
             Self::WriteSnapshot { path, err } => {
-                let path = std::path::absolute(path).unwrap_or(path.clone());
-                write!(f, "Error writing snapshot: {err:?}\nAt: {}", path.display())
+                let path = std::path::absolute(path).unwrap_or_else(|_| path.clone());
+                write!(f, "Error writing snapshot: {err}\nAt: {}", path.display())
             }
             Self::RenderError { err } => {
-                write!(f, "Error rendering image: {err:?}")
+                write!(f, "Error rendering image: {err}")
             }
         }
     }
 }
 
-/// If this is set, we update the snapshots (if different),
-/// and _succeed_ the test.
-/// This is so that you can set `UPDATE_SNAPSHOTS=true` and update _all_ tests,
-/// without `cargo test` failing on the first failing crate.
-fn should_update_snapshots() -> bool {
-    match std::env::var("UPDATE_SNAPSHOTS") {
-        Ok(value) => !matches!(value.as_str(), "false" | "0" | "no" | "off"),
-        Err(_) => false,
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Mode {
+    Test,
+    UpdateFailing,
+    UpdateAll,
+}
+
+impl Mode {
+    fn from_env() -> Self {
+        let Ok(value) = std::env::var("UPDATE_SNAPSHOTS") else {
+            return Self::Test;
+        };
+
+        match value.as_str() {
+            "false" | "0" | "no" | "off" => Self::Test,
+            "true" | "1" | "yes" | "on" => Self::UpdateFailing,
+            "force" => Self::UpdateAll,
+            unknown => {
+                panic!("Unsupported value for UPDATE_SNAPSHOTS: {unknown:?}");
+            }
+        }
+    }
+
+    fn is_update(&self) -> bool {
+        match self {
+            Self::Test => false,
+            Self::UpdateFailing | Self::UpdateAll => true,
+        }
     }
 }
 
@@ -329,6 +385,8 @@ fn try_image_snapshot_options_impl(
     options: &SnapshotOptions,
 ) -> SnapshotResult {
     #![expect(clippy::print_stdout)]
+
+    let mode = Mode::from_env();
 
     let SnapshotOptions {
         threshold,
@@ -375,20 +433,24 @@ fn try_image_snapshot_options_impl(
         Ok(())
     };
 
-    // Always write a `.new` file so the user can compare:
-    new.save(&new_path)
-        .map_err(|err| SnapshotError::WriteSnapshot {
-            err,
-            path: new_path.clone(),
-        })?;
+    let write_new_png = || {
+        new.save(&new_path)
+            .map_err(|err| SnapshotError::WriteSnapshot {
+                err,
+                path: new_path.clone(),
+            })?;
+        Ok(())
+    };
 
     let previous = match image::open(&snapshot_path) {
         Ok(image) => image.to_rgba8(),
         Err(err) => {
-            // No previous snapshot - probablye a new test.
-            if should_update_snapshots() {
+            // No previous snapshot - probably a new test.
+            if mode.is_update() {
                 return update_snapshot();
             } else {
+                write_new_png()?;
+
                 return Err(SnapshotError::OpenSnapshot {
                     path: snapshot_path.clone(),
                     err,
@@ -398,9 +460,11 @@ fn try_image_snapshot_options_impl(
     };
 
     if previous.dimensions() != new.dimensions() {
-        if should_update_snapshots() {
+        if mode.is_update() {
             return update_snapshot();
         } else {
+            write_new_png()?;
+
             return Err(SnapshotError::SizeMismatch {
                 name,
                 expected: previous.dimensions(),
@@ -410,32 +474,52 @@ fn try_image_snapshot_options_impl(
     }
 
     // Compare existing image to the new one:
-    let result =
-        dify::diff::get_results(previous, new.clone(), *threshold, true, None, &None, &None);
+    let threshold = if mode == Mode::UpdateAll {
+        0.0 // Produce diff for any error, however small
+    } else {
+        *threshold
+    };
 
-    if let Some((num_wrong_pixels, result_image)) = result {
-        result_image
+    let result =
+        dify::diff::get_results(previous, new.clone(), threshold, true, None, &None, &None);
+
+    let Some((num_wrong_pixels, diff_image)) = result else {
+        return Ok(()); // Difference below threshold
+    };
+
+    let below_threshold = num_wrong_pixels as i64 <= *failed_pixel_count_threshold as i64;
+
+    if !below_threshold {
+        diff_image
             .save(diff_path.clone())
             .map_err(|err| SnapshotError::WriteSnapshot {
                 path: diff_path.clone(),
                 err,
             })?;
+    }
 
-        if should_update_snapshots() {
-            update_snapshot()
-        } else {
-            if num_wrong_pixels as i64 <= *failed_pixel_count_threshold as i64 {
-                return Ok(());
+    match mode {
+        Mode::Test => {
+            if below_threshold {
+                Ok(())
+            } else {
+                write_new_png()?;
+
+                Err(SnapshotError::Diff {
+                    name,
+                    diff: num_wrong_pixels,
+                    diff_path,
+                })
             }
-
-            Err(SnapshotError::Diff {
-                name,
-                diff: num_wrong_pixels,
-                diff_path,
-            })
         }
-    } else {
-        Ok(())
+        Mode::UpdateFailing => {
+            if below_threshold {
+                Ok(())
+            } else {
+                update_snapshot()
+            }
+        }
+        Mode::UpdateAll => update_snapshot(),
     }
 }
 
@@ -481,7 +565,7 @@ pub fn image_snapshot_options(
     match try_image_snapshot_options(current, name, options) {
         Ok(_) => {}
         Err(err) => {
-            panic!("{}", err);
+            panic!("{err}");
         }
     }
 }
@@ -500,15 +584,23 @@ pub fn image_snapshot(current: &image::RgbaImage, name: impl Into<String>) {
     match try_image_snapshot(current, name) {
         Ok(_) => {}
         Err(err) => {
-            panic!("{}", err);
+            panic!("{err}");
         }
     }
 }
 
-#[cfg(feature = "wgpu")]
+#[cfg(any(feature = "wgpu", feature = "snapshot"))]
 impl<State> Harness<'_, State> {
+    /// The default options used for snapshot tests.
+    /// set by [`crate::HarnessBuilder::with_options`].
+    pub fn options(&self) -> &SnapshotOptions {
+        &self.default_snapshot_options
+    }
+
     /// Render an image using the setup [`crate::TestRenderer`] and compare it to the snapshot
     /// with custom options.
+    ///
+    /// These options will override the ones set by [`crate::HarnessBuilder::with_options`].
     ///
     /// If you want to change the default options for your whole project, you could create an
     /// [extension trait](http://xion.io/post/code/rust-extension-traits.html) to create a
@@ -537,6 +629,9 @@ impl<State> Harness<'_, State> {
     }
 
     /// Render an image using the setup [`crate::TestRenderer`] and compare it to the snapshot.
+    ///
+    /// This is like [`Self::try_snapshot_options`] but will use the options set by [`crate::HarnessBuilder::with_options`].
+    ///
     /// The snapshot will be saved under `tests/snapshots/{name}.png`.
     /// The new image from the last test run will be saved under `tests/snapshots/{name}.new.png`.
     /// If the new image didn't match the snapshot, a diff image will be saved under `tests/snapshots/{name}.diff.png`.
@@ -548,11 +643,13 @@ impl<State> Harness<'_, State> {
         let image = self
             .render()
             .map_err(|err| SnapshotError::RenderError { err })?;
-        try_image_snapshot(&image, name)
+        try_image_snapshot_options(&image, name.into(), &self.default_snapshot_options)
     }
 
     /// Render an image using the setup [`crate::TestRenderer`] and compare it to the snapshot
     /// with custom options.
+    ///
+    /// These options will override the ones set by [`crate::HarnessBuilder::with_options`].
     ///
     /// If you want to change the default options for your whole project, you could create an
     /// [extension trait](http://xion.io/post/code/rust-extension-traits.html) to create a
@@ -567,19 +664,22 @@ impl<State> Harness<'_, State> {
     /// If the new image didn't match the snapshot, a diff image will be saved under `{output_path}/{name}.diff.png`.
     ///
     /// # Panics
-    /// Panics if the image does not match the snapshot, if there was an error reading or writing the
+    /// The result is added to the [`Harness`]'s internal [`SnapshotResults`].
+    ///
+    /// The harness will panic when dropped if there were any snapshot errors.
+    ///
+    /// Errors happen if the image does not match the snapshot, if there was an error reading or writing the
     /// snapshot, if the rendering fails or if no default renderer is available.
     #[track_caller]
     pub fn snapshot_options(&mut self, name: impl Into<String>, options: &SnapshotOptions) {
-        match self.try_snapshot_options(name, options) {
-            Ok(_) => {}
-            Err(err) => {
-                panic!("{}", err);
-            }
-        }
+        let result = self.try_snapshot_options(name, options);
+        self.snapshot_results.add(result);
     }
 
     /// Render an image using the setup [`crate::TestRenderer`] and compare it to the snapshot.
+    ///
+    /// This is like [`Self::snapshot_options`] but will use the options set by [`crate::HarnessBuilder::with_options`].
+    ///
     /// The snapshot will be saved under `tests/snapshots/{name}.png`.
     /// The new image from the last test run will be saved under `tests/snapshots/{name}.new.png`.
     /// If the new image didn't match the snapshot, a diff image will be saved under `tests/snapshots/{name}.diff.png`.
@@ -589,54 +689,61 @@ impl<State> Harness<'_, State> {
     /// snapshot, if the rendering fails or if no default renderer is available.
     #[track_caller]
     pub fn snapshot(&mut self, name: impl Into<String>) {
-        match self.try_snapshot(name) {
-            Ok(_) => {}
-            Err(err) => {
-                panic!("{}", err);
+        let result = self.try_snapshot(name);
+        self.snapshot_results.add(result);
+    }
+
+    /// Render a snapshot, save it to a temp file and open it in the default image viewer.
+    ///
+    /// This method is marked as deprecated to trigger errors in CI (so that it's not accidentally
+    /// committed).
+    #[deprecated = "Only for debugging, don't commit this."]
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn debug_open_snapshot(&mut self) {
+        let image = self
+            .render()
+            .map_err(|err| SnapshotError::RenderError { err })
+            .unwrap();
+        let temp_file = tempfile::Builder::new()
+            .disable_cleanup(true) // we keep the file so it's accessible even after the test ends
+            .prefix("kittest-snapshot")
+            .suffix(".png")
+            .tempfile()
+            .expect("Failed to create temp file");
+
+        let path = temp_file.path();
+
+        image
+            .save(temp_file.path())
+            .map_err(|err| SnapshotError::WriteSnapshot {
+                err,
+                path: path.to_path_buf(),
+            })
+            .unwrap();
+
+        // Close temp file so it isn't locked when `open` tries to launch it (on Windows)
+        let path = temp_file.into_temp_path();
+
+        #[expect(clippy::print_stdout)]
+        {
+            println!("Wrote debug snapshot to: {}", path.display());
+        }
+        let result = open::that(&path);
+        if let Err(err) = result {
+            #[expect(clippy::print_stderr)]
+            {
+                eprintln!(
+                    "Failed to open image {} in default image viewer: {err}",
+                    path.display()
+                );
             }
         }
     }
-}
 
-// Deprecated wgpu_snapshot functions
-// TODO(lucasmerlin): Remove in 0.32
-#[expect(clippy::missing_errors_doc)]
-#[cfg(feature = "wgpu")]
-impl<State> Harness<'_, State> {
-    #[deprecated(
-        since = "0.31.0",
-        note = "Use `try_snapshot_options` instead. This function will be removed in 0.32"
-    )]
-    pub fn try_wgpu_snapshot_options(
-        &mut self,
-        name: impl Into<String>,
-        options: &SnapshotOptions,
-    ) -> SnapshotResult {
-        self.try_snapshot_options(name, options)
-    }
-
-    #[deprecated(
-        since = "0.31.0",
-        note = "Use `try_snapshot` instead. This function will be removed in 0.32"
-    )]
-    pub fn try_wgpu_snapshot(&mut self, name: impl Into<String>) -> SnapshotResult {
-        self.try_snapshot(name)
-    }
-
-    #[deprecated(
-        since = "0.31.0",
-        note = "Use `snapshot_options` instead. This function will be removed in 0.32"
-    )]
-    pub fn wgpu_snapshot_options(&mut self, name: impl Into<String>, options: &SnapshotOptions) {
-        self.snapshot_options(name, options);
-    }
-
-    #[deprecated(
-        since = "0.31.0",
-        note = "Use `snapshot` instead. This function will be removed in 0.32"
-    )]
-    pub fn wgpu_snapshot(&mut self, name: &str) {
-        self.snapshot(name);
+    /// This removes the snapshot results from the harness. Useful if you e.g. want to merge it
+    /// with the results from another harness (using [`SnapshotResults::add`]).
+    pub fn take_snapshot_results(&mut self) -> SnapshotResults {
+        std::mem::take(&mut self.snapshot_results)
     }
 }
 
@@ -664,9 +771,22 @@ impl<State> Harness<'_, State> {
 /// Panics if there are any errors when dropped (this way it is impossible to forget to call `unwrap`).
 /// If you don't want to panic, you can use [`SnapshotResults::into_result`] or [`SnapshotResults::into_inner`].
 /// If you want to panic early, you can use [`SnapshotResults::unwrap`].
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct SnapshotResults {
     errors: Vec<SnapshotError>,
+    handled: bool,
+    location: std::panic::Location<'static>,
+}
+
+impl Default for SnapshotResults {
+    #[track_caller]
+    fn default() -> Self {
+        Self {
+            errors: Vec::new(),
+            handled: true, // If no snapshots were added, we should consider this handled.
+            location: *std::panic::Location::caller(),
+        }
+    }
 }
 
 impl Display for SnapshotResults {
@@ -684,15 +804,28 @@ impl Display for SnapshotResults {
 }
 
 impl SnapshotResults {
+    #[track_caller]
     pub fn new() -> Self {
         Default::default()
     }
 
     /// Check if the result is an error and add it to the list of errors.
     pub fn add(&mut self, result: SnapshotResult) {
+        self.handled = false;
         if let Err(err) = result {
             self.errors.push(err);
         }
+    }
+
+    /// Add all errors from another `SnapshotResults`.
+    pub fn extend(&mut self, other: Self) {
+        self.handled = false;
+        self.errors.extend(other.into_inner());
+    }
+
+    /// Add all errors from a [`Harness`].
+    pub fn extend_harness<T>(&mut self, harness: &mut Harness<'_, T>) {
+        self.extend(harness.take_snapshot_results());
     }
 
     /// Check if there are any errors.
@@ -706,13 +839,14 @@ impl SnapshotResults {
         if self.has_errors() { Err(self) } else { Ok(()) }
     }
 
+    /// Consume this and return the list of errors.
     pub fn into_inner(mut self) -> Vec<SnapshotError> {
+        self.handled = true;
         std::mem::take(&mut self.errors)
     }
 
     /// Panics if there are any errors, displaying each.
     #[expect(clippy::unused_self)]
-    #[track_caller]
     pub fn unwrap(self) {
         // Panic is handled in drop
     }
@@ -734,6 +868,33 @@ impl Drop for SnapshotResults {
         #[expect(clippy::manual_assert)]
         if self.has_errors() {
             panic!("{}", self);
+        }
+
+        thread_local! {
+            static UNHANDLED_SNAPSHOT_RESULTS_COUNTER: std::cell::RefCell<usize> = const { std::cell::RefCell::new(0) };
+        }
+
+        if !self.handled {
+            let count = UNHANDLED_SNAPSHOT_RESULTS_COUNTER.with(|counter| {
+                let mut count = counter.borrow_mut();
+                *count += 1;
+                *count
+            });
+
+            #[expect(clippy::manual_assert)]
+            if count >= 2 {
+                panic!(
+                    r#"
+Multiple SnapshotResults were dropped without being handled.
+
+In order to allow consistent snapshot updates, all snapshot results within a test should be merged in a single SnapshotResults instance.
+Usually this is handled internally in a harness. If you have multiple harnesses, you can merge the results using `Harness::take_snapshot_results` and `SnapshotResults::extend`.
+
+The SnapshotResult was constructed at {}
+                    "#,
+                    self.location
+                );
+            }
         }
     }
 }

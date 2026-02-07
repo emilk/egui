@@ -7,6 +7,46 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.33.3 - 2025-12-11
+Nothing new
+
+
+## 0.33.2 - 2025-11-13
+* Fix jittering during window resize on MacOS for WGPU/Metal [#7641](https://github.com/emilk/egui/pull/7641) by [@aspcartman](https://github.com/aspcartman)
+* Make sure `native_pixels_per_point` is set during app creation [#7683](https://github.com/emilk/egui/pull/7683) by [@emilk](https://github.com/emilk)
+
+
+## 0.33.0 - 2025-10-09
+### ⭐ Added
+* Add an option to limit the repaint rate in the web runner [#7482](https://github.com/emilk/egui/pull/7482) by [@s-nie](https://github.com/s-nie)
+* Add rotation gesture support for trackpad sources [#7453](https://github.com/emilk/egui/pull/7453) by [@thatcomputerguy0101](https://github.com/thatcomputerguy0101)
+* Add support for the safe area on iOS [#7578](https://github.com/emilk/egui/pull/7578) by [@irh](https://github.com/irh)
+
+### 🔧 Changed
+* Replace `winapi` with `windows-sys` crate [#7416](https://github.com/emilk/egui/pull/7416) by [@unlimitedsola](https://github.com/unlimitedsola)
+* Prevent default action on command-comma in eframe web [#7547](https://github.com/emilk/egui/pull/7547) by [@emilk](https://github.com/emilk)
+* Warn if `DYLD_LIBRARY_PATH` is set and we find no wgpu adapter [#7572](https://github.com/emilk/egui/pull/7572) by [@emilk](https://github.com/emilk)
+* Update MSRV from 1.86 to 1.88 [#7579](https://github.com/emilk/egui/pull/7579) by [@Wumpf](https://github.com/Wumpf)
+
+### 🐛 Fixed
+* Properly end winit event loop [#7565](https://github.com/emilk/egui/pull/7565) by [@tye-exe](https://github.com/tye-exe)
+* Fix eframe window not being focused on mac on startup [#7593](https://github.com/emilk/egui/pull/7593) by [@emilk](https://github.com/emilk)
+* Fix black flash on start in glow eframe backend [#7616](https://github.com/emilk/egui/pull/7616) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+
+## 0.32.3 - 2025-09-12
+Nothing new
+
+
+## 0.32.2 - 2025-09-04
+Nothing new
+
+
+## 0.32.1 - 2025-08-15
+* Enable wgpu default features in eframe / egui_wgpu default features [#7344](https://github.com/emilk/egui/pull/7344) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Request a redraw when the url change through the `popstate` event listener [#7403](https://github.com/emilk/egui/pull/7403) by [@irevoire](https://github.com/irevoire)
+
+
 ## 0.32.0 - 2025-07-10
 ### ⭐ Added
 * Add pointer events and focus handling for apps run in a Shadow DOM [#5627](https://github.com/emilk/egui/pull/5627) by [@xxvvii](https://github.com/xxvvii)

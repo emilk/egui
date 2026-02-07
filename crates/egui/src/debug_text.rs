@@ -1,23 +1,13 @@
 //! This is an example of how to create a plugin for egui.
 //!
-//! A plugin usually consist of a struct that holds some state,
-//! which is stored using [`Context::data_mut`].
-//! The plugin registers itself onto a specific [`Context`]
-//! to get callbacks on certain events ([`Context::on_begin_pass`], [`Context::on_end_pass`]).
+//! A plugin is a struct that implements the [`Plugin`] trait and holds some state.
+//! The plugin is registered with the [`Context`] using [`Context::add_plugin`]
+//! to get callbacks on certain events ([`Plugin::on_begin_pass`], [`Plugin::on_end_pass`]).
 
 use crate::{
-    Align, Align2, Color32, Context, FontFamily, FontId, Id, Rect, Shape, Vec2, WidgetText, text,
+    Align, Align2, Color32, Context, FontFamily, FontId, Plugin, Rect, Shape, Ui, Vec2, WidgetText,
+    text,
 };
-
-/// Register this plugin on the given egui context,
-/// so that it will be called every pass.
-///
-/// This is a built-in plugin in egui,
-/// meaning [`Context`] calls this from its `Default` implementation,
-/// so this is marked as `pub(crate)`.
-pub(crate) fn register(ctx: &Context) {
-    ctx.on_end_pass("debug_text", std::sync::Arc::new(State::end_pass));
-}
 
 /// Print this text next to the cursor at the end of the pass.
 ///
@@ -38,15 +28,12 @@ pub fn print(ctx: &Context, text: impl Into<WidgetText>) {
 
     let location = std::panic::Location::caller();
     let location = format!("{}:{}", location.file(), location.line());
-    ctx.data_mut(|data| {
-        // We use `Id::NULL` as the id, since we only have one instance of this plugin.
-        // We use the `temp` version instead of `persisted` since we don't want to
-        // persist state on disk when the egui app is closed.
-        let state = data.get_temp_mut_or_default::<State>(Id::NULL);
-        state.entries.push(Entry {
-            location,
-            text: text.into(),
-        });
+
+    let plugin = ctx.plugin::<DebugTextPlugin>();
+    let mut state = plugin.lock();
+    state.entries.push(Entry {
+        location,
+        text: text.into(),
     });
 }
 
@@ -58,24 +45,26 @@ struct Entry {
 
 /// A plugin for easily showing debug-text on-screen.
 ///
-/// This is a built-in plugin in egui.
+/// This is a built-in plugin in egui, automatically registered during [`Context`] creation.
 #[derive(Clone, Default)]
-struct State {
+pub struct DebugTextPlugin {
     // This gets re-filled every pass.
     entries: Vec<Entry>,
 }
 
-impl State {
-    fn end_pass(ctx: &Context) {
-        let state = ctx.data_mut(|data| data.remove_temp::<Self>(Id::NULL));
-        if let Some(state) = state {
-            state.paint(ctx);
-        }
+impl Plugin for DebugTextPlugin {
+    fn debug_name(&self) -> &'static str {
+        "DebugTextPlugin"
     }
 
-    fn paint(self, ctx: &Context) {
-        let Self { entries } = self;
+    fn on_end_pass(&mut self, ui: &mut Ui) {
+        let entries = std::mem::take(&mut self.entries);
+        Self::paint_entries(ui, entries);
+    }
+}
 
+impl DebugTextPlugin {
+    fn paint_entries(ctx: &Context, entries: Vec<Entry>) {
         if entries.is_empty() {
             return;
         }
@@ -83,7 +72,7 @@ impl State {
         // Show debug-text next to the cursor.
         let mut pos = ctx
             .input(|i| i.pointer.latest_pos())
-            .unwrap_or_else(|| ctx.screen_rect().center())
+            .unwrap_or_else(|| ctx.content_rect().center())
             + 8.0 * Vec2::Y;
 
         let painter = ctx.debug_painter();
@@ -98,7 +87,7 @@ impl State {
             {
                 // Paint location to left of `pos`:
                 let location_galley =
-                    ctx.fonts(|f| f.layout(location, font_id.clone(), color, f32::INFINITY));
+                    ctx.fonts_mut(|f| f.layout(location, font_id.clone(), color, f32::INFINITY));
                 let location_rect =
                     Align2::RIGHT_TOP.anchor_size(pos - 4.0 * Vec2::X, location_galley.size());
                 painter.galley(location_rect.min, location_galley, color);
@@ -107,10 +96,10 @@ impl State {
 
             {
                 // Paint `text` to right of `pos`:
-                let available_width = ctx.screen_rect().max.x - pos.x;
+                let available_width = ctx.content_rect().max.x - pos.x;
                 let galley = text.into_galley_impl(
                     ctx,
-                    &ctx.style(),
+                    &ctx.global_style(),
                     text::TextWrapping::wrap_at_width(available_width),
                     font_id.clone().into(),
                     Align::TOP,

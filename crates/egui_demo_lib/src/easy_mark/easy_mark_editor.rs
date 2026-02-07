@@ -32,15 +32,15 @@ impl Default for EasyMarkEditor {
 }
 
 impl EasyMarkEditor {
-    pub fn panels(&mut self, ctx: &egui::Context) {
-        egui::TopBottomPanel::bottom("easy_mark_bottom").show(ctx, |ui| {
+    pub fn panels(&mut self, ui: &mut egui::Ui) {
+        egui::Panel::bottom("easy_mark_bottom").show_inside(ui, |ui| {
             let layout = egui::Layout::top_down(egui::Align::Center).with_main_justify(true);
             ui.allocate_ui_with_layout(ui.available_size(), layout, |ui| {
                 ui.add(crate::egui_github_link_file!())
             })
         });
 
-        egui::CentralPanel::default().show(ctx, |ui| {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             self.ui(ui);
         });
     }
@@ -83,7 +83,7 @@ impl EasyMarkEditor {
             let mut layouter = |ui: &egui::Ui, easymark: &dyn TextBuffer, wrap_width: f32| {
                 let mut layout_job = highlighter.highlight(ui.style(), easymark.as_str());
                 layout_job.wrap.max_width = wrap_width;
-                ui.fonts(|f| f.layout_job(layout_job))
+                ui.fonts_mut(|f| f.layout_job(layout_job))
             };
 
             ui.add(
@@ -96,13 +96,13 @@ impl EasyMarkEditor {
             ui.add(egui::TextEdit::multiline(code).desired_width(f32::INFINITY))
         };
 
-        if let Some(mut state) = TextEdit::load_state(ui.ctx(), response.id) {
-            if let Some(mut ccursor_range) = state.cursor.char_range() {
-                let any_change = shortcuts(ui, code, &mut ccursor_range);
-                if any_change {
-                    state.cursor.set_char_range(Some(ccursor_range));
-                    state.store(ui.ctx(), response.id);
-                }
+        if let Some(mut state) = TextEdit::load_state(ui.ctx(), response.id)
+            && let Some(mut ccursor_range) = state.cursor.char_range()
+        {
+            let any_change = shortcuts(ui, code, &mut ccursor_range);
+            if any_change {
+                state.cursor.set_char_range(Some(ccursor_range));
+                state.store(ui.ctx(), response.id);
             }
         }
     }

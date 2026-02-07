@@ -12,16 +12,16 @@ pub enum UiKind {
     /// A [`crate::CentralPanel`].
     CentralPanel,
 
-    /// A left [`crate::SidePanel`].
+    /// A left [`crate::Panel`].
     LeftPanel,
 
-    /// A right [`crate::SidePanel`].
+    /// A right [`crate::Panel`].
     RightPanel,
 
-    /// A top [`crate::TopBottomPanel`].
+    /// A top [`crate::Panel`].
     TopPanel,
 
-    /// A bottom [`crate::TopBottomPanel`].
+    /// A bottom [`crate::Panel`].
     BottomPanel,
 
     /// A modal [`crate::Modal`].
@@ -209,7 +209,7 @@ pub struct UiStack {
     pub layout_direction: Direction,
     pub min_rect: Rect,
     pub max_rect: Rect,
-    pub parent: Option<Arc<UiStack>>,
+    pub parent: Option<Arc<Self>>,
 }
 
 // these methods act on this specific node

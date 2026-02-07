@@ -472,14 +472,14 @@ impl<'a> TableBuilder<'a> {
 
         for (i, column) in columns.iter_mut().enumerate() {
             let column_resize_id = ui.id().with("resize_column").with(i);
-            if let Some(response) = ui.ctx().read_response(column_resize_id) {
-                if response.double_clicked() {
-                    column.auto_size_this_frame = true;
-                }
+            if let Some(response) = ui.ctx().read_response(column_resize_id)
+                && response.double_clicked()
+            {
+                column.auto_size_this_frame = true;
             }
         }
 
-        let striped = striped.unwrap_or(ui.visuals().striped);
+        let striped = striped.unwrap_or_else(|| ui.visuals().striped);
 
         let state_id = ui.id().with(id_salt);
 
@@ -548,7 +548,7 @@ impl<'a> TableBuilder<'a> {
             sense,
         } = self;
 
-        let striped = striped.unwrap_or(ui.visuals().striped);
+        let striped = striped.unwrap_or_else(|| ui.visuals().striped);
 
         let state_id = ui.id().with(id_salt);
 
@@ -656,7 +656,7 @@ impl TableState {
     }
 
     fn store(self, ui: &egui::Ui, state_id: egui::Id) {
-        #![allow(clippy::needless_return)]
+        #![expect(clippy::needless_return)]
         #[cfg(feature = "serde")]
         {
             return ui.data_mut(|d| d.insert_persisted(state_id, self));
@@ -851,7 +851,7 @@ impl Table<'_> {
             if column.is_auto() && (is_sizing_pass || !column_is_resizable) {
                 *column_width = width_range.clamp(max_used_widths[i]);
             } else if column_is_resizable {
-                let column_resize_id = ui.id().with("resize_column").with(i);
+                let column_resize_id = state_id.with("resize_column").with(i);
 
                 let mut p0 = egui::pos2(x, table_top);
                 let mut p1 = egui::pos2(x, bottom);
@@ -864,27 +864,27 @@ impl Table<'_> {
                 if column.auto_size_this_frame {
                     // Auto-size: resize to what is needed.
                     *column_width = width_range.clamp(max_used_widths[i]);
-                } else if resize_response.dragged() {
-                    if let Some(pointer) = ui.ctx().pointer_latest_pos() {
-                        let mut new_width = *column_width + pointer.x - x;
-                        if !column.clip {
-                            // Unless we clip we don't want to shrink below the
-                            // size that was actually used.
-                            // However, we still want to allow content that shrinks when you try
-                            // to make the column less wide, so we allow some small shrinkage each frame:
-                            // big enough to allow shrinking over time, small enough not to look ugly when
-                            // shrinking fails. This is a bit of a HACK around immediate mode.
-                            let max_shrinkage_per_frame = 8.0;
-                            new_width =
-                                new_width.at_least(max_used_widths[i] - max_shrinkage_per_frame);
-                        }
-                        new_width = width_range.clamp(new_width);
-
-                        let x = x - *column_width + new_width;
-                        (p0.x, p1.x) = (x, x);
-
-                        *column_width = new_width;
+                } else if resize_response.dragged()
+                    && let Some(pointer) = ui.ctx().pointer_latest_pos()
+                {
+                    let mut new_width = *column_width + pointer.x - x;
+                    if !column.clip {
+                        // Unless we clip we don't want to shrink below the
+                        // size that was actually used.
+                        // However, we still want to allow content that shrinks when you try
+                        // to make the column less wide, so we allow some small shrinkage each frame:
+                        // big enough to allow shrinking over time, small enough not to look ugly when
+                        // shrinking fails. This is a bit of a HACK around immediate mode.
+                        let max_shrinkage_per_frame = 8.0;
+                        new_width =
+                            new_width.at_least(max_used_widths[i] - max_shrinkage_per_frame);
                     }
+                    new_width = width_range.clamp(new_width);
+
+                    let x = x - *column_width + new_width;
+                    (p0.x, p1.x) = (x, x);
+
+                    *column_width = new_width;
                 }
 
                 let dragging_something_else =
@@ -892,7 +892,7 @@ impl Table<'_> {
                 let resize_hover = resize_response.hovered() && !dragging_something_else;
 
                 if resize_hover || resize_response.dragged() {
-                    ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeColumn);
+                    ui.set_cursor_icon(egui::CursorIcon::ResizeColumn);
                 }
 
                 let stroke = if resize_response.dragged() {
@@ -991,7 +991,7 @@ impl<'a> TableBody<'a> {
             row_index: self.row_index,
             col_index: 0,
             height,
-            striped: self.striped && self.row_index % 2 == 0,
+            striped: self.striped && self.row_index.is_multiple_of(2),
             hovered: self.hovered_row_index == Some(self.row_index),
             selected: false,
             overline: false,
@@ -1073,7 +1073,7 @@ impl<'a> TableBody<'a> {
                 row_index,
                 col_index: 0,
                 height: row_height_sans_spacing,
-                striped: self.striped && (row_index + self.row_index) % 2 == 0,
+                striped: self.striped && (row_index + self.row_index).is_multiple_of(2),
                 hovered: self.hovered_row_index == Some(row_index),
                 selected: false,
                 overline: false,
@@ -1155,7 +1155,7 @@ impl<'a> TableBody<'a> {
                     row_index,
                     col_index: 0,
                     height: row_height,
-                    striped: self.striped && (row_index + self.row_index) % 2 == 0,
+                    striped: self.striped && (row_index + self.row_index).is_multiple_of(2),
                     hovered: self.hovered_row_index == Some(row_index),
                     selected: false,
                     overline: false,
@@ -1178,7 +1178,7 @@ impl<'a> TableBody<'a> {
                 row_index,
                 col_index: 0,
                 height: row_height,
-                striped: self.striped && (row_index + self.row_index) % 2 == 0,
+                striped: self.striped && (row_index + self.row_index).is_multiple_of(2),
                 hovered: self.hovered_row_index == Some(row_index),
                 overline: false,
                 selected: false,
@@ -1325,7 +1325,7 @@ impl TableRow<'_, '_> {
         *self.response = Some(
             self.response
                 .as_ref()
-                .map_or(response.clone(), |r| r.union(response.clone())),
+                .map_or_else(|| response.clone(), |r| r.union(response.clone())),
         );
 
         (used_rect, response)

@@ -79,9 +79,27 @@ impl Id {
         self.0.get()
     }
 
-    #[cfg(feature = "accesskit")]
     pub(crate) fn accesskit_id(&self) -> accesskit::NodeId {
         self.value().into()
+    }
+
+    /// Create a new [`Id`] from a high-entropy value. No hashing is done.
+    ///
+    /// This can be useful if you have an [`Id`] that was converted to some other type
+    /// (e.g. accesskit::NodeId) and you want to convert it back to an [`Id`].
+    ///
+    /// # Safety
+    /// You need to ensure that the value is high-entropy since it might be used in
+    /// a [`IdSet`] or [`IdMap`], which rely on the assumption that [`Id`]s have good entropy.
+    ///
+    /// The method is not unsafe in terms of memory safety.
+    ///
+    /// # Panics
+    /// If the value is zero, this will panic.
+    #[doc(hidden)]
+    #[expect(unsafe_code)]
+    pub unsafe fn from_high_entropy_bits(value: u64) -> Self {
+        Self(NonZeroU64::new(value).expect("Id must be non-zero."))
     }
 }
 

@@ -71,6 +71,9 @@ git add --renormalize . # Moves already added files to regular git (according to
 
 # Push to a contributor remote (see https://github.com/cli/cli/discussions/8794#discussioncomment-8695076)
 git push --no-verify
+
+# Push git lfs files to contributor remote:
+git push origin $(git branch --show-current) && git push --no-verify && git push origin --delete $(git branch --show-current)
 ```
 
 ## PR review

@@ -236,7 +236,7 @@ impl RectAlign {
     }
 
     /// Look for the first alternative [`RectAlign`] that allows the child rect to fit
-    /// inside the `screen_rect`.
+    /// inside the `content_rect`.
     ///
     /// If no alternative fits, the first is returned.
     /// If no alternatives are given, `None` is returned.
@@ -246,7 +246,7 @@ impl RectAlign {
     /// - [`RectAlign::MENU_ALIGNS`] for the 12 common menu positions
     pub fn find_best_align(
         values_to_try: impl Iterator<Item = Self>,
-        screen_rect: Rect,
+        content_rect: Rect,
         parent_rect: Rect,
         gap: f32,
         expected_size: Vec2,
@@ -258,7 +258,7 @@ impl RectAlign {
 
             let suggested_popup_rect = align.align_rect(&parent_rect, expected_size, gap);
 
-            if screen_rect.contains_rect(suggested_popup_rect) {
+            if content_rect.contains_rect(suggested_popup_rect) {
                 return Some(align);
             }
         }

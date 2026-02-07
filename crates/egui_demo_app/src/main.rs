@@ -1,14 +1,14 @@
 //! Demo app for egui
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![allow(rustdoc::missing_crate_level_docs)] // it's an example
-#![allow(clippy::never_loop)] // False positive
+#![expect(rustdoc::missing_crate_level_docs)] // it's an example
+#![allow(clippy::allow_attributes, clippy::never_loop)]
 
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc; // Much faster allocator, can give 20% speedups: https://github.com/emilk/egui/pull/7029
 
 // When compiling natively:
-fn main() -> eframe::Result {
+fn main() {
     for arg in std::env::args().skip(1) {
         match arg.as_str() {
             "--profile" => {
@@ -62,11 +62,27 @@ fn main() -> eframe::Result {
         ..Default::default()
     };
 
-    eframe::run_native(
+    let result = eframe::run_native(
         "egui demo app",
         options,
         Box::new(|cc| Ok(Box::new(egui_demo_app::WrapApp::new(cc)))),
-    )
+    );
+
+    match result {
+        Ok(()) => {}
+        Err(err) => {
+            // This produces a nicer error message than returning the `Result`:
+            print_error_and_exit(&err);
+        }
+    }
+}
+
+fn print_error_and_exit(err: &eframe::Error) -> ! {
+    #![expect(clippy::print_stderr)]
+    #![expect(clippy::exit)]
+
+    eprintln!("Error: {err}");
+    std::process::exit(1)
 }
 
 #[cfg(feature = "puffin")]

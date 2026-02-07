@@ -1,7 +1,10 @@
+#![expect(clippy::unwrap_used)] // it's a test
+
+use egui::accesskit::Role;
 use egui::load::SizedTexture;
 use egui::{
     Align, AtomExt as _, AtomLayout, Button, Color32, ColorImage, Direction, DragValue, Event,
-    Grid, IntoAtoms as _, Layout, PointerButton, Response, Slider, Stroke, StrokeKind,
+    Grid, IntoAtoms as _, Layout, PointerButton, Response, Slider, Stroke, StrokeKind, TextEdit,
     TextWrapMode, TextureHandle, TextureOptions, Ui, UiBuilder, Vec2, Widget as _, include_image,
 };
 use egui_kittest::kittest::{Queryable as _, by};
@@ -80,6 +83,37 @@ fn widget_tests() {
         |ui| {
             ui.spacing_mut().text_edit_width = 45.0;
             ui.text_edit_singleline(&mut "Hi!".to_owned())
+        },
+        &mut results,
+    );
+    test_widget(
+        "text_edit_clip",
+        |ui| {
+            ui.spacing_mut().text_edit_width = 45.0;
+            TextEdit::singleline(&mut "This is a very very long text".to_owned())
+                .clip_text(true)
+                .ui(ui)
+        },
+        &mut results,
+    );
+    test_widget(
+        "text_edit_no_clip",
+        |ui| {
+            ui.spacing_mut().text_edit_width = 45.0;
+            TextEdit::singleline(&mut "This is a very very long text".to_owned())
+                .clip_text(false)
+                .ui(ui)
+        },
+        &mut results,
+    );
+    test_widget(
+        "text_edit_placeholder_clip",
+        |ui| {
+            ui.spacing_mut().text_edit_width = 45.0;
+            TextEdit::singleline(&mut String::new())
+                .hint_text("This is a very very long placeholder")
+                .clip_text(true)
+                .ui(ui)
         },
         &mut results,
     );
@@ -277,8 +311,8 @@ impl<'a> VisualTests<'a> {
             node.hover();
         });
         self.add("pressed", |harness| {
-            harness.get_next().hover();
-            let rect = harness.get_next().rect();
+            harness.get_next_widget().hover();
+            let rect = harness.get_next_widget().rect();
             harness.input_mut().events.push(Event::PointerButton {
                 button: PointerButton::Primary,
                 pos: rect.center(),
@@ -307,7 +341,7 @@ impl<'a> VisualTests<'a> {
 
         f(&mut harness);
 
-        harness.step();
+        harness.run();
 
         let image = harness.render().expect("Failed to render harness");
 
@@ -329,7 +363,7 @@ impl<'a> VisualTests<'a> {
 
     pub fn add_node(&mut self, name: &str, test: impl FnOnce(&Node<'_>)) {
         self.add(name, |harness| {
-            let node = harness.get_next();
+            let node = harness.get_next_widget();
             test(&node);
         });
     }
@@ -375,11 +409,13 @@ impl<'a> VisualTests<'a> {
 }
 
 trait HarnessExt {
-    fn get_next(&self) -> Node<'_>;
+    fn get_next_widget(&self) -> Node<'_>;
 }
 
 impl HarnessExt for Harness<'_> {
-    fn get_next(&self) -> Node<'_> {
-        self.get_all(by()).next().unwrap()
+    fn get_next_widget(&self) -> Node<'_> {
+        self.get_all(by().predicate(|node| node.role() != Role::GenericContainer))
+            .next()
+            .unwrap()
     }
 }

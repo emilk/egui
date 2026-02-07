@@ -1,3 +1,5 @@
+#![expect(clippy::unwrap_used)]
+
 use std::{
     env,
     io::{self, Write as _},

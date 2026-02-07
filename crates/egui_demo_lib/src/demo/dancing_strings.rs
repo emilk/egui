@@ -1,5 +1,5 @@
 use egui::{
-    Color32, Context, Pos2, Rect, Ui,
+    Color32, Pos2, Rect, Ui,
     containers::{Frame, Window},
     emath, epaint,
     epaint::PathStroke,
@@ -18,13 +18,14 @@ impl crate::Demo for DancingStrings {
         "♫ Dancing Strings"
     }
 
-    fn show(&mut self, ctx: &Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut Ui, open: &mut bool) {
         use crate::View as _;
         Window::new(self.name())
             .open(open)
             .default_size(vec2(512.0, 256.0))
             .vscroll(false)
-            .show(ctx, |ui| self.ui(ui));
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| self.ui(ui));
     }
 }
 
@@ -40,7 +41,7 @@ impl crate::View for DancingStrings {
             .on_hover_text("Demonstrates how a path can have varying color across its length.");
 
         Frame::canvas(ui.style()).show(ui, |ui| {
-            ui.ctx().request_repaint();
+            ui.request_repaint();
             let time = ui.input(|i| i.time);
 
             let desired_size = ui.available_width() * vec2(1.0, 0.35);

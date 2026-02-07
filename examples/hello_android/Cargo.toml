@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 license = "MIT OR Apache-2.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.92"
 publish = false
 
 # `unsafe_code` is required for `#[no_mangle]`, disable workspace lints to workaround lint error.
@@ -18,18 +18,18 @@ crate-type = ["cdylib", "lib"]
 
 [dependencies]
 eframe = { workspace = true, default-features = false, features = [
-    "default_fonts",
-    "glow",
-    "android-native-activity",
+  "default_fonts",
+  "glow",
+  "android-native-activity",
 ] }
 egui_demo_lib = { workspace = true, features = ["chrono"] }
 
 # For image support:
 egui_extras = { workspace = true, features = ["default", "image"] }
 
-log = { workspace = true }
-winit = { workspace = true }
-android_logger = "0.14"
+android_logger.workspace = true
+log.workspace = true
+winit.workspace = true
 
 [package.metadata.android]
 build_targets = ["armv7-linux-androideabi", "aarch64-linux-android"]

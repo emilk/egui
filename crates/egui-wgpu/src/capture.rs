@@ -126,7 +126,7 @@ impl CaptureState {
         // It would be more efficient to reuse the Buffer, e.g. via some kind of ring buffer, but
         // for most screenshot use cases this should be fine. When taking many screenshots (e.g. for a video)
         // it might make sense to revisit this and implement a more efficient solution.
-        #[allow(clippy::arc_with_non_send_sync, clippy::allow_attributes)] // For wasm
+        #[allow(clippy::allow_attributes, clippy::arc_with_non_send_sync)] // For wasm
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("egui_screen_capture_buffer"),
             size: (self.padding.padded_bytes_per_row * self.texture.height()) as u64,
@@ -160,6 +160,7 @@ impl CaptureState {
                     load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
                     store: StoreOp::Store,
                 },
+                depth_slice: None,
             })],
             depth_stencil_attachment: None,
             occlusion_query_set: None,
@@ -185,9 +186,9 @@ impl CaptureState {
         tx: CaptureSender,
         viewport_id: ViewportId,
     ) {
-        #[allow(clippy::arc_with_non_send_sync, clippy::allow_attributes)] // For wasm
+        #[allow(clippy::allow_attributes, clippy::arc_with_non_send_sync)] // For wasm
         let buffer = Arc::new(buffer);
-        let buffer_clone = buffer.clone();
+        let buffer_clone = Arc::clone(&buffer);
         let buffer_slice = buffer_clone.slice(..);
         let format = self.texture.format();
         let tex_extent = self.texture.size();
@@ -197,15 +198,14 @@ impl CaptureState {
             wgpu::TextureFormat::Bgra8Unorm => [2, 1, 0, 3],
             _ => {
                 log::error!(
-                    "Screen can't be captured unless the surface format is Rgba8Unorm or Bgra8Unorm. Current surface format is {:?}",
-                    format
+                    "Screen can't be captured unless the surface format is Rgba8Unorm or Bgra8Unorm. Current surface format is {format:?}"
                 );
                 return;
             }
         };
         buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
             if let Err(err) = result {
-                log::error!("Failed to map buffer for reading: {:?}", err);
+                log::error!("Failed to map buffer for reading: {err}");
                 return;
             }
             let buffer_slice = buffer.slice(..);

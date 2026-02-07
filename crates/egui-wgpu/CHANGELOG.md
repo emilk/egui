@@ -6,6 +6,36 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.33.3 - 2025-12-11
+Nothing new
+
+
+## 0.33.2 - 2025-11-13
+* Fix jittering during window resize on MacOS for WGPU/Metal [#7641](https://github.com/emilk/egui/pull/7641) by [@aspcartman](https://github.com/aspcartman)
+
+
+## 0.33.0 - 2025-10-09
+### 🔧 Changed
+* Update wgpu to 26 and wasm-bindgen to 0.2.100 [#7540](https://github.com/emilk/egui/pull/7540) by [@Kumpelinus](https://github.com/Kumpelinus)
+* Warn if `DYLD_LIBRARY_PATH` is set and we find no wgpu adapter [#7572](https://github.com/emilk/egui/pull/7572) by [@emilk](https://github.com/emilk)
+* Update MSRV from 1.86 to 1.88 [#7579](https://github.com/emilk/egui/pull/7579) by [@Wumpf](https://github.com/Wumpf)
+* Update wgpu to 27.0.0 [#7580](https://github.com/emilk/egui/pull/7580) by [@Wumpf](https://github.com/Wumpf)
+* Create `egui_wgpu::RendererOptions` [#7601](https://github.com/emilk/egui/pull/7601) by [@emilk](https://github.com/emilk)
+* Use software texture filtering in kittest [#7602](https://github.com/emilk/egui/pull/7602) by [@emilk](https://github.com/emilk)
+
+
+## 0.32.3 - 2025-09-12
+Nothing new
+
+
+## 0.32.2 - 2025-09-04
+Nothing new
+
+
+## 0.32.1 - 2025-08-15
+* Enable wgpu default features in eframe / egui_wgpu default features [#7344](https://github.com/emilk/egui/pull/7344) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+
 ## 0.32.0 - 2025-07-10
 * Update to wgpu 25 [#6744](https://github.com/emilk/egui/pull/6744) by [@torokati44](https://github.com/torokati44)
 * Free textures after submitting queue instead of before with wgpu renderer on Web [#7291](https://github.com/emilk/egui/pull/7291) by [@Wumpf](https://github.com/Wumpf)

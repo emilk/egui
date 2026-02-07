@@ -1,6 +1,6 @@
 //! The input needed by egui.
 
-use epaint::ColorImage;
+use epaint::{ColorImage, MarginF32};
 
 use crate::{
     Key, OrderedViewportIdMap, Theme, ViewportId, ViewportIdMap,
@@ -26,6 +26,11 @@ pub struct RawInput {
 
     /// Information about all egui viewports.
     pub viewports: ViewportIdMap<ViewportInfo>,
+
+    /// The insets used to only render content in a mobile safe area
+    ///
+    /// `None` will be treated as "same as last frame"
+    pub safe_area_insets: Option<SafeAreaInsets>,
 
     /// Position and size of the area that egui should use, in points.
     /// Usually you would set this to
@@ -98,6 +103,7 @@ impl Default for RawInput {
             dropped_files: Default::default(),
             focused: true, // integrations opt into global focus tracking
             system_theme: None,
+            safe_area_insets: Default::default(),
         }
     }
 }
@@ -122,6 +128,7 @@ impl RawInput {
                 .map(|(id, info)| (*id, info.take()))
                 .collect(),
             screen_rect: self.screen_rect.take(),
+            safe_area_insets: self.safe_area_insets.take(),
             max_texture_side: self.max_texture_side.take(),
             time: self.time,
             predicted_dt: self.predicted_dt,
@@ -149,6 +156,7 @@ impl RawInput {
             mut dropped_files,
             focused,
             system_theme,
+            safe_area_insets: safe_area,
         } = newer;
 
         self.viewport_id = viewport_ids;
@@ -163,6 +171,7 @@ impl RawInput {
         self.dropped_files.append(&mut dropped_files);
         self.focused = focused;
         self.system_theme = system_theme;
+        self.safe_area_insets = safe_area;
     }
 }
 
@@ -491,6 +500,9 @@ pub enum Event {
     /// As a user, check [`crate::InputState::smooth_scroll_delta`] to see if the user did any zooming this frame.
     Zoom(f32),
 
+    /// Rotation in radians this frame, measuring clockwise (e.g. from a rotation gesture).
+    Rotate(f32),
+
     /// IME Event
     Ime(ImeEvent),
 
@@ -535,6 +547,11 @@ pub enum Event {
         /// as when swiping down on a touch-screen or track-pad with natural scrolling.
         delta: Vec2,
 
+        /// The phase of the scroll, useful for trackpads.
+        ///
+        /// If unknown set this to [`TouchPhase::Move`].
+        phase: TouchPhase,
+
         /// The state of the modifier keys at the time of the event.
         modifiers: Modifiers,
     },
@@ -543,7 +560,6 @@ pub enum Event {
     WindowFocused(bool),
 
     /// An assistive technology (e.g. screen reader) requested an action.
-    #[cfg(feature = "accesskit")]
     AccessKitActionRequest(accesskit::ActionRequest),
 
     /// The reply of a screenshot requested with [`crate::ViewportCommand::Screenshot`].
@@ -623,6 +639,13 @@ pub const NUM_POINTER_BUTTONS: usize = 5;
 /// State of the modifier keys. These must be fed to egui.
 ///
 /// The best way to compare [`Modifiers`] is by using [`Modifiers::matches_logically`] or [`Modifiers::matches_exact`].
+///
+/// To access the [`Modifiers`] you can use the [`crate::Context::input`] function
+///
+/// ```rust
+/// # let ctx = egui::Context::default();
+/// let modifiers = ctx.input(|i| i.modifiers);
+/// ```
 ///
 /// NOTE: For cross-platform uses, ALT+SHIFT is a bad combination of modifiers
 /// as on mac that is how you type special characters,
@@ -1161,6 +1184,7 @@ impl RawInput {
             dropped_files,
             focused,
             system_theme,
+            safe_area_insets: safe_area,
         } = self;
 
         ui.label(format!("Active viewport: {viewport_id:?}"));
@@ -1190,6 +1214,7 @@ impl RawInput {
         ui.label(format!("dropped_files: {}", dropped_files.len()));
         ui.label(format!("focused: {focused}"));
         ui.label(format!("system_theme: {system_theme:?}"));
+        ui.label(format!("safe_area: {safe_area:?}"));
         ui.scope(|ui| {
             ui.set_min_height(150.0);
             ui.label(format!("events: {events:#?}"))
@@ -1324,5 +1349,21 @@ impl EventFilter {
         } else {
             true
         }
+    }
+}
+
+/// The 'safe area' insets of the screen
+///
+/// This represents the area taken up by the status bar, navigation controls, notches,
+/// or any other items that obscure parts of the screen.
+#[derive(Debug, PartialEq, Copy, Clone, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct SafeAreaInsets(pub MarginF32);
+
+impl std::ops::Sub<SafeAreaInsets> for Rect {
+    type Output = Self;
+
+    fn sub(self, rhs: SafeAreaInsets) -> Self::Output {
+        self - rhs.0
     }
 }

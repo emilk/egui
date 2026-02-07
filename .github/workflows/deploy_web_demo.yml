@@ -11,7 +11,6 @@ on:
 #   release:
 #     types: ["published"]
 
-
 permissions:
   contents: write # for committing to gh-pages branch
 
@@ -29,8 +28,8 @@ jobs:
   # Single deploy job since we're just deploying
   deploy:
     name: Deploy web demo
-
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -39,7 +38,7 @@ jobs:
         with:
           profile: minimal
           target: wasm32-unknown-unknown
-          toolchain: 1.85.0
+          toolchain: 1.92.0
           override: true
 
       - uses: Swatinem/rust-cache@v2

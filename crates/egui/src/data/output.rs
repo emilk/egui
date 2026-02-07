@@ -113,24 +113,6 @@ pub struct PlatformOutput {
     /// Set the cursor to this icon.
     pub cursor_icon: CursorIcon,
 
-    /// If set, open this url.
-    #[deprecated = "Use `Context::open_url` or `PlatformOutput::commands` instead"]
-    pub open_url: Option<OpenUrl>,
-
-    /// If set, put this text in the system clipboard. Ignore if empty.
-    ///
-    /// This is often a response to [`crate::Event::Copy`] or [`crate::Event::Cut`].
-    ///
-    /// ```
-    /// # egui::__run_test_ui(|ui| {
-    /// if ui.button("📋").clicked() {
-    ///     ui.output_mut(|o| o.copied_text = "some_text".to_string());
-    /// }
-    /// # });
-    /// ```
-    #[deprecated = "Use `Context::copy_text` or `PlatformOutput::commands` instead"]
-    pub copied_text: String,
-
     /// Events that may be useful to e.g. a screen reader.
     pub events: Vec<OutputEvent>,
 
@@ -146,7 +128,6 @@ pub struct PlatformOutput {
     /// The difference in the widget tree since last frame.
     ///
     /// NOTE: this needs to be per-viewport.
-    #[cfg(feature = "accesskit")]
     pub accesskit_update: Option<accesskit::TreeUpdate>,
 
     /// How many ui passes is this the sum of?
@@ -187,17 +168,12 @@ impl PlatformOutput {
 
     /// Add on new output.
     pub fn append(&mut self, newer: Self) {
-        #![allow(deprecated)]
-
         let Self {
             mut commands,
             cursor_icon,
-            open_url,
-            copied_text,
             mut events,
             mutable_text_under_cursor,
             ime,
-            #[cfg(feature = "accesskit")]
             accesskit_update,
             num_completed_passes,
             mut request_discard_reasons,
@@ -205,12 +181,6 @@ impl PlatformOutput {
 
         self.commands.append(&mut commands);
         self.cursor_icon = cursor_icon;
-        if open_url.is_some() {
-            self.open_url = open_url;
-        }
-        if !copied_text.is_empty() {
-            self.copied_text = copied_text;
-        }
         self.events.append(&mut events);
         self.mutable_text_under_cursor = mutable_text_under_cursor;
         self.ime = ime.or(self.ime);
@@ -218,12 +188,8 @@ impl PlatformOutput {
         self.request_discard_reasons
             .append(&mut request_discard_reasons);
 
-        #[cfg(feature = "accesskit")]
-        {
-            // egui produces a complete AccessKit tree for each frame,
-            // so overwrite rather than appending.
-            self.accesskit_update = accesskit_update;
-        }
+        // egui produces a complete AccessKit tree for each frame, so overwrite rather than append:
+        self.accesskit_update = accesskit_update;
     }
 
     /// Take everything ephemeral (everything except `cursor_icon` currently)
@@ -294,10 +260,11 @@ pub enum UserAttentionType {
 /// egui emits a [`CursorIcon`] in [`PlatformOutput`] each frame as a request to the integration.
 ///
 /// Loosely based on <https://developer.mozilla.org/en-US/docs/Web/CSS/cursor>.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum CursorIcon {
     /// Normal cursor icon, whatever that is.
+    #[default]
     Default,
 
     /// Show no cursor
@@ -455,12 +422,6 @@ impl CursorIcon {
         Self::ZoomIn,
         Self::ZoomOut,
     ];
-}
-
-impl Default for CursorIcon {
-    fn default() -> Self {
-        Self::Default
-    }
 }
 
 /// Things that happened during this frame that the integration may be interested in.
@@ -713,11 +674,13 @@ impl WidgetInfo {
             WidgetType::Slider => "slider",
             WidgetType::DragValue => "drag value",
             WidgetType::ColorButton => "color button",
-            WidgetType::ImageButton => "image button",
             WidgetType::Image => "image",
             WidgetType::CollapsingHeader => "collapsing header",
+            WidgetType::Panel => "panel",
             WidgetType::ProgressIndicator => "progress indicator",
             WidgetType::Window => "window",
+            WidgetType::ScrollBar => "scroll bar",
+            WidgetType::ResizeHandle => "resize handle",
             WidgetType::Label | WidgetType::Other => "",
         };
 

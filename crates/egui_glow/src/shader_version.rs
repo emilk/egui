@@ -1,5 +1,6 @@
-#![allow(unsafe_code)]
-#![allow(clippy::undocumented_unsafe_blocks)]
+#![expect(clippy::undocumented_unsafe_blocks)]
+#![expect(clippy::unwrap_used)] // TODO(emilk): avoid unwraps
+#![expect(unsafe_code)]
 
 use std::convert::TryInto as _;
 
@@ -24,11 +25,7 @@ impl ShaderVersion {
         let shading_lang_string =
             unsafe { gl.get_parameter_string(glow::SHADING_LANGUAGE_VERSION) };
         let shader_version = Self::parse(&shading_lang_string);
-        log::debug!(
-            "Shader version: {:?} ({:?}).",
-            shader_version,
-            shading_lang_string
-        );
+        log::debug!("Shader version: {shader_version:?} ({shading_lang_string:?}).");
         shader_version
     }
 

@@ -3,7 +3,7 @@
 //! This module converts lines, circles, text and more represented by [`Shape`]
 //! into textured triangles represented by [`Mesh`].
 
-#![allow(clippy::identity_op)]
+#![expect(clippy::identity_op)]
 
 use emath::{GuiRounding as _, NumExt as _, Pos2, Rect, Rot2, Vec2, pos2, remap, vec2};
 
@@ -1403,6 +1403,7 @@ impl Tessellator {
             });
         }
 
+        #[expect(clippy::unwrap_used)] // it's never empty
         let out = out_primitives.last_mut().unwrap();
 
         if let Primitive::Mesh(out_mesh) = &mut out.primitive {
@@ -2000,12 +2001,10 @@ impl Tessellator {
         }
 
         if galley.pixels_per_point != self.pixels_per_point {
-            let warn = "epaint: WARNING: pixels_per_point (dpi scale) have changed between text layout and tessellation. \
-                       You must recreate your text shapes if pixels_per_point changes.";
-            #[cfg(feature = "log")]
-            log::warn!("{warn}");
-            #[cfg(not(feature = "log"))]
-            println!("{warn}");
+            log::warn!(
+                "epaint: WARNING: pixels_per_point (dpi scale) have changed between text layout and tessellation. \
+                       You must recreate your text shapes if pixels_per_point changes."
+            );
         }
 
         out.vertices.reserve(galley.num_vertices);
@@ -2208,7 +2207,7 @@ impl Tessellator {
     ///
     /// ## Returns
     /// A list of clip rectangles with matching [`Mesh`].
-    #[allow(unused_mut, clippy::allow_attributes)]
+    #[allow(clippy::allow_attributes, unused_mut)]
     pub fn tessellate_shapes(&mut self, mut shapes: Vec<ClippedShape>) -> Vec<ClippedPrimitive> {
         profiling::function_scope!();
 

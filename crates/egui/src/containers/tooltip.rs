@@ -41,7 +41,7 @@ impl Tooltip<'_> {
         parent_widget: Id,
         anchor: impl Into<PopupAnchor>,
     ) -> Self {
-        let width = ctx.style().spacing.tooltip_width;
+        let width = ctx.global_style().spacing.tooltip_width;
         Self {
             popup: Popup::new(parent_widget, ctx, anchor.into(), parent_layer)
                 .kind(PopupKind::Tooltip)
@@ -58,7 +58,7 @@ impl Tooltip<'_> {
         let popup = Popup::from_response(response)
             .kind(PopupKind::Tooltip)
             .gap(4.0)
-            .width(response.ctx.style().spacing.tooltip_width)
+            .width(response.ctx.global_style().spacing.tooltip_width)
             .sense(Sense::hover());
         Self {
             popup,
@@ -72,7 +72,7 @@ impl Tooltip<'_> {
         let mut tooltip = Self::for_widget(response);
         tooltip.popup = tooltip
             .popup
-            .open(response.enabled() && Self::should_show_tooltip(response));
+            .open(response.enabled() && Self::should_show_tooltip(response, true));
         tooltip
     }
 
@@ -81,7 +81,7 @@ impl Tooltip<'_> {
         let mut tooltip = Self::for_widget(response);
         tooltip.popup = tooltip
             .popup
-            .open(!response.enabled() && Self::should_show_tooltip(response));
+            .open(!response.enabled() && Self::should_show_tooltip(response, true));
         tooltip
     }
 
@@ -211,7 +211,10 @@ impl Tooltip<'_> {
     }
 
     /// Should we show a tooltip for this response?
-    pub fn should_show_tooltip(response: &Response) -> bool {
+    ///
+    /// Argument `allow_interactive_tooltip` controls whether mouse can interact with tooltip that
+    /// contains interactive widgets
+    pub fn should_show_tooltip(response: &Response, allow_interactive_tooltip: bool) -> bool {
         if response.ctx.memory(|mem| mem.everything_is_visible()) {
             return true;
         }
@@ -226,7 +229,7 @@ impl Tooltip<'_> {
             return false;
         }
 
-        let style = response.ctx.style();
+        let style = response.ctx.global_style();
 
         let tooltip_delay = style.interaction.tooltip_delay;
         let tooltip_grace_time = style.interaction.tooltip_grace_time;
@@ -264,12 +267,13 @@ impl Tooltip<'_> {
             let tooltip_id = Self::next_tooltip_id(&response.ctx, response.id);
             let tooltip_layer_id = LayerId::new(Order::Tooltip, tooltip_id);
 
-            let tooltip_has_interactive_widget = response.ctx.viewport(|vp| {
-                vp.prev_pass
-                    .widgets
-                    .get_layer(tooltip_layer_id)
-                    .any(|w| w.enabled && w.sense.interactive())
-            });
+            let tooltip_has_interactive_widget = allow_interactive_tooltip
+                && response.ctx.viewport(|vp| {
+                    vp.prev_pass
+                        .widgets
+                        .get_layer(tooltip_layer_id)
+                        .any(|w| w.enabled && w.sense.interactive())
+                });
 
             if tooltip_has_interactive_widget {
                 // We keep the tooltip open if hovered,
@@ -354,7 +358,7 @@ impl Tooltip<'_> {
                 // We only show the tooltip when the mouse pointer is still.
                 if !response
                     .ctx
-                    .input(|i| i.pointer.is_still() && i.smooth_scroll_delta == Vec2::ZERO)
+                    .input(|i| i.pointer.is_still() && !i.is_scrolling())
                 {
                     // wait for mouse to stop
                     response.ctx.request_repaint();

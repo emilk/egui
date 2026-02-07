@@ -17,6 +17,28 @@ fn test_shrink() {
 }
 
 #[test]
+fn test_tooltip() {
+    let mut harness = Harness::new_ui(|ui| {
+        ui.label("Hello, world!");
+        ui.separator();
+        ui.label("This is a test")
+            .on_hover_text("This\nis\na\nvery\ntall\ntooltip!");
+    });
+
+    harness.fit_contents();
+
+    #[cfg(all(feature = "snapshot", feature = "wgpu"))]
+    harness.snapshot("test_tooltip_hidden");
+
+    harness.get_by_label("This is a test").hover();
+    harness.run_ok();
+    harness.fit_contents();
+
+    #[cfg(all(feature = "snapshot", feature = "wgpu"))]
+    harness.snapshot("test_tooltip_shown");
+}
+
+#[test]
 fn test_modifiers() {
     #[derive(Default)]
     struct State {
@@ -136,5 +158,59 @@ fn test_scroll_down() {
     assert!(
         harness.state(),
         "The button was not clicked after scrolling down. (Probably not scrolled enough / at all)"
+    );
+}
+
+#[test]
+fn test_masking() {
+    let mut harness = Harness::new_ui(|ui| {
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis();
+
+        ui.label("I should not be masked.");
+        ui.label(format!("Timestamp: {timestamp}"));
+        ui.label("I should also not be masked.");
+    });
+
+    harness.fit_contents();
+
+    let to_be_masked = harness.get_by_label_contains("Timestamp: ");
+    harness.mask(to_be_masked.rect());
+
+    harness.snapshot("test_masking");
+}
+
+#[test]
+fn test_remove_cursor() {
+    let hovered = false;
+    let mut harness = Harness::new_ui_state(
+        |ui, state| {
+            let response = ui.button("Click me");
+            *state = response.hovered();
+        },
+        hovered,
+    );
+
+    harness.fit_contents();
+
+    harness.get_by_label("Click me").click();
+    harness.run();
+
+    assert!(harness.state(), "The button should be hovered");
+    let hovered_button_snapshot = harness.render().expect("Failed to render");
+
+    harness.remove_cursor();
+    harness.run();
+    assert!(
+        !harness.state(),
+        "The button should not be hovered after removing cursor"
+    );
+
+    let non_hovered_button_snapshot = harness.render().expect("Failed to render");
+    assert_ne!(
+        hovered_button_snapshot, non_hovered_button_snapshot,
+        "The button appearance should change"
     );
 }

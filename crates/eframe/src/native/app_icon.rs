@@ -14,10 +14,10 @@ pub struct AppTitleIconSetter {
 
 impl AppTitleIconSetter {
     pub fn new(title: String, mut icon_data: Option<Arc<IconData>>) -> Self {
-        if let Some(icon) = &icon_data {
-            if **icon == IconData::default() {
-                icon_data = None;
-            }
+        if let Some(icon) = &icon_data
+            && **icon == IconData::default()
+        {
+            icon_data = None;
         }
 
         Self {
@@ -47,7 +47,7 @@ enum AppIconStatus {
     NotSetTryAgain,
 
     /// We successfully set the icon and it should be visible now.
-    #[allow(dead_code, clippy::allow_attributes)] // Not used on Linux
+    #[allow(clippy::allow_attributes, dead_code)] // Not used on Linux
     Set,
 }
 
@@ -71,7 +71,7 @@ fn set_title_and_icon(_title: &str, _icon_data: Option<&IconData>) -> AppIconSta
     #[cfg(target_os = "macos")]
     return set_title_and_icon_mac(_title, _icon_data);
 
-    #[allow(unreachable_code, clippy::allow_attributes)]
+    #[allow(clippy::allow_attributes, unreachable_code)]
     AppIconStatus::NotSetIgnored
 }
 
@@ -80,7 +80,11 @@ fn set_title_and_icon(_title: &str, _icon_data: Option<&IconData>) -> AppIconSta
 #[expect(unsafe_code)]
 fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
     use crate::icon_data::IconDataExt as _;
-    use winapi::um::winuser;
+    use windows_sys::Win32::UI::Input::KeyboardAndMouse::GetActiveWindow;
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        CreateIconFromResourceEx, GetSystemMetrics, HICON, ICON_BIG, ICON_SMALL, LR_DEFAULTCOLOR,
+        SM_CXICON, SM_CXSMICON, SendMessageW, WM_SETICON,
+    };
 
     // We would get fairly far already with winit's `set_window_icon` (which is exposed to eframe) actually!
     // However, it only sets ICON_SMALL, i.e. doesn't allow us to set a higher resolution icon for the task bar.
@@ -92,16 +96,13 @@ fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
     //      * using undocumented SetConsoleIcon method (successfully queried via GetProcAddress)
 
     // SAFETY: WinApi function without side-effects.
-    let window_handle = unsafe { winuser::GetActiveWindow() };
+    let window_handle = unsafe { GetActiveWindow() };
     if window_handle.is_null() {
         // The Window isn't available yet. Try again later!
         return AppIconStatus::NotSetTryAgain;
     }
 
-    fn create_hicon_with_scale(
-        unscaled_image: &image::RgbaImage,
-        target_size: i32,
-    ) -> winapi::shared::windef::HICON {
+    fn create_hicon_with_scale(unscaled_image: &image::RgbaImage, target_size: i32) -> HICON {
         let image_scaled = image::imageops::resize(
             unscaled_image,
             target_size as _,
@@ -127,14 +128,14 @@ fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
 
         // SAFETY: Creating an HICON which should be readonly on our data.
         unsafe {
-            winuser::CreateIconFromResourceEx(
+            CreateIconFromResourceEx(
                 image_scaled_bytes.as_mut_ptr(),
                 image_scaled_bytes.len() as u32,
                 1,           // Means this is an icon, not a cursor.
                 0x00030000,  // Version number of the HICON
                 target_size, // Note that this method can scale, but it does so *very* poorly. So let's avoid that!
                 target_size,
-                winuser::LR_DEFAULTCOLOR,
+                LR_DEFAULTCOLOR,
             )
         }
     }
@@ -155,7 +156,7 @@ fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
     // Note that ICON_SMALL may be used even if we don't render a title bar as it may be used in alt+tab!
     {
         // SAFETY: WinAPI getter function with no known side effects.
-        let icon_size_big = unsafe { winuser::GetSystemMetrics(winuser::SM_CXICON) };
+        let icon_size_big = unsafe { GetSystemMetrics(SM_CXICON) };
         let icon_big = create_hicon_with_scale(&unscaled_image, icon_size_big);
         if icon_big.is_null() {
             log::warn!("Failed to create HICON (for big icon) from embedded png data.");
@@ -163,10 +164,10 @@ fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
         } else {
             // SAFETY: Unsafe WinApi function, takes objects previously created with WinAPI, all checked for null prior.
             unsafe {
-                winuser::SendMessageW(
+                SendMessageW(
                     window_handle,
-                    winuser::WM_SETICON,
-                    winuser::ICON_BIG as usize,
+                    WM_SETICON,
+                    ICON_BIG as usize,
                     icon_big as isize,
                 );
             }
@@ -174,7 +175,7 @@ fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
     }
     {
         // SAFETY: WinAPI getter function with no known side effects.
-        let icon_size_small = unsafe { winuser::GetSystemMetrics(winuser::SM_CXSMICON) };
+        let icon_size_small = unsafe { GetSystemMetrics(SM_CXSMICON) };
         let icon_small = create_hicon_with_scale(&unscaled_image, icon_size_small);
         if icon_small.is_null() {
             log::warn!("Failed to create HICON (for small icon) from embedded png data.");
@@ -182,10 +183,10 @@ fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
         } else {
             // SAFETY: Unsafe WinApi function, takes objects previously created with WinAPI, all checked for null prior.
             unsafe {
-                winuser::SendMessageW(
+                SendMessageW(
                     window_handle,
-                    winuser::WM_SETICON,
-                    winuser::ICON_SMALL as usize,
+                    WM_SETICON,
+                    ICON_SMALL as usize,
                     icon_small as isize,
                 );
             }
@@ -274,13 +275,12 @@ fn set_title_and_icon_mac(title: &str, icon_data: Option<&IconData>) -> AppIconS
         }
 
         // Change the title in the top bar - for python processes this would be again "python" otherwise.
-        if let Some(main_menu) = app.mainMenu() {
-            if let Some(item) = main_menu.itemAtIndex(0) {
-                if let Some(app_menu) = item.submenu() {
-                    profiling::scope!("setTitle_");
-                    app_menu.setTitle(&NSString::from_str(title));
-                }
-            }
+        if let Some(main_menu) = app.mainMenu()
+            && let Some(item) = main_menu.itemAtIndex(0)
+            && let Some(app_menu) = item.submenu()
+        {
+            profiling::scope!("setTitle_");
+            app_menu.setTitle(&NSString::from_str(title));
         }
 
         // The title in the Dock apparently can't be changed.

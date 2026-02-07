@@ -27,7 +27,10 @@ pub fn create_egui_context(storage: Option<&dyn crate::Storage>) -> egui::Contex
 
     egui_ctx.options_mut(|o| {
         // eframe supports multi-pass (Context::request_discard).
-        o.max_passes = 2.try_into().unwrap();
+        #[expect(clippy::unwrap_used)]
+        {
+            o.max_passes = 2.try_into().unwrap();
+        }
     });
 
     let memory = crate::native::epi_integration::load_egui_memory(storage).unwrap_or_default();
@@ -124,6 +127,25 @@ pub enum EventResult {
     /// Causes a save of the client state when the persistence feature is enabled.
     Save,
 
+    /// Starts the process of ending eframe execution whilst allowing for proper
+    /// clean up of resources.
+    ///
+    /// # Warning
+    /// This event **must** occur before [`Exit`] to correctly exit eframe code.
+    /// If in doubt, return this event.
+    ///
+    /// [`Exit`]: [EventResult::Exit]
+    CloseRequested,
+
+    /// The event loop will exit, now.
+    /// The correct circumstance to return this event is in response to a winit "Destroyed" event.
+    ///
+    /// # Warning
+    /// The [`CloseRequested`] **must** occur before this event to ensure that winit
+    /// is able to remove any open windows. Otherwise the window(s) will remain open
+    /// until the program terminates.
+    ///
+    /// [`CloseRequested`]: EventResult::CloseRequested
     Exit,
 }
 

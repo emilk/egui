@@ -31,6 +31,8 @@ pub fn best_in_range_f64(min: f64, max: f64) -> f64 {
         return -best_in_range_f64(-max, -min);
     }
 
+    debug_assert!(0.0 < min && min < max, "Logic bug");
+
     // Prefer finite numbers:
     if !max.is_finite() {
         return min;
@@ -44,7 +46,8 @@ pub fn best_in_range_f64(min: f64, max: f64) -> f64 {
     let max_exponent = max.log10();
 
     if min_exponent.floor() != max_exponent.floor() {
-        // pick the geometric center of the two:
+        // Different orders of magnitude.
+        // Pick the geometric center of the two:
         let exponent = fast_midpoint(min_exponent, max_exponent);
         return 10.0_f64.powi(exponent.round() as i32);
     }
@@ -56,65 +59,85 @@ pub fn best_in_range_f64(min: f64, max: f64) -> f64 {
         return 10.0_f64.powf(max_exponent);
     }
 
-    let exp_factor = 10.0_f64.powi(max_exponent.floor() as i32);
+    // Find the proper scale, and then convert to integers:
 
-    let min_str = to_decimal_string(min / exp_factor);
-    let max_str = to_decimal_string(max / exp_factor);
+    let scale = NUM_DECIMALS as i32 - max_exponent.floor() as i32 - 1;
+    let scale_factor = 10.0_f64.powi(scale);
+
+    let min_str = to_decimal_string((min * scale_factor).round() as u64);
+    let max_str = to_decimal_string((max * scale_factor).round() as u64);
+
+    // We now have two positive integers of the same length.
+    // We want to find the first non-matching digit,
+    // which we will call the "deciding digit".
+    // Everything before it will be the same,
+    // everything after will be zero,
+    // and the deciding digit itself will be picked as a "smart average"
+    // min:    12345
+    // max:    12780
+    // output: 12500
 
     let mut ret_str = [0; NUM_DECIMALS];
 
-    // Select the common prefix:
-    let mut i = 0;
-    while i < NUM_DECIMALS && max_str[i] == min_str[i] {
-        ret_str[i] = max_str[i];
-        i += 1;
+    for i in 0..NUM_DECIMALS {
+        if min_str[i] == max_str[i] {
+            ret_str[i] = min_str[i];
+        } else {
+            // Found the deciding digit at index `i`
+            let mut deciding_digit_min = min_str[i];
+            let deciding_digit_max = max_str[i];
+
+            debug_assert!(
+                deciding_digit_min < deciding_digit_max,
+                "Bug in smart aim code"
+            );
+
+            let rest_of_min_is_zeroes = min_str[i + 1..].iter().all(|&c| c == 0);
+
+            if !rest_of_min_is_zeroes {
+                // There are more digits coming after `deciding_digit_min`, so we cannot pick it.
+                // So the true min of what we can pick is one greater:
+                deciding_digit_min += 1;
+            }
+
+            let deciding_digit = if deciding_digit_min == 0 {
+                0
+            } else if deciding_digit_min <= 5 && 5 <= deciding_digit_max {
+                5 // 5 is the roundest number in the range
+            } else {
+                deciding_digit_min.midpoint(deciding_digit_max)
+            };
+
+            ret_str[i] = deciding_digit;
+
+            return from_decimal_string(ret_str) as f64 / scale_factor;
+        }
     }
 
-    if i < NUM_DECIMALS {
-        // Pick the deciding digit.
-        // Note that "to_decimal_string" rounds down, so we that's why we add 1 here
-        ret_str[i] = simplest_digit_closed_range(min_str[i] + 1, max_str[i]);
-    }
-
-    from_decimal_string(&ret_str) * exp_factor
+    min // All digits are the same. Already handled earlier, but better safe than sorry
 }
 
 fn is_integer(f: f64) -> bool {
     f.round() == f
 }
 
-fn to_decimal_string(v: f64) -> [i32; NUM_DECIMALS] {
-    debug_assert!(v < 10.0, "{v:?}");
-    let mut digits = [0; NUM_DECIMALS];
-    let mut v = v.abs();
-    for r in &mut digits {
-        let digit = v.floor();
-        *r = digit as i32;
-        v -= digit;
-        v *= 10.0;
-    }
-    digits
-}
-
-fn from_decimal_string(s: &[i32]) -> f64 {
-    let mut ret: f64 = 0.0;
-    for (i, &digit) in s.iter().enumerate() {
-        ret += (digit as f64) * 10.0_f64.powi(-(i as i32));
+fn to_decimal_string(v: u64) -> [u8; NUM_DECIMALS] {
+    let mut ret = [0; NUM_DECIMALS];
+    let mut value = v;
+    for i in (0..NUM_DECIMALS).rev() {
+        ret[i] = (value % 10) as u8;
+        value /= 10;
     }
     ret
 }
 
-/// Find the simplest integer in the range [min, max]
-fn simplest_digit_closed_range(min: i32, max: i32) -> i32 {
-    debug_assert!(
-        1 <= min && min <= max && max <= 9,
-        "min should be in [1, 9], but was {min:?} and max should be in [min, 9], but was {max:?}"
-    );
-    if min <= 5 && 5 <= max {
-        5
-    } else {
-        (min + max) / 2
+fn from_decimal_string(s: [u8; NUM_DECIMALS]) -> u64 {
+    let mut value = 0;
+    for &c in &s {
+        debug_assert!(c <= 9, "Bad number");
+        value = value * 10 + c as u64;
     }
+    value
 }
 
 #[expect(clippy::approx_constant)]
@@ -161,4 +184,53 @@ fn test_aim() {
     assert_eq!(best_in_range_f64(NEG_INFINITY, NEG_INFINITY), NEG_INFINITY);
     assert_eq!(best_in_range_f64(NEG_INFINITY, INFINITY), 0.0);
     assert_eq!(best_in_range_f64(INFINITY, NEG_INFINITY), 0.0);
+
+    #[track_caller]
+    fn test_f64((min, max): (f64, f64), expected: f64) {
+        let aimed = best_in_range_f64(min, max);
+        assert!(
+            aimed == expected,
+            "smart_aim({min} – {max}) => {aimed}, but expected {expected}"
+        );
+    }
+    #[track_caller]
+    fn test_i64((min, max): (i64, i64), expected: i64) {
+        let aimed = best_in_range_f64(min as _, max as _);
+        assert!(
+            aimed == expected as f64,
+            "smart_aim({min} – {max}) => {aimed}, but expected {expected}"
+        );
+    }
+
+    test_i64((99, 300), 100);
+    test_i64((300, 99), 100);
+    test_i64((-99, -300), -100);
+    test_i64((-99, 123), 0); // Prefer zero
+    test_i64((4, 9), 5); // Prefer ending on 5
+    test_i64((14, 19), 15); // Prefer ending on 5
+    test_i64((12, 65), 50); // Prefer leading 5
+    test_i64((493, 879), 500); // Prefer leading 5
+    test_i64((37, 48), 40);
+    test_i64((100, 123), 100);
+    test_i64((101, 1000), 1000);
+    test_i64((999, 1000), 1000);
+    test_i64((123, 500), 500);
+    test_i64((500, 777), 500);
+    test_i64((500, 999), 500);
+    test_i64((12345, 12780), 12500);
+    test_i64((12371, 12376), 12375);
+    test_i64((12371, 12376), 12375);
+
+    test_f64((7.5, 16.3), 10.0);
+    test_f64((7.5, 76.3), 10.0);
+    test_f64((7.5, 763.3), 100.0);
+    test_f64((7.5, 1_345.0), 100.0); // Geometric mean
+    test_f64((7.5, 123_456.0), 1_000.0); // Geometric mean
+    test_f64((-0.2, 0.0), 0.0); // Prefer zero
+    test_f64((-10_004.23, 4.14), 0.0); // Prefer zero
+    test_f64((-0.2, 100.0), 0.0); // Prefer zero
+    test_f64((0.2, 0.0), 0.0); // Prefer zero
+    test_f64((7.8, 17.8), 10.0);
+    test_f64((14.1, 19.1), 15.0); // Prefer ending on 5
+    test_f64((12.3, 65.9), 50.0); // Prefer leading 5
 }

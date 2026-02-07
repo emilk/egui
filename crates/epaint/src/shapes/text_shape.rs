@@ -15,7 +15,7 @@ pub struct TextShape {
     /// Usually the top left corner of the first character.
     pub pos: Pos2,
 
-    /// The laid out text, from [`Fonts::layout_job`].
+    /// The laid out text, from [`FontsView::layout_job`].
     pub galley: Arc<Galley>,
 
     /// Add this underline to the whole text.
@@ -137,7 +137,12 @@ impl TextShape {
         *mesh_bounds = transform.scaling * *mesh_bounds;
         *intrinsic_size = transform.scaling * *intrinsic_size;
 
-        for text::PlacedRow { pos, row } in rows {
+        for text::PlacedRow {
+            pos,
+            row,
+            ends_with_newline: _,
+        } in rows
+        {
             *pos *= transform.scaling;
 
             let text::Row {
@@ -145,7 +150,6 @@ impl TextShape {
                 glyphs: _, // TODO(emilk): would it make sense to transform these?
                 size,
                 visuals,
-                ends_with_newline: _,
             } = Arc::make_mut(row);
 
             *size *= transform.scaling;
@@ -181,16 +185,11 @@ mod tests {
 
     #[test]
     fn text_bounding_box_under_rotation() {
-        let fonts = Fonts::new(
-            1.0,
-            1024,
-            AlphaFromCoverage::default(),
-            FontDefinitions::default(),
-        );
+        let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::default());
         let font = FontId::monospace(12.0);
 
         let mut t = crate::Shape::text(
-            &fonts,
+            &mut fonts.with_pixels_per_point(1.0),
             Pos2::ZERO,
             emath::Align2::CENTER_CENTER,
             "testing123",

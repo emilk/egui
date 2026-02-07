@@ -20,6 +20,19 @@ pub struct PopupsDemo {
     color: egui::Color32,
 }
 
+impl Default for PopupsDemo {
+    fn default() -> Self {
+        Self {
+            align4: RectAlign::default(),
+            gap: 4.0,
+            close_behavior: PopupCloseBehavior::CloseOnClick,
+            popup_open: false,
+            checked: true,
+            color: egui::Color32::RED,
+        }
+    }
+}
+
 impl PopupsDemo {
     fn apply_options<'a>(&self, popup: Popup<'a>) -> Popup<'a> {
         popup
@@ -52,6 +65,9 @@ impl PopupsDemo {
             if ui.button("Open…").clicked() {
                 ui.close();
             }
+        });
+        ui.add_enabled_ui(false, |ui| {
+            ui.menu_button("SubMenus can be disabled", |_| {});
         });
         ui.menu_image_text_button(
             include_image!("../../data/icon.png"),
@@ -92,23 +108,18 @@ impl PopupsDemo {
                     color_picker_color32(ui, &mut self.color, Alpha::Opaque);
                 });
 
+                if self.checked {
+                    ui.menu_button("Only visible when checked", |ui| {
+                        if ui.button("Remove myself").clicked() {
+                            self.checked = false;
+                        }
+                    });
+                }
+
                 if ui.button("Open…").clicked() {
                     ui.close();
                 }
             });
-    }
-}
-
-impl Default for PopupsDemo {
-    fn default() -> Self {
-        Self {
-            align4: RectAlign::default(),
-            gap: 4.0,
-            close_behavior: PopupCloseBehavior::CloseOnClick,
-            popup_open: false,
-            checked: false,
-            color: egui::Color32::RED,
-        }
     }
 }
 
@@ -117,13 +128,14 @@ impl crate::Demo for PopupsDemo {
         "\u{2755} Popups"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
             .resizable(false)
             .default_width(250.0)
             .constrain(false)
-            .show(ctx, |ui| {
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| {
                 use crate::View as _;
                 self.ui(ui);
             });

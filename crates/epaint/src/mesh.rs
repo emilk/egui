@@ -169,9 +169,7 @@ impl Mesh {
     /// Add a triangle.
     #[inline(always)]
     pub fn add_triangle(&mut self, a: u32, b: u32, c: u32) {
-        self.indices.push(a);
-        self.indices.push(b);
-        self.indices.push(c);
+        self.indices.extend_from_slice(&[a, b, c]);
     }
 
     /// Make room for this many additional triangles (will reserve 3x as many indices).
@@ -189,33 +187,35 @@ impl Mesh {
     }
 
     /// Rectangle with a texture and color.
+    #[inline(always)]
     pub fn add_rect_with_uv(&mut self, rect: Rect, uv: Rect, color: Color32) {
-        #![allow(clippy::identity_op)]
-
+        #![expect(clippy::identity_op)]
         let idx = self.vertices.len() as u32;
-        self.add_triangle(idx + 0, idx + 1, idx + 2);
-        self.add_triangle(idx + 2, idx + 1, idx + 3);
+        self.indices
+            .extend_from_slice(&[idx + 0, idx + 1, idx + 2, idx + 2, idx + 1, idx + 3]);
 
-        self.vertices.push(Vertex {
-            pos: rect.left_top(),
-            uv: uv.left_top(),
-            color,
-        });
-        self.vertices.push(Vertex {
-            pos: rect.right_top(),
-            uv: uv.right_top(),
-            color,
-        });
-        self.vertices.push(Vertex {
-            pos: rect.left_bottom(),
-            uv: uv.left_bottom(),
-            color,
-        });
-        self.vertices.push(Vertex {
-            pos: rect.right_bottom(),
-            uv: uv.right_bottom(),
-            color,
-        });
+        self.vertices.extend_from_slice(&[
+            Vertex {
+                pos: rect.left_top(),
+                uv: uv.left_top(),
+                color,
+            },
+            Vertex {
+                pos: rect.right_top(),
+                uv: uv.right_top(),
+                color,
+            },
+            Vertex {
+                pos: rect.left_bottom(),
+                uv: uv.left_bottom(),
+                color,
+            },
+            Vertex {
+                pos: rect.right_bottom(),
+                uv: uv.right_bottom(),
+                color,
+            },
+        ]);
     }
 
     /// Uniformly colored rectangle.
@@ -281,7 +281,12 @@ impl Mesh {
             let mesh = Mesh16 {
                 indices: self.indices[span_start..index_cursor]
                     .iter()
-                    .map(|vi| u16::try_from(vi - min_vindex).unwrap())
+                    .map(|vi| {
+                        #[expect(clippy::unwrap_used)]
+                        {
+                            u16::try_from(vi - min_vindex).unwrap()
+                        }
+                    })
                     .collect(),
                 vertices: self.vertices[(min_vindex as usize)..=(max_vindex as usize)].to_vec(),
                 texture_id: self.texture_id,

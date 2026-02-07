@@ -465,7 +465,7 @@ impl<'a> Popup<'a> {
     pub fn get_best_align(&self) -> RectAlign {
         let expected_popup_size = self
             .get_expected_size()
-            .unwrap_or(vec2(self.width.unwrap_or(0.0), 0.0));
+            .unwrap_or_else(|| vec2(self.width.unwrap_or(0.0), 0.0));
 
         let Some(anchor_rect) = self.anchor.rect(self.id, &self.ctx) else {
             return self.rect_align;
@@ -473,6 +473,7 @@ impl<'a> Popup<'a> {
 
         RectAlign::find_best_align(
             #[expect(clippy::iter_on_empty_collections)]
+            #[expect(clippy::or_fun_call)]
             once(self.rect_align).chain(
                 self.alternative_aligns
                     // Need the empty slice so the iters have the same type so we can unwrap_or
@@ -485,7 +486,7 @@ impl<'a> Popup<'a> {
                             .chain(RectAlign::MENU_ALIGNS.iter().copied()),
                     ),
             ),
-            self.ctx.screen_rect(),
+            self.ctx.content_rect(),
             anchor_rect,
             self.gap,
             expected_popup_size,
@@ -604,8 +605,11 @@ impl<'a> Popup<'a> {
             PopupCloseBehavior::IgnoreClicks => false,
         };
 
+        // Mark the menu as shown, so the sub menu open state is not reset
+        MenuState::mark_shown(&ctx, id);
+
         // If a submenu is open, the CloseBehavior is handled there
-        let is_any_submenu_open = !MenuState::is_deepest_sub_menu(&response.response.ctx, id);
+        let is_any_submenu_open = !MenuState::is_deepest_open_sub_menu(&response.response.ctx, id);
 
         let should_close = (!is_any_submenu_open && closed_by_click)
             || ctx.input(|i| i.key_pressed(Key::Escape))

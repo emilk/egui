@@ -29,11 +29,12 @@ impl crate::Demo for ManualLayoutTest {
         "Manual Layout Test"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         egui::Window::new(self.name())
             .resizable(false)
             .open(open)
-            .show(ctx, |ui| {
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| {
                 use crate::View as _;
                 self.ui(ui);
             });

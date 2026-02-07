@@ -5,6 +5,34 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.33.3 - 2025-12-11
+* Bump `ehttp` to 0.6.0 [#7757](https://github.com/emilk/egui/pull/7757) by [@jprochazk](https://github.com/jprochazk)
+
+
+## 0.33.2 - 2025-11-13
+Nothing new
+
+
+## 0.33.0 - 2025-10-09
+* Fix: use unique id for resize columns in `Table` [#7414](https://github.com/emilk/egui/pull/7414) by [@zezic](https://github.com/zezic)
+* Feat: Add serde serialization to SyntectSettings [#7506](https://github.com/emilk/egui/pull/7506) by [@bircni](https://github.com/bircni)
+* Make individual egui_extras image loaders public [#7551](https://github.com/emilk/egui/pull/7551) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Update MSRV from 1.86 to 1.88 [#7579](https://github.com/emilk/egui/pull/7579) by [@Wumpf](https://github.com/Wumpf)
+
+
+## 0.32.3 - 2025-09-12
+* Fix deadlock in `FileLoader` and `EhttpLoader` [#7515](https://github.com/emilk/egui/pull/7515) by [@emilk](https://github.com/emilk)
+
+
+## 0.32.2 - 2025-09-04
+* Fix memory leak when `forget_image` is called while loading [#7380](https://github.com/emilk/egui/pull/7380) by [@Vanadiae](https://github.com/Vanadiae)
+* Fix deadlock in `ImageLoader`, `FileLoader`, `EhttpLoader` [#7494](https://github.com/emilk/egui/pull/7494) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+
+## 0.32.1 - 2025-08-15
+Nothing new
+
+
 ## 0.32.0 - 2025-07-10 - Improved SVG support
 ### ⭐ Added
 * Allow loading multi-MIME formats using the image_loader [#5769](https://github.com/emilk/egui/pull/5769) by [@MYDIH](https://github.com/MYDIH)

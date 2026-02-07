@@ -19,11 +19,12 @@ impl crate::Demo for TextEditDemo {
         "🖹 TextEdit"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
             .resizable(false)
-            .show(ctx, |ui| {
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| {
                 use crate::View as _;
                 self.ui(ui);
             });
@@ -65,20 +66,20 @@ impl crate::View for TextEditDemo {
             egui::Label::new("Press ctrl+Y to toggle the case of selected text (cmd+Y on Mac)"),
         );
 
-        if ui.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::Y)) {
-            if let Some(text_cursor_range) = output.cursor_range {
-                use egui::TextBuffer as _;
-                let selected_chars = text_cursor_range.as_sorted_char_range();
-                let selected_text = text.char_range(selected_chars.clone());
-                let upper_case = selected_text.to_uppercase();
-                let new_text = if selected_text == upper_case {
-                    selected_text.to_lowercase()
-                } else {
-                    upper_case
-                };
-                text.delete_char_range(selected_chars.clone());
-                text.insert_text(&new_text, selected_chars.start);
-            }
+        if ui.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::Y))
+            && let Some(text_cursor_range) = output.cursor_range
+        {
+            use egui::TextBuffer as _;
+            let selected_chars = text_cursor_range.as_sorted_char_range();
+            let selected_text = text.char_range(selected_chars.clone());
+            let upper_case = selected_text.to_uppercase();
+            let new_text = if selected_text == upper_case {
+                selected_text.to_lowercase()
+            } else {
+                upper_case
+            };
+            text.delete_char_range(selected_chars.clone());
+            text.insert_text(&new_text, selected_chars.start);
         }
 
         ui.horizontal(|ui| {
@@ -92,7 +93,7 @@ impl crate::View for TextEditDemo {
                         .cursor
                         .set_char_range(Some(egui::text::CCursorRange::one(ccursor)));
                     state.store(ui.ctx(), text_edit_id);
-                    ui.ctx().memory_mut(|mem| mem.request_focus(text_edit_id)); // give focus back to the [`TextEdit`].
+                    ui.memory_mut(|mem| mem.request_focus(text_edit_id)); // give focus back to the [`TextEdit`].
                 }
             }
 
@@ -104,7 +105,7 @@ impl crate::View for TextEditDemo {
                         .cursor
                         .set_char_range(Some(egui::text::CCursorRange::one(ccursor)));
                     state.store(ui.ctx(), text_edit_id);
-                    ui.ctx().memory_mut(|mem| mem.request_focus(text_edit_id)); // give focus back to the [`TextEdit`].
+                    ui.memory_mut(|mem| mem.request_focus(text_edit_id)); // give focus back to the [`TextEdit`].
                 }
             }
         });
@@ -120,9 +121,9 @@ mod tests {
     #[test]
     pub fn should_type() {
         let text = "Hello, world!".to_owned();
-        let mut harness = Harness::new_state(
-            move |ctx, text| {
-                CentralPanel::default().show(ctx, |ui| {
+        let mut harness = Harness::new_ui_state(
+            move |ui, text| {
+                CentralPanel::default().show_inside(ui, |ui| {
                     ui.text_edit_singleline(text);
                 });
             },

@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![allow(rustdoc::missing_crate_level_docs)] // it's an example
+#![expect(rustdoc::missing_crate_level_docs)] // it's an example
 
 use std::sync::{
     Arc,
@@ -35,8 +35,8 @@ struct MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             ui.label("Hello from the root viewport");
 
             ui.checkbox(
@@ -44,55 +44,68 @@ impl eframe::App for MyApp {
                 "Show immediate child viewport",
             );
 
-            let mut show_deferred_viewport = self.show_deferred_viewport.load(Ordering::Relaxed);
-            ui.checkbox(&mut show_deferred_viewport, "Show deferred child viewport");
-            self.show_deferred_viewport
-                .store(show_deferred_viewport, Ordering::Relaxed);
+            {
+                let mut show_deferred_viewport =
+                    self.show_deferred_viewport.load(Ordering::Relaxed);
+                ui.checkbox(&mut show_deferred_viewport, "Show deferred child viewport");
+                self.show_deferred_viewport
+                    .store(show_deferred_viewport, Ordering::Relaxed);
+            }
+
+            ui.add_space(16.0);
+            {
+                let mut embedded = ui.embed_viewports();
+                ui.checkbox(&mut embedded, "Embed all viewports");
+                ui.set_embed_viewports(embedded);
+            }
         });
 
         if self.show_immediate_viewport {
-            ctx.show_viewport_immediate(
+            ui.ctx().show_viewport_immediate(
                 egui::ViewportId::from_hash_of("immediate_viewport"),
                 egui::ViewportBuilder::default()
                     .with_title("Immediate Viewport")
                     .with_inner_size([200.0, 100.0]),
-                |ctx, class| {
-                    assert!(
-                        class == egui::ViewportClass::Immediate,
-                        "This egui backend doesn't support multiple viewports"
-                    );
+                |ui, class| {
+                    if class == egui::ViewportClass::EmbeddedWindow {
+                        ui.label(
+                            "This viewport is embedded in the parent window, and cannot be moved outside of it.",
+                        );
+                    } else {
+                        egui::CentralPanel::default().show_inside(ui, |ui| {
+                            ui.label("Hello from immediate viewport");
 
-                    egui::CentralPanel::default().show(ctx, |ui| {
-                        ui.label("Hello from immediate viewport");
-                    });
-
-                    if ctx.input(|i| i.viewport().close_requested()) {
-                        // Tell parent viewport that we should not show next frame:
-                        self.show_immediate_viewport = false;
+                            if ui.input(|i| i.viewport().close_requested()) {
+                                // Tell parent viewport that we should not show next frame:
+                                self.show_immediate_viewport = false;
+                            }
+                        });
                     }
                 },
             );
         }
 
         if self.show_deferred_viewport.load(Ordering::Relaxed) {
-            let show_deferred_viewport = self.show_deferred_viewport.clone();
-            ctx.show_viewport_deferred(
+            let show_deferred_viewport = Arc::clone(&self.show_deferred_viewport);
+            ui.ctx().show_viewport_deferred(
                 egui::ViewportId::from_hash_of("deferred_viewport"),
                 egui::ViewportBuilder::default()
                     .with_title("Deferred Viewport")
                     .with_inner_size([200.0, 100.0]),
-                move |ctx, class| {
-                    assert!(
-                        class == egui::ViewportClass::Deferred,
-                        "This egui backend doesn't support multiple viewports"
-                    );
+                move |ui, class| {
+                    if class == egui::ViewportClass::EmbeddedWindow {
+                        ui.label(
+                            "This viewport is embedded in the parent window, and cannot be moved outside of it.",
+                        );
+                    } else {
+                        egui::CentralPanel::default().show_inside(ui, |ui| {
+                            ui.label("Hello from deferred viewport");
 
-                    egui::CentralPanel::default().show(ctx, |ui| {
-                        ui.label("Hello from deferred viewport");
-                    });
-                    if ctx.input(|i| i.viewport().close_requested()) {
-                        // Tell parent to close us.
-                        show_deferred_viewport.store(false, Ordering::Relaxed);
+                            if ui.input(|i| i.viewport().close_requested()) {
+                                // Tell parent to close us.
+                                show_deferred_viewport.store(false, Ordering::Relaxed);
+                            }
+                        });
                     }
                 },
             );

@@ -15,15 +15,16 @@ impl crate::Demo for Tooltips {
         "🗖 Tooltips"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         use crate::View as _;
-        let window = egui::Window::new("Tooltips")
+        egui::Window::new("Tooltips")
             .constrain(false) // So we can test how tooltips behave close to the screen edge
             .resizable(true)
             .default_size([450.0, 300.0])
             .scroll(false)
-            .open(open);
-        window.show(ctx, |ui| self.ui(ui));
+            .open(open)
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| self.ui(ui));
     }
 }
 
@@ -35,7 +36,7 @@ impl crate::View for Tooltips {
             ui.add(crate::egui_github_link_file_line!());
         });
 
-        egui::SidePanel::right("scroll_test").show_inside(ui, |ui| {
+        egui::Panel::right("scroll_test").show_inside(ui, |ui| {
             ui.label(
                 "The scroll area below has many labels with interactive tooltips. \
                  The purpose is to test that the tooltips close when you scroll.",

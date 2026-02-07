@@ -75,7 +75,7 @@ impl BytesLoader for FileLoader {
                 .name(format!("egui_extras::FileLoader::load({uri:?})"))
                 .spawn({
                     let ctx = ctx.clone();
-                    let cache = self.cache.clone();
+                    let cache = Arc::clone(&self.cache);
                     let uri = uri.to_owned();
                     move || {
                         let result = match std::fs::read(&path) {
@@ -95,14 +95,22 @@ impl BytesLoader for FileLoader {
                             }
                             Err(err) => Err(err.to_string()),
                         };
-                        let mut cache = cache.lock();
-                        if let std::collections::hash_map::Entry::Occupied(mut entry) = cache.entry(uri.clone()) {
-                            let entry = entry.get_mut();
-                            *entry = Poll::Ready(result);
+                        let repaint = {
+                            let mut cache = cache.lock();
+                            if let std::collections::hash_map::Entry::Occupied(mut entry) = cache.entry(uri.clone()) {
+                                let entry = entry.get_mut();
+                                *entry = Poll::Ready(result);
+                                log::trace!("Finished loading {uri:?}");
+                                true
+                            } else {
+                                log::trace!("Canceled loading {uri:?}\nNote: This can happen if `forget_image` is called while the image is still loading.");
+                                false
+                            }
+                        };
+                        // We may not lock Context while the cache lock is held (see ImageLoader::load
+                        // for details).
+                        if repaint {
                             ctx.request_repaint();
-                            log::trace!("Finished loading {uri:?}");
-                        } else {
-                            log::trace!("Canceled loading {uri:?}\nNote: This can happen if `forget_image` is called while the image is still loading.");
                         }
                     }
                 })

@@ -52,14 +52,13 @@ pub fn viewport_builder(
             viewport_builder = viewport_builder.with_position(pos);
         }
 
-        if clamp_size_to_monitor_size {
-            if let Some(initial_window_size) = viewport_builder.inner_size {
-                let initial_window_size = egui::NumExt::at_most(
-                    initial_window_size,
-                    largest_monitor_point_size(egui_zoom_factor, event_loop),
-                );
-                viewport_builder = viewport_builder.with_inner_size(initial_window_size);
-            }
+        if clamp_size_to_monitor_size && let Some(initial_window_size) = viewport_builder.inner_size
+        {
+            let initial_window_size = egui::NumExt::at_most(
+                initial_window_size,
+                largest_monitor_point_size(egui_zoom_factor, event_loop),
+            );
+            viewport_builder = viewport_builder.with_inner_size(initial_window_size);
         }
 
         viewport_builder.inner_size
@@ -136,7 +135,7 @@ pub fn create_storage(_app_name: &str) -> Option<Box<dyn epi::Storage>> {
     None
 }
 
-#[expect(clippy::unnecessary_wraps)]
+#[allow(clippy::allow_attributes, clippy::unnecessary_wraps)]
 pub fn create_storage_with_file(_file: impl Into<PathBuf>) -> Option<Box<dyn epi::Storage>> {
     #[cfg(feature = "persistence")]
     return Some(Box::new(
@@ -169,7 +168,7 @@ pub struct EpiIntegration {
 }
 
 impl EpiIntegration {
-    #[expect(clippy::too_many_arguments)]
+    #[allow(clippy::allow_attributes, clippy::too_many_arguments)]
     pub fn new(
         egui_ctx: egui::Context,
         window: &winit::window::Window,
@@ -180,7 +179,9 @@ impl EpiIntegration {
         #[cfg(feature = "glow")] glow_register_native_texture: Option<
             Box<dyn FnMut(glow::Texture) -> egui::TextureId>,
         >,
-        #[cfg(feature = "wgpu")] wgpu_render_state: Option<egui_wgpu::RenderState>,
+        #[cfg(feature = "wgpu_no_default_features")] wgpu_render_state: Option<
+            egui_wgpu::RenderState,
+        >,
     ) -> Self {
         let frame = epi::Frame {
             info: epi::IntegrationInfo { cpu_usage: None },
@@ -189,7 +190,7 @@ impl EpiIntegration {
             gl,
             #[cfg(feature = "glow")]
             glow_register_native_texture,
-            #[cfg(feature = "wgpu")]
+            #[cfg(feature = "wgpu_no_default_features")]
             wgpu_render_state,
             raw_display_handle: window.display_handle().map(|h| h.as_raw()),
             raw_window_handle: window.window_handle().map(|h| h.as_raw()),
@@ -271,14 +272,27 @@ impl EpiIntegration {
 
         app.raw_input_hook(&self.egui_ctx, &mut raw_input);
 
-        let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
+        let full_output = self.egui_ctx.run_ui(raw_input, |ui| {
             if let Some(viewport_ui_cb) = viewport_ui_cb {
                 // Child viewport
                 profiling::scope!("viewport_callback");
-                viewport_ui_cb(egui_ctx);
+                viewport_ui_cb(ui);
             } else {
-                profiling::scope!("App::update");
-                app.update(egui_ctx, &mut self.frame);
+                {
+                    profiling::scope!("App::logic");
+                    app.logic(ui.ctx(), &mut self.frame);
+                }
+
+                {
+                    profiling::scope!("App::update");
+                    #[expect(deprecated)]
+                    app.update(ui.ctx(), &mut self.frame);
+                }
+
+                {
+                    profiling::scope!("App::ui");
+                    app.ui(ui, &mut self.frame);
+                }
             }
         });
 
@@ -326,30 +340,32 @@ impl EpiIntegration {
         }
     }
 
-    #[allow(clippy::unused_self, clippy::allow_attributes)]
-    pub fn save(&mut self, _app: &mut dyn epi::App, _window: Option<&winit::window::Window>) {
+    pub fn save(&mut self, app: &mut dyn epi::App, window: Option<&winit::window::Window>) {
+        #[cfg(not(feature = "persistence"))]
+        let _ = (self, app, window);
+
         #[cfg(feature = "persistence")]
         if let Some(storage) = self.frame.storage_mut() {
             profiling::function_scope!();
 
-            if let Some(window) = _window {
-                if self.persist_window {
-                    profiling::scope!("native_window");
-                    epi::set_value(
-                        storage,
-                        STORAGE_WINDOW_KEY,
-                        &WindowSettings::from_window(self.egui_ctx.zoom_factor(), window),
-                    );
-                }
+            if let Some(window) = window
+                && self.persist_window
+            {
+                profiling::scope!("native_window");
+                epi::set_value(
+                    storage,
+                    STORAGE_WINDOW_KEY,
+                    &WindowSettings::from_window(self.egui_ctx.zoom_factor(), window),
+                );
             }
-            if _app.persist_egui_memory() {
+            if app.persist_egui_memory() {
                 profiling::scope!("egui_memory");
                 self.egui_ctx
                     .memory(|mem| epi::set_value(storage, STORAGE_EGUI_MEMORY_KEY, mem));
             }
             {
                 profiling::scope!("App::save");
-                _app.save(storage);
+                app.save(storage);
             }
 
             profiling::scope!("Storage::flush");
@@ -360,6 +376,7 @@ impl EpiIntegration {
 
 fn load_default_egui_icon() -> egui::IconData {
     profiling::function_scope!();
+    #[expect(clippy::unwrap_used)]
     crate::icon_data::from_png_bytes(&include_bytes!("../../data/icon.png")[..]).unwrap()
 }
 

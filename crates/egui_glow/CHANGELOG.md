@@ -6,6 +6,30 @@ Changes since the last release can be found at <https://github.com/emilk/egui/co
 
 
 
+## 0.33.3 - 2025-12-11
+Nothing new
+
+
+## 0.33.2 - 2025-11-13
+Nothing new
+
+
+## 0.33.0 - 2025-10-09
+* Update MSRV from 1.86 to 1.88 [#7579](https://github.com/emilk/egui/pull/7579) by [@Wumpf](https://github.com/Wumpf)
+
+
+## 0.32.3 - 2025-09-12
+Nothing new
+
+
+## 0.32.2 - 2025-09-04
+Nothing new
+
+
+## 0.32.1 - 2025-08-15
+Nothing new
+
+
 ## 0.32.0 - 2025-07-10
 * Fix text distortion on mobile devices/browsers with `glow` backend [#6893](https://github.com/emilk/egui/pull/6893) by [@wareya](https://github.com/wareya)
 * Improve texture filtering by doing it in gamma space [#7311](https://github.com/emilk/egui/pull/7311) by [@emilk](https://github.com/emilk)

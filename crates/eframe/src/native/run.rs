@@ -94,15 +94,15 @@ impl<T: WinitApp> WinitAppWrapper<T> {
 
         let mut event_result = event_result;
 
-        if cfg!(target_os = "windows") {
-            if let Ok(EventResult::RepaintNow(window_id)) = event_result {
-                log::trace!("RepaintNow of {window_id:?}");
-                self.windows_next_repaint_times
-                    .insert(window_id, Instant::now());
+        if cfg!(target_os = "windows")
+            && let Ok(EventResult::RepaintNow(window_id)) = event_result
+        {
+            log::trace!("RepaintNow of {window_id:?}");
+            self.windows_next_repaint_times
+                .insert(window_id, Instant::now());
 
-                // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
-                event_result = self.winit_app.run_ui_and_paint(event_loop, window_id);
-            }
+            // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
+            event_result = self.winit_app.run_ui_and_paint(event_loop, window_id);
         }
 
         let combined_result = event_result.map(|event_result| match event_result {
@@ -137,6 +137,11 @@ impl<T: WinitApp> WinitAppWrapper<T> {
             }
             EventResult::Exit => {
                 exit = true;
+                event_result
+            }
+            EventResult::CloseRequested => {
+                // The windows need to be dropped whilst the event loop is running to allow for proper cleanup.
+                self.winit_app.save_and_destroy();
                 event_result
             }
         });
@@ -344,8 +349,6 @@ pub fn run_glow(
     mut native_options: epi::NativeOptions,
     app_creator: epi::AppCreator<'_>,
 ) -> Result {
-    #![allow(clippy::needless_return_with_question_mark)] // False positive
-
     use super::glow_integration::GlowWinitApp;
 
     #[cfg(not(target_os = "ios"))]
@@ -376,14 +379,12 @@ pub fn create_glow<'a>(
 
 // ----------------------------------------------------------------------------
 
-#[cfg(feature = "wgpu")]
+#[cfg(feature = "wgpu_no_default_features")]
 pub fn run_wgpu(
     app_name: &str,
     mut native_options: epi::NativeOptions,
     app_creator: epi::AppCreator<'_>,
 ) -> Result {
-    #![allow(clippy::needless_return_with_question_mark)] // False positive
-
     use super::wgpu_integration::WgpuWinitApp;
 
     #[cfg(not(target_os = "ios"))]
@@ -399,7 +400,7 @@ pub fn run_wgpu(
     run_and_exit(event_loop, wgpu_eframe)
 }
 
-#[cfg(feature = "wgpu")]
+#[cfg(feature = "wgpu_no_default_features")]
 pub fn create_wgpu<'a>(
     app_name: &str,
     native_options: epi::NativeOptions,

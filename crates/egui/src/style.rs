@@ -1,9 +1,7 @@
 //! egui theme (spacing, colors, etc).
 
-#![allow(clippy::if_same_then_else)]
-
 use emath::Align;
-use epaint::{AlphaFromCoverage, CornerRadius, Shadow, Stroke, text::FontTweak};
+use epaint::{AlphaFromCoverage, CornerRadius, Shadow, Stroke, TextOptions, text::FontTweak};
 use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
 
 use crate::{
@@ -121,6 +119,7 @@ impl TextStyle {
 // ----------------------------------------------------------------------------
 
 /// A way to select [`FontId`], either by picking one directly or by using a [`TextStyle`].
+#[derive(Debug, Clone)]
 pub enum FontSelection {
     /// Default text style - will use [`TextStyle::Body`], unless
     /// [`Style::override_font_id`] or [`Style::override_text_style`] is set.
@@ -141,7 +140,18 @@ impl Default for FontSelection {
 }
 
 impl FontSelection {
+    /// Resolve to a [`FontId`].
+    ///
+    /// On [`Self::Default`] and no override in the style, this will
+    /// resolve to [`TextStyle::Body`].
     pub fn resolve(self, style: &Style) -> FontId {
+        self.resolve_with_fallback(style, TextStyle::Body.into())
+    }
+
+    /// Resolve with a final fallback.
+    ///
+    /// Fallback is resolved on [`Self::Default`] and no override in the style.
+    pub fn resolve_with_fallback(self, style: &Style, fallback: Self) -> FontId {
         match self {
             Self::Default => {
                 if let Some(override_font_id) = &style.override_font_id {
@@ -149,7 +159,7 @@ impl FontSelection {
                 } else if let Some(text_style) = &style.override_text_style {
                     text_style.resolve(style)
                 } else {
-                    TextStyle::Body.resolve(style)
+                    fallback.resolve(style)
                 }
             }
             Self::FontId(font_id) => font_id,
@@ -496,6 +506,12 @@ pub struct ScrollStyle {
     /// it more promiment.
     pub floating: bool,
 
+    /// Extra margin added around the contents of a [`crate::ScrollArea`].
+    ///
+    /// The scroll bars will be either on top of this margin, or outside of it,
+    /// depending on the value of [`Self::floating`].
+    pub content_margin: Margin,
+
     /// The width of the scroll bars at it largest.
     pub bar_width: f32,
 
@@ -579,6 +595,7 @@ impl ScrollStyle {
     pub fn solid() -> Self {
         Self {
             floating: false,
+            content_margin: Margin::ZERO,
             bar_width: 6.0,
             handle_min_length: 12.0,
             bar_inner_margin: 4.0,
@@ -660,6 +677,9 @@ impl ScrollStyle {
     pub fn details_ui(&mut self, ui: &mut Ui) {
         let Self {
             floating,
+
+            content_margin,
+
             bar_width,
             handle_min_length,
             bar_inner_margin,
@@ -681,6 +701,11 @@ impl ScrollStyle {
             ui.label("Type:");
             ui.selectable_value(floating, false, "Solid");
             ui.selectable_value(floating, true, "Floating");
+        });
+
+        ui.horizontal(|ui| {
+            ui.label("Content margin:");
+            content_margin.ui(ui);
         });
 
         ui.horizontal(|ui| {
@@ -921,8 +946,11 @@ pub struct Visuals {
     /// this is more to provide a convenient summary of the rest of the settings.
     pub dark_mode: bool,
 
-    /// ADVANCED: Controls how we render text.
-    pub text_alpha_from_coverage: AlphaFromCoverage,
+    /// Controls how we render text.
+    ///
+    /// The [`TextOptions::max_texture_side`] is ignored and overruled by
+    /// [`crate::RawInput::max_texture_side`].
+    pub text_options: TextOptions,
 
     /// Override default text color for all text.
     ///
@@ -1117,7 +1145,10 @@ impl Visuals {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Selection {
+    /// Background color behind selected text and other selectable buttons.
     pub bg_fill: Color32,
+
+    /// Color of selected text.
     pub stroke: Stroke,
 }
 
@@ -1203,6 +1234,11 @@ pub struct WidgetVisuals {
     pub fg_stroke: Stroke,
 
     /// Make the frame this much larger.
+    ///
+    /// The problem with "expanding" widgets is that they now want to paint outside their own bounds,
+    /// which then requires all parent UIs to have proper margins.
+    ///
+    /// It also means hovered things are no longer properly aligned with every other widget.
     pub expansion: f32,
 }
 
@@ -1267,6 +1303,13 @@ pub struct DebugOptions {
     ///
     /// See [`emath::GuiRounding`] for more.
     pub show_unaligned: bool,
+
+    /// Highlight the currently focused widget.
+    ///
+    /// This is useful when some widget has a invisible focus (e.g. when a widget is using
+    /// `Sense::click()` when it should be using `Sense::CLICK`) and you need to find which one it
+    /// is.
+    pub show_focused_widget: bool,
 }
 
 #[cfg(debug_assertions)]
@@ -1283,6 +1326,7 @@ impl Default for DebugOptions {
             show_interactive_widgets: false,
             show_widget_hits: false,
             show_unaligned: cfg!(debug_assertions),
+            show_focused_widget: false,
         }
     }
 }
@@ -1295,10 +1339,10 @@ pub fn default_text_styles() -> BTreeMap<TextStyle, FontId> {
 
     [
         (TextStyle::Small, FontId::new(9.0, Proportional)),
-        (TextStyle::Body, FontId::new(12.5, Proportional)),
-        (TextStyle::Button, FontId::new(12.5, Proportional)),
+        (TextStyle::Body, FontId::new(13.0, Proportional)),
+        (TextStyle::Button, FontId::new(13.0, Proportional)),
         (TextStyle::Heading, FontId::new(18.0, Proportional)),
-        (TextStyle::Monospace, FontId::new(12.0, Monospace)),
+        (TextStyle::Monospace, FontId::new(13.0, Monospace)),
     ]
     .into()
 }
@@ -1318,7 +1362,7 @@ impl Default for Style {
             spacing: Spacing::default(),
             interaction: Interaction::default(),
             visuals: Visuals::default(),
-            animation_time: 1.0 / 12.0,
+            animation_time: 6.0 / 60.0, // If we make this too slow, it will be too obvious that our panel animations look like shit :(
             #[cfg(debug_assertions)]
             debug: Default::default(),
             explanation_tooltips: false,
@@ -1361,7 +1405,7 @@ impl Default for Interaction {
     fn default() -> Self {
         Self {
             interact_radius: 5.0,
-            resize_grab_radius_side: 5.0,
+            resize_grab_radius_side: 3.0,
             resize_grab_radius_corner: 10.0,
             show_tooltips_only_when_still: true,
             tooltip_delay: 0.5,
@@ -1377,7 +1421,10 @@ impl Visuals {
     pub fn dark() -> Self {
         Self {
             dark_mode: true,
-            text_alpha_from_coverage: AlphaFromCoverage::DARK_MODE_DEFAULT,
+            text_options: TextOptions {
+                alpha_from_coverage: AlphaFromCoverage::DARK_MODE_DEFAULT,
+                ..Default::default()
+            },
             override_text_color: None,
             weak_text_alpha: 0.6,
             weak_text_color: None,
@@ -1425,7 +1472,7 @@ impl Visuals {
             striped: false,
 
             slider_trailing_fill: false,
-            handle_shape: HandleShape::Circle,
+            handle_shape: HandleShape::Rect { aspect_ratio: 0.75 },
 
             interact_cursor: None,
 
@@ -1440,7 +1487,10 @@ impl Visuals {
     pub fn light() -> Self {
         Self {
             dark_mode: false,
-            text_alpha_from_coverage: AlphaFromCoverage::LIGHT_MODE_DEFAULT,
+            text_options: TextOptions {
+                alpha_from_coverage: AlphaFromCoverage::LIGHT_MODE_DEFAULT,
+                ..Default::default()
+            },
             widgets: Widgets::light(),
             selection: Selection::light(),
             hyperlink_color: Color32::from_rgb(0, 155, 255),
@@ -1531,7 +1581,7 @@ impl Widgets {
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(150)), // e.g. hover over window edge or button
                 fg_stroke: Stroke::new(1.5, Color32::from_gray(240)),
                 corner_radius: CornerRadius::same(3),
-                expansion: 1.0,
+                expansion: 0.0,
             },
             active: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(55),
@@ -1539,7 +1589,7 @@ impl Widgets {
                 bg_stroke: Stroke::new(1.0, Color32::WHITE),
                 fg_stroke: Stroke::new(2.0, Color32::WHITE),
                 corner_radius: CornerRadius::same(2),
-                expansion: 1.0,
+                expansion: 0.0,
             },
             open: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(45),
@@ -1576,7 +1626,7 @@ impl Widgets {
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(105)), // e.g. hover over window edge or button
                 fg_stroke: Stroke::new(1.5, Color32::BLACK),
                 corner_radius: CornerRadius::same(3),
-                expansion: 1.0,
+                expansion: 0.0,
             },
             active: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(165),
@@ -1584,7 +1634,7 @@ impl Widgets {
                 bg_stroke: Stroke::new(1.0, Color32::BLACK),
                 fg_stroke: Stroke::new(2.0, Color32::BLACK),
                 corner_radius: CornerRadius::same(2),
-                expansion: 1.0,
+                expansion: 0.0,
             },
             open: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(220),
@@ -1807,6 +1857,10 @@ impl Spacing {
 
                 ui.label("Window margin");
                 ui.add(window_margin);
+                ui.end_row();
+
+                ui.label("ScrollArea margin");
+                scroll.content_margin.ui(ui);
                 ui.end_row();
 
                 ui.label("Menu margin");
@@ -2073,7 +2127,7 @@ impl Visuals {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
             dark_mode,
-            text_alpha_from_coverage,
+            text_options,
             override_text_color: _,
             weak_text_alpha,
             weak_text_color,
@@ -2173,7 +2227,7 @@ impl Visuals {
                 });
         });
 
-        ui.collapsing("Text color", |ui| {
+        ui.collapsing("Text rendering", |ui| {
             fn ui_text_color(ui: &mut Ui, color: &mut Color32, label: impl Into<RichText>) {
                 ui.label(label.into().color(*color));
                 ui.color_edit_button_srgba(color);
@@ -2225,7 +2279,15 @@ impl Visuals {
 
             ui.add_space(4.0);
 
-            text_alpha_from_coverage_ui(ui, text_alpha_from_coverage);
+            let TextOptions {
+                max_texture_side: _,
+                alpha_from_coverage,
+                font_hinting,
+            } = text_options;
+
+            text_alpha_from_coverage_ui(ui, alpha_from_coverage);
+
+            ui.checkbox(font_hinting, "Enable font hinting");
         });
 
         ui.collapsing("Text cursor", |ui| {
@@ -2336,9 +2398,9 @@ impl Visuals {
     }
 }
 
-fn text_alpha_from_coverage_ui(ui: &mut Ui, text_alpha_from_coverage: &mut AlphaFromCoverage) {
+fn text_alpha_from_coverage_ui(ui: &mut Ui, alpha_from_coverage: &mut AlphaFromCoverage) {
     let mut dark_mode_special =
-        *text_alpha_from_coverage == AlphaFromCoverage::TwoCoverageMinusCoverageSq;
+        *alpha_from_coverage == AlphaFromCoverage::TwoCoverageMinusCoverageSq;
 
     ui.horizontal(|ui| {
         ui.label("Text rendering:");
@@ -2346,9 +2408,9 @@ fn text_alpha_from_coverage_ui(ui: &mut Ui, text_alpha_from_coverage: &mut Alpha
         ui.checkbox(&mut dark_mode_special, "Dark-mode special");
 
         if dark_mode_special {
-            *text_alpha_from_coverage = AlphaFromCoverage::TwoCoverageMinusCoverageSq;
+            *alpha_from_coverage = AlphaFromCoverage::DARK_MODE_DEFAULT;
         } else {
-            let mut gamma = match text_alpha_from_coverage {
+            let mut gamma = match alpha_from_coverage {
                 AlphaFromCoverage::Linear => 1.0,
                 AlphaFromCoverage::Gamma(gamma) => *gamma,
                 AlphaFromCoverage::TwoCoverageMinusCoverageSq => 0.5, // approximately the same
@@ -2362,9 +2424,9 @@ fn text_alpha_from_coverage_ui(ui: &mut Ui, text_alpha_from_coverage: &mut Alpha
             );
 
             if gamma == 1.0 {
-                *text_alpha_from_coverage = AlphaFromCoverage::Linear;
+                *alpha_from_coverage = AlphaFromCoverage::Linear;
             } else {
-                *text_alpha_from_coverage = AlphaFromCoverage::Gamma(gamma);
+                *alpha_from_coverage = AlphaFromCoverage::Gamma(gamma);
             }
         }
     });
@@ -2426,6 +2488,7 @@ impl DebugOptions {
             show_interactive_widgets,
             show_widget_hits,
             show_unaligned,
+            show_focused_widget,
         } = self;
 
         {
@@ -2458,6 +2521,11 @@ impl DebugOptions {
         ui.checkbox(
             show_unaligned,
             "Show rectangles not aligned to integer point coordinates",
+        );
+
+        ui.checkbox(
+            show_focused_widget,
+            "Highlight which widget has keyboard focus",
         );
 
         ui.vertical_centered(|ui| reset_button(ui, self, "Reset debug options"));
@@ -2708,7 +2776,7 @@ impl Widget for &mut Stroke {
         let Stroke { width, color } = self;
 
         ui.horizontal(|ui| {
-            ui.add(DragValue::new(width).speed(0.1).range(0.0..=f32::INFINITY))
+            ui.add(DragValue::new(width).speed(0.1).range(0.0..=1e9))
                 .on_hover_text("Width");
             ui.color_edit_button_srgba(color);
 
@@ -2778,7 +2846,7 @@ impl Widget for &mut FontTweak {
                     scale,
                     y_offset_factor,
                     y_offset,
-                    baseline_offset_factor,
+                    hinting_override,
                 } = self;
 
                 ui.label("Scale");
@@ -2794,9 +2862,18 @@ impl Widget for &mut FontTweak {
                 ui.add(DragValue::new(y_offset).speed(-0.02));
                 ui.end_row();
 
-                ui.label("baseline_offset_factor");
-                ui.add(DragValue::new(baseline_offset_factor).speed(-0.0025));
-                ui.end_row();
+                ui.label("hinting_override");
+                ComboBox::from_id_salt("hinting_override")
+                    .selected_text(match hinting_override {
+                        None => "None",
+                        Some(true) => "Enable",
+                        Some(false) => "Disable",
+                    })
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(hinting_override, None, "None");
+                        ui.selectable_value(hinting_override, Some(true), "Enable");
+                        ui.selectable_value(hinting_override, Some(false), "Disable");
+                    });
 
                 if ui.button("Reset").clicked() {
                     *self = Default::default();

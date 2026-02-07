@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![allow(rustdoc::missing_crate_level_docs)] // it's an example
+#![expect(rustdoc::missing_crate_level_docs)] // it's an example
 
 use eframe::egui;
 
@@ -43,8 +43,8 @@ struct MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             let label_text = if self.has_next {
                 "When this window is closed the next will be opened after a short delay"
             } else {
@@ -54,7 +54,7 @@ impl eframe::App for MyApp {
 
             if ui.button("Close").clicked() {
                 log::info!("Pressed Close button");
-                ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+                ui.send_viewport_cmd(egui::ViewportCommand::Close);
             }
         });
     }
