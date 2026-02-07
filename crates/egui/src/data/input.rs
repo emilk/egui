@@ -1271,7 +1271,6 @@ pub struct EventFilter {
     pub filter: fn(&Event) -> bool,
 }
 
-#[expect(clippy::derivable_impls)] // let's be explicit
 impl Default for EventFilter {
     fn default() -> Self {
         Self {
