@@ -259,7 +259,7 @@ impl Scene {
             let mut zoom_delta = ui.ctx().input(|i| i.zoom_delta());
             let mut pan_delta = Vec2::ZERO;
 
-            // If scrolling_zooms is set to true the scroll input will be consumed and
+            // If scroll_zooms is set to true the scroll input will be consumed and
             // added to any zoom input. This is required to support both mouse wheel
             // and touch events.
             if self.scroll_zooms {
