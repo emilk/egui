@@ -1203,7 +1203,7 @@ mod tests {
             }
         }
     }
-    
+
     #[test]
     fn test_empty_row() {
         let pixels_per_point = 1.0;
