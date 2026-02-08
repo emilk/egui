@@ -640,16 +640,27 @@ impl State {
         self.has_sent_ime_enabled = false;
     }
 
-    pub fn on_mouse_motion(&mut self, delta: (f64, f64)) {
+    /// Returns `true` if the event was sent to egui.
+    pub fn on_mouse_motion(&mut self, delta: (f64, f64)) -> bool {
+        if !self.is_pointer_in_window() && !self.any_pointer_button_down {
+            return false;
+        }
+
         self.egui_input.events.push(egui::Event::MouseMoved(Vec2 {
             x: delta.0 as f32,
             y: delta.1 as f32,
         }));
+        true
     }
 
-    /// Returns true when the pointer is currently inside the window.
+    /// Returns `true` when the pointer is currently inside the window.
     pub fn is_pointer_in_window(&self) -> bool {
         self.pointer_pos_in_points.is_some()
+    }
+
+    /// Returns `true` if any pointer button is currently held down.
+    pub fn is_any_pointer_button_down(&self) -> bool {
+        self.any_pointer_button_down
     }
 
     /// Call this when there is a new [`accesskit::ActionRequest`].
