@@ -2,7 +2,7 @@ use ahash::HashMap;
 
 use emath::TSTransform;
 
-use crate::{LayerId, Pos2, Rect, Sense, WidgetRect, WidgetRects, ahash, emath, id::IdSet};
+use crate::{LayerId, Pos2, WidgetRect, WidgetRects, ahash, emath, id::IdSet};
 
 /// Result of a hit-test against [`WidgetRects`].
 ///
