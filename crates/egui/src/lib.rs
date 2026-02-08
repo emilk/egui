@@ -413,7 +413,7 @@ pub mod os;
 mod painter;
 mod pass_state;
 pub(crate) mod placer;
-mod plugin;
+pub mod plugin;
 pub mod response;
 mod sense;
 pub mod style;
@@ -494,7 +494,7 @@ pub use self::{
     ui_builder::UiBuilder,
     ui_stack::*,
     viewport::*,
-    widget_rect::{WidgetRect, WidgetRects},
+    widget_rect::{InteractOptions, WidgetRect, WidgetRects},
     widget_text::{RichText, WidgetText},
     widgets::*,
 };
@@ -662,6 +662,10 @@ pub enum WidgetType {
     ProgressIndicator,
 
     Window,
+
+    ResizeHandle,
+
+    ScrollBar,
 
     /// If you cannot fit any of the above slots.
     ///

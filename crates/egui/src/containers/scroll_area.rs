@@ -9,7 +9,8 @@ use epaint::Margin;
 
 use crate::{
     Context, CursorIcon, Id, NumExt as _, Pos2, Rangef, Rect, Response, Sense, Ui, UiBuilder,
-    UiKind, UiStackInfo, Vec2, Vec2b, emath, epaint, lerp, pass_state, pos2, remap, remap_clamp,
+    UiKind, UiStackInfo, Vec2, Vec2b, WidgetInfo, emath, epaint, lerp, pass_state, pos2, remap,
+    remap_clamp,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -809,7 +810,7 @@ impl ScrollArea {
                 // or we will steal input from the widgets we contain.
                 let content_response_option = state
                     .interact_rect
-                    .map(|rect| ui.interact(rect, id.with("area"), Sense::drag()));
+                    .map(|rect| ui.interact(rect, id.with("area"), Sense::DRAG));
 
                 if content_response_option
                     .as_ref()
@@ -1241,46 +1242,17 @@ impl Prepared {
                 continue;
             }
 
+            let interact_id = id.with(d);
+
             // Margin on either side of the scroll bar:
             let inner_margin = show_factor * scroll_style.bar_inner_margin;
             let outer_margin = show_factor * scroll_style.bar_outer_margin;
 
-            // top/bottom of a horizontal scroll (d==0).
-            // left/rigth of a vertical scroll (d==1).
-            let mut cross = if scroll_style.floating {
-                // The bounding rect of a fully visible bar.
-                // When we hover this area, we should show the full bar:
-                let max_bar_rect = if d == 0 {
-                    outer_rect.with_min_y(outer_rect.max.y - outer_margin - scroll_style.bar_width)
-                } else {
-                    outer_rect.with_min_x(outer_rect.max.x - outer_margin - scroll_style.bar_width)
-                };
+            // bottom of a horizontal scroll (d==0).
+            // right of a vertical scroll (d==1).
+            let mut max_cross = outer_rect.max[1 - d] - outer_margin;
 
-                let is_hovering_bar_area = is_hovering_outer_rect
-                    && ui.rect_contains_pointer(max_bar_rect)
-                    && !is_dragging_background
-                    || state.scroll_bar_interaction[d];
-
-                let is_hovering_bar_area_t = ui
-                    .ctx()
-                    .animate_bool_responsive(id.with((d, "bar_hover")), is_hovering_bar_area);
-
-                let width = show_factor
-                    * lerp(
-                        scroll_style.floating_width..=scroll_style.bar_width,
-                        is_hovering_bar_area_t,
-                    );
-
-                let max_cross = outer_rect.max[1 - d] - outer_margin;
-                let min_cross = max_cross - width;
-                Rangef::new(min_cross, max_cross)
-            } else {
-                let min_cross = inner_rect.max[1 - d] + inner_margin;
-                let max_cross = outer_rect.max[1 - d] - outer_margin;
-                Rangef::new(min_cross, max_cross)
-            };
-
-            if ui.clip_rect().max[1 - d] < cross.max + outer_margin {
+            if ui.clip_rect().max[1 - d] - outer_margin < max_cross {
                 // Move the scrollbar so it is visible. This is needed in some cases.
                 // For instance:
                 // * When we have a vertical-only scroll area in a top level panel,
@@ -1290,21 +1262,59 @@ impl Prepared {
                 //   is outside the clip rectangle.
                 // Really this should use the tighter clip_rect that ignores clip_rect_margin, but we don't store that.
                 // clip_rect_margin is quite a hack. It would be nice to get rid of it.
-                let width = cross.max - cross.min;
-                cross.max = ui.clip_rect().max[1 - d] - outer_margin;
-                cross.min = cross.max - width;
+                max_cross = ui.clip_rect().max[1 - d] - outer_margin;
             }
 
-            let outer_scroll_bar_rect = if d == 0 {
-                Rect::from_min_max(
-                    pos2(scroll_bar_rect.left(), cross.min),
-                    pos2(scroll_bar_rect.right(), cross.max),
-                )
+            let full_width = scroll_style.bar_width;
+
+            // The bounding rect of a fully visible bar.
+            // When we hover this area, we should show the full bar:
+            let max_bar_rect = if d == 0 {
+                outer_rect.with_min_y(max_cross - full_width)
             } else {
-                Rect::from_min_max(
-                    pos2(cross.min, scroll_bar_rect.top()),
-                    pos2(cross.max, scroll_bar_rect.bottom()),
-                )
+                outer_rect.with_min_x(max_cross - full_width)
+            };
+
+            let sense = if scroll_source.scroll_bar && ui.is_enabled() {
+                Sense::CLICK | Sense::DRAG
+            } else {
+                Sense::hover()
+            };
+
+            // We always sense interaction with the full width, even if we antimate it growing/shrinking.
+            // This is to present a more consistent target for our hit test code,
+            // and to avoid producing jitter in "thin widget" heuristics there.
+            // Also: it make sense to detect any hover where the scroll bar _will_ be.
+            let response = ui.interact(max_bar_rect, interact_id, sense);
+
+            response.widget_info(|| WidgetInfo::new(crate::WidgetType::ScrollBar));
+
+            // top/bottom of a horizontal scroll (d==0).
+            // left/rigth of a vertical scroll (d==1).
+            let cross = if scroll_style.floating {
+                let is_hovering_bar_area = response.hovered() || state.scroll_bar_interaction[d];
+
+                let is_hovering_bar_area_t = ui
+                    .ctx()
+                    .animate_bool_responsive(id.with((d, "bar_hover")), is_hovering_bar_area);
+
+                let width = show_factor
+                    * lerp(
+                        scroll_style.floating_width..=full_width,
+                        is_hovering_bar_area_t,
+                    );
+
+                let min_cross = max_cross - width;
+                Rangef::new(min_cross, max_cross)
+            } else {
+                let min_cross = inner_rect.max[1 - d] + inner_margin;
+                Rangef::new(min_cross, max_cross)
+            };
+
+            let outer_scroll_bar_rect = if d == 0 {
+                Rect::from_x_y_ranges(scroll_bar_rect.x_range(), cross)
+            } else {
+                Rect::from_x_y_ranges(cross, scroll_bar_rect.y_range())
             };
 
             let from_content = |content| {
@@ -1343,14 +1353,6 @@ impl Prepared {
             };
 
             let handle_rect = calculate_handle_rect(d, &state.offset);
-
-            let interact_id = id.with(d);
-            let sense = if scroll_source.scroll_bar && ui.is_enabled() {
-                Sense::click_and_drag()
-            } else {
-                Sense::hover()
-            };
-            let response = ui.interact(outer_scroll_bar_rect, interact_id, sense);
 
             state.scroll_bar_interaction[d] = response.hovered() || response.dragged();
 

@@ -505,9 +505,9 @@ impl Area {
             let interact_id = layer_id.id.with("move");
             let sense = sense.unwrap_or_else(|| {
                 if movable {
-                    Sense::drag()
+                    Sense::DRAG
                 } else if interactable {
-                    Sense::click() // allow clicks to bring to front
+                    Sense::CLICK // allow clicks to bring to front
                 } else {
                     Sense::hover()
                 }
@@ -523,6 +523,7 @@ impl Area {
                     enabled: enabled && interactable,
                 },
                 true,
+                Default::default(),
             );
 
             // Used to prevent drift
