@@ -1169,6 +1169,42 @@ mod tests {
     }
 
     #[test]
+    fn test_truncate_with_pixels_per_point() {
+        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+
+        for pixels_per_point in [
+            0.33, 0.5, 0.67, 1.0, 1.25, 1.33, 1.5, 1.75, 2.0, 3.0, 4.0, 5.0,
+        ] {
+            for ch in ['W', 'A', 'n', 't', 'i'] {
+                let target_width = 50.0;
+                let text = (0..20).map(|_| ch).collect::<String>();
+
+                let mut job = LayoutJob::single_section(text, TextFormat::default());
+                job.wrap.max_width = target_width;
+                job.wrap.max_rows = 1;
+                let elided_galley = layout(&mut fonts, pixels_per_point, job.into());
+                assert!(elided_galley.elided);
+
+                let test_galley = layout(
+                    &mut fonts,
+                    pixels_per_point,
+                    Arc::new(LayoutJob::single_section(
+                        (0..elided_galley.text().len())
+                            .map(|_| ch)
+                            .chain(std::iter::once('…'))
+                            .collect::<String>(),
+                        TextFormat::default(),
+                    )),
+                );
+
+                assert!(elided_galley.size().x >= 0.0);
+                assert!(elided_galley.size().x <= target_width);
+                assert!(test_galley.size().x > target_width);
+            }
+        }
+    }
+    
+    #[test]
     fn test_empty_row() {
         let pixels_per_point = 1.0;
         let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
