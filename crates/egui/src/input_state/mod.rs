@@ -361,7 +361,7 @@ pub struct InputState {
     /// Input state management configuration.
     ///
     /// This gets copied from `egui::Options` at the start of each frame for convenience.
-    options: InputOptions,
+    pub options: InputOptions,
 }
 
 impl Default for InputState {
