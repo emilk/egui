@@ -1,5 +1,5 @@
 use egui::accesskit::Role;
-use egui::{Align, Color32, Image, Label, Layout, RichText, Sense, TextWrapMode, include_image};
+use egui::{Align, Color32, Image, Label, Layout, Modifiers, PointerButton, RichText, Sense, TextWrapMode, include_image};
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable as _;
 
@@ -117,4 +117,95 @@ fn interact_on_ui_response_should_be_stable() {
 
     drop(harness);
     assert_eq!(click_count, 10, "We missed some clicks!");
+}
+
+/// Double-clicking a table column resize handle should auto-size the column.
+///
+/// This was broken because the double-click detection used `ui.id()` to construct
+/// the resize handle widget ID, but the actual resize handle widget was created
+/// with `state_id` (= `ui.id().with(id_salt)`). The IDs didn't match, so
+/// `read_response()` never saw the double-click.
+#[test]
+fn table_column_resize_double_click_auto_sizes() {
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(400.0, 200.0))
+        .with_step_dt(0.05)
+        .build_ui(|ui| {
+            egui_extras::TableBuilder::new(ui)
+                .id_salt("resize_dblclick_test")
+                .resizable(true)
+                .column(egui_extras::Column::initial(200.0).resizable(true))
+                .column(egui_extras::Column::remainder())
+                .header(20.0, |mut header| {
+                    header.col(|ui| {
+                        ui.label("Wide Col");
+                    });
+                    header.col(|ui| {
+                        ui.label("Col B");
+                    });
+                })
+                .body(|mut body| {
+                    body.row(20.0, |mut row| {
+                        row.col(|ui| {
+                            ui.label("Short");
+                        });
+                        row.col(|ui| {
+                            ui.label("Other");
+                        });
+                    });
+                });
+        });
+
+    // Run a few frames so the table is fully laid out.
+    harness.run_steps(3);
+
+    // Column B should start far to the right (column A is 200px wide).
+    let col_b_x_before = harness.get_by_label("Col B").rect().left();
+    assert!(
+        col_b_x_before > 150.0,
+        "Col B should start far right (got {col_b_x_before})"
+    );
+
+    // Find the resize handle: it's in the spacing gap just left of column B.
+    let col_a_header = harness.get_by_label("Wide Col");
+    let col_b_header = harness.get_by_label("Col B");
+    let handle_x = col_b_header.rect().left() - 4.0;
+    let handle_y = col_a_header.rect().center().y;
+    let handle_pos = egui::pos2(handle_x, handle_y);
+
+    // Simulate double-click: two clicks in separate frames so egui detects it.
+    harness.event(egui::Event::PointerMoved(handle_pos));
+    harness.step();
+
+    // First click (press + release).
+    for pressed in [true, false] {
+        harness.event(egui::Event::PointerButton {
+            pos: handle_pos,
+            button: PointerButton::Primary,
+            pressed,
+            modifiers: Modifiers::default(),
+        });
+    }
+    harness.step();
+
+    // Second click (press + release) — egui detects this as double-click.
+    for pressed in [true, false] {
+        harness.event(egui::Event::PointerButton {
+            pos: handle_pos,
+            button: PointerButton::Primary,
+            pressed,
+            modifiers: Modifiers::default(),
+        });
+    }
+
+    // Let the auto-size take effect.
+    harness.run_steps(5);
+
+    // Column B should have moved left because column A shrunk to fit "Wide Col".
+    let col_b_x_after = harness.get_by_label("Col B").rect().left();
+    assert!(
+        col_b_x_after < col_b_x_before,
+        "Col B should have moved left after double-click auto-fit on col A \
+         (before: {col_b_x_before}, after: {col_b_x_after})"
+    );
 }
