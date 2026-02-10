@@ -1058,13 +1058,13 @@ fn events(
             Event::Ime(ime_event) => {
                 let ime_language = ui.input(|i| i.options.ime_language);
                 if ime_language == crate::input_state::ImeLanguage::Korean {
-                    on_ime_k(ime_event, state, text, &cursor_range, char_limit)
+                    on_ime_korean(ime_event, state, text, &cursor_range, char_limit)
                 } else if ime_language == crate::input_state::ImeLanguage::Japanese {
-                    on_ime_j(ime_event, state, text, &cursor_range, char_limit)
+                    on_ime_japanese(ime_event, state, text, &cursor_range, char_limit)
                 } else if ime_language == crate::input_state::ImeLanguage::Chinese {
-                    on_ime_c(ime_event, state, text, &cursor_range, char_limit)
+                    on_ime_chinese(ime_event, state, text, &cursor_range, char_limit)
                 } else {
-                    on_ime_k(ime_event, state, text, &cursor_range, char_limit)
+                    on_ime_korean(ime_event, state, text, &cursor_range, char_limit)
                 }
             }
 
@@ -1116,7 +1116,7 @@ fn clear_prediction(text: &mut dyn TextBuffer, cursor_range: &CCursorRange) -> C
 // ----------------------------------------------------------------------------
 
 // Handles IME input events for Korean character composition.
-fn on_ime_k(
+fn on_ime_korean(
     ime_event: &ImeEvent,
     state: &mut TextEditState,
     text: &mut dyn TextBuffer,
@@ -1170,7 +1170,7 @@ fn on_ime_k(
 // ----------------------------------------------------------------------------
 
 // Handles IME input events for Japanese character composition.
-fn on_ime_j(
+fn on_ime_japanese(
     ime_event: &ImeEvent,
     state: &mut TextEditState,
     text: &mut dyn TextBuffer,
@@ -1226,7 +1226,7 @@ fn on_ime_j(
 // ----------------------------------------------------------------------------
 
 // Handles IME input events for Chinese character composition.
-fn on_ime_c(
+fn on_ime_chinese(
     ime_event: &ImeEvent,
     state: &mut TextEditState,
     text: &mut dyn TextBuffer,
