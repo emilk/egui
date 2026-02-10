@@ -1133,7 +1133,7 @@ fn on_ime_k(
             if text_mark == "\n" || text_mark == "\r" {
                 None
             } else {
-                let mut ccursor = clear_prediction(text, &cursor_range);
+                let mut ccursor = clear_prediction(text, cursor_range);
                 let start_cursor = ccursor;
 
                 if !text_mark.is_empty() {
@@ -1153,7 +1153,7 @@ fn on_ime_k(
                     && !prediction.is_empty()
                     && cursor_range.secondary.index == state.ime_cursor_range.secondary.index
                 {
-                    ccursor = clear_prediction(text, &cursor_range);
+                    ccursor = clear_prediction(text, cursor_range);
                     text.insert_text_at(&mut ccursor, prediction, char_limit);
                 }
 
@@ -1187,7 +1187,7 @@ fn on_ime_j(
             if text_mark == "\n" || text_mark == "\r" {
                 None
             } else {
-                let mut ccursor = clear_prediction(text, &cursor_range);
+                let mut ccursor = clear_prediction(text, cursor_range);
 
                 let start_cursor = ccursor;
                 if text_mark.is_empty() {
@@ -1205,7 +1205,7 @@ fn on_ime_j(
             } else {
                 state.ime_enabled = false;
 
-                let mut ccursor = clear_prediction(text, &cursor_range);
+                let mut ccursor = clear_prediction(text, cursor_range);
 
                 if !prediction.is_empty()
                     && cursor_range.secondary.index == state.ime_cursor_range.secondary.index
@@ -1243,7 +1243,7 @@ fn on_ime_c(
             if text_mark == "\n" || text_mark == "\r" {
                 None
             } else {
-                let mut ccursor = clear_prediction(text, &cursor_range);
+                let mut ccursor = clear_prediction(text, cursor_range);
 
                 let start_cursor = ccursor;
                 if text_mark.is_empty() {
@@ -1261,7 +1261,7 @@ fn on_ime_c(
             } else {
                 state.ime_enabled = false;
 
-                let mut ccursor = clear_prediction(text, &cursor_range);
+                let mut ccursor = clear_prediction(text, cursor_range);
 
                 if !prediction.is_empty()
                     && cursor_range.secondary.index == state.ime_cursor_range.secondary.index
