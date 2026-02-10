@@ -1093,8 +1093,8 @@ impl State {
 
             let is_cmd = self.modifiers.ctrl || self.modifiers.command || self.modifiers.mac_cmd;
 
+            #[expect(deprecated)]
             if pressed && !is_cmd {
-                #[allow(deprecated)]
                 self.egui_input.events.push(egui::Event::Text(text));
             }
         }
