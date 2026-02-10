@@ -619,7 +619,6 @@ impl State {
                 self.egui_input
                     .events
                     .push(egui::Event::Ime(egui::ImeEvent::Preedit(String::new())));
-                self.ime_event_disable();
             }
         }
     }
