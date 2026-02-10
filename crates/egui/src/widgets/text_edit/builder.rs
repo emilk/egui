@@ -806,16 +806,6 @@ impl TextEdit<'_> {
             }
         }
 
-        // Ensures correct IME behavior when the text input area gains or loses focus.
-        if state.ime_enabled && (response.gained_focus() || response.lost_focus()) {
-            state.ime_enabled = false;
-            if let Some(mut ccursor_range) = state.cursor.char_range() {
-                ccursor_range.secondary.index = ccursor_range.primary.index;
-                state.cursor.set_char_range(Some(ccursor_range));
-            }
-            ui.input_mut(|i| i.events.retain(|e| !matches!(e, Event::Ime(_))));
-        }
-
         state.clone().store(ui.ctx(), id);
 
         if response.changed() {
@@ -1066,70 +1056,15 @@ fn events(
             } => check_for_mutating_key_press(os, &cursor_range, text, galley, modifiers, *key),
 
             Event::Ime(ime_event) => {
-                /// Empty prediction can be produced with [`ImeEvent::Preedit`]
-                /// or [`ImeEvent::Commit`] when user press backspace or escape
-                /// during IME, so this function should be called in both cases
-                /// to clear current text.
-                ///
-                /// Example platforms where only `ImeEvent::Preedit("")` of
-                /// those two events is emitted when the last character in the
-                /// prediction is deleted:
-                /// - macOS 15.7.3.
-                /// - Debian13 with gnome48 and wayland.
-                ///
-                /// An example platform where only `ImeEvent::Commit("")` of
-                /// those two events is emitted when the last character in the
-                /// prediction is deleted:
-                /// - Safari 26.2 (on macOS 15.7.3).
-                fn clear_prediction(
-                    text: &mut dyn TextBuffer,
-                    cursor_range: &CCursorRange,
-                ) -> CCursor {
-                    text.delete_selected(cursor_range)
-                }
-
-                match ime_event {
-                    ImeEvent::Enabled => {
-                        state.ime_enabled = true;
-                        state.ime_cursor_range = cursor_range;
-                        None
-                    }
-                    ImeEvent::Preedit(text_mark) => {
-                        if text_mark == "\n" || text_mark == "\r" {
-                            None
-                        } else {
-                            let mut ccursor = clear_prediction(text, &cursor_range);
-
-                            let start_cursor = ccursor;
-                            if !text_mark.is_empty() {
-                                text.insert_text_at(&mut ccursor, text_mark, char_limit);
-                            }
-                            state.ime_cursor_range = cursor_range;
-                            Some(CCursorRange::two(start_cursor, ccursor))
-                        }
-                    }
-                    ImeEvent::Commit(prediction) => {
-                        if prediction == "\n" || prediction == "\r" {
-                            None
-                        } else {
-                            state.ime_enabled = false;
-
-                            let mut ccursor = clear_prediction(text, &cursor_range);
-
-                            if !prediction.is_empty()
-                                && cursor_range.secondary.index
-                                    == state.ime_cursor_range.secondary.index
-                            {
-                                text.insert_text_at(&mut ccursor, prediction, char_limit);
-                            }
-
-                            Some(CCursorRange::one(ccursor))
-                        }
-                    }
-                    ImeEvent::Disabled => {
-                        state.ime_enabled = false;
-                        None
-                    }
+                let ime_language = ui.input(|i| i.options.ime_language);
+                if ime_language == crate::input_state::ImeLanguage::Korean {
+                    on_ime_k(ime_event, state, text, &cursor_range, char_limit)
+                } else if ime_language == crate::input_state::ImeLanguage::Japanese {
+                    on_ime_j(ime_event, state, text, &cursor_range, char_limit)
+                } else if ime_language == crate::input_state::ImeLanguage::Chinese {
+                    on_ime_c(ime_event, state, text, &cursor_range, char_limit)
+                } else {
+                    on_ime_k(ime_event, state, text, &cursor_range, char_limit)
                 }
             }
 
@@ -1155,6 +1090,193 @@ fn events(
     );
 
     (any_change, cursor_range)
+}
+
+// ----------------------------------------------------------------------------
+
+/// Empty prediction can be produced with [`ImeEvent::Preedit`]
+/// or [`ImeEvent::Commit`] when user press backspace or escape
+/// during IME, so this function should be called in both cases
+/// to clear current text.
+///
+/// Example platforms where only `ImeEvent::Preedit("")` of
+/// those two events is emitted when the last character in the
+/// prediction is deleted:
+/// - macOS 15.7.3.
+/// - Debian13 with gnome48 and wayland.
+///
+/// An example platform where only `ImeEvent::Commit("")` of
+/// those two events is emitted when the last character in the
+/// prediction is deleted:
+/// - Safari 26.2 (on macOS 15.7.3).
+fn clear_prediction(text: &mut dyn TextBuffer, cursor_range: &CCursorRange) -> CCursor {
+    text.delete_selected(cursor_range)
+}
+
+// ----------------------------------------------------------------------------
+
+// Handles IME input events for Korean character composition.
+fn on_ime_k(
+    ime_event: &ImeEvent,
+    state: &mut TextEditState,
+    text: &mut dyn TextBuffer,
+    cursor_range: &CCursorRange,
+    char_limit: usize,
+) -> Option<CCursorRange> {
+    match ime_event {
+        ImeEvent::Enabled => {
+            state.ime_enabled = true;
+            state.ime_cursor_range = *cursor_range;
+            None
+        }
+        ImeEvent::Preedit(text_mark) => {
+            if text_mark == "\n" || text_mark == "\r" {
+                None
+            } else {
+                let mut ccursor = clear_prediction(text, &cursor_range);
+                let start_cursor = ccursor;
+
+                if !text_mark.is_empty() {
+                    text.insert_text_at(&mut ccursor, text_mark, char_limit);
+                    state.ime_cursor_range = *cursor_range;
+                }
+                Some(CCursorRange::two(start_cursor, ccursor))
+            }
+        }
+        ImeEvent::Commit(prediction) => {
+            if prediction == "\n" || prediction == "\r" {
+                None
+            } else {
+                let mut ccursor = cursor_range.secondary;
+
+                if state.ime_enabled
+                    && !prediction.is_empty()
+                    && cursor_range.secondary.index == state.ime_cursor_range.secondary.index
+                {
+                    ccursor = clear_prediction(text, &cursor_range);
+                    text.insert_text_at(&mut ccursor, prediction, char_limit);
+                }
+
+                Some(CCursorRange::one(ccursor))
+            }
+        }
+        ImeEvent::Disabled => {
+            state.ime_enabled = false;
+            None
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+// Handles IME input events for Japanese character composition.
+fn on_ime_j(
+    ime_event: &ImeEvent,
+    state: &mut TextEditState,
+    text: &mut dyn TextBuffer,
+    cursor_range: &CCursorRange,
+    char_limit: usize,
+) -> Option<CCursorRange> {
+    match ime_event {
+        ImeEvent::Enabled => {
+            state.ime_enabled = true;
+            state.ime_cursor_range = *cursor_range;
+            None
+        }
+        ImeEvent::Preedit(text_mark) => {
+            if text_mark == "\n" || text_mark == "\r" {
+                None
+            } else {
+                let mut ccursor = clear_prediction(text, &cursor_range);
+
+                let start_cursor = ccursor;
+                if text_mark.is_empty() {
+                    state.ime_enabled = false;
+                } else {
+                    text.insert_text_at(&mut ccursor, text_mark, char_limit);
+                }
+                state.ime_cursor_range = *cursor_range;
+                Some(CCursorRange::two(start_cursor, ccursor))
+            }
+        }
+        ImeEvent::Commit(prediction) => {
+            if prediction == "\n" || prediction == "\r" {
+                None
+            } else {
+                state.ime_enabled = false;
+
+                let mut ccursor = clear_prediction(text, &cursor_range);
+
+                if !prediction.is_empty()
+                    && cursor_range.secondary.index == state.ime_cursor_range.secondary.index
+                {
+                    text.insert_text_at(&mut ccursor, prediction, char_limit);
+                }
+
+                Some(CCursorRange::one(ccursor))
+            }
+        }
+        ImeEvent::Disabled => {
+            state.ime_enabled = false;
+            None
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+// Handles IME input events for Chinese character composition.
+fn on_ime_c(
+    ime_event: &ImeEvent,
+    state: &mut TextEditState,
+    text: &mut dyn TextBuffer,
+    cursor_range: &CCursorRange,
+    char_limit: usize,
+) -> Option<CCursorRange> {
+    match ime_event {
+        ImeEvent::Enabled => {
+            state.ime_enabled = true;
+            state.ime_cursor_range = *cursor_range;
+            None
+        }
+        ImeEvent::Preedit(text_mark) => {
+            if text_mark == "\n" || text_mark == "\r" {
+                None
+            } else {
+                let mut ccursor = clear_prediction(text, &cursor_range);
+
+                let start_cursor = ccursor;
+                if text_mark.is_empty() {
+                    state.ime_enabled = false;
+                } else {
+                    text.insert_text_at(&mut ccursor, text_mark, char_limit);
+                }
+                state.ime_cursor_range = *cursor_range;
+                Some(CCursorRange::two(start_cursor, ccursor))
+            }
+        }
+        ImeEvent::Commit(prediction) => {
+            if prediction == "\n" || prediction == "\r" {
+                None
+            } else {
+                state.ime_enabled = false;
+
+                let mut ccursor = clear_prediction(text, &cursor_range);
+
+                if !prediction.is_empty()
+                    && cursor_range.secondary.index == state.ime_cursor_range.secondary.index
+                {
+                    text.insert_text_at(&mut ccursor, prediction, char_limit);
+                }
+
+                Some(CCursorRange::one(ccursor))
+            }
+        }
+        ImeEvent::Disabled => {
+            state.ime_enabled = false;
+            None
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------
