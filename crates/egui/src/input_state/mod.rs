@@ -53,10 +53,23 @@ impl SurrenderFocusOn {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum ImeLanguage {
+    None,
+    #[default]
+    Korean,
+    Japanese,
+    Chinese,
+}
+
 /// Options for input state handling.
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct InputOptions {
+    /// The language used for specialized IME (Input Method Editor) processing.
+    pub ime_language: ImeLanguage,
+
     /// Multiplier for the scroll speed when reported in [`crate::MouseWheelUnit::Line`]s.
     pub line_scroll_speed: f32,
 
@@ -110,6 +123,7 @@ impl Default for InputOptions {
         };
 
         Self {
+            ime_language: ImeLanguage::default(),
             line_scroll_speed,
             scroll_zoom_speed: 1.0 / 200.0,
             max_click_dist: 6.0,
@@ -127,6 +141,7 @@ impl InputOptions {
     /// Show the options in the ui.
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
+            ime_language,
             line_scroll_speed,
             scroll_zoom_speed,
             max_click_dist,
@@ -141,6 +156,23 @@ impl InputOptions {
             .num_columns(2)
             .striped(true)
             .show(ui, |ui| {
+                ui.label("IME Language");
+                let inner_response = crate::ComboBox::from_id_salt("ime_language_combo")
+                    .selected_text(match ime_language {
+                        ImeLanguage::None => "None",
+                        ImeLanguage::Korean => "Korean",
+                        ImeLanguage::Japanese => "Japanese",
+                        ImeLanguage::Chinese => "Chinese",
+                    })
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(ime_language, ImeLanguage::None, "None");
+                        ui.selectable_value(ime_language, ImeLanguage::Korean, "Korean");
+                        ui.selectable_value(ime_language, ImeLanguage::Japanese, "Japanese");
+                        ui.selectable_value(ime_language, ImeLanguage::Chinese, "Chinese");
+                    });
+                inner_response.response.on_hover_text("Select the language for specialized IME processing (CJK)");
+                ui.end_row();
+
                 ui.label("Line scroll speed");
                 ui.add(crate::DragValue::new(line_scroll_speed).range(0.0..=f32::INFINITY))
                     .on_hover_text(
@@ -199,7 +231,6 @@ impl InputOptions {
                 ui.label("surrender_focus_on");
                 surrender_focus_on.ui(ui);
                 ui.end_row();
-
             });
     }
 }
