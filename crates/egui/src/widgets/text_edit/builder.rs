@@ -806,6 +806,11 @@ impl TextEdit<'_> {
             }
         }
 
+        // Ensures correct IME behavior when the text input area gains or loses focus.
+        if state.ime_enabled && (response.gained_focus() || response.lost_focus()) {
+            state.ime_enabled = false;
+        }
+
         state.clone().store(ui.ctx(), id);
 
         if response.changed() {
@@ -1136,7 +1141,12 @@ fn on_ime_korean(
                 let mut ccursor = clear_prediction(text, cursor_range);
                 let start_cursor = ccursor;
 
-                if !text_mark.is_empty() {
+                if text_mark.is_empty() {
+                    #[cfg(target_arch = "wasm32")]
+                    {
+                        state.ime_enabled = false;
+                    }
+                } else {
                     text.insert_text_at(&mut ccursor, text_mark, char_limit);
                     state.ime_cursor_range = *cursor_range;
                 }
@@ -1155,6 +1165,11 @@ fn on_ime_korean(
                 {
                     ccursor = clear_prediction(text, cursor_range);
                     text.insert_text_at(&mut ccursor, prediction, char_limit);
+
+                    #[cfg(target_arch = "wasm32")]
+                    {
+                        state.ime_enabled = false;
+                    }
                 }
 
                 Some(CCursorRange::one(ccursor))
