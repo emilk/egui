@@ -1,8 +1,5 @@
 use egui::accesskit::Role;
-use egui::{
-    Align, Button, Color32, Image, Label, Layout, RichText, Sense, TextWrapMode, include_image,
-    vec2,
-};
+use egui::{Align, Color32, Image, Label, Layout, RichText, Sense, TextWrapMode, include_image};
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable as _;
 
