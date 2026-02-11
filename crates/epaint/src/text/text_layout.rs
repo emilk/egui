@@ -1189,7 +1189,7 @@ mod tests {
                     &mut fonts,
                     pixels_per_point,
                     Arc::new(LayoutJob::single_section(
-                        (0..elided_galley.text().len())
+                        (0..elided_galley.rows[0].char_count_excluding_newline())
                             .map(|_| ch)
                             .chain(std::iter::once('…'))
                             .collect::<String>(),
