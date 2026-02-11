@@ -812,15 +812,14 @@ impl TextEdit<'_> {
                 state.ime_enabled = false;
             }
 
-            if let Some(mut ccursor_range) = state.cursor.char_range() {
-                if !state.ime_enabled
-                    || ccursor_range.secondary.index != state.ime_cursor_range.secondary.index
-                {
-                    state.ime_enabled = false;
-                    ccursor_range.secondary.index = ccursor_range.primary.index;
-                    state.cursor.set_char_range(Some(ccursor_range));
-                    ui.input_mut(|i| i.events.retain(|e| !matches!(e, Event::Ime(_))));
-                }
+            if let Some(mut ccursor_range) = state.cursor.char_range()
+                && (!state.ime_enabled
+                    || ccursor_range.secondary.index != state.ime_cursor_range.secondary.index)
+            {
+                state.ime_enabled = false;
+                ccursor_range.secondary.index = ccursor_range.primary.index;
+                state.cursor.set_char_range(Some(ccursor_range));
+                ui.input_mut(|i| i.events.retain(|e| !matches!(e, Event::Ime(_))));
             }
         }
 
