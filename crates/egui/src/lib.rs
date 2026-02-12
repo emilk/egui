@@ -270,7 +270,8 @@
 //!
 //! ## Widget interaction
 //! Each widget has a [`Sense`], which defines whether or not the widget
-//! is sensitive to clicking and/or drags.
+//! is sensitive to clicking, hovering, and/or dragging, and whether it is
+//! focusable.
 //!
 //! For instance, a [`Button`] only has a [`Sense::click`] (by default).
 //! This means if you drag a button it will not respond with [`Response::dragged`].
@@ -280,33 +281,33 @@
 //! on touch screens), just as long as you don't drag on a widget that is sensitive
 //! to drags (e.g. a [`Slider`]).
 //!
-//! When widgets overlap it is the last added one
-//! that is considered to be on top and which will get input priority.
+//! When widgets overlap, the one most recently added is considered on top, and
+//! gets input priority.
 //!
 //! The widget interaction logic is run at the _start_ of each frame,
 //! based on the output from the previous frame.
-//! This means that when a new widget shows up you cannot click it in the same
+//! This means that when a new widget appears you cannot click it in the same
 //! frame (i.e. in the same fraction of a second), but unless the user
 //! is spider-man, they wouldn't be fast enough to do so anyways.
 //!
 //! By running the interaction code early, egui can actually
 //! tell you if a widget is being interacted with _before_ you add it,
-//! as long as you know its [`Id`] before-hand (e.g. using [`Ui::next_auto_id`]),
+//! as long as you know its [`Id`] beforehand (e.g. using [`Ui::next_auto_id`]),
 //! by calling [`Context::read_response`].
 //! This can be useful in some circumstances in order to style a widget,
-//! or to respond to interactions before adding the widget
-//! (perhaps on top of other widgets).
+//! or to respond to interactions before adding the widget.
 //!
 //!
 //! ## Auto-sizing panels and windows
-//! In egui, all panels and windows auto-shrink to fit the content.
-//! If the window or panel is also resizable, this can lead to a weird behavior
-//! where you can drag the edge of the panel/window to make it larger, and
+//! In egui all panels and windows auto-shrink to fit their content.
+//! If the panel/window is resizable, this can lead to an odd behavior
+//! where you drag the edge of the panel/window to make it larger, and
 //! when you release the panel/window shrinks again.
-//! This is an artifact of immediate mode, and here are some alternatives on how to avoid it:
+//! This is an artifact of immediate mode.
+//! Here are alternatives to avoid this:
 //!
 //! 1. Turn off resizing with [`Window::resizable`], [`Panel::resizable`].
-//! 2. Wrap your panel contents in a [`ScrollArea`], or use [`Window::vscroll`] and [`Window::hscroll`].
+//! 2. Wrap the panel/window contents in a [`ScrollArea`], or use [`Window::vscroll`] and [`Window::hscroll`].
 //! 3. Use a justified layout:
 //!
 //! ```
