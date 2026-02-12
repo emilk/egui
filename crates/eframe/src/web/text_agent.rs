@@ -145,16 +145,18 @@ impl TextAgent {
 
         let style = self.input.style();
 
-        // Clamp the input position within the canvas height to prevent unwanted browser scrolling.
+        // Clamp the input position within the canvas width to prevent unwanted horizontal scrolling.
+        let canvas_width = canvas.width() as f32;
+        let visible_x = cursor_rect.center().x * zoom_factor;
+        let clamped_x = visible_x.clamp(0.0, canvas_width);
+
+        // Clamp the input position within the canvas height to prevent unwanted vertical scrolling.
         let canvas_height = canvas.height() as f32;
         let visible_y = cursor_rect.center().y * zoom_factor;
         let clamped_y = visible_y.clamp(0.0, canvas_height);
 
         // This is where the IME input will point to:
-        style.set_property(
-            "left",
-            &format!("{}px", cursor_rect.center().x * zoom_factor),
-        )?;
+        style.set_property("left", &format!("{clamped_x}px"))?;
         style.set_property("top", &format!("{clamped_y}px"))?;
 
         Ok(())
