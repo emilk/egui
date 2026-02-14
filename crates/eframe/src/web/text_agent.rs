@@ -34,13 +34,12 @@ impl TextAgent {
         style.set_property("outline", "none")?;
         style.set_property("width", "1px")?;
         style.set_property("height", "1px")?;
-        // Prevent auto-zoom on mobile browsers (requires at least 16px).
-        style.set_property("font-size", "16px")?;
-
         style.set_property("caret-color", "transparent")?;
         style.set_property("position", "absolute")?;
         style.set_property("top", "0")?;
         style.set_property("left", "0")?;
+        // Prevent auto-zoom on mobile browsers (requires at least 16px).
+        style.set_property("font-size", "16px")?;
 
         if root.has_type::<Document>() {
             // root object is a document, append to its body
