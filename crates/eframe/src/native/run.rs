@@ -177,6 +177,8 @@ impl<T: WinitApp> WinitAppWrapper<T> {
     fn check_redraw_requests(&mut self, event_loop: &ActiveEventLoop) {
         let now = Instant::now();
 
+        let mut invisible_window_ids = Vec::new();
+
         self.windows_next_repaint_times
             .retain(|window_id, repaint_time| {
                 if now < *repaint_time {
@@ -188,11 +190,28 @@ impl<T: WinitApp> WinitAppWrapper<T> {
                 if let Some(window) = self.winit_app.window(*window_id) {
                     log::trace!("request_redraw for {window_id:?}");
                     window.request_redraw();
+
+                    // On Windows, invisible windows don't receive RedrawRequested
+                    // events, so pending viewport commands (e.g. Visible(true)) would
+                    // never be processed. We collect these windows to paint them
+                    // directly below.
+                    // See: https://github.com/emilk/egui/issues/5229
+                    if window.is_visible() == Some(false) {
+                        invisible_window_ids.push(*window_id);
+                    }
                 } else {
                     log::trace!("No window found for {window_id:?}");
                 }
                 false
             });
+
+        // Paint invisible windows directly, since they won't receive
+        // RedrawRequested events on Windows. This ensures that viewport
+        // commands like Visible(true) are still processed.
+        for window_id in invisible_window_ids {
+            let event_result = self.winit_app.run_ui_and_paint(event_loop, window_id);
+            self.handle_event_result(event_loop, event_result);
+        }
 
         let next_repaint_time = self.windows_next_repaint_times.values().min().copied();
         if let Some(next_repaint_time) = next_repaint_time {
