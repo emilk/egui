@@ -748,10 +748,12 @@ impl WgpuWinitRunning<'_> {
         integration.maybe_autosave(app.as_mut(), window.map(|w| w.as_ref()));
 
         if let Some(window) = window
-            && window.is_minimized() == Some(true)
+            && (window.is_minimized() == Some(true) || window.is_visible() == Some(false))
         {
             // On Mac, a minimized Window uses up all CPU:
             // https://github.com/emilk/egui/issues/325
+            // On Windows, an invisible window also uses up all CPU:
+            // https://github.com/emilk/egui/issues/7776
             profiling::scope!("minimized_sleep");
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
