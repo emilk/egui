@@ -754,7 +754,9 @@ impl ScrollArea {
                     inner_size[d] = inner_size[d].max(min_scrolled_size[d]);
                 }
             }
-            inner_size
+
+            // Round to pixels again because `current_bar_use` might have offset it
+            inner_size.round_to_pixels(ui.pixels_per_point()).round_ui()
         };
 
         let inner_rect = Rect::from_min_size(available_outer.min, inner_size);
