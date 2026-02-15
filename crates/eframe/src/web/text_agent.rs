@@ -89,7 +89,11 @@ impl TextAgent {
         let on_composition_update = {
             move |event: web_sys::CompositionEvent, runner: &mut AppRunner| {
                 let Some(text) = event.data() else { return };
-                let event = egui::Event::Ime(egui::ImeEvent::Preedit(text));
+                let event = egui::Event::Ime(egui::ImeEvent::Preedit {
+                    text_mark: text,
+                    start: 0,
+                    end: 0,
+                });
                 runner.input.raw.events.push(event);
                 runner.needs_repaint.repaint_asap();
             }
