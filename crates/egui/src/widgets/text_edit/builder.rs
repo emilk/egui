@@ -1135,7 +1135,11 @@ fn on_ime_korean(
             state.ime_cursor_range = *cursor_range;
             None
         }
-        ImeEvent::Preedit(text_mark) => {
+        ImeEvent::Preedit {
+            text_mark,
+            start: _,
+            end: _,
+        } => {
             if text_mark == "\n" || text_mark == "\r" {
                 None
             } else {
@@ -1196,7 +1200,11 @@ fn on_ime_japanese(
             state.ime_cursor_range = *cursor_range;
             None
         }
-        ImeEvent::Preedit(text_mark) => {
+        ImeEvent::Preedit {
+            text_mark,
+            start: _,
+            end: _,
+        } => {
             if text_mark == "\n" || text_mark == "\r" {
                 None
             } else {
@@ -1252,7 +1260,11 @@ fn on_ime_chinese(
             state.ime_cursor_range = *cursor_range;
             None
         }
-        ImeEvent::Preedit(text_mark) => {
+        ImeEvent::Preedit {
+            text_mark,
+            start: _,
+            end: _,
+        } => {
             if text_mark == "\n" || text_mark == "\r" {
                 None
             } else {
