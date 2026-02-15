@@ -1168,10 +1168,7 @@ fn on_ime_korean(
                     text.insert_text_at(&mut ccursor, prediction, char_limit);
                 }
 
-                #[cfg(target_arch = "wasm32")]
-                {
-                    state.ime_enabled = false;
-                }
+                state.ime_enabled = false;
 
                 Some(CCursorRange::one(ccursor))
             }
