@@ -1149,21 +1149,6 @@ fn on_ime_korean(
         ImeEvent::Preedit(text_mark) => {
             if text_mark == "\n" || text_mark == "\r" {
                 None
-            } else if *start == 1 && *end == 1 {
-                // Special case for Korean Cheonjiin IME: re-compose the character immediately before the cursor.
-                let current_ccursor = clear_prediction(text, cursor_range);
-
-                let prev_idx = current_ccursor.index.saturating_sub(1);
-                let replace_range = CCursorRange::two(CCursor::new(prev_idx), current_ccursor);
-                let mut insert_cursor = clear_prediction(text, &replace_range);
-                let start_cursor = insert_cursor;
-
-                text.insert_text_at(&mut insert_cursor, text_mark, char_limit);
-
-                let new_preedit_range = CCursorRange::two(start_cursor, insert_cursor);
-                state.ime_cursor_range = new_preedit_range;
-
-                Some(new_preedit_range)
             } else {
                 let mut ccursor = clear_prediction(text, cursor_range);
                 let start_cursor = ccursor;
