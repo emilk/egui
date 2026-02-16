@@ -1148,8 +1148,8 @@ fn on_ime_korean(
         }
         ImeEvent::Preedit {
             text_mark,
-            start: _,
-            end: _,
+            start,
+            end,
         } => {
             if text_mark == "\n" || text_mark == "\r" {
                 None
