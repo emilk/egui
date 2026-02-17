@@ -77,6 +77,11 @@ impl TextCursorState {
             true
         } else if response.sense.senses_drag() {
             if response.hovered() && ui.input(|i| i.pointer.any_pressed()) {
+                // Preserves the text cursor position when right-clicking.
+                if ui.input(|i| i.pointer.secondary_down()) {
+                    return true;
+                }
+
                 // The start of a drag (or a click).
                 if ui.input(|i| i.modifiers.shift) {
                     if let Some(mut cursor_range) = self.range(galley) {
@@ -106,38 +111,26 @@ impl TextCursorState {
 }
 
 fn select_word_at(text: &str, ccursor: CCursor) -> CCursorRange {
-    if ccursor.index == 0 {
-        CCursorRange::two(ccursor, ccursor_next_word(text, ccursor))
-    } else {
-        let it = text.chars();
-        let mut it = it.skip(ccursor.index - 1);
-        if let Some(char_before_cursor) = it.next() {
-            if let Some(char_after_cursor) = it.next() {
-                if is_word_char(char_before_cursor) && is_word_char(char_after_cursor) {
-                    let min = ccursor_previous_word(text, ccursor + 1);
-                    let max = ccursor_next_word(text, min);
-                    CCursorRange::two(min, max)
-                } else if is_word_char(char_before_cursor) {
-                    let min = ccursor_previous_word(text, ccursor);
-                    let max = ccursor_next_word(text, min);
-                    CCursorRange::two(min, max)
-                } else if is_word_char(char_after_cursor) {
-                    let max = ccursor_next_word(text, ccursor);
-                    CCursorRange::two(ccursor, max)
-                } else {
-                    let min = ccursor_previous_word(text, ccursor);
-                    let max = ccursor_next_word(text, ccursor);
-                    CCursorRange::two(min, max)
-                }
-            } else {
-                let min = ccursor_previous_word(text, ccursor);
-                CCursorRange::two(min, ccursor)
-            }
-        } else {
-            let max = ccursor_next_word(text, ccursor);
-            CCursorRange::two(ccursor, max)
-        }
+    if text.is_empty() {
+        return CCursorRange::one(ccursor);
     }
+
+    let line_start = find_line_start(text, ccursor);
+    let line_end = ccursor_next_line(text, line_start);
+
+    let line_range = line_start.index..line_end.index;
+    let current_line_text = slice_char_range(text, line_range.clone());
+
+    let relative_idx = ccursor.index - line_start.index;
+    let relative_ccursor = CCursor::new(relative_idx);
+
+    let min = ccursor_previous_word(current_line_text, relative_ccursor);
+    let max = ccursor_next_word(current_line_text, relative_ccursor);
+
+    CCursorRange::two(
+        CCursor::new(line_start.index + min.index),
+        CCursor::new(line_start.index + max.index),
+    )
 }
 
 fn select_line_at(text: &str, ccursor: CCursor) -> CCursorRange {
@@ -190,13 +183,16 @@ fn ccursor_next_line(text: &str, ccursor: CCursor) -> CCursor {
 }
 
 pub fn ccursor_previous_word(text: &str, ccursor: CCursor) -> CCursor {
-    let num_chars = text.chars().count();
-    let reversed: String = text.graphemes(true).rev().collect();
-    CCursor {
-        index: num_chars
-            - next_word_boundary_char_index(&reversed, num_chars - ccursor.index).min(num_chars),
-        prefer_next_row: true,
+    if ccursor.index == 0 {
+        return ccursor;
     }
+    let byte_idx = byte_index_from_char_index(text, ccursor.index);
+    let text_before = &text[..byte_idx];
+
+    if let Some((byte_offset, _word)) = text_before.split_word_bound_indices().next_back() {
+        return CCursor::new(char_index_from_byte_index(text, byte_offset));
+    }
+    CCursor::new(0)
 }
 
 fn ccursor_previous_line(text: &str, ccursor: CCursor) -> CCursor {
@@ -209,8 +205,14 @@ fn ccursor_previous_line(text: &str, ccursor: CCursor) -> CCursor {
 }
 
 fn next_word_boundary_char_index(text: &str, cursor_ci: usize) -> usize {
+    let mut current_char_idx = 0;
+    let mut last_byte_idx = 0;
+
     for (word_byte_index, word) in text.split_word_bound_indices() {
-        let word_ci = char_index_from_byte_index(text, word_byte_index);
+        current_char_idx += text[last_byte_idx..word_byte_index].chars().count();
+        last_byte_idx = word_byte_index;
+
+        let word_ci = current_char_idx;
 
         // We consider `.` a word boundary.
         // At least that's how Mac works when navigating something like `www.example.com`.
@@ -230,7 +232,7 @@ fn next_word_boundary_char_index(text: &str, cursor_ci: usize) -> usize {
         }
     }
 
-    char_index_from_byte_index(text, text.len())
+    current_char_idx + text[last_byte_idx..].chars().count()
 }
 
 fn all_word_chars(text: &str) -> bool {
@@ -265,22 +267,14 @@ fn is_linebreak(c: char) -> bool {
 
 /// Accepts and returns character offset (NOT byte offset!).
 pub fn find_line_start(text: &str, current_index: CCursor) -> CCursor {
-    // We know that new lines, '\n', are a single byte char, but we have to
-    // work with char offsets because before the new line there may be any
-    // number of multi byte chars.
-    // We need to know the char index to be able to correctly set the cursor
-    // later.
-    let chars_count = text.chars().count();
+    let byte_idx = byte_index_from_char_index(text, current_index.index);
+    let text_before = &text[..byte_idx];
 
-    let position = text
-        .chars()
-        .rev()
-        .skip(chars_count - current_index.index)
-        .position(|x| x == '\n');
-
-    match position {
-        Some(pos) => CCursor::new(current_index.index - pos),
-        None => CCursor::new(0),
+    if let Some(last_newline_byte) = text_before.rfind('\n') {
+        let char_idx = char_index_from_byte_index(text, last_newline_byte + 1);
+        CCursor::new(char_idx)
+    } else {
+        CCursor::new(0)
     }
 }
 
