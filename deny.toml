@@ -57,6 +57,7 @@ skip = [
   { name = "rustc-hash" }, # Small enough
   { name = "thiserror" }, # ecosystem is in the process of migrating from 1.x to 2.x
   { name = "thiserror-impl" }, # same as above
+  { name = "toml_datetime" }, # required while eco-system updates to toml 1.0
   { name = "windows-sys" }, # mostly hopeless to avoid
 ]
 skip-tree = [
