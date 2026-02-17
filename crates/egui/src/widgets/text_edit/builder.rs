@@ -1171,7 +1171,8 @@ fn remove_ime_incompatible_events(events: &mut Vec<Event>) {
                         | Key::ArrowUp
                         | Key::ArrowDown
                         | Key::ArrowLeft
-                        | Key::ArrowRight,
+                        | Key::ArrowRight
+                        | Key::Enter,
                     ..
                 }
         )
