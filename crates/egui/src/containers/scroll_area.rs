@@ -734,7 +734,11 @@ impl ScrollArea {
 
         let current_bar_use = show_bars_factor.yx() * ui.spacing().scroll.allocated_width();
 
-        let available_outer = ui.available_rect_before_wrap();
+        // Round to pixels to avoid widgets appearing to "float" when scrolling fractional amounts:
+        let available_outer = ui
+            .available_rect_before_wrap()
+            .round_to_pixels(ui.pixels_per_point())
+            .round_ui();
 
         let outer_size = available_outer.size().at_most(max_size);
 
@@ -750,7 +754,9 @@ impl ScrollArea {
                     inner_size[d] = inner_size[d].max(min_scrolled_size[d]);
                 }
             }
-            inner_size
+
+            // Round to pixels again because `current_bar_use` might have offset it
+            inner_size.round_to_pixels(ui.pixels_per_point()).round_ui()
         };
 
         let inner_rect = Rect::from_min_size(available_outer.min, inner_size);
@@ -770,11 +776,6 @@ impl ScrollArea {
         }
 
         let content_max_rect = Rect::from_min_size(inner_rect.min - state.offset, content_max_size);
-
-        // Round to pixels to avoid widgets appearing to "float" when scrolling fractional amounts:
-        let content_max_rect = content_max_rect
-            .round_to_pixels(ui.pixels_per_point())
-            .round_ui();
 
         let mut content_ui = ui.new_child(
             UiBuilder::new()
