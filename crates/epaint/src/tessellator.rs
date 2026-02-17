@@ -447,28 +447,25 @@ impl Path {
             let normal = (n0 + n1) / 2.0;
             let length_sq = normal.length_sq();
 
-            // We can't just cut off corners for filled shapes like this,
-            // because the feather will both expand and contract the corner along the provided normals
-            // to make sure it doesn't grow, and the shrinking will make the inner points cross each other.
-            //
-            // A better approach is to shrink the vertices in by half the feather-width here
-            // and then only expand during feathering.
-            //
-            // See https://github.com/emilk/egui/issues/1226
-            const CUT_OFF_SHARP_CORNERS: bool = false;
+            // The miter join normal is `normal / length_sq`, which has
+            // magnitude `1 / cos(θ/2)` where θ is the angle between
+            // the two edge normals. For very sharp corners this grows
+            // without bound, causing feathering to extend far outside
+            // the polygon (see https://github.com/emilk/egui/issues/7424).
+            // Clamp the miter factor to prevent this.
+            const MAX_MITER_FACTOR: f32 = 2.0;
+            const MIN_LENGTH_SQ: f32 =
+                1.0 / (MAX_MITER_FACTOR * MAX_MITER_FACTOR);
 
-            let right_angle_length_sq = 0.5;
-            let sharper_than_a_right_angle = length_sq < right_angle_length_sq;
-            if CUT_OFF_SHARP_CORNERS && sharper_than_a_right_angle {
-                // cut off the sharp corner
-                let center_normal = normal.normalized();
-                let n0c = (n0 + center_normal) / 2.0;
-                let n1c = (n1 + center_normal) / 2.0;
-                self.add_point(points[i], n0c / n0c.length_sq());
-                self.add_point(points[i], n1c / n1c.length_sq());
-            } else {
-                // miter join
+            if length_sq >= MIN_LENGTH_SQ {
                 self.add_point(points[i], normal / length_sq);
+            } else if length_sq > 0.0 {
+                self.add_point(
+                    points[i],
+                    normal.normalized() * MAX_MITER_FACTOR,
+                );
+            } else {
+                self.add_point(points[i], n0);
             }
 
             n0 = n1;
@@ -2408,5 +2405,46 @@ fn path_bounding_box() {
             }),
             &mut mesh,
         );
+    }
+}
+
+#[test]
+fn test_feathering_no_artifacts_on_sharp_triangles() {
+    use crate::*;
+
+    let feathering = 1.5;
+
+    let test_cases: &[&[Pos2]] = &[
+        &[pos2(0.0, 0.0), pos2(100.0, 0.5), pos2(50.0, -0.5)],
+        &[pos2(0.0, 0.0), pos2(200.0, 0.1), pos2(100.0, -0.1)],
+        &[pos2(0.0, 0.0), pos2(10.0, 0.0), pos2(5.0, 0.01)],
+        &[
+            pos2(0.0, 0.0),
+            pos2(50.0, 0.0),
+            pos2(100.0, 0.1),
+            pos2(50.0, 10.0),
+        ],
+    ];
+
+    for (case_idx, points) in test_cases.iter().enumerate() {
+        let bounding_rect = Rect::from_points(points);
+        let max_allowed = bounding_rect.expand(feathering * 2.0);
+
+        let mut path = Path::default();
+        path.add_line_loop(points);
+
+        let mut mesh = Mesh::default();
+        path.fill(feathering, Color32::RED, &mut mesh);
+
+        for vertex in &mesh.vertices {
+            assert!(
+                max_allowed.contains(vertex.pos),
+                "Case {case_idx}: feathering artifact at {:?}, \
+                 outside expanded rect {:?} (original: {:?})",
+                vertex.pos,
+                max_allowed,
+                bounding_rect,
+            );
+        }
     }
 }
