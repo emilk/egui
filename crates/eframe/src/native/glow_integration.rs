@@ -32,14 +32,14 @@ use egui::{
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
 
-use crate::{
-    App, AppCreator, CreationContext, NativeOptions, Result, Storage,
-    native::epi_integration::EpiIntegration,
-};
-
 use super::{
     epi_integration, event_loop_context,
     winit_integration::{EventResult, UserEvent, WinitApp, create_egui_context},
+};
+use crate::native::epi_integration::should_start_visible;
+use crate::{
+    App, AppCreator, CreationContext, NativeOptions, Result, Storage,
+    native::epi_integration::EpiIntegration,
 };
 
 // ----------------------------------------------------------------------------
@@ -156,7 +156,7 @@ impl<'app> GlowWinitApp<'app> {
             native_options,
             window_settings,
         )
-        .with_visible(false); // Start hidden until we render the first frame to fix white flash on startup (https://github.com/emilk/egui/pull/3631)
+        .with_visible(should_start_visible());
 
         let mut glutin_window_context = unsafe {
             GlutinWindowContext::new(egui_ctx, winit_window_builder, native_options, event_loop)?
