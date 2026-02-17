@@ -873,11 +873,11 @@ impl State {
             physical_key
         );
 
-        // "Logical OR physical key" is a fallback mechanism for keyboard layouts without Latin characters: it lets them
+        // "physical OR logical key" is a fallback mechanism for keyboard layouts without Latin characters: it lets them
         // emit events as if the corresponding keys from the Latin layout were pressed. In this case, clipboard shortcuts
         // are mapped to the physical keys that normally contain C, X, V, etc.
         // See also: https://github.com/emilk/egui/issues/3653
-        if let Some(active_key) = logical_key.or(physical_key) {
+        if let Some(active_key) = physical_key.or(logical_key) {
             if pressed {
                 if is_cut_command(self.egui_input.modifiers, active_key) {
                     self.egui_input.events.push(egui::Event::Cut);
@@ -1217,6 +1217,15 @@ fn key_from_named_key(named_key: winit::keyboard::NamedKey) -> Option<egui::Key>
         NamedKey::Delete => Key::Delete,
         NamedKey::Insert => Key::Insert,
         NamedKey::Escape => Key::Escape,
+
+        NamedKey::Alt => Key::AltLeft,
+        NamedKey::Control => Key::ControlLeft,
+        NamedKey::Shift => Key::ShiftLeft,
+
+        NamedKey::CapsLock => Key::CapsLock,
+        NamedKey::NumLock => Key::NumLock,
+        NamedKey::ScrollLock => Key::ScrollLock,
+
         NamedKey::Cut => Key::Cut,
         NamedKey::Copy => Key::Copy,
         NamedKey::Paste => Key::Paste,
@@ -1272,6 +1281,7 @@ fn key_from_key_code(key: winit::keyboard::KeyCode) -> Option<egui::Key> {
     use winit::keyboard::KeyCode;
 
     Some(match key {
+        // Commands:
         KeyCode::ArrowDown => Key::ArrowDown,
         KeyCode::ArrowLeft => Key::ArrowLeft,
         KeyCode::ArrowRight => Key::ArrowRight,
@@ -1289,6 +1299,21 @@ fn key_from_key_code(key: winit::keyboard::KeyCode) -> Option<egui::Key> {
         KeyCode::PageUp => Key::PageUp,
         KeyCode::PageDown => Key::PageDown,
 
+        KeyCode::AltLeft => Key::AltLeft,
+        KeyCode::AltRight => Key::AltRight,
+        KeyCode::ControlLeft => Key::ControlLeft,
+        KeyCode::ControlRight => Key::ControlRight,
+        KeyCode::ShiftLeft => Key::ShiftLeft,
+        KeyCode::ShiftRight => Key::ShiftRight,
+
+        KeyCode::CapsLock => Key::CapsLock,
+        KeyCode::NumLock => Key::NumLock,
+        KeyCode::ScrollLock => Key::ScrollLock,
+
+        KeyCode::Cut => Key::Cut,
+        KeyCode::Copy => Key::Copy,
+        KeyCode::Paste => Key::Paste,
+
         // Punctuation
         KeyCode::Space => Key::Space,
         KeyCode::Comma => Key::Comma,
@@ -1302,9 +1327,6 @@ fn key_from_key_code(key: winit::keyboard::KeyCode) -> Option<egui::Key> {
         KeyCode::Backquote => Key::Backtick,
         KeyCode::Quote => Key::Quote,
 
-        KeyCode::Cut => Key::Cut,
-        KeyCode::Copy => Key::Copy,
-        KeyCode::Paste => Key::Paste,
         KeyCode::Minus | KeyCode::NumpadSubtract => Key::Minus,
         KeyCode::NumpadAdd => Key::Plus,
         KeyCode::Equal => Key::Equals,
