@@ -43,7 +43,7 @@ impl AppRunner {
     pub async fn new(
         canvas: web_sys::HtmlCanvasElement,
         web_options: crate::WebOptions,
-        app_creator: epi::AppCreator<'static>,
+        app_creator: epi::AppCreator,
         text_agent: TextAgent,
     ) -> Result<Self, String> {
         let egui_ctx = egui::Context::default();
@@ -184,9 +184,7 @@ impl AppRunner {
     ///
     /// This will panic if your app does not implement [`App::as_any_mut`].
     pub fn app_mut<ConcreteApp: 'static + App>(&mut self) -> &mut ConcreteApp {
-        self.app
-            .as_any_mut()
-            .expect("Your app must implement `as_any_mut`, but it doesn't")
+        (self.app.as_mut() as &mut dyn std::any::Any)
             .downcast_mut::<ConcreteApp>()
             .expect("app_mut got the wrong type of App")
     }
