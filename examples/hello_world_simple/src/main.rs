@@ -2,6 +2,7 @@
 #![expect(rustdoc::missing_crate_level_docs)] // it's an example
 
 use eframe::egui;
+use eframe::egui::{Id, Ui};
 
 fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -28,6 +29,18 @@ fn main() -> eframe::Result {
                 age += 1;
             }
             ui.label(format!("Hello '{name}', age {age}"));
+
+            Id::new(Id::new("Hi").with((123, "456")))
+                .with(Id::new("lol"))
+                .ui(ui);
+
+            ui.id().ui(ui);
+            Id::ui(Ui::id(ui), ui);
+
+            ui.unique_id().ui(ui);
+
+            let some_button = ui.button("Some button");
+            some_button.id.ui(ui);
         });
     })
 }

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use emath::GuiRounding as _;
+use std::fmt::Debug;
 
 use crate::{
     Align2, Color32, Context, Id, InnerResponse, NumExt as _, Painter, Rect, Region, Style, Ui,
@@ -324,7 +325,7 @@ pub struct Grid {
 
 impl Grid {
     /// Create a new [`Grid`] with a locally unique identifier.
-    pub fn new(id_salt: impl std::hash::Hash) -> Self {
+    pub fn new(id_salt: impl std::hash::Hash + Debug) -> Self {
         Self {
             id_salt: Id::new(id_salt),
             num_columns: None,

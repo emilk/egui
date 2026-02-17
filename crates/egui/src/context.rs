@@ -3562,10 +3562,16 @@ impl Context {
                     if !is_visible {
                         continue;
                     }
-                    let text = format!("{} - {:?}", layer_id.short_debug_format(), area.rect(),);
                     // TODO(emilk): `Sense::hover_highlight()`
-                    let response =
-                        ui.add(Label::new(RichText::new(text).monospace()).sense(Sense::click()));
+                    let response = ui
+                        .horizontal(|ui| {
+                            ui.style_mut().interaction.selectable_labels = false;
+                            ui.label(layer_id.order.short_debug_format());
+                            layer_id.id.ui(ui);
+                            ui.monospace(area.rect().to_string());
+                        })
+                        .response
+                        .interact(Sense::click());
                     if response.hovered() && is_visible {
                         ui.debug_painter().debug_rect(area.rect(), Color32::RED, "");
                     }
