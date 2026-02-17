@@ -219,6 +219,7 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
                 driver,
                 driver_info,
                 backend,
+                ..
             } = &info;
 
             // Example values:
