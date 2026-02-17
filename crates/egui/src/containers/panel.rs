@@ -15,6 +15,8 @@
 //!
 //! Add your [`crate::Window`]:s after any top-level panels.
 
+use std::sync::Arc;
+
 use emath::{GuiRounding as _, Pos2};
 
 use crate::{
@@ -1027,10 +1029,12 @@ impl CentralPanel {
                 .max_rect(panel_rect)
                 .layout(Layout::top_down(Align::Min)),
         );
+        let style_stack = ui.style_stack_mut().clone();
         panel_ui.set_clip_rect(panel_rect); // If we overflow, don't do so visibly (#4475)
 
         let frame = frame.unwrap_or_else(|| Frame::central_panel(ui.style()));
         let response = frame.show(&mut panel_ui, |ui| {
+            ui.style_stack_mut().parent = Some(Arc::new(style_stack));
             ui.expand_to_include_rect(ui.max_rect()); // Expand frame to include it all
             add_contents(ui)
         });

@@ -201,7 +201,7 @@ impl UiTags {
 /// Note: since [`UiStack`] contains a reference to its parent, it is both a stack, and a node within
 /// that stack. Most of its methods are about the specific node, but some methods walk up the
 /// hierarchy to provide information about the entire stack.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct UiStack {
     // stuff that `Ui::child_ui` can deal with directly
     pub id: Id,
