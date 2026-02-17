@@ -1099,7 +1099,14 @@ fn get_display_size(resize_observer_entries: &js_sys::Array) -> Result<(u32, u32
     let mut dpr = web_sys::window().unwrap().device_pixel_ratio();
 
     let entry: web_sys::ResizeObserverEntry = resize_observer_entries.at(0).dyn_into()?;
-    if JsValue::from_str("devicePixelContentBoxSize").js_in(entry.as_ref()) {
+    if JsValue::from_str("devicePixelContentBoxSize").js_in(entry.as_ref())
+        && !web_sys::window().is_some_and(|window| {
+            window
+                .navigator()
+                .user_agent()
+                .is_ok_and(|val| val.contains("Firefox"))
+        })
+    {
         // NOTE: Only this path gives the correct answer for most browsers.
         // Unfortunately this doesn't work perfectly everywhere.
         let size: web_sys::ResizeObserverSize =
