@@ -406,7 +406,7 @@ impl Options {
         CollapsingHeader::new("🎑 Style")
             .default_open(true)
             .show(ui, |ui| {
-                theme_preference.radio_buttons(ui);
+                ui.horizontal(|ui| theme_preference.radio_buttons(ui));
 
                 let style = std::sync::Arc::make_mut(match theme {
                     Theme::Dark => dark_style,
