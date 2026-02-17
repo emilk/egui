@@ -1198,10 +1198,9 @@ impl Prepared {
                         // Clear scroll delta so no parent scroll will use it:
                         ui.input_mut(|input| {
                             if always_scroll_enabled_direction {
-                                input.smooth_scroll_delta()[0] = 0.0;
-                                input.smooth_scroll_delta()[1] = 0.0;
+                                input.smooth_scroll_delta = Vec2::ZERO;
                             } else {
-                                input.smooth_scroll_delta()[d] = 0.0;
+                                input.smooth_scroll_delta[d] = 0.0;
                             }
                         });
 
