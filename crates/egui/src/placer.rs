@@ -1,4 +1,5 @@
-use crate::{grid, vec2, Layout, Painter, Pos2, Rect, Region, Vec2};
+use crate::{Layout, Painter, Pos2, Rect, Region, Vec2, grid, vec2};
+use emath::GuiRounding as _;
 
 #[cfg(debug_assertions)]
 use crate::{Align2, Color32, Stroke};
@@ -92,6 +93,7 @@ impl Placer {
         } else {
             self.layout.available_rect_before_wrap(&self.region)
         }
+        .round_ui()
     }
 
     /// Amount of space available for a widget.
@@ -145,6 +147,8 @@ impl Placer {
 
     /// Advance the cursor by this many points.
     /// [`Self::min_rect`] will expand to contain the cursor.
+    ///
+    /// Note that `advance_cursor` isn't supported when in a grid layout.
     pub(crate) fn advance_cursor(&mut self, amount: f32) {
         debug_assert!(
             self.grid.is_none(),
@@ -231,7 +235,7 @@ impl Placer {
         let region = &mut self.region;
         region.max_rect.min.x = rect.min.x;
         region.max_rect.max.x = rect.max.x;
-        region.max_rect = region.max_rect.union(region.min_rect); // make sure we didn't shrink too much
+        region.max_rect |= region.min_rect; // make sure we didn't shrink too much
 
         region.cursor.min.x = region.max_rect.min.x;
         region.cursor.max.x = region.max_rect.max.x;
@@ -246,7 +250,7 @@ impl Placer {
         let region = &mut self.region;
         region.max_rect.min.y = rect.min.y;
         region.max_rect.max.y = rect.max.y;
-        region.max_rect = region.max_rect.union(region.min_rect); // make sure we didn't shrink too much
+        region.max_rect |= region.min_rect; // make sure we didn't shrink too much
 
         region.cursor.min.y = region.max_rect.min.y;
         region.cursor.max.y = region.max_rect.max.y;

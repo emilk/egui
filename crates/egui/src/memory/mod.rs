@@ -6,8 +6,8 @@ use ahash::{HashMap, HashSet};
 use epaint::emath::TSTransform;
 
 use crate::{
-    area, vec2, EventFilter, Id, IdMap, LayerId, Order, Pos2, Rangef, RawInput, Rect, Style, Vec2,
-    ViewportId, ViewportIdMap, ViewportIdSet,
+    EventFilter, Id, IdMap, LayerId, Order, Pos2, Rangef, RawInput, Rect, Style, Vec2, ViewportId,
+    ViewportIdMap, ViewportIdSet, area, vec2,
 };
 
 mod theme;
@@ -21,7 +21,7 @@ pub use theme::{Theme, ThemePreference};
 /// how far the user has scrolled in a [`ScrollArea`](crate::ScrollArea) etc.
 ///
 /// If you want this to persist when closing your app, you should serialize [`Memory`] and store it.
-/// For this you need to enable the `persistence`.
+/// For this you need to enable the `persistence` feature.
 ///
 /// If you want to store data for your widgets, you should look at [`Memory::data`]
 #[derive(Clone, Debug)]
@@ -68,7 +68,7 @@ pub struct Memory {
     /// # let mut ctx = egui::Context::default();
     /// ctx.memory_mut(|mem| {
     ///     let cache = mem.caches.cache::<CharCountCache<'_>>();
-    ///     assert_eq!(cache.get("hello"), 5);
+    ///     assert_eq!(*cache.get("hello"), 5);
     /// });
     /// ```
     #[cfg_attr(feature = "persistence", serde(skip))]
@@ -86,15 +86,6 @@ pub struct Memory {
     // Current active viewport
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) viewport_id: ViewportId,
-
-    /// Which popup-window is open (if any)?
-    /// Could be a combo box, color picker, menu, etc.
-    /// Optionally stores the position of the popup (usually this would be the position where
-    /// the user clicked).
-    /// If position is [`None`], the popup position will be calculated based on some configuration
-    /// (e.g. relative to some other widget).
-    #[cfg_attr(feature = "persistence", serde(skip))]
-    popup: Option<OpenPopup>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     everything_is_visible: bool,
@@ -116,6 +107,15 @@ pub struct Memory {
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) focus: ViewportIdMap<Focus>,
+
+    /// Which popup-window is open on a viewport (if any)?
+    /// Could be a combo box, color picker, menu, etc.
+    /// Optionally stores the position of the popup (usually this would be the position where
+    /// the user clicked).
+    /// If position is [`None`], the popup position will be calculated based on some configuration
+    /// (e.g. relative to some other widget).
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    popups: ViewportIdMap<OpenPopup>,
 }
 
 impl Default for Memory {
@@ -130,7 +130,7 @@ impl Default for Memory {
             viewport_id: Default::default(),
             areas: Default::default(),
             to_global: Default::default(),
-            popup: Default::default(),
+            popups: Default::default(),
             everything_is_visible: Default::default(),
             add_fonts: Default::default(),
         };
@@ -140,8 +140,9 @@ impl Default for Memory {
     }
 }
 
+/// A direction in which to move the keyboard focus.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-enum FocusDirection {
+pub enum FocusDirection {
     /// Select the widget closest above the current focused widget.
     Up,
 
@@ -271,26 +272,10 @@ pub struct Options {
     /// which is supported by `eframe`.
     pub screen_reader: bool,
 
-    /// If true, the most common glyphs (ASCII) are pre-rendered to the texture atlas.
-    ///
-    /// Only the fonts in [`Style::text_styles`] will be pre-cached.
-    ///
-    /// This can lead to fewer texture operations, but may use up the texture atlas quicker
-    /// if you are changing [`Style::text_styles`], or have a lot of text styles.
-    pub preload_font_glyphs: bool,
-
     /// Check reusing of [`Id`]s, and show a visual warning on screen when one is found.
     ///
     /// By default this is `true` in debug builds.
     pub warn_on_id_clash: bool,
-
-    // ------------------------------
-    // Input:
-    /// Multiplier for the scroll speed when reported in [`crate::MouseWheelUnit::Line`]s.
-    pub line_scroll_speed: f32,
-
-    /// Controls the speed at which we zoom in when doing ctrl/cmd + scroll.
-    pub scroll_zoom_speed: f32,
 
     /// Options related to input state handling.
     pub input_options: crate::input_state::InputOptions,
@@ -311,14 +296,6 @@ pub struct Options {
 
 impl Default for Options {
     fn default() -> Self {
-        // TODO(emilk): figure out why these constants need to be different on web and on native (winit).
-        let is_web = cfg!(target_arch = "wasm32");
-        let line_scroll_speed = if is_web {
-            8.0
-        } else {
-            40.0 // Scroll speed decided by consensus: https://github.com/emilk/egui/issues/461
-        };
-
         Self {
             dark_style: std::sync::Arc::new(Theme::Dark.default_style()),
             light_style: std::sync::Arc::new(Theme::Light.default_style()),
@@ -329,14 +306,13 @@ impl Default for Options {
             zoom_with_keyboard: true,
             tessellation_options: Default::default(),
             repaint_on_widget_change: false,
+
+            #[expect(clippy::unwrap_used)]
             max_passes: NonZeroUsize::new(2).unwrap(),
             screen_reader: false,
-            preload_font_glyphs: true,
             warn_on_id_clash: cfg!(debug_assertions),
 
             // Input:
-            line_scroll_speed,
-            scroll_zoom_speed: 1.0 / 200.0,
             input_options: Default::default(),
             reduce_texture_memory: false,
         }
@@ -344,7 +320,9 @@ impl Default for Options {
 }
 
 impl Options {
-    pub(crate) fn begin_pass(&mut self, new_raw_input: &RawInput) {
+    // Needs to be pub because we need to set the system_theme early in the eframe glow renderer.
+    #[doc(hidden)]
+    pub fn begin_pass(&mut self, new_raw_input: &RawInput) {
         self.system_theme = new_raw_input.system_theme;
     }
 
@@ -383,23 +361,19 @@ impl Options {
             theme_preference,
             fallback_theme: _,
             system_theme: _,
-            zoom_factor: _, // TODO(emilk)
+            zoom_factor,
             zoom_with_keyboard,
             tessellation_options,
             repaint_on_widget_change,
             max_passes,
             screen_reader: _, // needs to come from the integration
-            preload_font_glyphs: _,
             warn_on_id_clash,
-
-            line_scroll_speed,
-            scroll_zoom_speed,
             input_options,
             reduce_texture_memory,
         } = self;
 
-        use crate::containers::CollapsingHeader;
         use crate::Widget as _;
+        use crate::containers::CollapsingHeader;
 
         CollapsingHeader::new("⚙ Options")
             .default_open(false)
@@ -413,6 +387,11 @@ impl Options {
                     repaint_on_widget_change,
                     "Repaint if any widget moves or changes id",
                 );
+
+                ui.horizontal(|ui| {
+                    ui.label("Zoom factor:");
+                    ui.add(crate::DragValue::new(zoom_factor).range(0.10..=10.0));
+                });
 
                 ui.checkbox(
                     zoom_with_keyboard,
@@ -429,11 +408,11 @@ impl Options {
             .show(ui, |ui| {
                 theme_preference.radio_buttons(ui);
 
-                std::sync::Arc::make_mut(match theme {
+                let style = std::sync::Arc::make_mut(match theme {
                     Theme::Dark => dark_style,
                     Theme::Light => light_style,
-                })
-                .ui(ui);
+                });
+                style.ui(ui);
             });
 
         CollapsingHeader::new("✒ Painting")
@@ -448,22 +427,6 @@ impl Options {
         CollapsingHeader::new("🖱 Input")
             .default_open(false)
             .show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.label("Line scroll speed");
-                    ui.add(crate::DragValue::new(line_scroll_speed).range(0.0..=f32::INFINITY))
-                        .on_hover_text(
-                            "How many lines to scroll with each tick of the mouse wheel",
-                        );
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Scroll zoom speed");
-                    ui.add(
-                        crate::DragValue::new(scroll_zoom_speed)
-                            .range(0.0..=f32::INFINITY)
-                            .speed(0.001),
-                    )
-                    .on_hover_text("How fast to zoom with ctrl/cmd + scroll");
-                });
                 input_options.ui(ui);
             });
 
@@ -509,7 +472,6 @@ pub(crate) struct Focus {
     /// The ID of a widget to give the focus to in the next frame.
     id_next_frame: Option<Id>,
 
-    #[cfg(feature = "accesskit")]
     id_requested_by_accesskit: Option<accesskit::NodeId>,
 
     /// If set, the next widget that is interested in focus will automatically get it.
@@ -568,65 +530,54 @@ impl Focus {
         }
         let event_filter = self.focused_widget.map(|w| w.filter).unwrap_or_default();
 
-        #[cfg(feature = "accesskit")]
-        {
-            self.id_requested_by_accesskit = None;
-        }
+        self.id_requested_by_accesskit = None;
 
         self.focus_direction = FocusDirection::None;
 
         for event in &new_input.events {
-            if !event_filter.matches(event) {
-                if let crate::Event::Key {
+            if !event_filter.matches(event)
+                && let crate::Event::Key {
                     key,
                     pressed: true,
                     modifiers,
                     ..
                 } = event
-                {
-                    if let Some(cardinality) = match key {
-                        crate::Key::ArrowUp => Some(FocusDirection::Up),
-                        crate::Key::ArrowRight => Some(FocusDirection::Right),
-                        crate::Key::ArrowDown => Some(FocusDirection::Down),
-                        crate::Key::ArrowLeft => Some(FocusDirection::Left),
+                && let Some(cardinality) = match key {
+                    crate::Key::ArrowUp if !modifiers.any() => Some(FocusDirection::Up),
+                    crate::Key::ArrowRight if !modifiers.any() => Some(FocusDirection::Right),
+                    crate::Key::ArrowDown if !modifiers.any() => Some(FocusDirection::Down),
+                    crate::Key::ArrowLeft if !modifiers.any() => Some(FocusDirection::Left),
 
-                        crate::Key::Tab => {
-                            if modifiers.shift {
-                                Some(FocusDirection::Previous)
-                            } else {
-                                Some(FocusDirection::Next)
-                            }
-                        }
-                        crate::Key::Escape => {
-                            self.focused_widget = None;
-                            Some(FocusDirection::None)
-                        }
-                        _ => None,
-                    } {
-                        self.focus_direction = cardinality;
+                    crate::Key::Tab if !modifiers.any() => Some(FocusDirection::Next),
+                    crate::Key::Tab if modifiers.shift_only() => Some(FocusDirection::Previous),
+
+                    crate::Key::Escape if !modifiers.any() => {
+                        self.focused_widget = None;
+                        Some(FocusDirection::None)
                     }
+
+                    _ => None,
                 }
+            {
+                self.focus_direction = cardinality;
             }
 
-            #[cfg(feature = "accesskit")]
+            if let crate::Event::AccessKitActionRequest(accesskit::ActionRequest {
+                action: accesskit::Action::Focus,
+                target,
+                data: None,
+            }) = event
             {
-                if let crate::Event::AccessKitActionRequest(accesskit::ActionRequest {
-                    action: accesskit::Action::Focus,
-                    target,
-                    data: None,
-                }) = event
-                {
-                    self.id_requested_by_accesskit = Some(*target);
-                }
+                self.id_requested_by_accesskit = Some(*target);
             }
         }
     }
 
     pub(crate) fn end_pass(&mut self, used_ids: &IdMap<Rect>) {
-        if self.focus_direction.is_cardinal() {
-            if let Some(found_widget) = self.find_widget_in_direction(used_ids) {
-                self.focused_widget = Some(FocusWidget::new(found_widget));
-            }
+        if self.focus_direction.is_cardinal()
+            && let Some(found_widget) = self.find_widget_in_direction(used_ids)
+        {
+            self.focused_widget = Some(FocusWidget::new(found_widget));
         }
 
         if let Some(focused_widget) = self.focused_widget {
@@ -647,14 +598,11 @@ impl Focus {
     }
 
     fn interested_in_focus(&mut self, id: Id) {
-        #[cfg(feature = "accesskit")]
-        {
-            if self.id_requested_by_accesskit == Some(id.accesskit_id()) {
-                self.focused_widget = Some(FocusWidget::new(id));
-                self.id_requested_by_accesskit = None;
-                self.give_to_next = false;
-                self.reset_focus();
-            }
+        if self.id_requested_by_accesskit == Some(id.accesskit_id()) {
+            self.focused_widget = Some(FocusWidget::new(id));
+            self.id_requested_by_accesskit = None;
+            self.give_to_next = false;
+            self.reset_focus();
         }
 
         // The rect is updated at the end of the frame.
@@ -748,6 +696,8 @@ impl Focus {
         let mut best_score = f32::INFINITY;
         let mut best_id = None;
 
+        // iteration order should only matter in case of a tie, and that should be very rare
+        #[expect(clippy::iter_over_hash_type)]
         for (candidate_id, candidate_rect) in &self.focus_widgets_cache {
             if *candidate_id == current_focused.id {
                 continue;
@@ -790,6 +740,7 @@ impl Memory {
         // Cleanup
         self.interactions.retain(|id, _| viewports.contains(id));
         self.areas.retain(|id, _| viewports.contains(id));
+        self.popups.retain(|id, _| viewports.contains(id));
 
         self.areas.entry(self.viewport_id).or_default();
 
@@ -809,11 +760,11 @@ impl Memory {
         self.focus_mut().end_pass(used_ids);
 
         // Clean up abandoned popups.
-        if let Some(popup) = &mut self.popup {
+        if let Some(popup) = self.popups.get_mut(&self.viewport_id) {
             if popup.open_this_frame {
                 popup.open_this_frame = false;
             } else {
-                self.popup = None;
+                self.popups.remove(&self.viewport_id);
             }
         }
     }
@@ -836,15 +787,12 @@ impl Memory {
 
     /// Top-most layer at the given position.
     pub fn layer_id_at(&self, pos: Pos2) -> Option<LayerId> {
-        self.areas()
-            .layer_id_at(pos, &self.to_global)
-            .and_then(|layer_id| {
-                if self.is_above_modal_layer(layer_id) {
-                    Some(layer_id)
-                } else {
-                    self.top_modal_layer()
-                }
-            })
+        let layer_id = self.areas().layer_id_at(pos, &self.to_global)?;
+        if self.is_above_modal_layer(layer_id) {
+            Some(layer_id)
+        } else {
+            self.top_modal_layer()
+        }
     }
 
     /// The currently set transform of a layer.
@@ -889,7 +837,7 @@ impl Memory {
 
     /// Which widget has keyboard focus?
     pub fn focused(&self) -> Option<Id> {
-        self.focus().and_then(|f| f.focused())
+        self.focus()?.focused()
     }
 
     /// Set an event filter for a widget.
@@ -899,12 +847,12 @@ impl Memory {
     ///
     /// You must first give focus to the widget before calling this.
     pub fn set_focus_lock_filter(&mut self, id: Id, event_filter: EventFilter) {
-        if self.had_focus_last_frame(id) && self.has_focus(id) {
-            if let Some(focused) = &mut self.focus_mut().focused_widget {
-                if focused.id == id {
-                    focused.filter = event_filter;
-                }
-            }
+        if self.had_focus_last_frame(id)
+            && self.has_focus(id)
+            && let Some(focused) = &mut self.focus_mut().focused_widget
+            && focused.id == id
+        {
+            focused.filter = event_filter;
         }
     }
 
@@ -923,6 +871,11 @@ impl Memory {
         if focus.focused() == Some(id) {
             focus.focused_widget = None;
         }
+    }
+
+    /// Move keyboard focus in a specific direction.
+    pub fn move_focus(&mut self, direction: FocusDirection) {
+        self.focus_mut().focus_direction = direction;
     }
 
     /// Returns true if
@@ -969,13 +922,13 @@ impl Memory {
     /// Limit focus to widgets on the given layer and above.
     /// If this is called multiple times per frame, the top layer wins.
     pub fn set_modal_layer(&mut self, layer_id: LayerId) {
-        if let Some(current) = self.focus().and_then(|f| f.top_modal_layer_current_frame) {
-            if matches!(
+        if let Some(current) = self.focus().and_then(|f| f.top_modal_layer_current_frame)
+            && matches!(
                 self.areas().compare_order(layer_id, current),
                 std::cmp::Ordering::Less
-            ) {
-                return;
-            }
+            )
+        {
+            return;
         }
 
         self.focus_mut().set_modal_layer(layer_id);
@@ -992,62 +945,10 @@ impl Memory {
         self.focus_mut().focused_widget = None;
     }
 
-    /// Is any widget being dragged?
-    #[deprecated = "Use `Context::dragged_id` instead"]
-    #[inline(always)]
-    pub fn is_anything_being_dragged(&self) -> bool {
-        self.interaction().potential_drag_id.is_some()
-    }
-
-    /// Is this specific widget being dragged?
-    ///
-    /// A widget that sense both clicks and drags is only marked as "dragged"
-    /// when the mouse has moved a bit, but `is_being_dragged` will return true immediately.
-    #[deprecated = "Use `Context::is_being_dragged` instead"]
-    #[inline(always)]
-    pub fn is_being_dragged(&self, id: Id) -> bool {
-        self.interaction().potential_drag_id == Some(id)
-    }
-
-    /// Get the id of the widget being dragged, if any.
-    ///
-    /// Note that this is set as soon as the mouse is pressed,
-    /// so the widget may not yet be marked as "dragged",
-    /// as that can only happen after the mouse has moved a bit
-    /// (at least if the widget is interesated in both clicks and drags).
-    #[deprecated = "Use `Context::dragged_id` instead"]
-    #[inline(always)]
-    pub fn dragged_id(&self) -> Option<Id> {
-        self.interaction().potential_drag_id
-    }
-
-    /// Set which widget is being dragged.
-    #[inline(always)]
-    #[deprecated = "Use `Context::set_dragged_id` instead"]
-    pub fn set_dragged_id(&mut self, id: Id) {
-        self.interaction_mut().potential_drag_id = Some(id);
-    }
-
-    /// Stop dragging any widget.
-    #[inline(always)]
-    #[deprecated = "Use `Context::stop_dragging` instead"]
-    pub fn stop_dragging(&mut self) {
-        self.interaction_mut().potential_drag_id = None;
-    }
-
-    /// Is something else being dragged?
-    ///
-    /// Returns true if we are dragging something, but not the given widget.
-    #[inline(always)]
-    #[deprecated = "Use `Context::dragging_something_else` instead"]
-    pub fn dragging_something_else(&self, not_this: Id) -> bool {
-        let drag_id = self.interaction().potential_drag_id;
-        drag_id.is_some() && drag_id != Some(not_this)
-    }
-
     /// Forget window positions, sizes etc.
     /// Can be used to auto-layout windows.
     pub fn reset_areas(&mut self) {
+        #[expect(clippy::iter_over_hash_type)]
         for area in self.areas.values_mut() {
             *area = Default::default();
         }
@@ -1101,25 +1002,31 @@ impl OpenPopup {
     }
 }
 
-/// ## Popups
-/// Popups are things like combo-boxes, color pickers, menus etc.
-/// Only one can be open at a time.
+/// ## Deprecated popup API
+/// Use [`crate::Popup`] instead.
 impl Memory {
     /// Is the given popup open?
+    #[deprecated = "Use Popup::is_id_open instead"]
     pub fn is_popup_open(&self, popup_id: Id) -> bool {
-        self.popup.is_some_and(|state| state.id == popup_id) || self.everything_is_visible()
+        self.popups
+            .get(&self.viewport_id)
+            .is_some_and(|state| state.id == popup_id)
+            || self.everything_is_visible()
     }
 
     /// Is any popup open?
+    #[deprecated = "Use Popup::is_any_open instead"]
     pub fn any_popup_open(&self) -> bool {
-        self.popup.is_some() || self.everything_is_visible()
+        self.popups.contains_key(&self.viewport_id) || self.everything_is_visible()
     }
 
     /// Open the given popup and close all others.
     ///
     /// Note that you must call `keep_popup_open` on subsequent frames as long as the popup is open.
+    #[deprecated = "Use Popup::open_id instead"]
     pub fn open_popup(&mut self, popup_id: Id) {
-        self.popup = Some(OpenPopup::new(popup_id, None));
+        self.popups
+            .insert(self.viewport_id, OpenPopup::new(popup_id, None));
     }
 
     /// Popups must call this every frame while open.
@@ -1127,50 +1034,61 @@ impl Memory {
     /// This is needed because in some cases popups can go away without `close_popup` being
     /// called. For example, when a context menu is open and the underlying widget stops
     /// being rendered.
+    #[deprecated = "Use Popup::show instead"]
     pub fn keep_popup_open(&mut self, popup_id: Id) {
-        if let Some(state) = self.popup.as_mut() {
-            if state.id == popup_id {
-                state.open_this_frame = true;
-            }
+        if let Some(state) = self.popups.get_mut(&self.viewport_id)
+            && state.id == popup_id
+        {
+            state.open_this_frame = true;
         }
     }
 
     /// Open the popup and remember its position.
+    #[deprecated = "Use Popup with PopupAnchor::Position instead"]
     pub fn open_popup_at(&mut self, popup_id: Id, pos: impl Into<Option<Pos2>>) {
-        self.popup = Some(OpenPopup::new(popup_id, pos.into()));
+        self.popups
+            .insert(self.viewport_id, OpenPopup::new(popup_id, pos.into()));
     }
 
     /// Get the position for this popup.
+    #[deprecated = "Use Popup::position_of_id instead"]
     pub fn popup_position(&self, id: Id) -> Option<Pos2> {
-        self.popup
-            .and_then(|state| if state.id == id { state.pos } else { None })
+        let state = self.popups.get(&self.viewport_id)?;
+        if state.id == id { state.pos } else { None }
     }
 
     /// Close any currently open popup.
+    #[deprecated = "Use Popup::close_all instead"]
     pub fn close_all_popups(&mut self) {
-        self.popup = None;
+        self.popups.clear();
     }
 
     /// Close the given popup, if it is open.
     ///
     /// See also [`Self::close_all_popups`] if you want to close any / all currently open popups.
+    #[deprecated = "Use Popup::close_id instead"]
     pub fn close_popup(&mut self, popup_id: Id) {
+        #[expect(deprecated)]
         if self.is_popup_open(popup_id) {
-            self.popup = None;
+            self.popups.remove(&self.viewport_id);
         }
     }
 
     /// Toggle the given popup between closed and open.
     ///
     /// Note: At most, only one popup can be open at a time.
+    #[deprecated = "Use Popup::toggle_id instead"]
     pub fn toggle_popup(&mut self, popup_id: Id) {
+        #[expect(deprecated)]
         if self.is_popup_open(popup_id) {
             self.close_popup(popup_id);
         } else {
             self.open_popup(popup_id);
         }
     }
+}
 
+impl Memory {
     /// If true, all windows, menus, tooltips, etc., will be visible at once.
     ///
     /// This is useful for testing, benchmarking, pre-caching, etc.
@@ -1271,17 +1189,17 @@ impl Areas {
         layer_to_global: &HashMap<LayerId, TSTransform>,
     ) -> Option<LayerId> {
         for layer in self.order.iter().rev() {
-            if self.is_visible(layer) {
-                if let Some(state) = self.areas.get(&layer.id) {
-                    let mut rect = state.rect();
-                    if state.interactable {
-                        if let Some(to_global) = layer_to_global.get(layer) {
-                            rect = *to_global * rect;
-                        }
+            if self.is_visible(layer)
+                && let Some(state) = self.areas.get(&layer.id)
+            {
+                let mut rect = state.rect();
+                if state.interactable {
+                    if let Some(to_global) = layer_to_global.get(layer) {
+                        rect = *to_global * rect;
+                    }
 
-                        if rect.contains(pos) {
-                            return Some(*layer);
-                        }
+                    if rect.contains(pos) {
+                        return Some(*layer);
                     }
                 }
             }
@@ -1318,7 +1236,7 @@ impl Areas {
         self.visible_areas_current_frame.insert(layer_id);
         self.wants_to_be_on_top.insert(layer_id);
 
-        if !self.order.iter().any(|x| *x == layer_id) {
+        if !self.order.contains(&layer_id) {
             self.order.push(layer_id);
         }
     }
@@ -1333,16 +1251,19 @@ impl Areas {
     ///
     /// The two layers must have the same [`LayerId::order`].
     pub fn set_sublayer(&mut self, parent: LayerId, child: LayerId) {
-        debug_assert_eq!(parent.order, child.order,
-            "DEBUG ASSERT: Trying to set sublayers across layers of different order ({:?}, {:?}), which is currently undefined behavior in egui", parent.order, child.order);
+        debug_assert_eq!(
+            parent.order, child.order,
+            "DEBUG ASSERT: Trying to set sublayers across layers of different order ({:?}, {:?}), which is currently undefined behavior in egui",
+            parent.order, child.order
+        );
 
         self.sublayers.entry(parent).or_default().insert(child);
 
         // Make sure the layers are in the order list:
-        if !self.order.iter().any(|x| *x == parent) {
+        if !self.order.contains(&parent) {
             self.order.push(parent);
         }
-        if !self.order.iter().any(|x| *x == child) {
+        if !self.order.contains(&child) {
             self.order.push(child);
         }
     }
@@ -1350,8 +1271,7 @@ impl Areas {
     pub fn top_layer_id(&self, order: Order) -> Option<LayerId> {
         self.order
             .iter()
-            .filter(|layer| layer.order == order && !self.is_sublayer(layer))
-            .last()
+            .rfind(|layer| layer.order == order && !self.is_sublayer(layer))
             .copied()
     }
 
@@ -1392,12 +1312,14 @@ impl Areas {
         wants_to_be_on_top.clear();
 
         // For all layers with sublayers, put the sublayers directly after the parent layer:
-        let sublayers = std::mem::take(sublayers);
-        for (parent, children) in sublayers {
-            let mut moved_layers = vec![parent];
+        // (it doesn't matter in which order we replace parents with their children)
+        #[expect(clippy::iter_over_hash_type)]
+        for (parent, children) in std::mem::take(sublayers) {
+            let mut moved_layers = vec![parent]; // parent first…
+
             order.retain(|l| {
                 if children.contains(l) {
-                    moved_layers.push(*l);
+                    moved_layers.push(*l); // …followed by children
                     false
                 } else {
                     true
@@ -1406,7 +1328,7 @@ impl Areas {
             let Some(parent_pos) = order.iter().position(|l| l == &parent) else {
                 continue;
             };
-            order.splice(parent_pos..=parent_pos, moved_layers);
+            order.splice(parent_pos..=parent_pos, moved_layers); // replace the parent with itself and its children
         }
 
         self.order_map = self

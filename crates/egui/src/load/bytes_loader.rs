@@ -1,6 +1,6 @@
 use super::{
-    generate_loader_id, Bytes, BytesLoadResult, BytesLoader, BytesPoll, Context, Cow, HashMap,
-    LoadError, Mutex,
+    Bytes, BytesLoadResult, BytesLoader, BytesPoll, Context, Cow, HashMap, LoadError, Mutex,
+    generate_loader_id,
 };
 
 /// Maps URI:s to [`Bytes`], e.g. found with `include_bytes!`.
@@ -19,7 +19,6 @@ impl DefaultBytesLoader {
             .or_insert_with_key(|_uri| {
                 let bytes: Bytes = bytes.into();
 
-                #[cfg(feature = "log")]
                 log::trace!("loaded {} bytes for uri {_uri:?}", bytes.len());
 
                 bytes
@@ -28,7 +27,7 @@ impl DefaultBytesLoader {
 }
 
 impl BytesLoader for DefaultBytesLoader {
-    fn id(&self) -> &str {
+    fn id(&self) -> &'static str {
         generate_loader_id!(DefaultBytesLoader)
     }
 
@@ -53,14 +52,12 @@ impl BytesLoader for DefaultBytesLoader {
     }
 
     fn forget(&self, uri: &str) {
-        #[cfg(feature = "log")]
         log::trace!("forget {uri:?}");
 
         self.cache.lock().remove(uri);
     }
 
     fn forget_all(&self) {
-        #[cfg(feature = "log")]
         log::trace!("forget all");
 
         self.cache.lock().clear();

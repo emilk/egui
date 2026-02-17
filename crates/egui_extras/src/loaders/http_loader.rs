@@ -19,13 +19,13 @@ impl File {
                     return Err(format!(
                         "failed to load {uri:?}: {} {} {response_text}",
                         response.status, response.status_text
-                    ))
+                    ));
                 }
                 None => {
                     return Err(format!(
                         "failed to load {uri:?}: {} {}",
                         response.status, response.status_text
-                    ))
+                    ));
                 }
             }
         }
@@ -84,7 +84,7 @@ impl BytesLoader for EhttpLoader {
 
             ehttp::fetch(ehttp::Request::get(uri.clone()), {
                 let ctx = ctx.clone();
-                let cache = self.cache.clone();
+                let cache = Arc::clone(&self.cache);
                 move |response| {
                     let result = match response {
                         Ok(response) => File::from_response(&uri, response),
@@ -94,9 +94,27 @@ impl BytesLoader for EhttpLoader {
                             Err(format!("Failed to load {uri:?}"))
                         }
                     };
-                    log::trace!("finished loading {uri:?}");
-                    cache.lock().insert(uri, Poll::Ready(result));
-                    ctx.request_repaint();
+                    let repaint = {
+                        let mut cache = cache.lock();
+                        if let std::collections::hash_map::Entry::Occupied(mut entry) =
+                            cache.entry(uri.clone())
+                        {
+                            let entry = entry.get_mut();
+                            *entry = Poll::Ready(result);
+                            log::trace!("Finished loading {uri:?}");
+                            true
+                        } else {
+                            log::trace!(
+                                "Canceled loading {uri:?}\nNote: This can happen if `forget_image` is called while the image is still loading."
+                            );
+                            false
+                        }
+                    };
+                    // We may not lock Context while the cache lock is held (see ImageLoader::load
+                    // for details).
+                    if repaint {
+                        ctx.request_repaint();
+                    }
                 }
             });
 
@@ -124,5 +142,9 @@ impl BytesLoader for EhttpLoader {
                 _ => 0,
             })
             .sum()
+    }
+
+    fn has_pending(&self) -> bool {
+        self.cache.lock().values().any(|entry| entry.is_pending())
     }
 }

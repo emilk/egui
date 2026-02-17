@@ -1,10 +1,10 @@
 //! The input needed by egui.
 
-use epaint::ColorImage;
+use epaint::{ColorImage, MarginF32};
 
 use crate::{
+    Key, OrderedViewportIdMap, Theme, ViewportId, ViewportIdMap,
     emath::{Pos2, Rect, Vec2},
-    Key, Theme, ViewportId, ViewportIdMap,
 };
 
 /// What the integrations provides to egui at the start of each frame.
@@ -26,6 +26,11 @@ pub struct RawInput {
 
     /// Information about all egui viewports.
     pub viewports: ViewportIdMap<ViewportInfo>,
+
+    /// The insets used to only render content in a mobile safe area
+    ///
+    /// `None` will be treated as "same as last frame"
+    pub safe_area_insets: Option<SafeAreaInsets>,
 
     /// Position and size of the area that egui should use, in points.
     /// Usually you would set this to
@@ -98,6 +103,7 @@ impl Default for RawInput {
             dropped_files: Default::default(),
             focused: true, // integrations opt into global focus tracking
             system_theme: None,
+            safe_area_insets: Default::default(),
         }
     }
 }
@@ -122,6 +128,7 @@ impl RawInput {
                 .map(|(id, info)| (*id, info.take()))
                 .collect(),
             screen_rect: self.screen_rect.take(),
+            safe_area_insets: self.safe_area_insets.take(),
             max_texture_side: self.max_texture_side.take(),
             time: self.time,
             predicted_dt: self.predicted_dt,
@@ -149,6 +156,7 @@ impl RawInput {
             mut dropped_files,
             focused,
             system_theme,
+            safe_area_insets: safe_area,
         } = newer;
 
         self.viewport_id = viewport_ids;
@@ -163,6 +171,7 @@ impl RawInput {
         self.dropped_files.append(&mut dropped_files);
         self.focused = focused;
         self.system_theme = system_theme;
+        self.safe_area_insets = safe_area;
     }
 }
 
@@ -256,9 +265,7 @@ impl ViewportInfo {
     /// If this is not the root viewport,
     /// it is up to the user to hide this viewport the next frame.
     pub fn close_requested(&self) -> bool {
-        self.events
-            .iter()
-            .any(|&event| event == ViewportEvent::Close)
+        self.events.contains(&ViewportEvent::Close)
     }
 
     /// Helper: move [`Self::events`], clone the other fields.
@@ -481,6 +488,9 @@ pub enum Event {
     /// As a user, check [`crate::InputState::smooth_scroll_delta`] to see if the user did any zooming this frame.
     Zoom(f32),
 
+    /// Rotation in radians this frame, measuring clockwise (e.g. from a rotation gesture).
+    Rotate(f32),
+
     /// IME Event
     Ime(ImeEvent),
 
@@ -525,6 +535,11 @@ pub enum Event {
         /// as when swiping down on a touch-screen or track-pad with natural scrolling.
         delta: Vec2,
 
+        /// The phase of the scroll, useful for trackpads.
+        ///
+        /// If unknown set this to [`TouchPhase::Move`].
+        phase: TouchPhase,
+
         /// The state of the modifier keys at the time of the event.
         modifiers: Modifiers,
     },
@@ -533,7 +548,6 @@ pub enum Event {
     WindowFocused(bool),
 
     /// An assistive technology (e.g. screen reader) requested an action.
-    #[cfg(feature = "accesskit")]
     AccessKitActionRequest(accesskit::ActionRequest),
 
     /// The reply of a screenshot requested with [`crate::ViewportCommand::Screenshot`].
@@ -592,7 +606,14 @@ pub const NUM_POINTER_BUTTONS: usize = 5;
 
 /// State of the modifier keys. These must be fed to egui.
 ///
-/// The best way to compare [`Modifiers`] is by using [`Modifiers::matches`].
+/// The best way to compare [`Modifiers`] is by using [`Modifiers::matches_logically`] or [`Modifiers::matches_exact`].
+///
+/// To access the [`Modifiers`] you can use the [`crate::Context::input`] function
+///
+/// ```rust
+/// # let ctx = egui::Context::default();
+/// let modifiers = ctx.input(|i| i.modifiers);
+/// ```
 ///
 /// NOTE: For cross-platform uses, ALT+SHIFT is a bad combination of modifiers
 /// as on mac that is how you type special characters,
@@ -775,8 +796,8 @@ impl Modifiers {
     /// ```
     /// # use egui::Modifiers;
     /// # let pressed_modifiers = Modifiers::default();
-    /// if pressed_modifiers.matches(Modifiers::ALT | Modifiers::SHIFT) {
-    ///     // Alt and Shift are pressed, and nothing else
+    /// if pressed_modifiers.matches_logically(Modifiers::ALT | Modifiers::SHIFT) {
+    ///     // Alt and Shift are pressed, but not ctrl/command
     /// }
     /// ```
     ///
@@ -817,7 +838,7 @@ impl Modifiers {
     /// ```
     /// # use egui::Modifiers;
     /// # let pressed_modifiers = Modifiers::default();
-    /// if pressed_modifiers.matches(Modifiers::ALT | Modifiers::SHIFT) {
+    /// if pressed_modifiers.matches_exact(Modifiers::ALT | Modifiers::SHIFT) {
     ///     // Alt and Shift are pressed, and nothing else
     /// }
     /// ```
@@ -825,13 +846,13 @@ impl Modifiers {
     /// ## Behavior:
     /// ```
     /// # use egui::Modifiers;
-    /// assert!(Modifiers::CTRL.matches(Modifiers::CTRL));
-    /// assert!(!Modifiers::CTRL.matches(Modifiers::CTRL | Modifiers::SHIFT));
-    /// assert!(!(Modifiers::CTRL | Modifiers::SHIFT).matches(Modifiers::CTRL));
-    /// assert!((Modifiers::CTRL | Modifiers::COMMAND).matches(Modifiers::CTRL));
-    /// assert!((Modifiers::CTRL | Modifiers::COMMAND).matches(Modifiers::COMMAND));
-    /// assert!((Modifiers::MAC_CMD | Modifiers::COMMAND).matches(Modifiers::COMMAND));
-    /// assert!(!Modifiers::COMMAND.matches(Modifiers::MAC_CMD));
+    /// assert!(Modifiers::CTRL.matches_exact(Modifiers::CTRL));
+    /// assert!(!Modifiers::CTRL.matches_exact(Modifiers::CTRL | Modifiers::SHIFT));
+    /// assert!(!(Modifiers::CTRL | Modifiers::SHIFT).matches_exact(Modifiers::CTRL));
+    /// assert!((Modifiers::CTRL | Modifiers::COMMAND).matches_exact(Modifiers::CTRL));
+    /// assert!((Modifiers::CTRL | Modifiers::COMMAND).matches_exact(Modifiers::COMMAND));
+    /// assert!((Modifiers::MAC_CMD | Modifiers::COMMAND).matches_exact(Modifiers::COMMAND));
+    /// assert!(!Modifiers::COMMAND.matches_exact(Modifiers::MAC_CMD));
     /// ```
     pub fn matches_exact(&self, pattern: Self) -> bool {
         // alt and shift must always match the pattern:
@@ -842,9 +863,35 @@ impl Modifiers {
         self.cmd_ctrl_matches(pattern)
     }
 
-    #[deprecated = "Renamed `matches_exact`, but maybe you want to use `matches_logically` instead"]
-    pub fn matches(&self, pattern: Self) -> bool {
-        self.matches_exact(pattern)
+    /// Check if any of the modifiers match exactly.
+    ///
+    /// Returns true if the same modifier is pressed in `self` as in `pattern`,
+    /// for at least one modifier.
+    ///
+    /// ## Behavior:
+    /// ```
+    /// # use egui::Modifiers;
+    /// assert!(Modifiers::CTRL.matches_any(Modifiers::CTRL));
+    /// assert!(Modifiers::CTRL.matches_any(Modifiers::CTRL | Modifiers::SHIFT));
+    /// assert!((Modifiers::CTRL | Modifiers::SHIFT).matches_any(Modifiers::CTRL));
+    /// ```
+    pub fn matches_any(&self, pattern: Self) -> bool {
+        if self.alt && pattern.alt {
+            return true;
+        }
+        if self.shift && pattern.shift {
+            return true;
+        }
+        if self.ctrl && pattern.ctrl {
+            return true;
+        }
+        if self.mac_cmd && pattern.mac_cmd {
+            return true;
+        }
+        if (self.mac_cmd || self.command || self.ctrl) && pattern.command {
+            return true;
+        }
+        false
     }
 
     /// Checks only cmd/ctrl, not alt/shift.
@@ -957,6 +1004,12 @@ impl std::ops::BitOrAssign for Modifiers {
     #[inline]
     fn bitor_assign(&mut self, rhs: Self) {
         *self = *self | rhs;
+    }
+}
+
+impl Modifiers {
+    pub fn ui(&self, ui: &mut crate::Ui) {
+        ui.label(ModifierNames::NAMES.format(self, ui.ctx().os().is_mac()));
     }
 }
 
@@ -1099,10 +1152,15 @@ impl RawInput {
             dropped_files,
             focused,
             system_theme,
+            safe_area_insets: safe_area,
         } = self;
 
         ui.label(format!("Active viewport: {viewport_id:?}"));
-        for (id, viewport) in viewports {
+        let ordered_viewports = viewports
+            .iter()
+            .map(|(id, value)| (*id, value))
+            .collect::<OrderedViewportIdMap<_>>();
+        for (id, viewport) in ordered_viewports {
             ui.group(|ui| {
                 ui.label(format!("Viewport {id:?}"));
                 ui.push_id(id, |ui| {
@@ -1124,6 +1182,7 @@ impl RawInput {
         ui.label(format!("dropped_files: {}", dropped_files.len()));
         ui.label(format!("focused: {focused}"));
         ui.label(format!("system_theme: {system_theme:?}"));
+        ui.label(format!("safe_area: {safe_area:?}"));
         ui.scope(|ui| {
             ui.set_min_height(150.0);
             ui.label(format!("events: {events:#?}"))
@@ -1233,7 +1292,7 @@ pub struct EventFilter {
     pub escape: bool,
 }
 
-#[allow(clippy::derivable_impls)] // let's be explicit
+#[expect(clippy::derivable_impls)] // let's be explicit
 impl Default for EventFilter {
     fn default() -> Self {
         Self {
@@ -1258,5 +1317,21 @@ impl EventFilter {
         } else {
             true
         }
+    }
+}
+
+/// The 'safe area' insets of the screen
+///
+/// This represents the area taken up by the status bar, navigation controls, notches,
+/// or any other items that obscure parts of the screen.
+#[derive(Debug, PartialEq, Copy, Clone, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct SafeAreaInsets(pub MarginF32);
+
+impl std::ops::Sub<SafeAreaInsets> for Rect {
+    type Output = Self;
+
+    fn sub(self, rhs: SafeAreaInsets) -> Self::Output {
+        self - rhs.0
     }
 }

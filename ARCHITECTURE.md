@@ -5,7 +5,7 @@ Also see [`CONTRIBUTING.md`](CONTRIBUTING.md) for what to do before opening a PR
 
 
 ## Crate overview
-The crates in this repository are: `egui, emath, epaint, epaint_default_fonts, egui_extras, egui-winit, egui_glow, egui_demo_lib, egui_demo_app`.
+The crates in this repository are: `egui, emath, epaint, epaint_default_fonts, egui_extras, egui-winit, egui_glow, egui-wgpu, egui_demo_lib, egui_demo_app`.
 
 ### `egui`: The main GUI library.
 Example code: `if ui.button("Click me").clicked() { … }`
@@ -37,6 +37,9 @@ The library translates winit events to egui, handled copy/paste, updates the cur
 ### `egui_glow`
 Puts an egui app inside a native window on your laptop. Paints the triangles that egui outputs using [glow](https://github.com/grovesNL/glow).
 
+### `egui-wgpu`
+Paints the triangles that egui outputs using [wgpu](https://github.com/grovesNL/wgpu).
+
 ### `eframe`
 `eframe` is the official `egui` framework, built so you can compile the same app for either web or native.
 
@@ -51,7 +54,7 @@ Thin wrapper around `egui_demo_lib` so we can compile it to a web site or a nati
 Depends on `egui_demo_lib` + `eframe`.
 
 ### `egui_kittest`
-A test harness for egui based on [kittest](https://github.com/rerun/kittest) and [AccessKit](https://github.com/AccessKit/accesskit/).
+A test harness for egui based on [kittest](https://github.com/rerun-io/kittest) and [AccessKit](https://github.com/AccessKit/accesskit/).
 
 ### Other integrations
 

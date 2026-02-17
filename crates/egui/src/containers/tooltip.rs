@@ -7,26 +7,49 @@ use emath::Vec2;
 
 pub struct Tooltip<'a> {
     pub popup: Popup<'a>,
-    layer_id: LayerId,
-    widget_id: Id,
+
+    /// The layer of the parent widget.
+    parent_layer: LayerId,
+
+    /// The id of the widget that owns this tooltip.
+    parent_widget: Id,
 }
 
 impl Tooltip<'_> {
-    /// Show a tooltip that is always open
+    /// Show a tooltip that is always open.
+    #[deprecated = "Use `Tooltip::always_open` instead."]
     pub fn new(
-        widget_id: Id,
+        parent_widget: Id,
         ctx: Context,
         anchor: impl Into<PopupAnchor>,
-        layer_id: LayerId,
+        parent_layer: LayerId,
     ) -> Self {
         Self {
-            // TODO(lucasmerlin): Set width somehow (we're missing context here)
-            popup: Popup::new(widget_id, ctx, anchor.into(), layer_id)
+            popup: Popup::new(parent_widget, ctx, anchor.into(), parent_layer)
                 .kind(PopupKind::Tooltip)
                 .gap(4.0)
                 .sense(Sense::hover()),
-            layer_id,
-            widget_id,
+            parent_layer,
+            parent_widget,
+        }
+    }
+
+    /// Show a tooltip that is always open.
+    pub fn always_open(
+        ctx: Context,
+        parent_layer: LayerId,
+        parent_widget: Id,
+        anchor: impl Into<PopupAnchor>,
+    ) -> Self {
+        let width = ctx.global_style().spacing.tooltip_width;
+        Self {
+            popup: Popup::new(parent_widget, ctx, anchor.into(), parent_layer)
+                .kind(PopupKind::Tooltip)
+                .gap(4.0)
+                .width(width)
+                .sense(Sense::hover()),
+            parent_layer,
+            parent_widget,
         }
     }
 
@@ -35,12 +58,12 @@ impl Tooltip<'_> {
         let popup = Popup::from_response(response)
             .kind(PopupKind::Tooltip)
             .gap(4.0)
-            .width(response.ctx.style().spacing.tooltip_width)
+            .width(response.ctx.global_style().spacing.tooltip_width)
             .sense(Sense::hover());
         Self {
             popup,
-            layer_id: response.layer_id,
-            widget_id: response.id,
+            parent_layer: response.layer_id,
+            parent_widget: response.id,
         }
     }
 
@@ -49,7 +72,7 @@ impl Tooltip<'_> {
         let mut tooltip = Self::for_widget(response);
         tooltip.popup = tooltip
             .popup
-            .open(response.enabled() && Self::should_show_tooltip(response));
+            .open(response.enabled() && Self::should_show_tooltip(response, true));
         tooltip
     }
 
@@ -58,7 +81,7 @@ impl Tooltip<'_> {
         let mut tooltip = Self::for_widget(response);
         tooltip.popup = tooltip
             .popup
-            .open(!response.enabled() && Self::should_show_tooltip(response));
+            .open(!response.enabled() && Self::should_show_tooltip(response, true));
         tooltip
     }
 
@@ -96,8 +119,8 @@ impl Tooltip<'_> {
     pub fn show<R>(self, content: impl FnOnce(&mut crate::Ui) -> R) -> Option<InnerResponse<R>> {
         let Self {
             mut popup,
-            layer_id: parent_layer,
-            widget_id,
+            parent_layer,
+            parent_widget,
         } = self;
 
         if !popup.is_open() {
@@ -111,11 +134,11 @@ impl Tooltip<'_> {
             fs.layers
                 .entry(parent_layer)
                 .or_default()
-                .widget_with_tooltip = Some(widget_id);
+                .widget_with_tooltip = Some(parent_widget);
 
             fs.tooltips
                 .widget_tooltips
-                .get(&widget_id)
+                .get(&parent_widget)
                 .copied()
                 .unwrap_or(PerWidgetTooltipState {
                     bounding_rect: rect,
@@ -123,7 +146,7 @@ impl Tooltip<'_> {
                 })
         });
 
-        let tooltip_area_id = Self::tooltip_id(widget_id, state.tooltip_count);
+        let tooltip_area_id = Self::tooltip_id(parent_widget, state.tooltip_count);
         popup = popup.anchor(state.bounding_rect).id(tooltip_area_id);
 
         let response = popup.show(|ui| {
@@ -140,11 +163,11 @@ impl Tooltip<'_> {
         // The popup might not be shown on at_pointer if there is no pointer.
         if let Some(response) = &response {
             state.tooltip_count += 1;
-            state.bounding_rect = state.bounding_rect.union(response.response.rect);
+            state.bounding_rect |= response.response.rect;
             response
                 .response
                 .ctx
-                .pass_state_mut(|fs| fs.tooltips.widget_tooltips.insert(widget_id, state));
+                .pass_state_mut(|fs| fs.tooltips.widget_tooltips.insert(parent_widget, state));
             Self::remember_that_tooltip_was_shown(&response.response.ctx);
         }
 
@@ -188,7 +211,10 @@ impl Tooltip<'_> {
     }
 
     /// Should we show a tooltip for this response?
-    pub fn should_show_tooltip(response: &Response) -> bool {
+    ///
+    /// Argument `allow_interactive_tooltip` controls whether mouse can interact with tooltip that
+    /// contains interactive widgets
+    pub fn should_show_tooltip(response: &Response, allow_interactive_tooltip: bool) -> bool {
         if response.ctx.memory(|mem| mem.everything_is_visible()) {
             return true;
         }
@@ -203,7 +229,7 @@ impl Tooltip<'_> {
             return false;
         }
 
-        let style = response.ctx.style();
+        let style = response.ctx.global_style();
 
         let tooltip_delay = style.interaction.tooltip_delay;
         let tooltip_grace_time = style.interaction.tooltip_grace_time;
@@ -241,12 +267,13 @@ impl Tooltip<'_> {
             let tooltip_id = Self::next_tooltip_id(&response.ctx, response.id);
             let tooltip_layer_id = LayerId::new(Order::Tooltip, tooltip_id);
 
-            let tooltip_has_interactive_widget = response.ctx.viewport(|vp| {
-                vp.prev_pass
-                    .widgets
-                    .get_layer(tooltip_layer_id)
-                    .any(|w| w.enabled && w.sense.interactive())
-            });
+            let tooltip_has_interactive_widget = allow_interactive_tooltip
+                && response.ctx.viewport(|vp| {
+                    vp.prev_pass
+                        .widgets
+                        .get_layer(tooltip_layer_id)
+                        .any(|w| w.enabled && w.sense.interactive())
+                });
 
             if tooltip_has_interactive_widget {
                 // We keep the tooltip open if hovered,
@@ -331,7 +358,7 @@ impl Tooltip<'_> {
                 // We only show the tooltip when the mouse pointer is still.
                 if !response
                     .ctx
-                    .input(|i| i.pointer.is_still() && i.smooth_scroll_delta == Vec2::ZERO)
+                    .input(|i| i.pointer.is_still() && !i.is_scrolling())
                 {
                     // wait for mouse to stop
                     response.ctx.request_repaint();

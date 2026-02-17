@@ -1,9 +1,10 @@
 use std::{any::Any, sync::Arc};
 
 use crate::{
+    Context, CursorIcon, Id, LayerId, PointerButton, Popup, PopupKind, Sense, Tooltip, Ui,
+    WidgetRect, WidgetText,
     emath::{Align, Pos2, Rect, Vec2},
-    pass_state, Context, CursorIcon, Id, LayerId, PointerButton, Popup, PopupKind, Sense, Tooltip,
-    Ui, WidgetRect, WidgetText,
+    pass_state,
 };
 // ----------------------------------------------------------------------------
 
@@ -13,7 +14,7 @@ use crate::{
 /// It also lets you easily show a tooltip on hover.
 ///
 /// Whenever something gets added to a [`Ui`], a [`Response`] object is returned.
-/// [`ui.add`] returns a [`Response`], as does [`ui.button`], and all similar shortcuts.
+/// [`Ui::add`] returns a [`Response`], as does [`Ui::button`], and all similar shortcuts.
 ///
 /// ⚠️ The `Response` contains a clone of [`Context`], and many methods lock the `Context`.
 /// It can therefore be a deadlock to use `Context` from within a context-locking closures,
@@ -58,8 +59,8 @@ pub struct Response {
 
     /// The intrinsic / desired size of the widget.
     ///
-    /// For a button, this will be the size of the label + the frames padding,
-    /// even if the button is laid out in a justified layout and the actual size will be larger.
+    /// This is the size that a non-wrapped, non-truncated, non-justified version of the widget
+    /// would have.
     ///
     /// If this is `None`, use [`Self::rect`] instead.
     ///
@@ -216,6 +217,14 @@ impl Response {
     pub fn triple_clicked_by(&self, button: PointerButton) -> bool {
         self.flags.contains(Flags::CLICKED)
             && self.ctx.input(|i| i.pointer.button_triple_clicked(button))
+    }
+
+    /// Was this widget middle-clicked or clicked while holding down a modifier key?
+    ///
+    /// This is used by [`crate::Hyperlink`] to check if a URL should be opened
+    /// in a new tab, using [`crate::OpenUrl::new_tab`].
+    pub fn clicked_with_open_in_background(&self) -> bool {
+        self.middle_clicked() || self.clicked() && self.ctx.input(|i| i.modifiers.any())
     }
 
     /// `true` if there was a click *outside* the rect of this widget.
@@ -387,20 +396,7 @@ impl Response {
         self.drag_stopped() && self.ctx.input(|i| i.pointer.button_released(button))
     }
 
-    /// The widget was being dragged, but now it has been released.
-    #[inline]
-    #[deprecated = "Renamed 'drag_stopped'"]
-    pub fn drag_released(&self) -> bool {
-        self.drag_stopped()
-    }
-
-    /// The widget was being dragged by the button, but now it has been released.
-    #[deprecated = "Renamed 'drag_stopped_by'"]
-    pub fn drag_released_by(&self, button: PointerButton) -> bool {
-        self.drag_stopped_by(button)
-    }
-
-    /// If dragged, how many points were we dragged and in what direction?
+    /// If dragged, how many points were we dragged in since last frame?
     #[inline]
     pub fn drag_delta(&self) -> Vec2 {
         if self.dragged() {
@@ -414,7 +410,22 @@ impl Response {
         }
     }
 
-    /// If dragged, how far did the mouse move?
+    /// If dragged, how many points have we been dragged since the start of the drag?
+    #[inline]
+    pub fn total_drag_delta(&self) -> Option<Vec2> {
+        if self.dragged() {
+            let mut delta = self.ctx.input(|i| i.pointer.total_drag_delta())?;
+            if let Some(from_global) = self.ctx.layer_transform_from_global(self.layer_id) {
+                delta *= from_global.scaling;
+            }
+            Some(delta)
+        } else {
+            None
+        }
+    }
+
+    /// If dragged, how far did the mouse move since last frame?
+    ///
     /// This will use raw mouse movement if provided by the integration, otherwise will fall back to [`Response::drag_delta`]
     /// Raw mouse movement is unaccelerated and unclamped by screen boundaries, and does not relate to any position on the screen.
     /// This may be useful in certain situations such as draggable values and 3D cameras, where screen position does not matter.
@@ -422,7 +433,7 @@ impl Response {
     pub fn drag_motion(&self) -> Vec2 {
         if self.dragged() {
             self.ctx
-                .input(|i| i.pointer.motion().unwrap_or(i.pointer.delta()))
+                .input(|i| i.pointer.motion().unwrap_or_else(|| i.pointer.delta()))
         } else {
             Vec2::ZERO
         }
@@ -461,7 +472,7 @@ impl Response {
     ///
     /// Only returns something if [`Self::contains_pointer`] is true,
     /// the user is drag-dropping something of this type,
-    /// and they released it this frame
+    /// and they released it this frame.
     #[doc(alias = "drag and drop")]
     pub fn dnd_release_payload<Payload: Any + Send + Sync>(&self) -> Option<Arc<Payload>> {
         // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
@@ -713,10 +724,9 @@ impl Response {
     /// ```
     #[must_use]
     pub fn interact(&self, sense: Sense) -> Self {
-        if (self.sense | sense) == self.sense {
-            // Early-out: we already sense everything we need to sense.
-            return self.clone();
-        }
+        // We could check here if the new Sense equals the old one to avoid the extra create_widget
+        // call. But that would break calling `interact` on a response from `Context::read_response`
+        // or `Ui::response`. (See https://github.com/emilk/egui/pull/7713 for more details.)
 
         self.ctx.create_widget(
             WidgetRect {
@@ -728,6 +738,7 @@ impl Response {
                 enabled: self.enabled(),
             },
             true,
+            Default::default(),
         )
     }
 
@@ -751,7 +762,7 @@ impl Response {
     /// # });
     /// ```
     pub fn scroll_to_me(&self, align: Option<Align>) {
-        self.scroll_to_me_animation(align, self.ctx.style().scroll_animation);
+        self.scroll_to_me_animation(align, self.ctx.global_style().scroll_animation);
     }
 
     /// Like [`Self::scroll_to_me`], but allows you to specify the [`crate::style::ScrollAnimation`].
@@ -797,7 +808,6 @@ impl Response {
         if let Some(event) = event {
             self.output_event(event);
         } else {
-            #[cfg(feature = "accesskit")]
             self.ctx.accesskit_node_builder(self.id, |builder| {
                 self.fill_accesskit_node_from_widget_info(builder, make_info());
             });
@@ -807,7 +817,6 @@ impl Response {
     }
 
     pub fn output_event(&self, event: crate::output::OutputEvent) {
-        #[cfg(feature = "accesskit")]
         self.ctx.accesskit_node_builder(self.id, |builder| {
             self.fill_accesskit_node_from_widget_info(builder, event.widget_info().clone());
         });
@@ -818,7 +827,6 @@ impl Response {
         self.ctx.output_mut(|o| o.events.push(event));
     }
 
-    #[cfg(feature = "accesskit")]
     pub(crate) fn fill_accesskit_node_common(&self, builder: &mut accesskit::Node) {
         if !self.enabled() {
             builder.set_disabled();
@@ -837,7 +845,6 @@ impl Response {
         }
     }
 
-    #[cfg(feature = "accesskit")]
     fn fill_accesskit_node_from_widget_info(
         &self,
         builder: &mut accesskit::Node,
@@ -851,20 +858,24 @@ impl Response {
             WidgetType::Label => Role::Label,
             WidgetType::Link => Role::Link,
             WidgetType::TextEdit => Role::TextInput,
-            WidgetType::Button | WidgetType::ImageButton | WidgetType::CollapsingHeader => {
+            WidgetType::Button | WidgetType::CollapsingHeader | WidgetType::SelectableLabel => {
                 Role::Button
             }
             WidgetType::Image => Role::Image,
             WidgetType::Checkbox => Role::CheckBox,
             WidgetType::RadioButton => Role::RadioButton,
             WidgetType::RadioGroup => Role::RadioGroup,
-            WidgetType::SelectableLabel => Role::Button,
             WidgetType::ComboBox => Role::ComboBox,
             WidgetType::Slider => Role::Slider,
             WidgetType::DragValue => Role::SpinButton,
             WidgetType::ColorButton => Role::ColorWell,
+            WidgetType::Panel => Role::Pane,
             WidgetType::ProgressIndicator => Role::ProgressIndicator,
             WidgetType::Window => Role::Window,
+
+            WidgetType::ResizeHandle => Role::Splitter,
+            WidgetType::ScrollBar => Role::ScrollBar,
+
             WidgetType::Other => Role::Unknown,
         });
         if !info.enabled {
@@ -912,14 +923,9 @@ impl Response {
     /// # });
     /// ```
     pub fn labelled_by(self, id: Id) -> Self {
-        #[cfg(feature = "accesskit")]
         self.ctx.accesskit_node_builder(self.id, |builder| {
             builder.push_labelled_by(id.accesskit_id());
         });
-        #[cfg(not(feature = "accesskit"))]
-        {
-            let _ = id;
-        }
 
         self
     }

@@ -1,11 +1,11 @@
-#![allow(clippy::needless_pass_by_value)] // False positives with `impl ToString`
+#![expect(clippy::needless_pass_by_value)] // False positives with `impl ToString`
 
 use std::ops::RangeInclusive;
 
 use crate::{
-    emath, epaint, lerp, pos2, remap, remap_clamp, style, style::HandleShape, vec2, Color32,
-    DragValue, EventFilter, Key, Label, NumExt, Pos2, Rangef, Rect, Response, Sense, TextStyle,
-    TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, MINUS_CHAR_STR,
+    Color32, DragValue, EventFilter, Key, Label, MINUS_CHAR_STR, NumExt as _, Pos2, Rangef, Rect,
+    Response, Sense, TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, emath,
+    epaint, lerp, pos2, remap, remap_clamp, style, style::HandleShape, vec2,
 };
 
 use super::drag_value::clamp_value_to_range;
@@ -117,6 +117,7 @@ pub struct Slider<'a> {
     custom_parser: Option<NumParser<'a>>,
     trailing_fill: Option<bool>,
     handle_shape: Option<HandleShape>,
+    update_while_editing: bool,
 }
 
 impl<'a> Slider<'a> {
@@ -133,11 +134,7 @@ impl<'a> Slider<'a> {
             value.to_f64()
         });
 
-        if Num::INTEGRAL {
-            slf.integer()
-        } else {
-            slf
-        }
+        if Num::INTEGRAL { slf.integer() } else { slf }
     }
 
     pub fn from_get_set(
@@ -167,6 +164,7 @@ impl<'a> Slider<'a> {
             custom_parser: None,
             trailing_fill: None,
             handle_shape: None,
+            update_while_editing: true,
         }
     }
 
@@ -641,6 +639,16 @@ impl<'a> Slider<'a> {
         let normalized = normalized_from_value(value, self.range(), &self.spec);
         lerp(position_range, normalized as f32)
     }
+
+    /// Update the value on each key press when text-editing the value.
+    ///
+    /// Default: `true`.
+    /// If `false`, the value will only be updated when user presses enter or deselects the value.
+    #[inline]
+    pub fn update_while_editing(mut self, update: bool) -> Self {
+        self.update_while_editing = update;
+        self
+    }
 }
 
 impl Slider<'_> {
@@ -679,7 +687,7 @@ impl Slider<'_> {
         let mut increment = 0usize;
 
         if response.has_focus() {
-            ui.ctx().memory_mut(|m| {
+            ui.memory_mut(|m| {
                 m.set_focus_lock_filter(
                     response.id,
                     EventFilter {
@@ -708,14 +716,11 @@ impl Slider<'_> {
             });
         }
 
-        #[cfg(feature = "accesskit")]
-        {
+        ui.input(|input| {
             use accesskit::Action;
-            ui.input(|input| {
-                decrement += input.num_accesskit_action_requests(response.id, Action::Decrement);
-                increment += input.num_accesskit_action_requests(response.id, Action::Increment);
-            });
-        }
+            decrement += input.num_accesskit_action_requests(response.id, Action::Decrement);
+            increment += input.num_accesskit_action_requests(response.id, Action::Increment);
+        });
 
         let kb_step = increment as f32 - decrement as f32;
 
@@ -724,7 +729,7 @@ impl Slider<'_> {
             let prev_value = self.get_value();
             let prev_position = self.position_from_value(prev_value, position_range);
             let new_position = prev_position + ui_point_per_step * kb_step;
-            let new_value = match self.step {
+            let mut new_value = match self.step {
                 Some(step) => prev_value + (kb_step as f64 * step),
                 None if self.smart_aim => {
                     let aim_radius = 0.49 * ui_point_per_step; // Chosen so we don't include `prev_value` in the search.
@@ -735,20 +740,30 @@ impl Slider<'_> {
                 }
                 _ => self.value_from_position(new_position, position_range),
             };
+            if let Some(max_decimals) = self.max_decimals {
+                // self.set_value rounds, so ensure we reach at the least the next breakpoint
+                // note: we give it a little bit of leeway due to floating point errors. (0.1 isn't representable in binary)
+                // 'set_value' will round it to the nearest value.
+                let min_increment = 1.0 / (10.0_f64.powi(max_decimals as i32));
+                new_value = if new_value > prev_value {
+                    f64::max(new_value, prev_value + min_increment * 1.001)
+                } else if new_value < prev_value {
+                    f64::min(new_value, prev_value - min_increment * 1.001)
+                } else {
+                    new_value
+                };
+            }
             self.set_value(new_value);
         }
 
-        #[cfg(feature = "accesskit")]
-        {
+        ui.input(|input| {
             use accesskit::{Action, ActionData};
-            ui.input(|input| {
-                for request in input.accesskit_action_requests(response.id, Action::SetValue) {
-                    if let Some(ActionData::NumericValue(new_value)) = request.data {
-                        self.set_value(new_value);
-                    }
+            for request in input.accesskit_action_requests(response.id, Action::SetValue) {
+                if let Some(ActionData::NumericValue(new_value)) = request.data {
+                    self.set_value(new_value);
                 }
-            });
-        }
+            }
+        });
 
         // Paint it:
         if ui.is_rect_visible(response.rect) {
@@ -785,7 +800,7 @@ impl Slider<'_> {
                     SliderOrientation::Vertical => {
                         trailing_rail_rect.min.y = center.y - corner_radius.se as f32;
                     }
-                };
+                }
 
                 ui.painter().rect_filled(
                     trailing_rail_rect,
@@ -900,7 +915,8 @@ impl Slider<'_> {
                 .min_decimals(self.min_decimals)
                 .max_decimals_opt(self.max_decimals)
                 .suffix(self.suffix.clone())
-                .prefix(self.prefix.clone());
+                .prefix(self.prefix.clone())
+                .update_while_editing(self.update_while_editing);
 
             match self.clamping {
                 SliderClamping::Never => {}
@@ -914,7 +930,7 @@ impl Slider<'_> {
 
             if let Some(fmt) = &self.custom_formatter {
                 dv = dv.custom_formatter(fmt);
-            };
+            }
             if let Some(parser) = &self.custom_parser {
                 dv = dv.custom_parser(parser);
             }
@@ -956,7 +972,6 @@ impl Slider<'_> {
         }
         response.widget_info(|| WidgetInfo::slider(ui.is_enabled(), value, self.text.text()));
 
-        #[cfg(feature = "accesskit")]
         ui.ctx().accesskit_node_builder(response.id, |builder| {
             use accesskit::Action;
             builder.set_min_numeric_value(*self.range.start());

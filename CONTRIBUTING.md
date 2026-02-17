@@ -35,8 +35,8 @@ You can test your code locally by running `./scripts/check.sh`.
 There are snapshots test that might need to be updated.
 Run the tests with `UPDATE_SNAPSHOTS=true cargo test --workspace --all-features` to update all of them.
 If CI keeps complaining about snapshots (which could happen if you don't use macOS, snapshots in CI are currently
-rendered with macOS), you can instead run `./scripts/update_snapshots_from_ci.sh` to update your local snapshots from 
-the last CI run of your PR (which will download the `test_results` artefact).
+rendered with macOS), you can instead run `./scripts/update_snapshots_from_ci.sh` to update your local snapshots from
+the last CI run of your PR (which will download the `test_results` artifact).
 For more info about the tests see [egui_kittest](./crates/egui_kittest/README.md).
 Snapshots and other big files are stored with git lfs. See [Working with git lfs](#working-with-git-lfs) for more info.
 If you see an `InvalidSignature` error when running snapshot tests, it's probably a problem related to git-lfs.
@@ -71,6 +71,9 @@ git add --renormalize . # Moves already added files to regular git (according to
 
 # Push to a contributor remote (see https://github.com/cli/cli/discussions/8794#discussioncomment-8695076)
 git push --no-verify
+
+# Push git lfs files to contributor remote:
+git push origin $(git branch --show-current) && git push --no-verify && git push origin --delete $(git branch --show-current)
 ```
 
 ## PR review
@@ -125,6 +128,7 @@ While using an immediate mode gui is simple, implementing one is a lot more tric
 * Flip `if !condition {} else {}`
 * Sets of things should be lexicographically sorted (e.g. crate dependencies in `Cargo.toml`)
 * Put each type in their own file, unless they are trivial (e.g. a `struct` with no `impl`)
+* Put most generic arguments first (e.g. `Context`), and most specific last
 * Break the above rules when it makes sense
 
 

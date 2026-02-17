@@ -1,6 +1,7 @@
 use super::popup::DatePickerPopup;
 use chrono::NaiveDate;
 use egui::{Area, Button, Frame, InnerResponse, Key, Order, RichText, Ui, Widget};
+use std::ops::RangeInclusive;
 
 #[derive(Default, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -19,6 +20,7 @@ pub struct DatePickerButton<'a> {
     show_icon: bool,
     format: String,
     highlight_weekends: bool,
+    start_end_years: Option<RangeInclusive<i32>>,
 }
 
 impl<'a> DatePickerButton<'a> {
@@ -33,6 +35,7 @@ impl<'a> DatePickerButton<'a> {
             show_icon: true,
             format: "%Y-%m-%d".to_owned(),
             highlight_weekends: true,
+            start_end_years: None,
         }
     }
 
@@ -101,6 +104,17 @@ impl<'a> DatePickerButton<'a> {
         self.highlight_weekends = highlight_weekends;
         self
     }
+
+    /// Set the start and end years for the date picker. (Default: today's year - 100 to today's year + 10)
+    /// This will limit the years you can choose from in the dropdown to the specified range.
+    ///
+    /// For example, if you want to provide the range of years from 2000 to 2035, you can use:
+    /// `start_end_years(2000..=2035)`.
+    #[inline]
+    pub fn start_end_years(mut self, start_end_years: RangeInclusive<i32>) -> Self {
+        self.start_end_years = Some(start_end_years);
+        self
+    }
 }
 
 impl Widget for DatePickerButton<'_> {
@@ -167,6 +181,7 @@ impl Widget for DatePickerButton<'_> {
                                 calendar: self.calendar,
                                 calendar_week: self.calendar_week,
                                 highlight_weekends: self.highlight_weekends,
+                                start_end_years: self.start_end_years,
                             }
                             .draw(ui)
                         })
@@ -177,7 +192,11 @@ impl Widget for DatePickerButton<'_> {
                 button_response.mark_changed();
             }
 
+            // We don't want to close our popup if any other popup is open, since other popups would
+            // most likely be the combo boxes in the date picker.
+            let any_popup_open = ui.any_popup_open();
             if !button_response.clicked()
+                && !any_popup_open
                 && (ui.input(|i| i.key_pressed(Key::Escape)) || area_response.clicked_elsewhere())
             {
                 button_state.picker_visible = false;

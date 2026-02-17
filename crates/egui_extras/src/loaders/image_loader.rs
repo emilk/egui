@@ -1,9 +1,8 @@
 use ahash::HashMap;
 use egui::{
-    decode_animated_image_uri,
+    ColorImage, decode_animated_image_uri,
     load::{Bytes, BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
     mutex::Mutex,
-    ColorImage,
 };
 use image::ImageFormat;
 use std::{mem::size_of, path::Path, sync::Arc, task::Poll};
@@ -51,8 +50,11 @@ fn is_supported_mime(mime: &str) -> bool {
         }
     }
 
+    // Some servers may return a media type with an optional parameter, e.g. "image/jpeg; charset=utf-8".
+    let (mime_type, _) = mime.split_once(';').unwrap_or((mime, ""));
+
     // Uses only the enabled image crate features
-    ImageFormat::from_mime_type(mime).is_some_and(|format| format.reading_enabled())
+    ImageFormat::from_mime_type(mime_type).is_some_and(|format| format.reading_enabled())
 }
 
 impl ImageLoader for ImageCrateLoader {
@@ -77,7 +79,7 @@ impl ImageLoader for ImageCrateLoader {
         }
 
         #[cfg(not(target_arch = "wasm32"))]
-        #[allow(clippy::unnecessary_wraps)] // needed here to match other return types
+        #[expect(clippy::unnecessary_wraps)] // needed here to match other return types
         fn load_image(
             ctx: &egui::Context,
             uri: &str,
@@ -92,7 +94,7 @@ impl ImageLoader for ImageCrateLoader {
                 .name(format!("egui_extras::ImageLoader::load({uri:?})"))
                 .spawn({
                     let ctx = ctx.clone();
-                    let cache = cache.clone();
+                    let cache = Arc::clone(cache);
 
                     let uri = uri.clone();
                     let bytes = bytes.clone();
@@ -101,14 +103,29 @@ impl ImageLoader for ImageCrateLoader {
                         let result = crate::image::load_image_bytes(&bytes)
                             .map(Arc::new)
                             .map_err(|err| err.to_string());
-                        log::trace!("ImageLoader - finished loading {uri:?}");
-                        let prev = cache.lock().insert(uri, Poll::Ready(result));
-                        debug_assert!(
-                            matches!(prev, Some(Poll::Pending)),
-                            "Expected previous state to be Pending"
-                        );
+                        let repaint = {
+                            let mut cache = cache.lock();
 
-                        ctx.request_repaint();
+                            if let std::collections::hash_map::Entry::Occupied(mut entry) = cache.entry(uri.clone()) {
+                                let entry = entry.get_mut();
+                                *entry = Poll::Ready(result);
+                                log::trace!("ImageLoader - finished loading {uri:?}");
+                                true
+                            } else {
+                                log::trace!("ImageLoader - canceled loading {uri:?}\nNote: This can happen if `forget_image` is called while the image is still loading.");
+                                false
+                            }
+                        };
+                        // We may not lock Context while the cache lock is held, since this can
+                        // deadlock.
+                        // Example deadlock scenario:
+                        // - loader thread: lock cache
+                        // - main thread: lock ctx (e.g. in `Context::has_pending_images`)
+                        // - loader thread: try to lock ctx (in `request_repaint`)
+                        // - main thread: try to lock cache (from `Self::has_pending`)
+                        if repaint {
+                            ctx.request_repaint();
+                        }
                     }
                 })
                 .expect("failed to spawn thread");
@@ -147,12 +164,12 @@ impl ImageLoader for ImageCrateLoader {
             match ctx.try_load_bytes(uri) {
                 Ok(BytesPoll::Ready { bytes, mime, .. }) => {
                     // (2)
-                    if let Some(mime) = mime {
-                        if !is_supported_mime(&mime) {
-                            return Err(LoadError::FormatNotSupported {
-                                detected_format: Some(mime),
-                            });
-                        }
+                    if let Some(mime) = mime
+                        && !is_supported_mime(&mime)
+                    {
+                        return Err(LoadError::FormatNotSupported {
+                            detected_format: Some(mime),
+                        });
                     }
                     load_image(ctx, uri, &self.cache, &bytes)
                 }
@@ -180,6 +197,10 @@ impl ImageLoader for ImageCrateLoader {
                 Poll::Pending => 0,
             })
             .sum()
+    }
+
+    fn has_pending(&self) -> bool {
+        self.cache.lock().values().any(|result| result.is_pending())
     }
 }
 

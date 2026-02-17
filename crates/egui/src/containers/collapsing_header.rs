@@ -2,9 +2,9 @@ use std::fmt::Debug;
 use std::hash::Hash;
 
 use crate::{
-    emath, epaint, pos2, remap, remap_clamp, vec2, Context, Id, InnerResponse, NumExt, Rect,
-    Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, UiBuilder, UiKind, UiStackInfo, Vec2,
-    WidgetInfo, WidgetText, WidgetType,
+    Context, Id, InnerResponse, NumExt as _, Rect, Response, Sense, Stroke, TextStyle,
+    TextWrapMode, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetInfo, WidgetText, WidgetType,
+    emath, epaint, pos2, remap, remap_clamp, vec2,
 };
 use emath::GuiRounding as _;
 use epaint::{Shape, StrokeKind};
@@ -70,7 +70,7 @@ impl CollapsingState {
 
     pub fn toggle(&mut self, ui: &Ui) {
         self.state.open = !self.state.open;
-        ui.ctx().request_repaint();
+        ui.request_repaint();
     }
 
     /// 0 for closed, 1 for open, with tweening

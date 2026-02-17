@@ -1,11 +1,9 @@
 use std::sync::Arc;
 
 use crate::{
-    epaint, pos2, text_selection, vec2, Align, Direction, FontSelection, Galley, Pos2, Response,
-    Sense, Stroke, TextWrapMode, Ui, Widget, WidgetInfo, WidgetText, WidgetType,
+    Align, Direction, FontSelection, Galley, Pos2, Response, Sense, Stroke, TextWrapMode, Ui,
+    Widget, WidgetInfo, WidgetText, WidgetType, epaint, pos2, text_selection::LabelSelectionState,
 };
-
-use self::text_selection::LabelSelectionState;
 
 /// Static text.
 ///
@@ -167,7 +165,7 @@ impl Label {
             };
             select_sense -= Sense::FOCUSABLE; // Don't move focus to labels with TAB key.
 
-            sense = sense.union(select_sense);
+            sense |= select_sense;
         }
 
         if let WidgetText::Galley(galley) = self.text {
@@ -182,9 +180,11 @@ impl Label {
         }
 
         let valign = ui.text_valign();
-        let mut layout_job = self
-            .text
-            .into_layout_job(ui.style(), FontSelection::Default, valign);
+        let mut layout_job = Arc::unwrap_or_clone(self.text.into_layout_job(
+            ui.style(),
+            FontSelection::Default,
+            valign,
+        ));
 
         let available_width = ui.available_width();
 
@@ -211,15 +211,18 @@ impl Label {
             if let Some(first_section) = layout_job.sections.first_mut() {
                 first_section.leading_space = first_row_indentation;
             }
-            let galley = ui.fonts(|fonts| fonts.layout_job(layout_job));
+            let galley = ui.fonts_mut(|fonts| fonts.layout_job(layout_job));
 
             let pos = pos2(ui.max_rect().left(), ui.cursor().top());
             assert!(!galley.rows.is_empty(), "Galleys are never empty");
             // collect a response from many rows:
-            let rect = galley.rows[0].rect.translate(vec2(pos.x, pos.y));
+            let rect = galley.rows[0]
+                .rect_without_leading_space()
+                .translate(pos.to_vec2());
             let mut response = ui.allocate_rect(rect, sense);
-            for row in galley.rows.iter().skip(1) {
-                let rect = row.rect.translate(vec2(pos.x, pos.y));
+            response.intrinsic_size = Some(galley.intrinsic_size());
+            for placed_row in galley.rows.iter().skip(1) {
+                let rect = placed_row.rect().translate(pos.to_vec2());
                 response |= ui.allocate_rect(rect, sense);
             }
             (pos, galley, response)
@@ -245,12 +248,15 @@ impl Label {
                 layout_job.halign = Align::LEFT;
                 layout_job.justify = false;
             } else {
-                layout_job.halign = self.halign.unwrap_or(ui.layout().horizontal_placement());
+                layout_job.halign = self
+                    .halign
+                    .unwrap_or_else(|| ui.layout().horizontal_placement());
                 layout_job.justify = ui.layout().horizontal_justify();
-            };
+            }
 
-            let galley = ui.fonts(|fonts| fonts.layout_job(layout_job));
-            let (rect, response) = ui.allocate_exact_size(galley.size(), sense);
+            let galley = ui.fonts_mut(|fonts| fonts.layout_job(layout_job));
+            let (rect, mut response) = ui.allocate_exact_size(galley.size(), sense);
+            response.intrinsic_size = Some(galley.intrinsic_size());
             let galley_pos = match galley.job.halign {
                 Align::LEFT => rect.left_top(),
                 Align::Center => rect.center_top(),
@@ -277,8 +283,14 @@ impl Widget for Label {
 
         if ui.is_rect_visible(response.rect) {
             if show_tooltip_when_elided && galley.elided {
+                // Keep the sections and text, but reset everything else (especially wrapping):
+                let job = crate::text::LayoutJob {
+                    sections: galley.job.sections.clone(),
+                    text: galley.job.text.clone(),
+                    ..crate::text::LayoutJob::default()
+                };
                 // Show the full (non-elided) text on hover:
-                response = response.on_hover_text(galley.text());
+                response = response.on_hover_text(job);
             }
 
             let response_color = if interactive {

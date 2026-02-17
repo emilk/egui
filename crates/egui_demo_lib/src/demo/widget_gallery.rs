@@ -48,7 +48,7 @@ impl Default for WidgetGallery {
 }
 
 impl WidgetGallery {
-    #[allow(unused_mut)] // if not chrono
+    #[allow(clippy::allow_attributes, unused_mut)] // if not chrono
     #[inline]
     pub fn with_date_button(mut self, _with_date_button: bool) -> Self {
         #[cfg(feature = "chrono")]
@@ -64,12 +64,13 @@ impl crate::Demo for WidgetGallery {
         "🗄 Widget Gallery"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
             .resizable([true, false]) // resizable so we can shrink if the text edit grows
             .default_width(280.0)
-            .show(ctx, |ui| {
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| {
                 use crate::View as _;
                 self.ui(ui);
             });
@@ -308,9 +309,9 @@ fn doc_link_label_with_crate<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::View;
+    use crate::View as _;
     use egui::Vec2;
-    use egui_kittest::Harness;
+    use egui_kittest::{Harness, SnapshotResults};
 
     #[test]
     pub fn should_match_screenshot() {
@@ -319,13 +320,30 @@ mod tests {
             date: Some(chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()),
             ..Default::default()
         };
-        let mut harness = Harness::builder()
-            .with_pixels_per_point(2.0)
-            .with_size(Vec2::new(380.0, 550.0))
-            .build_ui(|ui| demo.ui(ui));
 
-        harness.fit_contents();
+        let mut results = SnapshotResults::new();
 
-        harness.snapshot("widget_gallery");
+        for pixels_per_point in [1, 2] {
+            for theme in [egui::Theme::Light, egui::Theme::Dark] {
+                let mut harness = Harness::builder()
+                    .with_pixels_per_point(pixels_per_point as f32)
+                    .with_theme(theme)
+                    .with_size(Vec2::new(380.0, 550.0))
+                    .build_ui(|ui| {
+                        egui_extras::install_image_loaders(ui.ctx());
+                        demo.ui(ui);
+                    });
+
+                harness.fit_contents();
+
+                let theme_name = match theme {
+                    egui::Theme::Light => "light",
+                    egui::Theme::Dark => "dark",
+                };
+                let image_name = format!("widget_gallery_{theme_name}_x{pixels_per_point}");
+                harness.snapshot(&image_name);
+                results.extend_harness(&mut harness);
+            }
+        }
     }
 }

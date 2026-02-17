@@ -5,19 +5,13 @@ authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui natively using the glow library"
 edition.workspace = true
 rust-version.workspace = true
-homepage = "https://github.com/emilk/egui/tree/master/crates/egui_glow"
+homepage = "https://github.com/emilk/egui/tree/main/crates/egui_glow"
 license.workspace = true
 readme = "README.md"
-repository = "https://github.com/emilk/egui/tree/master/crates/egui_glow"
+repository = "https://github.com/emilk/egui/tree/main/crates/egui_glow"
 categories = ["gui", "game-development"]
 keywords = ["glow", "egui", "gui", "gamedev"]
-include = [
-  "../LICENSE-APACHE",
-  "../LICENSE-MIT",
-  "**/*.rs",
-  "Cargo.toml",
-  "src/shader/*.glsl",
-]
+include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml", "src/shader/*.glsl"]
 
 [lints]
 workspace = true
@@ -53,11 +47,10 @@ x11 = ["winit?/x11"]
 egui = { workspace = true, default-features = false, features = ["bytemuck"] }
 egui-winit = { workspace = true, optional = true, default-features = false }
 
-ahash.workspace = true
 bytemuck.workspace = true
 glow.workspace = true
 log.workspace = true
-memoffset = "0.9"
+memoffset.workspace = true
 profiling.workspace = true
 
 #! ### Optional dependencies
@@ -74,7 +67,7 @@ wasm-bindgen.workspace = true
 
 
 [dev-dependencies]
-glutin = { workspace = true, default-features = true }       # examples/pure_glow
+glutin = { workspace = true, default-features = true } # examples/pure_glow
 glutin-winit = { workspace = true, default-features = true }
 
 [[example]]

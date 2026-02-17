@@ -5,8 +5,8 @@
 use emath::GuiRounding as _;
 
 use crate::{
-    emath, pos2, Align2, Context, Id, InnerResponse, LayerId, Layout, NumExt, Order, Pos2, Rect,
-    Response, Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetRect, WidgetWithState,
+    Align2, Context, Id, InnerResponse, LayerId, Layout, NumExt as _, Order, Pos2, Rect, Response,
+    Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetRect, WidgetWithState, emath, pos2,
 };
 
 /// State of an [`Area`] that is persisted between frames.
@@ -121,6 +121,7 @@ pub struct Area {
     new_pos: Option<Pos2>,
     fade_in: bool,
     layout: Layout,
+    sizing_pass: bool,
 }
 
 impl WidgetWithState for Area {
@@ -147,6 +148,7 @@ impl Area {
             anchor: None,
             fade_in: true,
             layout: Layout::default(),
+            sizing_pass: false,
         }
     }
 
@@ -170,7 +172,7 @@ impl Area {
 
     /// Set the [`UiStackInfo`] of the area's [`Ui`].
     ///
-    /// Default to [`UiStackInfo::new(UiKind::GenericArea)`].
+    /// Default to [`UiStackInfo`] with kind [`UiKind::GenericArea`].
     #[inline]
     pub fn info(mut self, info: UiStackInfo) -> Self {
         self.info = info;
@@ -357,6 +359,27 @@ impl Area {
         self.layout = layout;
         self
     }
+
+    /// While true, a sizing pass will be done. This means the area will be invisible
+    /// and the contents will be laid out to estimate the proper containing size of the area.
+    /// If false, there will be no change to the default area behavior. This is useful if the
+    /// area contents area dynamic and you need to need to make sure the area adjusts its size
+    /// accordingly.
+    ///
+    /// This should only be set to true during the specific frames you want force a sizing pass.
+    /// Do NOT hard-code this as `.sizing_pass(true)`, as it will cause the area to never be
+    /// visible.
+    ///
+    /// # Arguments
+    /// - resize: If true, the area will be resized to fit its contents. False will keep the
+    ///   default area resizing behavior.
+    ///
+    /// Default: `false`.
+    #[inline]
+    pub fn sizing_pass(mut self, resize: bool) -> Self {
+        self.sizing_pass = resize;
+        self
+    }
 }
 
 pub(crate) struct Prepared {
@@ -410,9 +433,10 @@ impl Area {
             constrain_rect,
             fade_in,
             layout,
+            sizing_pass: force_sizing_pass,
         } = self;
 
-        let constrain_rect = constrain_rect.unwrap_or_else(|| ctx.screen_rect());
+        let constrain_rect = constrain_rect.unwrap_or_else(|| ctx.content_rect());
 
         let layer_id = LayerId::new(order, id);
 
@@ -425,13 +449,17 @@ impl Area {
             interactable,
             last_became_visible_at: None,
         });
+        if force_sizing_pass {
+            sizing_pass = true;
+            state.size = None;
+        }
         state.pivot = pivot;
         state.interactable = interactable;
         if let Some(new_pos) = new_pos {
             state.pivot_pos = Some(new_pos);
         }
         state.pivot_pos.get_or_insert_with(|| {
-            default_pos.unwrap_or_else(|| automatic_area_position(ctx, layer_id))
+            default_pos.unwrap_or_else(|| automatic_area_position(ctx, constrain_rect, layer_id))
         });
         state.interactable = interactable;
 
@@ -441,7 +469,7 @@ impl Area {
             // during the sizing pass we will use this as the max size
             let mut size = default_size;
 
-            let default_area_size = ctx.style().spacing.default_area_size;
+            let default_area_size = ctx.global_style().spacing.default_area_size;
             if size.x.is_nan() {
                 size.x = default_area_size.x;
             }
@@ -477,9 +505,9 @@ impl Area {
             let interact_id = layer_id.id.with("move");
             let sense = sense.unwrap_or_else(|| {
                 if movable {
-                    Sense::drag()
+                    Sense::DRAG
                 } else if interactable {
-                    Sense::click() // allow clicks to bring to front
+                    Sense::CLICK // allow clicks to bring to front
                 } else {
                     Sense::hover()
                 }
@@ -495,12 +523,24 @@ impl Area {
                     enabled,
                 },
                 true,
+                Default::default(),
             );
 
-            if movable && move_response.dragged() {
-                if let Some(pivot_pos) = &mut state.pivot_pos {
-                    *pivot_pos += move_response.drag_delta();
-                }
+            // Used to prevent drift
+            let pivot_at_start_of_drag_id = id.with("pivot_at_drag_start");
+
+            if movable
+                && move_response.dragged()
+                && let Some(pivot_pos) = &mut state.pivot_pos
+            {
+                let pivot_at_start_of_drag = ctx.data_mut(|data| {
+                    *data.get_temp_mut_or::<Pos2>(pivot_at_start_of_drag_id, *pivot_pos)
+                });
+
+                *pivot_pos =
+                    pivot_at_start_of_drag + move_response.total_drag_delta().unwrap_or_default();
+            } else {
+                ctx.data_mut(|data| data.remove::<Pos2>(pivot_at_start_of_drag_id));
             }
 
             if (move_response.dragged() || move_response.clicked())
@@ -514,13 +554,14 @@ impl Area {
             move_response
         };
 
-        if constrain {
-            state.set_left_top_pos(
-                Context::constrain_window_rect_to_area(state.rect(), constrain_rect).min,
-            );
-        }
-
-        state.set_left_top_pos(state.left_top_pos());
+        state.set_left_top_pos(round_area_position(
+            ctx,
+            if constrain {
+                Context::constrain_window_rect_to_area(state.rect(), constrain_rect).min
+            } else {
+                state.left_top_pos()
+            },
+        ));
 
         // Update response with possibly moved/constrained rect:
         move_response.rect = state.rect();
@@ -539,6 +580,16 @@ impl Area {
             layout,
         }
     }
+}
+
+fn round_area_position(ctx: &Context, pos: Pos2) -> Pos2 {
+    // We round a lot of rendering to pixels, so we round the whole
+    // area positions to pixels too, so avoid widgets appearing to float
+    // around independently of each other when the area is dragged.
+    // But just in case pixels_per_point is irrational,
+    // we then also round to ui coordinates:
+
+    pos.round_to_pixels(ctx.pixels_per_point()).round_ui()
 }
 
 impl Prepared {
@@ -566,6 +617,7 @@ impl Prepared {
             .layer_id(self.layer_id)
             .max_rect(max_rect)
             .layout(self.layout)
+            .accessibility_parent(self.move_response.id)
             .closable();
 
         if !self.enabled {
@@ -578,16 +630,17 @@ impl Prepared {
         let mut ui = Ui::new(ctx.clone(), self.layer_id.id, ui_builder);
         ui.set_clip_rect(self.constrain_rect); // Don't paint outside our bounds
 
-        if self.fade_in {
-            if let Some(last_became_visible_at) = self.state.last_became_visible_at {
-                let age =
-                    ctx.input(|i| (i.time - last_became_visible_at) as f32 + i.predicted_dt / 2.0);
-                let opacity = crate::remap_clamp(age, 0.0..=ctx.style().animation_time, 0.0..=1.0);
-                let opacity = emath::easing::quadratic_out(opacity); // slow fade-out = quick fade-in
-                ui.multiply_opacity(opacity);
-                if opacity < 1.0 {
-                    ctx.request_repaint();
-                }
+        if self.fade_in
+            && let Some(last_became_visible_at) = self.state.last_became_visible_at
+        {
+            let age =
+                ctx.input(|i| (i.time - last_became_visible_at) as f32 + i.predicted_dt / 2.0);
+            let opacity =
+                crate::remap_clamp(age, 0.0..=ctx.global_style().animation_time, 0.0..=1.0);
+            let opacity = emath::easing::quadratic_out(opacity); // slow fade-out = quick fade-in
+            ui.multiply_opacity(opacity);
+            if opacity < 1.0 {
+                ctx.request_repaint();
             }
         }
 
@@ -602,7 +655,7 @@ impl Prepared {
         self.move_response.id
     }
 
-    #[allow(clippy::needless_pass_by_value)] // intentional to swallow up `content_ui`.
+    #[expect(clippy::needless_pass_by_value)] // intentional to swallow up `content_ui`.
     pub(crate) fn end(self, ctx: &Context, content_ui: Ui) -> Response {
         let Self {
             info: _,
@@ -647,7 +700,7 @@ fn pointer_pressed_on_area(ctx: &Context, layer_id: LayerId) -> bool {
     }
 }
 
-fn automatic_area_position(ctx: &Context, layer_id: LayerId) -> Pos2 {
+fn automatic_area_position(ctx: &Context, constrain_rect: Rect, layer_id: LayerId) -> Pos2 {
     let mut existing: Vec<Rect> = ctx.memory(|mem| {
         mem.areas()
             .visible_windows()
@@ -658,13 +711,9 @@ fn automatic_area_position(ctx: &Context, layer_id: LayerId) -> Pos2 {
     });
     existing.sort_by_key(|r| r.left().round() as i32);
 
-    // NOTE: for the benefit of the egui demo, we position the windows so they don't
-    // cover the side panels, which means we use `available_rect` here instead of `constrain_rect` or `screen_rect`.
-    let available_rect = ctx.available_rect();
-
     let spacing = 16.0;
-    let left = available_rect.left() + spacing;
-    let top = available_rect.top() + spacing;
+    let left = constrain_rect.left() + spacing;
+    let top = constrain_rect.top() + spacing;
 
     if existing.is_empty() {
         return pos2(left, top);
@@ -674,10 +723,11 @@ fn automatic_area_position(ctx: &Context, layer_id: LayerId) -> Pos2 {
     let mut column_bbs = vec![existing[0]];
 
     for &rect in &existing {
+        #[expect(clippy::unwrap_used)]
         let current_column_bb = column_bbs.last_mut().unwrap();
         if rect.left() < current_column_bb.right() {
             // same column
-            *current_column_bb = current_column_bb.union(rect);
+            *current_column_bb |= rect;
         } else {
             // new column
             column_bbs.push(rect);
@@ -698,14 +748,15 @@ fn automatic_area_position(ctx: &Context, layer_id: LayerId) -> Pos2 {
 
     // Find first column with some available space at the bottom of it:
     for col_bb in &column_bbs {
-        if col_bb.bottom() < available_rect.center().y {
+        if col_bb.bottom() < constrain_rect.center().y {
             return pos2(col_bb.left(), col_bb.bottom() + spacing);
         }
     }
 
     // Maybe we can fit a new column?
+    #[expect(clippy::unwrap_used)]
     let rightmost = column_bbs.last().unwrap().right();
-    if rightmost + 200.0 < available_rect.right() {
+    if rightmost + 200.0 < constrain_rect.right() {
         return pos2(rightmost + spacing, top);
     }
 

@@ -28,11 +28,14 @@ impl crate::Demo for FontBook {
         "🔤 Font Book"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        egui::Window::new(self.name()).open(open).show(ctx, |ui| {
-            use crate::View as _;
-            self.ui(ui);
-        });
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
+        egui::Window::new(self.name())
+            .open(open)
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| {
+                use crate::View as _;
+                self.ui(ui);
+            });
     }
 }
 
@@ -77,7 +80,7 @@ impl crate::View for FontBook {
         let available_glyphs = self
             .available_glyphs
             .entry(self.font_id.family.clone())
-            .or_insert_with(|| available_characters(ui, self.font_id.family.clone()));
+            .or_insert_with(|| available_characters(ui, &self.font_id.family));
 
         ui.separator();
 
@@ -102,7 +105,7 @@ impl crate::View for FontBook {
                         };
 
                         if ui.add(button).on_hover_ui(tooltip_ui).clicked() {
-                            ui.ctx().copy_text(chr.to_string());
+                            ui.copy_text(chr.to_string());
                         }
                     }
                 }
@@ -140,11 +143,10 @@ fn char_info_ui(ui: &mut egui::Ui, chr: char, glyph_info: &GlyphInfo, font_id: e
         });
 }
 
-fn available_characters(ui: &egui::Ui, family: egui::FontFamily) -> BTreeMap<char, GlyphInfo> {
-    ui.fonts(|f| {
-        f.lock()
-            .fonts
-            .font(&egui::FontId::new(10.0, family)) // size is arbitrary for getting the characters
+fn available_characters(ui: &egui::Ui, family: &egui::FontFamily) -> BTreeMap<char, GlyphInfo> {
+    ui.fonts_mut(|f| {
+        f.fonts
+            .font(family)
             .characters()
             .iter()
             .filter(|(chr, _fonts)| !chr.is_whitespace() && !chr.is_ascii_control())
@@ -169,7 +171,7 @@ fn char_name(chr: char) -> String {
 }
 
 fn special_char_name(chr: char) -> Option<&'static str> {
-    #[allow(clippy::match_same_arms)] // many "flag"
+    #[expect(clippy::match_same_arms)] // many "flag"
     match chr {
         // Special private-use-area extensions found in `emoji-icon-font.ttf`:
         // Private use area extensions:

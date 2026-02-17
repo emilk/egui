@@ -2,12 +2,12 @@ use epaint::Shape;
 use std::fmt::Debug;
 
 use crate::{
-    epaint, style::StyleModifier, style::WidgetVisuals, vec2, Align2, Context, Id, InnerResponse,
-    NumExt, Painter, Popup, PopupCloseBehavior, Rect, Response, ScrollArea, Sense, Stroke,
-    TextStyle, TextWrapMode, Ui, UiBuilder, Vec2, WidgetInfo, WidgetText, WidgetType,
+    Align2, Context, Id, InnerResponse, NumExt as _, Painter, Popup, PopupCloseBehavior, Rect,
+    Response, ScrollArea, Sense, Stroke, TextStyle, TextWrapMode, Ui, UiBuilder, Vec2, WidgetInfo,
+    WidgetText, WidgetType, epaint, style::StyleModifier, style::WidgetVisuals, vec2,
 };
 
-#[allow(unused_imports)] // Documentation
+#[expect(unused_imports)] // Documentation
 use crate::style::Spacing;
 
 /// A function that paints the [`ComboBox`] icon
@@ -17,9 +17,10 @@ pub type IconPainter = Box<dyn FnOnce(&Ui, Rect, &WidgetVisuals, bool)>;
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
-/// # #[derive(Debug, PartialEq)]
+/// # #[derive(Debug, PartialEq, Copy, Clone)]
 /// # enum Enum { First, Second, Third }
 /// # let mut selected = Enum::First;
+/// let before = selected;
 /// egui::ComboBox::from_label("Select one!")
 ///     .selected_text(format!("{:?}", selected))
 ///     .show_ui(ui, |ui| {
@@ -28,6 +29,10 @@ pub type IconPainter = Box<dyn FnOnce(&Ui, Rect, &WidgetVisuals, bool)>;
 ///         ui.selectable_value(&mut selected, Enum::Third, "Third");
 ///     }
 /// );
+///
+/// if selected != before {
+///     // Handle selection change
+/// }
 /// # });
 /// ```
 #[must_use = "You should call .show*"]
@@ -40,6 +45,7 @@ pub struct ComboBox {
     icon: Option<IconPainter>,
     wrap_mode: Option<TextWrapMode>,
     close_behavior: Option<PopupCloseBehavior>,
+    popup_style: StyleModifier,
 }
 
 impl ComboBox {
@@ -54,6 +60,7 @@ impl ComboBox {
             icon: None,
             wrap_mode: None,
             close_behavior: None,
+            popup_style: StyleModifier::default(),
         }
     }
 
@@ -69,6 +76,7 @@ impl ComboBox {
             icon: None,
             wrap_mode: None,
             close_behavior: None,
+            popup_style: StyleModifier::default(),
         }
     }
 
@@ -83,11 +91,12 @@ impl ComboBox {
             icon: None,
             wrap_mode: None,
             close_behavior: None,
+            popup_style: StyleModifier::default(),
         }
     }
 
     /// Without label.
-    #[deprecated = "Renamed id_salt"]
+    #[deprecated = "Renamed from_id_salt"]
     pub fn from_id_source(id_salt: impl std::hash::Hash + Debug) -> Self {
         Self::from_id_salt(id_salt)
     }
@@ -187,6 +196,16 @@ impl ComboBox {
         self
     }
 
+    /// Set the style of the popup menu.
+    ///
+    /// Could for example be used with [`crate::containers::menu::menu_style`] to get the frame-less
+    /// menu button style.
+    #[inline]
+    pub fn popup_style(mut self, popup_style: StyleModifier) -> Self {
+        self.popup_style = popup_style;
+        self
+    }
+
     /// Show the combo box, with the given ui code for the menu contents.
     ///
     /// Returns `InnerResponse { inner: None }` if the combo box is closed.
@@ -212,6 +231,7 @@ impl ComboBox {
             icon,
             wrap_mode,
             close_behavior,
+            popup_style,
         } = self;
 
         let button_id = ui.make_persistent_id(id_salt);
@@ -220,21 +240,24 @@ impl ComboBox {
             let mut ir = combo_box_dyn(
                 ui,
                 button_id,
-                selected_text,
+                selected_text.clone(),
                 menu_contents,
                 icon,
                 wrap_mode,
                 close_behavior,
+                popup_style,
                 (width, height),
             );
+            ir.response.widget_info(|| {
+                let mut info = WidgetInfo::new(WidgetType::ComboBox);
+                info.enabled = ui.is_enabled();
+                info.current_text_value = Some(selected_text.text().to_owned());
+                info
+            });
             if let Some(label) = label {
-                ir.response.widget_info(|| {
-                    WidgetInfo::labeled(WidgetType::ComboBox, ui.is_enabled(), label.text())
-                });
-                ir.response |= ui.label(label);
-            } else {
-                ir.response
-                    .widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, ui.is_enabled(), ""));
+                let label_response = ui.label(label);
+                ir.response = ir.response.labelled_by(label_response.id);
+                ir.response |= label_response;
             }
             ir
         })
@@ -289,7 +312,7 @@ impl ComboBox {
 
     /// Check if the [`ComboBox`] with the given id has its popup menu currently opened.
     pub fn is_open(ctx: &Context, id: Id) -> bool {
-        ctx.memory(|m| m.is_popup_open(Self::widget_to_popup_id(id)))
+        Popup::is_id_open(ctx, Self::widget_to_popup_id(id))
     }
 
     /// Convert a [`ComboBox`] id to the id used to store it's popup state.
@@ -298,7 +321,7 @@ impl ComboBox {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 fn combo_box_dyn<'c, R>(
     ui: &mut Ui,
     button_id: Id,
@@ -307,11 +330,12 @@ fn combo_box_dyn<'c, R>(
     icon: Option<IconPainter>,
     wrap_mode: Option<TextWrapMode>,
     close_behavior: Option<PopupCloseBehavior>,
+    popup_style: StyleModifier,
     (width, height): (Option<f32>, Option<f32>),
 ) -> InnerResponse<Option<R>> {
     let popup_id = ComboBox::widget_to_popup_id(button_id);
 
-    let is_popup_open = ui.memory(|m| m.is_popup_open(popup_id));
+    let is_popup_open = Popup::is_id_open(ui.ctx(), popup_id);
 
     let wrap_mode = wrap_mode.unwrap_or_else(|| ui.wrap_mode());
 
@@ -375,9 +399,9 @@ fn combo_box_dyn<'c, R>(
 
     let inner = Popup::menu(&button_response)
         .id(popup_id)
-        .style(StyleModifier::default())
         .width(button_response.rect.width())
         .close_behavior(close_behavior)
+        .style(popup_style)
         .show(|ui| {
             ui.set_min_width(ui.available_width());
 

@@ -24,11 +24,14 @@ impl crate::Demo for GridTest {
         "Grid Test"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        egui::Window::new(self.name()).open(open).show(ctx, |ui| {
-            use crate::View as _;
-            self.ui(ui);
-        });
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
+        egui::Window::new(self.name())
+            .open(open)
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| {
+                use crate::View as _;
+                self.ui(ui);
+            });
     }
 }
 
@@ -110,7 +113,7 @@ impl crate::View for GridTest {
             ui.end_row();
 
             let mut dyn_text = String::from("O");
-            dyn_text.extend(std::iter::repeat('h').take(self.text_length));
+            dyn_text.extend(std::iter::repeat_n('h', self.text_length));
             ui.label(dyn_text);
             ui.label("Fifth row, second column");
             ui.end_row();

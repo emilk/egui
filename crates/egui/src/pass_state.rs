@@ -1,9 +1,9 @@
 use ahash::HashMap;
 
-use crate::{id::IdSet, style, Align, Id, IdMap, LayerId, Rangef, Rect, Vec2, WidgetRects};
+use crate::{Align, Id, IdMap, LayerId, Rangef, Rect, Vec2, WidgetRects, id::IdSet, style};
 
 #[cfg(debug_assertions)]
-use crate::{pos2, Align2, Color32, FontId, NumExt, Painter};
+use crate::{Align2, Color32, FontId, NumExt as _, Painter, pos2};
 
 /// Reset at the start of each frame.
 #[derive(Clone, Debug, Default)]
@@ -67,11 +67,10 @@ impl ScrollTarget {
     }
 }
 
-#[cfg(feature = "accesskit")]
 #[derive(Clone)]
 pub struct AccessKitPassState {
     pub nodes: IdMap<accesskit::Node>,
-    pub parent_stack: Vec<Id>,
+    pub parent_map: IdMap<Id>,
 }
 
 #[cfg(debug_assertions)]
@@ -96,7 +95,7 @@ impl DebugRect {
         // Paint rectangle around widget:
         {
             // Print width and height:
-            let text_color = if ctx.style().visuals.dark_mode {
+            let text_color = if ctx.global_style().visuals.dark_mode {
                 Color32::WHITE
             } else {
                 Color32::BLACK
@@ -137,7 +136,7 @@ impl DebugRect {
             let galley = painter.layout_no_wrap(text, font_id, text_color);
 
             // Position the text either under or above:
-            let screen_rect = ctx.screen_rect();
+            let content_rect = ctx.content_rect();
             let y = if galley.size().y <= rect.top() {
                 // Above
                 rect.top() - galley.size().y - 16.0
@@ -147,12 +146,12 @@ impl DebugRect {
             };
 
             let y = y
-                .at_most(screen_rect.bottom() - galley.size().y)
+                .at_most(content_rect.bottom() - galley.size().y)
                 .at_least(0.0);
 
             let x = rect
                 .left()
-                .at_most(screen_rect.right() - galley.size().x)
+                .at_most(content_rect.right() - galley.size().x)
                 .at_least(0.0);
             let text_pos = pos2(x, y);
 
@@ -225,7 +224,6 @@ pub struct PassState {
     /// as when swiping down on a touch-screen or track-pad with natural scrolling.
     pub scroll_delta: (Vec2, style::ScrollAnimation),
 
-    #[cfg(feature = "accesskit")]
     pub accesskit_state: Option<AccessKitPassState>,
 
     /// Highlight these widgets the next pass.
@@ -247,7 +245,6 @@ impl Default for PassState {
             used_by_panels: Rect::NAN,
             scroll_target: [None, None],
             scroll_delta: (Vec2::default(), style::ScrollAnimation::none()),
-            #[cfg(feature = "accesskit")]
             accesskit_state: None,
             highlight_next_pass: Default::default(),
 
@@ -258,7 +255,7 @@ impl Default for PassState {
 }
 
 impl PassState {
-    pub(crate) fn begin_pass(&mut self, screen_rect: Rect) {
+    pub(crate) fn begin_pass(&mut self, content_rect: Rect) {
         profiling::function_scope!();
         let Self {
             used_ids,
@@ -270,7 +267,6 @@ impl PassState {
             used_by_panels,
             scroll_target,
             scroll_delta,
-            #[cfg(feature = "accesskit")]
             accesskit_state,
             highlight_next_pass,
 
@@ -282,8 +278,8 @@ impl PassState {
         widgets.clear();
         tooltips.clear();
         layers.clear();
-        *available_rect = screen_rect;
-        *unused_rect = screen_rect;
+        *available_rect = content_rect;
+        *unused_rect = content_rect;
         *used_by_panels = Rect::NOTHING;
         *scroll_target = [None, None];
         *scroll_delta = Default::default();
@@ -293,10 +289,7 @@ impl PassState {
             *debug_rect = None;
         }
 
-        #[cfg(feature = "accesskit")]
-        {
-            *accesskit_state = None;
-        }
+        *accesskit_state = None;
 
         highlight_next_pass.clear();
     }
@@ -318,7 +311,7 @@ impl PassState {
         );
         self.available_rect.min.x = panel_rect.max.x;
         self.unused_rect.min.x = panel_rect.max.x;
-        self.used_by_panels = self.used_by_panels.union(panel_rect);
+        self.used_by_panels |= panel_rect;
     }
 
     /// Shrink `available_rect`.
@@ -329,7 +322,7 @@ impl PassState {
         );
         self.available_rect.max.x = panel_rect.min.x;
         self.unused_rect.max.x = panel_rect.min.x;
-        self.used_by_panels = self.used_by_panels.union(panel_rect);
+        self.used_by_panels |= panel_rect;
     }
 
     /// Shrink `available_rect`.
@@ -340,7 +333,7 @@ impl PassState {
         );
         self.available_rect.min.y = panel_rect.max.y;
         self.unused_rect.min.y = panel_rect.max.y;
-        self.used_by_panels = self.used_by_panels.union(panel_rect);
+        self.used_by_panels |= panel_rect;
     }
 
     /// Shrink `available_rect`.
@@ -351,13 +344,13 @@ impl PassState {
         );
         self.available_rect.max.y = panel_rect.min.y;
         self.unused_rect.max.y = panel_rect.min.y;
-        self.used_by_panels = self.used_by_panels.union(panel_rect);
+        self.used_by_panels |= panel_rect;
     }
 
     pub(crate) fn allocate_central_panel(&mut self, panel_rect: Rect) {
         // Note: we do not shrink `available_rect`, because
         // we allow windows to cover the CentralPanel.
         self.unused_rect = Rect::NOTHING; // Nothing left unused after this
-        self.used_by_panels = self.used_by_panels.union(panel_rect);
+        self.used_by_panels |= panel_rect;
     }
 }

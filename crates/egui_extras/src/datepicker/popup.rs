@@ -1,4 +1,4 @@
-use chrono::{Datelike, NaiveDate, Weekday};
+use chrono::{Datelike as _, NaiveDate, Weekday};
 
 use egui::{Align, Button, Color32, ComboBox, Direction, Id, Layout, RichText, Ui, Vec2};
 
@@ -35,6 +35,7 @@ pub(crate) struct DatePickerPopup<'a> {
     pub calendar: bool,
     pub calendar_week: bool,
     pub highlight_weekends: bool,
+    pub start_end_years: Option<std::ops::RangeInclusive<i32>>,
 }
 
 impl DatePickerPopup<'_> {
@@ -84,7 +85,11 @@ impl DatePickerPopup<'_> {
                                 ComboBox::from_id_salt("date_picker_year")
                                     .selected_text(popup_state.year.to_string())
                                     .show_ui(ui, |ui| {
-                                        for year in today.year() - 100..today.year() + 10 {
+                                        let (start_year, end_year) = match &self.start_end_years {
+                                            Some(range) => (*range.start(), *range.end()),
+                                            None => (today.year() - 100, today.year() + 10),
+                                        };
+                                        for year in start_year..=end_year {
                                             if ui
                                                 .selectable_value(
                                                     &mut popup_state.year,
@@ -331,7 +336,7 @@ impl DatePickerPopup<'_> {
                                                         if day.month() != popup_state.month {
                                                             text_color =
                                                                 text_color.linear_multiply(0.5);
-                                                        };
+                                                        }
 
                                                         let button_response = ui.add(
                                                             Button::new(

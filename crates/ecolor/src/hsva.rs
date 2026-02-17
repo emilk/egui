@@ -1,9 +1,10 @@
 use crate::{
-    gamma_u8_from_linear_f32, linear_f32_from_gamma_u8, linear_u8_from_linear_f32, Color32, Rgba,
+    Color32, Rgba, gamma_u8_from_linear_f32, linear_f32_from_gamma_u8, linear_u8_from_linear_f32,
 };
 
 /// Hue, saturation, value, alpha. All in the range [0, 1].
 /// No premultiplied alpha.
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Hsva {
     /// hue 0-1
@@ -40,7 +41,7 @@ impl Hsva {
     /// From linear RGBA with premultiplied alpha
     #[inline]
     pub fn from_rgba_premultiplied(r: f32, g: f32, b: f32, a: f32) -> Self {
-        #![allow(clippy::many_single_char_names)]
+        #![expect(clippy::many_single_char_names)]
         if a <= 0.0 {
             if r == 0.0 && b == 0.0 && a == 0.0 {
                 Self::default()
@@ -56,7 +57,7 @@ impl Hsva {
     /// From linear RGBA without premultiplied alpha
     #[inline]
     pub fn from_rgba_unmultiplied(r: f32, g: f32, b: f32, a: f32) -> Self {
-        #![allow(clippy::many_single_char_names)]
+        #![expect(clippy::many_single_char_names)]
         let (h, s, v) = hsv_from_rgb([r, g, b]);
         Self { h, s, v, a }
     }
@@ -188,7 +189,7 @@ impl From<Color32> for Hsva {
 /// All ranges in 0-1, rgb is linear.
 #[inline]
 pub fn hsv_from_rgb([r, g, b]: [f32; 3]) -> (f32, f32, f32) {
-    #![allow(clippy::many_single_char_names)]
+    #![expect(clippy::many_single_char_names)]
     let min = r.min(g.min(b));
     let max = r.max(g.max(b)); // value
 
@@ -212,7 +213,7 @@ pub fn hsv_from_rgb([r, g, b]: [f32; 3]) -> (f32, f32, f32) {
 /// All ranges in 0-1, rgb is linear.
 #[inline]
 pub fn rgb_from_hsv((h, s, v): (f32, f32, f32)) -> [f32; 3] {
-    #![allow(clippy::many_single_char_names)]
+    #![expect(clippy::many_single_char_names)]
     let h = (h.fract() + 1.0).fract(); // wrap
     let s = s.clamp(0.0, 1.0);
 
@@ -233,7 +234,7 @@ pub fn rgb_from_hsv((h, s, v): (f32, f32, f32)) -> [f32; 3] {
 }
 
 #[test]
-#[ignore] // a bit expensive
+#[ignore = "too expensive"]
 fn test_hsv_roundtrip() {
     for r in 0..=255 {
         for g in 0..=255 {

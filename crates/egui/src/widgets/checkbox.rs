@@ -1,6 +1,8 @@
+use emath::Rect;
+
 use crate::{
-    epaint, pos2, vec2, NumExt, Response, Sense, Shape, TextStyle, Ui, Vec2, Widget, WidgetInfo,
-    WidgetText, WidgetType,
+    Atom, AtomLayout, Atoms, Id, IntoAtoms, NumExt as _, Response, Sense, Shape, Ui, Vec2, Widget,
+    WidgetInfo, WidgetType, epaint, pos2, widget_style::CheckboxStyle,
 };
 
 // TODO(emilk): allow checkbox without a text label
@@ -19,21 +21,21 @@ use crate::{
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct Checkbox<'a> {
     checked: &'a mut bool,
-    text: WidgetText,
+    atoms: Atoms<'a>,
     indeterminate: bool,
 }
 
 impl<'a> Checkbox<'a> {
-    pub fn new(checked: &'a mut bool, text: impl Into<WidgetText>) -> Self {
+    pub fn new(checked: &'a mut bool, atoms: impl IntoAtoms<'a>) -> Self {
         Checkbox {
             checked,
-            text: text.into(),
+            atoms: atoms.into_atoms(),
             indeterminate: false,
         }
     }
 
     pub fn without_text(checked: &'a mut bool) -> Self {
-        Self::new(checked, WidgetText::default())
+        Self::new(checked, ())
     }
 
     /// Display an indeterminate state (neither checked nor unchecked)
@@ -51,92 +53,103 @@ impl Widget for Checkbox<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         let Checkbox {
             checked,
-            text,
+            mut atoms,
             indeterminate,
         } = self;
 
-        let spacing = &ui.spacing();
-        let icon_width = spacing.icon_width;
-        let icon_spacing = spacing.icon_spacing;
+        // Get the widget style by reading the response from the previous pass
+        let id = ui.next_auto_id();
+        let response: Option<Response> = ui.ctx().read_response(id);
+        let state = response.map(|r| r.widget_state()).unwrap_or_default();
 
-        let (galley, mut desired_size) = if text.is_empty() {
-            (None, vec2(icon_width, 0.0))
-        } else {
-            let total_extra = vec2(icon_width + icon_spacing, 0.0);
+        let CheckboxStyle {
+            check_size,
+            checkbox_frame,
+            checkbox_size,
+            frame,
+            check_stroke,
+            text_style,
+        } = ui.style().checkbox_style(state);
 
-            let wrap_width = ui.available_width() - total_extra.x;
-            let galley = text.into_galley(ui, None, wrap_width, TextStyle::Button);
+        let mut min_size = Vec2::splat(ui.spacing().interact_size.y);
+        min_size.y = min_size.y.at_least(checkbox_size);
 
-            let mut desired_size = total_extra + galley.size();
-            desired_size = desired_size.at_least(spacing.interact_size);
+        // In order to center the checkbox based on min_size we set the icon height to at least min_size.y
+        let mut icon_size = Vec2::splat(checkbox_size);
+        icon_size.y = icon_size.y.at_least(min_size.y);
+        let rect_id = Id::new("egui::checkbox");
+        atoms.push_left(Atom::custom(rect_id, icon_size));
 
-            (Some(galley), desired_size)
-        };
+        let text = atoms.text().map(String::from);
 
-        desired_size = desired_size.at_least(Vec2::splat(spacing.interact_size.y));
-        desired_size.y = desired_size.y.max(icon_width);
-        let (rect, mut response) = ui.allocate_exact_size(desired_size, Sense::click());
+        let mut prepared = AtomLayout::new(atoms)
+            .sense(Sense::click())
+            .min_size(min_size)
+            .frame(frame)
+            .allocate(ui);
 
-        if response.clicked() {
+        if prepared.response.clicked() {
             *checked = !*checked;
-            response.mark_changed();
+            prepared.response.mark_changed();
         }
-        response.widget_info(|| {
+        prepared.response.widget_info(|| {
             if indeterminate {
                 WidgetInfo::labeled(
                     WidgetType::Checkbox,
                     ui.is_enabled(),
-                    galley.as_ref().map_or("", |x| x.text()),
+                    text.as_deref().unwrap_or(""),
                 )
             } else {
                 WidgetInfo::selected(
                     WidgetType::Checkbox,
                     ui.is_enabled(),
                     *checked,
-                    galley.as_ref().map_or("", |x| x.text()),
+                    text.as_deref().unwrap_or(""),
                 )
             }
         });
 
-        if ui.is_rect_visible(rect) {
-            // let visuals = ui.style().interact_selectable(&response, *checked); // too colorful
-            let visuals = ui.style().interact(&response);
-            let (small_icon_rect, big_icon_rect) = ui.spacing().icon_rectangles(rect);
-            ui.painter().add(epaint::RectShape::new(
-                big_icon_rect.expand(visuals.expansion),
-                visuals.corner_radius,
-                visuals.bg_fill,
-                visuals.bg_stroke,
-                epaint::StrokeKind::Inside,
-            ));
+        if ui.is_rect_visible(prepared.response.rect) {
+            prepared.fallback_text_color = text_style.color;
+            let response = prepared.paint(ui);
 
-            if indeterminate {
-                // Horizontal line:
-                ui.painter().add(Shape::hline(
-                    small_icon_rect.x_range(),
-                    small_icon_rect.center().y,
-                    visuals.fg_stroke,
-                ));
-            } else if *checked {
-                // Check mark:
-                ui.painter().add(Shape::line(
-                    vec![
-                        pos2(small_icon_rect.left(), small_icon_rect.center().y),
-                        pos2(small_icon_rect.center().x, small_icon_rect.bottom()),
-                        pos2(small_icon_rect.right(), small_icon_rect.top()),
-                    ],
-                    visuals.fg_stroke,
-                ));
-            }
-            if let Some(galley) = galley {
-                let text_pos = pos2(
-                    rect.min.x + icon_width + icon_spacing,
-                    rect.center().y - 0.5 * galley.size().y,
+            if let Some(rect) = response.rect(rect_id) {
+                let big_icon_rect = Rect::from_center_size(
+                    pos2(rect.left() + checkbox_size / 2.0, rect.center().y),
+                    Vec2::splat(checkbox_size),
                 );
-                ui.painter().galley(text_pos, galley, visuals.text_color());
-            }
-        }
+                let small_icon_rect =
+                    Rect::from_center_size(big_icon_rect.center(), Vec2::splat(check_size));
+                ui.painter().add(epaint::RectShape::new(
+                    big_icon_rect.expand(checkbox_frame.inner_margin.left.into()),
+                    checkbox_frame.corner_radius,
+                    checkbox_frame.fill,
+                    checkbox_frame.stroke,
+                    epaint::StrokeKind::Inside,
+                ));
 
-        response
+                if indeterminate {
+                    // Horizontal line:
+                    ui.painter().add(Shape::hline(
+                        small_icon_rect.x_range(),
+                        small_icon_rect.center().y,
+                        check_stroke,
+                    ));
+                } else if *checked {
+                    // Check mark:
+                    ui.painter().add(Shape::line(
+                        vec![
+                            pos2(small_icon_rect.left(), small_icon_rect.center().y),
+                            pos2(small_icon_rect.center().x, small_icon_rect.bottom()),
+                            pos2(small_icon_rect.right(), small_icon_rect.top()),
+                        ],
+                        check_stroke,
+                    ));
+                }
+            }
+            response.response
+        } else {
+            prepared.response
+        }
     }
 }

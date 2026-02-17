@@ -5,6 +5,57 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.33.3 - 2025-12-11
+* Bump `ehttp` to 0.6.0 [#7757](https://github.com/emilk/egui/pull/7757) by [@jprochazk](https://github.com/jprochazk)
+
+
+## 0.33.2 - 2025-11-13
+Nothing new
+
+
+## 0.33.0 - 2025-10-09
+* Fix: use unique id for resize columns in `Table` [#7414](https://github.com/emilk/egui/pull/7414) by [@zezic](https://github.com/zezic)
+* Feat: Add serde serialization to SyntectSettings [#7506](https://github.com/emilk/egui/pull/7506) by [@bircni](https://github.com/bircni)
+* Make individual egui_extras image loaders public [#7551](https://github.com/emilk/egui/pull/7551) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Update MSRV from 1.86 to 1.88 [#7579](https://github.com/emilk/egui/pull/7579) by [@Wumpf](https://github.com/Wumpf)
+
+
+## 0.32.3 - 2025-09-12
+* Fix deadlock in `FileLoader` and `EhttpLoader` [#7515](https://github.com/emilk/egui/pull/7515) by [@emilk](https://github.com/emilk)
+
+
+## 0.32.2 - 2025-09-04
+* Fix memory leak when `forget_image` is called while loading [#7380](https://github.com/emilk/egui/pull/7380) by [@Vanadiae](https://github.com/Vanadiae)
+* Fix deadlock in `ImageLoader`, `FileLoader`, `EhttpLoader` [#7494](https://github.com/emilk/egui/pull/7494) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+
+## 0.32.1 - 2025-08-15
+Nothing new
+
+
+## 0.32.0 - 2025-07-10 - Improved SVG support
+### ⭐ Added
+* Allow loading multi-MIME formats using the image_loader [#5769](https://github.com/emilk/egui/pull/5769) by [@MYDIH](https://github.com/MYDIH)
+* Make ImageLoader use background thread [#5394](https://github.com/emilk/egui/pull/5394) by [@bircni](https://github.com/bircni)
+* Add overline option for Table rows [#5637](https://github.com/emilk/egui/pull/5637) by [@akx](https://github.com/akx)
+* Support text in SVGs [#5979](https://github.com/emilk/egui/pull/5979) by [@cernec1999](https://github.com/cernec1999)
+* Enable setting DatePickerButton start and end year explicitly [#7061](https://github.com/emilk/egui/pull/7061) by [@zachbateman](https://github.com/zachbateman)
+* Support custom syntect settings in syntax highlighter [#7084](https://github.com/emilk/egui/pull/7084) by [@mkeeter](https://github.com/mkeeter)
+
+### 🔧 Changed
+* Use enum-map serde feature only when serde is enabled [#5748](https://github.com/emilk/egui/pull/5748) by [@tyssyt](https://github.com/tyssyt)
+* Better define the meaning of `SizeHint` [#7079](https://github.com/emilk/egui/pull/7079) by [@emilk](https://github.com/emilk)
+
+### 🔥 Removed
+* Remove things that have been deprecated for over a year [#7099](https://github.com/emilk/egui/pull/7099) by [@emilk](https://github.com/emilk)
+
+### 🐛 Fixed
+* Refactor MIME type support detection in image loader to allow for deferred handling and appended encoding info [#5686](https://github.com/emilk/egui/pull/5686) by [@markusdd](https://github.com/markusdd)
+* Fix incorrect color fringe colors on SVG:s [#7069](https://github.com/emilk/egui/pull/7069) by [@emilk](https://github.com/emilk)
+* Fix sometimes blurry SVGs [#7071](https://github.com/emilk/egui/pull/7071) by [@emilk](https://github.com/emilk)
+* Fix crash in `egui_extras::FileLoader` after `forget_image` [#6995](https://github.com/emilk/egui/pull/6995) by [@bircni](https://github.com/bircni)
+
+
 ## 0.31.1 - 2025-03-05
 * Fix image_loader for animated image types [#5688](https://github.com/emilk/egui/pull/5688) by [@BSteffaniak](https://github.com/BSteffaniak)
 

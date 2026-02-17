@@ -5,18 +5,13 @@ authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Minimal 2D graphics library for GUI work"
 edition.workspace = true
 rust-version.workspace = true
-homepage = "https://github.com/emilk/egui/tree/master/crates/epaint"
+homepage = "https://github.com/emilk/egui/tree/main/crates/epaint"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
-repository = "https://github.com/emilk/egui/tree/master/crates/epaint"
+repository = "https://github.com/emilk/egui/tree/main/crates/epaint"
 categories = ["graphics", "gui"]
 keywords = ["graphics", "gui", "egui"]
-include = [
-  "../LICENSE-APACHE",
-  "../LICENSE-MIT",
-  "**/*.rs",
-  "Cargo.toml"
-]
+include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 
 [lints]
 workspace = true
@@ -40,17 +35,9 @@ cint = ["ecolor/cint"]
 ## Enable the [`hex_color`] macro.
 color-hex = ["ecolor/color-hex"]
 
-## This will automatically detect deadlocks due to double-locking on the same thread.
-## If your app freezes, you may want to enable this!
-## Only affects [`mutex::RwLock`] (which epaint and egui uses a lot).
-deadlock_detection = ["dep:backtrace"]
-
 ## If set, epaint will use `include_bytes!` to bundle some fonts.
 ## If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["epaint_default_fonts"]
-
-## Turn on the `log` feature, that makes egui log some errors using the [`log`](https://docs.rs/log) crate.
-log = ["dep:log"]
 
 ## [`mint`](https://docs.rs/mint) enables interoperability with other math libraries such as [`glam`](https://docs.rs/glam) and [`nalgebra`](https://docs.rs/nalgebra).
 mint = ["emath/mint"]
@@ -74,11 +61,14 @@ _override_unity = []
 emath.workspace = true
 ecolor.workspace = true
 
-ab_glyph = "0.2.11"
 ahash.workspace = true
+log.workspace = true
 nohash-hasher.workspace = true
-parking_lot.workspace = true   # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios.
-profiling = { workspace = true}
+parking_lot.workspace = true # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios.
+profiling.workspace = true
+self_cell.workspace = true
+skrifa.workspace = true
+vello_cpu.workspace = true
 
 #! ### Optional dependencies
 bytemuck = { workspace = true, optional = true, features = ["derive"] }
@@ -86,21 +76,17 @@ bytemuck = { workspace = true, optional = true, features = ["derive"] }
 ## Enable this when generating docs.
 document-features = { workspace = true, optional = true }
 
-log = { workspace = true, optional = true }
-rayon = { version = "1.7", optional = true }
+rayon = { workspace = true, optional = true }
 
 ## Allow serialization using [`serde`](https://docs.rs/serde) .
 serde = { workspace = true, optional = true, features = ["derive", "rc"] }
 
 epaint_default_fonts = { workspace = true, optional = true }
 
-# native:
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-backtrace = { workspace = true, optional = true }
-
-
 [dev-dependencies]
 criterion.workspace = true
+mimalloc.workspace = true
+similar-asserts.workspace = true
 
 
 [[bench]]

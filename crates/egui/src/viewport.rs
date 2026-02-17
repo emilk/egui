@@ -33,7 +33,9 @@
 //! In short: immediate viewports are simpler to use, but can waste a lot of CPU time.
 //!
 //! ### Embedded viewports
-//! These are not real, independent viewports, but is a fallback mode for when the integration does not support real viewports. In your callback is called with [`ViewportClass::Embedded`] it means you need to create a [`crate::Window`] to wrap your ui in, which will then be embedded in the parent viewport, unable to escape it.
+//! These are not real, independent viewports, but is a fallback mode for when the integration does not support real viewports.
+//! In your callback is called with [`ViewportClass::EmbeddedWindow`] it means the viewport is embedded inside of
+//! a regular [`crate::Window`], trapped in the parent viewport.
 //!
 //!
 //! ## Using the viewports
@@ -42,7 +44,7 @@
 //! a [`ViewportCommand`] to it using [`Context::send_viewport_cmd`].
 //! You can interact with other viewports using [`Context::send_viewport_cmd_to`].
 //!
-//! There is an example in <https://github.com/emilk/egui/tree/master/examples/multiple_viewports/src/main.rs>.
+//! There is an example in <https://github.com/emilk/egui/tree/main/examples/multiple_viewports/src/main.rs>.
 //!
 //! You can find all available viewports in [`crate::RawInput::viewports`] and the active viewport in
 //! [`crate::InputState::viewport`]:
@@ -71,7 +73,7 @@ use std::sync::Arc;
 
 use epaint::{Pos2, Vec2};
 
-use crate::{Context, Id};
+use crate::{Context, Id, Ui};
 
 // ----------------------------------------------------------------------------
 
@@ -101,7 +103,10 @@ pub enum ViewportClass {
 
     /// The fallback, when the egui integration doesn't support viewports,
     /// or [`crate::Context::embed_viewports`] is set to `true`.
-    Embedded,
+    ///
+    /// If you get this, it is because you are already wrapped in a [`crate::Window`]
+    /// inside of the parent viewport.
+    EmbeddedWindow,
 }
 
 // ----------------------------------------------------------------------------
@@ -112,6 +117,20 @@ pub enum ViewportClass {
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ViewportId(pub Id);
+
+// We implement `PartialOrd` and `Ord` so we can use `ViewportId` in a `BTreeMap`,
+// which allows predicatable iteration order, frame-to-frame.
+impl PartialOrd for ViewportId {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for ViewportId {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.value().cmp(&other.0.value())
+    }
+}
 
 impl Default for ViewportId {
     #[inline]
@@ -150,6 +169,9 @@ pub type ViewportIdSet = nohash_hasher::IntSet<ViewportId>;
 
 /// A fast hash map from [`ViewportId`] to `T`.
 pub type ViewportIdMap<T> = nohash_hasher::IntMap<ViewportId, T>;
+
+/// An order map from [`ViewportId`] to `T`.
+pub type OrderedViewportIdMap<T> = std::collections::BTreeMap<ViewportId, T>;
 
 // ----------------------------------------------------------------------------
 
@@ -241,7 +263,7 @@ impl ViewportIdPair {
 }
 
 /// The user-code that shows the ui in the viewport, used for deferred viewports.
-pub type DeferredViewportUiCallback = dyn Fn(&Context) + Sync + Send;
+pub type DeferredViewportUiCallback = dyn Fn(&mut Ui) + Sync + Send;
 
 /// Render the given viewport, calling the given ui callback.
 pub type ImmediateViewportRendererCallback = dyn for<'a> Fn(&Context, ImmediateViewport<'a>);
@@ -260,7 +282,6 @@ pub type ImmediateViewportRendererCallback = dyn for<'a> Fn(&Context, ImmediateV
 /// The default values are implementation defined, so you may want to explicitly
 /// configure the size of the window, and what buttons are shown.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
-#[allow(clippy::option_option)]
 pub struct ViewportBuilder {
     /// The title of the viewport.
     /// `eframe` will use this as the title of the native window.
@@ -295,6 +316,7 @@ pub struct ViewportBuilder {
     pub title_shown: Option<bool>,
     pub titlebar_buttons_shown: Option<bool>,
     pub titlebar_shown: Option<bool>,
+    pub has_shadow: Option<bool>,
 
     // windows:
     pub drag_and_drop: Option<bool>,
@@ -310,6 +332,7 @@ pub struct ViewportBuilder {
 
     // X11
     pub window_type: Option<X11WindowType>,
+    pub override_redirect: Option<bool>,
 }
 
 impl ViewportBuilder {
@@ -381,6 +404,10 @@ impl ViewportBuilder {
     /// The default is `false`.
     /// If this is not working, it's because the graphic context doesn't support transparency,
     /// you will need to set the transparency in the eframe!
+    ///
+    /// ## Platform-specific
+    ///
+    /// **macOS:** When using this feature to create an overlay-like UI, you likely want to combine this with [`Self::with_has_shadow`] set to `false` in order to avoid ghosting artifacts.
     #[inline]
     pub fn with_transparent(mut self, transparent: bool) -> Self {
         self.transparent = Some(transparent);
@@ -434,8 +461,7 @@ impl ViewportBuilder {
     }
 
     /// macOS: Set to `true` to allow the window to be moved by dragging the background.
-    ///
-    /// Enabling this feature can result in unexpected behaviour with draggable UI widgets such as sliders.
+    /// Enabling this feature can result in unexpected behavior with draggable UI widgets such as sliders.
     #[inline]
     pub fn with_movable_by_background(mut self, value: bool) -> Self {
         self.movable_by_window_background = Some(value);
@@ -460,6 +486,19 @@ impl ViewportBuilder {
     #[inline]
     pub fn with_titlebar_shown(mut self, shown: bool) -> Self {
         self.titlebar_shown = Some(shown);
+        self
+    }
+
+    /// macOS: Set to `false` to make the window render without a drop shadow.
+    ///
+    /// The default is `true`.
+    ///
+    /// Disabling this feature can solve ghosting issues experienced if using [`Self::with_transparent`].
+    ///
+    /// Look at winit for more details
+    #[inline]
+    pub fn with_has_shadow(mut self, has_shadow: bool) -> Self {
+        self.has_shadow = Some(has_shadow);
         self
     }
 
@@ -597,6 +636,8 @@ impl ViewportBuilder {
     }
 
     /// Control if window is always-on-top, always-on-bottom, or neither.
+    ///
+    /// For platform compatibility see [`crate::viewport::WindowLevel`] documentation
     #[inline]
     pub fn with_window_level(mut self, level: WindowLevel) -> Self {
         self.window_level = Some(level);
@@ -604,6 +645,8 @@ impl ViewportBuilder {
     }
 
     /// This window is always on top
+    ///
+    /// For platform compatibility see [`crate::viewport::WindowLevel`] documentation
     #[inline]
     pub fn with_always_on_top(self) -> Self {
         self.with_window_level(WindowLevel::AlwaysOnTop)
@@ -621,10 +664,19 @@ impl ViewportBuilder {
 
     /// ### On X11
     /// This sets the window type.
-    /// Maps directly to [`_NET_WM_WINDOW_TYPE`](https://specifications.freedesktop.org/wm-spec/wm-spec-1.5.html).
+    /// Maps directly to [`_NET_WM_WINDOW_TYPE`](https://specifications.freedesktop.org/wm/1.5/ar01s05.html#id-1.6.7).
     #[inline]
     pub fn with_window_type(mut self, value: X11WindowType) -> Self {
         self.window_type = Some(value);
+        self
+    }
+
+    /// ### On X11
+    /// This sets the override-redirect flag. When this is set to true the window type should be specified.
+    /// Maps directly to [`Override-redirect windows`](https://specifications.freedesktop.org/wm/1.5/ar01s02.html#id-1.3.13).
+    #[inline]
+    pub fn with_override_redirect(mut self, value: bool) -> Self {
+        self.override_redirect = Some(value);
         self
     }
 
@@ -632,6 +684,8 @@ impl ViewportBuilder {
     /// returning a list of commands and a bool indicating if the window needs to be recreated.
     #[must_use]
     pub fn patch(&mut self, new_vp_builder: Self) -> (Vec<ViewportCommand>, bool) {
+        #![expect(clippy::useless_let_if_seq)] // False positive
+
         let Self {
             title: new_title,
             app_id: new_app_id,
@@ -654,6 +708,7 @@ impl ViewportBuilder {
             title_shown: new_title_shown,
             titlebar_buttons_shown: new_titlebar_buttons_shown,
             titlebar_shown: new_titlebar_shown,
+            has_shadow: new_has_shadow,
             close_button: new_close_button,
             minimize_button: new_minimize_button,
             maximize_button: new_maximize_button,
@@ -661,78 +716,79 @@ impl ViewportBuilder {
             mouse_passthrough: new_mouse_passthrough,
             taskbar: new_taskbar,
             window_type: new_window_type,
+            override_redirect: new_override_redirect,
         } = new_vp_builder;
 
         let mut commands = Vec::new();
 
-        if let Some(new_title) = new_title {
-            if Some(&new_title) != self.title.as_ref() {
-                self.title = Some(new_title.clone());
-                commands.push(ViewportCommand::Title(new_title));
-            }
+        if let Some(new_title) = new_title
+            && Some(&new_title) != self.title.as_ref()
+        {
+            self.title = Some(new_title.clone());
+            commands.push(ViewportCommand::Title(new_title));
         }
 
-        if let Some(new_position) = new_position {
-            if Some(new_position) != self.position {
-                self.position = Some(new_position);
-                commands.push(ViewportCommand::OuterPosition(new_position));
-            }
+        if let Some(new_position) = new_position
+            && Some(new_position) != self.position
+        {
+            self.position = Some(new_position);
+            commands.push(ViewportCommand::OuterPosition(new_position));
         }
 
-        if let Some(new_inner_size) = new_inner_size {
-            if Some(new_inner_size) != self.inner_size {
-                self.inner_size = Some(new_inner_size);
-                commands.push(ViewportCommand::InnerSize(new_inner_size));
-            }
+        if let Some(new_inner_size) = new_inner_size
+            && Some(new_inner_size) != self.inner_size
+        {
+            self.inner_size = Some(new_inner_size);
+            commands.push(ViewportCommand::InnerSize(new_inner_size));
         }
 
-        if let Some(new_min_inner_size) = new_min_inner_size {
-            if Some(new_min_inner_size) != self.min_inner_size {
-                self.min_inner_size = Some(new_min_inner_size);
-                commands.push(ViewportCommand::MinInnerSize(new_min_inner_size));
-            }
+        if let Some(new_min_inner_size) = new_min_inner_size
+            && Some(new_min_inner_size) != self.min_inner_size
+        {
+            self.min_inner_size = Some(new_min_inner_size);
+            commands.push(ViewportCommand::MinInnerSize(new_min_inner_size));
         }
 
-        if let Some(new_max_inner_size) = new_max_inner_size {
-            if Some(new_max_inner_size) != self.max_inner_size {
-                self.max_inner_size = Some(new_max_inner_size);
-                commands.push(ViewportCommand::MaxInnerSize(new_max_inner_size));
-            }
+        if let Some(new_max_inner_size) = new_max_inner_size
+            && Some(new_max_inner_size) != self.max_inner_size
+        {
+            self.max_inner_size = Some(new_max_inner_size);
+            commands.push(ViewportCommand::MaxInnerSize(new_max_inner_size));
         }
 
-        if let Some(new_fullscreen) = new_fullscreen {
-            if Some(new_fullscreen) != self.fullscreen {
-                self.fullscreen = Some(new_fullscreen);
-                commands.push(ViewportCommand::Fullscreen(new_fullscreen));
-            }
+        if let Some(new_fullscreen) = new_fullscreen
+            && Some(new_fullscreen) != self.fullscreen
+        {
+            self.fullscreen = Some(new_fullscreen);
+            commands.push(ViewportCommand::Fullscreen(new_fullscreen));
         }
 
-        if let Some(new_maximized) = new_maximized {
-            if Some(new_maximized) != self.maximized {
-                self.maximized = Some(new_maximized);
-                commands.push(ViewportCommand::Maximized(new_maximized));
-            }
+        if let Some(new_maximized) = new_maximized
+            && Some(new_maximized) != self.maximized
+        {
+            self.maximized = Some(new_maximized);
+            commands.push(ViewportCommand::Maximized(new_maximized));
         }
 
-        if let Some(new_resizable) = new_resizable {
-            if Some(new_resizable) != self.resizable {
-                self.resizable = Some(new_resizable);
-                commands.push(ViewportCommand::Resizable(new_resizable));
-            }
+        if let Some(new_resizable) = new_resizable
+            && Some(new_resizable) != self.resizable
+        {
+            self.resizable = Some(new_resizable);
+            commands.push(ViewportCommand::Resizable(new_resizable));
         }
 
-        if let Some(new_transparent) = new_transparent {
-            if Some(new_transparent) != self.transparent {
-                self.transparent = Some(new_transparent);
-                commands.push(ViewportCommand::Transparent(new_transparent));
-            }
+        if let Some(new_transparent) = new_transparent
+            && Some(new_transparent) != self.transparent
+        {
+            self.transparent = Some(new_transparent);
+            commands.push(ViewportCommand::Transparent(new_transparent));
         }
 
-        if let Some(new_decorations) = new_decorations {
-            if Some(new_decorations) != self.decorations {
-                self.decorations = Some(new_decorations);
-                commands.push(ViewportCommand::Decorations(new_decorations));
-            }
+        if let Some(new_decorations) = new_decorations
+            && Some(new_decorations) != self.decorations
+        {
+            self.decorations = Some(new_decorations);
+            commands.push(ViewportCommand::Decorations(new_decorations));
         }
 
         if let Some(new_icon) = new_icon {
@@ -742,30 +798,30 @@ impl ViewportBuilder {
             };
 
             if is_new {
-                commands.push(ViewportCommand::Icon(Some(new_icon.clone())));
+                commands.push(ViewportCommand::Icon(Some(Arc::clone(&new_icon))));
                 self.icon = Some(new_icon);
             }
         }
 
-        if let Some(new_visible) = new_visible {
-            if Some(new_visible) != self.visible {
-                self.visible = Some(new_visible);
-                commands.push(ViewportCommand::Visible(new_visible));
-            }
+        if let Some(new_visible) = new_visible
+            && Some(new_visible) != self.visible
+        {
+            self.visible = Some(new_visible);
+            commands.push(ViewportCommand::Visible(new_visible));
         }
 
-        if let Some(new_mouse_passthrough) = new_mouse_passthrough {
-            if Some(new_mouse_passthrough) != self.mouse_passthrough {
-                self.mouse_passthrough = Some(new_mouse_passthrough);
-                commands.push(ViewportCommand::MousePassthrough(new_mouse_passthrough));
-            }
+        if let Some(new_mouse_passthrough) = new_mouse_passthrough
+            && Some(new_mouse_passthrough) != self.mouse_passthrough
+        {
+            self.mouse_passthrough = Some(new_mouse_passthrough);
+            commands.push(ViewportCommand::MousePassthrough(new_mouse_passthrough));
         }
 
-        if let Some(new_window_level) = new_window_level {
-            if Some(new_window_level) != self.window_level {
-                self.window_level = Some(new_window_level);
-                commands.push(ViewportCommand::WindowLevel(new_window_level));
-            }
+        if let Some(new_window_level) = new_window_level
+            && Some(new_window_level) != self.window_level
+        {
+            self.window_level = Some(new_window_level);
+            commands.push(ViewportCommand::WindowLevel(new_window_level));
         }
 
         // --------------------------------------------------------------
@@ -824,6 +880,11 @@ impl ViewportBuilder {
             recreate_window = true;
         }
 
+        if new_has_shadow.is_some() && self.has_shadow != new_has_shadow {
+            self.has_shadow = new_has_shadow;
+            recreate_window = true;
+        }
+
         if new_taskbar.is_some() && self.taskbar != new_taskbar {
             self.taskbar = new_taskbar;
             recreate_window = true;
@@ -853,10 +914,16 @@ impl ViewportBuilder {
             recreate_window = true;
         }
 
+        if new_override_redirect.is_some() && self.override_redirect != new_override_redirect {
+            self.override_redirect = new_override_redirect;
+            recreate_window = true;
+        }
+
         (commands, recreate_window)
     }
 }
 
+/// For winit platform compatibility, see [`winit::WindowLevel` documentation](https://docs.rs/winit/latest/winit/window/enum.WindowLevel.html#platform-specific)
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum WindowLevel {
@@ -1143,11 +1210,11 @@ pub struct ViewportOutput {
 
     /// What type of viewport are we?
     ///
-    /// This will never be [`ViewportClass::Embedded`],
+    /// This will never be [`ViewportClass::EmbeddedWindow`],
     /// since those don't result in real viewports.
     pub class: ViewportClass,
 
-    /// The window attrbiutes such as title, position, size, etc.
+    /// The window attributes such as title, position, size, etc.
     ///
     /// Use this when first constructing the native window.
     /// Also check for changes in it using [`ViewportBuilder::patch`],
@@ -1200,5 +1267,5 @@ pub struct ImmediateViewport<'a> {
     pub builder: ViewportBuilder,
 
     /// The user-code that shows the GUI.
-    pub viewport_ui_cb: Box<dyn FnMut(&Context) + 'a>,
+    pub viewport_ui_cb: Box<dyn FnMut(&mut Ui) + 'a>,
 }

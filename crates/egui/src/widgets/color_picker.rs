@@ -2,12 +2,13 @@
 
 use crate::util::fixed_cache::FixedCache;
 use crate::{
-    epaint, lerp, remap_clamp, Area, Context, DragValue, Frame, Id, Key, Order, Painter, Response,
-    Sense, Ui, UiKind, Widget, WidgetInfo, WidgetType,
+    Context, DragValue, Id, Painter, Popup, PopupCloseBehavior, Response, Sense, Ui, Widget as _,
+    WidgetInfo, WidgetType, epaint, lerp, remap_clamp,
 };
 use epaint::{
+    Mesh, Rect, Shape, Stroke, StrokeKind, Vec2,
     ecolor::{Color32, Hsva, HsvaGamma, Rgba},
-    pos2, vec2, Mesh, Rect, Shape, Stroke, StrokeKind, Vec2,
+    pos2, vec2,
 };
 
 fn contrast_color(color: impl Into<Rgba>) -> Color32 {
@@ -113,7 +114,7 @@ fn color_button(ui: &mut Ui, color: Color32, open: bool) -> Response {
 }
 
 fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Color32) -> Response {
-    #![allow(clippy::identity_op)]
+    #![expect(clippy::identity_op)]
 
     let desired_size = vec2(ui.spacing().slider_width, ui.spacing().interact_size.y);
     let (rect, response) = ui.allocate_at_least(desired_size, Sense::click_and_drag());
@@ -377,7 +378,7 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
 }
 
 fn input_type_button_ui(ui: &mut Ui) {
-    let mut input_type = ui.ctx().style().visuals.numeric_color_space;
+    let mut input_type = ui.global_style().visuals.numeric_color_space;
     if input_type.toggle_button_ui(ui).changed() {
         ui.ctx().all_styles_mut(|s| {
             s.visuals.numeric_color_space = input_type;
@@ -401,9 +402,9 @@ fn srgba_edit_ui(ui: &mut Ui, [r, g, b, a]: &mut [u8; 4], alpha: Alpha) -> bool 
             .clicked()
         {
             if alpha == Alpha::Opaque {
-                ui.ctx().copy_text(format!("{r}, {g}, {b}"));
+                ui.copy_text(format!("{r}, {g}, {b}"));
             } else {
-                ui.ctx().copy_text(format!("{r}, {g}, {b}, {a}"));
+                ui.copy_text(format!("{r}, {g}, {b}, {a}"));
             }
         }
         edited |= DragValue::new(r).speed(0.5).prefix("R ").ui(ui).changed();
@@ -442,10 +443,9 @@ fn rgba_edit_ui(ui: &mut Ui, [r, g, b, a]: &mut [f32; 4], alpha: Alpha) -> bool 
             .clicked()
         {
             if alpha == Alpha::Opaque {
-                ui.ctx().copy_text(format!("{r:.03}, {g:.03}, {b:.03}"));
+                ui.copy_text(format!("{r:.03}, {g:.03}, {b:.03}"));
             } else {
-                ui.ctx()
-                    .copy_text(format!("{r:.03}, {g:.03}, {b:.03}, {a:.03}"));
+                ui.copy_text(format!("{r:.03}, {g:.03}, {b:.03}, {a:.03}"));
             }
         }
 
@@ -490,40 +490,23 @@ pub fn color_picker_color32(ui: &mut Ui, srgba: &mut Color32, alpha: Alpha) -> b
 
 pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Response {
     let popup_id = ui.auto_id_with("popup");
-    let open = ui.memory(|mem| mem.is_popup_open(popup_id));
+    let open = Popup::is_id_open(ui.ctx(), popup_id);
     let mut button_response = color_button(ui, (*hsva).into(), open);
     if ui.style().explanation_tooltips {
         button_response = button_response.on_hover_text("Click to edit color");
     }
 
-    if button_response.clicked() {
-        ui.memory_mut(|mem| mem.toggle_popup(popup_id));
-    }
-
     const COLOR_SLIDER_WIDTH: f32 = 275.0;
 
-    // TODO(emilk): make it easier to show a temporary popup that closes when you click outside it
-    if ui.memory(|mem| mem.is_popup_open(popup_id)) {
-        let area_response = Area::new(popup_id)
-            .kind(UiKind::Picker)
-            .order(Order::Foreground)
-            .fixed_pos(button_response.rect.max)
-            .show(ui.ctx(), |ui| {
-                ui.spacing_mut().slider_width = COLOR_SLIDER_WIDTH;
-                Frame::popup(ui.style()).show(ui, |ui| {
-                    if color_picker_hsva_2d(ui, hsva, alpha) {
-                        button_response.mark_changed();
-                    }
-                });
-            })
-            .response;
-
-        if !button_response.clicked()
-            && (ui.input(|i| i.key_pressed(Key::Escape)) || area_response.clicked_elsewhere())
-        {
-            ui.memory_mut(|mem| mem.close_popup(popup_id));
-        }
-    }
+    Popup::menu(&button_response)
+        .id(popup_id)
+        .close_behavior(PopupCloseBehavior::CloseOnClickOutside)
+        .show(|ui| {
+            ui.spacing_mut().slider_width = COLOR_SLIDER_WIDTH;
+            if color_picker_hsva_2d(ui, hsva, alpha) {
+                button_response.mark_changed();
+            }
+        });
 
     button_response
 }

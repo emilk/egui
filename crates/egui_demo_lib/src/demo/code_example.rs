@@ -62,6 +62,7 @@ impl CodeExample {
         }
         ui.end_row();
 
+        #[expect(clippy::literal_string_with_formatting_args)]
         show_code(ui, r#"ui.label(format!("{name} is {age}"));"#);
         ui.label(format!("{name} is {age}"));
         ui.end_row();
@@ -84,7 +85,7 @@ impl CodeExample {
 
         ui.horizontal(|ui| {
             let font_id = egui::TextStyle::Monospace.resolve(ui.style());
-            let indentation = 2.0 * 4.0 * ui.fonts(|f| f.glyph_width(&font_id, ' '));
+            let indentation = 2.0 * 4.0 * ui.fonts_mut(|f| f.glyph_width(&font_id, ' '));
             ui.add_space(indentation);
 
             egui::Grid::new("code_samples")
@@ -104,15 +105,16 @@ impl crate::Demo for CodeExample {
         "🖮 Code Example"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        use crate::View;
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
+        use crate::View as _;
         egui::Window::new(self.name())
             .open(open)
             .min_width(375.0)
             .default_size([390.0, 500.0])
             .scroll(false)
             .resizable([true, false]) // resizable so we can shrink if the text edit grows
-            .show(ctx, |ui| self.ui(ui));
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| self.ui(ui));
     }
 }
 
