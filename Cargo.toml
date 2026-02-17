@@ -124,7 +124,7 @@ ron = "0.11.0"
 self_cell = "1.2.1"
 serde = { version = "1.0.228", features = ["derive"] }
 similar-asserts = "1.7.0"
-skrifa = { version = "0.37.0", default-features = false, features = ["std", "autohint_shaping"] }
+skrifa = { version = "0.40.0", default-features = false, features = ["std", "autohint_shaping"] }
 smallvec = "1.15.1"
 smithay-clipboard = "0.7.2"
 static_assertions = "1.1.0"
@@ -136,7 +136,7 @@ toml = {version = "1", default-features = false }
 type-map = "0.5.1"
 unicode_names2 = { version = "2.0.0", default-features = false }
 unicode-segmentation = "1.12.0"
-vello_cpu = { version = "0.0.4", default-features = false, features = ["std"] }
+vello_cpu = { version = "0.0.6", default-features = false, features = ["std", "u8_pipeline", "f32_pipeline"] }
 wasm-bindgen = "0.2.100" # Keep wasm-bindgen version in sync in: setup_web.sh, Cargo.toml, Cargo.lock, rust.yml
 wasm-bindgen-futures = "0.4.0"
 wayland-cursor = { version = "0.31.11", default-features = false }
