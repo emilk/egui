@@ -45,6 +45,9 @@ Paints the triangles that egui outputs using [wgpu](https://github.com/grovesNL/
 
 The demo that you can see at <https://www.egui.rs> is using `eframe` to host the `egui`. The demo code is found in:
 
+### `eframe_agent`
+Utility crate (introduced in this repo) that sits on top of `eframe` to help wire automated/AI agents into egui UIs. It ships the runtime/state/input glue plus reusable views and a demo.
+
 ### `egui_demo_lib`
 Depends on `egui`.
 This contains a bunch of uses of `egui` and looks like the ui code you would write for an `egui` app.
