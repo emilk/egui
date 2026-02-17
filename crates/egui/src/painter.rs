@@ -555,7 +555,7 @@ impl Painter {
     /// Paint the results with [`Self::galley`].
     #[inline]
     #[must_use]
-    pub fn layout_job(&self, layout_job: LayoutJob) -> Arc<Galley> {
+    pub fn layout_job(&self, layout_job: impl Into<Arc<LayoutJob>>) -> Arc<Galley> {
         self.fonts_mut(|f| f.layout_job(layout_job))
     }
 
