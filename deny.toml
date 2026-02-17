@@ -53,7 +53,6 @@ skip = [
   { name = "core-graphics-types" }, # version conflict between winit and wgpu ecosystems
   { name = "getrandom" }, # ring / rustls (and thus ehttp) still depend on getrandom 0.2
   { name = "kurbo" }, # Old version because of resvg
-  { name = "quick-xml" }, # old version via wayland-scanner
   { name = "redox_syscall" }, # old version via winit
   { name = "rustc-hash" }, # Small enough
   { name = "thiserror" }, # ecosystem is in the process of migrating from 1.x to 2.x
