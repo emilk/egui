@@ -145,6 +145,19 @@ pub fn create_storage_with_file(_file: impl Into<PathBuf>) -> Option<Box<dyn epi
     None
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+impl epi::StorageProvider {
+    /// For loading/saving app state and/or egui memory to disk.
+    /// Not available on wasm32. For web, use `try_create_storage_web`.
+    pub fn try_create_storage(&self, app_name: &str) -> Option<Box<dyn epi::Storage>> {
+        match self {
+            epi::StorageProvider::Default => create_storage(app_name),
+            epi::StorageProvider::AtPath(path) => create_storage_with_file(path),
+            epi::StorageProvider::Custom(f) => f(app_name),
+        }
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// Everything needed to make a winit-based integration for [`epi`].
