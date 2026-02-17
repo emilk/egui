@@ -1162,15 +1162,15 @@ impl PointerState {
                             let click_dist_sq = self
                                 .last_click_pos
                                 .map_or(0.0, |last_pos| last_pos.distance_sq(pos));
+                            let max_dist_sq =
+                                self.options.max_click_dist * self.options.max_click_dist;
 
                             let double_click = (time - self.last_click_time)
                                 < self.options.max_double_click_delay
-                                && click_dist_sq
-                                    < self.options.max_click_dist * self.options.max_click_dist;
-                            let triple_click = (time - self.last_last_click_time)
-                                < (self.options.max_double_click_delay * 2.0)
-                                && click_dist_sq
-                                    < self.options.max_click_dist * self.options.max_click_dist;
+                                && click_dist_sq < max_dist_sq;
+                            let triple_click = double_click
+                                && (self.last_click_time - self.last_last_click_time)
+                                    < self.options.max_double_click_delay;
                             let count = if triple_click {
                                 3
                             } else if double_click {
