@@ -571,7 +571,11 @@ pub enum ImeEvent {
     Enabled,
 
     /// A new IME candidate is being suggested.
-    Preedit(String),
+    Preedit {
+        text_mark: String,
+        start: usize,
+        end: usize,
+    },
 
     /// IME composition ended with this final result.
     Commit(String),
