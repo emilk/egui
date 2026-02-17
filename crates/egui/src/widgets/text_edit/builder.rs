@@ -972,7 +972,12 @@ fn events(
                     None
                 }
             }
-            Event::Text(text_to_insert) => {
+            Event::Key {
+                text: Some(text_to_insert),
+                pressed: true,
+                modifiers,
+                ..
+            } if !modifiers.ctrl && !modifiers.command && !modifiers.mac_cmd => {
                 // Newlines are handled by `Key::Enter`.
                 if !text_to_insert.is_empty() && text_to_insert != "\n" && text_to_insert != "\r" {
                     let mut ccursor = text.delete_selected(&cursor_range);

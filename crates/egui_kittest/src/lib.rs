@@ -516,6 +516,7 @@ impl<'a, State> Harness<'a, State> {
             modifiers: Modifiers::default(),
             repeat: false,
             physical_key: None,
+            text: None,
         });
     }
 
@@ -527,6 +528,7 @@ impl<'a, State> Harness<'a, State> {
                 modifiers,
                 repeat: false,
                 physical_key: None,
+                text: None,
             },
             modifiers,
         );
@@ -539,6 +541,7 @@ impl<'a, State> Harness<'a, State> {
             modifiers: Modifiers::default(),
             repeat: false,
             physical_key: None,
+            text: None,
         });
     }
 
@@ -550,6 +553,7 @@ impl<'a, State> Harness<'a, State> {
                 modifiers,
                 repeat: false,
                 physical_key: None,
+                text: None,
             },
             modifiers,
         );
@@ -591,6 +595,7 @@ impl<'a, State> Harness<'a, State> {
                     modifiers,
                     repeat: false,
                     physical_key: None,
+                    text: None,
                 });
             }
         }

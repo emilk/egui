@@ -67,7 +67,7 @@ impl TextAgent {
                 // and we need to ignore the `input` event.
                 if !text.is_empty() && !event.is_composing() {
                     input.set_value("");
-                    let event = egui::Event::Text(text);
+                    let event = egui::Event::from_text(text);
                     runner.input.raw.events.push(event);
                     runner.needs_repaint.repaint_asap();
                 }

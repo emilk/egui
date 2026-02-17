@@ -188,6 +188,7 @@ pub(crate) fn on_keydown(event: web_sys::KeyboardEvent, runner: &mut AppRunner) 
             pressed: true,
             repeat: false, // egui will fill this in for us!
             modifiers,
+            text: None,
         };
         let should_stop_propagation = (runner.web_options.should_stop_propagation)(&egui_event);
         runner.input.raw.events.push(egui_event);
@@ -278,6 +279,7 @@ pub(crate) fn on_keyup(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
             pressed: false,
             repeat: false,
             modifiers,
+            text: None,
         };
         should_stop_propagation &= (runner.web_options.should_stop_propagation)(&egui_event);
         runner.input.raw.events.push(egui_event);
@@ -299,6 +301,7 @@ pub(crate) fn on_keyup(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
                 pressed: false,
                 repeat: false,
                 modifiers,
+                text: None,
             };
             should_stop_propagation &= (runner.web_options.should_stop_propagation)(&egui_event);
             runner.input.raw.events.push(egui_event);

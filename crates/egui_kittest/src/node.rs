@@ -134,6 +134,7 @@ impl Node<'_> {
             modifiers: Modifiers::default(),
             repeat: false,
             physical_key: None,
+            text: None,
         });
     }
 
@@ -145,11 +146,12 @@ impl Node<'_> {
             modifiers: Modifiers::default(),
             repeat: false,
             physical_key: None,
+            text: None,
         });
     }
 
     pub fn type_text(&self, text: &str) {
-        self.event(egui::Event::Text(text.to_owned()));
+        self.event(egui::Event::from_text(text.to_owned()));
     }
 
     pub fn value(&self) -> Option<String> {
