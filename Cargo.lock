@@ -1611,6 +1611,7 @@ dependencies = [
  "ecolor",
  "emath",
  "epaint_default_fonts",
+ "font-types",
  "log",
  "mimalloc",
  "nohash-hasher",
@@ -1621,6 +1622,7 @@ dependencies = [
  "serde",
  "similar-asserts",
  "skrifa",
+ "smallvec",
  "vello_cpu",
 ]
 
@@ -1785,6 +1787,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39a654f404bbcbd48ea58c617c2993ee91d1cb63727a37bf2323a4edeed1b8c5"
 dependencies = [
  "bytemuck",
+ "serde",
 ]
 
 [[package]]
@@ -4229,6 +4232,9 @@ name = "smallvec"
 version = "1.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "smithay-client-toolkit"
