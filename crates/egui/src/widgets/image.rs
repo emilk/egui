@@ -334,6 +334,18 @@ impl<'a> Image<'a> {
     }
 
     #[inline]
+    pub fn forget_image(&self, ctx: &Context) {
+        let uri = match &self.source {
+            ImageSource::Uri(uri) => Some(uri),
+            ImageSource::Bytes { uri, .. } => Some(uri),
+            _ => None,
+        };
+        if let Some(uri) = uri {
+            ctx.forget_image(uri)
+        }
+    }
+
+    #[inline]
     pub fn source(&'a self, ctx: &Context) -> ImageSource<'a> {
         match &self.source {
             ImageSource::Uri(uri) if is_animated_image_uri(uri) => {
