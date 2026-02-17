@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 /// Implemented for all builtin numeric types
 pub trait Numeric: Clone + Copy + PartialEq + PartialOrd + 'static {
     /// Is this an integer type?
@@ -98,3 +100,17 @@ impl_numeric_non_zero_unsigned!(std::num::NonZeroU32);
 impl_numeric_non_zero_unsigned!(std::num::NonZeroU64);
 impl_numeric_non_zero_unsigned!(std::num::NonZeroU128);
 impl_numeric_non_zero_unsigned!(std::num::NonZeroUsize);
+
+impl eframe::emath::Numeric for Duration {
+    const INTEGRAL: bool = false;
+    const MIN: Self = Self(Duration::ZERO);
+    const MAX: Self = Self(Duration::MAX);
+
+    fn to_f64(self) -> f64 {
+        self.0.as_secs_f64()
+    }
+
+    fn from_f64(num: f64) -> Self {
+        Self(Duration::try_from_secs_f64(num).unwrap_or_default())
+    }
+}
