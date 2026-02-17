@@ -396,6 +396,15 @@ impl<'t> TextEdit<'t> {
         self.return_key = return_key.into();
         self
     }
+
+    /// Sets the event filter for this [`TextEdit`] instance.
+    #[inline]
+    pub fn event_filter(mut self, event_filter: EventFilter) -> Self {
+        self.event_filter = event_filter;
+        self.event_filter.horizontal_arrows = true;
+        self.event_filter.vertical_arrows = true;
+        self
+    }
 }
 
 // ----------------------------------------------------------------------------
