@@ -204,10 +204,10 @@ impl FontCell {
     ) -> Option<GlyphAllocation> {
         let glyph_id = glyph_info.id?;
 
-        debug_assert!(
-            glyph_id != skrifa::GlyphId::NOTDEF,
-            "Can't allocate glyph for id 0"
-        );
+        // Return None for NOTDEF - this will trigger canvas fallback on WASM
+        if glyph_id == skrifa::GlyphId::NOTDEF {
+            return None;
+        }
 
         let mut path = kurbo::BezPath::new();
         let mut pen = VelloPen {
@@ -341,6 +341,11 @@ pub struct FontFace {
     location: skrifa::instance::Location,
     glyph_info_cache: ahash::HashMap<char, GlyphInfo>,
     glyph_alloc_cache: ahash::HashMap<GlyphCacheKey, GlyphAllocation>,
+
+    /// Cache for canvas-rendered glyphs (WASM only)
+    /// Key: (character, pixels_per_point bits, px_scale_factor bits, subpixel bin)
+    #[cfg(target_arch = "wasm32")]
+    canvas_glyph_cache: ahash::HashMap<(char, u32, u32, SubpixelBin), GlyphAllocation>,
 }
 
 impl FontFace {
@@ -436,6 +441,8 @@ impl FontFace {
             location,
             glyph_info_cache: Default::default(),
             glyph_alloc_cache: Default::default(),
+            #[cfg(target_arch = "wasm32")]
+            canvas_glyph_cache: Default::default(),
         })
     }
 
@@ -614,25 +621,64 @@ impl FontFace {
             SubpixelBin::new(h_pos)
         };
 
-        let entry = match self
-            .glyph_alloc_cache
-            .entry(GlyphCacheKey::new(glyph_id, metrics, bin))
-        {
-            std::collections::hash_map::Entry::Occupied(glyph_alloc) => {
-                let mut glyph_alloc = *glyph_alloc.get();
-                glyph_alloc.advance_width_px = advance_width_px; // Hack to get `\t` and thin space to work, since they use the same glyph id as ` ` (space).
-                return (glyph_alloc, h_pos_round);
-            }
-            std::collections::hash_map::Entry::Vacant(entry) => entry,
-        };
+        // For canvas glyphs (NOTDEF), we need to use the character for caching
+        // because all canvas glyphs have the same glyph_id
+        #[cfg(target_arch = "wasm32")]
+        if glyph_id == skrifa::GlyphId::NOTDEF {
+            // Use character-based cache key for canvas glyphs
+            // Include bin for subpixel positioning
+            let canvas_cache_key = (chr, metrics.pixels_per_point.to_bits(), metrics.px_scale_factor.to_bits(), bin);
 
+            // Check canvas glyph cache
+            if let Some(&cached_alloc) = self.canvas_glyph_cache.get(&canvas_cache_key) {
+                return (cached_alloc, h_pos_round);
+            }
+
+            // Render with canvas at subpixel offset
+            let allocation = Self::try_allocate_canvas_glyph_static(atlas, metrics, chr, bin).unwrap_or_default();
+
+            // Cache it
+            self.canvas_glyph_cache.insert(canvas_cache_key, allocation);
+            return (allocation, h_pos_round);
+        }
+
+        // Check cache first (for non-canvas glyphs)
+        let cache_key = GlyphCacheKey::new(glyph_id, metrics, bin);
+        if let Some(&cached_alloc) = self.glyph_alloc_cache.get(&cache_key) {
+            let mut glyph_alloc = cached_alloc;
+            glyph_alloc.advance_width_px = advance_width_px; // Hack to get `\t` and thin space to work, since they use the same glyph id as ` ` (space).
+            return (glyph_alloc, h_pos_round);
+        }
+
+        // Allocate the glyph
         let allocation = self
             .font
             .allocate_glyph_uncached(atlas, metrics, &glyph_info, bin, &self.location)
             .unwrap_or_default();
 
-        entry.insert(allocation);
+        // Insert into cache
+        self.glyph_alloc_cache.insert(cache_key, allocation);
         (allocation, h_pos_round)
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn try_allocate_canvas_glyph_static(
+        atlas: &mut TextureAtlas,
+        metrics: &ScaledMetrics,
+        chr: char,
+        bin: SubpixelBin,
+    ) -> Option<GlyphAllocation> {
+        use crate::text::canvas_renderer;
+
+        // Build font family list - just use a generic font for now
+        // TODO: We could pass the full font family list from CachedFamily
+        let font_families: Vec<String> = vec!["sans-serif".to_string()];
+
+        // Try to render the glyph with subpixel offset
+        let canvas_data = canvas_renderer::render_glyph_with_canvas(chr, metrics, &font_families, bin)?;
+
+        // Allocate the canvas-rendered glyph
+        Some(allocate_canvas_glyph(atlas, metrics, canvas_data))
     }
 }
 
@@ -786,6 +832,64 @@ fn invisible_char(c: char) -> bool {
             | '\u{FEFF}' // ZERO WIDTH NO-BREAK SPACE
     )
 }
+
+// ----------------------------------------------------------------------------
+
+#[cfg(target_arch = "wasm32")]
+pub(super) fn allocate_canvas_glyph(
+    atlas: &mut TextureAtlas,
+    metrics: &ScaledMetrics,
+    canvas_data: crate::text::canvas_renderer::CanvasGlyphData,
+) -> GlyphAllocation {
+    use crate::text::canvas_renderer::CanvasGlyphData;
+
+    let CanvasGlyphData {
+        image_data,
+        width,
+        height,
+        advance_width,
+        offset_x,
+        offset_y,
+    } = canvas_data;
+
+    // Get alpha_from_coverage before allocating
+    let alpha_from_coverage = atlas.options().alpha_from_coverage;
+
+    // Allocate space in the texture atlas
+    let (glyph_pos, image) = atlas.allocate((width as usize, height as usize));
+
+    // Convert RGBA to alpha channel
+    // Canvas ImageData is RGBA, we need alpha channel only
+    for y in 0..height as usize {
+        for x in 0..width as usize {
+            let idx = (y * width as usize + x) * 4;
+            // Use alpha channel from ImageData
+            let alpha = image_data[idx + 3] as f32 / 255.0;
+            image[(x + glyph_pos.0, y + glyph_pos.1)] =
+                alpha_from_coverage.color_from_coverage(alpha);
+        }
+    }
+
+    // Calculate offset in points
+    let offset_in_points =
+        Vec2::new(offset_x, offset_y) / metrics.pixels_per_point + metrics.y_offset_in_points * Vec2::Y;
+
+    GlyphAllocation {
+        id: skrifa::GlyphId::NOTDEF, // Mark as canvas-rendered
+        advance_width_px: advance_width,
+        uv_rect: UvRect {
+            offset: offset_in_points,
+            size: Vec2::new(width as f32, height as f32) / metrics.pixels_per_point,
+            min: [glyph_pos.0 as u16, glyph_pos.1 as u16],
+            max: [
+                (glyph_pos.0 + width as usize) as u16,
+                (glyph_pos.1 + height as usize) as u16,
+            ],
+        },
+    }
+}
+
+// ----------------------------------------------------------------------------
 
 #[inline]
 pub(super) fn is_cjk_ideograph(c: char) -> bool {
