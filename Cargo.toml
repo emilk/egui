@@ -84,7 +84,7 @@ chrono = { version = "0.4.42", default-features = false }
 cint = "0.3.1"
 color-hex = "0.2.0"
 criterion = { version = "0.7.0", default-features = false }
-dify = { version = "0.7.4", default-features = false }
+dify = { version = "0.8", default-features = false }
 directories = "6.0.0"
 document-features = "0.2.11"
 ehttp = { version = "0.6.0", default-features = false }
