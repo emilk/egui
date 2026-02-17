@@ -564,11 +564,13 @@ impl Focus {
 
             if let crate::Event::AccessKitActionRequest(accesskit::ActionRequest {
                 action: accesskit::Action::Focus,
-                target,
+                target_node,
+                target_tree,
                 data: None,
             }) = event
+                && *target_tree == accesskit::TreeId::ROOT
             {
-                self.id_requested_by_accesskit = Some(*target);
+                self.id_requested_by_accesskit = Some(*target_node);
             }
         }
     }

@@ -68,9 +68,9 @@ egui_glow = { version = "0.33.3", path = "crates/egui_glow", default-features = 
 egui_kittest = { version = "0.33.3", path = "crates/egui_kittest", default-features = false }
 eframe = { version = "0.33.3", path = "crates/eframe", default-features = false }
 
-accesskit = "0.21.1"
-accesskit_consumer = "0.30.1"
-accesskit_winit = "0.29.1"
+accesskit = "0.24.0"
+accesskit_consumer = "0.34.0"
+accesskit_winit = "0.32.0"
 ahash = { version = "0.8.12", default-features = false, features = [
   "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
   "std",

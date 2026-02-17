@@ -102,7 +102,7 @@ pub struct State {
     has_sent_ime_enabled: bool,
 
     #[cfg(feature = "accesskit")]
-    accesskit: Option<accesskit_winit::Adapter>,
+    pub accesskit: Option<accesskit_winit::Adapter>,
 
     allow_ime: bool,
     ime_rect_px: Option<egui::Rect>,
