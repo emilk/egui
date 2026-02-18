@@ -406,6 +406,10 @@ pub struct NativeOptions {
     /// data storage path for each target system.
     pub persistence_path: Option<std::path::PathBuf>,
 
+    /// A custom storage creator function. If set, this function will be used to create a storage instance
+    /// that implements the `epi::Storage` trait, allowing for custom data serialization and deserialization.
+    pub storage_creator: Option<Box<dyn Fn() -> Option<Box<dyn crate::epi::Storage>>>>,
+
     /// Controls whether to apply dithering to minimize banding artifacts.
     ///
     /// Dithering assumes an sRGB output and thus will apply noise to any input value that lies between
@@ -442,6 +446,8 @@ impl Clone for NativeOptions {
             wgpu_options: self.wgpu_options.clone(),
 
             persistence_path: self.persistence_path.clone(),
+
+            storage_creator: None,
 
             #[cfg(target_os = "android")]
             android_app: self.android_app.clone(),
@@ -485,6 +491,8 @@ impl Default for NativeOptions {
             persist_window: true,
 
             persistence_path: None,
+
+            storage_creator: None,
 
             dithering: true,
 
