@@ -18,6 +18,8 @@ pub struct RectShape {
     ///
     /// For [`StrokeKind::Inside`], the outside of the stroke coincides with the rectangle,
     /// so the rounding will in this case specify the outer corner radius.
+    ///
+    /// Use [`CornerRadius::with_shape`] to set both radius and shape at once.
     pub corner_radius: CornerRadius,
 
     /// How to fill the rectangle.
@@ -121,6 +123,15 @@ impl RectShape {
     #[inline]
     pub fn with_stroke_kind(mut self, stroke_kind: StrokeKind) -> Self {
         self.stroke_kind = stroke_kind;
+        self
+    }
+
+    /// Set the shape of the corners.
+    ///
+    /// This is a convenience method that modifies the `corner_radius.shape` field.
+    #[inline]
+    pub fn with_corner_shape(mut self, corner_shape: Option<CornerShape>) -> Self {
+        self.corner_radius.shape = corner_shape;
         self
     }
 

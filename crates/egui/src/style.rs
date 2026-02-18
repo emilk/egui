@@ -2671,46 +2671,116 @@ impl Widget for &mut Margin {
 impl Widget for &mut CornerRadius {
     fn ui(self, ui: &mut Ui) -> Response {
         let mut same = self.is_same();
+        let mut shape = self.shape();
+        let mut is_custom = matches!(shape, epaint::CornerShape::Superellipse { .. });
 
-        let response = if same {
-            ui.horizontal(|ui| {
-                ui.checkbox(&mut same, "same");
+        let mut response = ui
+            .vertical(|ui| {
+                // Corner shape selector
+                ui.horizontal(|ui| {
+                    if ui
+                        .selectable_value(&mut shape, epaint::CornerShape::Round, "Round")
+                        .changed()
+                    {
+                        is_custom = false
+                    }
+                    if ui
+                        .selectable_value(&mut shape, epaint::CornerShape::Squircle, "Squircle")
+                        .changed()
+                    {
+                        is_custom = false
+                    }
+                    if ui
+                        .selectable_value(&mut shape, epaint::CornerShape::Bevel, "Bevel")
+                        .changed()
+                    {
+                        is_custom = false
+                    }
 
-                let mut cr = self.nw;
-                ui.add(DragValue::new(&mut cr).range(0.0..=f32::INFINITY));
-                *self = CornerRadius::same(cr);
-            })
-            .response
-        } else {
-            ui.vertical(|ui| {
-                ui.checkbox(&mut same, "same");
+                    ui.checkbox(&mut is_custom, "Custom");
+                    if let epaint::CornerShape::Superellipse { ne, nw, sw, se } = &mut shape {
+                        Grid::new("corner_shape_custom")
+                            .num_columns(2)
+                            .show(ui, |ui| {
+                                ui.label("NE");
+                                ui.add(DragValue::new(ne).speed(0.01));
+                                ui.end_row();
 
-                crate::Grid::new("Corner radius")
-                    .num_columns(2)
-                    .show(ui, |ui| {
-                        ui.label("NW");
-                        ui.add(DragValue::new(&mut self.nw).range(0.0..=f32::INFINITY));
-                        ui.end_row();
+                                ui.label("NW");
+                                ui.add(DragValue::new(nw).speed(0.01));
+                                ui.end_row();
 
-                        ui.label("NE");
-                        ui.add(DragValue::new(&mut self.ne).range(0.0..=f32::INFINITY));
-                        ui.end_row();
+                                ui.label("SW");
+                                ui.add(DragValue::new(sw).speed(0.01));
+                                ui.end_row();
 
-                        ui.label("SW");
-                        ui.add(DragValue::new(&mut self.sw).range(0.0..=f32::INFINITY));
-                        ui.end_row();
+                                ui.label("SE");
+                                ui.add(DragValue::new(se).speed(0.01));
+                                ui.end_row();
+                            });
+                    }
+                });
 
-                        ui.label("SE");
-                        ui.add(DragValue::new(&mut self.se).range(0.0..=f32::INFINITY));
-                        ui.end_row();
+                ui.separator();
+
+                // Corner radius values
+                if same {
+                    ui.horizontal(|ui| {
+                        ui.checkbox(&mut same, "same");
+
+                        let mut cr = self.nw;
+                        ui.add(DragValue::new(&mut cr).range(0.0..=f32::INFINITY));
+                        *self = CornerRadius::same(cr).with_shape(self.shape());
                     });
+                } else {
+                    ui.horizontal(|ui| {
+                        ui.checkbox(&mut same, "same");
+                    });
+
+                    crate::Grid::new("Corner radius")
+                        .num_columns(2)
+                        .show(ui, |ui| {
+                            ui.label("NW");
+                            ui.add(DragValue::new(&mut self.nw).range(0.0..=f32::INFINITY));
+                            ui.end_row();
+
+                            ui.label("NE");
+                            ui.add(DragValue::new(&mut self.ne).range(0.0..=f32::INFINITY));
+                            ui.end_row();
+
+                            ui.label("SW");
+                            ui.add(DragValue::new(&mut self.sw).range(0.0..=f32::INFINITY));
+                            ui.end_row();
+
+                            ui.label("SE");
+                            ui.add(DragValue::new(&mut self.se).range(0.0..=f32::INFINITY));
+                            ui.end_row();
+                        });
+                }
             })
-            .response
-        };
+            .response;
 
         // Apply the checkbox:
+        let is_superellipse = matches!(shape, epaint::CornerShape::Superellipse { .. });
+        if is_custom {
+            let exps: epaint::CornerExponents = shape.exponents();
+            *self = self.with_shape(epaint::CornerShape::Superellipse {
+                ne: exps.ne,
+                nw: exps.nw,
+                sw: exps.sw,
+                se: exps.se + if is_superellipse { 0.0 } else { 0.01 },
+            });
+        } else {
+            *self = self.with_shape(if is_superellipse {
+                epaint::CornerShape::Round
+            } else {
+                shape
+            });
+        }
         if same {
+            let shape = self.shape;
             *self = CornerRadius::from(self.average());
+            self.shape = shape;
         } else {
             // Make sure we aren't same:
             if self.is_same() {
@@ -2722,6 +2792,7 @@ impl Widget for &mut CornerRadius {
             }
         }
 
+        response.mark_changed();
         response
     }
 }
