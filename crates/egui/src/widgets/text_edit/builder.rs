@@ -3,6 +3,7 @@ use std::sync::Arc;
 use emath::{Rect, TSTransform};
 use epaint::{
     StrokeKind,
+    mutex::Mutex,
     text::{Galley, LayoutJob, cursor::CCursor},
 };
 
@@ -12,12 +13,15 @@ use crate::{
     TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetWithState, epaint,
     os::OperatingSystem,
     output::OutputEvent,
-    response, text_selection,
-    text_selection::{CCursorRange, text_cursor_state::cursor_rect, visuals::paint_text_selection},
+    response,
+    text_edit::{TextCursorState, state::TextEditUndoer},
+    text_selection::{
+        self, CCursorRange, text_cursor_state::cursor_rect, visuals::paint_text_selection,
+    },
     vec2,
 };
 
-use super::{TextEditOutput, TextEditState};
+use super::{TextEditOutput, TextEditState, text_type::TextType};
 
 type LayouterFn<'t> = &'t mut dyn FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<Galley>;
 
@@ -51,7 +55,7 @@ type LayouterFn<'t> = &'t mut dyn FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<Galley
 ///
 ///
 /// You can also use [`TextEdit`] to show text that can be selected, but not edited.
-/// To do so, pass in a `&mut` reference to a `&str`, for instance:
+/// To do so, pass in a `&mut` reference to an immutable reference (E.G. `&str`), for instance:
 ///
 /// ```
 /// fn selectable_text(ui: &mut egui::Ui, mut text: &str) {
@@ -65,8 +69,8 @@ type LayouterFn<'t> = &'t mut dyn FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<Galley
 /// ## Other
 /// The background color of a [`crate::TextEdit`] is [`crate::Visuals::text_edit_bg_color`] or can be set with [`crate::TextEdit::background_color`].
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
-pub struct TextEdit<'t> {
-    text: &'t mut dyn TextBuffer,
+pub struct TextEdit<'t, Value: TextType = String> {
+    represents: &'t mut Value,
     hint_text: WidgetText,
     hint_text_font: Option<FontSelection>,
     id: Option<Id>,
@@ -91,11 +95,14 @@ pub struct TextEdit<'t> {
     background_color: Option<Color32>,
 }
 
-impl WidgetWithState for TextEdit<'_> {
+impl<Value: TextType> WidgetWithState for TextEdit<'_, Value> {
     type State = TextEditState;
 }
 
-impl TextEdit<'_> {
+// This doesn't have to be a string.
+// It's just to prevent having specify the generic type when using these functions.
+// Since "self" is not used it does not matter that these are only implemented for the "String" variant
+impl TextEdit<'_, String> {
     pub fn load_state(ctx: &Context, id: Id) -> Option<TextEditState> {
         TextEditState::load(ctx, id)
     }
@@ -105,21 +112,21 @@ impl TextEdit<'_> {
     }
 }
 
-impl<'t> TextEdit<'t> {
+impl<'t, Value: TextType> TextEdit<'t, Value> {
     /// No newlines (`\n`) allowed. Pressing enter key will result in the [`TextEdit`] losing focus (`response.lost_focus`).
-    pub fn singleline(text: &'t mut dyn TextBuffer) -> Self {
+    pub fn singleline(value: &'t mut Value) -> Self {
         Self {
             desired_height_rows: 1,
             multiline: false,
             clip_text: true,
-            ..Self::multiline(text)
+            ..Self::multiline(value)
         }
     }
 
     /// A [`TextEdit`] for multiple lines. Pressing enter key will create a new line by default (can be changed with [`return_key`](TextEdit::return_key)).
-    pub fn multiline(text: &'t mut dyn TextBuffer) -> Self {
+    pub fn multiline(value: &'t mut Value) -> Self {
         Self {
-            text,
+            represents: value,
             hint_text: Default::default(),
             hint_text_font: None,
             id: None,
@@ -277,7 +284,6 @@ impl<'t> TextEdit<'t> {
         layouter: &'t mut dyn FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<Galley>,
     ) -> Self {
         self.layouter = Some(layouter);
-
         self
     }
 
@@ -400,13 +406,13 @@ impl<'t> TextEdit<'t> {
 
 // ----------------------------------------------------------------------------
 
-impl Widget for TextEdit<'_> {
+impl<Value: TextType> Widget for TextEdit<'_, Value> {
     fn ui(self, ui: &mut Ui) -> Response {
         self.show(ui).response
     }
 }
 
-impl TextEdit<'_> {
+impl<Value: TextType> TextEdit<'_, Value> {
     /// Show the [`TextEdit`], returning a rich [`TextEditOutput`].
     ///
     /// ```
@@ -423,7 +429,7 @@ impl TextEdit<'_> {
     /// # });
     /// ```
     pub fn show(self, ui: &mut Ui) -> TextEditOutput {
-        let is_mutable = self.text.is_mutable();
+        let is_mutable = Value::is_parsable();
         let frame = self.frame;
         let where_to_put_background = ui.painter().add(Shape::Noop);
         let background_color = self
@@ -470,7 +476,7 @@ impl TextEdit<'_> {
 
     fn show_content(self, ui: &mut Ui) -> TextEditOutput {
         let TextEdit {
-            text,
+            represents,
             hint_text,
             hint_text_font,
             id,
@@ -495,6 +501,20 @@ impl TextEdit<'_> {
             background_color: _,
         } = self;
 
+        // An Id is required, as the displayed string is owned by the TextEditState.
+        let id = id.unwrap_or_else(|| {
+            if let Some(id_salt) = id_salt {
+                ui.make_persistent_id(id_salt)
+            } else {
+                ui.next_auto_id()
+            }
+        });
+
+        let mut state = TextEditState::load(ui.ctx(), id).unwrap_or_default();
+        let text = state
+            .text
+            .get_or_insert_with(|| represents.string_representation());
+
         let text_color = text_color
             .or_else(|| ui.visuals().override_text_color)
             // .unwrap_or_else(|| ui.style().interact(&response).text_color()); // too bright
@@ -502,6 +522,8 @@ impl TextEdit<'_> {
 
         let prev_text = text.as_str().to_owned();
         let hint_text_str = hint_text.text().to_owned();
+
+        let mut text_parsed = None;
 
         let font_id = font_selection.resolve(ui.style());
         let row_height = ui.fonts_mut(|f| f.row_height(&font_id));
@@ -537,17 +559,8 @@ impl TextEdit<'_> {
         let desired_height = (desired_height_rows.at_least(1) as f32) * row_height;
         let desired_inner_size = vec2(desired_inner_width, galley.size().y.max(desired_height));
         let desired_outer_size = (desired_inner_size + margin.sum()).at_least(min_size);
-        let (auto_id, outer_rect) = ui.allocate_space(desired_outer_size);
+        let outer_rect = ui.allocate_space(desired_outer_size).1;
         let rect = outer_rect - margin; // inner rect (excluding frame/margin).
-
-        let id = id.unwrap_or_else(|| {
-            if let Some(id_salt) = id_salt {
-                ui.make_persistent_id(id_salt)
-            } else {
-                auto_id // Since we are only storing the cursor a persistent Id is not super important
-            }
-        });
-        let mut state = TextEditState::load(ui.ctx(), id).unwrap_or_default();
 
         // On touch screens (e.g. mobile in `eframe` web), should
         // dragging select text, or scroll the enclosing [`ScrollArea`] (if any)?
@@ -574,7 +587,7 @@ impl TextEdit<'_> {
         let painter = ui.painter_at(text_clip_rect.expand(1.0)); // expand to avoid clipping cursor
 
         if interactive && let Some(pointer_pos) = response.interact_pointer_pos() {
-            if response.hovered() && text.is_mutable() {
+            if response.hovered() && Value::is_parsable() {
                 ui.output_mut(|o| o.mutable_text_under_cursor = true);
             }
 
@@ -626,8 +639,12 @@ impl TextEdit<'_> {
 
             let (changed, new_cursor_range) = events(
                 ui,
-                &mut state,
+                &mut state.cursor,
+                &state.undoer,
+                &mut state.ime_enabled,
+                &mut state.ime_cursor_range,
                 text,
+                Value::is_parsable(),
                 &mut galley,
                 layouter,
                 id,
@@ -770,8 +787,8 @@ impl TextEdit<'_> {
                     ui.scroll_to_rect(primary_cursor_rect + margin, None);
                 }
 
-                if text.is_mutable() && interactive {
-                    let now = ui.input(|i| i.time);
+                if Value::is_parsable() && interactive {
+                    let now = ui.ctx().input(|i| i.time);
                     if response.changed() || selection_changed {
                         state.last_interaction_time = now;
                     }
@@ -816,9 +833,41 @@ impl TextEdit<'_> {
             ui.input_mut(|i| i.events.retain(|e| !matches!(e, Event::Ime(_))));
         }
 
-        state.clone().store(ui.ctx(), id);
+        // TODO(tye-exe): Simplify once https://github.com/emilk/egui/issues/2142 is fixed
+        if response.lost_focus() || response.clicked_elsewhere() {
+            match Value::read_from_string(represents, text) {
+                Some(Ok(var)) => {
+                    text_parsed = Some(true);
+                    *represents = var
+                }
+                Some(Err(err)) => {
+                    text_parsed = Some(false);
+                    log::info!("Failed to parse value for text edit: {err}");
+                }
+                None => {
+                    if Value::is_parsable() {
+                        log::warn!("Incorrectly marked unparsable TextType as mutable.");
+                    }
+                }
+            }
+
+            // The user might have changed the text
+            *text = represents.string_representation();
+        }
 
         if response.changed() {
+            // Update represented value if the current state is valid
+            match Value::read_from_string(represents, text) {
+                Some(Ok(var)) => {
+                    text_parsed = Some(true);
+                    *represents = var;
+                }
+                Some(Err(_)) => {
+                    text_parsed = Some(false);
+                }
+                _ => {}
+            }
+
             response.widget_info(|| {
                 WidgetInfo::text_edit(
                     ui.is_enabled(),
@@ -865,6 +914,8 @@ impl TextEdit<'_> {
             );
         }
 
+        state.clone().store(ui.ctx(), id);
+
         TextEditOutput {
             response,
             galley,
@@ -872,6 +923,7 @@ impl TextEdit<'_> {
             text_clip_rect,
             state,
             cursor_range,
+            text_parsed,
         }
     }
 }
@@ -895,11 +947,15 @@ fn mask_if_password(is_password: bool, text: &str) -> String {
 // ----------------------------------------------------------------------------
 
 /// Check for (keyboard) events to edit the cursor and/or text.
-#[expect(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, clippy::fn_params_excessive_bools)]
 fn events(
     ui: &crate::Ui,
-    state: &mut TextEditState,
-    text: &mut dyn TextBuffer,
+    cursor: &mut TextCursorState,
+    undoer: &Arc<Mutex<TextEditUndoer>>,
+    ime_enabled: &mut bool,
+    ime_cursor_range: &mut CCursorRange,
+    text: &mut String,
+    text_parsable: bool,
     galley: &mut Arc<Galley>,
     layouter: &mut dyn FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<Galley>,
     id: Id,
@@ -913,11 +969,11 @@ fn events(
 ) -> (bool, CCursorRange) {
     let os = ui.ctx().os();
 
-    let mut cursor_range = state.cursor.range(galley).unwrap_or(default_cursor_range);
+    let mut cursor_range = cursor.range(galley).unwrap_or(default_cursor_range);
 
     // We feed state to the undoer both before and after handling input
     // so that the undoer creates automatic saves even when there are no events for a while.
-    state.undoer.lock().feed_state(
+    undoer.lock().feed_state(
         ui.input(|i| i.time),
         &(cursor_range, text.as_str().to_owned()),
     );
@@ -932,7 +988,7 @@ fn events(
 
     let mut events = ui.input(|i| i.filtered_events(&event_filter));
 
-    if state.ime_enabled {
+    if *ime_enabled {
         remove_ime_incompatible_events(&mut events);
         // Process IME events first:
         events.sort_by_key(|e| !matches!(e, Event::Ime(_)));
@@ -950,7 +1006,7 @@ fn events(
                 None
             }
             Event::Cut => {
-                if cursor_range.is_empty() {
+                if cursor_range.is_empty() || !text_parsable {
                     None
                 } else {
                     copy_if_not_password(ui, cursor_range.slice_str(text.as_str()).to_owned());
@@ -958,7 +1014,7 @@ fn events(
                 }
             }
             Event::Paste(text_to_insert) => {
-                if !text_to_insert.is_empty() {
+                if !text_to_insert.is_empty() && text_parsable {
                     let mut ccursor = text.delete_selected(&cursor_range);
                     if multiline {
                         text.insert_text_at(&mut ccursor, text_to_insert, char_limit);
@@ -974,7 +1030,11 @@ fn events(
             }
             Event::Text(text_to_insert) => {
                 // Newlines are handled by `Key::Enter`.
-                if !text_to_insert.is_empty() && text_to_insert != "\n" && text_to_insert != "\r" {
+                if !text_to_insert.is_empty()
+                    && text_to_insert != "\n"
+                    && text_to_insert != "\r"
+                    && text_parsable
+                {
                     let mut ccursor = text.delete_selected(&cursor_range);
 
                     text.insert_text_at(&mut ccursor, text_to_insert, char_limit);
@@ -989,7 +1049,7 @@ fn events(
                 pressed: true,
                 modifiers,
                 ..
-            } if multiline => {
+            } if multiline && text_parsable => {
                 let mut ccursor = text.delete_selected(&cursor_range);
                 if modifiers.shift {
                     // TODO(emilk): support removing indentation over a selection?
@@ -1008,7 +1068,7 @@ fn events(
                 *key == return_key.logical_key && modifiers.matches_logically(return_key.modifiers)
             }) =>
             {
-                if multiline {
+                if multiline && text_parsable {
                     let mut ccursor = text.delete_selected(&cursor_range);
                     text.insert_text_at(&mut ccursor, "\n", char_limit);
                     // TODO(emilk): if code editor, auto-indent by same leading tabs, + one if the lines end on an opening bracket
@@ -1026,10 +1086,10 @@ fn events(
                 ..
             } if (modifiers.matches_logically(Modifiers::COMMAND) && *key == Key::Y)
                 || (modifiers.matches_logically(Modifiers::SHIFT | Modifiers::COMMAND)
-                    && *key == Key::Z) =>
+                    && *key == Key::Z)
+                    && text_parsable =>
             {
-                if let Some((redo_ccursor_range, redo_txt)) = state
-                    .undoer
+                if let Some((redo_ccursor_range, redo_txt)) = undoer
                     .lock()
                     .redo(&(cursor_range, text.as_str().to_owned()))
                 {
@@ -1045,9 +1105,8 @@ fn events(
                 pressed: true,
                 modifiers,
                 ..
-            } if modifiers.matches_logically(Modifiers::COMMAND) => {
-                if let Some((undo_ccursor_range, undo_txt)) = state
-                    .undoer
+            } if modifiers.matches_logically(Modifiers::COMMAND) && text_parsable => {
+                if let Some((undo_ccursor_range, undo_txt)) = undoer
                     .lock()
                     .undo(&(cursor_range, text.as_str().to_owned()))
                 {
@@ -1063,7 +1122,13 @@ fn events(
                 key,
                 pressed: true,
                 ..
-            } => check_for_mutating_key_press(os, &cursor_range, text, galley, modifiers, *key),
+            } => {
+                if text_parsable {
+                    check_for_mutating_key_press(os, &cursor_range, text, galley, modifiers, *key)
+                } else {
+                    None
+                }
+            }
 
             Event::Ime(ime_event) => {
                 /// Empty prediction can be produced with [`ImeEvent::Preedit`]
@@ -1087,38 +1152,39 @@ fn events(
                 ) -> CCursor {
                     text.delete_selected(cursor_range)
                 }
+                // <<<<<<< HEAD
 
                 match ime_event {
                     ImeEvent::Enabled => {
-                        state.ime_enabled = true;
-                        state.ime_cursor_range = cursor_range;
+                        *ime_enabled = true;
+                        *ime_cursor_range = cursor_range;
                         None
                     }
                     ImeEvent::Preedit(text_mark) => {
-                        if text_mark == "\n" || text_mark == "\r" {
+                        if text_mark == "\n" || text_mark == "\r" || !text_parsable {
                             None
                         } else {
-                            let mut ccursor = clear_prediction(text, &cursor_range);
-
+                            // Empty prediction can be produced when user press backspace
+                            // or escape during IME, so we clear current text.
+                            let mut ccursor = text.delete_selected(&cursor_range);
                             let start_cursor = ccursor;
                             if !text_mark.is_empty() {
                                 text.insert_text_at(&mut ccursor, text_mark, char_limit);
                             }
-                            state.ime_cursor_range = cursor_range;
+                            *ime_cursor_range = cursor_range;
                             Some(CCursorRange::two(start_cursor, ccursor))
                         }
                     }
                     ImeEvent::Commit(prediction) => {
-                        if prediction == "\n" || prediction == "\r" {
+                        if prediction == "\n" || prediction == "\r" || !text_parsable {
                             None
                         } else {
-                            state.ime_enabled = false;
+                            *ime_enabled = false;
 
                             let mut ccursor = clear_prediction(text, &cursor_range);
 
                             if !prediction.is_empty()
-                                && cursor_range.secondary.index
-                                    == state.ime_cursor_range.secondary.index
+                                && cursor_range.secondary.index == ime_cursor_range.secondary.index
                             {
                                 text.insert_text_at(&mut ccursor, prediction, char_limit);
                             }
@@ -1127,12 +1193,11 @@ fn events(
                         }
                     }
                     ImeEvent::Disabled => {
-                        state.ime_enabled = false;
+                        *ime_enabled = false;
                         None
                     }
                 }
             }
-
             _ => None,
         };
 
@@ -1147,9 +1212,9 @@ fn events(
         }
     }
 
-    state.cursor.set_char_range(Some(cursor_range));
+    cursor.set_char_range(Some(cursor_range));
 
-    state.undoer.lock().feed_state(
+    undoer.lock().feed_state(
         ui.input(|i| i.time),
         &(cursor_range, text.as_str().to_owned()),
     );
