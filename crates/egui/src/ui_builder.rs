@@ -55,7 +55,7 @@ impl UiBuilder {
     /// This is a shortcut for `.id_salt(my_id).global_scope(true)`.
     #[inline]
     pub fn id(mut self, id: Id) -> Self {
-        self.id_salt = Some(Id::new(id));
+        self.id_salt = Some(id);
         self.global_scope = true;
         self
     }
