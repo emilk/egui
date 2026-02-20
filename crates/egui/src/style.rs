@@ -1029,14 +1029,20 @@ pub struct Visuals {
     /// Default is `Color32::from_black_alpha(100)`.
     pub modal_backdrop_color: Color32,
 
-    /// The default backdrop color for popups.
+    /// The backdrop color for popups.
     ///
-    /// If `Some`, popups show a backdrop by default.
-    /// If `None` (default), popups don't show a backdrop unless explicitly enabled
-    /// via [`crate::Popup::backdrop`].
+    /// Only used when [`Self::popup_backdrop`] is `true` or when a popup
+    /// explicitly enables the backdrop via [`crate::Popup::backdrop`].
+    ///
+    /// Default is `Color32::from_black_alpha(100)`.
+    pub popup_backdrop_color: Color32,
+
+    /// Whether popups show a backdrop by default.
     ///
     /// Individual popups can still override this with [`crate::Popup::backdrop`].
-    pub popup_backdrop_color: Option<Color32>,
+    ///
+    /// Default is `false`.
+    pub popup_backdrop: bool,
 
     pub resize_corner_size: f32,
 
@@ -1475,7 +1481,8 @@ impl Visuals {
             },
 
             modal_backdrop_color: Color32::from_black_alpha(100),
-            popup_backdrop_color: None,
+            popup_backdrop_color: Color32::from_black_alpha(100),
+            popup_backdrop: false,
 
             resize_corner_size: 12.0,
 
@@ -2171,6 +2178,7 @@ impl Visuals {
             popup_shadow,
             modal_backdrop_color,
             popup_backdrop_color,
+            popup_backdrop,
 
             resize_corner_size,
 
@@ -2353,16 +2361,17 @@ impl Visuals {
                     ui.add(popup_shadow);
                     ui.end_row();
 
-                    ui.label("Modal backdrop");
+                    ui.label("Modal backdrop color");
                     ui.color_edit_button_srgba(modal_backdrop_color);
                     ui.end_row();
 
-                    ui_optional_color(
-                        ui,
-                        popup_backdrop_color,
-                        Color32::from_black_alpha(100),
-                        "Popup backdrop",
-                    );
+                    ui.label("Popup backdrop color");
+                    ui.color_edit_button_srgba(popup_backdrop_color);
+                    ui.end_row();
+
+                    ui.label("Popup backdrop");
+                    ui.checkbox(popup_backdrop, "");
+                    ui.end_row();
                 });
         });
 

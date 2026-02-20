@@ -1,4 +1,4 @@
-use emath::{Align2, Rect, Vec2};
+use emath::{Align2, Vec2};
 
 use crate::{
     Area, Color32, Context, Frame, Id, InnerResponse, Order, Response, Sense, Ui, UiKind,

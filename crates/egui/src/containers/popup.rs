@@ -185,8 +185,9 @@ pub struct Popup<'a> {
     layout: Layout,
     frame: Option<Frame>,
     style: StyleModifier,
-    /// `None` = use style default, `Some(None)` = no backdrop, `Some(Some(color))` = this color
-    backdrop_color: Option<Option<Color32>>,
+    /// `None` = use style default, `Some(bool)` = explicit override
+    backdrop: Option<bool>,
+    backdrop_color: Option<Color32>,
 }
 
 impl<'a> Popup<'a> {
@@ -209,6 +210,7 @@ impl<'a> Popup<'a> {
             layout: Layout::default(),
             frame: None,
             style: StyleModifier::default(),
+            backdrop: None,
             backdrop_color: None,
         }
     }
@@ -416,15 +418,23 @@ impl<'a> Popup<'a> {
     /// Show a backdrop behind the popup.
     ///
     /// The backdrop covers the entire screen, blocking interaction with the rest of the UI.
+    /// The color is determined by [`crate::Visuals::popup_backdrop_color`].
     ///
-    /// - `None` — no backdrop is shown.
-    /// - `Some(color)` — show a backdrop with this color.
-    /// - `Some(Color32::PLACEHOLDER)` — use the default from [`crate::Visuals::popup_backdrop_color`].
-    ///
-    /// By default, this is controlled by [`crate::Visuals::popup_backdrop_color`].
+    /// By default, this is controlled by [`crate::Visuals::popup_backdrop`].
     /// Calling this method overrides the global style for this popup.
+    ///
+    /// Note: submenus never show a backdrop, even if this is set to `true`.
     #[inline]
-    pub fn backdrop(mut self, color: Option<Color32>) -> Self {
+    pub fn backdrop(mut self, show: bool) -> Self {
+        self.backdrop = Some(show);
+        self
+    }
+
+    /// Override the backdrop color for this popup.
+    ///
+    /// By default, the color comes from [`crate::Visuals::popup_backdrop_color`].
+    #[inline]
+    pub fn backdrop_color(mut self, color: Color32) -> Self {
         self.backdrop_color = Some(color);
         self
     }
@@ -572,6 +582,7 @@ impl<'a> Popup<'a> {
             layout,
             frame,
             style,
+            backdrop,
             backdrop_color,
         } = self;
 
@@ -608,25 +619,22 @@ impl<'a> Popup<'a> {
             area = area.default_width(width);
         }
 
-        // Resolve backdrop color: per-instance override, or fall back to global style
-        let resolved_backdrop = match backdrop_color {
-            Some(explicit) => explicit,
-            None => ctx.global_style().visuals.popup_backdrop_color,
-        };
-        let resolved_backdrop = match resolved_backdrop {
-            Some(color) if color == Color32::PLACEHOLDER => {
-                ctx.global_style().visuals.popup_backdrop_color
-            }
-            other => other,
-        };
+        // Resolve whether to show a backdrop:
+        // - Explicit per-instance override takes priority
+        // - Otherwise, fall back to global style
+        // - Submenus (parent layer is Foreground) never show a backdrop
+        let is_submenu = layer_id.order == Order::Foreground;
+        let show_backdrop = !is_submenu
+            && backdrop.unwrap_or_else(|| ctx.global_style().visuals.popup_backdrop);
 
         let mut backdrop_clicked = false;
         let mut response = area.show(&ctx, |ui| {
-            backdrop_clicked = if let Some(color) = resolved_backdrop {
-                super::modal::paint_backdrop(ui, color) && was_open_last_frame
-            } else {
-                false
-            };
+            if show_backdrop {
+                let color = backdrop_color
+                    .unwrap_or_else(|| ctx.global_style().visuals.popup_backdrop_color);
+                backdrop_clicked =
+                    super::modal::paint_backdrop(ui, color) && was_open_last_frame;
+            }
 
             style.apply(ui.style_mut());
             let frame = frame.unwrap_or_else(|| Frame::popup(ui.style()));
