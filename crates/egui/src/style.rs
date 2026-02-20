@@ -1024,6 +1024,20 @@ pub struct Visuals {
 
     pub popup_shadow: Shadow,
 
+    /// The backdrop color for modals.
+    ///
+    /// Default is `Color32::from_black_alpha(100)`.
+    pub modal_backdrop_color: Color32,
+
+    /// The default backdrop color for popups.
+    ///
+    /// If `Some`, popups show a backdrop by default.
+    /// If `None` (default), popups don't show a backdrop unless explicitly enabled
+    /// via [`crate::Popup::backdrop`].
+    ///
+    /// Individual popups can still override this with [`crate::Popup::backdrop`].
+    pub popup_backdrop_color: Option<Color32>,
+
     pub resize_corner_size: f32,
 
     /// How the text cursor acts.
@@ -1459,6 +1473,9 @@ impl Visuals {
                 spread: 0,
                 color: Color32::from_black_alpha(96),
             },
+
+            modal_backdrop_color: Color32::from_black_alpha(100),
+            popup_backdrop_color: None,
 
             resize_corner_size: 12.0,
 
@@ -2152,6 +2169,8 @@ impl Visuals {
             panel_fill,
 
             popup_shadow,
+            modal_backdrop_color,
+            popup_backdrop_color,
 
             resize_corner_size,
 
@@ -2333,6 +2352,17 @@ impl Visuals {
                     ui.label("Shadow");
                     ui.add(popup_shadow);
                     ui.end_row();
+
+                    ui.label("Modal backdrop");
+                    ui.color_edit_button_srgba(modal_backdrop_color);
+                    ui.end_row();
+
+                    ui_optional_color(
+                        ui,
+                        popup_backdrop_color,
+                        Color32::from_black_alpha(100),
+                        "Popup backdrop",
+                    );
                 });
         });
 

@@ -1,8 +1,21 @@
-use emath::{Align2, Vec2};
+use emath::{Align2, Rect, Vec2};
 
 use crate::{
-    Area, Color32, Context, Frame, Id, InnerResponse, Order, Response, Sense, Ui, UiBuilder, UiKind,
+    Area, Color32, Context, Frame, Id, InnerResponse, Order, Response, Sense, Ui, UiKind,
 };
+
+/// Paint a full-screen backdrop on the given [`Ui`] and return whether
+/// a click landed outside `content_rect` (i.e. on the backdrop).
+///
+/// This is used by both [`Modal`] and [`crate::Popup`].
+pub(crate) fn paint_backdrop(ui: &mut Ui, color: Color32) -> bool {
+    let bg_rect = ui.ctx().viewport_rect();
+
+    let response = ui.interact(bg_rect, ui.unique_id().with("backdrop"), Sense::click_and_drag());
+    ui.painter().rect_filled(response.rect, 0.0, color);
+
+    response.clicked() && !ui.response().contains_pointer()
+}
 
 /// A modal dialog.
 ///
@@ -26,7 +39,7 @@ impl Modal {
     pub fn new(id: Id) -> Self {
         Self {
             area: Self::default_area(id),
-            backdrop_color: Color32::from_black_alpha(100),
+            backdrop_color: Color32::PLACEHOLDER,
             frame: None,
         }
     }
@@ -57,7 +70,7 @@ impl Modal {
 
     /// Set the backdrop color of the modal.
     ///
-    /// Default is `Color32::from_black_alpha(100)`.
+    /// Default comes from [`crate::Visuals::modal_backdrop_color`].
     #[inline]
     pub fn backdrop_color(mut self, color: Color32) -> Self {
         self.backdrop_color = color;
@@ -77,9 +90,13 @@ impl Modal {
     pub fn show<T>(self, ctx: &Context, content: impl FnOnce(&mut Ui) -> T) -> ModalResponse<T> {
         let Self {
             area,
-            backdrop_color,
+            mut backdrop_color,
             frame,
         } = self;
+
+        if backdrop_color == Color32::PLACEHOLDER {
+            backdrop_color = ctx.global_style().visuals.modal_backdrop_color;
+        }
 
         let is_top_modal = ctx.memory_mut(|mem| {
             mem.set_modal_layer(area.layer());
@@ -87,32 +104,20 @@ impl Modal {
         });
         let any_popup_open = crate::Popup::is_any_open(ctx);
         let InnerResponse {
-            inner: (inner, backdrop_response),
+            inner: (inner, backdrop_clicked),
             response,
         } = area.show(ctx, |ui| {
-            let bg_rect = ui.ctx().content_rect();
-            let bg_sense = Sense::CLICK | Sense::DRAG;
-            let mut backdrop = ui.new_child(UiBuilder::new().sense(bg_sense).max_rect(bg_rect));
-            backdrop.set_min_size(bg_rect.size());
-            ui.painter().rect_filled(bg_rect, 0.0, backdrop_color);
-            let backdrop_response = backdrop.response();
+            let backdrop_clicked = paint_backdrop(ui, backdrop_color);
 
             let frame = frame.unwrap_or_else(|| Frame::popup(ui.style()));
+            let inner = frame.show(ui, content).inner;
 
-            // We need the extra scope with the sense since frame can't have a sense and since we
-            // need to prevent the clicks from passing through to the backdrop.
-            let inner = ui
-                .scope_builder(UiBuilder::new().sense(Sense::CLICK | Sense::DRAG), |ui| {
-                    frame.show(ui, content).inner
-                })
-                .inner;
-
-            (inner, backdrop_response)
+            (inner, backdrop_clicked)
         });
 
         ModalResponse {
             response,
-            backdrop_response,
+            backdrop_clicked,
             inner,
             is_top_modal,
             any_popup_open,
@@ -125,11 +130,8 @@ pub struct ModalResponse<T> {
     /// The response of the modal contents
     pub response: Response,
 
-    /// The response of the modal backdrop.
-    ///
-    /// A click on this means the user clicked outside the modal,
-    /// in which case you might want to close the modal.
-    pub backdrop_response: Response,
+    /// Whether the backdrop was clicked (i.e. a click landed outside the modal).
+    pub backdrop_clicked: bool,
 
     /// The inner response from the content closure
     pub inner: T,
@@ -157,7 +159,7 @@ impl<T> ModalResponse<T> {
 
         let ui_close_called = self.response.should_close();
 
-        self.backdrop_response.clicked()
+        self.backdrop_clicked
             || ui_close_called
             || (self.is_top_modal && !self.any_popup_open && escape_clicked())
     }
