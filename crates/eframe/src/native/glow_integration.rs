@@ -423,13 +423,32 @@ impl WinitApp for GlowWinitApp<'_> {
             // First resume event. Create our root window etc.
             self.init_run_state(event_loop)?
         };
+
+        {
+            let mut glutin = running.glutin.borrow_mut();
+            if let Some(viewport) = glutin.viewports.get_mut(&ViewportId::ROOT) {
+                if let Some(egui_winit) = viewport.egui_winit.as_mut() {
+                    egui_winit.egui_input_mut().events.push(egui::Event::Resumed);
+                }
+            }
+        }
+
         let window_id = running.glutin.borrow().window_from_viewport[&ViewportId::ROOT];
         Ok(EventResult::RepaintNow(window_id))
     }
 
     fn suspended(&mut self, _: &ActiveEventLoop) -> crate::Result<EventResult> {
         if let Some(running) = &mut self.running {
-            running.glutin.borrow_mut().on_suspend()?;
+            let mut glutin = running.glutin.borrow_mut();
+            if let Some(viewport) = glutin.viewports.get_mut(&ViewportId::ROOT) {
+                if let Some(egui_winit) = viewport.egui_winit.as_mut() {
+                    egui_winit
+                        .egui_input_mut()
+                        .events
+                        .push(egui::Event::Suspended);
+                }
+            }
+            glutin.on_suspend()?;
         }
         Ok(EventResult::Save)
     }

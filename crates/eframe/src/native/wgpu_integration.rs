@@ -427,6 +427,15 @@ impl WinitApp for WgpuWinitApp<'_> {
             self.init_run_state(egui_ctx, event_loop, storage, window, builder)?
         };
 
+        {
+            let mut shared = running.shared.borrow_mut();
+            if let Some(viewport) = shared.viewports.get_mut(&ViewportId::ROOT) {
+                if let Some(egui_winit) = viewport.egui_winit.as_mut() {
+                    egui_winit.egui_input_mut().events.push(egui::Event::Resumed);
+                }
+            }
+        }
+
         let viewport = &running.shared.borrow().viewports[&ViewportId::ROOT];
         if let Some(window) = &viewport.window {
             Ok(EventResult::RepaintNow(window.id()))
@@ -436,6 +445,17 @@ impl WinitApp for WgpuWinitApp<'_> {
     }
 
     fn suspended(&mut self, _: &ActiveEventLoop) -> crate::Result<EventResult> {
+        if let Some(running) = &self.running {
+            let mut shared = running.shared.borrow_mut();
+            if let Some(viewport) = shared.viewports.get_mut(&ViewportId::ROOT) {
+                if let Some(egui_winit) = viewport.egui_winit.as_mut() {
+                    egui_winit
+                        .egui_input_mut()
+                        .events
+                        .push(egui::Event::Suspended);
+                }
+            }
+        }
         #[cfg(target_os = "android")]
         self.drop_window()?;
         Ok(EventResult::Save)

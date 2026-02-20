@@ -547,6 +547,16 @@ pub enum Event {
     /// The native window gained or lost focused (e.g. the user clicked alt-tab).
     WindowFocused(bool),
 
+    /// The application was suspended.
+    ///
+    /// On iOS/Android, this is sent when the app is moved to the background.
+    Suspended,
+
+    /// The application was resumed.
+    ///
+    /// On iOS/Android, this is sent when the app is brought back to the foreground.
+    Resumed,
+
     /// An assistive technology (e.g. screen reader) requested an action.
     AccessKitActionRequest(accesskit::ActionRequest),
 
