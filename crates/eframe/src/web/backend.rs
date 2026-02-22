@@ -22,6 +22,9 @@ pub(crate) struct WebInput {
 
     /// The raw input to `egui`.
     pub raw: egui::RawInput,
+
+    /// The distance between touches at the start of a pinch gesture.
+    pub initial_touch_dist: Option<f32>,
 }
 
 impl WebInput {
