@@ -95,6 +95,43 @@ pub fn push_touches(runner: &mut AppRunner, phase: egui::TouchPhase, event: &web
             });
         }
     }
+
+    handle_touch_zoom(runner, event);
+}
+
+fn get_touch_distance(event: &web_sys::TouchEvent) -> Option<f32> {
+    let touches = event.touches();
+    if touches.length() != 2 {
+        return None;
+    }
+
+    if let (Some(t1), Some(t2)) = (touches.get(0), touches.get(1)) {
+        let dx = (t1.client_x() - t2.client_x()) as f32;
+        let dy = (t1.client_y() - t2.client_y()) as f32;
+        let current_dist = dx.hypot(dy);
+        return Some(current_dist);
+    }
+
+    None
+}
+
+fn handle_touch_zoom(runner: &mut AppRunner, event: &web_sys::TouchEvent) {
+    if let Some(current_dist) = get_touch_distance(event) {
+        let initial_dist = *runner.input.initial_touch_dist.get_or_insert(current_dist);
+
+        if initial_dist > 0.0 {
+            let raw_scale = current_dist / initial_dist;
+            let new_scale = (raw_scale * 10.0).round() / 10.0;
+
+            if new_scale != runner.input.accumulated_scale {
+                runner.input.accumulated_scale = new_scale;
+                runner.input.raw.events.push(egui::Event::Zoom(new_scale));
+            }
+        }
+    } else {
+        runner.input.initial_touch_dist = None;
+        runner.input.accumulated_scale = 1.0;
+    }
 }
 
 /// The text input from a keyboard event (e.g. `X` when pressing the `X` key).
