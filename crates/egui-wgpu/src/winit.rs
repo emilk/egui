@@ -431,6 +431,35 @@ impl Painter {
             return vsync_sec;
         };
 
+        let output_frame = {
+            profiling::scope!("get_current_texture");
+            // This is what vsync-waiting happens on my Mac.
+            let start = web_time::Instant::now();
+            let output_frame = surface_state.surface.get_current_texture();
+            vsync_sec += start.elapsed().as_secs_f32();
+            output_frame
+        };
+
+        let output_frame = match output_frame {
+            Ok(frame) => frame,
+            Err(err) => {
+                let action = (*self.configuration.on_surface_error)(err);
+                if matches!(action, SurfaceErrorAction::RecreateSurface) {
+                    Self::configure_surface(surface_state, render_state, &self.configuration);
+                }
+
+                // Free any textures that were scheduled for destruction.
+                {
+                    let mut renderer = render_state.renderer.write();
+                    for id in &textures_delta.free {
+                        renderer.free_texture(id);
+                    }
+                }
+
+                return vsync_sec;
+            }
+        };
+
         let mut encoder =
             render_state
                 .device
@@ -462,28 +491,6 @@ impl Painter {
                 clipped_primitives,
                 &screen_descriptor,
             )
-        };
-
-        let output_frame = {
-            profiling::scope!("get_current_texture");
-            // This is what vsync-waiting happens on my Mac.
-            let start = web_time::Instant::now();
-            let output_frame = surface_state.surface.get_current_texture();
-            vsync_sec += start.elapsed().as_secs_f32();
-            output_frame
-        };
-
-        let output_frame = match output_frame {
-            Ok(frame) => frame,
-            Err(err) => match (*self.configuration.on_surface_error)(err) {
-                SurfaceErrorAction::RecreateSurface => {
-                    Self::configure_surface(surface_state, render_state, &self.configuration);
-                    return vsync_sec;
-                }
-                SurfaceErrorAction::SkipFrame => {
-                    return vsync_sec;
-                }
-            },
         };
 
         let mut capture_buffer = None;
