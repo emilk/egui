@@ -108,7 +108,7 @@ fn get_touch_distance(event: &web_sys::TouchEvent) -> Option<f32> {
     if let (Some(t1), Some(t2)) = (touches.get(0), touches.get(1)) {
         let dx = (t1.client_x() - t2.client_x()) as f32;
         let dy = (t1.client_y() - t2.client_y()) as f32;
-        let current_dist = (dx * dx + dy * dy).sqrt();
+        let current_dist = dx.hypot(dy);
         return Some(current_dist);
     }
 
