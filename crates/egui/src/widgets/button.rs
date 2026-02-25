@@ -4,7 +4,7 @@ use crate::{
     Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Color32, CornerRadius, Frame,
     Image, IntoAtoms, NumExt as _, Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2,
     Widget, WidgetInfo, WidgetText, WidgetType,
-    widget_style::{ButtonStyle, HasModifiers, StyleModifiers, WidgetState},
+    widget_style::{ButtonStyle, Classes, HasClasses, WidgetState},
 };
 
 /// Clickable button with text.
@@ -38,7 +38,7 @@ pub struct Button<'a> {
     selected: bool,
     image_tint_follows_text_color: bool,
     limit_image_size: bool,
-    modifiers: StyleModifiers,
+    classes: Classes,
 }
 
 impl<'a> Button<'a> {
@@ -57,7 +57,7 @@ impl<'a> Button<'a> {
             selected: false,
             image_tint_follows_text_color: false,
             limit_image_size: false,
-            modifiers: StyleModifiers::default(),
+            classes: Classes::default(),
         }
     }
 
@@ -275,7 +275,7 @@ impl<'a> Button<'a> {
             selected,
             image_tint_follows_text_color,
             limit_image_size,
-            mut modifiers,
+            mut classes,
         } = self;
 
         // Min size height always equal or greater than interact size if not small
@@ -300,11 +300,10 @@ impl<'a> Button<'a> {
         let id = ui.next_auto_id();
         let response: Option<Response> = ui.ctx().read_response(id);
         let state = response.map(|r| r.widget_state()).unwrap_or_default();
-        modifiers.with_state(state);
 
-        modifiers.add_if("selected", selected);
+        classes.add_class_if("selected", selected);
 
-        let ButtonStyle { frame, text_style } = ui.style().button_style(&modifiers);
+        let ButtonStyle { frame, text_style } = ui.style().button_style(&classes, state);
 
         let mut button_padding = if has_frame_margin {
             frame.inner_margin
@@ -376,12 +375,12 @@ impl Widget for Button<'_> {
     }
 }
 
-impl HasModifiers for Button<'_> {
-    fn modifiers(&self) -> &StyleModifiers {
-        &self.modifiers
+impl HasClasses for Button<'_> {
+    fn classes(&self) -> &Classes {
+        &self.classes
     }
 
-    fn modifiers_mut(&mut self) -> &mut StyleModifiers {
-        &mut self.modifiers
+    fn classes_mut(&mut self) -> &mut Classes {
+        &mut self.classes
     }
 }

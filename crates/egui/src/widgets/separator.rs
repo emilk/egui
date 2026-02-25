@@ -1,6 +1,6 @@
 use crate::{
     Response, Sense, Ui, Vec2, Widget, vec2,
-    widget_style::{HasModifiers, SeparatorStyle, StyleModifiers},
+    widget_style::{Classes, HasClasses, SeparatorStyle},
 };
 
 /// A visual separator. A horizontal or vertical line (depending on [`crate::Layout`]).
@@ -19,7 +19,7 @@ pub struct Separator {
     spacing: Option<f32>,
     grow: f32,
     is_horizontal_line: Option<bool>,
-    modifiers: StyleModifiers,
+    classes: Classes,
 }
 
 impl Default for Separator {
@@ -28,7 +28,7 @@ impl Default for Separator {
             spacing: None,
             grow: 0.0,
             is_horizontal_line: None,
-            modifiers: StyleModifiers::default(),
+            classes: Classes::default(),
         }
     }
 }
@@ -96,18 +96,17 @@ impl Widget for Separator {
             spacing,
             grow,
             is_horizontal_line,
-            modifiers: mut modifier,
+            classes,
         } = self;
 
         // Get the widget style by reading the response from the previous pass
         let id = ui.next_auto_id();
         let response: Option<Response> = ui.ctx().read_response(id);
         let state = response.map(|r| r.widget_state()).unwrap_or_default();
-        modifier.with_state(state);
         let SeparatorStyle {
             spacing: spacing_style,
             stroke,
-        } = ui.style().separator_style(&modifier);
+        } = ui.style().separator_style(&classes, state);
 
         // override the spacing if not set
         let spacing = spacing.unwrap_or(spacing_style);
@@ -150,12 +149,12 @@ impl Widget for Separator {
     }
 }
 
-impl HasModifiers for Separator {
-    fn modifiers(&self) -> &crate::widget_style::StyleModifiers {
-        &self.modifiers
+impl HasClasses for Separator {
+    fn classes(&self) -> &Classes {
+        &self.classes
     }
 
-    fn modifiers_mut(&mut self) -> &mut crate::widget_style::StyleModifiers {
-        &mut self.modifiers
+    fn classes_mut(&mut self) -> &mut Classes {
+        &mut self.classes
     }
 }

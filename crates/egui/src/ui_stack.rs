@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::{any::Any, iter::FusedIterator};
 
+use crate::widget_style::Classes;
 use crate::{Direction, Frame, Id, Rect};
 
 /// What kind is this [`crate::Ui`]?
@@ -210,6 +211,7 @@ pub struct UiStack {
     pub min_rect: Rect,
     pub max_rect: Rect,
     pub parent: Option<Arc<Self>>,
+    pub classes: Classes,
 }
 
 // these methods act on this specific node

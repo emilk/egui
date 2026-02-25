@@ -3,7 +3,7 @@ use emath::Rect;
 use crate::{
     Atom, AtomLayout, Atoms, Id, IntoAtoms, NumExt as _, Response, Sense, Shape, Ui, Vec2, Widget,
     WidgetInfo, WidgetType, epaint, pos2,
-    widget_style::{CheckboxStyle, HasModifiers, StyleModifiers},
+    widget_style::{CheckboxStyle, Classes, HasClasses},
 };
 
 // TODO(emilk): allow checkbox without a text label
@@ -24,7 +24,7 @@ pub struct Checkbox<'a> {
     checked: &'a mut bool,
     atoms: Atoms<'a>,
     indeterminate: bool,
-    modifiers: StyleModifiers,
+    classes: Classes,
 }
 
 impl<'a> Checkbox<'a> {
@@ -33,7 +33,7 @@ impl<'a> Checkbox<'a> {
             checked,
             atoms: atoms.into_atoms(),
             indeterminate: false,
-            modifiers: StyleModifiers::default(),
+            classes: Classes::default(),
         }
     }
 
@@ -58,14 +58,13 @@ impl Widget for Checkbox<'_> {
             checked,
             mut atoms,
             indeterminate,
-            modifiers: mut modifier,
+            classes,
         } = self;
 
         // Get the widget style by reading the response from the previous pass
         let id = ui.next_auto_id();
         let response: Option<Response> = ui.ctx().read_response(id);
         let state = response.map(|r| r.widget_state()).unwrap_or_default();
-        modifier.with_state(state);
 
         let CheckboxStyle {
             check_size,
@@ -74,7 +73,7 @@ impl Widget for Checkbox<'_> {
             frame,
             check_stroke,
             text_style,
-        } = ui.style().checkbox_style(&modifier);
+        } = ui.style().checkbox_style(&classes, state);
 
         let mut min_size = Vec2::splat(ui.spacing().interact_size.y);
         min_size.y = min_size.y.at_least(checkbox_size);
@@ -159,12 +158,12 @@ impl Widget for Checkbox<'_> {
     }
 }
 
-impl HasModifiers for Checkbox<'_> {
-    fn modifiers(&self) -> &crate::widget_style::StyleModifiers {
-        &self.modifiers
+impl HasClasses for Checkbox<'_> {
+    fn classes(&self) -> &Classes {
+        &self.classes
     }
 
-    fn modifiers_mut(&mut self) -> &mut crate::widget_style::StyleModifiers {
-        &mut self.modifiers
+    fn classes_mut(&mut self) -> &mut Classes {
+        &mut self.classes
     }
 }
