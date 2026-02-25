@@ -2364,6 +2364,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "image_loading_and_creating"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "egui_extras",
+ "env_logger",
+ "url",
+]
+
+[[package]]
 name = "images"
 version = "0.1.0"
 dependencies = [
