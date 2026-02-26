@@ -1,6 +1,6 @@
-use egui::{Modifiers, ScrollArea, Vec2, include_image};
+use egui::{include_image, Modifiers, ScrollArea, Vec2};
 use egui_kittest::{Harness, SnapshotResults};
-use kittest::Queryable as _;
+use kittest::{NodeT, Queryable as _};
 
 #[test]
 fn test_shrink() {
@@ -213,4 +213,32 @@ fn test_remove_cursor() {
         hovered_button_snapshot, non_hovered_button_snapshot,
         "The button appearance should change"
     );
+}
+
+#[test]
+fn test_container_labelled_by() {
+    let mut harness = Harness::new_ui(|ui| {
+        _ = ui.button("Duplicate");
+
+        _ = ui.group(|ui| {
+            let group_label = ui.label("Labelled inside");
+            ui.response().labelled_by(group_label.id);
+            ui.label("Duplicate");
+        });
+
+        let group_label = ui.label("Labelled outside");
+        _ = ui
+            .group(|ui| {
+                ui.label("Duplicate");
+            })
+            .response
+            .labelled_by(group_label.id);
+    });
+
+    let group = harness.get_by_role_and_label(egui::accesskit::Role::GenericContainer, "Labelled inside");
+    group.get_by_label("Duplicate");
+
+    // TODO: This panics, we should make it work somehow
+    let group = harness.get_by_role_and_label(egui::accesskit::Role::GenericContainer, "Labelled outside");
+    group.get_by_label("Duplicate");
 }

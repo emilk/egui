@@ -695,8 +695,8 @@ impl<State> Harness<'_, State> {
 
     /// Render a snapshot, save it to a temp file and open it in the default image viewer.
     ///
-    /// This method is marked as deprecated to trigger errors in CI (so that it's not accidentally
-    /// committed).
+    /// This method is marked as deprecated to trigger errors in CI (so that it's usages are not
+    /// accidentally committed). It's fine to use it for debugging.
     #[deprecated = "Only for debugging, don't commit this."]
     #[cfg(not(target_arch = "wasm32"))]
     pub fn debug_open_snapshot(&mut self) {
