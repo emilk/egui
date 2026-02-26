@@ -319,7 +319,9 @@ pub struct InputState {
     /// Which modifier keys are down at the start of the frame?
     pub modifiers: Modifiers,
 
-    // The keys that are currently being held down.
+    /// The keys that are currently being held down.
+    ///
+    /// Keys released this frame are NOT considered down.
     pub keys_down: HashSet<Key>,
 
     /// In-order events received this frame
@@ -765,6 +767,8 @@ impl InputState {
     }
 
     /// Is the given key currently held down?
+    ///
+    /// Keys released this frame are NOT considered down.
     pub fn key_down(&self, desired_key: Key) -> bool {
         self.keys_down.contains(&desired_key)
     }
@@ -1020,6 +1024,7 @@ pub struct PointerState {
     /// Used for calculating velocity of pointer.
     pos_history: History<Pos2>,
 
+    /// Buttons currently down, excluding those released this frame.
     down: [bool; NUM_POINTER_BUTTONS],
 
     /// Where did the current click/drag originate?
@@ -1407,6 +1412,8 @@ impl PointerState {
     }
 
     /// Is any pointer button currently down?
+    ///
+    /// Buttons released this frame are NOT considered down.
     pub fn any_down(&self) -> bool {
         self.down.iter().any(|&down| down)
     }
@@ -1462,6 +1469,8 @@ impl PointerState {
     }
 
     /// Is this button currently down?
+    ///
+    /// Buttons released this frame are NOT considered down.
     #[inline(always)]
     pub fn button_down(&self, button: PointerButton) -> bool {
         self.down[button as usize]
@@ -1518,18 +1527,24 @@ impl PointerState {
     }
 
     /// Is the primary button currently down?
+    ///
+    /// Buttons released this frame are NOT considered down.
     #[inline(always)]
     pub fn primary_down(&self) -> bool {
         self.button_down(PointerButton::Primary)
     }
 
     /// Is the secondary button currently down?
+    ///
+    /// Buttons released this frame are NOT considered down.
     #[inline(always)]
     pub fn secondary_down(&self) -> bool {
         self.button_down(PointerButton::Secondary)
     }
 
     /// Is the middle button currently down?
+    ///
+    /// Buttons released this frame are NOT considered down.
     #[inline(always)]
     pub fn middle_down(&self) -> bool {
         self.button_down(PointerButton::Middle)
