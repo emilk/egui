@@ -20,12 +20,6 @@ checksum = "c71b1793ee61086797f5c80b6efa2b8ffa6d5dd703f118545808a7f2e27f7046"
 
 [[package]]
 name = "accesskit"
-version = "0.21.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf203f9d3bd8f29f98833d1fbef628df18f759248a547e7e01cfbf63cda36a99"
-
-[[package]]
-name = "accesskit"
 version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5351dcebb14b579ccab05f288596b2ae097005be7ee50a7c3d4ca9d0d5a66f6a"
@@ -41,21 +35,11 @@ version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d5469156abf83b372574df59b660375739725f7b5a3c78dc47b80f9ec0450c43"
 dependencies = [
- "accesskit 0.24.0",
- "accesskit_consumer 0.34.0",
+ "accesskit",
+ "accesskit_consumer",
  "atspi-common",
  "serde",
  "zvariant",
-]
-
-[[package]]
-name = "accesskit_consumer"
-version = "0.30.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bdd06f5fea9819250fffd4debf926709f3593ac22f8c1541a2573e5ee0ca01cd"
-dependencies = [
- "accesskit 0.21.1",
- "hashbrown 0.15.2",
 ]
 
 [[package]]
@@ -64,7 +48,7 @@ version = "0.34.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a191faf9cb278127e253ba80af4c588527b7b9d824c58220aca00bb162a5a460"
 dependencies = [
- "accesskit 0.24.0",
+ "accesskit",
  "hashbrown 0.16.0",
 ]
 
@@ -74,8 +58,8 @@ version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3dceb1d10a043047187e8fc6f4f11e02ab0ed3f8b5848c10cf19fc1e2191e0c2"
 dependencies = [
- "accesskit 0.24.0",
- "accesskit_consumer 0.34.0",
+ "accesskit",
+ "accesskit_consumer",
  "hashbrown 0.16.0",
  "objc2 0.5.2",
  "objc2-app-kit 0.2.2",
@@ -88,7 +72,7 @@ version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "14984a017441d2efc3b0fb6a08ef9b83c17719479ba72f1f0c6e08bea9dd92ec"
 dependencies = [
- "accesskit 0.24.0",
+ "accesskit",
  "accesskit_atspi_common",
  "async-channel",
  "async-executor",
@@ -106,8 +90,8 @@ version = "0.32.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4983e64eb7e317c7d8f6348363d24f955bed51c0216ad67c19857c2b8605e576"
 dependencies = [
- "accesskit 0.24.0",
- "accesskit_consumer 0.34.0",
+ "accesskit",
+ "accesskit_consumer",
  "hashbrown 0.16.0",
  "static_assertions",
  "windows 0.62.2",
@@ -120,7 +104,7 @@ version = "0.32.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e0e50a8f04c92b70e53ebfc6e64714de99e5deb0db092ea7de3b5aa8fceedcca"
 dependencies = [
- "accesskit 0.24.0",
+ "accesskit",
  "accesskit_macos",
  "accesskit_unix",
  "accesskit_windows",
@@ -1313,7 +1297,7 @@ dependencies = [
 name = "egui"
 version = "0.33.3"
 dependencies = [
- "accesskit 0.24.0",
+ "accesskit",
  "ahash",
  "backtrace",
  "bitflags 2.9.4",
@@ -1374,8 +1358,8 @@ dependencies = [
 name = "egui_demo_app"
 version = "0.33.3"
 dependencies = [
- "accesskit 0.24.0",
- "accesskit_consumer 0.34.0",
+ "accesskit",
+ "accesskit_consumer",
  "bytemuck",
  "chrono",
  "eframe",
@@ -2551,12 +2535,10 @@ checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 [[package]]
 name = "kittest"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "01fd6dd2cce251a360101038acb9334e3a50cd38cd02fefddbf28aa975f043c8"
+source = "git+https://github.com/rerun-io/kittest?branch=main#fbfc970a6ae8507ee9d8a1792aea0d25622e4239"
 dependencies = [
- "accesskit 0.21.1",
- "accesskit_consumer 0.30.1",
- "parking_lot",
+ "accesskit",
+ "accesskit_consumer",
 ]
 
 [[package]]

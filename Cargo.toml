@@ -147,6 +147,8 @@ wgpu = { version = "27.0.1", default-features = false, features = ["std"] }
 windows-sys = "0.61.2"
 winit = { version = "0.30.12", default-features = false }
 
+[patch.crates-io]
+kittest = { git = "https://github.com/rerun-io/kittest", branch = "main" }
 
 [workspace.lints.rust]
 unsafe_code = "deny"
