@@ -1,0 +1,75 @@
+[package]
+name = "eframe_agent"
+version = "0.33.3"
+edition = "2024"
+description = "Opinionated GUI agent helpers for eframe/egui applications"
+license.workspace = true
+rust-version.workspace = true
+
+[features]
+default = ["agent_ws", "ui", "jsonl"]
+jsonl = ["dep:serde_json"]
+agent_ws = [
+  "dep:serde_json",
+  "dep:tungstenite",
+  "dep:url",
+  "dep:js-sys",
+  "dep:wasm-bindgen",
+  "dep:web-sys",
+]
+mcp_sse = ["dep:axum", "dep:rmcp", "dep:schemars", "dep:tokio", "dep:tokio-util"]
+ui = ["dep:eframe", "dep:egui", "dep:ron"]
+
+[dependencies]
+eframe = { workspace = true, default-features = false, optional = true }
+egui = { workspace = true, default-features = false, optional = true }
+log = { workspace = true }
+parking_lot = { workspace = true }
+ron = { workspace = true, optional = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { version = "1.0", optional = true }
+
+[dev-dependencies]
+egui_kittest = { workspace = true, features = ["eframe"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk", branch = "main", features = [
+  "client",
+  "transport-streamable-http-client-reqwest",
+] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+axum = { version = "0.8", optional = true }
+rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk", branch = "main", optional = true, features = [
+  "macros",
+  "server",
+  "transport-streamable-http-server",
+] }
+schemars = { version = "1.0", optional = true }
+tokio = { version = "1", optional = true, features = [
+  "rt-multi-thread",
+  "macros",
+  "net",
+  "sync",
+  "time",
+] }
+tokio-util = { version = "0.7", optional = true }
+tungstenite = { version = "0.23", optional = true }
+url = { version = "2.5", optional = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+js-sys = { workspace = true, optional = true }
+wasm-bindgen = { workspace = true, optional = true }
+web-sys = { workspace = true, optional = true, features = [
+  "CloseEvent",
+  "Event",
+  "MessageEvent",
+  "WebSocket",
+  "Window",
+  "Location",
+] }
+
+[[test]]
+name = "agent_state"
+path = "../../tests/agent_state.rs"
+required-features = ["ui"]

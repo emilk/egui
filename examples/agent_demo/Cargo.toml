@@ -1,0 +1,22 @@
+[package]
+name = "agent_demo"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.92"
+publish = false
+license = "MIT OR Apache-2.0"
+
+[lints]
+workspace = true
+
+[dependencies]
+eframe = { workspace = true, features = ["default"] }
+eframe_agent = { path = "../../crates/eframe_agent" }
+env_logger = { workspace = true, features = ["auto-color", "humantime"] }
+log = { workspace = true }
+
+[features]
+mcp_sse = ["eframe_agent/mcp_sse"]
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen-futures = { workspace = true }

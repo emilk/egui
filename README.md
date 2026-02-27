@@ -90,6 +90,11 @@ On Fedora Rawhide you need to run:
 
 **NOTE**: This is just for the demo app - egui itself is completely platform agnostic!
 
+## GUI agent layer
+
+Looking to add an AI/automation agent on top of egui? Check out [`crates/eframe_agent/eframe_gui_agent_design.md`](crates/eframe_agent/eframe_gui_agent_design.md) for the architecture plus TODOs and open the runnable reference implementation in [`examples/agent_demo`](examples/agent_demo).
+
+
 ## Goals
 
 * The easiest to use GUI library
