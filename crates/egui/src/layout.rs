@@ -623,12 +623,12 @@ impl Layout {
         if (self.is_vertical() && self.horizontal_align() == Align::Center)
             || self.horizontal_justify()
         {
-            frame_size.x = frame_size.x.max(available_rect.width()); // fill full width
+            frame_size.x = frame_size.x.max(available_rect.width().floor()); // fill full width
         }
         if (self.is_horizontal() && self.vertical_align() == Align::Center)
             || self.vertical_justify()
         {
-            frame_size.y = frame_size.y.max(available_rect.height()); // fill full height
+            frame_size.y = frame_size.y.max(available_rect.height().floor()); // fill full height
         }
 
         let align2 = match self.main_dir {
