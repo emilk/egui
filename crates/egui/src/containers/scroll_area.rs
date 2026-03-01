@@ -732,7 +732,12 @@ impl ScrollArea {
             ctx.animate_bool_responsive(id.with("v"), show_bars[1]),
         );
 
-        let current_bar_use = show_bars_factor.yx() * ui.spacing().scroll.allocated_width();
+        let scroll_style = ui.spacing().scroll;
+        let current_bar_use = if scroll_style.floating {
+            show_bars.to_vec2().yx() * scroll_style.allocated_width()
+        } else {
+            show_bars_factor.yx() * scroll_style.allocated_width()
+        };
 
         let available_outer = ui.available_rect_before_wrap();
 
