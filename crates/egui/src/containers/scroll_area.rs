@@ -1163,9 +1163,12 @@ impl Prepared {
 
         let outer_rect = Rect::from_min_size(inner_rect.min, inner_rect.size() + current_bar_use);
 
+        // Epsilon to prevent jitter from floating-point rounding.
+        let epsilon = 0.1;
+
         let content_is_too_large = Vec2b::new(
-            direction_enabled[0] && inner_rect.width() < content_size.x,
-            direction_enabled[1] && inner_rect.height() < content_size.y,
+            direction_enabled[0] && (inner_rect.width() + epsilon < content_size.x),
+            direction_enabled[1] && (inner_rect.height() + epsilon < content_size.y),
         );
 
         let max_offset = content_size - inner_rect.size();
