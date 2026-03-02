@@ -253,9 +253,28 @@ pub struct ViewportInfo {
     ///
     /// This should be the same as [`RawInput::focused`].
     pub focused: Option<bool>,
+
+    /// Is the window fully occluded (completely covered) by another window?
+    ///
+    /// Not all platforms support this.
+    /// On platforms that don't, this will be `None` or `Some(false)`.
+    pub occluded: Option<bool>,
 }
 
 impl ViewportInfo {
+    /// Is the window considered visible for rendering purposes?
+    ///
+    /// A window is not visible if it is minimized or occluded.
+    /// When not visible, [`crate::App::ui`] is not called and painting is skipped,
+    /// but [`crate::App::logic`] is still called.
+    pub fn visible(&self) -> Option<bool> {
+        if self.minimized? || self.occluded? {
+            Some(false)
+        } else {
+            Some(true)
+        }
+    }
+
     /// This viewport has been told to close.
     ///
     /// If this is the root viewport, the application will exit
@@ -282,6 +301,7 @@ impl ViewportInfo {
             maximized: self.maximized,
             fullscreen: self.fullscreen,
             focused: self.focused,
+            occluded: self.occluded,
         }
     }
 
@@ -298,6 +318,7 @@ impl ViewportInfo {
             maximized,
             fullscreen,
             focused,
+            occluded,
         } = self;
 
         crate::Grid::new("viewport_info").show(ui, |ui| {
@@ -343,6 +364,16 @@ impl ViewportInfo {
 
             ui.label("Focused:");
             ui.label(opt_as_str(focused));
+            ui.end_row();
+
+            ui.label("Occluded:");
+            ui.label(opt_as_str(occluded));
+            ui.end_row();
+
+            let visible = self.visible();
+
+            ui.label("Visible:");
+            ui.label(opt_as_str(&visible));
             ui.end_row();
 
             fn opt_rect_as_string(v: &Option<Rect>) -> String {

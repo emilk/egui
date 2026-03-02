@@ -822,6 +822,14 @@ impl GlowWinitRunning<'_> {
                 }
             }
 
+            winit::event::WindowEvent::Occluded(is_occluded) => {
+                if let Some(viewport_id) = viewport_id
+                    && let Some(viewport) = glutin.viewports.get_mut(&viewport_id)
+                {
+                    viewport.info.occluded = Some(*is_occluded);
+                }
+            }
+
             winit::event::WindowEvent::CloseRequested => {
                 if viewport_id == Some(ViewportId::ROOT) && self.integration.should_close() {
                     log::debug!(
