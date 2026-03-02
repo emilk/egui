@@ -499,7 +499,7 @@ impl RichText {
     /// 2. Strong color — but only when no [`Style::strong_font`] is configured,
     ///    because a real bold typeface provides visual distinction on its own
     /// 3. Weak color
-    /// 4. Global [`Visuals::override_text_color`]
+    /// 4. Global [`crate::Visuals::override_text_color`]
     fn get_text_color(&self, style: &Style) -> Option<Color32> {
         if let Some(text_color) = self.text_color {
             // Explicit color always wins.
