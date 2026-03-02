@@ -1578,6 +1578,8 @@ dependencies = [
  "similar-asserts",
  "skrifa",
  "vello_cpu",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]
