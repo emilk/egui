@@ -77,7 +77,7 @@ fn widget_tests() {
         "drag_value",
         |ui| {
             DragValue::new(&mut 12.0)
-                .suffix(RichText::new("px").weak().small())
+                .suffix(RichText::new(" px").weak().small())
                 .ui(ui)
         },
         &mut results,
