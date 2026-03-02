@@ -265,8 +265,8 @@ impl ViewportInfo {
     /// Is the window considered visible for rendering purposes?
     ///
     /// A window is not visible if it is minimized or occluded.
-    /// When not visible, [`crate::App::ui`] is not called and painting is skipped,
-    /// but [`crate::App::logic`] is still called.
+    /// When not visible, the UI is not painted and rendering is skipped,
+    /// but application logic may still be executed by some integrations.
     pub fn visible(&self) -> Option<bool> {
         match (self.minimized, self.occluded) {
             (Some(true), _) | (_, Some(true)) => Some(false),
