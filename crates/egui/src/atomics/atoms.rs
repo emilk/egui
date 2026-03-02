@@ -26,6 +26,18 @@ impl<'a> Atoms<'a> {
         self.0.insert(0, atom.into());
     }
 
+    /// Insert atoms at the beginning of the list (left side).
+    pub fn extend_left(&mut self, atoms: impl IntoAtoms<'a>) {
+        let mut left = atoms.into_atoms();
+        left.0.append(&mut self.0);
+        *self = left;
+    }
+
+    /// Insert atoms at the end of the list (right side).
+    pub fn extend_right(&mut self, atoms: impl IntoAtoms<'a>) {
+        self.0.append(&mut atoms.into_atoms().0);
+    }
+
     /// Concatenate and return the text contents.
     // TODO(lucasmerlin): It might not always make sense to return the concatenated text, e.g.
     // in a submenu button there is a right text '⏵' which is now passed to the screen reader.

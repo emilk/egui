@@ -1,11 +1,12 @@
 #![expect(clippy::needless_pass_by_value)] // False positives with `impl ToString`
 
-use std::{cmp::Ordering, ops::RangeInclusive};
-
 use crate::{
-    Button, CursorIcon, Id, Key, MINUS_CHAR_STR, Modifiers, NumExt as _, Response, RichText, Sense,
-    TextEdit, TextWrapMode, Ui, Widget, WidgetInfo, emath, text,
+    Atom, AtomExt as _, AtomKind, Atoms, Button, CursorIcon, Id, IntoAtoms, Key, MINUS_CHAR_STR,
+    Modifiers, NumExt as _, Response, RichText, Sense, TextEdit, TextWrapMode, Ui, Widget,
+    WidgetInfo, emath, text,
 };
+use emath::Vec2;
+use std::{cmp::Ordering, ops::RangeInclusive};
 
 // ----------------------------------------------------------------------------
 
@@ -38,8 +39,7 @@ fn set(get_set_value: &mut GetSetValue<'_>, value: f64) {
 pub struct DragValue<'a> {
     get_set_value: GetSetValue<'a>,
     speed: f64,
-    prefix: String,
-    suffix: String,
+    atoms: Atoms<'a>,
     range: RangeInclusive<f64>,
     clamp_existing_to_range: bool,
     min_decimals: usize,
@@ -50,6 +50,8 @@ pub struct DragValue<'a> {
 }
 
 impl<'a> DragValue<'a> {
+    const ATOM_ID: &'static str = "drag_item";
+
     pub fn new<Num: emath::Numeric>(value: &'a mut Num) -> Self {
         let slf = Self::from_get_set(move |v: Option<f64>| {
             if let Some(v) = v {
@@ -66,11 +68,12 @@ impl<'a> DragValue<'a> {
     }
 
     pub fn from_get_set(get_set_value: impl 'a + FnMut(Option<f64>) -> f64) -> Self {
+        let atoms = Atoms::new(Atom::custom(Id::new(Self::ATOM_ID), Vec2::ZERO).atom_grow(true));
+
         Self {
             get_set_value: Box::new(get_set_value),
             speed: 1.0,
-            prefix: Default::default(),
-            suffix: Default::default(),
+            atoms,
             range: f64::NEG_INFINITY..=f64::INFINITY,
             clamp_existing_to_range: true,
             min_decimals: 0,
@@ -164,15 +167,15 @@ impl<'a> DragValue<'a> {
 
     /// Show a prefix before the number, e.g. "x: "
     #[inline]
-    pub fn prefix(mut self, prefix: impl ToString) -> Self {
-        self.prefix = prefix.to_string();
+    pub fn prefix(mut self, prefix: impl IntoAtoms<'a>) -> Self {
+        self.atoms.extend_left(prefix);
         self
     }
 
     /// Add a suffix to the number, this can be e.g. a unit ("°" or " m")
     #[inline]
-    pub fn suffix(mut self, suffix: impl ToString) -> Self {
-        self.suffix = suffix.to_string();
+    pub fn suffix(mut self, suffix: impl IntoAtoms<'a>) -> Self {
+        self.atoms.extend_right(suffix);
         self
     }
 
@@ -433,14 +436,33 @@ impl Widget for DragValue<'_> {
             speed,
             range,
             clamp_existing_to_range,
-            prefix,
-            suffix,
+            mut atoms,
             min_decimals,
             max_decimals,
             custom_formatter,
             custom_parser,
             update_while_editing,
         } = self;
+
+        let mut prefix_text = String::new();
+        let mut suffix_text = String::new();
+        let mut past_value = false;
+        let atom_id = Id::new(Self::ATOM_ID);
+        for atom in atoms.iter() {
+            match &atom.kind {
+                AtomKind::Custom(id) if *id == atom_id => {
+                    past_value = true;
+                }
+                AtomKind::Text(text) => {
+                    if past_value {
+                        suffix_text.push_str(text.text());
+                    } else {
+                        prefix_text.push_str(text.text());
+                    }
+                }
+                _ => {}
+            }
+        }
 
         let shift = ui.input(|i| i.modifiers.shift_only());
         // The widget has the same ID whether it's in edit or button mode.
@@ -586,13 +608,21 @@ impl Widget for DragValue<'_> {
             ui.data_mut(|data| data.insert_temp(id, value_text));
             response
         } else {
-            let button = Button::new(
-                RichText::new(format!("{}{}{}", prefix, value_text.clone(), suffix))
-                    .text_style(text_style),
-            )
-            .wrap_mode(TextWrapMode::Extend)
-            .sense(Sense::click_and_drag())
-            .min_size(ui.spacing().interact_size); // TODO(emilk): find some more generic solution to `min_size`
+            atoms.map_atoms(|atom| {
+                if let AtomKind::Custom(id) = atom.kind
+                    && id == atom_id
+                {
+                    RichText::new(value_text.clone())
+                        .text_style(text_style.clone())
+                        .into()
+                } else {
+                    atom
+                }
+            });
+            let button = Button::new(atoms)
+                .wrap_mode(TextWrapMode::Extend)
+                .sense(Sense::click_and_drag())
+                .min_size(ui.spacing().interact_size); // TODO(emilk): find some more generic solution to `min_size`
 
             let cursor_icon = if value <= *range.start() {
                 CursorIcon::ResizeEast
@@ -607,10 +637,8 @@ impl Widget for DragValue<'_> {
 
             if ui.style().explanation_tooltips {
                 response = response.on_hover_text(format!(
-                    "{}{}{}\nDrag to edit or click to enter a value.\nPress 'Shift' while dragging for better control.",
-                    prefix,
+                    "{}\nDrag to edit or click to enter a value.\nPress 'Shift' while dragging for better control.",
                     value as f32, // Show full precision value on-hover. TODO(emilk): figure out f64 vs f32
-                    suffix
                 ));
             }
 
@@ -704,7 +732,7 @@ impl Widget for DragValue<'_> {
             // The value is exposed as a string by the text edit widget
             // when in edit mode.
             if !is_kb_editing {
-                let value_text = format!("{prefix}{value_text}{suffix}");
+                let value_text = format!("{prefix_text}{value_text}{suffix_text}");
                 builder.set_value(value_text);
             }
         });
