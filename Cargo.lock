@@ -4304,6 +4304,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "test_background_logic"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "env_logger",
+]
+
+[[package]]
 name = "test_egui_extras_compilation"
 version = "0.1.0"
 dependencies = [
