@@ -268,10 +268,10 @@ impl ViewportInfo {
     /// When not visible, [`crate::App::ui`] is not called and painting is skipped,
     /// but [`crate::App::logic`] is still called.
     pub fn visible(&self) -> Option<bool> {
-        if self.minimized? || self.occluded? {
-            Some(false)
-        } else {
-            Some(true)
+        match (self.minimized, self.occluded) {
+            (Some(true), _) | (_, Some(true)) => Some(false),
+            (Some(false), Some(false)) => Some(true),
+            (_, None) | (None, _) => None,
         }
     }
 
