@@ -1,5 +1,3 @@
-#![expect(clippy::needless_pass_by_value)] // False positives with `impl ToString`
-
 use crate::{
     Atom, AtomExt as _, AtomKind, Atoms, Button, CursorIcon, Id, IntoAtoms, Key, MINUS_CHAR_STR,
     Modifiers, NumExt as _, Response, RichText, Sense, TextEdit, TextWrapMode, Ui, Widget,
@@ -565,8 +563,6 @@ impl Widget for DragValue<'_> {
             }
         }
 
-        // some clones below are redundant if AccessKit is disabled
-        #[expect(clippy::redundant_clone)]
         let mut response = if is_kb_editing {
             let mut value_text = ui
                 .data_mut(|data| data.remove_temp::<String>(id))
