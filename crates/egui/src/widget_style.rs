@@ -1,8 +1,10 @@
+use std::{borrow::Cow, fmt};
+
 use emath::Vec2;
 use epaint::{Color32, FontId, Shadow, Stroke, text::TextWrapMode};
 
 use crate::{
-    Frame, Response, Style, TextStyle,
+    Frame, Response, Style, TextBuffer as _, TextStyle,
     style::{WidgetVisuals, Widgets},
 };
 
@@ -107,7 +109,7 @@ impl Response {
 }
 
 impl Style {
-    pub fn widget_style(&self, state: WidgetState) -> WidgetStyle {
+    pub fn widget_style(&self, _classes: &Classes, state: WidgetState) -> WidgetStyle {
         let visuals = self.visuals.widgets.state(state);
         let font_id = self.override_font_id.clone();
         WidgetStyle {
@@ -131,11 +133,11 @@ impl Style {
         }
     }
 
-    pub fn button_style(&self, state: WidgetState, selected: bool) -> ButtonStyle {
+    pub fn button_style(&self, classes: &Classes, state: WidgetState) -> ButtonStyle {
         let mut visuals = *self.visuals.widgets.state(state);
-        let mut ws = self.widget_style(state);
+        let mut ws = self.widget_style(classes, state);
 
-        if selected {
+        if classes.has("selected") {
             visuals.weak_bg_fill = self.visuals.selection.bg_fill;
             visuals.bg_fill = self.visuals.selection.bg_fill;
             visuals.fg_stroke = self.visuals.selection.stroke;
@@ -157,9 +159,9 @@ impl Style {
         }
     }
 
-    pub fn checkbox_style(&self, state: WidgetState) -> CheckboxStyle {
+    pub fn checkbox_style(&self, classes: &Classes, state: WidgetState) -> CheckboxStyle {
         let visuals = self.visuals.widgets.state(state);
-        let ws = self.widget_style(state);
+        let ws = self.widget_style(classes, state);
         CheckboxStyle {
             frame: Frame::new(),
             checkbox_size: self.spacing.icon_width,
@@ -168,8 +170,6 @@ impl Style {
                 fill: visuals.bg_fill,
                 corner_radius: visuals.corner_radius,
                 stroke: visuals.bg_stroke,
-                // Use the inner_margin for the expansion
-                inner_margin: visuals.expansion.into(),
                 ..Default::default()
             },
             text_style: ws.text,
@@ -177,8 +177,8 @@ impl Style {
         }
     }
 
-    pub fn label_style(&self, state: WidgetState) -> LabelStyle {
-        let ws = self.widget_style(state);
+    pub fn label_style(&self, classes: &Classes, state: WidgetState) -> LabelStyle {
+        let ws = self.widget_style(classes, state);
         LabelStyle {
             frame: Frame {
                 fill: ws.frame.fill,
@@ -193,11 +193,118 @@ impl Style {
         }
     }
 
-    pub fn separator_style(&self, _state: WidgetState) -> SeparatorStyle {
+    pub fn separator_style(&self, _classes: &Classes, _state: WidgetState) -> SeparatorStyle {
         let visuals = self.visuals.noninteractive();
         SeparatorStyle {
             spacing: 6.0,
             stroke: visuals.bg_stroke,
         }
     }
+}
+
+pub type ClassName = Cow<'static, str>;
+
+#[derive(Debug, Default, Clone)]
+pub struct Classes {
+    classes: Vec<ClassName>,
+}
+
+impl Classes {
+    /// Add a class to the list if the condition is true
+    #[inline]
+    fn add_if(&mut self, class: impl Into<ClassName>, condition: bool) {
+        if condition {
+            self.classes.push(class.into());
+        }
+    }
+}
+
+impl HasClasses for Classes {
+    fn classes(&self) -> &Classes {
+        self
+    }
+
+    fn classes_mut(&mut self) -> &mut Classes {
+        self
+    }
+}
+
+impl std::fmt::Display for Classes {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.classes.iter().for_each(|class| {
+            let _ = f.write_str(class.as_str());
+        });
+        f.write_str("")
+    }
+}
+
+/// Any widgets supporting [`Classes`] must implement this trait
+pub trait HasClasses {
+    fn classes(&self) -> &Classes;
+
+    fn classes_mut(&mut self) -> &mut Classes;
+
+    #[inline]
+    fn with_class(mut self, class: impl Into<ClassName>) -> Self
+    where
+        Self: Sized,
+    {
+        self.classes_mut().add_if(class.into(), true);
+        self
+    }
+
+    #[inline]
+    fn with_class_if(mut self, class: impl Into<ClassName>, condition: bool) -> Self
+    where
+        Self: Sized,
+    {
+        self.classes_mut().add_if(class.into(), condition);
+        self
+    }
+
+    #[inline]
+    fn add_class(&mut self, class: impl Into<ClassName>) -> &mut Self
+    where
+        Self: Sized,
+    {
+        self.classes_mut().add_if(class.into(), true);
+        self
+    }
+
+    #[inline]
+    fn add_class_if(&mut self, class: impl Into<ClassName>, condition: bool) -> &mut Self
+    where
+        Self: Sized,
+    {
+        self.classes_mut().add_if(class.into(), condition);
+        self
+    }
+
+    /// Return true if the modifier is present in the list
+    fn has(&self, class: impl Into<ClassName>) -> bool {
+        self.classes().classes.contains(&class.into())
+    }
+}
+
+/// Add a shortcut to add modifiers. The syntax is `add_modifiers`!(Name: (modifier1, modifier2, modifier3,)) for any number of modifiers
+#[macro_export]
+macro_rules! define_modifiers {
+    ($trait_name:ident: ($( $name:ident )+),?) => {
+
+        pub trait $trait_name {
+            $(
+                fn $name(self) -> Self;
+            )*
+        }
+
+        impl<T> $trait_name for T
+        where
+            T: HasModifiers,
+        {
+                #[inline]
+                $(fn $name(mut self) -> Self {
+                    self.with_class(stringify!($name))
+                })?
+        }
+    };
 }

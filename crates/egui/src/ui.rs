@@ -113,7 +113,7 @@ impl Ui {
         let UiBuilder {
             id_salt,
             global_scope: _,
-            ui_stack_info,
+            mut ui_stack_info,
             layer_id,
             max_rect,
             layout,
@@ -123,6 +123,7 @@ impl Ui {
             style,
             sense,
             accessibility_parent,
+            classes: modifiers,
         } = ui_builder;
 
         let layer_id = layer_id.unwrap_or_else(LayerId::background);
@@ -138,6 +139,10 @@ impl Ui {
         let disabled = disabled || invisible;
         let style = style.unwrap_or_else(|| ctx.global_style());
         let sense = sense.unwrap_or_else(Sense::hover);
+        let modifiers = modifiers.unwrap_or_default();
+
+        // Temporary use of user tags as proof of concept
+        ui_stack_info = ui_stack_info.with_tag("root");
 
         let placer = Placer::new(max_rect, layout);
         let ui_stack = UiStack {
@@ -147,7 +152,9 @@ impl Ui {
             parent: None,
             min_rect: placer.min_rect(),
             max_rect: placer.max_rect(),
+            classes: modifiers,
         };
+
         let mut ui = Ui {
             id,
             unique_id: id,
@@ -261,6 +268,7 @@ impl Ui {
             style,
             sense,
             accessibility_parent,
+            classes: modifiers,
         } = ui_builder;
 
         let mut painter = self.painter.clone();
@@ -278,6 +286,7 @@ impl Ui {
         let sizing_pass = self.sizing_pass || sizing_pass;
         let style = style.unwrap_or_else(|| Arc::clone(&self.style));
         let sense = sense.unwrap_or_else(Sense::hover);
+        let modifiers = modifiers.unwrap_or_default();
 
         if sizing_pass {
             // During the sizing pass we want widgets to use up as little space as possible,
@@ -309,7 +318,9 @@ impl Ui {
             parent: Some(Arc::clone(&self.stack)),
             min_rect: placer.min_rect(),
             max_rect: placer.max_rect(),
+            classes: modifiers,
         };
+
         let mut child_ui = Ui {
             id: stable_id,
             unique_id,
