@@ -688,19 +688,38 @@ impl Slider<'_> {
 
         if response.has_focus() {
             ui.memory_mut(|m| {
-                m.set_focus_lock_filter(
-                    response.id,
-                    EventFilter {
-                        // pressing arrows in the orientation of the
-                        // slider should not move focus to next widget
-                        horizontal_arrows: matches!(
-                            self.orientation,
-                            SliderOrientation::Horizontal
-                        ),
-                        vertical_arrows: matches!(self.orientation, SliderOrientation::Vertical),
-                        ..Default::default()
+                // pressing arrows in the orientation of the
+                // slider should not move focus to next widget
+                let filter_fn: fn(&crate::Event) -> bool = match self.orientation {
+                    SliderOrientation::Horizontal => |event| {
+                        if let crate::Event::Key { key, .. } = event {
+                            !matches!(
+                                key,
+                                crate::Key::Tab
+                                    | crate::Key::Escape
+                                    | crate::Key::ArrowUp
+                                    | crate::Key::ArrowDown
+                            )
+                        } else {
+                            true
+                        }
                     },
-                );
+                    SliderOrientation::Vertical => |event| {
+                        if let crate::Event::Key { key, .. } = event {
+                            !matches!(
+                                key,
+                                crate::Key::Tab
+                                    | crate::Key::Escape
+                                    | crate::Key::ArrowLeft
+                                    | crate::Key::ArrowRight
+                            )
+                        } else {
+                            true
+                        }
+                    },
+                };
+
+                m.set_focus_lock_filter(response.id, EventFilter { filter: filter_fn });
             });
 
             let (dec_key, inc_key) = match self.orientation {
