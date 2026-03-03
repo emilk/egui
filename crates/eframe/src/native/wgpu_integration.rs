@@ -454,12 +454,21 @@ impl WinitApp for WgpuWinitApp<'_> {
             if let Some(viewport) = shared
                 .focused_viewport
                 .and_then(|viewport| shared.viewports.get_mut(&viewport))
+                && let Some(window) = viewport.window.as_ref()
             {
-                if let Some(egui_winit) = viewport.egui_winit.as_mut() {
-                    egui_winit.on_mouse_motion(delta);
+                if !window.has_focus()
+                    && !viewport
+                        .egui_winit
+                        .as_ref()
+                        .map(|state| state.is_any_pointer_button_down())
+                        .unwrap_or(false)
+                {
+                    return Ok(EventResult::Wait);
                 }
 
-                if let Some(window) = viewport.window.as_ref() {
+                if let Some(egui_winit) = viewport.egui_winit.as_mut()
+                    && egui_winit.on_mouse_motion(delta)
+                {
                     return Ok(EventResult::RepaintNext(window.id()));
                 }
             }
@@ -564,7 +573,7 @@ impl WgpuWinitRunning<'_> {
         let mut frame_timer = crate::stopwatch::Stopwatch::new();
         frame_timer.start();
 
-        let (viewport_ui_cb, raw_input) = {
+        let (viewport_ui_cb, raw_input, is_visible) = {
             profiling::scope!("Prepare");
             let mut shared_lock = shared.borrow_mut();
 
@@ -608,6 +617,8 @@ impl WgpuWinitRunning<'_> {
             };
             egui_winit::update_viewport_info(info, &integration.egui_ctx, window, false);
 
+            let is_visible = viewport.info.visible().unwrap_or(true);
+
             {
                 profiling::scope!("set_window");
                 pollster::block_on(painter.set_window(viewport_id, Some(Arc::clone(window))))?;
@@ -628,14 +639,19 @@ impl WgpuWinitRunning<'_> {
 
             painter.handle_screenshots(&mut raw_input.events);
 
-            (viewport_ui_cb, raw_input)
+            (viewport_ui_cb, raw_input, is_visible)
         };
 
         // ------------------------------------------------------------
 
         // Runs the update, which could call immediate viewports,
         // so make sure we hold no locks here!
-        let full_output = integration.update(app.as_mut(), viewport_ui_cb.as_deref(), raw_input);
+        let full_output = integration.update(
+            app.as_mut(),
+            viewport_ui_cb.as_deref(),
+            raw_input,
+            is_visible,
+        );
 
         // ------------------------------------------------------------
 
@@ -676,52 +692,58 @@ impl WgpuWinitRunning<'_> {
 
         egui_winit.handle_platform_output(window, platform_output);
 
-        let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
+        let vsync_secs = if is_visible {
+            let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
 
-        let mut screenshot_commands = vec![];
-        viewport.actions_requested.retain(|cmd| {
-            if let ActionRequested::Screenshot(info) = cmd {
-                screenshot_commands.push(info.clone());
-                false
-            } else {
-                true
-            }
-        });
-        let vsync_secs = painter.paint_and_update_textures(
-            viewport_id,
-            pixels_per_point,
-            app.clear_color(&egui_ctx.global_style().visuals),
-            &clipped_primitives,
-            &textures_delta,
-            screenshot_commands,
-        );
+            let mut screenshot_commands = vec![];
+            viewport.actions_requested.retain(|cmd| {
+                if let ActionRequested::Screenshot(info) = cmd {
+                    screenshot_commands.push(info.clone());
+                    false
+                } else {
+                    true
+                }
+            });
+            let vsync_secs = painter.paint_and_update_textures(
+                viewport_id,
+                pixels_per_point,
+                app.clear_color(&egui_ctx.global_style().visuals),
+                &clipped_primitives,
+                &textures_delta,
+                screenshot_commands,
+            );
 
-        for action in viewport.actions_requested.drain(..) {
-            match action {
-                ActionRequested::Screenshot { .. } => {
-                    // already handled above
-                }
-                ActionRequested::Cut => {
-                    egui_winit.egui_input_mut().events.push(egui::Event::Cut);
-                }
-                ActionRequested::Copy => {
-                    egui_winit.egui_input_mut().events.push(egui::Event::Copy);
-                }
-                ActionRequested::Paste => {
-                    if let Some(contents) = egui_winit.clipboard_text() {
-                        let contents = contents.replace("\r\n", "\n");
-                        if !contents.is_empty() {
-                            egui_winit
-                                .egui_input_mut()
-                                .events
-                                .push(egui::Event::Paste(contents));
+            for action in viewport.actions_requested.drain(..) {
+                match action {
+                    ActionRequested::Screenshot { .. } => {
+                        // already handled above
+                    }
+                    ActionRequested::Cut => {
+                        egui_winit.egui_input_mut().events.push(egui::Event::Cut);
+                    }
+                    ActionRequested::Copy => {
+                        egui_winit.egui_input_mut().events.push(egui::Event::Copy);
+                    }
+                    ActionRequested::Paste => {
+                        if let Some(contents) = egui_winit.clipboard_text() {
+                            let contents = contents.replace("\r\n", "\n");
+                            if !contents.is_empty() {
+                                egui_winit
+                                    .egui_input_mut()
+                                    .events
+                                    .push(egui::Event::Paste(contents));
+                            }
                         }
                     }
                 }
             }
-        }
 
-        integration.post_rendering(window);
+            integration.post_rendering(window);
+
+            vsync_secs
+        } else {
+            0.0
+        };
 
         let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
 
@@ -840,6 +862,14 @@ impl WgpuWinitRunning<'_> {
                     }
                     shared.painter.on_window_resized(id, width, height);
                     repaint_asap = true;
+                }
+            }
+
+            winit::event::WindowEvent::Occluded(is_occluded) => {
+                if let Some(viewport_id) = viewport_id
+                    && let Some(viewport) = shared.viewports.get_mut(&viewport_id)
+                {
+                    viewport.info.occluded = Some(*is_occluded);
                 }
             }
 
