@@ -2883,6 +2883,7 @@ impl Widget for &mut FontTweak {
 
                 ui.label("coords");
                 ui.end_row();
+                let mut to_remove = None;
                 for (i, (tag, value)) in coords.as_mut().iter_mut().enumerate() {
                     let tag_text = ui.ctx().data_mut(|data| {
                         let tag = *tag;
@@ -2892,20 +2893,34 @@ impl Widget for &mut FontTweak {
                     });
 
                     let tag_text = &mut *tag_text.lock();
-                    if ui.text_edit_singleline(tag_text).changed()
-                        && let Ok(new_tag) = Tag::new_checked(tag_text.as_bytes())
+                    let response = ui.text_edit_singleline(tag_text);
+                    if response.changed() {
+                        if let Ok(new_tag) = Tag::new_checked(tag_text.as_bytes()) {
+                            *tag = new_tag;
+                        }
+                    }
+                    // Reset stale text when not actively editing
+                    // (e.g. after an item was removed and indices shifted)
+                    if !response.has_focus()
+                        && Tag::new_checked(tag_text.as_bytes()).ok() != Some(*tag)
                     {
-                        *tag = new_tag;
+                        *tag_text = tag.to_string();
                     }
 
                     ui.add(DragValue::new(value));
+                    if ui.small_button("🗑").clicked() {
+                        to_remove = Some(i);
+                    }
                     ui.end_row();
                 }
+                if let Some(i) = to_remove {
+                    coords.remove(i);
+                }
                 if ui.button("Add coord").clicked() {
-                    coords.push(b"zzzz", 0.0);
+                    coords.push(b"wght", 0.0);
                 }
                 if ui.button("Clear coords").clicked() {
-                    *coords = Default::default();
+                    coords.clear();
                 }
                 ui.end_row();
 

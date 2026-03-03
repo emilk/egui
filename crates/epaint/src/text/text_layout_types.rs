@@ -326,6 +326,15 @@ impl VariationCoords {
     pub fn push(&mut self, tag: impl IntoTag, coord: f32) {
         self.0.push((tag.into_tag(), coord));
     }
+
+    /// Remove the coordinate at the given index.
+    pub fn remove(&mut self, index: usize) {
+        self.0.remove(index);
+    }
+
+    pub fn clear(&mut self) {
+        self.0.clear();
+    }
 }
 
 impl AsRef<[(font_types::Tag, f32)]> for VariationCoords {
