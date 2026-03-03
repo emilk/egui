@@ -797,9 +797,11 @@ impl TextEdit<'_> {
                         .unwrap_or_default();
 
                     ui.ctx().output_mut(|o| {
+                        let tiny_rect =
+                            Rect::from_min_size(primary_cursor_rect.left_top(), Vec2::ZERO);
                         o.ime = Some(crate::output::IMEOutput {
                             rect: to_global * rect,
-                            cursor_rect: to_global * primary_cursor_rect,
+                            cursor_rect: to_global * tiny_rect,
                         });
                     });
                 }
