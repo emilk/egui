@@ -2894,10 +2894,10 @@ impl Widget for &mut FontTweak {
 
                     let tag_text = &mut *tag_text.lock();
                     let response = ui.text_edit_singleline(tag_text);
-                    if response.changed() {
-                        if let Ok(new_tag) = Tag::new_checked(tag_text.as_bytes()) {
-                            *tag = new_tag;
-                        }
+                    if response.changed()
+                        && let Ok(new_tag) = Tag::new_checked(tag_text.as_bytes())
+                    {
+                        *tag = new_tag;
                     }
                     // Reset stale text when not actively editing
                     // (e.g. after an item was removed and indices shifted)
