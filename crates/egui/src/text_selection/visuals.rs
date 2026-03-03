@@ -67,9 +67,7 @@ pub fn paint_text_selection(
             let first_vertex_index = row
                 .glyphs
                 .get(first_glyph_index)
-                .map_or(row.visuals.glyph_vertex_range.end, |g| {
-                    g.first_vertex as _
-                });
+                .map_or(row.visuals.glyph_vertex_range.end, |g| g.first_vertex as _);
             let last_vertex_index = row
                 .glyphs
                 .get(last_glyph_index)
