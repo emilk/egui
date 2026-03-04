@@ -438,7 +438,7 @@ impl TextEdit<'_> {
             text,
             prefix,
             postfix,
-            hint_text,
+            mut hint_text,
             id,
             id_salt,
             font_selection,
@@ -551,6 +551,7 @@ impl TextEdit<'_> {
             if text.as_str().is_empty() {
                 let mut shrunk = any_shrink;
                 let mut first = true;
+                hint_text.map_texts(|t| t.color(ui.style().visuals.weak_text_color()));
                 for mut atom in hint_text {
                     if !shrunk && matches!(atom.kind, AtomKind::Text(_)) {
                         atom = atom.atom_shrink(true);
@@ -595,9 +596,12 @@ impl TextEdit<'_> {
             let custom_frame = frame.is_some();
             let frame = frame.unwrap_or_else(|| Frame::new().inner_margin(margin));
 
+            let min_height = min_inner_height + frame.total_margin().sum().y;
+
             let mut allocated = AtomLayout::new(atoms)
                 .id(id)
-                .min_size(Vec2::new(allocate_width, 0.0))
+                .min_size(Vec2::new(allocate_width, min_height))
+                .max_width(allocate_width)
                 .sense(sense)
                 .frame(frame)
                 .align2(Align2::LEFT_TOP)
