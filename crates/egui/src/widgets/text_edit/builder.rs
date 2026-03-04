@@ -1,18 +1,18 @@
 use std::sync::Arc;
 
 use emath::{Rect, TSTransform};
-use epaint::text::{cursor::CCursor, Galley, LayoutJob, TextWrapMode};
+use epaint::text::{Galley, LayoutJob, TextWrapMode, cursor::CCursor};
 
 use crate::{
-    epaint, os::OperatingSystem, output::OutputEvent, response, text_selection, text_selection::{text_cursor_state::cursor_rect, visuals::paint_text_selection, CCursorRange}, vec2, Align, Align2, Atom, AtomExt,
-    AtomKind, AtomLayout, Atoms, Color32, Context, CursorIcon, Event, EventFilter, FontSelection,
-    Frame, Id, ImeEvent, IntoAtoms, Key, KeyboardShortcut, Margin, Modifiers, NumExt as _, Response,
-    Sense, Shape, SizedAtomKind, TextBuffer, TextStyle,
-    Ui,
-    Vec2,
-    Widget, WidgetInfo,
-    WidgetText,
-    WidgetWithState,
+    Align, Align2, Atom, AtomExt as _, AtomKind, AtomLayout, Atoms, Color32, Context, CursorIcon,
+    Event, EventFilter, FontSelection, Frame, Id, ImeEvent, IntoAtoms, Key, KeyboardShortcut,
+    Margin, Modifiers, NumExt as _, Response, Sense, SizedAtomKind, TextBuffer, TextStyle, Ui,
+    Vec2, Widget, WidgetInfo, WidgetText, WidgetWithState, epaint,
+    os::OperatingSystem,
+    output::OutputEvent,
+    response, text_selection,
+    text_selection::{CCursorRange, text_cursor_state::cursor_rect, visuals::paint_text_selection},
+    vec2,
 };
 
 use super::{TextEditOutput, TextEditState};
@@ -68,7 +68,6 @@ pub struct TextEdit<'t> {
     prefix: Atoms<'static>,
     postfix: Atoms<'static>,
     hint_text: Atoms<'static>,
-    hint_text_font: Option<FontSelection>,
     id: Option<Id>,
     id_salt: Option<Id>,
     font_selection: FontSelection,
@@ -123,7 +122,6 @@ impl<'t> TextEdit<'t> {
             prefix: Default::default(),
             postfix: Default::default(),
             hint_text: Default::default(),
-            hint_text_font: None,
             id: None,
             id_salt: None,
             font_selection: Default::default(),
@@ -228,13 +226,6 @@ impl<'t> TextEdit<'t> {
     #[inline]
     pub fn background_color(mut self, color: Color32) -> Self {
         self.background_color = Some(color);
-        self
-    }
-
-    /// Set a specific style for the hint text.
-    #[inline]
-    pub fn hint_text_font(mut self, hint_text_font: impl Into<FontSelection>) -> Self {
-        self.hint_text_font = Some(hint_text_font.into());
         self
     }
 
@@ -439,15 +430,7 @@ impl TextEdit<'_> {
     /// # });
     /// ```
     pub fn show(self, ui: &mut Ui) -> TextEditOutput {
-        let is_mutable = self.text.is_mutable();
-        let frame = self.frame;
-        let where_to_put_background = ui.painter().add(Shape::Noop);
-        let background_color = self
-            .background_color
-            .unwrap_or_else(|| ui.visuals().text_edit_bg_color());
-        let output = self.show_content(ui);
-
-        output
+        self.show_content(ui)
     }
 
     fn show_content(self, ui: &mut Ui) -> TextEditOutput {
@@ -456,7 +439,6 @@ impl TextEdit<'_> {
             prefix,
             postfix,
             hint_text,
-            hint_text_font,
             id,
             id_salt,
             font_selection,
@@ -492,7 +474,9 @@ impl TextEdit<'_> {
         const MIN_WIDTH: f32 = 24.0; // Never make a [`TextEdit`] more narrow than this.
         // let available_width = (ui.available_width() - margin.sum().x).at_least(MIN_WIDTH);
         let available_width = ui.available_width().at_least(MIN_WIDTH);
-        let desired_width = desired_width.unwrap_or_else(|| ui.spacing().text_edit_width);
+        let desired_width = desired_width
+            .unwrap_or_else(|| ui.spacing().text_edit_width)
+            .at_least(min_size.x);
         let allocate_width = desired_width.at_most(available_width);
         // let wrap_width = if ui.layout().horizontal_justify() {
         //     available_width
@@ -555,7 +539,7 @@ impl TextEdit<'_> {
         let inner_rect_id = Id::new("text_edit_rect");
         let mut get_galley = None;
         let atom_response = {
-            let mut atoms: Atoms = Atoms::new(());
+            let mut atoms: Atoms<'_> = Atoms::new(());
 
             let any_shrink = hint_text.iter().any(|a| a.shrink);
 
@@ -574,6 +558,7 @@ impl TextEdit<'_> {
                     }
                     if first {
                         atom = atom.atom_id(inner_rect_id);
+                        first = false;
                     }
                     atoms.push_right(atom.atom_align(Align2::LEFT_TOP));
                 }
@@ -582,7 +567,7 @@ impl TextEdit<'_> {
             } else {
                 // TODO: Set width to galley width when not clip
                 atoms.push_right(
-                    AtomKind::closure(|ui, available_width: Vec2, wrap_mode, fallback_font| {
+                    AtomKind::closure(|ui, available_width: Vec2, _wrap_mode, _fallback_font| {
                         let galley = layouter(ui, text, available_width.x);
                         let intrinsic_size = galley.intrinsic_size();
                         let mut size = galley.size();
@@ -608,7 +593,7 @@ impl TextEdit<'_> {
             }
 
             let custom_frame = frame.is_some();
-            let frame = frame.unwrap_or(Frame::new().inner_margin(margin));
+            let frame = frame.unwrap_or_else(|| Frame::new().inner_margin(margin));
 
             let mut allocated = AtomLayout::new(atoms)
                 .id(id)
@@ -621,9 +606,8 @@ impl TextEdit<'_> {
 
             allocated.frame = if !custom_frame {
                 let visuals = ui.style().interact(&allocated.response);
-                let background_color = self
-                    .background_color
-                    .unwrap_or_else(|| ui.visuals().text_edit_bg_color());
+                let background_color =
+                    background_color.unwrap_or_else(|| ui.visuals().text_edit_bg_color());
 
                 let (corner_radius, background_color, stroke) = if text.is_mutable() {
                     if allocated.response.has_focus() {
@@ -653,8 +637,7 @@ impl TextEdit<'_> {
                 allocated.frame
             };
 
-            let atom_response = allocated.paint(ui);
-            atom_response
+            allocated.paint(ui)
         };
 
         let inner_rect = atom_response.rect(inner_rect_id).unwrap_or(Rect::ZERO); // TODO: Handle culling?
@@ -727,10 +710,8 @@ impl TextEdit<'_> {
                 ui,
                 &mut state,
                 text,
-                &mut galley,
-                layouter,
+                &galley,
                 id,
-                0.0, // wrap_width,
                 multiline,
                 password,
                 default_cursor_range,
@@ -1004,10 +985,8 @@ fn events(
     ui: &crate::Ui,
     state: &mut TextEditState,
     text: &mut dyn TextBuffer,
-    galley: &mut Arc<Galley>,
-    layouter: &mut dyn FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<Galley>,
+    galley: &Galley,
     id: Id,
-    wrap_width: f32,
     multiline: bool,
     password: bool,
     default_cursor_range: CCursorRange,
@@ -1222,6 +1201,7 @@ fn events(
             any_change = true;
 
             // Layout again to avoid frame delay, and to keep `text` and `galley` in sync.
+            // TODO: This causes the text to flicker back and forth. Still needed?
             // *galley = layouter(ui, text, wrap_width);
 
             // Set cursor_range using new galley:
