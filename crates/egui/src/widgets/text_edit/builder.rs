@@ -430,10 +430,6 @@ impl TextEdit<'_> {
     /// # });
     /// ```
     pub fn show(self, ui: &mut Ui) -> TextEditOutput {
-        self.show_content(ui)
-    }
-
-    fn show_content(self, ui: &mut Ui) -> TextEditOutput {
         let TextEdit {
             text,
             prefix,
@@ -472,17 +468,11 @@ impl TextEdit<'_> {
         let font_id = font_selection.resolve(ui.style());
         let row_height = ui.fonts_mut(|f| f.row_height(&font_id));
         const MIN_WIDTH: f32 = 24.0; // Never make a [`TextEdit`] more narrow than this.
-        // let available_width = (ui.available_width() - margin.sum().x).at_least(MIN_WIDTH);
         let available_width = ui.available_width().at_least(MIN_WIDTH);
         let desired_width = desired_width
             .unwrap_or_else(|| ui.spacing().text_edit_width)
             .at_least(min_size.x);
         let allocate_width = desired_width.at_most(available_width);
-        // let wrap_width = if ui.layout().horizontal_justify() {
-        //     available_width
-        // } else {
-        //     desired_width.min(available_width)
-        // };
 
         let font_id_clone = font_id.clone();
         let mut default_layouter = move |ui: &Ui, text: &dyn TextBuffer, wrap_width: f32| {
@@ -497,18 +487,7 @@ impl TextEdit<'_> {
 
         let layouter = layouter.unwrap_or(&mut default_layouter);
 
-        // let mut galley = layouter(ui, text, wrap_width);
-
-        // let desired_inner_width = if clip_text {
-        //     wrap_width // visual clipping with scroll in singleline input.
-        // } else {
-        //     galley.size().x.max(wrap_width)
-        // };
         let min_inner_height = (desired_height_rows.at_least(1) as f32) * row_height;
-        // let desired_inner_size = vec2(desired_inner_width, galley.size().y.max(desired_height));
-        // let desired_outer_size = (desired_inner_size + margin.sum()).at_least(min_size);
-        // let (auto_id, outer_rect) = ui.allocate_space(desired_outer_size);
-        // let rect = outer_rect - margin; // inner rect (excluding frame/margin).
 
         let id = id.unwrap_or_else(|| {
             if let Some(id_salt) = id_salt {
@@ -566,7 +545,6 @@ impl TextEdit<'_> {
                 let gallery = layouter(ui, text, allocate_width - margin.sum().x);
                 get_galley = Some(gallery);
             } else {
-                // TODO: Set width to galley width when not clip
                 atoms.push_right(
                     AtomKind::closure(|ui, available_width: Vec2, _wrap_mode, _fallback_font| {
                         let galley = layouter(ui, text, available_width.x);
@@ -598,6 +576,13 @@ impl TextEdit<'_> {
 
             let min_height = min_inner_height + frame.total_margin().sum().y;
 
+            // This wrap mode only affects the hint_text
+            let wrap_mode = if multiline {
+                TextWrapMode::Wrap
+            } else {
+                TextWrapMode::Truncate
+            };
+
             let mut allocated = AtomLayout::new(atoms)
                 .id(id)
                 .min_size(Vec2::new(allocate_width, min_height))
@@ -605,7 +590,7 @@ impl TextEdit<'_> {
                 .sense(sense)
                 .frame(frame)
                 .align2(Align2::LEFT_TOP)
-                .wrap_mode(TextWrapMode::Truncate)
+                .wrap_mode(wrap_mode)
                 .allocate(ui);
 
             allocated.frame = if !custom_frame {
@@ -773,31 +758,6 @@ impl TextEdit<'_> {
         };
 
         if ui.is_rect_visible(inner_rect) {
-            // TODO: Handle wrapping for hint text
-            // if text.as_str().is_empty() && !hint_text.is_empty() {
-            //     let hint_text_color = ui.visuals().weak_text_color();
-            //     let hint_text_font_id = hint_text_font.unwrap_or(font_id.into());
-            //     let galley = if multiline {
-            //         hint_text.into_galley(
-            //             ui,
-            //             Some(TextWrapMode::Wrap),
-            //             desired_inner_size.x,
-            //             hint_text_font_id,
-            //         )
-            //     } else {
-            //         hint_text.into_galley(
-            //             ui,
-            //             Some(TextWrapMode::Extend),
-            //             f32::INFINITY,
-            //             hint_text_font_id,
-            //         )
-            //     };
-            //     let galley_pos = align
-            //         .align_size_within_rect(galley.size(), inner_rect)
-            //         .intersect(inner_rect)
-            //         .min;
-            //     painter.galley(galley_pos, galley, hint_text_color);
-            // }
 
             let has_focus = ui.memory(|mem| mem.has_focus(id));
 
@@ -1203,10 +1163,6 @@ fn events(
 
         if let Some(new_ccursor_range) = did_mutate_text {
             any_change = true;
-
-            // Layout again to avoid frame delay, and to keep `text` and `galley` in sync.
-            // TODO: This causes the text to flicker back and forth. Still needed?
-            // *galley = layouter(ui, text, wrap_width);
 
             // Set cursor_range using new galley:
             cursor_range = new_ccursor_range;
