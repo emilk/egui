@@ -473,14 +473,6 @@ impl<'atom> AllocatedAtomLayout<'atom> {
                 response.custom_rects.push((id, rect));
             }
 
-            if let Some(id) = sized.id {
-                debug_assert!(
-                    !response.custom_rects.iter().any(|(i, _)| *i == id),
-                    "Duplicate custom id"
-                );
-                response.custom_rects.push((id, rect));
-            }
-
             match sized.kind {
                 SizedAtomKind::Text(galley) => {
                     ui.painter().galley(rect.min, galley, fallback_text_color);

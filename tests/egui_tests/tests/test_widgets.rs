@@ -123,12 +123,12 @@ fn widget_tests() {
         &mut results,
     );
     test_widget(
-        "text_edit_prefix_postfix",
+        "text_edit_prefix_suffix",
         |ui| {
             ui.spacing_mut().text_edit_width = 45.0;
             TextEdit::singleline(&mut "Hello World".to_owned())
                 .prefix("🔎")
-                .postfix("!")
+                .suffix("!")
                 .clip_text(true)
                 .ui(ui)
         },

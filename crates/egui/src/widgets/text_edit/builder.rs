@@ -66,7 +66,7 @@ type LayouterFn<'t> = &'t mut dyn FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<Galley
 pub struct TextEdit<'t> {
     text: &'t mut dyn TextBuffer,
     prefix: Atoms<'static>,
-    postfix: Atoms<'static>,
+    suffix: Atoms<'static>,
     hint_text: Atoms<'static>,
     id: Option<Id>,
     id_salt: Option<Id>,
@@ -120,7 +120,7 @@ impl<'t> TextEdit<'t> {
         Self {
             text,
             prefix: Default::default(),
-            postfix: Default::default(),
+            suffix: Default::default(),
             hint_text: Default::default(),
             id: None,
             id_salt: None,
@@ -214,10 +214,10 @@ impl<'t> TextEdit<'t> {
         self
     }
 
-    /// Add a postfix to the text edit. This will always be shown after the editable text.
+    /// Add a suffix to the text edit. This will always be shown after the editable text.
     #[inline]
-    pub fn postfix(mut self, postfix: impl IntoAtoms<'static>) -> Self {
-        self.postfix = postfix.into_atoms();
+    pub fn suffix(mut self, suffix: impl IntoAtoms<'static>) -> Self {
+        self.suffix = suffix.into_atoms();
         self
     }
 
@@ -433,7 +433,7 @@ impl TextEdit<'_> {
         let TextEdit {
             text,
             prefix,
-            postfix,
+            suffix,
             mut hint_text,
             id,
             id_salt,
@@ -566,10 +566,10 @@ impl TextEdit<'_> {
                 );
             }
 
-            if !postfix.is_empty() {
+            if !suffix.is_empty() {
                 atoms.push_right(Atom::grow());
             }
-            for atom in postfix {
+            for atom in suffix {
                 atoms.push_right(atom);
             }
 
