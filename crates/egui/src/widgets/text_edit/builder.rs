@@ -758,7 +758,6 @@ impl TextEdit<'_> {
         };
 
         if ui.is_rect_visible(inner_rect) {
-
             let has_focus = ui.memory(|mem| mem.has_focus(id));
 
             if has_focus {
