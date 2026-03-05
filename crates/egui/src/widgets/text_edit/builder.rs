@@ -493,8 +493,10 @@ impl TextEdit<'_> {
             if let Some(id_salt) = id_salt {
                 ui.make_persistent_id(id_salt)
             } else {
-                // TODO: Do we need to skip auto ids after this?
-                ui.next_auto_id() // Since we are only storing the cursor a persistent Id is not super important
+                // Since we are only storing the cursor a persistent Id is not super important
+                let id = ui.next_auto_id();
+                ui.skip_ahead_auto_ids(1);
+                id
             }
         });
 
@@ -629,7 +631,7 @@ impl TextEdit<'_> {
             allocated.paint(ui)
         };
 
-        let inner_rect = atom_response.rect(inner_rect_id).unwrap_or(Rect::ZERO); // TODO: Handle culling?
+        let inner_rect = atom_response.rect(inner_rect_id).unwrap_or(Rect::ZERO);
         let mut response = atom_response.response;
         let outer_rect = response.rect;
 
