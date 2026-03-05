@@ -1,9 +1,24 @@
 use crate::{FontSelection, Id, Image, ImageSource, SizedAtomKind, Ui, WidgetText};
 use emath::Vec2;
 use epaint::text::TextWrapMode;
+use std::fmt::Debug;
+
+pub type AtomClosure<'a> = Box<
+    dyn FnOnce(
+            &Ui,
+            Vec2,
+            TextWrapMode,
+            FontSelection,
+        ) -> (
+            Vec2,
+            // We need 'static here (or need to introduce another lifetime on the enum).
+            // Otherwise, a single 'static Atom would force the closure to be 'static.
+            SizedAtomKind<'static>,
+        ) + 'a,
+>;
 
 /// The different kinds of [`crate::Atom`]s.
-#[derive(Clone, Default, Debug)]
+#[derive(Default)]
 pub enum AtomKind<'a> {
     /// Empty, that can be used with [`crate::AtomExt::atom_grow`] to reserve space.
     #[default]
@@ -59,6 +74,45 @@ pub enum AtomKind<'a> {
     /// ```
     #[deprecated = "Use Atom::custom(id) instead"]
     Custom(Id),
+
+    /// A custom closure that produces a sized atom.
+    ///
+    /// The vec2 passed in is the available size to this atom. The returned vec2 should be the
+    /// preferred / intrinsic size.
+    ///
+    /// Note: This api is experimental, expect breaking changes here.
+    /// When cloning, this will be cloned as [`AtomKind::Empty`].
+    #[doc(hidden)]
+    Closure(AtomClosure<'a>),
+}
+
+impl Clone for AtomKind<'_> {
+    fn clone(&self) -> Self {
+        match self {
+            AtomKind::Empty => AtomKind::Empty,
+            AtomKind::Text(text) => AtomKind::Text(text.clone()),
+            AtomKind::Image(image) => AtomKind::Image(image.clone()),
+            #[expect(deprecated)]
+            AtomKind::Custom(id) => AtomKind::Custom(*id),
+            AtomKind::Closure(_) => {
+                log::warn!("Cannot clone atom closures");
+                AtomKind::Empty
+            }
+        }
+    }
+}
+
+impl Debug for AtomKind<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AtomKind::Empty => write!(f, "AtomKind::Empty"),
+            AtomKind::Text(text) => write!(f, "AtomKind::Text({text:?})"),
+            AtomKind::Image(image) => write!(f, "AtomKind::Image({image:?})"),
+            #[expect(deprecated)]
+            AtomKind::Custom(id) => write!(f, "AtomKind::Custom({id:?})"),
+            AtomKind::Closure(_) => write!(f, "AtomKind::Closure(<closure>)"),
+        }
+    }
 }
 
 impl<'a> AtomKind<'a> {
@@ -68,6 +122,12 @@ impl<'a> AtomKind<'a> {
 
     pub fn image(image: impl Into<Image<'a>>) -> Self {
         AtomKind::Image(image.into())
+    }
+
+    pub fn closure(
+        func: impl FnOnce(&Ui, Vec2, TextWrapMode, FontSelection) -> (Vec2, SizedAtomKind<'static>) + 'a,
+    ) -> Self {
+        AtomKind::Closure(Box::new(func))
     }
 
     /// Turn this [`AtomKind`] into a [`SizedAtomKind`].
@@ -81,9 +141,9 @@ impl<'a> AtomKind<'a> {
         wrap_mode: Option<TextWrapMode>,
         fallback_font: FontSelection,
     ) -> (Vec2, SizedAtomKind<'a>) {
+        let wrap_mode = wrap_mode.unwrap_or_else(|| ui.wrap_mode());
         match self {
             AtomKind::Text(text) => {
-                let wrap_mode = wrap_mode.unwrap_or_else(|| ui.wrap_mode());
                 let galley = text.into_galley(ui, Some(wrap_mode), available_size.x, fallback_font);
                 (galley.intrinsic_size(), SizedAtomKind::Text(galley))
             }
@@ -95,6 +155,7 @@ impl<'a> AtomKind<'a> {
             #[expect(deprecated)]
             AtomKind::Custom(_id) => (Vec2::ZERO, SizedAtomKind::Empty), // id is handled in Atom::into_sized
             AtomKind::Empty => (Vec2::ZERO, SizedAtomKind::Empty),
+            AtomKind::Closure(func) => func(ui, available_size, wrap_mode, fallback_font),
         }
     }
 }
