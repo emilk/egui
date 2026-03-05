@@ -1164,7 +1164,7 @@ impl Prepared {
         let outer_rect = Rect::from_min_size(inner_rect.min, inner_rect.size() + current_bar_use);
 
         // Epsilon to prevent jitter from floating-point rounding.
-        let epsilon = 0.1;
+        let epsilon = 0.5;
 
         let content_is_too_large = Vec2b::new(
             direction_enabled[0] && (inner_rect.width() + epsilon < content_size.x),
