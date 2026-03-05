@@ -166,14 +166,14 @@ impl<'a> DragValue<'a> {
     /// Show a prefix before the number, e.g. "x: "
     #[inline]
     pub fn prefix(mut self, prefix: impl IntoAtoms<'a>) -> Self {
-        self.atoms.extend_left(prefix);
+        self.atoms.extend_left(prefix.into_atoms());
         self
     }
 
     /// Add a suffix to the number, this can be e.g. a unit ("°" or " m")
     #[inline]
     pub fn suffix(mut self, suffix: impl IntoAtoms<'a>) -> Self {
-        self.atoms.extend_right(suffix);
+        self.atoms.extend_right(suffix.into_atoms());
         self
     }
 
