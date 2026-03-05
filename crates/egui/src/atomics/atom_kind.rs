@@ -57,6 +57,7 @@ pub enum AtomKind<'a> {
     /// }
     /// # });
     /// ```
+    #[deprecated = "Use Atom::custom(id) instead"]
     Custom(Id),
 }
 
@@ -91,7 +92,8 @@ impl<'a> AtomKind<'a> {
                 let size = size.unwrap_or(Vec2::ZERO);
                 (size, SizedAtomKind::Image(image, size))
             }
-            AtomKind::Custom(id) => (Vec2::ZERO, SizedAtomKind::Custom(id)),
+            #[expect(deprecated)]
+            AtomKind::Custom(_id) => (Vec2::ZERO, SizedAtomKind::Empty), // id is handled in Atom::into_sized
             AtomKind::Empty => (Vec2::ZERO, SizedAtomKind::Empty),
         }
     }

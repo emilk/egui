@@ -447,18 +447,15 @@ impl Widget for DragValue<'_> {
         let mut past_value = false;
         let atom_id = Id::new(Self::ATOM_ID);
         for atom in atoms.iter() {
-            match &atom.kind {
-                AtomKind::Custom(id) if *id == atom_id => {
-                    past_value = true;
+            if atom.id == Some(atom_id) {
+                past_value = true;
+            }
+            if let AtomKind::Text(text) = &atom.kind {
+                if past_value {
+                    suffix_text.push_str(text.text());
+                } else {
+                    prefix_text.push_str(text.text());
                 }
-                AtomKind::Text(text) => {
-                    if past_value {
-                        suffix_text.push_str(text.text());
-                    } else {
-                        prefix_text.push_str(text.text());
-                    }
-                }
-                _ => {}
             }
         }
 
@@ -605,9 +602,7 @@ impl Widget for DragValue<'_> {
             response
         } else {
             atoms.map_atoms(|atom| {
-                if let AtomKind::Custom(id) = atom.kind
-                    && id == atom_id
-                {
+                if atom.id == Some(atom_id) {
                     RichText::new(value_text.clone())
                         .text_style(text_style.clone())
                         .into()

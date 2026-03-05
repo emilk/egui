@@ -1,4 +1,4 @@
-use crate::{Id, Image};
+use crate::Image;
 use emath::Vec2;
 use epaint::Galley;
 use std::sync::Arc;
@@ -10,7 +10,7 @@ pub enum SizedAtomKind<'a> {
     Empty,
     Text(Arc<Galley>),
     Image(Image<'a>, Vec2),
-    Custom(Id),
+    Sized(Vec2),
 }
 
 impl SizedAtomKind<'_> {
@@ -18,8 +18,8 @@ impl SizedAtomKind<'_> {
     pub fn size(&self) -> Vec2 {
         match self {
             SizedAtomKind::Text(galley) => galley.size(),
-            SizedAtomKind::Image(_, size) => *size,
-            SizedAtomKind::Empty | SizedAtomKind::Custom(_) => Vec2::ZERO,
+            SizedAtomKind::Image(_, size) | SizedAtomKind::Sized(size) => *size,
+            SizedAtomKind::Empty => Vec2::ZERO,
         }
     }
 }
