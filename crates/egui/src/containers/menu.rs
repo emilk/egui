@@ -11,7 +11,8 @@
 use crate::style::StyleModifier;
 use crate::{
     Button, Color32, Context, Frame, Id, InnerResponse, IntoAtoms, Layout, Popup,
-    PopupCloseBehavior, Response, Style, Ui, UiBuilder, UiKind, UiStack, UiStackInfo, Widget as _,
+    PointerButton, PopupCloseBehavior, Response, Style, Ui, UiBuilder, UiKind, UiStack,
+    UiStackInfo, Widget as _,
 };
 use emath::{Align, RectAlign, Vec2, vec2};
 use epaint::Stroke;
@@ -458,6 +459,7 @@ impl SubMenu {
 
         let is_any_open = open_item.is_some();
         let mut is_open = open_item == Some(id);
+        let was_open = is_open;
         let mut set_open = None;
 
         // We expand the button rect so there is no empty space where no menu is shown
@@ -470,9 +472,20 @@ impl SubMenu {
         // But since we check if no other menu is open, nothing should be able to cover the button
         let is_hovered = hover_pos.is_some_and(|pos| button_rect.contains(pos));
 
+        // `clicked` includes keyboard and accessibility click actions.
+        // We want Enter/Space to toggle an already open submenu, while pointer clicks should keep
+        // the submenu open (for touch and pointer interactions).
+        let clicked = button_response.clicked();
+        let clicked_by_pointer = button_response.clicked_by(PointerButton::Primary);
+        let clicked_by_keyboard_or_access = clicked && !clicked_by_pointer;
+
+        if ui.is_enabled() && is_open && clicked_by_keyboard_or_access {
+            set_open = Some(false);
+            is_open = false;
+        }
+
         // The clicked handler is there for accessibility (keyboard navigation)
-        let should_open =
-            ui.is_enabled() && (button_response.clicked() || (is_hovered && !is_any_open));
+        let should_open = ui.is_enabled() && ((!was_open && clicked) || (is_hovered && !is_any_open));
         if should_open {
             set_open = Some(true);
             is_open = true;

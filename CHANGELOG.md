@@ -14,6 +14,11 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## Unreleased
+### 🐛 Fixed
+* Fix keyboard toggling for open submenus: pressing Enter/Space on an already open submenu button now collapses it.
+
+
 ## 0.33.3 - 2025-12-11
 * Treat `.` as a word-splitter in text navigation [#7741](https://github.com/emilk/egui/pull/7741) by [@emilk](https://github.com/emilk)
 * Change text color of selected text [#7691](https://github.com/emilk/egui/pull/7691) by [@emilk](https://github.com/emilk)
