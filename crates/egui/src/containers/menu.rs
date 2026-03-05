@@ -10,9 +10,8 @@
 
 use crate::style::StyleModifier;
 use crate::{
-    Button, Color32, Context, Frame, Id, InnerResponse, IntoAtoms, Layout, Popup,
-    PointerButton, PopupCloseBehavior, Response, Style, Ui, UiBuilder, UiKind, UiStack,
-    UiStackInfo, Widget as _,
+    Button, Color32, Context, Frame, Id, InnerResponse, IntoAtoms, Layout, PointerButton, Popup,
+    PopupCloseBehavior, Response, Style, Ui, UiBuilder, UiKind, UiStack, UiStackInfo, Widget as _,
 };
 use emath::{Align, RectAlign, Vec2, vec2};
 use epaint::Stroke;
@@ -485,7 +484,8 @@ impl SubMenu {
         }
 
         // The clicked handler is there for accessibility (keyboard navigation)
-        let should_open = ui.is_enabled() && ((!was_open && clicked) || (is_hovered && !is_any_open));
+        let should_open =
+            ui.is_enabled() && ((!was_open && clicked) || (is_hovered && !is_any_open));
         if should_open {
             set_open = Some(true);
             is_open = true;
