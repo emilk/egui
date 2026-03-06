@@ -1,7 +1,7 @@
 use std::mem;
 
-use accesskit::{Action, ActionRequest, NodeId};
-use accesskit_consumer::{FilterResult, Node, Tree, TreeChangeHandler};
+use accesskit::{Action, ActionRequest};
+use accesskit_consumer::{FilterResult, Node, NodeId, Tree, TreeChangeHandler};
 
 use eframe::epaint::text::TextWrapMode;
 use egui::{
@@ -25,7 +25,7 @@ use egui::{
 pub struct AccessibilityInspectorPlugin {
     pub open: bool,
     tree: Option<accesskit_consumer::Tree>,
-    selected_node: Option<Id>,
+    selected_node: Option<NodeId>,
     queued_action: Option<ActionRequest>,
 }
 
@@ -113,13 +113,17 @@ impl AccessibilityInspectorPlugin {
         Id::new("Accessibility Inspector")
     }
 
-    fn selection_ui(&mut self, ui: &mut Ui, selected_node: Id) {
+    fn selection_ui(&mut self, ui: &mut Ui, selected_node: NodeId) {
         ui.separator();
 
         if let Some(tree) = &self.tree
-            && let Some(node) = tree.state().node_by_id(NodeId::from(selected_node.value()))
+            && let Some(node) = tree.state().node_by_id(selected_node)
         {
-            let node_response = ui.ctx().read_response(selected_node);
+            // Safety: This is safe since the `accesskit::NodeId` was created from an `egui::Id`.
+            #[expect(unsafe_code)]
+            let egui_node_id = unsafe { Id::from_high_entropy_bits(node.locate().0.0) };
+
+            let node_response = ui.ctx().read_response(egui_node_id);
 
             if let Some(widget_response) = node_response {
                 ui.debug_painter().debug_rect(
@@ -174,8 +178,10 @@ impl AccessibilityInspectorPlugin {
                     if node.supports_action(action, &|_node| FilterResult::Include)
                         && ui.button(format!("{action:?}")).clicked()
                     {
+                        let (target_node, target_tree) = node.locate();
                         let action_request = ActionRequest {
-                            target: node.id(),
+                            target_node,
+                            target_tree,
                             action,
                             data: None,
                         };
@@ -188,8 +194,8 @@ impl AccessibilityInspectorPlugin {
         }
     }
 
-    fn node_ui(ui: &mut Ui, node: &Node<'_>, selected_node: &mut Option<Id>) {
-        if node.id() == Self::id().value().into()
+    fn node_ui(ui: &mut Ui, node: &Node<'_>, selected_node: &mut Option<NodeId>) {
+        if node.locate() == (Self::id().value().into(), accesskit::TreeId::ROOT)
             || node
                 .value()
                 .as_deref()
@@ -200,12 +206,12 @@ impl AccessibilityInspectorPlugin {
         let label = node
             .label()
             .or_else(|| node.value())
-            .unwrap_or_else(|| node.id().0.to_string());
+            .unwrap_or_else(|| node.locate().0.0.to_string());
         let label = format!("({:?}) {}", node.role(), label);
 
         // Safety: This is safe since the `accesskit::NodeId` was created from an `egui::Id`.
         #[expect(unsafe_code)]
-        let egui_node_id = unsafe { Id::from_high_entropy_bits(node.id().0) };
+        let egui_node_id = unsafe { Id::from_high_entropy_bits(node.locate().0.0) };
 
         ui.push_id(node.id(), |ui| {
             let child_count = node.children().len();
@@ -228,7 +234,7 @@ impl AccessibilityInspectorPlugin {
                     collapsing.set_open(!collapsing.is_open());
                 }
                 let label_response =
-                    ui.selectable_value(selected_node, Some(egui_node_id), label.clone());
+                    ui.selectable_value(selected_node, Some(node.id()), label.clone());
                 if label_response.hovered() {
                     let widget_response = ui.ctx().read_response(egui_node_id);
 
