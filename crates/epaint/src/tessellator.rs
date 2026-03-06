@@ -534,8 +534,8 @@ impl Path {
 
 pub mod path {
     //! Helpers for constructing paths
-    use crate::CornerRadiusF32;
-    use emath::{Pos2, Rect, pos2};
+    use crate::{CornerRadiusF32, vec2};
+    use emath::{Pos2, Rect, Vec2, lerp, pos2};
 
     /// overwrites existing points
     pub fn rounded_rectangle(path: &mut Vec<Pos2>, rect: Rect, cr: CornerRadiusF32) {
@@ -589,7 +589,79 @@ pub mod path {
     /// * quadrant 1: left bottom
     /// * quadrant 2: left top
     /// * quadrant 3: right top
-    //
+    pub fn superellipse_rectangle(
+        path: &mut Vec<Pos2>,
+        rect: Rect,
+        cr: CornerRadiusF32,
+        exponents: crate::CornerExponents,
+    ) {
+        path.clear();
+
+        let min = rect.min;
+        let max = rect.max;
+
+        let cr = clamp_corner_radius(cr, rect);
+
+        if cr == CornerRadiusF32::ZERO {
+            path.reserve(4);
+            path.push(pos2(min.x, min.y)); // left top
+            path.push(pos2(max.x, min.y)); // right top
+            path.push(pos2(max.x, max.y)); // right bottom
+            path.push(pos2(min.x, max.y)); // left bottom
+        } else {
+            // We need to avoid duplicated vertices, because that leads to visual artifacts later.
+            // Duplicated vertices can happen when one side is all rounding, with no straight edge between.
+            let eps = f32::EPSILON * rect.size().max_elem();
+
+            add_superellipse_quadrant(
+                path,
+                pos2(max.x - cr.se, max.y - cr.se),
+                cr.se,
+                exponents.se,
+                0.0,
+            ); // south east
+
+            if rect.width() <= cr.se + cr.sw + eps {
+                path.pop(); // avoid duplicated vertex
+            }
+
+            add_superellipse_quadrant(
+                path,
+                pos2(min.x + cr.sw, max.y - cr.sw),
+                cr.sw,
+                exponents.sw,
+                1.0,
+            ); // south west
+
+            if rect.height() <= cr.sw + cr.nw + eps {
+                path.pop(); // avoid duplicated vertex
+            }
+
+            add_superellipse_quadrant(
+                path,
+                pos2(min.x + cr.nw, min.y + cr.nw),
+                cr.nw,
+                exponents.nw,
+                2.0,
+            ); // north west
+
+            if rect.width() <= cr.nw + cr.ne + eps {
+                path.pop(); // avoid duplicated vertex
+            }
+
+            add_superellipse_quadrant(
+                path,
+                pos2(max.x - cr.ne, min.y + cr.ne),
+                cr.ne,
+                exponents.ne,
+                3.0,
+            ); // north east
+
+            if rect.height() <= cr.ne + cr.se + eps {
+                path.pop(); // avoid duplicated vertex
+            }
+        }
+    }
     // Derivation:
     //
     // * angle 0 * TAU / 4 = right
@@ -601,6 +673,141 @@ pub mod path {
     // * angle 3 * TAU / 4 = top
     //   - quadrant 3: right top
     // * angle 4 * TAU / 4 = right
+    pub fn add_superellipse_quadrant(
+        path: &mut Vec<Pos2>,
+        center: Pos2,
+        radius: f32,
+        exponent: f32,
+        quadrant: f32,
+    ) {
+        fn start_offset(quadrant: usize, radius: f32) -> Vec2 {
+            match quadrant {
+                0 => vec2(radius, 0.0),
+                1 => vec2(0.0, radius),
+                2 => vec2(-radius, 0.0),
+                3 => vec2(0.0, -radius),
+                _ => unreachable!(),
+            }
+        }
+
+        fn end_offset(quadrant: usize, radius: f32) -> Vec2 {
+            match quadrant {
+                0 => vec2(0.0, radius),
+                1 => vec2(-radius, 0.0),
+                2 => vec2(0.0, -radius),
+                3 => vec2(radius, 0.0),
+                _ => unreachable!(),
+            }
+        }
+
+        fn notch_points(path: &mut Vec<Pos2>, center: Pos2, radius: f32, quadrant: usize) {
+            match quadrant {
+                0 => {
+                    path.push(center + vec2(radius, 0.0));
+                    path.push(center);
+                    path.push(center + vec2(0.0, radius));
+                }
+                1 => {
+                    path.push(center + vec2(0.0, radius));
+                    path.push(center);
+                    path.push(center + vec2(-radius, 0.0));
+                }
+                2 => {
+                    path.push(center + vec2(-radius, 0.0));
+                    path.push(center);
+                    path.push(center + vec2(0.0, -radius));
+                }
+                3 => {
+                    path.push(center + vec2(0.0, -radius));
+                    path.push(center);
+                    path.push(center + vec2(radius, 0.0));
+                }
+                _ => unreachable!(),
+            }
+        }
+
+        if radius <= 0.0 {
+            path.push(center);
+            return;
+        }
+
+        if exponent == 0.0 {
+            // Bevel corner - a straight line.
+            let (p1, p2) = match quadrant as usize {
+                0 => (center + vec2(radius, 0.0), center + vec2(0.0, radius)), // NE math
+                1 => (center + vec2(0.0, radius), center + vec2(-radius, 0.0)), // NW math
+                2 => (center + vec2(-radius, 0.0), center + vec2(0.0, -radius)), // SW math
+                3 => (center + vec2(0.0, -radius), center + vec2(radius, 0.0)), // SE math
+                _ => unreachable!(),
+            };
+            path.push(p1);
+            path.push(p2);
+            return;
+        }
+
+        if exponent == 1.0 {
+            // This is a circle
+            add_circle_quadrant(path, center, radius, quadrant);
+            return;
+        }
+
+        // Determine the number of vertices to generate based on the radius.
+        let num_segments = if radius <= 2.0 {
+            4
+        } else if radius <= 5.0 {
+            8
+        } else if radius < 18.0 {
+            16
+        } else if radius < 50.0 {
+            32
+        } else {
+            64
+        };
+
+        if exponent == f32::NEG_INFINITY || 2.0_f32.powf(exponent) == 0.0 {
+            notch_points(path, center, radius, quadrant as usize);
+            return;
+        }
+
+        let n = 2.0_f32.powf(exponent);
+        let exponent_factor = 2.0 / n;
+
+        let quadrant = quadrant as usize;
+        let sign_x = match quadrant {
+            0 | 3 => 1.0,
+            1 | 2 => -1.0,
+            _ => unreachable!(),
+        };
+        let sign_y = match quadrant {
+            0 | 1 => 1.0,
+            2 | 3 => -1.0,
+            _ => unreachable!(),
+        };
+
+        let start_angle = (quadrant as f32) * std::f32::consts::FRAC_PI_2;
+        let end_angle = (quadrant as f32 + 1.0) * std::f32::consts::FRAC_PI_2;
+
+        for i in 0..=num_segments {
+            let p = i as f32 / num_segments as f32;
+            let angle = lerp(start_angle..=end_angle, p);
+            if i == 0 {
+                path.push(center + start_offset(quadrant, radius));
+                continue;
+            } else if i == num_segments {
+                path.push(center + end_offset(quadrant, radius));
+                continue;
+            }
+
+            let cos_a = angle.cos();
+            let sin_a = angle.sin();
+            let cos_mag = cos_a.abs().clamp(0.0, 1.0);
+            let sin_mag = sin_a.abs().clamp(0.0, 1.0);
+            let dx = radius * cos_mag.powf(exponent_factor) * sign_x;
+            let dy = radius * sin_mag.powf(exponent_factor) * sign_y;
+            path.push(center + vec2(dx, dy));
+        }
+    }
+
     pub fn add_circle_quadrant(path: &mut Vec<Pos2>, center: Pos2, radius: f32, quadrant: f32) {
         use super::precomputed_vertices::{CIRCLE_8, CIRCLE_16, CIRCLE_32, CIRCLE_64, CIRCLE_128};
 
@@ -757,6 +964,157 @@ fn cw_signed_area(path: &[PathPoint]) -> f64 {
     }
 }
 
+fn cross(a: Vec2, b: Vec2) -> f32 {
+    a.x * b.y - a.y * b.x
+}
+
+fn point_in_triangle(a: Pos2, b: Pos2, c: Pos2, p: Pos2, eps: f32) -> bool {
+    let ab = b - a;
+    let bc = c - b;
+    let ca = a - c;
+
+    let ap = p - a;
+    let bp = p - b;
+    let cp = p - c;
+
+    let c1 = cross(ab, ap);
+    let c2 = cross(bc, bp);
+    let c3 = cross(ca, cp);
+
+    c1 >= -eps && c2 >= -eps && c3 >= -eps
+}
+
+fn triangulate_polygon(path: &[PathPoint]) -> Option<Vec<[usize; 3]>> {
+    let n = path.len();
+    if n < 3 {
+        return None;
+    }
+
+    const EPS: f32 = 1e-6;
+    let mut unique_indices = Vec::with_capacity(n);
+    let mut unique_positions = Vec::with_capacity(n);
+    for (idx, point) in path.iter().enumerate() {
+        if let Some(&last) = unique_positions.last() {
+            let delta: Vec2 = point.pos - last;
+            if delta.length_sq() <= EPS {
+                continue;
+            }
+        }
+        unique_indices.push(idx);
+        unique_positions.push(point.pos);
+    }
+
+    if unique_positions.len() >= 2 && {
+        let delta: Vec2 = unique_positions[0] - *unique_positions.last().unwrap();
+        delta.length_sq() <= EPS
+    } {
+        unique_indices.pop();
+        unique_positions.pop();
+    }
+
+    let unique_len = unique_positions.len();
+    if unique_len < 3 {
+        return None;
+    }
+
+    let mut winding_sign = 0.0f32;
+    let mut is_convex = true;
+    for i in 0..unique_len {
+        let a = unique_positions[i];
+        let b = unique_positions[(i + 1) % unique_len];
+        let c = unique_positions[(i + 2) % unique_len];
+        let ab = b - a;
+        let bc = c - b;
+        let cross = cross(ab, bc);
+        if cross.abs() <= EPS {
+            continue;
+        }
+        if winding_sign == 0.0 {
+            winding_sign = cross.signum();
+        } else if cross * winding_sign < -EPS {
+            is_convex = false;
+            break;
+        }
+    }
+
+    if is_convex {
+        let mut triangles = Vec::with_capacity(unique_len - 2);
+        for i in 1..unique_len - 1 {
+            triangles.push([unique_indices[0], unique_indices[i], unique_indices[i + 1]]);
+        }
+        return Some(triangles);
+    }
+
+    let mut indices: Vec<usize> = (0..unique_len).collect();
+    let mut triangles = Vec::with_capacity(unique_len - 2);
+    let mut guard = 0usize;
+    let max_iterations = unique_len * unique_len;
+
+    while indices.len() > 3 {
+        let len = indices.len();
+        let mut ear_found = false;
+
+        for ear_index in 0..len {
+            let prev = indices[(ear_index + len - 1) % len];
+            let curr = indices[ear_index];
+            let next = indices[(ear_index + 1) % len];
+
+            let a = unique_positions[prev];
+            let b = unique_positions[curr];
+            let c = unique_positions[next];
+
+            let ab = b - a;
+            let bc = c - b;
+            let area = cross(ab, bc);
+            if area <= EPS {
+                continue;
+            }
+
+            let mut has_point_inside = false;
+            for &other in &indices {
+                if other == prev || other == curr || other == next {
+                    continue;
+                }
+
+                let p = unique_positions[other];
+                if point_in_triangle(a, b, c, p, EPS) {
+                    has_point_inside = true;
+                    break;
+                }
+            }
+
+            if has_point_inside {
+                continue;
+            }
+
+            triangles.push([
+                unique_indices[prev],
+                unique_indices[curr],
+                unique_indices[next],
+            ]);
+            indices.remove(ear_index);
+            ear_found = true;
+            break;
+        }
+
+        guard += 1;
+        if !ear_found || guard > max_iterations {
+            return None;
+        }
+    }
+
+    if indices.len() == 3 {
+        triangles.push([
+            unique_indices[indices[0]],
+            unique_indices[indices[1]],
+            unique_indices[indices[2]],
+        ]);
+        Some(triangles)
+    } else {
+        None
+    }
+}
+
 /// Tessellate the given convex area into a polygon.
 ///
 /// Calling this may reverse the vertices in the path if they are wrong winding order.
@@ -772,50 +1130,107 @@ fn fill_closed_path(feathering: f32, path: &mut [PathPoint], fill_color: Color32
         return;
     }
 
+    if cw_signed_area(path) < 0.0 {
+        path.reverse();
+        for point in &mut *path {
+            point.normal = -point.normal;
+        }
+    }
+
+    let triangles = triangulate_polygon(path);
+
     if 0.0 < feathering {
-        if cw_signed_area(path) < 0.0 {
-            // Wrong winding order - fix:
-            path.reverse();
-            for point in &mut *path {
-                point.normal = -point.normal;
+        if let Some(triangles) = triangles {
+            let n_usize = path.len();
+            out.reserve_triangles(2 * n_usize + triangles.len());
+            out.reserve_vertices(2 * n_usize);
+
+            let mut inner_indices = Vec::with_capacity(n_usize);
+            let mut outer_indices = Vec::with_capacity(n_usize);
+
+            for point in path.iter() {
+                let dm = 0.5 * feathering * point.normal;
+                let inner_index = out.vertices.len() as u32;
+                out.colored_vertex(point.pos - dm, fill_color);
+                inner_indices.push(inner_index);
+
+                let outer_index = out.vertices.len() as u32;
+                out.colored_vertex(point.pos + dm, Color32::TRANSPARENT);
+                outer_indices.push(outer_index);
+            }
+
+            let mut prev = n_usize - 1;
+            for curr in 0..n_usize {
+                out.add_triangle(
+                    inner_indices[curr],
+                    inner_indices[prev],
+                    outer_indices[prev],
+                );
+                out.add_triangle(
+                    outer_indices[prev],
+                    outer_indices[curr],
+                    inner_indices[curr],
+                );
+                prev = curr;
+            }
+
+            for [a, b, c] in triangles {
+                out.add_triangle(inner_indices[a], inner_indices[b], inner_indices[c]);
+            }
+        } else {
+            out.reserve_triangles(3 * n as usize);
+            out.reserve_vertices(2 * n as usize);
+            let idx_inner = out.vertices.len() as u32;
+            let idx_outer = idx_inner + 1;
+
+            for i in 2..n {
+                out.add_triangle(idx_inner + 2 * (i - 1), idx_inner, idx_inner + 2 * i);
+            }
+
+            let mut i0 = n - 1;
+            for i1 in 0..n {
+                let p1 = &path[i1 as usize];
+                let dm = 0.5 * feathering * p1.normal;
+
+                let pos_inner = p1.pos - dm;
+                let pos_outer = p1.pos + dm;
+
+                out.colored_vertex(pos_inner, fill_color);
+                out.colored_vertex(pos_outer, Color32::TRANSPARENT);
+                out.add_triangle(idx_inner + i1 * 2, idx_inner + i0 * 2, idx_outer + 2 * i0);
+                out.add_triangle(idx_outer + i0 * 2, idx_outer + i1 * 2, idx_inner + 2 * i1);
+                i0 = i1;
             }
         }
-
-        out.reserve_triangles(3 * n as usize);
-        out.reserve_vertices(2 * n as usize);
-        let idx_inner = out.vertices.len() as u32;
-        let idx_outer = idx_inner + 1;
-
-        // The fill:
-        for i in 2..n {
-            out.add_triangle(idx_inner + 2 * (i - 1), idx_inner, idx_inner + 2 * i);
-        }
-
-        // The feathering:
-        let mut i0 = n - 1;
-        for i1 in 0..n {
-            let p1 = &path[i1 as usize];
-            let dm = 0.5 * feathering * p1.normal;
-
-            let pos_inner = p1.pos - dm;
-            let pos_outer = p1.pos + dm;
-
-            out.colored_vertex(pos_inner, fill_color);
-            out.colored_vertex(pos_outer, Color32::TRANSPARENT);
-            out.add_triangle(idx_inner + i1 * 2, idx_inner + i0 * 2, idx_outer + 2 * i0);
-            out.add_triangle(idx_outer + i0 * 2, idx_outer + i1 * 2, idx_inner + 2 * i1);
-            i0 = i1;
-        }
     } else {
-        out.reserve_triangles(n as usize);
-        let idx = out.vertices.len() as u32;
-        out.vertices.extend(path.iter().map(|p| Vertex {
-            pos: p.pos,
-            uv: WHITE_UV,
-            color: fill_color,
-        }));
-        for i in 2..n {
-            out.add_triangle(idx, idx + i - 1, idx + i);
+        if let Some(triangles) = triangles {
+            let n_usize = path.len();
+            out.reserve_triangles(triangles.len());
+            out.reserve_vertices(n_usize);
+            let mut vertex_indices = Vec::with_capacity(n_usize);
+            for point in path.iter() {
+                let index = out.vertices.len() as u32;
+                vertex_indices.push(index);
+                out.vertices.push(Vertex {
+                    pos: point.pos,
+                    uv: WHITE_UV,
+                    color: fill_color,
+                });
+            }
+            for [a, b, c] in triangles {
+                out.add_triangle(vertex_indices[a], vertex_indices[b], vertex_indices[c]);
+            }
+        } else {
+            out.reserve_triangles(n as usize);
+            let idx = out.vertices.len() as u32;
+            out.vertices.extend(path.iter().map(|p| Vertex {
+                pos: p.pos,
+                uv: WHITE_UV,
+                color: fill_color,
+            }));
+            for i in 2..n {
+                out.add_triangle(idx, idx + i - 1, idx + i);
+            }
         }
     }
 }
@@ -845,60 +1260,132 @@ fn fill_closed_path_with_uv(
     }
 
     let n = path.len() as u32;
+    if n < 3 {
+        return;
+    }
+
+    if cw_signed_area(path) < 0.0 {
+        path.reverse();
+        for point in &mut *path {
+            point.normal = -point.normal;
+        }
+    }
+
+    let triangles = triangulate_polygon(path);
+
     if 0.0 < feathering {
-        if cw_signed_area(path) < 0.0 {
-            // Wrong winding order - fix:
-            path.reverse();
-            for point in &mut *path {
-                point.normal = -point.normal;
+        if let Some(triangles) = triangles {
+            let n_usize = path.len();
+            out.reserve_triangles(2 * n_usize + triangles.len());
+            out.reserve_vertices(2 * n_usize);
+            let color_outer = Color32::TRANSPARENT;
+
+            let mut inner_indices = Vec::with_capacity(n_usize);
+            let mut outer_indices = Vec::with_capacity(n_usize);
+
+            for point in path.iter() {
+                let dm = 0.5 * feathering * point.normal;
+                let pos_inner = point.pos - dm;
+                let inner_index = out.vertices.len() as u32;
+                out.vertices.push(Vertex {
+                    pos: pos_inner,
+                    uv: uv_from_pos(pos_inner),
+                    color,
+                });
+                inner_indices.push(inner_index);
+
+                let pos_outer = point.pos + dm;
+                let outer_index = out.vertices.len() as u32;
+                out.vertices.push(Vertex {
+                    pos: pos_outer,
+                    uv: uv_from_pos(pos_outer),
+                    color: color_outer,
+                });
+                outer_indices.push(outer_index);
+            }
+
+            let mut prev = n_usize - 1;
+            for curr in 0..n_usize {
+                out.add_triangle(
+                    inner_indices[curr],
+                    inner_indices[prev],
+                    outer_indices[prev],
+                );
+                out.add_triangle(
+                    outer_indices[prev],
+                    outer_indices[curr],
+                    inner_indices[curr],
+                );
+                prev = curr;
+            }
+
+            for [a, b, c] in triangles {
+                out.add_triangle(inner_indices[a], inner_indices[b], inner_indices[c]);
+            }
+        } else {
+            out.reserve_triangles(3 * n as usize);
+            out.reserve_vertices(2 * n as usize);
+            let color_outer = Color32::TRANSPARENT;
+            let idx_inner = out.vertices.len() as u32;
+            let idx_outer = idx_inner + 1;
+
+            for i in 2..n {
+                out.add_triangle(idx_inner + 2 * (i - 1), idx_inner, idx_inner + 2 * i);
+            }
+
+            let mut i0 = n - 1;
+            for i1 in 0..n {
+                let p1 = &path[i1 as usize];
+                let dm = 0.5 * feathering * p1.normal;
+
+                let pos = p1.pos - dm;
+                out.vertices.push(Vertex {
+                    pos,
+                    uv: uv_from_pos(pos),
+                    color,
+                });
+
+                let pos = p1.pos + dm;
+                out.vertices.push(Vertex {
+                    pos,
+                    uv: uv_from_pos(pos),
+                    color: color_outer,
+                });
+
+                out.add_triangle(idx_inner + i1 * 2, idx_inner + i0 * 2, idx_outer + 2 * i0);
+                out.add_triangle(idx_outer + i0 * 2, idx_outer + i1 * 2, idx_inner + 2 * i1);
+                i0 = i1;
             }
         }
-
-        out.reserve_triangles(3 * n as usize);
-        out.reserve_vertices(2 * n as usize);
-        let color_outer = Color32::TRANSPARENT;
-        let idx_inner = out.vertices.len() as u32;
-        let idx_outer = idx_inner + 1;
-
-        // The fill:
-        for i in 2..n {
-            out.add_triangle(idx_inner + 2 * (i - 1), idx_inner, idx_inner + 2 * i);
-        }
-
-        // The feathering:
-        let mut i0 = n - 1;
-        for i1 in 0..n {
-            let p1 = &path[i1 as usize];
-            let dm = 0.5 * feathering * p1.normal;
-
-            let pos = p1.pos - dm;
-            out.vertices.push(Vertex {
-                pos,
-                uv: uv_from_pos(pos),
-                color,
-            });
-
-            let pos = p1.pos + dm;
-            out.vertices.push(Vertex {
-                pos,
-                uv: uv_from_pos(pos),
-                color: color_outer,
-            });
-
-            out.add_triangle(idx_inner + i1 * 2, idx_inner + i0 * 2, idx_outer + 2 * i0);
-            out.add_triangle(idx_outer + i0 * 2, idx_outer + i1 * 2, idx_inner + 2 * i1);
-            i0 = i1;
-        }
     } else {
-        out.reserve_triangles(n as usize);
-        let idx = out.vertices.len() as u32;
-        out.vertices.extend(path.iter().map(|p| Vertex {
-            pos: p.pos,
-            uv: uv_from_pos(p.pos),
-            color,
-        }));
-        for i in 2..n {
-            out.add_triangle(idx, idx + i - 1, idx + i);
+        if let Some(triangles) = triangles {
+            let n_usize = path.len();
+            out.reserve_triangles(triangles.len());
+            out.reserve_vertices(n_usize);
+            let mut vertex_indices = Vec::with_capacity(n_usize);
+            for point in path.iter() {
+                let index = out.vertices.len() as u32;
+                vertex_indices.push(index);
+                out.vertices.push(Vertex {
+                    pos: point.pos,
+                    uv: uv_from_pos(point.pos),
+                    color,
+                });
+            }
+            for [a, b, c] in triangles {
+                out.add_triangle(vertex_indices[a], vertex_indices[b], vertex_indices[c]);
+            }
+        } else {
+            out.reserve_triangles(n as usize);
+            let idx = out.vertices.len() as u32;
+            out.vertices.extend(path.iter().map(|p| Vertex {
+                pos: p.pos,
+                uv: uv_from_pos(p.pos),
+                color,
+            }));
+            for i in 2..n {
+                out.add_triangle(idx, idx + i - 1, idx + i);
+            }
         }
     }
 }
@@ -925,7 +1412,7 @@ fn stroke_and_fill_path(
     path: &mut [PathPoint],
     path_type: PathType,
     stroke: &PathStroke,
-    color_fill: Color32,
+    mut color_fill: Color32,
     out: &mut Mesh,
 ) {
     let n = path.len() as u32;
@@ -935,9 +1422,19 @@ fn stroke_and_fill_path(
     }
 
     if stroke.width == 0.0 {
-        // Skip the stroke, just fill.
-        return fill_closed_path(feathering, path, color_fill, out);
+        if color_fill != Color32::TRANSPARENT {
+            let mut fill_points = path.to_vec();
+            fill_closed_path(feathering, &mut fill_points, color_fill, out);
+        }
+        return;
     }
+
+    let draw_stroke = stroke.color != ColorMode::TRANSPARENT;
+    let mut fill_path_points = if draw_stroke && color_fill != Color32::TRANSPARENT {
+        Some(path.to_vec())
+    } else {
+        None
+    };
 
     if color_fill != Color32::TRANSPARENT && cw_signed_area(path) < 0.0 {
         // Wrong winding order - fix:
@@ -945,6 +1442,13 @@ fn stroke_and_fill_path(
         for point in &mut *path {
             point.normal = -point.normal;
         }
+    }
+
+    if draw_stroke {
+        if let Some(mut fill_points) = fill_path_points.take() {
+            fill_closed_path(feathering, &mut fill_points, color_fill, out);
+        }
+        color_fill = Color32::TRANSPARENT;
     }
 
     if stroke.color == ColorMode::TRANSPARENT {
@@ -1012,15 +1516,6 @@ fn stroke_and_fill_path(
             // then we risk severe aliasing.
             // Instead, we paint the stroke as a triangular ridge, two feather-widths wide,
             // and lessen the opacity of the middle part instead of making it thinner.
-            if color_fill != Color32::TRANSPARENT && stroke.width < feathering {
-                // If this is filled shape, then we need to also compensate so that the
-                // filled area remains the same as it would have been without the
-                // artificially wide line.
-                for point in &mut *path {
-                    point.pos += 0.5 * (feathering - stroke.width) * point.normal;
-                }
-            }
-
             // TODO(emilk): add line caps (if this is an open line).
 
             let opacity = stroke.width / feathering;
@@ -1054,14 +1549,6 @@ fn stroke_and_fill_path(
                 }
 
                 i0 = i1;
-            }
-
-            if color_fill != Color32::TRANSPARENT {
-                out.reserve_triangles(n as usize - 2);
-                let idx_fill = idx + 2;
-                for i in 2..n {
-                    out.add_triangle(idx_fill + 3 * (i - 1), idx_fill, idx_fill + 3 * i);
-                }
             }
         } else {
             // thick anti-aliased line
@@ -1110,14 +1597,6 @@ fn stroke_and_fill_path(
                         out.add_triangle(idx + 4 * i0 + 3, idx + 4 * i1 + 2, idx + 4 * i1 + 3);
 
                         i0 = i1;
-                    }
-
-                    if color_fill != Color32::TRANSPARENT {
-                        out.reserve_triangles(n as usize - 2);
-                        let idx_fill = idx + 3;
-                        for i in 2..n {
-                            out.add_triangle(idx_fill + 4 * (i - 1), idx_fill, idx_fill + 4 * i);
-                        }
                     }
                 }
                 PathType::Open => {
@@ -1273,18 +1752,6 @@ fn stroke_and_fill_path(
                     get_color(&stroke.color, p.pos - radius * p.normal),
                 );
             }
-        }
-
-        if color_fill != Color32::TRANSPARENT {
-            // We Need to create new vertices, because the ones we used for the stroke
-            // has the wrong color.
-
-            // Shrink to ignore the stroke…
-            for point in &mut *path {
-                point.pos -= 0.5 * stroke.width * point.normal;
-            }
-            // …then fill:
-            fill_closed_path(feathering, path, color_fill, out);
         }
     }
 }
@@ -1776,6 +2243,25 @@ impl Tessellator {
         } = *rect_shape;
 
         let mut corner_radius = CornerRadiusF32::from(corner_radius);
+        let corner_shape = corner_radius.shape();
+        let exponents = corner_shape.exponents();
+
+        let adjust_corner_radius = |radius: &mut CornerRadiusF32, delta: f32| {
+            if delta == 0.0 {
+                return;
+            }
+            let apply = |value: &mut f32, exponent: f32| {
+                if exponent <= 0.0 {
+                    *value = (*value - delta).at_least(0.0);
+                } else {
+                    *value += delta;
+                }
+            };
+            apply(&mut radius.ne, exponents.ne);
+            apply(&mut radius.nw, exponents.nw);
+            apply(&mut radius.sw, exponents.sw);
+            apply(&mut radius.se, exponents.se);
+        };
         let round_to_pixels = round_to_pixels.unwrap_or(self.options.round_rects_to_pixels);
 
         if stroke.width == 0.0 {
@@ -1874,7 +2360,7 @@ impl Tessellator {
                 .at_most(rect.size().min_elem() - eps - 2.0 * stroke.width)
                 .at_least(0.0);
 
-            corner_radius += 0.5 * blur_width;
+            adjust_corner_radius(&mut corner_radius, 0.5 * blur_width);
 
             self.feathering = self.feathering.max(blur_width);
         }
@@ -1890,11 +2376,11 @@ impl Tessellator {
                 StrokeKind::Inside => {}
                 StrokeKind::Middle => {
                     rect = rect.expand(stroke.width / 2.0);
-                    corner_radius += stroke.width / 2.0;
+                    adjust_corner_radius(&mut corner_radius, stroke.width / 2.0);
                 }
                 StrokeKind::Outside => {
                     rect = rect.expand(stroke.width);
-                    corner_radius += stroke.width;
+                    adjust_corner_radius(&mut corner_radius, stroke.width);
                 }
             }
 
@@ -1913,25 +2399,25 @@ impl Tessellator {
 
             if original_cr.nw == 0.0 {
                 corner_radius.nw = 0.0;
-            } else {
+            } else if exponents.nw > 0.0 {
                 corner_radius.nw += extra_cr_tweak;
                 corner_radius.nw = corner_radius.nw.at_least(min_outside_cr);
             }
             if original_cr.ne == 0.0 {
                 corner_radius.ne = 0.0;
-            } else {
+            } else if exponents.ne > 0.0 {
                 corner_radius.ne += extra_cr_tweak;
                 corner_radius.ne = corner_radius.ne.at_least(min_outside_cr);
             }
             if original_cr.sw == 0.0 {
                 corner_radius.sw = 0.0;
-            } else {
+            } else if exponents.sw > 0.0 {
                 corner_radius.sw += extra_cr_tweak;
                 corner_radius.sw = corner_radius.sw.at_least(min_outside_cr);
             }
             if original_cr.se == 0.0 {
                 corner_radius.se = 0.0;
-            } else {
+            } else if exponents.se > 0.0 {
                 corner_radius.se += extra_cr_tweak;
                 corner_radius.se = corner_radius.se.at_least(min_outside_cr);
             }
@@ -1939,7 +2425,13 @@ impl Tessellator {
 
         let path = &mut self.scratchpad_path;
         path.clear();
-        path::rounded_rectangle(&mut self.scratchpad_points, rect, corner_radius);
+        let corner_shape = corner_radius.shape();
+        path::superellipse_rectangle(
+            &mut self.scratchpad_points,
+            rect,
+            corner_radius,
+            corner_shape.exponents(),
+        );
         path.add_line_loop(&self.scratchpad_points);
 
         let path_stroke = PathStroke::from(stroke).with_kind(stroke_kind);
