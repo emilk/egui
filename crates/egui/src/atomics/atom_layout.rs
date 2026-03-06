@@ -490,7 +490,7 @@ impl<'atom> AllocatedAtomLayout<'atom> {
 
 /// Response from a [`AtomLayout::show`] or [`AllocatedAtomLayout::paint`].
 ///
-/// Use [`AtomLayoutResponse::rect`] to get the response rects from [`AtomKind::Custom`].
+/// Use [`AtomLayoutResponse::rect`] to get the response rects from [`Atom::custom`].
 #[derive(Clone, Debug)]
 pub struct AtomLayoutResponse {
     pub response: Response,
@@ -510,7 +510,7 @@ impl AtomLayoutResponse {
         self.custom_rects.iter().copied()
     }
 
-    /// Use this together with [`AtomKind::Custom`] to add custom painting / child widgets.
+    /// Use this together with [`Atom::custom`] to add custom painting / child widgets.
     ///
     /// NOTE: Don't `unwrap` rects, they might be empty when the widget is not visible.
     pub fn rect(&self, id: Id) -> Option<Rect> {

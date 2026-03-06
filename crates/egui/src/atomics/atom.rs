@@ -62,7 +62,7 @@ impl<'a> Atom<'a> {
         }
     }
 
-    /// Create a [`AtomKind::Custom`] with a specific size.
+    /// Create an [`AtomKind::Empty`] with a specific size.
     ///
     /// Example:
     /// ```
