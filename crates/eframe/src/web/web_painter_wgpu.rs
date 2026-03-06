@@ -268,6 +268,7 @@ impl WebPainter for WebPainterWgpu {
                     label: Some("egui_render"),
                     occlusion_query_set: None,
                     timestamp_writes: None,
+                    multiview_mask: None,
                 });
 
                 // Forgetting the pass' lifetime means that we are no longer compile-time protected from
@@ -280,15 +281,13 @@ impl WebPainter for WebPainterWgpu {
                 );
             }
 
-            let mut capture_buffer = None;
-
-            if capture && let Some(capture_state) = &mut self.screen_capture_state {
-                capture_buffer = Some(capture_state.copy_textures(
-                    &render_state.device,
-                    &output_frame,
-                    &mut encoder,
-                ));
-            }
+            let capture_buffer = if capture
+                && let Some(capture_state) = &mut self.screen_capture_state
+            {
+                Some(capture_state.copy_textures(&render_state.device, &output_frame, &mut encoder))
+            } else {
+                None
+            };
 
             Some((output_frame, capture_buffer))
         };
