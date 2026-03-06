@@ -5,9 +5,9 @@ use epaint::text::{Galley, LayoutJob, TextWrapMode, cursor::CCursor};
 
 use crate::{
     Align, Align2, Atom, AtomExt as _, AtomKind, AtomLayout, Atoms, Color32, Context, CursorIcon,
-    Event, EventFilter, FontSelection, Frame, Id, ImeEvent, IntoAtoms, Key, KeyboardShortcut,
-    Margin, Modifiers, NumExt as _, Response, Sense, SizedAtomKind, TextBuffer, TextStyle, Ui,
-    Vec2, Widget, WidgetInfo, WidgetText, WidgetWithState, epaint,
+    Event, EventFilter, FontSelection, Frame, Id, ImeEvent, IntoAtoms, IntoSizedResult, Key,
+    KeyboardShortcut, Margin, Modifiers, NumExt as _, Response, Sense, SizedAtomKind, TextBuffer,
+    TextStyle, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetWithState, epaint,
     os::OperatingSystem,
     output::OutputEvent,
     response, text_selection,
@@ -458,7 +458,7 @@ impl TextEdit<'_> {
         } = self;
 
         let text_color = text_color
-            .or(ui.visuals().override_text_color)
+            .or_else(|| ui.visuals().override_text_color)
             // .unwrap_or_else(|| ui.style().interact(&response).text_color()); // too bright
             .unwrap_or_else(|| ui.visuals().widgets.inactive.text_color());
 
@@ -548,18 +548,21 @@ impl TextEdit<'_> {
                 get_galley = Some(gallery);
             } else {
                 atoms.push_right(
-                    AtomKind::closure(|ui, available_width: Vec2, _wrap_mode, _fallback_font| {
-                        let galley = layouter(ui, text, available_width.x);
+                    AtomKind::closure(|ui, args| {
+                        let galley = layouter(ui, text, args.available_size.x);
                         let intrinsic_size = galley.intrinsic_size();
                         let mut size = galley.size();
                         size.y = size.y.at_least(min_inner_height);
                         if clip_text {
-                            size.x = size.x.at_most(available_width.x);
+                            size.x = size.x.at_most(args.available_size.x);
                         }
 
                         // We paint the galley later, so we can do clipping and offsetting
                         get_galley = Some(galley);
-                        (intrinsic_size, SizedAtomKind::Sized(size))
+                        IntoSizedResult {
+                            intrinsic_size,
+                            sized: SizedAtomKind::Empty { size: Some(size) },
+                        }
                     })
                     .atom_id(inner_rect_id)
                     .atom_shrink(clip_text),
@@ -644,41 +647,39 @@ impl TextEdit<'_> {
         let text_clip_rect = inner_rect;
         let painter = ui.painter_at(text_clip_rect.expand(1.0)); // expand to avoid clipping cursor
 
-        if interactive {
-            if let Some(pointer_pos) = response.interact_pointer_pos() {
-                if response.hovered() && text.is_mutable() {
-                    ui.output_mut(|o| o.mutable_text_under_cursor = true);
-                }
+        if interactive && let Some(pointer_pos) = response.interact_pointer_pos() {
+            if response.hovered() && text.is_mutable() {
+                ui.output_mut(|o| o.mutable_text_under_cursor = true);
+            }
 
-                // TODO(emilk): drag selected text to either move or clone (ctrl on windows, alt on mac)
+            // TODO(emilk): drag selected text to either move or clone (ctrl on windows, alt on mac)
 
-                let cursor_at_pointer =
-                    galley.cursor_from_pos(pointer_pos - inner_rect.min + state.text_offset);
+            let cursor_at_pointer =
+                galley.cursor_from_pos(pointer_pos - inner_rect.min + state.text_offset);
 
-                if ui.visuals().text_cursor.preview
-                    && response.hovered()
-                    && ui.input(|i| i.pointer.is_moving())
-                {
-                    // text cursor preview:
-                    let cursor_rect = TSTransform::from_translation(inner_rect.min.to_vec2())
-                        * cursor_rect(&galley, &cursor_at_pointer, row_height);
-                    text_selection::visuals::paint_cursor_end(&painter, ui.visuals(), cursor_rect);
-                }
+            if ui.visuals().text_cursor.preview
+                && response.hovered()
+                && ui.input(|i| i.pointer.is_moving())
+            {
+                // text cursor preview:
+                let cursor_rect = TSTransform::from_translation(inner_rect.min.to_vec2())
+                    * cursor_rect(&galley, &cursor_at_pointer, row_height);
+                text_selection::visuals::paint_cursor_end(&painter, ui.visuals(), cursor_rect);
+            }
 
-                let is_being_dragged = ui.ctx().is_being_dragged(response.id);
-                let did_interact = state.cursor.pointer_interaction(
-                    ui,
-                    &response,
-                    cursor_at_pointer,
-                    &galley,
-                    is_being_dragged,
-                );
+            let is_being_dragged = ui.ctx().is_being_dragged(response.id);
+            let did_interact = state.cursor.pointer_interaction(
+                ui,
+                &response,
+                cursor_at_pointer,
+                &galley,
+                is_being_dragged,
+            );
 
-                if did_interact || response.clicked() {
-                    ui.memory_mut(|mem| mem.request_focus(response.id));
+            if did_interact || response.clicked() {
+                ui.memory_mut(|mem| mem.request_focus(response.id));
 
-                    state.last_interaction_time = ui.ctx().input(|i| i.time);
-                }
+                state.last_interaction_time = ui.ctx().input(|i| i.time);
             }
         }
 
@@ -762,11 +763,9 @@ impl TextEdit<'_> {
         if ui.is_rect_visible(inner_rect) {
             let has_focus = ui.memory(|mem| mem.has_focus(id));
 
-            if has_focus {
-                if let Some(cursor_range) = state.cursor.range(&galley) {
-                    // Add text selection rectangles to the galley:
-                    paint_text_selection(&mut galley, ui.visuals(), &cursor_range, None);
-                }
+            if has_focus && let Some(cursor_range) = state.cursor.range(&galley) {
+                // Add text selection rectangles to the galley:
+                paint_text_selection(&mut galley, ui.visuals(), &cursor_range, None);
             }
 
             if !clip_text {
@@ -804,52 +803,49 @@ impl TextEdit<'_> {
                 }
             }
 
-            painter.galley(galley_pos, galley.clone(), text_color);
+            painter.galley(galley_pos, Arc::clone(&galley), text_color);
 
-            if has_focus {
-                if let Some(cursor_range) = state.cursor.range(&galley) {
-                    let primary_cursor_rect =
-                        cursor_rect(&galley, &cursor_range.primary, row_height)
-                            .translate(galley_pos.to_vec2());
+            if has_focus && let Some(cursor_range) = state.cursor.range(&galley) {
+                let primary_cursor_rect = cursor_rect(&galley, &cursor_range.primary, row_height)
+                    .translate(galley_pos.to_vec2());
 
+                if response.changed() || selection_changed {
+                    // Scroll to keep primary cursor in view:
+                    ui.scroll_to_rect(primary_cursor_rect, None);
+                }
+
+                if text.is_mutable() && interactive {
+                    let now = ui.ctx().input(|i| i.time);
                     if response.changed() || selection_changed {
-                        // Scroll to keep primary cursor in view:
-                        ui.scroll_to_rect(primary_cursor_rect, None);
+                        state.last_interaction_time = now;
                     }
 
-                    if text.is_mutable() && interactive {
-                        let now = ui.ctx().input(|i| i.time);
-                        if response.changed() || selection_changed {
-                            state.last_interaction_time = now;
-                        }
+                    // Only show (and blink) cursor if the egui viewport has focus.
+                    // This is for two reasons:
+                    // * Don't give the impression that the user can type into a window without focus
+                    // * Don't repaint the ui because of a blinking cursor in an app that is not in focus
+                    let viewport_has_focus = ui.ctx().input(|i| i.focused);
+                    if viewport_has_focus {
+                        text_selection::visuals::paint_text_cursor(
+                            ui,
+                            &painter,
+                            primary_cursor_rect,
+                            now - state.last_interaction_time,
+                        );
+                    }
 
-                        // Only show (and blink) cursor if the egui viewport has focus.
-                        // This is for two reasons:
-                        // * Don't give the impression that the user can type into a window without focus
-                        // * Don't repaint the ui because of a blinking cursor in an app that is not in focus
-                        let viewport_has_focus = ui.ctx().input(|i| i.focused);
-                        if viewport_has_focus {
-                            text_selection::visuals::paint_text_cursor(
-                                ui,
-                                &painter,
-                                primary_cursor_rect,
-                                now - state.last_interaction_time,
-                            );
-                        }
+                    // Set IME output (in screen coords) when text is editable and visible
+                    let to_global = ui
+                        .ctx()
+                        .layer_transform_to_global(ui.layer_id())
+                        .unwrap_or_default();
 
-                        // Set IME output (in screen coords) when text is editable and visible
-                        let to_global = ui
-                            .ctx()
-                            .layer_transform_to_global(ui.layer_id())
-                            .unwrap_or_default();
-
-                        ui.ctx().output_mut(|o| {
-                            o.ime = Some(crate::output::IMEOutput {
-                                rect: to_global * inner_rect,
-                                cursor_rect: to_global * primary_cursor_rect,
-                            });
+                    ui.ctx().output_mut(|o| {
+                        o.ime = Some(crate::output::IMEOutput {
+                            rect: to_global * inner_rect,
+                            cursor_rect: to_global * primary_cursor_rect,
                         });
-                    }
+                    });
                 }
             }
         }
@@ -875,8 +871,7 @@ impl TextEdit<'_> {
                     hint_text_str.as_str(),
                 )
             });
-        } else if selection_changed {
-            let cursor_range = cursor_range.unwrap();
+        } else if selection_changed && let Some(cursor_range) = cursor_range {
             let char_range = cursor_range.primary.index..=cursor_range.secondary.index;
             let info = WidgetInfo::text_selection_changed(
                 ui.is_enabled(),
@@ -895,25 +890,22 @@ impl TextEdit<'_> {
             });
         }
 
-        #[cfg(feature = "accesskit")]
-        {
-            let role = if password {
-                accesskit::Role::PasswordInput
-            } else if multiline {
-                accesskit::Role::MultilineTextInput
-            } else {
-                accesskit::Role::TextInput
-            };
+        let role = if password {
+            accesskit::Role::PasswordInput
+        } else if multiline {
+            accesskit::Role::MultilineTextInput
+        } else {
+            accesskit::Role::TextInput
+        };
 
-            crate::text_selection::accesskit_text::update_accesskit_for_text_widget(
-                ui.ctx(),
-                id,
-                cursor_range,
-                role,
-                TSTransform::from_translation(galley_pos.to_vec2()),
-                &galley,
-            );
-        }
+        crate::text_selection::accesskit_text::update_accesskit_for_text_widget(
+            ui.ctx(),
+            id,
+            cursor_range,
+            role,
+            TSTransform::from_translation(galley_pos.to_vec2()),
+            &galley,
+        );
 
         TextEditOutput {
             response,
