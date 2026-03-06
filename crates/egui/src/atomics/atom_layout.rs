@@ -414,7 +414,7 @@ impl<'atom> AllocatedAtomLayout<'atom> {
             if let SizedAtomKind::Image { image, size } = kind {
                 SizedAtomKind::Image {
                     image: f(image),
-                    size: size
+                    size,
                 }
             } else {
                 kind
@@ -480,7 +480,7 @@ impl<'atom> AllocatedAtomLayout<'atom> {
                 SizedAtomKind::Image { image, size: _ } => {
                     image.paint_at(ui, rect);
                 }
-                SizedAtomKind::Empty {..} => {}
+                SizedAtomKind::Empty { .. } => {}
             }
         }
 

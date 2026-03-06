@@ -134,15 +134,12 @@ impl<'a> AtomKind<'a> {
                 let size = size.unwrap_or(Vec2::ZERO);
                 IntoSizedResult {
                     intrinsic_size: size,
-                    sized: SizedAtomKind::Image {
-                        image: image,
-                        size: size
-                    },
+                    sized: SizedAtomKind::Image { image, size },
                 }
             }
             AtomKind::Empty => IntoSizedResult {
                 intrinsic_size: Vec2::ZERO,
-                sized: SizedAtomKind::Empty {size: None},
+                sized: SizedAtomKind::Empty { size: None },
             },
             AtomKind::Closure(func) => func(
                 ui,

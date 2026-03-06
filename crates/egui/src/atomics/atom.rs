@@ -109,13 +109,17 @@ impl<'a> Atom<'a> {
         let id = self.id;
 
         let wrap_mode = wrap_mode.unwrap_or_else(|| ui.wrap_mode());
-        let IntoSizedResult { intrinsic_size, sized } = self
-            .kind
-            .into_sized(ui, IntoSizedArgs {
+        let IntoSizedResult {
+            intrinsic_size,
+            sized,
+        } = self.kind.into_sized(
+            ui,
+            IntoSizedArgs {
                 available_size,
                 wrap_mode,
                 fallback_font,
-            });
+            },
+        );
 
         let size = self
             .size
