@@ -359,7 +359,7 @@ impl<'atom> AllocatedAtomLayout<'atom> {
 
     pub fn iter_images(&self) -> impl Iterator<Item = &Image<'atom>> {
         self.iter_kinds().filter_map(|kind| {
-            if let SizedAtomKind::Image(image, _) = kind {
+            if let SizedAtomKind::Image { image, size: _ } = kind {
                 Some(image)
             } else {
                 None
@@ -369,7 +369,7 @@ impl<'atom> AllocatedAtomLayout<'atom> {
 
     pub fn iter_images_mut(&mut self) -> impl Iterator<Item = &mut Image<'atom>> {
         self.iter_kinds_mut().filter_map(|kind| {
-            if let SizedAtomKind::Image(image, _) = kind {
+            if let SizedAtomKind::Image { image, size: _ } = kind {
                 Some(image)
             } else {
                 None
@@ -411,8 +411,11 @@ impl<'atom> AllocatedAtomLayout<'atom> {
         F: FnMut(Image<'atom>) -> Image<'atom>,
     {
         self.map_kind(|kind| {
-            if let SizedAtomKind::Image(image, size) = kind {
-                SizedAtomKind::Image(f(image), size)
+            if let SizedAtomKind::Image { image, size } = kind {
+                SizedAtomKind::Image {
+                    image: f(image),
+                    size: size
+                }
             } else {
                 kind
             }
@@ -474,10 +477,10 @@ impl<'atom> AllocatedAtomLayout<'atom> {
                 SizedAtomKind::Text(galley) => {
                     ui.painter().galley(rect.min, galley, fallback_text_color);
                 }
-                SizedAtomKind::Image(image, _) => {
+                SizedAtomKind::Image { image, size: _ } => {
                     image.paint_at(ui, rect);
                 }
-                SizedAtomKind::Sized(_) | SizedAtomKind::Empty => {}
+                SizedAtomKind::Empty {..} => {}
             }
         }
 

@@ -1,4 +1,4 @@
-use crate::{AtomKind, FontSelection, Id, SizedAtom, Ui};
+use crate::{AtomKind, FontSelection, Id, IntoSizedArgs, IntoSizedResult, SizedAtom, Ui};
 use emath::{Align2, NumExt as _, Vec2};
 use epaint::text::TextWrapMode;
 
@@ -91,27 +91,28 @@ impl<'a> Atom<'a> {
             wrap_mode = Some(TextWrapMode::Truncate);
         }
 
-        let id = match &self.kind {
-            #[expect(deprecated)]
-            AtomKind::Custom(id) => Some(self.id.unwrap_or(*id)),
-            _ => self.id,
-        };
+        let id = self.id;
 
-        let (intrinsic, kind) = self
+        let wrap_mode = wrap_mode.unwrap_or_else(|| ui.wrap_mode());
+        let IntoSizedResult { intrinsic_size, sized } = self
             .kind
-            .into_sized(ui, available_size, wrap_mode, fallback_font);
+            .into_sized(ui, IntoSizedArgs {
+                available_size,
+                wrap_mode,
+                fallback_font,
+            });
 
         let size = self
             .size
-            .map_or_else(|| kind.size(), |s| s.at_most(self.max_size));
+            .map_or_else(|| sized.size(), |s| s.at_most(self.max_size));
 
         SizedAtom {
             id,
             size,
-            intrinsic_size: intrinsic.at_least(self.size.unwrap_or_default()),
+            intrinsic_size: intrinsic_size.at_least(self.size.unwrap_or_default()),
             grow: self.grow,
             align: self.align,
-            kind,
+            kind: sized,
         }
     }
 }

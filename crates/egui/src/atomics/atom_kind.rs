@@ -1,21 +1,23 @@
-use crate::{FontSelection, Id, Image, ImageSource, SizedAtomKind, Ui, WidgetText};
+use crate::{FontSelection, Image, ImageSource, SizedAtomKind, Ui, WidgetText};
 use emath::Vec2;
 use epaint::text::TextWrapMode;
 use std::fmt::Debug;
 
-pub type AtomClosure<'a> = Box<
-    dyn FnOnce(
-            &Ui,
-            Vec2,
-            TextWrapMode,
-            FontSelection,
-        ) -> (
-            Vec2,
-            // We need 'static here (or need to introduce another lifetime on the enum).
-            // Otherwise, a single 'static Atom would force the closure to be 'static.
-            SizedAtomKind<'static>,
-        ) + 'a,
->;
+pub struct IntoSizedArgs {
+    pub available_size: Vec2,
+    pub wrap_mode: TextWrapMode,
+    pub fallback_font: FontSelection,
+}
+
+pub struct IntoSizedResult<'a> {
+    pub intrinsic_size: Vec2,
+    pub sized: SizedAtomKind<'a>,
+}
+
+/// See [`AtomKind::Closure`]
+// We need 'static in the result (or need to introduce another lifetime on the enum).
+// Otherwise, a single 'static Atom would force the closure to be 'static.
+pub type AtomClosure<'a> = Box<dyn FnOnce(&Ui, IntoSizedArgs) -> IntoSizedResult<'static> + 'a>;
 
 /// The different kinds of [`crate::Atom`]s.
 #[derive(Default)]
@@ -53,28 +55,6 @@ pub enum AtomKind<'a> {
     /// default font height, which is convenient for icons.
     Image(Image<'a>),
 
-    /// For custom rendering.
-    ///
-    /// You can get the [`crate::Rect`] with the [`Id`] from [`crate::AtomLayoutResponse`] and use a
-    /// [`crate::Painter`] or [`Ui::place`] to add/draw some custom content.
-    ///
-    /// Example:
-    /// ```
-    /// # use egui::{AtomExt, AtomKind, Atom, Button, Id, __run_test_ui};
-    /// # use emath::Vec2;
-    /// # __run_test_ui(|ui| {
-    /// let id = Id::new("my_button");
-    /// let response = Button::new(("Hi!", Atom::custom(id, Vec2::splat(18.0)))).atom_ui(ui);
-    ///
-    /// let rect = response.rect(id);
-    /// if let Some(rect) = rect {
-    ///     ui.place(rect, Button::new("⏵"));
-    /// }
-    /// # });
-    /// ```
-    #[deprecated = "Use Atom::custom(id) instead"]
-    Custom(Id),
-
     /// A custom closure that produces a sized atom.
     ///
     /// The vec2 passed in is the available size to this atom. The returned vec2 should be the
@@ -82,7 +62,6 @@ pub enum AtomKind<'a> {
     ///
     /// Note: This api is experimental, expect breaking changes here.
     /// When cloning, this will be cloned as [`AtomKind::Empty`].
-    #[doc(hidden)]
     Closure(AtomClosure<'a>),
 }
 
@@ -92,8 +71,6 @@ impl Clone for AtomKind<'_> {
             AtomKind::Empty => AtomKind::Empty,
             AtomKind::Text(text) => AtomKind::Text(text.clone()),
             AtomKind::Image(image) => AtomKind::Image(image.clone()),
-            #[expect(deprecated)]
-            AtomKind::Custom(id) => AtomKind::Custom(*id),
             AtomKind::Closure(_) => {
                 log::warn!("Cannot clone atom closures");
                 AtomKind::Empty
@@ -108,25 +85,24 @@ impl Debug for AtomKind<'_> {
             AtomKind::Empty => write!(f, "AtomKind::Empty"),
             AtomKind::Text(text) => write!(f, "AtomKind::Text({text:?})"),
             AtomKind::Image(image) => write!(f, "AtomKind::Image({image:?})"),
-            #[expect(deprecated)]
-            AtomKind::Custom(id) => write!(f, "AtomKind::Custom({id:?})"),
             AtomKind::Closure(_) => write!(f, "AtomKind::Closure(<closure>)"),
         }
     }
 }
 
 impl<'a> AtomKind<'a> {
+    /// See [`Self::Text`]
     pub fn text(text: impl Into<WidgetText>) -> Self {
         AtomKind::Text(text.into())
     }
 
+    /// See [`Self::Image`]
     pub fn image(image: impl Into<Image<'a>>) -> Self {
         AtomKind::Image(image.into())
     }
 
-    pub fn closure(
-        func: impl FnOnce(&Ui, Vec2, TextWrapMode, FontSelection) -> (Vec2, SizedAtomKind<'static>) + 'a,
-    ) -> Self {
+    /// See [`Self::Closure`]
+    pub fn closure(func: impl FnOnce(&Ui, IntoSizedArgs) -> IntoSizedResult<'static> + 'a) -> Self {
         AtomKind::Closure(Box::new(func))
     }
 
@@ -137,25 +113,43 @@ impl<'a> AtomKind<'a> {
     pub fn into_sized(
         self,
         ui: &Ui,
-        available_size: Vec2,
-        wrap_mode: Option<TextWrapMode>,
-        fallback_font: FontSelection,
-    ) -> (Vec2, SizedAtomKind<'a>) {
-        let wrap_mode = wrap_mode.unwrap_or_else(|| ui.wrap_mode());
+        IntoSizedArgs {
+            available_size,
+            wrap_mode,
+            fallback_font,
+        }: IntoSizedArgs,
+    ) -> IntoSizedResult<'a> {
         match self {
             AtomKind::Text(text) => {
                 let galley = text.into_galley(ui, Some(wrap_mode), available_size.x, fallback_font);
-                (galley.intrinsic_size(), SizedAtomKind::Text(galley))
+                IntoSizedResult {
+                    intrinsic_size: galley.intrinsic_size(),
+                    sized: SizedAtomKind::Text(galley),
+                }
             }
             AtomKind::Image(image) => {
                 let size = image.load_and_calc_size(ui, available_size);
                 let size = size.unwrap_or(Vec2::ZERO);
-                (size, SizedAtomKind::Image(image, size))
+                IntoSizedResult {
+                    intrinsic_size: size,
+                    sized: SizedAtomKind::Image {
+                        image: image,
+                        size: size
+                    },
+                }
             }
-            #[expect(deprecated)]
-            AtomKind::Custom(_id) => (Vec2::ZERO, SizedAtomKind::Empty), // id is handled in Atom::into_sized
-            AtomKind::Empty => (Vec2::ZERO, SizedAtomKind::Empty),
-            AtomKind::Closure(func) => func(ui, available_size, wrap_mode, fallback_font),
+            AtomKind::Empty => IntoSizedResult {
+                intrinsic_size: Vec2::ZERO,
+                sized: SizedAtomKind::Empty {size: None},
+            },
+            AtomKind::Closure(func) => func(
+                ui,
+                IntoSizedArgs {
+                    available_size,
+                    wrap_mode,
+                    fallback_font,
+                },
+            ),
         }
     }
 }
