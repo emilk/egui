@@ -21,21 +21,24 @@ impl<'a> Atoms<'a> {
         self.0.push(atom.into());
     }
 
+    /// Extend the list of atoms by appending more atoms to the right side.
+    ///
+    /// If you have weird lifetime issues with this, use [`Self::push_right`] in a loop instead.
+    pub fn extend_right(&mut self, atoms: Self) {
+        self.0.extend(atoms.0);
+    }
+
     /// Insert a new [`Atom`] at the beginning of the list (left side).
     pub fn push_left(&mut self, atom: impl Into<Atom<'a>>) {
         self.0.insert(0, atom.into());
     }
 
-    /// Insert atoms at the beginning of the list (left side).
-    pub fn extend_left(&mut self, atoms: impl IntoAtoms<'a>) {
-        let mut left = atoms.into_atoms();
-        left.0.append(&mut self.0);
-        *self = left;
-    }
-
-    /// Insert atoms at the end of the list (right side).
-    pub fn extend_right(&mut self, atoms: impl IntoAtoms<'a>) {
-        self.0.append(&mut atoms.into_atoms().0);
+    /// Extend the list of atoms by prepending more atoms to the left side.
+    ///
+    /// If you have weird lifetime issues with this, use [`Self::push_left`] in a loop instead.
+    pub fn extend_left(&mut self, mut atoms: Self) {
+        std::mem::swap(&mut atoms.0, &mut self.0);
+        self.0.extend(atoms.0);
     }
 
     /// Concatenate and return the text contents.

@@ -47,7 +47,7 @@ impl crate::View for TextEditDemo {
         });
 
         let output = egui::TextEdit::multiline(text)
-            .hint_text("Type something!")
+            .hint_text("Type something! Type something! Type something! Type something! Type something! Type something! Type something!")
             .show(ui);
 
         ui.horizontal(|ui| {

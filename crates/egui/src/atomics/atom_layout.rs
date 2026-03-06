@@ -38,6 +38,7 @@ pub struct AtomLayout<'a> {
     fallback_text_color: Option<Color32>,
     fallback_font: Option<FontSelection>,
     min_size: Vec2,
+    max_size: Vec2,
     wrap_mode: Option<TextWrapMode>,
     align2: Option<Align2>,
 }
@@ -59,6 +60,7 @@ impl<'a> AtomLayout<'a> {
             fallback_text_color: None,
             fallback_font: None,
             min_size: Vec2::ZERO,
+            max_size: Vec2::INFINITY,
             wrap_mode: None,
             align2: None,
         }
@@ -113,6 +115,33 @@ impl<'a> AtomLayout<'a> {
         self
     }
 
+    /// Set the maximum size of the Widget.
+    ///
+    /// By default, the size is limited by the available size in the [`Ui`].
+    #[inline]
+    pub fn max_size(mut self, size: Vec2) -> Self {
+        self.max_size = size;
+        self
+    }
+
+    /// Set the maximum width of the Widget.
+    ///
+    /// By default, the width is limited by the available width in the [`Ui`].
+    #[inline]
+    pub fn max_width(mut self, width: f32) -> Self {
+        self.max_size.x = width;
+        self
+    }
+
+    /// Set the maximum height of the Widget.
+    ///
+    /// By default, the height is limited by the available height in the [`Ui`].
+    #[inline]
+    pub fn max_height(mut self, height: f32) -> Self {
+        self.max_size.y = height;
+        self
+    }
+
     /// Set the [`Id`] used to allocate a [`Response`].
     #[inline]
     pub fn id(mut self, id: Id) -> Self {
@@ -161,6 +190,7 @@ impl<'a> AtomLayout<'a> {
             sense,
             fallback_text_color,
             min_size,
+            mut max_size,
             wrap_mode,
             align2,
             fallback_font,
@@ -190,8 +220,16 @@ impl<'a> AtomLayout<'a> {
             fallback_text_color.unwrap_or_else(|| ui.style().visuals.text_color());
         let gap = gap.unwrap_or_else(|| ui.spacing().icon_spacing);
 
+        // max_size has no effect in justified layouts. If we'd limit the available size here,
+        // the content would be sized differently than the frame which would look weird.
+        if ui.layout().horizontal_justify() {
+            max_size.x = f32::INFINITY;
+        }
+
+        let available_size = ui.available_size().at_most(max_size);
+
         // The size available for the content
-        let available_inner_size = ui.available_size() - frame.total_margin().sum();
+        let available_inner_size = available_size - frame.total_margin().sum();
 
         let mut desired_width = 0.0;
 
@@ -321,7 +359,7 @@ impl<'atom> AllocatedAtomLayout<'atom> {
 
     pub fn iter_images(&self) -> impl Iterator<Item = &Image<'atom>> {
         self.iter_kinds().filter_map(|kind| {
-            if let SizedAtomKind::Image(image, _) = kind {
+            if let SizedAtomKind::Image { image, size: _ } = kind {
                 Some(image)
             } else {
                 None
@@ -331,7 +369,7 @@ impl<'atom> AllocatedAtomLayout<'atom> {
 
     pub fn iter_images_mut(&mut self) -> impl Iterator<Item = &mut Image<'atom>> {
         self.iter_kinds_mut().filter_map(|kind| {
-            if let SizedAtomKind::Image(image, _) = kind {
+            if let SizedAtomKind::Image { image, size: _ } = kind {
                 Some(image)
             } else {
                 None
@@ -373,8 +411,11 @@ impl<'atom> AllocatedAtomLayout<'atom> {
         F: FnMut(Image<'atom>) -> Image<'atom>,
     {
         self.map_kind(|kind| {
-            if let SizedAtomKind::Image(image, size) = kind {
-                SizedAtomKind::Image(f(image), size)
+            if let SizedAtomKind::Image { image, size } = kind {
+                SizedAtomKind::Image {
+                    image: f(image),
+                    size,
+                }
             } else {
                 kind
             }
@@ -422,25 +463,24 @@ impl<'atom> AllocatedAtomLayout<'atom> {
                 .with_min_x(cursor)
                 .with_max_x(cursor + size.x + growth);
             cursor = frame.right() + gap;
+            let rect = sized.align.align_size_within_rect(size, frame);
 
-            let align = Align2::CENTER_CENTER;
-            let rect = align.align_size_within_rect(size, frame);
+            if let Some(id) = sized.id {
+                debug_assert!(
+                    !response.custom_rects.iter().any(|(i, _)| *i == id),
+                    "Duplicate custom id"
+                );
+                response.custom_rects.push((id, rect));
+            }
 
             match sized.kind {
                 SizedAtomKind::Text(galley) => {
                     ui.painter().galley(rect.min, galley, fallback_text_color);
                 }
-                SizedAtomKind::Image(image, _) => {
+                SizedAtomKind::Image { image, size: _ } => {
                     image.paint_at(ui, rect);
                 }
-                SizedAtomKind::Custom(id) => {
-                    debug_assert!(
-                        !response.custom_rects.iter().any(|(i, _)| *i == id),
-                        "Duplicate custom id"
-                    );
-                    response.custom_rects.push((id, rect));
-                }
-                SizedAtomKind::Empty => {}
+                SizedAtomKind::Empty { .. } => {}
             }
         }
 
@@ -450,7 +490,7 @@ impl<'atom> AllocatedAtomLayout<'atom> {
 
 /// Response from a [`AtomLayout::show`] or [`AllocatedAtomLayout::paint`].
 ///
-/// Use [`AtomLayoutResponse::rect`] to get the response rects from [`AtomKind::Custom`].
+/// Use [`AtomLayoutResponse::rect`] to get the response rects from [`Atom::custom`].
 #[derive(Clone, Debug)]
 pub struct AtomLayoutResponse {
     pub response: Response,
@@ -470,7 +510,7 @@ impl AtomLayoutResponse {
         self.custom_rects.iter().copied()
     }
 
-    /// Use this together with [`AtomKind::Custom`] to add custom painting / child widgets.
+    /// Use this together with [`Atom::custom`] to add custom painting / child widgets.
     ///
     /// NOTE: Don't `unwrap` rects, they might be empty when the widget is not visible.
     pub fn rect(&self, id: Id) -> Option<Rect> {
