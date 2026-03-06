@@ -94,7 +94,7 @@ pub fn update_accesskit_for_text_widget(
             builder.set_character_lengths(character_lengths);
             builder.set_character_positions(character_positions);
             builder.set_character_widths(character_widths);
-            builder.set_word_lengths(word_lengths);
+            // builder.set_word_lengths(word_lengths);
         });
     }
 }
