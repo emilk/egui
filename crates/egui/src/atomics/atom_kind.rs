@@ -3,12 +3,14 @@ use emath::Vec2;
 use epaint::text::TextWrapMode;
 use std::fmt::Debug;
 
+/// Args passed when sizing an [`super::Atom`]
 pub struct IntoSizedArgs {
     pub available_size: Vec2,
     pub wrap_mode: TextWrapMode,
     pub fallback_font: FontSelection,
 }
 
+/// Result returned when sizing an [`super::Atom`]
 pub struct IntoSizedResult<'a> {
     pub intrinsic_size: Vec2,
     pub sized: SizedAtomKind<'a>,

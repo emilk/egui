@@ -63,6 +63,21 @@ impl<'a> Atom<'a> {
     }
 
     /// Create a [`AtomKind::Custom`] with a specific size.
+    ///
+    /// Example:
+    /// ```
+    /// # use egui::{AtomExt, AtomKind, Atom, Button, Id, __run_test_ui};
+    /// # use emath::Vec2;
+    /// # __run_test_ui(|ui| {
+    /// let id = Id::new("my_button");
+    /// let response = Button::new(("Hi!", Atom::custom(id, Vec2::splat(18.0)))).atom_ui(ui);
+    ///
+    /// let rect = response.rect(id);
+    /// if let Some(rect) = rect {
+    ///     ui.place(rect, Button::new("⏵"));
+    /// }
+    /// # });
+    /// ```
     pub fn custom(id: Id, size: impl Into<Vec2>) -> Self {
         Atom {
             size: Some(size.into()),
