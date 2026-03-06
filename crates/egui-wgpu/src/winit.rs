@@ -11,6 +11,45 @@ use crate::{
 use egui::{Context, Event, UserData, ViewportId, ViewportIdMap, ViewportIdSet};
 use std::{num::NonZeroU32, sync::Arc};
 
+/// Command buffers and textures to free, consumed by [`Painter::paint_submit`].
+struct SubmitData {
+    /// The main encoded command buffer for this viewport.
+    encoded: wgpu::CommandBuffer,
+
+    /// Additional command buffers from user buffer updates.
+    user_cmd_bufs: Vec<wgpu::CommandBuffer>,
+
+    /// Textures to free after submission.
+    textures_to_free: Vec<epaint::TextureId>,
+}
+
+/// Data needed after submission for presenting and screen capture.
+struct PresentData {
+    viewport_id: ViewportId,
+    output_frame: wgpu::SurfaceTexture,
+    capture_data: Vec<UserData>,
+    capture_buffer: Option<wgpu::Buffer>,
+}
+
+/// A frame that has been prepared (textures uploaded, render pass recorded,
+/// commands encoded) but not yet submitted to the GPU queue.
+///
+/// Collecting multiple [`PreparedFrame`]s allows batching the `queue.submit()`
+/// call across viewports for better performance.
+pub struct PreparedFrame {
+    /// The viewport this frame belongs to.
+    pub viewport_id: ViewportId,
+
+    /// Command buffers to submit. Taken by [`Painter::paint_submit`].
+    submit: Option<SubmitData>,
+
+    /// Surface texture and capture data. Used by [`Painter::paint_present`].
+    present: PresentData,
+
+    /// Approximate seconds spent on vsync-waiting during acquire.
+    pub vsync_sec: f32,
+}
+
 struct SurfaceState {
     surface: wgpu::Surface<'static>,
     alpha_mode: wgpu::CompositeAlphaMode,
@@ -404,12 +443,12 @@ impl Painter {
         }
     }
 
-    /// Returns two things:
-    ///
-    /// The approximate number of seconds spent on vsync-waiting (if any),
-    /// and the captures captured screenshot if it was requested.
+    /// Returns the approximate number of seconds spent on vsync-waiting (if any).
     ///
     /// If `capture_data` isn't empty, a screenshot will be captured.
+    ///
+    /// This is a convenience wrapper that calls [`paint_prepare`], [`paint_submit`],
+    /// and [`paint_present`] sequentially for a single viewport.
     pub fn paint_and_update_textures(
         &mut self,
         viewport_id: ViewportId,
@@ -421,43 +460,43 @@ impl Painter {
     ) -> f32 {
         profiling::function_scope!();
 
-        /// Guard to ensure that commands are always submitted to the renderer queue
-        /// so that calls to [`write_buffer()`](https://docs.rs/wgpu/latest/wgpu/struct.Queue.html#method.write_buffer)
-        /// are completed even if we take a codepath which doesn't submit commands and avoids
-        /// internal buffers growing indefinitely.
-        ///
-        /// This may happen, for example, if no output frame is resolved.
-        /// See <https://github.com/emilk/egui/pull/7928> for full context.
-        struct RendererQueueGuard<'q> {
-            queue: &'q wgpu::Queue,
-            commands_submitted: bool,
-        }
+        let Some(prepared) = self.paint_prepare(
+            viewport_id,
+            pixels_per_point,
+            clear_color,
+            clipped_primitives,
+            textures_delta,
+            capture_data,
+        ) else {
+            return 0.0;
+        };
 
-        impl Drop for RendererQueueGuard<'_> {
-            fn drop(&mut self) {
-                // Only submit an empty command buffer array if no commands were
-                // explicitly submitted.
-                if !self.commands_submitted {
-                    self.queue.submit([]);
-                }
-            }
-        }
+        let vsync_sec = prepared.vsync_sec;
+        let mut frames = [prepared];
+        self.paint_submit(&mut frames);
+        self.paint_present(frames.into());
+        vsync_sec
+    }
+
+    /// Phase 1: Upload textures/buffers, acquire surface texture, record render
+    /// pass, and encode commands. Returns a [`PreparedFrame`] ready for submission,
+    /// or `None` if the viewport cannot be rendered (missing surface, etc.).
+    pub fn paint_prepare(
+        &mut self,
+        viewport_id: ViewportId,
+        pixels_per_point: f32,
+        clear_color: [f32; 4],
+        clipped_primitives: &[epaint::ClippedPrimitive],
+        textures_delta: &epaint::textures::TexturesDelta,
+        capture_data: Vec<UserData>,
+    ) -> Option<PreparedFrame> {
+        profiling::function_scope!();
 
         let capture = !capture_data.is_empty();
-        let mut vsync_sec = 0.0;
+        let mut vsync_sec = 0.0f32;
 
-        let Some(render_state) = self.render_state.as_mut() else {
-            return vsync_sec;
-        };
-
-        let mut render_queue_guard = RendererQueueGuard {
-            queue: &render_state.queue,
-            commands_submitted: false,
-        };
-
-        let Some(surface_state) = self.surfaces.get(&viewport_id) else {
-            return vsync_sec;
-        };
+        let render_state = self.render_state.as_mut()?;
+        let surface_state = self.surfaces.get(&viewport_id)?;
 
         let mut encoder =
             render_state
@@ -494,7 +533,6 @@ impl Painter {
 
         let output_frame = {
             profiling::scope!("get_current_texture");
-            // This is what vsync-waiting happens on my Mac.
             let start = web_time::Instant::now();
             let output_frame = surface_state.surface.get_current_texture();
             vsync_sec += start.elapsed().as_secs_f32();
@@ -503,15 +541,17 @@ impl Painter {
 
         let output_frame = match output_frame {
             Ok(frame) => frame,
-            Err(err) => match (*self.configuration.on_surface_error)(err) {
-                SurfaceErrorAction::RecreateSurface => {
-                    Self::configure_surface(surface_state, render_state, &self.configuration);
-                    return vsync_sec;
+            Err(err) => {
+                match (*self.configuration.on_surface_error)(err) {
+                    SurfaceErrorAction::RecreateSurface => {
+                        Self::configure_surface(surface_state, render_state, &self.configuration);
+                    }
+                    SurfaceErrorAction::SkipFrame => {}
                 }
-                SurfaceErrorAction::SkipFrame => {
-                    return vsync_sec;
-                }
-            },
+                // Ensure pending write_buffer calls are flushed (see #7928).
+                render_state.queue.submit([]);
+                return None;
+            }
         };
 
         let mut capture_buffer = None;
@@ -607,51 +647,84 @@ impl Painter {
             encoder.finish()
         };
 
-        // Submit the commands: both the main buffer and user-defined ones.
-        {
-            profiling::scope!("Queue::submit");
-            // wgpu doesn't document where vsync can happen. Maybe here?
-            let start = web_time::Instant::now();
-            render_state
-                .queue
-                .submit(user_cmd_bufs.into_iter().chain([encoded]));
-            vsync_sec += start.elapsed().as_secs_f32();
+        Some(PreparedFrame {
+            viewport_id,
+            submit: Some(SubmitData {
+                encoded,
+                user_cmd_bufs,
+                textures_to_free: textures_delta.free.clone(),
+            }),
+            present: PresentData {
+                viewport_id,
+                output_frame,
+                capture_data,
+                capture_buffer,
+            },
+            vsync_sec,
+        })
+    }
+
+    /// Phase 2: Submit all command buffers from all prepared frames in a single
+    /// `queue.submit()` call. This batches GPU work across viewports.
+    ///
+    /// Takes the submit data out of each frame. After this call,
+    /// the frames should only be passed to [`paint_present`].
+    pub fn paint_submit(&self, frames: &mut [PreparedFrame]) {
+        profiling::function_scope!();
+
+        let Some(render_state) = self.render_state.as_ref() else {
+            return;
         };
 
-        // Ensure that the queue guard does not do unnecessary work when dropped
-        render_queue_guard.commands_submitted = true;
+        let mut all_cmd_bufs = Vec::new();
+        let mut all_textures_to_free = Vec::new();
 
-        // Free textures marked for destruction **after** queue submit since they might still be used in the current frame.
-        // Calling `wgpu::Texture::destroy` on a texture that is still in use would invalidate the command buffer(s) it is used in.
-        // However, once we called `wgpu::Queue::submit`, it is up for wgpu to determine how long the underlying gpu resource has to live.
-        {
-            let mut renderer = render_state.renderer.write();
-            for id in &textures_delta.free {
-                renderer.free_texture(id);
+        for frame in frames.iter_mut() {
+            if let Some(submit) = frame.submit.take() {
+                all_cmd_bufs.extend(submit.user_cmd_bufs);
+                all_cmd_bufs.push(submit.encoded);
+                all_textures_to_free.extend(submit.textures_to_free);
             }
         }
 
-        if let Some(capture_buffer) = capture_buffer
-            && let Some(screen_capture_state) = &mut self.screen_capture_state
         {
-            screen_capture_state.read_screen_rgba(
-                self.context.clone(),
-                capture_buffer,
-                capture_data,
-                self.capture_tx.clone(),
-                viewport_id,
-            );
+            profiling::scope!("Queue::submit");
+            render_state.queue.submit(all_cmd_bufs);
         }
 
-        {
-            profiling::scope!("present");
-            // wgpu doesn't document where vsync can happen. Maybe here?
-            let start = web_time::Instant::now();
-            output_frame.present();
-            vsync_sec += start.elapsed().as_secs_f32();
+        // Free textures after submit.
+        if !all_textures_to_free.is_empty() {
+            let mut renderer = render_state.renderer.write();
+            for id in &all_textures_to_free {
+                renderer.free_texture(id);
+            }
         }
+    }
 
-        vsync_sec
+    /// Phase 3: Present all frames and handle screen captures.
+    pub fn paint_present(&mut self, frames: Vec<PreparedFrame>) {
+        profiling::function_scope!();
+
+        for frame in frames {
+            let present = frame.present;
+
+            if let Some(capture_buffer) = present.capture_buffer
+                && let Some(screen_capture_state) = &mut self.screen_capture_state
+            {
+                screen_capture_state.read_screen_rgba(
+                    self.context.clone(),
+                    capture_buffer,
+                    present.capture_data,
+                    self.capture_tx.clone(),
+                    present.viewport_id,
+                );
+            }
+
+            {
+                profiling::scope!("present");
+                present.output_frame.present();
+            }
+        }
     }
 
     /// Call this at the beginning of each frame to receive the requested screenshots.

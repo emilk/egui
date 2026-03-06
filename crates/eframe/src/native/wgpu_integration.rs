@@ -72,6 +72,9 @@ pub struct SharedState {
     viewport_from_window: HashMap<WindowId, ViewportId>,
     focused_viewport: Option<ViewportId>,
     resized_viewport: Option<ViewportId>,
+
+    /// Prepared frames from immediate viewports, awaiting batched submit+present.
+    pending_frames: Vec<egui_wgpu::winit::PreparedFrame>,
 }
 
 pub type Viewports = egui::OrderedViewportIdMap<Viewport>;
@@ -317,6 +320,7 @@ impl<'app> WgpuWinitApp<'app> {
             painter,
             focused_viewport: Some(ViewportId::ROOT),
             resized_viewport: None,
+            pending_frames: Vec::new(),
         }));
 
         {
@@ -662,6 +666,7 @@ impl WgpuWinitRunning<'_> {
             viewports,
             painter,
             viewport_from_window,
+            pending_frames,
             ..
         } = &mut *shared_mut;
 
@@ -704,7 +709,9 @@ impl WgpuWinitRunning<'_> {
                     true
                 }
             });
-            let vsync_secs = painter.paint_and_update_textures(
+
+            // Prepare the parent viewport's frame
+            let parent_prepared = painter.paint_prepare(
                 viewport_id,
                 pixels_per_point,
                 app.clear_color(&egui_ctx.global_style().visuals),
@@ -712,6 +719,19 @@ impl WgpuWinitRunning<'_> {
                 &textures_delta,
                 screenshot_commands,
             );
+
+            // Collect all pending frames from immediate viewports + the parent
+            let mut all_frames = std::mem::take(pending_frames);
+            let mut vsync_secs = 0.0f32;
+            if let Some(prepared) = parent_prepared {
+                vsync_secs = prepared.vsync_sec;
+                all_frames.push(prepared);
+            }
+
+            // Batched submit (single queue.submit for all viewports)
+            painter.paint_submit(&mut all_frames);
+            // Present all viewports
+            painter.paint_present(all_frames);
 
             for action in viewport.actions_requested.drain(..) {
                 match action {
@@ -1068,6 +1088,7 @@ fn render_immediate_viewport(
         viewports,
         painter,
         viewport_from_window,
+        pending_frames,
         ..
     } = &mut *shared_mut;
 
@@ -1091,14 +1112,16 @@ fn render_immediate_viewport(
     }
 
     let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
-    painter.paint_and_update_textures(
+    if let Some(prepared) = painter.paint_prepare(
         ids.this,
         pixels_per_point,
         [0.0, 0.0, 0.0, 0.0],
         &clipped_primitives,
         &textures_delta,
         vec![],
-    );
+    ) {
+        pending_frames.push(prepared);
+    }
 
     egui_winit.handle_platform_output(window, platform_output);
 
