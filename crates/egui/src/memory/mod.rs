@@ -543,22 +543,19 @@ impl Focus {
                     ..
                 } = event
                 && let Some(cardinality) = match key {
-                    crate::Key::ArrowUp => Some(FocusDirection::Up),
-                    crate::Key::ArrowRight => Some(FocusDirection::Right),
-                    crate::Key::ArrowDown => Some(FocusDirection::Down),
-                    crate::Key::ArrowLeft => Some(FocusDirection::Left),
+                    crate::Key::ArrowUp if !modifiers.any() => Some(FocusDirection::Up),
+                    crate::Key::ArrowRight if !modifiers.any() => Some(FocusDirection::Right),
+                    crate::Key::ArrowDown if !modifiers.any() => Some(FocusDirection::Down),
+                    crate::Key::ArrowLeft if !modifiers.any() => Some(FocusDirection::Left),
 
-                    crate::Key::Tab => {
-                        if modifiers.shift {
-                            Some(FocusDirection::Previous)
-                        } else {
-                            Some(FocusDirection::Next)
-                        }
-                    }
-                    crate::Key::Escape => {
+                    crate::Key::Tab if !modifiers.any() => Some(FocusDirection::Next),
+                    crate::Key::Tab if modifiers.shift_only() => Some(FocusDirection::Previous),
+
+                    crate::Key::Escape if !modifiers.any() => {
                         self.focused_widget = None;
                         Some(FocusDirection::None)
                     }
+
                     _ => None,
                 }
             {

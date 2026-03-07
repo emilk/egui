@@ -1066,7 +1066,7 @@ impl CentralPanel {
             id,
             UiBuilder::new()
                 .layer_id(LayerId::background())
-                .max_rect(ctx.available_rect().round_ui()),
+                .max_rect(ctx.available_rect()),
         );
         panel_ui.set_clip_rect(ctx.content_rect());
 
