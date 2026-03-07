@@ -76,6 +76,25 @@ fn combobox_should_have_value() {
     );
 }
 
+#[test]
+fn horizontal_response_tooltip_should_show_when_hovering_child() {
+    let mut harness = Harness::builder().with_size((84.0, 64.0)).build_ui(|ui| {
+        ui.style_mut().interaction.tooltip_delay = 0.0;
+        ui.style_mut().interaction.show_tooltips_only_when_still = false;
+
+        ui.horizontal(|ui| {
+            _ = ui.button("A");
+            _ = ui.button("B");
+        })
+        .response
+        .on_hover_text("test");
+    });
+
+    harness.get_by_label("A").hover();
+    harness.run_steps(5);
+    harness.snapshot("horizontal_response_tooltip_should_show_when_hovering_child");
+}
+
 /// This test ensures that `ui.response().interact(...)` works correctly.
 ///
 /// This was broken, because there was an optimization in [`egui::Response::interact`]
