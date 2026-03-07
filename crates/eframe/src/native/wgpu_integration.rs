@@ -990,7 +990,13 @@ fn create_window(
     )
     .with_visible(false); // Start hidden until we render the first frame to fix white flash on startup (https://github.com/emilk/egui/pull/3631)
 
-    let window = egui_winit::create_window(egui_ctx, event_loop, &viewport_builder)?;
+    let window_attributes = epi_integration::create_winit_window_attributes(
+        egui_ctx,
+        viewport_builder.clone(),
+        native_options,
+    );
+    let window = event_loop.create_window(window_attributes)?;
+    egui_winit::apply_viewport_builder_to_window(egui_ctx, &window, &viewport_builder);
     epi_integration::apply_window_settings(&window, window_settings);
     Ok((window, viewport_builder))
 }

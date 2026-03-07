@@ -99,6 +99,19 @@ pub fn apply_window_settings(
     }
 }
 
+pub fn create_winit_window_attributes(
+    egui_ctx: &egui::Context,
+    viewport_builder: ViewportBuilder,
+    native_options: &mut epi::NativeOptions,
+) -> winit::window::WindowAttributes {
+    let window_attributes = egui_winit::create_winit_window_attributes(egui_ctx, viewport_builder);
+
+    match std::mem::take(&mut native_options.winit_window_attribute_builder) {
+        Some(hook) => hook(window_attributes),
+        None => window_attributes,
+    }
+}
+
 #[cfg(not(target_os = "ios"))]
 fn largest_monitor_point_size(egui_zoom_factor: f32, event_loop: &ActiveEventLoop) -> egui::Vec2 {
     profiling::function_scope!();
