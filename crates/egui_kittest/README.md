@@ -97,12 +97,12 @@ You should add the following to your `.gitignore`:
   * …have a low resolution to avoid growth in repo size
   * …have a low comparison threshold to avoid the test passing despite unwanted differences (the default threshold should be fine for most usecases!)
 
-### What do do when CI / another computer produces a different image?
+### What to do when CI / another computer produces a different image?
 
 The default tolerance settings should be fine for almost all gui comparison tests.
 However, especially when you're using custom rendering, you may observe images difference with different setups leading to unexpected test failures.
 
-First check whether the difference is due to a change in enabled rendering features, potentially due to difference in hardware (/software renderer) capabilitites.
+First check whether the difference is due to a change in enabled rendering features, potentially due to difference in hardware (/software renderer) capabilities.
 Generally you should carefully enforcing the same set of features for all test runs, but this may happen nonetheless.
 
 Once you validated that the differences are miniscule and hard to avoid, you can try to _carefully_ adjust the comparison tolerance setting (`SnapshotOptions::threshold`, TODO([#5683](https://github.com/emilk/egui/issues/5683)): as well as number of pixels allowed to differ) for the specific test.

@@ -3262,7 +3262,7 @@ impl Context {
 
         for (name, data) in &mut font_definitions.font_data {
             ui.collapsing(name, |ui| {
-                let mut tweak = data.tweak;
+                let mut tweak = data.tweak.clone();
                 if tweak.ui(ui).changed() {
                     Arc::make_mut(data).tweak = tweak;
                     changed = true;

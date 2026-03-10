@@ -661,6 +661,8 @@ impl InputState {
         if self.pointer.wants_repaint()
             || self.wheel.unprocessed_wheel_delta.abs().max_elem() > 0.2
             || !self.events.is_empty()
+            || !self.raw.hovered_files.is_empty()
+            || !self.raw.dropped_files.is_empty()
         {
             // Immediate repaint
             return Some(Duration::ZERO);
