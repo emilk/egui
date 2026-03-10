@@ -38,7 +38,7 @@ egui.workspace = true
 eframe = { workspace = true, optional = true }
 kittest.workspace = true
 serde.workspace = true
-toml.workspace = true
+toml = {workspace = true, features = ["parse", "serde"] }
 
 # wgpu dependencies
 egui-wgpu = { workspace = true, optional = true }

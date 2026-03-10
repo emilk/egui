@@ -265,6 +265,7 @@ impl EpiIntegration {
         app: &mut dyn epi::App,
         viewport_ui_cb: Option<&DeferredViewportUiCallback>,
         mut raw_input: egui::RawInput,
+        is_visible: bool,
     ) -> egui::FullOutput {
         raw_input.time = Some(self.beginning.elapsed().as_secs_f64());
 
@@ -275,23 +276,27 @@ impl EpiIntegration {
         let full_output = self.egui_ctx.run_ui(raw_input, |ui| {
             if let Some(viewport_ui_cb) = viewport_ui_cb {
                 // Child viewport
-                profiling::scope!("viewport_callback");
-                viewport_ui_cb(ui);
+                if is_visible {
+                    profiling::scope!("viewport_callback");
+                    viewport_ui_cb(ui);
+                }
             } else {
                 {
                     profiling::scope!("App::logic");
                     app.logic(ui.ctx(), &mut self.frame);
                 }
 
-                {
-                    profiling::scope!("App::update");
-                    #[expect(deprecated)]
-                    app.update(ui.ctx(), &mut self.frame);
-                }
+                if is_visible {
+                    {
+                        profiling::scope!("App::update");
+                        #[expect(deprecated)]
+                        app.update(ui.ctx(), &mut self.frame);
+                    }
 
-                {
-                    profiling::scope!("App::ui");
-                    app.ui(ui, &mut self.frame);
+                    {
+                        profiling::scope!("App::ui");
+                        app.ui(ui, &mut self.frame);
+                    }
                 }
             }
         });
