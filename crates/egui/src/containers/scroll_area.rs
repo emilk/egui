@@ -683,6 +683,9 @@ struct Prepared {
     /// The response from dragging the background (if enabled)
     background_drag_response: Option<Response>,
 
+    /// The response from the scroll-sensing widget (registered early for correct hit-test ordering)
+    scroll_response: Option<Response>,
+
     animated: bool,
 }
 
@@ -870,6 +873,45 @@ impl ScrollArea {
                 None
             };
 
+        // Register a scroll-sensing widget BEFORE the content so that inner ScrollAreas
+        // (registered later) are on top in the widget list and win hit-testing.
+        let scroll_response = {
+            let scroll_sense = if scroll_source.mouse_wheel && ui.is_enabled() {
+                let mut sense = Sense::empty();
+                for d in 0..2 {
+                    if !direction_enabled[d] || !state.content_is_too_large[d] {
+                        continue;
+                    }
+                    let can_scroll_start = state.offset[d] > 0.0;
+                    let can_scroll_end = !state.scroll_stuck_to_end[d];
+                    if d == 0 {
+                        // horizontal
+                        if can_scroll_start {
+                            sense |= Sense::SCROLL_LEFT;
+                        }
+                        if can_scroll_end {
+                            sense |= Sense::SCROLL_RIGHT;
+                        }
+                    } else {
+                        // vertical
+                        if can_scroll_start {
+                            sense |= Sense::SCROLL_UP;
+                        }
+                        if can_scroll_end {
+                            sense |= Sense::SCROLL_DOWN;
+                        }
+                    }
+                }
+                sense
+            } else {
+                Sense::hover()
+            };
+            // Use the interact_rect from the previous frame (like background_drag_response).
+            state
+                .interact_rect
+                .map(|rect| ui.interact(rect, id.with("scroll"), scroll_sense))
+        };
+
         // Scroll with an animation if we have a target offset (that hasn't been cleared by the code
         // above).
         for d in 0..2 {
@@ -922,6 +964,7 @@ impl ScrollArea {
             stick_to_end,
             saved_scroll_target,
             background_drag_response,
+            scroll_response,
             animated,
         }
     }
@@ -1049,6 +1092,7 @@ impl Prepared {
             stick_to_end,
             saved_scroll_target,
             background_drag_response,
+            scroll_response,
             animated,
         } = self;
 
@@ -1174,39 +1218,61 @@ impl Prepared {
             && ui.ctx().dragged_id().is_none()
             || is_dragging_background;
 
-        if scroll_source.mouse_wheel && ui.is_enabled() && is_hovering_outer_rect {
+        // Use the scroll response registered in begin() for correct hit-test ordering.
+        if let Some(scroll_response) = &scroll_response {
             let always_scroll_enabled_direction = ui.style().always_scroll_the_only_direction
                 && direction_enabled[0] != direction_enabled[1];
+
+            // Per-axis: only consume scroll delta if this widget is the scroll target for that axis.
+            let is_scrolled_axis = [
+                scroll_response.scrolled_horizontal(),
+                scroll_response.scrolled_vertical(),
+            ];
+
             for d in 0..2 {
-                if direction_enabled[d] {
-                    let scroll_delta = ui.input(|input| {
+                if !direction_enabled[d] {
+                    continue;
+                }
+
+                // When always_scroll_enabled_direction is set, a single-axis scroll area
+                // consumes both axes of scroll delta. We need the scroll target for either axis.
+                let is_target = if always_scroll_enabled_direction {
+                    is_scrolled_axis[0] || is_scrolled_axis[1]
+                } else {
+                    is_scrolled_axis[d]
+                };
+
+                if !is_target {
+                    continue;
+                }
+
+                let scroll_delta = ui.input(|input| {
+                    if always_scroll_enabled_direction {
+                        // no bidirectional scrolling; allow horizontal scrolling without pressing shift
+                        input.smooth_scroll_delta()[0] + input.smooth_scroll_delta()[1]
+                    } else {
+                        input.smooth_scroll_delta()[d]
+                    }
+                });
+                let scroll_delta = scroll_delta * wheel_scroll_multiplier[d];
+
+                let scrolling_up = state.offset[d] > 0.0 && scroll_delta > 0.0;
+                let scrolling_down = state.offset[d] < max_offset[d] && scroll_delta < 0.0;
+
+                if scrolling_up || scrolling_down {
+                    state.offset[d] -= scroll_delta;
+
+                    // Clear scroll delta so no parent scroll will use it:
+                    ui.input_mut(|input| {
                         if always_scroll_enabled_direction {
-                            // no bidirectional scrolling; allow horizontal scrolling without pressing shift
-                            input.smooth_scroll_delta()[0] + input.smooth_scroll_delta()[1]
+                            input.smooth_scroll_delta = Vec2::ZERO;
                         } else {
-                            input.smooth_scroll_delta()[d]
+                            input.smooth_scroll_delta[d] = 0.0;
                         }
                     });
-                    let scroll_delta = scroll_delta * wheel_scroll_multiplier[d];
 
-                    let scrolling_up = state.offset[d] > 0.0 && scroll_delta > 0.0;
-                    let scrolling_down = state.offset[d] < max_offset[d] && scroll_delta < 0.0;
-
-                    if scrolling_up || scrolling_down {
-                        state.offset[d] -= scroll_delta;
-
-                        // Clear scroll delta so no parent scroll will use it:
-                        ui.input_mut(|input| {
-                            if always_scroll_enabled_direction {
-                                input.smooth_scroll_delta = Vec2::ZERO;
-                            } else {
-                                input.smooth_scroll_delta[d] = 0.0;
-                            }
-                        });
-
-                        state.scroll_stuck_to_end[d] = false;
-                        state.offset_target[d] = None;
-                    }
+                    state.scroll_stuck_to_end[d] = false;
+                    state.offset_target[d] = None;
                 }
             }
         }

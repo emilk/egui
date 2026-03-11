@@ -35,6 +35,18 @@ pub struct WidgetHits {
     ///
     /// This is the top one under the pointer, or closest one of the top-most.
     pub drag: Option<WidgetRect>,
+
+    /// The topmost widget that senses leftward scroll events under the pointer.
+    pub scroll_left: Option<WidgetRect>,
+
+    /// The topmost widget that senses rightward scroll events under the pointer.
+    pub scroll_right: Option<WidgetRect>,
+
+    /// The topmost widget that senses upward scroll events under the pointer.
+    pub scroll_up: Option<WidgetRect>,
+
+    /// The topmost widget that senses downward scroll events under the pointer.
+    pub scroll_down: Option<WidgetRect>,
 }
 
 /// Find the top or closest widgets to the given position,
@@ -132,6 +144,10 @@ pub fn hit_test(
         if !w.enabled {
             w.sense -= Sense::CLICK;
             w.sense -= Sense::DRAG;
+            w.sense -= Sense::SCROLL_LEFT;
+            w.sense -= Sense::SCROLL_RIGHT;
+            w.sense -= Sense::SCROLL_UP;
+            w.sense -= Sense::SCROLL_DOWN;
         }
     }
 
@@ -153,6 +169,40 @@ pub fn hit_test(
     close.retain(|c| !hidden.contains(&c.id));
 
     let mut hits = hit_test_on_close(&close, pos);
+
+    // Find the topmost widgets that sense scroll per direction.
+    hits.scroll_left = find_closest_within(
+        close
+            .iter()
+            .copied()
+            .filter(|w| w.sense.senses_scroll_left()),
+        pos,
+        0.0,
+    );
+    hits.scroll_right = find_closest_within(
+        close
+            .iter()
+            .copied()
+            .filter(|w| w.sense.senses_scroll_right()),
+        pos,
+        0.0,
+    );
+    hits.scroll_up = find_closest_within(
+        close
+            .iter()
+            .copied()
+            .filter(|w| w.sense.senses_scroll_up()),
+        pos,
+        0.0,
+    );
+    hits.scroll_down = find_closest_within(
+        close
+            .iter()
+            .copied()
+            .filter(|w| w.sense.senses_scroll_down()),
+        pos,
+        0.0,
+    );
 
     hits.contains_pointer = close
         .iter()
@@ -187,6 +237,34 @@ pub fn hit_test(
             debug_assert!(
                 wr.sense.senses_click(),
                 "We should only return click hits if they sense click"
+            );
+            restore_widget_rect(wr);
+        }
+        if let Some(wr) = &mut hits.scroll_left {
+            debug_assert!(
+                wr.sense.senses_scroll_left(),
+                "We should only return scroll hits if they sense scroll"
+            );
+            restore_widget_rect(wr);
+        }
+        if let Some(wr) = &mut hits.scroll_right {
+            debug_assert!(
+                wr.sense.senses_scroll_right(),
+                "We should only return scroll hits if they sense scroll"
+            );
+            restore_widget_rect(wr);
+        }
+        if let Some(wr) = &mut hits.scroll_up {
+            debug_assert!(
+                wr.sense.senses_scroll_up(),
+                "We should only return scroll hits if they sense scroll"
+            );
+            restore_widget_rect(wr);
+        }
+        if let Some(wr) = &mut hits.scroll_down {
+            debug_assert!(
+                wr.sense.senses_scroll_down(),
+                "We should only return scroll hits if they sense scroll"
             );
             restore_widget_rect(wr);
         }

@@ -197,7 +197,7 @@ impl Scene {
             UiBuilder::new()
                 .layer_id(scene_layer_id)
                 .max_rect(Rect::from_min_size(Pos2::ZERO, self.max_inner_size))
-                .sense(self.sense),
+                .sense(self.sense | Sense::scroll()),
         );
 
         let mut pan_response = local_ui.response();
@@ -245,7 +245,7 @@ impl Scene {
         {
             let pointer_in_scene = to_global.inverse() * mouse_pos;
             let zoom_delta = ui.input(|i| i.zoom_delta());
-            let pan_delta = ui.input(|i| i.smooth_scroll_delta());
+            let pan_delta = resp.scroll_delta();
 
             // Most of the time we can return early. This is also important to
             // avoid `ui_from_scene` to change slightly due to floating point errors.

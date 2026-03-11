@@ -54,6 +54,18 @@ pub struct InteractionSnapshot {
     /// This is usually a larger set than [`Self::hovered`],
     /// and can be used for e.g. drag-and-drop zones.
     pub contains_pointer: IdSet,
+
+    /// The widget that should receive horizontal scroll events this frame.
+    ///
+    /// This is the topmost horizontal-scroll-sensing widget under the pointer,
+    /// but only set when `smooth_scroll_delta.x` is non-zero.
+    pub scrolled_horizontal: Option<Id>,
+
+    /// The widget that should receive vertical scroll events this frame.
+    ///
+    /// This is the topmost vertical-scroll-sensing widget under the pointer,
+    /// but only set when `smooth_scroll_delta.y` is non-zero.
+    pub scrolled_vertical: Option<Id>,
 }
 
 impl InteractionSnapshot {
@@ -66,6 +78,8 @@ impl InteractionSnapshot {
             drag_stopped,
             hovered,
             contains_pointer,
+            scrolled_horizontal,
+            scrolled_vertical,
         } = self;
 
         fn id_ui<'a>(ui: &mut crate::Ui, widgets: impl IntoIterator<Item = &'a Id>) {
@@ -101,6 +115,14 @@ impl InteractionSnapshot {
 
             ui.label("contains_pointer");
             id_ui(ui, contains_pointer);
+            ui.end_row();
+
+            ui.label("scrolled_horizontal");
+            id_ui(ui, scrolled_horizontal);
+            ui.end_row();
+
+            ui.label("scrolled_vertical");
+            id_ui(ui, scrolled_vertical);
             ui.end_row();
         });
     }
@@ -287,6 +309,24 @@ pub(crate) fn interact(
         hovered
     };
 
+    // Scroll: pick the directional scroll target based on scroll delta sign.
+    // In egui, positive smooth_scroll_delta.y means content moves down (scrolling toward top),
+    // and positive smooth_scroll_delta.x means content moves right (scrolling toward left).
+    let scrolled_horizontal = if input.smooth_scroll_delta.x > 0.0 {
+        hits.scroll_left.map(|w| w.id)
+    } else if input.smooth_scroll_delta.x < 0.0 {
+        hits.scroll_right.map(|w| w.id)
+    } else {
+        None
+    };
+    let scrolled_vertical = if input.smooth_scroll_delta.y > 0.0 {
+        hits.scroll_up.map(|w| w.id)
+    } else if input.smooth_scroll_delta.y < 0.0 {
+        hits.scroll_down.map(|w| w.id)
+    } else {
+        None
+    };
+
     InteractionSnapshot {
         clicked,
         long_touched,
@@ -295,5 +335,7 @@ pub(crate) fn interact(
         drag_stopped,
         hovered,
         contains_pointer,
+        scrolled_horizontal,
+        scrolled_vertical,
     }
 }

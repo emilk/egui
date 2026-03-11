@@ -1,6 +1,6 @@
 use egui::{
-    Align, Align2, Color32, DragValue, NumExt as _, Rect, ScrollArea, Sense, Slider, TextStyle,
-    TextWrapMode, Ui, Vec2, Widget as _, pos2, scroll_area::ScrollBarVisibility,
+    pos2, scroll_area::ScrollBarVisibility, Align, Align2, Color32, DragValue, NumExt as _, Rect, ScrollArea, Sense,
+    Slider, TextStyle, TextWrapMode, Ui, Vec2, Widget as _,
 };
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -13,6 +13,7 @@ enum ScrollDemo {
     LargeCanvas,
     StickToEnd,
     Bidirectional,
+    Nested,
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -61,6 +62,7 @@ impl crate::View for Scrolling {
             );
             ui.selectable_value(&mut self.demo, ScrollDemo::StickToEnd, "Stick to end");
             ui.selectable_value(&mut self.demo, ScrollDemo::Bidirectional, "Bidirectional");
+            ui.selectable_value(&mut self.demo, ScrollDemo::Nested, "Nested");
         });
         ui.separator();
         match self.demo {
@@ -86,6 +88,9 @@ impl crate::View for Scrolling {
                         ui.label(crate::LOREM_IPSUM);
                     }
                 });
+            }
+            ScrollDemo::Nested => {
+                nested_scroll_demo(ui);
             }
         }
     }
@@ -391,4 +396,47 @@ impl crate::View for ScrollStickTo {
         self.n_items += 1;
         ui.request_repaint();
     }
+}
+
+fn nested_scroll_demo(ui: &mut Ui) {
+    ui.label(
+        "Nested scroll areas: only the inner-most scroll area under the pointer receives scroll events.",
+    );
+    ui.add_space(4.0);
+
+    let outer_row_height = 100.0;
+    let inner_row_height = 20.0;
+
+    ScrollArea::vertical()
+        .id_salt("outer")
+        .auto_shrink(false)
+        .show_rows(ui, outer_row_height, 100, |ui, range| {
+            ui.style_mut().interaction.selectable_labels = false;
+            for outer_row in range {
+                egui::Frame::group(ui.style()).show(ui, |ui| {
+                    ScrollArea::horizontal()
+                        .id_salt(format!("outer_row_{outer_row}"))
+                        .show(ui, |ui| {
+                            ui.horizontal(|ui| {
+                                for col in 0..20 {
+                                    ui.vertical(|ui| {
+                                        ui.set_width(100.0);
+                                        ui.label(format!("Column {}", col + 1));
+                                        ScrollArea::vertical()
+                                            .id_salt(format!("inner_vert_{col}_{outer_row}"))
+                                            .max_height(outer_row_height)
+                                            .show_rows(ui, inner_row_height, 100, |ui, range| {
+                                                for inner_row in range {
+                                                    ui.label(format!("Col {} Row {}", col + 1, inner_row + 1));
+                                                }
+                                            });
+                                    });
+                                }
+                            });
+                        });
+                });
+
+                ui.separator();
+            }
+        });
 }

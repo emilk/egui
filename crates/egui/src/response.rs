@@ -135,8 +135,14 @@ bitflags::bitflags! {
         /// for instance if an existing slider value was clamped to the given range.
         const CHANGED = 1<<11;
 
+        /// This widget is receiving horizontal scroll events this frame.
+        const SCROLLED_HORIZONTAL = 1<<12;
+
+        /// This widget is receiving vertical scroll events this frame.
+        const SCROLLED_VERTICAL = 1<<13;
+
         /// Should this container be closed?
-        const CLOSE = 1<<12;
+        const CLOSE = 1<<14;
     }
 }
 
@@ -394,6 +400,59 @@ impl Response {
     /// The widget was being dragged by the button, but now it has been released.
     pub fn drag_stopped_by(&self, button: PointerButton) -> bool {
         self.drag_stopped() && self.ctx.input(|i| i.pointer.button_released(button))
+    }
+
+    /// Is this widget receiving scroll events on any axis this frame?
+    ///
+    /// This is determined by hit-testing: the topmost widget under the pointer
+    /// that senses scroll (via [`Sense::scroll`]) receives the scroll events.
+    /// Horizontal and vertical scroll are resolved independently, so an inner
+    /// widget may handle one axis while an outer widget handles the other.
+    ///
+    /// See also: [`Self::scroll_delta`].
+    #[inline]
+    pub fn scrolled(&self) -> bool {
+        self.flags
+            .intersects(Flags::SCROLLED_HORIZONTAL | Flags::SCROLLED_VERTICAL)
+    }
+
+    /// Is this widget receiving horizontal scroll events this frame?
+    #[inline]
+    pub fn scrolled_horizontal(&self) -> bool {
+        self.flags.contains(Flags::SCROLLED_HORIZONTAL)
+    }
+
+    /// Is this widget receiving vertical scroll events this frame?
+    #[inline]
+    pub fn scrolled_vertical(&self) -> bool {
+        self.flags.contains(Flags::SCROLLED_VERTICAL)
+    }
+
+    /// The smooth scroll delta for this widget, filtered to the axes it is receiving.
+    ///
+    /// Returns [`Vec2::ZERO`] if this widget is not being scrolled.
+    /// Each axis is independently zero if this widget is not the scroll target for that axis.
+    /// Use [`Sense::scroll`] to opt in to receiving scroll events.
+    ///
+    /// See also: [`Self::scrolled`].
+    #[inline]
+    pub fn scroll_delta(&self) -> Vec2 {
+        if !self.scrolled() {
+            return Vec2::ZERO;
+        }
+        let delta = self.ctx.input(|i| i.smooth_scroll_delta);
+        Vec2::new(
+            if self.scrolled_horizontal() {
+                delta.x
+            } else {
+                0.0
+            },
+            if self.scrolled_vertical() {
+                delta.y
+            } else {
+                0.0
+            },
+        )
     }
 
     /// If dragged, how many points were we dragged in since last frame?

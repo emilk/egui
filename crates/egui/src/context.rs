@@ -1442,6 +1442,14 @@ impl Context {
                     Flags::DRAG_STOPPED,
                     Some(id) == viewport.interact_widgets.drag_stopped,
                 );
+                res.flags.set(
+                    Flags::SCROLLED_HORIZONTAL,
+                    Some(id) == viewport.interact_widgets.scrolled_horizontal,
+                );
+                res.flags.set(
+                    Flags::SCROLLED_VERTICAL,
+                    Some(id) == viewport.interact_widgets.scrolled_vertical,
+                );
             }
 
             let clicked = Some(id) == viewport.interact_widgets.clicked;
@@ -2471,6 +2479,8 @@ impl Context {
                     drag_stopped: _,
                     contains_pointer,
                     hovered,
+                    scrolled_horizontal: _,
+                    scrolled_vertical: _,
                 } = interact_widgets;
 
                 if true {
@@ -2522,6 +2532,10 @@ impl Context {
                 contains_pointer,
                 click,
                 drag,
+                scroll_left: _,
+                scroll_right: _,
+                scroll_up: _,
+                scroll_down: _,
             } = hits;
 
             if false {
