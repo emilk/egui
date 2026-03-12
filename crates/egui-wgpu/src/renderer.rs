@@ -469,6 +469,9 @@ impl Renderer {
     /// The render pass internally keeps all referenced resources alive as long as necessary.
     /// The only consequence of `forget_lifetime` is that any operation on the parent encoder will cause a runtime error
     /// instead of a compile time error.
+    ///
+    /// # Panic
+    /// Always ensure that [`Renderer::update_buffers`] has been called otherwise calling [`Renderer::render`] will panic!
     pub fn render(
         &self,
         render_pass: &mut wgpu::RenderPass<'static>,
