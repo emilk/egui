@@ -119,3 +119,24 @@ fn test_button_shortcut_text() {
 
     harness.snapshot("button_shortcut");
 }
+
+/// Tests the spacing between galleys.
+/// All of these should look the same.
+#[test]
+fn test_atom_letter_spacing() {
+    use egui::AtomLayout;
+
+    let mut harness = HarnessBuilder::default().build_ui(|ui| {
+        ui.add(AtomLayout::new("1.00x").gap(0.0));
+        ui.add(AtomLayout::new(("1.00", "x")).gap(0.0));
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = 0.0;
+            ui.label("1.00");
+            ui.label("x");
+        });
+    });
+    harness.run();
+    harness.fit_contents();
+
+    harness.snapshot("atom_letter_spacing");
+}
