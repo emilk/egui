@@ -109,6 +109,7 @@ pub struct State {
 
     allow_ime: bool,
     ime_rect_px: Option<egui::Rect>,
+
     /// Used by [`State::try_on_ime_processed_keyboard_input`] to track key
     /// release events that should be filtered out. See comments in that method
     /// for details.
@@ -383,18 +384,24 @@ impl State {
                         repaint: true,
                         consumed: false,
                     }
-                } else if let Some(response) = self.try_on_ime_processed_keyboard_input(event) {
-                    response
                 } else {
-                    self.on_keyboard_input(event);
+                    let egui_wants_keyboard_input = self.egui_ctx.egui_wants_keyboard_input();
 
-                    // When pressing the Tab key, egui focuses the first focusable element, hence Tab always consumes.
-                    let consumed = self.egui_ctx.egui_wants_keyboard_input()
-                        || event.logical_key
-                            == winit::keyboard::Key::Named(winit::keyboard::NamedKey::Tab);
-                    EventResponse {
-                        repaint: true,
-                        consumed,
+                    if let Some(response) =
+                        self.try_on_ime_processed_keyboard_input(event, egui_wants_keyboard_input)
+                    {
+                        response
+                    } else {
+                        self.on_keyboard_input(event);
+
+                        // When pressing the Tab key, egui focuses the first focusable element, hence Tab always consumes.
+                        let consumed = egui_wants_keyboard_input
+                            || event.logical_key
+                                == winit::keyboard::Key::Named(winit::keyboard::NamedKey::Tab);
+                        EventResponse {
+                            repaint: true,
+                            consumed,
+                        }
                     }
                 }
             }
@@ -544,6 +551,7 @@ impl State {
     fn try_on_ime_processed_keyboard_input(
         &mut self,
         _event: &winit::event::KeyEvent,
+        _egui_wants_keyboard_input: bool,
     ) -> Option<EventResponse> {
         // `KeyboardInput` events processed by the IME are not emitted by
         // `winit` on non-Windows platforms, so we don't need to do anything
@@ -557,6 +565,7 @@ impl State {
     fn try_on_ime_processed_keyboard_input(
         &mut self,
         event: &winit::event::KeyEvent,
+        egui_wants_keyboard_input: bool,
     ) -> Option<EventResponse> {
         if !self.allow_ime {
             None
@@ -574,9 +583,7 @@ impl State {
 
             Some(EventResponse {
                 repaint: false,
-                // because `self.egui_ctx.egui_wants_keyboard_input()` is
-                // `true`.
-                consumed: true,
+                consumed: egui_wants_keyboard_input,
             })
         } else if event.state == ElementState::Released
             && self
@@ -590,9 +597,7 @@ impl State {
 
             Some(EventResponse {
                 repaint: false,
-                // because `self.egui_ctx.egui_wants_keyboard_input()` is
-                // `true`.
-                consumed: true,
+                consumed: egui_wants_keyboard_input,
             })
         } else {
             None
