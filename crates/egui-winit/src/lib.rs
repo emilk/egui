@@ -109,6 +109,9 @@ pub struct State {
 
     allow_ime: bool,
     ime_rect_px: Option<egui::Rect>,
+    /// Used by [`State::try_on_ime_processed_keyboard_input`] to track key
+    /// release events that should be filtered out. See comments in that method
+    /// for details.
     #[cfg(target_os = "windows")]
     pressed_processed_physical_keys: std::collections::HashSet<winit::keyboard::PhysicalKey>,
 }
@@ -371,9 +374,7 @@ impl State {
                 is_synthetic,
                 ..
             } => {
-                if let Some(response) = self.try_on_ime_processed_keyboard_input(event) {
-                    response
-                } else if *is_synthetic && event.state == ElementState::Pressed {
+                if *is_synthetic && event.state == ElementState::Pressed {
                     // Winit generates fake "synthetic" KeyboardInput events when the focus
                     // is changed to the window, or away from it. Synthetic key presses
                     // represent no real key presses and should be ignored.
@@ -382,6 +383,8 @@ impl State {
                         repaint: true,
                         consumed: false,
                     }
+                } else if let Some(response) = self.try_on_ime_processed_keyboard_input(event) {
+                    response
                 } else {
                     self.on_keyboard_input(event);
 
@@ -550,25 +553,14 @@ impl State {
     }
 
     #[cfg(target_os = "windows")]
-    #[expect(clippy::unused_self)]
     #[inline(always)]
     fn try_on_ime_processed_keyboard_input(
         &mut self,
         event: &winit::event::KeyEvent,
     ) -> Option<EventResponse> {
-        if !self.allow_ime || !self.egui_ctx.egui_wants_keyboard_input() {
-            // Defensively clear the set to avoid unexpected behavior.
-            //
-            // `has_sent_ime_enabled` is not checked here because the key
-            // release events for IME confirmation keys arrive after
-            // `winit::event::Ime::Disabled`.
-
-            self.pressed_processed_physical_keys.clear();
-
-            return None;
-        }
-
-        if event.logical_key == winit::keyboard::NamedKey::Process {
+        if !self.allow_ime {
+            None
+        } else if event.logical_key == winit::keyboard::NamedKey::Process {
             // On Windows, `KeyboardInput` events are emitted by `winit` during
             // IME composition, even if they are processed by the IME.
             // See: https://github.com/rust-windowing/winit/issues/4508
@@ -1071,6 +1063,16 @@ impl State {
         let allow_ime = ime.is_some();
         if self.allow_ime != allow_ime {
             self.allow_ime = allow_ime;
+            #[cfg(target_os = "windows")]
+            if !self.allow_ime {
+                // Defensively clear the set to avoid unexpected behavior.
+                //
+                // We don't do the same in `ime_event_disable` because the key
+                // release events for IME confirmation keys arrive after
+                // `winit::event::Ime::Disabled`.
+                self.pressed_processed_physical_keys.clear();
+            }
+
             profiling::scope!("set_ime_allowed");
             window.set_ime_allowed(allow_ime);
         }
