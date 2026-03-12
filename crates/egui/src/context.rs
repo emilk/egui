@@ -2,6 +2,7 @@
 
 use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration};
 
+use accesskit::TreeId;
 use emath::GuiRounding as _;
 use epaint::{
     ClippedPrimitive, ClippedShape, Color32, ImageData, Pos2, Rect, StrokeKind,
@@ -2614,6 +2615,7 @@ impl ContextImpl {
                     .focused()
                     .map_or(root_id, |id| id.accesskit_id());
                 platform_output.accesskit_update = Some(accesskit::TreeUpdate {
+                    tree_id: TreeId::ROOT,
                     nodes,
                     tree: Some(accesskit::Tree::new(root_id)),
                     focus: focus_id,

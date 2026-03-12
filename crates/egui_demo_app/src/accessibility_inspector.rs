@@ -113,11 +113,26 @@ impl AccessibilityInspectorPlugin {
         Id::new("Accessibility Inspector")
     }
 
+    fn find_node_by_accesskit_id(node: Node<'_>, id: accesskit::NodeId) -> Option<Node<'_>> {
+        if node.locate().0 == id {
+            return Some(node);
+        }
+        for child in node.children() {
+            if let Some(found) = Self::find_node_by_accesskit_id(child, id) {
+                return Some(found);
+            }
+        }
+        None
+    }
+
     fn selection_ui(&mut self, ui: &mut Ui, selected_node: Id) {
         ui.separator();
 
+        let target_accesskit_id = NodeId::from(selected_node.value());
+
         if let Some(tree) = &self.tree
-            && let Some(node) = tree.state().node_by_id(NodeId::from(selected_node.value()))
+            && let Some(node) =
+                Self::find_node_by_accesskit_id(tree.state().root(), target_accesskit_id)
         {
             let node_response = ui.ctx().read_response(selected_node);
 
@@ -162,7 +177,6 @@ impl AccessibilityInspectorPlugin {
 
             ui.label("Actions");
             ui.horizontal_wrapped(|ui| {
-                // Iterate through all possible actions via the `Action::n` helper.
                 let mut current_action = 0;
                 let all_actions = std::iter::from_fn(|| {
                     let action = Action::n(current_action);
@@ -174,8 +188,10 @@ impl AccessibilityInspectorPlugin {
                     if node.supports_action(action, &|_node| FilterResult::Include)
                         && ui.button(format!("{action:?}")).clicked()
                     {
+                        let (node_id, tree_id) = node.locate();
                         let action_request = ActionRequest {
-                            target: node.id(),
+                            target_node: node_id,
+                            target_tree: tree_id,
                             action,
                             data: None,
                         };
@@ -189,7 +205,8 @@ impl AccessibilityInspectorPlugin {
     }
 
     fn node_ui(ui: &mut Ui, node: &Node<'_>, selected_node: &mut Option<Id>) {
-        if node.id() == Self::id().value().into()
+        let (node_accesskit_id, _) = node.locate();
+        if node_accesskit_id == Self::id().value().into()
             || node
                 .value()
                 .as_deref()
@@ -200,14 +217,14 @@ impl AccessibilityInspectorPlugin {
         let label = node
             .label()
             .or_else(|| node.value())
-            .unwrap_or_else(|| node.id().0.to_string());
+            .unwrap_or_else(|| format!("{}", node_accesskit_id.0));
         let label = format!("({:?}) {}", node.role(), label);
 
         // Safety: This is safe since the `accesskit::NodeId` was created from an `egui::Id`.
         #[expect(unsafe_code)]
-        let egui_node_id = unsafe { Id::from_high_entropy_bits(node.id().0) };
+        let egui_node_id = unsafe { Id::from_high_entropy_bits(node_accesskit_id.0) };
 
-        ui.push_id(node.id(), |ui| {
+        ui.push_id(node_accesskit_id, |ui| {
             let child_count = node.children().len();
             let has_children = child_count > 0;
             let default_open = child_count == 1 && node.role() != accesskit::Role::Label;
