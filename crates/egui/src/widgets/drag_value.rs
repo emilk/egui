@@ -166,14 +166,14 @@ impl<'a> DragValue<'a> {
     /// Show a prefix before the number, e.g. "x: "
     #[inline]
     pub fn prefix(mut self, prefix: impl IntoAtoms<'a>) -> Self {
-        self.atoms.extend_left(prefix);
+        self.atoms.extend_left(prefix.into_atoms());
         self
     }
 
     /// Add a suffix to the number, this can be e.g. a unit ("°" or " m")
     #[inline]
     pub fn suffix(mut self, suffix: impl IntoAtoms<'a>) -> Self {
-        self.atoms.extend_right(suffix);
+        self.atoms.extend_right(suffix.into_atoms());
         self
     }
 
@@ -447,18 +447,15 @@ impl Widget for DragValue<'_> {
         let mut past_value = false;
         let atom_id = Id::new(Self::ATOM_ID);
         for atom in atoms.iter() {
-            match &atom.kind {
-                AtomKind::Custom(id) if *id == atom_id => {
-                    past_value = true;
+            if atom.id == Some(atom_id) {
+                past_value = true;
+            }
+            if let AtomKind::Text(text) = &atom.kind {
+                if past_value {
+                    suffix_text.push_str(text.text());
+                } else {
+                    prefix_text.push_str(text.text());
                 }
-                AtomKind::Text(text) => {
-                    if past_value {
-                        suffix_text.push_str(text.text());
-                    } else {
-                        prefix_text.push_str(text.text());
-                    }
-                }
-                _ => {}
             }
         }
 
@@ -605,9 +602,7 @@ impl Widget for DragValue<'_> {
             response
         } else {
             atoms.map_atoms(|atom| {
-                if let AtomKind::Custom(id) = atom.kind
-                    && id == atom_id
-                {
+                if atom.id == Some(atom_id) {
                     RichText::new(value_text.clone())
                         .text_style(text_style.clone())
                         .into()

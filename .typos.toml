@@ -21,6 +21,8 @@ teselation = "tessellation"
 tessalation = "tessellation"
 tesselation = "tessellation"
 
+# For consistency
+postfix = "suffix"
 
 # Use the more common spelling
 adaptor = "adapter"
