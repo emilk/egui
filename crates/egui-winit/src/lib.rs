@@ -9,6 +9,9 @@
 
 #![expect(clippy::manual_range_contains)]
 
+#[cfg(target_os = "windows")]
+use std::collections::HashSet;
+
 #[cfg(feature = "accesskit")]
 pub use accesskit_winit;
 pub use egui;
@@ -106,6 +109,8 @@ pub struct State {
 
     allow_ime: bool,
     ime_rect_px: Option<egui::Rect>,
+    #[cfg(target_os = "windows")]
+    pressed_processed_physical_keys: std::collections::HashSet<winit::keyboard::PhysicalKey>,
 }
 
 impl State {
@@ -148,6 +153,8 @@ impl State {
 
             allow_ime: false,
             ime_rect_px: None,
+            #[cfg(target_os = "windows")]
+            pressed_processed_physical_keys: HashSet::new(),
         };
 
         slf.egui_input
@@ -359,35 +366,18 @@ impl State {
                     consumed: self.egui_ctx.egui_wants_keyboard_input(),
                 }
             }
-            // On Windows, `KeyboardInput` events are emitted by `winit` during
-            // IME composition.
-            // See: https://github.com/rust-windowing/winit/issues/4508
-            //
-            // These key presses have their `logical_key` set to
-            // `winit::keyboard::NamedKey::Process`. We filter them out to keep
-            // behavior consistent with other platforms.
-            #[cfg(target_os = "windows")]
-            WindowEvent::KeyboardInput { event, .. }
-                if self.egui_ctx.egui_wants_keyboard_input()
-                    && event.logical_key == winit::keyboard::NamedKey::Process =>
-            {
-                EventResponse {
-                    repaint: false,
-                    // because `self.egui_ctx.egui_wants_keyboard_input()` is
-                    // `true`.
-                    consumed: true,
-                }
-            }
             WindowEvent::KeyboardInput {
                 event,
                 is_synthetic,
                 ..
             } => {
-                // Winit generates fake "synthetic" KeyboardInput events when the focus
-                // is changed to the window, or away from it. Synthetic key presses
-                // represent no real key presses and should be ignored.
-                // See https://github.com/rust-windowing/winit/issues/3543
-                if *is_synthetic && event.state == ElementState::Pressed {
+                if let Some(response) = self.try_on_ime_processed_keyboard_input(event) {
+                    response
+                } else if *is_synthetic && event.state == ElementState::Pressed {
+                    // Winit generates fake "synthetic" KeyboardInput events when the focus
+                    // is changed to the window, or away from it. Synthetic key presses
+                    // represent no real key presses and should be ignored.
+                    // See https://github.com/rust-windowing/winit/issues/3543
                     EventResponse {
                         repaint: true,
                         consumed: false,
@@ -542,6 +532,78 @@ impl State {
                     consumed: self.egui_ctx.egui_wants_pointer_input(),
                 }
             }
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    #[expect(clippy::unused_self, clippy::needless_pass_by_ref_mut)]
+    #[inline(always)]
+    fn try_on_ime_processed_keyboard_input(
+        &mut self,
+        _event: &winit::event::KeyEvent,
+    ) -> Option<EventResponse> {
+        // `KeyboardInput` events processed by the IME are not emitted by
+        // `winit` on non-Windows platforms, so we don't need to do anything
+        // here.
+
+        None
+    }
+
+    #[cfg(target_os = "windows")]
+    #[expect(clippy::unused_self)]
+    #[inline(always)]
+    fn try_on_ime_processed_keyboard_input(
+        &mut self,
+        event: &winit::event::KeyEvent,
+    ) -> Option<EventResponse> {
+        if !self.allow_ime || !self.egui_ctx.egui_wants_keyboard_input() {
+            // Defensively clear the set to avoid unexpected behavior.
+            //
+            // `has_sent_ime_enabled` is not checked here because the key
+            // release events for IME confirmation keys arrive after
+            // `winit::event::Ime::Disabled`.
+
+            self.pressed_processed_physical_keys.clear();
+
+            return None;
+        }
+
+        if event.logical_key == winit::keyboard::NamedKey::Process {
+            // On Windows, `KeyboardInput` events are emitted by `winit` during
+            // IME composition, even if they are processed by the IME.
+            // See: https://github.com/rust-windowing/winit/issues/4508
+            //
+            // Among these events, key presses have their `logical_key` set to
+            // `winit::keyboard::NamedKey::Process`. We filter them out to keep
+            // behavior consistent with other platforms.
+
+            self.pressed_processed_physical_keys
+                .insert(event.physical_key);
+
+            Some(EventResponse {
+                repaint: false,
+                // because `self.egui_ctx.egui_wants_keyboard_input()` is
+                // `true`.
+                consumed: true,
+            })
+        } else if event.state == ElementState::Released
+            && self
+                .pressed_processed_physical_keys
+                .remove(&event.physical_key)
+        {
+            // Unlike key presses, we can not tell whether a key release event
+            // is processed by the IME or not by looking at its `logical_key`,
+            // so we track the physical keys of the processed key presses and
+            // filter out the corresponding key releases.
+
+            Some(EventResponse {
+                repaint: false,
+                // because `self.egui_ctx.egui_wants_keyboard_input()` is
+                // `true`.
+                consumed: true,
+            })
+        } else {
+            None
         }
     }
 
