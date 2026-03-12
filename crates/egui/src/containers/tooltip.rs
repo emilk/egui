@@ -335,7 +335,17 @@ impl Tooltip<'_> {
 
         // Fast early-outs:
         if response.enabled() {
-            if !response.hovered() || !response.ctx.input(|i| i.pointer.has_pointer()) {
+            // Hover-only container responses (e.g. `ui.horizontal(...).response`) live below
+            // child widgets. In that case `response.hovered()` can stay false while the pointer
+            // is still inside the container rect. Allow tooltips for these hover-only responses
+            // when the pointer is in the interaction rect and on the same layer.
+            let hovered_or_container_pointer = response.hovered()
+                || (response.sense == Sense::hover()
+                    && response
+                        .ctx
+                        .rect_contains_pointer(response.layer_id, response.interact_rect));
+
+            if !hovered_or_container_pointer || !response.ctx.input(|i| i.pointer.has_pointer()) {
                 return false;
             }
         } else if !response
