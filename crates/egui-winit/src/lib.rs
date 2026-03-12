@@ -359,6 +359,25 @@ impl State {
                     consumed: self.egui_ctx.egui_wants_keyboard_input(),
                 }
             }
+            // On Windows, `KeyboardInput` events are emitted by winit during
+            // IME composition (see
+            // https://github.com/rust-windowing/winit/issues/4508).
+            //
+            // These key presses have their `logical_key` set to
+            // `winit::keyboard::NamedKey::Process`. We filter them out to keep
+            // behavior consistent with other platforms.
+            #[cfg(target_os = "windows")]
+            WindowEvent::KeyboardInput { event, .. }
+                if self.egui_ctx.egui_wants_keyboard_input()
+                    && event.logical_key == winit::keyboard::NamedKey::Process =>
+            {
+                EventResponse {
+                    repaint: false,
+                    // because `self.egui_ctx.egui_wants_keyboard_input()` is
+                    // `true`.
+                    consumed: true,
+                }
+            }
             WindowEvent::KeyboardInput {
                 event,
                 is_synthetic,
@@ -369,38 +388,21 @@ impl State {
                 // represent no real key presses and should be ignored.
                 // See https://github.com/rust-windowing/winit/issues/3543
                 if *is_synthetic && event.state == ElementState::Pressed {
-                    return EventResponse {
+                    EventResponse {
                         repaint: true,
                         consumed: false,
-                    };
-                }
+                    }
+                } else {
+                    self.on_keyboard_input(event);
 
-                // On Windows, `KeyboardInput` events are emitted by winit
-                // during IME composition (see
-                // https://github.com/rust-windowing/winit/issues/4508).
-                //
-                // These key presses have their `logical_key` set to
-                // `winit::keyboard::NamedKey::Process`. We filter them out
-                // to keep behavior consistent with other platforms.
-                #[cfg(target_os = "windows")]
-                if self.egui_ctx.egui_wants_keyboard_input()
-                    && event.logical_key == winit::keyboard::NamedKey::Process
-                {
-                    return EventResponse {
-                        repaint: false,
-                        consumed: true,
-                    };
-                }
-
-                self.on_keyboard_input(event);
-
-                // When pressing the Tab key, egui focuses the first focusable element, hence Tab always consumes.
-                let consumed = self.egui_ctx.egui_wants_keyboard_input()
-                    || event.logical_key
-                        == winit::keyboard::Key::Named(winit::keyboard::NamedKey::Tab);
-                EventResponse {
-                    repaint: true,
-                    consumed,
+                    // When pressing the Tab key, egui focuses the first focusable element, hence Tab always consumes.
+                    let consumed = self.egui_ctx.egui_wants_keyboard_input()
+                        || event.logical_key
+                            == winit::keyboard::Key::Named(winit::keyboard::NamedKey::Tab);
+                    EventResponse {
+                        repaint: true,
+                        consumed,
+                    }
                 }
             }
             WindowEvent::Focused(focused) => {
