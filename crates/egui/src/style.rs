@@ -350,6 +350,78 @@ pub struct Style {
 
     /// Use a more compact style for menus.
     pub compact_menu_style: bool,
+
+    /// Optional [`FontFamily`] to use for bold/strong text.
+    ///
+    /// By default ([`None`]), [`RichText::strong()`] applies a color change
+    /// (using [`Visuals::strong_text_color`]) to convey emphasis.
+    /// When this is set to [`Some`], strong text will instead be rendered with the
+    /// specified font family, and the color change is skipped.
+    ///
+    /// To use this, first register a bold font via [`crate::Context::set_fonts`],
+    /// then point this field at it:
+    ///
+    /// ```
+    /// # let ctx = egui::Context::default();
+    /// // 1. Register the bold font data and family
+    /// let mut fonts = egui::FontDefinitions::default();
+    /// let bold_font_data: &[u8] = &[]; // bytes of a .ttf file
+    /// fonts.font_data.insert(
+    ///     "my_bold_font".to_owned(),
+    ///     egui::FontData::from_static(bold_font_data).into(),
+    /// );
+    /// fonts.families.insert(
+    ///     egui::FontFamily::Name("Bold".into()),
+    ///     vec!["my_bold_font".to_owned()],
+    /// );
+    /// ctx.set_fonts(fonts);
+    ///
+    /// // 2. Tell egui to use it for strong text
+    /// ctx.global_style_mut(|style| {
+    ///     style.strong_font = Some(egui::FontFamily::Name("Bold".into()));
+    /// });
+    /// ```
+    ///
+    /// **Note:** When text is both strong and italic, and both `strong_font` and
+    /// [`Self::emphasis_font`] are configured, `emphasis_font` takes precedence
+    /// because a single [`FontId`] can only reference one font family.
+    pub strong_font: Option<FontFamily>,
+
+    /// Optional [`FontFamily`] to use for italic/emphasis text.
+    ///
+    /// By default ([`None`]), [`RichText::italics()`] fakes italics by applying a
+    /// horizontal vertex skew during tessellation.
+    /// When this is set to [`Some`], italic text will instead be rendered with the
+    /// specified font family, and the vertex skew is skipped.
+    ///
+    /// To use this, first register an italic font via [`crate::Context::set_fonts`],
+    /// then point this field at it:
+    ///
+    /// ```
+    /// # let ctx = egui::Context::default();
+    /// // 1. Register the italic font data and family
+    /// let mut fonts = egui::FontDefinitions::default();
+    /// let italic_font_data: &[u8] = &[]; // bytes of a .ttf file
+    /// fonts.font_data.insert(
+    ///     "my_italic_font".to_owned(),
+    ///     egui::FontData::from_static(italic_font_data).into(),
+    /// );
+    /// fonts.families.insert(
+    ///     egui::FontFamily::Name("Italic".into()),
+    ///     vec!["my_italic_font".to_owned()],
+    /// );
+    /// ctx.set_fonts(fonts);
+    ///
+    /// // 2. Tell egui to use it for italic text
+    /// ctx.global_style_mut(|style| {
+    ///     style.emphasis_font = Some(egui::FontFamily::Name("Italic".into()));
+    /// });
+    /// ```
+    ///
+    /// **Note:** When text is both strong and italic, and both [`Self::strong_font`] and
+    /// `emphasis_font` are configured, `emphasis_font` takes precedence
+    /// because a single [`FontId`] can only reference one font family.
+    pub emphasis_font: Option<FontFamily>,
 }
 
 #[test]
@@ -1374,6 +1446,8 @@ impl Default for Style {
             always_scroll_the_only_direction: false,
             scroll_animation: ScrollAnimation::default(),
             compact_menu_style: true,
+            strong_font: None,
+            emphasis_font: None,
         }
     }
 }
@@ -1688,6 +1762,8 @@ impl Style {
             always_scroll_the_only_direction,
             scroll_animation,
             compact_menu_style,
+            strong_font: _,
+            emphasis_font: _,
         } = self;
 
         crate::Grid::new("_options").show(ui, |ui| {
