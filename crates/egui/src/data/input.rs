@@ -442,8 +442,9 @@ pub enum Event {
 
     /// A key was pressed or released.
     ///
-    /// Note for integration authors: Key events that has been processed by IMEs
-    /// should not be sent to egui.
+    /// ## Note for integration authors
+    ///
+    /// Key events that has been processed by IMEs should not be sent to `egui`.
     Key {
         /// Most of the time, it's the logical key, heeding the active keymap -- for instance, if the user has Dvorak
         /// keyboard layout, it will be taken into account.

@@ -359,9 +359,9 @@ impl State {
                     consumed: self.egui_ctx.egui_wants_keyboard_input(),
                 }
             }
-            // On Windows, `KeyboardInput` events are emitted by winit during
-            // IME composition (see
-            // https://github.com/rust-windowing/winit/issues/4508).
+            // On Windows, `KeyboardInput` events are emitted by `winit` during
+            // IME composition.
+            // See: https://github.com/rust-windowing/winit/issues/4508
             //
             // These key presses have their `logical_key` set to
             // `winit::keyboard::NamedKey::Process`. We filter them out to keep
