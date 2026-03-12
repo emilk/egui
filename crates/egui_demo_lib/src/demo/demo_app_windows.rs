@@ -80,6 +80,7 @@ impl Default for DemoGroups {
                 Box::<super::extra_viewport::ExtraViewport>::default(),
                 Box::<super::font_book::FontBook>::default(),
                 Box::<super::frame_demo::FrameDemo>::default(),
+                Box::<super::group_demo::GroupDemo>::default(),
                 Box::<super::highlighting::Highlighting>::default(),
                 Box::<super::interactive_container::InteractiveContainerDemo>::default(),
                 Box::<super::MiscDemoWindow>::default(),
