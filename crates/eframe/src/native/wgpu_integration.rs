@@ -87,6 +87,11 @@ pub struct Viewport {
     /// `None` for sync viewports.
     viewport_ui_cb: Option<Arc<DeferredViewportUiCallback>>,
 
+    /// When `true`, the window was created hidden to avoid a white flash.
+    /// It will be shown after the first frame is painted.
+    /// See <https://github.com/emilk/egui/issues/3625>
+    needs_first_show: bool,
+
     /// Window surface state that's initialized when the app starts running via a Resumed event
     /// and on Android will also be destroyed if the application is paused.
     window: Option<Arc<Window>>,
@@ -305,6 +310,7 @@ impl<'app> WgpuWinitApp<'app> {
                 info: viewport_info,
                 actions_requested: Default::default(),
                 viewport_ui_cb: None,
+                needs_first_show: false, // Root window visibility is handled by EpiIntegration::post_rendering
                 window: Some(window),
                 egui_winit: Some(egui_winit),
             },
@@ -745,6 +751,16 @@ impl WgpuWinitRunning<'_> {
             0.0
         };
 
+        // Show viewport after the first frame has been painted to prevent white flash.
+        // See https://github.com/emilk/egui/issues/3625
+        if let Some(viewport) = viewports.get_mut(&viewport_id) {
+            if std::mem::take(&mut viewport.needs_first_show) {
+                if let Some(window) = &viewport.window {
+                    window.set_visible(true);
+                }
+            }
+        }
+
         let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
 
         handle_viewport_output(
@@ -942,7 +958,17 @@ impl Viewport {
 
         let viewport_id = self.ids.this;
 
-        match egui_winit::create_window(egui_ctx, event_loop, &self.builder) {
+        // Start non-root viewports hidden to prevent a white flash.
+        // They will be shown after the first frame is painted.
+        // The root viewport is handled separately by EpiIntegration::post_rendering.
+        // See https://github.com/emilk/egui/issues/3625
+        let mut builder = self.builder.clone();
+        if viewport_id != ViewportId::ROOT && builder.visible.unwrap_or(true) {
+            builder.visible = Some(false);
+            self.needs_first_show = true;
+        }
+
+        match egui_winit::create_window(egui_ctx, event_loop, &builder) {
             Ok(window) => {
                 windows_id.insert(window.id(), viewport_id);
 
@@ -1102,6 +1128,14 @@ fn render_immediate_viewport(
 
     egui_winit.handle_platform_output(window, platform_output);
 
+    // Show viewport after the first frame has been painted to prevent white flash.
+    // See https://github.com/emilk/egui/issues/3625
+    if std::mem::take(&mut viewport.needs_first_show) {
+        if let Some(window) = &viewport.window {
+            window.set_visible(true);
+        }
+    }
+
     handle_viewport_output(
         &egui_ctx,
         &viewport_output,
@@ -1212,6 +1246,7 @@ fn initialize_or_update_viewport<'a>(
                 info: Default::default(),
                 actions_requested: Vec::new(),
                 viewport_ui_cb,
+                needs_first_show: false, // Set to true in initialize_window when window is created
                 window: None,
                 egui_winit: None,
             })
