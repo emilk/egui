@@ -114,6 +114,11 @@ struct Viewport {
     /// None for immediate viewports.
     viewport_ui_cb: Option<Arc<DeferredViewportUiCallback>>,
 
+    /// When `true`, the window was created hidden to avoid a white flash.
+    /// It will be shown after the first frame is painted.
+    /// See <https://github.com/emilk/egui/issues/3625>
+    needs_first_show: bool,
+
     // These three live and die together.
     // TODO(emilk): clump them together into one struct!
     gl_surface: Option<glutin::surface::Surface<glutin::surface::WindowSurface>>,
@@ -755,6 +760,14 @@ impl GlowWinitRunning<'_> {
             }
         }
 
+        // Show viewport after the first frame has been painted to prevent white flash.
+        // See https://github.com/emilk/egui/issues/3625
+        if let Some(viewport) = viewports.get_mut(&viewport_id) {
+            if std::mem::take(&mut viewport.needs_first_show) {
+                window.set_visible(true);
+            }
+        }
+
         glutin.handle_viewport_output(event_loop, &integration.egui_ctx, &viewport_output);
 
         integration.report_frame_time(frame_timer.total_time_sec()); // don't count auto-save time as part of regular frame time
@@ -1097,6 +1110,7 @@ impl GlutinWindowContext {
                 info: viewport_info,
                 actions_requested: Default::default(),
                 viewport_ui_cb: None,
+                needs_first_show: false, // Root window visibility is handled by EpiIntegration::post_rendering
                 gl_surface: None,
                 window: window.map(Arc::new),
                 egui_winit: None,
@@ -1159,9 +1173,20 @@ impl GlutinWindowContext {
             window
         } else {
             log::debug!("Creating a window for viewport {viewport_id:?}");
+
+            // Start non-root viewports hidden to prevent a white flash.
+            // They will be shown after the first frame is painted.
+            // The root viewport is handled separately by EpiIntegration::post_rendering.
+            // See https://github.com/emilk/egui/issues/3625
+            let mut builder = viewport.builder.clone();
+            if viewport_id != ViewportId::ROOT && builder.visible.unwrap_or(true) {
+                builder.visible = Some(false);
+                viewport.needs_first_show = true;
+            }
+
             let window_attributes = egui_winit::create_winit_window_attributes(
                 &self.egui_ctx,
-                viewport.builder.clone(),
+                builder,
             );
             if window_attributes.transparent()
                 && self.gl_config.supports_transparency() == Some(false)
@@ -1413,6 +1438,7 @@ fn initialize_or_update_viewport(
                 info: Default::default(),
                 actions_requested: Default::default(),
                 viewport_ui_cb,
+                needs_first_show: false, // Set to true in initialize_window when window is created
                 window: None,
                 egui_winit: None,
                 gl_surface: None,
@@ -1583,6 +1609,12 @@ fn render_immediate_viewport(
         if let Err(err) = gl_surface.swap_buffers(current_gl_context) {
             log::error!("swap_buffers failed: {err}");
         }
+    }
+
+    // Show viewport after the first frame has been painted to prevent white flash.
+    // See https://github.com/emilk/egui/issues/3625
+    if std::mem::take(&mut viewport.needs_first_show) {
+        window.set_visible(true);
     }
 
     egui_winit.handle_platform_output(window, platform_output);
