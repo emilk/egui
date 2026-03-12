@@ -192,8 +192,9 @@ impl CCursorRange {
 
             Event::AccessKitActionRequest(accesskit::ActionRequest {
                 action: accesskit::Action::SetTextSelection,
-                target,
+                target_node: target,
                 data: Some(accesskit::ActionData::SetTextSelection(selection)),
+                ..
             }) => {
                 if _widget_id.accesskit_id() == *target {
                     let primary =
