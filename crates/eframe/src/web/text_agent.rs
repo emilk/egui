@@ -38,6 +38,8 @@ impl TextAgent {
         style.set_property("position", "absolute")?;
         style.set_property("top", "0")?;
         style.set_property("left", "0")?;
+        // Prevent auto-zoom on mobile browsers (requires at least 16px).
+        style.set_property("font-size", "16px")?;
 
         if root.has_type::<Document>() {
             // root object is a document, append to its body
@@ -144,16 +146,21 @@ impl TextAgent {
         let cursor_rect = ime.cursor_rect.translate(canvas_rect.min.to_vec2());
 
         let style = self.input.style();
+        let native_ppp = super::native_pixels_per_point();
+
+        // Clamp the input position within the canvas width to prevent unwanted horizontal scrolling.
+        let logical_canvas_width = canvas.width() as f32 / native_ppp;
+        let visible_x = cursor_rect.center().x * zoom_factor;
+        let clamped_x = visible_x.clamp(0.0, logical_canvas_width);
+
+        // Clamp the input position within the canvas height to prevent unwanted vertical scrolling.
+        let logical_canvas_height = canvas.height() as f32 / native_ppp;
+        let visible_y = cursor_rect.center().y * zoom_factor;
+        let clamped_y = visible_y.clamp(0.0, logical_canvas_height);
 
         // This is where the IME input will point to:
-        style.set_property(
-            "left",
-            &format!("{}px", cursor_rect.center().x * zoom_factor),
-        )?;
-        style.set_property(
-            "top",
-            &format!("{}px", cursor_rect.center().y * zoom_factor),
-        )?;
+        style.set_property("left", &format!("{clamped_x}px"))?;
+        style.set_property("top", &format!("{clamped_y}px"))?;
 
         Ok(())
     }
