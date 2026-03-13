@@ -1,5 +1,11 @@
+use std::sync::Arc;
+
 use egui::accesskit::Role;
-use egui::{Align, Color32, Image, Label, Layout, RichText, Sense, TextWrapMode, include_image};
+use egui::text::{LayoutJob, TextWrapping};
+use egui::{
+    Align, Color32, FontFamily, FontId, Image, Label, Layout, RichText, Sense, TextBuffer,
+    TextFormat, TextWrapMode, Ui, include_image, vec2,
+};
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable as _;
 
@@ -60,6 +66,53 @@ fn text_edit_rtl() {
         harness.step();
         harness.snapshot(format!("text_edit_rtl_{i}"));
     }
+}
+
+#[test]
+fn text_edit_halign() {
+    let mut harness = Harness::builder().with_size((212.0, 212.0)).build_ui(|ui| {
+        ui.spacing_mut().item_spacing = vec2(2.0, 2.0);
+
+        fn layouter(halign: Align) -> impl FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<egui::Galley> {
+            move |ui: &egui::Ui, buf: &dyn egui::TextBuffer, wrap_width: f32| {
+                let mut job = LayoutJob {
+                    wrap: TextWrapping {
+                        max_rows: 4,
+                        max_width: wrap_width,
+                        ..Default::default()
+                    },
+                    halign,
+                    ..Default::default()
+                };
+                job.append(
+                    buf.as_str(),
+                    0.0,
+                    TextFormat::simple(FontId::new(13.0, FontFamily::Proportional), Color32::GRAY),
+                );
+                ui.fonts_mut(|f| f.layout_job(job))
+            }
+        }
+
+        for widget_alignment in [Align::Min, Align::Center, Align::Max] {
+            ui.horizontal(|ui| {
+                for text_alignment in [Align::LEFT, Align::Center, Align::RIGHT] {
+                    ui.add_sized(
+                        vec2(64.0, 64.0),
+                        egui::TextEdit::multiline(&mut format!(
+                            "{widget_alignment:?}\n+\n{text_alignment:?}",
+                        ))
+                        .layouter(&mut layouter(text_alignment))
+                        .vertical_align(widget_alignment)
+                        .horizontal_align(widget_alignment),
+                    );
+                }
+            });
+        }
+    });
+
+    harness.get_by_value("Center\n+\nCenter").focus();
+    harness.step();
+    harness.snapshot("text_edit_halign");
 }
 
 #[test]
