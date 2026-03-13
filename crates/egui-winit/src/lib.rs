@@ -594,11 +594,15 @@ impl State {
                     self.ime_event_enable();
                 }
             }
-            winit::event::Ime::Preedit(text, Some(_cursor)) => {
+            winit::event::Ime::Preedit(text, Some(cursor)) => {
                 self.ime_event_enable();
                 self.egui_input
                     .events
-                    .push(egui::Event::Ime(egui::ImeEvent::Preedit(text.clone())));
+                    .push(egui::Event::Ime(egui::ImeEvent::Preedit {
+                        text_mark: text.clone(),
+                        start: cursor.0,
+                        end: cursor.1,
+                    }));
             }
             winit::event::Ime::Commit(text) => {
                 self.egui_input
@@ -618,8 +622,11 @@ impl State {
                 // TextEdit in such situation.
                 self.egui_input
                     .events
-                    .push(egui::Event::Ime(egui::ImeEvent::Preedit(String::new())));
-                self.ime_event_disable();
+                    .push(egui::Event::Ime(egui::ImeEvent::Preedit {
+                        text_mark: String::new(),
+                        start: 0,
+                        end: 0,
+                    }));
             }
         }
     }
