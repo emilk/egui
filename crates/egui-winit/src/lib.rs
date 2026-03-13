@@ -114,7 +114,7 @@ pub struct State {
     /// release events that should be filtered out. See comments in that method
     /// for details.
     #[cfg(target_os = "windows")]
-    pressed_processed_physical_keys: std::collections::HashSet<winit::keyboard::PhysicalKey>,
+    pressed_processed_physical_keys: HashSet<winit::keyboard::PhysicalKey>,
 }
 
 impl State {
