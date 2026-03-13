@@ -256,7 +256,7 @@ pub mod icon_data;
 pub fn run_native(
     app_name: &str,
     mut native_options: NativeOptions,
-    app_creator: AppCreator<'_>,
+    app_creator: AppCreator,
 ) -> Result {
     let renderer = init_native(app_name, &mut native_options);
 
@@ -325,7 +325,7 @@ pub fn run_native(
 pub fn create_native<'a>(
     app_name: &str,
     mut native_options: NativeOptions,
-    app_creator: AppCreator<'a>,
+    app_creator: AppCreator,
     event_loop: &winit::event_loop::EventLoop<UserEvent>,
 ) -> EframeWinitApplication<'a> {
     let renderer = init_native(app_name, &mut native_options);
