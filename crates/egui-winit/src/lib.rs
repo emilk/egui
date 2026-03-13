@@ -610,15 +610,24 @@ impl State {
                 self.ime_event_disable();
             }
             winit::event::Ime::Preedit(_, None) => {
-                // we need to emit this on macOS, since winit doesn't emit
-                // `Predict("", Some(0, 0))` before this event on macOS when the
-                // user deletes the last character in the prediction with the
-                // backspace key. Without this, only `egui::ImeEvent::Disabled`
-                // is emitted here, leading to the last character being left in
-                // TextEdit in such situation.
-                self.egui_input
-                    .events
-                    .push(egui::Event::Ime(egui::ImeEvent::Preedit(String::new())));
+                if cfg!(target_os = "macos") {
+                    // On macOS, when the user presses backspace to delete the
+                    // last character in an IME composition, `winit` only emits
+                    // `winit::event::Ime::Preedit("", None)` without a
+                    // preceding `winit::event::Ime::Preedit("", Some(0, 0))`.
+                    // The current implementation of `egui::TextEdit` relies on
+                    // receiving an `egui::ImeEvent::Preedit("")` to remove the
+                    // last character of the preedit text in this case, so we
+                    // emit it here.
+                    //
+                    // This is guarded to macOS only, as applying it on other
+                    // platforms is unnecessary and can cause undesired
+                    // behavior.
+                    self.egui_input
+                        .events
+                        .push(egui::Event::Ime(egui::ImeEvent::Preedit(String::new())));
+                }
+
                 self.ime_event_disable();
             }
         }
