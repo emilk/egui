@@ -79,6 +79,81 @@
 //! # });
 //! ```
 //!
+//! ### Layout helpers
+//!
+//! ```
+//! # egui::__run_test_ui(|ui| {
+//! ui.horizontal(|ui| {
+//!     ui.label("Widgets");
+//!     ui.label("share a row");
+//! });
+//!
+//! ui.vertical_centered(|ui| {
+//!     ui.label("These labels");
+//!     ui.label("are centered");
+//! });
+//!
+//! ui.vertical_centered_justified(|ui| {
+//!     ui.label("Justified widgets expand to fill the available width.");
+//! });
+//! # });
+//! ```
+//!
+//! ### Selectable widgets and combo boxes
+//!
+//! ```
+//! # egui::__run_test_ui(|ui| {
+//! #[derive(PartialEq)]
+//! enum Page { Overview, Details, Logs }
+//! # let mut page = Page::Overview;
+//! ui.horizontal(|ui| {
+//!     ui.selectable_value(&mut page, Page::Overview, "Overview");
+//!     ui.selectable_value(&mut page, Page::Details, "Details");
+//!     ui.selectable_value(&mut page, Page::Logs, "Logs");
+//! });
+//!
+//! let mut choice = "Apple";
+//! egui::ComboBox::from_label("Favorite fruit")
+//!     .selected_text(choice)
+//!     .show_ui(ui, |ui| {
+//!         ui.selectable_value(&mut choice, "Apple", "Apple");
+//!         ui.selectable_value(&mut choice, "Banana", "Banana");
+//!         ui.selectable_value(&mut choice, "Kiwi", "Kiwi");
+//!     });
+//! # });
+//! ```
+//!
+//! ### Grids
+//!
+//! Use [`Grid`] when you need tabular layouts with aligned columns:
+//!
+//! ```
+//! # egui::__run_test_ui(|ui| {
+//! egui::Grid::new("stats_grid")
+//!     .num_columns(2)
+//!     .striped(true)
+//!     .show(ui, |ui| {
+//!         ui.label("Downloads");
+//!         ui.label("42_000");
+//!         ui.end_row();
+//!
+//!         ui.label("Open issues");
+//!         ui.label("128");
+//!         ui.end_row();
+//!     });
+//! # });
+//! ```
+//!
+//! ### Tooltips
+//!
+//! ```
+//! # egui::__run_test_ui(|ui| {
+//! ui.button("Hover me")
+//!     .on_hover_text("Short tooltip")
+//!     .on_hover_text_at_pointer("Follow the cursor");
+//! # });
+//! ```
+//!
 //! ## Viewports
 //! Some egui backends support multiple _viewports_, which is what egui calls the native OS windows it resides in.
 //! See [`crate::viewport`] for more information.
@@ -222,6 +297,20 @@
 //! and later passes for layout.
 //!
 //! See [`Context::request_discard`] and [`Options::max_passes`] for more.
+//!
+//! ## FAQ
+//!
+//! **How do I store state between frames?**\
+//! Keep your own `struct` with the values you mutate (e.g. selected enum variants, slider numbers) and update it inside `App::update`. egui only borrows your data temporarily each frame - it never stores it for you.
+//!
+//! **Why does my layout jitter the first frame?**\
+//! Some widgets (e.g. [`Grid`]) need a frame of measurements before they can allocate perfectly. Call [`Context::request_discard`] or keep the widget alive so the second frame reuses the cached layout.
+//!
+//! **How do I make widgets span the full width?**\
+//! Use helpers like [`Ui::vertical_centered_justified`] or wrap content with [`Ui::with_layout`] and [`Layout::top_down`]/[`Layout::left_to_right`] to control justification explicitly.
+//!
+//! **Where can I see more complete examples?**\
+//! The live demo at <https://www.egui.rs/#demo> mirrors the code in `crates/egui_demo_app` and `crates/egui_demo_lib`. Each window links back to the relevant source so you can inspect a working reference implementation.
 //!
 //! # Misc
 //!
