@@ -234,6 +234,12 @@ pub struct Options {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub zoom_with_keyboard: bool,
 
+    /// If `true`, common keyboard shortcuts will be converted into events such as `Copy` and
+    /// `Paste`.
+    ///
+    /// This is `true` by default.
+    pub default_shortcuts: bool,
+
     /// Controls the tessellator.
     pub tessellation_options: epaint::TessellationOptions,
 
@@ -304,6 +310,7 @@ impl Default for Options {
             system_theme: None,
             zoom_factor: 1.0,
             zoom_with_keyboard: true,
+            default_shortcuts: true,
             tessellation_options: Default::default(),
             repaint_on_widget_change: false,
 
@@ -363,6 +370,7 @@ impl Options {
             system_theme: _,
             zoom_factor,
             zoom_with_keyboard,
+            default_shortcuts,
             tessellation_options,
             repaint_on_widget_change,
             max_passes,
@@ -396,6 +404,11 @@ impl Options {
                 ui.checkbox(
                     zoom_with_keyboard,
                     "Zoom with keyboard (Cmd +, Cmd -, Cmd 0)",
+                );
+
+                ui.checkbox(
+                    default_shortcuts,
+                    "Default keyboard shortcuts (Cut, Copy, Paste)",
                 );
 
                 ui.checkbox(warn_on_id_clash, "Warn if two widgets have the same Id");
