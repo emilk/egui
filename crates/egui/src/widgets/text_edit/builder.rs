@@ -135,11 +135,14 @@ impl<'t> TextEdit<'t> {
             desired_width: None,
             desired_height_rows: 4,
             event_filter: EventFilter {
-                // moving the cursor is really important
-                horizontal_arrows: true,
-                vertical_arrows: true,
-                tab: false, // tab is used to change focus, not to insert a tab character
-                ..Default::default()
+                filter: |event| {
+                    if let crate::Event::Key { key, .. } = event {
+                        // tab is used to change focus, not to insert a tab character
+                        !matches!(key, crate::Key::Tab | crate::Key::Escape)
+                    } else {
+                        true
+                    }
+                },
             },
             cursor_at_end: true,
             min_size: Vec2::ZERO,
@@ -328,7 +331,23 @@ impl<'t> TextEdit<'t> {
     /// will insert the `'\t'` character.
     #[inline]
     pub fn lock_focus(mut self, tab_will_indent: bool) -> Self {
-        self.event_filter.tab = tab_will_indent;
+        if tab_will_indent {
+            self.event_filter.filter = |event| {
+                if let crate::Event::Key { key, .. } = event {
+                    !matches!(key, crate::Key::Escape)
+                } else {
+                    true
+                }
+            };
+        } else {
+            self.event_filter.filter = |event| {
+                if let crate::Event::Key { key, .. } = event {
+                    !matches!(key, crate::Key::Tab | crate::Key::Escape)
+                } else {
+                    true
+                }
+            };
+        }
         self
     }
 
