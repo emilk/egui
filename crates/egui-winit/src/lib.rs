@@ -623,6 +623,7 @@ impl State {
                     // This is guarded to macOS only, as applying it on other
                     // platforms is unnecessary and can cause undesired
                     // behavior.
+                    // See: https://github.com/emilk/egui/pull/7973
                     self.egui_input
                         .events
                         .push(egui::Event::Ime(egui::ImeEvent::Preedit(String::new())));
