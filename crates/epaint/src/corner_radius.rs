@@ -22,6 +22,12 @@ pub struct CornerRadius {
 
     /// Radius of the rounding of the South-East (right bottom) corner.
     pub se: u8,
+
+    /// The shape of the corners.
+    ///
+    /// If `None`, defaults to [`crate::CornerShape::Round`] for backward compatibility.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub shape: Option<crate::CornerShape>,
 }
 
 impl Default for CornerRadius {
@@ -52,6 +58,7 @@ impl CornerRadius {
         ne: 0,
         sw: 0,
         se: 0,
+        shape: None,
     };
 
     /// Same rounding on all four corners.
@@ -62,7 +69,21 @@ impl CornerRadius {
             ne: radius,
             sw: radius,
             se: radius,
+            shape: None,
         }
+    }
+
+    /// Set the shape of the corners.
+    #[inline]
+    pub const fn with_shape(mut self, shape: crate::CornerShape) -> Self {
+        self.shape = Some(shape);
+        self
+    }
+
+    /// Get the actual shape to use, defaulting to Round if not specified.
+    #[inline]
+    pub fn shape(&self) -> crate::CornerShape {
+        self.shape.unwrap_or(crate::CornerShape::Round)
     }
 
     /// Do all corners have the same rounding?
@@ -79,6 +100,7 @@ impl CornerRadius {
             ne: self.ne.max(min),
             sw: self.sw.max(min),
             se: self.se.max(min),
+            shape: self.shape,
         }
     }
 
@@ -90,6 +112,7 @@ impl CornerRadius {
             ne: self.ne.min(max),
             sw: self.sw.min(max),
             se: self.se.min(max),
+            shape: self.shape,
         }
     }
 
@@ -108,6 +131,7 @@ impl std::ops::Add for CornerRadius {
             ne: self.ne.saturating_add(rhs.ne),
             sw: self.sw.saturating_add(rhs.sw),
             se: self.se.saturating_add(rhs.se),
+            shape: self.shape,
         }
     }
 }
@@ -121,6 +145,7 @@ impl std::ops::Add<u8> for CornerRadius {
             ne: self.ne.saturating_add(rhs),
             sw: self.sw.saturating_add(rhs),
             se: self.se.saturating_add(rhs),
+            shape: self.shape,
         }
     }
 }
@@ -133,6 +158,7 @@ impl std::ops::AddAssign for CornerRadius {
             ne: self.ne.saturating_add(rhs.ne),
             sw: self.sw.saturating_add(rhs.sw),
             se: self.se.saturating_add(rhs.se),
+            shape: self.shape,
         };
     }
 }
@@ -145,6 +171,7 @@ impl std::ops::AddAssign<u8> for CornerRadius {
             ne: self.ne.saturating_add(rhs),
             sw: self.sw.saturating_add(rhs),
             se: self.se.saturating_add(rhs),
+            shape: self.shape,
         };
     }
 }
@@ -158,6 +185,7 @@ impl std::ops::Sub for CornerRadius {
             ne: self.ne.saturating_sub(rhs.ne),
             sw: self.sw.saturating_sub(rhs.sw),
             se: self.se.saturating_sub(rhs.se),
+            shape: self.shape,
         }
     }
 }
@@ -171,6 +199,7 @@ impl std::ops::Sub<u8> for CornerRadius {
             ne: self.ne.saturating_sub(rhs),
             sw: self.sw.saturating_sub(rhs),
             se: self.se.saturating_sub(rhs),
+            shape: self.shape,
         }
     }
 }
@@ -183,6 +212,7 @@ impl std::ops::SubAssign for CornerRadius {
             ne: self.ne.saturating_sub(rhs.ne),
             sw: self.sw.saturating_sub(rhs.sw),
             se: self.se.saturating_sub(rhs.se),
+            shape: self.shape,
         };
     }
 }
@@ -195,6 +225,7 @@ impl std::ops::SubAssign<u8> for CornerRadius {
             ne: self.ne.saturating_sub(rhs),
             sw: self.sw.saturating_sub(rhs),
             se: self.se.saturating_sub(rhs),
+            shape: self.shape,
         };
     }
 }
@@ -208,6 +239,7 @@ impl std::ops::Div<f32> for CornerRadius {
             ne: (self.ne as f32 / rhs) as u8,
             sw: (self.sw as f32 / rhs) as u8,
             se: (self.se as f32 / rhs) as u8,
+            shape: self.shape,
         }
     }
 }
@@ -220,6 +252,7 @@ impl std::ops::DivAssign<f32> for CornerRadius {
             ne: (self.ne as f32 / rhs) as u8,
             sw: (self.sw as f32 / rhs) as u8,
             se: (self.se as f32 / rhs) as u8,
+            shape: self.shape,
         };
     }
 }
@@ -233,6 +266,7 @@ impl std::ops::Mul<f32> for CornerRadius {
             ne: (self.ne as f32 * rhs) as u8,
             sw: (self.sw as f32 * rhs) as u8,
             se: (self.se as f32 * rhs) as u8,
+            shape: self.shape,
         }
     }
 }
@@ -245,6 +279,7 @@ impl std::ops::MulAssign<f32> for CornerRadius {
             ne: (self.ne as f32 * rhs) as u8,
             sw: (self.sw as f32 * rhs) as u8,
             se: (self.se as f32 * rhs) as u8,
+            shape: self.shape,
         };
     }
 }
