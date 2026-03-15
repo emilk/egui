@@ -552,14 +552,14 @@ impl State {
     /// | b-debian13_gnome48_wayland-fcitx5_shuangpin | `Predict("", None)` -> `Commit("测试")` -> `Predict("", Some(0, 0))` -> `Predict("", None)` (duplicate until `TextEdit` blurred) |
     /// | c-windows11-ms_pinyin                       | `Predict("测试", Some(…))` -> `Predict("", None)` -> `Commit("测试")` -> `Disabled`                                              |
     ///
-    /// #### Situation: pressed backspace to delete the last character in the prediction
+    /// #### Situation: pressed backspace to delete the last character in the composition
     ///
     /// | Setup                                       | Events in Order                                                                       |
     /// | a-macos15-apple_shuangpin                   | `Predict("", None)`                                                                   |
     /// | b-debian13_gnome48_wayland-fcitx5_shuangpin | `Predict("", Some(0, 0))` -> `Predict("", None)` (duplicate until `TextEdit` blurred) |
     /// | c-windows11-ms_pinyin                       | `Predict("", Some(0, 0))` -> `Predict("", None)` -> `Commit("")` -> `Disabled`        |
     ///
-    /// #### Situation: clicked somewhere else while there is an active composition with the prediction "ce"
+    /// #### Situation: clicked somewhere else while there is an active composition with the pre-edit text "ce"
     ///
     /// | Setup                                       | Events in Order                                                                                   |
     /// | ------------------------------------------- | ------------------------------------------------------------------------------------------------- |
@@ -615,12 +615,13 @@ impl State {
                     // last character in an IME composition, `winit` only emits
                     // `winit::event::Ime::Preedit("", None)` without a
                     // preceding `winit::event::Ime::Preedit("", Some(0, 0))`.
+                    //
                     // The current implementation of `egui::TextEdit` relies on
                     // receiving an `egui::ImeEvent::Preedit("")` to remove the
-                    // last character of the preedit text in this case, so we
+                    // last character in the composition in this case, so we
                     // emit it here.
                     //
-                    // This is guarded to macOS only, as applying it on other
+                    // This is guarded to macOS-only, as applying it on other
                     // platforms is unnecessary and can cause undesired
                     // behavior.
                     // See: https://github.com/emilk/egui/pull/7973
