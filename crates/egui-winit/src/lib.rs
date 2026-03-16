@@ -845,6 +845,8 @@ impl State {
     }
 
     fn on_keyboard_input(&mut self, event: &winit::event::KeyEvent) {
+        let start_size = self.egui_input.events.len();
+
         let winit::event::KeyEvent {
             // Represents the position of a key independent of the currently active layout.
             //
@@ -943,6 +945,11 @@ impl State {
                 }
             }
         }
+
+        log::trace!(
+            "egui winit keyboard input reached egui? {}",
+            start_size != self.egui_input.events.len()
+        );
     }
 
     /// Call with the output given by `egui`.
