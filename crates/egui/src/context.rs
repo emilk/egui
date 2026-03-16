@@ -2616,6 +2616,7 @@ impl ContextImpl {
                 platform_output.accesskit_update = Some(accesskit::TreeUpdate {
                     nodes,
                     tree: Some(accesskit::Tree::new(root_id)),
+                    tree_id: accesskit::TreeId::ROOT,
                     focus: focus_id,
                 });
             }

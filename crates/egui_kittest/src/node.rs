@@ -98,9 +98,11 @@ impl Node<'_> {
     /// This will trigger a [`accesskit::Action::Click`] action.
     /// In contrast to `click()`, this can also click widgets that are not currently visible.
     pub fn click_accesskit(&self) {
+        let (target_node, target_tree) = self.accesskit_node.locate();
         self.event(egui::Event::AccessKitActionRequest(
             accesskit::ActionRequest {
-                target: self.accesskit_node.id(),
+                target_node,
+                target_tree,
                 action: accesskit::Action::Click,
                 data: None,
             },
@@ -119,9 +121,11 @@ impl Node<'_> {
     }
 
     pub fn focus(&self) {
+        let (target_node, target_tree) = self.accesskit_node.locate();
         self.event(egui::Event::AccessKitActionRequest(ActionRequest {
             action: accesskit::Action::Focus,
-            target: self.accesskit_node.id(),
+            target_node,
+            target_tree,
             data: None,
         }));
     }
@@ -162,45 +166,55 @@ impl Node<'_> {
 
     /// Scroll the node into view.
     pub fn scroll_to_me(&self) {
+        let (target_node, target_tree) = self.accesskit_node.locate();
         self.event(egui::Event::AccessKitActionRequest(ActionRequest {
             action: accesskit::Action::ScrollIntoView,
-            target: self.accesskit_node.id(),
+            target_node,
+            target_tree,
             data: None,
         }));
     }
 
     /// Scroll the [`egui::ScrollArea`] containing this node down (100px).
     pub fn scroll_down(&self) {
+        let (target_node, target_tree) = self.accesskit_node.locate();
         self.event(egui::Event::AccessKitActionRequest(ActionRequest {
             action: accesskit::Action::ScrollDown,
-            target: self.accesskit_node.id(),
+            target_node,
+            target_tree,
             data: None,
         }));
     }
 
     /// Scroll the [`egui::ScrollArea`] containing this node up (100px).
     pub fn scroll_up(&self) {
+        let (target_node, target_tree) = self.accesskit_node.locate();
         self.event(egui::Event::AccessKitActionRequest(ActionRequest {
             action: accesskit::Action::ScrollUp,
-            target: self.accesskit_node.id(),
+            target_node,
+            target_tree,
             data: None,
         }));
     }
 
     /// Scroll the [`egui::ScrollArea`] containing this node left (100px).
     pub fn scroll_left(&self) {
+        let (target_node, target_tree) = self.accesskit_node.locate();
         self.event(egui::Event::AccessKitActionRequest(ActionRequest {
             action: accesskit::Action::ScrollLeft,
-            target: self.accesskit_node.id(),
+            target_node,
+            target_tree,
             data: None,
         }));
     }
 
     /// Scroll the [`egui::ScrollArea`] containing this node right (100px).
     pub fn scroll_right(&self) {
+        let (target_node, target_tree) = self.accesskit_node.locate();
         self.event(egui::Event::AccessKitActionRequest(ActionRequest {
             action: accesskit::Action::ScrollRight,
-            target: self.accesskit_node.id(),
+            target_node,
+            target_tree,
             data: None,
         }));
     }

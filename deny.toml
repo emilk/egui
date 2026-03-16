@@ -64,6 +64,7 @@ skip-tree = [
   { name = "hashbrown" }, # wgpu's naga depends on 0.16, accesskit depends on 0.15
   { name = "rfd" }, # example dependency
   { name = "windows" }, # the ecosystem is currently transitioning from 0.58 to 0.61
+  { name = "phf" }, # mime_guess2, unicode_names2 -> 0.11.3; accesskit -> 0.13.1
 ]
 
 
