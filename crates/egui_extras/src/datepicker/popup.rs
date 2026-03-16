@@ -13,6 +13,7 @@ struct DatePickerPopupState {
     month: u32,
     day: u32,
     setup: bool,
+    year_scroll_needed: bool,
 }
 
 impl DatePickerPopupState {
@@ -36,6 +37,8 @@ pub(crate) struct DatePickerPopup<'a> {
     pub calendar_week: bool,
     pub highlight_weekends: bool,
     pub start_end_years: Option<std::ops::RangeInclusive<i32>>,
+    pub reverse_years: bool,
+    pub year_scroll_to: Option<i32>,
 }
 
 impl DatePickerPopup<'_> {
@@ -51,6 +54,7 @@ impl DatePickerPopup<'_> {
             popup_state.month = self.selection.month();
             popup_state.day = self.selection.day();
             popup_state.setup = true;
+            popup_state.year_scroll_needed = true;
             ui.data_mut(|data| data.insert_persisted(id, popup_state.clone()));
         }
 
@@ -60,7 +64,7 @@ impl DatePickerPopup<'_> {
         let spacing = 2.0;
         ui.spacing_mut().item_spacing = Vec2::splat(spacing);
 
-        ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend); // Don't wrap any text
+        ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
 
         StripBuilder::new(ui)
             .clip(false)
@@ -89,15 +93,30 @@ impl DatePickerPopup<'_> {
                                             Some(range) => (*range.start(), *range.end()),
                                             None => (today.year() - 100, today.year() + 10),
                                         };
-                                        for year in start_year..=end_year {
-                                            if ui
-                                                .selectable_value(
-                                                    &mut popup_state.year,
-                                                    year,
-                                                    year.to_string(),
-                                                )
-                                                .changed()
+                                        let scroll_to_year =
+                                            self.year_scroll_to.unwrap_or(popup_state.year);
+                                        let years: Vec<i32> = if self.reverse_years {
+                                            (start_year..=end_year).rev().collect()
+                                        } else {
+                                            (start_year..=end_year).collect()
+                                        };
+                                        for year in years {
+                                            let resp = ui.selectable_value(
+                                                &mut popup_state.year,
+                                                year,
+                                                year.to_string(),
+                                            );
+                                            if popup_state.year_scroll_needed
+                                                && year == scroll_to_year
                                             {
+                                                resp.scroll_to_me(Some(Align::Center));
+                                                popup_state.year_scroll_needed = false;
+                                                ui.memory_mut(|mem| {
+                                                    mem.data
+                                                        .insert_persisted(id, popup_state.clone());
+                                                });
+                                            }
+                                            if resp.changed() {
                                                 popup_state.day = popup_state
                                                     .day
                                                     .min(popup_state.last_day_of_month());
@@ -349,7 +368,6 @@ impl DatePickerPopup<'_> {
                                                         );
 
                                                         if day == today {
-                                                            // Encircle today's date
                                                             let stroke = ui
                                                                 .visuals()
                                                                 .widgets
