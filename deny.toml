@@ -53,9 +53,6 @@ skip = [
   { name = "core-graphics-types" }, # version conflict between winit and wgpu ecosystems
   { name = "getrandom" }, # ring / rustls (and thus ehttp) still depend on getrandom 0.2
   { name = "kurbo" }, # Old version because of resvg
-  { name = "phf" }, # mime_guess2, unicode_names2 -> 0.11.3; accesskit -> 0.13.1
-  { name = "phf_generator" }, # see above
-  { name = "phf_shared" }, # see above
   { name = "redox_syscall" }, # old version via winit
   { name = "rustc-hash" }, # Small enough
   { name = "thiserror" }, # ecosystem is in the process of migrating from 1.x to 2.x
@@ -67,6 +64,7 @@ skip-tree = [
   { name = "hashbrown" }, # wgpu's naga depends on 0.16, accesskit depends on 0.15
   { name = "rfd" }, # example dependency
   { name = "windows" }, # the ecosystem is currently transitioning from 0.58 to 0.61
+  { name = "phf" }, # mime_guess2, unicode_names2 -> 0.11.3; accesskit -> 0.13.1
 ]
 
 
