@@ -548,23 +548,23 @@ impl State {
     ///
     /// | Setup                                       | Events in Order                                                                                                                  |
     /// | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-    /// | a-macos15-apple_shuangpin                   | `Predict("", None)` -> `Commit("测试")`                                                                                          |
-    /// | b-debian13_gnome48_wayland-fcitx5_shuangpin | `Predict("", None)` -> `Commit("测试")` -> `Predict("", Some(0, 0))` -> `Predict("", None)` (duplicate until `TextEdit` blurred) |
-    /// | c-windows11-ms_pinyin                       | `Predict("测试", Some(…))` -> `Predict("", None)` -> `Commit("测试")` -> `Disabled`                                              |
+    /// | a-macos15-apple_shuangpin                   | `Preedit("", None)` -> `Commit("测试")`                                                                                          |
+    /// | b-debian13_gnome48_wayland-fcitx5_shuangpin | `Preedit("", None)` -> `Commit("测试")` -> `Preedit("", Some(0, 0))` -> `Preedit("", None)` (duplicate until `TextEdit` blurred) |
+    /// | c-windows11-ms_pinyin                       | `Preedit("测试", Some(…))` -> `Preedit("", None)` -> `Commit("测试")` -> `Disabled`                                              |
     ///
     /// #### Situation: pressed backspace to delete the last character in the composition
     ///
     /// | Setup                                       | Events in Order                                                                       |
-    /// | a-macos15-apple_shuangpin                   | `Predict("", None)`                                                                   |
-    /// | b-debian13_gnome48_wayland-fcitx5_shuangpin | `Predict("", Some(0, 0))` -> `Predict("", None)` (duplicate until `TextEdit` blurred) |
-    /// | c-windows11-ms_pinyin                       | `Predict("", Some(0, 0))` -> `Predict("", None)` -> `Commit("")` -> `Disabled`        |
+    /// | a-macos15-apple_shuangpin                   | `Preedit("", None)`                                                                   |
+    /// | b-debian13_gnome48_wayland-fcitx5_shuangpin | `Preedit("", Some(0, 0))` -> `Preedit("", None)` (duplicate until `TextEdit` blurred) |
+    /// | c-windows11-ms_pinyin                       | `Preedit("", Some(0, 0))` -> `Preedit("", None)` -> `Commit("")` -> `Disabled`        |
     ///
     /// #### Situation: clicked somewhere else while there is an active composition with the pre-edit text "ce"
     ///
     /// | Setup                                       | Events in Order                                                                                   |
     /// | ------------------------------------------- | ------------------------------------------------------------------------------------------------- |
     /// | a-macos15-apple_shuangpin                   | nothing emitted                                                                                   |
-    /// | b-debian13_gnome48_wayland-fcitx5_shuangpin | `Predict("", Some(0, 0))` (duplicate) -> `Predict("", None)` (duplicate until `TextEdit` blurred) |
+    /// | b-debian13_gnome48_wayland-fcitx5_shuangpin | `Preedit("", Some(0, 0))` (duplicate) -> `Preedit("", None)` (duplicate until `TextEdit` blurred) |
     /// | c-windows11-ms_pinyin                       | nothing emitted                                                                                   |
     fn on_ime(&mut self, ime: &winit::event::Ime) {
         // // code for inspecting ime events emitted by winit:
