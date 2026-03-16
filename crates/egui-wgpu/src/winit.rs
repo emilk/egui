@@ -420,12 +420,40 @@ impl Painter {
     ) -> f32 {
         profiling::function_scope!();
 
+        /// Guard to ensure that commands are always submitted to the renderer queue
+        /// so that calls to [`write_buffer()`](https://docs.rs/wgpu/latest/wgpu/struct.Queue.html#method.write_buffer)
+        /// are completed even if we take a codepath which doesn't submit commands and avoids
+        /// internal buffers growing indefinitely.
+        ///
+        /// This may happen, for example, if no output frame is resolved.
+        /// See <https://github.com/emilk/egui/pull/7928> for full context.
+        struct RendererQueueGuard<'q> {
+            queue: &'q wgpu::Queue,
+            commands_submitted: bool,
+        }
+
+        impl Drop for RendererQueueGuard<'_> {
+            fn drop(&mut self) {
+                // Only submit an empty command buffer array if no commands were
+                // explicitly submitted.
+                if !self.commands_submitted {
+                    self.queue.submit([]);
+                }
+            }
+        }
+
         let capture = !capture_data.is_empty();
         let mut vsync_sec = 0.0;
 
         let Some(render_state) = self.render_state.as_mut() else {
             return vsync_sec;
         };
+
+        let mut render_queue_guard = RendererQueueGuard {
+            queue: &render_state.queue,
+            commands_submitted: false,
+        };
+
         let Some(surface_state) = self.surfaces.get(&viewport_id) else {
             return vsync_sec;
         };
@@ -589,6 +617,9 @@ impl Painter {
                 .submit(user_cmd_bufs.into_iter().chain([encoded]));
             vsync_sec += start.elapsed().as_secs_f32();
         };
+
+        // Ensure that the queue guard does not do unnecessary work when dropped
+        render_queue_guard.commands_submitted = true;
 
         // Free textures marked for destruction **after** queue submit since they might still be used in the current frame.
         // Calling `wgpu::Texture::destroy` on a texture that is still in use would invalidate the command buffer(s) it is used in.
