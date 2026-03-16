@@ -149,8 +149,7 @@ windows-sys = "0.61.2"
 winit = { version = "0.30.12", default-features = false }
 
 [patch.crates-io]
-# rerun-io/kittest#22 <https://github.com/rerun-io/kittest/pull/22>
-kittest = { git = "https://github.com/rerun-io/kittest", rev = "54497bbfed6db8216caa2c1e21bdc913233589f3" }
+kittest = { git = "https://github.com/rerun-io/kittest", branch = "main" }
 
 [workspace.lints.rust]
 unsafe_code = "deny"
