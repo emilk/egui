@@ -8,7 +8,7 @@ use crate::{
     Color32, Mesh, Stroke, Vertex,
     stroke::PathStroke,
     text::{
-        font::{ScaledMetrics, is_cjk, is_cjk_break_allowed},
+        font::{StyledMetrics, is_cjk, is_cjk_break_allowed},
         fonts::FontFaceKey,
     },
 };
@@ -114,7 +114,7 @@ pub fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<LayoutJob>)
     let intrinsic_size = calculate_intrinsic_size(point_scale, &job, &paragraphs);
 
     let mut elided = false;
-    let mut rows = rows_from_paragraphs(paragraphs, &job, &mut elided);
+    let mut rows = rows_from_paragraphs(paragraphs, &job, pixels_per_point, &mut elided);
     if elided && let Some(last_placed) = rows.last_mut() {
         let last_row = Arc::make_mut(&mut last_placed.row);
         replace_last_glyph_with_overflow_character(fonts, pixels_per_point, &job, last_row);
@@ -160,7 +160,7 @@ fn layout_section(
     } = section;
     let mut font = fonts.font(&format.font_id.family);
     let font_size = format.font_id.size;
-    let font_metrics = font.scaled_metrics(pixels_per_point, font_size);
+    let font_metrics = font.styled_metrics(pixels_per_point, font_size, &format.coords);
     let line_height = section
         .format
         .line_height
@@ -178,7 +178,7 @@ fn layout_section(
 
     // Optimization: only recompute `ScaledMetrics` when the concrete `FontImpl` changes.
     let mut current_font = FontFaceKey::INVALID;
-    let mut current_font_face_metrics = ScaledMetrics::default();
+    let mut current_font_face_metrics = StyledMetrics::default();
 
     for chr in job.text[byte_range.clone()].chars() {
         if job.break_on_newline && chr == '\n' {
@@ -192,7 +192,9 @@ fn layout_section(
                 current_font = font_id;
                 current_font_face_metrics = font_face
                     .as_ref()
-                    .map(|font_face| font_face.scaled_metrics(pixels_per_point, font_size))
+                    .map(|font_face| {
+                        font_face.styled_metrics(pixels_per_point, font_size, &format.coords)
+                    })
                     .unwrap_or_default();
             }
 
@@ -252,11 +254,12 @@ fn calculate_intrinsic_size(
 ) -> Vec2 {
     let mut intrinsic_size = Vec2::ZERO;
     for (idx, paragraph) in paragraphs.iter().enumerate() {
-        let width = paragraph
-            .glyphs
-            .last()
-            .map(|l| l.max_x())
-            .unwrap_or_default();
+        // Use the precise cursor position instead of `last_glyph.max_x()`,
+        // because glyph positions are pixel-snapped but the cursor tracks
+        // the exact subpixel advance. This ensures that when two galleys are
+        // placed side-by-side, the gap matches what it would be within a
+        // single galley.
+        let width = paragraph.cursor_x_px / point_scale.pixels_per_point;
         intrinsic_size.x = f32::max(intrinsic_size.x, width);
 
         let mut height = paragraph
@@ -277,6 +280,7 @@ fn calculate_intrinsic_size(
 fn rows_from_paragraphs(
     paragraphs: Vec<Paragraph>,
     job: &LayoutJob,
+    pixels_per_point: f32,
     elided: &mut bool,
 ) -> Vec<PlacedRow> {
     let num_paragraphs = paragraphs.len();
@@ -303,8 +307,11 @@ fn rows_from_paragraphs(
                 ends_with_newline: !is_last_paragraph,
             });
         } else {
-            let paragraph_max_x = paragraph.glyphs.last().unwrap().max_x();
-            if paragraph_max_x <= job.effective_wrap_width() {
+            // Use precise cursor position for width instead of pixel-snapped
+            // `last_glyph.max_x()`, so that side-by-side galleys have the same
+            // spacing as characters within a single galley.
+            let paragraph_width = paragraph.cursor_x_px / pixels_per_point;
+            if paragraph_width <= job.effective_wrap_width() {
                 // Early-out optimization: the whole paragraph fits on one row.
                 rows.push(PlacedRow {
                     pos: pos2(0.0, f32::NAN),
@@ -312,7 +319,7 @@ fn rows_from_paragraphs(
                         section_index_at_start: paragraph.section_index_at_start,
                         glyphs: paragraph.glyphs,
                         visuals: Default::default(),
-                        size: vec2(paragraph_max_x, 0.0),
+                        size: vec2(paragraph_width, 0.0),
                     }),
                     ends_with_newline: !is_last_paragraph,
                 });
@@ -468,7 +475,7 @@ fn replace_last_glyph_with_overflow_character(
         let mut font_face = font.fonts_by_id.get_mut(&font_id);
         let font_face_metrics = font_face
             .as_mut()
-            .map(|f| f.scaled_metrics(pixels_per_point, font_size))
+            .map(|f| f.styled_metrics(pixels_per_point, font_size, &section.format.coords))
             .unwrap_or_default();
 
         let overflow_glyph_x = if let Some(prev_glyph) = row.glyphs.last() {
@@ -495,7 +502,9 @@ fn replace_last_glyph_with_overflow_character(
         let replacement_glyph_width = font_face
             .as_mut()
             .and_then(|f| f.glyph_info(overflow_character))
-            .map(|i| i.advance_width_unscaled.0 * font_face_metrics.px_scale_factor)
+            .map(|i| {
+                i.advance_width_unscaled.0 * font_face_metrics.px_scale_factor / pixels_per_point
+            })
             .unwrap_or_default();
 
         // Check if we're within width budget:
@@ -517,7 +526,8 @@ fn replace_last_glyph_with_overflow_character(
                 })
                 .unwrap_or_default();
 
-            let font_metrics = font.scaled_metrics(pixels_per_point, font_size);
+            let font_metrics =
+                font.styled_metrics(pixels_per_point, font_size, &section.format.coords);
             let line_height = section
                 .format
                 .line_height
@@ -1167,6 +1177,42 @@ mod tests {
     }
 
     #[test]
+    fn test_truncate_with_pixels_per_point() {
+        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+
+        for pixels_per_point in [
+            0.33, 0.5, 0.67, 1.0, 1.25, 1.33, 1.5, 1.75, 2.0, 3.0, 4.0, 5.0,
+        ] {
+            for ch in ['W', 'A', 'n', 't', 'i'] {
+                let target_width = 50.0;
+                let text = (0..20).map(|_| ch).collect::<String>();
+
+                let mut job = LayoutJob::single_section(text, TextFormat::default());
+                job.wrap.max_width = target_width;
+                job.wrap.max_rows = 1;
+                let elided_galley = layout(&mut fonts, pixels_per_point, job.into());
+                assert!(elided_galley.elided);
+
+                let test_galley = layout(
+                    &mut fonts,
+                    pixels_per_point,
+                    Arc::new(LayoutJob::single_section(
+                        (0..elided_galley.rows[0].char_count_excluding_newline())
+                            .map(|_| ch)
+                            .chain(std::iter::once('…'))
+                            .collect::<String>(),
+                        TextFormat::default(),
+                    )),
+                );
+
+                assert!(elided_galley.size().x >= 0.0);
+                assert!(elided_galley.size().x <= target_width);
+                assert!(test_galley.size().x > target_width);
+            }
+        }
+    }
+
+    #[test]
     fn test_empty_row() {
         let pixels_per_point = 1.0;
         let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
@@ -1174,7 +1220,7 @@ mod tests {
         let font_id = FontId::default();
         let font_height = fonts
             .font(&font_id.family)
-            .scaled_metrics(pixels_per_point, font_id.size)
+            .styled_metrics(pixels_per_point, font_id.size, &VariationCoords::default())
             .row_height;
 
         let job = LayoutJob::simple(String::new(), font_id, Color32::WHITE, f32::INFINITY);
@@ -1207,7 +1253,7 @@ mod tests {
         let font_id = FontId::default();
         let font_height = fonts
             .font(&font_id.family)
-            .scaled_metrics(pixels_per_point, font_id.size)
+            .styled_metrics(pixels_per_point, font_id.size, &VariationCoords::default())
             .row_height;
 
         let job = LayoutJob::simple("Hi!\n".to_owned(), font_id, Color32::WHITE, f32::INFINITY);
