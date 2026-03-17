@@ -202,6 +202,8 @@ impl Style {
     }
 }
 
+pub const ROOT_CLASS: &str = "root";
+
 pub type ClassName = Cow<'static, str>;
 
 #[derive(Debug, Default, Clone)]
@@ -280,31 +282,8 @@ pub trait HasClasses {
         self
     }
 
-    /// Return true if the modifier is present in the list
+    /// Return true if the class is present in the list
     fn has(&self, class: impl Into<ClassName>) -> bool {
         self.classes().classes.contains(&class.into())
     }
-}
-
-/// Add a shortcut to add modifiers. The syntax is `add_modifiers`!(Name: (modifier1, modifier2, modifier3,)) for any number of modifiers
-#[macro_export]
-macro_rules! define_modifiers {
-    ($trait_name:ident: ($( $name:ident )+),?) => {
-
-        pub trait $trait_name {
-            $(
-                fn $name(self) -> Self;
-            )*
-        }
-
-        impl<T> $trait_name for T
-        where
-            T: HasModifiers,
-        {
-                #[inline]
-                $(fn $name(mut self) -> Self {
-                    self.with_class(stringify!($name))
-                })?
-        }
-    };
 }

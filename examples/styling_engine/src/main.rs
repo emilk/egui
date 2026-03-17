@@ -49,7 +49,9 @@ fn main() -> eframe::Result {
                                         while let Some(p) = parent {
                                             text.push(format!(
                                                 "{}{}class : '{}', kind : {:?}",
-                                                " ".repeat((2 * 0_i32.max(i - 1)) as usize),
+                                                " ".repeat(
+                                                    (2 * 0_i32.max(i - 1) + 1.min(i)) as usize
+                                                ),
                                                 if i > 0 { "\\- " } else { "" },
                                                 p.classes,
                                                 p.kind()
@@ -58,7 +60,7 @@ fn main() -> eframe::Result {
                                             parent = p.parent.as_ref();
                                         }
                                         ui.label(format!(
-                                            "Current hierarchy :\n{}",
+                                            "Current hierarchy (child to root):\n{}",
                                             text.join("\n")
                                         ));
                                     },
