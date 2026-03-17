@@ -1060,26 +1060,36 @@ fn events(
             } => check_for_mutating_key_press(os, &cursor_range, text, galley, modifiers, *key),
 
             Event::Ime(ime_event) => {
-                /// Empty prediction can be produced with [`ImeEvent::Preedit`]
-                /// or [`ImeEvent::Commit`] when user press backspace or escape
-                /// during IME, so this function should be called in both cases
-                /// to clear current text.
+                /// Both `ImeEvent::Preedit("")` and `ImeEvent::Commit("")`
+                /// might be emitted from different integrations to signify that
+                /// the current IME composition should be cleared.
                 ///
-                /// Example platforms where only `ImeEvent::Preedit("")` of
-                /// those two events is emitted when the last character in the
-                /// prediction is deleted:
-                /// - macOS 15.7.3.
-                /// - Debian13 with gnome48 and wayland.
+                /// Example integrations where only `ImeEvent::Preedit("")` of
+                /// those two events is emitted when the last character is
+                /// deleted with a backspace:
+                /// - `egui-winit` on macOS 15.7.3.
+                /// - `egui-winit` on Debian13 with gnome48 and wayland.
                 ///
-                /// An example platform where only `ImeEvent::Commit("")` of
-                /// those two events is emitted when the last character in the
-                /// prediction is deleted:
-                /// - Safari 26.2 (on macOS 15.7.3).
-                fn clear_prediction(
+                /// An example integration where only `ImeEvent::Commit("")` of
+                /// those two events is emitted when the last character is
+                /// deleted with a backspace:
+                /// - `eframe`'s web integration on Safari 26.2 (on macOS
+                ///   15.7.3).
+                ///
+                /// ## Note
+                ///
+                /// The term “pre-edit string” is used by X11 and Wayland, and
+                /// we use “pre-edit text” and “pre-edit range” here in the
+                /// same manner.
+                /// See: <https://wayland.app/protocols/input-method-unstable-v2>
+                ///
+                /// We previously referred to “pre-edit text” as “prediction”,
+                /// which is not standard and can mean different things.
+                fn clear_preedit_text(
                     text: &mut dyn TextBuffer,
-                    cursor_range: &CCursorRange,
+                    preedit_range: &CCursorRange,
                 ) -> CCursor {
-                    text.delete_selected(cursor_range)
+                    text.delete_selected(preedit_range)
                 }
 
                 match ime_event {
@@ -1088,33 +1098,33 @@ fn events(
                         state.ime_cursor_range = cursor_range;
                         None
                     }
-                    ImeEvent::Preedit(text_mark) => {
-                        if text_mark == "\n" || text_mark == "\r" {
+                    ImeEvent::Preedit(preedit_text) => {
+                        if preedit_text == "\n" || preedit_text == "\r" {
                             None
                         } else {
-                            let mut ccursor = clear_prediction(text, &cursor_range);
+                            let mut ccursor = clear_preedit_text(text, &cursor_range);
 
                             let start_cursor = ccursor;
-                            if !text_mark.is_empty() {
-                                text.insert_text_at(&mut ccursor, text_mark, char_limit);
+                            if !preedit_text.is_empty() {
+                                text.insert_text_at(&mut ccursor, preedit_text, char_limit);
                             }
                             state.ime_cursor_range = cursor_range;
                             Some(CCursorRange::two(start_cursor, ccursor))
                         }
                     }
-                    ImeEvent::Commit(prediction) => {
-                        if prediction == "\n" || prediction == "\r" {
+                    ImeEvent::Commit(commit_text) => {
+                        if commit_text == "\n" || commit_text == "\r" {
                             None
                         } else {
                             state.ime_enabled = false;
 
-                            let mut ccursor = clear_prediction(text, &cursor_range);
+                            let mut ccursor = clear_preedit_text(text, &cursor_range);
 
-                            if !prediction.is_empty()
+                            if !commit_text.is_empty()
                                 && cursor_range.secondary.index
                                     == state.ime_cursor_range.secondary.index
                             {
-                                text.insert_text_at(&mut ccursor, prediction, char_limit);
+                                text.insert_text_at(&mut ccursor, commit_text, char_limit);
                             }
 
                             Some(CCursorRange::one(ccursor))
