@@ -261,6 +261,13 @@ impl<'a> Button<'a> {
         self
     }
 
+    /// Set the gap between atoms.
+    #[inline]
+    pub fn gap(mut self, gap: f32) -> Self {
+        self.layout = self.layout.gap(gap);
+        self
+    }
+
     /// Show the button and return a [`AtomLayoutResponse`] for painting custom contents.
     pub fn atom_ui(self, ui: &mut Ui) -> AtomLayoutResponse {
         let Button {

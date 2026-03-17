@@ -798,7 +798,7 @@ impl Context {
                 Id::new((ctx.viewport_id(), "__top_ui")),
                 UiBuilder::new()
                     .layer_id(LayerId::background())
-                    .max_rect(ctx.available_rect().round_ui()),
+                    .max_rect(ctx.available_rect()),
             );
 
             {
@@ -2616,6 +2616,7 @@ impl ContextImpl {
                 platform_output.accesskit_update = Some(accesskit::TreeUpdate {
                     nodes,
                     tree: Some(accesskit::Tree::new(root_id)),
+                    tree_id: accesskit::TreeId::ROOT,
                     focus: focus_id,
                 });
             }
@@ -3262,7 +3263,7 @@ impl Context {
 
         for (name, data) in &mut font_definitions.font_data {
             ui.collapsing(name, |ui| {
-                let mut tweak = data.tweak;
+                let mut tweak = data.tweak.clone();
                 if tweak.ui(ui).changed() {
                     Arc::make_mut(data).tweak = tweak;
                     changed = true;

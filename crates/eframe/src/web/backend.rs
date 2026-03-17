@@ -31,11 +31,18 @@ impl WebInput {
             time: Some(super::now_sec()),
             ..self.raw.take()
         };
-        raw_input
+        let viewport = raw_input
             .viewports
             .entry(egui::ViewportId::ROOT)
-            .or_default()
-            .native_pixels_per_point = Some(super::native_pixels_per_point());
+            .or_default();
+        viewport.native_pixels_per_point = Some(super::native_pixels_per_point());
+
+        // A hidden browser tab is effectively occluded.
+        let hidden = web_sys::window()
+            .and_then(|w| w.document())
+            .is_some_and(|doc| doc.hidden());
+        viewport.occluded = Some(hidden);
+
         raw_input
     }
 
