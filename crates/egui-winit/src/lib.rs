@@ -570,13 +570,19 @@ impl State {
         if !self.allow_ime {
             None
         } else if event.logical_key == winit::keyboard::NamedKey::Process {
-            // On Windows, `KeyboardInput` events are emitted by `winit` during
-            // IME composition, even if they are processed by the IME.
+            // On Windows, the current version of `winit` (0.30.12) has a bug
+            // where `KeyboardInput` events processed by the IME are still
+            // emitted.
             // See: https://github.com/rust-windowing/winit/issues/4508
             //
-            // Among these events, key presses have their `logical_key` set to
-            // `winit::keyboard::NamedKey::Process`. We filter them out to keep
-            // behavior consistent with other platforms.
+            // As a workaround, we detect these events by checking whether their
+            // `logical_key` is `winit::keyboard::NamedKey::Process`, and filter
+            // them out to keep behavior consistent with other platforms.
+            //
+            // TODO(Umaĵo): Remove this workaround once the winit bug is fixed
+            // and we've updated to a version that includes the fix. NOTE: Don't
+            // forget to also remove the `pressed_processed_physical_keys` field
+            // and its related code.
 
             self.pressed_processed_physical_keys
                 .insert(event.physical_key);
