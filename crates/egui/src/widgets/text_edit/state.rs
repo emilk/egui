@@ -45,10 +45,6 @@ pub struct TextEditState {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) ime_enabled: bool,
 
-    // cursor range for IME candidate.
-    #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) ime_cursor_range: CCursorRange,
-
     // Text offset within the widget area.
     // Used for sensing and singleline text clipping.
     #[cfg_attr(feature = "serde", serde(skip))]

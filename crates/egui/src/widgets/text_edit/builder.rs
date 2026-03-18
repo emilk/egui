@@ -1101,7 +1101,6 @@ fn events(
                 match ime_event {
                     ImeEvent::Enabled => {
                         state.ime_enabled = true;
-                        state.ime_cursor_range = cursor_range;
                         None
                     }
                     ImeEvent::Preedit(preedit_text) => {
@@ -1114,7 +1113,6 @@ fn events(
                             if !preedit_text.is_empty() {
                                 text.insert_text_at(&mut ccursor, preedit_text, char_limit);
                             }
-                            state.ime_cursor_range = cursor_range;
                             Some(CCursorRange::two(start_cursor, ccursor))
                         }
                     }
@@ -1126,10 +1124,7 @@ fn events(
 
                             let mut ccursor = clear_preedit_text(text, &cursor_range);
 
-                            if !commit_text.is_empty()
-                                && cursor_range.secondary.index
-                                    == state.ime_cursor_range.secondary.index
-                            {
+                            if !commit_text.is_empty() {
                                 text.insert_text_at(&mut ccursor, commit_text, char_limit);
                             }
 
