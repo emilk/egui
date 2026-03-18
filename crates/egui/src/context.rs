@@ -20,7 +20,7 @@ use crate::{
     ModifierNames, Modifiers, NumExt as _, Order, Painter, RawInput, Response, RichText,
     SafeAreaInsets, ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions, Ui,
     UiBuilder, ViewportBuilder, ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair,
-    ViewportIdSet, ViewportOutput, Visuals, Widget as _, WidgetRect, WidgetRects, WidgetText,
+    ViewportIdSet, ViewportOutput, Visuals, Widget as _, WidgetRect, WidgetText,
     animation_manager::AnimationManager,
     containers::{self, area::AreaState},
     data::output::PlatformOutput,
@@ -2622,7 +2622,7 @@ impl ContextImpl {
             }
         }
 
-        let mut shapes = viewport
+        let shapes = viewport
             .graphics
             .drain(self.memory.areas().order(), &self.memory.to_global);
 
@@ -2636,13 +2636,18 @@ impl ContextImpl {
             }
         }
 
-        if self.memory.options.style().debug.warn_if_rect_changes_id {
+        #[cfg(debug_assertions)]
+        let shapes = if self.memory.options.style().debug.warn_if_rect_changes_id {
+            let mut shapes = shapes;
             warn_if_rect_changes_id(
                 &mut shapes,
                 &viewport.prev_pass.widgets,
                 &viewport.this_pass.widgets,
             );
-        }
+            shapes
+        } else {
+            shapes
+        };
 
         std::mem::swap(&mut viewport.prev_pass, &mut viewport.this_pass);
 
@@ -4249,10 +4254,11 @@ fn context_impl_send_sync() {
 ///
 /// This helps detect cases where the same screen area is claimed by different widget ids
 /// across passes, which is often a sign of id instability.
+#[cfg(debug_assertions)]
 fn warn_if_rect_changes_id(
     out_shapes: &mut Vec<ClippedShape>,
-    prev_widgets: &WidgetRects,
-    new_widgets: &WidgetRects,
+    prev_widgets: &crate::WidgetRects,
+    new_widgets: &crate::WidgetRects,
 ) {
     profiling::function_scope!();
 
