@@ -4252,8 +4252,10 @@ fn context_impl_send_sync() {
 fn warn_if_rect_changes_id(
     out_shapes: &mut Vec<ClippedShape>,
     prev_widgets: &WidgetRects,
-    this_widgets: &WidgetRects,
+    new_widgets: &WidgetRects,
 ) {
+    profiling::function_scope!();
+
     use std::collections::HashMap;
 
     use crate::id::IdSet;
@@ -4278,22 +4280,19 @@ fn warn_if_rect_changes_id(
         }
     }
 
-    profiling::function_scope!();
 
-    // Which Ids were used for each Rect in the previous pass?
-    let mut prev_rect_ids: HashMap<HashableRect, IdSet> = HashMap::default();
-    for (_layer_id, widgets) in prev_widgets.layers() {
-        for w in widgets {
+    for (layer_id, new_widgets) in new_widgets.layers() {
+        // Which Ids were used for each Rect in the previous pass?
+        let mut prev_rect_ids: HashMap<HashableRect, IdSet> = HashMap::default();
+        for w in prev_widgets.get_layer(*layer_id) {
             prev_rect_ids
                 .entry(HashableRect::new(w.rect))
                 .or_default()
                 .insert(w.id);
         }
-    }
 
-    // Check the current pass for rects that existed in the previous pass but with a different id
-    for (_layer_id, widgets) in this_widgets.layers() {
-        for WidgetRect { id, rect, .. } in widgets {
+        // Check the current pass for rects that existed in the previous pass but with a different id
+        for WidgetRect { id, rect, .. } in new_widgets {
             if let Some(prev_ids) = prev_rect_ids.get(&HashableRect::new(*rect))
                 && !prev_ids.contains(id)
             {
