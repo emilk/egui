@@ -2397,6 +2397,12 @@ impl Context {
             crate::gui_zoom::zoom_with_keyboard(self);
         }
 
+        for shortcut in self.options(|o| o.quit_shortcuts.clone()) {
+            if self.input_mut(|i| i.consume_shortcut(&shortcut)) {
+                self.send_viewport_cmd(ViewportCommand::Close);
+            }
+        }
+
         #[cfg(debug_assertions)]
         self.debug_painting();
 
