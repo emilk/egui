@@ -1,8 +1,5 @@
-use std::fmt::Debug;
-use std::hash::Hash;
-
 use crate::{
-    Context, Id, InnerResponse, NumExt as _, Rect, Response, Sense, Stroke, TextStyle,
+    AsId, Context, Id, InnerResponse, NumExt as _, Rect, Response, Sense, Stroke, TextStyle,
     TextWrapMode, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetInfo, WidgetText, WidgetType,
     emath, epaint, pos2, remap, remap_clamp, vec2,
 };
@@ -447,7 +444,7 @@ impl CollapsingHeader {
     /// Explicitly set the source of the [`Id`] of this widget, instead of using title label.
     /// This is useful if the title label is dynamic or not unique.
     #[inline]
-    pub fn id_salt(mut self, id_salt: impl Hash + Debug) -> Self {
+    pub fn id_salt(mut self, id_salt: impl AsId) -> Self {
         self.id_salt = Id::new(id_salt);
         self
     }
@@ -456,7 +453,7 @@ impl CollapsingHeader {
     /// This is useful if the title label is dynamic or not unique.
     #[deprecated = "Renamed id_salt"]
     #[inline]
-    pub fn id_source(mut self, id_salt: impl Hash + Debug) -> Self {
+    pub fn id_source(mut self, id_salt: impl AsId) -> Self {
         self.id_salt = Id::new(id_salt);
         self
     }

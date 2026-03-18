@@ -1,8 +1,7 @@
 use crate::{
-    Align2, Color32, Context, CursorIcon, Id, NumExt as _, Rect, Response, Sense, Shape, Ui,
+    Align2, AsId, Color32, Context, CursorIcon, Id, NumExt as _, Rect, Response, Sense, Shape, Ui,
     UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b, pos2, vec2,
 };
-use std::fmt::Debug;
 
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -73,13 +72,13 @@ impl Resize {
     /// A source for the unique [`Id`], e.g. `.id_source("second_resize_area")` or `.id_source(loop_index)`.
     #[inline]
     #[deprecated = "Renamed id_salt"]
-    pub fn id_source(self, id_salt: impl std::hash::Hash + Debug) -> Self {
+    pub fn id_source(self, id_salt: impl AsId) -> Self {
         self.id_salt(id_salt)
     }
 
     /// A source for the unique [`Id`], e.g. `.id_salt("second_resize_area")` or `.id_salt(loop_index)`.
     #[inline]
-    pub fn id_salt(mut self, id_salt: impl std::hash::Hash + Debug) -> Self {
+    pub fn id_salt(mut self, id_salt: impl AsId) -> Self {
         self.id_salt = Some(Id::new(id_salt));
         self
     }

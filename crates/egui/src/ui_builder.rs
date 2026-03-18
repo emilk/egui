@@ -1,10 +1,9 @@
-use std::fmt::Debug;
-use std::{hash::Hash, sync::Arc};
+use std::sync::Arc;
 
 use crate::ClosableTag;
 #[expect(unused_imports)] // Used for doclinks
 use crate::Ui;
-use crate::{Id, LayerId, Layout, Rect, Sense, Style, UiStackInfo};
+use crate::{AsId, Id, LayerId, Layout, Rect, Sense, Style, UiStackInfo};
 
 /// Build a [`Ui`] as the child of another [`Ui`].
 ///
@@ -40,7 +39,7 @@ impl UiBuilder {
     /// You should give each [`Ui`] an `id_salt` that is unique
     /// within the parent, or give it none at all.
     #[inline]
-    pub fn id_salt(mut self, id_salt: impl Hash + Debug) -> Self {
+    pub fn id_salt(mut self, id_salt: impl AsId) -> Self {
         self.id_salt = Some(Id::new(id_salt));
         self
     }
@@ -55,7 +54,7 @@ impl UiBuilder {
     ///
     /// This is a shortcut for `.id_salt(my_id).global_scope(true)`.
     #[inline]
-    pub fn id(mut self, id: impl Hash + Debug) -> Self {
+    pub fn id(mut self, id: Id) -> Self {
         self.id_salt = Some(id);
         self.global_scope = true;
         self
