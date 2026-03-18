@@ -938,6 +938,8 @@ fn events(
         events.sort_by_key(|e| !matches!(e, Event::Ime(_)));
     }
 
+    let wants_ime_events = ui.memory(|mem| mem.had_focus_last_frame(id));
+
     for event in &events {
         let did_mutate_text = match event {
             // First handle events that only changes the selection cursor, not the text:
@@ -1065,7 +1067,7 @@ fn events(
                 ..
             } => check_for_mutating_key_press(os, &cursor_range, text, galley, modifiers, *key),
 
-            Event::Ime(ime_event) => {
+            Event::Ime(ime_event) if wants_ime_events => {
                 /// Both `ImeEvent::Preedit("")` and `ImeEvent::Commit("")`
                 /// might be emitted from different integrations to signify that
                 /// the current IME composition should be cleared.
