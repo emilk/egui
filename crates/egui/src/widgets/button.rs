@@ -359,6 +359,12 @@ impl<'a> Button<'a> {
             AtomLayoutResponse::empty(prepared.response)
         };
 
+        if let Some(cursor) = ui.visuals().interact_cursor {
+            if response.response.hovered() {
+                ui.ctx().set_cursor_icon(cursor);
+            }
+        }
+
         response.response.widget_info(|| {
             if let Some(text) = &text {
                 WidgetInfo::labeled(WidgetType::Button, ui.is_enabled(), text)
