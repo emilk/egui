@@ -1332,7 +1332,7 @@ impl Default for DebugOptions {
             show_resize: false,
             show_interactive_widgets: false,
             show_widget_hits: false,
-            warn_if_rect_changes_id: false,
+            warn_if_rect_changes_id: cfg!(debug_assertions),
             show_unaligned: cfg!(debug_assertions),
             show_focused_widget: false,
         }
