@@ -1,7 +1,11 @@
 //! egui theme (spacing, colors, etc).
 
 use emath::Align;
-use epaint::{AlphaFromCoverage, CornerRadius, Shadow, Stroke, TextOptions, text::FontTweak};
+use epaint::{
+    AlphaFromCoverage, CornerRadius, Shadow, Stroke, TextOptions,
+    mutex::Mutex,
+    text::{FontTweak, Tag},
+};
 use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
 
 use crate::{
@@ -1299,6 +1303,9 @@ pub struct DebugOptions {
     /// Show interesting widgets under the mouse cursor.
     pub show_widget_hits: bool,
 
+    /// Show a warning if the same `Rect` had different `Id` on the previous frame.
+    pub warn_if_rect_changes_id: bool,
+
     /// If true, highlight widgets that are not aligned to [`emath::GUI_ROUNDING`].
     ///
     /// See [`emath::GuiRounding`] for more.
@@ -1325,6 +1332,7 @@ impl Default for DebugOptions {
             show_resize: false,
             show_interactive_widgets: false,
             show_widget_hits: false,
+            warn_if_rect_changes_id: cfg!(debug_assertions),
             show_unaligned: cfg!(debug_assertions),
             show_focused_widget: false,
         }
@@ -2487,6 +2495,7 @@ impl DebugOptions {
             show_resize,
             show_interactive_widgets,
             show_widget_hits,
+            warn_if_rect_changes_id,
             show_unaligned,
             show_focused_widget,
         } = self;
@@ -2517,6 +2526,11 @@ impl DebugOptions {
         );
 
         ui.checkbox(show_widget_hits, "Show widgets under mouse pointer");
+
+        ui.checkbox(
+            warn_if_rect_changes_id,
+            "Warn if a Rect changes Id between frames",
+        );
 
         ui.checkbox(
             show_unaligned,
@@ -2837,7 +2851,7 @@ impl Widget for &mut crate::Frame {
 
 impl Widget for &mut FontTweak {
     fn ui(self, ui: &mut Ui) -> Response {
-        let original: FontTweak = *self;
+        let original: FontTweak = self.clone();
 
         let mut response = Grid::new("font_tweak")
             .num_columns(2)
@@ -2847,6 +2861,7 @@ impl Widget for &mut FontTweak {
                     y_offset_factor,
                     y_offset,
                     hinting_override,
+                    coords,
                 } = self;
 
                 ui.label("Scale");
@@ -2874,6 +2889,50 @@ impl Widget for &mut FontTweak {
                         ui.selectable_value(hinting_override, Some(true), "Enable");
                         ui.selectable_value(hinting_override, Some(false), "Disable");
                     });
+                ui.end_row();
+
+                ui.label("coords");
+                ui.end_row();
+                let mut to_remove = None;
+                for (i, (tag, value)) in coords.as_mut().iter_mut().enumerate() {
+                    let tag_text = ui.ctx().data_mut(|data| {
+                        let tag = *tag;
+                        Arc::clone(data.get_temp_mut_or_insert_with(ui.id().with(i), move || {
+                            Arc::new(Mutex::new(tag.to_string()))
+                        }))
+                    });
+
+                    let tag_text = &mut *tag_text.lock();
+                    let response = ui.text_edit_singleline(tag_text);
+                    if response.changed()
+                        && let Ok(new_tag) = Tag::new_checked(tag_text.as_bytes())
+                    {
+                        *tag = new_tag;
+                    }
+                    // Reset stale text when not actively editing
+                    // (e.g. after an item was removed and indices shifted)
+                    if !response.has_focus()
+                        && Tag::new_checked(tag_text.as_bytes()).ok() != Some(*tag)
+                    {
+                        *tag_text = tag.to_string();
+                    }
+
+                    ui.add(DragValue::new(value));
+                    if ui.small_button("🗑").clicked() {
+                        to_remove = Some(i);
+                    }
+                    ui.end_row();
+                }
+                if let Some(i) = to_remove {
+                    coords.remove(i);
+                }
+                if ui.button("Add coord").clicked() {
+                    coords.push(b"wght", 0.0);
+                }
+                if ui.button("Clear coords").clicked() {
+                    coords.clear();
+                }
+                ui.end_row();
 
                 if ui.button("Reset").clicked() {
                     *self = Default::default();

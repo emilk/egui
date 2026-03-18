@@ -274,13 +274,21 @@ impl AppRunner {
 
         self.app.raw_input_hook(&self.egui_ctx, &mut raw_input);
 
+        let is_visible = raw_input
+            .viewports
+            .get(&egui::ViewportId::ROOT)
+            .and_then(|v| v.visible())
+            .unwrap_or(true);
+
         let full_output = self.egui_ctx.run_ui(raw_input, |ui| {
             self.app.logic(ui.ctx(), &mut self.frame);
 
-            #[expect(deprecated)]
-            self.app.update(ui.ctx(), &mut self.frame);
+            if is_visible {
+                #[expect(deprecated)]
+                self.app.update(ui.ctx(), &mut self.frame);
 
-            self.app.ui(ui, &mut self.frame);
+                self.app.ui(ui, &mut self.frame);
+            }
         });
         let egui::FullOutput {
             platform_output,
@@ -311,8 +319,10 @@ impl AppRunner {
         }
 
         self.handle_platform_output(platform_output);
-        self.textures_delta.append(textures_delta);
-        self.clipped_primitives = Some(self.egui_ctx.tessellate(shapes, pixels_per_point));
+        if is_visible {
+            self.textures_delta.append(textures_delta);
+            self.clipped_primitives = Some(self.egui_ctx.tessellate(shapes, pixels_per_point));
+        }
     }
 
     /// Paint the results of the last call to [`Self::logic`].

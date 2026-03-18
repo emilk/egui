@@ -102,7 +102,7 @@ pub struct State {
     has_sent_ime_enabled: bool,
 
     #[cfg(feature = "accesskit")]
-    accesskit: Option<accesskit_winit::Adapter>,
+    pub accesskit: Option<accesskit_winit::Adapter>,
 
     allow_ime: bool,
     ime_rect_px: Option<egui::Rect>,
@@ -548,23 +548,23 @@ impl State {
     ///
     /// | Setup                                       | Events in Order                                                                                                                  |
     /// | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-    /// | a-macos15-apple_shuangpin                   | `Predict("", None)` -> `Commit("测试")`                                                                                          |
-    /// | b-debian13_gnome48_wayland-fcitx5_shuangpin | `Predict("", None)` -> `Commit("测试")` -> `Predict("", Some(0, 0))` -> `Predict("", None)` (duplicate until `TextEdit` blurred) |
-    /// | c-windows11-ms_pinyin                       | `Predict("测试", Some(…))` -> `Predict("", None)` -> `Commit("测试")` -> `Disabled`                                              |
+    /// | a-macos15-apple_shuangpin                   | `Preedit("", None)` -> `Commit("测试")`                                                                                          |
+    /// | b-debian13_gnome48_wayland-fcitx5_shuangpin | `Preedit("", None)` -> `Commit("测试")` -> `Preedit("", Some(0, 0))` -> `Preedit("", None)` (duplicate until `TextEdit` blurred) |
+    /// | c-windows11-ms_pinyin                       | `Preedit("测试", Some(…))` -> `Preedit("", None)` -> `Commit("测试")` -> `Disabled`                                              |
     ///
-    /// #### Situation: pressed backspace to delete the last character in the prediction
+    /// #### Situation: pressed backspace to delete the last character in the composition
     ///
     /// | Setup                                       | Events in Order                                                                       |
-    /// | a-macos15-apple_shuangpin                   | `Predict("", None)`                                                                   |
-    /// | b-debian13_gnome48_wayland-fcitx5_shuangpin | `Predict("", Some(0, 0))` -> `Predict("", None)` (duplicate until `TextEdit` blurred) |
-    /// | c-windows11-ms_pinyin                       | `Predict("", Some(0, 0))` -> `Predict("", None)` -> `Commit("")` -> `Disabled`        |
+    /// | a-macos15-apple_shuangpin                   | `Preedit("", None)`                                                                   |
+    /// | b-debian13_gnome48_wayland-fcitx5_shuangpin | `Preedit("", Some(0, 0))` -> `Preedit("", None)` (duplicate until `TextEdit` blurred) |
+    /// | c-windows11-ms_pinyin                       | `Preedit("", Some(0, 0))` -> `Preedit("", None)` -> `Commit("")` -> `Disabled`        |
     ///
-    /// #### Situation: clicked somewhere else while there is an active composition with the prediction "ce"
+    /// #### Situation: clicked somewhere else while there is an active composition with the pre-edit text "ce"
     ///
     /// | Setup                                       | Events in Order                                                                                   |
     /// | ------------------------------------------- | ------------------------------------------------------------------------------------------------- |
     /// | a-macos15-apple_shuangpin                   | nothing emitted                                                                                   |
-    /// | b-debian13_gnome48_wayland-fcitx5_shuangpin | `Predict("", Some(0, 0))` (duplicate) -> `Predict("", None)` (duplicate until `TextEdit` blurred) |
+    /// | b-debian13_gnome48_wayland-fcitx5_shuangpin | `Preedit("", Some(0, 0))` (duplicate) -> `Preedit("", None)` (duplicate until `TextEdit` blurred) |
     /// | c-windows11-ms_pinyin                       | nothing emitted                                                                                   |
     fn on_ime(&mut self, ime: &winit::event::Ime) {
         // // code for inspecting ime events emitted by winit:
@@ -610,15 +610,26 @@ impl State {
                 self.ime_event_disable();
             }
             winit::event::Ime::Preedit(_, None) => {
-                // we need to emit this on macOS, since winit doesn't emit
-                // `Predict("", Some(0, 0))` before this event on macOS when the
-                // user deletes the last character in the prediction with the
-                // backspace key. Without this, only `egui::ImeEvent::Disabled`
-                // is emitted here, leading to the last character being left in
-                // TextEdit in such situation.
-                self.egui_input
-                    .events
-                    .push(egui::Event::Ime(egui::ImeEvent::Preedit(String::new())));
+                if cfg!(target_os = "macos") {
+                    // On macOS, when the user presses backspace to delete the
+                    // last character in an IME composition, `winit` only emits
+                    // `winit::event::Ime::Preedit("", None)` without a
+                    // preceding `winit::event::Ime::Preedit("", Some(0, 0))`.
+                    //
+                    // The current implementation of `egui::TextEdit` relies on
+                    // receiving an `egui::ImeEvent::Preedit("")` to remove the
+                    // last character in the composition in this case, so we
+                    // emit it here.
+                    //
+                    // This is guarded to macOS-only, as applying it on other
+                    // platforms is unnecessary and can cause undesired
+                    // behavior.
+                    // See: https://github.com/emilk/egui/pull/7973
+                    self.egui_input
+                        .events
+                        .push(egui::Event::Ime(egui::ImeEvent::Preedit(String::new())));
+                }
+
                 self.ime_event_disable();
             }
         }
@@ -640,11 +651,27 @@ impl State {
         self.has_sent_ime_enabled = false;
     }
 
-    pub fn on_mouse_motion(&mut self, delta: (f64, f64)) {
+    /// Returns `true` if the event was sent to egui.
+    pub fn on_mouse_motion(&mut self, delta: (f64, f64)) -> bool {
+        if !self.is_pointer_in_window() && !self.any_pointer_button_down {
+            return false;
+        }
+
         self.egui_input.events.push(egui::Event::MouseMoved(Vec2 {
             x: delta.0 as f32,
             y: delta.1 as f32,
         }));
+        true
+    }
+
+    /// Returns `true` when the pointer is currently inside the window.
+    pub fn is_pointer_in_window(&self) -> bool {
+        self.pointer_pos_in_points.is_some()
+    }
+
+    /// Returns `true` if any pointer button is currently held down.
+    pub fn is_any_pointer_button_down(&self) -> bool {
+        self.any_pointer_button_down
     }
 
     /// Call this when there is a new [`accesskit::ActionRequest`].

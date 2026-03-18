@@ -1,4 +1,5 @@
 use egui::accesskit::Role;
+use egui::epaint::Shape;
 use egui::{Align, Color32, Image, Label, Layout, RichText, Sense, TextWrapMode, include_image};
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable as _;
@@ -117,4 +118,48 @@ fn interact_on_ui_response_should_be_stable() {
 
     drop(harness);
     assert_eq!(click_count, 10, "We missed some clicks!");
+}
+
+fn has_red_warning_rect(output: &egui::FullOutput) -> bool {
+    output.shapes.iter().any(|clipped| {
+        matches!(
+            &clipped.shape,
+            Shape::Rect(rect_shape)
+                if rect_shape.stroke.color == Color32::RED
+        )
+    })
+}
+
+/// A button that changes its text on hover, with the Id derived from the text.
+/// This is a plausible bug: the widget keeps the same rect, but its Id changes
+/// between frames because the label (and thus the Id salt) changes on hover.
+/// The `warn_if_rect_changes_id` debug check should catch this.
+#[test]
+fn warn_if_rect_changes_id() {
+    let button_rect = egui::Rect::from_min_size(egui::pos2(10.0, 10.0), egui::vec2(100.0, 30.0));
+
+    let mut harness = Harness::builder().with_size((200.0, 50.0)).build_ui(|ui| {
+        // Simulate a buggy widget whose Id depends on its label text,
+        // and the label changes on hover:
+        let is_hovered = ui.rect_contains_pointer(button_rect);
+        let label = if is_hovered { "Hovering!" } else { "Click me" };
+        let id = ui.id().with(label);
+        let _response = ui.interact(button_rect, id, Sense::click());
+    });
+
+    // no hover — establishes stable prev_pass
+    harness.step();
+    assert!(
+        !has_red_warning_rect(harness.output()),
+        "Should not warn without hover"
+    );
+
+    // Move the pointer over the button
+    harness.hover_at(button_rect.center());
+
+    harness.step();
+    assert!(
+        has_red_warning_rect(harness.output()),
+        "Should warn when a widget rect changes Id between passes"
+    );
 }

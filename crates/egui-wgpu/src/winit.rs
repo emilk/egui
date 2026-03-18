@@ -362,14 +362,13 @@ impl Painter {
         #[cfg(all(target_os = "macos", feature = "macos-window-resize-jitter-fix"))]
         {
             // SAFETY: The cast is checked with if condition. If the used backend is not metal
-            // it gracefully fails. The pointer casts are valid as it's 1-to-1 type mapping.
-            // This is how wgpu currently exposes this backend-specific flag.
+            // it gracefully fails.
             unsafe {
                 if let Some(hal_surface) = state.surface.as_hal::<wgpu::hal::api::Metal>() {
-                    let raw =
-                        std::ptr::from_ref::<wgpu::hal::metal::Surface>(&*hal_surface).cast_mut();
-
-                    (*raw).present_with_transaction = resizing;
+                    hal_surface
+                        .render_layer()
+                        .lock()
+                        .set_presents_with_transaction(resizing);
 
                     Self::configure_surface(
                         state,
@@ -421,12 +420,40 @@ impl Painter {
     ) -> f32 {
         profiling::function_scope!();
 
+        /// Guard to ensure that commands are always submitted to the renderer queue
+        /// so that calls to [`write_buffer()`](https://docs.rs/wgpu/latest/wgpu/struct.Queue.html#method.write_buffer)
+        /// are completed even if we take a codepath which doesn't submit commands and avoids
+        /// internal buffers growing indefinitely.
+        ///
+        /// This may happen, for example, if no output frame is resolved.
+        /// See <https://github.com/emilk/egui/pull/7928> for full context.
+        struct RendererQueueGuard<'q> {
+            queue: &'q wgpu::Queue,
+            commands_submitted: bool,
+        }
+
+        impl Drop for RendererQueueGuard<'_> {
+            fn drop(&mut self) {
+                // Only submit an empty command buffer array if no commands were
+                // explicitly submitted.
+                if !self.commands_submitted {
+                    self.queue.submit([]);
+                }
+            }
+        }
+
         let capture = !capture_data.is_empty();
         let mut vsync_sec = 0.0;
 
         let Some(render_state) = self.render_state.as_mut() else {
             return vsync_sec;
         };
+
+        let mut render_queue_guard = RendererQueueGuard {
+            queue: &render_state.queue,
+            commands_submitted: false,
+        };
+
         let Some(surface_state) = self.surfaces.get(&viewport_id) else {
             return vsync_sec;
         };
@@ -554,6 +581,7 @@ impl Painter {
                 }),
                 timestamp_writes: None,
                 occlusion_query_set: None,
+                multiview_mask: None,
             });
 
             // Forgetting the pass' lifetime means that we are no longer compile-time protected from
@@ -589,6 +617,9 @@ impl Painter {
                 .submit(user_cmd_bufs.into_iter().chain([encoded]));
             vsync_sec += start.elapsed().as_secs_f32();
         };
+
+        // Ensure that the queue guard does not do unnecessary work when dropped
+        render_queue_guard.commands_submitted = true;
 
         // Free textures marked for destruction **after** queue submit since they might still be used in the current frame.
         // Calling `wgpu::Texture::destroy` on a texture that is still in use would invalidate the command buffer(s) it is used in.
