@@ -4292,31 +4292,38 @@ fn warn_if_rect_changes_id(
         lookup
     }
 
-    for (layer_id, new_widgets) in new_widgets.layers() {
+    for (layer_id, new_layer_widgets) in new_widgets.layers() {
         let prev = create_lookup(prev_widgets.get_layer(*layer_id));
-        let new = create_lookup(new_widgets.iter());
+        let new = create_lookup(new_layer_widgets.iter());
 
-        for (hashable_rect, new_widgets) in new {
-            let Some(prev_widgets) = prev.get(&hashable_rect) else {
+        for (hashable_rect, new_at_rect) in new {
+            let Some(prev_at_rect) = prev.get(&hashable_rect) else {
                 continue; // this rect did not exist in the previous pass
             };
 
-            if prev_widgets
+            if prev_at_rect
                 .iter()
-                .any(|w| new_widgets.iter().any(|nw| nw.id == w.id))
+                .any(|w| new_at_rect.iter().any(|nw| nw.id == w.id))
             {
                 continue; // at least one id stayed the same, so this is not an id change
             }
 
-            let rect = new_widgets.iter().next().unwrap().rect;
+            // Only warn if at least one of the previous ids is gone from this layer entirely.
+            // If they all still exist (just at a different rect), then the rect match
+            // is just a coincidence caused by widgets shifting (e.g. a window being dragged).
+            if prev_at_rect.iter().all(|w| new_widgets.contains(w.id)) {
+                continue;
+            }
+
+            let rect = new_at_rect[0].rect;
 
             log::warn!(
                 "Widget rect {rect:?} changed id between passes: prev ids: {:?}, new ids: {:?}",
-                prev_widgets
+                prev_at_rect
                     .iter()
                     .map(|w| w.id.short_debug_format())
                     .collect::<Vec<_>>(),
-                new_widgets
+                new_at_rect
                     .iter()
                     .map(|w| w.id.short_debug_format())
                     .collect::<Vec<_>>(),
