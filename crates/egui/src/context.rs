@@ -2636,6 +2636,19 @@ impl ContextImpl {
             }
         }
 
+        #[cfg(debug_assertions)]
+        let shapes = if self.memory.options.style().debug.warn_if_rect_changes_id {
+            let mut shapes = shapes;
+            warn_if_rect_changes_id(
+                &mut shapes,
+                &viewport.prev_pass.widgets,
+                &viewport.this_pass.widgets,
+            );
+            shapes
+        } else {
+            shapes
+        };
+
         std::mem::swap(&mut viewport.prev_pass, &mut viewport.this_pass);
 
         if repaint_needed {
@@ -4235,6 +4248,103 @@ impl Context {
 fn context_impl_send_sync() {
     fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Context>();
+}
+
+/// Check if any [`Rect`] appears with different [`Id`]s between two passes.
+///
+/// This helps detect cases where the same screen area is claimed by different widget ids
+/// across passes, which is often a sign of id instability.
+#[cfg(debug_assertions)]
+fn warn_if_rect_changes_id(
+    out_shapes: &mut Vec<ClippedShape>,
+    prev_widgets: &crate::WidgetRects,
+    new_widgets: &crate::WidgetRects,
+) {
+    profiling::function_scope!();
+
+    use std::collections::BTreeMap;
+
+    /// A wrapper around [`Rect`] that implements [`Ord`] using the bit representation of its floats.
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    struct OrderedRect(Rect);
+
+    impl PartialOrd for OrderedRect {
+        fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+            Some(self.cmp(other))
+        }
+    }
+
+    impl Ord for OrderedRect {
+        fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+            let lhs = self.0;
+            let rhs = other.0;
+            lhs.min
+                .x
+                .to_bits()
+                .cmp(&rhs.min.x.to_bits())
+                .then(lhs.min.y.to_bits().cmp(&rhs.min.y.to_bits()))
+                .then(lhs.max.x.to_bits().cmp(&rhs.max.x.to_bits()))
+                .then(lhs.max.y.to_bits().cmp(&rhs.max.y.to_bits()))
+        }
+    }
+
+    fn create_lookup<'a>(
+        widgets: impl Iterator<Item = &'a WidgetRect>,
+    ) -> BTreeMap<OrderedRect, Vec<&'a WidgetRect>> {
+        let mut lookup: BTreeMap<OrderedRect, Vec<&'a WidgetRect>> = BTreeMap::default();
+        for w in widgets {
+            lookup.entry(OrderedRect(w.rect)).or_default().push(w);
+        }
+        lookup
+    }
+
+    for (layer_id, new_layer_widgets) in new_widgets.layers() {
+        let prev = create_lookup(prev_widgets.get_layer(*layer_id));
+        let new = create_lookup(new_layer_widgets.iter());
+
+        for (hashable_rect, new_at_rect) in new {
+            let Some(prev_at_rect) = prev.get(&hashable_rect) else {
+                continue; // this rect did not exist in the previous pass
+            };
+
+            if prev_at_rect
+                .iter()
+                .any(|w| new_at_rect.iter().any(|nw| nw.id == w.id))
+            {
+                continue; // at least one id stayed the same, so this is not an id change
+            }
+
+            // Only warn if at least one of the previous ids is gone from this layer entirely.
+            // If they all still exist (just at a different rect), then the rect match
+            // is just a coincidence caused by widgets shifting (e.g. a window being dragged).
+            if prev_at_rect.iter().all(|w| new_widgets.contains(w.id)) {
+                continue;
+            }
+
+            let rect = new_at_rect[0].rect;
+
+            log::warn!(
+                "Widget rect {rect:?} changed id between passes: prev ids: {:?}, new ids: {:?}",
+                prev_at_rect
+                    .iter()
+                    .map(|w| w.id.short_debug_format())
+                    .collect::<Vec<_>>(),
+                new_at_rect
+                    .iter()
+                    .map(|w| w.id.short_debug_format())
+                    .collect::<Vec<_>>(),
+            );
+            out_shapes.push(ClippedShape {
+                clip_rect: Rect::EVERYTHING,
+                shape: epaint::Shape::rect_stroke(
+                    rect,
+                    0,
+                    (2.0, Color32::RED),
+                    StrokeKind::Outside,
+                ),
+            });
+        }
+    }
 }
 
 #[cfg(test)]
