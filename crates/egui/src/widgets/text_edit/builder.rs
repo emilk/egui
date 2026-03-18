@@ -1181,7 +1181,7 @@ fn events(
                         None
                     }
                 }
-            },
+            }
 
             _ => None,
         };
