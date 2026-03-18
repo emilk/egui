@@ -20,7 +20,7 @@ use crate::{
     ModifierNames, Modifiers, NumExt as _, Order, Painter, RawInput, Response, RichText,
     SafeAreaInsets, ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions, Ui,
     UiBuilder, ViewportBuilder, ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair,
-    ViewportIdSet, ViewportOutput, Visuals, Widget as _, WidgetRect, WidgetText,
+    ViewportIdSet, ViewportOutput, Visuals, Widget as _, WidgetRect, WidgetRects, WidgetText,
     animation_manager::AnimationManager,
     containers::{self, area::AreaState},
     data::output::PlatformOutput,
@@ -2622,7 +2622,7 @@ impl ContextImpl {
             }
         }
 
-        let shapes = viewport
+        let mut shapes = viewport
             .graphics
             .drain(self.memory.areas().order(), &self.memory.to_global);
 
@@ -2634,6 +2634,14 @@ impl ContextImpl {
             if viewport.prev_pass.widgets != viewport.this_pass.widgets {
                 repaint_needed = true; // Some widget has moved
             }
+        }
+
+        if self.memory.options.style().debug.warn_if_rect_changes_id {
+            warn_if_rect_changes_id(
+                &mut shapes,
+                &viewport.prev_pass.widgets,
+                &viewport.this_pass.widgets,
+            );
         }
 
         std::mem::swap(&mut viewport.prev_pass, &mut viewport.this_pass);
@@ -4235,6 +4243,73 @@ impl Context {
 fn context_impl_send_sync() {
     fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Context>();
+}
+
+/// Check if any [`Rect`] appears with different [`Id`]s between two passes.
+///
+/// This helps detect cases where the same screen area is claimed by different widget ids
+/// across passes, which is often a sign of id instability.
+fn warn_if_rect_changes_id(
+    out_shapes: &mut Vec<ClippedShape>,
+    prev_widgets: &WidgetRects,
+    this_widgets: &WidgetRects,
+) {
+    use std::collections::HashMap;
+
+    use crate::id::IdSet;
+
+    /// A hashable wrapper around [`Rect`] using the bit representation of its floats.
+    #[derive(Clone, Copy, PartialEq, Eq, Hash)]
+    struct HashableRect {
+        min_x: u32,
+        min_y: u32,
+        max_x: u32,
+        max_y: u32,
+    }
+
+    impl HashableRect {
+        fn new(rect: Rect) -> Self {
+            Self {
+                min_x: rect.min.x.to_bits(),
+                min_y: rect.min.y.to_bits(),
+                max_x: rect.max.x.to_bits(),
+                max_y: rect.max.y.to_bits(),
+            }
+        }
+    }
+
+    profiling::function_scope!();
+
+    // Which Ids were used for each Rect in the previous pass?
+    let mut prev_rect_ids: HashMap<HashableRect, IdSet> = HashMap::default();
+    for (_layer_id, widgets) in prev_widgets.layers() {
+        for w in widgets {
+            prev_rect_ids
+                .entry(HashableRect::new(w.rect))
+                .or_default()
+                .insert(w.id);
+        }
+    }
+
+    // Check the current pass for rects that existed in the previous pass but with a different id
+    for (_layer_id, widgets) in this_widgets.layers() {
+        for WidgetRect { id, rect, .. } in widgets {
+            if let Some(prev_ids) = prev_rect_ids.get(&HashableRect::new(*rect))
+                && !prev_ids.contains(id)
+            {
+                log::warn!("Widget rect {rect:?} changed id between passes");
+                out_shapes.push(ClippedShape {
+                    clip_rect: Rect::EVERYTHING,
+                    shape: epaint::Shape::rect_stroke(
+                        *rect,
+                        0,
+                        (2.0, Color32::RED),
+                        StrokeKind::Outside,
+                    ),
+                });
+            }
+        }
+    }
 }
 
 #[cfg(test)]
