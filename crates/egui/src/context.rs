@@ -4256,57 +4256,80 @@ fn warn_if_rect_changes_id(
 ) {
     profiling::function_scope!();
 
-    use std::collections::HashMap;
+    use std::collections::BTreeMap;
 
-    use crate::id::IdSet;
+    /// A wrapper around [`Rect`] that implements [`Ord`] using the bit representation of its floats.
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    struct OrderedRect(Rect);
 
-    /// A hashable wrapper around [`Rect`] using the bit representation of its floats.
-    #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-    struct HashableRect {
-        min_x: u32,
-        min_y: u32,
-        max_x: u32,
-        max_y: u32,
-    }
-
-    impl HashableRect {
-        fn new(rect: Rect) -> Self {
-            Self {
-                min_x: rect.min.x.to_bits(),
-                min_y: rect.min.y.to_bits(),
-                max_x: rect.max.x.to_bits(),
-                max_y: rect.max.y.to_bits(),
-            }
+    impl PartialOrd for OrderedRect {
+        fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+            Some(self.cmp(other))
         }
     }
 
+    impl Ord for OrderedRect {
+        fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+            let lhs = self.0;
+            let rhs = other.0;
+            lhs.min
+                .x
+                .to_bits()
+                .cmp(&rhs.min.x.to_bits())
+                .then(lhs.min.y.to_bits().cmp(&rhs.min.y.to_bits()))
+                .then(lhs.max.x.to_bits().cmp(&rhs.max.x.to_bits()))
+                .then(lhs.max.y.to_bits().cmp(&rhs.max.y.to_bits()))
+        }
+    }
+
+    fn create_lookup<'a>(
+        widgets: impl Iterator<Item = &'a WidgetRect>,
+    ) -> BTreeMap<OrderedRect, Vec<&'a WidgetRect>> {
+        let mut lookup: BTreeMap<OrderedRect, Vec<&'a WidgetRect>> = BTreeMap::default();
+        for w in widgets {
+            lookup.entry(OrderedRect(w.rect)).or_default().push(w);
+        }
+        lookup
+    }
 
     for (layer_id, new_widgets) in new_widgets.layers() {
-        // Which Ids were used for each Rect in the previous pass?
-        let mut prev_rect_ids: HashMap<HashableRect, IdSet> = HashMap::default();
-        for w in prev_widgets.get_layer(*layer_id) {
-            prev_rect_ids
-                .entry(HashableRect::new(w.rect))
-                .or_default()
-                .insert(w.id);
-        }
+        let prev = create_lookup(prev_widgets.get_layer(*layer_id));
+        let new = create_lookup(new_widgets.iter());
 
-        // Check the current pass for rects that existed in the previous pass but with a different id
-        for WidgetRect { id, rect, .. } in new_widgets {
-            if let Some(prev_ids) = prev_rect_ids.get(&HashableRect::new(*rect))
-                && !prev_ids.contains(id)
+        for (hashable_rect, new_widgets) in new {
+            let Some(prev_widgets) = prev.get(&hashable_rect) else {
+                continue; // this rect did not exist in the previous pass
+            };
+
+            if prev_widgets
+                .iter()
+                .any(|w| new_widgets.iter().any(|nw| nw.id == w.id))
             {
-                log::warn!("Widget rect {rect:?} changed id between passes");
-                out_shapes.push(ClippedShape {
-                    clip_rect: Rect::EVERYTHING,
-                    shape: epaint::Shape::rect_stroke(
-                        *rect,
-                        0,
-                        (2.0, Color32::RED),
-                        StrokeKind::Outside,
-                    ),
-                });
+                continue; // at least one id stayed the same, so this is not an id change
             }
+
+            let rect = new_widgets.iter().next().unwrap().rect;
+
+            log::warn!(
+                "Widget rect {rect:?} changed id between passes: prev ids: {:?}, new ids: {:?}",
+                prev_widgets
+                    .iter()
+                    .map(|w| w.id.short_debug_format())
+                    .collect::<Vec<_>>(),
+                new_widgets
+                    .iter()
+                    .map(|w| w.id.short_debug_format())
+                    .collect::<Vec<_>>(),
+            );
+            out_shapes.push(ClippedShape {
+                clip_rect: Rect::EVERYTHING,
+                shape: epaint::Shape::rect_stroke(
+                    rect,
+                    0,
+                    (2.0, Color32::RED),
+                    StrokeKind::Outside,
+                ),
+            });
         }
     }
 }
