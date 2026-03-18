@@ -47,8 +47,14 @@ impl crate::View for IdTest {
             (and if it is, the window will have a new layout, and the slider will end up somewhere else, and so aborting the interaction probably makes sense).");
 
         ui.label("So these buttons have automatic Id:s, and therefore there is no name clash:");
+        let button_response = ui.button("Button");
         let _ = ui.button("Button");
-        let _ = ui.button("Button");
+
+        ui.label("Use id.ui() to show a interactive debug ui that explains how a id was derived:");
+        button_response.id.ui(ui);
+
+        ui.label("Debug formatting the id will also show the hierarchy (useful when logging ids):");
+        ui.code(format!("{:?}", button_response.id));
 
         ui.vertical_centered(|ui| {
             ui.add(crate::egui_github_link_file!());
