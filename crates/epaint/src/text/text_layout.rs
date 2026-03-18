@@ -114,7 +114,7 @@ pub fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<LayoutJob>)
     let intrinsic_size = calculate_intrinsic_size(point_scale, &job, &paragraphs);
 
     let mut elided = false;
-    let mut rows = rows_from_paragraphs(paragraphs, &job, &mut elided);
+    let mut rows = rows_from_paragraphs(paragraphs, &job, pixels_per_point, &mut elided);
     if elided && let Some(last_placed) = rows.last_mut() {
         let last_row = Arc::make_mut(&mut last_placed.row);
         replace_last_glyph_with_overflow_character(fonts, pixels_per_point, &job, last_row);
@@ -254,11 +254,12 @@ fn calculate_intrinsic_size(
 ) -> Vec2 {
     let mut intrinsic_size = Vec2::ZERO;
     for (idx, paragraph) in paragraphs.iter().enumerate() {
-        let width = paragraph
-            .glyphs
-            .last()
-            .map(|l| l.max_x())
-            .unwrap_or_default();
+        // Use the precise cursor position instead of `last_glyph.max_x()`,
+        // because glyph positions are pixel-snapped but the cursor tracks
+        // the exact subpixel advance. This ensures that when two galleys are
+        // placed side-by-side, the gap matches what it would be within a
+        // single galley.
+        let width = paragraph.cursor_x_px / point_scale.pixels_per_point;
         intrinsic_size.x = f32::max(intrinsic_size.x, width);
 
         let mut height = paragraph
@@ -279,6 +280,7 @@ fn calculate_intrinsic_size(
 fn rows_from_paragraphs(
     paragraphs: Vec<Paragraph>,
     job: &LayoutJob,
+    pixels_per_point: f32,
     elided: &mut bool,
 ) -> Vec<PlacedRow> {
     let num_paragraphs = paragraphs.len();
@@ -305,8 +307,11 @@ fn rows_from_paragraphs(
                 ends_with_newline: !is_last_paragraph,
             });
         } else {
-            let paragraph_max_x = paragraph.glyphs.last().unwrap().max_x();
-            if paragraph_max_x <= job.effective_wrap_width() {
+            // Use precise cursor position for width instead of pixel-snapped
+            // `last_glyph.max_x()`, so that side-by-side galleys have the same
+            // spacing as characters within a single galley.
+            let paragraph_width = paragraph.cursor_x_px / pixels_per_point;
+            if paragraph_width <= job.effective_wrap_width() {
                 // Early-out optimization: the whole paragraph fits on one row.
                 rows.push(PlacedRow {
                     pos: pos2(0.0, f32::NAN),
@@ -314,7 +319,7 @@ fn rows_from_paragraphs(
                         section_index_at_start: paragraph.section_index_at_start,
                         glyphs: paragraph.glyphs,
                         visuals: Default::default(),
-                        size: vec2(paragraph_max_x, 0.0),
+                        size: vec2(paragraph_width, 0.0),
                     }),
                     ends_with_newline: !is_last_paragraph,
                 });
