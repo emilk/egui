@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
 use emath::{Rect, TSTransform};
-use epaint::text::{Galley, LayoutJob, TextWrapMode, cursor::CCursor};
+use epaint::text::{Galley, LayoutJob, cursor::CCursor, TextWrapping, TextWrapMode};
 
 use crate::{
     Align, Align2, Atom, AtomExt as _, AtomKind, AtomLayout, Atoms, Color32, Context, CursorIcon,
     Event, EventFilter, FontSelection, Frame, Id, ImeEvent, IntoAtoms, IntoSizedResult, Key,
     KeyboardShortcut, Margin, Modifiers, NumExt as _, Response, Sense, SizedAtomKind, TextBuffer,
-    TextStyle, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetWithState, epaint,
+    TextStyle, Ui, Vec2, Widget, WidgetInfo, WidgetWithState, epaint,
     os::OperatingSystem,
     output::OutputEvent,
     response, text_selection,
@@ -517,6 +517,48 @@ impl TextEdit<'_> {
             Sense::hover()
         };
 
+        let mut state = TextEditState::load(ui.ctx(), id).unwrap_or_default();
+        let mut cursor_range = None;
+        let mut prev_cursor_range = None;
+
+        let mut text_changed = false;
+        let text_mutable = text.is_mutable();
+
+        let mut handle_events = |ui: &Ui, galley: &mut Arc<Galley>, layouter, wrap_width, text| {
+            if interactive && ui.memory(|mem| mem.has_focus(id)) {
+                ui.memory_mut(|mem| mem.set_focus_lock_filter(id, event_filter));
+
+                let default_cursor_range = if cursor_at_end {
+                    CCursorRange::one(galley.end())
+                } else {
+                    CCursorRange::default()
+                };
+                prev_cursor_range = state.cursor.range(&galley);
+
+                let (changed, new_cursor_range) = events(
+                    ui,
+                    &mut state,
+                    text,
+                    galley,
+                    layouter,
+                    id,
+                    wrap_width,
+                    multiline,
+                    password,
+                    default_cursor_range,
+                    char_limit,
+                    event_filter,
+                    return_key,
+                );
+
+                if changed {
+                    text_changed = true;
+                }
+                cursor_range = Some(new_cursor_range);
+            }
+        };
+
+
         // We need to calculate the galley within the atom closure, so we can calculate it based on
         // the available width (in case of wrapping multiline text edits). But we show it later,
         // so we can clip it to the available size. Thus, extract it from the atom closure here.
@@ -562,16 +604,31 @@ impl TextEdit<'_> {
                     atoms.push_right(atom.atom_align(Align2::LEFT_TOP));
                 }
 
-                // Calculate the empty galley, so it can be read later
-                let gallery = layouter(ui, text, allocate_width - margin.sum().x);
-                get_galley = Some(gallery);
+                // Calculate the empty galley, so it can be read later. The available width is
+                // technically wrong, but doesn't matter since the galley is empty
+                let available_width = allocate_width - margin.sum().x;
+                let galley = layouter(ui, text, available_width);
+
+                // We can't update the galley immediately here, since it would show both hint text
+                // and the newly typed letter. So we pass a clone instead, and accept having a frame
+                // delay on the very first keystroke.
+                let mut galley_clone = galley.clone();
+                handle_events(ui, &mut galley_clone, layouter, available_width, text);
+
+                get_galley = Some(galley);
             } else {
                 // We need a closure here, so we can calculate the galley based on the available
                 // width (after adding suffix and prefix), for correct wrapping in multi line text
                 // edits
                 atoms.push_right(
                     AtomKind::closure(|ui, args| {
-                        let galley = layouter(ui, text, args.available_size.x);
+                        let mut galley = layouter(ui, text, args.available_size.x);
+
+                        // Handling events here allows us to update the galley immediately on
+                        // keystrokes, avoiding frame delays, and ensuring the scroll_to within
+                        // ScrollAreas works correctly.
+                        handle_events(ui, &mut galley, layouter, args.available_size.x, text);
+
                         let intrinsic_size = galley.intrinsic_size();
                         let mut size = galley.size();
                         size.y = size.y.at_least(min_inner_height);
@@ -629,7 +686,7 @@ impl TextEdit<'_> {
                 let background_color =
                     background_color.unwrap_or_else(|| ui.visuals().text_edit_bg_color());
 
-                let (corner_radius, background_color, stroke) = if text.is_mutable() {
+                let (corner_radius, background_color, stroke) = if text_mutable {
                     if allocated.response.has_focus() {
                         (
                             visuals.corner_radius,
@@ -666,8 +723,6 @@ impl TextEdit<'_> {
 
         // Our atom closure was now called, so the galley should always be available here
         let mut galley = get_galley.expect("Galley should be available here");
-
-        let mut state = TextEditState::load(ui.ctx(), id).unwrap_or_default();
 
         // Don't sent `OutputEvent::Clicked` when a user presses the space bar
         response.flags -= response::Flags::FAKE_PRIMARY_CLICKED;
@@ -714,35 +769,8 @@ impl TextEdit<'_> {
             ui.set_cursor_icon(CursorIcon::Text);
         }
 
-        let mut cursor_range = None;
-        let prev_cursor_range = state.cursor.range(&galley);
-        if interactive && ui.memory(|mem| mem.has_focus(id)) {
-            ui.memory_mut(|mem| mem.set_focus_lock_filter(id, event_filter));
-
-            let default_cursor_range = if cursor_at_end {
-                CCursorRange::one(galley.end())
-            } else {
-                CCursorRange::default()
-            };
-
-            let (changed, new_cursor_range) = events(
-                ui,
-                &mut state,
-                text,
-                &galley,
-                id,
-                multiline,
-                password,
-                default_cursor_range,
-                char_limit,
-                event_filter,
-                return_key,
-            );
-
-            if changed {
-                response.mark_changed();
-            }
-            cursor_range = Some(new_cursor_range);
+        if text_changed {
+            response.mark_changed();
         }
 
         let mut galley_pos = align
@@ -793,44 +821,6 @@ impl TextEdit<'_> {
             if has_focus && let Some(cursor_range) = state.cursor.range(&galley) {
                 // Add text selection rectangles to the galley:
                 paint_text_selection(&mut galley, ui.visuals(), &cursor_range, None);
-            }
-
-            // Allocate additional space if edits were made this frame that changed the size. This is important so that,
-            // if there's a ScrollArea, it can properly scroll to the cursor.
-            // Condition `!clip_text` is important to avoid breaking layout for `TextEdit::singleline` (PR #5640)
-            if !clip_text
-                && let extra_size = galley.size() - inner_rect.size()
-                && (extra_size.x > 0.0 || extra_size.y > 0.0)
-            {
-                match ui.layout().main_dir() {
-                    crate::Direction::LeftToRight | crate::Direction::TopDown => {
-                        ui.allocate_rect(
-                            Rect::from_min_size(outer_rect.max, extra_size),
-                            Sense::hover(),
-                        );
-                    }
-                    crate::Direction::RightToLeft => {
-                        ui.allocate_rect(
-                            Rect::from_min_size(
-                                emath::pos2(outer_rect.min.x - extra_size.x, outer_rect.max.y),
-                                extra_size,
-                            ),
-                            Sense::hover(),
-                        );
-                    }
-                    crate::Direction::BottomUp => {
-                        ui.allocate_rect(
-                            Rect::from_min_size(
-                                emath::pos2(outer_rect.min.x, outer_rect.max.y - extra_size.y),
-                                extra_size,
-                            ),
-                            Sense::hover(),
-                        );
-                    }
-                }
-            } else {
-                // Avoid an ID shift during this pass if the textedit grow
-                ui.skip_ahead_auto_ids(1);
             }
 
             painter.galley(galley_pos, Arc::clone(&galley), text_color);
@@ -972,8 +962,10 @@ fn events(
     ui: &crate::Ui,
     state: &mut TextEditState,
     text: &mut dyn TextBuffer,
-    galley: &Galley,
+    galley: &mut Arc<Galley>,
+    layouter: &mut dyn FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<Galley>,
     id: Id,
+    wrap_width: f32,
     multiline: bool,
     password: bool,
     default_cursor_range: CCursorRange,
@@ -1218,6 +1210,9 @@ fn events(
 
         if let Some(new_ccursor_range) = did_mutate_text {
             any_change = true;
+
+            // Layout again to avoid frame delay, and to keep `text` and `galley` in sync.
+            *galley = layouter(ui, text, wrap_width);
 
             // Set cursor_range using new galley:
             cursor_range = new_ccursor_range;
