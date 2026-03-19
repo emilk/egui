@@ -572,17 +572,31 @@ impl State {
         } else if event.logical_key == winit::keyboard::NamedKey::Process {
             // On Windows, the current version of `winit` (0.30.12) has a bug
             // where `KeyboardInput` events processed by the IME are still
-            // emitted.
-            // See: https://github.com/rust-windowing/winit/issues/4508
+            // emitted. [^1]
             //
             // As a workaround, we detect these events by checking whether their
             // `logical_key` is `winit::keyboard::NamedKey::Process`, and filter
             // them out to keep behavior consistent with other platforms.
             //
-            // TODO(Umaĵo): Remove this workaround once the winit bug is fixed
+            // `winit::keyboard::NamedKey::Process` is not documented in
+            // `winit`. Reading through its source code, we find that it is
+            // mapped from `VK_PROCESSKEY` on Windows [^2]. (On an unrelated
+            // note, Web is the only other platform that also uses it [^3].)
+            // According to Microsoft, “the IME sets the virtual key value
+            // to `VK_PROCESSKEY` after processing a key input message” [^4].
+            // See also [^5].
+            // (I can't find a documentation page dedicated to this value.)
+            //
+            // TODO(Umaĵo): Remove this workaround once the `winit` bug is fixed
             // and we've updated to a version that includes the fix. NOTE: Don't
             // forget to also remove the `pressed_processed_physical_keys` field
             // and its related code.
+            //
+            // [^1]: https://github.com/rust-windowing/winit/issues/4508
+            // [^2]: https://github.com/rust-windowing/winit/blob/e9809ef54b18499bb4f2cac945719ecc2a61061b/src/platform_impl/windows/keyboard_layout.rs#L946
+            // [^3]: https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values
+            // [^4]: https://learn.microsoft.com/en-us/windows/win32/api/imm/nf-imm-immgetvirtualkey#remarks
+            // [^5]: https://learn.microsoft.com/en-us/windows/win32/learnwin32/keyboard-input#character-messages
 
             self.pressed_processed_physical_keys
                 .insert(event.physical_key);
@@ -596,10 +610,15 @@ impl State {
                 .pressed_processed_physical_keys
                 .remove(&event.physical_key)
         {
-            // Unlike key presses, we can not tell whether a key release event
+            // Unlike key-presses, we can not tell whether a key-release event
             // is processed by the IME or not by looking at its `logical_key`,
-            // so we track the physical keys of the processed key presses and
-            // filter out the corresponding key releases.
+            // because their `logical_key` is `winit::keyboard::Key::Character(…)`
+            // rather than `winit::keyboard::Key::Named(winit::keyboard::NamedKey::Process)`.
+            // (See the screencast for Windows in [^1].)
+            // So we track the physical keys of processed key-presses and
+            // filter out the corresponding key-releases.
+            //
+            // [^1]: https://github.com/rust-windowing/winit/issues/4508
 
             Some(EventResponse {
                 repaint: false,
