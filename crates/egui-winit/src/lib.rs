@@ -587,7 +587,7 @@ impl State {
             // See also [^5].
             // (I can't find a documentation page dedicated to this value.)
             //
-            // TODO(Umaĵo): Remove this workaround once the `winit` bug is fixed
+            // TODO(umajho): Remove this workaround once the `winit` bug is fixed
             // and we've updated to a version that includes the fix. NOTE: Don't
             // forget to also remove the `pressed_processed_physical_keys` field
             // and its related code.
