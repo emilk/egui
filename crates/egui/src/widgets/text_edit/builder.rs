@@ -263,7 +263,7 @@ impl<'t> TextEdit<'t> {
     /// so it is strongly suggested that you cache the results of any syntax highlighter
     /// so as not to waste CPU highlighting the same string every frame.
     ///
-    /// The arguments is the enclosing [`Ui`] (so you can access e.g. [`Ui::fonts`]),
+    /// The arguments is the enclosing [`Ui`] (so you can access e.g. [`Context::fonts`]),
     /// the text and the wrap width.
     ///
     /// ```
@@ -586,7 +586,7 @@ impl TextEdit<'_> {
 
                 for mut atom in hint_text {
                     if !shrunk && matches!(atom.kind, AtomKind::Text(_)) {
-                        // ellide the hint_text if needed
+                        // elide the hint_text if needed
                         atom = atom.atom_shrink(true);
                         shrunk = true;
                     }
