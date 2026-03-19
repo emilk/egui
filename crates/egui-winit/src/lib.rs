@@ -612,8 +612,9 @@ impl State {
         {
             // Unlike key-presses, we can not tell whether a key-release event
             // is processed by the IME or not by looking at its `logical_key`,
-            // because their `logical_key` is `winit::keyboard::Key::Character(…)`
-            // rather than `winit::keyboard::Key::Named(winit::keyboard::NamedKey::Process)`.
+            // because their `logical_key` is the original value (e.g.
+            // `winit::keyboard::Key::Character(…)`) rather than
+            // `winit::keyboard::Key::Named(winit::keyboard::NamedKey::Process)`.
             // (See the screencast for Windows in [^1].)
             // So we track the physical keys of processed key-presses and
             // filter out the corresponding key-releases.
