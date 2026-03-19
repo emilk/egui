@@ -69,6 +69,11 @@ impl<'a> Atoms<'a> {
         string
     }
 
+    /// Do any of the atoms have shrink set to `true`?
+    pub fn any_shrink(&self) -> bool {
+        self.iter().any(|a| a.shrink)
+    }
+
     pub fn iter_kinds(&self) -> impl Iterator<Item = &AtomKind<'a>> {
         self.0.iter().map(|atom| &atom.kind)
     }

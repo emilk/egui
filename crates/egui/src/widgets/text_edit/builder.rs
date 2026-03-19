@@ -202,7 +202,7 @@ impl<'t> TextEdit<'t> {
     /// # });
     /// ```
     #[inline]
-    pub fn hint_text(mut self, hint_text: impl Into<WidgetText>) -> Self {
+    pub fn hint_text(mut self, hint_text: impl IntoAtoms<'static>) -> Self {
         self.hint_text = hint_text.into_atoms();
         self
     }
@@ -517,36 +517,58 @@ impl TextEdit<'_> {
             Sense::hover()
         };
 
-        let inner_rect_id = Id::new("text_edit_rect");
+        // We need to calculate the galley within the atom closure, so we can calculate it based on
+        // the available width (in case of wrapping multiline text edits). But we show it later,
+        // so we can clip it to the available size. Thus, extract it from the atom closure here.
         let mut get_galley = None;
+        let inner_rect_id = Id::new("text_edit_rect");
         let atom_response = {
+            let any_shrink = hint_text.any_shrink();
+            // Ideally we could just do `let mut atoms = prefix` here, but that won't compile
+            // but due to servo/rust-smallvec#146 (also see the comment below).
             let mut atoms: Atoms<'_> = Atoms::new(());
 
-            let any_shrink = hint_text.iter().any(|a| a.shrink);
-
-            // TODO(servo/rust-smallvec#146): Use extend_right instead of the loop once we have smallvec 2.0
+            // TODO(servo/rust-smallvec#146): Use extend_right instead of the loop once we have
+            // smallvec 2.0. Using `extend_right` here won't compile, due to lifetime issues.
             for atom in prefix {
                 atoms.push_right(atom);
             }
 
-            if text.as_str().is_empty() {
+            if text.as_str().is_empty() && !hint_text.is_empty() {
+                // Add hint_text (if any):
                 let mut shrunk = any_shrink;
                 let mut first = true;
+
+                // Since we can't set a fallback color per atom, we have to override it here.
+                // Sucks, since it means users won't be able to override it.
                 hint_text.map_texts(|t| t.color(ui.style().visuals.weak_text_color()));
+
                 for mut atom in hint_text {
                     if !shrunk && matches!(atom.kind, AtomKind::Text(_)) {
+                        // ellide the hint_text if needed
                         atom = atom.atom_shrink(true);
                         shrunk = true;
                     }
+
                     if first {
+                        // The first atom in the hint text gets inner_rect_id, so we can know
+                        // where to paint the cursor
                         atom = atom.atom_id(inner_rect_id);
                         first = false;
                     }
+
+                    // The hint text should be shown left top instead of centered (important for
+                    // multi line text edits)
                     atoms.push_right(atom.atom_align(Align2::LEFT_TOP));
                 }
+
+                // Calculate the empty galley, so it can be read later
                 let gallery = layouter(ui, text, allocate_width - margin.sum().x);
                 get_galley = Some(gallery);
             } else {
+                // We need a closure here, so we can calculate the galley based on the available
+                // width (after adding suffix and prefix), for correct wrapping in multi line text
+                // edits
                 atoms.push_right(
                     AtomKind::closure(|ui, args| {
                         let galley = layouter(ui, text, args.available_size.x);
@@ -569,9 +591,13 @@ impl TextEdit<'_> {
                 );
             }
 
+            // Ensure the suffix is always right-aligned
             if !suffix.is_empty() {
                 atoms.push_right(Atom::grow());
             }
+
+            // TODO(servo/rust-smallvec#146): Use extend_right instead of the loop once we have
+            // smallvec 2.0. Using `extend_right` here won't compile, due to lifetime issues.
             for atom in suffix {
                 atoms.push_right(atom);
             }
@@ -638,6 +664,7 @@ impl TextEdit<'_> {
         let mut response = atom_response.response;
         let outer_rect = response.rect;
 
+        // Our atom closure was now called, so the galley should always be available here
         let mut galley = get_galley.expect("Galley should be available here");
 
         let mut state = TextEditState::load(ui.ctx(), id).unwrap_or_default();
@@ -768,39 +795,42 @@ impl TextEdit<'_> {
                 paint_text_selection(&mut galley, ui.visuals(), &cursor_range, None);
             }
 
-            if !clip_text {
-                // Allocate additional space if edits were made this frame that changed the size. This is important so that,
-                // if there's a ScrollArea, it can properly scroll to the cursor.
-                // Condition `!clip_text` is important to avoid breaking layout for `TextEdit::singleline` (PR #5640)
-                let extra_size = galley.size() - inner_rect.size();
-                if extra_size.x > 0.0 || extra_size.y > 0.0 {
-                    match ui.layout().main_dir() {
-                        crate::Direction::LeftToRight | crate::Direction::TopDown => {
-                            ui.allocate_rect(
-                                Rect::from_min_size(outer_rect.max, extra_size),
-                                Sense::hover(),
-                            );
-                        }
-                        crate::Direction::RightToLeft => {
-                            ui.allocate_rect(
-                                Rect::from_min_size(
-                                    emath::pos2(outer_rect.min.x - extra_size.x, outer_rect.max.y),
-                                    extra_size,
-                                ),
-                                Sense::hover(),
-                            );
-                        }
-                        crate::Direction::BottomUp => {
-                            ui.allocate_rect(
-                                Rect::from_min_size(
-                                    emath::pos2(outer_rect.min.x, outer_rect.max.y - extra_size.y),
-                                    extra_size,
-                                ),
-                                Sense::hover(),
-                            );
-                        }
+            // Allocate additional space if edits were made this frame that changed the size. This is important so that,
+            // if there's a ScrollArea, it can properly scroll to the cursor.
+            // Condition `!clip_text` is important to avoid breaking layout for `TextEdit::singleline` (PR #5640)
+            if !clip_text
+                && let extra_size = galley.size() - inner_rect.size()
+                && (extra_size.x > 0.0 || extra_size.y > 0.0)
+            {
+                match ui.layout().main_dir() {
+                    crate::Direction::LeftToRight | crate::Direction::TopDown => {
+                        ui.allocate_rect(
+                            Rect::from_min_size(outer_rect.max, extra_size),
+                            Sense::hover(),
+                        );
+                    }
+                    crate::Direction::RightToLeft => {
+                        ui.allocate_rect(
+                            Rect::from_min_size(
+                                emath::pos2(outer_rect.min.x - extra_size.x, outer_rect.max.y),
+                                extra_size,
+                            ),
+                            Sense::hover(),
+                        );
+                    }
+                    crate::Direction::BottomUp => {
+                        ui.allocate_rect(
+                            Rect::from_min_size(
+                                emath::pos2(outer_rect.min.x, outer_rect.max.y - extra_size.y),
+                                extra_size,
+                            ),
+                            Sense::hover(),
+                        );
                     }
                 }
+            } else {
+                // Avoid an ID shift during this pass if the textedit grow
+                ui.skip_ahead_auto_ids(1);
             }
 
             painter.galley(galley_pos, Arc::clone(&galley), text_color);

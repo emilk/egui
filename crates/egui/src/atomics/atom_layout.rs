@@ -203,7 +203,7 @@ impl<'a> AtomLayout<'a> {
         // If the TextWrapMode is not Extend, ensure there is some item marked as `shrink`.
         // If none is found, mark the first text item as `shrink`.
         if wrap_mode != TextWrapMode::Extend {
-            let any_shrink = atoms.iter().any(|a| a.shrink);
+            let any_shrink = atoms.any_shrink();
             if !any_shrink {
                 let first_text = atoms
                     .iter_mut()
