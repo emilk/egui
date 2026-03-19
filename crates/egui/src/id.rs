@@ -1,7 +1,7 @@
 // TODO(emilk): have separate types `PositionId` and `UniqueId`. ?
 
-use crate::id::id_source::IdSource;
 use crate::CollapsingHeader;
+use crate::id::id_source::IdSource;
 use epaint::Color32;
 use std::num::NonZeroU64;
 
@@ -73,7 +73,7 @@ impl Id {
         use std::hash::{BuildHasher as _, Hasher as _};
         let mut hasher = ahash::RandomState::with_seeds(1, 2, 3, 4).build_hasher();
         hasher.write_u64(self.0.get());
-        (&child).hash(&mut hasher);
+        child.hash(&mut hasher);
         let id = Self::from_hash(hasher.finish());
 
         #[cfg(debug_assertions)]
@@ -118,70 +118,7 @@ impl Id {
         Self(NonZeroU64::new(value).expect("Id must be non-zero."))
     }
 
-    fn source_ui(ui: &mut crate::Ui, source: IdSource) {
-        match source {
-            IdSource::Id(id) => {
-                Self::parent_ui(ui, id);
-            }
-            IdSource::Other(other) => {
-                ui.code(other);
-            }
-        }
-    }
-
-    fn parent_ui(ui: &mut crate::Ui, id: Id) {
-        let data = id.info();
-        if let Some(data) = data {
-            if let Some(parent) = data.parent {
-                Self::parent_ui(ui, parent);
-                ui.horizontal(|ui| {
-                    ui.code(".with(");
-                    Self::source_ui(ui, data.source);
-                    ui.code(format!("  /* {} */", id.short_debug_format()));
-                    ui.code(")");
-                });
-            } else {
-                ui.horizontal(|ui| {
-                    ui.code("Id::new(");
-                    Self::source_ui(ui, data.source);
-                    ui.code(format!("  /* {} */", id.short_debug_format()));
-                    ui.code(")");
-                });
-            }
-        } else {
-            ui.code(format!("Id::from_hash({})", id.short_debug_format()));
-        }
-    }
-
-    fn group_ui(ui: &mut crate::Ui, id: Id) {
-        ui.group(|ui| {
-            let info = id.info();
-            if let Some(info) = info {
-                ui.horizontal(|ui| {
-                    ui.label("Id(");
-                    ui.code(format!("{:04X}", id.value() as u16));
-                    ui.label(")");
-
-                    ui.label("Source:");
-                    match info.source {
-                        IdSource::Id(id) => {
-                            Self::group_ui(ui, id);
-                        }
-                        IdSource::Other(other) => {
-                            ui.code(other);
-                        }
-                    }
-                });
-                if let Some(parent) = info.parent {
-                    ui.label("^ with");
-                    Self::group_ui(ui, parent);
-                }
-            } else {
-            }
-        });
-    }
-
-    fn tree_ui(ui: &mut crate::Ui, id: Id, prefix: &str, depth: usize) {
+    fn tree_ui(ui: &mut crate::Ui, id: Self, prefix: &str, depth: usize) {
         let info = id.info();
         if let Some(info) = info {
             let response =
@@ -273,11 +210,11 @@ mod id_source {
     impl Display for IdSource {
         fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
             match self {
-                IdSource::Id(id) => {
+                Self::Id(id) => {
                     write!(f, "{}", id.short_debug_format())
                 }
-                IdSource::Other(other) => {
-                    write!(f, "{}", other)
+                Self::Other(other) => {
+                    write!(f, "{other}")
                 }
             }
         }
@@ -319,7 +256,7 @@ mod id_source {
         }
 
         fn write_u64(&mut self, i: u64) {
-            if !self.not_id && !self.val.is_some() {
+            if !self.not_id && self.val.is_none() {
                 self.val = Some(i);
             } else {
                 self.not_id = true;
@@ -345,10 +282,10 @@ mod id_source {
             if ID_MAP.read().contains_key(&maybe_source_id) {
                 IdSource::Id(maybe_source_id)
             } else {
-                IdSource::Other(format!("{:?}", t))
+                IdSource::Other(format!("{t:?}"))
             }
         } else {
-            IdSource::Other(format!("{:?}", t))
+            IdSource::Other(format!("{t:?}"))
         }
     }
 
@@ -373,7 +310,7 @@ mod id_source {
 
     #[test]
     fn test_fake_hasher() {
-        use std::hash::Hash;
+        use std::hash::Hash as _;
         let mut hasher = ExtractIdHasher::default();
 
         let id = Id::new("test");
@@ -391,15 +328,15 @@ impl std::fmt::Debug for Id {
         if let Some(info) = self.info() {
             match info.source {
                 id_source::IdSource::Id(source_id) => {
-                    write!(f, "({:?})", source_id)?;
+                    write!(f, "({source_id:?})")?;
                 }
                 id_source::IdSource::Other(label) => {
-                    write!(f, " ({})", label)?;
+                    write!(f, " ({label})")?;
                 }
             }
             if let Some(parent) = info.parent {
                 // Let's hope there are no cycles!
-                write!(f, " <- {:?}", parent)?;
+                write!(f, " <- {parent:?}")?;
             }
         }
 

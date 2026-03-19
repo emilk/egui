@@ -7,8 +7,6 @@ use emath::GuiRounding as _;
 use epaint::mutex::RwLock;
 
 use crate::containers::menu;
-#[cfg(debug_assertions)]
-use crate::Stroke;
 use crate::{containers::*, ecolor::*, layout::*, placer::Placer, widgets::*, *};
 // ----------------------------------------------------------------------------
 
