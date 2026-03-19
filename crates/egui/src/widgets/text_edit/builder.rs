@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use emath::{Rect, TSTransform};
-use epaint::text::{Galley, LayoutJob, cursor::CCursor, TextWrapping, TextWrapMode};
+use epaint::text::{Galley, LayoutJob, TextWrapMode, cursor::CCursor};
 
 use crate::{
     Align, Align2, Atom, AtomExt as _, AtomKind, AtomLayout, Atoms, Color32, Context, CursorIcon,
@@ -533,7 +533,7 @@ impl TextEdit<'_> {
                 } else {
                     CCursorRange::default()
                 };
-                prev_cursor_range = state.cursor.range(&galley);
+                prev_cursor_range = state.cursor.range(galley);
 
                 let (changed, new_cursor_range) = events(
                     ui,
@@ -557,7 +557,6 @@ impl TextEdit<'_> {
                 cursor_range = Some(new_cursor_range);
             }
         };
-
 
         // We need to calculate the galley within the atom closure, so we can calculate it based on
         // the available width (in case of wrapping multiline text edits). But we show it later,
@@ -612,7 +611,7 @@ impl TextEdit<'_> {
                 // We can't update the galley immediately here, since it would show both hint text
                 // and the newly typed letter. So we pass a clone instead, and accept having a frame
                 // delay on the very first keystroke.
-                let mut galley_clone = galley.clone();
+                let mut galley_clone = Arc::clone(&galley);
                 handle_events(ui, &mut galley_clone, layouter, available_width, text);
 
                 get_galley = Some(galley);
@@ -719,12 +718,11 @@ impl TextEdit<'_> {
 
         let inner_rect = atom_response.rect(inner_rect_id).unwrap_or(Rect::ZERO);
         let mut response = atom_response.response;
-        let outer_rect = response.rect;
 
         // Our atom closure was now called, so the galley should always be available here
         let mut galley = get_galley.expect("Galley should be available here");
 
-        // Don't sent `OutputEvent::Clicked` when a user presses the space bar
+        // Don't send `OutputEvent::Clicked` when a user presses the space bar
         response.flags -= response::Flags::FAKE_PRIMARY_CLICKED;
         let text_clip_rect = inner_rect;
         let painter = ui.painter_at(text_clip_rect.expand(1.0)); // expand to avoid clipping cursor

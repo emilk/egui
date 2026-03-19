@@ -1,7 +1,9 @@
 use egui::accesskit::Role;
 use egui::epaint::Shape;
-use egui::{Align, Color32, Image, Label, Layout, RichText, Sense, TextWrapMode, include_image, ScrollArea};
 use egui::style::ScrollAnimation;
+use egui::{
+    Align, Color32, Image, Label, Layout, RichText, ScrollArea, Sense, TextWrapMode, include_image,
+};
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable as _;
 
@@ -66,13 +68,10 @@ fn text_edit_rtl() {
 
 #[test]
 fn text_edit_delay() {
-    let mut text = "".to_owned();
+    let mut text = String::new();
     let mut harness = Harness::builder().with_size((200.0, 50.0)).build_ui(|ui| {
         ui.style_mut().scroll_animation = ScrollAnimation::none();
-            ui.add(
-                egui::TextEdit::singleline(&mut text)
-                    .hint_text("Write something"),
-            );
+        ui.add(egui::TextEdit::singleline(&mut text).hint_text("Write something"));
     });
 
     harness.get_by_role(Role::TextInput).focus();
@@ -119,7 +118,9 @@ fn text_edit_scroll() {
     harness.step();
     harness.snapshot("text_edit_scroll_0_focus");
 
-    harness.get_by_role(Role::MultilineTextInput).type_text("5\n");
+    harness
+        .get_by_role(Role::MultilineTextInput)
+        .type_text("5\n");
 
     // When the text is empty, and we show the hint text, there is a frame delay.
     harness.run();
