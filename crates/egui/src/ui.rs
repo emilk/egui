@@ -151,7 +151,7 @@ impl Ui {
         let mut ui = Ui {
             id,
             unique_id: id,
-            next_auto_id_salt: id.with("auto").value(),
+            next_auto_id_salt: 0,
             painter: Painter::new(ctx, layer_id, clip_rect),
             style,
             placer,
@@ -293,12 +293,10 @@ impl Ui {
             (id_salt, id_salt)
         } else {
             let stable_id = self.id.with(id_salt);
-            let unique_id = stable_id.with(self.next_auto_id_salt);
+            let unique_id = self.unique_id.with(id_salt).with(self.next_auto_id_salt);
 
             (stable_id, unique_id)
         };
-        let next_auto_id_salt = unique_id.value().wrapping_add(1);
-
         self.next_auto_id_salt = self.next_auto_id_salt.wrapping_add(1);
 
         let placer = Placer::new(max_rect, layout);
@@ -313,7 +311,7 @@ impl Ui {
         let mut child_ui = Ui {
             id: stable_id,
             unique_id,
-            next_auto_id_salt,
+            next_auto_id_salt: 0,
             painter,
             style,
             placer,
@@ -1005,21 +1003,32 @@ impl Ui {
     }
 
     /// This is the `Id` that will be assigned to the next widget added to this `Ui`.
+    #[inline]
     pub fn next_auto_id(&self) -> Id {
-        Id::new(self.next_auto_id_salt)
+        self.unique_id.with(self.next_auto_id_salt)
     }
 
     /// Same as `ui.next_auto_id().with(id_salt)`
+    #[inline]
     pub fn auto_id_with<IdSource>(&self, id_salt: IdSource) -> Id
     where
         IdSource: AsId,
     {
-        Id::new(self.next_auto_id_salt).with(id_salt)
+        self.next_auto_id().with(id_salt)
     }
 
     /// Pretend like `count` widgets have been allocated.
+    #[inline]
     pub fn skip_ahead_auto_ids(&mut self, count: usize) {
         self.next_auto_id_salt = self.next_auto_id_salt.wrapping_add(count as u64);
+    }
+
+    /// Get auto id and advance auto id counter by 1.
+    #[inline]
+    pub fn get_auto_id(&mut self) -> Id {
+        let id = self.next_auto_id();
+        self.skip_ahead_auto_ids(1);
+        id
     }
 }
 
@@ -1370,8 +1379,7 @@ impl Ui {
             }
         }
 
-        let id = Id::new(self.next_auto_id_salt);
-        self.next_auto_id_salt = self.next_auto_id_salt.wrapping_add(1);
+        let id = self.get_auto_id();
 
         (id, rect)
     }
@@ -1411,9 +1419,7 @@ impl Ui {
         self.placer.advance_after_rects(rect, rect, item_spacing);
         register_rect(self, rect);
 
-        let id = Id::new(self.next_auto_id_salt);
-        self.next_auto_id_salt = self.next_auto_id_salt.wrapping_add(1);
-        id
+        self.get_auto_id()
     }
 
     pub(crate) fn placer(&self) -> &Placer {
