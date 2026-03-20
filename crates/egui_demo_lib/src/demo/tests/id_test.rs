@@ -1,3 +1,5 @@
+use egui::Id;
+
 #[derive(Default)]
 pub struct IdTest {}
 
@@ -50,8 +52,15 @@ impl crate::View for IdTest {
         let button_response = ui.button("Button");
         let _ = ui.button("Button");
 
+
+        let parent = Id::new("parent");
+        let child = parent.with("child");
+        let grandchild = child.with("grandchild");
+        let nested = Id::new(grandchild).with(grandchild);
+
         ui.label("Use id.ui() to show a interactive debug ui that explains how a id was derived:");
         button_response.id.ui(ui);
+        nested.ui(ui);
 
         ui.label("Debug formatting the id will also show the hierarchy (useful when logging ids):");
         ui.code(format!("{:?}", button_response.id));

@@ -1,5 +1,6 @@
 // TODO(emilk): have separate types `PositionId` and `UniqueId`. ?
 
+use epaint::text::TextWrapMode;
 use epaint::Color32;
 use std::num::NonZeroU64;
 
@@ -145,7 +146,21 @@ impl Id {
 
         #[cfg(debug_assertions)]
         let response = response.on_hover_ui(|ui| {
-            Self::tree_ui(ui, self, "", 0);
+            let checkbox_id = Id::new("egui::id::show_as_code_checkbox");
+            let mut show_as_code = ui
+                .ctx()
+                .data_mut(|d| *d.get_persisted_mut_or_default::<bool>(checkbox_id));
+            ui.checkbox(&mut show_as_code, "Show as code");
+            ui.ctx()
+                .data_mut(|d| d.insert_temp(checkbox_id, show_as_code));
+
+            if show_as_code {
+                ui.style_mut().wrap_mode = Some(TextWrapMode::Extend);
+                ui.style_mut().interaction.selectable_labels = true;
+                ui.code(self.to_code_string());
+            } else {
+                Self::tree_ui(ui, self, "", 0);
+            }
         });
 
         if response.hovered() {
@@ -274,12 +289,152 @@ mod id_source {
         }
     }
 
+    /// Format a call like `Id::new(arg)` or `.with(arg)`.
+    ///
+    /// `outer_indent` is the indentation of the call itself (e.g. `"  "` if inside a chain).
+    ///
+    /// If the arg is single-line, keeps it inline: `Id::new("foo")`
+    /// If the arg is multi-line, uses rustfmt style:
+    /// ```text
+    /// Id::new(
+    ///     arg,
+    /// )
+    /// ```
+    fn format_call(func: &str, arg: &str, outer_indent: &str, inner_indent: &str) -> String {
+        if arg.contains('\n') {
+            let indented_arg = arg
+                .lines()
+                .map(|l| format!("{outer_indent}{inner_indent}{l}"))
+                .collect::<Vec<_>>()
+                .join("\n");
+            format!("{outer_indent}{func}(\n{indented_arg}\n{outer_indent})")
+        } else {
+            format!("{outer_indent}{func}({arg})")
+        }
+    }
+
+    /// Align all `// XXXX` comments in a string to the same column.
+    fn align_comments(s: &str) -> String {
+        let comment_marker = " // ";
+        let max_code_len = s
+            .lines()
+            .filter_map(|line| line.find(comment_marker).map(|pos| pos))
+            .max()
+            .unwrap_or(0);
+
+        s.lines()
+            .map(|line| {
+                if let Some(pos) = line.find(comment_marker) {
+                    let code = &line[..pos];
+                    let comment = &line[pos + 1..]; // include the space before //
+                    format!("{code:<max_code_len$} {comment}")
+                } else {
+                    line.to_owned()
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
     impl Id {
         /// Get info about this id (what source was it generated from, what parent does it have)?
         ///
         /// Only available with `#[cfg(debug_assertions)]`.
         pub fn info(&self) -> Option<IdInfo> {
             ID_MAP.read().get(self).cloned()
+        }
+
+        /// Returns a Rust code representation of how this Id was constructed.
+        ///
+        /// Formats like rustfmt would:
+        /// ```text
+        /// Id::new("parent")
+        ///   .with("child")
+        /// ```
+        pub fn to_code_string(&self) -> String {
+            let calls = Self::collect_calls(*self);
+            let result = Self::format_chain(&calls, true);
+            align_comments(&result)
+        }
+
+        /// Code string without id comments, used for nested args.
+        fn to_code_string_inner(&self) -> String {
+            let calls = Self::collect_calls(*self);
+            Self::format_chain(&calls, false)
+        }
+
+        fn collect_calls(id: Id) -> Vec<(&'static str, String, Id)> {
+            let mut calls: Vec<(&str, String, Id)> = Vec::new();
+            let mut current = id;
+
+            loop {
+                let Some(info) = current.info() else {
+                    calls.push(("", format!("Id({})", current.short_debug_format()), current));
+                    break;
+                };
+
+                let source_str = match &info.source {
+                    IdSource::Id(id) => {
+                        // Use commented version for multi-line args (each line
+                        // except the first gets a comment), plain for single-line
+                        // to avoid embedding comments inline.
+                        let plain = id.to_code_string_inner();
+                        if plain.contains('\n') {
+                            id.to_code_string()
+                        } else {
+                            plain
+                        }
+                    }
+                    IdSource::Other(s) => s.clone(),
+                };
+
+                match info.parent {
+                    None => {
+                        calls.push(("Id::new", source_str, current));
+                        break;
+                    }
+                    Some(parent) => {
+                        calls.push((".with", source_str, current));
+                        current = parent;
+                    }
+                }
+            }
+
+            calls.reverse();
+            calls
+        }
+
+        fn format_chain(calls: &[(&str, String, Id)], with_comments: bool) -> String {
+            const INDENT: &str = "  ";
+
+            let mut parts: Vec<String> = Vec::new();
+            for (i, (func, arg, id)) in calls.iter().enumerate() {
+                let base = if func.is_empty() {
+                    arg.clone()
+                } else {
+                    let outer = if i == 0 { "" } else { INDENT };
+                    format_call(func, arg, outer, INDENT)
+                };
+
+                if with_comments {
+                    let comment = format!(" // {}", id.short_debug_format());
+                    let mut lines: Vec<&str> = base.lines().collect();
+                    let last = lines.len() - 1;
+                    let last_with_comment = format!("{}{comment}", lines[last]);
+                    lines[last] = &last_with_comment;
+                    parts.push(lines.join("\n"));
+                } else {
+                    parts.push(base);
+                }
+            }
+
+            if parts.len() <= 1 {
+                parts.into_iter().next().unwrap_or_default()
+            } else {
+                let base = &parts[0];
+                let withs: Vec<&str> = parts[1..].iter().map(|s| s.as_str()).collect();
+                format!("{base}\n{}", withs.join("\n"))
+            }
         }
 
         pub(super) fn tree_ui(ui: &mut crate::Ui, id: Self, prefix: &str, depth: usize) {
@@ -323,6 +478,43 @@ mod id_source {
         id.hash(&mut hasher);
 
         assert_eq!(hasher.id(), Some(id));
+    }
+
+    #[test]
+    fn test_to_code_string() {
+        let parent = Id::new("parent");
+        let child = parent.with("child");
+        let grandchild = child.with("grandchild");
+        let nested = Id::new(grandchild).with(grandchild);
+
+        assert_eq!(
+            parent.to_code_string(),
+            r#"Id::new("parent") // 9DE0"#
+        );
+        assert_eq!(
+            child.to_code_string(),
+            r#"Id::new("parent") // 9DE0
+  .with("child")  // F27D"#
+        );
+        assert_eq!(
+            grandchild.to_code_string(),
+            r#"Id::new("parent")     // 9DE0
+  .with("child")      // F27D
+  .with("grandchild") // 61DA"#
+        );
+        assert_eq!(
+            nested.to_code_string(),
+            r#"Id::new(
+  Id::new("parent")       // 9DE0
+    .with("child")        // F27D
+    .with("grandchild")   // 61DA
+)                         // 02A4
+  .with(
+    Id::new("parent")     // 9DE0
+      .with("child")      // F27D
+      .with("grandchild") // 61DA
+  )                       // B2D6"#
+        );
     }
 
     #[test]
