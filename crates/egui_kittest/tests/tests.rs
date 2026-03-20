@@ -1,4 +1,4 @@
-use egui::{Modifiers, ScrollArea, Vec2, include_image};
+use egui::{include_image, Id, Modifiers, ScrollArea, Vec2};
 use egui_kittest::{Harness, SnapshotResults};
 use kittest::Queryable as _;
 
@@ -180,6 +180,30 @@ fn test_masking() {
     harness.mask(to_be_masked.rect());
 
     harness.snapshot("test_masking");
+}
+
+#[test]
+fn test_id_popup() {
+    let ids = [
+        Id::new("parent_id").with("with_source"),
+        Id::new(Id::new("parent_id")).with(Id::new("with_source").with("some other thing")),
+    ];
+
+    let mut results = SnapshotResults::new();
+    for (idx, id) in ids.into_iter().enumerate() {
+        let mut harness = Harness::builder()
+            .with_size(Vec2::new(300.0, 400.0))
+            .build_ui(move |ui| {
+                id.ui(ui);
+            });
+
+
+        harness.get_by_label_contains(&id.short_debug_format()).hover();
+        harness.run();
+        harness.fit_contents();
+
+        results.add(harness.try_snapshot(format!("id_popup_{}", idx)));
+    }
 }
 
 #[test]

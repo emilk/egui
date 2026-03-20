@@ -117,6 +117,7 @@ impl Id {
         Self(NonZeroU64::new(value).expect("Id must be non-zero."))
     }
 
+    /// Paint a rectangle around the widget, if it can be found.
     pub fn try_highlight(self, ctx: &crate::Context) {
         let response = ctx.read_response(self);
         if let Some(response) = response {
@@ -157,8 +158,7 @@ impl Id {
 
 #[cfg(debug_assertions)]
 mod id_source {
-    use crate::{AsId, CollapsingHeader, Id};
-    use ahash::HashMap;
+    use crate::{AsId, CollapsingHeader, Id, IdMap};
     use epaint::mutex::RwLock;
     use std::fmt::{Display, Formatter};
     use std::hash::Hasher;
@@ -192,8 +192,8 @@ mod id_source {
         }
     }
 
-    static ID_MAP: LazyLock<RwLock<HashMap<Id, IdInfo>>> = LazyLock::new(|| {
-        let mut map = HashMap::default();
+    static ID_MAP: LazyLock<RwLock<IdMap<IdInfo>>> = LazyLock::new(|| {
+        let mut map = IdMap::default();
         map.insert(
             Id::NULL,
             IdInfo {
@@ -247,7 +247,7 @@ mod id_source {
 
         let maybe_source_id = hasher.id();
 
-        // Ideally we would just implement IdTriat for Id with specialization, but that's not
+        // Ideally we would just implement AsId for Id with specialization, but that's not
         // a thing yet :( So we check if the hash is already in the map, if so, the source must be
         // an Id.
         if let Some(maybe_source_id) = maybe_source_id {
@@ -323,6 +323,23 @@ mod id_source {
         id.hash(&mut hasher);
 
         assert_eq!(hasher.id(), Some(id));
+    }
+
+    #[test]
+    fn test_debug_format() {
+        let parent = Id::new("parent");
+        let child = parent.with("child");
+        let nested = Id::new(parent).with(child);
+
+        assert_eq!(format!("{parent:?}"), r#"9DE0 ("parent")"#);
+        assert_eq!(
+            format!("{child:?}"),
+            r#"F27D ("child") <- 9DE0 ("parent")"#
+        );
+        assert_eq!(
+            format!("{nested:?}"),
+            r#"A8BE(F27D ("child") <- 9DE0 ("parent")) <- B20C(9DE0 ("parent"))"#
+        );
     }
 }
 
