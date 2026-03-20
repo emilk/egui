@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use egui::{Event, UserData, ViewportId};
 use egui_wgpu::{
-    RenderState, SurfaceErrorAction,
+    RenderState, SurfaceErrorAction, SurfaceStatus,
     capture::{CaptureReceiver, CaptureSender, CaptureState, capture_channel},
 };
 use wasm_bindgen::JsValue;
@@ -15,7 +15,7 @@ pub(crate) struct WebPainterWgpu {
     surface: wgpu::Surface<'static>,
     surface_configuration: wgpu::SurfaceConfiguration,
     render_state: Option<RenderState>,
-    on_surface_error: Arc<dyn Fn(wgpu::SurfaceError) -> SurfaceErrorAction>,
+    on_surface_error: Arc<dyn Fn(SurfaceStatus) -> SurfaceErrorAction>,
     depth_stencil_format: Option<wgpu::TextureFormat>,
     depth_texture_view: Option<wgpu::TextureView>,
     screen_capture_state: Option<CaptureState>,
@@ -196,17 +196,58 @@ impl WebPainter for WebPainterWgpu {
             }
 
             let output_frame = match self.surface.get_current_texture() {
-                Ok(frame) => frame,
-                Err(err) => match (*self.on_surface_error)(err) {
-                    SurfaceErrorAction::RecreateSurface => {
-                        self.surface
-                            .configure(&render_state.device, &self.surface_configuration);
-                        return Ok(());
+                wgpu::CurrentSurfaceTexture::Success(frame)
+                | wgpu::CurrentSurfaceTexture::Suboptimal(frame) => frame,
+                wgpu::CurrentSurfaceTexture::Timeout => {
+                    match (*self.on_surface_error)(SurfaceStatus::Timeout) {
+                        SurfaceErrorAction::RecreateSurface => {
+                            self.surface
+                                .configure(&render_state.device, &self.surface_configuration);
+                        }
+                        SurfaceErrorAction::SkipFrame => {}
                     }
-                    SurfaceErrorAction::SkipFrame => {
-                        return Ok(());
+                    return Ok(());
+                }
+                wgpu::CurrentSurfaceTexture::Outdated => {
+                    match (*self.on_surface_error)(SurfaceStatus::Outdated) {
+                        SurfaceErrorAction::RecreateSurface => {
+                            self.surface
+                                .configure(&render_state.device, &self.surface_configuration);
+                        }
+                        SurfaceErrorAction::SkipFrame => {}
                     }
-                },
+                    return Ok(());
+                }
+                wgpu::CurrentSurfaceTexture::Lost => {
+                    match (*self.on_surface_error)(SurfaceStatus::Lost) {
+                        SurfaceErrorAction::RecreateSurface => {
+                            self.surface
+                                .configure(&render_state.device, &self.surface_configuration);
+                        }
+                        SurfaceErrorAction::SkipFrame => {}
+                    }
+                    return Ok(());
+                }
+                wgpu::CurrentSurfaceTexture::Occluded => {
+                    match (*self.on_surface_error)(SurfaceStatus::Occluded) {
+                        SurfaceErrorAction::RecreateSurface => {
+                            self.surface
+                                .configure(&render_state.device, &self.surface_configuration);
+                        }
+                        SurfaceErrorAction::SkipFrame => {}
+                    }
+                    return Ok(());
+                }
+                wgpu::CurrentSurfaceTexture::Validation => {
+                    match (*self.on_surface_error)(SurfaceStatus::Validation) {
+                        SurfaceErrorAction::RecreateSurface => {
+                            self.surface
+                                .configure(&render_state.device, &self.surface_configuration);
+                        }
+                        SurfaceErrorAction::SkipFrame => {}
+                    }
+                    return Ok(());
+                }
             };
 
             {

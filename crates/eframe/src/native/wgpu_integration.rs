@@ -184,9 +184,17 @@ impl<'app> WgpuWinitApp<'app> {
         builder: ViewportBuilder,
     ) -> crate::Result<&mut WgpuWinitRunning<'app>> {
         profiling::function_scope!();
+        // Inject the display handle into the wgpu setup so that wgpu can create
+        // surfaces on platforms that require it (e.g. GLES on Wayland).
+        let mut wgpu_options = self.native_options.wgpu_options.clone();
+        if let egui_wgpu::WgpuSetup::CreateNew(ref mut create_new) = wgpu_options.wgpu_setup
+            && create_new.display_handle.is_none()
+        {
+            create_new.display_handle = Some(Box::new(event_loop.owned_display_handle()));
+        }
         let mut painter = pollster::block_on(egui_wgpu::winit::Painter::new(
             egui_ctx.clone(),
-            self.native_options.wgpu_options.clone(),
+            wgpu_options,
             self.native_options.viewport.transparent.unwrap_or(false),
             egui_wgpu::RendererOptions {
                 msaa_samples: self.native_options.multisampling as _,

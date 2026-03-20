@@ -24,7 +24,10 @@ mod renderer;
 mod setup;
 
 pub use renderer::*;
-pub use setup::{NativeAdapterSelectorMethod, WgpuSetup, WgpuSetupCreateNew, WgpuSetupExisting};
+pub use setup::{
+    EguiDisplayHandle, NativeAdapterSelectorMethod, WgpuSetup, WgpuSetupCreateNew,
+    WgpuSetupExisting,
+};
 
 /// Helpers for capturing screenshots of the UI.
 #[cfg(feature = "capture")]
@@ -191,6 +194,7 @@ impl RenderState {
         let (adapter, device, queue) = match config.wgpu_setup.clone() {
             WgpuSetup::CreateNew(WgpuSetupCreateNew {
                 instance_descriptor: _,
+                display_handle: _,
                 power_preference,
                 native_adapter_selector: _native_adapter_selector,
                 device_descriptor,
@@ -272,7 +276,58 @@ fn describe_adapters(adapters: &[wgpu::Adapter]) -> String {
     }
 }
 
-/// Specifies which action should be taken as consequence of a [`wgpu::SurfaceError`]
+/// Describes a surface error when acquiring a texture for rendering.
+///
+/// These correspond to the error variants of [`wgpu::CurrentSurfaceTexture`] — everything
+/// except `Success` and `Suboptimal`, which contain usable frames. This enum is passed to the
+/// [`WgpuConfiguration::on_surface_error`] callback so you can decide how to respond.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SurfaceStatus {
+    /// Timed out waiting for the next frame.
+    ///
+    /// This is usually transient. Skip the current frame and try again next frame.
+    Timeout,
+
+    /// The surface configuration no longer matches the underlying display surface.
+    ///
+    /// The surface should be reconfigured (egui will do this automatically if you return
+    /// [`SurfaceErrorAction::RecreateSurface`]). This commonly happens after a window resize
+    /// or display settings change.
+    Outdated,
+
+    /// The surface has been lost and must be recreated from scratch.
+    ///
+    /// This is more severe than [`Self::Outdated`] — the entire surface is invalid. Return
+    /// [`SurfaceErrorAction::RecreateSurface`] to recover.
+    Lost,
+
+    /// The window is not visible (e.g. minimized or fully behind another window).
+    ///
+    /// Skip the current frame. There is nothing to render to.
+    Occluded,
+
+    /// A GPU validation error occurred.
+    ///
+    /// This should not be reachable under normal circumstances, unless
+    /// you wrap the [`winit::Painter::paint_and_update_textures`] in a wgpu
+    /// error scope, and there is a validation error in the
+    /// [`wgpu::Surface::get_current_texture`] call.
+    Validation,
+}
+
+impl std::fmt::Display for SurfaceStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Timeout => write!(f, "Surface timed out"),
+            Self::Outdated => write!(f, "Surface outdated"),
+            Self::Lost => write!(f, "Surface lost"),
+            Self::Occluded => write!(f, "Surface occluded"),
+            Self::Validation => write!(f, "Surface validation error"),
+        }
+    }
+}
+
+/// Specifies which action should be taken as consequence of a [`SurfaceStatus`]
 pub enum SurfaceErrorAction {
     /// Do nothing and skip the current frame.
     SkipFrame,
@@ -300,7 +355,7 @@ pub struct WgpuConfiguration {
     pub wgpu_setup: WgpuSetup,
 
     /// Callback for surface errors.
-    pub on_surface_error: Arc<dyn Fn(wgpu::SurfaceError) -> SurfaceErrorAction + Send + Sync>,
+    pub on_surface_error: Arc<dyn Fn(SurfaceStatus) -> SurfaceErrorAction + Send + Sync>,
 }
 
 #[test]
@@ -333,9 +388,11 @@ impl Default for WgpuConfiguration {
         Self {
             present_mode: wgpu::PresentMode::AutoVsync,
             desired_maximum_frame_latency: None,
-            wgpu_setup: Default::default(),
+            // No display handle available at this point — callers should replace this with
+            // `WgpuSetup::from_display_handle(...)` before creating the instance if one is available.
+            wgpu_setup: WgpuSetup::without_display_handle(),
             on_surface_error: Arc::new(|err| {
-                if err == wgpu::SurfaceError::Outdated {
+                if err == SurfaceStatus::Outdated {
                     // This error occurs when the app is minimized on Windows.
                     // Silently return here to prevent spamming the console with:
                     // "The underlying surface has changed, and therefore the swap chain must be updated"

@@ -3,7 +3,7 @@
 #![expect(clippy::unwrap_used)] // TODO(emilk): avoid unwraps
 #![expect(unsafe_code)]
 
-use crate::{RenderState, SurfaceErrorAction, WgpuConfiguration, renderer};
+use crate::{RenderState, SurfaceErrorAction, SurfaceStatus, WgpuConfiguration, renderer};
 use crate::{
     RendererOptions,
     capture::{CaptureReceiver, CaptureSender, CaptureState, capture_channel},
@@ -368,7 +368,7 @@ impl Painter {
                     hal_surface
                         .render_layer()
                         .lock()
-                        .set_presents_with_transaction(resizing);
+                        .setPresentsWithTransaction(resizing);
 
                     Self::configure_surface(
                         state,
@@ -501,16 +501,53 @@ impl Painter {
         };
 
         let output_frame = match output_frame {
-            Ok(frame) => frame,
-            Err(err) => match (*self.configuration.on_surface_error)(err) {
-                SurfaceErrorAction::RecreateSurface => {
-                    Self::configure_surface(surface_state, render_state, &self.configuration);
-                    return vsync_sec;
+            wgpu::CurrentSurfaceTexture::Success(frame)
+            | wgpu::CurrentSurfaceTexture::Suboptimal(frame) => frame,
+            wgpu::CurrentSurfaceTexture::Timeout => {
+                match (*self.configuration.on_surface_error)(SurfaceStatus::Timeout) {
+                    SurfaceErrorAction::RecreateSurface => {
+                        Self::configure_surface(surface_state, render_state, &self.configuration);
+                    }
+                    SurfaceErrorAction::SkipFrame => {}
                 }
-                SurfaceErrorAction::SkipFrame => {
-                    return vsync_sec;
+                return vsync_sec;
+            }
+            wgpu::CurrentSurfaceTexture::Outdated => {
+                match (*self.configuration.on_surface_error)(SurfaceStatus::Outdated) {
+                    SurfaceErrorAction::RecreateSurface => {
+                        Self::configure_surface(surface_state, render_state, &self.configuration);
+                    }
+                    SurfaceErrorAction::SkipFrame => {}
                 }
-            },
+                return vsync_sec;
+            }
+            wgpu::CurrentSurfaceTexture::Lost => {
+                match (*self.configuration.on_surface_error)(SurfaceStatus::Lost) {
+                    SurfaceErrorAction::RecreateSurface => {
+                        Self::configure_surface(surface_state, render_state, &self.configuration);
+                    }
+                    SurfaceErrorAction::SkipFrame => {}
+                }
+                return vsync_sec;
+            }
+            wgpu::CurrentSurfaceTexture::Occluded => {
+                match (*self.configuration.on_surface_error)(SurfaceStatus::Occluded) {
+                    SurfaceErrorAction::RecreateSurface => {
+                        Self::configure_surface(surface_state, render_state, &self.configuration);
+                    }
+                    SurfaceErrorAction::SkipFrame => {}
+                }
+                return vsync_sec;
+            }
+            wgpu::CurrentSurfaceTexture::Validation => {
+                match (*self.configuration.on_surface_error)(SurfaceStatus::Validation) {
+                    SurfaceErrorAction::RecreateSurface => {
+                        Self::configure_surface(surface_state, render_state, &self.configuration);
+                    }
+                    SurfaceErrorAction::SkipFrame => {}
+                }
+                return vsync_sec;
+            }
         };
 
         let mut capture_buffer = None;
