@@ -1,6 +1,9 @@
 use egui::accesskit::Role;
 use egui::epaint::Shape;
-use egui::{Align, Color32, Image, Label, Layout, RichText, Sense, TextWrapMode, include_image};
+use egui::style::ScrollAnimation;
+use egui::{
+    Align, Color32, Image, Label, Layout, RichText, ScrollArea, Sense, TextWrapMode, include_image,
+};
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable as _;
 
@@ -61,6 +64,67 @@ fn text_edit_rtl() {
         harness.step();
         harness.snapshot(format!("text_edit_rtl_{i}"));
     }
+}
+
+#[test]
+fn text_edit_delay() {
+    let mut text = String::new();
+    let mut harness = Harness::builder().with_size((200.0, 50.0)).build_ui(|ui| {
+        ui.style_mut().scroll_animation = ScrollAnimation::none();
+        ui.add(egui::TextEdit::singleline(&mut text).hint_text("Write something"));
+    });
+
+    harness.get_by_role(Role::TextInput).focus();
+    harness.step();
+    harness.snapshot("text_edit_delay_0_empty");
+
+    harness.get_by_role(Role::TextInput).type_text("h");
+
+    // When the text is empty, and we show the hint text, there is a frame delay.
+    harness.step();
+    harness.snapshot("text_edit_delay_1_h_invisible");
+
+    // Now it should be visible
+    harness.step();
+    harness.snapshot("text_edit_delay_2_h_visible");
+
+    harness.get_by_role(Role::TextInput).type_text("i");
+
+    // The "i" should immediately be visible without a delay
+    harness.step();
+    harness.snapshot("text_edit_delay_3_i_visible");
+
+    // The next frame should exactly match the previous one
+    harness.step();
+    harness.snapshot("text_edit_delay_4_i_visible");
+}
+
+#[test]
+fn text_edit_scroll() {
+    let mut text = "1\n2\n3\n4\n".to_owned();
+    let mut harness = Harness::builder().build_ui(|ui| {
+        ScrollArea::vertical().max_height(40.0).show(ui, |ui| {
+            ui.add(
+                egui::TextEdit::multiline(&mut text)
+                    .desired_rows(2)
+                    .hint_text("Write something"),
+            );
+        });
+    });
+
+    harness.fit_contents();
+
+    harness.get_by_role(Role::MultilineTextInput).focus();
+    harness.step();
+    harness.snapshot("text_edit_scroll_0_focus");
+
+    harness
+        .get_by_role(Role::MultilineTextInput)
+        .type_text("5\n");
+
+    // When the text is empty, and we show the hint text, there is a frame delay.
+    harness.run();
+    harness.snapshot("text_edit_scroll_1_5");
 }
 
 #[test]
