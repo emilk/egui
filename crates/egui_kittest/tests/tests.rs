@@ -1,4 +1,4 @@
-use egui::{include_image, Id, Modifiers, ScrollArea, Vec2};
+use egui::{Id, Modifiers, ScrollArea, Vec2, include_image};
 use egui_kittest::{Harness, SnapshotResults};
 use kittest::Queryable as _;
 
@@ -197,12 +197,13 @@ fn test_id_popup() {
                 id.ui(ui);
             });
 
-
-        harness.get_by_label_contains(&id.short_debug_format()).hover();
+        harness
+            .get_by_label_contains(&id.short_debug_format())
+            .hover();
         harness.run();
         harness.fit_contents();
 
-        results.add(harness.try_snapshot(format!("id_popup_{}", idx)));
+        results.add(harness.try_snapshot(format!("id_popup_{idx}")));
     }
 }
 

@@ -332,10 +332,7 @@ mod id_source {
         let nested = Id::new(parent).with(child);
 
         assert_eq!(format!("{parent:?}"), r#"9DE0 ("parent")"#);
-        assert_eq!(
-            format!("{child:?}"),
-            r#"F27D ("child") <- 9DE0 ("parent")"#
-        );
+        assert_eq!(format!("{child:?}"), r#"F27D ("child") <- 9DE0 ("parent")"#);
         assert_eq!(
             format!("{nested:?}"),
             r#"A8BE(F27D ("child") <- 9DE0 ("parent")) <- B20C(9DE0 ("parent"))"#
