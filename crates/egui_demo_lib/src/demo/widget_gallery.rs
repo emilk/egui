@@ -237,10 +237,7 @@ impl WidgetGallery {
             "Button with image",
             "Button::image_and_text",
         ));
-        if ui
-            .add(egui::Button::image_and_text(egui_icon, "Click me!"))
-            .clicked()
-        {
+        if ui.button((egui_icon, "Click me!")).clicked() {
             *boolean = !*boolean;
         }
         ui.end_row();
