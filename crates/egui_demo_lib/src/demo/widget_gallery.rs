@@ -229,7 +229,7 @@ impl WidgetGallery {
         ui.end_row();
 
         ui.add(doc_link_label("Image", "Image"));
-        let egui_icon = egui::include_image!("../../data/icon.png");
+        let egui_icon = egui::include_image!("../../data/icon.svg");
         ui.add(egui::Image::new(egui_icon.clone()));
         ui.end_row();
 
@@ -237,10 +237,7 @@ impl WidgetGallery {
             "Button with image",
             "Button::image_and_text",
         ));
-        if ui
-            .add(egui::Button::image_and_text(egui_icon, "Click me!"))
-            .clicked()
-        {
+        if ui.button((egui_icon, "Click me!")).clicked() {
             *boolean = !*boolean;
         }
         ui.end_row();
