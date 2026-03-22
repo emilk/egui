@@ -92,7 +92,7 @@ impl TextAgent {
                 let Some(text) = event.data() else { return };
 
                 let start = input.selection_start().ok().flatten().unwrap_or(0) as usize;
-                let end = input.selection_start().ok().flatten().unwrap_or(0) as usize;
+                let end = input.selection_end().ok().flatten().unwrap_or(0) as usize;
                 let event = egui::Event::Ime(egui::ImeEvent::Preedit {
                     text_mark: text,
                     start,
