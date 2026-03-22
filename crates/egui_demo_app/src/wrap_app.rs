@@ -400,6 +400,8 @@ impl WrapApp {
     }
 
     fn bar_contents(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame, cmd: &mut Command) {
+        ui.add_space(8.0);
+
         egui::widgets::global_theme_preference_switch(ui);
 
         ui.separator();
