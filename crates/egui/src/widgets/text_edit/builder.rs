@@ -1074,14 +1074,17 @@ fn events(
 
             Event::Ime(ime_event) => {
                 let ime_language = ui.input(|i| i.options.ime_language);
-                if ime_language == crate::input_state::ImeLanguage::Korean {
-                    on_ime_korean(ime_event, state, text, &cursor_range, char_limit)
-                } else if ime_language == crate::input_state::ImeLanguage::Japanese {
-                    on_ime_japanese(ime_event, state, text, &cursor_range, char_limit)
-                } else if ime_language == crate::input_state::ImeLanguage::Chinese {
-                    on_ime_chinese(ime_event, state, text, &cursor_range, char_limit)
-                } else {
-                    on_ime_korean(ime_event, state, text, &cursor_range, char_limit)
+                match ime_language {
+                    crate::input_state::ImeLanguage::Korean => {
+                        on_ime_korean(ime_event, state, text, &cursor_range, char_limit)
+                    }
+                    crate::input_state::ImeLanguage::Japanese => {
+                        on_ime_japanese(ime_event, state, text, &cursor_range, char_limit)
+                    }
+                    crate::input_state::ImeLanguage::Chinese => {
+                        on_ime_chinese(ime_event, state, text, &cursor_range, char_limit)
+                    }
+                    _ => on_ime_korean(ime_event, state, text, &cursor_range, char_limit),
                 }
             }
 
