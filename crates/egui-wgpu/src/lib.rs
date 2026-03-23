@@ -24,7 +24,10 @@ mod renderer;
 mod setup;
 
 pub use renderer::*;
-pub use setup::{NativeAdapterSelectorMethod, WgpuSetup, WgpuSetupCreateNew, WgpuSetupExisting};
+pub use setup::{
+    EguiDisplayHandle, NativeAdapterSelectorMethod, WgpuSetup, WgpuSetupCreateNew,
+    WgpuSetupExisting,
+};
 
 /// Helpers for capturing screenshots of the UI.
 #[cfg(feature = "capture")]
@@ -191,6 +194,7 @@ impl RenderState {
         let (adapter, device, queue) = match config.wgpu_setup.clone() {
             WgpuSetup::CreateNew(WgpuSetupCreateNew {
                 instance_descriptor: _,
+                display_handle: _,
                 power_preference,
                 native_adapter_selector: _native_adapter_selector,
                 device_descriptor,
@@ -272,7 +276,7 @@ fn describe_adapters(adapters: &[wgpu::Adapter]) -> String {
     }
 }
 
-/// Specifies which action should be taken as consequence of a [`wgpu::SurfaceError`]
+/// Specifies which action should be taken as consequence of a surface error.
 pub enum SurfaceErrorAction {
     /// Do nothing and skip the current frame.
     SkipFrame,
@@ -299,8 +303,15 @@ pub struct WgpuConfiguration {
     /// How to create the wgpu adapter & device
     pub wgpu_setup: WgpuSetup,
 
-    /// Callback for surface errors.
-    pub on_surface_error: Arc<dyn Fn(wgpu::SurfaceError) -> SurfaceErrorAction + Send + Sync>,
+    /// Callback for surface status changes.
+    ///
+    /// Called with the [`wgpu::CurrentSurfaceTexture`] result whenever acquiring a frame
+    /// does not return [`wgpu::CurrentSurfaceTexture::Success`]. For
+    /// [`wgpu::CurrentSurfaceTexture::Suboptimal`], egui uses the frame as-is and
+    /// defers surface reconfiguration to the next frame — the callback is not invoked
+    /// in that case either.
+    pub on_surface_status:
+        Arc<dyn Fn(&wgpu::CurrentSurfaceTexture) -> SurfaceErrorAction + Send + Sync>,
 }
 
 #[test]
@@ -315,7 +326,7 @@ impl std::fmt::Debug for WgpuConfiguration {
             present_mode,
             desired_maximum_frame_latency,
             wgpu_setup,
-            on_surface_error: _,
+            on_surface_status: _,
         } = self;
         f.debug_struct("WgpuConfiguration")
             .field("present_mode", &present_mode)
@@ -333,14 +344,16 @@ impl Default for WgpuConfiguration {
         Self {
             present_mode: wgpu::PresentMode::AutoVsync,
             desired_maximum_frame_latency: None,
-            wgpu_setup: Default::default(),
-            on_surface_error: Arc::new(|err| {
-                if err == wgpu::SurfaceError::Outdated {
+            // No display handle available at this point — callers should replace this with
+            // `WgpuSetup::from_display_handle(...)` before creating the instance if one is available.
+            wgpu_setup: WgpuSetup::without_display_handle(),
+            on_surface_status: Arc::new(|status| {
+                if matches!(status, wgpu::CurrentSurfaceTexture::Outdated) {
                     // This error occurs when the app is minimized on Windows.
                     // Silently return here to prevent spamming the console with:
                     // "The underlying surface has changed, and therefore the swap chain must be updated"
                 } else {
-                    log::warn!("Dropped frame with error: {err}");
+                    log::warn!("Dropped frame with error: {status:?}");
                 }
                 SurfaceErrorAction::SkipFrame
             }),

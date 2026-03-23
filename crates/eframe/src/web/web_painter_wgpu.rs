@@ -15,13 +15,14 @@ pub(crate) struct WebPainterWgpu {
     surface: wgpu::Surface<'static>,
     surface_configuration: wgpu::SurfaceConfiguration,
     render_state: Option<RenderState>,
-    on_surface_error: Arc<dyn Fn(wgpu::SurfaceError) -> SurfaceErrorAction>,
+    on_surface_status: Arc<dyn Fn(&wgpu::CurrentSurfaceTexture) -> SurfaceErrorAction>,
     depth_stencil_format: Option<wgpu::TextureFormat>,
     depth_texture_view: Option<wgpu::TextureView>,
     screen_capture_state: Option<CaptureState>,
     capture_tx: CaptureSender,
     capture_rx: CaptureReceiver,
     ctx: egui::Context,
+    needs_reconfigure: bool,
 }
 
 impl WebPainterWgpu {
@@ -105,11 +106,12 @@ impl WebPainterWgpu {
             surface_configuration,
             depth_stencil_format,
             depth_texture_view: None,
-            on_surface_error: Arc::clone(&options.wgpu_options.on_surface_error) as _,
+            on_surface_status: Arc::clone(&options.wgpu_options.on_surface_status) as _,
             screen_capture_state: None,
             capture_tx,
             capture_rx,
             ctx,
+            needs_reconfigure: false,
         })
     }
 }
@@ -195,18 +197,28 @@ impl WebPainter for WebPainterWgpu {
                 );
             }
 
+            if self.needs_reconfigure {
+                self.surface
+                    .configure(&render_state.device, &self.surface_configuration);
+                self.needs_reconfigure = false;
+            }
+
             let output_frame = match self.surface.get_current_texture() {
-                Ok(frame) => frame,
-                Err(err) => match (*self.on_surface_error)(err) {
-                    SurfaceErrorAction::RecreateSurface => {
-                        self.surface
-                            .configure(&render_state.device, &self.surface_configuration);
-                        return Ok(());
+                wgpu::CurrentSurfaceTexture::Success(frame) => frame,
+                wgpu::CurrentSurfaceTexture::Suboptimal(frame) => {
+                    self.needs_reconfigure = true;
+                    frame
+                }
+                other => {
+                    match (*self.on_surface_status)(&other) {
+                        SurfaceErrorAction::RecreateSurface => {
+                            self.surface
+                                .configure(&render_state.device, &self.surface_configuration);
+                        }
+                        SurfaceErrorAction::SkipFrame => {}
                     }
-                    SurfaceErrorAction::SkipFrame => {
-                        return Ok(());
-                    }
-                },
+                    return Ok(());
+                }
             };
 
             {
