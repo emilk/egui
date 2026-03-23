@@ -25,7 +25,8 @@ pub trait EguiDisplayHandle:
 
 impl Clone for Box<dyn EguiDisplayHandle> {
     fn clone(&self) -> Self {
-        self.clone_display_handle()
+        // We need to deref here, otherwise this causes infinite recursion stack overflow.
+        (**self).clone_display_handle()
     }
 }
 
