@@ -9,7 +9,7 @@ use epaint::text::TextWrapMode;
 ///
 /// `Atom` implements [`From`] for [`String`], [`str`], [`crate::Image`] and much more for convenience.
 ///
-/// Many widgets take an `impl` [`IntoAtoms`] parameter,
+/// Many widgets take an `impl` [`crate::IntoAtoms`] parameter,
 /// which allows you to easily create atoms from tuples of text, images, and other atoms:
 /// ```
 /// # use egui::{AtomExt, AtomKind, Atom, Image, Id, __
@@ -19,6 +19,7 @@ use epaint::text::TextWrapMode;
 /// let image = egui::include_image!("../../data/icon.png");
 /// ui.button((image, "Click me!"));
 /// # });
+/// ```
 ///
 /// You can directly call the `atom_*` methods on anything that implements `Into<Atom>`.
 /// ```

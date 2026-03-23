@@ -213,7 +213,8 @@ where
 /// # __run_test_ui(|ui| {
 /// let image = egui::include_image!("../../data/icon.png");
 /// ui.button((image, "Click me!"));
-/// #
+/// # });
+/// ```
 pub trait IntoAtoms<'a> {
     fn collect(self, atoms: &mut Atoms<'a>);
 
