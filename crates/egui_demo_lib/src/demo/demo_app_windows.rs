@@ -119,21 +119,30 @@ impl Default for DemoGroups {
 }
 
 impl DemoGroups {
+    pub fn about_egui_checkbox(&mut self, ui: &mut Ui, open: &mut BTreeSet<String>) {
+        let Self { about, .. } = self;
+        let mut is_open = open.contains(about.name());
+        ui.toggle_value(&mut is_open, about.name());
+        set_open(open, about.name(), is_open);
+    }
+
     pub fn checkboxes(&mut self, ui: &mut Ui, open: &mut BTreeSet<String>) {
         let Self {
-            about,
+            about: _,
             demos,
             tests,
         } = self;
 
-        {
-            let mut is_open = open.contains(about.name());
-            ui.toggle_value(&mut is_open, about.name());
-            set_open(open, about.name(), is_open);
-        }
-        ui.separator();
+        ui.vertical_centered(|ui| {
+            ui.strong("Demos");
+        });
         demos.checkboxes(ui, open);
+
         ui.separator();
+
+        ui.vertical_centered(|ui| {
+            ui.strong("Tests");
+        });
         tests.checkboxes(ui, open);
     }
 
@@ -267,22 +276,20 @@ impl DemoWindows {
             .default_size(160.0)
             .min_size(160.0)
             .show_inside(ui, |ui| {
-                ui.add_space(4.0);
-                ui.vertical_centered(|ui| {
-                    ui.heading("✒ egui demos");
+                ui.vertical_centered_justified(|ui| {
+                    ui.add_space(4.0);
+                    ui.add(
+                        egui::Image::new(egui::include_image!("../../data/egui-logo.svg"))
+                            .max_height(32.0)
+                            .tint(ui.visuals().strong_text_color()),
+                    );
+
+                    ui.add_space(4.0);
+
+                    self.groups.about_egui_checkbox(ui, &mut self.open);
                 });
 
-                ui.separator();
-
-                use egui::special_emojis::GITHUB;
-                ui.hyperlink_to(
-                    format!("{GITHUB} egui on GitHub"),
-                    "https://github.com/emilk/egui",
-                );
-                ui.hyperlink_to(
-                    "@ernerfeldt.bsky.social",
-                    "https://bsky.app/profile/ernerfeldt.bsky.social",
-                );
+                ui.add_space(4.0);
 
                 ui.separator();
 

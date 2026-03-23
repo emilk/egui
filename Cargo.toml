@@ -87,7 +87,7 @@ criterion = { version = "0.7.0", default-features = false }
 dify = { version = "0.8", default-features = false }
 directories = "6.0.0"
 document-features = "0.2.11"
-ehttp = { version = "0.6.0", default-features = false }
+ehttp = { version = "0.7.1", default-features = false }
 enum-map = "2.7.3"
 env_logger = { version = "0.11.8", default-features = false }
 font-types = { version = "0.11.0", default-features = false, features = ["std"] }

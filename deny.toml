@@ -34,6 +34,7 @@ ignore = [
   "RUSTSEC-2024-0320", # unmaintained yaml-rust pulled in by syntect
   "RUSTSEC-2024-0436", # unmaintained paste pulled via metal/wgpu, see https://github.com/gfx-rs/metal-rs/issues/349
   "RUSTSEC-2025-0141", # https://rustsec.org/advisories/RUSTSEC-2025-0141 - bincode is unmaintained - https://git.sr.ht/~stygianentity/bincode/tree/v3.0/item/README.md
+  "RUSTSEC-2026-0049", # https://rustsec.org/advisories/RUSTSEC-2026-0049
 ]
 
 [bans]
@@ -79,6 +80,7 @@ allow = [
   "BSD-3-Clause", # https://tldrlegal.com/license/bsd-3-clause-license-(revised)
   "BSL-1.0", # https://tldrlegal.com/license/boost-software-license-1.0-explained
   "CC0-1.0", # https://creativecommons.org/publicdomain/zero/1.0/
+  "CDLA-Permissive-2.0", # https://spdx.org/licenses/CDLA-Permissive-2.0.html
   "ISC", # https://www.tldrlegal.com/license/isc-license
   "MIT-0", # https://choosealicense.com/licenses/mit-0/
   "MIT", # https://tldrlegal.com/license/mit-license
