@@ -2,10 +2,10 @@ use egui::accesskit::Role;
 use egui::epaint::Shape;
 use egui::style::ScrollAnimation;
 use egui::{
-    Align, Color32, Image, Label, Layout, RichText, ScrollArea, Sense, TextWrapMode, include_image,
+    include_image, Align, Color32, Image, Label, Layout, RichText, ScrollArea, Sense, TextWrapMode,
 };
-use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable as _;
+use egui_kittest::Harness;
 
 #[test]
 fn image_button_should_have_alt_text() {
@@ -226,4 +226,89 @@ fn warn_if_rect_changes_id() {
         has_red_warning_rect(harness.output()),
         "Should warn when a widget rect changes Id between passes"
     );
+}
+
+#[test]
+fn horizontal_wrapped_multiline_row_height() {
+    let mut harness = Harness::builder().with_size((350.0, 300.0)).build_ui(|ui| {
+        ui.style_mut().interaction.tooltip_delay = 0.0;
+        ui.style_mut().interaction.show_tooltips_only_when_still = false;
+
+        let mut string = String::new();
+
+        ui.horizontal_wrapped(|ui| {
+            ui.monospace("| ");
+            let _ = ui.button("A");
+            let _ = ui.button("B");
+            ui.end_row();
+
+            ui.monospace("| ");
+            let _ = ui.button("C");
+            let _ = ui.button("D");
+            let _ = ui.button("E");
+            ui.end_row();
+
+            ui.monospace("| ");
+            ui.text_edit_multiline(&mut string);
+            ui.end_row();
+
+            ui.monospace("| ");
+            let _ = ui.button("F");
+            let _ = ui.button("G");
+            ui.end_row();
+
+            ui.monospace("| ");
+            let _ = ui.button("H");
+            let _ = ui.button("I");
+            let _ = ui.button("K");
+            ui.end_row();
+        });
+    });
+
+    harness.snapshot("horizontal_wrapped_multiline_row_height");
+}
+
+#[test]
+fn horizontal_wrapped_multiline_row_height_reference() {
+    let mut harness = Harness::builder().with_size((350.0, 300.0)).build_ui(|ui| {
+        ui.style_mut().interaction.tooltip_delay = 0.0;
+        ui.style_mut().interaction.show_tooltips_only_when_still = false;
+
+        let mut string = String::new();
+
+        ui.vertical(|ui| {
+            ui.horizontal(|ui| {
+                ui.monospace("| ");
+                let _ = ui.button("A");
+                let _ = ui.button("B");
+            });
+
+            ui.horizontal(|ui| {
+                ui.monospace("| ");
+                let _ = ui.button("C");
+                let _ = ui.button("D");
+                let _ = ui.button("E");
+            });
+
+            ui.horizontal(|ui| {
+                ui.monospace("| ");
+                ui.text_edit_multiline(&mut string);
+            });
+
+            ui.horizontal(|ui| {
+                ui.monospace("| ");
+                let _ = ui.button("F");
+                let _ = ui.button("G");
+            });
+
+            ui.horizontal(|ui| {
+                ui.monospace("| ");
+                let _ = ui.button("H");
+                let _ = ui.button("I");
+                let _ = ui.button("K");
+            });
+        });
+    });
+
+    harness.snapshot("horizontal_wrapped_multiline_row_height_reference");
 }
