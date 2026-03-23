@@ -12,11 +12,9 @@ pub(crate) const ATOMS_SMALL_VEC_SIZE: usize = 2;
 /// Many widgets take an `impl` [`IntoAtoms`] parameter,
 /// which allows you to easily create atoms from tuples of text, images, and other atoms:
 /// ```
-/// # use egui::{AtomExt, AtomKind, Atom, Image, Id, __
-/// run_test_ui};
-/// # use emath::Vec2;
-/// # __run_test_ui(|ui| {
-/// let image = egui::include_image!("../../data/icon.png");
+/// # use egui::{AtomExt, AtomKind, Atom, Image, Id, Vec2};
+/// # egui::__run_test_ui(|ui| {
+/// let image = egui::include_image!("../../../eframe/data/icon.png");
 /// ui.button((image, "Click me!"));
 /// # });
 #[derive(Clone, Debug, Default)]
@@ -207,11 +205,9 @@ where
 /// Many widgets take an `impl` [`IntoAtoms`] parameter,
 /// which allows you to easily create atoms from tuples of text, images, and other atoms:
 /// ```
-/// # use egui::{AtomExt, AtomKind, Atom, Image, Id, __
-/// run_test_ui};
-/// # use emath::Vec2;
-/// # __run_test_ui(|ui| {
-/// let image = egui::include_image!("../../data/icon.png");
+/// # use egui::{AtomExt, AtomKind, Atom, Image, Id, Vec2};
+/// # egui::__run_test_ui(|ui| {
+/// let image = egui::include_image!("../../../eframe/data/icon.png");
 /// ui.button((image, "Click me!"));
 /// # });
 /// ```

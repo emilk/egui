@@ -12,11 +12,9 @@ use epaint::text::TextWrapMode;
 /// Many widgets take an `impl` [`crate::IntoAtoms`] parameter,
 /// which allows you to easily create atoms from tuples of text, images, and other atoms:
 /// ```
-/// # use egui::{AtomExt, AtomKind, Atom, Image, Id, __
-/// run_test_ui};
-/// # use emath::Vec2;
-/// # __run_test_ui(|ui| {
-/// let image = egui::include_image!("../../data/icon.png");
+/// # use egui::{Vec2, AtomExt, AtomKind, Atom, Image, Id};
+/// # egui::__run_test_ui(|ui| {
+/// let image = egui::include_image!("../../../eframe/data/icon.png");
 /// ui.button((image, "Click me!"));
 /// # });
 /// ```
