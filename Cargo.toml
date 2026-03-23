@@ -87,7 +87,7 @@ criterion = { version = "0.7.0", default-features = false }
 dify = { version = "0.8", default-features = false }
 directories = "6.0.0"
 document-features = "0.2.11"
-ehttp = { version = "0.7.0", default-features = false }
+ehttp = { version = "0.7.1", default-features = false }
 enum-map = "2.7.3"
 env_logger = { version = "0.11.8", default-features = false }
 font-types = { version = "0.11.0", default-features = false, features = ["std"] }
@@ -138,7 +138,7 @@ type-map = "0.5.1"
 unicode_names2 = { version = "2.0.0", default-features = false }
 unicode-segmentation = "1.12.0"
 vello_cpu = { version = "0.0.6", default-features = false, features = ["std", "u8_pipeline", "f32_pipeline"] }
-wasm-bindgen = "0.2.114" # Keep wasm-bindgen version in sync in: setup_web.sh, Cargo.toml, Cargo.lock, rust.yml
+wasm-bindgen = "0.2.108" # Keep wasm-bindgen version in sync in: setup_web.sh, Cargo.toml, Cargo.lock, rust.yml
 wasm-bindgen-futures = "0.4.0"
 wayland-cursor = { version = "0.31.11", default-features = false }
 web-sys = "0.3.77"
