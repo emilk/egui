@@ -2,10 +2,10 @@ use egui::accesskit::Role;
 use egui::epaint::Shape;
 use egui::style::ScrollAnimation;
 use egui::{
-    include_image, Align, Color32, Image, Label, Layout, RichText, ScrollArea, Sense, TextWrapMode,
+    Align, Color32, Image, Label, Layout, RichText, ScrollArea, Sense, TextWrapMode, include_image,
 };
-use egui_kittest::kittest::Queryable as _;
 use egui_kittest::Harness;
+use egui_kittest::kittest::Queryable as _;
 
 #[test]
 fn image_button_should_have_alt_text() {
