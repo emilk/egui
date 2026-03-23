@@ -3,7 +3,7 @@
 #![expect(clippy::unwrap_used)] // TODO(emilk): avoid unwraps
 #![expect(unsafe_code)]
 
-use crate::{RenderState, SurfaceErrorAction, SurfaceStatus, WgpuConfiguration, renderer};
+use crate::{RenderState, SurfaceErrorAction, WgpuConfiguration, renderer};
 use crate::{
     RendererOptions,
     capture::{CaptureReceiver, CaptureSender, CaptureState, capture_channel},
@@ -501,46 +501,13 @@ impl Painter {
         };
 
         let output_frame = match output_frame {
-            wgpu::CurrentSurfaceTexture::Success(frame)
-            | wgpu::CurrentSurfaceTexture::Suboptimal(frame) => frame,
-            wgpu::CurrentSurfaceTexture::Timeout => {
-                match (*self.configuration.on_surface_error)(SurfaceStatus::Timeout) {
-                    SurfaceErrorAction::RecreateSurface => {
-                        Self::configure_surface(surface_state, render_state, &self.configuration);
-                    }
-                    SurfaceErrorAction::SkipFrame => {}
-                }
-                return vsync_sec;
+            wgpu::CurrentSurfaceTexture::Success(frame) => frame,
+            wgpu::CurrentSurfaceTexture::Suboptimal(frame) => {
+                Self::configure_surface(surface_state, render_state, &self.configuration);
+                frame
             }
-            wgpu::CurrentSurfaceTexture::Outdated => {
-                match (*self.configuration.on_surface_error)(SurfaceStatus::Outdated) {
-                    SurfaceErrorAction::RecreateSurface => {
-                        Self::configure_surface(surface_state, render_state, &self.configuration);
-                    }
-                    SurfaceErrorAction::SkipFrame => {}
-                }
-                return vsync_sec;
-            }
-            wgpu::CurrentSurfaceTexture::Lost => {
-                match (*self.configuration.on_surface_error)(SurfaceStatus::Lost) {
-                    SurfaceErrorAction::RecreateSurface => {
-                        Self::configure_surface(surface_state, render_state, &self.configuration);
-                    }
-                    SurfaceErrorAction::SkipFrame => {}
-                }
-                return vsync_sec;
-            }
-            wgpu::CurrentSurfaceTexture::Occluded => {
-                match (*self.configuration.on_surface_error)(SurfaceStatus::Occluded) {
-                    SurfaceErrorAction::RecreateSurface => {
-                        Self::configure_surface(surface_state, render_state, &self.configuration);
-                    }
-                    SurfaceErrorAction::SkipFrame => {}
-                }
-                return vsync_sec;
-            }
-            wgpu::CurrentSurfaceTexture::Validation => {
-                match (*self.configuration.on_surface_error)(SurfaceStatus::Validation) {
+            ref other => {
+                match (*self.configuration.on_surface_status)(other) {
                     SurfaceErrorAction::RecreateSurface => {
                         Self::configure_surface(surface_state, render_state, &self.configuration);
                     }

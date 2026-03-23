@@ -132,16 +132,13 @@ impl WgpuSetup {
 
                 log::debug!("Creating wgpu instance with backends {backends:?}");
                 let desc = &create_new.instance_descriptor;
-                let mut descriptor = wgpu::InstanceDescriptor {
+                let descriptor = wgpu::InstanceDescriptor {
                     backends: desc.backends,
                     flags: desc.flags,
                     backend_options: desc.backend_options.clone(),
                     memory_budget_thresholds: desc.memory_budget_thresholds,
-                    display: None,
+                    display: create_new.display_handle.as_ref().map(|handle| handle.clone_for_wgpu()),
                 };
-                if let Some(handle) = &create_new.display_handle {
-                    descriptor.display = Some(handle.clone_for_wgpu());
-                }
                 wgpu::util::new_instance_with_webgpu_detection(descriptor).await
             }
             Self::Existing(existing) => existing.instance.clone(),
