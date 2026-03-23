@@ -8,6 +8,17 @@ use std::ops::{Deref, DerefMut};
 pub(crate) const ATOMS_SMALL_VEC_SIZE: usize = 2;
 
 /// A list of [`Atom`]s.
+///
+/// Many widgets take an `impl` [`IntoAtoms`] parameter,
+/// which allows you to easily create atoms from tuples of text, images, and other atoms:
+/// ```
+/// # use egui::{AtomExt, AtomKind, Atom, Image, Id, __
+/// run_test_ui};
+/// # use emath::Vec2;
+/// # __run_test_ui(|ui| {
+/// let image = egui::include_image!("../../data/icon.png");
+/// ui.button((image, "Click me!"));
+/// # });
 #[derive(Clone, Debug, Default)]
 pub struct Atoms<'a>(SmallVec<[Atom<'a>; ATOMS_SMALL_VEC_SIZE]>);
 
@@ -192,6 +203,17 @@ where
 }
 
 /// Trait for turning a tuple of [`Atom`]s into [`Atoms`].
+///
+/// Many widgets take an `impl` [`IntoAtoms`] parameter,
+/// which allows you to easily create atoms from tuples of text, images, and other atoms:
+/// ```
+/// # use egui::{AtomExt, AtomKind, Atom, Image, Id, __
+/// run_test_ui};
+/// # use emath::Vec2;
+/// # __run_test_ui(|ui| {
+/// let image = egui::include_image!("../../data/icon.png");
+/// ui.button((image, "Click me!"));
+/// #
 pub trait IntoAtoms<'a> {
     fn collect(self, atoms: &mut Atoms<'a>);
 

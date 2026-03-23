@@ -4,7 +4,22 @@ use epaint::text::TextWrapMode;
 
 /// A low-level ui building block.
 ///
-/// Implements [`From`] for [`String`], [`str`], [`crate::Image`] and much more for convenience.
+/// This can be a piece of text, an image, or even a custom widget.
+/// It can be decorated with various layout hints, such as `grow`, `shrink`, `align`, and more.
+///
+/// `Atom` implements [`From`] for [`String`], [`str`], [`crate::Image`] and much more for convenience.
+///
+/// Many widgets take an `impl` [`IntoAtoms`] parameter,
+/// which allows you to easily create atoms from tuples of text, images, and other atoms:
+/// ```
+/// # use egui::{AtomExt, AtomKind, Atom, Image, Id, __
+/// run_test_ui};
+/// # use emath::Vec2;
+/// # __run_test_ui(|ui| {
+/// let image = egui::include_image!("../../data/icon.png");
+/// ui.button((image, "Click me!"));
+/// # });
+///
 /// You can directly call the `atom_*` methods on anything that implements `Into<Atom>`.
 /// ```
 /// # use egui::{Image, emath::Vec2};
