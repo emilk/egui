@@ -17,6 +17,7 @@ struct SurfaceState {
     width: u32,
     height: u32,
     resizing: bool,
+    needs_reconfigure: bool,
 }
 
 /// Everything you need to paint egui with [`wgpu`] on [`winit`].
@@ -234,6 +235,7 @@ impl Painter {
                 height: size.height,
                 alpha_mode,
                 resizing: false,
+                needs_reconfigure: false,
             },
         );
         let Some(width) = NonZeroU32::new(size.width) else {
@@ -454,7 +456,7 @@ impl Painter {
             commands_submitted: false,
         };
 
-        let Some(surface_state) = self.surfaces.get(&viewport_id) else {
+        let Some(surface_state) = self.surfaces.get_mut(&viewport_id) else {
             return vsync_sec;
         };
 
@@ -491,6 +493,11 @@ impl Painter {
             )
         };
 
+        if surface_state.needs_reconfigure {
+            Self::configure_surface(surface_state, render_state, &self.configuration);
+            surface_state.needs_reconfigure = false;
+        }
+
         let output_frame = {
             profiling::scope!("get_current_texture");
             // This is what vsync-waiting happens on my Mac.
@@ -503,7 +510,7 @@ impl Painter {
         let output_frame = match output_frame {
             wgpu::CurrentSurfaceTexture::Success(frame) => frame,
             wgpu::CurrentSurfaceTexture::Suboptimal(frame) => {
-                Self::configure_surface(surface_state, render_state, &self.configuration);
+                surface_state.needs_reconfigure = true;
                 frame
             }
             other => {

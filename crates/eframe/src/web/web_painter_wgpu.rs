@@ -22,6 +22,7 @@ pub(crate) struct WebPainterWgpu {
     capture_tx: CaptureSender,
     capture_rx: CaptureReceiver,
     ctx: egui::Context,
+    needs_reconfigure: bool,
 }
 
 impl WebPainterWgpu {
@@ -110,6 +111,7 @@ impl WebPainterWgpu {
             capture_tx,
             capture_rx,
             ctx,
+            needs_reconfigure: false,
         })
     }
 }
@@ -195,11 +197,16 @@ impl WebPainter for WebPainterWgpu {
                 );
             }
 
+            if self.needs_reconfigure {
+                self.surface
+                    .configure(&render_state.device, &self.surface_configuration);
+                self.needs_reconfigure = false;
+            }
+
             let output_frame = match self.surface.get_current_texture() {
                 wgpu::CurrentSurfaceTexture::Success(frame) => frame,
                 wgpu::CurrentSurfaceTexture::Suboptimal(frame) => {
-                    self.surface
-                        .configure(&render_state.device, &self.surface_configuration);
+                    self.needs_reconfigure = true;
                     frame
                 }
                 other => {
