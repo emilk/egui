@@ -348,13 +348,21 @@ impl Default for WgpuConfiguration {
             // `WgpuSetup::from_display_handle(...)` before creating the instance if one is available.
             wgpu_setup: WgpuSetup::without_display_handle(),
             on_surface_status: Arc::new(|status| {
-                if matches!(status, wgpu::CurrentSurfaceTexture::Outdated) {
-                    // This error occurs when the app is minimized on Windows.
-                    // Silently return here to prevent spamming the console with:
-                    // "The underlying surface has changed, and therefore the swap chain must be updated"
-                } else {
-                    log::warn!("Dropped frame with error: {status:?}");
+                match status {
+                    wgpu::CurrentSurfaceTexture::Outdated => {
+                        // This error occurs when the app is minimized on Windows.
+                        // Silently return here to prevent spamming the console with:
+                        // "The underlying surface has changed, and therefore the swap chain must be updated"
+                    }
+                    wgpu::CurrentSurfaceTexture::Occluded => {
+                        // This error occurs when the application is occluded (e.g. minimized or behind another window).
+                        log::debug!("Dropped frame with error: {status:?}");
+                    }
+                    _ => {
+                        log::warn!("Dropped frame with error: {status:?}");
+                    }
                 }
+
                 SurfaceErrorAction::SkipFrame
             }),
         }
