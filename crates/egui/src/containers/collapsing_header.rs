@@ -1,5 +1,3 @@
-use std::hash::Hash;
-
 use crate::{
     Context, Id, InnerResponse, NumExt as _, Rect, Response, Sense, Stroke, TextStyle,
     TextWrapMode, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetInfo, WidgetText, WidgetType,
@@ -410,7 +408,7 @@ impl CollapsingHeader {
     /// you need to provide a unique id source with [`Self::id_salt`].
     pub fn new(text: impl Into<WidgetText>) -> Self {
         let text = text.into();
-        let id_salt = Id::new(text.text());
+        let id_salt = Id::new_salt(text.text());
         Self {
             text,
             default_open: false,
@@ -446,8 +444,8 @@ impl CollapsingHeader {
     /// Explicitly set the source of the [`Id`] of this widget, instead of using title label.
     /// This is useful if the title label is dynamic or not unique.
     #[inline]
-    pub fn id_salt(mut self, id_salt: impl Hash) -> Self {
-        self.id_salt = Id::new(id_salt);
+    pub fn id_salt(mut self, id_salt: impl Into<crate::IdSalt>) -> Self {
+        self.id_salt = id_salt.into().id();
         self
     }
 
@@ -455,8 +453,8 @@ impl CollapsingHeader {
     /// This is useful if the title label is dynamic or not unique.
     #[deprecated = "Renamed id_salt"]
     #[inline]
-    pub fn id_source(mut self, id_salt: impl Hash) -> Self {
-        self.id_salt = Id::new(id_salt);
+    pub fn id_source(mut self, id_salt: impl Into<crate::IdSalt>) -> Self {
+        self.id_salt = id_salt.into().id();
         self
     }
 

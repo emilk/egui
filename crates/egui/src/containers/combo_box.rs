@@ -49,9 +49,9 @@ pub struct ComboBox {
 
 impl ComboBox {
     /// Create new [`ComboBox`] with id and label
-    pub fn new(id_salt: impl std::hash::Hash, label: impl Into<WidgetText>) -> Self {
+    pub fn new(id_salt: impl Into<crate::IdSalt>, label: impl Into<WidgetText>) -> Self {
         Self {
-            id_salt: Id::new(id_salt),
+            id_salt: id_salt.into().id(),
             label: Some(label.into()),
             selected_text: Default::default(),
             width: None,
@@ -67,7 +67,7 @@ impl ComboBox {
     pub fn from_label(label: impl Into<WidgetText>) -> Self {
         let label = label.into();
         Self {
-            id_salt: Id::new(label.text()),
+            id_salt: Id::new_salt(label.text()),
             label: Some(label),
             selected_text: Default::default(),
             width: None,
@@ -80,9 +80,9 @@ impl ComboBox {
     }
 
     /// Without label.
-    pub fn from_id_salt(id_salt: impl std::hash::Hash) -> Self {
+    pub fn from_id_salt(id_salt: impl Into<crate::IdSalt>) -> Self {
         Self {
-            id_salt: Id::new(id_salt),
+            id_salt: id_salt.into().id(),
             label: Default::default(),
             selected_text: Default::default(),
             width: None,
@@ -96,7 +96,7 @@ impl ComboBox {
 
     /// Without label.
     #[deprecated = "Renamed from_id_salt"]
-    pub fn from_id_source(id_salt: impl std::hash::Hash) -> Self {
+    pub fn from_id_source(id_salt: impl Into<crate::IdSalt>) -> Self {
         Self::from_id_salt(id_salt)
     }
 

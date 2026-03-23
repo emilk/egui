@@ -56,7 +56,7 @@ fn viewport_content(ui: &mut egui::Ui, open: &mut bool) {
         for (id, viewport) in ordered_viewports {
             ui.group(|ui| {
                 ui.label(format!("viewport {id:?}"));
-                ui.push_id(id, |ui| {
+                ui.push_id(id.0, |ui| {
                     viewport.ui(ui);
                 });
             });

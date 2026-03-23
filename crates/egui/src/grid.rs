@@ -324,9 +324,9 @@ pub struct Grid {
 
 impl Grid {
     /// Create a new [`Grid`] with a locally unique identifier.
-    pub fn new(id_salt: impl std::hash::Hash) -> Self {
+    pub fn new(id_salt: impl Into<crate::IdSalt>) -> Self {
         Self {
-            id_salt: Id::new(id_salt),
+            id_salt: id_salt.into().id(),
             num_columns: None,
             min_col_width: None,
             min_row_height: None,

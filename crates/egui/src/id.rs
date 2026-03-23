@@ -54,6 +54,19 @@ impl Id {
 
     /// Generate a new [`Id`] by hashing some source (e.g. a string or integer).
     pub fn new(source: impl std::hash::Hash) -> Self {
+        debug_assert!(
+            std::any::type_name_of_val(&source) != std::any::type_name::<Self>(),
+            "Don't pass an `Id` to `Id::new()`: use `.with()` to create child `Id`s"
+        );
+        Self::from_hash(ahash::RandomState::with_seeds(1, 2, 3, 4).hash_one(source))
+    }
+
+    /// Like [`Self::new`], but for use as an id salt.
+    ///
+    /// Unlike [`Self::new`], this does not reject [`Id`] input,
+    /// because using an [`Id`] as a salt (to be mixed into a parent via [`.with()`](Self::with))
+    /// is a valid use case.
+    pub(crate) fn new_salt(source: impl std::hash::Hash) -> Self {
         Self::from_hash(ahash::RandomState::with_seeds(1, 2, 3, 4).hash_one(source))
     }
 
@@ -129,6 +142,91 @@ fn id_size() {
     assert_eq!(std::mem::size_of::<Id>(), 8);
     assert_eq!(std::mem::size_of::<Option<Id>>(), 8);
 }
+
+#[test]
+#[should_panic(expected = "Don't pass an `Id` to `Id::new()`")]
+fn test_id_new_rejects_id() {
+    let _ = Id::new(Id::NULL);
+}
+
+// ----------------------------------------------------------------------------
+
+/// A value to be used as an [`Id`] salt.
+///
+/// This is used by builder methods like [`crate::UiBuilder::id_salt`], [`crate::Grid::new`], etc.
+/// It can be created from common hashable types (`&str`, `String`, integers)
+/// as well as from an existing [`Id`].
+///
+/// When created from an [`Id`], the value is stored directly without re-hashing.
+/// When created from other types, the value is hashed into an [`Id`].
+///
+/// ## Example
+/// ```
+/// use egui::{Id, IdSalt};
+///
+/// // From a string:
+/// let salt: IdSalt = "my_widget".into();
+///
+/// // From an existing Id (no re-hash):
+/// let id = Id::new("parent");
+/// let salt: IdSalt = id.into();
+/// ```
+#[derive(Clone, Copy)]
+pub struct IdSalt(Id);
+
+impl IdSalt {
+    /// Create an [`IdSalt`] by hashing some source.
+    ///
+    /// Use this for types that don't have a `From` impl
+    /// (e.g. tuples, custom types).
+    #[inline]
+    pub fn new(source: impl std::hash::Hash) -> Self {
+        Self(Id::new_salt(source))
+    }
+
+    /// Get the inner [`Id`].
+    #[inline]
+    pub fn id(self) -> Id {
+        self.0
+    }
+}
+
+impl From<Id> for IdSalt {
+    /// Store an [`Id`] directly as a salt, without re-hashing.
+    #[inline]
+    fn from(id: Id) -> Self {
+        Self(id)
+    }
+}
+
+impl From<&str> for IdSalt {
+    #[inline]
+    fn from(s: &str) -> Self {
+        Self::new(s)
+    }
+}
+
+impl From<String> for IdSalt {
+    #[inline]
+    fn from(s: String) -> Self {
+        Self::new(s)
+    }
+}
+
+macro_rules! impl_id_salt_from_int {
+    ($($t:ty),*) => {
+        $(
+            impl From<$t> for IdSalt {
+                #[inline]
+                fn from(v: $t) -> Self {
+                    Self::new(v)
+                }
+            }
+        )*
+    };
+}
+
+impl_id_salt_from_int!(u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, bool);
 
 // ----------------------------------------------------------------------------
 

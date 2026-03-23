@@ -984,7 +984,7 @@ fn do_resize_interaction(
         }
     };
 
-    let id = Id::new(layer_id).with("edge_drag");
+    let id = layer_id.id.with("edge_drag");
 
     let style = ctx.global_style();
 

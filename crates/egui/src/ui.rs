@@ -226,7 +226,7 @@ impl Ui {
         &mut self,
         max_rect: Rect,
         layout: Layout,
-        id_salt: impl Hash,
+        id_salt: impl Into<IdSalt>,
         ui_stack_info: Option<UiStackInfo>,
     ) -> Self {
         self.new_child(
@@ -2365,7 +2365,7 @@ impl Ui {
     /// ```
     pub fn push_id<R>(
         &mut self,
-        id_salt: impl Hash,
+        id_salt: impl Into<IdSalt>,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         self.scope_dyn(UiBuilder::new().id_salt(id_salt), Box::new(add_contents))
@@ -2465,15 +2465,15 @@ impl Ui {
     #[inline]
     pub fn indent<R>(
         &mut self,
-        id_salt: impl Hash,
+        id_salt: impl Into<IdSalt>,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.indent_dyn(id_salt, Box::new(add_contents))
+        self.indent_dyn(id_salt.into(), Box::new(add_contents))
     }
 
     fn indent_dyn<'c, R>(
         &mut self,
-        id_salt: impl Hash,
+        id_salt: IdSalt,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         assert!(

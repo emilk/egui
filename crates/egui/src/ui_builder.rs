@@ -1,9 +1,9 @@
-use std::{hash::Hash, sync::Arc};
+use std::sync::Arc;
 
 use crate::ClosableTag;
 #[expect(unused_imports)] // Used for doclinks
 use crate::Ui;
-use crate::{Id, LayerId, Layout, Rect, Sense, Style, UiStackInfo};
+use crate::{Id, IdSalt, LayerId, Layout, Rect, Sense, Style, UiStackInfo};
 
 /// Build a [`Ui`] as the child of another [`Ui`].
 ///
@@ -39,8 +39,8 @@ impl UiBuilder {
     /// You should give each [`Ui`] an `id_salt` that is unique
     /// within the parent, or give it none at all.
     #[inline]
-    pub fn id_salt(mut self, id_salt: impl Hash) -> Self {
-        self.id_salt = Some(Id::new(id_salt));
+    pub fn id_salt(mut self, id_salt: impl Into<IdSalt>) -> Self {
+        self.id_salt = Some(id_salt.into().id());
         self
     }
 
