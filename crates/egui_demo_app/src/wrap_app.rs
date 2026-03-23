@@ -8,12 +8,14 @@ use core::any::Any;
 
 use crate::DemoApp;
 
+#[cfg(feature = "easymark")]
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 struct EasyMarkApp {
     editor: egui_demo_lib::easy_mark::EasyMarkEditor,
 }
 
+#[cfg(feature = "easymark")]
 impl DemoApp for EasyMarkApp {
     fn demo_ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.editor.panels(ui);
@@ -152,12 +154,18 @@ enum Command {
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct State {
     demo: DemoWindows,
+
+    #[cfg(feature = "easymark")]
     easy_mark_editor: EasyMarkApp,
+
     #[cfg(feature = "http")]
     http: crate::apps::HttpApp,
+
     #[cfg(feature = "image_viewer")]
     image_viewer: crate::apps::ImageViewer,
+
     pub clock: FractalClockApp,
+
     rendering_test: ColorTestApp,
 
     selected_anchor: Anchor,
@@ -212,6 +220,7 @@ impl WrapApp {
                 Anchor::Demo,
                 &mut self.state.demo as &mut dyn DemoApp,
             ),
+            #[cfg(feature = "easymark")]
             (
                 "🖹 EasyMark editor",
                 Anchor::EasyMarkEditor,
