@@ -202,8 +202,8 @@ impl WebPainter for WebPainterWgpu {
                         .configure(&render_state.device, &self.surface_configuration);
                     frame
                 }
-                ref other => {
-                    match (*self.on_surface_status)(other) {
+                other => {
+                    match (*self.on_surface_status)(&other) {
                         SurfaceErrorAction::RecreateSurface => {
                             self.surface
                                 .configure(&render_state.device, &self.surface_configuration);
