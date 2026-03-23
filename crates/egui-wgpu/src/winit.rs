@@ -506,8 +506,8 @@ impl Painter {
                 Self::configure_surface(surface_state, render_state, &self.configuration);
                 frame
             }
-            ref other => {
-                match (*self.configuration.on_surface_status)(other) {
+            other => {
+                match (*self.configuration.on_surface_status)(&other) {
                     SurfaceErrorAction::RecreateSurface => {
                         Self::configure_surface(surface_state, render_state, &self.configuration);
                     }

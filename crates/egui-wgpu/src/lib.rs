@@ -309,7 +309,8 @@ pub struct WgpuConfiguration {
     /// does not return [`wgpu::CurrentSurfaceTexture::Success`]. For
     /// [`wgpu::CurrentSurfaceTexture::Suboptimal`], egui automatically reconfigures the
     /// surface and uses the frame — the callback is not invoked in that case.
-    pub on_surface_status: Arc<dyn Fn(&wgpu::CurrentSurfaceTexture) -> SurfaceErrorAction + Send + Sync>,
+    pub on_surface_status:
+        Arc<dyn Fn(&wgpu::CurrentSurfaceTexture) -> SurfaceErrorAction + Send + Sync>,
 }
 
 #[test]

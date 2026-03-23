@@ -137,7 +137,10 @@ impl WgpuSetup {
                     flags: desc.flags,
                     backend_options: desc.backend_options.clone(),
                     memory_budget_thresholds: desc.memory_budget_thresholds,
-                    display: create_new.display_handle.as_ref().map(|handle| handle.clone_for_wgpu()),
+                    display: create_new
+                        .display_handle
+                        .as_ref()
+                        .map(|handle| handle.clone_for_wgpu()),
                 };
                 wgpu::util::new_instance_with_webgpu_detection(descriptor).await
             }
