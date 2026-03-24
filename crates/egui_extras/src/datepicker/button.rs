@@ -21,6 +21,8 @@ pub struct DatePickerButton<'a> {
     format: String,
     highlight_weekends: bool,
     start_end_years: Option<RangeInclusive<i32>>,
+    reverse_years: bool,
+    year_scroll_to: Option<i32>,
 }
 
 impl<'a> DatePickerButton<'a> {
@@ -36,6 +38,8 @@ impl<'a> DatePickerButton<'a> {
             format: "%Y-%m-%d".to_owned(),
             highlight_weekends: true,
             start_end_years: None,
+            reverse_years: false,
+            year_scroll_to: None,
         }
     }
 
@@ -115,6 +119,21 @@ impl<'a> DatePickerButton<'a> {
         self.start_end_years = Some(start_end_years);
         self
     }
+
+    /// List years in descending order in the year dropdown. (Default: false)
+    #[inline]
+    pub fn reverse_years(mut self, reverse_years: bool) -> Self {
+        self.reverse_years = reverse_years;
+        self
+    }
+
+    /// Scroll the year dropdown to this year when the picker first opens.
+    /// Defaults to the currently selected year.
+    #[inline]
+    pub fn year_scroll_to(mut self, year: i32) -> Self {
+        self.year_scroll_to = Some(year);
+        self
+    }
 }
 
 impl Widget for DatePickerButton<'_> {
@@ -154,7 +173,6 @@ impl Widget for DatePickerButton<'_> {
                 pos.x = button_response.rect.right() - width_with_padding;
             }
 
-            // Check to make sure the calendar never is displayed out of window
             pos.x = pos.x.max(ui.style().spacing.window_margin.leftf());
 
             //TODO(elwerene): Better positioning
@@ -182,6 +200,8 @@ impl Widget for DatePickerButton<'_> {
                                 calendar_week: self.calendar_week,
                                 highlight_weekends: self.highlight_weekends,
                                 start_end_years: self.start_end_years,
+                                reverse_years: self.reverse_years,
+                                year_scroll_to: self.year_scroll_to,
                             }
                             .draw(ui)
                         })
