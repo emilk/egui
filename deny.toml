@@ -58,12 +58,13 @@ skip = [
   { name = "thiserror" }, # ecosystem is in the process of migrating from 1.x to 2.x
   { name = "thiserror-impl" }, # same as above
   { name = "toml_datetime" }, # required while eco-system updates to toml 1.0
-  { name = "windows-sys" }, # mostly hopeless to avoid
 ]
 skip-tree = [
   { name = "hashbrown" }, # wgpu's naga depends on 0.16, accesskit depends on 0.15
   { name = "rfd" }, # example dependency
   { name = "windows" }, # the ecosystem is currently transitioning from 0.58 to 0.61
+  { name = "phf" }, # mime_guess2, unicode_names2 -> 0.11.3; accesskit -> 0.13.1
+  { name = "windows-sys" }, # mostly hopeless to avoid
 ]
 
 
@@ -78,6 +79,7 @@ allow = [
   "BSD-3-Clause", # https://tldrlegal.com/license/bsd-3-clause-license-(revised)
   "BSL-1.0", # https://tldrlegal.com/license/boost-software-license-1.0-explained
   "CC0-1.0", # https://creativecommons.org/publicdomain/zero/1.0/
+  "CDLA-Permissive-2.0", # https://spdx.org/licenses/CDLA-Permissive-2.0.html
   "ISC", # https://www.tldrlegal.com/license/isc-license
   "MIT-0", # https://choosealicense.com/licenses/mit-0/
   "MIT", # https://tldrlegal.com/license/mit-license

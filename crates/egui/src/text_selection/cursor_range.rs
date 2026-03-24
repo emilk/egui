@@ -192,10 +192,13 @@ impl CCursorRange {
 
             Event::AccessKitActionRequest(accesskit::ActionRequest {
                 action: accesskit::Action::SetTextSelection,
-                target,
+                target_node,
+                target_tree,
                 data: Some(accesskit::ActionData::SetTextSelection(selection)),
             }) => {
-                if _widget_id.accesskit_id() == *target {
+                if _widget_id.accesskit_id() == *target_node
+                    && *target_tree == accesskit::TreeId::ROOT
+                {
                     let primary =
                         ccursor_from_accesskit_text_position(_widget_id, galley, &selection.focus);
                     let secondary =
@@ -224,18 +227,31 @@ fn ccursor_from_accesskit_text_position(
     galley: &Galley,
     position: &accesskit::TextPosition,
 ) -> Option<CCursor> {
+    use super::accesskit_text::MAX_CHARS_PER_TEXT_RUN;
+
     let mut total_length = 0usize;
     for (i, row) in galley.rows.iter().enumerate() {
-        let row_id = id.with(i);
-        if row_id.accesskit_id() == position.node {
-            return Some(CCursor {
-                index: total_length + position.character_index,
-                prefer_next_row: !(position.character_index == row.glyphs.len()
-                    && !row.ends_with_newline
-                    && (i + 1) < galley.rows.len()),
-            });
+        let row_chars = row.glyphs.len() + (row.ends_with_newline as usize);
+        let num_chunks = if row_chars == 0 {
+            1
+        } else {
+            row_chars.div_ceil(MAX_CHARS_PER_TEXT_RUN)
+        };
+
+        for chunk_idx in 0..num_chunks {
+            let run_id = id.with(i).with(chunk_idx);
+            if run_id.accesskit_id() == position.node {
+                let column = chunk_idx * MAX_CHARS_PER_TEXT_RUN + position.character_index;
+                return Some(CCursor {
+                    index: total_length + column,
+                    prefer_next_row: !(column == row.glyphs.len()
+                        && !row.ends_with_newline
+                        && (i + 1) < galley.rows.len()),
+                });
+            }
         }
-        total_length += row.glyphs.len() + (row.ends_with_newline as usize);
+
+        total_length += row_chars;
     }
     None
 }

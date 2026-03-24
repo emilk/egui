@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
+use egui::ScrollArea;
 use egui::accesskit::Role;
+use egui::epaint::Shape;
+use egui::style::ScrollAnimation;
 use egui::text::{LayoutJob, TextWrapping};
 use egui::{
     Align, Color32, FontFamily, FontId, Image, Label, Layout, RichText, Sense, TextBuffer,
@@ -115,6 +118,66 @@ fn text_edit_halign() {
     harness.snapshot("text_edit_halign");
 }
 
+fn text_edit_delay() {
+    let mut text = String::new();
+    let mut harness = Harness::builder().with_size((200.0, 50.0)).build_ui(|ui| {
+        ui.style_mut().scroll_animation = ScrollAnimation::none();
+        ui.add(egui::TextEdit::singleline(&mut text).hint_text("Write something"));
+    });
+
+    harness.get_by_role(Role::TextInput).focus();
+    harness.step();
+    harness.snapshot("text_edit_delay_0_empty");
+
+    harness.get_by_role(Role::TextInput).type_text("h");
+
+    // When the text is empty, and we show the hint text, there is a frame delay.
+    harness.step();
+    harness.snapshot("text_edit_delay_1_h_invisible");
+
+    // Now it should be visible
+    harness.step();
+    harness.snapshot("text_edit_delay_2_h_visible");
+
+    harness.get_by_role(Role::TextInput).type_text("i");
+
+    // The "i" should immediately be visible without a delay
+    harness.step();
+    harness.snapshot("text_edit_delay_3_i_visible");
+
+    // The next frame should exactly match the previous one
+    harness.step();
+    harness.snapshot("text_edit_delay_4_i_visible");
+}
+
+#[test]
+fn text_edit_scroll() {
+    let mut text = "1\n2\n3\n4\n".to_owned();
+    let mut harness = Harness::builder().build_ui(|ui| {
+        ScrollArea::vertical().max_height(40.0).show(ui, |ui| {
+            ui.add(
+                egui::TextEdit::multiline(&mut text)
+                    .desired_rows(2)
+                    .hint_text("Write something"),
+            );
+        });
+    });
+
+    harness.fit_contents();
+
+    harness.get_by_role(Role::MultilineTextInput).focus();
+    harness.step();
+    harness.snapshot("text_edit_scroll_0_focus");
+
+    harness
+        .get_by_role(Role::MultilineTextInput)
+        .type_text("5\n");
+
+    // When the text is empty, and we show the hint text, there is a frame delay.
+    harness.run();
+    harness.snapshot("text_edit_scroll_1_5");
+}
+
 #[test]
 fn combobox_should_have_value() {
     let harness = Harness::new_ui(|ui| {
@@ -170,4 +233,48 @@ fn interact_on_ui_response_should_be_stable() {
 
     drop(harness);
     assert_eq!(click_count, 10, "We missed some clicks!");
+}
+
+fn has_red_warning_rect(output: &egui::FullOutput) -> bool {
+    output.shapes.iter().any(|clipped| {
+        matches!(
+            &clipped.shape,
+            Shape::Rect(rect_shape)
+                if rect_shape.stroke.color == Color32::RED
+        )
+    })
+}
+
+/// A button that changes its text on hover, with the Id derived from the text.
+/// This is a plausible bug: the widget keeps the same rect, but its Id changes
+/// between frames because the label (and thus the Id salt) changes on hover.
+/// The `warn_if_rect_changes_id` debug check should catch this.
+#[test]
+fn warn_if_rect_changes_id() {
+    let button_rect = egui::Rect::from_min_size(egui::pos2(10.0, 10.0), egui::vec2(100.0, 30.0));
+
+    let mut harness = Harness::builder().with_size((200.0, 50.0)).build_ui(|ui| {
+        // Simulate a buggy widget whose Id depends on its label text,
+        // and the label changes on hover:
+        let is_hovered = ui.rect_contains_pointer(button_rect);
+        let label = if is_hovered { "Hovering!" } else { "Click me" };
+        let id = ui.id().with(label);
+        let _response = ui.interact(button_rect, id, Sense::click());
+    });
+
+    // no hover — establishes stable prev_pass
+    harness.step();
+    assert!(
+        !has_red_warning_rect(harness.output()),
+        "Should not warn without hover"
+    );
+
+    // Move the pointer over the button
+    harness.hover_at(button_rect.center());
+
+    harness.step();
+    assert!(
+        has_red_warning_rect(harness.output()),
+        "Should warn when a widget rect changes Id between passes"
+    );
 }

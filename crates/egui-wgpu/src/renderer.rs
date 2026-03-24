@@ -352,16 +352,19 @@ impl Renderer {
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("egui_pipeline_layout"),
-            bind_group_layouts: &[&uniform_bind_group_layout, &texture_bind_group_layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[
+                Some(&uniform_bind_group_layout),
+                Some(&texture_bind_group_layout),
+            ],
+            immediate_size: 0,
         });
 
         let depth_stencil = options
             .depth_stencil_format
             .map(|format| wgpu::DepthStencilState {
                 format,
-                depth_write_enabled: false,
-                depth_compare: wgpu::CompareFunction::Always,
+                depth_write_enabled: Some(false),
+                depth_compare: Some(wgpu::CompareFunction::Always),
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
             });
@@ -426,7 +429,7 @@ impl Renderer {
                     })],
                     compilation_options: wgpu::PipelineCompilationOptions::default()
                 }),
-                multiview: None,
+                multiview_mask: None,
                 cache: None,
             }
         )
@@ -968,7 +971,8 @@ impl Renderer {
                     Primitive::Mesh(mesh) => {
                         let size = mesh.indices.len() * std::mem::size_of::<u32>();
                         let slice = index_offset..(size + index_offset);
-                        index_buffer_staging[slice.clone()]
+                        index_buffer_staging
+                            .slice(slice.clone())
                             .copy_from_slice(bytemuck::cast_slice(&mesh.indices));
                         self.index_buffer.slices.push(slice);
                         index_offset += size;
@@ -1011,7 +1015,8 @@ impl Renderer {
                     Primitive::Mesh(mesh) => {
                         let size = mesh.vertices.len() * std::mem::size_of::<Vertex>();
                         let slice = vertex_offset..(size + vertex_offset);
-                        vertex_buffer_staging[slice.clone()]
+                        vertex_buffer_staging
+                            .slice(slice.clone())
                             .copy_from_slice(bytemuck::cast_slice(&mesh.vertices));
                         self.vertex_buffer.slices.push(slice);
                         vertex_offset += size;
