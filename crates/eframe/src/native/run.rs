@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 use winit::{
     application::ApplicationHandler,
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
-    window::WindowId,
+    window::{Window, WindowId},
 };
 
 use ahash::HashMap;
@@ -21,6 +21,14 @@ use crate::{
 /// processing viewport commands like `Visible(true)`.
 /// See <https://github.com/emilk/egui/issues/7776>.
 const INVISIBLE_WINDOW_REPAINT_INTERVAL: Duration = Duration::from_millis(100);
+
+/// Returns `true` if the window is invisible or minimized.
+///
+/// These windows don't receive `RedrawRequested` events on Windows,
+/// so they need special handling to keep processing viewport commands.
+fn is_invisible_or_minimized(window: &Window) -> bool {
+    window.is_visible() == Some(false) || window.is_minimized() == Some(true)
+}
 
 // ----------------------------------------------------------------------------
 fn create_event_loop(native_options: &mut epi::NativeOptions) -> Result<EventLoop<UserEvent>> {
@@ -199,7 +207,7 @@ impl<T: WinitApp> WinitAppWrapper<T> {
                     // never be processed. We collect these windows to paint them
                     // directly below.
                     // See: https://github.com/emilk/egui/issues/5229
-                    if window.is_visible() == Some(false) {
+                    if is_invisible_or_minimized(&window) {
                         invisible_window_ids.push(*window_id);
                     } else {
                         log::trace!("request_redraw for {window_id:?}");
@@ -313,7 +321,7 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
                             // high CPU usage on Windows.
                             // See: https://github.com/emilk/egui/issues/7776
                             let when = if let Some(window) = self.winit_app.window(window_id)
-                                && window.is_visible() == Some(false)
+                                && is_invisible_or_minimized(&window)
                             {
                                 when.max(Instant::now() + INVISIBLE_WINDOW_REPAINT_INTERVAL)
                             } else {
