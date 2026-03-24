@@ -92,17 +92,17 @@ fn test_intrinsic_size() {
                     if let Some(current_intrinsic_size) = intrinsic_size {
                         assert_eq!(
                             Some(current_intrinsic_size),
-                            response.intrinsic_size,
+                            response.intrinsic_size(),
                             "For wrapping: {wrapping:?}"
                         );
                     }
                     assert!(
-                        response.intrinsic_size.is_some(),
+                        response.intrinsic_size().is_some(),
                         "intrinsic_size should be set for `Button`"
                     );
-                    intrinsic_size = response.intrinsic_size;
+                    intrinsic_size = response.intrinsic_size();
                     if wrapping == TextWrapMode::Extend {
-                        assert_eq!(Some(response.rect.size()), response.intrinsic_size);
+                        assert_eq!(Some(response.rect.size()), response.intrinsic_size());
                     }
                 });
         }

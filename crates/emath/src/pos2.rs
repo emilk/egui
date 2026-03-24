@@ -119,6 +119,11 @@ impl Pos2 {
     /// Same as `Pos2::default()`.
     pub const ZERO: Self = Self { x: 0.0, y: 0.0 };
 
+    pub const NAN: Self = Self {
+        x: f32::NAN,
+        y: f32::NAN,
+    };
+
     #[inline(always)]
     pub const fn new(x: f32, y: f32) -> Self {
         Self { x, y }
