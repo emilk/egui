@@ -359,7 +359,9 @@ impl<'a> Button<'a> {
             AtomLayoutResponse::empty(prepared.response)
         };
 
-        if let Some(cursor) = ui.visuals().interact_cursor && response.response.hovered() {
+        if let Some(cursor) = ui.visuals().interact_cursor
+            && response.response.hovered()
+        {
             ui.ctx().set_cursor_icon(cursor);
         }
 
