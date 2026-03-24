@@ -1303,7 +1303,8 @@ pub struct DebugOptions {
     /// Show interesting widgets under the mouse cursor.
     pub show_widget_hits: bool,
 
-    /// Show a warning if the same `Rect` had different `Id` on the previous frame.
+    /// Show a warning if the same `Rect` had different `Id` and the same parent `Id` on the
+    /// previous frame.
     pub warn_if_rect_changes_id: bool,
 
     /// If true, highlight widgets that are not aligned to [`emath::GUI_ROUNDING`].
