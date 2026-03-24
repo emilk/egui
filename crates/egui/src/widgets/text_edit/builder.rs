@@ -708,7 +708,8 @@ impl TextEdit<'_> {
                     .fill(background_color)
                     .corner_radius(corner_radius)
                     .inner_margin(
-                        allocated.frame.inner_margin + Margin::same((visuals.expansion - stroke.width).round() as i8),
+                        allocated.frame.inner_margin
+                            + Margin::same((visuals.expansion - stroke.width).round() as i8),
                     )
                     .outer_margin(Margin::same(-(visuals.expansion as i8)))
                     .stroke(stroke)
