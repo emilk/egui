@@ -4,7 +4,7 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement};
 
-use crate::text::font::ScaledMetrics;
+use crate::text::font::StyledMetrics;
 
 /// Data for a glyph rendered via HTML5 canvas
 #[derive(Debug, Clone)]
@@ -63,7 +63,7 @@ impl CanvasGlyphRenderer {
     pub fn render_glyph(
         &mut self,
         chr: char,
-        metrics: &ScaledMetrics,
+        metrics: &StyledMetrics,
         font_families: &[String],
         bin: crate::text::font::SubpixelBin,
     ) -> Option<CanvasGlyphData> {
@@ -162,7 +162,7 @@ impl CanvasGlyphRenderer {
         // Extract image data (now at device pixel resolution)
         let image_data = self
             .context
-            .get_image_data(0.0, 0.0, width as f64, height as f64)
+            .get_image_data(0, 0, width as i32, height as i32)
             .ok()?;
 
         let rgba_data = image_data.data().0;
@@ -210,7 +210,7 @@ fn ensure_canvas_renderer() -> Result<(), JsValue> {
 /// Render a glyph using the thread-local canvas renderer
 pub fn render_glyph_with_canvas(
     chr: char,
-    metrics: &ScaledMetrics,
+    metrics: &StyledMetrics,
     font_families: &[String],
     bin: crate::text::font::SubpixelBin,
 ) -> Option<CanvasGlyphData> {

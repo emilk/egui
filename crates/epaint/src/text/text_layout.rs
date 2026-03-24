@@ -176,7 +176,7 @@ fn layout_section(
 
     let mut last_glyph_id = None;
 
-    // Optimization: only recompute `ScaledMetrics` when the concrete `FontImpl` changes.
+    // Optimization: only recompute `StyledMetrics` when the concrete `FontImpl` changes.
     let mut current_font = FontFaceKey::INVALID;
     let mut current_font_face_metrics = StyledMetrics::default();
 

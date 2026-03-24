@@ -644,7 +644,7 @@ impl FontFace {
     #[cfg(target_arch = "wasm32")]
     fn try_allocate_canvas_glyph_static(
         atlas: &mut TextureAtlas,
-        metrics: &ScaledMetrics,
+        metrics: &StyledMetrics,
         chr: char,
         bin: SubpixelBin,
     ) -> Option<GlyphAllocation> {
@@ -826,7 +826,7 @@ fn invisible_char(c: char) -> bool {
 #[cfg(target_arch = "wasm32")]
 pub(super) fn allocate_canvas_glyph(
     atlas: &mut TextureAtlas,
-    metrics: &ScaledMetrics,
+    metrics: &StyledMetrics,
     canvas_data: crate::text::canvas_renderer::CanvasGlyphData,
 ) -> GlyphAllocation {
     use crate::text::canvas_renderer::CanvasGlyphData;
