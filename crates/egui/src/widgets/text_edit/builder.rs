@@ -409,7 +409,7 @@ impl<'t> TextEdit<'t> {
 
 impl Widget for TextEdit<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
-        self.show(ui).response
+        self.show(ui).response.response
     }
 }
 
@@ -563,7 +563,7 @@ impl TextEdit<'_> {
         // so we can clip it to the available size. Thus, extract it from the atom closure here.
         let mut get_galley = None;
         let inner_rect_id = Id::new("text_edit_rect");
-        let atom_response = {
+        let mut response = {
             let any_shrink = hint_text.any_shrink();
             // Ideally we could just do `let mut atoms = prefix` here, but that won't compile
             // but due to servo/rust-smallvec#146 (also see the comment below).
@@ -716,8 +716,7 @@ impl TextEdit<'_> {
             allocated.paint(ui)
         };
 
-        let inner_rect = atom_response.rect(inner_rect_id).unwrap_or(Rect::ZERO);
-        let mut response = atom_response.response;
+        let inner_rect = response.rect(inner_rect_id).unwrap_or(Rect::ZERO);
 
         // Our atom closure was now called, so the galley should always be available here
         let mut galley = get_galley.expect("Galley should be available here");
