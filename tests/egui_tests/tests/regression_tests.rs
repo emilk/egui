@@ -282,7 +282,7 @@ fn warn_if_rect_changes_id() {
 
 /// When a parent Ui's id changes (e.g. via `push_id` with a dynamic value),
 /// all child widget ids shift too. This should NOT trigger `warn_if_rect_changes_id` because the
-/// parent_id also changed — it's a cascading id shift, not a widget bug.
+/// `parent_id` also changed — it's a cascading id shift, not a widget bug.
 #[test]
 fn warn_if_rect_changes_id_false_positive_parent_shift() {
     use std::cell::Cell;
