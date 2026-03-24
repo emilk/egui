@@ -9,6 +9,9 @@
 
 #![expect(clippy::manual_range_contains)]
 
+#[cfg(target_os = "windows")]
+use std::collections::HashSet;
+
 #[cfg(feature = "accesskit")]
 pub use accesskit_winit;
 pub use egui;
@@ -102,10 +105,16 @@ pub struct State {
     has_sent_ime_enabled: bool,
 
     #[cfg(feature = "accesskit")]
-    accesskit: Option<accesskit_winit::Adapter>,
+    pub accesskit: Option<accesskit_winit::Adapter>,
 
     allow_ime: bool,
     ime_rect_px: Option<egui::Rect>,
+
+    /// Used by [`State::try_on_ime_processed_keyboard_input`] to track key
+    /// release events that should be filtered out. See comments in that method
+    /// for details.
+    #[cfg(target_os = "windows")]
+    pressed_processed_physical_keys: HashSet<winit::keyboard::PhysicalKey>,
 }
 
 impl State {
@@ -148,6 +157,8 @@ impl State {
 
             allow_ime: false,
             ime_rect_px: None,
+            #[cfg(target_os = "windows")]
+            pressed_processed_physical_keys: HashSet::new(),
         };
 
         slf.egui_input
@@ -364,25 +375,33 @@ impl State {
                 is_synthetic,
                 ..
             } => {
-                // Winit generates fake "synthetic" KeyboardInput events when the focus
-                // is changed to the window, or away from it. Synthetic key presses
-                // represent no real key presses and should be ignored.
-                // See https://github.com/rust-windowing/winit/issues/3543
                 if *is_synthetic && event.state == ElementState::Pressed {
+                    // Winit generates fake "synthetic" KeyboardInput events when the focus
+                    // is changed to the window, or away from it. Synthetic key presses
+                    // represent no real key presses and should be ignored.
+                    // See https://github.com/rust-windowing/winit/issues/3543
                     EventResponse {
                         repaint: true,
                         consumed: false,
                     }
                 } else {
-                    self.on_keyboard_input(event);
+                    let egui_wants_keyboard_input = self.egui_ctx.egui_wants_keyboard_input();
 
-                    // When pressing the Tab key, egui focuses the first focusable element, hence Tab always consumes.
-                    let consumed = self.egui_ctx.egui_wants_keyboard_input()
-                        || event.logical_key
-                            == winit::keyboard::Key::Named(winit::keyboard::NamedKey::Tab);
-                    EventResponse {
-                        repaint: true,
-                        consumed,
+                    if let Some(response) =
+                        self.try_on_ime_processed_keyboard_input(event, egui_wants_keyboard_input)
+                    {
+                        response
+                    } else {
+                        self.on_keyboard_input(event);
+
+                        // When pressing the Tab key, egui focuses the first focusable element, hence Tab always consumes.
+                        let consumed = egui_wants_keyboard_input
+                            || event.logical_key
+                                == winit::keyboard::Key::Named(winit::keyboard::NamedKey::Tab);
+                        EventResponse {
+                            repaint: true,
+                            consumed,
+                        }
                     }
                 }
             }
@@ -526,6 +545,91 @@ impl State {
         }
     }
 
+    #[cfg(not(target_os = "windows"))]
+    #[expect(clippy::unused_self, clippy::needless_pass_by_ref_mut)]
+    #[inline(always)]
+    fn try_on_ime_processed_keyboard_input(
+        &mut self,
+        _event: &winit::event::KeyEvent,
+        _egui_wants_keyboard_input: bool,
+    ) -> Option<EventResponse> {
+        // `KeyboardInput` events processed by the IME are not emitted by
+        // `winit` on non-Windows platforms, so we don't need to do anything
+        // here.
+
+        None
+    }
+
+    #[cfg(target_os = "windows")]
+    #[inline(always)]
+    fn try_on_ime_processed_keyboard_input(
+        &mut self,
+        event: &winit::event::KeyEvent,
+        egui_wants_keyboard_input: bool,
+    ) -> Option<EventResponse> {
+        if !self.allow_ime {
+            None
+        } else if event.logical_key == winit::keyboard::NamedKey::Process {
+            // On Windows, the current version of `winit` (0.30.12) has a bug
+            // where `KeyboardInput` events processed by the IME are still
+            // emitted. [^1]
+            //
+            // As a workaround, we detect these events by checking whether their
+            // `logical_key` is `winit::keyboard::NamedKey::Process`, and filter
+            // them out to keep behavior consistent with other platforms.
+            //
+            // `winit::keyboard::NamedKey::Process` is not documented in
+            // `winit`. Reading through its source code, we find that it is
+            // mapped from `VK_PROCESSKEY` on Windows [^2]. (On an unrelated
+            // note, Web is the only other platform that also uses it [^3].)
+            // According to Microsoft, “the IME sets the virtual key value
+            // to `VK_PROCESSKEY` after processing a key input message” [^4].
+            // See also [^5].
+            // (I can't find a documentation page dedicated to this value.)
+            //
+            // TODO(umajho): Remove this workaround once the `winit` bug is fixed
+            // and we've updated to a version that includes the fix. NOTE: Don't
+            // forget to also remove the `pressed_processed_physical_keys` field
+            // and its related code.
+            //
+            // [^1]: https://github.com/rust-windowing/winit/issues/4508
+            // [^2]: https://github.com/rust-windowing/winit/blob/e9809ef54b18499bb4f2cac945719ecc2a61061b/src/platform_impl/windows/keyboard_layout.rs#L946
+            // [^3]: https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values
+            // [^4]: https://learn.microsoft.com/en-us/windows/win32/api/imm/nf-imm-immgetvirtualkey#remarks
+            // [^5]: https://learn.microsoft.com/en-us/windows/win32/learnwin32/keyboard-input#character-messages
+
+            self.pressed_processed_physical_keys
+                .insert(event.physical_key);
+
+            Some(EventResponse {
+                repaint: false,
+                consumed: egui_wants_keyboard_input,
+            })
+        } else if event.state == ElementState::Released
+            && self
+                .pressed_processed_physical_keys
+                .remove(&event.physical_key)
+        {
+            // Unlike key-presses, we can not tell whether a key-release event
+            // is processed by the IME or not by looking at its `logical_key`,
+            // because their `logical_key` is the original value (e.g.
+            // `winit::keyboard::Key::Character(…)`) rather than
+            // `winit::keyboard::Key::Named(winit::keyboard::NamedKey::Process)`.
+            // (See the screencast for Windows in [^1].)
+            // So we track the physical keys of processed key-presses and
+            // filter out the corresponding key-releases.
+            //
+            // [^1]: https://github.com/rust-windowing/winit/issues/4508
+
+            Some(EventResponse {
+                repaint: false,
+                consumed: egui_wants_keyboard_input,
+            })
+        } else {
+            None
+        }
+    }
+
     /// ## NOTE
     ///
     /// on Mac even Cmd-C is pressed during ime, a `c` is pushed to Preedit.
@@ -548,23 +652,23 @@ impl State {
     ///
     /// | Setup                                       | Events in Order                                                                                                                  |
     /// | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-    /// | a-macos15-apple_shuangpin                   | `Predict("", None)` -> `Commit("测试")`                                                                                          |
-    /// | b-debian13_gnome48_wayland-fcitx5_shuangpin | `Predict("", None)` -> `Commit("测试")` -> `Predict("", Some(0, 0))` -> `Predict("", None)` (duplicate until `TextEdit` blurred) |
-    /// | c-windows11-ms_pinyin                       | `Predict("测试", Some(…))` -> `Predict("", None)` -> `Commit("测试")` -> `Disabled`                                              |
+    /// | a-macos15-apple_shuangpin                   | `Preedit("", None)` -> `Commit("测试")`                                                                                          |
+    /// | b-debian13_gnome48_wayland-fcitx5_shuangpin | `Preedit("", None)` -> `Commit("测试")` -> `Preedit("", Some(0, 0))` -> `Preedit("", None)` (duplicate until `TextEdit` blurred) |
+    /// | c-windows11-ms_pinyin                       | `Preedit("测试", Some(…))` -> `Preedit("", None)` -> `Commit("测试")` -> `Disabled`                                              |
     ///
-    /// #### Situation: pressed backspace to delete the last character in the prediction
+    /// #### Situation: pressed backspace to delete the last character in the composition
     ///
     /// | Setup                                       | Events in Order                                                                       |
-    /// | a-macos15-apple_shuangpin                   | `Predict("", None)`                                                                   |
-    /// | b-debian13_gnome48_wayland-fcitx5_shuangpin | `Predict("", Some(0, 0))` -> `Predict("", None)` (duplicate until `TextEdit` blurred) |
-    /// | c-windows11-ms_pinyin                       | `Predict("", Some(0, 0))` -> `Predict("", None)` -> `Commit("")` -> `Disabled`        |
+    /// | a-macos15-apple_shuangpin                   | `Preedit("", None)`                                                                   |
+    /// | b-debian13_gnome48_wayland-fcitx5_shuangpin | `Preedit("", Some(0, 0))` -> `Preedit("", None)` (duplicate until `TextEdit` blurred) |
+    /// | c-windows11-ms_pinyin                       | `Preedit("", Some(0, 0))` -> `Preedit("", None)` -> `Commit("")` -> `Disabled`        |
     ///
-    /// #### Situation: clicked somewhere else while there is an active composition with the prediction "ce"
+    /// #### Situation: clicked somewhere else while there is an active composition with the pre-edit text "ce"
     ///
     /// | Setup                                       | Events in Order                                                                                   |
     /// | ------------------------------------------- | ------------------------------------------------------------------------------------------------- |
     /// | a-macos15-apple_shuangpin                   | nothing emitted                                                                                   |
-    /// | b-debian13_gnome48_wayland-fcitx5_shuangpin | `Predict("", Some(0, 0))` (duplicate) -> `Predict("", None)` (duplicate until `TextEdit` blurred) |
+    /// | b-debian13_gnome48_wayland-fcitx5_shuangpin | `Preedit("", Some(0, 0))` (duplicate) -> `Preedit("", None)` (duplicate until `TextEdit` blurred) |
     /// | c-windows11-ms_pinyin                       | nothing emitted                                                                                   |
     fn on_ime(&mut self, ime: &winit::event::Ime) {
         // // code for inspecting ime events emitted by winit:
@@ -610,15 +714,26 @@ impl State {
                 self.ime_event_disable();
             }
             winit::event::Ime::Preedit(_, None) => {
-                // we need to emit this on macOS, since winit doesn't emit
-                // `Predict("", Some(0, 0))` before this event on macOS when the
-                // user deletes the last character in the prediction with the
-                // backspace key. Without this, only `egui::ImeEvent::Disabled`
-                // is emitted here, leading to the last character being left in
-                // TextEdit in such situation.
-                self.egui_input
-                    .events
-                    .push(egui::Event::Ime(egui::ImeEvent::Preedit(String::new())));
+                if cfg!(target_os = "macos") {
+                    // On macOS, when the user presses backspace to delete the
+                    // last character in an IME composition, `winit` only emits
+                    // `winit::event::Ime::Preedit("", None)` without a
+                    // preceding `winit::event::Ime::Preedit("", Some(0, 0))`.
+                    //
+                    // The current implementation of `egui::TextEdit` relies on
+                    // receiving an `egui::ImeEvent::Preedit("")` to remove the
+                    // last character in the composition in this case, so we
+                    // emit it here.
+                    //
+                    // This is guarded to macOS-only, as applying it on other
+                    // platforms is unnecessary and can cause undesired
+                    // behavior.
+                    // See: https://github.com/emilk/egui/pull/7973
+                    self.egui_input
+                        .events
+                        .push(egui::Event::Ime(egui::ImeEvent::Preedit(String::new())));
+                }
+
                 self.ime_event_disable();
             }
         }
@@ -640,11 +755,27 @@ impl State {
         self.has_sent_ime_enabled = false;
     }
 
-    pub fn on_mouse_motion(&mut self, delta: (f64, f64)) {
+    /// Returns `true` if the event was sent to egui.
+    pub fn on_mouse_motion(&mut self, delta: (f64, f64)) -> bool {
+        if !self.is_pointer_in_window() && !self.any_pointer_button_down {
+            return false;
+        }
+
         self.egui_input.events.push(egui::Event::MouseMoved(Vec2 {
             x: delta.0 as f32,
             y: delta.1 as f32,
         }));
+        true
+    }
+
+    /// Returns `true` when the pointer is currently inside the window.
+    pub fn is_pointer_in_window(&self) -> bool {
+        self.pointer_pos_in_points.is_some()
+    }
+
+    /// Returns `true` if any pointer button is currently held down.
+    pub fn is_any_pointer_button_down(&self) -> bool {
+        self.any_pointer_button_down
     }
 
     /// Call this when there is a new [`accesskit::ActionRequest`].
@@ -974,6 +1105,16 @@ impl State {
         let allow_ime = ime.is_some();
         if self.allow_ime != allow_ime {
             self.allow_ime = allow_ime;
+            #[cfg(target_os = "windows")]
+            if !self.allow_ime {
+                // Defensively clear the set to avoid unexpected behavior.
+                //
+                // We don't do the same in `ime_event_disable` because the key
+                // release events for IME confirmation keys arrive after
+                // `winit::event::Ime::Disabled`.
+                self.pressed_processed_physical_keys.clear();
+            }
+
             profiling::scope!("set_ime_allowed");
             window.set_ime_allowed(allow_ime);
         }

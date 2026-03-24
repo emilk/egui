@@ -47,7 +47,7 @@ impl CaptureState {
             },
             depth_stencil: None,
             multisample: MultisampleState::default(),
-            multiview: None,
+            multiview_mask: None,
             cache: None,
         });
 
@@ -165,6 +165,7 @@ impl CaptureState {
             depth_stencil_attachment: None,
             occlusion_query_set: None,
             timestamp_writes: None,
+            multiview_mask: None,
         });
 
         pass.set_pipeline(&self.pipeline);
