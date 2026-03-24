@@ -1,5 +1,43 @@
 use std::sync::Arc;
 
+/// A cloneable display handle for use with [`wgpu::InstanceDescriptor`].
+///
+/// [`wgpu::InstanceDescriptor`] stores its display handle as a non-cloneable
+/// `Box<dyn WgpuHasDisplayHandle>`. This trait wraps it so it can be cloned
+/// alongside the rest of the egui wgpu configuration.
+///
+/// Automatically implemented for all types that satisfy the bounds
+/// (including [`winit::event_loop::OwnedDisplayHandle`]).
+pub trait EguiDisplayHandle:
+    wgpu::rwh::HasDisplayHandle + std::fmt::Debug + Send + Sync + 'static
+{
+    /// Clone into a `Box<dyn WgpuHasDisplayHandle>` for [`wgpu::InstanceDescriptor::display`].
+    fn clone_for_wgpu(&self) -> Box<dyn wgpu::wgt::WgpuHasDisplayHandle>;
+
+    /// Clone into a new `Box<dyn EguiDisplayHandle>`.
+    fn clone_display_handle(&self) -> Box<dyn EguiDisplayHandle>;
+}
+
+impl Clone for Box<dyn EguiDisplayHandle> {
+    fn clone(&self) -> Self {
+        // We need to deref here, otherwise this causes infinite recursion stack overflow.
+        (**self).clone_display_handle()
+    }
+}
+
+impl<T> EguiDisplayHandle for T
+where
+    T: wgpu::rwh::HasDisplayHandle + Clone + std::fmt::Debug + Send + Sync + 'static,
+{
+    fn clone_for_wgpu(&self) -> Box<dyn wgpu::wgt::WgpuHasDisplayHandle> {
+        Box::new(self.clone())
+    }
+
+    fn clone_display_handle(&self) -> Box<dyn EguiDisplayHandle> {
+        Box::new(self.clone())
+    }
+}
+
 #[derive(Clone)]
 pub enum WgpuSetup {
     /// Construct a wgpu setup using some predefined settings & heuristics.
@@ -22,9 +60,19 @@ pub enum WgpuSetup {
     Existing(WgpuSetupExisting),
 }
 
-impl Default for WgpuSetup {
-    fn default() -> Self {
-        Self::CreateNew(WgpuSetupCreateNew::default())
+impl WgpuSetup {
+    /// Creates a new [`WgpuSetup::CreateNew`] with the given display handle.
+    ///
+    /// See [`WgpuSetupCreateNew::from_display_handle`] for details.
+    pub fn from_display_handle(display_handle: impl EguiDisplayHandle) -> Self {
+        Self::CreateNew(WgpuSetupCreateNew::from_display_handle(display_handle))
+    }
+
+    /// Creates a new [`WgpuSetup::CreateNew`] without a display handle.
+    ///
+    /// See [`WgpuSetupCreateNew::without_display_handle`] for details.
+    pub fn without_display_handle() -> Self {
+        Self::CreateNew(WgpuSetupCreateNew::without_display_handle())
     }
 }
 
@@ -65,8 +113,18 @@ impl WgpuSetup {
                 }
 
                 log::debug!("Creating wgpu instance with backends {backends:?}");
-                wgpu::util::new_instance_with_webgpu_detection(&create_new.instance_descriptor)
-                    .await
+                let desc = &create_new.instance_descriptor;
+                let descriptor = wgpu::InstanceDescriptor {
+                    backends: desc.backends,
+                    flags: desc.flags,
+                    backend_options: desc.backend_options.clone(),
+                    memory_budget_thresholds: desc.memory_budget_thresholds,
+                    display: create_new
+                        .display_handle
+                        .as_ref()
+                        .map(|handle| handle.clone_for_wgpu()),
+                };
+                wgpu::util::new_instance_with_webgpu_detection(descriptor).await
             }
             Self::Existing(existing) => existing.instance.clone(),
         }
@@ -98,17 +156,34 @@ pub type NativeAdapterSelectorMethod = Arc<
 /// Configuration for creating a new wgpu setup.
 ///
 /// Used for [`WgpuSetup::CreateNew`].
+///
+/// Prefer [`Self::from_display_handle`] when you have a display handle available.
+/// Most platforms work without one, but some (e.g. Wayland with GLES, or WebGL)
+/// require it, so providing one ensures maximum compatibility.
+/// With winit, pass [`EventLoop::owned_display_handle`](winit::event_loop::EventLoop::owned_display_handle).
+///
+/// Note: The display handle is stored in [`Self::display_handle`] rather than in
+/// [`Self::instance_descriptor`] so the config can be cloned
+/// ([`wgpu::InstanceDescriptor`] is not `Clone`). It is injected at instance creation time.
 pub struct WgpuSetupCreateNew {
-    /// Instance descriptor for creating a wgpu instance.
+    /// Descriptor for the wgpu instance.
     ///
-    /// The most important field is [`wgpu::InstanceDescriptor::backends`], which
-    /// controls which backends are supported (wgpu will pick one of these).
-    /// If you only want to support WebGL (and not WebGPU),
-    /// you can set this to [`wgpu::Backends::GL`].
-    /// By default on web, WebGPU will be used if available.
-    /// WebGL will only be used as a fallback,
-    /// and only if you have enabled the `webgl` feature of crate `wgpu`.
+    /// Leave [`wgpu::InstanceDescriptor::display`] as `None` — use [`Self::display_handle`]
+    /// instead (injected at instance creation time).
+    ///
+    /// The most important field is [`wgpu::InstanceDescriptor::backends`], which controls
+    /// which backends are supported (wgpu will pick one of these). For example, set it to
+    /// [`wgpu::Backends::GL`] to use only WebGL. By default on web, WebGPU is preferred
+    /// with WebGL as a fallback (requires the `webgl` feature of crate `wgpu`).
     pub instance_descriptor: wgpu::InstanceDescriptor,
+
+    /// Display handle passed to wgpu at instance creation time.
+    ///
+    /// Required on some platforms (e.g. Wayland with GLES, WebGL); optional elsewhere.
+    /// With winit, use [`winit::event_loop::OwnedDisplayHandle`].
+    ///
+    /// `eframe` 's winit & web integrations will attempt to fill the display handle automatically if it is left empty.
+    pub display_handle: Option<Box<dyn EguiDisplayHandle>>,
 
     /// Power preference for the adapter if [`Self::native_adapter_selector`] is not set or targeting web.
     pub power_preference: wgpu::PowerPreference,
@@ -128,32 +203,37 @@ pub struct WgpuSetupCreateNew {
         Arc<dyn Fn(&wgpu::Adapter) -> wgpu::DeviceDescriptor<'static> + Send + Sync>,
 }
 
-impl Clone for WgpuSetupCreateNew {
-    fn clone(&self) -> Self {
+impl WgpuSetupCreateNew {
+    /// Creates a new configuration with the given display handle.
+    ///
+    /// This is the recommended constructor. Most platforms (Windows, macOS/iOS, Android, web)
+    /// work fine without a display handle, but some (e.g. Wayland on Linux with GLES) require
+    /// one. Providing it unconditionally ensures your app works everywhere.
+    ///
+    /// If you don't have a display handle available, use [`Self::without_display_handle`]
+    /// instead — it will still work on the majority of platforms.
+    ///
+    /// With winit, pass [`EventLoop::owned_display_handle`](winit::event_loop::EventLoop::owned_display_handle).
+    pub fn from_display_handle(display_handle: impl EguiDisplayHandle) -> Self {
         Self {
-            instance_descriptor: self.instance_descriptor.clone(),
-            power_preference: self.power_preference,
-            native_adapter_selector: self.native_adapter_selector.clone(),
-            device_descriptor: Arc::clone(&self.device_descriptor),
+            display_handle: Some(Box::new(display_handle)),
+            ..Self::without_display_handle()
         }
     }
-}
 
-impl std::fmt::Debug for WgpuSetupCreateNew {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("WgpuSetupCreateNew")
-            .field("instance_descriptor", &self.instance_descriptor)
-            .field("power_preference", &self.power_preference)
-            .field(
-                "native_adapter_selector",
-                &self.native_adapter_selector.is_some(),
-            )
-            .finish()
-    }
-}
-
-impl Default for WgpuSetupCreateNew {
-    fn default() -> Self {
+    /// Creates a new configuration without a display handle.
+    ///
+    /// A display handle is not required for headless operation (offscreen rendering, tests,
+    /// compute-only workloads). It also isn't needed on most platforms even when presenting
+    /// to a window — only some configurations (e.g. Wayland on Linux with GLES) require one.
+    ///
+    /// If you do have a display handle available, prefer [`Self::from_display_handle`] for
+    /// maximum compatibility.
+    ///
+    /// With winit you can obtain one via [`EventLoop::owned_display_handle`](winit::event_loop::EventLoop::owned_display_handle).
+    ///
+    /// `eframe` 's winit & web integrations will attempt to fill the display handle automatically if it is left empty.
+    pub fn without_display_handle() -> Self {
         Self {
             instance_descriptor: wgpu::InstanceDescriptor {
                 // Add GL backend, primarily because WebGPU is not stable enough yet.
@@ -163,7 +243,10 @@ impl Default for WgpuSetupCreateNew {
                 flags: wgpu::InstanceFlags::from_build_config().with_env(),
                 backend_options: wgpu::BackendOptions::from_env_or_default(),
                 memory_budget_thresholds: wgpu::MemoryBudgetThresholds::default(),
+                display: None,
             },
+
+            display_handle: None,
 
             power_preference: wgpu::PowerPreference::from_env()
                 .unwrap_or(wgpu::PowerPreference::HighPerformance),
@@ -189,6 +272,39 @@ impl Default for WgpuSetupCreateNew {
                 }
             }),
         }
+    }
+}
+
+impl Clone for WgpuSetupCreateNew {
+    fn clone(&self) -> Self {
+        let desc = &self.instance_descriptor;
+        Self {
+            instance_descriptor: wgpu::InstanceDescriptor {
+                backends: desc.backends,
+                flags: desc.flags,
+                backend_options: desc.backend_options.clone(),
+                memory_budget_thresholds: desc.memory_budget_thresholds,
+                display: None,
+            },
+            display_handle: self.display_handle.clone(),
+            power_preference: self.power_preference,
+            native_adapter_selector: self.native_adapter_selector.clone(),
+            device_descriptor: Arc::clone(&self.device_descriptor),
+        }
+    }
+}
+
+impl std::fmt::Debug for WgpuSetupCreateNew {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WgpuSetupCreateNew")
+            .field("instance_descriptor", &self.instance_descriptor)
+            .field("display_handle", &self.display_handle)
+            .field("power_preference", &self.power_preference)
+            .field(
+                "native_adapter_selector",
+                &self.native_adapter_selector.is_some(),
+            )
+            .finish()
     }
 }
 

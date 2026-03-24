@@ -122,6 +122,18 @@ fn widget_tests() {
         },
         &mut results,
     );
+    test_widget(
+        "text_edit_prefix_suffix",
+        |ui| {
+            ui.spacing_mut().text_edit_width = 45.0;
+            TextEdit::singleline(&mut "Hello World".to_owned())
+                .prefix("🔎")
+                .suffix("!")
+                .clip_text(true)
+                .ui(ui)
+        },
+        &mut results,
+    );
 
     test_widget(
         "slider",
