@@ -1378,8 +1378,8 @@ impl Context {
             interact_rect,
             sense,
             flags: Flags::empty(),
-            interact_pointer_pos: None,
-            intrinsic_size: None,
+            interact_pointer_pos_or_nan: Pos2::NAN,
+            intrinsic_size_or_nan: Vec2::NAN,
         };
 
         res.flags.set(Flags::ENABLED, enabled);
@@ -1470,14 +1470,11 @@ impl Context {
                 || res.long_touched()
                 || clicked
                 || res.drag_stopped();
-            if is_interacted_with {
-                res.interact_pointer_pos = input.pointer.interact_pos();
-                if let (Some(to_global), Some(pos)) = (
-                    memory.to_global.get(&res.layer_id),
-                    &mut res.interact_pointer_pos,
-                ) {
-                    *pos = to_global.inverse() * *pos;
+            if is_interacted_with && let Some(mut pos) = input.pointer.interact_pos() {
+                if let Some(to_global) = memory.to_global.get(&res.layer_id) {
+                    pos = to_global.inverse() * pos;
                 }
+                res.interact_pointer_pos_or_nan = pos;
             }
 
             if input.pointer.any_down() && !is_interacted_with {

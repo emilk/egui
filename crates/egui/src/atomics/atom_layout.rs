@@ -318,8 +318,9 @@ impl<'a> AtomLayout<'a> {
         let (_, rect) = ui.allocate_space(frame_size);
         let mut response = ui.interact(rect, id, sense);
 
-        response.intrinsic_size =
-            Some((Vec2::new(intrinsic_width, intrinsic_height) + margin.sum()).at_least(min_size));
+        response.set_intrinsic_size(
+            (Vec2::new(intrinsic_width, intrinsic_height) + margin.sum()).at_least(min_size),
+        );
 
         AllocatedAtomLayout {
             sized_atoms: sized_items,
