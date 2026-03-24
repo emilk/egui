@@ -70,7 +70,7 @@ impl Clipboard {
                 Err(err) => {
                     log::error!("smithay paste error: {err}");
                 }
-            };
+            }
         }
 
         #[cfg(all(
