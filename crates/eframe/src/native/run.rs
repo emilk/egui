@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use winit::{
     application::ApplicationHandler,
@@ -13,6 +13,14 @@ use crate::{
     Result, epi,
     native::{event_loop_context, winit_integration::EventResult},
 };
+
+/// Minimum interval between repaints for invisible windows.
+///
+/// On Windows, invisible windows don't receive `RedrawRequested` events,
+/// so we throttle their repaints to avoid busy-looping while still
+/// processing viewport commands like `Visible(true)`.
+/// See <https://github.com/emilk/egui/issues/7776>.
+const INVISIBLE_WINDOW_REPAINT_INTERVAL: Duration = Duration::from_millis(100);
 
 // ----------------------------------------------------------------------------
 fn create_event_loop(native_options: &mut epi::NativeOptions) -> Result<EventLoop<UserEvent>> {
@@ -212,16 +220,16 @@ impl<T: WinitApp> WinitAppWrapper<T> {
             self.handle_event_result(event_loop, event_result);
         }
 
-        // Schedule a throttled repaint for invisible windows so they keep
-        // processing viewport commands even when egui doesn't request repaints.
+        // Throttle any already-scheduled repaints for invisible windows
+        // to avoid busy-looping. If no repaint was requested by the app,
+        // the window will simply sleep.
         // See: https://github.com/emilk/egui/issues/7776
         if !invisible_window_ids.is_empty() {
-            let next_paint = Instant::now() + std::time::Duration::from_millis(100);
+            let next_paint = Instant::now() + INVISIBLE_WINDOW_REPAINT_INTERVAL;
             for window_id in &invisible_window_ids {
                 self.windows_next_repaint_times
                     .entry(*window_id)
-                    .and_modify(|t| *t = (*t).min(next_paint))
-                    .or_insert(next_paint);
+                    .and_modify(|t| *t = (*t).min(next_paint));
             }
         }
 
@@ -307,7 +315,7 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
                             let when = if let Some(window) = self.winit_app.window(window_id)
                                 && window.is_visible() == Some(false)
                             {
-                                when.max(Instant::now() + std::time::Duration::from_millis(100))
+                                when.max(Instant::now() + INVISIBLE_WINDOW_REPAINT_INTERVAL)
                             } else {
                                 when
                             };
