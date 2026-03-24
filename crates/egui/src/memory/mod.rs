@@ -746,6 +746,10 @@ impl Focus {
 
         best_id
     }
+
+    pub(crate) fn is_focus_changed(&self) -> bool {
+        self.focused() != self.id_previous_frame
+    }
 }
 
 impl Memory {

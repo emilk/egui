@@ -41,10 +41,6 @@ pub struct TextEditState {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) undoer: Arc<Mutex<TextEditUndoer>>,
 
-    // If IME candidate window is shown on this text edit.
-    #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) ime_enabled: bool,
-
     // Text offset within the widget area.
     // Used for sensing and singleline text clipping.
     #[cfg_attr(feature = "serde", serde(skip))]

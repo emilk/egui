@@ -861,24 +861,13 @@ impl TextEdit<'_> {
                         .layer_transform_to_global(ui.layer_id())
                         .unwrap_or_default();
 
-                    ui.output_mut(|o| {
-                        o.ime = Some(crate::output::IMEOutput {
+                    ui.ctx()
+                        .try_set_ime_output(id, || crate::output::IMEOutput {
                             rect: to_global * inner_rect,
                             cursor_rect: to_global * primary_cursor_rect,
                         });
-                    });
                 }
             }
-        }
-
-        // Ensures correct IME behavior when the text input area gains or loses focus.
-        if state.ime_enabled && (response.gained_focus() || response.lost_focus()) {
-            state.ime_enabled = false;
-            if let Some(mut ccursor_range) = state.cursor.char_range() {
-                ccursor_range.secondary.index = ccursor_range.primary.index;
-                state.cursor.set_char_range(Some(ccursor_range));
-            }
-            ui.input_mut(|i| i.events.retain(|e| !matches!(e, Event::Ime(_))));
         }
 
         state.clone().store(ui.ctx(), id);
@@ -995,7 +984,7 @@ fn events(
 
     let events = ui.input(|i| i.filtered_events(&event_filter));
 
-    let wants_ime_events = ui.memory(|mem| mem.had_focus_last_frame(id));
+    let owns_ime_events = ui.ctx().try_claim_ime_events_ownership(id);
 
     for event in &events {
         let did_mutate_text = match event {
@@ -1124,7 +1113,7 @@ fn events(
                 ..
             } => check_for_mutating_key_press(os, &cursor_range, text, galley, modifiers, *key),
 
-            Event::Ime(ime_event) if wants_ime_events => {
+            Event::Ime(ime_event) if owns_ime_events => {
                 /// Both `ImeEvent::Preedit("")` and `ImeEvent::Commit("")`
                 /// might be emitted from different integrations to signify that
                 /// the current IME composition should be cleared.
@@ -1158,10 +1147,7 @@ fn events(
                 }
 
                 match ime_event {
-                    ImeEvent::Enabled => {
-                        state.ime_enabled = true;
-                        None
-                    }
+                    ImeEvent::Enabled | ImeEvent::Disabled => None,
                     ImeEvent::Preedit(preedit_text) => {
                         if preedit_text == "\n" || preedit_text == "\r" {
                             None
@@ -1179,8 +1165,6 @@ fn events(
                         if commit_text == "\n" || commit_text == "\r" {
                             None
                         } else {
-                            state.ime_enabled = false;
-
                             let mut ccursor = clear_preedit_text(text, &cursor_range);
 
                             if !commit_text.is_empty() {
@@ -1189,10 +1173,6 @@ fn events(
 
                             Some(CCursorRange::one(ccursor))
                         }
-                    }
-                    ImeEvent::Disabled => {
-                        state.ime_enabled = false;
-                        None
                     }
                 }
             }
