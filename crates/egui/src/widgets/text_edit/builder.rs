@@ -7,7 +7,8 @@ use epaint::{
 };
 
 use crate::{
-    Align, Align2, Color32, Context, CursorIcon, Event, EventFilter, FontSelection, Id, ImeEvent,
+    Align, Align2, Color32, Context, CursorIcon, Event, EventFilter, FontSelection, Id, IdSalt,
+    ImeEvent,
     Key, KeyboardShortcut, Margin, Modifiers, NumExt as _, Response, Sense, Shape, TextBuffer,
     TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetWithState, epaint,
     os::OperatingSystem,
@@ -70,7 +71,7 @@ pub struct TextEdit<'t> {
     hint_text: WidgetText,
     hint_text_font: Option<FontSelection>,
     id: Option<Id>,
-    id_salt: Option<Id>,
+    id_salt: Option<IdSalt>,
     font_selection: FontSelection,
     text_color: Option<Color32>,
     layouter: Option<LayouterFn<'t>>,
@@ -175,7 +176,7 @@ impl<'t> TextEdit<'t> {
     /// A source for the unique [`Id`], e.g. `.id_salt("second_text_edit_field")` or `.id_salt(loop_index)`.
     #[inline]
     pub fn id_salt(mut self, id_salt: impl Into<crate::IdSalt>) -> Self {
-        self.id_salt = Some(id_salt.into().id());
+        self.id_salt = Some(id_salt.into());
         self
     }
 

@@ -1,6 +1,6 @@
 use crate::{
-    Align2, Color32, Context, CursorIcon, Id, NumExt as _, Rect, Response, Sense, Shape, Ui,
-    UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b, pos2, vec2,
+    Align2, Color32, Context, CursorIcon, Id, IdSalt, NumExt as _, Rect, Response, Sense, Shape,
+    Ui, UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b, pos2, vec2,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -34,7 +34,7 @@ impl State {
 #[must_use = "You should call .show()"]
 pub struct Resize {
     id: Option<Id>,
-    id_salt: Option<Id>,
+    id_salt: Option<IdSalt>,
 
     /// If false, we are no enabled
     resizable: Vec2b,
@@ -79,7 +79,7 @@ impl Resize {
     /// A source for the unique [`Id`], e.g. `.id_salt("second_resize_area")` or `.id_salt(loop_index)`.
     #[inline]
     pub fn id_salt(mut self, id_salt: impl Into<crate::IdSalt>) -> Self {
-        self.id_salt = Some(id_salt.into().id());
+        self.id_salt = Some(id_salt.into());
         self
     }
 
@@ -208,7 +208,7 @@ impl Resize {
     fn begin(&self, ui: &mut Ui) -> Prepared {
         let position = ui.available_rect_before_wrap().min;
         let id = self.id.unwrap_or_else(|| {
-            let id_salt = self.id_salt.unwrap_or_else(|| Id::new("resize"));
+            let id_salt = self.id_salt.unwrap_or_else(|| IdSalt::from("resize"));
             ui.make_persistent_id(id_salt)
         });
 

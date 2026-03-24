@@ -5,7 +5,7 @@ use accesskit_consumer::{FilterResult, Node, NodeId, Tree, TreeChangeHandler};
 
 use eframe::epaint::text::TextWrapMode;
 use egui::{
-    Button, Color32, Event, Frame, FullOutput, Id, Key, KeyboardShortcut, Label, Modifiers, Panel,
+    Button, Color32, Event, Frame, FullOutput, Id, IdSalt, Key, KeyboardShortcut, Label, Modifiers, Panel,
     RawInput, RichText, ScrollArea, Ui, collapsing_header::CollapsingState,
 };
 
@@ -213,7 +213,7 @@ impl AccessibilityInspectorPlugin {
         #[expect(unsafe_code)]
         let egui_node_id = unsafe { Id::from_high_entropy_bits(node.locate().0.0) };
 
-        ui.push_id(node.id(), |ui| {
+        ui.push_id(IdSalt::new(node.id()), |ui| {
             let child_count = node.children().len();
             let has_children = child_count > 0;
             let default_open = child_count == 1 && node.role() != accesskit::Role::Label;

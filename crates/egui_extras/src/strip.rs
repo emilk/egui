@@ -198,7 +198,7 @@ impl Strip<'_, '_> {
             flags,
             width,
             height,
-            egui::Id::new(self.size_index),
+            egui::IdSalt::new(self.size_index),
             add_contents,
         );
     }

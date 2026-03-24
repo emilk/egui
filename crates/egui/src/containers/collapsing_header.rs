@@ -1,5 +1,5 @@
 use crate::{
-    Context, Id, InnerResponse, NumExt as _, Rect, Response, Sense, Stroke, TextStyle,
+    Context, Id, IdSalt, InnerResponse, NumExt as _, Rect, Response, Sense, Stroke, TextStyle,
     TextWrapMode, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetInfo, WidgetText, WidgetType,
     emath, epaint, pos2, remap, remap_clamp, vec2,
 };
@@ -391,7 +391,7 @@ pub struct CollapsingHeader {
     text: WidgetText,
     default_open: bool,
     open: Option<bool>,
-    id_salt: Id,
+    id_salt: IdSalt,
     enabled: bool,
     selectable: bool,
     selected: bool,
@@ -408,7 +408,7 @@ impl CollapsingHeader {
     /// you need to provide a unique id source with [`Self::id_salt`].
     pub fn new(text: impl Into<WidgetText>) -> Self {
         let text = text.into();
-        let id_salt = Id::new_salt(text.text());
+        let id_salt = IdSalt::new(text.text());
         Self {
             text,
             default_open: false,
@@ -445,7 +445,7 @@ impl CollapsingHeader {
     /// This is useful if the title label is dynamic or not unique.
     #[inline]
     pub fn id_salt(mut self, id_salt: impl Into<crate::IdSalt>) -> Self {
-        self.id_salt = id_salt.into().id();
+        self.id_salt = id_salt.into();
         self
     }
 
@@ -454,7 +454,7 @@ impl CollapsingHeader {
     #[deprecated = "Renamed id_salt"]
     #[inline]
     pub fn id_source(mut self, id_salt: impl Into<crate::IdSalt>) -> Self {
-        self.id_salt = id_salt.into().id();
+        self.id_salt = id_salt.into();
         self
     }
 

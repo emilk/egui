@@ -171,7 +171,7 @@ fn test_id_new_rejects_id() {
 /// let id = Id::new("parent");
 /// let salt: IdSalt = id.into();
 /// ```
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, Hash)]
 pub struct IdSalt(Id);
 
 impl IdSalt {

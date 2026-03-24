@@ -3,7 +3,7 @@ use std::sync::Arc;
 use emath::GuiRounding as _;
 
 use crate::{
-    Align2, Color32, Context, Id, InnerResponse, NumExt as _, Painter, Rect, Region, Style, Ui,
+    Align2, Color32, Context, Id, IdSalt, InnerResponse, NumExt as _, Painter, Rect, Region, Style, Ui,
     UiBuilder, Vec2, vec2,
 };
 
@@ -312,7 +312,7 @@ impl GridLayout {
 /// ```
 #[must_use = "You should call .show()"]
 pub struct Grid {
-    id_salt: Id,
+    id_salt: IdSalt,
     num_columns: Option<usize>,
     min_col_width: Option<f32>,
     min_row_height: Option<f32>,
@@ -326,7 +326,7 @@ impl Grid {
     /// Create a new [`Grid`] with a locally unique identifier.
     pub fn new(id_salt: impl Into<crate::IdSalt>) -> Self {
         Self {
-            id_salt: id_salt.into().id(),
+            id_salt: id_salt.into(),
             num_columns: None,
             min_col_width: None,
             min_row_height: None,

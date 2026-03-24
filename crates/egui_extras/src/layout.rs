@@ -1,4 +1,4 @@
-use egui::{Id, Pos2, Rect, Response, Sense, Ui, UiBuilder, emath::GuiRounding as _};
+use egui::{Pos2, Rect, Response, Sense, Ui, UiBuilder, emath::GuiRounding as _};
 
 #[derive(Clone, Copy)]
 pub(crate) enum CellSize {
@@ -117,7 +117,7 @@ impl<'l> StripLayout<'l> {
         flags: StripLayoutFlags,
         width: CellSize,
         height: CellSize,
-        child_ui_id_salt: Id,
+        child_ui_id_salt: egui::IdSalt,
         add_cell_contents: impl FnOnce(&mut Ui),
     ) -> (Rect, Response) {
         let max_rect = self.cell_rect(&width, &height);
@@ -201,7 +201,7 @@ impl<'l> StripLayout<'l> {
         &mut self,
         flags: StripLayoutFlags,
         max_rect: Rect,
-        child_ui_id_salt: egui::Id,
+        child_ui_id_salt: egui::IdSalt,
         add_cell_contents: impl FnOnce(&mut Ui),
     ) -> Ui {
         let mut ui_builder = UiBuilder::new()

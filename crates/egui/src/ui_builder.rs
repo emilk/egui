@@ -13,7 +13,7 @@ use crate::{Id, IdSalt, LayerId, Layout, Rect, Sense, Style, UiStackInfo};
 #[must_use]
 #[derive(Clone, Default)]
 pub struct UiBuilder {
-    pub id_salt: Option<Id>,
+    pub id_salt: Option<IdSalt>,
     pub global_scope: bool,
     pub ui_stack_info: UiStackInfo,
     pub layer_id: Option<LayerId>,
@@ -40,7 +40,7 @@ impl UiBuilder {
     /// within the parent, or give it none at all.
     #[inline]
     pub fn id_salt(mut self, id_salt: impl Into<IdSalt>) -> Self {
-        self.id_salt = Some(id_salt.into().id());
+        self.id_salt = Some(id_salt.into());
         self
     }
 
@@ -55,7 +55,7 @@ impl UiBuilder {
     /// This is a shortcut for `.id_salt(my_id).global_scope(true)`.
     #[inline]
     pub fn id(mut self, id: Id) -> Self {
-        self.id_salt = Some(id);
+        self.id_salt = Some(id.into());
         self.global_scope = true;
         self
     }

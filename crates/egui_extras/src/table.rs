@@ -4,7 +4,7 @@
 //! Takes all available height, so if you want something below the table, put it in a strip.
 
 use egui::{
-    Align, Id, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui, Vec2, Vec2b,
+    Align, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui, Vec2, Vec2b,
     scroll_area::{ScrollAreaOutput, ScrollBarVisibility, ScrollSource},
 };
 
@@ -246,7 +246,7 @@ impl Default for TableScrollOptions {
 /// ```
 pub struct TableBuilder<'a> {
     ui: &'a mut Ui,
-    id_salt: Id,
+    id_salt: egui::IdSalt,
     columns: Vec<Column>,
     striped: Option<bool>,
     resizable: bool,
@@ -260,7 +260,7 @@ impl<'a> TableBuilder<'a> {
         let cell_layout = *ui.layout();
         Self {
             ui,
-            id_salt: Id::new("__table_state"),
+            id_salt: egui::IdSalt::from("__table_state"),
             columns: Default::default(),
             striped: None,
             resizable: false,
@@ -284,7 +284,7 @@ impl<'a> TableBuilder<'a> {
     /// This is required if you have multiple tables in the same [`Ui`].
     #[inline]
     pub fn id_salt(mut self, id_salt: impl Into<egui::IdSalt>) -> Self {
-        self.id_salt = id_salt.into().id();
+        self.id_salt = id_salt.into();
         self
     }
 
@@ -1314,7 +1314,7 @@ impl TableRow<'_, '_> {
             flags,
             width,
             height,
-            egui::Id::new((self.row_index, col_index)),
+            egui::IdSalt::new((self.row_index, col_index)),
             add_cell_contents,
         );
 

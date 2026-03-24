@@ -1,7 +1,7 @@
 use epaint::Shape;
 
 use crate::{
-    Align2, Context, Id, InnerResponse, NumExt as _, Painter, Popup, PopupCloseBehavior, Rect,
+    Align2, Context, Id, IdSalt, InnerResponse, NumExt as _, Painter, Popup, PopupCloseBehavior, Rect,
     Response, ScrollArea, Sense, Stroke, TextStyle, TextWrapMode, Ui, UiBuilder, Vec2, WidgetInfo,
     WidgetText, WidgetType, epaint, style::StyleModifier, style::WidgetVisuals, vec2,
 };
@@ -36,7 +36,7 @@ pub type IconPainter = Box<dyn FnOnce(&Ui, Rect, &WidgetVisuals, bool)>;
 /// ```
 #[must_use = "You should call .show*"]
 pub struct ComboBox {
-    id_salt: Id,
+    id_salt: IdSalt,
     label: Option<WidgetText>,
     selected_text: WidgetText,
     width: Option<f32>,
@@ -51,7 +51,7 @@ impl ComboBox {
     /// Create new [`ComboBox`] with id and label
     pub fn new(id_salt: impl Into<crate::IdSalt>, label: impl Into<WidgetText>) -> Self {
         Self {
-            id_salt: id_salt.into().id(),
+            id_salt: id_salt.into(),
             label: Some(label.into()),
             selected_text: Default::default(),
             width: None,
@@ -67,7 +67,7 @@ impl ComboBox {
     pub fn from_label(label: impl Into<WidgetText>) -> Self {
         let label = label.into();
         Self {
-            id_salt: Id::new_salt(label.text()),
+            id_salt: IdSalt::new(label.text()),
             label: Some(label),
             selected_text: Default::default(),
             width: None,
@@ -82,7 +82,7 @@ impl ComboBox {
     /// Without label.
     pub fn from_id_salt(id_salt: impl Into<crate::IdSalt>) -> Self {
         Self {
-            id_salt: id_salt.into().id(),
+            id_salt: id_salt.into(),
             label: Default::default(),
             selected_text: Default::default(),
             width: None,

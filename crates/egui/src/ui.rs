@@ -265,7 +265,7 @@ impl Ui {
 
         let mut painter = self.painter.clone();
 
-        let id_salt = id_salt.unwrap_or_else(|| Id::from("child"));
+        let id_salt = id_salt.unwrap_or_else(|| IdSalt::from("child"));
         let max_rect = max_rect.unwrap_or_else(|| self.available_rect_before_wrap());
         let mut layout = layout.unwrap_or_else(|| *self.layout());
         let enabled = self.enabled && !disabled && !invisible;
@@ -290,7 +290,7 @@ impl Ui {
 
         debug_assert!(!max_rect.any_nan(), "max_rect is NaN: {max_rect:?}");
         let (stable_id, unique_id) = if global_scope {
-            (id_salt, id_salt)
+            (id_salt.id(), id_salt.id())
         } else {
             let stable_id = self.id.with(id_salt);
             let unique_id = stable_id.with(self.next_auto_id_salt);
