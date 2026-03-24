@@ -97,7 +97,7 @@ glutin-winit = { version = "0.5.0", default-features = false }
 home = "0.5.9"
 image = { version = "0.25.6", default-features = false }
 js-sys = "0.3.77"
-kittest = { version = "0.3.0" }
+kittest = { version = "0.4.0" }
 log = { version = "0.4.28", features = ["std"] }
 memoffset = "0.9.1"
 mimalloc = "0.1.48"
@@ -147,9 +147,6 @@ webbrowser = "1.0.5"
 wgpu = { version = "29.0.0", default-features = false, features = ["std"] }
 windows-sys = "0.61.2"
 winit = { version = "0.30.12", default-features = false }
-
-[patch.crates-io]
-kittest = { git = "https://github.com/rerun-io/kittest", branch = "main" }
 
 [workspace.lints.rust]
 unsafe_code = "deny"
