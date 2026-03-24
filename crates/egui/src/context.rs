@@ -1360,7 +1360,7 @@ impl Context {
 
         let WidgetRect {
             id,
-            parent_id,
+            parent_id: _,
             layer_id,
             rect,
             interact_rect,
@@ -1378,7 +1378,6 @@ impl Context {
             rect,
             interact_rect,
             sense,
-            parent_id,
             flags: Flags::empty(),
             interact_pointer_pos: None,
             intrinsic_size: None,

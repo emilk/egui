@@ -1,10 +1,10 @@
 use std::{any::Any, sync::Arc};
 
 use crate::{
-    Context, CursorIcon, Id, LayerId, PointerButton, Popup, PopupKind, Sense, Tooltip, Ui,
-    WidgetRect, WidgetText,
-    emath::{Align, Pos2, Rect, Vec2},
-    pass_state,
+    emath::{Align, Pos2, Rect, Vec2}, pass_state, Context, CursorIcon, Id, LayerId, PointerButton, Popup, PopupKind, Sense,
+    Tooltip, Ui,
+    WidgetRect,
+    WidgetText,
 };
 // ----------------------------------------------------------------------------
 
@@ -50,9 +50,6 @@ pub struct Response {
     /// but we don't want to change the style when a widget is disabled
     /// (that is handled by the `Painter` directly).
     pub sense: Sense,
-
-    /// The [`Id`] of the parent [`crate::Ui`] that hosts this widget.
-    pub(crate) parent_id: Id,
 
     // OUT:
     /// Where the pointer (mouse/touch) were when this widget was clicked or dragged.
@@ -144,6 +141,22 @@ bitflags::bitflags! {
 }
 
 impl Response {
+    /// The [`Id`] of the parent [`crate::Ui`] that hosts this widget.
+    ///
+    /// Looks up the [`WidgetRect`] from the current (or previous) pass.
+    pub fn parent_id(&self) -> Id {
+        let id = self.ctx.viewport(|viewport| {
+            viewport
+                .this_pass
+                .widgets
+                .get(self.id)
+                .or_else(|| viewport.prev_pass.widgets.get(self.id))
+                .map(|w| w.parent_id)
+        });
+        debug_assert!(id.is_some(), "WidgetRect for Response not found!");
+        id.unwrap_or(Id::NULL)
+    }
+
     /// Returns true if this widget was clicked this frame by the primary button.
     ///
     /// A click is registered when the mouse or touch is released within
@@ -735,7 +748,7 @@ impl Response {
             WidgetRect {
                 layer_id: self.layer_id,
                 id: self.id,
-                parent_id: self.parent_id,
+                parent_id: self.parent_id(),
                 rect: self.rect,
                 interact_rect: self.interact_rect,
                 sense: self.sense | sense,
@@ -1010,7 +1023,6 @@ impl Response {
             rect: self.rect.union(other.rect),
             interact_rect: self.interact_rect.union(other.interact_rect),
             sense: self.sense.union(other.sense),
-            parent_id: self.parent_id,
             flags: self.flags | other.flags,
             interact_pointer_pos: self.interact_pointer_pos.or(other.interact_pointer_pos),
             intrinsic_size: None,
