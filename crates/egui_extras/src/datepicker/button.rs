@@ -1,6 +1,6 @@
 use super::popup::DatePickerPopup;
-use chrono::NaiveDate;
 use egui::{Area, Button, Frame, InnerResponse, Key, Order, RichText, Ui, Widget};
+use jiff::civil::Date;
 use std::ops::RangeInclusive;
 
 #[derive(Default, Clone)]
@@ -11,7 +11,7 @@ pub(crate) struct DatePickerButtonState {
 
 /// Shows a date, and will open a date picker popup when clicked.
 pub struct DatePickerButton<'a> {
-    selection: &'a mut NaiveDate,
+    selection: &'a mut Date,
     id_salt: Option<&'a str>,
     combo_boxes: bool,
     arrows: bool,
@@ -20,11 +20,11 @@ pub struct DatePickerButton<'a> {
     show_icon: bool,
     format: String,
     highlight_weekends: bool,
-    start_end_years: Option<RangeInclusive<i32>>,
+    start_end_years: Option<RangeInclusive<i16>>,
 }
 
 impl<'a> DatePickerButton<'a> {
-    pub fn new(selection: &'a mut NaiveDate) -> Self {
+    pub fn new(selection: &'a mut Date) -> Self {
         Self {
             selection,
             id_salt: None,
@@ -91,7 +91,7 @@ impl<'a> DatePickerButton<'a> {
     }
 
     /// Change the format shown on the button. (Default: %Y-%m-%d)
-    /// See [`chrono::format::strftime`] for valid formats.
+    /// See [`jiff::fmt::strtime`] for valid formats.
     #[inline]
     pub fn format(mut self, format: impl Into<String>) -> Self {
         self.format = format.into();
@@ -111,7 +111,7 @@ impl<'a> DatePickerButton<'a> {
     /// For example, if you want to provide the range of years from 2000 to 2035, you can use:
     /// `start_end_years(2000..=2035)`.
     #[inline]
-    pub fn start_end_years(mut self, start_end_years: RangeInclusive<i32>) -> Self {
+    pub fn start_end_years(mut self, start_end_years: RangeInclusive<i16>) -> Self {
         self.start_end_years = Some(start_end_years);
         self
     }
@@ -125,9 +125,9 @@ impl Widget for DatePickerButton<'_> {
             .unwrap_or_default();
 
         let mut text = if self.show_icon {
-            RichText::new(format!("{} 📆", self.selection.format(&self.format)))
+            RichText::new(format!("{} 📆", self.selection.strftime(&self.format)))
         } else {
-            RichText::new(format!("{}", self.selection.format(&self.format)))
+            RichText::new(format!("{}", self.selection.strftime(&self.format)))
         };
         let visuals = ui.visuals().widgets.open;
         if button_state.picker_visible {

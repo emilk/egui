@@ -1,4 +1,4 @@
-use chrono::{Datelike as _, NaiveDate, Weekday};
+use jiff::civil::{Date, Weekday};
 
 use egui::{Align, Button, Color32, ComboBox, Direction, Id, Layout, RichText, Ui, Vec2};
 
@@ -9,40 +9,36 @@ use crate::{Column, Size, StripBuilder, TableBuilder};
 #[derive(Default, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 struct DatePickerPopupState {
-    year: i32,
-    month: u32,
-    day: u32,
+    year: i16,
+    month: i8,
+    day: i8,
     setup: bool,
 }
 
 impl DatePickerPopupState {
-    fn last_day_of_month(&self) -> u32 {
-        let date: NaiveDate =
-            NaiveDate::from_ymd_opt(self.year, self.month, 1).expect("Could not create NaiveDate");
-        date.with_day(31)
-            .map(|_| 31)
-            .or_else(|| date.with_day(30).map(|_| 30))
-            .or_else(|| date.with_day(29).map(|_| 29))
-            .unwrap_or(28)
+    fn last_day_of_month(&self) -> i8 {
+        Date::new(self.year, self.month, 1)
+            .expect("Could not create Date")
+            .days_in_month()
     }
 }
 
 pub(crate) struct DatePickerPopup<'a> {
-    pub selection: &'a mut NaiveDate,
+    pub selection: &'a mut Date,
     pub button_id: Id,
     pub combo_boxes: bool,
     pub arrows: bool,
     pub calendar: bool,
     pub calendar_week: bool,
     pub highlight_weekends: bool,
-    pub start_end_years: Option<std::ops::RangeInclusive<i32>>,
+    pub start_end_years: Option<std::ops::RangeInclusive<i16>>,
 }
 
 impl DatePickerPopup<'_> {
     /// Returns `true` if user pressed `Save` button.
     pub fn draw(&mut self, ui: &mut Ui) -> bool {
         let id = ui.make_persistent_id("date_picker");
-        let today = chrono::offset::Utc::now().date_naive();
+        let today = jiff::Zoned::now().date();
         let mut popup_state = ui
             .data_mut(|data| data.get_persisted::<DatePickerPopupState>(id))
             .unwrap_or_default();
@@ -113,7 +109,7 @@ impl DatePickerPopup<'_> {
                                 ComboBox::from_id_salt("date_picker_month")
                                     .selected_text(month_name(popup_state.month))
                                     .show_ui(ui, |ui| {
-                                        for month in 1..=12 {
+                                        for month in 1i8..=12 {
                                             if ui
                                                 .selectable_value(
                                                     &mut popup_state.month,
@@ -137,7 +133,7 @@ impl DatePickerPopup<'_> {
                                 ComboBox::from_id_salt("date_picker_day")
                                     .selected_text(popup_state.day.to_string())
                                     .show_ui(ui, |ui| {
-                                        for day in 1..=popup_state.last_day_of_month() {
+                                        for day in 1i8..=popup_state.last_day_of_month() {
                                             if ui
                                                 .selectable_value(
                                                     &mut popup_state.day,
@@ -314,9 +310,10 @@ impl DatePickerPopup<'_> {
                                                             && popup_state.day == day.day()
                                                         {
                                                             ui.visuals().selection.bg_fill
-                                                        } else if (day.weekday() == Weekday::Sat
-                                                            || day.weekday() == Weekday::Sun)
-                                                            && self.highlight_weekends
+                                                        } else if (matches!(
+                                                            day.weekday(),
+                                                            Weekday::Saturday | Weekday::Sunday
+                                                        )) && self.highlight_weekends
                                                         {
                                                             if ui.visuals().dark_mode {
                                                                 Color32::DARK_RED
@@ -396,12 +393,12 @@ impl DatePickerPopup<'_> {
                         strip.cell(|ui| {
                             ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
                                 if ui.button("Save").clicked() {
-                                    *self.selection = NaiveDate::from_ymd_opt(
+                                    *self.selection = Date::new(
                                         popup_state.year,
                                         popup_state.month,
                                         popup_state.day,
                                     )
-                                    .expect("Could not create NaiveDate");
+                                    .expect("Could not create Date");
                                     saved = true;
                                     close = true;
                                 }
@@ -424,7 +421,7 @@ impl DatePickerPopup<'_> {
     }
 }
 
-fn month_name(i: u32) -> &'static str {
+fn month_name(i: i8) -> &'static str {
     match i {
         1 => "January",
         2 => "February",
