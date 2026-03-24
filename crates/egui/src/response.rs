@@ -151,6 +151,22 @@ bitflags::bitflags! {
 }
 
 impl Response {
+    /// The [`Id`] of the parent [`crate::Ui`] that hosts this widget.
+    ///
+    /// Looks up the [`WidgetRect`] from the current (or previous) pass.
+    pub fn parent_id(&self) -> Id {
+        let id = self.ctx.viewport(|viewport| {
+            viewport
+                .this_pass
+                .widgets
+                .get(self.id)
+                .or_else(|| viewport.prev_pass.widgets.get(self.id))
+                .map(|w| w.parent_id)
+        });
+        debug_assert!(id.is_some(), "WidgetRect for Response not found!");
+        id.unwrap_or(Id::NULL)
+    }
+
     /// Returns true if this widget was clicked this frame by the primary button.
     ///
     /// A click is registered when the mouse or touch is released within
@@ -761,6 +777,7 @@ impl Response {
             WidgetRect {
                 layer_id: self.layer_id,
                 id: self.id,
+                parent_id: self.parent_id(),
                 rect: self.rect,
                 interact_rect: self.interact_rect,
                 sense: self.sense | sense,

@@ -173,6 +173,7 @@ impl Ui {
         ui.ctx().create_widget(
             WidgetRect {
                 id: ui.unique_id,
+                parent_id: ui.id,
                 layer_id: ui.layer_id(),
                 rect: start_rect,
                 interact_rect: start_rect,
@@ -339,6 +340,7 @@ impl Ui {
         child_ui.ctx().create_widget(
             WidgetRect {
                 id: child_ui.unique_id,
+                parent_id: self.id,
                 layer_id: child_ui.layer_id(),
                 rect: start_rect,
                 interact_rect: start_rect,
@@ -1043,6 +1045,7 @@ impl Ui {
         self.ctx().create_widget(
             WidgetRect {
                 id,
+                parent_id: self.id,
                 layer_id: self.layer_id(),
                 rect,
                 interact_rect: self.clip_rect().intersect(rect),
@@ -1112,6 +1115,7 @@ impl Ui {
         let mut response = self.ctx().create_widget(
             WidgetRect {
                 id: self.unique_id,
+                parent_id: self.id,
                 layer_id: self.layer_id(),
                 rect: self.min_rect(),
                 interact_rect: self.clip_rect().intersect(self.min_rect()),
