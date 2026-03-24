@@ -20,6 +20,8 @@ impl ImeManager {
         platform_output.ime = self.ime_state.take_ime_output();
     }
 
+    /// See [`crate::Context::try_claim_ime_events_ownership`] for the
+    /// documentation.
     pub fn try_claim_ime_events_ownership(&mut self, id: Id) -> bool {
         match &self.ime_state {
             ImeState::Idle => {
@@ -37,13 +39,14 @@ impl ImeManager {
         }
     }
 
-    pub fn try_set_ime_output(&mut self, id: Id, ime_output: impl FnOnce() -> IMEOutput) {
+    /// See [`crate::Context::try_set_ime_output`] for the documentation.
+    pub fn try_set_ime_output(&mut self, id: Id, get_ime_output: impl FnOnce() -> IMEOutput) {
         match &mut self.ime_state {
             ImeState::Owned {
                 owner,
                 ime_output: current_ime_output,
             } if *owner == id => {
-                *current_ime_output = Some(ime_output());
+                *current_ime_output = Some(get_ime_output());
             }
             _ => {}
         }
@@ -52,21 +55,55 @@ impl ImeManager {
 
 #[derive(Clone, Debug, Default)]
 enum ImeState {
+    /// No widget currently owns or has claimed IME events.
+    ///
+    /// When a widget calls [`ImeManager::try_claim_ime_events_ownership`],
+    /// the state transitions to [`ImeState::Claimed`] and the call returns
+    /// `false` (ownership is not yet granted).
+    ///
+    /// This is also the state after an [`interrupt`](Self::interrupt) or when
+    /// no widget reclaims ownership between frames.
     #[default]
     Idle,
+
+    /// A widget has expressed interest in owning IME events this frame, but
+    /// ownership has not yet been granted.
+    ///
+    /// At the end of the frame (in [`ImeManager::end_pass`]), the state
+    /// transitions to [`ImeState::ClaimedLastFrame`], giving the widget the
+    /// opportunity to confirm ownership on the next frame.
+    Claimed { claimer: Id },
+
+    /// A widget claimed (or previously owned) IME events last frame and may
+    /// confirm ownership this frame.
+    ///
+    /// - If the same widget calls
+    ///   [`ImeManager::try_claim_ime_events_ownership`] again, the state
+    ///   transitions to [`ImeState::Owned`] and the call returns `true`.
+    /// - Otherwise, the state transitions back to [`ImeState::Idle`] at the end
+    ///   of the frame.
+    ClaimedLastFrame { claimer: Id },
+
+    /// A widget fully owns IME events for the current frame and may set
+    /// [`IMEOutput`] via [`ImeManager::try_set_ime_output`].
+    ///
+    /// At the end of the frame the stored [`IMEOutput`] (if any) is forwarded
+    /// to [`PlatformOutput`] and the state transitions to
+    /// [`ImeState::ClaimedLastFrame`]. This means the owning widget will
+    /// retain ownership on subsequent frames as long as it continues to call
+    /// [`ImeManager::try_claim_ime_events_ownership`] and is not
+    /// [`interrupted`](Self::interrupt).
     Owned {
         owner: Id,
         ime_output: Option<IMEOutput>,
     },
-    Claimed {
-        claimer: Id,
-    },
-    ClaimedLastFrame {
-        claimer: Id,
-    },
 }
 
 impl ImeState {
+    /// Interrupts IME handling for the current frame, ensuring that no widget
+    /// can claim ownership of IME events during this frame. This will result in
+    /// the platform output's IME output being `None` for the current frame,
+    /// which should cause the IME to be dismissed.
     fn interrupt(&mut self) {
         *self = Self::Idle;
     }

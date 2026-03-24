@@ -123,6 +123,10 @@ pub struct PlatformOutput {
     /// This is set if, and only if, the user is currently editing text.
     ///
     /// Useful for IME.
+    ///
+    /// NOTE: don't set this directly. Use
+    /// [`crate::Context::try_set_ime_output`] instead, as values set here will
+    /// be overridden.
     pub ime: Option<IMEOutput>,
 
     /// The difference in the widget tree since last frame.
