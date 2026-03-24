@@ -169,7 +169,10 @@ objc2-foundation = { workspace = true, default-features = false, features = [
 objc2-app-kit = { workspace = true, default-features = false, features = [
   "std",
   "NSApplication",
+  "NSBitmapImageRep",
+  "NSGraphics",
   "NSImage",
+  "NSImageRep",
   "NSMenu",
   "NSMenuItem",
   "NSResponder",
