@@ -25,10 +25,10 @@ crate-type = ["cdylib", "rlib"]
 [features]
 default = ["wgpu", "persistence"]
 
-# image_viewer adds about 0.9 MB of WASM
 web_app = ["http", "persistence"]
 
 accessibility_inspector = ["dep:accesskit", "dep:accesskit_consumer", "eframe/accesskit"]
+easymark = [] # easymark is off by default, because it a pretty shitty markup language
 http = ["ehttp", "image/jpeg", "poll-promise", "egui_extras/image"]
 image_viewer = ["image/jpeg", "egui_extras/all_loaders", "rfd"]
 persistence = ["eframe/persistence", "egui_extras/serde", "egui/persistence", "serde"]
