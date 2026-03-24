@@ -1360,6 +1360,7 @@ impl Context {
 
         let WidgetRect {
             id,
+            parent_id,
             layer_id,
             rect,
             interact_rect,
@@ -1377,6 +1378,7 @@ impl Context {
             rect,
             interact_rect,
             sense,
+            parent_id,
             flags: Flags::empty(),
             interact_pointer_pos: None,
             intrinsic_size: None,
@@ -4324,6 +4326,15 @@ fn warn_if_rect_changes_id(
             // If they all still exist (just at a different rect), then the rect match
             // is just a coincidence caused by widgets shifting (e.g. a window being dragged).
             if prev_at_rect.iter().all(|w| new_widgets.contains(w.id)) {
+                continue;
+            }
+
+            // Only warn if at least one widget has the same parent_id in both frames.
+            // If all parent_ids changed too, this is a cascading id shift, not a widget bug.
+            if !prev_at_rect
+                .iter()
+                .any(|pw| new_at_rect.iter().any(|nw| nw.parent_id == pw.parent_id))
+            {
                 continue;
             }
 

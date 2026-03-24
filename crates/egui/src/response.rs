@@ -51,6 +51,9 @@ pub struct Response {
     /// (that is handled by the `Painter` directly).
     pub sense: Sense,
 
+    /// The [`Id`] of the parent [`crate::Ui`] that hosts this widget.
+    pub(crate) parent_id: Id,
+
     // OUT:
     /// Where the pointer (mouse/touch) were when this widget was clicked or dragged.
     /// `None` if the widget is not being interacted with.
@@ -732,6 +735,7 @@ impl Response {
             WidgetRect {
                 layer_id: self.layer_id,
                 id: self.id,
+                parent_id: self.parent_id,
                 rect: self.rect,
                 interact_rect: self.interact_rect,
                 sense: self.sense | sense,
@@ -1006,6 +1010,7 @@ impl Response {
             rect: self.rect.union(other.rect),
             interact_rect: self.interact_rect.union(other.interact_rect),
             sense: self.sense.union(other.sense),
+            parent_id: self.parent_id,
             flags: self.flags | other.flags,
             interact_pointer_pos: self.interact_pointer_pos.or(other.interact_pointer_pos),
             intrinsic_size: None,

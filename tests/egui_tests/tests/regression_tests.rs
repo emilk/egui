@@ -280,6 +280,49 @@ fn warn_if_rect_changes_id() {
     );
 }
 
+/// When a parent Ui's id changes (e.g. via `push_id` with a dynamic value),
+/// all child widget ids shift too. This should NOT trigger `warn_if_rect_changes_id` because the
+/// parent_id also changed — it's a cascading id shift, not a widget bug.
+#[test]
+fn warn_if_rect_changes_id_false_positive_parent_shift() {
+    use std::cell::Cell;
+
+    let counter = Cell::new(0);
+    let button_rect = egui::Rect::from_min_size(egui::pos2(10.0, 10.0), egui::vec2(100.0, 30.0));
+
+    let mut harness = Harness::builder().with_size((200.0, 100.0)).build_ui(|ui| {
+        // push_id with a changing value causes the child Ui's id to shift,
+        // which in turn shifts all widget ids inside it.
+        ui.push_id(counter.get(), |ui| {
+            let id = ui.id().with("my_widget");
+            let _response = ui.interact(button_rect, id, Sense::click());
+        });
+    });
+
+    // Frame 1: counter=0 — establishes prev_pass
+    harness.step();
+    assert!(
+        !has_red_warning_rect(harness.output()),
+        "Should not warn on first frame"
+    );
+
+    // Frame 2: counter=0 — prev_pass == this_pass
+    harness.step();
+    assert!(
+        !has_red_warning_rect(harness.output()),
+        "Should not warn when nothing changed"
+    );
+
+    // Now change the parent id, shifting all child widget ids
+    counter.set(1);
+    harness.step();
+
+    assert!(
+        !has_red_warning_rect(harness.output()),
+        "Should NOT warn when parent Ui's id shifted (cascading id change)"
+    );
+}
+
 #[test]
 fn horizontal_wrapped_multiline_row_height() {
     let mut harness = Harness::builder().with_size((350.0, 300.0)).build_ui(|ui| {
