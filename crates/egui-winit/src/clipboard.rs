@@ -65,13 +65,12 @@ impl Clipboard {
             feature = "smithay-clipboard"
         ))]
         if let Some(clipboard) = &mut self.smithay {
-            return match clipboard.load() {
-                Ok(text) => Some(text),
+            match clipboard.load() {
+                Ok(text) => return Some(text),
                 Err(err) => {
                     log::error!("smithay paste error: {err}");
-                    None
                 }
-            };
+            }
         }
 
         #[cfg(all(

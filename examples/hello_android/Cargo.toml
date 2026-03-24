@@ -22,7 +22,7 @@ eframe = { workspace = true, default-features = false, features = [
   "glow",
   "android-native-activity",
 ] }
-egui_demo_lib = { workspace = true, features = ["chrono"] }
+egui_demo_lib = { workspace = true, features = ["jiff"] }
 
 # For image support:
 egui_extras = { workspace = true, features = ["default", "image"] }

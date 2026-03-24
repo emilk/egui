@@ -25,10 +25,10 @@ crate-type = ["cdylib", "rlib"]
 [features]
 default = ["wgpu", "persistence"]
 
-# image_viewer adds about 0.9 MB of WASM
 web_app = ["http", "persistence"]
 
 accessibility_inspector = ["dep:accesskit", "dep:accesskit_consumer", "eframe/accesskit"]
+easymark = [] # easymark is off by default, because it a pretty shitty markup language
 http = ["ehttp", "image/jpeg", "poll-promise", "egui_extras/image"]
 image_viewer = ["image/jpeg", "egui_extras/all_loaders", "rfd"]
 persistence = ["eframe/persistence", "egui_extras/serde", "egui/persistence", "serde"]
@@ -42,15 +42,15 @@ wayland = ["eframe/wayland"]
 x11 = ["eframe/x11"]
 
 [dependencies]
-chrono = { workspace = true, features = ["js-sys", "wasmbind"] }
 eframe = { workspace = true, default-features = false, features = ["web_screen_reader"] }
 egui = { workspace = true, features = ["callstack", "default"] }
-egui_demo_lib = { workspace = true, features = ["default", "chrono"] }
+egui_demo_lib = { workspace = true, features = ["default", "jiff"] }
 egui_extras = { workspace = true, features = ["default", "image"] }
 image = { workspace = true, default-features = false, features = [
   # Ensure we can display the test images
   "png",
 ] }
+jiff = { workspace = true, features = ["std", "tz-system", "js"] }
 log.workspace = true
 profiling.workspace = true
 

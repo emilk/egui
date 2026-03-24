@@ -240,6 +240,18 @@ impl<'a> Button<'a> {
         self
     }
 
+    /// Show some text on the left side of the button.
+    #[inline]
+    pub fn left_text(mut self, left_text: impl IntoAtoms<'a>) -> Self {
+        self.layout.push_left(Atom::grow());
+
+        for atom in left_text.into_atoms() {
+            self.layout.push_left(atom);
+        }
+
+        self
+    }
+
     /// Show some text on the right side of the button.
     #[inline]
     pub fn right_text(mut self, right_text: impl IntoAtoms<'a>) -> Self {
@@ -256,6 +268,13 @@ impl<'a> Button<'a> {
     #[inline]
     pub fn selected(mut self, selected: bool) -> Self {
         self.selected = selected;
+        self
+    }
+
+    /// Set the gap between atoms.
+    #[inline]
+    pub fn gap(mut self, gap: f32) -> Self {
+        self.layout = self.layout.gap(gap);
         self
     }
 

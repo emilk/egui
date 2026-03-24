@@ -1378,8 +1378,8 @@ impl Context {
             interact_rect,
             sense,
             flags: Flags::empty(),
-            interact_pointer_pos: None,
-            intrinsic_size: None,
+            interact_pointer_pos_or_nan: Pos2::NAN,
+            intrinsic_size_or_nan: Vec2::NAN,
         };
 
         res.flags.set(Flags::ENABLED, enabled);
@@ -1470,14 +1470,11 @@ impl Context {
                 || res.long_touched()
                 || clicked
                 || res.drag_stopped();
-            if is_interacted_with {
-                res.interact_pointer_pos = input.pointer.interact_pos();
-                if let (Some(to_global), Some(pos)) = (
-                    memory.to_global.get(&res.layer_id),
-                    &mut res.interact_pointer_pos,
-                ) {
-                    *pos = to_global.inverse() * *pos;
+            if is_interacted_with && let Some(mut pos) = input.pointer.interact_pos() {
+                if let Some(to_global) = memory.to_global.get(&res.layer_id) {
+                    pos = to_global.inverse() * pos;
                 }
+                res.interact_pointer_pos_or_nan = pos;
             }
 
             if input.pointer.any_down() && !is_interacted_with {
@@ -2397,6 +2394,12 @@ impl Context {
             crate::gui_zoom::zoom_with_keyboard(self);
         }
 
+        for shortcut in self.options(|o| o.quit_shortcuts.clone()) {
+            if self.input_mut(|i| i.consume_shortcut(&shortcut)) {
+                self.send_viewport_cmd(ViewportCommand::Close);
+            }
+        }
+
         #[cfg(debug_assertions)]
         self.debug_painting();
 
@@ -2616,6 +2619,7 @@ impl ContextImpl {
                 platform_output.accesskit_update = Some(accesskit::TreeUpdate {
                     nodes,
                     tree: Some(accesskit::Tree::new(root_id)),
+                    tree_id: accesskit::TreeId::ROOT,
                     focus: focus_id,
                 });
             }
@@ -2634,6 +2638,19 @@ impl ContextImpl {
                 repaint_needed = true; // Some widget has moved
             }
         }
+
+        #[cfg(debug_assertions)]
+        let shapes = if self.memory.options.style().debug.warn_if_rect_changes_id {
+            let mut shapes = shapes;
+            warn_if_rect_changes_id(
+                &mut shapes,
+                &viewport.prev_pass.widgets,
+                &viewport.this_pass.widgets,
+            );
+            shapes
+        } else {
+            shapes
+        };
 
         std::mem::swap(&mut viewport.prev_pass, &mut viewport.this_pass);
 
@@ -3262,7 +3279,7 @@ impl Context {
 
         for (name, data) in &mut font_definitions.font_data {
             ui.collapsing(name, |ui| {
-                let mut tweak = data.tweak;
+                let mut tweak = data.tweak.clone();
                 if tweak.ui(ui).changed() {
                     Arc::make_mut(data).tweak = tweak;
                     changed = true;
@@ -4234,6 +4251,103 @@ impl Context {
 fn context_impl_send_sync() {
     fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Context>();
+}
+
+/// Check if any [`Rect`] appears with different [`Id`]s between two passes.
+///
+/// This helps detect cases where the same screen area is claimed by different widget ids
+/// across passes, which is often a sign of id instability.
+#[cfg(debug_assertions)]
+fn warn_if_rect_changes_id(
+    out_shapes: &mut Vec<ClippedShape>,
+    prev_widgets: &crate::WidgetRects,
+    new_widgets: &crate::WidgetRects,
+) {
+    profiling::function_scope!();
+
+    use std::collections::BTreeMap;
+
+    /// A wrapper around [`Rect`] that implements [`Ord`] using the bit representation of its floats.
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    struct OrderedRect(Rect);
+
+    impl PartialOrd for OrderedRect {
+        fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+            Some(self.cmp(other))
+        }
+    }
+
+    impl Ord for OrderedRect {
+        fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+            let lhs = self.0;
+            let rhs = other.0;
+            lhs.min
+                .x
+                .to_bits()
+                .cmp(&rhs.min.x.to_bits())
+                .then(lhs.min.y.to_bits().cmp(&rhs.min.y.to_bits()))
+                .then(lhs.max.x.to_bits().cmp(&rhs.max.x.to_bits()))
+                .then(lhs.max.y.to_bits().cmp(&rhs.max.y.to_bits()))
+        }
+    }
+
+    fn create_lookup<'a>(
+        widgets: impl Iterator<Item = &'a WidgetRect>,
+    ) -> BTreeMap<OrderedRect, Vec<&'a WidgetRect>> {
+        let mut lookup: BTreeMap<OrderedRect, Vec<&'a WidgetRect>> = BTreeMap::default();
+        for w in widgets {
+            lookup.entry(OrderedRect(w.rect)).or_default().push(w);
+        }
+        lookup
+    }
+
+    for (layer_id, new_layer_widgets) in new_widgets.layers() {
+        let prev = create_lookup(prev_widgets.get_layer(*layer_id));
+        let new = create_lookup(new_layer_widgets.iter());
+
+        for (hashable_rect, new_at_rect) in new {
+            let Some(prev_at_rect) = prev.get(&hashable_rect) else {
+                continue; // this rect did not exist in the previous pass
+            };
+
+            if prev_at_rect
+                .iter()
+                .any(|w| new_at_rect.iter().any(|nw| nw.id == w.id))
+            {
+                continue; // at least one id stayed the same, so this is not an id change
+            }
+
+            // Only warn if at least one of the previous ids is gone from this layer entirely.
+            // If they all still exist (just at a different rect), then the rect match
+            // is just a coincidence caused by widgets shifting (e.g. a window being dragged).
+            if prev_at_rect.iter().all(|w| new_widgets.contains(w.id)) {
+                continue;
+            }
+
+            let rect = new_at_rect[0].rect;
+
+            log::warn!(
+                "Widget rect {rect:?} changed id between passes: prev ids: {:?}, new ids: {:?}",
+                prev_at_rect
+                    .iter()
+                    .map(|w| w.id.short_debug_format())
+                    .collect::<Vec<_>>(),
+                new_at_rect
+                    .iter()
+                    .map(|w| w.id.short_debug_format())
+                    .collect::<Vec<_>>(),
+            );
+            out_shapes.push(ClippedShape {
+                clip_rect: Rect::EVERYTHING,
+                shape: epaint::Shape::rect_stroke(
+                    rect,
+                    0,
+                    (2.0, Color32::RED),
+                    StrokeKind::Outside,
+                ),
+            });
+        }
+    }
 }
 
 #[cfg(test)]
