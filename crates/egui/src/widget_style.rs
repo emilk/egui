@@ -30,11 +30,13 @@ pub struct WidgetStyle {
     pub stroke: Stroke,
 }
 
+/// Dedicated button style
 pub struct ButtonStyle {
     pub frame: Frame,
     pub text_style: TextVisuals,
 }
 
+/// Dedicated checkbox style
 pub struct CheckboxStyle {
     /// Frame around
     pub frame: Frame,
@@ -55,6 +57,7 @@ pub struct CheckboxStyle {
     pub check_stroke: Stroke,
 }
 
+/// Dedicated label style
 pub struct LabelStyle {
     /// Frame around
     pub frame: Frame,
@@ -66,6 +69,7 @@ pub struct LabelStyle {
     pub wrap_mode: TextWrapMode,
 }
 
+/// Dedicated separator style
 pub struct SeparatorStyle {
     /// How much space is allocated in the layout direction
     pub spacing: f32,
@@ -74,6 +78,7 @@ pub struct SeparatorStyle {
     pub stroke: Stroke,
 }
 
+/// The different state of a widget can be
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WidgetState {
     Noninteractive,
@@ -84,6 +89,7 @@ pub enum WidgetState {
 }
 
 impl Widgets {
+    /// The widget visuals according to the state
     pub fn state(&self, state: WidgetState) -> &WidgetVisuals {
         match state {
             WidgetState::Noninteractive => &self.noninteractive,
@@ -109,6 +115,7 @@ impl Response {
 }
 
 impl Style {
+    /// The general widget style. The style is computed according to the classes and state of the widget.
     pub fn widget_style(&self, _classes: &Classes, state: WidgetState) -> WidgetStyle {
         let visuals = self.visuals.widgets.state(state);
         let font_id = self.override_font_id.clone();
@@ -133,6 +140,8 @@ impl Style {
         }
     }
 
+    /// The dedicated button style. The style is computed according to the classes and state of the widget.
+    /// It depend on the general widget style.
     pub fn button_style(&self, classes: &Classes, state: WidgetState) -> ButtonStyle {
         let mut visuals = *self.visuals.widgets.state(state);
         let mut ws = self.widget_style(classes, state);
@@ -159,6 +168,8 @@ impl Style {
         }
     }
 
+    /// The dedicated checkbox style. The style is computed according to the classes and state of the widget.
+    /// It depend on the general widget style.
     pub fn checkbox_style(&self, classes: &Classes, state: WidgetState) -> CheckboxStyle {
         let visuals = self.visuals.widgets.state(state);
         let ws = self.widget_style(classes, state);
@@ -177,6 +188,8 @@ impl Style {
         }
     }
 
+    /// The dedicated label style. The style is computed according to the classes and state of the widget.
+    /// It depend on the general widget style.
     pub fn label_style(&self, classes: &Classes, state: WidgetState) -> LabelStyle {
         let ws = self.widget_style(classes, state);
         LabelStyle {
@@ -193,6 +206,8 @@ impl Style {
         }
     }
 
+    /// The dedicated separator style. The style is computed according to the classes and state of the widget.
+    /// It depend on the general widget style.
     pub fn separator_style(&self, _classes: &Classes, _state: WidgetState) -> SeparatorStyle {
         let visuals = self.visuals.noninteractive();
         SeparatorStyle {
@@ -202,10 +217,12 @@ impl Style {
     }
 }
 
+/// The root class is present on every top-level ui
 pub const ROOT_CLASS: &str = "root";
 
 pub type ClassName = Cow<'static, str>;
 
+/// The classes assigned to a widget
 #[derive(Debug, Default, Clone)]
 pub struct Classes {
     classes: Vec<ClassName>,
@@ -246,6 +263,7 @@ pub trait HasClasses {
 
     fn classes_mut(&mut self) -> &mut Classes;
 
+    /// Add the given class by consuming [`self`]
     #[inline]
     fn with_class(mut self, class: impl Into<ClassName>) -> Self
     where
@@ -255,6 +273,7 @@ pub trait HasClasses {
         self
     }
 
+    /// Add the given class by consuming [`self`] if the condition is true
     #[inline]
     fn with_class_if(mut self, class: impl Into<ClassName>, condition: bool) -> Self
     where
@@ -264,6 +283,7 @@ pub trait HasClasses {
         self
     }
 
+    /// Add the given class in-place
     #[inline]
     fn add_class(&mut self, class: impl Into<ClassName>) -> &mut Self
     where
@@ -273,6 +293,7 @@ pub trait HasClasses {
         self
     }
 
+    /// Add the given class in-place if the condition is true
     #[inline]
     fn add_class_if(&mut self, class: impl Into<ClassName>, condition: bool) -> &mut Self
     where
@@ -282,7 +303,7 @@ pub trait HasClasses {
         self
     }
 
-    /// Return true if the class is present in the list
+    /// True if the class is present
     fn has(&self, class: impl Into<ClassName>) -> bool {
         self.classes().classes.contains(&class.into())
     }
