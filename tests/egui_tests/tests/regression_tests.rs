@@ -118,6 +118,7 @@ fn text_edit_halign() {
     harness.snapshot("text_edit_halign");
 }
 
+#[test]
 fn text_edit_delay() {
     let mut text = String::new();
     let mut harness = Harness::builder().with_size((200.0, 50.0)).build_ui(|ui| {
