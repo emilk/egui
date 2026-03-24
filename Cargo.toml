@@ -146,7 +146,7 @@ web-time = "1.1.0" # Timekeeping for native and web
 webbrowser = "1.0.5"
 wgpu = { version = "29.0.0", default-features = false, features = ["std"] }
 windows-sys = "0.61.2"
-winit = { version = "0.30.12", default-features = false }
+winit = { version = "0.30.13", default-features = false }
 
 [workspace.lints.rust]
 unsafe_code = "deny"
