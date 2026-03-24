@@ -11,7 +11,8 @@
 use crate::style::StyleModifier;
 use crate::{
     Button, Color32, Context, Frame, Id, InnerResponse, IntoAtoms, Layout, Popup,
-    PopupCloseBehavior, Response, Style, Ui, UiBuilder, UiKind, UiStack, UiStackInfo, Widget as _,
+    PopupCloseBehavior, Response, SetOpenCommand, Style, Ui, UiBuilder, UiKind, UiStack,
+    UiStackInfo, Widget as _,
 };
 use emath::{Align, RectAlign, Vec2, vec2};
 use epaint::Stroke;
@@ -325,7 +326,15 @@ impl<'a> MenuButton<'a> {
         let response = self.button.ui(ui);
         let mut config = self.config.unwrap_or_else(|| MenuConfig::find(ui));
         config.bar = false;
-        let inner = Popup::menu(&response)
+
+        let mut menu = Popup::menu(&response);
+        if Popup::is_any_open(ui.ctx()) && response.hovered() {
+            // If another menu is already open, then open this menu on hover
+            // (instead of requiring a click).  This is a typical UI for
+            // top-of-window menu bars.
+            menu = menu.open_memory(Some(SetOpenCommand::Bool(true)));
+        }
+        let inner = menu
             .close_behavior(config.close_behavior)
             .style(config.style.clone())
             .info(
