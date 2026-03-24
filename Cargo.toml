@@ -80,24 +80,24 @@ arboard = { version = "3.6.1", default-features = false }
 backtrace = "0.3.76"
 bitflags = "2.9.4"
 bytemuck = "1.24.0"
-chrono = { version = "0.4.42", default-features = false }
 cint = "0.3.1"
 color-hex = "0.2.0"
 criterion = { version = "0.7.0", default-features = false }
 dify = { version = "0.8", default-features = false }
 directories = "6.0.0"
 document-features = "0.2.11"
-ehttp = { version = "0.6.0", default-features = false }
+ehttp = { version = "0.7.1", default-features = false }
 enum-map = "2.7.3"
 env_logger = { version = "0.11.8", default-features = false }
 font-types = { version = "0.11.0", default-features = false, features = ["std"] }
-glow = "0.16.0"
+glow = "0.17.0"
 glutin = { version = "0.32.3", default-features = false }
 glutin-winit = { version = "0.5.0", default-features = false }
 home = "0.5.9"
 image = { version = "0.25.6", default-features = false }
+jiff = { version = "0.2.23", default-features = false }
 js-sys = "0.3.77"
-kittest = { version = "0.3.0" }
+kittest = { version = "0.4.0" }
 log = { version = "0.4.28", features = ["std"] }
 memoffset = "0.9.1"
 mimalloc = "0.1.48"
@@ -138,18 +138,15 @@ type-map = "0.5.1"
 unicode_names2 = { version = "2.0.0", default-features = false }
 unicode-segmentation = "1.12.0"
 vello_cpu = { version = "0.0.6", default-features = false, features = ["std", "u8_pipeline", "f32_pipeline"] }
-wasm-bindgen = "0.2.100" # Keep wasm-bindgen version in sync in: setup_web.sh, Cargo.toml, Cargo.lock, rust.yml
-wasm-bindgen-futures = "0.4.0"
+wasm-bindgen = "0.2.108" # Keep wasm-bindgen version in sync in: setup_web.sh, Cargo.toml, Cargo.lock, rust.yml. Don't update this spuriously, because of https://github.com/rerun-io/rerun/issues/8766
+wasm-bindgen-futures = "0.4.58"
 wayland-cursor = { version = "0.31.11", default-features = false }
 web-sys = "0.3.77"
 web-time = "1.1.0" # Timekeeping for native and web
 webbrowser = "1.0.5"
-wgpu = { version = "28.0.0", default-features = false, features = ["std"] }
+wgpu = { version = "29.0.0", default-features = false, features = ["std"] }
 windows-sys = "0.61.2"
 winit = { version = "0.30.12", default-features = false }
-
-[patch.crates-io]
-kittest = { git = "https://github.com/rerun-io/kittest", branch = "main" }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

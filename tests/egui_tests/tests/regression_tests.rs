@@ -1,6 +1,14 @@
+use std::sync::Arc;
+
+use egui::ScrollArea;
 use egui::accesskit::Role;
 use egui::epaint::Shape;
-use egui::{Align, Color32, Image, Label, Layout, RichText, Sense, TextWrapMode, include_image};
+use egui::style::ScrollAnimation;
+use egui::text::{LayoutJob, TextWrapping};
+use egui::{
+    Align, Color32, FontFamily, FontId, Image, Label, Layout, RichText, Sense, TextBuffer,
+    TextFormat, TextWrapMode, Ui, include_image, vec2,
+};
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable as _;
 
@@ -61,6 +69,114 @@ fn text_edit_rtl() {
         harness.step();
         harness.snapshot(format!("text_edit_rtl_{i}"));
     }
+}
+
+#[test]
+fn text_edit_halign() {
+    let mut harness = Harness::builder().with_size((212.0, 212.0)).build_ui(|ui| {
+        ui.spacing_mut().item_spacing = vec2(2.0, 2.0);
+
+        fn layouter(halign: Align) -> impl FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<egui::Galley> {
+            move |ui: &egui::Ui, buf: &dyn egui::TextBuffer, wrap_width: f32| {
+                let mut job = LayoutJob {
+                    wrap: TextWrapping {
+                        max_rows: 4,
+                        max_width: wrap_width,
+                        ..Default::default()
+                    },
+                    halign,
+                    ..Default::default()
+                };
+                job.append(
+                    buf.as_str(),
+                    0.0,
+                    TextFormat::simple(FontId::new(13.0, FontFamily::Proportional), Color32::GRAY),
+                );
+                ui.fonts_mut(|f| f.layout_job(job))
+            }
+        }
+
+        for widget_alignment in [Align::Min, Align::Center, Align::Max] {
+            ui.horizontal(|ui| {
+                for text_alignment in [Align::LEFT, Align::Center, Align::RIGHT] {
+                    ui.add_sized(
+                        vec2(64.0, 64.0),
+                        egui::TextEdit::multiline(&mut format!(
+                            "{widget_alignment:?}\n+\n{text_alignment:?}",
+                        ))
+                        .layouter(&mut layouter(text_alignment))
+                        .vertical_align(widget_alignment)
+                        .horizontal_align(widget_alignment),
+                    );
+                }
+            });
+        }
+    });
+
+    harness.get_by_value("Center\n+\nCenter").focus();
+    harness.step();
+    harness.snapshot("text_edit_halign");
+}
+
+#[test]
+fn text_edit_delay() {
+    let mut text = String::new();
+    let mut harness = Harness::builder().with_size((200.0, 50.0)).build_ui(|ui| {
+        ui.style_mut().scroll_animation = ScrollAnimation::none();
+        ui.add(egui::TextEdit::singleline(&mut text).hint_text("Write something"));
+    });
+
+    harness.get_by_role(Role::TextInput).focus();
+    harness.step();
+    harness.snapshot("text_edit_delay_0_empty");
+
+    harness.get_by_role(Role::TextInput).type_text("h");
+
+    // When the text is empty, and we show the hint text, there is a frame delay.
+    harness.step();
+    harness.snapshot("text_edit_delay_1_h_invisible");
+
+    // Now it should be visible
+    harness.step();
+    harness.snapshot("text_edit_delay_2_h_visible");
+
+    harness.get_by_role(Role::TextInput).type_text("i");
+
+    // The "i" should immediately be visible without a delay
+    harness.step();
+    harness.snapshot("text_edit_delay_3_i_visible");
+
+    // The next frame should exactly match the previous one
+    harness.step();
+    harness.snapshot("text_edit_delay_4_i_visible");
+}
+
+#[test]
+fn text_edit_scroll() {
+    let mut text = "1\n2\n3\n4\n".to_owned();
+    let mut harness = Harness::builder().build_ui(|ui| {
+        ScrollArea::vertical().max_height(40.0).show(ui, |ui| {
+            ui.add(
+                egui::TextEdit::multiline(&mut text)
+                    .desired_rows(2)
+                    .hint_text("Write something"),
+            );
+        });
+    });
+
+    harness.fit_contents();
+
+    harness.get_by_role(Role::MultilineTextInput).focus();
+    harness.step();
+    harness.snapshot("text_edit_scroll_0_focus");
+
+    harness
+        .get_by_role(Role::MultilineTextInput)
+        .type_text("5\n");
+
+    // When the text is empty, and we show the hint text, there is a frame delay.
+    harness.run();
+    harness.snapshot("text_edit_scroll_1_5");
 }
 
 #[test]
@@ -162,4 +278,89 @@ fn warn_if_rect_changes_id() {
         has_red_warning_rect(harness.output()),
         "Should warn when a widget rect changes Id between passes"
     );
+}
+
+#[test]
+fn horizontal_wrapped_multiline_row_height() {
+    let mut harness = Harness::builder().with_size((350.0, 300.0)).build_ui(|ui| {
+        ui.style_mut().interaction.tooltip_delay = 0.0;
+        ui.style_mut().interaction.show_tooltips_only_when_still = false;
+
+        let mut string = String::new();
+
+        ui.horizontal_wrapped(|ui| {
+            ui.monospace("| ");
+            let _ = ui.button("A");
+            let _ = ui.button("B");
+            ui.end_row();
+
+            ui.monospace("| ");
+            let _ = ui.button("C");
+            let _ = ui.button("D");
+            let _ = ui.button("E");
+            ui.end_row();
+
+            ui.monospace("| ");
+            ui.text_edit_multiline(&mut string);
+            ui.end_row();
+
+            ui.monospace("| ");
+            let _ = ui.button("F");
+            let _ = ui.button("G");
+            ui.end_row();
+
+            ui.monospace("| ");
+            let _ = ui.button("H");
+            let _ = ui.button("I");
+            let _ = ui.button("K");
+            ui.end_row();
+        });
+    });
+
+    harness.snapshot("horizontal_wrapped_multiline_row_height");
+}
+
+#[test]
+fn horizontal_wrapped_multiline_row_height_reference() {
+    let mut harness = Harness::builder().with_size((350.0, 300.0)).build_ui(|ui| {
+        ui.style_mut().interaction.tooltip_delay = 0.0;
+        ui.style_mut().interaction.show_tooltips_only_when_still = false;
+
+        let mut string = String::new();
+
+        ui.vertical(|ui| {
+            ui.horizontal(|ui| {
+                ui.monospace("| ");
+                let _ = ui.button("A");
+                let _ = ui.button("B");
+            });
+
+            ui.horizontal(|ui| {
+                ui.monospace("| ");
+                let _ = ui.button("C");
+                let _ = ui.button("D");
+                let _ = ui.button("E");
+            });
+
+            ui.horizontal(|ui| {
+                ui.monospace("| ");
+                ui.text_edit_multiline(&mut string);
+            });
+
+            ui.horizontal(|ui| {
+                ui.monospace("| ");
+                let _ = ui.button("F");
+                let _ = ui.button("G");
+            });
+
+            ui.horizontal(|ui| {
+                ui.monospace("| ");
+                let _ = ui.button("H");
+                let _ = ui.button("I");
+                let _ = ui.button("K");
+            });
+        });
+    });
+
+    harness.snapshot("horizontal_wrapped_multiline_row_height_reference");
 }

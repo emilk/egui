@@ -561,7 +561,11 @@ impl Panel {
         let how_expanded = animate_expansion(ui.ctx(), self.id.with("animation"), is_expanded);
 
         // Get either the fake or the real panel to animate
-        let animated_panel = self.get_animated_panel(ui.ctx(), is_expanded)?;
+        let Some(animated_panel) = self.get_animated_panel(ui.ctx(), is_expanded) else {
+            // Make sure the ids of the next widgets are the same whether we show the panel or not:
+            ui.skip_ahead_auto_ids(1);
+            return None;
+        };
 
         if how_expanded < 1.0 {
             // Show a fake panel in this in-between animation state:

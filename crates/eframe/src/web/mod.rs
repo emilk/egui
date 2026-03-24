@@ -38,6 +38,7 @@ mod web_painter_wgpu;
 pub use backend::*;
 
 use egui::Theme;
+use js_sys::Object;
 use wasm_bindgen::prelude::*;
 use web_sys::{Document, MediaQueryList, Node};
 
@@ -370,5 +371,5 @@ pub fn percent_decode(s: &str) -> String {
 
 /// Are we running inside the Safari browser?
 pub fn is_safari_browser() -> bool {
-    web_sys::window().is_some_and(|window| window.has_own_property(&JsValue::from("safari")))
+    web_sys::window().is_some_and(|window| Object::has_own(&window, &JsValue::from("safari")))
 }
