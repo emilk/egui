@@ -3,8 +3,8 @@
 // For non-serializable types, these simply return `None`.
 // This will also allow users to pick their own serialization format per type.
 
+use std::collections::hash_map::Entry;
 use std::{any::Any, sync::Arc};
-
 // -----------------------------------------------------------------------------------------------
 
 /// Like [`std::any::TypeId`], but can be serialized and deserialized.
@@ -316,6 +316,18 @@ fn from_ron_str<T: serde::de::DeserializeOwned>(ron: &str) -> Option<T> {
 
 use crate::Id;
 
+/// Raw key for the `IdTypeMap`.
+/// This key can be used to remove or access values in the `IdTypeMap` without
+/// knowledge of the `TypeId` T that is required for other accessors.
+///
+/// `RawKey`s make no guarantees about layout or their ability to be persisted.
+/// They only produce deterministic results if they are used with the map
+/// they were initially obtained from. Using them on other instances of `TypeIdMap`
+/// may produce unexpected behavior.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+#[repr(transparent)]
+pub struct RawKey(u64);
+
 // TODO(emilk): make IdTypeMap generic over the key (`Id`), and make a library of IdTypeMap.
 /// Stores values identified by an [`Id`] AND the [`std::any::TypeId`] of the value.
 ///
@@ -373,6 +385,47 @@ impl Default for IdTypeMap {
 }
 
 impl IdTypeMap {
+    /// Gets a reference to a value for a given raw key.
+    pub fn get_raw(&self, raw: RawKey) -> Option<&(dyn Any + Send + Sync)> {
+        match self.map.get(&raw.0)? {
+            Element::Value { value, .. } => Some(value.as_ref()),
+            Element::Serialized(_) => None,
+        }
+    }
+
+    /// Gets a mutable reference to a value for a given raw key.
+    pub fn get_raw_mut(&mut self, raw: RawKey) -> Option<&mut (dyn Any + Send + Sync)> {
+        match self.map.get_mut(&raw.0)? {
+            Element::Value { value, .. } => Some(value.as_mut()),
+            Element::Serialized(_) => None,
+        }
+    }
+
+    /// Remove a value given a raw key.
+    pub fn remove_raw(&mut self, raw: RawKey) -> Option<Box<dyn Any + Send + Sync>> {
+        if let Entry::Occupied(e) = self.map.entry(raw.0) {
+            if matches!(e.get(), Element::Serialized(_)) {
+                return None;
+            }
+
+            match e.remove() {
+                Element::Value { value, .. } => return Some(value),
+                Element::Serialized(_) => unreachable!(),
+            }
+        }
+
+        None
+    }
+
+    /// Returns all `RawKey`s to values in this map.
+    /// The returned keys can only be used with this map.
+    pub fn raw_keys(&self) -> impl Iterator<Item = RawKey> {
+        self.map
+            .iter()
+            .filter(|(_, v)| matches!(v, Element::Value { .. }))
+            .map(|(k, _)| RawKey(*k))
+    }
+
     /// Insert a value that will not be persisted.
     #[inline]
     pub fn insert_temp<T: 'static + Any + Clone + Send + Sync>(&mut self, id: Id, value: T) {
