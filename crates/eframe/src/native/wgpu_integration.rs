@@ -27,7 +27,10 @@ use winit_integration::UserEvent;
 
 use crate::{
     App, AppCreator, CreationContext, NativeOptions, Result, Storage,
-    native::{epi_integration::EpiIntegration, winit_integration::EventResult},
+    native::{
+        epi_integration::EpiIntegration,
+        winit_integration::{EventResult, is_invisible_or_minimized},
+    },
 };
 
 use super::{epi_integration, event_loop_context, winit_integration, winit_integration::WinitApp};
@@ -748,7 +751,7 @@ impl WgpuWinitRunning<'_> {
         integration.maybe_autosave(app.as_mut(), window.map(|w| w.as_ref()));
 
         if let Some(window) = window
-            && (window.is_minimized() == Some(true) || window.is_visible() == Some(false))
+            && is_invisible_or_minimized(window)
         {
             // On Mac, a minimized Window uses up all CPU:
             // https://github.com/emilk/egui/issues/325

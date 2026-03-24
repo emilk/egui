@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 use winit::{
     application::ApplicationHandler,
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
-    window::{Window, WindowId},
+    window::WindowId,
 };
 
 use ahash::HashMap;
@@ -11,7 +11,10 @@ use ahash::HashMap;
 use super::winit_integration::{UserEvent, WinitApp};
 use crate::{
     Result, epi,
-    native::{event_loop_context, winit_integration::EventResult},
+    native::{
+        event_loop_context,
+        winit_integration::{EventResult, is_invisible_or_minimized},
+    },
 };
 
 /// Minimum interval between repaints for invisible windows.
@@ -21,14 +24,6 @@ use crate::{
 /// processing viewport commands like `Visible(true)`.
 /// See <https://github.com/emilk/egui/issues/7776>.
 const INVISIBLE_WINDOW_REPAINT_INTERVAL: Duration = Duration::from_millis(100);
-
-/// Returns `true` if the window is invisible or minimized.
-///
-/// These windows don't receive `RedrawRequested` events on Windows,
-/// so they need special handling to keep processing viewport commands.
-fn is_invisible_or_minimized(window: &Window) -> bool {
-    window.is_visible() == Some(false) || window.is_minimized() == Some(true)
-}
 
 // ----------------------------------------------------------------------------
 fn create_event_loop(native_options: &mut epi::NativeOptions) -> Result<EventLoop<UserEvent>> {
