@@ -1,10 +1,10 @@
 use std::{any::Any, sync::Arc};
 
 use crate::{
-    emath::{Align, Pos2, Rect, Vec2}, pass_state, Context, CursorIcon, Id, LayerId, PointerButton, Popup, PopupKind, Sense,
-    Tooltip, Ui,
-    WidgetRect,
-    WidgetText,
+    Context, CursorIcon, Id, LayerId, PointerButton, Popup, PopupKind, Sense, Tooltip, Ui,
+    WidgetRect, WidgetText,
+    emath::{Align, Pos2, Rect, Vec2},
+    pass_state,
 };
 // ----------------------------------------------------------------------------
 
