@@ -993,13 +993,7 @@ fn events(
 
     let mut any_change = false;
 
-    let mut events = ui.input(|i| i.filtered_events(&event_filter));
-
-    if state.ime_enabled {
-        remove_ime_incompatible_events(&mut events);
-        // Process IME events first:
-        events.sort_by_key(|e| !matches!(e, Event::Ime(_)));
-    }
+    let events = ui.input(|i| i.filtered_events(&event_filter));
 
     for event in &events {
         let did_mutate_text = match event {
@@ -1228,27 +1222,6 @@ fn events(
     );
 
     (any_change, cursor_range)
-}
-
-// ----------------------------------------------------------------------------
-
-fn remove_ime_incompatible_events(events: &mut Vec<Event>) {
-    // Remove key events which cause problems while 'IME' is being used.
-    // See https://github.com/emilk/egui/pull/4509
-    events.retain(|event| {
-        !matches!(
-            event,
-            Event::Key { repeat: true, .. }
-                | Event::Key {
-                    key: Key::Backspace
-                        | Key::ArrowUp
-                        | Key::ArrowDown
-                        | Key::ArrowLeft
-                        | Key::ArrowRight,
-                    ..
-                }
-        )
-    });
 }
 
 // ----------------------------------------------------------------------------
