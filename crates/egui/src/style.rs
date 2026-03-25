@@ -790,8 +790,10 @@ impl ScrollStyle {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct ScrollFadeStyle {
-    /// Show fade areas?
-    pub enabled: bool,
+    /// Opacity of the fade effect at the outer edge, in 0.0-1.0.
+    ///
+    /// Set to 0.0 to disable the fade effect.
+    pub strength: f32,
 
     /// Size of the fade-area (height for vertical scrolling,
     /// width for horizontal scrolling).
@@ -801,7 +803,7 @@ pub struct ScrollFadeStyle {
 impl Default for ScrollFadeStyle {
     fn default() -> Self {
         Self {
-            enabled: true,
+            strength: 0.5,
             size: 20.0,
         }
     }
@@ -809,13 +811,14 @@ impl Default for ScrollFadeStyle {
 
 impl ScrollFadeStyle {
     pub fn ui(&mut self, ui: &mut Ui) {
-        let Self { enabled, size } = self;
+        let Self { strength, size } = self;
 
         ui.horizontal(|ui| {
-            ui.checkbox(enabled, "Fade edges");
+            ui.add(DragValue::new(strength).speed(0.01).range(0.0..=1.0));
+            ui.label("Fade strength");
         });
 
-        if *enabled {
+        if 0.0 < *strength {
             ui.horizontal(|ui| {
                 ui.add(DragValue::new(size).range(0.0..=64.0));
                 ui.label("Fade size");
