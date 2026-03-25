@@ -1549,4 +1549,51 @@ mod tests {
             galley.rows[0].row.glyphs.len()
         );
     }
+
+    #[test]
+    fn test_gpos_kerning() {
+        // GPOS kerning: pairs like "AV", "VA", "AT" should be tighter than
+        // the sum of individual character widths. Without text shaping, egui
+        // only uses the legacy `kern` table, so these pairs had diff ≈ 0.
+        // With harfrust, GPOS kerning applies proper negative adjustments.
+        let pixels_per_point = 1.0;
+        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let font_id = FontId::proportional(14.0);
+
+        for pair in ["AV", "VA", "AT"] {
+            let (pair_w, _, _) = measure_text(&mut fonts, pair, &font_id, pixels_per_point);
+            let chars: Vec<char> = pair.chars().collect();
+            let (w1, _, _) =
+                measure_text(&mut fonts, &chars[0].to_string(), &font_id, pixels_per_point);
+            let (w2, _, _) =
+                measure_text(&mut fonts, &chars[1].to_string(), &font_id, pixels_per_point);
+            let sum = w1 + w2;
+            let kern_adjustment = sum - pair_w;
+
+            assert!(
+                kern_adjustment > 0.5,
+                "GPOS kerning for '{pair}': expected pair to be noticeably tighter \
+                 than sum of individuals. pair_width={pair_w:.2}, sum={sum:.2}, \
+                 kern_adjustment={kern_adjustment:.2} (should be > 0.5)",
+            );
+        }
+    }
+
+    fn measure_text(
+        fonts: &mut FontsImpl,
+        text: &str,
+        font_id: &FontId,
+        pixels_per_point: f32,
+    ) -> (f32, usize, Vec<(char, f32)>) {
+        let job = LayoutJob::simple(
+            text.to_owned(),
+            font_id.clone(),
+            Color32::WHITE,
+            f32::INFINITY,
+        );
+        let galley = layout(fonts, pixels_per_point, job.into());
+        let glyphs = &galley.rows[0].row.glyphs;
+        let details: Vec<_> = glyphs.iter().map(|g| (g.chr, g.advance_width)).collect();
+        (galley.size().x, glyphs.len(), details)
+    }
 }
