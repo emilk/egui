@@ -651,7 +651,7 @@ impl TextEdit<'_> {
             }
 
             // Push suffix to the right and enable alignment for the main text
-            if align.0[0] != Align::RIGHT {
+            if align.x() != Align::RIGHT {
                 atoms.push_right(Atom::grow());
             }
 
