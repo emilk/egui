@@ -576,7 +576,7 @@ impl TextEdit<'_> {
             }
 
             // Push prefix to the left and enable alignment for the main text
-            if align.0[0] != Align::LEFT {
+            if align.x() != Align::LEFT {
                 atoms.push_right(Atom::grow());
             }
 
