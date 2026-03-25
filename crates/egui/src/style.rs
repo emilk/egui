@@ -586,6 +586,8 @@ pub struct ScrollStyle {
     /// This is only for floating scroll bars.
     /// Solid scroll bars are always opaque.
     pub interact_handle_opacity: f32,
+
+    pub fade: ScrollFadeStyle,
 }
 
 impl Default for ScrollStyle {
@@ -616,6 +618,8 @@ impl ScrollStyle {
             dormant_handle_opacity: 0.0,
             active_handle_opacity: 0.6,
             interact_handle_opacity: 1.0,
+
+            fade: Default::default(),
         }
     }
 
@@ -699,6 +703,8 @@ impl ScrollStyle {
             dormant_handle_opacity,
             active_handle_opacity,
             interact_handle_opacity,
+
+            fade,
         } = self;
 
         ui.horizontal(|ui| {
@@ -770,6 +776,49 @@ impl ScrollStyle {
             ui.horizontal(|ui| {
                 ui.add(DragValue::new(bar_inner_margin).range(0.0..=32.0));
                 ui.label("Inner margin");
+            });
+        }
+
+        ui.separator();
+        fade.ui(ui);
+    }
+}
+
+/// Controls if and how to fade out the sides of a [`crate::ScrollArea`]
+/// to indicate there is more there if you scroll.
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+pub struct ScrollFadeStyle {
+    /// Show fade areas?
+    pub enabled: bool,
+
+    /// Size of the fade-area (height for vertical scrolling,
+    /// width for horizontal scrolling).
+    pub size: f32,
+}
+
+impl Default for ScrollFadeStyle {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            size: 20.0,
+        }
+    }
+}
+
+impl ScrollFadeStyle {
+    pub fn ui(&mut self, ui: &mut Ui) {
+        let Self { enabled, size } = self;
+
+        ui.horizontal(|ui| {
+            ui.checkbox(enabled, "Fade edges");
+        });
+
+        if *enabled {
+            ui.horizontal(|ui| {
+                ui.add(DragValue::new(size).range(0.0..=64.0));
+                ui.label("Fade size");
             });
         }
     }
