@@ -10,6 +10,9 @@ use raw_window_handle::{AppKitWindowHandle, RawWindowHandle};
 pub struct WindowChromeMetrics {
     /// Size of the "traffic lights" (red/yellow/green close/minimize/maximize buttons),
     /// including margins.
+    ///
+    /// The unit here is in "native scale", which means it needs to be divided by [`egui::Context::zoom_factor`]
+    /// to get the size in egui points.
     pub traffic_lights_size: Vec2,
 }
 
