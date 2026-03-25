@@ -1,7 +1,7 @@
 #![warn(missing_docs)] // Let's keep `Ui` well-documented.
 #![expect(clippy::use_self)]
 
-use std::{any::Any, hash::Hash, ops::Deref, sync::Arc};
+use std::{any::Any, ops::Deref, sync::Arc};
 
 use emath::GuiRounding as _;
 use epaint::mutex::RwLock;
@@ -227,7 +227,7 @@ impl Ui {
         &mut self,
         max_rect: Rect,
         layout: Layout,
-        id_salt: impl Hash,
+        id_salt: impl AsId,
         ui_stack_info: Option<UiStackInfo>,
     ) -> Self {
         self.new_child(
@@ -1007,7 +1007,7 @@ impl Ui {
     /// Use this to generate widget ids for widgets that have persistent state in [`Memory`].
     pub fn make_persistent_id<IdSource>(&self, id_salt: IdSource) -> Id
     where
-        IdSource: Hash,
+        IdSource: AsId,
     {
         self.id.with(&id_salt)
     }
@@ -1020,7 +1020,7 @@ impl Ui {
     /// Same as `ui.next_auto_id().with(id_salt)`
     pub fn auto_id_with<IdSource>(&self, id_salt: IdSource) -> Id
     where
-        IdSource: Hash,
+        IdSource: AsId,
     {
         Id::new(self.next_auto_id_salt).with(id_salt)
     }
@@ -2375,7 +2375,7 @@ impl Ui {
     /// ```
     pub fn push_id<R>(
         &mut self,
-        id_salt: impl Hash,
+        id_salt: impl AsId,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         self.scope_dyn(UiBuilder::new().id_salt(id_salt), Box::new(add_contents))
@@ -2475,7 +2475,7 @@ impl Ui {
     #[inline]
     pub fn indent<R>(
         &mut self,
-        id_salt: impl Hash,
+        id_salt: impl AsId,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         self.indent_dyn(id_salt, Box::new(add_contents))
@@ -2483,7 +2483,7 @@ impl Ui {
 
     fn indent_dyn<'c, R>(
         &mut self,
-        id_salt: impl Hash,
+        id_salt: impl AsId,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         assert!(

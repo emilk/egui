@@ -275,7 +275,7 @@ impl<'a> TableBuilder<'a> {
     /// This is required if you have multiple tables in the same [`Ui`].
     #[inline]
     #[deprecated = "Renamed id_salt"]
-    pub fn id_source(self, id_salt: impl std::hash::Hash) -> Self {
+    pub fn id_source(self, id_salt: impl egui::AsId) -> Self {
         self.id_salt(id_salt)
     }
 
@@ -283,7 +283,7 @@ impl<'a> TableBuilder<'a> {
     ///
     /// This is required if you have multiple tables in the same [`Ui`].
     #[inline]
-    pub fn id_salt(mut self, id_salt: impl std::hash::Hash) -> Self {
+    pub fn id_salt(mut self, id_salt: impl egui::AsId) -> Self {
         self.id_salt = Id::new(id_salt);
         self
     }

@@ -16,11 +16,11 @@ use epaint::{
 
 use crate::{
     Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, Grid, Id, ImmediateViewport,
-    ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId, Memory,
-    ModifierNames, Modifiers, NumExt as _, Order, Painter, RawInput, Response, RichText,
-    SafeAreaInsets, ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions, Ui,
-    UiBuilder, ViewportBuilder, ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair,
-    ViewportIdSet, ViewportOutput, Visuals, Widget as _, WidgetRect, WidgetText,
+    ImmediateViewportRendererCallback, Key, KeyboardShortcut, LayerId, Memory, ModifierNames,
+    Modifiers, NumExt as _, Order, Painter, RawInput, Response, SafeAreaInsets, ScrollArea, Sense,
+    Style, TextStyle, TextureHandle, TextureOptions, Ui, UiBuilder, ViewportBuilder,
+    ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput,
+    Visuals, Widget as _, WidgetRect, WidgetText,
     animation_manager::AnimationManager,
     containers::{self, area::AreaState},
     data::output::PlatformOutput,
@@ -3594,10 +3594,16 @@ impl Context {
                     if !is_visible {
                         continue;
                     }
-                    let text = format!("{} - {:?}", layer_id.short_debug_format(), area.rect(),);
                     // TODO(emilk): `Sense::hover_highlight()`
-                    let response =
-                        ui.add(Label::new(RichText::new(text).monospace()).sense(Sense::click()));
+                    let response = ui
+                        .horizontal(|ui| {
+                            ui.style_mut().interaction.selectable_labels = false;
+                            ui.label(layer_id.order.short_debug_format());
+                            layer_id.id.ui(ui);
+                            ui.monospace(area.rect().to_string());
+                        })
+                        .response
+                        .interact(Sense::click());
                     if response.hovered() && is_visible {
                         ui.debug_painter().debug_rect(area.rect(), Color32::RED, "");
                     }

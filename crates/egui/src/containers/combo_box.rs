@@ -1,9 +1,9 @@
 use epaint::Shape;
 
 use crate::{
-    Align2, Context, Id, InnerResponse, NumExt as _, Painter, Popup, PopupCloseBehavior, Rect,
-    Response, ScrollArea, Sense, Stroke, TextStyle, TextWrapMode, Ui, UiBuilder, Vec2, WidgetInfo,
-    WidgetText, WidgetType, epaint, style::StyleModifier, style::WidgetVisuals, vec2,
+    Align2, AsId, Context, Id, InnerResponse, NumExt as _, Painter, Popup, PopupCloseBehavior,
+    Rect, Response, ScrollArea, Sense, Stroke, TextStyle, TextWrapMode, Ui, UiBuilder, Vec2,
+    WidgetInfo, WidgetText, WidgetType, epaint, style::StyleModifier, style::WidgetVisuals, vec2,
 };
 
 #[expect(unused_imports)] // Documentation
@@ -49,7 +49,7 @@ pub struct ComboBox {
 
 impl ComboBox {
     /// Create new [`ComboBox`] with id and label
-    pub fn new(id_salt: impl std::hash::Hash, label: impl Into<WidgetText>) -> Self {
+    pub fn new(id_salt: impl AsId, label: impl Into<WidgetText>) -> Self {
         Self {
             id_salt: Id::new(id_salt),
             label: Some(label.into()),
@@ -80,7 +80,7 @@ impl ComboBox {
     }
 
     /// Without label.
-    pub fn from_id_salt(id_salt: impl std::hash::Hash) -> Self {
+    pub fn from_id_salt(id_salt: impl AsId) -> Self {
         Self {
             id_salt: Id::new(id_salt),
             label: Default::default(),
@@ -96,7 +96,7 @@ impl ComboBox {
 
     /// Without label.
     #[deprecated = "Renamed from_id_salt"]
-    pub fn from_id_source(id_salt: impl std::hash::Hash) -> Self {
+    pub fn from_id_source(id_salt: impl AsId) -> Self {
         Self::from_id_salt(id_salt)
     }
 

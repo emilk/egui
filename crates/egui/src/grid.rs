@@ -3,8 +3,8 @@ use std::sync::Arc;
 use emath::GuiRounding as _;
 
 use crate::{
-    Align2, Color32, Context, Id, InnerResponse, NumExt as _, Painter, Rect, Region, Style, Ui,
-    UiBuilder, Vec2, vec2,
+    Align2, AsId, Color32, Context, Id, InnerResponse, NumExt as _, Painter, Rect, Region, Style,
+    Ui, UiBuilder, Vec2, vec2,
 };
 
 #[cfg(debug_assertions)]
@@ -324,7 +324,7 @@ pub struct Grid {
 
 impl Grid {
     /// Create a new [`Grid`] with a locally unique identifier.
-    pub fn new(id_salt: impl std::hash::Hash) -> Self {
+    pub fn new(id_salt: impl AsId) -> Self {
         Self {
             id_salt: Id::new(id_salt),
             num_columns: None,
