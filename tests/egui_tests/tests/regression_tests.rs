@@ -149,7 +149,7 @@ fn horizontal_response_tooltip_should_show_when_hovering_child() {
 
         ui.horizontal(|ui| {
             _ = ui.button("A");
-            _ = ui.button("B").on_hover_test("B has a tooltip");
+            _ = ui.button("B").on_hover_text("B has a tooltip");
         })
         .response
         .on_hover_text("test");
