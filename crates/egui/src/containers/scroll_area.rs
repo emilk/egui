@@ -1513,11 +1513,11 @@ impl Prepared {
 /// indicate that more content is available beyond the visible region.
 fn paint_fade_areas<R>(ui: &Ui, scroll_output: &ScrollAreaOutput<R>) {
     let crate::style::ScrollFadeStyle {
-        enabled,
+        strength,
         size: fade_size,
     } = ui.spacing().scroll.fade;
 
-    if !enabled {
+    if strength <= 0.0 {
         return;
     }
 
@@ -1533,7 +1533,7 @@ fn paint_fade_areas<R>(ui: &Ui, scroll_output: &ScrollAreaOutput<R>) {
 
     // Top fade: animate opacity based on how far we've scrolled down.
     if 0.0 < offset.y {
-        let t = (offset.y / fade_size).clamp(0.0, 1.0);
+        let t = (offset.y / fade_size).clamp(0.0, 1.0) * strength;
         let bg_faded = bg.gamma_multiply(t);
         let rect = Rect::from_min_max(
             paint_rect.left_top(),
@@ -1549,7 +1549,7 @@ fn paint_fade_areas<R>(ui: &Ui, scroll_output: &ScrollAreaOutput<R>) {
     // Bottom fade: animate opacity based on distance from the bottom.
     let distance_from_bottom = overflow.y - offset.y;
     if 0.0 < distance_from_bottom {
-        let t = (distance_from_bottom / fade_size).clamp(0.0, 1.0);
+        let t = (distance_from_bottom / fade_size).clamp(0.0, 1.0) * strength;
         let bg_faded = bg.gamma_multiply(t);
         let rect = Rect::from_min_max(
             pos2(paint_rect.left(), paint_rect.bottom() - fade_size),
@@ -1563,9 +1563,8 @@ fn paint_fade_areas<R>(ui: &Ui, scroll_output: &ScrollAreaOutput<R>) {
     }
 
     // Left fade: animate opacity based on how far we've scrolled right.
-
     if 0.0 < offset.x {
-        let t = (offset.x / fade_size).clamp(0.0, 1.0);
+        let t = (offset.x / fade_size).clamp(0.0, 1.0) * strength;
         let bg_faded = bg.gamma_multiply(t);
         let rect = Rect::from_min_max(
             paint_rect.left_top(),
@@ -1581,7 +1580,7 @@ fn paint_fade_areas<R>(ui: &Ui, scroll_output: &ScrollAreaOutput<R>) {
     // Right fade: animate opacity based on distance from the right edge.
     let distance_from_right = overflow.x - offset.x;
     if 0.0 < distance_from_right {
-        let t = (distance_from_right / fade_size).clamp(0.0, 1.0);
+        let t = (distance_from_right / fade_size).clamp(0.0, 1.0) * strength;
         let bg_faded = bg.gamma_multiply(t);
         let rect = Rect::from_min_max(
             pos2(paint_rect.right() - fade_size, paint_rect.top()),
