@@ -337,6 +337,10 @@ pub struct FontFace {
     font: FontCell,
     tweak: FontTweak,
 
+    /// Cached `harfrust` shaper data (parsed GSUB/GPOS tables).
+    /// `ShaperData` is `Copy` — lives outside the `self_cell`.
+    shaper_data: harfrust::ShaperData,
+
     glyph_info_cache: ahash::HashMap<char, GlyphInfo>,
     glyph_alloc_cache: ahash::HashMap<GlyphCacheKey, GlyphAllocation>,
 }
@@ -393,10 +397,13 @@ impl FontFace {
             })
         })?;
 
+        let shaper_data = harfrust::ShaperData::new(&font.borrow_dependent().skrifa);
+
         Ok(Self {
             name,
             font,
             tweak,
+            shaper_data,
             glyph_info_cache: Default::default(),
             glyph_alloc_cache: Default::default(),
         })
@@ -571,6 +578,103 @@ impl FontFace {
         }
     }
 
+    /// Shape a text run and return the raw [`harfrust::GlyphBuffer`].
+    ///
+    /// The caller should iterate `glyph_infos()` / `glyph_positions()` (both
+    /// `Copy` slices) and convert font units to pixels using `metrics.px_scale_factor`.
+    /// After iteration, recycle the buffer via `glyph_buffer.clear()`.
+    pub fn shape_text(
+        &self,
+        text: &str,
+        coords: &VariationCoords,
+        mut buffer: harfrust::UnicodeBuffer,
+        flags: harfrust::BufferFlags,
+    ) -> harfrust::GlyphBuffer {
+        let font_ref = &self.font.borrow_dependent().skrifa;
+
+        // Build shaper with variable font instance if variation coordinates are set.
+        let variations: Vec<harfrust::Variation> = self
+            .tweak
+            .coords
+            .as_ref()
+            .iter()
+            .chain(coords.as_ref().iter())
+            .map(|&(tag, value)| harfrust::Variation { tag, value })
+            .collect();
+
+        let instance = if variations.is_empty() {
+            None
+        } else {
+            Some(harfrust::ShaperInstance::from_variations(
+                font_ref,
+                variations,
+            ))
+        };
+
+        let shaper = self
+            .shaper_data
+            .shaper(font_ref)
+            .instance(instance.as_ref())
+            .build();
+
+        buffer.set_flags(flags);
+        buffer.push_str(text);
+        buffer.guess_segment_properties();
+
+        shaper.shape(buffer, &[])
+    }
+
+    /// Allocate a glyph by its ID directly (from shaping output).
+    ///
+    /// `shaper_y_offset_points` is the vertical offset from the shaper, already in points.
+    #[expect(clippy::too_many_arguments)]
+    pub fn allocate_glyph_by_id(
+        &mut self,
+        atlas: &mut TextureAtlas,
+        metrics: &StyledMetrics,
+        glyph_id: skrifa::GlyphId,
+        advance_width_px: f32,
+        h_pos: f32,
+        shaper_y_offset_points: f32,
+        is_cjk_glyph: bool,
+    ) -> (GlyphAllocation, i32) {
+        if glyph_id == skrifa::GlyphId::NOTDEF {
+            return (GlyphAllocation::default(), h_pos as i32);
+        }
+
+        let (h_pos_round, bin) = if is_cjk_glyph {
+            (h_pos.round() as i32, SubpixelBin::Zero)
+        } else {
+            SubpixelBin::new(h_pos)
+        };
+
+        let cache_key = GlyphCacheKey::new(glyph_id, metrics, bin);
+        if let Some(cached) = self.glyph_alloc_cache.get(&cache_key) {
+            let mut alloc = *cached;
+            alloc.advance_width_px = advance_width_px;
+            alloc.uv_rect.offset.y += shaper_y_offset_points;
+            return (alloc, h_pos_round);
+        }
+
+        let glyph_info = GlyphInfo {
+            id: Some(glyph_id),
+            advance_width_unscaled: OrderedFloat(advance_width_px / metrics.px_scale_factor),
+        };
+
+        let mut allocation = self
+            .font
+            .allocate_glyph_uncached(atlas, metrics, &glyph_info, bin, (&metrics.location).into())
+            .unwrap_or_default();
+
+        // Cache the allocation WITHOUT the shaper y_offset (which varies per call)
+        self.glyph_alloc_cache.insert(cache_key, allocation);
+
+        // Apply shaper y_offset after caching (Option A from plan)
+        allocation.uv_rect.offset.y += shaper_y_offset_points;
+
+        (allocation, h_pos_round)
+    }
+
     pub fn allocate_glyph(
         &mut self,
         atlas: &mut TextureAtlas,
@@ -614,6 +718,18 @@ impl FontFace {
         entry.insert(allocation);
         (allocation, h_pos_round)
     }
+}
+
+/// A contiguous run of text that maps to a single font face.
+///
+/// Produced by [`Font::segment_into_runs`] for text shaping.
+#[derive(Debug)]
+pub(crate) struct TextRun {
+    /// Which font face should shape this run.
+    pub font_key: FontFaceKey,
+
+    /// Byte range within the section text.
+    pub byte_range: std::ops::Range<usize>,
 }
 
 // TODO(emilk): rename?
@@ -677,6 +793,43 @@ impl Font<'_> {
     /// Can we display all the glyphs in this text?
     pub fn has_glyphs(&mut self, s: &str) -> bool {
         s.chars().all(|c| self.has_glyph(c))
+    }
+
+    /// Segment text into runs where each run uses a single font face.
+    ///
+    /// Grapheme clusters are never split across runs: if a combining mark
+    /// falls back to a different font than its base character, it stays
+    /// with the base character's font (the shaper will handle it).
+    /// Segment text into runs where each run uses a single font face.
+    ///
+    /// Grapheme clusters are never split across runs: if a combining mark
+    /// falls back to a different font than its base character, it stays
+    /// with the base character's font (the shaper will handle it).
+    ///
+    /// Results are appended to `out` (which is cleared first) to allow
+    /// the caller to reuse the allocation across calls.
+    pub(crate) fn segment_into_runs(&mut self, text: &str, out: &mut Vec<TextRun>) {
+        use unicode_segmentation::UnicodeSegmentation as _;
+
+        out.clear();
+
+        for (byte_offset, grapheme_str) in text.grapheme_indices(true) {
+            let byte_end = byte_offset + grapheme_str.len();
+
+            let base_char = grapheme_str.chars().next().unwrap_or(' ');
+            let (font_key, _) = self.glyph_info(base_char);
+
+            if let Some(last_run) = out.last_mut()
+                && last_run.font_key == font_key
+            {
+                last_run.byte_range.end = byte_end;
+                continue;
+            }
+            out.push(TextRun {
+                font_key,
+                byte_range: byte_offset..byte_end,
+            });
+        }
     }
 
     /// `\n` will (intentionally) show up as the replacement character.

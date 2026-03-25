@@ -90,6 +90,8 @@ ehttp = { version = "0.7.1", default-features = false }
 enum-map = "2.7.3"
 env_logger = { version = "0.11.8", default-features = false }
 font-types = { version = "0.11.0", default-features = false, features = ["std"] }
+harfrust = "0.5.2"
+unicode-general-category = "1.1.0"
 glow = "0.17.0"
 glutin = { version = "0.32.3", default-features = false }
 glutin-winit = { version = "0.5.0", default-features = false }
