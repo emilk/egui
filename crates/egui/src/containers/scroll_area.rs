@@ -1521,7 +1521,7 @@ fn paint_fade_areas<R>(ui: &Ui, scroll_output: &ScrollAreaOutput<R>) {
         return;
     }
 
-    let bg = ui.visuals().panel_fill; // a bit iffy
+    let bg = ui.stack().bg_color();
 
     let offset = scroll_output.state.offset;
     let overflow = scroll_output.content_size - scroll_output.inner_rect.size();
