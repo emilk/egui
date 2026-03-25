@@ -3,7 +3,6 @@
 // For non-serializable types, these simply return `None`.
 // This will also allow users to pick their own serialization format per type.
 
-use std::collections::hash_map::Entry;
 use std::{any::Any, sync::Arc};
 // -----------------------------------------------------------------------------------------------
 
@@ -182,6 +181,18 @@ impl Element {
         }
     }
 
+    pub fn is_temp(&self) -> bool {
+        match self {
+            #[cfg(feature = "persistence")]
+            Self::Value { serialize_fn, .. } => serialize_fn.is_none(),
+
+            #[cfg(not(feature = "persistence"))]
+            Self::Value { .. } => true,
+
+            Self::Serialized(_) => false,
+        }
+    }
+
     #[inline]
     pub(crate) fn get_temp<T: 'static>(&self) -> Option<&T> {
         match self {
@@ -316,17 +327,16 @@ fn from_ron_str<T: serde::de::DeserializeOwned>(ron: &str) -> Option<T> {
 
 use crate::Id;
 
-/// The key used [`IdTypeMap`], which is a combination of an [`Id`] and a [`TypeId`].
+/// The key used in [`IdTypeMap`], which is a combination of an [`Id`] and a [`TypeId`].
 ///
 /// This key can be used to remove or access values in the [`IdTypeMap`] without
-/// knowledge of the [`TypeId`] T that is required for other accessors.
+/// knowledge of the `TypeId` `T` that is required for other accessors.
 ///
 /// [`RawKey`]s make no guarantees about layout or their ability to be persisted.
 /// They only produce deterministic results if they are used with the map
-/// they were initially obtained from. Using them on other instances of [`TypeIdMap`]
+/// they were initially obtained from. Using them on other instances of [`IdTypeMap`]
 /// may produce unexpected behavior.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[repr(transparent)]
 pub struct RawKey(u64);
 
@@ -339,9 +349,10 @@ impl RawKey {
     /// will be different keys.
     ///
     /// ```
+    /// use egui::{Id, util::id_type_map::RawKey};
     /// assert_ne!(
     ///     RawKey::new::<i32>(Id::NULL),
-    ///     RawKey::new::<String>(Id::NULL)
+    ///     RawKey::new::<String>(Id::NULL),
     /// );
     /// ```
     #[inline(always)]
@@ -422,10 +433,11 @@ impl IdTypeMap {
 
     /// Insert a value that will be persisted next time you start the app.
     #[inline]
-    pub fn insert_persisted<T: SerializableAny>(&mut self, id: Id, value: T) -> RawKey {
+    pub fn insert_persisted<T: SerializableAny>(&mut self, id: Id, value: T) {
         let key = RawKey::new::<T>(id);
         self.map.insert(key, Element::new_persisted(value));
-        key
+        // We don't yet return the key here, because currently all our `raw`
+        // methods are only for temporary values.
     }
 
     /// Read a value without trying to deserialize a persisted value.
@@ -569,13 +581,18 @@ impl IdTypeMap {
         Some(std::mem::take(element.get_mut_temp()?))
     }
 
-    /// Remove a value given a raw key.
+    /// Remove a temporary value given a raw key.
     ///
-    /// If it is a serialized value, it will be removed, but `None` will still be returned.
-    pub fn remove_raw(&mut self, raw: RawKey) -> Option<Box<dyn Any + Send + Sync>> {
-        match self.map.remove(&raw)? {
-            Element::Value { value, .. } => Some(value),
-            Element::Serialized(_) => None,
+    /// Serialized values are ignored.
+    pub fn remove_temp_raw(&mut self, raw: RawKey) -> Option<Box<dyn Any + Send + Sync>> {
+        use std::collections::hash_map::Entry;
+        if let Entry::Occupied(e) = self.map.entry(raw)
+            && e.get().is_temp()
+            && let Element::Value { value, .. } = e.remove()
+        {
+            Some(value)
+        } else {
+            None
         }
     }
 
@@ -603,15 +620,15 @@ impl IdTypeMap {
         self.map.len()
     }
 
-    /// Returns all `RawKey`s to values in this map.
+    /// Returns all [`RawKey`]s to values in this map.
     ///
     /// The returned keys can only be used with this map.
     ///
-    /// Serialized values will be ignored.
-    pub fn raw_value_keys(&self) -> impl Iterator<Item = RawKey> {
+    /// Serializable values will be ignored.
+    pub fn temp_keys(&self) -> impl Iterator<Item = RawKey> {
         self.map
             .iter()
-            .filter(|(_, v)| matches!(v, Element::Value { .. }))
+            .filter(|(_, v)| v.is_temp())
             .map(|(k, _)| *k)
     }
 
@@ -664,7 +681,7 @@ impl IdTypeMap {
 /// How [`IdTypeMap`] is persisted.
 #[cfg(feature = "persistence")]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-struct PersistedMap(Vec<(RawKey, SerializedElement)>);
+struct PersistedMap(Vec<(u64, SerializedElement)>);
 
 #[cfg(feature = "persistence")]
 impl PersistedMap {
@@ -684,7 +701,7 @@ impl PersistedMap {
         #[derive(Default)]
         struct GenerationStats {
             num_bytes: usize,
-            elements: Vec<(RawKey, SerializedElement)>,
+            elements: Vec<(u64, SerializedElement)>,
         }
 
         let max_bytes_per_type = map.max_bytes_per_type;
@@ -697,7 +714,7 @@ impl PersistedMap {
                     stats.num_bytes += element.ron.len();
                     let generation_stats = stats.generations.entry(element.generation).or_default();
                     generation_stats.num_bytes += element.ron.len();
-                    generation_stats.elements.push((*key, element));
+                    generation_stats.elements.push((key.0, element));
                 } else {
                     // temporary value that shouldn't be serialized
                 }
@@ -737,7 +754,7 @@ impl PersistedMap {
             .into_iter()
             .map(
                 |(
-                    key,
+                    raw,
                     SerializedElement {
                         type_id,
                         ron,
@@ -745,7 +762,7 @@ impl PersistedMap {
                     },
                 )| {
                     (
-                        key,
+                        RawKey(raw),
                         Element::Serialized(SerializedElement {
                             type_id,
                             ron,

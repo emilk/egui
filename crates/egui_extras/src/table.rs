@@ -656,14 +656,13 @@ impl TableState {
     }
 
     fn store(self, ui: &egui::Ui, state_id: egui::Id) {
-        #![expect(clippy::needless_return)]
         #[cfg(feature = "serde")]
         {
-            return ui.data_mut(|d| d.insert_persisted(state_id, self));
+            ui.data_mut(|d| d.insert_persisted(state_id, self));
         }
         #[cfg(not(feature = "serde"))]
         {
-            return ui.data_mut(|d| d.insert_temp(state_id, self));
+            ui.data_mut(|d| d.insert_temp(state_id, self));
         }
     }
 
