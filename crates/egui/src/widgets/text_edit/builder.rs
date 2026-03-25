@@ -575,6 +575,11 @@ impl TextEdit<'_> {
                 atoms.push_right(atom);
             }
 
+            // Push prefix to the left and enable alignment for the main text
+            if align.0[0] != Align::LEFT {
+                atoms.push_right(Atom::grow());
+            }
+
             if text.as_str().is_empty() && !hint_text.is_empty() {
                 // Add hint_text (if any):
                 let mut shrunk = any_shrink;
@@ -598,9 +603,7 @@ impl TextEdit<'_> {
                         first = false;
                     }
 
-                    // The hint text should be shown left top instead of centered (important for
-                    // multi line text edits)
-                    atoms.push_right(atom.atom_align(Align2::LEFT_TOP));
+                    atoms.push_right(atom);
                 }
 
                 // Calculate the empty galley, so it can be read later. The available width is
@@ -647,8 +650,8 @@ impl TextEdit<'_> {
                 );
             }
 
-            // Ensure the suffix is always right-aligned
-            if !suffix.is_empty() {
+            // Push suffix to the right and enable alignment for the main text
+            if align.0[0] != Align::RIGHT {
                 atoms.push_right(Atom::grow());
             }
 
