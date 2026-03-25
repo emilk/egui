@@ -149,7 +149,7 @@ fn horizontal_response_tooltip_should_show_when_hovering_child() {
 
         ui.horizontal(|ui| {
             _ = ui.button("A");
-            _ = ui.button("B");
+            _ = ui.button("B").on_hover_test("B has a tooltip");
         })
         .response
         .on_hover_text("test");
@@ -158,6 +158,10 @@ fn horizontal_response_tooltip_should_show_when_hovering_child() {
     harness.get_by_label("A").hover();
     harness.run_steps(5);
     harness.snapshot("horizontal_response_tooltip_should_show_when_hovering_child");
+
+    harness.get_by_label("B").hover();
+    harness.run_steps(5);
+    harness.snapshot("horizontal_response_topmost_tooltip_should_win");
 }
 
 /// This test ensures that `ui.response().interact(...)` works correctly.
