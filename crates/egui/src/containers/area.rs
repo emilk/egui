@@ -516,6 +516,7 @@ impl Area {
             let move_response = ctx.create_widget(
                 WidgetRect {
                     id: interact_id,
+                    parent_id: id,
                     layer_id,
                     rect: state.rect(),
                     interact_rect: state.rect().intersect(constrain_rect),

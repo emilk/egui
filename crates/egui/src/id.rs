@@ -79,7 +79,7 @@ impl Id {
         self.0.get()
     }
 
-    pub(crate) fn accesskit_id(&self) -> accesskit::NodeId {
+    pub fn accesskit_id(&self) -> accesskit::NodeId {
         self.value().into()
     }
 

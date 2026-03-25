@@ -443,6 +443,7 @@ mod tests {
     fn wr(id: Id, sense: Sense, rect: Rect) -> WidgetRect {
         WidgetRect {
             id,
+            parent_id: Id::NULL,
             layer_id: LayerId::background(),
             rect,
             interact_rect: rect,

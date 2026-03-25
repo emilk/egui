@@ -15,7 +15,7 @@ readme = "README.md"
 repository = "https://github.com/emilk/egui"
 categories = ["gui", "game-development"]
 keywords = ["gui", "imgui", "immediate", "portable", "gamedev"]
-include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
+include = ["../../LICENSE-APACHE", "../../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 
 [lints]
 workspace = true
@@ -34,7 +34,7 @@ default = ["dep:mime_guess2"]
 all_loaders = ["file", "http", "image", "svg", "gif", "webp"]
 
 ## Enable [`DatePickerButton`] widget.
-datepicker = ["chrono"]
+datepicker = ["jiff"]
 
 ## Add support for loading images from `file://` URIs.
 file = ["dep:mime_guess2"]
@@ -83,7 +83,7 @@ profiling.workspace = true
 serde = { workspace = true, optional = true }
 
 # Date operations needed for datepicker widget
-chrono = { workspace = true, optional = true, features = ["clock", "js-sys", "std", "wasmbind"] }
+jiff = { workspace = true, optional = true, features = ["std", "tz-system", "js"] }
 
 ## Enable this when generating docs.
 document-features = { workspace = true, optional = true }

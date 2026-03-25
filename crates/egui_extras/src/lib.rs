@@ -8,7 +8,7 @@
 
 #![expect(clippy::manual_range_contains)]
 
-#[cfg(feature = "chrono")]
+#[cfg(feature = "datepicker")]
 mod datepicker;
 
 pub mod syntax_highlighting;
@@ -21,7 +21,7 @@ mod sizing;
 mod strip;
 mod table;
 
-#[cfg(feature = "chrono")]
+#[cfg(feature = "datepicker")]
 pub use crate::datepicker::DatePickerButton;
 
 pub(crate) use crate::layout::StripLayout;

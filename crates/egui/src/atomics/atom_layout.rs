@@ -203,7 +203,7 @@ impl<'a> AtomLayout<'a> {
         // If the TextWrapMode is not Extend, ensure there is some item marked as `shrink`.
         // If none is found, mark the first text item as `shrink`.
         if wrap_mode != TextWrapMode::Extend {
-            let any_shrink = atoms.iter().any(|a| a.shrink);
+            let any_shrink = atoms.any_shrink();
             if !any_shrink {
                 let first_text = atoms
                     .iter_mut()
@@ -318,8 +318,9 @@ impl<'a> AtomLayout<'a> {
         let (_, rect) = ui.allocate_space(frame_size);
         let mut response = ui.interact(rect, id, sense);
 
-        response.intrinsic_size =
-            Some((Vec2::new(intrinsic_width, intrinsic_height) + margin.sum()).at_least(min_size));
+        response.set_intrinsic_size(
+            (Vec2::new(intrinsic_width, intrinsic_height) + margin.sum()).at_least(min_size),
+        );
 
         AllocatedAtomLayout {
             sized_atoms: sized_items,
@@ -517,6 +518,20 @@ impl AtomLayoutResponse {
         self.custom_rects
             .iter()
             .find_map(|(i, r)| if *i == id { Some(*r) } else { None })
+    }
+}
+
+impl Deref for AtomLayoutResponse {
+    type Target = Response;
+
+    fn deref(&self) -> &Self::Target {
+        &self.response
+    }
+}
+
+impl DerefMut for AtomLayoutResponse {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.response
     }
 }
 

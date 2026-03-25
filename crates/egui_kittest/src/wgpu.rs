@@ -17,7 +17,8 @@ pub(crate) const WAIT_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Default wgpu setup used for the wgpu renderer.
 pub fn default_wgpu_setup() -> egui_wgpu::WgpuSetup {
-    let mut setup = egui_wgpu::WgpuSetupCreateNew::default();
+    // No display handle needed for headless testing — we don't present to a window.
+    let mut setup = egui_wgpu::WgpuSetupCreateNew::without_display_handle();
 
     // WebGPU not supported yet since we rely on blocking screenshots.
     setup
@@ -58,6 +59,7 @@ pub fn default_wgpu_setup() -> egui_wgpu::WgpuSetup {
 }
 
 pub fn create_render_state(setup: WgpuSetup) -> egui_wgpu::RenderState {
+    // No display handle needed for headless testing — we don't present to a window.
     let instance = pollster::block_on(setup.new_instance());
 
     pollster::block_on(egui_wgpu::RenderState::create(
