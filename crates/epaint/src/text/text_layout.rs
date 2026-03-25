@@ -341,7 +341,7 @@ fn layout_section(
 
             // Set buffer flags for paragraph boundary context.
             let mut flags = harfrust::BufferFlags::empty();
-            if seg_idx == 0 && run_idx == 0 {
+            if run_idx == 0 {
                 flags |= harfrust::BufferFlags::BEGINNING_OF_TEXT;
             }
             if run_idx + 1 == num_runs {

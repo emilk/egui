@@ -800,11 +800,6 @@ impl Font<'_> {
     /// Grapheme clusters are never split across runs: if a combining mark
     /// falls back to a different font than its base character, it stays
     /// with the base character's font (the shaper will handle it).
-    /// Segment text into runs where each run uses a single font face.
-    ///
-    /// Grapheme clusters are never split across runs: if a combining mark
-    /// falls back to a different font than its base character, it stays
-    /// with the base character's font (the shaper will handle it).
     ///
     /// Results are appended to `out` (which is cleared first) to allow
     /// the caller to reuse the allocation across calls.
