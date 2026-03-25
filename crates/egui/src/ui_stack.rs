@@ -256,7 +256,7 @@ impl UiStack {
         !self.info.frame.stroke.is_empty()
     }
 
-    /// The background color of this [`Ui`].
+    /// The background color of this [`crate::Ui`].
     ///
     /// This blend together all [`Frame::fill`] colors
     /// up to the root.
