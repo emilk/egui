@@ -316,7 +316,7 @@ fn from_ron_str<T: serde::de::DeserializeOwned>(ron: &str) -> Option<T> {
 
 use crate::Id;
 
-/// Raw key for the [`IdTypeMap`].
+/// The key used [`IdTypeMap`], which is a combination of an [`Id`] and a [`TypeId`].
 ///
 /// This key can be used to remove or access values in the [`IdTypeMap`] without
 /// knowledge of the [`TypeId`] T that is required for other accessors.
@@ -333,14 +333,21 @@ pub struct RawKey(u64);
 impl nohash_hasher::IsEnabled for RawKey {}
 
 impl RawKey {
+    /// Create a new key for the given type.
+    ///
+    /// Note that two keys with the same id but different types
+    /// will be different keys.
+    ///
+    /// ```
+    /// assert_ne!(
+    ///     RawKey::new::<i32>(Id::NULL),
+    ///     RawKey::new::<String>(Id::NULL)
+    /// );
+    /// ```
     #[inline(always)]
-    fn new(type_id: TypeId, id: Id) -> Self {
+    pub fn new<T: 'static>(id: Id) -> Self {
+        let type_id = TypeId::of::<T>();
         Self(type_id.value() ^ id.value())
-    }
-
-    #[inline(always)]
-    fn new_of<T: 'static>(id: Id) -> Self {
-        Self::new(TypeId::of::<T>(), id)
     }
 }
 
@@ -401,59 +408,24 @@ impl Default for IdTypeMap {
 }
 
 impl IdTypeMap {
-    /// Gets a reference to a value for a given raw key.
-    pub fn get_raw(&self, raw: RawKey) -> Option<&(dyn Any + Send + Sync)> {
-        match self.map.get(&raw)? {
-            Element::Value { value, .. } => Some(value.as_ref()),
-            Element::Serialized(_) => None,
-        }
-    }
-
-    /// Gets a mutable reference to a value for a given raw key.
-    pub fn get_raw_mut(&mut self, raw: RawKey) -> Option<&mut (dyn Any + Send + Sync)> {
-        match self.map.get_mut(&raw)? {
-            Element::Value { value, .. } => Some(value.as_mut()),
-            Element::Serialized(_) => None,
-        }
-    }
-
-    /// Remove a value given a raw key.
-    pub fn remove_raw(&mut self, raw: RawKey) -> Option<Box<dyn Any + Send + Sync>> {
-        if let Entry::Occupied(e) = self.map.entry(raw) {
-            if matches!(e.get(), Element::Serialized(_)) {
-                return None;
-            }
-
-            match e.remove() {
-                Element::Value { value, .. } => return Some(value),
-                Element::Serialized(_) => unreachable!(),
-            }
-        }
-
-        None
-    }
-
-    /// Returns all `RawKey`s to values in this map.
-    /// The returned keys can only be used with this map.
-    pub fn raw_keys(&self) -> impl Iterator<Item = RawKey> {
-        self.map
-            .iter()
-            .filter(|(_, v)| matches!(v, Element::Value { .. }))
-            .map(|(k, _)| *k)
-    }
-
     /// Insert a value that will not be persisted.
     #[inline]
-    pub fn insert_temp<T: 'static + Any + Clone + Send + Sync>(&mut self, id: Id, value: T) {
-        let key = RawKey::new_of::<T>(id);
+    pub fn insert_temp<T: 'static + Any + Clone + Send + Sync>(
+        &mut self,
+        id: Id,
+        value: T,
+    ) -> RawKey {
+        let key = RawKey::new::<T>(id);
         self.map.insert(key, Element::new_temp(value));
+        key
     }
 
     /// Insert a value that will be persisted next time you start the app.
     #[inline]
-    pub fn insert_persisted<T: SerializableAny>(&mut self, id: Id, value: T) {
-        let key = RawKey::new_of::<T>(id);
+    pub fn insert_persisted<T: SerializableAny>(&mut self, id: Id, value: T) -> RawKey {
+        let key = RawKey::new::<T>(id);
         self.map.insert(key, Element::new_persisted(value));
+        key
     }
 
     /// Read a value without trying to deserialize a persisted value.
@@ -461,8 +433,28 @@ impl IdTypeMap {
     /// The call clones the value (if found), so make sure it is cheap to clone!
     #[inline]
     pub fn get_temp<T: 'static + Clone>(&self, id: Id) -> Option<T> {
-        let key = RawKey::new_of::<T>(id);
+        let key = RawKey::new::<T>(id);
         self.map.get(&key).and_then(|x| x.get_temp()).cloned()
+    }
+
+    /// Gets a reference to a value for a given raw key.
+    ///
+    /// Serialized values are ignored.
+    pub fn get_temp_raw(&self, raw: RawKey) -> Option<&(dyn Any + Send + Sync)> {
+        match self.map.get(&raw)? {
+            Element::Value { value, .. } => Some(value.as_ref()),
+            Element::Serialized(_) => None,
+        }
+    }
+
+    /// Gets a mutable reference to a value for a given raw key.
+    ///
+    /// Serialized values are ignored.
+    pub fn get_temp_raw_mut(&mut self, raw: RawKey) -> Option<&mut (dyn Any + Send + Sync)> {
+        match self.map.get_mut(&raw)? {
+            Element::Value { value, .. } => Some(value.as_mut()),
+            Element::Serialized(_) => None,
+        }
     }
 
     /// Read a value, optionally deserializing it if available.
@@ -473,7 +465,7 @@ impl IdTypeMap {
     /// The call clones the value (if found), so make sure it is cheap to clone!
     #[inline]
     pub fn get_persisted<T: SerializableAny>(&mut self, id: Id) -> Option<T> {
-        let key = RawKey::new_of::<T>(id);
+        let key = RawKey::new::<T>(id);
         self.map
             .get_mut(&key)
             .and_then(|x| x.get_mut_persisted())
@@ -512,7 +504,7 @@ impl IdTypeMap {
         id: Id,
         insert_with: impl FnOnce() -> T,
     ) -> &mut T {
-        let key = RawKey::new_of::<T>(id);
+        let key = RawKey::new::<T>(id);
         use std::collections::hash_map::Entry;
         match self.map.entry(key) {
             Entry::Vacant(vacant) => {
@@ -534,7 +526,7 @@ impl IdTypeMap {
         id: Id,
         insert_with: impl FnOnce() -> T,
     ) -> &mut T {
-        let key = RawKey::new_of::<T>(id);
+        let key = RawKey::new::<T>(id);
         use std::collections::hash_map::Entry;
         match self.map.entry(key) {
             Entry::Vacant(vacant) => {
@@ -555,7 +547,7 @@ impl IdTypeMap {
     #[cfg(feature = "persistence")]
     #[allow(clippy::allow_attributes, unused)]
     fn get_generation<T: SerializableAny>(&self, id: Id) -> Option<usize> {
-        let element = self.map.get(&RawKey::new_of::<T>(id))?;
+        let element = self.map.get(&RawKey::new::<T>(id))?;
         match element {
             Element::Value { .. } => Some(0),
             Element::Serialized(SerializedElement { generation, .. }) => Some(*generation),
@@ -565,16 +557,26 @@ impl IdTypeMap {
     /// Remove the state of this type and id.
     #[inline]
     pub fn remove<T: 'static>(&mut self, id: Id) {
-        let key = RawKey::new_of::<T>(id);
+        let key = RawKey::new::<T>(id);
         self.map.remove(&key);
     }
 
     /// Remove and fetch the state of this type and id.
     #[inline]
     pub fn remove_temp<T: 'static + Default>(&mut self, id: Id) -> Option<T> {
-        let key = RawKey::new_of::<T>(id);
+        let key = RawKey::new::<T>(id);
         let mut element = self.map.remove(&key)?;
         Some(std::mem::take(element.get_mut_temp()?))
+    }
+
+    /// Remove a value given a raw key.
+    ///
+    /// If it is a serialized value, it will be removed, but `None` will still be returned.
+    pub fn remove_raw(&mut self, raw: RawKey) -> Option<Box<dyn Any + Send + Sync>> {
+        match self.map.remove(&raw)? {
+            Element::Value { value, .. } => Some(value),
+            Element::Serialized(_) => None,
+        }
     }
 
     /// Note all state of the given type.
@@ -599,6 +601,18 @@ impl IdTypeMap {
     #[inline]
     pub fn len(&self) -> usize {
         self.map.len()
+    }
+
+    /// Returns all `RawKey`s to values in this map.
+    ///
+    /// The returned keys can only be used with this map.
+    ///
+    /// Serialized values will be ignored.
+    pub fn raw_value_keys(&self) -> impl Iterator<Item = RawKey> {
+        self.map
+            .iter()
+            .filter(|(_, v)| matches!(v, Element::Value { .. }))
+            .map(|(k, _)| *k)
     }
 
     /// Count how many values are stored but not yet deserialized.
