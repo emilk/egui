@@ -266,7 +266,7 @@ impl UiStack {
         for node in self.iter() {
             let fill = node.frame().fill;
             if fill.is_opaque() {
-                return fill;
+                return fill.blend(total);
             } else if fill != Color32::TRANSPARENT {
                 total = fill.blend(total);
             }
