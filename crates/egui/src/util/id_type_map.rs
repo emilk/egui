@@ -316,17 +316,33 @@ fn from_ron_str<T: serde::de::DeserializeOwned>(ron: &str) -> Option<T> {
 
 use crate::Id;
 
-/// Raw key for the `IdTypeMap`.
-/// This key can be used to remove or access values in the `IdTypeMap` without
-/// knowledge of the `TypeId` T that is required for other accessors.
+/// Raw key for the [`IdTypeMap`].
 ///
-/// `RawKey`s make no guarantees about layout or their ability to be persisted.
+/// This key can be used to remove or access values in the [`IdTypeMap`] without
+/// knowledge of the [`TypeId`] T that is required for other accessors.
+///
+/// [`RawKey`]s make no guarantees about layout or their ability to be persisted.
 /// They only produce deterministic results if they are used with the map
-/// they were initially obtained from. Using them on other instances of `TypeIdMap`
+/// they were initially obtained from. Using them on other instances of [`TypeIdMap`]
 /// may produce unexpected behavior.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[repr(transparent)]
 pub struct RawKey(u64);
+
+impl nohash_hasher::IsEnabled for RawKey {}
+
+impl RawKey {
+    #[inline(always)]
+    fn new(type_id: TypeId, id: Id) -> Self {
+        Self(type_id.value() ^ id.value())
+    }
+
+    #[inline(always)]
+    fn new_of<T: 'static>(id: Id) -> Self {
+        Self::new(TypeId::of::<T>(), id)
+    }
+}
 
 // TODO(emilk): make IdTypeMap generic over the key (`Id`), and make a library of IdTypeMap.
 /// Stores values identified by an [`Id`] AND the [`std::any::TypeId`] of the value.
@@ -370,7 +386,7 @@ pub struct RawKey(u64);
 #[derive(Clone, Debug)]
 // We use `id XOR typeid` as a key, so we don't need to hash again!
 pub struct IdTypeMap {
-    map: nohash_hasher::IntMap<u64, Element>,
+    map: nohash_hasher::IntMap<RawKey, Element>,
 
     max_bytes_per_type: usize,
 }
@@ -387,7 +403,7 @@ impl Default for IdTypeMap {
 impl IdTypeMap {
     /// Gets a reference to a value for a given raw key.
     pub fn get_raw(&self, raw: RawKey) -> Option<&(dyn Any + Send + Sync)> {
-        match self.map.get(&raw.0)? {
+        match self.map.get(&raw)? {
             Element::Value { value, .. } => Some(value.as_ref()),
             Element::Serialized(_) => None,
         }
@@ -395,7 +411,7 @@ impl IdTypeMap {
 
     /// Gets a mutable reference to a value for a given raw key.
     pub fn get_raw_mut(&mut self, raw: RawKey) -> Option<&mut (dyn Any + Send + Sync)> {
-        match self.map.get_mut(&raw.0)? {
+        match self.map.get_mut(&raw)? {
             Element::Value { value, .. } => Some(value.as_mut()),
             Element::Serialized(_) => None,
         }
@@ -403,7 +419,7 @@ impl IdTypeMap {
 
     /// Remove a value given a raw key.
     pub fn remove_raw(&mut self, raw: RawKey) -> Option<Box<dyn Any + Send + Sync>> {
-        if let Entry::Occupied(e) = self.map.entry(raw.0) {
+        if let Entry::Occupied(e) = self.map.entry(raw) {
             if matches!(e.get(), Element::Serialized(_)) {
                 return None;
             }
@@ -423,21 +439,21 @@ impl IdTypeMap {
         self.map
             .iter()
             .filter(|(_, v)| matches!(v, Element::Value { .. }))
-            .map(|(k, _)| RawKey(*k))
+            .map(|(k, _)| *k)
     }
 
     /// Insert a value that will not be persisted.
     #[inline]
     pub fn insert_temp<T: 'static + Any + Clone + Send + Sync>(&mut self, id: Id, value: T) {
-        let hash = hash(TypeId::of::<T>(), id);
-        self.map.insert(hash, Element::new_temp(value));
+        let key = RawKey::new_of::<T>(id);
+        self.map.insert(key, Element::new_temp(value));
     }
 
     /// Insert a value that will be persisted next time you start the app.
     #[inline]
     pub fn insert_persisted<T: SerializableAny>(&mut self, id: Id, value: T) {
-        let hash = hash(TypeId::of::<T>(), id);
-        self.map.insert(hash, Element::new_persisted(value));
+        let key = RawKey::new_of::<T>(id);
+        self.map.insert(key, Element::new_persisted(value));
     }
 
     /// Read a value without trying to deserialize a persisted value.
@@ -445,8 +461,8 @@ impl IdTypeMap {
     /// The call clones the value (if found), so make sure it is cheap to clone!
     #[inline]
     pub fn get_temp<T: 'static + Clone>(&self, id: Id) -> Option<T> {
-        let hash = hash(TypeId::of::<T>(), id);
-        self.map.get(&hash).and_then(|x| x.get_temp()).cloned()
+        let key = RawKey::new_of::<T>(id);
+        self.map.get(&key).and_then(|x| x.get_temp()).cloned()
     }
 
     /// Read a value, optionally deserializing it if available.
@@ -457,9 +473,9 @@ impl IdTypeMap {
     /// The call clones the value (if found), so make sure it is cheap to clone!
     #[inline]
     pub fn get_persisted<T: SerializableAny>(&mut self, id: Id) -> Option<T> {
-        let hash = hash(TypeId::of::<T>(), id);
+        let key = RawKey::new_of::<T>(id);
         self.map
-            .get_mut(&hash)
+            .get_mut(&key)
             .and_then(|x| x.get_mut_persisted())
             .cloned()
     }
@@ -496,9 +512,9 @@ impl IdTypeMap {
         id: Id,
         insert_with: impl FnOnce() -> T,
     ) -> &mut T {
-        let hash = hash(TypeId::of::<T>(), id);
+        let key = RawKey::new_of::<T>(id);
         use std::collections::hash_map::Entry;
-        match self.map.entry(hash) {
+        match self.map.entry(key) {
             Entry::Vacant(vacant) => {
                 // this unwrap will never panic, because we insert correct type right now
                 #[expect(clippy::unwrap_used)]
@@ -518,9 +534,9 @@ impl IdTypeMap {
         id: Id,
         insert_with: impl FnOnce() -> T,
     ) -> &mut T {
-        let hash = hash(TypeId::of::<T>(), id);
+        let key = RawKey::new_of::<T>(id);
         use std::collections::hash_map::Entry;
-        match self.map.entry(hash) {
+        match self.map.entry(key) {
             Entry::Vacant(vacant) => {
                 // this unwrap will never panic, because we insert correct type right now
                 #[expect(clippy::unwrap_used)]
@@ -539,7 +555,7 @@ impl IdTypeMap {
     #[cfg(feature = "persistence")]
     #[allow(clippy::allow_attributes, unused)]
     fn get_generation<T: SerializableAny>(&self, id: Id) -> Option<usize> {
-        let element = self.map.get(&hash(TypeId::of::<T>(), id))?;
+        let element = self.map.get(&RawKey::new_of::<T>(id))?;
         match element {
             Element::Value { .. } => Some(0),
             Element::Serialized(SerializedElement { generation, .. }) => Some(*generation),
@@ -549,15 +565,15 @@ impl IdTypeMap {
     /// Remove the state of this type and id.
     #[inline]
     pub fn remove<T: 'static>(&mut self, id: Id) {
-        let hash = hash(TypeId::of::<T>(), id);
-        self.map.remove(&hash);
+        let key = RawKey::new_of::<T>(id);
+        self.map.remove(&key);
     }
 
     /// Remove and fetch the state of this type and id.
     #[inline]
     pub fn remove_temp<T: 'static + Default>(&mut self, id: Id) -> Option<T> {
-        let hash = hash(TypeId::of::<T>(), id);
-        let mut element = self.map.remove(&hash)?;
+        let key = RawKey::new_of::<T>(id);
+        let mut element = self.map.remove(&key)?;
         Some(std::mem::take(element.get_mut_temp()?))
     }
 
@@ -629,17 +645,12 @@ impl IdTypeMap {
     }
 }
 
-#[inline(always)]
-fn hash(type_id: TypeId, id: Id) -> u64 {
-    type_id.value() ^ id.value()
-}
-
 // ----------------------------------------------------------------------------
 
 /// How [`IdTypeMap`] is persisted.
 #[cfg(feature = "persistence")]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-struct PersistedMap(Vec<(u64, SerializedElement)>);
+struct PersistedMap(Vec<(RawKey, SerializedElement)>);
 
 #[cfg(feature = "persistence")]
 impl PersistedMap {
@@ -659,20 +670,20 @@ impl PersistedMap {
         #[derive(Default)]
         struct GenerationStats {
             num_bytes: usize,
-            elements: Vec<(u64, SerializedElement)>,
+            elements: Vec<(RawKey, SerializedElement)>,
         }
 
         let max_bytes_per_type = map.max_bytes_per_type;
 
         {
             profiling::scope!("gather");
-            for (hash, element) in &map.map {
+            for (key, element) in &map.map {
                 if let Some(element) = element.to_serialize() {
                     let stats = types_map.entry(element.type_id).or_default();
                     stats.num_bytes += element.ron.len();
                     let generation_stats = stats.generations.entry(element.generation).or_default();
                     generation_stats.num_bytes += element.ron.len();
-                    generation_stats.elements.push((*hash, element));
+                    generation_stats.elements.push((*key, element));
                 } else {
                     // temporary value that shouldn't be serialized
                 }
@@ -712,7 +723,7 @@ impl PersistedMap {
             .into_iter()
             .map(
                 |(
-                    hash,
+                    key,
                     SerializedElement {
                         type_id,
                         ron,
@@ -720,7 +731,7 @@ impl PersistedMap {
                     },
                 )| {
                     (
-                        hash,
+                        key,
                         Element::Serialized(SerializedElement {
                             type_id,
                             ron,
