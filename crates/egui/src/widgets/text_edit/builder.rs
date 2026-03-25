@@ -646,7 +646,7 @@ impl TextEdit<'_> {
                         }
                     })
                     .atom_id(inner_rect_id)
-                    .atom_shrink(clip_text),
+                    .atom_shrink(true),
                 );
             }
 
