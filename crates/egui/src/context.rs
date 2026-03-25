@@ -1545,6 +1545,11 @@ impl Context {
         crate::debug_text::print(self, text);
     }
 
+    /// Current time in seconds, relative to some unknown epoch.
+    pub fn time(&self) -> f64 {
+        self.input(|i| i.time)
+    }
+
     /// What operating system are we running on?
     ///
     /// When compiling natively, this is
