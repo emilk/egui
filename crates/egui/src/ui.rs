@@ -487,6 +487,12 @@ impl Ui {
         &mut self.style_mut().visuals
     }
 
+    /// Is this [`Ui`] in a tooltip?
+    #[inline]
+    pub fn is_tooltip(&self) -> bool {
+        self.layer_id().order == Order::Tooltip
+    }
+
     /// Get a reference to this [`Ui`]'s [`UiStack`].
     #[inline]
     pub fn stack(&self) -> &Arc<UiStack> {
