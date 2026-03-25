@@ -46,6 +46,9 @@ pub struct Atom<'a> {
     /// See [`crate::AtomExt::atom_align`]
     pub align: Align2,
 
+    /// See [`crate::AtomExt::atom_ignore_spacing`]
+    pub ignore_spacing: bool,
+
     /// The atom type / content
     pub kind: AtomKind<'a>,
 }
@@ -58,6 +61,7 @@ impl Default for Atom<'_> {
             max_size: Vec2::INFINITY,
             grow: false,
             shrink: false,
+            ignore_spacing: false,
             align: Align2::CENTER_CENTER,
             kind: AtomKind::Empty,
         }
@@ -72,6 +76,7 @@ impl<'a> Atom<'a> {
     pub fn grow() -> Self {
         Atom {
             grow: true,
+            ignore_spacing: true,
             ..Default::default()
         }
     }
@@ -144,6 +149,7 @@ impl<'a> Atom<'a> {
             size,
             intrinsic_size: intrinsic_size.at_least(self.size.unwrap_or_default()),
             grow: self.grow,
+            ignore_spacing: self.ignore_spacing,
             align: self.align,
             kind: sized,
         }

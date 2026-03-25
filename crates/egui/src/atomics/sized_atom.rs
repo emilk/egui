@@ -8,6 +8,8 @@ pub struct SizedAtom<'a> {
 
     pub(crate) grow: bool,
 
+    pub(crate) ignore_spacing: bool,
+
     /// The size of the atom.
     ///
     /// Used for placing this atom in [`crate::AtomLayout`], the cursor will advance by
@@ -27,5 +29,10 @@ impl SizedAtom<'_> {
     /// Was this [`crate::Atom`] marked as `grow`?
     pub fn is_grow(&self) -> bool {
         self.grow
+    }
+
+    /// Was this [`crate::Atom`] marked as `ignore_spacing`?
+    pub fn ignore_spacing(&self) -> bool {
+        self.ignore_spacing
     }
 }
