@@ -126,10 +126,10 @@ impl SubpixelBin {
 
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub struct GlyphAllocation {
-    /// Used for pair-kerning.
+    /// The glyph ID in the font face that produced this allocation.
     ///
-    /// Doesn't need to be unique.
-    /// Use [`skrifa::GlyphId::NOTDEF`] if you just want to have an id, and don't care.
+    /// Used for legacy `kern` table lookup when positioning the overflow
+    /// character (e.g. `…`) during text truncation.
     pub(crate) id: skrifa::GlyphId,
 
     /// Unit: screen pixels.
@@ -669,7 +669,8 @@ impl FontFace {
         // Cache the allocation WITHOUT the shaper y_offset (which varies per call)
         self.glyph_alloc_cache.insert(cache_key, allocation);
 
-        // Apply shaper y_offset after caching (Option A from plan)
+        // Apply shaper y_offset after caching — the offset varies per call site
+        // so we cache the base allocation without it.
         allocation.uv_rect.offset.y += shaper_y_offset_points;
 
         (allocation, h_pos_round)
@@ -800,6 +801,11 @@ impl Font<'_> {
     /// Grapheme clusters are never split across runs: if a combining mark
     /// falls back to a different font than its base character, it stays
     /// with the base character's font (the shaper will handle it).
+    ///
+    /// NOTE: Segmentation is by font face, not by Unicode script. A run may
+    /// mix scripts (e.g. Latin + Cyrillic) when they share the same font.
+    /// This is acceptable for scripts with similar shaping rules, but would
+    /// need script-aware splitting once RTL/bidi support is added.
     ///
     /// Results are appended to `out` (which is cleared first) to allow
     /// the caller to reuse the allocation across calls.
