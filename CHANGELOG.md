@@ -26,11 +26,11 @@ The font rendering backend was switched from `ab_glyph` to `skrifa` + `vello_cpu
 font hinting and variations. It also paves the way for more font improvements in the future, like support for color
 emojis and adding helpers for variations like `RichText::bold`.
 
-Font hinting:
+Font hinting makes text more clear (look at the =):
 
 https://github.com/user-attachments/assets/ea9151ec-869f-4c05-ab59-836114683417
 
-Variable fonts:
+We now support setting varaible font parameters:
 
 https://github.com/user-attachments/assets/0febde1c-ebf6-4d85-8f96-86ec0f934ecf
 
