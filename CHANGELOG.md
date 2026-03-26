@@ -32,7 +32,10 @@ https://github.com/user-attachments/assets/ea9151ec-869f-4c05-ab59-836114683417
 
 Variable fonts:
 
-TODO
+https://github.com/user-attachments/assets/0febde1c-ebf6-4d85-8f96-86ec0f934ecf
+
+(Unfortunately there is currently a bug with variations, meaning changing them live like this won't work in practise.
+There is a [draft PR](https://github.com/emilk/egui/pull/8029) to fix it, but it didn't make the release)
 
 * Replace ab_glyph with Skrifa + vello_cpu; enable font hinting [#7694](https://github.com/emilk/egui/pull/7694) by [@valadaptive](https://github.com/valadaptive)
 * Add font variations API [#7859](https://github.com/emilk/egui/pull/7859) by [@valadaptive](https://github.com/valadaptive)
