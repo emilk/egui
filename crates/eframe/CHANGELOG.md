@@ -7,6 +7,30 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.34.0 - 2026-03-26
+### ⭐ Added
+* Add feature `wgpu_no_default_features` [#7700](https://github.com/emilk/egui/pull/7700) by [@emilk](https://github.com/emilk)
+* Add `ViewportInfo::occluded` and `visible` [#7948](https://github.com/emilk/egui/pull/7948) by [@emilk](https://github.com/emilk)
+* Add `eframe::WindowChromeMetrics` (macOS only) [#8015](https://github.com/emilk/egui/pull/8015) by [@emilk](https://github.com/emilk)
+
+### 🔧 Changed
+* Replace `App::update` with `fn logic` and `fn ui` [#7775](https://github.com/emilk/egui/pull/7775) by [@emilk](https://github.com/emilk)
+* Make `wgpu` the default renderer for `eframe` and egui.rs [#7615](https://github.com/emilk/egui/pull/7615) by [@emilk](https://github.com/emilk)
+* Roll out new egui icon and logo [#7995](https://github.com/emilk/egui/pull/7995) by [@emilk](https://github.com/emilk)
+* Update wasm-bindgen to 0.2.108, and ehttp to 0.7.1 [#7996](https://github.com/emilk/egui/pull/7996) by [@emilk](https://github.com/emilk)
+* Update to `wgpu` 29 [#7990](https://github.com/emilk/egui/pull/7990) by [@cwfitzgerald](https://github.com/cwfitzgerald)
+* Allow fallback from smithay to arboard when getting clipboard [#7976](https://github.com/emilk/egui/pull/7976) by [@wizzeh](https://github.com/wizzeh)
+
+### 🐛 Fixed
+* Fix: update get_proc_address to use Arc for better ownership management [#7922](https://github.com/emilk/egui/pull/7922) by [@Wybxc](https://github.com/Wybxc)
+* Much improved IME [#7967](https://github.com/emilk/egui/pull/7967) by [@umajho](https://github.com/umajho)
+* Improve behavior of invisible windows [#7905](https://github.com/emilk/egui/pull/7905) by [@gcailly](https://github.com/gcailly)
+
+### 🚀 Performance
+* Avoid repaints on device mouse motion outside window [#7866](https://github.com/emilk/egui/pull/7866) by [@inktomi](https://github.com/inktomi)
+* Only run `App::ui` if the application is visible [#7950](https://github.com/emilk/egui/pull/7950) by [@emilk](https://github.com/emilk)
+
+
 ## 0.33.3 - 2025-12-11
 Nothing new
 

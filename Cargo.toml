@@ -24,7 +24,7 @@ members = [
 edition = "2024"
 license = "MIT OR Apache-2.0"
 rust-version = "1.92"
-version = "0.33.3"
+version = "0.34.0"
 
 
 [profile.release]
@@ -55,18 +55,18 @@ opt-level = 2
 
 
 [workspace.dependencies]
-emath = { version = "0.33.3", path = "crates/emath", default-features = false }
-ecolor = { version = "0.33.3", path = "crates/ecolor", default-features = false }
-epaint = { version = "0.33.3", path = "crates/epaint", default-features = false }
-epaint_default_fonts = { version = "0.33.3", path = "crates/epaint_default_fonts" }
-egui = { version = "0.33.3", path = "crates/egui", default-features = false }
-egui-winit = { version = "0.33.3", path = "crates/egui-winit", default-features = false }
-egui_extras = { version = "0.33.3", path = "crates/egui_extras", default-features = false }
-egui-wgpu = { version = "0.33.3", path = "crates/egui-wgpu", default-features = false }
-egui_demo_lib = { version = "0.33.3", path = "crates/egui_demo_lib", default-features = false }
-egui_glow = { version = "0.33.3", path = "crates/egui_glow", default-features = false }
-egui_kittest = { version = "0.33.3", path = "crates/egui_kittest", default-features = false }
-eframe = { version = "0.33.3", path = "crates/eframe", default-features = false }
+emath = { version = "0.34.0", path = "crates/emath", default-features = false }
+ecolor = { version = "0.34.0", path = "crates/ecolor", default-features = false }
+epaint = { version = "0.34.0", path = "crates/epaint", default-features = false }
+epaint_default_fonts = { version = "0.34.0", path = "crates/epaint_default_fonts" }
+egui = { version = "0.34.0", path = "crates/egui", default-features = false }
+egui-winit = { version = "0.34.0", path = "crates/egui-winit", default-features = false }
+egui_extras = { version = "0.34.0", path = "crates/egui_extras", default-features = false }
+egui-wgpu = { version = "0.34.0", path = "crates/egui-wgpu", default-features = false }
+egui_demo_lib = { version = "0.34.0", path = "crates/egui_demo_lib", default-features = false }
+egui_glow = { version = "0.34.0", path = "crates/egui_glow", default-features = false }
+egui_kittest = { version = "0.34.0", path = "crates/egui_kittest", default-features = false }
+eframe = { version = "0.34.0", path = "crates/eframe", default-features = false }
 
 accesskit = "0.24.0"
 accesskit_consumer = "0.35.0"
@@ -80,7 +80,6 @@ arboard = { version = "3.6.1", default-features = false }
 backtrace = "0.3.76"
 bitflags = "2.9.4"
 bytemuck = "1.24.0"
-chrono = { version = "0.4.42", default-features = false }
 cint = "0.3.1"
 color-hex = "0.2.0"
 criterion = { version = "0.7.0", default-features = false }
@@ -96,6 +95,7 @@ glutin = { version = "0.32.3", default-features = false }
 glutin-winit = { version = "0.5.0", default-features = false }
 home = "0.5.9"
 image = { version = "0.25.6", default-features = false }
+jiff = { version = "0.2.23", default-features = false }
 js-sys = "0.3.77"
 kittest = { version = "0.4.0" }
 log = { version = "0.4.28", features = ["std"] }
@@ -104,10 +104,10 @@ mimalloc = "0.1.48"
 mime_guess2 = { version = "2.3.1", default-features = false }
 mint = "0.5.9"
 nohash-hasher = "0.2.0"
-objc2 = "0.5.2"
-objc2-app-kit = { version = "0.2.2", default-features = false }
-objc2-foundation = { version = "0.2.2", default-features = false }
-objc2-ui-kit = { version = "0.2.2", default-features = false }
+objc2 = "0.6.4"
+objc2-app-kit = { version = "0.3.2", default-features = false }
+objc2-foundation = { version = "0.3.2", default-features = false }
+objc2-ui-kit = { version = "0.3.2", default-features = false }
 open = "5.3.2"
 parking_lot = "0.12.5"
 percent-encoding = "2.3.2"
@@ -121,7 +121,7 @@ raw-window-handle = "0.6.2"
 rayon = "1.11.0"
 resvg = { version = "0.45.1", default-features = false }
 rfd = "0.17.2"
-ron = "0.11.0"
+ron = "0.12.0"
 self_cell = "1.2.1"
 serde = { version = "1.0.228", features = ["derive"] }
 similar-asserts = "1.7.0"
@@ -133,20 +133,20 @@ syntect = { version = "5.3.0", default-features = false }
 tempfile = "3.23.0"
 thiserror = "2.0.17"
 tokio = "1.49"
-toml = {version = "1", default-features = false }
+toml = {version = "1.0.0", default-features = false }
 type-map = "0.5.1"
 unicode_names2 = { version = "2.0.0", default-features = false }
 unicode-segmentation = "1.12.0"
 vello_cpu = { version = "0.0.6", default-features = false, features = ["std", "u8_pipeline", "f32_pipeline"] }
-wasm-bindgen = "0.2.108" # Keep wasm-bindgen version in sync in: setup_web.sh, Cargo.toml, Cargo.lock, rust.yml
-wasm-bindgen-futures = "0.4.0"
+wasm-bindgen = "0.2.108" # Keep wasm-bindgen version in sync in: setup_web.sh, Cargo.toml, Cargo.lock, rust.yml. Don't update this spuriously, because of https://github.com/rerun-io/rerun/issues/8766
+wasm-bindgen-futures = "0.4.58"
 wayland-cursor = { version = "0.31.11", default-features = false }
 web-sys = "0.3.77"
 web-time = "1.1.0" # Timekeeping for native and web
 webbrowser = "1.0.5"
 wgpu = { version = "29.0.0", default-features = false, features = ["std"] }
 windows-sys = "0.61.2"
-winit = { version = "0.30.12", default-features = false }
+winit = { version = "0.30.13", default-features = false }
 
 [workspace.lints.rust]
 unsafe_code = "deny"
