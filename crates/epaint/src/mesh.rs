@@ -23,6 +23,18 @@ pub struct Vertex {
     pub color: Color32, // 32 bit
 }
 
+impl Vertex {
+    /// An untextured vertex
+    #[inline]
+    pub fn untextured(pos: Pos2, color: Color32) -> Self {
+        Self {
+            pos,
+            uv: WHITE_UV,
+            color,
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg(all(feature = "unity", not(feature = "_override_unity")))]
@@ -159,11 +171,7 @@ impl Mesh {
             self.texture_id == TextureId::default(),
             "Mesh has an assigned texture"
         );
-        self.vertices.push(Vertex {
-            pos,
-            uv: WHITE_UV,
-            color,
-        });
+        self.vertices.push(Vertex::untextured(pos, color));
     }
 
     /// Add a triangle.
