@@ -4286,7 +4286,7 @@ impl Context {
     /// The `get_ime_output` callback returns the `IMEOutput` to set and is only
     /// invoked if the widget with the specified `id` owns the IME events for
     /// the current frame.
-    pub fn try_set_ime_output(&self, id: Id, get_ime_output: impl FnOnce(&Context) -> IMEOutput) {
+    pub fn try_set_ime_output(&self, id: Id, get_ime_output: impl FnOnce(&Self) -> IMEOutput) {
         if self.read(|ctx| ctx.ime_manager.can_set_ime_output(id)) {
             let ime_output = get_ime_output(self);
             self.write(|ctx| ctx.ime_manager.set_ime_output(id, ime_output));
