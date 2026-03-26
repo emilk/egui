@@ -186,7 +186,7 @@ fn layout_section(
             paragraph = out_paragraphs.last_mut().unwrap();
             paragraph.empty_paragraph_height = line_height; // TODO(emilk): replace this hack with actually including `\n` in the glyphs?
         } else {
-            let (font_id, glyph_info) = font.glyph_info(chr);
+            let (font_id, glyph_info) = font.glyph_info(chr, &font_metrics.location);
             let mut font_face = font.fonts_by_id.get_mut(&font_id);
             if current_font != font_id {
                 current_font = font_id;
@@ -471,12 +471,9 @@ fn replace_last_glyph_with_overflow_character(
         let mut font = fonts.font(&section.format.font_id.family);
         let font_size = section.format.font_id.size;
 
-        let (font_id, glyph_info) = font.glyph_info(overflow_character);
+        let font_face_metrics = font.styled_metrics(pixels_per_point, font_size, &section.format.coords);
+        let (font_id, glyph_info) = font.glyph_info(overflow_character, &font_face_metrics.location);
         let mut font_face = font.fonts_by_id.get_mut(&font_id);
-        let font_face_metrics = font_face
-            .as_mut()
-            .map(|f| f.styled_metrics(pixels_per_point, font_size, &section.format.coords))
-            .unwrap_or_default();
 
         let overflow_glyph_x = if let Some(prev_glyph) = row.glyphs.last() {
             // Kern the overflow character properly
@@ -484,8 +481,8 @@ fn replace_last_glyph_with_overflow_character(
                 .as_mut()
                 .map(|font_face| {
                     if let (Some(prev_glyph_id), Some(overflow_glyph_id)) = (
-                        font_face.glyph_info(prev_glyph.chr).and_then(|g| g.id),
-                        font_face.glyph_info(overflow_character).and_then(|g| g.id),
+                        font_face.glyph_info(prev_glyph.chr, &font_face_metrics.location).and_then(|g| g.id),
+                        font_face.glyph_info(overflow_character, &font_face_metrics.location).and_then(|g| g.id),
                     ) {
                         font_face.pair_kerning(&font_face_metrics, prev_glyph_id, overflow_glyph_id)
                     } else {
@@ -501,7 +498,7 @@ fn replace_last_glyph_with_overflow_character(
 
         let replacement_glyph_width = font_face
             .as_mut()
-            .and_then(|f| f.glyph_info(overflow_character))
+            .and_then(|f| f.glyph_info(overflow_character, &font_face_metrics.location))
             .map(|i| {
                 i.advance_width_unscaled.0 * font_face_metrics.px_scale_factor / pixels_per_point
             })

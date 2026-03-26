@@ -149,7 +149,11 @@ impl GlyphCacheKey {
         let StyledMetrics {
             pixels_per_point,
             px_scale_factor,
-            ..
+            ref location,
+            scale: _,
+            y_offset_in_points: _,
+            ascent: _,
+            row_height: _,
         } = *metrics;
         debug_assert!(
             0.0 < pixels_per_point && pixels_per_point.is_finite(),
@@ -164,6 +168,7 @@ impl GlyphCacheKey {
             pixels_per_point.to_bits(),
             px_scale_factor.to_bits(),
             bin,
+            location,
         )))
     }
 }
@@ -175,7 +180,6 @@ struct DependentFontData<'a> {
     charmap: skrifa::charmap::Charmap<'a>,
     outline_glyphs: skrifa::outline::OutlineGlyphCollection<'a>,
     metrics: skrifa::metrics::Metrics,
-    glyph_metrics: skrifa::metrics::GlyphMetrics<'a>,
     hinting_instance: Option<skrifa::outline::HintingInstance>,
 }
 
@@ -220,7 +224,9 @@ impl FontCell {
 
             if let Some(hinting_instance) = &mut font_data.hinting_instance {
                 let size = skrifa::instance::Size::new(metrics.scale);
-                if hinting_instance.size() != size {
+                if hinting_instance.size() != size
+                    || hinting_instance.location().coords() != location.coords()
+                {
                     hinting_instance
                         .reconfigure(
                             &font_data.outline_glyphs,
@@ -337,7 +343,7 @@ pub struct FontFace {
     font: FontCell,
     tweak: FontTweak,
 
-    glyph_info_cache: ahash::HashMap<char, GlyphInfo>,
+    glyph_info_cache: ahash::HashMap<(char, skrifa::instance::Location), GlyphInfo>,
     glyph_alloc_cache: ahash::HashMap<GlyphCacheKey, GlyphAllocation>,
 }
 
@@ -363,11 +369,6 @@ impl FontFace {
                 skrifa::instance::Size::unscaled(),
                 skrifa::instance::LocationRef::default(),
             );
-            let glyph_metrics = skrifa_font.glyph_metrics(
-                skrifa::instance::Size::unscaled(),
-                skrifa::instance::LocationRef::default(),
-            );
-
             let hinting_enabled = tweak.hinting_override.unwrap_or(options.font_hinting);
             let hinting_instance = hinting_enabled
                 .then(|| {
@@ -388,7 +389,6 @@ impl FontFace {
                 charmap,
                 outline_glyphs: glyphs,
                 metrics,
-                glyph_metrics,
                 hinting_instance,
             })
         })?;
@@ -432,8 +432,13 @@ impl FontFace {
     }
 
     /// `\n` will result in `None`
-    pub(super) fn glyph_info(&mut self, c: char) -> Option<GlyphInfo> {
-        if let Some(glyph_info) = self.glyph_info_cache.get(&c) {
+    pub(super) fn glyph_info(
+        &mut self,
+        c: char,
+        location: &skrifa::instance::Location,
+    ) -> Option<GlyphInfo> {
+        let cache_key = (c, location.clone());
+        if let Some(glyph_info) = self.glyph_info_cache.get(&cache_key) {
             return Some(*glyph_info);
         }
 
@@ -442,7 +447,7 @@ impl FontFace {
         }
 
         if c == '\t'
-            && let Some(space) = self.glyph_info(' ')
+            && let Some(space) = self.glyph_info(' ', location)
         {
             let glyph_info = GlyphInfo {
                 advance_width_unscaled: (crate::text::TAB_SIZE as f32
@@ -450,7 +455,7 @@ impl FontFace {
                     .into(),
                 ..space
             };
-            self.glyph_info_cache.insert(c, glyph_info);
+            self.glyph_info_cache.insert(cache_key, glyph_info);
             return Some(glyph_info);
         }
 
@@ -459,21 +464,21 @@ impl FontFace {
             // https://www.compart.com/en/unicode/U+2009
             // https://en.wikipedia.org/wiki/Thin_space
 
-            if let Some(space) = self.glyph_info(' ') {
+            if let Some(space) = self.glyph_info(' ', location) {
                 let em = self.font.borrow_dependent().metrics.units_per_em as f32;
                 let advance_width = f32::min(em / 6.0, space.advance_width_unscaled.0 * 0.5); // TODO(emilk): make configurable
                 let glyph_info = GlyphInfo {
                     advance_width_unscaled: advance_width.into(),
                     ..space
                 };
-                self.glyph_info_cache.insert(c, glyph_info);
+                self.glyph_info_cache.insert(cache_key, glyph_info);
                 return Some(glyph_info);
             }
         }
 
         if invisible_char(c) {
             let glyph_info = GlyphInfo::INVISIBLE;
-            self.glyph_info_cache.insert(c, glyph_info);
+            self.glyph_info_cache.insert(cache_key, glyph_info);
             return Some(glyph_info);
         }
 
@@ -485,15 +490,17 @@ impl FontFace {
             .map(c)
             .filter(|id| *id != skrifa::GlyphId::NOTDEF)?;
 
+        let glyph_metrics = font_data
+            .skrifa
+            .glyph_metrics(skrifa::instance::Size::unscaled(), location);
         let glyph_info = GlyphInfo {
             id: Some(glyph_id),
-            advance_width_unscaled: font_data
-                .glyph_metrics
+            advance_width_unscaled: glyph_metrics
                 .advance_width(glyph_id)
                 .unwrap_or_default()
                 .into(),
         };
-        self.glyph_info_cache.insert(c, glyph_info);
+        self.glyph_info_cache.insert(cache_key, glyph_info);
         Some(glyph_info)
     }
 
@@ -626,8 +633,9 @@ pub struct Font<'a> {
 
 impl Font<'_> {
     pub fn preload_characters(&mut self, s: &str) {
+        let default_location = skrifa::instance::Location::default();
         for c in s.chars() {
-            self.glyph_info(c);
+            self.glyph_info(c, &default_location);
         }
     }
 
@@ -661,7 +669,8 @@ impl Font<'_> {
 
     /// Width of this character in points.
     pub fn glyph_width(&mut self, c: char, font_size: f32) -> f32 {
-        let (key, glyph_info) = self.glyph_info(c);
+        let default_location = skrifa::instance::Location::default();
+        let (key, glyph_info) = self.glyph_info(c, &default_location);
         if let Some(font) = &self.fonts_by_id.get(&key) {
             glyph_info.advance_width_unscaled.0 * font.font.px_scale_factor(font_size)
         } else {
@@ -671,7 +680,8 @@ impl Font<'_> {
 
     /// Can we display this glyph?
     pub fn has_glyph(&mut self, c: char) -> bool {
-        self.glyph_info(c) != self.cached_family.replacement_glyph // TODO(emilk): this is a false negative if the user asks about the replacement character itself 🤦‍♂️
+        let default_location = skrifa::instance::Location::default();
+        self.glyph_info(c, &default_location) != self.cached_family.replacement_glyph // TODO(emilk): this is a false negative if the user asks about the replacement character itself 🤦‍♂️
     }
 
     /// Can we display all the glyphs in this text?
@@ -680,19 +690,26 @@ impl Font<'_> {
     }
 
     /// `\n` will (intentionally) show up as the replacement character.
-    pub(crate) fn glyph_info(&mut self, c: char) -> (FontFaceKey, GlyphInfo) {
-        if let Some(font_index_glyph_info) = self.cached_family.glyph_info_cache.get(&c) {
+    pub(crate) fn glyph_info(
+        &mut self,
+        c: char,
+        location: &skrifa::instance::Location,
+    ) -> (FontFaceKey, GlyphInfo) {
+        let cache_key = (c, location.clone());
+        if let Some(font_index_glyph_info) =
+            self.cached_family.glyph_info_cache.get(&cache_key)
+        {
             return *font_index_glyph_info;
         }
 
         let font_index_glyph_info = self
             .cached_family
-            .glyph_info_no_cache_or_fallback(c, self.fonts_by_id);
+            .glyph_info_no_cache_or_fallback(c, location, self.fonts_by_id);
         let font_index_glyph_info =
             font_index_glyph_info.unwrap_or(self.cached_family.replacement_glyph);
         self.cached_family
             .glyph_info_cache
-            .insert(c, font_index_glyph_info);
+            .insert(cache_key, font_index_glyph_info);
         font_index_glyph_info
     }
 }
