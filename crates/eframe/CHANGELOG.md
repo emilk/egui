@@ -14,11 +14,11 @@ Changes since the last release can be found at <https://github.com/emilk/egui/co
 * Add `eframe::WindowChromeMetrics` (macOS only) [#8015](https://github.com/emilk/egui/pull/8015) by [@emilk](https://github.com/emilk)
 
 ### 🔧 Changed
+* Replace `App::update` with `fn logic` and `fn ui` [#7775](https://github.com/emilk/egui/pull/7775) by [@emilk](https://github.com/emilk)
 * Make `wgpu` the default renderer for `eframe` and egui.rs [#7615](https://github.com/emilk/egui/pull/7615) by [@emilk](https://github.com/emilk)
-* Replace `Frame::update` with `fn logic` and `fn ui` [#7775](https://github.com/emilk/egui/pull/7775) by [@emilk](https://github.com/emilk)
 * Roll out new egui icon and logo [#7995](https://github.com/emilk/egui/pull/7995) by [@emilk](https://github.com/emilk)
 * Update wasm-bindgen to 0.2.108, and ehttp to 0.7.1 [#7996](https://github.com/emilk/egui/pull/7996) by [@emilk](https://github.com/emilk)
-* Update to wgpu 29 [#7990](https://github.com/emilk/egui/pull/7990) by [@cwfitzgerald](https://github.com/cwfitzgerald)
+* Update to `wgpu` 29 [#7990](https://github.com/emilk/egui/pull/7990) by [@cwfitzgerald](https://github.com/cwfitzgerald)
 * Allow fallback from smithay to arboard when getting clipboard [#7976](https://github.com/emilk/egui/pull/7976) by [@wizzeh](https://github.com/wizzeh)
 
 ### 🐛 Fixed
