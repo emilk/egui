@@ -10,8 +10,8 @@ use emath::{GuiRounding as _, NumExt as _, Pos2, Rect, Rot2, Vec2, pos2, remap, 
 use crate::{
     CircleShape, ClippedPrimitive, ClippedShape, Color32, CornerRadiusF32, CubicBezierShape,
     EllipseShape, Mesh, PathShape, Primitive, QuadraticBezierShape, RectShape, Shape, Stroke,
-    StrokeKind, TextShape, TextureId, Vertex, WHITE_UV, color::ColorMode, emath,
-    stroke::PathStroke, texture_atlas::PreparedDisc,
+    StrokeKind, TextShape, TextureId, Vertex, color::ColorMode, emath, stroke::PathStroke,
+    texture_atlas::PreparedDisc,
 };
 
 // ----------------------------------------------------------------------------
@@ -809,11 +809,8 @@ fn fill_closed_path(feathering: f32, path: &mut [PathPoint], fill_color: Color32
     } else {
         out.reserve_triangles(n as usize);
         let idx = out.vertices.len() as u32;
-        out.vertices.extend(path.iter().map(|p| Vertex {
-            pos: p.pos,
-            uv: WHITE_UV,
-            color: fill_color,
-        }));
+        out.vertices
+            .extend(path.iter().map(|p| Vertex::untextured(p.pos, fill_color)));
         for i in 2..n {
             out.add_triangle(idx, idx + i - 1, idx + i);
         }
