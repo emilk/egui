@@ -680,13 +680,14 @@ fn galley_from_rows(
         for glyph in &mut row.glyphs {
             let format = &job.sections[glyph.section_index as usize].format;
 
+            // Vertically aligns glyph's font_face_height within max_row_height using format.valign.
+            let valign_offset_y =
+                format.valign.to_factor() * (max_row_height - glyph.font_face_height);
+
+            // When mixing different `FontImpl` (e.g. latin and emojis),
+            // we always center the difference:
             glyph.pos.y = glyph.font_face_ascent
-
-                // Apply valign to the different in height of the entire row, and the height of this `Font`:
-                + format.valign.to_factor() * (max_row_height - glyph.line_height)
-
-                // When mixing different `FontImpl` (e.g. latin and emojis),
-                // we always center the difference:
+                + valign_offset_y
                 + 0.5 * (glyph.font_height - glyph.font_face_height);
 
             glyph.pos.y = point_scale.round_to_pixel(glyph.pos.y);
