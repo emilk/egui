@@ -30,7 +30,7 @@ Font hinting makes text more clear (look at the =):
 
 https://github.com/user-attachments/assets/ea9151ec-869f-4c05-ab59-836114683417
 
-We now support setting varaible font parameters:
+We now support setting variable font parameters:
 
 https://github.com/user-attachments/assets/0febde1c-ebf6-4d85-8f96-86ec0f934ecf
 
