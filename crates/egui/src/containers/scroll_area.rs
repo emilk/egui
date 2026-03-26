@@ -1029,6 +1029,8 @@ impl Prepared {
             .ctx()
             .pass_state_mut(|state| std::mem::take(&mut state.scroll_delta));
 
+        let mut had_explicit_scroll_adjustment = Vec2b::FALSE;
+
         for d in 0..2 {
             // PassState::scroll_delta is inverted from the way we apply the delta, so we need to negate it.
             let mut delta = -scroll_delta.0[d];
@@ -1099,6 +1101,10 @@ impl Prepared {
                     }
                     ui.request_repaint();
                 }
+            }
+
+            if delta != 0.0 {
+                had_explicit_scroll_adjustment[d] = true;
             }
         }
 
@@ -1201,8 +1207,10 @@ impl Prepared {
         // Paint the bars:
         let scroll_bar_rect = scroll_bar_rect.unwrap_or(inner_rect);
         for d in 0..2 {
-            // maybe force increase in offset to keep scroll stuck to end position
-            if stick_to_end[d] && state.scroll_stuck_to_end[d] {
+            // maybe force increase in offset to keep scroll stuck to end position,
+            // unless this axis had an explicit scroll adjustment.
+            if stick_to_end[d] && state.scroll_stuck_to_end[d] && !had_explicit_scroll_adjustment[d]
+            {
                 state.offset[d] = content_size[d] - inner_rect.size()[d];
             }
 
@@ -1454,16 +1462,25 @@ impl Prepared {
         state.offset = state.offset.min(available_offset);
         state.offset = state.offset.max(Vec2::ZERO);
 
+        let suppress_stuck_recompute = Vec2b::new(
+            had_explicit_scroll_adjustment[0] && state.offset_target[0].is_some(),
+            had_explicit_scroll_adjustment[1] && state.offset_target[1].is_some(),
+        );
+
         // Is scroll handle at end of content, or is there no scrollbar
         // yet (not enough content), but sticking is requested? If so, enter sticky mode.
         // Only has an effect if stick_to_end is enabled but we save in
         // state anyway so that entering sticky mode at an arbitrary time
         // has appropriate effect.
+        // Keep explicit target requests from being reclassified as "still stuck" in the same
+        // frame, otherwise animated scroll-to requests never get a chance to pull away from the end.
         state.scroll_stuck_to_end = Vec2b::new(
-            (state.offset[0] == available_offset[0])
-                || (self.stick_to_end[0] && available_offset[0] < 0.0),
-            (state.offset[1] == available_offset[1])
-                || (self.stick_to_end[1] && available_offset[1] < 0.0),
+            !suppress_stuck_recompute[0]
+                && ((state.offset[0] == available_offset[0])
+                    || (stick_to_end[0] && available_offset[0] < 0.0)),
+            !suppress_stuck_recompute[1]
+                && ((state.offset[1] == available_offset[1])
+                    || (stick_to_end[1] && available_offset[1] < 0.0)),
         );
 
         state.show_scroll = show_scroll_this_frame;
