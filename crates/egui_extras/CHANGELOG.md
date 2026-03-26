@@ -5,6 +5,14 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.34.0 - 2026-03-26
+* Fix media type with optional parameters [#7739](https://github.com/emilk/egui/pull/7739) by [@leungkkf](https://github.com/leungkkf)
+* Fix: CodeTheme functions - ui and add builder [#7684](https://github.com/emilk/egui/pull/7684) by [@Its-Just-Nans](https://github.com/Its-Just-Nans)
+* Update selected dependencies [#7920](https://github.com/emilk/egui/pull/7920) by [@oscargus](https://github.com/oscargus)
+* Add `DatePickerButton::reverse_years/year_scroll_to` [#7978](https://github.com/emilk/egui/pull/7978) by [@Deuracell](https://github.com/Deuracell)
+* Replace `chrono` with `jiff` [#8008](https://github.com/emilk/egui/pull/8008) by [@emilk](https://github.com/emilk)
+
+
 ## 0.33.3 - 2025-12-11
 * Bump `ehttp` to 0.6.0 [#7757](https://github.com/emilk/egui/pull/7757) by [@jprochazk](https://github.com/jprochazk)
 
