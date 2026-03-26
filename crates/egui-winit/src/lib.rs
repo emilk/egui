@@ -698,7 +698,7 @@ impl State {
                     self.ime_event_enable();
                 }
             }
-            winit::event::Ime::Preedit(text, Some(_cursor)) => {
+            winit::event::Ime::Preedit(text, _) => {
                 self.ime_event_enable();
                 self.egui_input
                     .events
@@ -711,29 +711,6 @@ impl State {
                 self.ime_event_disable();
             }
             winit::event::Ime::Disabled => {
-                self.ime_event_disable();
-            }
-            winit::event::Ime::Preedit(_, None) => {
-                if cfg!(target_os = "macos") {
-                    // On macOS, when the user presses backspace to delete the
-                    // last character in an IME composition, `winit` only emits
-                    // `winit::event::Ime::Preedit("", None)` without a
-                    // preceding `winit::event::Ime::Preedit("", Some(0, 0))`.
-                    //
-                    // The current implementation of `egui::TextEdit` relies on
-                    // receiving an `egui::ImeEvent::Preedit("")` to remove the
-                    // last character in the composition in this case, so we
-                    // emit it here.
-                    //
-                    // This is guarded to macOS-only, as applying it on other
-                    // platforms is unnecessary and can cause undesired
-                    // behavior.
-                    // See: https://github.com/emilk/egui/pull/7973
-                    self.egui_input
-                        .events
-                        .push(egui::Event::Ime(egui::ImeEvent::Preedit(String::new())));
-                }
-
                 self.ime_event_disable();
             }
         }
