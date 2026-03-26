@@ -227,11 +227,19 @@ fn layout_shaped_run(
             let fallback_metrics = font
                 .fonts_by_id
                 .get(&fallback_key)
-                .map(|ff| ff.styled_metrics(ctx.pixels_per_point, ctx.font_size, &Default::default()))
+                .map(|ff| {
+                    ff.styled_metrics(ctx.pixels_per_point, ctx.font_size, &Default::default())
+                })
                 .unwrap_or_default();
             let (glyph_alloc, physical_x) =
                 if let Some(ff) = font.fonts_by_id.get_mut(&fallback_key) {
-                    ff.allocate_glyph(font.atlas, &fallback_metrics, glyph_info, chr, paragraph.cursor_x_px)
+                    ff.allocate_glyph(
+                        font.atlas,
+                        &fallback_metrics,
+                        glyph_info,
+                        chr,
+                        paragraph.cursor_x_px,
+                    )
                 } else {
                     Default::default()
                 };
@@ -257,8 +265,13 @@ fn layout_shaped_run(
             let (glyph_alloc, physical_x) =
                 if let Some(ff) = font.fonts_by_id.get_mut(&run.font_key) {
                     ff.allocate_glyph_by_id(
-                        font.atlas, face_metrics, glyph_id, x_advance_px,
-                        h_pos, y_offset_points, is_cjk(chr),
+                        font.atlas,
+                        face_metrics,
+                        glyph_id,
+                        x_advance_px,
+                        h_pos,
+                        y_offset_points,
+                        is_cjk(chr),
                     )
                 } else {
                     Default::default()
@@ -360,12 +373,16 @@ fn layout_section(
                 flags |= harfrust::BufferFlags::END_OF_TEXT;
             }
 
-            let glyph_buffer =
-                font_face.shape_text(run_text, &format.coords, shape_buffer, flags);
+            let glyph_buffer = font_face.shape_text(run_text, &format.coords, shape_buffer, flags);
 
             layout_shaped_run(
-                &mut font, run, run_text, &glyph_buffer,
-                &face_metrics, &mut ctx, paragraph,
+                &mut font,
+                run,
+                run_text,
+                &glyph_buffer,
+                &face_metrics,
+                &mut ctx,
+                paragraph,
             );
 
             shape_buffer = glyph_buffer.clear();
@@ -1477,10 +1494,7 @@ mod tests {
         );
 
         let glyphs = &galley_combined.rows[0].row.glyphs;
-        assert!(
-            !glyphs.is_empty(),
-            "Expected at least 1 glyph for ɔ̃"
-        );
+        assert!(!glyphs.is_empty(), "Expected at least 1 glyph for ɔ̃");
     }
 
     #[test]
@@ -1575,10 +1589,18 @@ mod tests {
         for pair in ["AV", "VA", "AT"] {
             let (pair_w, _, _) = measure_text(&mut fonts, pair, &font_id, pixels_per_point);
             let chars: Vec<char> = pair.chars().collect();
-            let (w1, _, _) =
-                measure_text(&mut fonts, &chars[0].to_string(), &font_id, pixels_per_point);
-            let (w2, _, _) =
-                measure_text(&mut fonts, &chars[1].to_string(), &font_id, pixels_per_point);
+            let (w1, _, _) = measure_text(
+                &mut fonts,
+                &chars[0].to_string(),
+                &font_id,
+                pixels_per_point,
+            );
+            let (w2, _, _) = measure_text(
+                &mut fonts,
+                &chars[1].to_string(),
+                &font_id,
+                pixels_per_point,
+            );
             let sum = w1 + w2;
             let kern_adjustment = sum - pair_w;
 

@@ -606,8 +606,7 @@ impl FontFace {
             None
         } else {
             Some(harfrust::ShaperInstance::from_variations(
-                font_ref,
-                variations,
+                font_ref, variations,
             ))
         };
 

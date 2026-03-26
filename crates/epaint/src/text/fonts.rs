@@ -811,9 +811,7 @@ impl FontsImpl {
 
     /// Take the recycled shaping buffer (or create a new one if already taken).
     pub fn take_shape_buffer(&mut self) -> harfrust::UnicodeBuffer {
-        self.shape_buffer
-            .take()
-            .unwrap_or_default()
+        self.shape_buffer.take().unwrap_or_default()
     }
 
     /// Return a shaping buffer for reuse.
