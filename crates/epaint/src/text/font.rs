@@ -146,15 +146,8 @@ impl nohash_hasher::IsEnabled for GlyphCacheKey {}
 
 impl GlyphCacheKey {
     fn new(glyph_id: skrifa::GlyphId, metrics: &StyledMetrics, bin: SubpixelBin) -> Self {
-        let StyledMetrics {
-            pixels_per_point,
-            px_scale_factor,
-            ref location,
-            scale: _,
-            y_offset_in_points: _,
-            ascent: _,
-            row_height: _,
-        } = *metrics;
+        let pixels_per_point = metrics.pixels_per_point;
+        let px_scale_factor = metrics.px_scale_factor;
         debug_assert!(
             0.0 < pixels_per_point && pixels_per_point.is_finite(),
             "Bad pixels_per_point {pixels_per_point}"
@@ -168,7 +161,7 @@ impl GlyphCacheKey {
             pixels_per_point.to_bits(),
             px_scale_factor.to_bits(),
             bin,
-            location,
+            &metrics.location,
         )))
     }
 }
