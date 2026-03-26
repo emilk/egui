@@ -10,19 +10,19 @@ pub(crate) struct ImeManager {
 }
 
 impl ImeManager {
-    pub fn begin_pass(&mut self, interaction: &InteractionState, focus: Option<&Focus>) {
+    pub(crate) fn begin_pass(&mut self, interaction: &InteractionState, focus: Option<&Focus>) {
         if interaction.is_using_pointer() || focus.is_none_or(|focus| focus.is_focus_changed()) {
             self.ime_state.interrupt();
         }
     }
 
-    pub fn end_pass(&mut self, platform_output: &mut PlatformOutput) {
+    pub(crate) fn end_pass(&mut self, platform_output: &mut PlatformOutput) {
         platform_output.ime = self.ime_state.take_ime_output();
     }
 
     /// See [`crate::Context::try_claim_ime_events_ownership`] for the
     /// documentation.
-    pub fn try_claim_ime_events_ownership(&mut self, id: Id) -> bool {
+    pub(crate) fn try_claim_ime_events_ownership(&mut self, id: Id) -> bool {
         match &self.ime_state {
             ImeState::Idle => {
                 self.ime_state = ImeState::Claimed { claimer: id };
@@ -39,16 +39,32 @@ impl ImeManager {
         }
     }
 
-    /// See [`crate::Context::try_set_ime_output`] for the documentation.
-    pub fn try_set_ime_output(&mut self, id: Id, get_ime_output: impl FnOnce() -> IMEOutput) {
+    /// Used by [`crate::Context::try_set_ime_output`].
+    pub(crate) fn can_set_ime_output(&self, id: Id) -> bool {
+        matches!(
+            self.ime_state,
+            ImeState::Owned { owner, .. } if owner == id
+        )
+    }
+
+    /// Used by [`crate::Context::try_set_ime_output`].
+    ///
+    /// Should only be called immediately after confirming ownership with
+    /// [`Self::can_set_ime_output`].
+    pub(crate) fn set_ime_output(&mut self, id: Id, ime_output: IMEOutput) {
         match &mut self.ime_state {
             ImeState::Owned {
                 owner,
                 ime_output: current_ime_output,
             } if *owner == id => {
-                *current_ime_output = Some(get_ime_output());
+                *current_ime_output = Some(ime_output);
             }
-            _ => {}
+            _ => {
+                debug_assert!(
+                    false,
+                    "Attempted to set the IME output from a widget that does not own IME events"
+                );
+            }
         }
     }
 }

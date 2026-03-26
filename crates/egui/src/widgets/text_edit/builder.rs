@@ -859,17 +859,16 @@ impl TextEdit<'_> {
                         );
                     }
 
-                    // Set IME output (in screen coords) when text is editable and visible
-                    let to_global = ui
-                        .ctx()
-                        .layer_transform_to_global(ui.layer_id())
-                        .unwrap_or_default();
-
-                    ui.ctx()
-                        .try_set_ime_output(id, || crate::output::IMEOutput {
+                    ui.ctx().try_set_ime_output(id, |ctx| {
+                        // Set IME output (in screen coords) when text is editable and visible
+                        let to_global = ctx
+                            .layer_transform_to_global(ui.layer_id())
+                            .unwrap_or_default();
+                        crate::output::IMEOutput {
                             rect: to_global * inner_rect,
                             cursor_rect: to_global * primary_cursor_rect,
-                        });
+                        }
+                    });
                 }
             }
         }
