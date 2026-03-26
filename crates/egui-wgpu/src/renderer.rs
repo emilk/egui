@@ -1,5 +1,3 @@
-#![expect(clippy::unwrap_used)] // TODO(emilk): avoid unwraps
-
 use std::{borrow::Cow, num::NonZeroU64, ops::Range};
 
 use ahash::HashMap;
@@ -472,6 +470,9 @@ impl Renderer {
     /// The render pass internally keeps all referenced resources alive as long as necessary.
     /// The only consequence of `forget_lifetime` is that any operation on the parent encoder will cause a runtime error
     /// instead of a compile time error.
+    ///
+    /// # Panic
+    /// Always ensure that [`Renderer::update_buffers`] has been called otherwise calling [`Renderer::render`] will panic!
     pub fn render(
         &self,
         render_pass: &mut wgpu::RenderPass<'static>,
@@ -516,8 +517,12 @@ impl Renderer {
                     // Skip rendering zero-sized clip areas.
                     if let Primitive::Mesh(_) = primitive {
                         // If this is a mesh, we need to advance the index and vertex buffer iterators:
-                        index_buffer_slices.next().unwrap();
-                        vertex_buffer_slices.next().unwrap();
+                        index_buffer_slices
+                            .next()
+                            .expect("You must call .update_buffers() before .render()");
+                        vertex_buffer_slices
+                            .next()
+                            .expect("You must call .update_buffers() before .render()");
                     }
                     continue;
                 }
@@ -527,8 +532,12 @@ impl Renderer {
 
             match primitive {
                 Primitive::Mesh(mesh) => {
-                    let index_buffer_slice = index_buffer_slices.next().unwrap();
-                    let vertex_buffer_slice = vertex_buffer_slices.next().unwrap();
+                    let index_buffer_slice = index_buffer_slices
+                        .next()
+                        .expect("You must call .update_buffers() before .render()");
+                    let vertex_buffer_slice = vertex_buffer_slices
+                        .next()
+                        .expect("You must call .update_buffers() before .render()");
 
                     if let Some(Texture { bind_group, .. }) = self.textures.get(&mesh.texture_id) {
                         render_pass.set_bind_group(1, bind_group, &[]);
@@ -954,6 +963,7 @@ impl Renderer {
             let index_buffer_staging = queue.write_buffer_with(
                 &self.index_buffer.buffer,
                 0,
+                #[expect(clippy::unwrap_used)] // Checked above
                 NonZeroU64::new(required_index_buffer_size).unwrap(),
             );
 
@@ -998,6 +1008,7 @@ impl Renderer {
             let vertex_buffer_staging = queue.write_buffer_with(
                 &self.vertex_buffer.buffer,
                 0,
+                #[expect(clippy::unwrap_used)] // Checked above
                 NonZeroU64::new(required_vertex_buffer_size).unwrap(),
             );
 

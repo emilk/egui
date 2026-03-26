@@ -27,7 +27,7 @@ impl crate::Demo for StripDemo {
 impl crate::View for StripDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
         let dark_mode = ui.visuals().dark_mode;
-        let faded_color = ui.visuals().window_fill();
+        let faded_color = ui.stack().bg_color();
         let faded_color = |color: Color32| -> Color32 {
             use egui::Rgba;
             let t = if dark_mode { 0.95 } else { 0.8 };

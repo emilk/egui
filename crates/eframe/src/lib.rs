@@ -190,6 +190,9 @@ pub use web::{WebLogger, WebRunner};
 #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 mod native;
 
+#[cfg(target_os = "macos")]
+pub use native::macos::WindowChromeMetrics;
+
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 pub use native::run::EframeWinitApplication;

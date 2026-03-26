@@ -962,6 +962,7 @@ fn do_resize_interaction(
             WidgetRect {
                 layer_id,
                 id,
+                parent_id: layer_id.id,
                 rect,
                 interact_rect: rect,
                 sense: Sense::DRAG, // Don't use Sense::drag() since we don't want these to be focusable

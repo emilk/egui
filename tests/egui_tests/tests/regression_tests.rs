@@ -1,8 +1,13 @@
+use std::sync::Arc;
+
+use egui::ScrollArea;
 use egui::accesskit::Role;
 use egui::epaint::Shape;
 use egui::style::ScrollAnimation;
+use egui::text::{LayoutJob, TextWrapping};
 use egui::{
-    Align, Color32, Image, Label, Layout, RichText, ScrollArea, Sense, TextWrapMode, include_image,
+    Align, Color32, FontFamily, FontId, Image, Label, Layout, RichText, Sense, TextBuffer,
+    TextFormat, TextWrapMode, Ui, include_image, vec2,
 };
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable as _;
@@ -64,6 +69,53 @@ fn text_edit_rtl() {
         harness.step();
         harness.snapshot(format!("text_edit_rtl_{i}"));
     }
+}
+
+#[test]
+fn text_edit_halign() {
+    let mut harness = Harness::builder().with_size((212.0, 212.0)).build_ui(|ui| {
+        ui.spacing_mut().item_spacing = vec2(2.0, 2.0);
+
+        fn layouter(halign: Align) -> impl FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<egui::Galley> {
+            move |ui: &egui::Ui, buf: &dyn egui::TextBuffer, wrap_width: f32| {
+                let mut job = LayoutJob {
+                    wrap: TextWrapping {
+                        max_rows: 4,
+                        max_width: wrap_width,
+                        ..Default::default()
+                    },
+                    halign,
+                    ..Default::default()
+                };
+                job.append(
+                    buf.as_str(),
+                    0.0,
+                    TextFormat::simple(FontId::new(13.0, FontFamily::Proportional), Color32::GRAY),
+                );
+                ui.fonts_mut(|f| f.layout_job(job))
+            }
+        }
+
+        for widget_alignment in [Align::Min, Align::Center, Align::Max] {
+            ui.horizontal(|ui| {
+                for text_alignment in [Align::LEFT, Align::Center, Align::RIGHT] {
+                    ui.add_sized(
+                        vec2(64.0, 64.0),
+                        egui::TextEdit::multiline(&mut format!(
+                            "{widget_alignment:?}\n+\n{text_alignment:?}",
+                        ))
+                        .layouter(&mut layouter(text_alignment))
+                        .vertical_align(widget_alignment)
+                        .horizontal_align(widget_alignment),
+                    );
+                }
+            });
+        }
+    });
+
+    harness.get_by_value("Center\n+\nCenter").focus();
+    harness.step();
+    harness.snapshot("text_edit_halign");
 }
 
 #[test]
@@ -226,4 +278,132 @@ fn warn_if_rect_changes_id() {
         has_red_warning_rect(harness.output()),
         "Should warn when a widget rect changes Id between passes"
     );
+}
+
+/// When a parent Ui's id changes (e.g. via `push_id` with a dynamic value),
+/// all child widget ids shift too. This should NOT trigger `warn_if_rect_changes_id` because the
+/// `parent_id` also changed — it's a cascading id shift, not a widget bug.
+#[test]
+fn warn_if_rect_changes_id_false_positive_parent_shift() {
+    use std::cell::Cell;
+
+    let counter = Cell::new(0);
+    let button_rect = egui::Rect::from_min_size(egui::pos2(10.0, 10.0), egui::vec2(100.0, 30.0));
+
+    let mut harness = Harness::builder().with_size((200.0, 100.0)).build_ui(|ui| {
+        // push_id with a changing value causes the child Ui's id to shift,
+        // which in turn shifts all widget ids inside it.
+        ui.push_id(counter.get(), |ui| {
+            let id = ui.id().with("my_widget");
+            let _response = ui.interact(button_rect, id, Sense::click());
+        });
+    });
+
+    // Frame 1: counter=0 — establishes prev_pass
+    harness.step();
+    assert!(
+        !has_red_warning_rect(harness.output()),
+        "Should not warn on first frame"
+    );
+
+    // Frame 2: counter=0 — prev_pass == this_pass
+    harness.step();
+    assert!(
+        !has_red_warning_rect(harness.output()),
+        "Should not warn when nothing changed"
+    );
+
+    // Now change the parent id, shifting all child widget ids
+    counter.set(1);
+    harness.step();
+
+    assert!(
+        !has_red_warning_rect(harness.output()),
+        "Should NOT warn when parent Ui's id shifted (cascading id change)"
+    );
+}
+
+#[test]
+fn horizontal_wrapped_multiline_row_height() {
+    let mut harness = Harness::builder().with_size((350.0, 300.0)).build_ui(|ui| {
+        ui.style_mut().interaction.tooltip_delay = 0.0;
+        ui.style_mut().interaction.show_tooltips_only_when_still = false;
+
+        let mut string = String::new();
+
+        ui.horizontal_wrapped(|ui| {
+            ui.monospace("| ");
+            let _ = ui.button("A");
+            let _ = ui.button("B");
+            ui.end_row();
+
+            ui.monospace("| ");
+            let _ = ui.button("C");
+            let _ = ui.button("D");
+            let _ = ui.button("E");
+            ui.end_row();
+
+            ui.monospace("| ");
+            ui.text_edit_multiline(&mut string);
+            ui.end_row();
+
+            ui.monospace("| ");
+            let _ = ui.button("F");
+            let _ = ui.button("G");
+            ui.end_row();
+
+            ui.monospace("| ");
+            let _ = ui.button("H");
+            let _ = ui.button("I");
+            let _ = ui.button("K");
+            ui.end_row();
+        });
+    });
+
+    harness.snapshot("horizontal_wrapped_multiline_row_height");
+}
+
+#[test]
+fn horizontal_wrapped_multiline_row_height_reference() {
+    let mut harness = Harness::builder().with_size((350.0, 300.0)).build_ui(|ui| {
+        ui.style_mut().interaction.tooltip_delay = 0.0;
+        ui.style_mut().interaction.show_tooltips_only_when_still = false;
+
+        let mut string = String::new();
+
+        ui.vertical(|ui| {
+            ui.horizontal(|ui| {
+                ui.monospace("| ");
+                let _ = ui.button("A");
+                let _ = ui.button("B");
+            });
+
+            ui.horizontal(|ui| {
+                ui.monospace("| ");
+                let _ = ui.button("C");
+                let _ = ui.button("D");
+                let _ = ui.button("E");
+            });
+
+            ui.horizontal(|ui| {
+                ui.monospace("| ");
+                ui.text_edit_multiline(&mut string);
+            });
+
+            ui.horizontal(|ui| {
+                ui.monospace("| ");
+                let _ = ui.button("F");
+                let _ = ui.button("G");
+            });
+
+            ui.horizontal(|ui| {
+                ui.monospace("| ");
+                let _ = ui.button("H");
+                let _ = ui.button("I");
+                let _ = ui.button("K");
+            });
+        });
+    });
+
+    harness.snapshot("horizontal_wrapped_multiline_row_height_reference");
 }

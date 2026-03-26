@@ -42,15 +42,15 @@ wayland = ["eframe/wayland"]
 x11 = ["eframe/x11"]
 
 [dependencies]
-chrono = { workspace = true, features = ["js-sys", "wasmbind"] }
 eframe = { workspace = true, default-features = false, features = ["web_screen_reader"] }
 egui = { workspace = true, features = ["callstack", "default"] }
-egui_demo_lib = { workspace = true, features = ["default", "chrono"] }
+egui_demo_lib = { workspace = true, features = ["default", "jiff"] }
 egui_extras = { workspace = true, features = ["default", "image"] }
 image = { workspace = true, default-features = false, features = [
   # Ensure we can display the test images
   "png",
 ] }
+jiff = { workspace = true, features = ["std", "tz-system", "js"] }
 log.workspace = true
 profiling.workspace = true
 

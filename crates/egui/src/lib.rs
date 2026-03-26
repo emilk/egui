@@ -449,7 +449,7 @@ pub use emath::{
     remap_clamp, vec2,
 };
 pub use epaint::{
-    ClippedPrimitive, ColorImage, CornerRadius, ImageData, Margin, Mesh, PaintCallback,
+    ClippedPrimitive, ColorImage, CornerRadius, Direction, ImageData, Margin, Mesh, PaintCallback,
     PaintCallbackInfo, Shadow, Shape, Stroke, StrokeKind, TextureHandle, TextureId, mutex,
     text::{FontData, FontDefinitions, FontFamily, FontId, FontTweak},
     textures::{TextureFilter, TextureOptions, TextureWrapMode, TexturesDelta},
@@ -478,7 +478,7 @@ pub use self::{
     drag_and_drop::DragAndDrop,
     epaint::text::TextWrapMode,
     grid::Grid,
-    id::{Id, IdMap},
+    id::{Id, IdMap, IdSet},
     input_state::{InputOptions, InputState, MultiTouchInfo, PointerState, SurrenderFocusOn},
     layers::{LayerId, Order},
     layout::*,

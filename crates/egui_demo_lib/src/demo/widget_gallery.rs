@@ -19,11 +19,11 @@ pub struct WidgetGallery {
     color: egui::Color32,
     animate_progress_bar: bool,
 
-    #[cfg(feature = "chrono")]
+    #[cfg(feature = "jiff")]
     #[cfg_attr(feature = "serde", serde(skip))]
-    date: Option<chrono::NaiveDate>,
+    date: Option<jiff::civil::Date>,
 
-    #[cfg(feature = "chrono")]
+    #[cfg(feature = "jiff")]
     with_date_button: bool,
 }
 
@@ -39,19 +39,19 @@ impl Default for WidgetGallery {
             string: Default::default(),
             color: egui::Color32::LIGHT_BLUE.linear_multiply(0.5),
             animate_progress_bar: false,
-            #[cfg(feature = "chrono")]
+            #[cfg(feature = "jiff")]
             date: None,
-            #[cfg(feature = "chrono")]
+            #[cfg(feature = "jiff")]
             with_date_button: true,
         }
     }
 }
 
 impl WidgetGallery {
-    #[allow(clippy::allow_attributes, unused_mut)] // if not chrono
+    #[allow(clippy::allow_attributes, unused_mut)] // if not jiff
     #[inline]
     pub fn with_date_button(mut self, _with_date_button: bool) -> Self {
-        #[cfg(feature = "chrono")]
+        #[cfg(feature = "jiff")]
         {
             self.with_date_button = _with_date_button;
         }
@@ -140,9 +140,9 @@ impl WidgetGallery {
             string,
             color,
             animate_progress_bar,
-            #[cfg(feature = "chrono")]
+            #[cfg(feature = "jiff")]
             date,
-            #[cfg(feature = "chrono")]
+            #[cfg(feature = "jiff")]
             with_date_button,
         } = self;
 
@@ -242,9 +242,9 @@ impl WidgetGallery {
         }
         ui.end_row();
 
-        #[cfg(feature = "chrono")]
+        #[cfg(feature = "jiff")]
         if *with_date_button {
-            let date = date.get_or_insert_with(|| chrono::offset::Utc::now().date_naive());
+            let date = date.get_or_insert_with(|| jiff::Zoned::now().date());
             ui.add(doc_link_label_with_crate(
                 "egui_extras",
                 "DatePickerButton",
@@ -302,7 +302,7 @@ fn doc_link_label_with_crate<'a>(
     }
 }
 
-#[cfg(feature = "chrono")]
+#[cfg(feature = "jiff")]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -314,7 +314,7 @@ mod tests {
     pub fn should_match_screenshot() {
         let mut demo = WidgetGallery {
             // If we don't set a fixed date, the snapshot test will fail.
-            date: Some(chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()),
+            date: Some(jiff::civil::date(2024, 1, 1)),
             ..Default::default()
         };
 

@@ -707,7 +707,11 @@ impl TextEdit<'_> {
                     .frame
                     .fill(background_color)
                     .corner_radius(corner_radius)
-                    .inner_margin(allocated.frame.inner_margin - Margin::same(stroke.width as i8))
+                    .inner_margin(
+                        allocated.frame.inner_margin
+                            + Margin::same((visuals.expansion - stroke.width).round() as i8),
+                    )
+                    .outer_margin(Margin::same(-(visuals.expansion as i8)))
                     .stroke(stroke)
             } else {
                 allocated.frame
@@ -820,7 +824,11 @@ impl TextEdit<'_> {
                 paint_text_selection(&mut galley, ui.visuals(), &cursor_range, None);
             }
 
-            painter.galley(galley_pos, Arc::clone(&galley), text_color);
+            painter.galley(
+                galley_pos - vec2(galley.rect.left(), 0.0),
+                Arc::clone(&galley),
+                text_color,
+            );
 
             if has_focus && let Some(cursor_range) = state.cursor.range(&galley) {
                 let primary_cursor_rect = cursor_rect(&galley, &cursor_range.primary, row_height)
@@ -989,13 +997,7 @@ fn events(
 
     let mut any_change = false;
 
-    let mut events = ui.input(|i| i.filtered_events(&event_filter));
-
-    if state.ime_enabled {
-        remove_ime_incompatible_events(&mut events);
-        // Process IME events first:
-        events.sort_by_key(|e| !matches!(e, Event::Ime(_)));
-    }
+    let events = ui.input(|i| i.filtered_events(&event_filter));
 
     for event in &events {
         let did_mutate_text = match event {
@@ -1224,27 +1226,6 @@ fn events(
     );
 
     (any_change, cursor_range)
-}
-
-// ----------------------------------------------------------------------------
-
-fn remove_ime_incompatible_events(events: &mut Vec<Event>) {
-    // Remove key events which cause problems while 'IME' is being used.
-    // See https://github.com/emilk/egui/pull/4509
-    events.retain(|event| {
-        !matches!(
-            event,
-            Event::Key { repeat: true, .. }
-                | Event::Key {
-                    key: Key::Backspace
-                        | Key::ArrowUp
-                        | Key::ArrowDown
-                        | Key::ArrowLeft
-                        | Key::ArrowRight,
-                    ..
-                }
-        )
-    });
 }
 
 // ----------------------------------------------------------------------------

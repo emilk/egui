@@ -2,24 +2,19 @@ use std::sync::Arc;
 
 /// A cloneable display handle for use with [`wgpu::InstanceDescriptor`].
 ///
-/// This trait exists so that a [`winit::event_loop::OwnedDisplayHandle`] (or similar platform
-/// display handle) can be stored, cloned, and later passed to wgpu.
+/// [`wgpu::InstanceDescriptor`] stores its display handle as a non-cloneable
+/// `Box<dyn WgpuHasDisplayHandle>`. This trait wraps it so it can be cloned
+/// alongside the rest of the egui wgpu configuration.
 ///
-/// wgpu requires an explicit display handle for GLES on some platforms (notably Wayland).
-/// Because [`wgpu::InstanceDescriptor`] contains a `Box<dyn WgpuHasDisplayHandle>` which is
-/// not cloneable, we wrap the handle in this trait so it can be cloned alongside the rest of
-/// the egui wgpu configuration.
-///
-/// This is automatically implemented for all types that satisfy the bounds (including
-/// [`winit::event_loop::OwnedDisplayHandle`]).
+/// Automatically implemented for all types that satisfy the bounds
+/// (including [`winit::event_loop::OwnedDisplayHandle`]).
 pub trait EguiDisplayHandle:
     wgpu::rwh::HasDisplayHandle + std::fmt::Debug + Send + Sync + 'static
 {
-    /// Clone this handle into a `Box<dyn WgpuHasDisplayHandle>` suitable for setting on
-    /// [`wgpu::InstanceDescriptor::display`].
+    /// Clone into a `Box<dyn WgpuHasDisplayHandle>` for [`wgpu::InstanceDescriptor::display`].
     fn clone_for_wgpu(&self) -> Box<dyn wgpu::wgt::WgpuHasDisplayHandle>;
 
-    /// Clone this handle into a new `Box<dyn EguiDisplayHandle>`.
+    /// Clone into a new `Box<dyn EguiDisplayHandle>`.
     fn clone_display_handle(&self) -> Box<dyn EguiDisplayHandle>;
 }
 
@@ -68,27 +63,14 @@ pub enum WgpuSetup {
 impl WgpuSetup {
     /// Creates a new [`WgpuSetup::CreateNew`] with the given display handle.
     ///
-    /// This is the recommended constructor. Most platforms (Windows, macOS/iOS, Android, web)
-    /// work fine without a display handle, but some (e.g. Wayland on Linux with GLES) require
-    /// one. Providing it unconditionally ensures your app works everywhere.
-    ///
-    /// If you don't have a display handle available, use [`Self::without_display_handle`]
-    /// instead — it will still work on the majority of platforms.
-    ///
-    /// With winit, pass [`EventLoop::owned_display_handle`](winit::event_loop::EventLoop::owned_display_handle).
+    /// See [`WgpuSetupCreateNew::from_display_handle`] for details.
     pub fn from_display_handle(display_handle: impl EguiDisplayHandle) -> Self {
         Self::CreateNew(WgpuSetupCreateNew::from_display_handle(display_handle))
     }
 
     /// Creates a new [`WgpuSetup::CreateNew`] without a display handle.
     ///
-    /// A display handle is not required for headless operation (offscreen rendering, tests,
-    /// compute-only workloads). It also isn't needed on most platforms even when presenting
-    /// to a window — only some configurations (e.g. Wayland on Linux with GLES) require one.
-    ///
-    /// If you do have a display handle available, prefer [`Self::from_display_handle`] for
-    /// maximum compatibility. With winit you can obtain one via
-    /// [`EventLoop::owned_display_handle`](winit::event_loop::EventLoop::owned_display_handle).
+    /// See [`WgpuSetupCreateNew::without_display_handle`] for details.
     pub fn without_display_handle() -> Self {
         Self::CreateNew(WgpuSetupCreateNew::without_display_handle())
     }
@@ -175,44 +157,32 @@ pub type NativeAdapterSelectorMethod = Arc<
 ///
 /// Used for [`WgpuSetup::CreateNew`].
 ///
-/// Use [`Self::from_display_handle`] when you have a display handle available — this is the
-/// recommended constructor. With winit you can obtain one via
-/// [`EventLoop::owned_display_handle`](winit::event_loop::EventLoop::owned_display_handle).
-/// Most platforms (Windows, macOS/iOS, Android, web) work fine without one, but some
-/// (e.g. Wayland on Linux with GLES) require it. Providing it unconditionally ensures your
-/// app works everywhere.
+/// Prefer [`Self::from_display_handle`] when you have a display handle available.
+/// Most platforms work without one, but some (e.g. Wayland with GLES, or WebGL)
+/// require it, so providing one ensures maximum compatibility.
+/// With winit, pass [`EventLoop::owned_display_handle`](winit::event_loop::EventLoop::owned_display_handle).
 ///
-/// If you don't have a display handle, use [`Self::without_display_handle`] — it will still
-/// work on the majority of platforms, and is appropriate for headless rendering, tests, or
-/// web targets.
-///
-/// Note: The [`wgpu::InstanceDescriptor::display`] field is always stored as `None` in
-/// [`Self::instance_descriptor`]. The display handle is stored separately so it can be cloned
-/// (since [`wgpu::InstanceDescriptor`] itself does not implement `Clone`), and is injected
-/// into the descriptor at instance creation time.
+/// Note: The display handle is stored in [`Self::display_handle`] rather than in
+/// [`Self::instance_descriptor`] so the config can be cloned
+/// ([`wgpu::InstanceDescriptor`] is not `Clone`). It is injected at instance creation time.
 pub struct WgpuSetupCreateNew {
-    /// Instance descriptor for creating a wgpu instance.
+    /// Descriptor for the wgpu instance.
     ///
-    /// The [`wgpu::InstanceDescriptor::display`] field should be left as `None`; use the
-    /// [`Self::display_handle`] field instead (it will be injected when the instance is created).
+    /// Leave [`wgpu::InstanceDescriptor::display`] as `None` — use [`Self::display_handle`]
+    /// instead (injected at instance creation time).
     ///
-    /// The most important field is [`wgpu::InstanceDescriptor::backends`], which
-    /// controls which backends are supported (wgpu will pick one of these).
-    /// If you only want to support WebGL (and not WebGPU),
-    /// you can set this to [`wgpu::Backends::GL`].
-    /// By default on web, WebGPU will be used if available.
-    /// WebGL will only be used as a fallback,
-    /// and only if you have enabled the `webgl` feature of crate `wgpu`.
+    /// The most important field is [`wgpu::InstanceDescriptor::backends`], which controls
+    /// which backends are supported (wgpu will pick one of these). For example, set it to
+    /// [`wgpu::Backends::GL`] to use only WebGL. By default on web, WebGPU is preferred
+    /// with WebGL as a fallback (requires the `webgl` feature of crate `wgpu`).
     pub instance_descriptor: wgpu::InstanceDescriptor,
 
-    /// The display handle to pass to wgpu when creating the instance.
+    /// Display handle passed to wgpu at instance creation time.
     ///
-    /// Most platforms (Windows, macOS/iOS, Android, web) work without this, but some
-    /// (e.g. Wayland on Linux with GLES) require it. If you have a display handle
-    /// available, providing it ensures maximum compatibility.
+    /// Required on some platforms (e.g. Wayland with GLES, WebGL); optional elsewhere.
+    /// With winit, use [`winit::event_loop::OwnedDisplayHandle`].
     ///
-    /// When using winit, this is typically the
-    /// [`winit::event_loop::OwnedDisplayHandle`] obtained from the event loop.
+    /// `eframe` 's winit & web integrations will attempt to fill the display handle automatically if it is left empty.
     pub display_handle: Option<Box<dyn EguiDisplayHandle>>,
 
     /// Power preference for the adapter if [`Self::native_adapter_selector`] is not set or targeting web.
@@ -258,8 +228,11 @@ impl WgpuSetupCreateNew {
     /// to a window — only some configurations (e.g. Wayland on Linux with GLES) require one.
     ///
     /// If you do have a display handle available, prefer [`Self::from_display_handle`] for
-    /// maximum compatibility. With winit you can obtain one via
-    /// [`EventLoop::owned_display_handle`](winit::event_loop::EventLoop::owned_display_handle).
+    /// maximum compatibility.
+    ///
+    /// With winit you can obtain one via [`EventLoop::owned_display_handle`](winit::event_loop::EventLoop::owned_display_handle).
+    ///
+    /// `eframe` 's winit & web integrations will attempt to fill the display handle automatically if it is left empty.
     pub fn without_display_handle() -> Self {
         Self {
             instance_descriptor: wgpu::InstanceDescriptor {

@@ -1360,6 +1360,7 @@ impl Context {
 
         let WidgetRect {
             id,
+            parent_id: _,
             layer_id,
             rect,
             interact_rect,
@@ -1378,8 +1379,8 @@ impl Context {
             interact_rect,
             sense,
             flags: Flags::empty(),
-            interact_pointer_pos: None,
-            intrinsic_size: None,
+            interact_pointer_pos_or_nan: Pos2::NAN,
+            intrinsic_size_or_nan: Vec2::NAN,
         };
 
         res.flags.set(Flags::ENABLED, enabled);
@@ -1470,14 +1471,11 @@ impl Context {
                 || res.long_touched()
                 || clicked
                 || res.drag_stopped();
-            if is_interacted_with {
-                res.interact_pointer_pos = input.pointer.interact_pos();
-                if let (Some(to_global), Some(pos)) = (
-                    memory.to_global.get(&res.layer_id),
-                    &mut res.interact_pointer_pos,
-                ) {
-                    *pos = to_global.inverse() * *pos;
+            if is_interacted_with && let Some(mut pos) = input.pointer.interact_pos() {
+                if let Some(to_global) = memory.to_global.get(&res.layer_id) {
+                    pos = to_global.inverse() * pos;
                 }
+                res.interact_pointer_pos_or_nan = pos;
             }
 
             if input.pointer.any_down() && !is_interacted_with {
@@ -1545,6 +1543,11 @@ impl Context {
     #[track_caller]
     pub fn debug_text(&self, text: impl Into<WidgetText>) {
         crate::debug_text::print(self, text);
+    }
+
+    /// Current time in seconds, relative to some unknown epoch.
+    pub fn time(&self) -> f64 {
+        self.input(|i| i.time)
     }
 
     /// What operating system are we running on?
@@ -1935,7 +1938,7 @@ impl Context {
     }
 }
 
-/// Callbacks
+/// Plugins
 impl Context {
     /// Call the given callback at the start of each pass of each viewport.
     ///
@@ -2945,6 +2948,15 @@ impl Context {
     #[deprecated = "Renamed to egui_wants_keyboard_input"]
     pub fn wants_keyboard_input(&self) -> bool {
         self.egui_wants_keyboard_input()
+    }
+
+    /// Is the currently focused widget a text edit?
+    pub fn text_edit_focused(&self) -> bool {
+        if let Some(id) = self.memory(|mem| mem.focused()) {
+            crate::text_edit::TextEditState::load(self, id).is_some()
+        } else {
+            false
+        }
     }
 
     /// Highlight this widget, to make it look like it is hovered, even if it isn't.
@@ -4324,6 +4336,15 @@ fn warn_if_rect_changes_id(
             // If they all still exist (just at a different rect), then the rect match
             // is just a coincidence caused by widgets shifting (e.g. a window being dragged).
             if prev_at_rect.iter().all(|w| new_widgets.contains(w.id)) {
+                continue;
+            }
+
+            // Only warn if at least one widget has the same parent_id in both frames.
+            // If all parent_ids changed too, this is a cascading id shift, not a widget bug.
+            if !prev_at_rect
+                .iter()
+                .any(|pw| new_at_rect.iter().any(|nw| nw.parent_id == pw.parent_id))
+            {
                 continue;
             }
 

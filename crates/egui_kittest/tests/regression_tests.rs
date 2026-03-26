@@ -262,3 +262,101 @@ pub fn menus_should_close_even_if_submenu_disappears() {
         );
     }
 }
+
+fn keyboard_submenu_harness() -> Harness<'static, bool> {
+    Harness::builder()
+        .with_size(Vec2::new(400.0, 240.0))
+        .build_ui_state(
+            |ui, checked| {
+                egui::Panel::top("menu_bar").show_inside(ui, |ui| {
+                    egui::MenuBar::new().ui(ui, |ui| {
+                        ui.menu_button("X", |ui| {
+                            ui.menu_button("Y", |ui| {
+                                ui.checkbox(checked, "Goal");
+                            });
+                        });
+                    });
+                });
+            },
+            false,
+        )
+}
+
+#[test]
+pub fn keyboard_should_open_nested_submenu() {
+    let mut harness = keyboard_submenu_harness();
+
+    harness.get_by_label("X").focus();
+    harness.run();
+
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+
+    harness.get_by_label_contains("Y").focus();
+    harness.run();
+
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+
+    assert!(
+        harness.query_by_label("Goal").is_some(),
+        "Expected nested submenu to open via keyboard"
+    );
+}
+
+#[test]
+pub fn keyboard_should_close_nested_submenu_with_second_enter() {
+    let mut harness = keyboard_submenu_harness();
+
+    harness.get_by_label("X").focus();
+    harness.run();
+
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+
+    harness.get_by_label_contains("Y").focus();
+    harness.run();
+
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+
+    assert!(
+        harness.query_by_label("Goal").is_some(),
+        "Expected nested submenu to open before close attempt"
+    );
+
+    harness.get_by_label_contains("Y").focus();
+    harness.run();
+
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+
+    assert!(
+        harness.query_by_label("Goal").is_none(),
+        "Expected nested submenu to close when pressing Enter again"
+    );
+}
+
+#[test]
+pub fn pointer_click_on_open_submenu_button_should_not_close_it() {
+    let mut harness = keyboard_submenu_harness();
+
+    harness.get_by_label("X").click();
+    harness.run();
+
+    harness.get_by_label_contains("Y").click();
+    harness.run();
+
+    assert!(
+        harness.query_by_label("Goal").is_some(),
+        "Expected submenu to remain open after pointer click on its button"
+    );
+
+    harness.get_by_label_contains("Y").click();
+    harness.run();
+
+    assert!(
+        harness.query_by_label("Goal").is_some(),
+        "Expected submenu to remain open on repeated pointer click"
+    );
+}
