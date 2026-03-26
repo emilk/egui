@@ -162,6 +162,7 @@ pub fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<LayoutJob>)
 /// Shared context for emitting shaped glyphs into a [`Paragraph`].
 struct ShapingContext {
     pixels_per_point: f32,
+    font_size: f32,
     line_height: f32,
     extra_letter_spacing: f32,
     section_index: u32,
@@ -181,6 +182,10 @@ fn layout_shaped_run(
     paragraph: &mut Paragraph,
 ) {
     let px_scale = face_metrics.px_scale_factor;
+
+    // Reset cluster tracking — cluster values are byte offsets within run_text,
+    // so they are not comparable across runs.
+    ctx.prev_cluster = None;
 
     for (info, pos) in glyph_buffer
         .glyph_infos()
@@ -217,10 +222,16 @@ fn layout_shaped_run(
                 continue;
             }
 
-            let (_, glyph_info) = font.glyph_info(chr);
+            // Use the fallback font face (not run.font_key which returned NOTDEF).
+            let (fallback_key, glyph_info) = font.glyph_info(chr);
+            let fallback_metrics = font
+                .fonts_by_id
+                .get(&fallback_key)
+                .map(|ff| ff.styled_metrics(ctx.pixels_per_point, ctx.font_size, &Default::default()))
+                .unwrap_or_default();
             let (glyph_alloc, physical_x) =
-                if let Some(ff) = font.fonts_by_id.get_mut(&run.font_key) {
-                    ff.allocate_glyph(font.atlas, face_metrics, glyph_info, chr, paragraph.cursor_x_px)
+                if let Some(ff) = font.fonts_by_id.get_mut(&fallback_key) {
+                    ff.allocate_glyph(font.atlas, &fallback_metrics, glyph_info, chr, paragraph.cursor_x_px)
                 } else {
                     Default::default()
                 };
@@ -230,8 +241,8 @@ fn layout_shaped_run(
                 pos: pos2(physical_x as f32 / ctx.pixels_per_point, f32::NAN),
                 advance_width: glyph_alloc.advance_width_px / ctx.pixels_per_point,
                 line_height: ctx.line_height,
-                font_face_height: face_metrics.row_height,
-                font_face_ascent: face_metrics.ascent,
+                font_face_height: fallback_metrics.row_height,
+                font_face_ascent: fallback_metrics.ascent,
                 font_height: ctx.font_metrics.row_height,
                 font_ascent: ctx.font_metrics.ascent,
                 uv_rect: glyph_alloc.uv_rect,
@@ -305,6 +316,7 @@ fn layout_section(
     let section_text = &job.text[byte_range.clone()];
     let mut ctx = ShapingContext {
         pixels_per_point,
+        font_size,
         line_height,
         extra_letter_spacing,
         section_index,
