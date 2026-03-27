@@ -623,41 +623,34 @@ impl FontFace {
         shaper.shape(buffer, &[])
     }
 
-    /// Allocate a glyph by its ID directly (from shaping output).
-    ///
-    /// `shaper_y_offset_points` is the vertical offset from the shaper, already in points.
-    #[expect(clippy::too_many_arguments)]
+    /// Allocate a glyph by its ID directly, using metrics from the shaper.
     pub fn allocate_glyph_by_id(
         &mut self,
         atlas: &mut TextureAtlas,
         metrics: &StyledMetrics,
-        glyph_id: skrifa::GlyphId,
-        advance_width_px: f32,
-        h_pos: f32,
-        shaper_y_offset_points: f32,
-        is_cjk_glyph: bool,
+        shaped: &ShapedGlyph,
     ) -> (GlyphAllocation, i32) {
-        if glyph_id == skrifa::GlyphId::NOTDEF {
-            return (GlyphAllocation::default(), h_pos as i32);
+        if shaped.glyph_id == skrifa::GlyphId::NOTDEF {
+            return (GlyphAllocation::default(), shaped.h_pos as i32);
         }
 
-        let (h_pos_round, bin) = if is_cjk_glyph {
-            (h_pos.round() as i32, SubpixelBin::Zero)
+        let (h_pos_round, bin) = if shaped.is_cjk {
+            (shaped.h_pos.round() as i32, SubpixelBin::Zero)
         } else {
-            SubpixelBin::new(h_pos)
+            SubpixelBin::new(shaped.h_pos)
         };
 
-        let cache_key = GlyphCacheKey::new(glyph_id, metrics, bin);
+        let cache_key = GlyphCacheKey::new(shaped.glyph_id, metrics, bin);
         if let Some(cached) = self.glyph_alloc_cache.get(&cache_key) {
             let mut alloc = *cached;
-            alloc.advance_width_px = advance_width_px;
-            alloc.uv_rect.offset.y += shaper_y_offset_points;
+            alloc.advance_width_px = shaped.advance_width_px;
+            alloc.uv_rect.offset.y += shaped.y_offset_points;
             return (alloc, h_pos_round);
         }
 
         let glyph_info = GlyphInfo {
-            id: Some(glyph_id),
-            advance_width_unscaled: OrderedFloat(advance_width_px / metrics.px_scale_factor),
+            id: Some(shaped.glyph_id),
+            advance_width_unscaled: OrderedFloat(shaped.advance_width_px / metrics.px_scale_factor),
         };
 
         let mut allocation = self
@@ -670,7 +663,7 @@ impl FontFace {
 
         // Apply shaper y_offset after caching — the offset varies per call site
         // so we cache the base allocation without it.
-        allocation.uv_rect.offset.y += shaper_y_offset_points;
+        allocation.uv_rect.offset.y += shaped.y_offset_points;
 
         (allocation, h_pos_round)
     }
@@ -722,6 +715,15 @@ impl FontFace {
 
 /// A contiguous run of text that maps to a single font face.
 ///
+/// Glyph positioning info from the text shaper, ready for allocation.
+pub(crate) struct ShapedGlyph {
+    pub glyph_id: skrifa::GlyphId,
+    pub advance_width_px: f32,
+    pub h_pos: f32,
+    pub y_offset_points: f32,
+    pub is_cjk: bool,
+}
+
 /// Produced by [`Font::segment_into_runs`] for text shaping.
 #[derive(Debug)]
 pub(crate) struct TextRun {

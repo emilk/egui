@@ -267,20 +267,17 @@ fn layout_shaped_run(
             });
             paragraph.cursor_x_px += glyph_alloc.advance_width_px;
         } else {
-            let h_pos = paragraph.cursor_x_px + x_offset_px;
-            let y_offset_points = y_offset_px / ctx.pixels_per_point;
+            let shaped = super::font::ShapedGlyph {
+                glyph_id,
+                advance_width_px: x_advance_px,
+                h_pos: paragraph.cursor_x_px + x_offset_px,
+                y_offset_points: y_offset_px / ctx.pixels_per_point,
+                is_cjk: is_cjk(chr),
+            };
 
             let (glyph_alloc, physical_x) =
                 if let Some(ff) = font.fonts_by_id.get_mut(&run.font_key) {
-                    ff.allocate_glyph_by_id(
-                        font.atlas,
-                        face_metrics,
-                        glyph_id,
-                        x_advance_px,
-                        h_pos,
-                        y_offset_points,
-                        is_cjk(chr),
-                    )
+                    ff.allocate_glyph_by_id(font.atlas, face_metrics, &shaped)
                 } else {
                     Default::default()
                 };
