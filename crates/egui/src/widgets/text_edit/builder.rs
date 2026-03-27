@@ -988,6 +988,9 @@ fn events(
     let events = ui.input(|i| i.filtered_events(&event_filter));
 
     let owns_ime_events = ui.ctx().try_claim_ime_events_ownership(id);
+    if !owns_ime_events {
+        state.is_cursor_for_ime_composition = false;
+    }
 
     for event in &events {
         let did_mutate_text = match event {
@@ -1151,31 +1154,46 @@ fn events(
 
                 match ime_event {
                     ImeEvent::Enabled | ImeEvent::Disabled => None,
+                    // Prevent `Preedit`/`Commit` events with empty composition
+                    // from deleting text when there is no active IME
+                    // composition.
+                    //
+                    // Some integrations (e.g. `egui-winit` on Wayland) may emit
+                    // these events unexpectedly in certain scenarios, such as
+                    // when `set_ime_allowed` or `set_ime_cursor_area` is called
+                    // on `winit`'s `Window`. This guard is harmless for well-
+                    // behaved integrations and sufficient to handle the
+                    // known cases of those events. Therefore, I (umajho)
+                    // consider it a good enough solution as of now.
+                    ImeEvent::Preedit(composition_text) | ImeEvent::Commit(composition_text)
+                        if composition_text.is_empty() && !state.is_cursor_for_ime_composition =>
+                    {
+                        None
+                    }
+                    ImeEvent::Preedit(composition_text) | ImeEvent::Commit(composition_text)
+                        if composition_text == "\n" || composition_text == "\r" =>
+                    {
+                        None
+                    }
                     ImeEvent::Preedit(preedit_text) => {
-                        if preedit_text == "\n" || preedit_text == "\r" {
-                            None
-                        } else {
-                            let mut ccursor = clear_preedit_text(text, &cursor_range);
+                        state.is_cursor_for_ime_composition = !preedit_text.is_empty();
+                        let mut ccursor = clear_preedit_text(text, &cursor_range);
 
-                            let start_cursor = ccursor;
-                            if !preedit_text.is_empty() {
-                                text.insert_text_at(&mut ccursor, preedit_text, char_limit);
-                            }
-                            Some(CCursorRange::two(start_cursor, ccursor))
+                        let start_cursor = ccursor;
+                        if !preedit_text.is_empty() {
+                            text.insert_text_at(&mut ccursor, preedit_text, char_limit);
                         }
+                        Some(CCursorRange::two(start_cursor, ccursor))
                     }
                     ImeEvent::Commit(commit_text) => {
-                        if commit_text == "\n" || commit_text == "\r" {
-                            None
-                        } else {
-                            let mut ccursor = clear_preedit_text(text, &cursor_range);
+                        state.is_cursor_for_ime_composition = false;
+                        let mut ccursor = clear_preedit_text(text, &cursor_range);
 
-                            if !commit_text.is_empty() {
-                                text.insert_text_at(&mut ccursor, commit_text, char_limit);
-                            }
-
-                            Some(CCursorRange::one(ccursor))
+                        if !commit_text.is_empty() {
+                            text.insert_text_at(&mut ccursor, commit_text, char_limit);
                         }
+
+                        Some(CCursorRange::one(ccursor))
                     }
                 }
             }

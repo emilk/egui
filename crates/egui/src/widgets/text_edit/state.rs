@@ -37,6 +37,10 @@ pub struct TextEditState {
     /// Controls the text selection.
     pub cursor: TextCursorState,
 
+    /// Whether the selection is shown for IME composition.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) is_cursor_for_ime_composition: bool,
+
     /// Wrapped in Arc for cheaper clones.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) undoer: Arc<Mutex<TextEditUndoer>>,
