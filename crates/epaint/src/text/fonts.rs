@@ -3,7 +3,7 @@ use std::{
     collections::BTreeMap,
     sync::{
         Arc,
-        atomic::{AtomicU64, Ordering},
+        atomic::{AtomicUsize, Ordering},
     },
 };
 
@@ -439,7 +439,7 @@ impl FontFaceKey {
     pub const INVALID: Self = Self(0);
 
     fn new() -> Self {
-        static KEY_COUNTER: AtomicU64 = AtomicU64::new(1);
+        static KEY_COUNTER: AtomicUsize = AtomicUsize::new(1);
         Self(crate::util::hash(
             KEY_COUNTER.fetch_add(1, Ordering::Relaxed),
         ))
