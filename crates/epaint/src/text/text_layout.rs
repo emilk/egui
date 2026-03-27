@@ -194,7 +194,7 @@ fn layout_shaped_run(
     {
         let glyph_id = skrifa::GlyphId::new(info.glyph_id);
         let cluster = info.cluster;
-        let x_advance_px = pos.x_advance as f32 * px_scale;
+        let mut x_advance_px = pos.x_advance as f32 * px_scale;
         let x_offset_px = pos.x_offset as f32 * px_scale;
         let y_offset_px = -(pos.y_offset as f32 * px_scale); // harfrust Y+ up → screen Y+ down
 
@@ -202,6 +202,14 @@ fn layout_shaped_run(
             .get(cluster as usize..)
             .and_then(|s| s.chars().next())
             .unwrap_or('\u{FFFD}');
+
+        // Tab is a layout concept, not a glyph — the shaper doesn't know about tab stops.
+        // Override the advance width to TAB_SIZE × space width.
+        if chr == '\t' {
+            let (_, space_info) = font.glyph_info(' ');
+            x_advance_px =
+                crate::text::TAB_SIZE as f32 * space_info.advance_width_unscaled.0 * px_scale;
+        }
 
         // Apply extra_letter_spacing only at cluster boundaries,
         // never between glyphs within the same cluster (e.g. base + mark).
