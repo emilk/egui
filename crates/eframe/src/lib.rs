@@ -159,7 +159,7 @@ pub use {egui, egui::emath, egui::epaint};
 pub use {egui_glow, glow};
 
 #[cfg(feature = "wgpu_no_default_features")]
-pub use {egui_wgpu, wgpu};
+pub use {egui_wgpu, egui_wgpu::wgpu};
 
 mod epi;
 
