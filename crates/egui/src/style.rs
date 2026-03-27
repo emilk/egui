@@ -1451,7 +1451,7 @@ impl Default for Spacing {
             slider_rail_height: 8.0,
             combo_width: 100.0,
             text_edit_width: 280.0,
-            text_line_spacing: 6.0,
+            text_line_spacing: 0.0,
             icon_width: 14.0,
             icon_width_inner: 8.0,
             icon_spacing: 4.0,
