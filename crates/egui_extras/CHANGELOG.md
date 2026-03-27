@@ -5,6 +5,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.34.1 - 2026-03-27
+Nothing new
+
+
 ## 0.34.0 - 2026-03-26
 * Fix media type with optional parameters [#7739](https://github.com/emilk/egui/pull/7739) by [@leungkkf](https://github.com/leungkkf)
 * Fix: CodeTheme functions - ui and add builder [#7684](https://github.com/emilk/egui/pull/7684) by [@Its-Just-Nans](https://github.com/Its-Just-Nans)

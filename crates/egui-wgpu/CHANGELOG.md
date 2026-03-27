@@ -6,6 +6,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.34.1 - 2026-03-27
+* `wgpu` backend: Enable WebGL fallback [#8038](https://github.com/emilk/egui/pull/8038) by [@emilk](https://github.com/emilk)
+
+
 ## 0.34.0 - 2026-03-26
 ### ⭐ Added
 * Add error message when calling `.render()` without `.update_buffers()` [#8005](https://github.com/emilk/egui/pull/8005) by [@emilk](https://github.com/emilk)
