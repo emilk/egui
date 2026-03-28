@@ -10,8 +10,11 @@ use crate::{
     TextStyle, Ui, Vec2, Widget, WidgetInfo, WidgetWithState, epaint,
     os::OperatingSystem,
     output::OutputEvent,
-    response, text_selection,
-    text_selection::{CCursorRange, text_cursor_state::cursor_rect, visuals::paint_text_selection},
+    response,
+    text_edit::state::TextEditCursorPurpose,
+    text_selection::{
+        self, CCursorRange, text_cursor_state::cursor_rect, visuals::paint_text_selection,
+    },
     vec2,
 };
 
@@ -989,7 +992,7 @@ fn events(
 
     let owns_ime_events = ui.ctx().try_claim_ime_events_ownership(id);
     if !owns_ime_events {
-        state.is_cursor_for_ime_composition = false;
+        state.cursor_purpose = TextEditCursorPurpose::Selection;
     }
 
     for event in &events {
@@ -1154,19 +1157,25 @@ fn events(
 
                 match ime_event {
                     ImeEvent::Enabled | ImeEvent::Disabled => None,
-                    // Prevent `Preedit`/`Commit` events with empty composition
-                    // from deleting text when there is no active IME
-                    // composition.
+                    // Ignore `Preedit`/`Commit` events with empty text when
+                    // there is no active IME composition.
                     //
-                    // Some integrations (e.g. `egui-winit` on Wayland) may emit
-                    // these events unexpectedly in certain scenarios, such as
-                    // when `set_ime_allowed` or `set_ime_cursor_area` is called
-                    // on `winit`'s `Window`. This guard is harmless for well-
-                    // behaved integrations and sufficient to handle the
-                    // known cases of those events. Therefore, I (umajho)
-                    // consider it a good enough solution as of now.
+                    // Some integrations may emit these events when there is no
+                    // active IME composition (e.g. when `set_ime_allowed` or
+                    // `set_ime_cursor_area` is called on `winit`'s `Window` on
+                    // Wayland). Without this guard, they would clear any
+                    // selected text.
+                    //
+                    // TODO(umajho): Ideally this would be handled by the
+                    // integration, but since this guard is harmless for well-
+                    // behaved integrations and also fixes the issue described
+                    // above, it is good enough for now.
                     ImeEvent::Preedit(composition_text) | ImeEvent::Commit(composition_text)
-                        if composition_text.is_empty() && !state.is_cursor_for_ime_composition =>
+                        if composition_text.is_empty()
+                            && !matches!(
+                                state.cursor_purpose,
+                                TextEditCursorPurpose::ImeComposition
+                            ) =>
                     {
                         None
                     }
@@ -1176,7 +1185,11 @@ fn events(
                         None
                     }
                     ImeEvent::Preedit(preedit_text) => {
-                        state.is_cursor_for_ime_composition = !preedit_text.is_empty();
+                        state.cursor_purpose = if preedit_text.is_empty() {
+                            TextEditCursorPurpose::Selection
+                        } else {
+                            TextEditCursorPurpose::ImeComposition
+                        };
                         let mut ccursor = clear_preedit_text(text, &cursor_range);
 
                         let start_cursor = ccursor;
@@ -1186,7 +1199,7 @@ fn events(
                         Some(CCursorRange::two(start_cursor, ccursor))
                     }
                     ImeEvent::Commit(commit_text) => {
-                        state.is_cursor_for_ime_composition = false;
+                        state.cursor_purpose = TextEditCursorPurpose::Selection;
                         let mut ccursor = clear_preedit_text(text, &cursor_range);
 
                         if !commit_text.is_empty() {
