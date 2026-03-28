@@ -239,15 +239,17 @@ fn layout_shaped_run(
                     ff.styled_metrics(ctx.pixels_per_point, ctx.font_size, &Default::default())
                 })
                 .unwrap_or_default();
+            let shaped = super::font::ShapedGlyph {
+                glyph_id: glyph_info.id.unwrap_or(skrifa::GlyphId::NOTDEF),
+                advance_width_px: glyph_info.advance_width_unscaled.0
+                    * fallback_metrics.px_scale_factor,
+                h_pos: paragraph.cursor_x_px,
+                y_offset_points: 0.0,
+                is_cjk: is_cjk(chr),
+            };
             let (glyph_alloc, physical_x) =
                 if let Some(ff) = font.fonts_by_id.get_mut(&fallback_key) {
-                    ff.allocate_glyph(
-                        font.atlas,
-                        &fallback_metrics,
-                        glyph_info,
-                        chr,
-                        paragraph.cursor_x_px,
-                    )
+                    ff.allocate_glyph(font.atlas, &fallback_metrics, &shaped)
                 } else {
                     Default::default()
                 };
@@ -277,7 +279,7 @@ fn layout_shaped_run(
 
             let (glyph_alloc, physical_x) =
                 if let Some(ff) = font.fonts_by_id.get_mut(&run.font_key) {
-                    ff.allocate_glyph_by_id(font.atlas, face_metrics, &shaped)
+                    ff.allocate_glyph(font.atlas, face_metrics, &shaped)
                 } else {
                     Default::default()
                 };
@@ -679,17 +681,17 @@ fn replace_last_glyph_with_overflow_character(
         {
             // we are done
 
+            let shaped = super::font::ShapedGlyph {
+                glyph_id: glyph_info.id.unwrap_or(skrifa::GlyphId::NOTDEF),
+                advance_width_px: glyph_info.advance_width_unscaled.0
+                    * font_face_metrics.px_scale_factor,
+                h_pos: overflow_glyph_x * pixels_per_point,
+                y_offset_points: 0.0,
+                is_cjk: is_cjk(overflow_character),
+            };
             let (replacement_glyph_alloc, physical_x) = font_face
                 .as_mut()
-                .map(|f| {
-                    f.allocate_glyph(
-                        font.atlas,
-                        &font_face_metrics,
-                        glyph_info,
-                        overflow_character,
-                        overflow_glyph_x * pixels_per_point,
-                    )
-                })
+                .map(|f| f.allocate_glyph(font.atlas, &font_face_metrics, &shaped))
                 .unwrap_or_default();
 
             let font_metrics =

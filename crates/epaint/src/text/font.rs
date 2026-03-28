@@ -579,8 +579,7 @@ impl FontFace {
         shaper.shape(buffer, &[])
     }
 
-    /// Allocate a glyph by its ID directly, using metrics from the shaper.
-    pub fn allocate_glyph_by_id(
+    pub fn allocate_glyph(
         &mut self,
         atlas: &mut TextureAtlas,
         metrics: &StyledMetrics,
@@ -621,50 +620,6 @@ impl FontFace {
         // so we cache the base allocation without it.
         allocation.uv_rect.offset.y += shaped.y_offset_points;
 
-        (allocation, h_pos_round)
-    }
-
-    pub fn allocate_glyph(
-        &mut self,
-        atlas: &mut TextureAtlas,
-        metrics: &StyledMetrics,
-        glyph_info: GlyphInfo,
-        chr: char,
-        h_pos: f32,
-    ) -> (GlyphAllocation, i32) {
-        let advance_width_px = glyph_info.advance_width_unscaled.0 * metrics.px_scale_factor;
-
-        let Some(glyph_id) = glyph_info.id else {
-            // Invisible.
-            return (GlyphAllocation::default(), h_pos as i32);
-        };
-
-        // CJK scripts contain a lot of characters and could hog the glyph atlas if we stored 4 subpixel offsets per
-        // glyph.
-        let (h_pos_round, bin) = if is_cjk(chr) {
-            (h_pos.round() as i32, SubpixelBin::Zero)
-        } else {
-            SubpixelBin::new(h_pos)
-        };
-
-        let entry = match self
-            .glyph_alloc_cache
-            .entry(GlyphCacheKey::new(glyph_id, metrics, bin))
-        {
-            std::collections::hash_map::Entry::Occupied(glyph_alloc) => {
-                let mut glyph_alloc = *glyph_alloc.get();
-                glyph_alloc.advance_width_px = advance_width_px; // Hack to get `\t` and thin space to work, since they use the same glyph id as ` ` (space).
-                return (glyph_alloc, h_pos_round);
-            }
-            std::collections::hash_map::Entry::Vacant(entry) => entry,
-        };
-
-        let allocation = self
-            .font
-            .allocate_glyph_uncached(atlas, metrics, &glyph_info, bin, (&metrics.location).into())
-            .unwrap_or_default();
-
-        entry.insert(allocation);
         (allocation, h_pos_round)
     }
 }
