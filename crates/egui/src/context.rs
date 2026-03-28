@@ -1545,6 +1545,11 @@ impl Context {
         crate::debug_text::print(self, text);
     }
 
+    /// Current time in seconds, relative to some unknown epoch.
+    pub fn time(&self) -> f64 {
+        self.input(|i| i.time)
+    }
+
     /// What operating system are we running on?
     ///
     /// When compiling natively, this is
@@ -1933,7 +1938,7 @@ impl Context {
     }
 }
 
-/// Callbacks
+/// Plugins
 impl Context {
     /// Call the given callback at the start of each pass of each viewport.
     ///
@@ -2943,6 +2948,15 @@ impl Context {
     #[deprecated = "Renamed to egui_wants_keyboard_input"]
     pub fn wants_keyboard_input(&self) -> bool {
         self.egui_wants_keyboard_input()
+    }
+
+    /// Is the currently focused widget a text edit?
+    pub fn text_edit_focused(&self) -> bool {
+        if let Some(id) = self.memory(|mem| mem.focused()) {
+            crate::text_edit::TextEditState::load(self, id).is_some()
+        } else {
+            false
+        }
     }
 
     /// Highlight this widget, to make it look like it is hovered, even if it isn't.

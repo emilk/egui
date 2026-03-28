@@ -586,6 +586,8 @@ pub struct ScrollStyle {
     /// This is only for floating scroll bars.
     /// Solid scroll bars are always opaque.
     pub interact_handle_opacity: f32,
+
+    pub fade: ScrollFadeStyle,
 }
 
 impl Default for ScrollStyle {
@@ -616,6 +618,8 @@ impl ScrollStyle {
             dormant_handle_opacity: 0.0,
             active_handle_opacity: 0.6,
             interact_handle_opacity: 1.0,
+
+            fade: Default::default(),
         }
     }
 
@@ -699,6 +703,8 @@ impl ScrollStyle {
             dormant_handle_opacity,
             active_handle_opacity,
             interact_handle_opacity,
+
+            fade,
         } = self;
 
         ui.horizontal(|ui| {
@@ -770,6 +776,52 @@ impl ScrollStyle {
             ui.horizontal(|ui| {
                 ui.add(DragValue::new(bar_inner_margin).range(0.0..=32.0));
                 ui.label("Inner margin");
+            });
+        }
+
+        ui.separator();
+        fade.ui(ui);
+    }
+}
+
+/// Controls if and how to fade out the sides of a [`crate::ScrollArea`]
+/// to indicate there is more there if you scroll.
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+pub struct ScrollFadeStyle {
+    /// Opacity of the fade effect at the outer edge, in 0.0-1.0.
+    ///
+    /// Set to 0.0 to disable the fade effect.
+    pub strength: f32,
+
+    /// Size of the fade-area (height for vertical scrolling,
+    /// width for horizontal scrolling).
+    pub size: f32,
+}
+
+impl Default for ScrollFadeStyle {
+    fn default() -> Self {
+        Self {
+            strength: 0.5,
+            size: 20.0,
+        }
+    }
+}
+
+impl ScrollFadeStyle {
+    pub fn ui(&mut self, ui: &mut Ui) {
+        let Self { strength, size } = self;
+
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(strength).speed(0.01).range(0.0..=1.0));
+            ui.label("Fade strength");
+        });
+
+        if 0.0 < *strength {
+            ui.horizontal(|ui| {
+                ui.add(DragValue::new(size).range(0.0..=64.0));
+                ui.label("Fade size");
             });
         }
     }

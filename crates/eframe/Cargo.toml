@@ -89,7 +89,7 @@ web_screen_reader = ["web-sys/SpeechSynthesis", "web-sys/SpeechSynthesisUtteranc
 ## See <https://github.com/emilk/egui/issues/5889> for more details.
 ##
 ## By default, eframe will prefer WebGPU over WebGL, but
-## you can configure this at run-time with [`NativeOptions::wgpu_options`].
+## you can configure this at run-time with `WebOptions::wgpu_options`.
 wgpu = ["wgpu_no_default_features", "egui-wgpu/default"]
 
 ## This is exactly like the `wgpu` feature, but does NOT enable the default features of `wgpu` and `egui-wgpu`.
@@ -155,7 +155,6 @@ glutin-winit = { workspace = true, optional = true, default-features = false, fe
   "wgl",
 ] }
 home = { workspace = true, optional = true }
-wgpu = { workspace = true, optional = true }
 
 # mac:
 [target.'cfg(any(target_os = "macos"))'.dependencies]
@@ -170,12 +169,16 @@ objc2-app-kit = { workspace = true, default-features = false, features = [
   "std",
   "NSApplication",
   "NSBitmapImageRep",
+  "NSButton",
+  "NSControl",
   "NSGraphics",
   "NSImage",
   "NSImageRep",
   "NSMenu",
   "NSMenuItem",
   "NSResponder",
+  "NSView",
+  "NSWindow",
 ] }
 
 # windows:

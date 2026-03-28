@@ -6,6 +6,17 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.34.1 - 2026-03-27
+Nothing new
+
+
+## 0.34.0 - 2026-03-26
+* Turn `HarnessBuilder::with_options` into a proper builder method [#7697](https://github.com/emilk/egui/pull/7697) by [@emilk](https://github.com/emilk)
+* Paint mouse cursor in kittest snapshot images [#7721](https://github.com/emilk/egui/pull/7721) by [@emilk](https://github.com/emilk)
+* Add `kittest.toml` config file [#7643](https://github.com/emilk/egui/pull/7643) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Close debug_open_snapshot temp file before viewing it [#7841](https://github.com/emilk/egui/pull/7841) by [@yuriks](https://github.com/yuriks)
+
+
 ## 0.33.3 - 2025-12-11
 * Enforce consistent snapshot updates [#7744](https://github.com/emilk/egui/pull/7744) by [@lucasmerlin](https://github.com/lucasmerlin)
 * `kittest`: add drag-and-drop helpers [#7690](https://github.com/emilk/egui/pull/7690) by [@emilk](https://github.com/emilk)

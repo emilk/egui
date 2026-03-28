@@ -25,7 +25,12 @@ all-features = true
 rustdoc-args = ["--generate-link-to-definition"]
 
 [features]
-default = ["fragile-send-sync-non-atomic-wasm", "macos-window-resize-jitter-fix", "wgpu/default"]
+default = [
+  "fragile-send-sync-non-atomic-wasm",
+  "macos-window-resize-jitter-fix",
+  "wgpu/default",
+  "wgpu/webgl", # A very important fallback for web support
+]
 
 ## Enables the `capture` module for capturing screenshots.
 capture = ["dep:egui"]
