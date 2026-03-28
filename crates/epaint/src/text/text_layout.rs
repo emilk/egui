@@ -207,7 +207,7 @@ impl ShapingContext {
     }
 }
 
-/// Produced by [`Font::segment_into_runs`] for text shaping.
+/// Produced by [`segment_into_runs`] for text shaping.
 #[derive(Debug)]
 struct TextRun {
     /// Which font face should shape this run.
