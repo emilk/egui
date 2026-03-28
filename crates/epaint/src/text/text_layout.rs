@@ -259,6 +259,8 @@ fn layout_shaped_run(
                     ff.styled_metrics(ctx.pixels_per_point, ctx.font_size, &Default::default())
                 })
                 .unwrap_or_default();
+            let advance_width_px =
+                glyph_info.advance_width_unscaled.0 * fallback_metrics.px_scale_factor;
             let (glyph_alloc, physical_x) =
                 if let Some(ff) = font.fonts_by_id.get_mut(&fallback_key) {
                     ff.allocate_glyph(
@@ -266,8 +268,6 @@ fn layout_shaped_run(
                         &fallback_metrics,
                         &ShapedGlyph {
                             glyph_id: glyph_info.id.unwrap_or(skrifa::GlyphId::NOTDEF),
-                            advance_width_px: glyph_info.advance_width_unscaled.0
-                                * fallback_metrics.px_scale_factor,
                             h_pos: paragraph.cursor_x_px,
                             is_cjk: is_cjk(chr),
                         },
@@ -279,7 +279,7 @@ fn layout_shaped_run(
             paragraph.glyphs.push(Glyph {
                 chr,
                 pos: pos2(physical_x as f32 / ctx.pixels_per_point, f32::NAN),
-                advance_width: glyph_alloc.advance_width_px / ctx.pixels_per_point,
+                advance_width: advance_width_px / ctx.pixels_per_point,
                 line_height: ctx.line_height,
                 font_face_height: fallback_metrics.row_height,
                 font_face_ascent: fallback_metrics.ascent,
@@ -289,7 +289,7 @@ fn layout_shaped_run(
                 section_index: ctx.section_index,
                 first_vertex: 0,
             });
-            paragraph.cursor_x_px += glyph_alloc.advance_width_px;
+            paragraph.cursor_x_px += advance_width_px;
         } else {
             let (mut glyph_alloc, physical_x) =
                 if let Some(ff) = font.fonts_by_id.get_mut(&run.font_key) {
@@ -298,7 +298,6 @@ fn layout_shaped_run(
                         face_metrics,
                         &ShapedGlyph {
                             glyph_id,
-                            advance_width_px,
                             h_pos: paragraph.cursor_x_px + x_offset_px,
                             is_cjk: is_cjk(chr),
                         },
@@ -695,9 +694,9 @@ fn replace_last_glyph_with_overflow_character(
             0.0 // TODO(emilk): heed paragraph leading_space 😬
         };
 
-        let replacement_glyph_width = glyph_info.advance_width_unscaled.0
-            * font_face_metrics.px_scale_factor
-            / pixels_per_point;
+        let advance_width_px =
+            glyph_info.advance_width_unscaled.0 * font_face_metrics.px_scale_factor;
+        let replacement_glyph_width = advance_width_px / pixels_per_point;
 
         // Check if we're within width budget:
         if overflow_glyph_x + replacement_glyph_width <= job.effective_wrap_width()
@@ -713,8 +712,6 @@ fn replace_last_glyph_with_overflow_character(
                         &font_face_metrics,
                         &ShapedGlyph {
                             glyph_id: glyph_info.id.unwrap_or(skrifa::GlyphId::NOTDEF),
-                            advance_width_px: glyph_info.advance_width_unscaled.0
-                                * font_face_metrics.px_scale_factor,
                             h_pos: overflow_glyph_x * pixels_per_point,
                             is_cjk: is_cjk(overflow_character),
                         },
@@ -732,7 +729,7 @@ fn replace_last_glyph_with_overflow_character(
             row.glyphs.push(Glyph {
                 chr: overflow_character,
                 pos: pos2(physical_x as f32 / pixels_per_point, f32::NAN),
-                advance_width: replacement_glyph_alloc.advance_width_px / pixels_per_point,
+                advance_width: advance_width_px / pixels_per_point,
                 line_height,
                 font_face_height: font_face_metrics.row_height,
                 font_face_ascent: font_face_metrics.ascent,

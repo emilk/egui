@@ -2,7 +2,7 @@
 
 use emath::{GuiRounding as _, OrderedFloat, Vec2, vec2};
 use self_cell::self_cell;
-use skrifa::MetadataProvider as _;
+use skrifa::{GlyphId, MetadataProvider as _};
 use std::collections::BTreeMap;
 use vello_cpu::{color, kurbo};
 
@@ -44,7 +44,7 @@ pub struct GlyphInfo {
     /// Doesn't need to be unique.
     ///
     /// Is `None` for a special "invisible" glyph.
-    pub(crate) id: Option<skrifa::GlyphId>,
+    pub(crate) id: Option<GlyphId>,
 
     /// In [`skrifa`]s "unscaled" coordinate system.
     pub advance_width_unscaled: OrderedFloat<f32>,
@@ -119,11 +119,8 @@ impl SubpixelBin {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct GlyphAllocation {
-    /// Unit: screen pixels.
-    pub advance_width_px: f32,
-
     /// UV rectangle for drawing.
     pub uv_rect: UvRect,
 }
@@ -134,7 +131,7 @@ struct GlyphCacheKey(u64);
 impl nohash_hasher::IsEnabled for GlyphCacheKey {}
 
 impl GlyphCacheKey {
-    fn new(glyph_id: skrifa::GlyphId, metrics: &StyledMetrics, bin: SubpixelBin) -> Self {
+    fn new(glyph_id: GlyphId, metrics: &StyledMetrics, bin: SubpixelBin) -> Self {
         let StyledMetrics {
             pixels_per_point,
             px_scale_factor,
@@ -187,12 +184,10 @@ impl FontCell {
         &mut self,
         atlas: &mut TextureAtlas,
         metrics: &StyledMetrics,
-        glyph_info: &GlyphInfo,
+        glyph_id: GlyphId,
         bin: SubpixelBin,
         location: skrifa::instance::LocationRef<'_>,
     ) -> Option<GlyphAllocation> {
-        let glyph_id = glyph_info.id?;
-
         debug_assert!(
             glyph_id != skrifa::GlyphId::NOTDEF,
             "Can't allocate glyph for id 0"
@@ -277,10 +272,7 @@ impl FontCell {
             }
         };
 
-        Some(GlyphAllocation {
-            advance_width_px: glyph_info.advance_width_unscaled.0 * metrics.px_scale_factor,
-            uv_rect,
-        })
+        Some(GlyphAllocation { uv_rect })
     }
 }
 
@@ -478,7 +470,7 @@ impl FontFace {
         let glyph_id = font_data
             .charmap
             .map(c)
-            .filter(|id| *id != skrifa::GlyphId::NOTDEF)?;
+            .filter(|id| *id != GlyphId::NOTDEF)?;
 
         let glyph_info = GlyphInfo {
             id: Some(glyph_id),
@@ -554,12 +546,11 @@ impl FontFace {
     ) -> (GlyphAllocation, i32) {
         let ShapedGlyph {
             glyph_id,
-            advance_width_px,
             h_pos,
             is_cjk,
         } = *shaped;
 
-        if glyph_id == skrifa::GlyphId::NOTDEF {
+        if glyph_id == GlyphId::NOTDEF {
             return (GlyphAllocation::default(), h_pos.round() as i32);
         }
 
@@ -570,41 +561,28 @@ impl FontFace {
         };
 
         let cache_key = GlyphCacheKey::new(glyph_id, metrics, bin);
-        if let Some(cached) = self.glyph_alloc_cache.get(&cache_key) {
-            let mut alloc = *cached;
-            alloc.advance_width_px = advance_width_px;
-            (alloc, h_pos_round)
-        } else {
-            let glyph_info = GlyphInfo {
-                id: Some(glyph_id),
-                advance_width_unscaled: OrderedFloat(advance_width_px / metrics.px_scale_factor),
-            };
 
+        let alloc = if let Some(cached) = self.glyph_alloc_cache.get(&cache_key) {
+            *cached
+        } else {
             let alloc = self
                 .font
-                .allocate_glyph_uncached(
-                    atlas,
-                    metrics,
-                    &glyph_info,
-                    bin,
-                    (&metrics.location).into(),
-                )
+                .allocate_glyph_uncached(atlas, metrics, glyph_id, bin, (&metrics.location).into())
                 .unwrap_or_default();
 
             self.glyph_alloc_cache.insert(cache_key, alloc);
 
-            (alloc, h_pos_round)
-        }
+            alloc
+        };
+
+        (alloc, h_pos_round)
     }
 }
 
 /// Positioning info for a single glyph, ready for atlas allocation.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct ShapedGlyph {
-    pub glyph_id: skrifa::GlyphId,
-
-    /// How far the cursor advances after this glyph, in physical pixels.
-    pub advance_width_px: f32,
+    pub glyph_id: GlyphId,
 
     /// Horizontal position of the glyph origin, in physical pixels.
     pub h_pos: f32,
