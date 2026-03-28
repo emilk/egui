@@ -28,7 +28,8 @@ impl Tooltip<'_> {
             popup: Popup::new(parent_widget, ctx, anchor.into(), parent_layer)
                 .kind(PopupKind::Tooltip)
                 .gap(4.0)
-                .sense(Sense::hover()),
+                .sense(Sense::hover())
+                .backdrop(false),
             parent_layer,
             parent_widget,
         }
