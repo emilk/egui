@@ -551,10 +551,13 @@ impl FontFace {
         } = *shaped;
 
         if glyph_id == GlyphId::NOTDEF {
+            // invisible
             return (GlyphAllocation::default(), h_pos.round() as i32);
         }
 
         let (h_pos_round, bin) = if is_cjk {
+            // CJK scripts contain a lot of characters and could hog the glyph atlas
+            // if we stored 4 subpixel offsets per glyph.
             (h_pos.round() as i32, SubpixelBin::Zero)
         } else {
             SubpixelBin::new(h_pos)
@@ -562,18 +565,11 @@ impl FontFace {
 
         let cache_key = GlyphCacheKey::new(glyph_id, metrics, bin);
 
-        let alloc = if let Some(cached) = self.glyph_alloc_cache.get(&cache_key) {
-            *cached
-        } else {
-            let alloc = self
-                .font
+        let alloc = *self.glyph_alloc_cache.entry(cache_key).or_insert_with(|| {
+            self.font
                 .allocate_glyph_uncached(atlas, metrics, glyph_id, bin, (&metrics.location).into())
-                .unwrap_or_default();
-
-            self.glyph_alloc_cache.insert(cache_key, alloc);
-
-            alloc
-        };
+                .unwrap_or_default()
+        });
 
         (alloc, h_pos_round)
     }

@@ -8,6 +8,7 @@ use crate::{
     Color32, Mesh, Stroke, Vertex,
     stroke::PathStroke,
     text::{
+        TAB_SIZE,
         font::{StyledMetrics, is_cjk, is_cjk_break_allowed},
         fonts::FontFaceKey,
     },
@@ -227,8 +228,8 @@ fn layout_shaped_run(
         // Override the advance width to TAB_SIZE × space width.
         if chr == '\t' {
             let (_, space_info) = font.glyph_info(' ');
-            advance_width_px =
-                crate::text::TAB_SIZE as f32 * space_info.advance_width_unscaled.0 * px_scale;
+            let space_width_px = space_info.advance_width_unscaled.0 * px_scale;
+            advance_width_px = TAB_SIZE as f32 * space_width_px;
         }
 
         // Apply extra_letter_spacing only at cluster boundaries,
