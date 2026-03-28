@@ -16,7 +16,7 @@ use crate::{
 use super::{
     FontsImpl, Galley, Glyph, LayoutJob, LayoutSection, PlacedRow, Row, RowVisuals,
     VariationCoords,
-    font::{Font, FontFace},
+    font::{Font, FontFace, ShapedGlyph},
 };
 
 // ----------------------------------------------------------------------------
@@ -185,10 +185,10 @@ struct ShapingContext {
 #[derive(Debug)]
 struct TextRun {
     /// Which font face should shape this run.
-    pub font_key: FontFaceKey,
+    font_key: FontFaceKey,
 
     /// Byte range within the section text.
-    pub byte_range: std::ops::Range<usize>,
+    byte_range: std::ops::Range<usize>,
 }
 
 /// Emit shaped glyphs from a [`harfrust::GlyphBuffer`] into a [`Paragraph`].
@@ -259,7 +259,7 @@ fn layout_shaped_run(
                     ff.styled_metrics(ctx.pixels_per_point, ctx.font_size, &Default::default())
                 })
                 .unwrap_or_default();
-            let shaped = super::font::ShapedGlyph {
+            let shaped = ShapedGlyph {
                 glyph_id: glyph_info.id.unwrap_or(skrifa::GlyphId::NOTDEF),
                 advance_width_px: glyph_info.advance_width_unscaled.0
                     * fallback_metrics.px_scale_factor,
@@ -289,7 +289,7 @@ fn layout_shaped_run(
             });
             paragraph.cursor_x_px += glyph_alloc.advance_width_px;
         } else {
-            let shaped = super::font::ShapedGlyph {
+            let shaped = ShapedGlyph {
                 glyph_id,
                 advance_width_px: x_advance_px,
                 h_pos: paragraph.cursor_x_px + x_offset_px,
@@ -698,7 +698,7 @@ fn replace_last_glyph_with_overflow_character(
         {
             // we are done
 
-            let shaped = super::font::ShapedGlyph {
+            let shaped = ShapedGlyph {
                 glyph_id: glyph_info.id.unwrap_or(skrifa::GlyphId::NOTDEF),
                 advance_width_px: glyph_info.advance_width_unscaled.0
                     * font_face_metrics.px_scale_factor,
