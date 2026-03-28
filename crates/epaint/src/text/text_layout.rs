@@ -114,15 +114,21 @@ pub fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<LayoutJob>)
     // For most of this we ignore the y coordinate:
 
     let mut paragraphs = vec![Paragraph::from_section_index(0)];
-    for (section_index, section) in job.sections.iter().enumerate() {
-        layout_section(
-            fonts,
-            pixels_per_point,
-            &job,
-            section_index as u32,
-            section,
-            &mut paragraphs,
-        );
+    {
+        let mut shape_buffer = fonts.take_shape_buffer();
+        for (section_index, section) in job.sections.iter().enumerate() {
+            let mut font = fonts.font(&section.format.font_id.family);
+            shape_buffer = layout_section(
+                &mut font,
+                shape_buffer,
+                pixels_per_point,
+                &job,
+                section_index as u32,
+                section,
+                &mut paragraphs,
+            );
+        }
+        fonts.return_shape_buffer(shape_buffer);
     }
 
     let point_scale = PointScale::new(pixels_per_point);
@@ -304,22 +310,22 @@ fn layout_shaped_run(
 }
 
 // Ignores the Y coordinate.
+#[must_use]
 fn layout_section(
-    fonts: &mut FontsImpl,
+    font: &mut Font<'_>,
+    mut shape_buffer: harfrust::UnicodeBuffer,
     pixels_per_point: f32,
     job: &LayoutJob,
     section_index: u32,
     section: &LayoutSection,
     out_paragraphs: &mut Vec<Paragraph>,
-) {
+) -> harfrust::UnicodeBuffer {
     let LayoutSection {
         leading_space,
         byte_range,
         format,
     } = section;
 
-    let mut shape_buffer = fonts.take_shape_buffer();
-    let mut font = fonts.font(&format.font_id.family);
     let font_size = format.font_id.size;
     let font_metrics = font.styled_metrics(pixels_per_point, font_size, &format.coords);
     let line_height = section
@@ -360,7 +366,7 @@ fn layout_section(
             continue;
         }
 
-        segment_into_runs(&mut font, segment, &mut runs);
+        segment_into_runs(font, segment, &mut runs);
 
         let num_runs = runs.len();
         for (run_idx, run) in runs.iter().enumerate() {
@@ -384,7 +390,7 @@ fn layout_section(
             let glyph_buffer = shape_text(font_face, run_text, &format.coords, shape_buffer, flags);
 
             layout_shaped_run(
-                &mut font,
+                font,
                 run,
                 run_text,
                 &glyph_buffer,
@@ -397,10 +403,7 @@ fn layout_section(
         }
     }
 
-    // Drop `font` to release the mutable borrow on `fonts` before recycling the buffer.
-    #[expect(clippy::drop_non_drop)]
-    drop(font);
-    fonts.return_shape_buffer(shape_buffer);
+    shape_buffer
 }
 
 /// Iterator that either splits on `'\n'` or yields the whole string once.
