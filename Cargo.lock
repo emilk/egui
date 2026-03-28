@@ -625,9 +625,9 @@ checksum = "5d20789868f4b01b2f2caec9f5c4e0213b41e3e5702a50157d699ae31ced2fcb"
 
 [[package]]
 name = "bytemuck"
-version = "1.24.0"
+version = "1.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fbdf580320f38b612e485521afda1ee26d10cc9884efaaa750d383e13e3c5f4"
+checksum = "c8efb64bd706a16a1bdde310ae86b351e4d21550d98d056f22f8a7f7a2183fec"
 dependencies = [
  "bytemuck_derive",
 ]
@@ -1273,7 +1273,7 @@ dependencies = [
  "epaint",
  "log",
  "profiling",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "type-map",
  "web-time",
  "wgpu",
@@ -1593,9 +1593,9 @@ checksum = "a5d9305ccc6942a704f4335694ecd3de2ea531b114ac2d51f5f843750787a92f"
 
 [[package]]
 name = "euclid"
-version = "0.22.11"
+version = "0.22.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad9cdb4b747e485a12abb0e6566612956c7a1bafa3bdb8d682c5b6d403589e48"
+checksum = "f1a05365e3b1c6d1650318537c7460c6923f1abdd272ad6842baa2b509957a06"
 dependencies = [
  "num-traits",
 ]
@@ -1669,12 +1669,9 @@ dependencies = [
 
 [[package]]
 name = "fearless_simd"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fb2907d1f08b2b316b9223ced5b0e89d87028ba8deae9764741dba8ff7f3903"
-dependencies = [
- "bytemuck",
-]
+checksum = "76258897e51fd156ee03b6246ea53f3e0eb395d0b327e9961c4fc4c8b2fa151a"
 
 [[package]]
 name = "file_dialog"
@@ -1727,9 +1724,9 @@ checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 
 [[package]]
 name = "font-types"
-version = "0.11.0"
+version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1e4d2d0cf79d38430cc9dc9aadec84774bff2e1ba30ae2bf6c16cfce9385a23"
+checksum = "73829a7b5c91198af28a99159b7ae4afbb252fb906159ff7f189f3a2ceaa3df2"
 dependencies = [
  "bytemuck",
  "serde",
@@ -2005,7 +2002,7 @@ dependencies = [
  "hashbrown 0.16.1",
  "log",
  "presser",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "windows",
 ]
 
@@ -2027,6 +2024,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fdf242682df893b86f33a73828fb09ca4b2d3bb6cc95249707fc684d27484b91"
 dependencies = [
  "bitflags 2.9.4",
+]
+
+[[package]]
+name = "guillotiere"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6b17e70c989c36bad147b27a58d148c0741c51448aa5653436547323e524d0ab"
+dependencies = [
+ "euclid",
 ]
 
 [[package]]
@@ -2708,7 +2714,7 @@ dependencies = [
  "once_cell",
  "rustc-hash 1.1.0",
  "spirv",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "unicode-ident",
 ]
 
@@ -3744,7 +3750,7 @@ checksum = "a4e608c6638b9c18977b00b475ac1f28d14e84b27d8d42f70e0bf1e3dec127ac"
 dependencies = [
  "getrandom 0.2.17",
  "libredox",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -4091,6 +4097,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "shaping_demo"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "env_logger",
+]
+
+[[package]]
 name = "shlex"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4319,7 +4333,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "walkdir",
  "yaml-rust",
 ]
@@ -4406,11 +4420,11 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "2.0.17"
+version = "2.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f63587ca0f12b72a0600bcba1d40081f830876000bb46dd2337a3051618f4fc8"
+checksum = "4288b5bcbc7920c07a1149a35cf9590a2aa808e0bc1eafaade0b80947865fbc4"
 dependencies = [
- "thiserror-impl 2.0.17",
+ "thiserror-impl 2.0.18",
 ]
 
 [[package]]
@@ -4426,9 +4440,9 @@ dependencies = [
 
 [[package]]
 name = "thiserror-impl"
-version = "2.0.17"
+version = "2.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3ff15c8ecd7de3849db632e14d18d2571fa09dfc5ed93479bc4485c7a517c913"
+checksum = "ebc4ee7f67670e9b64d05fa4253e753e016c6c95ff35b89b7941d6b856dec1d5"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4866,28 +4880,41 @@ dependencies = [
 ]
 
 [[package]]
-name = "vello_common"
-version = "0.0.6"
+name = "vello_api"
+version = "0.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1bd1a4c633ce09e7d713df1a6e036644a125e15e0c169cfb5180ddf5836ca04b"
+checksum = "a5088cd0113bc5332c753f24503825e3bc93e26c7883c9dc3ad9637bb62c4634"
+dependencies = [
+ "bytemuck",
+ "peniko",
+]
+
+[[package]]
+name = "vello_common"
+version = "0.0.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "986dc49a501a683477614bf07b8e7b6c79ae4828efce3bf22e51850f4a0a8a4c"
 dependencies = [
  "bytemuck",
  "fearless_simd",
+ "guillotiere",
  "hashbrown 0.16.1",
  "log",
  "peniko",
  "skrifa",
  "smallvec",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
 name = "vello_cpu"
-version = "0.0.6"
+version = "0.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0162bfe48aabf6a9fdcd401b628c7d9f260c2cbabb343c70a65feba6f7849edc"
+checksum = "a678f91c7524a3a9ac9a19df9f83552866ec70b2ca26441b916a6b219b6aa2de"
 dependencies = [
  "bytemuck",
  "hashbrown 0.16.1",
+ "vello_api",
  "vello_common",
 ]
 
@@ -5195,7 +5222,7 @@ dependencies = [
  "raw-window-handle",
  "rustc-hash 1.1.0",
  "smallvec",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "wgpu-core-deps-apple",
  "wgpu-core-deps-emscripten",
  "wgpu-core-deps-wasm",
@@ -5284,7 +5311,7 @@ dependencies = [
  "raw-window-metal",
  "renderdoc-sys",
  "smallvec",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "wasm-bindgen",
  "wayland-sys",
  "web-sys",
