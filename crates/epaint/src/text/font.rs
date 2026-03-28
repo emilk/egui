@@ -534,49 +534,16 @@ impl FontFace {
         }
     }
 
-    /// Shape a text run and return the raw [`harfrust::GlyphBuffer`].
-    ///
-    /// The caller should iterate `glyph_infos()` / `glyph_positions()` (both
-    /// `Copy` slices) and convert font units to pixels using `metrics.px_scale_factor`.
-    /// After iteration, recycle the buffer via `glyph_buffer.clear()`.
-    pub fn shape_text(
-        &self,
-        text: &str,
-        coords: &VariationCoords,
-        mut buffer: harfrust::UnicodeBuffer,
-        flags: harfrust::BufferFlags,
-    ) -> harfrust::GlyphBuffer {
-        let font_ref = &self.font.borrow_dependent().skrifa;
+    pub(crate) fn skrifa_font_ref(&self) -> &skrifa::FontRef<'_> {
+        &self.font.borrow_dependent().skrifa
+    }
 
-        // Build shaper with variable font instance if variation coordinates are set.
-        let variations: Vec<harfrust::Variation> = self
-            .tweak
-            .coords
-            .as_ref()
-            .iter()
-            .chain(coords.as_ref().iter())
-            .map(|&(tag, value)| harfrust::Variation { tag, value })
-            .collect();
+    pub(crate) fn tweak(&self) -> &FontTweak {
+        &self.tweak
+    }
 
-        let instance = if variations.is_empty() {
-            None
-        } else {
-            Some(harfrust::ShaperInstance::from_variations(
-                font_ref, variations,
-            ))
-        };
-
-        let shaper = self
-            .shaper_data
-            .shaper(font_ref)
-            .instance(instance.as_ref())
-            .build();
-
-        buffer.set_flags(flags);
-        buffer.push_str(text);
-        buffer.guess_segment_properties();
-
-        shaper.shape(buffer, &[])
+    pub(crate) fn shaper_data(&self) -> &harfrust::ShaperData {
+        &self.shaper_data
     }
 
     pub fn allocate_glyph(
@@ -706,43 +673,6 @@ impl Font<'_> {
     /// Can we display all the glyphs in this text?
     pub fn has_glyphs(&mut self, s: &str) -> bool {
         s.chars().all(|c| self.has_glyph(c))
-    }
-
-    /// Segment text into runs where each run uses a single font face.
-    ///
-    /// Grapheme clusters are never split across runs: if a combining mark
-    /// falls back to a different font than its base character, it stays
-    /// with the base character's font (the shaper will handle it).
-    ///
-    /// NOTE: Segmentation is by font face, not by Unicode script. A run may
-    /// mix scripts (e.g. Latin + Cyrillic) when they share the same font.
-    /// This is acceptable for scripts with similar shaping rules, but would
-    /// need script-aware splitting once RTL/bidi support is added.
-    ///
-    /// Results are appended to `out` (which is cleared first) to allow
-    /// the caller to reuse the allocation across calls.
-    pub(crate) fn segment_into_runs(&mut self, text: &str, out: &mut Vec<TextRun>) {
-        use unicode_segmentation::UnicodeSegmentation as _;
-
-        out.clear();
-
-        for (byte_offset, grapheme_str) in text.grapheme_indices(true) {
-            let byte_end = byte_offset + grapheme_str.len();
-
-            let base_char = grapheme_str.chars().next().unwrap_or(' ');
-            let (font_key, _) = self.glyph_info(base_char);
-
-            if let Some(last_run) = out.last_mut()
-                && last_run.font_key == font_key
-            {
-                last_run.byte_range.end = byte_end;
-                continue;
-            }
-            out.push(TextRun {
-                font_key,
-                byte_range: byte_offset..byte_end,
-            });
-        }
     }
 
     /// `\n` will (intentionally) show up as the replacement character.

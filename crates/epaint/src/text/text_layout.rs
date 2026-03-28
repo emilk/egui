@@ -12,7 +12,8 @@ use crate::{
 
 use super::{
     FontsImpl, Galley, Glyph, LayoutJob, LayoutSection, PlacedRow, Row, RowVisuals,
-    font::{Font, TextRun},
+    VariationCoords,
+    font::{Font, FontFace, TextRun},
 };
 
 // ----------------------------------------------------------------------------
@@ -359,7 +360,7 @@ fn layout_section(
             continue;
         }
 
-        font.segment_into_runs(segment, &mut runs);
+        segment_into_runs(&mut font, segment, &mut runs);
 
         let num_runs = runs.len();
         for (run_idx, run) in runs.iter().enumerate() {
@@ -380,7 +381,7 @@ fn layout_section(
                 flags |= harfrust::BufferFlags::END_OF_TEXT;
             }
 
-            let glyph_buffer = font_face.shape_text(run_text, &format.coords, shape_buffer, flags);
+            let glyph_buffer = shape_text(font_face, run_text, &format.coords, shape_buffer, flags);
 
             layout_shaped_run(
                 &mut font,
@@ -1224,6 +1225,90 @@ impl RowBreakCandidates {
             *any = None;
         }
     }
+}
+
+// ----------------------------------------------------------------------------
+
+/// Segment text into runs where each run uses a single font face.
+///
+/// Grapheme clusters are never split across runs: if a combining mark
+/// falls back to a different font than its base character, it stays
+/// with the base character's font (the shaper will handle it).
+///
+/// NOTE: Segmentation is by font face, not by Unicode script. A run may
+/// mix scripts (e.g. Latin + Cyrillic) when they share the same font.
+/// This is acceptable for scripts with similar shaping rules, but would
+/// need script-aware splitting once RTL/bidi support is added.
+///
+/// Results are appended to `out` (which is cleared first) to allow
+/// the caller to reuse the allocation across calls.
+fn segment_into_runs(font: &mut Font<'_>, text: &str, out: &mut Vec<TextRun>) {
+    use unicode_segmentation::UnicodeSegmentation as _;
+
+    out.clear();
+
+    for (byte_offset, grapheme_str) in text.grapheme_indices(true) {
+        let byte_end = byte_offset + grapheme_str.len();
+
+        let base_char = grapheme_str.chars().next().unwrap_or(' ');
+        let (font_key, _) = font.glyph_info(base_char);
+
+        if let Some(last_run) = out.last_mut()
+            && last_run.font_key == font_key
+        {
+            last_run.byte_range.end = byte_end;
+            continue;
+        }
+        out.push(TextRun {
+            font_key,
+            byte_range: byte_offset..byte_end,
+        });
+    }
+}
+
+/// Shape a text run and return the raw [`harfrust::GlyphBuffer`].
+///
+/// The caller should iterate `glyph_infos()` / `glyph_positions()` (both
+/// `Copy` slices) and convert font units to pixels using `metrics.px_scale_factor`.
+/// After iteration, recycle the buffer via `glyph_buffer.clear()`.
+fn shape_text(
+    font_face: &FontFace,
+    text: &str,
+    coords: &VariationCoords,
+    mut buffer: harfrust::UnicodeBuffer,
+    flags: harfrust::BufferFlags,
+) -> harfrust::GlyphBuffer {
+    let font_ref = font_face.skrifa_font_ref();
+    let tweak = font_face.tweak();
+
+    // Build shaper with variable font instance if variation coordinates are set.
+    let variations: Vec<harfrust::Variation> = tweak
+        .coords
+        .as_ref()
+        .iter()
+        .chain(coords.as_ref().iter())
+        .map(|&(tag, value)| harfrust::Variation { tag, value })
+        .collect();
+
+    let instance = if variations.is_empty() {
+        None
+    } else {
+        Some(harfrust::ShaperInstance::from_variations(
+            font_ref, variations,
+        ))
+    };
+
+    let shaper = font_face
+        .shaper_data()
+        .shaper(font_ref)
+        .instance(instance.as_ref())
+        .build();
+
+    buffer.set_flags(flags);
+    buffer.push_str(text);
+    buffer.guess_segment_properties();
+
+    shaper.shape(buffer, &[])
 }
 
 // ----------------------------------------------------------------------------
