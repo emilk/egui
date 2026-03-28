@@ -9,7 +9,7 @@ use crate::{
     stroke::PathStroke,
     text::{
         TAB_SIZE,
-        font::{StyledMetrics, is_cjk, is_cjk_break_allowed},
+        font::{StyledMetrics, UvRect, is_cjk, is_cjk_break_allowed},
         fonts::FontFaceKey,
     },
 };
@@ -182,6 +182,31 @@ struct ShapingContext {
     prev_cluster: Option<u32>,
 }
 
+impl ShapingContext {
+    fn glyph(
+        &self,
+        chr: char,
+        physical_x: i32,
+        advance_width_px: f32,
+        face_metrics: &StyledMetrics,
+        uv_rect: UvRect,
+    ) -> Glyph {
+        Glyph {
+            chr,
+            pos: pos2(physical_x as f32 / self.pixels_per_point, f32::NAN),
+            advance_width: advance_width_px / self.pixels_per_point,
+            line_height: self.line_height,
+            font_face_height: face_metrics.row_height,
+            font_face_ascent: face_metrics.ascent,
+            font_height: self.font_metrics.row_height,
+            font_ascent: self.font_metrics.ascent,
+            uv_rect,
+            section_index: self.section_index,
+            first_vertex: 0,
+        }
+    }
+}
+
 /// Produced by [`Font::segment_into_runs`] for text shaping.
 #[derive(Debug)]
 struct TextRun {
@@ -222,7 +247,7 @@ fn layout_shaped_run(
         let chr = run_text
             .get(cluster as usize..)
             .and_then(|s| s.chars().next())
-            .unwrap_or('\u{FFFD}');
+            .unwrap_or('\u{FFFD}'); // Unicode Replacement Character
 
         // Tab is a layout concept, not a glyph — the shaper doesn't know about tab stops.
         // Override the advance width to TAB_SIZE × space width.
@@ -243,7 +268,7 @@ fn layout_shaped_run(
         }
         ctx.prev_cluster = Some(cluster);
 
-        if glyph_id == skrifa::GlyphId::NOTDEF {
+        let glyph = if glyph_id == skrifa::GlyphId::NOTDEF {
             // The shaper couldn't map this character. Drop combining marks
             // (Unicode category M) and duplicate NOTDEF glyphs within the same
             // cluster — only the first base character gets a replacement glyph.
@@ -277,20 +302,15 @@ fn layout_shaped_run(
                     Default::default()
                 };
 
-            paragraph.glyphs.push(Glyph {
-                chr,
-                pos: pos2(physical_x as f32 / ctx.pixels_per_point, f32::NAN),
-                advance_width: advance_width_px / ctx.pixels_per_point,
-                line_height: ctx.line_height,
-                font_face_height: fallback_metrics.row_height,
-                font_face_ascent: fallback_metrics.ascent,
-                font_height: ctx.font_metrics.row_height,
-                font_ascent: ctx.font_metrics.ascent,
-                uv_rect: glyph_alloc.uv_rect,
-                section_index: ctx.section_index,
-                first_vertex: 0,
-            });
             paragraph.cursor_x_px += advance_width_px;
+
+            ctx.glyph(
+                chr,
+                physical_x,
+                advance_width_px,
+                &fallback_metrics,
+                glyph_alloc.uv_rect,
+            )
         } else {
             let (mut glyph_alloc, physical_x) =
                 if let Some(ff) = font.fonts_by_id.get_mut(&run.font_key) {
@@ -311,21 +331,17 @@ fn layout_shaped_run(
             // is not part of the cached ShapedGlyph / GlyphAllocation.
             glyph_alloc.uv_rect.offset.y += y_offset_px / ctx.pixels_per_point;
 
-            paragraph.glyphs.push(Glyph {
-                chr,
-                pos: pos2(physical_x as f32 / ctx.pixels_per_point, f32::NAN),
-                advance_width: advance_width_px / ctx.pixels_per_point,
-                line_height: ctx.line_height,
-                font_face_height: face_metrics.row_height,
-                font_face_ascent: face_metrics.ascent,
-                font_height: ctx.font_metrics.row_height,
-                font_ascent: ctx.font_metrics.ascent,
-                uv_rect: glyph_alloc.uv_rect,
-                section_index: ctx.section_index,
-                first_vertex: 0,
-            });
             paragraph.cursor_x_px += advance_width_px;
-        }
+
+            ctx.glyph(
+                chr,
+                physical_x,
+                advance_width_px,
+                face_metrics,
+                glyph_alloc.uv_rect,
+            )
+        };
+        paragraph.glyphs.push(glyph);
     }
 }
 
