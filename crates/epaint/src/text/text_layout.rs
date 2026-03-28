@@ -7,13 +7,16 @@ use emath::{Align, GuiRounding as _, NumExt as _, Pos2, Rect, Vec2, pos2, vec2};
 use crate::{
     Color32, Mesh, Stroke, Vertex,
     stroke::PathStroke,
-    text::font::{StyledMetrics, is_cjk, is_cjk_break_allowed},
+    text::{
+        font::{StyledMetrics, is_cjk, is_cjk_break_allowed},
+        fonts::FontFaceKey,
+    },
 };
 
 use super::{
     FontsImpl, Galley, Glyph, LayoutJob, LayoutSection, PlacedRow, Row, RowVisuals,
     VariationCoords,
-    font::{Font, FontFace, TextRun},
+    font::{Font, FontFace},
 };
 
 // ----------------------------------------------------------------------------
@@ -176,6 +179,16 @@ struct ShapingContext {
     font_metrics: StyledMetrics,
     is_first_glyph_in_section: bool,
     prev_cluster: Option<u32>,
+}
+
+/// Produced by [`Font::segment_into_runs`] for text shaping.
+#[derive(Debug)]
+struct TextRun {
+    /// Which font face should shape this run.
+    pub font_key: FontFaceKey,
+
+    /// Byte range within the section text.
+    pub byte_range: std::ops::Range<usize>,
 }
 
 /// Emit shaped glyphs from a [`harfrust::GlyphBuffer`] into a [`Paragraph`].
@@ -355,7 +368,7 @@ fn layout_section(
 
     // Process each paragraph segment (split on newlines — the shaper can't handle them).
     for (seg_idx, segment) in SplitOrWhole::new(section_text, job.break_on_newline).enumerate() {
-        if seg_idx > 0 {
+        if 0 < seg_idx {
             out_paragraphs.push(Paragraph::from_section_index(section_index));
             paragraph = out_paragraphs.last_mut().unwrap();
             paragraph.empty_paragraph_height = line_height;
