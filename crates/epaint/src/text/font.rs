@@ -2,10 +2,7 @@
 
 use emath::{GuiRounding as _, OrderedFloat, Vec2, vec2};
 use self_cell::self_cell;
-use skrifa::{
-    MetadataProvider as _,
-    raw::{TableProvider as _, tables::kern::SubtableKind},
-};
+use skrifa::MetadataProvider as _;
 use std::collections::BTreeMap;
 use vello_cpu::{color, kurbo};
 
@@ -44,8 +41,6 @@ impl UvRect {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct GlyphInfo {
-    /// Used for pair-kerning.
-    ///
     /// Doesn't need to be unique.
     ///
     /// Is `None` for a special "invisible" glyph.
@@ -126,12 +121,6 @@ impl SubpixelBin {
 
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub struct GlyphAllocation {
-    /// The glyph ID in the font face that produced this allocation.
-    ///
-    /// Used for legacy `kern` table lookup when positioning the overflow
-    /// character (e.g. `…`) during text truncation.
-    pub(crate) id: skrifa::GlyphId,
-
     /// Unit: screen pixels.
     pub advance_width_px: f32,
 
@@ -289,7 +278,6 @@ impl FontCell {
         };
 
         Some(GlyphAllocation {
-            id: glyph_id,
             advance_width_px: glyph_info.advance_width_unscaled.0 * metrics.px_scale_factor,
             uv_rect,
         })
@@ -502,38 +490,6 @@ impl FontFace {
         };
         self.glyph_info_cache.insert(c, glyph_info);
         Some(glyph_info)
-    }
-
-    #[inline]
-    pub(super) fn pair_kerning_pixels(
-        &self,
-        metrics: &StyledMetrics,
-        last_glyph_id: skrifa::GlyphId,
-        glyph_id: skrifa::GlyphId,
-    ) -> f32 {
-        let skrifa_font = &self.font.borrow_dependent().skrifa;
-        let Ok(kern) = skrifa_font.kern() else {
-            return 0.0;
-        };
-        kern.subtables()
-            .find_map(|st| match st.ok()?.kind().ok()? {
-                SubtableKind::Format0(table_ref) => table_ref.kerning(last_glyph_id, glyph_id),
-                SubtableKind::Format1(_) => None,
-                SubtableKind::Format2(subtable2) => subtable2.kerning(last_glyph_id, glyph_id),
-                SubtableKind::Format3(table_ref) => table_ref.kerning(last_glyph_id, glyph_id),
-            })
-            .unwrap_or_default() as f32
-            * metrics.px_scale_factor
-    }
-
-    #[inline]
-    pub fn pair_kerning(
-        &self,
-        metrics: &StyledMetrics,
-        last_glyph_id: skrifa::GlyphId,
-        glyph_id: skrifa::GlyphId,
-    ) -> f32 {
-        self.pair_kerning_pixels(metrics, last_glyph_id, glyph_id) / metrics.pixels_per_point
     }
 
     #[inline(always)]

@@ -664,33 +664,14 @@ fn replace_last_glyph_with_overflow_character(
             .unwrap_or_default();
 
         let overflow_glyph_x = if let Some(prev_glyph) = row.glyphs.last() {
-            // Kern the overflow character properly
-            let pair_kerning = font_face
-                .as_mut()
-                .map(|font_face| {
-                    if let (Some(prev_glyph_id), Some(overflow_glyph_id)) = (
-                        font_face.glyph_info(prev_glyph.chr).and_then(|g| g.id),
-                        font_face.glyph_info(overflow_character).and_then(|g| g.id),
-                    ) {
-                        font_face.pair_kerning(&font_face_metrics, prev_glyph_id, overflow_glyph_id)
-                    } else {
-                        0.0
-                    }
-                })
-                .unwrap_or_default();
-
-            prev_glyph.max_x() + extra_letter_spacing + pair_kerning
+            prev_glyph.max_x() + extra_letter_spacing
         } else {
             0.0 // TODO(emilk): heed paragraph leading_space 😬
         };
 
-        let replacement_glyph_width = font_face
-            .as_mut()
-            .and_then(|f| f.glyph_info(overflow_character))
-            .map(|i| {
-                i.advance_width_unscaled.0 * font_face_metrics.px_scale_factor / pixels_per_point
-            })
-            .unwrap_or_default();
+        let replacement_glyph_width = glyph_info.advance_width_unscaled.0
+            * font_face_metrics.px_scale_factor
+            / pixels_per_point;
 
         // Check if we're within width budget:
         if overflow_glyph_x + replacement_glyph_width <= job.effective_wrap_width()
