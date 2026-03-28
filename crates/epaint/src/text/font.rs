@@ -556,7 +556,6 @@ impl FontFace {
             glyph_id,
             advance_width_px,
             h_pos,
-            y_offset_points,
             is_cjk,
         } = *shaped;
 
@@ -574,28 +573,28 @@ impl FontFace {
         if let Some(cached) = self.glyph_alloc_cache.get(&cache_key) {
             let mut alloc = *cached;
             alloc.advance_width_px = advance_width_px;
-            alloc.uv_rect.offset.y += y_offset_points;
-            return (alloc, h_pos_round);
+            (alloc, h_pos_round)
+        } else {
+            let glyph_info = GlyphInfo {
+                id: Some(glyph_id),
+                advance_width_unscaled: OrderedFloat(advance_width_px / metrics.px_scale_factor),
+            };
+
+            let alloc = self
+                .font
+                .allocate_glyph_uncached(
+                    atlas,
+                    metrics,
+                    &glyph_info,
+                    bin,
+                    (&metrics.location).into(),
+                )
+                .unwrap_or_default();
+
+            self.glyph_alloc_cache.insert(cache_key, alloc);
+
+            (alloc, h_pos_round)
         }
-
-        let glyph_info = GlyphInfo {
-            id: Some(glyph_id),
-            advance_width_unscaled: OrderedFloat(advance_width_px / metrics.px_scale_factor),
-        };
-
-        let mut allocation = self
-            .font
-            .allocate_glyph_uncached(atlas, metrics, &glyph_info, bin, (&metrics.location).into())
-            .unwrap_or_default();
-
-        // Cache the allocation WITHOUT the shaper y_offset (which varies per call)
-        self.glyph_alloc_cache.insert(cache_key, allocation);
-
-        // Apply shaper y_offset after caching — the offset varies per call site
-        // so we cache the base allocation without it.
-        allocation.uv_rect.offset.y += y_offset_points;
-
-        (allocation, h_pos_round)
     }
 }
 
@@ -609,9 +608,6 @@ pub(crate) struct ShapedGlyph {
 
     /// Horizontal position of the glyph origin, in physical pixels.
     pub h_pos: f32,
-
-    /// Vertical offset from the baseline, in UI points.
-    pub y_offset_points: f32,
 
     /// CJK glyphs skip subpixel positioning to save atlas space.
     pub is_cjk: bool,

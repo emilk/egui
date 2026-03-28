@@ -214,7 +214,7 @@ fn layout_shaped_run(
     {
         let glyph_id = skrifa::GlyphId::new(info.glyph_id);
         let cluster = info.cluster;
-        let mut x_advance_px = pos.x_advance as f32 * px_scale;
+        let mut advance_width_px = pos.x_advance as f32 * px_scale;
         let x_offset_px = pos.x_offset as f32 * px_scale;
         let y_offset_px = -(pos.y_offset as f32 * px_scale); // harfrust Y+ up → screen Y+ down
 
@@ -227,7 +227,7 @@ fn layout_shaped_run(
         // Override the advance width to TAB_SIZE × space width.
         if chr == '\t' {
             let (_, space_info) = font.glyph_info(' ');
-            x_advance_px =
+            advance_width_px =
                 crate::text::TAB_SIZE as f32 * space_info.advance_width_unscaled.0 * px_scale;
         }
 
@@ -259,17 +259,19 @@ fn layout_shaped_run(
                     ff.styled_metrics(ctx.pixels_per_point, ctx.font_size, &Default::default())
                 })
                 .unwrap_or_default();
-            let shaped = ShapedGlyph {
-                glyph_id: glyph_info.id.unwrap_or(skrifa::GlyphId::NOTDEF),
-                advance_width_px: glyph_info.advance_width_unscaled.0
-                    * fallback_metrics.px_scale_factor,
-                h_pos: paragraph.cursor_x_px,
-                y_offset_points: 0.0,
-                is_cjk: is_cjk(chr),
-            };
             let (glyph_alloc, physical_x) =
                 if let Some(ff) = font.fonts_by_id.get_mut(&fallback_key) {
-                    ff.allocate_glyph(font.atlas, &fallback_metrics, &shaped)
+                    ff.allocate_glyph(
+                        font.atlas,
+                        &fallback_metrics,
+                        &ShapedGlyph {
+                            glyph_id: glyph_info.id.unwrap_or(skrifa::GlyphId::NOTDEF),
+                            advance_width_px: glyph_info.advance_width_unscaled.0
+                                * fallback_metrics.px_scale_factor,
+                            h_pos: paragraph.cursor_x_px,
+                            is_cjk: is_cjk(chr),
+                        },
+                    )
                 } else {
                     Default::default()
                 };
@@ -289,25 +291,30 @@ fn layout_shaped_run(
             });
             paragraph.cursor_x_px += glyph_alloc.advance_width_px;
         } else {
-            let shaped = ShapedGlyph {
-                glyph_id,
-                advance_width_px: x_advance_px,
-                h_pos: paragraph.cursor_x_px + x_offset_px,
-                y_offset_points: y_offset_px / ctx.pixels_per_point,
-                is_cjk: is_cjk(chr),
-            };
-
-            let (glyph_alloc, physical_x) =
+            let (mut glyph_alloc, physical_x) =
                 if let Some(ff) = font.fonts_by_id.get_mut(&run.font_key) {
-                    ff.allocate_glyph(font.atlas, face_metrics, &shaped)
+                    ff.allocate_glyph(
+                        font.atlas,
+                        face_metrics,
+                        &ShapedGlyph {
+                            glyph_id,
+                            advance_width_px,
+                            h_pos: paragraph.cursor_x_px + x_offset_px,
+                            is_cjk: is_cjk(chr),
+                        },
+                    )
                 } else {
                     Default::default()
                 };
 
+            // Apply shaper y_offset — this varies per glyph instance so it
+            // is not part of the cached ShapedGlyph / GlyphAllocation.
+            glyph_alloc.uv_rect.offset.y += y_offset_px / ctx.pixels_per_point;
+
             paragraph.glyphs.push(Glyph {
                 chr,
                 pos: pos2(physical_x as f32 / ctx.pixels_per_point, f32::NAN),
-                advance_width: x_advance_px / ctx.pixels_per_point,
+                advance_width: advance_width_px / ctx.pixels_per_point,
                 line_height: ctx.line_height,
                 font_face_height: face_metrics.row_height,
                 font_face_ascent: face_metrics.ascent,
@@ -317,7 +324,7 @@ fn layout_shaped_run(
                 section_index: ctx.section_index,
                 first_vertex: 0,
             });
-            paragraph.cursor_x_px += x_advance_px;
+            paragraph.cursor_x_px += advance_width_px;
         }
     }
 }
@@ -698,17 +705,21 @@ fn replace_last_glyph_with_overflow_character(
         {
             // we are done
 
-            let shaped = ShapedGlyph {
-                glyph_id: glyph_info.id.unwrap_or(skrifa::GlyphId::NOTDEF),
-                advance_width_px: glyph_info.advance_width_unscaled.0
-                    * font_face_metrics.px_scale_factor,
-                h_pos: overflow_glyph_x * pixels_per_point,
-                y_offset_points: 0.0,
-                is_cjk: is_cjk(overflow_character),
-            };
             let (replacement_glyph_alloc, physical_x) = font_face
                 .as_mut()
-                .map(|f| f.allocate_glyph(font.atlas, &font_face_metrics, &shaped))
+                .map(|f| {
+                    f.allocate_glyph(
+                        font.atlas,
+                        &font_face_metrics,
+                        &ShapedGlyph {
+                            glyph_id: glyph_info.id.unwrap_or(skrifa::GlyphId::NOTDEF),
+                            advance_width_px: glyph_info.advance_width_unscaled.0
+                                * font_face_metrics.px_scale_factor,
+                            h_pos: overflow_glyph_x * pixels_per_point,
+                            is_cjk: is_cjk(overflow_character),
+                        },
+                    )
+                })
                 .unwrap_or_default();
 
             let font_metrics =
