@@ -74,18 +74,6 @@ impl TextAgent {
             }
         };
 
-        let on_composition_start = {
-            let input = input.clone();
-            move |_: web_sys::CompositionEvent, runner: &mut AppRunner| {
-                input.set_value("");
-                let event = egui::Event::Ime(egui::ImeEvent::Enabled);
-                runner.input.raw.events.push(event);
-                // Repaint moves the text agent into place,
-                // see `move_to` in `AppRunner::handle_platform_output`.
-                runner.needs_repaint.repaint_asap();
-            }
-        };
-
         let on_composition_update = {
             move |event: web_sys::CompositionEvent, runner: &mut AppRunner| {
                 let Some(text) = event.data() else { return };
@@ -107,7 +95,6 @@ impl TextAgent {
         };
 
         runner_ref.add_event_listener(&input, "input", on_input)?;
-        runner_ref.add_event_listener(&input, "compositionstart", on_composition_start)?;
         runner_ref.add_event_listener(&input, "compositionupdate", on_composition_update)?;
         runner_ref.add_event_listener(&input, "compositionend", on_composition_end)?;
 

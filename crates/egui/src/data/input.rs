@@ -602,17 +602,16 @@ pub enum Event {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ImeEvent {
-    /// Notifies when the IME was enabled.
-    Enabled,
-
     /// A new IME candidate is being suggested.
+    ///
+    /// An empty preedit string indicates that the IME has been dismissed, while
+    /// a non-empty preedit string indicates that the IME is active.
     Preedit(String),
 
     /// IME composition ended with this final result.
+    ///
+    /// The IME is considered dismissed after this event.
     Commit(String),
-
-    /// Notifies when the IME was disabled.
-    Disabled,
 }
 
 /// Mouse button (or similar for touch input)

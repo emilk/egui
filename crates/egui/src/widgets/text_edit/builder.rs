@@ -1156,7 +1156,6 @@ fn events(
                 }
 
                 match ime_event {
-                    ImeEvent::Enabled | ImeEvent::Disabled => None,
                     // Ignore `Preedit`/`Commit` events with empty text when
                     // there is no active IME composition.
                     //
