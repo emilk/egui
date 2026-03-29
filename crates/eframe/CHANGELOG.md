@@ -7,6 +7,11 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.34.1 - 2026-03-27
+* `wgpu` backend: Enable WebGL fallback [#8038](https://github.com/emilk/egui/pull/8038) by [@emilk](https://github.com/emilk)
+* Only apply cursor style to the `<canvas>` [#8036](https://github.com/emilk/egui/pull/8036) by [@mkeeter](https://github.com/mkeeter)
+
+
 ## 0.34.0 - 2026-03-26
 ### ⭐ Added
 * Add feature `wgpu_no_default_features` [#7700](https://github.com/emilk/egui/pull/7700) by [@emilk](https://github.com/emilk)

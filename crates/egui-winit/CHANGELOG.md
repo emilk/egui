@@ -5,6 +5,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.34.1 - 2026-03-27
+Nothing new
+
+
 ## 0.34.0 - 2026-03-26
 * Add `is_scrolling`/`is_smooth_scrolling` util, checking for active scroll action [#7669](https://github.com/emilk/egui/pull/7669) by [@IsseW](https://github.com/IsseW)
 * Fix backspacing leaving last character in IME prediction not removed on macOS native and Safari [#7810](https://github.com/emilk/egui/pull/7810) by [@umajho](https://github.com/umajho)

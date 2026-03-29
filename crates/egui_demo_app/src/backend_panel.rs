@@ -211,7 +211,7 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let wgpu_adapter_details_ui = |ui: &mut egui::Ui, adapter: &eframe::wgpu::Adapter| {
             let info = &adapter.get_info();
 
-            let wgpu::AdapterInfo {
+            let eframe::wgpu::AdapterInfo {
                 name,
                 vendor,
                 device,
