@@ -303,6 +303,15 @@ pub struct Panel {
     resizable: bool,
     show_separator_line: bool,
 
+    /// If `true` (the default), the panel grows to fit its content.
+    ///
+    /// If `false`, the panel keeps its current size and only changes when the
+    /// user drags the resize handle. Content that overflows is clipped.
+    ///
+    /// This is useful for editor-style layouts where panel sizes should be
+    /// user-controlled and not influenced by content.
+    auto_sized: bool,
+
     /// The size is defined as being either the width for a Vertical Panel
     /// or the height for a Horizontal Panel.
     default_size: Option<f32>,
@@ -365,6 +374,7 @@ impl Panel {
             frame: None,
             resizable: true,
             show_separator_line: true,
+            auto_sized: true,
             default_size,
             size_range,
         }
@@ -396,6 +406,29 @@ impl Panel {
     #[inline]
     pub fn show_separator_line(mut self, show_separator_line: bool) -> Self {
         self.show_separator_line = show_separator_line;
+        self
+    }
+
+    /// Should the panel grow to fit its content?
+    ///
+    /// If `false`, the panel keeps its current size and only changes when the
+    /// user drags the resize handle. Content that overflows is clipped.
+    ///
+    /// Default: `true`.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// egui::Panel::left("fixed_panel")
+    ///     .auto_sized(false)
+    ///     .default_width(280.0)
+    ///     .show_inside(ui, |ui| {
+    ///         ui.label("This panel won't grow, even if this text is long.");
+    ///     });
+    /// # });
+    /// ```
+    #[inline]
+    pub fn auto_sized(mut self, auto_sized: bool) -> Self {
+        self.auto_sized = auto_sized;
         self
     }
 
@@ -646,6 +679,7 @@ impl Panel {
         let id = self.id;
         let resizable = self.resizable;
         let show_separator_line = self.show_separator_line;
+        let auto_sized = self.auto_sized;
         let size_range = self.size_range;
 
         // Define the sizing of the panel.
@@ -693,7 +727,14 @@ impl Panel {
             add_contents(ui)
         });
 
-        let rect = inner_response.response.rect;
+        // When `auto_sized` is false, use the panel_sizer rect (which only
+        // reflects user drag, not content expansion) for layout and storage.
+        // This prevents content from pushing sibling panels away.
+        let rect = if auto_sized {
+            inner_response.response.rect
+        } else {
+            panel_sizer.panel_rect
+        };
 
         {
             let mut cursor = ui.cursor();
@@ -765,10 +806,11 @@ impl Panel {
         #![expect(deprecated)]
 
         let side = self.side;
+        let panel_id = self.id;
         let available_rect = ctx.available_rect();
         let mut panel_ui = Ui::new(
             ctx.clone(),
-            self.id,
+            panel_id,
             UiBuilder::new()
                 .layer_id(LayerId::background())
                 .max_rect(available_rect),
@@ -779,7 +821,9 @@ impl Panel {
             .widget_info(|| WidgetInfo::new(WidgetType::Panel));
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
-        let rect = inner_response.response.rect;
+        // Use the stored rect (which respects auto_sized) for panel allocation,
+        // so that non-auto-sized panels don't push siblings away with content pressure.
+        let rect = PanelState::load(ctx, panel_id).map_or(inner_response.response.rect, |s| s.rect);
 
         match side {
             PanelSide::Vertical(side) => match side {
@@ -1102,3 +1146,77 @@ pub type SidePanel = super::Panel;
 
 #[deprecated = "Use Panel::top or Panel::bottom instead"]
 pub type TopBottomPanel = super::Panel;
+
+// ----------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// When `auto_sized(false)`, the stored panel size should not grow beyond
+    /// its default width even if the content requests more space.
+    #[test]
+    fn auto_sized_false_prevents_content_growth() {
+        let ctx = crate::Context::default();
+        ctx.set_fonts(crate::FontDefinitions::empty());
+
+        let default_width = 200.0;
+        let panel_id = Id::new("test_panel");
+
+        // Run two frames so the panel state is established.
+        for _ in 0..2 {
+            let _ = ctx.run_ui(Default::default(), |ui| {
+                Panel::left("test_panel")
+                    .default_width(default_width)
+                    .auto_sized(false)
+                    .show_inside(ui, |ui| {
+                        // Request much more width than the panel has.
+                        ui.set_min_width(500.0);
+                        ui.label("wide content");
+                    });
+            });
+        }
+
+        // The stored panel state should reflect the default width, not content.
+        let state = PanelState::load(&ctx, panel_id);
+        assert!(state.is_some(), "PanelState should be stored");
+        let stored_width = state.unwrap().rect.width();
+        assert!(
+            stored_width <= default_width + 20.0,
+            "Stored panel width {stored_width} grew beyond default {default_width}",
+        );
+    }
+
+    /// When `auto_sized(true)` (default), the stored panel size should grow
+    /// to fit content.
+    #[test]
+    fn auto_sized_true_allows_content_growth() {
+        let ctx = crate::Context::default();
+        ctx.set_fonts(crate::FontDefinitions::empty());
+
+        let default_width = 200.0;
+        let panel_id = Id::new("test_panel_auto");
+
+        // Run two frames.
+        for _ in 0..2 {
+            let _ = ctx.run_ui(Default::default(), |ui| {
+                Panel::left("test_panel_auto")
+                    .default_width(default_width)
+                    .auto_sized(true)
+                    .show_inside(ui, |ui| {
+                        ui.set_min_width(500.0);
+                        ui.label("wide content");
+                    });
+            });
+        }
+
+        // The stored panel state should have grown beyond the default.
+        let state = PanelState::load(&ctx, panel_id);
+        assert!(state.is_some(), "PanelState should be stored");
+        let stored_width = state.unwrap().rect.width();
+        assert!(
+            stored_width > default_width,
+            "Stored panel width {stored_width} should have grown beyond {default_width}",
+        );
+    }
+}
