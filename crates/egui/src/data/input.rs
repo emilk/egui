@@ -611,6 +611,15 @@ pub enum ImeEvent {
     /// IME composition ended with this final result.
     Commit(String),
 
+    /// Notifies when the text surrounding the cursor should be deleted.
+    ///
+    /// `before_chars` and `after_chars` are the number of characters (not
+    /// bytes) to delete before and after the cursor, respectively.
+    DeleteSurrounding {
+        before_chars: usize,
+        after_chars: usize,
+    },
+
     /// Notifies when the IME was disabled.
     Disabled,
 }
