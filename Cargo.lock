@@ -1559,6 +1559,8 @@ dependencies = [
  "skrifa",
  "smallvec",
  "vello_cpu",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]
