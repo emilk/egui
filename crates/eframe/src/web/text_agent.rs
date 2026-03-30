@@ -60,24 +60,25 @@ impl TextAgent {
             last_text.borrow_mut().clear();
         }
 
-        // Workaround for GBoard on Android, which sometimes sends `KeyboardEvent`
-        // with `key` set to `"Process"` for backspace presses.
-        let has_received_processed_keydown_event = Rc::new(Cell::new(false));
+        // Workaround for GBoard on Android, which sometimes sends a
+        // `KeyboardEvent` with `key` set to `"Process"` (Firefox) or
+        // `"Unidentified"` (Chrome) for backspace presses. In both cases,
+        // the `keyCode` is `229`, hence the name `has_received_229`.
+        let has_received_229 = Rc::new(Cell::new(false));
 
         // attach event listeners
 
         let on_input = {
             let input = input.clone();
             let last_text = Rc::clone(&last_text);
-            let has_received_processed_keydown_event =
-                Rc::clone(&has_received_processed_keydown_event);
+            let has_received_229 = Rc::clone(&has_received_229);
             move |event: web_sys::InputEvent, runner: &mut AppRunner| {
+                let has_received_229 = has_received_229.take();
+
                 if !event.is_composing() && event.input_type() != "insertText" {
                     clear(&input, &last_text);
 
-                    if event.input_type() == "deleteContentBackward"
-                        && has_received_processed_keydown_event.take()
-                    {
+                    if event.input_type() == "deleteContentBackward" && has_received_229 {
                         for pressed in [true, false] {
                             runner.input.raw.events.push(egui::Event::Key {
                                 key: egui::Key::Backspace,
@@ -168,15 +169,14 @@ impl TextAgent {
         };
 
         let on_keydown = {
-            let has_received_processed_keydown_event =
-                Rc::clone(&has_received_processed_keydown_event);
+            let has_received_229 = Rc::clone(&has_received_229);
             move |event: web_sys::KeyboardEvent, runner: &mut AppRunner| {
                 // https://web.archive.org/web/20200526195704/https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
                 if event.is_composing() {
                     return;
                 }
-                if event.key() == "Process" {
-                    has_received_processed_keydown_event.set(true);
+                if event.key_code() == 229 {
+                    has_received_229.set(true);
 
                     return;
                 }
@@ -189,7 +189,7 @@ impl TextAgent {
         let on_keyup = {
             move |event: web_sys::KeyboardEvent, runner: &mut AppRunner| {
                 // https://web.archive.org/web/20200526195704/https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
-                if event.is_composing() || event.key() == "Process" {
+                if event.is_composing() || event.key_code() == 229 {
                     return;
                 }
 
