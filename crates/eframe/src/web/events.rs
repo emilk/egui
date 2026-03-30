@@ -170,10 +170,6 @@ pub(crate) fn on_keydown(event: web_sys::KeyboardEvent, runner: &mut AppRunner) 
         return;
     }
 
-    if event.key_code() == 229 {
-        return;
-    }
-
     let modifiers = modifiers_from_kb_event(&event);
     runner.input.raw.modifiers = modifiers;
 

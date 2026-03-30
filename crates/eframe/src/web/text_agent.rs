@@ -19,8 +19,7 @@ pub struct TextAgent {
 impl TextAgent {
     /// Attach the agent to the document.
     pub fn attach(runner_ref: &WebRunner, root: Node) -> Result<Self, JsValue> {
-        let window = web_sys::window().unwrap();
-        let document = window.document().unwrap();
+        let document = web_sys::window().unwrap().document().unwrap();
 
         // create an `<input>` element
         let input = document
@@ -67,7 +66,7 @@ impl TextAgent {
 
         // attach event listeners
 
-        let on_before_input = {
+        let on_input = {
             let input = input.clone();
             let last_text = Rc::clone(&last_text);
             let has_received_processed_keydown_event =
@@ -76,11 +75,8 @@ impl TextAgent {
                 if !event.is_composing() && event.input_type() != "insertText" {
                     clear(&input, &last_text);
 
-                    let has_received_processed_keydown_event =
-                        has_received_processed_keydown_event.take();
-
                     if event.input_type() == "deleteContentBackward"
-                        && has_received_processed_keydown_event
+                        && has_received_processed_keydown_event.take()
                     {
                         for pressed in [true, false] {
                             runner.input.raw.events.push(egui::Event::Key {
@@ -92,15 +88,7 @@ impl TextAgent {
                             });
                         }
                     }
-                }
-            }
-        };
 
-        let on_input = {
-            let input = input.clone();
-            let last_text = Rc::clone(&last_text);
-            move |event: web_sys::InputEvent, runner: &mut AppRunner| {
-                if !event.is_composing() && event.input_type() != "insertText" {
                     return;
                 }
 
@@ -211,7 +199,6 @@ impl TextAgent {
             }
         };
 
-        runner_ref.add_event_listener(&input, "beforeinput", on_before_input)?;
         runner_ref.add_event_listener(&input, "input", on_input)?;
         runner_ref.add_event_listener(&input, "compositionstart", on_composition_start)?;
         runner_ref.add_event_listener(&input, "compositionend", on_composition_end)?;
