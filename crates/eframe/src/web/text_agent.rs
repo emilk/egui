@@ -19,7 +19,8 @@ pub struct TextAgent {
 impl TextAgent {
     /// Attach the agent to the document.
     pub fn attach(runner_ref: &WebRunner, root: Node) -> Result<Self, JsValue> {
-        let document = web_sys::window().unwrap().document().unwrap();
+        let window = web_sys::window().unwrap();
+        let document = window.document().unwrap();
 
         // create an `<input>` element
         let input = document
@@ -73,12 +74,10 @@ impl TextAgent {
             let last_text = Rc::clone(&last_text);
             let has_received_229 = Rc::clone(&has_received_229);
             move |event: web_sys::InputEvent, runner: &mut AppRunner| {
-                let has_received_229 = has_received_229.take();
-
                 if !event.is_composing() && event.input_type() != "insertText" {
                     clear(&input, &last_text);
 
-                    if event.input_type() == "deleteContentBackward" && has_received_229 {
+                    if event.input_type() == "deleteContentBackward" && has_received_229.take() {
                         for pressed in [true, false] {
                             runner.input.raw.events.push(egui::Event::Key {
                                 key: egui::Key::Backspace,
@@ -170,15 +169,37 @@ impl TextAgent {
 
         let on_keydown = {
             let has_received_229 = Rc::clone(&has_received_229);
+            let input = input.clone();
+            let last_text = Rc::clone(&last_text);
             move |event: web_sys::KeyboardEvent, runner: &mut AppRunner| {
+                if event.key_code() == 229 {
+                    has_received_229.set(true);
+
+                    let reset_received_229 = {
+                        let has_received_229 = Rc::clone(&has_received_229);
+                        Closure::once_into_js(move || {
+                            has_received_229.set(false);
+                        })
+                    };
+
+                    window
+                        .set_timeout_with_callback(reset_received_229.unchecked_ref())
+                        .ok();
+
+                    return;
+                }
+
                 // https://web.archive.org/web/20200526195704/https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
                 if event.is_composing() {
                     return;
                 }
-                if event.key_code() == 229 {
-                    has_received_229.set(true);
 
-                    return;
+                if event.key().chars().count() > 1
+                    || event.ctrl_key()
+                    || event.alt_key()
+                    || event.meta_key()
+                {
+                    clear(&input, &last_text);
                 }
 
                 // The canvas doesn't get keydown/keyup events when the text agent is focused,
