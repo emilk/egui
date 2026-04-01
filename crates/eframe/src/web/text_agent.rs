@@ -105,16 +105,17 @@ impl TextAgent {
                     runner.input.raw.events.push(out_event);
                 }
 
+                let preedit_text = text.chars().skip(prefix_len).collect();
                 let out_event = if event.is_composing() {
-                    egui::Event::Ime(egui::ImeEvent::Preedit(
-                        text.chars().skip(prefix_len).collect(),
-                    ))
+                    egui::Event::Ime(egui::ImeEvent::Preedit(preedit_text))
                 } else {
-                    egui::Event::Text(text.chars().skip(prefix_len).collect())
+                    egui::Event::Text(preedit_text)
                 };
                 runner.input.raw.events.push(out_event);
 
-                if !event.is_composing() {
+                if event.is_composing() {
+                    *last_text_ref = text.chars().take(prefix_len).collect();
+                } else {
                     *last_text_ref = text;
                 }
 
@@ -135,25 +136,12 @@ impl TextAgent {
         let on_composition_end = {
             let input = input.clone();
             let last_text = Rc::clone(&last_text);
-            move |_event: web_sys::CompositionEvent, runner: &mut AppRunner| {
-                let text = input.value();
-
-                let mut last_text_ref = last_text.borrow_mut();
-                let prefix_len = longest_common_prefix_length(&text, &last_text_ref);
-                let last_text_len = last_text_ref.chars().count();
-                if prefix_len < last_text_len {
-                    let out_event = egui::Event::Ime(egui::ImeEvent::DeleteSurrounding {
-                        before_chars: last_text_len - prefix_len,
-                        after_chars: 0,
-                    });
-                    runner.input.raw.events.push(out_event);
-                }
-                let out_event = egui::Event::Ime(egui::ImeEvent::Commit(
-                    text.chars().skip(prefix_len).collect(),
-                ));
+            move |event: web_sys::CompositionEvent, runner: &mut AppRunner| {
+                let out_event =
+                    egui::Event::Ime(egui::ImeEvent::Commit(event.data().unwrap_or_default()));
                 runner.input.raw.events.push(out_event);
 
-                *last_text_ref = text;
+                *last_text.borrow_mut() = input.value();
 
                 runner.needs_repaint.repaint_asap();
             }

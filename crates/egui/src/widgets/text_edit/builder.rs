@@ -1200,23 +1200,7 @@ fn events(
                     ImeEvent::DeleteSurrounding {
                         before_chars,
                         after_chars,
-                    } => {
-                        let mut ccurosr_end = cursor_range.secondary;
-                        if *after_chars > 0 {
-                            text.delete_selected_ccursor_range([
-                                ccurosr_end,
-                                ccurosr_end + *after_chars,
-                            ]);
-                        }
-                        if *before_chars > 0 {
-                            text.delete_selected_ccursor_range([
-                                cursor_range.primary - *before_chars,
-                                cursor_range.primary,
-                            ]);
-                            ccurosr_end -= *before_chars;
-                        }
-                        Some(CCursorRange::one(ccurosr_end))
-                    }
+                    } => Some(text.delete_surrounding(cursor_range, *before_chars, *after_chars)),
                     ImeEvent::Disabled => {
                         state.ime_enabled = false;
                         None

@@ -149,6 +149,24 @@ pub trait TextBuffer {
         self.delete_selected_ccursor_range([min_ccursor, max_ccursor])
     }
 
+    fn delete_surrounding(
+        &mut self,
+        mut cursor_range: CCursorRange,
+        before_chars: usize,
+        after_chars: usize,
+    ) -> CCursorRange {
+        let [min, max] = cursor_range.sorted_cursors();
+        if after_chars > 0 {
+            self.delete_selected_ccursor_range([max, max + after_chars]);
+        }
+        if before_chars > 0 {
+            self.delete_selected_ccursor_range([min - before_chars, min]);
+            cursor_range.primary -= before_chars;
+            cursor_range.secondary -= before_chars;
+        }
+        cursor_range
+    }
+
     fn delete_paragraph_before_cursor(
         &mut self,
         galley: &Galley,
@@ -313,5 +331,75 @@ impl TextBuffer for &str {
 
     fn type_id(&self) -> std::any::TypeId {
         std::any::TypeId::of::<&str>()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    static CHAR_1_BYTE: &str = "a"; // 0x61
+    static CHAR_2_BYTES: &str = "ĉ"; // 0xC4 0x89
+    static CHAR_3_BYTES: &str = "字"; // 0xE5 0xAD 0x97
+
+    #[test]
+    fn test_delete_surrounding() {
+        fn test_case(
+            input_text: &str,
+            input_cursor_range: CCursorRange,
+            before_chars: usize,
+            after_chars: usize,
+            expected_text: &str,
+            expected_cursor_range: CCursorRange,
+        ) {
+            let mut text = input_text.to_owned();
+            let new_cursor_range =
+                text.delete_surrounding(input_cursor_range, before_chars, after_chars);
+            assert_eq!(text, expected_text);
+            assert_eq!(new_cursor_range, expected_cursor_range);
+        }
+
+        test_case(
+            &format!("<<{CHAR_1_BYTE}{CHAR_1_BYTE}>>"),
+            CCursorRange::one(CCursor::new(3)),
+            1,
+            1,
+            "<<>>",
+            CCursorRange::one(CCursor::new(2)),
+        );
+        test_case(
+            &format!("<<{CHAR_1_BYTE}_{CHAR_1_BYTE}>>"),
+            CCursorRange::two(CCursor::new(3), CCursor::new(4)),
+            1,
+            1,
+            "<<_>>",
+            CCursorRange::two(CCursor::new(2), CCursor::new(3)),
+        );
+        test_case(
+            &format!("<<{CHAR_2_BYTES}_{CHAR_2_BYTES}>>"),
+            CCursorRange::two(CCursor::new(3), CCursor::new(4)),
+            1,
+            1,
+            "<<_>>",
+            CCursorRange::two(CCursor::new(2), CCursor::new(3)),
+        );
+        test_case(
+            &format!("<<{CHAR_3_BYTES}_{CHAR_3_BYTES}>>"),
+            CCursorRange::two(CCursor::new(3), CCursor::new(4)),
+            1,
+            1,
+            "<<_>>",
+            CCursorRange::two(CCursor::new(2), CCursor::new(3)),
+        );
+        test_case(
+            &format!(
+                "<<{CHAR_1_BYTE}{CHAR_2_BYTES}{CHAR_3_BYTES}_{CHAR_1_BYTE}{CHAR_2_BYTES}{CHAR_3_BYTES}>>"
+            ),
+            CCursorRange::two(CCursor::new(5), CCursor::new(6)),
+            3,
+            3,
+            "<<_>>",
+            CCursorRange::two(CCursor::new(2), CCursor::new(3)),
+        );
     }
 }
