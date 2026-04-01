@@ -149,7 +149,13 @@ pub trait TextBuffer {
         self.delete_selected_ccursor_range([min_ccursor, max_ccursor])
     }
 
-    fn delete_surrounding(
+    /// Deletes characters surrounding the current cursor range.
+    ///
+    /// Removes `before_chars` characters before the selection start and
+    /// `after_chars` characters after the selection end.
+    /// The returned [`CCursorRange`] is adjusted to account for the removed
+    /// characters before the selection.
+    fn delete_surrounding_chars(
         &mut self,
         mut cursor_range: CCursorRange,
         before_chars: usize,
@@ -338,68 +344,100 @@ impl TextBuffer for &str {
 mod tests {
     use super::*;
 
-    static CHAR_1_BYTE: &str = "a"; // 0x61
-    static CHAR_2_BYTES: &str = "ĉ"; // 0xC4 0x89
-    static CHAR_3_BYTES: &str = "字"; // 0xE5 0xAD 0x97
-
     #[test]
-    fn test_delete_surrounding() {
+    fn test_delete_surrounding_chars() {
         fn test_case(
-            input_text: &str,
-            input_cursor_range: CCursorRange,
+            (mut input_text, input_cursor_range): (String, CCursorRange),
             before_chars: usize,
             after_chars: usize,
-            expected_text: &str,
-            expected_cursor_range: CCursorRange,
+            (expected_text, expected_cursor_range): (String, CCursorRange),
         ) {
-            let mut text = input_text.to_owned();
             let new_cursor_range =
-                text.delete_surrounding(input_cursor_range, before_chars, after_chars);
-            assert_eq!(text, expected_text);
+                input_text.delete_surrounding_chars(input_cursor_range, before_chars, after_chars);
+            assert_eq!(input_text, expected_text);
             assert_eq!(new_cursor_range, expected_cursor_range);
         }
 
-        test_case(
-            &format!("<<{CHAR_1_BYTE}{CHAR_1_BYTE}>>"),
-            CCursorRange::one(CCursor::new(3)),
-            1,
-            1,
-            "<<>>",
-            CCursorRange::one(CCursor::new(2)),
+        fn txt_n_sel(input: &str) -> (String, CCursorRange) {
+            assert!(
+                input.matches('[').count() == 1 && input.matches(']').count() == 1,
+                "`input` must contain exactly one `[` and one `]` to indicate the selection (cursor range)"
+            );
+            let mut primary_index = input.chars().position(|c| c == ']').unwrap();
+            let mut secondary_index = input.chars().position(|c| c == '[').unwrap();
+            let text = input.replace(['[', ']'], "");
+            if primary_index > secondary_index {
+                primary_index -= 1;
+            } else {
+                secondary_index -= 1;
+            }
+            let cursor_range = CCursorRange {
+                primary: CCursor::new(primary_index),
+                secondary: CCursor::new(secondary_index),
+                h_pos: None,
+            };
+            (text, cursor_range)
+        }
+        assert_eq!(
+            txt_n_sel("<<L[]R>>"),
+            ("<<LR>>".to_owned(), CCursorRange::one(CCursor::new(3)))
         );
-        test_case(
-            &format!("<<{CHAR_1_BYTE}_{CHAR_1_BYTE}>>"),
-            CCursorRange::two(CCursor::new(3), CCursor::new(4)),
-            1,
-            1,
-            "<<_>>",
-            CCursorRange::two(CCursor::new(2), CCursor::new(3)),
+        assert_eq!(
+            txt_n_sel("<<L[_]R>>"),
+            (
+                "<<L_R>>".to_owned(),
+                CCursorRange::two(CCursor::new(3), CCursor::new(4))
+            )
         );
-        test_case(
-            &format!("<<{CHAR_2_BYTES}_{CHAR_2_BYTES}>>"),
-            CCursorRange::two(CCursor::new(3), CCursor::new(4)),
-            1,
-            1,
-            "<<_>>",
-            CCursorRange::two(CCursor::new(2), CCursor::new(3)),
+        assert_eq!(
+            txt_n_sel("<<左[_]右>>"),
+            (
+                "<<左_右>>".to_owned(),
+                CCursorRange::two(CCursor::new(3), CCursor::new(4))
+            )
         );
-        test_case(
-            &format!("<<{CHAR_3_BYTES}_{CHAR_3_BYTES}>>"),
-            CCursorRange::two(CCursor::new(3), CCursor::new(4)),
-            1,
-            1,
-            "<<_>>",
-            CCursorRange::two(CCursor::new(2), CCursor::new(3)),
+        assert_eq!(
+            txt_n_sel("<<L]_[R>>"),
+            (
+                "<<L_R>>".to_owned(),
+                CCursorRange::two(CCursor::new(4), CCursor::new(3))
+            )
         );
-        test_case(
-            &format!(
-                "<<{CHAR_1_BYTE}{CHAR_2_BYTES}{CHAR_3_BYTES}_{CHAR_1_BYTE}{CHAR_2_BYTES}{CHAR_3_BYTES}>>"
-            ),
-            CCursorRange::two(CCursor::new(5), CCursor::new(6)),
-            3,
-            3,
-            "<<_>>",
-            CCursorRange::two(CCursor::new(2), CCursor::new(3)),
-        );
+
+        test_case(txt_n_sel("<<L[]R>>"), 1, 1, txt_n_sel("<<[]>>"));
+        test_case(txt_n_sel("<<L[_]R>>"), 1, 0, txt_n_sel("<<[_]R>>"));
+        test_case(txt_n_sel("<<L[_]R>>"), 0, 1, txt_n_sel("<<L[_]>>"));
+        test_case(txt_n_sel("<<L[_]R>>"), 1, 1, txt_n_sel("<<[_]>>"));
+        test_case(txt_n_sel("<<L[__]R>>"), 1, 1, txt_n_sel("<<[__]>>"));
+        test_case(txt_n_sel("<<LL[_]RR>>"), 2, 2, txt_n_sel("<<[_]>>"));
+        test_case(txt_n_sel("<<L]_[R>>"), 1, 0, txt_n_sel("<<]_[R>>"));
+        test_case(txt_n_sel("<<L]_[R>>"), 0, 1, txt_n_sel("<<L]_[>>"));
+        test_case(txt_n_sel("<<L]_[R>>"), 1, 1, txt_n_sel("<<]_[>>"));
+
+        // `˻`: 0xCB 0xBB
+        // `˼`: 0xCB 0xBC
+        test_case(txt_n_sel("<<˻[]˼>>"), 1, 1, txt_n_sel("<<[]>>"));
+        test_case(txt_n_sel("<<˻[_]˼>>"), 1, 0, txt_n_sel("<<[_]˼>>"));
+        test_case(txt_n_sel("<<˻[_]˼>>"), 0, 1, txt_n_sel("<<˻[_]>>"));
+        test_case(txt_n_sel("<<˻[_]˼>>"), 1, 1, txt_n_sel("<<[_]>>"));
+        test_case(txt_n_sel("<<˻[__]˼>>"), 1, 1, txt_n_sel("<<[__]>>"));
+        test_case(txt_n_sel("<<˻˻[_]˼˼>>"), 2, 2, txt_n_sel("<<[_]>>"));
+        test_case(txt_n_sel("<<˻]_[˼>>"), 1, 0, txt_n_sel("<<]_[˼>>"));
+        test_case(txt_n_sel("<<˻]_[˼>>"), 0, 1, txt_n_sel("<<˻]_[>>"));
+        test_case(txt_n_sel("<<˻]_[˼>>"), 1, 1, txt_n_sel("<<]_[>>"));
+
+        // `左`: 0xE5 0xB7 0xA6
+        // `右`: 0xE5 0x8F 0xB3
+        test_case(txt_n_sel("<<左[]右>>"), 1, 1, txt_n_sel("<<[]>>"));
+        test_case(txt_n_sel("<<左[_]右>>"), 1, 0, txt_n_sel("<<[_]右>>"));
+        test_case(txt_n_sel("<<左[_]右>>"), 0, 1, txt_n_sel("<<左[_]>>"));
+        test_case(txt_n_sel("<<左[_]右>>"), 1, 1, txt_n_sel("<<[_]>>"));
+        test_case(txt_n_sel("<<左[__]右>>"), 1, 1, txt_n_sel("<<[__]>>"));
+        test_case(txt_n_sel("<<左左[_]右右>>"), 2, 2, txt_n_sel("<<[_]>>"));
+        test_case(txt_n_sel("<<左]_[右>>"), 1, 0, txt_n_sel("<<]_[右>>"));
+        test_case(txt_n_sel("<<左]_[右>>"), 0, 1, txt_n_sel("<<左]_[>>"));
+        test_case(txt_n_sel("<<左]_[右>>"), 1, 1, txt_n_sel("<<]_[>>"));
+
+        test_case(txt_n_sel("<<L˻左[_]R˼右>>"), 3, 3, txt_n_sel("<<[_]>>"));
     }
 }

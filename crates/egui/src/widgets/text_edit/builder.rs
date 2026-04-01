@@ -1200,7 +1200,11 @@ fn events(
                     ImeEvent::DeleteSurrounding {
                         before_chars,
                         after_chars,
-                    } => Some(text.delete_surrounding(cursor_range, *before_chars, *after_chars)),
+                    } => Some(text.delete_surrounding_chars(
+                        cursor_range,
+                        *before_chars,
+                        *after_chars,
+                    )),
                     ImeEvent::Disabled => {
                         state.ime_enabled = false;
                         None
