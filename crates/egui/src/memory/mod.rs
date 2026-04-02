@@ -116,6 +116,22 @@ pub struct Memory {
     /// (e.g. relative to some other widget).
     #[cfg_attr(feature = "persistence", serde(skip))]
     popups: ViewportIdMap<OpenPopup>,
+
+    /// When the last IME interruption was made.
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    ime_interruption_time: ImeInterruptionTime,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+enum ImeInterruptionTime {
+    #[default]
+    None,
+
+    /// The IME was interrupted in the current frame.
+    ThisFrame,
+
+    /// The IME was interrupted in the previous frame.
+    LastFrame,
 }
 
 impl Default for Memory {
@@ -133,6 +149,7 @@ impl Default for Memory {
             popups: Default::default(),
             everything_is_visible: Default::default(),
             add_fonts: Default::default(),
+            ime_interruption_time: Default::default(),
         };
         slf.interactions.entry(slf.viewport_id).or_default();
         slf.areas.entry(slf.viewport_id).or_default();
@@ -507,9 +524,6 @@ pub(crate) struct Focus {
 
     /// A cache of widget IDs that are interested in focus with their corresponding rectangles.
     focus_widgets_cache: IdMap<Rect>,
-
-    /// When the last focus request was made.
-    last_focus_request_time: LastFocusRequestTime,
 }
 
 /// The widget with focus.
@@ -517,18 +531,6 @@ pub(crate) struct Focus {
 struct FocusWidget {
     pub id: Id,
     pub filter: EventFilter,
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-enum LastFocusRequestTime {
-    #[default]
-    None,
-
-    /// A focus request was made this frame.
-    ThisFrame,
-
-    /// A focus request was made last frame.
-    LastFrame,
 }
 
 impl FocusWidget {
@@ -563,16 +565,6 @@ impl Focus {
         self.id_requested_by_accesskit = None;
 
         self.focus_direction = FocusDirection::None;
-
-        match self.last_focus_request_time {
-            LastFocusRequestTime::ThisFrame => {
-                self.last_focus_request_time = LastFocusRequestTime::LastFrame;
-            }
-            LastFocusRequestTime::LastFrame => {
-                self.last_focus_request_time = LastFocusRequestTime::None;
-            }
-            LastFocusRequestTime::None => {}
-        }
 
         for event in &new_input.events {
             if !event_filter.matches(event)
@@ -771,14 +763,6 @@ impl Focus {
 
         best_id
     }
-
-    /// Check if the widget had a focus request last frame.
-    fn has_requested_focus_last_frame(&self) -> bool {
-        matches!(
-            self.last_focus_request_time,
-            LastFocusRequestTime::LastFrame
-        )
-    }
 }
 
 impl Memory {
@@ -793,6 +777,16 @@ impl Memory {
         self.popups.retain(|id, _| viewports.contains(id));
 
         self.areas.entry(self.viewport_id).or_default();
+
+        match self.ime_interruption_time {
+            ImeInterruptionTime::ThisFrame => {
+                self.ime_interruption_time = ImeInterruptionTime::LastFrame;
+            }
+            ImeInterruptionTime::LastFrame => {
+                self.ime_interruption_time = ImeInterruptionTime::None;
+            }
+            ImeInterruptionTime::None => {}
+        }
 
         // self.interactions  is handled elsewhere
 
@@ -908,11 +902,12 @@ impl Memory {
 
     /// Give keyboard focus to a specific widget.
     /// See also [`crate::Response::request_focus`].
+    ///
+    /// Calling this will interrupt IME composition.
     #[inline(always)]
     pub fn request_focus(&mut self, id: Id) {
-        let focus = self.focus_mut();
-        focus.focused_widget = Some(FocusWidget::new(id));
-        focus.last_focus_request_time = LastFocusRequestTime::ThisFrame;
+        self.focus_mut().focused_widget = Some(FocusWidget::new(id));
+        self.interrupt_ime();
     }
 
     /// Surrender keyboard focus for a specific widget.
@@ -1037,16 +1032,26 @@ impl Memory {
         let Some(focus) = self.focus() else {
             return false;
         };
-        // A focus request clears IME event ownership for one frame, causing
-        // `platform_output.ime` to be `None` and thereby interrupting any
-        // active IME composition. We check focus requests rather than focus
-        // changes because actions like clicking inside an already-focused
-        // `TextEdit` don't trigger a focus change (they only send a focus
-        // request) but should still interrupt IME composition.
-        if focus.has_requested_focus_last_frame() {
+        // We check across two frames because the widget that called
+        // `interrupt_ime` may run after other widgets that call this method
+        // within the same frame.
+        if matches!(
+            self.ime_interruption_time,
+            ImeInterruptionTime::ThisFrame | ImeInterruptionTime::LastFrame
+        ) {
             return false;
         }
         focus.focused() == Some(id)
+    }
+
+    /// Interrupt the current IME composition, if any.
+    ///
+    /// This causes [`Self::owns_ime_events`] to return `false` for all widgets
+    /// for the remainder of this frame and the next frame, giving time
+    /// for the IME to be dismissed (by making `platform_output.ime` be `None`
+    /// for at least one frame).
+    pub fn interrupt_ime(&mut self) {
+        self.ime_interruption_time = ImeInterruptionTime::ThisFrame;
     }
 }
 
