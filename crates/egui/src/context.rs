@@ -26,14 +26,13 @@ use crate::{
     data::output::PlatformOutput,
     epaint,
     hit_test::WidgetHits,
-    ime_manager::ImeManager,
     input_state::{InputState, MultiTouchInfo, PointerEvent, SurrenderFocusOn},
     interaction::InteractionSnapshot,
     layers::GraphicLayers,
     load::{self, Bytes, Loaders, SizedTexture},
     memory::{Options, Theme},
     os::OperatingSystem,
-    output::{FullOutput, IMEOutput},
+    output::FullOutput,
     pass_state::PassState,
     plugin::{self, TypedPluginHandle},
     resize, response, scroll_area,
@@ -371,7 +370,6 @@ struct ContextImpl {
 
     memory: Memory,
     animation_manager: AnimationManager,
-    ime_manager: ImeManager,
 
     plugins: plugin::Plugins,
     safe_area: SafeAreaInsets,
@@ -493,9 +491,6 @@ impl ContextImpl {
                 self.memory.interaction_mut(),
             );
         }
-
-        self.ime_manager
-            .begin_pass(self.memory.interaction(), self.memory.focus());
 
         // Ensure we register the background area so panels and background ui can catch clicks:
         self.memory.areas_mut().set_state(
@@ -2611,8 +2606,6 @@ impl ContextImpl {
 
         let mut platform_output: PlatformOutput = std::mem::take(&mut viewport.output);
 
-        self.ime_manager.end_pass(&mut platform_output);
-
         {
             profiling::scope!("accesskit");
             let state = viewport.this_pass.accesskit_state.take();
@@ -4266,31 +4259,6 @@ impl Context {
     pub fn dragging_something_else(&self, not_this: Id) -> bool {
         let dragged = self.dragged_id();
         dragged.is_some() && dragged != Some(not_this)
-    }
-}
-
-/// ## IME
-impl Context {
-    /// Widgets that want to consume [`crate::Event::Ime`] events should first
-    /// call this method to claim ownership. They can only consume those events
-    /// if this method returns `true`.
-    ///
-    /// At most one widget can own the IME events for each frame.
-    pub fn try_claim_ime_events_ownership(&self, id: Id) -> bool {
-        self.write(|ctx| ctx.ime_manager.try_claim_ime_events_ownership(id))
-    }
-
-    /// The widget that owns the IME events for the current frame can determine
-    /// the [`IMEOutput`] of that frame's [`PlatformOutput`].
-    ///
-    /// The `get_ime_output` callback returns the `IMEOutput` to set and is only
-    /// invoked if the widget with the specified `id` owns the IME events for
-    /// the current frame.
-    pub fn try_set_ime_output(&self, id: Id, get_ime_output: impl FnOnce(&Self) -> IMEOutput) {
-        if self.read(|ctx| ctx.ime_manager.can_set_ime_output(id)) {
-            let ime_output = get_ime_output(self);
-            self.write(|ctx| ctx.ime_manager.set_ime_output(id, ime_output));
-        }
     }
 }
 

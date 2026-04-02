@@ -507,6 +507,9 @@ pub(crate) struct Focus {
 
     /// A cache of widget IDs that are interested in focus with their corresponding rectangles.
     focus_widgets_cache: IdMap<Rect>,
+
+    /// When the last focus request was made.
+    last_focus_request_time: LastFocusRequestTime,
 }
 
 /// The widget with focus.
@@ -514,6 +517,18 @@ pub(crate) struct Focus {
 struct FocusWidget {
     pub id: Id,
     pub filter: EventFilter,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+enum LastFocusRequestTime {
+    #[default]
+    None,
+
+    /// A focus request was made this frame.
+    ThisFrame,
+
+    /// A focus request was made last frame.
+    LastFrame,
 }
 
 impl FocusWidget {
@@ -548,6 +563,16 @@ impl Focus {
         self.id_requested_by_accesskit = None;
 
         self.focus_direction = FocusDirection::None;
+
+        match self.last_focus_request_time {
+            LastFocusRequestTime::ThisFrame => {
+                self.last_focus_request_time = LastFocusRequestTime::LastFrame;
+            }
+            LastFocusRequestTime::LastFrame => {
+                self.last_focus_request_time = LastFocusRequestTime::None;
+            }
+            LastFocusRequestTime::None => {}
+        }
 
         for event in &new_input.events {
             if !event_filter.matches(event)
@@ -747,8 +772,12 @@ impl Focus {
         best_id
     }
 
-    pub(crate) fn is_focus_changed(&self) -> bool {
-        self.focused() != self.id_previous_frame
+    /// Check if the widget had a focus request last frame.
+    fn has_requested_focus_last_frame(&self) -> bool {
+        matches!(
+            self.last_focus_request_time,
+            LastFocusRequestTime::LastFrame
+        )
     }
 }
 
@@ -881,7 +910,9 @@ impl Memory {
     /// See also [`crate::Response::request_focus`].
     #[inline(always)]
     pub fn request_focus(&mut self, id: Id) {
-        self.focus_mut().focused_widget = Some(FocusWidget::new(id));
+        let focus = self.focus_mut();
+        focus.focused_widget = Some(FocusWidget::new(id));
+        focus.last_focus_request_time = LastFocusRequestTime::ThisFrame;
     }
 
     /// Surrender keyboard focus for a specific widget.
@@ -996,6 +1027,26 @@ impl Memory {
 
     pub(crate) fn focus_mut(&mut self) -> &mut Focus {
         self.focus.entry(self.viewport_id).or_default()
+    }
+
+    /// Check if the widget owns IME events.
+    ///
+    /// A widget should only consume IME events if this returns `true`. At most
+    /// one widget can own IME events for each frame.
+    pub fn owns_ime_events(&self, id: Id) -> bool {
+        let Some(focus) = self.focus() else {
+            return false;
+        };
+        // A focus request clears IME event ownership for one frame, causing
+        // `platform_output.ime` to be `None` and thereby interrupting any
+        // active IME composition. We check focus requests rather than focus
+        // changes because actions like clicking inside an already-focused
+        // `TextEdit` don't trigger a focus change (they only send a focus
+        // request) but should still interrupt IME composition.
+        if focus.has_requested_focus_last_frame() {
+            return false;
+        }
+        focus.focused() == Some(id)
     }
 }
 

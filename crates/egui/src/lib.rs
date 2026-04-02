@@ -400,7 +400,6 @@ pub(crate) mod grid;
 pub mod gui_zoom;
 mod hit_test;
 mod id;
-mod ime_manager;
 mod input_state;
 mod interaction;
 pub mod introspection;

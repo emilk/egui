@@ -861,17 +861,19 @@ impl TextEdit<'_> {
                             now - state.last_interaction_time,
                         );
                     }
-
-                    ui.ctx().try_set_ime_output(id, |ctx| {
+                    if ui.memory(|mem| mem.owns_ime_events(id)) {
                         // Set IME output (in screen coords) when text is editable and visible
-                        let to_global = ctx
+                        let to_global = ui
+                            .ctx()
                             .layer_transform_to_global(ui.layer_id())
                             .unwrap_or_default();
-                        crate::output::IMEOutput {
-                            rect: to_global * inner_rect,
-                            cursor_rect: to_global * primary_cursor_rect,
-                        }
-                    });
+                        ui.output_mut(|o| {
+                            o.ime = Some(crate::output::IMEOutput {
+                                rect: to_global * inner_rect,
+                                cursor_rect: to_global * primary_cursor_rect,
+                            });
+                        });
+                    }
                 }
             }
         }
@@ -990,7 +992,7 @@ fn events(
 
     let events = ui.input(|i| i.filtered_events(&event_filter));
 
-    let owns_ime_events = ui.ctx().try_claim_ime_events_ownership(id);
+    let owns_ime_events = ui.memory(|mem| mem.owns_ime_events(id));
     if !owns_ime_events {
         state.cursor_purpose = TextEditCursorPurpose::Selection;
     }
