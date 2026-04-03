@@ -12,7 +12,7 @@ pub fn local_storage_set(key: &str, value: &str) {
     match local_storage() {
         Some(storage) => {
             if let Err(err) = storage.set_item(key, value) {
-                log::info!("local_storage_set failed: key={}, err={:?}", key, err);
+                log::info!("local_storage_set failed: key={key}, err={err:?}");
             }
         }
         None => {
