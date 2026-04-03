@@ -116,6 +116,9 @@ impl<'a, State> Harness<'a, State> {
 
             #[cfg(feature = "snapshot")]
             default_snapshot_options,
+
+            #[cfg(feature = "wgpu")]
+            render_options: _,
         } = builder;
         let ctx = ctx.unwrap_or_default();
         ctx.set_theme(theme);
