@@ -9,7 +9,16 @@ pub fn local_storage_get(key: &str) -> Option<String> {
 
 /// Write data to local storage.
 pub fn local_storage_set(key: &str, value: &str) {
-    local_storage().map(|storage| storage.set_item(key, value));
+    match local_storage() {
+        Some(storage) => {
+            if let Err(err) = storage.set_item(key, value) {
+                log::info!("local_storage_set failed: key={}, err={:?}", key, err);
+            }
+        }
+        None => {
+            log::warn!("local_storage unavailable");
+        }
+    }
 }
 
 #[cfg(feature = "persistence")]
