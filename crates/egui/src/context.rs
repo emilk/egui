@@ -1,8 +1,6 @@
 #![warn(missing_docs)] // Let's keep `Context` well-documented.
 
-use std::{
-    borrow::Cow, cell::RefCell, fmt::Write as _, panic::Location, sync::Arc, time::Duration,
-};
+use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration};
 
 use emath::GuiRounding as _;
 use epaint::{
@@ -2430,6 +2428,7 @@ impl Context {
     #[cfg(debug_assertions)]
     fn debug_painting(&self) {
         #![expect(clippy::iter_over_hash_type)] // ok to be sloppy in debug painting
+        use std::fmt::Write as _;
 
         let paint_widget = |widget: &WidgetRect, text: &str, color: Color32| {
             let rect = widget.interact_rect;
