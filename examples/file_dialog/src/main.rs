@@ -64,7 +64,8 @@ impl eframe::App for MyApp {
                             additional_info.push(format!("{} bytes", bytes.len()));
                         }
                         if !additional_info.is_empty() {
-                            info += &format!(" ({})", additional_info.join(", "));
+                            use std::fmt::Write as _;
+                            write!(info, " ({})", additional_info.join(", ")).ok();
                         }
 
                         ui.label(info);

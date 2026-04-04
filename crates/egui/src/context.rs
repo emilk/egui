@@ -1,6 +1,8 @@
 #![warn(missing_docs)] // Let's keep `Context` well-documented.
 
-use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration};
+use std::{
+    borrow::Cow, cell::RefCell, fmt::Write as _, panic::Location, sync::Arc, time::Duration,
+};
 
 use emath::GuiRounding as _;
 use epaint::{
@@ -2500,13 +2502,17 @@ impl Context {
                     for id in contains_pointer {
                         let mut widget_text = format!("{id:?}");
                         if let Some(rect) = widget_rects.get(id) {
-                            widget_text +=
-                                &format!(" {:?} {:?} {:?}", rect.layer_id, rect.rect, rect.sense);
+                            write!(
+                                widget_text,
+                                " {:?} {:?} {:?}",
+                                rect.layer_id, rect.rect, rect.sense
+                            )
+                            .ok();
                         }
                         if let Some(info) = widget_rects.info(id) {
-                            widget_text += &format!(" {info:?}");
+                            write!(widget_text, " {info:?}").ok();
                         }
-                        debug_text += &format!("{widget_text}\n");
+                        writeln!(debug_text, "{widget_text}").ok();
                     }
                     self.debug_text(debug_text);
                 }
@@ -2571,7 +2577,7 @@ impl Context {
             );
             self.viewport(|vp| {
                 for reason in &vp.output.request_discard_reasons {
-                    warning += &format!("\n  {reason}");
+                    write!(warning, "\n  {reason}").ok();
                 }
             });
 
