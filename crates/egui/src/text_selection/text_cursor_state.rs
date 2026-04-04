@@ -156,13 +156,13 @@ fn select_line_at(text: &str, ccursor: CCursor) -> CCursorRange {
                     let min = ccursor_previous_line(text, ccursor);
                     let max = ccursor_next_line(text, min);
                     CCursorRange::two(min, max)
-                } else if !is_linebreak(char_after_cursor) {
-                    let max = ccursor_next_line(text, ccursor);
-                    CCursorRange::two(ccursor, max)
-                } else {
+                } else if is_linebreak(char_after_cursor) {
                     let min = ccursor_previous_line(text, ccursor);
                     let max = ccursor_next_line(text, ccursor);
                     CCursorRange::two(min, max)
+                } else {
+                    let max = ccursor_next_line(text, ccursor);
+                    CCursorRange::two(ccursor, max)
                 }
             } else {
                 let min = ccursor_previous_line(text, ccursor);
