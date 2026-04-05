@@ -416,16 +416,7 @@ fn drag_source<R>(
 ) -> InnerResponse<R> {
     let is_being_dragged = ui.ctx().is_being_dragged(id);
 
-    if !is_being_dragged {
-        let res = ui.scope(body);
-
-        // Check for drags:
-        let response = ui.interact(res.response.rect, id, egui::Sense::drag());
-        if response.hovered() {
-            ui.set_cursor_icon(egui::CursorIcon::Grab);
-        }
-        res
-    } else {
+    if is_being_dragged {
         ui.set_cursor_icon(egui::CursorIcon::Grabbing);
 
         // Paint the body to a new layer:
@@ -440,6 +431,15 @@ fn drag_source<R>(
             );
         }
 
+        res
+    } else {
+        let res = ui.scope(body);
+
+        // Check for drags:
+        let response = ui.interact(res.response.rect, id, egui::Sense::drag());
+        if response.hovered() {
+            ui.set_cursor_icon(egui::CursorIcon::Grab);
+        }
         res
     }
 }

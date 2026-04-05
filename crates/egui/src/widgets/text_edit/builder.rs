@@ -683,7 +683,9 @@ impl TextEdit<'_> {
                 .wrap_mode(wrap_mode)
                 .allocate(ui);
 
-            allocated.frame = if !custom_frame {
+            allocated.frame = if custom_frame {
+                allocated.frame
+            } else {
                 let visuals = ui.style().interact(&allocated.response);
                 let background_color =
                     background_color.unwrap_or_else(|| ui.visuals().text_edit_bg_color());
@@ -716,8 +718,6 @@ impl TextEdit<'_> {
                     )
                     .outer_margin(Margin::same(-(visuals.expansion as i8)))
                     .stroke(stroke)
-            } else {
-                allocated.frame
             };
 
             allocated.paint(ui)
@@ -1017,7 +1017,9 @@ fn events(
                 }
             }
             Event::Paste(text_to_insert) => {
-                if !text_to_insert.is_empty() {
+                if text_to_insert.is_empty() {
+                    None
+                } else {
                     let mut ccursor = text.delete_selected(&cursor_range);
                     if multiline {
                         text.insert_text_at(&mut ccursor, text_to_insert, char_limit);
@@ -1027,8 +1029,6 @@ fn events(
                     }
 
                     Some(CCursorRange::one(ccursor))
-                } else {
-                    None
                 }
             }
             Event::Text(text_to_insert) => {

@@ -393,7 +393,7 @@ impl AppRunner {
             }
         }
 
-        super::set_cursor_icon(cursor_icon);
+        super::set_cursor_icon(self.canvas(), cursor_icon);
 
         if self.has_focus() {
             // The eframe app has focus.

@@ -314,7 +314,7 @@ impl<'a> Slider<'a> {
     /// Default: `0.0` (disabled).
     #[inline]
     pub fn step_by(mut self, step: f64) -> Self {
-        self.step = if step != 0.0 { Some(step) } else { None };
+        self.step = if step == 0.0 { None } else { Some(step) };
         self
     }
 

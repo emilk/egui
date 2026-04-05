@@ -18,6 +18,9 @@ pub struct HarnessBuilder<State = ()> {
 
     #[cfg(feature = "snapshot")]
     pub(crate) default_snapshot_options: crate::SnapshotOptions,
+
+    #[cfg(feature = "wgpu")]
+    pub(crate) render_options: egui_wgpu::RendererOptions,
 }
 
 impl<State> Default for HarnessBuilder<State> {
@@ -35,6 +38,9 @@ impl<State> Default for HarnessBuilder<State> {
 
             #[cfg(feature = "snapshot")]
             default_snapshot_options: crate::SnapshotOptions::default(),
+
+            #[cfg(feature = "wgpu")]
+            render_options: egui_wgpu::RendererOptions::PREDICTABLE,
         }
     }
 }
@@ -119,6 +125,16 @@ impl<State> HarnessBuilder<State> {
         self
     }
 
+    /// Configures the [`egui_wgpu::RendererOptions`] used by this harness.
+    ///
+    /// The default is [`egui_wgpu::RendererOptions::PREDICTABLE`].
+    #[cfg(feature = "wgpu")]
+    #[inline]
+    pub fn with_render_options(mut self, options: egui_wgpu::RendererOptions) -> Self {
+        self.render_options = options;
+        self
+    }
+
     /// Set the [`TestRenderer`] to use for rendering.
     ///
     /// By default, a [`LazyRenderer`] is used.
@@ -133,7 +149,8 @@ impl<State> HarnessBuilder<State> {
     /// This sets up a [`crate::wgpu::WgpuTestRenderer`] with the default setup.
     #[cfg(feature = "wgpu")]
     pub fn wgpu(self) -> Self {
-        self.renderer(crate::wgpu::WgpuTestRenderer::default())
+        let test_renderer = crate::wgpu::WgpuTestRenderer::with_render_options(self.render_options);
+        self.renderer(test_renderer)
     }
 
     /// Enable wgpu rendering with the given setup.
