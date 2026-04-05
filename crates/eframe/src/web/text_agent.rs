@@ -1,7 +1,8 @@
 //! The text agent is a hidden `<input>` element used to capture
 //! IME and mobile keyboard input events.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
+use std::rc::Rc;
 
 use wasm_bindgen::prelude::*;
 use web_sys::{Document, Node};
@@ -11,6 +12,7 @@ use super::{AppRunner, WebRunner};
 pub struct TextAgent {
     input: web_sys::HtmlInputElement,
     prev_ime_output: RefCell<Option<egui::output::IMEOutput>>,
+    is_composing: Rc<Cell<bool>>, // track composition state to avoid re-syncing the buffer
 }
 
 impl TextAgent {
@@ -50,26 +52,36 @@ impl TextAgent {
             root.append_child(&input)?;
         }
 
+        let is_composing = Rc::new(Cell::new(false));
+
         // attach event listeners
 
         let on_input = {
             let input = input.clone();
+            let is_composing = Rc::clone(&is_composing);
             move |event: web_sys::InputEvent, runner: &mut AppRunner| {
-                let text = input.value();
                 // if `is_composing` is true, then user is using IME, for example: emoji, pinyin, kanji, hangul, etc.
                 // In that case, the browser emits both `input` and `compositionupdate` events,
                 // and we need to ignore the `input` event.
-                if !text.is_empty() && !event.is_composing() {
-                    input.set_value("");
-                    let event = egui::Event::Text(text);
-                    runner.input.raw.events.push(event);
-                    runner.needs_repaint.repaint_asap();
+                if event.is_composing() || is_composing.get() {
+                    return;
                 }
+                let text = input.value();
+                let sel_start = input.selection_start().ok().flatten().unwrap_or(0);
+                let cursor = utf16_to_char(&text, sel_start);
+                runner
+                    .input
+                    .raw
+                    .events
+                    .push(egui::Event::TextChanged { text, cursor });
+                runner.needs_repaint.repaint_asap();
             }
         };
 
         let on_composition_start = {
+            let is_composing = Rc::clone(&is_composing);
             move |_: web_sys::CompositionEvent, runner: &mut AppRunner| {
+                is_composing.set(true);
                 // Repaint moves the text agent into place,
                 // see `move_to` in `AppRunner::handle_platform_output`.
                 runner.needs_repaint.repaint_asap();
@@ -86,10 +98,10 @@ impl TextAgent {
         };
 
         let on_composition_end = {
-            let input = input.clone();
+            let is_composing = Rc::clone(&is_composing);
             move |event: web_sys::CompositionEvent, runner: &mut AppRunner| {
+                is_composing.set(false);
                 let Some(text) = event.data() else { return };
-                input.set_value("");
                 let event = egui::Event::Ime(egui::ImeEvent::Commit(text));
                 runner.input.raw.events.push(event);
                 runner.needs_repaint.repaint_asap();
@@ -109,7 +121,23 @@ impl TextAgent {
         Ok(Self {
             input,
             prev_ime_output: Default::default(),
+            is_composing,
         })
+    }
+
+    fn sync(&self, ime: &egui::output::IMEOutput) {
+        if self.is_composing.get() {
+            return;
+        }
+        // Sync the <input> text buffer with egui's current text
+        self.input.set_value(&ime.text);
+        let mut sel_start = char_to_utf16(&ime.text, ime.cursor_primary);
+        let mut sel_end = char_to_utf16(&ime.text, ime.cursor_secondary);
+        // Sort them or else set_selection_range may fail
+        if sel_start > sel_end {
+            std::mem::swap(&mut sel_start, &mut sel_end);
+        }
+        self.input.set_selection_range(sel_start, sel_end).ok();
     }
 
     pub fn move_to(
@@ -125,6 +153,8 @@ impl TextAgent {
         self.prev_ime_output.replace(ime.clone());
 
         let Some(ime) = ime else { return Ok(()) };
+
+        self.sync(&ime);
 
         let mut canvas_rect = super::canvas_content_rect(canvas);
         // Fix for safari with virtual keyboard flapping position
@@ -167,6 +197,12 @@ impl TextAgent {
 
         log::trace!("Focusing text agent");
 
+        // Re-populate the buffer from the last-known text so it isn't empty
+        // Needed due to the focus-cycle hack in events::install_touchend
+        if let Some(ime) = self.prev_ime_output.borrow().as_ref() {
+            self.sync(ime);
+        }
+
         if let Err(err) = self.input.focus() {
             log::error!("failed to set focus: {}", super::string_from_js_value(&err));
         }
@@ -178,6 +214,8 @@ impl TextAgent {
         }
 
         log::trace!("Blurring text agent");
+
+        self.input.set_value("");
 
         if let Err(err) = self.input.blur() {
             log::error!("failed to set focus: {}", super::string_from_js_value(&err));
@@ -202,4 +240,24 @@ fn is_mobile_safari() -> bool {
         Some(is_ios && is_safari)
     })()
     .unwrap_or(false)
+}
+
+/// Convert a UTF-16 code-unit offset to a character offset.
+fn utf16_to_char(text: &str, utf16_offset: u32) -> usize {
+    let mut units = 0u32;
+    for (i, c) in text.chars().enumerate() {
+        if units >= utf16_offset {
+            return i;
+        }
+        units += c.len_utf16() as u32;
+    }
+    text.chars().count()
+}
+
+/// Convert a character offset to a UTF-16 code-unit offset.
+fn char_to_utf16(text: &str, char_offset: usize) -> u32 {
+    text.chars()
+        .take(char_offset)
+        .map(|c| c.len_utf16())
+        .sum::<usize>() as u32
 }
