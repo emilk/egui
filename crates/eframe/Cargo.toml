@@ -227,7 +227,7 @@ web-sys = { workspace = true, features = [
   "FocusEvent",
   "HtmlCanvasElement",
   "HtmlElement",
-  "HtmlInputElement",
+  "HtmlTextAreaElement",
   "InputEvent",
   "KeyboardEvent",
   "Location",

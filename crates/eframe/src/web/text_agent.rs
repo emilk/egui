@@ -1,4 +1,4 @@
-//! The text agent is a hidden `<input>` element used to capture
+//! The text agent is a hidden `<textarea>` element used to capture
 //! IME and mobile keyboard input events.
 
 use std::cell::{Cell, RefCell};
@@ -10,9 +10,10 @@ use web_sys::{Document, Node};
 use super::{AppRunner, WebRunner};
 
 pub struct TextAgent {
-    input: web_sys::HtmlInputElement,
+    input: web_sys::HtmlTextAreaElement,
     prev_ime_output: RefCell<Option<egui::output::IMEOutput>>,
     is_composing: Rc<Cell<bool>>, // track composition state to avoid re-syncing the buffer
+    multiline: Rc<Cell<bool>>,
 }
 
 impl TextAgent {
@@ -20,26 +21,33 @@ impl TextAgent {
     pub fn attach(runner_ref: &WebRunner, root: Node) -> Result<Self, JsValue> {
         let document = web_sys::window().unwrap().document().unwrap();
 
-        // create an `<input>` element
+        // create a `<textarea>` element
+        // append it to `<body>` and hide it outside of the viewport
         let input = document
-            .create_element("input")?
+            .create_element("textarea")?
             .dyn_into::<web_sys::HtmlElement>()?;
         input.set_autofocus(true)?;
-        let input = input.dyn_into::<web_sys::HtmlInputElement>()?;
-        input.set_type("text");
+        let input = input.dyn_into::<web_sys::HtmlTextAreaElement>()?;
+        input.set_attribute("rows", "1")?;
+        input.set_attribute("cols", "1")?;
+        input.set_attribute("wrap", "off")?;
         input.set_attribute("autocapitalize", "off")?;
+        input.set_attribute("spellcheck", "false")?;
 
-        // append it to `<body>` and hide it outside of the viewport
         let style = input.style();
         style.set_property("background-color", "transparent")?;
         style.set_property("border", "none")?;
         style.set_property("outline", "none")?;
+        style.set_property("resize", "none")?;
+        style.set_property("overflow", "hidden")?;
         style.set_property("width", "1px")?;
         style.set_property("height", "1px")?;
         style.set_property("caret-color", "transparent")?;
         style.set_property("position", "absolute")?;
         style.set_property("top", "0")?;
         style.set_property("left", "0")?;
+        style.set_property("padding", "0")?;
+        style.set_property("margin", "0")?;
 
         if root.has_type::<Document>() {
             // root object is a document, append to its body
@@ -53,6 +61,7 @@ impl TextAgent {
         }
 
         let is_composing = Rc::new(Cell::new(false));
+        let multiline = Rc::new(Cell::new(false));
 
         // attach event listeners
 
@@ -115,17 +124,31 @@ impl TextAgent {
 
         // The canvas doesn't get keydown/keyup events when the text agent is focused,
         // so we need to forward them to the runner:
-        runner_ref.add_event_listener(&input, "keydown", super::events::on_keydown)?;
         runner_ref.add_event_listener(&input, "keyup", super::events::on_keyup)?;
+        runner_ref.add_event_listener(&input, "keydown", {
+            let multiline = Rc::clone(&multiline);
+            move |event: web_sys::KeyboardEvent, runner: &mut AppRunner| {
+                // prevent the default textarea line break on a single line TextEdit
+                if !multiline.get() {
+                    let key = event.key();
+                    if key == "Enter" || key == "NumpadEnter" {
+                        event.prevent_default();
+                    }
+                }
+                super::events::on_keydown(event, runner);
+            }
+        })?;
 
         Ok(Self {
             input,
             prev_ime_output: Default::default(),
             is_composing,
+            multiline,
         })
     }
 
     fn sync(&self, ime: &egui::output::IMEOutput) {
+        self.multiline.set(ime.multiline);
         if self.is_composing.get() {
             return;
         }
@@ -215,6 +238,7 @@ impl TextAgent {
 
         log::trace!("Blurring text agent");
 
+        self.is_composing.set(false);
         self.input.set_value("");
 
         if let Err(err) = self.input.blur() {

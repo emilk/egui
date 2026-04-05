@@ -882,6 +882,7 @@ impl TextEdit<'_> {
 				                        text: text.as_str().to_owned(),
 				                        cursor_primary,
 				                        cursor_secondary,
+                                multiline,
                             });
                         });
                     }

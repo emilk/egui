@@ -68,7 +68,7 @@ impl FullOutput {
 
 /// Information about text being edited.
 ///
-/// Useful for IME.
+/// Useful for IME and mobile keyboard synchronization.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct IMEOutput {
@@ -88,6 +88,9 @@ pub struct IMEOutput {
 
     /// Secondary cursor position (selection anchor) as a character offset into [`Self::text`].
     pub cursor_secondary: usize,
+
+    /// Whether the focused [`crate::TextEdit`] is multiline.
+    pub multiline: bool,
 }
 
 /// Commands that the egui integration should execute at the end of a frame.
