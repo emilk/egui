@@ -136,12 +136,18 @@ impl TextAgent {
         let on_composition_end = {
             let input = input.clone();
             let last_text = Rc::clone(&last_text);
-            move |event: web_sys::CompositionEvent, runner: &mut AppRunner| {
-                let out_event =
-                    egui::Event::Ime(egui::ImeEvent::Commit(event.data().unwrap_or_default()));
+            move |_event: web_sys::CompositionEvent, runner: &mut AppRunner| {
+                let mut last_text_ref = last_text.borrow_mut();
+                let text = input.value();
+
+                let commit_text = {
+                    let prefix_len = last_text_ref.chars().count();
+                    text.chars().skip(prefix_len).collect::<String>()
+                };
+                let out_event = egui::Event::Ime(egui::ImeEvent::Commit(commit_text));
                 runner.input.raw.events.push(out_event);
 
-                *last_text.borrow_mut() = input.value();
+                *last_text_ref = text;
 
                 runner.needs_repaint.repaint_asap();
             }
