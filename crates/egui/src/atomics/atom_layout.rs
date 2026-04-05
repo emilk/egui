@@ -10,6 +10,33 @@ use smallvec::SmallVec;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
+/// Compute the effective gap between atom `i` and atom `i+1`.
+///
+/// Each atom with `ignore_spacing` has a "budget" of 1 full gap to remove,
+/// distributed across its adjacent gaps:
+/// - Edge atom (first or last): 1 adjacent gap → fully removed
+/// - Middle atom: 2 adjacent gaps → each reduced by 0.5×
+fn gap_between(
+    ignore_spacing: impl Fn(usize) -> bool,
+    count: usize,
+    gap: f32,
+    i: usize,
+) -> f32 {
+    debug_assert!(i + 1 < count);
+    let mut reduction = 0.0_f32;
+    if ignore_spacing(i) {
+        reduction += if i == 0 || i == count - 1 { 1.0 } else { 0.5 };
+    }
+    if ignore_spacing(i + 1) {
+        reduction += if i + 1 == 0 || i + 1 == count - 1 {
+            1.0
+        } else {
+            0.5
+        };
+    }
+    gap * (1.0 - reduction).max(0.0)
+}
+
 /// Intra-widget layout utility.
 ///
 /// Used to lay out and paint [`crate::Atom`]s.
@@ -250,8 +277,22 @@ impl<'a> AtomLayout<'a> {
             Align2([ui.layout().horizontal_align(), ui.layout().vertical_align()])
         });
 
+        // Collect ignore_spacing flags before atoms are consumed by into_sized.
+        let ignore_spacing_flags: SmallVec<[bool; ATOMS_SMALL_VEC_SIZE]> =
+            atoms.iter().map(|a| a.ignore_spacing).collect();
+
         if atoms.len() > 1 {
-            let gap_space = gap * (atoms.len() as f32 - 1.0);
+            let atom_count = atoms.len();
+            let gap_space: f32 = (0..atom_count - 1)
+                .map(|i| {
+                    gap_between(
+                        |idx| ignore_spacing_flags[idx],
+                        atom_count,
+                        gap,
+                        i,
+                    )
+                })
+                .sum();
             desired_width += gap_space;
             intrinsic_width += gap_space;
         }
@@ -454,7 +495,10 @@ impl<'atom> AllocatedAtomLayout<'atom> {
 
         let mut response = AtomLayoutResponse::empty(response);
 
-        for sized in sized_atoms {
+        let atom_count = sized_atoms.len();
+        let ignore_flags: SmallVec<[bool; ATOMS_SMALL_VEC_SIZE]> =
+            sized_atoms.iter().map(|a| a.ignore_spacing()).collect();
+        for (i, sized) in sized_atoms.into_iter().enumerate() {
             let size = sized.size;
             // TODO(lucasmerlin): This is not ideal, since this might lead to accumulated rounding errors
             // https://github.com/emilk/egui/pull/5830#discussion_r2079627864
@@ -463,7 +507,12 @@ impl<'atom> AllocatedAtomLayout<'atom> {
             let frame = aligned_rect
                 .with_min_x(cursor)
                 .with_max_x(cursor + size.x + growth);
-            cursor = frame.right() + gap;
+            let effective_gap = if i + 1 < atom_count {
+                gap_between(|idx| ignore_flags[idx], atom_count, gap, i)
+            } else {
+                0.0
+            };
+            cursor = frame.right() + effective_gap;
             let rect = sized.align.align_size_within_rect(size, frame);
 
             if let Some(id) = sized.id {

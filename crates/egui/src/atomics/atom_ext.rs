@@ -70,6 +70,12 @@ pub trait AtomExt<'a> {
         self.atom_max_height(height)
     }
 
+    /// If `true`, this atom will not contribute to inter-atom gap spacing.
+    ///
+    /// This is useful for invisible spacers like [`Atom::grow()`] where you want
+    /// the grow space to replace the gaps rather than adding to them.
+    fn atom_ignore_spacing(self, ignore_spacing: bool) -> Atom<'a>;
+
     /// Sets the [`emath::Align2`] of a single atom within its available space.
     ///
     /// Defaults to center-center.
@@ -119,6 +125,12 @@ where
     fn atom_max_height(self, max_height: f32) -> Atom<'a> {
         let mut atom = self.into();
         atom.max_size.y = max_height;
+        atom
+    }
+
+    fn atom_ignore_spacing(self, ignore_spacing: bool) -> Atom<'a> {
+        let mut atom = self.into();
+        atom.ignore_spacing = ignore_spacing;
         atom
     }
 
