@@ -135,10 +135,10 @@ impl AllocInfo {
                 what,
                 self.megabytes()
             )
-        } else if self.element_size != ElementSize::Heterogenous {
+        } else if self.element_size == ElementSize::Heterogenous {
             format!(
                 "{:6} {:16}  {}     {:3} allocations",
-                self.num_elements(),
+                "",
                 what,
                 self.megabytes(),
                 self.num_allocs()
@@ -146,7 +146,7 @@ impl AllocInfo {
         } else {
             format!(
                 "{:6} {:16}  {}     {:3} allocations",
-                "",
+                self.num_elements(),
                 what,
                 self.megabytes(),
                 self.num_allocs()

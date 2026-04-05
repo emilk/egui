@@ -551,7 +551,7 @@ impl Widget for DragValue<'_> {
             if let Some(value_text) = value_text {
                 // We were editing the value as text last frame, but lost focus.
                 // Make sure we applied the last text value:
-                let parsed_value = parse(&custom_parser, &value_text);
+                let parsed_value = parse(custom_parser.as_ref(), &value_text);
                 if let Some(mut parsed_value) = parsed_value {
                     // User edits always clamps:
                     parsed_value = clamp_value_to_range(parsed_value, range.clone());
@@ -591,7 +591,7 @@ impl Widget for DragValue<'_> {
                 response.lost_focus() && !ui.input(|i| i.key_pressed(Key::Escape))
             };
             if update {
-                let parsed_value = parse(&custom_parser, &value_text);
+                let parsed_value = parse(custom_parser.as_ref(), &value_text);
                 if let Some(mut parsed_value) = parsed_value {
                     // User edits always clamps:
                     parsed_value = clamp_value_to_range(parsed_value, range.clone());
@@ -733,8 +733,8 @@ impl Widget for DragValue<'_> {
     }
 }
 
-fn parse(custom_parser: &Option<NumParser<'_>>, value_text: &str) -> Option<f64> {
-    match &custom_parser {
+fn parse(custom_parser: Option<&NumParser<'_>>, value_text: &str) -> Option<f64> {
+    match custom_parser {
         Some(parser) => parser(value_text),
         None => default_parser(value_text),
     }

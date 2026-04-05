@@ -1109,14 +1109,14 @@ fn get_display_size(resize_observer_entries: &js_sys::Array) -> Result<(u32, u32
     } else if JsValue::from_str("contentBoxSize").js_in(entry.as_ref()) {
         let content_box_size = entry.content_box_size();
         let idx0 = content_box_size.at(0);
-        if !idx0.is_undefined() {
-            let size: web_sys::ResizeObserverSize = idx0.dyn_into()?;
-            width = size.inline_size();
-            height = size.block_size();
-        } else {
+        if idx0.is_undefined() {
             // legacy
             let size = JsValue::clone(content_box_size.as_ref());
             let size: web_sys::ResizeObserverSize = size.dyn_into()?;
+            width = size.inline_size();
+            height = size.block_size();
+        } else {
+            let size: web_sys::ResizeObserverSize = idx0.dyn_into()?;
             width = size.inline_size();
             height = size.block_size();
         }
