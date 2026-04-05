@@ -1732,6 +1732,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "font_variations"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "env_logger",
+]
+
+[[package]]
 name = "fontconfig-parser"
 version = "0.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"

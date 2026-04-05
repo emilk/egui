@@ -438,7 +438,8 @@ pub(super) struct CachedFamily {
 
     pub replacement_glyph: (FontFaceKey, GlyphInfo),
 
-    pub glyph_info_cache: ahash::HashMap<char, (FontFaceKey, GlyphInfo)>,
+    pub glyph_info_cache:
+        ahash::HashMap<(char, skrifa::instance::Location), (FontFaceKey, GlyphInfo)>,
 }
 
 impl CachedFamily {
@@ -465,9 +466,10 @@ impl CachedFamily {
         const PRIMARY_REPLACEMENT_CHAR: char = '◻'; // white medium square
         const FALLBACK_REPLACEMENT_CHAR: char = '?'; // fallback for the fallback
 
+        let default_location = skrifa::instance::Location::default();
         let replacement_glyph = slf
-            .glyph_info_no_cache_or_fallback(PRIMARY_REPLACEMENT_CHAR, fonts_by_id)
-            .or_else(|| slf.glyph_info_no_cache_or_fallback(FALLBACK_REPLACEMENT_CHAR, fonts_by_id))
+            .glyph_info_no_cache_or_fallback(PRIMARY_REPLACEMENT_CHAR, &default_location, fonts_by_id)
+            .or_else(|| slf.glyph_info_no_cache_or_fallback(FALLBACK_REPLACEMENT_CHAR, &default_location, fonts_by_id))
             .unwrap_or_else(|| {
                 log::warn!(
                     "Failed to find replacement characters {PRIMARY_REPLACEMENT_CHAR:?} or {FALLBACK_REPLACEMENT_CHAR:?}. Will use empty glyph."
@@ -482,12 +484,14 @@ impl CachedFamily {
     pub(crate) fn glyph_info_no_cache_or_fallback(
         &mut self,
         c: char,
+        location: &skrifa::instance::Location,
         fonts_by_id: &mut nohash_hasher::IntMap<FontFaceKey, FontFace>,
     ) -> Option<(FontFaceKey, GlyphInfo)> {
         for font_key in &self.fonts {
             let font_face = fonts_by_id.get_mut(font_key).expect("Nonexistent font ID");
-            if let Some(glyph_info) = font_face.glyph_info(c) {
-                self.glyph_info_cache.insert(c, (*font_key, glyph_info));
+            if let Some(glyph_info) = font_face.glyph_info(c, location) {
+                self.glyph_info_cache
+                    .insert((c, location.clone()), (*font_key, glyph_info));
                 return Some((*font_key, glyph_info));
             }
         }
