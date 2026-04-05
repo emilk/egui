@@ -1214,6 +1214,14 @@ fn events(
                 }
             }
 
+            Event::TextChanged {
+                text: new_text,
+                cursor,
+            } => {
+                text.replace_with(new_text);
+                Some(CCursorRange::one(CCursor::new(*cursor)))
+            }
+
             _ => None,
         };
 

@@ -531,6 +531,18 @@ pub enum Event {
     /// IME Event
     Ime(ImeEvent),
 
+    /// The platform's text-input system (e.g. a mobile virtual keyboard) has changed the text buffer externally.
+    ///
+    /// When this is received the focused [`crate::TextEdit`] should replace its entire contents and
+    /// reposition the cursor.
+    TextChanged {
+        /// New complete text content.
+        text: String,
+
+        /// Primary cursor position (character offset into `text`).
+        cursor: usize,
+    },
+
     /// On touch screens, report this *in addition to*
     /// [`Self::PointerMoved`], [`Self::PointerButton`], [`Self::PointerGone`]
     Touch {
