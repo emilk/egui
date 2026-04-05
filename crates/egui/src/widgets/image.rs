@@ -298,12 +298,19 @@ impl<'a> Image<'a> {
     #[inline]
     pub fn calc_size(&self, available_size: Vec2, image_source_size: Option<Vec2>) -> Vec2 {
         let image_source_size = image_source_size.unwrap_or(Vec2::splat(24.0)); // Fallback for still-loading textures, or failure to load.
-        self.size.calc_size(available_size, image_source_size, self.image_options.rotation)
+        self.size.calc_size(
+            available_size,
+            image_source_size,
+            self.image_options.rotation,
+        )
     }
 
     pub fn load_and_calc_size(&self, ui: &Ui, available_size: Vec2) -> Option<Vec2> {
         let image_size = self.load_for_size(ui.ctx(), available_size).ok()?.size()?;
-        Some(self.size.calc_size(available_size, image_size, self.image_options.rotation))
+        Some(
+            self.size
+                .calc_size(available_size, image_size, self.image_options.rotation),
+        )
     }
 
     #[inline]
@@ -524,7 +531,12 @@ impl ImageSize {
     }
 
     /// Calculate the final on-screen size in points.
-    pub fn calc_size(&self, available_size: Vec2, image_source_size: Vec2, rotation: Option<(Rot2, Vec2)>) -> Vec2 {
+    pub fn calc_size(
+        &self,
+        available_size: Vec2,
+        image_source_size: Vec2,
+        rotation: Option<(Rot2, Vec2)>,
+    ) -> Vec2 {
         let image_source_size = match rotation {
             Some((rot, _origin)) => {
                 let Vec2 { x, y } = rot * image_source_size;
@@ -893,13 +905,23 @@ pub fn paint_texture_at(
 
             let mut mesh = Mesh::with_texture(texture.id);
             mesh.add_rect_with_uv(rect, options.uv, options.tint);
-            let Rect { min: Pos2 { x: orig_xmin, y: orig_ymin }, .. } = mesh.calc_bounds();
+            let Rect {
+                min:
+                    Pos2 {
+                        x: orig_xmin,
+                        y: orig_ymin,
+                    },
+                ..
+            } = mesh.calc_bounds();
             mesh.rotate(rot, rect.min + origin * rect.size());
-            let Rect { min: Pos2 { x: xmin, y: ymin }, .. } = mesh.calc_bounds();
+            let Rect {
+                min: Pos2 { x: xmin, y: ymin },
+                ..
+            } = mesh.calc_bounds();
             // Preserve coordinates of top-left
             mesh.translate(Vec2 {
-                x: -xmin+orig_xmin,
-                y: -ymin+orig_ymin,
+                x: -xmin + orig_xmin,
+                y: -ymin + orig_ymin,
             });
             painter.add(Shape::mesh(mesh));
         }
