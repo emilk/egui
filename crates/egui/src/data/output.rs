@@ -69,7 +69,7 @@ impl FullOutput {
 /// Information about text being edited.
 ///
 /// Useful for IME.
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct IMEOutput {
     /// Where the [`crate::TextEdit`] is located on screen.
@@ -79,6 +79,15 @@ pub struct IMEOutput {
     ///
     /// This is a very thin rectangle.
     pub cursor_rect: crate::Rect,
+
+    /// The current text content of the text field being edited.
+    pub text: String,
+
+    /// Primary cursor position as a character offset into [`Self::text`].
+    pub cursor_primary: usize,
+
+    /// Secondary cursor position (selection anchor) as a character offset into [`Self::text`].
+    pub cursor_secondary: usize,
 }
 
 /// Commands that the egui integration should execute at the end of a frame.
@@ -186,7 +195,7 @@ impl PlatformOutput {
         self.cursor_icon = cursor_icon;
         self.events.append(&mut events);
         self.mutable_text_under_cursor = mutable_text_under_cursor;
-        self.ime = ime.or(self.ime);
+        self.ime = ime.or_else(|| self.ime.take());
         self.num_completed_passes += num_completed_passes;
         self.request_discard_reasons
             .append(&mut request_discard_reasons);

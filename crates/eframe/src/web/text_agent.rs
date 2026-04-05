@@ -1,7 +1,7 @@
 //! The text agent is a hidden `<input>` element used to capture
 //! IME and mobile keyboard input events.
 
-use std::cell::Cell;
+use std::cell::RefCell;
 
 use wasm_bindgen::prelude::*;
 use web_sys::{Document, Node};
@@ -10,7 +10,7 @@ use super::{AppRunner, WebRunner};
 
 pub struct TextAgent {
     input: web_sys::HtmlInputElement,
-    prev_ime_output: Cell<Option<egui::output::IMEOutput>>,
+    prev_ime_output: RefCell<Option<egui::output::IMEOutput>>,
 }
 
 impl TextAgent {
@@ -119,10 +119,10 @@ impl TextAgent {
         zoom_factor: f32,
     ) -> Result<(), JsValue> {
         // Don't move the text agent unless the position actually changed:
-        if self.prev_ime_output.get() == ime {
+        if *self.prev_ime_output.borrow() == ime {
             return Ok(());
         }
-        self.prev_ime_output.set(ime);
+        self.prev_ime_output.replace(ime.clone());
 
         let Some(ime) = ime else { return Ok(()) };
 

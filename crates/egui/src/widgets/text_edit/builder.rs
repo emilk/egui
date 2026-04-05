@@ -867,10 +867,21 @@ impl TextEdit<'_> {
                             .ctx()
                             .layer_transform_to_global(ui.layer_id())
                             .unwrap_or_default();
+
+				                let (cursor_primary, cursor_secondary) =
+				                    if let Some(cc) = state.cursor.char_range() {
+				                        (cc.primary.index, cc.secondary.index)
+				                    } else {
+				                        (0, 0)
+				                    };
+
                         ui.output_mut(|o| {
                             o.ime = Some(crate::output::IMEOutput {
                                 rect: to_global * inner_rect,
                                 cursor_rect: to_global * primary_cursor_rect,
+				                        text: text.as_str().to_owned(),
+				                        cursor_primary,
+				                        cursor_secondary,
                             });
                         });
                     }
