@@ -6,7 +6,6 @@ mod fonts;
 mod text_layout;
 mod text_layout_types;
 
-
 pub use {
     fonts::{
         FontData, FontDefinitions, FontFamily, FontId, FontInsert, FontPriority, FontTweak, Fonts,
