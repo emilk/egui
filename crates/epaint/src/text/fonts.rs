@@ -765,6 +765,9 @@ pub struct FontsImpl {
     fonts_by_id: nohash_hasher::IntMap<FontFaceKey, FontFace>,
     fonts_by_name: ahash::HashMap<String, FontFaceKey>,
     family_cache: ahash::HashMap<FontFamily, CachedFamily>,
+
+    /// Recycled `harfrust` shaping buffer to avoid per-layout allocations.
+    shape_buffer: Option<harfrust::UnicodeBuffer>,
 }
 
 impl FontsImpl {
@@ -798,11 +801,22 @@ impl FontsImpl {
             fonts_by_id,
             fonts_by_name,
             family_cache: Default::default(),
+            shape_buffer: Some(harfrust::UnicodeBuffer::new()),
         }
     }
 
     pub fn options(&self) -> &TextOptions {
         self.atlas.options()
+    }
+
+    /// Take the recycled shaping buffer (or create a new one if already taken).
+    pub fn take_shape_buffer(&mut self) -> harfrust::UnicodeBuffer {
+        self.shape_buffer.take().unwrap_or_default()
+    }
+
+    /// Return a shaping buffer for reuse.
+    pub fn return_shape_buffer(&mut self, buffer: harfrust::UnicodeBuffer) {
+        self.shape_buffer = Some(buffer);
     }
 
     /// Get the right font implementation from [`FontFamily`].

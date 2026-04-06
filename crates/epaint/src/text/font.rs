@@ -2,10 +2,7 @@
 
 use emath::{GuiRounding as _, OrderedFloat, Vec2, vec2};
 use self_cell::self_cell;
-use skrifa::{
-    MetadataProvider as _,
-    raw::{TableProvider as _, tables::kern::SubtableKind},
-};
+use skrifa::{GlyphId, MetadataProvider as _};
 use std::collections::BTreeMap;
 use vello_cpu::{color, kurbo};
 
@@ -44,12 +41,10 @@ impl UvRect {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct GlyphInfo {
-    /// Used for pair-kerning.
-    ///
     /// Doesn't need to be unique.
     ///
     /// Is `None` for a special "invisible" glyph.
-    pub(crate) id: Option<skrifa::GlyphId>,
+    pub(crate) id: Option<GlyphId>,
 
     /// In [`skrifa`]s "unscaled" coordinate system.
     pub advance_width_unscaled: OrderedFloat<f32>,
@@ -124,17 +119,8 @@ impl SubpixelBin {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct GlyphAllocation {
-    /// Used for pair-kerning.
-    ///
-    /// Doesn't need to be unique.
-    /// Use [`skrifa::GlyphId::NOTDEF`] if you just want to have an id, and don't care.
-    pub(crate) id: skrifa::GlyphId,
-
-    /// Unit: screen pixels.
-    pub advance_width_px: f32,
-
     /// UV rectangle for drawing.
     pub uv_rect: UvRect,
 }
@@ -145,7 +131,7 @@ struct GlyphCacheKey(u64);
 impl nohash_hasher::IsEnabled for GlyphCacheKey {}
 
 impl GlyphCacheKey {
-    fn new(glyph_id: skrifa::GlyphId, metrics: &StyledMetrics, bin: SubpixelBin) -> Self {
+    fn new(glyph_id: GlyphId, metrics: &StyledMetrics, bin: SubpixelBin) -> Self {
         let StyledMetrics {
             pixels_per_point,
             px_scale_factor,
@@ -198,12 +184,10 @@ impl FontCell {
         &mut self,
         atlas: &mut TextureAtlas,
         metrics: &StyledMetrics,
-        glyph_info: &GlyphInfo,
+        glyph_id: GlyphId,
         bin: SubpixelBin,
         location: skrifa::instance::LocationRef<'_>,
     ) -> Option<GlyphAllocation> {
-        let glyph_id = glyph_info.id?;
-
         debug_assert!(
             glyph_id != skrifa::GlyphId::NOTDEF,
             "Can't allocate glyph for id 0"
@@ -288,11 +272,7 @@ impl FontCell {
             }
         };
 
-        Some(GlyphAllocation {
-            id: glyph_id,
-            advance_width_px: glyph_info.advance_width_unscaled.0 * metrics.px_scale_factor,
-            uv_rect,
-        })
+        Some(GlyphAllocation { uv_rect })
     }
 }
 
@@ -336,6 +316,10 @@ pub struct FontFace {
     name: String,
     font: FontCell,
     tweak: FontTweak,
+
+    /// Cached `harfrust` shaper data (parsed GSUB/GPOS tables).
+    /// `ShaperData` is `Copy` — lives outside the `self_cell`.
+    shaper_data: harfrust::ShaperData,
 
     glyph_info_cache: ahash::HashMap<char, GlyphInfo>,
     glyph_alloc_cache: ahash::HashMap<GlyphCacheKey, GlyphAllocation>,
@@ -393,10 +377,13 @@ impl FontFace {
             })
         })?;
 
+        let shaper_data = harfrust::ShaperData::new(&font.borrow_dependent().skrifa);
+
         Ok(Self {
             name,
             font,
             tweak,
+            shaper_data,
             glyph_info_cache: Default::default(),
             glyph_alloc_cache: Default::default(),
         })
@@ -483,7 +470,7 @@ impl FontFace {
         let glyph_id = font_data
             .charmap
             .map(c)
-            .filter(|id| *id != skrifa::GlyphId::NOTDEF)?;
+            .filter(|id| *id != GlyphId::NOTDEF)?;
 
         let glyph_info = GlyphInfo {
             id: Some(glyph_id),
@@ -495,38 +482,6 @@ impl FontFace {
         };
         self.glyph_info_cache.insert(c, glyph_info);
         Some(glyph_info)
-    }
-
-    #[inline]
-    pub(super) fn pair_kerning_pixels(
-        &self,
-        metrics: &StyledMetrics,
-        last_glyph_id: skrifa::GlyphId,
-        glyph_id: skrifa::GlyphId,
-    ) -> f32 {
-        let skrifa_font = &self.font.borrow_dependent().skrifa;
-        let Ok(kern) = skrifa_font.kern() else {
-            return 0.0;
-        };
-        kern.subtables()
-            .find_map(|st| match st.ok()?.kind().ok()? {
-                SubtableKind::Format0(table_ref) => table_ref.kerning(last_glyph_id, glyph_id),
-                SubtableKind::Format1(_) => None,
-                SubtableKind::Format2(subtable2) => subtable2.kerning(last_glyph_id, glyph_id),
-                SubtableKind::Format3(table_ref) => table_ref.kerning(last_glyph_id, glyph_id),
-            })
-            .unwrap_or_default() as f32
-            * metrics.px_scale_factor
-    }
-
-    #[inline]
-    pub fn pair_kerning(
-        &self,
-        metrics: &StyledMetrics,
-        last_glyph_id: skrifa::GlyphId,
-        glyph_id: skrifa::GlyphId,
-    ) -> f32 {
-        self.pair_kerning_pixels(metrics, last_glyph_id, glyph_id) / metrics.pixels_per_point
     }
 
     #[inline(always)]
@@ -571,49 +526,65 @@ impl FontFace {
         }
     }
 
+    pub(crate) fn skrifa_font_ref(&self) -> &skrifa::FontRef<'_> {
+        &self.font.borrow_dependent().skrifa
+    }
+
+    pub(crate) fn tweak(&self) -> &FontTweak {
+        &self.tweak
+    }
+
+    pub(crate) fn shaper_data(&self) -> &harfrust::ShaperData {
+        &self.shaper_data
+    }
+
     pub fn allocate_glyph(
         &mut self,
         atlas: &mut TextureAtlas,
         metrics: &StyledMetrics,
-        glyph_info: GlyphInfo,
-        chr: char,
-        h_pos: f32,
+        shaped: &ShapedGlyph,
     ) -> (GlyphAllocation, i32) {
-        let advance_width_px = glyph_info.advance_width_unscaled.0 * metrics.px_scale_factor;
+        let ShapedGlyph {
+            glyph_id,
+            h_pos,
+            is_cjk,
+        } = *shaped;
 
-        let Some(glyph_id) = glyph_info.id else {
-            // Invisible.
-            return (GlyphAllocation::default(), h_pos as i32);
-        };
+        if glyph_id == GlyphId::NOTDEF {
+            // invisible
+            return (GlyphAllocation::default(), h_pos.round() as i32);
+        }
 
-        // CJK scripts contain a lot of characters and could hog the glyph atlas if we stored 4 subpixel offsets per
-        // glyph.
-        let (h_pos_round, bin) = if is_cjk(chr) {
+        let (h_pos_round, bin) = if is_cjk {
+            // CJK scripts contain a lot of characters and could hog the glyph atlas
+            // if we stored 4 subpixel offsets per glyph.
             (h_pos.round() as i32, SubpixelBin::Zero)
         } else {
             SubpixelBin::new(h_pos)
         };
 
-        let entry = match self
-            .glyph_alloc_cache
-            .entry(GlyphCacheKey::new(glyph_id, metrics, bin))
-        {
-            std::collections::hash_map::Entry::Occupied(glyph_alloc) => {
-                let mut glyph_alloc = *glyph_alloc.get();
-                glyph_alloc.advance_width_px = advance_width_px; // Hack to get `\t` and thin space to work, since they use the same glyph id as ` ` (space).
-                return (glyph_alloc, h_pos_round);
-            }
-            std::collections::hash_map::Entry::Vacant(entry) => entry,
-        };
+        let cache_key = GlyphCacheKey::new(glyph_id, metrics, bin);
 
-        let allocation = self
-            .font
-            .allocate_glyph_uncached(atlas, metrics, &glyph_info, bin, (&metrics.location).into())
-            .unwrap_or_default();
+        let alloc = *self.glyph_alloc_cache.entry(cache_key).or_insert_with(|| {
+            self.font
+                .allocate_glyph_uncached(atlas, metrics, glyph_id, bin, (&metrics.location).into())
+                .unwrap_or_default()
+        });
 
-        entry.insert(allocation);
-        (allocation, h_pos_round)
+        (alloc, h_pos_round)
     }
+}
+
+/// Positioning info for a single glyph, ready for atlas allocation.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct ShapedGlyph {
+    pub glyph_id: GlyphId,
+
+    /// Horizontal position of the glyph origin, in physical pixels.
+    pub h_pos: f32,
+
+    /// CJK glyphs skip subpixel positioning to save atlas space.
+    pub is_cjk: bool,
 }
 
 // TODO(emilk): rename?
