@@ -432,8 +432,7 @@ impl FontFace {
             && let Some(space) = self.glyph_info(' ')
         {
             let glyph_info = GlyphInfo {
-                advance_width_unscaled: (crate::text::TAB_SIZE as f32
-                    * space.advance_width_unscaled.0)
+                advance_width_unscaled: (self.tweak.tab_size * space.advance_width_unscaled.0)
                     .into(),
                 ..space
             };
@@ -441,21 +440,18 @@ impl FontFace {
             return Some(glyph_info);
         }
 
-        if c == '\u{2009}' {
-            // Thin space, often used as thousands deliminator: 1 234 567 890
-            // https://www.compart.com/en/unicode/U+2009
-            // https://en.wikipedia.org/wiki/Thin_space
-
-            if let Some(space) = self.glyph_info(' ') {
-                let em = self.font.borrow_dependent().metrics.units_per_em as f32;
-                let advance_width = f32::min(em / 6.0, space.advance_width_unscaled.0 * 0.5); // TODO(emilk): make configurable
-                let glyph_info = GlyphInfo {
-                    advance_width_unscaled: advance_width.into(),
-                    ..space
-                };
-                self.glyph_info_cache.insert(c, glyph_info);
-                return Some(glyph_info);
-            }
+        if (c == '\u{2009}' || c == '\u{202F}')
+            && let Some(space) = self.glyph_info(' ')
+        {
+            // Thin space (U+2009) and narrow no-break space (U+202F),
+            // often used as thousands separator: 1 234 567 890
+            let advance_width = self.tweak.thin_space_width * space.advance_width_unscaled.0;
+            let glyph_info = GlyphInfo {
+                advance_width_unscaled: advance_width.into(),
+                ..space
+            };
+            self.glyph_info_cache.insert(c, glyph_info);
+            return Some(glyph_info);
         }
 
         if invisible_char(c) {
