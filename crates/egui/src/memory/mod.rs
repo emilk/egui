@@ -903,11 +903,16 @@ impl Memory {
     /// Give keyboard focus to a specific widget.
     /// See also [`crate::Response::request_focus`].
     ///
-    /// Calling this will interrupt IME composition.
+    /// If focus moves to a different widget, IME composition is interrupted.
+    /// Repeated calls for the widget that already has focus do not interrupt IME
+    /// (e.g. dragging to select text in a [`crate::TextEdit`]).
     #[inline(always)]
     pub fn request_focus(&mut self, id: Id) {
+        let already_focused = self.focus().and_then(|f| f.focused()) == Some(id);
         self.focus_mut().focused_widget = Some(FocusWidget::new(id));
-        self.interrupt_ime();
+        if !already_focused {
+            self.interrupt_ime();
+        }
     }
 
     /// Surrender keyboard focus for a specific widget.
