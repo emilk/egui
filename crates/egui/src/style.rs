@@ -2915,6 +2915,8 @@ impl Widget for &mut FontTweak {
                     y_offset,
                     hinting_override,
                     coords,
+                    thin_space_width,
+                    tab_size,
                 } = self;
 
                 ui.label("Scale");
@@ -2985,6 +2987,21 @@ impl Widget for &mut FontTweak {
                 if ui.button("Clear coords").clicked() {
                     coords.clear();
                 }
+                ui.end_row();
+
+                ui.label("thin_space_width");
+                ui.horizontal(|ui| {
+                    ui.add(
+                        DragValue::new(thin_space_width)
+                            .range(0.0..=1.0)
+                            .speed(0.01),
+                    );
+                    ui.label("1\u{2009}234\u{2009}567\u{2009}890");
+                });
+                ui.end_row();
+
+                ui.label("tab_size");
+                ui.add(DragValue::new(tab_size).range(0.0..=16.0).speed(0.1));
                 ui.end_row();
 
                 if ui.button("Reset").clicked() {

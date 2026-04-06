@@ -6,9 +6,6 @@ mod fonts;
 mod text_layout;
 mod text_layout_types;
 
-/// One `\t` character is this many spaces wide.
-pub const TAB_SIZE: usize = 4;
-
 pub use {
     fonts::{
         FontData, FontDefinitions, FontFamily, FontId, FontInsert, FontPriority, FontTweak, Fonts,

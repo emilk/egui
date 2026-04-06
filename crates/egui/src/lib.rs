@@ -458,8 +458,8 @@ pub use epaint::{
 pub mod text {
     pub use crate::text_selection::CCursorRange;
     pub use epaint::text::{
-        FontData, FontDefinitions, FontFamily, Fonts, Galley, LayoutJob, LayoutSection, TAB_SIZE,
-        TextFormat, TextWrapping, cursor::CCursor,
+        FontData, FontDefinitions, FontFamily, Fonts, Galley, LayoutJob, LayoutSection, TextFormat,
+        TextWrapping, cursor::CCursor,
     };
 }
 

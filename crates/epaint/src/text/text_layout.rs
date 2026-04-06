@@ -8,7 +8,6 @@ use crate::{
     Color32, Mesh, Stroke, Vertex,
     stroke::PathStroke,
     text::{
-        TAB_SIZE,
         font::{StyledMetrics, UvRect, is_cjk, is_cjk_break_allowed},
         fonts::FontFaceKey,
     },
@@ -250,11 +249,23 @@ fn layout_shaped_run(
             .unwrap_or('\u{FFFD}'); // Unicode Replacement Character
 
         // Tab is a layout concept, not a glyph — the shaper doesn't know about tab stops.
-        // Override the advance width to TAB_SIZE × space width.
+        // Override the advance width using the font's configured tab size.
         if chr == '\t' {
+            let tweak = font.fonts_by_id.get(&run.font_key).map(|ff| ff.tweak());
+            let tab_size = tweak.map_or(4.0, |t| t.tab_size);
             let (_, space_info) = font.glyph_info(' ');
             let space_width_px = space_info.advance_width_unscaled.0 * px_scale;
-            advance_width_px = TAB_SIZE as f32 * space_width_px;
+            advance_width_px = tab_size * space_width_px;
+        }
+
+        // Thin space (U+2009) and narrow no-break space (U+202F):
+        // override the shaper's advance width with the configured fraction of a space.
+        if chr == '\u{2009}' || chr == '\u{202F}' {
+            let tweak = font.fonts_by_id.get(&run.font_key).map(|ff| ff.tweak());
+            let thin_space_width = tweak.map_or(0.5, |t| t.thin_space_width);
+            let (_, space_info) = font.glyph_info(' ');
+            let space_width_px = space_info.advance_width_unscaled.0 * px_scale;
+            advance_width_px = thin_space_width * space_width_px;
         }
 
         // Apply extra_letter_spacing only at cluster boundaries,
