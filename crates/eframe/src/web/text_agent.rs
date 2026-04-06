@@ -13,7 +13,41 @@ use super::{AppRunner, WebRunner};
 
 pub struct TextAgent {
     input: web_sys::HtmlInputElement,
+    input_state: Rc<RefCell<InputState>>,
     prev_ime_output: Cell<Option<egui::output::IMEOutput>>,
+}
+
+struct InputState {
+    input: web_sys::HtmlInputElement,
+    last_text: String,
+
+    /// Workaround for Gboard on Android, which sometimes sends a
+    /// `KeyboardEvent` with `key` set to `"Process"` (Firefox) or
+    /// `"Unidentified"` (Chrome) for backspace presses. In both cases, the
+    /// `keyCode` is `229`, hence the name `has_received_229`.
+    has_received_229: bool,
+}
+
+impl InputState {
+    fn new(input: web_sys::HtmlInputElement) -> Self {
+        Self {
+            input,
+            last_text: String::new(),
+            has_received_229: false,
+        }
+    }
+
+    fn clear(&mut self) {
+        self.input.set_value("");
+        self.last_text.clear();
+        self.has_received_229 = false;
+    }
+
+    fn take_has_received_229(&mut self) -> bool {
+        let has_received_229 = self.has_received_229;
+        self.has_received_229 = false;
+        has_received_229
+    }
 }
 
 impl TextAgent {
@@ -30,6 +64,7 @@ impl TextAgent {
         let input = input.dyn_into::<web_sys::HtmlInputElement>()?;
         input.set_type("text");
         input.set_attribute("autocapitalize", "off")?;
+        let input_state = Rc::new(RefCell::new(InputState::new(input.clone())));
 
         // append it to `<body>` and hide it outside of the viewport
         let style = input.style();
@@ -54,30 +89,19 @@ impl TextAgent {
             root.append_child(&input)?;
         }
 
-        let last_text = Rc::new(RefCell::new(String::new()));
-
-        fn clear(input: &web_sys::HtmlInputElement, last_text: &RefCell<String>) {
-            input.set_value("");
-            last_text.borrow_mut().clear();
-        }
-
-        // Workaround for GBoard on Android, which sometimes sends a
-        // `KeyboardEvent` with `key` set to `"Process"` (Firefox) or
-        // `"Unidentified"` (Chrome) for backspace presses. In both cases,
-        // the `keyCode` is `229`, hence the name `has_received_229`.
-        let has_received_229 = Rc::new(Cell::new(false));
-
         // attach event listeners
 
         let on_input = {
             let input = input.clone();
-            let last_text = Rc::clone(&last_text);
-            let has_received_229 = Rc::clone(&has_received_229);
+            let input_state = Rc::clone(&input_state);
             move |event: web_sys::InputEvent, runner: &mut AppRunner| {
+                let mut input_state_ref = input_state.borrow_mut();
                 if !event.is_composing() && event.input_type() != "insertText" {
-                    clear(&input, &last_text);
+                    input_state_ref.clear();
 
-                    if event.input_type() == "deleteContentBackward" && has_received_229.take() {
+                    if event.input_type() == "deleteContentBackward"
+                        && input_state_ref.take_has_received_229()
+                    {
                         for pressed in [true, false] {
                             runner.input.raw.events.push(egui::Event::Key {
                                 key: egui::Key::Backspace,
@@ -94,9 +118,8 @@ impl TextAgent {
 
                 let text = input.value();
 
-                let mut last_text_ref = last_text.borrow_mut();
-                let prefix_len = longest_common_prefix_length(&text, &last_text_ref);
-                let last_text_len = last_text_ref.chars().count();
+                let prefix_len = longest_common_prefix_length(&text, &input_state_ref.last_text);
+                let last_text_len = input_state_ref.last_text.chars().count();
                 if prefix_len < last_text_len {
                     let out_event = egui::Event::Ime(egui::ImeEvent::DeleteSurrounding {
                         before_chars: last_text_len - prefix_len,
@@ -114,9 +137,9 @@ impl TextAgent {
                 runner.input.raw.events.push(out_event);
 
                 if event.is_composing() {
-                    *last_text_ref = text.chars().take(prefix_len).collect();
+                    input_state_ref.last_text = text.chars().take(prefix_len).collect();
                 } else {
-                    *last_text_ref = text;
+                    input_state_ref.last_text = text;
                 }
 
                 runner.needs_repaint.repaint_asap();
@@ -133,44 +156,37 @@ impl TextAgent {
 
         let on_composition_end = {
             let input = input.clone();
-            let last_text = Rc::clone(&last_text);
+            let input_state = Rc::clone(&input_state);
             move |_event: web_sys::CompositionEvent, runner: &mut AppRunner| {
-                let mut last_text_ref = last_text.borrow_mut();
+                let mut input_state_ref = input_state.borrow_mut();
+
                 let text = input.value();
 
                 let commit_text = {
-                    let prefix_len = last_text_ref.chars().count();
+                    let prefix_len = input_state_ref.last_text.chars().count();
                     text.chars().skip(prefix_len).collect::<String>()
                 };
                 let out_event = egui::Event::Ime(egui::ImeEvent::Commit(commit_text));
                 runner.input.raw.events.push(out_event);
 
-                *last_text_ref = text;
+                input_state_ref.last_text = text;
 
                 runner.needs_repaint.repaint_asap();
             }
         };
 
-        let on_blur = {
-            let input = input.clone();
-            let last_text = Rc::clone(&last_text);
-            move |_: web_sys::FocusEvent, _runner: &mut AppRunner| {
-                clear(&input, &last_text);
-            }
-        };
-
         let on_keydown = {
-            let has_received_229 = Rc::clone(&has_received_229);
-            let input = input.clone();
-            let last_text = Rc::clone(&last_text);
+            let input_state = Rc::clone(&input_state);
             move |event: web_sys::KeyboardEvent, runner: &mut AppRunner| {
+                let mut input_state_ref = input_state.borrow_mut();
+
                 if event.key_code() == 229 {
-                    has_received_229.set(true);
+                    input_state_ref.has_received_229 = true;
 
                     let reset_received_229 = {
-                        let has_received_229 = Rc::clone(&has_received_229);
+                        let input_state = Rc::clone(&input_state);
                         Closure::once_into_js(move || {
-                            has_received_229.set(false);
+                            input_state.borrow_mut().has_received_229 = false;
                         })
                     };
 
@@ -191,7 +207,7 @@ impl TextAgent {
                     || event.alt_key()
                     || event.meta_key()
                 {
-                    clear(&input, &last_text);
+                    input_state_ref.clear();
                 }
 
                 // The canvas doesn't get keydown/keyup events when the text agent is focused,
@@ -215,7 +231,6 @@ impl TextAgent {
         runner_ref.add_event_listener(&input, "input", on_input)?;
         runner_ref.add_event_listener(&input, "compositionstart", on_composition_start)?;
         runner_ref.add_event_listener(&input, "compositionend", on_composition_end)?;
-        runner_ref.add_event_listener(&input, "blur", on_blur)?;
 
         runner_ref.add_event_listener(&input, "keydown", on_keydown)?;
         // The canvas doesn't get keydown/keyup events when the text agent is focused,
@@ -224,6 +239,7 @@ impl TextAgent {
 
         Ok(Self {
             input,
+            input_state,
             prev_ime_output: Default::default(),
         })
     }
@@ -298,6 +314,7 @@ impl TextAgent {
         if let Err(err) = self.input.blur() {
             log::error!("failed to set focus: {}", super::string_from_js_value(&err));
         }
+        self.input_state.borrow_mut().clear();
     }
 }
 
