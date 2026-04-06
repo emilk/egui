@@ -116,6 +116,22 @@ pub struct Memory {
     /// (e.g. relative to some other widget).
     #[cfg_attr(feature = "persistence", serde(skip))]
     popups: ViewportIdMap<OpenPopup>,
+
+    /// When the last IME interruption was made.
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    ime_interruption_time: ImeInterruptionTime,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+enum ImeInterruptionTime {
+    #[default]
+    None,
+
+    /// The IME was interrupted in the current frame.
+    ThisFrame,
+
+    /// The IME was interrupted in the previous frame.
+    LastFrame,
 }
 
 impl Default for Memory {
@@ -133,6 +149,7 @@ impl Default for Memory {
             popups: Default::default(),
             everything_is_visible: Default::default(),
             add_fonts: Default::default(),
+            ime_interruption_time: Default::default(),
         };
         slf.interactions.entry(slf.viewport_id).or_default();
         slf.areas.entry(slf.viewport_id).or_default();
@@ -761,6 +778,16 @@ impl Memory {
 
         self.areas.entry(self.viewport_id).or_default();
 
+        match self.ime_interruption_time {
+            ImeInterruptionTime::ThisFrame => {
+                self.ime_interruption_time = ImeInterruptionTime::LastFrame;
+            }
+            ImeInterruptionTime::LastFrame => {
+                self.ime_interruption_time = ImeInterruptionTime::None;
+            }
+            ImeInterruptionTime::None => {}
+        }
+
         // self.interactions  is handled elsewhere
 
         self.options.begin_pass(new_raw_input);
@@ -875,9 +902,12 @@ impl Memory {
 
     /// Give keyboard focus to a specific widget.
     /// See also [`crate::Response::request_focus`].
+    ///
+    /// Calling this will interrupt IME composition.
     #[inline(always)]
     pub fn request_focus(&mut self, id: Id) {
         self.focus_mut().focused_widget = Some(FocusWidget::new(id));
+        self.interrupt_ime();
     }
 
     /// Surrender keyboard focus for a specific widget.
@@ -992,6 +1022,36 @@ impl Memory {
 
     pub(crate) fn focus_mut(&mut self) -> &mut Focus {
         self.focus.entry(self.viewport_id).or_default()
+    }
+
+    /// Check if the widget owns IME events.
+    ///
+    /// A widget should only consume IME events if this returns `true`. At most
+    /// one widget can own IME events for each frame.
+    pub fn owns_ime_events(&self, id: Id) -> bool {
+        let Some(focus) = self.focus() else {
+            return false;
+        };
+        // We check across two frames because the widget that called
+        // `interrupt_ime` may run after other widgets that call this method
+        // within the same frame.
+        if matches!(
+            self.ime_interruption_time,
+            ImeInterruptionTime::ThisFrame | ImeInterruptionTime::LastFrame
+        ) {
+            return false;
+        }
+        focus.focused() == Some(id)
+    }
+
+    /// Interrupt the current IME composition, if any.
+    ///
+    /// This causes [`Self::owns_ime_events`] to return `false` for all widgets
+    /// for the remainder of this frame and the next frame, giving time
+    /// for the IME to be dismissed (by making `platform_output.ime` be `None`
+    /// for at least one frame).
+    pub fn interrupt_ime(&mut self) {
+        self.ime_interruption_time = ImeInterruptionTime::ThisFrame;
     }
 }
 

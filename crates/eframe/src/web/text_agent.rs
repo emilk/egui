@@ -125,8 +125,6 @@ impl TextAgent {
 
         let on_composition_start = {
             move |_: web_sys::CompositionEvent, runner: &mut AppRunner| {
-                let event = egui::Event::Ime(egui::ImeEvent::Enabled);
-                runner.input.raw.events.push(event);
                 // Repaint moves the text agent into place,
                 // see `move_to` in `AppRunner::handle_platform_output`.
                 runner.needs_repaint.repaint_asap();

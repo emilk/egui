@@ -10,8 +10,11 @@ use crate::{
     TextStyle, Ui, Vec2, Widget, WidgetInfo, WidgetWithState, epaint,
     os::OperatingSystem,
     output::OutputEvent,
-    response, text_selection,
-    text_selection::{CCursorRange, text_cursor_state::cursor_rect, visuals::paint_text_selection},
+    response,
+    text_edit::state::TextEditCursorPurpose,
+    text_selection::{
+        self, CCursorRange, text_cursor_state::cursor_rect, visuals::paint_text_selection,
+    },
     vec2,
 };
 
@@ -858,31 +861,21 @@ impl TextEdit<'_> {
                             now - state.last_interaction_time,
                         );
                     }
-
-                    // Set IME output (in screen coords) when text is editable and visible
-                    let to_global = ui
-                        .ctx()
-                        .layer_transform_to_global(ui.layer_id())
-                        .unwrap_or_default();
-
-                    ui.output_mut(|o| {
-                        o.ime = Some(crate::output::IMEOutput {
-                            rect: to_global * inner_rect,
-                            cursor_rect: to_global * primary_cursor_rect,
+                    if ui.memory(|mem| mem.owns_ime_events(id)) {
+                        // Set IME output (in screen coords) when text is editable and visible
+                        let to_global = ui
+                            .ctx()
+                            .layer_transform_to_global(ui.layer_id())
+                            .unwrap_or_default();
+                        ui.output_mut(|o| {
+                            o.ime = Some(crate::output::IMEOutput {
+                                rect: to_global * inner_rect,
+                                cursor_rect: to_global * primary_cursor_rect,
+                            });
                         });
-                    });
+                    }
                 }
             }
-        }
-
-        // Ensures correct IME behavior when the text input area gains or loses focus.
-        if state.ime_enabled && (response.gained_focus() || response.lost_focus()) {
-            state.ime_enabled = false;
-            if let Some(mut ccursor_range) = state.cursor.char_range() {
-                ccursor_range.secondary.index = ccursor_range.primary.index;
-                state.cursor.set_char_range(Some(ccursor_range));
-            }
-            ui.input_mut(|i| i.events.retain(|e| !matches!(e, Event::Ime(_))));
         }
 
         state.clone().store(ui.ctx(), id);
@@ -998,6 +991,11 @@ fn events(
     let mut any_change = false;
 
     let events = ui.input(|i| i.filtered_events(&event_filter));
+
+    let owns_ime_events = ui.memory(|mem| mem.owns_ime_events(id));
+    if !owns_ime_events {
+        state.cursor_purpose = TextEditCursorPurpose::Selection;
+    }
 
     for event in &events {
         let did_mutate_text = match event {
@@ -1126,7 +1124,7 @@ fn events(
                 ..
             } => check_for_mutating_key_press(os, &cursor_range, text, galley, modifiers, *key),
 
-            Event::Ime(ime_event) => {
+            Event::Ime(ime_event) if owns_ime_events => {
                 /// Both `ImeEvent::Preedit("")` and `ImeEvent::Commit("")`
                 /// might be emitted from different integrations to signify that
                 /// the current IME composition should be cleared.
@@ -1160,42 +1158,58 @@ fn events(
                 }
 
                 match ime_event {
-                    ImeEvent::Enabled => {
-                        state.ime_enabled = true;
-                        state.ime_cursor_range = cursor_range;
+                    #[expect(deprecated)]
+                    ImeEvent::Enabled | ImeEvent::Disabled => None,
+                    // Ignore `Preedit`/`Commit` events with empty text when
+                    // there is no active IME composition.
+                    //
+                    // Some integrations may emit these events when there is no
+                    // active IME composition (e.g. when `set_ime_allowed` or
+                    // `set_ime_cursor_area` is called on `winit`'s `Window` on
+                    // Wayland). Without this guard, they would clear any
+                    // selected text.
+                    //
+                    // TODO(umajho): Ideally this would be handled by the
+                    // integration, but since this guard is harmless for well-
+                    // behaved integrations and also fixes the issue described
+                    // above, it is good enough for now.
+                    ImeEvent::Preedit(composition_text) | ImeEvent::Commit(composition_text)
+                        if composition_text.is_empty()
+                            && !matches!(
+                                state.cursor_purpose,
+                                TextEditCursorPurpose::ImeComposition
+                            ) =>
+                    {
+                        None
+                    }
+                    ImeEvent::Preedit(composition_text) | ImeEvent::Commit(composition_text)
+                        if composition_text == "\n" || composition_text == "\r" =>
+                    {
                         None
                     }
                     ImeEvent::Preedit(preedit_text) => {
-                        if preedit_text == "\n" || preedit_text == "\r" {
-                            None
+                        state.cursor_purpose = if preedit_text.is_empty() {
+                            TextEditCursorPurpose::Selection
                         } else {
-                            let mut ccursor = clear_preedit_text(text, &cursor_range);
+                            TextEditCursorPurpose::ImeComposition
+                        };
+                        let mut ccursor = clear_preedit_text(text, &cursor_range);
 
-                            let start_cursor = ccursor;
-                            if !preedit_text.is_empty() {
-                                text.insert_text_at(&mut ccursor, preedit_text, char_limit);
-                            }
-                            state.ime_cursor_range = cursor_range;
-                            Some(CCursorRange::two(start_cursor, ccursor))
+                        let start_cursor = ccursor;
+                        if !preedit_text.is_empty() {
+                            text.insert_text_at(&mut ccursor, preedit_text, char_limit);
                         }
+                        Some(CCursorRange::two(start_cursor, ccursor))
                     }
                     ImeEvent::Commit(commit_text) => {
-                        if commit_text == "\n" || commit_text == "\r" {
-                            None
-                        } else {
-                            state.ime_enabled = false;
+                        state.cursor_purpose = TextEditCursorPurpose::Selection;
+                        let mut ccursor = clear_preedit_text(text, &cursor_range);
 
-                            let mut ccursor = clear_preedit_text(text, &cursor_range);
-
-                            if !commit_text.is_empty()
-                                && cursor_range.secondary.index
-                                    == state.ime_cursor_range.secondary.index
-                            {
-                                text.insert_text_at(&mut ccursor, commit_text, char_limit);
-                            }
-
-                            Some(CCursorRange::one(ccursor))
+                        if !commit_text.is_empty() {
+                            text.insert_text_at(&mut ccursor, commit_text, char_limit);
                         }
+
+                        Some(CCursorRange::one(ccursor))
                     }
                     ImeEvent::DeleteSurrounding {
                         before_chars,
@@ -1205,10 +1219,6 @@ fn events(
                         *before_chars,
                         *after_chars,
                     )),
-                    ImeEvent::Disabled => {
-                        state.ime_enabled = false;
-                        None
-                    }
                 }
             }
 
