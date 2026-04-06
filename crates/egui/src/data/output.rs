@@ -123,6 +123,9 @@ pub struct PlatformOutput {
     /// This is set if, and only if, the user is currently editing text.
     ///
     /// Useful for IME.
+    ///
+    /// This field should only be set by the widget that currently owns IME
+    /// events (see [`crate::Memory::owns_ime_events`]).
     pub ime: Option<IMEOutput>,
 
     /// The difference in the widget tree since last frame.
