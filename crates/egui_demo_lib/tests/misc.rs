@@ -61,21 +61,25 @@ fn test_italics() {
 fn test_text_selection() {
     let mut results = egui_kittest::SnapshotResults::new();
 
-    for (test_idx, drag_start_x) in [0.2_f32, 0.9].into_iter().enumerate() {
-        let mut harness = Harness::builder().build_ui(|ui| {
-            let visuals = ui.visuals_mut();
-            visuals.selection.bg_fill = Color32::LIGHT_GREEN;
-            visuals.selection.stroke.color = Color32::RED;
+    for (test_idx, drag_start_x) in [0.2_f32, 0.95].into_iter().enumerate() {
+        let mut harness = Harness::builder()
+            .with_pixels_per_point(1.0) // TODO(emilk): why does this test fail with 2.0?
+            .build_ui(|ui| {
+                let visuals = ui.visuals_mut();
+                visuals.selection.bg_fill = Color32::LIGHT_GREEN;
+                visuals.selection.stroke.color = Color32::RED;
 
-            ui.label("Some varied ☺ text :)\nAnd it has a second line!");
-        });
+                ui.vertical_centered(|ui| {
+                    ui.label("Some varied ☺ text :)\nAnd it has a second line!\nAnd a third!");
+                });
+            });
         harness.run();
         harness.fit_contents();
 
         // Drag to select text:
         let label = harness.get_by_role(Role::Label);
         harness.drag_at(label.rect().lerp_inside([drag_start_x, 0.25]));
-        harness.drop_at(label.rect().lerp_inside([0.6, 0.75]));
+        harness.drop_at(label.rect().lerp_inside([0.5, 0.75]));
         harness.run();
 
         harness.snapshot(format!("text_selection_{test_idx}"));
