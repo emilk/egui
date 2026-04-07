@@ -2344,11 +2344,13 @@ impl Visuals {
                 max_texture_side: _,
                 alpha_from_coverage,
                 font_hinting,
+                subpixel_binning,
             } = text_options;
 
             text_alpha_from_coverage_ui(ui, alpha_from_coverage);
 
-            ui.checkbox(font_hinting, "Enable font hinting");
+            ui.checkbox(font_hinting, "Font hinting (sharper text)");
+            ui.checkbox(subpixel_binning, "Sub-pixel binning (more even kerning)");
         });
 
         ui.collapsing("Text cursor", |ui| {
@@ -2913,10 +2915,11 @@ impl Widget for &mut FontTweak {
                     scale,
                     y_offset_factor,
                     y_offset,
-                    hinting_override,
+                    hinting,
                     coords,
                     thin_space_width,
                     tab_size,
+                    subpixel_binning,
                 } = self;
 
                 ui.label("Scale");
@@ -2932,18 +2935,20 @@ impl Widget for &mut FontTweak {
                 ui.add(DragValue::new(y_offset).speed(-0.02));
                 ui.end_row();
 
-                ui.label("hinting_override");
-                ComboBox::from_id_salt("hinting_override")
-                    .selected_text(match hinting_override {
-                        None => "None",
-                        Some(true) => "Enable",
-                        Some(false) => "Disable",
-                    })
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(hinting_override, None, "None");
-                        ui.selectable_value(hinting_override, Some(true), "Enable");
-                        ui.selectable_value(hinting_override, Some(false), "Disable");
-                    });
+                ui.label("hinting");
+                ui.horizontal(|ui| {
+                    ui.radio_value(hinting, Some(true), "on");
+                    ui.radio_value(hinting, Some(false), "off");
+                    ui.radio_value(hinting, None, "default");
+                });
+                ui.end_row();
+
+                ui.label("subpixel_binning");
+                ui.horizontal(|ui| {
+                    ui.radio_value(subpixel_binning, Some(true), "on");
+                    ui.radio_value(subpixel_binning, Some(false), "off");
+                    ui.radio_value(subpixel_binning, None, "default");
+                });
                 ui.end_row();
 
                 ui.label("coords");

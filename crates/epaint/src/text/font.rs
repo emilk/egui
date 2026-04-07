@@ -316,6 +316,7 @@ pub struct FontFace {
     name: String,
     font: FontCell,
     tweak: FontTweak,
+    subpixel_binning: bool,
 
     /// Cached `harfrust` shaper data (parsed GSUB/GPOS tables).
     /// `ShaperData` is `Copy` — lives outside the `self_cell`.
@@ -352,7 +353,7 @@ impl FontFace {
                 skrifa::instance::LocationRef::default(),
             );
 
-            let hinting_enabled = tweak.hinting_override.unwrap_or(options.font_hinting);
+            let hinting_enabled = tweak.hinting.unwrap_or(options.font_hinting);
             let hinting_instance = hinting_enabled
                 .then(|| {
                     // It doesn't really matter what we put here for options. Since the size is `unscaled()`, we will
@@ -379,10 +380,13 @@ impl FontFace {
 
         let shaper_data = harfrust::ShaperData::new(&font.borrow_dependent().skrifa);
 
+        let subpixel_binning = tweak.subpixel_binning.unwrap_or(options.subpixel_binning);
+
         Ok(Self {
             name,
             font,
             tweak,
+            subpixel_binning,
             shaper_data,
             glyph_info_cache: Default::default(),
             glyph_alloc_cache: Default::default(),
@@ -551,12 +555,12 @@ impl FontFace {
             return (GlyphAllocation::default(), h_pos.round() as i32);
         }
 
-        let (h_pos_round, bin) = if is_cjk {
+        let (h_pos_round, bin) = if self.subpixel_binning && !is_cjk {
+            SubpixelBin::new(h_pos)
+        } else {
             // CJK scripts contain a lot of characters and could hog the glyph atlas
             // if we stored 4 subpixel offsets per glyph.
             (h_pos.round() as i32, SubpixelBin::Zero)
-        } else {
-            SubpixelBin::new(h_pos)
         };
 
         let cache_key = GlyphCacheKey::new(glyph_id, metrics, bin);
