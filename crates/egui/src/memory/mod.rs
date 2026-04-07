@@ -119,6 +119,7 @@ pub struct Memory {
 
     /// Whether to inform the backend to interrupt any ongoing IME composition
     /// this pass.
+    #[cfg_attr(feature = "persistence", serde(skip))]
     requested_interrupt_ime: bool,
 }
 
