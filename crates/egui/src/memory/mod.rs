@@ -603,13 +603,14 @@ impl Focus {
             self.focused_widget = Some(FocusWidget::new(found_widget));
         }
 
-        if let Some(focused_widget) = self.focused_widget
+        if let Some(focused_widget) = self.focused_widget {
             // Allow calling `request_focus` one frame and not using it until next frame
-            && !self.is_focus_changed_recently()
-            && !used_ids.contains_key(&focused_widget.id)
-        {
-            // Dead-mans-switch: the widget with focus has disappeared!
-            self.focused_widget = None;
+            let recently_gained_focus = self.id_previous_frame != Some(focused_widget.id);
+
+            if !recently_gained_focus && !used_ids.contains_key(&focused_widget.id) {
+                // Dead-mans-switch: the widget with focus has disappeared!
+                self.focused_widget = None;
+            }
         }
 
         self.top_modal_layer = self.top_modal_layer_current_frame.take();
@@ -617,10 +618,6 @@ impl Focus {
 
     pub(crate) fn had_focus_last_frame(&self, id: Id) -> bool {
         self.id_previous_frame == Some(id)
-    }
-
-    pub(crate) fn is_focus_changed_recently(&self) -> bool {
-        self.id_previous_frame != self.focused()
     }
 
     fn interested_in_focus(&mut self, id: Id) {
@@ -1028,10 +1025,6 @@ impl Memory {
 
     pub(crate) fn should_interrupt_ime(&self) -> bool {
         self.requested_interrupt_ime
-            || self.interaction().is_using_pointer()
-            || self
-                .focus()
-                .is_none_or(|focus| focus.is_focus_changed_recently())
     }
 }
 
