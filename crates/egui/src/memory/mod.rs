@@ -1011,8 +1011,13 @@ impl Memory {
     ///
     /// A widget should only consume IME events if this returns `true`. At most
     /// one widget can own IME events for each frame.
+    #[inline(always)]
     pub fn owns_ime_events(&self, id: Id) -> bool {
-        self.has_focus(id) && !self.should_interrupt_ime()
+        // Note: Even if the IME is being interrupted in the current frame, we
+        // should not return `false` here, since we still need
+        // `PlatformOutput::ime` to be set in such cases.
+
+        self.has_focus(id)
     }
 
     /// Interrupt the current IME composition, if any.
