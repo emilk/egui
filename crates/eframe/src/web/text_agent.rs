@@ -138,7 +138,7 @@ impl TextAgent {
         let Some(ime) = ime else { return Ok(()) };
 
         if ime.should_interrupt_composition {
-            // no-op for now: currently ,the text agent is sizeless, so any
+            // no-op for now: currently, the text agent is sizeless, so any
             // click shifts focus to the canvas, which naturally interrupts the
             // composition.
         }
