@@ -188,8 +188,13 @@ pub struct FontTweak {
 
     /// Override the global font hinting setting for this specific font.
     ///
-    /// `None` means use the global setting.
-    pub hinting_override: Option<bool>,
+    /// `None` means use the global setting in [`TextOptions::font_hinting`].
+    pub hinting: Option<bool>,
+
+    /// Override the global sub-pixel binning setting for this specific font.
+    ///
+    /// `None` means use the global setting in [`TextOptions::subpixel_binning`].
+    pub subpixel_binning: Option<bool>,
 
     /// Override the font's default variation coordinates.
     pub coords: VariationCoords,
@@ -214,7 +219,8 @@ impl Default for FontTweak {
             scale: 1.0,
             y_offset_factor: 0.0,
             y_offset: 0.0,
-            hinting_override: None,
+            hinting: None,
+            subpixel_binning: None,
             coords: VariationCoords::default(),
             thin_space_width: 0.5,
             tab_size: 4.0,
