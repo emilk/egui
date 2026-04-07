@@ -693,6 +693,11 @@ impl Panel {
             add_contents(ui)
         });
 
+        let mut inner_response = inner_response;
+        inner_response.response.rect =
+            inner_response.response.rect.intersect(panel_sizer.panel_rect);
+        inner_response.response.interact_rect =
+            inner_response.response.interact_rect.intersect(panel_sizer.panel_rect);
         let rect = inner_response.response.rect;
 
         {
@@ -779,7 +784,7 @@ impl Panel {
             .widget_info(|| WidgetInfo::new(WidgetType::Panel));
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
-        let rect = inner_response.response.rect;
+        let rect = inner_response.response.rect.intersect(available_rect);
 
         match side {
             PanelSide::Vertical(side) => match side {
