@@ -144,7 +144,7 @@ wayland-cursor = { version = "0.31.11", default-features = false }
 web-sys = "0.3.77"
 web-time = "1.1.0" # Timekeeping for native and web
 webbrowser = "1.0.5"
-wgpu = { version = "29.0.0", default-features = false, features = ["std"] }
+wgpu = { version = "29.0.1", default-features = false, features = ["std"] }
 windows-sys = "0.61.2"
 winit = { version = "0.30.13", default-features = false }
 
