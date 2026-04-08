@@ -203,12 +203,12 @@ pub struct PassState {
 
     /// What the root UI had available at the end of the previous pass.
     ///
-    /// Only set if [`Context::run_ui`] has been called.
+    /// Only set if [`crate::Context::run_ui`] has been called.
     pub root_ui_available_rect: Option<Rect>,
 
     /// What the root UI had used at the end of the previous pass.
     ///
-    /// Only set if [`Context::run_ui`] has been called.
+    /// Only set if [`crate::Context::run_ui`] has been called.
     pub root_ui_min_rect: Option<Rect>,
 
     /// Starts off as the `screen_rect`, shrinks as panels are added.
