@@ -69,14 +69,26 @@ impl crate::View for TextEditDemo {
             ui.selectable_value(valign, egui::Align::BOTTOM, "Bottom");
         });
 
+        let clear_id = egui::Id::new("clear_button");
+        let clear_size = egui::Vec2::splat(ui.spacing().interact_size.y);
+
         let output = egui::TextEdit::multiline(text)
             .hint_text("Type something!")
             // Atoms are centered by default, so we need to pass the right align here:
             .prefix("🔎".atom_align(Align2([Align::LEFT, *valign])))
-            .suffix("❌".atom_align(Align2([Align::RIGHT, *valign])))
+            .suffix(
+                egui::Atom::custom(clear_id, clear_size)
+                    .atom_align(Align2([Align::RIGHT, *valign])),
+            )
             .horizontal_align(*halign)
             .vertical_align(*valign)
             .show(ui);
+
+        if let Some(rect) = output.response.rect(clear_id) {
+            if ui.place(rect, egui::Button::new("❌")).clicked() {
+                text.clear();
+            }
+        }
 
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
