@@ -6,9 +6,6 @@ mod fonts;
 mod text_layout;
 mod text_layout_types;
 
-/// One `\t` character is this many spaces wide.
-pub const TAB_SIZE: usize = 4;
-
 pub use {
     fonts::{
         FontData, FontDefinitions, FontFamily, FontId, FontInsert, FontPriority, FontTweak, Fonts,
@@ -37,6 +34,20 @@ pub struct TextOptions {
     ///
     /// Default is `true`.
     pub font_hinting: bool,
+
+    /// Enable sub-pixel binning for glyphs.
+    ///
+    /// Sub-pixel binning renders each glyph at up to four fractional horizontal offsets,
+    /// giving more even kerning at the cost of more atlas space.
+    ///
+    /// It also lead to text looking more blurry.
+    ///
+    /// This is always disabled for CJK characters (which have too many unique glyphs).
+    ///
+    /// Can be overridden per font with [`FontTweak::subpixel_binning`].
+    ///
+    /// Default: `true`.
+    pub subpixel_binning: bool,
 }
 
 impl Default for TextOptions {
@@ -45,6 +56,7 @@ impl Default for TextOptions {
             max_texture_side: 2048, // Small but portable
             alpha_from_coverage: crate::AlphaFromCoverage::default(),
             font_hinting: true,
+            subpixel_binning: true,
         }
     }
 }

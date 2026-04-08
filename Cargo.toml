@@ -93,6 +93,7 @@ font-types = { version = "0.11.0", default-features = false, features = ["std"] 
 glow = "0.17.0"
 glutin = { version = "0.32.3", default-features = false }
 glutin-winit = { version = "0.5.0", default-features = false }
+harfrust = "0.5.2"
 home = "0.5.9"
 image = { version = "0.25.6", default-features = false }
 jiff = { version = "0.2.23", default-features = false }
@@ -136,15 +137,16 @@ tokio = "1.49"
 toml = {version = "1.0.0", default-features = false }
 type-map = "0.5.1"
 unicode_names2 = { version = "2.0.0", default-features = false }
+unicode-general-category = "1.1.0"
 unicode-segmentation = "1.12.0"
-vello_cpu = { version = "0.0.6", default-features = false, features = ["std", "u8_pipeline", "f32_pipeline"] }
+vello_cpu = { version = "0.0.7", default-features = false, features = ["std", "u8_pipeline", "f32_pipeline"] }
 wasm-bindgen = "0.2.108" # Keep wasm-bindgen version in sync in: setup_web.sh, Cargo.toml, Cargo.lock, rust.yml. Don't update this spuriously, because of https://github.com/rerun-io/rerun/issues/8766
 wasm-bindgen-futures = "0.4.58"
 wayland-cursor = { version = "0.31.11", default-features = false }
 web-sys = "0.3.77"
 web-time = "1.1.0" # Timekeeping for native and web
 webbrowser = "1.0.5"
-wgpu = { version = "29.0.0", default-features = false, features = ["std"] }
+wgpu = { version = "29.0.1", default-features = false, features = ["std"] }
 windows-sys = "0.61.2"
 winit = { version = "0.30.13", default-features = false }
 
