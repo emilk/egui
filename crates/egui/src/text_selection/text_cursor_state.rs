@@ -198,21 +198,19 @@ fn ccursor_previous_line(text: &str, ccursor: CCursor) -> CCursor {
 
 fn next_word_boundary_char_index(text: &str, cursor_ci: usize) -> usize {
     let mut current_char_idx = 0;
-    let mut last_byte_idx = 0;
 
-    for (word_byte_index, word) in text.split_word_bound_indices() {
-        current_char_idx += text[last_byte_idx..word_byte_index].chars().count();
-        last_byte_idx = word_byte_index;
-
+    for (_word_byte_index, word) in text.split_word_bound_indices() {
         let word_ci = current_char_idx;
 
         // We consider `.` a word boundary.
         // At least that's how Mac works when navigating something like `www.example.com`.
-        for (dot_ci_offset, chr) in word.chars().enumerate() {
-            let dot_ci = word_ci + dot_ci_offset;
+        let mut word_char_count = 0;
+        for chr in word.chars() {
+            let dot_ci = word_ci + word_char_count;
             if chr == '.' && cursor_ci < dot_ci {
                 return dot_ci;
             }
+            word_char_count += 1;
         }
 
         // Splitting considers contiguous whitespace as one word, such words must be skipped,
@@ -222,9 +220,11 @@ fn next_word_boundary_char_index(text: &str, cursor_ci: usize) -> usize {
         if cursor_ci < word_ci && !all_word_chars(word) {
             return word_ci;
         }
+
+        current_char_idx += word_char_count;
     }
 
-    current_char_idx + text[last_byte_idx..].chars().count()
+    current_char_idx
 }
 
 fn all_word_chars(text: &str) -> bool {
