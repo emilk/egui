@@ -84,10 +84,10 @@ impl crate::View for TextEditDemo {
             .vertical_align(*valign)
             .show(ui);
 
-        if let Some(rect) = output.response.rect(clear_id) {
-            if ui.place(rect, egui::Button::new("❌")).clicked() {
-                text.clear();
-            }
+        if let Some(rect) = output.response.rect(clear_id)
+            && ui.place(rect, egui::Button::new("❌")).clicked()
+        {
+            text.clear();
         }
 
         ui.horizontal(|ui| {
