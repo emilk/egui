@@ -151,20 +151,53 @@ pub fn paint_ime_preedit_text_visuals(
         color: active_underline_stroke.color.linear_multiply(0.5),
     };
 
-    paint_underlines(
-        pos,
-        painter,
-        galley,
-        galley.layout_from_cursor(preedit_range.start),
-        galley.layout_from_cursor(preedit_range.end),
-        inactive_underline_stroke,
-    );
+    if let Some(relative_active_range) = &relative_active_range
+        && !relative_active_range.is_empty()
+    {
+        if relative_active_range.start.index > 0 {
+            paint_underlines(
+                pos,
+                painter,
+                galley,
+                galley.layout_from_cursor(preedit_range.start),
+                galley.layout_from_cursor(preedit_range.start + relative_active_range.start.index),
+                inactive_underline_stroke,
+            );
+        }
 
-    let Some(relative_active_range) = relative_active_range else {
-        return;
-    };
+        paint_underlines(
+            pos,
+            painter,
+            galley,
+            galley.layout_from_cursor(preedit_range.start + relative_active_range.start.index),
+            galley.layout_from_cursor(preedit_range.start + relative_active_range.end.index),
+            active_underline_stroke,
+        );
 
-    if relative_active_range.is_empty() {
+        if relative_active_range.end < preedit_range.end - preedit_range.start.index {
+            paint_underlines(
+                pos,
+                painter,
+                galley,
+                galley.layout_from_cursor(preedit_range.start + relative_active_range.end.index),
+                galley.layout_from_cursor(preedit_range.end),
+                inactive_underline_stroke,
+            );
+        }
+    } else {
+        paint_underlines(
+            pos,
+            painter,
+            galley,
+            galley.layout_from_cursor(preedit_range.start),
+            galley.layout_from_cursor(preedit_range.end),
+            inactive_underline_stroke,
+        );
+    }
+
+    if let Some(relative_active_range) = relative_active_range
+        && relative_active_range.is_empty()
+    {
         let active_cursor = preedit_range.start + relative_active_range.start.index;
         let cursor_rect = cursor_rect(galley, &active_cursor, row_height);
 
@@ -173,15 +206,6 @@ pub fn paint_ime_preedit_text_visuals(
             painter,
             cursor_rect.translate(pos.to_vec2()),
             time_since_last_interaction,
-        );
-    } else {
-        paint_underlines(
-            pos,
-            painter,
-            galley,
-            galley.layout_from_cursor(preedit_range.start + relative_active_range.start.index),
-            galley.layout_from_cursor(preedit_range.start + relative_active_range.end.index),
-            inactive_underline_stroke,
         );
     }
 }
