@@ -612,7 +612,10 @@ pub enum ImeEvent {
     ///
     /// An empty preedit string indicates that the IME has been dismissed, while
     /// a non-empty preedit string indicates that the IME is active.
-    Preedit(String),
+    Preedit {
+        text: String,
+        active_range_chars: Option<std::ops::Range<usize>>,
+    },
 
     /// IME composition ended with this final result.
     ///

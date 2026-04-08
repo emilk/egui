@@ -1038,6 +1038,7 @@ pub struct Visuals {
     pub widgets: Widgets,
 
     pub selection: Selection,
+    pub ime_preedit: ImePreedit,
 
     /// The color used for [`crate::Hyperlink`],
     pub hyperlink_color: Color32,
@@ -1206,6 +1207,13 @@ pub struct Selection {
 
     /// Color of selected text.
     pub stroke: Stroke,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+pub struct ImePreedit {
+    pub active_underline_stroke: Stroke,
 }
 
 /// Shape of the handle for sliders and similar widgets.
@@ -1491,6 +1499,7 @@ impl Visuals {
             weak_text_color: None,
             widgets: Widgets::default(),
             selection: Selection::default(),
+            ime_preedit: ImePreedit::default(),
             hyperlink_color: Color32::from_rgb(90, 170, 255),
             faint_bg_color: Color32::from_additive_luminance(5), // visible, but barely so
             extreme_bg_color: Color32::from_gray(10),            // e.g. TextEdit background
@@ -1554,6 +1563,7 @@ impl Visuals {
             },
             widgets: Widgets::light(),
             selection: Selection::light(),
+            ime_preedit: ImePreedit::light(),
             hyperlink_color: Color32::from_rgb(0, 155, 255),
             faint_bg_color: Color32::from_additive_luminance(5), // visible, but barely so
             extreme_bg_color: Color32::from_gray(255),           // e.g. TextEdit background
@@ -1612,6 +1622,28 @@ impl Selection {
 }
 
 impl Default for Selection {
+    fn default() -> Self {
+        Self::dark()
+    }
+}
+
+impl ImePreedit {
+    fn dark() -> Self {
+        Self {
+            // Same as the default value of [`TextCursorStyle::stroke`] in dark mode.
+            active_underline_stroke: Stroke::new(2.0, Color32::from_rgb(192, 222, 255)),
+        }
+    }
+
+    fn light() -> Self {
+        Self {
+            // Same as the default value of [`TextCursorStyle::stroke`] in light mode.
+            active_underline_stroke: Stroke::new(2.0, Color32::from_rgb(0, 83, 125)),
+        }
+    }
+}
+
+impl Default for ImePreedit {
     fn default() -> Self {
         Self::dark()
     }
@@ -2138,6 +2170,22 @@ impl Selection {
     }
 }
 
+impl ImePreedit {
+    pub fn ui(&mut self, ui: &mut crate::Ui) {
+        let Self {
+            active_underline_stroke,
+        } = self;
+
+        ui.label("IME preedit");
+
+        Grid::new("ime_preedit").num_columns(2).show(ui, |ui| {
+            ui.label("Active underline stroke");
+            ui.add(active_underline_stroke);
+            ui.end_row();
+        });
+    }
+}
+
 impl WidgetVisuals {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
@@ -2194,6 +2242,7 @@ impl Visuals {
             weak_text_color,
             widgets,
             selection,
+            ime_preedit,
             hyperlink_color,
             faint_bg_color,
             extreme_bg_color,
@@ -2401,6 +2450,7 @@ impl Visuals {
 
         ui.collapsing("Widgets", |ui| widgets.ui(ui));
         ui.collapsing("Selection", |ui| selection.ui(ui));
+        ui.collapsing("IME preedit", |ui| ime_preedit.ui(ui));
 
         ui.collapsing("Misc", |ui| {
             ui.add(Slider::new(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));

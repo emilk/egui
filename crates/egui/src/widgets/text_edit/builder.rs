@@ -822,7 +822,10 @@ impl TextEdit<'_> {
         if ui.is_rect_visible(inner_rect) {
             let has_focus = ui.memory(|mem| mem.has_focus(id));
 
-            if has_focus && let Some(cursor_range) = state.cursor.range(&galley) {
+            if has_focus
+                && state.cursor_purpose.is_selection()
+                && let Some(cursor_range) = state.cursor.range(&galley)
+            {
                 // Add text selection rectangles to the galley:
                 paint_text_selection(&mut galley, ui.visuals(), &cursor_range, None);
             }
@@ -854,12 +857,33 @@ impl TextEdit<'_> {
                     // * Don't repaint the ui because of a blinking cursor in an app that is not in focus
                     let viewport_has_focus = ui.input(|i| i.focused);
                     if viewport_has_focus {
-                        text_selection::visuals::paint_text_cursor(
-                            ui,
-                            &painter,
-                            primary_cursor_rect,
-                            now - state.last_interaction_time,
-                        );
+                        let time_since_last_interaction = now - state.last_interaction_time;
+                        match &state.cursor_purpose {
+                            TextEditCursorPurpose::Selection => {
+                                text_selection::visuals::paint_text_cursor(
+                                    ui,
+                                    &painter,
+                                    primary_cursor_rect,
+                                    time_since_last_interaction,
+                                );
+                            }
+                            TextEditCursorPurpose::ImeComposition { active_range } => {
+                                text_selection::visuals::paint_ime_preedit_text_visuals(
+                                    galley_pos,
+                                    ui,
+                                    &painter,
+                                    &galley,
+                                    ui.visuals(),
+                                    row_height,
+                                    {
+                                        let [start, end] = cursor_range.sorted_cursors();
+                                        start..end
+                                    },
+                                    active_range.clone(),
+                                    time_since_last_interaction,
+                                );
+                            }
+                        }
                     }
                     if ui.memory(|mem| mem.owns_ime_events(id)) {
                         // Set IME output (in screen coords) when text is editable and visible
@@ -1173,25 +1197,37 @@ fn events(
                     // integration, but since this guard is harmless for well-
                     // behaved integrations and also fixes the issue described
                     // above, it is good enough for now.
-                    ImeEvent::Preedit(composition_text) | ImeEvent::Commit(composition_text)
+                    ImeEvent::Preedit {
+                        text: composition_text,
+                        ..
+                    }
+                    | ImeEvent::Commit(composition_text)
                         if composition_text.is_empty()
-                            && !matches!(
-                                state.cursor_purpose,
-                                TextEditCursorPurpose::ImeComposition
-                            ) =>
+                            && !state.cursor_purpose.is_ime_composition() =>
                     {
                         None
                     }
-                    ImeEvent::Preedit(composition_text) | ImeEvent::Commit(composition_text)
+                    ImeEvent::Preedit {
+                        text: composition_text,
+                        ..
+                    }
+                    | ImeEvent::Commit(composition_text)
                         if composition_text == "\n" || composition_text == "\r" =>
                     {
                         None
                     }
-                    ImeEvent::Preedit(preedit_text) => {
+                    ImeEvent::Preedit {
+                        text: preedit_text,
+                        active_range_chars,
+                    } => {
                         state.cursor_purpose = if preedit_text.is_empty() {
                             TextEditCursorPurpose::Selection
                         } else {
-                            TextEditCursorPurpose::ImeComposition
+                            TextEditCursorPurpose::ImeComposition {
+                                active_range: active_range_chars.clone().map(|range| {
+                                    CCursor::new(range.start)..CCursor::new(range.end)
+                                }),
+                            }
                         };
                         let mut ccursor = clear_preedit_text(text, &cursor_range);
 
