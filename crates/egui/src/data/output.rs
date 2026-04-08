@@ -79,6 +79,9 @@ pub struct IMEOutput {
     ///
     /// This is a very thin rectangle.
     pub cursor_rect: crate::Rect,
+
+    /// Whether any ongoing IME composition should be interrupted.
+    pub should_interrupt_composition: bool,
 }
 
 /// Commands that the egui integration should execute at the end of a frame.

@@ -2612,6 +2612,12 @@ impl ContextImpl {
 
         let mut platform_output: PlatformOutput = std::mem::take(&mut viewport.output);
 
+        if self.memory.should_interrupt_ime()
+            && let Some(ime) = &mut platform_output.ime
+        {
+            ime.should_interrupt_composition = true;
+        }
+
         {
             profiling::scope!("accesskit");
             let state = viewport.this_pass.accesskit_state.take();
