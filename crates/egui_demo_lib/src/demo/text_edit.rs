@@ -1,4 +1,4 @@
-use egui::{Align, Align2, AtomExt};
+use egui::{Align, Align2, AtomExt as _};
 
 /// Showcase [`egui::TextEdit`].
 #[derive(PartialEq, Eq)]

@@ -4,8 +4,8 @@ use emath::{Rect, TSTransform};
 use epaint::text::{Galley, LayoutJob, TextWrapMode, cursor::CCursor};
 
 use crate::{
-    Align, Align2, Atom, AtomExt as _, AtomKind, AtomLayout, Atoms, Color32, Context, CursorIcon,
-    Event, EventFilter, FontSelection, Frame, Id, ImeEvent, IntoAtoms, IntoSizedResult, Key,
+    Align, Align2, AtomExt as _, AtomKind, AtomLayout, Atoms, Color32, Context, CursorIcon, Event,
+    EventFilter, FontSelection, Frame, Id, ImeEvent, IntoAtoms, IntoSizedResult, Key,
     KeyboardShortcut, Margin, Modifiers, NumExt as _, Response, Sense, SizedAtomKind, TextBuffer,
     TextStyle, Ui, Vec2, Widget, WidgetInfo, WidgetWithState, epaint,
     os::OperatingSystem,
@@ -486,6 +486,7 @@ impl TextEdit<'_> {
                 LayoutJob::simple_singleline(text, font_id_clone.clone(), text_color)
             };
             layout_job.halign = align.x();
+            // We want to keep the trailing whitespace, since hiding it feels really weird when typing
             layout_job.keep_trailing_whitespace = true;
             ui.fonts_mut(|f| f.layout_job(layout_job))
         };
@@ -741,8 +742,7 @@ impl TextEdit<'_> {
             // TODO(emilk): drag selected text to either move or clone (ctrl on windows, alt on mac)
 
             let cursor_at_pointer = galley.cursor_from_pos(
-                pointer_pos - inner_rect.min + state.text_offset
-                    + vec2(galley.rect.left(), 0.0),
+                pointer_pos - inner_rect.min + state.text_offset + vec2(galley.rect.left(), 0.0),
             );
 
             if ui.visuals().text_cursor.preview
