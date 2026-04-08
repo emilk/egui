@@ -623,6 +623,11 @@ impl TextEdit<'_> {
 
                 get_galley = Some(galley);
             } else {
+                // We need to shrink when clip_text, so that we don't exceed the available size
+                // and thus clip. We also need to shrink in multi line text edits, so text can
+                // wrap appropriately.
+                let should_shrink = clip_text || multiline;
+
                 // We need a closure here, so we can calculate the galley based on the available
                 // width (after adding suffix and prefix), for correct wrapping in multi line text
                 // edits
@@ -652,7 +657,7 @@ impl TextEdit<'_> {
                     .atom_grow(true)
                     .atom_align(self.align)
                     .atom_id(inner_rect_id)
-                    .atom_shrink(clip_text),
+                    .atom_shrink(should_shrink),
                 );
             }
 
