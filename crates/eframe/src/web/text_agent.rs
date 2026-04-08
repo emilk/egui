@@ -85,7 +85,11 @@ impl TextAgent {
         let on_composition_update = {
             move |event: web_sys::CompositionEvent, runner: &mut AppRunner| {
                 let Some(text) = event.data() else { return };
-                let event = egui::Event::Ime(egui::ImeEvent::Preedit(text));
+                let event = egui::Event::Ime(egui::ImeEvent::Preedit {
+                    text,
+                    // TODO(umajho): implement this.
+                    active_range_chars: None,
+                });
                 runner.input.raw.events.push(event);
                 runner.needs_repaint.repaint_asap();
             }
