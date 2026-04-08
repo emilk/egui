@@ -1214,6 +1214,7 @@ pub struct Selection {
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct ImePreedit {
     pub active_underline_stroke: Stroke,
+    pub inactive_underline_stroke: Stroke,
 }
 
 /// Shape of the handle for sliders and similar widgets.
@@ -1629,16 +1630,28 @@ impl Default for Selection {
 
 impl ImePreedit {
     fn dark() -> Self {
+        // Same as the default value of [`TextCursorStyle::stroke`] in dark mode.
+        let active_underline_stroke = Stroke::new(2.0, Color32::from_rgb(192, 222, 255));
+        let inactive_underline_stroke = Stroke {
+            width: active_underline_stroke.width,
+            color: active_underline_stroke.color.linear_multiply(0.5),
+        };
         Self {
-            // Same as the default value of [`TextCursorStyle::stroke`] in dark mode.
             active_underline_stroke: Stroke::new(2.0, Color32::from_rgb(192, 222, 255)),
+            inactive_underline_stroke,
         }
     }
 
     fn light() -> Self {
+        // Same as the default value of [`TextCursorStyle::stroke`] in light mode.
+        let active_underline_stroke = Stroke::new(2.0, Color32::from_rgb(0, 83, 125));
+        let inactive_underline_stroke = Stroke {
+            width: active_underline_stroke.width,
+            color: active_underline_stroke.color.linear_multiply(0.5),
+        };
         Self {
-            // Same as the default value of [`TextCursorStyle::stroke`] in light mode.
-            active_underline_stroke: Stroke::new(2.0, Color32::from_rgb(0, 83, 125)),
+            active_underline_stroke,
+            inactive_underline_stroke,
         }
     }
 }
@@ -2174,6 +2187,7 @@ impl ImePreedit {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
             active_underline_stroke,
+            inactive_underline_stroke,
         } = self;
 
         ui.label("IME preedit");
@@ -2181,6 +2195,10 @@ impl ImePreedit {
         Grid::new("ime_preedit").num_columns(2).show(ui, |ui| {
             ui.label("Active underline stroke");
             ui.add(active_underline_stroke);
+            ui.end_row();
+
+            ui.label("Inactive underline stroke");
+            ui.add(inactive_underline_stroke);
             ui.end_row();
         });
     }

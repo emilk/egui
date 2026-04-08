@@ -146,10 +146,7 @@ pub fn paint_ime_preedit_text_visuals(
     }
 
     let active_underline_stroke = visuals.ime_preedit.active_underline_stroke;
-    let inactive_underline_stroke = Stroke {
-        width: active_underline_stroke.width,
-        color: active_underline_stroke.color.linear_multiply(0.5),
-    };
+    let inactive_underline_stroke = visuals.ime_preedit.inactive_underline_stroke;
 
     if let Some(relative_active_range) = &relative_active_range
         && !relative_active_range.is_empty()
