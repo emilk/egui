@@ -1,3 +1,5 @@
+#![expect(deprecated)] // TODO(emilk): Remove legacy panels
+
 use ahash::HashMap;
 
 use crate::{Align, Id, IdMap, LayerId, Rangef, Rect, Vec2, WidgetRects, id::IdSet, style};
@@ -199,15 +201,28 @@ pub struct PassState {
 
     pub tooltips: TooltipPassState,
 
+    /// What the root UI had available at the end of the previous pass.
+    ///
+    /// Only set if [`crate::Context::run_ui`] has been called.
+    pub root_ui_available_rect: Option<Rect>,
+
+    /// What the root UI had used at the end of the previous pass.
+    ///
+    /// Only set if [`crate::Context::run_ui`] has been called.
+    pub root_ui_min_rect: Option<Rect>,
+
     /// Starts off as the `screen_rect`, shrinks as panels are added.
     /// The [`crate::CentralPanel`] does not change this.
+    #[deprecated = "Only used by legacy Context-Panels"]
     pub available_rect: Rect,
 
     /// Starts off as the `screen_rect`, shrinks as panels are added.
     /// The [`crate::CentralPanel`] retracts from this.
+    #[deprecated = "Only used by legacy Context-Panels"]
     pub unused_rect: Rect,
 
     /// How much space is used by panels.
+    #[deprecated = "Only used by legacy Context-Panels"]
     pub used_by_panels: Rect,
 
     /// The current scroll area should scroll to this range (horizontal, vertical).
@@ -240,6 +255,8 @@ impl Default for PassState {
             widgets: Default::default(),
             layers: Default::default(),
             tooltips: Default::default(),
+            root_ui_available_rect: None,
+            root_ui_min_rect: None,
             available_rect: Rect::NAN,
             unused_rect: Rect::NAN,
             used_by_panels: Rect::NAN,
@@ -262,6 +279,8 @@ impl PassState {
             widgets,
             tooltips,
             layers,
+            root_ui_available_rect,
+            root_ui_min_rect,
             available_rect,
             unused_rect,
             used_by_panels,
@@ -278,6 +297,8 @@ impl PassState {
         widgets.clear();
         tooltips.clear();
         layers.clear();
+        *root_ui_available_rect = None;
+        *root_ui_min_rect = None;
         *available_rect = content_rect;
         *unused_rect = content_rect;
         *used_by_panels = Rect::NOTHING;
@@ -295,6 +316,7 @@ impl PassState {
     }
 
     /// How much space is still available after panels has been added.
+    #[deprecated = "Only used by legacy Context-Panels"]
     pub(crate) fn available_rect(&self) -> Rect {
         debug_assert!(
             self.available_rect.is_finite(),
@@ -304,6 +326,7 @@ impl PassState {
     }
 
     /// Shrink `available_rect`.
+    #[deprecated = "Only used by legacy Context-Panels"]
     pub(crate) fn allocate_left_panel(&mut self, panel_rect: Rect) {
         debug_assert!(
             panel_rect.min.distance(self.available_rect.min) < 0.1,
@@ -315,6 +338,7 @@ impl PassState {
     }
 
     /// Shrink `available_rect`.
+    #[deprecated = "Only used by legacy Context-Panels"]
     pub(crate) fn allocate_right_panel(&mut self, panel_rect: Rect) {
         debug_assert!(
             panel_rect.max.distance(self.available_rect.max) < 0.1,
@@ -326,6 +350,7 @@ impl PassState {
     }
 
     /// Shrink `available_rect`.
+    #[deprecated = "Only used by legacy Context-Panels"]
     pub(crate) fn allocate_top_panel(&mut self, panel_rect: Rect) {
         debug_assert!(
             panel_rect.min.distance(self.available_rect.min) < 0.1,
@@ -337,6 +362,7 @@ impl PassState {
     }
 
     /// Shrink `available_rect`.
+    #[deprecated = "Only used by legacy Context-Panels"]
     pub(crate) fn allocate_bottom_panel(&mut self, panel_rect: Rect) {
         debug_assert!(
             panel_rect.max.distance(self.available_rect.max) < 0.1,
@@ -347,6 +373,7 @@ impl PassState {
         self.used_by_panels |= panel_rect;
     }
 
+    #[deprecated = "Only used by legacy Context-Panels"]
     pub(crate) fn allocate_central_panel(&mut self, panel_rect: Rect) {
         // Note: we do not shrink `available_rect`, because
         // we allow windows to cover the CentralPanel.
