@@ -793,7 +793,7 @@ impl Context {
         let plugins = self.read(|ctx| ctx.plugins.ordered_plugins());
         #[expect(deprecated)]
         self.run(new_input, |ctx| {
-            let mut top_ui = Ui::new(
+            let mut root_ui = Ui::new(
                 ctx.clone(),
                 Id::new((ctx.viewport_id(), "__top_ui")),
                 UiBuilder::new()
@@ -802,14 +802,15 @@ impl Context {
             );
 
             {
-                plugins.on_begin_pass(&mut top_ui);
-                run_ui(&mut top_ui);
-                plugins.on_end_pass(&mut top_ui);
+                plugins.on_begin_pass(&mut root_ui);
+                run_ui(&mut root_ui);
+                plugins.on_end_pass(&mut root_ui);
             }
 
-            // Inform ctx about what we actually used, so we can shrink the native window to fit.
-            // TODO(emilk): make better use of this somehow
-            ctx.pass_state_mut(|state| state.allocate_central_panel(top_ui.min_rect()));
+            ctx.pass_state_mut(|state| {
+                state.root_ui_available_rect = Some(root_ui.available_rect_before_wrap());
+                state.root_ui_min_rect = Some(root_ui.min_rect());
+            });
         })
     }
 
@@ -2848,13 +2849,21 @@ impl Context {
     /// How much space is still available after panels have been added.
     #[deprecated = "Use content_rect (or viewport_rect) instead"]
     pub fn available_rect(&self) -> Rect {
+        #[expect(deprecated)] // legacy
         self.pass_state(|s| s.available_rect()).round_ui()
     }
 
     /// How much space is used by windows and the top-level [`Ui`].
     pub fn globally_used_rect(&self) -> Rect {
         self.write(|ctx| {
-            let mut used = ctx.viewport().this_pass.used_by_panels;
+            let viewport = ctx.viewport();
+            let root_ui_min_rect =
+                (viewport.this_pass.root_ui_min_rect).or(viewport.prev_pass.root_ui_min_rect);
+
+            let mut used = root_ui_min_rect.unwrap_or_else(|| {
+                #[expect(deprecated)] // legacy
+                ctx.viewport().this_pass.used_by_panels
+            });
             for (_id, window) in ctx.memory.areas().visible_windows() {
                 used |= window.rect();
             }
@@ -2881,18 +2890,27 @@ impl Context {
     /// Is the pointer (mouse/touch) over any egui area?
     pub fn is_pointer_over_egui(&self) -> bool {
         let pointer_pos = self.input(|i| i.pointer.interact_pos());
-        if let Some(pointer_pos) = pointer_pos {
-            if let Some(layer) = self.layer_id_at(pointer_pos) {
-                if layer.order == Order::Background {
-                    !self.pass_state(|state| state.unused_rect.contains(pointer_pos))
-                } else {
-                    true
-                }
+        let Some(pointer_pos) = pointer_pos else {
+            return false;
+        };
+        let Some(layer) = self.layer_id_at(pointer_pos) else {
+            return false;
+        };
+        if layer.order == Order::Background {
+            let root_ui_available_rect = self
+                .pass_state(|state| state.root_ui_available_rect)
+                .or_else(|| self.prev_pass_state(|state| state.root_ui_available_rect));
+
+            if let Some(root_ui_available_rect) = root_ui_available_rect {
+                // Modern `run_ui` code
+                !root_ui_available_rect.contains(pointer_pos)
             } else {
-                false
+                // Legacy code
+                #[expect(deprecated)]
+                !self.pass_state(|state| state.unused_rect.contains(pointer_pos))
             }
         } else {
-            false
+            true
         }
     }
 
