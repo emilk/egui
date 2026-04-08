@@ -20,12 +20,6 @@ pub struct TextAgent {
 struct InputState {
     input: web_sys::HtmlInputElement,
     last_text: String,
-
-    /// Workaround for Gboard on Android, which sometimes sends a
-    /// `KeyboardEvent` with `key` set to `"Process"` (Firefox) or
-    /// `"Unidentified"` (Chrome) for backspace presses. In both cases, the
-    /// `keyCode` is `229`, hence the name `has_received_229`.
-    has_received_229: bool,
 }
 
 impl InputState {
@@ -33,20 +27,12 @@ impl InputState {
         Self {
             input,
             last_text: String::new(),
-            has_received_229: false,
         }
     }
 
     fn clear(&mut self) {
         self.input.set_value("");
         self.last_text.clear();
-        self.has_received_229 = false;
-    }
-
-    fn take_has_received_229(&mut self) -> bool {
-        let has_received_229 = self.has_received_229;
-        self.has_received_229 = false;
-        has_received_229
     }
 }
 
@@ -98,20 +84,6 @@ impl TextAgent {
                 let mut input_state_ref = input_state.borrow_mut();
                 if !event.is_composing() && event.input_type() != "insertText" {
                     input_state_ref.clear();
-
-                    if event.input_type() == "deleteContentBackward"
-                        && input_state_ref.take_has_received_229()
-                    {
-                        for pressed in [true, false] {
-                            runner.input.raw.events.push(egui::Event::Key {
-                                key: egui::Key::Backspace,
-                                physical_key: None, // TODO(fornwall)
-                                pressed,
-                                repeat: false,
-                                modifiers: egui::Modifiers::default(),
-                            });
-                        }
-                    }
 
                     return;
                 }
@@ -180,25 +152,8 @@ impl TextAgent {
             move |event: web_sys::KeyboardEvent, runner: &mut AppRunner| {
                 let mut input_state_ref = input_state.borrow_mut();
 
-                if event.key_code() == 229 {
-                    input_state_ref.has_received_229 = true;
-
-                    let reset_received_229 = {
-                        let input_state = Rc::clone(&input_state);
-                        Closure::once_into_js(move || {
-                            input_state.borrow_mut().has_received_229 = false;
-                        })
-                    };
-
-                    window
-                        .set_timeout_with_callback(reset_received_229.unchecked_ref())
-                        .ok();
-
-                    return;
-                }
-
                 // https://web.archive.org/web/20200526195704/https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
-                if event.is_composing() {
+                if event.is_composing() || event.key_code() == 229 {
                     return;
                 }
 
