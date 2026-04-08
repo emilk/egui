@@ -480,11 +480,13 @@ impl TextEdit<'_> {
         let font_id_clone = font_id.clone();
         let mut default_layouter = move |ui: &Ui, text: &dyn TextBuffer, wrap_width: f32| {
             let text = mask_if_password(password, text.as_str());
-            let layout_job = if multiline {
+            let mut layout_job = if multiline {
                 LayoutJob::simple(text, font_id_clone.clone(), text_color, wrap_width)
             } else {
                 LayoutJob::simple_singleline(text, font_id_clone.clone(), text_color)
             };
+            layout_job.halign = align.x();
+            layout_job.keep_trailing_whitespace = true;
             ui.fonts_mut(|f| f.layout_job(layout_job))
         };
 
@@ -591,6 +593,7 @@ impl TextEdit<'_> {
                     if !shrunk && matches!(atom.kind, AtomKind::Text(_)) {
                         // elide the hint_text if needed
                         atom = atom.atom_shrink(true);
+                        atom = atom.atom_grow(true);
                         shrunk = true;
                     }
 
@@ -645,14 +648,11 @@ impl TextEdit<'_> {
                             sized: SizedAtomKind::Empty { size: Some(size) },
                         }
                     })
+                    .atom_grow(true)
+                    .atom_align(self.align)
                     .atom_id(inner_rect_id)
                     .atom_shrink(clip_text),
                 );
-            }
-
-            // Ensure the suffix is always right-aligned
-            if !suffix.is_empty() {
-                atoms.push_right(Atom::grow());
             }
 
             // TODO(servo/rust-smallvec#146): Use extend_right instead of the loop once we have
@@ -679,7 +679,7 @@ impl TextEdit<'_> {
                 .max_width(allocate_width)
                 .sense(sense)
                 .frame(frame)
-                .align2(Align2::LEFT_TOP)
+                .align2(align)
                 .wrap_mode(wrap_mode)
                 .allocate(ui);
 
@@ -740,16 +740,19 @@ impl TextEdit<'_> {
 
             // TODO(emilk): drag selected text to either move or clone (ctrl on windows, alt on mac)
 
-            let cursor_at_pointer =
-                galley.cursor_from_pos(pointer_pos - inner_rect.min + state.text_offset);
+            let cursor_at_pointer = galley.cursor_from_pos(
+                pointer_pos - inner_rect.min + state.text_offset
+                    + vec2(galley.rect.left(), 0.0),
+            );
 
             if ui.visuals().text_cursor.preview
                 && response.hovered()
                 && ui.input(|i| i.pointer.is_moving())
             {
                 // text cursor preview:
-                let cursor_rect = TSTransform::from_translation(inner_rect.min.to_vec2())
-                    * cursor_rect(&galley, &cursor_at_pointer, row_height);
+                let cursor_rect = TSTransform::from_translation(
+                    inner_rect.min.to_vec2() - vec2(galley.rect.left(), 0.0),
+                ) * cursor_rect(&galley, &cursor_at_pointer, row_height);
                 text_selection::visuals::paint_cursor_end(&painter, ui.visuals(), cursor_rect);
             }
 
@@ -835,7 +838,7 @@ impl TextEdit<'_> {
 
             if has_focus && let Some(cursor_range) = state.cursor.range(&galley) {
                 let primary_cursor_rect = cursor_rect(&galley, &cursor_range.primary, row_height)
-                    .translate(galley_pos.to_vec2());
+                    .translate(galley_pos.to_vec2() - vec2(galley.rect.left(), 0.0));
 
                 if response.changed() || selection_changed {
                     // Scroll to keep primary cursor in view:

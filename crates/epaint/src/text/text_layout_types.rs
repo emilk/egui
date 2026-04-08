@@ -79,6 +79,14 @@ pub struct LayoutJob {
 
     /// Round output sizes using [`emath::GuiRounding`], to avoid rounding errors in layout code.
     pub round_output_to_gui: bool,
+
+    /// If `false` (default), trailing whitespace is ignored when computing
+    /// horizontal alignment ([`Self::halign`]).
+    /// This is desirable for labels so that e.g. "Hello " centers the same as "Hello".
+    ///
+    /// If `true`, trailing whitespace is included in the row width used for alignment.
+    /// This is desirable for text editors where the user expects to see their spaces.
+    pub keep_trailing_whitespace: bool,
 }
 
 impl Default for LayoutJob {
@@ -93,6 +101,7 @@ impl Default for LayoutJob {
             halign: Align::LEFT,
             justify: false,
             round_output_to_gui: true,
+            keep_trailing_whitespace: false,
         }
     }
 }
@@ -216,6 +225,7 @@ impl std::hash::Hash for LayoutJob {
             halign,
             justify,
             round_output_to_gui,
+            keep_trailing_whitespace,
         } = self;
 
         text.hash(state);
@@ -226,6 +236,7 @@ impl std::hash::Hash for LayoutJob {
         halign.hash(state);
         justify.hash(state);
         round_output_to_gui.hash(state);
+        keep_trailing_whitespace.hash(state);
     }
 }
 
@@ -1244,7 +1255,8 @@ impl Galley {
 
             let new_layout_cursor = {
                 // keep same X coord
-                let column = self.rows[new_row].char_at(h_pos);
+                // char_at is Row-relative, so subtract the row's position
+                let column = self.rows[new_row].char_at(h_pos - self.rows[new_row].pos.x);
                 LayoutCursor {
                     row: new_row,
                     column,
@@ -1266,7 +1278,8 @@ impl Galley {
 
             let new_layout_cursor = {
                 // keep same X coord
-                let column = self.rows[new_row].char_at(h_pos);
+                // char_at is Row-relative, so subtract the row's position
+                let column = self.rows[new_row].char_at(h_pos - self.rows[new_row].pos.x);
                 LayoutCursor {
                     row: new_row,
                     column,

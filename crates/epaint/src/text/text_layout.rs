@@ -161,6 +161,7 @@ pub fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<LayoutJob>)
                 job.halign,
                 job.wrap.max_width,
                 justify_row,
+                job.keep_trailing_whitespace,
             );
         }
     }
@@ -788,6 +789,7 @@ fn halign_and_justify_row(
     halign: Align,
     wrap_width: f32,
     justify: bool,
+    keep_trailing_whitespace: bool,
 ) {
     #![expect(clippy::useless_let_if_seq)] // False positive
 
@@ -806,6 +808,8 @@ fn halign_and_justify_row(
     let glyph_range = if num_leading_spaces == row.glyphs.len() {
         // There is only whitespace
         (0, row.glyphs.len())
+    } else if keep_trailing_whitespace {
+        (num_leading_spaces, row.glyphs.len())
     } else {
         let num_trailing_spaces = row
             .glyphs
