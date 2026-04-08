@@ -178,16 +178,13 @@ fn ccursor_next_line(text: &str, ccursor: CCursor) -> CCursor {
 }
 
 pub fn ccursor_previous_word(text: &str, ccursor: CCursor) -> CCursor {
-    if ccursor.index == 0 {
-        return ccursor;
+    let num_chars = text.chars().count();
+    let reversed: String = text.graphemes(true).rev().collect();
+    CCursor {
+        index: num_chars
+            - next_word_boundary_char_index(&reversed, num_chars - ccursor.index).min(num_chars),
+        prefer_next_row: true,
     }
-    let byte_idx = byte_index_from_char_index(text, ccursor.index);
-    let text_before = &text[..byte_idx];
-
-    if let Some((byte_offset, _word)) = text_before.split_word_bound_indices().next_back() {
-        return CCursor::new(char_index_from_byte_index(text, byte_offset));
-    }
-    CCursor::new(0)
 }
 
 fn ccursor_previous_line(text: &str, ccursor: CCursor) -> CCursor {
@@ -354,5 +351,53 @@ mod test {
         assert_eq!(next_word_boundary_char_index(text, 15), 19);
         assert_eq!(next_word_boundary_char_index(text, 19), 20);
         assert_eq!(next_word_boundary_char_index(text, 20), 21);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_previous_word_graphemes() {
+        let cases = [
+            ("", 0, 0),
+            ("hello", 0, 0),
+            ("hello", "hello".chars().count(), 0),
+            ("hello world", 6, 0),
+            ("hello world", 8, 6),
+            ("hello world", "hello world".chars().count(), 6),
+            ("hello world   ", "hello world   ".chars().count(), 6),
+            ("hello   world", "hello   world".chars().count(), 8),
+            ("   ", "   ".chars().count(), 0),
+            ("hello, world", "hello, world".chars().count(), 7),
+            ("www.example.com", "www.example.com".chars().count(), 12),
+            ("안녕! 😊 세상", 8, 6),
+            ("❤️👍 skvělá knihovna 👍❤️", 18, 11),
+            (
+                "a e\u{301} b",
+                "a e\u{301} b".chars().count(),
+                "a e\u{301} ".chars().count(),
+            ),
+            (
+                "hi 🙂 world",
+                "hi 🙂 world".chars().count(),
+                "hi 🙂 ".chars().count(),
+            ),
+            (
+                "hi 👨‍👩‍👧‍👦 world",
+                "hi 👨‍👩‍👧‍👦 world".chars().count(),
+                "hi 👨‍👩‍👧‍👦 ".chars().count(),
+            ),
+        ];
+
+        for (text, cursor, expected) in cases {
+            let result = ccursor_previous_word(text, CCursor::new(cursor));
+            assert_eq!(
+                result.index, expected,
+                "text={text:?}, cursor={cursor}, got={}, expected={expected}",
+                result.index
+            );
+        }
     }
 }
