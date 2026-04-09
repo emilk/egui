@@ -130,12 +130,11 @@ pub fn paint_text_selection(
 }
 
 #[expect(clippy::too_many_arguments)]
-pub fn paint_ime_preedit_text_visuals(
+pub(crate) fn paint_ime_preedit_text_visuals(
     pos: Pos2,
     ui: &Ui,
     painter: &Painter,
     galley: &Arc<Galley>,
-    visuals: &Visuals,
     row_height: f32,
     preedit_range: std::ops::Range<CCursor>,
     relative_active_range: Option<std::ops::Range<CCursor>>,
@@ -145,6 +144,7 @@ pub fn paint_ime_preedit_text_visuals(
         return;
     }
 
+    let visuals = ui.visuals();
     let active_underline_stroke = visuals.ime_preedit.active_underline_stroke;
     let inactive_underline_stroke = visuals.ime_preedit.inactive_underline_stroke;
 

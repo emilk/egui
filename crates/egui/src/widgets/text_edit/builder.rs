@@ -873,7 +873,6 @@ impl TextEdit<'_> {
                                     ui,
                                     &painter,
                                     &galley,
-                                    ui.visuals(),
                                     row_height,
                                     {
                                         let [start, end] = cursor_range.sorted_cursors();
