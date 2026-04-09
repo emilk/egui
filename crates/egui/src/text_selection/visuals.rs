@@ -144,7 +144,7 @@ pub(crate) fn paint_ime_preedit_text_visuals(
         return;
     }
 
-    if cfg!(target_os = "windows")
+    if matches!(ui.ctx().os(), crate::os::OperatingSystem::Windows)
         && let Some(r) = &relative_active_range
         && r.start.index == 0
         && r.end.index == 0
