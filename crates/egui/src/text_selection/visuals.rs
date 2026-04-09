@@ -159,8 +159,8 @@ pub(crate) fn paint_ime_preedit_text_visuals(
     }
 
     let visuals = ui.visuals();
-    let active_underline_stroke = visuals.ime_preedit.active_underline_stroke;
-    let inactive_underline_stroke = visuals.ime_preedit.inactive_underline_stroke;
+    let active_underline_stroke = visuals.ime_composition.active_underline_stroke;
+    let inactive_underline_stroke = visuals.ime_composition.inactive_underline_stroke;
 
     if let Some(relative_active_range) = &relative_active_range
         && !relative_active_range.is_empty()

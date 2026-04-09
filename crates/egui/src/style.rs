@@ -1038,7 +1038,7 @@ pub struct Visuals {
     pub widgets: Widgets,
 
     pub selection: Selection,
-    pub ime_preedit: ImePreedit,
+    pub ime_composition: ImeComposition,
 
     /// The color used for [`crate::Hyperlink`],
     pub hyperlink_color: Color32,
@@ -1209,11 +1209,15 @@ pub struct Selection {
     pub stroke: Stroke,
 }
 
+/// Visual style for IME composition.
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
-pub struct ImePreedit {
+pub struct ImeComposition {
+    /// Stroke used to underline the actively composed segment.
     pub active_underline_stroke: Stroke,
+
+    /// Stroke used to underline those non-active segments.
     pub inactive_underline_stroke: Stroke,
 }
 
@@ -1500,7 +1504,7 @@ impl Visuals {
             weak_text_color: None,
             widgets: Widgets::default(),
             selection: Selection::default(),
-            ime_preedit: ImePreedit::default(),
+            ime_composition: ImeComposition::default(),
             hyperlink_color: Color32::from_rgb(90, 170, 255),
             faint_bg_color: Color32::from_additive_luminance(5), // visible, but barely so
             extreme_bg_color: Color32::from_gray(10),            // e.g. TextEdit background
@@ -1564,7 +1568,7 @@ impl Visuals {
             },
             widgets: Widgets::light(),
             selection: Selection::light(),
-            ime_preedit: ImePreedit::light(),
+            ime_composition: ImeComposition::light(),
             hyperlink_color: Color32::from_rgb(0, 155, 255),
             faint_bg_color: Color32::from_additive_luminance(5), // visible, but barely so
             extreme_bg_color: Color32::from_gray(255),           // e.g. TextEdit background
@@ -1628,7 +1632,7 @@ impl Default for Selection {
     }
 }
 
-impl ImePreedit {
+impl ImeComposition {
     fn dark() -> Self {
         // Same as the default value of [`TextCursorStyle::stroke`] in dark mode.
         let active_underline_stroke = Stroke::new(2.0, Color32::from_rgb(192, 222, 255));
@@ -1656,7 +1660,7 @@ impl ImePreedit {
     }
 }
 
-impl Default for ImePreedit {
+impl Default for ImeComposition {
     fn default() -> Self {
         Self::dark()
     }
@@ -2183,16 +2187,16 @@ impl Selection {
     }
 }
 
-impl ImePreedit {
+impl ImeComposition {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
             active_underline_stroke,
             inactive_underline_stroke,
         } = self;
 
-        ui.label("IME preedit");
+        ui.label("IME composition");
 
-        Grid::new("ime_preedit").num_columns(2).show(ui, |ui| {
+        Grid::new("ime_composition").num_columns(2).show(ui, |ui| {
             ui.label("Active underline stroke");
             ui.add(active_underline_stroke);
             ui.end_row();
@@ -2260,7 +2264,7 @@ impl Visuals {
             weak_text_color,
             widgets,
             selection,
-            ime_preedit,
+            ime_composition,
             hyperlink_color,
             faint_bg_color,
             extreme_bg_color,
@@ -2468,7 +2472,7 @@ impl Visuals {
 
         ui.collapsing("Widgets", |ui| widgets.ui(ui));
         ui.collapsing("Selection", |ui| selection.ui(ui));
-        ui.collapsing("IME preedit", |ui| ime_preedit.ui(ui));
+        ui.collapsing("IME preedit", |ui| ime_composition.ui(ui));
 
         ui.collapsing("Misc", |ui| {
             ui.add(Slider::new(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
