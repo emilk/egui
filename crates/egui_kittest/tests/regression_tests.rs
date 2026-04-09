@@ -374,8 +374,7 @@ fn panel_response_rect_clamped_to_panel_bounds() {
     let panel_height = 80.0_f32;
 
     // Use a RefCell so we can read the responses back after `harness.run()`.
-    let side_response: std::cell::RefCell<Option<egui::Response>> =
-        std::cell::RefCell::new(None);
+    let side_response: std::cell::RefCell<Option<egui::Response>> = std::cell::RefCell::new(None);
     let tb_response: std::cell::RefCell<Option<egui::Response>> = std::cell::RefCell::new(None);
 
     let mut harness = Harness::builder()
