@@ -1163,12 +1163,15 @@ impl Prepared {
 
         let outer_rect = Rect::from_min_size(inner_rect.min, inner_rect.size() + current_bar_use);
 
-        // Epsilon to prevent jitter from floating-point rounding.
-        let epsilon = 1.5;
+        let limit_rect = if ui.spacing().scroll.floating {
+            outer_rect
+        } else {
+            inner_rect
+        };
 
         let content_is_too_large = Vec2b::new(
-            direction_enabled[0] && (inner_rect.width() + epsilon < content_size.x),
-            direction_enabled[1] && (inner_rect.height() + epsilon < content_size.y),
+            direction_enabled[0] && (limit_rect.width().ceil() < content_size.x),
+            direction_enabled[1] && (limit_rect.height().ceil() < content_size.y),
         );
 
         let max_offset = content_size - inner_rect.size();
