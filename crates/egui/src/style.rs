@@ -2472,7 +2472,7 @@ impl Visuals {
 
         ui.collapsing("Widgets", |ui| widgets.ui(ui));
         ui.collapsing("Selection", |ui| selection.ui(ui));
-        ui.collapsing("IME preedit", |ui| ime_composition.ui(ui));
+        ui.collapsing("IME composition", |ui| ime_composition.ui(ui));
 
         ui.collapsing("Misc", |ui| {
             ui.add(Slider::new(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
