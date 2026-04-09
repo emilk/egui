@@ -62,14 +62,56 @@ impl TextAgent {
                     input.blur().ok();
                     input.focus().ok();
                 }
-                // if `is_composing` is true, then user is using IME, for example: emoji, pinyin, kanji, hangul, etc.
-                // In that case, the browser emits both `input` and `compositionupdate` events,
-                // and we need to ignore the `input` event.
-                if !text.is_empty() && !event.is_composing() {
-                    input.set_value("");
-                    let event = egui::Event::Text(text);
+
+                if event.is_composing() {
+                    // if `is_composing` is true, then user is using IME, for
+                    // example: emoji, pinyin, kanji, hangul, etc. In that case,
+                    // the browser emits both `input` and `compositionupdate`
+                    // events.
+                    // We handle the composition update here instead of in the
+                    // `compositionupdate` event because the selection range
+                    // has not yet been updated when `compositionupdate` fires.
+
+                    let Some(text) = event.data() else { return };
+                    let selection_start = input
+                        .selection_start()
+                        .unwrap_or(None)
+                        .map(|pos| pos as usize);
+                    let selection_end = input
+                        .selection_end()
+                        .unwrap_or(None)
+                        .map(|pos| pos as usize);
+                    let active_range_chars = if let Some(selection_start) = selection_start
+                        && let Some(selection_end) = selection_end
+                    {
+                        let text_utf16 = text.encode_utf16().collect::<Vec<u16>>();
+                        let text_before_selection =
+                            String::from_utf16_lossy(&text_utf16[..selection_start]);
+                        let text_in_selection =
+                            String::from_utf16_lossy(&text_utf16[selection_start..selection_end]);
+                        let count_before_selection = text_before_selection.chars().count();
+                        let count_in_selection = text_in_selection.chars().count();
+                        Some(count_before_selection..count_before_selection + count_in_selection)
+                    } else {
+                        None
+                    };
+                    let event = egui::Event::Ime(egui::ImeEvent::Preedit {
+                        text,
+                        active_range_chars,
+                    });
                     runner.input.raw.events.push(event);
                     runner.needs_repaint.repaint_asap();
+                } else {
+                    if text.is_empty() {
+                        return;
+                    }
+
+                    if !event.is_composing() {
+                        input.set_value("");
+                        let event = egui::Event::Text(text);
+                        runner.input.raw.events.push(event);
+                        runner.needs_repaint.repaint_asap();
+                    }
                 }
             }
         };
@@ -78,19 +120,6 @@ impl TextAgent {
             move |_: web_sys::CompositionEvent, runner: &mut AppRunner| {
                 // Repaint moves the text agent into place,
                 // see `move_to` in `AppRunner::handle_platform_output`.
-                runner.needs_repaint.repaint_asap();
-            }
-        };
-
-        let on_composition_update = {
-            move |event: web_sys::CompositionEvent, runner: &mut AppRunner| {
-                let Some(text) = event.data() else { return };
-                let event = egui::Event::Ime(egui::ImeEvent::Preedit {
-                    text,
-                    // TODO(umajho): implement this.
-                    active_range_chars: None,
-                });
-                runner.input.raw.events.push(event);
                 runner.needs_repaint.repaint_asap();
             }
         };
@@ -108,7 +137,6 @@ impl TextAgent {
 
         runner_ref.add_event_listener(&input, "input", on_input)?;
         runner_ref.add_event_listener(&input, "compositionstart", on_composition_start)?;
-        runner_ref.add_event_listener(&input, "compositionupdate", on_composition_update)?;
         runner_ref.add_event_listener(&input, "compositionend", on_composition_end)?;
 
         // The canvas doesn't get keydown/keyup events when the text agent is focused,
