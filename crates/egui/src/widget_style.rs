@@ -2,6 +2,7 @@ use std::{borrow::Cow, fmt};
 
 use emath::Vec2;
 use epaint::{Color32, FontId, Shadow, Stroke, text::TextWrapMode};
+use smallvec::SmallVec;
 
 use crate::{
     Frame, Response, Style, TextBuffer as _, TextStyle,
@@ -219,13 +220,14 @@ impl Style {
 
 /// The root class is present on every top-level ui
 pub const ROOT_CLASS: &str = "root";
+pub const SELECTED_CLASS: &str = "selected";
 
 pub type ClassName = Cow<'static, str>;
 
 /// The classes assigned to a widget
 #[derive(Debug, Default, Clone)]
 pub struct Classes {
-    classes: Vec<ClassName>,
+    classes: SmallVec<[ClassName; 5]>,
 }
 
 impl Classes {

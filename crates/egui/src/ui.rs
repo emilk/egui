@@ -140,7 +140,7 @@ impl Ui {
         let disabled = disabled || invisible;
         let style = style.unwrap_or_else(|| ctx.global_style());
         let sense = sense.unwrap_or_else(Sense::hover);
-        let classes = classes.unwrap_or_default().with_class(ROOT_CLASS);
+        let classes = classes.with_class(ROOT_CLASS);
 
         let placer = Placer::new(max_rect, layout);
         let ui_stack = UiStack {
@@ -284,7 +284,6 @@ impl Ui {
         let sizing_pass = self.sizing_pass || sizing_pass;
         let style = style.unwrap_or_else(|| Arc::clone(&self.style));
         let sense = sense.unwrap_or_else(Sense::hover);
-        let classes = classes.unwrap_or_default();
 
         if sizing_pass {
             // During the sizing pass we want widgets to use up as little space as possible,

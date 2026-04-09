@@ -2,6 +2,7 @@ use std::{hash::Hash, sync::Arc};
 
 #[expect(unused_imports)] // Used for doclinks
 use crate::Ui;
+use crate::widget_style::HasClasses;
 use crate::{ClosableTag, widget_style::Classes};
 use crate::{Id, LayerId, Layout, Rect, Sense, Style, UiStackInfo};
 
@@ -25,7 +26,7 @@ pub struct UiBuilder {
     pub style: Option<Arc<Style>>,
     pub sense: Option<Sense>,
     pub accessibility_parent: Option<Id>,
-    pub classes: Option<Classes>,
+    pub classes: Classes,
 }
 
 impl UiBuilder {
@@ -192,11 +193,14 @@ impl UiBuilder {
         self.accessibility_parent = Some(parent_id);
         self
     }
+}
 
-    /// Set classes for this [`Ui`].
-    #[inline]
-    pub fn classes(mut self, classes: Classes) -> Self {
-        self.classes = Some(classes);
-        self
+impl HasClasses for UiBuilder {
+    fn classes(&self) -> &Classes {
+        &self.classes
+    }
+
+    fn classes_mut(&mut self) -> &mut Classes {
+        &mut self.classes
     }
 }

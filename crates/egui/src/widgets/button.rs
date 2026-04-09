@@ -4,7 +4,7 @@ use crate::{
     Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Color32, CornerRadius, Frame,
     Image, IntoAtoms, NumExt as _, Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2,
     Widget, WidgetInfo, WidgetText, WidgetType,
-    widget_style::{ButtonStyle, Classes, HasClasses, WidgetState},
+    widget_style::{ButtonStyle, Classes, HasClasses, SELECTED_CLASS, WidgetState},
 };
 
 /// Clickable button with text.
@@ -308,7 +308,7 @@ impl<'a> Button<'a> {
         let response: Option<Response> = ui.ctx().read_response(id);
         let state = response.map(|r| r.widget_state()).unwrap_or_default();
 
-        classes.add_class_if("selected", selected);
+        classes.add_class_if(SELECTED_CLASS, selected);
 
         let ButtonStyle { frame, text_style } = ui.style().button_style(&classes, state);
 
