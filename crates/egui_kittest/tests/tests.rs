@@ -237,16 +237,24 @@ fn test_ime_composition_visuals() {
     for _ in 0.."Hello. ".len() {
         harness.key_press(egui::Key::ArrowRight);
     }
+
+    let text = "Have you ever seen an IME composing English text? You now see it. ";
+    let text_index_1 = "Have you ever ".chars().count();
+    let text_index_2 = "Have you ever seen an IME composing English text? "
+        .chars()
+        .count();
+
     harness.event(egui::Event::Ime(egui::ImeEvent::Preedit {
-        text: "Have you ever seen an IME composing English text? You now see it. ".to_owned(),
-        active_range_chars: Some(
-            "Have you ever ".chars().count()
-                .."Have you ever seen an IME composing English text? "
-                    .chars()
-                    .count(),
-        ),
+        text: text.to_owned(),
+        active_range_chars: Some(text_index_1..text_index_2),
     }));
     harness.run();
+    harness.snapshot("test_ime_composition_visuals_segment");
 
-    harness.snapshot("test_ime_composition_visuals");
+    harness.event(egui::Event::Ime(egui::ImeEvent::Preedit {
+        text: text.to_owned(),
+        active_range_chars: Some(text_index_2..text_index_2),
+    }));
+    harness.run();
+    harness.snapshot("test_ime_composition_visuals_cursor");
 }
