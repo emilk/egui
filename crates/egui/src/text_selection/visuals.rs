@@ -244,8 +244,10 @@ fn paint_underlines(
             row.size.x
         };
 
+        let offset_y = placed_row.pos.y + row.size.y;
+
         painter.line_segment(
-            [pos + vec2(left, row.size.y), pos + vec2(right, row.size.y)],
+            [pos + vec2(left, offset_y), pos + vec2(right, offset_y)],
             stroke,
         );
     }
