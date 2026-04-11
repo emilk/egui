@@ -214,3 +214,39 @@ fn test_remove_cursor() {
         "The button appearance should change"
     );
 }
+
+#[test]
+fn test_ime_composition_visuals() {
+    let mut harness = Harness::new_ui_state(
+        |ui, state| {
+            egui::TextEdit::multiline(state)
+                .desired_width(120.0)
+                .desired_rows(5)
+                .show(ui);
+        },
+        "Hello. Bye.".to_owned(),
+    );
+
+    harness.fit_contents();
+
+    let text_edit = harness.get_by_role(egui::accesskit::Role::MultilineTextInput);
+    text_edit.focus();
+    harness.run();
+
+    harness.key_press(egui::Key::Home);
+    for _ in 0.."Hello. ".len() {
+        harness.key_press(egui::Key::ArrowRight);
+    }
+    harness.event(egui::Event::Ime(egui::ImeEvent::Preedit {
+        text: "Have you ever seen an IME composing English text? You now see it. ".to_owned(),
+        active_range_chars: Some(
+            "Have you ever ".chars().count()
+                .."Have you ever seen an IME composing English text? "
+                    .chars()
+                    .count(),
+        ),
+    }));
+    harness.run();
+
+    harness.snapshot("test_ime_composition_visuals");
+}
