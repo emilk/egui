@@ -8,8 +8,8 @@ rust-version.workspace = true
 publish = false
 default-run = "egui_demo_app"
 
-[package.metadata.cargo-machete]
-ignored = ["profiling"]
+[package.metadata.cargo-shear]
+ignored = ["image", "profiling", "wasm-bindgen-futures"]
 
 [lints]
 workspace = true
