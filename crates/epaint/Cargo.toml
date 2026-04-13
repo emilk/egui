@@ -48,7 +48,14 @@ mint = ["emath/mint"]
 rayon = ["dep:rayon"]
 
 ## Allow serialization using [`serde`](https://docs.rs/serde).
-serde = ["dep:serde", "ahash/serde", "emath/serde", "ecolor/serde", "font-types/serde", "smallvec/serde"]
+serde = [
+  "dep:serde",
+  "ahash/serde",
+  "ecolor/serde",
+  "emath/serde",
+  "font-types/serde",
+  "smallvec/serde",
+]
 
 ## Change Vertex layout to be compatible with unity
 unity = []
