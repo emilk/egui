@@ -710,28 +710,22 @@ impl WgpuWinitRunning<'_> {
                 }
             });
 
-            // Prepare the parent viewport's frame
-            let parent_prepared = painter.paint_prepare(
+            let mut all_frames = std::mem::take(pending_frames);
+            all_frames.extend(painter.paint_prepare(
                 viewport_id,
                 pixels_per_point,
                 app.clear_color(&egui_ctx.global_style().visuals),
                 &clipped_primitives,
                 &textures_delta,
                 screenshot_commands,
-            );
+            ));
 
-            // Collect all pending frames from immediate viewports + the parent
-            let mut all_frames = std::mem::take(pending_frames);
-            let mut vsync_secs = 0.0f32;
-            if let Some(prepared) = parent_prepared {
-                vsync_secs = prepared.vsync_sec;
-                all_frames.push(prepared);
-            }
-
-            // Batched submit (single queue.submit for all viewports)
-            painter.paint_submit(&mut all_frames);
-            // Present all viewports
-            painter.paint_present(all_frames);
+            let submitted = painter.paint_submit(all_frames);
+            let vsync_pre_present: f32 = submitted
+                .iter()
+                .map(egui_wgpu::winit::SubmittedFrame::vsync_sec)
+                .sum();
+            let vsync_secs = vsync_pre_present + painter.paint_present(submitted);
 
             for action in viewport.actions_requested.drain(..) {
                 match action {

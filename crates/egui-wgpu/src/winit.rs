@@ -11,43 +11,59 @@ use crate::{
 use egui::{Context, Event, UserData, ViewportId, ViewportIdMap, ViewportIdSet};
 use std::{num::NonZeroU32, sync::Arc};
 
-/// Command buffers and textures to free, consumed by [`Painter::paint_submit`].
-struct SubmitData {
-    /// The main encoded command buffer for this viewport.
-    encoded: wgpu::CommandBuffer,
-
-    /// Additional command buffers from user buffer updates.
-    user_cmd_bufs: Vec<wgpu::CommandBuffer>,
-
-    /// Textures to free after submission.
-    textures_to_free: Vec<epaint::TextureId>,
-}
-
-/// Data needed after submission for presenting and screen capture.
-struct PresentData {
-    viewport_id: ViewportId,
-    output_frame: wgpu::SurfaceTexture,
-    capture_data: Vec<UserData>,
-    capture_buffer: Option<wgpu::Buffer>,
-}
-
 /// A frame that has been prepared (textures uploaded, render pass recorded,
 /// commands encoded) but not yet submitted to the GPU queue.
 ///
 /// Collecting multiple [`PreparedFrame`]s allows batching the `queue.submit()`
 /// call across viewports for better performance.
+#[must_use = "PreparedFrame must be passed to Painter::paint_submit to flush GPU work"]
 pub struct PreparedFrame {
-    /// The viewport this frame belongs to.
-    pub viewport_id: ViewportId,
+    viewport_id: ViewportId,
 
-    /// Command buffers to submit. Taken by [`Painter::paint_submit`].
-    submit: Option<SubmitData>,
+    /// User command buffers followed by the encoded render pass buffer.
+    cmd_bufs: Vec<wgpu::CommandBuffer>,
 
-    /// Surface texture and capture data. Used by [`Painter::paint_present`].
-    present: PresentData,
+    textures_to_free: Vec<epaint::TextureId>,
+    output_frame: wgpu::SurfaceTexture,
+    capture_data: Vec<UserData>,
+    capture_buffer: Option<wgpu::Buffer>,
+    vsync_sec: f32,
+}
 
-    /// Approximate seconds spent on vsync-waiting during acquire.
-    pub vsync_sec: f32,
+impl PreparedFrame {
+    #[inline]
+    pub fn viewport_id(&self) -> ViewportId {
+        self.viewport_id
+    }
+
+    /// Approximate seconds spent on vsync-waiting during the acquire phase.
+    #[inline]
+    pub fn vsync_sec(&self) -> f32 {
+        self.vsync_sec
+    }
+}
+
+/// A frame whose GPU commands have been submitted and which is ready to be presented.
+#[must_use = "SubmittedFrame must be passed to Painter::paint_present to show the frame"]
+pub struct SubmittedFrame {
+    viewport_id: ViewportId,
+    output_frame: wgpu::SurfaceTexture,
+    capture_data: Vec<UserData>,
+    capture_buffer: Option<wgpu::Buffer>,
+    vsync_sec: f32,
+}
+
+impl SubmittedFrame {
+    #[inline]
+    pub fn viewport_id(&self) -> ViewportId {
+        self.viewport_id
+    }
+
+    /// Approximate seconds spent on vsync-waiting during acquire and submit.
+    #[inline]
+    pub fn vsync_sec(&self) -> f32 {
+        self.vsync_sec
+    }
 }
 
 struct SurfaceState {
@@ -447,8 +463,8 @@ impl Painter {
     ///
     /// If `capture_data` isn't empty, a screenshot will be captured.
     ///
-    /// This is a convenience wrapper that calls [`paint_prepare`], [`paint_submit`],
-    /// and [`paint_present`] sequentially for a single viewport.
+    /// This is a convenience wrapper that calls [`Self::paint_prepare`], [`Self::paint_submit`],
+    /// and [`Self::paint_present`] sequentially for a single viewport.
     pub fn paint_and_update_textures(
         &mut self,
         viewport_id: ViewportId,
@@ -471,11 +487,9 @@ impl Painter {
             return 0.0;
         };
 
-        let vsync_sec = prepared.vsync_sec;
-        let mut frames = [prepared];
-        self.paint_submit(&mut frames);
-        self.paint_present(frames.into());
-        vsync_sec
+        let submitted = self.paint_submit(vec![prepared]);
+        let vsync_pre_present: f32 = submitted.iter().map(SubmittedFrame::vsync_sec).sum();
+        vsync_pre_present + self.paint_present(submitted)
     }
 
     /// Phase 1: Upload textures/buffers, acquire surface texture, record render
@@ -496,7 +510,11 @@ impl Painter {
         let mut vsync_sec = 0.0f32;
 
         let render_state = self.render_state.as_mut()?;
-        let surface_state = self.surfaces.get(&viewport_id)?;
+        let Some(surface_state) = self.surfaces.get(&viewport_id) else {
+            // Flush any pending `write_buffer` calls even though we skip rendering (see #7928).
+            render_state.queue.submit([]);
+            return None;
+        };
 
         let mut encoder =
             render_state
@@ -533,6 +551,7 @@ impl Painter {
 
         let output_frame = {
             profiling::scope!("get_current_texture");
+            // This is where vsync-waiting happens on macOS.
             let start = web_time::Instant::now();
             let output_frame = surface_state.surface.get_current_texture();
             vsync_sec += start.elapsed().as_secs_f32();
@@ -647,84 +666,104 @@ impl Painter {
             encoder.finish()
         };
 
+        let mut cmd_bufs = user_cmd_bufs;
+        cmd_bufs.push(encoded);
+
         Some(PreparedFrame {
             viewport_id,
-            submit: Some(SubmitData {
-                encoded,
-                user_cmd_bufs,
-                textures_to_free: textures_delta.free.clone(),
-            }),
-            present: PresentData {
-                viewport_id,
-                output_frame,
-                capture_data,
-                capture_buffer,
-            },
+            cmd_bufs,
+            textures_to_free: textures_delta.free.clone(),
+            output_frame,
+            capture_data,
+            capture_buffer,
             vsync_sec,
         })
     }
 
-    /// Phase 2: Submit all command buffers from all prepared frames in a single
+    /// Phase 2: submit all command buffers from all prepared frames in a single
     /// `queue.submit()` call. This batches GPU work across viewports.
-    ///
-    /// Takes the submit data out of each frame. After this call,
-    /// the frames should only be passed to [`paint_present`].
-    pub fn paint_submit(&self, frames: &mut [PreparedFrame]) {
+    pub fn paint_submit(&self, frames: Vec<PreparedFrame>) -> Vec<SubmittedFrame> {
         profiling::function_scope!();
 
         let Some(render_state) = self.render_state.as_ref() else {
-            return;
+            return Vec::new();
         };
 
-        let mut all_cmd_bufs = Vec::new();
+        let total_cmd_bufs = frames.iter().map(|f| f.cmd_bufs.len()).sum();
+        let mut all_cmd_bufs = Vec::with_capacity(total_cmd_bufs);
         let mut all_textures_to_free = Vec::new();
+        let mut submitted = Vec::with_capacity(frames.len());
 
-        for frame in frames.iter_mut() {
-            if let Some(submit) = frame.submit.take() {
-                all_cmd_bufs.extend(submit.user_cmd_bufs);
-                all_cmd_bufs.push(submit.encoded);
-                all_textures_to_free.extend(submit.textures_to_free);
+        for frame in frames {
+            all_cmd_bufs.extend(frame.cmd_bufs);
+            all_textures_to_free.extend(frame.textures_to_free);
+            submitted.push(SubmittedFrame {
+                viewport_id: frame.viewport_id,
+                output_frame: frame.output_frame,
+                capture_data: frame.capture_data,
+                capture_buffer: frame.capture_buffer,
+                vsync_sec: frame.vsync_sec,
+            });
+        }
+
+        let submit_sec = {
+            profiling::scope!("Queue::submit");
+            // wgpu doesn't document where vsync can happen. Maybe here?
+            let start = web_time::Instant::now();
+            render_state.queue.submit(all_cmd_bufs);
+            start.elapsed().as_secs_f32()
+        };
+
+        // Attribute the shared submit cost to each frame so callers see consistent
+        // per-viewport timings.
+        if !submitted.is_empty() {
+            let per_frame = submit_sec / submitted.len() as f32;
+            for frame in &mut submitted {
+                frame.vsync_sec += per_frame;
             }
         }
 
-        {
-            profiling::scope!("Queue::submit");
-            render_state.queue.submit(all_cmd_bufs);
-        }
-
-        // Free textures after submit.
+        // Free textures **after** submit: calling `wgpu::Texture::destroy` on a texture
+        // still in use would invalidate the command buffers we just submitted.
         if !all_textures_to_free.is_empty() {
             let mut renderer = render_state.renderer.write();
             for id in &all_textures_to_free {
                 renderer.free_texture(id);
             }
         }
+
+        submitted
     }
 
-    /// Phase 3: Present all frames and handle screen captures.
-    pub fn paint_present(&mut self, frames: Vec<PreparedFrame>) {
+    /// Phase 3: present all frames and handle screen captures.
+    ///
+    /// Returns the total time spent in `present()` across all frames.
+    pub fn paint_present(&mut self, frames: Vec<SubmittedFrame>) -> f32 {
         profiling::function_scope!();
 
+        let mut total_present_sec = 0.0;
         for frame in frames {
-            let present = frame.present;
-
-            if let Some(capture_buffer) = present.capture_buffer
+            if let Some(capture_buffer) = frame.capture_buffer
                 && let Some(screen_capture_state) = &mut self.screen_capture_state
             {
                 screen_capture_state.read_screen_rgba(
                     self.context.clone(),
                     capture_buffer,
-                    present.capture_data,
+                    frame.capture_data,
                     self.capture_tx.clone(),
-                    present.viewport_id,
+                    frame.viewport_id,
                 );
             }
 
             {
                 profiling::scope!("present");
-                present.output_frame.present();
+                // wgpu doesn't document where vsync can happen. Maybe here?
+                let start = web_time::Instant::now();
+                frame.output_frame.present();
+                total_present_sec += start.elapsed().as_secs_f32();
             }
         }
+        total_present_sec
     }
 
     /// Call this at the beginning of each frame to receive the requested screenshots.
