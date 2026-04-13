@@ -8,7 +8,7 @@ rust-version.workspace = true
 publish = false
 default-run = "egui_demo_app"
 
-[package.metadata.cargo-machete]
+[package.metadata.cargo-shear]
 ignored = ["profiling"]
 
 [lints]
