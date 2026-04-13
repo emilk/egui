@@ -894,6 +894,7 @@ impl TextEdit<'_> {
                             o.ime = Some(crate::output::IMEOutput {
                                 rect: to_global * inner_rect,
                                 cursor_rect: to_global * primary_cursor_rect,
+                                should_interrupt_composition: false,
                             });
                         });
                     }

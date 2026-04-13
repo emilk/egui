@@ -1057,7 +1057,8 @@ impl State {
         self.set_cursor_icon(window, cursor_icon);
 
         let allow_ime = ime.is_some();
-        if self.allow_ime != allow_ime {
+        let is_toggling_ime = self.allow_ime != allow_ime;
+        if is_toggling_ime {
             self.allow_ime = allow_ime;
             #[cfg(target_os = "windows")]
             if !self.allow_ime {
@@ -1074,6 +1075,14 @@ impl State {
         }
 
         if let Some(ime) = ime {
+            if !is_toggling_ime && ime.should_interrupt_composition {
+                // TODO(umajho): use a more proper way to interrupt composition
+                // if `winit` provides one in the future.
+
+                window.set_ime_allowed(false);
+                window.set_ime_allowed(true);
+            }
+
             let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
             let ime_rect_px = pixels_per_point * ime.rect;
             if self.ime_rect_px != Some(ime_rect_px)
