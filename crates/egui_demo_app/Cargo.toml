@@ -9,7 +9,7 @@ publish = false
 default-run = "egui_demo_app"
 
 [package.metadata.cargo-shear]
-ignored = ["profiling"]
+ignored = ["image", "profiling", "wasm-bindgen-futures"]
 
 [lints]
 workspace = true
