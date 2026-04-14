@@ -106,38 +106,26 @@ impl TextCursorState {
 }
 
 fn select_word_at(text: &str, ccursor: CCursor) -> CCursorRange {
-    if ccursor.index == 0 {
-        CCursorRange::two(ccursor, ccursor_next_word(text, ccursor))
-    } else {
-        let it = text.chars();
-        let mut it = it.skip(ccursor.index - 1);
-        if let Some(char_before_cursor) = it.next() {
-            if let Some(char_after_cursor) = it.next() {
-                if is_word_char(char_before_cursor) && is_word_char(char_after_cursor) {
-                    let min = ccursor_previous_word(text, ccursor + 1);
-                    let max = ccursor_next_word(text, min);
-                    CCursorRange::two(min, max)
-                } else if is_word_char(char_before_cursor) {
-                    let min = ccursor_previous_word(text, ccursor);
-                    let max = ccursor_next_word(text, min);
-                    CCursorRange::two(min, max)
-                } else if is_word_char(char_after_cursor) {
-                    let max = ccursor_next_word(text, ccursor);
-                    CCursorRange::two(ccursor, max)
-                } else {
-                    let min = ccursor_previous_word(text, ccursor);
-                    let max = ccursor_next_word(text, ccursor);
-                    CCursorRange::two(min, max)
-                }
-            } else {
-                let min = ccursor_previous_word(text, ccursor);
-                CCursorRange::two(min, ccursor)
-            }
-        } else {
-            let max = ccursor_next_word(text, ccursor);
-            CCursorRange::two(ccursor, max)
-        }
+    if text.is_empty() {
+        return CCursorRange::one(ccursor);
     }
+
+    let line_start = find_line_start(text, ccursor);
+    let line_end = ccursor_next_line(text, line_start);
+
+    let line_range = line_start.index..line_end.index;
+    let current_line_text = slice_char_range(text, line_range.clone());
+
+    let relative_idx = ccursor.index - line_start.index;
+    let relative_ccursor = CCursor::new(relative_idx);
+
+    let min = ccursor_previous_word(current_line_text, relative_ccursor);
+    let max = ccursor_next_word(current_line_text, relative_ccursor);
+
+    CCursorRange::two(
+        CCursor::new(line_start.index + min.index),
+        CCursor::new(line_start.index + max.index),
+    )
 }
 
 fn select_line_at(text: &str, ccursor: CCursor) -> CCursorRange {
@@ -209,16 +197,20 @@ fn ccursor_previous_line(text: &str, ccursor: CCursor) -> CCursor {
 }
 
 fn next_word_boundary_char_index(text: &str, cursor_ci: usize) -> usize {
-    for (word_byte_index, word) in text.split_word_bound_indices() {
-        let word_ci = char_index_from_byte_index(text, word_byte_index);
+    let mut current_char_idx = 0;
+
+    for (_word_byte_index, word) in text.split_word_bound_indices() {
+        let word_ci = current_char_idx;
 
         // We consider `.` a word boundary.
         // At least that's how Mac works when navigating something like `www.example.com`.
-        for (dot_ci_offset, chr) in word.chars().enumerate() {
-            let dot_ci = word_ci + dot_ci_offset;
+        let mut word_char_count = 0;
+        for chr in word.chars() {
+            let dot_ci = word_ci + word_char_count;
             if chr == '.' && cursor_ci < dot_ci {
                 return dot_ci;
             }
+            word_char_count += 1;
         }
 
         // Splitting considers contiguous whitespace as one word, such words must be skipped,
@@ -228,9 +220,11 @@ fn next_word_boundary_char_index(text: &str, cursor_ci: usize) -> usize {
         if cursor_ci < word_ci && !all_word_chars(word) {
             return word_ci;
         }
+
+        current_char_idx += word_char_count;
     }
 
-    char_index_from_byte_index(text, text.len())
+    current_char_idx
 }
 
 fn all_word_chars(text: &str) -> bool {
@@ -265,22 +259,14 @@ fn is_linebreak(c: char) -> bool {
 
 /// Accepts and returns character offset (NOT byte offset!).
 pub fn find_line_start(text: &str, current_index: CCursor) -> CCursor {
-    // We know that new lines, '\n', are a single byte char, but we have to
-    // work with char offsets because before the new line there may be any
-    // number of multi byte chars.
-    // We need to know the char index to be able to correctly set the cursor
-    // later.
-    let chars_count = text.chars().count();
+    let byte_idx = byte_index_from_char_index(text, current_index.index);
+    let text_before = &text[..byte_idx];
 
-    let position = text
-        .chars()
-        .rev()
-        .skip(chars_count - current_index.index)
-        .position(|x| x == '\n');
-
-    match position {
-        Some(pos) => CCursor::new(current_index.index - pos),
-        None => CCursor::new(0),
+    if let Some(last_newline_byte) = text_before.rfind('\n') {
+        let char_idx = char_index_from_byte_index(text, last_newline_byte + 1);
+        CCursor::new(char_idx)
+    } else {
+        CCursor::new(0)
     }
 }
 
@@ -365,5 +351,53 @@ mod test {
         assert_eq!(next_word_boundary_char_index(text, 15), 19);
         assert_eq!(next_word_boundary_char_index(text, 19), 20);
         assert_eq!(next_word_boundary_char_index(text, 20), 21);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_previous_word_graphemes() {
+        let cases = [
+            ("", 0, 0),
+            ("hello", 0, 0),
+            ("hello", "hello".chars().count(), 0),
+            ("hello world", 6, 0),
+            ("hello world", 8, 6),
+            ("hello world", "hello world".chars().count(), 6),
+            ("hello world   ", "hello world   ".chars().count(), 6),
+            ("hello   world", "hello   world".chars().count(), 8),
+            ("   ", "   ".chars().count(), 0),
+            ("hello, world", "hello, world".chars().count(), 7),
+            ("www.example.com", "www.example.com".chars().count(), 12),
+            ("안녕! 😊 세상", 8, 6),
+            ("❤️👍 skvělá knihovna 👍❤️", 18, 11),
+            (
+                "a e\u{301} b",
+                "a e\u{301} b".chars().count(),
+                "a e\u{301} ".chars().count(),
+            ),
+            (
+                "hi 🙂 world",
+                "hi 🙂 world".chars().count(),
+                "hi 🙂 ".chars().count(),
+            ),
+            (
+                "hi 👨‍👩‍👧‍👦 world",
+                "hi 👨‍👩‍👧‍👦 world".chars().count(),
+                "hi 👨‍👩‍👧‍👦 ".chars().count(),
+            ),
+        ];
+
+        for (text, cursor, expected) in cases {
+            let result = ccursor_previous_word(text, CCursor::new(cursor));
+            assert_eq!(
+                result.index, expected,
+                "text={text:?}, cursor={cursor}, got={}, expected={expected}",
+                result.index
+            );
+        }
     }
 }
