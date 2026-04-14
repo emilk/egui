@@ -328,7 +328,12 @@ impl Default for WgpuConfiguration {
     fn default() -> Self {
         Self {
             present_mode: wgpu::PresentMode::AutoVsync,
-            desired_maximum_frame_latency: None,
+            desired_maximum_frame_latency: if cfg!(target_os = "ios") {
+                None // The default is good on iOS, while `Some(1)` cuts FPS in half
+            } else {
+                Some(1) // Low-latency by default.
+            },
+
             // No display handle available at this point — callers should replace this with
             // `WgpuSetup::from_display_handle(...)` before creating the instance if one is available.
             wgpu_setup: WgpuSetup::without_display_handle(),
