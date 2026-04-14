@@ -197,7 +197,7 @@ impl MenuState {
 
 /// Horizontal menu bar where you can add [`MenuButton`]s.
 ///
-/// The menu bar goes well in a [`crate::TopBottomPanel::top`],
+/// The menu bar goes well in a [`crate::Panel::top`],
 /// but can also be placed in a [`crate::Window`].
 /// In the latter case you may want to wrap it in [`Frame`].
 ///
@@ -218,9 +218,6 @@ pub struct MenuBar {
     config: MenuConfig,
     style: StyleModifier,
 }
-
-#[deprecated = "Renamed to `egui::MenuBar`"]
-pub type Bar = MenuBar;
 
 impl Default for MenuBar {
     fn default() -> Self {

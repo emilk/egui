@@ -2,7 +2,7 @@
 
 use crate::{OrderedViewportIdMap, RepaintCause, ViewportOutput, WidgetType};
 
-/// What egui emits each frame from [`crate::Context::run`].
+/// What egui emits each frame from [`crate::Context::run_ui`].
 ///
 /// The backend should use this.
 #[derive(Clone, Default)]

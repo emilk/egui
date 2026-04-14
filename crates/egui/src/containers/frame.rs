@@ -174,11 +174,6 @@ impl Frame {
         Self::NONE
     }
 
-    #[deprecated = "Use `Frame::NONE` or `Frame::new()` instead."]
-    pub const fn none() -> Self {
-        Self::NONE
-    }
-
     /// For when you want to group a few widgets together within a frame.
     pub fn group(style: &Style) -> Self {
         Self::new()
@@ -281,16 +276,6 @@ impl Frame {
     pub fn corner_radius(mut self, corner_radius: impl Into<CornerRadius>) -> Self {
         self.corner_radius = corner_radius.into();
         self
-    }
-
-    /// The rounding of the _outer_ corner of the [`Self::stroke`]
-    /// (or, if there is no stroke, the outer corner of [`Self::fill`]).
-    ///
-    /// In other words, this is the corner radius of the _widget rect_.
-    #[inline]
-    #[deprecated = "Renamed to `corner_radius`"]
-    pub fn rounding(self, corner_radius: impl Into<CornerRadius>) -> Self {
-        self.corner_radius(corner_radius)
     }
 
     /// Margin outside the painted frame.
