@@ -315,7 +315,7 @@ pub fn cursor_rect(galley: &Galley, cursor: &CCursor, row_height: f32) -> Rect {
 
 #[cfg(test)]
 mod test {
-    use crate::text_selection::text_cursor_state::next_word_boundary_char_index;
+    use super::*;
 
     #[test]
     fn test_next_word_boundary_char_index() {
@@ -351,6 +351,71 @@ mod test {
         assert_eq!(next_word_boundary_char_index(text, 15), 19);
         assert_eq!(next_word_boundary_char_index(text, 19), 20);
         assert_eq!(next_word_boundary_char_index(text, 20), 21);
+    }
+
+    #[test]
+    fn test_previous_word() {
+        let text = "abc def ghi";
+        assert_eq!(ccursor_previous_word(text, CCursor::new(7)).index, 4);
+        assert_eq!(ccursor_previous_word(text, CCursor::new(5)).index, 4);
+        assert_eq!(ccursor_previous_word(text, CCursor::new(4)).index, 0);
+        assert_eq!(ccursor_previous_word(text, CCursor::new(0)).index, 0);
+    }
+
+    #[test]
+    fn test_next_word() {
+        let text = "abc def ghi";
+        assert_eq!(ccursor_next_word(text, CCursor::new(0)).index, 3);
+        assert_eq!(ccursor_next_word(text, CCursor::new(3)).index, 7);
+        assert_eq!(ccursor_next_word(text, CCursor::new(7)).index, 11);
+        assert_eq!(ccursor_next_word(text, CCursor::new(11)).index, 11);
+    }
+
+    #[test]
+    fn test_select_word_at() {
+        // CCursorRange::two(min, max) sets primary=max, secondary=min
+        let text = "hello world";
+        let range = select_word_at(text, CCursor::new(2));
+        let (lo, hi) = (
+            range.primary.index.min(range.secondary.index),
+            range.primary.index.max(range.secondary.index),
+        );
+        assert_eq!(lo, 0);
+        assert_eq!(hi, 5);
+
+        let range = select_word_at(text, CCursor::new(8));
+        let (lo, hi) = (
+            range.primary.index.min(range.secondary.index),
+            range.primary.index.max(range.secondary.index),
+        );
+        assert_eq!(lo, 6);
+        assert_eq!(hi, 11);
+    }
+
+    #[test]
+    fn test_word_boundary_large_text_performance() {
+        // Before the O(n²) → O(n) fix, this would take minutes on large text.
+        let large_text = "word ".repeat(200_000); // ~1MB
+        let len = large_text.chars().count();
+
+        let start = std::time::Instant::now();
+
+        let next = ccursor_next_word(&large_text, CCursor::new(len - 10));
+        assert!(next.index <= len);
+
+        let prev = ccursor_previous_word(&large_text, CCursor::new(len - 10));
+        assert!(prev.index < len);
+
+        let range = select_word_at(&large_text, CCursor::new(len - 3));
+        let lo = range.primary.index.min(range.secondary.index);
+        let hi = range.primary.index.max(range.secondary.index);
+        assert!(lo < hi, "Expected a non-empty word selection");
+
+        let elapsed = start.elapsed();
+        assert!(
+            elapsed.as_secs() < 5,
+            "Word boundary operations on 1MB text took {elapsed:?}, expected < 5s"
+        );
     }
 }
 
