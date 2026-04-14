@@ -209,7 +209,7 @@ impl InputOptions {
 /// You can access this with [`crate::Context::input`].
 ///
 /// You can check if `egui` is using the inputs using
-/// [`crate::Context::wants_pointer_input`] and [`crate::Context::wants_keyboard_input`].
+/// [`crate::Context::egui_wants_pointer_input`] and [`crate::Context::egui_wants_keyboard_input`].
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct InputState {

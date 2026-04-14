@@ -199,7 +199,7 @@ pub struct Options {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub light_style: std::sync::Arc<Style>,
 
-    /// Preference for selection between dark and light [`crate::Context::style`]
+    /// Preference for selection between dark and light [`crate::Context::global_style`]
     /// as the active style used by all subsequent windows, panels, etc.
     ///
     /// Default: `ThemePreference::System`.
@@ -272,7 +272,7 @@ pub struct Options {
     ///
     /// If this is `1`, [`crate::Context::request_discard`] will be ignored.
     ///
-    /// Multi-pass is supported by [`crate::Context::run`].
+    /// Multi-pass is supported by [`crate::Context::run_ui`].
     ///
     /// See [`crate::Context::request_discard`] for more.
     pub max_passes: NonZeroUsize,

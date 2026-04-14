@@ -351,7 +351,7 @@ impl Ui {
 
     /// Style options for this [`Ui`] and its children.
     ///
-    /// Note that this may be a different [`Style`] than that of [`Context::style`].
+    /// Note that this may be a different [`Style`] than that of [`Context::global_style`].
     #[inline]
     pub fn style(&self) -> &Arc<Style> {
         &self.style

@@ -79,7 +79,7 @@ pub enum SliderClamping {
 ///
 /// The slider range defines the values you get when pulling the slider to the far edges.
 /// By default all values are clamped to this range, even when not interacted with.
-/// You can change this behavior by passing `false` to [`Slider::clamp_to_range`].
+/// You can change this behavior by passing `false` to [`Slider::clamping`].
 ///
 /// The range can include any numbers, and go from low-to-high or from high-to-low.
 ///

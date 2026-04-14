@@ -280,7 +280,7 @@ impl Area {
         self
     }
 
-    /// Constrains this area to [`Context::screen_rect`]?
+    /// Constrains this area to [`Context::content_rect`]?
     ///
     /// Default: `true`.
     #[inline]

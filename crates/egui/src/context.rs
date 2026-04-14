@@ -300,7 +300,7 @@ impl RepaintCause {
 struct ViewportRepaintInfo {
     /// Monotonically increasing counter.
     ///
-    /// Incremented at the end of [`Context::run`].
+    /// Incremented at the end of [`Context::run_ui`].
     /// This can be smaller than [`Self::cumulative_pass_nr`],
     /// but never larger.
     cumulative_frame_nr: u64,
@@ -1005,7 +1005,7 @@ impl Context {
 
     /// Read-only access to [`PassState`].
     ///
-    /// This is only valid during the call to [`Self::run`] (between [`Self::begin_pass`] and [`Self::end_pass`]).
+    /// This is only valid during the call to [`Self::run_ui`] (between [`Self::begin_pass`] and [`Self::end_pass`]).
     #[inline]
     pub(crate) fn pass_state<R>(&self, reader: impl FnOnce(&PassState) -> R) -> R {
         self.write(move |ctx| reader(&ctx.viewport().this_pass))
@@ -1013,7 +1013,7 @@ impl Context {
 
     /// Read-write access to [`PassState`].
     ///
-    /// This is only valid during the call to [`Self::run`] (between [`Self::begin_pass`] and [`Self::end_pass`]).
+    /// This is only valid during the call to [`Self::run_ui`] (between [`Self::begin_pass`] and [`Self::end_pass`]).
     #[inline]
     pub(crate) fn pass_state_mut<R>(&self, writer: impl FnOnce(&mut PassState) -> R) -> R {
         self.write(move |ctx| writer(&mut ctx.viewport().this_pass))
@@ -1029,7 +1029,7 @@ impl Context {
 
     /// Read-only access to [`Fonts`].
     ///
-    /// Not valid until first call to [`Context::run()`].
+    /// Not valid until first call to [`Context::run_ui()`].
     /// That's because since we don't know the proper `pixels_per_point` until then.
     #[inline]
     pub fn fonts<R>(&self, reader: impl FnOnce(&FontsView<'_>) -> R) -> R {
@@ -1046,7 +1046,7 @@ impl Context {
 
     /// Read-write access to [`Fonts`].
     ///
-    /// Not valid until first call to [`Context::run()`].
+    /// Not valid until first call to [`Context::run_ui()`].
     /// That's because since we don't know the proper `pixels_per_point` until then.
     #[inline]
     pub fn fonts_mut<R>(&self, reader: impl FnOnce(&mut FontsView<'_>) -> R) -> R {
@@ -1622,7 +1622,7 @@ impl Context {
 
     /// The total number of completed frames.
     ///
-    /// Starts at zero, and is incremented once at the end of each call to [`Self::run`].
+    /// Starts at zero, and is incremented once at the end of each call to [`Self::run_ui`].
     ///
     /// This is always smaller or equal to [`Self::cumulative_pass_nr`].
     pub fn cumulative_frame_nr(&self) -> u64 {
@@ -1631,7 +1631,7 @@ impl Context {
 
     /// The total number of completed frames.
     ///
-    /// Starts at zero, and is incremented once at the end of each call to [`Self::run`].
+    /// Starts at zero, and is incremented once at the end of each call to [`Self::run_ui`].
     ///
     /// This is always smaller or equal to [`Self::cumulative_pass_nr_for`].
     pub fn cumulative_frame_nr_for(&self, id: ViewportId) -> u64 {
@@ -1651,7 +1651,7 @@ impl Context {
 
     /// The total number of completed passes (usually there is one pass per rendered frame).
     ///
-    /// Starts at zero, and is incremented for each completed pass inside of [`Self::run`] (usually once).
+    /// Starts at zero, and is incremented for each completed pass inside of [`Self::run_ui`] (usually once).
     ///
     /// If you instead want to know which pass index this is within the current frame,
     /// use [`Self::current_pass_index`].
@@ -1661,7 +1661,7 @@ impl Context {
 
     /// The total number of completed passes (usually there is one pass per rendered frame).
     ///
-    /// Starts at zero, and is incremented for each completed pass inside of [`Self::run`] (usually once).
+    /// Starts at zero, and is incremented for each completed pass inside of [`Self::run_ui`] (usually once).
     pub fn cumulative_pass_nr_for(&self, id: ViewportId) -> u64 {
         self.read(|ctx| {
             ctx.viewports
@@ -2036,7 +2036,7 @@ impl Context {
         self.options(|opt| opt.theme())
     }
 
-    /// The [`Theme`] used to select between dark and light [`Self::style`]
+    /// The [`Theme`] used to select between dark and light [`Self::global_style`]
     /// as the active style used by all subsequent popups, menus, etc.
     ///
     /// Example:
@@ -3825,8 +3825,8 @@ impl Context {
     /// When called, the integration needs to:
     /// * Check if there already is a window for this viewport id, and if not open one
     /// * Set the window attributes (position, size, …) based on [`ImmediateViewport::builder`].
-    /// * Call [`Context::run`] with [`ImmediateViewport::viewport_ui_cb`].
-    /// * Handle the output from [`Context::run`], including rendering
+    /// * Call [`Context::run_ui`] with [`ImmediateViewport::viewport_ui_cb`].
+    /// * Handle the output from [`Context::run_ui`], including rendering
     pub fn set_immediate_viewport_renderer(
         callback: impl for<'a> Fn(&Self, ImmediateViewport<'a>) + 'static,
     ) {
