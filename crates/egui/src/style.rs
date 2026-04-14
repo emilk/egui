@@ -431,6 +431,9 @@ pub struct Spacing {
     /// Default width of a [`crate::TextEdit`].
     pub text_edit_width: f32,
 
+    /// Additional vertical spacing between lines of text.
+    pub text_line_spacing: f32,
+
     /// Checkboxes, radio button and collapsing headers have an icon at the start.
     /// This is the width/height of the outer part of this icon (e.g. the BOX of the checkbox).
     pub icon_width: f32,
@@ -1448,6 +1451,7 @@ impl Default for Spacing {
             slider_rail_height: 8.0,
             combo_width: 100.0,
             text_edit_width: 280.0,
+            text_line_spacing: 0.0,
             icon_width: 14.0,
             icon_width_inner: 8.0,
             icon_spacing: 4.0,
@@ -1895,6 +1899,7 @@ impl Spacing {
             slider_rail_height,
             combo_width,
             text_edit_width,
+            text_line_spacing,
             icon_width,
             icon_width_inner,
             icon_spacing,
@@ -1959,6 +1964,10 @@ impl Spacing {
 
                 ui.label("TextEdit width");
                 ui.add(DragValue::new(text_edit_width).range(0.0..=1000.0));
+                ui.end_row();
+
+                ui.label("Text line spacing");
+                ui.add(DragValue::new(text_line_spacing).range(0.0..=20.0));
                 ui.end_row();
 
                 ui.label("Tooltip wrap width");
