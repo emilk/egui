@@ -209,13 +209,8 @@ fn ccursor_previous_line(text: &str, ccursor: CCursor) -> CCursor {
 }
 
 fn next_word_boundary_char_index(text: &str, cursor_ci: usize) -> usize {
-    // Track a running char index as we iterate word-boundary segments.
-    // This avoids calling `char_index_from_byte_index` (which scans from the
-    // start of the string) on every segment, turning O(n²) into O(n).
-    let mut running_ci = 0;
-    for (_word_byte_index, word) in text.split_word_bound_indices() {
-        let word_ci = running_ci;
-        let word_char_count = word.chars().count();
+    for (word_byte_index, word) in text.split_word_bound_indices() {
+        let word_ci = char_index_from_byte_index(text, word_byte_index);
 
         // We consider `.` a word boundary.
         // At least that's how Mac works when navigating something like `www.example.com`.
@@ -226,8 +221,6 @@ fn next_word_boundary_char_index(text: &str, cursor_ci: usize) -> usize {
             }
         }
 
-        running_ci += word_char_count;
-
         // Splitting considers contiguous whitespace as one word, such words must be skipped,
         // this handles cases for example ' abc' (a space and a word), the cursor is at the beginning
         // (before space) - this jumps at the end of 'abc' (this is consistent with text editors
@@ -237,7 +230,7 @@ fn next_word_boundary_char_index(text: &str, cursor_ci: usize) -> usize {
         }
     }
 
-    running_ci
+    char_index_from_byte_index(text, text.len())
 }
 
 fn all_word_chars(text: &str) -> bool {
