@@ -68,6 +68,10 @@ svg_text = ["svg", "resvg/text", "resvg/system-fonts"]
 ## Enable better syntax highlighting using [`syntect`](https://docs.rs/syntect).
 syntect = ["dep:syntect"]
 
+## Uses the [`portable-atomic`](https://docs.rs/portable-atomic) crate instead of `std::sync::atomic`.
+##
+## This is useful for platforms that may lack certain types of atomics, i.e 32-bit platforms lacking `AtomicU64`.
+portable-atomic = ["dep:portable-atomic", "egui/portable-atomic"]
 
 [dependencies]
 egui = { workspace = true, default-features = false }
@@ -101,3 +105,5 @@ resvg = { workspace = true, optional = true }
 
 # http feature
 ehttp = { workspace = true, optional = true }
+
+portable-atomic = { workspace = true, optional = true }

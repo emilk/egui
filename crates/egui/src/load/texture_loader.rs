@@ -1,4 +1,9 @@
-use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
+use std::sync::atomic::Ordering::Relaxed;
+
+#[cfg(feature = "portable-atomic")]
+use portable_atomic::AtomicU64;
+#[cfg(not(feature = "portable-atomic"))]
+use std::sync::atomic::AtomicU64;
 
 use emath::Vec2;
 

@@ -1,10 +1,12 @@
 use std::{
     mem::size_of,
-    sync::{
-        Arc,
-        atomic::{AtomicU64, Ordering::Relaxed},
-    },
+    sync::{Arc, atomic::Ordering::Relaxed},
 };
+
+#[cfg(feature = "portable-atomic")]
+use portable_atomic::AtomicU64;
+#[cfg(not(feature = "portable-atomic"))]
+use std::sync::atomic::AtomicU64;
 
 use ahash::HashMap;
 

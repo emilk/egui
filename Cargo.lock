@@ -1248,6 +1248,7 @@ dependencies = [
  "epaint",
  "log",
  "nohash-hasher",
+ "portable-atomic",
  "profiling",
  "ron",
  "serde",
@@ -1355,6 +1356,7 @@ dependencies = [
  "jiff",
  "log",
  "mime_guess2",
+ "portable-atomic",
  "profiling",
  "resvg",
  "serde",
@@ -1543,6 +1545,7 @@ dependencies = [
  "mimalloc",
  "nohash-hasher",
  "parking_lot",
+ "portable-atomic",
  "profiling",
  "rayon",
  "self_cell",
@@ -3488,9 +3491,9 @@ dependencies = [
 
 [[package]]
 name = "portable-atomic"
-version = "1.11.0"
+version = "1.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "350e9b48cbc6b0e028b0473b114454c6316e57336ee184ceab6e53f72c178b3e"
+checksum = "c33a9471896f1c69cecef8d20cbe2f7accd12527ce60845ff44c153bb2a21b49"
 
 [[package]]
 name = "portable-atomic-util"

@@ -66,6 +66,10 @@ unity = ["epaint/unity"]
 ## This exists, so that when testing with --all-features, snapshots render correctly.
 _override_unity = ["epaint/_override_unity"]
 
+## Uses the [`portable-atomic`](https://docs.rs/portable-atomic) crate instead of `std::sync::atomic`.
+##
+## This is useful for platforms that may lack certain types of atomics, i.e 32-bit platforms lacking `AtomicU64`.
+portable-atomic = ["dep:portable-atomic", "epaint/portable-atomic"]
 
 [dependencies]
 emath = { workspace = true, default-features = false }
@@ -89,3 +93,5 @@ document-features = { workspace = true, optional = true }
 
 ron = { workspace = true, optional = true }
 serde = { workspace = true, optional = true, features = ["derive", "rc"] }
+
+portable-atomic = { workspace = true, optional = true }

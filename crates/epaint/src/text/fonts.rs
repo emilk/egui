@@ -1,11 +1,13 @@
 use std::{
     borrow::Cow,
     collections::BTreeMap,
-    sync::{
-        Arc,
-        atomic::{AtomicU64, Ordering},
-    },
+    sync::{Arc, atomic::Ordering},
 };
+
+#[cfg(feature = "portable-atomic")]
+use portable_atomic::AtomicU64;
+#[cfg(not(feature = "portable-atomic"))]
+use std::sync::atomic::AtomicU64;
 
 use crate::{
     TextureAtlas,

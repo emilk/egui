@@ -1,5 +1,9 @@
 #[expect(unused_imports)]
 use crate::{Ui, UiBuilder};
+
+#[cfg(feature = "portable-atomic")]
+use portable_atomic::AtomicBool;
+#[cfg(not(feature = "portable-atomic"))]
 use std::sync::atomic::AtomicBool;
 
 /// A tag to mark a container as closable.

@@ -114,6 +114,7 @@ parking_lot = "0.12.5"
 percent-encoding = "2.3.2"
 poll-promise = { version = "0.3.0", default-features = false }
 pollster = "0.4.0"
+portable-atomic = "1.13.1"
 profiling = { version = "1.0.17", default-features = false }
 puffin = "0.19.1"
 puffin_http = "0.16.1"
