@@ -275,7 +275,7 @@ impl<'open> Window<'open> {
 
     /// Constrain the movement of the window to the given rectangle.
     ///
-    /// For instance: `.constrain_to(ctx.screen_rect())`.
+    /// For instance: `.constrain_to(ctx.content_rect())`.
     #[inline]
     pub fn constrain_to(mut self, constrain_rect: Rect) -> Self {
         self.area = self.area.constrain_to(constrain_rect);

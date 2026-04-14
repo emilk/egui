@@ -463,7 +463,7 @@ impl ContextImpl {
 
         let content_rect = viewport.input.content_rect();
 
-        viewport.this_pass.begin_pass(content_rect);
+        viewport.this_pass.begin_pass();
 
         {
             let mut layers: Vec<LayerId> = viewport.prev_pass.widgets.layer_ids().collect();
@@ -697,8 +697,8 @@ impl ContextImpl {
 /// // Game loop:
 /// loop {
 ///     let raw_input = egui::RawInput::default();
-///     let full_output = ctx.run(raw_input, |ctx| {
-///         egui::CentralPanel::default().show(&ctx, |ui| {
+///     let full_output = ctx.run_ui(raw_input, |ui| {
+///         egui::CentralPanel::default().show_inside(ui, |ui| {
 ///             ui.label("Hello world!");
 ///             if ui.button("Click me").clicked() {
 ///                 // take some action here
@@ -780,9 +780,6 @@ impl Context {
     /// });
     /// // handle full_output
     /// ```
-    ///
-    /// ## See also
-    /// * [`Self::run`]
     #[must_use]
     pub fn run_ui(&self, new_input: RawInput, mut run_ui: impl FnMut(&mut Ui)) -> FullOutput {
         self.run_ui_dyn(new_input, &mut run_ui)
@@ -791,14 +788,13 @@ impl Context {
     #[must_use]
     fn run_ui_dyn(&self, new_input: RawInput, run_ui: &mut dyn FnMut(&mut Ui)) -> FullOutput {
         let plugins = self.read(|ctx| ctx.plugins.ordered_plugins());
-        #[expect(deprecated)]
-        self.run(new_input, |ctx| {
+        self.run_dyn(new_input, &mut |ctx| {
             let mut root_ui = Ui::new(
                 ctx.clone(),
                 Id::new((ctx.viewport_id(), "__top_ui")),
                 UiBuilder::new()
                     .layer_id(LayerId::background())
-                    .max_rect(ctx.available_rect()),
+                    .max_rect(ctx.viewport_rect()),
             );
 
             {
@@ -812,38 +808,6 @@ impl Context {
                 state.root_ui_min_rect = Some(root_ui.min_rect());
             });
         })
-    }
-
-    /// Run the ui code for one frame.
-    ///
-    /// At most [`Options::max_passes`] calls will be issued to `run_ui`,
-    /// and only on the rare occasion that [`Context::request_discard`] is called.
-    /// Usually, it `run_ui` will only be called once.
-    ///
-    /// Put your widgets into a [`crate::Panel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
-    ///
-    /// Instead of calling `run`, you can alternatively use [`Self::begin_pass`] and [`Context::end_pass`].
-    ///
-    /// ```
-    /// // One egui context that you keep reusing:
-    /// let mut ctx = egui::Context::default();
-    ///
-    /// // Each frame:
-    /// let input = egui::RawInput::default();
-    /// let full_output = ctx.run(input, |ctx| {
-    ///     egui::CentralPanel::default().show(&ctx, |ui| {
-    ///         ui.label("Hello egui!");
-    ///     });
-    /// });
-    /// // handle full_output
-    /// ```
-    ///
-    /// ## See also
-    /// * [`Self::run_ui`]
-    #[must_use]
-    #[deprecated = "Call run_ui instead"]
-    pub fn run(&self, new_input: RawInput, mut run_ui: impl FnMut(&Self)) -> FullOutput {
-        self.run_dyn(new_input, &mut run_ui)
     }
 
     #[must_use]
@@ -915,10 +879,10 @@ impl Context {
         output
     }
 
-    /// An alternative to calling [`Self::run`].
+    /// An alternative to calling [`Self::run_ui`].
     ///
-    /// It is usually better to use [`Self::run`], because
-    /// `run` supports multi-pass layout using [`Self::request_discard`].
+    /// It is usually better to use [`Self::run_ui`], because
+    /// `run_ui` supports multi-pass layout using [`Self::request_discard`].
     ///
     /// ```
     /// // One egui context that you keep reusing:
@@ -928,9 +892,7 @@ impl Context {
     /// let input = egui::RawInput::default();
     /// ctx.begin_pass(input);
     ///
-    /// egui::CentralPanel::default().show(&ctx, |ui| {
-    ///     ui.label("Hello egui!");
-    /// });
+    /// // … add panels and windows here …
     ///
     /// let full_output = ctx.end_pass();
     /// // handle full_output
@@ -942,12 +904,6 @@ impl Context {
         plugins.on_input(&mut new_input);
 
         self.write(|ctx| ctx.begin_pass(new_input));
-    }
-
-    /// See [`Self::begin_pass`].
-    #[deprecated = "Renamed begin_pass"]
-    pub fn begin_frame(&self, new_input: RawInput) {
-        self.begin_pass(new_input);
     }
 }
 
@@ -2097,12 +2053,6 @@ impl Context {
         self.options(|opt| Arc::clone(opt.style()))
     }
 
-    /// The currently active [`Style`] used by all subsequent popups, menus, etc.
-    #[deprecated = "Renamed to `global_style` to avoid confusion with `ui.style()`"]
-    pub fn style(&self) -> Arc<Style> {
-        self.options(|opt| Arc::clone(opt.style()))
-    }
-
     /// Mutate the currently active [`Style`] used by all subsequent popups, menus, etc.
     /// Use [`Self::all_styles_mut`] to mutate both dark and light mode styles.
     ///
@@ -2117,21 +2067,6 @@ impl Context {
         self.options_mut(|opt| mutate_style(Arc::make_mut(opt.style_mut())));
     }
 
-    /// Mutate the currently active [`Style`] used by all subsequent popups, menus, etc.
-    /// Use [`Self::all_styles_mut`] to mutate both dark and light mode styles.
-    ///
-    /// Example:
-    /// ```
-    /// # let mut ctx = egui::Context::default();
-    /// ctx.global_style_mut(|style| {
-    ///     style.spacing.item_spacing = egui::vec2(10.0, 20.0);
-    /// });
-    /// ```
-    #[deprecated = "Renamed to `global_style_mut` to avoid confusion with `ui.style_mut()`"]
-    pub fn style_mut(&self, mutate_style: impl FnOnce(&mut Style)) {
-        self.options_mut(|opt| mutate_style(Arc::make_mut(opt.style_mut())));
-    }
-
     /// The currently active [`Style`] used by all new popups, menus, etc.
     ///
     /// Use [`Self::all_styles_mut`] to mutate both dark and light mode styles.
@@ -2140,18 +2075,6 @@ impl Context {
     ///
     /// You can use [`Ui::style_mut`] to change the style of a single [`Ui`].
     pub fn set_global_style(&self, style: impl Into<Arc<Style>>) {
-        self.options_mut(|opt| *opt.style_mut() = style.into());
-    }
-
-    /// The currently active [`Style`] used by all new popups, menus, etc.
-    ///
-    /// Use [`Self::all_styles_mut`] to mutate both dark and light mode styles.
-    ///
-    /// You can also change this using [`Self::style_mut`].
-    ///
-    /// You can use [`Ui::style_mut`] to change the style of a single [`Ui`].
-    #[deprecated = "Renamed to `set_global_style` to avoid confusion with `ui.set_style()`"]
-    pub fn set_style(&self, style: impl Into<Arc<Style>>) {
         self.options_mut(|opt| *opt.style_mut() = style.into());
     }
 
@@ -2416,13 +2339,6 @@ impl Context {
         plugins.on_output(&mut output);
 
         output
-    }
-
-    /// Call at the end of each frame if you called [`Context::begin_pass`].
-    #[must_use]
-    #[deprecated = "Renamed end_pass"]
-    pub fn end_frame(&self) -> FullOutput {
-        self.end_pass()
     }
 
     /// Called at the end of the pass.
@@ -2849,21 +2765,6 @@ impl Context {
         self.input(|i| i.viewport_rect()).round_ui()
     }
 
-    /// Position and size of the egui area.
-    #[deprecated(
-        note = "screen_rect has been split into viewport_rect() and content_rect(). You likely should use content_rect()"
-    )]
-    pub fn screen_rect(&self) -> Rect {
-        self.input(|i| i.content_rect()).round_ui()
-    }
-
-    /// How much space is still available after panels have been added.
-    #[deprecated = "Use content_rect (or viewport_rect) instead"]
-    pub fn available_rect(&self) -> Rect {
-        #[expect(deprecated)] // legacy
-        self.pass_state(|s| s.available_rect()).round_ui()
-    }
-
     /// How much space is used by windows and the top-level [`Ui`].
     pub fn globally_used_rect(&self) -> Rect {
         self.write(|ctx| {
@@ -2871,29 +2772,12 @@ impl Context {
             let root_ui_min_rect =
                 (viewport.this_pass.root_ui_min_rect).or(viewport.prev_pass.root_ui_min_rect);
 
-            let mut used = root_ui_min_rect.unwrap_or_else(|| {
-                #[expect(deprecated)] // legacy
-                ctx.viewport().this_pass.used_by_panels
-            });
+            let mut used = root_ui_min_rect.unwrap_or(Rect::NOTHING);
             for (_id, window) in ctx.memory.areas().visible_windows() {
                 used |= window.rect();
             }
             used.round_ui()
         })
-    }
-
-    /// How much space is used by windows and the top-level [`Ui`].
-    #[deprecated = "Renamed to globally_used_rect"]
-    pub fn used_rect(&self) -> Rect {
-        self.globally_used_rect()
-    }
-
-    /// How much space is used by windows and the top-level [`Ui`].
-    ///
-    /// You can shrink your egui area to this size and still fit all egui components.
-    #[deprecated = "Use globally_used_rect instead"]
-    pub fn used_size(&self) -> Vec2 {
-        (self.globally_used_rect().max - Pos2::ZERO).round_ui()
     }
 
     // ---------------------------------------------------------------------
@@ -2916,19 +2800,11 @@ impl Context {
                 // Modern `run_ui` code
                 !root_ui_available_rect.contains(pointer_pos)
             } else {
-                // Legacy code
-                #[expect(deprecated)]
-                !self.pass_state(|state| state.unused_rect.contains(pointer_pos))
+                true // We shouldn't get here, but who knows
             }
         } else {
             true
         }
-    }
-
-    /// Is the pointer (mouse/touch) over any egui area?
-    #[deprecated = "Renamed to is_pointer_over_egui"]
-    pub fn is_pointer_over_area(&self) -> bool {
-        self.is_pointer_over_egui()
     }
 
     /// True if egui is currently interested in the pointer (mouse or touch).
@@ -2942,17 +2818,6 @@ impl Context {
             || (self.is_pointer_over_egui() && !self.input(|i| i.pointer.any_down()))
     }
 
-    /// True if egui is currently interested in the pointer (mouse or touch).
-    ///
-    /// Could be the pointer is hovering over a [`crate::Window`] or the user is dragging a widget.
-    /// If `false`, the pointer is outside of any egui area and so
-    /// you may be interested in what it is doing (e.g. controlling your game).
-    /// Returns `false` if a drag started outside of egui and then moved over an egui area.
-    #[deprecated = "Renamed to egui_wants_pointer_input"]
-    pub fn wants_pointer_input(&self) -> bool {
-        self.egui_wants_pointer_input()
-    }
-
     /// Is egui currently using the pointer position (e.g. dragging a slider)?
     ///
     /// NOTE: this will return `false` if the pointer is just hovering over an egui area.
@@ -2960,23 +2825,9 @@ impl Context {
         self.memory(|m| m.interaction().is_using_pointer())
     }
 
-    /// Is egui currently using the pointer position (e.g. dragging a slider)?
-    ///
-    /// NOTE: this will return `false` if the pointer is just hovering over an egui area.
-    #[deprecated = "Renamed to egui_is_using_pointer"]
-    pub fn is_using_pointer(&self) -> bool {
-        self.egui_is_using_pointer()
-    }
-
     /// If `true`, egui is currently listening on text input (e.g. typing text in a [`crate::TextEdit`]).
     pub fn egui_wants_keyboard_input(&self) -> bool {
         self.memory(|m| m.focused().is_some())
-    }
-
-    /// If `true`, egui is currently listening on text input (e.g. typing text in a [`crate::TextEdit`]).
-    #[deprecated = "Renamed to egui_wants_keyboard_input"]
-    pub fn wants_keyboard_input(&self) -> bool {
-        self.egui_wants_keyboard_input()
     }
 
     /// Is the currently focused widget a text edit?
@@ -2998,34 +2849,10 @@ impl Context {
         self.pass_state_mut(|fs| fs.highlight_next_pass.insert(id));
     }
 
-    /// Is an egui context menu open?
-    ///
-    /// This only works with the old, deprecated [`crate::menu`] API.
-    #[expect(deprecated)]
-    #[deprecated = "Use `any_popup_open` instead"]
-    pub fn is_context_menu_open(&self) -> bool {
-        self.data(|d| {
-            d.get_temp::<crate::menu::BarState>(crate::menu::CONTEXT_MENU_ID_STR.into())
-                .is_some_and(|state| state.has_root())
-        })
-    }
-
     /// Is a popup or (context) menu open?
     ///
     /// Will return false for [`crate::Tooltip`]s (which are technically popups as well).
     pub fn any_popup_open(&self) -> bool {
-        self.pass_state_mut(|fs| {
-            fs.layers
-                .values()
-                .any(|layer| !layer.open_popups.is_empty())
-        })
-    }
-
-    /// Is a popup or (context) menu open?
-    ///
-    /// Will return false for [`crate::Tooltip`]s (which are technically popups as well).
-    #[deprecated = "Renamed to any_popup_open"]
-    pub fn is_popup_open(&self) -> bool {
         self.pass_state_mut(|fs| {
             fs.layers
                 .values()
@@ -3643,17 +3470,6 @@ impl Context {
             ));
             if ui.button("Reset").clicked() {
                 self.data_mut(|d| d.remove_by_type::<containers::collapsing_header::InnerState>());
-            }
-        });
-
-        #[expect(deprecated)]
-        ui.horizontal(|ui| {
-            ui.label(format!(
-                "{} menu bars",
-                self.data(|d| d.count::<crate::menu::BarState>())
-            ));
-            if ui.button("Reset").clicked() {
-                self.data_mut(|d| d.remove_by_type::<crate::menu::BarState>());
             }
         });
 

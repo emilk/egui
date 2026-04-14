@@ -3,11 +3,9 @@
 
 use std::{any::Any, hash::Hash, ops::Deref, sync::Arc};
 
-use emath::GuiRounding as _;
-use epaint::mutex::RwLock;
-
 use crate::containers::menu;
 use crate::{containers::*, ecolor::*, layout::*, placer::Placer, widgets::*, *};
+use emath::GuiRounding as _;
 // ----------------------------------------------------------------------------
 
 /// This is what you use to place widgets.
@@ -74,10 +72,6 @@ pub struct Ui {
     /// Set to true in special cases where we do one frame
     /// where we size up the contents of the Ui, without actually showing it.
     sizing_pass: bool,
-
-    /// Indicates whether this Ui belongs to a Menu.
-    #[expect(deprecated)]
-    menu_state: Option<Arc<RwLock<crate::menu::MenuState>>>,
 
     /// The [`UiStack`] for this [`Ui`].
     stack: Arc<UiStack>,
@@ -157,7 +151,6 @@ impl Ui {
             placer,
             enabled: true,
             sizing_pass,
-            menu_state: None,
             stack: Arc::new(ui_stack),
             sense,
             min_rect_already_remembered: false,
@@ -196,47 +189,6 @@ impl Ui {
         });
 
         ui
-    }
-
-    /// Create a new [`Ui`] at a specific region.
-    ///
-    /// Note: calling this function twice from the same [`Ui`] will create a conflict of id. Use
-    /// [`Self::scope`] if needed.
-    ///
-    /// When in doubt, use `None` for the `UiStackInfo` argument.
-    #[deprecated = "Use ui.new_child() instead"]
-    pub fn child_ui(
-        &mut self,
-        max_rect: Rect,
-        layout: Layout,
-        ui_stack_info: Option<UiStackInfo>,
-    ) -> Self {
-        self.new_child(
-            UiBuilder::new()
-                .max_rect(max_rect)
-                .layout(layout)
-                .ui_stack_info(ui_stack_info.unwrap_or_default()),
-        )
-    }
-
-    /// Create a new [`Ui`] at a specific region with a specific id.
-    ///
-    /// When in doubt, use `None` for the `UiStackInfo` argument.
-    #[deprecated = "Use ui.new_child() instead"]
-    pub fn child_ui_with_id_source(
-        &mut self,
-        max_rect: Rect,
-        layout: Layout,
-        id_salt: impl Hash,
-        ui_stack_info: Option<UiStackInfo>,
-    ) -> Self {
-        self.new_child(
-            UiBuilder::new()
-                .id_salt(id_salt)
-                .max_rect(max_rect)
-                .layout(layout)
-                .ui_stack_info(ui_stack_info.unwrap_or_default()),
-        )
     }
 
     /// Create a child `Ui` with the properties of the given builder.
@@ -320,7 +272,6 @@ impl Ui {
             placer,
             enabled,
             sizing_pass,
-            menu_state: self.menu_state.clone(),
             stack: Arc::new(ui_stack),
             sense,
             min_rect_already_remembered: false,
@@ -361,18 +312,6 @@ impl Ui {
     }
 
     // -------------------------------------------------
-
-    /// Set to true in special cases where we do one frame
-    /// where we size up the contents of the Ui, without actually showing it.
-    ///
-    /// This will also turn the Ui invisible.
-    /// Should be called right after [`Self::new`], if at all.
-    #[inline]
-    #[deprecated = "Use UiBuilder.sizing_pass().invisible()"]
-    pub fn set_sizing_pass(&mut self) {
-        self.sizing_pass = true;
-        self.set_invisible();
-    }
 
     /// Set to true in special cases where we do one frame
     /// where we size up the contents of the Ui, without actually showing it.
@@ -554,33 +493,6 @@ impl Ui {
         }
     }
 
-    /// Calling `set_enabled(false)` will cause the [`Ui`] to deny all future interaction
-    /// and all the widgets will draw with a gray look.
-    ///
-    /// Usually it is more convenient to use [`Self::add_enabled_ui`] or [`Self::add_enabled`].
-    ///
-    /// Calling `set_enabled(true)` has no effect - it will NOT re-enable the [`Ui`] once disabled.
-    ///
-    /// ### Example
-    /// ```
-    /// # egui::__run_test_ui(|ui| {
-    /// # let mut enabled = true;
-    /// ui.group(|ui| {
-    ///     ui.checkbox(&mut enabled, "Enable subsection");
-    ///     ui.set_enabled(enabled);
-    ///     if ui.button("Button that is not always clickable").clicked() {
-    ///         /* … */
-    ///     }
-    /// });
-    /// # });
-    /// ```
-    #[deprecated = "Use disable(), add_enabled_ui(), or add_enabled() instead"]
-    pub fn set_enabled(&mut self, enabled: bool) {
-        if !enabled {
-            self.disable();
-        }
-    }
-
     /// If `false`, any widgets added to the [`Ui`] will be invisible and non-interactive.
     ///
     /// This is `false` if any parent had [`UiBuilder::invisible`]
@@ -597,7 +509,7 @@ impl Ui {
     ///
     /// Once invisible, there is no way to make the [`Ui`] visible again.
     ///
-    /// Usually it is more convenient to use [`Self::add_visible_ui`] or [`Self::add_visible`].
+    /// Usually it is more convenient to use [`Self::add_visible`].
     ///
     /// ### Example
     /// ```
@@ -617,34 +529,6 @@ impl Ui {
     pub fn set_invisible(&mut self) {
         self.painter.set_invisible();
         self.disable();
-    }
-
-    /// Calling `set_visible(false)` will cause all further widgets to be invisible,
-    /// yet still allocate space.
-    ///
-    /// The widgets will not be interactive (`set_visible(false)` implies `set_enabled(false)`).
-    ///
-    /// Calling `set_visible(true)` has no effect.
-    ///
-    /// ### Example
-    /// ```
-    /// # egui::__run_test_ui(|ui| {
-    /// # let mut visible = true;
-    /// ui.group(|ui| {
-    ///     ui.checkbox(&mut visible, "Show subsection");
-    ///     ui.set_visible(visible);
-    ///     if ui.button("Button that is not always shown").clicked() {
-    ///         /* … */
-    ///     }
-    /// });
-    /// # });
-    /// ```
-    #[deprecated = "Use set_invisible(), add_visible_ui(), or add_visible() instead"]
-    pub fn set_visible(&mut self, visible: bool) {
-        if !visible {
-            self.painter.set_invisible();
-            self.disable();
-        }
     }
 
     /// Make the widget in this [`Ui`] semi-transparent.
@@ -694,17 +578,8 @@ impl Ui {
     ///
     /// This is determined first by [`Style::wrap_mode`], and then by the layout of this [`Ui`].
     pub fn wrap_mode(&self) -> TextWrapMode {
-        #[expect(deprecated)]
         if let Some(wrap_mode) = self.style.wrap_mode {
             wrap_mode
-        }
-        // `wrap` handling for backward compatibility
-        else if let Some(wrap) = self.style.wrap {
-            if wrap {
-                TextWrapMode::Wrap
-            } else {
-                TextWrapMode::Extend
-            }
         } else if let Some(grid) = self.placer.grid() {
             if grid.wrap_text() {
                 TextWrapMode::Wrap
@@ -719,14 +594,6 @@ impl Ui {
                 TextWrapMode::Extend
             }
         }
-    }
-
-    /// Should text wrap in this [`Ui`]?
-    ///
-    /// This is determined first by [`Style::wrap_mode`], and then by the layout of this [`Ui`].
-    #[deprecated = "Use `wrap_mode` instead"]
-    pub fn wrap_text(&self) -> bool {
-        self.wrap_mode() == TextWrapMode::Wrap
     }
 
     /// How to vertically align text
@@ -1063,18 +930,6 @@ impl Ui {
         )
     }
 
-    /// Deprecated: use [`Self::interact`] instead.
-    #[deprecated = "The contains_pointer argument is ignored. Use `ui.interact` instead."]
-    pub fn interact_with_hovered(
-        &self,
-        rect: Rect,
-        _contains_pointer: bool,
-        id: Id,
-        sense: Sense,
-    ) -> Response {
-        self.interact(rect, id, sense)
-    }
-
     /// Read the [`Ui`]'s background [`Response`].
     /// Its [`Sense`] will be based on the [`UiBuilder::sense`] used to create this [`Ui`].
     ///
@@ -1086,7 +941,7 @@ impl Ui {
     pub fn response(&self) -> Response {
         // This is the inverse of Context::read_response. We prefer a response
         // based on last frame's widget rect since the one from this frame is Rect::NOTHING until
-        // Ui::interact_bg is called or the Ui is dropped.
+        // Ui::remember_min_rect is called or the Ui is dropped.
         let mut response = self
             .ctx()
             .viewport(|viewport| {
@@ -1135,16 +990,6 @@ impl Ui {
             response.set_close();
         }
         response
-    }
-
-    /// Interact with the background of this [`Ui`],
-    /// i.e. behind all the widgets.
-    ///
-    /// The rectangle of the [`Response`] (and interactive area) will be [`Self::min_rect`].
-    #[deprecated = "Use UiBuilder::sense with Ui::response instead"]
-    pub fn interact_bg(&self, sense: Sense) -> Response {
-        // This will update the WidgetRect that was first created in `Ui::new`.
-        self.interact(self.min_rect(), self.unique_id, sense)
     }
 
     /// Is the pointer (mouse/touch) above this rectangle in this [`Ui`]?
@@ -1499,34 +1344,6 @@ impl Ui {
         )
     }
 
-    /// Allocated the given rectangle and then adds content to that rectangle.
-    ///
-    /// If the contents overflow, more space will be allocated.
-    /// When finished, the amount of space actually used (`min_rect`) will be allocated.
-    /// So you can request a lot of space and then use less.
-    #[deprecated = "Use `allocate_new_ui` instead"]
-    pub fn allocate_ui_at_rect<R>(
-        &mut self,
-        max_rect: Rect,
-        add_contents: impl FnOnce(&mut Self) -> R,
-    ) -> InnerResponse<R> {
-        self.scope_builder(UiBuilder::new().max_rect(max_rect), add_contents)
-    }
-
-    /// Allocated space (`UiBuilder::max_rect`) and then add content to it.
-    ///
-    /// If the contents overflow, more space will be allocated.
-    /// When finished, the amount of space actually used (`min_rect`) will be allocated in the parent.
-    /// So you can request a lot of space and then use less.
-    #[deprecated = "Use `scope_builder` instead"]
-    pub fn allocate_new_ui<R>(
-        &mut self,
-        ui_builder: UiBuilder,
-        add_contents: impl FnOnce(&mut Self) -> R,
-    ) -> InnerResponse<R> {
-        self.scope_dyn(ui_builder, Box::new(add_contents))
-    }
-
     /// Convenience function to get a region to paint on.
     ///
     /// Note that egui uses screen coordinates for everything.
@@ -1817,7 +1634,7 @@ impl Ui {
     /// If you call `add_visible` from within an already invisible [`Ui`],
     /// the widget will always be invisible, even if the `visible` argument is true.
     ///
-    /// See also [`Self::add_visible_ui`], [`Self::set_visible`] and [`Self::is_visible`].
+    /// See also [`Self::set_invisible`] and [`Self::is_visible`].
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
@@ -1840,38 +1657,6 @@ impl Ui {
         } else {
             self.add(widget)
         }
-    }
-
-    /// Add a section that is possibly invisible, i.e. greyed out and non-interactive.
-    ///
-    /// An invisible ui still takes up the same space as if it were visible.
-    ///
-    /// If you call `add_visible_ui` from within an already invisible [`Ui`],
-    /// the result will always be invisible, even if the `visible` argument is true.
-    ///
-    /// See also [`Self::add_visible`], [`Self::set_visible`] and [`Self::is_visible`].
-    ///
-    /// ### Example
-    /// ```
-    /// # egui::__run_test_ui(|ui| {
-    /// # let mut visible = true;
-    /// ui.checkbox(&mut visible, "Show subsection");
-    /// ui.add_visible_ui(visible, |ui| {
-    ///     ui.label("Maybe you see this, maybe you don't!");
-    /// });
-    /// # });
-    /// ```
-    #[deprecated = "Use 'ui.scope_builder' instead"]
-    pub fn add_visible_ui<R>(
-        &mut self,
-        visible: bool,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> InnerResponse<R> {
-        let mut ui_builder = UiBuilder::new();
-        if !visible {
-            ui_builder = ui_builder.invisible();
-        }
-        self.scope_builder(ui_builder, add_contents)
     }
 
     /// Add extra space before the next widget.
@@ -2381,21 +2166,6 @@ impl Ui {
         self.scope_dyn(UiBuilder::new().id_salt(id_salt), Box::new(add_contents))
     }
 
-    /// Push another level onto the [`UiStack`].
-    ///
-    /// You can use this, for instance, to tag a group of widgets.
-    #[deprecated = "Use 'ui.scope_builder' instead"]
-    pub fn push_stack_info<R>(
-        &mut self,
-        ui_stack_info: UiStackInfo,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> InnerResponse<R> {
-        self.scope_dyn(
-            UiBuilder::new().ui_stack_info(ui_stack_info),
-            Box::new(add_contents),
-        )
-    }
-
     /// Create a scoped child ui.
     ///
     /// You can use this to temporarily change the [`Style`] of a sub-region, for instance:
@@ -2434,26 +2204,6 @@ impl Ui {
         let response = child_ui.remember_min_rect();
         self.advance_cursor_after_rect(child_ui.min_rect());
         InnerResponse::new(ret, response)
-    }
-
-    /// Redirect shapes to another paint layer.
-    ///
-    /// ```
-    /// # use egui::{LayerId, Order, Id};
-    /// # egui::__run_test_ui(|ui| {
-    /// let layer_id = LayerId::new(Order::Tooltip, Id::new("my_floating_ui"));
-    /// ui.with_layer_id(layer_id, |ui| {
-    ///     ui.label("This is now in a different layer");
-    /// });
-    /// # });
-    /// ```
-    #[deprecated = "Use ui.scope_builder(UiBuilder::new().layer_id(…), …) instead"]
-    pub fn with_layer_id<R>(
-        &mut self,
-        layer_id: LayerId,
-        add_contents: impl FnOnce(&mut Self) -> R,
-    ) -> InnerResponse<R> {
-        self.scope_builder(UiBuilder::new().layer_id(layer_id), add_contents)
     }
 
     /// A [`CollapsingHeader`] that starts out collapsed.
@@ -3009,22 +2759,6 @@ impl Ui {
 
 /// # Menus
 impl Ui {
-    /// Close the menu we are in (including submenus), if any.
-    ///
-    /// See also: [`Self::menu_button`] and [`Response::context_menu`].
-    #[deprecated = "Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead"]
-    pub fn close_menu(&self) {
-        self.close_kind(UiKind::Menu);
-    }
-
-    #[expect(deprecated)]
-    pub(crate) fn set_menu_state(
-        &mut self,
-        menu_state: Option<Arc<RwLock<crate::menu::MenuState>>>,
-    ) {
-        self.menu_state = menu_state;
-    }
-
     #[inline]
     /// Create a menu button that when clicked will show the given menu.
     ///

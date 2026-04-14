@@ -256,18 +256,6 @@ impl<'a> Image<'a> {
         self
     }
 
-    /// Round the corners of the image.
-    ///
-    /// The default is no rounding ([`CornerRadius::ZERO`]).
-    ///
-    /// Due to limitations in the current implementation,
-    /// this will turn off any rotation of the image.
-    #[inline]
-    #[deprecated = "Renamed to `corner_radius`"]
-    pub fn rounding(self, corner_radius: impl Into<CornerRadius>) -> Self {
-        self.corner_radius(corner_radius)
-    }
-
     /// Show a spinner when the image is loading.
     ///
     /// By default this uses the value of [`crate::Visuals::image_loading_spinners`].

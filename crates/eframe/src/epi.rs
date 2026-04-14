@@ -2,7 +2,7 @@
 //!
 //! `epi` provides interfaces for window management and serialization.
 //!
-//! Start by looking at the [`App`] trait, and implement [`App::update`].
+//! Start by looking at the [`App`] trait, and implement [`App::ui`].
 
 #![warn(missing_docs)] // Let's keep `epi` well-documented.
 
@@ -161,22 +161,6 @@ pub trait App {
     /// (A "viewport" in egui means an native OS window).
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut Frame);
 
-    /// Called each time the UI needs repainting, which may be many times per second.
-    ///
-    /// Put your widgets into a [`egui::Panel`], [`egui::CentralPanel`], [`egui::Window`] or [`egui::Area`].
-    ///
-    /// The [`egui::Context`] can be cloned and saved if you like.
-    ///
-    /// To force a repaint, call [`egui::Context::request_repaint`] at any time (e.g. from another thread).
-    ///
-    /// This is called for the root viewport ([`egui::ViewportId::ROOT`]).
-    /// Use [`egui::Context::show_viewport_deferred`] to spawn additional viewports (windows).
-    /// (A "viewport" in egui means an native OS window).
-    #[deprecated = "Use Self::ui instead"]
-    fn update(&mut self, ctx: &egui::Context, frame: &mut Frame) {
-        _ = (ctx, frame);
-    }
-
     /// Get a handle to the app.
     ///
     /// Can be used from web to interact or other external context.
@@ -256,7 +240,7 @@ pub trait App {
         true
     }
 
-    /// A hook for manipulating or filtering raw input before it is processed by [`Self::update`].
+    /// A hook for manipulating or filtering raw input before it is processed by [`Self::ui`].
     ///
     /// This function provides a way to modify or filter input events before they are processed by egui.
     ///
@@ -780,7 +764,7 @@ impl Frame {
     /// * Read the pixel buffer from the previous frame (`glow::Context::read_pixels`).
     /// * Render things behind the egui windows.
     ///
-    /// Note that all egui painting is deferred to after the call to [`App::update`]
+    /// Note that all egui painting is deferred to after the call to [`App::ui`]
     /// ([`egui`] only collects [`egui::Shape`]s and then eframe paints them all in one go later on).
     ///
     /// To get a [`glow`] context you need to compile with the `glow` feature flag,
@@ -886,7 +870,7 @@ pub struct IntegrationInfo {
 
     /// Seconds of cpu usage (in seconds) on the previous frame.
     ///
-    /// This includes [`App::update`] as well as rendering (except for vsync waiting).
+    /// This includes [`App::ui`] as well as rendering (except for vsync waiting).
     ///
     /// For a more detailed view of cpu usage, connect your preferred profiler by enabling it's feature in [`profiling`](https://crates.io/crates/profiling).
     ///

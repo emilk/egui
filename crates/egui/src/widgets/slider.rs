@@ -288,16 +288,6 @@ impl<'a> Slider<'a> {
         self
     }
 
-    #[inline]
-    #[deprecated = "Use `slider.clamping(…) instead"]
-    pub fn clamp_to_range(self, clamp_to_range: bool) -> Self {
-        self.clamping(if clamp_to_range {
-            SliderClamping::Always
-        } else {
-            SliderClamping::Never
-        })
-    }
-
     /// Turn smart aim on/off. Default is ON.
     /// There is almost no point in turning this off.
     #[inline]

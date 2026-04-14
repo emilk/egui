@@ -259,7 +259,7 @@ impl EpiIntegration {
 
     /// Run user code - this can create immediate viewports, so hold no locks over this!
     ///
-    /// If `viewport_ui_cb` is None, we are in the root viewport and will call [`crate::App::update`].
+    /// If `viewport_ui_cb` is None, we are in the root viewport and will call [`crate::App::ui`].
     pub fn update(
         &mut self,
         app: &mut dyn epi::App,
@@ -287,12 +287,6 @@ impl EpiIntegration {
                 }
 
                 if is_visible {
-                    {
-                        profiling::scope!("App::update");
-                        #[expect(deprecated)]
-                        app.update(ui.ctx(), &mut self.frame);
-                    }
-
                     {
                         profiling::scope!("App::ui");
                         app.ui(ui, &mut self.frame);

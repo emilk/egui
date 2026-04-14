@@ -522,14 +522,6 @@ impl InputState {
         self.viewport_rect
     }
 
-    /// Position and size of the egui area.
-    #[deprecated(
-        note = "screen_rect has been split into viewport_rect() and content_rect(). You likely should use content_rect()"
-    )]
-    pub fn screen_rect(&self) -> Rect {
-        self.content_rect()
-    }
-
     /// Get the safe area insets.
     ///
     /// This represents the area of the screen covered by status bars, navigation controls, notches,

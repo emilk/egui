@@ -423,13 +423,6 @@ impl ScrollArea {
         self
     }
 
-    /// A source for the unique [`Id`], e.g. `.id_source("second_scroll_area")` or `.id_source(loop_index)`.
-    #[inline]
-    #[deprecated = "Renamed id_salt"]
-    pub fn id_source(self, id_salt: impl std::hash::Hash) -> Self {
-        self.id_salt(id_salt)
-    }
-
     /// A source for the unique [`Id`], e.g. `.id_salt("second_scroll_area")` or `.id_salt(loop_index)`.
     #[inline]
     pub fn id_salt(mut self, id_salt: impl std::hash::Hash) -> Self {
@@ -530,32 +523,6 @@ impl ScrollArea {
     /// This can be used, for example, to optionally freeze scrolling while the user
     /// is typing text in a [`crate::TextEdit`] widget contained within the scroll area.
     ///
-    /// This controls both scrolling directions.
-    #[deprecated = "Use `ScrollArea::scroll_source()"]
-    #[inline]
-    pub fn enable_scrolling(mut self, enable: bool) -> Self {
-        self.scroll_source = if enable {
-            ScrollSource::ALL
-        } else {
-            ScrollSource::NONE
-        };
-        self
-    }
-
-    /// Can the user drag the scroll area to scroll?
-    ///
-    /// This is useful for touch screens.
-    ///
-    /// If `true`, the [`ScrollArea`] will sense drags.
-    ///
-    /// Default: `true`.
-    #[deprecated = "Use `ScrollArea::scroll_source()"]
-    #[inline]
-    pub fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
-        self.scroll_source.drag = drag_to_scroll;
-        self
-    }
-
     /// What sources does the [`ScrollArea`] use for scrolling the contents.
     #[inline]
     pub fn scroll_source(mut self, scroll_source: ScrollSource) -> Self {
