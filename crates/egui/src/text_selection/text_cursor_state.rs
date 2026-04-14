@@ -395,7 +395,7 @@ mod test {
     #[test]
     fn test_word_boundary_large_text_performance() {
         // Before the O(n²) → O(n) fix, this would take minutes on large text.
-        let large_text: String = "word ".repeat(200_000); // ~1MB
+        let large_text = "word ".repeat(200_000); // ~1MB
         let len = large_text.chars().count();
 
         let start = std::time::Instant::now();
