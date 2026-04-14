@@ -722,6 +722,7 @@ impl WgpuWinitRunning<'_> {
                 &clipped_primitives,
                 &textures_delta,
                 screenshot_commands,
+                window,
             );
 
             for action in viewport.actions_requested.drain(..) {
@@ -1111,6 +1112,7 @@ fn render_immediate_viewport(
         &clipped_primitives,
         &textures_delta,
         vec![],
+        window,
     );
 
     egui_winit.handle_platform_output(window, platform_output);
