@@ -399,7 +399,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, winit_app: impl WinitApp) -> R
 pub fn run_glow(
     app_name: &str,
     mut native_options: epi::NativeOptions,
-    app_creator: epi::AppCreator<'_>,
+    app_creator: epi::AppCreator,
 ) -> Result {
     use super::glow_integration::GlowWinitApp;
 
@@ -420,7 +420,7 @@ pub fn run_glow(
 pub fn create_glow<'a>(
     app_name: &str,
     native_options: epi::NativeOptions,
-    app_creator: epi::AppCreator<'a>,
+    app_creator: epi::AppCreator,
     event_loop: &EventLoop<UserEvent>,
 ) -> impl ApplicationHandler<UserEvent> + 'a {
     use super::glow_integration::GlowWinitApp;
@@ -435,7 +435,7 @@ pub fn create_glow<'a>(
 pub fn run_wgpu(
     app_name: &str,
     mut native_options: epi::NativeOptions,
-    app_creator: epi::AppCreator<'_>,
+    app_creator: epi::AppCreator,
 ) -> Result {
     use super::wgpu_integration::WgpuWinitApp;
 
@@ -456,7 +456,7 @@ pub fn run_wgpu(
 pub fn create_wgpu<'a>(
     app_name: &str,
     native_options: epi::NativeOptions,
-    app_creator: epi::AppCreator<'a>,
+    app_creator: epi::AppCreator,
     event_loop: &EventLoop<UserEvent>,
 ) -> impl ApplicationHandler<UserEvent> + 'a {
     use super::wgpu_integration::WgpuWinitApp;
