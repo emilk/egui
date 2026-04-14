@@ -563,7 +563,7 @@ pub fn image_snapshot_options(
     options: &SnapshotOptions,
 ) {
     match try_image_snapshot_options(current, name, options) {
-        Ok(_) => {}
+        Ok(()) => {}
         Err(err) => {
             panic!("{err}");
         }
@@ -582,7 +582,7 @@ pub fn image_snapshot_options(
 #[track_caller]
 pub fn image_snapshot(current: &image::RgbaImage, name: impl Into<String>) {
     match try_image_snapshot(current, name) {
-        Ok(_) => {}
+        Ok(()) => {}
         Err(err) => {
             panic!("{err}");
         }
@@ -884,14 +884,14 @@ impl Drop for SnapshotResults {
             #[expect(clippy::manual_assert)]
             if count >= 2 {
                 panic!(
-                    r#"
+                    "
 Multiple SnapshotResults were dropped without being handled.
 
 In order to allow consistent snapshot updates, all snapshot results within a test should be merged in a single SnapshotResults instance.
 Usually this is handled internally in a harness. If you have multiple harnesses, you can merge the results using `Harness::take_snapshot_results` and `SnapshotResults::extend`.
 
 The SnapshotResult was constructed at {}
-                    "#,
+                    ",
                     self.location
                 );
             }

@@ -8,14 +8,33 @@ use crate::{
     Color32, Mesh, Stroke, Vertex,
     stroke::PathStroke,
     text::{
-        font::{StyledMetrics, is_cjk, is_cjk_break_allowed},
+        font::{StyledMetrics, UvRect, is_cjk, is_cjk_break_allowed},
         fonts::FontFaceKey,
     },
 };
 
-use super::{FontsImpl, Galley, Glyph, LayoutJob, LayoutSection, PlacedRow, Row, RowVisuals};
+use super::{
+    FontsImpl, Galley, Glyph, LayoutJob, LayoutSection, PlacedRow, Row, RowVisuals,
+    VariationCoords,
+    font::{Font, FontFace, ShapedGlyph},
+};
 
 // ----------------------------------------------------------------------------
+
+/// Returns `true` if the character is a Unicode combining mark (categories Mn, Mc, Me).
+///
+/// These characters modify the preceding base character and should not be
+/// rendered as standalone replacement glyphs when the shaper can't handle them.
+#[inline]
+fn is_combining_mark(c: char) -> bool {
+    use unicode_general_category::{GeneralCategory, get_general_category};
+    matches!(
+        get_general_category(c),
+        GeneralCategory::NonspacingMark
+            | GeneralCategory::SpacingMark
+            | GeneralCategory::EnclosingMark
+    )
+}
 
 /// Represents GUI scale and convenience methods for rounding to pixels.
 #[derive(Clone, Copy)]
@@ -98,15 +117,21 @@ pub fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<LayoutJob>)
     // For most of this we ignore the y coordinate:
 
     let mut paragraphs = vec![Paragraph::from_section_index(0)];
-    for (section_index, section) in job.sections.iter().enumerate() {
-        layout_section(
-            fonts,
-            pixels_per_point,
-            &job,
-            section_index as u32,
-            section,
-            &mut paragraphs,
-        );
+    {
+        let mut shape_buffer = fonts.take_shape_buffer();
+        for (section_index, section) in job.sections.iter().enumerate() {
+            let mut font = fonts.font(&section.format.font_id.family);
+            shape_buffer = layout_section(
+                &mut font,
+                shape_buffer,
+                pixels_per_point,
+                &job,
+                section_index as u32,
+                section,
+                &mut paragraphs,
+            );
+        }
+        fonts.return_shape_buffer(shape_buffer);
     }
 
     let point_scale = PointScale::new(pixels_per_point);
@@ -144,21 +169,210 @@ pub fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<LayoutJob>)
     galley_from_rows(point_scale, job, rows, elided, intrinsic_size)
 }
 
+/// Shared context for emitting shaped glyphs into a [`Paragraph`].
+struct ShapingContext {
+    pixels_per_point: f32,
+    font_size: f32,
+    line_height: f32,
+    extra_letter_spacing: f32,
+    section_index: u32,
+    font_metrics: StyledMetrics,
+    is_first_glyph_in_section: bool,
+    prev_cluster: Option<u32>,
+}
+
+impl ShapingContext {
+    fn glyph(
+        &self,
+        chr: char,
+        physical_x: i32,
+        advance_width_px: f32,
+        face_metrics: &StyledMetrics,
+        uv_rect: UvRect,
+    ) -> Glyph {
+        Glyph {
+            chr,
+            pos: pos2(physical_x as f32 / self.pixels_per_point, f32::NAN),
+            advance_width: advance_width_px / self.pixels_per_point,
+            line_height: self.line_height,
+            font_face_height: face_metrics.row_height,
+            font_face_ascent: face_metrics.ascent,
+            font_height: self.font_metrics.row_height,
+            font_ascent: self.font_metrics.ascent,
+            uv_rect,
+            section_index: self.section_index,
+            first_vertex: 0,
+        }
+    }
+}
+
+/// Produced by [`segment_into_runs`] for text shaping.
+#[derive(Debug)]
+struct TextRun {
+    /// Which font face should shape this run.
+    font_key: FontFaceKey,
+
+    /// Byte range within the section text.
+    byte_range: std::ops::Range<usize>,
+}
+
+/// Emit shaped glyphs from a [`harfrust::GlyphBuffer`] into a [`Paragraph`].
+fn layout_shaped_run(
+    font: &mut Font<'_>,
+    run: &TextRun,
+    run_text: &str,
+    glyph_buffer: &harfrust::GlyphBuffer,
+    face_metrics: &StyledMetrics,
+    ctx: &mut ShapingContext,
+    paragraph: &mut Paragraph,
+) {
+    let px_scale = face_metrics.px_scale_factor;
+
+    // Reset cluster tracking — cluster values are byte offsets within run_text,
+    // so they are not comparable across runs.
+    ctx.prev_cluster = None;
+
+    for (info, pos) in glyph_buffer
+        .glyph_infos()
+        .iter()
+        .zip(glyph_buffer.glyph_positions())
+    {
+        let glyph_id = skrifa::GlyphId::new(info.glyph_id);
+        let cluster = info.cluster;
+        let mut advance_width_px = pos.x_advance as f32 * px_scale;
+        let x_offset_px = pos.x_offset as f32 * px_scale;
+        let y_offset_px = -(pos.y_offset as f32 * px_scale); // harfrust Y+ up → screen Y+ down
+
+        let chr = run_text
+            .get(cluster as usize..)
+            .and_then(|s| s.chars().next())
+            .unwrap_or('\u{FFFD}'); // Unicode Replacement Character
+
+        // Tab is a layout concept, not a glyph — the shaper doesn't know about tab stops.
+        // Override the advance width using the font's configured tab size.
+        if chr == '\t' {
+            let tweak = font.fonts_by_id.get(&run.font_key).map(|ff| ff.tweak());
+            let tab_size = tweak.map_or(4.0, |t| t.tab_size);
+            let (_, space_info) = font.glyph_info(' ');
+            let space_width_px = space_info.advance_width_unscaled.0 * px_scale;
+            advance_width_px = tab_size * space_width_px;
+        }
+
+        // Thin space (U+2009) and narrow no-break space (U+202F):
+        // override the shaper's advance width with the configured fraction of a space.
+        if chr == '\u{2009}' || chr == '\u{202F}' {
+            let tweak = font.fonts_by_id.get(&run.font_key).map(|ff| ff.tweak());
+            let thin_space_width = tweak.map_or(0.5, |t| t.thin_space_width);
+            let (_, space_info) = font.glyph_info(' ');
+            let space_width_px = space_info.advance_width_unscaled.0 * px_scale;
+            advance_width_px = thin_space_width * space_width_px;
+        }
+
+        // Apply extra_letter_spacing only at cluster boundaries,
+        // never between glyphs within the same cluster (e.g. base + mark).
+        let is_new_cluster = ctx.prev_cluster.is_none_or(|pc| pc != cluster);
+        if !ctx.is_first_glyph_in_section && is_new_cluster {
+            paragraph.cursor_x_px += ctx.extra_letter_spacing * ctx.pixels_per_point;
+        }
+        if is_new_cluster {
+            ctx.is_first_glyph_in_section = false;
+        }
+        ctx.prev_cluster = Some(cluster);
+
+        let glyph = if glyph_id == skrifa::GlyphId::NOTDEF {
+            // The shaper couldn't map this character. Drop combining marks
+            // (Unicode category M) and duplicate NOTDEF glyphs within the same
+            // cluster — only the first base character gets a replacement glyph.
+            if is_combining_mark(chr) || !is_new_cluster {
+                continue;
+            }
+
+            // Use the fallback font face (not run.font_key which returned NOTDEF).
+            let (fallback_key, glyph_info) = font.glyph_info(chr);
+            let fallback_metrics = font
+                .fonts_by_id
+                .get(&fallback_key)
+                .map(|ff| {
+                    ff.styled_metrics(ctx.pixels_per_point, ctx.font_size, &Default::default())
+                })
+                .unwrap_or_default();
+            let advance_width_px =
+                glyph_info.advance_width_unscaled.0 * fallback_metrics.px_scale_factor;
+            let (glyph_alloc, physical_x) =
+                if let Some(ff) = font.fonts_by_id.get_mut(&fallback_key) {
+                    ff.allocate_glyph(
+                        font.atlas,
+                        &fallback_metrics,
+                        &ShapedGlyph {
+                            glyph_id: glyph_info.id.unwrap_or(skrifa::GlyphId::NOTDEF),
+                            h_pos: paragraph.cursor_x_px,
+                            is_cjk: is_cjk(chr),
+                        },
+                    )
+                } else {
+                    Default::default()
+                };
+
+            paragraph.cursor_x_px += advance_width_px;
+
+            ctx.glyph(
+                chr,
+                physical_x,
+                advance_width_px,
+                &fallback_metrics,
+                glyph_alloc.uv_rect,
+            )
+        } else {
+            let (mut glyph_alloc, physical_x) =
+                if let Some(ff) = font.fonts_by_id.get_mut(&run.font_key) {
+                    ff.allocate_glyph(
+                        font.atlas,
+                        face_metrics,
+                        &ShapedGlyph {
+                            glyph_id,
+                            h_pos: paragraph.cursor_x_px + x_offset_px,
+                            is_cjk: is_cjk(chr),
+                        },
+                    )
+                } else {
+                    Default::default()
+                };
+
+            // Apply shaper y_offset — this varies per glyph instance so it
+            // is not part of the cached ShapedGlyph / GlyphAllocation.
+            glyph_alloc.uv_rect.offset.y += y_offset_px / ctx.pixels_per_point;
+
+            paragraph.cursor_x_px += advance_width_px;
+
+            ctx.glyph(
+                chr,
+                physical_x,
+                advance_width_px,
+                face_metrics,
+                glyph_alloc.uv_rect,
+            )
+        };
+        paragraph.glyphs.push(glyph);
+    }
+}
+
 // Ignores the Y coordinate.
+#[must_use]
 fn layout_section(
-    fonts: &mut FontsImpl,
+    font: &mut Font<'_>,
+    mut shape_buffer: harfrust::UnicodeBuffer,
     pixels_per_point: f32,
     job: &LayoutJob,
     section_index: u32,
     section: &LayoutSection,
     out_paragraphs: &mut Vec<Paragraph>,
-) {
+) -> harfrust::UnicodeBuffer {
     let LayoutSection {
         leading_space,
         byte_range,
         format,
     } = section;
-    let mut font = fonts.font(&format.font_id.family);
+
     let font_size = format.font_id.size;
     let font_metrics = font.styled_metrics(pixels_per_point, font_size, &format.coords);
     let line_height = section
@@ -169,76 +383,100 @@ fn layout_section(
 
     let mut paragraph = out_paragraphs.last_mut().unwrap();
     if paragraph.glyphs.is_empty() {
-        paragraph.empty_paragraph_height = line_height; // TODO(emilk): replace this hack with actually including `\n` in the glyphs?
+        paragraph.empty_paragraph_height = line_height;
     }
-
     paragraph.cursor_x_px += leading_space * pixels_per_point;
 
-    let mut last_glyph_id = None;
+    let section_text = &job.text[byte_range.clone()];
+    let mut ctx = ShapingContext {
+        pixels_per_point,
+        font_size,
+        line_height,
+        extra_letter_spacing,
+        section_index,
+        font_metrics,
+        is_first_glyph_in_section: paragraph.glyphs.is_empty(),
+        prev_cluster: None,
+    };
+    let mut runs = Vec::new();
 
-    // Optimization: only recompute `ScaledMetrics` when the concrete `FontImpl` changes.
-    let mut current_font = FontFaceKey::INVALID;
-    let mut current_font_face_metrics = StyledMetrics::default();
-
-    for chr in job.text[byte_range.clone()].chars() {
-        if job.break_on_newline && chr == '\n' {
+    // Process each paragraph segment (split on newlines — the shaper can't handle them).
+    for (seg_idx, segment) in SplitOrWhole::new(section_text, job.break_on_newline).enumerate() {
+        if 0 < seg_idx {
             out_paragraphs.push(Paragraph::from_section_index(section_index));
             paragraph = out_paragraphs.last_mut().unwrap();
-            paragraph.empty_paragraph_height = line_height; // TODO(emilk): replace this hack with actually including `\n` in the glyphs?
-        } else {
-            let (font_id, glyph_info) = font.glyph_info(chr);
-            let mut font_face = font.fonts_by_id.get_mut(&font_id);
-            if current_font != font_id {
-                current_font = font_id;
-                current_font_face_metrics = font_face
-                    .as_ref()
-                    .map(|font_face| {
-                        font_face.styled_metrics(pixels_per_point, font_size, &format.coords)
-                    })
-                    .unwrap_or_default();
-            }
+            paragraph.empty_paragraph_height = line_height;
+            ctx.is_first_glyph_in_section = true;
+        }
 
-            if let (Some(font_face), Some(last_glyph_id), Some(glyph_id)) =
-                (&font_face, last_glyph_id, glyph_info.id)
-            {
-                paragraph.cursor_x_px += font_face.pair_kerning_pixels(
-                    &current_font_face_metrics,
-                    last_glyph_id,
-                    glyph_id,
-                );
+        if segment.is_empty() {
+            continue;
+        }
 
-                // Only apply extra_letter_spacing to glyphs after the first one:
-                paragraph.cursor_x_px += extra_letter_spacing * pixels_per_point;
-            }
+        segment_into_runs(font, segment, &mut runs);
 
-            let (glyph_alloc, physical_x) = if let Some(font_face) = font_face.as_mut() {
-                font_face.allocate_glyph(
-                    font.atlas,
-                    &current_font_face_metrics,
-                    glyph_info,
-                    chr,
-                    paragraph.cursor_x_px,
-                )
-            } else {
-                Default::default()
+        let num_runs = runs.len();
+        for (run_idx, run) in runs.iter().enumerate() {
+            let run_text = &segment[run.byte_range.clone()];
+            let Some(font_face) = font.fonts_by_id.get(&run.font_key) else {
+                continue;
             };
 
-            paragraph.glyphs.push(Glyph {
-                chr,
-                pos: pos2(physical_x as f32 / pixels_per_point, f32::NAN),
-                advance_width: glyph_alloc.advance_width_px / pixels_per_point,
-                line_height,
-                font_face_height: current_font_face_metrics.row_height,
-                font_face_ascent: current_font_face_metrics.ascent,
-                font_height: font_metrics.row_height,
-                font_ascent: font_metrics.ascent,
-                uv_rect: glyph_alloc.uv_rect,
-                section_index,
-                first_vertex: 0, // filled in later
-            });
+            let face_metrics =
+                font_face.styled_metrics(pixels_per_point, font_size, &format.coords);
 
-            paragraph.cursor_x_px += glyph_alloc.advance_width_px;
-            last_glyph_id = Some(glyph_alloc.id);
+            // Set buffer flags for paragraph boundary context.
+            let mut flags = harfrust::BufferFlags::empty();
+            if run_idx == 0 {
+                flags |= harfrust::BufferFlags::BEGINNING_OF_TEXT;
+            }
+            if run_idx + 1 == num_runs {
+                flags |= harfrust::BufferFlags::END_OF_TEXT;
+            }
+
+            let glyph_buffer = shape_text(font_face, run_text, &format.coords, shape_buffer, flags);
+
+            layout_shaped_run(
+                font,
+                run,
+                run_text,
+                &glyph_buffer,
+                &face_metrics,
+                &mut ctx,
+                paragraph,
+            );
+
+            shape_buffer = glyph_buffer.clear();
+        }
+    }
+
+    shape_buffer
+}
+
+/// Iterator that either splits on `'\n'` or yields the whole string once.
+/// Avoids `Box<dyn Iterator>` and `Vec<&str>` allocation.
+enum SplitOrWhole<'a> {
+    Split(std::str::Split<'a, char>),
+    Whole(std::iter::Once<&'a str>),
+}
+
+impl<'a> SplitOrWhole<'a> {
+    fn new(text: &'a str, split: bool) -> Self {
+        if split {
+            Self::Split(text.split('\n'))
+        } else {
+            Self::Whole(std::iter::once(text))
+        }
+    }
+}
+
+impl<'a> Iterator for SplitOrWhole<'a> {
+    type Item = &'a str;
+
+    fn next(&mut self) -> Option<&'a str> {
+        match self {
+            Self::Split(iter) => iter.next(),
+            Self::Whole(iter) => iter.next(),
         }
     }
 }
@@ -479,33 +717,14 @@ fn replace_last_glyph_with_overflow_character(
             .unwrap_or_default();
 
         let overflow_glyph_x = if let Some(prev_glyph) = row.glyphs.last() {
-            // Kern the overflow character properly
-            let pair_kerning = font_face
-                .as_mut()
-                .map(|font_face| {
-                    if let (Some(prev_glyph_id), Some(overflow_glyph_id)) = (
-                        font_face.glyph_info(prev_glyph.chr).and_then(|g| g.id),
-                        font_face.glyph_info(overflow_character).and_then(|g| g.id),
-                    ) {
-                        font_face.pair_kerning(&font_face_metrics, prev_glyph_id, overflow_glyph_id)
-                    } else {
-                        0.0
-                    }
-                })
-                .unwrap_or_default();
-
-            prev_glyph.max_x() + extra_letter_spacing + pair_kerning
+            prev_glyph.max_x() + extra_letter_spacing
         } else {
             0.0 // TODO(emilk): heed paragraph leading_space 😬
         };
 
-        let replacement_glyph_width = font_face
-            .as_mut()
-            .and_then(|f| f.glyph_info(overflow_character))
-            .map(|i| {
-                i.advance_width_unscaled.0 * font_face_metrics.px_scale_factor / pixels_per_point
-            })
-            .unwrap_or_default();
+        let advance_width_px =
+            glyph_info.advance_width_unscaled.0 * font_face_metrics.px_scale_factor;
+        let replacement_glyph_width = advance_width_px / pixels_per_point;
 
         // Check if we're within width budget:
         if overflow_glyph_x + replacement_glyph_width <= job.effective_wrap_width()
@@ -519,9 +738,11 @@ fn replace_last_glyph_with_overflow_character(
                     f.allocate_glyph(
                         font.atlas,
                         &font_face_metrics,
-                        glyph_info,
-                        overflow_character,
-                        overflow_glyph_x * pixels_per_point,
+                        &ShapedGlyph {
+                            glyph_id: glyph_info.id.unwrap_or(skrifa::GlyphId::NOTDEF),
+                            h_pos: overflow_glyph_x * pixels_per_point,
+                            is_cjk: is_cjk(overflow_character),
+                        },
                     )
                 })
                 .unwrap_or_default();
@@ -536,7 +757,7 @@ fn replace_last_glyph_with_overflow_character(
             row.glyphs.push(Glyph {
                 chr: overflow_character,
                 pos: pos2(physical_x as f32 / pixels_per_point, f32::NAN),
-                advance_width: replacement_glyph_alloc.advance_width_px / pixels_per_point,
+                advance_width: advance_width_px / pixels_per_point,
                 line_height,
                 font_face_height: font_face_metrics.row_height,
                 font_face_ascent: font_face_metrics.ascent,
@@ -1060,6 +1281,90 @@ impl RowBreakCandidates {
 
 // ----------------------------------------------------------------------------
 
+/// Segment text into runs where each run uses a single font face.
+///
+/// Grapheme clusters are never split across runs: if a combining mark
+/// falls back to a different font than its base character, it stays
+/// with the base character's font (the shaper will handle it).
+///
+/// NOTE: Segmentation is by font face, not by Unicode script. A run may
+/// mix scripts (e.g. Latin + Cyrillic) when they share the same font.
+/// This is acceptable for scripts with similar shaping rules, but would
+/// need script-aware splitting once RTL/bidi support is added.
+///
+/// Results are appended to `out` (which is cleared first) to allow
+/// the caller to reuse the allocation across calls.
+fn segment_into_runs(font: &mut Font<'_>, text: &str, out: &mut Vec<TextRun>) {
+    use unicode_segmentation::UnicodeSegmentation as _;
+
+    out.clear();
+
+    for (byte_offset, grapheme_str) in text.grapheme_indices(true) {
+        let byte_end = byte_offset + grapheme_str.len();
+
+        let base_char = grapheme_str.chars().next().unwrap_or(' ');
+        let (font_key, _) = font.glyph_info(base_char);
+
+        if let Some(last_run) = out.last_mut()
+            && last_run.font_key == font_key
+        {
+            last_run.byte_range.end = byte_end;
+            continue;
+        }
+        out.push(TextRun {
+            font_key,
+            byte_range: byte_offset..byte_end,
+        });
+    }
+}
+
+/// Shape a text run and return the raw [`harfrust::GlyphBuffer`].
+///
+/// The caller should iterate `glyph_infos()` / `glyph_positions()` (both
+/// `Copy` slices) and convert font units to pixels using `metrics.px_scale_factor`.
+/// After iteration, recycle the buffer via `glyph_buffer.clear()`.
+fn shape_text(
+    font_face: &FontFace,
+    text: &str,
+    coords: &VariationCoords,
+    mut buffer: harfrust::UnicodeBuffer,
+    flags: harfrust::BufferFlags,
+) -> harfrust::GlyphBuffer {
+    let font_ref = font_face.skrifa_font_ref();
+    let tweak = font_face.tweak();
+
+    // Build shaper with variable font instance if variation coordinates are set.
+    let variations: Vec<harfrust::Variation> = tweak
+        .coords
+        .as_ref()
+        .iter()
+        .chain(coords.as_ref().iter())
+        .map(|&(tag, value)| harfrust::Variation { tag, value })
+        .collect();
+
+    let instance = if variations.is_empty() {
+        None
+    } else {
+        Some(harfrust::ShaperInstance::from_variations(
+            font_ref, variations,
+        ))
+    };
+
+    let shaper = font_face
+        .shaper_data()
+        .shaper(font_ref)
+        .instance(instance.as_ref())
+        .build();
+
+    buffer.set_flags(flags);
+    buffer.push_str(text);
+    buffer.guess_segment_properties();
+
+    shaper.shape(buffer, &[])
+}
+
+// ----------------------------------------------------------------------------
+
 #[cfg(test)]
 mod tests {
 
@@ -1276,5 +1581,178 @@ mod tests {
             Vec2::new(17.0, font_height.round() * 2.0),
             "Unexpected intrinsic size"
         );
+    }
+
+    #[test]
+    fn test_combining_diacritics() {
+        // ɔ̃ = U+0254 (LATIN SMALL LETTER OPEN O) + U+0303 (COMBINING TILDE)
+        // With text shaping, the combining tilde should NOT produce a separate
+        // advance — it should be positioned above ɔ via GPOS anchors.
+        // Note: the default fonts don't contain U+0254, so the replacement glyph
+        // is used. The key test is that the combining mark does NOT add extra width.
+        let pixels_per_point = 1.0;
+        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+
+        let job_combined = LayoutJob::simple(
+            "ɔ\u{0303}".to_owned(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+            f32::INFINITY,
+        );
+        let galley_combined = layout(&mut fonts, pixels_per_point, job_combined.into());
+
+        let job_base = LayoutJob::simple(
+            "ɔ".to_owned(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+            f32::INFINITY,
+        );
+        let galley_base = layout(&mut fonts, pixels_per_point, job_base.into());
+
+        let width_combined = galley_combined.size().x;
+        let width_base = galley_base.size().x;
+
+        assert!(
+            (width_combined - width_base).abs() < 2.0,
+            "Combining diacritic should not add significant width. \
+             Base width: {width_base}, Combined width: {width_combined}"
+        );
+
+        let glyphs = &galley_combined.rows[0].row.glyphs;
+        assert!(!glyphs.is_empty(), "Expected at least 1 glyph for ɔ̃");
+    }
+
+    #[test]
+    fn test_shaping_basic_latin() {
+        // Basic test: shaped Latin text should produce the same number of glyphs as characters.
+        let pixels_per_point = 1.0;
+        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+
+        let job = LayoutJob::simple(
+            "Hello".to_owned(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+            f32::INFINITY,
+        );
+        let galley = layout(&mut fonts, pixels_per_point, job.into());
+
+        assert_eq!(galley.rows.len(), 1);
+        assert_eq!(galley.rows[0].row.glyphs.len(), 5);
+        assert!(galley.size().x > 0.0);
+    }
+
+    #[test]
+    fn test_shaping_empty_string() {
+        let pixels_per_point = 1.0;
+        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+
+        let job = LayoutJob::simple(
+            String::new(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+            f32::INFINITY,
+        );
+        let galley = layout(&mut fonts, pixels_per_point, job.into());
+
+        assert_eq!(galley.rows.len(), 1);
+        assert_eq!(galley.rows[0].row.glyphs.len(), 0);
+    }
+
+    #[test]
+    fn test_shaping_multiple_newlines() {
+        let pixels_per_point = 1.0;
+        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+
+        let job = LayoutJob::simple(
+            "A\n\nB".to_owned(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+            f32::INFINITY,
+        );
+        let galley = layout(&mut fonts, pixels_per_point, job.into());
+
+        assert_eq!(galley.rows.len(), 3, "Expected 3 rows for 'A\\n\\nB'");
+        assert_eq!(galley.rows[0].row.glyphs.len(), 1); // "A"
+        assert_eq!(galley.rows[1].row.glyphs.len(), 0); // empty line
+        assert_eq!(galley.rows[2].row.glyphs.len(), 1); // "B"
+    }
+
+    #[test]
+    fn test_shaping_mixed_font_fallback() {
+        // Text with both Latin and emoji should work without panicking,
+        // even though they use different font faces.
+        let pixels_per_point = 1.0;
+        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+
+        let job = LayoutJob::simple(
+            "Hi 🎉 bye".to_owned(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+            f32::INFINITY,
+        );
+        let galley = layout(&mut fonts, pixels_per_point, job.into());
+
+        assert_eq!(galley.rows.len(), 1);
+        // "Hi " (3) + "🎉" (1) + " bye" (4) = at least 8 glyphs
+        assert!(
+            galley.rows[0].row.glyphs.len() >= 8,
+            "Expected >= 8 glyphs, got {}",
+            galley.rows[0].row.glyphs.len()
+        );
+    }
+
+    #[test]
+    fn test_gpos_kerning() {
+        // GPOS kerning: pairs like "AV", "VA", "AT" should be tighter than
+        // the sum of individual character widths. Without text shaping, egui
+        // only uses the legacy `kern` table, so these pairs had diff ≈ 0.
+        // With harfrust, GPOS kerning applies proper negative adjustments.
+        let pixels_per_point = 1.0;
+        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let font_id = FontId::proportional(14.0);
+
+        for pair in ["AV", "VA", "AT"] {
+            let (pair_w, _, _) = measure_text(&mut fonts, pair, &font_id, pixels_per_point);
+            let chars: Vec<char> = pair.chars().collect();
+            let (w1, _, _) = measure_text(
+                &mut fonts,
+                &chars[0].to_string(),
+                &font_id,
+                pixels_per_point,
+            );
+            let (w2, _, _) = measure_text(
+                &mut fonts,
+                &chars[1].to_string(),
+                &font_id,
+                pixels_per_point,
+            );
+            let sum = w1 + w2;
+            let kern_adjustment = sum - pair_w;
+
+            assert!(
+                kern_adjustment > 0.5,
+                "GPOS kerning for '{pair}': expected pair to be noticeably tighter \
+                 than sum of individuals. pair_width={pair_w:.2}, sum={sum:.2}, \
+                 kern_adjustment={kern_adjustment:.2} (should be > 0.5)",
+            );
+        }
+    }
+
+    fn measure_text(
+        fonts: &mut FontsImpl,
+        text: &str,
+        font_id: &FontId,
+        pixels_per_point: f32,
+    ) -> (f32, usize, Vec<(char, f32)>) {
+        let job = LayoutJob::simple(
+            text.to_owned(),
+            font_id.clone(),
+            Color32::WHITE,
+            f32::INFINITY,
+        );
+        let galley = layout(fonts, pixels_per_point, job.into());
+        let glyphs = &galley.rows[0].row.glyphs;
+        let details: Vec<_> = glyphs.iter().map(|g| (g.chr, g.advance_width)).collect();
+        (galley.size().x, glyphs.len(), details)
     }
 }

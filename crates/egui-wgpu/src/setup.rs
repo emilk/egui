@@ -296,15 +296,22 @@ impl Clone for WgpuSetupCreateNew {
 
 impl std::fmt::Debug for WgpuSetupCreateNew {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self {
+            instance_descriptor,
+            display_handle,
+            power_preference,
+            native_adapter_selector,
+            device_descriptor: _,
+        } = self;
         f.debug_struct("WgpuSetupCreateNew")
-            .field("instance_descriptor", &self.instance_descriptor)
-            .field("display_handle", &self.display_handle)
-            .field("power_preference", &self.power_preference)
+            .field("instance_descriptor", instance_descriptor)
+            .field("display_handle", display_handle)
+            .field("power_preference", power_preference)
             .field(
                 "native_adapter_selector",
-                &self.native_adapter_selector.is_some(),
+                &native_adapter_selector.is_some(),
             )
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 

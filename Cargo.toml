@@ -93,6 +93,7 @@ font-types = { version = "0.11.0", default-features = false, features = ["std"] 
 glow = "0.17.0"
 glutin = { version = "0.32.3", default-features = false }
 glutin-winit = { version = "0.5.0", default-features = false }
+harfrust = "0.5.2"
 home = "0.5.9"
 image = { version = "0.25.6", default-features = false }
 jiff = { version = "0.2.23", default-features = false }
@@ -133,18 +134,23 @@ syntect = { version = "5.3.0", default-features = false }
 tempfile = "3.23.0"
 thiserror = "2.0.17"
 tokio = "1.49"
-toml = {version = "1.0.0", default-features = false }
+toml = { version = "1.0.0", default-features = false }
 type-map = "0.5.1"
 unicode_names2 = { version = "2.0.0", default-features = false }
+unicode-general-category = "1.1.0"
 unicode-segmentation = "1.12.0"
-vello_cpu = { version = "0.0.6", default-features = false, features = ["std", "u8_pipeline", "f32_pipeline"] }
+vello_cpu = { version = "0.0.7", default-features = false, features = [
+  "std",
+  "u8_pipeline",
+  "f32_pipeline",
+] }
 wasm-bindgen = "0.2.108" # Keep wasm-bindgen version in sync in: setup_web.sh, Cargo.toml, Cargo.lock, rust.yml. Don't update this spuriously, because of https://github.com/rerun-io/rerun/issues/8766
 wasm-bindgen-futures = "0.4.58"
 wayland-cursor = { version = "0.31.11", default-features = false }
 web-sys = "0.3.77"
 web-time = "1.1.0" # Timekeeping for native and web
 webbrowser = "1.0.5"
-wgpu = { version = "29.0.0", default-features = false, features = ["std"] }
+wgpu = { version = "29.0.1", default-features = false, features = ["std"] }
 windows-sys = "0.61.2"
 winit = { version = "0.30.13", default-features = false }
 
@@ -218,10 +224,12 @@ flat_map_option = "warn"
 float_cmp_const = "warn"
 fn_params_excessive_bools = "warn"
 fn_to_numeric_cast_any = "warn"
+format_push_string = "warn"
 from_iter_instead_of_collect = "warn"
 get_unwrap = "warn"
 if_let_mutex = "warn"
 ignore_without_reason = "warn"
+ignored_unit_patterns = "warn"
 implicit_clone = "warn"
 implied_bounds_in_impls = "warn"
 imprecise_flops = "warn"
@@ -270,6 +278,7 @@ mismatching_type_param_order = "warn"
 missing_assert_message = "warn"
 missing_enforced_import_renames = "warn"
 missing_errors_doc = "warn"
+missing_fields_in_debug = "warn"
 missing_safety_doc = "warn"
 mixed_attributes_style = "warn"
 mut_mut = "warn"
@@ -279,6 +288,7 @@ needless_continue = "warn"
 needless_for_each = "warn"
 needless_pass_by_ref_mut = "warn"
 needless_pass_by_value = "warn"
+needless_raw_string_hashes = "warn"
 negative_feature_names = "warn"
 non_std_lazy_statics = "warn"
 non_zero_suggestions = "warn"
@@ -299,6 +309,7 @@ rc_mutex = "warn"
 readonly_write_lock = "warn"
 redundant_type_annotations = "warn"
 ref_as_ptr = "warn"
+ref_option = "warn"
 ref_option_ref = "warn"
 ref_patterns = "warn"
 rest_pat_in_fully_bound_structs = "warn"

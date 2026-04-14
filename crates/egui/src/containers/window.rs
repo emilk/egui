@@ -673,7 +673,7 @@ impl Window<'_> {
 
                 title_bar.ui(
                     &mut area_content_ui,
-                    &content_response,
+                    content_response.as_ref(),
                     open.as_deref_mut(),
                     &mut collapsing,
                     collapsible,
@@ -1256,7 +1256,7 @@ impl TitleBar {
     fn ui(
         self,
         ui: &mut Ui,
-        content_response: &Option<Response>,
+        content_response: Option<&Response>,
         open: Option<&mut bool>,
         collapsing: &mut CollapsingState,
         collapsible: bool,
@@ -1300,7 +1300,7 @@ impl TitleBar {
             ui.visuals().text_color(),
         );
 
-        if let Some(content_response) = &content_response {
+        if let Some(content_response) = content_response {
             // Paint separator between title and content:
             let content_rect = content_response.rect;
             if false {

@@ -38,7 +38,8 @@ fn main() {
         });
         for loud_crate in ["naga", "wgpu_core", "wgpu_hal"] {
             if !rust_log.contains(&format!("{loud_crate}=")) {
-                rust_log += &format!(",{loud_crate}=warn");
+                use std::fmt::Write as _;
+                write!(rust_log, ",{loud_crate}=warn").ok();
             }
         }
 

@@ -116,6 +116,11 @@ pub struct Memory {
     /// (e.g. relative to some other widget).
     #[cfg_attr(feature = "persistence", serde(skip))]
     popups: ViewportIdMap<OpenPopup>,
+
+    /// Whether to inform the backend to interrupt any ongoing IME composition
+    /// this pass.
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    requested_interrupt_ime: bool,
 }
 
 impl Default for Memory {
@@ -133,6 +138,7 @@ impl Default for Memory {
             popups: Default::default(),
             everything_is_visible: Default::default(),
             add_fonts: Default::default(),
+            requested_interrupt_ime: Default::default(),
         };
         slf.interactions.entry(slf.viewport_id).or_default();
         slf.areas.entry(slf.viewport_id).or_default();
@@ -761,6 +767,8 @@ impl Memory {
 
         self.areas.entry(self.viewport_id).or_default();
 
+        self.requested_interrupt_ime = false;
+
         // self.interactions  is handled elsewhere
 
         self.options.begin_pass(new_raw_input);
@@ -875,9 +883,12 @@ impl Memory {
 
     /// Give keyboard focus to a specific widget.
     /// See also [`crate::Response::request_focus`].
+    ///
+    /// Calling this will interrupt IME composition.
     #[inline(always)]
     pub fn request_focus(&mut self, id: Id) {
         self.focus_mut().focused_widget = Some(FocusWidget::new(id));
+        self.interrupt_ime();
     }
 
     /// Surrender keyboard focus for a specific widget.
@@ -992,6 +1003,28 @@ impl Memory {
 
     pub(crate) fn focus_mut(&mut self) -> &mut Focus {
         self.focus.entry(self.viewport_id).or_default()
+    }
+
+    /// Check if the widget owns IME events.
+    ///
+    /// A widget should only consume IME events if this returns `true`. At most
+    /// one widget can own IME events for each frame.
+    #[inline(always)]
+    pub fn owns_ime_events(&self, id: Id) -> bool {
+        // Note: Even if the IME is being interrupted in the current frame, we
+        // should not return `false` here, since we still need
+        // `PlatformOutput::ime` to be set in such cases.
+
+        self.has_focus(id)
+    }
+
+    /// Interrupt the current IME composition, if any.
+    pub fn interrupt_ime(&mut self) {
+        self.requested_interrupt_ime = true;
+    }
+
+    pub(crate) fn should_interrupt_ime(&self) -> bool {
+        self.requested_interrupt_ime
     }
 }
 
