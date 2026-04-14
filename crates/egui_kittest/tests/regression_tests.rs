@@ -360,3 +360,72 @@ pub fn pointer_click_on_open_submenu_button_should_not_close_it() {
         "Expected submenu to remain open on repeated pointer click"
     );
 }
+
+/// Regression test for https://github.com/emilk/egui/pull/8056
+///
+/// Panel `response.rect` and `response.interact_rect` must be clamped to the
+/// visible panel bounds even when the content inside the panel overflows.
+/// Before the fix only the cursor-advancement `rect` was clamped, so callers
+/// of `SidePanel::show` / `TopBottomPanel::show` received an oversized rect
+/// that broke pointer hit-testing and separator placement.
+#[test]
+fn panel_response_rect_clamped_to_panel_bounds() {
+    let panel_width = 100.0_f32;
+    let panel_height = 80.0_f32;
+
+    // Use a RefCell so we can read the responses back after `harness.run()`.
+    let side_response: std::cell::RefCell<Option<egui::Response>> = std::cell::RefCell::new(None);
+    let tb_response: std::cell::RefCell<Option<egui::Response>> = std::cell::RefCell::new(None);
+
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(400.0, 300.0))
+        .build(|ctx| {
+            let sr = egui::SidePanel::left("left_panel")
+                .exact_width(panel_width)
+                .show(ctx, |ui| {
+                    // Allocate space that is far wider than the panel to trigger overflow.
+                    ui.allocate_space(Vec2::new(1000.0, 10.0));
+                });
+            *side_response.borrow_mut() = Some(sr.response);
+
+            let tbr = egui::TopBottomPanel::top("top_panel")
+                .exact_height(panel_height)
+                .show(ctx, |ui| {
+                    // Allocate space that is far taller than the panel to trigger overflow.
+                    ui.allocate_space(Vec2::new(10.0, 1000.0));
+                });
+            *tb_response.borrow_mut() = Some(tbr.response);
+        });
+
+    harness.run();
+
+    let sr = side_response.borrow();
+    let sr = sr.as_ref().unwrap();
+    assert!(
+        sr.rect.right() <= panel_width + 1.0,
+        "SidePanel response.rect.right() ({}) must not exceed panel width ({})",
+        sr.rect.right(),
+        panel_width,
+    );
+    assert!(
+        sr.interact_rect.right() <= panel_width + 1.0,
+        "SidePanel response.interact_rect.right() ({}) must not exceed panel width ({})",
+        sr.interact_rect.right(),
+        panel_width,
+    );
+
+    let tbr = tb_response.borrow();
+    let tbr = tbr.as_ref().unwrap();
+    assert!(
+        tbr.rect.bottom() <= panel_height + 1.0,
+        "TopBottomPanel response.rect.bottom() ({}) must not exceed panel height ({})",
+        tbr.rect.bottom(),
+        panel_height,
+    );
+    assert!(
+        tbr.interact_rect.bottom() <= panel_height + 1.0,
+        "TopBottomPanel response.interact_rect.bottom() ({}) must not exceed panel height ({})",
+        tbr.interact_rect.bottom(),
+        panel_height,
+    );
+}
