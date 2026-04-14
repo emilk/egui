@@ -317,6 +317,8 @@ pub struct NativeOptions {
     /// Turn on vertical syncing, limiting the FPS to the display refresh rate.
     ///
     /// The default is `true`.
+    ///
+    /// Only affects the `glow` backend.
     pub vsync: bool,
 
     /// Set the level of the multisampling anti-aliasing (MSAA).
@@ -343,6 +345,8 @@ pub struct NativeOptions {
     /// Specify whether or not hardware acceleration is preferred, required, or not.
     ///
     /// Default: [`HardwareAcceleration::Preferred`].
+    ///
+    /// Only affects the `glow` backend.
     pub hardware_acceleration: HardwareAcceleration,
 
     /// What rendering backend to use.
