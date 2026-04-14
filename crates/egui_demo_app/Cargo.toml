@@ -23,7 +23,7 @@ crate-type = ["cdylib", "rlib"]
 
 
 [features]
-default = ["wgpu", "persistence"]
+default = ["wgpu", "persistence", "wayland", "x11"]
 
 web_app = ["http", "persistence"]
 
