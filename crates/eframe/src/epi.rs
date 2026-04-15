@@ -303,7 +303,7 @@ pub struct NativeOptions {
     /// The default is `true`.
     ///
     /// Only affects the `glow` backend.
-    pub vsync: bool,
+    pub glow_vsync: bool,
 
     /// Set the level of the multisampling anti-aliasing (MSAA).
     ///
@@ -446,7 +446,7 @@ impl Default for NativeOptions {
         Self {
             viewport: Default::default(),
 
-            vsync: true,
+            glow_vsync: true,
             multisampling: 0,
             depth_buffer: 0,
             stencil_buffer: 0,

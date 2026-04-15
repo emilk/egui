@@ -957,7 +957,7 @@ impl GlutinWindowContext {
             crate::HardwareAcceleration::Preferred => None,
             crate::HardwareAcceleration::Off => Some(false),
         };
-        let swap_interval = if native_options.vsync {
+        let swap_interval = if native_options.glow_vsync {
             glutin::surface::SwapInterval::Wait(NonZeroU32::MIN)
         } else {
             glutin::surface::SwapInterval::DontWait
