@@ -4243,6 +4243,7 @@ fn warn_if_rect_changes_id(
 #[derive(Default, Clone)]
 struct CustomDebugInformations(std::collections::HashMap<String, String>);
 
+#[cfg(debug_assertions)]
 impl CustomDebugInformations {
     fn ui(&self, ui: &mut Ui) {
         let mut names = self.0.keys().cloned().collect::<Vec<_>>();
