@@ -407,7 +407,7 @@ struct ContextImpl {
     loaders: Arc<Loaders>,
 
     #[cfg(debug_assertions)]
-    custom_debug_informations: CustomDebugInformations,
+    custom_debug_information: CustomDebugInformation,
 }
 
 impl ContextImpl {
@@ -459,7 +459,7 @@ impl ContextImpl {
         #[cfg(debug_assertions)]
         for ev in &new_raw_input.events {
             if let crate::Event::CustomDebugInformationUpdated { name, value } = ev {
-                self.custom_debug_informations
+                self.custom_debug_information
                     .0
                     .insert(name.clone(), value.clone());
             }
@@ -3301,11 +3301,10 @@ impl Context {
             });
 
         #[cfg(debug_assertions)]
-        CollapsingHeader::new("Custom debug informations")
+        CollapsingHeader::new("Custom debug information")
             .default_open(false)
             .show(ui, |ui| {
-                self.read(|ctx| ctx.custom_debug_informations.clone())
-                    .ui(ui);
+                self.read(|ctx| ctx.custom_debug_information.clone()).ui(ui);
             });
     }
 
@@ -4241,10 +4240,10 @@ fn warn_if_rect_changes_id(
 
 #[cfg(debug_assertions)]
 #[derive(Default, Clone)]
-struct CustomDebugInformations(std::collections::HashMap<String, String>);
+struct CustomDebugInformation(std::collections::HashMap<String, String>);
 
 #[cfg(debug_assertions)]
-impl CustomDebugInformations {
+impl CustomDebugInformation {
     fn ui(&self, ui: &mut Ui) {
         let mut names = self.0.keys().cloned().collect::<Vec<_>>();
         names.sort();

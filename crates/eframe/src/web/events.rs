@@ -32,7 +32,7 @@ fn paint_if_needed(runner: &mut AppRunner) {
     if runner.needs_repaint.needs_repaint() {
         #[cfg(debug_assertions)]
         if !runner.input.raw.events.is_empty() {
-            runner.update_custom_debug_informations();
+            runner.update_custom_debug_information();
         }
 
         if runner.has_outstanding_paint_data() {

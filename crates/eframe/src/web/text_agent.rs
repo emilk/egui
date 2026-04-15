@@ -114,7 +114,7 @@ impl InputState {
     }
 
     #[cfg(debug_assertions)]
-    fn update_custom_debug_informations(&self, input: &mut crate::web::WebInput) {
+    fn update_custom_debug_information(&self, input: &mut crate::web::WebInput) {
         input
             .raw
             .events
@@ -306,10 +306,10 @@ impl TextAgent {
     }
 
     #[cfg(debug_assertions)]
-    pub(crate) fn update_custom_debug_informations(&self, input: &mut crate::web::WebInput) {
+    pub(crate) fn update_custom_debug_information(&self, input: &mut crate::web::WebInput) {
         self.input_state
             .borrow_mut()
-            .update_custom_debug_informations(input);
+            .update_custom_debug_information(input);
     }
 }
 
