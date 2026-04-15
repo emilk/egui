@@ -34,6 +34,84 @@ impl InputState {
         self.input.set_value("");
         self.last_text.clear();
     }
+
+    fn handle_input_event(&mut self, event: &web_sys::InputEvent, runner: &mut AppRunner) {
+        if !event.is_composing() && event.input_type() != "insertText" {
+            self.clear();
+
+            return;
+        }
+
+        let text = self.input.value();
+
+        let prefix_len = longest_common_prefix_length(&text, &self.last_text);
+        let last_text_len = self.last_text.chars().count();
+        if prefix_len < last_text_len {
+            let out_event = egui::Event::Ime(egui::ImeEvent::DeleteSurrounding {
+                before_chars: last_text_len - prefix_len,
+                after_chars: 0,
+            });
+            runner.input.raw.events.push(out_event);
+        }
+
+        let preedit_text = text.chars().skip(prefix_len).collect();
+        let out_event = if event.is_composing() {
+            egui::Event::Ime(egui::ImeEvent::Preedit(preedit_text))
+        } else {
+            egui::Event::Text(preedit_text)
+        };
+        runner.input.raw.events.push(out_event);
+
+        if event.is_composing() {
+            self.last_text = text.chars().take(prefix_len).collect();
+        } else {
+            self.last_text = text;
+        }
+
+        runner.needs_repaint.repaint_asap();
+    }
+
+    fn handle_composition_end_event(&mut self, runner: &mut AppRunner) {
+        let text = self.input.value();
+
+        let commit_text = {
+            let prefix_len = self.last_text.chars().count();
+            text.chars().skip(prefix_len).collect::<String>()
+        };
+        let out_event = egui::Event::Ime(egui::ImeEvent::Commit(commit_text));
+        runner.input.raw.events.push(out_event);
+
+        self.last_text = text;
+
+        runner.needs_repaint.repaint_asap();
+    }
+
+    /// ## Returns
+    /// Whether the event is consumed. If `true`, the caller should not do
+    /// further processing for this event.
+    fn handle_keydown_event(input_state: &RefCell<Self>, event: &web_sys::KeyboardEvent) -> bool {
+        // https://web.archive.org/web/20200526195704/https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
+        if event.is_composing() || event.key_code() == 229 {
+            true
+        } else {
+            if event.key().chars().count() > 1
+                || event.ctrl_key()
+                || event.alt_key()
+                || event.meta_key()
+            {
+                input_state.borrow_mut().clear();
+            }
+            false
+        }
+    }
+
+    /// ## Returns
+    /// Whether the event is consumed. If `true`, the caller should not do
+    /// further processing for this event.
+    fn handle_keyup_event(event: &web_sys::KeyboardEvent) -> bool {
+        // https://web.archive.org/web/20200526195704/https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
+        event.is_composing() || event.key_code() == 229
+    }
 }
 
 impl TextAgent {
@@ -77,118 +155,52 @@ impl TextAgent {
 
         // attach event listeners
 
-        let on_input = {
-            let input = input.clone();
-            let input_state = Rc::clone(&input_state);
-            move |event: web_sys::InputEvent, runner: &mut AppRunner| {
-                let mut input_state_ref = input_state.borrow_mut();
-                if !event.is_composing() && event.input_type() != "insertText" {
-                    input_state_ref.clear();
-
-                    return;
-                }
-
-                let text = input.value();
-
-                let prefix_len = longest_common_prefix_length(&text, &input_state_ref.last_text);
-                let last_text_len = input_state_ref.last_text.chars().count();
-                if prefix_len < last_text_len {
-                    let out_event = egui::Event::Ime(egui::ImeEvent::DeleteSurrounding {
-                        before_chars: last_text_len - prefix_len,
-                        after_chars: 0,
-                    });
-                    runner.input.raw.events.push(out_event);
-                }
-
-                let preedit_text = text.chars().skip(prefix_len).collect();
-                let out_event = if event.is_composing() {
-                    egui::Event::Ime(egui::ImeEvent::Preedit(preedit_text))
-                } else {
-                    egui::Event::Text(preedit_text)
-                };
-                runner.input.raw.events.push(out_event);
-
-                if event.is_composing() {
-                    input_state_ref.last_text = text.chars().take(prefix_len).collect();
-                } else {
-                    input_state_ref.last_text = text;
-                }
-
-                runner.needs_repaint.repaint_asap();
-            }
-        };
-
-        let on_composition_start = {
+        runner_ref.add_event_listener(
+            &input,
+            "compositionstart",
             move |_: web_sys::CompositionEvent, runner: &mut AppRunner| {
                 // Repaint moves the text agent into place,
                 // see `move_to` in `AppRunner::handle_platform_output`.
                 runner.needs_repaint.repaint_asap();
-            }
-        };
+            },
+        )?;
 
-        let on_composition_end = {
-            let input = input.clone();
+        runner_ref.add_event_listener(&input, "input", {
+            let input_state = Rc::clone(&input_state);
+            move |event: web_sys::InputEvent, runner: &mut AppRunner| {
+                input_state.borrow_mut().handle_input_event(&event, runner);
+            }
+        })?;
+        runner_ref.add_event_listener(&input, "compositionend", {
             let input_state = Rc::clone(&input_state);
             move |_event: web_sys::CompositionEvent, runner: &mut AppRunner| {
-                let mut input_state_ref = input_state.borrow_mut();
-
-                let text = input.value();
-
-                let commit_text = {
-                    let prefix_len = input_state_ref.last_text.chars().count();
-                    text.chars().skip(prefix_len).collect::<String>()
-                };
-                let out_event = egui::Event::Ime(egui::ImeEvent::Commit(commit_text));
-                runner.input.raw.events.push(out_event);
-
-                input_state_ref.last_text = text;
-
-                runner.needs_repaint.repaint_asap();
+                input_state
+                    .borrow_mut()
+                    .handle_composition_end_event(runner);
             }
-        };
+        })?;
 
-        let on_keydown = {
+        runner_ref.add_event_listener(&input, "keydown", {
             let input_state = Rc::clone(&input_state);
             move |event: web_sys::KeyboardEvent, runner: &mut AppRunner| {
-                let mut input_state_ref = input_state.borrow_mut();
-
-                // https://web.archive.org/web/20200526195704/https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
-                if event.is_composing() || event.key_code() == 229 {
-                    return;
+                let is_consumed = InputState::handle_keydown_event(&input_state, &event);
+                if !is_consumed {
+                    // The canvas doesn't get keydown/keyup events when the text agent is focused,
+                    // so we need to forward them to the runner:
+                    super::events::on_keydown(event, runner);
                 }
-
-                if event.key().chars().count() > 1
-                    || event.ctrl_key()
-                    || event.alt_key()
-                    || event.meta_key()
-                {
-                    input_state_ref.clear();
-                }
-
-                // The canvas doesn't get keydown/keyup events when the text agent is focused,
-                // so we need to forward them to the runner:
-                super::events::on_keydown(event, runner);
             }
-        };
-        let on_keyup = {
+        })?;
+        runner_ref.add_event_listener(&input, "keyup", {
             move |event: web_sys::KeyboardEvent, runner: &mut AppRunner| {
-                // https://web.archive.org/web/20200526195704/https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
-                if event.is_composing() || event.key_code() == 229 {
-                    return;
+                let is_consumed = InputState::handle_keyup_event(&event);
+                if !is_consumed {
+                    // The canvas doesn't get keydown/keyup events when the text agent is focused,
+                    // so we need to forward them to the runner:
+                    super::events::on_keyup(event, runner);
                 }
-
-                // The canvas doesn't get keydown/keyup events when the text agent is focused,
-                // so we need to forward them to the runner:
-                super::events::on_keyup(event, runner);
             }
-        };
-
-        runner_ref.add_event_listener(&input, "input", on_input)?;
-        runner_ref.add_event_listener(&input, "compositionstart", on_composition_start)?;
-        runner_ref.add_event_listener(&input, "compositionend", on_composition_end)?;
-
-        runner_ref.add_event_listener(&input, "keyup", on_keyup)?;
-        runner_ref.add_event_listener(&input, "keydown", on_keydown)?;
+        })?;
 
         Ok(Self {
             input,
