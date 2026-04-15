@@ -297,17 +297,6 @@ pub struct Style {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub number_formatter: NumberFormatter,
 
-    /// If set, labels, buttons, etc. will use this to determine whether to wrap the text at the
-    /// right edge of the [`Ui`] they are in. By default, this is `None`.
-    ///
-    /// **Note**: this API is deprecated, use `wrap_mode` instead.
-    ///
-    /// * `None`: use `wrap_mode` instead
-    /// * `Some(true)`: wrap mode defaults to [`crate::TextWrapMode::Wrap`]
-    /// * `Some(false)`: wrap mode defaults to [`crate::TextWrapMode::Extend`]
-    #[deprecated = "Use wrap_mode instead"]
-    pub wrap: Option<bool>,
-
     /// If set, labels, buttons, etc. will use this to determine whether to wrap or truncate the
     /// text at the right edge of the [`Ui`] they are in, or to extend it. By default, this is
     /// `None`.
@@ -1166,13 +1155,6 @@ impl Visuals {
         self.window_stroke
     }
 
-    /// When fading out things, we fade the colors towards this.
-    #[inline(always)]
-    #[deprecated = "Use disabled_alpha(). Fading is now handled by modifying the alpha channel."]
-    pub fn fade_out_to_color(&self) -> Color32 {
-        self.widgets.noninteractive.weak_bg_fill
-    }
-
     /// Disabled widgets have their alpha modified by this.
     #[inline(always)]
     pub fn disabled_alpha(&self) -> f32 {
@@ -1303,11 +1285,6 @@ impl WidgetVisuals {
     pub fn text_color(&self) -> Color32 {
         self.fg_stroke.color
     }
-
-    #[deprecated = "Renamed to corner_radius"]
-    pub fn rounding(&self) -> CornerRadius {
-        self.corner_radius
-    }
 }
 
 /// Options for help debug egui by adding extra visualization
@@ -1410,7 +1387,6 @@ pub fn default_text_styles() -> BTreeMap<TextStyle, FontId> {
 
 impl Default for Style {
     fn default() -> Self {
-        #[expect(deprecated)]
         Self {
             override_font_id: None,
             override_text_style: None,
@@ -1418,7 +1394,6 @@ impl Default for Style {
             text_styles: default_text_styles(),
             drag_value_text_style: TextStyle::Button,
             number_formatter: NumberFormatter(Arc::new(emath::format_with_decimals_in_range)),
-            wrap: None,
             wrap_mode: None,
             spacing: Spacing::default(),
             interaction: Interaction::default(),
@@ -1724,7 +1699,6 @@ use crate::{
 
 impl Style {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
-        #[expect(deprecated)]
         let Self {
             override_font_id,
             override_text_style,
@@ -1732,7 +1706,6 @@ impl Style {
             text_styles,
             drag_value_text_style,
             number_formatter: _, // can't change callbacks in the UI
-            wrap: _,
             wrap_mode,
             spacing,
             interaction,

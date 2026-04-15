@@ -274,15 +274,6 @@ impl<'a> TableBuilder<'a> {
     ///
     /// This is required if you have multiple tables in the same [`Ui`].
     #[inline]
-    #[deprecated = "Renamed id_salt"]
-    pub fn id_source(self, id_salt: impl std::hash::Hash) -> Self {
-        self.id_salt(id_salt)
-    }
-
-    /// Give this table a unique id within the parent [`Ui`].
-    ///
-    /// This is required if you have multiple tables in the same [`Ui`].
-    #[inline]
     pub fn id_salt(mut self, id_salt: impl std::hash::Hash) -> Self {
         self.id_salt = Id::new(id_salt);
         self
@@ -329,7 +320,7 @@ impl<'a> TableBuilder<'a> {
 
     /// Enables scrolling the table's contents using mouse drag (default: `true`).
     ///
-    /// See [`ScrollArea::drag_to_scroll`] for more.
+    /// See [`ScrollArea::scroll_source`] for more.
     #[inline]
     pub fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
         self.scroll_options.drag_to_scroll = drag_to_scroll;

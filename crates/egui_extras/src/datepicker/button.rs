@@ -51,14 +51,6 @@ impl<'a> DatePickerButton<'a> {
         self
     }
 
-    /// Add id source.
-    /// Must be set if multiple date picker buttons are in the same Ui.
-    #[inline]
-    #[deprecated = "Renamed id_salt"]
-    pub fn id_source(self, id_salt: &'a str) -> Self {
-        self.id_salt(id_salt)
-    }
-
     /// Show combo boxes in date picker popup. (Default: true)
     #[inline]
     pub fn combo_boxes(mut self, combo_boxes: bool) -> Self {

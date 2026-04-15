@@ -199,7 +199,7 @@ pub struct Options {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub light_style: std::sync::Arc<Style>,
 
-    /// Preference for selection between dark and light [`crate::Context::style`]
+    /// Preference for selection between dark and light [`crate::Context::global_style`]
     /// as the active style used by all subsequent windows, panels, etc.
     ///
     /// Default: `ThemePreference::System`.
@@ -272,7 +272,7 @@ pub struct Options {
     ///
     /// If this is `1`, [`crate::Context::request_discard`] will be ignored.
     ///
-    /// Multi-pass is supported by [`crate::Context::run`].
+    /// Multi-pass is supported by [`crate::Context::run_ui`].
     ///
     /// See [`crate::Context::request_discard`] for more.
     pub max_passes: NonZeroUsize,
@@ -820,12 +820,6 @@ impl Memory {
         }
     }
 
-    /// The currently set transform of a layer.
-    #[deprecated = "Use `Context::layer_transform_to_global` instead"]
-    pub fn layer_transforms(&self, layer_id: LayerId) -> Option<TSTransform> {
-        self.to_global.get(&layer_id).copied()
-    }
-
     /// An iterator over all layers. Back-to-front, top is last.
     pub fn layer_ids(&self) -> impl ExactSizeIterator<Item = LayerId> + '_ {
         self.areas().order().iter().copied()
@@ -1052,40 +1046,27 @@ impl OpenPopup {
     }
 }
 
-/// ## Deprecated popup API
-/// Use [`crate::Popup`] instead.
+/// ## Popup state (internal API)
+///
+/// Used by [`crate::Popup`].
 impl Memory {
-    /// Is the given popup open?
-    #[deprecated = "Use Popup::is_id_open instead"]
-    pub fn is_popup_open(&self, popup_id: Id) -> bool {
+    pub(crate) fn is_popup_open(&self, popup_id: Id) -> bool {
         self.popups
             .get(&self.viewport_id)
             .is_some_and(|state| state.id == popup_id)
             || self.everything_is_visible()
     }
 
-    /// Is any popup open?
-    #[deprecated = "Use Popup::is_any_open instead"]
-    pub fn any_popup_open(&self) -> bool {
+    pub(crate) fn any_popup_open(&self) -> bool {
         self.popups.contains_key(&self.viewport_id) || self.everything_is_visible()
     }
 
-    /// Open the given popup and close all others.
-    ///
-    /// Note that you must call `keep_popup_open` on subsequent frames as long as the popup is open.
-    #[deprecated = "Use Popup::open_id instead"]
-    pub fn open_popup(&mut self, popup_id: Id) {
+    pub(crate) fn open_popup(&mut self, popup_id: Id) {
         self.popups
             .insert(self.viewport_id, OpenPopup::new(popup_id, None));
     }
 
-    /// Popups must call this every frame while open.
-    ///
-    /// This is needed because in some cases popups can go away without `close_popup` being
-    /// called. For example, when a context menu is open and the underlying widget stops
-    /// being rendered.
-    #[deprecated = "Use Popup::show instead"]
-    pub fn keep_popup_open(&mut self, popup_id: Id) {
+    pub(crate) fn keep_popup_open(&mut self, popup_id: Id) {
         if let Some(state) = self.popups.get_mut(&self.viewport_id)
             && state.id == popup_id
         {
@@ -1093,43 +1074,27 @@ impl Memory {
         }
     }
 
-    /// Open the popup and remember its position.
-    #[deprecated = "Use Popup with PopupAnchor::Position instead"]
-    pub fn open_popup_at(&mut self, popup_id: Id, pos: impl Into<Option<Pos2>>) {
+    pub(crate) fn open_popup_at(&mut self, popup_id: Id, pos: impl Into<Option<Pos2>>) {
         self.popups
             .insert(self.viewport_id, OpenPopup::new(popup_id, pos.into()));
     }
 
-    /// Get the position for this popup.
-    #[deprecated = "Use Popup::position_of_id instead"]
-    pub fn popup_position(&self, id: Id) -> Option<Pos2> {
+    pub(crate) fn popup_position(&self, id: Id) -> Option<Pos2> {
         let state = self.popups.get(&self.viewport_id)?;
         if state.id == id { state.pos } else { None }
     }
 
-    /// Close any currently open popup.
-    #[deprecated = "Use Popup::close_all instead"]
-    pub fn close_all_popups(&mut self) {
+    pub(crate) fn close_all_popups(&mut self) {
         self.popups.clear();
     }
 
-    /// Close the given popup, if it is open.
-    ///
-    /// See also [`Self::close_all_popups`] if you want to close any / all currently open popups.
-    #[deprecated = "Use Popup::close_id instead"]
-    pub fn close_popup(&mut self, popup_id: Id) {
-        #[expect(deprecated)]
+    pub(crate) fn close_popup(&mut self, popup_id: Id) {
         if self.is_popup_open(popup_id) {
             self.popups.remove(&self.viewport_id);
         }
     }
 
-    /// Toggle the given popup between closed and open.
-    ///
-    /// Note: At most, only one popup can be open at a time.
-    #[deprecated = "Use Popup::toggle_id instead"]
-    pub fn toggle_popup(&mut self, popup_id: Id) {
-        #[expect(deprecated)]
+    pub(crate) fn toggle_popup(&mut self, popup_id: Id) {
         if self.is_popup_open(popup_id) {
             self.close_popup(popup_id);
         } else {

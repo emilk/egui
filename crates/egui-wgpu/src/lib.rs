@@ -138,29 +138,12 @@ async fn request_adapter(
             }
         })?;
 
-    if cfg!(target_arch = "wasm32") {
-        log::debug!(
-            "Picked wgpu adapter: {}",
-            adapter_info_summary(&adapter.get_info())
+    if 1 < available_adapters.len() {
+        log::info!(
+            "There are {} available wgpu adapters: {}",
+            available_adapters.len(),
+            describe_adapters(available_adapters)
         );
-    } else {
-        // native:
-        if available_adapters.len() == 1 {
-            log::debug!(
-                "Picked the only available wgpu adapter: {}",
-                adapter_info_summary(&adapter.get_info())
-            );
-        } else {
-            log::info!(
-                "There were {} available wgpu adapters: {}",
-                available_adapters.len(),
-                describe_adapters(available_adapters)
-            );
-            log::debug!(
-                "Picked wgpu adapter: {}",
-                adapter_info_summary(&adapter.get_info())
-            );
-        }
     }
 
     Ok(adapter)
@@ -235,6 +218,8 @@ impl RenderState {
                 queue,
             }) => (adapter, device, queue),
         };
+
+        log_adapter_info(&adapter.get_info());
 
         let surface_formats = {
             profiling::scope!("get_capabilities");
@@ -343,7 +328,12 @@ impl Default for WgpuConfiguration {
     fn default() -> Self {
         Self {
             present_mode: wgpu::PresentMode::AutoVsync,
-            desired_maximum_frame_latency: None,
+            desired_maximum_frame_latency: if cfg!(target_os = "ios") {
+                None // The default is good on iOS, while `Some(1)` cuts FPS in half
+            } else {
+                Some(1) // Low-latency by default.
+            },
+
             // No display handle available at this point — callers should replace this with
             // `WgpuSetup::from_display_handle(...)` before creating the instance if one is available.
             wgpu_setup: WgpuSetup::without_display_handle(),
@@ -405,6 +395,18 @@ pub fn depth_format_from_bits(depth_buffer: u8, stencil_buffer: u8) -> Option<wg
 }
 
 // ---------------------------------------------------------------------------
+
+fn log_adapter_info(info: &wgpu::AdapterInfo) {
+    let summary = adapter_info_summary(info);
+
+    let is_test = cfg!(test); // Software rasterizers are expected (and preferred) during testing!
+
+    if info.device_type == wgpu::DeviceType::Cpu && !is_test {
+        log::warn!("Software rasterizer detected - loss of performance expected. {summary}");
+    } else {
+        log::debug!("wgpu adapter: {summary}");
+    }
+}
 
 /// A human-readable summary about an adapter
 pub fn adapter_info_summary(info: &wgpu::AdapterInfo) -> String {

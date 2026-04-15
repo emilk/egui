@@ -411,6 +411,7 @@ impl Painter {
     /// and the captures captured screenshot if it was requested.
     ///
     /// If `capture_data` isn't empty, a screenshot will be captured.
+    #[expect(clippy::too_many_arguments)]
     pub fn paint_and_update_textures(
         &mut self,
         viewport_id: ViewportId,
@@ -419,6 +420,7 @@ impl Painter {
         clipped_primitives: &[epaint::ClippedPrimitive],
         textures_delta: &epaint::textures::TexturesDelta,
         capture_data: Vec<UserData>,
+        window: &winit::window::Window,
     ) -> f32 {
         profiling::function_scope!();
 
@@ -653,6 +655,8 @@ impl Painter {
                 viewport_id,
             );
         }
+
+        window.pre_present_notify();
 
         {
             profiling::scope!("present");

@@ -1,0 +1,25 @@
+# Checks that all TOML files are formatted with taplo.
+name: Taplo
+
+on:
+  push:
+    branches:
+      - "main"
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  taplo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Taplo
+        uses: taiki-e/install-action@v2.48.7
+        with:
+          tool: taplo-cli@0.9.3
+
+      - name: Check TOML formatting
+        run: |
+          taplo fmt --check
