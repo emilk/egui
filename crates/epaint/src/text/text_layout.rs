@@ -403,8 +403,7 @@ fn emit_continuation_glyphs(
     ctx: &ShapingContext,
     paragraph: &mut Paragraph,
     run_text: &str,
-    cluster_start_byte: usize,
-    cluster_end_byte: usize,
+    cluster_bytes: Range<usize>,
     cluster_glyph_count: usize,
     face_metrics: &StyledMetrics,
 ) {
