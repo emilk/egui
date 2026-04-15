@@ -635,7 +635,11 @@ impl TableState {
                         InitialColumnSize::Automatic(_) => Size::exact(*prev_width),
                         InitialColumnSize::Remainder => Size::remainder(),
                     }
-                    .at_least(if column.clip { column.width_range.min } else { column.width_range.min.max(*max_used) })
+                    .at_least(if column.clip {
+                        column.width_range.min
+                    } else {
+                        column.width_range.min.max(*max_used)
+                    })
                     .at_most(column.width_range.max)
                 };
                 sizing.add(size);
