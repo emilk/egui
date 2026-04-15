@@ -4,14 +4,17 @@ use emath::{Rect, TSTransform};
 use epaint::text::{Galley, LayoutJob, TextWrapMode, cursor::CCursor};
 
 use crate::{
-    Align, Align2, Atom, AtomExt as _, AtomKind, AtomLayout, Atoms, Color32, Context, CursorIcon,
-    Event, EventFilter, FontSelection, Frame, Id, ImeEvent, IntoAtoms, IntoSizedResult, Key,
+    Align, Align2, AtomExt as _, AtomKind, AtomLayout, Atoms, Color32, Context, CursorIcon, Event,
+    EventFilter, FontSelection, Frame, Id, ImeEvent, IntoAtoms, IntoSizedResult, Key,
     KeyboardShortcut, Margin, Modifiers, NumExt as _, Response, Sense, SizedAtomKind, TextBuffer,
     TextStyle, Ui, Vec2, Widget, WidgetInfo, WidgetWithState, epaint,
     os::OperatingSystem,
     output::OutputEvent,
-    response, text_selection,
-    text_selection::{CCursorRange, text_cursor_state::cursor_rect, visuals::paint_text_selection},
+    response,
+    text_edit::state::TextEditCursorPurpose,
+    text_selection::{
+        self, CCursorRange, text_cursor_state::cursor_rect, visuals::paint_text_selection,
+    },
     vec2,
 };
 
@@ -477,11 +480,12 @@ impl TextEdit<'_> {
         let font_id_clone = font_id.clone();
         let mut default_layouter = move |ui: &Ui, text: &dyn TextBuffer, wrap_width: f32| {
             let text = mask_if_password(password, text.as_str());
-            let layout_job = if multiline {
+            let mut layout_job = if multiline {
                 LayoutJob::simple(text, font_id_clone.clone(), text_color, wrap_width)
             } else {
                 LayoutJob::simple_singleline(text, font_id_clone.clone(), text_color)
             };
+            layout_job.halign = align.x();
             ui.fonts_mut(|f| f.layout_job(layout_job))
         };
 
@@ -588,6 +592,7 @@ impl TextEdit<'_> {
                     if !shrunk && matches!(atom.kind, AtomKind::Text(_)) {
                         // elide the hint_text if needed
                         atom = atom.atom_shrink(true);
+                        atom = atom.atom_grow(true);
                         shrunk = true;
                     }
 
@@ -616,6 +621,11 @@ impl TextEdit<'_> {
 
                 get_galley = Some(galley);
             } else {
+                // We need to shrink when clip_text, so that we don't exceed the available size
+                // and thus clip. We also need to shrink in multi line text edits, so text can
+                // wrap appropriately.
+                let should_shrink = clip_text || multiline;
+
                 // We need a closure here, so we can calculate the galley based on the available
                 // width (after adding suffix and prefix), for correct wrapping in multi line text
                 // edits
@@ -642,14 +652,11 @@ impl TextEdit<'_> {
                             sized: SizedAtomKind::Empty { size: Some(size) },
                         }
                     })
+                    .atom_grow(true)
+                    .atom_align(self.align)
                     .atom_id(inner_rect_id)
-                    .atom_shrink(clip_text),
+                    .atom_shrink(should_shrink),
                 );
-            }
-
-            // Ensure the suffix is always right-aligned
-            if !suffix.is_empty() {
-                atoms.push_right(Atom::grow());
             }
 
             // TODO(servo/rust-smallvec#146): Use extend_right instead of the loop once we have
@@ -676,11 +683,13 @@ impl TextEdit<'_> {
                 .max_width(allocate_width)
                 .sense(sense)
                 .frame(frame)
-                .align2(Align2::LEFT_TOP)
+                .align2(align)
                 .wrap_mode(wrap_mode)
                 .allocate(ui);
 
-            allocated.frame = if !custom_frame {
+            allocated.frame = if custom_frame {
+                allocated.frame
+            } else {
                 let visuals = ui.style().interact(&allocated.response);
                 let background_color =
                     background_color.unwrap_or_else(|| ui.visuals().text_edit_bg_color());
@@ -713,8 +722,6 @@ impl TextEdit<'_> {
                     )
                     .outer_margin(Margin::same(-(visuals.expansion as i8)))
                     .stroke(stroke)
-            } else {
-                allocated.frame
             };
 
             allocated.paint(ui)
@@ -737,16 +744,18 @@ impl TextEdit<'_> {
 
             // TODO(emilk): drag selected text to either move or clone (ctrl on windows, alt on mac)
 
-            let cursor_at_pointer =
-                galley.cursor_from_pos(pointer_pos - inner_rect.min + state.text_offset);
+            let cursor_at_pointer = galley.cursor_from_pos(
+                pointer_pos - inner_rect.min + state.text_offset + vec2(galley.rect.left(), 0.0),
+            );
 
             if ui.visuals().text_cursor.preview
                 && response.hovered()
                 && ui.input(|i| i.pointer.is_moving())
             {
                 // text cursor preview:
-                let cursor_rect = TSTransform::from_translation(inner_rect.min.to_vec2())
-                    * cursor_rect(&galley, &cursor_at_pointer, row_height);
+                let cursor_rect = TSTransform::from_translation(
+                    inner_rect.min.to_vec2() - vec2(galley.rect.left(), 0.0),
+                ) * cursor_rect(&galley, &cursor_at_pointer, row_height);
                 text_selection::visuals::paint_cursor_end(&painter, ui.visuals(), cursor_rect);
             }
 
@@ -832,7 +841,7 @@ impl TextEdit<'_> {
 
             if has_focus && let Some(cursor_range) = state.cursor.range(&galley) {
                 let primary_cursor_rect = cursor_rect(&galley, &cursor_range.primary, row_height)
-                    .translate(galley_pos.to_vec2());
+                    .translate(galley_pos.to_vec2() - vec2(galley.rect.left(), 0.0));
 
                 if response.changed() || selection_changed {
                     // Scroll to keep primary cursor in view:
@@ -858,31 +867,22 @@ impl TextEdit<'_> {
                             now - state.last_interaction_time,
                         );
                     }
-
-                    // Set IME output (in screen coords) when text is editable and visible
-                    let to_global = ui
-                        .ctx()
-                        .layer_transform_to_global(ui.layer_id())
-                        .unwrap_or_default();
-
-                    ui.output_mut(|o| {
-                        o.ime = Some(crate::output::IMEOutput {
-                            rect: to_global * inner_rect,
-                            cursor_rect: to_global * primary_cursor_rect,
+                    if ui.memory(|mem| mem.owns_ime_events(id)) {
+                        // Set IME output (in screen coords) when text is editable and visible
+                        let to_global = ui
+                            .ctx()
+                            .layer_transform_to_global(ui.layer_id())
+                            .unwrap_or_default();
+                        ui.output_mut(|o| {
+                            o.ime = Some(crate::output::IMEOutput {
+                                rect: to_global * inner_rect,
+                                cursor_rect: to_global * primary_cursor_rect,
+                                should_interrupt_composition: false,
+                            });
                         });
-                    });
+                    }
                 }
             }
-        }
-
-        // Ensures correct IME behavior when the text input area gains or loses focus.
-        if state.ime_enabled && (response.gained_focus() || response.lost_focus()) {
-            state.ime_enabled = false;
-            if let Some(mut ccursor_range) = state.cursor.char_range() {
-                ccursor_range.secondary.index = ccursor_range.primary.index;
-                state.cursor.set_char_range(Some(ccursor_range));
-            }
-            ui.input_mut(|i| i.events.retain(|e| !matches!(e, Event::Ime(_))));
         }
 
         state.clone().store(ui.ctx(), id);
@@ -999,6 +999,11 @@ fn events(
 
     let events = ui.input(|i| i.filtered_events(&event_filter));
 
+    let owns_ime_events = ui.memory(|mem| mem.owns_ime_events(id));
+    if !owns_ime_events {
+        state.cursor_purpose = TextEditCursorPurpose::Selection;
+    }
+
     for event in &events {
         let did_mutate_text = match event {
             // First handle events that only changes the selection cursor, not the text:
@@ -1019,7 +1024,9 @@ fn events(
                 }
             }
             Event::Paste(text_to_insert) => {
-                if !text_to_insert.is_empty() {
+                if text_to_insert.is_empty() {
+                    None
+                } else {
                     let mut ccursor = text.delete_selected(&cursor_range);
                     if multiline {
                         text.insert_text_at(&mut ccursor, text_to_insert, char_limit);
@@ -1029,8 +1036,6 @@ fn events(
                     }
 
                     Some(CCursorRange::one(ccursor))
-                } else {
-                    None
                 }
             }
             Event::Text(text_to_insert) => {
@@ -1126,7 +1131,7 @@ fn events(
                 ..
             } => check_for_mutating_key_press(os, &cursor_range, text, galley, modifiers, *key),
 
-            Event::Ime(ime_event) => {
+            Event::Ime(ime_event) if owns_ime_events => {
                 /// Both `ImeEvent::Preedit("")` and `ImeEvent::Commit("")`
                 /// might be emitted from different integrations to signify that
                 /// the current IME composition should be cleared.
@@ -1160,46 +1165,58 @@ fn events(
                 }
 
                 match ime_event {
-                    ImeEvent::Enabled => {
-                        state.ime_enabled = true;
-                        state.ime_cursor_range = cursor_range;
+                    #[expect(deprecated)]
+                    ImeEvent::Enabled | ImeEvent::Disabled => None,
+                    // Ignore `Preedit`/`Commit` events with empty text when
+                    // there is no active IME composition.
+                    //
+                    // Some integrations may emit these events when there is no
+                    // active IME composition (e.g. when `set_ime_allowed` or
+                    // `set_ime_cursor_area` is called on `winit`'s `Window` on
+                    // Wayland). Without this guard, they would clear any
+                    // selected text.
+                    //
+                    // TODO(umajho): Ideally this would be handled by the
+                    // integration, but since this guard is harmless for well-
+                    // behaved integrations and also fixes the issue described
+                    // above, it is good enough for now.
+                    ImeEvent::Preedit(composition_text) | ImeEvent::Commit(composition_text)
+                        if composition_text.is_empty()
+                            && !matches!(
+                                state.cursor_purpose,
+                                TextEditCursorPurpose::ImeComposition
+                            ) =>
+                    {
+                        None
+                    }
+                    ImeEvent::Preedit(composition_text) | ImeEvent::Commit(composition_text)
+                        if composition_text == "\n" || composition_text == "\r" =>
+                    {
                         None
                     }
                     ImeEvent::Preedit(preedit_text) => {
-                        if preedit_text == "\n" || preedit_text == "\r" {
-                            None
+                        state.cursor_purpose = if preedit_text.is_empty() {
+                            TextEditCursorPurpose::Selection
                         } else {
-                            let mut ccursor = clear_preedit_text(text, &cursor_range);
+                            TextEditCursorPurpose::ImeComposition
+                        };
+                        let mut ccursor = clear_preedit_text(text, &cursor_range);
 
-                            let start_cursor = ccursor;
-                            if !preedit_text.is_empty() {
-                                text.insert_text_at(&mut ccursor, preedit_text, char_limit);
-                            }
-                            state.ime_cursor_range = cursor_range;
-                            Some(CCursorRange::two(start_cursor, ccursor))
+                        let start_cursor = ccursor;
+                        if !preedit_text.is_empty() {
+                            text.insert_text_at(&mut ccursor, preedit_text, char_limit);
                         }
+                        Some(CCursorRange::two(start_cursor, ccursor))
                     }
                     ImeEvent::Commit(commit_text) => {
-                        if commit_text == "\n" || commit_text == "\r" {
-                            None
-                        } else {
-                            state.ime_enabled = false;
+                        state.cursor_purpose = TextEditCursorPurpose::Selection;
+                        let mut ccursor = clear_preedit_text(text, &cursor_range);
 
-                            let mut ccursor = clear_preedit_text(text, &cursor_range);
-
-                            if !commit_text.is_empty()
-                                && cursor_range.secondary.index
-                                    == state.ime_cursor_range.secondary.index
-                            {
-                                text.insert_text_at(&mut ccursor, commit_text, char_limit);
-                            }
-
-                            Some(CCursorRange::one(ccursor))
+                        if !commit_text.is_empty() {
+                            text.insert_text_at(&mut ccursor, commit_text, char_limit);
                         }
-                    }
-                    ImeEvent::Disabled => {
-                        state.ime_enabled = false;
-                        None
+
+                        Some(CCursorRange::one(ccursor))
                     }
                 }
             }

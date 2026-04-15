@@ -18,9 +18,8 @@
 use emath::{GuiRounding as _, Pos2};
 
 use crate::{
-    Align, Context, CursorIcon, Frame, Id, InnerResponse, LayerId, Layout, NumExt as _, Rangef,
-    Rect, Sense, Stroke, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetInfo, WidgetType, lerp,
-    vec2,
+    Align, Context, CursorIcon, Frame, Id, InnerResponse, Layout, NumExt as _, Rangef, Rect, Sense,
+    Stroke, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, lerp, vec2,
 };
 
 fn animate_expansion(ctx: &Context, id: Id, is_expanded: bool) -> f32 {
@@ -451,59 +450,6 @@ impl Panel {
     }
 }
 
-// Deprecated
-impl Panel {
-    #[deprecated = "Renamed default_size"]
-    pub fn default_width(self, default_size: f32) -> Self {
-        self.default_size(default_size)
-    }
-
-    #[deprecated = "Renamed min_size"]
-    pub fn min_width(self, min_size: f32) -> Self {
-        self.min_size(min_size)
-    }
-
-    #[deprecated = "Renamed max_size"]
-    pub fn max_width(self, max_size: f32) -> Self {
-        self.max_size(max_size)
-    }
-
-    #[deprecated = "Renamed size_range"]
-    pub fn width_range(self, size_range: impl Into<Rangef>) -> Self {
-        self.size_range(size_range)
-    }
-
-    #[deprecated = "Renamed exact_size"]
-    pub fn exact_width(self, size: f32) -> Self {
-        self.exact_size(size)
-    }
-
-    #[deprecated = "Renamed default_size"]
-    pub fn default_height(self, default_size: f32) -> Self {
-        self.default_size(default_size)
-    }
-
-    #[deprecated = "Renamed min_size"]
-    pub fn min_height(self, min_size: f32) -> Self {
-        self.min_size(min_size)
-    }
-
-    #[deprecated = "Renamed max_size"]
-    pub fn max_height(self, max_size: f32) -> Self {
-        self.max_size(max_size)
-    }
-
-    #[deprecated = "Renamed size_range"]
-    pub fn height_range(self, size_range: impl Into<Rangef>) -> Self {
-        self.size_range(size_range)
-    }
-
-    #[deprecated = "Renamed exact_size"]
-    pub fn exact_height(self, size: f32) -> Self {
-        self.exact_size(size)
-    }
-}
-
 // Public showing methods
 impl Panel {
     /// Show the panel inside a [`Ui`].
@@ -513,41 +459,6 @@ impl Panel {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         self.show_inside_dyn(ui, Box::new(add_contents))
-    }
-
-    /// Show the panel at the top level.
-    #[deprecated = "Use show_inside() instead"]
-    pub fn show<R>(
-        self,
-        ctx: &Context,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> InnerResponse<R> {
-        self.show_dyn(ctx, Box::new(add_contents))
-    }
-
-    /// Show the panel if `is_expanded` is `true`,
-    /// otherwise don't show it, but with a nice animation between collapsed and expanded.
-    #[deprecated = "Use show_animated_inside() instead"]
-    pub fn show_animated<R>(
-        self,
-        ctx: &Context,
-        is_expanded: bool,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> Option<InnerResponse<R>> {
-        #![expect(deprecated)]
-
-        let how_expanded = animate_expansion(ctx, self.id.with("animation"), is_expanded);
-
-        let animated_panel = self.get_animated_panel(ctx, is_expanded)?;
-
-        if how_expanded < 1.0 {
-            // Show a fake panel in this in-between animation state:
-            animated_panel.show(ctx, |_ui| {});
-            None
-        } else {
-            // Show the real panel:
-            Some(animated_panel.show(ctx, add_contents))
-        }
     }
 
     /// Show the panel if `is_expanded` is `true`,
@@ -574,34 +485,6 @@ impl Panel {
         } else {
             // Show the real panel:
             Some(animated_panel.show_inside(ui, add_contents))
-        }
-    }
-
-    /// Show either a collapsed or a expanded panel, with a nice animation between.
-    #[deprecated = "Use show_animated_between_inside() instead"]
-    pub fn show_animated_between<R>(
-        ctx: &Context,
-        is_expanded: bool,
-        collapsed_panel: Self,
-        expanded_panel: Self,
-        add_contents: impl FnOnce(&mut Ui, f32) -> R,
-    ) -> Option<InnerResponse<R>> {
-        #![expect(deprecated)]
-
-        let how_expanded = animate_expansion(ctx, expanded_panel.id.with("animation"), is_expanded);
-
-        // Get either the fake or the real panel to animate
-        let animated_between_panel =
-            Self::get_animated_between_panel(ctx, is_expanded, collapsed_panel, expanded_panel);
-
-        if 0.0 == how_expanded {
-            Some(animated_between_panel.show(ctx, |ui| add_contents(ui, how_expanded)))
-        } else if how_expanded < 1.0 {
-            // Show animation:
-            animated_between_panel.show(ctx, |ui| add_contents(ui, how_expanded));
-            None
-        } else {
-            Some(animated_between_panel.show(ctx, |ui| add_contents(ui, how_expanded)))
         }
     }
 
@@ -753,59 +636,6 @@ impl Panel {
             }
         }
 
-        inner_response
-    }
-
-    /// Show the panel at the top level.
-    fn show_dyn<'c, R>(
-        self,
-        ctx: &Context,
-        add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
-    ) -> InnerResponse<R> {
-        #![expect(deprecated)]
-
-        let side = self.side;
-        let available_rect = ctx.available_rect();
-        let mut panel_ui = Ui::new(
-            ctx.clone(),
-            self.id,
-            UiBuilder::new()
-                .layer_id(LayerId::background())
-                .max_rect(available_rect),
-        );
-        panel_ui.set_clip_rect(ctx.content_rect());
-        panel_ui
-            .response()
-            .widget_info(|| WidgetInfo::new(WidgetType::Panel));
-
-        let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
-        let rect = inner_response.response.rect;
-
-        match side {
-            PanelSide::Vertical(side) => match side {
-                VerticalSide::Left => ctx.pass_state_mut(|state| {
-                    state.allocate_left_panel(Rect::from_min_max(available_rect.min, rect.max));
-                }),
-                VerticalSide::Right => ctx.pass_state_mut(|state| {
-                    state.allocate_right_panel(Rect::from_min_max(rect.min, available_rect.max));
-                }),
-            },
-            PanelSide::Horizontal(side) => match side {
-                HorizontalSide::Top => {
-                    ctx.pass_state_mut(|state| {
-                        state.allocate_top_panel(Rect::from_min_max(available_rect.min, rect.max));
-                    });
-                }
-                HorizontalSide::Bottom => {
-                    ctx.pass_state_mut(|state| {
-                        state.allocate_bottom_panel(Rect::from_min_max(
-                            rect.min,
-                            available_rect.max,
-                        ));
-                    });
-                }
-            },
-        }
         inner_response
     }
 
@@ -1044,61 +874,9 @@ impl CentralPanel {
 
         response
     }
-
-    /// Show the panel at the top level.
-    #[deprecated = "Use show_inside() instead"]
-    pub fn show<R>(
-        self,
-        ctx: &Context,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> InnerResponse<R> {
-        self.show_dyn(ctx, Box::new(add_contents))
-    }
-
-    /// Show the panel at the top level.
-    fn show_dyn<'c, R>(
-        self,
-        ctx: &Context,
-        add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
-    ) -> InnerResponse<R> {
-        #![expect(deprecated)]
-
-        let id = Id::new((ctx.viewport_id(), "central_panel"));
-
-        let mut panel_ui = Ui::new(
-            ctx.clone(),
-            id,
-            UiBuilder::new()
-                .layer_id(LayerId::background())
-                .max_rect(ctx.available_rect()),
-        );
-        panel_ui.set_clip_rect(ctx.content_rect());
-
-        if false {
-            // TODO(emilk): @lucasmerlin shouldn't we enable this?
-            panel_ui
-                .response()
-                .widget_info(|| WidgetInfo::new(WidgetType::Panel));
-        }
-
-        let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
-
-        // Only inform ctx about what we actually used, so we can shrink the native window to fit.
-        ctx.pass_state_mut(|state| state.allocate_central_panel(inner_response.response.rect));
-
-        inner_response
-    }
 }
 
 fn clamp_to_range(x: f32, range: Rangef) -> f32 {
     let range = range.as_positive();
     x.clamp(range.min, range.max)
 }
-
-// ----------------------------------------------------------------------------
-
-#[deprecated = "Use Panel::left or Panel::right instead"]
-pub type SidePanel = super::Panel;
-
-#[deprecated = "Use Panel::top or Panel::bottom instead"]
-pub type TopBottomPanel = super::Panel;

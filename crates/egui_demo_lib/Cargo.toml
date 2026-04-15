@@ -20,6 +20,9 @@ workspace = true
 all-features = true
 rustdoc-args = ["--generate-link-to-definition"]
 
+[package.metadata.cargo-shear]
+ignored = ["image"] # We need the png feature
+
 [lib]
 
 

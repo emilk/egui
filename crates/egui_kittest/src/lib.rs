@@ -60,7 +60,7 @@ impl Display for ExceededMaxStepsError {
 
 /// The test Harness. This contains everything needed to run the test.
 ///
-/// Create a new Harness using [`Harness::new`] or [`Harness::builder`].
+/// Create a new Harness using [`Harness::new_ui`] or [`Harness::builder`].
 ///
 /// The [Harness] has a optional generic state that can be used to pass data to the app / ui closure.
 /// In _most cases_ it should be fine to just store the state in the closure itself.
@@ -116,6 +116,11 @@ impl<'a, State> Harness<'a, State> {
 
             #[cfg(feature = "snapshot")]
             default_snapshot_options,
+
+            // rustfmt adds this weird indentation below.
+            // See: https://github.com/rust-lang/rustfmt/issues/5920
+            #[cfg(feature = "wgpu")]
+                render_options: _,
         } = builder;
         let ctx = ctx.unwrap_or_default();
         ctx.set_theme(theme);
@@ -180,42 +185,9 @@ impl<'a, State> Harness<'a, State> {
         HarnessBuilder::default()
     }
 
-    /// Create a new Harness with the given app closure and a state.
-    ///
-    /// The app closure will immediately be called once to create the initial ui.
-    ///
-    /// If you don't need to create Windows / Panels, you can use [`Harness::new_ui`] instead.
-    ///
-    /// If you e.g. want to customize the size of the window, you can use [`Harness::builder`].
-    ///
-    /// # Example
-    /// ```rust
-    /// # use egui::CentralPanel;
-    /// # use egui_kittest::{Harness, kittest::Queryable};
-    /// let mut checked = false;
-    /// let mut harness = Harness::new_state(|ctx, checked| {
-    ///     CentralPanel::default().show(ctx, |ui| {
-    ///         ui.checkbox(checked, "Check me!");
-    ///     });
-    /// }, checked);
-    ///
-    /// harness.get_by_label("Check me!").click();
-    /// harness.run();
-    ///
-    /// assert_eq!(*harness.state(), true);
-    /// ```
-    #[track_caller]
-    #[deprecated = "use `new_ui_state` instead"]
-    pub fn new_state(app: impl FnMut(&egui::Context, &mut State) + 'a, state: State) -> Self {
-        #[expect(deprecated)]
-        Self::builder().build_state(app, state)
-    }
-
     /// Create a new Harness with the given ui closure and a state.
     ///
     /// The ui closure will immediately be called once to create the initial ui.
-    ///
-    /// If you need to create Windows / Panels, you can use [`Harness::new`] instead.
     ///
     /// If you e.g. want to customize the size of the ui, you can use [`Harness::builder`].
     ///
@@ -709,47 +681,14 @@ impl<'a, State> Harness<'a, State> {
             queue: &self.queued_events,
         }
     }
-
-    #[deprecated = "Use `Harness::root` instead."]
-    pub fn node(&self) -> Node<'_> {
-        self.root()
-    }
 }
 
 /// Utilities for stateless harnesses.
 impl<'a> Harness<'a> {
-    /// Create a new Harness with the given app closure.
-    /// Use the [`Harness::run`], [`Harness::step`], etc... methods to run the app.
-    ///
-    /// The app closure will immediately be called once to create the initial ui.
-    ///
-    /// If you don't need to create Windows / Panels, you can use [`Harness::new_ui`] instead.
-    ///
-    /// If you e.g. want to customize the size of the window, you can use [`Harness::builder`].
-    ///
-    /// # Example
-    /// ```rust
-    /// # use egui::CentralPanel;
-    /// # use egui_kittest::Harness;
-    /// let mut harness = Harness::new(|ctx| {
-    ///     CentralPanel::default().show(ctx, |ui| {
-    ///         ui.label("Hello, world!");
-    ///     });
-    /// });
-    /// ```
-    #[track_caller]
-    #[deprecated = "use `new_ui` instead"]
-    pub fn new(app: impl FnMut(&egui::Context) + 'a) -> Self {
-        #[expect(deprecated)]
-        Self::builder().build(app)
-    }
-
     /// Create a new Harness with the given ui closure.
     /// Use the [`Harness::run`], [`Harness::step`], etc... methods to run the app.
     ///
     /// The ui closure will immediately be called once to create the initial ui.
-    ///
-    /// If you need to create Windows / Panels, you can use [`Harness::new`] instead.
     ///
     /// If you e.g. want to customize the size of the ui, you can use [`Harness::builder`].
     ///

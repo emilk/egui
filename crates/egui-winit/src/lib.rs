@@ -101,9 +101,6 @@ pub struct State {
     /// Only one touch will be interpreted as pointer at any time.
     pointer_touch_id: Option<u64>,
 
-    /// track ime state
-    has_sent_ime_enabled: bool,
-
     #[cfg(feature = "accesskit")]
     pub accesskit: Option<accesskit_winit::Adapter>,
 
@@ -149,8 +146,6 @@ impl State {
 
             simulate_touch_screen: false,
             pointer_touch_id: None,
-
-            has_sent_ime_enabled: false,
 
             #[cfg(feature = "accesskit")]
             accesskit: None,
@@ -689,17 +684,11 @@ impl State {
         // }
 
         match ime {
-            winit::event::Ime::Enabled => {
-                if cfg!(target_os = "linux") {
-                    // This event means different things in X11 and Wayland, but we can just
-                    // ignore it and enable IME on the preedit event.
-                    // See <https://github.com/rust-windowing/winit/issues/2498>
-                } else {
-                    self.ime_event_enable();
-                }
-            }
-            winit::event::Ime::Preedit(text, Some(_cursor)) => {
-                self.ime_event_enable();
+            // [`winit::event::Ime::Enabled`] means different things in X11 and
+            // Wayland, but it doesn't matter to us.
+            // See <https://github.com/rust-windowing/winit/issues/2498>
+            winit::event::Ime::Enabled | winit::event::Ime::Disabled => {}
+            winit::event::Ime::Preedit(text, _) => {
                 self.egui_input
                     .events
                     .push(egui::Event::Ime(egui::ImeEvent::Preedit(text.clone())));
@@ -708,51 +697,8 @@ impl State {
                 self.egui_input
                     .events
                     .push(egui::Event::Ime(egui::ImeEvent::Commit(text.clone())));
-                self.ime_event_disable();
-            }
-            winit::event::Ime::Disabled => {
-                self.ime_event_disable();
-            }
-            winit::event::Ime::Preedit(_, None) => {
-                if cfg!(target_os = "macos") {
-                    // On macOS, when the user presses backspace to delete the
-                    // last character in an IME composition, `winit` only emits
-                    // `winit::event::Ime::Preedit("", None)` without a
-                    // preceding `winit::event::Ime::Preedit("", Some(0, 0))`.
-                    //
-                    // The current implementation of `egui::TextEdit` relies on
-                    // receiving an `egui::ImeEvent::Preedit("")` to remove the
-                    // last character in the composition in this case, so we
-                    // emit it here.
-                    //
-                    // This is guarded to macOS-only, as applying it on other
-                    // platforms is unnecessary and can cause undesired
-                    // behavior.
-                    // See: https://github.com/emilk/egui/pull/7973
-                    self.egui_input
-                        .events
-                        .push(egui::Event::Ime(egui::ImeEvent::Preedit(String::new())));
-                }
-
-                self.ime_event_disable();
             }
         }
-    }
-
-    pub fn ime_event_enable(&mut self) {
-        if !self.has_sent_ime_enabled {
-            self.egui_input
-                .events
-                .push(egui::Event::Ime(egui::ImeEvent::Enabled));
-            self.has_sent_ime_enabled = true;
-        }
-    }
-
-    pub fn ime_event_disable(&mut self) {
-        self.egui_input
-            .events
-            .push(egui::Event::Ime(egui::ImeEvent::Disabled));
-        self.has_sent_ime_enabled = false;
     }
 
     /// Returns `true` if the event was sent to egui.
@@ -1103,7 +1049,8 @@ impl State {
         self.set_cursor_icon(window, cursor_icon);
 
         let allow_ime = ime.is_some();
-        if self.allow_ime != allow_ime {
+        let is_toggling_ime = self.allow_ime != allow_ime;
+        if is_toggling_ime {
             self.allow_ime = allow_ime;
             #[cfg(target_os = "windows")]
             if !self.allow_ime {
@@ -1120,6 +1067,14 @@ impl State {
         }
 
         if let Some(ime) = ime {
+            if !is_toggling_ime && ime.should_interrupt_composition {
+                // TODO(umajho): use a more proper way to interrupt composition
+                // if `winit` provides one in the future.
+
+                window.set_ime_allowed(false);
+                window.set_ime_allowed(true);
+            }
+
             let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
             let ime_rect_px = pixels_per_point * ime.rect;
             if self.ime_rect_px != Some(ime_rect_px)
