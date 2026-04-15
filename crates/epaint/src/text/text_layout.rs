@@ -1,5 +1,6 @@
 #![expect(clippy::unwrap_used)] // TODO(emilk): remove unwraps
 
+use std::ops::Range;
 use std::sync::Arc;
 
 use emath::{Align, GuiRounding as _, NumExt as _, Pos2, Rect, Vec2, pos2, vec2};
@@ -217,6 +218,11 @@ struct TextRun {
 }
 
 /// Emit shaped glyphs from a [`harfrust::GlyphBuffer`] into a [`Paragraph`].
+///
+/// When a cluster maps multiple characters to fewer glyphs (e.g. flag emojis,
+/// ligatures), zero-width "continuation" glyphs are emitted for the extra
+/// characters so that `glyphs.len() == char_count` — an invariant that all
+/// cursor and selection code relies on.
 fn layout_shaped_run(
     font: &mut Font<'_>,
     run: &TextRun,
@@ -231,6 +237,11 @@ fn layout_shaped_run(
     // Reset cluster tracking — cluster values are byte offsets within run_text,
     // so they are not comparable across runs.
     ctx.prev_cluster = None;
+
+    // Track how many glyphs we emit per cluster so we can add zero-width
+    // continuation glyphs when a cluster has more chars than glyphs.
+    let mut cluster_start_byte: usize = 0;
+    let mut cluster_glyph_count: usize = 0;
 
     for (info, pos) in glyph_buffer
         .glyph_infos()
@@ -271,10 +282,22 @@ fn layout_shaped_run(
         // Apply extra_letter_spacing only at cluster boundaries,
         // never between glyphs within the same cluster (e.g. base + mark).
         let is_new_cluster = ctx.prev_cluster.is_none_or(|pc| pc != cluster);
-        if !ctx.is_first_glyph_in_section && is_new_cluster {
-            paragraph.cursor_x_px += ctx.extra_letter_spacing * ctx.pixels_per_point;
-        }
         if is_new_cluster {
+            if ctx.prev_cluster.is_some() {
+                emit_continuation_glyphs(
+                    ctx,
+                    paragraph,
+                    run_text,
+                    cluster_start_byte..cluster as usize,
+                    cluster_glyph_count,
+                    face_metrics,
+                );
+            }
+            if !ctx.is_first_glyph_in_section {
+                paragraph.cursor_x_px += ctx.extra_letter_spacing * ctx.pixels_per_point;
+            }
+            cluster_start_byte = cluster as usize;
+            cluster_glyph_count = 0;
             ctx.is_first_glyph_in_section = false;
         }
         ctx.prev_cluster = Some(cluster);
@@ -353,6 +376,50 @@ fn layout_shaped_run(
             )
         };
         paragraph.glyphs.push(glyph);
+        cluster_glyph_count += 1;
+    }
+
+    // Emit continuation glyphs for the last cluster in the run.
+    if ctx.prev_cluster.is_some() {
+        emit_continuation_glyphs(
+            ctx,
+            paragraph,
+            run_text,
+            cluster_start_byte..run_text.len(),
+            cluster_glyph_count,
+            face_metrics,
+        );
+    }
+}
+
+/// Emit zero-width continuation glyphs when a cluster has more characters than
+/// shaped glyphs.
+///
+/// This preserves the invariant `glyphs.len() == char_count` that all cursor
+/// and text-selection code depends on. Continuation glyphs have
+/// [`UvRect::default()`] so [`tessellate_glyphs`] skips them entirely.
+fn emit_continuation_glyphs(
+    ctx: &ShapingContext,
+    paragraph: &mut Paragraph,
+    run_text: &str,
+    cluster_bytes: Range<usize>,
+    cluster_glyph_count: usize,
+    face_metrics: &StyledMetrics,
+) {
+    let Some(cluster_text) = run_text.get(cluster_bytes) else {
+        return;
+    };
+    let char_count = cluster_text.chars().count();
+    if char_count <= cluster_glyph_count {
+        return;
+    }
+
+    let physical_x = paragraph.cursor_x_px.round() as i32;
+
+    for chr in cluster_text.chars().skip(cluster_glyph_count) {
+        paragraph
+            .glyphs
+            .push(ctx.glyph(chr, physical_x, 0.0, face_metrics, UvRect::default()));
     }
 }
 
@@ -1369,6 +1436,7 @@ fn shape_text(
 mod tests {
 
     use super::{super::*, *};
+    use crate::text::cursor::CCursor;
 
     #[test]
     fn test_zero_max_width() {
@@ -1734,6 +1802,113 @@ mod tests {
                 "GPOS kerning for '{pair}': expected pair to be noticeably tighter \
                  than sum of individuals. pair_width={pair_w:.2}, sum={sum:.2}, \
                  kern_adjustment={kern_adjustment:.2} (should be > 0.5)",
+            );
+        }
+    }
+
+    /// Regression test for <https://github.com/emilk/egui/issues/8087>.
+    ///
+    /// Multi-codepoint grapheme clusters (flag emojis, combining marks) must
+    /// produce exactly as many glyphs as characters so that cursor positioning
+    /// and text selection remain correct.
+    #[test]
+    fn test_grapheme_cluster_glyph_count() {
+        let pixels_per_point = 1.0;
+        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let font_id = FontId::default();
+
+        // Each test case: (input text, expected char count)
+        let cases: &[(&str, usize)] = &[
+            // Flag emoji: two Regional Indicator codepoints → one visual glyph
+            ("\u{1F1EF}\u{1F1F5}", 2), // 🇯🇵
+            // Flag surrounded by ASCII
+            ("A\u{1F1EB}\u{1F1F7}B", 4), // A🇫🇷B
+            // Base char + combining acute accent
+            ("e\u{0301}", 2), // é as decomposed
+            // Multiple combining marks
+            ("o\u{0302}\u{0323}", 3), // ộ
+            // Plain ASCII (sanity check)
+            ("Hello", 5),
+        ];
+
+        for &(text, expected_chars) in cases {
+            let job = LayoutJob::simple(
+                text.to_owned(),
+                font_id.clone(),
+                Color32::WHITE,
+                f32::INFINITY,
+            );
+            let galley = layout(&mut fonts, pixels_per_point, job.into());
+
+            let total_glyphs: usize = galley.rows.iter().map(|r| r.row.glyphs.len()).sum();
+
+            assert_eq!(
+                total_glyphs,
+                expected_chars,
+                "Glyph count mismatch for {text:?}: \
+                 expected {expected_chars} glyphs (one per char), got {total_glyphs}. \
+                 Glyphs: {:?}",
+                galley.rows[0]
+                    .row
+                    .glyphs
+                    .iter()
+                    .map(|g| (g.chr, g.advance_width))
+                    .collect::<Vec<_>>(),
+            );
+
+            // Verify that Row::text() reconstructs the input text.
+            let row_text: String = galley.rows.iter().map(|r| r.text()).collect();
+            assert_eq!(row_text, text, "Row::text() mismatch for {text:?}",);
+
+            // Verify cursor round-trip: end cursor index == char count.
+            assert_eq!(
+                galley.end().index,
+                expected_chars,
+                "Galley::end().index mismatch for {text:?}",
+            );
+        }
+    }
+
+    /// Verify that cursor positioning round-trips correctly for text
+    /// containing multi-codepoint grapheme clusters (regression test for #8087).
+    #[test]
+    fn test_grapheme_cluster_cursor_roundtrip() {
+        let pixels_per_point = 1.0;
+        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let font_id = FontId::default();
+
+        // "A" + flag emoji (2 codepoints) + "B" = 4 chars
+        let text = "A\u{1F1EF}\u{1F1F5}B";
+        let job = LayoutJob::simple(
+            text.to_owned(),
+            font_id.clone(),
+            Color32::WHITE,
+            f32::INFINITY,
+        );
+        let galley = layout(&mut fonts, pixels_per_point, job.into());
+
+        // Walking through every cursor index should produce valid positions.
+        for i in 0..=galley.end().index {
+            let cursor = CCursor {
+                index: i,
+                prefer_next_row: false,
+            };
+            let rect = galley.pos_from_cursor(cursor);
+            assert!(
+                rect.is_finite(),
+                "pos_from_cursor returned non-finite rect for index {i}",
+            );
+
+            // Round-trip: position → cursor → position should be stable.
+            let cursor2 = galley.cursor_from_pos(Vec2::new(rect.center().x, rect.center().y));
+            let rect2 = galley.pos_from_cursor(cursor2);
+            assert!(
+                (rect.min.x - rect2.min.x).abs() < 1.0,
+                "Cursor round-trip unstable at index {i}: \
+                 first={}, second={}, cursor2.index={}",
+                rect.min.x,
+                rect2.min.x,
+                cursor2.index,
             );
         }
     }
