@@ -1,5 +1,6 @@
 #![expect(clippy::unwrap_used)] // TODO(emilk): remove unwraps
 
+use std::ops::Range;
 use std::sync::Arc;
 
 use emath::{Align, GuiRounding as _, NumExt as _, Pos2, Rect, Vec2, pos2, vec2};
@@ -287,8 +288,7 @@ fn layout_shaped_run(
                     ctx,
                     paragraph,
                     run_text,
-                    cluster_start_byte,
-                    cluster as usize,
+                    cluster_start_byte..cluster as usize,
                     cluster_glyph_count,
                     face_metrics,
                 );
@@ -385,8 +385,7 @@ fn layout_shaped_run(
             ctx,
             paragraph,
             run_text,
-            cluster_start_byte,
-            run_text.len(),
+            cluster_start_byte..run_text.len(),
             cluster_glyph_count,
             face_metrics,
         );
@@ -407,7 +406,7 @@ fn emit_continuation_glyphs(
     cluster_glyph_count: usize,
     face_metrics: &StyledMetrics,
 ) {
-    let Some(cluster_text) = run_text.get(cluster_start_byte..cluster_end_byte) else {
+    let Some(cluster_text) = run_text.get(cluster_bytes) else {
         return;
     };
     let char_count = cluster_text.chars().count();
