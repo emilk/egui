@@ -55,7 +55,8 @@ fn main() {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1280.0, 1024.0])
-            .with_drag_and_drop(true),
+            .with_drag_and_drop(true)
+            .with_rotation(eframe::emath::ViewportRotation::CW90),
 
         #[cfg(feature = "wgpu")]
         renderer: eframe::Renderer::Wgpu,
@@ -66,7 +67,7 @@ fn main() {
     let result = eframe::run_native(
         "egui demo app",
         options,
-        Box::new(|cc| Ok(Box::new(egui_demo_app::WrapApp::new(cc)))),
+        Box::new(|cc| Ok(Box::new(egui_demo_app_90::WrapApp::new(cc)))),
     );
 
     match result {
