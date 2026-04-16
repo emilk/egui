@@ -257,6 +257,9 @@ pub struct ViewportState {
     /// Set to false when the virtual cursor reaches the window edge.
     pub cursor_captured: bool,
 
+    /// Scale factor for the software cursor (default: 1.0).
+    pub software_cursor_scale: f32,
+
     /// When releasing capture, warp the OS cursor to this physical position.
     pub release_cursor_to: Option<Pos2>,
 
@@ -2354,6 +2357,15 @@ impl Context {
         });
     }
 
+    /// Set the scale factor for the software cursor (default: 1.0).
+    ///
+    /// Only has an effect when viewport rotation is active.
+    pub fn set_software_cursor_scale(&self, scale: f32) {
+        self.write(|ctx| {
+            ctx.viewport().software_cursor_scale = scale;
+        });
+    }
+
     /// Allocate a texture.
     ///
     /// This is for advanced users.
@@ -2676,15 +2688,22 @@ impl ContextImpl {
 
                 if let Some(pos) = viewport.virtual_cursor_pos {
                     let cursor_layer = LayerId::new(Order::Debug, Id::new("software_cursor"));
+                    let scale = if viewport.software_cursor_scale <= 0.0 {
+                        1.0
+                    } else {
+                        viewport.software_cursor_scale
+                    };
                     paint_software_cursor(
                         viewport.graphics.entry(cursor_layer),
                         original_cursor,
                         pos,
+                        scale,
                     );
                 }
             }
-            // When releasing, warp OS cursor to the edge position
+            // When releasing, restore OS cursor and warp to the edge position
             if let Some(release_pos) = viewport.release_cursor_to.take() {
+                platform_output.cursor_icon = CursorIcon::Default;
                 viewport.commands.push(ViewportCommand::CursorPosition(release_pos));
             }
         }
@@ -4562,102 +4581,106 @@ fn paint_software_cursor(
     paint_list: &mut crate::layers::PaintList,
     cursor: CursorIcon,
     pos: Pos2,
+    scale: f32,
 ) {
     use epaint::{Color32, PathShape, Shape, Stroke};
+
+    let s = scale;
 
     let (shapes, clip_rect) = match cursor {
         CursorIcon::None => return,
 
         CursorIcon::Text => {
-            // Vertical text caret bar
-            let half_h = 8.0;
+            let half_h = 8.0 * s;
+            let sw = 3.0 * s;
             let shapes = vec![
                 Shape::line_segment(
                     [pos + vec2(0.0, -half_h), pos + vec2(0.0, half_h)],
-                    Stroke::new(2.0, Color32::WHITE),
+                    Stroke::new(2.0 * s, Color32::WHITE),
                 ),
                 Shape::line_segment(
-                    [pos + vec2(-3.0, -half_h), pos + vec2(3.0, -half_h)],
-                    Stroke::new(1.5, Color32::WHITE),
+                    [pos + vec2(-sw, -half_h), pos + vec2(sw, -half_h)],
+                    Stroke::new(1.5 * s, Color32::WHITE),
                 ),
                 Shape::line_segment(
-                    [pos + vec2(-3.0, half_h), pos + vec2(3.0, half_h)],
-                    Stroke::new(1.5, Color32::WHITE),
+                    [pos + vec2(-sw, half_h), pos + vec2(sw, half_h)],
+                    Stroke::new(1.5 * s, Color32::WHITE),
                 ),
             ];
-            (shapes, Rect::from_center_size(pos, vec2(20.0, 24.0)))
+            (shapes, Rect::from_center_size(pos, vec2(20.0 * s, 24.0 * s)))
         }
 
         CursorIcon::VerticalText => {
-            // Horizontal text caret bar
-            let half_w = 8.0;
+            let half_w = 8.0 * s;
+            let sw = 3.0 * s;
             let shapes = vec![
                 Shape::line_segment(
                     [pos + vec2(-half_w, 0.0), pos + vec2(half_w, 0.0)],
-                    Stroke::new(2.0, Color32::WHITE),
+                    Stroke::new(2.0 * s, Color32::WHITE),
                 ),
                 Shape::line_segment(
-                    [pos + vec2(-half_w, -3.0), pos + vec2(-half_w, 3.0)],
-                    Stroke::new(1.5, Color32::WHITE),
+                    [pos + vec2(-half_w, -sw), pos + vec2(-half_w, sw)],
+                    Stroke::new(1.5 * s, Color32::WHITE),
                 ),
                 Shape::line_segment(
-                    [pos + vec2(half_w, -3.0), pos + vec2(half_w, 3.0)],
-                    Stroke::new(1.5, Color32::WHITE),
+                    [pos + vec2(half_w, -sw), pos + vec2(half_w, sw)],
+                    Stroke::new(1.5 * s, Color32::WHITE),
                 ),
             ];
-            (shapes, Rect::from_center_size(pos, vec2(24.0, 20.0)))
+            (shapes, Rect::from_center_size(pos, vec2(24.0 * s, 20.0 * s)))
         }
 
         CursorIcon::PointingHand | CursorIcon::Grab | CursorIcon::Grabbing => {
-            // Simple filled circle for hand-like cursors
+            let r = 6.0 * s;
             let shapes = vec![
-                Shape::circle_filled(pos, 6.0, Color32::WHITE),
-                Shape::circle_stroke(pos, 6.0, Stroke::new(1.5, Color32::BLACK)),
+                Shape::circle_filled(pos, r, Color32::WHITE),
+                Shape::circle_stroke(pos, r, Stroke::new(1.5 * s, Color32::BLACK)),
             ];
-            (shapes, Rect::from_center_size(pos, vec2(20.0, 20.0)))
+            (shapes, Rect::from_center_size(pos, vec2(20.0 * s, 20.0 * s)))
         }
 
         CursorIcon::Crosshair => {
-            let s = 8.0;
+            let h = 8.0 * s;
             let shapes = vec![
                 Shape::line_segment(
-                    [pos + vec2(-s, 0.0), pos + vec2(s, 0.0)],
-                    Stroke::new(1.5, Color32::WHITE),
+                    [pos + vec2(-h, 0.0), pos + vec2(h, 0.0)],
+                    Stroke::new(1.5 * s, Color32::WHITE),
                 ),
                 Shape::line_segment(
-                    [pos + vec2(0.0, -s), pos + vec2(0.0, s)],
-                    Stroke::new(1.5, Color32::WHITE),
+                    [pos + vec2(0.0, -h), pos + vec2(0.0, h)],
+                    Stroke::new(1.5 * s, Color32::WHITE),
                 ),
             ];
-            (shapes, Rect::from_center_size(pos, vec2(24.0, 24.0)))
+            (shapes, Rect::from_center_size(pos, vec2(24.0 * s, 24.0 * s)))
         }
 
         CursorIcon::NotAllowed | CursorIcon::NoDrop => {
-            // Circle with a line through it
+            let r = 8.0 * s;
+            let d = 5.0 * s;
             let shapes = vec![
-                Shape::circle_stroke(pos, 8.0, Stroke::new(2.0, Color32::RED)),
+                Shape::circle_stroke(pos, r, Stroke::new(2.0 * s, Color32::RED)),
                 Shape::line_segment(
-                    [pos + vec2(-5.0, -5.0), pos + vec2(5.0, 5.0)],
-                    Stroke::new(2.0, Color32::RED),
+                    [pos + vec2(-d, -d), pos + vec2(d, d)],
+                    Stroke::new(2.0 * s, Color32::RED),
                 ),
             ];
-            (shapes, Rect::from_center_size(pos, vec2(24.0, 24.0)))
+            (shapes, Rect::from_center_size(pos, vec2(24.0 * s, 24.0 * s)))
         }
 
         _ => {
-            // Default arrow cursor: a triangle pointing up-left
+            // Default arrow cursor
             let tip = pos;
-            let left = pos + vec2(0.0, 16.0);
-            let right = pos + vec2(11.0, 11.0);
+            let left = pos + vec2(0.0, 16.0 * s);
+            let right = pos + vec2(11.0 * s, 11.0 * s);
 
             let arrow = PathShape::convex_polygon(
                 vec![tip, left, right],
                 Color32::WHITE,
-                Stroke::new(1.5, Color32::BLACK),
+                Stroke::new(1.5 * s, Color32::BLACK),
             );
             (
                 vec![Shape::Path(arrow)],
-                Rect::from_min_size(pos, vec2(16.0, 20.0)),
+                Rect::from_min_size(pos, vec2(16.0 * s, 20.0 * s)),
             )
         }
     };

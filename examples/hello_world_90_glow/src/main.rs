@@ -6,7 +6,7 @@ use eframe::egui;
 fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size([320.0, 240.0]).with_rotation(eframe::emath::ViewportRotation::CW90),
+        viewport: egui::ViewportBuilder::default().with_inner_size([1024.0, 768.0]).with_rotation(eframe::emath::ViewportRotation::CW90),
         renderer: eframe::Renderer::Glow,
         ..Default::default()
     };
@@ -38,6 +38,7 @@ impl Default for MyApp {
 
 impl eframe::App for MyApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+
         egui::CentralPanel::default().show_inside(ui, |ui| {
             ui.heading("My egui Application");
             ui.horizontal(|ui| {
