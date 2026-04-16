@@ -65,6 +65,30 @@
 //! * To support immediate viewports you need to call [`Context::set_immediate_viewport_renderer`].
 //! * If you support viewports, you need to call [`Context::set_embed_viewports`] with `false`, or all new viewports will be embedded (the default behavior).
 //!
+//! ## Viewport rotation
+//! Viewports support rotation in 90-degree increments (0°, 90°, 180°, 270°).
+//! When enabled, the entire UI is rendered rotated and all input coordinates
+//! (mouse, touch) are automatically remapped. Application code sees a normal
+//! coordinate space — rotation is transparent.
+//!
+//! A software cursor is automatically drawn in the rotated space, with mouse
+//! movement direction matching the rotation. The OS cursor is captured on entry
+//! and released when the software cursor reaches a window edge.
+//!
+//! ```no_run
+//! let options = eframe::NativeOptions {
+//!     viewport: egui::ViewportBuilder::default()
+//!         .with_inner_size([800.0, 480.0])
+//!         .with_rotation(eframe::emath::ViewportRotation::CW90),
+//!     ..Default::default()
+//! };
+//! ```
+//!
+//! You can also set rotation at runtime via [`Context::set_viewport_rotation`],
+//! and adjust the software cursor size with [`Context::set_software_cursor_scale`].
+//!
+//! Use cases: pinball cabinet displays, kiosks, embedded screens, industrial panels.
+//!
 //! ## Future work
 //! There are several more things related to viewports that we want to add.
 //! Read more at <https://github.com/emilk/egui/issues/3556>.

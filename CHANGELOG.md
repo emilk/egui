@@ -14,6 +14,18 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## Unreleased
+
+### Added
+* Viewport rotation support (0°/90°/180°/270°) via `ViewportBuilder::with_rotation()` and `Context::set_viewport_rotation()` ([#4130](https://github.com/emilk/egui/issues/4130), [#2054](https://github.com/emilk/egui/issues/2054))
+  * Entire UI is rendered rotated with all input coordinates automatically remapped
+  * Software cursor with rotated movement direction, capture/release on window edges
+  * Cursor icons adapt to rotation (e.g. `ResizeHorizontal` ↔ `ResizeVertical` at 90°/270°)
+  * Configurable cursor scale via `Context::set_software_cursor_scale()`
+  * Works on all backends: glow, wgpu, and web (via `Context::set_viewport_rotation()`)
+  * `ViewportRotation` enum added to `emath` with coordinate transform methods
+
+
 ## 0.34.1 - 2026-03-27
 Nothing new
 

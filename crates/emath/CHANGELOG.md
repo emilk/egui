@@ -6,6 +6,9 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## Unreleased
+* Added `ViewportRotation` enum with coordinate transform methods for 0°/90°/180°/270° rotation
+
 ## 0.34.1 - 2026-03-27
 Nothing new
 
